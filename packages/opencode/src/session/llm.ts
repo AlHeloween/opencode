@@ -28,6 +28,7 @@ import { canonicalName, TOOL_ALIASES } from "@/tool/tool"
 import { repairJsonWasm } from "@/util/json-repair-wasm"
 import { readWasmAsset } from "@/util/wasm-path"
 import { REQUEST_OVERHEAD_TOKENS } from "./overflow"
+import { isPrimaryModeIdentity } from "./mode-identity"
 
 const log = Log.create({ service: "llm" })
 const loggedSystemPromptForCacheKey = new Map<string, boolean>()
@@ -222,9 +223,18 @@ export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
 type Result = Awaited<ReturnType<typeof streamText>>
 
 /**
- * Stable provider prompt-cache key. Shared across agents for the same session+model
- * (system prefix is identity-stable; do not suffix agent name).
- * `identity` is accepted for call-site compatibility and ignored.
+ * Stable provider prompt-cache key.
+ *
+ * Primary modes (build/plan/reasoning) share one cache entry because they have
+ * the same system prefix — kernel + rules + skills + env + instructions (slots
+ * [0..N] in system-compose.ts). Only the mutable tail (agentPrompt) differs and
+ * provider prefix caching handles that.
+ *
+ * Non-primary agents (title_agent, sub-agents) get their own namespace because
+ * their system prompts are significantly different (no kernel, stripped rules).
+ * Sub-agents also bypass this entirely via cacheLease?.cacheKey in task.ts.
+ *
+ * `providerCacheKey` override (from cacheLease) bypasses this entirely.
  */
 export function buildProviderCacheKey(input: {
   sessionID: string
@@ -233,7 +243,13 @@ export function buildProviderCacheKey(input: {
   identity?: string
 }) {
   if (input.providerCacheKey) return input.providerCacheKey
-  return [input.sessionID, input.modelID].join(":")
+  const identity = input.identity ?? "build_mode"
+  // Primary modes share the same system prefix — one cache entry for all modes.
+  if (isPrimaryModeIdentity(identity)) {
+    return [input.sessionID, input.modelID].join(":")
+  }
+  // Non-primary agents (title, sub-agents) get their own namespace.
+  return [input.sessionID, input.modelID, identity].join(":")
 }
 
 /** Resolve a tool-call alias (separators/case + short-name aliases) to the provider-canonical name when present. */
@@ -392,7 +408,8 @@ const live: Layer.Layer<
 
       // Detect cache-poisoning: if one agent/model's system prompt content changes
       // while its provider cache key is stable, the provider cache is invalidated.
-      // Shared identity: do not suffix agent name — all roles use the same system prefix.
+      // Primary modes share one cache entry (same system prefix). Non-primary agents
+      // get their own namespace (different system prompt).
       const providerCacheKey = buildProviderCacheKey({
         sessionID: input.sessionID,
         providerCacheKey: input.providerCacheKey,

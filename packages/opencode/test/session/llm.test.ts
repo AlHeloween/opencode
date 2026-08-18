@@ -128,12 +128,27 @@ describe("session.llm.estimateContentTokens", () => {
   })
 })
 
-test("provider cache key is stable across agent identities (shared system prefix)", () => {
-  const build = LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1" })
-  const reasoning = LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1" })
-  const otherSession = LLM.buildProviderCacheKey({ sessionID: "s2", modelID: "m1" })
-  expect(reasoning).toBe(build)
+test("provider cache key: primary modes share, non-primary agents separate", () => {
+  // Primary modes share one key (same system prefix)
+  const build = LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1", identity: "build_mode" })
+  const plan = LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1", identity: "plan_mode" })
+  const reasoning = LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1", identity: "reasoning_mode" })
+  expect(build).toBe(plan)
+  expect(plan).toBe(reasoning)
+
+  // Non-primary agent gets its own key (different system prompt)
+  const title = LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1", identity: "title_agent" })
+  expect(title).not.toBe(build)
+
+  // No identity → defaults to "build_mode" → primary → shared key
+  const noIdentity = LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1" })
+  expect(noIdentity).toBe(build)
+
+  // Different session → different key
+  const otherSession = LLM.buildProviderCacheKey({ sessionID: "s2", modelID: "m1", identity: "build_mode" })
   expect(otherSession).not.toBe(build)
+
+  // providerCacheKey override bypasses everything
   expect(LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1", providerCacheKey: "lease" })).toBe("lease")
 })
 

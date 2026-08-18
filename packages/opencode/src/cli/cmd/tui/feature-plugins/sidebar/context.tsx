@@ -26,20 +26,21 @@ function compactNum(n: number): string {
 
 function formatCacheStats(
   hitRate: number | null,
-  read: number,
-  miss: number,
-  lastRead?: number,
-  lastMiss?: number,
+  read: number | null,
+  miss: number | null,
+  lastRead?: number | null,
+  lastMiss?: number | null,
 ): string {
+  if (hitRate === null && read === null) return "(null)"
   if (hitRate === null) return "cold"
   const r = lastRead != null ? `(${compactNum(lastRead)})` : ""
   const m = lastMiss != null ? `(${compactNum(lastMiss)})` : ""
-  return `${hitRate}%(${compactNum(read)}${r} hit ${compactNum(miss)}${m} miss)`
+  return `${hitRate}%(${compactNum(read ?? 0)}${r} hit ${compactNum(miss ?? 0)}${m} miss)`
 }
 
 function cacheTokens(message: AssistantMessage) {
-  const state = (message.tokens.cache as { state?: { unknown: number } }).state
-  if (state?.unknown) return { read: 0, miss: 0 }
+  const hitRateIsNull = message.tokens.cache.hitRateIsNull
+  if (hitRateIsNull === 1) return { read: null, miss: null }
   return { read: message.tokens.cache.read, miss: message.tokens.input }
 }
 
@@ -81,11 +82,11 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
   const allSessionStats = createMemo(() => {
     const stats: Array<{
       name: string
-      cacheRead: number
-      cacheMiss: number
+      cacheRead: number | null
+      cacheMiss: number | null
       hitRate: number | null
-      lastCacheRead: number
-      lastCacheMiss: number
+      lastCacheRead: number | null
+      lastCacheMiss: number | null
     }> = []
 
     // Current session stats
@@ -94,24 +95,37 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
     )
     const last = allAssistant[allAssistant.length - 1]
     if (last) {
-      let sessionCacheRead = 0
-      let sessionCacheMiss = 0
-      for (const m of allAssistant) {
-        const tokens = cacheTokens(m)
-        sessionCacheRead += tokens.read
-        sessionCacheMiss += tokens.miss
+      // Check if any message has hit_rate_is_null set
+      const hasNullRate = allAssistant.some((m) => m.tokens.cache.hitRateIsNull === 1)
+      if (hasNullRate) {
+        stats.push({
+          name: "current",
+          cacheRead: null,
+          cacheMiss: null,
+          hitRate: null,
+          lastCacheRead: null,
+          lastCacheMiss: null,
+        })
+      } else {
+        let sessionCacheRead = 0
+        let sessionCacheMiss = 0
+        for (const m of allAssistant) {
+          const tokens = cacheTokens(m)
+          sessionCacheRead += tokens.read ?? 0
+          sessionCacheMiss += tokens.miss ?? 0
+        }
+        const lastTokens = cacheTokens(last)
+        const total = sessionCacheRead + sessionCacheMiss
+        const hitRate = total > 0 && sessionCacheRead > 0 ? Math.round((sessionCacheRead / total) * 100) : null
+        stats.push({
+          name: "current",
+          cacheRead: sessionCacheRead,
+          cacheMiss: sessionCacheMiss,
+          hitRate,
+          lastCacheRead: lastTokens.read ?? null,
+          lastCacheMiss: lastTokens.miss ?? null,
+        })
       }
-      const lastTokens = cacheTokens(last)
-      const total = sessionCacheRead + sessionCacheMiss
-      const hitRate = total > 0 && sessionCacheRead > 0 ? Math.round((sessionCacheRead / total) * 100) : null
-      stats.push({
-        name: "current",
-        cacheRead: sessionCacheRead,
-        cacheMiss: sessionCacheMiss,
-        hitRate,
-        lastCacheRead: lastTokens.read,
-        lastCacheMiss: lastTokens.miss,
-      })
     }
 
     // AGI mode sessions (orchestrator, main)
@@ -124,25 +138,30 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
           (item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0,
         )
         if (orchAssistant.length > 0) {
-          let cacheRead = 0
-          let cacheMiss = 0
-          for (const m of orchAssistant) {
-            const tokens = cacheTokens(m)
-            cacheRead += tokens.read
-            cacheMiss += tokens.miss
+          const hasNullRate = orchAssistant.some((m) => m.tokens.cache.hitRateIsNull === 1)
+          if (hasNullRate) {
+            stats.push({ name: "orch", cacheRead: null, cacheMiss: null, hitRate: null, lastCacheRead: null, lastCacheMiss: null })
+          } else {
+            let cacheRead = 0
+            let cacheMiss = 0
+            for (const m of orchAssistant) {
+              const tokens = cacheTokens(m)
+              cacheRead += tokens.read ?? 0
+              cacheMiss += tokens.miss ?? 0
+            }
+            const orchLast = orchAssistant[orchAssistant.length - 1]
+            const orchLastTokens = cacheTokens(orchLast)
+            const total = cacheRead + cacheMiss
+            const hitRate = total > 0 && cacheRead > 0 ? Math.round((cacheRead / total) * 100) : null
+            stats.push({
+              name: "orch",
+              cacheRead,
+              cacheMiss,
+              hitRate,
+              lastCacheRead: orchLastTokens.read ?? null,
+              lastCacheMiss: orchLastTokens.miss ?? null,
+            })
           }
-          const orchLast = orchAssistant[orchAssistant.length - 1]
-          const orchLastTokens = cacheTokens(orchLast)
-          const total = cacheRead + cacheMiss
-          const hitRate = total > 0 && cacheRead > 0 ? Math.round((cacheRead / total) * 100) : null
-          stats.push({
-            name: "orch",
-            cacheRead,
-            cacheMiss,
-            hitRate,
-            lastCacheRead: orchLastTokens.read,
-            lastCacheMiss: orchLastTokens.miss,
-          })
         }
       }
       if (mainSid && mainSid !== props.session_id) {
@@ -151,25 +170,30 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
           (item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0,
         )
         if (mainAssistant.length > 0) {
-          let cacheRead = 0
-          let cacheMiss = 0
-          for (const m of mainAssistant) {
-            const tokens = cacheTokens(m)
-            cacheRead += tokens.read
-            cacheMiss += tokens.miss
+          const hasNullRate = mainAssistant.some((m) => m.tokens.cache.hitRateIsNull === 1)
+          if (hasNullRate) {
+            stats.push({ name: "main", cacheRead: null, cacheMiss: null, hitRate: null, lastCacheRead: null, lastCacheMiss: null })
+          } else {
+            let cacheRead = 0
+            let cacheMiss = 0
+            for (const m of mainAssistant) {
+              const tokens = cacheTokens(m)
+              cacheRead += tokens.read ?? 0
+              cacheMiss += tokens.miss ?? 0
+            }
+            const mainLast = mainAssistant[mainAssistant.length - 1]
+            const mainLastTokens = cacheTokens(mainLast)
+            const total = cacheRead + cacheMiss
+            const hitRate = total > 0 && cacheRead > 0 ? Math.round((cacheRead / total) * 100) : null
+            stats.push({
+              name: "main",
+              cacheRead,
+              cacheMiss,
+              hitRate,
+              lastCacheRead: mainLastTokens.read ?? null,
+              lastCacheMiss: mainLastTokens.miss ?? null,
+            })
           }
-          const mainLast = mainAssistant[mainAssistant.length - 1]
-          const mainLastTokens = cacheTokens(mainLast)
-          const total = cacheRead + cacheMiss
-          const hitRate = total > 0 && cacheRead > 0 ? Math.round((cacheRead / total) * 100) : null
-          stats.push({
-            name: "main",
-            cacheRead,
-            cacheMiss,
-            hitRate,
-            lastCacheRead: mainLastTokens.read,
-            lastCacheMiss: mainLastTokens.miss,
-          })
         }
       }
     }
@@ -183,27 +207,32 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
         (item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0,
       )
       if (childAssistant.length > 0) {
-        let cacheRead = 0
-        let cacheMiss = 0
-        for (const m of childAssistant) {
-          const tokens = cacheTokens(m)
-          cacheRead += tokens.read
-          cacheMiss += tokens.miss
+        const hasNullRate = childAssistant.some((m) => m.tokens.cache.hitRateIsNull === 1)
+        if (hasNullRate) {
+          const label = child.title.split(" ")[0].toLowerCase() || child.id.slice(0, 6)
+          stats.push({ name: label, cacheRead: null, cacheMiss: null, hitRate: null, lastCacheRead: null, lastCacheMiss: null })
+        } else {
+          let cacheRead = 0
+          let cacheMiss = 0
+          for (const m of childAssistant) {
+            const tokens = cacheTokens(m)
+            cacheRead += tokens.read ?? 0
+            cacheMiss += tokens.miss ?? 0
+          }
+          const childLast = childAssistant[childAssistant.length - 1]
+          const childLastTokens = cacheTokens(childLast)
+          const total = cacheRead + cacheMiss
+          const hitRate = total > 0 && cacheRead > 0 ? Math.round((cacheRead / total) * 100) : null
+          const label = child.title.split(" ")[0].toLowerCase() || child.id.slice(0, 6)
+          stats.push({
+            name: label,
+            cacheRead,
+            cacheMiss,
+            hitRate,
+            lastCacheRead: childLastTokens.read ?? null,
+            lastCacheMiss: childLastTokens.miss ?? null,
+          })
         }
-        const childLast = childAssistant[childAssistant.length - 1]
-        const childLastTokens = cacheTokens(childLast)
-        const total = cacheRead + cacheMiss
-        const hitRate = total > 0 && cacheRead > 0 ? Math.round((cacheRead / total) * 100) : null
-        // Use first word of title as label (e.g., "Explorer", "Coder")
-        const label = child.title.split(" ")[0].toLowerCase() || child.id.slice(0, 6)
-        stats.push({
-          name: label,
-          cacheRead,
-          cacheMiss,
-          hitRate,
-          lastCacheRead: childLastTokens.read,
-          lastCacheMiss: childLastTokens.miss,
-        })
       }
     }
 

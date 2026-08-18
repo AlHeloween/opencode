@@ -64,6 +64,7 @@ export function toPartialRow(info: DeepPartial<Session.Info>) {
     tokens_reasoning: grab(info, "tokens", (v) => grab(v, "reasoning")),
     tokens_cache_read: grab(info, "tokens", (v) => grab(v, "cache", (c) => grab(c, "read"))),
     tokens_cache_write: grab(info, "tokens", (v) => grab(v, "cache", (c) => grab(c, "write"))),
+    hit_rate_is_null: grab(info, "tokens", (v) => grab(v, "cache", (c) => grab(c, "hitRateIsNull"))),
   }
 
   return Object.fromEntries(Object.entries(obj).filter(([_, val]) => val !== undefined))

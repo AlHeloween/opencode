@@ -8,16 +8,19 @@ const migration: DatabaseMigration.Migration = {
 
   up(db) {
     const sqlite = db.$client
-    for (const col of [
-      "ALTER TABLE session ADD COLUMN cache_hit_steps integer",
-      "ALTER TABLE session ADD COLUMN cache_miss_steps integer",
-      "ALTER TABLE session ADD COLUMN cache_unknown_steps integer",
-      "ALTER TABLE session ADD COLUMN cache_state_observed integer",
-    ]) {
+    // Add hit_rate_is_null flag — single column replacing 4 dead cache_state columns.
+    // NULL = never observed, 0 = hit rate available, 1 = hit rate unavailable (KAT/null)
+    try {
+      sqlite.exec("ALTER TABLE session ADD COLUMN hit_rate_is_null integer")
+    } catch (err) {
+      log.debug("hit_rate_is_null column already exists or ALTER TABLE failed", { error: String(err) })
+    }
+    // Drop 4 dead columns (SQLite 3.35+). Safe to fail if columns don't exist yet.
+    for (const col of ["cache_hit_steps", "cache_miss_steps", "cache_unknown_steps", "cache_state_observed"]) {
       try {
-        sqlite.exec(col)
+        sqlite.exec(`ALTER TABLE session DROP COLUMN ${col}`)
       } catch (err) {
-        log.debug("cache-state column already exists or ALTER TABLE failed", { col, error: String(err) })
+        log.debug("cache-state column drop failed (may not exist)", { col, error: String(err) })
       }
     }
   },

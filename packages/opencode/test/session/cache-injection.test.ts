@@ -82,10 +82,12 @@ describe("per-step token aggregation (T4)", () => {
     expect(acc.total).toBe((100 + 900 + 50) + (200 + 1800 + 50))
   })
 
-  test("cache state is aggregated independently from collapsed cache-read tokens", () => {
+  test("hit-rate null marker follows the latest observed cache state", () => {
     const unknown = accumulateStepTokens(undefined, step(100, 0), "unknown")
     const hit = accumulateStepTokens(unknown, step(100, 100), "hit")
     const result = accumulateStepTokens(hit, step(100, 0), "miss")
-    expect(result.cache.state).toEqual({ hit: 1, miss: 1, unknown: 1 })
+    expect(unknown.cache.hitRateIsNull).toBe(1)
+    expect(hit.cache.hitRateIsNull).toBe(0)
+    expect(result.cache.hitRateIsNull).toBe(0)
   })
 })

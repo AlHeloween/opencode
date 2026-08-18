@@ -660,6 +660,7 @@ export type AssistantMessage = {
     cache: {
       read: number
       write: number
+      hitRateIsNull?: number
     }
     cacheRatio?: number
   }
@@ -888,6 +889,7 @@ export type StepFinishPart = {
     cache: {
       read: number
       write: number
+      hitRateIsNull?: number
     }
     cacheRatio?: number
   }
@@ -1028,6 +1030,7 @@ export type Session = {
     cache: {
       read: number
       write: number
+      hitRateIsNull?: number
     }
     cacheRatio?: number
   }
@@ -2042,6 +2045,7 @@ export type GlobalSession = {
     cache: {
       read: number
       write: number
+      hitRateIsNull?: number
     }
     cacheRatio?: number
   }

@@ -147,7 +147,7 @@ class TestRuntimePromptCompiler:
             "coder.txt": "agent.coder_agent", "explore.txt": "agent.explorer_agent",
             "general.txt": "agent.general_agent", "media.txt": "agent.media_agent",
             "orchestrator.txt": "agent.orchestrator_agent",
-            "researcher.txt": "agent.researcher_agent", "summary.txt": "agent.summary_agent",
+            "researcher.txt": "agent.researcher_agent",
             "title.txt": "agent.title_agent",
         }
         prompt_dir = (

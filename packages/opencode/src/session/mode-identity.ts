@@ -16,7 +16,6 @@ const IDENTITY_ALIASES: Record<string, string> = {
   media: "media_agent",
   orchestrator: "orchestrator_agent",
   title: "title_agent",
-  summary: "summary_agent",
 }
 
 export function canonicalIdentity(name: string): string {

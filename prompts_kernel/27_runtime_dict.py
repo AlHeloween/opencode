@@ -319,7 +319,6 @@ RUNTIME_PACKS = MappingProxyType({
     "agent.media_agent": ("universal",),
     "agent.orchestrator_agent": ("universal",),
     "agent.researcher_agent": ("universal",),
-    "agent.summary_agent": ("universal",),
     "agent.title_agent": ("universal",),
     "domain.biology": ("domain.natural_science",),
     "domain.chemistry": ("domain.natural_science",),
@@ -360,7 +359,6 @@ SPEC_CONTRACT_IDS = MappingProxyType({
     "REASONING_MODE": "policy.reasoning",
     "RESEARCHER_AGENT": "agent.researcher_agent",
     "RMSLOP": "command.rmslop", "SPELLCHECK": "command.spellcheck",
-    "SUMMARY_AGENT": "agent.summary_agent",
     "TITLE_AGENT": "agent.title_agent",
     "TRANSLATE": "command.translate", "TRIAGE": "command.triage",
 })
@@ -439,13 +437,6 @@ RUNTIME_CONTRACTS = MappingProxyType({
         "VERIFY_OUTCOME",
         "INFOMARK_SEP",
         "SV_OUTPUT", "SV_EVERY_TURN", "CLEAN_STATE",
-        "MEMORY_RANK", "MEMORY_LINKS",
-    ),
-    "agent.summary_agent": (
-        "DECOMPOSE",
-        "SMOKE_BEFORE",
-        "EVIDENCE_ORDER", "VERIFY_OUTCOME",
-        "CLEAN_STATE", "SV_OUTPUT", "SV_EVERY_TURN",
         "MEMORY_RANK", "MEMORY_LINKS",
     ),
     "agent.title_agent": ("SV_OUTPUT",),
@@ -569,7 +560,7 @@ _TIER_A_AGENTS = frozenset({
     "BASE_AGENT",
     "BUILD_MODE", "PLAN_MODE",
     "CODER_AGENT", "EXPLORER_AGENT", "ORCHESTRATOR_AGENT", "GENERAL_AGENT",
-    "RESEARCHER_AGENT", "MEDIA_AGENT", "TITLE_AGENT", "SUMMARY_AGENT",
+    "RESEARCHER_AGENT", "MEDIA_AGENT", "TITLE_AGENT",
 })
 _TIER_A_POLICIES = frozenset({
     "ADID_FRAMEWORK_RULES", "ADID_OPS", "AGENT_DIRECTIVES", "GOVERNANCE",

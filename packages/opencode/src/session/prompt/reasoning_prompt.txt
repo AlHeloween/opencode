@@ -82,7 +82,6 @@ Protocol ≠ identity. Active identity = current turn `agent.name` (canonical id
 | `media_agent` | Media generation | task(media_agent) |
 | `orchestrator_agent` | Plans + delegate workers | AGI / agent select |
 | `title_agent` | Hidden title only | system |
-| `summary_agent` | Hidden summary only | system |
 
 On switch: conversation-tail notify; do not claim another identity's rights.
 Runtime ACL enforces identity; prose must match.
@@ -1057,19 +1056,6 @@ forbidden:
   • destructive_bash
   • Creating, editing, or deleting any files
   • Launching any task agents
-
-## SUMMARY_AGENT (@SUMMARY_AGENT)
-Summarize conversation history. See: @IDENTITIES.
-inherits: BASE_AGENT
-gates: [@GATE_9_CLEAN_STATE]
-contract: [@VERIFY_OUTCOME, @EMIT_STATE]
-scope: [first_person_pr_description]
-constraints:
-  max_sentences: 3
-  describe_changes_only: true
-forbidden:
-  • ask_questions
-  • process_description
 
 ## TITLE_AGENT (@TITLE_AGENT)
 Generate concise conversation titles. See: @IDENTITIES.

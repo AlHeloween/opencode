@@ -142,19 +142,6 @@ MEDIA_AGENT = _spec(
     acceptance_tests=[],
 )
 
-SUMMARY_AGENT = _spec(
-    inherits="BASE_AGENT",
-    gates=["@GATE_9_CLEAN_STATE"],
-    contract=["@VERIFY_OUTCOME", "@EMIT_STATE"],
-    scope=["first_person_pr_description"],
-    constraints={"max_sentences": 3, "describe_changes_only": True},
-    state={"identity": "summary_agent", "kind": "agent", "agent_type": "subagent"},
-    intent="Summarize conversation history. See: @IDENTITIES.",
-    invariants=[],
-    forbidden_actions=["ask_questions", "process_description"],
-    acceptance_tests=[],
-)
-
 TITLE_AGENT = _spec(
     inherits="BASE_AGENT",
     gates=["@GATE_9_CLEAN_STATE"],

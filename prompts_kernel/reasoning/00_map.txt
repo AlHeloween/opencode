@@ -82,7 +82,6 @@ Protocol ≠ identity. Active identity = current turn `agent.name` (canonical id
 | `media_agent` | Media generation | task(media_agent) |
 | `orchestrator_agent` | Plans + delegate workers | AGI / agent select |
 | `title_agent` | Hidden title only | system |
-| `summary_agent` | Hidden summary only | system |
 
 On switch: conversation-tail notify; do not claim another identity's rights.
 Runtime ACL enforces identity; prose must match.

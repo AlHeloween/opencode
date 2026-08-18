@@ -14,7 +14,6 @@ import PROMPT_GENERAL from "./prompt/general.txt"
 import PROMPT_MEDIA from "./prompt/media.txt"
 import PROMPT_ORCHESTRATOR from "./prompt/orchestrator.txt"
 import PROMPT_RESEARCHER from "./prompt/researcher.txt"
-import PROMPT_SUMMARY from "./prompt/summary.txt"
 import PROMPT_TITLE from "./prompt/title.txt"
 import PROMPT_BUILD_MODE from "../session/prompt/build.txt"
 import PROMPT_PLAN_MODE from "../session/prompt/plan.txt"
@@ -445,21 +444,6 @@ export const layer = Layer.effect(
               }),
             ),
             prompt: PROMPT_TITLE,
-          },
-          summary_agent: {
-            name: "summary_agent",
-            mode: "primary",
-            options: {},
-            native: true,
-            hidden: true,
-            permission: Permission.merge(
-              defaults,
-              user,
-              Permission.fromConfig({
-                "*": "deny",
-              }),
-            ),
-            prompt: PROMPT_SUMMARY,
           },
         }
 

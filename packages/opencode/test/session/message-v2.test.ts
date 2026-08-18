@@ -1426,6 +1426,23 @@ describe("session.message-v2.fromError", () => {
     expect(result.name).toBe("MessageAbortedError")
   })
 
+  test("detects context overflow from pre-send guard plain-object format", () => {
+    // The LLM pre-send guard throws a plain object (not an Error instance)
+    // to signal context overflow before the request reaches the provider.
+    const guardError = {
+      name: "ContextOverflowError",
+      data: {
+        message: "Pre-send guard: estimated 98000 tokens exceeds usable context limit of 95000 tokens (model context: 128000)",
+      },
+    }
+    const result = MessageV2.fromError(guardError, { providerID })
+    expect(MessageV2.ContextOverflowError.isInstance(result)).toBe(true)
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    expect((result as any).data.message).toInclude("Pre-send guard")
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    expect((result as any).data.message).toInclude("98000 tokens")
+  })
+
   test("detects context overflow from stream error message text (OpenAI-compatible pattern)", () => {
     const body = {
       type: "error",

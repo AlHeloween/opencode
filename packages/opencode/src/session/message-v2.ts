@@ -1490,6 +1490,15 @@ export function fromError(
         },
         { cause: e },
       ).toObject()
+    // Pre-send overflow guard: plain-object ContextOverflowError thrown by LLM guard
+    // before the request reaches the provider. Must match isInstance tag check.
+    case typeof e === "object" && e !== null && (e as { name?: unknown }).name === "ContextOverflowError":
+      return new ContextOverflowError(
+        {
+          message: (e as { data?: { message?: string } }).data?.message ?? "Context overflow detected",
+        },
+        { cause: e },
+      ).toObject()
     case e instanceof Error:
       return new NamedError.Unknown({ message: errorMessage(e) }, { cause: e }).toObject()
     default:

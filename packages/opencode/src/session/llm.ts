@@ -27,7 +27,7 @@ import * as Option from "effect/Option"
 import { canonicalName, TOOL_ALIASES } from "@/tool/tool"
 import { repairJsonWasm } from "@/util/json-repair-wasm"
 import { readWasmAsset } from "@/util/wasm-path"
-import { REQUEST_OVERHEAD_TOKENS } from "./overflow"
+import { REQUEST_OVERHEAD_TOKENS, usable } from "./overflow"
 import { isPrimaryModeIdentity } from "./mode-identity"
 
 const log = Log.create({ service: "llm" })
@@ -457,6 +457,32 @@ const live: Layer.Layer<
         : input.messages
 
       const contentTokens = estimateContentTokens(system, messages)
+
+      // Pre-send context overflow guard: block request BEFORE it reaches the provider.
+      // This is the last line of defense — Layer-1/Layer-2 compaction may have been
+      // bypassed due to timing, or the heuristic may have underestimated content size.
+      if (input.model.limit.context > 0) {
+        const cfg = yield* config.get()
+        const usableLimit = usable({ cfg, model: input.model })
+        if (usableLimit > 0 && contentTokens >= usableLimit) {
+          l.warn("pre-send overflow guard triggered", {
+            contentTokens,
+            usableLimit,
+            contextLimit: input.model.limit.context,
+            systemLen: system.join("").length,
+            messageCount: messages.length,
+          })
+          // Throw in wire format expected by MessageV2.ContextOverflowError.isInstance()
+          // so processor.halt() → parse() recognises it as a context_overflow error
+          // and triggers compaction instead of surfacing it as a generic error.
+          throw {
+            name: "ContextOverflowError",
+            data: {
+              message: `Pre-send guard: estimated ${contentTokens} tokens exceeds usable context limit of ${usableLimit} tokens (model context: ${input.model.limit.context})`,
+            },
+          }
+        }
+      }
 
       const params = yield* plugin.trigger(
         "chat.params",

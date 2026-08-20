@@ -218,28 +218,14 @@ logs/cmd_runner/<run_id>/
   payload.cmd     — generated wrapper script (when applicable)
 ```
 
-## Interactive session examples
-
-### SSH / remote shell
+## SSH session example
 
 ```
 cmd_runner start -- ssh root@host                       # start interactive SSH
 cmd_runner send <run_id> --text "uptime; df -h" --crlf  # send command
-cmd_runner send <run_id> --crlf -- "ls -la /var/log"     # remote explore (not hard-blocked)
 cmd_runner send <run_id> --keys ctrl+c                  # interrupt
 cmd_runner send <run_id> --keys ctrl+d                  # end session
 ```
-
-### Interactive TUI debugging (e.g. opencode)
-
-```
-cmd_runner start --cwd dist/bin -- opencode.exe
-cmd_runner tail <run_id>
-cmd_runner send <run_id> --text "/new" --crlf
-cmd_runner send <run_id> --keys "ctrl+x,n"               # leader chords
-```
-
-**Constitution (opencode bash/cmd tools):** text after `cmd_runner send … --` is **session input** into that run — **SSH/remote shell** *or* **interactive TUI debugging**. Session-side directory listing on the remote/TUI is **not hard-blocked** (enumeration hard-blocks apply only to bare local agent shell). **Brutal** DESTRUCTIVE still **permission-ask** — same as bare local shell.
 
 ## Notes
 

@@ -91,12 +91,17 @@ export function retryable(error: Err) {
     }
   })
   if (!json || typeof json !== "object") return undefined
-  const code = typeof json.code === "string" ? json.code : ""
+  const errorCode = typeof json.code === "string" ? json.code : ""
 
+  // Groq TPM (tokens per minute) limit errors are NOT transient — the limit
+  // won't change after a delay. Don't retry; let the user see the error.
+  if (json.type === "error" && errorCode.includes("rate_limit_exceeded")) {
+    return undefined
+  }
   if (json.type === "error" && json.error?.type === "too_many_requests") {
     return "Too Many Requests"
   }
-  if (code.includes("exhausted") || code.includes("unavailable")) {
+  if (errorCode.includes("exhausted") || errorCode.includes("unavailable")) {
     return "Provider is overloaded"
   }
   if (json.type === "error" && typeof json.error?.code === "string" && json.error.code.includes("rate_limit")) {

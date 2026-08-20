@@ -223,12 +223,9 @@ logs/cmd_runner/<run_id>/
 ```
 cmd_runner start -- ssh root@host                       # start interactive SSH
 cmd_runner send <run_id> --text "uptime; df -h" --crlf  # send command
-cmd_runner send <run_id> --crlf -- "ls -la /var/log"     # remote explore (not hard-blocked)
 cmd_runner send <run_id> --keys ctrl+c                  # interrupt
 cmd_runner send <run_id> --keys ctrl+d                  # end session
 ```
-
-**Constitution (opencode bash/cmd tools):** text after `cmd_runner send … --` is **session input** (SSH or local TUI). Remote `ls`/`dir`/`find` are **not** hard-blocked. **Brutal** DESTRUCTIVE (`rm -rf`, DROP, force-push, git checkout/reset --hard, …) still **permission-ask** — same as bare local shell.
 
 ## Notes
 

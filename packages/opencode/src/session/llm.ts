@@ -9,7 +9,7 @@ import { ProviderTransform } from "@/provider/transform"
 import { Config } from "@/config/config"
 import { Instance } from "@/project/instance"
 import type { Agent } from "@/agent/agent"
-import type { MessageV2 } from "./message-v2"
+import { MessageV2 } from "./message-v2"
 import { Plugin } from "@/plugin"
 import { SystemPrompt, UNIVERSAL_ENV } from "./system"
 import { assembleSystemMessages, collapseSystemMessagesInPlace } from "./system-compose"
@@ -27,7 +27,7 @@ import * as Option from "effect/Option"
 import { canonicalName, TOOL_ALIASES } from "@/tool/tool"
 import { repairJsonWasm } from "@/util/json-repair-wasm"
 import { readWasmAsset } from "@/util/wasm-path"
-import { REQUEST_OVERHEAD_TOKENS } from "./overflow"
+import { REQUEST_OVERHEAD_TOKENS, usable } from "./overflow"
 import { isPrimaryModeIdentity } from "./mode-identity"
 
 const log = Log.create({ service: "llm" })
@@ -457,6 +457,34 @@ const live: Layer.Layer<
         : input.messages
 
       const contentTokens = estimateContentTokens(system, messages)
+
+      // Pre-send context overflow guard: block request BEFORE it reaches the provider.
+      // This is the last line of defense — Layer-1/Layer-2 compaction may have been
+      // bypassed due to timing, or the heuristic may have underestimated content size.
+      if (input.model.limit.context > 0) {
+        const cfg = yield* config.get()
+        const usableLimit = usable({ cfg, model: input.model })
+        // contentTokens = chars/4 + REQUEST_OVERHEAD_TOKENS (already includes 10k overhead)
+        // usableLimit = limit - (REQUEST_OVERHEAD_TOKENS + outputReserve) (already subtracts 10k)
+        // Subtract REQUEST_OVERHEAD_TOKENS from contentTokens to avoid double-counting the 10k overhead.
+        if (usableLimit > 0 && contentTokens - REQUEST_OVERHEAD_TOKENS >= usableLimit) {
+          l.warn("pre-send overflow guard triggered", {
+            contentTokens,
+            usableLimit,
+            contextLimit: input.model.limit.context,
+            systemLen: system.join("").length,
+            messageCount: messages.length,
+          })
+          // Throw a real ContextOverflowError so processor.halt() → parse()
+          // recognises it as a context_overflow error and triggers compaction
+          // instead of surfacing it as a generic error.
+          throw new MessageV2.ContextOverflowError(
+            {
+              message: `Pre-send guard: estimated ${contentTokens} tokens exceeds usable context limit of ${usableLimit} tokens (model context: ${input.model.limit.context})`,
+            },
+          )
+        }
+      }
 
       const params = yield* plugin.trigger(
         "chat.params",

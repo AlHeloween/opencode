@@ -41,6 +41,24 @@ function summaryResponseBudget(model: Provider.Model, contentTokens: number) {
   return Math.min(raw * 3, model.limit.output || raw * 3)
 }
 
+/**
+ * Check if there is enough spare output room for a generation.
+ * Returns true if `limit - used >= outputReserve` (typically 32k).
+ * Used as a pre-flight gate before `llm.stream()` — if false, compact first.
+ */
+export function hasSpareOutput(input: {
+  cfg: Config.Info
+  model: Provider.Model
+  used: number  // full request estimate (content/4 + REQUEST_OVERHEAD_TOKENS)
+}): boolean {
+  const observedLimit = TokenCalibration.getObservedLimit(input.model)
+  const limit = observedLimit ?? input.model.limit.input ?? input.model.limit.context
+  if (limit <= 0) return true  // unknown limit — never block
+  const outputReserve = input.model.limit.output ?? 0
+  const reserve = outputReserve > 0 ? Math.min(outputReserve, MAX_OUTPUT_RESERVE_TOKENS) : FALLBACK_OUTPUT_RESERVE_TOKENS
+  return limit - input.used >= reserve
+}
+
 export function usable(input: { cfg: Config.Info; model: Provider.Model }) {
   const context = input.model.limit.context
   if (context === 0) return 0

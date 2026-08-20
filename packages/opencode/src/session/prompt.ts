@@ -17,7 +17,9 @@ import { Constitution } from "./constitution"
 import {
   estimateContentTokens,
   estimateRequestTokens,
+  hasSpareOutput,
   needsContentCompaction,
+  REQUEST_OVERHEAD_TOKENS,
   SUMMARY_GENERATION_RESERVE_TOKENS,
   summaryNeedsCompactFirst,
   summaryWindowLimit,
@@ -1835,6 +1837,18 @@ export const layer = Layer.effect(
             yield* bus.publish(Session.Event.Error, { sessionID, error: error.toObject() })
             throw error
           }
+
+          // 32k spare output gate: ensure there is enough room for the response
+          // before starting the LLM turn. If not, compact first (free) rather than
+          // hitting the wall mid-generation.
+          const cfg = yield* config.get()
+          const contentOnly = estimateContentTokens(msgs, model)  // chars/4, no overhead
+          const used = contentOnly + REQUEST_OVERHEAD_TOKENS  // full request estimate
+          if (!hasSpareOutput({ cfg, model, used })) {
+            yield* maybeCompactCadence({ model, agent: agent.name, force: true })
+            continue
+          }
+
           // Real identity (build_mode / coder_agent / …). Protocol is shared mdc.
           // Role = synthetic notify on switch; ACL = execute on real `agent`.
           const cacheAgent = providerIdentityForMode(agent, (yield* agents.get("build_mode")) ?? agent)
@@ -2126,6 +2140,7 @@ export const layer = Layer.effect(
             }
 
             yield* slog.debug("prepare", { step, stage: "dispatch" })
+
             // cacheAgent = build identity for mode transitions (same KV schema as HEAD cacheIdentity).
             const result = yield* handle.process({
               user: lastUser,
@@ -2149,8 +2164,8 @@ export const layer = Layer.effect(
             // Diff logging — suffix-only format (O(new messages), not full history).
             // Cold restore with checkpoint: skip prev re-format of entire checkpoint;
             // remember current suffix so the *next* turn has a cheap baseline.
-            const cfg = yield* config.get()
-            if (cfg.diff_requests !== false) {
+            const diffCfg = yield* config.get()
+            if (diffCfg.diff_requests !== false) {
               const diffMeta: RequestDiff.DiffMeta = {
                 sessionID,
                 modelID: model.id,

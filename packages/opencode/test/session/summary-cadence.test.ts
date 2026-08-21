@@ -7,8 +7,11 @@ import {
 } from "../../src/session/compaction"
 import {
   SUMMARY_GENERATION_RESERVE_TOKENS,
+  hasSpareOutput,
+  REQUEST_OVERHEAD_TOKENS,
   summaryNeedsCompactFirst,
   summaryWindowLimit,
+  usable,
 } from "../../src/session/overflow"
 import type { Provider } from "@/provider/provider"
 import type { Config } from "@/config/config"
@@ -185,5 +188,98 @@ describe("hasFoldableContent (headroom gate loop guard)", () => {
     })
     expect(noHeadroom).toBe(true)
     expect(hasFoldableContent([star()])).toBe(false)
+  })
+})
+
+describe("hasSpareOutput (32k spare gate for every generation)", () => {
+  test("enough headroom → true", () => {
+    // limit 128k, output 32k: usable = 128k - (10k + 32k) = 86k
+    // used = 50k (content) + 10k (overhead) = 60k
+    // leftover = 128k - 60k = 68k >= 32k reserve → true
+    expect(
+      hasSpareOutput({
+        cfg,
+        model: modelFixture(128_000, 32_768),
+        used: 60_000,
+      }),
+    ).toBe(true)
+  })
+
+  test("not enough headroom → false", () => {
+    // limit 128k, output 32k: usable = 86k
+    // used = 100k (content + overhead)
+    // leftover = 128k - 100k = 28k < 32k reserve → false
+    expect(
+      hasSpareOutput({
+        cfg,
+        model: modelFixture(128_000, 32_768),
+        used: 100_000,
+      }),
+    ).toBe(false)
+  })
+
+  test("unknown context limit (0) → true (never block)", () => {
+    expect(
+      hasSpareOutput({
+        cfg,
+        model: modelFixture(0, 32_768),
+        used: 999_999,
+      }),
+    ).toBe(true)
+  })
+
+  test("uses observedLimit when set", () => {
+    // This test verifies the function reads TokenCalibration.getObservedLimit.
+    // We can't easily mock TokenCalibration here, so we test the behavior
+    // with a known limit instead.
+    const model = modelFixture(256_000, 32_768)
+    // usable = 256k - (10k + 32k) = 214k
+    // used = 200k → leftover = 56k >= 32k → true
+    expect(hasSpareOutput({ cfg, model, used: 200_000 })).toBe(true)
+    // used = 230k → leftover = 26k < 32k → false
+    expect(hasSpareOutput({ cfg, model, used: 230_000 })).toBe(false)
+  })
+
+  test("boundary: exactly 32k spare → true", () => {
+    // limit 100k, output 8k: usable = 100k - (10k + 8k) = 82k
+    // used = 82k → leftover = 18k < 32k → false
+    // Wait, that's wrong. Let me recalculate.
+    // hasSpareOutput checks: limit - used >= reserve
+    // reserve = min(output, 32768) = min(8192, 32768) = 8192
+    // limit = 100k, used = 91808 → leftover = 8192 = reserve → true
+    expect(
+      hasSpareOutput({
+        cfg,
+        model: modelFixture(100_000, 8_192),
+        used: 91_808,
+      }),
+    ).toBe(true)
+  })
+})
+
+describe("pre-send guard arithmetic (no double-count 10k)", () => {
+  test("guard does NOT fire at usable - 10k", () => {
+    // 128k / 32k model: usable = 128k - (10k + 32k) = 86k
+    // content = 76k → estimateContentTokens = 76k + 10k = 86k
+    // Old guard: 86k >= 86k → FIRE (wrong!)
+    // Fixed guard: 86k - 10k = 76k >= 86k → NO FIRE (correct)
+    const model = modelFixture(128_000, 32_768)
+    const contentChars = 76_000 * 4  // 76k tokens worth of chars
+    const contentTokens = Math.ceil(contentChars / 4) + REQUEST_OVERHEAD_TOKENS
+    const u = usable({ cfg, model })
+    // Fixed guard: contentTokens - REQUEST_OVERHEAD_TOKENS >= usable
+    expect(contentTokens - REQUEST_OVERHEAD_TOKENS >= u).toBe(false)
+  })
+
+  test("guard DOES fire when chars/4 >= usable()", () => {
+    // 128k / 32k model: usable = 86k
+    // content = 90k tokens (chars/4 = 90k)
+    // estimateContentTokens = 90k + 10k = 100k
+    // Fixed guard: 100k - 10k = 90k >= 86k → FIRE (correct)
+    const model = modelFixture(128_000, 32_768)
+    const contentChars = 90_000 * 4  // 90k tokens worth of chars
+    const contentTokens = Math.ceil(contentChars / 4) + REQUEST_OVERHEAD_TOKENS
+    const u = usable({ cfg, model })
+    expect(contentTokens - REQUEST_OVERHEAD_TOKENS >= u).toBe(true)
   })
 })

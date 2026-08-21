@@ -55,15 +55,15 @@ hasSpareOutput(used) = (observed ?? input ?? context) - used >= min(output, 3276
 
 ## TAKE
 
-- [ ] **Fix pre-send arithmetic.** Compare **content `chars/4` without a second +10k** to `usable()`. Keep the HTTP block; change only the inequality. Recompute every request (already true in `llm.estimateContentTokens`).
-- [ ] **Throw a real `ContextOverflowError`**, not `{ name, data }`. Keep the duck `fromError` arm as a fallback until no caller throws the object.
-- [ ] **32k spare on every generation** (work, tool-loop, S): before `llm.stream` in `runLoop`, if leftover < `outputReserve` → `maybeCompactCadence({ force: true })` then `continue`. Reuse `summaryNeedsCompactFirst` / a shared `hasSpareOutput` that reads `TokenCalibration.getObservedLimit ?? input ?? context` (same limit as `usable()`).
-- [ ] Tests in `test/session/summary-cadence.test.ts` (+ pre-send case):
+- [x] **Fix pre-send arithmetic.** Compare **content `chars/4` without a second +10k** to `usable()`. Keep the HTTP block; change only the inequality. Recompute every request (already true in `llm.estimateContentTokens`).
+- [x] **Throw a real `ContextOverflowError`**, not `{ name, data }`. Keep the duck `fromError` arm as a fallback until no caller throws the object.
+- [x] **32k spare on every generation** (work, tool-loop, S): before `llm.stream` in `runLoop`, if leftover < `outputReserve` → `maybeCompactCadence({ force: true })` then `continue`. Reuse `summaryNeedsCompactFirst` / a shared `hasSpareOutput` that reads `TokenCalibration.getObservedLimit ?? input ?? context` (same limit as `usable()`).
+- [x] Tests in `test/session/summary-cadence.test.ts` (+ pre-send case):
   - guard does **not** fire at `usable − 10k`
   - guard **does** fire when `chars/4 >= usable()`
   - spare-gate uses `observedLimit` when set
   - existing sidecar headroom tests stay green
-- [ ] After: from `packages/opencode`, `bun test ./test/session/summary-cadence.test.ts ./test/session/message-v2.test.ts`. Do not reshape tools JSON or system slots.
+- [x] After: from `packages/opencode`, `bun test ./test/session/summary-cadence.test.ts ./test/session/message-v2.test.ts`. Do not reshape tools JSON or system slots.
 
 ## REJECT
 

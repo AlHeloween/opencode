@@ -10,6 +10,8 @@ export type Err = ReturnType<NamedError["toObject"]>
 // literal error string kind of sucks, but it is the simplest for now.
 export const GO_UPSELL_MESSAGE = "Free usage exceeded, subscribe to Go https://opencode.ai/go"
 
+export const EMPTY_RESPONSE_MAX_ATTEMPTS = 5
+
 export const RETRY_INITIAL_DELAY = 2000
 export const RETRY_BACKOFF_FACTOR = 2
 export const RETRY_MAX_DELAY_NO_HEADERS = 30_000 // 30 seconds
@@ -55,6 +57,11 @@ export function delay(attempt: number, error?: MessageV2.APIError) {
 export function retryable(error: Err) {
   // context overflow errors should not be retried
   if (MessageV2.ContextOverflowError.isInstance(error)) return undefined
+  // Empty response (finishReason="other" with 0 output tokens) — transient
+  // provider stream disconnect. Retryable up to EMPTY_RESPONSE_MAX_ATTEMPTS.
+  if (MessageV2.EmptyResponseError.isInstance(error)) {
+    return error.data.message
+  }
   if (MessageV2.APIError.isInstance(error)) {
     const status = error.data.statusCode
     // 5xx errors are transient server failures and should always be retried,
@@ -113,12 +120,26 @@ export function retryable(error: Err) {
 export function policy(opts: {
   parse: (error: unknown) => Err
   set: (input: { attempt: number; message: string; next: number }) => Effect.Effect<void>
+  maxAttempts?: number
 }) {
+  const max = opts.maxAttempts ?? Infinity
   return Schedule.fromStepWithMetadata(
     Effect.succeed((meta: Schedule.InputMetadata<unknown>) => {
       const error = opts.parse(meta.input)
       const message = retryable(error)
       if (!message) return Cause.done(meta.attempt)
+      // EmptyResponseError has a hard cap (default 5). Other errors (API 5xx,
+      // rate limits) retry indefinitely — transient provider issues may resolve
+      // after a longer wait.
+      const isEmptyResponse = MessageV2.EmptyResponseError.isInstance(error)
+      if (isEmptyResponse && meta.attempt >= max) {
+        Log.Default.warn("retry: max attempts exhausted for empty response", {
+          attempt: meta.attempt,
+          maxAttempts: max,
+          error: message,
+        })
+        return Cause.done(meta.attempt)
+      }
       return Effect.gen(function* () {
         const wait = delay(meta.attempt, MessageV2.APIError.isInstance(error) ? error : undefined)
         const now = yield* Clock.currentTimeMillis

@@ -15,7 +15,7 @@ import { TokenCalibration } from "./token-calibration"
 import { ProviderError } from "@/provider/error"
 import { PartID } from "./schema"
 import type { SessionID } from "./schema"
-import { SessionRetry } from "./retry"
+import { SessionRetry, EMPTY_RESPONSE_MAX_ATTEMPTS } from "./retry"
 
 import { SessionStatus } from "./status"
 import { SessionSummary } from "./summary"
@@ -669,6 +669,25 @@ export const layer: Layer.Layer<
                 } as any
               }
             }
+            // Level 3: provider returned finishReason="other" with zero output tokens.
+            // This is a silent stream disconnect — the stream completed but produced
+            // nothing usable. Raise an error so the retry mechanism can re-invoke.
+            // The summary cycle depends on the turn completing with real output.
+            if (value.finishReason === "other" && usage.tokens.output === 0) {
+              log.warn("empty response: finishReason=other with 0 output tokens — triggering retry", {
+                sessionID: ctx.sessionID,
+                modelID: ctx.model.id,
+                providerID: ctx.model.providerID,
+                inputTokens: usage.tokens.input,
+              })
+              return yield* Effect.fail(
+                new MessageV2.EmptyResponseError({
+                  message:
+                    `Provider ${ctx.model.providerID}/${ctx.model.id} returned finishReason="other" with 0 output tokens. ` +
+                    `This indicates a silent stream disconnect. Retrying automatically.`,
+                }),
+              )
+            }
             log.info("finish-step", {
               sessionID: ctx.sessionID,
               modelID: ctx.model.id,
@@ -1076,6 +1095,7 @@ export const layer: Layer.Layer<
             Effect.retry(
               SessionRetry.policy({
                 parse,
+                maxAttempts: EMPTY_RESPONSE_MAX_ATTEMPTS,
                 set: (info) =>
                   status.set(ctx.sessionID, {
                     type: "retry",

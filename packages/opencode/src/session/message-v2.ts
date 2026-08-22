@@ -69,6 +69,9 @@ export const ContextOverflowError = namedSchemaError("ContextOverflowError", {
   message: Schema.String,
   responseBody: Schema.optional(Schema.String),
 })
+export const EmptyResponseError = namedSchemaError("MessageEmptyResponseError", {
+  message: Schema.String,
+})
 
 export class OutputFormatText extends Schema.Class<OutputFormatText>("OutputFormatText")({
   type: Schema.Literal("text"),
@@ -1399,6 +1402,16 @@ export function fromError(
       ).toObject()
     case OutputLengthError.isInstance(e):
       return e
+    case EmptyResponseError.isInstance(e):
+      // EmptyResponseError is internal (retry-only) — convert to APIError
+      // for the public Assistant error type so it surfaces in the TUI.
+      return new APIError(
+        {
+          message: (e as InstanceType<typeof EmptyResponseError>).data.message,
+          isRetryable: true,
+        },
+        { cause: e },
+      ).toObject()
     case LoadAPIKeyError.isInstance(e):
       return new AuthError(
         {

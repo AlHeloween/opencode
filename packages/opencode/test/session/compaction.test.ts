@@ -1517,7 +1517,7 @@ describe("session.compaction.compact", () => {
   )
 
   it.live(
-    "walk-back hard-stops at the prior message* (tail never crosses the star)",
+    "walk-back hard-stops at the prior message* (excluded from recent, not embedded)",
     provideTmpdirInstance((dir) =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
@@ -1566,14 +1566,12 @@ describe("session.compaction.compact", () => {
         const combined = after2
           .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
           .join("\n")
-        // Thin tail → walk-back includes the prior star as ONE boundary unit…
+        // Thin tail → walk-back HARD-STOPS at the prior star (excluded from recent).
         expect(combined).toContain("post-star-work")
+        // Chain link present (session-read hook) but prior star content is NOT embedded.
         expect(combined).toContain("Prior message*")
-        // …and never walks past it: exactly two marker blocks — the new header
-        // plus the embedded prior star (one unit, not exploded into raw history).
-        expect(combined.split("=== COMPACTED ===").length - 1).toBe(2)
-        // The embedded star sits before the post-star messages (chronological).
-        expect(combined.indexOf("Prior message*")).toBeLessThan(combined.indexOf("post-star-work"))
+        // Exactly one COMPACTED header — prior star is NOT embedded as a second block.
+        expect(combined.split("=== COMPACTED ===").length - 1).toBe(1)
       }),
     ),
   )

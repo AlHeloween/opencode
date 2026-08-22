@@ -30,9 +30,10 @@ content window (visible M, what the model sees on normal turns):
 After compact:
 
   content window:
-    m* = [ s1, s2, recent m, m, m ]
+    m* = [ s1, s2, recent m, m, m ]    ← s capped at 32K tokens total
          └── AI body + system Exact handles (range / session-read locus)
              + tool filediffs + CodeGraph for that range
+             + decisions from CURRENT summaries only (not from prior m*)
 ```
 
 ### Cadence counter
@@ -63,7 +64,11 @@ rows are consumed **only at compact** into `m*`.
 
 **Not:** fossil span for memory. **Yes:** tool Exact + CodeGraph.
 
-**Recent floor:** after compact, work tail is at least ~`RECENT_MIN_TOKENS` (32 768) content tokens from the end, ignoring the latest summary — thin post-summary stubs are extended backward so the next open window is real work, not empty → immediate re-summary. The walk-back **hard-stops at the prior message***: it is included as one boundary unit and the tail never crosses it — repeated compacts stay idempotent.
+**Recent floor:** after compact, work tail is at least ~`RECENT_MIN_TOKENS` (32 768) content tokens from the end, ignoring the latest summary — thin post-summary stubs are extended backward so the next open window is real work, not empty → immediate re-summary. The walk-back **hard-stops at the prior message***: it is EXCLUDED (session-read only) and the tail never crosses it — repeated compacts stay idempotent.
+
+**Summary cap:** total summary body text in m* is capped at `MAX_SUMMARY_BODY_TOKENS` (32 768 tokens). Older summaries are dropped from m* but remain accessible via `session-read`.
+
+**Prior m* decisions:** decisions from prior m* are NOT pulled forward into the new m*. Each m* carries only decisions from its own current summaries.
 
 **Post-summary checker:** required sections non-empty (`isValidSummaryBody`).
 
@@ -90,7 +95,8 @@ When enough open content has been summarized (and/or open window demands fold):
 
   compact()  — ZERO LLM tokens, pure system fold
 
-  m* = [ s, s, … , recent m, m, m ]
+  m* = [ s, s, … (≤32K tokens), recent m, m, m ]
+       decisions from current s only (not from prior m*)
 ```
 
 - Soft-hide prior visible rows (never hard-delete).  
@@ -143,7 +149,10 @@ sequenceDiagram
 | Fossil only for WC rollback | `SnapshotFossil.track` / `restore` — not on summary Exact path | **Match** |
 | Cadence ~256k chars / ~64k tokens | `SUMMARY_INTERVAL_TOKENS = 65_536` content/4 | **Match** (order of magnitude) |
 | `m* = [s,s,recent m]` | `compact()` folds open sidecars + Recent | **Match when compact runs**; new T2 guard: fold **refused** when no summaries exist (`folded:false`, warn) — no memory loss on /summarize |
-| Recent tail ≥ ~16k tokens | `selectRecentTail` / `RECENT_MIN_TOKENS` — skip m* + last summary; overlap back if thin | **Match** |
+| Summaries capped at 32K tokens | `MAX_SUMMARY_BODY_TOKENS = 32_768`; oldest summaries dropped from m* | **Match (shipped 2026-08-22)** |
+| Prior m* decisions not pulled forward | `buildMessageStar` takes only `currentDecisions`, no `priorDecisions` param | **Match (shipped 2026-08-22)** |
+| Prior m* excluded from Recent tail | `selectRecentTail` hard-stops at prior m* (does NOT include it) | **Match (shipped 2026-08-22)** |
+| Recent tail ≥ ~16k tokens | `selectRecentTail` / `RECENT_MIN_TOKENS` — skip m* + last summary; overlap back if thin, hard-stop at prior m* | **Match** |
 | Compact after enough s / model window full | **`maybeCompactCadence`**: target=`usable(model)` not 64k; skip same stop as new s; skip if 1 open sidecar | **Fixed 2026-07-30** |
 | injectSummaryRequest as primary | Implemented, **not called** from `prompt.ts` | **Dead primary** |
 | Summary request as durable user row then restore | inject would leave synthetic user unless restored — not used | N/A |
@@ -181,6 +190,7 @@ A 1M model must **not** compact at 64k — that wastes the window and forces the
 | Open-window / cadence | `chars / 4` (content only) |
 | ~256k chars threshold | ↔ ~64k tokens (`65_536` constant) |
 | Safety / request fit | `chars/4 + 10_000` |
+| Summary body cap in m* | `MAX_SUMMARY_BODY_TOKENS` (32 768 tokens) |
 | compact() | **0** LLM tokens |
 
 No BPE/tiktoken authority (undercounts providers).

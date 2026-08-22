@@ -3,7 +3,7 @@
 **Canonical contract + gap table:** [`compaction.md`](compaction.md)  
 **Tool diffs + CodeGraph on s:** [`summary-exact-handles.md`](summary-exact-handles.md)
 
-- Content without `s`; after durable checkpoint → summary; M restored; compact → `m*=[s,s,recent m]`
+- Content without `s`; after durable checkpoint → summary; M restored; compact → `m*=[s,s(≤32K),recent m]` (no prior m* content pulled forward)
 - Exact on s: **write/edit/multiedit** tool filediffs in range + CodeGraph on those paths
 - Fossil: **rollback only** (track/restore) — not summary memory
 
@@ -17,9 +17,11 @@ If a graph is prettier than code, **code wins** for Exact claims.
 M (content):   [m m m]     [m m m]     [m m m]
 s (outside):        s1          s2          s3
 
-compact → m* = [ s1, s2, recent m m m ]
+compact → m* = [ s1, s2 (≤32K tokens), recent m m m ]
            each s = AI body + Exact range/sessionread
                     + tool filediffs + CodeGraph
+           decisions from current s only (not prior m*)
+           prior m* excluded from Recent (session-read only)
            checker rejects incomplete agent fields
 ```
 
@@ -156,3 +158,6 @@ Not: “every 65K at end of turn, inject summary then compact.”
 | compact zero LLM tokens | Exact |
 | In-band needsContentCompaction can fire on tool-continue | Exact |
 | Docs that said inject every 64K as primary | **False vs code** (fixed in compaction.md) |
+| Summaries capped at 32K tokens in m* | Exact (shipped 2026-08-22) |
+| Prior m* decisions not pulled forward | Exact (shipped 2026-08-22) |
+| Prior m* excluded from Recent tail | Exact (shipped 2026-08-22) |

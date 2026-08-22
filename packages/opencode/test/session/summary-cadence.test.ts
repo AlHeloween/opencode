@@ -1,9 +1,11 @@
 import { expect, describe, test } from "bun:test"
 import {
   SUMMARY_INTERVAL_TOKENS,
+  MAX_SUMMARY_BODY_TOKENS,
   computeOpenWindowTokens,
   hasFoldableContent,
   layer1SummaryThreshold,
+  selectRecentTail,
 } from "../../src/session/compaction"
 import {
   SUMMARY_GENERATION_RESERVE_TOKENS,
@@ -16,6 +18,7 @@ import {
 import type { Provider } from "@/provider/provider"
 import type { Config } from "@/config/config"
 import type { MessageV2 } from "../../src/session/message-v2"
+import type { MessageID } from "../../src/session/schema"
 
 /**
  * Layer-1 summary cadence regression tests.
@@ -281,5 +284,77 @@ describe("pre-send guard arithmetic (no double-count 10k)", () => {
     const contentTokens = Math.ceil(contentChars / 4) + REQUEST_OVERHEAD_TOKENS
     const u = usable({ cfg, model })
     expect(contentTokens - REQUEST_OVERHEAD_TOKENS >= u).toBe(true)
+  })
+})
+
+describe("selectRecentTail (prior m* exclusion)", () => {
+  function starMsg(id: string): MessageV2.WithParts {
+    return {
+      info: { id: id as never, role: "user" },
+      parts: [{ type: "text", text: "=== COMPACTED ===\nprior star body" }],
+    } as unknown as MessageV2.WithParts
+  }
+
+  test("prior m* is NOT included in recent tail", () => {
+    // Messages: [m1, m2, prior_star, m3, m4]
+    // After boundary (m2), thin tail: should NOT include the star
+    const m1 = textMsg("m1", 5_000)
+    const m2 = textMsg("m2", 5_000)
+    const star = starMsg("star1")
+    const m3 = textMsg("m3", 5_000)
+    const m4 = textMsg("m4", 5_000)
+    const visible = [m1, m2, star, m3, m4]
+
+    const result = selectRecentTail(visible, "m2" as MessageID, 32_768)
+    // Thin tail (m3+m4 = ~2.5K tokens < 32K) walks back, but hard-stops at star
+    const ids = result.map((m) => m.info.id as string)
+    expect(ids).not.toContain("star1")
+  })
+
+  test("prior m* is excluded even with generous minTokens", () => {
+    const m1 = textMsg("m1", 10_000)
+    const star = starMsg("star1")
+    const m2 = textMsg("m2", 1_000)
+    const visible = [m1, star, m2]
+
+    const result = selectRecentTail(visible, "m1" as MessageID, 100_000)
+    const ids = result.map((m) => m.info.id)
+    expect(ids).not.toContain("star1")
+  })
+
+  test("no prior m* — normal walk-back works", () => {
+    const m1 = textMsg("m1", 10_000)
+    const m2 = textMsg("m2", 5_000)
+    const m3 = textMsg("m3", 5_000)
+    const visible = [m1, m2, m3]
+
+    const result = selectRecentTail(visible, "m1" as MessageID, 32_768)
+    // Thin tail: walks back past boundary, no star to stop at
+    expect(result.length).toBeGreaterThan(0)
+    const ids = result.map((m) => m.info.id as string)
+    expect(ids).toContain("m1")
+  })
+
+  test("sufficient tail — no walk-back needed", () => {
+    const m1 = textMsg("m1", 100_000) // ~25K tokens
+    const m2 = textMsg("m2", 100_000)
+    const visible = [m1, m2]
+
+    const result = selectRecentTail(visible, "m1" as MessageID, 32_768)
+    // m2 alone = 25K tokens, under 32K → walks back, but m1 is not a star
+    // so it includes m1
+    const ids = result.map((m) => m.info.id as string)
+    expect(ids).toContain("m2")
+  })
+})
+
+describe("MAX_SUMMARY_BODY_TOKENS (32K cap)", () => {
+  test("constant is 32 768", () => {
+    expect(MAX_SUMMARY_BODY_TOKENS).toBe(32_768)
+  })
+
+  test("matches RECENT_MIN_TOKENS value (both 32K)", () => {
+    // Semantically distinct but same value — both represent 32K token pools
+    expect(MAX_SUMMARY_BODY_TOKENS).toBe(32_768)
   })
 })

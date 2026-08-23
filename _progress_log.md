@@ -560,3 +560,9 @@ resolution + docs), 4147dbbea1 (track reconcile + regression). Verification:
 heal test 1/1; fossil-rollback+track isolation 9/9; undo-fossil 8/8 @30s;
 tsgo clean. Note: full-directory parallel runs of test/snapshot/ interfere on
 Windows (60s hangs) — run files individually.
+
+## 2026-08-23 Boundary-crossing undo (compaction mask)
+- **Root chain**: `plans/2026-08-23_undo_compact_concept.md` -> revert schema `crossing` manifest -> revert/unrevert/cleanup mechanics -> trial T3/T4.
+- **Changed**: `session.ts` (Revert schema + messages visibleOnly passthrough + interface), `revert.ts` (manifest build/flip in revert, inversion in unrevert, manifest-aware fold in cleanup), new `test/session/revert-crossing.test.ts`.
+- **Verification**: crossing trial 1 pass/0 fail; session-undo-fossil + fossil-track-heal 9 pass/0 fail; `tsgo --noEmit` clean. Commit: feat(session) boundary-crossing undo.
+- **Note**: trial simulates the mask via info.compacted directly; SessionCompaction force-fold with zero summaries refuses to fold (summaries>=1 guard) - real compaction integration covered by T5/T6 fold semantics, untested here.

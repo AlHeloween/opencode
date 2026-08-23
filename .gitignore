@@ -117,4 +117,6 @@ packages/opencode/src/provider/models/
 
 # Generated from prompts_kernel/ (python -m prompts_kernel --render-runtime / _build.ps1)
 packages/opencode/src/session/prompt/prompts_kernel.txt
-prompts_kernel/tools/.embeddings_cache/  
+prompts_kernel/tools/.embeddings_cache/ 
+
+.smit 

@@ -382,13 +382,37 @@ export const layer = Layer.effect(
               // commits that would create a fork are rejected unless --allow-fork
               // is passed. Since this is a snapshot system where fork topology
               // doesn't matter, always allow forking.
-              const commitResult = yield* fossil(["commit", "-m", "auto-snapshot", "--no-warnings", "--allow-fork", "--hash"], {
-                cwd: worktree,
-              })
+              const commitArgs = ["commit", "-m", "auto-snapshot", "--no-warnings", "--allow-fork", "--hash"]
+              let commitResult = yield* fossil(commitArgs, { cwd: worktree })
 
               if (commitResult.code !== 0) {
-                log.info("tracking commit failed", { hash: beforeHash, stderr: commitResult.stderr })
-                return beforeHash || undefined
+                // A tracked path deleted outside Fossil between scans aborts
+                // `commit --hash` with ENOENT even though `changes` reports
+                // nothing (mtime/size cache still lists it). Such a path is
+                // owned by no patch.part in the session DB and no longer
+                // exists on disk — reconcile the index toward disk+DB truth:
+                // record the deletion and retry once.
+                const missing = [...commitResult.stderr.matchAll(/no such file: (.+)/g)]
+                  .map((m) => m[1]!.trim())
+                  .map((abs) => path.relative(worktree, abs).replaceAll("\\", "/"))
+                  .filter((rel) => rel.length > 0 && !rel.startsWith(".."))
+                if (missing.length === 0) {
+                  log.error("bug: tracking commit failed", { hash: beforeHash, stderr: commitResult.stderr })
+                  return beforeHash || undefined
+                }
+                for (const rel of missing) {
+                  log.warn("tracking: reconciling vanished tracked path (no DB owner)", { rel })
+                  yield* fossil(["rm", rel], { cwd: worktree }).pipe(Effect.catch(() => Effect.void))
+                }
+                commitResult = yield* fossil(commitArgs, { cwd: worktree })
+                if (commitResult.code !== 0) {
+                  log.error("bug: tracking commit failed after reconciling vanished paths", {
+                    hash: beforeHash,
+                    missing,
+                    stderr: commitResult.stderr,
+                  })
+                  return beforeHash || undefined
+                }
               }
 
               // Parse new version from output

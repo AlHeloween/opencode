@@ -208,7 +208,9 @@ export const layer = Layer.effect(
       if (!session.revert) return
       const sessionID = session.id
       const crossing = session.revert.crossing
-      const msgs = yield* sessions.messages({ sessionID })
+      // Crossing fold must see hidden rows: the discarded future was flipped
+      // to compacted by the undo, so the default visible-only load misses it.
+      const msgs = yield* sessions.messages({ sessionID, visibleOnly: !crossing })
       const messageID = session.revert.messageID
       const remove = [] as MessageV2.WithParts[]
       let target: MessageV2.WithParts | undefined

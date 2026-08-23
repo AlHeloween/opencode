@@ -119,4 +119,95 @@ describe("undo across visibility boundary", () => {
             }),
         ),
     )
+    it.live(
+        "T5/T6: fold deletes only discarded future; second undo resurrects again",
+        provideTmpdirInstance((dir) =>
+            Effect.gen(function* () {
+                const session = yield* Session.Service
+                const revert = yield* SessionRevert.Service
+                const snap = yield* Snapshot.Service
+
+                const info = yield* session.create({})
+                const sid = info.id
+                const file = path.join(dir, "note.txt")
+
+                const mkUserPatch = (text: string, hash: string) =>
+                    Effect.gen(function* () {
+                        const u = yield* session.updateMessage({
+                            id: MessageID.ascending(),
+                            role: "user",
+                            sessionID: sid,
+                            agent: "build",
+                            model: MODEL,
+                            time: { created: Date.now() },
+                        })
+                        yield* session.updatePart({
+                            id: PartID.ascending(),
+                            messageID: u.id,
+                            sessionID: sid,
+                            type: "text",
+                            text,
+                        })
+                        yield* session.updatePart({
+                            id: PartID.ascending(),
+                            messageID: u.id,
+                            sessionID: sid,
+                            type: "patch",
+                            hash,
+                            files: [file.replaceAll("\\", "/")],
+                        })
+                        return u
+                    })
+
+                yield* Effect.promise(() => fs.writeFile(file, "v1", "utf-8"))
+                const h1 = yield* snap.track([file])
+                const user1 = yield* mkUserPatch("step1", h1!)
+                yield* Effect.promise(() => fs.writeFile(file, "v2", "utf-8"))
+                const h2 = yield* snap.track([file])
+                const user2 = yield* mkUserPatch("step2", h2!)
+                yield* Effect.promise(() => fs.writeFile(file, "v3", "utf-8"))
+                const h3 = yield* snap.track([file])
+                const user3 = yield* mkUserPatch("step3", h3!)
+                expect(user3).toBeTruthy()
+
+                // Mask: deep archive below user3 — user1 and user2 hidden.
+                const before = yield* session.messages({ sessionID: sid, visibleOnly: false })
+                for (const m of before) {
+                    if (m.info.id < user3.id) {
+                        m.info.compacted = true
+                        yield* session.updateMessage(m.info)
+                    }
+                }
+
+                // T5: crossing undo to user2, then the next-prompt fold.
+                yield* revert.revert({ sessionID: sid, messageID: user2.id })
+                const foldedSession = yield* session.get(sid)
+                yield* revert.cleanup(foldedSession)
+
+                const afterFold = yield* session.messages({ sessionID: sid, visibleOnly: false })
+                const foldById = new Map(afterFold.map((m) => [m.info.id, m]))
+                expect(foldById.has(user3.id)).toBe(false) // discarded future deleted
+                expect(foldById.get(user2.id)?.info.compacted).toBe(false) // resurrected stays
+                expect(foldById.get(user1.id)?.info.compacted).toBe(true) // deep archive hidden
+                const cleared = yield* session.get(sid)
+                expect(cleared.revert).toBeUndefined() // revert state consumed
+
+                // T6: second crossing undo into the deep archive resurrects again.
+                yield* revert.revert({ sessionID: sid, messageID: user1.id })
+                const after2 = yield* session.messages({ sessionID: sid, visibleOnly: false })
+                const by2 = new Map(after2.map((m) => [m.info.id, m]))
+                expect(by2.get(user1.id)?.info.compacted).toBe(false) // resurrected
+                expect(by2.get(user2.id)?.info.compacted).toBe(true) // future re-hidden
+                expect(yield* Effect.promise(() => fs.readFile(file, "utf-8"))).toBe("v1")
+                yield* revert.unrevert({ sessionID: sid })
+                const after2r = yield* session.messages({ sessionID: sid, visibleOnly: false })
+                const by2r = new Map(after2r.map((m) => [m.info.id, m]))
+                expect(by2r.get(user1.id)?.info.compacted).toBe(true)
+                expect(by2r.get(user2.id)?.info.compacted).toBe(false)
+                // Redo returns to the pre-undo state of the SECOND undo (v2):
+                // the first undo was never redone, so the world sits at h2.
+                expect(yield* Effect.promise(() => fs.readFile(file, "utf-8"))).toBe("v2")
+            }),
+        ),
+    )
 })

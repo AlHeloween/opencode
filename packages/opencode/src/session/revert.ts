@@ -42,7 +42,7 @@ export const layer = Layer.effect(
 
     const revert = Effect.fn("SessionRevert.revert")(function* (input: RevertInput) {
       yield* state.assertNotBusy(input.sessionID)
-      const all = yield* sessions.messages({ sessionID: input.sessionID })
+      const all = yield* sessions.messages({ sessionID: input.sessionID, visibleOnly: false })
       let lastUser: MessageV2.User | undefined
       const session = yield* sessions.get(input.sessionID)
 
@@ -72,6 +72,27 @@ export const layer = Layer.effect(
 
       if (!rev) return session
 
+      // Boundary-crossing manifest over TRUE history (concept §3): every row
+      // at/after the fold point has its visibility inverted — compacted past
+      // resurrects, the discarded future (incl. summary rows) hides. Applied
+      // before any file mutation; recorded verbatim for redo and the fold.
+      const crossing: { id: MessageID; visible: boolean }[] = []
+      let crossed = false
+      for (const msg of all) {
+        if (msg.info.id < rev.messageID) continue
+        crossed ||= !!msg.info.compacted
+        crossing.push({ id: msg.info.id, visible: !msg.info.compacted })
+      }
+      if (crossed) {
+        const byId = new Map(all.map((m) => [m.info.id, m]))
+        for (const c of crossing) {
+          const row = byId.get(c.id)
+          if (!row) continue
+          row.info.compacted = c.visible
+          yield* sessions.updateMessage(row.info)
+        }
+      }
+
       // I-2: FRESH redo anchor = current fossil leaf BEFORE this undo.
       // Multi-undo: push previous op_id frame onto redo_stack so redo walks
       // forward through leaves (T0 ← T1 ← T2 undo, then T0 → T1 → T2 redo).
@@ -99,6 +120,7 @@ export const layer = Layer.effect(
         rev.op_id = anchor
       }
       rev.redo_stack = redo_stack.length ? redo_stack : undefined
+      rev.crossing = crossed ? crossing : undefined
 
       if (patches.length > 0 && anchor) {
         // I-1: one full Fossil leaf = earliest patch hash (structure of that checkin).
@@ -134,6 +156,22 @@ export const layer = Layer.effect(
       yield* state.assertNotBusy(input.sessionID)
       const session = yield* sessions.get(input.sessionID)
       if (!session.revert) return session
+      // Invert the crossing manifest first: restore pre-undo visibility flags
+      // (resurrected history re-hides, discarded future re-shows).
+      if (session.revert.crossing?.length) {
+        const rows = yield* sessions.messages({
+          sessionID: input.sessionID,
+          visibleOnly: false,
+          limit: 10_000,
+        })
+        const byId = new Map(rows.map((m) => [m.info.id, m]))
+        for (const c of session.revert.crossing) {
+          const row = byId.get(c.id)
+          if (!row) continue
+          row.info.compacted = !c.visible
+          yield* sessions.updateMessage(row.info)
+        }
+      }
       // Move forward one leaf (op_id). On failure leave revert intact (SP-02).
       if (session.revert.op_id) {
         yield* snap.checkout(session.revert.op_id)
@@ -169,12 +207,21 @@ export const layer = Layer.effect(
     const cleanup = Effect.fn("SessionRevert.cleanup")(function* (session: Session.Info) {
       if (!session.revert) return
       const sessionID = session.id
+      const crossing = session.revert.crossing
       const msgs = yield* sessions.messages({ sessionID })
       const messageID = session.revert.messageID
       const remove = [] as MessageV2.WithParts[]
       let target: MessageV2.WithParts | undefined
       for (const msg of msgs) {
         if (msg.info.id < messageID) continue
+        if (crossing) {
+          // Manifest fold: physically delete only the discarded future (rows
+          // visible before the undo). Resurrected pre-boundary history stays.
+          const entry = crossing.find((c) => c.id === msg.info.id)
+          if (!entry || !entry.visible) continue
+          remove.push(msg)
+          continue
+        }
         if (msg.info.id > messageID) {
           remove.push(msg)
           continue

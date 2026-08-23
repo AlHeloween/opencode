@@ -284,6 +284,16 @@ const Revert = Schema.Struct({
    */
   redo_stack: optionalOmitUndefined(Schema.Array(RevertRedoFrame)),
   diff: optionalOmitUndefined(Schema.String),
+  /**
+   * Boundary-crossing manifest (undo past a compaction boundary): every row
+   * with id >= messageID whose visibility flag was flipped. `visible` is the
+   * PRE-undo value; unrevert restores it; the next-prompt fold physically
+   * deletes rows where visible === false (the discarded future).
+   */
+  crossing: optionalOmitUndefined(Schema.Array(Schema.Struct({
+    id: MessageID,
+    visible: Schema.Boolean,
+  }))),
   conflicts: optionalOmitUndefined(Schema.Array(Schema.Struct({
     file: Schema.String,
     bakFile: Schema.String,
@@ -600,7 +610,12 @@ export interface Interface {
   readonly setSummary: (input: { sessionID: SessionID; summary: Info["summary"] }) => Effect.Effect<void>
   readonly setCompacting: (input: { sessionID: SessionID; time?: number }) => Effect.Effect<void>
   readonly diff: (sessionID: SessionID) => Effect.Effect<Snapshot.FileDiff[]>
-  readonly messages: (input: { sessionID: SessionID; limit?: number }) => Effect.Effect<MessageV2.WithParts[]>
+  readonly messages: (input: {
+    sessionID: SessionID
+    limit?: number
+    /** false = include rows soft-hidden by compaction (undo walk). Default true. */
+    visibleOnly?: boolean
+  }) => Effect.Effect<MessageV2.WithParts[]>
   readonly children: (parentID: SessionID) => Effect.Effect<Info[]>
   readonly remove: (sessionID: SessionID) => Effect.Effect<void>
   readonly updateMessage: <T extends MessageV2.Info>(msg: T) => Effect.Effect<T>
@@ -917,11 +932,19 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
         .read<Snapshot.FileDiff[]>(["session_diff", sessionID])
         .pipe(Effect.orElseSucceed((): Snapshot.FileDiff[] => []))
     })
-
-    const messages = Effect.fn("Session.messages")(function* (input: { sessionID: SessionID; limit?: number }) {
+    const messages = Effect.fn("Session.messages")(function* (input: {
+      sessionID: SessionID
+      limit?: number
+      /** Undo walk needs true history: include rows hidden by compaction. */
+      visibleOnly?: boolean
+    }) {
       // Always enforce a limit to prevent unbounded loading that can crash the TUI
       const limit = input.limit ?? 500
-      const result = MessageV2.page({ sessionID: input.sessionID, limit })
+      const result = MessageV2.page({
+        sessionID: input.sessionID,
+        limit,
+        visibleOnly: input.visibleOnly !== false,
+      })
       // Log when a session has more messages than the limit (truncated response)
       if (result.more && limit < 500) {
         log.warn("bug: session has more messages than limit, response truncated", {

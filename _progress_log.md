@@ -538,3 +538,25 @@ revert ≈ 1.4-2.5s on a 10k tree.
 undo-fossil suite 8/8 pass @30s timeout; tsgo --noEmit clean. Real-session undo issues,
 if any recur, must be reproduced from actual session history (patch.parts targeting),
 not synthetic trees.
+
+## [2026-08-23] ROOT CAUSE: vanished tracked path froze all snapshot tracking
+
+**Symptom:** After rebuild, undo/redo dead, timeline empty in ALL sessions of the
+worktree ("tracking commit failed" spam). stderr: `no such file:
+plans/2026-08-22_compact-mstar-prior-limit.md` — an ancient plan deleted via git
+outside fossil while the checkout cache still listed it; every subsequent
+`commit --hash` aborted on ENOENT and track() returned the stale beforeHash,
+freezing the tip (undo/redo/timeline all read from it).
+
+**Fix:** Live repo healed manually (fossil rm + commit, tip advanced
+2ca043c3→e99f0cca); product heal added to track() — parse vanished paths from
+stderr, record deletions, retry once (framing: reconcile index toward disk+DB
+truth, fossil = change tracker coordinated with session DB). Regression:
+test/snapshot/fossil-track-heal.test.ts (addremove sweep → external delete →
+leaf must advance).
+
+**Commits:** 231cdfc3df (request-diff ID alignment), f21e3d8e8e (tools-first
+resolution + docs), 4147dbbea1 (track reconcile + regression). Verification:
+heal test 1/1; fossil-rollback+track isolation 9/9; undo-fossil 8/8 @30s;
+tsgo clean. Note: full-directory parallel runs of test/snapshot/ interfere on
+Windows (60s hangs) — run files individually.

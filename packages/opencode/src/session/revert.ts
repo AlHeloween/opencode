@@ -121,11 +121,11 @@ export const layer = Layer.effect(
           files: diffs.length,
         },
       })
-      // When no file patches exist (read-only tool calls), clean up messages
-      // immediately instead of waiting for the next summarize cycle.
-      if (patches.length === 0) {
-        yield* cleanup(yield* sessions.get(input.sessionID))
-      }
+      // Message-only undo (read-only tail, no patch parts) keeps the revert
+      // state exactly like the patch case: Redo stays available from the TUI,
+      // and unrevert without hashes folds into a plain "cancel the undo".
+      // The old immediate cleanup+clearRevert here destroyed the state before
+      // Redo could ever render — undo looked dead on chat-only sessions.
       return yield* sessions.get(input.sessionID)
     })
 

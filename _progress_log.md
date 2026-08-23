@@ -567,3 +567,10 @@ Windows (60s hangs) — run files individually.
 - **Verification**: crossing trial 1 pass/0 fail; session-undo-fossil + fossil-track-heal 9 pass/0 fail; `tsgo --noEmit` clean. Commit: feat(session) boundary-crossing undo.
 - **Note**: trial simulates the mask via info.compacted directly; SessionCompaction force-fold with zero summaries refuses to fold (summaries>=1 guard) - real compaction integration covered by T5/T6 fold semantics, untested here.
 - **Follow-up (same day)**: crossing fold bug - cleanup() loaded visible-only and missed the flipped-hidden discarded future; fixed with visibleOnly:!crossing. T5/T6 trials added (deep-archive remodel): fold deletes only manifest-visible future; second crossing undo resurrects; redo anchors to that undo's pre-state. Commit 59e2791458.
+
+## 2026-08-23 Undo/redo/timeline wedge on real repo (v10.0.878)
+- **Symptom**: undo ok; redo dead; subsequent undo/timeline-revert dead; no errors logged; unrevert POST never completed.
+- **Root cause A**: fossil spawned with open stdin pipe; `fossil checkout --force` waits for stdin EOF (proven: `sleep 30 | fossil checkout` = 30.4s) -> hang -> per-repo lock wedges all later fossil ops. Fix: `stdin: "ignore"` (pattern already used by ripgrep.ts).
+- **Root cause B**: ignore-glob bare names (node_modules, .git) cover only worktree root; nested copies walked by `fossil extras` (20s+ no finish). Fix: expandGlob adds star-prefixed twin for slash-free patterns.
+- **Verification**: repro restore(e99f0cca) 20s-timeout -> 2.9s COMPLETED; extras instant; tsgo clean; crossing+undo-fossil+track-heal 11/11.
+- **Side finding**: `bun run dev serve` dies with TDZ ReferenceError at src/agent/agent.ts:634 (defaultLayer before init) - separate issue, built binaries unaffected.

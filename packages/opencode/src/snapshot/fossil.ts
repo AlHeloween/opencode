@@ -147,6 +147,10 @@ export const layer = Layer.effect(
             const proc = ChildProcess.make(FOSSIL_BIN, args, {
               cwd: opts?.cwd ?? worktree,
               extendEnv: true,
+              // fossil write commands (checkout/close) wait for stdin EOF when
+              // stdin is an open pipe — without this the call hangs forever and
+              // the per-repo lock wedges every later fossil op (undo/redo die).
+              stdin: "ignore",
             })
             const handle = yield* spawner.spawn(proc)
             const [text, stderr] = yield* Effect.all(
@@ -166,6 +170,14 @@ export const layer = Layer.effect(
           ),
         )
 
+        /**
+         * Fossil globs match the WHOLE relative path (with * crossing "/"),
+         * so a bare name like "node_modules" only covers the worktree root.
+         * Nested copies (packages/x/node_modules) must get a star-prefixed twin
+         * or `fossil extras` walks them — minutes on big trees, wedging every
+         * checkout/undo behind the per-repo lock.
+         */
+        const expandGlob = (p: string): string[] => (p.includes("/") ? [p] : [p, `*${p}`])
         // Translate .gitignore patterns to Fossil ignore-glob format
         const translateGitignore = Effect.fnUntraced(function* () {
           const gitignorePath = path.join(worktree, ".gitignore")
@@ -176,7 +188,6 @@ export const layer = Layer.effect(
             const trimmed = l.trim()
             return trimmed && !trimmed.startsWith("#")
           })
-
           const translated: string[] = []
           for (const line of lines) {
             let p = line.trim()
@@ -192,7 +203,7 @@ export const layer = Layer.effect(
             p = p.replace(/\*\*/g, "*")
             // Skip empty patterns
             if (!p || p === ".") continue
-            translated.push(p)
+            translated.push(...expandGlob(p))
           }
 
           return translated.join("\n")
@@ -204,9 +215,12 @@ export const layer = Layer.effect(
           const ignorePath = path.join(settingsDir, "ignore-glob")
 
           const gitignorePatterns = yield* translateGitignore()
-          // Add our own patterns
-          const extraPatterns = ["*.fsl", ".jj", ".git", "_FOSSIL_", "_fossil"]
-          const allPatterns = [...extraPatterns, ...gitignorePatterns.split("\n").filter(Boolean)]
+          // Add our own patterns (expanded to cover nested paths too)
+          const extraPatterns = ["*.fsl", ".jj", ".git", "_FOSSIL_", "_fossil"].flatMap(expandGlob)
+          const allPatterns = [
+            ...extraPatterns,
+            ...gitignorePatterns.split("\n").filter(Boolean),
+          ]
 
           const existing = yield* fs.readFileString(ignorePath).pipe(Effect.catch(() => Effect.succeed("")))
           const content = allPatterns.join("\n") + "\n"

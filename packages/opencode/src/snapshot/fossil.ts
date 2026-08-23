@@ -33,15 +33,20 @@ function parseSymTagValue(tagListText: string): string | undefined {
   return undefined
 }
 
-// Find fossil binary: tools/ relative to executable, then PATH.
-// Probe both `fossil` and `fossil.exe` so Windows tools/ and Linux PATH/symlinks work.
+// Find fossil binary: canonical side-installer `tools/` first (repo root and
+// bin/), then exec-relative and user-home tools, then build artifact fallback
+// (external/fossil), then PATH. Probe both `fossil` and `fossil.exe` so
+// Windows tools/ and Linux PATH/symlinks work.
 function findFossil(): string {
   const fs = require("fs") as typeof import("fs")
   const names = process.platform === "win32" ? ["fossil.exe", "fossil"] : ["fossil", "fossil.exe"]
+  const repoRoot = path.resolve(import.meta.dirname!, "..", "..", "..", "..")
   const dirs = [
+    path.join(repoRoot, "tools"),
+    path.join(repoRoot, "bin", "tools"),
     path.join(path.dirname(process.execPath), "tools"),
     path.join(Global.Path.home, "tools"),
-    path.join(path.resolve(import.meta.dirname!, "..", "..", "..", ".."), "external", "fossil"),
+    path.join(repoRoot, "external", "fossil"),
   ]
   for (const dir of dirs) {
     for (const name of names) {

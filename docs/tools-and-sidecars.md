@@ -104,30 +104,42 @@ Typical contents of repo-root `tools/` and stable portable copies (`bin_tst/…-
 
 **Code:** `packages/opencode/src/snapshot/fossil.ts`, `packages/opencode/src/tool/fossil-grep.ts`
 
-| Priority | Path / name |
-|----------|-------------|
-| 1 | `{exeDir}/tools/fossil.exe` |
-| 2 | `{worktree}/tools/fossil.exe` |
-| 3 | `{repo}/external/fossil/fossil.exe` (source checkout only) |
-| 4 | Command **`fossil`** on `PATH` |
+| Priority | Path / name | Source |
+|----------|-------------|--------|
+| 1 | `{repo}/tools/fossil.exe` | **Canonical** — centralized side installer |
+| 2 | `{repo}/bin/tools/fossil.exe` | Installer bundle layout |
+| 3 | `{exeDir}/tools/fossil.exe` | Packaged app layout |
+| 4 | `{userHome}/tools/fossil.exe` (`Global.Path.home`) | User-level installer |
+| 5 | `{repo}/external/fossil/fossil.exe` | Build artifact fallback (source checkout) |
+| 6 | Command **`fossil`** on `PATH` | Last resort |
 
-**Important:** probes use the literal filename `fossil.exe` even on non-Windows hosts. There is no `tools/fossil` probe without the suffix.
+`{repo}` = repo root resolved from `src/snapshot/fossil.ts` (four levels up). All
+copies must be the same build — verify with checksums when in doubt.
+
+**Important:** both `fossil.exe` and `fossil` are probed in every directory (probe
+order flips per platform), so extensionless symlinks work on Linux/macOS.
 
 **Linux packaging options:**
 
 ```bash
-# A) Portable bundle (recommended): symlink keeps the expected name
-mkdir -p "$OUT/tools"
-ln -sfn "$(command -v fossil)" "$OUT/tools/fossil.exe"
+# A) Portable bundle (recommended): symlink into repo tools/
+mkdir -p "$REPO/tools"
+ln -sfn "$(command -v fossil)" "$REPO/tools/fossil"
 
 # B) Distro package + PATH only
 sudo apt install fossil   # or dnf/pacman/…
 # ensure `fossil` is on PATH for the user/service that runs opencode
+```
 
-# C) Build from vendored source
+Do **not** rely on `external/` alone: it is a build artifact directory, not the
+distribution point maintained by the side installer.
+
+**C) Build from vendored source:**
+
+```bash
 cd external/fossil/fossil-src-2.28
 ./configure && make
-# install binary, then A or B
+# install the binary, then apply A or B
 ```
 
 **If missing:** snapshot service cannot open/init `.opencode/data/fossil/{projectID}/snapshot.fsl`; agent undo / Modified Files degrade. Logs: service `snapshot-fossil`.

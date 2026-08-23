@@ -73,9 +73,59 @@ Patch parts (written by processor after track) store:
 
 Agent tools should **`track()` after writes** so the tip leaf includes new files; otherwise extras cleanup cannot treat them as agent-owned.
 
+### 3.1 Leaf scope — what a leaf contains (read before debugging undo)
+
+`track(paths)` stages **only the given paths** into the next leaf. A leaf therefore
+contains exactly what agent steps explicitly tracked — never "whatever changed on
+disk". Consequences:
+
+- Writes to files that were never passed to `track()` are **invisible to undo**:
+  after `revertTo(hash)` they remain on disk as never-tracked extras (by design —
+  user files must survive).
+- `patch.files[]` on a message part is UI/summary bookkeeping only. It does **not**
+  scope the restore: `revertTo` always checks out the whole leaf.
+- Debugging recipe for "undo left file X in future state": check whether X was ever
+  tracked (`fossil ls`) and which leaf `patches[0].hash` points to
+  (`fossil cat <path>` against that hash). In synthetic tests a missing `patch`
+  part makes revert a silent no-op — replicate the canonical shape from
+  `session-undo-fossil.test.ts`.
+
 ---
 
-## 4. API surface (`Snapshot.Service`)
+## 4. Performance envelope (measured 2026-08-23, Windows, tools/fossil.exe 2.28)
+
+| Operation | Cost | Notes |
+|-----------|------|-------|
+| Per-process floor | **80–130 ms** | Even `fossil info`/`status` on a trivial tree; spawn + repo open dominates |
+| First track (cold) | ~2.4 s | One-time: settings auto-configure + clean init (`fossil.ts` ensureInit path) |
+| Warm `track(1 file)` | ~0.5 s | `info`×2 + `add --force` + `commit --hash`; flat vs unchanged-tree size |
+| `track` over 1000 dirty files in a 10 000-file tree | ~0.46 s | Checkout mtime cache — cost is flat vs unchanged files |
+| Revert (`revertTo`) | ~1.4–2.5 s | Full checkout + extras cleanup; scales with changed-set, not tree size |
+
+Fossil handles large unchanged trees at the same speed as tiny ones; do not add
+caching layers for "many files" — the cost model is per-invocation, not per-file.
+Benchmarks: `experiments/2026-08-23_fossil_smoke.ps1`,
+`experiments/2026-08-23_undo_scale.test.ts`, `experiments/2026-08-23_undo_scale10k.test.ts`.
+
+---
+
+## 5. Tests (real Fossil binary)
+
+| Suite | Coverage |
+|-------|----------|
+| `test/session/session-undo-fossil.test.ts` | Structure walk h1/h2→h2′/h3→h4 both directions; multi-level redo; HISTORY_INVALID; invalid hash |
+| `test/snapshot/snapshot.test.ts` (`-t revert`) | Full-leaf revert after `track()` |
+| `test/snapshot/fossil-*.test.ts` | CLI, lifecycle, extras cleanup, ignore-glob |
+
+Run from `packages/opencode` (not repo root). **Use `--timeout 30000`:** these are
+real-subprocess integration tests; bun's default 5 s per-test limit produces false
+failures (~5.8 s/test measured). Tests must bind `patch` parts to messages exactly
+like the canonical suite — without them revert targeting is a no-op and synthetic
+assertions misfire.
+
+---
+
+## 6. API surface (`Snapshot.Service`)
 
 | Method | Purpose |
 |--------|---------|
@@ -95,7 +145,7 @@ Fail-loud:
 
 ---
 
-## 5. Self-healing and HISTORY_INVALID
+## 7. Self-healing and HISTORY_INVALID
 
 On corrupt / unopenable repo:
 
@@ -107,7 +157,7 @@ Old session patch hashes are then **invalid**. Undo fails with a clear error poi
 
 ---
 
-## 6. Integration points
+## 8. Integration points
 
 | Area | Behavior |
 |------|----------|
@@ -118,19 +168,7 @@ Old session patch hashes are then **invalid**. Undo fails with a clear error poi
 
 ---
 
-## 7. Tests (real Fossil binary)
-
-| Suite | Coverage |
-|-------|----------|
-| `test/session/session-undo-fossil.test.ts` | Structure walk h1/h2→h2′/h3→h4 both directions; multi-level redo; HISTORY_INVALID; invalid hash |
-| `test/snapshot/snapshot.test.ts` (`-t revert`) | Full-leaf revert after `track()` |
-| `test/snapshot/fossil-*.test.ts` | CLI, lifecycle, extras cleanup, ignore-glob |
-
-Run from `packages/opencode` (not repo root).
-
----
-
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 | Symptom | Check |
 |---------|--------|
@@ -143,7 +181,7 @@ Run from `packages/opencode` (not repo root).
 
 ---
 
-## 9. Related docs
+## 10. Related docs
 
 - [startup-bootstrap.md](startup-bootstrap.md) — Snapshot vs Git vs TUI  
 - [tools-and-sidecars.md](tools-and-sidecars.md) — `fossil.exe` layout  

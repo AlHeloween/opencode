@@ -431,3 +431,110 @@ sidecar, cache modeling, compaction mechanics, transform blocks.
 
 **Artifacts:** `experiments/cot-semantic-map/map.html` (interactive: hover = sentence
 text, trajectory arrows = message flow, phase legend). `map_data.json` for replays.
+
+---
+
+## [2026-08-23] Fix request-diff false remove+add (DB-vs-model ID misalignment)
+
+**Reason:** KV-cache diff logs (`{data}/log/*_diff_*.diff`) reported byte-identical
+tool-result messages as "1 removed, 1 added" between consecutive requests in one turn
+(e.g. `1787406857921_diff_mimo-v2.5-free_ses_fd663bc4....diff`, message #126 gaining
+`id=msg_...`). Root cause: `modelMessageIDs` in prompt.ts was DB-indexed while
+`modelMsgs`/`fromIndex` are model-indexed; `convertToModelMessages` expands an
+assistant tool-call 1:N (assistant + tool roles), so every ID after the first
+expansion shifted and tail messages got none. `messageKey()` then flipped between
+content-hash and id keys → false remove+add. Diagnostic-only: wire payload unchanged.
+
+**Change:** `Checkpoint.expandMessageIDs(ids, counts)` (checkpoint.ts) expands DB ids
+to model positions with stable `id#k` keys; prompt.ts builds model-indexed IDs via
+`toModelMessagesWithCountsEffect` for suffix/full-reconvert and counts for prefix;
+request-diff.ts docstring states the contract. New regression test
+`test/session/prompt-alignment.test.ts`: per-message conversion is payload-identical
+to batch; diff between steps shows "2 added, 0 removed"; old behavior reproduces the
+false positive. checkpoint.test.ts: 4 expandMessageIDs unit tests (caught a n==0 bug
+in the first helper draft).
+
+**Verification:** bun test checkpoint/request-diff/prompt-alignment green (25 pass),
+tsgo --noEmit clean. Pre-existing failures exonerated via git-worktree baseline at
+HEAD: session-undo-fossil 3/8 fail on BOTH trees (git/fossil subprocess timeouts);
+prompt.test.ts "native mode transition..." fails identically on both — fixture picks
+up user-global instructions ("You are Smit", Semantic Vector rules from ~/.codex)
+instead of expected "Reasoning Mode"; timeout-class tests also reproduce on baseline.
+Baseline worktree torn down after comparison.
+
+## [2026-08-23] Undo/redo latency profile (session-undo-fossil)
+
+**Reason:** User-reported regression: "undo/redo to selected message broke after some
+update". Suite failed 5/8 under bun default 5000ms per-test timeout.
+
+**Findings:** With `--timeout 30000`: 8 pass / 0 fail (46.31s total, ~5.8s/test).
+Logic intact; failures were pure latency. Stage profile
+(experiments/2026-08-23_undo_profile.test.ts): first snap.track ≈ 2.4s
+(fossil auto-configure ~0.8s + clean init ~0.8s, fossil.ts:211/246/310),
+subsequent tracks 0.5–0.9s, revert ≈ 0.9s. Raw fossil CLI smoke
+(experiments/2026-08-23_fossil_smoke.ps1, via cmd_runner): 12 ops in 1216ms
+(20–102ms/op) — app-side wrapper is 5–10x costlier per operation than raw CLI.
+Fossil docs (external/fossil/fossil-src-2.28/www): temp dir = FOSSIL_TEMP→TEMP→TMP,
+SQLite uses GetTempPath(); recommend excluding %TEMP%\fossil from antivirus scans
+(server/windows/service.md). Binary resolution for tests: external/fossil/fossil.exe
+(fossil.ts findFossil dir #3).
+
+**Conclusion:** No logic regression in undo/redo at HEAD 5122ad0724. Perceived breakage
+= seconds-scale latency (first-call init overhead + per-op spawn cost scaling with
+worktree size). Options: raise suite timeout (immediate), cache/reuse auto-configure +
+init across instances (prod fix), AV exclusion per docs.
+
+## [2026-08-23] findFossil: prefer side-installer tools/ over build artifact
+
+**Reason:** tools/ is the canonical distribution point maintained by the centralized
+side installer; external/fossil is a build artifact fallback. All three current copies
+(tools/, bin/tools/, external/fossil/) are byte-identical (md5 0bfd3c2c...), so this
+is a resolution-order fix, not a behavior change today.
+
+**Change:** fossil.ts findFossil() order now: repoRoot/tools → repoRoot/bin/tools →
+execPath/tools → home/tools → repoRoot/external/fossil → PATH.
+
+**Latency ground truth:** raw fossil per-process floor on Windows ≈ 80-130ms even for
+trivial ops (info 87-130ms, status 79-93ms via tools/fossil.exe). In-app adds ~10-50ms
+spawn overhead. One snap.track = info×2 + add + commit ≈ 0.5-0.9s for a single file;
+undo = several infos + diff ≈ 0.7s minimum. Scaling with worktree size explains the
+perceived "broken" undo in large sessions. Diagnostic timing stub added to runFossil,
+measured, removed. Profiler test corrected to canonical SU-1 shape (patch parts are
+required for revert targeting — without them revert is a no-op, which had produced
+false v3 failures in earlier profiling runs).
+
+## [2026-08-23] Undo scaling check: flat cost vs file count (user hypothesis confirmed)
+
+**Reason:** User challenged the linear-scaling extrapolation: fossil should handle
+1000 files as fast as one.
+
+**Experiment:** experiments/2026-08-23_undo_scale.test.ts — SU-1 shape with a
+1000-file bank across 10 dirs, single-file change per track.
+Results: track#1 (full bank first snapshot) ≈ 2.6s; track#2/#3 with one changed
+file on a 1000-file tree ≈ 0.45-0.5s (same as 1-file case); revert ≈ 1.4s;
+assert ok, bank intact after undo. Fossil's checkout mtime cache makes cost
+effectively independent of unchanged-tree size.
+
+**Conclusion:** No scaling cliff. Undo/redo latency is bounded (~0.5s/track warm,
+~1.5s/revert, plus one-time init on cold start). The user-reported real-session
+breakage is therefore NOT explained by worktree size; next step is reproducing the
+actual TUI undo-to-message scenario from a live session history.
+
+## [2026-08-23] Mass-change rollback investigation — no product bug; experiment artifact
+
+**Reason:** scale10k probe showed bank files surviving revert; user asked to dig in.
+
+**Investigation:** Instrumented runFossil/checkoutTo/revertTo (full argv capture +
+post-checkout state: fossil info/ls/changes/sql vfile/cat). Root cause of the probe
+anomaly: snap.track([note.txt]) tracks ONLY given paths — the 1000-file bank was never
+committed into any snapshot leaf, so checkout correctly left it untouched (vfileCount=1,
+manifestBank missing). No fossil defect; raw replays (fossil_checkout_repro.sh,
+fossil_replay6.sh, fossil_anchor_repro.sh) all restore correctly, including exact argv
+sequences with --hash/--nested/anchor commits. Fossil per-process floor on Windows is
+~80-130ms regardless of tree size; mass-change commit over 1000 dirty files ≈ 0.46s;
+revert ≈ 1.4-2.5s on a 10k tree.
+
+**Resolution:** All diagnostics removed from fossil.ts (diff = findFossil order only).
+undo-fossil suite 8/8 pass @30s timeout; tsgo --noEmit clean. Real-session undo issues,
+if any recur, must be reproduced from actual session history (patch.parts targeting),
+not synthetic trees.

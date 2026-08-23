@@ -220,8 +220,21 @@ export function Session() {
     return all
   })
 
-  // Display messages: composite (all sessions) or main session only
-  const messagesList = createMemo(() => compositeMessages())
+  // Display messages: composite (all sessions) or main session only.
+  // Undo is provisional: while session.revert is active the reverted tail is
+  // hidden from the transcript (server keeps rows until the next prompt folds
+  // them away). Redo clears revert.state → tail reappears. Partial reverts
+  // (partID) stay visible — hiding a half-reverted message misrepresents it.
+  const messagesList = createMemo(() => {
+    const all = compositeMessages()
+    const rev = session()?.revert
+    const revertID = rev?.messageID
+    if (!revertID || rev.partID) return all
+    return all.filter((m) => {
+      if ("_source" in m && m._source !== route.sessionID) return true
+      return m.id < revertID
+    })
+  })
   const permissions = createMemo(() => {
     if (session()?.parentID) return []
     return children().flatMap((x) => sync.data.permission[x.id] ?? [])

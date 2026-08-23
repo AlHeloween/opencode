@@ -92,7 +92,10 @@ export type FormatRequestOpts = {
 /**
  * Format the LLM request (system prompt + model messages) as
  * a deterministic, human-readable text blob for diffing.
- * Optional messageIDs (parallel to modelMsgs) enable id-stable MESSAGES diffs.
+ * Optional messageIDs (parallel to modelMsgs — MODEL-indexed, expanded via
+ * Checkpoint.expandMessageIDs when tool-calls expand 1:N) enable id-stable
+ * MESSAGES diffs. DB-indexed IDs misalign after the first expansion and make
+ * headers flicker between requests → false remove+add diffs.
  *
  * Pass `fromIndex` (e.g. checkpoint reusable prefix length) to format only the
  * delta — the common case between consecutive turns.

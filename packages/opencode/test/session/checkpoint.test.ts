@@ -379,4 +379,35 @@ describe("Checkpoint", () => {
     expect(Checkpoint.takeModelPrefix(data, 2)).toBeNull()
     expect(Checkpoint.modelMessageEnd(data, 2)).toBeNull()
   })
+  test("expandMessageIDs expands 1:N tool-call messages with stable #k keys", () => {
+    // user, assistant(tool-call → assistant + tool), plain assistant
+    expect(Checkpoint.expandMessageIDs(["u1", "a1", "a2"], [1, 2, 1])).toEqual([
+      "u1",
+      "a1#0",
+      "a1#1",
+      "a2",
+    ])
+  })
+
+  test("expandMessageIDs keeps identity for missing/undefined counts", () => {
+    expect(Checkpoint.expandMessageIDs(["u1", "a1"], undefined)).toEqual(["u1", "a1"])
+    expect(Checkpoint.expandMessageIDs(["u1", "a1"], [])).toEqual(["u1", "a1"])
+  })
+
+  test("expandMessageIDs skips zero-count (skipped) DB messages", () => {
+    // Empty-parts message produces no ModelMessage and contributes no ID.
+    expect(Checkpoint.expandMessageIDs(["u1", "empty", "a1"], [1, 0, 2])).toEqual([
+      "u1",
+      "a1#0",
+      "a1#1",
+    ])
+  })
+
+  test("expandMessageIDs output length matches model messages when counts sum aligns", () => {
+    const ids = ["u1", "a1", "a2"]
+    const counts = [1, 2, 3]
+    const expanded = Checkpoint.expandMessageIDs(ids, counts)
+    expect(expanded.length).toBe(counts.reduce((s, n) => s + n, 0))
+    expect(expanded[4]).toBe("a2#1")
+  })
 })

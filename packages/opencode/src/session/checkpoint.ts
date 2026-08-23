@@ -263,6 +263,28 @@ export function takeModelPrefix(data: CheckpointData, prefixLen: number): ModelM
   return data.messages.slice(0, end)
 }
 
+/**
+ * Expand DB-message IDs to ModelMessage positions using per-message counts.
+ * A DB message that produced N > 1 ModelMessages (assistant tool-call →
+ * assistant + tool roles) yields `id#0 … id#(N-1)` so every expanded entry
+ * keeps a stable, unique request-diff key. N === 1 keeps the bare ID;
+ * N === 0 (empty/skipped message) contributes nothing. Missing counts fall
+ * back to 1:1 identity.
+ */
+export function expandMessageIDs(ids: string[], counts: number[] | undefined): string[] {
+  if (!counts) return [...ids]
+  const out: string[] = []
+  for (let i = 0; i < ids.length; i++) {
+    const n = counts[i]
+    if (n === undefined) {
+      out.push(ids[i])
+      continue
+    }
+    for (let k = 0; k < n; k++) out.push(n > 1 ? `${ids[i]}#${k}` : ids[i])
+  }
+  return out
+}
+
 /** Persist an already-published checkpoint to encrypted rotating disk slots. */
 export function persist(input: {
   sessionID: string

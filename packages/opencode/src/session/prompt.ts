@@ -2096,7 +2096,7 @@ export const layer = Layer.effect(
             // results → AI_MissingToolResultsError. Use modelMessageCounts.
             let modelMsgs: ModelMessage[]
             // Diff/checkpoint IDs are plain strings (CheckpointData.messageIDs); do not brand.
-            let modelMessageIDs: string[] = msgs.map((m) => m.info.id)
+            let modelMessageIDs: string[]
             if (checkpointUsable) {
               const prefixLen = Checkpoint.reusablePrefixLength(msgs, checkpointUsable)
               const prefixModel = Checkpoint.takeModelPrefix(checkpointUsable, prefixLen)
@@ -2111,32 +2111,41 @@ export const layer = Layer.effect(
                   modelID: model.id,
                   providerID: model.providerID,
                 })
-                modelMsgs = yield* MessageV2.toModelMessagesEffect(
+                const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                   msgs,
                   model,
                   toolReplayOptions(yield* config.get()),
                 )
+                modelMsgs = converted.messages
+                modelMessageIDs = Checkpoint.expandMessageIDs(msgs.map((m) => m.info.id), converted.counts)
               } else {
                 const suffix = msgs.slice(prefixLen)
-                const suffixModel = suffix.length
-                  ? yield* MessageV2.toModelMessagesEffect(
-                      suffix,
-                      model,
-                      toolReplayOptions(yield* config.get()),
-                    )
-                  : []
-                modelMsgs = [...prefixModel, ...suffixModel]
+                const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
+                  suffix,
+                  model,
+                  toolReplayOptions(yield* config.get()),
+                )
+                modelMsgs = [...prefixModel, ...converted.messages]
+                // IDs must index modelMsgs positions, not DB messages: an assistant
+                // tool-call expands 1:N (assistant + tool roles), so raw messageIDs
+                // misalign and request-diff headers gain/lose `id=` between steps —
+                // reported as remove+add cache breaks for byte-identical messages.
                 modelMessageIDs = [
-                  ...checkpointUsable.messageIDs.slice(0, prefixLen),
-                  ...suffix.map((m) => m.info.id),
+                  ...Checkpoint.expandMessageIDs(
+                    checkpointUsable.messageIDs.slice(0, prefixLen),
+                    checkpointUsable.modelMessageCounts!.slice(0, prefixLen),
+                  ),
+                  ...Checkpoint.expandMessageIDs(suffix.map((m) => m.info.id), converted.counts),
                 ]
               }
             } else {
-              modelMsgs = yield* MessageV2.toModelMessagesEffect(
+              const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                 msgs,
                 model,
                 toolReplayOptions(yield* config.get()),
               )
+              modelMsgs = converted.messages
+              modelMessageIDs = Checkpoint.expandMessageIDs(msgs.map((m) => m.info.id), converted.counts)
             }
 
             yield* slog.debug("prepare", { step, stage: "dispatch" })

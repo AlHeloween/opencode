@@ -593,3 +593,4 @@ Windows (60s hangs) — run files individually.
 - **Scrollbar bounce (TUI)**: live chip resized the transcript viewport by 2 rows on every live-edge crossing; reserved the chip row so layout is stable. Isolated OpenTUI wheel repro added (core mechanics clean). tsgo clean; repro 2/0.
 - **Tracker paging (TUI)**: sessions >100 messages now load older pages on scroll-up (cursor before-pages, scroll anchoring, eviction cap 400). Archive rows intentionally excluded (visibleOnly) - collapsed groups next. tsgo clean.
 - **Timeline collapse (TUI)**: message*/L1 rows collapsed into one expandable entry (+/- keys or select) - navigation decluttered; work rows untouched. tsgo clean.
+- **Hotfix boot hang**: Schema.suspend in session.error bus event crashed Effect derivation at serve boot ("unsupported effect schema: Suspend") - worker died silently, TUI hung (build 880). Replaced with plain optional-any; loadOlder export level fixed. serve boots, probes OK, suites 109/0.

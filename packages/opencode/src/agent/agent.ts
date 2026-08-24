@@ -630,12 +630,17 @@ export const layer = Layer.effect(
   }),
 )
 
-export const defaultLayer = layer.pipe(
-  Layer.provide(Plugin.defaultLayer),
-  Layer.provide(Provider.defaultLayer),
-  Layer.provide(Auth.defaultLayer),
-  Layer.provide(Config.defaultLayer),
-  Layer.provide(Skill.defaultLayer),
+// Layer.suspend breaks the module-eval cycle Plugin -> Session -> ... ->
+// Agent: Plugin.defaultLayer must be read at build time, when every module
+// in the cycle has finished evaluating (same pattern as provider/llm/compaction).
+export const defaultLayer = Layer.suspend(() =>
+  layer.pipe(
+    Layer.provide(Plugin.defaultLayer),
+    Layer.provide(Provider.defaultLayer),
+    Layer.provide(Auth.defaultLayer),
+    Layer.provide(Config.defaultLayer),
+    Layer.provide(Skill.defaultLayer),
+  ),
 )
 
 export * as Agent from "./agent"

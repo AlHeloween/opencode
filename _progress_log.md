@@ -574,3 +574,10 @@ Windows (60s hangs) — run files individually.
 - **Root cause B**: ignore-glob bare names (node_modules, .git) cover only worktree root; nested copies walked by `fossil extras` (20s+ no finish). Fix: expandGlob adds star-prefixed twin for slash-free patterns.
 - **Verification**: repro restore(e99f0cca) 20s-timeout -> 2.9s COMPLETED; extras instant; tsgo clean; crossing+undo-fossil+track-heal 11/11.
 - **Side finding**: `bun run dev serve` dies with TDZ ReferenceError at src/agent/agent.ts:634 (defaultLayer before init) - separate issue, built binaries unaffected.
+
+## 2026-08-23 Dev-serve TDZ crash (agent.ts:634)
+- **Symptom**: `bun run dev serve` dies instantly: ReferenceError "Cannot access 'defaultLayer' before initialization" at agent.ts:634 (Plugin.defaultLayer). Built binaries unaffected (bundle order masks it).
+- **Root cause**: module-eval cycle Plugin -> Session -> message-v2 -> sync -> project/instance -> bootstrap -> Plugin (and Plugin -> ... -> Agent). agent.ts read Plugin.defaultLayer at module top level while Plugin was still mid-evaluation.
+- **Fix**: Agent.defaultLayer wrapped in Layer.suspend - Plugin.defaultLayer now read at layer-build time (pattern already used by provider/auth, provider, compaction, llm).
+- **Verification**: `index.ts serve` now boots: /doc returns OpenAPI, /global/event 200. tsgo clean.
+- **Known latent (NOT fixed, entry-order dependent)**: importing @/session/message-v2 as the FIRST module still TDZs ("Assistant") via cycle message-v2 -> sync -> instance -> bootstrap -> plugin -> session.ts:459 (MessageV2.Assistant.fields.error at eval time). No production entry hits it (serve verified). Proper fix = Schema.suspend at session.ts:459 or extracting the error field to a leaf module; both change bus-schema AST shape - needs a dedicated decision.

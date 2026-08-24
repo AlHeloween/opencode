@@ -22,8 +22,6 @@ import {
   REQUEST_OVERHEAD_TOKENS,
   SUMMARY_GENERATION_RESERVE_TOKENS,
   summaryNeedsCompactFirst,
-  summaryWindowLimit,
-  usable,
 } from "./overflow"
 import { Jobs } from "../jobs"
 import { RequestDiff } from "./request-diff"
@@ -1619,11 +1617,14 @@ export const layer = Layer.effect(
         // cadence hook via onHeadroomCompact.
 
         /**
-         * Layer-2 fold (zero LLM tokens) when **model usable context** is full —
-         * NOT at Layer-1's 64k summary cadence.
-         *
-         * 1M model → work with hundreds of k of M; s still taken every ~64k open
-         * via sidecar. Compact only when full visible content approaches usable().
+         * Layer-2 fold: MECHANICAL, zero LLM tokens, fixed size —
+         * m* = summaries (≤ MAX_SUMMARY_BODY_TOKENS) + recent (≥ RECENT_MIN_TOKENS).
+         * The model window must NOT gate the cadence (Forbidden: gate compact on
+         * usable()): a small or degraded window previously computed
+         * compactTarget ≤ 0 and the fold never fired → provider overflow errors.
+         * Trigger = full visible content ≥ SUMMARY_INTERVAL_TOKENS (same 64K
+         * cadence constant as Layer-1 s). s are taken every ~64k open via
+         * sidecar and stay OUT of M; compact only packs them into m*.
          * Never fold on the same stop as a new s; never with exactly one open s.
          */
         const maybeCompactCadence = (input: {
@@ -1650,18 +1651,16 @@ export const layer = Layer.effect(
               input.msgs ?? (yield* MessageV2.filterCompactedEffect(sessionID))
             const cfg = yield* config.get()
             // Full visible M (chars/4) — not open-since-last-s.
+            // Fixed mechanical cadence — window-independent (see block doc).
+            const compactTarget = SessionCompaction.SUMMARY_INTERVAL_TOKENS
             const visibleTokens = SessionCompaction.computeOpenWindowTokens(visible)
-            // Compact target = model usable window (e.g. ~850k on 1M), not 65_536.
-            // Layer-1 SUMMARY_INTERVAL is only for sidecar s cadence.
-            const compactTarget = usable({ cfg, model: input.model })
             if (
-              compactTarget <= 0 ||
-              (!input.force &&
-                !needsContentCompaction({
-                  cfg,
-                  openTokens: visibleTokens,
-                  target: compactTarget,
-                }))
+              !input.force &&
+              !needsContentCompaction({
+                cfg,
+                openTokens: visibleTokens,
+                target: compactTarget,
+              })
             ) {
               return false
             }
@@ -1673,16 +1672,13 @@ export const layer = Layer.effect(
               modelContext: input.model.limit.context,
               summaryInterval: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
             })
-            // Recent trim inside compact (no-s case) still uses Layer-1 interval floor.
+            // Recent trim floor is the fixed cadence constant — window clamp
+            // removed with the usable() gate (mechanical compact, see above).
             const folded = yield* compaction.compact({
               sessionID,
               model: { providerID: input.model.providerID, modelID: input.model.id },
               agent: input.agent,
-              threshold: summaryWindowLimit({
-                cfg,
-                model: input.model,
-                target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
-              }),
+              threshold: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
             })
             // Nothing folded (e.g. lone message*) — keep the checkpoint and
             // cooldown untouched; reporting false lets callers know M did not
@@ -2474,11 +2470,8 @@ export const layer = Layer.effect(
                 sessionID,
                 model: lastUser.model,
                 agent: lastUser.agent,
-                threshold: summaryWindowLimit({
-                  cfg: yield* config.get(),
-                  model,
-                  target: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
-                }),
+                // Mechanical compact: fixed cadence floor, no window clamp.
+                threshold: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
               })
               // Invalidate checkpoint — the old checkpoint contains pre-compaction
               // message IDs that won't match the new compacted state.

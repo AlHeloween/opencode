@@ -12,7 +12,6 @@ import {
   hasSpareOutput,
   REQUEST_OVERHEAD_TOKENS,
   summaryNeedsCompactFirst,
-  summaryWindowLimit,
   usable,
 } from "../../src/session/overflow"
 import type { Provider } from "@/provider/provider"
@@ -67,40 +66,6 @@ describe("layer1SummaryThreshold (pure content cadence)", () => {
   })
 })
 
-describe("summaryWindowLimit (Layer-2 Recent trim — stays context-clamped)", () => {
-  test("large model returns the full target", () => {
-    expect(
-      summaryWindowLimit({
-        cfg,
-        model: modelFixture(1_000_000, 8_192),
-        target: SUMMARY_INTERVAL_TOKENS,
-      }),
-    ).toBe(SUMMARY_INTERVAL_TOKENS)
-  })
-
-  test("unknown context (0) returns the full target", () => {
-    expect(
-      summaryWindowLimit({
-        cfg,
-        model: modelFixture(0, 8_192),
-        target: SUMMARY_INTERVAL_TOKENS,
-      }),
-    ).toBe(SUMMARY_INTERVAL_TOKENS)
-  })
-
-  test("small ~40K model collapses to ~12.5K — the value Layer-1 must NEVER use", () => {
-    // usable = 40_960 − (10_000 + 8_192) = 22_768
-    // budget = 8_192; headroom = 2_048 → threshold = 22_768 − 8_192 − 2_048
-    const clamped = summaryWindowLimit({
-      cfg,
-      model: modelFixture(40_960, 8_192),
-      target: SUMMARY_INTERVAL_TOKENS,
-    })
-    expect(clamped).toBe(12_528)
-    // The split invariant: Layer-1 cadence is strictly above the Layer-2 clamp.
-    expect(layer1SummaryThreshold()).toBeGreaterThan(clamped)
-  })
-})
 
 describe("summaryNeedsCompactFirst (≥32K generation headroom invariant)", () => {
   test("reserve is 32 768 tokens", () => {

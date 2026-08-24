@@ -4,7 +4,6 @@ import { ProviderTransform } from "@/provider/transform"
 import type { MessageV2 } from "./message-v2"
 import { TokenCalibration } from "./token-calibration"
 
-const SUMMARY_REQUEST_HEADROOM_TOKENS = 2_048
 /** Cap on output-token reserve so huge max_output does not erase 1M windows. */
 const MAX_OUTPUT_RESERVE_TOKENS = 32_768
 const FALLBACK_OUTPUT_RESERVE_TOKENS = 8_192
@@ -32,14 +31,6 @@ export function defaultUsableReserved(model: Provider.Model): number {
   return REQUEST_OVERHEAD_TOKENS + outputReserve
 }
 
-function summaryResponseBudget(model: Provider.Model, contentTokens: number) {
-  const raw = ProviderTransform.maxOutputTokens(model, undefined, contentTokens)
-  if (!model.capabilities.reasoning) return raw
-  // Keep this aligned with LLM.stream(): reasoning consumes the same output
-  // budget as visible text. OpenAI reasoning requests omit the cap, so reserve
-  // the model's declared output maximum as the conservative upper bound.
-  return Math.min(raw * 3, model.limit.output || raw * 3)
-}
 
 /**
  * Check if there is enough spare output room for a generation.
@@ -68,25 +59,6 @@ export function usable(input: { cfg: Config.Info; model: Provider.Model }) {
   const limit = observedLimit ?? input.model.limit.input ?? context
   const reserved = input.cfg.compaction?.reserved ?? defaultUsableReserved(input.model)
   return Math.max(0, limit - reserved)
-}
-
-/**
- * Normal Layer-1 cadence may be larger than a provider's usable context.
- * Reserve room for the synthetic summary request and its response so a
- * completed normal turn can transition into a summary without first looping
- * through another overflow compaction.
- */
-export function summaryWindowLimit(input: { cfg: Config.Info; model: Provider.Model; target: number }) {
-  if (input.model.limit.context === 0) return input.target
-  return Math.max(
-    1,
-    Math.min(
-      input.target,
-      usable(input) -
-        summaryResponseBudget(input.model, input.target) -
-        SUMMARY_REQUEST_HEADROOM_TOKENS,
-    ),
-  )
 }
 
 export function isOverflow(input: { cfg: Config.Info; tokens: MessageV2.Assistant["tokens"]; model: Provider.Model }) {

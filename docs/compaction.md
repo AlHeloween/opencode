@@ -153,7 +153,7 @@ sequenceDiagram
 | Prior m* decisions not pulled forward | `buildMessageStar` takes only `currentDecisions`, no `priorDecisions` param | **Match (shipped 2026-08-22)** |
 | Prior m* excluded from Recent tail | `selectRecentTail` hard-stops at prior m* (does NOT include it) | **Match (shipped 2026-08-22)** |
 | Recent tail ≥ ~16k tokens | `selectRecentTail` / `RECENT_MIN_TOKENS` — skip m* + last summary; overlap back if thin, hard-stop at prior m* | **Match** |
-| Compact after enough s / model window full | **`maybeCompactCadence`**: target=`usable(model)` not 64k; skip same stop as new s; skip if 1 open sidecar | **Fixed 2026-07-30** |
+| Compact on mechanical cadence | **`maybeCompactCadence`**: target=`SUMMARY_INTERVAL_TOKENS` (fixed 64k, window-independent); skip same stop as new s; skip if 1 open sidecar; **`usable()` removed from the gate (2026-08-24)** — a degraded window previously computed target ≤ 0 and the fold never fired → provider overflow errors | **Fixed 2026-08-24** |
 | injectSummaryRequest as primary | Implemented, **not called** from `prompt.ts` | **Dead primary** |
 | Summary request as durable user row then restore | inject would leave synthetic user unless restored — not used | N/A |
 
@@ -165,7 +165,7 @@ stop → Checkpoint M → maybeCaptureSidecar (s outside M)
      → else maybeCompactCadence:
           open sidecars === 1 → skip (never s→immediate fold)
           open sidecars ≥ 2 (or 0 legacy)
-            AND full visible content/4 ≥ usable(model)   ← e.g. ~850k on 1M, NOT 64k
+            AND full visible content/4 ≥ SUMMARY_INTERVAL_TOKENS (64k, fixed)
             → compact() → m* = [s…, recent m…]; soft-hide m
      → break
 ```
@@ -174,12 +174,17 @@ stop → Checkpoint M → maybeCaptureSidecar (s outside M)
 
 | Gate | Target | Meaning |
 |------|--------|---------|
-| Sidecar s | ~`SUMMARY_INTERVAL_TOKENS` (65 536) open since last s | periodic Exact memory rows |
-| Compact m* | **`usable(model)`** (context − LLM headroom) | only when M fills the **model** window |
+| Sidecar s | ~`SUMMARY_INTERVAL_TOKENS` (65 536) open since last s | periodic Exact memory rows |
+| Compact m* | **`SUMMARY_INTERVAL_TOKENS`** (fixed, window-independent) | mechanical fold when a full cadence of visible work accumulated |
 
-**`usable` headroom** (not a compaction tax): `request overhead (10k) + min(max_output, 32k)` for the **next LLM turn**. Mechanistic compact is zero-token — no 15%/150k “leave room for summary call”. Optional override: `config.compaction.reserved`.
-
-A 1M model must **not** compact at 64k — that wastes the window and forces the agent into m* soup.
+**`usable` headroom** is NOT a compaction gate: `usable()` remains only on
+request-fit / safety paths (`isOverflow`, `hasSpareOutput`,
+`summaryNeedsCompactFirst` — the ≥32K generation-headroom guard for s).
+Mechanistic compact is zero-token and fixed-size
+(m* = ≤32K summaries + ≥32K recent) — the model window neither scales nor
+blocks it. A degraded window must still fold mechanically; gating on
+`usable()` computed ≤ 0 and the fold never fired → provider overflow errors
+(fixed 2026-08-24).
 
 ---
 

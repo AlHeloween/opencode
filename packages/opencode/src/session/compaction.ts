@@ -366,7 +366,8 @@ export function summaryAttemptCount(msgs: MessageV2.WithParts[], requestID: Mess
  * NOT context-clamped — small-context models must rely on Layer-2 compaction
  * instead of firing Layer-1 early. Regression: a ~40K-context model used to
  * get a threshold ≈12.5K from summaryWindowLimit and summarized at session
- * start with ~10K content. summaryWindowLimit stays for Layer-2 Recent trim.
+ * start with ~10K content. summaryWindowLimit is removed (2026-08-24): Layer-2
+ * compact is mechanical — fixed SUMMARY_INTERVAL_TOKENS floor, window-independent.
  */
 export function layer1SummaryThreshold(): number {
   return SUMMARY_INTERVAL_TOKENS

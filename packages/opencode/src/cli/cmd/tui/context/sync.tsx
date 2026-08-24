@@ -962,9 +962,9 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           return last.time.completed ? "idle" : "working"
         },
         sync: syncSession,
-        loadOlder: loadOlderMessages,
       },
       bootstrap,
+      loadOlder: loadOlderMessages,
     }
     return result
   },

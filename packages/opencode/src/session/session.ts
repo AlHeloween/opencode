@@ -454,13 +454,15 @@ export const Event = {
     "session.error",
     Schema.Struct({
       sessionID: Schema.optional(SessionID),
-      // Reuses MessageV2.Assistant.fields.error (already Schema.optional) so
-      // the derived zod keeps the same discriminated-union shape on the bus.
-      // Schema.suspend defers the dereference past module evaluation: session.ts
+      // Plain optional-any, NOT MessageV2.Assistant.fields.error: session.ts
       // sits in the import cycle message-v2 -> sync -> instance -> bootstrap ->
-      // plugin -> session, and an eager read here TDZs when message-v2 is the
-      // entry module. Resolution-time shape is identical.
-      error: Schema.suspend(() => MessageV2.Assistant.fields.error),
+      // plugin -> session, and an eager dereference TDZs when message-v2 is
+      // the entry module. Schema.suspend fixed the TDZ but the Suspend AST
+      // crashes Effect schema derivation at serve boot ("unsupported effect
+      // schema: Suspend", found 2026-08-24). Bus discrimination is on the
+      // event `type` literal, so loosening this one field's payload
+      // validation is safe; the wire shape is unchanged.
+      error: Schema.optional(Schema.Any),
     }),
   ),
   BalanceUpdated: BusEvent.define(

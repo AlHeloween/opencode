@@ -123,6 +123,10 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
 
     const fullSyncedSessions = new Set<string>()
     const inflightSyncs = new Map<string, Promise<void>>()
+    // Older-than-loaded paging (tracker scroll-up): inflight guard + sessions
+    // whose older pages are exhausted (empty/short page from the server).
+    const inflightOlder = new Map<string, Promise<boolean>>()
+    const olderExhausted = new Set<string>()
     let syncedWorkspace = project.workspace.current()
 
     // Buffer deltas that arrive before the part is in the store.
@@ -391,8 +395,65 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           if (inflightSyncs.get(sessionID) === task) inflightSyncs.delete(sessionID)
         }
       }
-
-
+      /**
+       * Fetch one older page (before the oldest loaded message) into the store.
+       * Tracker scroll-up calls this near the top of the transcript; the server
+       * pages model-visible rows only (compacted archive stays session-read).
+       * Returns true when new rows were prepended.
+       */
+      async function loadOlderMessages(sessionID: string): Promise<boolean> {
+        if (olderExhausted.has(sessionID)) return false
+        const inflight = inflightOlder.get(sessionID)
+        if (inflight) return inflight
+        const task = (async () => {
+          try {
+            const oldest = store.message[sessionID]?.[0]
+            if (!oldest) return false
+            const limit = 100
+            // Wire format of MessageV2.cursor (server authority):
+            // base64url(JSON {id, time}) — built here to keep the server
+            // module (drizzle/db) out of the TUI bundle.
+            const before = Buffer.from(
+              JSON.stringify({ id: oldest.id, time: oldest.time.created }),
+            ).toString("base64url")
+            const result = await sdk.client.session.messages(
+              { sessionID, limit, before },
+              { throwOnError: true },
+            )
+            const page = result.data ?? []
+            // Short page = the remainder: nothing older beyond it.
+            if (page.length < limit) olderExhausted.add(sessionID)
+            if (page.length === 0) return false
+            const infos = page.map((x) => x.info)
+            batch(() => {
+              setStore(
+                "message",
+                sessionID,
+                produce((draft) => {
+                  const existing = new Set(draft.map((m) => m.id))
+                  const older = infos.filter((m) => !existing.has(m.id))
+                  if (older.length === 0) return
+                  draft.unshift(...older)
+                  draft.sort((a, b) => (a.time?.created ?? 0) - (b.time?.created ?? 0))
+                }),
+              )
+              for (const message of page) {
+                if (store.part[message.info.id] === undefined) {
+                  setStore("part", message.info.id, reconcile(message.parts, { key: "id" }))
+                }
+              }
+            })
+            return true
+          } catch (error) {
+            Log.Default.error("tui load older messages failed", { sessionID, error })
+            return false
+          } finally {
+            inflightOlder.delete(sessionID)
+          }
+        })()
+        inflightOlder.set(sessionID, task)
+        return task
+      }
       // Legacy wrapper kept for backward compatibility.
       function recoverSessionSync(input: { sessionID: string; messageID: string; partID: string }) {
         debouncedRecoverySync(input)
@@ -549,7 +610,10 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           // Only evict oldest messages if they are fully completed
           // (no pending/running parts). Never evict mid-stream.
           const updated = store.message[event.properties.info.sessionID]
-          if (updated.length > 100) {
+          // Bounded but deep enough for tracker-driven older-page loads: the
+          // transcript can hold ~4 pages; eviction trims what the user already
+          // scrolled past. (100 fought the lazy loader by dropping its rows.)
+          if (updated.length > 400) {
             const oldest = updated[0]
             if (oldest && !hasActiveParts(oldest.id)) {
               batch(() => {
@@ -898,6 +962,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           return last.time.completed ? "idle" : "working"
         },
         sync: syncSession,
+        loadOlder: loadOlderMessages,
       },
       bootstrap,
     }

@@ -1318,6 +1318,29 @@ export function Session() {
     onCleanup(() => clearInterval(id))
   })
 
+  // Tracker-driven older-page loads: near the top of the transcript, fetch the
+  // next older page and compensate scrollTop by the inserted height so the
+  // reading position stays put. The 250ms poll above keeps scrollPos fresh.
+  let loadingOlder = false
+  createEffect(() => {
+    const info = scrollPos()
+    if (info.atLive || info.rowsAbove > 240 || loadingOlder) return
+    if (!scroll || scroll.isDestroyed) return
+    loadingOlder = true
+    const beforeHeight = scroll.scrollHeight
+    void sync.loadOlder(route.sessionID).then((loaded) => {
+      loadingOlder = false
+      if (!loaded || !scroll || scroll.isDestroyed) return
+      // One layout frame for the prepended rows to be measured, then anchor.
+      setTimeout(() => {
+        if (!scroll || scroll.isDestroyed) return
+        const delta = scroll.scrollHeight - beforeHeight
+        if (delta > 0) scroll.scrollBy(delta)
+        refreshScrollPos()
+      }, 32)
+    })
+  })
+
   return (
     <context.Provider
       value={{

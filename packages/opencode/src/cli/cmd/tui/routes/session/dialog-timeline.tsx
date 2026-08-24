@@ -37,12 +37,22 @@ export function DialogTimeline(props: {
       const isStar = part.synthetic && trimmed.startsWith("=== COMPACTED ===")
       const isL1 = part.synthetic && trimmed.startsWith("=== LAYER-1 SUMMARY ===")
       const preview = part.text.replace(/\n/g, " ")
+      // Hidden rows (soft-hidden by compaction) are selectable: undoing to
+      // one crosses the compaction boundary - resurrects this row and the
+      // hidden history below it, hides the visible future.
+      // SDK v2 src-gen UserMessage is stale (dist gen carries the flag): the
+      // runtime payload includes info.compacted from MessageV2.Info.
+      const hidden = (message as { compacted?: boolean }).compacted === true
+      const label = isStar
+        ? `[message*] ${preview.slice(0, 120)}`
+        : isL1
+          ? `[L1 summary] ${preview.slice(0, 120)}`
+          : preview
       result.push({
-        title: isStar
-          ? `[message*] ${preview.slice(0, 120)}`
-          : isL1
-            ? `[L1 summary] ${preview.slice(0, 120)}`
-            : preview,
+        title: hidden ? `[compacted] ${label}` : label,
+        description: hidden
+          ? "hidden by compaction - undo here crosses the boundary"
+          : undefined,
         value: message.id,
         footer: Locale.time(message.time.created),
         onSelect: (dialog) => {

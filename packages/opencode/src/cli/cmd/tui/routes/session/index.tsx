@@ -1476,14 +1476,13 @@ export function Session() {
                 )}
               </For>
             </scrollbox>
-            <Show when={!scrollPos().atLive}>
-              <box
-                flexShrink={0}
-                flexDirection="row"
-                justifyContent="center"
-                paddingTop={0}
-                paddingBottom={0}
-              >
+            {/* Reserved row: the chip must NOT change the scrollbox viewport.
+                 Appearing/disappearing here resized the viewport by 2 rows
+                 (box + gap) on every live-edge crossing - the content lurched
+                 and the scrollbar thumb bounced while wheeling near the
+                 bottom. The row is always occupied; only its content toggles. */}
+            <box flexShrink={0} height={1} flexDirection="row" justifyContent="center">
+              <Show when={!scrollPos().atLive}>
                 <box
                   onMouseUp={() => toBottom()}
                   paddingLeft={1}
@@ -1496,8 +1495,8 @@ export function Session() {
                   <text fg={theme.primary}>{formatScrollChip(scrollPos())}</text>
                   <text fg={theme.textMuted}> · click / End</text>
                 </box>
-              </box>
-            </Show>
+              </Show>
+            </box>
             <box flexShrink={0}>
               <Show when={permissions().length > 0}>
                 <PermissionPrompt request={permissions()[0]} />

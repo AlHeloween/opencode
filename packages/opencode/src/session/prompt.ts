@@ -86,6 +86,7 @@ import { EffectBridge } from "@/effect/bridge"
 import { convertDocument, isSupportedDocumentFormat } from "@/util/markdownify"
 
 import { canonicalIdentity, isPrimaryModeIdentity } from "./mode-identity"
+import { resolveAgentModel, resolveAgentVariant } from "./session-settings"
 
 /**
  * Mode text is a one-shot conversation transition record. It must never be
@@ -1146,13 +1147,30 @@ export const layer = Layer.effect(
         throw error
       }
 
-      const model = input.model ?? ag.model ?? (yield* lastModel(input.sessionID))
+      // Unified resolution: input → session/workspace → global agent config → last used → default
+      const currentSession = yield* sessions.get(input.sessionID)
+      const resolvedFromSettings = yield* Effect.tryPromise({
+        try: () => resolveAgentModel(ag.name, {
+          sessionID: input.sessionID,
+          workspaceID: currentSession.workspaceID,
+        }),
+        catch: () => undefined,
+      }).pipe(Effect.catch(() => Effect.succeed(undefined)))
+      const sessionWorkspaceModel = resolvedFromSettings
+        ? { providerID: ProviderID.make(resolvedFromSettings.providerID), modelID: ModelID.make(resolvedFromSettings.modelID) }
+        : undefined
+      const model = input.model ?? sessionWorkspaceModel ?? ag.model ?? (yield* lastModel(input.sessionID))
       const same = ag.model && model.providerID === ag.model.providerID && model.modelID === ag.model.modelID
       const full =
         !input.variant && ag.variant && same
           ? yield* provider.getModel(model.providerID, model.modelID).pipe(Effect.catchDefect(() => Effect.void))
           : undefined
-      const variant = input.variant ?? (ag.variant && full?.variants?.[ag.variant] ? ag.variant : undefined)
+      // Unified variant resolution: input → session/workspace → agent configured
+      const sessionWorkspaceVariant = yield* Effect.tryPromise({
+        try: () => resolveAgentVariant(ag.name, model, { sessionID: input.sessionID }),
+        catch: () => undefined,
+      }).pipe(Effect.catch(() => Effect.succeed(undefined)))
+      const variant = input.variant ?? sessionWorkspaceVariant ?? (ag.variant && full?.variants?.[ag.variant] ? ag.variant : undefined)
 
       const info: MessageV2.User = {
         id: input.messageID ?? MessageID.ascending(),

@@ -6,7 +6,9 @@ import { Agent } from "@/agent/agent"
 import { Config } from "@/config/config"
 import { Provider } from "@/provider/provider"
 import { MessageID } from "../session/schema"
+import { ModelID, ProviderID } from "../provider/schema"
 import type { TaskPromptOps } from "./task"
+import { resolveAgentModel, resolveAgentVariant } from "../session/session-settings"
 
 const ContextMode = Schema.Literals(["full", "summary", "fields", "maxTokens"])
 
@@ -202,8 +204,31 @@ export const PipelineTool = Tool.define(
               title: `${step.description} (@${stepAgent.name} subagent)`,
             })
 
+            // Unified model resolution: session → workspace → global agent config → default
+            const parentSession = yield* sessions.get(ctx.sessionID)
+            const resolved = yield* Effect.tryPromise({
+              try: () =>
+                resolveAgentModel(stepAgent.name, {
+                  sessionID: ctx.sessionID,
+                  workspaceID: parentSession.workspaceID,
+                }),
+              catch: (e) => e,
+            }).pipe(Effect.catch(() => Effect.succeed(undefined)))
             const defaultModel = yield* provider.defaultModel()
-            const model = stepAgent.model ?? defaultModel
+            const model =
+              resolved ??
+              (stepAgent.model
+                ? { providerID: stepAgent.model.providerID, modelID: stepAgent.model.modelID }
+                : defaultModel)
+
+            // Unified variant resolution: session → workspace → step-provided
+            const resolvedVariant = yield* Effect.tryPromise({
+              try: () =>
+                resolveAgentVariant(stepAgent.name, model, {
+                  sessionID: ctx.sessionID,
+                }),
+              catch: (e) => e,
+            }).pipe(Effect.catch(() => Effect.succeed(undefined)))
 
             const parts = yield* promptOps.resolvePromptParts(augmentedPrompt)
 
@@ -227,11 +252,11 @@ export const PipelineTool = Tool.define(
                 messageID,
                 sessionID: subSession.id,
                 model: {
-                  modelID: model.modelID,
-                  providerID: model.providerID,
+                  modelID: ModelID.make(model.modelID),
+                  providerID: ProviderID.make(model.providerID),
                 },
                 agent: stepAgent.name,
-                variant: step.variant,  // NEW: pass variant per step
+                variant: step.variant ?? resolvedVariant,
                 tools: {
                   todowrite: false,
                   task: false,

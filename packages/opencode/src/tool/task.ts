@@ -21,9 +21,9 @@ import { Jobs } from "../jobs"
 import {
   loadSessionSettings,
   effectiveSubagents,
-  sessionAgentModel,
-  sessionAgentVariant,
-  workspaceAgentModel,
+  resolveAgentModel,
+  resolveAgentVariant,
+  readModelState,
 } from "../session/session-settings"
 import { canonicalIdentity } from "../session/mode-identity"
 
@@ -226,11 +226,20 @@ export const TaskTool = Tool.define(
       const msg = yield* Effect.sync(() => MessageV2.get({ sessionID: ctx.sessionID, messageID: ctx.messageID }))
       if (msg.info.role !== "assistant") return yield* Effect.fail(new Error("Not an assistant message"))
 
-      // Resolve the shared workspace state once. It is worktree-local and
-      // carries the last explicit per-agent selection for each workspace.
-      const modelState = yield* appFs.readJson(path.join(Global.Path.state, "model.json")).pipe(
-        Effect.catch(() => Effect.succeed(undefined)),
-      )
+      // Unified model resolution: session → workspace → global agent config → parent fallback
+      const parentSession = yield* sessions.get(ctx.sessionID)
+      const modelState = yield* Effect.tryPromise({
+        try: () => readModelState(),
+        catch: () => undefined,
+      }).pipe(Effect.catch(() => Effect.succeed(undefined)))
+      const resolved = yield* Effect.tryPromise({
+        try: () =>
+          resolveAgentModel(next.name, {
+            sessionID: ctx.sessionID,
+            workspaceID: parentSession.workspaceID,
+          }, { settings: sessionSettings, modelState: modelState as Record<string, unknown> | undefined }),
+        catch: (e) => e,
+      }).pipe(Effect.catch(() => Effect.succeed(undefined)))
       const taskModelOverride = (() => {
         const state = modelState as any
         if (!state?.taskModel?.providerID || !state?.taskModel?.modelID) return undefined
@@ -239,34 +248,27 @@ export const TaskTool = Tool.define(
           modelID: state.taskModel.modelID,
         }
       })()
-      const parentSession = yield* sessions.get(ctx.sessionID)
-      const workspaceModel = workspaceAgentModel(next.name, parentSession.workspaceID, modelState)
-      // Model precedence: session override → workspace selection → global
-      // agent default → legacy task model → parent model.
-      const sessionModel = sessionAgentModel(next.name, sessionSettings)
-      const model = sessionModel
-        ? {
-            providerID: ProviderID.make(sessionModel.providerID),
-            modelID: ModelID.make(sessionModel.modelID),
-          }
-        : workspaceModel
-          ? {
-              providerID: ProviderID.make(workspaceModel.providerID),
-              modelID: ModelID.make(workspaceModel.modelID),
-            }
-          : (next.model ??
-              (taskModelOverride ?? {
-                modelID: msg.info.modelID,
-                providerID: msg.info.providerID,
-              }))
+      // Model precedence: session/workspace → global agent config → legacy task model → parent model.
+      const model =
+        resolved ??
+        (next.model ??
+          (taskModelOverride ?? {
+            modelID: msg.info.modelID,
+            providerID: msg.info.providerID,
+          }))
 
-      // Session settings are authoritative for this parent session. Resolve
-      // them before the optional global state file, which may not exist.
+      // Unified variant resolution: session → workspace → global → agent configured
       const sameAsAgentModel =
         next.model?.providerID === model.providerID && next.model?.modelID === model.modelID
-      const sessionVariant = sessionAgentVariant(next.name, model, sessionSettings)
+      const resolvedVariant = yield* Effect.tryPromise({
+        try: () =>
+          resolveAgentVariant(next.name, model, {
+            sessionID: ctx.sessionID,
+          }, { settings: sessionSettings }),
+        catch: (e) => e,
+      }).pipe(Effect.catch(() => Effect.succeed(undefined)))
       const taskVariant =
-        sessionVariant ??
+        resolvedVariant ??
         (() => {
           const state = modelState as any
           const modelKey = `${model.providerID}/${model.modelID}`

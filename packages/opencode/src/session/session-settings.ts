@@ -122,6 +122,86 @@ export function sessionAgentVariant(
   )
 }
 
+// ── Unified resolution ──
+
+/**
+ * Read the workspace-level model state from disk (model.json).
+ * Returns the raw state object or undefined on any error.
+ */
+export async function readModelState(): Promise<Record<string, unknown> | undefined> {
+  const filePath = path.join(Global.Path.state, "model.json")
+  try {
+    const exists = await Filesystem.exists(filePath)
+    if (!exists) return undefined
+    const raw = await Filesystem.readText(filePath)
+    return JSON.parse(raw) as Record<string, unknown>
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Unified agent model resolution — single source of truth for ALL code paths.
+ *
+ * Resolution order (highest priority first):
+ *   1. Session override    — sessionSettings.agent[name].model
+ *   2. Workspace selection — workspaceAgentModel(name, workspaceID, modelState)
+ *   3. (caller falls through to global config / default)
+ *
+ * Returns undefined when no session/workspace override exists,
+ * letting the caller fall through to global Agent.Info.model or provider default.
+ *
+ * This replaces the ad-hoc chains previously duplicated in:
+ *   task.ts, pipeline.ts, plan.ts, reasoning.ts, prompt.ts
+ */
+export async function resolveAgentModel(
+  agentName: string,
+  context: { sessionID: string; workspaceID?: string },
+  opts?: {
+    /** Pre-loaded session settings (avoids redundant disk read) */
+    settings?: SessionSettings | null
+    /** Pre-loaded model.json state (avoids redundant disk read) */
+    modelState?: Record<string, unknown>
+  },
+): Promise<ModelRef | undefined> {
+  // 1. Session override (highest priority)
+  const settings = opts?.settings ?? (await loadSessionSettings(context.sessionID))
+  const sessionModel = sessionAgentModel(agentName, settings)
+  if (sessionModel) return sessionModel
+
+  // 2. Workspace selection (last explicit pick in this worktree)
+  const modelState = opts?.modelState ?? (await readModelState())
+  const workspaceModel = workspaceAgentModel(agentName, context.workspaceID, modelState)
+  if (workspaceModel) return workspaceModel
+
+  // 3. No override — caller should fall through to global config / default
+  return undefined
+}
+
+/**
+ * Unified agent variant resolution — single source of truth for ALL code paths.
+ *
+ * Resolution order:
+ *   1. Session agentVariant  — settings.agentVariant["agent/model"]
+ *   2. Session agent variant — settings.agent[name].variant
+ *   3. Session model variant — settings.variant["model"]
+ *   4. (caller falls through to workspace/global variant)
+ *
+ * Returns undefined when no session variant exists.
+ */
+export async function resolveAgentVariant(
+  agentName: string,
+  model: ModelRef,
+  context: { sessionID: string },
+  opts?: {
+    /** Pre-loaded session settings (avoids redundant disk read) */
+    settings?: SessionSettings | null
+  },
+): Promise<string | undefined> {
+  const settings = opts?.settings ?? (await loadSessionSettings(context.sessionID))
+  return sessionAgentVariant(agentName, model, settings)
+}
+
 // ── File path ──
 
 // ── Save concurrency ──

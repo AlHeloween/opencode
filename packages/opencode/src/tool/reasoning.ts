@@ -11,10 +11,9 @@ import PROMPT_BUILD_RAW from "../session/prompt/build.txt"
 import PROMPT_REASONING_RAW from "../session/prompt/reasoning-mode.txt"
 import {
   loadSessionSettings,
-  sessionAgentModel,
-  sessionAgentVariant,
+  resolveAgentModel,
+  resolveAgentVariant,
   type ModelRef,
-  type SessionSettings,
 } from "../session/session-settings"
 
 const PROMPT_BUILD = PROMPT_BUILD_RAW.replace(/\r\n/g, "\n")
@@ -27,16 +26,19 @@ function getLastModel(sessionID: SessionID) {
   return undefined
 }
 
-function transitionModel(
+async function transitionModel(
   agentName: string,
   target: Agent.Info | undefined,
-  settings: SessionSettings | null,
   fallback: ModelRef & { variant?: string },
+  context: { sessionID: string },
 ) {
-  const model = sessionAgentModel(agentName, settings) ?? target?.model ?? fallback
+  // Unified resolution: session → workspace → global agent config
+  const resolved = await resolveAgentModel(agentName, context)
+  const model = resolved ?? target?.model ?? fallback
   const sameAsAgentModel = target?.model?.providerID === model.providerID && target?.model?.modelID === model.modelID
+  const resolvedVariant = await resolveAgentVariant(agentName, model, context)
   const variant =
-    sessionAgentVariant(agentName, model, settings) ??
+    resolvedVariant ??
     (sameAsAgentModel ? target?.variant : undefined) ??
     fallback.variant
   return {
@@ -69,16 +71,19 @@ export const ReasoningEnterTool = Tool.define(
       execute: (_params: {}, ctx: Tool.Context) =>
         Effect.gen(function* () {
           yield* requireNativeIdentity(ctx, "build_mode")
-          const settings = yield* Effect.tryPromise({
-            try: () => loadSessionSettings(ctx.sessionID),
-            catch: (cause) => cause,
-          }).pipe(Effect.catch(() => Effect.succeed(null)))
-          const model = transitionModel(
-            "reasoning_mode",
-            yield* agents.get("reasoning_mode"),
-            settings,
-            getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel()),
-          )
+          const targetAgent = yield* agents.get("reasoning_mode")
+          const fallbackModel = getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel())
+          const model = yield* Effect.tryPromise({
+            try: () =>
+              transitionModel(
+                "reasoning_mode",
+                targetAgent,
+                fallbackModel,
+                { sessionID: ctx.sessionID },
+              ),
+            catch: (e) => e,
+          }).pipe(Effect.catch(() => Effect.succeed(undefined)))
+          if (!model) return yield* Effect.fail(new Error("Failed to resolve model for reasoning_mode"))
 
           const msg: MessageV2.User = {
             id: MessageID.ascending(),
@@ -126,16 +131,19 @@ export const ReasoningExitTool = Tool.define(
       execute: (_params: {}, ctx: Tool.Context) =>
         Effect.gen(function* () {
           yield* requireNativeIdentity(ctx, "reasoning_mode")
-          const settings = yield* Effect.tryPromise({
-            try: () => loadSessionSettings(ctx.sessionID),
-            catch: (cause) => cause,
-          }).pipe(Effect.catch(() => Effect.succeed(null)))
-          const model = transitionModel(
-            "build_mode",
-            yield* agents.get("build_mode"),
-            settings,
-            getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel()),
-          )
+          const targetAgent = yield* agents.get("build_mode")
+          const fallbackModel = getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel())
+          const model = yield* Effect.tryPromise({
+            try: () =>
+              transitionModel(
+                "build_mode",
+                targetAgent,
+                fallbackModel,
+                { sessionID: ctx.sessionID },
+              ),
+            catch: (e) => e,
+          }).pipe(Effect.catch(() => Effect.succeed(undefined)))
+          if (!model) return yield* Effect.fail(new Error("Failed to resolve model for build_mode"))
           const msg: MessageV2.User = {
             id: MessageID.ascending(),
             sessionID: ctx.sessionID,

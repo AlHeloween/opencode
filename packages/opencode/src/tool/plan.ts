@@ -16,10 +16,9 @@ import PROMPT_BUILD_RAW from "../session/prompt/build.txt"
 import PROMPT_PLAN_RAW from "../session/prompt/plan.txt"
 import {
   loadSessionSettings,
-  sessionAgentModel,
-  sessionAgentVariant,
+  resolveAgentModel,
+  resolveAgentVariant,
   type ModelRef,
-  type SessionSettings,
 } from "../session/session-settings"
 
 // Same CRLF normalize as prompt.ts — hasSynthetic must match byte-for-byte.
@@ -33,16 +32,19 @@ function getLastModel(sessionID: SessionID) {
   return undefined
 }
 
-function transitionModel(
+async function transitionModel(
   agentName: string,
   target: Agent.Info | undefined,
-  settings: SessionSettings | null,
   fallback: ModelRef & { variant?: string },
+  context: { sessionID: string },
 ) {
-  const model = sessionAgentModel(agentName, settings) ?? target?.model ?? fallback
+  // Unified resolution: session → workspace → global agent config
+  const resolved = await resolveAgentModel(agentName, context)
+  const model = resolved ?? target?.model ?? fallback
   const sameAsAgentModel = target?.model?.providerID === model.providerID && target?.model?.modelID === model.modelID
+  const resolvedVariant = await resolveAgentVariant(agentName, model, context)
   const variant =
-    sessionAgentVariant(agentName, model, settings) ??
+    resolvedVariant ??
     (sameAsAgentModel ? target?.variant : undefined) ??
     fallback.variant
   return {
@@ -98,16 +100,19 @@ export const PlanEnterTool = Tool.define(
 
           if (answers[0]?.[0] === "No") return yield* new Question.RejectedError()
 
-          const settings = yield* Effect.tryPromise({
-            try: () => loadSessionSettings(ctx.sessionID),
-            catch: (cause) => cause,
-          }).pipe(Effect.catch(() => Effect.succeed(null)))
-          const model = transitionModel(
-            "plan_mode",
-            yield* agents.get("plan_mode"),
-            settings,
-            getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel()),
-          )
+          const targetAgent = yield* agents.get("plan_mode")
+          const fallbackModel = getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel())
+          const model = yield* Effect.tryPromise({
+            try: () =>
+              transitionModel(
+                "plan_mode",
+                targetAgent,
+                fallbackModel,
+                { sessionID: ctx.sessionID },
+              ),
+            catch: (e) => e,
+          }).pipe(Effect.catch(() => Effect.succeed(undefined)))
+          if (!model) return yield* Effect.fail(new Error("Failed to resolve model for plan_mode"))
           const msg: MessageV2.User = {
             id: MessageID.ascending(),
             sessionID: ctx.sessionID,
@@ -168,16 +173,19 @@ export const PlanExitTool = Tool.define(
 
           if (answers[0]?.[0] === "No") return yield* new Question.RejectedError()
 
-          const settings = yield* Effect.tryPromise({
-            try: () => loadSessionSettings(ctx.sessionID),
-            catch: (cause) => cause,
-          }).pipe(Effect.catch(() => Effect.succeed(null)))
-          const model = transitionModel(
-            "build_mode",
-            yield* agents.get("build_mode"),
-            settings,
-            getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel()),
-          )
+          const targetAgent = yield* agents.get("build_mode")
+          const fallbackModel = getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel())
+          const model = yield* Effect.tryPromise({
+            try: () =>
+              transitionModel(
+                "build_mode",
+                targetAgent,
+                fallbackModel,
+                { sessionID: ctx.sessionID },
+              ),
+            catch: (e) => e,
+          }).pipe(Effect.catch(() => Effect.succeed(undefined)))
+          if (!model) return yield* Effect.fail(new Error("Failed to resolve model for build_mode"))
 
           const msg: MessageV2.User = {
             id: MessageID.ascending(),

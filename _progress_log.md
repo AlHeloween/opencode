@@ -581,3 +581,4 @@ Windows (60s hangs) — run files individually.
 - **Fix**: Agent.defaultLayer wrapped in Layer.suspend - Plugin.defaultLayer now read at layer-build time (pattern already used by provider/auth, provider, compaction, llm).
 - **Verification**: `index.ts serve` now boots: /doc returns OpenAPI, /global/event 200. tsgo clean.
 - **Known latent (NOT fixed, entry-order dependent)**: importing @/session/message-v2 as the FIRST module still TDZs ("Assistant") via cycle message-v2 -> sync -> instance -> bootstrap -> plugin -> session.ts:459 (MessageV2.Assistant.fields.error at eval time). No production entry hits it (serve verified). Proper fix = Schema.suspend at session.ts:459 or extracting the error field to a leaf module; both change bus-schema AST shape - needs a dedicated decision.
+- **User-verified (oracle)**: rebuild with c7c71bb + 1115ab0 - undo/redo, timeline navigation, fork all confirmed working on real workflow. Fossil wedge cycle closed.

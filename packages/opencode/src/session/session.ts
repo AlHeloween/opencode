@@ -456,7 +456,11 @@ export const Event = {
       sessionID: Schema.optional(SessionID),
       // Reuses MessageV2.Assistant.fields.error (already Schema.optional) so
       // the derived zod keeps the same discriminated-union shape on the bus.
-      error: MessageV2.Assistant.fields.error,
+      // Schema.suspend defers the dereference past module evaluation: session.ts
+      // sits in the import cycle message-v2 -> sync -> instance -> bootstrap ->
+      // plugin -> session, and an eager read here TDZs when message-v2 is the
+      // entry module. Resolution-time shape is identical.
+      error: Schema.suspend(() => MessageV2.Assistant.fields.error),
     }),
   ),
   BalanceUpdated: BusEvent.define(

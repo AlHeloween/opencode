@@ -1268,7 +1268,15 @@ export function Session() {
   const revertRevertedMessages = createMemo(() => {
     const messageID = revertMessageID()
     if (!messageID) return []
-    return messages().filter((x) => x.id >= messageID && x.role === "user")
+    // Crossing undo: the synthetic message* row (compaction summary carrier)
+    // sorts >= messageID after a boundary crossing but is not a "reverted
+    // message" - exclude it from the banner count.
+    return messages().filter(
+      (x) =>
+        x.id >= messageID &&
+        x.role === "user" &&
+        !(sync.data.part[x.id] ?? []).some((p) => p.type === "text" && p.synthetic),
+    )
   })
 
   const revert = createMemo(() => {

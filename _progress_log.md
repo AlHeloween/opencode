@@ -582,3 +582,9 @@ Windows (60s hangs) — run files individually.
 - **Verification**: `index.ts serve` now boots: /doc returns OpenAPI, /global/event 200. tsgo clean.
 - **Known latent (NOT fixed, entry-order dependent)**: importing @/session/message-v2 as the FIRST module still TDZs ("Assistant") via cycle message-v2 -> sync -> instance -> bootstrap -> plugin -> session.ts:459 (MessageV2.Assistant.fields.error at eval time). No production entry hits it (serve verified). Proper fix = Schema.suspend at session.ts:459 or extracting the error field to a leaf module; both change bus-schema AST shape - needs a dedicated decision.
 - **User-verified (oracle)**: rebuild with c7c71bb + 1115ab0 - undo/redo, timeline navigation, fork all confirmed working on real workflow. Fossil wedge cycle closed.
+
+## 2026-08-24 Foldable summaries/compact rows + latent TDZ closed
+- **Real-compaction crossing (T-Real)**: trial drives SessionCompaction.force with a genuine assistant summary row (T2 guard satisfied): summary row resurrects on crossing undo, message* hides and is physically deleted at fold, second crossing works. Guard summaries>=1 kept (2026-08-16 incident invariant).
+- **TDZ closed**: session.ts:459 error field via Schema.suspend; message-v2-first and plugin-first entries both load clean; resolution-time zod shape unchanged.
+- **TUI banner**: existing boundary banner auto-covers crossing (boundary row resurrects into view); counter now excludes synthetic message* row via sync.data.part.
+- **Verification**: crossing 3/3, full battery (crossing+undo-fossil+track-heal+compaction) 83 pass/0 fail, tsgo clean. Commit c050322.

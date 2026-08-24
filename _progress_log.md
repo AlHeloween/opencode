@@ -588,3 +588,4 @@ Windows (60s hangs) — run files individually.
 - **TDZ closed**: session.ts:459 error field via Schema.suspend; message-v2-first and plugin-first entries both load clean; resolution-time zod shape unchanged.
 - **TUI banner**: existing boundary banner auto-covers crossing (boundary row resurrects into view); counter now excludes synthetic message* row via sync.data.part.
 - **Verification**: crossing 3/3, full battery (crossing+undo-fossil+track-heal+compaction) 83 pass/0 fail, tsgo clean. Commit c050322.
+- **Timeline crossing UX**: compacted rows marked [compacted] in the timeline picker with boundary-crossing hint; crossing undo from TUI = Timeline -> message -> Revert (server unfiltered walk + resurrect banner already in place). Commit with marker; tsgo clean; smoke 74/0.

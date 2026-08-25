@@ -854,6 +854,9 @@ export const layer = Layer.effect(
         // request is in flight. Tools stay on the wire — prefix parity with
         // the trunk is preserved (see tools.ts summary guard).
         Constitution.setSummaryMode(sessionID, true)
+        // User-visible phase: the turn is over, but the summary request is
+        // still running - without this the TUI looks frozen ("залипает").
+        yield* status.set(sessionID, { type: "summarizing" })
         return yield* Effect.gen(function* () {
           const lastSv = previous?.body
             ? SessionCompaction.extractSemanticVector(previous.body)
@@ -994,9 +997,11 @@ export const layer = Layer.effect(
           return true
         }        ).pipe(
           Effect.ensuring(
-            Effect.sync(() => {
+            Effect.gen(function* () {
               sidecarInFlight.delete(sessionID)
               Constitution.setSummaryMode(sessionID, false)
+              // Turn is over either way - back to idle (mirrors compact()).
+              yield* status.set(sessionID, { type: "idle" })
             }),
           ),
         )

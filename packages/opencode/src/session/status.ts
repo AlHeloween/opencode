@@ -21,6 +21,9 @@ export const Info = Schema.Union([
     type: Schema.Literal("busy"),
   }),
   Schema.Struct({
+    type: Schema.Literal("summarizing"),
+  }),
+  Schema.Struct({
     type: Schema.Literal("compacting"),
   }),
 ])

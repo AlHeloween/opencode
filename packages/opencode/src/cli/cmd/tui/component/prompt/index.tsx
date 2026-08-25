@@ -1392,6 +1392,19 @@ export function Prompt(props: PromptProps) {
                       </Show>
                     )
                   })()}
+                  <Show when={status().type !== "retry"}>
+                    <text fg={theme.textMuted}>
+                      {/* SDK v2 src-gen SessionStatus is stale: the runtime
+                          payload carries summarizing/compacting variants. */}
+                      {((status() as { type: string }).type === "compacting"
+                        ? "compacting history"
+                        : (status() as { type: string }).type === "summarizing"
+                          ? "writing summary"
+                          : status().type === "busy"
+                            ? "working"
+                            : "")}
+                    </text>
+                  </Show>
                 </box>
               </box>
               <text fg={store.interrupt > 0 ? theme.primary : theme.text}>

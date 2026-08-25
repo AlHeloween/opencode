@@ -399,9 +399,19 @@ export function Session() {
     })
   })
 
+  const unsub3 = event.on("session.compacted", (evt) => {
+    if (evt.properties.sessionID !== route.sessionID) return
+    toast.show({
+      message: "history compacted - older messages folded into message*",
+      variant: "info",
+      duration: 5000,
+    })
+  })
+
   onCleanup(() => {
     unsub1()
     unsub2()
+    unsub3()
   })
 
   // Allow exit when in child session (prompt is hidden)

@@ -289,7 +289,7 @@ export function Session() {
     const out: DisplayItem[] = []
     messagesList().forEach((m, i) => {
       out.push({ message: m, index: i })
-      const info = runs.get(m.id)
+      const info = memoryRuns().get(m.id)
       if (info?.isMemory && info.size >= 2 && info.isLast && expandedMemory().has(info.runId)) {
         out.push({ collapseFor: info.runId })
       }

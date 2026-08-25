@@ -189,3 +189,23 @@ Old session patch hashes are then **invalid**. Undo fails with a clear error poi
 - [background-jobs.md](background-jobs.md) — jobs (orthogonal)  
 - `plans_completed/fossil-undo-redo-fix.md` — bug catalog + smoke stamps  
 - `plans_completed/2026-08-05_master_critical_remediation.md` — SP-01…05 delivery record  
+
+## Bounded track vs full reconcile (2026-08-26)
+
+`track(files)` is **bounded** when a file list is provided: only those paths
+are `fossil add`/`rm`-staged (fast, mid-loop safe). `track(undefined)` runs a
+full-worktree `fossil addremove` reconcile — correct but O(worktree).
+
+processor rule per LLM step (`session/processor.ts`):
+
+- step had edit/write/multiedit/applypatch with changed files →
+  bounded `track(changedFiles)`.
+- step had bash/run/task/pipeline but NO product-write changes →
+  full reconcile `track(undefined)`: shell redirects/scripts can mutate the
+  worktree outside `changedFiles`, and undo must still see those mutations.
+
+Boundary: Summary Exact session_diff deliberately stays product-tool
+filediffs only (`summary.ts computeDiff` — "Fossil is rollback, not
+memory"). A bash-created file is undoable via Fossil leaves but does not
+appear in session_diff. Pinned by
+`test/session/snapshot-tool-race.test.ts`.

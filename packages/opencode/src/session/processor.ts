@@ -750,7 +750,7 @@ export const layer: Layer.Layer<
               id: PartID.ascending(),
               reason: value.finishReason,
               snapshot: ctx.hasWriteToolCall
-                ? yield* snapshot.track([...ctx.changedFiles])
+                ? yield* snapshot.track(ctx.changedFiles.size > 0 ? [...ctx.changedFiles] : undefined)
                 : ctx.snapshot,
               messageID: ctx.assistantMessage.id,
               sessionID: ctx.assistantMessage.sessionID,
@@ -952,8 +952,14 @@ export const layer: Layer.Layer<
           // the patch. Without this, snapshot.patch() diffs against the
           // uncommitted working tree, mixing committed and uncommitted changes
           // into a single aggregate patch that loses per-step granularity.
-          if (ctx.hasWriteToolCall && ctx.changedFiles.size > 0) {
-            yield* snapshot.track([...ctx.changedFiles]).pipe(Effect.catch(() => Effect.void))
+          if (ctx.hasWriteToolCall) {
+            // changedFiles covers edit/write/multiedit/applypatch. bash/run may
+            // mutate the worktree too (scripts, redirects) — with an empty list
+            // track() performs a full addremove reconcile instead of the
+            // bounded no-op that silently returned beforeHash.
+            yield* snapshot
+              .track(ctx.changedFiles.size > 0 ? [...ctx.changedFiles] : undefined)
+              .pipe(Effect.catch(() => Effect.void))
           }
           const patch = yield* snapshot.patch(ctx.snapshot)
           if (patch.files.length) {

@@ -192,7 +192,7 @@ const providerCfg = (url: string) => ({
   },
 })
 
-it.live("tool execution produces non-empty session diff (snapshot race)", () =>
+it.live("bash-only mutations are snapshotted but stay out of Summary Exact diff", () =>
   provideTmpdirServer(
     Effect.fnUntraced(function* ({ dir, llm }) {
       const prompt = yield* SessionPrompt.Service
@@ -257,14 +257,13 @@ it.live("tool execution produces non-empty session diff (snapshot race)", () =>
       expect(snapshots.length).toBeGreaterThanOrEqual(2)
       expect(snapshots.at(0)).not.toBe(snapshots.at(-1))
 
-      // Poll for diff — summarize() is fire-and-forget
-      let diff: Array<{ file: string }> = []
-      for (let i = 0; i < 100; i++) {
-        diff = yield* summary.diff({ sessionID: session.id })
-        if (diff.length > 0) break
-        yield* Effect.sleep("100 millis")
-      }
-      expect(diff.length).toBeGreaterThan(0)
+      // Fossil captured the bash-created file: step snapshots diverged (:258),
+      // so undo/rollback covers it. Summary Exact is deliberately
+      // product-tool filediffs only (summary.ts computeDiff — "Fossil is
+      // rollback, not memory"): a bash-only mutation must NOT appear in
+      // session_diff.
+      const diff = yield* summary.diff({ sessionID: session.id })
+      expect(diff.filter((d) => d.file.replaceAll("\\", "/").includes("race-test"))).toHaveLength(0)
     }),
     { git: true, config: providerCfg },
   ),

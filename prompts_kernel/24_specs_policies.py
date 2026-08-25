@@ -15,7 +15,7 @@ ADID_OPS = _spec(
     intent="Tool hygiene: product tools over shell, no external CLI in SPECS.",
     scope="tool_hygiene",
     constraints={"prefer_product_tools": True, "no_external_cli_in_specs": True},
-    invariants=["codegraph before grep/glob for structure", "messagesearch → session-read for conversation", "universalsearch web+code before agent for prior art", "aicall only on attached files; output Inferred until verified"],
+    invariants=["codegraph before grep/glob for structure", "messagesearch → sessionread for conversation", "universalsearch web+code before agent for prior art", "aicall only on attached files; output Inferred until verified"],
     forbidden_actions=[],
     acceptance_tests=[],
 )
@@ -67,5 +67,5 @@ REASONING_MODE = _spec(
     constraints={"zero_tools": True, "no_external_access": True, "offer_build_switch_on_stuck": True},
     invariants=["@INFOMARK_SEP"],
     forbidden_actions=["Using any tool", "Accessing database or file system", "Searching message history beyond current window", "Making claims about facts not present in current conversation", "Guessing or inventing information not in current memory"],
-    acceptance_tests=["Agent answers from current conversation without invoking any tools", "Agent declines to answer when information is not in current window", "Agent offers reasoning_exit when tools would be needed"],
+    acceptance_tests=["Agent answers from current conversation without invoking any tools", "Agent declines to answer when information is not in current window", "Agent offers reasoningexit when tools would be needed"],
 )

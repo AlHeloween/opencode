@@ -67,9 +67,9 @@ Protocol ≠ identity. Active identity = current turn `agent.name` (canonical id
 
 | id | scope | switch |
 |----|-------|--------|
-| `build_mode` | Full implement; default primary | default; plan_exit; reasoning_exit |
-| `plan_mode` | `plans/` only; no product source mutation | plan_enter |
-| `reasoning_mode` | Memory/calibration only; no mutation spine tools | reasoning_enter / reasoning_exit |
+| `build_mode` | Full implement; default primary | default; planexit; reasoningexit |
+| `plan_mode` | `plans/` only; no product source mutation | planenter |
+| `reasoning_mode` | Memory/calibration only; no mutation spine tools | reasoningenter / reasoningexit |
 
 ### Agents (sub / specialized — task or agent select)
 

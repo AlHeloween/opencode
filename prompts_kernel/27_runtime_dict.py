@@ -10,7 +10,7 @@ RUNTIME_TERMS = MappingProxyType({
     "evidence": "Verified > cited > inferred > unknown; intent-based tool routing (@GATE_1_GROUND).",
     "infomark": "Status ∈ {Exact, Inferred, Hypothetical, Guess, Unknown}; stamped-only in G (@GATE_8_ORACLE).",
     "manhattan_l1": "L1 additive metric for fractal k-medoids; preserves depth & scale (@GATE_2_DECOMPOSE).",
-    "memory": "Active window primary; soft-hidden history via session-read.",
+    "memory": "Active window primary; soft-hidden history via sessionread.",
     "mutation": "Authorized envelope scope only; persistent write requires @GATE_4_AUTHORIZE.",
     "oracle": "Executor ≠ Oracle ≠ Analyst; PASS → Exact stamp; FAIL → demote (@GATE_8_ORACLE).",
     "plan": "Fractal decomposition → Manhattan L1 → adaptive k-medoids → CENTRAL_TASKS (@GATE_2_DECOMPOSE).",
@@ -67,8 +67,8 @@ RUNTIME_RULES = MappingProxyType({
     "NO_HARDCODE": "Discover paths/ports/configs dynamically; read project config; no magic values.",
     "VCS_ROOT": "Git status only; never search inside .git/ directory.",
     "READ_ENTIRE_FILE": "Files <100KB: read 100%. Files >=100KB: limit/offset with min 2000-line header.",
-    "MEMORY_RANK": "Session-read Exact > summary Inferred > unaided Guess; summaries are never Exact.",
-    "MEMORY_LINKS": "Summary items must include message IDs for session-read recovery.",
+    "MEMORY_RANK": "sessionread Exact > summary Inferred > unaided Guess; summaries are never Exact.",
+    "MEMORY_LINKS": "Summary items must include message IDs for sessionread recovery.",
 
     # ── G2: DECOMPOSE (Task Geometry) ──
     "DECOMPOSE": "Goal -> seeds -> fractal candidates -> Manhattan L1 -> adaptive k-medoids -> CENTRAL_TASKS.",

@@ -3703,7 +3703,7 @@ BUILD_MODE = _spec(
               "@SMOKE_VALIDATE", "@WRITE_SCOPE", "@CACHE_STABILITY", "@CONSTITUTION_BLOCKS",
               "@ADID_OPS", "@PLAN_CONTRACT", "@PLAN_BINDING", "@VERIFY_OUTCOME", "@SMOKE_VERIFY",
               "@RESIDUAL_LOOP", "@EMIT_STATE", "@PLANS_COMPLETED", "@NAMING", "@ADID_FREEZE"],
-    scope=["edit", "write", "bash", "multi_edit", "patch_apply", "task"],
+    scope=["edit", "write", "bash", "multiedit", "applypatch", "task"],
     constraints={"smoke_before_first_edit": True, "may_delegate_to_coder": True},
     state={"identity": "build_mode", "kind": "mode", "mode": "primary"},
     intent="Primary implementer. Full tools. Execute approved plan; may task(coder_agent). See: @IDENTITIES, @GATE_7_IMPLEMENT, @GATE_8_ORACLE.",
@@ -3736,7 +3736,7 @@ REASONING_MODE = _spec(
     intent="Pure reasoning. No tools. Answer from conversation memory only. See: @IDENTITIES.",
     invariants=["@INFOMARK_SEP"],
     forbidden_actions=["Using any tool", "Accessing database or file system", "Searching message history beyond current window", "Making claims about facts not present in current conversation", "Guessing or inventing information not in current memory"],
-    acceptance_tests=["Agent answers from current conversation without invoking any tools", "Agent declines to answer when information is not in current window", "Agent offers reasoning_exit when tools would be needed"],
+    acceptance_tests=["Agent answers from current conversation without invoking any tools", "Agent declines to answer when information is not in current window", "Agent offers reasoningexit when tools would be needed"],
 )
 
 # ── SPECIALIZED SUB-AGENTS ──
@@ -3747,7 +3747,7 @@ CODER_AGENT = _spec(
     contract=["@BASE_AGENT", "@WRITE_SCOPE", "@CACHE_STABILITY", "@CONSTITUTION_BLOCKS",
               "@ADID_OPS", "@PLAN_CONTRACT", "@PLAN_BINDING", "@VERIFY_OUTCOME", "@SMOKE_VERIFY",
               "@NO_SCRIPT_EDITING", "@READ_ENTIRE_FILE"],
-    scope=["edit", "write", "bash", "multi_edit", "patch_apply"],
+    scope=["edit", "write", "bash", "multiedit", "applypatch"],
     constraints={},
     state={"identity": "coder_agent", "kind": "agent", "agent_type": "subagent"},
     intent="Implement code changes. Read before edit, minimal changes, verify with tests. Never delegate. See: @AGENT_DIRECTIVES, @GATE_7_IMPLEMENT, @GATE_8_ORACLE.",
@@ -3760,7 +3760,7 @@ EXPLORER_AGENT = _spec(
     inherits="BASE_AGENT",
     gates=["@GATE_1_GROUND", "@GATE_6_GROUND_PLAN"],
     contract=["@BASE_AGENT", "@SEARCH_ORDER", "@REUSE_BEFORE"],
-    scope=["codegraph", "glob", "grep", "read", "messagesearch", "session-read", "universalsearch"],
+    scope=["codegraph", "glob", "grep", "read", "messagesearch", "sessionread", "universalsearch"],
     constraints={"return_absolute_paths": True, "no_mutations": True},
     state={"identity": "explorer_agent", "kind": "agent", "agent_type": "subagent", "access_level": "read-only"},
     intent="Thoroughly navigate codebases, search conversation history, and research external sources. Read-only discovery. See: @GATE_6_GROUND_PLAN, @IDENTITIES.",
@@ -3773,7 +3773,7 @@ RESEARCHER_AGENT = _spec(
     inherits="BASE_AGENT",
     gates=["@GATE_1_GROUND", "@GATE_6_GROUND_PLAN"],
     contract=["@BASE_AGENT", "@REUSE_BEFORE", "@VERIFY_OUTCOME", "@MEMORY_LINKS"],
-    scope=["read_only_search", "web_research", "session-read"],
+    scope=["read_only_search", "web_research", "sessionread"],
     constraints={"distinguish_evidence": True},
     state={"identity": "researcher_agent", "kind": "agent", "agent_type": "subagent"},
     intent="Research and synthesize information. Read-only. See: @IDENTITIES.",
@@ -4068,7 +4068,7 @@ ADID_OPS = _spec(
     intent="Tool hygiene: product tools over shell, no external CLI in SPECS.",
     scope="tool_hygiene",
     constraints={"prefer_product_tools": True, "no_external_cli_in_specs": True},
-    invariants=["codegraph before grep/glob for structure", "messagesearch → session-read for conversation", "universalsearch web+code before agent for prior art", "aicall only on attached files; output Inferred until verified"],
+    invariants=["codegraph before grep/glob for structure", "messagesearch → sessionread for conversation", "universalsearch web+code before agent for prior art", "aicall only on attached files; output Inferred until verified"],
     forbidden_actions=[],
     acceptance_tests=[],
 )
@@ -4120,7 +4120,7 @@ REASONING_MODE = _spec(
     constraints={"zero_tools": True, "no_external_access": True, "offer_build_switch_on_stuck": True},
     invariants=["@INFOMARK_SEP"],
     forbidden_actions=["Using any tool", "Accessing database or file system", "Searching message history beyond current window", "Making claims about facts not present in current conversation", "Guessing or inventing information not in current memory"],
-    acceptance_tests=["Agent answers from current conversation without invoking any tools", "Agent declines to answer when information is not in current window", "Agent offers reasoning_exit when tools would be needed"],
+    acceptance_tests=["Agent answers from current conversation without invoking any tools", "Agent declines to answer when information is not in current window", "Agent offers reasoningexit when tools would be needed"],
 )
 
 # === Fragment: 25_specs_default.py ===
@@ -4162,7 +4162,7 @@ RUNTIME_TERMS = MappingProxyType({
     "evidence": "Verified > cited > inferred > unknown; intent-based tool routing (@GATE_1_GROUND).",
     "infomark": "Status ∈ {Exact, Inferred, Hypothetical, Guess, Unknown}; stamped-only in G (@GATE_8_ORACLE).",
     "manhattan_l1": "L1 additive metric for fractal k-medoids; preserves depth & scale (@GATE_2_DECOMPOSE).",
-    "memory": "Active window primary; soft-hidden history via session-read.",
+    "memory": "Active window primary; soft-hidden history via sessionread.",
     "mutation": "Authorized envelope scope only; persistent write requires @GATE_4_AUTHORIZE.",
     "oracle": "Executor ≠ Oracle ≠ Analyst; PASS → Exact stamp; FAIL → demote (@GATE_8_ORACLE).",
     "plan": "Fractal decomposition → Manhattan L1 → adaptive k-medoids → CENTRAL_TASKS (@GATE_2_DECOMPOSE).",
@@ -4219,8 +4219,8 @@ RUNTIME_RULES = MappingProxyType({
     "NO_HARDCODE": "Discover paths/ports/configs dynamically; read project config; no magic values.",
     "VCS_ROOT": "Git status only; never search inside .git/ directory.",
     "READ_ENTIRE_FILE": "Files <100KB: read 100%. Files >=100KB: limit/offset with min 2000-line header.",
-    "MEMORY_RANK": "Session-read Exact > summary Inferred > unaided Guess; summaries are never Exact.",
-    "MEMORY_LINKS": "Summary items must include message IDs for session-read recovery.",
+    "MEMORY_RANK": "sessionread Exact > summary Inferred > unaided Guess; summaries are never Exact.",
+    "MEMORY_LINKS": "Summary items must include message IDs for sessionread recovery.",
 
     # ── G2: DECOMPOSE (Task Geometry) ──
     "DECOMPOSE": "Goal -> seeds -> fractal candidates -> Manhattan L1 -> adaptive k-medoids -> CENTRAL_TASKS.",

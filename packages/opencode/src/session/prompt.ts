@@ -18,7 +18,8 @@ import {
   estimateContentTokens,
   estimateRequestTokens,
   hasSpareOutput,
-  needsContentCompaction,
+  summaryNeedsCompactFirst,
+  usable,
   REQUEST_OVERHEAD_TOKENS,
   SUMMARY_GENERATION_RESERVE_TOKENS,
   summaryNeedsCompactFirst,
@@ -884,9 +885,13 @@ export const layer = Layer.effect(
                 agent: sidecarAgent,
                 permission: session.permission,
                 sessionID,
-                providerCacheKey: input.user.providerCacheKey
-                  ? `${input.user.providerCacheKey}:sidecar`
-                  : undefined,
+                // Same cache key as the trunk (session:provider): the sidecar
+                // chain is checkpoint-M + one synthetic user message, so its
+                // prefix hits the trunk's provider cache and the s request
+                // pays only its own prose. A ":sidecar" suffix forked the
+                // namespace — every summary request ran full-price
+                // (observed 0 hit / 132K miss around compact).
+                providerCacheKey: input.user.providerCacheKey,
                 system: [...input.checkpoint.systemPrompt],
                 messages: [
                   ...input.checkpoint.messages,
@@ -1641,49 +1646,50 @@ export const layer = Layer.effect(
 
         /**
          * Layer-2 fold: MECHANICAL, zero LLM tokens, fixed size —
-         * m* = summaries (≤ MAX_SUMMARY_BODY_TOKENS) + recent (≥ RECENT_MIN_TOKENS).
-         * The model window must NOT gate the cadence (Forbidden: gate compact on
-         * usable()): a small or degraded window previously computed
-         * compactTarget ≤ 0 and the fold never fired → provider overflow errors.
-         * Trigger = full visible content ≥ SUMMARY_INTERVAL_TOKENS (same 64K
-         * cadence constant as Layer-1 s). s are taken every ~64k open via
-         * sidecar and stay OUT of M; compact only packs them into m*.
-         * Never fold on the same stop as a new s; never with exactly one open s.
+         * m* = summaries (≤ MAX_SUMMARY_BODY_TOKENS, last-32K) + recent
+         * (≥ RECENT_MIN_TOKENS tail). With zero summaries the tail alone
+         * becomes m* (manual /compact on a fresh session).
+         * Trigger = window fill: full visible content ≥ usable(model)
+         * (limit − 32K response − 10K overhead), checked pre-send by the
+         * hasSpareOutput gate (force) and at stop as an earlier evaluation
+         * of the same rule. Degenerate window (usable ≤ 0) folds only via
+         * the pre-send force path — never silently never-folds.
+         * s are taken every ~64k open via sidecar (same provider cache key
+         * as the trunk) and stay OUT of M; compact only packs them into m*.
          */
         const maybeCompactCadence = (input: {
           model: Provider.Model
           agent: string
           msgs?: MessageV2.WithParts[]
           /** Safety path: summary has no 32K generation headroom — fold must
-           *  fire even with exactly one open sidecar / below the usual gate. */
+           *  fire even below the usual threshold. */
           force?: boolean
         }) =>
           Effect.gen(function* () {
             const openSidecars = IncrementalCheckpoint.listOpen(sessionID).length
-            // T4: hold fold until ≥2 open s rows. Zero sidecars means nothing
-            // covers the fold — compact() refuses anyway (T2 invariant); skip
-            // early instead of letting a forced fold destroy uncovered history.
-            if (openSidecars < 2 && !input.force) {
-              yield* slog.info("layer2.cadence.skip_single_sidecar", {
-                sessionID,
-                openSidecars,
-              })
-              return false
-            }
+            // T4 gate removed (2026-08-25): fold fires whenever the window
+            // threshold hits, summaries or not — compact() folds the recent
+            // tail when zero summaries exist (manual /compact on a fresh
+            // session must work).
             const visible =
               input.msgs ?? (yield* MessageV2.filterCompactedEffect(sessionID))
             const cfg = yield* config.get()
-            // Full visible M (chars/4) — not open-since-last-s.
-            // Fixed mechanical cadence — window-independent (see block doc).
-            const compactTarget = SessionCompaction.SUMMARY_INTERVAL_TOKENS
+            // Window-fill threshold (2026-08-25): fold when the model window
+            // is actually filling — limit − 32K response − 10K overhead =
+            // usable(). A fixed 64K target was pointless: m* (~64K) replaced
+            // 64K of real work with zero context savings. Degenerate window
+            // (usable <= 0) is owned by the pre-send hasSpareOutput force
+            // gate — the stop cadence stays out of its way.
+            const compactTarget = usable({ cfg, model: input.model })
             const visibleTokens = SessionCompaction.computeOpenWindowTokens(visible)
             if (
               !input.force &&
-              !needsContentCompaction({
-                cfg,
-                openTokens: visibleTokens,
-                target: compactTarget,
-              })
+              (compactTarget <= 0 ||
+                !needsContentCompaction({
+                  cfg,
+                  openTokens: visibleTokens,
+                  target: compactTarget,
+                }))
             ) {
               return false
             }

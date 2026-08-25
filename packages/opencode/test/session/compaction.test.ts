@@ -1484,7 +1484,7 @@ describe("session.compaction.compact", () => {
   )
 
   it.live(
-    "refuses to fold when no summaries exist (T2 invariant)",
+    "folds recent tail only when no summaries exist (T2 refusal removed)",
     provideTmpdirInstance(() =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
@@ -1502,14 +1502,14 @@ describe("session.compaction.compact", () => {
 
         const result = yield* compact.compact({ sessionID: info.id, model: ref, agent: "build", force: true })
 
-        // No summaries → fold refused; every message stays visible (no memory loss).
-        expect(result.folded).toBe(false)
+        // No summaries → m* = header + Recent tail (the tail IS the memory).
+        expect(result.folded).toBe(true)
         const msgs = yield* MessageV2.filterCompactedEffect(info.id)
-        expect(msgs).toHaveLength(3)
+        expect(msgs).toHaveLength(1)
         const combined = msgs
           .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
           .join("\n")
-        expect(combined).not.toContain("=== COMPACTED ===")
+        expect(combined).toContain("=== COMPACTED ===")
         expect(combined).toContain("msg-1")
         expect(combined).toContain("msg-3")
       }),
@@ -1577,7 +1577,7 @@ describe("session.compaction.compact", () => {
   )
 
   it.live(
-    "refuses to fold a large session when no summaries exist (T2 invariant)",
+    "folds a large session tail-only when no summaries exist (T2 refusal removed)",
     provideTmpdirInstance(() =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
@@ -1596,10 +1596,17 @@ describe("session.compaction.compact", () => {
 
         const result = yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
 
-        // No summary coverage → nothing folded, nothing trimmed, nothing hidden.
-        expect(result.folded).toBe(false)
+        // No summaries → tail-only fold: last ~32K tokens of messages become m*.
+        expect(result.folded).toBe(true)
         const msgs = yield* MessageV2.filterCompactedEffect(info.id)
-        expect(msgs).toHaveLength(30)
+        expect(msgs).toHaveLength(1)
+        const combined = msgs
+          .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+          .join("\n")
+        expect(combined).toContain("=== COMPACTED ===")
+        expect(combined).toContain("msg-5-")
+        expect(combined).toContain("msg-29-")
+        expect(combined).not.toContain("msg-0-")
       }),
     ),
   )
@@ -2234,7 +2241,7 @@ describe("session.compaction.edge-cases", () => {
     ),
   )
 
-  it.live("refuses re-compact after growth without a new summary (no memory loss)", () =>
+  it.live("re-compacts after growth without a new summary (tail-only fold)", () =>
     provideTmpdirInstance((dir) =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
@@ -2264,12 +2271,14 @@ describe("session.compaction.edge-cases", () => {
         const normal = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
         yield* ssn.updatePart({ id: PartID.ascending(), messageID: normal.id, sessionID: info.id, type: "text", text: "post-star-work" })
 
-        // No new summary in this window → T2 refuses the fold; nothing is hidden.
+        // No new summary in this window → tail-only fold: the growth message
+        // becomes m*2; star1 goes session-read only (recoverable via the
+        // m* chain link).
         const second = yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
-        expect(second.folded).toBe(false)
+        expect(second.folded).toBe(true)
         const after2 = yield* MessageV2.filterCompactedEffect(info.id)
-        expect(after2).toHaveLength(2)
-        expect(after2[0].info.id).toBe(star1)
+        expect(after2).toHaveLength(1)
+        expect(after2[0].info.id).not.toBe(star1)
         const texts2 = after2
           .flatMap((m: any) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
           .join("\n")
@@ -2413,16 +2422,15 @@ describe("session.compaction.key-decisions", () => {
 
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
         const after2 = yield* MessageV2.filterCompactedEffect(info.id)
-        // No new summary in this window → T2 refuses; the first star (with the
-        // preserved decision) and the growth message both stay visible.
-        expect(after2).toHaveLength(2)
-        expect(after2[0].info.id).toBe(star1)
+        // No new summary in this window → tail-only fold: m*2 keeps the
+        // growth message; star1 (with the preserved decision) goes
+        // session-read only, recoverable via the m* chain link.
+        expect(after2).toHaveLength(1)
         const text2 = after2
           .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
           .join("\n")
-        expect(text2).toContain(decisionLine)
-        expect(text2).toContain("Decisions (preserved verbatim across compaction cycles)")
         expect(text2).toContain("more work after star")
+        expect(text2).not.toContain(decisionLine)
       }),
     ),
   )

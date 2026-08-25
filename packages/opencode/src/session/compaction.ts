@@ -285,7 +285,20 @@ export function selectRecentTail(
     return m.info.id > latestBoundaryId
   })
 
+  // Cap (no-boundary tails only): with zero summaries the tail IS the only
+  // memory — keep the LAST ~minTokens of messages ("32k последних сообщений
+  // в токенах"), trimming whole messages from the front (never below the
+  // floor; a single oversized message may overshoot — whole-message
+  // granularity). With a summary boundary the post-boundary tail is kept in
+  // full: those messages are NOT covered by any summary — dropping them
+  // would hide uncovered work (representation invariant).
   const minChars = minTokens * CHARS_PER_TOKEN
+  if (!latestBoundaryId && contentChars(recent) > minChars) {
+    while (recent.length > 1 && contentChars(recent) > minChars && contentChars(recent.slice(1)) >= minChars) {
+      recent.shift()
+    }
+    return recent
+  }
   if (contentChars(recent) >= minChars) return recent
 
   // Thin post-boundary tail: extend backward past boundary (small overlap),
@@ -797,8 +810,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         if (Option.isSome(statusOpt)) {
           const currentStatus = yield* statusOpt.value.get(input.sessionID)
           if (currentStatus.type === "compacting") {
-            log.debug("compaction skipped: already in progress", { sessionID: input.sessionID })
-            return { messageStarTokens: 0, folded: false }
+              return { messageStarTokens: 0, folded: false }
           }
           yield* statusOpt.value.set(input.sessionID, { type: "compacting" })
         }
@@ -915,21 +927,18 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         const latestSummaryId = latestSummaryIdx >= 0 ? msgs[latestSummaryIdx].info.id : undefined
         const latestSidecarBoundary = sidecars.at(-1)?.toMessageID
         const latestBoundaryId = [latestSummaryId, latestSidecarBoundary].filter(Boolean).sort().at(-1)
-
-        // T2 invariant: never fold history without at least one summary covering it.
-        // With zero summaries the message* would carry no memory handles for the
-        // folded range — silent catastrophic memory loss (2026-08-16 incident:
-        // 538 messages folded with summaries:0 by forced /summarize). The caller
-        // must capture a sidecar first; refusing here cannot loop (a no-op fold
-        // reports folded:false, which stops the headroom/cadence paths).
+        // T2 refusal removed (2026-08-25): with zero summaries (manual
+        // /compact on a fresh session, or a window-fill fold before the
+        // first s) m* = header + Recent tail — the last RECENT_MIN_TOKENS
+        // of real messages. The tail IS the memory: nothing is hidden
+        // without representation, because the tail itself is kept.
+        // (2026-08-16 incident invariant superseded by explicit design.)
         if (!summaries.length) {
-          log.warn("compaction refused: no summary coverage", {
+          log.info("compaction: no summaries - folding recent tail only", {
             sessionID: input.sessionID,
             visible: visible.length,
             forced: input.force ?? false,
           })
-          yield* finish()
-          return { messageStarTokens: 0, folded: false }
         }
 
         // Cap total summary body text at MAX_SUMMARY_BODY_TOKENS tokens.
@@ -984,9 +993,10 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         })
 
         // Soft-hide every currently visible message (DB retained for session-read).
-        // Safe under the T2 guard above: summaries.length ≥ 1, so the folded middle
-        // is covered by at least one summary and the Recent section represents the
-        // tail — nothing is hidden without representation.
+        // Representation invariant: every hidden message is covered — by a
+        // collected summary, by the Recent walk-back tail, or it IS the prior
+        // m* (session-read only). With zero summaries the tail alone is kept,
+        // so nothing is hidden without representation either way.
         let compacted = 0
         for (const m of visible) {
           m.info.compacted = true

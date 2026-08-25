@@ -270,7 +270,7 @@ describe("undo across visibility boundary", () => {
                 const user3 = yield* mkUserPatch("step3", h3!)
 
                 // Real summary row (assistant child carrying summary + text):
-                // satisfies the T2 guard so force-compaction actually folds.
+                // the fold then packs a summary block, not just the tail.
                 const asst = yield* session.updateMessage({
                     id: MessageID.ascending(),
                     role: "assistant",

@@ -148,12 +148,12 @@ sequenceDiagram
 | Checker after summary | `isValidSummaryBody` 4 headings; reject body if fail | **Partial** (no multi-retry on sidecar path) |
 | Fossil only for WC rollback | `SnapshotFossil.track` / `restore` — not on summary Exact path | **Match** |
 | Cadence ~256k chars / ~64k tokens | `SUMMARY_INTERVAL_TOKENS = 65_536` content/4 | **Match** (order of magnitude) |
-| `m* = [s,s,recent m]` | `compact()` folds open sidecars + Recent | **Match when compact runs**; new T2 guard: fold **refused** when no summaries exist (`folded:false`, warn) — no memory loss on /summarize |
+| `m* = [s,s,recent m]` | `compact()` folds open sidecars + Recent; **zero summaries → tail-only m\*** (header + last ~32K of messages; `log: no summaries`) | **Match (2026-08-25)** — T2 refusal removed: manual /compact works on fresh sessions; uncovered tail is the memory |
 | Summaries capped at 32K tokens | `MAX_SUMMARY_BODY_TOKENS = 32_768`; oldest summaries dropped from m* | **Match (shipped 2026-08-22)** |
 | Prior m* decisions not pulled forward | `buildMessageStar` takes only `currentDecisions`, no `priorDecisions` param | **Match (shipped 2026-08-22)** |
 | Prior m* excluded from Recent tail | `selectRecentTail` hard-stops at prior m* (does NOT include it) | **Match (shipped 2026-08-22)** |
 | Recent tail ≥ ~16k tokens | `selectRecentTail` / `RECENT_MIN_TOKENS` — skip m* + last summary; overlap back if thin, hard-stop at prior m* | **Match** |
-| Compact on mechanical cadence | **`maybeCompactCadence`**: target=`SUMMARY_INTERVAL_TOKENS` (fixed 64k, window-independent); skip same stop as new s; skip if 1 open sidecar; **`usable()` removed from the gate (2026-08-24)** — a degraded window previously computed target ≤ 0 and the fold never fired → provider overflow errors | **Fixed 2026-08-24** |
+| Compact on window fill | **`maybeCompactCadence`**: target=`usable(model)` (limit − 32K response − 10K overhead); pre-send `hasSpareOutput` force-folds before the turn; stop-cadence is an earlier evaluation of the same rule; degenerate window (usable ≤ 0) folds only via the pre-send force path. T4 (≥2 sidecars) gate removed 2026-08-25 | **Fixed 2026-08-25** |
 | injectSummaryRequest as primary | Implemented, **not called** from `prompt.ts` | **Dead primary** |
 | Summary request as durable user row then restore | inject would leave synthetic user unless restored — not used | N/A |
 
@@ -175,16 +175,14 @@ stop → Checkpoint M → maybeCaptureSidecar (s outside M)
 | Gate | Target | Meaning |
 |------|--------|---------|
 | Sidecar s | ~`SUMMARY_INTERVAL_TOKENS` (65 536) open since last s | periodic Exact memory rows |
-| Compact m* | **`SUMMARY_INTERVAL_TOKENS`** (fixed, window-independent) | mechanical fold when a full cadence of visible work accumulated |
+| Compact m* | **`usable(model)`** (limit − 42K) — window fill | fold when the model window is actually filling; checked pre-send, re-checked at stop |
 
-**`usable` headroom** is NOT a compaction gate: `usable()` remains only on
-request-fit / safety paths (`isOverflow`, `hasSpareOutput`,
-`summaryNeedsCompactFirst` — the ≥32K generation-headroom guard for s).
-Mechanistic compact is zero-token and fixed-size
-(m* = ≤32K summaries + ≥32K recent) — the model window neither scales nor
-blocks it. A degraded window must still fold mechanically; gating on
-`usable()` computed ≤ 0 and the fold never fired → provider overflow errors
-(fixed 2026-08-24).
+**`usable` headroom** is the compact trigger (2026-08-25): a fixed 64K
+target was pointless — m* (~64K) replaced 64K of real work with zero
+context savings. The fold now fires when the window is actually filling
+(`hasSpareOutput` pre-send, force; `maybeCompactCadence` at stop).
+Degenerate window (usable ≤ 0) folds only via the pre-send force path —
+never a silent never-fold (the 2026-08-24 dead-end stays fixed).
 
 ---
 
@@ -208,7 +206,7 @@ No BPE/tiktoken authority (undercounts providers).
 |-------|-----|
 | Leave summary request as permanent user message in M | Poisons next turn / KV |
 | Put `s` bodies into normal content window before compact | Length bias / double-count |
-| Gate compact cadence on `usable()` | 1M models never fold |
+| Gate compact cadence on `usable()` **as the sole gate** | a degenerate window computes usable ≤ 0 and never folds (2026-08-24 incident). `usable()` as the window-fill TARGET with the pre-send force path is the 2026-08-25 contract |
 | Accept summary without required fields | Broken handle |
 | Model-authored IDs/diffs | Exact is system |
 

@@ -721,8 +721,12 @@ function buildMessageStar(input: {
         recentBlocks.join("\n\n")
       : `--- Recent ---\n(none — all history is covered by summaries above)\nsession_id: \`${input.sessionID}\`\ninfo_mark: Inferred`
 
-  // Passive links + ranks only. No "Fast recovery / use these tools" recipes —
-  // those pushed models into session-read/db-read spirals instead of work.
+  // Passive links + ranks; ONE recovery pointer at the very end (2026-08-25,
+  // Alexander): earlier "Fast recovery / use these tools" recipes sat at the
+  // TOP and pushed models into session-read/db-read spirals instead of work.
+  // A single closing line keeps the archive reachable without framing m* as
+  // a recovery manual.
+  const recoveryLine = "Use messagesearch, sessionread and dbread to restore missing facts."
   return [
     "=== COMPACTED ===",
     "Active memory for this session. Older messages remain soft-hidden in the DB (not deleted).",
@@ -736,6 +740,7 @@ function buildMessageStar(input: {
     ...summaryBlocks,
     decisionsBlock,
     recentHeader,
+    recoveryLine,
   ]
     .filter((line, idx, arr) => !(line === "" && arr[idx - 1] === ""))
     .join("\n\n")

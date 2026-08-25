@@ -40,9 +40,11 @@ If they disagree, **do not paper over it**. Fix code toward the contract, or mar
   rides the cache again.
 
 **m\* composition:** last ≤32K tokens of `s` bodies + recent tail (≥32K
-tokens of real messages, walk-back hard-stops at prior m\*). Zero summaries
-(manual `/compact` on a fresh session) → tail-only m\*: header + last ~32K
-of messages. `m*` is the memory; the visible list after a fold is
+tokens of real messages, walk-back hard-stops at prior m\*), closed by one
+recovery pointer: `Use messagesearch, sessionread and dbread to restore
+missing facts.` (single line at the very end — earlier top-placed recovery
+recipes caused tool spirals). Zero summaries (manual `/compact` on a fresh
+session) → tail-only m\*: header + last ~32K of messages. `m*` is the memory; the visible list after a fold is
 `[m*, m, m, …]`. Rollback reconstructs the content window as `m*` + the
 messages that followed it — the DB keeps every soft-hidden row
 (`compacted=true`, never deleted), reachable via `session-read`.

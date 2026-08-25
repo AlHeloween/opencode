@@ -238,27 +238,37 @@ export function Session() {
 
   // Consecutive memory rows (message* + L1 summary panels) collapse into one
   // clickable header so the transcript is not buried under compaction output.
+  // Runs of 1 stay inline - collapsing a single row only hides information.
   // runId = id of the run's first row; size = rows in the run.
   const [expandedMemory, setExpandedMemory] = createSignal(new Set<string>())
   const memoryRuns = createMemo(() => {
-    const runs = new Map<string, { runId: string; isFirst: boolean; size: number; isMemory: boolean }>()
-    // "" = not inside a memory run (message ids are never empty).
-    let runId = ""
-    let size = 0
+    const runs = new Map<string, { runId: string; isFirst: boolean; isLast: boolean; size: number; isMemory: boolean }>()
+    const groups: string[][] = []
+    let current: string[] | null = null
     for (const m of messagesList()) {
       const isMemory = (sync.data.part[m.id] ?? []).some(
         (p) => p.type === "text" && (isMessageStarText((p as { text?: string }).text) || isLayer1SummaryText((p as { text?: string }).text)),
       )
       if (isMemory) {
-        if (runId === "") {
-          runId = m.id
-          size = 0
+        if (!current) {
+          current = []
+          groups.push(current)
         }
-        size++
-        runs.set(m.id, { runId, isFirst: size === 1, size, isMemory: true })
+        current.push(m.id)
       } else {
-        runId = ""
+        current = null
       }
+    }
+    for (const group of groups) {
+      group.forEach((id, i) => {
+        runs.set(id, {
+          runId: group[0],
+          isFirst: i === 0,
+          isLast: i === group.length - 1,
+          size: group.length,
+          isMemory: true,
+        })
+      })
     }
     return runs
   })
@@ -270,6 +280,22 @@ export function Session() {
       return next
     })
   }
+  // Transcript display order: messages plus one [-] control injected after
+  // the last row of every EXPANDED run (its only collapse affordance).
+  type DisplayItem =
+    | { message: ReturnType<typeof messagesList>[number]; index: number }
+    | { collapseFor: string }
+  const displayItems = createMemo((): DisplayItem[] => {
+    const out: DisplayItem[] = []
+    messagesList().forEach((m, i) => {
+      out.push({ message: m, index: i })
+      const info = runs.get(m.id)
+      if (info?.isMemory && info.size >= 2 && info.isLast && expandedMemory().has(info.runId)) {
+        out.push({ collapseFor: info.runId })
+      }
+    })
+    return out
+  })
   const permissions = createMemo(() => {
     if (session()?.parentID) return []
     return children().flatMap((x) => sync.data.permission[x.id] ?? [])
@@ -1444,9 +1470,26 @@ export function Session() {
               viewportCulling={true}
             >
               <box height={1} />
-              <For each={messagesList()}>
-                {(message, index) => (
-                  <Switch>
+              <For each={displayItems()}>
+                {(item) => {
+                  if ("collapseFor" in item) {
+                    return (
+                      <box
+                        onMouseUp={() => toggleMemoryRun(item.collapseFor)}
+                        flexShrink={0}
+                        border={["left"]}
+                        customBorderChars={SplitBorder.customBorderChars}
+                        borderColor={theme.backgroundPanel}
+                        paddingLeft={2}
+                      >
+                        <text fg={theme.textMuted}>[-] collapse summary/memory rows</text>
+                      </box>
+                    )
+                  }
+                  const message = item.message
+                  const index = () => item.index
+                  return (
+                    <Switch>
                     <Match when={message.id === revert()?.messageID}>
                       {(function () {
                         const command = useCommandDialog()
@@ -1495,9 +1538,9 @@ export function Session() {
                                 <box marginTop={1}>
                                   <For each={revert()!.diffFiles}>
                                     {(file) => (
-                                      <text fg={theme.text}>
-                                        {file.filename}
-                                        <Show when={file.additions > 0}>
+                      <text fg={theme.text}>
+                        {file.filename}
+                        <Show when={file.additions > 0}>
                                           <span style={{ fg: theme.diffAdded }}> +{file.additions}</span>
                                         </Show>
                                         <Show when={file.deletions > 0}>
@@ -1516,7 +1559,7 @@ export function Session() {
                     <Match when={revert()?.messageID && message.id >= revert()!.messageID && (message as any)._source !== "orch"}>
                       <></>
                     </Match>
-                    <Match when={memoryRuns().get(message.id)?.isMemory && !expandedMemory().has(memoryRuns().get(message.id)!.runId)}>
+                    <Match when={memoryRuns().get(message.id)?.isMemory && memoryRuns().get(message.id)!.size >= 2 && !expandedMemory().has(memoryRuns().get(message.id)!.runId)}>
                       {(() => {
                         const info = memoryRuns().get(message.id)!
                         if (!info.isFirst) return <></>
@@ -1571,7 +1614,8 @@ export function Session() {
                       />
                     </Match>
                   </Switch>
-                )}
+                  )
+                }}
               </For>
             </scrollbox>
             {/* Reserved row: the chip must NOT change the scrollbox viewport.

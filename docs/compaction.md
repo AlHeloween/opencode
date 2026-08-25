@@ -106,7 +106,22 @@ rows are consumed **only at compact** into `m*`.
 
 **Summary cap:** total summary body text in m* is capped at `MAX_SUMMARY_BODY_TOKENS` (32 768 tokens). Older summaries are dropped from m* but remain accessible via `session-read`.
 
-**Prior m* decisions:** decisions from prior m* are NOT pulled forward into the new m*. Each m* carries only decisions from its own current summaries.
+**Prior m\* decisions:** decisions from prior m\* are NOT pulled forward into the new m\*. Each m\* carries only decisions from its own current summaries.
+
+**Prior m\* never enters the new m\* (2026-08-26, Alexander — design rationale):**
+the new star collects summaries and Recent ONLY from messages created after
+the prior star (`priorMsgStarIdx` bound); the old star survives exclusively as
+the `Prior message*: \`id\`` chain-link pointer + from_id/to_id handles
+(session-read). m\* is deliberately a **synthetic single-message construct**:
+
+1. **Rollbacks** — one synthetic row = one atomic undo/redo / crossing unit;
+   piecewise folds made revert boundaries ambiguous.
+2. **Speed & stability** — bounded O(1) fold: the star never re-accumulates
+   every summary since session start (piecewise assembly was O(n²): slow,
+   bug-prone).
+3. **KV-cache stability** — a fixed-composition, bounded star keeps the
+   provider prefix byte-stable across folds; rebuilding from pieces broke the
+   cache prefix on every compact.
 
 **Post-summary checker:** required sections non-empty (`isValidSummaryBody`).
 
@@ -203,8 +218,10 @@ sequenceDiagram
 | Summaries capped at 32K tokens | `MAX_SUMMARY_BODY_TOKENS = 32_768`; oldest summaries dropped from m* | **Match (shipped 2026-08-22)** |
 | Prior m* decisions not pulled forward | `buildMessageStar` takes only `currentDecisions`, no `priorDecisions` param | **Match (shipped 2026-08-22)** |
 | Prior m* excluded from Recent tail | `selectRecentTail` hard-stops at prior m* (does NOT include it) | **Match (shipped 2026-08-22)** |
-| Recent tail ≥ ~16k tokens | `selectRecentTail` / `RECENT_MIN_TOKENS` — skip m* + last summary; overlap back if thin, hard-stop at prior m* | **Match** |
+| Recent tail ≥ 32 768 tokens | `selectRecentTail` / `RECENT_MIN_TOKENS` — skip m* + last summary; overlap back if thin, hard-stop at prior m* | **Match** |
 | Compact on window fill | **`maybeCompactCadence`**: target=`usable(model)` (limit − 32K response − 10K overhead); pre-send `hasSpareOutput` force-folds before the turn; stop-cadence is an earlier evaluation of the same rule; degenerate window (usable ≤ 0) folds only via the pre-send force path. T4 (≥2 sidecars) gate removed 2026-08-25 | **Fixed 2026-08-25** |
+| **m\* is NOT an increment** | `computeOpenWindowTokens` without a checkpoint boundary skips the leading message\* chain — the star is an assembly of prior s + history, never new work; a fold cannot pre-arm the Layer-1 cadence | **Fixed 2026-08-26** (was: counter baseline = len(m\*)/4 → s fired on the next stop after every fold) |
+| Pre-send no-progress guard | `hasSpareOutput` fail → force fold; if still failing and nothing folded → `NamedError` with used/usable numbers — the loop never spins silently | **Added 2026-08-26**; unreachable on ≥256K windows (m\* ≤ 32K s-bodies + ≤32K recent + tools ≪ gate), reachable on small-window models / oversized single input |
 | injectSummaryRequest as primary | Implemented, **not called** from `prompt.ts` | **Dead primary** |
 | Summary request as durable user row then restore | inject would leave synthetic user unless restored — not used | N/A |
 
@@ -224,6 +241,8 @@ pre-send (before each LLM turn):
      limit − used < 32K response reserve
        → maybeCompactCadence(force) → fold NOW (ignores sidecar count,
          folds tail-only when zero summaries) → re-check → send
+       → still over AND nothing folded (lone oversized m* / tiny window):
+         NamedError with used/usable numbers — never a silent spin
 ```
 
 **Layer-1 vs Layer-2 thresholds (do not conflate):**
@@ -251,6 +270,7 @@ never a silent never-fold (the 2026-08-24 dead-end stays fixed).
 | Safety / request fit | `chars/4 + 10_000` |
 | Summary body cap in m* | `MAX_SUMMARY_BODY_TOKENS` (32 768 tokens) |
 | compact() | **0** LLM tokens |
+| Post-fold m\* bound | ≤ `MAX_SUMMARY_BODY_TOKENS` (32K) summary bodies + `RECENT_MIN_TOKENS` (32K) recent tail (+ per-block diff snippets, tools/schema overhead) — why the no-progress guard is unreachable on ≥256K windows |
 
 No BPE/tiktoken authority (undercounts providers).
 

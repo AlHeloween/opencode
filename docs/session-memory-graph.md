@@ -163,3 +163,7 @@ Not: “every 65K at end of turn, inject summary then compact.”
 | Summaries capped at 32K tokens in m* | Exact (shipped 2026-08-22) |
 | Prior m* decisions not pulled forward | Exact (shipped 2026-08-22) |
 | Prior m* excluded from Recent tail | Exact (shipped 2026-08-22) |
+| m\* never counted as Layer-1 increment (leading star chain skipped without boundary) | Exact (2026-08-26) |
+| Pre-send no-progress guard fails loudly instead of silent spin | Exact (2026-08-26) |
+| Prior m\* never enters the new m\* (pointer-only chain link) | Exact (shipped 2026-08-22; rationale recorded 2026-08-26) |
+| m\* synthetic single-message construct: rollback atomicity, O(1) fold, KV-prefix stability | Exact (design rationale, 2026-08-26) |

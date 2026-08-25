@@ -47,6 +47,8 @@ class DocIndex:
         DocRecord("docs/streamlake-kat-thinking-cache.md", "Local_Development", "Measured thinking vs prompt cache semantics of the StreamLake/KAT gateway (include_usage, 64-token hits, ignored chat_template_kwargs)"),
         DocRecord("docs/deepseek-thinking-cache.md", "Local_Development", "Measured thinking vs prompt cache semantics of DeepSeek v4 (auto usage, 128-token units, cold-turn cost, CoT rules, refuted user_id isolation)"),
         DocRecord("docs/cot-reasoning-research.md", "Local_Development", "Research: how CoT affects task execution (Hi-CoT, TOPS, STITCH, Inkling, GPT-5) and why opencode drops reasoning echo"),
+        DocRecord("docs/compaction.md", "Local_Development", "Compaction contract: s/m* layers, window-fill trigger, cadence counters (m* not an increment), star bounds 32K+32K, pre-send no-progress guard", last_verified="2026-08-26"),
+        DocRecord("docs/session-memory-graph.md", "Local_Development", "Session memory flow graphs + claim ledger (sidecar/compact paths)", last_verified="2026-08-26"),
     ])
     
     specs: list[DocRecord] = field(default_factory=lambda: [

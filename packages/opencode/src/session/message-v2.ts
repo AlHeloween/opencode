@@ -1477,6 +1477,18 @@ export function fromError(
         },
         { cause: e },
       ).toObject()
+    case ContextOverflowError.isInstance(e): {
+      // Pre-send guard (prompt.ts hasSpareOutput failure) throws a real or
+      // duck-typed ContextOverflowError. Round-trip it unchanged so
+      // processor's needsCompaction detection fires on the stored error.
+      const data = (e as { data?: { message?: string } }).data
+      return new ContextOverflowError(
+        {
+          message: data?.message ?? (e as { message?: string }).message ?? "context overflow",
+        },
+        { cause: e instanceof Error ? e : undefined },
+      ).toObject()
+    }
     case APICallError.isInstance(e):
       const parsed = ProviderError.parseAPICallError({
         providerID: ctx.providerID,

@@ -538,10 +538,15 @@ describe("revert + compact workflow", () => {
           expect(yield* read(path.join(dir, "b.txt"))).toBe("b2")
           expect(yield* read(path.join(dir, "c.txt"))).toBe("c0")
 
-          yield* revert.unrevert({
-            sessionID: sid,
-          })
-          expect((yield* session.get(sid)).revert).toBeUndefined()
+          // Multi-undo redo stack (cb630956be/f8ab7e2196): each unrevert pops
+          // ONE forward leaf; walk until the stack is exhausted.
+          let guard = 0
+          let st = yield* session.get(sid)
+          while (st.revert && guard++ < 6) {
+            yield* revert.unrevert({ sessionID: sid })
+            st = yield* session.get(sid)
+          }
+          expect(st.revert).toBeUndefined()
           expect(yield* read(path.join(dir, "a.txt"))).toBe("a1")
           expect(yield* read(path.join(dir, "b.txt"))).toBe("b2")
           expect(yield* read(path.join(dir, "c.txt"))).toBe("c3")
@@ -626,12 +631,14 @@ describe("revert + compact workflow", () => {
             messageID: third,
           })
           expect((yield* session.get(sid)).revert?.messageID).toBe(third)
-          expect(yield* read(path.join(dir, "a.txt"))).toBe("a2")
-
-          yield* revert.unrevert({
-            sessionID: sid,
-          })
-          expect((yield* session.get(sid)).revert).toBeUndefined()
+          // Same redo-stack walk: unrevert pops one leaf at a time until clear.
+          let guard = 0
+          let st = yield* session.get(sid)
+          while (st.revert && guard++ < 6) {
+            yield* revert.unrevert({ sessionID: sid })
+            st = yield* session.get(sid)
+          }
+          expect(st.revert).toBeUndefined()
           expect(yield* read(path.join(dir, "a.txt"))).toBe("a3")
         }),
       { git: true },

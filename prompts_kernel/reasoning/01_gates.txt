@@ -70,7 +70,7 @@ GATE_9_CLEAN_STATE:
   schemas: [@CLEAN_NEXT_STATE]
   msg_tag: {format: 8-32 hex md5 fingerprint, serialization: canonical=keys_sorted+weights_3dp+strings_nfc+prefix_rev, note: NOT for crypto auth}
   blocker: {kind: real|fake, real: investigate or smoke-plan, fake: finish task do not halt}
-  terminal_modes: [BLOCKED, OUT_OF_SCOPE, SUCCESS]
+  terminal_mode: per @CLEAN_NEXT_STATE.terminal_mode (BLOCKED > OUT_OF_SCOPE > SUCCESS > CONTINUE; RESUME when materialized non-empty)
 
 algorithm_routing:
   noise_filter: @NOISE_FILTER

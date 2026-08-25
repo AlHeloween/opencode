@@ -18,7 +18,7 @@ gates:
   GATE_6_GROUND_PLAN: "{tag: GATE_6_GROUND_PLAN, name: GROUND_PLAN, rules: [@SEARCH_ORDER, @REUSE_BEFORE], phases: [codegraph, explore, gap_fill]}"
   GATE_7_IMPLEMENT: "{tag: GATE_7_IMPLEMENT, name: IMPLEMENT, rules: [@CACHE_STABILITY, @CONSTITUTION_BLOCKS, @ADID_OPS, @NO_SCRIPT_EDITING, @READ_ENTIRE_FILE]}"
   GATE_8_ORACLE: "{tag: GATE_8_ORACLE, name: ORACLE, rules: [@VERIFY_OUTCOME, @SMOKE_VERIFY], pass: stamp(Exact), fail: demote(Guess)}"
-  GATE_9_CLEAN_STATE: "{tag: GATE_9_CLEAN_STATE, name: CLEAN_STATE, rules: [@CLEAN_STATE, @SV_OUTPUT, @SV_EVERY_TURN, @RESIDUAL_LOOP, @EMIT_STATE, @PLANS_COMPLETED], terminal_mode: [BLOCKED, OUT_OF_SCOPE, SUCCESS]}"
+  GATE_9_CLEAN_STATE: "{tag: GATE_9_CLEAN_STATE, name: CLEAN_STATE, rules: [@CLEAN_STATE, @SV_OUTPUT, @SV_EVERY_TURN, @RESIDUAL_LOOP, @EMIT_STATE, @PLANS_COMPLETED], terminal_mode: @CLEAN_NEXT_STATE.terminal_mode}"
 
 # SEMANTIC VECTOR (SV)
 sv_output:
@@ -58,27 +58,17 @@ sv_trajectory:
 # SEMANTIC CONTROL (orchestrator feedback loop)
 semantic_control:
   tag: SEMANTIC_CONTROL
-  description: "Orchestrator-level SV feedback loop — extends @MULTI_AGENT_SV"
+  description: "Orchestrator-level SV feedback loop — extends @MULTI_AGENT_SV with PID bookkeeping; metrics reuse @SV_TRAJECTORY"
   goal_sv: "original Goal SV — reference point for all measurements"
   target_sv: "per-agent SV_TARGET — assigned by orchestrator for diversity"
   observed_sv: "per-agent SV_STATE — what the agent actually focused on"
-  trajectory:
-    previous: "SV from prior turn"
-    velocity: "v_t = d₁(S_t, S_{t-1})"
-    acceleration: "a_t = v_t − v_{t-1}"
-  metrics:
-    goal_distance: "d₁(S_t, G) — drift from Goal"
-    step_distance: "d₁(S_t, S_{t-1}) — per-step change"
-    coverage: "fraction of Goal dimensions covered by team"
-    redundancy: "overlap between agents — lower is better for exploration"
-    diversity: "minimum pairwise d₁ across agent team"
-  controller:
-    proportional_error: "d₁(target, observed) — immediate correction signal"
-    accumulated_residual: "Σ(target − observed) over cycles — systemic bias"
+  deltas:
+    acceleration: "a_t = v_t − v_{t-1} — from @SV_TRAJECTORY.velocity (PID D-term input)"
+    accumulated_residual: "Σ(target − observed) over cycles — systemic bias (PID I-term)"
     drift_derivative: "Δd₁(S_t, G) / Δt — rising = intervention needed"
   next_target_sv: "computed from controller + residual coverage map"
-  stop_condition: "||R||₁ < 0.15 — semantic residual below threshold"
-  invariant: "diversity floor: at least one agent pair with d₁ ≥ 0.15 to prevent tunnel vision"
+  stop_condition: "||R||₁ < 0.15 — semantic residual below threshold (canonical value, referenced by @MULTI_AGENT_SV)"
+  invariant: "diversity floor: at least one agent pair with d₁ ≥ 0.15 to prevent tunnel vision (@MULTI_AGENT_SV)"
 
 # CLEAN NEXT STATE
 clean_next_state:
@@ -92,7 +82,6 @@ clean_next_state:
   out_of_scope: "list of string — tasks discarded by residual_recluster"
   closure_gaps: "list of string — unresolved closure criteria when execution_exhausted but closure pending (derived from @OUTCOME_CONTRACT minus oracle stamps)"
   execution_exhausted: "bool — pending=[] AND active=[]; no more tasks to run"
-  terminal: "enum: SUCCESS | BLOCKED | OUT_OF_SCOPE | CONTINUE — outcome decision, NOT task-exhaustion"
   closure_proof:
     acceptance_coverage: "float 0-1 — fraction of @OUTCOME_CONTRACT criteria proven via oracle stamps"
     critical_open_risks: "int — unresolved risks from @RISK_LEDGER blocking outcome acceptance"
@@ -100,7 +89,8 @@ clean_next_state:
     rule: "SUCCESS requires execution_exhausted=true AND acceptance_coverage >= outcome_contract.coverage_threshold AND critical_open_risks=0 AND outcome_oracle=PASS. CONTINUE when exhausted but closure pending."
   terminal_mode:
     enum: ["SUCCESS", "BLOCKED", "OUT_OF_SCOPE", "CONTINUE", "RESUME"]
-    precedence: "BLOCKED > OUT_OF_SCOPE > SUCCESS; RESUME when materialized non-empty"
+    precedence: "BLOCKED > OUT_OF_SCOPE > SUCCESS > CONTINUE; RESUME when materialized non-empty"
+    note: "outcome decision, NOT task-exhaustion"
   next: "DERIVED: Blocked[0] if blocked, else Pending[0] if pending, else closure_gaps[0] if exhausted AND closure pending, else 'none'. 'none' = TERMINAL."
 
 blocker:

@@ -4266,7 +4266,7 @@ RUNTIME_RULES = MappingProxyType({
     "SV_OUTPUT": "Emit @SV_FORMAT after every response without exception.",
     "SV_EVERY_TURN": "Protocol requirement: SV emitted every turn; trivial -> Keywords: acknowledged 1.0.",
     "RESIDUAL_LOOP": "Re-cluster pending tasks against original Goal SV; empty → execution_exhausted (not TERMINAL). If closure PASS → SUCCESS. If closure gaps → CONTINUE with closure residual vector.",
-    "EMIT_STATE": "Return structured state; terminal_mode: BLOCKED > OUT_OF_SCOPE > SUCCESS.",
+    "EMIT_STATE": "Return structured state; terminal_mode per @CLEAN_NEXT_STATE: BLOCKED > OUT_OF_SCOPE > SUCCESS > CONTINUE; RESUME when materialized non-empty.",
     "PLANS_COMPLETED": "Move completed plan files to plans_completed/ immediately upon completion.",
     "CLOSURE_PROOF": "SUCCESS requires execution_exhausted=true AND acceptance_coverage >= outcome_contract.coverage_threshold AND critical_open_risks=0 AND outcome_oracle=PASS. Task complete != plan complete != user outcome proven. See @CLEAN_NEXT_STATE.closure_proof.",
     "METRIC_ADAPTATION": "Parameter auto-tuning within bounds; metric family change requires governance.",

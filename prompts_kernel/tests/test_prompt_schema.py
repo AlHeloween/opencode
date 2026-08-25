@@ -32,6 +32,9 @@ SKILL_DIRS = [
 ]
 RULE_DIRS: list[str] = []
 
+# Kernel assembly output (assembler writes .mdc + .txt here)
+KERNEL_DIST_DIR = os.path.join(PROJECT_ROOT, "prompts_kernel", "dist")
+
 # Files to exclude from validation
 # Pocket protocols / mode synthetics use algorithm-with-comments density, not PromptSpec YAML.
 EXCLUDED_FILES = {
@@ -66,9 +69,9 @@ POCKET_PROTOCOL_FILES = {
     "reasoning_prompt.mdc": _REASONING_POCKET_MARKERS,
     "reasoning_prompt.txt": _REASONING_POCKET_MARKERS,
     # Mode-switch tails: identity stamp + @SPEC ref only (law lives in reasoning_prompt).
-    "build.txt": ("build_mode", "@BUILD_MODE", "@IDENTITIES"),
-    "plan.txt": ("plan_mode", "@PLAN_MODE", "@IDENTITIES"),
-    "reasoning-mode.txt": ("reasoning_mode", "@REASONING_MODE", "@IDENTITIES"),
+    "build.txt": ("build_mode", "@BUILD_MODE"),
+    "plan.txt": ("plan_mode", "@PLAN_MODE"),
+    "reasoning-mode.txt": ("reasoning_mode", "@REASONING_MODE"),
 }
 
 # Soft budget for pocket protocol files (bytes). reasoning includes full gates + InfoMark.
@@ -306,8 +309,13 @@ def test_modes_bind_generated_session_tails():
 def test_pocket_protocol_files_exist_and_markers():
     """reasoning_prompt (.mdc assemble / .txt runtime) + mode tails are pocket density, not PromptSpec."""
     for name, markers in POCKET_PROTOCOL_FILES.items():
-        fp = os.path.join(SESSION_PROMPT_DIR, name)
-        assert os.path.isfile(fp), f"missing pocket protocol: {name}"
+        # .mdc files live in KERNEL_DIST_DIR (assembler output for review)
+        # .txt files live in SESSION_PROMPT_DIR (production runtime)
+        if name.endswith(".mdc"):
+            fp = os.path.join(KERNEL_DIST_DIR, name)
+        else:
+            fp = os.path.join(SESSION_PROMPT_DIR, name)
+        assert os.path.isfile(fp), f"missing pocket protocol: {name} (checked {fp})"
         with open(fp, "r", encoding="utf-8") as f:
             content = f.read()
         max_bytes = POCKET_PROTOCOL_MAX_BYTES.get(name, 12_000)
@@ -359,8 +367,9 @@ def test_schema_refs_resolve():
         f"Unresolved @schema: refs:\n  " + "\n  ".join(unresolved)
     )
 
-    # 2. Assembled reasoning.txt must contain ZERO raw @schema: markers
-    reasoning_path = os.path.join(SESSION_PROMPT_DIR, "reasoning_prompt.mdc")
+    # 2. Assembled reasoning.mdc must contain ZERO raw @schema: markers
+    #    .mdc files live in KERNEL_DIST_DIR (assembler output)
+    reasoning_path = os.path.join(KERNEL_DIST_DIR, "reasoning_prompt.mdc")
     with open(reasoning_path, "r", encoding="utf-8") as f:
         assembled = f.read()
     orphan_markers = re.findall(r"^# @schema:\s*\S+\s*$", assembled, re.MULTILINE)

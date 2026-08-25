@@ -12,6 +12,42 @@ If they disagree, **do not paper over it**. Fix code toward the contract, or mar
 
 ---
 
+## 0. Architecture at a glance (2026-08-25)
+
+**Two independent operations — do not conflate:**
+
+| | Layer-1 `s` (summary) | Layer-2 `m*` (compact) |
+|---|---|---|
+| What | short memory row with Exact handles, written by the model | mechanical pack of existing `s` rows + message tail |
+| LLM cost | one incremental request (prefix cached) | **0** tokens |
+| Cadence | every ~64K open-window content tokens | when the **window fills**: `usable(model)` = limit − 32K (response) − 10K (spare) |
+| Check point | at stop, after the turn completes | **before sending a new message** (`hasSpareOutput` force gate) + same rule at stop |
+
+**Cache model (why 0 hit / 132K miss happened and how it is fixed):**
+
+- Provider cache key = `session:provider` for BOTH the trunk and the sidecar
+  summary request. Checkpoints persist per `session:provider` on disk, so the
+  cache survives model switching within the same provider.
+- The `s` request rides the trunk prefix: `[checkpoint system, checkpoint
+  messages, synthetic user row]` → prefix hits ~100%, the request pays only
+  its own prose. A `:sidecar` key suffix forked the namespace and made every
+  `s` request full-price (removed 2026-08-25).
+- After `s`, the message chain returns to **exactly pre-summary M** (the
+  request/response live only in the checkpoint) — the trunk cache prefix is
+  intact; you can roll back freely.
+- After a fold, ONE full-price request is inherent: `m*` replaces history, so
+  the provider prefix changes at message 1. Unavoidable; everything after
+  rides the cache again.
+
+**m\* composition:** last ≤32K tokens of `s` bodies + recent tail (≥32K
+tokens of real messages, walk-back hard-stops at prior m\*). Zero summaries
+(manual `/compact` on a fresh session) → tail-only m\*: header + last ~32K
+of messages. `m*` is the memory; the visible list after a fold is
+`[m*, m, m, …]`. Rollback reconstructs the content window as `m*` + the
+messages that followed it — the DB keeps every soft-hidden row
+(`compacted=true`, never deleted), reachable via `session-read`.
+---
+
 ## 1. Intended contract (restore target)
 
 ### Content window vs summaries
@@ -91,13 +127,26 @@ Display panel (5) is explicitly ignored by `toModelMessages` and open-window cad
 ### Compact
 
 ```text
-When enough open content has been summarized (and/or open window demands fold):
+Trigger — window fill (checked BEFORE sending a new message, re-checked at stop):
+
+  full visible content/4  ≥  usable(model)  =  limit − 32K (response) − 10K (spare)
+
+  256K window → fold at ~214K      1M window → fold at ~958K
 
   compact()  — ZERO LLM tokens, pure system fold
 
-  m* = [ s, s, … (≤32K tokens), recent m, m, m ]
+  m* = [ s, s, … (≤32K tokens), recent m, m, m (≥32K tokens) ]
        decisions from current s only (not from prior m*)
+
+  zero summaries (manual /compact on a fresh session):
+  m* = header + last ~32K tokens of messages   ← the tail IS the memory
 ```
+
+Why window-fill and not a fixed 64K: m\* is itself ~64K (32K summaries +
+32K recent). Folding 64K of real work into a ~64K m\* saves nothing and
+burns Exact detail — the fold must fire only when the window is actually
+filling. A degenerate window (`usable ≤ 0`) folds only via the pre-send
+force gate — never a silent never-fold.
 
 - Soft-hide prior visible rows (never hard-delete).  
 - Archive remains for `session-read` / `messagesearch`.  
@@ -163,11 +212,16 @@ sequenceDiagram
 stop → Checkpoint M → maybeCaptureSidecar (s outside M)
      → if sidecar captured this stop: do NOT compact (defer Layer-2)
      → else maybeCompactCadence:
-          open sidecars === 1 → skip (never s→immediate fold)
-          open sidecars ≥ 2 (or 0 legacy)
-            AND full visible content/4 ≥ SUMMARY_INTERVAL_TOKENS (64k, fixed)
-            → compact() → m* = [s…, recent m…]; soft-hide m
+          target = usable(model)  (limit − 32K − 10K)
+          full visible content/4 ≥ target → compact() → m*; soft-hide m
+          (degenerate target ≤ 0 → skip here; the pre-send force gate owns it)
      → break
+
+pre-send (before each LLM turn):
+     used = content/4 + 10K overhead
+     limit − used < 32K response reserve
+       → maybeCompactCadence(force) → fold NOW (ignores sidecar count,
+         folds tail-only when zero summaries) → re-check → send
 ```
 
 **Layer-1 vs Layer-2 thresholds (do not conflate):**
@@ -213,7 +267,7 @@ No BPE/tiktoken authority (undercounts providers).
 ---
 
 ## 6. Implementation checklist (toward contract)
-
+- [x] **Compact on window fill** (`usable(model)` target; pre-send `hasSpareOutput` force gate + stop-cadence re-check; tail-only m\* when zero summaries)  
 - [x] Checkpoint then sidecar capture on stop  
 - [x] `s` outside M (`project_checkpoint`)  
 - [x] AI sections + Exact enrich  

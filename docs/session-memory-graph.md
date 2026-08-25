@@ -30,8 +30,9 @@ when: await checkpoint persist (inferences done)
   → summary via user-message shape (ephemeral)
   → store s in DB outside content (+ Exact tool diffs/CG)
   → M same as before summary — continue work (no compact same stop)
-  → later stop: compact only if ≥2 open sidecars AND full visible ≥ usable(model)
-    (1M context → hundreds of k of M; 64k is Layer-1 s only, not compact)
+  → later stop: compact when full visible ≥ usable(model)  (limit − 32K − 10K)
+    (1M context → fold at ~958K; 64k is Layer-1 s only, not compact;
+     zero summaries → tail-only m*)
 ```
 
 ### Tool Exact on one summary window
@@ -73,8 +74,7 @@ flowchart TB
 
   STOP --> CK[Checkpoint.publish M]
   CK --> SC[maybeCaptureSidecar]
-  SC -->|captured| DEFER[defer compact\nsame stop]
-  SC -->|no s| MC[maybeCompactCadence\n≥2 open s OR 0;\nfull visible ≥ usable model?]
+  SC -->|no s| MC[maybeCompactCadence\nfull visible ≥ usable model?]
   DEFER --> BRK2
   MC -->|yes| CMPS[compact → m*]
   MC -->|no| BRK2
@@ -86,7 +86,9 @@ flowchart TB
 
 **Contract path on completed work turns:**
 
-`stop → checkpoint → sidecar? (s outside M) → compact if total visible ≥ 65K → break`
+`stop → checkpoint → sidecar? (s outside M) → compact if full visible ≥ usable(model) → break`
+
+Pre-send (before each LLM turn): `limit − (content/4 + 10K) < 32K → compact(force) → re-check → send`.
 
 - Compact gate uses **full visible** content/4 (m stay in M until soft-hide).  
 - Sidecar gate uses **open since last s** only.

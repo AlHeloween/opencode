@@ -805,6 +805,10 @@ export class Agent implements ACPAgent {
     }
   }
 
+  async resumeSession(params: ResumeSessionRequest): Promise<ResumeSessionResponse> {
+    return this.unstable_resumeSession(params)
+  }
+
   async unstable_resumeSession(params: ResumeSessionRequest): Promise<ResumeSessionResponse> {
     const directory = params.cwd
     const sessionId = params.sessionId

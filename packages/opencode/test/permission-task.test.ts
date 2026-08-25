@@ -259,7 +259,7 @@ describe("permission.task with real config files", () => {
     })
   })
 
-  test("task tool disabled when global deny comes last in config", async () => {
+  test("task tool NOT disabled when scoped allows coexist with global deny", async () => {
     await using tmp = await tmpdir({
       git: true,
       config: {
@@ -278,15 +278,16 @@ describe("permission.task with real config files", () => {
         const config = await load()
         const ruleset = Permission.fromConfig(config.permission ?? {})
 
-        // Last matching rule wins - "*" deny is last, so all agents are denied
+        // evaluate() uses findLast — "*" deny is last, so all agents are denied
         expect(Permission.evaluate("task", "general", ruleset).action).toBe("deny")
         expect(Permission.evaluate("task", "code-reviewer", ruleset).action).toBe("deny")
         expect(Permission.evaluate("task", "unknown", ruleset).action).toBe("deny")
 
-        // Since "*": "deny" is the last rule, disabled() finds it with findLast
-        // and sees pattern: "*" with action: "deny", so task is disabled
+        // disabled() checks hasScopedOpen: scoped allows/asks keep the tool available
+        // even when wildcard deny is last. The tool is NOT disabled because
+        // general:"allow" and code-reviewer:"allow" are scoped opens.
         const disabled = Permission.disabled(["task"], ruleset)
-        expect(disabled.has("task")).toBe(true)
+        expect(disabled.has("task")).toBe(false)
       },
     })
   })

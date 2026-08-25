@@ -120,3 +120,4 @@ packages/opencode/src/session/prompt/prompts_kernel.txt
 prompts_kernel/tools/.embeddings_cache/ 
 
 .smit 
+.reasonix

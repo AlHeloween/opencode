@@ -32,7 +32,7 @@ test("returns default native agents when no config", async () => {
       expect(names).toContain("general_agent")
       expect(names).toContain("explorer_agent")
       expect(names).toContain("title_agent")
-      expect(names).toContain("summary_agent")
+      // summary_agent does not exist — removed from native agent list
     },
   })
 })

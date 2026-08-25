@@ -235,6 +235,41 @@ export function Session() {
       return m.id < revertID
     })
   })
+
+  // Consecutive memory rows (message* + L1 summary panels) collapse into one
+  // clickable header so the transcript is not buried under compaction output.
+  // runId = id of the run's first row; size = rows in the run.
+  const [expandedMemory, setExpandedMemory] = createSignal(new Set<string>())
+  const memoryRuns = createMemo(() => {
+    const runs = new Map<string, { runId: string; isFirst: boolean; size: number; isMemory: boolean }>()
+    // "" = not inside a memory run (message ids are never empty).
+    let runId = ""
+    let size = 0
+    for (const m of messagesList()) {
+      const isMemory = (sync.data.part[m.id] ?? []).some(
+        (p) => p.type === "text" && (isMessageStarText((p as { text?: string }).text) || isLayer1SummaryText((p as { text?: string }).text)),
+      )
+      if (isMemory) {
+        if (runId === "") {
+          runId = m.id
+          size = 0
+        }
+        size++
+        runs.set(m.id, { runId, isFirst: size === 1, size, isMemory: true })
+      } else {
+        runId = ""
+      }
+    }
+    return runs
+  })
+  const toggleMemoryRun = (runId: string) => {
+    setExpandedMemory((prev) => {
+      const next = new Set(prev)
+      if (next.has(runId)) next.delete(runId)
+      else next.add(runId)
+      return next
+    })
+  }
   const permissions = createMemo(() => {
     if (session()?.parentID) return []
     return children().flatMap((x) => sync.data.permission[x.id] ?? [])
@@ -642,6 +677,11 @@ export function Session() {
                 return child.id === messageID
               })
               if (child) afterScroll(() => scroll.scrollBy(child.y - scroll.y - 1))
+              // Navigating to a collapsed memory row expands its run first.
+              else {
+                const info = memoryRuns().get(messageID)
+                if (info?.isMemory) toggleMemoryRun(info.runId)
+              }
             }}
             sessionID={route.sessionID}
             setPrompt={(promptInfo) => prompt?.set(promptInfo)}
@@ -666,6 +706,10 @@ export function Session() {
                 return child.id === messageID
               })
               if (child) afterScroll(() => scroll.scrollBy(child.y - scroll.y - 1))
+              else {
+                const info = memoryRuns().get(messageID)
+                if (info?.isMemory) toggleMemoryRun(info.runId)
+              }
             }}
             sessionID={route.sessionID}
           />
@@ -1471,6 +1515,27 @@ export function Session() {
                     </Match>
                     <Match when={revert()?.messageID && message.id >= revert()!.messageID && (message as any)._source !== "orch"}>
                       <></>
+                    </Match>
+                    <Match when={memoryRuns().get(message.id)?.isMemory && !expandedMemory().has(memoryRuns().get(message.id)!.runId)}>
+                      {(() => {
+                        const info = memoryRuns().get(message.id)!
+                        if (!info.isFirst) return <></>
+                        return (
+                          <box
+                            onMouseUp={() => toggleMemoryRun(info.runId)}
+                            marginTop={1}
+                            flexShrink={0}
+                            border={["left"]}
+                            customBorderChars={SplitBorder.customBorderChars}
+                            borderColor={theme.backgroundPanel}
+                            paddingLeft={2}
+                          >
+                            <text fg={theme.textMuted}>
+                              [+] {info.size} summary/memory row{info.size === 1 ? "" : "s"} - click to expand
+                            </text>
+                          </box>
+                        )
+                      })()}
                     </Match>
                     <Match when={message.role === "user"}>
                       <UserMessage

@@ -387,13 +387,14 @@ export function layer1SummaryThreshold(): number {
 }
 
 /**
- * Layer-1 summary **token counter**: content tokens (chars/4) of the open window
- * since the last summary assistant, or of the entire visible list when none.
+ * Layer-1 summary **token counter**: content tokens (chars/4) of NEW work since
+ * the last sidecar checkpoint, or of the entire visible list when none.
  *
- * After compact there is no summary after the new message*, so this returns
- * ~len(message*)/4 (+ any newer msgs). That *is* the counter baseline — not a
- * special “if message* > interval” rule. The caller supplies the effective
- * provider-safe threshold, with SUMMARY_INTERVAL_TOKENS as the normal target.
+ * message* is an ASSEMBLY of prior summaries + folded history, not new work:
+ * it is never counted toward the increment (with no checkpoint boundary the
+ * leading star chain is skipped). Otherwise every fold would leave the counter
+ * at ~len(message*)/4 ≈ the whole 64K interval and a summary would fire on the
+ * next stop regardless of real activity.
  *
  * - Real context (text + reasoning + tool output), not provider usage
  * - Survives runLoop restarts (pure function of persisted messages)
@@ -409,6 +410,11 @@ export function computeOpenWindowTokens(msgs: MessageV2.WithParts[], checkpointB
         break
       }
     }
+  } else {
+    // No boundary (e.g. right after a fold): skip the leading message* chain.
+    // The star is rebuilt from summaries — counting it as increment would make
+    // the 64K cadence due immediately after every compact.
+    while (start < msgs.length && isMessageStar(msgs[start])) start++
   }
   return Math.ceil(contentChars(msgs.slice(start)) / CHARS_PER_TOKEN)
 }

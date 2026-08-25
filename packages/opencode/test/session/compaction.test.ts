@@ -1862,11 +1862,21 @@ describe("session.compaction.computeOpenWindowTokens", () => {
     expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(13_002)
   })
 
-  test("message* body alone can exceed SUMMARY_INTERVAL_TOKENS", () => {
+  test("message* alone is NOT an increment — counter skips the leading star", () => {
     const body = "=== COMPACTED ===\n" + "m".repeat(SessionCompaction.SUMMARY_INTERVAL_TOKENS * 4 + 100)
     const msgs = [textMsg("star", "user", body)]
-    const tokens = SessionCompaction.computeOpenWindowTokens(msgs)
-    expect(tokens).toBeGreaterThanOrEqual(SessionCompaction.SUMMARY_INTERVAL_TOKENS)
+    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(0)
+  })
+
+  test("after a fold, only NEW messages count toward the increment (star excluded)", () => {
+    const star = textMsg(
+      "star",
+      "user",
+      "=== COMPACTED ===\n" + "m".repeat(SessionCompaction.SUMMARY_INTERVAL_TOKENS * 4),
+    )
+    const fresh = textMsg("u1", "user", "y".repeat(8_000))
+    // Only the 8_000-char new message counts: 2_000 tokens, not ~64K+2K.
+    expect(SessionCompaction.computeOpenWindowTokens([star, fresh])).toBe(2_000)
   })
 
   test("returns 0 when the boundary is the latest message", () => {

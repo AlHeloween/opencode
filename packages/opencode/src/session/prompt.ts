@@ -22,7 +22,7 @@ import {
   usable,
   REQUEST_OVERHEAD_TOKENS,
   SUMMARY_GENERATION_RESERVE_TOKENS,
-  summaryNeedsCompactFirst,
+  needsContentCompaction,
 } from "./overflow"
 import { Jobs } from "../jobs"
 import { RequestDiff } from "./request-diff"
@@ -1870,7 +1870,20 @@ export const layer = Layer.effect(
           const contentOnly = estimateContentTokens(msgs, model)  // chars/4, no overhead
           const used = contentOnly + REQUEST_OVERHEAD_TOKENS  // full request estimate
           if (!hasSpareOutput({ cfg, model, used })) {
-            yield* maybeCompactCadence({ model, agent: agent.name, force: true })
+            const folded = yield* maybeCompactCadence({ model, agent: agent.name, force: true })
+            if (!folded) {
+              // Corner-case guard, normally unreachable. Post-fold m* is bounded
+              // by design: ≤ MAX_SUMMARY_BODY_TOKENS (32K) of summary bodies +
+              // RECENT_MIN_TOKENS (32K) work tail, so on ≥256K windows the
+              // assembled request (~m* 64K + tools/schema ~50K + overhead)
+              // stays far under the hasSpareOutput gate. Fires only on
+              // small-window models or a single oversized input message.
+              const error = new NamedError.Unknown({
+                message: `Request ~${used} tok > usable ${usable({ cfg, model })} tok on ${model.id}: even after compaction m* carries ≤32K summary + ≤32K recent tok (+tools/schema). Window too small for this session archive.`,
+              })
+              yield* bus.publish(Session.Event.Error, { sessionID, error: error.toObject() })
+              throw error
+            }
             continue
           }
 
@@ -2467,9 +2480,10 @@ export const layer = Layer.effect(
                 // Layer-2 fold gate runs at every turn end regardless of the
                 // Layer-1 summary cadence: compact fires when the open window
                 // reaches limit − 32K (+request gap) — even before 64K of new
-                // content accumulated for the summary cadence. After a fold the
-                // open-window counter becomes len(message*)/4 (no summary
-                // boundary after the star).
+                // content accumulated for the summary cadence. The counter
+                // never counts message* — after a fold it measures only NEW
+                // work (leading star chain skipped), so the fold cannot
+                // pre-arm the next one.
                 yield* maybeCompactCadence({
                   model,
                   agent: lastUser.agent,
@@ -2493,8 +2507,8 @@ export const layer = Layer.effect(
             }
             if (result === "compact") {
               // Compact → message*. Next loop recomputes the open-window
-              // counter: no summary after the star yet → counter = len(message*)/4.
-              // The normal 64K target or a lower provider-safe fallback then applies.
+              // counter with the leading star skipped: increment counts NEW
+              // messages only — a fold never arms the summary cadence by itself.
               yield* compaction.compact({
                 sessionID,
                 model: lastUser.model,

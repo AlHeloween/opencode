@@ -595,7 +595,14 @@ export const layer = Layer.effect(
               start: part.state.status === "running" ? part.state.time.start : Date.now(),
               end: Date.now(),
             },
-            metadata: part.state.status === "pending" ? undefined : part.state.metadata,
+            metadata:
+              part.state.status === "pending"
+                ? undefined
+                : part.state.metadata ??
+                  {
+                    sessionId: SessionID.make("(failed)"),
+                    model: { providerID: ProviderID.make(""), modelID: ModelID.make("") },
+                  },
             input: part.state.input,
           },
         } satisfies MessageV2.ToolPart)

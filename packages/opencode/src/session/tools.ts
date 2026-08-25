@@ -207,7 +207,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
           state: {
             title: val.title,
             metadata: val.metadata,
-            output: val.output ?? match.state.status === "running" ? (match.state as any).output : undefined,
+            output: val.output ?? (match.state.status === "running" ? (match.state as any).output : undefined),
             status: "running",
             input: args,
             time: { start: Date.now() },

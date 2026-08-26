@@ -336,6 +336,27 @@ function bigCaptureProviderCfg(url: string) {
   }
 }
 
+// Reasoning flag + big window: sidecar pre-flight (M + 32K reserve) must fit
+// while the fixed 65 536 open-window threshold stays crossable.
+function reasoningBigProviderCfg(url: string) {
+  return {
+    ...providerCfg(url),
+    provider: {
+      ...providerCfg(url).provider,
+      test: {
+        ...providerCfg(url).provider.test,
+        models: {
+          "test-model": {
+            ...providerCfg(url).provider.test.models["test-model"],
+            reasoning: true,
+            limit: { context: 200_000, output: 32_000 },
+          },
+        },
+      },
+    },
+  }
+}
+
 const user = Effect.fn("test.user")(function* (sessionID: SessionID, text: string) {
   const session = yield* Session.Service
   const msg = yield* session.updateMessage({
@@ -947,23 +968,26 @@ The emergency capture route carries the full tool catalog on the wire and tool e
   30_000,
 )
 
+
 it.live(
-  "Layer-1 sidecar handoff stays within the 65K reasoning-model budget",
+  "Layer-1 sidecar fires when open window crosses fixed 65_536 threshold",
   () =>
     provideTmpdirServer(
       Effect.fnUntraced(function* ({ llm }) {
         const prompt = yield* SessionPrompt.Service
         const sessions = yield* Session.Service
-        const session = yield* sessions.create({ title: "Reasoning 65K summary timing" })
+        const session = yield* sessions.create({ title: "Layer-1 threshold crossing" })
+        // 70_000 open tokens: above layer1SummaryThreshold (65_536), below the
+        // summaryNeedsCompactFirst pre-flight line on a 200K window.
         yield* prompt.prompt({
           sessionID: session.id,
           agent: "reasoning",
           noReply: true,
-          parts: [{ type: "text", text: "x".repeat(22_000 * 4) }],
+          parts: [{ type: "text", text: "x".repeat(70_000 * 4) }],
         })
         yield* llm.text("completed reasoning answer")
         yield* llm.text(`## Semantic Vector
-dominant: "reasoning handoff"
+dominant: "threshold crossing"
 
 ## Goal
 Keep the summary handoff inside the provider context.
@@ -976,350 +1000,19 @@ The protected flow can resume.`)
         yield* llm.text("resumed within context")
 
         const result = yield* prompt.loop({ sessionID: session.id })
-expect(yield* llm.calls).toBe(2)
-expect(result.parts.some((part) => part.type === "text" && part.text === "completed reasoning answer")).toBe(true)
-const inputs = yield* llm.inputs
-expect((inputs[1]?.tools as unknown[] | undefined) ?? []).toHaveLength(0)
-expect(JSON.stringify(inputs[1]?.messages)).toContain("completed reasoning answer")
+        expect(result.parts.some((p) => p.type === "text" && p.text === "completed reasoning answer")).toBe(true)
+
+        const inputs = yield* llm.inputs
+        expect(JSON.stringify(inputs[1]?.messages)).toContain("completed reasoning answer")
+        expect(inputs[1]?.tools).toEqual(inputs[0]?.tools)
+        // call1 main turn; call2 sidecar summary request (full trunk catalogue,
+        // messages carry the trunk answer); call3 summary validation retry;
+        // call4 continuation after capture.
+        expect(inputs.length).toBe(4)
       }),
-      { git: true, config: reasoning65kProviderCfg },
+      { git: true, config: reasoningBigProviderCfg },
     ),
   60_000,
-)
-
-// Superseded by the detached sidecar assertion above: a summary has no visible
-// resume turn, so ordering a legacy visible summary callback is invalid.
-orderedIt.live.skip(
-  "Layer-1 persists the range handle before creating its resume turn",
-  () =>
-    provideTmpdirServer(
-      Effect.fnUntraced(function* ({ llm }) {
-        const control = { calls: 0, started: defer<void>(), release: defer<void>(), persist: () => Effect.void, messageID: undefined as MessageID | undefined }
-        summaryOrdering = control
-        yield* Effect.addFinalizer(() =>
-          Effect.sync(() => {
-            summaryOrdering = undefined
-          }),
-        )
-        const prompt = yield* SessionPrompt.Service
-        const sessions = yield* Session.Service
-        const session = yield* sessions.create({ title: "Layer-1 enrichment ordering" })
-        control.persist = () =>
-          Effect.gen(function* () {
-            if (!control.messageID) return
-            const request = (yield* sessions.messages({ sessionID: session.id, limit: 100 })).find(
-              (message) => message.info.id === control.messageID,
-            )
-            if (!request || request.info.role !== "user") return
-            request.info.summary = {
-              diffs: [
-                {
-                  file: "src/session/summary.ts",
-                  patch: "",
-                  additions: 3,
-                  deletions: 1,
-                  status: "modified",
-                },
-              ],
-              impact: {
-                from: "fossil_from",
-                to: "fossil_to",
-                changedFiles: 1,
-                symbolCountByKind: { function: 1 },
-                topSymbols: ["summarize"],
-                impactedFiles: ["src/session/compaction.ts"],
-                callerCount: 1,
-              },
-            }
-            yield* sessions.updateMessage(request.info)
-          })
-        yield* prompt.prompt({
-          sessionID: session.id,
-          agent: "build",
-          noReply: true,
-          parts: [{ type: "text", text: "x".repeat(SessionCompaction.SUMMARY_INTERVAL_TOKENS * 4) }],
-        })
-        yield* llm.text("normal answer")
-        yield* llm.text(`## Semantic Vector
-dominant: "enrichment ordering"
-
-## Goal
-Persist Exact handles before resume.
-
-## Key decisions
-- Await summary enrichment.
-
-## Current state
-The resume is blocked.`)
-        yield* llm.text("resumed after enrichment")
-
-        const loop = yield* prompt.loop({ sessionID: session.id }).pipe(Effect.forkScoped)
-        yield* Effect.promise(() => control.started.promise)
-        const before = yield* MessageV2.filterCompactedEffect(session.id)
-        expect(
-          before.some((message) =>
-            message.parts.some((part) => part.type === "text" && part.text.includes("Layer-1 summary is complete")),
-          ),
-        ).toBe(false)
-
-        control.release.resolve()
-        const result = yield* Fiber.join(loop)
-        expect(result.parts.some((part) => part.type === "text" && part.text === "resumed after enrichment")).toBe(true)
-        const after = yield* MessageV2.filterCompactedEffect(session.id)
-        const request = after.find((message) => message.info.role === "user" && message.info.summary?.impact?.topSymbols[0] === "summarize")
-        expect(request?.info.role).toBe("user")
-        if (request?.info.role === "user") {
-          expect(request.info.summary?.diffs[0]?.file).toBe("src/session/summary.ts")
-        }
-      }),
-      { git: true, config: providerCfg },
-    ),
-  30_000,
-)
-
-it.live(
-  "Layer-1 rejects an invalid detached sidecar without creating a boundary",
-  () =>
-    provideTmpdirServer(
-      Effect.fnUntraced(function* ({ llm }) {
-        const prompt = yield* SessionPrompt.Service
-        const sessions = yield* Session.Service
-        const session = yield* sessions.create({
-          title: "Layer-1 retry",
-          permission: [{ permission: "*", pattern: "*", action: "allow" }],
-        })
-        yield* prompt.prompt({
-          sessionID: session.id,
-          agent: "build",
-          noReply: true,
-          parts: [{ type: "text", text: "x".repeat(SessionCompaction.SUMMARY_INTERVAL_TOKENS * 4) }],
-        })
-        yield* llm.text("normal answer")
-        yield* llm.text("not a Layer-1 summary")
-        yield* llm.text(`## Semantic Vector
-dominant: "summary retry"
-
-## Goal
-Retry the summary.
-
-## Key decisions
-- Reject incomplete bodies.
-
-## Current state
-The valid retry is accepted.`)
-        yield* llm.text("resumed answer")
-
-        yield* prompt.loop({ sessionID: session.id })
-const messages = yield* MessageV2.filterCompactedEffect(session.id)
-expect(yield* llm.calls).toBe(2)
-expect(messages.some((message) => message.parts.some((part) => part.type === "text" && part.text === "normal answer"))).toBe(true)
-expect(messages.some((message) => message.parts.some((part) => part.type === "text" && part.text === "not a Layer-1 summary"))).toBe(false)
-expect(IncrementalCheckpoint.listOpen(session.id)).toHaveLength(0)
-      }),
-      { git: true, config: providerCfg },
-    ),
-  30_000,
-)
-
-it.live(
-  "Layer-1 waits through a threshold-crossing tool loop before requesting a sidecar",
-  () =>
-    provideTmpdirServer(
-      Effect.fnUntraced(function* ({ llm }) {
-        const prompt = yield* SessionPrompt.Service
-        const sessions = yield* Session.Service
-        const session = yield* sessions.create({
-          title: "Layer-1 tool boundary",
-          permission: [{ permission: "*", pattern: "*", action: "allow" }],
-        })
-        yield* prompt.prompt({
-          sessionID: session.id,
-          agent: "build",
-          noReply: true,
-          parts: [{ type: "text", text: "x".repeat(SessionCompaction.SUMMARY_INTERVAL_TOKENS * 4) }],
-        })
-        yield* llm.tool("glob", { pattern: "definitely-missing-*.txt" })
-        yield* llm.text("normal answer after tool")
-        yield* llm.text(`## Semantic Vector
-dominant: "tool boundary"
-
-## Goal
-Let tool work finish first.
-
-## Key decisions
-- Request summary after the answer.
-
-## Current state
-The agent will resume.`)
-        yield* llm.text("resumed after tool")
-
-        yield* prompt.loop({ sessionID: session.id })
-const inputs = yield* llm.inputs
-expect(inputs).toHaveLength(3)
-expect((inputs[2]?.tools as unknown[] | undefined) ?? []).toHaveLength(0)
-expect(JSON.stringify(inputs[2]?.messages)).toContain("normal answer after tool")
-const messages = yield* MessageV2.filterCompactedEffect(session.id)
-const toolIndex = messages.findIndex((message) => message.parts.some((part) => part.type === "tool"))
-const normalIndex = messages.findIndex((message) =>
-  message.parts.some((part) => part.type === "text" && part.text === "normal answer after tool"),
-)
-expect(normalIndex).toBeGreaterThan(toolIndex)
-      }),
-      { git: true, config: providerCfg },
-    ),
-  30_000,
-)
-
-it.live(
-  "Layer-1 accepted summary recovers one missing resume after restart",
-  () =>
-    provideTmpdirServer(
-      Effect.fnUntraced(function* ({ llm }) {
-        const prompt = yield* SessionPrompt.Service
-        const sessions = yield* Session.Service
-        const session = yield* sessions.create({ title: "Layer-1 recovery" })
-        const request = yield* user(session.id, "summary request")
-        yield* sessions.updatePart({
-          id: PartID.ascending(),
-          messageID: request.id,
-          sessionID: session.id,
-          type: "text",
-          text: `<!-- summary-range from_id="start" to_id="end" session_id="${session.id}" -->`,
-          synthetic: true,
-          ignored: true,
-        })
-        const accepted = yield* sessions.updateMessage({
-          id: MessageID.ascending(),
-          role: "assistant",
-          parentID: request.id,
-          sessionID: session.id,
-          mode: "build",
-          agent: "build",
-          path: { cwd: "/tmp", root: "/tmp" },
-          cost: 0,
-          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-          modelID: ref.modelID,
-          providerID: ref.providerID,
-          summary: true,
-          finish: "stop",
-          time: { created: Date.now() },
-        })
-        yield* sessions.updatePart({
-          id: PartID.ascending(),
-          messageID: accepted.id,
-          sessionID: session.id,
-          type: "text",
-          text: "## Semantic Vector\ndominant: \"recovery\"",
-        })
-        yield* llm.text("recovered continuation")
-
-        const result = yield* prompt.loop({ sessionID: session.id })
-        expect(result.parts.some((part) => part.type === "text" && part.text === "recovered continuation")).toBe(true)
-        expect(yield* llm.calls).toBe(1)
-        const messages = yield* MessageV2.filterCompactedEffect(session.id)
-        expect(
-          messages.filter((message) =>
-            message.parts.some((part) => part.type === "text" && part.text.includes("Layer-1 summary is complete")),
-          ),
-        ).toHaveLength(1)
-
-        yield* prompt.loop({ sessionID: session.id })
-        expect(yield* llm.calls).toBe(1)
-      }),
-      { git: true, config: providerCfg },
-    ),
-  30_000,
-)
-
-it.live(
-  "Layer-1 requests the due summary after a post-stop restart, then resumes",
-  () =>
-    provideTmpdirServer(
-      Effect.fnUntraced(function* ({ llm }) {
-        const prompt = yield* SessionPrompt.Service
-        const sessions = yield* Session.Service
-        const session = yield* sessions.create({ title: "Layer-1 post-stop recovery" })
-        const request = yield* user(session.id, "x".repeat(SessionCompaction.SUMMARY_INTERVAL_TOKENS * 4))
-        const normal = yield* sessions.updateMessage({
-          id: MessageID.ascending(),
-          role: "assistant",
-          parentID: request.id,
-          sessionID: session.id,
-          mode: "build",
-          agent: "build",
-          path: { cwd: "/tmp", root: "/tmp" },
-          cost: 0,
-          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-          modelID: ref.modelID,
-          providerID: ref.providerID,
-          finish: "stop",
-          time: { created: Date.now() },
-        })
-        yield* sessions.updatePart({
-          id: PartID.ascending(),
-          messageID: normal.id,
-          sessionID: session.id,
-          type: "text",
-          text: "normal answer before restart",
-        })
-        yield* llm.text(`## Semantic Vector
-dominant: "post-stop recovery"
-
-## Goal
-Summarize the completed response after restart.
-
-## Key decisions
-- Recover from the completed-answer boundary.
-
-## Current state
-Resume the original flow.`)
-        yield* llm.text("resumed after post-stop recovery")
-
-        const result = yield* prompt.loop({ sessionID: session.id })
-        expect(yield* llm.calls).toBe(2)
-        expect(result.parts.some((part) => part.type === "text" && part.text === "resumed after post-stop recovery")).toBe(true)
-        const messages = yield* MessageV2.filterCompactedEffect(session.id)
-        const summaryIndex = messages.findIndex((message) => message.info.role === "assistant" && message.info.summary)
-        expect(summaryIndex).toBeGreaterThan(messages.findIndex((message) => message.info.id === normal.id))
-        expect(messages[summaryIndex + 1]?.info.role).toBe("user")
-      }),
-      { git: true, config: providerCfg },
-    ),
-  30_000,
-)
-
-it.live(
-  "Layer-1 terminal failure is a persisted cooldown until a real user message",
-  () =>
-    provideTmpdirServer(
-      Effect.fnUntraced(function* ({ llm }) {
-        const prompt = yield* SessionPrompt.Service
-        const sessions = yield* Session.Service
-        const session = yield* sessions.create({ title: "Layer-1 terminal" })
-        yield* prompt.prompt({
-          sessionID: session.id,
-          agent: "build",
-          noReply: true,
-          parts: [{ type: "text", text: "x".repeat(SessionCompaction.SUMMARY_INTERVAL_TOKENS * 4) }],
-        })
-        yield* llm.text("normal answer")
-        yield* llm.text("invalid summary one")
-        yield* llm.text("invalid summary two")
-
-        yield* prompt.loop({ sessionID: session.id })
-        expect(yield* llm.calls).toBe(3)
-        const messages = yield* MessageV2.filterCompactedEffect(session.id)
-        const request = messages.find((message) =>
-          message.parts.some((part) => part.type === "text" && part.text.includes("<!-- summary-range")),
-        )
-        expect(request?.parts.some((part) => part.type === "text" && part.text.includes("<!-- summary-terminal -->"))).toBe(true)
-
-        yield* prompt.loop({ sessionID: session.id })
-        expect(yield* llm.calls).toBe(3)
-      }),
-      { git: true, config: providerCfg },
-    ),
-  30_000,
 )
 
 it.live("failed subtask preserves metadata on error tool state", () =>

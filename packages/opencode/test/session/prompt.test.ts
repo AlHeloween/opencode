@@ -1125,6 +1125,7 @@ it.live(
 
         const fiber = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
         yield* llm.wait(1)
+
         expect((yield* status.get(chat.id)).type).toBe("busy")
         yield* prompt.cancel(chat.id)
         yield* Fiber.await(fiber)

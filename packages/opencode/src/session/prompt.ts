@@ -599,11 +599,18 @@ export const layer = Layer.effect(
               part.state.status === "pending"
                 ? undefined
                 : part.state.metadata ??
-                  {
-                    sessionId: SessionID.make("(failed)"),
-                    model: { providerID: ProviderID.make(""), modelID: ModelID.make("") },
-                  },
-            input: part.state.input,
+                  (() => {
+                    const requested = Provider.ModelNotFoundError.isInstance(error)
+                      ? { providerID: error.data.providerID, modelID: error.data.modelID }
+                      : { providerID: "", modelID: "" }
+                    return {
+                      sessionId: SessionID.make("(failed)"),
+                      model: {
+                        providerID: ProviderID.make(requested.providerID),
+                        modelID: ModelID.make(requested.modelID),
+                      },
+                    }
+                  })(),
           },
         } satisfies MessageV2.ToolPart)
       }
@@ -1823,6 +1830,7 @@ export const layer = Layer.effect(
             SessionCompaction.isAssistantTurnComplete(lastAssistantMsg)
           ) {
             yield* slog.info("legacy layer1 summary is terminal", { summaryID: lastAssistant.id })
+            console.error('[dbg] L-in legacy-terminal branch')
             break
           }
 
@@ -1836,11 +1844,14 @@ export const layer = Layer.effect(
             !summaryAttempt
           ) {
             yield* slog.info("exiting loop", { step })
+            console.error('[dbg] T-in terminal-work-turn branch')
             break
           }
 
           step++
+          console.error('[dbg] M-pre reaching getModel')
           const model = yield* getModel(lastUser.model.providerID, lastUser.model.modelID, sessionID)
+          console.error('[dbg] M-post model resolved')
           yield* slog.debug("prepare", { step, stage: "model-ready", providerID: model.providerID, modelID: model.id })
           const task = tasks.pop()
 

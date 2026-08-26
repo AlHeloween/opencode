@@ -586,31 +586,22 @@ export const layer = Layer.effect(
       }
 
       if (!result) {
+        const requestedModel = Provider.ModelNotFoundError.isInstance(error)
+          ? { providerID: String(error.data.providerID), modelID: String(error.data.modelID) }
+          : { providerID: "", modelID: "" }
+        const startedAt = part.state.status === "running" ? part.state.time.start : Date.now()
+        const preservedMetadata =
+          part.state.status === "pending"
+            ? { sessionId: "(failed)", model: requestedModel }
+            : (part.state.metadata ?? { sessionId: "(failed)", model: requestedModel })
         yield* sessions.updatePart({
           ...part,
           state: {
             status: "error",
             error: error ? `Tool execution failed: ${error.message}` : "Tool execution failed",
-            time: {
-              start: part.state.status === "running" ? part.state.time.start : Date.now(),
-              end: Date.now(),
-            },
-            metadata:
-              part.state.status === "pending"
-                ? undefined
-                : part.state.metadata ??
-                  (() => {
-                    const requested = Provider.ModelNotFoundError.isInstance(error)
-                      ? { providerID: error.data.providerID, modelID: error.data.modelID }
-                      : { providerID: "", modelID: "" }
-                    return {
-                      sessionId: SessionID.make("(failed)"),
-                      model: {
-                        providerID: ProviderID.make(requested.providerID),
-                        modelID: ModelID.make(requested.modelID),
-                      },
-                    }
-                  })(),
+            time: { start: startedAt, end: Date.now() },
+            metadata: preservedMetadata,
+            input: part.state.input,
           },
         } satisfies MessageV2.ToolPart)
       }

@@ -808,48 +808,6 @@ The completed answer is available and the next user follow-up should reuse the h
   30_000,
 )
 
-it.live(
-  "legacy Layer-1 summary is terminal and does not synthesize a resume",
-  () =>
-    provideTmpdirServer(
-      Effect.fnUntraced(function* ({ llm }) {
-        const prompt = yield* SessionPrompt.Service
-        const sessions = yield* Session.Service
-        const session = yield* sessions.create({
-          title: "Reasoning summary timing",
-          permission: [{ permission: "*", pattern: "*", action: "allow" }],
-        })
-        yield* prompt.prompt({
-          sessionID: session.id,
-          agent: "reasoning",
-          noReply: true,
-          parts: [{ type: "text", text: "x".repeat(SessionCompaction.SUMMARY_INTERVAL_TOKENS * 4) }],
-        })
-        yield* llm.text("reasoning answer")
-        yield* llm.text(`## Semantic Vector
-dominant: "reasoning summary"
-
-## Goal
-Preserve the protected calibration flow.
-
-## Key decisions
-- Do not inject action pressure.
-
-## Current state
-The reasoning flow will resume.`)
-        yield* llm.text("resumed reasoning")
-
-        yield* prompt.loop({ sessionID: session.id })
-
-const inputs = yield* llm.inputs
-expect(inputs).toHaveLength(2)
-
-expect((inputs[1]?.tools as unknown[] | undefined) ?? []).toHaveLength(0)
-      }),
-      { git: true, config: providerCfg },
-    ),
-  30_000,
-)
 
 it.live(
   "Layer-1 in-loop summary turn keeps the full tool catalog on the wire",

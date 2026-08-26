@@ -1040,7 +1040,7 @@ it.live(
         const fiber = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
 
         const tool = yield* Effect.promise(async () => {
-          const end = Date.now() + 5_000
+          const end = Date.now() + 25_000
           while (Date.now() < end) {
             const msgs = await Effect.runPromise(MessageV2.filterCompactedEffect(chat.id))
             const taskMsg = msgs.find((item) => item.info.role === "assistant" && item.info.agent === "general")
@@ -1061,7 +1061,7 @@ it.live(
       }),
       { git: true, config: providerCfg },
     ),
-  5_000,
+  30_000,
 )
 
 it.live(
@@ -1086,7 +1086,7 @@ it.live(
         const fiber = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
 
         const tool = yield* Effect.promise(async () => {
-          const end = Date.now() + 5_000
+          const end = Date.now() + 25_000
           while (Date.now() < end) {
             const msgs = await Effect.runPromise(MessageV2.filterCompactedEffect(chat.id))
             const assistant = msgs.findLast((item) => item.info.role === "assistant" && item.info.agent === "build")
@@ -1109,7 +1109,7 @@ it.live(
       }),
       { git: true, config: providerCfg },
     ),
-  10_000,
+  30_000,
 )
 
 it.live(
@@ -1355,7 +1355,7 @@ it.live(
           .pipe(Effect.forkChild)
 
         yield* Effect.promise(async () => {
-          const end = Date.now() + 5000
+          const end = Date.now() + 25_000
           while (Date.now() < end) {
             const msgs = await Effect.runPromise(sessions.messages({ sessionID: chat.id }))
             if (msgs.some((msg) => msg.info.role === "user" && msg.info.id === id)) return

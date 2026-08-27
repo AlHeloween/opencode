@@ -420,6 +420,10 @@ const UpdatedInfo = Schema.Struct({
 
 const UpdatedEventSchema = Schema.Struct({
   sessionID: SessionID,
+  // Project identity rides on the event so SyncEvent can resolve the target
+  // database without depending on ambient ALS (Effect fibers lose it).
+  projectID: Schema.optional(ProjectID),
+  directory: Schema.optional(Schema.String),
   info: UpdatedInfo,
 })
 
@@ -883,8 +887,14 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
       return session
     })
 
-    const patch = (sessionID: SessionID, info: Patch) =>
-      Effect.sync(() => SyncEvent.run(Event.Updated, { sessionID, info }))
+    const patch = Effect.fn("Session.patch")(function* (sessionID: SessionID, info: Patch) {
+      // Same project-attachment pattern as updatePart: the event must resolve
+      // its database without ambient ALS (detached fibers lose it).
+      const ctx = yield* InstanceState.context.pipe(Effect.option)
+      const project = Option.isSome(ctx) ? { projectID: ctx.value.project.id, directory: ctx.value.worktree } : {}
+      yield* Effect.sync(() => SyncEvent.run(Event.Updated, { sessionID, info, ...project }))
+    })
+
 
     const touch = Effect.fn("Session.touch")(function* (sessionID: SessionID) {
       yield* patch(sessionID, { time: { updated: Date.now() } })

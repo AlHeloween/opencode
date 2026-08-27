@@ -1,6 +1,6 @@
 import { NodeHttpServer, NodeHttpServerRequest } from "@effect/platform-node"
 import * as Http from "node:http"
-import { Deferred, Effect, Layer, Context, Stream } from "effect"
+import { Deferred, Effect, Layer, Context, Schedule, Stream } from "effect"
 import * as HttpServer from "effect/unstable/http/HttpServer"
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 
@@ -426,6 +426,12 @@ function send(item: Sse) {
   let end: Stream.Stream<Uint8Array, unknown> = empty
   if (item.error) end = Stream.concat(empty, Stream.fail(item.error))
   else if (item.hang) end = Stream.concat(empty, Stream.never)
+  // NOTE (2026-08-27): a keep-alive variant (1s SSE comments instead of
+  // Stream.never) was tried so client abort wakes the parked body read and
+  // fibers die naturally. It flipped abort semantics — ai-sdk then ends the
+  // stream differently and both "records aborted errors" tests fail. The
+  // no-data wedge stays; bounded cancel force-fail (runner.ts) is the
+  // designed answer for it.
 
   return HttpServerResponse.stream(Stream.concat(body, end), { contentType: "text/event-stream" })
 }

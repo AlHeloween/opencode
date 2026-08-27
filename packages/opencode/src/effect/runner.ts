@@ -139,26 +139,11 @@ export const make = <A, E = never>(
         switch (st._tag) {
           case "Running":
           case "RunningThenRun": {
-            // New message supersedes the current run — interrupt it and start fresh.
-            const existingRun = st._tag === "RunningThenRun" ? st.run : st.run
-            const existingPending = st._tag === "RunningThenRun" ? st.pending : undefined
-
-            // Fire-and-forget interrupt: don't block on a fiber stuck in native I/O
-            yield* Fiber.interrupt(existingRun.fiber).pipe(
-              Effect.timeout("3 seconds"),
-              Effect.ignore,
-              Effect.forkIn(scope),
-            )
-
-            // Fail the superseded pending work
-            if (existingPending) {
-              yield* Deferred.fail(existingPending.done, new Cancelled()).pipe(Effect.ignore)
-            }
-
-            // Start the new work immediately
-            const done = yield* Deferred.make<A, E | Cancelled>()
-            const run = yield* startRun(work, done)
-            return [awaitDone(done), { _tag: "Running", run }] as const
+            // Join: same-session callers share one run. The session loop
+            // re-reads messages at each step, so work submitted mid-run is
+            // consumed by the running loop naturally (queue semantics).
+            // Restart-from-scratch flows go through `cancel` first.
+            return [awaitDone(st.run.done), st] as const
           }
           case "ShellThenRun":
             return [awaitDone(st.run.done), st] as const
@@ -222,8 +207,19 @@ export const make = <A, E = never>(
       case "Running":
         return [
           Effect.gen(function* () {
-            yield* Fiber.interrupt(st.run.fiber)
-            yield* Deferred.await(st.run.done).pipe(Effect.exit, Effect.asVoid)
+            // Fire-and-forget interrupt: a fiber wedged in native I/O (e.g. an
+            // LLM stream with no abort signal) may never observe the signal.
+            yield* Fiber.interrupt(st.run.fiber).pipe(
+              Effect.timeout("3 seconds"),
+              Effect.ignore,
+              Effect.forkIn(scope),
+            )
+            // Bounded wait for a natural settle (real errors preserved).
+            yield* Deferred.await(st.run.done).pipe(Effect.timeout("2 seconds"), Effect.ignore)
+            // Idempotent: no-op when already settled. Guarantees every
+            // awaiter — including this cancel — resolves even when the
+            // fiber wedged past the window.
+            yield* Deferred.fail(st.run.done, new Cancelled()).pipe(Effect.ignore)
             yield* idleIfCurrent()
           }),
           { _tag: "Idle" } as const,
@@ -231,9 +227,14 @@ export const make = <A, E = never>(
       case "RunningThenRun":
         return [
           Effect.gen(function* () {
-            yield* Fiber.interrupt(st.run.fiber)
-            yield* Deferred.await(st.run.done).pipe(Effect.exit, Effect.asVoid)
-            yield* Deferred.fail(st.pending.done, new Cancelled()).pipe(Effect.asVoid)
+            yield* Fiber.interrupt(st.run.fiber).pipe(
+              Effect.timeout("3 seconds"),
+              Effect.ignore,
+              Effect.forkIn(scope),
+            )
+            yield* Deferred.await(st.run.done).pipe(Effect.timeout("2 seconds"), Effect.ignore)
+            yield* Deferred.fail(st.run.done, new Cancelled()).pipe(Effect.ignore)
+            yield* Deferred.fail(st.pending.done, new Cancelled()).pipe(Effect.ignore)
             yield* idleIfCurrent()
           }),
           { _tag: "Idle" } as const,

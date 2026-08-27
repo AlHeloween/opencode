@@ -1821,7 +1821,6 @@ export const layer = Layer.effect(
             SessionCompaction.isAssistantTurnComplete(lastAssistantMsg)
           ) {
             yield* slog.info("legacy layer1 summary is terminal", { summaryID: lastAssistant.id })
-            console.error('[dbg] L-in legacy-terminal branch')
             break
           }
 
@@ -1835,14 +1834,11 @@ export const layer = Layer.effect(
             !summaryAttempt
           ) {
             yield* slog.info("exiting loop", { step })
-            console.error('[dbg] T-in terminal-work-turn branch')
             break
           }
 
           step++
-          console.error('[dbg] M-pre reaching getModel')
           const model = yield* getModel(lastUser.model.providerID, lastUser.model.modelID, sessionID)
-          console.error('[dbg] M-post model resolved')
           yield* slog.debug("prepare", { step, stage: "model-ready", providerID: model.providerID, modelID: model.id })
           const task = tasks.pop()
 
@@ -1903,11 +1899,9 @@ export const layer = Layer.effect(
           // checkpoint key so mode switches reuse the cached prompt. Subagents
           // (coder, explorer, …) keep separate checkpoints (different tools).
           const checkpointAgentName = isPrimaryModeIdentity(cacheAgent.name) ? undefined : cacheAgent.name
-          console.error('[dbg] pre-reminders')
           const maxSteps = agent.steps ?? Infinity
           const isLastStep = step >= maxSteps
           msgs = yield* insertReminders({ messages: msgs, agent, session })
-          console.error('[dbg] post-reminders')
           const msg: MessageV2.Assistant = {
             id: MessageID.ascending(),
             parentID: lastUser.id,
@@ -1924,7 +1918,6 @@ export const layer = Layer.effect(
             sessionID,
           }
           yield* sessions.updateMessage(msg)
-          console.error('[dbg] assistant persisted', msg.id)
 
           const finalizeInterruptedAssistant = Effect.gen(function* () {
             if (msg.time.completed) return
@@ -2512,7 +2505,17 @@ export const layer = Layer.effect(
                   Effect.forkIn(scope),
                 )
               }
-              if (result === "stop" && !sidecarCaptured) return "break" as const
+              if (result === "stop" && !sidecarCaptured) {
+                // Queue semantics: a user message submitted while this run was
+                // in flight must be consumed by this loop, not stranded until
+                // the next prompt re-opens a run.
+                const tail = yield* sessions.messages({ sessionID })
+                const lastMsg = tail.at(-1)
+                if (lastMsg?.info.role === "user" && lastMsg.info.id !== lastUser.id) {
+                  return "continue" as const
+                }
+                return "break" as const
+              }
               // After sidecar capture: continue loop so work can finish naturally.
               // Sidecar is a checkpoint mechanism, not a termination signal.
             }

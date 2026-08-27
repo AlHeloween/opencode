@@ -90,33 +90,53 @@ def pack(db: sqlite3.Connection, paths: list[str], caps: dict[str, int]) -> str:
 
     ids = node_ids(db, paths)
     idlist = list(ids.keys())
-    cross: list[tuple[str, str, str]] = []
-    ext_files: set[str] = set()
+    raw: list[tuple[str, str, str, int | None]] = []
     chunk = 900
     for i in range(0, len(idlist), chunk):
         part = idlist[i : i + chunk]
         ph2 = ",".join("?" * len(part))
-        rows = db.execute(
-            f"SELECT e.source, e.target, e.kind FROM edges e "
+        raw += db.execute(
+            f"SELECT e.source, e.target, e.kind, e.line FROM edges e "
             f"WHERE e.source IN ({ph2}) OR e.target IN ({ph2})",
             part + part,
         ).fetchall()
-        for s, t, kind in rows:
-            src, dst = ids.get(s), ids.get(t)
-            if not src or not dst:
-                continue
-            (name_s, file_s), (name_t, file_t) = src, dst
-            if file_s == file_t:
-                continue
-            cross.append(
-                (
-                    os.path.basename(file_s) + ":" + name_s,
-                    kind,
-                    os.path.basename(file_t) + ":" + name_t,
-                )
-            )
-            if file_t not in paths and kind in ("call", "import", "reference"):
-                ext_files.add(file_t)
+
+    # Second pass: resolve endpoints that live OUTSIDE the file set — dropping
+    # them silently erased every cross-file edge (the first-cut bug).
+    unresolved = {x for s, t, _, _ in raw for x in (s, t) if x not in ids}
+    ul = list(unresolved)
+    for i in range(0, len(ul), chunk):
+        part = ul[i : i + chunk]
+        ph2 = ",".join("?" * len(part))
+        for nid, name, fp in db.execute(
+            f"SELECT id, name, file_path FROM nodes WHERE id IN ({ph2})", part
+        ):
+            ids[nid] = (name, norm(fp))
+
+    cross: list[tuple[str, str, str]] = []
+    ext_files: set[str] = set()
+    cross_kinds = {"calls", "imports", "references", "instantiates"}
+    seen_edges: set[tuple[str, str, str]] = set()
+    def lbl(name: str, fp: str, ln: int | None) -> str:
+        # File-level nodes carry the path as their name — collapse the
+        # duplicate ("agent.ts:agent.ts") to just the basename.
+        base = os.path.basename(fp)
+        body = base if name in (fp, base) else base + ":" + name
+        return body + (f":{ln}" if ln else "")
+
+    for s, t, kind, eline in raw:
+        src, dst = ids.get(s), ids.get(t)
+        if not src or not dst:
+            continue
+        (name_s, file_s), (name_t, file_t) = src, dst
+        if file_s == file_t:
+            continue
+        edge = (lbl(name_s, file_s, eline), kind, lbl(name_t, file_t, None))
+        if edge not in seen_edges:
+            seen_edges.add(edge)
+            cross.append(edge)
+        if file_t not in paths and kind in cross_kinds:
+            ext_files.add(file_t)
 
     lines = ["# CodeGraph pack (SQLite structure, MCP prose suppressed)", ""]
     lines.append(f"**Files ({len(paths)}):**")

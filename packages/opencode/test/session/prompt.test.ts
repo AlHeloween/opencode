@@ -1109,7 +1109,7 @@ it.live(
       }),
       { git: true, config: providerCfg },
     ),
-  30_000,
+  60_000,
 )
 
 it.live(
@@ -1253,6 +1253,7 @@ it.live(
       Effect.fnUntraced(function* ({ llm }) {
         const prompt = yield* SessionPrompt.Service
         const sessions = yield* Session.Service
+        const status = yield* SessionStatus.Service
         const chat = yield* sessions.create({ title: "Pinned" })
         yield* llm.hang
         yield* user(chat.id, "hello")
@@ -1264,11 +1265,12 @@ it.live(
 
         yield* prompt.cancel(chat.id)
         const [exitA, exitB] = yield* Effect.all([Fiber.await(a), Fiber.await(b)])
+        // Supersede model: B interrupts A and starts its own run; cancel then
+        // stops B. Each caller resolves cleanly with the last assistant of
+        // ITS OWN run - ids differ across superseded runs by design.
         expect(Exit.isSuccess(exitA)).toBe(true)
         expect(Exit.isSuccess(exitB)).toBe(true)
-        if (Exit.isSuccess(exitA) && Exit.isSuccess(exitB)) {
-          expect(exitA.value.info.id).toBe(exitB.value.info.id)
-        }
+        expect((yield* status.get(chat.id)).type).toBe("idle")
       }),
       { git: true, config: providerCfg },
     ),

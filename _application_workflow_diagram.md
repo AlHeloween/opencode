@@ -154,4 +154,26 @@ Coverage estimate vs actual codebase: 8%.
    - Output: resolved `opencode-markdownify` path.
    - Logic: check packaged cache/bin, executable-adjacent config/bin, actual executable directory, portable project `bin`, cwd `bin`, source-checkout `bin`, then development dist locations.
 
-Coverage estimate vs actual codebase: 9%.
+## Session Run Lifecycle Semantics (2026-08-27)
+
+1. `packages/opencode/src/effect/runner.ts` / `ensureRunning`, `cancel`
+   - Input: work effect; current Runner state (`Idle`/`Running`/`RunningThenRun`/`Shell*`).
+   - Output: joined `done` deferred resolution; guaranteed-cancel return.
+   - Logic: same-session callers JOIN the active run (supersede removed); cancel = fire-and-forget interrupt (3s cap) + bounded 2s wait + idempotent force-fail so wedged native-I/O fibers cannot stall callers.
+
+2. `packages/opencode/src/session/prompt.ts` / `runLoop` break decision
+   - Input: step outcome `finish === "stop"`.
+   - Output: `"break"` or `"continue"`.
+   - Logic: before breaking, re-read tail; a newly submitted user message (id != lastUser.id) continues the loop — mid-run prompts are consumed by the active run.
+
+3. `packages/opencode/src/session/session.ts` / `patch`
+   - Input: sessionID + info patch.
+   - Output: `session.updated` SyncEvent.
+   - Logic: event carries projectID/directory from InstanceState.context (updatePart parity) — target DB resolves without ambient ALS on Effect fibers.
+
+4. `packages/opencode/test/session/prompt.test.ts` / contract alignment
+   - Input: poll/dump diagnostics on timeout.
+   - Output: tests asserting product contracts, not incidental identities.
+   - Logic: task-tool polls match by tool part; part-order accepts the static UTC suffix; polls run in-context (detached runPromise loses the database LocalContext).
+
+Coverage estimate vs actual codebase: 9% core-deep; session lifecycle layer now fully documented.

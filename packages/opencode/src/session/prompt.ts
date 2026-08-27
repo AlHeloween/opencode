@@ -1903,10 +1903,11 @@ export const layer = Layer.effect(
           // checkpoint key so mode switches reuse the cached prompt. Subagents
           // (coder, explorer, …) keep separate checkpoints (different tools).
           const checkpointAgentName = isPrimaryModeIdentity(cacheAgent.name) ? undefined : cacheAgent.name
+          console.error('[dbg] pre-reminders')
           const maxSteps = agent.steps ?? Infinity
           const isLastStep = step >= maxSteps
           msgs = yield* insertReminders({ messages: msgs, agent, session })
-
+          console.error('[dbg] post-reminders')
           const msg: MessageV2.Assistant = {
             id: MessageID.ascending(),
             parentID: lastUser.id,
@@ -1923,6 +1924,7 @@ export const layer = Layer.effect(
             sessionID,
           }
           yield* sessions.updateMessage(msg)
+          console.error('[dbg] assistant persisted', msg.id)
 
           const finalizeInterruptedAssistant = Effect.gen(function* () {
             if (msg.time.completed) return

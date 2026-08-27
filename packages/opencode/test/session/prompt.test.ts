@@ -1084,19 +1084,38 @@ it.live(
         yield* user(chat.id, "hello")
 
         const fiber = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
-
         const tool = yield* Effect.promise(async () => {
           const end = Date.now() + 25_000
+          let msgs: MessageV2.WithParts[] = []
           while (Date.now() < end) {
-            const msgs = await Effect.runPromise(MessageV2.filterCompactedEffect(chat.id))
-            const assistant = msgs.findLast((item) => item.info.role === "assistant" && item.info.agent === "build")
+            msgs = await Effect.runPromise(sessions.messages({ sessionID: chat.id }))
+            // Match by the task-tool part itself — assistant identity strings
+            // (build vs build_mode) are model-resolution details, not contract.
+            const assistant = msgs.findLast(
+              (item) =>
+                item.info.role === "assistant" &&
+                item.parts.some((part) => part.type === "tool" && part.tool === "task"),
+            )
             const tool = assistant?.parts.find(
               (part): part is MessageV2.ToolPart => part.type === "tool" && part.tool === "task",
             )
             if (tool?.state.status === "running" && tool.state.metadata?.sessionId) return tool
             await new Promise((done) => setTimeout(done, 20))
           }
-          throw new Error("timed out waiting for running task metadata")
+          const tools = msgs.flatMap((m) =>
+            m.parts.map((part) =>
+              part.type === "tool"
+                ? {
+                    ag: m.info.agent,
+                    t: part.type,
+                    tool: part.tool,
+                    s: part.state.status,
+                    md: part.state.status === "running" ? part.state.metadata : undefined,
+                  }
+                : { ag: m.info.agent, t: part.type, tool: undefined, s: undefined, md: undefined },
+            ),
+          )
+          throw new Error(`timed out waiting for running task metadata; parts=${JSON.stringify(tools)}`)
         })
 
         if (tool.state.status !== "running") return
@@ -1356,15 +1375,20 @@ it.live(
           })
           .pipe(Effect.forkChild)
 
-        yield* Effect.promise(async () => {
-          const end = Date.now() + 25_000
-          while (Date.now() < end) {
-            const msgs = await Effect.runPromise(sessions.messages({ sessionID: chat.id }))
-            if (msgs.some((msg) => msg.info.role === "user" && msg.info.id === id)) return
-            await new Promise((done) => setTimeout(done, 20))
+        // In-context poll: a detached Effect.runPromise loses the database
+        // LocalContext (Database.use throws NotFound off-fiber). The service
+        // path inside the fiber resolves the project instance correctly.
+        const deadline = Date.now() + 25_000
+        let saved = false
+        while (Date.now() < deadline) {
+          const msgs = yield* sessions.messages({ sessionID: chat.id })
+          if (msgs.some((msg) => msg.info.role === "user" && msg.info.id === id)) {
+            saved = true
+            break
           }
-          throw new Error("timed out waiting for second prompt to save")
-        })
+          yield* Effect.sleep("20 millis")
+        }
+        if (!saved) throw new Error("timed out waiting for second prompt to save")
 
         gate.resolve()
 
@@ -2157,7 +2181,10 @@ it.live("keeps stored part order stable when file resolution is async", () =>
 
         expect(text[0]?.startsWith("Called the Read tool with the following input:")).toBe(true)
         expect(text[1]?.includes("Read tool failed to read")).toBe(true)
-        expect(text[2]).toBe("after-file")
+        // Submission appends a static "\n\nUTC: <iso>" suffix to non-synthetic
+        // text parts (cache-stable timestamp) — prefix match keeps the order
+        // contract without coupling to the timestamp.
+        expect(text[2]?.startsWith("after-file")).toBe(true)
 
         yield* sessions.remove(session.id)
       }),

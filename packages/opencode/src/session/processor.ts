@@ -770,7 +770,10 @@ export const layer: Layer.Layer<
                     tokens_input: sql`tokens_input + ${usage.tokens.input + usage.tokens.cache.read}`,
                     tokens_output: sql`tokens_output + ${usage.tokens.output}`,
                     tokens_reasoning: sql`tokens_reasoning + ${usage.tokens.reasoning}`,
-                    tokens_cache_read: sql`tokens_cache_read + ${usage.tokens.cache.read}`,
+                    // Policy: turns without usable cache stats ("unknown") count
+                    // as FULL hits in the cumulative — providers that don't
+                    // report cache usage would otherwise understate the hit rate.
+                    tokens_cache_read: sql`tokens_cache_read + ${usage.tokens.cache.read + (cacheState === "unknown" ? usage.tokens.input : 0)}`,
                     tokens_cache_write: sql`tokens_cache_write + ${usage.tokens.cache.write}`,
                     ...(cacheState && {
                       hit_rate_is_null: cacheState === "unknown" ? 1 : 0,

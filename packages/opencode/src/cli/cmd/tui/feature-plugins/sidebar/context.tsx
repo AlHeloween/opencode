@@ -35,13 +35,57 @@ function formatCacheStats(
   if (hitRate === null) return "cold"
   const r = lastRead != null ? `(${compactNum(lastRead)})` : ""
   const m = lastMiss != null ? `(${compactNum(lastMiss)})` : ""
-  return `${hitRate}%(${compactNum(read ?? 0)}${r} hit ${compactNum(miss ?? 0)}${m} miss)`
+  return `${hitRate}%(${compactNum(read ?? 0)}${r}hit ${compactNum(miss ?? 0)}${m}miss)`
 }
 
 function cacheTokens(message: AssistantMessage) {
   const hitRateIsNull = message.tokens.cache.hitRateIsNull
   if (hitRateIsNull === 1) return { read: null, miss: null }
   return { read: message.tokens.cache.read, miss: message.tokens.input }
+}
+
+/**
+ * Session-level cumulative cache stats from the DB-backed session row
+ * (tokens.input = full prompt incl. cached, tokens.cache.read = cached part) —
+ * survives compaction, revert and restarts. Falls back to per-message sums
+ * when the session object isn't loaded. Turns without cache stats ("unknown")
+ * are already folded into the cumulative as full hits by the processor.
+ */
+function cumulativeStats(
+  session:
+    | {
+        tokens?: { input?: number; cache?: { read?: number } }
+      }
+    | undefined,
+  messages: AssistantMessage[],
+): { cacheRead: number; cacheMiss: number; hitRate: number | null } {
+  if (session?.tokens) {
+    const read = session.tokens.cache?.read ?? 0
+    const miss = Math.max(0, (session.tokens.input ?? 0) - read)
+    const total = read + miss
+    return {
+      cacheRead: read,
+      cacheMiss: miss,
+      hitRate: total > 0 && read > 0 ? Math.round((read / total) * 100) : null,
+    }
+  }
+  let cacheRead = 0
+  let cacheMiss = 0
+  for (const m of messages) {
+    // hitRateIsNull=1 means provider didn't return stats — treated as full hit.
+    if (m.tokens.cache.hitRateIsNull === 1) {
+      cacheRead += m.tokens.input
+    } else {
+      cacheRead += m.tokens.cache.read ?? 0
+      cacheMiss += m.tokens.input
+    }
+  }
+  const total = cacheRead + cacheMiss
+  return {
+    cacheRead,
+    cacheMiss,
+    hitRate: total > 0 && cacheRead > 0 ? Math.round((cacheRead / total) * 100) : null,
+  }
 }
 
 interface ModelStatusDisplay {
@@ -57,26 +101,29 @@ interface ModelStatusDisplay {
 function View(props: { api: TuiPluginApi; session_id: string }) {
   const theme = () => props.api.theme.current
   const msg = createMemo(() => props.api.state.session.messages(props.session_id))
-  const cost = createMemo(() => {
-    let total = msg().reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0)
-    // Include sub-agent session costs
-    const allSessions = props.api.state.session.list()
-    const childSessions = allSessions.filter((s) => s.parentID === props.session_id)
-    for (const child of childSessions) {
-      const childMsgs = props.api.state.session.messages(child.id)
-      total += childMsgs.reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0)
-    }
-    return total
-  })
-  const [providerStatus, setProviderStatus] = createSignal<Record<string, ModelStatusDisplay>>({})
 
   // Get AGI mode sessions if active
   let agiMode: ReturnType<typeof useAgiMode> | undefined
   try {
     agiMode = useAgiMode(() => props.session_id)
   } catch {
-    // Not in AGI context
+    console.debug("sidebar: not in AGI context")
   }
+
+  // Session-level cumulative cost (session.cost in the DB): incremented per
+  // usage transactionally and never reset — survives compaction, revert and
+  // restarts. Child (sub-agent) sessions are included; AGI (orchestrator /
+  // main) sessions are separate — counted and displayed on their own.
+  const cost = createMemo(() => {
+    const agiExcluded = new Set(
+      [agiMode?.orchSessionID(), agiMode?.mainSessionID()].filter((x): x is string => Boolean(x)),
+    )
+    return props.api.state.session
+      .list()
+      .filter((s) => (s.id === props.session_id || s.parentID === props.session_id) && !agiExcluded.has(s.id))
+      .reduce((sum, s) => sum + (s.cost ?? 0), 0)
+  })
+  const [providerStatus, setProviderStatus] = createSignal<Record<string, ModelStatusDisplay>>({})
 
   // Calculate cache stats for all active sessions
   const allSessionStats = createMemo(() => {
@@ -89,33 +136,22 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       lastCacheMiss: number | null
     }> = []
 
-    // Current session stats
+    const byId = Object.fromEntries(props.api.state.session.list().map((s) => [s.id, s]))
+
+    // Current session stats — cumulative from the session row (DB-backed,
+    // survives compaction/revert); last-turn values from the last message.
     const allAssistant = msg().filter(
       (item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0,
     )
     const last = allAssistant[allAssistant.length - 1]
     if (last) {
-      let sessionCacheRead = 0
-      let sessionCacheMiss = 0
-      for (const m of allAssistant) {
-        // hitRateIsNull=1 means provider didn't return stats — usually full cache hit.
-        // Treat as 100% hit: read = input, miss = 0.
-        if (m.tokens.cache.hitRateIsNull === 1) {
-          sessionCacheRead += m.tokens.input
-          // miss = 0 (unknown exact value, but treated as full hit)
-        } else {
-          sessionCacheRead += m.tokens.cache.read ?? 0
-          sessionCacheMiss += m.tokens.input
-        }
-      }
+      const lvl = cumulativeStats(byId[props.session_id], allAssistant)
       const lastTokens = cacheTokens(last)
-      const total = sessionCacheRead + sessionCacheMiss
-      const hitRate = total > 0 && sessionCacheRead > 0 ? Math.round((sessionCacheRead / total) * 100) : null
       stats.push({
-        name: "current",
-        cacheRead: sessionCacheRead,
-        cacheMiss: sessionCacheMiss,
-        hitRate,
+        name: "in",
+        cacheRead: lvl.cacheRead,
+        cacheMiss: lvl.cacheMiss,
+        hitRate: lvl.hitRate,
         lastCacheRead: lastTokens.read ?? null,
         lastCacheMiss: lastTokens.miss ?? null,
       })
@@ -131,25 +167,14 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
           (item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0,
         )
         if (orchAssistant.length > 0) {
-          let cacheRead = 0
-          let cacheMiss = 0
-          for (const m of orchAssistant) {
-            if (m.tokens.cache.hitRateIsNull === 1) {
-              cacheRead += m.tokens.input
-            } else {
-              cacheRead += m.tokens.cache.read ?? 0
-              cacheMiss += m.tokens.input
-            }
-          }
+          const lvl = cumulativeStats(byId[orchSid], orchAssistant)
           const orchLast = orchAssistant[orchAssistant.length - 1]
           const orchLastTokens = cacheTokens(orchLast)
-          const total = cacheRead + cacheMiss
-          const hitRate = total > 0 && cacheRead > 0 ? Math.round((cacheRead / total) * 100) : null
           stats.push({
             name: "orch",
-            cacheRead,
-            cacheMiss,
-            hitRate,
+            cacheRead: lvl.cacheRead,
+            cacheMiss: lvl.cacheMiss,
+            hitRate: lvl.hitRate,
             lastCacheRead: orchLastTokens.read ?? null,
             lastCacheMiss: orchLastTokens.miss ?? null,
           })
@@ -161,25 +186,14 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
           (item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0,
         )
         if (mainAssistant.length > 0) {
-          let cacheRead = 0
-          let cacheMiss = 0
-          for (const m of mainAssistant) {
-            if (m.tokens.cache.hitRateIsNull === 1) {
-              cacheRead += m.tokens.input
-            } else {
-              cacheRead += m.tokens.cache.read ?? 0
-              cacheMiss += m.tokens.input
-            }
-          }
+          const lvl = cumulativeStats(byId[mainSid], mainAssistant)
           const mainLast = mainAssistant[mainAssistant.length - 1]
           const mainLastTokens = cacheTokens(mainLast)
-          const total = cacheRead + cacheMiss
-          const hitRate = total > 0 && cacheRead > 0 ? Math.round((cacheRead / total) * 100) : null
           stats.push({
             name: "main",
-            cacheRead,
-            cacheMiss,
-            hitRate,
+            cacheRead: lvl.cacheRead,
+            cacheMiss: lvl.cacheMiss,
+            hitRate: lvl.hitRate,
             lastCacheRead: mainLastTokens.read ?? null,
             lastCacheMiss: mainLastTokens.miss ?? null,
           })
@@ -187,35 +201,29 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       }
     }
 
-    // Active sub-agent sessions (children of current session)
-    const allSessions = props.api.state.session.list()
-    const childSessions = allSessions.filter((s) => s.parentID === props.session_id)
+    // Active sub-agent sessions (children of current session). AGI sessions
+    // are excluded — they are separate sessions with their own rows.
+    const agiExcluded = new Set(
+      [agiMode?.orchSessionID(), agiMode?.mainSessionID()].filter((x): x is string => Boolean(x)),
+    )
+    const childSessions = props.api.state.session.list().filter(
+      (s) => s.parentID === props.session_id && !agiExcluded.has(s.id),
+    )
     for (const child of childSessions) {
       const childMsgs = props.api.state.session.messages(child.id)
       const childAssistant = childMsgs.filter(
         (item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0,
       )
       if (childAssistant.length > 0) {
-        let cacheRead = 0
-        let cacheMiss = 0
-        for (const m of childAssistant) {
-          if (m.tokens.cache.hitRateIsNull === 1) {
-            cacheRead += m.tokens.input
-          } else {
-            cacheRead += m.tokens.cache.read ?? 0
-            cacheMiss += m.tokens.input
-          }
-        }
+        const lvl = cumulativeStats(child, childAssistant)
         const childLast = childAssistant[childAssistant.length - 1]
         const childLastTokens = cacheTokens(childLast)
-        const total = cacheRead + cacheMiss
-        const hitRate = total > 0 && cacheRead > 0 ? Math.round((cacheRead / total) * 100) : null
         const label = child.title.split(" ")[0].toLowerCase() || child.id.slice(0, 6)
         stats.push({
           name: label,
-          cacheRead,
-          cacheMiss,
-          hitRate,
+          cacheRead: lvl.cacheRead,
+          cacheMiss: lvl.cacheMiss,
+          hitRate: lvl.hitRate,
           lastCacheRead: childLastTokens.read ?? null,
           lastCacheMiss: childLastTokens.miss ?? null,
         })
@@ -341,6 +349,21 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
     }
   })
 
+  // Output side — lifetime totals (DB-backed, never reset) with last-turn
+  // values in parens, mirroring the "in:" convention: cumulative(last).
+  // msg = content output, think = reasoning (bare "R" prefix was unclear).
+  const outputStats = createMemo(() => {
+    const s = props.api.state.session.list().find((item) => item.id === props.session_id)
+    const all = msg().filter((item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0)
+    const last = all[all.length - 1]
+    return {
+      output: s?.tokens?.output ?? 0,
+      reasoning: s?.tokens?.reasoning ?? 0,
+      lastOutput: last?.tokens.output ?? 0,
+      lastReasoning: last?.tokens.reasoning ?? 0,
+    }
+  })
+
   return (
     <box>
       <text fg={theme().text}>
@@ -373,11 +396,10 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       ) : (
         <text fg={theme().textMuted}>Cache: cold</text>
       )}
-      {(state().reasoning > 0 || state().output > 0) && (
+      {(outputStats().output > 0 || outputStats().reasoning > 0) && (
         <text fg={theme().textMuted}>
-          Output: {state().reasoning > 0 ? `R${compactNum(state().reasoning)}, ` : ""}
-          {compactNum(state().output)}
-          {state().outputLimit > 0 ? `/${compactNum(state().outputLimit)}` : ""} tok
+          out: {compactNum(outputStats().output)}({compactNum(outputStats().lastOutput)})msg{" "}
+          {compactNum(outputStats().reasoning)}({compactNum(outputStats().lastReasoning)})think
         </text>
       )}
       {cost() > 0 && <text fg={theme().textMuted}>{money.format(cost())} spent</text>}

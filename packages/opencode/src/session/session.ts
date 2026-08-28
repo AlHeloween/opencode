@@ -1065,7 +1065,8 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
                   tokens_input: sql`tokens_input + ${input.tokens.input + input.tokens.cache.read}`,
                   tokens_output: sql`tokens_output + ${input.tokens.output}`,
                   tokens_reasoning: sql`tokens_reasoning + ${input.tokens.reasoning}`,
-                  tokens_cache_read: sql`tokens_cache_read + ${input.tokens.cache.read}`,
+                  // Same "unknown" => full-hit policy as the processor path.
+                  tokens_cache_read: sql`tokens_cache_read + ${input.tokens.cache.read + (input.stepFinishPart.cacheState === "unknown" ? input.tokens.input : 0)}`,
                   tokens_cache_write: sql`tokens_cache_write + ${input.tokens.cache.write}`,
                   ...(input.stepFinishPart.cacheState && {
                     hit_rate_is_null: input.stepFinishPart.cacheState === "unknown" ? 1 : 0,

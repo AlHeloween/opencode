@@ -69,7 +69,7 @@ function assistantMsg(parts: Array<{ type: string; text: string }>) {
 // ── Tests ─────────────────────────────────────────────────────────────────
 
 describe("DeepSeek V4 reasoning_content roundtrip", () => {
-  test("drops reasoning text for assistant messages WITHOUT tool calls (API ignores it)", () => {
+  test("keeps reasoning text for assistant messages WITHOUT tool calls (unified: never strip)", () => {
     const model = mkDeepseekModel()
     const msgs = [
       assistantMsg([{ type: "reasoning", text: "I should search first." }, { type: "text", text: "Let me look." }]),
@@ -78,7 +78,7 @@ describe("DeepSeek V4 reasoning_content roundtrip", () => {
     const content = result[0]!.content as any[]
     const reasoningParts = content.filter((p: any) => p.type === "reasoning")
     expect(reasoningParts.length).toBe(1)
-    expect(reasoningParts[0]!.text).toBe("") // CoT dropped, empty part kept for wire shape
+    expect(reasoningParts[0]!.text).toBe("I should search first.") // full continuity: CoT rides along (probe: tokens/cache identical)
   })
 
   test("preserves reasoning for assistant messages WITH tool calls (400 guard)", () => {
@@ -142,8 +142,8 @@ describe("DeepSeek V4 reasoning_content roundtrip", () => {
     const result = ProviderTransform.message(msgs as any, model, {})
     const content = result[0]!.content as any[]
     const reasoningParts = content.filter((p: any) => p.type === "reasoning")
-    expect(reasoningParts.length).toBe(1) // not duplicated; text dropped (no tool call)
-    expect(reasoningParts[0]!.text).toBe("")
+    expect(reasoningParts.length).toBe(1) // not duplicated; text preserved (unified: never strip)
+    expect(reasoningParts[0]!.text).toBe("thinking")
   })
 
   test("preserves reasoning across multiple assistant messages", () => {
@@ -154,7 +154,8 @@ describe("DeepSeek V4 reasoning_content roundtrip", () => {
       assistantMsg([{ type: "reasoning", text: "Step 3 thinking." }]),
     ]
     const result = ProviderTransform.message(msgs as any, model, {})
-    // All three messages should have a reasoning part (empty — no tool calls)
+    // All three messages keep a reasoning part (first two carry real CoT — never
+    // stripped; the second had none, so an empty part was added)
     expect((result[0]!.content as any[]).some((p: any) => p.type === "reasoning")).toBe(true)
     expect((result[1]!.content as any[]).some((p: any) => p.type === "reasoning")).toBe(true) // added
     expect((result[2]!.content as any[]).some((p: any) => p.type === "reasoning")).toBe(true)
@@ -443,7 +444,7 @@ describe("vanchin StreamLake KAT reasoning_content replay (verified live)", () =
     expect((result[0] as any).providerOptions?.openaiCompatible?.reasoning_content).toBe("I should call the tool.")
   })
 
-  test("zen MIMO plain message drops CoT bytes but keeps the empty field (DeepSeek shape)", () => {
+  test("zen MIMO plain message keeps CoT via interleaved field (unified: never strip)", () => {
     const model = mkKatModel({
       id: "mimo-v2.5-free",
       api: {
@@ -460,7 +461,7 @@ describe("vanchin StreamLake KAT reasoning_content replay (verified live)", () =
       assistantMsg([{ type: "reasoning", text: "CoT bytes" }, { type: "text", text: "Answer" }]),
     ]
     const result = ProviderTransform.message(msgs as any, model, {})
-    expect((result[0] as any).providerOptions?.openaiCompatible?.reasoning_content).toBe("")
+    expect((result[0] as any).providerOptions?.openaiCompatible?.reasoning_content).toBe("CoT bytes")
   })
 })
 

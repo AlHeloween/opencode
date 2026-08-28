@@ -128,6 +128,54 @@ describe("session.llm.estimateContentTokens", () => {
   })
 })
 
+describe("session.llm.messagesStabilityVerdict", () => {
+  test("first request has no previous ledger", () => {
+    expect(LLM.messagesStabilityVerdict(undefined, [1, 2, 3])).toEqual({ kind: "first" })
+  })
+
+  test("append-only growth is stable — the healthy per-turn shape", () => {
+    expect(LLM.messagesStabilityVerdict([1, 2], [1, 2, 3])).toEqual({ kind: "stable" })
+    expect(LLM.messagesStabilityVerdict([1, 2, 3], [1, 2, 3])).toEqual({ kind: "stable" })
+  })
+
+  test("partial mutation inside sent region reports first divergent position", () => {
+    expect(LLM.messagesStabilityVerdict([1, 2, 3, 4], [1, 2, 9, 4])).toEqual({
+      kind: "mutated",
+      position: 2,
+      mutatedTail: 2,
+    })
+  })
+
+  test("mutation at the 50% boundary stays a mutation bug (ratio not > 0.5)", () => {
+    expect(LLM.messagesStabilityVerdict([1, 2, 3, 4], [1, 2, 9, 9])).toEqual({
+      kind: "mutated",
+      position: 2,
+      mutatedTail: 2,
+    })
+  })
+
+  test("full-prefix divergence is restructure (compact/restart), not a bug", () => {
+    expect(LLM.messagesStabilityVerdict([1, 2, 3], [7, 8])).toEqual({
+      kind: "restructured",
+      firstDivergence: 0,
+    })
+  })
+
+  test("majority divergence beyond 50% is restructure", () => {
+    expect(LLM.messagesStabilityVerdict([1, 2, 3, 4], [1, 9, 9, 9])).toEqual({
+      kind: "restructured",
+      firstDivergence: 1,
+    })
+  })
+
+  test("history vanished entirely is restructure", () => {
+    expect(LLM.messagesStabilityVerdict([1, 2, 3], [])).toEqual({
+      kind: "restructured",
+      firstDivergence: 0,
+    })
+  })
+})
+
 test("provider cache key: primary modes share, non-primary agents separate", () => {
   // Primary modes share one key (same system prefix)
   const build = LLM.buildProviderCacheKey({ sessionID: "s1", modelID: "m1", identity: "build_mode" })

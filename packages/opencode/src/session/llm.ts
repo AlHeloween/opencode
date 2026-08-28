@@ -219,6 +219,99 @@ function checkSystemStability(input: { sessionID: string; agent: string; modelID
   }
 }
 
+// ── Wire messages drift detector ────────────────────────────────────────────
+
+/**
+ * Per cacheKey: per-position Bun.hash of the wire messages array. Detects
+ * mutation of ALREADY-SENT history between consecutive requests — the bug
+ * class where the provider KV prefix silently diverges from what earlier
+ * turns cached (retroactive part edits, checkpoint/reconversion byte drift,
+ * reasoning re-serialization). Append-only growth is healthy: positions
+ * [0..prevLen) must stay hash-equal; only the tail may grow.
+ */
+const messagesWireHashes = new Map<string, number[]>()
+const MAX_MESSAGE_HASHES = 200
+
+export type MessagesStabilityVerdict =
+  | { kind: "first" }
+  | { kind: "stable" }
+  | { kind: "mutated"; position: number; mutatedTail: number }
+  | { kind: "restructured"; firstDivergence: number }
+
+/**
+ * Compare previous and current per-position wire-message hashes. Pure —
+ * exported for unit tests. Whole-prefix divergence is classified as
+ * restructure (compaction/restart/fork — an expected cache reset); partial
+ * divergence inside the previously-sent region is the mutation bug.
+ */
+export function messagesStabilityVerdict(
+  prev: number[] | undefined,
+  next: number[],
+): MessagesStabilityVerdict {
+  if (!prev) return { kind: "first" }
+  if (next.length === 0 && prev.length > 0) return { kind: "restructured", firstDivergence: 0 }
+  const minLen = Math.min(prev.length, next.length)
+  let divergeAt = -1
+  for (let i = 0; i < minLen; i++) {
+    if (prev[i] !== next[i]) {
+      divergeAt = i
+      break
+    }
+  }
+  if (divergeAt < 0) return { kind: "stable" }
+  const mutatedTail = minLen - divergeAt
+  if (divergeAt === 0 || mutatedTail / Math.max(minLen, 1) > 0.5) {
+    return { kind: "restructured", firstDivergence: divergeAt }
+  }
+  return { kind: "mutated", position: divergeAt, mutatedTail }
+}
+
+function checkMessagesStability(input: {
+  sessionID: string
+  agent: string
+  modelID: string
+  cacheKey: string
+  messages: ModelMessage[]
+}) {
+  const hashes = input.messages.map((message) => Number(Bun.hash(stableStringify(message))))
+  const verdict = messagesStabilityVerdict(messagesWireHashes.get(input.cacheKey), hashes)
+  if (verdict.kind === "mutated") {
+    log.warn("bug: sent message content mutated mid-session", {
+      sessionID: input.sessionID,
+      agent: input.agent,
+      modelID: input.modelID,
+      cacheKeyHash: Number(Bun.hash(input.cacheKey)),
+      position: verdict.position,
+      role: input.messages[verdict.position]?.role,
+      mutatedTail: verdict.mutatedTail,
+      messageCount: input.messages.length,
+      sample: stableStringify(input.messages[verdict.position]).slice(0, 200),
+    })
+  } else if (verdict.kind === "restructured") {
+    log.info("messages prefix restructured (compact/restart?)", {
+      sessionID: input.sessionID,
+      agent: input.agent,
+      modelID: input.modelID,
+      cacheKeyHash: Number(Bun.hash(input.cacheKey)),
+      firstDivergence: verdict.firstDivergence,
+      messageCount: input.messages.length,
+    })
+  }
+  // Proper LRU: delete-then-set moves the key to the end of insertion order
+  // so that FIFO-ordered keys().next() evicts the least-recently-used entry.
+  if (messagesWireHashes.has(input.cacheKey)) messagesWireHashes.delete(input.cacheKey)
+  messagesWireHashes.set(input.cacheKey, hashes)
+  if (messagesWireHashes.size > MAX_MESSAGE_HASHES) {
+    const first = messagesWireHashes.keys().next().value
+    if (first !== undefined) messagesWireHashes.delete(first)
+  }
+}
+
+/** Test hook: clear the per-position wire-message hash ledger. */
+export function resetMessagesStability() {
+  messagesWireHashes.clear()
+}
+
 export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
 type Result = Awaited<ReturnType<typeof streamText>>
 
@@ -702,6 +795,16 @@ const live: Layer.Layer<
         tools,
       })
 
+      // Wire messages drift detector — mutation of already-sent history
+      // invalidates the provider KV prefix from the first divergent position.
+      checkMessagesStability({
+        sessionID: input.sessionID,
+        agent: input.agent.name,
+        modelID: input.model.id,
+        cacheKey: providerCacheKey,
+        messages,
+      })
+
       return streamText({
         onError(error) {
           l.error("stream error", {
@@ -792,6 +895,14 @@ const live: Layer.Layer<
               }
             : {
                 ...(input.parentSessionID ? { "x-parent-session-id": input.parentSessionID } : {}),
+                // OpenRouter sticky routing: an explicit session key (x-session-id /
+                // body session_id) pins the upstream endpoint across prompt-prefix
+                // rewrites (compaction) and activates before the first cache hit.
+                // prompt_cache_key alone pins only after a hit, and manual
+                // provider.order disables OpenRouter's derived-key stickiness —
+                // without this header the endpoint can flip mid-session (cold
+                // cache resets, even for the system prompt).
+                ...(input.model.providerID === "openrouter" ? { "X-Session-Id": input.sessionID } : {}),
                 "User-Agent": `opencode/${InstallationVersion}`,
               }),
           ...input.model.headers,

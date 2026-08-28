@@ -193,10 +193,13 @@ function normalizeMessages(
   // DeepSeek + MIMO thinking-mode semantics (verified live + vendor docs):
   // - assistant messages WITH tool calls: reasoning_content is REQUIRED on the
   //   wire (both APIs 400 without it — api-docs.deepseek.com/guides/thinking_mode,
-  //   mimo.mi.com/docs deep-thinking) — keep the full CoT echo.
-  // - assistant messages WITHOUT tool calls: the APIs IGNORE historical
-  //   reasoning_content (DeepSeek) / do not require it (MIMO) — drop the CoT
-  //   bytes from the replay prefix so the per-turn miss tail stays text-only.
+  //   mimo.mi.com/docs deep-thinking) — always carry the field, empty when the
+  //   model produced no CoT.
+  // - assistant messages WITHOUT tool calls: reasoning rides along UNSTRIPPED.
+  //   Unified policy 2026-08-28 (live probe): the APIs ignore historical
+  //   reasoning_content without tools — prompt_tokens and prompt cache are
+  //   byte-identical with and without it — so keeping the full CoT preserves
+  //   process continuity at zero token cost. Only fill the field when missing.
   // OpenRouter is excluded: it has its own reasoning_details pass-through and
   // the vendor stripping rules do not apply to its gateway.
   if (
@@ -206,13 +209,8 @@ function normalizeMessages(
     msgs = msgs.map((msg) => {
       if (msg.role !== "assistant") return msg
       if (Array.isArray(msg.content)) {
-        const hasToolCall = msg.content.some((part) => part.type === "tool-call")
-        if (hasToolCall) {
-          if (msg.content.some((part) => part.type === "reasoning")) return msg
-          return { ...msg, content: [...msg.content, { type: "reasoning", text: "" }] }
-        }
-        const filtered = msg.content.filter((part) => part.type !== "reasoning")
-        return { ...msg, content: [...filtered, { type: "reasoning" as const, text: "" }] }
+        if (msg.content.some((part) => part.type === "reasoning")) return msg
+        return { ...msg, content: [...msg.content, { type: "reasoning", text: "" }] }
       }
       return {
         ...msg,

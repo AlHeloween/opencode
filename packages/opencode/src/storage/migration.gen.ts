@@ -5,6 +5,7 @@ import messageCompacted from "../../migration/20260601000002_message_compacted_c
 import projectCheckpointSidecar from "../../migration/20260727000000_project_checkpoint_sidecar"
 import partTypeColumns from "../../migration/20260730_add_part_type_columns"
 import cacheStateStatistics from "../../migration/20260817000000_cache_state_statistics"
+import projectCheckpointPlanState from "../../migration/20260827000000_project_checkpoint_plan_state"
 
 export const migrations: DatabaseMigration.Migration[] = [
   baseline,
@@ -13,4 +14,5 @@ export const migrations: DatabaseMigration.Migration[] = [
   projectCheckpointSidecar,
   partTypeColumns,
   cacheStateStatistics,
+  projectCheckpointPlanState,
 ]

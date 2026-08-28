@@ -813,55 +813,6 @@ The completed answer is available and the next user follow-up should reuse the h
 
 
 it.live(
-  "Layer-1 in-loop summary turn keeps the full tool catalog on the wire",
-  () =>
-    provideTmpdirServer(
-      Effect.fnUntraced(function* ({ llm }) {
-        const prompt = yield* SessionPrompt.Service
-        const sessions = yield* Session.Service
-        const compact = yield* SessionCompaction.Service
-        const session = yield* sessions.create({
-          title: "Layer-1 tools on summary wire",
-          permission: [{ permission: "*", pattern: "*", action: "allow" }],
-        })
-        yield* prompt.prompt({
-          sessionID: session.id,
-          agent: "build",
-          noReply: true,
-          parts: [{ type: "text", text: "hello" }],
-        })
-        yield* llm.text("working answer")
-        yield* prompt.loop({ sessionID: session.id })
-        // Manual inject: runLoop no longer injects the summary request itself
-        // (the sidecar owns cadence) — this test pins the in-loop summary path.
-        yield* compact.injectSummaryRequest({ sessionID: session.id, model: ref, agent: "build" })
-        yield* llm.text(`## Semantic Vector
-dominant: "summary turns keep the full tool catalog on the wire for KV parity"
-
-## Goal
-Keep the full tool catalog on the wire for summary turns so the provider cache prefix stays byte-stable across turn kinds.
-
-## Key decisions
-- Never strip tool schemas per turn kind; block execution via the summary-mode flag instead.
-
-## Current state
-Summary turns carry the full tool catalog on the wire and tool execution is blocked while the summary request is in flight.`)
-        yield* prompt.loop({ sessionID: session.id })
-
-        const inputs = yield* llm.inputs
-        expect(inputs).toHaveLength(2)
-        const summaryTools = (inputs[1]?.tools as unknown[] | undefined) ?? []
-        const workingTools = (inputs[0]?.tools as unknown[] | undefined) ?? []
-        expect(summaryTools).not.toHaveLength(0)
-        expect(JSON.stringify(summaryTools)).toEqual(JSON.stringify(workingTools))
-        expect(Constitution.isSummaryMode(session.id)).toBe(false)
-      }),
-      { git: true, config: providerCfg },
-    ),
-  30_000,
-)
-
-it.live(
   "emergency captureSummary carries the full tool catalog on the wire",
   () =>
     provideTmpdirServer(

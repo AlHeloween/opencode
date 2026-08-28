@@ -16,6 +16,7 @@ import { fn } from "@/util/fn"
 import { SessionStatus } from "./status"
 import { IncrementalCheckpoint } from "./incremental-checkpoint"
 import { parseSummaryRange } from "./summary"
+import { formatPlanStateText, type PlanStatePayload } from "@/util/plan-status"
 import { Snapshot } from "@/snapshot"
 
 const log = Log.create({ service: "session.compaction" })
@@ -97,6 +98,7 @@ export function formatLayer1SummaryDisplay(input: {
   body: string
   diffs?: Snapshot.FileDiff[]
   impact?: Snapshot.ImpactSummary
+  planState?: PlanStatePayload
 }): string {
   const exact = formatExactSystemStamp({
     id: input.checkpointID,
@@ -120,6 +122,12 @@ export function formatLayer1SummaryDisplay(input: {
   const impactLine = input.impact
     ? `codegraph: changed_files=${input.impact.changedFiles}; callers=${input.impact.callerCount}`
     : "codegraph: none"
+  const planStateBlock = input.planState
+    ? [
+        "### Plan state (GATED WORKFLOW)",
+        ...(formatPlanStateText(input.planState) ?? "").split("\n"),
+      ].join("\n")
+    : undefined
   return [
     LAYER1_SUMMARY_MARKER,
     "",
@@ -130,6 +138,7 @@ export function formatLayer1SummaryDisplay(input: {
     "### Exact handles (system)",
     diffLines,
     impactLine,
+    planStateBlock,
   ].join("\n")
 }
 
@@ -228,16 +237,6 @@ function contentChars(msgs: MessageV2.WithParts[]): number {
     }
   }
   return chars
-}
-
-/** Walk back from the end until the supplied content-token interval; return start index. */
-function trimToLastInterval(msgs: MessageV2.WithParts[], intervalTokens = SUMMARY_INTERVAL_TOKENS): number {
-  let chars = 0
-  for (let i = msgs.length - 1; i >= 0; i--) {
-    chars += contentChars([msgs[i]])
-    if (chars >= intervalTokens * CHARS_PER_TOKEN) return i
-  }
-  return 0
 }
 
 function isSummaryAssistant(msg: MessageV2.WithParts): boolean {
@@ -444,7 +443,7 @@ export function hasPendingSummaryRequest(msgs: MessageV2.WithParts[]): boolean {
 
 /** Minimum non-empty body chars per required section (rejects 3-sentence stubs). */
 const MIN_SUMMARY_SECTION_CHARS: Record<string, number> = {
-  "Semantic Vector": 40,
+  "Semantic Vector": 25,
   Goal: 60,
   "Key decisions": 40,
   "Current state": 60,
@@ -544,42 +543,33 @@ export function isAssistantTurnComplete(msg: MessageV2.WithParts | undefined): b
 }
 
 /** Parsed semantic vector from a summary's ## Semantic Vector section.
-  * Sparse phrase embedding: key_phrases with weights (Σ=1.0), plus dominant. */
+  * dominant-only since 2026-08-27: invented key_phrases had zero consumers —
+  * the real task vectors live in the plan mirror (planState, see plan-status). */
 interface SemanticVector {
   dominant?: string
-  keyPhrases: { phrase: string; weight: number }[]
 }
 
-/** Extract ## Semantic Vector from summary text (both quote styles). */
+/** Extract ## Semantic Vector dominant from summary text (both quote styles).
+  * Legacy bodies with key_phrases stay readable — phrases are ignored. */
 export function extractSemanticVector(text: string): SemanticVector | undefined {
   const match = text.match(/## Semantic Vector\s*\n([\s\S]*?)(?=\n## |\n--- |$)/i)
   if (!match?.[1]) return undefined
-  const block = match[1]
   // dominant: "..." or dominant: '...'
-  const dominantMatch = block.match(/dominant:\s*["']([^"']+)["']/)
-  const phrases: { phrase: string; weight: number }[] = []
-  // - phrase: "..." / '...' with weight on next line
-  const phraseRe = /-\s*phrase:\s*["']([^"']+)["']\s*\n\s*weight:\s*([\d.]+)/g
-  let pm: RegExpExecArray | null
-  while ((pm = phraseRe.exec(block)) !== null) {
-    phrases.push({ phrase: pm[1], weight: parseFloat(pm[2]) })
-  }
-  if (!dominantMatch && phrases.length === 0) return undefined
-  return { dominant: dominantMatch?.[1], keyPhrases: phrases }
-}
-
-/** SYSTEM-only range marker (stored as ignored text part — not sent to the model). */
-export function summaryRangeSystemMarker(fromId: string, toId: string, sessionID: string) {
-  return `<!-- summary-range from_id="${fromId}" to_id="${toId}" session_id="${sessionID}" -->`
+  const dominantMatch = match[1].match(/dominant:\s*["']([^"']+)["']/)
+  if (!dominantMatch) return undefined
+  return { dominant: dominantMatch[1] }
 }
 
 /**
  * Model-facing Layer-1 request: Inferred prose only (SVM, goal, decisions, state).
  * No digital facts — no IDs, diffs, hashes, codegraph. Those are system/fossil/CG.
  */
-export function summaryRequestProse(lastSv?: SemanticVector) {
+export function summaryRequestProse(lastSv?: SemanticVector, planGoalSv?: string[]) {
   const svHint = lastSv?.dominant
-    ? `\nPrior window dominant (chain continuity only): "${lastSv.dominant}". Prefer a related dominant and/or overlapping key phrases.\n`
+    ? `\nPrior window dominant (chain continuity only): "${lastSv.dominant}". Prefer a related dominant for continuity.\n`
+    : ""
+  const planHint = planGoalSv?.length
+    ? `\nActive plan goal vocabulary: ${planGoalSv.join(", ")}. When this window serves that plan, align your dominant with it.\n`
     : ""
   return `You are writing a **Layer-1 memory summary** of the conversation window above (all prior messages in this request). This is the durable handle used after compaction — not a chat reply.
 
@@ -587,16 +577,11 @@ Write **Inferred** narrative only under the four headings below. Be specific and
 Do **not** call tools — write the summary as plain text only.
 Do **not** invent or list message IDs, session IDs, database positions, file diffs, hashes, or codegraph data.
 Do **not** open with "Sure" / "Here is a summary" — start with \`## Semantic Vector\`.
-${svHint}
+${svHint}${planHint}
 ## Semantic Vector
-(Sparse normalized embedding: key phrases with weights, Σ=1.0, 3-5 phrases.)
+(The single semantic anchor of this window — one dominant phrase, no lists.)
 Format:
   dominant: "<3-5 word phrase capturing the core intent>"
-  key_phrases:
-    - phrase: "<key phrase>"
-      weight: <0.0-1.0>
-    - phrase: "<key phrase>"
-      weight: <0.0-1.0>
 
 ## Goal
 (What the user was trying to accomplish in this window — at least a few sentences, concrete.)
@@ -632,6 +617,7 @@ function buildMessageStar(input: {
     toId?: string
     diffs?: Snapshot.FileDiff[]
     impact?: Snapshot.ImpactSummary
+    planState?: PlanStatePayload
     sidecar?: boolean
   }[]
   recent: MessageV2.WithParts[]
@@ -672,6 +658,14 @@ function buildMessageStar(input: {
           `  impacted_files=${s.impact.impactedFiles.slice(0, 20).join(",") || "none"}`,
         ].join("\n")
       : undefined
+    const planStateLine = s.planState
+      ? [
+          `- plan_state: system Exact (GATED WORKFLOW mirror — kernel-native anchors)`,
+          ...(formatPlanStateText(s.planState) ?? "")
+            .split("\n")
+            .map((l) => `  ${l}`),
+        ].join("\n")
+      : undefined
     // Links below are SYSTEM Exact digits — not model-authored.
     const links = [
       `- links: system Exact (not model output)`,
@@ -680,6 +674,7 @@ function buildMessageStar(input: {
       svLine,
       diffLine,
       impactLine,
+      planStateLine,
       s.fromId ? `- from_id: \`${s.fromId}\`` : undefined,
       s.toId ? `- to_id: \`${s.toId}\`` : undefined,
       `- session_id: \`${input.sessionID}\``,
@@ -774,12 +769,6 @@ export interface Interface {
     force?: boolean
     threshold?: number
   }) => Effect.Effect<{ messageStarTokens: number; folded: boolean }>
-  readonly injectSummaryRequest: (input: {
-    sessionID: SessionID
-    model: { providerID: ProviderID; modelID: ModelID }
-    agent: string
-    threshold?: number
-  }) => Effect.Effect<void>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/SessionCompaction") {}
@@ -879,7 +868,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         // Collect summaries from the current compaction window only.
         // Exact range links come from the SYSTEM summary-range parent comment,
         // never from model prose (IDs are not model-inferable facts).
-        const summaries: { id: string; text: string; fromId?: string; toId?: string; diffs?: Snapshot.FileDiff[]; impact?: Snapshot.ImpactSummary; sidecar?: boolean }[] = []
+        const summaries: { id: string; text: string; fromId?: string; toId?: string; diffs?: Snapshot.FileDiff[]; impact?: Snapshot.ImpactSummary; planState?: PlanStatePayload; sidecar?: boolean }[] = []
         const sidecars = IncrementalCheckpoint.listOpen(input.sessionID)
         for (const checkpoint of sidecars) {
           summaries.push({
@@ -889,6 +878,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
             toId: checkpoint.toMessageID,
             diffs: checkpoint.diffs,
             impact: checkpoint.impact,
+            planState: checkpoint.planState,
             sidecar: true,
           })
         }
@@ -1067,102 +1057,9 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         ),
       )
 
-    /**
-     * Layer 1: inject a summary request for the effective content window.
-     * Range starts after the latest summary (or start of visible history).
-     * If the open range exceeds that interval, trim from_id to its last range.
-     */
-    const injectSummaryRequest = (input: {
-      sessionID: SessionID
-      model: { providerID: ProviderID; modelID: ModelID }
-      agent: string
-      threshold?: number
-    }) =>
-      Effect.gen(function* () {
-        const msgs = (yield* session.messages({ sessionID: input.sessionID, limit: 10_000 }).pipe(
-          Effect.catchIf(NotFoundError.isInstance, () => Effect.succeed(undefined)),
-        )) as MessageV2.WithParts[] | undefined
-
-        // page() already returns chronological order (see compact() above).
-
-        let fromId = "start"
-        let toId = "end"
-        if (msgs?.length) {
-          const visible = msgs.filter((m) => !m.info.compacted)
-          const pool = visible.length ? visible : msgs
-
-          let lastSummaryIdx = -1
-          for (let i = pool.length - 1; i >= 0; i--) {
-            if (pool[i].info.role === "assistant" && pool[i].info.summary) {
-              lastSummaryIdx = i
-              break
-            }
-          }
-
-          let range = pool.slice(lastSummaryIdx >= 0 ? lastSummaryIdx + 1 : 0)
-          const threshold = input.threshold ?? SUMMARY_INTERVAL_TOKENS
-          // Trim to the effective interval if the open segment is larger.
-          if (contentChars(range) >= threshold * CHARS_PER_TOKEN) {
-            range = range.slice(trimToLastInterval(range, threshold))
-          }
-
-          fromId = range[0]?.info.id ?? pool[0]?.info.id ?? "start"
-          toId = range[range.length - 1]?.info.id ?? pool[pool.length - 1]?.info.id ?? "end"
-        }
-
-        // Last summary's SVM so the model can chain sv_dominant / key phrases
-        let lastSv: SemanticVector | undefined
-        if (msgs?.length) {
-          for (let i = msgs.length - 1; i >= 0; i--) {
-            if (msgs[i].info.role === "assistant" && (msgs[i].info as any).summary) {
-              const sv = extractSemanticVector(messageText(msgs[i]))
-              if (sv) {
-                lastSv = sv
-                break
-              }
-            }
-          }
-        }
-
-        const msg = yield* session.updateMessage({
-          id: MessageID.ascending(),
-          role: "user",
-          model: input.model,
-          sessionID: input.sessionID,
-          agent: input.agent,
-          time: { created: Date.now() },
-        })
-        // SYSTEM Exact range (ignored → never in model context). parseSummaryRange / diffs use this.
-        yield* session.updatePart({
-          id: PartID.ascending(),
-          messageID: msg.id,
-          sessionID: msg.sessionID,
-          type: "text",
-          text: summaryRangeSystemMarker(fromId, toId, input.sessionID),
-          synthetic: true,
-          ignored: true,
-        })
-        // Model sees prose only (SVM / goal / decisions / state).
-        yield* session.updatePart({
-          id: PartID.ascending(),
-          messageID: msg.id,
-          sessionID: msg.sessionID,
-          type: "text",
-          text: summaryRequestProse(lastSv),
-          synthetic: true,
-        })
-        log.info("injected summary request", {
-          sessionID: input.sessionID,
-          fromId,
-          toId,
-          lastSvDominant: lastSv?.dominant,
-        })
-      })
-
     return Service.of({
       isOverflow: isOverflow as any,
       compact: compact as any,
-      injectSummaryRequest: injectSummaryRequest as any,
     })
   }),
 )
@@ -1189,15 +1086,5 @@ export const compact = fn(
 )
 
 export type CompactResult = Awaited<ReturnType<typeof compact>>
-
-export const injectSummaryRequest = fn(
-  z.object({
-    sessionID: SessionID.zod,
-    model: z.object({ providerID: ProviderID.zod, modelID: ModelID.zod }),
-    agent: z.string(),
-    threshold: z.number().int().positive().optional(),
-  }),
-  (input) => runPromise((svc) => svc.injectSummaryRequest(input)),
-)
 
 export * as SessionCompaction from "./compaction"

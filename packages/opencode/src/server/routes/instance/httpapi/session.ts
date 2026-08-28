@@ -726,8 +726,9 @@ export const sessionHandlers = Layer.unwrap(
               const currentAgent =
                 messages.findLast((message) => message.info.role === "user")?.info.agent ?? defaultAgent
 
-              // T3: capture-first. A forced fold without summary coverage
-              // silently destroys history (compact() now refuses it anyway) —
+              // T3: capture-first. Without a summary the forced fold goes
+              // tail-only (T2 refusal removed 2026-08-25): everything before
+              // the recent tail would leave M without any s representation —
               // so build the emergency sidecar summary BEFORE folding.
               const captured = yield* prompt.captureSummary({
                 sessionID: ctx.params.sessionID,

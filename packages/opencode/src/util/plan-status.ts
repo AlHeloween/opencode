@@ -47,6 +47,186 @@ export function hasOpenItems(filePath: string): boolean {
   }
 }
 
+// ── Plan state mirror (GATED WORKFLOW snapshot for Layer-1 summaries) ──
+//
+// Kernel-native vocabulary: lifecycle enums, G1..G9 gates, per-task oracle
+// status ([x]⇒PASS stamped at G8, [~]⇒PARTIAL, [ ]⇒PENDING). The payload is
+// system Exact — parsed from plan files, never model-authored. Summaries fold
+// it into m* so the model picks the workflow state up after every compact.
+
+export interface PlanStateTask {
+  id: string
+  title: string
+  sv: string[]
+  status: "PASS" | "PARTIAL" | "PENDING"
+  done_pct: number | null
+  attempts: number
+  last_failure?: string
+}
+
+export interface PlanStatePlan {
+  file: string
+  lifecycle?: string
+  gate?: string
+  goal_sv: string[]
+  invariants: string[]
+  tasks: PlanStateTask[]
+}
+
+export interface PlanStatePayload {
+  plans: PlanStatePlan[]
+}
+
+/** Trailing metadata tags on a task line:
+ *  `<!-- sv: a,b | done_pct: 40 | attempts: 2 | last_failure: why -->` */
+function parseTaskTags(
+  rest: string,
+): { sv: string[]; done_pct: number | null; attempts: number; last_failure?: string } {
+  const comment = rest.match(/<!--([^>]*)-->/)?.[1] ?? ""
+  const sv = comment.match(/\bsv:\s*([^|>]*?)(?=\s*\||\s*$)/)?.[1]
+    ?.split(",")
+    .map((s) => s.trim())
+    .filter(Boolean) ?? []
+  const donePct = comment.match(/\bdone_pct:\s*(\d+)/)?.[1]
+  const attempts = comment.match(/\battempts:\s*(\d+)/)?.[1]
+  const lastFailure = comment.match(/\blast_failure:\s*([^>]*?)\s*$/m)?.[1]?.trim()
+  return {
+    sv,
+    done_pct: donePct != null ? Number(donePct) : null,
+    attempts: attempts != null ? Number(attempts) : 0,
+    last_failure: lastFailure || undefined,
+  }
+}
+
+function parseLifecycle(content: string): string | undefined {
+  const workflow = content.match(
+    /<!--\s*workflow:\s*lifecycle\s+(\w+)(?:\s*\|\s*gate\s*(G\d+))?\s*-->/,
+  )
+  if (workflow) return workflow[1]
+  const status = content.match(/\*\*Status:\*\*\s*(\w+)/)?.[1]
+  if (!status) return undefined
+  const map: Record<string, string> = { PROPOSED: "DRAFT" }
+  return map[status.toUpperCase()] ?? status.toUpperCase()
+}
+
+function parseGate(content: string): string | undefined {
+  return content.match(/<!--\s*workflow:[^>]*gate\s*(G\d+)[^>]*-->/)?.[1]
+}
+
+/** Collect the GATED WORKFLOW mirror for all active plans (`plans/*.md`). */
+export function collectPlanState(worktree: string): PlanStatePayload {
+  const plansDir = path.join(worktree, "plans")
+  const plans: PlanStatePlan[] = []
+  for (const file of collectPlans(plansDir)) {
+    let content: string
+    try {
+      content = readFileSync(path.join(plansDir, file), "utf-8")
+    } catch {
+      continue
+    }
+    const tasks: PlanStateTask[] = []
+    for (const m of content.matchAll(/^\s*- \[( |x|~)\] (.+)$/gm)) {
+      const checkbox = m[1]!
+      const rest = m[2]!.trim()
+      const bold = rest.match(/^\*\*([^*]+)\*\*(.*)$/)
+      const structured = bold != null
+      const header = bold?.[1] ?? rest
+      const after = bold?.[2] ?? ""
+      const id = structured
+        ? header.match(/^([A-Za-z0-9_]+)/)?.[1] ?? header.slice(0, 12)
+        : `TASK-${tasks.length + 1}`
+      const title = structured
+        ? header.replace(/^[A-Za-z0-9_]+\s*[—-]\s*/, "").trim()
+        : rest
+      const tags = parseTaskTags(structured ? after : "")
+      tasks.push({
+        id,
+        title,
+        sv: tags.sv,
+        status: checkbox === "x" ? "PASS" : checkbox === "~" ? "PARTIAL" : "PENDING",
+        done_pct: tags.done_pct,
+        attempts: tags.attempts,
+        last_failure: tags.last_failure,
+      })
+    }
+    const invariants = content
+      .match(/## Invariants\s*\n([\s\S]*?)(?=\n## |$)/)?.[1]
+      ?.split("\n")
+      .map((l) => l.replace(/^\s*-\s*/, "").trim())
+      .filter(Boolean) ?? []
+    const goalSv =
+      content.match(/<!--\s*goal_sv:\s*([^>]*?)\s*-->/)?.[1]?.split(",").map((s) => s.trim()).filter(Boolean) ?? []
+    plans.push({
+      file: `plans/${file.replace(/\\/g, "/")}`,
+      lifecycle: parseLifecycle(content),
+      gate: parseGate(content),
+      goal_sv: goalSv,
+      invariants,
+      tasks,
+    })
+  }
+
+  // Relevance filter — the mirror is the CURRENT workflow state, not an archive
+  // (2026-08-28: live panel showed July-era SUPERSEDED/DONE plans flooding s).
+  const KERNEL_LIFECYCLE = new Set([
+    "DRAFT",
+    "ACTIVE",
+    "EXECUTING",
+    "VERIFYING",
+    "IMPLEMENTED",
+    "COMPLETED",
+    "INVALIDATED",
+  ])
+  const MAX_PLANS = 3
+  const relevant = plans
+    .filter((p) => {
+      if (/readme\.md$/i.test(p.file)) return false
+      if (p.lifecycle && !KERNEL_LIFECYCLE.has(p.lifecycle)) return false
+      const open = p.tasks.filter((t) => t.status !== "PASS").length
+      if (open === 0 && p.lifecycle !== "ACTIVE" && p.lifecycle !== "EXECUTING") return false
+      return true
+    })
+    .sort((a, b) => (a.file < b.file ? 1 : -1)) // ISO prefixes: newest first
+    .slice(0, MAX_PLANS)
+  return { plans: relevant }
+  }
+
+/** Compact kernel-native text rendering — rides the Exact stamp into m* and the TUI panel.
+  * Noise caps (2026-08-28): only open tasks per plan (PASS collapsed to a count),
+  * `plan state: none active` for empty payloads, 1500-char hard cap. */
+export function formatPlanStateText(payload: PlanStatePayload): string {
+  if (!payload.plans.length) return "plan state: none active"
+  const MAX_TASK_LINES = 8
+  const MAX_CHARS = 1500
+  const out: string[] = []
+  for (const p of payload.plans) {
+    const lines = [
+      `plan: ${p.file} · lifecycle ${p.lifecycle ?? "UNKNOWN"}${p.gate ? ` · gate ${p.gate}` : ""}`,
+      ...(p.goal_sv.length ? [`goal_sv: ${p.goal_sv.join(", ")}`] : []),
+    ]
+    const open = p.tasks.filter((t) => t.status !== "PASS")
+    const passCount = p.tasks.length - open.length
+    for (const t of open.slice(0, MAX_TASK_LINES)) {
+      lines.push(
+        `  ${t.id} [${t.status}]${t.done_pct != null ? ` done ${t.done_pct}%` : ""} · attempts ${t.attempts}` +
+          (t.last_failure ? ` · last_failure: ${t.last_failure}` : "") +
+          (t.sv.length ? ` · sv: ${t.sv.join(", ")}` : ""),
+      )
+    }
+    if (open.length > MAX_TASK_LINES) lines.push(`  … +${open.length - MAX_TASK_LINES} more open`)
+    if (passCount > 0) lines.push(`  PASS ×${passCount}`)
+    if (p.invariants.length) lines.push("invariants:", ...p.invariants.map((i) => `  - ${i}`))
+    out.push(lines.join("\n"))
+  }
+  let text = out.join("\n\n")
+  if (text.length > MAX_CHARS) {
+    text = text.slice(0, MAX_CHARS)
+    const cut = text.lastIndexOf("\n")
+    text = (cut > 0 ? text.slice(0, cut) : text) + "\n… truncated (planState cap)"
+  }
+  return text
+}
+
 /** Count all task checkboxes in a plan file: returns { total, done }.
  *  Done = [x] or [~], total = [ ] + [x] + [~]. */
 function countTasks(filePath: string): { total: number; done: number } {

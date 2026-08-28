@@ -7,6 +7,7 @@ import type { Permission } from "../permission"
 import type { ProjectID } from "../project/schema"
 import type { SessionID, MessageID, PartID } from "./schema"
 import type { WorkspaceID } from "../control-plane/schema"
+import type { PlanStatePayload } from "@/util/plan-status"
 import { Timestamps } from "../storage/schema.sql"
 
 type PartData = Omit<MessageV2.Part, "id" | "sessionID" | "messageID">
@@ -205,7 +206,7 @@ export const ProjectCheckpointTable = sqliteTable(
     body: text().notNull(),
     diffs: text({ mode: "json" }).$type<Snapshot.FileDiff[]>(),
     impact: text({ mode: "json" }).$type<Snapshot.ImpactSummary>(),
-    materialized_message_id: text().$type<MessageID>(),
+    plan_state: text({ mode: "json" }).$type<PlanStatePayload>(),    materialized_message_id: text().$type<MessageID>(),
     time_materialized: integer(),
     ...Timestamps,
   },

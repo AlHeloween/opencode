@@ -29,8 +29,135 @@ import { ProviderTest } from "../fake/provider"
 import { testEffect } from "../lib/effect"
 import { TestLLMServer } from "../lib/llm-server"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
+import { IncrementalCheckpoint } from "../../src/session/incremental-checkpoint"
 
 Log.init()
+
+// --- planState mirror: sidecar → m* fold (GATED WORKFLOW post-compact pickup) ---
+
+describe("session.compaction planState mirror", () => {
+  const planStateFixture = {
+    plans: [
+      {
+        file: "plans/2026-08-27_summary-plan-mirror.md",
+        lifecycle: "EXECUTING",
+        gate: "G7",
+        goal_sv: ["summary", "mirror"],
+        invariants: ["s lives outside M", "Exact is system"],
+        tasks: [
+          {
+            id: "T1",
+            title: "prose",
+            sv: ["prose", "dominant"],
+            status: "PASS" as const,
+            done_pct: 100,
+            attempts: 0,
+          },
+          {
+            id: "T2",
+            title: "parser",
+            sv: ["parser"],
+            status: "PENDING" as const,
+            done_pct: null,
+            attempts: 2,
+            last_failure: "min chars",
+          },
+        ],
+      },
+    ],
+  }
+
+  it.live(
+    "compact folds planState into message* (kernel-native post-compact pickup)",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+
+        const su = yield* ssn.updateMessage({
+          id: MessageID.ascending(),
+          role: "user",
+          sessionID: info.id,
+          agent: "build",
+          model: ref,
+          time: { created: Date.now() },
+        })
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: su.id,
+          sessionID: info.id,
+          type: "text",
+          text: "work turn",
+        })
+        const sa = yield* ssn.updateMessage({
+          id: MessageID.ascending(),
+          role: "assistant",
+          sessionID: info.id,
+          mode: "build",
+          agent: "build",
+          parentID: su.id,
+          modelID: ref.modelID,
+          providerID: ref.providerID,
+          path: { cwd: dir, root: dir },
+          cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          finish: "end_turn",
+          time: { created: Date.now() },
+        } as MessageV2.Assistant)
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: sa.id,
+          sessionID: info.id,
+          type: "text",
+          text: "did work",
+        })
+
+        IncrementalCheckpoint.save({
+          id: "ck-plan-mirror-test",
+          sessionID: info.id,
+          fromMessageID: su.id,
+          toMessageID: sa.id,
+          providerID: ref.providerID,
+          modelID: ref.modelID,
+          agent: "build",
+          body: [
+            "## Semantic Vector",
+            'dominant: "plan mirror flows into message star"',
+            "",
+            "## Goal",
+            "Verify the GATED WORKFLOW mirror survives the fold.",
+            "",
+            "## Key decisions",
+            "- fold plan state as system Exact",
+            "",
+            "## Current state",
+            "T3/T4 under test.",
+          ].join("\n"),
+          planState: planStateFixture,
+        })
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+
+        const msgs = yield* MessageV2.filterCompactedEffect(info.id)
+        const text = msgs
+          .flatMap((m) => m.parts)
+          .filter((p: any) => p.type === "text")
+          .map((p: any) => p.text as string)
+          .join("\n")
+
+        expect(text).toContain("plan_state: system Exact")
+        expect(text).toContain("lifecycle EXECUTING · gate G7")
+        expect(text).toContain("T2 [PENDING]")
+        expect(text).toContain("PASS ×1")
+        expect(text).toContain("last_failure: min chars")
+        expect(text).toContain("invariants:")
+        expect(text).toContain("s lives outside M")
+      }),
+    ),
+  )
+})
 
 function run<A, E>(fx: Effect.Effect<A, E, SessionNs.Service>) {
   return Effect.runPromise(fx.pipe(Effect.provide(SessionNs.defaultLayer)))
@@ -1607,125 +1734,6 @@ describe("session.compaction.compact", () => {
         expect(combined).toContain("msg-5-")
         expect(combined).toContain("msg-29-")
         expect(combined).not.toContain("msg-0-")
-      }),
-    ),
-  )
-})
-
-// --- injectSummaryRequest() tests ---
-
-describe("session.compaction.injectSummaryRequest", () => {
-  it.live(
-    "creates a synthetic user message with summary request text",
-    provideTmpdirInstance(() =>
-      Effect.gen(function* () {
-        const compact = yield* SessionCompaction.Service
-        const ssn = yield* SessionNs.Service
-        const info = yield* ssn.create({})
-        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
-
-        yield* compact.injectSummaryRequest({ sessionID: info.id, model: ref, agent: "build" })
-
-        const msgs = yield* MessageV2.filterCompactedEffect(info.id)
-        expect(msgs).toHaveLength(1)
-        expect(msgs[0].info.role).toBe("user")
-        const parts = msgs[0].parts.filter((p: any) => p.type === "text") as any[]
-        const systemParts = parts.filter((p) => p.ignored)
-        const modelParts = parts.filter((p) => !p.ignored)
-        const modelBody = modelParts.map((p) => p.text).join("\n")
-        const systemBody = systemParts.map((p) => p.text).join("\n")
-
-        // Model-facing: SVM / goal / decisions / state only — no digital facts.
-        expect(modelBody).toContain("Layer-1 memory summary")
-        expect(modelBody).toContain("## Semantic Vector")
-        expect(modelBody).toContain("## Goal")
-        expect(modelBody).toContain("## Key decisions")
-        expect(modelBody).toContain("## Current state")
-        expect(modelBody).toContain("Inferred")
-        expect(modelBody).not.toContain("<!-- summary-range")
-        expect(modelBody).not.toContain("from_id=")
-        expect(modelBody).not.toContain("to_id=")
-        expect(modelBody).not.toContain(`session_id="${info.id}"`)
-        expect(modelBody).not.toContain("Include these message IDs")
-
-        // System-only ignored part: Exact range digits for runtime (fossil diffs / stamp).
-        expect(systemBody).toContain("<!-- summary-range")
-        expect(systemBody).toContain(`session_id="${info.id}"`)
-        expect(systemBody).toMatch(/from_id="[^"]+"/)
-        expect(systemBody).toMatch(/to_id="[^"]+"/)
-      }),
-    ),
-  )
-
-  it.live(
-    "injectSummaryRequest passes prior sv_dominant for chain linking",
-    provideTmpdirInstance((dir) =>
-      Effect.gen(function* () {
-        const compact = yield* SessionCompaction.Service
-        const ssn = yield* SessionNs.Service
-        const info = yield* ssn.create({})
-        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
-
-        const su = yield* ssn.updateMessage({
-          id: MessageID.ascending(),
-          role: "user",
-          sessionID: info.id,
-          agent: "build",
-          model: ref,
-          time: { created: Date.now() },
-        })
-        yield* ssn.updatePart({
-          id: PartID.ascending(),
-          messageID: su.id,
-          sessionID: info.id,
-          type: "text",
-          text: "summary-req",
-        })
-        const sa = yield* ssn.updateMessage({
-          id: MessageID.ascending(),
-          role: "assistant",
-          sessionID: info.id,
-          mode: "build",
-          agent: "build",
-          parentID: su.id,
-          modelID: ref.modelID,
-          providerID: ref.providerID,
-          path: { cwd: dir, root: dir },
-          cost: 0,
-          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-          summary: true,
-          finish: "end_turn",
-          time: { created: Date.now() },
-        } as MessageV2.Assistant)
-        yield* ssn.updatePart({
-          id: PartID.ascending(),
-          messageID: sa.id,
-          sessionID: info.id,
-          type: "text",
-          text: [
-            "## Semantic Vector",
-            'dominant: "wire svm into summaries"',
-            "key_phrases:",
-            '  - phrase: "semantic vector on every summary"',
-            "    weight: 0.6",
-            '  - phrase: "sv_dominant chain"',
-            "    weight: 0.4",
-            "",
-            "## Goal",
-            "Ensure SVM is required.",
-          ].join("\n"),
-        })
-
-        yield* compact.injectSummaryRequest({ sessionID: info.id, model: ref, agent: "build" })
-        const msgs = yield* MessageV2.filterCompactedEffect(info.id)
-        const last = msgs[msgs.length - 1]
-        const text = last.parts
-          .filter((p: any) => p.type === "text")
-          .map((p: any) => p.text)
-          .join("\n")
-        expect(text).toContain("## Semantic Vector")
-        expect(text).toContain("wire svm into summaries")
-        expect(text).toContain("Prior window dominant")
       }),
     ),
   )

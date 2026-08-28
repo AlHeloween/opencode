@@ -10,7 +10,105 @@ import {
   hasOpenItems,
   planHygieneWorkerFooter,
   formatPlanHygiene,
+  collectPlanState,
+  formatPlanStateText,
 } from "../../src/util/plan-status"
+
+describe("PlanState mirror (GATED WORKFLOW)", () => {
+  test("collectPlanState parses lifecycle/gate/tasks/invariants", async () => {
+    await using tmp = await tmpdir()
+    mkdirSync(path.join(tmp.path, "plans"), { recursive: true })
+    writeFileSync(
+      path.join(tmp.path, "plans", "mirror.md"),
+      [
+        "# Mirror plan",
+        "**Status:** ACTIVE <!-- workflow: lifecycle EXECUTING | gate G7 -->",
+        "",
+        "## Tasks",
+        "- [x] **T1 — prose.** <!-- sv: prose,dominant | done_pct: 100 --> body",
+        "- [ ] **T2 — parser.** <!-- sv: parser | attempts: 2 | last_failure: min chars --> body",
+        "",
+        "## Invariants",
+        "- s lives outside M",
+        "- Exact is system",
+      ].join("\n"),
+    )
+
+    const state = collectPlanState(tmp.path)
+    expect(state.plans).toHaveLength(1)
+    const plan = state.plans[0]!
+    expect(plan.file).toBe("plans/mirror.md")
+    expect(plan.lifecycle).toBe("EXECUTING")
+    expect(plan.gate).toBe("G7")
+    expect(plan.invariants).toEqual(["s lives outside M", "Exact is system"])
+    expect(plan.tasks).toHaveLength(2)
+
+    const t1 = plan.tasks[0]!
+    expect(t1.id).toBe("T1")
+    expect(t1.status).toBe("PASS")
+    expect(t1.sv).toEqual(["prose", "dominant"])
+    expect(t1.done_pct).toBe(100)
+    expect(t1.attempts).toBe(0)
+
+    const t2 = plan.tasks[1]!
+    expect(t2.status).toBe("PENDING")
+    expect(t2.attempts).toBe(2)
+    expect(t2.last_failure).toBe("min chars")
+
+    const text = formatPlanStateText(state)
+    expect(text).toContain("lifecycle EXECUTING · gate G7")
+    expect(text).toContain("T2 [PENDING]")
+    expect(text).toContain("PASS ×1")
+  })
+
+  test("collectPlanState degrades gracefully on plain plans", async () => {
+    await using tmp = await tmpdir()
+    mkdirSync(path.join(tmp.path, "plans"), { recursive: true })
+    writeFileSync(path.join(tmp.path, "plans", "plain.md"), "# Plain\n- [ ] do stuff")
+
+    const state = collectPlanState(tmp.path)
+    const plan = state.plans[0]!
+    expect(plan.file).toBe("plans/plain.md")
+    expect(plan.lifecycle).toBeUndefined()
+    expect(plan.gate).toBeUndefined()
+    expect(plan.invariants).toEqual([])
+    expect(plan.tasks[0]!.status).toBe("PENDING")
+    expect(plan.tasks[0]!.attempts).toBe(0)
+    // empty payload renders the explicit none-active line (single line in m*)
+    expect(formatPlanStateText({ plans: [] })).toBe("plan state: none active")
+  })
+
+  test("relevance filter: stale/free-form lifecycles and README dropped, newest ≤3, PASS collapsed", async () => {
+    await using tmp = await tmpdir()
+    mkdirSync(path.join(tmp.path, "plans"), { recursive: true })
+    writeFileSync(path.join(tmp.path, "plans", "2026-07-01_old.md"), "**Status:** SUPERSEDED\n- [ ] x")
+    writeFileSync(path.join(tmp.path, "plans", "README.md"), "# Plans\n- [ ] fake task")
+    writeFileSync(path.join(tmp.path, "plans", "2026-08-01_done.md"), "**Status:** ACTIVE\n- [x] only work")
+    writeFileSync(
+      path.join(tmp.path, "plans", "2026-08-20_mid.md"),
+      "**Status:** EXECUTING\n- [x] **T1 — done.** x\n- [ ] **T2 — open.** x",
+    )
+    writeFileSync(
+      path.join(tmp.path, "plans", "2026-08-25_new.md"),
+      "**Status:** ACTIVE <!-- workflow: lifecycle ACTIVE | gate G7 -->\n- [ ] **T9 — open.** x",
+    )
+
+    const state = collectPlanState(tmp.path)
+    const files = state.plans.map((p) => p.file)
+    expect(files).toEqual([
+      "plans/2026-08-25_new.md",
+      "plans/2026-08-20_mid.md",
+      "plans/2026-08-01_done.md",
+    ])
+
+    const text = formatPlanStateText(state)
+    expect(text).toContain("lifecycle ACTIVE · gate G7")
+    expect(text).toContain("T2 [PENDING]")
+    expect(text).toContain("PASS ×1")
+    expect(text).not.toContain("SUPERSEDED")
+    expect(text).not.toContain("fake task")
+  })
+})
 
 describe("PlanStatus", () => {
   let worktree: string

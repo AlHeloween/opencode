@@ -28,6 +28,7 @@ import { Jobs } from "../jobs"
 import { RequestDiff } from "./request-diff"
 import { Checkpoint, type CheckpointData } from "./checkpoint"
 import { IncrementalCheckpoint } from "./incremental-checkpoint"
+import { collectPlanState } from "@/util/plan-status"
 import { Bus } from "../bus"
 import { ProviderTransform } from "@/provider/transform"
 import { SystemPrompt } from "./system"
@@ -872,6 +873,8 @@ export const layer = Layer.effect(
           // prompt. No range reconversion, no tool_choice=none, standard
           // output budget — the sidecar must not diverge from the trunk.
           const sidecarAgent = input.cacheIdentity ?? input.agent
+          const planState = collectPlanState((yield* InstanceState.context).worktree)
+          const planGoalSv = planState.plans.find((p) => p.goal_sv.length > 0)?.goal_sv
           let body = ""
           // Retry loop, soft gap-fill: attempt 1 = fresh summary request;
           // attempts 2+ = the SAME full-M request shape, user message names
@@ -882,7 +885,7 @@ export const layer = Layer.effect(
           for (let attempt = 0; attempt < SIDECAR_MAX_ATTEMPTS; attempt++) {
             const requestText =
               attempt === 0
-                ? SessionCompaction.summaryRequestProse(lastSv)
+                ? SessionCompaction.summaryRequestProse(lastSv, planGoalSv)
                 : `${SessionCompaction.gapFillRequest(body, SessionCompaction.diagnoseSummaryGaps(body))}\n\nPrevious draft for reference:\n${body}`
             const reply = yield* llm
               .stream({
@@ -962,6 +965,7 @@ export const layer = Layer.effect(
             body,
             diffs: enrichment.diffs,
             impact: enrichment.impact,
+            planState,
           })
           // Print full old-style s for the user; synthetic+ignored → not agent M.
           const displayText = SessionCompaction.formatLayer1SummaryDisplay({
@@ -972,6 +976,7 @@ export const layer = Layer.effect(
             body,
             diffs: enrichment.diffs,
             impact: enrichment.impact,
+            planState,
           })
           const displayMsg = yield* sessions.updateMessage({
             id: MessageID.ascending(),

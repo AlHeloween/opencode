@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, isNull } from "drizzle-orm"
 import { Database } from "@/storage/db"
 import type { Snapshot } from "@/snapshot"
+import type { PlanStatePayload } from "@/util/plan-status"
 import { ProjectCheckpointTable } from "./session.sql"
 import type { MessageID, SessionID } from "./schema"
 
@@ -16,6 +17,7 @@ export interface Record {
   body: string
   diffs?: Snapshot.FileDiff[]
   impact?: Snapshot.ImpactSummary
+  planState?: PlanStatePayload
   materializedMessageID?: MessageID
   timeCreated: number
   timeMaterialized?: number
@@ -34,6 +36,7 @@ function fromRow(row: typeof ProjectCheckpointTable.$inferSelect): Record {
     body: row.body,
     diffs: row.diffs ?? undefined,
     impact: row.impact ?? undefined,
+    planState: row.plan_state ?? undefined,
     materializedMessageID: row.materialized_message_id ?? undefined,
     timeCreated: row.time_created,
     timeMaterialized: row.time_materialized ?? undefined,
@@ -71,6 +74,7 @@ export function save(input: Omit<Record, "timeCreated" | "timeMaterialized" | "m
         body: input.body,
         diffs: input.diffs,
         impact: input.impact,
+        plan_state: input.planState,
       })
       .onConflictDoNothing()
       .run()

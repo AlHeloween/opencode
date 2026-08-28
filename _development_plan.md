@@ -1,5 +1,27 @@
 # Development Plan
 
+## 2026-08-27 Summary plan-mirror (plan: plans_completed/2026-08-27_summary-plan-mirror.md)
+
+Goal: Layer-1 саммари несёт GATED WORKFLOW-зеркало активных планов (lifecycle/gate, task sv/status/attempts/last_failure, invariants — kernel-native anchors, Exact = система) вместо выдуманных моделью key_phrases; reverse search: sv задачи → messagesearch → s-строка → sessionread.
+
+Tasks:
+
+- [x] T1 prose dominant-only (summaryRequestProse).
+- [x] T2 parser/checker dominant-only (MIN_SUMMARY_SECTION_CHARS 40→25).
+- [x] T3 collectPlanState + колонка plan_state (миграция 20260827000000) + save в captureSidecar.
+- [x] T4 рендер зеркала: Exact stamp (фолд в m*) + LAYER-1 панель.
+- [x] T5 тесты/фикстуры (compaction/summary/prompt/plan-status).
+- [x] T6 доки (compaction.md Exact-таблица + параграф механизма).
+
+Verification:
+
+- [x] `bun typecheck` — exit 0 (20260827T222420Z_cd6f85e9).
+- [x] compaction+summary+plan-status — 107 pass / 0 fail (20260827T223326Z_0e879bb5).
+- [x] prompt.test.ts сериально — 40 pass / 13 skip / 0 fail (20260827T223842Z_ff4624c8).
+- [ ] Follow-ups (plan: plans/2026-08-27_summary-mirror-verifications.md): reverse-search через messagesearch (ignored-части — Unknown), живой E2E пикап, миграция на копии реальной БД.
+- [ ] Follow-ups (plan: plans/2026-08-27_kernel-assembly-reverification.md): пересборка/валидация кернела после ручного dedup (пользовательская правка reasoning_prompt.txt).
+- [ ] floatingEffect-линт в prompt.ts (~10 диагностик, typecheck зелёный).
+
 ## 2026-08-16 Compaction Sidecar Wiring Fix (plan: plans/2026-08-16-compaction-sidecar-wiring-fix.md)
 
 Goal: восстановить Layer-1 64K summary-каденс — захват sidecar на нормальных ходах (сейчас подключён к result==="stop", который процессор возвращает только при blocked/error), закрыть фолд непокрытой истории в compact(), сделать /summarize = capture→fold.

@@ -90,11 +90,12 @@
 │  │ planning │ file search  │ implement  │ gather info   │   │
 │  │ strategy │ code grep    │ edit/write │ read-only     │   │
 │  ├──────────┼──────────────┼────────────┼───────────────┤   │
-│  │ media    │ title        │ summary    │               │   │
-│  │ generate │ name         │ describe   │               │   │
-│  │ images   │ sessions     │ sessions   │               │   │
+│  │ media    │ title        │            │               │   │
+│  │ generate │ name         │            │               │   │
+│  │ images   │ sessions     │            │               │   │
 │  └──────────┴──────────────┴────────────┴───────────────┘   │
-│  (No separate compaction agent — see § Mechanistic Compaction)│
+│  (No separate compaction or summary agent — summarization runs via
+│  /summarize + SessionSummary; see § Mechanistic Compaction)   │
 │                                                              │
 │  Pipeline tool: chains subagents sequentially                │
 │    researcher → coder: gather evidence → implement           │

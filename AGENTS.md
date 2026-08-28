@@ -383,7 +383,6 @@ All findings triaged and resolved — see `plans_completed/`.
 | `researcher` | subagent | `prompt/researcher.txt` | Read-only research (code+web+history) |
 | `media` | subagent | `prompt/media.txt` | Media generation via capability tool |
 | `title` | primary (hidden) | `prompt/title.txt` | Session title generation |
-| `summary` | primary (hidden) | `prompt/summary.txt` | Session summarization |
 
 Tools: `pipeline` chains subagents sequentially. `capability` looks up model modalities.
 

@@ -98,9 +98,26 @@ rows are consumed **only at compact** into `m*`.
 | System data | **Exact** | range `from_id`/`to_id`, locus for `session-read`, checkpoint id |
 | Tool diffs | **Exact** | write/edit/multiedit `filediff` from session DB — see `summary-exact-handles.md` |
 | CodeGraph | **Exact** | structural impact over those file paths (system, not model) |
+| Plan state | **Exact** | GATED WORKFLOW mirror of active `plans/*.md`: lifecycle, gate, per-task `sv`/status/attempts/last_failure, invariants — kernel-native anchors (see below) |
 | Fossil | **Rollback only** | WC track/restore — **not** summary Exact |
 
-**Not:** fossil span for memory. **Yes:** tool Exact + CodeGraph.
+**Not:** fossil span for memory. **Yes:** tool Exact + CodeGraph + plan state.
+
+**Plan state mirror (2026-08-27):** each `s` carries a system-Exact `planState`
+— a GATED WORKFLOW snapshot of the active plans: `lifecycle`, `gate`, per-task
+`sv`/status/oracle/`attempts`/`last_failure`, plan invariants — expressed in
+kernel-native anchors. It rides the Exact stamp into `m*`, so after every
+compact the model re-enters the workflow state as native prompt vocabulary;
+task sv strings make summaries reverse-searchable (messagesearch → s row →
+sessionread → facts). `## Semantic Vector` in model prose is **dominant-only**
+— invented `key_phrases` had zero consumers and were removed; the real task
+vectors come from the plan (system, not model). Relevance filter + caps
+(2026-08-28): only kernel-lifecycle plans with open work, newest ≤3, PASS
+collapsed to counts, open tasks ≤8/plan, 1500-char hard cap — stale-plan noise
+never enters `s`; `dominant` is anchored to the active plan's `goal_sv` via the
+sidecar request.
+
+<!-- goal_sv: summary, compaction, mirror, gated workflow -->
 
 **Recent floor:** after compact, work tail is at least ~`RECENT_MIN_TOKENS` (32 768) content tokens from the end, ignoring the latest summary — thin post-summary stubs are extended backward so the next open window is real work, not empty → immediate re-summary. The walk-back **hard-stops at the prior message***: it is EXCLUDED (session-read only) and the tail never crosses it — repeated compacts stay idempotent.
 
@@ -211,7 +228,7 @@ sequenceDiagram
 | Exact tool diffs + CodeGraph on s | `enrichRange`: `collectToolFileDiffs` + `mcpTouchThenSqlitePack` (no Fossil) | **Match**; no write/edit/multiedit in range ⇒ empty Exact |
 | Summary as user-message shape | Ephemeral stream appends `summaryRequestProse()` as user content | **Match** (stream-only, not DB user row) |
 | Store s + restore M | save checkpoint table; M never mutated | **Match** |
-| Checker after summary | `isValidSummaryBody` 4 headings; reject body if fail | **Partial** (no multi-retry on sidecar path) |
+| Checker after summary | `diagnoseSummaryGaps`: body ≥200 chars, per-section minima (Semantic Vector 40 / Goal 60 / Key decisions 40 / Current state 60 chars), ≥1 decision bullet; `isValidSummaryBody` = `gaps.length === 0`. Sidecar retry ×3 (`SIDECAR_MAX_ATTEMPTS`): attempt 1 = fresh request, 2+ = targeted `gapFillRequest` + `mergeSummarySections`; invalid after loop → warn + NOT stored | **Match** (verified 2026-08-27: prompt.ts:164,882-926,946-952 · compaction.ts:446-484) |
 | Fossil only for WC rollback | `SnapshotFossil.track` / `restore` — not on summary Exact path | **Match** |
 | Cadence ~256k chars / ~64k tokens | `SUMMARY_INTERVAL_TOKENS = 65_536` content/4 | **Match** (order of magnitude) |
 | `m* = [s,s,recent m]` | `compact()` folds open sidecars + Recent; **zero summaries → tail-only m\*** (header + last ~32K of messages; `log: no summaries`) | **Match (2026-08-25)** — T2 refusal removed: manual /compact works on fresh sessions; uncovered tail is the memory |
@@ -222,7 +239,7 @@ sequenceDiagram
 | Compact on window fill | **`maybeCompactCadence`**: target=`usable(model)` (limit − 32K response − 10K overhead); pre-send `hasSpareOutput` force-folds before the turn; stop-cadence is an earlier evaluation of the same rule; degenerate window (usable ≤ 0) folds only via the pre-send force path. T4 (≥2 sidecars) gate removed 2026-08-25 | **Fixed 2026-08-25** |
 | **m\* is NOT an increment** | `computeOpenWindowTokens` without a checkpoint boundary skips the leading message\* chain — the star is an assembly of prior s + history, never new work; a fold cannot pre-arm the Layer-1 cadence | **Fixed 2026-08-26** (was: counter baseline = len(m\*)/4 → s fired on the next stop after every fold) |
 | Pre-send no-progress guard | `hasSpareOutput` fail → force fold; if still failing and nothing folded → `NamedError` with used/usable numbers — the loop never spins silently | **Added 2026-08-26**; unreachable on ≥256K windows (m\* ≤ 32K s-bodies + ≤32K recent + tools ≪ gate), reachable on small-window models / oversized single input |
-| injectSummaryRequest as primary | Implemented, **not called** from `prompt.ts` | **Dead primary** |
+| injectSummaryRequest as primary | **Removed 2026-08-27** — exported `fn`, service method, interface field, orphaned `trimToLastInterval` + `summaryRangeSystemMarker`, and both test blocks deleted. Legacy `assistant.summary` fold branch + `hasPendingSummaryRequest` KEPT (old sessions in DB). Oracle: typecheck PASS (exit 0); compaction.test.ts green under load; prompt.test.ts serial 39 pass / 1 flake — flake A/B-proven unrelated (cancel test passes on baseline 17.1s and after removal 13.4s) | **Resolved — removed** |
 | Summary request as durable user row then restore | inject would leave synthetic user unless restored — not used | N/A |
 
 ### Stop-path cadence (shipped)
@@ -295,8 +312,8 @@ No BPE/tiktoken authority (undercounts providers).
 - [x] AI sections + Exact enrich  
 - [x] Body checker (4 headings)  
 - [x] **Compact on cadence at stop** (`maybeCompactCadence` after sidecar)  
-- [ ] Stronger post-summary field checker / retry on sidecar  
-- [ ] Remove or quarantine dead `injectSummaryRequest` primary path  
+- [x] **Stronger post-summary field checker / retry on sidecar** — `diagnoseSummaryGaps` (char minima + decision bullets), `SIDECAR_MAX_ATTEMPTS=3` gap-fill retry, reject-after-loop (prompt.ts:164,882-926,946-952; compaction.ts:446-484)  
+- [x] **Removed dead `injectSummaryRequest` primary path** (2026-08-27: fn + service method + interface field + orphaned helpers; legacy `assistant.summary` fold retained for old sessions)  
 - [x] Docs cite contract + gap table  
 
 ---

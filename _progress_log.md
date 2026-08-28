@@ -1,5 +1,56 @@
 # Progress Log
 
+## 2026-08-28 KV-cache parity guard + timeline analyzer (plan: plans/2026-08-28_kv-cache-parity-guard.md)
+
+Reason: регресс потерь кэша (пользователь: 2-3k токенов/ход vs исторические 56-100; подозрение на удаление sha256-верификации). RCA по логам 2026-08-27: (1) steady-state здоров — median hit ratio 0.990, чистые ходы 108-209 uncached (00:04-00:25 сессия); «2-3k» = tool-result байты нового хвоста (кешируются следующим ходом); (2) реальные потери событийные: restart+TTL → cold miss 176137; mid-session системная мутация 95038→150706 символов (вложенный packages/opencode/AGENTS.md вставился при первом касании, сдвинул префикс — инвариант «path system frozen until compact» нарушен); compact shrink 77942 → re-prefill 0.392; (3) явный cache-маркер не шлётся никогда (hasCacheControl=False, 46/46) → implicit cache, TTL-хрупкость; (4) старый 639-строчный аудит удалён в 352e073279, aggregates-хеш messages (llm.ts hashInfo) не сравнивался turn-over-turn → мутации уже отправленной истории не ловились.
+
+Script/Changes:
+
+- `packages/opencode/src/session/llm.ts` — `messagesStabilityVerdict()` (pure, exported: first|stable|mutated{position,mutatedTail}|restructured) + `checkMessagesStability()` (per-position Bun.hash ledger по providerCacheKey, LRU 200; warn `bug: sent message content mutated mid-session` при частичной дивергенции отправленной истории, info при реструктуризации compact/restart) + `resetMessagesStability()` (test hook); вызов в run() рядом с checkToolStability. Роль удалённого аудита — автоматическая сигнализация при поломке кэша агентскими правками — восстановлена за O(1)/сообщение.
+- `packages/opencode/test/session/llm.test.ts` — describe session.llm.messagesStabilityVerdict: 7 тестов (first/append-only/partial mutation/50% boundary/full divergence/majority/ vanish).
+- `experiments/kv-cache-parity/2026-08-28_analyze_cache_timeline.py` + README — анализатор таймлайна (jsonl usage/mutation/reset/marker + diff-файлы: added/removed/changed, reasoning/tool bytes; --session/--since/--require-anchors). Оракул-якоря C1/C2/C3 — FOUND.
+
+Script Output:
+
+- baseline: typecheck PASS exit 0 (`20260828T001839Z_38ff23e9`); llm tests 19 pass (`20260828T001917Z_06a865e2`).
+- analyzer `--require-anchors`: cold-restart-miss FOUND, system-mutation FOUND, new-session-partial-hit FOUND (92 usage rows, 75 diffs, 18 файлов).
+- post: typecheck PASS; llm tests 26 pass.
+
+## 2026-08-27 TUI flicker + CPU storm — displayItems remount fix (hotfix, no plan file)
+
+Reason: (1) TUI мигала при стриминге после коммитов collapse summary/memory (ca3a23e472, 1e7efb9d17); (2) аномальный CPU; (3) TUI-краш в штатном режиме предыдущей сессии — логи ротированы, RCA пост-фактум невозможен.
+
+Root cause [Exact — data flow]: `displayItems()` memo (session/index.tsx:288) создавал новые объекты-обёртки `{message, index}` при каждом пересчёте; `memoryRuns()` подписан на `sync.data.part[m.id].text` → пересчёт на каждый стриминговый delta-тик; Solid `<For>` референсный → полный unmount/remount транскрипта ~60 Гц (SDK-батч 16ms). Отсюда мигание + CPU-штоп (пересоздание tree-sitter/markdown/Yoga-дерева на тик) + вероятный краш (native-чурн).
+
+Fix: `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` — кэш обёрток по `message.id` (реюз при стабильной ссылке сообщения; пересборка кэша на каждый пересчёт = авто-прунинг удалённых), кэш `[-]`-контролов по `runId`, реактивный аксессор индекса `messageIndexById` (id→index memo) взамен `item.index`.
+
+Script Output:
+
+- typecheck: PASS exit 0 (`20260827T233604Z_91d8c08f`, tsgo --noEmit).
+- Билд: фоновый cmd_runner-билд завис на очистке .temp/test (`20260827T233708Z_cfab9dac`) — убит; пользователь пересобрал вручную → 10.0.889 (chunk-5r29payx) стартовал 23:43:18, лог чистый (единственный WARN — известный ENOENT kv.json).
+- Визуальная верификация: **ПОДТВЕРЖДЕНО пользователем 23:46 UTC** — мерцание пропало (стриминг без remount-шторма), CPU в норме.
+- Сопутствующее наблюдение: корневой рендер-стек OpenTUI здоров (renderer.zig diff-loop с lazy frame start + syncSet/syncReset — мигание не в нативном слое).
+
+## 2026-08-27 Summary plan-mirror + inject cleanup + docs sync (plan: plans_completed/2026-08-27_summary-plan-mirror.md)
+
+Reason: (1) доки отстали от кода — гэпы compaction.md §6 уже реализованы (чеккер/retry sidecar), injectSummaryRequest не вызывается из прода с 2026-07-27 (sidecar), но покрыт тестами; (2) решение заказчика — убрать выдуманные моделью key_phrases, саммари обязано зеркалировать GATED WORKFLOW (lifecycle/gate/task sv/attempts/last_failure/invariants — kernel-native anchors, Exact = система, не модель); (3) ghost-строка summary-агента в AGENTS.md/architecture.md.
+
+Script/Changes:
+
+- `packages/opencode/src/session/compaction.ts` — injectSummaryRequest (fn + service + interface) удалён как dead primary; осиротевшие `trimToLastInterval`/`summaryRangeSystemMarker` удалены; prose `## Semantic Vector` dominant-only; `extractSemanticVector` dominant-only (legacy key_phrases игнорируются); `MIN_SUMMARY_SECTION_CHARS["Semantic Vector"]` 40→25; planState в links-блок buildMessageStar (фолд в m*) и в formatLayer1SummaryDisplay (панель).
+- `packages/opencode/src/util/plan-status.ts` — `collectPlanState()` / `formatPlanStateText()` + типы PlanStatePayload/PlanStatePlan/PlanStateTask; теги задач `<!-- sv: ... | done_pct: N | attempts: N | last_failure: ... -->`, план-тег `<!-- workflow: lifecycle X | gate GN -->`, секция Invariants; graceful degradation для планов без тегов.
+- `packages/opencode/src/session/session.sql.ts` + `migration/20260827000000_project_checkpoint_plan_state.ts` + `src/storage/migration.gen.ts` — колонка `plan_state` (JSON text) + миграция ALTER TABLE.
+- `packages/opencode/src/session/prompt.ts` — captureSidecar: `collectPlanState(ctx.worktree)` → `IncrementalCheckpoint.save({planState})` → панель с зеркалом.
+- `packages/opencode/test/session/prompt.test.ts` — удалён legacy-тест «in-loop summary turn» (механика inject-инжекта; tool-parity остаётся покрыт тестом captureSummary); `test/session/compaction.test.ts` — удалён describe injectSummaryRequest, +интеграция «planState sidecar → m* pickup»; `test/util/plan-status.test.ts` — +2 теста зеркала (полный/деградация).
+- docs: compaction.md §6 (чеккер/retry → Match с датой верификации; injectSummaryRequest → Resolved/removed; план-state строка в Exact-таблице); AGENTS.md + docs/architecture.md — ghost summary-agent убран; httpapi/session.ts T3-комментарий актуализирован (tail-only fold, T2 снят 2026-08-25).
+- cleanup: inject-археология через `git log -S`; untracked-мусор вычищен (test1/, artifacts/, .artifacts/, test/scratch/), repro-checkout.ts + session-export .html → obsolete/.
+
+Script Output:
+
+- typecheck: PASS exit 0 (`20260827T222420Z_cd6f85e9`); первый прогон FAIL (10 errors: дубль extractSemanticVector после частичного применения мультиэдита + donePct/done_pct + formatPlanStateText possibly-undefined) — исправлены, ошибка ERROR_TEST→REAL_FIX по цепочке.
+- tests: compaction+summary+plan-status **107 pass / 0 fail** (`20260827T223326Z_0e879bb5`); prompt.test.ts сериально **40 pass / 13 skip / 0 fail** (`20260827T223842Z_ff4624c8`); флейк «cancel interrupts» A/B-доказан нерелевантным (baseline `20260827T172509Z_a07253ff` PASS 17.1s / с правками `20260827T172748Z_a575f9f0` PASS 13.4s).
+- WIP: reasoning_prompt.txt — ручная правка пользователя (минус задвоенный ROOT OF TRUTH); proof-of-run receipts в logs/cmd_runner/.
+
 ## 2026-08-16 Tools JSON era-freeze — T1-T6 завершены (plan: plans/2026-08-16-tools-kv-cache-era-freeze.md)
 
 Reason: KAT-прогон с реальным каталогом (31 тул) показал — Layer-1 саммари-тур шлёт `tools: {}` (prompt.ts ветка `summaryAttempt`), префикс 55k вместо 73k, gateway «хитит» чужую эру (без тулов), рабочий префикс кэш не набирает; саммари-тур при этом не был защищён ничем, кроме пустого каталога. Дизайн-принцип заказчика: каталог тулов/скиллов перманентный (гейтинг — constitution+промпт, не форма провода); compact = апгрейд версии системы.

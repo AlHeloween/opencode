@@ -420,6 +420,16 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
             "X-Title": "opencode",
           },
         },
+        // Provider routing preferences (config: provider.openrouter.options.routing —
+        // openrouter-native shape: order/allow_fallbacks/quantizations/...).
+        // Passed as model-level SDK settings so EVERY request body carries
+        // `provider: {...}` — pins the upstream (stable cache namespace +
+        // declared quantization). Per-model override: models.<id>.options.routing.
+        async getModel(sdk: any, modelID: string, options?: Record<string, any>) {
+          const routing = openRouterRouting(options)
+          if (!routing) return sdk.languageModel(modelID)
+          return sdk.languageModel(modelID, { provider: routing })
+        },
       }),
     nvidia: () =>
       Effect.succeed({
@@ -1748,6 +1758,16 @@ export function sort<T extends { id: string }>(models: T[]) {
     [(model) => (model.id.includes("latest") ? 0 : 1), "asc"],
     [(model) => model.id, "desc"],
   )
+}
+
+/** OpenRouter routing preferences from provider/model config options.
+ *  Passed through verbatim (openrouter-native keys) into SDK model settings,
+ *  which serialize as `provider: {...}` in every request body. Non-object
+ *  values (missing/null/array) are ignored — model falls back to defaults. */
+export function openRouterRouting(options?: Record<string, any>): Record<string, unknown> | undefined {
+  const routing = options?.routing
+  if (routing === null || typeof routing !== "object" || Array.isArray(routing)) return undefined
+  return routing as Record<string, unknown>
 }
 
 export function parseModel(model: string) {

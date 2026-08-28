@@ -38,6 +38,9 @@ node_modules
 
 # ── Build Outputs ──
 dist/
+
+# ── Archived session artifacts (obsolete/ lane, large binaries) ──
+obsolete/*.html
 target
 ts-dist
 tsconfig.tsbuildinfo

@@ -58,6 +58,7 @@ function prevKey(meta: Pick<DiffMeta, "sessionID" | "providerID" | "modelID" | "
 
 /** Remember formatted request for the next turn's diff (in-process only). */
 export function rememberFormatted(text: string, meta: DiffMeta): void {
+  // (legacy text snapshot — the positional instrument uses rememberSnapshot)
   previousFormatted.set(prevKey(meta), { text, meta })
 }
 
@@ -74,6 +75,227 @@ export function clearPreviousFormatted(sessionID: string): void {
   for (const key of previousFormatted.keys()) {
     if (key.startsWith(prefix)) previousFormatted.delete(key)
   }
+  for (const key of previousBlocks.keys()) {
+    if (key.startsWith(prefix)) previousBlocks.delete(key)
+  }
+}
+
+// ── Whole-sequence positional diff (block map) ────────────────────────────────
+//
+// The text diff (diffRequest) compares budget-truncated VIEWS: a viewport shift
+// or a checkpoint-prefix cut can fake "removed" entries, and mutations inside
+// the unformatted prefix are invisible by design (measured: cache losses vs
+// diff churn correlate at r = -0.013). The cache invariant is: ONE changed
+// byte anywhere in the sent sequence kills the provider cache from that
+// position — so the instrument must walk the FULL sequence from position 0,
+// localize the FIRST DIVERGENCE with its exact position, and only then append
+// the tail.
+
+/** Per-message block: stable identity + content hash + rendered text. */
+export interface MessageBlock {
+  /** Model-indexed message ID when known, else `#N` positional fallback. */
+  key: string
+  /** Hex content hash of the rendered block (byte-level identity). */
+  hash: string
+  /** Rendered block text (same lines the MESSAGES section would print). */
+  text: string
+}
+
+/** Full-sequence snapshot of one request: system identity + message blocks. */
+export interface RequestSnapshot {
+  /** Hex hash of the joined system entries — system mutation = cache poison. */
+  systemHash: string
+  /** Total chars of the joined system entries (for one-line reporting). */
+  systemChars: number
+  /** One block per model message, in request order. */
+  blocks: MessageBlock[]
+}
+
+/** Previous request's snapshot per session+model+agent (in-process only). */
+const previousBlocks = new Map<string, { snapshot: RequestSnapshot; meta: DiffMeta }>()
+
+/** Remember the current request's snapshot for the next turn's positional diff. */
+export function rememberSnapshot(snapshot: RequestSnapshot, meta: DiffMeta): void {
+  previousBlocks.set(prevKey(meta), { snapshot, meta })
+}
+
+/** Load previous snapshot if any (does not clear). */
+export function getPreviousSnapshot(
+  meta: Pick<DiffMeta, "sessionID" | "providerID" | "modelID" | "agent">,
+): { snapshot: RequestSnapshot; meta: DiffMeta } | undefined {
+  return previousBlocks.get(prevKey(meta))
+}
+
+/**
+ * Snapshot the FULL request sequence: per-message identity + hash + rendered
+ * text, plus the system identity. No viewport, no budget cut — hashes are
+ * O(history) but cheap; the expensive text rendering stays capped per block.
+ */
+export function formatRequestDetailed(
+  system: string[],
+  modelMsgs: ModelMessage[],
+  meta: DiffMeta,
+  messageIDs?: string[],
+): RequestSnapshot {
+  void meta
+  const systemText = system.join("\n")
+  const blocks: MessageBlock[] = modelMsgs.map((msg, i) => {
+    // 0-based stable display index — the same number diffBlocks reports as
+    // the divergence position (display #N = position + 1).
+    const text = formatModelMessage(msg, i, messageIDs?.[i])
+    return {
+      key: messageIDs?.[i] ?? `#${i + 1}`,
+      hash: hashString(text).toString(16),
+      text,
+    }
+  })
+  return {
+    systemHash: hashString(systemText).toString(16),
+    systemChars: systemText.length,
+    blocks,
+  }
+}
+
+/** Cap for old/new block bodies printed inside the DIVERGENCE section. */
+const MAX_DIVERGENCE_BLOCK_CHARS = 4000
+/** Max one-line summaries for changed positions beyond the first divergence. */
+const MAX_CHANGED_SUMMARIES = 8
+
+function indentBlock(text: string, marker: string): string {
+  const capped = truncateText(text, MAX_DIVERGENCE_BLOCK_CHARS, "divergence block")
+  return capped
+    .split("\n")
+    .map((line) => `${marker} ${line}`)
+    .join("\n")
+}
+
+/**
+ * Positional diff of the whole sequence. Walks from position 0 while key AND
+ * content hash match; the first mismatch is the divergence position D (the
+ * cache-poison start). Appends the tail afterwards. Returns "" when the
+ * request is byte-identical to the previous one (nothing to report).
+ */
+export function diffBlocks(
+  prev: { snapshot: RequestSnapshot; meta: DiffMeta } | undefined,
+  curr: RequestSnapshot,
+  currMeta: DiffMeta,
+): string {
+  if (!prev) return ""
+  const pb = prev.snapshot.blocks
+  const cb = curr.blocks
+  const prevLen = pb.length
+  const currLen = cb.length
+
+  const systemChanged = prev.snapshot.systemHash !== curr.systemHash
+
+  let d = 0
+  const n = Math.min(prevLen, currLen)
+  while (d < n && pb[d].key === cb[d].key && pb[d].hash === cb[d].hash) d++
+
+  let changed = 0
+  let keyMatches = 0
+  const changedPositions: number[] = []
+  for (let i = d; i < n; i++) {
+    if (pb[i].key === cb[i].key) {
+      keyMatches++
+      if (pb[i].hash !== cb[i].hash) {
+        changed++
+        changedPositions.push(i)
+      }
+    }
+  }
+  const removed = prevLen - d - keyMatches
+  const added = currLen - d - keyMatches
+
+  const identical = !systemChanged && d === prevLen && d === currLen
+  if (identical) return ""
+
+  const blocksIdentical = d === prevLen && d === currLen
+  const verdict = blocksIdentical
+    ? "divergence@system"
+    : d === prevLen
+      ? "append-only"
+      : d >= currLen
+        ? `divergence@${d} (vanished)`
+        : `divergence@${d}`
+
+  const lines: string[] = []
+  lines.push(`--- turn-${prev.meta.turn}  ${new Date(prev.meta.timestamp).toISOString()}`)
+  lines.push(`+++ turn-${currMeta.turn}  ${new Date(currMeta.timestamp).toISOString()}`)
+  lines.push("")
+  lines.push("@@ SEQUENCE @@")
+  lines.push(`prev_messages: ${prevLen}`)
+  lines.push(`curr_messages: ${currLen}`)
+  lines.push(`common_prefix: ${d}`)
+  lines.push(`first_divergence: ${d < prevLen ? String(d) : systemChanged ? "system" : "none"}`)
+  lines.push(
+    `system: ${systemChanged ? `CHANGED (${prev.snapshot.systemChars} -> ${curr.systemChars} chars)` : "same"}`,
+  )
+  lines.push(`verdict: ${verdict}`)
+  lines.push("")
+  lines.push("@@ MESSAGES @@")
+  lines.push(`${added} added, ${removed} removed, ${changed} changed`)
+
+  if (systemChanged) {
+    lines.push("")
+    lines.push("@@ DIVERGENCE @ system @@")
+    lines.push(`- system: ${prev.snapshot.systemChars} chars (hash ${prev.snapshot.systemHash})`)
+    lines.push(`+ system: ${curr.systemChars} chars (hash ${curr.systemHash})`)
+  }
+
+  if (d < prevLen) {
+    lines.push("")
+    lines.push(`@@ DIVERGENCE @ position ${d} @@`)
+    if (d >= currLen) {
+      lines.push(`kind: vanished — positions ${d}..${prevLen - 1} present in prev, absent in curr`)
+      lines.push(`- [position ${d}] (${pb[d].key}, ${pb[d].text.length}B):`)
+      lines.push(indentBlock(pb[d].text, "-"))
+    } else {
+      lines.push("kind: replaced/mutated — old vs new at the problem start")
+      lines.push(`- [position ${d}] (${pb[d].key}, ${pb[d].text.length}B):`)
+      lines.push(indentBlock(pb[d].text, "-"))
+      lines.push(`+ [position ${d}] (${cb[d].key}, ${cb[d].text.length}B):`)
+      lines.push(indentBlock(cb[d].text, "+"))
+    }
+    const shown = changedPositions.slice(0, MAX_CHANGED_SUMMARIES)
+    for (const i of shown) {
+      lines.push(
+        `~ [position ${i}] (${pb[i].key}): ${pb[i].text.length}B -> ${cb[i].text.length}B (content hash differs)`,
+      )
+    }
+    if (changedPositions.length > shown.length) {
+      lines.push(`... (+${changedPositions.length - shown.length} more changed positions)`)
+    }
+  }
+
+  const tailFrom = d === prevLen ? prevLen : Math.min(prevLen, currLen)
+  const tail = cb.slice(tailFrom)
+  if (tail.length > 0) {
+    lines.push("")
+    lines.push(`@@ TAIL @ from position ${tailFrom} @@`)
+    lines.push(`${tail.length} appended message(s)`)
+    // Suffix-first budget: keep newest tail blocks that fit.
+    let used = 0
+    let start = tail.length
+    for (let i = tail.length - 1; i >= 0; i--) {
+      const need = tail[i].text.length + 1
+      if (used + need > MAX_FORMATTED_REQUEST_CHARS && start < tail.length) break
+      if (used + need > MAX_FORMATTED_REQUEST_CHARS) {
+        start = i
+        break
+      }
+      used += need
+      start = i
+    }
+    if (start > 0) {
+      lines.push(`... (${start} older tail messages omitted)`)
+    }
+    for (let i = start; i < tail.length; i++) {
+      lines.push(tail[i].text)
+    }
+  }
+
+  return lines.join("\n")
 }
 
 export type FormatRequestOpts = {

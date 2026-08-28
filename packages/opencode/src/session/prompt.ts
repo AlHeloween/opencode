@@ -2230,32 +2230,22 @@ export const layer = Layer.effect(
                 agent: agent.name,
                 timestamp: Date.now(),
               }
-              // Suffix-only: DB prefix → model-message end index (tool calls expand 1:N).
-              const dbPrefix =
-                checkpointUsable != null
-                  ? Checkpoint.reusablePrefixLength(msgs, checkpointUsable)
-                  : 0
-              const modelFrom =
-                checkpointUsable != null
-                  ? (Checkpoint.modelMessageEnd(checkpointUsable, dbPrefix) ?? 0)
-                  : 0
-              const formatted = RequestDiff.formatRequest(
+              // Whole-sequence snapshot: positional block map over ALL messages.
+              // The instrument walks from position 0 to the FIRST DIVERGENCE
+              // (exact position + old/new blocks), then appends the tail — no
+              // fromIndex viewport, no fake removals, prefix mutations visible.
+              const snapshot = RequestDiff.formatRequestDetailed(
                 systemForDiff,
                 modelMsgs,
                 diffMeta,
                 modelMessageIDs,
-                { fromIndex: modelFrom, preferNewest: true },
               )
-              const remembered = RequestDiff.getPreviousFormatted(diffMeta)
-              const prevText = remembered?.text
-              const prevMeta = remembered?.meta
-              // Do NOT re-format full checkpoint.messages as prev — that re-walked
-              // the entire model history on every cold restore.
-              if (prevText && prevMeta) {
-                const diff = RequestDiff.diffRequest(prevText, formatted, prevMeta, diffMeta)
+              const previous = RequestDiff.getPreviousSnapshot(diffMeta)
+              if (previous) {
+                const diff = RequestDiff.diffBlocks(previous, snapshot, diffMeta)
                 if (diff) RequestDiff.writeDiff(diff, diffMeta)
               }
-              RequestDiff.rememberFormatted(formatted, diffMeta)
+              RequestDiff.rememberSnapshot(snapshot, diffMeta)
             }
 
             if (structured !== undefined) {

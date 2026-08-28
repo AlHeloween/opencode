@@ -319,6 +319,103 @@ describe("diffRequest", () => {
   })
 })
 
+describe("diffBlocks (positional whole-sequence)", () => {
+  const metaAt = (turn: number, session = "ses_posdiff"): DiffMeta => baseMeta({ turn, sessionID: session })
+  const u = (text: string): ModelMessage => ({ role: "user", content: text })
+  const a = (text: string): ModelMessage => ({ role: "assistant", content: text })
+
+  const snap = (msgs: ModelMessage[], ids: string[] | undefined, turn: number, system = makeSystem()) =>
+    RequestDiff.formatRequestDetailed(system, msgs, metaAt(turn), ids)
+
+  const diffOf = (
+    prevMsgs: ModelMessage[],
+    currMsgs: ModelMessage[],
+    prevIds?: string[],
+    currIds?: string[],
+    system?: string[],
+  ) => {
+    const prev = snap(prevMsgs, prevIds, 1, system)
+    const curr = snap(currMsgs, currIds, 2, system)
+    return RequestDiff.diffBlocks({ snapshot: prev, meta: metaAt(1) }, curr, metaAt(2))
+  }
+
+  test("first request (no previous) → empty diff", () => {
+    const curr = snap([u("q1")], ["m1"], 1)
+    expect(RequestDiff.diffBlocks(undefined, curr, metaAt(1))).toBe("")
+  })
+
+  test("append-only growth → verdict append-only, no divergence section", () => {
+    const diff = diffOf([u("q1"), a("a1")], [u("q1"), a("a1"), u("q2")], ["m1", "m2"], ["m1", "m2", "m3"])
+    expect(diff).toContain("verdict: append-only")
+    expect(diff).toContain("1 added, 0 removed, 0 changed")
+    expect(diff).toContain("common_prefix: 2")
+    expect(diff).not.toContain("@@ DIVERGENCE")
+    expect(diff).toContain("@@ TAIL @ from position 2 @@")
+    expect(diff).toContain("q2")
+  })
+
+  test("mutation at position 1 → exact position + old/new blocks", () => {
+    const diff = diffOf([u("a1"), a("b1")], [u("a1"), a("b1 MUTATED")], ["m1", "m2"], ["m1", "m2"])
+    expect(diff).toContain("verdict: divergence@1")
+    expect(diff).toContain("@@ DIVERGENCE @ position 1 @@")
+    expect(diff).toContain("b1 MUTATED")
+    expect(diff).toContain("first_divergence: 1")
+  })
+
+  test("vanished tail (compaction) → vanished at position, removed counted", () => {
+    // True vanish = strict prefix survives, tail dropped: [m1,m2,m3] → [m1].
+    // (Front-compaction with renumbered keys is a restructure — keys misalign.)
+    const diff = diffOf([u("q1"), a("a1"), u("q2")], [u("q1")], ["m1", "m2", "m3"], ["m1"])
+    expect(diff).toContain("verdict: divergence@1 (vanished)")
+    expect(diff).toContain("kind: vanished")
+    expect(diff).toContain("2 removed")
+  })
+
+  test("front-compaction with renumbered keys is a restructure at 0", () => {
+    const diff = diffOf([u("q1"), a("a1"), u("q2")], [u("q2")], ["m1", "m2", "m3"], ["m3"])
+    expect(diff).toContain("verdict: divergence@0")
+    expect(diff).toContain("common_prefix: 0")
+  })
+
+  test("restructure at position 0 (ids differ) → divergence@0", () => {
+    const diff = diffOf([u("same text")], [u("same text")], ["m1"], ["x1"])
+    expect(diff).toContain("verdict: divergence@0")
+    expect(diff).not.toContain("verdict: append-only")
+  })
+
+  test("mid-turn tool-loop growth is append-only (old viewport artifact gone)", () => {
+    const toolMsg = {
+      role: "tool" as const,
+      content: [{ type: "tool-result" as const, toolCallId: "tc_1", toolName: "grep", output: "r" }],
+    } as unknown as ModelMessage
+    const prev = [u("q"), a("go"), toolMsg]
+    const curr = [u("q"), a("go"), toolMsg, a("done")]
+    const diff = diffOf(prev, curr, ["m1", "m2", "m3"], ["m1", "m2", "m3", "m4"])
+    expect(diff).toContain("verdict: append-only")
+    expect(diff).not.toContain("@@ DIVERGENCE")
+  })
+
+  test("system prompt change is reported as divergence@system", () => {
+    const prev = snap([u("q1")], ["m1"], 1)
+    const curr = snap([u("q1")], ["m1"], 2, [...makeSystem(), "INJECTED EXTRA RULE"])
+    const diff = RequestDiff.diffBlocks({ snapshot: prev, meta: metaAt(1) }, curr, metaAt(2))
+    expect(diff).toContain("verdict: divergence@system")
+    expect(diff).toContain("@@ DIVERGENCE @ system @@")
+    expect(diff).toContain("system: CHANGED")
+  })
+
+  test("remember/get/clear snapshot roundtrip", () => {
+    const sessionMeta = metaAt(1, "ses_snap_rt")
+    const snapshot = snap([u("hello")], ["m1"], 1)
+    RequestDiff.rememberSnapshot(snapshot, sessionMeta)
+    const got = RequestDiff.getPreviousSnapshot(sessionMeta)
+    expect(got?.snapshot.blocks).toHaveLength(1)
+    expect(got?.snapshot.blocks[0].key).toBe("m1")
+    RequestDiff.clearPreviousFormatted("ses_snap_rt")
+    expect(RequestDiff.getPreviousSnapshot(sessionMeta)).toBeUndefined()
+  })
+})
+
 describe("writeDiff", () => {
   let tmpDir: string
 

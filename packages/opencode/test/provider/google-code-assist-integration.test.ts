@@ -1,12 +1,30 @@
-import { describe, expect, test, afterEach } from "bun:test"
+import { afterAll, beforeAll, describe, expect, test } from "bun:test"
 import fs from "fs"
 import path from "path"
-import os from "os"
+import { Global } from "@opencode-ai/core/global"
 import { createGeminiProvider } from "../../src/provider/google-code-assist"
 
 const OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"
 const CLIENT_ID = process.env.GOOGLE_OAUTH_CLIENT_ID
 const CLIENT_SECRET = process.env.GOOGLE_OAUTH_CLIENT_SECRET
+
+// Isolated test auth (portability doctrine): the live integration flow reads
+// OAuth credentials from an ISOLATED fixture directory — never the real user
+// home, never the developer's real auth.json. Drop an auth.json (with a
+// google oauth entry) into fixtures/google-auth/ to enable the live flow;
+// without it the test skips gracefully.
+const fixtureConfigDir = path.resolve(import.meta.dir, "fixtures", "google-auth")
+let originalTestConfig: string | undefined
+
+beforeAll(() => {
+  originalTestConfig = process.env.OPENCODE_TEST_CONFIG
+  process.env.OPENCODE_TEST_CONFIG = fixtureConfigDir
+})
+
+afterAll(() => {
+  if (originalTestConfig === undefined) delete process.env.OPENCODE_TEST_CONFIG
+  else process.env.OPENCODE_TEST_CONFIG = originalTestConfig
+})
 
 interface TokenResponse {
   access_token: string
@@ -18,10 +36,7 @@ interface TokenResponse {
 
 async function getGoogleOAuthToken(): Promise<{ accessToken: string; projectId?: string } | null> {
   try {
-    const realXdgData = process.env.XDG_DATA_HOME?.includes("opencode-test-data")
-      ? path.join(os.homedir(), ".local", "share")
-      : process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share")
-    const authPath = path.join(realXdgData, "opencode", "auth.json")
+    const authPath = path.join(Global.Path.config, "auth.json")
     if (!fs.existsSync(authPath)) {
       console.log("Skipping: auth.json not found at", authPath)
       return null

@@ -158,3 +158,39 @@ Use `provideTmpdirInstance(...)` by default when a test only needs one temp inst
 - Yield services directly with `yield* MyService.Service` or `yield* MyTool`.
 - Avoid custom `ManagedRuntime`, `attach(...)`, or ad hoc `run(...)` wrappers when `testEffect(...)` already provides the runtime.
 - When a test needs instance-local state, prefer `provideTmpdirInstance(...)` or `provideInstance(...)` over manual `Instance.provide(...)` inside Promise-style tests.
+
+# Home Purity Guard (portability contract)
+
+Doctrine (Local_Development): the real user home (`os.homedir()`) is **NEVER**
+written by opencode or its tests. Portability is the founding contract:
+
+- exe dropped into a project root → **closed loop** (config next to the exe, data in the worktree)
+- exe in a PATH folder → **automatically global** (config = exe dir)
+- exe run from a flash drive / foreign machine → **zero leakage**: nothing is
+  written to the host's home, everything stays inside the worktree
+
+- `Global.Path.home` = worktree (never `os.homedir()`); `Global.Path.config` = executable dir (jsonc only)
+- All databases, state, logs, caches live in the worktree: `{worktree}/.opencode/data`
+- The harness (`test/preload.ts`) redirects XDG and `OPENCODE_TEST_*` env vars into `{worktree}/.temp/test/...`
+
+## The guard — strong architectural indicator, not a run-killer
+
+- `test/aa-home-purity.test.ts` — runs **first** (alphabetical discovery); snapshots the real home.
+- `test/zz-home-purity.test.ts` — runs **last**; diffs the snapshot.
+  - HARD FAIL: opencode's own standard home paths (sentinels — `~/.opencode`,
+    `~/.config/opencode`, `~/.local/share/opencode`, ...) appeared during the run.
+  - LOUD INDICATOR (non-fatal): any other new entry in home — prominent
+    console.error so the signal cannot be missed, but the run stays usable.
+- Scanner + skip list (third-party churn roots like AppData/caches): `test/lib/home-purity.ts`.
+- Limitation: the guard assumes this worktree is NOT located under `os.homedir()` (true for this repo).
+
+## Rules for tests
+
+- Never write to `os.homedir()` — and never read real user data from it (no real `auth.json`, no real configs).
+- All fixtures write into the worktree temp (`tmpdir()` → `.temp/test` or the system temp).
+- A full-stack `it.live` test must declare an explicit generous timeout
+  (e.g. `it.live("...", () => ..., 30_000)`); the bun default is 5000ms and
+  full Effect stacks routinely exceed it on a loaded machine.
+- Before claiming the portability contract holds, run the full suite
+  (`bun test` from `packages/opencode`) and require the purity guard green.
+

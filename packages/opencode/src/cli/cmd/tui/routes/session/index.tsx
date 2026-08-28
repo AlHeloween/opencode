@@ -282,18 +282,44 @@ export function Session() {
   }
   // Transcript display order: messages plus one [-] control injected after
   // the last row of every EXPANDED run (its only collapse affordance).
+  // Wrappers are cached by id: Solid <For> reconciles by identity, so fresh
+  // wrapper objects would remount the whole transcript on every streaming
+  // part delta (transcript flicker). Row index stays reactive via
+  // messageIndexById, matching <For>'s own reactive index semantics.
   type DisplayItem =
     | { message: ReturnType<typeof messagesList>[number]; index: number }
     | { collapseFor: string }
+  const messageIndexById = createMemo(() => {
+    const map = new Map<string, number>()
+    messagesList().forEach((m, i) => map.set(m.id, i))
+    return map
+  })
+  let displayItemCache = new Map<string, { message: ReturnType<typeof messagesList>[number]; index: number }>()
+  let collapseControlCache = new Map<string, { collapseFor: string }>()
   const displayItems = createMemo((): DisplayItem[] => {
+    const runs = memoryRuns()
+    const expanded = expandedMemory()
+    const nextItems = new Map<string, { message: ReturnType<typeof messagesList>[number]; index: number }>()
+    const nextControls = new Map<string, { collapseFor: string }>()
     const out: DisplayItem[] = []
     messagesList().forEach((m, i) => {
-      out.push({ message: m, index: i })
-      const info = memoryRuns().get(m.id)
-      if (info?.isMemory && info.size >= 2 && info.isLast && expandedMemory().has(info.runId)) {
-        out.push({ collapseFor: info.runId })
+      const cached = displayItemCache.get(m.id)
+      const item = cached && cached.message === m ? cached : { message: m, index: i }
+      item.index = i
+      nextItems.set(m.id, item)
+      out.push(item)
+      const info = runs.get(m.id)
+      if (info?.isMemory && info.size >= 2 && info.isLast && expanded.has(info.runId)) {
+        let control = collapseControlCache.get(info.runId)
+        if (!control) {
+          control = { collapseFor: info.runId }
+        }
+        collapseControlCache.set(info.runId, control)
+        out.push(control)
       }
     })
+    displayItemCache = nextItems
+    collapseControlCache = nextControls
     return out
   })
   const permissions = createMemo(() => {
@@ -1487,7 +1513,7 @@ export function Session() {
                     )
                   }
                   const message = item.message
-                  const index = () => item.index
+                  const index = () => messageIndexById().get(message.id) ?? item.index
                   return (
                     <Switch>
                     <Match when={message.id === revert()?.messageID}>

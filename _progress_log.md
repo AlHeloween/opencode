@@ -1,5 +1,19 @@
 # Progress Log
 
+## 2026-08-28 TUI remount-storm fix closed; syntax-highlight flicker → next session
+
+Reason: закрытие TUI-багфикса (мигание транскрипта при стриминге + CPU-шторм). Корень: `displayItems()` создавал свежие объекты-обёртки на каждый стриминговый дельта-тик → Solid `<For>` (референсный) пересобирал весь транскрипт ~60 Гц. Регрессия появилась после коммитов collapse-summary/memory (ca3a23e472, 1e7efb9d17, 075b1bf8cf).
+
+Script/Changes:
+
+- `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` — стабилизация идентичности: кэш обёрток по `message.id` (реюз ссылки до замены объекта store), кэш `[-]`-контролов по `runId`, реактивный индекс через `messageIndexById` (id → index Map). (+31/-5)
+
+Script Output:
+
+- typecheck: PASS exit 0 (cmd_runner `20260827T233604Z_91d8c08f`).
+- Живая верификация: пользователь подтвердил — мерцание пропало на билде 10.0.889 (chunk-5r29payx.js, старт 23:43:18, логи чисты).
+- Open bug → новая сессия (директива пользователя 2026-08-28): блоки синтаксиса мерцают при рендере — подсветка накладывается и сбрасывается. Отдельный слой (вероятно lifecycle tree-sitter highlighter при per-part re-render во время стриминга); RCA не проводился. Краш сессии 2026-08-27 23:0x остаётся без RCA (логи ротированы); remount-storm — консистентный подозреваемый.
+
 ## 2026-08-28 KV-cache parity guard + timeline analyzer (plan: plans/2026-08-28_kv-cache-parity-guard.md)
 
 Reason: регресс потерь кэша (пользователь: 2-3k токенов/ход vs исторические 56-100; подозрение на удаление sha256-верификации). RCA по логам 2026-08-27: (1) steady-state здоров — median hit ratio 0.990, чистые ходы 108-209 uncached (00:04-00:25 сессия); «2-3k» = tool-result байты нового хвоста (кешируются следующим ходом); (2) реальные потери событийные: restart+TTL → cold miss 176137; mid-session системная мутация 95038→150706 символов (вложенный packages/opencode/AGENTS.md вставился при первом касании, сдвинул префикс — инвариант «path system frozen until compact» нарушен); compact shrink 77942 → re-prefill 0.392; (3) явный cache-маркер не шлётся никогда (hasCacheControl=False, 46/46) → implicit cache, TTL-хрупкость; (4) старый 639-строчный аудит удалён в 352e073279, aggregates-хеш messages (llm.ts hashInfo) не сравнивался turn-over-turn → мутации уже отправленной истории не ловились.

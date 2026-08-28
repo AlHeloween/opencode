@@ -49,6 +49,7 @@ Everything below is grounded in the official references (read before the runs) p
 - Disabled thinking also shrinks the template slightly (48 068 vs 48 147 prompt).
 - Historical `reasoning_content` between two user messages **without tool calls is IGNORED by the API** — echoing it adds wire bytes but does not enter `prompt_tokens`.
 - For requests carrying `tools`, `reasoning_content` **MUST be passed back** in all subsequent requests — otherwise HTTP 400 ("must be passed back to the API").
+- **Re-verified 2026-08-28** (live 400 on variant without the field) + cross-vendor matrix and the gateway rewrite: see `docs/reasoning-round-trip-contract.md`.
 
 ### `user_id` isolation — refuted on our account
 

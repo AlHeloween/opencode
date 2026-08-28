@@ -11,7 +11,7 @@ import * as H1 from "./h1-transport"
 import { healthScore } from "./health-window"
 import { Global } from "@opencode-ai/core/global"
 import * as Log from "@opencode-ai/core/util/log"
-import { createPatch } from "@/util/diff-wasm"
+import { collectReasoning, renderRawDiff, renderReasoningMarkdown } from "./raw-diff"
 import path from "path"
 import { EOL } from "os"
 import fs from "fs"
@@ -114,14 +114,60 @@ function wireHeaders(headers: Record<string, string>): Record<string, string> {
 }
 
 /**
- * Attempt to pretty-print a JSON string so line-based diffs are meaningful.
+ * Parse a JSON string for embedding as a structured value in dumps.
  * Falls back to the original string if parsing fails.
  */
-function tryFormatJSON(raw: string): string {
+function tryParseJSON(raw: string): unknown {
   try {
-    return JSON.stringify(JSON.parse(raw), null, 2)
+    return JSON.parse(raw)
   } catch {
     return raw
+  }
+}
+
+/**
+ * Collapse the SDK's dual reasoning dialect to the vendor-native single field:
+ * assistant `reasoning` (+ duplicate `reasoning_details`) -> `reasoning_content`,
+ * placed in the vendor-canonical position BEFORE `tool_calls` (thinking precedes
+ * the calls it motivates). Key order is rebuilt; bodies stay minified.
+ * Tool-call turns always carry the field — empty string when the model produced
+ * no CoT at all (strict vendor paths 400 on a missing field).
+ */
+function rewriteReasoningContent(body: string): string {
+  try {
+    const parsed = JSON.parse(body) as { messages?: Array<Record<string, unknown>> }
+    const messages = parsed.messages ?? []
+    for (let index = 0; index < messages.length; index++) {
+      const message = messages[index]!
+      if (message.role !== "assistant") continue
+      const reasoning = typeof message.reasoning === "string" ? message.reasoning : undefined
+      const details = Array.isArray(message.reasoning_details) ? message.reasoning_details : undefined
+      const hasToolCalls = Array.isArray(message.tool_calls)
+      if (reasoning === undefined && details === undefined && !hasToolCalls) continue
+      const text =
+        reasoning ??
+        (details ?? []).map((detail) => (typeof (detail as any)?.text === "string" ? (detail as any).text : "")).join("")
+      delete message.reasoning
+      delete message.reasoning_details
+      // Final answers without CoT carry no field at all.
+      if (!text && !hasToolCalls) continue
+      const value = text || ""
+      // Vendor-canonical shape: {role, content, reasoning_content, tool_calls}.
+      const rebuilt: Record<string, unknown> = {}
+      let placed = false
+      for (const [key, item] of Object.entries(message)) {
+        if (key === "tool_calls" && !placed) {
+          rebuilt.reasoning_content = value
+          placed = true
+        }
+        if (key !== "reasoning_content") rebuilt[key] = item
+      }
+      if (!placed) rebuilt.reasoning_content = value
+      messages[index] = rebuilt
+    }
+    return JSON.stringify(parsed)
+  } catch {
+    return body
   }
 }
 
@@ -250,6 +296,16 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
     const startTime = Date.now()
     const requestId = crypto.randomUUID()
     const timeoutMs = init?.gatewayTimeoutMs || 600000
+    // Vendor-native reasoning round-trip: the OpenRouter SDK dialect (v2 and v3
+    // alike) emits `reasoning` + `reasoning_details` — two copies of the same
+    // text on 100% of assistant messages (wire-proven 2026-08-28: 334k chars /
+    // ~19% of the body duplicated). DeepSeek + Z.AI contracts define a single
+    // native field `reasoning_content` (with tools: full round-trip mandatory;
+    // without tools: ignored). Rewrite GLM/DeepSeek bodies here — the only seam
+    // the SDKs leave us — so the wire carries exactly one reasoning field.
+    if (typeof init?.body === "string" && /z-ai\/|glm|deepseek/i.test(String(init?.gatewayModel ?? ""))) {
+      init = { ...init, body: rewriteReasoningContent(init.body) }
+    }
       const metadata = requestMetadata(init?.body)
       const isStream = init?.gatewayStream ?? metadata.streaming
 
@@ -365,7 +421,7 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
         ...(rawBody && { body: rawBody }),
       })
 
-      // Write request-to-request git-format diff as a separate .diff file
+      // Write request-to-request raw-byte divergence report as a separate .diff file
       if (rawBody && prevRequestBody) {
         const logDir = process.env.OPENCODE_GATEWAY_LOG_DIR || path.join(Global.Path.data, "gateway")
         const diffDir = path.join(logDir, "per-request")
@@ -376,17 +432,13 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
           `${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}-${pad(d.getMilliseconds(), 3)}Z`
         const sanitizedId = String(requestId).replace(/[^a-zA-Z0-9_-]/g, "_")
         const diffPath = path.join(diffDir, `${iso}-${sanitizedId}.diff`)
-        const prevBody = tryFormatJSON(prevRequestBody.body)
-        const currBody = tryFormatJSON(rawBody)
-        const diffContent = await createPatch(prevBody, currBody)
-        if (diffContent) {
-          fs.writeFileSync(diffPath, diffContent + EOL)
-        } else {
-          log.warn("gateway per-request diff failed: createPatch returned null", {
-            requestId,
-            prevRequestId: prevRequestBody.requestId,
-          })
-        }
+        const report = renderRawDiff({
+          prevId: prevRequestBody.requestId,
+          prevRaw: prevRequestBody.body,
+          currId: requestId,
+          currRaw: rawBody,
+        })
+        fs.writeFileSync(diffPath, report + EOL)
       }
       prevRequestBody = { requestId, timestamp: startTime, body: rawBody ?? "" }
     }
@@ -529,7 +581,7 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
               url,
               method: (init?.method || "POST").toUpperCase(),
               headers: wireHeaders(headers),
-              body: tryFormatJSON(bodyStr),
+              body: tryParseJSON(bodyStr),
               body_raw: bodyStr,
             }, null, 2).replace(/\n/g, EOL),
           )
@@ -796,11 +848,29 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                       body: readableResponseBody(raw, isStream),
                       body_raw: fullRaw,
                     }, null, 2).replace(/\n/g, EOL))
+                    // Reasoning sidecar: assembled delta.reasoning / reasoning_details text.
+                    const reasoning = collectReasoning(readableResponseBody(raw, isStream))
+                    if (reasoning.text.trim().length > 0) {
+                      fs.writeFileSync(
+                        path.join(responseDir, `${iso}-${sanitizedId}.md`),
+                        renderReasoningMarkdown({
+                          id: requestId,
+                          captured: iso,
+                          status: response.status,
+                          collect: reasoning,
+                        }) + EOL,
+                      )
+                    }
                     if (prevResponseBody) {
-                      const prevBody = tryFormatJSON(prevResponseBody.body)
-                      const currBody = tryFormatJSON(fullRaw)
-                      const diffContent = await createPatch(prevBody, currBody)
-                      if (diffContent) fs.writeFileSync(path.join(responseDir, `${iso}-${sanitizedId}.diff`), diffContent + EOL)
+                      fs.writeFileSync(
+                        path.join(responseDir, `${iso}-${sanitizedId}.diff`),
+                        renderRawDiff({
+                          prevId: prevResponseBody.requestId,
+                          prevRaw: prevResponseBody.body,
+                          currId: String(requestId),
+                          currRaw: fullRaw,
+                        }) + EOL,
+                      )
                     }
                     prevResponseBody = { requestId: String(requestId), timestamp: d.getTime(), body: fullRaw }
                   }

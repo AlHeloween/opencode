@@ -39,13 +39,13 @@ function toRustRegex(pattern: string): string {
 export const Parameters = Schema.Struct({
   pattern: Schema.String.annotate({ description: "The regex pattern to search for in file contents" }),
   path: Schema.optional(Schema.String).annotate({
-    description: "The directory to search in. Defaults to the current working directory.",
+    description: "Directory to search in. Omit for the working directory.",
   }),
   include: Schema.optional(Schema.String).annotate({
-    description: 'File pattern to include in the search (e.g. "*.js", "*.{ts,tsx}")',
+    description: 'File glob filter, e.g. "*.ts", "*.{js,jsx}".',
   }),
   noIgnore: Schema.optional(Schema.Boolean).annotate({
-    description: "When true, ignores .gitignore and searches all files including node_modules, logs, and .opencode/data. Use this to search dependency code or runtime data. Default: false.",
+    description: "Include .gitignore'd paths (node_modules, .opencode/data, logs). Default: false.",
   }),
 })
 
@@ -70,7 +70,7 @@ export const GrepTool = Tool.define(
           const empty = {
             title: pattern,
             metadata: { matches: 0, truncated: false },
-            output: "No files found",
+            output: "No matches found",
           }
 
           yield* ctx.ask({

@@ -1,33 +1,7 @@
-Fast content search tool that works with any codebase size. Searches file contents using regular expressions.
-Fast content search tool. Prefer codegraph for structure; use grep for content patterns.
+Content search by regex (Rust regex / ERE). Use for finding code by content; use Glob for file names, CodeGraph for structure.
 
-This tool uses extended regex syntax (ERE) with a Rust regex engine. `|` is OR, `\|` is a literal pipe character. No backtracking surprises, no ReDoS vulnerabilities, consistent behavior across platforms.
+Syntax: `|` is OR; `\|` is a literal pipe. Single backslashes are correct as-is (`function\s+\w+`). Patterns are passed via `-e`, so leading `-` is safe.
 
-Use this tool when searching file contents for specific patterns. Use Glob when searching by filename.
+Default: honors .gitignore — gitignored paths (node_modules, .opencode/data, logs) are NOT searched. Pass `noIgnore: true` to include them.
 
-## Important: Pattern Syntax
-
-- Use `|` for OR (e.g., `foo|bar`). In Rust regex `\|` is a literal pipe character, not an operator.
-- Patterns are passed via `-e` flag, so patterns starting with `-` work correctly.
-- No need to double-escape backslashes — `function\s+\w+` is correct as-is.
-
-## Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `pattern` | string | — | Regex pattern to search for in file contents |
-| `path` | string | workspace root | Directory to search in |
-| `include` | string | — | File glob to filter results (e.g., `*.ts`, `*.{js,jsx}`) |
-| `noIgnore` | boolean | false | When true, bypasses .gitignore — searches node_modules, logs, .opencode/data, and other ignored paths |
-
-## Output
-
-Returns **file paths + line numbers + matched text content** sorted by modification time. Each match includes the full line of code where the pattern was found.
-
-## Limits
-
-- Maximum **100 results** with partial notice when some paths are inaccessible.
-- Lines exceeding **2000 characters** are truncated with `...`.
-- Maximum **100 results** per call. For more results, use the `offset` and `limit` parameters to paginate through matches. For counting, call Grep repeatedly with pagination rather than using shell commands.
-
-Call multiple grep searches in parallel when looking for independent patterns.
+Returns file paths + line numbers + matched lines, sorted by modification time. Cap: 100 results per call; paginate with `offset`/`limit`. Lines >2000 chars are truncated. Issue parallel calls for independent patterns.

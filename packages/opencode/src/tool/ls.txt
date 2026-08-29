@@ -1,39 +1,5 @@
-Lists files and directories in a tree format. Prefer a path relative to the project working directory (absolute only if under worktree).
-Lists files and directories. Product `list` replaces shell ls/dir/tree.
+Directory tree listing. Product `list` replaces shell ls/dir/tree.
 
-Use `directoriesOnly: true` to show directory structure only (like `tree -d`).
+Hardcoded ignores (always applied): node_modules/, __pycache__/, .git/, dist/, build/, target/, vendor/, bin/, obj/, .idea/, .vscode/, .zig-cache/, zig-out, .coverage, coverage/, tmp/, temp/, .cache/, cache/, logs/, .venv/, venv/, env/. Gitignore rules are honored in addition. `ignore` adds extra glob patterns.
 
-## Output Format
-
-Returns a hierarchical tree with directory branches and file leaves. Directories are suffixed with `/`. Example:
-
-```
-src/
-  tool/
-    bash.ts
-    edit.ts
-  session/
-    prompt.ts
-```
-
-## Ignores
-
-The following are **hardcoded ignores** and do NOT need to be specified:
-`node_modules/`, `__pycache__/`, `.git/`, `dist/`, `build/`, `target/`, `vendor/`, `bin/`, `obj/`, `.idea/`, `.vscode/`, `.zig-cache/`, `zig-out`, `.coverage`, `coverage/`, `tmp/`, `temp/`, `.cache/`, `cache/`, `logs/`, `.venv/`, `venv/`, `env/`
-
-Use the `ignore` parameter to add additional glob patterns. The tool performs gitignore-aware file discovery.
-
-Set `directoriesOnly: true` to show only directory structure (no files).
-
-## Limits
-
-- **Maximum 100 entries** returned. If a directory has more, the output notes truncation.
-- Returns **absolute paths** in the tree display.
-
-## Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `path` | string | workspace root | Directory to list (prefer relative under project; absolute only under worktree) |
-| `ignore` | string[] | — | Additional glob patterns to ignore |
-| `directoriesOnly` | boolean | false | Show only directories (no files). Like `tree -d`. |
+Output: hierarchical tree, directories suffixed `/`, absolute paths. `directoriesOnly: true` = structure only (tree -d). Cap: 100 entries (truncation notice on overflow).

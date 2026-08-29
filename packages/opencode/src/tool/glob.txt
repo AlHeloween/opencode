@@ -1,19 +1,5 @@
-Fast file pattern matching tool that works with any codebase size. Supports glob patterns like `**/*.js` or `src/**/*.ts`. Returns matching file paths sorted by modification time.
-Fast file pattern matching tool. After codegraph for structure; use glob for path/name patterns.
+Path/name file search. Use for finding files by name pattern; use Grep for content, CodeGraph for structure.
 
-Use this tool when you need to find files by name patterns. Use Grep when searching by content.
+Default: honors .gitignore — gitignored paths (node_modules, .opencode/data, logs) are NOT searched. Pass `noIgnore: true` to include them.
 
-## Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `pattern` | string | — | Glob pattern to match (e.g., `**/*.ts`) |
-| `path` | string | workspace root | Directory to search in |
-| `noIgnore` | boolean | false | When true, bypasses .gitignore — returns files from node_modules, logs, .opencode/data, and other ignored paths |
-
-## Limits
-
-- Maximum **100 results** with truncation notice when exceeded.
-- Returns **absolute paths**.
-
-Call multiple glob searches in parallel when looking for different patterns.
+Returns absolute paths, sorted by modification time. Cap: 100 results (truncation notice on overflow). Issue parallel calls for independent patterns.

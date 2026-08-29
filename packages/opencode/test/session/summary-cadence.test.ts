@@ -317,13 +317,11 @@ describe("selectRecentTail (m* never enters m*; real messages re-eligible)", () 
   })
 })
 
-describe("MAX_SUMMARY_BODY_TOKENS (32K cap)", () => {
-  test("constant is 32 768", () => {
-    expect(MAX_SUMMARY_BODY_TOKENS).toBe(32_768)
-  })
-
-  test("matches RECENT_MIN_TOKENS value (both 32K)", () => {
-    // Semantically distinct but same value — both represent 32K token pools
-    expect(MAX_SUMMARY_BODY_TOKENS).toBe(32_768)
+describe("MAX_SUMMARY_BODY_TOKENS (16K cap on FULL render)", () => {
+  test("constant is 16 384", () => {
+    // 2026-08-29 Alexander: "32k имелось ввиду с дифами... сделай кэп на 16к" —
+    // body-only counting let 76K of bodies render into 237K of m*. The cap now
+    // measures the full rendered block (body + diffs + plan_state + links).
+    expect(MAX_SUMMARY_BODY_TOKENS).toBe(16_384)
   })
 })

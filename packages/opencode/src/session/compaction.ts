@@ -40,8 +40,14 @@ export const MAX_SUMMARY_ATTEMPTS = 2
  * (content fixed point) and undo restores the exact content window per m*.
  */
 export const RECENT_MIN_TOKENS = 32_768
-/** Maximum total summary body text (tokens) included in m*. Older summaries are session-read only. */
-export const MAX_SUMMARY_BODY_TOKENS = 32_768
+/**
+ * Summary cap (tokens) measured on the FULL RENDERED block — body + diff
+ * snippets + impact + plan_state + Exact links, exactly the bytes
+ * buildMessageStar injects. Body-only counting was a budget cheat: 76K of
+ * bodies rendered into 237K of m* (2026-08-29, Alexander: "32k имелось ввиду
+ * с дифами... сделай кэп на 16к"). Older summaries are session-read only.
+ */
+export const MAX_SUMMARY_BODY_TOKENS = 16_384
 
 const CHARS_PER_TOKEN = 4
 const SUMMARY_TERMINAL_MARKER = "<!-- summary-terminal -->"
@@ -575,18 +581,81 @@ function extractDecisions(text: string): string[] {
     .filter((line) => line.startsWith("-"))
 }
 
+/** One collected summary: sidecar checkpoint or legacy assistant summary. */
+type SummaryEntry = {
+  id: string
+  text: string
+  fromId?: string
+  toId?: string
+  diffs?: Snapshot.FileDiff[]
+  impact?: Snapshot.ImpactSummary
+  planState?: PlanStatePayload
+  sidecar?: boolean
+}
+
+/** Render one summary exactly as it appears inside m*. Single rendering path
+ * shared with the budget cap — the cap can never drift from the injected
+ * bytes (2026-08-29: body-only counting let 76K of bodies render into 237K). */
+function renderSummaryBlock(input: { sessionID: string; s: SummaryEntry; index: number }): string {
+  const s = input.s
+  const sv = extractSemanticVector(s.text)
+  const svLine = sv?.dominant ? `- sv_dominant: \`${sv.dominant}\`` : undefined
+  const diffLine =
+    s.diffs && s.diffs.length > 0
+      ? [
+          `- tool_diff: system Exact (write/edit/multiedit filediff from session DB)`,
+          `  files=${s.diffs.length}; additions=${s.diffs.reduce((sum, diff) => sum + diff.additions, 0)}; deletions=${s.diffs.reduce((sum, diff) => sum + diff.deletions, 0)}`,
+          ...s.diffs.slice(0, 20).flatMap((diff) => {
+            const head = `  - ${diff.file} (+${diff.additions}/-${diff.deletions} ${diff.status ?? "modified"})`
+            // Bounded unified snippet for agent recovery — not empty stats-only.
+            if (!diff.patch?.trim()) return [head]
+            const lines = diff.patch.trim().split("\n").slice(0, 40)
+            const more = diff.patch.split("\n").length > 40 ? "\n    …" : ""
+            return [head, "    ```diff", ...lines.map((l) => `    ${l}`), `    \`\`\`${more}`]
+          }),
+          ...(s.diffs.length > 20
+            ? [`  - … +${s.diffs.length - 20} more; sessionread this summary range for the full Exact list`]
+            : []),
+        ].join("\n")
+      : undefined
+  const impactLine = s.impact
+    ? [
+        `- structural_impact: system index-time Structural`,
+        `  changed_files=${s.impact.changedFiles}; caller_count=${s.impact.callerCount}`,
+        `  kinds=${Object.entries(s.impact.symbolCountByKind).map(([kind, count]) => `${kind}:${count}`).join(",") || "none"}`,
+        `  top_symbols=${s.impact.topSymbols.slice(0, 20).join(",") || "none"}`,
+        `  impacted_files=${s.impact.impactedFiles.slice(0, 20).join(",") || "none"}`,
+      ].join("\n")
+    : undefined
+  const planStateLine = s.planState
+    ? [
+        `- plan_state: system Exact (GATED WORKFLOW mirror — kernel-native anchors)`,
+        ...(formatPlanStateText(s.planState) ?? "")
+          .split("\n")
+          .map((l) => `  ${l}`),
+      ].join("\n")
+    : undefined
+  // Links below are SYSTEM Exact digits — not model-authored.
+  const links = [
+    `- links: system Exact (not model output)`,
+    `- body_info_mark: \`Inferred\``,
+    `- ${s.sidecar ? "checkpoint_id" : "summary_message_id"}: \`${s.id}\``,
+    svLine,
+    diffLine,
+    impactLine,
+    planStateLine,
+    s.fromId ? `- from_id: \`${s.fromId}\`` : undefined,
+    s.toId ? `- to_id: \`${s.toId}\`` : undefined,
+    `- session_id: \`${input.sessionID}\``,
+  ]
+    .filter(Boolean)
+    .join("\n")
+  return `--- Summary ${input.index + 1} ---\n${links}\n\n${s.text}`
+}
+
 function buildMessageStar(input: {
   sessionID: string
-  summaries: {
-    id: string
-    text: string
-    fromId?: string
-    toId?: string
-    diffs?: Snapshot.FileDiff[]
-    impact?: Snapshot.ImpactSummary
-    planState?: PlanStatePayload
-    sidecar?: boolean
-  }[]
+  summaries: SummaryEntry[]
   recent: MessageV2.WithParts[]
   /** 1-based global offset of the first recent message in the session.
     * Used to render `#N` positions so the model can call session-read
@@ -595,61 +664,9 @@ function buildMessageStar(input: {
   /** Prior message* ID — chain link for recovering older summaries via session-read. */
   priorMessageStarId?: string
 }): string {
-  const summaryBlocks = input.summaries.map((s, i) => {
-    const sv = extractSemanticVector(s.text)
-    const svLine = sv?.dominant ? `- sv_dominant: \`${sv.dominant}\`` : undefined
-    const diffLine =
-      s.diffs && s.diffs.length > 0
-        ? [
-            `- tool_diff: system Exact (write/edit/multiedit filediff from session DB)`,
-            `  files=${s.diffs.length}; additions=${s.diffs.reduce((sum, diff) => sum + diff.additions, 0)}; deletions=${s.diffs.reduce((sum, diff) => sum + diff.deletions, 0)}`,
-            ...s.diffs.slice(0, 20).flatMap((diff) => {
-              const head = `  - ${diff.file} (+${diff.additions}/-${diff.deletions} ${diff.status ?? "modified"})`
-              // Bounded unified snippet for agent recovery — not empty stats-only.
-              if (!diff.patch?.trim()) return [head]
-              const lines = diff.patch.trim().split("\n").slice(0, 40)
-              const more = diff.patch.split("\n").length > 40 ? "\n    …" : ""
-              return [head, "    ```diff", ...lines.map((l) => `    ${l}`), `    \`\`\`${more}`]
-            }),
-            ...(s.diffs.length > 20
-              ? [`  - … +${s.diffs.length - 20} more; sessionread this summary range for the full Exact list`]
-              : []),
-          ].join("\n")
-        : undefined
-    const impactLine = s.impact
-      ? [
-          `- structural_impact: system index-time Structural`,
-          `  changed_files=${s.impact.changedFiles}; caller_count=${s.impact.callerCount}`,
-          `  kinds=${Object.entries(s.impact.symbolCountByKind).map(([kind, count]) => `${kind}:${count}`).join(",") || "none"}`,
-          `  top_symbols=${s.impact.topSymbols.slice(0, 20).join(",") || "none"}`,
-          `  impacted_files=${s.impact.impactedFiles.slice(0, 20).join(",") || "none"}`,
-        ].join("\n")
-      : undefined
-    const planStateLine = s.planState
-      ? [
-          `- plan_state: system Exact (GATED WORKFLOW mirror — kernel-native anchors)`,
-          ...(formatPlanStateText(s.planState) ?? "")
-            .split("\n")
-            .map((l) => `  ${l}`),
-        ].join("\n")
-      : undefined
-    // Links below are SYSTEM Exact digits — not model-authored.
-    const links = [
-      `- links: system Exact (not model output)`,
-      `- body_info_mark: \`Inferred\``,
-      `- ${s.sidecar ? "checkpoint_id" : "summary_message_id"}: \`${s.id}\``,
-      svLine,
-      diffLine,
-      impactLine,
-      planStateLine,
-      s.fromId ? `- from_id: \`${s.fromId}\`` : undefined,
-      s.toId ? `- to_id: \`${s.toId}\`` : undefined,
-      `- session_id: \`${input.sessionID}\``,
-    ]
-      .filter(Boolean)
-      .join("\n")
-    return `--- Summary ${i + 1} ---\n${links}\n\n${s.text}`
-  })
+  const summaryBlocks = input.summaries.map((s, i) =>
+    renderSummaryBlock({ sessionID: input.sessionID, s, index: i }),
+  )
 
   // Collect decisions from current summaries only (prior m* decisions are not pulled forward)
   const allDecisions = input.summaries.flatMap((s) => extractDecisions(s.text))
@@ -840,6 +857,13 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         const summaries: { id: string; text: string; fromId?: string; toId?: string; diffs?: Snapshot.FileDiff[]; impact?: Snapshot.ImpactSummary; planState?: PlanStatePayload; sidecar?: boolean }[] = []
         const sidecars = IncrementalCheckpoint.listAll(input.sessionID)
         for (const checkpoint of sidecars) {
+          // NEVER latch an m* row into the summaries block (Alexander:
+          // "компакт всунутый в компакт это нонсенс"). A checkpoint body that
+          // IS a prior m* is memory machinery, not a summary.
+          if (checkpoint.body.trimStart().startsWith("=== COMPACTED ===")) {
+            log.debug("checkpoint body looks like an m* row — skipped", { id: checkpoint.id })
+            continue
+          }
           summaries.push({
             id: checkpoint.id,
             text: checkpoint.body,
@@ -854,6 +878,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         const byId = new Map(msgs.map((m) => [m.info.id, m] as const))
         for (let i = 0; i < msgs.length; i++) {
           const m = msgs[i]
+          if (isMessageStar(m)) continue // an m* NEVER enters another m*
           if (m.info.role === "assistant" && (m.info as any).summary) {
             const text = messageText(m)
             if (text) {
@@ -903,14 +928,19 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           })
         }
 
-        // Cap total summary body text at MAX_SUMMARY_BODY_TOKENS tokens.
-        // Older summaries become session-read only — not re-pulled into m*.
+        // Cap summaries at MAX_SUMMARY_BODY_TOKENS tokens measured on the
+        // FULL RENDERED block — body + diff snippets + plan_state + links,
+        // the exact bytes buildMessageStar injects. Body-only counting was a
+        // budget cheat (76K bodies → 237K render, 2026-08-29). Oldest
+        // summaries drop first — session-read only.
         {
           const maxChars = MAX_SUMMARY_BODY_TOKENS * CHARS_PER_TOKEN
-          let totalChars = summaries.reduce((sum, s) => sum + s.text.length, 0)
+          const rendered = (s: SummaryEntry) =>
+            renderSummaryBlock({ sessionID: input.sessionID, s, index: 0 }).length
+          let totalChars = summaries.reduce((sum, s) => sum + rendered(s), 0)
           while (totalChars > maxChars && summaries.length > 1) {
             const removed = summaries.shift()!
-            totalChars -= removed.text.length
+            totalChars -= rendered(removed)
           }
         }
 

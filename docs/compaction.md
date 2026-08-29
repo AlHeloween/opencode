@@ -39,9 +39,10 @@ If they disagree, **do not paper over it**. Fix code toward the contract, or mar
   the provider prefix changes at message 1. Unavoidable; everything after
   rides the cache again.
 
-**m\* composition (2026-08-29 contract):** last ≤32K tokens of `s` bodies
-(ALL checkpoints — open AND materialized; summaries carry forward across
-compacts) + last ~32K tokens of REAL messages (verbatim copy from the FULL
+**m\* composition (2026-08-29 contract):** ≤16K tokens of summaries measured
+on the FULL rendered block (bodies + diff snippets + plan_state + Exact links;
+ALL checkpoints — open AND materialized; summaries carry forward across
+compacts; oldest drop first) + last ~32K tokens of REAL messages (verbatim copy from the FULL
 archive — compacted rows included, prior m\* rows skipped, floor semantics
 "30k ±"), closed by one recovery pointer: `Use messagesearch, sessionread
 and dbread to restore missing facts.` (single line at the very end — earlier
@@ -242,7 +243,7 @@ sequenceDiagram
 | Fossil only for WC rollback | `SnapshotFossil.track` / `restore` — not on summary Exact path | **Match** |
 | Cadence ~256k chars / ~64k tokens | `SUMMARY_INTERVAL_TOKENS = 65_536` content/4 | **Match** (order of magnitude) |
 | `m* = [s,s,recent m]` | `compact()` folds open sidecars + Recent; **zero summaries → tail-only m\*** (header + last ~32K of messages; `log: no summaries`) | **Match (2026-08-25)** — T2 refusal removed: manual /compact works on fresh sessions; uncovered tail is the memory |
-| Summaries capped at 32K tokens | `MAX_SUMMARY_BODY_TOKENS = 32_768`; oldest summaries dropped from m* | **Match (shipped 2026-08-22)** |
+| Summaries capped at 16K tokens (FULL render: body+diffs+plan_state+links) | `MAX_SUMMARY_BODY_TOKENS = 16_384` measured via `renderSummaryBlock` — body-only counting let 76K bodies render into 237K of m* | **Fixed 2026-08-29** |
 | Prior m* decisions | decisions rebuilt from ALL carried-forward summaries each compact | **Fixed 2026-08-29** (was: current-window summaries only) |
 | Prior m\* row excluded, real messages re-eligible | `selectRecentTail(msgs)` skips star rows (continue, not break); full-archive walk over `session.messages(visibleOnly: false)` | **Fixed 2026-08-29** (was: visible-only walk, hard-stop at star) |
 | Recent tail ~32 768 tokens, floor semantics | `selectRecentTail(msgs, RECENT_MIN_TOKENS)` — verbatim copy until budget reached | **Fixed 2026-08-29** (was: boundary-preference + thin-tail overlap) |
@@ -297,7 +298,7 @@ never a silent never-fold (the 2026-08-24 dead-end stays fixed).
 | Open-window / cadence | `chars / 4` (content only) |
 | ~256k chars threshold | ↔ ~64k tokens (`65_536` constant) |
 | Safety / request fit | `chars/4 + 10_000` |
-| Summary body cap in m* | `MAX_SUMMARY_BODY_TOKENS` (32 768 tokens) |
+| Summary cap in m* | `MAX_SUMMARY_BODY_TOKENS` (16 384 tokens, measured on the full rendered block) |
 | compact() | **0** LLM tokens |
 | Post-fold m\* bound | ≤ `MAX_SUMMARY_BODY_TOKENS` (32K) summary bodies + ~`RECENT_MIN_TOKENS` (32K) recent tail (floor: whole-message overshoot "30k ±"; + per-block diff snippets, tools/schema overhead) — why the no-progress guard is unreachable on ≥256K windows |
 

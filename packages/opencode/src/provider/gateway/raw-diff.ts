@@ -714,3 +714,137 @@ export function renderIntegrityReport(input: { body: unknown }): string {
       : `integrity: VIOLATIONS: ${violations.join("; ")}`
   return `${head}\n${tail}\n`
 }
+
+/** Compact one-line structural summary of a wire message (LEVEL 1 table). */
+function wireMessageSummary(message: unknown): string {
+  const m = (message ?? {}) as Record<string, unknown>
+  const content = m.content
+  const contentDesc =
+    content === null
+      ? "null"
+      : typeof content === "string"
+        ? content === ""
+          ? '""'
+          : `str(${(content as string).length})`
+        : Array.isArray(content)
+          ? `parts(${content.length})`
+          : "other"
+  const reasoning = typeof m.reasoning_content === "string" ? ` rc(${m.reasoning_content.length})` : ""
+  const tools = Array.isArray(m.tool_calls) ? ` tools(${m.tool_calls.length})` : ""
+  return `${String(m.role ?? "?")} | content:${contentDesc}${reasoning}${tools}`
+}
+
+/** Render one wire message as a readable MD block (LEVEL 2, full fidelity). */
+export function renderWireMessageMd(message: unknown): string {
+  const m = (message ?? {}) as Record<string, unknown>
+  const lines: string[] = [`### ${String(m.role ?? "?")}`]
+  const content = m.content
+  if (content === null) {
+    lines.push("content: null")
+  } else if (typeof content === "string") {
+    lines.push(content === "" ? 'content: (empty "")' : `content (${content.length} chars):`, content)
+  } else if (Array.isArray(content)) {
+    lines.push(`content (${content.length} parts):`)
+    for (const part of content) {
+      const p = (part ?? {}) as Record<string, unknown>
+      const text = typeof p.text === "string" ? p.text : ""
+      lines.push(`#### part ${String(p.type ?? "?")} (${text.length} chars)`, text)
+    }
+  }
+  if (typeof m.reasoning_content === "string") {
+    lines.push(
+      m.reasoning_content === ""
+        ? "reasoning_content: (empty)"
+        : `reasoning_content (${m.reasoning_content.length} chars):`,
+      m.reasoning_content,
+    )
+  }
+  const calls = Array.isArray(m.tool_calls) ? (m.tool_calls as unknown[]) : []
+  if (calls.length > 0) {
+    lines.push(`tool_calls (${calls.length}):`)
+    for (const call of calls) {
+      const c = (call ?? {}) as Record<string, unknown>
+      const fn = (c.function ?? {}) as Record<string, unknown>
+      lines.push(`- [${String(c.id ?? "")}] ${String(fn.name ?? "")}(${String(fn.arguments ?? "")})`)
+    }
+  }
+  if (m.tool_call_id !== undefined) lines.push(`tool_call_id: ${String(m.tool_call_id)}`)
+  return lines.join("\n")
+}
+
+function wireShort(value: unknown, max: number): string {
+  const text = typeof value === "string" ? value : JSON.stringify(value) ?? "undefined"
+  return text.length > max ? `${text.slice(0, max)}…` : text
+}
+
+/**
+ * Two-level raw-wire pseudo-diff (capture contract):
+ * LEVEL 1 — JSON structure: top-level scalar changes + per-message shape table
+ * (role, content shape, reasoning/tool counts, unchanged/CHANGED/ADDED/REMOVED).
+ * LEVEL 2 — messages rendered as MD and compared: unchanged messages collapse
+ * to one line, ADDED/REMOVED show their full MD block, CHANGED go through the
+ * exact line diff so every special character stays visible.
+ */
+export function renderRawWirePseudoDiff(input: {
+  prevId: string
+  currId: string
+  prev: unknown
+  curr: unknown
+}): string {
+  const lines: string[] = [`raw-wire pseudo-diff: prev (${input.prevId}) -> curr (${input.currId})`]
+  const prevObj = (typeof input.prev === "object" && input.prev !== null ? input.prev : {}) as Record<string, unknown>
+  const currObj = (typeof input.curr === "object" && input.curr !== null ? input.curr : {}) as Record<string, unknown>
+
+  lines.push("== LEVEL 1: JSON structure ==")
+  const topChanges: string[] = []
+  const keys = [...new Set([...Object.keys(prevObj), ...Object.keys(currObj)])].filter((k) => k !== "messages")
+  for (const key of keys) {
+    const pHas = key in prevObj
+    const cHas = key in currObj
+    if (pHas && !cHas) topChanges.push(`-${key}`)
+    else if (!pHas && cHas) topChanges.push(`+${key}=${wireShort(currObj[key], 60)}`)
+    else if (JSON.stringify(prevObj[key]) !== JSON.stringify(currObj[key])) {
+      topChanges.push(`${key}: ${wireShort(prevObj[key], 40)} -> ${wireShort(currObj[key], 40)}`)
+    }
+  }
+  lines.push(topChanges.length > 0 ? `top-level: ${topChanges.join(" | ")}` : "top-level: unchanged")
+  const prevMessages = Array.isArray(prevObj.messages) ? (prevObj.messages as unknown[]) : []
+  const currMessages = Array.isArray(currObj.messages) ? (currObj.messages as unknown[]) : []
+  const delta = currMessages.length - prevMessages.length
+  lines.push(`messages: ${prevMessages.length} -> ${currMessages.length} (${delta >= 0 ? "+" : ""}${delta})`)
+  const shared = Math.min(prevMessages.length, currMessages.length)
+  for (let i = 0; i < shared; i++) {
+    const same = JSON.stringify(prevMessages[i]) === JSON.stringify(currMessages[i])
+    lines.push(`  [${i}] ${wireMessageSummary(currMessages[i])} — ${same ? "unchanged" : "CHANGED"}`)
+  }
+  for (let i = shared; i < currMessages.length; i++) {
+    lines.push(`  [${i}] ${wireMessageSummary(currMessages[i])} — ADDED`)
+  }
+  for (let i = shared; i < prevMessages.length; i++) {
+    lines.push(`  [${i}] ${wireMessageSummary(prevMessages[i])} — REMOVED`)
+  }
+
+  lines.push("", "== LEVEL 2: message pseudo-diff (MD) ==")
+  for (let i = 0; i < shared; i++) {
+    const prevMd = renderWireMessageMd(prevMessages[i])
+    const currMd = renderWireMessageMd(currMessages[i])
+    const role = String(((currMessages[i] ?? {}) as Record<string, unknown>).role ?? "?")
+    if (prevMd === currMd) {
+      lines.push(`[${i}] ${role} — unchanged`)
+      continue
+    }
+    lines.push(`[${i}] ${role} — CHANGED:`)
+    lines.push(renderLineDiff({ prevId: "before", currId: "after", prevRaw: prevMd, currRaw: currMd }, 2).trimEnd())
+  }
+  for (let i = shared; i < currMessages.length; i++) {
+    const role = String(((currMessages[i] ?? {}) as Record<string, unknown>).role ?? "?")
+    lines.push(`[${i}] ${role} — ADDED:`)
+    lines.push(renderWireMessageMd(currMessages[i]))
+  }
+  for (let i = shared; i < prevMessages.length; i++) {
+    const role = String(((prevMessages[i] ?? {}) as Record<string, unknown>).role ?? "?")
+    lines.push(`[${i}] ${role} — REMOVED:`)
+    lines.push(renderWireMessageMd(prevMessages[i]))
+  }
+  return `${lines.join("\n")}\n`
+}

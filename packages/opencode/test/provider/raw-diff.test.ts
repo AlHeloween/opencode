@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 
-import { analyzeRawDiff, assembleMessage, collectReasoning, messageSpans, renderIntegrityReport, renderLineDiff, renderRawDiff, renderResponseMarkdown } from "@/provider/gateway/raw-diff"
+import { analyzeRawDiff, assembleMessage, collectReasoning, messageSpans, renderIntegrityReport, renderLineDiff, renderRawDiff, renderRawWirePseudoDiff, renderResponseMarkdown, renderWireMessageMd } from "@/provider/gateway/raw-diff"
 
 function body(messages: string[], maxTokens = 100) {
   return JSON.stringify({
@@ -338,5 +338,74 @@ describe("assembleMessage", () => {
     expect(text).toContain("7 prompt (6 cached) / 2 completion")
     expect(text).toContain("(empty \"\")")
     expect(text).toContain("- [c] f({})")
+  })
+})
+
+describe("renderRawWirePseudoDiff", () => {
+  const assistant = (reasoning: string) => ({
+    role: "assistant",
+    content: "",
+    reasoning_content: reasoning,
+    tool_calls: [{ id: "c1", type: "function", function: { name: "t", arguments: "{}" } }],
+  })
+
+  test("append-only growth: structure table + ADDED full md blocks", () => {
+    const prev = {
+      model: "m",
+      max_tokens: 100,
+      messages: [
+        { role: "system", content: [{ type: "text", text: "kernel" }] },
+        { role: "user", content: "hi" },
+        assistant("think"),
+      ],
+    }
+    const curr = {
+      model: "m",
+      max_tokens: 200,
+      messages: [...prev.messages, { role: "tool", tool_call_id: "c1", content: "42" }, { role: "assistant", content: "done" }],
+    }
+    const text = renderRawWirePseudoDiff({ prevId: "p", currId: "c", prev, curr })
+    expect(text).toContain("== LEVEL 1: JSON structure ==")
+    expect(text).toContain("max_tokens: 100 -> 200")
+    expect(text).toContain("messages: 3 -> 5 (+2)")
+    expect(text).toContain("[0] system | content:parts(1) — unchanged")
+    expect(text).toContain("[2] assistant | content:\"\" rc(5) tools(1) — unchanged")
+    expect(text).toContain("[3] tool | content:str(2) — ADDED")
+    expect(text).toContain("== LEVEL 2: message pseudo-diff (MD) ==")
+    expect(text).toContain("[0] system — unchanged")
+    expect(text).toContain("[3] tool — ADDED:")
+    expect(text).toContain("### tool")
+    expect(text).toContain("tool_call_id: c1")
+    expect(text).toContain("[4] assistant — ADDED:")
+    expect(text).toContain("content (4 chars):")
+    expect(text).toContain("done")
+  })
+
+  test("changed message routes through the exact line diff", () => {
+    const prev = { messages: [assistant("old thought")] }
+    const curr = { messages: [assistant("new thought")] }
+    const text = renderRawWirePseudoDiff({ prevId: "p", currId: "c", prev, curr })
+    expect(text).toContain("[0] assistant | content:\"\" rc(11) tools(1) — CHANGED")
+    expect(text).toContain("[0] assistant — CHANGED:")
+    expect(text.split("\n")).toContain("-old thought")
+    expect(text.split("\n")).toContain("+new thought")
+  })
+
+  test("null and empty content render distinctly (null != \"\")", () => {
+    const mdNull = renderWireMessageMd({ role: "assistant", content: null, reasoning_content: "" })
+    expect(mdNull).toContain("content: null")
+    expect(mdNull).toContain("reasoning_content: (empty)")
+    const mdEmpty = renderWireMessageMd({ role: "assistant", content: "" })
+    expect(mdEmpty).toContain("content: (empty \"\")")
+  })
+
+  test("removed message keeps its full md block", () => {
+    const prev = { messages: [{ role: "assistant", content: "kept" }, { role: "user", content: "gone" }] }
+    const curr = { messages: [{ role: "assistant", content: "kept" }] }
+    const text = renderRawWirePseudoDiff({ prevId: "p", currId: "c", prev, curr })
+    expect(text).toContain("messages: 2 -> 1 (-1)")
+    expect(text).toContain("[1] user | content:str(4) — REMOVED")
+    expect(text).toContain("[1] user — REMOVED:")
+    expect(text).toContain("gone")
   })
 })

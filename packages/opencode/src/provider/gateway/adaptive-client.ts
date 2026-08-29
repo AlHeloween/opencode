@@ -11,7 +11,7 @@ import * as H1 from "./h1-transport"
 import { healthScore } from "./health-window"
 import { Global } from "@opencode-ai/core/global"
 import * as Log from "@opencode-ai/core/util/log"
-import { assembleMessage, renderIntegrityReport, renderLineDiff, renderResponseMarkdown } from "./raw-diff"
+import { assembleMessage, renderIntegrityReport, renderLineDiff, renderRawWirePseudoDiff, renderResponseMarkdown } from "./raw-diff"
 import path from "path"
 import { EOL } from "os"
 import fs from "fs"
@@ -31,6 +31,8 @@ let debugConfig: ResolvedDebugConfig | null = null
 
 /** Previous request body for per-request diff comparison. */
 let prevRequestBody: { requestId: string; timestamp: number; body: string } | undefined
+/** Previous raw-wire body for the two-level pseudo-diff. */
+let prevWireBody: { requestId: string; body: unknown } | undefined
 
 export function setDebugConfig(config: ResolvedDebugConfig): void {
   debugConfig = config
@@ -161,13 +163,15 @@ function rewriteReasoningContent(body: string): string {
         if (key !== "reasoning_content") rebuilt[key] = item
       }
       if (!placed) rebuilt.reasoning_content = value
-      // Faithful round-trip (input null -> output null, input "" -> output ""):
-      // - CoT-ful turns: reasoning deltas carry content "" (wire-proven, 690+
-      //   deltas per capture); the SDK's `text || null` (dist/index.js:3204)
-      //   destroys it — restore "".
-      // - No-CoT turns (reasoning_content "" is our 400-guard fill): only
-      //   tool-call deltas flowed and their content was null — keep null.
-      if (value !== "" && (rebuilt.content === null || rebuilt.content === undefined)) {
+      // Faithful round-trip: EVERY Z.AI/GLM assistant stream carries content ""
+      // deltas — the opening delta and the closing deltas at finish_reason
+      // (live capture e8e488a8: even a no-CoT turn with reasoning_tokens=0
+      // closes with content:""). Message-level content for a no-text turn is
+      // therefore ALWAYS ""; the SDK's `text || null` (dist/index.js:3204)
+      // destroys it into null. Null appears only in mid-stream tool-call
+      // deltas, which never define message-level content — restore ""
+      // unconditionally: input "" -> output "".
+      if (rebuilt.content === null || rebuilt.content === undefined) {
         rebuilt.content = ""
       }
       messages[index] = rebuilt
@@ -592,17 +596,34 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
             `${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}-${pad(d.getMilliseconds(), 3)}Z`
           const sanitizedId = String(requestId).replace(/[^a-zA-Z0-9_-]/g, "_")
           const bodyStr = typeof init.body === "string" ? init.body : JSON.stringify(init.body)
+          const wireBody = tryParseJSON(bodyStr)
           fs.writeFileSync(
             path.join(wireDir, `${iso}-${sanitizedId}.json`),
             JSON.stringify({
               url,
               method: (init?.method || "POST").toUpperCase(),
               headers: wireHeaders(headers),
-              body: tryParseJSON(bodyStr),
+              body: wireBody,
             }, null, 2).replace(/\n/g, EOL),
           )
+          // Two-level pseudo-diff vs the previous wire body (capture contract):
+          // LEVEL 1 — JSON structure; LEVEL 2 — messages rendered as MD and
+          // compared. Unchanged messages collapse to one line; added/changed
+          // carry full readable content.
+          if (prevWireBody) {
+            fs.writeFileSync(
+              path.join(wireDir, `${iso}-${sanitizedId}.diff`),
+              renderRawWirePseudoDiff({
+                prevId: prevWireBody.requestId,
+                currId: String(requestId),
+                prev: prevWireBody.body,
+                curr: wireBody,
+              }),
+            )
+          }
+          prevWireBody = { requestId, body: wireBody }
         } catch (e) {
-          log.debug("raw-wire dump failed", { error: String(e), requestId })
+          log.warn("bug: raw-wire dump failed", { error: String(e), requestId })
         }
       }
       // ── End raw wire dump ──

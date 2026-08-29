@@ -49,25 +49,18 @@ export function readableResponseBody(body: unknown, isStream: boolean): unknown 
   return chunks.length > 0 ? chunks : body
 }
 
-/**
- * Attempt to format a JSON string for readability while preserving original for fidelity.
- * Returns { formatted, raw } — formatted has line breaks, raw preserves \uXXXX.
- */
-function formatBodyForLog(raw: string): { formatted: unknown; raw: string } {
-  try {
-    return { formatted: JSON.parse(raw) as unknown, raw }
-  } catch {
-    return { formatted: raw, raw }
-  }
-}
-
 export function formatPerRequestEntry(entry: Record<string, unknown>) {
   const result = { ...entry }
-  // If body is a string, provide both formatted (parsed, readable) and raw (unicode-preserved)
+  // Parse the JSON body for readability. No raw duplicate: the parsed form is
+  // a lossless JSON round-trip and the escaped one-liner doubled every file.
   if (typeof result.body === "string" && (result.body as string).trimStart().startsWith("{")) {
-    const { formatted, raw } = formatBodyForLog(result.body as string)
-    result.body = formatted
-    result.body_raw = raw
+    try {
+      result.body = JSON.parse(result.body as string) as unknown
+    } catch (error) {
+      log.debug("gateway request body parse failed; keeping raw string", {
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
   }
   return JSON.stringify(result, null, 2).replace(/\n/g, EOL)
 }

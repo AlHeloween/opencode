@@ -11,7 +11,7 @@ import * as H1 from "./h1-transport"
 import { healthScore } from "./health-window"
 import { Global } from "@opencode-ai/core/global"
 import * as Log from "@opencode-ai/core/util/log"
-import { collectReasoning, renderRawDiff, renderReasoningMarkdown } from "./raw-diff"
+import { collectReasoning, renderIntegrityReport, renderLineDiff, renderReasoningMarkdown } from "./raw-diff"
 import path from "path"
 import { EOL } from "os"
 import fs from "fs"
@@ -31,8 +31,6 @@ let debugConfig: ResolvedDebugConfig | null = null
 
 /** Previous request body for per-request diff comparison. */
 let prevRequestBody: { requestId: string; timestamp: number; body: string } | undefined
-/** Previous response body for per-response diff comparison. */
-let prevResponseBody: { requestId: string; timestamp: number; body: string } | undefined
 
 export function setDebugConfig(config: ResolvedDebugConfig): void {
   debugConfig = config
@@ -421,7 +419,11 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
         ...(rawBody && { body: rawBody }),
       })
 
-      // Write request-to-request raw-byte divergence report as a separate .diff file
+      // Request-to-request diff: line-based over the PRETTY bodies (real
+      // newlines, zero content filtering — special chars stay visible) plus a
+      // short integrity report against the recommended wire flow. The old
+      // byte-true report over one-line JSON was unreadable by eye — the
+      // kernel triplication was found manually, not by it.
       if (rawBody && prevRequestBody) {
         const logDir = process.env.OPENCODE_GATEWAY_LOG_DIR || path.join(Global.Path.data, "gateway")
         const diffDir = path.join(logDir, "per-request")
@@ -432,12 +434,18 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
           `${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}-${pad(d.getMilliseconds(), 3)}Z`
         const sanitizedId = String(requestId).replace(/[^a-zA-Z0-9_-]/g, "_")
         const diffPath = path.join(diffDir, `${iso}-${sanitizedId}.diff`)
-        const report = renderRawDiff({
-          prevId: prevRequestBody.requestId,
-          prevRaw: prevRequestBody.body,
-          currId: requestId,
-          currRaw: rawBody,
-        })
+        const pretty = (raw: string): string => {
+          const parsed = tryParseJSON(raw)
+          return typeof parsed === "string" ? raw : JSON.stringify(parsed, null, 2)
+        }
+        const report =
+          renderIntegrityReport({ body: tryParseJSON(rawBody) }) +
+          renderLineDiff({
+            prevId: prevRequestBody.requestId,
+            prevRaw: pretty(prevRequestBody.body),
+            currId: requestId,
+            currRaw: pretty(rawBody),
+          })
         fs.writeFileSync(diffPath, report + EOL)
       }
       prevRequestBody = { requestId, timestamp: startTime, body: rawBody ?? "" }
@@ -582,7 +590,6 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
               method: (init?.method || "POST").toUpperCase(),
               headers: wireHeaders(headers),
               body: tryParseJSON(bodyStr),
-              body_raw: bodyStr,
             }, null, 2).replace(/\n/g, EOL),
           )
         } catch (e) {
@@ -824,7 +831,12 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                   if (raw !== fullRaw) {
                     endEntry.bodyTruncated = true
                   }
-                  endEntry.body = raw
+                  // Under perRequest the body lands in per-response files
+                  // (.json metadata + .raw.txt literal) — no inline copy in
+                  // the JSONL log (disk hygiene).
+                  if (!debugCfg.perRequest) {
+                    endEntry.body = raw
+                  }
                   endEntry.bodySize = raw.length
                   // Write per-response JSON file (mirrors per-request)
                   if (debugCfg.perRequest) {
@@ -839,15 +851,20 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                     const responsePath = path.join(responseDir, `${iso}-${sanitizedId}.json`)
                     const resHeaders: Record<string, string> = {}
                     response.headers.forEach((v, k) => { resHeaders[k] = v })
+                    // Write per-response capture: metadata JSON + the literal
+                    // raw stream as a sidecar. No parsed `body` and no escaped
+                    // `body_raw` in the JSON — both were re-serializations that
+                    // doubled every file and could mask special characters.
                     fs.writeFileSync(responsePath, JSON.stringify({
                       type: "response",
                       timestamp: d.getTime(),
                       id: requestId,
                       status: response.status,
                       headers: wireHeaders(resHeaders),
-                      body: readableResponseBody(raw, isStream),
-                      body_raw: fullRaw,
                     }, null, 2).replace(/\n/g, EOL))
+                    // Literal raw stream: the exact wire body with its own real
+                    // newlines — no filtering, no re-serialization.
+                    fs.writeFileSync(path.join(responseDir, `${iso}-${sanitizedId}.raw.txt`), fullRaw)
                     // Reasoning sidecar: assembled delta.reasoning / reasoning_details text.
                     const reasoning = collectReasoning(readableResponseBody(raw, isStream))
                     if (reasoning.text.trim().length > 0) {
@@ -861,18 +878,6 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                         }) + EOL,
                       )
                     }
-                    if (prevResponseBody) {
-                      fs.writeFileSync(
-                        path.join(responseDir, `${iso}-${sanitizedId}.diff`),
-                        renderRawDiff({
-                          prevId: prevResponseBody.requestId,
-                          prevRaw: prevResponseBody.body,
-                          currId: String(requestId),
-                          currRaw: fullRaw,
-                        }) + EOL,
-                      )
-                    }
-                    prevResponseBody = { requestId: String(requestId), timestamp: d.getTime(), body: fullRaw }
                   }
                 }
                 writeLog(endEntry)

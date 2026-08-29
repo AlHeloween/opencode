@@ -1,4 +1,14 @@
 # Progress Log
+## 2026-08-29 Gateway capture hygiene: literal raw sidecars, line-based diff + message integrity report
+Reason: user directives (2026-08-29 02:38-02:52) — captures must stop burning disk on re-serializations (per-request `body_raw`, per-response parsed `body` + escaped `body_raw`, raw-wire `body_raw`, inline `endEntry.body` under perRequest); bodies readable as literal text (real newlines, ZERO filtering — "мы можем реально упустить спец символ"); the old byte-true diff over one-line JSON was unreadable ("нашел 3 кернела руками") — replace with line diff + SHORT integrity report against the recommended flow.
+Changes:
+- `raw-diff.ts` — NEW `renderLineDiff()`: unified line diff over literal text (exact line compare, prefix/suffix trim + LCS on middle with head/tail context lines, fallback for giant middles); NEW `renderIntegrityReport()`: kernel-copy count (marker "Semantic Vector (SV)" — would have caught the ×3 triplication), dual-dialect flags (reasoning/reasoning_details), canonical order (reasoning_content BEFORE tool_calls), tool-turn 400-guard (field mandatory even empty), empty-field-on-final flag; per docs/reasoning-round-trip-contract.md.
+- `adaptive-client.ts` — request .diff rebuilt = integrity report + line diff of pretty bodies (rawBody kept in-memory only); per-response JSON = metadata+headers only, exact wire stream → `{iso}-{id}.raw.txt` literal sidecar; response .diff (SSE prev-vs-curr = 100% noise) removed; raw-wire JSON drops `body_raw`; `endEntry.body` inline copy gated off under perRequest; prevResponseBody tracking removed.
+- `async-logger.ts` — `formatPerRequestEntry`: parsed body only, no `body_raw` duplicate; `formatBodyForLog` deleted; catch logs (no silent catch).
+- `test/provider/raw-diff.test.ts` — +9 tests: exact line diff (@@ headers, no normalization), identical short-circuit, kernel-append case, integrity CONFORMS / kernel×3 / dual dialect / order violation / missing-on-tool-turn / empty-final / non-envelope skip.
+Script Output:
+- 25 pass / 0 fail (`20260829T031324Z_d79f3634`); typecheck PASS (`20260829T031400Z_de9ec29e`). Note: `renderRawDiff`/`analyzeRawDiff`/`messageSpans` remain exported+tested (no production callers now — deletion is user's call).
+
 ## 2026-08-29 FIX: kernel system prompt tripled — single-identity discipline for checkpoints
 Reason: user ("Boss I found big bug! Same system message exists 3 times", per-request capture 1787959509000). Wire: 3 identical kernel messages (56,892 chars each, hash 72a57867619f) + 3 compacts = 3 copies. RCA: `captureSummary` (prompt.ts:1085 old) prepended `cleanIdentity` (= reasoning kernel) on the checkpointUsable branch whose stored systemPrompt[0] already WAS the identity → +1 copy per capture, persisted. Main path (2548) was idempotent; assembleSystemMessages/plugin hooks clean.
 Changes:

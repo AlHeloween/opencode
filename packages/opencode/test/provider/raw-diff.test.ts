@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 
-import { analyzeRawDiff, collectReasoning, messageSpans, renderRawDiff } from "@/provider/gateway/raw-diff"
+import { analyzeRawDiff, collectReasoning, messageSpans, renderIntegrityReport, renderLineDiff, renderRawDiff } from "@/provider/gateway/raw-diff"
 
 function body(messages: string[], maxTokens = 100) {
   return JSON.stringify({
@@ -160,5 +160,129 @@ describe("collectReasoning", () => {
   test("non-string non-array body is ignored", () => {
     expect(collectReasoning(42).text).toBe("")
     expect(collectReasoning(null).text).toBe("")
+  })
+})
+
+describe("renderLineDiff", () => {
+  test("added/removed lines are exact — no normalization", () => {
+    const prev = "a\nb\nc\nd\ne\nf\ng"
+    const curr = "a\nb\nC2\nd\ne\nf\ng"
+    const text = renderLineDiff({ prevId: "p", prevRaw: prev, currId: "c", currRaw: curr })
+    expect(text).toContain("--- prev (p)")
+    expect(text).toContain("+++ curr (c)")
+    expect(text.split("\n")).toContain("-c")
+    expect(text.split("\n")).toContain("+C2")
+    expect(text).toContain("@@ -1,6 +1,6 @@")
+  })
+
+  test("identical bodies are short-circuited", () => {
+    const text = renderLineDiff({ prevId: "p", prevRaw: "a\nb", currId: "c", currRaw: "a\nb" })
+    expect(text).toContain("bodies identical")
+  })
+
+  test("kernel-copy append shows as added lines (the compaction case)", () => {
+    const make = (copies: number) =>
+      JSON.stringify(
+        {
+          model: "m",
+          messages: Array.from({ length: copies }, () => ({
+            role: "system",
+            content: [{ type: "text", text: "# Semantic Vector (SV) — kernel body" }],
+          })),
+        },
+        null,
+        2,
+      )
+    // Triplication: one more identical kernel block in curr — a plain line
+    // diff surfaces it as added lines (the byte report could not: the copies
+    // are identical, only their count grew).
+    const text = renderLineDiff({ prevId: "p", prevRaw: make(2), currId: "c", currRaw: make(3) })
+    const added = text.split("\n").filter((line) => line.startsWith("+"))
+    expect(added.length).toBeGreaterThan(0)
+    expect(added.some((line) => line.includes("Semantic Vector (SV)"))).toBe(true)
+  })
+})
+
+describe("renderIntegrityReport", () => {
+  const kernel = "# Semantic Vector (SV)\nkernel body"
+  const conforms = {
+    model: "m",
+    messages: [
+      { role: "system", content: "You are Smit." },
+      { role: "system", content: [{ type: "text", text: kernel }] },
+      { role: "user", content: "go" },
+      {
+        role: "assistant",
+        content: "",
+        reasoning_content: "thinking",
+        tool_calls: [{ id: "t1", function: { name: "f", arguments: "{}" } }],
+      },
+      { role: "tool", content: "result", tool_call_id: "t1" },
+      { role: "assistant", content: "done" },
+    ],
+  }
+
+  test("canonical flow reports CONFORMS with kernel×1", () => {
+    const text = renderIntegrityReport({ body: conforms })
+    expect(text).toContain("kernel copies: 1")
+    expect(text).toContain("CONFORMS")
+    expect(text).not.toContain("VIOLATIONS")
+  })
+
+  test("kernel triplication is flagged (compaction regression)", () => {
+    const body = {
+      messages: [
+        { role: "system", content: kernel },
+        { role: "system", content: kernel },
+        { role: "system", content: kernel },
+        { role: "user", content: "go" },
+      ],
+    }
+    const text = renderIntegrityReport({ body })
+    expect(text).toContain("kernel copies: 3 (EXPECTED 1 — identity accumulation)")
+  })
+
+  test("dual dialect violation", () => {
+    const body = {
+      messages: [
+        { role: "user", content: "go" },
+        { role: "assistant", content: "", reasoning: "x", reasoning_details: [{ text: "x" }] },
+      ],
+    }
+    expect(renderIntegrityReport({ body })).toContain("dual dialect")
+  })
+
+  test("reasoning_content after tool_calls — order violation", () => {
+    const body = {
+      messages: [
+        { role: "user", content: "go" },
+        { role: "assistant", content: "", tool_calls: [{ id: "t" }], reasoning_content: "think" },
+      ],
+    }
+    expect(renderIntegrityReport({ body })).toContain("after tool_calls")
+  })
+
+  test("tool-call turn without reasoning_content — 400 guard", () => {
+    const body = {
+      messages: [
+        { role: "user", content: "go" },
+        { role: "assistant", content: "", tool_calls: [{ id: "t" }] },
+      ],
+    }
+    expect(renderIntegrityReport({ body })).toContain("without reasoning_content")
+  })
+
+  test("empty reasoning_content on a final answer", () => {
+    const body = {
+      messages: [
+        { role: "user", content: "go" },
+        { role: "assistant", content: "done", reasoning_content: "" },
+      ],
+    }
+    expect(renderIntegrityReport({ body })).toContain("empty reasoning_content")
+  })
+
+  test("non-envelope body is skipped", () => {
+    expect(renderIntegrityReport({ body: "raw string" })).toContain("report skipped")
   })
 })

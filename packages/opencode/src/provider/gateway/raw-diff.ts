@@ -389,3 +389,226 @@ export function renderReasoningMarkdown(input: {
   lines.push("")
   return lines.join("\n")
 }
+
+type LineOp = { type: "same" | "del" | "add"; line: string }
+
+/**
+ * Unified line-based diff over literal text. Lines compare exactly — no
+ * trimming, no whitespace or escape normalization — so every special
+ * character stays visible. Common prefix/suffix line runs are trimmed first
+ * (consecutive wire bodies share a long common prefix by construction) and
+ * the LCS runs only on the changed middle; giant middles fall back to
+ * whole-block -/+ emission instead of an O(n·m) table.
+ */
+export function renderLineDiff(input: RenderInput, context = 3): string {
+  const header = `--- prev (${input.prevId})\n+++ curr (${input.currId})\n`
+  if (input.prevRaw === input.currRaw) return `${header}bodies identical\n`
+  const prevLines = input.prevRaw.split("\n")
+  const currLines = input.currRaw.split("\n")
+  const minLen = Math.min(prevLines.length, currLines.length)
+  let prefix = 0
+  while (prefix < minLen && prevLines[prefix] === currLines[prefix]) prefix++
+  let suffix = 0
+  while (
+    suffix < minLen - prefix &&
+    prevLines[prevLines.length - 1 - suffix] === currLines[currLines.length - 1 - suffix]
+  ) {
+    suffix++
+  }
+  const midPrev = prevLines.slice(prefix, prevLines.length - suffix)
+  const midCurr = currLines.slice(prefix, currLines.length - suffix)
+  // Keep up to `context` boundary lines as same-ops so hunks show their
+  // surroundings even when the change sits at the trim boundary.
+  const head = Math.min(prefix, context)
+  const tail = Math.min(suffix, context)
+  if (head > 0) {
+    const ctxLines = prevLines.slice(prefix - head, prefix)
+    midPrev.unshift(...ctxLines)
+    midCurr.unshift(...ctxLines)
+  }
+  if (tail > 0) {
+    const ctxLines = prevLines.slice(prevLines.length - suffix, prevLines.length - suffix + tail)
+    midPrev.push(...ctxLines)
+    midCurr.push(...ctxLines)
+  }
+  return header + renderHunks(lcsLineOps(midPrev, midCurr), prefix - head, context)
+}
+
+/** LCS over the changed middle; falls back to del-then-add when the table would explode. */
+function lcsLineOps(a: string[], b: string[]): LineOp[] {
+  const n = a.length
+  const m = b.length
+  if (n === 0 && m === 0) return []
+  if (n * m > 4_000_000) {
+    return [
+      ...a.map((line) => ({ type: "del" as const, line })),
+      ...b.map((line) => ({ type: "add" as const, line })),
+    ]
+  }
+  const dp: Uint32Array[] = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1))
+  for (let i = n - 1; i >= 0; i--) {
+    const row = dp[i]!
+    const next = dp[i + 1]!
+    for (let j = m - 1; j >= 0; j--) {
+      row[j] = a[i] === b[j] ? next[j + 1]! + 1 : Math.max(next[j]!, row[j + 1]!)
+    }
+  }
+  const ops: LineOp[] = []
+  let i = 0
+  let j = 0
+  while (i < n && j < m) {
+    if (a[i] === b[j]) {
+      ops.push({ type: "same", line: a[i]! })
+      i++
+      j++
+    } else if (dp[i + 1]![j]! >= dp[i]![j + 1]!) {
+      ops.push({ type: "del", line: a[i]! })
+      i++
+    } else {
+      ops.push({ type: "add", line: b[j]! })
+      j++
+    }
+  }
+  while (i < n) ops.push({ type: "del", line: a[i++]! })
+  while (j < m) ops.push({ type: "add", line: b[j++]! })
+  return ops
+}
+
+/** Group ops into unified hunks with `context` unchanged lines around each change cluster. */
+function renderHunks(ops: LineOp[], prefixOffset: number, context: number): string {
+  const changeIdx: number[] = []
+  for (let k = 0; k < ops.length; k++) if (ops[k]!.type !== "same") changeIdx.push(k)
+  if (changeIdx.length === 0) return "bodies identical\n"
+  const windows: Array<[number, number]> = []
+  for (const idx of changeIdx) {
+    const start = Math.max(0, idx - context)
+    const end = Math.min(ops.length - 1, idx + context)
+    const last = windows[windows.length - 1]
+    if (last && start <= last[1] + 1) last[1] = Math.max(last[1], end)
+    else windows.push([start, end])
+  }
+  const out: string[] = []
+  // Absolute 1-based line numbers; the common prefix lines are shared.
+  let prevNo = prefixOffset
+  let currNo = prefixOffset
+  let k = 0
+  for (const [start, end] of windows) {
+    for (; k < start; k++) {
+      const op = ops[k]!
+      if (op.type !== "add") prevNo++
+      if (op.type !== "del") currNo++
+    }
+    const prevStart = prevNo + 1
+    const currStart = currNo + 1
+    let prevCount = 0
+    let currCount = 0
+    const body: string[] = []
+    for (; k <= end; k++) {
+      const op = ops[k]!
+      if (op.type === "same") {
+        prevCount++
+        currCount++
+        prevNo++
+        currNo++
+        body.push(` ${op.line}`)
+      } else if (op.type === "del") {
+        prevCount++
+        prevNo++
+        body.push(`-${op.line}`)
+      } else {
+        currCount++
+        currNo++
+        body.push(`+${op.line}`)
+      }
+    }
+    out.push(`@@ -${prevStart},${prevCount} +${currStart},${currCount} @@`, ...body)
+  }
+  return out.join("\n") + "\n"
+}
+
+/** Marker that identifies one reasoning-kernel copy inside a system message. */
+const KERNEL_MARKER = "Semantic Vector (SV)"
+
+function messageText(message: Record<string, unknown>): string {
+  const content = message.content
+  if (typeof content === "string") return content
+  if (Array.isArray(content)) {
+    return content
+      .map((part) =>
+        part && typeof part === "object" && typeof (part as Record<string, unknown>).text === "string"
+          ? ((part as Record<string, unknown>).text as string)
+          : "",
+      )
+      .join("\n")
+  }
+  return ""
+}
+
+/**
+ * Short conformance report of the request's messages against the recommended
+ * wire flow (docs/reasoning-round-trip-contract.md):
+ *  - exactly ONE reasoning-kernel copy among system messages (the compaction
+ *    triplication was invisible to byte diffs — the copies are identical);
+ *  - assistant turns carry the single native `reasoning_content` field — no
+ *    OpenRouter dual dialect (`reasoning` / `reasoning_details`);
+ *  - canonical key order: reasoning_content BEFORE tool_calls;
+ *  - tool-call turns always carry reasoning_content (even empty — vendors 400);
+ *  - final answers without CoT omit the field entirely.
+ */
+export function renderIntegrityReport(input: { body: unknown }): string {
+  const body = input.body
+  const messages =
+    body !== null && typeof body === "object" && Array.isArray((body as Record<string, unknown>).messages)
+      ? ((body as Record<string, unknown>).messages as unknown[])
+      : null
+  if (!messages) return "integrity: body is not a JSON messages envelope — report skipped\n"
+  let kernelCopies = 0
+  let assistants = 0
+  let canonical = 0
+  const violations: string[] = []
+  const roleCounts = new Map<string, number>()
+  messages.forEach((item, index) => {
+    if (item === null || typeof item !== "object") {
+      violations.push(`[#${index}] not an object`)
+      return
+    }
+    const message = item as Record<string, unknown>
+    const role = typeof message.role === "string" ? message.role : "?"
+    roleCounts.set(role, (roleCounts.get(role) ?? 0) + 1)
+    if (role === "system" && messageText(message).includes(KERNEL_MARKER)) kernelCopies++
+    if (role !== "assistant") return
+    assistants++
+    let clean = true
+    if ("reasoning" in message || "reasoning_details" in message) {
+      violations.push(
+        `[assistant#${index}] dual dialect (reasoning/reasoning_details) — single reasoning_content required`,
+      )
+      clean = false
+    }
+    const keys = Object.keys(message)
+    const toolCalls = Array.isArray(message.tool_calls) ? message.tool_calls.length : 0
+    if (toolCalls > 0) {
+      if (!("reasoning_content" in message)) {
+        violations.push(`[assistant#${index}] tool-call turn without reasoning_content — vendor 400 (even empty)`)
+        clean = false
+      } else if (keys.indexOf("reasoning_content") > keys.indexOf("tool_calls")) {
+        violations.push(`[assistant#${index}] reasoning_content after tool_calls — canonical order is before`)
+        clean = false
+      }
+    } else if ("reasoning_content" in message && message.reasoning_content === "") {
+      violations.push(`[assistant#${index}] empty reasoning_content on a final answer — omit the field`)
+      clean = false
+    }
+    if (clean) canonical++
+  })
+  const roles = [...roleCounts.entries()].map(([role, count]) => `${role}=${count}`).join(" ")
+  const head =
+    `integrity: messages=${messages.length} (${roles}) | ` +
+    `kernel copies: ${kernelCopies}${kernelCopies === 1 ? "" : " (EXPECTED 1 — identity accumulation)"} | ` +
+    `assistant flow: canonical ${canonical}/${assistants}`
+  const tail =
+    violations.length === 0
+      ? "integrity: CONFORMS to recommended flow"
+      : `integrity: VIOLATIONS: ${violations.join("; ")}`
+  return `${head}\n${tail}\n`
+}

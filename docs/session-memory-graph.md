@@ -3,7 +3,7 @@
 **Canonical contract + gap table:** [`compaction.md`](compaction.md)  
 **Tool diffs + CodeGraph on s:** [`summary-exact-handles.md`](summary-exact-handles.md)
 
-- Content without `s`; after durable checkpoint → summary; M restored; compact → `m*=[s,s(≤32K),recent m]` (no prior m* content pulled forward)
+- Content without `s`; after durable checkpoint → summary; M restored; compact → `m*=[s,s(≤32K),recent m(~32K real)]` (prior m* ROW excluded — real messages re-eligible by budget; summaries carry forward)
 - Exact on s: **write/edit/multiedit** tool filediffs in range + CodeGraph on those paths
 - Fossil: **rollback only** (track/restore) — not summary memory
 
@@ -17,12 +17,12 @@ If a graph is prettier than code, **code wins** for Exact claims.
 M (content):   [m m m]     [m m m]     [m m m]
 s (outside):        s1          s2          s3
 
-compact → m* = [ s1, s2 (≤32K tokens), recent m m m ]
+compact → m* = [ s1, s2 (≤32K tokens), recent m m m (last ~32K of ALL real messages) ]
            each s = AI body + Exact range/sessionread
-                    + tool filediffs + CodeGraph
-           decisions from current s only (not prior m*)
-           prior m* excluded from Recent (session-read only)
-           checker rejects incomplete agent fields
+                     + tool filediffs + CodeGraph
+           decisions from carried-forward summaries
+           prior m* ROWS skipped in selection (never embedded);
+           real messages re-eligible — idempotent rebuild per compact
 ```
 
 ```text
@@ -161,9 +161,11 @@ Not: “every 65K at end of turn, inject summary then compact.”
 | In-band needsContentCompaction can fire on tool-continue | Exact |
 | Docs that said inject every 64K as primary | **False vs code** (fixed in compaction.md) |
 | Summaries capped at 32K tokens in m* | Exact (shipped 2026-08-22) |
-| Prior m* decisions not pulled forward | Exact (shipped 2026-08-22) |
-| Prior m* excluded from Recent tail | Exact (shipped 2026-08-22) |
+| Prior m* decisions | rebuilt from ALL carried-forward summaries | Exact (fixed 2026-08-29; was current-window only) |
+| Prior m* row excluded; real messages re-eligible | `selectRecentTail(msgs)` — full-archive walk, star rows skipped | Exact (fixed 2026-08-29; was visible-only hard-stop) |
+| Summaries carry forward (listAll) | open + materialized checkpoints feed every m* | Exact (fixed 2026-08-29) |
+| Compact idempotent: 10 compacts → same m* | lone-star no-op + deterministic DB rebuild | Exact (tested 2026-08-29) |
 | m\* never counted as Layer-1 increment (leading star chain skipped without boundary) | Exact (2026-08-26) |
 | Pre-send no-progress guard fails loudly instead of silent spin | Exact (2026-08-26) |
-| Prior m\* never enters the new m\* (pointer-only chain link) | Exact (shipped 2026-08-22; rationale recorded 2026-08-26) |
-| m\* synthetic single-message construct: rollback atomicity, O(1) fold, KV-prefix stability | Exact (design rationale, 2026-08-26) |
+| Prior m\* row never enters the new m\*; real messages re-eligible by budget | Exact (2026-08-29 contract — supersedes 2026-08-26 pointer-only design) |
+| m\* synthetic single-message construct: rollback atomicity, undo restores exact window per m\* | Exact (design rationale, 2026-08-26; reaffirmed 2026-08-29) |

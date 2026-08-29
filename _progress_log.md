@@ -1,4 +1,15 @@
 # Progress Log
+## 2026-08-29 Compaction contract fix + sessionread ordering (m* never contains m*)
+Reason: user contract (2026-08-29, 19:56 UTC) — m* = [≤30k summaries] + [≤30k last REAL messages (verbatim copy: user/assistant/thinking/tool — all)], prior m* rows ignored in selection, summaries carry forward; idempotent (10 compacts → same m*); undo restores the exact content window per m*. Live evidence: post-compact archaeology spirals (the session's original task fell behind the star chain entirely); sessionread default view returned the OLDEST messages mislabeled as recent (MessageV2.stream is newest-first → slice(-limit) took the wrong end) — the recovery bridge itself was broken.
+Changes:
+- `sessionread.ts` — reverse collected messages to ascending (1 = session start; matches m* #N tags and part_index). Default view now truly returns the newest messages.
+- `compaction.ts` — `selectRecentTail(msgs, minTokens)` rewrite: full-archive walk (skips star rows / Layer-1 panels / summary requests+assistants via summaryParents set), floor semantics ("30k ±", whole-message granularity); `compact()` reads ALL rows (`session.messages(visibleOnly: false)`) so compacted real messages and legacy summaries behind the prior star are eligible again; summaries from `IncrementalCheckpoint.listAll` (open AND materialized — carry forward); removed dead latestBoundary/coveredThroughId logic.
+- `incremental-checkpoint.ts` — `listAll(sessionID)` added.
+- Tests: summary-cadence `selectRecentTail` rewritten to contract (+cross-star, +floor); compaction.test.ts — budget assertions, star-skip test extended (tail crosses star; summaries carry), decisions carry-forward flipped to `toContain`, 10-compacts idempotency loop, NEW test "summaries carry forward: materialized checkpoints re-enter the next m*", full-cycle budget assertions (m7/m1 archive-only).
+- Docs: `compaction.md` + `session-memory-graph.md` — 2026-08-29 contract recorded (supersedes 2026-08-26 pointer-only design); gap table + claim ledger updated.
+Script Output:
+- typecheck PASS (`20260829T202809Z_c0983748`, `20260829T204041Z_2910bdb9`); compaction+cadence **99 pass / 0 fail** (`20260829T203921Z_c80e4116`). prompt.test.ts: 18 fail with fix vs **21 fail on baseline HEAD** (stash A/B: `20260829T205107Z_71ce4fe1`) — suite broken pre-existing (fixture git-config errors, loop timeouts), separate bug, not caused by this change.
+
 ## 2026-08-29 Raw-wire two-level pseudo-diff (+ content-restore revert landed)
 Reason: user spec (14:13 UTC) — raw-wire dumps need diffs: "уровень один — структура json, уровень 2 — преобразовать сообщения внутри json в md и сравнить, и этот псевдо диф сохранить".
 Changes:

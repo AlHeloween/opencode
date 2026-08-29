@@ -39,12 +39,15 @@ If they disagree, **do not paper over it**. Fix code toward the contract, or mar
   the provider prefix changes at message 1. Unavoidable; everything after
   rides the cache again.
 
-**m\* composition:** last ≤32K tokens of `s` bodies + recent tail (≥32K
-tokens of real messages, walk-back hard-stops at prior m\*), closed by one
-recovery pointer: `Use messagesearch, sessionread and dbread to restore
-missing facts.` (single line at the very end — earlier top-placed recovery
-recipes caused tool spirals). Zero summaries (manual `/compact` on a fresh
-session) → tail-only m\*: header + last ~32K of messages. `m*` is the memory; the visible list after a fold is
+**m\* composition (2026-08-29 contract):** last ≤32K tokens of `s` bodies
+(ALL checkpoints — open AND materialized; summaries carry forward across
+compacts) + last ~32K tokens of REAL messages (verbatim copy from the FULL
+archive — compacted rows included, prior m\* rows skipped, floor semantics
+"30k ±"), closed by one recovery pointer: `Use messagesearch, sessionread
+and dbread to restore missing facts.` (single line at the very end — earlier
+top-placed recovery recipes caused tool spirals). Zero summaries (manual
+`/compact` on a fresh session) → tail-only m\*: header + last ~32K of
+messages. `m*` is the memory; the visible list after a compact is
 `[m*, m, m, …]`. Rollback reconstructs the content window as `m*` + the
 messages that followed it — the DB keeps every soft-hidden row
 (`compacted=true`, never deleted), reachable via `session-read`.
@@ -119,26 +122,33 @@ sidecar request.
 
 <!-- goal_sv: summary, compaction, mirror, gated workflow -->
 
-**Recent floor:** after compact, work tail is at least ~`RECENT_MIN_TOKENS` (32 768) content tokens from the end, ignoring the latest summary — thin post-summary stubs are extended backward so the next open window is real work, not empty → immediate re-summary. The walk-back **hard-stops at the prior message***: it is EXCLUDED (session-read only) and the tail never crosses it — repeated compacts stay idempotent.
+**Recent tail:** the last ~`RECENT_MIN_TOKENS` (32 768) content tokens of
+REAL messages, copied verbatim (floor semantics, whole-message granularity —
+"30k ±"). Selection walks the FULL message list (compacted rows included)
+and skips memory-machinery rows: prior m\* rows, Layer-1 UI panels, summary
+requests/assistants. Real messages folded into a prior m\* tail are
+re-eligible — the tail is rebuilt from the DB on every compact, so repeated
+compacts are idempotent (content fixed point: 10 compacts in a row → same
+m\*) and undo restores the exact content window per m\*.
 
 **Summary cap:** total summary body text in m* is capped at `MAX_SUMMARY_BODY_TOKENS` (32 768 tokens). Older summaries are dropped from m* but remain accessible via `session-read`.
 
-**Prior m\* decisions:** decisions from prior m\* are NOT pulled forward into the new m\*. Each m\* carries only decisions from its own current summaries.
+**Prior m\* decisions:** decisions ride the carried-forward summaries —
+the Decisions block is rebuilt from ALL collected summaries each compact,
+so decisions survive every cycle ("preserved verbatim across compaction
+cycles" is literal).
 
-**Prior m\* never enters the new m\* (2026-08-26, Alexander — design rationale):**
-the new star collects summaries and Recent ONLY from messages created after
-the prior star (`priorMsgStarIdx` bound); the old star survives exclusively as
-the `Prior message*: \`id\`` chain-link pointer + from_id/to_id handles
-(session-read). m\* is deliberately a **synthetic single-message construct**:
-
-1. **Rollbacks** — one synthetic row = one atomic undo/redo / crossing unit;
-   piecewise folds made revert boundaries ambiguous.
-2. **Speed & stability** — bounded O(1) fold: the star never re-accumulates
-   every summary since session start (piecewise assembly was O(n²): slow,
-   bug-prone).
-3. **KV-cache stability** — a fixed-composition, bounded star keeps the
-   provider prefix byte-stable across folds; rebuilding from pieces broke the
-   cache prefix on every compact.
+**Prior m\* ROW never enters the new m\* (2026-08-29 contract, Alexander —
+supersedes the 2026-08-26 pointer-only design):** the new star skips prior
+m\* ROWS in selection (an m\* never contains another m\*), but REAL messages
+— including ones folded into a prior m\* tail — are re-eligible by budget.
+The old design (collect only after the prior star, open sidecars only)
+compounded memory loss: each compact shrank the active context to
+post-star work only, and the session's original task fell out of memory
+entirely (observed live 2026-08-29: archaeology spirals after every
+compact). The star stays bounded (≤32K summaries + ≤32K tail) and remains
+one synthetic row = one atomic undo unit; the `Prior message*: \`id\``
+chain-link pointer keeps every prior star session-read addressable.
 
 **Post-summary checker:** required sections non-empty (`isValidSummaryBody`).
 
@@ -233,9 +243,11 @@ sequenceDiagram
 | Cadence ~256k chars / ~64k tokens | `SUMMARY_INTERVAL_TOKENS = 65_536` content/4 | **Match** (order of magnitude) |
 | `m* = [s,s,recent m]` | `compact()` folds open sidecars + Recent; **zero summaries → tail-only m\*** (header + last ~32K of messages; `log: no summaries`) | **Match (2026-08-25)** — T2 refusal removed: manual /compact works on fresh sessions; uncovered tail is the memory |
 | Summaries capped at 32K tokens | `MAX_SUMMARY_BODY_TOKENS = 32_768`; oldest summaries dropped from m* | **Match (shipped 2026-08-22)** |
-| Prior m* decisions not pulled forward | `buildMessageStar` takes only `currentDecisions`, no `priorDecisions` param | **Match (shipped 2026-08-22)** |
-| Prior m* excluded from Recent tail | `selectRecentTail` hard-stops at prior m* (does NOT include it) | **Match (shipped 2026-08-22)** |
-| Recent tail ≥ 32 768 tokens | `selectRecentTail` / `RECENT_MIN_TOKENS` — skip m* + last summary; overlap back if thin, hard-stop at prior m* | **Match** |
+| Prior m* decisions | decisions rebuilt from ALL carried-forward summaries each compact | **Fixed 2026-08-29** (was: current-window summaries only) |
+| Prior m\* row excluded, real messages re-eligible | `selectRecentTail(msgs)` skips star rows (continue, not break); full-archive walk over `session.messages(visibleOnly: false)` | **Fixed 2026-08-29** (was: visible-only walk, hard-stop at star) |
+| Recent tail ~32 768 tokens, floor semantics | `selectRecentTail(msgs, RECENT_MIN_TOKENS)` — verbatim copy until budget reached | **Fixed 2026-08-29** (was: boundary-preference + thin-tail overlap) |
+| Summaries carry forward | `IncrementalCheckpoint.listAll` — open AND materialized checkpoints feed every m\* | **Fixed 2026-08-29** (was: open-only → summaries lost after compact) |
+| Compact idempotent (10 compacts → same m\*) | lone-star no-op + deterministic rebuild from DB | **Match (tested 2026-08-29)** |
 | Compact on window fill | **`maybeCompactCadence`**: target=`usable(model)` (limit − 32K response − 10K overhead); pre-send `hasSpareOutput` force-folds before the turn; stop-cadence is an earlier evaluation of the same rule; degenerate window (usable ≤ 0) folds only via the pre-send force path. T4 (≥2 sidecars) gate removed 2026-08-25 | **Fixed 2026-08-25** |
 | **m\* is NOT an increment** | `computeOpenWindowTokens` without a checkpoint boundary skips the leading message\* chain — the star is an assembly of prior s + history, never new work; a fold cannot pre-arm the Layer-1 cadence | **Fixed 2026-08-26** (was: counter baseline = len(m\*)/4 → s fired on the next stop after every fold) |
 | Pre-send no-progress guard | `hasSpareOutput` fail → force fold; if still failing and nothing folded → `NamedError` with used/usable numbers — the loop never spins silently | **Added 2026-08-26**; unreachable on ≥256K windows (m\* ≤ 32K s-bodies + ≤32K recent + tools ≪ gate), reachable on small-window models / oversized single input |
@@ -287,7 +299,7 @@ never a silent never-fold (the 2026-08-24 dead-end stays fixed).
 | Safety / request fit | `chars/4 + 10_000` |
 | Summary body cap in m* | `MAX_SUMMARY_BODY_TOKENS` (32 768 tokens) |
 | compact() | **0** LLM tokens |
-| Post-fold m\* bound | ≤ `MAX_SUMMARY_BODY_TOKENS` (32K) summary bodies + `RECENT_MIN_TOKENS` (32K) recent tail (+ per-block diff snippets, tools/schema overhead) — why the no-progress guard is unreachable on ≥256K windows |
+| Post-fold m\* bound | ≤ `MAX_SUMMARY_BODY_TOKENS` (32K) summary bodies + ~`RECENT_MIN_TOKENS` (32K) recent tail (floor: whole-message overshoot "30k ±"; + per-block diff snippets, tools/schema overhead) — why the no-progress guard is unreachable on ≥256K windows |
 
 No BPE/tiktoken authority (undercounts providers).
 

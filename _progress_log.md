@@ -1,4 +1,14 @@
 # Progress Log
+## 2026-08-29 Summary cap 16K measured on FULL render + m* latch guards
+Reason: live m* (msg_04fa1b959001) measured 427,148 chars ≈ 145k tokens — prompt 171,339 vs ~85-90k expected. RCA [Exact, dbread positional]: the summary cap counted ONLY `s.text` (16 sidecar bodies = 76k chars, never trimmed) while buildMessageStar rendered +15 filediff blocks (≤20 files × 40 lines each) + 16 plan_state mirrors + impact/links → 237k summaries section; Decisions 38k uncapped; tail 151k (floor per contract). m*-in-m* REFUTED positionally (second "=== COMPACTED ===" at offset 222,034 is a quote inside Summary 15's body; the prior m* row is compacted=1 and skipped by the tail filter — 177k cannot fit into the 151k tail section). User order: "32к имелось ввиду с дифами... сделай кэп на 16к... убедись что бы не цепляешь m*".
+Changes:
+- `compaction.ts` — MAX_SUMMARY_BODY_TOKENS 32_768 → 16_384; NEW `renderSummaryBlock()` extracted from buildMessageStar — single rendering path shared by the cap and the builder (the cap measures exactly the injected bytes: body + diff snippets + plan_state + impact + links); the cap loop drops oldest summaries until the rendered total fits.
+- m\* latch guards in BOTH collection paths: sidecar loop skips checkpoint bodies starting "=== COMPACTED ==="; legacy summary loop skips `isMessageStar(m)` rows (guard after `const m = msgs[i]`, compaction.ts:881). Tail walk already skipped stars.
+- Tests: summary-cadence constant tests → 16_384.
+- Docs: `compaction.md` — cap row (16K FULL render, Fixed 2026-08-29) + m\* composition line.
+Script Output:
+- typecheck PASS (`20260829T230755Z_d260fff9`); compaction+cadence 97 pass / 1 fail — the fail is 5s-timeout noise (5072ms vs 5000ms limit) on `processor returns compact when provider reports high token usage`, solo rerun 1 pass / 0 fail (`20260829T231008Z_b733c894`). Commit `b852e1b4c6`. Effect estimate: cap 65,536 rendered chars keeps ~4 newest of 16 summaries → next m\* ≈ ~90k prompt instead of 171k. Note: the already-stored fat m\* stays until the next compact rebuilds it.
+
 ## 2026-08-29 Compaction contract fix + sessionread ordering (m* never contains m*)
 Reason: user contract (2026-08-29, 19:56 UTC) — m* = [≤30k summaries] + [≤30k last REAL messages (verbatim copy: user/assistant/thinking/tool — all)], prior m* rows ignored in selection, summaries carry forward; idempotent (10 compacts → same m*); undo restores the exact content window per m*. Live evidence: post-compact archaeology spirals (the session's original task fell behind the star chain entirely); sessionread default view returned the OLDEST messages mislabeled as recent (MessageV2.stream is newest-first → slice(-limit) took the wrong end) — the recovery bridge itself was broken.
 Changes:

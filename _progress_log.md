@@ -1,4 +1,14 @@
 # Progress Log
+## 2026-08-29 Raw-wire two-level pseudo-diff (+ content-restore revert landed)
+Reason: user spec (14:13 UTC) — raw-wire dumps need diffs: "уровень один — структура json, уровень 2 — преобразовать сообщения внутри json в md и сравнить, и этот псевдо диф сохранить".
+Changes:
+- `raw-diff.ts` — `renderRawWirePseudoDiff`: LEVEL 1 = JSON structure (top-level scalar changes + per-message shape table: role | content:str/parts/""/null, rc(n), tools(n), unchanged/CHANGED/ADDED/REMOVED); LEVEL 2 = messages rendered as MD (`renderWireMessageMd`, full fidelity) and compared — unchanged collapse to 1 line, ADDED/REMOVED carry full blocks, CHANGED go through exact `renderLineDiff`.
+- `adaptive-client.ts` — `prevWireBody` tracking; raw-wire block now writes `{iso}-{id}.diff` next to `.json`; catch upgraded `log.debug` → `log.warn("bug: raw-wire dump failed")` (failures were invisible at debug level; the 2-of-14 dumps mystery becomes observable on next run).
+- Also landed in same commit: revert of the CoT-discriminator restore (from `9e3bcc56f8`) back to blanket `content: ""` restore — live capture `e8e488a8` disproved the no-CoT premise (stream closes with content:"" deltas even at reasoning_tokens=0; message-level null never arrives on this route).
+- `raw-diff.test.ts` — +4 tests (append-only growth, changed→line diff, null/"" distinction, trailing removal); fixed a mangled escape in an existing assertion the edit cascade corrupted.
+Script Output:
+- 33 pass / 0 fail (`20260829T142718Z_cb525b42`); typecheck PASS (`20260829T142751Z_846c8b4e`). Commit `607782216d`.
+
 ## 2026-08-29 Responses logger: full message assembly (no delta noise)
 Reason: user — "responses logger сейчас бесполезен, нужна полноценная склейка" (per-response captures held raw delta fragments; full message existed only in-memory or via ad-hoc Python).
 Changes:

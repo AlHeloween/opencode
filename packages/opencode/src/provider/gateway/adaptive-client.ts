@@ -161,12 +161,13 @@ function rewriteReasoningContent(body: string): string {
         if (key !== "reasoning_content") rebuilt[key] = item
       }
       if (!placed) rebuilt.reasoning_content = value
-      // Faithful round-trip: Z.AI/GLM deltas ALWAYS carry `content` (possibly
-      // "") — the SDK's `text || null` conversion destroys the empty string
-      // into null (@openrouter/ai-sdk-provider dist/index.js:3204, falsy
-      // conflation). True null never arrives on this route, so restore ""
-      // exactly as the provider sent it: input "" -> output "".
-      if (rebuilt.content === null || rebuilt.content === undefined) {
+      // Faithful round-trip (input null -> output null, input "" -> output ""):
+      // - CoT-ful turns: reasoning deltas carry content "" (wire-proven, 690+
+      //   deltas per capture); the SDK's `text || null` (dist/index.js:3204)
+      //   destroys it — restore "".
+      // - No-CoT turns (reasoning_content "" is our 400-guard fill): only
+      //   tool-call deltas flowed and their content was null — keep null.
+      if (value !== "" && (rebuilt.content === null || rebuilt.content === undefined)) {
         rebuilt.content = ""
       }
       messages[index] = rebuilt

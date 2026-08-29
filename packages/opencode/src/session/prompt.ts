@@ -32,7 +32,7 @@ import { collectPlanState } from "@/util/plan-status"
 import { Bus } from "../bus"
 import { ProviderTransform } from "@/provider/transform"
 import { SystemPrompt } from "./system"
-import { assemblePathSystem } from "./system-compose"
+import { assemblePathSystem, composeCheckpointSystemPrompt } from "./system-compose"
 import { Instruction } from "./instruction"
 import { Plugin } from "../plugin"
 import PROMPT_PLAN_RAW from "../session/prompt/plan.txt"
@@ -1071,9 +1071,14 @@ export const layer = Layer.effect(
               instruction.system().pipe(Effect.orDie),
               instruction.rules().pipe(Effect.orDie),
             ])
-        const system = checkpointUsable
-          ? [...checkpointUsable.systemPrompt]
-          : assemblePathSystem({ skills: skills || undefined, env, rules, instructions })
+        // Single-identity discipline: the stored systemPrompt[0] IS the identity
+        // (= reasoning kernel); repair historical accumulation instead of
+        // prepending a second copy (see system-compose.composeCheckpointSystemPrompt).
+        const systemPrompt = composeCheckpointSystemPrompt({
+          stored: checkpointUsable?.systemPrompt,
+          freshPath: assemblePathSystem({ skills: skills || undefined, env, rules, instructions }),
+          identity: cleanIdentity,
+        })
         const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
           visible,
           model,
@@ -1082,7 +1087,7 @@ export const layer = Layer.effect(
         const checkpointData = {
           kind: Checkpoint.CHECKPOINT_KIND,
           version: Checkpoint.CHECKPOINT_VERSION,
-          systemPrompt: cleanIdentity ? [cleanIdentity, ...system] : [...system],
+          systemPrompt,
           identityFingerprint: Checkpoint.identityFingerprint(cleanIdentity),
           messages: converted.messages,
           messageIDs: visible.map((item) => item.info.id),
@@ -2543,9 +2548,13 @@ export const layer = Layer.effect(
             // publish() is sync inside save(); disk write is fire-and-forget.
             // Path system frozen when reusing checkpoint (KV continuity until compact).
             // Messages: reuse checkpoint prefix + convert only new/dirty suffix.
-            const systemForCheckpoint = checkpointUsable
-              ? [...system]
-              : cleanIdentity ? [cleanIdentity, ...system] : [...system]
+            // Single-identity discipline (see system-compose.composeCheckpointSystemPrompt):
+            // repair accumulated identity copies on reuse; prepend once on fresh.
+            const systemForCheckpoint = composeCheckpointSystemPrompt({
+              stored: checkpointUsable?.systemPrompt,
+              freshPath: system,
+              identity: cleanIdentity,
+            })
             const identityFp = Checkpoint.identityFingerprint(cleanIdentity)
             yield* Effect.forkIn(scope)(
               Effect.gen(function* () {

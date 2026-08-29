@@ -122,6 +122,37 @@ export function assemblePathSystem(input: {
 }
 
 /**
+ * Single-identity discipline for the PERSISTED checkpoint systemPrompt.
+ *
+ * The stored array must carry the identity (= reasoning kernel) exactly once,
+ * at [0]: llm.ts strips it there and re-adds a fresh stablePrefix per request.
+ * Historical builds prepended a second identity copy per captureSummary call
+ * on a live checkpoint — each compaction grew the prefix by one full kernel
+ * (~57k chars). This composer repairs that accumulation on reuse and prepends
+ * exactly once on fresh assembly.
+ */
+export function composeCheckpointSystemPrompt(input: {
+  /** Previously stored systemPrompt (undefined → fresh assembly). */
+  stored: string[] | undefined
+  /** Freshly assembled path system (no identity inside). */
+  freshPath: string[]
+  /** The identity text (= reasoning kernel). */
+  identity: string
+}): string[] {
+  if (input.stored && input.stored.length > 0) {
+    const [head, ...rest] = input.stored
+    const duplicates = rest.filter((entry) => entry === input.identity).length
+    if (duplicates > 0) {
+      console.warn("bug: checkpoint systemPrompt carried duplicated identity copies — repaired", {
+        removed: duplicates,
+      })
+    }
+    return [head!, ...rest.filter((entry) => entry !== input.identity)]
+  }
+  return input.identity ? [input.identity, ...input.freshPath] : [...input.freshPath]
+}
+
+/**
  * Validate system message ordering invariants for KV cache continuity.
  * Checks that the assembled system messages follow the required mutability order:
  *   reasoning (GATED / PROMPT_ABI) → rules → skills → env → agentPrompt → instructions

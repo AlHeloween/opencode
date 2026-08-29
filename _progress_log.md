@@ -1,4 +1,13 @@
 # Progress Log
+## 2026-08-29 Responses logger: full message assembly (no delta noise)
+Reason: user — "responses logger сейчас бесполезен, нужна полноценная склейка" (per-response captures held raw delta fragments; full message existed only in-memory or via ad-hoc Python).
+Changes:
+- `raw-diff.ts` — `assembleMessage(body)`: SDK-mirror accumulation from captured SSE (content join; reasoning suffix-growth dedup absorbing the OpenRouter dual dialect; tool_calls fragments joined per index; finish_reason; usage) + non-stream completion path. `renderReasoningMarkdown` → `renderResponseMarkdown` (full report: usage + reasoning + content + tool calls).
+- `adaptive-client.ts` — per-response capture: `.json` now carries `message` (assembled) alongside metadata/headers; `.md` = full report, written unconditionally; `.raw.txt` byte-truth unchanged.
+- `raw-diff.test.ts` — +4 assembler tests (stream join/dedup/fragment-join, empty-content accumulation, non-stream path, renderer).
+Script Output:
+- 29 pass / 0 fail (`20260829T134341Z_675021c9`); typecheck PASS (`20260829T134431Z_968fea0b`). Commit `acc894701d`.
+
 ## 2026-08-29 Assistant content "" -> null round-trip: origin found, fix + Python smoke
 Reason: user spotted `content: ""` in provider deltas vs `content: null` on outgoing assistant messages ("из не null сделать null недопустимо; input "" -> output """). Doctrine: faithful round-trip, null != "".
 Changes:

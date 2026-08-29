@@ -1,4 +1,11 @@
 # Progress Log
+## 2026-08-29 Assistant content "" -> null round-trip: origin found, fix + Python smoke
+Reason: user spotted `content: ""` in provider deltas vs `content: null` on outgoing assistant messages ("из не null сделать null недопустимо; input "" -> output """). Doctrine: faithful round-trip, null != "".
+Changes:
+- Origin [Exact]: `@openrouter/ai-sdk-provider@3.0.0` dist/index.js:3204 — `content: text || null` (JS falsy conflation) destroys the accumulated "" at body-build time. Provider truth (smoke step 1 on real SSE): 690/1190 empty-string content deltas per capture, accumulated "".
+- Fix: `adaptive-client.ts` rewriteReasoningContent restores `content: ""` when null on rebuilt assistant messages (null never arrives as message-level content on this route). Commit `1e88f00f36`; typecheck PASS (`20260829T051854Z_9b5a393f`).
+- Smoke: `experiments/kv-cache-parity/2026-08-29_content_null_roundtrip_smoke.py` — 3 steps on real captures (response truth -> SDK birth -> wire state). Pre-fix wire: 200 nulls / 0 empty / 191 text. Re-run after rebuild: must flip to "".
+
 ## 2026-08-29 overflow-last-line plan closed (was ACTIVE with 2 open gate boxes)
 Reason: user asked for status. Mirror said ACTIVE + TASK-8/9 pending — correct: Gate boxes "Implementation only after baseline" / "Post-impl smoke passed" were unticked; a premature archive had also left a tracked ghost copy in plans/ alongside plans_completed/.
 Changes:

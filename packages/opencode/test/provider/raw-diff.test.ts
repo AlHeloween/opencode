@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 
-import { analyzeRawDiff, collectReasoning, messageSpans, renderIntegrityReport, renderLineDiff, renderRawDiff } from "@/provider/gateway/raw-diff"
+import { analyzeRawDiff, assembleMessage, collectReasoning, messageSpans, renderIntegrityReport, renderLineDiff, renderRawDiff, renderResponseMarkdown } from "@/provider/gateway/raw-diff"
 
 function body(messages: string[], maxTokens = 100) {
   return JSON.stringify({
@@ -284,5 +284,59 @@ describe("renderIntegrityReport", () => {
 
   test("non-envelope body is skipped", () => {
     expect(renderIntegrityReport({ body: "raw string" })).toContain("report skipped")
+  })
+})
+
+describe("assembleMessage", () => {
+  const sse = (chunks: unknown[]) =>
+    chunks.map((chunk) => `data: ${JSON.stringify(chunk)}`).join("\n\n") + "\n\ndata: [DONE]\n\n"
+
+  test("stream: content join, reasoning dedup, tool_calls fragment join, finish/usage", () => {
+    const body = sse([
+      { choices: [{ delta: { content: "", role: "assistant", reasoning: "thi", reasoning_details: [{ type: "reasoning.text", text: "thi", format: "unknown" }] } }] },
+      { choices: [{ delta: { reasoning: "think", reasoning_details: [{ type: "reasoning.text", text: "think" }] } }] },
+      { choices: [{ delta: { content: null, tool_calls: [{ index: 0, id: "c1", function: { name: "run", arguments: "{\"a\":" } }] } }] },
+      { choices: [{ delta: { content: "done", tool_calls: [{ index: 0, function: { arguments: "1}" } }] } }] },
+      { choices: [{ delta: {}, finish_reason: "tool_calls" }], usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 } },
+    ])
+    const message = assembleMessage(body)
+    expect(message.content).toBe("done")
+    expect(message.reasoning).toBe("think")
+    expect(message.toolCalls).toEqual([{ id: "c1", name: "run", arguments: '{"a":1}' }])
+    expect(message.finishReason).toBe("tool_calls")
+    expect(message.usage).toEqual({ prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 })
+  })
+
+  test("empty-string content deltas accumulate to empty (not null)", () => {
+    const body = sse([
+      { choices: [{ delta: { content: "", reasoning: "x" } }] },
+      { choices: [{ delta: { content: "" }, finish_reason: "tool_calls" }] },
+    ])
+    expect(assembleMessage(body).content).toBe("")
+  })
+
+  test("non-stream completion object passes through whole", () => {
+    const body = {
+      choices: [{ finish_reason: "stop", message: { role: "assistant", content: "hi", reasoning_content: "co", tool_calls: [{ id: "t", function: { name: "f", arguments: "{}" } }] } }],
+      usage: { total_tokens: 3 },
+    }
+    const message = assembleMessage(body)
+    expect(message.content).toBe("hi")
+    expect(message.reasoning).toBe("co")
+    expect(message.finishReason).toBe("stop")
+    expect(message.toolCalls).toEqual([{ id: "t", name: "f", arguments: "{}" }])
+  })
+
+  test("renderResponseMarkdown writes reasoning, content and tool calls", () => {
+    const text = renderResponseMarkdown({
+      id: "r1",
+      captured: "iso",
+      status: 200,
+      message: { content: "", reasoning: "thought", toolCalls: [{ id: "c", name: "f", arguments: "{}" }], finishReason: "tool_calls", usage: { prompt_tokens: 7, prompt_tokens_details: { cached_tokens: 6 }, completion_tokens: 2 } },
+    })
+    expect(text).toContain("finish_reason: tool_calls")
+    expect(text).toContain("7 prompt (6 cached) / 2 completion")
+    expect(text).toContain("(empty \"\")")
+    expect(text).toContain("- [c] f({})")
   })
 })

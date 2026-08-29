@@ -11,7 +11,7 @@ import * as H1 from "./h1-transport"
 import { healthScore } from "./health-window"
 import { Global } from "@opencode-ai/core/global"
 import * as Log from "@opencode-ai/core/util/log"
-import { collectReasoning, renderIntegrityReport, renderLineDiff, renderReasoningMarkdown } from "./raw-diff"
+import { assembleMessage, renderIntegrityReport, renderLineDiff, renderResponseMarkdown } from "./raw-diff"
 import path from "path"
 import { EOL } from "os"
 import fs from "fs"
@@ -860,33 +860,37 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                     const responsePath = path.join(responseDir, `${iso}-${sanitizedId}.json`)
                     const resHeaders: Record<string, string> = {}
                     response.headers.forEach((v, k) => { resHeaders[k] = v })
-                    // Write per-response capture: metadata JSON + the literal
-                    // raw stream as a sidecar. No parsed `body` and no escaped
-                    // `body_raw` in the JSON — both were re-serializations that
-                    // doubled every file and could mask special characters.
+                    // Write per-response capture: metadata + FULL assembled
+                    // message in the JSON, literal raw stream sidecar, and the
+                    // human-readable assembled report. No delta noise, no
+                    // escaped duplicates.
+                    const assembled = assembleMessage(readableResponseBody(raw, isStream))
                     fs.writeFileSync(responsePath, JSON.stringify({
                       type: "response",
                       timestamp: d.getTime(),
                       id: requestId,
                       status: response.status,
                       headers: wireHeaders(resHeaders),
+                      message: {
+                        content: assembled.content,
+                        reasoning_content: assembled.reasoning,
+                        tool_calls: assembled.toolCalls,
+                        finish_reason: assembled.finishReason,
+                        usage: assembled.usage,
+                      },
                     }, null, 2).replace(/\n/g, EOL))
                     // Literal raw stream: the exact wire body with its own real
                     // newlines — no filtering, no re-serialization.
                     fs.writeFileSync(path.join(responseDir, `${iso}-${sanitizedId}.raw.txt`), fullRaw)
-                    // Reasoning sidecar: assembled delta.reasoning / reasoning_details text.
-                    const reasoning = collectReasoning(readableResponseBody(raw, isStream))
-                    if (reasoning.text.trim().length > 0) {
-                      fs.writeFileSync(
-                        path.join(responseDir, `${iso}-${sanitizedId}.md`),
-                        renderReasoningMarkdown({
-                          id: requestId,
-                          captured: iso,
-                          status: response.status,
-                          collect: reasoning,
-                        }) + EOL,
-                      )
-                    }
+                    fs.writeFileSync(
+                      path.join(responseDir, `${iso}-${sanitizedId}.md`),
+                      renderResponseMarkdown({
+                        id: requestId,
+                        captured: iso,
+                        status: response.status,
+                        message: assembled,
+                      }) + EOL,
+                    )
                   }
                 }
                 writeLog(endEntry)

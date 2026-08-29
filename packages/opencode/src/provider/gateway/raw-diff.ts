@@ -360,32 +360,134 @@ class ReasoningCollector {
   }
 }
 
-/** Render the per-response reasoning sidecar markdown. */
-export function renderReasoningMarkdown(input: {
+export interface AssembledMessage {
+  content: string
+  reasoning: string
+  toolCalls: Array<{ id: string; name: string; arguments: string }>
+  finishReason: string | null
+  usage: unknown
+}
+
+/**
+ * Assemble the FULL assistant message from a captured response body
+ * (readableResponseBody shape: array of SSE chunk strings, a raw SSE string,
+ * or a parsed non-stream completion object). Mirrors SDK accumulation:
+ * content join, reasoning suffix-growth dedup (absorbs the OpenRouter dual
+ * dialect copy), tool_calls fragments joined per index.
+ */
+export function assembleMessage(body: unknown): AssembledMessage {
+  const out: AssembledMessage = { content: "", reasoning: "", toolCalls: [], finishReason: null, usage: null }
+  const collector = new ReasoningCollector()
+  const calls = new Map<number, { id: string; name: string; arguments: string }>()
+  let finishReason: string | null = null
+  let usage: unknown = null
+  if (body !== null && typeof body === "object" && !Array.isArray(body)) {
+    // Non-stream completion object: the message is already whole.
+    const parsed = body as Record<string, unknown>
+    const choices = Array.isArray(parsed.choices) ? (parsed.choices as Array<Record<string, unknown>>) : []
+    const choice = choices[0]
+    const message = (choice?.message ?? {}) as Record<string, unknown>
+    out.content = typeof message.content === "string" ? message.content : ""
+    out.reasoning = typeof message.reasoning_content === "string" ? message.reasoning_content : ""
+    out.finishReason = (choice?.finish_reason as string | null) ?? null
+    out.usage = parsed.usage ?? null
+    for (const call of (Array.isArray(message.tool_calls) ? message.tool_calls : []) as Array<
+      Record<string, unknown>
+    >) {
+      const fn = (call.function ?? {}) as Record<string, unknown>
+      out.toolCalls.push({
+        id: String(call.id ?? ""),
+        name: String(fn.name ?? ""),
+        arguments: String(fn.arguments ?? ""),
+      })
+    }
+    return out
+  }
+  const chunks: unknown[] = Array.isArray(body) ? body : typeof body === "string" ? body.split("\n") : []
+  for (const chunk of chunks) {
+    let parsed: any = chunk
+    if (typeof chunk === "string") {
+      const payload = chunk.startsWith("data: ") ? chunk.slice(6) : chunk
+      if (payload === "[DONE]") continue
+      try {
+        parsed = JSON.parse(payload)
+      } catch {
+        continue
+      }
+    }
+    if (parsed === null || typeof parsed !== "object") continue
+    if (parsed.usage !== null && typeof parsed.usage === "object" && parsed.usage.total_tokens) {
+      usage = parsed.usage
+    }
+    const choices = Array.isArray(parsed.choices) ? parsed.choices : []
+    for (const choice of choices) {
+      if (choice?.finish_reason) finishReason = choice.finish_reason
+      const delta = choice?.delta ?? choice?.message
+      if (!delta || typeof delta !== "object") continue
+      if (typeof delta.content === "string" && delta.content.length > 0) out.content += delta.content
+      if (typeof delta.reasoning === "string") collector.push(delta.reasoning)
+      const details = Array.isArray(delta.reasoning_details) ? delta.reasoning_details : []
+      for (const detail of details) {
+        if (detail && typeof detail.text === "string") collector.push(detail.text)
+      }
+      for (const callDelta of Array.isArray(delta.tool_calls) ? delta.tool_calls : []) {
+        const index = typeof callDelta?.index === "number" ? callDelta.index : 0
+        const slot = calls.get(index) ?? { id: "", name: "", arguments: "" }
+        if (typeof callDelta?.id === "string" && callDelta.id) slot.id = callDelta.id
+        const fn = callDelta?.function ?? {}
+        if (typeof fn?.name === "string" && fn.name) slot.name += fn.name
+        if (typeof fn?.arguments === "string" && fn.arguments) slot.arguments += fn.arguments
+        calls.set(index, slot)
+      }
+    }
+  }
+  out.reasoning = collector.text
+  out.finishReason = finishReason
+  out.usage = usage
+  out.toolCalls = [...calls.entries()].sort((a, b) => a[0] - b[0]).map(([, call]) => call)
+  return out
+}
+
+/** Render the per-response FULL assembled message report (human-readable view). */
+export function renderResponseMarkdown(input: {
   id: string
   captured: string
   status?: number
-  collect: ReasoningCollect
+  message: AssembledMessage
 }): string {
   const lines = [
-    "# Gateway response — assembled reasoning",
+    "# Gateway response — assembled message",
     "",
     `- id: ${input.id}`,
     `- captured: ${input.captured}`,
   ]
   if (input.status !== undefined) lines.push(`- status: ${input.status}`)
-  if (input.collect.provider) lines.push(`- provider: ${input.collect.provider}`)
-  if (input.collect.model) lines.push(`- model: ${input.collect.model}`)
-  const usage = input.collect.usage as
-    | { prompt_tokens?: number; prompt_tokens_details?: { cached_tokens?: number }; completion_tokens?: number }
+  if (input.message.finishReason) lines.push(`- finish_reason: ${input.message.finishReason}`)
+  const usage = input.message.usage as
+    | {
+        prompt_tokens?: number
+        prompt_tokens_details?: { cached_tokens?: number }
+        completion_tokens?: number
+        completion_tokens_details?: { reasoning_tokens?: number }
+      }
     | undefined
   if (usage) {
     lines.push(
-      `- usage: ${usage.prompt_tokens ?? "?"} prompt / ${usage.prompt_tokens_details?.cached_tokens ?? "?"} cached / ${usage.completion_tokens ?? "?"} completion`,
+      `- usage: ${usage.prompt_tokens ?? "?"} prompt (${usage.prompt_tokens_details?.cached_tokens ?? 0} cached) / ${
+        usage.completion_tokens ?? "?"
+      } completion`,
     )
   }
-  lines.push("", "## Reasoning", "")
-  lines.push(input.collect.text.trim() || "(no reasoning in this response)")
+  lines.push("", `## Reasoning (${input.message.reasoning.length} chars)`, "")
+  lines.push(input.message.reasoning.trim() || "(empty)")
+  lines.push("", `## Content (${input.message.content.length} chars)`, "")
+  lines.push(input.message.content.trim() || '(empty "")')
+  if (input.message.toolCalls.length > 0) {
+    lines.push("", `## Tool calls (${input.message.toolCalls.length})`, "")
+    for (const call of input.message.toolCalls) {
+      lines.push(`- [${call.id}] ${call.name}(${call.arguments})`)
+    }
+  }
   lines.push("")
   return lines.join("\n")
 }

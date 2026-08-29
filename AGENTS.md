@@ -358,6 +358,21 @@ Desktop TS pins `~5.6.2` (Tauri/Electron compat); rest uses `5.8.2` via catalog.
 
 ---
 
+## Vendor Reasoning Contract — thinking models
+
+**Never assume reasoning-field behavior per vendor.** Read the official model docs
+AND run a wire smoke-test (400/200 + `prompt_tokens` A/B) before shipping. Proven
+2026-08-28: DeepSeek-direct **400s** on tool turns without `reasoning_content`
+(field must exist even when empty); OpenRouter strips reasoning fields entirely
+(model never sees them); Z.AI documents only `reasoning_content`. The SDK dialect
+(`reasoning` + `reasoning_details`) is OpenRouter client-speak, not vendor API.
+OpenRouter is opaque both ways: it rewrites fields AND relays upstream errors/
+rhythms un-normalized (MIMO 2.5 Pro case) — direct vs via-OR is not the same wire.
+
+Full contract, vendor matrix, probe recipe: [docs/reasoning-round-trip-contract.md](docs/reasoning-round-trip-contract.md)
+
+---
+
 ## Markdown Rendering Flag — DO NOT TOUCH
 
 `OPENCODE_MARKDOWN` must always default to `true`. The OpenTUI `<markdown>` renderable is the correct renderer. Never make the fallback the default.

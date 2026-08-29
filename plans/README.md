@@ -1,7 +1,6 @@
 # Plans
 
 Active plans. Completed plans move to `plans_completed/`.
-Superseded / deferred designs live in `abstract_futures/` (do not implement from there).
 
 ## Plan structure (required)
 

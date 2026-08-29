@@ -1,4 +1,97 @@
 # Progress Log
+## 2026-08-29 FIX: kernel system prompt tripled — single-identity discipline for checkpoints
+Reason: user ("Boss I found big bug! Same system message exists 3 times", per-request capture 1787959509000). Wire: 3 identical kernel messages (56,892 chars each, hash 72a57867619f) + 3 compacts = 3 copies. RCA: `captureSummary` (prompt.ts:1085 old) prepended `cleanIdentity` (= reasoning kernel) on the checkpointUsable branch whose stored systemPrompt[0] already WAS the identity → +1 copy per capture, persisted. Main path (2548) was idempotent; assembleSystemMessages/plugin hooks clean.
+Changes:
+- `packages/opencode/src/session/system-compose.ts` — `composeCheckpointSystemPrompt()`: single-identity discipline — reuse repairs accumulated identity copies (keeps [0], drops later copies equal to identity, warns `bug:`), fresh prepends exactly once.
+- `packages/opencode/src/session/prompt.ts` — captureSummary + main checkpoint save unified on the composer (both sites repair + single-prepend); import updated.
+- `packages/opencode/test/session/system-compose.test.ts` (NEW) — single-identity invariant smoke: fresh-once, reuse-unchanged, 3-compaction repair, non-identity duplicates preserved, empty identity, empty stored.
+Script Output:
+- smoke 6 pass / 0 fail (`20260829T000224Z_da030c83`, repair warns removed:2/removed:1); typecheck PASS (`20260829T000316Z_e336e2c0`). Scanner `experiments/kv-cache-parity/2026-08-28_scan_kernel_copies.py`: all 33 retained captures carry kernels=3 (~114k chars ≈ 35-40k dead tokens/request); self-heals on next checkpoint save after rebuild.
+
+## 2026-08-28 Home purity guard + test-debt audit (portability contract)
+Reason: user doctrine — tests must NEVER write to os.homedir() (portability = founding reason of Local_Development; old unified-SQLite-era tests are debt). Session-suite run showed mass 5s-timeout noise: bun default 5000ms vs full-stack it.live tests taking 5-31s on a loaded machine.
+Changes:
+- `packages/opencode/test/lib/home-purity.ts` + `test/aa-home-purity.test.ts` (snapshot, alphabetical-first) + `test/zz-home-purity.test.ts` (verify, last): sentinel creation (opencode-std home paths) = hard FAIL — unambiguous contract breach; any other new home entry = LOUD NON-FATAL indicator (revised per user 2026-08-28: strong architectural indicator, not run-killer). Bounded walk (depth 3, 50k cap); deep diff only when neither walk truncated — truncation makes diffs nondeterministic, so it degrades gracefully instead of flaking.
+- `packages/opencode/test/AGENTS.md` — "Home Purity Guard" section: doctrine (home=worktree, config=exeDir, DB per worktree), guard usage, rules (explicit timeouts for full-stack it.live, no home reads, full-suite check before claiming portability).
+- Audit findings: `core/global.ts` clean (home=worktree never homedir, config=exeDir, data/state/log worktree-only); os.homedir() in tests = string expectations only (bash/permission/effective-navigation). `test/provider/google-code-assist-integration.test.ts` — FIXED to ISOLATED FIXTURE (user directive: no real creds anywhere): OPENCODE_TEST_CONFIG → `test/provider/fixtures/google-auth/` (optional auth.json, covered by .gitignore `auth.json` rule), auth via canonical `Global.Path.config`; fixture absent → graceful skip (2 pass / 9.16s, `20260828T214455Z_d67321a4`). bin/auth.json google entry inspected WITHOUT printing secrets: keys type/refresh/access/expires/accountId, no client creds (refresh needs GOOGLE_OAUTH_* env). Gemini-OAuth live flow deferred to research plan: `plans/2026-08-28_gemini-oauth-protocol-research.md` (CLI located at D:\zPython\gemini-cli — marked in plan).
+Script Output:
+- guard pair: 2 pass / 0 fail [9.29s] (`20260828T211654Z_7e9504a8`); typecheck PASS (`20260828T211736Z_b48eb920`). First unbounded scan abandoned (>10min on giant home) — replaced by bounded design. Full `bun test test/session` still has no clean signal on this loaded machine.
+
+## 2026-08-28 Session-level accumulation for sidebar cache/output lines + null=>full-hit policy
+Reason: user directives — (1) both sidebar stat lines need REAL session-lifetime accumulation (cache line summed live messages = reset on compaction, same trap as spent); (2) turns without cache stats ("unknown") must count as 100% hits in the cumulative; (3) AGI (orchestrator/main) sessions are separate — never folded into the current session's numbers.
+Changes:
+- `packages/opencode/src/session/processor.ts` + `packages/opencode/src/session/session.ts` (both accumulation paths: direct SQL + finishStep batch TX) — `tokens_cache_read` fold: `cache.read + (cacheState === "unknown" ? input : 0)` so unknown-cache turns count as full hits in the lifetime cumulative.
+- `packages/opencode/src/cli/cmd/tui/feature-plugins/sidebar/context.tsx` — `cumulativeStats()` helper: cache rows (current/orch/main/children) now read session-level `tokens` (hit = cache.read, miss = input − cache.read; fallback to per-message sums if session not loaded); Output line → session-level cumulative `tokens.output`/`tokens.reasoning` (per-response /limit dropped — meaningless cumulatively); AGI orch/main IDs excluded from cost() and children rows.
+- Display rework (user format directives): row `current:` → `in:`; `Output:` → `out:` with `cumul(last)label` pairs — `out: <Σoutput>(<last>)msg <Σreasoning>(<last>)think` (bare `R` prefix retired); `formatCacheStats` spacing `) hit`→`)hit`, `) miss`→`)miss`. Gemini cached-output: format extensible (third pair when a data source appears). Intermediate typecheck FAIL TS2339 (missing `item is AssistantMessage` guard) → fixed. Parallel-session edits observed on this file (name/preprefix already applied externally) — merged on fresh read.
+Script Output:
+- typecheck PASS (`20260828T203831Z_c8717970`). Full `bun test test/session` NOT a clean oracle under current load: dozens of environment timeouts (5s limit vs tests taking 5-31s, ENOENT temp noise) — interrupted after ~25min; no failure references accumulation/display logic. Lifetime DB truth for the live session: cost $2.6114, cache_read 144.7M / full-prompt 148.8M => 97.3% hit.
+
+## 2026-08-28 Sidebar "spent" fix: display session-level cumulative cost
+Reason: user observed the TUI sidebar "$X spent" constantly resetting and not reflecting real spend. RCA: the sidebar (`context.tsx`) summed per-message `item.cost` over the LIVE message list — compaction replaces messages (this session's compact dropped it to $0.36) and revert removes them. The DB already holds a never-reset cumulative `session.cost` (session.sql.ts:48, incremented transactionally per usage at processor.ts:769) exposed as `Session.Info.cost` (session.ts:195) and carried through SDK v2 (`cost?: number`).
+Changes:
+- `packages/opencode/src/cli/cmd/tui/feature-plugins/sidebar/context.tsx` — `cost()` now reads session-level `cost` from `state.session.list()` for the current session + child (sub-agent) sessions instead of summing messages. Survives compaction/revert/restart.
+Script Output:
+- typecheck PASS (`20260828T181330Z_8dceeb06`); DB truth for this session: cost = 2.6114 (vs $0.36 displayed post-compact). No dedicated sidebar test exists — oracle is typecheck + live DB comparison.
+
+## 2026-08-28 Session affinity + unified reasoning policy + canonical wire shape (wire-truth arc)
+Reason: (1) live cache resets mid-session (user-observed on Read turns) + wire dump showed openrouter requests carry x-title/http-referer but NO session identifier; git archaeology: X-Session-Id added in #31511 (80c0b06980), lost in monorepo restructure/fold. (2) Wire dump showed assistant key order [role, content, tool_calls, reasoning_content] — reasoning AFTER tool_calls. (3) Tool-turn with no reasoning fields at all slipped past the empty-field guard. (4) Policy question: keep vs strip reasoning on no-tool turns.
+Changes:
+- `packages/opencode/src/session/llm.ts` — external arm: `X-Session-Id: <sessionID>` gated to providerID "openrouter" (restores #31511; explicit sticky key per openrouter.ai/docs/guides/best-practices/prompt-caching — activates before first cache hit, feeds Z.AI upstream affinity key; manual provider.order disables OR's derived-key stickiness).
+- `packages/opencode/src/provider/transform.ts` — deepseek/mimo branch unified: NEVER strip historical CoT; only fill empty reasoning part when missing (probe `2026-08-28_keep_vs_strip_reasoning_probe.py`: KEEP≡STRIP, prompt delta +0 every turn, cache identical 5298==5298 — server ignores no-tools reasoning).
+- `packages/opencode/src/provider/gateway/adaptive-client.ts` — rewriteReasoningContent: canonical vendor shape `{role, content, reasoning_content, tool_calls}` (rebuilt insertion order); empty-field guard now fires on ALL tool-call turns incl. ones that never had reasoning fields.
+- Tests: transform-reasoning (4 updated to unified policy), adaptive-client (canonical order + bare tool-turn asserts, fixture extended).
+
+Script Output:
+- targeted suite: 231 pass / 0 fail (`20260828T170527Z_ca562e5b`); typecheck PASS (`20260828T170710Z_34dc6bfe`).
+- Probes: session-switch cache probe (3 scenarios identical), key-order probe (prompt 479=479=479 — order-insensitive on DeepSeek), KEEP/STRIP probe (delta +0). Smokes: x-session-id/body session_id accepted 3/3 (200).
+- Ожидает: пересборка бинарника → E2: x-session-id на проводе, resets/endpoint-flips исчезают, reasoning едет полностью.
+
+
+## 2026-08-28 Gateway: raw-byte divergence reports + single-field reasoning round-trip (plan: plans/2026-08-28_gateway-readable-raw-diff.md)
+
+Reason: диффы нужны по body_raw (сырые байты) — pretty-диф маскирует точку дивергенции; offset должен 100% коррелировать с проебом кэша. Попутно вскрыт главный жучок: SDK-диалект (v2.10 ≡ v3.0, tarball FC: no differences — патча не было) шлёт reasoning в ДВУХ полях (`reasoning` + `reasoning_details`, текст идентичен на 100% assistant-сообщений — 242k симв ≈ 69k ток дубля на запрос). Контракт вендоров (api-docs.deepseek.com/guides/thinking_mode + docs.z.ai/guides/capabilities/thinking): одно нативное поле `reasoning_content`; с tools round-trip обязателен (400 без него), без tools — игнорируется.
+
+Changes:
+- `packages/opencode/src/provider/gateway/raw-diff.ts` (NEW) — байт-истинный анализ: prefix/suffix/inserted, вердикты identical|pure-append|vanished|mutation (substitution → mutation, insertion → pure-append), маскировка max_tokens (кэш-нейтральный, доказан живьём) со сдвиг-компенсацией в RAW-пространстве, message-spans сканер (brace-depth, string-aware), prettified BEFORE/AFTER секции, RAW-контекст, est uncached. Плюс collectReasoning/renderReasoningMarkdown (suffix-dedup накапливающихся дельт).
+- `adaptive-client.ts` — raw-wire конверт: body как parsed-объект (был эскейп-строкой); per-request/per-response .diff → renderRawDiff (был createPatch по pretty); reasoning-.md сайдкар для стримов; **rewriteReasoningContent**: GLM/DeepSeek тела (матч `z-ai/|glm|deepseek` по gatewayModel — все z-ai модели) переписываются до dispatch и dump: `reasoning`+`reasoning_details` → единый `reasoning_content`.
+- `experiments/kv-cache-parity/2026-08-28_backlog_reasoning_and_rawdiff.py` — бэклог: 231 raw-diff отчёт + 152 reasoning-.md; `2026-08-28_smoke_reasoning_content.py` — смок переписывания на живом теле; `2026-08-28_check_bodyraw_parse.py` — wire-truth проверка (все body_raw валидны).
+- Тесты: `test/provider/raw-diff.test.ts` (NEW, 14), adaptive-client +2 (rewrite + passthrough).
+
+Script Output:
+- smoke: 1 726 457 → 1 392 111 симв (**−19.4% тела**), 121 assistant переписан, ~91k ток reasoning одной копией.
+- typecheck PASS (20260828T124424Z_2aa1ca7a); targeted gateway tests 33/0 (20260828T124740Z_6ab00cf5).
+- Ожидает: пересборка бинарника → живая верификация (wire показывает reasoning_content, тело −19%, кэш-хиты без деградации).
+
+## 2026-08-28 OpenRouter provider-routing config — pin upstream/quantization (plan: plans/2026-08-28_openrouter-routing-config.md)
+
+Reason: RCA слоя D — openrouter флапает между 15 апстримами (наша сессия: 46/46 Z.AI; прямой вызов: Novita) → разные кэш-неймспейсы («случайные» холодные миссы при живом кэше) + лотерея квантизации (5/15 upstream `quantization=unknown`, fp4-риск) + ценовой сплит x2 ($7.5e-8 vs $1.5e-7). Живая проверка зондом: `provider.order=["Z.AI"], allow_fallbacks=false` → 3/3 пинов в Z.AI, кэш греется 896/931, cost x4 ниже. opencode слал только `prompt_cache_key`; SDK @openrouter/ai-sdk-provider v3 принимает routing нативно (d.ts:242-288, settings.provider → wire body, index.js:3643).
+
+Changes:
+- `packages/opencode/src/provider/provider.ts` — openrouter loader получил `getModel`: читает смёрженные `options.routing` (provider.options ⊕ model.options → per-model override бесплатно) и зовёт `sdk.languageModel(modelID, { provider: routing })` — settings становятся model-level defaults каждого запроса; без routing — дефолтный путь без изменений. Экспортирован хелпер `openRouterRouting()` (null/array/scalar → undefined). Никаких изменений схемы: `Info.options` = Record(String, Any) (provider.ts:910), passthrough verbatim.
+- `packages/opencode/test/provider/openrouter-routing.test.ts` — 6 тестов: хелпер (undefined/passthrough/reject), SDK-контракт (settings.provider переносится в модель), config-flow через list() (tmpdir + opencode.json).
+
+Script Output:
+- baseline: provider tests 364 pass / 17 fail (`20260828T095050Z_8850ba19`); typecheck после фикса импорта describe: PASS exit 0 (`20260828T095906Z_2d94a8c4`); первый typecheck FAIL TS2593 `describe` not imported (`20260828T095704Z_8ff9fbee`) — исправлен импортом, код не тронут.
+- targeted routing tests: 6 pass / 0 fail (`20260828T100744Z_fa71182f`).
+- full suite idle rerun: 324 pass / 62 fail (`20260828T101940Z_c0d66b51`) — детерминированный набор фейлов идентичен baseline (model-resolver×2, provider.sort, copilot×3); остальные — 5s-таймауты при замере 1.9x замедления машины (541s vs 283s, во ВСЕХ файлах, включая нетронутые bedrock/vertex/cloudflare). Ноль новых assertion-фейлов. (Наблюдение вне скоупа: bun default 5s test timeout хрупок на загруженной машине — кандидат на отдельный план.)
+- Config-UX: `provider.openrouter.options.routing = {"order":["Z.AI"],"allow_fallbacks":false,"quantizations":["fp8"]}` в opencode.json; E2 raw-wire проверка — после пересборки бинарника.
+- **E2 VERIFIED** (пользователь пересобрал + рестарт): `2026-08-28_wire_analysis_post.txt` — 12/12 пост-рестарт запросов несут provider-блок (`routing pin present: 12/166`), upstream стабильно Z.AI, cached_tokens монотонно 191k→230k, PURE-APPEND каждый ход. Замечание по конфигу: plaintext bin/opencode.jsonc побеждает .enc-mirror (config.ts:510-524), .enc — только зеркало записи. План завершён → plans_completed/.
+
+
+## 2026-08-28 Request-diff rewrite: whole-sequence divergence localization (plan: plans/2026-08-28_request-diff-divergence-positions.md)
+
+Reason: диф-инструмент сравнивал бюджет-обрезанные текстовые срезы от checkpoint `fromIndex` — доказанно слеп: корреляция churn↔потери r=-0.013 (96 ходов, сессия fba5); «59 removed» были артефактом вьюпорта при живом кэше (04:13: 1955 uncached / 273k cached при 79.9k ченджа); топ-потери шли при нулевом чендже (03:26:52 — 229k uncached при 2KB; 05:05:06 — 12.6k при 0B) — мутации в некотируемой префикс-зоне. Инвариант пользователя: один изменённый байт в любой точке последовательности убивает кэш от этой позиции → инструмент обязан идти от 0 до первой дивергенции и показывать точные позиции.
+
+Changes:
+- `packages/opencode/src/session/request-diff.ts` — `MessageBlock`/`RequestSnapshot` (key = messageID | #N, hash = контент-хеш блока, + systemHash), `formatRequestDetailed()` (полная последовательность, без вьюпорта), `rememberSnapshot()`/`getPreviousSnapshot()`, `diffBlocks()` — позиционный проход от 0; вердикты: `append-only` | `divergence@D` (replaced/mutated: old-vs-new блоки на позиции D + однострочники до 8 позиций) | `divergence@D (vanished)` | `divergence@system`; counts-строка «N added, M removed, K changed» сохранена для анализаторов; `clearPreviousFormatted` чистит оба стора. Текстовый `diffRequest` не тронут (compat).
+- `packages/opencode/src/session/prompt.ts` — call-site переведён на snapshot-путь; fromIndex-вьюпорт удалён из диффа.
+- `packages/opencode/test/session/request-diff.test.ts` — describe diffBlocks: 9 тестов (append-only, mutation@1, vanish@1, restructure@0 при front-compaction, tool-loop без ложных removed, divergence@system, roundtrip, first-request).
+- `experiments/kv-cache-parity/2026-08-28_correlate_diff_cache.py` — коррелятор: чендж-байты дифов ↔ uncached из БД (`message.data.tokens`, ротация логов не мешает) + TOP-losses по excess; отчёт `2026-08-28_correlation_report.txt`.
+
+Script Output:
+- baseline: request-diff 25 pass (`20260828T053543Z_668423ac`); post: 34 pass 0 fail (`20260828T054634Z_323e57ed`); typecheck PASS exit 0 (`20260828T054707Z_a9981d68`).
+- Корреляция: Pearson r(churn, uncached) = -0.013; clean-median 737; heavy-churn turns (>20kB): 5, суммарно ≈67k токенов ченджа при отсутствии пропорциональных потерь.
+
 
 ## 2026-08-28 TUI remount-storm fix closed; syntax-highlight flicker → next session
 

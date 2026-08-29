@@ -1,7 +1,7 @@
 # Overflow last-line — fix the pre-send formula and extend 32k spare
 
 **Created:** 2026-08-18  
-**Status:** active  
+**Status:** completed 2026-08-29  
 **Tree:** Local_Development (`10c4ab04f3` already landed)  
 **reuse:** Smit `hasSpareOutput` / `maybeCompactCadence` (every generation, not sidecar-only); this-tree `overflow.ts`, `llm.ts` pre-send, `summary-cadence.test.ts`
 
@@ -97,5 +97,5 @@ cwd: `packages/opencode`
 
 - [x] Smoke requirements written
 - [x] Baseline recorded [Exact]
-- [ ] Implementation only after baseline
-- [ ] Post-impl smoke passed before [x]
+- [x] Implementation only after baseline — baseline recorded 2026-08-18 before edits; implementation landed on top of it
+- [x] Post-impl smoke passed before [x] — oracle pair 61 pass / 0 fail, 83 expect, 10.48s (`20260829T043134Z_8228721f`); code verified: guard without double 10k (`llm.ts:563`), real `ContextOverflowError` (`llm.ts:574`), `hasSpareOutput` gate on every generation (`prompt.ts:1887`, def `overflow.ts:40`)

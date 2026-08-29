@@ -261,8 +261,11 @@ describe("reconcilePlans", () => {
     expect(existsSync(path.join(worktree, "plans", "nested", "done2.md"))).toBe(true)
   })
 
-  test("reopens incomplete plans from plans_completed/ to plans/", () => {
-    writeFileSync(path.join(worktree, "plans_completed", "premature.md"), "# Premature\n- [x] a\n- [ ] b\n")
+  test("reopens incomplete KERNEL-authored plans from plans_completed/ to plans/", () => {
+    writeFileSync(
+      path.join(worktree, "plans_completed", "premature.md"),
+      "# Premature\n<!-- workflow: lifecycle EXECUTING | gate G7 -->\n- [x] a\n- [ ] b\n",
+    )
     writeFileSync(path.join(worktree, "plans_completed", "good.md"), "# Good\n- [x] only\n")
 
     const result = reconcilePlans(worktree)
@@ -273,6 +276,18 @@ describe("reconcilePlans", () => {
     expect(existsSync(path.join(worktree, "plans_completed", "good.md"))).toBe(true)
     expect(result.status.active).toContain("premature.md")
     expect(result.status.completed).toContain("good.md")
+  })
+
+  test("non-kernel plans with open boxes are user-curated — never reopened", () => {
+    writeFileSync(path.join(worktree, "plans_completed", "legacy.md"), "# Legacy\n- [x] a\n- [ ] deferred to next session\n")
+
+    const result = reconcilePlans(worktree)
+    expect(result.reopenedToActive).toEqual([])
+    expect(existsSync(path.join(worktree, "plans_completed", "legacy.md"))).toBe(true)
+    expect(existsSync(path.join(worktree, "plans", "legacy.md"))).toBe(false)
+    // user-curated placement counts as completed, not misplaced
+    expect(result.status.completed).toContain("legacy.md")
+    expect(result.status.misplaced).toEqual([])
   })
 
   test("full reconcile yields clean hygiene when no open items remain", () => {

@@ -47,6 +47,25 @@ export function hasOpenItems(filePath: string): boolean {
   }
 }
 
+/**
+ * Kernel-authored plans carry workflow/sv tags — their checkbox state is
+ * authoritative, so reconcile may reopen them. Loose plans (no tags) are
+ * user-curated: placement decides completion; never auto-reopened.
+ */
+export function isKernelAuthored(filePath: string): boolean {
+  try {
+    const content = readFileSync(filePath, "utf-8")
+    return /<!--\s*workflow:/i.test(content) || /<!--\s*sv:/.test(content)
+  } catch {
+    return false
+  }
+}
+
+/** Reopen from plans_completed/ only when the checkbox state is authoritative. */
+function reopenEligible(filePath: string): boolean {
+  return hasOpenItems(filePath) && isKernelAuthored(filePath)
+}
+
 // ── Plan state mirror (GATED WORKFLOW snapshot for Layer-1 summaries) ──
 //
 // Kernel-native vocabulary: lifecycle enums, G1..G9 gates, per-task oracle
@@ -261,12 +280,12 @@ export function getPlanStatus(worktree: string): PlanStatus {
   const allActive = collectPlans(plansDir)
 
   // A plan is complete if it has NO [ ] items (only [x] and [~] allowed)
-  const completed = allCompleted.filter((f) => !hasOpenItems(path.join(completedDir, f)))
+  const completed = allCompleted.filter((f) => !reopenEligible(path.join(completedDir, f)))
   const active = allActive.filter((f) => hasOpenItems(path.join(plansDir, f)))
 
   // Misplaced: plans in completedDir that still have [ ] items,
   // or plans in plansDir that have NO [ ] items (should be moved)
-  const misplacedCompleted = allCompleted.filter((f) => hasOpenItems(path.join(completedDir, f)))
+  const misplacedCompleted = allCompleted.filter((f) => reopenEligible(path.join(completedDir, f)))
   const misplacedActive = allActive.filter((f) => !hasOpenItems(path.join(plansDir, f)))
   const misplaced = [
     ...misplacedCompleted.map((f) => `plans_completed/${f.replace(/\\/g, "/")}`),
@@ -364,10 +383,12 @@ export function reconcilePlans(worktree: string): ReconcileResult {
     }
   }
 
-  // Incomplete files sitting in plans_completed/ → plans/
+  // Incomplete KERNEL-authored files in plans_completed/ → plans/.
+  // Non-kernel files are user-curated: open boxes there are deferred items,
+  // placement decides completion — never auto-reopened.
   for (const rel of collectPlans(completedDir)) {
     const src = path.join(completedDir, rel)
-    if (!hasOpenItems(src)) continue
+    if (!reopenEligible(src)) continue
     try {
       const dest = movePlanFile(src, path.join(plansDir, rel))
       const finalRel = path.relative(plansDir, dest).replace(/\\/g, "/")

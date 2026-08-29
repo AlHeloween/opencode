@@ -1,4 +1,11 @@
 # Progress Log
+## 2026-08-29 overflow-last-line plan closed (was ACTIVE with 2 open gate boxes)
+Reason: user asked for status. Mirror said ACTIVE + TASK-8/9 pending — correct: Gate boxes "Implementation only after baseline" / "Post-impl smoke passed" were unticked; a premature archive had also left a tracked ghost copy in plans/ alongside plans_completed/.
+Changes:
+- Verified code: guard without double 10k (`llm.ts:563`), real `ContextOverflowError` (`llm.ts:574`), `hasSpareOutput` on every generation (`prompt.ts:1887`, def `overflow.ts:40`).
+- Oracle pair 61 pass / 0 fail (`20260829T043134Z_8228721f`; baseline was 51 — +10 cases from this plan).
+- Gate closed with stamps in `plans_completed/2026-08-18_overflow-last-line.md`; ghost `plans/2026-08-18_overflow-last-line.md` removed. Commit `41cedeaadd`.
+
 ## 2026-08-29 Gateway capture hygiene: literal raw sidecars, line-based diff + message integrity report
 Reason: user directives (2026-08-29 02:38-02:52) — captures must stop burning disk on re-serializations (per-request `body_raw`, per-response parsed `body` + escaped `body_raw`, raw-wire `body_raw`, inline `endEntry.body` under perRequest); bodies readable as literal text (real newlines, ZERO filtering — "мы можем реально упустить спец символ"); the old byte-true diff over one-line JSON was unreadable ("нашел 3 кернела руками") — replace with line diff + SHORT integrity report against the recommended flow.
 Changes:

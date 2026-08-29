@@ -59,6 +59,19 @@ export function latestOpen(sessionID: SessionID): Record | undefined {
   return listOpen(sessionID).at(-1)
 }
 
+/** All checkpoints for a session — open AND materialized, oldest first. */
+export function listAll(sessionID: SessionID): Record[] {
+  return Database.use((db) =>
+    db
+      .select()
+      .from(ProjectCheckpointTable)
+      .where(eq(ProjectCheckpointTable.session_id, sessionID))
+      .orderBy(asc(ProjectCheckpointTable.time_created), asc(ProjectCheckpointTable.id))
+      .all()
+      .map(fromRow),
+  )
+}
+
 export function save(input: Omit<Record, "timeCreated" | "timeMaterialized" | "materializedMessageID">): Record {
   return Database.use((db) => {
     db.insert(ProjectCheckpointTable)

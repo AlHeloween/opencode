@@ -312,8 +312,12 @@ describe("session.compaction.sequential-compact", () => {
         expect(after1).toHaveLength(1)
         const id1 = after1[0].info.id
 
-        // Second compact — only message* visible → idempotent no-op
-        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        // Second compact — only message* visible → idempotent no-ops:
+        // ten compacts in a row leave the m* row and content unchanged
+        // (fixed point — the user's "10 compacts → same result" contract).
+        for (let i = 0; i < 10; i++) {
+          yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        }
         const after2 = yield* MessageV2.filterCompactedEffect(info.id)
 
         expect(after2).toHaveLength(1)
@@ -359,6 +363,78 @@ describe("session.compaction.sequential-compact", () => {
         const after = yield* MessageV2.filterCompactedEffect(info.id)
         expect(after).toHaveLength(1)
         expect(after[0].parts.some((p: any) => p.type === "text" && p.text.includes("=== COMPACTED ==="))).toBe(true)
+      }),
+    ),
+  )
+
+  it.live(
+    "summaries carry forward: materialized checkpoints re-enter the next m*",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+
+        const su = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: su.id, sessionID: info.id, type: "text", text: "work turn" })
+        const sa = yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "assistant", sessionID: info.id,
+          mode: "build", agent: "build", parentID: su.id,
+          modelID: ref.modelID, providerID: ref.providerID,
+          path: { cwd: dir, root: dir }, cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          finish: "end_turn", time: { created: Date.now() },
+        } as MessageV2.Assistant)
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: sa.id, sessionID: info.id, type: "text", text: "did work" })
+
+        IncrementalCheckpoint.save({
+          id: "ck-carry-forward",
+          sessionID: info.id,
+          fromMessageID: su.id,
+          toMessageID: sa.id,
+          providerID: ref.providerID,
+          modelID: ref.modelID,
+          agent: "build",
+          body: [
+            "## Semantic Vector",
+            'dominant: "carry forward survives compaction"',
+            "",
+            "## Goal",
+            "Carry summaries across compaction cycles.",
+            "",
+            "## Key decisions",
+            "- sidecar summaries persist in m*",
+            "",
+            "## Current state",
+            "cycle one",
+          ].join("\n"),
+        })
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        const after1 = yield* MessageV2.filterCompactedEffect(info.id)
+        expect(after1).toHaveLength(1)
+        const text1 = after1
+          .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+          .join("\n")
+        expect(text1).toContain("carry forward survives compaction")
+
+        // Growth → second compact. The checkpoint is MATERIALIZED by the
+        // first compact — it must still feed the new m* (carry forward),
+        // and the pre-star real messages re-enter the tail by budget.
+        const growth = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: growth.id, sessionID: info.id, type: "text", text: "cycle two work" })
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+        const after2 = yield* MessageV2.filterCompactedEffect(info.id)
+        expect(after2).toHaveLength(1)
+        const text2 = after2
+          .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
+          .join("\n")
+        expect(text2).toContain("carry forward survives compaction")
+        expect(text2).toContain("cycle two work")
+        expect(text2).toContain("work turn")
+        expect(text2).toContain("Prior message*")
       }),
     ),
   )
@@ -1531,7 +1607,7 @@ describe("estimateContentTokens", () => {
 
 describe("session.compaction.compact", () => {
   it.live(
-    "keeps messages from most recent summary onward",
+    "keeps the last ~32K of real messages; budget prunes the rest",
     provideTmpdirInstance((dir) =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
@@ -1571,9 +1647,10 @@ describe("session.compaction.compact", () => {
           type: "text", text: "## Goal\n- summary content here",
         })
 
-        // Create recent messages (will be kept). Pad past RECENT_MIN_TOKENS so the
-        // walk-back does not overlap into pre-summary history (overlap is intended
-        // only for thin tails).
+        // Create recent messages. recent-2 is padded past RECENT_MIN_TOKENS:
+        // the budget ceiling stops the tail walk right after it, so recent-1
+        // and the pre-summary history stay budget-excluded (they remain in
+        // the archive — re-eligible on a future compact).
         for (const text of ["recent-1", "recent-2" + "y".repeat(140_000)]) {
           const u = yield* ssn.updateMessage({
             id: MessageID.ascending(), role: "user", sessionID: info.id,
@@ -1594,9 +1671,10 @@ describe("session.compaction.compact", () => {
         expect(combined).toContain("=== COMPACTED ===")
         expect(combined).toContain("## Goal")
         expect(combined).toContain("summary content here")
-        expect(combined).toContain("recent-1")
+        // Budget ceiling: recent-2 alone (~35K tokens) fills the tail budget,
+        // so recent-1 and the older messages stay out of this m*.
         expect(combined).toContain("recent-2")
-        // Old raw messages not in message* body (they predate the summary)
+        expect(combined).not.toContain("recent-1")
         expect(combined).not.toContain("old-1")
         expect(combined).not.toContain("old-2")
         // System Exact handles present as passive ID lines (not recovery recipes)
@@ -1644,7 +1722,7 @@ describe("session.compaction.compact", () => {
   )
 
   it.live(
-    "walk-back hard-stops at the prior message* (excluded from recent, not embedded)",
+    "prior m* row is skipped — tail crosses it, the star row is never embedded",
     provideTmpdirInstance((dir) =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
@@ -1672,7 +1750,7 @@ describe("session.compaction.compact", () => {
         const after1 = yield* MessageV2.filterCompactedEffect(info.id)
         expect(after1).toHaveLength(1)
 
-        // Growth + second summary → second fold with a THIN tail (< 32K floor)
+        // Growth + second summary → second fold
         const growth = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
         yield* ssn.updatePart({ id: PartID.ascending(), messageID: growth.id, sessionID: info.id, type: "text", text: "post-star-work" })
         const su2 = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
@@ -1693,11 +1771,17 @@ describe("session.compaction.compact", () => {
         const combined = after2
           .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
           .join("\n")
-        // Thin tail → walk-back HARD-STOPS at the prior star (excluded from recent).
         expect(combined).toContain("post-star-work")
-        // Chain link present (session-read hook) but prior star content is NOT embedded.
+        // Tail crosses the prior star: real messages folded into star1's
+        // window are re-eligible by budget (the star ROW itself is skipped).
+        expect(combined).toContain("pre-star-history")
+        // Both summaries carry forward (legacy rows collected regardless of
+        // the prior star position).
+        expect(combined).toContain("covers pre-star history")
+        expect(combined).toContain("covers post-star work")
+        // Chain link present (session-read hook).
         expect(combined).toContain("Prior message*")
-        // Exactly one COMPACTED header — prior star is NOT embedded as a second block.
+        // Exactly one COMPACTED header — prior star is NOT embedded as a block.
         expect(combined.split("=== COMPACTED ===").length - 1).toBe(1)
       }),
     ),
@@ -2440,15 +2524,14 @@ describe("session.compaction.key-decisions", () => {
 
         yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
         const after2 = yield* MessageV2.filterCompactedEffect(info.id)
-        // No new summary in this window → tail-only fold: m*2 keeps the
-        // growth message; star1 (with the preserved decision) goes
-        // session-read only, recoverable via the m* chain link.
+        // Summaries carry forward: star1's legacy summary (with the decision)
+        // is collected again into m*2 — decisions survive every cycle.
         expect(after2).toHaveLength(1)
         const text2 = after2
           .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
           .join("\n")
         expect(text2).toContain("more work after star")
-        expect(text2).not.toContain(decisionLine)
+        expect(text2).toContain(decisionLine)
       }),
     ),
   )
@@ -2607,9 +2690,11 @@ describe("session.compaction.full-cycle", () => {
         yield* mkSummary("summary for segment 2", "decision-from-s2")
 
         // ============================================================
-        // Segment 3 (recent, <30k): m7, u3, m8, m9 — u3 padded past
-        // RECENT_MIN_TOKENS so the Recent walk-back does not overlap into
-        // already-summarized segments.
+        // Segment 3 (recent): m7, u3, m8, m9 — u3 is padded past
+        // RECENT_MIN_TOKENS, so the budget stops the tail walk right after
+        // u3: the tail is [u3, m8, m9]; m7 and earlier segments stay
+        // archive-only until the budget frees up.
+        // ============================================================
         yield* mkAssistant([{ type: "text", text: "assistant-text-7" }])
         yield* mkUser("user-msg-3" + "z".repeat(140_000))
         yield* mkAssistant([
@@ -2675,21 +2760,19 @@ describe("session.compaction.full-cycle", () => {
         // Running tool must also be visible (not just completed)
         expect(combined).toContain("(running)")
 
-        // Recent messages must be in chronological order
-        const r7Idx = combined.indexOf("assistant-text-7")
+        // Recent messages must be in chronological order. The budget stops the
+        // tail walk after u3 (~35K tokens) — m7 and earlier segments stay
+        // archive-only (re-eligible once the budget frees up).
         const u3Idx = combined.indexOf("user-msg-3")
         const r8Idx = combined.indexOf("assistant-text-8")
         const r9Idx = combined.indexOf("assistant-text-9")
-        expect(r7Idx).toBeGreaterThan(-1)
         expect(u3Idx).toBeGreaterThan(-1)
         expect(r8Idx).toBeGreaterThan(-1)
         expect(r9Idx).toBeGreaterThan(-1)
-        expect(r7Idx).toBeLessThan(u3Idx)
         expect(u3Idx).toBeLessThan(r8Idx)
         expect(r8Idx).toBeLessThan(r9Idx)
-
-        // Messages from earlier segments (summarized) must NOT be in Recent
-        expect(combined.indexOf("assistant-text-1")).toBeLessThan(r7Idx) // in summary block, not recent
+        expect(combined).not.toContain("assistant-text-7")
+        expect(combined).not.toContain("assistant-text-1")
       }),
     ),
   )

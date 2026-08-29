@@ -32,13 +32,12 @@ export const Event = {
 export const SUMMARY_INTERVAL_TOKENS = 65_536
 export const MAX_SUMMARY_ATTEMPTS = 2
 /**
- * Minimum Recent tail after compact (content tokens, chars/4).
- * Walk from the end, skipping the latest summary (request+body), so m* always
- * keeps a real work tail — not only a thin post-summary stub that immediately
- * re-triggers Layer-1 summary after fold.
- * The walk-back hard-stops at the prior message*: it is included as the
- * boundary element, and the tail never reaches further back — repeated
- * compacts cannot re-expand the tail beyond the star (idempotency).
+ * Recent-tail budget for m* (content tokens, chars/4): the last ~32K tokens
+ * of REAL messages, copied verbatim. Selection walks the FULL message list
+ * (compacted rows included) and skips memory-machinery rows — a prior m*
+ * never enters another m*, every real message stays eligible. The tail is
+ * rebuilt from the DB on every compact, so repeated compacts are idempotent
+ * (content fixed point) and undo restores the exact content window per m*.
  */
 export const RECENT_MIN_TOKENS = 32_768
 /** Maximum total summary body text (tokens) included in m*. Older summaries are session-read only. */
@@ -244,75 +243,43 @@ function isSummaryAssistant(msg: MessageV2.WithParts): boolean {
 }
 
 /**
- * Recent tail for message* fold.
+ * Recent tail for message* (compaction contract, 2026-08-29 Alexander):
+ * a verbatim copy of the last ~minTokens of REAL messages — user, assistant,
+ * reasoning, tool outputs, everything, whole messages, no re-rendering.
  *
- * 1. Prefer messages after `latestBoundaryId` (last summary / sidecar to_id).
- * 2. Always exclude the latest in-band summary (request + assistant).
- * 3. If that tail is under {@link RECENT_MIN_TOKENS}, walk further back — but
- *    hard-stop at the prior message*: it is EXCLUDED (session-read only).
- *    Repeated compacts stay idempotent — prior m* content is never re-pulled.
+ * Selection walks the FULL message list (compacted rows included) from the
+ * end and skips memory-machinery rows: prior message* rows (an m* NEVER
+ * enters another m*), Layer-1 UI panels, and legacy summary
+ * requests/assistants (their content rides the summaries block). Real
+ * messages folded into a prior m* tail are re-eligible — the tail is
+ * rebuilt from the DB on every compact, which makes repeated compacts
+ * idempotent: compact(m*) == m* (content fixed point).
+ *
+ * Floor semantics with whole-message granularity (2026-08-29 Alexander:
+ * "30k +-"): walk back until the budget is reached, then stop — the last
+ * collected message may overshoot the budget (never split a message).
  */
 export function selectRecentTail(
-  visible: MessageV2.WithParts[],
-  latestBoundaryId?: string,
+  msgs: MessageV2.WithParts[],
   minTokens: number = RECENT_MIN_TOKENS,
 ): MessageV2.WithParts[] {
-  let lastSummaryId: string | undefined
-  let lastSummaryRequestId: string | undefined
-  for (let i = visible.length - 1; i >= 0; i--) {
-    const m = visible[i]!
-    if (isMessageStar(m)) continue
-    if (!isSummaryAssistant(m)) continue
-    lastSummaryId = m.info.id
-    lastSummaryRequestId = (m.info as MessageV2.Assistant).parentID
-    break
-  }
-
-  const skip = (m: MessageV2.WithParts) => {
-    if (isMessageStar(m)) return true
-    // UI-only Layer-1 panels — s already folded from project_checkpoint.
-    if (isLayer1SummaryMessage(m)) return true
-    if (lastSummaryId && m.info.id === lastSummaryId) return true
-    if (lastSummaryRequestId && m.info.id === lastSummaryRequestId) return true
-    return false
-  }
-
-  // Prefer open window after Layer-1 / sidecar boundary.
-  let recent = visible.filter((m) => {
-    if (skip(m)) return false
-    if (!latestBoundaryId) return true
-    return m.info.id > latestBoundaryId
-  })
-
-  // Cap (no-boundary tails only): with zero summaries the tail IS the only
-  // memory — keep the LAST ~minTokens of messages ("32k последних сообщений
-  // в токенах"), trimming whole messages from the front (never below the
-  // floor; a single oversized message may overshoot — whole-message
-  // granularity). With a summary boundary the post-boundary tail is kept in
-  // full: those messages are NOT covered by any summary — dropping them
-  // would hide uncovered work (representation invariant).
-  const minChars = minTokens * CHARS_PER_TOKEN
-  if (!latestBoundaryId && contentChars(recent) > minChars) {
-    while (recent.length > 1 && contentChars(recent) > minChars && contentChars(recent.slice(1)) >= minChars) {
-      recent.shift()
+  const summaryParents = new Set<string>()
+  for (const m of msgs) {
+    if (isSummaryAssistant(m)) {
+      const parentID = (m.info as MessageV2.Assistant).parentID
+      if (parentID) summaryParents.add(parentID)
     }
-    return recent
   }
-  if (contentChars(recent) >= minChars) return recent
-
-  // Thin post-boundary tail: extend backward past boundary (small overlap),
-  // but hard-stop at the prior message* — include it, never go further.
-  // visible is ascending by id; walk from end, keep messages not skipped.
+  const minChars = minTokens * CHARS_PER_TOKEN
   const selected: MessageV2.WithParts[] = []
   let chars = 0
-  for (let i = visible.length - 1; i >= 0; i--) {
-    const m = visible[i]!
-    if (isMessageStar(m)) {
-      break // hard stop — prior m* is session-read only, not in recent
-    }
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const m = msgs[i]!
+    if (isMessageStar(m)) continue
     if (isLayer1SummaryMessage(m)) continue
-    if (lastSummaryId && m.info.id === lastSummaryId) continue
-    if (lastSummaryRequestId && m.info.id === lastSummaryRequestId) continue
+    if (isSummaryRequestMessage(m)) continue
+    if (isSummaryAssistant(m)) continue
+    if (summaryParents.has(m.info.id)) continue
     selected.unshift(m)
     chars += contentChars([m])
     if (chars >= minChars) break
@@ -820,10 +787,12 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
             ? statusOpt.value.set(input.sessionID, { type: next })
             : Effect.void
 
-        // Read all messages — use a high limit to avoid silently dropping
-        // summaries for long sessions (>500 messages). The default 500 in
-        // session.messages() was a TUI guard, not appropriate for compaction.
-        const msgs = (yield* session.messages({ sessionID: input.sessionID, limit: 10_000 }).pipe(
+        // Read ALL messages — visible AND compacted (visibleOnly: false).
+        // The compaction contract rebuilds the m* tail from true history:
+        // real messages hidden by a prior compact are re-eligible, and legacy
+        // summaries behind the prior m* carry forward. A high limit avoids
+        // silently dropping rows for long sessions (>500 messages).
+        const msgs = (yield* session.messages({ sessionID: input.sessionID, limit: 10_000, visibleOnly: false }).pipe(
           Effect.catchIf(NotFoundError.isInstance, () => Effect.succeed(undefined)),
         )) as MessageV2.WithParts[] | undefined
         if (!msgs?.length) {
@@ -852,11 +821,9 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           return { messageStarTokens: tokensOf(visible[0]), folded: false }
         }
 
-        // Find the prior message* (if any) to bound summary collection.
-        // Collect summaries ONLY from messages created AFTER the last message* —
-        // this keeps the messageStar bounded (O(1) growth) instead of accumulating
-        // every summary from session start (O(n²) unbounded growth).
-        // Older summaries remain recoverable via session-read using the chain link.
+        // Find the prior message* (if any) — it becomes the "Prior message*"
+        // chain-link pointer of the new star (older stars stay session-read
+        // addressable; the pointer is metadata, never folded content).
         const priorMsgStarIdx = (() => {
           for (let i = msgs.length - 1; i >= 0; i--) {
             if (isMessageStar(msgs[i])) return i
@@ -865,11 +832,13 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         })()
         const priorMsgStarId = priorMsgStarIdx >= 0 ? msgs[priorMsgStarIdx].info.id : undefined
 
-        // Collect summaries from the current compaction window only.
+        // Collect ALL checkpoints — open AND materialized. Summaries carry
+        // forward across compacts (s0,s1 stay in every m* until the 32K pool
+        // pushes the oldest out); the cap below keeps the block bounded.
         // Exact range links come from the SYSTEM summary-range parent comment,
         // never from model prose (IDs are not model-inferable facts).
         const summaries: { id: string; text: string; fromId?: string; toId?: string; diffs?: Snapshot.FileDiff[]; impact?: Snapshot.ImpactSummary; planState?: PlanStatePayload; sidecar?: boolean }[] = []
-        const sidecars = IncrementalCheckpoint.listOpen(input.sessionID)
+        const sidecars = IncrementalCheckpoint.listAll(input.sessionID)
         for (const checkpoint of sidecars) {
           summaries.push({
             id: checkpoint.id,
@@ -882,12 +851,8 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
             sidecar: true,
           })
         }
-        let latestSummaryIdx = -1
         const byId = new Map(msgs.map((m) => [m.info.id, m] as const))
         for (let i = 0; i < msgs.length; i++) {
-          // Skip messages before (and including) the prior message* — their summaries
-          // were already folded into that prior messageStar.
-          if (priorMsgStarIdx >= 0 && i <= priorMsgStarIdx) continue
           const m = msgs[i]
           if (m.info.role === "assistant" && (m.info as any).summary) {
             const text = messageText(m)
@@ -921,13 +886,9 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
                 log.debug("summary missing semantic vector", { id: m.info.id })
               }
             }
-            latestSummaryIdx = i
           }
         }
 
-        const latestSummaryId = latestSummaryIdx >= 0 ? msgs[latestSummaryIdx].info.id : undefined
-        const latestSidecarBoundary = sidecars.at(-1)?.toMessageID
-        const latestBoundaryId = [latestSummaryId, latestSidecarBoundary].filter(Boolean).sort().at(-1)
         // T2 refusal removed (2026-08-25): with zero summaries (manual
         // /compact on a fresh session, or a window-fill fold before the
         // first s) m* = header + Recent tail — the last RECENT_MIN_TOKENS
@@ -953,26 +914,12 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           }
         }
 
-        // Coverage boundary: everything up to (and including) this ID is covered
-        // by at least one collected summary. Prior m* is session-read only (excluded
-        // from summaries and Recent after T2). Linkless legacy summaries cover up to
-        // their own message — conservative, never over-hides.
-        const coveredThroughId = summaries.reduce<string | undefined>((max, s) => {
-          const bound = s.toId ?? s.id
-          if (!max) return bound
-          return bound > max ? bound : max
-        }, undefined)
-        void coveredThroughId
-
-        // Recent = work tail for m* (≥ RECENT_MIN_TOKENS). Skip message* + latest
-        // summary; if post-boundary stub is thin, overlap back into pre-boundary m.
-        // Representation invariant: every hidden message is represented — either
-        // by a collected summary, by the Recent walk-back, or is the prior m*
-        // (session-read only, excluded from both summaries and Recent after T2).
-        // selectRecentTail walks back from the end until the floor or session start,
-        // hard-stopping at prior m* — no message falls between the last summary
-        // boundary and the Recent floor.
-        const recent = selectRecentTail(visible, latestBoundaryId, RECENT_MIN_TOKENS)
+        // Recent = verbatim copy of the last ~RECENT_MIN_TOKENS of REAL
+        // messages. Selection walks the full message list (compacted rows
+        // included) and skips memory-machinery rows — prior m* rows never
+        // enter another m*; every real message (including ones folded into a
+        // prior m* tail) is re-eligible. Deterministic → idempotent compacts.
+        const recent = selectRecentTail(msgs, RECENT_MIN_TOKENS)
 
         // Prior m* decisions are NOT pulled forward — each m* owns its own decisions.
 
@@ -993,11 +940,12 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           priorMessageStarId: priorMsgStarId,
         })
 
-        // Soft-hide every currently visible message (DB retained for session-read).
-        // Representation invariant: every hidden message is covered — by a
-        // collected summary, by the Recent walk-back tail, or it IS the prior
-        // m* (session-read only). With zero summaries the tail alone is kept,
-        // so nothing is hidden without representation either way.
+        // Soft-hide every currently visible message (DB retained for
+        // session-read). The new m* carries [summaries ≤32K tokens, last ≤32K
+        // tokens of real messages]; older real messages stay in the archive —
+        // they re-enter the tail on a future compact once the budget frees,
+        // and the Prior message* chain link keeps every prior star
+        // session-read addressable (undo restores the exact window per m*).
         let compacted = 0
         for (const m of visible) {
           m.info.compacted = true

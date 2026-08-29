@@ -59,6 +59,13 @@ export const SessionReadTool = Tool.define(
               messages.push(msg)
             }
 
+            // MessageV2.stream yields newest-first (page() walks backward with
+            // a descending cursor). Reverse to ascending so position 1 =
+            // session start — the same convention as m* #N tags and the
+            // "1-based message index" offset contract. The default view then
+            // slices the TAIL (the newest messages); offset reads forward.
+            messages.reverse()
+
             if (messages.length === 0) {
               return {
                 output: `No messages found for session ${params.sessionId}`,

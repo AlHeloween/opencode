@@ -252,7 +252,7 @@ describe("pre-send guard arithmetic (no double-count 10k)", () => {
   })
 })
 
-describe("selectRecentTail (prior m* exclusion)", () => {
+describe("selectRecentTail (m* never enters m*; real messages re-eligible)", () => {
   function starMsg(id: string): MessageV2.WithParts {
     return {
       info: { id: id as never, role: "user" },
@@ -260,56 +260,60 @@ describe("selectRecentTail (prior m* exclusion)", () => {
     } as unknown as MessageV2.WithParts
   }
 
-  test("prior m* is NOT included in recent tail", () => {
+  test("prior m* row is skipped — but real messages behind it are re-eligible", () => {
     // Messages: [m1, m2, prior_star, m3, m4]
-    // After boundary (m2), thin tail: should NOT include the star
     const m1 = textMsg("m1", 5_000)
     const m2 = textMsg("m2", 5_000)
     const star = starMsg("star1")
     const m3 = textMsg("m3", 5_000)
     const m4 = textMsg("m4", 5_000)
-    const visible = [m1, m2, star, m3, m4]
+    const msgs = [m1, m2, star, m3, m4]
 
-    const result = selectRecentTail(visible, "m2" as MessageID, 32_768)
-    // Thin tail (m3+m4 = ~2.5K tokens < 32K) walks back, but hard-stops at star
+    const result = selectRecentTail(msgs, 32_768)
     const ids = result.map((m) => m.info.id as string)
     expect(ids).not.toContain("star1")
+    // The tail crosses the prior star: real messages re-enter by budget.
+    expect(ids).toContain("m1")
+    expect(ids).toContain("m2")
+    expect(ids).toContain("m3")
+    expect(ids).toContain("m4")
   })
 
   test("prior m* is excluded even with generous minTokens", () => {
     const m1 = textMsg("m1", 10_000)
     const star = starMsg("star1")
     const m2 = textMsg("m2", 1_000)
-    const visible = [m1, star, m2]
+    const msgs = [m1, star, m2]
 
-    const result = selectRecentTail(visible, "m1" as MessageID, 100_000)
-    const ids = result.map((m) => m.info.id)
+    const result = selectRecentTail(msgs, 100_000)
+    const ids = result.map((m) => m.info.id as string)
     expect(ids).not.toContain("star1")
+    expect(ids).toContain("m1")
+    expect(ids).toContain("m2")
   })
 
   test("no prior m* — normal walk-back works", () => {
     const m1 = textMsg("m1", 10_000)
     const m2 = textMsg("m2", 5_000)
     const m3 = textMsg("m3", 5_000)
-    const visible = [m1, m2, m3]
+    const msgs = [m1, m2, m3]
 
-    const result = selectRecentTail(visible, "m1" as MessageID, 32_768)
-    // Thin tail: walks back past boundary, no star to stop at
+    const result = selectRecentTail(msgs, 32_768)
     expect(result.length).toBeGreaterThan(0)
     const ids = result.map((m) => m.info.id as string)
     expect(ids).toContain("m1")
   })
 
-  test("sufficient tail — no walk-back needed", () => {
+  test("floor semantics — walks back until the budget is reached (30k ±)", () => {
     const m1 = textMsg("m1", 100_000) // ~25K tokens
     const m2 = textMsg("m2", 100_000)
-    const visible = [m1, m2]
+    const msgs = [m1, m2]
 
-    const result = selectRecentTail(visible, "m1" as MessageID, 32_768)
-    // m2 alone = 25K tokens, under 32K → walks back, but m1 is not a star
-    // so it includes m1
+    const result = selectRecentTail(msgs, 32_768)
+    // Floor: m2 (~25K) is under budget → keep walking; m1 overshoots the
+    // budget to ~50K — whole-message granularity, never split a message.
     const ids = result.map((m) => m.info.id as string)
-    expect(ids).toContain("m2")
+    expect(ids).toEqual(["m1", "m2"])
   })
 })
 

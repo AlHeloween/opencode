@@ -26,6 +26,16 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
   // (2026-08-30, Alexander: explicit scope choice instead of hidden dual writes).
   const scope = props.scope ?? "session"
 
+  // ←/→ cycles the configuration scope directly on the form
+  // (2026-08-30, Alexander: arrows must switch global/worktree/session).
+  const SCOPE_ORDER: ModelScope[] = ["global", "worktree", "session"]
+  function cycleScope(direction: 1 | -1) {
+    const index = SCOPE_ORDER.indexOf(scope)
+    const next = SCOPE_ORDER[(index + direction + SCOPE_ORDER.length) % SCOPE_ORDER.length]
+    if (!next || next === scope) return
+    dialog.replace(() => <DialogAgent scope={next} restoreValue={props.restoreValue} />)
+  }
+
   // ── All visible non-hidden agents ──
   const allAgents = createMemo(() =>
     sync.data.agent.filter((a) => !a.hidden),
@@ -207,7 +217,7 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
 
   return (
     <DialogSelect
-      title={`Agent Configuration — ${scope}${scope === "global" ? " (read-only)" : ""}`}
+      title={`Agent Configuration — scope: ${scope}${scope === "global" ? " (read-only)" : ""}  (←/→ switch)`}
       current={local.agent.current()?.name}
       cursorValue={props.restoreValue}
       options={options()}
@@ -238,6 +248,16 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
               />
             ))
           },
+        },
+        {
+          title: "Scope ←",
+          keybind: Keybind.parse("left")[0],
+          onTrigger: () => cycleScope(-1),
+        },
+        {
+          title: "Scope →",
+          keybind: Keybind.parse("right")[0],
+          onTrigger: () => cycleScope(1),
         },
         {
           title: "Switch scope",

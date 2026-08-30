@@ -1007,7 +1007,9 @@ describe("session.message-v2.toModelMessage", () => {
     expect(await MessageV2.toModelMessages(input, model)).toStrictEqual([])
   })
 
-  test("preserves OpenRouter reasoning details through provider transform", async () => {
+  test("preserves OpenRouter reasoning details on tool-call turns through provider transform", async () => {
+    // Thinking doctrine (2026-08-30): reasoning survives only on TOOL-call
+    // assistant messages, so the dual-dialect pass-through is verified there.
     const assistantID = "m-assistant"
     const openrouterModel: Provider.Model = {
       ...model,
@@ -1052,6 +1054,20 @@ describe("session.message-v2.toModelMessage", () => {
           },
           {
             ...basePart(assistantID, "a2"),
+            type: "tool",
+            callID: "call_or_toolturn",
+            tool: "jobwait",
+            state: {
+              status: "completed",
+              input: { job_ids: ["bash-1"] },
+              output: "done",
+              title: "Jobwait",
+              metadata: {},
+              time: { start: 0, end: 1 },
+            },
+          },
+          {
+            ...basePart(assistantID, "a3"),
             type: "text",
             text: "answer",
           },
@@ -1059,36 +1075,143 @@ describe("session.message-v2.toModelMessage", () => {
       },
     ]
 
-    expect(
-      ProviderTransform.message(await MessageV2.toModelMessages(input, openrouterModel), openrouterModel, {}),
-    ).toStrictEqual([
+    const result = ProviderTransform.message(
+      await MessageV2.toModelMessages(input, openrouterModel),
+      openrouterModel,
+      {},
+    )
+    const assistant = result.find((m) => m.role === "assistant")
+    const reasoning = Array.isArray(assistant?.content)
+      ? assistant.content.find((p) => (p as { type?: string }).type === "reasoning")
+      : undefined
+    expect(reasoning).toMatchObject({
+      text: "thinking",
+      providerOptions: {
+        openrouter: {
+          reasoning_details: reasoningDetails,
+        },
+      },
+    })
+  })
+
+  test("strips reasoning from non-tool assistant messages (thinking doctrine)", async () => {
+    const assistantID = "m-assistant"
+    const input: MessageV2.WithParts[] = [
+      {
+        info: userInfo("m-user"),
+        parts: [{ ...basePart("m-user", "u1"), type: "text", text: "question" }] as MessageV2.Part[],
+      },
+      {
+        info: assistantInfo(assistantID, "m-user"),
+        parts: [
+          { ...basePart(assistantID, "a1"), type: "reasoning", text: "process replay", time: { start: 0 } },
+          { ...basePart(assistantID, "a2"), type: "text", text: "answer" },
+        ] as MessageV2.Part[],
+      },
+    ]
+
+    expect(await MessageV2.toModelMessages(input, model)).toStrictEqual([
+      {
+        role: "user",
+        content: [{ type: "text", text: "question" }],
+      },
       {
         role: "assistant",
-        content: [
-          {
-            type: "reasoning",
-            text: "thinking",
-            providerOptions: {
-              openrouter: {
-                reasoning_details: reasoningDetails,
-              },
-            },
-          },
-          {
-            type: "text",
-            text: "answer",
-            providerOptions: {
-              alibaba: { cacheControl: { type: "ephemeral" } },
-              anthropic: { cacheControl: { type: "ephemeral" } },
-              bedrock: { cachePoint: { type: "default" } },
-              copilot: { copilot_cache_control: { type: "ephemeral" } },
-              openaiCompatible: { cache_control: { type: "ephemeral" } },
-              openrouter: { cacheControl: { type: "ephemeral" } },
-            },
-          },
-        ],
+        content: [{ type: "text", text: "answer" }],
       },
     ])
+  })
+
+  test("keeps reasoning on tool-call assistant messages (vendor 400-guards)", async () => {
+    const assistantID = "m-assistant"
+    const input: MessageV2.WithParts[] = [
+      {
+        info: assistantInfo(assistantID, "m-parent"),
+        parts: [
+          { ...basePart(assistantID, "a1"), type: "reasoning", text: "plan before call", time: { start: 0 } },
+          {
+            ...basePart(assistantID, "a2"),
+            type: "tool",
+            callID: "call_keep_1",
+            tool: "jobwait",
+            state: {
+              status: "completed",
+              input: { job_ids: ["bash-1"] },
+              output: "done",
+              title: "Jobwait",
+              metadata: {},
+              time: { start: 0, end: 1 },
+            },
+          },
+        ] as MessageV2.Part[],
+      },
+    ]
+
+    const result = await MessageV2.toModelMessages(input, model)
+    const assistant = result.find((m) => m.role === "assistant")
+    const content = Array.isArray(assistant?.content)
+      ? (assistant.content as Array<{ type?: string; text?: string }>)
+      : []
+    expect(content.some((p) => p.type === "reasoning" && p.text === "plan before call")).toBe(true)
+  })
+
+  test("drops assistant messages left empty by the reasoning strip (no dangling empties)", async () => {
+    const assistantID = "m-assistant"
+    const input: MessageV2.WithParts[] = [
+      {
+        info: assistantInfo(assistantID, "m-parent"),
+        parts: [
+          { ...basePart(assistantID, "a1"), type: "reasoning", text: "only process", time: { start: 0 } },
+          { ...basePart(assistantID, "a2"), type: "step-start" },
+        ] as MessageV2.Part[],
+      },
+    ]
+
+    expect(await MessageV2.toModelMessages(input, model)).toStrictEqual([])
+  })
+
+  test("strips flood reminder blocks from replayed tool outputs, keeps gated-workflow brief", async () => {
+    const assistantID = "m-assistant"
+    const output = [
+      "line1",
+      "",
+      "<system-reminder>",
+      "# Test Instructions",
+      "Do something special.",
+      "</system-reminder>",
+      "",
+      "line2",
+      "",
+      "<system-reminder>Gated workflow: State→SV→Plan→Implement→Oracle→Clean. Continue from your last gate.</system-reminder>",
+    ].join("\n")
+    const input: MessageV2.WithParts[] = [
+      {
+        info: assistantInfo(assistantID, "m-parent"),
+        parts: [
+          {
+            ...basePart(assistantID, "a1"),
+            type: "tool",
+            callID: "call_flood_1",
+            tool: "read",
+            state: {
+              status: "completed",
+              input: { filePath: "x.txt" },
+              output,
+              title: "Read",
+              metadata: {},
+              time: { start: 0, end: 1 },
+            },
+          },
+        ] as MessageV2.Part[],
+      },
+    ]
+
+    const dump = JSON.stringify(await MessageV2.toModelMessages(input, model))
+    expect(dump).not.toContain("Do something special.")
+    expect(dump).not.toContain("Test Instructions")
+    expect(dump).toContain("Gated workflow:")
+    expect(dump).toContain("line1")
+    expect(dump).toContain("line2")
   })
 
   test("splits assistant messages on step-start boundaries", async () => {

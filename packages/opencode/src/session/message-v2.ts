@@ -360,6 +360,24 @@ function truncateToolOutput(text: string, maxChars?: number) {
 }
 
 /**
+ * Strip flood-scale <system-reminder> blocks from REPLAYED tool outputs
+ * (2026-08-30, Alexander): pre-fix read.ts re-delivered full AGENTS.md
+ * content inside every read output; those blocks persist in stored parts
+ * and replay on every turn. The brief gated-workflow orientation line is
+ * the user-endorsed reminder — blocks carrying it survive. Text parts are
+ * NOT touched here: mode-transition records (plan.txt/build.txt) are
+ * <system-reminder>-wrapped and must reach the model. Mirrors
+ * stripReminderBlocks() in compaction.ts (memory-side m* render).
+ */
+function stripFloodReminderBlocks(text: string): string {
+  return text
+    .replace(/<system-reminder>([\s\S]*?)<\/system-reminder>/g, (match, inner: string) =>
+      inner.includes("Gated workflow:") ? match : "",
+    )
+    .replace(/\n{3,}/g, "\n\n")
+}
+
+/**
  * Default cap (chars) for completed tool outputs replayed into the model
  * context. Provider prompt caches bill every injected block at full miss
  * price until it becomes a persisted prefix unit; bounding the replay to a
@@ -935,6 +953,14 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
     if (msg.info.role === "assistant") {
       const differentModel = `${model.providerID}/${model.id}` !== `${msg.info.providerID}/${msg.info.modelID}`
       const media: Array<{ mime: string; url: string }> = []
+      // Thinking-doctrine strip (2026-08-30, Alexander): reasoning on NON-tool
+      // assistant turns is process replay — vendors either ignore it (Anthropic
+      // recommends stripping outside tool use), fill the empty wire field
+      // themselves (DeepSeek/MIMO normalizeMessages), or carry it needlessly
+      // (OpenRouter dual dialect). Keep reasoning only on tool-call turns where
+      // the vendor contract requires it (Anthropic thinking-before-tool_use,
+      // DeepSeek/z-ai 400-guards).
+      const hasToolParts = msg.parts.some((p) => p.type === "tool")
 
       if (msg.info.error) {
         continue
@@ -961,7 +987,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
           if (part.state.status === "completed") {
             const outputText = part.state.time.compacted
               ? "[Old tool result content cleared]"
-              : truncateToolOutput(part.state.output, options?.toolOutputMaxChars)
+              : truncateToolOutput(stripFloodReminderBlocks(part.state.output), options?.toolOutputMaxChars)
             const attachments = part.state.time.compacted || options?.stripMedia ? [] : (part.state.attachments ?? [])
 
             // For providers that don't support media in tool results, extract media files
@@ -1033,6 +1059,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             })
         }
         if (part.type === "reasoning") {
+          if (!hasToolParts) continue
           assistantMessage.parts.push({
             type: "reasoning",
             text: part.text,

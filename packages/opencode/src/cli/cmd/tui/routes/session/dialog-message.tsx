@@ -4,6 +4,8 @@ import { DialogSelect } from "@tui/ui/dialog-select"
 import { useSDK } from "@tui/context/sdk"
 import { useRoute } from "@tui/context/route"
 import * as Clipboard from "@tui/util/clipboard"
+import * as Log from "@opencode-ai/core/util/log"
+import type { DialogContext } from "@tui/ui/dialog"
 import type { PromptInfo } from "@tui/component/prompt/history"
 import { strip } from "@tui/component/prompt/part"
 
@@ -16,11 +18,37 @@ export function DialogMessage(props: {
   const sdk = useSDK()
   const message = createMemo(() => sync.data.message[props.sessionID]?.find((x) => x.id === props.messageID))
   const route = useRoute()
+  // Queued / unreplied: no assistant message ever answered this user turn.
+  // Revert is meaningless here — the turn never ran — offer cancel instead
+  // (2026-08-30, Alexander: cancel option was missing from this menu).
+  const hasReply = createMemo(() => {
+    const msgs = sync.data.message[props.sessionID] ?? []
+    return msgs.some((m) => m.role === "assistant" && m.parentID === props.messageID)
+  })
 
   return (
     <DialogSelect
       title="Message Actions"
       options={[
+        ...(hasReply()
+          ? []
+          : [
+              {
+                title: "Cancel queued message",
+                value: "message.cancel",
+                description: "message has no reply yet — delete it from the session",
+                onSelect: async (dialog: DialogContext) => {
+                  const result = await sdk.client.session.deleteMessage({
+                    sessionID: props.sessionID,
+                    messageID: props.messageID,
+                  })
+                  if (result.error) {
+                    Log.Default.warn("bug: cancel queued message failed", { error: result.error })
+                  }
+                  dialog.clear()
+                },
+              },
+            ]),
         {
           title: "Revert",
           value: "session.revert",

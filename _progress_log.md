@@ -1,4 +1,16 @@
 # Progress Log
+## 2026-08-30 Flow stripper (message flow) + GUI fixes: variant cursor restore, GLM variant dialog, queued-message cancel
+Reason: user "давай" on (1) stripper rollout to the whole message flow (standing plan "обкатаем на compact, потом на весь flow"), (2) GLM reasoning dialog missing + ctrl+t cursor reset ("относись к GUI корректнее"), (3) queued-message cancel disappeared from message menu. Token-burn post-compact complaint → tighter grounding regime adopted (named-symbol reads, no explore packs, state reports between phases).
+Changes:
+- `message-v2.ts` toModelMessagesEffect (single choke point for generation + all WithCounts paths): reasoning parts stripped from NON-tool assistant messages (thinking doctrine — Anthropic recommends stripping outside tool use, DeepSeek/MIMO fill the empty wire field themselves, OR dual dialect carried needlessly); completed tool outputs run through `stripFloodReminderBlocks` before replay truncation (pre-eb189240e2 AGENTS.md floods persisted in stored parts; the brief gated-workflow reminder SURVIVES — blocks carrying "Gated workflow:" kept; text parts untouched — mode-transition records are reminder-wrapped and must reach the model). Deterministic → KV-stable per turn.
+- `dialog-select.tsx` — new optional `cursorValue` prop: positions the cursor row WITHOUT touching the `current` (←) marker; for dialogs that re-create themselves after in-place actions.
+- `dialog-agent.tsx` — `restoreValue` threading: ctrl+t variant cycle, Change-model onDone, and agent onSelect all re-create the dialog with `restoreValue={option.value}` (cursor previously reset to the first row / active agent row); DialogSelect gets `cursorValue={props.restoreValue}`.
+- `dialog-variant.tsx` — GLM thinking descriptions (docs.z.ai): 5.3 forced-thinking (no off), 5.2 off via effort none, 4.x toggle; mirrors deepseek map.
+- `dialog-message.tsx` — for messages with NO assistant reply (queued/unprocessed): "Cancel queued message" action → `sdk.client.session.deleteMessage` (v2 SDK, httpapi endpoint pre-existing); Revert/Copy/Fork unchanged for replied messages. Explicit DialogContext annotation (ternary spread breaks contextual typing).
+- GLM dialog root cause for the user: running binary predates `3454f0c792` — variants land in served model info via `provider.ts:1042/1396` → rebuild restores the dialog; no source change needed there.
+Script Output:
+- message-v2 + prompt-alignment suites **41 pass / 0 fail** (`20260830T031047Z_dbebf231`, baseline 37/0 + 4 new tests: non-tool reasoning strip, tool-turn reasoning keep, empty-after-strip drop, flood-reminder strip with gated-workflow survivor); typecheck PASS ×2 (`20260830T033604Z_9b192efe` stripper, `20260830T034623Z_e3459690` full incl. GUI).
+
 ## 2026-08-30 Reminder redesign (instructions once per session) + lines() true-count fix
 Reason: user "Давай" — full instruction content rides on the FIRST read only, afterwards a one-line gated-workflow reminder. Flood RCA [Exact]: instruction.ts dedup (`extract`) reads only VISIBLE messages — after each compact the read parts vanish from ctx.messages → full AGENTS.md re-delivery after EVERY compact.
 Changes:

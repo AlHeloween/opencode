@@ -31,6 +31,11 @@ export interface DialogSelectProps<T> {
     onTrigger: (option: DialogSelectOption<T>) => void
   }[]
   current?: T
+  /** Position the cursor on this option's row WITHOUT touching the
+   * "current" (←) marker. For dialogs that re-create themselves after an
+   * in-place action (DialogAgent ctrl+t variant cycle) so the highlighted
+   * row stays stable instead of resetting to the first option. */
+  cursorValue?: T
 }
 
 export interface DialogSelectOption<T = any> {
@@ -74,6 +79,17 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
             setStore("selected", currentIndex)
           }
         }
+      },
+    ),
+  )
+
+  createEffect(
+    on(
+      () => props.cursorValue,
+      (cursorValue) => {
+        if (cursorValue === undefined) return
+        const index = flat().findIndex((opt) => isDeepEqual(opt.value, cursorValue))
+        if (index >= 0) setStore("selected", index)
       },
     ),
   )

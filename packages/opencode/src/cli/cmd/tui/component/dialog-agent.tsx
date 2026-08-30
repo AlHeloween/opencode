@@ -16,7 +16,7 @@ import type { RGBA } from "@opentui/core"
  * provides model selection and enable/disable toggle, with balance
  * and cache hit stats summary in the footer.
  */
-export function DialogAgent() {
+export function DialogAgent(props: { restoreValue?: string }) {
   const local = useLocal()
   const sync = useSync()
   const dialog = useDialog()
@@ -192,7 +192,7 @@ export function DialogAgent() {
         dialog.replace(() => (
           <DialogModel
             targetAgent={agent.name}
-            onDone={() => dialog.replace(() => <DialogAgent />)}
+            onDone={() => dialog.replace(() => <DialogAgent restoreValue={props.restoreValue ?? agent.name} />)}
           />
         ))
       },
@@ -203,6 +203,7 @@ export function DialogAgent() {
     <DialogSelect
       title="Agent Configuration"
       current={local.agent.current()?.name}
+      cursorValue={props.restoreValue}
       options={options()}
       keybind={[
         {
@@ -211,7 +212,7 @@ export function DialogAgent() {
             dialog.replace(() => (
               <DialogModel
                 targetAgent={option.value}
-                onDone={() => dialog.replace(() => <DialogAgent />)}
+                onDone={() => dialog.replace(() => <DialogAgent restoreValue={option.value} />)}
               />
             ))
           },
@@ -221,8 +222,9 @@ export function DialogAgent() {
           keybind: Keybind.parse("ctrl+t")[0],
           onTrigger: (option: any) => {
             local.model.variant.cycle(option.value)
-            // Force re-render by replacing dialog
-            dialog.replace(() => <DialogAgent />)
+            // Force re-render by replacing dialog; restoreValue keeps the
+            // cursor on the cycled row (was: reset to the first option).
+            dialog.replace(() => <DialogAgent restoreValue={option.value} />)
           },
         },
         {

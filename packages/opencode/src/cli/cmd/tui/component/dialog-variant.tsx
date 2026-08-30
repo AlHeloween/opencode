@@ -26,13 +26,43 @@ const deepseekThinkingVariant = {
   },
 }
 
+// GLM (docs.z.ai): 5.3/5.3-flash are FORCED-thinking — "off" exists only for
+// 5.2 and 4.x; 5.3/5.2 use reasoning_effort, 4.x uses the thinking toggle.
+const glmThinkingVariant = {
+  default: {
+    title: "Default (Thinking)",
+    description: "Thinking enabled · GLM chooses the reasoning budget",
+  },
+  low: {
+    title: "Low",
+    description: "Thinking enabled · low reasoning effort",
+  },
+  high: {
+    title: "High",
+    description: "Thinking enabled · high reasoning effort",
+  },
+  max: {
+    title: "Max",
+    description: "Thinking enabled · maximum reasoning effort",
+  },
+  off: {
+    title: "Off",
+    description: "Thinking disabled (GLM-5.2 / 4.x — GLM-5.3 is forced-thinking)",
+  },
+  on: {
+    title: "On",
+    description: "Thinking enabled (GLM-4.x toggle)",
+  },
+}
+
 export function DialogVariant() {
   const local = useLocal()
   const dialog = useDialog()
   const isDeepSeekV4 = createMemo(() => local.model.current()?.modelID.includes("deepseek-v4") === true)
+  const isGlm = createMemo(() => local.model.current()?.modelID.includes("glm") === true)
 
   const options = createMemo(() => {
-    const details = isDeepSeekV4() ? deepseekThinkingVariant : undefined
+    const details = isDeepSeekV4() ? deepseekThinkingVariant : isGlm() ? glmThinkingVariant : undefined
     return [
       {
         value: "default",

@@ -350,4 +350,223 @@ describe("undo across visibility boundary", () => {
             }),
         ),
     )
+
+    it.live(
+        "T7: multi-undo walk across the boundary then fold resurrects the archive, discards the future (2026-08-30 session regression)",
+        provideTmpdirInstance((dir) =>
+            Effect.gen(function* () {
+                const session = yield* Session.Service
+                const revert = yield* SessionRevert.Service
+                const snap = yield* Snapshot.Service
+
+                const info = yield* session.create({})
+                const sid = info.id
+                const file = path.join(dir, "note.txt")
+
+                const mkUserPatch = (text: string, hash: string) =>
+                    Effect.gen(function* () {
+                        const u = yield* session.updateMessage({
+                            id: MessageID.ascending(),
+                            role: "user",
+                            sessionID: sid,
+                            agent: "build",
+                            model: MODEL,
+                            time: { created: Date.now() },
+                        })
+                        yield* session.updatePart({
+                            id: PartID.ascending(),
+                            messageID: u.id,
+                            sessionID: sid,
+                            type: "text",
+                            text,
+                        })
+                        yield* session.updatePart({
+                            id: PartID.ascending(),
+                            messageID: u.id,
+                            sessionID: sid,
+                            type: "patch",
+                            hash,
+                            files: [file.replaceAll("\\", "/")],
+                        })
+                        return u
+                    })
+
+                // >500-row history: the default Session.messages limit is 500
+                // newest rows — the walk must see past it (limit fix) and the
+                // crossing scan must classify flags against the PRISTINE
+                // pre-walk state, not the flags mutated by the earlier undos
+                // of the walk (consecutive /undo without an intervening fold).
+                for (let i = 0; i < 510; i++) {
+                    yield* session.updateMessage({
+                        id: MessageID.ascending(),
+                        role: "user",
+                        sessionID: sid,
+                        agent: "build",
+                        model: MODEL,
+                        time: { created: Date.now() },
+                    })
+                }
+
+                yield* Effect.promise(() => fs.writeFile(file, "v1", "utf-8"))
+                const h1 = yield* snap.track([file])
+                const user1 = yield* mkUserPatch("step1", h1!)
+                yield* Effect.promise(() => fs.writeFile(file, "v2", "utf-8"))
+                const h2 = yield* snap.track([file])
+                const user2 = yield* mkUserPatch("step2", h2!)
+                yield* Effect.promise(() => fs.writeFile(file, "v3", "utf-8"))
+                const h3 = yield* snap.track([file])
+
+                // Mask (compaction): everything below user2 hidden. Post-mask
+                // visible tail: user2 + a fresh turn (user3 + assistant).
+                const masked = yield* session.messages({ sessionID: sid, visibleOnly: false, limit: 10_000 })
+                for (const m of masked) {
+                    if (m.info.id < user2.id) {
+                        m.info.compacted = true
+                        yield* session.updateMessage(m.info)
+                    }
+                }
+                const user3 = yield* mkUserPatch("step3", h3!)
+
+                // The user's walk: three consecutive undos, no fold between.
+                // undo#1 (user3): non-crossing — hides the tail.
+                yield* revert.revert({ sessionID: sid, messageID: user3.id })
+                // undo#2 (user2): scan range contains rows hidden by undo#1 —
+                // they are post-boundary future, NOT compacted archive: this
+                // must stay non-crossing and hide [user2, end).
+                yield* revert.revert({ sessionID: sid, messageID: user2.id })
+                // undo#3 (user1): the actual boundary crossing — archive in
+                // [user1, user2) resurrects; [user2, end) is pristine-visible
+                // future → fold deletes it.
+                yield* revert.revert({ sessionID: sid, messageID: user1.id })
+
+                const afterWalk = yield* session.messages({ sessionID: sid, visibleOnly: false, limit: 10_000 })
+                const walkById = new Map(afterWalk.map((m) => [m.info.id, m]))
+                expect(walkById.get(user1.id)?.info.compacted).toBe(false) // resurrected archive
+                expect(walkById.get(user2.id)?.info.compacted).toBe(true) // future hidden
+                expect(walkById.get(user3.id)?.info.compacted).toBe(true) // future hidden
+
+                // Fold consumes the manifest: pristine-visible future rows are
+                // physically deleted; the resurrected archive row stays.
+                yield* revert.cleanup(yield* session.get(sid))
+                const afterFold = yield* session.messages({ sessionID: sid, visibleOnly: false, limit: 10_000 })
+                const foldById = new Map(afterFold.map((m) => [m.info.id, m]))
+                expect(foldById.get(user1.id)?.info.compacted).toBe(false) // resurrected archive survives
+                expect(foldById.has(user2.id)).toBe(false) // discarded future deleted
+                expect(foldById.has(user3.id)).toBe(false) // discarded future deleted
+                const cleared = yield* session.get(sid)
+                expect(cleared.revert).toBeUndefined()
+                // Files at the earliest patch leaf of the undone range (h1/v1).
+                expect(yield* Effect.promise(() => fs.readFile(file, "utf-8"))).toBe("v1")
+            }),
+        ),
+    )
+
+    it.live(
+        "T8: two consecutive CROSSING undos without a fold — second manifest must classify against pristine flags, not post-inversion ones (2026-08-30 context-wipe regression)",
+        provideTmpdirInstance((dir) =>
+            Effect.gen(function* () {
+                const session = yield* Session.Service
+                const revert = yield* SessionRevert.Service
+                const snap = yield* Snapshot.Service
+
+                const info = yield* session.create({})
+                const sid = info.id
+                const file = path.join(dir, "note.txt")
+
+                const mkUserPatch = (text: string, hash: string) =>
+                    Effect.gen(function* () {
+                        const u = yield* session.updateMessage({
+                            id: MessageID.ascending(),
+                            role: "user",
+                            sessionID: sid,
+                            agent: "build",
+                            model: MODEL,
+                            time: { created: Date.now() },
+                        })
+                        yield* session.updatePart({
+                            id: PartID.ascending(),
+                            messageID: u.id,
+                            sessionID: sid,
+                            type: "text",
+                            text,
+                        })
+                        yield* session.updatePart({
+                            id: PartID.ascending(),
+                            messageID: u.id,
+                            sessionID: sid,
+                            type: "patch",
+                            hash,
+                            files: [file.replaceAll("\\", "/")],
+                        })
+                        return u
+                    })
+
+                for (let i = 0; i < 510; i++) {
+                    yield* session.updateMessage({
+                        id: MessageID.ascending(),
+                        role: "user",
+                        sessionID: sid,
+                        agent: "build",
+                        model: MODEL,
+                        time: { created: Date.now() },
+                    })
+                }
+
+                yield* Effect.promise(() => fs.writeFile(file, "v1", "utf-8"))
+                const h1 = yield* snap.track([file])
+                const user1 = yield* mkUserPatch("step1", h1!)
+                yield* Effect.promise(() => fs.writeFile(file, "v2", "utf-8"))
+                const h2 = yield* snap.track([file])
+                const user1b = yield* mkUserPatch("step1b", h2!)
+                yield* Effect.promise(() => fs.writeFile(file, "v3", "utf-8"))
+                const h3 = yield* snap.track([file])
+                const user2 = yield* mkUserPatch("step2", h3!)
+
+                // Mask (compaction): everything below user2 hidden. Visible
+                // tail after the mask: user2 + the fresh post-compact turn.
+                const masked = yield* session.messages({ sessionID: sid, visibleOnly: false, limit: 10_000 })
+                for (const m of masked) {
+                    if (m.info.id < user2.id) {
+                        m.info.compacted = true
+                        yield* session.updateMessage(m.info)
+                    }
+                }
+                const user3 = yield* mkUserPatch("step3", h3!)
+
+                // Walk mirror of the 2026-08-30 session: undo#1 and undo#2 are
+                // non-crossing; undo#3 (user1b) is the FIRST crossing — its
+                // inversion mutates flags ([user1b, user2) resurrects,
+                // [user2, end) hides). undo#4 (user1) then scans MUTATED flags:
+                // the manifest must still classify rows by their PRISTINE
+                // (pre-walk) visibility, composing with the prior crossing
+                // manifest — otherwise the resurrected archive is classified
+                // as pristine-visible future and the fold wipes the restored
+                // window (wire evidence: post-undo request = 189-char message
+                // list, entire conversation gone from the model context).
+                yield* revert.revert({ sessionID: sid, messageID: user3.id })
+                yield* revert.revert({ sessionID: sid, messageID: user2.id })
+                yield* revert.revert({ sessionID: sid, messageID: user1b.id })
+                yield* revert.revert({ sessionID: sid, messageID: user1.id })
+
+                const afterWalk = yield* session.messages({ sessionID: sid, visibleOnly: false, limit: 10_000 })
+                const walkById = new Map(afterWalk.map((m) => [m.info.id, m]))
+                expect(walkById.get(user1.id)?.info.compacted).toBe(false) // resurrected archive
+                expect(walkById.get(user1b.id)?.info.compacted).toBe(false) // resurrected archive
+                expect(walkById.get(user2.id)?.info.compacted).toBe(true) // future hidden
+                expect(walkById.get(user3.id)?.info.compacted).toBe(true) // future hidden
+
+                yield* revert.cleanup(yield* session.get(sid))
+                const afterFold = yield* session.messages({ sessionID: sid, visibleOnly: false, limit: 10_000 })
+                const foldById = new Map(afterFold.map((m) => [m.info.id, m]))
+                expect(foldById.get(user1.id)?.info.compacted).toBe(false) // restored window survives the fold
+                expect(foldById.get(user1b.id)?.info.compacted).toBe(false) // restored window survives the fold
+                expect(foldById.has(user2.id)).toBe(false) // discarded future deleted
+                expect(foldById.has(user3.id)).toBe(false) // discarded future deleted
+                const cleared = yield* session.get(sid)
+                expect(cleared.revert).toBeUndefined()
+                // Files at the earliest patch leaf of the undone range (h1/v1).
+                expect(yield* Effect.promise(() => fs.readFile(file, "utf-8"))).toBe("v1")
+            }),
+        ),
+    )
 })

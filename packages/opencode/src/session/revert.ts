@@ -42,7 +42,12 @@ export const layer = Layer.effect(
 
     const revert = Effect.fn("SessionRevert.revert")(function* (input: RevertInput) {
       yield* state.assertNotBusy(input.sessionID)
-      const all = yield* sessions.messages({ sessionID: input.sessionID, visibleOnly: false })
+      // Full-history walk (mirror unrevert below): the default Session.messages
+      // limit is 500 newest rows — sessions deeper than that made the crossing
+      // scan/manifest miss rows entirely (silent no-op undo / truncated
+      // resurrection). The session.ts truncation warn self-suppresses at
+      // limit >= 500, so the truncation was silent.
+      const all = yield* sessions.messages({ sessionID: input.sessionID, visibleOnly: false, limit: 10_000 })
       let lastUser: MessageV2.User | undefined
       const session = yield* sessions.get(input.sessionID)
 
@@ -76,10 +81,29 @@ export const layer = Layer.effect(
       // at/after the fold point has its visibility inverted — compacted past
       // resurrects, the discarded future (incl. summary rows) hides. Applied
       // before any file mutation; recorded verbatim for redo and the fold.
+      //
+      // PRISTINE classification (2026-08-30 context-wipe regression): in a
+      // multi-undo walk (consecutive /undo, no intervening fold) the previous
+      // crossing undo already inverted flags — a fresh scan over those mutated
+      // flags mis-classifies the resurrected archive as pristine-visible
+      // future (the next fold then deletes the restored window; wire evidence:
+      // post-walk request carried a 189-char message list). The prior revert
+      // state carries the previous manifest, which WAS pristine for its range:
+      // reuse it for rows it covers and classify only never-touched rows
+      // fresh. Rows below every prior target were never inverted, so their
+      // current flags are pristine.
+      const prior = session.revert
+      const priorCrossing = new Map((prior?.crossing ?? []).map((c) => [c.id, c.visible]))
       const crossing: { id: MessageID; visible: boolean }[] = []
       let crossed = false
       for (const msg of all) {
         if (msg.info.id < rev.messageID) continue
+        const priorVisible = priorCrossing.get(msg.info.id)
+        if (priorVisible !== undefined) {
+          crossed ||= !priorVisible
+          crossing.push({ id: msg.info.id, visible: priorVisible })
+          continue
+        }
         crossed ||= !!msg.info.compacted
         crossing.push({ id: msg.info.id, visible: !msg.info.compacted })
       }
@@ -106,7 +130,7 @@ export const layer = Layer.effect(
           sessionID: input.sessionID,
         })
       }
-      const prior = session.revert
+      // `prior` was read above the crossing scan (pristine-manifest composition).
       const redo_stack = [...(prior?.redo_stack ?? [])]
       if (prior?.op_id) {
         redo_stack.unshift({

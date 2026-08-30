@@ -1,7 +1,6 @@
 import { Effect, Option, Schema, Scope } from "effect"
 import { createReadStream } from "fs"
 import * as path from "path"
-import { createInterface } from "readline"
 import * as Tool from "./tool"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { LSP } from "@/lsp/lsp"
@@ -231,7 +230,7 @@ export const ReadTool = Tool.define(
         }
       }
 
-      const loaded = yield* instruction.resolve(ctx.messages, filepath, ctx.messageID)
+      const { results: loaded, skippedDelivered } = yield* instruction.resolve(ctx.messages, filepath, ctx.messageID)
       const sample = yield* readSample(filepath, Number(stat.size), SAMPLE_BYTES)
 
       const mime = sniffAttachmentMime(sample, AppFileSystem.mimeType(filepath))
@@ -345,6 +344,16 @@ export const ReadTool = Tool.define(
 
       if (loaded.length > 0) {
         output += `\n\n<system-reminder>\n${loaded.map((item) => item.content).join("\n\n")}\n</system-reminder>`
+      } else if (skippedDelivered.length > 0) {
+        // 2026-08-30 (Alexander): full instruction content rides on the FIRST
+        // read only. Afterwards a one-line gated-workflow reminder keeps the
+        // causal chain without the AGENTS.md flood (previously re-delivered in
+        // full after every compaction — compacted read parts vanish from
+        // ctx.messages and the dedup lost track).
+        output +=
+          `\n\n<system-reminder>Gated workflow: State→SV→Plan→Implement→Oracle→Clean. ` +
+          `Continue from your last gate. Project instructions already delivered this session — ` +
+          `sessionread the file if a rule is needed.</system-reminder>`
       }
 
       return {
@@ -368,43 +377,62 @@ export const ReadTool = Tool.define(
 )
 
 async function lines(filepath: string, opts: { limit: number; offset: number }) {
-  const stream = createReadStream(filepath, { encoding: "utf8" })
-  const rl = createInterface({
-    input: stream,
-    // Note: we use the crlfDelay option to recognize all instances of CR LF
-    // ('\r\n') in file as a single line break.
-    crlfDelay: Infinity,
-  })
-
+  // Raw byte scan instead of readline: 0x0A never appears inside a multi-byte
+  // UTF-8 sequence, so splitting the stream on newline bytes is exact. The
+  // tally CONTINUES past the limit (tally-only mode) so `count` is the TRUE
+  // total for the "Showing lines X-Y of N" pager — the readline version broke
+  // at limit+1 and reported "of 11" for a 100-line file, while the original
+  // full readline pass stalled on huge files (b07ddf7cda). A byte scan is
+  // memcpy-speed: correct count without the stall.
+  const stream = createReadStream(filepath)
   const start = opts.offset - 1
   const raw: string[] = []
   let bytes = 0
   let count = 0
   let cut = false
   let more = false
-  try {
-    for await (const text of rl) {
-      count += 1
-      if (count <= start) continue
+  let tallyOnly = false
+  let pending: Buffer = Buffer.alloc(0)
 
-      if (raw.length >= opts.limit) {
-        more = true
-        break
-      }
-
-      const line = text.length > MAX_LINE_LENGTH ? text.substring(0, MAX_LINE_LENGTH) + MAX_LINE_SUFFIX : text
-      const size = Buffer.byteLength(line, "utf-8") + (raw.length > 0 ? 1 : 0)
-      if (bytes + size > MAX_BYTES) {
-        cut = true
-        more = true
-        break
-      }
-
-      raw.push(line)
-      bytes += size
+  const processLine = (lineBuf: Buffer) => {
+    count += 1
+    if (tallyOnly || count <= start) return
+    if (raw.length >= opts.limit) {
+      more = true
+      tallyOnly = true
+      return
     }
+    let line = lineBuf
+    if (line.length > 0 && line[line.length - 1] === 0x0d) {
+      line = line.subarray(0, line.length - 1) // CRLF counts as a single break
+    }
+    const text = line.toString("utf8")
+    const clipped = text.length > MAX_LINE_LENGTH ? text.substring(0, MAX_LINE_LENGTH) + MAX_LINE_SUFFIX : text
+    const size = Buffer.byteLength(clipped, "utf-8") + (raw.length > 0 ? 1 : 0)
+    if (bytes + size > MAX_BYTES) {
+      cut = true
+      more = true
+      tallyOnly = true
+      return
+    }
+    raw.push(clipped)
+    bytes += size
+  }
+
+  try {
+    for await (const chunk of stream) {
+      const buf = pending.length === 0 ? chunk : Buffer.concat([pending, chunk])
+      let from = 0
+      for (;;) {
+        const nl = buf.indexOf(0x0a, from)
+        if (nl === -1) break
+        processLine(buf.subarray(from, nl))
+        from = nl + 1
+      }
+      pending = buf.subarray(from)
+    }
+    if (pending.length > 0) processLine(pending) // final line without trailing newline
   } finally {
-    rl.close()
     stream.destroy()
   }
 

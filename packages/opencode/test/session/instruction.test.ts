@@ -69,7 +69,7 @@ describe("Instruction.resolve", () => {
               const system = yield* svc.systemPaths()
               expect(system.has(path.join(tmp.path, "AGENTS.md"))).toBe(true)
 
-              const results = yield* svc.resolve(
+              const { results } = yield* svc.resolve(
                 [],
                 path.join(tmp.path, "src", "file.ts"),
                 MessageID.make("message-test-1"),
@@ -97,7 +97,7 @@ describe("Instruction.resolve", () => {
               const system = yield* svc.systemPaths()
               expect(system.has(path.join(tmp.path, "subdir", "AGENTS.md"))).toBe(false)
 
-              const results = yield* svc.resolve(
+              const { results } = yield* svc.resolve(
                 [],
                 path.join(tmp.path, "subdir", "nested", "file.ts"),
                 MessageID.make("message-test-2"),
@@ -127,7 +127,7 @@ describe("Instruction.resolve", () => {
               const system = yield* svc.systemPaths()
               expect(system.has(filepath)).toBe(false)
 
-              const results = yield* svc.resolve([], filepath, MessageID.make("message-test-3"))
+              const { results } = yield* svc.resolve([], filepath, MessageID.make("message-test-3"))
               expect(results).toEqual([])
             }),
           ),
@@ -154,16 +154,19 @@ describe("Instruction.resolve", () => {
               const first = yield* svc.resolve([], filepath, id)
               const second = yield* svc.resolve([], filepath, id)
 
-              expect(first).toHaveLength(1)
-              expect(first[0].filepath).toBe(path.join(tmp.path, "subdir", "AGENTS.md"))
-              expect(second).toEqual([])
+              expect(first.results).toHaveLength(1)
+              expect(first.results[0].filepath).toBe(path.join(tmp.path, "subdir", "AGENTS.md"))
+              // Second resolve for the same message: the instance-level delivered
+              // set skips re-attachment (2026-08-30 flood fix) — results empty.
+              expect(second.results).toEqual([])
+              expect(second.skippedDelivered).toEqual([path.join(tmp.path, "subdir", "AGENTS.md")])
             }),
           ),
         ),
     })
   })
 
-  test("clear allows nearby instructions to be attached again for the same message", async () => {
+  test("clear releases the per-message claim; instance delivered set still prevents re-attach", async () => {
     await using tmp = await tmpdir({
       init: async (dir) => {
         await Bun.write(path.join(dir, "subdir", "AGENTS.md"), "# Subdir Instructions")
@@ -183,9 +186,12 @@ describe("Instruction.resolve", () => {
               yield* svc.clear(id)
               const second = yield* svc.resolve([], filepath, id)
 
-              expect(first).toHaveLength(1)
-              expect(second).toHaveLength(1)
-              expect(second[0].filepath).toBe(path.join(tmp.path, "subdir", "AGENTS.md"))
+              // clear() releases the per-message claim, but the instance-level
+              // delivered set (2026-08-30 flood fix) still prevents re-attach —
+              // instructions ride the wire ONCE per session.
+              expect(first.results).toHaveLength(1)
+              expect(second.results).toEqual([])
+              expect(second.skippedDelivered).toEqual([path.join(tmp.path, "subdir", "AGENTS.md")])
             }),
           ),
         ),
@@ -209,8 +215,40 @@ describe("Instruction.resolve", () => {
               const filepath = path.join(tmp.path, "subdir", "nested", "file.ts")
               const id = MessageID.make("message-claim-3")
 
-              const results = yield* svc.resolve(loaded(agents), filepath, id)
+              const { results, skippedDelivered } = yield* svc.resolve(loaded(agents), filepath, id)
               expect(results).toEqual([])
+              expect(skippedDelivered).toEqual([agents])
+            }),
+          ),
+        ),
+    })
+  })
+
+  test("delivered set survives across messages without visible history (compaction flood fix)", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(path.join(dir, "subdir", "AGENTS.md"), "# Subdir Instructions")
+        await Bun.write(path.join(dir, "subdir", "nested", "file.ts"), "const x = 1")
+      },
+    })
+    await Instance.provide({
+      directory: tmp.path,
+      fn: () =>
+        run(
+          Instruction.Service.use((svc) =>
+            Effect.gen(function* () {
+              const agents = path.join(tmp.path, "subdir", "AGENTS.md")
+              const filepath = path.join(tmp.path, "subdir", "nested", "file.ts")
+
+              const first = yield* svc.resolve([], filepath, MessageID.make("message-flood-1"))
+              // Second read on a NEW message with EMPTY visible history — the
+              // pre-fix code re-delivered full AGENTS.md after every compact
+              // (compacted read parts vanish from ctx.messages).
+              const second = yield* svc.resolve([], filepath, MessageID.make("message-flood-2"))
+
+              expect(first.results).toHaveLength(1)
+              expect(second.results).toEqual([])
+              expect(second.skippedDelivered).toEqual([agents])
             }),
           ),
         ),

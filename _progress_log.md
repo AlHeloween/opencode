@@ -1,4 +1,14 @@
 # Progress Log
+## 2026-08-30 Reminder redesign (instructions once per session) + lines() true-count fix
+Reason: user "Давай" — full instruction content rides on the FIRST read only, afterwards a one-line gated-workflow reminder. Flood RCA [Exact]: instruction.ts dedup (`extract`) reads only VISIBLE messages — after each compact the read parts vanish from ctx.messages → full AGENTS.md re-delivery after EVERY compact.
+Changes:
+- `instruction.ts` — persistent `delivered` Set in instance state (survives compaction); `resolve` returns `{results, skippedDelivered}`; sys-prompt files skip silently; claims flow kept (`clear()` releases the per-message claim, delivered set holds the session contract).
+- `read.ts` — `skippedDelivered` non-empty → one-line reminder: `<system-reminder>Gated workflow: State→SV→Plan→Implement→Oracle→Clean. Continue from your last gate. Project instructions already delivered this session — sessionread the file if a rule is needed.</system-reminder>`.
+- `read.ts` `lines()` REWRITE (bug policy): readline early-break (b07ddf7cda stall fix) truncated `count` at limit+1 → "Showing lines 1-10 of 11" for a 100-line file. Raw byte scan (split on 0x0A — exact in UTF-8, memcpy-speed) with tally-only mode past the limit: true total AND no stall. CRLF handled, `createInterface` removed.
+- Tests: `instruction.test.ts` reshaped to the new return + NEW flood-fix test (delivered set survives across messages with empty visible history); `read.test.ts` instructions test asserts the brief reminder on second read (+30s timeout per test guide).
+Script Output:
+- read.test.ts **36 pass** / 1 fail (EBADF uv_spawn fixture flake under load; solo rerun PASS `20260830T010610Z_c36922bb`); instruction.test.ts **12 pass / 0 fail** (`20260830T011005Z_cecbf312`); typecheck PASS (`20260830T011023Z_e98e955d`).
+
 ## 2026-08-30 m* tail stripper: reasoning/tool-dump/reminder strip + decisions cap
 Reason: user approved strip plan ("все верно", caveat "сам себя не кастрируй") — tail must carry facts, not process; deploy on compact first, message flow next. Reminder source located [Exact]: `tool/read.ts:346-348` — every read appends `<system-reminder>` with FULL AGENTS.md/instruction content per path chain (no dedupe) — the AGENTS.md test-guide flood came from there.
 Changes:

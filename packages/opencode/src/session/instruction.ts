@@ -67,7 +67,10 @@ export interface Interface {
     messages: MessageV2.WithParts[],
     filepath: string,
     messageID: MessageID,
-  ) => Effect.Effect<{ filepath: string; content: string }[], AppFileSystem.Error>
+  ) => Effect.Effect<
+    { results: { filepath: string; content: string }[]; skippedDelivered: string[] },
+    AppFileSystem.Error
+  >
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Instruction") {}
@@ -85,6 +88,10 @@ export const layer: Layer.Layer<Service, never, AppFileSystem.Service | Config.S
           Effect.succeed({
             // Track which instruction files have already been attached for a given assistant message.
             claims: new Map<MessageID, Set<string>>(),
+            // Files already wire-delivered this instance — survives compaction.
+            // Compacted read parts vanish from ctx.messages, which re-triggered
+            // full AGENTS.md delivery after every compact (2026-08-30 flood fix).
+            delivered: new Set<string>(),
           }),
         ),
       )
@@ -227,6 +234,10 @@ export const layer: Layer.Layer<Service, never, AppFileSystem.Service | Config.S
         const already = extract(messages)
         const results: { filepath: string; content: string }[] = []
         const s = yield* InstanceState.get(claimsState)
+        // Non-sys instruction files skipped because they were already delivered
+        // (visible history or this instance's persistent delivered set). The
+        // caller turns this into a one-line reminder instead of a re-flood.
+        const skippedDelivered = new Set<string>()
         const root = path.resolve(yield* InstanceState.directory)
 
         const target = path.resolve(filepath)
@@ -236,6 +247,15 @@ export const layer: Layer.Layer<Service, never, AppFileSystem.Service | Config.S
         while (current.startsWith(root) && current !== root) {
           const found = yield* find(current)
           if (!found || found === target || sys.has(found) || already.has(found)) {
+            // sys files live in the system prompt permanently — silent skip.
+            if (found && found !== target && !sys.has(found) && (already.has(found) || s.delivered.has(found))) {
+              skippedDelivered.add(found)
+            }
+            current = path.dirname(current)
+            continue
+          }
+          if (s.delivered.has(found)) {
+            skippedDelivered.add(found)
             current = path.dirname(current)
             continue
           }
@@ -251,6 +271,7 @@ export const layer: Layer.Layer<Service, never, AppFileSystem.Service | Config.S
           }
 
           set.add(found)
+          s.delivered.add(found)
           const content = yield* read(found)
           if (content) {
             results.push({ filepath: found, content: `Instructions from: ${found}\n${content}` })
@@ -259,7 +280,7 @@ export const layer: Layer.Layer<Service, never, AppFileSystem.Service | Config.S
           current = path.dirname(current)
         }
 
-        return results
+        return { results, skippedDelivered: Array.from(skippedDelivered) }
       })
 
       return Service.of({ clear, systemPaths, system, rules, find, resolve })

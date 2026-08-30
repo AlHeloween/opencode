@@ -455,7 +455,17 @@ describe("tool.read loaded instructions", () => {
       expect(result.output).toContain("Test Instructions")
       expect(result.metadata.loaded).toBeDefined()
       expect(result.metadata.loaded).toContain(path.join(dir, "subdir", "AGENTS.md"))
-    }),
+
+      // Second read (new message, same instance): full content NOT re-delivered —
+      // one-line gated-workflow reminder instead (2026-08-30 flood guard).
+      const again = yield* exec(dir, { filePath: path.join(dir, "subdir", "nested", "test.txt") }, {
+        ...ctx,
+        messageID: MessageID.make("msg_second_read"),
+      })
+      expect(again.output).toContain("test content")
+      expect(again.output).not.toContain("Test Instructions")
+      expect(again.output).toContain("Gated workflow")
+    }), 30_000,
   )
 })
 

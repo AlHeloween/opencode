@@ -1,9 +1,10 @@
 import { createMemo, createSignal, onMount } from "solid-js"
-import { useLocal } from "@tui/context/local"
+import { useLocal, type ModelScope } from "@tui/context/local"
 import { useSync } from "@tui/context/sync"
 import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
 import { DialogModel } from "./dialog-model"
+import { DialogVariant } from "./dialog-variant"
 import { DialogSubagentSettings } from "./dialog-subagent-settings"
 import { getModelStatus } from "@/provider/balance"
 import { Keybind } from "@/util/keybind"
@@ -16,10 +17,14 @@ import type { RGBA } from "@opentui/core"
  * provides model selection and enable/disable toggle, with balance
  * and cache hit stats summary in the footer.
  */
-export function DialogAgent(props: { restoreValue?: string }) {
+export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }) {
   const local = useLocal()
   const sync = useSync()
   const dialog = useDialog()
+  // Resolution chain (local.forAgent): session override → worktree (model.json)
+  // → global (Agent.Info config). Session is the default configuration target
+  // (2026-08-30, Alexander: explicit scope choice instead of hidden dual writes).
+  const scope = props.scope ?? "session"
 
   // ── All visible non-hidden agents ──
   const allAgents = createMemo(() =>
@@ -192,7 +197,8 @@ export function DialogAgent(props: { restoreValue?: string }) {
         dialog.replace(() => (
           <DialogModel
             targetAgent={agent.name}
-            onDone={() => dialog.replace(() => <DialogAgent restoreValue={props.restoreValue ?? agent.name} />)}
+            scope={scope}
+            onDone={() => dialog.replace(() => <DialogAgent scope={scope} restoreValue={props.restoreValue ?? agent.name} />)}
           />
         ))
       },
@@ -201,7 +207,7 @@ export function DialogAgent(props: { restoreValue?: string }) {
 
   return (
     <DialogSelect
-      title="Agent Configuration"
+      title={`Agent Configuration — ${scope}${scope === "global" ? " (read-only)" : ""}`}
       current={local.agent.current()?.name}
       cursorValue={props.restoreValue}
       options={options()}
@@ -212,19 +218,36 @@ export function DialogAgent(props: { restoreValue?: string }) {
             dialog.replace(() => (
               <DialogModel
                 targetAgent={option.value}
-                onDone={() => dialog.replace(() => <DialogAgent restoreValue={option.value} />)}
+                scope={scope}
+                onDone={() => dialog.replace(() => <DialogAgent scope={scope} restoreValue={option.value} />)}
               />
             ))
           },
         },
         {
-          title: "Cycle variant",
+          title: "Variant",
           keybind: Keybind.parse("ctrl+t")[0],
           onTrigger: (option: any) => {
-            local.model.variant.cycle(option.value)
-            // Force re-render by replacing dialog; restoreValue keeps the
-            // cursor on the cycled row (was: reset to the first option).
-            dialog.replace(() => <DialogAgent restoreValue={option.value} />)
+            // Open the variant dialog for the HIGHLIGHTED agent's own model —
+            // real settings, not a silent cycle (2026-08-30, Alexander).
+            dialog.replace(() => (
+              <DialogVariant
+                targetAgent={option.value}
+                scope={scope}
+                onDone={() => dialog.replace(() => <DialogAgent scope={scope} restoreValue={option.value} />)}
+              />
+            ))
+          },
+        },
+        {
+          title: "Switch scope",
+          onTrigger: () => {
+            dialog.replace(() => (
+              <AgentScopeDialog
+                current={scope}
+                onPick={(next) => dialog.replace(() => <DialogAgent scope={next} restoreValue={props.restoreValue} />)}
+              />
+            ))
           },
         },
         {
@@ -242,4 +265,29 @@ export function DialogAgent(props: { restoreValue?: string }) {
       ]}
     />
   )
+}
+
+/** Which settings layer /agents configures — session is the default target. */
+function AgentScopeDialog(props: { current: ModelScope; onPick: (scope: ModelScope) => void }) {
+  const options = [
+    {
+      value: "session" as const,
+      title: "Session",
+      description: "this conversation only (sessions/{sessionID}.jsonc)",
+      onSelect: () => props.onPick("session"),
+    },
+    {
+      value: "worktree" as const,
+      title: "Worktree",
+      description: "all sessions in this project (model.json)",
+      onSelect: () => props.onPick("worktree"),
+    },
+    {
+      value: "global" as const,
+      title: "Global",
+      description: "read-only here — edit opencode.jsonc agent.model/variant",
+      onSelect: () => props.onPick("global"),
+    },
+  ]
+  return <DialogSelect title="Configure scope" current={props.current} options={options} flat={true} />
 }

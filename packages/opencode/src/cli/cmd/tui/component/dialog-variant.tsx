@@ -1,5 +1,5 @@
 import { createMemo } from "solid-js"
-import { useLocal } from "@tui/context/local"
+import { useLocal, type ModelScope } from "@tui/context/local"
 import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
 
@@ -55,7 +55,7 @@ const glmThinkingVariant = {
   },
 }
 
-export function DialogVariant() {
+export function DialogVariant(props: { targetAgent?: string; scope?: ModelScope; onDone?: () => void }) {
   const local = useLocal()
   const dialog = useDialog()
   const isDeepSeekV4 = createMemo(() => local.model.current()?.modelID.includes("deepseek-v4") === true)
@@ -63,25 +63,30 @@ export function DialogVariant() {
 
   const options = createMemo(() => {
     const details = isDeepSeekV4() ? deepseekThinkingVariant : isGlm() ? glmThinkingVariant : undefined
+    // targetAgent: from the /agents dialog the dialog must reflect the HIGHLIGHTED
+    // agent's own model (real settings), not the active agent's model.
+    const list = local.model.variant.list(props.targetAgent)
     return [
       {
         value: "default",
         title: details?.default.title ?? "Default",
         description: details?.default.description ?? "Use model defaults",
         onSelect: () => {
-          dialog.clear()
-          local.model.variant.set(undefined)
+          local.model.variant.set(undefined, props.targetAgent, props.scope)
+          if (props.onDone) props.onDone()
+          else dialog.clear()
         },
       },
-      ...local.model.variant.list().map((variant) => {
+      ...list.map((variant) => {
         const detail = details?.[variant as keyof typeof deepseekThinkingVariant]
         return {
           value: variant,
           title: detail?.title ?? variant,
           description: detail?.description,
           onSelect: () => {
-            dialog.clear()
-            local.model.variant.set(variant)
+            local.model.variant.set(variant, props.targetAgent, props.scope)
+            if (props.onDone) props.onDone()
+            else dialog.clear()
           },
         }
       }),
@@ -92,7 +97,7 @@ export function DialogVariant() {
     <DialogSelect<string>
       options={options()}
       title={isDeepSeekV4() ? "Select thinking mode" : "Select variant"}
-      current={local.model.variant.selected()}
+      current={local.model.variant.selected(props.targetAgent)}
       flat={true}
     />
   )

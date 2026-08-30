@@ -1,5 +1,5 @@
 import { createMemo, createSignal } from "solid-js"
-import { useLocal } from "@tui/context/local"
+import { useLocal, type ModelScope } from "@tui/context/local"
 import { useSync } from "@tui/context/sync"
 import { map, pipe, flatMap, entries, filter, sortBy, take } from "remeda"
 import { DialogSelect } from "@tui/ui/dialog-select"
@@ -11,7 +11,12 @@ import * as fuzzysort from "fuzzysort"
 import { useConnected } from "./use-connected"
 import { canActivateAgent } from "../util/agent"
 
-export function DialogModel(props: { providerID?: string; targetAgent?: string; onDone?: () => void }) {
+export function DialogModel(props: {
+  providerID?: string
+  targetAgent?: string
+  onDone?: () => void
+  scope?: ModelScope
+}) {
   const local = useLocal()
   const sync = useSync()
   const dialog = useDialog()
@@ -22,6 +27,34 @@ export function DialogModel(props: { providerID?: string; targetAgent?: string; 
   const providers = createDialogProviderOptions()
 
   const showExtra = createMemo(() => connected() && !props.providerID)
+
+  /** Compact context size for the capability footer. */
+  function compactCtx(n: number | undefined): string | undefined {
+    if (!n) return undefined
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M ctx`
+    if (n >= 1_000) return `${Math.round(n / 1_000)}k ctx`
+    return `${n} ctx`
+  }
+
+  /** Capability footer so the user doesn't guess what a model can do (2026-08-30). */
+  function capabilityFooter(info: {
+    capabilities?: { reasoning?: boolean; toolcall?: boolean; input?: { image?: boolean } }
+    limit?: { context?: number }
+    variants?: Record<string, unknown>
+  }) {
+    const parts: string[] = []
+    if (info.capabilities?.reasoning) parts.push("reasoning")
+    if (info.capabilities?.toolcall) parts.push("tools")
+    if (info.capabilities?.input?.image) parts.push("vision")
+    const ctx = compactCtx(info.limit?.context)
+    if (ctx) parts.push(ctx)
+    if (info.variants && Object.keys(info.variants).length > 0) parts.push("variants")
+    return parts.length > 0 ? parts.join(" · ") : undefined
+  }
+
+  function withFooter(info: Parameters<typeof capabilityFooter>[0], free: boolean) {
+    return [free ? "Free" : undefined, capabilityFooter(info)].filter(Boolean).join(" · ") || undefined
+  }
 
   const options = createMemo(() => {
     const needle = query().trim()
@@ -44,7 +77,7 @@ export function DialogModel(props: { providerID?: string; targetAgent?: string; 
             description: provider.name,
             category,
             disabled: provider.id === "opencode" && model.id.includes("-nano"),
-            footer: model.cost?.input === 0 && provider.id === "opencode" ? "Free" : undefined,
+            footer: withFooter(model, model.cost?.input === 0 && provider.id === "opencode"),
             onSelect: () => {
               onSelect(provider.id, model.id)
             },
@@ -81,7 +114,7 @@ export function DialogModel(props: { providerID?: string; targetAgent?: string; 
               : undefined,
             category: connected() ? provider.name : undefined,
             disabled: provider.id === "opencode" && model.includes("-nano"),
-            footer: info.cost?.input === 0 && provider.id === "opencode" ? "Free" : undefined,
+            footer: withFooter(info, info.cost?.input === 0 && provider.id === "opencode"),
             onSelect() {
               onSelect(provider.id, model)
             },
@@ -135,19 +168,22 @@ export function DialogModel(props: { providerID?: string; targetAgent?: string; 
 
   function onSelect(providerID: string, modelID: string) {
     const agent = props.targetAgent ?? local.agent.current()?.name
-    local.model.set({ providerID, modelID }, { recent: true, agent })
+    local.model.set({ providerID, modelID }, { recent: true, agent, scope: props.scope })
     if (agent && canActivateAgent(agent, sync.data.agent)) {
       local.agent.set(agent)
     }
     const list = local.model.variant.list()
     const cur = local.model.variant.selected()
-    if (cur === "default" || (cur && list.includes(cur))) {
+    // "less annoying" skip removed (2026-08-30, Alexander): a stored "default"
+    // sentinel made the variant menu vanish permanently for whole agents.
+    // The dialog now opens whenever no CONCRETE variant is chosen.
+    if (cur && list.includes(cur)) {
       if (props.onDone) { props.onDone(); return }
       dialog.clear()
       return
     }
     if (list.length > 0) {
-      dialog.replace(() => <DialogVariant />)
+      dialog.replace(() => <DialogVariant scope={props.scope} onDone={props.onDone} />)
       return
     }
     if (props.onDone) { props.onDone(); return }

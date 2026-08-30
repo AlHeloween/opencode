@@ -163,7 +163,10 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
       setTimeout(() => {
         if (filter.length > 0) {
           moveTo(0, true)
-        } else if (current) {
+        } else if (current && props.cursorValue === undefined) {
+          // cursorValue wins the race: this delayed effect fires AFTER mount and
+          // used to drag the cursor to `current`, overriding the restore position
+          // (2026-08-30, Alexander: ctrl+t cursor jump regression).
           const currentIndex = flat().findIndex((opt) => isDeepEqual(opt.value, current))
           if (currentIndex >= 0) {
             moveTo(currentIndex, true)

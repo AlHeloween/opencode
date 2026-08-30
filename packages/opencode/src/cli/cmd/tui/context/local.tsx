@@ -33,6 +33,9 @@ export function parseModel(model: string) {
   }
 }
 
+/** Which settings layer /agents configures (resolution chain: session → worktree → global). */
+export type ModelScope = "session" | "worktree" | "global"
+
 /** Session settings belong to the session open in the TUI, not the newest child session. */
 export function activeSessionID(route: Route, sessions: ReadonlyArray<{ id: string }>): string | undefined {
   if (route.type === "session") return route.sessionID
@@ -519,7 +522,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (!a) return
           this.set(next, { recent: true, agent: a.name })
         },
-        set(model: { providerID: string; modelID: string }, options?: { recent?: boolean; agent?: string }) {
+        set(model: { providerID: string; modelID: string }, options?: { recent?: boolean; agent?: string; scope?: ModelScope }) {
           batch(() => {
             if (!isModelValid(model)) {
               toast.show({
@@ -531,15 +534,27 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             }
             const agentName = options?.agent ?? agent.current()?.name
             if (!agentName) return
+            if (options?.scope === "global") {
+              // Global (Agent.Info config) has no safe TUI write path yet — see variant.set.
+              toast.show({
+                title: "Global scope is read-only",
+                message: "Edit opencode.jsonc agent.model to change global defaults",
+                variant: "warning",
+                duration: 3000,
+              })
+              return
+            }
             if (options?.agent) {
               const sid = getActiveSessionID()
               const workspace = workspaceModelScope(getActiveWorkspaceID())
-              setModelStore("workspaceAgent", (agents) =>
-                setWorkspaceAgentModel(agents, workspace, agentName, model),
-              )
+              if (options.scope !== "session") {
+                setModelStore("workspaceAgent", (agents) =>
+                  setWorkspaceAgentModel(agents, workspace, agentName, model),
+                )
+              }
               // Per-session: record the explicit override alongside the workspace memory.
               // Global config remains the initial default only.
-              if (sid) {
+              if (options.scope !== "worktree" && sid) {
                 const ss = sessionSettings()
                 const currentAgent = ss?.agent ?? {}
                 setSessionSettings({
@@ -561,6 +576,31 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
                 "recent",
                 uniq.map((x) => ({ providerID: x.providerID, modelID: x.modelID })),
               )
+            }
+            // scope "session" → session file only; scope "worktree" → model.json only;
+            // no scope → legacy dual write (session + worktree)
+            if (options?.scope === "session") {
+              const sid = getActiveSessionID()
+              if (sid) {
+                const ss = sessionSettings()
+                void saveSessionSettings(sid, {
+                  agent: ss?.agent,
+                  recent: modelStore.recent,
+                  favorite: modelStore.favorite,
+                  variant: Object.fromEntries(
+                    Object.entries(modelStore.variant).filter((e): e is [string, string] => e[1] !== undefined),
+                  ),
+                  agentVariant: Object.fromEntries(
+                    Object.entries(modelStore.agentVariant).filter((e): e is [string, string] => e[1] !== undefined),
+                  ),
+                })
+              }
+              save()
+              return
+            }
+            if (options?.scope === "worktree") {
+              save()
+              return
             }
             saveAll()
           })
@@ -617,17 +657,60 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             if (!info?.variants) return []
             return Object.keys(info.variants)
           },
-          set(value: string | undefined, agentName?: string) {
+          set(value: string | undefined, agentName?: string, scope?: ModelScope) {
             const m = agentName ? forAgent(agentName) : currentModel()
             if (!m) return
             const agentKey = agentName ?? agent.current()?.name
+            if (scope === "global") {
+              // Global (Agent.Info config) has no safe TUI write path yet:
+              // config.update PATCH disposes the instance, global.config.update is a 501 stub.
+              toast.show({
+                title: "Global scope is read-only",
+                message: "Edit opencode.jsonc agent.model/variant to change global defaults",
+                variant: "warning",
+                duration: 3000,
+              })
+              return
+            }
+            if (scope === "session") {
+              const sid = getActiveSessionID()
+              if (!sid) {
+                toast.show({
+                  variant: "warning",
+                  message: "No active session — cannot save per-session variant",
+                  duration: 3000,
+                })
+                return
+              }
+              if (agentKey) {
+                const key = `${agentKey}/${m.providerID}/${m.modelID}`
+                setModelStore("agentVariant", key, value ?? "default")
+              }
+              const key = `${m.providerID}/${m.modelID}`
+              setModelStore("variant", key, value ?? "default")
+              const ss = sessionSettings()
+              void saveSessionSettings(sid, {
+                agent: ss?.agent,
+                recent: modelStore.recent,
+                favorite: modelStore.favorite,
+                variant: Object.fromEntries(
+                  Object.entries(modelStore.variant).filter((e): e is [string, string] => e[1] !== undefined),
+                ),
+                agentVariant: Object.fromEntries(
+                  Object.entries(modelStore.agentVariant).filter((e): e is [string, string] => e[1] !== undefined),
+                ),
+              })
+              return
+            }
             if (agentKey) {
               const key = `${agentKey}/${m.providerID}/${m.modelID}`
               setModelStore("agentVariant", key, value ?? "default")
             }
             const key = `${m.providerID}/${m.modelID}`
             setModelStore("variant", key, value ?? "default")
-            saveAll()
+            // scope "worktree" → model.json only; no scope → legacy dual write
+            if (scope === "worktree") save()
+            else saveAll()
           },
           cycle(agentName?: string) {
             const variants = this.list(agentName)

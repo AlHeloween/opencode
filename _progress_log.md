@@ -1,4 +1,12 @@
 # Progress Log
+## 2026-08-30 GLM reasoning variants (was hard-excluded → empty UI params)
+Reason: user — "когда мы выбираем GLM модели нету параметров reasoning, они тупо не отображаются. Глянь в нете как правильно". Research [Exact]: Z.AI docs — `thinking: {type: enabled|disabled}` (4.5+); GLM-5.3/5.3-flash = FORCED thinking (disabled = API error); `reasoning_effort` GLM-5.2+ only, GLM-5.3/flash accept ONLY max(default)/high/low. OR endpoints API — all glm-5.3-flash endpoints declare `reasoning` + `reasoning_effort` in supported_parameters; unified `reasoning.effort` maps vendor-side.
+Changes:
+- `transform.ts` `variants()` — removed `glm` from the hard exclude list (THE root cause of empty params); NEW GLM branch: OR route glm-5.3 → low/high/max via `reasoning.effort` (no off — forced); glm-5.2 → low/high/max/off (`effort: none`); glm-4.x → on/off via `reasoning.enabled`. Direct Z.AI: `thinking: {type: enabled}` + top-level `reasoningEffort` (5.3), thinking toggle (4.x), 5.2 + off via `thinking: disabled`.
+- `transform.test.ts` — "glm returns empty object" replaced with 4 tests: OR 5.3-flash low/high/max, direct 5.3 thinking+reasoningEffort, glm-4 toggle, no-reasoning-capability → {} (mock factory defaults reasoning: true — explicit `capabilities: {reasoning: false}` required).
+Script Output:
+- transform+reasoning suites **191 pass / 0 fail** (`20260830T002046Z_53fa1387`); typecheck PASS (`20260830T002102Z_31fa7fc6`).
+
 ## 2026-08-29 Summary cap 16K measured on FULL render + m* latch guards
 Reason: live m* (msg_04fa1b959001) measured 427,148 chars ≈ 145k tokens — prompt 171,339 vs ~85-90k expected. RCA [Exact, dbread positional]: the summary cap counted ONLY `s.text` (16 sidecar bodies = 76k chars, never trimmed) while buildMessageStar rendered +15 filediff blocks (≤20 files × 40 lines each) + 16 plan_state mirrors + impact/links → 237k summaries section; Decisions 38k uncapped; tail 151k (floor per contract). m*-in-m* REFUTED positionally (second "=== COMPACTED ===" at offset 222,034 is a quote inside Summary 15's body; the prior m* row is compacted=1 and skipped by the tail filter — 177k cannot fit into the 151k tail section). User order: "32к имелось ввиду с дифами... сделай кэп на 16к... убедись что бы не цепляешь m*".
 Changes:

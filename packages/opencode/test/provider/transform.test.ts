@@ -2567,7 +2567,45 @@ describe("ProviderTransform.variants", () => {
     expect(result).toEqual({})
   })
 
-  test("glm returns empty object", () => {
+  test("glm-5.3-flash on openrouter: effort variants low/high/max (forced thinking, no off)", () => {
+    const model = createMockModel({
+      id: "openrouter/z-ai/glm-5.3-flash",
+      providerID: "openrouter",
+      api: {
+        id: "z-ai/glm-5.3-flash",
+        url: "https://openrouter.ai/api/v1",
+        npm: "@openrouter/ai-sdk-provider",
+      },
+      capabilities: { reasoning: true },
+    })
+    const result = ProviderTransform.variants(model)
+    expect(result).toEqual({
+      low: { reasoning: { effort: "low" } },
+      high: { reasoning: { effort: "high" } },
+      max: { reasoning: { effort: "max" } },
+    })
+  })
+
+  test("glm-5.3 direct API: thinking enabled + reasoningEffort", () => {
+    const model = createMockModel({
+      id: "zai/glm-5.3-flash",
+      providerID: "zai",
+      api: {
+        id: "glm-5.3-flash",
+        url: "https://api.z.ai/api/paas/v4",
+        npm: "@ai-sdk/openai-compatible",
+      },
+      capabilities: { reasoning: true },
+    })
+    const result = ProviderTransform.variants(model)
+    expect(result).toEqual({
+      low: { thinking: { type: "enabled" }, reasoningEffort: "low" },
+      high: { thinking: { type: "enabled" }, reasoningEffort: "high" },
+      max: { thinking: { type: "enabled" }, reasoningEffort: "max" },
+    })
+  })
+
+  test("glm-4 (no reasoning_effort): thinking toggle only", () => {
     const model = createMockModel({
       id: "glm/glm-4",
       providerID: "glm",
@@ -2576,6 +2614,25 @@ describe("ProviderTransform.variants", () => {
         url: "https://api.glm.com",
         npm: "@ai-sdk/openai-compatible",
       },
+      capabilities: { reasoning: true },
+    })
+    const result = ProviderTransform.variants(model)
+    expect(result).toEqual({
+      on: { thinking: { type: "enabled" } },
+      off: { thinking: { type: "disabled" } },
+    })
+  })
+
+  test("glm without reasoning capability stays empty", () => {
+    const model = createMockModel({
+      id: "glm/glm-4",
+      providerID: "glm",
+      api: {
+        id: "glm-4",
+        url: "https://api.glm.com",
+        npm: "@ai-sdk/openai-compatible",
+      },
+      capabilities: { reasoning: false },
     })
     const result = ProviderTransform.variants(model)
     expect(result).toEqual({})

@@ -543,7 +543,6 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
     id.includes("deepseek-r1") ||
     id.includes("deepseek-v3") ||
     id.includes("minimax") ||
-    id.includes("glm") ||
     id.includes("kimi") ||
     id.includes("k2p") ||
     id.includes("qwen") ||
@@ -565,6 +564,59 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
     }
   }
   if (id.includes("grok")) return {}
+
+  // Z.AI GLM — docs.z.ai/guides/capabilities/thinking + thinking-mode:
+  // - reasoning_effort accepted by GLM-5.2+; GLM-5.3/5.3-flash accept ONLY
+  //   "max" (default) | "high" | "low" — any other value is an API error.
+  // - GLM-5.3/5.3-flash thinking is FORCED: thinking.type "disabled" errors,
+  //   so there is no off variant for 5.3.
+  // - GLM-4.5/4.6/4.7 have no reasoning_effort — only the thinking toggle.
+  // Via OpenRouter the unified reasoning param maps to these vendor params.
+  if (id.includes("glm")) {
+    const glm53 = id.includes("glm-5.3")
+    const glm52 = id.includes("glm-5.2")
+    if (model.api.npm === "@openrouter/ai-sdk-provider") {
+      if (glm53) {
+        return {
+          low: { reasoning: { effort: "low" } },
+          high: { reasoning: { effort: "high" } },
+          max: { reasoning: { effort: "max" } },
+        }
+      }
+      if (glm52) {
+        return {
+          low: { reasoning: { effort: "low" } },
+          high: { reasoning: { effort: "high" } },
+          max: { reasoning: { effort: "max" } },
+          off: { reasoning: { effort: "none" } },
+        }
+      }
+      return {
+        on: { reasoning: { enabled: true } },
+        off: { reasoning: { enabled: false } },
+      }
+    }
+    // Direct Z.AI API: thinking.type toggle + top-level reasoning_effort.
+    if (glm53) {
+      return {
+        low: { thinking: { type: "enabled" }, reasoningEffort: "low" },
+        high: { thinking: { type: "enabled" }, reasoningEffort: "high" },
+        max: { thinking: { type: "enabled" }, reasoningEffort: "max" },
+      }
+    }
+    if (glm52) {
+      return {
+        low: { thinking: { type: "enabled" }, reasoningEffort: "low" },
+        high: { thinking: { type: "enabled" }, reasoningEffort: "high" },
+        max: { thinking: { type: "enabled" }, reasoningEffort: "max" },
+        off: { thinking: { type: "disabled" } },
+      }
+    }
+    return {
+      on: { thinking: { type: "enabled" } },
+      off: { thinking: { type: "disabled" } },
+    }
+  }
 
   switch (model.api.npm) {
     case "@ai-sdk/deepseek":

@@ -287,7 +287,7 @@ export function selectRecentTail(
     if (isSummaryAssistant(m)) continue
     if (summaryParents.has(m.info.id)) continue
     selected.unshift(m)
-    chars += contentChars([m])
+    chars += tailContentChars(m)
     if (chars >= minChars) break
   }
   return selected
@@ -653,6 +653,96 @@ function renderSummaryBlock(input: { sessionID: string; s: SummaryEntry; index: 
   return `--- Summary ${input.index + 1} ---\n${links}\n\n${s.text}`
 }
 
+// ── m* Recent-tail stripper (2026-08-30, Alexander) ──
+// The tail must carry FACTS, not process. Stripped at render time (the DB keeps
+// everything; sessionread recovers): reasoning blocks (~40-50% of tail chars —
+// conclusions already live in the text parts), <system-reminder> floods
+// (read.ts injects full AGENTS.md content on every read), [step-start]/
+// [step-finish] markers, empty messages. The newest TAIL_TOOL_KEEP_FULL tool
+// parts render in FULL — fresh bash/test output is working context
+// ("сам себя не кастрируй"); older tool outputs collapse to head+tail lines
+// with a sessionread pointer.
+const TAIL_TOOL_KEEP_FULL = 3
+const TAIL_TOOL_HEAD_LINES = 40
+const TAIL_TOOL_TAIL_LINES = 10
+/** Decisions cap — the block accumulated monotonically (38K chars, uncapped). Newest kept. */
+const DECISIONS_MAX_CHARS = 8_192
+
+function stripReminderBlocks(text: string): string {
+  return text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "").replace(/\n{3,}/g, "\n\n")
+}
+
+function collapseToolOutput(output: string): string {
+  const lines = output.split("\n")
+  if (lines.length <= TAIL_TOOL_HEAD_LINES + TAIL_TOOL_TAIL_LINES + 5) return output
+  const head = lines.slice(0, TAIL_TOOL_HEAD_LINES).join("\n")
+  const tail = lines.slice(-TAIL_TOOL_TAIL_LINES).join("\n")
+  return `${head}\n… (+${output.length} chars collapsed — sessionread this message for the full output)\n${tail}`
+}
+
+/** Render-aware char count for tail selection: reasoning stripped, reminder
+ * blocks stripped, tool outputs counted at their collapsed size (the newest
+ * few render full — the "30k ±" floor absorbs the delta). */
+function tailContentChars(msg: MessageV2.WithParts): number {
+  let chars = 0
+  for (const p of msg.parts) {
+    if (p.type === "text") chars += stripReminderBlocks((p as any).text ?? "").length
+    else if (p.type === "tool") chars += collapseToolOutput(stripReminderBlocks((p as any).state?.output ?? "")).length
+    else if (p.type === "subtask") chars += ((p as any).prompt?.length ?? 0) + ((p as any).description?.length ?? 0)
+    else if (p.type === "patch") chars += Math.min(((p as any).content?.length ?? 0), 500)
+    // reasoning (stripped), step markers, snapshot/agent/retry/file — not rendered
+  }
+  return chars
+}
+
+/** Tail renderer: messageText minus process noise. `fullTools` = tool parts rendered verbatim. */
+function tailMessageText(msg: MessageV2.WithParts, fullTools: Set<unknown>): string {
+  const parts: string[] = []
+  for (const p of msg.parts) {
+    switch (p.type) {
+      case "text":
+        // Render ALL text parts regardless of `ignored` flag — dropping them
+        // loses the user's actual words (see messageText).
+        parts.push(`[text]\n${stripReminderBlocks((p as any).text ?? "")}`)
+        break
+      case "reasoning":
+        break // process noise — conclusions live in the text parts
+      case "tool": {
+        const label = `[tool:${(p as any).tool}]`
+        const status = (p as any).state?.status ?? "unknown"
+        const raw = stripReminderBlocks((p as any).state?.output ?? "")
+        parts.push(`${label} (${status})\n${fullTools.has(p) ? raw : collapseToolOutput(raw)}`)
+        break
+      }
+      case "subtask":
+        parts.push(
+          `[subtask:${(p as any).agent}]\n${(p as any).prompt ?? (p as any).description ?? ""}`,
+        )
+        break
+      case "file":
+        parts.push(`[file: ${(p as any).filename ?? "unknown"} (${(p as any).mediaType ?? (p as any).mime ?? "?"})]`)
+        break
+      case "snapshot":
+        parts.push(`[snapshot: ${(p as any).hash ?? "?"}]`)
+        break
+      case "patch":
+        parts.push(collapseToolOutput(((p as any).content ?? "").slice(0, 500)))
+        break
+      case "agent":
+        parts.push(`[agent: ${(p as any).agent ?? "?"}]`)
+        break
+      case "retry":
+        parts.push(`[retry attempt=${(p as any).attempt ?? "?"}]`)
+        break
+      case "compaction":
+      case "step-start":
+      case "step-finish":
+        break // markers only
+    }
+  }
+  return parts.join("\n").trim()
+}
+
 function buildMessageStar(input: {
   sessionID: string
   summaries: SummaryEntry[]
@@ -670,14 +760,27 @@ function buildMessageStar(input: {
 
   // Collect decisions from current summaries only (prior m* decisions are not pulled forward)
   const allDecisions = input.summaries.flatMap((s) => extractDecisions(s.text))
+  // Cap newest-first (2026-08-30): the block accumulated monotonically (38K chars, uncapped).
+  const keptDecisions: string[] = []
+  let decisionsChars = 0
+  for (let i = allDecisions.length - 1; i >= 0; i--) {
+    const cost = allDecisions[i].length + 4
+    if (keptDecisions.length > 0 && decisionsChars + cost > DECISIONS_MAX_CHARS) break
+    keptDecisions.unshift(allDecisions[i])
+    decisionsChars += cost
+  }
+  const trimmedDecisions = allDecisions.length - keptDecisions.length
   const decisionsBlock =
-    allDecisions.length > 0
+    keptDecisions.length > 0
       ? [
           "--- Decisions (preserved verbatim across compaction cycles) ---",
           `info_mark: Inferred — not re-summarized; preserved from original summary.`,
           `session_id: \`${input.sessionID}\``,
+          ...(trimmedDecisions > 0
+            ? [`(${trimmedDecisions} older decisions trimmed — sessionread the summaries for the full list)`]
+            : []),
           "",
-          ...allDecisions.map((d) => `- ${d.replace(/^- /, "")}`),
+          ...keptDecisions.map((d) => `- ${d.replace(/^- /, "")}`),
         ].join("\n")
       : undefined
 
@@ -689,18 +792,27 @@ function buildMessageStar(input: {
     : ""
 
   const recentIds = input.recent.map((m) => m.info.id)
-  const recentBlocks = input.recent.map((m, i) => {
+  // Tool parts rendered in full: the last TAIL_TOOL_KEEP_FULL across the tail.
+  const tailToolParts: unknown[] = []
+  for (const m of input.recent) {
+    for (const p of m.parts) {
+      if (p.type === "tool") tailToolParts.push(p)
+    }
+  }
+  const fullTools = new Set(tailToolParts.slice(-TAIL_TOOL_KEEP_FULL))
+  const recentBlocks: string[] = []
+  for (let i = 0; i < input.recent.length; i++) {
+    const m = input.recent[i]!
     const offset = input.recentStartOffset != null ? input.recentStartOffset + i : undefined
     const offsetTag = offset != null ? ` #${offset}` : ""
-    const body = messageText(m)
-    return body
-      ? `[${m.info.role} \`${m.info.id}\`${offsetTag} info_mark=Mixed]\n${body}`
-      : `[${m.info.role} \`${m.info.id}\`${offsetTag} info_mark=Mixed]`
-  })
+    const body = tailMessageText(m, fullTools)
+    if (!body) continue // empty message (markers only) — drops out entirely
+    recentBlocks.push(`[${m.info.role} \`${m.info.id}\`${offsetTag} info_mark=Mixed]\n${body}`)
+  }
 
   const recentHeader =
     recentIds.length > 0
-      ? `--- Recent (${recentIds.length} messages: \`${recentIds[0]}\` .. \`${recentIds[recentIds.length - 1]}\`) ---\n` +
+      ? `--- Recent (${recentBlocks.length}/${recentIds.length} messages: \`${recentIds[0]}\` .. \`${recentIds[recentIds.length - 1]}\`) ---\n` +
         `session_id: \`${input.sessionID}\`\n` +
         `info_mark: Mixed — working context (Inferred unless re-read).\n\n` +
         recentBlocks.join("\n\n")

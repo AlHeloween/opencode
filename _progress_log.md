@@ -1,4 +1,12 @@
 # Progress Log
+## 2026-08-30 m* tail stripper: reasoning/tool-dump/reminder strip + decisions cap
+Reason: user approved strip plan ("все верно", caveat "сам себя не кастрируй") — tail must carry facts, not process; deploy on compact first, message flow next. Reminder source located [Exact]: `tool/read.ts:346-348` — every read appends `<system-reminder>` with FULL AGENTS.md/instruction content per path chain (no dedupe) — the AGENTS.md test-guide flood came from there.
+Changes:
+- `compaction.ts` — NEW tail stripper: `tailMessageText` (reasoning parts skipped; `[step-start]/[step-finish]` markers dropped; `<system-reminder>` blocks stripped from text AND tool outputs; empty messages drop out; newest TAIL_TOOL_KEEP_FULL=3 tool parts render FULL, older collapse to 40+10 lines with `… (+N chars collapsed — sessionread)` pointer; patch parts collapsed); `stripReminderBlocks`/`collapseToolOutput` helpers; `tailContentChars` — render-aware budget for `selectRecentTail` (reasoning no longer counts toward the 30k floor, tool outputs counted at collapsed size); Decisions block capped DECISIONS_MAX_CHARS=8192 newest-first with trim marker. Recent header now shows `kept/total` message count.
+- `compaction.test.ts` — full-cycle assertion flipped to new contract: tail `not.toContain("[reasoning]")` (2026-08-30 amends the 08-29 "verbatim incl. thinking" contract).
+Script Output:
+- compaction **72 pass / 0 fail** (`20260830T003248Z_20e5ba25`); cadence suite green in the earlier pair-run; typecheck PASS (`20260830T003039Z_5f654df3`).
+
 ## 2026-08-30 GLM reasoning variants (was hard-excluded → empty UI params)
 Reason: user — "когда мы выбираем GLM модели нету параметров reasoning, они тупо не отображаются. Глянь в нете как правильно". Research [Exact]: Z.AI docs — `thinking: {type: enabled|disabled}` (4.5+); GLM-5.3/5.3-flash = FORCED thinking (disabled = API error); `reasoning_effort` GLM-5.2+ only, GLM-5.3/flash accept ONLY max(default)/high/low. OR endpoints API — all glm-5.3-flash endpoints declare `reasoning` + `reasoning_effort` in supported_parameters; unified `reasoning.effort` maps vendor-side.
 Changes:

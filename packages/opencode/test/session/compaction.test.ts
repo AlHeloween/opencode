@@ -2747,9 +2747,10 @@ describe("session.compaction.full-cycle", () => {
         // User messages must be faithfully rendered (test of ignored guard fix)
         expect(combined).toContain("user-msg-3")
 
-        // Assistant text and reasoning must be separately labeled
+        // Assistant text is labeled; reasoning is STRIPPED from the tail
+        // (2026-08-30 contract: facts, not process — conclusions live in text).
         expect(combined).toContain("[text]")
-        expect(combined).toContain("[reasoning]")
+        expect(combined).not.toContain("[reasoning]")
 
         // Completed tool outputs in Recent (m9's bash tool, running)
         expect(combined).toContain("[tool:bash]")

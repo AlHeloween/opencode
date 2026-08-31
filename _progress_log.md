@@ -1,4 +1,17 @@
 # Progress Log
+## 2026-08-31 glob/grep transparency fix — gitignore-hidden matches are REPORTED, not silent
+Reason: user (07:51–07:57 UTC) — recurring x100 failure: glob on build output (dist/bin) returns bare "No files found" because dist/ is gitignored, sending the agent into archaeology; "апологизи works только если это фиксится". Mechanism fix, not words.
+Changes:
+- `tool/glob.ts` — when default (gitignore-respecting) search is EMPTY and noIgnore wasn't set: one noIgnore probe; if matches exist → output says `No files found under .gitignore rules, BUT N file(s) match with noIgnore` + up to 10 resolved paths (+count, +re-run hint). metadata gains `hidden_by_ignore: number` in ALL branches (early dir-not-found, probe, normal — union type aligned).
+- `tool/grep.ts` — mirror probe for contents search (sample 5 file:line), same metadata field.
+- Not fixed here but noted: logsearch/fossilgrep have bare empty outputs too (no gitignore dimension — lower priority).
+Discipline rules recorded (memory tool is reasoning_mode-only, so they live here + code comments):
+- glob/grep on build-artifact paths → first call with noIgnore: true; empty ≠ nonexistent.
+- Claims about user-side binary state require THREE Exact layers: git log timestamps (mind +0800 vs UTC!), dist/bin/opencode.exe mtime, newest .opencode/data/log file (name = ms epoch of instance start).
+- "Own the failure" without a mechanism fix = треп (Alexander).
+Script Output:
+- typecheck exit 0 (`20260831T080343Z_f77662e6`).
+
 ## 2026-08-31 Per-agent OpenRouter routing chain + per-model defaults (StreamLake for DeepSeek v4 Flash)
 Reason: user (06:15–06:25 UTC) — routing settings must be unique per model AND per agent ("та же модель но разные провайдеры в зависимости от целей, разная квантизация"); DeepSeek v4 Flash (v731) must route StreamLake by default (StreamLake declares quantization explicitly); interactive dialog planned (hotkey, cursor, space toggle, fp list).
 Changes:

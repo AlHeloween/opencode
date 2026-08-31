@@ -69,7 +69,7 @@ export const GrepTool = Tool.define(
 
           const empty = {
             title: pattern,
-            metadata: { matches: 0, truncated: false },
+            metadata: { matches: 0, truncated: false, hidden_by_ignore: 0 },
             output: "No matches found",
           }
 
@@ -105,6 +105,38 @@ export const GrepTool = Tool.define(
             signal: ctx.abort,
             noIgnore: params.noIgnore,
           })
+          if (result.items.length === 0 && params.noIgnore !== true) {
+            // Transparency probe (mirror of glob.ts, 2026-08-31): gitignored files
+            // (dist/, build output) hide matches under default filtering — say so
+            // instead of a bare "No matches found".
+            const probe = yield* rg
+              .search({
+                cwd,
+                pattern,
+                glob: params.include ? [params.include] : undefined,
+                file,
+                signal: ctx.abort,
+                noIgnore: true,
+              })
+              .pipe(Effect.orElseSucceed(() => ({ items: [], partial: false } as typeof result)))
+            if (probe.items.length > 0) {
+              const sample = probe.items.slice(0, 5).map((item) => {
+                const full = AppFileSystem.resolve(
+                  path.isAbsolute(item.path.text) ? item.path.text : path.join(cwd, item.path.text),
+                )
+                return `  ${full}:${item.line_number}`
+              })
+              return {
+                title: pattern,
+                metadata: { matches: 0, truncated: false, hidden_by_ignore: probe.items.length },
+                output: [
+                  `No matches under .gitignore rules, BUT ${probe.items.length} match(es) with noIgnore — target likely gitignored (dist/, build output, logs). Sample:`,
+                  ...sample,
+                  "Re-run with noIgnore: true for the full result.",
+                ].join("\n"),
+              }
+            }
+          }
           if (result.items.length === 0) return empty
 
           const rows = result.items.map((item) => ({
@@ -176,6 +208,7 @@ export const GrepTool = Tool.define(
             metadata: {
               matches: total,
               truncated,
+              hidden_by_ignore: 0,
             },
             output: output.join("\n"),
           }

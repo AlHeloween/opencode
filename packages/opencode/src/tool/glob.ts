@@ -46,7 +46,7 @@ export const GlobTool = Tool.define(
           if (!info) {
             return {
               title: path.relative(ins.worktree, search),
-              metadata: { count: 0, truncated: false },
+              metadata: { count: 0, truncated: false, hidden_by_ignore: 0 },
               output: `Directory not found: ${search}`,
             }
           }
@@ -82,6 +82,32 @@ export const GlobTool = Tool.define(
           files.sort((a, b) => b.mtime - a.mtime)
 
           const output = []
+          if (files.length === 0 && params.noIgnore !== true) {
+            // Transparency probe (2026-08-31, Alexander: recurring failure mode —
+            // "No files found" for gitignored build output like dist/ sends the
+            // agent into useless archaeology). Probe once with noIgnore: if the
+            // files exist but are ignored, SAY SO and show them (capped).
+            const ignored = yield* rg
+              .files({ cwd: search, glob: [params.pattern], signal: ctx.abort, noIgnore: true })
+              .pipe(
+                Stream.take(11),
+                Stream.runCollect,
+                Effect.map((chunk) => [...chunk]),
+                Effect.orElseSucceed(() => [] as string[]),
+              )
+            if (ignored.length > 0) {
+              const shown = ignored.slice(0, 10).map((file) => path.resolve(search, file))
+              return {
+                title: path.relative(ins.worktree, search),
+                metadata: { count: 0, truncated: false, hidden_by_ignore: ignored.length },
+                output: [
+                  `No files found under .gitignore rules, BUT ${ignored.length} file(s) match with noIgnore — likely build output / gitignored paths. Matches:`,
+                  ...shown,
+                  ...(ignored.length > 10 ? [`… (+${ignored.length - 10} more — re-run with noIgnore: true for the full list)`] : []),
+                ].join("\n"),
+              }
+            }
+          }
           if (files.length === 0) output.push("No files found")
           if (files.length > 0) {
             output.push(...files.map((file) => file.path))
@@ -98,6 +124,7 @@ export const GlobTool = Tool.define(
             metadata: {
               count: files.length,
               truncated,
+              hidden_by_ignore: 0,
             },
             output: output.join("\n"),
           }

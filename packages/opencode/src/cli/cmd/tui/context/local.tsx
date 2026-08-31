@@ -478,8 +478,28 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         })
       }
 
+      /** Layer-pure view for the /agents scope display (2026-08-31, Alexander:
+       * switching scope must show THAT layer's content, not the merged
+       * resolution with a different title word). */
+      function layerView(name: string, scope: ModelScope): { model?: string; variant?: string } {
+        if (scope === "session") {
+          const o = sessionSettings()?.agent?.[name]
+          return { model: o?.model, variant: o?.variant }
+        }
+        if (scope === "worktree") {
+          const workspace = workspaceAgentModel(name, getActiveWorkspaceID(), {
+            workspaceAgent: modelStore.workspaceAgent,
+          })
+          return { model: workspace ? `${workspace.providerID}/${workspace.modelID}` : undefined }
+        }
+        // global — config defaults (Agent.Info), never written by TUI selections
+        const a = sync.data.agent.find((x) => x.name === name)
+        return { model: a?.model ? `${a.model.providerID}/${a.model.modelID}` : undefined }
+      }
+
       return {
         forAgent,
+        layerView,
         subagentsFor,
         setSubagents,
         taskModel,

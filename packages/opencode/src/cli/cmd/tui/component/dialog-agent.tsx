@@ -175,14 +175,13 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
   })
 
   function buildOption(agent: any, category: string) {
-    const model = local.model.forAgent(agent.name)
-    const modelLabel = model
-      ? `${model.providerID}/${model.modelID}`
-      : "(no model configured)"
-
-    const agentVariant = local.model.variant.forAgent(agent.name)
-    const variantValue = agentVariant.current()
-    const variantLabel = variantValue ? ` · ${variantValue}` : ""
+    // Scope-aware footer: show THE SELECTED LAYER's stored value (not the merged
+    // resolution) — switching scope switches the CONTENT, not just the title.
+    // (2026-08-31, Alexander: "список не переключается, просто меняется слово".)
+    const view = local.model.layerView(agent.name, scope)
+    const layerModel =
+      view.model ??
+      (scope === "session" ? "not set in session" : scope === "worktree" ? "not set in worktree" : "no config default")
 
     // Session subagents override (worktree-local) else global Agent.Info
     const sub = local.model.subagentsFor(agent.name)
@@ -206,7 +205,7 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
       category,
       disabled: off,
       gutter: <text fg={color}>{off ? "○" : "●"}</text>,
-      footer: `${modelLabel}${variantLabel}${subLabel}${activeLabel}`,
+      footer: `${layerModel}${view.variant ? ` · ${view.variant}` : ""}${subLabel}${activeLabel}`,
       margin: <text>{off ? "[ ]" : "[✓]"}</text>,
       onSelect: () => {
         dialog.replace(() => (

@@ -1,4 +1,14 @@
 # Progress Log
+## 2026-08-31 Per-agent OpenRouter routing chain + per-model defaults (StreamLake for DeepSeek v4 Flash)
+Reason: user (06:15–06:25 UTC) — routing settings must be unique per model AND per agent ("та же модель но разные провайдеры в зависимости от целей, разная квантизация"); DeepSeek v4 Flash (v731) must route StreamLake by default (StreamLake declares quantization explicitly); interactive dialog planned (hotkey, cursor, space toggle, fp list).
+Changes:
+- `provider.ts` — `CustomModelLoader` gains 4th param `extra?: {routing}`; openrouter `getModel` priority chain: `extra?.routing` (per-agent) → `openRouterRouting(options)` (config provider/model) → NEW `openRouterRoutingDefaults(modelID)` (deepseek-v4-flash → `{order:["StreamLake"]}`); `getLanguage(model, opts?: {routing})` — routing-hash cache key suffix (`#<sha256-12>`) so per-agent routing variants don't collide in `s.models`; Interface type updated.
+- `llm.ts:445` — `getLanguage(input.model, { routing: Provider.openRouterRouting(input.agent.options) })` — agent.<name>.options.routing (Agent.Info.options, agent/agent.ts:52/479) threads per-stream; build is per-stream so agent context is available (build cache stays correct via routing hash).
+- `plans/2026-08-31_settings/04_routing.md` — resolution chain + config usage examples (works TODAY via opencode.jsonc) + dialog spec (PLANNED: space-toggle popup, order/fp sections, global write with confirm).
+Script Output:
+- typecheck exit 0 (`20260831T063950Z_a7aab385`; first run caught Interface signature lag — fixed).
+- OpenRouter routing contract verified via web (openrouter.ai/docs routing: order/allow_fallbacks/quantizations keys native).
+
 ## 2026-08-31 Global config write (confirm dialog) + Settings plans (inventory/jsonc/interactivity)
 Reason: user policy (04:32–04:42 UTC) — all three config layers editable; global write requires confirmation dialog; all settings files jsonc with `//` comments; any missing/uneditable setting = bug; settings plans with master + subplans and dependent-code refs; verify via explorer + codegraph. Path quiz (04:46): dialog copy must NOT claim `~/.config/opencode` — in this fork `Global.Path.config` is executable-adjacent (AGENTS.md Paths; switching to os.homedir() is a forbidden action).
 Changes:

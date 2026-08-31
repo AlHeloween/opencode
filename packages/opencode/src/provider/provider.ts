@@ -18,6 +18,7 @@ import { zod } from "@/util/effect-zod"
 import { namedSchemaError } from "@/util/named-schema-error"
 import { iife } from "@/util/iife"
 import { Global } from "@opencode-ai/core/global"
+import { createHash } from "crypto"
 import path from "path"
 import { pathToFileURL } from "url"
 import { Effect, Layer, Context, Schema, Types } from "effect"
@@ -127,7 +128,14 @@ const BUNDLED_PROVIDERS: Record<string, () => Promise<(opts: any) => BundledSDK>
   "venice-ai-sdk-provider": () => import("venice-ai-sdk-provider").then((m) => m.createVenice),
 }
 
-type CustomModelLoader = (sdk: any, modelID: string, options?: Record<string, any>) => Promise<any>
+type CustomModelLoader = (
+  sdk: any,
+  modelID: string,
+  options?: Record<string, any>,
+  /** Per-stream overrides — currently `routing` for OpenRouter (agent-scoped
+   * routing from agent.<name>.options.routing, threaded from llm.ts). */
+  extra?: { routing?: Record<string, unknown> },
+) => Promise<any>
 type CustomVarsLoader = (options: Record<string, any>) => Record<string, string>
 type CustomDiscoverModels = () => Promise<Record<string, Model>>
 type CustomLoader = (provider: Info) => Effect.Effect<{
@@ -424,9 +432,12 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         // openrouter-native shape: order/allow_fallbacks/quantizations/...).
         // Passed as model-level SDK settings so EVERY request body carries
         // `provider: {...}` — pins the upstream (stable cache namespace +
-        // declared quantization). Per-model override: models.<id>.options.routing.
-        async getModel(sdk: any, modelID: string, options?: Record<string, any>) {
-          const routing = openRouterRouting(options)
+        // declared quantization). Priority (2026-08-31, Alexander: same model,
+        // different upstreams/quantizations per agent): per-AGENT routing
+        // (agent.<name>.options.routing, threaded per-stream via `extra`) →
+        // config model/provider routing → per-model defaults.
+        async getModel(sdk: any, modelID: string, options?: Record<string, any>, extra?: { routing?: Record<string, unknown> }) {
+          const routing = extra?.routing ?? openRouterRouting(options) ?? openRouterRoutingDefaults(modelID)
           if (!routing) return sdk.languageModel(modelID)
           return sdk.languageModel(modelID, { provider: routing })
         },
@@ -947,7 +958,10 @@ export interface Interface {
   readonly list: () => Effect.Effect<Record<ProviderID, Info>>
   readonly getProvider: (providerID: ProviderID) => Effect.Effect<Info>
   readonly getModel: (providerID: ProviderID, modelID: ModelID) => Effect.Effect<Model>
-  readonly getLanguage: (model: Model) => Effect.Effect<LanguageModelV4>
+  readonly getLanguage: (
+    model: Model,
+    opts?: { routing?: Record<string, unknown> },
+  ) => Effect.Effect<LanguageModelV4>
   readonly closest: (
     providerID: ProviderID,
     query: string[],
@@ -1598,13 +1612,22 @@ const layer: Layer.Layer<
       return info
     })
 
-    const getLanguage = Effect.fn("Provider.getLanguage")(function* (model: Model) {
+    const getLanguage = Effect.fn("Provider.getLanguage")(function* (
+      model: Model,
+      opts?: { routing?: Record<string, unknown> },
+    ) {
       const s = yield* InstanceState.get(state)
       const envs = yield* env.all()
 
       const resolvedNpm = model.api.npm
 
-      const key = `${model.providerID}/${model.id}/${resolvedNpm}`
+      // A per-agent routing override produces a DISTINCT language model — the
+      // openrouter `provider: {...}` routing object is baked into the SDK model
+      // settings at build time, so cache keys must not collide across routings.
+      const routingKey = opts?.routing
+        ? `#${createHash("sha256").update(JSON.stringify(opts.routing)).digest("hex").slice(0, 12)}`
+        : ""
+      const key = `${model.providerID}/${model.id}/${resolvedNpm}${routingKey}`
       if (s.models.has(key)) return s.models.get(key)!
 
       return yield* Effect.promise(async () => {
@@ -1613,10 +1636,15 @@ const layer: Layer.Layer<
 
         try {
           const language = s.modelLoaders[model.providerID]
-            ? await s.modelLoaders[model.providerID](sdk, model.api.id, {
-                ...provider.options,
-                ...model.options,
-              })
+            ? await s.modelLoaders[model.providerID](
+                sdk,
+                model.api.id,
+                {
+                  ...provider.options,
+                  ...model.options,
+                },
+                opts,
+              )
             : sdk.languageModel(model.api.id)
           s.models.set(key, language)
           return language
@@ -1768,6 +1796,19 @@ export function openRouterRouting(options?: Record<string, any>): Record<string,
   const routing = options?.routing
   if (routing === null || typeof routing !== "object" || Array.isArray(routing)) return undefined
   return routing as Record<string, unknown>
+}
+
+/** Per-model OpenRouter routing DEFAULTS — lowest priority, applied only when
+ *  neither agent-level (agent.<name>.options.routing — llm.ts threads it
+ *  per-stream) nor config-level (provider.openrouter[.models.<id>].options.routing)
+ *  routing is set. (2026-08-31, Alexander: DeepSeek v4 Flash builds must route
+ *  StreamLake first — StreamLake declares its quantization explicitly.) */
+const OPENROUTER_ROUTING_DEFAULTS: { match: string; routing: Record<string, unknown> }[] = [
+  { match: "deepseek-v4-flash", routing: { order: ["StreamLake"] } },
+]
+
+export function openRouterRoutingDefaults(modelID: string): Record<string, unknown> | undefined {
+  return OPENROUTER_ROUTING_DEFAULTS.find((d) => modelID.includes(d.match))?.routing
 }
 
 export function parseModel(model: string) {

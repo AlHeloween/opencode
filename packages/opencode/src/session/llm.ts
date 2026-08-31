@@ -442,7 +442,13 @@ const live: Layer.Layer<
 
       const [language, cfg, item, info] = yield* Effect.all(
         [
-          provider.getLanguage(input.model),
+          provider.getLanguage(input.model, {
+            // Per-agent OpenRouter routing override (agent.<name>.options.routing —
+            // Alexander, 2026-08-31: same model, different upstreams/quantizations
+            // per agent purpose). Undefined for non-openrouter/agents without
+            // routing — the loader ignores it and config/defaults apply.
+            routing: Provider.openRouterRouting(input.agent.options),
+          }),
           config.get(),
           provider.getProvider(input.model.providerID),
           auth.get(input.model.providerID),

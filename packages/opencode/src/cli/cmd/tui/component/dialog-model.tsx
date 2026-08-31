@@ -7,7 +7,9 @@ import { useDialog } from "@tui/ui/dialog"
 import { createDialogProviderOptions, DialogProvider } from "./dialog-provider"
 import { DialogVariant } from "./dialog-variant"
 import { DialogConfirm } from "./dialog-confirm"
+import { DialogRouting } from "./dialog-routing"
 import { useKeybind } from "../context/keybind"
+import { Keybind } from "@/util/keybind"
 import * as fuzzysort from "fuzzysort"
 import { useConnected } from "./use-connected"
 import { canActivateAgent } from "../util/agent"
@@ -229,6 +231,20 @@ export function DialogModel(props: {
           disabled: !connected(),
           onTrigger: (option) => {
             local.model.toggleFavorite(option.value as { providerID: string; modelID: string })
+          },
+        },
+        {
+          keybind: Keybind.parse("ctrl+o")[0],
+          title: "Routing",
+          onTrigger: (option) => {
+            const value = option.value as { providerID: string; modelID: string }
+            if (value.providerID !== "openrouter") return
+            dialog.replace(() => (
+              <DialogRouting
+                model={value}
+                onDone={() => dialog.clear()}
+              />
+            ))
           },
         },
       ]}

@@ -5,8 +5,10 @@ import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
 import { DialogModel } from "./dialog-model"
 import { DialogVariant } from "./dialog-variant"
+import { DialogRouting } from "./dialog-routing"
 import { DialogSubagentSettings } from "./dialog-subagent-settings"
 import { getModelStatus } from "@/provider/balance"
+import { useToast } from "../ui/toast"
 import { Keybind } from "@/util/keybind"
 import type { RGBA } from "@opentui/core"
 
@@ -21,6 +23,7 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
   const local = useLocal()
   const sync = useSync()
   const dialog = useDialog()
+  const toast = useToast()
   // Resolution chain (local.forAgent): session override → worktree (model.json)
   // → global (Agent.Info config). Session is the default configuration target
   // (2026-08-30, Alexander: explicit scope choice instead of hidden dual writes).
@@ -263,6 +266,29 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
           title: "Scope →",
           keybind: Keybind.parse("right")[0],
           onTrigger: () => cycleScope(1),
+        },
+        {
+          title: "Routing",
+          keybind: Keybind.parse("ctrl+o")[0],
+          onTrigger: (option: any) => {
+            const m = local.model.forAgent(option.value)
+            if (!m) return
+            if (m.providerID !== "openrouter") {
+              toast.show({
+                title: "Routing is OpenRouter-only",
+                message: `${m.providerID}/${m.modelID} — routing keys apply to openrouter models`,
+                variant: "info",
+                duration: 3000,
+              })
+              return
+            }
+            dialog.replace(() => (
+              <DialogRouting
+                agent={option.value}
+                onDone={() => dialog.replace(() => <DialogAgent scope={scope} restoreValue={option.value} />)}
+              />
+            ))
+          },
         },
         {
           title: "Switch scope",

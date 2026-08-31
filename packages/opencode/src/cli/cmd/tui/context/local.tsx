@@ -501,9 +501,50 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         return { model: a?.model ? `${a.model.providerID}/${a.model.modelID}` : undefined }
       }
 
+      /** Write provider.openrouter.<id>.models.<modelID>.options.routing into the
+       * GLOBAL config (subplan 04; same {data} unwrap as writeGlobalAgentField). */
+      async function setProviderRouting(
+        providerID: string,
+        modelID: string,
+        routing: Record<string, unknown> | undefined,
+      ) {
+        const response = (await sdk.client.global.config.get({ throwOnError: true })) as any
+        const config = { ...((response?.data ?? response) as Record<string, unknown>) } as Record<string, unknown>
+        const providers = { ...((config.provider as Record<string, unknown> | undefined) ?? {}) }
+        const p = { ...((providers[providerID] as Record<string, unknown> | undefined) ?? {}) }
+        const models = { ...((p.models as Record<string, unknown> | undefined) ?? {}) }
+        const m = { ...((models[modelID] as Record<string, unknown> | undefined) ?? {}) }
+        const options = { ...((m.options as Record<string, unknown> | undefined) ?? {}) }
+        if (routing === undefined) {
+          // patchJsonc is set-only — clearing requires a file edit (documented gap)
+          toast.show({
+            title: "Cannot clear from TUI",
+            message: "Edit the global opencode.jsonc to remove the routing block",
+            variant: "warning",
+            duration: 4000,
+          })
+          return
+        }
+        options.routing = routing
+        m.options = options
+        models[modelID] = m
+        p.models = models
+        providers[providerID] = p
+        config.provider = providers
+        await sdk.client.global.config.update({ config: config as never }, { throwOnError: true })
+        toast.show({
+          title: "Global config updated",
+          message: `${providerID}/${modelID}: routing = ${JSON.stringify(routing)}`,
+          variant: "info",
+          duration: 5000,
+        })
+      }
+
       return {
         forAgent,
         layerView,
+        writeGlobalAgentField,
+        setProviderRouting,
         subagentsFor,
         setSubagents,
         taskModel,

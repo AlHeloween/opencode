@@ -8,7 +8,7 @@ import re
 import sys
 from pathlib import Path
 
-KERNEL = Path(__file__).resolve().parents[2] / "packages" / "opencode" / "src" / "session" / "prompt" / "reasoning_prompt.mdc"
+KERNEL = Path(__file__).resolve().parents[2] / "packages" / "opencode" / "src" / "session" / "prompt" / "reasoning_prompt.txt"
 
 # Patterns
 REF_PAT = re.compile(r"@([A-Z][A-Z_0-9]*)")          # @REF_NAME

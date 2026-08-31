@@ -332,10 +332,10 @@ See cmd-runner skill for full reference.
 | `packages/sdk/js/src/gen/` | `bun run packages/sdk/js/script/build.ts` |
 | `packages/sdk/js/src/v2/gen/` | same |
 | `packages/desktop/src/bindings.ts` | `cargo run -p specta-bindings` |
-| `packages/opencode/src/session/prompt/reasoning_prompt.txt` | `python plans/2026-08-08-cc-generator-integration/_rebuild.py` |
-| `packages/opencode/src/session/prompt/reasoning_prompt.mdc` | same |
+| `packages/opencode/src/session/prompt/reasoning_prompt.txt` | `python -c "from prompts_kernel import write_reasoning; write_reasoning(__import__('pathlib').Path('prompts_kernel/dist/reasoning_prompt.mdc'))"` → promote `dist/reasoning_prompt.txt` → production |
+| `packages/opencode/src/session/prompt/reasoning_prompt.mdc` | same `write_reasoning` call (publishes both dist siblings; production carries `.txt` only) |
 
-**Kernel sync:** Run `_rebuild.py` after any kernel source change. Reasoning protocol fragments: edit `prompts_kernel/reasoning/*.txt`, then rebuild.
+**Kernel sync:** After any kernel source change: `python -c "from pathlib import Path; from prompts_kernel._assemble_prompts_kernel import write_precompiled_kernel; write_precompiled_kernel(Path('prompts_kernel'))"` (regen `_kernel_precompiled.py` — the live-first module) → `write_reasoning(...)` (dist artifacts) → promote dist `.txt` → production. Reasoning protocol fragments: edit `prompts_kernel/reasoning/*.txt`, then rebuild. In a fresh Python process per step — a same-process rebuild uses the already-imported precompiled module.
 
 **Host-local:** This file is host-local (THIS repo only). Product kernel + `reasoning/*` are host-agnostic. See kernel `21_skills_boundary.py`.
 
@@ -344,7 +344,7 @@ See cmd-runner skill for full reference.
 ## Kernel Development Workflow
 
 1. Define rules in `prompts_kernel/27_runtime_dict.py`
-2. Regenerate precompiled kernel + `_rebuild.py`
+2. Regenerate precompiled kernel: `python -c "from pathlib import Path; from prompts_kernel._assemble_prompts_kernel import write_precompiled_kernel; write_precompiled_kernel(Path('prompts_kernel'))"`, then rebuild dist artifacts via `write_reasoning(...)` (see Auto-Generated Code)
 3. Update tests: `python -m pytest prompts_kernel/tests/ -q`
 4. Single commit: source + regenerated + test fixes
 

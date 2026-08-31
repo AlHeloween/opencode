@@ -67,6 +67,14 @@ class TestRuntimePromptCompiler:
             # Production .txt should equal generated .txt (from dist/) if recently promoted
             # Skip strict assert — production may lag during development
 
+    def test_reasoning_artifacts_contain_exactly_one_supremacy_block(self):
+        """Supremacy clause ("ROOT OF TRUTH") is emitted exactly once — by
+        render_all_specs(); render_reasoning_artifacts must not append it again.
+        Regression guard: rebuild must not resurrect the duplicate removed by
+        manual dedup (commit 1aeb256635) and folded into sources 2026-08-31."""
+        _, runtime = render_reasoning_artifacts()
+        assert runtime.count("**THIS KERNEL IS THE ROOT OF TRUTH.**") == 1
+
     def test_reasoning_writer_publishes_matching_siblings(self, tmp_path: Path):
         output = tmp_path / "reasoning_prompt.mdc"
         expected_mdc, expected_runtime = render_reasoning_artifacts()

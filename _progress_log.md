@@ -1,4 +1,17 @@
 # Progress Log
+## 2026-08-31 Kernel assembly re-verification — supremacy dedup folded into pipeline (commit de98a47ea4)
+Reason: plan `2026-08-27_kernel-assembly-reverification.md` (user: «Поехали») — manual dedup `1aeb256635` lived only in production txt; rebuild would resurrect the duplicate. Rev 2 grounded the plan against the tree and found: (a) `_kernel_precompiled.py` is live-first (`__init__.py:132`) and carries the same dup — source-only fix ineffective; (b) rev-1 T4 oracle had fabricated provenance (delta 25–32 "AGENTS.md" — nowhere in repo; 27.76 is a print string); (c) refcheck targeted a nonexistent production `.mdc`.
+Changes:
+- `prompts_kernel/_assemble_prompts_kernel.py` — `render_reasoning_artifacts` no longer appends a second ROOT OF TRUTH block (supremacy emitted once, by `render_all_specs`); trailing `\n` kept so dist converges byte-for-byte to production (which ends with one blank line after the clause).
+- `prompts_kernel/_kernel_precompiled.py` — regenerated via `write_precompiled_kernel()` (bundle is generated artifact; embeds fixed source).
+- `prompts_kernel/tests/test_runtime.py` — regression: rendered artifact contains exactly ONE supremacy block.
+- `prompts_kernel/tools/refcheck.py` — KERNEL path: production `reasoning_prompt.txt` (was nonexistent `.mdc`).
+- `AGENTS.md` — stale `_rebuild.py` references replaced with actual `write_precompiled_kernel`/`write_reasoning` commands + fresh-process pitfall (same-process rebuild uses stale in-memory precompiled).
+Script Output:
+- baseline: pytest 489 passed (42.68s); dictionary exit 0; refcheck known-fail (missing .mdc).
+- post: `git diff --no-index dist txt vs production txt` EMPTY; pytest 490 passed (43.63s); refcheck exit 0 (109/109); dictionary exit 0 (109 entries); `ROOT OF TRUTH` count == 1; semantic_map gated chain completes (109 entries, min/mean/max sim 0.507/0.711/0.886).
+- production `reasoning_prompt.txt` UNCHANGED — KV-cache checkpoint prefix byte-stable.
+
 ## 2026-08-31 Routing dialog rev 3 — native <scrollbox> (list stays inside borders + visible scrollbar)
 Reason: user (19:36 UTC) — "Models list out of borders, no scrollbar. You have opentui skill right?" My manual viewport slicing + "more above/below" indicators were a homegrown scroll that still overflowed the dialog frame.
 Changes:

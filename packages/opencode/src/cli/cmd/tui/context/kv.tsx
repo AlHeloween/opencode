@@ -35,7 +35,15 @@ export const { use: useKV, provider: KVProvider } = createSimpleContext({
         setStore(x)
       })
       .catch((error) => {
-        Log.Default.warn("bug: failed to read KV state", { filePath, error: String(error) })
+        const message = error instanceof Error ? error.message : String(error)
+        // Cold start: kv.json doesn't exist until the first write — expected
+        // ENOENT is debug-level, anything else stays a warn bug (2026-08-31:
+        // every instance start logged a spurious bug: label).
+        if (message.includes("ENOENT")) {
+          Log.Default.debug("kv state absent on cold start", { filePath })
+          return
+        }
+        Log.Default.warn("bug: failed to read KV state", { filePath, error: message })
       })
       .finally(() => {
         setReady(true)

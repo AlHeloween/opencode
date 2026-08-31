@@ -451,13 +451,17 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
        * NOT ~/.config/opencode — AGENTS.md path architecture). Server endpoint
        * PATCH /global/config → Config.updateGlobal: jsonc-preserving patch
        * (comments survive), instances invalidated after write. */
-      async function writeGlobalAgentField(agentName: string, field: { model?: string; variant?: string }) {
-        const current = await sdk.client.global.config.get({ throwOnError: true })
-        const config = { ...((current as Record<string, unknown>) ?? {}) } as Record<string, unknown>
+      async function writeGlobalAgentField(agentName: string, field: { model?: string; variant?: string; routing?: Record<string, unknown> }) {
+        // hey-api v2 wraps the payload in { data } — spread .data ONLY (web-app
+        // precedent: bootstrap.ts x.data). Spreading the wrapper sent {data,
+        // response} keys into a STRICT config schema → 422 → "[object Object]".
+        const response = (await sdk.client.global.config.get({ throwOnError: true })) as any
+        const config = { ...((response?.data ?? response) as Record<string, unknown>) } as Record<string, unknown>
         const agents = { ...((config.agent as Record<string, unknown> | undefined) ?? {}) }
         const agentConfig = { ...((agents[agentName] as Record<string, unknown> | undefined) ?? {}) }
         if (field.model !== undefined) agentConfig.model = field.model
         if (field.variant !== undefined) agentConfig.variant = field.variant
+        if (field.routing !== undefined) agentConfig.routing = field.routing
         agents[agentName] = agentConfig
         config.agent = agents
         await sdk.client.global.config.update({ config: config as never }, { throwOnError: true })
@@ -588,11 +592,16 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             }
             const agentName = options?.agent ?? agent.current()?.name
             if (!agentName) return
-            void writeGlobalAgentField(agentName, { model: `${model.providerID}/${model.modelID}` }).catch((e) =>
-              Log.Default.warn("bug: global config model write failed", {
-                error: e instanceof Error ? e.message : String(e),
-              }),
-            )
+            void writeGlobalAgentField(agentName, { model: `${model.providerID}/${model.modelID}` }).catch((e: unknown) => {
+              const detail = e instanceof Error ? e.message : JSON.stringify(e)?.slice(0, 300) || String(e)
+              Log.Default.warn("bug: global config model write failed", { error: detail })
+              toast.show({
+                title: "Global config write failed",
+                message: detail,
+                variant: "error",
+                duration: 6000,
+              })
+            })
             if (options?.recent) {
               const uniq = uniqueBy([model, ...modelStore.recent], (x) => `${x.providerID}/${x.modelID}`)
               if (uniq.length > 10) uniq.pop()
@@ -748,11 +757,16 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
                 })
                 return
               }
-              void writeGlobalAgentField(agentKey, { variant: value }).catch((e) =>
-                Log.Default.warn("bug: global config variant write failed", {
-                  error: e instanceof Error ? e.message : String(e),
-                }),
-              )
+              void writeGlobalAgentField(agentKey, { variant: value }).catch((e: unknown) => {
+                const detail = e instanceof Error ? e.message : JSON.stringify(e)?.slice(0, 300) || String(e)
+                Log.Default.warn("bug: global config variant write failed", { error: detail })
+                toast.show({
+                  title: "Global config write failed",
+                  message: detail,
+                  variant: "error",
+                  duration: 6000,
+                })
+              })
               return
             }
             if (scope === "session") {

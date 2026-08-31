@@ -1,21 +1,29 @@
 import { createMemo, createSignal, For, onMount, Show } from "solid-js"
-import { useKeyboard } from "@opentui/solid"
+import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
+import type { ScrollBoxRenderable } from "@opentui/core"
 import { useLocal } from "@tui/context/local"
 import { useSync } from "@tui/context/sync"
 import { useDialog } from "@tui/ui/dialog"
 import { useTheme } from "@tui/context/theme"
 import { DialogConfirm } from "./dialog-confirm"
+import { getScrollAcceleration } from "../util/scroll"
 
 /**
- * OpenRouter routing editor (subplan 04, rev 2 — 2026-08-31, Alexander):
+ * OpenRouter routing editor (subplan 04 — 2026-08-31, Alexander):
  * the provider list is NOT free-form — it is the LIVE OpenRouter endpoints of
  * the SELECTED model (GET /api/v1/models/{author}/{slug}/endpoints, public,
  * no auth): real providers, their actual quantization, uptime and price.
- * Scrollable viewport, SPACE checkbox selection; selection sequence = order
- * priority. Quantization rows are DERIVED from the live endpoints — no
- * hardcoded fp enum ("не от балды"). Save → GLOBAL config with the mandatory
- * confirmation dialog. Manual slug entry exists ONLY as a degraded fallback
- * when the live fetch fails (labeled as such).
+ * SPACE checkbox selection; selection sequence = order priority.
+ * Quantization rows are DERIVED from the live endpoints — no hardcoded fp
+ * enum ("не от балды"). Save → GLOBAL config with the mandatory confirmation
+ * dialog. Manual slug entry exists ONLY as a degraded fallback when the live
+ * fetch fails (labeled as such).
+ *
+ * Rows render inside a native <scrollbox> (canonical pattern from
+ * dialog-select.tsx: maxHeight + id'd rows + keep-in-view scroll sync) —
+ * overflow is clipped with a visible scrollbar instead of spilling past the
+ * dialog borders (rev 3, 2026-08-31: "Models list out of borders, no
+ * scrollbar").
  */
 
 type Endpoint = {
@@ -45,8 +53,6 @@ type Row =
   | { kind: "quant"; value: string; count: number }
   | { kind: "fallback" }
   | { kind: "save"; label: string }
-
-const VIEWPORT = 14
 
 export function DialogRouting(props: {
   agent?: string
@@ -94,7 +100,6 @@ export function DialogRouting(props: {
   const [quants, setQuants] = createSignal<string[]>([...(currentRouting().quantizations ?? [])])
   const [fallback, setFallback] = createSignal<boolean>(currentRouting().allow_fallbacks !== false)
   const [cursor, setCursor] = createSignal(0)
-  const [offset, setOffset] = createSignal(0)
 
   // Live endpoints fetch (public OpenRouter API — no auth required).
   const [endpoints, setEndpoints] = createSignal<Endpoint[]>([])
@@ -261,14 +266,35 @@ export function DialogRouting(props: {
     ))
   }
 
-  function moveCursor(delta: number) {
+  function moveCursor(delta: number, center = false) {
     const max = rows().length - 1
-    setCursor((c) => {
-      const next = c + delta < 0 ? max : c + delta > max ? 0 : c + delta
-      setOffset((o) => (next < o ? next : next >= o + VIEWPORT ? next - VIEWPORT + 1 : o))
-      return next
-    })
+    setCursor((c) => (c + delta < 0 ? max : c + delta > max ? 0 : c + delta))
+    syncScroll(center)
   }
+
+  // Keep the cursor row inside the scrollbox viewport (canonical pattern:
+  // dialog-select.tsx moveTo). Rows are stable between cursor moves — only the
+  // endpoints load mutates the list — so reading current layout is safe.
+  let scroll: ScrollBoxRenderable | undefined
+  function syncScroll(center = false) {
+    if (!scroll) return
+    const target = scroll.getChildren().find((child) => child.id === `r${cursor()}`)
+    if (!target) return
+    const y = target.y - scroll.y
+    if (center) {
+      scroll.scrollBy(y - Math.floor(scroll.height / 2))
+      return
+    }
+    if (y >= scroll.height) scroll.scrollBy(y - scroll.height + 1)
+    if (y < 0) {
+      scroll.scrollBy(y)
+      if (cursor() === 0) scroll.scrollTo(0)
+    }
+  }
+
+  const dimensions = useTerminalDimensions()
+  const scrollAcceleration = createMemo(() => getScrollAcceleration())
+  const maxHeight = createMemo(() => Math.min(rows().length, Math.floor(dimensions().height / 2) - 6))
 
   useKeyboard((evt) => {
     if (evt.name === "escape") {
@@ -300,8 +326,8 @@ export function DialogRouting(props: {
     }
     if (evt.name === "up") moveCursor(-1)
     else if (evt.name === "down") moveCursor(1)
-    else if (evt.name === "left") moveCursor(-VIEWPORT)
-    else if (evt.name === "right") moveCursor(VIEWPORT)
+    else if (evt.name === "left" || evt.name === "pageup") moveCursor(-10, true)
+    else if (evt.name === "right" || evt.name === "pagedown") moveCursor(10, true)
     else if (evt.name === "space" || evt.name === "return") act(rows()[cursor()])
     else if (evt.name === "r" && error()) void load()
     else if (evt.name === "a" && error() && !evt.ctrl && !evt.meta) setAdding(true)
@@ -341,8 +367,6 @@ export function DialogRouting(props: {
     }
   }
 
-  const visible = createMemo(() => rows().slice(offset(), offset() + VIEWPORT))
-
   return (
     <box paddingLeft={2} paddingRight={2} paddingTop={1} gap={1}>
       <text fg={theme.text} attributes={16}>
@@ -359,40 +383,41 @@ export function DialogRouting(props: {
       <Show when={error() && !loading()}>
         <text fg={theme.error}>{`Endpoints fetch failed: ${error()} — showing saved/manual slugs only (r retry)`}</text>
       </Show>
-      <Show when={offset() > 0}>
-        <text fg={theme.textMuted}>{`··· ${offset()} more above`}</text>
-      </Show>
-      <For each={visible()}>
-        {(row) => {
-          const active = createMemo(() => cursor() === rows().indexOf(row))
-          return (
-            <Show
-              when={row.kind !== "header"}
-              fallback={<text fg={theme.accent} attributes={16}>{rowLabel(row)}</text>}
-            >
-              <box
-                flexDirection="row"
-                gap={1}
-                backgroundColor={active() ? theme.primary : undefined}
-                paddingLeft={active() ? 1 : 2}
+      <scrollbox
+        maxHeight={maxHeight()}
+        scrollAcceleration={scrollAcceleration()}
+        ref={(r: ScrollBoxRenderable) => (scroll = r)}
+      >
+        <For each={rows()}>
+          {(row, i) => {
+            const active = createMemo(() => cursor() === i())
+            return (
+              <Show
+                when={row.kind !== "header"}
+                fallback={<text id={`r${i()}`} fg={theme.accent} attributes={16}>{rowLabel(row)}</text>}
               >
-                <text fg={active() ? theme.background : theme.text} flexShrink={0}>
-                  {marker(row)}
-                </text>
-                <text
-                  fg={active() ? theme.background : row.kind === "save" ? theme.accent : theme.text}
-                  attributes={row.kind === "save" ? 16 : undefined}
+                <box
+                  id={`r${i()}`}
+                  flexDirection="row"
+                  gap={1}
+                  backgroundColor={active() ? theme.primary : undefined}
+                  paddingLeft={active() ? 1 : 2}
                 >
-                  {rowLabel(row)}
-                </text>
-              </box>
-            </Show>
-          )
-        }}
-      </For>
-      <Show when={offset() + VIEWPORT < rows().length}>
-        <text fg={theme.textMuted}>{`··· ${rows().length - offset() - VIEWPORT} more below`}</text>
-      </Show>
+                  <text fg={active() ? theme.background : theme.text} flexShrink={0}>
+                    {marker(row)}
+                  </text>
+                  <text
+                    fg={active() ? theme.background : row.kind === "save" ? theme.accent : theme.text}
+                    attributes={row.kind === "save" ? 16 : undefined}
+                  >
+                    {rowLabel(row)}
+                  </text>
+                </box>
+              </Show>
+            )
+          }}
+        </For>
+      </scrollbox>
     </box>
   )
 }

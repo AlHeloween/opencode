@@ -2,6 +2,7 @@ import { createMemo } from "solid-js"
 import { useLocal, type ModelScope } from "@tui/context/local"
 import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
+import { DialogConfirm } from "./dialog-confirm"
 
 const deepseekThinkingVariant = {
   default: {
@@ -61,6 +62,32 @@ export function DialogVariant(props: { targetAgent?: string; scope?: ModelScope;
   const isDeepSeekV4 = createMemo(() => local.model.current()?.modelID.includes("deepseek-v4") === true)
   const isGlm = createMemo(() => local.model.current()?.modelID.includes("glm") === true)
 
+  function apply(value: string | undefined) {
+    local.model.variant.set(value, props.targetAgent, props.scope)
+    if (props.onDone) props.onDone()
+    else dialog.clear()
+  }
+
+  function choose(value: string | undefined) {
+    // Policy (2026-08-31, Alexander): saving to GLOBAL config requires an
+    // explicit confirmation — the write applies to all projects.
+    if (props.scope === "global" && value !== undefined) {
+      dialog.replace(() => (
+        <DialogConfirm
+          title={`Write variant "${value}" to GLOBAL config?`}
+          description="Applies to all projects — every session starts with this variant"
+          onConfirm={() => apply(value)}
+          onCancel={() => {
+            if (props.onDone) props.onDone()
+            else dialog.clear()
+          }}
+        />
+      ))
+      return
+    }
+    apply(value)
+  }
+
   const options = createMemo(() => {
     const details = isDeepSeekV4() ? deepseekThinkingVariant : isGlm() ? glmThinkingVariant : undefined
     // targetAgent: from the /agents dialog the dialog must reflect the HIGHLIGHTED
@@ -71,11 +98,7 @@ export function DialogVariant(props: { targetAgent?: string; scope?: ModelScope;
         value: "default",
         title: details?.default.title ?? "Default",
         description: details?.default.description ?? "Use model defaults",
-        onSelect: () => {
-          local.model.variant.set(undefined, props.targetAgent, props.scope)
-          if (props.onDone) props.onDone()
-          else dialog.clear()
-        },
+        onSelect: () => choose(undefined),
       },
       ...list.map((variant) => {
         const detail = details?.[variant as keyof typeof deepseekThinkingVariant]
@@ -83,11 +106,7 @@ export function DialogVariant(props: { targetAgent?: string; scope?: ModelScope;
           value: variant,
           title: detail?.title ?? variant,
           description: detail?.description,
-          onSelect: () => {
-            local.model.variant.set(variant, props.targetAgent, props.scope)
-            if (props.onDone) props.onDone()
-            else dialog.clear()
-          },
+          onSelect: () => choose(variant),
         }
       }),
     ]

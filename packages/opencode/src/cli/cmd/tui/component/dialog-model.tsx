@@ -6,6 +6,7 @@ import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
 import { createDialogProviderOptions, DialogProvider } from "./dialog-provider"
 import { DialogVariant } from "./dialog-variant"
+import { DialogConfirm } from "./dialog-confirm"
 import { useKeybind } from "../context/keybind"
 import * as fuzzysort from "fuzzysort"
 import { useConnected } from "./use-connected"
@@ -167,6 +168,27 @@ export function DialogModel(props: {
   })
 
   function onSelect(providerID: string, modelID: string) {
+    const agent = props.targetAgent ?? local.agent.current()?.name
+    // Policy (2026-08-31, Alexander): saving to GLOBAL config requires an
+    // explicit confirmation — the write applies to all projects.
+    if (props.scope === "global") {
+      dialog.replace(() => (
+        <DialogConfirm
+          title={`Write ${providerID}/${modelID} to GLOBAL config?`}
+          description={agent ? `agent: ${agent} · applies to all projects` : "applies to all projects"}
+          onConfirm={() => performSelect(providerID, modelID)}
+          onCancel={() => {
+            if (props.onDone) props.onDone()
+            else dialog.clear()
+          }}
+        />
+      ))
+      return
+    }
+    performSelect(providerID, modelID)
+  }
+
+  function performSelect(providerID: string, modelID: string) {
     const agent = props.targetAgent ?? local.agent.current()?.name
     local.model.set({ providerID, modelID }, { recent: true, agent, scope: props.scope })
     if (agent && canActivateAgent(agent, sync.data.agent)) {

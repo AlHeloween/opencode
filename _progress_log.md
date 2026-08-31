@@ -1,4 +1,18 @@
 # Progress Log
+## 2026-08-31 Global config write (confirm dialog) + Settings plans (inventory/jsonc/interactivity)
+Reason: user policy (04:32–04:42 UTC) — all three config layers editable; global write requires confirmation dialog; all settings files jsonc with `//` comments; any missing/uneditable setting = bug; settings plans with master + subplans and dependent-code refs; verify via explorer + codegraph. Path quiz (04:46): dialog copy must NOT claim `~/.config/opencode` — in this fork `Global.Path.config` is executable-adjacent (AGENTS.md Paths; switching to os.homedir() is a forbidden action).
+Changes:
+- `httpapi/global.ts` — 501 stubs → REAL `configGet`/`configUpdate` handlers → `Config.getGlobal()` (FILE-ONLY read, config.ts:601 — no project-override bleed) / `Config.updateGlobal()` (jsonc-preserving `patchJsonc`, config.ts:466-478/1084; instances invalidated). `ctx.payload as Config.Info` cast (decoded readonly → DeepMutable, config.ts:423 pattern).
+- `local.tsx` — `writeGlobalAgentField(agentName, {model|variant})`: get global → merge `agent[name]` → `sdk.client.global.config.update` → toast with REAL path from `sdk.client.path.get().config`; scope="global" branches in model.set (async write before batch, recents kept) and variant.set (undefined value → honest "cannot clear from TUI" toast — patchJsonc is set-only, documented gap).
+- `dialog-confirm.tsx` (NEW) — generic yes/no; pathless copy (no invented `~/`).
+- `dialog-model.tsx` / `dialog-variant.tsx` — scope="global" branches replace the dialog with DialogConfirm before write (policy: confirmation on global).
+- `dialog-agent.tsx` — global scope label "(confirm on write)" (was "read-only" — stale after this change).
+- `plans/2026-08-31_settings/` — master.md (policy + grouped inventory A–E: config schema fields with config.ts:100-410 refs, env vars, session settings, TUI state, keybinds; gap register = bugs) + 01_global-write.md (IMPLEMENTED) + 02_jsonc-comments.md (PLANNED: sessions loader JSON.parse strictness at session-settings.ts:229-231 = comment crash bug; config.ts:1042-1044 JSON.stringify update loses comments = bug) + 03_settings-dialog.md (PLANNED: registry-driven Settings dialog, mouse+keyboard, ←/→ scope, coverage test "registry ⊇ schema keys" enforcing the missing-setting-is-bug policy).
+Verification:
+- codegraph: patchJsonc/globalConfigFile/Info-schema refs confirmed; `sdk.global.config.get` already consumed by web app (bootstrap.ts:87-102) — endpoint contract pre-designed.
+- explorer agent: **9/9 claims PASS** (sessions strict-parse, lossy config.update, real handlers, writeGlobalAgentField, confirm branches, keybinds config source, schema field presence, env vars, dialog-select mouse handlers).
+- typecheck exit 0 (`20260831T050227Z_eae53937`, re-run `20260831T051306Z_34039a80` after label fix).
+
 ## 2026-08-30 TUI agents/model dialogs: scope picker, variant menu restore, ctrl+t dialog + cursor race fix, capabilities footer
 Reason: user (19:16–19:23 UTC) — (1) /agents must offer a scope choice (global/worktree/session, session default); (2) remove the "less annoying" skip — a sticky "default" sentinel made the reasoning menu vanish permanently for whole agents ("не ясно что выбирается"); (3) ctrl+t must keep the cursor on the cycled row; (4) ctrl+t must OPEN the variant dialog reflecting the highlighted agent's own model; (5) model picker must show capabilities in the footer. "Не сочиняй - проверь код" — every change grounded on exact lines before editing.
 Changes:

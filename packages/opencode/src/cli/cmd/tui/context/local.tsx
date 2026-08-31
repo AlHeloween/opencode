@@ -446,6 +446,38 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         saveAll()
       }
 
+      /** Write an agent model/variant override into the GLOBAL config file
+       * (Global.Path.config/opencode.jsonc — executable-adjacent in this fork,
+       * NOT ~/.config/opencode — AGENTS.md path architecture). Server endpoint
+       * PATCH /global/config → Config.updateGlobal: jsonc-preserving patch
+       * (comments survive), instances invalidated after write. */
+      async function writeGlobalAgentField(agentName: string, field: { model?: string; variant?: string }) {
+        const current = await sdk.client.global.config.get({ throwOnError: true })
+        const config = { ...((current as Record<string, unknown>) ?? {}) } as Record<string, unknown>
+        const agents = { ...((config.agent as Record<string, unknown> | undefined) ?? {}) }
+        const agentConfig = { ...((agents[agentName] as Record<string, unknown> | undefined) ?? {}) }
+        if (field.model !== undefined) agentConfig.model = field.model
+        if (field.variant !== undefined) agentConfig.variant = field.variant
+        agents[agentName] = agentConfig
+        config.agent = agents
+        await sdk.client.global.config.update({ config: config as never }, { throwOnError: true })
+        let where = "opencode.jsonc"
+        try {
+          const paths = (await sdk.client.path.get({}, { throwOnError: true })) as { config?: string }
+          if (paths?.config) where = paths.config
+        } catch (e) {
+          Log.Default.warn("bug: failed to resolve global config path for toast", {
+            error: e instanceof Error ? e.message : String(e),
+          })
+        }
+        toast.show({
+          title: "Global config updated",
+          message: `${agentName}: ${JSON.stringify(field)} — ${where}`,
+          variant: "info",
+          duration: 5000,
+        })
+      }
+
       return {
         forAgent,
         subagentsFor,
@@ -523,6 +555,35 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           this.set(next, { recent: true, agent: a.name })
         },
         set(model: { providerID: string; modelID: string }, options?: { recent?: boolean; agent?: string; scope?: ModelScope }) {
+          if (options?.scope === "global") {
+            // Global write — async via the server endpoint; the TUI shows a
+            // confirmation dialog BEFORE calling set with scope "global".
+            if (!isModelValid(model)) {
+              toast.show({
+                message: `Model ${model.providerID}/${model.modelID} is not valid`,
+                variant: "warning",
+                duration: 3000,
+              })
+              return
+            }
+            const agentName = options?.agent ?? agent.current()?.name
+            if (!agentName) return
+            void writeGlobalAgentField(agentName, { model: `${model.providerID}/${model.modelID}` }).catch((e) =>
+              Log.Default.warn("bug: global config model write failed", {
+                error: e instanceof Error ? e.message : String(e),
+              }),
+            )
+            if (options?.recent) {
+              const uniq = uniqueBy([model, ...modelStore.recent], (x) => `${x.providerID}/${x.modelID}`)
+              if (uniq.length > 10) uniq.pop()
+              setModelStore(
+                "recent",
+                uniq.map((x) => ({ providerID: x.providerID, modelID: x.modelID })),
+              )
+              save()
+            }
+            return
+          }
           batch(() => {
             if (!isModelValid(model)) {
               toast.show({
@@ -534,16 +595,6 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             }
             const agentName = options?.agent ?? agent.current()?.name
             if (!agentName) return
-            if (options?.scope === "global") {
-              // Global (Agent.Info config) has no safe TUI write path yet — see variant.set.
-              toast.show({
-                title: "Global scope is read-only",
-                message: "Edit opencode.jsonc agent.model to change global defaults",
-                variant: "warning",
-                duration: 3000,
-              })
-              return
-            }
             if (options?.agent) {
               const sid = getActiveSessionID()
               const workspace = workspaceModelScope(getActiveWorkspaceID())
@@ -662,14 +713,26 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             if (!m) return
             const agentKey = agentName ?? agent.current()?.name
             if (scope === "global") {
-              // Global (Agent.Info config) has no safe TUI write path yet:
-              // config.update PATCH disposes the instance, global.config.update is a 501 stub.
-              toast.show({
-                title: "Global scope is read-only",
-                message: "Edit opencode.jsonc agent.model/variant to change global defaults",
-                variant: "warning",
-                duration: 3000,
-              })
+              // Global write goes through the server (PATCH /global/config →
+              // Config.updateGlobal — jsonc-preserving). The TUI shows a
+              // confirmation dialog BEFORE reaching this point.
+              if (!agentKey) return
+              if (value === undefined) {
+                // patchJsonc only SETS keys — clearing a global key from the
+                // TUI is not possible without a delete op (documented gap).
+                toast.show({
+                  title: "Cannot clear from TUI",
+                  message: "Global keys merge over defaults — edit the global opencode.jsonc to remove the variant",
+                  variant: "warning",
+                  duration: 4000,
+                })
+                return
+              }
+              void writeGlobalAgentField(agentKey, { variant: value }).catch((e) =>
+                Log.Default.warn("bug: global config variant write failed", {
+                  error: e instanceof Error ? e.message : String(e),
+                }),
+              )
               return
             }
             if (scope === "session") {

@@ -217,7 +217,7 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
 
   return (
     <DialogSelect
-      title={`Agent Configuration — scope: ${scope}${scope === "global" ? " (read-only)" : ""}  (←/→ switch)`}
+      title={`Agent Configuration — scope: ${scope}${scope === "global" ? " (confirm on write)" : ""}  (←/→ switch)`}
       current={local.agent.current()?.name}
       cursorValue={props.restoreValue}
       options={options()}
@@ -305,7 +305,7 @@ function AgentScopeDialog(props: { current: ModelScope; onPick: (scope: ModelSco
     {
       value: "global" as const,
       title: "Global",
-      description: "read-only here — edit opencode.jsonc agent.model/variant",
+      description: "applies to all projects — confirmation dialog on write",
       onSelect: () => props.onPick("global"),
     },
   ]

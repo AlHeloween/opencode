@@ -89,13 +89,32 @@ export const globalHandlers = Layer.unwrap(
       return true
     })
 
+    // Global config is the user-level opencode.jsonc (Global.Path.config —
+    // executable-adjacent in this fork, NOT ~/.config/opencode). getGlobal returns
+    // FILE-ONLY content (config.ts:601) so read→merge→update cannot bleed project
+    // overrides into the global file. updateGlobal patches via jsonc-parser —
+    // existing // comments survive (config.ts:1084).
+    const configGet = Effect.fn("GlobalHttpApi.configGet")(function* () {
+      const configSvc = yield* Config.Service
+      return yield* configSvc.getGlobal()
+    })
+
     return HttpApiBuilder.group(GlobalApi, "global", (handlers) =>
       handlers
         .handle("health", Effect.fn("GlobalHttpApi.health")(() => Effect.succeed({ healthy: true as const, version })))
         .handle("dispose", dispose)
         .handle("event", () => Effect.succeed(HttpServerResponse.empty({ status: 501 })))
-        .handle("configGet", () => Effect.succeed(HttpServerResponse.empty({ status: 501 })))
-        .handle("configUpdate", () => Effect.succeed(HttpServerResponse.empty({ status: 501 })))
+        .handle("configGet", configGet)
+        .handle(
+          "configUpdate",
+          Effect.fn("GlobalHttpApi.configUpdate")(function* (ctx) {
+            const configSvc = yield* Config.Service
+            // Decoded HTTP payload is the raw (readonly) schema type; the service
+            // contract takes DeepMutable Info (config.ts:423) — same write path
+            // as the /config PATCH handler.
+            return yield* configSvc.updateGlobal(ctx.payload as Config.Info)
+          }),
+        )
     )
   }),
 ).pipe(Layer.provide(Config.defaultLayer))

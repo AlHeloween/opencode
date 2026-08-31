@@ -26,6 +26,11 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
   // (2026-08-30, Alexander: explicit scope choice instead of hidden dual writes).
   const scope = props.scope ?? "session"
 
+  // Track the HIGHLIGHTED row so scope switches preserve the cursor even on a
+  // fresh /agents open (restoreValue is undefined until the user clicks a row).
+  // (2026-08-31: cursor jumped to build on ←/→ scope change.)
+  const [lastCursor, setLastCursor] = createSignal<string | undefined>()
+
   // ←/→ cycles the configuration scope directly on the form
   // (2026-08-30, Alexander: arrows must switch global/worktree/session).
   const SCOPE_ORDER: ModelScope[] = ["global", "worktree", "session"]
@@ -33,7 +38,7 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
     const index = SCOPE_ORDER.indexOf(scope)
     const next = SCOPE_ORDER[(index + direction + SCOPE_ORDER.length) % SCOPE_ORDER.length]
     if (!next || next === scope) return
-    dialog.replace(() => <DialogAgent scope={next} restoreValue={props.restoreValue} />)
+    dialog.replace(() => <DialogAgent scope={next} restoreValue={props.restoreValue ?? lastCursor()} />)
   }
 
   // ── All visible non-hidden agents ──
@@ -221,6 +226,7 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
       current={local.agent.current()?.name}
       cursorValue={props.restoreValue}
       options={options()}
+      onMove={(opt: any) => setLastCursor(opt?.value)}
       keybind={[
         {
           title: "Change model",
@@ -265,7 +271,9 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
             dialog.replace(() => (
               <AgentScopeDialog
                 current={scope}
-                onPick={(next) => dialog.replace(() => <DialogAgent scope={next} restoreValue={props.restoreValue} />)}
+                onPick={(next) =>
+                  dialog.replace(() => <DialogAgent scope={next} restoreValue={props.restoreValue ?? lastCursor()} />)
+                }
               />
             ))
           },

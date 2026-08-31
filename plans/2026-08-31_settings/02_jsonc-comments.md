@@ -7,7 +7,7 @@ policy: "Yeah, all setting must have // comments, format jsonc" (Alexander, 2026
 
 ## Abstract
 
-Every settings file must be jsonc and every loader must tolerate `//` comments. Today the loaders are inconsistent: the main config loader uses jsonc-parser (config.ts:13 `import { applyEdits, modify } from "jsonc-parser"`, `ConfigParse.jsonc`), while persisted TUI state files are strict JSON — a user comment would crash them or be silently wiped on rewrite.
+Every settings file must be jsonc and every loader must tolerate `//` comments. Today the loaders are inconsistent: the main config loader uses jsonc-parser (config.ts:13 `import { applyEdits, modify } from "jsonc-parser"`, `ConfigParse.jsonc`), while persisted TUI state files are strict JSON — the jsonc FORMAT is fine, but these loaders use `JSON.parse`, which REJECTS comments: the throw is caught, settings come back null, and the next save rewrites the file without them (silent loss, not a crash — wording corrected 05:45 UTC per Alexander's challenge).
 
 ## Current loader matrix (dependent code)
 
@@ -15,7 +15,7 @@ Every settings file must be jsonc and every loader must tolerate `//` comments. 
 |---|---|---|---|---|
 | `Global.Path.config/opencode.jsonc` | jsonc | `loadGlobal`/`readConfigFile` (config.ts:145+ gateway variant; config Parse jsonc) | ✅ | ✅ `patchJsonc` (config.ts:466-478, 1084) |
 | project `opencode.json(c)` / `config.json` | jsonc | `loadFile` → ConfigParse | ✅ | ⚠️ `Config.update` writes plain `JSON.stringify` (config.ts:1042-1044) — comments LOST on update — **BUG** |
-| `sessions/{sid}.jsonc` | jsonc-named | strict `JSON.parse` (session-settings.ts:229-231 — comment says "jsonc-parser not needed") | ❌ **crash on comment** — BUG | ❌ writeJson (session-settings.ts:310) |
+| `sessions/{sid}.jsonc` | jsonc-named | strict `JSON.parse` (session-settings.ts:229-231 — comment says "jsonc-parser not needed") | ❌ comments REJECTED: JSON.parse throws SyntaxError → caught (:232-238) → settings silently null → next save overwrites the file (comment + settings wiped) — BUG | ❌ writeJson (session-settings.ts:310) |
 | `model.json` (worktree state) | strict JSON | `Filesystem.readJson` (local.tsx:273) | ❌ | ❌ |
 | auth / encrypted global mirror | encrypted JSON | EncryptedJsonStorage (config.ts:512-530) | n/a (machine-managed) | n/a |
 

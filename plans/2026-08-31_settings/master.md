@@ -75,7 +75,7 @@ policy_author: Alexander (2026-08-31, 04:32–04:42 UTC)
 ### C. Session settings (session-settings.ts)
 
 `agent[name].{model,variant,subagents}`, `recent`, `favorite`, `variant`, `agentVariant` — session layer. Dependent code: local.tsx (full model/variant plumbing), task.ts/pipeline.ts (`resolveAgentModel`/`resolveAgentVariant`, session-settings.ts:157-203).
-**Gap (jsonc):** file is named `.jsonc` but parsed with strict `JSON.parse` (session-settings.ts:229-231) — `//` comments would CRASH the loader. **BUG per policy** → subplan 02.
+**Gap (jsonc):** file is named `.jsonc` but parsed with strict `JSON.parse` (session-settings.ts:229-231) — `//` comments are REJECTED (SyntaxError → caught → settings silently discarded; next save overwrites the file). **BUG per policy** → subplan 02.
 
 ### D. TUI persisted state (worktree layer)
 

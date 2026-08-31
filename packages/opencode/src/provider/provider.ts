@@ -1802,9 +1802,11 @@ export function openRouterRouting(options?: Record<string, any>): Record<string,
  *  neither agent-level (agent.<name>.options.routing — llm.ts threads it
  *  per-stream) nor config-level (provider.openrouter[.models.<id>].options.routing)
  *  routing is set. (2026-08-31, Alexander: DeepSeek v4 Flash builds must route
- *  StreamLake first — StreamLake declares its quantization explicitly.) */
+ *  StreamLake first — StreamLake declares its quantization explicitly. Slug is
+ *  the API-confirmed tag base "streamlake" (live tag: streamlake/fp8), not the
+ *  display name "StreamLake".) */
 const OPENROUTER_ROUTING_DEFAULTS: { match: string; routing: Record<string, unknown> }[] = [
-  { match: "deepseek-v4-flash", routing: { order: ["StreamLake"] } },
+  { match: "deepseek-v4-flash", routing: { order: ["streamlake"] } },
 ]
 
 export function openRouterRoutingDefaults(modelID: string): Record<string, unknown> | undefined {

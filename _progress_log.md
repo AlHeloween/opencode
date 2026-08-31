@@ -1,4 +1,14 @@
 # Progress Log
+## 2026-08-31 Routing dialog rev 2 — LIVE OpenRouter endpoints (not free-form slugs) + scroll viewport + derived quantizations
+Reason: user (16:36 UTC) — "Выбор inference point не реальные для конкретно выбранной модели а вообще. Ты должен был сделать нормальный список со скролом и выбор галками и fp precission должен значится из списка, а не от балды." Last reminder before the full dev cycle.
+Changes:
+- `dialog-routing.tsx` — REWRITTEN: data source = `GET https://openrouter.ai/api/v1/models/{author}/{slug}/endpoints` (PUBLIC, no auth; verified live on deepseek-chat-v3.1 + deepseek-v4-flash). Provider rows = REAL endpoints of the SELECTED model grouped by tag base slug (`streamlake/fp8` → `streamlake`), sorted healthy → uptime → price, showing name · slug · quants · ctx · $/M in · uptime; degraded (status<0) marked. Scrollable viewport (14 rows, `··· N more above/below`, ↑/↓ move ←/→ page). SPACE checkbox toggle; selection sequence = order priority. Saved-config slugs missing from live list stay visible/deselectable («saved») — save never silently drops them. QUANTIZATIONS section DERIVED from live endpoints (value + endpoint count) — hardcoded fp4..int8 enum REMOVED. Degraded mode: fetch fail → error + `r` retry; `a` manual entry ONLY there (labeled manual). Save path unchanged (global + DialogConfirm; agent scope → writeGlobalAgentField routing, model scope → setProviderRouting).
+- `provider.ts` — OPENROUTER_ROUTING_DEFAULTS slug fixed: `"StreamLake"` (display-name casing, unproven) → `"streamlake"` (API-confirmed tag base from live `streamlake/fp8`); plan 04 example updated.
+- `plans/2026-08-31_settings/04_routing.md` — rev 2: state IMPLEMENTED, dialog contract rewritten around live endpoints, API contract recorded, test cases updated.
+Script Output:
+- typecheck exit 0 (`20260831T164617Z_6b2f0f9c`; first cmd_runner run logged to C:\WINDOWS\logs — workdir artifact, rerun with repo-root --cwd).
+- OpenRouter endpoints API verified live: payload shape {provider_name, tag, quantization, status, uptime_last_30m, pricing.prompt, context_length}; deepseek-v4-flash → 17 endpoints, quantizations {fp8, fp4, unknown}.
+
 ## 2026-08-31 glob/grep transparency fix — gitignore-hidden matches are REPORTED, not silent
 Reason: user (07:51–07:57 UTC) — recurring x100 failure: glob on build output (dist/bin) returns bare "No files found" because dist/ is gitignored, sending the agent into archaeology; "апологизи works только если это фиксится". Mechanism fix, not words.
 Changes:

@@ -377,12 +377,17 @@ def test_schema_refs_resolve():
         f"reasoning.mdc has {len(orphan_markers)} unresolved @schema: marker(s): {orphan_markers}"
     )
 
-    # 3. All @schema: refs produce a corresponding tagged heading in the assembled output.
-    #    The assembly pipeline injects full YAML from core_schemas.yaml via _section_to_comment_lines,
-    #    which produces "## {name} (@{tag})" headings. Resolve expected tags from the YAML itself.
+    # 3. All @schema: refs produce a corresponding heading in the assembled output.
+    #    The assembly pipeline injects full YAML from core_schemas.yaml via _section_to_comment_lines.
+    #    Heading declares its anchor by title (bare "## TAG"); parens "(@TAG)" appear
+    #    only when the display title differs from the tag. Resolve expected tags from the YAML itself.
     resolved_tags = set()
-    for m in re.finditer(r"^## (\w+(?:\s+\w+)*)\s+\(@(\w+)\)", assembled, re.MULTILINE):
-        resolved_tags.add(m.group(2))  # group(2) = tag name, e.g. ACTION_CLASS
+    for m in re.finditer(
+        r"^## ([A-Za-z_0-9]+(?:\s+[A-Za-z_0-9]+)*?)(?:\s+\(@([A-Z][A-Z_0-9]*)\))?\s*$",
+        assembled,
+        re.MULTILINE,
+    ):
+        resolved_tags.add(m.group(2) or m.group(1).upper().replace(" ", "_"))
     # Derive expected tags from YAML: for each @schema: ref, look up the tag field
     expected_tags = set()
     for ref in all_refs:

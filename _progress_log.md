@@ -1,4 +1,19 @@
 # Progress Log
+## 2026-09-01 Kernel tautology fix — headings no longer declare+reference themselves (commit ee7a8c16a5)
+Reason: user (01:09–01:18 UTC) — «объявление и реф на него одновременно это не правильно… И тут же забил». My 2026-08-31 «масло-масляное» ack was misread as output-format feedback; the actual defect was IN the kernel file: 51 headings of the form `## X (@X)` (declaration + self-reference in one line). «Поехали» authorized THIS fix; I instead executed the pre-existing assembly plan and treated the kernel fix as done — process failure, closed here.
+Changes:
+- `_assemble_prompts_kernel.py` — `_tagged_header()`: parens `(@TAG)` only when display title ≠ tag; `resolve_def_refs` emits bare `### {name}`.
+- `28_runtime_render.py` — `_render_compact_spec`: `## {name}` (spec id declares itself).
+- `reasoning/{00_map,00b_schemas,00c_algorithms,05_epistemic}.txt` — 15 literal tautological headings stripped.
+- `tools/dictionary.py` — `_extract_tag`: explicit `(@TAG)` OR bare ALL-CAPS title (prose titles stay non-entries).
+- `tests/test_prompt_schema.py` — schema-resolution regex accepts bare titles (tag = parens or normalized title).
+- `_kernel_precompiled.py` regenerated; production `reasoning_prompt.txt` promoted (changes by design; KV-cache checkpoint refresh accepted).
+Script Output:
+- artifact: 51 tautologies → 0; only 3 legit title≠anchor parens remain (Identities/Schemas/Algorithms).
+- refcheck: 84/84 resolved, 0 unresolved (refs 109→84 = 25 fake self-refs removed with the parens); anchors 147 intact.
+- dictionary: 109 entries, same breakdown 37/7/5/1/47/12 (mid-oracle catch: first run 60 — parser keyed ids off parens only; fixed).
+- pytest 490 passed; dist == production (DIFF_EMPTY); ROOT OF TRUTH = 1; semantic_map gated chain 109 entries.
+
 ## 2026-08-31 Kernel assembly re-verification — supremacy dedup folded into pipeline (commit de98a47ea4)
 Reason: plan `2026-08-27_kernel-assembly-reverification.md` (user: «Поехали») — manual dedup `1aeb256635` lived only in production txt; rebuild would resurrect the duplicate. Rev 2 grounded the plan against the tree and found: (a) `_kernel_precompiled.py` is live-first (`__init__.py:132`) and carries the same dup — source-only fix ineffective; (b) rev-1 T4 oracle had fabricated provenance (delta 25–32 "AGENTS.md" — nowhere in repo; 27.76 is a print string); (c) refcheck targeted a nonexistent production `.mdc`.
 Changes:

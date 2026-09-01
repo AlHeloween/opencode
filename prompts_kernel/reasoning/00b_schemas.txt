@@ -1,6 +1,6 @@
 ## Schemas (@SCHEMA)
 
-## DOMAIN_SOURCES (@DOMAIN_SOURCES)
+## DOMAIN_SOURCES
 rule: check domain authority before universalsearch
 physics: [arXiv, INSPEC, IOPscience, APS_Journals, NASA_ADS]
 biology: [PubMed, BioRxiv, GenBank, NCBI_Taxonomy]

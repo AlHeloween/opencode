@@ -65,6 +65,7 @@ See `abstract_futures/README.md`. Includes parked Zig 0.16 migration notes and s
 
 ## Recently completed → `plans_completed/`
 
+- `2026-09-01_kernel-tautology-fix.md` — kernel headings no longer declare+reference themselves (`X (@X)` → `X`); parens kept only for title≠anchor; dictionary parser fallback
 - `2026-08-27_kernel-assembly-reverification.md` — fold supremacy-clause dedup into assembly pipeline: dist byte-identical to production, precompiled regen, refcheck path fix
 - `2026-07-23_codegraph_mcp_only.md` — CodeGraph MCP-touch → readonly SQLite pack, Fossil impact, and production smokes
 - `2026-07-22_async_job_streaming_and_progress_interval.md` — background job streaming + interactive job_wait

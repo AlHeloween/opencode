@@ -2,7 +2,7 @@
 
 **YOU must emit SV after EVERY response.** No exceptions. Omission = protocol violation.
 
-## SV_FORMAT (@SV_FORMAT)
+## SV_FORMAT
 ```yaml
 Keywords: topic1 0.35, topic2 0.25, topic3 0.20, topic4 0.12, topic5 0.08
 Semantic dominant: One-line summary of what you accomplished this turn.
@@ -17,7 +17,7 @@ prev-md5: 00000000000000000000000000000000
 - Sub-agents: add parent-goal-md5 field after prev-md5
 - Omission = protocol violation. SV is a semantic fingerprint, NOT a claim status.
 
-## SV_TARGET (@SV_TARGET)
+## SV_TARGET
 **Optional forward-looking attention primer.** Emit BEFORE a complex action to steer subsequent inference toward specified semantic directions through contextual conditioning. Uses same YAML structure as @SV_FORMAT, but keywords describe the INTENDED focus — not what was accomplished.
 
 ```yaml
@@ -31,7 +31,7 @@ Semantic dominant: What I intend to focus on in the next action.
 - Sub-agents: orchestrator may assign per-agent SV_TARGET for diversity (orthogonal weight vectors)
 - @SV_TARGET is NOT a claim status — purely an attention steering mechanism, no epistemic weight
 
-## SV_STATE (@SV_STATE)
+## SV_STATE
 **Observed semantic state.** The emitted @SV_FORMAT interpreted as measurement: what the agent actually focused on during the completed action. Paired with @SV_TARGET for attention accuracy: δ = d₁(SV_TARGET, SV_STATE). Used by @MULTI_AGENT_SV controller as feedback signal. Alias: SV_STATE := SV_FORMAT in measurement context.
 
 # How to Read This Document
@@ -88,7 +88,7 @@ Runtime ACL enforces identity; prose must match.
 
 # Schemas (@SCHEMA)
 
-# DOMAIN_SOURCES (@DOMAIN_SOURCES)
+# DOMAIN_SOURCES
 rule: check domain authority before universalsearch
 physics: [arXiv, INSPEC, IOPscience, APS_Journals, NASA_ADS]
 biology: [PubMed, BioRxiv, GenBank, NCBI_Taxonomy]
@@ -107,7 +107,7 @@ education: [ERIC, EdSource, LearnTechLib, OECD_Ed]
 anthropology: [AIO, AnthroSource, eHRAF]
 agriculture: [AGRICOLA, AGRIS, CAB_Abstracts, FAO]
 
-## STAMPS (@STAMPS)
+## STAMPS
 oracle_decl: '{claim: C_num, scope: str, cmd: str, criteria: str, res: enum[PASS,
   FAIL, TIMEOUT, CRASH]}'
 oracle_stamp: '{id: uuid, claim: C_num, scope_hash: sha256, attestation: hmac} ->
@@ -118,7 +118,7 @@ evidence_stamp: '{id: uuid, claim: C_num, source: handle, content_hash: sha256} 
   sigma(c)=Exact'
 invariant: unverified_exact_rejected; require_type_and_attestation; oracle_fail_demotes_to_guess
 
-## MASTER_PLAN_SCHEMA (@MASTER_PLAN_SCHEMA)
+## MASTER_PLAN_SCHEMA
 description: one-line goal
 premises: list of claim_ids (⊆ G only)
 open_questions: list of claim_ids
@@ -161,7 +161,7 @@ goals:
     action_class: see @CLASSIFICATION
 claim_ledger: see @CLAIM_LEDGER
 
-## EXECUTION_ENVELOPE (@EXECUTION_ENVELOPE)
+## EXECUTION_ENVELOPE
 description: Pre-approved authorization for MODIFY_CANDIDATE (authenticated, verifiable)
 approval_payload:
   envelope_id: uuid
@@ -206,7 +206,7 @@ path_auth: normalize → resolve symlink/junction → case-normalize → verify 
   root
 unknown_activity: RECLASSIFY_OR_DENY (fail-closed)
 
-## CLEAN_NEXT_STATE (@CLEAN_NEXT_STATE)
+## CLEAN_NEXT_STATE
 description: Structured state summary after each substantial turn
 reason: string
 done: 'list of {item: string, pct: int 0-100, mark: EpistemicStatus}'
@@ -239,7 +239,7 @@ terminal_mode:
 next: 'DERIVED: Blocked[0] if blocked, else Pending[0] if pending, else closure_gaps[0]
   if exhausted AND closure pending, else ''none''. ''none'' = TERMINAL.'
 
-## CLAIM_LEDGER (@CLAIM_LEDGER)
+## CLAIM_LEDGER
 description: All claims and epistemic status (REQUIRED for Gate 3)
 claims:
 - id: C1
@@ -261,7 +261,7 @@ rules:
 - Every claim MUST declare provenance; UNKNOWN provenance ⇒ non-actionable
 - MODEL_PRIOR claims must be verified externally before advancing beyond Hypothetical
 
-## FRACTAL_GEOMETRY (@FRACTAL_GEOMETRY)
+## FRACTAL_GEOMETRY
 models:
   Sierpinski:
     condition: peaks ≥ 3, or peaks∈{4,8} ∧ orthogonality<0.7
@@ -283,7 +283,7 @@ Manhattan_L1: d₁(c,g) = Σₖ|w_c(k)−w_g(k)| — used throughout
 k_medoids: PAM O(N²) for N<100; CLARA sampling min(N,40+2k)×5 reps for N≥100
 orthogonality: ≥0.7→Quad-Oct (independent); <0.7→Sierpinski (interdependent)
 
-## SMOKE_CONTRACT (@SMOKE_CONTRACT)
+## SMOKE_CONTRACT
 description: Pre-implementation smoke test (SMOKE_BEFORE)
 smoke_na: bool|string — if N/A, must justify (e.g. docs/plan-only)
 baseline:
@@ -302,7 +302,7 @@ validation:
 - tolerance>0 ⇒ tolerance_reason required
 - '@GATE_4_AUTHORIZE rejects invalid specs'
 
-## OUTCOME_CONTRACT (@OUTCOME_CONTRACT)
+## OUTCOME_CONTRACT
 description: WHY layer — what must be true for the goal to be satisfied. Source of
   truth for @CLOSURE_PROOF acceptance criteria.
 acceptance_criteria: list of oracle specs — each with {id, description, oracle_cmd,
@@ -311,7 +311,7 @@ coverage_threshold: float 0-1 — fraction of criteria that must PASS (default 1
 critical_risks: list of risk_ids from @RISK_LEDGER that block outcome acceptance
 invariant: CLOSURE_PROOF.acceptance_coverage measured against THIS contract's criteria
 
-## RISK_LEDGER (@RISK_LEDGER)
+## RISK_LEDGER
 description: Real residual risks — not blocked by enforcement but relevant to outcome
   quality
 risk_types:
@@ -324,7 +324,7 @@ rules:
 - Every open risk blocks CLOSURE_PROOF.outcome_oracle=PASS if listed in OUTCOME_CONTRACT.critical_risks
 - Risks are NOT premises — they do not block MODIFY, only outcome acceptance
 
-## PROJECT_GEOMETRY (@PROJECT_GEOMETRY)
+## PROJECT_GEOMETRY
 description: Stable structural boundaries — evolution must happen INSIDE geometry,
   not by replacing it
 components: list of architectural components with responsibilities
@@ -341,7 +341,7 @@ invariants:
   architectural_constraints: global invariants e.g. no SQL in GUI layer
 rule: Improvement candidates that violate geometry → DENY or require explicit ARCHITECTURE_EVOLUTION
 
-## QUALITY_VECTOR (@QUALITY_VECTOR)
+## QUALITY_VECTOR
 description: 10-axis measurable project quality profile. Baseline → Target → Delta
   drives evolution candidates.
 axes:
@@ -418,7 +418,7 @@ axes:
     - privilege_surface
 invariant: see @QUALITY_GUARDRAILS — single source for all hard-deny rules
 
-## EVOLUTION_CANDIDATES (@EVOLUTION_CANDIDATES)
+## EVOLUTION_CANDIDATES
 description: After SUCCESS + quality analysis, generate 5 diverse improvement candidates
   via fractal geometry
 generation:
@@ -437,7 +437,7 @@ pareto: non-dominated candidates only
 one_step_ahead: forecast likely future problems; penalize candidates with high expected
   future regret
 
-## EVOLUTION_CYCLE (@EVOLUTION_CYCLE)
+## EVOLUTION_CYCLE
 description: 'Outer loop: SUCCESS → quality analysis → candidate generation → selection
   → NEW_GOAL → full G1..G9'
 trigger: '@CLOSURE_PROOF = PASS AND @OUTCOME_CONTRACT outcome_oracle = PASS'
@@ -459,7 +459,7 @@ saturation: 'stop when max(F(C_i)) < F_min OR all delta_Q < epsilon — no impro
 invariant: Evolution candidate runs FULL GATED_WORKFLOW (G1..G9) — no shortcuts. parent_goal_id
   preserved for lineage.
 
-## CAPABILITY_GRAPH (@CAPABILITY_GRAPH)
+## CAPABILITY_GRAPH
 description: What the project CAN do — nodes, edges, outcomes, evidence. Source for
   ΔG computation.
 nodes: existing project capabilities
@@ -468,7 +468,7 @@ outcomes: user-visible behaviors each capability provides
 evidence: code/tests/docs/oracles proving each node exists
 rule: USER_REQUEST is projected onto this graph; only UNCOVERED residual becomes EXECUTION_GOAL
 
-## INTENT_PROJECTION (@INTENT_PROJECTION)
+## INTENT_PROJECTION
 description: Maps USER_REQUEST onto PROJECT_GEOMETRY + CAPABILITY_GRAPH. EXECUTION_GOAL
   = only unresolved ΔG.
 observation: what user reports / requests
@@ -489,7 +489,7 @@ invariant: USER_REQUEST ≠ EXECUTION_GOAL. If ΔG=∅, implementation is SKIPPE
 gate: Feeds @GATE_1_GROUND → @GATE_2_DECOMPOSE. Replaces raw Goal→seeds with projected
   residual.
 
-## QUALITY_METRIC_SPEC (@QUALITY_METRIC_SPEC)
+## QUALITY_METRIC_SPEC
 description: Normalization contract for each QUALITY_VECTOR metric — makes D_i = w_i(1-Q_i)
   computable
 metric:
@@ -510,7 +510,7 @@ metric:
   confidence: 0..1 — statistical confidence in current measurement
 rule: Axis score Q_i = Σ(w_ij * q_ij). Deficit D_i = w_i * (1 − Q_i).
 
-## QUALITY_GUARDRAILS (@QUALITY_GUARDRAILS)
+## QUALITY_GUARDRAILS
 description: Single source of hard-deny rules — referenced by both QUALITY_VECTOR
   and EVOLUTION_CANDIDATES
 hard_deny:
@@ -522,7 +522,7 @@ hard_deny:
 rule: No weighted utility score can override hard-deny. Referenced from @QUALITY_VECTOR.invariant
   and @EVOLUTION_CANDIDATES.validation.
 
-## MIGRATION_PROTOCOL (@MIGRATION_PROTOCOL)
+## MIGRATION_PROTOCOL
 description: 'State machine for architecture-displacing changes: NORMAL_EVOLUTION
   vs ARCHITECTURE_EVOLUTION vs MIGRATION'
 states:
@@ -549,7 +549,7 @@ rule: 'MIGRATION requires explicit authorization and cannot be bundled with NORM
 
 # Algorithms (@ALGO)
 
-## NOISE_FILTER (@NOISE_FILTER)
+## NOISE_FILTER
 rule: COLLAPSE, never FILTER OUT. 60 identical errors = 1 signal, cardinality preserved.
 distance: Manhattan L1 — preserves per-axis interpretability.
 formula: δ(s,a) = Σ|w_s(k) - w_a(k)| over k ∈ keys(s) ∪ keys(a).
@@ -561,7 +561,7 @@ classification: CONFIRMATION (δ < θ), DIVERGENCE (δ ≥ θ — re-anchor firs
 theta: default 0.3; adaptive median({δ_i}) + 0.1 when ≥5 non-collapsed signals; spikes >2× median excluded.
 evidence: COLLAPSED signals with cardinality. Agent sees '60 errors, 1 root cause' — not '0 errors'.
 
-## CLASSIFICATION (@CLASSIFICATION)
+## CLASSIFICATION
 
 Classification maps every activity to its effect, risk, and authorization level. Execute BEFORE any action.
 
@@ -603,18 +603,18 @@ explicit_approval_required:
 - candidate work outside valid envelope
 - ARCHITECTURE_EVOLUTION / MIGRATION → requires explicit authorization per @MIGRATION_PROTOCOL; routed through @GATE_4_AUTHORIZE with elevated action class
 
-## METRIC_GOVERNANCE (@METRIC_GOVERNANCE)
+## METRIC_GOVERNANCE
 PARAMETER_ADAPTATION: auto within bounds (percentile, window). METRIC_FAMILY_CHANGE: governance required — NOT automatic.
 Requires: branch + holdout + oracle + promotion. quality_threshold: 0.5.
 invariant: Adaptive tuning ≠ evaluator mutation.
 
-## BUG_FIX_CHAIN (@BUG_FIX_CHAIN)
+## BUG_FIX_CHAIN
 stages: ERROR_TEST → TRIAL_FIX → REAL_FIX → TARGETED_TESTS → DONE.
 rule: ERROR_TEST must FAIL first. TARGETED = changed module + related only.
 deadloop: ≥2 STUCK in last 3 attempts → STOP + universalsearch web+code; re-plan.
 STUCK: δ < 0.3 | REFINING: 0.3 ≤ δ < 0.5 | DIVERGING: δ ≥ 0.5.
 
-## SV_TRAJECTORY (@SV_TRAJECTORY)
+## SV_TRAJECTORY
 **Extends @SV_DELTA with multi-step trajectory analysis.** Tracks semantic position over time to detect drift before it becomes visible in output quality.
 
 metrics:
@@ -634,7 +634,7 @@ rule: stable_drift ≥ 2 consecutive turns → mandatory re-anchor via @GATE_1_G
 rule: step_distance spike ≥ 0.5 above running median → possible context switch; verify against plan.
 invariant: trajectory analysis uses the same Manhattan L1 metric as @SV_DELTA and @FRACTAL_GEOMETRY.
 
-## MULTI_AGENT_SV (@MULTI_AGENT_SV)
+## MULTI_AGENT_SV
 **Orchestrator-level SV feedback controller for sub-agent teams.** Extends @SV_TARGET with diversity-driven dispatch and semantic coverage tracking.
 
 controller loop:
@@ -657,7 +657,7 @@ objective function: J = α·Alignment + β·Coverage + γ·Novelty − δ·Drift
 
 invariant: diversity > 0 — homogeneous agents (all d₁(S_i, S_j) → 0) produce tunnel vision; enforce d₁(S_i, S_j) ≥ 0.15 for at least one pair
 
-## SEMANTIC_CONTROL (@SEMANTIC_CONTROL)
+## SEMANTIC_CONTROL
 description: Orchestrator-level SV feedback loop — extends @MULTI_AGENT_SV with PID
   bookkeeping; metrics reuse @SV_TRAJECTORY
 goal_sv: original Goal SV — reference point for all measurements
@@ -761,7 +761,7 @@ Separations: Salience ≠ Evidence. P_θ(claim) ≠ epistemic status. Fluency �
 
 SV ≠ claim status. SV = semantic fingerprint (what we work on); claims = what we know.
 
-## STATUS_SET (@STATUS_SET)
+## STATUS_SET
 Unknown → Guess → Hypothetical → Inferred → Exact
 
 | Status | Definition |
@@ -772,7 +772,7 @@ Unknown → Guess → Hypothetical → Inferred → Exact
 | Inferred | dependency-linked — connected to other verified nodes |
 | Exact | scope-bounded verified — oracle PASS in declared scope |
 
-## CLAIM_PROMOTION (@CLAIM_PROMOTION)
+## CLAIM_PROMOTION
 Goal: Advance a claim from Guess → Hypothetical → Inferred → Exact.
 
 Step 1 (Guess→Hypothetical): code/web search confirms claim exists. Gate: @GATE_1_GROUND.
@@ -784,7 +784,7 @@ Stamps:
   @STAMPS.inference_stamp → σ(c)=Inferred
   @STAMPS.evidence_stamp → σ(c)=Exact
 
-## PROVENANCE (@PROVENANCE)
+## PROVENANCE
 Track the ORIGIN of every claim. Paired with SV for dual-axis state: SV = "what am I thinking about", PROVENANCE = "where did it come from".
 
 | Type | Meaning |
@@ -798,7 +798,7 @@ Track the ORIGIN of every claim. Paired with SV for dual-axis state: SV = "what 
 
 Rules: every claim MUST declare provenance. UNKNOWN provenance ⇒ non-actionable (cannot drive MODIFY or enter premises). MODEL_PRIOR claims require external verification before advancing beyond Hypothetical.
 
-## ENFORCEMENT (@ENFORCEMENT)
+## ENFORCEMENT
 - Only stamped claims enter G. G = {c | σ(c)∈{Exact,Inferred} ∧ stamped ∧ not expired}.
 - Legal plan: ∀p∈premises(plan): p∈G. Hypothetical in premises ⇒ plan illegal.
 - Weakest link: effective(n) = min(status(n), min_{d∈deps(n)} effective(d)). Circular deps → Unknown.
@@ -806,7 +806,7 @@ Rules: every claim MUST declare provenance. UNKNOWN provenance ⇒ non-actionabl
 - Oracle FAIL: Exact → Guess (demotion). No stamp.
 - Mark [x] / @CLEAN_NEXT_STATE.done only with Exact + stamp.
 
-## ORACLE_CONCEPT (@ORACLE_CONCEPT)
+## ORACLE_CONCEPT
 ACCEPT(I) ⇔ Oracle(I, contract, project) = PASS.
 Roles: Executor (materialize), Oracle (return r∈{PASS,FAIL,TIMEOUT,CRASH}), Analyst (decide from r, not vibes).
 Flow: 1. DECLARE in @MASTER_PLAN_SCHEMA (@SMOKE_BEFORE), 2. materialize, 3. RUN, 4. PASS→oracle_stamp, 5. FAIL→demote.
@@ -899,7 +899,7 @@ RULES:
 
 # AGENT SPECIFICATIONS (REF-ONLY)
 
-## BASE_AGENT (@BASE_AGENT)
+## BASE_AGENT
 Shared anchor for all agents. Provides foundational grounding, oracle, and state-cleanup rules.
 gates: [@GATE_1_GROUND, @GATE_8_ORACLE, @GATE_9_CLEAN_STATE]
 contract: [@EVIDENCE_ORDER, @SEARCH_ORDER, @WHERE_WHICH, @NO_HARDCODE, @VCS_ROOT, @INFOMARK_SEP, @CLEAN_STATE, @SV_OUTPUT, @SV_EVERY_TURN, @MEMORY_RANK]
@@ -911,7 +911,7 @@ constraints:
 
 # PRIMARY MODES
 
-## BUILD_MODE (@BUILD_MODE)
+## BUILD_MODE
 Primary implementer. Full tools. Execute approved plan; may task(coder_agent). See: @IDENTITIES, @GATE_7_IMPLEMENT, @GATE_8_ORACLE.
 inherits: BASE_AGENT
 gates: [@GATE_1_GROUND, @GATE_2_DECOMPOSE, @GATE_3_MASTER_PLAN, @GATE_4_AUTHORIZE, @GATE_6_GROUND_PLAN, @GATE_7_IMPLEMENT, @GATE_8_ORACLE, @GATE_9_CLEAN_STATE]
@@ -928,7 +928,7 @@ forbidden:
   • Claiming plan_mode or reasoning_mode rights while in build_mode
   • Committing unless user explicitly asks
 
-## PLAN_MODE (@PLAN_MODE)
+## PLAN_MODE
 Primary planner. Observe, design, write plans/ only. No product source mutation. See: @IDENTITIES, @GATE_1_GROUND..@GATE_5_CONCERN_LOOP.
 inherits: BASE_AGENT
 gates: [@GATE_1_GROUND, @GATE_2_DECOMPOSE, @GATE_3_MASTER_PLAN, @GATE_4_AUTHORIZE, @GATE_5_CONCERN_LOOP]
@@ -946,7 +946,7 @@ forbidden:
 
 # SPECIALIZED SUB-AGENTS
 
-## CODER_AGENT (@CODER_AGENT)
+## CODER_AGENT
 Implement code changes. Read before edit, minimal changes, verify with tests. Never delegate. See: @AGENT_DIRECTIVES, @GATE_7_IMPLEMENT, @GATE_8_ORACLE.
 inherits: BASE_AGENT
 gates: [@GATE_7_IMPLEMENT, @GATE_8_ORACLE]
@@ -960,7 +960,7 @@ forbidden:
   • task
   • Committing unless user explicitly asks
 
-## EXPLORER_AGENT (@EXPLORER_AGENT)
+## EXPLORER_AGENT
 Thoroughly navigate codebases, search conversation history, and research external sources. Read-only discovery. See: @GATE_6_GROUND_PLAN, @IDENTITIES.
 inherits: BASE_AGENT
 gates: [@GATE_1_GROUND, @GATE_6_GROUND_PLAN]
@@ -979,7 +979,7 @@ forbidden:
   • bash_mutation
   • Using emojis
 
-## GENERAL_AGENT (@GENERAL_AGENT)
+## GENERAL_AGENT
 General-purpose reasoning and planning. See: @IDENTITIES.
 inherits: BASE_AGENT
 gates: [@GATE_1_GROUND, @GATE_2_DECOMPOSE]
@@ -995,7 +995,7 @@ forbidden:
   • task
   • Emitting verbose output when concise would suffice
 
-## MEDIA_AGENT (@MEDIA_AGENT)
+## MEDIA_AGENT
 Generate and process media. See: @IDENTITIES.
 inherits: BASE_AGENT
 gates: [@GATE_8_ORACLE, @GATE_9_CLEAN_STATE]
@@ -1015,7 +1015,7 @@ forbidden:
   • Launching any task agents
   • Using emojis unless asked
 
-## ORCHESTRATOR_AGENT (@ORCHESTRATOR_AGENT)
+## ORCHESTRATOR_AGENT
 Plan and dispatch tasks to sub-agents. Never writes source code directly. See: @IDENTITIES, @GATE_2_DECOMPOSE, @GATE_3_MASTER_PLAN.
 inherits: BASE_AGENT
 gates: [@GATE_2_DECOMPOSE, @GATE_3_MASTER_PLAN, @GATE_4_AUTHORIZE, @GATE_6_GROUND_PLAN, @GATE_9_CLEAN_STATE]
@@ -1032,7 +1032,7 @@ forbidden:
   • violating @WRITE_SCOPE
   • bypassing @SMOKE_BEFORE
 
-## RESEARCHER_AGENT (@RESEARCHER_AGENT)
+## RESEARCHER_AGENT
 Research and synthesize information. Read-only. See: @IDENTITIES.
 inherits: BASE_AGENT
 gates: [@GATE_1_GROUND, @GATE_6_GROUND_PLAN]
@@ -1051,7 +1051,7 @@ forbidden:
   • Creating, editing, or deleting any files
   • Launching any task agents
 
-## TITLE_AGENT (@TITLE_AGENT)
+## TITLE_AGENT
 Generate concise conversation titles. See: @IDENTITIES.
 inherits: BASE_AGENT
 gates: [@GATE_9_CLEAN_STATE]
@@ -1066,7 +1066,7 @@ forbidden:
 
 # POLICY SPECIFICATIONS
 
-## ADID_FRAMEWORK_RULES (@ADID_FRAMEWORK_RULES)
+## ADID_FRAMEWORK_RULES
 Framework integrity: ADID receivers frozen, host-agnostic SPECS.
 scope: framework_integrity
 constraints:
@@ -1079,7 +1079,7 @@ invariants:
 forbidden:
   • hand_editing_receivers
 
-## ADID_OPS (@ADID_OPS)
+## ADID_OPS
 Tool hygiene: product tools over shell, no external CLI in SPECS.
 scope: tool_hygiene
 constraints:
@@ -1091,7 +1091,7 @@ invariants:
   • universalsearch web+code before agent for prior art
   • aicall only on attached files; output Inferred until verified
 
-## AGENT_DIRECTIVES (@AGENT_DIRECTIVES)
+## AGENT_DIRECTIVES
 Coding agent directives: State → SV → Plan → Implement → Verify → Clean.
 scope: agent_directives
 constraints:
@@ -1112,7 +1112,7 @@ forbidden:
   • Claiming fixed without oracle evidence
   • Never commit unless user explicitly asks
 
-## GOVERNANCE (@GOVERNANCE)
+## GOVERNANCE
 Security governance: inspection≠repair, triple separation, explicit @GATE_4_AUTHORIZE for persistent write.
 scope: security
 constraints:
@@ -1129,7 +1129,7 @@ forbidden:
   • Shell for file ops when product tools exist
   • Embedding external CLI cookbooks into SPECS
 
-## GROUNDING_RULES (@GROUNDING_RULES)
+## GROUNDING_RULES
 Evidence grounding and intent-based tool routing. See: @GATE_1_GROUND for complete search_intent routing table.
 scope: all agent operations — grounding before judgment
 constraints:
@@ -1144,7 +1144,7 @@ forbidden:
 acceptance:
   • Agent routes by intent per @GATE_1_GROUND.search_intent
 
-## PLANNING (@PLANNING)
+## PLANNING
 Task geometry: fractal decomposition, Manhattan L1, k-medoids → CENTRAL_TASKS.
 scope: task_geometry
 constraints:
@@ -1158,7 +1158,7 @@ invariants:
 forbidden:
   • Creating second task identity outside authoritative task store
 
-## REASONING_MODE (@REASONING_MODE)
+## REASONING_MODE
 Pure reasoning: conversation memory only, no tools, offer build switch.
 scope: conversation_memory_only
 constraints:

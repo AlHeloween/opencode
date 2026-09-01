@@ -1,6 +1,6 @@
 ## Algorithms (@ALGO)
 
-### NOISE_FILTER (@NOISE_FILTER)
+### NOISE_FILTER
 rule: COLLAPSE, never FILTER OUT. 60 identical errors = 1 signal, cardinality preserved.
 distance: Manhattan L1 — preserves per-axis interpretability.
 formula: δ(s,a) = Σ|w_s(k) - w_a(k)| over k ∈ keys(s) ∪ keys(a).
@@ -12,7 +12,7 @@ classification: CONFIRMATION (δ < θ), DIVERGENCE (δ ≥ θ — re-anchor firs
 theta: default 0.3; adaptive median({δ_i}) + 0.1 when ≥5 non-collapsed signals; spikes >2× median excluded.
 evidence: COLLAPSED signals with cardinality. Agent sees '60 errors, 1 root cause' — not '0 errors'.
 
-### CLASSIFICATION (@CLASSIFICATION)
+### CLASSIFICATION
 
 Classification maps every activity to its effect, risk, and authorization level. Execute BEFORE any action.
 
@@ -54,18 +54,18 @@ explicit_approval_required:
 - candidate work outside valid envelope
 - ARCHITECTURE_EVOLUTION / MIGRATION → requires explicit authorization per @MIGRATION_PROTOCOL; routed through @GATE_4_AUTHORIZE with elevated action class
 
-### METRIC_GOVERNANCE (@METRIC_GOVERNANCE)
+### METRIC_GOVERNANCE
 PARAMETER_ADAPTATION: auto within bounds (percentile, window). METRIC_FAMILY_CHANGE: governance required — NOT automatic.
 Requires: branch + holdout + oracle + promotion. quality_threshold: 0.5.
 invariant: Adaptive tuning ≠ evaluator mutation.
 
-### BUG_FIX_CHAIN (@BUG_FIX_CHAIN)
+### BUG_FIX_CHAIN
 stages: ERROR_TEST → TRIAL_FIX → REAL_FIX → TARGETED_TESTS → DONE.
 rule: ERROR_TEST must FAIL first. TARGETED = changed module + related only.
 deadloop: ≥2 STUCK in last 3 attempts → STOP + universalsearch web+code; re-plan.
 STUCK: δ < 0.3 | REFINING: 0.3 ≤ δ < 0.5 | DIVERGING: δ ≥ 0.5.
 
-### SV_TRAJECTORY (@SV_TRAJECTORY)
+### SV_TRAJECTORY
 **Extends @SV_DELTA with multi-step trajectory analysis.** Tracks semantic position over time to detect drift before it becomes visible in output quality.
 
 metrics:
@@ -85,7 +85,7 @@ rule: stable_drift ≥ 2 consecutive turns → mandatory re-anchor via @GATE_1_G
 rule: step_distance spike ≥ 0.5 above running median → possible context switch; verify against plan.
 invariant: trajectory analysis uses the same Manhattan L1 metric as @SV_DELTA and @FRACTAL_GEOMETRY.
 
-### MULTI_AGENT_SV (@MULTI_AGENT_SV)
+### MULTI_AGENT_SV
 **Orchestrator-level SV feedback controller for sub-agent teams.** Extends @SV_TARGET with diversity-driven dispatch and semantic coverage tracking.
 
 controller loop:

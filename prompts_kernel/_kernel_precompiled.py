@@ -4937,7 +4937,10 @@ _ALL_SPECS = {
 
 def _render_compact_spec(name: str, spec: dict) -> list[str]:
     """Render a single agent/policy spec in compact REF-ONLY format."""
-    lines: list[str] = [f"## {name} (@{name})"]
+    # Heading declares the anchor by its own title (refcheck fallback: upper+underscores).
+    # No self-referencing (@name) parens — a heading must not declare and reference
+    # the same anchor at once.
+    lines: list[str] = [f"## {name}"]
     intent = spec.get("intent", "")
     if intent:
         lines.append(intent.strip())
@@ -6420,6 +6423,16 @@ def _resolve_yaml_path(schemas: dict, path: str) -> dict | list | str | None:
     return current
 
 
+def _tagged_header(level: str, name: str, tag: str) -> str:
+    """Heading declares its anchor by its own title (refcheck fallback: upper+underscores).
+
+    Parenthetical (@tag) is emitted ONLY when the display title differs from the
+    tag — a heading must not declare and reference the same anchor at once.
+    """
+    normalized = name.upper().replace(" ", "_").replace("-", "_")
+    return f"{level} {name} (@{tag})" if normalized != tag else f"{level} {name}"
+
+
 def _section_to_comment_lines(data: object) -> list[str]:
     """Dump a resolved YAML section. Emit '### name (@tag)' for tagged sub-sections."""
     if yaml is None:
@@ -6442,7 +6455,7 @@ def _section_to_comment_lines(data: object) -> list[str]:
                 rendered = dict(val)
                 tag = rendered.pop("tag")
                 name = rendered.pop("name", tag)
-                nested_headers.append(f"## {name} (@{tag})")
+                nested_headers.append(_tagged_header("##", name, tag))
                 remaining[key] = rendered
             else:
                 remaining[key] = val
@@ -6461,7 +6474,7 @@ def _section_to_comment_lines(data: object) -> list[str]:
     if isinstance(data, dict) and "tag" in data:
         tag = data.pop("tag")
         name = data.pop("name", tag)
-        lines.append(f"### {name} (@{tag})")
+        lines.append(_tagged_header("###", name, tag))
 
     raw = yaml.dump(data, default_flow_style=False, allow_unicode=True, sort_keys=False)
     for line in raw.rstrip("\n").split("\n"):
@@ -6523,7 +6536,7 @@ def resolve_def_refs(text: str, schemas: dict | None = None) -> str:
                 f"@def:{name} not found in core_schemas.yaml definitions. "
                 f"Available: {available}"
             )
-        return f"### {name} (@{name})\n{definitions[name].rstrip(chr(10))}\n"
+        return f"### {name}\n{definitions[name].rstrip(chr(10))}\n"
 
     return def_re.sub(_replace, text)
 

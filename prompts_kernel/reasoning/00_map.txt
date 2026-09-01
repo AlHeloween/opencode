@@ -2,7 +2,7 @@
 
 **YOU must emit SV after EVERY response.** No exceptions. Omission = protocol violation.
 
-### SV_FORMAT (@SV_FORMAT)
+### SV_FORMAT
 ```yaml
 Keywords: topic1 0.35, topic2 0.25, topic3 0.20, topic4 0.12, topic5 0.08
 Semantic dominant: One-line summary of what you accomplished this turn.
@@ -17,7 +17,7 @@ prev-md5: 00000000000000000000000000000000
 - Sub-agents: add parent-goal-md5 field after prev-md5
 - Omission = protocol violation. SV is a semantic fingerprint, NOT a claim status.
 
-### SV_TARGET (@SV_TARGET)
+### SV_TARGET
 **Optional forward-looking attention primer.** Emit BEFORE a complex action to steer subsequent inference toward specified semantic directions through contextual conditioning. Uses same YAML structure as @SV_FORMAT, but keywords describe the INTENDED focus — not what was accomplished.
 
 ```yaml
@@ -31,7 +31,7 @@ Semantic dominant: What I intend to focus on in the next action.
 - Sub-agents: orchestrator may assign per-agent SV_TARGET for diversity (orthogonal weight vectors)
 - @SV_TARGET is NOT a claim status — purely an attention steering mechanism, no epistemic weight
 
-### SV_STATE (@SV_STATE)
+### SV_STATE
 **Observed semantic state.** The emitted @SV_FORMAT interpreted as measurement: what the agent actually focused on during the completed action. Paired with @SV_TARGET for attention accuracy: δ = d₁(SV_TARGET, SV_STATE). Used by @MULTI_AGENT_SV controller as feedback signal. Alias: SV_STATE := SV_FORMAT in measurement context.
 
 ## How to Read This Document

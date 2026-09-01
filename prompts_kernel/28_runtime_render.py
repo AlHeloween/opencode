@@ -211,7 +211,10 @@ _ALL_SPECS = {
 
 def _render_compact_spec(name: str, spec: dict) -> list[str]:
     """Render a single agent/policy spec in compact REF-ONLY format."""
-    lines: list[str] = [f"## {name} (@{name})"]
+    # Heading declares the anchor by its own title (refcheck fallback: upper+underscores).
+    # No self-referencing (@name) parens — a heading must not declare and reference
+    # the same anchor at once.
+    lines: list[str] = [f"## {name}"]
     intent = spec.get("intent", "")
     if intent:
         lines.append(intent.strip())

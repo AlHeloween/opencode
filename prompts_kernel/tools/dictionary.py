@@ -56,9 +56,21 @@ class Entry:
 
 
 def _extract_tag(header: str) -> str | None:
-    """Extract @TAG from a header like 'DOMAIN_SOURCES (@DOMAIN_SOURCES)'."""
+    """Entry id from a heading: explicit (@TAG) parens, or the title itself when
+    the title is already an ALL-CAPS identifier (bare declaration — headings must
+    not declare and reference the same anchor at once).
+
+    'DOMAIN_SOURCES (@DOMAIN_SOURCES)' → 'DOMAIN_SOURCES'
+    'DOMAIN_SOURCES'                   → 'DOMAIN_SOURCES'
+    'Gate Dispatch' (prose title)      → None (not an entry)
+    """
     m = TAG_PAT.search(header)
-    return m.group(1) if m else None
+    if m:
+        return m.group(1)
+    title = header.split("(")[0].strip()
+    if title and re.fullmatch(r"[A-Z][A-Z_0-9]*", title):
+        return title
+    return None
 
 
 def _extract_refs(text: str) -> list[str]:

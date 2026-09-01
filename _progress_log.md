@@ -1,4 +1,12 @@
 # Progress Log
+## 2026-09-01 list dates — live test caught NaN bug (Effect Stat.mtime is Option-wrapped), fixed
+Reason: first live test after user rebuild — dates rendered but ALL as `NaN-NaN-NaN NaN:NaN:NaN` (behavioral oracle: feature live, data broken). Root cause: effect/platform `Stat.mtime` is not a plain Date (Option-wrapped) — `new Date(optionObject)` → Invalid Date, while the `if (info?.mtime)` guard passed (Option object is truthy).
+Changes:
+- `tool/ls.ts` — uniform `toDate()` unwrap: Date | number | string | Option({_tag:"Some"}) → valid Date or undefined; invalid dates render as no-date (blank), never NaN.
+Script Output:
+- typecheck exit 0 (`20260901T105604Z_61fde0d3`).
+- VERIFIED live after rebuild: list renders real distinct mtimes on every entry (e.g. glob.ts 2026-08-31 16:03, ls.ts 2026-09-01 18:55 local = fix-commit time) — zero NaN. ACCEPTANCE CLOSED.
+
 ## 2026-09-01 list tool shows local mtime per entry (dates were a gap — Alexander)
 Reason: user (10:42–10:44 UTC) — "list не дает дат?" / "давай править list. Это большое упущение." Root listing without timestamps forced shell-stat detours (which are constitution-blocked as enumeration — tool-selection lesson logged separately).
 Changes:

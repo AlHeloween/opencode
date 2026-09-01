@@ -13,8 +13,7 @@ Related:
 - [Compaction](compaction.md) — memory ranks (Exact handles vs Inferred summaries)
 - [Tools and sidecars](tools-and-sidecars.md) — binaries vs built-in LLM tools
 - [ADID Framework 15.4.3](ADID_Framework_15_4_3.md) — formal epistemic / safe-update **contract** (conceptual)
-- Pocket sources: `packages/opencode/src/session/prompt/reasoning/*.txt`
-- Kernel package: `opencode_prompts_kernel/` (host-agnostic SPECS)
+- Kernel package: `prompt_kernel/` (`source.py` → `reasoning_prompt.txt`)
 
 ---
 
@@ -23,7 +22,7 @@ Related:
 | | **ADID Framework** (docs / dist) | **OpenCode reasoning runtime** (this product) |
 |--|----------------------------------|-----------------------------------------------|
 | **Kind** | Solid **formal model** — invariants, InfoMark law, manager contract, behavioral oracles, optional safe-update construction | **Practical agentic implementation** — TUI session loop, tools, gates, stamps, loaders |
-| **Artifact** | `docs/ADID_Framework_*.md`, ADID release (skills, rules, binaries) | `reasoning/*`, `opencode_prompts_kernel/`, `src/tool/*`, `constitution.ts` |
+| **Artifact** | `docs/ADID_Framework_*.md`, ADID release (skills, rules, binaries) | `prompt_kernel/`, `src/tool/*`, `constitution.ts` |
 | **Job** | Define *what must be true* of knowledge and transitions across hosts | Make agents *do work* efficiently in a live coding session |
 | **Update cadence** | ADID releases (skills/tools/rules) | OpenCode product commits |
 | **Embed into SPECS?** | No — load host surfaces when installed | Yes — process law + product tool descriptions |
@@ -42,8 +41,8 @@ document, and do not expect the framework doc alone to run a TUI agent loop.
 
 | Surface | Purpose |
 |---------|---------|
-| **Kernel SPECS** (`opencode_prompts_kernel`) | Immutable process law: RULES, WORKFLOWS, agent/policy SPECS |
-| **Reasoning pocket** (`reasoning/*` → `reasoning.txt`) | LLM-facing gates, YAML schemas, InfoMark ladder, Mermaid |
+| **Kernel** (`prompt_kernel`) | Immutable process law: map, rules, identities, SV, INFOMARK |
+| **Installed prompt** (`reasoning_prompt.txt`) | LLM-facing gates, YAML schemas, InfoMark ladder |
 | **Product tools** (`packages/opencode/src/tool/*`) | Built-in agent tools + `*.txt` descriptions |
 | **Runtime loaders** | Inject **this worktree’s** host surfaces for the session only |
 
@@ -73,7 +72,7 @@ it does not re-author them inside identity SPECS.
 └──────────────────────────────────────┘
 ```
 
-Product boundary: `opencode_prompts_kernel/21_skills_boundary.py`.  
+Product boundary: `prompt_kernel/source.py`.  
 This repository’s extra worktree policy lives only in root `AGENTS.md` (not SPECS).
 
 ---
@@ -161,16 +160,8 @@ and docs, not as external skill rewrites inside SPECS.
 ## 7. Assemble / regenerate
 
 ```bash
-# Reasoning pocket
-python packages/opencode/script/assemble_reasoning.py
-
-# Kernel identity artifact
-python -c "from opencode_prompts_kernel import render_runtime_kernel; from pathlib import Path; \
-  Path('packages/opencode/src/session/prompt/opencode_prompts_kernel.txt').write_text(
-    render_runtime_kernel(), encoding='utf-8', newline='\n')"
-
-# Kernel tests
-python -m pytest tests/kernel/ -q
+python -m pytest prompt_kernel/tests -q
+python -m prompt_kernel --install
 ```
 
 ---

@@ -30,6 +30,9 @@ import * as Option from "effect/Option"
 import { zod } from "@/util/effect-zod"
 import { withStatics, type DeepMutable } from "@/util/schema"
 import { canonicalIdentity } from "@/session/mode-identity"
+import * as Log from "@opencode-ai/core/util/log"
+
+const log = Log.create({ service: "agent" })
 
 export const Info = Schema.Struct({
   name: Schema.String,
@@ -133,7 +136,7 @@ export const layer = Layer.effect(
         const deny = (...policies: string[]) =>
           Permission.fromConfig(Object.fromEntries(policies.map((policy) => [policy, "deny"])))
 
-        // Canonical identity ids: *_mode (primary) / *_agent (specialized). See @IDENTITIES.
+        // Host agent ids: *_mode (primary) / *_agent (specialized). Kernel entities: BUILD_MODE, PLAN_MODE, …
         const agents: Record<string, Info> = {
           build_mode: {
             name: "build_mode",
@@ -615,7 +618,9 @@ export const layer = Layer.effect(
                 instructions: system.join("\n"),
                 store: false,
               }),
-              onError: () => {},
+              onError: (error) => {
+                log.warn("bug: streamObject agent generate failed", { error })
+              },
             })
             for await (const part of result.fullStream) {
               if (part.type === "error") throw part.error

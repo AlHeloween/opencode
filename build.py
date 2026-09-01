@@ -180,39 +180,19 @@ def save_manifest(manifest: dict) -> None:
 
 
 def step_kernel() -> None:
-    """Precompile kernel + assemble unified reasoning_prompt artifacts to dist/."""
-    pkg = ROOT / "prompts_kernel"
+    """Assemble map-first reasoning kernel into production reasoning_prompt.txt."""
+    pkg = ROOT / "prompt_kernel"
     if not pkg.is_dir():
         raise RuntimeError(f"kernel package missing: {pkg}")
-    # Step 1: Precompile kernel (must finish before step 2 — Python import cache)
-    _run([sys.executable, "-c",
-          "from prompts_kernel import write_precompiled_kernel; "
-          "write_precompiled_kernel()"])
-    precompiled = pkg / "_kernel_precompiled.py"
-    if not precompiled.is_file():
-        raise RuntimeError(f"precompiled kernel missing: {precompiled}")
-    # Step 2: Assemble reasoning artifacts → dist/{date}_reasoning_prompt.{mdc,txt}
-    _run([sys.executable, "-c",
-          "from prompts_kernel import write_reasoning; "
-          "write_reasoning()"])
-    # Coverage audit: gate ↔ rule sync
-    _run(
-        [sys.executable, str(ROOT / "prompts_kernel/_coverage.py")],
-        cwd=ROOT,
-    )
+    _run([sys.executable, "-m", "prompt_kernel", "--install"])
 
 
 def step_reasoning() -> None:
-    # Light integrity check (import + IR roundtrip). Full suite: pytest prompts_kernel/tests/.
     env = {**os.environ, "PYTHONPATH": str(ROOT)}
     code = r"""
-import prompts_kernel as k
-assert k._KERNEL_SYMBOLS
-r = {"invariants": ["must balance"], "constraints": ["must be safe"]}
-ir = k.compile_to_ir(r)
-assert k.expand_from_ir(ir) == r
-assert not k.validate_ir_equivalence(r, ir)
-assert k._ALL_SPECS["PLANNING"]["constraints"].get("linear_mode_1_forbidden") is True
+from prompt_kernel import KERNEL, render_kernel, validate_kernel
+assert not validate_kernel(KERNEL)
+assert render_kernel().lstrip().startswith("## 0. KERNEL_MAP")
 print("OK reasoning kernel")
 """
     r = subprocess.run([sys.executable, "-c", code], cwd=str(ROOT), env=env)
@@ -269,27 +249,28 @@ def make_steps(*, skip_reasoning: bool) -> list[Step]:
     steps = [
         Step(
             name="kernel",
-            description="Precompile kernel + assemble reasoning artifacts → dist/",
+            description="Assemble prompt_kernel → production reasoning_prompt.txt",
             inputs=[
-                "prompts_kernel",
-                "prompts_kernel/reasoning",
+                "prompt_kernel",
             ],
             outputs=[
-                "prompts_kernel/_kernel_precompiled.py",
+                "packages/opencode/src/session/prompt/reasoning_prompt.txt",
             ],
             run=step_kernel,
+            extra_ignore=frozenset({"dist", "tests"}),
         ),
     ]
     if not skip_reasoning:
         steps.append(
             Step(
                 name="reasoning",
-                description="Kernel package import + IR roundtrip + PLANNING fractal_only",
+                description="prompt_kernel validate + KERNEL_MAP prefix",
                 inputs=[
-            "prompts_kernel",
+                    "prompt_kernel",
                 ],
-                outputs=[],  # pure check
+                outputs=[],
                 run=step_reasoning,
+                extra_ignore=frozenset({"dist", "tests"}),
             )
         )
     steps.extend(

@@ -229,15 +229,15 @@ for (const item of targets) {
       // reasoning_prompt.txt must be inlined as text, not a BunFS path stub.
       const binBytes = await Bun.file(binaryPath).arrayBuffer()
       const binText = new TextDecoder("latin1").decode(binBytes)
-      if (!binText.includes("GATED_WORKFLOW")) {
-        throw new Error("binary missing inlined reasoning kernel (GATED_WORKFLOW) — .txt text embed failed")
+      if (!binText.includes("KERNEL_MAP") && !binText.includes("GATED_WORKFLOW")) {
+        throw new Error("binary missing inlined reasoning kernel — .txt text embed failed")
       }
-      if (binText.includes("~BUN/root/reasoning_prompt") && !binText.includes("IDENTITIES")) {
+      if (binText.includes("~BUN/root/reasoning_prompt") && binText.length < 2000) {
         throw new Error(
           "binary looks like path-only reasoning_prompt embed — import must be reasoning_prompt.txt content",
         )
       }
-      console.log(`Smoke test passed: reasoning_prompt.txt inlined (GATED_WORKFLOW present)`)
+      console.log("Smoke test passed: reasoning_prompt.txt inlined")
     } catch (e) {
       console.error(`Smoke test failed for ${name}:`, e)
       process.exit(1)

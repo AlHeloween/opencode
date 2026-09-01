@@ -1,42 +1,34 @@
-Launch a new sub-agent to handle complex, multistep tasks autonomously. The sub-agent runs in an isolated child session with its own conversation context.
-
-## Sub-Agent Types
-
-| Type | Tools Available | Best For |
-|------|----------------|----------|
-| `explore` | codegraph, read, glob, grep, list, bash, webfetch, universalsearch, messagesearch, session-read | Codebase exploration, file discovery, log searching, prior conversation research |
-| `general` | All tools | Planning, design alternatives, root-cause analysis, multi-step implementation strategy |
+Launch a specialized sub-agent in an isolated child session. The live agent
+inventory is appended to this description by the tool registry — do not invent
+types. Runtime ACL still decides who may spawn whom.
 
 ## Alignment with gates
 
-- **G6 (GROUND_PLAN)** — prefer `explore` / explorer_agent with a **bounded** goal (paths, symbols, return shape). Explorer is fast and has weak deep reasoning; vague prompts waste turns.
-- **G1 (GROUND)** — exploration is OBSERVE; evidence is Exact only when tools re-read sources (not explorer prose alone).
+- **G1 / G6** — prefer `explorer_agent` with a bounded goal (paths, symbols, return shape). Vague prompts waste turns.
+- **G2 / G3** — `general_agent` for design, decomposition, RCA. Does not authorize mutation.
+- **G7 / G8** — `coder_agent` / `media_agent` for bound implementation and its oracle. Coder cannot nest `task`.
+- **Internet-only** — `researcher_agent` may use webfetch / universalsearch `source: "web"` only.
 - Do **not** use task to skip G4 approval or to mark G8 oracle PASS.
 - CORRECT explore prompt: "Find callers of X in src/foo/; return paths, lines, signatures."
 - WRONG: "Search for path-related things."
 
 ## Child Session Isolation
 
-- Sub-agents cannot use `todowrite` or `task` (no nested spawning).
-- Each sub-agent type uses its own configured model.
-- Aborting the parent aborts the child session.
-- Fresh context each invocation unless `task_id` provided to resume.
+- Sub-agents cannot use `todowrite` or `task` (no nested spawning) unless their ACL allows it.
+- Each type uses its own configured model.
+- Aborting the parent aborts the child. Resume with `task_id`.
 
 ## Parallel Execution
 
-Launch multiple sub-agents concurrently by sending multiple Task calls. Independent exploration or analysis tasks should be parallelized.
+Independent explorations or analyses should be parallel Task calls.
 
 ## Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `subagent_type` | `"explore"` or `"general"` | — | Which sub-agent to launch |
-| `description` | string | — | Short (3-5 word) description of the task |
-| `prompt` | string | — | Detailed task description for the sub-agent |
+| `subagent_type` | string | — | Canonical agent id from the live inventory |
+| `description` | string | — | Short (3-5 word) description |
+| `prompt` | string | — | Detailed task for the sub-agent |
 | `task_id` | string | — | Resume a previous sub-agent session |
 
-## When to Use
-
-- **explore**: Code structure analysis, searching codebase, finding files, checking logs, gathering evidence. Prefer codegraph over grep for structural questions.
-- **general**: Multi-step planning, design discussions, complex analysis, strategy before implementation.
-- Do NOT use for single trivial operations (read a file, grep a pattern).
+Do NOT use for a single trivial operation (read a file, grep a pattern).

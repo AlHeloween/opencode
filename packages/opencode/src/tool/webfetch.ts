@@ -4,6 +4,7 @@ import * as Tool from "./tool"
 import TurndownService from "turndown"
 import DESCRIPTION from "./webfetch.txt"
 import { isImageAttachment } from "@/util/media"
+import { Constitution } from "@/session/constitution"
 
 const MAX_RESPONSE_SIZE = 5 * 1024 * 1024 // 5MB
 const DEFAULT_TIMEOUT = 30 * 1000 // 30 seconds
@@ -19,6 +20,15 @@ export const Parameters = Schema.Struct({
     }),
   timeout: Schema.optional(Schema.Number).annotate({ description: "Optional timeout in seconds (max 120)" }),
 })
+
+function stampedDocument(url: string, content: string, title: string, extra: Record<string, unknown> = {}) {
+  const source_stamp = Constitution.makeSourceStamp({ url, content, kind: "document" })
+  return {
+    title,
+    output: `${Constitution.formatSourceStamp(source_stamp)}\n\n${content}`,
+    metadata: { source_stamp, ...extra },
+  }
+}
 
 function buildHeaders(format: "text" | "markdown" | "html") {
   let acceptHeader = "*/*"
@@ -134,10 +144,10 @@ function processHttpResponse(
 
     if (isImageAttachment(mime)) {
       const base64Content = Buffer.from(arrayBuffer).toString("base64")
+      const stamped = stampedDocument(params.url, `${mime}:${arrayBuffer.byteLength}`, title)
       return {
-        title,
-        output: "Image fetched successfully",
-        metadata: {},
+        ...stamped,
+        output: `${stamped.output}\n\nImage fetched successfully`,
         attachments: [
           {
             type: "file" as const,
@@ -153,23 +163,22 @@ function processHttpResponse(
     switch (params.format) {
       case "markdown":
         if (contentType.includes("text/html")) {
-          const markdown = convertHTMLToMarkdown(content)
-          return { output: markdown, title, metadata: {} }
+          return stampedDocument(params.url, convertHTMLToMarkdown(content), title)
         }
-        return { output: content, title, metadata: {} }
+        return stampedDocument(params.url, content, title)
 
       case "text":
         if (contentType.includes("text/html")) {
           const text = yield* Effect.promise(() => extractTextFromHTML(content))
-          return { output: text, title, metadata: {} }
+          return stampedDocument(params.url, text, title)
         }
-        return { output: content, title, metadata: {} }
+        return stampedDocument(params.url, content, title)
 
       case "html":
-        return { output: content, title, metadata: {} }
+        return stampedDocument(params.url, content, title)
 
       default:
-        return { output: content, title, metadata: {} }
+        return stampedDocument(params.url, content, title)
     }
   })
 }
@@ -202,31 +211,16 @@ async function fetchWithPlaywright(
     if (!html) return null
     if (html.includes("Just a moment") && html.includes("cf-browser-verification")) return null
 
+    const title = `${url} (via browser — ${pageTitle})`
     switch (format) {
       case "markdown":
-        return {
-          output: convertHTMLToMarkdown(html),
-          title: `${url} (via browser — ${pageTitle})`,
-          metadata: {},
-        }
+        return stampedDocument(url, convertHTMLToMarkdown(html), title)
       case "text":
-        return {
-          output: await extractTextFromHTML(html),
-          title: `${url} (via browser — ${pageTitle})`,
-          metadata: {},
-        }
+        return stampedDocument(url, await extractTextFromHTML(html), title)
       case "html":
-        return {
-          output: html,
-          title: `${url} (via browser — ${pageTitle})`,
-          metadata: {},
-        }
+        return stampedDocument(url, html, title)
       default:
-        return {
-          output: html,
-          title: `${url} (via browser — ${pageTitle})`,
-          metadata: {},
-        }
+        return stampedDocument(url, html, title)
     }
   } catch (err) {
     console.error("[webfetch:browser]", err instanceof Error ? err.message : String(err))

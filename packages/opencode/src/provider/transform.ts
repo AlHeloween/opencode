@@ -488,9 +488,9 @@ export function topK(model: Provider.Model) {
 }
 
 /**
- * Runtime identity is reasoning_prompt.txt (Bun built-in text loader — same as default.txt).
- * Assembler still writes reasoning_prompt.mdc; keep the .txt sibling in sync for the model.
- * Guard against path-only embeds (content never reaches the model).
+ * Runtime identity is reasoning_prompt.txt (Bun built-in text loader).
+ * Guard only the loader bug: a path stub instead of file bytes.
+ * Do not fingerprint kernel vocabulary here — that belongs in tests, not product.
  */
 function assertReasoningPromptInlined(prompt: string): string {
   if (typeof prompt !== "string" || prompt.length < 1000) {
@@ -502,9 +502,6 @@ function assertReasoningPromptInlined(prompt: string): string {
     throw new Error(
       `bug: reasoning_prompt.txt resolved to BunFS path instead of content: ${prompt.slice(0, 120)}`,
     )
-  }
-  if (!prompt.includes("GATED_WORKFLOW") && !prompt.includes("IDENTITIES")) {
-    throw new Error("bug: reasoning_prompt.txt missing GATED_WORKFLOW / IDENTITIES markers")
   }
   return prompt
 }

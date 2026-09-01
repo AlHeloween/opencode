@@ -4,13 +4,13 @@
 **Status**: Post-mortem — principles applied, kept as reference  
 **Audience**: Kernel developers, prompt engineers  
 
-> **Note (2026-08-12):** Fixes described here have been applied. The historical stable kernel is at `prompts_kernel/2026-08-09-historical-stable_kernel.txt`.  
+> **Note (2026-08-12):** Fixes described here have been applied.  
 
 ---
 
 ## Context
 
-During optimization of the kernel assembly pipeline (`prompts_kernel/`), a critical error was introduced: schema compression, heading flattening, and a "quality" postscript collectively destroyed the **assembly point** — the structural reference frame without which an LLM cannot reconstruct the protocol from compressed information. The defect was discovered by chance — through comparison with `2026-08-09-historical-stable_kernel.txt`.
+During optimization of the kernel assembly pipeline, a critical error was introduced: schema compression, heading flattening, and a "quality" postscript collectively destroyed the **assembly point** — the structural reference frame without which an LLM cannot reconstruct the protocol from compressed information.
 
 ---
 

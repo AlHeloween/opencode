@@ -1,10 +1,12 @@
 import { Effect, Schema } from "effect"
 import { Config } from "../config/config"
+import { Constitution } from "../session/constitution"
 import * as Tool from "./tool"
 
 import DESCRIPTION from "./universalsearch.txt"
 
-const Source = Schema.Literals(["agent", "web", "code", "hybrid"])
+const Source = Schema.Literals(["web", "code", "hybrid", "agent"])
+export type SearchSource = typeof Source.Type
 
 export const Parameters = Schema.Struct({
   query: Schema.optional(
@@ -12,7 +14,7 @@ export const Parameters = Schema.Struct({
   ),
   source: Schema.optional(Source).annotate({
     description:
-      "REUSE.BEFORE: prefer 'web' (internet), 'code' (Sourcegraph indexed git), or 'hybrid'. Use 'agent' only for multi-hop research after web/code. Default if omitted is 'agent' (compat) — pass web/code/hybrid explicitly for prior art.",
+      "REUSE.BEFORE: default 'web'. Prefer 'web', 'code' (Sourcegraph indexed git), or 'hybrid'. Use 'agent' only for multi-hop research after web/code. Follow SOURCE_ROUTING: snippets stay Guess; webfetch a primary URL for Inferred.",
   }),
   limit: Schema.optional(Schema.Number).annotate({
     description: "Number of results to return (default: 5 for web, 10 for code)",
@@ -34,13 +36,24 @@ type Metadata = {
   jobId?: string
   status?: string
   mode?: string
+  source_stamps?: ReturnType<typeof Constitution.makeSourceStamp>[]
+}
+
+export function resolveSearchSource(
+  params: Pick<Schema.Schema.Type<typeof Parameters>, "source">,
+): SearchSource {
+  return params.source ?? "web"
 }
 
 export function researcherWebOnly(
   agentName: string | undefined,
   params: Pick<Schema.Schema.Type<typeof Parameters>, "source">,
 ) {
-  return agentName !== "researcher_agent" || params.source === "web"
+  return agentName !== "researcher_agent" || resolveSearchSource(params) === "web"
+}
+
+function snippetStamp(url: string, content: string) {
+  return Constitution.makeSourceStamp({ url, content, kind: "snippet" })
 }
 
 export const UniversalSearchTool = Tool.define(
@@ -53,12 +66,11 @@ export const UniversalSearchTool = Tool.define(
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
         Effect.gen(function* () {
-          // This is intentionally before ctx.ask and before job polling. A flat
-          // tool ACL cannot distinguish universalsearch sources, while researcher
-          // is Internet-only. The provider schema stays unchanged for KV reuse.
+          // Flat tool ACL cannot distinguish universalsearch sources; researcher
+          // is Internet-only. Default source is web (omitted source allowed).
           if (!researcherWebOnly(ctx.agentInfo?.name, params)) {
             return yield* Effect.fail(
-              new Error('researcher_agent may use universalsearch only with explicit source: "web"'),
+              new Error('researcher_agent may use universalsearch only with source: "web"'),
             )
           }
           yield* ctx.ask({
@@ -87,7 +99,7 @@ export const UniversalSearchTool = Tool.define(
             return yield* pollAgentJob(url, params.job_id)
           }
 
-          const source = params.source || "agent"
+          const source = resolveSearchSource(params)
 
           switch (source) {
             case "agent":
@@ -295,11 +307,17 @@ function executeWebSearch(url: string, params: { query?: string; limit?: number 
       }
 
       let output = `# Web Search Results for "${params.query}"\n\n`
+      output += "Hits are search snippets (Guess). Fetch a primary-authority URL with webfetch before Inferred.\n\n"
+      const source_stamps = []
 
       for (let i = 0; i < results.results.length; i++) {
         const result = results.results[i]
+        const body = `${result.description || ""}\n${result.markdown || ""}`
+        const stamp = typeof result.url === "string" && result.url ? snippetStamp(result.url, body) : undefined
+        if (stamp) source_stamps.push(stamp)
         output += `## ${i + 1}. ${result.title || "Untitled"}\n`
         output += `**URL:** ${result.url}\n\n`
+        if (stamp) output += `${Constitution.formatSourceStamp(stamp)}\n\n`
         if (result.description) output += `${result.description}\n\n`
         if (result.markdown) output += `${result.markdown}\n\n`
       }
@@ -307,7 +325,7 @@ function executeWebSearch(url: string, params: { query?: string; limit?: number 
       return {
         output,
         title: `Web search: ${params.query}`,
-        metadata: { resultsCount: results.results.length, mode: "web" } as Metadata,
+        metadata: { resultsCount: results.results.length, mode: "web", source_stamps } as Metadata,
       }
     } finally {
       clearTimeout(timer)

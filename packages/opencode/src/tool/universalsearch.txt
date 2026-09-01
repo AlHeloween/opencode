@@ -1,70 +1,48 @@
 Search the web, indexed git (Sourcegraph), or a heavy research agent via the
-Universal Search Service. Follow kernel REUSE_BEFORE: search before invent.
-Ground in G1 — external prior art step after local codegraph/messagesearch.
+Universal Search Service. Follow kernel REUSE.BEFORE and SOURCE_ROUTING.
+Ground in G1 — external prior art after local codegraph/messagesearch.
 
-**Authoritative sources:** Before scientific/domain research, check domain-specific databases first. Generic web search supplements.
+**Default `source` is `web`.** Pass `code` or `hybrid` for indexed git prior art.
+Use `agent` only after web/code are insufficient. Snippets are Guess; webfetch a
+primary-authority URL (DOI, official spec, registry) before Inferred. Generic
+web never becomes Inferred without a software `source_stamp`.
 
-## Efficiency (prefer these first)
+## Efficiency
 
 | Goal | Call |
 |------|------|
-| Internet docs, APIs, known fixes, current events | `source: "web"` |
-| Prior art across **entire indexed git** (Sourcegraph) | `source: "code"` |
-| Both local-ish + global code patterns in one shot | `source: "hybrid"` |
-| Multi-step scrape/synthesize (slow, costly) | `source: "agent"` only if web+code insufficient |
+| Internet docs, APIs, known fixes, current events | `source: "web"` (default) |
+| Prior art across indexed git (Sourcegraph) | `source: "code"` |
+| Local worktree + global git-graph | `source: "hybrid"` |
+| Multi-step scrape/synthesize | `source: "agent"` only if web+code failed |
 
-**`source: "code"` (Sourcegraph):** searches **indexed git codebases** — not the live
-worktree alone. It walks **code-graph structure** over remote/indexed repos
-(symbols, refs, cross-repo patterns) for OSS prior art and API usage. Prefer for
-“how is this done in the wild?” after local codegraph.
+`source: "code"` searches indexed git codebases, not the live worktree alone.
+Prefer it for “how is this done in the wild?” after local codegraph.
 
-**Default for non-trivial invent/build:** run **web and/or code** (often both, or
-`hybrid`). Do **not** open with `agent` for ordinary prior-art checks — it is
-slower and less precise than targeted web/code.
+Skip only for trivial local work already grounded in codegraph.
 
-## When to use (follow kernel REUSE_BEFORE)
-
-1. **Before design/implementation** — new feature, protocol, algorithm, dependency,
-   abstraction: `web` and/or `code`, or `hybrid`. Prefer existing solutions over reinvention.
-2. **On failure** — build/test/typecheck/runtime or failed fix: search the error
-   signature with `web` + `code` before inventing a custom workaround.
-3. **Before "nothing exists"** — this tool is the external prior-art step after local codegraph/messagesearch.
-
-Skip only for trivial local work (typo, rename, one-line) already grounded in
-codegraph.
-
-**Research ladder** — follow the kernel's epistemic ladder:
-  Guess → web → code → still Inferred/Hypothetical
-  → smoke/G8 oracle PASS → Exact | FAIL → Unknown (no Done).
+**Research ladder** (kernel SOURCE_ROUTING):
+  search snippet → Guess
+  generic fetched + corroborated → Hypothetical
+  validated authority + provenance (`source_stamp`) → Inferred
+  reproduced oracle / smoke PASS → Exact
 Hits alone never Exact. Smoke fail ends this claim path as Unknown until re-proved.
-
-## Modes
-
-| Mode | Backend | Use for |
-|------|---------|---------|
-| `web` | Firecrawl web search | Docs, known fixes, APIs, current events |
-| `code` | Sourcegraph over **indexed git codebases / code graphs** | OSS patterns, API usage, prior implementations across repos |
-| `hybrid` | Local + Sourcegraph (labeled) | Local worktree + global git-graph prior art |
-| `agent` | Autonomous multi-turn research job | Complex multi-hop only after web/code |
-
-## Agent mode (when needed)
-
-1. `source: "agent"` → receive `job_id`
-2. Poll with `job_id` (tool auto-polls up to 5 min)
-3. Prefer after web/code already narrowed the question
 
 ## Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `query` | string | — | Search query or research question |
-| `source` | web \| code \| hybrid \| agent | agent* | Prefer **web** / **code** / **hybrid** for REUSE |
+| `source` | web \| code \| hybrid \| agent | web | Prefer web/code/hybrid for REUSE |
 | `limit` | number | 5 web / 10 code | Max results |
 | `max_turns` | number | 5 | Agent iterations (agent mode only) |
 | `job_id` | string | — | Poll existing agent job |
 
-\*Schema default remains `agent` for backward compatibility; **agents should pass
-  `source: "web"`, `"code"`, or `"hybrid"` explicitly for REUSE_BEFORE.
+## Agent mode
+
+1. `source: "agent"` → receive `job_id`
+2. Poll with `job_id` (auto-polls up to 5 min)
+3. Prefer after web/code already narrowed the question
 
 ## Configuration
 

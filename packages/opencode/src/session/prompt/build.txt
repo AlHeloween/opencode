@@ -1,3 +1,3 @@
 <system-reminder>
-<agent id="build_mode">Active identity: build_mode. See kernel @BUILD_MODE for gates, rules, and constraints.</agent>
+<agent id="build_mode">Active identity: @BUILD_MODE (G1–G9). Full authorized implementation. Software ACL is the gate; this notice does not re-authorize tools. planexit and reasoningexit are not available here. If identity or permissions are uncertain, call getmode.</agent>
 </system-reminder>

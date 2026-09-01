@@ -576,7 +576,7 @@ it.live("native mode transition keeps the provider identity and declared tools s
       // Literal "Reasoning Mode" marker is no longer emitted anywhere since
       // the persona/kernel rework - identity parity above is the stability
       // contract. Kernel root must still be present on the reasoning wire.
-      expect(JSON.stringify(reasoningMessages)).toContain("GATED_WORKFLOW")
+      expect(JSON.stringify(reasoningMessages)).toContain("KERNEL_MAP")
     }),
     { git: true, config: providerCfg },
   ),

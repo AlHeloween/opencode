@@ -1,30 +1,30 @@
 Fetches content from a specified URL and converts it to the requested format.
-Follow G1 ground rule: never invent URLs; discover first (e.g. universalsearch).
+Follow G1: never invent URLs; discover first (universalsearch). Each successful
+fetch emits a software `source_stamp` (authority_class, url_provenance, content_hash).
+Primary-authority documents may become Inferred; snippets and generic web stay Guess.
 
 ## Two-Stage Fetch Strategy
 
-1. **HTTP** — Direct HTTP request with content-type negotiation (default timeout: 30s, max 120s).
-2. **Playwright Browser Fallback** — If HTTP fails (JS-rendered pages, Cloudflare challenges, bot detection), automatically falls back to a headless browser at the Universal Search Service. This handles JavaScript-heavy sites transparently — you don't need to special-case any URL.
+1. **HTTP** — Direct request with content-type negotiation (default timeout: 30s, max 120s).
+2. **Playwright fallback** — If HTTP fails (JS-rendered pages, bot detection), the Universal Search Service browser fetch is used automatically.
 
 ## Response Processing
 
-- **HTML → Markdown** conversion via TurndownService for the `markdown` format (default).
-- **Text extraction** strips `script`, `style`, `noscript`, `iframe`, `object`, and `embed` elements.
-- **Images** in fetched content are returned as base64 data URL attachments.
-- **Max response size**: 5MB. Larger responses are truncated.
-- Custom `User-Agent` and `Accept` headers sent with requests (format-dependent Accept negotiation).
+- HTML → Markdown via TurndownService for `markdown` (default).
+- Text extraction strips `script`, `style`, `noscript`, `iframe`, `object`, `embed`.
+- Images return as base64 data URL attachments.
+- Max response size: 5MB (truncated above that).
 
 ## Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `url` | string | — | Fully-formed valid URL (HTTP upgraded to HTTPS) |
-| `format` | enum | `"markdown"` | Return format: `"markdown"`, `"text"`, or `"html"` |
+| `url` | string | — | Fully-formed URL (HTTP upgraded to HTTPS) |
+| `format` | enum | `"markdown"` | `"markdown"`, `"text"`, or `"html"` |
 | `timeout` | number | 30 | Timeout in seconds (max 120) |
 
 ## When to Use
 
-- Reading documentation or reference pages from the web
-- Fetching API responses
-- Checking current information or release notes
-- Any task where the information lives at a URL, not in the local filesystem or conversation history
+- Official docs, specs, DOI landing pages, registries
+- API responses and release notes at a known URL
+- Not a substitute for local filesystem or conversation history

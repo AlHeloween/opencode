@@ -1,9 +1,9 @@
 intent:
 AGENTS.md — project-specific conventions and instructions.
-Read by the AI for context. See opencode_prompts_kernel.py for canonical governance.
+Read by the AI for context. See prompt_kernel/ for canonical governance.
 
 state:
-source: opencode_prompts_kernel.py (canonical governance)
+source: prompt_kernel/ (canonical governance)
 
 scope:
 - project-specific conventions
@@ -11,7 +11,7 @@ scope:
 - build and test instructions
 
 constraints:
-- All governance rules defined in opencode_prompts_kernel.py
+- All governance rules defined in prompt_kernel/
 - This file supplements, not replaces, the kernel
 
 invariants:
@@ -19,7 +19,7 @@ invariants:
 - This file must not contradict the kernel
 
 forbidden_actions:
-- Contradicting opencode_prompts_kernel.py governance
+- Contradicting prompt_kernel/ governance
 
 acceptance_tests:
 - Contents consistent with kernel governance

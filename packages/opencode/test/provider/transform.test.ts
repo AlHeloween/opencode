@@ -131,13 +131,11 @@ describe("ProviderTransform.systemPromptPrefix", () => {
     ]) {
       const prefix = ProviderTransform.systemPromptPrefix(createModel(modelId))
       expect(prefix).toBeString()
-      // Unified reasoning_prompt.txt — GATED spine + dictionary in one file
-      expect(prefix).toContain("GATED_WORKFLOW")
-      expect(prefix).toContain("claim_ledger")
-      expect(prefix).toContain("PROMPT_ABI")
-      expect(prefix).toContain("TERMS")
-      expect(prefix).toContain("RULES")
-      expect(prefix.indexOf("GATED_WORKFLOW")).toBeLessThan(prefix.indexOf("PROMPT_ABI"))
+      expect(prefix).toContain("KERNEL_MAP")
+      expect(prefix).toContain("CLAIM_LEDGER")
+      expect(prefix).toContain("ABI_AND_VOCABULARY")
+      expect(prefix).toContain("SHARED_RULES")
+      expect(prefix.indexOf("KERNEL_MAP")).toBeLessThan(prefix.indexOf("ABI_AND_VOCABULARY"))
       expect(prefix).not.toContain("_ALL_SPECS")
     }
   })

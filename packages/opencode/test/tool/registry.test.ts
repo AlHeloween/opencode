@@ -4,7 +4,7 @@ import fs from "fs/promises"
 import { Effect, Layer } from "effect"
 import { Instance } from "../../src/project/instance"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
-import { createEraMemo, ToolRegistry } from "@/tool/registry"
+import { createEraMemo, formatTaskAgentInventory, ToolRegistry } from "@/tool/registry"
 import { Agent } from "@/agent/agent"
 import { ModelID, ProviderID } from "@/provider/schema"
 import { SessionID } from "../../src/session/schema"
@@ -24,6 +24,22 @@ afterEach(async () => {
 })
 
 describe("tool.registry", () => {
+  test("formatTaskAgentInventory uses live non-hidden subagents", () => {
+    const text = formatTaskAgentInventory([
+      { name: "build_mode", mode: "primary", description: "full" },
+      { name: "title_agent", mode: "primary", hidden: true, description: "titles" },
+      { name: "explorer_agent", mode: "subagent", description: "explore code" },
+      { name: "coder_agent", mode: "subagent", description: "implement" },
+      { name: "ghost", mode: "subagent", hidden: true, description: "hidden" },
+    ])
+    expect(text).toContain("explorer_agent")
+    expect(text).toContain("coder_agent")
+    expect(text).not.toContain("build_mode")
+    expect(text).not.toContain("title_agent")
+    expect(text).not.toContain("ghost")
+    expect(text.indexOf("coder_agent")).toBeLessThan(text.indexOf("explorer_agent"))
+  })
+
   test("createEraMemo freezes values per key until invalidate", () => {
     const memo = createEraMemo()
     expect(memo.get("era-a")).toBeUndefined()

@@ -10,7 +10,9 @@ import { provideInstance, tmpdir } from "../fixture/fixture"
 import PROMPT_ANTHROPIC from "../../src/session/prompt/anthropic.txt"
 import PROMPT_DEFAULT from "../../src/session/prompt/default.txt"
 import PROMPT_GPT from "../../src/session/prompt/gpt.txt"
+import PROMPT_BUILD from "../../src/session/prompt/build.txt"
 import PROMPT_PLAN from "../../src/session/prompt/plan.txt"
+import PROMPT_REASONING_MODE from "../../src/session/prompt/reasoning-mode.txt"
 import PROMPT_REASONING from "../../src/session/prompt/reasoning_prompt.txt"
 import TASK_DESCRIPTION from "../../src/tool/task.txt"
 
@@ -40,18 +42,18 @@ describe("session.system", () => {
       expect(prompt).toContain("explore")
       expect(prompt).toContain("general")
     }
-    expect(PROMPT_REASONING).toContain("GATED_WORKFLOW")
-    expect(PROMPT_REASONING).toContain("PROMPT_ABI")
+    expect(PROMPT_REASONING).toContain("KERNEL_MAP")
+    expect(PROMPT_REASONING).toContain("ABI_AND_VOCABULARY")
   })
 
   test("reasoning_prompt.txt contains compact runtime dictionary roots", () => {
     const prompt = PROMPT_REASONING
 
-    for (const root of ["PROMPT_ABI", "TERMS", "RULES"]) {
+    for (const root of ["ABI_AND_VOCABULARY", "SHARED_RULES", "KERNEL_MAP"]) {
       expect(prompt).toContain(root)
     }
     expect(prompt).toMatch(/EVIDENCE_ORDER|EVIDENCE\.ORDER/)
-    expect(prompt).toContain("claim_ledger")
+    expect(prompt).toContain("CLAIM_LEDGER")
     expect(prompt).not.toContain("_ALL_SPECS")
     expect(prompt).not.toContain("run_conformance")
   })
@@ -59,8 +61,29 @@ describe("session.system", () => {
   test("plan reminder is a compact reference to the stable kernel contract", async () => {
     expect(PROMPT_PLAN).toContain('id="plan_mode"')
     expect(PROMPT_PLAN).toContain("@PLAN_MODE")
+    expect(PROMPT_PLAN).toContain("getmode")
     expect(PROMPT_PLAN).not.toContain("Plan subagent")
     expect(PROMPT_PLAN).not.toContain("Plan agent")
+  })
+
+  test("mode notices name kernel entities and the getmode tool", () => {
+    expect(PROMPT_BUILD).toContain('id="build_mode"')
+    expect(PROMPT_BUILD).toContain("@BUILD_MODE")
+    expect(PROMPT_BUILD).toContain("getmode")
+    expect(PROMPT_REASONING_MODE).toContain('id="reasoning_mode"')
+    expect(PROMPT_REASONING_MODE).toContain("@REASONING_MODE")
+    expect(PROMPT_REASONING_MODE).toContain("getmode")
+    expect(PROMPT_PLAN).toContain("@PLAN_MODE")
+  })
+
+  test("reasoning_prompt identity contracts use entity names, not host slugs", () => {
+    expect(PROMPT_REASONING).toContain("### BUILD_MODE")
+    expect(PROMPT_REASONING).toContain("### PLAN_MODE")
+    expect(PROMPT_REASONING).toContain("### REASONING_MODE")
+    expect(PROMPT_REASONING).toContain("Uncertain identity → getmode.")
+    expect(PROMPT_REASONING).not.toContain("### build_mode")
+    expect(PROMPT_REASONING).not.toContain("#### @GETMODE")
+    expect(PROMPT_REASONING).not.toContain("### GETMODE")
   })
 
   test("session plan path uses repo root plans directory", async () => {

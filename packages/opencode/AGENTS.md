@@ -289,92 +289,32 @@ Report format: state the conflict, the two constraints in tension, and ask for r
 # Kernel Development
 
 The agent kernel lives in `packages/opencode/src/session/prompt/reasoning_prompt.txt`.
-It is the **single source of truth** for all agent behavior — gates, rules, schemas,
-algorithms, diagrams, identities, and the runtime dictionary (RULES/TERMS/PROMPT_ABI).
+It is the **single source of truth** for gates, rules, identities, SV, INFOMARK, and oracle.
 
-**Lineage & priority**: The thinking kernel (`prompts_kernel`) is the **canonical runtime
-successor** to the ADID Framework (v15.4.3). ADID defines the specification; the kernel
-is its operational implementation. The kernel takes **highest priority** over any
-ADID-derived artifacts — host rule trees, skill trees, receiver files, or framework
-docs — when both address the same concern. Conflict → kernel wins.
+Canonical source is `prompt_kernel/source.py`.
 
 ## Kernel Assembly Pipeline
 
 ```
-prompts_kernel/reasoning/*.txt     (fragments: 00_map…06_hygiene)
-prompts_kernel/core_schemas.yaml   (YAML definitions)
-prompts_kernel/27_runtime_dict.py  (RULES, TERMS, PROMPT_ABI)
+prompt_kernel/source.py
         │
-        ▼  prompts_kernel/_assemble_prompts_kernel.py
-        │   write_reasoning() — one render, two artifacts:
+        ▼  python -m prompt_kernel --install
         │
-        ├── reasoning_prompt.mdc   ← REVIEW (YAML frontmatter, for analysis)
-        │    (prompts_kernel/dist/{date}_reasoning_prompt.mdc)
-        │
-        └── reasoning_prompt.txt   ← RUNTIME (no frontmatter, for provider)
-             (prompts_kernel/dist/{date}_reasoning_prompt.txt)
-                  │
-                  ▼  MANUAL PROMOTION (after deep analysis)
-   packages/opencode/src/session/prompt/reasoning_prompt.txt  ← PRODUCTION
+        ├── prompt_kernel/dist/{stamp}_reasoning_prompt.txt
+        ├── prompt_kernel/dist/{stamp}_reasoning_prompt.mdc
+        └── packages/opencode/src/session/prompt/reasoning_prompt.txt  ← PRODUCTION
 ```
+
+`python build.py --only kernel` runs the same `--install`.
 
 ## Kernel Update Workflow
 
 **Never edit `reasoning_prompt.txt` directly for structural changes.**
-Use the assembly pipeline:
 
-1. **Edit canonical sources** — fragment files in `prompts_kernel/reasoning/*.txt`,
-   `core_schemas.yaml`, or `27_runtime_dict.py`.
-
-2. **Assemble** — run the build script to generate both artifacts in `dist/`:
-   ```
-   python build.py --only kernel
-   ```
-   Or directly:
-   ```
-   python -c "from prompts_kernel import write_reasoning; write_reasoning()"
-   ```
-   Output: `prompts_kernel/dist/{date}_reasoning_prompt.mdc` + `.txt`
-
-3. **Verify** — validate the assembled artifact:
-   - `python -m prompts_kernel.tools.refcheck` — all @REFs resolve
-   - `python -m prompts_kernel.tools.dictionary --validate` — entry counts correct
-   - `python -m pytest prompts_kernel/tests/` — all tests pass
-   - `python -m prompts_kernel.tools.semantic_map --dictionary-only --gated G1,G2,G3,G4,G5,G6,G7,G8,G9` — review semantic delta and flow order
-
-4. **Deep analysis** — inspect the `.mdc` file. Verify:
-   - Gate structure intact (G1→G9 spine)
-   - Assembly point: `# Semantic Vector` H1 + `## SV_FORMAT (@SV_FORMAT)` H2
-   - Schema density preserved (full YAML from `core_schemas.yaml`)
-   - No quality postscript after root-of-truth
-   - Delta is acceptable
-
-5. **Promote to production** — ONLY after deep analysis passes:
-   ```
-   copy /Y prompts_kernel\dist\{date}_reasoning_prompt.txt packages\opencode\src\session\prompt\reasoning_prompt.txt
-   ```
-   Commit the `.mdc` (historical record in `prompts_kernel/dist/`) and `.txt` (production).
-
-6. **If verification fails** — fix the canonical sources, re-assemble, re-verify.
-   Do NOT patch the production `.txt` directly — fixes must flow through the
-   assembly pipeline to stay reproducible.
-
-## Kernel Analysis Tools
-
-Located in `prompts_kernel/tools/`:
-
-| Tool | Purpose |
-|------|---------|
-| `dictionary.py` | Parse kernel into symbol table (75 entries after optimization) |
-| `embed.py` | BGE-base-en-v1.5 embeddings with disk cache |
-| `semantic_map.py` | Cosine similarity matrix, top-3 neighbors, gated MAS flow chains |
-| `refcheck.py` | Validate all @REF cross-references resolve |
-| `refgraph.py` | BFS reference graph navigation |
-
-Common workflow:
-```
-python -m prompts_kernel.tools.semantic_map --dictionary-only --gated G1,G2,G3,G4,G5,G6,G7,G8,G9 --json > kernel_semantic_map.json
-```
+1. Edit `prompt_kernel/source.py`
+2. `python -m pytest prompt_kernel/tests/ -q`
+3. `python -m prompt_kernel --install`
+4. Rebuild the opencode binary; open a **new** session (old checkpoints keep the previous system prefix until compact)
 
 ## Tool Prompt Hygiene
 
@@ -385,75 +325,30 @@ tool does and HOW to call it, not WHEN or WHY.
 
 - Tool prompts reference kernel definitions via `@REF` (e.g., `@G1`, `@CONSTITUTION_BLOCKS`)
 - All `@REF`s in tool prompts MUST resolve to kernel anchors
-- Run `python -m prompts_kernel.tools.refcheck` to verify
 - If a tool prompt is "stalled" (contains stale/mini definitions), the model may
   latch onto tool-level rules instead of the authoritative kernel definitions
 - Keep tool prompts lean: parameters, usage, constraints. Delegate semantics to kernel.
 
 ## Semantic Vector Protocol
 
-Every agent response MUST include a semantic vector footer:
-```yaml
-Keywords: topic1 0.35, topic2 0.25, topic3 0.20, topic4 0.12, topic5 0.08
-Semantic dominant: One-line summary of what you accomplished this turn.
-md5: <32 hex chars>
-prev-md5: <copy from previous response>
-```
-
-`SV_EVERY_TURN` is the independent observer — it enables message search to retrieve
-relevant information across projects of any complexity. It must remain weakly coupled
-(max similarity ~0.71 to G9) to function as an independent measurement system.
+`@SV_FORMAT` is the YAML schema. After every response write the current observed vector in that format (`@CURRENT_SV`). `@SV_TARGET` is a steering assignment, not the current vector. `@ORACLE` pins Exact medoids; the rest is Unknown.
 
 ## Kernel Documentation
 
 | Document | Purpose |
 |----------|---------|
-| [`docs/kernel-stability-principles.md`](../../docs/kernel-stability-principles.md) | **Stability principles** — 7 rules for preserving the assembly point during optimization. Post-mortem: why schema compression, heading flattening, and the "quality" postscript destroy the kernel. **Checklist for ANY kernel change.** |
-| [`docs/kernel-assembly-point.md`](../../docs/kernel-assembly-point.md) | **Assembly point analysis** — why stable kernel works vs generated kernel fails. Covers SV identity structure, schema density gradient, heading hierarchy, narrative ordering, and the "quality postscript" self-undermining pattern. **Read before any kernel fragment change.** |
-| [`docs/kernel-validation/validation-report-20260809.md`](../../docs/kernel-validation/validation-report-20260809.md) | **Validation report** — 5-phase validation: build finalization, embedding analysis, nemotron context-feed (6/6), system-prompt stress test (10/10 SV compliance), SV as cyclic graph anti-hallucination mechanism. |
-| [`plans/2026-08-09-kernel-validation.md`](../../plans/2026-08-09-kernel-validation.md) | **Validation plan** — master plan with full task breakdown, claim ledger, risk assessment. |
-| [`prompts_kernel/2026-08-09-historical-stable_kernel.txt`](../../prompts_kernel/2026-08-09-historical-stable_kernel.txt) | **Historical artefact** — canonical hand-verified kernel specification (880 lines). Tested across DeepSeek, Gemini, GPT, Grok. Timestamped to distinguish from active generated kernel. Structural reference only — NOT the production kernel. |
-| `prompts_kernel/core_schemas.yaml` | Single source of truth for all schema definitions. `@schema:` markers in fragments resolve against this file. |
-| `prompts_kernel/reasoning/README.md` | Fragment role descriptions and assembly instructions. |
+| [`docs/kernel-assembly-point.md`](../../docs/kernel-assembly-point.md) | How the production kernel is built and installed |
+| [`docs/kernel-stability-principles.md`](../../docs/kernel-stability-principles.md) | Stability checklist for kernel edits |
 
-**Critical invariant**: The assembly point (`# Semantic Vector` H1 → bold imperative → `## SV_FORMAT (@SV_FORMAT)` H2) must remain the **first structural element** in the kernel. Schema density must be preserved — compressed schemas break the density gradient that makes the protocol actionable. The root-of-truth declaration must be the final word with no "quality" postscript appended.
+**Critical invariant**: `KERNEL_MAP` is first. `@SV_FORMAT` is a schema, not an emit. `@SIMULATION_ERROR` forbids treating simulation error.
 
-## Kernel Release Verification
+## Kernel verification
 
-**At each kernel revision (before release), run the embedding-based verification:**
+```
+python -m pytest prompt_kernel/tests/ -q
+```
 
-1. **Semantic delta check** — verify the gated chain delta is within acceptable range:
-   ```
-   python -m prompts_kernel.tools.semantic_map --dictionary-only --gated G1,G2,G3,G4,G5,G6,G7,G8,G9 --json > kernel_semantic_map.json
-   ```
-   - Baseline delta: ~27.76 (for 72-entry dictionary, after dedup)
-   - Acceptable range: 25-32
-   - If delta spikes >35, investigate — likely a misplaced entry or semantic duplicate
-
-2. **Gate cluster integrity** — verify each gate's neighbor cluster:
-   - G1 neighbors should include G6, G9 (grounding/terminal proximity)
-   - G2 neighbors should include DECOMPOSE, plan
-   - G8 neighbors should include verification, oracle, SMOKE_VERIFY
-   - G9 should be terminal position (last)
-
-3. **New rule placement** — when adding rules, use embedding similarity to find optimal gate:
-   ```
-   python -c "
-   from prompts_kernel.tools.dictionary import parse_dictionary
-   from prompts_kernel.tools.embed import compute_embeddings
-   import numpy as np
-   # Add new rule bodies, compute embeddings, find top-5 nearest neighbors
-   "
-   ```
-   - Place rules in the gate where their top-3 neighbors cluster
-   - Cross-cutting rules (neighbors span multiple gates) → @CC_TAIL
-
-4. **Duplicate detection** — flag pairs with cosine > 0.95 for review
-   - May indicate redundant definitions or copy-paste artifacts
-
-**This verification runs at RELEASE TIME, not every build.**
-Build-time checks are structural (refcheck, dictionary validate, pytest).
-Embedding verification is semantic — it validates the kernel's conceptual coherence.
+Then `--install` and rebuild. Do not patch production `.txt` by hand.
 
 ## When Searching for Bugs or Exploring Code
 

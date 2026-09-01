@@ -1,39 +1,29 @@
-Executes a PowerShell command as a **non-blocking background job** by default. Use `joboutput` to read output, `jobwait` to wait for completion, or `jobkill` to stop the job. For quick synchronous commands, set `run_in_background: false`.
-
-Follow constitution blocks: product tools for file ops; crash binaries via cmd_runner. G8 oracles when used as test/build oracle.
-
-**Constitution blocks**: The following shell commands are HARD-BLOCKED and will fail:
-- File enumeration: `ls`, `dir`, `tree`, `find`, `fd`, `rg --files`, `Get-ChildItem` — use `list`/`glob`/`grep` tools instead.
-- Crash-prone binaries (`bun`, `tsc`, `cargo`, `make`, `cmake`, `gcc`, `g++`, `clang`, `rustc`, `dotnet`, `msbuild`, `ninja`, `go`): must run through `cmd_runner` for process isolation (e.g., `cmd_runner start -- bun build`). Direct execution can corrupt TUI state.
+Executes a PowerShell command as a **non-blocking background job** by default. Use `joboutput`, `jobwait`, or `jobkill`. For quick synchronous commands, set `run_in_background: false`.
 
 Be aware: OS: ${os}, Shell: powershell
 
-All commands run in the current working directory by default. Use the `workdir` parameter to run in a different directory.
+Software constitution enforces file enumeration, destructive actions, and crash-prone binaries. Use list/glob/grep/read for files; cmd_runner for bun/tsc/cargo/make/cmake/gcc/g++/clang/rustc/dotnet/msbuild/ninja/go. G8 when used as a test/build oracle. Do not restate the block list.
+
+Use `workdir` instead of `Set-Location`.
 
 ## Background Jobs
 
-Commands run as background jobs (job ID like `bash-1`). Use `joboutput`, `jobwait`, `jobkill` to manage. Stalled jobs (no output for 15s) are NOT auto-killed — call `jobkill` to stop them. Set `run_in_background: false` for quick sync commands.
+Returns a job ID. Stalled jobs (no output for 15s) are NOT auto-killed — call `jobkill`.
 
 ## Permission Scanning
 
-Commands are parsed with a PowerShell grammar (tree-sitter-powershell) to detect filesystem-affecting operations. The permission system prompts for approval before executing dangerous commands.
+Commands are parsed with a PowerShell grammar (tree-sitter-powershell). Dangerous filesystem ops prompt for approval.
 
 ## Output Handling
 
-If the output exceeds ${maxLines} lines or ${maxBytes} bytes, it will be truncated and the full output written to a file.
+Truncated above ${maxLines} lines or ${maxBytes} bytes.
 
 ## Timeout
 
-The default timeout is 60000ms (1 minute). On timeout, the job is tree-killed; output before termination is preserved.
+Default 60000ms. On timeout the job is tree-killed; output before termination is preserved.
 
 Before executing:
 
-1. Always quote file paths with spaces in double quotes
-2. Use PowerShell syntax for commands
-3. Avoid `&&` — use `; if ($?) { }` for conditional chaining
-4. Use product tools instead of shell cmdlets: `list`/`glob` instead of `Get-ChildItem`, `read` instead of `Get-Content`. **`Get-ChildItem` is HARD-BLOCKED** by the constitution.
-5. After ensuring proper quoting, execute the command
-
-Usage notes:
-  - The command argument is required
-  - Use workdir parameter instead of `Set-Location`
+1. Quote paths with spaces in double quotes.
+2. Use PowerShell syntax. Avoid `&&` — use `; if ($?) { }` for conditional chaining.
+3. Use product tools instead of `Get-ChildItem` / `Get-Content`.

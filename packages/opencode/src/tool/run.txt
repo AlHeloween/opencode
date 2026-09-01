@@ -1,53 +1,39 @@
 Executes a binary directly with arguments — no shell interpretation, no quoting issues.
 
-**Constitution**: `run` is **not** a shell. Pipelines, globs, and compound commands must use `bash`/`cmd`. When used for tests/builds, oracles still follow G8.
+**Constitution**: `run` is **not** a shell. Pipelines, globs, and compound commands must use `bash`/`cmd`. Tests/builds used as oracles still follow G8.
 
-**Constitution blocks**: Crash-prone binaries (`bun`, `go`, `cargo`, `rustc`) are HARD-BLOCKED via `run` — they must go through `cmd_runner` for process isolation:
+Software constitution enforces file enumeration, destructive actions, and crash-prone binaries. Use list/glob/grep/read for files. Crash-prone binaries (`bun`, `tsc`, `cargo`, `make`, `cmake`, `gcc`, `g++`, `clang`, `rustc`, `dotnet`, `msbuild`, `ninja`, `go`) must go through `cmd_runner`:
 ```
-# ✅ Allowed (isolated terminal):
+# ✅ Isolated terminal:
 cmd_runner start -- bun run script.ts
 
-# ❌ Blocked (will crash TUI):
+# ❌ Blocked (can crash TUI):
 run({ binary: "bun", args: ["run", "script.ts"] })
 ```
-Safe binaries (`node`, `python`, `python3`, `git`, `npm`, `npx`) are allowed. Arguments are passed directly to the binary — no shell expansion, no globbing, no quote interpretation. Each argument is a separate string.
+Safe binaries (`node`, `python`, `python3`, `git`, `npm`, `npx`) are allowed. Each argument is a separate string — no globbing or quote interpretation.
 
-**`cmd_runner send` can run anything inside an existing terminal session** (SSH, interactive shell, etc.) — the constitution does not scan commands sent into an already-isolated TTY.
-
-DO NOT use for file operations — use Read, Write, Edit, Grep, Glob instead.
+`cmd_runner send … -- <payload>` is still scanned for brutal destructive actions (`guardBrutalDestructive`). Enumeration inside that TTY is allowed; `rm -rf`, DROP, force-push, git rewrite, and fossil mutate still require approval.
 
 ## Binary Resolution
 
-The binary is resolved from the system PATH. Common binaries:
-- ✅ Safe: `node`, `python`, `python3`, `git`, `npm`, `npx`
-- ⚠️ Crash-prone: `bun`, `go`, `cargo`, `rustc` — HARD-BLOCKED via `run`; use `cmd_runner start -- <binary> ...`
-- `cmd_runner.exe`, `adm.exe` (Windows)
+Resolved from PATH. `cmd_runner.exe` and `adm.exe` are allowed on Windows.
 
 ## Output Handling
 
-If the output exceeds ${maxLines} lines or ${maxBytes} bytes, it will be truncated and the full output written to a file. Use Read with offset/limit to read specific sections.
+If output exceeds ${maxLines} lines or ${maxBytes} bytes, it is truncated and the full output written to a file. Use Read with offset/limit for sections.
 
 ## Timeout
 
-Default timeout is 60000ms (1 minute). Use `timeout` for long-running commands. `cmd_runner.exe` auto-gets 10 min, `adm.exe` auto-gets 3 min.
+Default 60000ms. `cmd_runner.exe` auto-gets 10 min, `adm.exe` auto-gets 3 min.
 
 ## Background Mode
 
-Runs as a **background job by default** (returns job ID immediately). Use `joboutput` to read incremental output, `jobwait` to wait for completion, or `jobkill` to stop a stuck job. Set `run_in_background: false` for quick synchronous execution.
+Background job by default (returns job ID). Use `joboutput` / `jobwait` / `jobkill`. Set `run_in_background: false` for quick synchronous execution.
 
 ## Examples
 
-Run a Python script:
 ```
 run({ binary: "python", args: ["script.py"], workdir: "." })
-```
-
-Check git status:
-```
 run({ binary: "git", args: ["status", "--short"] })
-```
-
-Run inline Node.js:
-```
 run({ binary: "node", args: ["-e", "console.log(1+1)"], timeout: 5000 })
 ```

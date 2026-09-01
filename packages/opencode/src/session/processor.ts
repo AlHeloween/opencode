@@ -395,6 +395,12 @@ export const layer: Layer.Layer<
         if (!match || match.part.state.status !== "running") return
         // Epistemic nudge: if evidence floor is not Exact and this is a
         // mutation/destructive tool, prepend a verification reminder.
+        const stamp = Constitution.parseSourceStamp(output.metadata?.source_stamp)
+        const stamped = Constitution.infomarkForSourceStamp(stamp)
+        if (stamped) {
+          ctx.evidenceFloor = stamped
+          Constitution.raiseEvidenceFloor(ctx.sessionID, stamped)
+        }
         const nudge = Constitution.epistemicNudge({
           tool: match.part.tool,
           evidenceFloor: ctx.evidenceFloor,

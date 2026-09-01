@@ -155,7 +155,7 @@ export function composeCheckpointSystemPrompt(input: {
 /**
  * Validate system message ordering invariants for KV cache continuity.
  * Checks that the assembled system messages follow the required mutability order:
- *   reasoning (GATED / PROMPT_ABI) → rules → skills → env → agentPrompt → instructions
+ *   reasoning (KERNEL_MAP / GATED) → ABI → skills → env → agentPrompt → instructions
  *
  * Logs a warning if invariants are violated (development/debugging aid).
  * Returns true if order is valid, false otherwise.
@@ -165,16 +165,19 @@ export function validateSystemOrder(system: string[]): boolean {
 
   const fullText = system.join("\n")
 
-  // Markers from reasoning_prompt.txt (GATED spine + embedded dictionary)
-  const gatedIdx = fullText.indexOf("GATED_WORKFLOW")
-  const legacyIdx = fullText.indexOf("REASONING PROTOCOL")
-  const reasoningIdx = gatedIdx >= 0 ? gatedIdx : legacyIdx
-  const dictIdx = fullText.indexOf("PROMPT_ABI")
+  const gatedIdx = fullText.indexOf("KERNEL_MAP")
+  const legacyIdx = fullText.indexOf("GATED_WORKFLOW")
+  const protocolIdx = fullText.indexOf("REASONING PROTOCOL")
+  const reasoningIdx = gatedIdx >= 0 ? gatedIdx : legacyIdx >= 0 ? legacyIdx : protocolIdx
+  const dictIdx = (() => {
+    const next = fullText.indexOf("ABI_AND_VOCABULARY")
+    if (next >= 0) return next
+    return fullText.indexOf("PROMPT_ABI")
+  })()
   const agentIdx = fullText.indexOf("You are a coding assistant")
 
-  // GATED / reasoning header must appear before the dictionary block when both present
   if (reasoningIdx >= 0 && dictIdx >= 0 && reasoningIdx > dictIdx) {
-    console.warn("bug: system order violation — reasoning after PROMPT_ABI dictionary")
+    console.warn("bug: system order violation — reasoning map after ABI vocabulary")
     return false
   }
 

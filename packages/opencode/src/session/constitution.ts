@@ -1,5 +1,5 @@
 /**
- * Runtime constitution — aligned with prompts_kernel v6.1.
+ * Runtime constitution — aligned with prompt_kernel.
  *
  * Single source of truth for: risk tiers, command classification,
  * shell browsing guard, destructive guard, mutation grounding.
@@ -14,6 +14,7 @@
  */
 import * as Log from "@opencode-ai/core/util/log"
 import { spawnSync } from "child_process"
+import { createHash } from "crypto"
 import type { Node, Parser } from "web-tree-sitter"
 import { getParser, commands as tsCommands, parts as tsParts, source as tsSource } from "@/shell/tree-sitter"
 
@@ -1218,8 +1219,152 @@ export function sessionReadExactBanner(sessionID: string): string {
   )
 }
 
+export type AuthorityClass = "primary" | "secondary" | "generic" | "unknown"
+export type SourceKind = "snippet" | "document"
+
+export type SourceStamp = {
+  authority_class: AuthorityClass
+  url_provenance: string
+  content_hash: string
+  kind: SourceKind
+  discipline?: string
+}
+
+const PRIMARY_HOST_SUFFIXES: ReadonlyArray<readonly [string, string]> = [
+  ["arxiv.org", "science"],
+  ["aps.org", "science"],
+  ["iop.org", "science"],
+  ["nasa.gov", "science"],
+  ["nist.gov", "science"],
+  ["materialsproject.org", "science"],
+  ["usgs.gov", "science"],
+  ["ncbi.nlm.nih.gov", "biomed"],
+  ["nih.gov", "biomed"],
+  ["cochranelibrary.com", "biomed"],
+  ["who.int", "biomed"],
+  ["ieee.org", "engineering"],
+  ["acm.org", "engineering"],
+  ["heinonline.org", "law"],
+  ["westlaw.com", "law"],
+  ["lexisnexis.com", "law"],
+  ["stlouisfed.org", "social"],
+  ["nber.org", "social"],
+  ["jstor.org", "social"],
+  ["eric.ed.gov", "social"],
+  ["oecd.org", "social"],
+  ["fao.org", "biomed"],
+  ["python.org", "software"],
+  ["typescriptlang.org", "software"],
+  ["rust-lang.org", "software"],
+  ["go.dev", "software"],
+  ["nodejs.org", "software"],
+  ["bun.sh", "software"],
+  ["developer.mozilla.org", "software"],
+  ["tc39.es", "software"],
+  ["whatwg.org", "software"],
+]
+
+const SECONDARY_HOST_SUFFIXES = [
+  "wikipedia.org",
+  "github.com",
+  "gitlab.com",
+  "stackoverflow.com",
+  "stackexchange.com",
+  "medium.com",
+  "substack.com",
+] as const
+
+function hostSuffixMatch(host: string, suffix: string) {
+  return host === suffix || host.endsWith("." + suffix)
+}
+
+export function urlProvenance(url: string) {
+  try {
+    const parsed = new URL(url)
+    parsed.hash = ""
+    parsed.search = ""
+    parsed.username = ""
+    parsed.password = ""
+    return parsed.toString().replace(/\/$/, "") || parsed.origin
+  } catch {
+    return url.trim()
+  }
+}
+
+export function classifyUrlAuthority(url: string): { authority_class: AuthorityClass; discipline?: string } {
+  let host = ""
+  try {
+    host = new URL(url).hostname.toLowerCase()
+  } catch {
+    return { authority_class: "unknown" }
+  }
+  if (!host) return { authority_class: "unknown" }
+  for (const [suffix, discipline] of PRIMARY_HOST_SUFFIXES) {
+    if (hostSuffixMatch(host, suffix)) return { authority_class: "primary", discipline }
+  }
+  if (SECONDARY_HOST_SUFFIXES.some((suffix) => hostSuffixMatch(host, suffix))) {
+    return { authority_class: "secondary" }
+  }
+  return { authority_class: "generic" }
+}
+
+export function contentHash(content: string) {
+  return createHash("sha256").update(content, "utf8").digest("hex")
+}
+
+export function makeSourceStamp(input: { url: string; content: string; kind: SourceKind }): SourceStamp {
+  const classified = classifyUrlAuthority(input.url)
+  return {
+    authority_class: classified.authority_class,
+    url_provenance: urlProvenance(input.url),
+    content_hash: contentHash(input.content),
+    kind: input.kind,
+    ...(classified.discipline ? { discipline: classified.discipline } : {}),
+  }
+}
+
+export function parseSourceStamp(value: unknown): SourceStamp | undefined {
+  if (!value || typeof value !== "object") return undefined
+  if (!("authority_class" in value) || !("url_provenance" in value) || !("content_hash" in value) || !("kind" in value)) {
+    return undefined
+  }
+  const authority = value.authority_class
+  const kind = value.kind
+  const url = value.url_provenance
+  const hash = value.content_hash
+  if (authority !== "primary" && authority !== "secondary" && authority !== "generic" && authority !== "unknown") {
+    return undefined
+  }
+  if (kind !== "snippet" && kind !== "document") return undefined
+  if (typeof url !== "string" || !url) return undefined
+  if (typeof hash !== "string" || !/^[0-9a-f]{64}$/i.test(hash)) return undefined
+  const discipline = "discipline" in value ? value.discipline : undefined
+  return {
+    authority_class: authority,
+    url_provenance: url,
+    content_hash: hash.toLowerCase(),
+    kind,
+    ...(typeof discipline === "string" && discipline ? { discipline } : {}),
+  }
+}
+
+export function infomarkForSourceStamp(stamp: SourceStamp | undefined): InfoMark | undefined {
+  if (!stamp?.content_hash || !stamp.url_provenance) return undefined
+  if (stamp.kind === "snippet") return undefined
+  if (stamp.authority_class === "primary") return "Inferred"
+  if (stamp.authority_class === "secondary") return "Hypothetical"
+  return undefined
+}
+
+export function formatSourceStamp(stamp: SourceStamp) {
+  const mark = infomarkForSourceStamp(stamp) ?? "Guess"
+  const discipline = stamp.discipline ? ` discipline=${stamp.discipline}` : ""
+  return `source_stamp: authority_class=${stamp.authority_class}${discipline} kind=${stamp.kind} infomark=${mark} url_provenance=${stamp.url_provenance} content_hash=${stamp.content_hash}`
+}
+
 export function evidenceUpgradeForTool(toolName: string): InfoMark | undefined {
   const t = toolName.toLowerCase().replace(/[^a-z0-9]/g, "")
+  if (t === "webfetch" || t === "universalsearch") return undefined
   if (t === "sessionread") return "Exact"
   if (t === "read" || t === "codegraph" || t === "codegraphexplore") return "Exact"
   if (t === "messagesearch" || t === "grep" || t === "glob" || t === "list") return "Inferred"

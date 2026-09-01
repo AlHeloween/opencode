@@ -27,7 +27,7 @@ scope:
 - agent inventory
 
 constraints:
-- See `prompts_kernel/` package for GOVERNANCE dict (all rules as typed Python data)
+- See `prompt_kernel/` for the reasoning kernel (`source.py`)
 - Default branch is Local_Development, NOT main (dev has architectural divergence)
 - Never expose secrets to public git
 - Silent catch {} blocks are bugs — every catch must log
@@ -332,21 +332,20 @@ See cmd-runner skill for full reference.
 | `packages/sdk/js/src/gen/` | `bun run packages/sdk/js/script/build.ts` |
 | `packages/sdk/js/src/v2/gen/` | same |
 | `packages/desktop/src/bindings.ts` | `cargo run -p specta-bindings` |
-| `packages/opencode/src/session/prompt/reasoning_prompt.txt` | `python -c "from prompts_kernel import write_reasoning; write_reasoning(__import__('pathlib').Path('prompts_kernel/dist/reasoning_prompt.mdc'))"` → promote `dist/reasoning_prompt.txt` → production |
-| `packages/opencode/src/session/prompt/reasoning_prompt.mdc` | same `write_reasoning` call (publishes both dist siblings; production carries `.txt` only) |
+| `packages/opencode/src/session/prompt/reasoning_prompt.txt` | `python -m prompt_kernel --install` (stamps `prompt_kernel/dist/` and copies runtime `.txt` into production) |
 
-**Kernel sync:** After any kernel source change: `python -c "from pathlib import Path; from prompts_kernel._assemble_prompts_kernel import write_precompiled_kernel; write_precompiled_kernel(Path('prompts_kernel'))"` (regen `_kernel_precompiled.py` — the live-first module) → `write_reasoning(...)` (dist artifacts) → promote dist `.txt` → production. Reasoning protocol fragments: edit `prompts_kernel/reasoning/*.txt`, then rebuild. In a fresh Python process per step — a same-process rebuild uses the already-imported precompiled module.
+**Kernel sync:** Edit `prompt_kernel/source.py` → `python -m pytest prompt_kernel/tests/ -q` → `python -m prompt_kernel --install` → rebuild the opencode binary.
 
-**Host-local:** This file is host-local (THIS repo only). Product kernel + `reasoning/*` are host-agnostic. See kernel `21_skills_boundary.py`.
+**Host-local:** This file is host-local (THIS repo only). Product kernel is host-agnostic.
 
 ---
 
 ## Kernel Development Workflow
 
-1. Define rules in `prompts_kernel/27_runtime_dict.py`
-2. Regenerate precompiled kernel: `python -c "from pathlib import Path; from prompts_kernel._assemble_prompts_kernel import write_precompiled_kernel; write_precompiled_kernel(Path('prompts_kernel'))"`, then rebuild dist artifacts via `write_reasoning(...)` (see Auto-Generated Code)
-3. Update tests: `python -m pytest prompts_kernel/tests/ -q`
-4. Single commit: source + regenerated + test fixes
+1. Define the reasoning kernel in `prompt_kernel/source.py`
+2. `python -m pytest prompt_kernel/tests/ -q`
+3. `python -m prompt_kernel --install`
+4. Rebuild opencode; open a new session (old checkpoints keep the previous system prefix until compact)
 
 ---
 

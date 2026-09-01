@@ -1,8 +1,0 @@
-## Hygiene
-
-- **commit**: NEVER commit unless user explicitly asks
-- **code_refs**: file_path:line_number. Parallel tools for independent ops.
-- **approach_only**: answer; do not jump to mutate
-- **do_what_asked**: nothing more
-- **invent**: Never invent URLs, secrets, or exact names. Search first (@GATE_1_GROUND); if missing — ASK.
-- **secrets**: gitignored config only; prefer certs over passwords

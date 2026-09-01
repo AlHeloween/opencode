@@ -444,6 +444,51 @@ claim_ledger:
     expect(Constitution.evidenceUpgradeForTool("read")).toBe("Exact")
     expect(Constitution.evidenceUpgradeForTool("grep")).toBe("Inferred")
     expect(Constitution.evidenceUpgradeForTool("edit")).toBeUndefined()
+    expect(Constitution.evidenceUpgradeForTool("webfetch")).toBeUndefined()
+    expect(Constitution.evidenceUpgradeForTool("universalsearch")).toBeUndefined()
+  })
+
+  test("source_stamp: generic web never reaches Inferred", () => {
+    const generic = Constitution.makeSourceStamp({
+      url: "https://random-blog.example/post",
+      content: "hello",
+      kind: "document",
+    })
+    expect(generic.authority_class).toBe("generic")
+    expect(generic.content_hash).toMatch(/^[0-9a-f]{64}$/)
+    expect(Constitution.infomarkForSourceStamp(generic)).toBeUndefined()
+
+    const snippet = Constitution.makeSourceStamp({
+      url: "https://arxiv.org/abs/1234.5678",
+      content: "abstract snippet",
+      kind: "snippet",
+    })
+    expect(snippet.authority_class).toBe("primary")
+    expect(snippet.discipline).toBe("science")
+    expect(Constitution.infomarkForSourceStamp(snippet)).toBeUndefined()
+  })
+
+  test("source_stamp: primary document fetch is Inferred", () => {
+    const stamp = Constitution.makeSourceStamp({
+      url: "https://arxiv.org/pdf/1234.5678.pdf?download=1#page=1",
+      content: "full paper body",
+      kind: "document",
+    })
+    expect(stamp.authority_class).toBe("primary")
+    expect(stamp.url_provenance).toBe("https://arxiv.org/pdf/1234.5678.pdf")
+    expect(Constitution.infomarkForSourceStamp(stamp)).toBe("Inferred")
+    expect(Constitution.formatSourceStamp(stamp)).toContain("infomark=Inferred")
+    expect(Constitution.parseSourceStamp(stamp)).toEqual(stamp)
+  })
+
+  test("source_stamp: secondary document fetch is Hypothetical", () => {
+    const stamp = Constitution.makeSourceStamp({
+      url: "https://github.com/foo/bar",
+      content: "readme",
+      kind: "document",
+    })
+    expect(stamp.authority_class).toBe("secondary")
+    expect(Constitution.infomarkForSourceStamp(stamp)).toBe("Hypothetical")
   })
 
   test("where /r and bare where for PATH are not enumeration — both allowed", () => {

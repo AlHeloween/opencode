@@ -100,6 +100,19 @@ type State = {
  */
 export type EraMemo = ReturnType<typeof createEraMemo>
 
+export function formatTaskAgentInventory(
+  agents: ReadonlyArray<{ name: string; description?: string; mode: string; hidden?: boolean }>,
+) {
+  const list = agents
+    .filter((item) => item.mode !== "primary" && item.hidden !== true)
+    .toSorted((a, b) => a.name.localeCompare(b.name))
+  if (list.length === 0) return "Available agent types:\n(none)"
+  return [
+    "Available agent types (live inventory; runtime ACL still applies at execute time):",
+    ...list.map((item) => `- ${item.name}: ${item.description ?? "No description."}`),
+  ].join("\n")
+}
+
 export function createEraMemo() {
   const cache = new Map<string, { task: string; skill: string }>()
   return {
@@ -411,17 +424,7 @@ export const layer: Layer.Layer<
     })
 
     const describeTask = Effect.fn("ToolRegistry.describeTask")(function* (_agent: Agent.Info) {
-      const items = (yield* agents.list()).filter((item) => item.mode !== "primary")
-      // Subagent descriptions are mode-stable — ACL filtering is runtime at execute time.
-      // Do NOT shrink the list per agent.subagents (KV cache stability).
-      const list = items.toSorted((a, b) => a.name.localeCompare(b.name))
-      const description = list
-        .map(
-          (item) =>
-            `- ${item.name}: ${item.description ?? "This subagent should only be called manually by the user."}`,
-        )
-        .join("\n")
-      return ["Available agent types and the tools they have access to:", description].join("\n")
+      return formatTaskAgentInventory(yield* agents.list())
     })
 
     const tools: Interface["tools"] = Effect.fn("ToolRegistry.tools")(function* (input) {

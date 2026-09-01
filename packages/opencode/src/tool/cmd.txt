@@ -1,66 +1,40 @@
-Executes a Windows cmd.exe command as a **non-blocking background job** by default. Use `joboutput` to read output, `jobwait` to wait for completion, or `jobkill` to stop the job. For quick synchronous commands (e.g., `echo`, `git status`), set `run_in_background: false`.
-
-Follow constitution blocks: product tools for file ops; crash binaries via cmd_runner.
-
-**Constitution blocks**: The following shell commands are HARD-BLOCKED and will fail:
-- File enumeration: `ls`, `dir`, `tree`, `find`, `fd`, `rg --files`, `Get-ChildItem` — use `list`/`glob`/`grep` tools instead.
-- Crash-prone binaries (`bun`, `tsc`, `cargo`, `make`, `cmake`, `gcc`, `g++`, `clang`, `rustc`, `dotnet`, `msbuild`, `ninja`, `go`): must run through `cmd_runner` for process isolation (e.g., `cmd_runner start -- bun build`). Direct execution can corrupt TUI state.
+Executes a Windows cmd.exe command as a **non-blocking background job** by default. Use `joboutput`, `jobwait`, or `jobkill`. For quick synchronous commands, set `run_in_background: false`.
 
 Be aware: OS: ${os}, Shell: cmd
 
-All commands run in the current working directory by default. Use the `workdir` parameter to run in a different directory. AVOID using `cd <directory> && <command>` patterns.
+Software constitution enforces file enumeration, destructive actions, and crash-prone binaries. Use list/glob/grep/read for files; cmd_runner for bun/tsc/cargo/make/cmake/gcc/g++/clang/rustc/dotnet/msbuild/ninja/go. Do not restate the block list.
 
-IMPORTANT: This tool is for simple cmd.exe commands. For interactive, long-running, or complex terminal sessions (including PowerShell and Git Bash), use the `cmd_runner` skill instead.
+For interactive, long-running, or complex sessions (PowerShell, Git Bash), use the `cmd_runner` skill. Use `workdir` instead of `cd`.
 
 ## Background Jobs
 
-Commands run as background jobs. The tool returns immediately with a job ID (e.g., `bash-1`). You then:
-
-1. **Read output incrementally:** `joboutput { job_id: "bash-1" }` — returns new text + status (`running`, `stalled`, `done`, `failed`, `killed`)
-2. **Wait for completion:** `jobwait { job_ids: ["bash-1"] }` — blocks until done
-3. **Kill a stuck job:** `jobkill { job_id: "bash-1" }` — use when status is `stalled` (no output for 15s)
-
-For quick commands where you need the result immediately, opt out of background mode:
+Returns a job ID immediately. Stalled jobs (no output for 15s) are NOT auto-killed — call `jobkill`. Opt out of background mode for quick results:
 ```
 cmd "echo hello" --run_in_background false
 ```
-**Do NOT use `dir`** — it is HARD-BLOCKED by the constitution; use `glob` or `list` for file browsing.
 
 ## Windows Path Quoting
 
-Paths with spaces MUST be double-quoted: `takeown /f "C:\Program Files\app"` NOT `takeown /f C:\Program Files\app`.
-DO NOT escape quotes with backslashes — cmd.exe does not understand `\"`. Prefer `""` inside a quoted string for literal quotes.
+Paths with spaces MUST be double-quoted: `takeown /f "C:\Program Files\app"`.
+Do NOT escape quotes with backslashes. Prefer `""` inside a quoted string for literal quotes.
 
 ## Permission Scanning
 
-Commands are parsed with a batch grammar to detect filesystem-affecting operations. The permission system prompts for approval before executing dangerous commands.
+Commands are parsed with a batch grammar. Dangerous filesystem ops prompt for approval.
 
 ## Output Handling
 
-Stdout and stderr are both captured into the tool result (do not assume stderr is dropped).
-If the output exceeds ${maxLines} lines or ${maxBytes} bytes, it will be truncated and the full output written to a file.
-
-**TypeScript / compilers (`tsc`, `bun`, `node` tools):** diagnostics often go to **stderr**. Always use `2>&1` when:
-- piping into another program that only reads stdin/stdout, or
-- a follow-on step parses the command text as TS/JSON and will crash if errors stay only on an unmerged stream.
-
-Example: `bun run script/build.ts 2>&1` — never strip `2>&1`.
+Stdout and stderr are captured. Truncated above ${maxLines} lines or ${maxBytes} bytes.
+TypeScript/compiler diagnostics often go to stderr — use `2>&1` (never strip it):
+`bun run script/build.ts 2>&1`
 
 ## Timeout
 
-The default timeout is 60000ms (1 minute). You can specify an optional timeout in milliseconds.
-
-**Timeout behavior:** When the timeout is exceeded, the job is killed (tree kill — all child processes). Its status becomes `killed` and any output produced before termination is preserved. Stalled jobs (no output for 15s) are NOT auto-killed — you must explicitly call `jobkill` if you want to stop a stalled job.
+Default 60000ms. On timeout the job is tree-killed; output before termination is preserved.
 
 Before executing:
 
-1. Always quote file paths with spaces in double quotes.
-2. Use Windows syntax: `type`, `copy`, `move`, `del`, `mkdir`, `takeown`. **Do NOT use `dir`** — it is HARD-BLOCKED; use `glob` or `list` for file browsing.
-3. Chain with `&&`. Pipe with `|`. Redirect with `>` and **`2>&1`** (required for TS/compiler error capture into pipes).
-4. Use `nul` for null device. Do **not** remove intentional `2>&1` merge redirects.
-5. DO NOT use `grep`, `rg`, `head`, `tail`, `sed`, `awk` — use dedicated tools.
-6. For interactive/long-running commands, use `cmd_runner` skill.
-
-Usage notes:
-  - The command argument is required.
-  - Use `workdir` instead of `cd <directory>`.
+1. Quote paths with spaces.
+2. Use Windows syntax: `type`, `copy`, `move`, `del`, `mkdir`, `takeown`. Never `dir` — use glob/list.
+3. Chain with `&&`. Pipe with `|`. Redirect with `>` and `2>&1`.
+4. Use `nul` for the null device. Do not use `grep`, `rg`, `head`, `tail`, `sed`, `awk`.

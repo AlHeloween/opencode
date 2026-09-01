@@ -33,7 +33,7 @@ Every **implementable** plan must include:
 
 - **`smoke: N/A — {reason}`** only for pure docs/plan-only (no runtime/code surface).
 - Vague "test later" or missing Smoke Tests → plan is incomplete; **do not implement**.
-- Kernel rule: `SMOKE.BEFORE` (see `opencode_prompts_kernel.py` / runtime `RULES`).
+- Kernel rule: `SMOKE.BEFORE` (see `prompt_kernel/source.py`).
 
 ## Testing Convention
 

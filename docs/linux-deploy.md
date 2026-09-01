@@ -52,7 +52,7 @@ Install on the **Linux** machine where you compile (or a matching container/VM).
 | **Bun** 1.3+ | Package manager + `bun --compile` | [bun.sh](https://bun.sh) |
 | **Zig** (OpenTUI’s pin; see `packages/opentui`) | Native TUI renderer (`libopentui.so`) | ziglang.org or distro package |
 | **Rust** + `cargo` | `opencode-markdownify` + WASM crates | rustup |
-| **Python 3.11+** | Kernel prompt render (`opencode_prompts_kernel.py`) | distro `python3` |
+| **Python 3.11+** | Kernel prompt render (`python -m prompt_kernel --install`) | distro `python3` |
 | **git** | Clone / project VCS | distro |
 | C toolchain | Zig/Rust link | `build-essential` (Debian/Ubuntu), `base-devel` (Arch), etc. |
 
@@ -94,16 +94,13 @@ bun install
 Sync the prompt kernel into the binary’s embed path:
 
 ```bash
-python3 opencode_prompts_kernel.py \
-  --render-runtime packages/opencode/src/session/prompt/opencode_prompts_kernel.txt
+python3 -m prompt_kernel --install
 ```
 
 Optional integrity:
 
 ```bash
-python3 -c "import opencode_prompts_kernel as k; print(len(k._KERNEL_SYMBOLS))"
-# Full suite (from repo root):
-python3 -m pytest tests/ -q
+python3 -m pytest prompt_kernel/tests -q
 ```
 
 ---
@@ -486,9 +483,7 @@ Until then, treat §5–§6 as the canonical Linux procedure.
 # On Linux x86_64, from a frozen Local_Development commit:
 git checkout <stable-commit>
 bun install
-python3 opencode_prompts_kernel.py \
-  --render-runtime packages/opencode/src/session/prompt/opencode_prompts_kernel.txt \
-  --render-skills .opencode/skills .cursor/skills
+python3 -m prompt_kernel --install
 
 (cd packages/opentui/packages/core && bun run build)
 (cd packages/opentui/packages/solid && bun run build)

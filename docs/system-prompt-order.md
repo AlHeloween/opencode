@@ -34,7 +34,7 @@ flowchart TB
   subgraph stable_body["system[2] stable body (join order)"]
     R[reasoning.txt]
     AC[algorithm_card.txt]
-    K[opencode_prompts_kernel.txt]
+    K[reasoning_prompt.txt]
     P[pathSystem from prompt.ts]
     A[agent.prompt e.g. coder — NOT plan/build]
     R --> AC --> K --> P
@@ -66,7 +66,7 @@ flowchart TB
 ```
 reasoningPrefix          ← MOST STABLE (full reasoning.txt)
 algorithmCard            ← ALGORITHM_CARD (commented Python routes; shared plan+build)
-kernel                   ← full opencode_prompts_kernel.txt (Pythonic PROMPT_ABI / RULES / …)
+kernel                   ← reasoning_prompt.txt (prompt_kernel)
 pathSystem[0..n-2]       ← rules → skills → env  (assemblePathSystem)
 agentPrompt              ← agent.prompt for subagents (coder/…); plan/build have NONE
 pathSystem[last]         ← instructions (AGENTS.md etc.) — most mutable of path

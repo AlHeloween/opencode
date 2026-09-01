@@ -15,7 +15,7 @@ $DistDir = Join-Path $Root "dist"
 $OpencodePkg = Join-Path (Join-Path $Root "packages") "opencode"
 
 # ── Prerequisites (run separately before build) ──
-#   python prompts_kernel/_assemble_prompts_kernel.py  # kernel assembly (optional)
+#   python -m prompt_kernel --install  # kernel assembly (optional)
 #   .\_opentui.ps1                   — OpenTUI Zig+TS rebuild
 #   .\_opentui.ps1 -Full             — full OpenTUI monorepo
 #   .\_build_rust.ps1                — Rust WASM modules (also called by build task)
@@ -59,7 +59,7 @@ function Get-Version {
 
 # ═══════════════════════════════════════════════════════════
 # CHECK TASK — typecheck, tests, prettier only.
-# Kernel assembly → python prompts_kernel/_assemble_prompts_kernel.py
+# Kernel assembly → python -m prompt_kernel --install
 # ═══════════════════════════════════════════════════════════
 function Invoke-Check {
     Write-Step "Running Checks"
@@ -123,7 +123,7 @@ function Invoke-Check {
 # ═══════════════════════════════════════════════════════════
 # BUILD TASK — compile opencode + collect artifacts.
 # OpenTUI must be pre-built via _opentui.ps1.
-# Kernel must be pre-assembled via python prompts_kernel/_assemble_prompts_kernel.py.
+# Kernel must be pre-assembled via python -m prompt_kernel --install.
 # ═══════════════════════════════════════════════════════════
 function Invoke-Build {
     Write-Step "Building"
@@ -364,12 +364,12 @@ switch ($Task) {
         Write-Host "  -SkipTypecheck      Skip typecheck"
         Write-Host ""
         Write-Host "Prerequisites (run before build):" -ForegroundColor Yellow
-        Write-Host "  python prompts_kernel/_assemble_prompts_kernel.py — kernel assembly"
+        Write-Host "  python -m prompt_kernel --install — kernel assembly"
         Write-Host "  .\_opentui.ps1                   — OpenTUI Zig+TS rebuild"
         Write-Host "  .\_opentui.ps1 -Full             — full OpenTUI monorepo"
         Write-Host ""
         Write-Host "Typical workflow:" -ForegroundColor Yellow
-        Write-Host "  python prompts_kernel/_assemble_prompts_kernel.py  # assemble + validate kernel"
+        Write-Host "  python -m prompt_kernel --install  # assemble + install kernel"
         Write-Host "  .\_opentui.ps1                    # build OpenTUI native + TS"
         Write-Host "  .\_build.ps1                      # compile opencode + collect dist/"
         exit 1

@@ -46,7 +46,7 @@ system[1]  tool schemas (serialized)  ← machine capability truth
 system[2]  stable body (joined):
              reasoning.txt
              → algorithm_card.txt
-             → opencode_prompts_kernel.txt
+             → reasoning_prompt.txt
              → pathSystem (rules → skills → env → AGENTS)
              → agent.prompt (subagents only; not plan/build)
 system[3]  mutable tail:

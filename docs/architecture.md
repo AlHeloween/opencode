@@ -6,6 +6,8 @@
 - `docs/reasoning-framework.md` — PromptSpec schema, syntax/disciplinary projections, IR compilation
 - `docs/compaction.md` — mechanistic compaction (stable continuous memory)
 
+Production system kernel: `prompt_kernel/source.py` → `packages/opencode/src/session/prompt/reasoning_prompt.txt` (`python -m prompt_kernel --install`).
+
 ---
 
 ## 1. Prompt System Architecture

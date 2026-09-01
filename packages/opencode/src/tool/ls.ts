@@ -8,7 +8,6 @@ import { assertExternalDirectoryEffect } from "./external-directory"
 import DESCRIPTION from "./ls.txt"
 import * as Tool from "./tool"
 import { directoryPathDescription } from "./path-hint"
-
 const IGNORE_PATTERNS = [
   "node_modules/",
   "__pycache__/",
@@ -49,17 +48,25 @@ export const Parameters = Schema.Struct({
   directoriesOnly: Schema.optional(Schema.Boolean).annotate({
     description: "When true, show only directories (no files). Like `tree -d`. Default: false.",
   }),
+  dates: Schema.optional(Schema.Boolean).annotate({
+    description:
+      "Show local mtime (YYYY-MM-DD HH:mm:ss) per entry — spots freshly changed files at a glance. Default: true.",
+  }),
 })
 
 export const ListTool = Tool.define(
   "list",
   Effect.gen(function* () {
     const rg = yield* Ripgrep.Service
+    const fs = yield* AppFileSystem.Service
 
     return {
       description: DESCRIPTION,
       parameters: Parameters,
-      execute: (params: { path?: string; ignore?: string[]; directoriesOnly?: boolean }, ctx: Tool.Context) =>
+      execute: (
+        params: { path?: string; ignore?: string[]; directoriesOnly?: boolean; dates?: boolean },
+        ctx: Tool.Context,
+      ) =>
         Effect.gen(function* () {
           const ins = yield* InstanceState.context
           const searchPath = path.resolve(ins.directory, params.path || ".")
@@ -105,12 +112,46 @@ export const ListTool = Tool.define(
             filesByDir.get(dir)!.push(path.basename(file))
           }
 
+          // Local mtime per entry (2026-09-01, Alexander: "list не дает дат —
+          // большое упущение"). Best-effort: stat failures render without a date.
+          const showDates = params.dates !== false
+          const mtimes = new Map<string, Date>()
+          if (showDates) {
+            const targets = new Set<string>([
+              ...files.map((f) => path.resolve(searchPath, f)),
+              ...[...dirs].map((d) => (d === "." ? searchPath : path.resolve(searchPath, d))),
+            ])
+            yield* Effect.forEach(
+              targets,
+              (target) =>
+                fs.stat(target).pipe(
+                  Effect.map((info: any) => {
+                    if (info?.mtime) mtimes.set(target, new Date(info.mtime as unknown as string))
+                  }),
+                  Effect.catch(() => Effect.void),
+                ),
+              { concurrency: 16, discard: true },
+            )
+          }
+
+          function fmtDate(value: Date | undefined): string {
+            if (!value) return ""
+            const p = (n: number) => String(n).padStart(2, "0")
+            return `${value.getFullYear()}-${p(value.getMonth() + 1)}-${p(value.getDate())} ${p(value.getHours())}:${p(value.getMinutes())}:${p(value.getSeconds())}`
+          }
+
+          function withDate(label: string, target: string): string {
+            if (!showDates) return label
+            const date = fmtDate(mtimes.get(target))
+            return date ? `${label}  ${date}` : label
+          }
+
           function renderDir(dirPath: string, depth: number): string {
             const indent = "  ".repeat(depth)
             let output = ""
 
             if (depth > 0) {
-              output += `${indent}${path.basename(dirPath)}/\n`
+              output += `${indent}${withDate(`${path.basename(dirPath)}/`, path.resolve(searchPath, dirPath))}\n`
             }
 
             const childIndent = "  ".repeat(depth + 1)
@@ -125,8 +166,7 @@ export const ListTool = Tool.define(
             if (!params.directoriesOnly) {
               const dirFiles = filesByDir.get(dirPath) || []
               for (const file of dirFiles.sort()) {
-                output += `${childIndent}${file}
-`
+                output += `${childIndent}${withDate(file, path.resolve(searchPath, dirPath, file))}\n`
               }
             }
 

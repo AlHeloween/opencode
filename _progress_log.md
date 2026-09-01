@@ -1,4 +1,12 @@
 # Progress Log
+## 2026-09-01 list tool shows local mtime per entry (dates were a gap — Alexander)
+Reason: user (10:42–10:44 UTC) — "list не дает дат?" / "давай править list. Это большое упущение." Root listing without timestamps forced shell-stat detours (which are constitution-blocked as enumeration — tool-selection lesson logged separately).
+Changes:
+- `tool/ls.ts` — each file AND directory entry now renders `  <YYYY-MM-DD HH:mm:ss>` (LOCAL time) via best-effort AppFileSystem.stat (concurrency 16, stat failures render without date — no hard failure). New `dates` param (default true) for compact mode. Directory mtimes included — freshly touched packages visible at a glance.
+- `tool/ls.txt` — output contract updated.
+Script Output:
+- typecheck exit 0 (`20260901T104907Z_0facf756`).
+
 ## 2026-09-01 Subplan 05 — /rules /skills /tools toggles with PERSISTED save + /opentui command removal
 Reason: user (01:30–01:31 UTC) — "команду убрать (я перенес skill в skills), включение rules, skills, тулов должны управляться как /mcps. enable/disable/save"; "комманда в tui /opentui ты ее зачем-то добавил"; "Продолжай".
 Changes:

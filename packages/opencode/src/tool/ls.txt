@@ -2,4 +2,4 @@ Directory tree listing. Product `list` replaces shell ls/dir/tree.
 
 Hardcoded ignores (always applied): node_modules/, __pycache__/, .git/, dist/, build/, target/, vendor/, bin/, obj/, .idea/, .vscode/, .zig-cache/, zig-out, .coverage, coverage/, tmp/, temp/, .cache/, cache/, logs/, .venv/, venv/, env/. Gitignore rules are honored in addition. `ignore` adds extra glob patterns.
 
-Output: hierarchical tree, directories suffixed `/`, absolute paths. `directoriesOnly: true` = structure only (tree -d). Cap: 100 entries (truncation notice on overflow).
+Output: hierarchical tree, directories suffixed `/`, absolute paths. Each entry shows local mtime `YYYY-MM-DD HH:mm:ss` (default on; `dates: false` for compact output) — freshly changed files are visible at a glance. `directoriesOnly: true` = structure only (tree -d). Cap: 100 entries (truncation notice on overflow).

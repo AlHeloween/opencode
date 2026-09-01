@@ -1,4 +1,17 @@
 # Progress Log
+## 2026-09-01 Subplan 05 — /rules /skills /tools toggles with PERSISTED save + /opentui command removal
+Reason: user (01:30–01:31 UTC) — "команду убрать (я перенес skill в skills), включение rules, skills, тулов должны управляться как /mcps. enable/disable/save"; "комманда в tui /opentui ты ее зачем-то добавил"; "Продолжай".
+Changes:
+- REMOVED `.opencode/command/opentui.md` (obsolete — skill lives in .opencode/skills/).
+- Config schema: `rules: Record<string, boolean>` (config.ts) + `ConfigSkills.Info.disabled: string[]` (config/skills.ts).
+- Enforcement: session/instruction.ts skips `config.rules[basename] === false`; skill/index.ts get/all/available filter `config.skills.disabled` (system prompt + skill tool + /skill route shrink).
+- Server: GET /config/rules (httpapi/config.ts — glob .opencode/rules + config map, AppFileSystem layer added); /experimental/tool/ids reused for tool ids (redundant /tool route removed); hono describeRoute metadata added for config.get/update/rules + experimental.tool.ids (requestBody = literal JSON Schema — resolver() not preprocessed there).
+- TUI: dialog-feature-toggle.tsx (mode-parametrized, Status chips from dialog-mcp); app.tsx commands /rules /skills /tools (Agent category). New endpoints via hey-api core client escape hatch.
+- SDK: 3 regen attempts exposed PRE-EXISTING spec debt — Server.openapi (hono generateSpecs) documents ONLY describeRoute routes; bridged Effect routes (mcp/session/sync/...) are invisible → fresh regen drops them (committed gen was stale). Regen REVERTED (targeted OPENCODE_ALLOW_DESTRUCTIVE checkout of gen dirs); metadata kept in source for the future pipeline fix (documented in plan 05 Open items).
+- config PATCH semantics verified: Config.update mergeDeep's into the project file (config.ts:1046) — partial toggle payloads never drag global defaults into project layer.
+Script Output:
+- typecheck exit 0 (`20260901T083049Z_3744d9df`, final `20260901T083319Z_43b522bc`); SDK tsc exit 0 after gen restore (`20260901T082551Z_4089a589`). LSP session/mcp errors during regen window were stale.
+
 ## 2026-09-01 Kernel tautology fix — headings no longer declare+reference themselves (commit ee7a8c16a5)
 Reason: user (01:09–01:18 UTC) — «объявление и реф на него одновременно это не правильно… И тут же забил». My 2026-08-31 «масло-масляное» ack was misread as output-format feedback; the actual defect was IN the kernel file: 51 headings of the form `## X (@X)` (declaration + self-reference in one line). «Поехали» authorized THIS fix; I instead executed the pre-existing assembly plan and treated the kernel fix as done — process failure, closed here.
 Changes:

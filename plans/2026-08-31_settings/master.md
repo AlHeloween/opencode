@@ -93,6 +93,8 @@ policy_author: Alexander (2026-08-31, 04:32–04:42 UTC)
 | [01_global-write.md](01_global-write.md) | global layer editable + confirmation dialog (server handlers + TUI) | IMPLEMENTED 2026-08-31 |
 | [02_jsonc-comments.md](02_jsonc-comments.md) | all settings files jsonc with `//` comments (incl. sessions loader jsonc-parser migration) | PLANNED |
 | [03_settings-dialog.md](03_settings-dialog.md) | unified Settings dialog: every inventory row editable, scoped, mouse+keyboard; missing setting = bug | PLANNED |
+| [04_routing.md](04_routing.md) | OpenRouter routing: per-agent/per-model chain + defaults (streamlake) + live-endpoints dialog | IMPLEMENTED (rev 2/3) 2026-08-31 |
+| [05_rules-skills-tools.md](05_rules-skills-tools.md) | /rules, /skills, /tools — enable/disable with PERSISTED project-config save (like /mcps + save) | IMPLEMENTED 2026-09-01 |
 
 ## Smoke tests
 

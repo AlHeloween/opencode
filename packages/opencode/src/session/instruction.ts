@@ -189,7 +189,11 @@ export const layer: Layer.Layer<Service, never, AppFileSystem.Service | Config.S
               Effect.catch(() => Effect.succeed([] as string[])),
             )
             const filtered = matches.filter((f) => [".mdc", ".md"].some((ext) => f.endsWith(ext))).sort()
-            for (const filepath of filtered) {
+            // config.rules[basename] === false disables a rule file (TUI /rules
+            // toggle, 2026-09-01) — absent keys stay enabled.
+            const rulesCfg = config.rules ?? {}
+            const enabled = filtered.filter((f) => rulesCfg[path.basename(f)] !== false)
+            for (const filepath of enabled) {
               const raw = yield* read(filepath)
               if (!raw) continue
               const parsed = parseFrontmatter(raw)

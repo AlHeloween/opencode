@@ -287,12 +287,18 @@ export const layer = Layer.effect(
 
     const get = Effect.fn("Skill.get")(function* (name: string) {
       const s = yield* InstanceState.get(state)
+      const cfg = yield* config.get()
+      // Disabled skills (config.skills.disabled, TUI /skills toggle) resolve to
+      // nothing — the tool ACL and catalogs treat them as absent.
+      if ((cfg.skills?.disabled ?? []).includes(name)) return undefined
       return s.skills[name]
     })
 
     const all = Effect.fn("Skill.all")(function* () {
       const s = yield* InstanceState.get(state)
-      return Object.values(s.skills)
+      const cfg = yield* config.get()
+      const disabled = new Set(cfg.skills?.disabled ?? [])
+      return Object.values(s.skills).filter((x) => !disabled.has(x.name))
     })
 
     const dirs = Effect.fn("Skill.dirs")(function* () {
@@ -301,7 +307,11 @@ export const layer = Layer.effect(
 
     const available = Effect.fn("Skill.available")(function* () {
       const s = yield* InstanceState.get(state)
-      return Object.values(s.skills).toSorted((a, b) => a.name.localeCompare(b.name))
+      const cfg = yield* config.get()
+      const disabled = new Set(cfg.skills?.disabled ?? [])
+      return Object.values(s.skills)
+        .filter((x) => !disabled.has(x.name))
+        .toSorted((a, b) => a.name.localeCompare(b.name))
     })
 
     return Service.of({ get, all, dirs, available })

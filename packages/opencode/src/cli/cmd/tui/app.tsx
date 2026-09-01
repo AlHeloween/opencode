@@ -36,6 +36,7 @@ import { DialogModel } from "@tui/component/dialog-model"
 import { DialogTaskSettings } from "@tui/component/dialog-task-settings"
 import { useConnected } from "@tui/component/use-connected"
 import { DialogMcp } from "@tui/component/dialog-mcp"
+import { DialogFeatureToggle } from "@tui/component/dialog-feature-toggle"
 import { DialogPipeline } from "@tui/component/dialog-pipeline"
 import { DialogStatus } from "@tui/component/dialog-status"
 import { DialogPermissions } from "@tui/component/dialog-navigation"
@@ -583,6 +584,39 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       },
       onSelect: () => {
         dialog.replace(() => <DialogMcp />)
+      },
+    },
+    {
+      title: "Toggle rules",
+      value: "rules.list",
+      category: "Agent",
+      slash: {
+        name: "rules",
+      },
+      onSelect: () => {
+        dialog.replace(() => <DialogFeatureToggle mode="rules" />)
+      },
+    },
+    {
+      title: "Toggle skills",
+      value: "skills.list",
+      category: "Agent",
+      slash: {
+        name: "skills",
+      },
+      onSelect: () => {
+        dialog.replace(() => <DialogFeatureToggle mode="skills" />)
+      },
+    },
+    {
+      title: "Toggle tools",
+      value: "tools.list",
+      category: "Agent",
+      slash: {
+        name: "tools",
+      },
+      onSelect: () => {
+        dialog.replace(() => <DialogFeatureToggle mode="tools" />)
       },
     },
     {

@@ -10,6 +10,7 @@ import { Skill } from "@/skill"
 import { Global } from "@opencode-ai/core/global"
 import { LSP } from "@/lsp/lsp"
 import { Command } from "@/command"
+import { Config } from "@/config/config"
 import { ExperimentalHttpApiServer } from "./httpapi/server"
 import { PtyPaths } from "./httpapi/pty"
 import { EventPaths } from "./httpapi/event"
@@ -33,14 +34,81 @@ export const InstanceRoutes = (): Hono => {
   app.post("/question/:requestID/reject", (c) => handler(c.req.raw, context))
   app.get("/permission", (c) => handler(c.req.raw, context))
   app.post("/permission/:requestID/reply", (c) => handler(c.req.raw, context))
-  app.get("/config", (c) => handler(c.req.raw, context))
-  app.patch("/config", (c) => handler(c.req.raw, context))
+  app.get(
+    "/config",
+    describeRoute({
+      summary: "Get configuration",
+      description: "Retrieve the current OpenCode configuration settings and preferences.",
+      operationId: "config.get",
+      responses: {
+        200: {
+          description: "Current configuration",
+          content: { "application/json": { schema: resolver(z.any()) } },
+        },
+      },
+    }),
+    (c) => handler(c.req.raw, context),
+  )
+  app.patch(
+    "/config",
+    describeRoute({
+      summary: "Update configuration",
+      description: "Update OpenCode configuration settings and preferences.",
+      operationId: "config.update",
+      requestBody: {
+        required: true,
+        // Plain JSON Schema — hono-openapi does not preprocess resolver() here,
+        // and the bridged Effect handler parses the body itself.
+        content: { "application/json": { schema: { type: "object", additionalProperties: true } } },
+      },
+      responses: {
+        200: {
+          description: "Updated configuration",
+          content: { "application/json": { schema: resolver(z.any()) } },
+        },
+      },
+    }),
+    (c) => handler(c.req.raw, context),
+  )
   app.get("/config/providers", (c) => handler(c.req.raw, context))
+  app.get(
+    "/config/rules",
+    describeRoute({
+      summary: "List rule files",
+      description: "Rule files in .opencode/rules with their enabled state (config.rules map).",
+      operationId: "config.rules",
+      responses: {
+        200: {
+          description: "List of rule files with enabled state",
+          content: {
+            "application/json": {
+              schema: resolver(z.object({ name: z.string(), enabled: z.boolean() }).array()),
+            },
+          },
+        },
+      },
+    }),
+    (c) => handler(c.req.raw, context),
+  )
   app.get(ExperimentalPaths.console, (c) => handler(c.req.raw, context))
   app.get(ExperimentalPaths.consoleOrgs, (c) => handler(c.req.raw, context))
   app.post(ExperimentalPaths.consoleSwitch, (c) => handler(c.req.raw, context))
   app.get(ExperimentalPaths.tool, (c) => handler(c.req.raw, context))
-  app.get(ExperimentalPaths.toolIDs, (c) => handler(c.req.raw, context))
+  app.get(
+    ExperimentalPaths.toolIDs,
+    describeRoute({
+      summary: "List tool IDs",
+      description: "Get a list of all available tool IDs, including both built-in tools and dynamically registered tools.",
+      operationId: "experimental.tool.ids",
+      responses: {
+        200: {
+          description: "List of tool IDs",
+          content: { "application/json": { schema: resolver(z.array(z.string())) } },
+        },
+      },
+    }),
+    (c) => handler(c.req.raw, context),
+  )
   app.get(ExperimentalPaths.session, (c) => handler(c.req.raw, context))
   app.get(ExperimentalPaths.resource, (c) => handler(c.req.raw, context))
   app.get("/provider", (c) => handler(c.req.raw, context))

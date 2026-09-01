@@ -256,6 +256,9 @@ export const Info = Schema.Struct({
     description:
       "CLI path sandbox rules. Produces agent-facing warnings before bash runs; does not hard-block commands.",
   }),
+  rules: Schema.optional(Schema.Record(Schema.String, Schema.Boolean)).annotate({
+    description: "Rule file (basename) enable/disable map from .opencode/rules — absent means enabled",
+  }),
   tools: Schema.optional(Schema.Record(Schema.String, Schema.Boolean)),
   enterprise: Schema.optional(
     Schema.Struct({

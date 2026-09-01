@@ -9,7 +9,7 @@ import { TextAttributes } from "@opentui/core"
 import { useSDK } from "@tui/context/sdk"
 import * as Log from "@opencode-ai/core/util/log"
 
-function Status(props: { enabled: boolean; loading: boolean }) {
+export function Status(props: { enabled: boolean; loading: boolean }) {
   const { theme } = useTheme()
   if (props.loading) {
     return <span style={{ fg: theme.textMuted }}>⋯ Loading</span>

@@ -117,6 +117,20 @@ export const ListTool = Tool.define(
           const showDates = params.dates !== false
           const mtimes = new Map<string, Date>()
           if (showDates) {
+            // Effect platform Stat.mtime is an Option-wrapped date (not a plain
+            // Date) — new Date(option) rendered NaN-NaN-NaN in the first live
+            // test. Unwrap Date | number | string | Option uniformly.
+            const toDate = (value: unknown): Date | undefined => {
+              if (!value) return undefined
+              if (value instanceof Date) return isNaN(value.getTime()) ? undefined : value
+              if (typeof value === "number" || typeof value === "string") {
+                const d = new Date(value)
+                return isNaN(d.getTime()) ? undefined : d
+              }
+              const tag = (value as any)?._tag
+              if (tag === "Some") return toDate((value as any).value)
+              return undefined
+            }
             const targets = new Set<string>([
               ...files.map((f) => path.resolve(searchPath, f)),
               ...[...dirs].map((d) => (d === "." ? searchPath : path.resolve(searchPath, d))),
@@ -126,7 +140,8 @@ export const ListTool = Tool.define(
               (target) =>
                 fs.stat(target).pipe(
                   Effect.map((info: any) => {
-                    if (info?.mtime) mtimes.set(target, new Date(info.mtime as unknown as string))
+                    const d = toDate(info?.mtime)
+                    if (d) mtimes.set(target, d)
                   }),
                   Effect.catch(() => Effect.void),
                 ),

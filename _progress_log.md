@@ -1,4 +1,19 @@
 # Progress Log
+## 2026-09-02 Subplan 04 rev 4 — routing saves are scope-aware (global/worktree/session) + dialog layout (xlarge, 2-line rows)
+Reason: user live-test feedback — «сохранение конфига для роутинга у нас же есть global/worktree/session»; «отрисовка накладывается сделай форму пошире и если не помещается пиши в 2 строчки. Это касается и выбора модели тоже».
+Changes:
+- `session/session-settings.ts` — `SessionAgentOverride.routing`, `SessionSettings.modelRouting` (key `providerID/modelID`, variant-stripped); normalize keeps only valid objects; resolvers `sessionAgentRouting` / `sessionModelRouting`.
+- `session/llm.ts` — per-stream session settings read; routing priority = session-agent → agent options (config) → session-model; config model/provider + defaults still resolve in getModel. All three layers runtime-honored.
+- `local.tsx` — `setAgentRouting`/`setModelRouting` (session → sessions/{sid}.jsonc; worktree → PATCH /config merge-patch, null clears — rev-2 semantics reused; global → existing writers, confirm-on-write policy upstream), session readers for dialog initial state; ALL FOUR session-settings rebuild sites now preserve `modelRouting` (saveAll/setSubagents/model-set/variant-set would have wiped it on every save).
+- `dialog-routing.tsx` — scope prop + per-layer save dispatch (DialogConfirm ONLY for global per policy), save label + header name the layer, target-layer initial selection; `setSize("xlarge")` on mount (replace() resets to medium); provider rows = structured TWO lines (name+slug / muted quants·ctx·price·uptime), maxHeight counts lines.
+- `dialog-model.tsx` — `setSize("large")`, scope passed to DialogRouting.
+- `dialog-agent.tsx` — scope passed to DialogRouting.
+- `dialog-select.tsx` Option — conditional 2-line: when title+description+footer exceeds the dialog width (60/88/116), description drops to a second muted line instead of crushing; short rows stay single-line.
+- Test: `test/session/session-settings-routing.test.ts` (5 pure-function tests: agent/model resolvers, malformed-value drops).
+Script Output:
+- typecheck exit 0 (`20260902T045258Z_b9d643c4`; first run caught rest-destructuring bug — `rest.routing` excludes routing by construction).
+- bun test 10 pass / 0 fail (`20260902T045339Z_e3905105`) — 5 resolver + 5 merge-patch regression.
+
 ## 2026-09-02 Subplan 05 rev 2 — PATCH /config is now RFC 7386 merge-patch (enable was a silent no-op; project-layer pollution)
 Reason: pre-user-test code audit of the /rules /skills /tools toggle write path. remeda `mergeDeep`@2.39.0 (source read) recurses ONLY keys present in both objects → "enable" (delete `rules.<name>: false` / `tools.<id>` / `skills.disabled`) was a SILENT NO-OP — the stale false survived in the file. Worse: the dialog PATCHed the FULL merged `GET /config` result, dragging global/defaults settings into the PROJECT file on first toggle (three-layer governance broken).
 Changes:

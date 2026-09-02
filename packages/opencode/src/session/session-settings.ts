@@ -29,6 +29,8 @@ export interface SessionAgentOverride {
    * Empty array = deny all task delegation.
    */
   subagents?: string[]
+  /** Session-scoped OpenRouter routing (TUI /agents ctrl+o, session scope). Highest routing priority. */
+  routing?: Record<string, unknown>
 }
 
 export interface SessionSettings {
@@ -42,6 +44,8 @@ export interface SessionSettings {
   variant?: Record<string, string>
   /** Session-scoped per-agent variant overrides (key: "agentName/providerID/modelID") */
   agentVariant?: Record<string, string>
+  /** Session-scoped OpenRouter routing per model (key: "providerID/modelID", variant-stripped). */
+  modelRouting?: Record<string, Record<string, unknown>>
 }
 
 export interface ModelRef {
@@ -202,6 +206,27 @@ export async function resolveAgentVariant(
   return sessionAgentVariant(agentName, model, settings)
 }
 
+/** Session-scoped OpenRouter routing for one agent (TUI /agents ctrl+o, session scope).
+ * Highest routing priority — llm.ts threads it before agent options (config). */
+export function sessionAgentRouting(
+  agentName: string,
+  settings: SessionSettings | null | undefined,
+): Record<string, unknown> | undefined {
+  const value = settings?.agent?.[agentName]?.routing
+  return value && typeof value === "object" && !Array.isArray(value) ? value : undefined
+}
+
+/** Session-scoped OpenRouter routing for a model (TUI /model ctrl+o, session scope).
+ * Keys are variant-stripped "providerID/modelID" — callers normalize the id. */
+export function sessionModelRouting(
+  providerID: string,
+  modelID: string,
+  settings: SessionSettings | null | undefined,
+): Record<string, unknown> | undefined {
+  const value = settings?.modelRouting?.[`${providerID}/${modelID}`]
+  return value && typeof value === "object" && !Array.isArray(value) ? value : undefined
+}
+
 // ── File path ──
 
 // ── Save concurrency ──
@@ -252,7 +277,10 @@ function normalizeSessionSettings(raw: Record<string, unknown>): SessionSettings
         if (Array.isArray(v.subagents) && v.subagents.every((x) => typeof x === "string")) {
           override.subagents = v.subagents as string[]
         }
-        if (override.model || override.variant || override.subagents) agent[name] = override
+        if (v.routing && typeof v.routing === "object" && !Array.isArray(v.routing)) {
+          override.routing = v.routing as Record<string, unknown>
+        }
+        if (override.model || override.variant || override.subagents || override.routing) agent[name] = override
       }
     }
     if (Object.keys(agent).length > 0) settings.agent = agent
@@ -286,6 +314,14 @@ function normalizeSessionSettings(raw: Record<string, unknown>): SessionSettings
 
   if (typeof raw.agentVariant === "object" && raw.agentVariant !== null && !Array.isArray(raw.agentVariant)) {
     settings.agentVariant = raw.agentVariant as Record<string, string>
+  }
+
+  if (typeof raw.modelRouting === "object" && raw.modelRouting !== null && !Array.isArray(raw.modelRouting)) {
+    const map: Record<string, Record<string, unknown>> = {}
+    for (const [key, value] of Object.entries(raw.modelRouting as Record<string, unknown>)) {
+      if (value && typeof value === "object" && !Array.isArray(value)) map[key] = value as Record<string, unknown>
+    }
+    if (Object.keys(map).length > 0) settings.modelRouting = map
   }
 
   return settings

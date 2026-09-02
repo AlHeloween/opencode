@@ -285,6 +285,7 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
             dialog.replace(() => (
               <DialogRouting
                 agent={option.value}
+                scope={scope}
                 onDone={() => dialog.replace(() => <DialogAgent scope={scope} restoreValue={option.value} />)}
               />
             ))

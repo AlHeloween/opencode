@@ -258,6 +258,13 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   const left = createMemo(() => keybinds().filter((item) => item.side !== "right"))
   const right = createMemo(() => keybinds().filter((item) => item.side === "right"))
 
+  // Usable text width for Option rows (rev 4: long rows must split into two
+  // lines instead of overlapping/crushing) — dialog width minus list paddings.
+  const rowWidth = createMemo(() => {
+    const size = dialog.size
+    return size === "xlarge" ? 116 : size === "large" ? 88 : 60
+  })
+
   return (
     <box gap={1} paddingBottom={1}>
       <box paddingLeft={4} paddingRight={4}>
@@ -371,6 +378,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                           active={active()}
                           current={current()}
                           gutter={option.gutter}
+                          rowWidth={rowWidth()}
                         />
                       </box>
                     )
@@ -427,13 +435,62 @@ function Option(props: {
   current?: boolean
   footer?: JSX.Element | string
   gutter?: JSX.Element
+  /** Dialog inner width (medium 60 / large 88 / xlarge 116) — rows whose
+   * title + description + footer exceed it drop the description to a second
+   * muted line instead of crushing the title against the footer (rev 4). */
+  rowWidth?: number
   onMouseOver?: () => void
 }) {
   const { theme } = useTheme()
   const fg = selectedForeground(theme)
 
+  const twoLine = createMemo(() => {
+    if (!props.description) return false
+    const width = props.rowWidth ?? 60
+    const footerLen = typeof props.footer === "string" ? props.footer.length : 6
+    // scrollbox padding 2, row padding 6, marker/gutter ~2, gaps 2 — usable
+    // width is roughly dialogWidth - 12; inline needs title + description +
+    // footer plus separators.
+    const usable = width - 12
+    return props.title.length + props.description.length + footerLen + 4 > usable
+  })
+
   return (
-    <>
+    <Show
+      when={twoLine()}
+      fallback={
+        <>
+          <Show when={props.current}>
+            <text flexShrink={0} fg={props.active ? fg : props.current ? theme.primary : theme.text} marginRight={0}>
+              ●
+            </text>
+          </Show>
+          <Show when={!props.current && props.gutter}>
+            <box flexShrink={0} marginRight={0}>
+              {props.gutter}
+            </box>
+          </Show>
+          <text
+            flexGrow={1}
+            fg={props.active ? fg : props.current ? theme.primary : theme.text}
+            attributes={props.active ? TextAttributes.BOLD : undefined}
+            overflow="hidden"
+            wrapMode="none"
+            paddingLeft={3}
+          >
+            {Locale.truncate(props.title, 61)}
+            <Show when={props.description}>
+              <span style={{ fg: props.active ? fg : theme.textMuted }}> {props.description}</span>
+            </Show>
+          </text>
+          <Show when={props.footer}>
+            <box flexShrink={0}>
+              <text fg={props.active ? fg : theme.textMuted}>{props.footer}</text>
+            </box>
+          </Show>
+        </>
+      }
+    >
       <Show when={props.current}>
         <text flexShrink={0} fg={props.active ? fg : props.current ? theme.primary : theme.text} marginRight={0}>
           ●
@@ -444,24 +501,35 @@ function Option(props: {
           {props.gutter}
         </box>
       </Show>
-      <text
-        flexGrow={1}
-        fg={props.active ? fg : props.current ? theme.primary : theme.text}
-        attributes={props.active ? TextAttributes.BOLD : undefined}
-        overflow="hidden"
-        wrapMode="none"
-        paddingLeft={3}
-      >
-        {Locale.truncate(props.title, 61)}
-        <Show when={props.description}>
-          <span style={{ fg: props.active ? fg : theme.textMuted }}> {props.description}</span>
-        </Show>
-      </text>
-      <Show when={props.footer}>
-        <box flexShrink={0}>
-          <text fg={props.active ? fg : theme.textMuted}>{props.footer}</text>
+      <box flexDirection="column" flexGrow={1}>
+        <box flexDirection="row">
+          <text
+            flexGrow={1}
+            fg={props.active ? fg : props.current ? theme.primary : theme.text}
+            attributes={props.active ? TextAttributes.BOLD : undefined}
+            overflow="hidden"
+            wrapMode="none"
+            paddingLeft={3}
+          >
+            {Locale.truncate(props.title, 61)}
+          </text>
+          <Show when={props.footer}>
+            <box flexShrink={0}>
+              <text fg={props.active ? fg : theme.textMuted}>{props.footer}</text>
+            </box>
+          </Show>
         </box>
-      </Show>
-    </>
+        <Show when={props.description}>
+          <text
+            paddingLeft={3}
+            overflow="hidden"
+            wrapMode="none"
+            fg={props.active ? fg : theme.textMuted}
+          >
+            {props.description}
+          </text>
+        </Show>
+      </box>
+    </Show>
   )
 }

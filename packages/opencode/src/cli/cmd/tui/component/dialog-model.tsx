@@ -1,4 +1,4 @@
-import { createMemo, createSignal } from "solid-js"
+import { createMemo, createSignal, onMount } from "solid-js"
 import { useLocal, type ModelScope } from "@tui/context/local"
 import { useSync } from "@tui/context/sync"
 import { map, pipe, flatMap, entries, filter, sortBy, take } from "remeda"
@@ -28,6 +28,12 @@ export function DialogModel(props: {
 
   const connected = useConnected()
   const providers = createDialogProviderOptions()
+
+  onMount(() => {
+    // Model rows carry long capability footers — medium (60) crushes them
+    // (rev 4, Alexander: "отрисовка накладывается… касается и выбора модели").
+    dialog.setSize("large")
+  })
 
   const showExtra = createMemo(() => connected() && !props.providerID)
 
@@ -242,6 +248,7 @@ export function DialogModel(props: {
             dialog.replace(() => (
               <DialogRouting
                 model={value}
+                scope={props.scope}
                 onDone={() => dialog.clear()}
               />
             ))

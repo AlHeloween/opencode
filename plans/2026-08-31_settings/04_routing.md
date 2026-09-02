@@ -1,7 +1,7 @@
 # Subplan 04: OpenRouter routing — per-agent, per-model, defaults + interactive dialog
 
 plan_id: 2026-08-31-settings-04-routing
-state: IMPLEMENTED (rev 2, 2026-08-31) — server chain + defaults + dialog; rev 2 = live endpoints per Alexander feedback
+state: IMPLEMENTED (rev 4, 2026-09-02) — server chain + defaults + dialog; rev 2 = live endpoints; rev 4 = scope-aware saves (global/worktree/session) + 2-line layout
 parent: [master.md](master.md)
 origin: Alexander 2026-08-31 06:15–06:25 UTC — "настройки уникальны для каждой модели… типа глобальные, локальные"; "для DeepSeek v4 Flash v731 должен быть StreamLake по умолчанию"; "та же модель но разные провайдеры в зависимости от целей, разная квантизация. StreamLake четко указывает точность"; dialog: "всплывающее окно по hotkey, cursor move, space select unselect, в списке fp".
 
@@ -43,6 +43,39 @@ UI contract (rev 2):
 - **allow_fallbacks** toggle row.
 - Save → **global layer** → DialogConfirm (policy) → `sdk.client.global.config.update` (`writeGlobalAgentField` with `routing` for agent scope; `setProviderRouting` for model scope). Clearing routing from TUI remains a documented gap (patchJsonc set-only).
 - **Degraded mode**: fetch failure → error line + `r` retry; `a` manual slug entry ONLY in this state (labeled manual) — never the primary path.
+
+## Revision 4 (2026-09-02, Alexander live-test feedback)
+
+Feedback: «сохранение конфига для роутинга — у нас же есть global/worktree/session»; «отрисовка накладывается — сделай форму пошире и если не помещается — в 2 строчки. Это касается и выбора модели тоже».
+
+### Scope-aware saves (rev 4)
+
+Routing resolution becomes the SAME 3-layer chain as agent model/variant (session → worktree → global), each layer runtime-honored:
+
+| Layer | Agent routing file | Per-model routing file | Runtime read |
+|---|---|---|---|
+| session | `sessions/{sid}.jsonc` → `agent.<name>.routing` | `agent.<name>` n/a → `modelRouting["providerID/modelID"]` | NEW: llm.ts reads session settings per stream (pattern = resolveAgentModel) |
+| worktree | project config → `agent.<name>.options.routing` (PATCH /config, merge-patch; null clears) | project config → `provider.<id>.models.<m>.options.routing` | merged server Config (project overrides global natively) |
+| global | global opencode.jsonc → `agent.<name>.options.routing` (writeGlobalAgentField) | global → `setProviderRouting` | merged server Config |
+
+- `session-settings.ts`: `SessionAgentOverride.routing?: Record<string,unknown>`; `SessionSettings.modelRouting?: Record<"providerID/modelID", routing>`; normalize both; resolvers `sessionAgentRouting` / `sessionModelRouting`.
+- `llm.ts`: routing priority per stream = session-agent → agent options (config) → session-model → config model/provider → defaults.
+- TUI `local.model`: `setAgentRouting(name, routing, scope)` / `setModelRouting(providerID, modelID, routing, scope)` + session readers. Worktree writes via core-client PATCH /config (merge-patch, null = clear — the rev-2 merge-patch work pays off here).
+- Dialog: entries pass `scope` (DialogAgent/DialogModel both know it); save label + toast name the layer; DialogConfirm ONLY for global (policy); session/worktree save directly.
+- Dialog initial selection reads the TARGET layer first (session file), falling back to the merged view.
+
+### Layout (rev 4)
+
+- `dialog-routing.tsx`: `dialog.setSize("xlarge")` on mount (replace() resets to medium, so mount-time is the right hook); provider rows render as structured TWO lines — line 1 `[n] name (slug)` + (saved)/(degraded), line 2 muted `quants · ctx · $/M in · uptime` — no reliance on renderer wrap behavior; maxHeight counts extra lines.
+- `dialog-select.tsx` Option: when `title + description + footer` exceeds the current dialog width (medium 60 / large 88 / xlarge 116), description drops to a second muted line instead of being crushed — conditional, so short rows stay single-line.
+- `dialog-model.tsx`: `dialog.setSize("large")`.
+
+### Smoke tests (rev 4)
+
+- typecheck exit 0 (packages/opencode).
+- session-settings resolver tests: normalize keeps valid routing/modelRouting, drops invalid; resolvers return the layer value or undefined.
+- merge-patch on the worktree write path already proven (subplan 05 rev 2 suite) — agent/provider routing payloads use the same PATCH /config route.
+- Live (user rebuild): /agents ctrl+o with each scope → file gains the routing block in THAT layer (sessions/*.jsonc / project opencode.jsonc / global opencode.jsonc); next prompt wire check `request shape` body.provider reflects session routing; routing dialog 116 wide, provider rows 2-line, no overlap; model select wide, long rows wrap description to line 2.
 
 ## Test cases
 

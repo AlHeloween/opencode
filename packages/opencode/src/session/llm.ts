@@ -29,6 +29,7 @@ import { repairJsonWasm } from "@/util/json-repair-wasm"
 import { readWasmAsset } from "@/util/wasm-path"
 import { REQUEST_OVERHEAD_TOKENS, usable } from "./overflow"
 import { isPrimaryModeIdentity } from "./mode-identity"
+import { loadSessionSettings, sessionAgentRouting, sessionModelRouting } from "./session-settings"
 
 const log = Log.create({ service: "llm" })
 const loggedSystemPromptForCacheKey = new Map<string, boolean>()
@@ -440,6 +441,17 @@ const live: Layer.Layer<
         providerID: input.model.providerID,
       })
 
+      // Session-scoped routing overrides (sessions/{sid}.jsonc — TUI /agents and
+      // /model ctrl+o, session scope; same file the TUI writes). Priority:
+      // session-agent → agent options (config) → session-model. Config model/
+      // provider routing and per-model defaults resolve inside getModel when
+      // this stays undefined (2026-09-02, subplan 04 rev 4).
+      const settings = yield* Effect.promise(() => loadSessionSettings(input.sessionID))
+      const routing =
+        sessionAgentRouting(input.agent.name, settings) ??
+        Provider.openRouterRouting(input.agent.options) ??
+        sessionModelRouting(input.model.providerID, input.model.id.split(":")[0], settings)
+
       const [language, cfg, item, info] = yield* Effect.all(
         [
           provider.getLanguage(input.model, {
@@ -447,7 +459,7 @@ const live: Layer.Layer<
             // Alexander, 2026-08-31: same model, different upstreams/quantizations
             // per agent purpose). Undefined for non-openrouter/agents without
             // routing — the loader ignores it and config/defaults apply.
-            routing: Provider.openRouterRouting(input.agent.options),
+            routing,
           }),
           config.get(),
           provider.getProvider(input.model.providerID),

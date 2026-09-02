@@ -1,12 +1,13 @@
 import { createMemo, createSignal, For, onMount, Show } from "solid-js"
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import type { ScrollBoxRenderable } from "@opentui/core"
-import { useLocal } from "@tui/context/local"
+import { useLocal, type ModelScope } from "@tui/context/local"
 import { useSync } from "@tui/context/sync"
 import { useDialog } from "@tui/ui/dialog"
 import { useTheme } from "@tui/context/theme"
 import { DialogConfirm } from "./dialog-confirm"
 import { getScrollAcceleration } from "../util/scroll"
+import * as Log from "@opencode-ai/core/util/log"
 
 /**
  * OpenRouter routing editor (subplan 04 — 2026-08-31, Alexander):
@@ -57,6 +58,9 @@ type Row =
 export function DialogRouting(props: {
   agent?: string
   model?: { providerID: string; modelID: string }
+  /** Which settings layer the save targets (rev 4 — DialogAgent/DialogModel
+   * pass their current scope). Default global. */
+  scope?: ModelScope
   onDone?: () => void
 }) {
   const local = useLocal()
@@ -80,15 +84,24 @@ export function DialogRouting(props: {
     return undefined
   })
 
-  // Current routing: agent options win for display (the agent layer is what
-  // this dialog writes when opened from /agents; model scope from model options).
+  // Current routing — TARGET layer first (rev 4): the session file when the
+  // scope is session; otherwise the merged config view (project overrides
+  // global in the merge, so this is the effective worktree/global value).
   const currentRouting = createMemo<Record<string, any>>(() => {
     if (props.agent) {
+      if (props.scope === "session") {
+        const s = local.model.sessionAgentRoutingView(props.agent)
+        if (s) return s
+      }
       const a = sync.data.agent.find((x) => x.name === props.agent)
       const routing = (a as any)?.options?.routing
       return routing && typeof routing === "object" && !Array.isArray(routing) ? routing : {}
     }
     if (props.model) {
+      if (props.scope === "session") {
+        const s = local.model.sessionModelRoutingView(props.model.providerID, props.model.modelID)
+        if (s) return s
+      }
       const p = sync.data.provider.find((x) => x.id === props.model!.providerID)
       const routing = (p?.models?.[props.model!.modelID] as any)?.options?.routing
       return routing && typeof routing === "object" && !Array.isArray(routing) ? routing : {}
@@ -131,7 +144,12 @@ export function DialogRouting(props: {
       setLoading(false)
     }
   }
-  onMount(() => void load())
+  onMount(() => {
+    // replace() resets the dialog to medium (60 cols) — provider rows need
+    // the wide form (rev 4: "отрисовка накладывается, сделай форму пошире").
+    dialog.setSize("xlarge")
+    void load()
+  })
 
   // Group endpoints by provider slug (tag base — e.g. "streamlake/fp8" →
   // "streamlake"): order accepts provider slugs, quantization filtering is
@@ -212,6 +230,12 @@ export function DialogRouting(props: {
     return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
   })
 
+  const scope = props.scope ?? "global"
+  const layerLabel = scope === "global" ? "GLOBAL" : scope === "worktree" ? "WORKTREE" : "SESSION"
+  const saveLabel = createMemo(
+    () => `Save to ${layerLabel} config${scope === "global" ? " (confirmation required)" : ""}`,
+  )
+
   const rows = createMemo<Row[]>(() => [
     {
       kind: "header",
@@ -221,7 +245,7 @@ export function DialogRouting(props: {
     { kind: "header", label: `QUANTIZATIONS — ${quantRows().length ? "from live endpoints" : "(live list unavailable)"}` },
     ...quantRows().map(([value, count]): Row => ({ kind: "quant", value, count })),
     { kind: "fallback" },
-    { kind: "save", label: "Save to GLOBAL config (confirmation required)" },
+    { kind: "save", label: saveLabel() },
   ])
 
   function toggleSlug(slug: string) {
@@ -247,23 +271,36 @@ export function DialogRouting(props: {
       ...(quants().length > 0 ? { quantizations: quants() } : {}),
     }
     const proceed = () => {
-      if (props.agent) {
-        void local.model.writeGlobalAgentField(props.agent, { routing }).catch(() => undefined)
-      } else if (props.model) {
-        void local.model.setProviderRouting(props.model.providerID, props.model.modelID, routing).catch(() => undefined)
-      }
+      const write = props.agent
+        ? local.model.setAgentRouting(props.agent, routing, scope)
+        : props.model
+          ? local.model.setModelRouting(props.model.providerID, props.model.modelID, routing, scope)
+          : Promise.resolve()
+      write.catch((e: unknown) => {
+        Log.Default.warn("bug: routing save failed", {
+          scope,
+          target: targetLabel,
+          error: e instanceof Error ? e.message : String(e),
+        })
+      })
       if (props.onDone) props.onDone()
       else dialog.clear()
     }
-    // Policy (2026-08-31, Alexander): GLOBAL writes require explicit confirmation.
-    dialog.replace(() => (
-      <DialogConfirm
-        title={`Write routing for ${targetLabel} to GLOBAL config?`}
-        description={JSON.stringify(routing)}
-        onConfirm={proceed}
-        onCancel={() => dialog.replace(() => <DialogRouting {...props} />)}
-      />
-    ))
+    // Policy (2026-08-31, Alexander): GLOBAL writes require explicit
+    // confirmation (applies to all projects). Session/worktree saves are
+    // scoped to this session/project — direct.
+    if (scope === "global") {
+      dialog.replace(() => (
+        <DialogConfirm
+          title={`Write routing for ${targetLabel} to GLOBAL config?`}
+          description={JSON.stringify(routing)}
+          onConfirm={proceed}
+          onCancel={() => dialog.replace(() => <DialogRouting {...props} />)}
+        />
+      ))
+      return
+    }
+    proceed()
   }
 
   function moveCursor(delta: number, center = false) {
@@ -294,7 +331,12 @@ export function DialogRouting(props: {
 
   const dimensions = useTerminalDimensions()
   const scrollAcceleration = createMemo(() => getScrollAcceleration())
-  const maxHeight = createMemo(() => Math.min(rows().length, Math.floor(dimensions().height / 2) - 6))
+  // Provider rows occupy TWO lines when they carry metadata — the viewport
+  // height counts lines, not entries.
+  const totalLines = createMemo(() =>
+    rows().reduce((n, row) => n + (row.kind === "provider" && rowSecondary(row) ? 2 : 1), 0),
+  )
+  const maxHeight = createMemo(() => Math.min(totalLines(), Math.floor(dimensions().height / 2) - 6))
 
   useKeyboard((evt) => {
     if (evt.name === "escape") {
@@ -343,22 +385,15 @@ export function DialogRouting(props: {
     return ""
   }
 
-  function rowLabel(row: Row): string {
+  function rowPrimary(row: Row): string {
     switch (row.kind) {
       case "header":
       case "save":
         return row.label
       case "provider": {
         const r = row.row
-        const bits = [
-          r.live ? `${r.name} · ${r.slug}` : `${r.slug} (saved)`,
-          ...r.quants,
-          r.ctx ? `${Math.round(r.ctx / 1000)}k ctx` : "",
-          r.priceIn !== undefined ? `$${r.priceIn.toFixed(2)}/M in` : "",
-          r.uptime !== undefined ? `up ${r.uptime.toFixed(1)}%` : "",
-          r.live && !r.healthy ? "degraded" : "",
-        ].filter(Boolean)
-        return bits.join(" · ")
+        const base = r.live ? `${r.name} (${r.slug})` : `${r.slug} (saved)`
+        return r.live && !r.healthy ? `${base} · degraded` : base
       }
       case "quant":
         return `${row.value} (${row.count} endpoint${row.count === 1 ? "" : "s"})`
@@ -367,10 +402,26 @@ export function DialogRouting(props: {
     }
   }
 
+  /** Second (muted) line for provider rows — the metadata that used to
+   * overlap the name in the medium form (rev 4: "если не помещается —
+   * пиши в 2 строчки"). Structured, not wrap-dependent. */
+  function rowSecondary(row: Row): string | undefined {
+    if (row.kind !== "provider") return undefined
+    const r = row.row
+    return [
+      r.quants.length > 0 ? r.quants.join(", ") : "",
+      r.ctx ? `${Math.round(r.ctx / 1000)}k ctx` : "",
+      r.priceIn !== undefined ? `$${r.priceIn.toFixed(2)}/M in` : "",
+      r.uptime !== undefined ? `up ${r.uptime.toFixed(1)}%` : "",
+    ]
+      .filter(Boolean)
+      .join(" · ") || undefined
+  }
+
   return (
     <box paddingLeft={2} paddingRight={2} paddingTop={1} gap={1}>
       <text fg={theme.text} attributes={16}>
-        {`Routing — ${targetLabel}`}
+        {`Routing — ${targetLabel} · saves to ${layerLabel}`}
       </text>
       <Show when={!adding()} fallback={<text fg={theme.textMuted}>{`provider slug: ${buffer()}_ (enter add · esc cancel)`}</text>}>
         <text fg={theme.textMuted}>
@@ -391,29 +442,55 @@ export function DialogRouting(props: {
         <For each={rows()}>
           {(row, i) => {
             const active = createMemo(() => cursor() === i())
-            return (
-              <Show
-                when={row.kind !== "header"}
-                fallback={<text id={`r${i()}`} fg={theme.accent} attributes={16}>{rowLabel(row)}</text>}
-              >
+            if (row.kind === "header") {
+              return <text id={`r${i()}`} fg={theme.accent} attributes={16}>{row.label}</text>
+            }
+            if (row.kind === "provider") {
+              // Two-line row (rev 4): name+slug on line 1, metadata muted on line 2.
+              const secondary = rowSecondary(row)
+              return (
                 <box
                   id={`r${i()}`}
-                  flexDirection="row"
-                  gap={1}
+                  flexDirection="column"
                   backgroundColor={active() ? theme.primary : undefined}
-                  paddingLeft={active() ? 1 : 2}
                 >
-                  <text fg={active() ? theme.background : theme.text} flexShrink={0}>
-                    {marker(row)}
-                  </text>
-                  <text
-                    fg={active() ? theme.background : row.kind === "save" ? theme.accent : theme.text}
-                    attributes={row.kind === "save" ? 16 : undefined}
-                  >
-                    {rowLabel(row)}
-                  </text>
+                  <box flexDirection="row" gap={1} paddingLeft={active() ? 1 : 2} paddingRight={2}>
+                    <text fg={active() ? theme.background : theme.text} flexShrink={0}>
+                      {marker(row)}
+                    </text>
+                    <text
+                      fg={active() ? theme.background : theme.text}
+                      attributes={active() ? 16 : undefined}
+                    >
+                      {rowPrimary(row)}
+                    </text>
+                  </box>
+                  <Show when={secondary}>
+                    <box paddingLeft={active() ? 1 : 2} paddingRight={2}>
+                      <text fg={active() ? theme.background : theme.textMuted}>{`   ${secondary}`}</text>
+                    </box>
+                  </Show>
                 </box>
-              </Show>
+              )
+            }
+            return (
+              <box
+                id={`r${i()}`}
+                flexDirection="row"
+                gap={1}
+                backgroundColor={active() ? theme.primary : undefined}
+                paddingLeft={active() ? 1 : 2}
+              >
+                <text fg={active() ? theme.background : theme.text} flexShrink={0}>
+                  {marker(row)}
+                </text>
+                <text
+                  fg={active() ? theme.background : row.kind === "save" ? theme.accent : theme.text}
+                  attributes={row.kind === "save" ? 16 : undefined}
+                >
+                  {rowPrimary(row)}
+                </text>
+              </box>
             )
           }}
         </For>

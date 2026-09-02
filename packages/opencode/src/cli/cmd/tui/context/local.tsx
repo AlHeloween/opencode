@@ -19,6 +19,8 @@ import {
   saveSessionSettings,
   effectiveSubagents,
   sessionAgentVariant,
+  sessionAgentRouting,
+  sessionModelRouting,
   workspaceAgentModel,
   workspaceModelScope,
   setWorkspaceAgentModel,
@@ -247,6 +249,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           favorite: modelStore.favorite,
           variant,
           agentVariant,
+          modelRouting: ss?.modelRouting,
         })
       }
 
@@ -417,6 +420,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           agentVariant: Object.fromEntries(
             Object.entries(modelStore.agentVariant).filter((e): e is [string, string] => e[1] !== undefined),
           ),
+          modelRouting: ss?.modelRouting,
         })
       }
 
@@ -540,11 +544,144 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         })
       }
 
+      /** PATCH the PROJECT config via the hey-api core client — RFC 7386
+       * merge-patch (null deletes a key). Raw call: the committed SDK gen
+       * predates the bridged /config route (spec debt, subplan 05). */
+      async function patchProjectConfig(body: Record<string, unknown>) {
+        const core = (sdk.client as any).client
+        const res = await core.patch({ url: "/config", body })
+        if (res?.error) throw res.error
+      }
+
+      /** Write OpenRouter routing for one agent into the SELECTED layer
+       * (subplan 04 rev 4): session → sessions/{sid}.jsonc agent routing;
+       * worktree → project config agent.<name>.options.routing (merge-patch,
+       * null clears — rev 2 semantics); global → writeGlobalAgentField.
+       * All three are runtime-honored (llm.ts / merged Config). */
+      async function setAgentRouting(agentName: string, routing: Record<string, unknown> | undefined, scope: ModelScope) {
+        if (scope === "global") {
+          if (routing === undefined) {
+            toast.show({
+              title: "Cannot clear from TUI",
+              message: "Global PATCH is set-only — remove the routing block from global opencode.jsonc by hand",
+              variant: "warning",
+              duration: 4000,
+            })
+            return
+          }
+          await writeGlobalAgentField(agentName, { routing })
+          return
+        }
+        if (scope === "worktree") {
+          await patchProjectConfig({ agent: { [agentName]: { options: { routing: routing ?? null } } } })
+          toast.show({
+            title: "Worktree config updated",
+            message: `${agentName}: routing ${routing ? `= ${JSON.stringify(routing)}` : "cleared"}`,
+            variant: "info",
+            duration: 5000,
+          })
+          return
+        }
+        const sid = getActiveSessionID()
+        if (!sid) {
+          toast.show({ variant: "warning", message: "No active session — cannot save per-session routing", duration: 3000 })
+          return
+        }
+        const ss = sessionSettings()
+        const currentAgent = { ...(ss?.agent ?? {}) }
+        const prev = currentAgent[agentName] ?? {}
+        if (routing === undefined) {
+          const { routing: _drop, ...rest } = prev
+          if (rest.model || rest.variant || rest.subagents) currentAgent[agentName] = rest
+          else delete currentAgent[agentName]
+        } else {
+          currentAgent[agentName] = { ...prev, routing }
+        }
+        const next: SessionSettings = { ...ss, agent: currentAgent }
+        setSessionSettings(next)
+        void saveSessionSettings(sid, {
+          agent: next.agent,
+          recent: modelStore.recent,
+          favorite: modelStore.favorite,
+          variant: Object.fromEntries(
+            Object.entries(modelStore.variant).filter((e): e is [string, string] => e[1] !== undefined),
+          ),
+          agentVariant: Object.fromEntries(
+            Object.entries(modelStore.agentVariant).filter((e): e is [string, string] => e[1] !== undefined),
+          ),
+          modelRouting: next.modelRouting,
+        })
+      }
+
+      /** Write OpenRouter routing for a MODEL into the SELECTED layer (rev 4):
+       * session → sessions/{sid}.jsonc modelRouting (key variant-stripped);
+       * worktree → project config provider.<id>.models.<m>.options.routing;
+       * global → setProviderRouting (set-only clear gap documented). */
+      async function setModelRouting(
+        providerID: string,
+        modelID: string,
+        routing: Record<string, unknown> | undefined,
+        scope: ModelScope,
+      ) {
+        const baseID = modelID.split(":")[0]
+        if (scope === "global") {
+          await setProviderRouting(providerID, modelID, routing)
+          return
+        }
+        if (scope === "worktree") {
+          await patchProjectConfig({
+            provider: { [providerID]: { models: { [baseID]: { options: { routing: routing ?? null } } } } },
+          })
+          toast.show({
+            title: "Worktree config updated",
+            message: `${providerID}/${baseID}: routing ${routing ? `= ${JSON.stringify(routing)}` : "cleared"}`,
+            variant: "info",
+            duration: 5000,
+          })
+          return
+        }
+        const sid = getActiveSessionID()
+        if (!sid) {
+          toast.show({ variant: "warning", message: "No active session — cannot save per-session routing", duration: 3000 })
+          return
+        }
+        const ss = sessionSettings()
+        const map = { ...(ss?.modelRouting ?? {}) }
+        if (routing === undefined) delete map[`${providerID}/${baseID}`]
+        else map[`${providerID}/${baseID}`] = routing
+        const next: SessionSettings = { ...ss, modelRouting: Object.keys(map).length > 0 ? map : undefined }
+        setSessionSettings(next)
+        void saveSessionSettings(sid, {
+          agent: next.agent,
+          recent: modelStore.recent,
+          favorite: modelStore.favorite,
+          variant: Object.fromEntries(
+            Object.entries(modelStore.variant).filter((e): e is [string, string] => e[1] !== undefined),
+          ),
+          agentVariant: Object.fromEntries(
+            Object.entries(modelStore.agentVariant).filter((e): e is [string, string] => e[1] !== undefined),
+          ),
+          modelRouting: next.modelRouting,
+        })
+      }
+
+      /** Session-layer routing reads for the dialog's initial state (rev 4). */
+      function sessionAgentRoutingView(name: string) {
+        return sessionAgentRouting(name, sessionSettings())
+      }
+      function sessionModelRoutingView(providerID: string, modelID: string) {
+        return sessionModelRouting(providerID, modelID.split(":")[0], sessionSettings())
+      }
+
       return {
         forAgent,
         layerView,
         writeGlobalAgentField,
         setProviderRouting,
+        setAgentRouting,
+        setModelRouting,
+        sessionAgentRoutingView,
+        sessionModelRoutingView,
         subagentsFor,
         setSubagents,
         taskModel,
@@ -714,6 +851,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
                   agentVariant: Object.fromEntries(
                     Object.entries(modelStore.agentVariant).filter((e): e is [string, string] => e[1] !== undefined),
                   ),
+                  modelRouting: ss?.modelRouting,
                 })
               }
               save()
@@ -837,6 +975,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
                 agentVariant: Object.fromEntries(
                   Object.entries(modelStore.agentVariant).filter((e): e is [string, string] => e[1] !== undefined),
                 ),
+                modelRouting: ss?.modelRouting,
               })
               return
             }

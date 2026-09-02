@@ -385,8 +385,14 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
     const score = healthScore(adjustment.health)
 
     const debugCfg = getDebugConfig()
-    const captureRequestBody = debugCfg.logBodies || debugCfg.perRequest
-    const captureResponseBody = debugCfg.logResponseBodies || debugCfg.perRequest
+    // Master switch: gateway.logging.enabled silences ALL diagnostic IO.
+    // Without this gate the perRequest body capture (memory + per-response
+    // files) and the raw-wire dumps ran even with logging disabled —
+    // "пожизненная отладка" (2026-09-02, Alexander). The per-request diff
+    // chain was already doubly gated (perRequestLogger needs enabled); these
+    // two were not.
+    const captureRequestBody = loggingEnabled && (debugCfg.logBodies || debugCfg.perRequest)
+    const captureResponseBody = loggingEnabled && (debugCfg.logResponseBodies || debugCfg.perRequest)
     const rawBody =
       captureRequestBody && init?.body
         ? typeof init.body === "string"
@@ -583,7 +589,9 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
       let usedProtocol: "h2" | "http/1.1" = "http/1.1"
 
       // ── Raw wire dump (debug) ──
-      if (debugCfg.perRequest && init?.body) {
+      // Requires the master switch too — enabled=false must stop the .diff
+      // computation, not just the event logs (2026-09-02, Alexander).
+      if (debugCfg.perRequest && loggingEnabled && init?.body) {
         try {
           const wireDir = path.join(
             process.env.OPENCODE_GATEWAY_LOG_DIR || path.join(Global.Path.data, "gateway"),

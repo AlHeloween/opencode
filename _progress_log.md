@@ -1,4 +1,11 @@
 # Progress Log
+## 2026-09-02 FIX — gateway diagnostics ran with logging disabled ("пожизненная отладка")
+Reason: user (09:30 UTC) confirmed the gating bug found in the diff-gating audit: raw-wire dumps + per-request/per-response captures ignored `gateway.logging.enabled` — with `enabled=false, perRequest=true` the .diff computation, body capture and file writes kept running on EVERY request.
+Changes:
+- `provider/gateway/adaptive-client.ts` — master switch enforced: `captureRequestBody`/`captureResponseBody` (memory + per-response IO) and the raw-wire dump block now require `loggingEnabled`. `enabled=false` now silences ALL diagnostic IO (event logs, per-request line-diffs, raw-wire .json/.diff, per-response captures); `perRequest` remains the per-request-feature flag ON TOP of the master.
+Script Output:
+- typecheck exit 0 (`20260902T093159Z_fec8971b`). Live verify after rebuild: enabled=false + perRequest=true → no new files under data/gateway/raw-wire or per-request|per-response.
+
 ## 2026-09-02 FIX — thinking (variant) settings lost after restart: resolveAgentVariant had no worktree step
 Reason: user (09:09 UTC) — «настройки thinking после перезагрузки не восстанавливаются». Ground truth: model.json HAD the values (agentVariant "max"/"high" persisted) — the server just never read them. resolveAgentVariant (the single resolution point for ALL 5 callers: prompt/task/reasoning/plan/pipeline) read ONLY the session file — the workspace fallthrough its own docblock promised was never implemented. Worktree-scope selections therefore vanished on every restart/new session.
 Changes:

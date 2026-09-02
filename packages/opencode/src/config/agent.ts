@@ -85,7 +85,22 @@ const KNOWN_KEYS = new Set([
 const normalize = (agent: Schema.Schema.Type<typeof AgentSchema>): Schema.Schema.Type<typeof AgentSchema> => {
   const options: Record<string, unknown> = { ...agent.options }
   for (const [key, value] of Object.entries(agent)) {
-    if (!KNOWN_KEYS.has(key)) options[key] = value
+    if (!KNOWN_KEYS.has(key)) {
+      // A top-level unknown key PROMOTES into options — when options.<key>
+      // also exists, this assignment SILENTLY OVERWRITES it. Two different
+      // configs on one agent with no trace of which one wins is a bug
+      // class (2026-09-02, Alexander: "2 разных конфига на билде… какой
+      // из?") — surface the shadowing instead of eating it.
+      if (options[key] !== undefined) {
+        const same = JSON.stringify(options[key]) === JSON.stringify(value)
+        log.warn(
+          same
+            ? `agent config: "${key}" defined at BOTH top level and options.<key> (identical — remove one)`
+            : `agent config: top-level "${key}" OVERRIDES options.${key} (values differ — top-level wins)`,
+        )
+      }
+      options[key] = value
+    }
   }
 
   const permission: ConfigPermission.Info = {}

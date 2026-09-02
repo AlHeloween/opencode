@@ -1,4 +1,12 @@
 # Progress Log
+## 2026-09-02 FIX — routing written to TWO config positions by the same build (duplicate writers)
+Reason: user (13:50 UTC) — «у тебя 2 разных конфига на билде, они различные, так какой из? Это баг» — `D:\!Smit\Smit2-Pasha\opencode.jsonc` had BOTH `agent.build_mode.routing` (top-level) and `agent.build_mode.options.routing`, written by the SAME build. Root cause [Exact]: `writeGlobalAgentField:468` (global scope) wrote TOP-LEVEL `routing` (writer predates rev 4 — built for model/variant where top-level is canonical), while the worktree branch PATCHed `options.routing`; runtime reader (llm.ts) reads ONLY `options.routing`; top-level survives via normalize promotion which PRESERVES the original key → both blocks coexist and silently shadow (top-level wins at promotion). Process fault acknowledged: earlier "harmless but redundant" verdict was delivered unverified (Guess as verdict) — violated @INFORMATION_STATUS; the user's duplicate-writer hypothesis was correct and mine was checked only after pushback.
+Changes:
+- `local.tsx` `writeGlobalAgentField` — new `options` field deep-merges into `agent.<name>.options`; `routing` no longer written top-level. `setAgentRouting` global branch → `{ options: { routing } }` — ONE canonical shape across all scopes.
+- `config/agent.ts` `normalize` — collision warn on promotion shadowing (values differ → "OVERRIDES"; identical → "remove one").
+- `test/config/agent-normalize.test.ts` (NEW) + plan `plans/2026-09-02_routing-writer-duplicate.md`.
+Script Output:
+- agent-normalize 2 pass / 0 fail (`20260902T140234Z_e8798e3a`); typecheck exit 0 (`20260902T140234Z_a69e05eb`).
 ## 2026-09-02 FIX — CLI died on invalid plaintext auth.json at raw start (Effect defect escape)
 Reason: user (10:07 UTC) — `opencode` in `d:\!Smit\Smit2-Pasha` died with `UnknownError: SyntaxError: JSON Parse error: Property name must be a string literal` (stack `successCont` → `runLoop` → `node:fs`). Context: raw-start phase — plaintext `auth.json` hand-seeded, `.enc` mirror not yet created. Diagnosis [Exact]: `core/src/filesystem.ts readJson` threw raw `SyntaxError` inside the Effect generator → DEFECT (die channel), while the declared error type is E-channel `Error`; `auth/index.ts:65` `orElseSucceed` cannot catch defects → crash at startup. `Global.Path.config = exeDir` → auth.json at the exe dir root confirmed. Secondary: on parse failure the code mirrored an EMPTY object into `auth.json.enc` — would erase auth once the plaintext file is deleted.
 Changes:

@@ -455,7 +455,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
        * NOT ~/.config/opencode — AGENTS.md path architecture). Server endpoint
        * PATCH /global/config → Config.updateGlobal: jsonc-preserving patch
        * (comments survive), instances invalidated after write. */
-      async function writeGlobalAgentField(agentName: string, field: { model?: string; variant?: string; routing?: Record<string, unknown> }) {
+      async function writeGlobalAgentField(
+        agentName: string,
+        field: { model?: string; variant?: string; routing?: Record<string, unknown>; options?: Record<string, unknown> },
+      ) {
         // hey-api v2 wraps the payload in { data } — spread .data ONLY (web-app
         // precedent: bootstrap.ts x.data). Spreading the wrapper sent {data,
         // response} keys into a STRICT config schema → 422 → "[object Object]".
@@ -465,7 +468,17 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         const agentConfig = { ...((agents[agentName] as Record<string, unknown> | undefined) ?? {}) }
         if (field.model !== undefined) agentConfig.model = field.model
         if (field.variant !== undefined) agentConfig.variant = field.variant
-        if (field.routing !== undefined) agentConfig.routing = field.routing
+        if (field.options !== undefined) {
+          // Deep-merge into the existing options block — the canonical shape
+          // for routing (llm.ts reads agent options.routing directly; the
+          // top-level spelling only survives via config-normalize promotion
+          // and produced DUPLICATE blocks when global and worktree scopes
+          // wrote different spellings of the same setting, 2026-09-02).
+          agentConfig.options = {
+            ...((agentConfig.options as Record<string, unknown> | undefined) ?? {}),
+            ...field.options,
+          }
+        }
         agents[agentName] = agentConfig
         config.agent = agents
         await sdk.client.global.config.update({ config: config as never }, { throwOnError: true })
@@ -569,7 +582,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             })
             return
           }
-          await writeGlobalAgentField(agentName, { routing })
+          // ONE canonical shape across ALL scopes: agent.<name>.options.routing
+          // (the top-level spelling created duplicate blocks — writer bug
+          // fixed 2026-09-02).
+          await writeGlobalAgentField(agentName, { options: { routing } })
           return
         }
         if (scope === "worktree") {

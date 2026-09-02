@@ -40,6 +40,12 @@ def test_production_prompt_matches_next_kernel_renderer() -> None:
     assert current == render_kernel()
 
 
+def test_production_prompt_is_pinned_to_lf_bytes() -> None:
+    attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8").splitlines()
+    assert "/packages/opencode/src/session/prompt/reasoning_prompt.txt text eol=lf" in attributes
+    assert b"\r\n" not in PRODUCTION.read_bytes()
+
+
 def test_normal_build_preserves_current_kernel_hash_boundary() -> None:
     from prompt_kernel import assert_current_kernel_unchanged
 

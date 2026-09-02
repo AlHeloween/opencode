@@ -68,12 +68,12 @@ type Input = {
   model: Provider.Model
   agentName?: string
   /** Estimated cumulative content tokens across all non-compacted messages.
-    * Passed from prompt loop to enable mid-turn overflow detection
-    * that accounts for full session context, not just per-turn tokens. */
+   * Passed from prompt loop to enable mid-turn overflow detection
+   * that accounts for full session context, not just per-turn tokens. */
   contentTokenEstimate?: number
   /** Epistemic floor of the current turn's evidence chain.
-    * Inferred by default; upgraded to Exact after session-read.
-    * Used to inject epistemic nudges before destructive tool calls. */
+   * Inferred by default; upgraded to Exact after session-read.
+   * Used to inject epistemic nudges before destructive tool calls. */
   evidenceFloor?: import("../session/constitution").InfoMark
 }
 
@@ -228,10 +228,7 @@ async function checkAndSnapshotBalance(params: {
 
   try {
     const previous = BalanceStorage.readLatestBalanceSnapshot(params.providerID)
-    const calculatedCost = BalanceStorage.calculatedCostSinceLastSnapshot(
-      params.sessionID,
-      params.providerID,
-    )
+    const calculatedCost = BalanceStorage.calculatedCostSinceLastSnapshot(params.sessionID, params.providerID)
     if (previous && calculatedCost < BALANCE_CHECK_MIN_COST) return null
 
     const snapshot = await Balance.checkBalance({
@@ -310,15 +307,17 @@ export const layer: Layer.Layer<
         evidenceFloor: input.evidenceFloor ?? "Inferred",
       }
       let aborted = false
-      const slog = log.clone().tag("session.id", input.sessionID).tag("messageID", input.assistantMessage.id).tag("modelID", input.model.id)
+      const slog = log
+        .clone()
+        .tag("session.id", input.sessionID)
+        .tag("messageID", input.assistantMessage.id)
+        .tag("modelID", input.model.id)
 
       // Publish model status immediately on load / model switch so the TUI
       // shows balance (DeepSeek/OpenRouter) or usage (OpenAI) right away,
       // not just after a message completes.
       yield* Effect.gen(function* () {
-        const status = yield* Effect.promise(() =>
-          Balance.getModelStatus(input.model.providerID),
-        )
+        const status = yield* Effect.promise(() => Balance.getModelStatus(input.model.providerID))
         yield* bus.publish(Session.Event.ModelStatusUpdated, {
           sessionID: input.sessionID,
           providerID: input.model.providerID,
@@ -326,12 +325,8 @@ export const layer: Layer.Layer<
           ...(status.type === "balance"
             ? { currency: status.currency, totalBalance: status.totalBalance, isAvailable: status.isAvailable }
             : {}),
-          ...(status.type === "usage"
-            ? { windows: status.windows }
-            : {}),
-          ...(status.type === "unavailable"
-            ? { reason: status.reason }
-            : {}),
+          ...(status.type === "usage" ? { windows: status.windows } : {}),
+          ...(status.type === "unavailable" ? { reason: status.reason } : {}),
         })
       }).pipe(Effect.ignore, Effect.forkIn(scope))
 
@@ -401,13 +396,25 @@ export const layer: Layer.Layer<
           ctx.evidenceFloor = stamped
           Constitution.raiseEvidenceFloor(ctx.sessionID, stamped)
         }
+        const evidence = Constitution.registerToolEvidence({
+          sessionID: ctx.sessionID,
+          toolCallID,
+          tool: match.part.tool,
+          input: match.part.state.input,
+          title: output.title,
+          output: output.output,
+          metadata: output.metadata,
+        })
         const nudge = Constitution.epistemicNudge({
           tool: match.part.tool,
           evidenceFloor: ctx.evidenceFloor,
           command: (match.part.state.input as any)?.command,
           sessionID: ctx.sessionID,
         })
-        const finalOutput = nudge ? nudge + "\n" + output.output : output.output
+        const evidencedOutput = evidence
+          ? Constitution.formatRuntimeEvidence(evidence) + "\n" + output.output
+          : output.output
+        const finalOutput = nudge ? nudge + "\n" + evidencedOutput : evidencedOutput
         yield* session.updatePart({
           ...match.part,
           state: {
@@ -428,7 +435,9 @@ export const layer: Layer.Layer<
 
       /** Create or retrieve a tool call part, returning its metadata. */
       const ensureToolCall = Effect.fn("SessionProcessor.ensureToolCall")(function* (value: {
-        id: string; toolName: string; providerExecuted?: boolean
+        id: string
+        toolName: string
+        providerExecuted?: boolean
       }) {
         const part = yield* session.updatePart({
           id: ctx.toolcalls[value.id]?.partID ?? PartID.ascending(),
@@ -450,11 +459,11 @@ export const layer: Layer.Layer<
 
       /** Flush pending reasoning text and finalize the reasoning part. */
       const finishReasoning = Effect.fn("SessionProcessor.finishReasoning")(function* (value: {
-        id: string; providerMetadata?: Record<string, unknown>
+        id: string
+        providerMetadata?: Record<string, unknown>
       }) {
         if (!(value.id in ctx.reasoningMap)) return
-        ctx.reasoningMap[value.id].text =
-          ctx.reasoningBuilders[value.id]?.toString() ?? ctx.reasoningMap[value.id].text
+        ctx.reasoningMap[value.id].text = ctx.reasoningBuilders[value.id]?.toString() ?? ctx.reasoningMap[value.id].text
         delete ctx.reasoningBuilders[value.id]
         ctx.reasoningMap[value.id].time = { ...ctx.reasoningMap[value.id].time, end: Date.now() }
         if (value.providerMetadata) ctx.reasoningMap[value.id].metadata = value.providerMetadata
@@ -656,11 +665,7 @@ export const layer: Layer.Layer<
             if (value.finishReason === "stop" && ctx.textBuilder.length >= 10) {
               const text = ctx.textBuilder.toString()
               // Allowlist: defaults + live tools for this turn (plugin/MCP included).
-              const disguised = detectDisguisedToolCalls(
-                value.finishReason,
-                text,
-                ctx.knownToolIds,
-              )
+              const disguised = detectDisguisedToolCalls(value.finishReason, text, ctx.knownToolIds)
               if (disguised && disguised.length > 0) {
                 const names = disguised.map((t) => t.name).join(", ")
                 log.warn("detected disguised tool calls in content — triggering retry", {
@@ -813,9 +818,7 @@ export const layer: Layer.Layer<
                 })
               }
               // Standardised model status (balance / usage / unavailable)
-              const status = yield* Effect.promise(() =>
-                Balance.getModelStatus(ctx.model.providerID),
-              )
+              const status = yield* Effect.promise(() => Balance.getModelStatus(ctx.model.providerID))
               yield* bus.publish(Session.Event.ModelStatusUpdated, {
                 sessionID: ctx.sessionID,
                 providerID: ctx.model.providerID,
@@ -823,12 +826,8 @@ export const layer: Layer.Layer<
                 ...(status.type === "balance"
                   ? { currency: status.currency, totalBalance: status.totalBalance, isAvailable: status.isAvailable }
                   : {}),
-                ...(status.type === "usage"
-                  ? { windows: status.windows }
-                  : {}),
-                ...(status.type === "unavailable"
-                  ? { reason: status.reason }
-                  : {}),
+                ...(status.type === "usage" ? { windows: status.windows } : {}),
+                ...(status.type === "unavailable" ? { reason: status.reason } : {}),
               })
             }).pipe(Effect.ignore, Effect.forkIn(scope))
             // Use the pre-track snapshot for patch — it represents the hash
@@ -859,11 +858,10 @@ export const layer: Layer.Layer<
             // Call sequentially (not forked) so the DB write from
             // session.updatePart above is committed before summarize
             // reads messages from the same DB connection.
-            yield* summary
-              .summarize({
-                sessionID: ctx.sessionID,
-                messageID: ctx.assistantMessage.parentID,
-              })
+            yield* summary.summarize({
+              sessionID: ctx.sessionID,
+              messageID: ctx.assistantMessage.parentID,
+            })
             if (
               !ctx.assistantMessage.summary &&
               (isOverflow({ cfg: yield* config.get(), tokens: usage.tokens, model: ctx.model }) ||
@@ -928,13 +926,21 @@ export const layer: Layer.Layer<
               const end = Date.now()
               ctx.currentText.time = { start: ctx.currentText.time?.start ?? end, end }
             }
-            // Claim ledger + oracle_stamp: system-owned InfoMark promotion path.
+            // Assistant claims are untrusted; only runtime evidence refs can change stamps.
             {
               const ing = Constitution.ingestAssistantText(ctx.sessionID, ctx.currentText.text)
-              if (ing.ledgerUpdated || ing.stampsApplied.length || ing.demoted.length) {
+              if (
+                ing.ledgerUpdated ||
+                ing.stampsApplied.length ||
+                ing.stampsRejected.length ||
+                ing.invalidated.length ||
+                ing.demoted.length
+              ) {
                 log.debug("claim_ledger.ingest", {
                   sessionID: ctx.sessionID,
                   stamps: ing.stampsApplied,
+                  rejected: ing.stampsRejected,
+                  invalidated: ing.invalidated,
                   demoted: ing.demoted,
                   floor: Constitution.decisionFloor(ctx.sessionID),
                 })
@@ -1075,7 +1081,7 @@ export const layer: Layer.Layer<
         // Sub-agents: don't stop on a single denied tool — let the LLM retry with
         // a different tool. Primary agents respect continue_loop_on_deny config.
         const parentSession = yield* session.get(ctx.sessionID).pipe(
-          Effect.map((s) => s.parentID ? true : false),
+          Effect.map((s) => (s.parentID ? true : false)),
           Effect.catch(() => Effect.succeed(false)),
         )
         const configBreak = (yield* config.get()).experimental?.continue_loop_on_deny === true

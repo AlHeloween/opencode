@@ -128,11 +128,7 @@ describe("session.constitution", () => {
     const isWin = process.platform === "win32"
 
     // Cross-platform — blocked on any OS
-    const crossPlatform = [
-      "tree /f",
-      "find . -type f",
-      "for f in **/*; do echo $f; done",
-    ]
+    const crossPlatform = ["tree /f", "find . -type f", "for f in **/*; do echo $f; done"]
     for (const command of crossPlatform) {
       const guard = Constitution.guardCommand(command)
       expect(guard.blocked).toBe(true)
@@ -162,13 +158,10 @@ describe("session.constitution", () => {
       }
       // `ls`/`cat` don't exist on native Windows → not blocked
       expect(Constitution.guardCommand("ls -la").blocked).toBe(false)
-      expect(Constitution.guardCommand("sh -c \"ls\"").blocked).toBe(false)
+      expect(Constitution.guardCommand('sh -c "ls"').blocked).toBe(false)
     } else {
       // Linux-only
-      for (const command of [
-        "ls -la",
-        "sh -c \"ls\"",
-      ]) {
+      for (const command of ["ls -la", 'sh -c "ls"']) {
         const guard = Constitution.guardCommand(command)
         expect(guard.blocked).toBe(true)
         expect(guard.message).toContain("list tool")
@@ -196,11 +189,11 @@ describe("session.constitution", () => {
     for (const command of [
       "git status",
       "rg 'TODO' src",
-      "rg \"Get-ChildItem\" src",
-      "rg \"git ls-files\" docs",
-      "rg \"foo|Get-ChildItem\" src",
-      "rg \"foo; Get-ChildItem\" src",
-      "rg \"foo|git ls-files\" src",
+      'rg "Get-ChildItem" src',
+      'rg "git ls-files" docs',
+      'rg "foo|Get-ChildItem" src',
+      'rg "foo; Get-ChildItem" src',
+      'rg "foo|git ls-files" src',
       "echo ls",
       "echo *",
       "findstr /n /i error log.txt",
@@ -402,7 +395,7 @@ claim_ledger:
     expect(led.claims.get("C1")?.stamped).toBe(false)
   })
 
-  test("oracle_stamp promotes claim to Exact and grounds premises", () => {
+  test("runtime evidence-bound oracle stamp promotes claim to Exact", () => {
     Constitution.resetEpistemicState("ses_claim_2")
     Constitution.ingestAssistantText(
       "ses_claim_2",
@@ -419,7 +412,20 @@ claim_ledger:
     expect(Constitution.premisesGrounded("ses_claim_2").ok).toBe(false)
     expect(Constitution.guardMutationGrounding({ sessionID: "ses_claim_2", tool: "edit" }).blocked).toBe(true)
 
-    Constitution.ingestAssistantText("ses_claim_2", "oracle_stamp: C1 PASS")
+    const evidence = Constitution.registerToolEvidence({
+      sessionID: "ses_claim_2",
+      toolCallID: "call_read_1",
+      tool: "read",
+      title: "constitution.ts",
+      output: "computeOpenWindowTokens uses chars/4",
+      metadata: {},
+    })
+    expect(evidence).toBeDefined()
+    const result = Constitution.ingestAssistantText(
+      "ses_claim_2",
+      `oracle_stamp: claim_id=C1 evidence_ref=${evidence!.id} result=PASS`,
+    )
+    expect(result.stampsApplied).toEqual(["C1"])
     expect(Constitution.hasStamp("ses_claim_2", "C1")).toBe(true)
     expect(Constitution.getClaimLedger("ses_claim_2").claims.get("C1")?.status).toBe("Exact")
     expect(Constitution.premisesGrounded("ses_claim_2").ok).toBe(true)
@@ -498,9 +504,8 @@ claim_ledger:
     expect(Constitution.guardCommand("where.exe node").blocked).toBe(false)
   })
 
-  test("oracle_stamp then claim_ledger Exact is allowed when stamped", () => {
+  test("assistant cannot manufacture an oracle stamp", () => {
     Constitution.resetEpistemicState("ses_claim_4")
-    Constitution.ingestAssistantText("ses_claim_4", "oracle_stamp: C9 PASS")
     Constitution.ingestAssistantText(
       "ses_claim_4",
       `
@@ -508,19 +513,338 @@ claim_ledger:
   claims:
     - id: C9
       text: "smoke passed"
-      status: Exact
+      status: Hypothetical
+      falsifier: "run smoke"
   premises_for_plan: [C9]
 `,
     )
-    expect(Constitution.getClaimLedger("ses_claim_4").claims.get("C9")?.status).toBe("Exact")
-    expect(Constitution.getClaimLedger("ses_claim_4").claims.get("C9")?.stamped).toBe(true)
-    expect(Constitution.premisesGrounded("ses_claim_4").ok).toBe(true)
+    const result = Constitution.ingestAssistantText("ses_claim_4", "oracle_stamp: C9 PASS")
+    expect(result.stampsRejected).toEqual(["C9:missing_evidence"])
+    expect(Constitution.getClaimLedger("ses_claim_4").claims.get("C9")?.status).toBe("Hypothetical")
+    expect(Constitution.getClaimLedger("ses_claim_4").claims.get("C9")?.stamped).toBe(false)
+    expect(Constitution.premisesGrounded("ses_claim_4").ok).toBe(false)
+  })
+
+  test("runtime evidence marker distinguishes execution from oracle verdict", () => {
+    Constitution.resetEpistemicState("ses_evidence_marker")
+    const eligible = Constitution.registerToolEvidence({
+      sessionID: "ses_evidence_marker",
+      toolCallID: "call_read",
+      tool: "read",
+      input: { filePath: "artifact.txt" },
+      title: "artifact",
+      output: "observed bytes",
+      metadata: {},
+    })!
+    const ineligible = Constitution.registerToolEvidence({
+      sessionID: "ses_evidence_marker",
+      toolCallID: "call_web",
+      tool: "webfetch",
+      input: { url: "https://example.invalid" },
+      title: "generic page",
+      output: "search result",
+      metadata: {},
+    })!
+
+    expect(Constitution.formatRuntimeEvidence(eligible)).toContain("execution=OK oracle=eligible")
+    expect(Constitution.formatRuntimeEvidence(ineligible)).toContain("execution=OK oracle=ineligible")
+    expect(eligible.inputDigest).not.toBe(ineligible.inputDigest)
+  })
+
+  test("fabricated canonical evidence reference is rejected", () => {
+    Constitution.resetEpistemicState("ses_fabricated_evidence")
+    Constitution.ingestAssistantText(
+      "ses_fabricated_evidence",
+      `
+claim_ledger:
+  claims:
+    - id: C1
+      text: "fabricated claim"
+      status: Hypothetical
+      falsifier: "read artifact"
+  premises_for_plan: [C1]
+`,
+    )
+    const result = Constitution.ingestAssistantText(
+      "ses_fabricated_evidence",
+      "oracle_stamp: claim_id=C1 evidence_ref=ev_0123456789abcdef01234567 result=PASS",
+    )
+    expect(result.stampsRejected).toEqual(["C1:unknown_evidence"])
+    expect(Constitution.hasStamp("ses_fabricated_evidence", "C1")).toBe(false)
+  })
+
+  test("claim without falsifier cannot become Exact", () => {
+    Constitution.resetEpistemicState("ses_missing_falsifier")
+    Constitution.ingestAssistantText(
+      "ses_missing_falsifier",
+      `
+claim_ledger:
+  claims:
+    - id: C1
+      text: "unfalsifiable claim"
+      status: Hypothetical
+  premises_for_plan: [C1]
+`,
+    )
+    const evidence = Constitution.registerToolEvidence({
+      sessionID: "ses_missing_falsifier",
+      toolCallID: "call_read",
+      tool: "read",
+      title: "artifact",
+      output: "observation",
+      metadata: {},
+    })!
+    const result = Constitution.ingestAssistantText(
+      "ses_missing_falsifier",
+      `oracle_stamp: claim_id=C1 evidence_ref=${evidence.id} result=PASS`,
+    )
+    expect(result.stampsRejected).toEqual(["C1:missing_falsifier"])
+    expect(Constitution.premisesGrounded("ses_missing_falsifier").ok).toBe(false)
+  })
+
+  test("tool-backed divergence invalidates Exact and blocks mutation", () => {
+    Constitution.resetEpistemicState("ses_claim_divergence")
+    Constitution.ingestAssistantText(
+      "ses_claim_divergence",
+      `
+claim_ledger:
+  claims:
+    - id: C1
+      text: "runtime prompt equals rendered kernel"
+      status: Hypothetical
+      falsifier: "compare both files"
+  premises_for_plan: [C1]
+`,
+    )
+    const pass = Constitution.registerToolEvidence({
+      sessionID: "ses_claim_divergence",
+      toolCallID: "call_compare_pass",
+      tool: "treediff",
+      title: "same",
+      output: "no difference",
+      metadata: {},
+    })!
+    Constitution.ingestAssistantText(
+      "ses_claim_divergence",
+      `oracle_stamp: claim_id=C1 evidence_ref=${pass.id} result=PASS`,
+    )
+    expect(Constitution.premisesGrounded("ses_claim_divergence").ok).toBe(true)
+
+    const divergence = Constitution.registerToolEvidence({
+      sessionID: "ses_claim_divergence",
+      toolCallID: "call_compare_fail",
+      tool: "treediff",
+      title: "different",
+      output: "runtime differs from rendered kernel",
+      metadata: { exit: 1 },
+    })!
+    const result = Constitution.ingestAssistantText(
+      "ses_claim_divergence",
+      `divergence_event: claim_id=C1 evidence_ref=${divergence.id}`,
+    )
+    const claim = Constitution.getClaimLedger("ses_claim_divergence").claims.get("C1")
+    expect(result.invalidated).toEqual(["C1"])
+    expect(claim?.status).toBe("Unknown")
+    expect(claim?.stamped).toBe(false)
+    expect(Constitution.hasStamp("ses_claim_divergence", "C1")).toBe(false)
+    expect(Constitution.premisesGrounded("ses_claim_divergence").ok).toBe(false)
+    expect(Constitution.guardMutationGrounding({ sessionID: "ses_claim_divergence", tool: "edit" }).blocked).toBe(true)
+    expect(Constitution.getClaimEvidenceEvents("ses_claim_divergence").map((event) => event.kind)).toEqual([
+      "ORACLE_PASS",
+      "DIVERGENCE",
+    ])
+  })
+
+  test("invalidated stamp cannot be resurrected by assistant ledger", () => {
+    Constitution.resetEpistemicState("ses_claim_no_resurrection")
+    Constitution.ingestAssistantText(
+      "ses_claim_no_resurrection",
+      `
+claim_ledger:
+  claims:
+    - id: C1
+      text: "claim"
+      status: Hypothetical
+      falsifier: "read artifact"
+  premises_for_plan: [C1]
+`,
+    )
+    const pass = Constitution.registerToolEvidence({
+      sessionID: "ses_claim_no_resurrection",
+      toolCallID: "call_pass",
+      tool: "read",
+      title: "pass",
+      output: "claim supported",
+      metadata: {},
+    })!
+    Constitution.ingestAssistantText(
+      "ses_claim_no_resurrection",
+      `oracle_stamp: claim_id=C1 evidence_ref=${pass.id} result=PASS`,
+    )
+    const divergence = Constitution.registerToolEvidence({
+      sessionID: "ses_claim_no_resurrection",
+      toolCallID: "call_divergence",
+      tool: "read",
+      title: "counterexample",
+      output: "claim contradicted",
+      metadata: {},
+    })!
+    Constitution.ingestAssistantText(
+      "ses_claim_no_resurrection",
+      `divergence_event: claim_id=C1 evidence_ref=${divergence.id}`,
+    )
+    Constitution.ingestAssistantText(
+      "ses_claim_no_resurrection",
+      `
+claim_ledger:
+  claims:
+    - id: C1
+      text: "claim"
+      status: Exact
+      falsifier: "read artifact"
+  premises_for_plan: [C1]
+`,
+    )
+    expect(Constitution.getClaimLedger("ses_claim_no_resurrection").claims.get("C1")?.status).toBe("Hypothetical")
+    expect(Constitution.premisesGrounded("ses_claim_no_resurrection").ok).toBe(false)
+  })
+
+  test("changed statement digest cannot reuse an active stamp", () => {
+    Constitution.resetEpistemicState("ses_claim_statement_change")
+    Constitution.ingestAssistantText(
+      "ses_claim_statement_change",
+      `
+claim_ledger:
+  claims:
+    - id: C1
+      text: "first statement"
+      status: Hypothetical
+      falsifier: "read artifact"
+  premises_for_plan: [C1]
+`,
+    )
+    const evidence = Constitution.registerToolEvidence({
+      sessionID: "ses_claim_statement_change",
+      toolCallID: "call_statement",
+      tool: "read",
+      title: "artifact",
+      output: "first statement",
+      metadata: {},
+    })!
+    Constitution.ingestAssistantText(
+      "ses_claim_statement_change",
+      `oracle_stamp: claim_id=C1 evidence_ref=${evidence.id} result=PASS`,
+    )
+    Constitution.ingestAssistantText(
+      "ses_claim_statement_change",
+      `
+claim_ledger:
+  claims:
+    - id: C1
+      text: "different statement"
+      status: Exact
+      falsifier: "read artifact"
+  premises_for_plan: [C1]
+`,
+    )
+    expect(Constitution.hasStamp("ses_claim_statement_change", "C1")).toBe(false)
+    expect(Constitution.getClaimLedger("ses_claim_statement_change").claims.get("C1")?.status).toBe("Hypothetical")
+    expect(Constitution.getClaimEvidenceEvents("ses_claim_statement_change").at(-1)?.kind).toBe("STATEMENT_CHANGED")
+  })
+
+  test("failed tool evidence cannot produce an Exact stamp", () => {
+    Constitution.resetEpistemicState("ses_claim_failed_evidence")
+    Constitution.ingestAssistantText(
+      "ses_claim_failed_evidence",
+      `
+claim_ledger:
+  claims:
+    - id: C1
+      text: "test suite passes"
+      status: Hypothetical
+      falsifier: "run tests"
+  premises_for_plan: [C1]
+`,
+    )
+    const evidence = Constitution.registerToolEvidence({
+      sessionID: "ses_claim_failed_evidence",
+      toolCallID: "call_failed",
+      tool: "cmd",
+      title: "tests",
+      output: "1 test failed",
+      metadata: { exit: 1 },
+    })!
+    const result = Constitution.ingestAssistantText(
+      "ses_claim_failed_evidence",
+      `oracle_stamp: claim_id=C1 evidence_ref=${evidence.id} result=PASS`,
+    )
+    expect(result.stampsRejected).toEqual(["C1:failed_evidence"])
+    expect(Constitution.hasStamp("ses_claim_failed_evidence", "C1")).toBe(false)
+  })
+
+  test("generic web evidence cannot bypass source routing into Exact", () => {
+    Constitution.resetEpistemicState("ses_claim_web_evidence")
+    Constitution.ingestAssistantText(
+      "ses_claim_web_evidence",
+      `
+claim_ledger:
+  claims:
+    - id: C1
+      text: "generic web claim"
+      status: Hypothetical
+      falsifier: "obtain primary evidence"
+  premises_for_plan: [C1]
+`,
+    )
+    const evidence = Constitution.registerToolEvidence({
+      sessionID: "ses_claim_web_evidence",
+      toolCallID: "call_web",
+      tool: "webfetch",
+      title: "generic page",
+      output: "unsupported assertion",
+      metadata: {},
+    })!
+    expect(evidence.oracleEligible).toBe(false)
+    const result = Constitution.ingestAssistantText(
+      "ses_claim_web_evidence",
+      `oracle_stamp: claim_id=C1 evidence_ref=${evidence.id} result=PASS`,
+    )
+    expect(result.stampsRejected).toEqual(["C1:ineligible_evidence"])
+    expect(Constitution.premisesGrounded("ses_claim_web_evidence").ok).toBe(false)
+
+    const divergence = Constitution.ingestAssistantText(
+      "ses_claim_web_evidence",
+      `divergence_event: claim_id=C1 evidence_ref=${evidence.id}`,
+    )
+    expect(divergence.stampsRejected).toEqual(["C1:ineligible_evidence"])
+    expect(divergence.invalidated).toEqual([])
+    expect(Constitution.getClaimLedger("ses_claim_web_evidence").claims.get("C1")?.status).toBe("Hypothetical")
   })
 
   // ── AST-based classification (classifyAstNode / evaluate) ──
 
   test("classifyAstNode: fossil commands are DESTRUCTIVE", () => {
-    for (const sub of ["commit", "ci", "add", "rm", "delete", "addremove", "checkout", "co", "update", "up", "merge", "undo", "revert", "close", "open", "push", "pull", "sync", "clean"]) {
+    for (const sub of [
+      "commit",
+      "ci",
+      "add",
+      "rm",
+      "delete",
+      "addremove",
+      "checkout",
+      "co",
+      "update",
+      "up",
+      "merge",
+      "undo",
+      "revert",
+      "close",
+      "open",
+      "push",
+      "pull",
+      "sync",
+      "clean",
+    ]) {
       const r = Constitution.classifyAstNode("fossil", sub, ["fossil", sub])
       expect(r.family).toBe("FOSSIL_MUTATE")
       expect(r.risk).toBe("DESTRUCTIVE")
@@ -616,7 +940,7 @@ claim_ledger:
     const prev = process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
     delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
     try {
-      const g = Constitution.guardCommand("git commit -m \"fix(fossil): fossil clean --force replaced\"")
+      const g = Constitution.guardCommand('git commit -m "fix(fossil): fossil clean --force replaced"')
       expect(g.blocked).toBe(false)
       // Note: guardCommand uses token extraction (legacy), which correctly
       // identifies cmd=git sub=commit → not fossil. This was the original bug.

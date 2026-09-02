@@ -104,8 +104,8 @@ Guess  (parametric)
   →  universalsearch source=code   (Sourcegraph over indexed git)
   →  Hypothetical (falsifier = smoke criteria)
   →  smoke / oracle
-        PASS + system stamp  →  Exact (grounded, scoped)  →  may Done
-        FAIL                 →  Unknown  (no Done)
+        PASS + evidence-bound runtime stamp  →  Exact (grounded, scoped)  →  may Done
+        bound divergence                  →  Unknown  (stamp revoked; no Done)
 ```
 
 | Step | InfoMark | Notes |
@@ -129,7 +129,10 @@ REUSE then small smoke kills bad paths early and freezes successful claims as Ex
 
 Implemented in `packages/opencode/src/session/constitution.ts`:
 
-- Agents emit `claim_ledger` (+ optional `oracle_stamp: C1 PASS`).
+- Agents emit `claim_ledger`, then may bind an eligible runtime-issued tool result with
+  `oracle_stamp: claim_id=C1 evidence_ref=ev_<digest> result=PASS`.
+- `divergence_event: claim_id=C1 evidence_ref=ev_<digest>` revokes the active stamp and sets the claim to Unknown.
+- Legacy/self-issued `oracle_stamp: C1 PASS`, unknown references, ineligible sources, failed PASS evidence, and claims without a falsifier are rejected.
 - Model `status: Exact` **without** a system stamp is demoted to Hypothetical.
 - Active `premises_for_plan` must be Exact|Inferred; else **MODIFY tools denied**.
 - Bypass: `OPENCODE_BYPASS_GROUNDING=1` (emergency only).
@@ -174,5 +177,5 @@ codegraph / messagesearch
   → plan + claim_ledger + smoke
   → approve (Gate 4) when required
   → implement (mutation tools)
-  → Gate 8 oracle PASS → oracle_stamp → Exact Done
+  → Gate 8 oracle PASS → evidence-bound oracle_stamp → Exact Done
 ```

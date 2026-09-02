@@ -48,7 +48,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "DIVERGENCE_PROTOCOL",
-        "A divergence fact — an observation contradicting a standing claim — demotes it to Unknown: no verdict, no retuning. Reward is oracle data only: acquire medoids, rebuild. Affect signals an oracle gap, never reward; averaging toward it is treatment (@SEMANTIC_CONTROL).",
+        "Only eligible runtime evidence may stamp or invalidate claims. Bound divergence revokes its stamp and sets Unknown: no verdict or retuning; acquire medoids, rebuild. Affect opens an oracle gap, never reward (@SEMANTIC_CONTROL).",
     ),
     _rule(
         "KERNEL",
@@ -135,7 +135,7 @@ GATES = (
         local_rules=(
             _rule("G3", "MASTER_PLAN_RULE", "Start DRAFT, become ACTIVE only after G4, and invalidate plus revise after any material premise or scope change."),
             _rule("G3", "SMOKE_BEFORE", "Capture a failing or baseline oracle before implementation and name the post-change oracle before any product-source edit."),
-            _rule("G3", "CLAIM_LEDGER_RULE", "Only evidence-supported claims may bind tasks; G8 alone attaches an Exact oracle stamp."),
+            _rule("G3", "CLAIM_LEDGER_RULE", "Assistant proposes claims; eligible runtime evidence alone binds Exact to statement digest and falsifier."),
             _rule("G3", "RISK_LEDGER_RULE", "Unresolved critical entries block G4. Refresh after G7/G8 and close only with oracle evidence."),
         ),
     ),
@@ -205,13 +205,13 @@ GATES = (
         objective="Independently prove the outcome. Pin Exact medoids or mark Unknown.",
         identities=("BUILD_MODE", "CODER_AGENT", "MEDIA_AGENT"),
         requires=("IMPLEMENTATION_RESULT", "SMOKE_CONTRACT", "OUTCOME_CONTRACT", "CLAIM_LEDGER", "RISK_LEDGER"),
-        outputs=("VERIFIED_OUTCOME", "ORACLE_STAMP", "CLAIM_LEDGER", "RISK_LEDGER"),
+        outputs=("VERIFIED_OUTCOME", "ORACLE_STAMP", "DIVERGENCE_EVENT", "CLAIM_LEDGER", "RISK_LEDGER"),
         shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "DIVERGENCE_PROTOCOL", "AUTHORITY_SEPARATION"),
         local_rules=(
             _rule("G8", "ORACLE", "Reproduce the claim with the narrowest decisive instrument. Planner confidence, user certainty, and implementation appearance are not evidence. Pass pins Exact medoids; fail is Unknown."),
             _rule("G8", "PROVENANCE", "Record command or instrument, inputs, environment, exit/result, relevant output, and artifact digest so the decision can be reproduced."),
             _rule("G8", "SMOKE_VERIFY", "Run focused regression tests first, then the proportional integration surface; compare against the baseline and outcome contract."),
-            _rule("G8", "ORACLE_STAMP_RULE", "On pass, bind Exact claims to evidence and digest. On fail, Unknown — stop without new evidence."),
+            _rule("G8", "ORACLE_STAMP_RULE", "PASS binds runtime evidence_ref to claim digest; divergence revokes it to Unknown."),
         ),
     ),
     Gate(
@@ -348,7 +348,7 @@ IDENTITIES = (
 
 KERNEL = Kernel(
     name="reasoning_kernel_next",
-    version="2.0.0-alpha.2",
+    version="2.0.0-alpha.3",
     precedence=("safety", "governance", "task", "domain", "style"),
     utf8_budget=25_000,
     terms=MappingProxyType({
@@ -376,7 +376,7 @@ KERNEL = Kernel(
         "CENTRAL_TASKS": "{medoid_task_ids}",
         "MASTER_PLAN": "{plan_id, revision, state, premises, tasks, dependencies, rollback}",
         "PLAN_CONTRACT": "{premise_refs, task_ids, scope, verification_refs}",
-        "CLAIM_LEDGER": "{claim_id, statement, status, evidence, provenance, falsifier, stamp?}",
+        "CLAIM_LEDGER": "{claim_id, statement, digest, status, falsifier, stamp?}",
         "RISK_LEDGER": "{risk_id, trigger, severity, containment, rollback, verification_owner}",
         "SMOKE_CONTRACT": "{baseline_oracle, post_change_oracle, expected_delta}",
         "EXECUTION_ENVELOPE": "{action_classes, paths, tools, effects, bounds, approvals, prohibitions}",
@@ -386,7 +386,8 @@ KERNEL = Kernel(
         "PLAN_BINDING": "{task_id: [paths, symbols, dependencies, expected_diff, oracle]}",
         "IMPLEMENTATION_RESULT": "{task_id, actual_diff, execution_evidence}",
         "VERIFIED_OUTCOME": "{acceptance_id: pass|fail, evidence_ref}",
-        "ORACLE_STAMP": "{claim_id, evidence_digest, oracle_id}",
+        "ORACLE_STAMP": "{claim_id, evidence_ref, result: PASS}",
+        "DIVERGENCE_EVENT": "{claim_id, evidence_ref}",
         "CLOSURE_PROOF": "{acceptance_coverage, oracle_result, critical_risks, residual}",
         "CLEAN_NEXT_STATE": "{terminal_mode, completed, risks, residual, route}",
         "RESIDUAL_GOAL": "{gap, bound, route}",

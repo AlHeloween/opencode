@@ -53,7 +53,10 @@ function _probeBinary(name: string): boolean {
     const cmd = process.platform === "win32" ? "where" : "which"
     const r = spawnSync(cmd, [name], { stdio: "ignore", timeout: 2000 })
     return r.status === 0
-  } catch { log.debug("_probeBinary spawnSync failed", { name }); return false }
+  } catch {
+    log.debug("_probeBinary spawnSync failed", { name })
+    return false
+  }
 }
 
 for (const t of ["find", "fd", "fdfind", "rg", "more", "busybox"]) {
@@ -110,13 +113,7 @@ export type PermissionBucket = (typeof PermissionBucket)[keyof typeof Permission
 // INFO MARK — memory surfaces + ordering
 // ============================================================================
 
-export const INFO_MARK_ORDER: readonly InfoMark[] = [
-  "Exact",
-  "Inferred",
-  "Hypothetical",
-  "Guess",
-  "Unknown",
-] as const
+export const INFO_MARK_ORDER: readonly InfoMark[] = ["Exact", "Inferred", "Hypothetical", "Guess", "Unknown"] as const
 
 export const MEMORY_INFO_MARK = {
   sessionRead: "Exact" as InfoMark,
@@ -153,175 +150,276 @@ type CommandRule = {
  */
 const COMMAND_RULES: CommandRule[] = [
   // ── FS enumerators — HARD BLOCK ──
-  ...([
-    ["ls", null],
-    ["dir", null],
-    ["tree", null],
-    ["find", null],
-    ["fd", null],
-    ["fdfind", null],
-    ["get-childitem", null],
-    ["gci", null],
-    ["get-item", null],
-    ["resolve-path", null],
-    ["type", null],
-    ["cat", null],
-    ["more", null],
-    ["busybox", null],
-    ["for", null],
-    // findstr / echo / printf are NOT hard-blocked:
-    // - findstr = Windows content search (grep-like; product grep preferred, not exclusive)
-    // - echo/printf = stdout print, not directory enumeration (even with *)
-  ] as Array<[string, string | null]>).map(([cmd, sub]) => ({
+  ...(
+    [
+      ["ls", null],
+      ["dir", null],
+      ["tree", null],
+      ["find", null],
+      ["fd", null],
+      ["fdfind", null],
+      ["get-childitem", null],
+      ["gci", null],
+      ["get-item", null],
+      ["resolve-path", null],
+      ["type", null],
+      ["cat", null],
+      ["more", null],
+      ["busybox", null],
+      ["for", null],
+      // findstr / echo / printf are NOT hard-blocked:
+      // - findstr = Windows content search (grep-like; product grep preferred, not exclusive)
+      // - echo/printf = stdout print, not directory enumeration (even with *)
+    ] as Array<[string, string | null]>
+  ).map(([cmd, sub]) => ({
     family: CommandFamily.FILE_ENUMERATOR,
     risk: "LOW" as Risk,
     hardBlock: true,
     cmd,
     sub,
     // `for` with * is still used as a poor-man's tree walk — keep that gate
-    extra: cmd === "for"
-      ? ((tokens: string[]) => tokens.some((t) => t.includes("*")))
-      : (cmd === "rg" || cmd === "rg.exe")
-        ? ((tokens: string[]) => tokens.includes("--files"))
-        : undefined,
+    extra:
+      cmd === "for"
+        ? (tokens: string[]) => tokens.some((t) => t.includes("*"))
+        : cmd === "rg" || cmd === "rg.exe"
+          ? (tokens: string[]) => tokens.includes("--files")
+          : undefined,
   })),
 
   // ── File destruction ──
   {
-    family: CommandFamily.FILE_DESTRUCTIVE, risk: "DESTRUCTIVE", hardBlock: false,
+    family: CommandFamily.FILE_DESTRUCTIVE,
+    risk: "DESTRUCTIVE",
+    hardBlock: false,
     permission: PermissionBucket.FILE,
-    cmd: "rm", sub: null,
+    cmd: "rm",
+    sub: null,
     extra: (tokens) => tokens.some((t) => /^-(-?)[a-zA-Z]*r[a-zA-Z]*f|^-(-?)[a-zA-Z]*f[a-zA-Z]*r/.test(t)),
   },
   {
-    family: CommandFamily.FILE_DESTRUCTIVE, risk: "DESTRUCTIVE", hardBlock: false,
+    family: CommandFamily.FILE_DESTRUCTIVE,
+    risk: "DESTRUCTIVE",
+    hardBlock: false,
     permission: PermissionBucket.FILE,
-    cmd: "remove-item", sub: null,
+    cmd: "remove-item",
+    sub: null,
     extra: (tokens) => tokens.includes("-recurse") && tokens.includes("-force"),
   },
   {
-    family: CommandFamily.FILE_DESTRUCTIVE, risk: "DESTRUCTIVE", hardBlock: false,
+    family: CommandFamily.FILE_DESTRUCTIVE,
+    risk: "DESTRUCTIVE",
+    hardBlock: false,
     permission: PermissionBucket.FILE,
-    cmd: "format", sub: null,
+    cmd: "format",
+    sub: null,
   },
   {
-    family: CommandFamily.FILE_DESTRUCTIVE, risk: "DESTRUCTIVE", hardBlock: false,
+    family: CommandFamily.FILE_DESTRUCTIVE,
+    risk: "DESTRUCTIVE",
+    hardBlock: false,
     permission: PermissionBucket.FILE,
-    cmd: "mkfs", sub: null,
+    cmd: "mkfs",
+    sub: null,
   },
   {
-    family: CommandFamily.FILE_DESTRUCTIVE, risk: "DESTRUCTIVE", hardBlock: false,
+    family: CommandFamily.FILE_DESTRUCTIVE,
+    risk: "DESTRUCTIVE",
+    hardBlock: false,
     permission: PermissionBucket.FILE,
-    cmd: "dd", sub: null,
+    cmd: "dd",
+    sub: null,
   },
 
   // ── Database destruction ──
   {
-    family: CommandFamily.DB_DESTRUCTIVE, risk: "DESTRUCTIVE", hardBlock: false,
+    family: CommandFamily.DB_DESTRUCTIVE,
+    risk: "DESTRUCTIVE",
+    hardBlock: false,
     permission: PermissionBucket.DB,
-    cmd: "drop", sub: null,
+    cmd: "drop",
+    sub: null,
   },
   {
-    family: CommandFamily.DB_DESTRUCTIVE, risk: "DESTRUCTIVE", hardBlock: false,
+    family: CommandFamily.DB_DESTRUCTIVE,
+    risk: "DESTRUCTIVE",
+    hardBlock: false,
     permission: PermissionBucket.DB,
-    cmd: "truncate", sub: null,
+    cmd: "truncate",
+    sub: null,
   },
   {
-    family: CommandFamily.DB_DESTRUCTIVE, risk: "DESTRUCTIVE", hardBlock: false,
+    family: CommandFamily.DB_DESTRUCTIVE,
+    risk: "DESTRUCTIVE",
+    hardBlock: false,
     permission: PermissionBucket.DB,
-    cmd: "delete", sub: null,
+    cmd: "delete",
+    sub: null,
   },
 
   // ── Git working-tree rewrite — HARD BLOCK ──
   ...(["checkout", "switch", "restore"] as string[]).map((sub) => ({
-    family: CommandFamily.GIT_HISTORY_REWRITE, risk: "DESTRUCTIVE" as Risk, hardBlock: true,
+    family: CommandFamily.GIT_HISTORY_REWRITE,
+    risk: "DESTRUCTIVE" as Risk,
+    hardBlock: true,
     permission: PermissionBucket.GIT,
-    cmd: "git", sub,
+    cmd: "git",
+    sub,
   })),
   {
-    family: CommandFamily.GIT_HISTORY_REWRITE, risk: "DESTRUCTIVE", hardBlock: true,
+    family: CommandFamily.GIT_HISTORY_REWRITE,
+    risk: "DESTRUCTIVE",
+    hardBlock: true,
     permission: PermissionBucket.GIT,
-    cmd: "git", sub: "reset",
+    cmd: "git",
+    sub: "reset",
     extra: (tokens) => tokens.includes("--hard"),
   },
   ...(["pop", "apply", "drop", "clear", "branch"] as string[]).map((stashSub) => ({
-    family: CommandFamily.GIT_HISTORY_REWRITE, risk: "DESTRUCTIVE" as Risk, hardBlock: true,
+    family: CommandFamily.GIT_HISTORY_REWRITE,
+    risk: "DESTRUCTIVE" as Risk,
+    hardBlock: true,
     permission: PermissionBucket.GIT,
-    cmd: "git", sub: "stash",
+    cmd: "git",
+    sub: "stash",
     extra: (tokens: string[]) => tokens[2] === stashSub,
   })),
 
   // ── Git askable destructive ──
   {
-    family: CommandFamily.GIT_ASKABLE_DESTRUCTIVE, risk: "DESTRUCTIVE", hardBlock: false,
+    family: CommandFamily.GIT_ASKABLE_DESTRUCTIVE,
+    risk: "DESTRUCTIVE",
+    hardBlock: false,
     permission: PermissionBucket.GIT,
-    cmd: "git", sub: "push",
+    cmd: "git",
+    sub: "push",
     extra: (tokens) => tokens.includes("--force") || tokens.includes("-f"),
   },
   {
-    family: CommandFamily.GIT_ASKABLE_DESTRUCTIVE, risk: "DESTRUCTIVE", hardBlock: false,
+    family: CommandFamily.GIT_ASKABLE_DESTRUCTIVE,
+    risk: "DESTRUCTIVE",
+    hardBlock: false,
     permission: PermissionBucket.GIT,
-    cmd: "git", sub: "clean",
+    cmd: "git",
+    sub: "clean",
     extra: (tokens) => tokens.some((t) => /^-[a-zA-Z]*f/.test(t)),
   },
 
   // ── Fossil CLI mutate — HARD BLOCK ──
-  ...(["commit", "ci", "add", "rm", "delete", "addremove", "checkout", "co",
-      "update", "up", "merge", "undo", "revert", "close", "open",
-      "push", "pull", "sync", "clean"] as string[]).map((sub) => ({
-    family: CommandFamily.FOSSIL_MUTATE, risk: "DESTRUCTIVE" as Risk, hardBlock: true,
+  ...(
+    [
+      "commit",
+      "ci",
+      "add",
+      "rm",
+      "delete",
+      "addremove",
+      "checkout",
+      "co",
+      "update",
+      "up",
+      "merge",
+      "undo",
+      "revert",
+      "close",
+      "open",
+      "push",
+      "pull",
+      "sync",
+      "clean",
+    ] as string[]
+  ).map((sub) => ({
+    family: CommandFamily.FOSSIL_MUTATE,
+    risk: "DESTRUCTIVE" as Risk,
+    hardBlock: true,
     permission: PermissionBucket.FOSSIL,
-    cmd: "fossil", sub,
+    cmd: "fossil",
+    sub,
   })),
 
   // ── Elevated-risk operations ──
   {
-    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
-    cmd: "git", sub: "push",
+    family: CommandFamily.ELEVATED_GENERAL,
+    risk: "ELEVATED",
+    hardBlock: false,
+    cmd: "git",
+    sub: "push",
   },
   {
-    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
-    cmd: "git", sub: "commit",
+    family: CommandFamily.ELEVATED_GENERAL,
+    risk: "ELEVATED",
+    hardBlock: false,
+    cmd: "git",
+    sub: "commit",
   },
   {
-    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
-    cmd: "npm", sub: "publish",
+    family: CommandFamily.ELEVATED_GENERAL,
+    risk: "ELEVATED",
+    hardBlock: false,
+    cmd: "npm",
+    sub: "publish",
   },
   {
-    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
-    cmd: "bun", sub: "publish",
+    family: CommandFamily.ELEVATED_GENERAL,
+    risk: "ELEVATED",
+    hardBlock: false,
+    cmd: "bun",
+    sub: "publish",
   },
   {
-    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
-    cmd: "docker", sub: null,
+    family: CommandFamily.ELEVATED_GENERAL,
+    risk: "ELEVATED",
+    hardBlock: false,
+    cmd: "docker",
+    sub: null,
   },
   {
-    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
-    cmd: "chmod", sub: null,
+    family: CommandFamily.ELEVATED_GENERAL,
+    risk: "ELEVATED",
+    hardBlock: false,
+    cmd: "chmod",
+    sub: null,
   },
   {
-    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
-    cmd: "chown", sub: null,
+    family: CommandFamily.ELEVATED_GENERAL,
+    risk: "ELEVATED",
+    hardBlock: false,
+    cmd: "chown",
+    sub: null,
   },
   {
-    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
-    cmd: "kubectl", sub: "delete",
+    family: CommandFamily.ELEVATED_GENERAL,
+    risk: "ELEVATED",
+    hardBlock: false,
+    cmd: "kubectl",
+    sub: "delete",
   },
   {
-    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
-    cmd: "helm", sub: "delete",
+    family: CommandFamily.ELEVATED_GENERAL,
+    risk: "ELEVATED",
+    hardBlock: false,
+    cmd: "helm",
+    sub: "delete",
   },
   {
-    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
-    cmd: "remove-item", sub: null,
+    family: CommandFamily.ELEVATED_GENERAL,
+    risk: "ELEVATED",
+    hardBlock: false,
+    cmd: "remove-item",
+    sub: null,
   },
   {
-    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
-    cmd: "del", sub: null,
+    family: CommandFamily.ELEVATED_GENERAL,
+    risk: "ELEVATED",
+    hardBlock: false,
+    cmd: "del",
+    sub: null,
   },
   {
-    family: CommandFamily.ELEVATED_GENERAL, risk: "ELEVATED", hardBlock: false,
-    cmd: "rmdir", sub: null,
+    family: CommandFamily.ELEVATED_GENERAL,
+    risk: "ELEVATED",
+    hardBlock: false,
+    cmd: "rmdir",
+    sub: null,
   },
 ]
 
@@ -560,28 +658,20 @@ export function isShellDirectoryBrowsing(root: Node, isCmd: boolean): boolean {
 
 /** True when any command node triggers git history rewrite. */
 export function isGitHistoryRewrite(root: Node, isCmd: boolean): boolean {
-  return evaluate(root, isCmd).blocked.some(
-    (f) => f.classification.family === CommandFamily.GIT_HISTORY_REWRITE,
-  )
+  return evaluate(root, isCmd).blocked.some((f) => f.classification.family === CommandFamily.GIT_HISTORY_REWRITE)
 }
 
 /** True when any command node triggers fossil mutate. */
 export function isFossilAgentMutate(root: Node, isCmd: boolean): boolean {
-  return evaluate(root, isCmd).blocked.some(
-    (f) => f.classification.family === CommandFamily.FOSSIL_MUTATE,
-  )
+  return evaluate(root, isCmd).blocked.some((f) => f.classification.family === CommandFamily.FOSSIL_MUTATE)
 }
 
 export function isFileDestructive(root: Node, isCmd: boolean): boolean {
-  return evaluate(root, isCmd).needsPermission.some(
-    (f) => f.classification.family === CommandFamily.FILE_DESTRUCTIVE,
-  )
+  return evaluate(root, isCmd).needsPermission.some((f) => f.classification.family === CommandFamily.FILE_DESTRUCTIVE)
 }
 
 export function isDbDestructive(root: Node, isCmd: boolean): boolean {
-  return evaluate(root, isCmd).needsPermission.some(
-    (f) => f.classification.family === CommandFamily.DB_DESTRUCTIVE,
-  )
+  return evaluate(root, isCmd).needsPermission.some((f) => f.classification.family === CommandFamily.DB_DESTRUCTIVE)
 }
 
 export function isGitAskableDestructive(root: Node, isCmd: boolean): boolean {
@@ -636,16 +726,22 @@ export type CommandGuardResult = {
  * command-like words (e.g. "fossil clean" in git commit -m "...").
  * Prefer guardFromEval() / evaluate() when TreeSitter AST is available.
  */
-export function guardCommand(
-  command: string,
-  meta?: { sessionID?: string; agent?: string },
-): CommandGuardResult {
+export function guardCommand(command: string, meta?: { sessionID?: string; agent?: string }): CommandGuardResult {
   // Check file enumeration first (any segment) — uses legacy shellSegments + regex
   const segments = shellSegments(command)
   for (const seg of segments) {
-    const firstToken = seg.split(/\s+/)[0]?.replace(/^.*[/\\]/, "")?.toLowerCase().replace(/\.exe$/, "") ?? ""
+    const firstToken =
+      seg
+        .split(/\s+/)[0]
+        ?.replace(/^.*[/\\]/, "")
+        ?.toLowerCase()
+        .replace(/\.exe$/, "") ?? ""
     if (_KNOWN_ENUM_FIRST_TOKENS.has(firstToken)) {
-      const c = classifyAstNode(firstToken, undefined, seg.split(/\s+/).map((s) => s.toLowerCase().replace(/\.exe$/, "")))
+      const c = classifyAstNode(
+        firstToken,
+        undefined,
+        seg.split(/\s+/).map((s) => s.toLowerCase().replace(/\.exe$/, "")),
+      )
       if (c.family === CommandFamily.FILE_ENUMERATOR) {
         // git ls-files, where/which, rg without --files are allowed
         if (firstToken === "git" || firstToken === "where" || firstToken === "which") continue
@@ -703,7 +799,12 @@ export function guardCommand(
   }
 
   if (classification.risk === "LOW" || classification.family === CommandFamily.ALLOWED) {
-    return { risk: classification.risk, family: classification.family, needsDestructivePermission: false, blocked: false }
+    return {
+      risk: classification.risk,
+      family: classification.family,
+      needsDestructivePermission: false,
+      blocked: false,
+    }
   }
 
   log.warn("constitution.command_risk", {
@@ -716,13 +817,21 @@ export function guardCommand(
   })
 
   if (classification.risk === "ELEVATED") {
-    return { risk: classification.risk, family: classification.family, needsDestructivePermission: false, blocked: false }
+    return {
+      risk: classification.risk,
+      family: classification.family,
+      needsDestructivePermission: false,
+      blocked: false,
+    }
   }
 
   if (classification.family === CommandFamily.GIT_HISTORY_REWRITE && !allow) {
     return {
-      risk: "DESTRUCTIVE", family: classification.family, permission: PermissionBucket.GIT,
-      needsDestructivePermission: false, blocked: true,
+      risk: "DESTRUCTIVE",
+      family: classification.family,
+      permission: PermissionBucket.GIT,
+      needsDestructivePermission: false,
+      blocked: true,
       message:
         "constitution: BLOCKED git checkout/switch/restore/reset --hard/stash pop|apply|drop|clear " +
         "(permission: destructive-git). " +
@@ -734,8 +843,11 @@ export function guardCommand(
 
   if (classification.family === CommandFamily.FOSSIL_MUTATE && !allow) {
     return {
-      risk: "DESTRUCTIVE", family: classification.family, permission: PermissionBucket.FOSSIL,
-      needsDestructivePermission: false, blocked: true,
+      risk: "DESTRUCTIVE",
+      family: classification.family,
+      permission: PermissionBucket.FOSSIL,
+      needsDestructivePermission: false,
+      blocked: true,
       message:
         "constitution: BLOCKED fossil CLI mutate (permission: destructive-fossil). " +
         "Fossil is automatic session undo/snapshot — not project VCS. " +
@@ -747,8 +859,12 @@ export function guardCommand(
     const perm = classification.permission ?? PermissionBucket.FILE
     const kind = destructiveFamilyKind(classification.family)
     return {
-      risk: classification.risk, family: classification.family, permission: perm, kind,
-      needsDestructivePermission: true, blocked: false,
+      risk: classification.risk,
+      family: classification.family,
+      permission: perm,
+      kind,
+      needsDestructivePermission: true,
+      blocked: false,
       message:
         `constitution: DESTRUCTIVE (${perm}) requires explicit approval ` +
         `(rm -rf → destructive-file; DROP TABLE → destructive-db; force-push → destructive-git). ` +
@@ -790,10 +906,7 @@ export function guardBrutalDestructive(
     if (classification.risk === "LOW" || classification.risk === "ELEVATED") continue
 
     // DESTRUCTIVE / CRITICAL — always permission, never silent hard-block in this path
-    const perm =
-      classification.permission ??
-      familyPermission(classification.family) ??
-      PermissionBucket.FILE
+    const perm = classification.permission ?? familyPermission(classification.family) ?? PermissionBucket.FILE
     const kind = destructiveFamilyKind(classification.family)
 
     log.warn("constitution.brutal_destructive", {
@@ -826,14 +939,7 @@ export function guardBrutalDestructive(
 // ============================================================================
 
 /** Tools that mutate filesystem — hard-gated when premises ungrounded. */
-export const MUTATION_TOOLS = new Set([
-  "write",
-  "edit",
-  "multiedit",
-  "apply_patch",
-  "applypatch",
-  "restore",
-])
+export const MUTATION_TOOLS = new Set(["write", "edit", "multiedit", "apply_patch", "applypatch", "restore"])
 
 export function isMutationTool(tool: string): boolean {
   const t = tool.toLowerCase().replace(/[^a-z0-9]/g, "")
@@ -871,6 +977,33 @@ export type ClaimRecord = {
   stamped: boolean
 }
 
+export type RuntimeEvidence = {
+  id: string
+  tool: string
+  inputDigest: string
+  digest: string
+  successful: boolean
+  oracleEligible: boolean
+  at: number
+}
+
+export type ClaimEvidenceEvent = {
+  kind: "ORACLE_PASS" | "DIVERGENCE" | "STATEMENT_CHANGED"
+  claimID: string
+  claimDigest: string
+  evidenceRef?: string
+  evidenceDigest?: string
+  invalidatedEvidenceRef?: string
+  at: number
+}
+
+type ActiveClaimStamp = {
+  claimDigest: string
+  evidenceRef: string
+  evidenceDigest: string
+  at: number
+}
+
 export type ClaimLedger = {
   claims: Map<string, ClaimRecord>
   premises: string[]
@@ -881,7 +1014,9 @@ export type ClaimLedger = {
 
 type SessionEpistemic = {
   ledger: ClaimLedger
-  stamps: Map<string, { source: string; at: number }>
+  evidence: Map<string, RuntimeEvidence>
+  events: ClaimEvidenceEvent[]
+  stamps: Map<string, ActiveClaimStamp>
   evidenceFloor: InfoMark
 }
 
@@ -900,7 +1035,7 @@ function emptyLedger(): ClaimLedger {
 function epistemic(sessionID: string): SessionEpistemic {
   let s = sessionEpistemic.get(sessionID)
   if (!s) {
-    s = { ledger: emptyLedger(), stamps: new Map(), evidenceFloor: "Inferred" }
+    s = { ledger: emptyLedger(), evidence: new Map(), events: [], stamps: new Map(), evidenceFloor: "Inferred" }
     sessionEpistemic.set(sessionID, s)
   }
   return s
@@ -953,32 +1088,181 @@ export function raiseEvidenceFloor(sessionID: string, mark: InfoMark) {
   if (infoMarkAtLeast(mark, s.evidenceFloor)) s.evidenceFloor = mark
 }
 
-export function stampClaim(
-  sessionID: string,
-  claimID: string,
-  source: string,
-  status: InfoMark = "Exact",
-) {
-  const promoted: InfoMark = isGroundingMark(status) ? status : "Exact"
+const ORACLE_EVIDENCE_TOOLS = new Set([
+  "bash",
+  "cmd",
+  "run",
+  "joboutput",
+  "jobwait",
+  "sessionread",
+  "read",
+  "codegraph",
+  "codegraphexplore",
+  "messagesearch",
+  "grep",
+  "glob",
+  "list",
+  "webfetch",
+  "universalsearch",
+  "treediff",
+  "screenshot",
+  "viewimage",
+])
+
+const EXACT_ORACLE_TOOLS = new Set([
+  "bash",
+  "cmd",
+  "run",
+  "joboutput",
+  "jobwait",
+  "sessionread",
+  "read",
+  "codegraph",
+  "codegraphexplore",
+  "treediff",
+  "screenshot",
+  "viewimage",
+])
+
+const MAX_RUNTIME_EVIDENCE = 256
+function appendClaimEvent(state: SessionEpistemic, event: ClaimEvidenceEvent) {
+  state.events.push(event)
+}
+
+function trimRuntimeEvidence(state: SessionEpistemic) {
+  if (state.evidence.size <= MAX_RUNTIME_EVIDENCE) return
+  const active = new Set([...state.stamps.values()].map((stamp) => stamp.evidenceRef))
+  for (const evidenceRef of state.evidence.keys()) {
+    if (state.evidence.size <= MAX_RUNTIME_EVIDENCE) return
+    if (!active.has(evidenceRef)) state.evidence.delete(evidenceRef)
+  }
+}
+
+export function registerToolEvidence(input: {
+  sessionID: string
+  toolCallID: string
+  tool: string
+  input?: unknown
+  title: string
+  output: string
+  metadata: Record<string, unknown>
+}): RuntimeEvidence | undefined {
+  const tool = input.tool.toLowerCase().replace(/[^a-z0-9]/g, "")
+  if (!ORACLE_EVIDENCE_TOOLS.has(tool)) return
+  const exit = input.metadata.exit
+  const inputDigest = contentHash(input.input === undefined ? "" : JSON.stringify(input.input))
+  const digest = contentHash(
+    [
+      input.toolCallID,
+      tool,
+      inputDigest,
+      input.title,
+      input.output,
+      typeof exit === "number" ? String(exit) : String(exit ?? ""),
+    ].join("\u0000"),
+  )
+  const evidence: RuntimeEvidence = {
+    id: `ev_${digest.slice(0, 24)}`,
+    tool,
+    inputDigest,
+    digest,
+    successful: exit === undefined || exit === 0,
+    oracleEligible: EXACT_ORACLE_TOOLS.has(tool),
+    at: Date.now(),
+  }
+  const state = epistemic(input.sessionID)
+  state.evidence.set(evidence.id, evidence)
+  trimRuntimeEvidence(state)
+  log.debug("constitution.runtime_evidence", {
+    sessionID: input.sessionID,
+    evidenceRef: evidence.id,
+    tool,
+    successful: evidence.successful,
+    oracleEligible: evidence.oracleEligible,
+  })
+  return evidence
+}
+
+export function formatRuntimeEvidence(evidence: RuntimeEvidence) {
+  return `[system evidence_ref=${evidence.id} tool=${evidence.tool} execution=${evidence.successful ? "OK" : "FAILED"} oracle=${evidence.oracleEligible ? "eligible" : "ineligible"}]`
+}
+
+export function getClaimEvidenceEvents(sessionID: string): readonly ClaimEvidenceEvent[] {
+  return epistemic(sessionID).events.map((event) => ({ ...event }))
+}
+
+function bindOracleEvidence(sessionID: string, claimID: string, evidenceRef: string): string | undefined {
   const s = epistemic(sessionID)
   const id = claimID.trim()
-  if (!id) return
-  s.stamps.set(id, { source, at: Date.now() })
+  const evidence = s.evidence.get(evidenceRef)
   const prev = s.ledger.claims.get(id)
+  if (!id || !evidence) return "unknown_evidence"
+  if (!evidence.oracleEligible) return "ineligible_evidence"
+  if (!evidence.successful) return "failed_evidence"
+  if (!prev?.text.trim()) return "unknown_claim"
+  if (!prev.falsifier?.trim()) return "missing_falsifier"
+  const at = Date.now()
+  const claimDigest = contentHash(prev.text.trim())
+  s.stamps.set(id, { claimDigest, evidenceRef, evidenceDigest: evidence.digest, at })
+  appendClaimEvent(s, {
+    kind: "ORACLE_PASS",
+    claimID: id,
+    claimDigest,
+    evidenceRef,
+    evidenceDigest: evidence.digest,
+    at,
+  })
   const next: ClaimRecord = {
     id,
-    text: prev?.text ?? "",
-    status: promoted,
-    reason: prev?.reason,
-    evidence: source,
-    falsifier: prev?.falsifier,
+    text: prev.text,
+    status: "Exact",
+    reason: prev.reason,
+    evidence: evidenceRef,
+    falsifier: prev.falsifier,
     stamped: true,
   }
   s.ledger.claims.set(id, next)
   s.ledger.active = true
   s.ledger.updatedAt = Date.now()
-  raiseEvidenceFloor(sessionID, next.status)
-  log.debug("constitution.claim_stamp", { sessionID, claimID: id, source, status: next.status })
+  raiseEvidenceFloor(sessionID, "Exact")
+  log.debug("constitution.claim_stamp", { sessionID, claimID: id, evidenceRef, status: next.status })
+  return undefined
+}
+
+function invalidateClaim(sessionID: string, claimID: string, evidenceRef: string): string | undefined {
+  const s = epistemic(sessionID)
+  const id = claimID.trim()
+  const evidence = s.evidence.get(evidenceRef)
+  const claim = s.ledger.claims.get(id)
+  if (!id || !evidence) return "unknown_evidence"
+  if (!evidence.oracleEligible) return "ineligible_evidence"
+  if (!claim) return "unknown_claim"
+  const stamp = s.stamps.get(id)
+  const at = Date.now()
+  appendClaimEvent(s, {
+    kind: "DIVERGENCE",
+    claimID: id,
+    claimDigest: contentHash(claim.text.trim()),
+    evidenceRef,
+    evidenceDigest: evidence.digest,
+    invalidatedEvidenceRef: stamp?.evidenceRef,
+    at,
+  })
+  s.stamps.delete(id)
+  s.ledger.claims.set(id, {
+    ...claim,
+    status: "Unknown",
+    evidence: evidenceRef,
+    stamped: false,
+  })
+  s.ledger.updatedAt = at
+  log.warn("constitution.claim_divergence", {
+    sessionID,
+    claimID: id,
+    evidenceRef,
+    invalidatedEvidenceRef: stamp?.evidenceRef,
+  })
+  return undefined
 }
 
 export function hasStamp(sessionID: string, claimID: string): boolean {
@@ -1018,10 +1302,10 @@ export function decisionFloor(sessionID: string): InfoMark {
   return s.evidenceFloor
 }
 
-export function guardMutationGrounding(input: {
-  sessionID: string
-  tool: string
-}): { blocked: boolean; message?: string } {
+export function guardMutationGrounding(input: { sessionID: string; tool: string }): {
+  blocked: boolean
+  message?: string
+} {
   if (!isMutationTool(input.tool)) return { blocked: false }
   if (process.env["OPENCODE_BYPASS_GROUNDING"] === "1") return { blocked: false }
   if (process.env["OPENCODE_ALLOW_DESTRUCTIVE"] === "1") return { blocked: false }
@@ -1029,9 +1313,7 @@ export function guardMutationGrounding(input: {
   const check = premisesGrounded(input.sessionID)
   if (check.ok) return { blocked: false }
 
-  const detail = check.ungrounded
-    .map((u) => `${u.id}=${u.status}`)
-    .join(", ")
+  const detail = check.ungrounded.map((u) => `${u.id}=${u.status}`).join(", ")
   const message =
     `[grounding gate: BLOCKED ${input.tool}] premises not in G (Exact|Inferred): ${detail}. ` +
     `Move ungrounded ids to open_questions, or promote via oracle_stamp / session-read / direct evidence ` +
@@ -1044,78 +1326,110 @@ export function guardMutationGrounding(input: {
   return { blocked: true, message }
 }
 
-export function ingestAssistantText(sessionID: string, text: string): {
+export function ingestAssistantText(
+  sessionID: string,
+  text: string,
+): {
   ledgerUpdated: boolean
   stampsApplied: string[]
+  stampsRejected: string[]
+  invalidated: string[]
   demoted: string[]
 } {
   const stampsApplied: string[] = []
+  const stampsRejected: string[] = []
+  const invalidated: string[] = []
   const demoted: string[] = []
-  if (!text || text.length < 8) return { ledgerUpdated: false, stampsApplied, demoted }
-
-  for (const m of text.matchAll(
-    /oracle_stamp\s*:\s*[\s\S]*?claim_id\s*:\s*["']?([A-Za-z0-9_.-]+)["']?[\s\S]*?result\s*:\s*["']?PASS["']?/gi,
-  )) {
-    const id = m[1]
-    stampClaim(sessionID, id, "oracle_stamp:PASS", "Exact")
-    stampsApplied.push(id)
-  }
-  for (const m of text.matchAll(/oracle_stamp\s*:\s*([A-Za-z0-9_.-]+)\s+PASS\b/gi)) {
-    stampClaim(sessionID, m[1], "oracle_stamp:PASS", "Exact")
-    stampsApplied.push(m[1])
-  }
+  if (!text || text.length < 8) return { ledgerUpdated: false, stampsApplied, stampsRejected, invalidated, demoted }
 
   const block = extractClaimLedgerBlock(text)
-  if (!block) return { ledgerUpdated: stampsApplied.length > 0, stampsApplied, demoted }
-
-  const parsed = parseClaimLedgerYaml(block)
-  if (!parsed) return { ledgerUpdated: stampsApplied.length > 0, stampsApplied, demoted }
-
   const s = epistemic(sessionID)
-  const next = emptyLedger()
-  next.active = true
-  next.premises = parsed.premises
-  next.openQuestions = parsed.openQuestions
+  const parsed = block ? parseClaimLedgerYaml(block) : undefined
+  if (parsed) {
+    const next = emptyLedger()
+    next.active = true
+    next.premises = parsed.premises
+    next.openQuestions = parsed.openQuestions
 
-  for (const raw of parsed.claims) {
-    let status = parseInfoMark(raw.status)
-    let stamped = s.stamps.has(raw.id) || hasStamp(sessionID, raw.id)
-    if (isGroundingMark(status) && !stamped) {
-      demoted.push(raw.id)
-      status = "Hypothetical"
-      stamped = false
-      log.debug("constitution.self_exact_rejected", { sessionID, claimID: raw.id })
+    for (const raw of parsed.claims) {
+      const previous = s.ledger.claims.get(raw.id)
+      const claimText = raw.text ?? previous?.text ?? ""
+      const activeStamp = s.stamps.get(raw.id)
+      const stampMatches = activeStamp?.claimDigest === contentHash(claimText.trim())
+      if (activeStamp && !stampMatches) {
+        appendClaimEvent(s, {
+          kind: "STATEMENT_CHANGED",
+          claimID: raw.id,
+          claimDigest: contentHash(claimText.trim()),
+          invalidatedEvidenceRef: activeStamp.evidenceRef,
+          at: Date.now(),
+        })
+        s.stamps.delete(raw.id)
+      }
+      const stamp = stampMatches ? activeStamp : undefined
+      let status = stamp ? "Exact" : parseInfoMark(raw.status)
+      if (isGroundingMark(status) && !stamp) {
+        demoted.push(raw.id)
+        status = "Hypothetical"
+        log.debug("constitution.self_grounding_rejected", { sessionID, claimID: raw.id })
+      }
+      next.claims.set(raw.id, {
+        id: raw.id,
+        text: claimText,
+        status,
+        reason: raw.reason,
+        evidence: stamp?.evidenceRef ?? raw.evidence,
+        falsifier: raw.falsifier ?? previous?.falsifier,
+        stamped: Boolean(stamp),
+      })
     }
-    if (stamped && s.stamps.has(raw.id)) {
-      const stampedStatus = s.ledger.claims.get(raw.id)?.status
-      if (stampedStatus && isGroundingMark(stampedStatus)) status = stampedStatus
-      else if (!isGroundingMark(status)) status = "Exact"
+
+    for (const [id, claim] of s.ledger.claims) {
+      if (!next.claims.has(id) && claim.stamped && s.stamps.has(id)) next.claims.set(id, claim)
     }
-    next.claims.set(raw.id, {
-      id: raw.id,
-      text: raw.text ?? "",
-      status,
-      reason: raw.reason,
-      evidence: raw.evidence,
-      falsifier: raw.falsifier,
-      stamped,
-    })
+
+    s.ledger = next
+    s.ledger.updatedAt = Date.now()
   }
 
-  for (const [id, c] of s.ledger.claims) {
-    if (!next.claims.has(id) && c.stamped) next.claims.set(id, c)
+  for (const match of text.matchAll(
+    /oracle_stamp\s*:\s*[\s\S]{0,256}?claim_id\s*[:=]\s*["']?([A-Za-z0-9_.-]+)["']?[\s\S]{0,256}?evidence_ref\s*[:=]\s*["']?(ev_[0-9a-f]{24})["']?[\s\S]{0,128}?result\s*[:=]\s*["']?PASS\b/gi,
+  )) {
+    const reason = bindOracleEvidence(sessionID, match[1], match[2])
+    if (reason) stampsRejected.push(`${match[1]}:${reason}`)
+    else stampsApplied.push(match[1])
+  }
+  for (const match of text.matchAll(/oracle_stamp\s*:\s*([A-Za-z0-9_.-]+)\s+PASS\b/gi)) {
+    stampsRejected.push(`${match[1]}:missing_evidence`)
+  }
+  for (const match of text.matchAll(
+    /divergence_event\s*:\s*[\s\S]{0,256}?claim_id\s*[:=]\s*["']?([A-Za-z0-9_.-]+)["']?[\s\S]{0,256}?evidence_ref\s*[:=]\s*["']?(ev_[0-9a-f]{24})\b/gi,
+  )) {
+    const reason = invalidateClaim(sessionID, match[1], match[2])
+    if (reason) stampsRejected.push(`${match[1]}:${reason}`)
+    else {
+      invalidated.push(match[1])
+      demoted.push(match[1])
+    }
   }
 
-  s.ledger = next
-  s.ledger.updatedAt = Date.now()
   log.debug("constitution.claim_ledger", {
     sessionID,
-    premises: next.premises,
-    open: next.openQuestions,
-    n: next.claims.size,
+    premises: s.ledger.premises,
+    open: s.ledger.openQuestions,
+    n: s.ledger.claims.size,
+    stampsApplied,
+    stampsRejected,
+    invalidated,
     demoted,
   })
-  return { ledgerUpdated: true, stampsApplied, demoted }
+  return {
+    ledgerUpdated: Boolean(parsed) || stampsApplied.length > 0 || invalidated.length > 0,
+    stampsApplied,
+    stampsRejected,
+    invalidated,
+    demoted,
+  }
 }
 
 function extractClaimLedgerBlock(text: string): string | undefined {
@@ -1128,18 +1442,20 @@ function extractClaimLedgerBlock(text: string): string | undefined {
   return end > 0 ? slice.slice(0, end) : slice.slice(0, 8000)
 }
 
-function parseClaimLedgerYaml(block: string): {
-  claims: {
-    id: string
-    text?: string
-    status: string
-    reason?: string
-    evidence?: string
-    falsifier?: string
-  }[]
-  premises: string[]
-  openQuestions: string[]
-} | undefined {
+function parseClaimLedgerYaml(block: string):
+  | {
+      claims: {
+        id: string
+        text?: string
+        status: string
+        reason?: string
+        evidence?: string
+        falsifier?: string
+      }[]
+      premises: string[]
+      openQuestions: string[]
+    }
+  | undefined {
   const claims: {
     id: string
     text?: string
@@ -1177,12 +1493,8 @@ function parseClaimLedgerYaml(block: string): {
       .filter(Boolean)
   }
 
-  const premises = listField("premises_for_plan").length
-    ? listField("premises_for_plan")
-    : listField("premises")
-  const openQuestions = listField("open_questions").length
-    ? listField("open_questions")
-    : listField("open")
+  const premises = listField("premises_for_plan").length ? listField("premises_for_plan") : listField("premises")
+  const openQuestions = listField("open_questions").length ? listField("open_questions") : listField("open")
 
   if (claims.length === 0 && premises.length === 0) return undefined
   return { claims, premises, openQuestions }
@@ -1325,7 +1637,12 @@ export function makeSourceStamp(input: { url: string; content: string; kind: Sou
 
 export function parseSourceStamp(value: unknown): SourceStamp | undefined {
   if (!value || typeof value !== "object") return undefined
-  if (!("authority_class" in value) || !("url_provenance" in value) || !("content_hash" in value) || !("kind" in value)) {
+  if (
+    !("authority_class" in value) ||
+    !("url_provenance" in value) ||
+    !("content_hash" in value) ||
+    !("kind" in value)
+  ) {
     return undefined
   }
   const authority = value.authority_class
@@ -1378,22 +1695,16 @@ export function epistemicNudge(input: {
   sessionID?: string
 }): string | undefined {
   const effective = input.sessionID ? decisionFloor(input.sessionID) : input.evidenceFloor
-  const floor =
-    infoMarkAtLeast(effective, input.evidenceFloor) ? effective : input.evidenceFloor
+  const floor = infoMarkAtLeast(effective, input.evidenceFloor) ? effective : input.evidenceFloor
 
   if (floor === "Exact") return undefined
 
   const isMutation = isMutationTool(input.tool)
-  const isDestructiveCmd = input.command
-    ? classifyCommand(input.command).risk === "DESTRUCTIVE"
-    : false
+  const isDestructiveCmd = input.command ? classifyCommand(input.command).risk === "DESTRUCTIVE" : false
   if (!isMutation && !isDestructiveCmd) return undefined
 
   const g = input.sessionID ? premisesGrounded(input.sessionID) : { ok: true, ungrounded: [] }
-  const extra =
-    !g.ok
-      ? ` Ungrounded premises: ${g.ungrounded.map((u) => `${u.id}=${u.status}`).join(", ")}.`
-      : ""
+  const extra = !g.ok ? ` Ungrounded premises: ${g.ungrounded.map((u) => `${u.id}=${u.status}`).join(", ")}.` : ""
 
   return (
     `[epistemic nudge: decision based on ${floor} data.${extra} ` +

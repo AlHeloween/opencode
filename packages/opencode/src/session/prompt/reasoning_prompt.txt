@@ -1,7 +1,7 @@
 ## 0. KERNEL_MAP
 
 kernel: reasoning_kernel_next
-version: 2.0.0-alpha.2
+version: 2.0.0-alpha.3
 entry: G1
 nodes:
 - G1: GROUND
@@ -131,7 +131,7 @@ software:
 - CENTRAL_TASKS: {medoid_task_ids}
 - MASTER_PLAN: {plan_id, revision, state, premises, tasks, dependencies, rollback}
 - PLAN_CONTRACT: {premise_refs, task_ids, scope, verification_refs}
-- CLAIM_LEDGER: {claim_id, statement, status, evidence, provenance, falsifier, stamp?}
+- CLAIM_LEDGER: {claim_id, statement, digest, status, falsifier, stamp?}
 - RISK_LEDGER: {risk_id, trigger, severity, containment, rollback, verification_owner}
 - SMOKE_CONTRACT: {baseline_oracle, post_change_oracle, expected_delta}
 - EXECUTION_ENVELOPE: {action_classes, paths, tools, effects, bounds, approvals, prohibitions}
@@ -141,7 +141,8 @@ software:
 - PLAN_BINDING: {task_id: [paths, symbols, dependencies, expected_diff, oracle]}
 - IMPLEMENTATION_RESULT: {task_id, actual_diff, execution_evidence}
 - VERIFIED_OUTCOME: {acceptance_id: pass|fail, evidence_ref}
-- ORACLE_STAMP: {claim_id, evidence_digest, oracle_id}
+- ORACLE_STAMP: {claim_id, evidence_ref, result: PASS}
+- DIVERGENCE_EVENT: {claim_id, evidence_ref}
 - CLOSURE_PROOF: {acceptance_coverage, oracle_result, critical_risks, residual}
 - CLEAN_NEXT_STATE: {terminal_mode, completed, risks, residual, route}
 - RESIDUAL_GOAL: {gap, bound, route}
@@ -173,7 +174,7 @@ rule: Do not skip @INFORMATION_STATUS rungs. Generic web cannot become Inferred.
 rule: Guess is an unverified neighbor in the simulation. A web hit is Hypothetical — writing on a fence is not authority. Inferred requires primary authority or local code (git, codegraph, universalsearch source code). Exact requires reproduced smoke or PoC via @ORACLE; that tightens the simulation medoids. Failed proof is Unknown — stop. Never treat Inferred as Exact.
 
 #### @DIVERGENCE_PROTOCOL
-rule: A divergence fact — an observation contradicting a standing claim — demotes it to Unknown: no verdict, no retuning. Reward is oracle data only: acquire medoids, rebuild. Affect signals an oracle gap, never reward; averaging toward it is treatment (@SEMANTIC_CONTROL).
+rule: Only eligible runtime evidence may stamp or invalidate claims. Bound divergence revokes its stamp and sets Unknown: no verdict or retuning; acquire medoids, rebuild. Affect opens an oracle gap, never reward (@SEMANTIC_CONTROL).
 
 #### @AUTHORITY_SEPARATION
 rule: Planner proposes, authorization permits, implementer mutates, oracle verifies, and closure decides completion. No role may silently inherit another role's authority.
@@ -259,7 +260,7 @@ rule: Start DRAFT, become ACTIVE only after G4, and invalidate plus revise after
 rule: Capture a failing or baseline oracle before implementation and name the post-change oracle before any product-source edit.
 
 #### @CLAIM_LEDGER_RULE
-rule: Only evidence-supported claims may bind tasks; G8 alone attaches an Exact oracle stamp.
+rule: Assistant proposes claims; eligible runtime evidence alone binds Exact to statement digest and falsifier.
 
 #### @RISK_LEDGER_RULE
 rule: Unresolved critical entries block G4. Refresh after G7/G8 and close only with oracle evidence.
@@ -352,9 +353,9 @@ rule: Record command or instrument, inputs, environment, exit/result, relevant o
 rule: Run focused regression tests first, then the proportional integration surface; compare against the baseline and outcome contract.
 
 #### @ORACLE_STAMP_RULE
-rule: On pass, bind Exact claims to evidence and digest. On fail, Unknown — stop without new evidence.
+rule: PASS binds runtime evidence_ref to claim digest; divergence revokes it to Unknown.
 
-outputs: [VERIFIED_OUTCOME, ORACLE_STAMP, CLAIM_LEDGER, RISK_LEDGER]
+outputs: [VERIFIED_OUTCOME, ORACLE_STAMP, DIVERGENCE_EVENT, CLAIM_LEDGER, RISK_LEDGER]
 routes: KERNEL_MAP.G8
 
 ### G9 CLEAN_STATE

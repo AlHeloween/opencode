@@ -94,15 +94,19 @@ def test_kernel_does_not_restate_entities_under_three_spellings() -> None:
     assert "not Exact medoids" in text
     assert "known Exact basis" in text
     assert "Unknown, do not keep turning them" in text
-    # Divergence protocol (2026-09-02, Alexander): one fused rule — a
-    # contradiction demotes the contested claim to Unknown immediately,
-    # oracle data is the only reward channel, affect routes to medoids.
+    # Divergence protocol (2026-09-02, Alexander): runtime evidence owns
+    # reversible stamps; contradiction demotes, while affect only opens a gap.
     assert "#### @DIVERGENCE_PROTOCOL" in text
-    assert "demotes it to Unknown" in text
-    assert "Reward is oracle data only" in text
+    assert "Only eligible runtime evidence" in text
+    assert "revokes its stamp" in text
+    assert "sets Unknown" in text
+    assert "runtime evidence_ref" in text
+    assert "claim digest" in text
+    assert "ORACLE_STAMP: {claim_id, evidence_ref, result: PASS}" in text
+    assert "DIVERGENCE_EVENT: {claim_id, evidence_ref}" in text
     assert "acquire medoids" in text
-    assert "signals an oracle gap" in text
-    assert "averaging toward it is treatment" in text
+    assert "opens an oracle gap" in text
+    assert "never reward" in text
 
 
 def test_gate_details_follow_numeric_order() -> None:

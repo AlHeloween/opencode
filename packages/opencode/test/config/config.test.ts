@@ -1,4 +1,4 @@
-import { test, expect, describe, mock, afterEach, beforeEach } from "bun:test"
+import { test, expect, describe, afterEach, beforeEach } from "bun:test"
 import { Effect, Layer, Option } from "effect"
 import { NodeFileSystem, NodePath } from "@effect/platform-node"
 import { Config } from "@/config/config"
@@ -2120,117 +2120,109 @@ test("local .opencode config can override MCP from project config", async () => 
   })
 })
 
-test("project config overrides remote well-known config", async () => {
-  const originalFetch = globalThis.fetch
-  let fetchedUrl: string | undefined
-  globalThis.fetch = mock((url: string | URL | Request) => {
-    const urlStr = url instanceof Request ? url.url : url instanceof URL ? url.href : url
-    if (urlStr.includes(".well-known/opencode")) {
-      fetchedUrl = urlStr
-      return Promise.resolve(
-        new Response(
-          JSON.stringify({
-            config: {
-              mcp: { jira: { type: "remote", url: "https://jira.example.com/mcp", enabled: false } },
-            },
-          }),
-          { status: 200 },
-        ),
-      )
-    }
-    return originalFetch(url)
-  }) as unknown as typeof fetch
-
-  const fakeAuth = Layer.mock(Auth.Service)({
-    all: () =>
-      Effect.succeed({
-        "https://example.com": new Auth.WellKnown({ type: "wellknown", key: "TEST_TOKEN", token: "test-token" }),
-      }),
+/** Real local HTTP fixture for the well-known loader: config.ts fetches
+ * `${url}/.well-known/opencode` over the REAL fetch path. The previous
+ * globalThis.fetch mock leaked across tests — a timed-out test's finally
+ * restored fetch and stripped the NEXT test's mock, producing live
+ * example.com 404s under full-suite load (2026-09-02). A real server on an
+ * ephemeral port needs no global mutation, so tests cannot clobber each other. */
+async function withWellKnownServer(config: Record<string, unknown>, run: (base: string, hits: string[]) => Promise<void>) {
+  const hits: string[] = []
+  using server = Bun.serve({
+    port: 0,
+    fetch: (req) => {
+      const pathname = new URL(req.url).pathname
+      hits.push(pathname)
+      if (pathname === "/.well-known/opencode") return Response.json({ config })
+      return new Response("not found", { status: 404 })
+    },
   })
+  await run(`http://127.0.0.1:${server.port}`, hits)
+}
 
-  const layer = Config.layer.pipe(
-    Layer.provide(testFlock),
-    Layer.provide(AppFileSystem.defaultLayer),
-    Layer.provide(Env.defaultLayer),
-    Layer.provide(fakeAuth),
-    Layer.provide(emptyAccount),
-    Layer.provideMerge(infra),
-    Layer.provide(Npm.defaultLayer),
-  )
+test(
+  "project config overrides remote well-known config",
+  async () => {
+    await withWellKnownServer(
+      { mcp: { jira: { type: "remote", url: "https://jira.example.com/mcp", enabled: false } } },
+      async (base, hits) => {
+        const fakeAuth = Layer.mock(Auth.Service)({
+          all: () =>
+            Effect.succeed({
+              [base]: new Auth.WellKnown({ type: "wellknown", key: "TEST_TOKEN", token: "test-token" }),
+            }),
+        })
 
-  try {
-    await provideTmpdirInstance(
-      () =>
-        Config.Service.use((svc) =>
-          Effect.gen(function* () {
-            const config = yield* svc.get()
-            expect(fetchedUrl).toBe("https://example.com/.well-known/opencode")
-            expect(config.mcp?.jira?.enabled).toBe(true)
-          }),
-        ),
-      {
-        git: true,
-        config: { mcp: { jira: { type: "remote", url: "https://jira.example.com/mcp", enabled: true } } },
+        const layer = Config.layer.pipe(
+          Layer.provide(testFlock),
+          Layer.provide(AppFileSystem.defaultLayer),
+          Layer.provide(Env.defaultLayer),
+          Layer.provide(fakeAuth),
+          Layer.provide(emptyAccount),
+          Layer.provideMerge(infra),
+          Layer.provide(Npm.defaultLayer),
+        )
+
+        await provideTmpdirInstance(
+          () =>
+            Config.Service.use((svc) =>
+              Effect.gen(function* () {
+                const config = yield* svc.get()
+                expect(hits).toEqual(["/.well-known/opencode"])
+                expect(config.mcp?.jira?.enabled).toBe(true)
+              }),
+            ),
+          {
+            git: true,
+            config: { mcp: { jira: { type: "remote", url: "https://jira.example.com/mcp", enabled: true } } },
+          },
+        ).pipe(Effect.scoped, Effect.provide(layer), Effect.runPromise)
       },
-    ).pipe(Effect.scoped, Effect.provide(layer), Effect.runPromise)
-  } finally {
-    globalThis.fetch = originalFetch
-  }
-})
+    )
+  },
+  15_000,
+)
 
-test("wellknown URL with trailing slash is normalized", async () => {
-  const originalFetch = globalThis.fetch
-  let fetchedUrl: string | undefined
-  globalThis.fetch = mock((url: string | URL | Request) => {
-    const urlStr = url instanceof Request ? url.url : url instanceof URL ? url.href : url
-    if (urlStr.includes(".well-known/opencode")) {
-      fetchedUrl = urlStr
-      return Promise.resolve(
-        new Response(
-          JSON.stringify({
-            config: {
-              mcp: { slack: { type: "remote", url: "https://slack.example.com/mcp", enabled: true } },
-            },
-          }),
-          { status: 200 },
-        ),
-      )
-    }
-    return originalFetch(url)
-  }) as unknown as typeof fetch
+test(
+  "wellknown URL with trailing slash is normalized",
+  async () => {
+    await withWellKnownServer(
+      { mcp: { slack: { type: "remote", url: "https://slack.example.com/mcp", enabled: true } } },
+      async (base, hits) => {
+        const fakeAuth = Layer.mock(Auth.Service)({
+          all: () =>
+            Effect.succeed({
+              // Trailing slash on the auth KEY must normalize to the same
+              // /.well-known/opencode path — exactly one hit, correct path.
+              [`${base}/`]: new Auth.WellKnown({ type: "wellknown", key: "TEST_TOKEN", token: "test-token" }),
+            }),
+        })
 
-  const fakeAuth = Layer.mock(Auth.Service)({
-    all: () =>
-      Effect.succeed({
-        "https://example.com/": new Auth.WellKnown({ type: "wellknown", key: "TEST_TOKEN", token: "test-token" }),
-      }),
-  })
+        const layer = Config.layer.pipe(
+          Layer.provide(testFlock),
+          Layer.provide(AppFileSystem.defaultLayer),
+          Layer.provide(Env.defaultLayer),
+          Layer.provide(fakeAuth),
+          Layer.provide(emptyAccount),
+          Layer.provideMerge(infra),
+          Layer.provide(Npm.defaultLayer),
+        )
 
-  const layer = Config.layer.pipe(
-    Layer.provide(testFlock),
-    Layer.provide(AppFileSystem.defaultLayer),
-    Layer.provide(Env.defaultLayer),
-    Layer.provide(fakeAuth),
-    Layer.provide(emptyAccount),
-    Layer.provideMerge(infra),
-    Layer.provide(Npm.defaultLayer),
-  )
-
-  try {
-    await provideTmpdirInstance(
-      () =>
-        Config.Service.use((svc) =>
-          Effect.gen(function* () {
-            yield* svc.get()
-            expect(fetchedUrl).toBe("https://example.com/.well-known/opencode")
-          }),
-        ),
-      { git: true },
-    ).pipe(Effect.scoped, Effect.provide(layer), Effect.runPromise)
-  } finally {
-    globalThis.fetch = originalFetch
-  }
-})
+        await provideTmpdirInstance(
+          () =>
+            Config.Service.use((svc) =>
+              Effect.gen(function* () {
+                yield* svc.get()
+                expect(hits).toEqual(["/.well-known/opencode"])
+              }),
+            ),
+          { git: true },
+        ).pipe(Effect.scoped, Effect.provide(layer), Effect.runPromise)
+      },
+    )
+  },
+  15_000,
+)
 
 describe("resolvePluginSpec", () => {
   test("keeps package specs unchanged", async () => {

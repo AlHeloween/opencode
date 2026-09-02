@@ -925,7 +925,12 @@ export const layer = Layer.effect(
         // them by default so the agent doesn't get stuck in permission loops.
         // Fully overridable via opencode.json → permission.external_directory.
         // Set any path to "deny" or "ask" to restore prompting for that path.
-        if (!result.permission?.external_directory || typeof result.permission.external_directory === "string") {
+        // A STRING external_directory is the user governing ALL external paths —
+        // sys defaults must not apply. mergeDeep puts DESTINATION keys first
+        // (remeda: result = {...destination, ...source}), so user permission is
+        // the destination: defaults are APPENDED, never reordered ahead of the
+        // user's own keys (2026-09-02 key-order regression).
+        if (!result.permission?.external_directory) {
           const sysDefaults: Record<string, ConfigPermission.Action> = {}
           if (process.platform === "win32") {
             sysDefaults["C:\\Windows\\*"] = "allow"
@@ -936,10 +941,7 @@ export const layer = Layer.effect(
           sysDefaults["/bin/*"] = "allow"
           sysDefaults["/sbin/*"] = "allow"
           sysDefaults["/etc/*"] = "allow"
-          result.permission = mergeDeep(
-            { external_directory: sysDefaults },
-            result.permission ?? {},
-          )
+          result.permission = mergeDeep(result.permission ?? {}, { external_directory: sysDefaults })
         }
 
         // Convert navigation.allow/deny directories into external_directory permission rules.

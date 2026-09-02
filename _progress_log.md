@@ -1,4 +1,11 @@
 # Progress Log
+## 2026-09-02 TUI — ALL memory rows collapse by default (renderer relief)
+Reason: user (07:46 UTC) — «Все памяти сворачивать. Кстати это неслабо так разгрузит рендерер». Previous rule folded only runs of ≥2 consecutive memory rows (singletons rendered the full === COMPACTED ===/L1 summary text inline).
+Changes:
+- `routes/session/index.tsx` — Match condition drops `size >= 2`: every non-expanded memory run renders as the one-line `[+] N summary/memory row(s) - click to expand` header (full text stays out of the render tree until expanded); `[-]` control injects for expanded runs regardless of size; control label singular-aware.
+Script Output:
+- typecheck exit 0 (`20260902T075040Z_be051893`).
+
 ## 2026-09-02 Subplan 04 rev 4 — routing saves are scope-aware (global/worktree/session) + dialog layout (xlarge, 2-line rows)
 Reason: user live-test feedback — «сохранение конфига для роутинга у нас же есть global/worktree/session»; «отрисовка накладывается сделай форму пошире и если не помещается пиши в 2 строчки. Это касается и выбора модели тоже».
 Changes:

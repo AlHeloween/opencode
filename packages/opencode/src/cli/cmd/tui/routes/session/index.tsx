@@ -238,7 +238,10 @@ export function Session() {
 
   // Consecutive memory rows (message* + L1 summary panels) collapse into one
   // clickable header so the transcript is not buried under compaction output.
-  // Runs of 1 stay inline - collapsing a single row only hides information.
+  // ALL runs collapse by default — including singletons (2026-09-02,
+  // Alexander: "Все памяти сворачивать") — a memory row is an expandable
+  // archive entry, not transcript content; this also keeps the full text out
+  // of the render tree entirely until expanded (renderer relief).
   // runId = id of the run's first row; size = rows in the run.
   const [expandedMemory, setExpandedMemory] = createSignal(new Set<string>())
   const memoryRuns = createMemo(() => {
@@ -309,7 +312,7 @@ export function Session() {
       nextItems.set(m.id, item)
       out.push(item)
       const info = runs.get(m.id)
-      if (info?.isMemory && info.size >= 2 && info.isLast && expanded.has(info.runId)) {
+      if (info?.isMemory && info.isLast && expanded.has(info.runId)) {
         let control = collapseControlCache.get(info.runId)
         if (!control) {
           control = { collapseFor: info.runId }
@@ -1499,6 +1502,7 @@ export function Session() {
               <For each={displayItems()}>
                 {(item) => {
                   if ("collapseFor" in item) {
+                    const collapsedSize = memoryRuns().get(item.collapseFor)?.size ?? 1
                     return (
                       <box
                         onMouseUp={() => toggleMemoryRun(item.collapseFor)}
@@ -1508,7 +1512,7 @@ export function Session() {
                         borderColor={theme.backgroundPanel}
                         paddingLeft={2}
                       >
-                        <text fg={theme.textMuted}>[-] collapse summary/memory rows</text>
+                        <text fg={theme.textMuted}>{`[-] collapse summary/memory row${collapsedSize === 1 ? "" : "s"}`}</text>
                       </box>
                     )
                   }
@@ -1585,7 +1589,7 @@ export function Session() {
                     <Match when={revert()?.messageID && message.id >= revert()!.messageID && (message as any)._source !== "orch"}>
                       <></>
                     </Match>
-                    <Match when={memoryRuns().get(message.id)?.isMemory && memoryRuns().get(message.id)!.size >= 2 && !expandedMemory().has(memoryRuns().get(message.id)!.runId)}>
+                    <Match when={memoryRuns().get(message.id)?.isMemory && !expandedMemory().has(memoryRuns().get(message.id)!.runId)}>
                       {(() => {
                         const info = memoryRuns().get(message.id)!
                         if (!info.isFirst) return <></>

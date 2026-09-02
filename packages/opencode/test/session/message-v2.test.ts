@@ -1,5 +1,6 @@
 import { describe, expect, test, beforeEach } from "bun:test"
-import { APICallError } from "ai"
+import { APICallError, generateText } from "ai"
+import { MockLanguageModelV3 } from "ai/test"
 import { MessageV2 } from "../../src/session/message-v2"
 import { ProviderTransform } from "@/provider/transform"
 import type { Provider } from "@/provider/provider"
@@ -355,7 +356,7 @@ describe("session.message-v2.toModelMessage", () => {
               type: "content",
               value: [
                 { type: "text", text: "ok" },
-                { type: "media", mediaType: "image/png", data: "Zm9v" },
+                { type: "file", mediaType: "image/png", data: { type: "data", data: "Zm9v" } },
               ],
             },
             providerOptions: { openai: { tool: "meta" } },
@@ -363,6 +364,78 @@ describe("session.message-v2.toModelMessage", () => {
         ],
       },
     ])
+  })
+
+  test("tool-result image attachments survive the ai@7 ModelMessage schema (2026-09-02 InvalidPrompt regression)", async () => {
+    // 2026-09-02, production: reading a PNG produced a tool result whose
+    // ModelMessage carried output.value[{type:"media"}] — a type that does
+    // NOT exist in ai@7's outputSchema (content items: text | file | file-* |
+    // image-* | custom) — and providerOptions {preview, truncated, loaded}
+    // (scalars; providerMetadataSchema requires record-of-record).
+    // standardizePrompt rejected the whole request:
+    // "Invalid prompt: The messages do not match the ModelMessage[] schema."
+    // and the turn died. Mirrors the real read-of-png tool part.
+    const visionModel: Provider.Model = {
+      ...model,
+      capabilities: { ...model.capabilities, input: { ...model.capabilities.input, image: true } },
+    }
+    const input: MessageV2.WithParts[] = [
+      {
+        info: assistantInfo("m-shot", "m-user"),
+        parts: [
+          {
+            ...basePart("m-shot", "shot-tool"),
+            type: "tool",
+            tool: "read",
+            callID: "call-shot",
+            metadata: { preview: "Image read successfully", truncated: false, loaded: [] },
+            state: {
+              status: "completed",
+              input: { filePath: "shot.png" },
+              output: "Image read successfully",
+              title: "Read",
+              metadata: {},
+              time: { start: 0, end: 1 },
+              attachments: [
+                {
+                  ...basePart("m-shot", "shot-file"),
+                  type: "file",
+                  mime: "image/png",
+                  url: "data:image/png;base64,QUFBQQ==",
+                },
+              ],
+            },
+          } as unknown as MessageV2.ToolPart,
+        ],
+      },
+    ]
+
+    const result = await MessageV2.toModelMessages(input, visionModel)
+    const toolMsg = result.find((m) => m.role === "tool") as { content: Array<Record<string, unknown>> }
+    expect(toolMsg).toBeDefined()
+    const toolResult = toolMsg.content[0] as { output: { type: string; value: unknown[] }; providerOptions?: unknown }
+    expect(toolResult.output.type).toBe("content")
+    // Image must survive as a schema-valid FILE part — NOT the removed "media" type.
+    expect(toolResult.output.value).toEqual([
+      { type: "text", text: "Image read successfully" },
+      { type: "file", mediaType: "image/png", data: { type: "data", data: "QUFBQQ==" } },
+    ])
+    // providerOptions must be ABSENT — {preview...} scalars are not valid
+    // provider metadata (record-of-record) and would fail standardizePrompt.
+    expect(toolResult.providerOptions).toBeUndefined()
+
+    // END-TO-END: the real ai@7 standardizePrompt gate that killed the
+    // production request must accept the converted messages. Prompt
+    // validation runs BEFORE any model interaction, so any rejection with
+    // AI_InvalidPromptError here means the messages are schema-invalid.
+    const schemaModel = new MockLanguageModelV3({ provider: "test.provider", modelId: "schema-check" })
+    try {
+      await generateText({ model: schemaModel, prompt: result })
+    } catch (error) {
+      const name = (error as Error)?.name ?? ""
+      const causeName = ((error as { cause?: Error })?.cause as Error | undefined)?.name ?? ""
+      expect(`${name}:${causeName}`).not.toContain("InvalidPromptError")
+    }
   })
 
   test("reconverts a tool result when it updates an existing assistant message", async () => {
@@ -475,7 +548,7 @@ describe("session.message-v2.toModelMessage", () => {
         type: "content",
         value: [
           { type: "text", text: "Image read successfully" },
-          { type: "media", mediaType: "image/jpeg", data: jpeg },
+          { type: "file", mediaType: "image/jpeg", data: { type: "data", data: jpeg } },
         ],
       },
     } as object)
@@ -576,7 +649,7 @@ describe("session.message-v2.toModelMessage", () => {
               type: "content",
               value: [
                 { type: "text", text: "Image loaded" },
-                { type: "media" as any, mediaType: "image/png", data: png },
+                { type: "file" as any, mediaType: "image/png", data: { type: "data", data: png } },
               ],
             },
           },

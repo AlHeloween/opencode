@@ -788,8 +788,18 @@ function hydrate(rows: (typeof MessageTable.$inferSelect)[]) {
 }
 
 function providerMeta(metadata: Record<string, any> | undefined) {
+  // ai@7 providerMetadataSchema is STRICT: record(provider → record(json)).
+  // Tool metadata carries plain tool bookkeeping ({preview, truncated,
+  // loaded}, {output, description}, ...) — forwarding it verbatim produced
+  // scalar providerOptions that standardizePrompt rejects (2026-09-02
+  // InvalidPrompt regression, second violation on the same tool result).
+  // Only provider-shaped record values may reach the wire.
   if (!metadata) return undefined
-  const { providerExecuted: _, ...rest } = metadata
+  const rest: Record<string, Record<string, any>> = {}
+  for (const [key, value] of Object.entries(metadata)) {
+    if (key === "providerExecuted") continue
+    if (value && typeof value === "object" && !Array.isArray(value)) rest[key] = value
+  }
   return Object.keys(rest).length > 0 ? rest : undefined
 }
 
@@ -866,12 +876,21 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
         value: [
           { type: "text", text: outputObject.text },
           ...attachments.map((attachment) => ({
-            type: "media",
+            // ai@7 outputSchema (ToolResultOutput content items): text | file
+            // | file-* | image-* | custom — "media" does NOT exist. The valid
+            // image form is a file part with inline data. A raw "media" item
+            // failed standardizePrompt and killed the whole request
+            // (2026-09-02: "Invalid prompt: The messages do not match the
+            // ModelMessage[] schema.").
+            type: "file" as const,
             mediaType: attachment.mime,
-            data: iife(() => {
-              const commaIndex = attachment.url.indexOf(",")
-              return commaIndex === -1 ? attachment.url : attachment.url.slice(commaIndex + 1)
-            }),
+            data: {
+              type: "data" as const,
+              data: iife(() => {
+                const commaIndex = attachment.url.indexOf(",")
+                return commaIndex === -1 ? attachment.url : attachment.url.slice(commaIndex + 1)
+              }),
+            },
           })),
         ],
       }

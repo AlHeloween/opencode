@@ -109,6 +109,7 @@ Full details: [docs/architecture.md](docs/architecture.md), [docs/compaction.md]
 - **Bugs block push.** All bugs must be fixed before `git push`. No `--no-verify`.
 - Silent `catch {}` blocks are bugs — must log (debug for expected, warn for unexpected).
 - Plan-to-code gaps are bugs — correct immediately.
+- **Write-path oracles inspect the artifact.** Any change to a PERSISTENT_WRITE path (config/file/DB writers) is verified by reading back what was written (artifact shape / end-to-end), never by typecheck or resolver unit tests alone — a green oracle pointed at the wrong layer is how the duplicate routing writers shipped (2026-09-02). User-reported defects in deterministic, testable classes are process failures, not service events.
 
 ---
 

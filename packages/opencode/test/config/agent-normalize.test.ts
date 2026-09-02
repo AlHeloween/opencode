@@ -33,4 +33,17 @@ describe("agent config key shadowing", () => {
     )
     expect(parsed.options?.routing).toEqual({ order: ["novita"] })
   })
+
+  test("normalize round-trip is idempotent (decode → json → decode)", () => {
+    // The promotion must not grow or shift on re-decode — otherwise repeated
+    // config loads (server round-trips, TUI saves) would drift the file.
+    const raw = {
+      name: "build_mode",
+      routing: { order: ["novita", "z-ai"] },
+      options: { routing: { order: ["novita", "z-ai"] }, variant: "max" },
+    }
+    const once = ConfigParse.effectSchema(ConfigAgent.Info, raw, "test://a.jsonc")
+    const twice = ConfigParse.effectSchema(ConfigAgent.Info, JSON.parse(JSON.stringify(once)), "test://b.jsonc")
+    expect(twice).toEqual(once)
+  })
 })

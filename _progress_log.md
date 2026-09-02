@@ -1,4 +1,12 @@
 # Progress Log
+## 2026-09-02 FIX — thinking (variant) settings lost after restart: resolveAgentVariant had no worktree step
+Reason: user (09:09 UTC) — «настройки thinking после перезагрузки не восстанавливаются». Ground truth: model.json HAD the values (agentVariant "max"/"high" persisted) — the server just never read them. resolveAgentVariant (the single resolution point for ALL 5 callers: prompt/task/reasoning/plan/pipeline) read ONLY the session file — the workspace fallthrough its own docblock promised was never implemented. Worktree-scope selections therefore vanished on every restart/new session.
+Changes:
+- `session/session-settings.ts` — resolveAgentVariant gains the worktree layer: model.json `agentVariant["agent/provider/model"]` → `variant["providerID/modelID"]`, then falls through to agent config. "default" sentinel = EXPLICIT model-default choice — stops the chain at its layer instead of letting stale lower-layer values shadow it. opts.modelState injection added (mirrors resolveAgentModel).
+- `test/session/session-settings-routing.test.ts` — +6 disk-free restore tests (worktree restore, session-wins, sentinel semantics ×2, model-map fallback, empty).
+Script Output:
+- bun test 11 pass / 0 fail (`20260902T091823Z_889f80cd`); typecheck exit 0 (`20260902T091844Z_061e3e5c`).
+
 ## 2026-09-02 TUI — ALL memory rows collapse by default (renderer relief)
 Reason: user (07:46 UTC) — «Все памяти сворачивать. Кстати это неслабо так разгрузит рендерер». Previous rule folded only runs of ≥2 consecutive memory rows (singletons rendered the full === COMPACTED ===/L1 summary text inline).
 Changes:

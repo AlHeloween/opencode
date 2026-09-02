@@ -189,10 +189,30 @@ export async function resolveAgentModel(
  *   1. Session agentVariant  — settings.agentVariant["agent/model"]
  *   2. Session agent variant — settings.agent[name].variant
  *   3. Session model variant — settings.variant["model"]
- *   4. (caller falls through to workspace/global variant)
+ *   4. Worktree agentVariant — model.json agentVariant["agent/model"] (2026-09-02:
+ *      the worktree step was documented but never implemented — thinking-mode
+ *      selections were lost on every restart/new session)
+ *   5. Worktree model variant — model.json variant["model"]
+ *   6. (caller falls through to global agent config)
  *
- * Returns undefined when no session variant exists.
+ * The "default" sentinel = the user EXPLICITLY picked model defaults — it
+ * stops the chain (higher layer wins) instead of letting stale lower-layer
+ * values shadow the choice.
+ *
+ * Returns undefined when no variant exists.
  */
+function readVariantEntry(
+  state: Record<string, unknown> | undefined,
+  map: string,
+  key: string,
+): string | undefined {
+  if (!state) return undefined
+  const entries = state[map]
+  if (typeof entries !== "object" || entries === null) return undefined
+  const value = (entries as Record<string, unknown>)[key]
+  return typeof value === "string" && value.length > 0 ? value : undefined
+}
+
 export async function resolveAgentVariant(
   agentName: string,
   model: ModelRef,
@@ -200,10 +220,23 @@ export async function resolveAgentVariant(
   opts?: {
     /** Pre-loaded session settings (avoids redundant disk read) */
     settings?: SessionSettings | null
+    /** Pre-loaded model.json state (avoids redundant disk read) */
+    modelState?: Record<string, unknown>
   },
 ): Promise<string | undefined> {
   const settings = opts?.settings ?? (await loadSessionSettings(context.sessionID))
-  return sessionAgentVariant(agentName, model, settings)
+  const sessionVariant = sessionAgentVariant(agentName, model, settings)
+  if (sessionVariant !== undefined) return sessionVariant === "default" ? undefined : sessionVariant
+
+  const state = opts?.modelState ?? (await readModelState())
+  const agentKey = `${agentName}/${model.providerID}/${model.modelID}`
+  const modelKey = `${model.providerID}/${model.modelID}`
+  const agentVariant = readVariantEntry(state, "agentVariant", agentKey)
+  if (agentVariant !== undefined) return agentVariant === "default" ? undefined : agentVariant
+  const modelVariant = readVariantEntry(state, "variant", modelKey)
+  if (modelVariant !== undefined) return modelVariant === "default" ? undefined : modelVariant
+
+  return undefined
 }
 
 /** Session-scoped OpenRouter routing for one agent (TUI /agents ctrl+o, session scope).

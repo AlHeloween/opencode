@@ -16,6 +16,13 @@ import * as Log from "@opencode-ai/core/util/log"
  * - skills: name removed from config.skills.disabled re-enables it
  * - tools:  config.tools[id] = false runtime-denies execution (session/tools.ts)
  *
+ * Write path (rev 2 — RFC 7386 merge-patch): each toggle PATCHes /config with
+ * a MINIMAL single-key subtree — disable → {rules:{[name]:false}}, enable →
+ * {rules:{[name]:null}} (null deletes the key server-side; remeda mergeDeep
+ * could not express deletion). NEVER PATCH the full GET /config result: it is
+ * the merged global+project+defaults view, and writing it back would drag
+ * global settings into the PROJECT file (layer pollution, rev-2 audit).
+ *
  * Transport note (spec debt, pre-existing): /config, /config/rules and
  * /experimental/tool/ids are bridged Effect routes without describeRoute
  * metadata — a fresh SDK regen DROPS them (the committed gen predates the
@@ -61,12 +68,9 @@ export function DialogFeatureToggle(props: { mode: ToggleMode }) {
     return { ...(unwrap(res) ?? {}) } as Record<string, any>
   }
 
-  async function patchConfig(mutate: (cfg: Record<string, any>) => void) {
-    const cfg = await loadConfig()
-    mutate(cfg)
-    // Config.update mergeDeep-merges into the project file (config.ts:1046) —
-    // a partial payload never drags global/defaults into the project layer.
-    await corePatch("/config", cfg)
+  /** RFC 7386 merge-patch body — minimal single-key subtree only. */
+  async function patchConfig(body: Record<string, unknown>) {
+    await corePatch("/config", body)
   }
 
   async function load() {
@@ -117,26 +121,20 @@ export function DialogFeatureToggle(props: { mode: ToggleMode }) {
     try {
       const current = items().find((x) => x.name === name)?.enabled ?? true
       if (props.mode === "rules") {
-        await patchConfig((cfg) => {
-          cfg.rules = { ...((cfg.rules as Record<string, boolean> | undefined) ?? {}) }
-          if (current) cfg.rules[name] = false
-          else delete cfg.rules[name]
-        })
+        // null deletes the key (RFC 7386) — "enable" must actually remove
+        // the persisted false, which deep-merge cannot express.
+        await patchConfig({ rules: { [name]: current ? false : null } })
       } else if (props.mode === "skills") {
-        await patchConfig((cfg) => {
-          const disabled = new Set<string>(((cfg.skills as any)?.disabled as string[]) ?? [])
-          if (current) disabled.add(name)
-          else disabled.delete(name)
-          cfg.skills = { ...((cfg.skills as Record<string, any>) ?? {}) }
-          if (disabled.size > 0) cfg.skills.disabled = [...disabled]
-          else delete cfg.skills.disabled
-        })
+        // skills.disabled is an ARRAY — merge-patch replaces it wholesale;
+        // null deletes it when it empties. Derived from the visible list,
+        // never from the full merged config.
+        const next = items()
+          .filter((x) => x.name !== name && !x.enabled)
+          .map((x) => x.name)
+        const disabled = current ? [...next, name] : next
+        await patchConfig({ skills: { disabled: disabled.length > 0 ? disabled : null } })
       } else {
-        await patchConfig((cfg) => {
-          cfg.tools = { ...((cfg.tools as Record<string, boolean> | undefined) ?? {}) }
-          if (current) cfg.tools[name] = false
-          else delete cfg.tools[name]
-        })
+        await patchConfig({ tools: { [name]: current ? false : null } })
       }
       setItems((prev) => prev.map((x) => (x.name === name ? { ...x, enabled: !current } : x)))
     } catch (error) {

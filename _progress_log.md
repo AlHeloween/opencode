@@ -1,4 +1,15 @@
 # Progress Log
+## 2026-09-02 Subplan 05 rev 2 — PATCH /config is now RFC 7386 merge-patch (enable was a silent no-op; project-layer pollution)
+Reason: pre-user-test code audit of the /rules /skills /tools toggle write path. remeda `mergeDeep`@2.39.0 (source read) recurses ONLY keys present in both objects → "enable" (delete `rules.<name>: false` / `tools.<id>` / `skills.disabled`) was a SILENT NO-OP — the stale false survived in the file. Worse: the dialog PATCHed the FULL merged `GET /config` result, dragging global/defaults settings into the PROJECT file on first toggle (three-layer governance broken).
+Changes:
+- `config/config.ts` — NEW `mergePatch()` (RFC 7386 JSON Merge Patch): null deletes the key (never persisted), plain objects recurse, everything else replaces (arrays replace — same as mergeDeep). `Config.update` now applies it instead of `mergeDeep`. Schema: `rules`/`tools` map value widened to `Boolean | Null` with annotation (null = delete-on-patch marker). Only caller of the service update is the /config PATCH bridge (verified) — no other consumers at risk.
+- `dialog-feature-toggle.tsx` — MINIMAL single-key PATCH bodies: disable → `{rules:{[name]:false}}`, enable → `{rules:{[name]:null}}`; skills.disabled replaced wholesale (`null` when empty); tools mirror rules. Header comment documents the pollution trap.
+- `test/server/httpapi-config.test.ts` — rewritten suite with diagnostics (status+body dump incl. empty-body flake class): baseline case + 4 new merge-patch acceptance tests.
+Script Output:
+- Baseline BEFORE edits: existing test FAIL (`20260902T034900Z_1e96f6a8`, `SyntaxError: Failed to parse JSON`) — FLAKY, passed on rerun (`20260902T040024Z_1dcfb0bc`); instrumented, not reproduced since — watch live.
+- New suite 5 pass / 0 fail (`20260902T041422Z_94977b9c`). typecheck exit 0 (`20260902T041528Z_3e84fd37`).
+- Test-asset traps recorded: fixture `config:` writes opencode.json (NOT config.json — seed via `init`); `loadFile` injects `$schema` on parse.
+
 ## 2026-09-01 list dates — live test caught NaN bug (Effect Stat.mtime is Option-wrapped), fixed
 Reason: first live test after user rebuild — dates rendered but ALL as `NaN-NaN-NaN NaN:NaN:NaN` (behavioral oracle: feature live, data broken). Root cause: effect/platform `Stat.mtime` is not a plain Date (Option-wrapped) — `new Date(optionObject)` → Invalid Date, while the `if (info?.mtime)` guard passed (Option object is truthy).
 Changes:

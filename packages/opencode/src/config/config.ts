@@ -3,7 +3,7 @@ import path from "path"
 import { pathToFileURL } from "url"
 import os from "os"
 import z from "zod"
-import { mergeDeep, pipe } from "remeda"
+import { isPlainObject, mergeDeep, pipe } from "remeda"
 import { Global } from "@opencode-ai/core/global"
 import fsNode from "fs/promises"
 import { NamedError } from "@opencode-ai/core/util/error"
@@ -256,10 +256,14 @@ export const Info = Schema.Struct({
     description:
       "CLI path sandbox rules. Produces agent-facing warnings before bash runs; does not hard-block commands.",
   }),
-  rules: Schema.optional(Schema.Record(Schema.String, Schema.Boolean)).annotate({
-    description: "Rule file (basename) enable/disable map from .opencode/rules — absent means enabled",
-  }),
-  tools: Schema.optional(Schema.Record(Schema.String, Schema.Boolean)),
+rules: Schema.optional(Schema.Record(Schema.String, Schema.Union([Schema.Boolean, Schema.Null]))).annotate({
+  description:
+    "Rule file (basename) enable/disable map from .opencode/rules — absent means enabled. PATCH payloads may use null to delete a key (RFC 7386 merge-patch); null is never persisted.",
+}),
+  tools: Schema.optional(Schema.Record(Schema.String, Schema.Union([Schema.Boolean, Schema.Null]))).annotate({
+  description:
+    "Tool id enable/disable map — false denies execution. PATCH payloads may use null to delete a key (RFC 7386 merge-patch); null is never persisted.",
+}),
   enterprise: Schema.optional(
     Schema.Struct({
       url: Schema.optional(Schema.String).annotate({ description: "Enterprise URL" }),
@@ -478,6 +482,29 @@ function patchJsonc(input: string, patch: unknown, path: string[] = []): string 
   }
 
   return Object.entries(patch).reduce((result, [key, value]) => patchJsonc(result, value, [...path, key]), input)
+}
+
+// RFC 7386 JSON Merge Patch (subplan 05 rev 2, 2026-09-01): PATCH /config must
+// express deletion — remeda mergeDeep recurses only keys present in BOTH
+// objects, so "enable" (remove rules.<name>: false) was a silent no-op, and
+// PATCHing the full merged GET /config back dragged global settings into the
+// project file. null deletes the key (never persisted as null), plain objects
+// merge recursively, everything else replaces (arrays replace wholesale).
+function mergePatch(target: Record<string, unknown>, patch: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = { ...target }
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === null) {
+      delete result[key]
+      continue
+    }
+    const current = result[key]
+    if (isPlainObject(current) && isPlainObject(value)) {
+      result[key] = mergePatch(current as Record<string, unknown>, value as Record<string, unknown>)
+      continue
+    }
+    result[key] = value
+  }
+  return result
 }
 
 function writable(info: Info) {
@@ -1038,12 +1065,19 @@ export const layer = Layer.effect(
       )
     })
 
-    const update = Effect.fn("Config.update")(function* (config: Info, options?: { dispose?: boolean }) {
+    const update = Effect.fn("Config.update")(function* (patch: Info, options?: { dispose?: boolean }) {
       const dir = yield* InstanceState.directory
       const file = path.join(dir, "config.json")
       const existing = yield* loadFile(file)
       yield* fs
-        .writeFileString(file, JSON.stringify(mergeDeep(writable(existing), writable(config)), null, 2))
+        .writeFileString(
+          file,
+          JSON.stringify(
+            mergePatch(writable(existing) as Record<string, unknown>, writable(patch) as Record<string, unknown>),
+            null,
+            2,
+          ),
+        )
         .pipe(Effect.orDie)
       // Always drop per-directory InstanceState caches after writing the overlay.
       // Without this, Config.get() / Agent state keep pre-update values and the

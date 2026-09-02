@@ -62,7 +62,20 @@ export const layer = Layer.effect(
     const readAuthData = Effect.fn("Auth.readAuthData")(function* () {
       const file = authFile()
       if (yield* fsys.existsSafe(file)) {
-        const data = (yield* fsys.readJson(file).pipe(Effect.orElseSucceed(() => ({})))) as Record<string, unknown>
+        // Raw-start phase: plaintext auth.json may be hand-seeded and not yet
+        // valid JSON (the .enc mirror only appears after a successful parse).
+        // Unreadable file must not kill the CLI — continue unauthenticated,
+        // and do NOT mirror garbage: an empty mirror would erase auth once
+        // the plaintext file is later removed (2026-09-02, Alexander).
+        const data = (yield* fsys.readJson(file).pipe(Effect.orElseSucceed(() => undefined))) as
+          | Record<string, unknown>
+          | undefined
+        if (!data) {
+          Log.Default.warn("auth.json exists but is not valid JSON — continuing without auth, encrypted mirror skipped", {
+            file,
+          })
+          return {}
+        }
         yield* Effect.promise(() => EncryptedJsonStorage.mirrorJson(file, data))
         return data
       }

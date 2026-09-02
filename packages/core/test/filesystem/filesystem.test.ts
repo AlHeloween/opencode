@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test"
-import { Effect, Layer, FileSystem } from "effect"
+import { Effect, Layer, FileSystem, Exit } from "effect"
 import { NodeFileSystem } from "@effect/platform-node"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { testEffect } from "../lib/effect"
@@ -79,6 +79,24 @@ describe("AppFileSystem", () => {
         const result = yield* fs.readJson(file)
 
         expect(result).toEqual(data)
+      }),
+    )
+
+    it(
+      "surfaces parse errors as catchable typed failures (no defect escape)",
+      Effect.gen(function* () {
+        const fs = yield* AppFileSystem.Service
+        const filesys = yield* FileSystem.FileSystem
+        const tmp = yield* filesys.makeTempDirectoryScoped()
+        const file = path.join(tmp, "broken.json")
+        // Raw-start phase (2026-09-02): hand-seeded auth.json with an unquoted
+        // property name. The declared error type is Error — a parse failure
+        // must land on the E channel where orElseSucceed catches it, NOT die
+        // as a defect (that killed the CLI at startup).
+        yield* filesys.writeFileString(file, `{ openrouter: { type: "api", key: "sk-x" } }`)
+        const exit = yield* Effect.exit(fs.readJson(file).pipe(Effect.orElseSucceed(() => ({}))))
+        expect(Exit.isSuccess(exit)).toBe(true)
+        if (Exit.isSuccess(exit)) expect(exit.value).toEqual({})
       }),
     )
   })

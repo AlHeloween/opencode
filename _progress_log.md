@@ -1,4 +1,13 @@
 # Progress Log
+## 2026-09-02 FIX — CLI died on invalid plaintext auth.json at raw start (Effect defect escape)
+Reason: user (10:07 UTC) — `opencode` in `d:\!Smit\Smit2-Pasha` died with `UnknownError: SyntaxError: JSON Parse error: Property name must be a string literal` (stack `successCont` → `runLoop` → `node:fs`). Context: raw-start phase — plaintext `auth.json` hand-seeded, `.enc` mirror not yet created. Diagnosis [Exact]: `core/src/filesystem.ts readJson` threw raw `SyntaxError` inside the Effect generator → DEFECT (die channel), while the declared error type is E-channel `Error`; `auth/index.ts:65` `orElseSucceed` cannot catch defects → crash at startup. `Global.Path.config = exeDir` → auth.json at the exe dir root confirmed. Secondary: on parse failure the code mirrored an EMPTY object into `auth.json.enc` — would erase auth once the plaintext file is deleted.
+Changes:
+- `packages/core/src/filesystem.ts` — readJson wraps `JSON.parse` in `Effect.try` → typed `FileSystemError({method:"readJson"})` on the E channel (signature unchanged; heals the whole defect class: npm.ts orElseSucceed/Effect.option, provider.ts:1738, mcp/auth.ts:58, storage.ts:71).
+- `packages/opencode/src/auth/index.ts` — unreadable auth.json → warn + continue unauthenticated + SKIP mirrorJson (no empty-mirror poisoning).
+- Tests: `packages/core/test/filesystem/filesystem.test.ts` (+1 typed-error case, baseline FAIL proven), `packages/opencode/test/auth/auth-raw-start.test.ts` (NEW: invalid → {} + no .enc; valid → record + .enc), plan `plans/2026-09-02_auth-json-raw-start-crash.md`.
+Script Output:
+- Baseline: core fs suite 24 pass / 1 fail (`20260902T101856Z_0df82d5e`) — defect escape reproduced.
+- Post-fix: core fs 25 pass / 0 fail (`20260902T102318Z_c43e0b3c`); auth raw-start 2 pass / 0 fail (`20260902T102318Z_e55b32c1`); typecheck core exit 0 (`20260902T102341Z_ef436b2e`), opencode exit 0 (`20260902T102341Z_be7e55f6`, exit_code.txt=0).
 ## 2026-09-02 FIX — gateway diagnostics ran with logging disabled ("пожизненная отладка")
 Reason: user (09:30 UTC) confirmed the gating bug found in the diff-gating audit: raw-wire dumps + per-request/per-response captures ignored `gateway.logging.enabled` — with `enabled=false, perRequest=true` the .diff computation, body capture and file writes kept running on EVERY request.
 Changes:

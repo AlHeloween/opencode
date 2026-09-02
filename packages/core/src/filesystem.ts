@@ -74,7 +74,14 @@ export namespace AppFileSystem {
 
       const readJson = Effect.fn("FileSystem.readJson")(function* (path: string) {
         const text = yield* fs.readFileString(path)
-        return JSON.parse(text)
+        // JSON.parse must fail on the E channel (the declared Error type).
+        // A raw throw inside the generator becomes a defect that
+        // orElseSucceed / Effect.option callers CANNOT catch — it killed
+        // the CLI at startup on a hand-seeded auth.json (2026-09-02).
+        return yield* Effect.try({
+          try: () => JSON.parse(text),
+          catch: (cause) => new FileSystemError({ method: "readJson", cause }),
+        })
       })
 
       const writeJson = Effect.fn("FileSystem.writeJson")(function* (path: string, data: unknown, mode?: number) {

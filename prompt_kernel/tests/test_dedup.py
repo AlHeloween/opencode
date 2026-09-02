@@ -51,4 +51,6 @@ def test_no_unapproved_five_gram_repeats_four_or_more_times() -> None:
 def test_compacted_runtime_budget() -> None:
     text = render_kernel(KERNEL)
     assert len(text.encode("utf-8")) <= KERNEL.utf8_budget
-    assert normalized_token_count(text) <= 2_810
+    # 2_850: geometry follows the sanctioned 25_000-byte budget raise
+    # (2026-09-02, Alexander) — +1.4% tokens against +3.3% bytes.
+    assert normalized_token_count(text) <= 2_850

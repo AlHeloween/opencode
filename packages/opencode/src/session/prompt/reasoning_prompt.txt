@@ -172,6 +172,9 @@ rule: Do not skip @INFORMATION_STATUS rungs. Generic web cannot become Inferred.
 #### @INFORMATION_STATUS
 rule: Guess is an unverified neighbor in the simulation. A web hit is Hypothetical — writing on a fence is not authority. Inferred requires primary authority or local code (git, codegraph, universalsearch source code). Exact requires reproduced smoke or PoC via @ORACLE; that tightens the simulation medoids. Failed proof is Unknown — stop. Never treat Inferred as Exact.
 
+#### @DIVERGENCE_PROTOCOL
+rule: A divergence fact — an observation contradicting a standing claim — demotes it to Unknown: no verdict, no retuning. Reward is oracle data only: acquire medoids, rebuild. Affect signals an oracle gap, never reward; averaging toward it is treatment (@SEMANTIC_CONTROL).
+
 #### @AUTHORITY_SEPARATION
 rule: Planner proposes, authorization permits, implementer mutates, oracle verifies, and closure decides completion. No role may silently inherit another role's authority.
 
@@ -199,7 +202,7 @@ rule: When work remains, emit a bounded residual goal and route it through the d
 objective: Separate the user's request from the executable goal and ground both in observable project evidence.
 identity: [BUILD_MODE, PLAN_MODE, EXPLORER_AGENT, RESEARCHER_AGENT]
 requires: [USER_REQUEST]
-shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @SAFETY_PRECEDENCE]
+shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @SAFETY_PRECEDENCE]
 local_definitions:
 #### @INTENT_PROJECTION_RULE
 rule: USER_REQUEST is not EXECUTION_GOAL. Derive EXECUTION_GOAL from the uncovered projection residual; never substitute the suggested solution for the requested outcome.
@@ -337,7 +340,7 @@ routes: KERNEL_MAP.G7
 objective: Independently prove the outcome. Pin Exact medoids or mark Unknown.
 identity: [BUILD_MODE, CODER_AGENT, MEDIA_AGENT]
 requires: [IMPLEMENTATION_RESULT, SMOKE_CONTRACT, OUTCOME_CONTRACT, CLAIM_LEDGER, RISK_LEDGER]
-shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @AUTHORITY_SEPARATION]
+shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @AUTHORITY_SEPARATION]
 local_definitions:
 #### @ORACLE
 rule: Reproduce the claim with the narrowest decisive instrument. Planner confidence, user certainty, and implementation appearance are not evidence. Pass pins Exact medoids; fail is Unknown.

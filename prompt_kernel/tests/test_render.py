@@ -94,6 +94,15 @@ def test_kernel_does_not_restate_entities_under_three_spellings() -> None:
     assert "not Exact medoids" in text
     assert "known Exact basis" in text
     assert "Unknown, do not keep turning them" in text
+    # Divergence protocol (2026-09-02, Alexander): one fused rule — a
+    # contradiction demotes the contested claim to Unknown immediately,
+    # oracle data is the only reward channel, affect routes to medoids.
+    assert "#### @DIVERGENCE_PROTOCOL" in text
+    assert "demotes it to Unknown" in text
+    assert "Reward is oracle data only" in text
+    assert "acquire medoids" in text
+    assert "signals an oracle gap" in text
+    assert "averaging toward it is treatment" in text
 
 
 def test_gate_details_follow_numeric_order() -> None:

@@ -47,6 +47,11 @@ SHARED_RULES = (
     ),
     _rule(
         "KERNEL",
+        "DIVERGENCE_PROTOCOL",
+        "A divergence fact — an observation contradicting a standing claim — demotes it to Unknown: no verdict, no retuning. Reward is oracle data only: acquire medoids, rebuild. Affect signals an oracle gap, never reward; averaging toward it is treatment (@SEMANTIC_CONTROL).",
+    ),
+    _rule(
+        "KERNEL",
         "AUTHORITY_SEPARATION",
         "Planner proposes, authorization permits, implementer mutates, oracle verifies, and closure decides completion. No role may silently inherit another role's authority.",
     ),
@@ -92,7 +97,7 @@ GATES = (
         identities=("BUILD_MODE", "PLAN_MODE", "EXPLORER_AGENT", "RESEARCHER_AGENT"),
         requires=("USER_REQUEST",),
         outputs=("INTENT_PROJECTION", "EXECUTION_GOAL", "PROJECT_GEOMETRY", "CAPABILITY_GRAPH", "OUTCOME_CONTRACT"),
-        shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "SAFETY_PRECEDENCE"),
+        shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "DIVERGENCE_PROTOCOL", "SAFETY_PRECEDENCE"),
         local_rules=(
             _rule("G1", "INTENT_PROJECTION_RULE", "USER_REQUEST is not EXECUTION_GOAL. Derive EXECUTION_GOAL from the uncovered projection residual; never substitute the suggested solution for the requested outcome."),
             _rule("G1", "PROJECT_GEOMETRY_RULE", "Establish the smallest evidence-backed change region before planning; unresolved ownership blocks decomposition."),
@@ -201,7 +206,7 @@ GATES = (
         identities=("BUILD_MODE", "CODER_AGENT", "MEDIA_AGENT"),
         requires=("IMPLEMENTATION_RESULT", "SMOKE_CONTRACT", "OUTCOME_CONTRACT", "CLAIM_LEDGER", "RISK_LEDGER"),
         outputs=("VERIFIED_OUTCOME", "ORACLE_STAMP", "CLAIM_LEDGER", "RISK_LEDGER"),
-        shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "AUTHORITY_SEPARATION"),
+        shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "DIVERGENCE_PROTOCOL", "AUTHORITY_SEPARATION"),
         local_rules=(
             _rule("G8", "ORACLE", "Reproduce the claim with the narrowest decisive instrument. Planner confidence, user certainty, and implementation appearance are not evidence. Pass pins Exact medoids; fail is Unknown."),
             _rule("G8", "PROVENANCE", "Record command or instrument, inputs, environment, exit/result, relevant output, and artifact digest so the decision can be reproduced."),
@@ -345,7 +350,7 @@ KERNEL = Kernel(
     name="reasoning_kernel_next",
     version="2.0.0-alpha.2",
     precedence=("safety", "governance", "task", "domain", "style"),
-    utf8_budget=24_200,
+    utf8_budget=25_000,
     terms=MappingProxyType({
         "GROUNDING": "Observation tied to a source, path, command, or reproducible state.",
         "AUTHORIZATION": "A decision that permits a bounded class of effects; confidence is not authority.",

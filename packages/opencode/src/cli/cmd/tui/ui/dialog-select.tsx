@@ -373,8 +373,21 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                         </Show>
                         <Option
                           title={option.title}
-                          footer={flatten() ? (option.category ?? option.footer) : option.footer}
-                          description={option.description !== category ? option.description : undefined}
+                          // Flatten (filter active, flat=true) hides the section
+                          // headers, so the category (provider name) must remain
+                          // visible — it moves to the DESCRIPTION slot. The old
+                          // code swapped it into the FOOTER slot, REPLACING the
+                          // capability footer — model metadata (reasoning/tools/
+                          // vision/ctx) vanished the moment the user typed a
+                          // filter (2026-09-02, Alexander).
+                          footer={option.footer}
+                          description={
+                            flatten()
+                              ? (option.description ?? option.category)
+                              : option.description !== category
+                                ? option.description
+                                : undefined
+                          }
                           active={active()}
                           current={current()}
                           gutter={option.gutter}

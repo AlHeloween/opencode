@@ -79,10 +79,15 @@ src.bak/
 **/src.bak
 
 # ── Project Tooling ──
-.opencode
+# .opencode: agent-asset receivers + runtime data ignored; project config
+# (agent/, command/, glossary/, tool/, plugins/, themes/, package.json) stays tracked
+.opencode/data/
+.opencode/skills/
+.opencode/rules/
 .codex
 .codegraph/
 .reasonix
+.reasoninx
 .serena/
 **/.serena
 .scripts
@@ -107,7 +112,6 @@ docs/opencode.db.sql
 UPCOMING_CHANGELOG.md
 /result
 logseq/
-".opencode/skills/opentui-skill/"  
 .adm.mcp.lock.json
 
 # Local binaries / side tools (not project source — keep on disk, not in git)
@@ -118,5 +122,6 @@ cmd_runner.exe
 # Generated / refreshed provider model catalogs (build regenerates; too noisy for git)
 packages/opencode/src/provider/models/
 
-.smit 
-.reasonix
+.smit
+.cursor
+.opencode

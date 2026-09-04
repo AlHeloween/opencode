@@ -102,9 +102,30 @@ cmd_runner status <run_id> [--json]
 cmd_runner tail <run_id> [--follow] [-n N] [--text|--stdout] [--wait-ms N]
 ```
 
-- Start with non-follow `tail` for a quick snapshot.
-- `--follow` for live streaming.
-- `--wait-ms N` — keep following until run finishes.
+**Key facts:**
+
+- `cmd_runner tail <run_id>` (without `--follow`) reads the **full captured log** directly from disk (`stdout_text.log`). It works **after the run has finished** — no `--follow` needed.
+- `--follow` streams the output in real time. It **exits automatically** when the run reaches a terminal state.
+- `--follow --wait-ms 0` follows until the run finishes, then returns the full output. This is the simplest way to stream-to-completion.
+- `-n N` shows only the last N lines of the log.
+
+**Reading output after a run finishes (canonical flow):**
+
+```
+cmd_runner start -- python my_script.py       # returns run_id
+cmd_runner wait <run_id>                      # blocks until done
+cmd_runner tail <run_id>                      # reads full captured output
+cmd_runner tail <run_id> -n 50                # last 50 lines only
+```
+
+**Streaming output until completion:**
+
+```
+cmd_runner start -- long_command -- <args>    # returns run_id
+cmd_runner tail <run_id> --follow --wait-ms 0 # streams until run exits, then stops
+```
+
+**Note:** `--auto-tail N` (default 5, on `start`) and `--send-tail N` (default 3, on `send`) are **snapshots only** — they show the last N lines at that moment, not the full output. Use `cmd_runner tail <run_id>` for the complete log.
 
 ### 4) Send input (inbox bridge)
 

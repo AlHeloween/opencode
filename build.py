@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -76,7 +77,16 @@ def _log(msg: str, *, color: str | None = None) -> None:
 
 def _run(cmd: Sequence[str], *, cwd: Path | None = None) -> None:
     _log(f"  $ {' '.join(cmd)}", color="dim")
-    r = subprocess.run(list(cmd), cwd=str(cwd or ROOT))
+    # Windows: CreateProcess only appends ".exe" to extensionless commands, so
+    # npm shims like bun.cmd are invisible to subprocess (WinError 2). Resolve
+    # via PATH and route .cmd/.bat shims through the command interpreter.
+    resolved = shutil.which(cmd[0])
+    argv = list(cmd)
+    if resolved:
+        argv[0] = resolved
+        if resolved.lower().endswith((".cmd", ".bat")):
+            argv = [os.environ.get("COMSPEC", "cmd.exe"), "/c", *argv]
+    r = subprocess.run(argv, cwd=str(cwd or ROOT))
     if r.returncode != 0:
         raise RuntimeError(f"command failed ({r.returncode}): {' '.join(cmd)}")
 

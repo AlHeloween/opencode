@@ -48,6 +48,17 @@ REQUIRED_NEXT_SEMANTICS = (
     "SOURCE_STAMP",
 )
 
+# Rule ids whose headers are contract-pinned: REQUIRED_SEMANTICS above finds
+# these semantics only via their rendered `#### @ID` declarations. Reference
+# naming (render._named_rule_ids) must keep them named.
+CONTRACT_PINNED_RULES = frozenset({
+    "SMOKE_BEFORE",
+    "MANHATTAN_L1",
+    "EVOLUTION_CANDIDATES",
+    "QUALITY_GUARDRAILS",
+    "MIGRATION_PROTOCOL",
+})
+
 
 def _normalized(text: str) -> str:
     return re.sub(r"[^A-Z0-9]+", "_", text.upper())

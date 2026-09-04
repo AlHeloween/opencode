@@ -40,7 +40,7 @@ go through the addon registry, never through `source.py` edits.
 4. [x] `prompt_kernel/tests/test_addons.py` — section order, determinism, registry validity, invalid-registry rejection, additive-only proof
 5. [x] `python -m pytest prompt_kernel/tests/ -q` — green (72 passed)
 6. [x] `python -m prompt_kernel --install`; update `prompt_kernel/baseline.json` sha256
-7. [ ] Rebuild via `python build.py` (through cmd_runner)
+7. [x] Rebuild via `python build.py` (through cmd_runner) — opentui --full exit 0 (session 20260904T143849Z_8ab34263); full incremental pass exit 0 (session 20260904T161337Z_58e2cd97); build.py _run shim fix included
 8. [x] Docs: `docs/gate-addons.md` + AGENTS.md (Kernel Development Workflow + Documentation Index) + DOCINDEX.md entry
 
 ## Outcome (2026-09-04, revised same day)

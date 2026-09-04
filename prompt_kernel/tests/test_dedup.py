@@ -51,6 +51,6 @@ def test_no_unapproved_five_gram_repeats_four_or_more_times() -> None:
 def test_compacted_runtime_budget() -> None:
     text = render_kernel(KERNEL)
     assert len(text.encode("utf-8")) <= KERNEL.utf8_budget
-    # 2_850: geometry follows the sanctioned 25_000-byte budget raise
-    # (2026-09-02, Alexander) — +1.4% tokens against +3.3% bytes.
-    assert normalized_token_count(text) <= 2_850
+    # 2_950: admits the gate-addons section 6 (2026-09-04, Alexander) —
+    # +2.1% tokens for the addon surface against +3.5% bytes; kernel graph untouched.
+    assert normalized_token_count(text) <= 2_950

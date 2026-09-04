@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from prompt_kernel import KERNEL, kernel_digest, render_kernel, render_review, write_artifacts
+from prompt_kernel.render import _named_rule_ids
 
 
 def test_runtime_is_map_first_and_progressively_refined() -> None:
@@ -63,16 +64,17 @@ def test_kernel_does_not_restate_entities_under_three_spellings() -> None:
     assert "### G4 AUTHORIZE" in text
     assert "#### @CURRENT_SV" in text
     assert "#### @SV_TARGET" in text
-    assert "#### @SV_TRAJECTORY" in text
+    assert "- Measure only:" in text
     assert "#### @SEMANTIC_CONTROL" in text
     assert "Steering assignment" in text
     assert "Measure only:" in text
     assert "regenerated" in text
     assert "coefficients" in text
-    trajectory = text[text.index("#### @SV_TRAJECTORY") : text.index("#### @MULTI_AGENT_SV")]
+    attention = text[text.index("<SEMANTIC_ATTENTION_RULES>") : text.index("</SEMANTIC_ATTENTION_RULES>")]
+    trajectory = attention[attention.index("- Measure only:") : attention.index("- Parent assigns")]
     assert "regenerat" not in trajectory
     assert "coefficients" not in trajectory
-    target = text[text.index("#### @SV_TARGET") : text.index("#### @SV_TRAJECTORY")]
+    target = attention[attention.index("#### @SV_TARGET") : attention.index("- Measure only:")]
     assert "current observed" not in target
     assert "complex action" not in target
     assert "1.3 @SOURCE_ROUTING:" in text
@@ -124,13 +126,15 @@ def test_dictionary_precedes_first_detailed_rule_use() -> None:
     assert text.index("#### @EVIDENCE_ORDER") < text.index("## 3. GATE_REFINEMENT")
 
 
-def test_rule_definitions_are_unique_in_rendered_kernel() -> None:
+def test_rule_definitions_follow_reference_naming() -> None:
     text = render_kernel(KERNEL)
+    named = _named_rule_ids(KERNEL)
     rule_ids = [rule.id for rule in KERNEL.shared_rules]
     rule_ids.extend(rule.id for gate in KERNEL.gates for rule in gate.local_rules)
     rule_ids.extend(rule.id for protocol in KERNEL.protocols for rule in protocol.local_rules)
     for rule_id in rule_ids:
-        assert text.count(f"#### @{rule_id}\n") == 1
+        expected_headers = 1 if rule_id in named else 0
+        assert text.count(f"#### @{rule_id}\n") == expected_headers, rule_id
 
 
 def test_runtime_is_deterministic_lf_and_within_utf8_budget() -> None:

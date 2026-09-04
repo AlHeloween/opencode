@@ -2,29 +2,66 @@ from __future__ import annotations
 
 import hashlib
 
+from .addons import GATE_ADDONS, addon_lines_by_gate, validate_addons
+from .compatibility import CONTRACT_PINNED_RULES
 from .model import Gate, Kernel, Protocol, Rule, SemanticVectorContract, SourceRoutingContract
-from .validate import validate_kernel
+from .validate import REFERENCE, validate_kernel
 
 
 def _list(values: tuple[str, ...], refs: bool = False) -> str:
     return "[" + ", ".join(f"@{value}" if refs else value for value in values) + "]"
 
 
-def _render_rule(rule: Rule) -> list[str]:
-    return [f"#### @{rule.id}", f"rule: {rule.text}", ""]
+def _render_named_rule(rule: Rule) -> list[str]:
+    return [f"#### @{rule.id}", rule.text, ""]
 
 
-def _render_gate(kernel: Kernel, gate: Gate) -> list[str]:
+def _named_rule_ids(kernel: Kernel) -> set[str]:
+    """A rule earns a name only when something references it; shared law stays named."""
+    named = {rule.id for rule in kernel.shared_rules}
+    named.update(rule_id for gate in kernel.gates for rule_id in gate.shared_rules)
+    named.update(CONTRACT_PINNED_RULES)
+    texts = [rule.text for rule in kernel.shared_rules]
+    for gate in kernel.gates:
+        texts.extend(rule.text for rule in gate.local_rules)
+    for protocol in kernel.protocols:
+        texts.extend(rule.text for rule in protocol.local_rules)
+    texts.extend(kernel.terms.values())
+    for text in texts:
+        named.update(REFERENCE.findall(text))
+    rule_ids = {rule.id for rule in kernel.shared_rules}
+    rule_ids.update(rule.id for gate in kernel.gates for rule in gate.local_rules)
+    rule_ids.update(rule.id for protocol in kernel.protocols for rule in protocol.local_rules)
+    return named & rule_ids
+
+
+def _render_rules_block(
+    owner_id: str,
+    rules: tuple[Rule, ...],
+    addon_lines: tuple[str, ...],
+    named: set[str],
+) -> list[str]:
+    lines = [f"<{owner_id}_RULES>"]
+    for rule in rules:
+        if rule.id in named:
+            lines.extend(_render_named_rule(rule))
+        else:
+            lines.append(f"- {rule.text}")
+    lines.extend(f"- {line}" for line in addon_lines)
+    lines.append(f"</{owner_id}_RULES>")
+    lines.append("")
+    return lines
+
+
+def _render_gate(kernel: Kernel, gate: Gate, addon_lines: tuple[str, ...], named: set[str]) -> list[str]:
     lines = [
         f"### {gate.id} {gate.name}",
         f"objective: {gate.objective}",
         f"identity: {_list(gate.identities)}",
         f"requires: {_list(gate.requires)}",
         f"shared_rules: {_list(gate.shared_rules, refs=True)}",
-        "local_definitions:",
     ]
-    for rule in gate.local_rules:
-        lines.extend(_render_rule(rule))
+    lines.extend(_render_rules_block(gate.id, gate.local_rules, addon_lines, named))
     lines.append(f"outputs: {_list(gate.outputs)}")
     lines.append(f"routes: KERNEL_MAP.{gate.id}")
     lines.append("")
@@ -81,17 +118,15 @@ def _render_source_routing(contract: SourceRoutingContract) -> list[str]:
     return lines
 
 
-def _render_protocol(protocol: Protocol) -> list[str]:
+def _render_protocol(protocol: Protocol, named: set[str]) -> list[str]:
     lines = [
         f"### {protocol.id}",
         f"objective: {protocol.objective}",
         f"authority: {protocol.authority}; cannot authorize mutation or promote claims",
         f"observed_at: {_list(protocol.observed_at)}",
         f"returns_to: {protocol.returns_to}",
-        "local_definitions:",
     ]
-    for rule in protocol.local_rules:
-        lines.extend(_render_rule(rule))
+    lines.extend(_render_rules_block(protocol.id, protocol.local_rules, (), named))
     return lines
 
 
@@ -103,6 +138,11 @@ def render_kernel(kernel: Kernel | None = None) -> str:
     errors = validate_kernel(kernel)
     if errors:
         raise ValueError("invalid kernel:\n- " + "\n- ".join(errors))
+    addon_errors = validate_addons(GATE_ADDONS)
+    if addon_errors:
+        raise ValueError("invalid gate addons:\n- " + "\n- ".join(addon_errors))
+    addon_map = addon_lines_by_gate(GATE_ADDONS)
+    named = _named_rule_ids(kernel)
 
     lines = [
         "## 0. KERNEL_MAP",
@@ -155,15 +195,15 @@ def render_kernel(kernel: Kernel | None = None) -> str:
 
     lines.extend(["", "## 2. SHARED_RULES", ""])
     for rule in kernel.shared_rules:
-        lines.extend(_render_rule(rule))
+        lines.extend(_render_named_rule(rule))
 
     lines.extend(["## 3. GATE_REFINEMENT", ""])
     for gate in kernel.gates:
-        lines.extend(_render_gate(kernel, gate))
+        lines.extend(_render_gate(kernel, gate, addon_map.get(gate.id, ()), named))
 
     lines.extend(["## 4. CROSS_CUTTING_PROTOCOLS", ""])
     for protocol in kernel.protocols:
-        lines.extend(_render_protocol(protocol))
+        lines.extend(_render_protocol(protocol, named))
 
     lines.extend([
         "## 5. IDENTITY_CONTRACTS",

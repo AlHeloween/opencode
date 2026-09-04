@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -8,6 +9,7 @@ from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 
+from .addons import GATE_ADDONS
 from .render import kernel_digest, render_kernel, render_review
 from .migration import LEGACY_RULE_MIGRATION, validate_migration
 from .source import KERNEL
@@ -49,6 +51,9 @@ def write_artifacts(*, dist: Path | None = None, stamp: str | None = None) -> tu
     runtime_path = dest / f"{prefix}_reasoning_prompt.txt"
     _atomic_write(runtime_path, runtime)
     _atomic_write(review_path, review)
+    addon_payload = "\n".join(
+        "\n".join((addon.gate_id, addon.addon_id, *addon.lines)) for addon in GATE_ADDONS
+    )
     _atomic_write(
         dest / f"{prefix}_manifest.json",
         json.dumps(
@@ -58,6 +63,10 @@ def write_artifacts(*, dist: Path | None = None, stamp: str | None = None) -> tu
                 "sha256": kernel_digest(KERNEL),
                 "utf8_bytes": len(runtime.encode("utf-8")),
                 "stamp": prefix,
+                "addons": {
+                    "count": len(GATE_ADDONS),
+                    "sha256": hashlib.sha256(addon_payload.encode("utf-8")).hexdigest(),
+                },
             },
             ensure_ascii=False,
             indent=2,

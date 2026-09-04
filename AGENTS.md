@@ -348,6 +348,8 @@ See cmd-runner skill for full reference.
 3. `python -m prompt_kernel --install`
 4. Rebuild opencode; open a new session (old checkpoints keep the previous system prefix until compact)
 
+Host path bindings and new advisory rules go through `prompt_kernel/addons.py` (gate add-ons, rendered inline inside each gate's `<Gx_RULES>` block) — never through `source.py`. See [docs/gate-addons.md](docs/gate-addons.md).
+
 ---
 
 ## Dependency Catalog
@@ -416,6 +418,7 @@ All detailed docs live in `docs/`. Here's the quick map:
 ### Architecture / Stack
 - [Architecture](docs/architecture.md) — prompt system, checkpoint, compaction, agents, KV cache
 - [Reasoning framework](docs/reasoning-framework.md) — kernel / SPECS / IR
+- [Gate add-ons](docs/gate-addons.md) — advisory path bindings per kernel gate, addon registry, budget guardrails
 - [Agentic reasoning runtime](docs/agentic-reasoning-runtime.md) — gates, REUSE ladder, claim ledger
 - [AGI Workflow](docs/agi-workflow.md) — orchestrator/worker loop, plan hygiene
 - [Rendering Pipeline](docs/rendering.md) — LLM→terminal display, mermaid, images

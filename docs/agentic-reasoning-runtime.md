@@ -12,7 +12,7 @@ Related:
 - [AGI workflow](agi-workflow.md) — orchestrator / plans
 - [Compaction](compaction.md) — memory ranks (Exact handles vs Inferred summaries)
 - [Tools and sidecars](tools-and-sidecars.md) — binaries vs built-in LLM tools
-- [ADID Framework 15.4.3](ADID_Framework_15_4_3.md) — formal epistemic / safe-update **contract** (conceptual)
+- [ADID Framework 15.3](ADID_Framework_15_3.md) — formal epistemic / safe-update **contract** (conceptual)
 - Kernel package: `prompt_kernel/` (`source.py` → `reasoning_prompt.txt`)
 
 ---

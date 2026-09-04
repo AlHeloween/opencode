@@ -13,6 +13,7 @@
 - [Architecture](architecture.md) — prompt system, checkpoint, compaction, agents, KV cache
 - [Agentic reasoning runtime](agentic-reasoning-runtime.md) — gates, REUSE ladder, claim ledger, host-agnostic SPECS
 - [Reasoning framework](reasoning-framework.md) — kernel package / SPECS / IR
+- [Gate add-ons](gate-addons.md) — advisory path bindings per kernel gate, addon registry, budget guardrails
 - [AGI Workflow](agi-workflow.md) — orchestrator/worker loop, plan hygiene
 - [Startup & bootstrap](startup-bootstrap.md) — cold start, CodeGraph, Fossil vs git/jj
 - [Fossil snapshot system](fossil-snapshot.md) — **canonical** agent undo/redo leaves, extras cleanup, HISTORY_INVALID
@@ -20,5 +21,5 @@
 - [Linux deploy](linux-deploy.md) — Linux build and portable install
 - [Tools and sidecars](tools-and-sidecars.md) — `tools/` binaries, Fossil/rg/markdownify
 - [Background Jobs](background-jobs.md) — non-blocking shell jobs, `joboutput` / `pattern`, TUI
-- [ADID Framework 15.4.3](ADID_Framework_15_4_3.md) — safe-update manager contract
+- [ADID Framework 15.3](ADID_Framework_15_3.md) — safe-update manager contract (reference only; 15.4.3 retired)
 - [Reasoning Kernel Tests](../tests/test_reasoning_kernel.py) — pytest for the reasoning kernel

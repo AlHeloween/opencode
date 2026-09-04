@@ -4,7 +4,7 @@
 **Last Updated:** 2026-07-31  
 **Canonical Source:** `prompt_kernel/` package (+ rendered `reasoning_prompt.txt`)  
 **Agentic runtime (gates, REUSE ladder, claim ledger):** [agentic-reasoning-runtime.md](agentic-reasoning-runtime.md)  
-**vs ADID Framework:** formal contract / conceptual model — [ADID_Framework_15_4_3.md](ADID_Framework_15_4_3.md); OpenCode is the practical agentic breed (see agentic-runtime §0).
+**vs ADID Framework:** formal contract / conceptual model — [ADID_Framework_15_3.md](ADID_Framework_15_3.md); OpenCode is the practical agentic breed (see agentic-runtime §0).
 
 ---
 

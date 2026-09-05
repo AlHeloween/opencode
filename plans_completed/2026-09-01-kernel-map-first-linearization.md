@@ -78,7 +78,7 @@ It must not import generated data from `prompts_kernel._kernel_precompiled`, wri
 - [x] Produce compatibility/coverage and per-rule migration reports against the current production kernel.
 - [x] Add a separate cutover entry point that refuses to write production without explicit approval, current SHA-256, structural validation, and compatibility coverage.
 - [x] Document the executable graph, source ownership, build boundary, and cutover boundary in `prompts_kernel_next/README.md`.
-- [ ] Reconcile this plan against code and move it to `plans_completed/` only when every acceptance gate passes.
+- [x] Reconcile this plan against code and move it to `plans_completed/` only when every acceptance gate passes. (Closed 2026-09-05: all acceptance gates [x]; production cutover happened — the running product assembles its system prefix from the reasoning_kernel_next artifact; reconciliation = this closure + move to plans_completed.)
 
 ## Smoke Tests
 

@@ -382,17 +382,22 @@ export async function applyProviderOverrides(
 }
 
 /**
- * Overlay the bundled per-provider JSON for every configured source onto a
- * full registry read. The bundled files are generated with live overrides at
- * build time, so they win over any raw models.dev data (runtime cache,
- * refresh output) without needing network access.
+ * Overlay the bundled per-provider entries for every configured source onto a
+ * full registry read. `bundled` is the build-generated models-snapshot
+ * registry, which models.ts imports via a static string (bundled into the
+ * compiled binary). Dynamic per-provider imports (import(`./models/${id}.json`))
+ * do NOT resolve in a compiled binary — probed 2026-09-05 ("Cannot find module
+ * from B/~BUN/root") — the first version of this overlay silently no-oped there
+ * and stale cache data won. The snapshot is written by script/generate.ts WITH
+ * live overrides applied, so it is the authoritative embedded source.
  */
-export async function applyBundledOverrides(registry: Record<string, unknown>): Promise<Record<string, unknown>> {
+export async function applyBundledOverrides(
+  registry: Record<string, unknown>,
+  bundled: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
   for (const source of PROVIDER_SOURCES) {
-    const bundled = await import(`./models/${source.id}.json`)
-      .then((m) => m.default as ModelsDevProvider | undefined)
-      .catch(() => undefined)
-    if (bundled) registry[source.id] = bundled
+    const entry = bundled[source.id]
+    if (entry) registry[source.id] = entry
   }
   return registry
 }

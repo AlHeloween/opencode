@@ -138,21 +138,24 @@ export const Data = lazy(async () => {
       log.warn("bug: failed to read models json", { error: e instanceof Error ? e.message : String(e) })
     })
   }
-  const cached = await Filesystem.readJson(filepath).catch((e) => {
-    log.warn("bug: failed to read models json", { error: e instanceof Error ? e.message : String(e) })
-  })
-  // The runtime cache/refresh path re-downloads raw models.dev, which lags
-  // behind live provider APIs — overlay the bundled per-provider JSON (built
-  // with live overrides) for every configured source before serving.
-  if (cached) return applyBundledOverrides(cached as Record<string, unknown>)
-  // @ts-ignore
+  // The snapshot is generated with live provider overrides at build time and
+  // statically bundled — the overlay source for every other branch. Dynamic
+  // per-provider JSON imports do not resolve in a compiled binary.
   const snapshot = await import("./models-snapshot.js")
     .then((m) => m.snapshot as Record<string, unknown>)
     .catch((e) => {
       log.warn("bug: failed to import models snapshot", { error: e instanceof Error ? e.message : String(e) })
       return undefined
     })
-  if (snapshot) return applyBundledOverrides({ ...snapshot })
+  const overlay = (registry: Record<string, unknown>) => applyBundledOverrides(registry, snapshot ?? {})
+  const cached = await Filesystem.readJson(filepath).catch((e) => {
+    log.warn("bug: failed to read models json", { error: e instanceof Error ? e.message : String(e) })
+  })
+  // The runtime cache/refresh path re-downloads raw models.dev, which lags
+  // behind live provider APIs — overlay the bundled snapshot entries for every
+  // configured source before serving.
+  if (cached) return overlay(cached as Record<string, unknown>)
+  if (snapshot) return overlay({ ...snapshot })
   if (Flag.OPENCODE_DISABLE_MODELS_FETCH) return {}
   return Flock.withLock(`models-dev:${filepath}`, async () => {
     const result = await Filesystem.readJson(filepath).catch((e) => {
@@ -164,7 +167,7 @@ export const Data = lazy(async () => {
         log.error("Failed to write models cache", { error: e })
       })
     }
-    return applyBundledOverrides(JSON.parse(result2.text) as Record<string, unknown>)
+    return overlay(JSON.parse(result2.text) as Record<string, unknown>)
   })
 })
 

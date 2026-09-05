@@ -110,7 +110,12 @@ export function mapNovitaModel(raw: NovitaRawModel): ModelsDevModel | undefined 
 
   const model: ModelsDevModel = {
     id,
-    name: raw.display_name || raw.title || id,
+    // Picker search (dialog-model.tsx fuzzysort over title/category) matches
+    // the hyphenated convention every other provider uses for the same models
+    // ("GLM-5.3-Flash" on OpenRouter/Zen/Z.AI) — Novita's display_name ships
+    // with spaces ("GLM 5.3 Flash"), which hides the model from hyphenated
+    // queries. Normalize to the dominant convention.
+    name: (raw.display_name || raw.title || id).replace(/\s+/g, "-"),
     attachment: input.some((m) => m !== "text"),
     reasoning,
     tool_call: features.includes("function-calling"),

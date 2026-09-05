@@ -913,6 +913,14 @@ export const Model = Schema.Struct({
   cost: ProviderCost,
   limit: ProviderLimit,
   status: Schema.Literals(["alpha", "beta", "deprecated", "active"]),
+  parameters: Schema.optional(
+    Schema.Number.annotate({ description: "Total parameter count in billions (e.g. 70 = 70B)" }),
+  ),
+  model_type: Schema.optional(
+    Schema.Literals(["chat", "embedding", "rerank"]).annotate({
+      description: "Model API family; chat is the default for LLM registry entries",
+    }),
+  ),
   options: Schema.Record(Schema.String, Schema.Any),
   headers: Schema.Record(Schema.String, Schema.String),
   release_date: Schema.String,
@@ -1018,8 +1026,10 @@ function fromModelsDevModel(provider: ModelsDev.Provider, model: ModelsDev.Model
       ),
     },
     status: model.status ?? "active",
+    parameters: model.parameters,
+    model_type: model.model_type ?? "chat",
+    options: model.options ? { ...model.options } : {},
     headers: {},
-    options: {},
     cost: cost(model.cost),
     limit: {
       context: model.limit.context,
@@ -1758,6 +1768,16 @@ const layer: Layer.Layer<
       if (!provider) throw new Error("no providers found")
       const [model] = sort(Object.values(provider.models))
       if (!model) throw new Error("no models found")
+      if (!isFreeModel(model)) {
+        // Never silently auto-select a paid model: prefer a declared-free
+        // model from any provider before falling back to the first
+        // provider's (possibly paid) default. Incident 2026-09-05: a bot on
+        // the session default drained the DeepSeek balance generating content.
+        for (const p of Object.values(s.providers)) {
+          const free = sort(Object.values(p.models)).find((m) => isFreeModel(m))
+          if (free) return { providerID: p.id, modelID: free.id }
+        }
+      }
       return {
         providerID: provider.id,
         modelID: model.id,
@@ -1778,10 +1798,23 @@ export const defaultLayer = Layer.suspend(() =>
   ),
 )
 
-const priority = ["kat-coder-pro-v2", "deepseek-v4-pro", "big-pickle"]
+// Free tier first — a paid model must never become a silent default.
+// Incident 2026-09-05: the old priority list boosted paid deepseek-v4-pro to
+// the top of its provider, and a bot auto-selecting the session default drained
+// the whole DeepSeek balance during content generation. kat-coder-pro-v2 was
+// dropped — StreamLake discontinued the model. big-pickle stays (free tier).
+const priority = ["big-pickle"]
+
+// Declared-free predicate: cost must be PRESENT and zero. Missing cost is
+// unknown, not free — do not treat unpriced entries as safe defaults.
+function isFreeModel(model: { cost?: { input?: number; output?: number } }): boolean {
+  return model.cost !== undefined && (model.cost.input ?? 0) === 0 && (model.cost.output ?? 0) === 0
+}
+
 export function sort<T extends { id: string }>(models: T[]) {
   return sortBy(
     models,
+    [(model) => (isFreeModel(model as { cost?: { input?: number; output?: number } }) ? 0 : 1), "asc"],
     [(model) => priority.findIndex((filter) => model.id.includes(filter)), "desc"],
     [(model) => (model.id.includes("latest") ? 0 : 1), "asc"],
     [(model) => model.id, "desc"],

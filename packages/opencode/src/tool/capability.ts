@@ -62,6 +62,7 @@ export const CapabilityTool = Tool.define("capability", Effect.gen(function* () 
             provider_id: string
             model_id: string
             status: string
+            parameters?: number
             output_limit: number
             cost_input: number
             cost_output: number
@@ -83,6 +84,7 @@ export const CapabilityTool = Tool.define("capability", Effect.gen(function* () 
                 provider_id: provID,
                 model_id: model.id,
                 status: model.status ?? "active",
+                parameters: model.parameters,
                 output_limit: outputLimit,
                 cost_input: model.cost?.input ?? 0,
                 cost_output: model.cost?.output ?? 0,
@@ -117,18 +119,19 @@ export const CapabilityTool = Tool.define("capability", Effect.gen(function* () 
           const header =
             "Provider".padEnd(maxProv + 2) +
             "Model".padEnd(maxModel + 2) +
-            "Status   Output    Cost(in/out)"
+            "Status   Params   Output    Cost(in/out)"
           const sep = "-".repeat(header.length)
 
           const rows = all.map((r) => {
             const outStr = r.output_limit > 0 ? fmt(r.output_limit) : "?"
+            const paramsStr = r.parameters ? `${r.parameters}B` : "—"
             const costStr = r.cost_input > 0 || r.cost_output > 0
               ? `$${r.cost_input.toFixed(2)}/$${r.cost_output.toFixed(2)}`
-              : "—"
+              : "free"
             return (
               r.provider_id.padEnd(maxProv + 2) +
               r.model_id.padEnd(maxModel + 2) +
-              `${r.status.padEnd(8)} ${outStr.padEnd(8)} ${costStr}`
+              `${r.status.padEnd(8)} ${paramsStr.padEnd(8)} ${outStr.padEnd(8)} ${costStr}`
             )
           })
 
@@ -147,7 +150,7 @@ export const CapabilityTool = Tool.define("capability", Effect.gen(function* () 
               ...rows,
               sep,
               "",
-              "Output = max output tokens. Cost = per 1M input/output tokens.",
+              "Output = max output tokens. Params = total parameter count in billions (derived from id/name where the API lacks a structured field). Cost = per 1M input/output tokens; free = $0/$0.",
               "Use aicall with model: '<model_id>' to target a specific model.",
             ].join("\n"),
           }

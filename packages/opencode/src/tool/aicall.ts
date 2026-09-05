@@ -14,7 +14,11 @@ const log = Log.create({ service: "tool.aicall" })
 const id = "aicall"
 const policy = "ai-call"
 
-export function requestEnvelope(model: Pick<Provider.Model, "providerID" | "id" | "api">, userText: string) {
+export function requestEnvelope(
+  model: Pick<Provider.Model, "providerID" | "id" | "api" | "parameters" | "model_type" | "cost" | "limit">,
+  userText: string,
+) {
+  const paid = (model.cost?.input ?? 0) > 0 || (model.cost?.output ?? 0) > 0
   return [
     "Direct AI call request:",
     `provider: ${model.providerID}`,
@@ -22,6 +26,10 @@ export function requestEnvelope(model: Pick<Provider.Model, "providerID" | "id" 
     `api model: ${model.api.id}`,
     `sdk: ${model.api.npm ?? "built-in"}`,
     `endpoint: ${model.api.url ?? "provider default"}`,
+    `type: ${model.model_type ?? "chat"}`,
+    `parameters: ${model.parameters ? `${model.parameters}B` : "unknown"}`,
+    paid ? `cost: $${model.cost?.input}/$${model.cost?.output} per Mtok` : "cost: free",
+    `context: ${model.limit?.context ?? "unknown"} tokens`,
     "system: none (isolated aicall)",
     "tools: none (isolated aicall)",
     `user context: ${userText.length} chars`,
@@ -46,6 +54,15 @@ export const Parameters = Schema.Struct({
   provider: Schema.optional(Schema.String).annotate({
     description: "Provider override. Uses session default if omitted",
   }),
+  temperature: Schema.optional(Schema.Number).annotate({
+    description: "Sampling temperature (0-2). Lower is more deterministic",
+  }),
+  top_p: Schema.optional(Schema.Number).annotate({ description: "Nucleus sampling mass (0-1)" }),
+  top_k: Schema.optional(Schema.Number).annotate({ description: "Top-K sampling" }),
+  max_tokens: Schema.optional(Schema.Number).annotate({ description: "Maximum output tokens" }),
+  presence_penalty: Schema.optional(Schema.Number).annotate({ description: "Presence penalty (-2 to 2)" }),
+  frequency_penalty: Schema.optional(Schema.Number).annotate({ description: "Frequency penalty (-2 to 2)" }),
+  seed: Schema.optional(Schema.Number).annotate({ description: "Seed for (mostly) deterministic sampling" }),
 })
 
 type Metadata = {
@@ -89,11 +106,31 @@ export const AiCallTool = Tool.define(
                 return yield* provider.getModel(providerID, modelID)
               })
             : Effect.gen(function* () {
-                // Auto-select: prefer BigPickle, fall back to session default
+                // Auto-select: prefer free models (cost 0/0, declared in the
+                // registry) with the largest context, then BigPickle, then the
+                // session default. Chat models only — embedding/rerank entries
+                // cannot serve a text call. A 10B model is not asked for
+                // miracles: size is reported in the envelope so the caller can
+                // calibrate expectations.
                 const providers = yield* provider.list()
+                const chatModels = Object.values(providers).flatMap((p) =>
+                  Object.values(p.models).filter(
+                    (m) => m.model_type !== "embedding" && m.model_type !== "rerank",
+                  ),
+                )
+                const free = chatModels
+                  .filter(
+                    (m) =>
+                      m.cost !== undefined && (m.cost.input ?? 0) === 0 && (m.cost.output ?? 0) === 0,
+                  )
+                  .sort((a, b) => b.limit.context - a.limit.context)
+                if (free[0]) return free[0]
+                // Free tier anchor: the actual id is "big-pickle" (dashed) —
+                // the old "bigpickle" needle never matched and silently fell
+                // through to the (possibly paid) session default.
                 for (const p of Object.values(providers)) {
                   const found = Object.values(p.models).find((m) =>
-                    m.id.toLowerCase().includes("bigpickle"),
+                    m.id.toLowerCase().includes("big-pickle"),
                   )
                   if (found) return found
                 }
@@ -126,6 +163,13 @@ export const AiCallTool = Tool.define(
             generateText({
               model: language,
               messages: [{ role: "user", content: userText }],
+              ...(params.temperature !== undefined ? { temperature: params.temperature } : {}),
+              ...(params.top_p !== undefined ? { topP: params.top_p } : {}),
+              ...(params.top_k !== undefined ? { topK: params.top_k } : {}),
+              ...(params.max_tokens !== undefined ? { maxOutputTokens: params.max_tokens } : {}),
+              ...(params.presence_penalty !== undefined ? { presencePenalty: params.presence_penalty } : {}),
+              ...(params.frequency_penalty !== undefined ? { frequencyPenalty: params.frequency_penalty } : {}),
+              ...(params.seed !== undefined ? { seed: params.seed } : {}),
             }),
           )
 

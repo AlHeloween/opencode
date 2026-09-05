@@ -4,6 +4,7 @@ import path from "path"
 import { Schema } from "effect"
 import { Installation } from "../installation"
 import { Flag } from "@opencode-ai/core/flag/flag"
+import { applyBundledOverrides } from "./provider-sync"
 import { lazy } from "@/util/lazy"
 import { Filesystem } from "@/util/filesystem"
 import { Flock } from "@opencode-ai/core/util/flock"
@@ -84,6 +85,15 @@ export const Model = Schema.Struct({
     }),
   ),
   status: Schema.optional(Schema.Literals(["alpha", "beta", "deprecated"])),
+  options: Schema.optional(Schema.Record(Schema.String, Schema.Any)),
+  parameters: Schema.optional(
+    Schema.Number.annotate({ description: "Total parameter count in billions (e.g. 70 = 70B)" }),
+  ),
+  model_type: Schema.optional(
+    Schema.Literals(["chat", "embedding", "rerank"]).annotate({
+      description: "Model API family; chat is the default for LLM registry entries",
+    }),
+  ),
   provider: Schema.optional(
     Schema.Struct({ npm: Schema.optional(Schema.String), api: Schema.optional(Schema.String) }),
   ),
@@ -122,10 +132,19 @@ const fetchApi = async () => {
 }
 
 export const Data = lazy(async () => {
-  const result = await Filesystem.readJson(Flag.OPENCODE_MODELS_PATH ?? filepath).catch((e) => {
+  // Test/custom fixture path is authoritative as-is — provider overrides skip it.
+  if (Flag.OPENCODE_MODELS_PATH) {
+    return Filesystem.readJson(Flag.OPENCODE_MODELS_PATH).catch((e) => {
+      log.warn("bug: failed to read models json", { error: e instanceof Error ? e.message : String(e) })
+    })
+  }
+  const cached = await Filesystem.readJson(filepath).catch((e) => {
     log.warn("bug: failed to read models json", { error: e instanceof Error ? e.message : String(e) })
   })
-  if (result) return result
+  // The runtime cache/refresh path re-downloads raw models.dev, which lags
+  // behind live provider APIs — overlay the bundled per-provider JSON (built
+  // with live overrides) for every configured source before serving.
+  if (cached) return applyBundledOverrides(cached as Record<string, unknown>)
   // @ts-ignore
   const snapshot = await import("./models-snapshot.js")
     .then((m) => m.snapshot as Record<string, unknown>)
@@ -133,10 +152,10 @@ export const Data = lazy(async () => {
       log.warn("bug: failed to import models snapshot", { error: e instanceof Error ? e.message : String(e) })
       return undefined
     })
-  if (snapshot) return snapshot
+  if (snapshot) return applyBundledOverrides({ ...snapshot })
   if (Flag.OPENCODE_DISABLE_MODELS_FETCH) return {}
   return Flock.withLock(`models-dev:${filepath}`, async () => {
-    const result = await Filesystem.readJson(Flag.OPENCODE_MODELS_PATH ?? filepath).catch((e) => {
+    const result = await Filesystem.readJson(filepath).catch((e) => {
       log.warn("bug: failed to read models json from cache", { error: e instanceof Error ? e.message : String(e) })
     })
     const result2 = await fetchApi()
@@ -145,7 +164,7 @@ export const Data = lazy(async () => {
         log.error("Failed to write models cache", { error: e })
       })
     }
-    return JSON.parse(result2.text)
+    return applyBundledOverrides(JSON.parse(result2.text) as Record<string, unknown>)
   })
 })
 

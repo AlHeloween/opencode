@@ -26,9 +26,21 @@ repo discovery, no working-tree authority).
 4. After — treat as draft; apply with edit tools; run declared oracles before Done.
 
 Every result begins with the direct-call envelope: selected provider/model, API
-model, SDK and endpoint, plus the fact that this isolated request sends no
-system prompt or tools. The envelope reports request shape, not secrets or the
-full user/file content.
+model, SDK, endpoint, model type, parameter count, cost class (free/paid) and
+context size, plus the fact that this isolated request sends no system prompt
+or tools. The envelope reports request shape, not secrets or the full
+user/file content.
+
+## Model selection
+- Auto-select is **free-first**: declared-free models (cost 0/0 in the registry)
+  → `big-pickle` → session default. Omit `model` unless you specifically need a
+  capability the free tier lacks.
+- **Never auto-select a paid model.** If you must pass `model`/`provider`
+  explicitly, prefer free models (e.g. `openrouter/*:free`) — paid calls drain
+  balances (incident 2026-09-05: a bot on a paid default emptied the DeepSeek
+  balance generating content).
+- The envelope reports cost, parameter count and context: calibrate
+  expectations — a 10B model is not asked for miracles.
 
 ## Parameters
 
@@ -36,6 +48,13 @@ full user/file content.
 |-----------|------|----------|-------------|
 | `prompt` | string | yes | Objective, constraints, output contract |
 | `files` | string[] | no | Paths read and embedded before the prompt |
-| `output_file` | string | no | Save prose to this path instead of inline |
-| `model` | string | no | Explicit model override |
+| `output_file` | string | no | Save prose to this path instead of returning inline |
+| `model` | string | no | Explicit model override. Uses free-first auto-select if omitted |
 | `provider` | string | no | Explicit provider override |
+| `temperature` | number | no | Sampling temperature (0-2). Lower is more deterministic |
+| `top_p` | number | no | Nucleus sampling mass (0-1) |
+| `top_k` | number | no | Top-K sampling |
+| `max_tokens` | number | no | Maximum output tokens |
+| `presence_penalty` | number | no | Presence penalty (-2 to 2) |
+| `frequency_penalty` | number | no | Frequency penalty (-2 to 2) |
+| `seed` | number | no | Seed for (mostly) deterministic sampling |

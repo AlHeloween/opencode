@@ -1100,10 +1100,26 @@ test("provider.sort prioritizes preferred models", () => {
   ] as any[]
 
   const sorted = Provider.sort(models)
+  // Contract (provider.ts sort): priority list first, then "latest" models,
+  // then id DESCENDING (newer/lexicographically larger versions first —
+  // e.g. claude-sonnet-4-20250610 above claude-sonnet-4-20250514).
   expect(sorted[0].id).toContain("sonnet-4")
   expect(sorted[0].id).toContain("latest")
-  expect(sorted[sorted.length - 1].id).not.toContain("gpt-5")
-  expect(sorted[sorted.length - 1].id).not.toContain("sonnet-4")
+  expect(sorted.slice(1).map((m) => m.id)).toEqual(["random-model", "other-model", "gpt-5-turbo"])
+})
+
+test("provider.sort puts declared-free models first (paid never a silent default)", () => {
+  const models = [
+    { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", cost: { input: 1.4, output: 4.4 } },
+    { id: "mimo-v2.5-free", name: "MIMO 2.5 Free", cost: { input: 0, output: 0 } },
+    { id: "big-pickle", name: "Big Pickle", cost: { input: 0, output: 0 } },
+    { id: "unpriced-model", name: "Unknown cost" },
+  ] as any[]
+
+  const sorted = Provider.sort(models)
+  // Declared-free (cost present and 0/0) beats paid; the priority list
+  // ("big-pickle") orders within the free tier; unpriced is NOT free.
+  expect(sorted.map((m) => m.id)).toEqual(["big-pickle", "mimo-v2.5-free", "unpriced-model", "deepseek-v4-pro"])
 })
 
 test("multiple providers can be configured simultaneously", async () => {

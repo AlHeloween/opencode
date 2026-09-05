@@ -109,6 +109,7 @@ packages/opencode/.opencode/data/opencode.db
 
 # ── Docs & Misc ──
 docs/opencode.db.sql
+docs/examples/
 UPCOMING_CHANGELOG.md
 /result
 logseq/

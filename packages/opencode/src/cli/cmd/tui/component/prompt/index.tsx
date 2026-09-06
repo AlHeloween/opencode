@@ -290,7 +290,7 @@ export function Prompt(props: PromptProps) {
           const content = await Clipboard.read()
           if (content?.mime.startsWith("image/")) {
             await pasteAttachment({
-              filename: "clipboard",
+              filename: `clipboard.${content.mime.split("/")[1] ?? "png"}`,
               mime: content.mime,
               content: content.data,
             })
@@ -1080,7 +1080,7 @@ export function Prompt(props: PromptProps) {
                   if (content?.mime.startsWith("image/")) {
                     e.preventDefault()
                     await pasteAttachment({
-                      filename: "clipboard",
+                      filename: `clipboard.${content.mime.split("/")[1] ?? "png"}`,
                       mime: content.mime,
                       content: content.data,
                     })

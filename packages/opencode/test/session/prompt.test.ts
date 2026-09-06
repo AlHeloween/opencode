@@ -2143,6 +2143,106 @@ it.live("keeps stored part order stable when file resolution is async", () =>
   ),
 )
 
+// Clipboard image parts (data: URLs) — vision-gated passthrough
+
+const tinyPngBase64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+
+function visionProviderCfg(): Partial<Config.Info> {
+  return {
+    ...cfg,
+    provider: {
+      ...cfg.provider,
+      test: {
+        ...cfg.provider.test,
+        models: {
+          "test-model": {
+            ...cfg.provider.test.models["test-model"],
+            modalities: { input: ["text", "image"], output: ["text"] },
+          },
+        },
+      },
+    },
+  }
+}
+
+it.live("keeps clipboard image parts for vision-capable models", () =>
+  provideTmpdirInstance(
+    () =>
+      Effect.gen(function* () {
+        const prompt = yield* SessionPrompt.Service
+        const sessions = yield* Session.Service
+        const session = yield* sessions.create({})
+
+        const msg = yield* prompt.prompt({
+          sessionID: session.id,
+          agent: "build",
+          model: { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") },
+          noReply: true,
+          parts: [
+            { type: "text", text: "what is in this screenshot" },
+            {
+              type: "file",
+              mime: "image/png",
+              url: `data:image/png;base64,${tinyPngBase64}`,
+              filename: "clipboard.png",
+            },
+          ],
+        })
+
+        if (msg.info.role !== "user") throw new Error("expected user message")
+        const filePart = msg.parts.find((part) => part.type === "file")
+        expect(filePart).toBeDefined()
+        if (filePart?.type !== "file") throw new Error("expected file part")
+        expect(filePart.url).toBe(`data:image/png;base64,${tinyPngBase64}`)
+        const readNote = msg.parts.some(
+          (part) => part.type === "text" && part.synthetic && part.text.includes("Called the Read tool"),
+        )
+        expect(readNote).toBe(true)
+
+        yield* sessions.remove(session.id)
+      }),
+    { git: true, config: visionProviderCfg() },
+  ),
+)
+
+it.live("converts clipboard image parts to markdown for non-vision models", () =>
+  provideTmpdirInstance(
+    () =>
+      Effect.gen(function* () {
+        const prompt = yield* SessionPrompt.Service
+        const sessions = yield* Session.Service
+        const session = yield* sessions.create({})
+
+        const msg = yield* prompt.prompt({
+          sessionID: session.id,
+          agent: "build",
+          noReply: true,
+          parts: [
+            { type: "text", text: "what is in this screenshot" },
+            {
+              type: "file",
+              mime: "image/png",
+              url: `data:image/png;base64,${tinyPngBase64}`,
+              filename: "clipboard.png",
+            },
+          ],
+        })
+
+        if (msg.info.role !== "user") throw new Error("expected user message")
+        const filePart = msg.parts.find((part) => part.type === "file")
+        expect(filePart).toBeUndefined()
+        const converted = msg.parts.some(
+          (part) => part.type === "text" && part.synthetic && part.text.includes("![clipboard.png](clipboard.png)"),
+        )
+        expect(converted).toBe(true)
+
+        yield* sessions.remove(session.id)
+      }),
+    { git: true, config: cfg },
+  ),
+)
+
 // Special characters in filenames
 
 it.live("handles filenames with # character", () =>

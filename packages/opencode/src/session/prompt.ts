@@ -1352,6 +1352,29 @@ export const layer = Layer.effect(
               // convertDocument handles all formats: documents → markdown content,
               // media/binary → metadata (EXIF, size, format, duration, etc.).
               // DeepSeek and other text-only models reject file parts.
+
+              // Vision-capable models receive image data URLs natively — the
+              // markdownify conversion below only yields placeholder metadata
+              // (e.g. `![Image]()`) and drops the actual image bytes. SVG stays
+              // on the conversion path: it is text-convertible and vision APIs
+              // reject it as an image block. If the model cannot be resolved or
+              // cannot take images, fall through to the conversion fallback.
+              if (part.mime.startsWith("image/") && !part.mime.includes("svg")) {
+                const mdl = yield* provider.getModel(info.model.providerID, info.model.modelID).pipe(Effect.exit)
+                if (Exit.isSuccess(mdl) && mdl.value.capabilities?.input?.image) {
+                  return [
+                    {
+                      messageID: info.id,
+                      sessionID: input.sessionID,
+                      type: "text",
+                      synthetic: true,
+                      text: `Called the Read tool with the following input: ${JSON.stringify({ filePath: part.filename })}`,
+                    },
+                    { ...part, messageID: info.id, sessionID: input.sessionID },
+                  ]
+                }
+              }
+
               const commaIdx = part.url.indexOf(",")
               if (commaIdx !== -1) {
                 const base64 = part.url.slice(commaIdx + 1)

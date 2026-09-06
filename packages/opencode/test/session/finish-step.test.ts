@@ -6,6 +6,7 @@ import { MessageV2 } from "../../src/session/message-v2"
 import { MessageID, PartID, type SessionID } from "../../src/session/schema"
 import { AppRuntime } from "../../src/effect/app-runtime"
 import { tmpdir } from "../fixture/fixture"
+import { recordSessionUsage } from "../../src/session/processor"
 
 const projectRoot = require("path").join(__dirname, "../..")
 Log.init()
@@ -29,6 +30,42 @@ function finishStep(input: {
 }
 
 describe("Session.finishStep", () => {
+  test("records sidecar-style usage without a provider-visible message", async () => {
+    await using tmp = await tmpdir({ git: true })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const info = await create({ title: "sidecar-usage-test" })
+        recordSessionUsage({
+          sessionID: info.id,
+          cacheState: "hit",
+          usage: {
+            cost: 0.123,
+            tokens: {
+              total: 1_028,
+              input: 100,
+              output: 20,
+              reasoning: 5,
+              cache: { read: 900, write: 3 },
+              cacheRatio: 0.9,
+            },
+          },
+        })
+
+        const retrieved = await AppRuntime.runPromise(SessionNs.Service.use((svc) => svc.get(info.id)))
+        expect(retrieved.cost).toBeCloseTo(0.123)
+        expect(retrieved.tokens?.input).toBe(1_000)
+        expect(retrieved.tokens?.output).toBe(20)
+        expect(retrieved.tokens?.reasoning).toBe(5)
+        expect(retrieved.tokens?.cache.read).toBe(900)
+        expect(retrieved.tokens?.cache.write).toBe(3)
+
+        await remove(info.id)
+      },
+    })
+  })
+
   test("batches step-finish part + message update + token accumulation", async () => {
     await using tmp = await tmpdir({ git: true })
 

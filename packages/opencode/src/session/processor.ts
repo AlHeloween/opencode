@@ -212,13 +212,45 @@ export function accumulateStepTokens(
   }
 }
 
+/**
+ * Persist provider usage that belongs to a session but not necessarily to a
+ * provider-visible Message row. Normal turns and the Layer-1 summary sidecar
+ * must use the same totals writer so the latter cannot become invisible cost.
+ */
+export function recordSessionUsage(input: {
+  sessionID: SessionID
+  usage: ReturnType<typeof Session.getUsage>
+  cacheState?: Session.CacheState
+}) {
+  Database.use((db) =>
+    db
+      .update(SessionTable)
+      .set({
+        cost: sql`cost + ${input.usage.cost}`,
+        tokens_input: sql`tokens_input + ${input.usage.tokens.input + input.usage.tokens.cache.read}`,
+        tokens_output: sql`tokens_output + ${input.usage.tokens.output}`,
+        tokens_reasoning: sql`tokens_reasoning + ${input.usage.tokens.reasoning}`,
+        // Policy: turns without usable cache stats ("unknown") count as FULL
+        // hits in the cumulative so providers without cache usage do not
+        // understate the hit rate.
+        tokens_cache_read: sql`tokens_cache_read + ${input.usage.tokens.cache.read + (input.cacheState === "unknown" ? input.usage.tokens.input : 0)}`,
+        tokens_cache_write: sql`tokens_cache_write + ${input.usage.tokens.cache.write}`,
+        ...(input.cacheState && {
+          hit_rate_is_null: input.cacheState === "unknown" ? 1 : 0,
+        }),
+      })
+      .where(eq(SessionTable.id, input.sessionID))
+      .run(),
+  )
+}
+
 const _lastBalanceCheck: Record<string, number> = {}
 const BALANCE_CHECK_INTERVAL_MS = 300_000 // 5 minutes
 const BALANCE_CHECK_MIN_COST = 0.01
 
 async function checkAndSnapshotBalance(params: {
   providerID: string
-  sessionID: string
+  sessionID: SessionID
   messageID: string
 }): Promise<Balance.BalanceSnapshot | null> {
   const now = Date.now()
@@ -771,29 +803,8 @@ export const layer: Layer.Layer<
               cost: usage.cost,
             })
             yield* session.updateMessage(ctx.assistantMessage)
-            // Accumulate session-level token/cost totals
-            yield* Effect.sync(() =>
-              Database.use((db) =>
-                db
-                  .update(SessionTable)
-                  .set({
-                    cost: sql`cost + ${usage.cost}`,
-                    tokens_input: sql`tokens_input + ${usage.tokens.input + usage.tokens.cache.read}`,
-                    tokens_output: sql`tokens_output + ${usage.tokens.output}`,
-                    tokens_reasoning: sql`tokens_reasoning + ${usage.tokens.reasoning}`,
-                    // Policy: turns without usable cache stats ("unknown") count
-                    // as FULL hits in the cumulative — providers that don't
-                    // report cache usage would otherwise understate the hit rate.
-                    tokens_cache_read: sql`tokens_cache_read + ${usage.tokens.cache.read + (cacheState === "unknown" ? usage.tokens.input : 0)}`,
-                    tokens_cache_write: sql`tokens_cache_write + ${usage.tokens.cache.write}`,
-                    ...(cacheState && {
-                      hit_rate_is_null: cacheState === "unknown" ? 1 : 0,
-                    }),
-                  })
-                  .where(eq(SessionTable.id, ctx.sessionID))
-                  .run(),
-              ),
-            )
+            // Accumulate session-level token/cost totals.
+            yield* Effect.sync(() => recordSessionUsage({ sessionID: ctx.sessionID, usage, cacheState }))
             // Snapshot provider status and publish for TUI display.
             yield* Effect.gen(function* () {
               // Cost-validation snapshot (internal)

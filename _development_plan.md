@@ -1,5 +1,25 @@
 # Development Plan
 
+## 2026-09-06 Summary sidecar cost/cache repair (plan: plans_completed/2026-09-06_summary-sidecar-cost-cache-repair.md)
+
+Goal: bound the hidden 64K summary generation and make its provider usage observable/accounted without changing Constitution, tools, system prefix, checkpoint M, or provider cache identity.
+
+Tasks:
+
+- [x] T1 Explicit 8,192-token output cap; at most two attempts per capture cycle.
+- [x] T2 Consume sidecar `finish-step`; log cache state and account tokens/cost through the normal session-total writer.
+- [x] T3 Apply cooldown after failed and successful cycles.
+- [x] T4 Focused tests, typecheck, docs, and diff verification.
+- [x] T5 Balance snapshots baseline cumulative session cost so detached sidecar usage participates in the next validation delta.
+
+Verification:
+
+- [x] Baseline `bun test test/session/summary-cadence.test.ts test/session/llm.test.ts` — 52 pass / 0 fail (`20260905T171339Z_645004b1`).
+- [x] Post-change focused tests — 72 pass / 0 fail (`20260905T192318Z_e6fdc418`).
+- [x] Balance accounting write-path — 9 pass / 0 fail (`20260905T192828Z_4735c203`).
+- [x] Final `bun typecheck` from `packages/opencode` — exit 0 (`20260905T192934Z_effd4217`).
+- [x] `git diff --check`; cache-prefix invariants unchanged.
+
 ## 2026-08-27 Summary plan-mirror (plan: plans_completed/2026-08-27_summary-plan-mirror.md)
 
 Goal: Layer-1 саммари несёт GATED WORKFLOW-зеркало активных планов (lifecycle/gate, task sv/status/attempts/last_failure, invariants — kernel-native anchors, Exact = система) вместо выдуманных моделью key_phrases; reverse search: sv задачи → messagesearch → s-строка → sessionread.

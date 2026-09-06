@@ -48,7 +48,9 @@ REPO = RepoMap()
 # Docs: docs/, specs/plans/, plans_completed/
 #   docs/rendering.md       — Full rendering pipeline: LLM → terminal, TUI components, streaming, mermaid, images
 #   docs/architecture.md    — Prompt system, checkpoint, compaction, KV cache
-#   docs/compaction.md      — Mechanistic continuous memory (summaries + links + message*)
+#   docs/compaction.md      — Mechanistic continuous memory (bounded/accounted sidecar summaries + message*)
+#   packages/opencode/src/session/sidecar-policy.ts — Layer-1 output/retry/cooldown bounds
+#   packages/opencode/src/provider/balance-storage.ts — provider balance snapshots and cumulative session-cost validation
 #   docs/ADID_Framework_15_4.md — ADID update manager framework
 # Tools: tools/, external/
 # Key files at root: package.json, bunfig.toml, turbo.json, tsconfig.json, sst.config.ts

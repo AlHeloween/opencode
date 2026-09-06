@@ -89,6 +89,12 @@ import { convertDocument, isSupportedDocumentFormat } from "@/util/markdownify"
 
 import { canonicalIdentity, isPrimaryModeIdentity } from "./mode-identity"
 import { resolveAgentModel, resolveAgentVariant } from "./session-settings"
+import {
+  SIDECAR_MAX_ATTEMPTS,
+  SIDECAR_OUTPUT_TOKEN_MAX,
+  isCoolingDown as isSidecarCoolingDown,
+  streamOptions as sidecarStreamOptions,
+} from "./sidecar-policy"
 
 /**
  * Mode text is a one-shot conversation transition record. It must never be
@@ -157,12 +163,8 @@ const sidecarInFlight = new Set<string>()
 /** Minimum interval between sidecar checkpoint captures per session (ms).
  *  Prevents excessive LLM calls when the model completes many short turns
  *  in rapid succession. 30s balances freshness vs cost. */
-const SIDECAR_COOLDOWN_MS = 30_000
-/** Track last successful sidecar capture time per session. */
-const lastSidecarCapture = new Map<string, number>()
-/** Max resends of the identical summary request before giving up this cycle.
- *  Same prefix every attempt → provider cache hits on retries. */
-const SIDECAR_MAX_ATTEMPTS = 3
+/** Track the end of every sidecar cycle, including invalid/failed captures. */
+const lastSidecarAttempt = new Map<string, number>()
 
 /** Track the last injected mode per session. Compaction can hide the previous
  *  message, but another session must never affect this transition record. */
@@ -811,8 +813,8 @@ export const layer = Layer.effect(
         }
         // Rate-limit: cooldown between sequential captures to avoid
         // excessive LLM calls during rapid-fire short turns.
-        const lastCapture = lastSidecarCapture.get(sessionID)
-        if (lastCapture !== undefined && Date.now() - lastCapture < SIDECAR_COOLDOWN_MS) {
+        const lastAttempt = lastSidecarAttempt.get(sessionID)
+        if (isSidecarCoolingDown(lastAttempt, Date.now())) {
           slog.debug("sidecar skip: cooldown", { sessionID })
           return false
         }
@@ -870,8 +872,9 @@ export const layer = Layer.effect(
             : undefined
           // Same shape as a normal working turn: full checkpoint M (the
           // previous request's model-ready messages) + one synthetic user
-          // prompt. No range reconversion, no tool_choice=none, standard
-          // output budget — the sidecar must not diverge from the trunk.
+          // prompt. No range reconversion and no tool_choice=none. The explicit
+          // output cap affects generation only; the cached input prefix remains
+          // byte-identical to the trunk.
           const sidecarAgent = input.cacheIdentity ?? input.agent
           const planState = collectPlanState((yield* InstanceState.context).worktree)
           const planGoalSv = planState.plans.find((p) => p.goal_sv.length > 0)?.goal_sv
@@ -887,7 +890,8 @@ export const layer = Layer.effect(
               attempt === 0
                 ? SessionCompaction.summaryRequestProse(lastSv, planGoalSv)
                 : `${SessionCompaction.gapFillRequest(body, SessionCompaction.diagnoseSummaryGaps(body))}\n\nPrevious draft for reference:\n${body}`
-            const reply = yield* llm
+            const attemptStartedAt = Date.now()
+            const result = yield* llm
               .stream({
                 user: input.user,
                 agent: sidecarAgent,
@@ -907,19 +911,63 @@ export const layer = Layer.effect(
                 ],
                 tools: input.tools,
                 model: input.model,
-                checkpoint: true,
+                ...sidecarStreamOptions(),
               })
               .pipe(
-                Stream.filter((event): event is Extract<LLM.Event, { type: "text-delta" }> => event.type === "text-delta"),
-                Stream.map((event) => event.text),
-                Stream.mkString,
+                Stream.runFold(
+                  () => ({
+                    text: "",
+                    steps: [] as {
+                      usage: ReturnType<typeof Session.getUsage>
+                      cacheState?: Session.CacheState
+                    }[],
+                  }),
+                  (acc, event) => {
+                    if (event.type === "text-delta") return { ...acc, text: acc.text + event.text }
+                    if (event.type !== "finish-step") return acc
+                    const rawCacheRead = event.usage.inputTokenDetails?.cacheReadTokens
+                    const usage = Session.getUsage({
+                      model: input.model,
+                      usage: event.usage,
+                      metadata: event.providerMetadata,
+                    })
+                    const hasCacheUsage =
+                      usage.tokens.input > 0 || usage.tokens.cache.read > 0 || usage.tokens.cache.write > 0
+                    return {
+                      ...acc,
+                      steps: [
+                        ...acc.steps,
+                        {
+                          usage,
+                          ...(hasCacheUsage ? { cacheState: Session.classifyCacheRead(rawCacheRead) } : {}),
+                        },
+                      ],
+                    }
+                  },
+                ),
                 Effect.catchCause((cause) => {
                   slog.debug("sidecar checkpoint capture failed", { error: Cause.pretty(cause) })
-                  return Effect.succeed("")
+                  return Effect.succeed({ text: "", steps: [] })
                 }),
               )
-            if (attempt === 0) body = reply
-            else body = SessionCompaction.mergeSummarySections(body, reply)
+            for (const step of result.steps) {
+              SessionProcessor.recordSessionUsage({ sessionID, usage: step.usage, cacheState: step.cacheState })
+              yield* slog.info("sidecar finish-step", {
+                attempt: attempt + 1,
+                outputTokenMax: SIDECAR_OUTPUT_TOKEN_MAX,
+                cacheState: step.cacheState,
+                cacheRatio: SessionProcessor.cacheRatio(step.usage.tokens),
+                inputTokens: step.usage.tokens.input,
+                cacheReadTokens: step.usage.tokens.cache.read,
+                cacheWriteTokens: step.usage.tokens.cache.write,
+                outputTokens: step.usage.tokens.output,
+                reasoningTokens: step.usage.tokens.reasoning,
+                cost: step.usage.cost,
+                durationMs: Date.now() - attemptStartedAt,
+              })
+            }
+            if (attempt === 0) body = result.text
+            else body = SessionCompaction.mergeSummarySections(body, result.text)
             if (SessionCompaction.isValidSummaryBody(body)) break
             yield* slog.debug("sidecar summary invalid — retrying same request", {
               attempt: attempt + 1,
@@ -1008,12 +1056,12 @@ export const layer = Layer.effect(
             hasCodeGraph: !!enrichment.impact,
             displayMessageID: displayMsg.id,
           })
-          lastSidecarCapture.set(sessionID, Date.now())
           return true
         }        ).pipe(
           Effect.ensuring(
             Effect.gen(function* () {
               sidecarInFlight.delete(sessionID)
+              lastSidecarAttempt.set(sessionID, Date.now())
               Constitution.setSummaryMode(sessionID, false)
               // Turn is over either way - back to idle (mirrors compact()).
               yield* status.set(sessionID, { type: "idle" })
@@ -1731,7 +1779,7 @@ export const layer = Layer.effect(
             yield* Checkpoint.remove(sessionID)
             // Reset sidecar cooldown: compaction opens a fresh message window,
             // so a new sidecar summary is appropriate on the next turn.
-            lastSidecarCapture.delete(sessionID)
+            lastSidecarAttempt.delete(sessionID)
             cachedMsgs = undefined
             lastKnownId = undefined
             return true
@@ -2420,8 +2468,7 @@ export const layer = Layer.effect(
                 result === "stop" ||
                 (SessionCompaction.isAssistantTurnComplete(completedAsst) &&
                   !sidecarInFlight.has(sessionID) &&
-                  (lastSidecarCapture.get(sessionID) === undefined ||
-                    Date.now() - (lastSidecarCapture.get(sessionID) ?? 0) >= SIDECAR_COOLDOWN_MS) &&
+                  !isSidecarCoolingDown(lastSidecarAttempt.get(sessionID), Date.now()) &&
                   SessionCompaction.computeOpenWindowTokens(
                     visibleAfter,
                     IncrementalCheckpoint.latestOpen(sessionID)?.toMessageID,
@@ -2539,7 +2586,7 @@ export const layer = Layer.effect(
               yield* registry.invalidateToolDescriptions(sessionID)
               SessionTools.invalidateMCPEra(sessionID)
               // Reset sidecar cooldown: fresh message window after compaction.
-              lastSidecarCapture.delete(sessionID)
+              lastSidecarAttempt.delete(sessionID)
               cachedMsgs = undefined
               lastKnownId = undefined
               return "continue" as const

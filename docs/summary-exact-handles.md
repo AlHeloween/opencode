@@ -1,3 +1,18 @@
+---
+title: Summary Exact handles
+owner: Local_Development
+last_verified: 2026-09-06
+reproduce:
+  files:
+    - packages/opencode/src/session/prompt.ts
+    - packages/opencode/src/session/summary.ts
+    - packages/opencode/src/session/sidecar-policy.ts
+  commands:
+    - cd packages/opencode && bun test test/session/summary-sidecar.test.ts test/session/summary-cadence.test.ts test/session/summary.test.ts
+  inputs: A Layer-1 capture range containing completed write/edit/multiedit parts.
+  expected_outputs: A sidecar checkpoint with model summary body plus system-authored file diffs and CodeGraph impact.
+---
+
 # Summary Exact handles (tool diffs + CodeGraph)
 
 **Critical contract** for Layer-1 `s` rows (`project_checkpoint` / enrichRange).  
@@ -38,15 +53,18 @@ range messages (from_id..to_id)
 ```text
 await Checkpoint.persist
   → sidecar LLM:
-       messages = open **range only** (not full M) + summaryRequestProse(lastSv)
-       outputTokenMax ≤ 8k; quality gate isValidSummaryBody (deep sections)
+       messages = byte-stable checkpoint M + summaryRequestProse(lastSv)
+       system/tools/providerCacheKey = trunk identity; Constitution denies execution
+       outputTokenMax = 8k; quality gate isValidSummaryBody (deep sections)
+       finish-step = cache/tokens/cost/duration log + session-total accounting
   → enrichRange: tool filediffs + CodeGraph
   → save s (outside M)
   → compact only later (usable model; not same stop as new s)
 ```
 
-**Why range-only:** summarizing full checkpoint M dilutes attention → 3-sentence stubs.
-Old inject geometry was always “this window”.
+The model request uses full checkpoint M for provider-prefix reuse; the Exact
+enrichment still scopes only to the new `from_id..to_id` range. One targeted
+gap-fill retry is allowed. Failed and successful cycles share the same cooldown.
 
 ---
 

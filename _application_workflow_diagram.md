@@ -46,7 +46,22 @@ Coverage estimate vs actual codebase: 9%.
    - Output: captured local mock-server request body.
    - Logic: verify the outgoing OpenAI-compatible `max_tokens` body field is capped below context.
 
-Coverage estimate vs actual codebase: 9%.
+4. `packages/opencode/src/session/sidecar-policy.ts` + `prompt.ts` / Layer-1 summary request
+   - Input: byte-stable checkpoint system/M, full trunk tool catalog, and the synthetic summary user tail.
+   - Output: at most two requests, each capped at 8,192 output tokens.
+   - Logic: preserve the trunk `providerCacheKey` and request prefix; Constitution denies tool execution; failed and successful cycles both start the 30s cooldown.
+
+5. `packages/opencode/src/session/processor.ts` / `recordSessionUsage`
+   - Input: normalized `finish-step` usage from either a normal turn or the summary sidecar.
+   - Output: shared session token/cost totals plus sidecar cache/cost/duration diagnostics.
+   - Logic: the sidecar consumes rather than discards `finish-step`, classifies raw cache reporting, and uses the same totals writer as the normal processor.
+
+6. `packages/opencode/src/provider/balance-storage.ts` / cumulative cost baseline
+   - Input: session total at snapshot time and the next session total.
+   - Output: validation cost delta that includes detached sidecar requests.
+   - Logic: persist the baseline in the existing snapshot metadata field; use message-row summation only for older or cross-session snapshots.
+
+Coverage estimate vs actual codebase: 10%.
 
 ## Session Prompt To Processor Flow
 

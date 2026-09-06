@@ -1,3 +1,21 @@
+---
+title: Session memory and compaction
+owner: Local_Development
+last_verified: 2026-09-06
+reproduce:
+  files:
+    - packages/opencode/src/session/prompt.ts
+    - packages/opencode/src/session/sidecar-policy.ts
+    - packages/opencode/src/session/processor.ts
+    - packages/opencode/src/provider/balance-storage.ts
+  commands:
+    - cd packages/opencode && bun test test/session/summary-sidecar.test.ts test/session/summary-cadence.test.ts test/session/cache-injection.test.ts test/session/finish-step.test.ts test/session/llm.test.ts
+    - cd packages/opencode && bun test test/provider/balance-storage.test.ts
+    - cd packages/opencode && bun typecheck
+  inputs: A clean completed turn at the 65,536-token open-window cadence.
+  expected_outputs: A bounded sidecar request, persisted summary when valid, and logged/accounted finish-step usage.
+---
+
 # Session memory & compaction
 
 Two layers of truth:
@@ -35,6 +53,11 @@ If they disagree, **do not paper over it**. Fix code toward the contract, or mar
 - After `s`, the message chain returns to **exactly pre-summary M** (the
   request/response live only in the checkpoint) — the trunk cache prefix is
   intact; you can roll back freely.
+- The sidecar keeps the full trunk tool catalog and Constitution blocks tool
+  execution, but generation is explicitly capped at 8,192 tokens. Every
+  `finish-step` logs cache state, token split, cost, and duration and is added
+  to session totals. Balance snapshots persist that cumulative session-cost
+  baseline, so the next validation delta includes detached sidecar usage too.
 - After a fold, ONE full-price request is inherent: `m*` replaces history, so
   the provider prefix changes at message 1. Unavoidable; everything after
   rides the cache again.
@@ -239,7 +262,8 @@ sequenceDiagram
 | Exact tool diffs + CodeGraph on s | `enrichRange`: `collectToolFileDiffs` + `mcpTouchThenSqlitePack` (no Fossil) | **Match**; no write/edit/multiedit in range ⇒ empty Exact |
 | Summary as user-message shape | Ephemeral stream appends `summaryRequestProse()` as user content | **Match** (stream-only, not DB user row) |
 | Store s + restore M | save checkpoint table; M never mutated | **Match** |
-| Checker after summary | `diagnoseSummaryGaps`: body ≥200 chars, per-section minima (Semantic Vector 40 / Goal 60 / Key decisions 40 / Current state 60 chars), ≥1 decision bullet; `isValidSummaryBody` = `gaps.length === 0`. Sidecar retry ×3 (`SIDECAR_MAX_ATTEMPTS`): attempt 1 = fresh request, 2+ = targeted `gapFillRequest` + `mergeSummarySections`; invalid after loop → warn + NOT stored | **Match** (verified 2026-08-27: prompt.ts:164,882-926,946-952 · compaction.ts:446-484) |
+| Checker after summary | `diagnoseSummaryGaps`: body ≥200 chars, per-section minima (Semantic Vector 40 / Goal 60 / Key decisions 40 / Current state 60 chars), ≥1 decision bullet; `isValidSummaryBody` = `gaps.length === 0`. Sidecar attempts ×2 (`SIDECAR_MAX_ATTEMPTS`): attempt 1 = fresh request, attempt 2 = targeted `gapFillRequest` + `mergeSummarySections`; invalid after the loop → warn + NOT stored. Every cycle, successful or not, starts the 30s cooldown. | **Match** (verified 2026-09-06: focused policy/accounting tests + typecheck) |
+| Summary generation/accounting | `streamOptions()` sets `outputTokenMax=8192`; `captureSidecar` consumes `finish-step`, classifies raw cache usage, logs duration/tokens/cost, and calls the same `recordSessionUsage` writer as normal turns. System, checkpoint M, tools, and `providerCacheKey` are unchanged. | **Fixed 2026-09-06** |
 | Fossil only for WC rollback | `SnapshotFossil.track` / `restore` — not on summary Exact path | **Match** |
 | Cadence ~256k chars / ~64k tokens | `SUMMARY_INTERVAL_TOKENS = 65_536` content/4 | **Match** (order of magnitude) |
 | `m* = [s,s,recent m]` | `compact()` folds open sidecars + Recent; **zero summaries → tail-only m\*** (header + last ~32K of messages; `log: no summaries`) | **Match (2026-08-25)** — T2 refusal removed: manual /compact works on fresh sessions; uncovered tail is the memory |
@@ -325,7 +349,7 @@ No BPE/tiktoken authority (undercounts providers).
 - [x] AI sections + Exact enrich  
 - [x] Body checker (4 headings)  
 - [x] **Compact on cadence at stop** (`maybeCompactCadence` after sidecar)  
-- [x] **Stronger post-summary field checker / retry on sidecar** — `diagnoseSummaryGaps` (char minima + decision bullets), `SIDECAR_MAX_ATTEMPTS=3` gap-fill retry, reject-after-loop (prompt.ts:164,882-926,946-952; compaction.ts:446-484)  
+- [x] **Bounded post-summary checker / retry** — `diagnoseSummaryGaps` (char minima + decision bullets), one initial request + one gap-fill repair, 8,192-token cap per request, reject-after-loop, and cooldown after every cycle
 - [x] **Removed dead `injectSummaryRequest` primary path** (2026-08-27: fn + service method + interface field + orphaned helpers; legacy `assistant.summary` fold retained for old sessions)  
 - [x] Docs cite contract + gap table  
 

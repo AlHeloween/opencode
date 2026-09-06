@@ -6,13 +6,42 @@ import { eq, desc, sql } from "drizzle-orm"
 import { BalanceSnapshotTable } from "./balance.sql"
 import { Database } from "@/storage/db"
 import type { BalanceSnapshot } from "./balance"
-import { MessageTable } from "@/session/session.sql"
+import { MessageTable, SessionTable } from "@/session/session.sql"
+import * as Log from "@opencode-ai/core/util/log"
+import type { SessionID } from "@/session/schema"
+
+const log = Log.create({ service: "provider.balance-storage" })
+
+interface SnapshotMetadata {
+  sessionCost: number
+}
+
+function parseSnapshotMetadata(raw: string | null): SnapshotMetadata | undefined {
+  if (!raw) return
+  try {
+    const value = JSON.parse(raw) as Partial<SnapshotMetadata>
+    if (typeof value.sessionCost === "number" && Number.isFinite(value.sessionCost)) {
+      return { sessionCost: value.sessionCost }
+    }
+  } catch (error) {
+    // Older rows may contain provider payloads instead of our metadata envelope.
+    // They remain valid snapshots and use the message-cost fallback below.
+    log.debug("balance snapshot metadata unavailable", { error: String(error) })
+  }
+}
 
 /**
  * Write a balance snapshot. Called after balance check completes.
  */
 export function writeBalanceSnapshot(snapshot: BalanceSnapshot): void {
   Database.use((db) => {
+    const sessionCost = snapshot.sessionID
+      ? db
+          .select({ cost: SessionTable.cost })
+          .from(SessionTable)
+          .where(eq(SessionTable.id, snapshot.sessionID as SessionID))
+          .get()?.cost
+      : undefined
     db.insert(BalanceSnapshotTable)
       .values({
         id: snapshot.id,
@@ -27,7 +56,10 @@ export function writeBalanceSnapshot(snapshot: BalanceSnapshot): void {
         calculated_cost_since_last: snapshot.calculatedCostSinceLast ?? null,
         actual_balance_delta: snapshot.actualBalanceDelta ?? null,
         cost_validation_delta: snapshot.costValidationDelta ?? null,
-        raw_response: null,
+        raw_response:
+          sessionCost === undefined || sessionCost === null
+            ? null
+            : JSON.stringify({ sessionCost } satisfies SnapshotMetadata),
         time_created: snapshot.timeCreated,
       })
       .run()
@@ -57,13 +89,18 @@ export function readLatestBalanceSnapshot(providerID: string): { totalBalance: s
  * whose time_created is after the last snapshot time.
  */
 export function calculatedCostSinceLastSnapshot(
-  sessionID: string,
+  sessionID: SessionID,
   providerID: string,
 ): number {
   return Database.use((db) => {
-    // Find the last snapshot time for this provider
+    // Find the last snapshot for this provider. New snapshots carry the
+    // cumulative session total, which includes detached sidecar requests.
     const lastSnapshot = db
-      .select({ time_created: BalanceSnapshotTable.time_created })
+      .select({
+        time_created: BalanceSnapshotTable.time_created,
+        session_id: BalanceSnapshotTable.session_id,
+        raw_response: BalanceSnapshotTable.raw_response,
+      })
       .from(BalanceSnapshotTable)
       .where(eq(BalanceSnapshotTable.provider_id, providerID))
       .orderBy(desc(BalanceSnapshotTable.time_created))
@@ -72,8 +109,18 @@ export function calculatedCostSinceLastSnapshot(
 
     if (!lastSnapshot) return 0
 
-    // Sum message costs for this session since the last snapshot
-    // Messages store cost in their JSON data field
+    const metadata = parseSnapshotMetadata(lastSnapshot.raw_response)
+    if (lastSnapshot.session_id === sessionID && metadata) {
+      const current = db
+        .select({ cost: SessionTable.cost })
+        .from(SessionTable)
+        .where(eq(SessionTable.id, sessionID))
+        .get()?.cost
+      return Math.max(0, (current ?? metadata.sessionCost) - metadata.sessionCost)
+    }
+
+    // Transition/cross-session fallback: rows written before the cumulative
+    // baseline continue to count provider-visible assistant messages.
     const result = db
       .select({
         total: sql<number>`SUM(CAST(json_extract(data, '$.cost') AS REAL))`,

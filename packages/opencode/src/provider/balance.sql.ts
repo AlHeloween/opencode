@@ -28,7 +28,7 @@ export const BalanceSnapshotTable = sqliteTable(
     actual_balance_delta: real(),
     /** Difference: actual_delta - calculated_cost. Near zero = correct calculation. */
     cost_validation_delta: real(),
-    /** Raw API response for debugging */
+    /** Raw API response or local snapshot metadata envelope for debugging/accounting */
     raw_response: text(),
     time_created: integer().notNull(),
   },

@@ -276,7 +276,10 @@ export function recordSessionUsage(input: {
 }
 
 const _lastBalanceCheck: Record<string, number> = {}
-const BALANCE_CHECK_INTERVAL_MS = 300_000 // 5 minutes
+// 60s: the credits endpoint is cheap and the sidebar status otherwise lags
+// minutes behind real spend (user report 2026-09-06: "баланс обновляется
+// лениво"). The $0.01 gate still skips pointless fetches on idle minutes.
+const BALANCE_CHECK_INTERVAL_MS = 60_000
 const BALANCE_CHECK_MIN_COST = 0.01
 
 async function checkAndSnapshotBalance(params: {
@@ -866,8 +869,19 @@ export const layer: Layer.Layer<
                   costValidationDelta: snapshot.costValidationDelta,
                 })
               }
-              // Standardised model status (balance / usage / unavailable)
-              const status = yield* Effect.promise(() => Balance.getModelStatus(ctx.model.providerID))
+              // Standardised model status (balance / usage / unavailable).
+              // When a fresh snapshot exists, REUSE it instead of issuing a
+              // second identical /credits fetch per finish-step (the duplicate
+              // call invited rate-limit stalls — the other half of the lazy
+              // balance report).
+              const status: Balance.ModelStatus = snapshot
+                ? {
+                    type: "balance",
+                    currency: snapshot.currency,
+                    totalBalance: snapshot.totalBalance,
+                    isAvailable: snapshot.isAvailable,
+                  }
+                : yield* Effect.promise(() => Balance.getModelStatus(ctx.model.providerID))
               yield* bus.publish(Session.Event.ModelStatusUpdated, {
                 sessionID: ctx.sessionID,
                 providerID: ctx.model.providerID,

@@ -572,7 +572,18 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         case "session.updated": {
           const result = Binary.search(store.session, event.properties.sessionID, (s) => s.id)
           if (result.found) {
-            setStore("session", result.index, reconcile(event.properties.info))
+            // PATCH semantics — must match the server projector (toPartialRow =
+            // partial UPDATE). reconcile() REPLACED the store entry, so every
+            // partial patch ({time} from touch, {cost, tokens} from usage)
+            // wiped the other fields and the sidebar read $0.00 between full
+            // syncs. Merge instead.
+            setStore(
+              "session",
+              result.index,
+              produce((draft) => {
+                Object.assign(draft, event.properties.info)
+              }),
+            )
             break
           }
           setStore(

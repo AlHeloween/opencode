@@ -46,6 +46,8 @@ export const SessionTable = sqliteTable(
     time_compacting: integer(),
     time_archived: integer(),
     cost: integer().default(0),
+    /** Sidecar (Layer-1 summary) cost part; `cost` remains the grand total. */
+    cost_sidecar: real().default(0),
     tokens_input: integer().default(0),
     tokens_output: integer().default(0),
     tokens_reasoning: integer().default(0),

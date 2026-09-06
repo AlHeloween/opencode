@@ -193,6 +193,7 @@ export function fromRow(row: SessionRow): Info {
       archived: row.time_archived ?? undefined,
     },
     cost: row.cost ?? 0,
+    costSidecar: row.cost_sidecar ?? 0,
     tokens: {
       input: row.tokens_input ?? 0,
       output: row.tokens_output ?? 0,
@@ -228,6 +229,7 @@ export function toRow(info: Info) {
     time_compacting: info.time.compacting,
     time_archived: info.time.archived,
     cost: info.cost ?? 0,
+    cost_sidecar: info.costSidecar ?? 0,
     tokens_input: info.tokens?.input ?? 0,
     tokens_output: info.tokens?.output ?? 0,
     tokens_reasoning: info.tokens?.reasoning ?? 0,
@@ -315,6 +317,8 @@ export const Info = Schema.Struct({
   permission: optionalOmitUndefined(Permission.Ruleset),
   revert: optionalOmitUndefined(Revert),
   cost: Schema.optional(Schema.Number),
+  /** Sidecar (Layer-1 summary) cost part; `cost` remains the grand total. */
+  costSidecar: Schema.optional(Schema.Number),
   tokens: Schema.optional(Schema.Struct({
     input: Schema.Number,
     output: Schema.Number,
@@ -402,6 +406,20 @@ const UpdatedTime = Schema.Struct({
   archived: Schema.optional(Schema.NullOr(Schema.Number)),
 })
 
+const UpdatedTokens = Schema.Struct({
+  total: Schema.optional(Schema.NullOr(Schema.Number)),
+  input: Schema.optional(Schema.NullOr(Schema.Number)),
+  output: Schema.optional(Schema.NullOr(Schema.Number)),
+  reasoning: Schema.optional(Schema.NullOr(Schema.Number)),
+  cache: Schema.optional(
+    Schema.Struct({
+      read: Schema.optional(Schema.NullOr(Schema.Number)),
+      write: Schema.optional(Schema.NullOr(Schema.Number)),
+    }),
+  ),
+  cacheRatio: Schema.optional(Schema.NullOr(Schema.Number)),
+})
+
 const UpdatedInfo = Schema.Struct({
   id: Schema.optional(Schema.NullOr(SessionID)),
   slug: Schema.optional(Schema.NullOr(Schema.String)),
@@ -416,6 +434,11 @@ const UpdatedInfo = Schema.Struct({
   time: Schema.optional(UpdatedTime),
   permission: Schema.optional(Schema.NullOr(Permission.Ruleset)),
   revert: Schema.optional(Schema.NullOr(Revert)),
+  /** Cumulative spend + tokens ride session.updated patches so the TUI
+   *  sidebar updates live (recordSessionUsage publishes them). */
+  cost: Schema.optional(Schema.NullOr(Schema.Number)),
+  costSidecar: Schema.optional(Schema.NullOr(Schema.Number)),
+  tokens: Schema.optional(UpdatedTokens),
 })
 
 const UpdatedEventSchema = Schema.Struct({
@@ -560,19 +583,37 @@ export const getUsage = (input: { model: Provider.Model; usage: LanguageModelUsa
     input.model.cost?.experimentalOver200K && tokens.input + tokens.cache.read > 200_000
       ? input.model.cost.experimentalOver200K
       : input.model.cost
+  const computed = safe(
+    new Decimal(0)
+      .add(new Decimal(tokens.input).mul(costInfo?.input ?? 0).div(1_000_000))
+      .add(new Decimal(tokens.output).mul(costInfo?.output ?? 0).div(1_000_000))
+      .add(new Decimal(tokens.cache.read).mul(costInfo?.cache?.read ?? 0).div(1_000_000))
+      .add(new Decimal(tokens.cache.write).mul(costInfo?.cache?.write ?? 0).div(1_000_000))
+      // TODO: update models.dev to have better pricing model, for now:
+      // charge reasoning tokens at the same rate as output tokens
+      .add(new Decimal(tokens.reasoning).mul(costInfo?.output ?? 0).div(1_000_000))
+      .toNumber(),
+  )
+  // OpenRouter usage accounting (2026-09-06): the provider reports the REAL
+  // per-request cost (upstream-specific rates, discounts, dynamic pricing) and
+  // the serving upstream endpoint slug in providerMetadata.openrouter. Prefer
+  // the reported value over the table-derived estimate; absent/unreported →
+  // table math (registry prices are per-million since the provider-sync fix).
+  const openrouterMeta = input.metadata?.openrouter as
+    | { provider?: unknown; usage?: { cost?: unknown } }
+    | undefined
+  const reportedCost =
+    typeof openrouterMeta?.usage?.cost === "number" && Number.isFinite(openrouterMeta.usage.cost)
+      ? openrouterMeta.usage.cost
+      : undefined
+  const endpoint =
+    typeof openrouterMeta?.provider === "string" && openrouterMeta.provider.length > 0
+      ? openrouterMeta.provider
+      : undefined
   return {
-    cost: safe(
-      new Decimal(0)
-        .add(new Decimal(tokens.input).mul(costInfo?.input ?? 0).div(1_000_000))
-        .add(new Decimal(tokens.output).mul(costInfo?.output ?? 0).div(1_000_000))
-        .add(new Decimal(tokens.cache.read).mul(costInfo?.cache?.read ?? 0).div(1_000_000))
-        .add(new Decimal(tokens.cache.write).mul(costInfo?.cache?.write ?? 0).div(1_000_000))
-        // TODO: update models.dev to have better pricing model, for now:
-        // charge reasoning tokens at the same rate as output tokens
-        .add(new Decimal(tokens.reasoning).mul(costInfo?.output ?? 0).div(1_000_000))
-        .toNumber(),
-    ),
+    cost: reportedCost ?? computed,
     tokens,
+    ...(endpoint ? { endpoint } : {}),
   }
 }
 
@@ -649,6 +690,9 @@ export interface Interface {
     sessionID: SessionID,
     predicate: (msg: MessageV2.WithParts) => boolean,
   ) => Effect.Effect<Option.Option<MessageV2.WithParts>>
+  /** Publishes a session patch (partial Info) through the sync-event pipeline:
+   *  projects the fields into the row and emits session.updated. */
+  readonly patch: (sessionID: SessionID, info: Patch) => Effect.Effect<void>
   /** Consolidated finish-step: batches step-finish part + message update
     * + session token/cost accumulation into fewer transactions. */
   readonly finishStep: (input: {
@@ -1103,6 +1147,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
       getPart,
       updatePartDelta,
       findMessage,
+      patch,
       finishStep,
     })
   }),

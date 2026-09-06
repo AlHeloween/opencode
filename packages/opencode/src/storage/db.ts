@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS "session" (
   time_compacting integer,
   time_archived integer,
   cost integer NOT NULL DEFAULT 0,
+  cost_sidecar real NOT NULL DEFAULT 0,
   tokens_input integer NOT NULL DEFAULT 0,
   tokens_output integer NOT NULL DEFAULT 0,
   tokens_reasoning integer NOT NULL DEFAULT 0,

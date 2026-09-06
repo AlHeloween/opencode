@@ -1124,6 +1124,49 @@ describe("SessionNs.getUsage", () => {
     expect(result.tokens.cache.read).toBe(200)
   })
 
+  test("prefers OpenRouter reported cost over the table estimate (usage accounting)", () => {
+    // Registry rates would compute 1M input × 0.075/M = $0.075; the provider
+    // reported $0.042 (upstream-specific real price) — reported must win.
+    const model = createModel({
+      context: 100_000,
+      output: 32_000,
+      cost: { input: 0.075, output: 0.25, cache: { read: 0, write: 0 } },
+    })
+    const result = SessionNs.getUsage({
+      model,
+      usage: {
+        inputTokens: 1_000_000,
+        outputTokens: 0,
+        totalTokens: 1_000_000,
+        inputTokenDetails: { noCacheTokens: undefined, cacheReadTokens: undefined, cacheWriteTokens: undefined },
+        outputTokenDetails: { textTokens: undefined, reasoningTokens: undefined },
+      },
+      metadata: { openrouter: { provider: "chutes", usage: { cost: 0.042 } } } as never,
+    })
+    expect(result.cost).toBe(0.042)
+    expect(result.endpoint).toBe("chutes")
+  })
+
+  test("falls back to table-derived cost and no endpoint without openrouter metadata", () => {
+    const model = createModel({
+      context: 100_000,
+      output: 32_000,
+      cost: { input: 0.075, output: 0.25, cache: { read: 0, write: 0 } },
+    })
+    const result = SessionNs.getUsage({
+      model,
+      usage: {
+        inputTokens: 1_000_000,
+        outputTokens: 0,
+        totalTokens: 1_000_000,
+        inputTokenDetails: { noCacheTokens: undefined, cacheReadTokens: undefined, cacheWriteTokens: undefined },
+        outputTokenDetails: { textTokens: undefined, reasoningTokens: undefined },
+      },
+    })
+    expect(result.cost).toBeCloseTo(0.075, 10)
+    expect(result.endpoint).toBeUndefined()
+  })
+
   test("handles anthropic cache write metadata", () => {
     const model = createModel({ context: 100_000, output: 32_000 })
     const result = SessionNs.getUsage({

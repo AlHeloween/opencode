@@ -951,7 +951,13 @@ export const layer = Layer.effect(
                 }),
               )
             for (const step of result.steps) {
-              SessionProcessor.recordSessionUsage({ sessionID, usage: step.usage, cacheState: step.cacheState })
+              const usagePatch = SessionProcessor.recordSessionUsage({
+                sessionID,
+                usage: step.usage,
+                cacheState: step.cacheState,
+                kind: "sidecar",
+              })
+              if (usagePatch) yield* sessions.patch(sessionID, usagePatch)
               yield* slog.info("sidecar finish-step", {
                 attempt: attempt + 1,
                 outputTokenMax: SIDECAR_OUTPUT_TOKEN_MAX,

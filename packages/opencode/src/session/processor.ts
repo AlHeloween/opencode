@@ -216,17 +216,31 @@ export function accumulateStepTokens(
  * Persist provider usage that belongs to a session but not necessarily to a
  * provider-visible Message row. Normal turns and the Layer-1 summary sidecar
  * must use the same totals writer so the latter cannot become invisible cost.
+ *
+ * Returns the fresh cumulative {cost, costSidecar, tokens} PATCH for the
+ * caller to publish via Session.patch — usage recording previously mutated
+ * the DB silently, so the TUI session store never learned the new spend and
+ * the sidebar stayed $0.00 for the whole session (user report 2026-09-06).
  */
 export function recordSessionUsage(input: {
   sessionID: SessionID
   usage: ReturnType<typeof Session.getUsage>
   cacheState?: Session.CacheState
-}) {
-  Database.use((db) =>
+  /** "sidecar" = Layer-1 summary request: cost ALSO lands in cost_sidecar so
+   * the TUI can split $main / $sidecar (the total keeps summing everything). */
+  kind?: "sidecar"
+}): Session.Patch | undefined {
+  let patch: Session.Patch | undefined
+  Database.use((db) => {
     db
       .update(SessionTable)
       .set({
         cost: sql`cost + ${input.usage.cost}`,
+        // coalesce: the column was shipped without NOT NULL DEFAULT — legacy
+        // rows hold NULL and NULL + X propagates NULL (sidecar cost dropped).
+        ...(input.kind === "sidecar" && {
+          cost_sidecar: sql`coalesce(cost_sidecar, 0) + ${input.usage.cost}`,
+        }),
         tokens_input: sql`tokens_input + ${input.usage.tokens.input + input.usage.tokens.cache.read}`,
         tokens_output: sql`tokens_output + ${input.usage.tokens.output}`,
         tokens_reasoning: sql`tokens_reasoning + ${input.usage.tokens.reasoning}`,
@@ -240,8 +254,25 @@ export function recordSessionUsage(input: {
         }),
       })
       .where(eq(SessionTable.id, input.sessionID))
-      .run(),
-  )
+      .run()
+    const row = db.select().from(SessionTable).where(eq(SessionTable.id, input.sessionID)).get()
+    if (row) {
+      patch = {
+        cost: row.cost ?? 0,
+        costSidecar: row.cost_sidecar ?? 0,
+        tokens: {
+          input: row.tokens_input ?? 0,
+          output: row.tokens_output ?? 0,
+          reasoning: row.tokens_reasoning ?? 0,
+          cache: {
+            read: row.tokens_cache_read ?? 0,
+            write: row.tokens_cache_write ?? 0,
+          },
+        },
+      }
+    }
+  })
+  return patch
 }
 
 const _lastBalanceCheck: Record<string, number> = {}
@@ -768,6 +799,9 @@ export const layer: Layer.Layer<
             const hasCacheUsage = usage.tokens.input > 0 || usage.tokens.cache.read > 0 || usage.tokens.cache.write > 0
             const cacheState = hasCacheUsage ? Session.classifyCacheRead(rawCacheRead) : undefined
             ctx.assistantMessage.cost += usage.cost
+            // Last serving upstream endpoint (OpenRouter usage accounting) —
+            // displayed in the TUI meta line ("which endpoint served this").
+            if (usage.endpoint) ctx.assistantMessage.endpoint = usage.endpoint
             // T4: aggregate tokens across all steps of this assistant message.
             // Previous behaviour stored only the LAST step's usage, mixing
             // per-step input with cumulative cache.read into a misleading ratio.
@@ -800,11 +834,15 @@ export const layer: Layer.Layer<
               type: "step-finish",
               tokens: usage.tokens,
               ...(cacheState && { cacheState }),
+              ...(usage.endpoint && { endpoint: usage.endpoint }),
               cost: usage.cost,
             })
             yield* session.updateMessage(ctx.assistantMessage)
-            // Accumulate session-level token/cost totals.
-            yield* Effect.sync(() => recordSessionUsage({ sessionID: ctx.sessionID, usage, cacheState }))
+            // Accumulate session-level token/cost totals and publish the fresh
+            // cumulative to the TUI (session.updated patch) — without the
+            // publish the sidebar stayed $0.00 for the whole session.
+            const usagePatch = recordSessionUsage({ sessionID: ctx.sessionID, usage, cacheState })
+            if (usagePatch) yield* session.patch(ctx.sessionID, usagePatch)
             // Snapshot provider status and publish for TUI display.
             yield* Effect.gen(function* () {
               // Cost-validation snapshot (internal)

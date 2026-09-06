@@ -114,14 +114,29 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
   // usage transactionally and never reset — survives compaction, revert and
   // restarts. Child (sub-agent) sessions are included; AGI (orchestrator /
   // main) sessions are separate — counted and displayed on their own.
-  const cost = createMemo(() => {
+  // Split (2026-09-06, user request): `cost` is the GRAND TOTAL (main +
+  // sidecar); `costSidecar` holds the Layer-1 summary sidecar part — main =
+  // total − sidecar. Both lines always visible ($0.00 included).
+  // v2 SDK types don't know costSidecar yet (SDK regen blocked by the
+  // spec-pipeline debt); narrow accessor until the regen lands.
+  const sessionCosts = (s: { cost?: number } & Record<string, unknown>) => ({
+    total: s.cost ?? 0,
+    sidecar: typeof s.costSidecar === "number" ? (s.costSidecar as number) : 0,
+  })
+  const costs = createMemo(() => {
     const agiExcluded = new Set(
       [agiMode?.orchSessionID(), agiMode?.mainSessionID()].filter((x): x is string => Boolean(x)),
     )
-    return props.api.state.session
+    let total = 0
+    let sidecar = 0
+    for (const s of props.api.state.session
       .list()
-      .filter((s) => (s.id === props.session_id || s.parentID === props.session_id) && !agiExcluded.has(s.id))
-      .reduce((sum, s) => sum + (s.cost ?? 0), 0)
+      .filter((s) => (s.id === props.session_id || s.parentID === props.session_id) && !agiExcluded.has(s.id))) {
+      const c = sessionCosts(s)
+      total += c.total
+      sidecar += c.sidecar
+    }
+    return { total, sidecar, main: Math.max(0, total - sidecar) }
   })
   const [providerStatus, setProviderStatus] = createSignal<Record<string, ModelStatusDisplay>>({})
 
@@ -402,7 +417,8 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
           {compactNum(outputStats().reasoning)}({compactNum(outputStats().lastReasoning)})think
         </text>
       )}
-      {cost() > 0 && <text fg={theme().textMuted}>{money.format(cost())} spent</text>}
+      <text fg={theme().textMuted}>{money.format(costs().main)} main</text>
+      <text fg={theme().textMuted}>{money.format(costs().sidecar)} sidecar</text>
       {(() => {
         const pid = state().providerID
         if (!pid) return null

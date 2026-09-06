@@ -290,6 +290,8 @@ export const StepFinishPart = Schema.Struct({
   cacheState: Schema.optional(Schema.Literals(["hit", "miss", "unknown"])),
   snapshot: Schema.optional(Schema.String),
   cost: Schema.Number,
+  /** Serving upstream endpoint (OpenRouter usage accounting, 2026-09-06) — e.g. "chutes". */
+  endpoint: Schema.optional(Schema.String),
   tokens: Schema.Struct({
     total: Schema.optional(Schema.Number),
     input: Schema.Number,
@@ -638,6 +640,8 @@ export const Assistant = Schema.Struct({
   structured: Schema.optional(Schema.Any),
   variant: Schema.optional(Schema.String),
   finish: Schema.optional(Schema.String),
+  /** Last serving upstream endpoint (OpenRouter usage accounting, 2026-09-06). */
+  endpoint: Schema.optional(Schema.String),
 })
   .annotate({ identifier: "AssistantMessage" })
   .pipe(withStatics((s) => ({ zod: zod(s) })))

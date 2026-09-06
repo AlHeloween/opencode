@@ -437,9 +437,14 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         // (agent.<name>.options.routing, threaded per-stream via `extra`) →
         // config model/provider routing → per-model defaults.
         async getModel(sdk: any, modelID: string, options?: Record<string, any>, extra?: { routing?: Record<string, unknown> }) {
+          // Usage accounting (2026-09-06): include=true makes OpenRouter return
+          // the REAL per-request cost (upstream-specific rates, discounts) and
+          // the serving upstream endpoint in providerMetadata.openrouter —
+          // consumed by Session.getUsage (reported cost) and the TUI meta line.
+          const settings: Record<string, any> = { usage: { include: true } }
           const routing = extra?.routing ?? openRouterRouting(options) ?? openRouterRoutingDefaults(modelID)
-          if (!routing) return sdk.languageModel(modelID)
-          return sdk.languageModel(modelID, { provider: routing })
+          if (routing) settings.provider = routing
+          return sdk.languageModel(modelID, settings)
         },
       }),
     nvidia: () =>

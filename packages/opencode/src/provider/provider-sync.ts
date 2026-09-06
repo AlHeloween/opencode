@@ -223,11 +223,24 @@ export function mapOpenRouterModel(raw: OpenRouterRawModel): ModelsDevModel | un
   const prompt = raw.pricing?.prompt
   const completion = raw.pricing?.completion
   if (prompt !== undefined && completion !== undefined) {
-    const cacheRead = raw.pricing?.input_cache_read
+    // OpenRouter's /models API returns pricing PER TOKEN as decimal strings
+    // (e.g. "0.000000075"); the opencode cost convention (models.dev entries,
+    // and the getUsage formula in session/session.ts which divides by 1e6) is
+    // PER MILLION tokens. Storing raw per-token values made every OpenRouter
+    // request compute a cost 1e6x too small — $0.00 spent while the real
+    // balance drained (RCA 2026-09-06: z-ai/glm-5.3-flash 7.5e-8/token here
+    // vs zhipuai direct 0.075/M — same real price, 1e6x registry gap).
+    // "-1" means dynamically priced (no known rate) — clamp to 0 rather than
+    // persist a negative price.
+    const perMillion = (perToken: string | undefined) =>
+      perToken === undefined ? undefined : Math.max(0, Number(perToken) || 0) * 1_000_000
+    const input = perMillion(prompt) ?? 0
+    const output = perMillion(completion) ?? 0
+    const cacheRead = perMillion(raw.pricing?.input_cache_read)
     model.cost = {
-      input: Number(prompt) || 0,
-      output: Number(completion) || 0,
-      ...(cacheRead !== undefined ? { cache_read: Number(cacheRead) || 0 } : {}),
+      input,
+      output,
+      ...(cacheRead !== undefined ? { cache_read: cacheRead } : {}),
     }
   }
   return model

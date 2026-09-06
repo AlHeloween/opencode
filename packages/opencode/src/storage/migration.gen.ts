@@ -6,6 +6,8 @@ import projectCheckpointSidecar from "../../migration/20260727000000_project_che
 import partTypeColumns from "../../migration/20260730_add_part_type_columns"
 import cacheStateStatistics from "../../migration/20260817000000_cache_state_statistics"
 import projectCheckpointPlanState from "../../migration/20260827000000_project_checkpoint_plan_state"
+import sessionCostSidecar from "../../migration/20260906000000_session_cost_sidecar"
+import sessionCostSidecarBackfill from "../../migration/20260906000001_session_cost_sidecar_backfill"
 
 export const migrations: DatabaseMigration.Migration[] = [
   baseline,
@@ -15,4 +17,6 @@ export const migrations: DatabaseMigration.Migration[] = [
   partTypeColumns,
   cacheStateStatistics,
   projectCheckpointPlanState,
+  sessionCostSidecar,
+  sessionCostSidecarBackfill,
 ]

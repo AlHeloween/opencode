@@ -59,6 +59,7 @@ export function toPartialRow(info: DeepPartial<Session.Info>) {
     time_compacting: grab(info, "time", (v) => grab(v, "compacting")),
     time_archived: grab(info, "time", (v) => grab(v, "archived")),
     cost: grab(info, "cost"),
+    cost_sidecar: grab(info, "costSidecar"),
     tokens_input: grab(info, "tokens", (v) => grab(v, "input")),
     tokens_output: grab(info, "tokens", (v) => grab(v, "output")),
     tokens_reasoning: grab(info, "tokens", (v) => grab(v, "reasoning")),

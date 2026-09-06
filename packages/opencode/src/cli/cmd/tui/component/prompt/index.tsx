@@ -971,6 +971,100 @@ export function Prompt(props: PromptProps) {
     return !!current
   })
 
+  // Model line extras (user spec 2026-09-06): per-MILLION registry price
+  // parameters of the model, capability tags, and the OpenRouter serving
+  // endpoint. The endpoint is NEVER empty (user: an unpinned target breaks
+  // provider-side KV cache — routing drift = full-price re-prefill — and free
+  // providers punish uncacheable bursts): the TARGET resolves from the
+  // effective routing config (agent → model → provider → defaults, mirroring
+  // provider.ts getModel priority) before any response; the ACTUAL endpoint
+  // rides usage accounting once a response lands; a mismatch is a loud
+  // cache-break warning.
+  const modelMeta = createMemo(() => {
+    const selected = local.model.current()
+    if (!selected) return undefined
+    const model = sync.data.provider.find((item) => item.id === selected.providerID)?.models[selected.modelID]
+    const rates = model?.cost
+    const price = rates
+      ? `in(${(rates.input ?? 0).toFixed(3)}) out(${(rates.output ?? 0).toFixed(3)}) cached(${(
+          (rates.cache?.read ?? 0) + (rates.cache?.write ?? 0)
+        ).toFixed(3)})`
+      : undefined
+    const caps: string[] = []
+    // v2 sync model type doesn't expose the capability flags — narrow accessors.
+    const flags = model as Record<string, unknown> | undefined
+    if (flags?.attachment === true) caps.push("vision")
+    if (flags?.reasoning === true) caps.push("reason")
+    if (flags?.tool_call === true) caps.push("tools")
+
+    // Mirror of provider.ts OPENROUTER_ROUTING_DEFAULTS (the server module is
+    // not importable from the TUI bundle — keep in sync manually).
+    const routingDefaults: { match: string; routing: Record<string, unknown> }[] = [
+      { match: "deepseek-v4-flash", routing: { order: ["streamlake"] } },
+    ]
+    let target: { endpoint?: string; pinned: boolean } = { pinned: false }
+    if (selected.providerID === "openrouter") {
+      const agentName = local.agent.current()?.name
+      const agentRouting = (() => {
+        if (!agentName) return undefined
+        const a = sync.data.agent.find((x) => x.name === agentName) as Record<string, any> | undefined
+        const r = (a?.options as Record<string, any> | undefined)?.routing
+        return r && typeof r === "object" && !Array.isArray(r) ? (r as Record<string, any>) : undefined
+      })()
+      const modelRoutingRaw = (model as Record<string, any> | undefined)?.options?.routing
+      const modelRouting =
+        modelRoutingRaw && typeof modelRoutingRaw === "object" && !Array.isArray(modelRoutingRaw)
+          ? (modelRoutingRaw as Record<string, any>)
+          : undefined
+      const providerRoutingRaw = (
+        sync.data.provider.find((item) => item.id === "openrouter") as Record<string, any> | undefined
+      )?.options?.routing
+      const providerRouting =
+        providerRoutingRaw && typeof providerRoutingRaw === "object" && !Array.isArray(providerRoutingRaw)
+          ? (providerRoutingRaw as Record<string, any>)
+          : undefined
+      const defaults = routingDefaults.find((d) => selected.modelID.includes(d.match))?.routing
+      const routing = agentRouting ?? modelRouting ?? providerRouting ?? defaults
+      if (routing) {
+        const only = Array.isArray(routing.only) ? routing.only.filter((x): x is string => typeof x === "string") : []
+        const order = Array.isArray(routing.order) ? routing.order.filter((x): x is string => typeof x === "string") : []
+        if (only.length >= 1) target = { endpoint: only[0], pinned: only.length === 1 }
+        else if (order.length >= 1)
+          target = { endpoint: order[0], pinned: routing.allow_fallbacks === false && order.length === 1 }
+      }
+    }
+    const messages = props.sessionID ? (sync.data.message[props.sessionID] ?? []) : []
+    const last = messages.findLast((item) => item.role === "assistant") as Record<string, unknown> | undefined
+    const actual = typeof last?.endpoint === "string" && last.endpoint ? last.endpoint : undefined
+    const sameEndpoint = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+    let endpointLabel: string
+    let endpointWarn = false
+    if (actual && target.endpoint) {
+      if (sameEndpoint(actual, target.endpoint)) {
+        endpointLabel = `(${actual})`
+      } else {
+        // Drift = the response came from a different upstream than the pinned
+        // target — provider KV cache prefixes no longer match.
+        endpointLabel = `(${target.endpoint}→${actual}!)`
+        endpointWarn = true
+      }
+    } else if (actual) {
+      endpointLabel = `(${actual} · unpinned)`
+      endpointWarn = true
+    } else if (target.endpoint) {
+      endpointLabel = `(${target.endpoint}${target.pinned ? "" : "?"})`
+    } else {
+      endpointLabel = "(endpoint unpinned)"
+      endpointWarn = true
+    }
+    return {
+      price,
+      capsLabel: caps.length > 0 ? `[${caps.join(" ")}]` : undefined,
+      endpointLabel,
+      endpointWarn,
+    }
+  })
+
   const agentMetaAlpha = createFadeIn(() => !!local.agent.current(), animationsEnabled)
   const modelMetaAlpha = createFadeIn(() => !!local.agent.current() && store.mode === "normal", animationsEnabled)
   const variantMetaAlpha = createFadeIn(
@@ -1273,6 +1367,22 @@ export function Prompt(props: PromptProps) {
                             {local.model.parsed().model}
                           </text>
                           <text fg={fadeColor(theme.textMuted, modelMetaAlpha())}>{currentProviderLabel()}</text>
+                          <Show when={modelMeta()?.price}>
+                            <text fg={fadeColor(theme.textMuted, modelMetaAlpha())}>{modelMeta()!.price}</text>
+                          </Show>
+                          <Show when={modelMeta()?.capsLabel}>
+                            <text fg={fadeColor(theme.textMuted, modelMetaAlpha())}>{modelMeta()!.capsLabel}</text>
+                          </Show>
+                          <Show when={modelMeta()?.endpointLabel}>
+                            <text
+                              fg={fadeColor(
+                                modelMeta()!.endpointWarn ? theme.warning : theme.textMuted,
+                                modelMetaAlpha(),
+                              )}
+                            >
+                              {modelMeta()!.endpointLabel}
+                            </text>
+                          </Show>
                           <Show when={showVariant()}>
                             <text fg={fadeColor(theme.textMuted, variantMetaAlpha())}>·</text>
                             <text>

@@ -20,6 +20,12 @@ import * as Log from "@opencode-ai/core/util/log"
  * the top is clickable AND enter-activatable — ←/→-free by design so mouse and
  * keyboard share one affordance.
  *
+ * ESC contract (2026-09-06): sub-dialogs (enum select, global confirm) are
+ * dialog.push()-ed onto the stack so ESC pops ONE level back to this list
+ * instead of leaving /settings entirely; the text prompt resolves null on ESC
+ * and the list is restored here. Scope + cursor survive each remount via the
+ * module state below (lastScope / lastCursor).
+ *
  * Writes reuse existing plumbing only:
  *   worktree → PATCH /config minimal subtree (RFC 7386; subplan 05 rev 2)
  *   global   → GET global config → set field → PATCH /global/config with
@@ -34,11 +40,17 @@ const SCOPE_LABEL: Record<Scope, string> = {
   global: "GLOBAL (all projects)",
 }
 
+// Every replace/push cycle REMOUNTS this component (ESC-return, post-write
+// refresh), resetting in-dialog signals. Scope and cursor position live at
+// module scope so the list reopens where the user left it.
+let lastScope: Scope = "worktree"
+let lastCursor: string | undefined
+
 export function DialogSettings() {
   const sdk = useSDK()
   const dialog = useDialog()
   const { theme } = useTheme()
-  const [scope, setScope] = createSignal<Scope>("worktree")
+  const [scope, setScope] = createSignal<Scope>(lastScope)
   const [merged, setMerged] = createSignal<Record<string, any> | undefined>(undefined)
   const [global, setGlobal] = createSignal<Record<string, any> | undefined>(undefined)
   const [status, setStatus] = createSignal<string | null>(null)
@@ -109,6 +121,13 @@ export function DialogSettings() {
     dialog.replace(() => <DialogSettings />)
   }
 
+  function switchScope() {
+    // In-place switch (no remount): options() reads scope(), so titles and
+    // previews update reactively and the cursor/filter stay put.
+    lastScope = scope() === "worktree" ? "global" : "worktree"
+    setScope(lastScope)
+  }
+
   async function writeWorktree(row: SettingRow, value: unknown) {
     await corePatch("/config", { [row.schemaKey!]: value })
     setStatus(`${row.schemaKey} saved → ${SCOPE_LABEL[scope()]}`)
@@ -118,9 +137,13 @@ export function DialogSettings() {
 
   async function writeGlobal(row: SettingRow, value: unknown) {
     // Policy (subplan 01): every global write requires an explicit confirm.
+    // Collapse back to the settings list first, then PUSH the confirm on top —
+    // ESC from the confirm pops one level back to settings instead of leaving
+    // the dialog entirely (dialog.replace would leave an empty stack on ESC).
+    backToSettings()
     const current = (global() ?? {}) as Record<string, unknown>
     const next = { ...current, [row.schemaKey!]: value }
-    dialog.replace(() => (
+    dialog.push(() => (
       <DialogConfirm
         title={`Write ${row.schemaKey} to GLOBAL config?`}
         description={`Applies to all projects. ${row.title} = ${typeof value === "string" ? value : JSON.stringify(value)}`}
@@ -162,14 +185,16 @@ export function DialogSettings() {
     })()
   }
 
-  function editRow(row: SettingRow) {
+  async function editRow(row: SettingRow) {
     if (row.readOnly) return
+    lastCursor = row.id
     if (row.kind === "boolean") {
       write(row, !(scopeValue(row) === true))
       return
     }
     if (row.kind === "enum" && row.enumValues?.length) {
-      dialog.replace(() => (
+      // push (not replace): ESC pops back to the settings list.
+      dialog.push(() => (
         <DialogSelect
           title={`${row.title} — select value (${scope()})`}
           options={row.enumValues!.map(
@@ -182,14 +207,26 @@ export function DialogSettings() {
     }
     if (row.kind === "string" || row.kind === "number" || row.kind === "model") {
       const current = scopeValue(row)
-      void DialogPrompt.show(dialog, `${row.title} (${scope()})`, {
+      // DialogPrompt.show resolves null on ESC/cancel (its onClose) and its
+      // own onConfirm OVERRIDES any onConfirm passed via options — so the
+      // result must be consumed from the awaited promise, not via a callback.
+      const value = await DialogPrompt.show(dialog, `${row.title} (${scope()})`, {
         placeholder: typeof current === "string" ? current : "(unset)",
-        onConfirm: (value: string) => {
-          const trimmed = value.trim()
-          if (trimmed.length === 0) return
-          write(row, row.kind === "number" ? Number(trimmed) : trimmed)
-        },
       })
+      if (value === null) {
+        // ESC: return to the settings list, never fall out of the dialog.
+        backToSettings()
+        return
+      }
+      const trimmed = value.trim()
+      if (trimmed.length === 0) {
+        backToSettings()
+        return
+      }
+      // Return to the list immediately; the write (and any global confirm)
+      // continues on top of the restored settings dialog.
+      backToSettings()
+      write(row, row.kind === "number" ? Number(trimmed) : trimmed)
       return
     }
     // json rows are read-only by registry contract
@@ -200,10 +237,7 @@ export function DialogSettings() {
       title: `Scope: ${scope()} — enter/click to switch`,
       value: "__scope",
       description: "Writes target the selected layer; global writes always confirm first",
-      onSelect: () => {
-        setScope(scope() === "worktree" ? "global" : "worktree")
-        backToSettings()
-      },
+      onSelect: switchScope,
     }
     const rows: DialogSelectOption<string>[] = SETTINGS_REGISTRY.map((row) => ({
       title: row.title,
@@ -215,19 +249,14 @@ export function DialogSettings() {
       footer: row.readOnly ? preview(row) : `${preview(row)} · enter to edit`,
       onSelect: () => editRow(row),
     }))
-    const byId = new Map<string, DialogSelectOption<string>>(rows.map((option) => [option.value, option]))
-    const ordered: DialogSelectOption<string>[] = [scopeRow]
-    for (const option of rows) {
-      if (option.value !== "__scope") ordered.push(option)
-    }
-    void byId
-    return ordered
+    return [scopeRow, ...rows]
   }
 
   return (
     <DialogSelect
       title={`Settings — ${SETTINGS_REGISTRY.length} registered surfaces${status() ? ` · ${status()}` : ""}`}
       options={options()}
+      cursorValue={lastCursor}
       skipFilter={false}
       onSelect={(option) => {
         const row = SETTINGS_REGISTRY.find((x) => x.id === option.value)
@@ -238,8 +267,7 @@ export function DialogSettings() {
           title: "edit",
           onTrigger: (option: DialogSelectOption<string>) => {
             if (option.value === "__scope") {
-              setScope(scope() === "worktree" ? "global" : "worktree")
-              backToSettings()
+              switchScope()
               return
             }
             const row = SETTINGS_REGISTRY.find((x) => x.id === option.value)

@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test"
-import { mkdir, unlink } from "fs/promises"
+import { mkdir } from "fs/promises"
 import path from "path"
 
 import { tmpdir } from "../fixture/fixture"
@@ -9,7 +9,6 @@ import { Plugin } from "../../src/plugin/index"
 import { ModelsDev } from "@/provider/models"
 import { Provider } from "@/provider/provider"
 import { ProviderID, ModelID } from "../../src/provider/schema"
-import { Filesystem } from "@/util/filesystem"
 import { Env } from "../../src/env"
 import { Effect } from "effect"
 import { AppRuntime } from "../../src/effect/app-runtime"
@@ -2587,8 +2586,14 @@ test("plugin config providers persist after instance dispose", async () => {
 test("plugin config enabled and disabled providers are honored", async () => {
   await using tmp = await tmpdir({
     init: async (dir) => {
-      const root = path.join(dir, ".opencode", "plugin")
+      const configDir = path.join(dir, ".opencode")
+      const root = path.join(configDir, "plugin")
       await mkdir(root, { recursive: true })
+      // Prepare plugin dependencies like the sibling dispose test: without a
+      // package-lock the file-plugin loader engages the dependency-preparation
+      // path (network install ~20-30s), pushing the test past the 30s timeout.
+      await markPluginDependenciesReady(configDir)
+      await markPluginDependenciesReady(Global.Path.config)
       await Bun.write(
         path.join(root, "provider-filter.ts"),
         [
@@ -2693,19 +2698,18 @@ test("opencode loader keeps paid models when auth exists", async () => {
     },
   })
 
-  const authPath = path.join(Global.Path.data, "auth.json")
-  let prev: string | undefined
+  // Auth resolves from Global.Path.config (auth/index.ts authFile), NOT
+  // Global.Path.data. Redirect the test config dir to the keyed tmpdir
+  // (canonical pattern: test/auth/auth.test.ts) so the auth.json fixture lands
+  // where the loader actually reads it, and is disposed together with the tmpdir
+  // (including the .enc mirror and .opencode.encryption.key). Real auth in
+  // preload's testConfigDir is never touched.
+  const prevConfig = process.env.OPENCODE_TEST_CONFIG
+  process.env.OPENCODE_TEST_CONFIG = keyed.path
 
   try {
-    prev = await Filesystem.readText(authPath)
-  } catch {
-    // auth file may not exist yet - expected on first test run
-    console.debug("provider test: auth file read skipped (not found)")
-  }
-
-  try {
-    await Filesystem.write(
-      authPath,
+    await Bun.write(
+      path.join(Global.Path.config, "auth.json"),
       JSON.stringify({
         opencode: {
           type: "api",
@@ -2722,16 +2726,7 @@ test("opencode loader keeps paid models when auth exists", async () => {
     expect(none).toBe(0)
     expect(keyedCount).toBeGreaterThan(0)
   } finally {
-    if (prev !== undefined) {
-      await Filesystem.write(authPath, prev)
-    }
-    if (prev === undefined) {
-      try {
-        await unlink(authPath)
-      } catch {
-        // cleanup may fail if file was already removed
-        console.debug("provider test: auth file cleanup skipped")
-      }
-    }
+    if (prevConfig === undefined) delete process.env.OPENCODE_TEST_CONFIG
+    else process.env.OPENCODE_TEST_CONFIG = prevConfig
   }
 })

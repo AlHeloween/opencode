@@ -1,7 +1,7 @@
 # MASTER PLAN: Settings — full inventory, editability, jsonc policy
 
 plan_id: 2026-08-31-settings-master
-state: ACTIVE
+state: DONE (2026-09-06 — 5/5 subplans implemented; the only open oracle is the user-side TUI live check of /settings, recorded in 03)
 created_by: build_mode
 revision: 1
 policy_author: Alexander (2026-08-31, 04:32–04:42 UTC)
@@ -91,8 +91,8 @@ policy_author: Alexander (2026-08-31, 04:32–04:42 UTC)
 | File | Scope | State |
 |---|---|---|
 | [01_global-write.md](01_global-write.md) | global layer editable + confirmation dialog (server handlers + TUI) | IMPLEMENTED 2026-08-31 |
-| [02_jsonc-comments.md](02_jsonc-comments.md) | all settings files jsonc with `//` comments (incl. sessions loader jsonc-parser migration) | PLANNED |
-| [03_settings-dialog.md](03_settings-dialog.md) | unified Settings dialog: every inventory row editable, scoped, mouse+keyboard; missing setting = bug | PLANNED |
+| [02_jsonc-comments.md](02_jsonc-comments.md) | all settings files jsonc with `//` comments (incl. sessions loader jsonc-parser migration) | IMPLEMENTED 2026-09-06 (loader + comment-preserving PATCH writer; null=delete unlock) |
+| [03_settings-dialog.md](03_settings-dialog.md) | unified Settings dialog: every inventory row editable, scoped, mouse+keyboard; missing setting = bug | IMPLEMENTED 2026-09-06 (v1: schema-generated registry + /settings dialog; live check pending user rebuild) |
 | [04_routing.md](04_routing.md) | OpenRouter routing: per-agent/per-model chain + defaults (streamlake) + live-endpoints dialog | IMPLEMENTED (rev 2/3) 2026-08-31 |
 | [05_rules-skills-tools.md](05_rules-skills-tools.md) | /rules, /skills, /tools — enable/disable with PERSISTED project-config save (like /mcps + save) | IMPLEMENTED 2026-09-01 |
 
@@ -107,5 +107,5 @@ policy_author: Alexander (2026-08-31, 04:32–04:42 UTC)
 1. All three layers writable for agent model/variant (global with confirm) — oracle: typecheck + manual TUI flow. ✅ 2026-08-31
 2. Settings inventory covers 100% of surfaces (A–E) with dependent code refs — this document.
 3. jsonc comments: every settings file loader tolerates `//` — subplan 02.
-4. TUI settings option with mouse+keyboard — subplan 03.
+4. TUI settings option with mouse+keyboard — subplan 03. ✅ 2026-09-06 (v1; live check pending user rebuild)
 5. Policy enforcement: any future setting not added to this registry = bug (review checklist item).

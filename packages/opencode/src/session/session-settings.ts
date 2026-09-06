@@ -2,6 +2,7 @@ import { Global } from "@opencode-ai/core/global"
 import path from "path"
 import { Filesystem } from "@/util/filesystem"
 import * as Log from "@opencode-ai/core/util/log"
+import { parse as parseJsonc, type ParseError } from "jsonc-parser"
 
 /**
  * Session-specific settings — per-session overrides for agent models,
@@ -14,6 +15,11 @@ import * as Log from "@opencode-ai/core/util/log"
  *   1. Session file (if present) → session override
  *   2. Workspace state (model.json) → last model selected in that workspace
  *   3. Global config (opencode.jsonc) / native Agent.Info → defaults only
+ *
+ * jsonc policy (subplan 02): the file is hand-editable — `//` comments are
+ * TOLERATED on load (parse via jsonc-parser). The writer still emits clean
+ * JSON, so hand comments survive only until the next save (documented v1
+ * trade-off); genuinely malformed jsonc loads as null (warn, never crash).
  */
 
 // ── Types ──
@@ -52,6 +58,12 @@ export interface ModelRef {
   providerID: string
   modelID: string
 }
+
+/** Runtime key inventory of SessionSettings (subplan 03 coverage policy test). */
+export const SESSION_SETTINGS_KEYS = ["agent", "recent", "favorite", "variant", "agentVariant", "modelRouting"] as const
+
+/** Runtime key inventory of the worktree model.json state file (local.tsx save shape). */
+export const MODEL_STATE_KEYS = ["recent", "favorite", "variant", "agentVariant", "workspaceAgent", "taskModel"] as const
 
 export const DEFAULT_WORKSPACE_MODEL_SCOPE = "default"
 
@@ -284,8 +296,20 @@ export async function loadSessionSettings(sessionID: string): Promise<SessionSet
     if (!exists) return null
 
     const raw = await Filesystem.readText(filePath)
-    // Parse as JSON (jsonc-parser not needed — we store clean JSON)
-    const data = JSON.parse(raw) as Record<string, unknown>
+    // jsonc (subplan 02): hand-written `//` comments must not silently
+    // discard the settings (the old strict JSON.parse threw → null → the
+    // next save overwrote the file). jsonc-parser tolerates comments;
+    // malformed jsonc still loads as null (warn, never crash).
+    const errors: ParseError[] = []
+    const data = parseJsonc(raw, errors) as Record<string, unknown> | undefined
+    if (data === undefined || errors.length > 0) {
+      Log.Default.warn("bug: session settings file is not valid jsonc", {
+        sessionID,
+        filePath,
+        parseErrors: errors.length,
+      })
+      return null
+    }
     return normalizeSessionSettings(data)
   } catch (e) {
     Log.Default.warn("bug: failed to load session settings", {

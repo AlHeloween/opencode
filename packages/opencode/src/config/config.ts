@@ -471,6 +471,21 @@ function globalConfigFile() {
 }
 
 function patchJsonc(input: string, patch: unknown, path: string[] = []): string {
+  if (patch === null) {
+    // RFC 7386 null = delete, lifted to the jsonc TEXT level (subplan 02):
+    // modify() with an undefined value removes the property while keeping
+    // every other comment/format byte. A top-level null has no path to
+    // address — no-op.
+    if (path.length === 0) return input
+    const edits = modify(input, path, undefined, {
+      formattingOptions: {
+        insertSpaces: true,
+        tabSize: 2,
+      },
+    })
+    return applyEdits(input, edits)
+  }
+
   if (!isRecord(patch)) {
     const edits = modify(input, path, patch, {
       formattingOptions: {
@@ -482,29 +497,6 @@ function patchJsonc(input: string, patch: unknown, path: string[] = []): string 
   }
 
   return Object.entries(patch).reduce((result, [key, value]) => patchJsonc(result, value, [...path, key]), input)
-}
-
-// RFC 7386 JSON Merge Patch (subplan 05 rev 2, 2026-09-01): PATCH /config must
-// express deletion — remeda mergeDeep recurses only keys present in BOTH
-// objects, so "enable" (remove rules.<name>: false) was a silent no-op, and
-// PATCHing the full merged GET /config back dragged global settings into the
-// project file. null deletes the key (never persisted as null), plain objects
-// merge recursively, everything else replaces (arrays replace wholesale).
-function mergePatch(target: Record<string, unknown>, patch: Record<string, unknown>): Record<string, unknown> {
-  const result: Record<string, unknown> = { ...target }
-  for (const [key, value] of Object.entries(patch)) {
-    if (value === null) {
-      delete result[key]
-      continue
-    }
-    const current = result[key]
-    if (isPlainObject(current) && isPlainObject(value)) {
-      result[key] = mergePatch(current as Record<string, unknown>, value as Record<string, unknown>)
-      continue
-    }
-    result[key] = value
-  }
-  return result
 }
 
 function writable(info: Info) {
@@ -1070,17 +1062,19 @@ export const layer = Layer.effect(
     const update = Effect.fn("Config.update")(function* (patch: Info, options?: { dispose?: boolean }) {
       const dir = yield* InstanceState.directory
       const file = path.join(dir, "config.json")
-      const existing = yield* loadFile(file)
-      yield* fs
-        .writeFileString(
-          file,
-          JSON.stringify(
-            mergePatch(writable(existing) as Record<string, unknown>, writable(patch) as Record<string, unknown>),
-            null,
-            2,
-          ),
-        )
-        .pipe(Effect.orDie)
+      // Subplan 02: rewrite the file TEXT via jsonc edits so hand-written `//`
+      // comments survive (the old JSON.stringify rewrite dropped them).
+      // mergePatch semantics (null = delete) are carried by patchJsonc's null
+      // branch; the $schema injection mirrors loadConfig's load-time
+      // normalization (config.ts loadConfig). plugin_origins stripping applies
+      // to the patch only — pre-existing file content is never rewritten.
+      const before = (yield* readConfigFile(file)) ?? "{}"
+      let next = patchJsonc(before, writable(patch) as Record<string, unknown>)
+      const parsed = ConfigParse.effectSchema(Info, ConfigParse.jsonc(next, file), file)
+      if (!parsed.$schema) {
+        next = patchJsonc(next, { $schema: "https://opencode.ai/config.json" })
+      }
+      yield* fs.writeFileString(file, next).pipe(Effect.orDie)
       // Always drop per-directory InstanceState caches after writing the overlay.
       // Without this, Config.get() / Agent state keep pre-update values and the
       // TUI /permissions dialog appears to "revert" after Save (dispose: false path).

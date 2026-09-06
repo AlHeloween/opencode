@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import type { UpgradeWebSocket } from "hono/ws"
 import path from "path"
 import { Flag } from "@opencode-ai/core/flag/flag"
+import { parse as parseJsonc } from "jsonc-parser"
 import { GlobalBus } from "@/bus/global"
 import { Instance } from "../../src/project/instance"
 import { InstanceRoutes } from "../../src/server/routes/instance"
@@ -164,6 +165,44 @@ describe("config HttpApi (PATCH = RFC 7386 merge-patch)", () => {
     const enable = await patch(tmp.path, { tools: { bash: null } })
     expect(enable.status).toBe(200)
     expect((await readConfigJson(tmp.path)).tools?.bash).toBeUndefined()
+  })
+
+  test("PATCH preserves // comments in config.json (subplan 02 jsonc policy)", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(
+          configFile(dir),
+          [
+            "{",
+            '  "$schema": "https://opencode.ai/config.json",',
+            "  // user note — hand-written comments must survive config updates",
+            '  "username": "u",',
+            '  "shell": "pwsh"',
+            "}",
+          ].join("\n"),
+        )
+      },
+    })
+
+    // Set: rules.a.md = false
+    const disable = await patch(tmp.path, { rules: { "a.md": false } })
+    expect(disable.status).toBe(200)
+
+    const afterSet = await Bun.file(configFile(tmp.path)).text()
+    expect(afterSet).toContain("// user note — hand-written comments must survive config updates")
+    const setParsed = parseJsonc(afterSet) as Record<string, any>
+    expect(setParsed.rules).toEqual({ "a.md": false })
+    expect(setParsed.username).toBe("u")
+    expect(setParsed.shell).toBe("pwsh")
+
+    // Delete (RFC 7386 null): rules.a.md removed, comments STILL intact
+    const enable = await patch(tmp.path, { rules: { "a.md": null } })
+    expect(enable.status).toBe(200)
+
+    const afterDelete = await Bun.file(configFile(tmp.path)).text()
+    expect(afterDelete).toContain("// user note — hand-written comments must survive config updates")
+    const delParsed = parseJsonc(afterDelete) as Record<string, any>
+    expect(delParsed.rules?.["a.md"]).toBeUndefined()
   })
 })
 

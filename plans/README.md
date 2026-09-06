@@ -56,8 +56,7 @@ Every **implementable** plan must include:
 
 ## Active Plans
 
-- `2026-07-25_shell_dialect_preflight.md` — cmd/bash dialect preflight, COMMAND_UNAVAILABLE classification, description fixes (Windows `ls` false path oracle)
-- `2026-07-22_epistemic_guardrails.md` — close the Inferred/Exact gap: job output marking, verification nudge, compaction decisions preservation
+(none — all active work is completed and archived; `plans_completed/` holds the full archive, most recently `2026-08-31_settings/` — all 5 subplans implemented 2026-09-06)
 
 ## Abstract futures (not active)
 

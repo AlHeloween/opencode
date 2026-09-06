@@ -235,6 +235,43 @@ describe("loadSessionSettings: normalization", () => {
   })
 })
 
+// ── load: jsonc comments tolerated (subplan 02) ──
+
+describe("loadSessionSettings: jsonc comments", () => {
+  test("parses a file containing // comments (policy: settings files are jsonc)", async () => {
+    await using tmp = await tmpdir()
+    await withDataDir(tmp, async () => {
+      await writeRaw(
+        tmp,
+        "ses_jsonc",
+        [
+          "// Session overrides for this conversation.",
+          "{",
+          "  // hand-tuned for reasoning work",
+          '  "agent": { "build_mode": { "model": "anthropic/claude-4.5" } },',
+          '  "variant": { "openai/gpt-5.6": "high" }',
+          "}",
+        ].join("\n"),
+      )
+      const loaded = await loadSessionSettings("ses_jsonc")
+      // Comments must be tolerated on load: settings are NOT silently
+      // discarded, and the next save therefore does not wipe user edits.
+      expect(loaded).not.toBeNull()
+      expect(loaded!.agent!["build_mode"]!.model).toBe("anthropic/claude-4.5")
+      expect(loaded!.variant).toEqual({ "openai/gpt-5.6": "high" })
+    })
+  })
+
+  test("still returns null for genuinely malformed jsonc", async () => {
+    await using tmp = await tmpdir()
+    await withDataDir(tmp, async () => {
+      await writeRaw(tmp, "ses_broken", "{ agent: { build_mode: { model: } } }")
+      const loaded = await loadSessionSettings("ses_broken")
+      expect(loaded).toBeNull()
+    })
+  })
+})
+
 // ── removeSessionSettings ──
 
 describe("removeSessionSettings", () => {

@@ -37,6 +37,7 @@ import { DialogTaskSettings } from "@tui/component/dialog-task-settings"
 import { useConnected } from "@tui/component/use-connected"
 import { DialogMcp } from "@tui/component/dialog-mcp"
 import { DialogFeatureToggle } from "@tui/component/dialog-feature-toggle"
+import { DialogSettings } from "@tui/component/dialog-settings"
 import { DialogPipeline } from "@tui/component/dialog-pipeline"
 import { DialogStatus } from "@tui/component/dialog-status"
 import { DialogPermissions } from "@tui/component/dialog-navigation"
@@ -617,6 +618,17 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       },
       onSelect: () => {
         dialog.replace(() => <DialogFeatureToggle mode="tools" />)
+      },
+    },
+    {
+      title: "Settings",
+      value: "settings.dialog",
+      category: "Agent",
+      slash: {
+        name: "settings",
+      },
+      onSelect: () => {
+        dialog.replace(() => <DialogSettings />)
       },
     },
     {

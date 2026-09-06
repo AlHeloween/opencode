@@ -98,7 +98,7 @@ Full details: [docs/architecture.md](docs/architecture.md), [docs/compaction.md]
 - **REUSE.BEFORE** non-trivial invent; re-search on stuck failure.
 - **SMOKE.BEFORE** implementation; baseline then post-impl before `[x]`.
 - Treat summaries as **Inferred handles**, not Exact — recover via session-read / fossil / codegraph.
-- Do not hand-edit ADID receivers; kernel + ADM own framework surfaces.
+- Do not hand-edit ADID receivers; kernel + ADM own framework surfaces (why both canons exist: [docs/two-canon-protocol.md](docs/two-canon-protocol.md)).
 
 ---
 
@@ -418,6 +418,7 @@ All detailed docs live in `docs/`. Here's the quick map:
 ### Architecture / Stack
 - [Architecture](docs/architecture.md) — prompt system, checkpoint, compaction, agents, KV cache
 - [Reasoning framework](docs/reasoning-framework.md) — kernel / SPECS / IR
+- [Two-canon protocol](docs/two-canon-protocol.md) — ADID 15.3 (untracked, package-rendered) ↔ kernel parity: one protocol, two compilers; why both exist
 - [Gate add-ons](docs/gate-addons.md) — advisory path bindings per kernel gate, addon registry, budget guardrails
 - [Agentic reasoning runtime](docs/agentic-reasoning-runtime.md) — gates, REUSE ladder, claim ledger
 - [AGI Workflow](docs/agi-workflow.md) — orchestrator/worker loop, plan hygiene

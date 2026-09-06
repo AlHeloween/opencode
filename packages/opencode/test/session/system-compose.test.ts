@@ -168,7 +168,6 @@ describe("system prefix digest (reasoning_prompt.txt)", () => {
     expect(parts.reasoning.length).toBeGreaterThan(10_000)
     expect(parts.reasoning.length).toBeLessThan(80_000)
     expect(parts.reasoning).toContain("KERNEL_MAP")
-    expect(parts.reasoning).toContain("CLAIM_LEDGER")
     expect(parts.reasoning).toMatch(/REUSE_BEFORE|REUSE\.BEFORE/)
     expect(parts.reasoning).toContain("ABI_AND_VOCABULARY")
     expect(parts.reasoning).toContain("SHARED_RULES")

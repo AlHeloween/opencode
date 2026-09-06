@@ -487,8 +487,18 @@ describe("session.llm.stream", () => {
         expect(headers.get("Authorization")).toBe("Bearer test-key")
         expect(headers.get("x-session-affinity")).toBeNull()
         expect((body.messages as Array<{ role: string; content: string }>)
-          .some((message) => message.role === "system" && message.content.includes("[session:")))
-          .toBe(false)
+          .some(
+            (message) =>
+              message.role === "system" &&
+              message.content.includes(
+                `[session: ${LLM.buildProviderCacheKey({
+                  sessionID,
+                  modelID: resolved.id,
+                  identity: agent.name,
+                })}]`,
+              ),
+          ))
+          .toBe(true)
 
         expect(body.model).toBe(resolved.api.id)
         expect(body.temperature).toBe(0.4)
@@ -500,6 +510,92 @@ describe("session.llm.stream", () => {
 
         const reasoning = (body.reasoningEffort as string | undefined) ?? (body.reasoning_effort as string | undefined)
         expect(reasoning).toBe("high")
+      },
+    })
+  }, 30_000)
+
+  test("uses a subagent cache lease as the OpenRouter sequence identity", async () => {
+    const server = state.server
+    if (!server) {
+      throw new Error("Server not initialized")
+    }
+
+    const providerID = "openrouter"
+    const modelID = "openai/gpt-5.2-codex"
+    const fixture = await loadFixture(providerID, modelID)
+    const request = waitRequest(
+      "/chat/completions",
+      new Response(createChatStream("Hello"), {
+        status: 200,
+        headers: { "Content-Type": "text/event-stream" },
+      }),
+    )
+
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(
+          path.join(dir, "opencode.json"),
+          JSON.stringify({
+            $schema: "https://opencode.ai/config.json",
+            enabled_providers: [providerID],
+            provider: {
+              [providerID]: {
+                options: {
+                  apiKey: "test-key",
+                  baseURL: `${server.url.origin}/v1`,
+                },
+              },
+            },
+          }),
+        )
+      },
+    })
+
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const resolved = await getModel(ProviderID.make(providerID), ModelID.make(fixture.model.id))
+        const sessionID = SessionID.make("session-openrouter-physical-child")
+        const providerCacheKey = "session-parent:general:openrouter:openai/gpt-5.2-codex:task-1"
+        const agent = {
+          name: "build_mode",
+          mode: "primary",
+          options: {},
+          permission: [{ permission: "*", pattern: "*", action: "allow" }],
+        } satisfies Agent.Info
+        const user = {
+          id: MessageID.make("user-openrouter-affinity"),
+          sessionID,
+          role: "user",
+          time: { created: Date.now() },
+          agent: agent.name,
+          model: { providerID: ProviderID.make(providerID), modelID: resolved.id },
+        } satisfies MessageV2.User
+
+        await drain({
+          user,
+          sessionID,
+          providerCacheKey,
+          model: resolved,
+          agent,
+          system: ["You are a helpful assistant."],
+          messages: [{ role: "user", content: "Hello" }],
+          tools: {},
+          outputTokenMax: 64,
+        })
+
+        const capture = await request
+        const expectedCacheKey = LLM.buildProviderCacheKey({
+          sessionID,
+          providerCacheKey,
+          modelID: resolved.id,
+          identity: agent.name,
+        })
+        expect(capture.headers.get("x-session-id")).toBe(expectedCacheKey)
+        expect(capture.body.session_id).toBe(expectedCacheKey)
+        expect(capture.body.prompt_cache_key).toBe(expectedCacheKey)
+        expect(JSON.stringify(capture.body.messages)).toContain(`[session: ${expectedCacheKey}]`)
+        expect(capture.body.session_id).not.toBe(sessionID)
       },
     })
   }, 30_000)

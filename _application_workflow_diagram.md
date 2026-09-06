@@ -1,3 +1,20 @@
+---
+title: Application Workflow Diagram
+owner: Local_Development
+status: production
+last_verified: 2026-09-06
+reproduce:
+  files:
+    - packages/opencode/src/provider/transform.ts
+    - packages/opencode/src/session/llm.ts
+    - packages/opencode/test/session/llm.test.ts
+  commands:
+    - cd packages/opencode && bun test test/session/llm.test.ts
+    - cd packages/opencode && bun typecheck
+  inputs: Provider request assembly for an OpenRouter parent or child task session.
+  expected_outputs: Mutable banner, body session_id, header x-session-id, and prompt_cache_key share one provider cache namespace.
+---
+
 # Application Workflow Diagram
 
 ## Tools Wire Era-Freeze Flow (2026-08-16)
@@ -39,24 +56,29 @@ Coverage estimate vs actual codebase: 9%.
 2. `packages/opencode/src/session/llm.ts` / request parameter assembly
    - Input: model, prompt messages, provider options, and session context.
    - Output: AI SDK stream/generation parameters.
-   - Logic: pass the capped `maxOutputTokens` value to the provider request so input plus output cap does not start from an impossible full-context output claim.
+   - Logic: pass the capped `maxOutputTokens` value to the provider request so input plus output cap does not start from an impossible full-context output claim; derive the final provider cache namespace before system assembly and use it in OpenRouter's `x-session-id` header.
 
-3. `packages/opencode/test/session/llm.test.ts` / qwen-like request capture
+3. `packages/opencode/src/provider/transform.ts` / OpenRouter request identity
+   - Input: final provider cache namespace (a model-scoped parent key or a reusable child-task lease).
+   - Output: OpenRouter provider options containing body `session_id` and `prompt_cache_key` equal to that namespace.
+   - Logic: the OpenRouter SDK spreads these options into the HTTP body. The mutable `[session: …]` banner and `x-session-id` header use the same value, so a physical child-session ID never splits the affinity/cache sequence.
+
+4. `packages/opencode/test/session/llm.test.ts` / qwen-like request capture
    - Input: `alibaba/qwen-plus` fixture with in-memory `output == context` override.
    - Output: captured local mock-server request body.
    - Logic: verify the outgoing OpenAI-compatible `max_tokens` body field is capped below context.
 
-4. `packages/opencode/src/session/sidecar-policy.ts` + `prompt.ts` / Layer-1 summary request
+5. `packages/opencode/src/session/sidecar-policy.ts` + `prompt.ts` / Layer-1 summary request
    - Input: byte-stable checkpoint system/M, full trunk tool catalog, and the synthetic summary user tail.
    - Output: at most two requests, each capped at 8,192 output tokens.
    - Logic: preserve the trunk `providerCacheKey` and request prefix; Constitution denies tool execution; failed and successful cycles both start the 30s cooldown.
 
-5. `packages/opencode/src/session/processor.ts` / `recordSessionUsage`
+6. `packages/opencode/src/session/processor.ts` / `recordSessionUsage`
    - Input: normalized `finish-step` usage from either a normal turn or the summary sidecar.
    - Output: shared session token/cost totals plus sidecar cache/cost/duration diagnostics.
    - Logic: the sidecar consumes rather than discards `finish-step`, classifies raw cache reporting, and uses the same totals writer as the normal processor.
 
-6. `packages/opencode/src/provider/balance-storage.ts` / cumulative cost baseline
+7. `packages/opencode/src/provider/balance-storage.ts` / cumulative cost baseline
    - Input: session total at snapshot time and the next session total.
    - Output: validation cost delta that includes detached sidecar requests.
    - Logic: persist the baseline in the existing snapshot metadata field; use message-row summation only for older or cross-session snapshots.

@@ -488,11 +488,19 @@ const live: Layer.Layer<
       // (function-calling schemas) — no prose duplicate in system messages.
       const isCheckpoint = input.checkpoint === true
 
-      const isOpenCodeProvider = input.model.providerID.startsWith("opencode")
+      // One cache namespace must identify both the prompt prefix and every
+      // provider-side affinity channel. A child task supplies its reusable
+      // lease here instead of leaking its transient physical session ID.
+      const providerCacheKey = buildProviderCacheKey({
+        sessionID: input.sessionID,
+        providerCacheKey: input.providerCacheKey,
+        modelID: input.model.id,
+        identity: input.agent.name,
+      })
       // Mode and role are recorded as synthetic user-message transitions in
       // SessionPrompt. They must never enter the system prefix: the same model
       // session shares this prefix across identities for provider KV reuse.
-      const banner = isOpenCodeProvider ? `[session: ${input.providerCacheKey ?? input.sessionID}]` : ""
+      const banner = `[session: ${providerCacheKey}]`
 
       const system: string[] = assembleSystemMessages({
         universalEnv: UNIVERSAL_ENV,
@@ -521,12 +529,6 @@ const live: Layer.Layer<
       // while its provider cache key is stable, the provider cache is invalidated.
       // Primary modes share one cache entry (same system prefix). Non-primary agents
       // get their own namespace (different system prompt).
-      const providerCacheKey = buildProviderCacheKey({
-        sessionID: input.sessionID,
-        providerCacheKey: input.providerCacheKey,
-        modelID: input.model.id,
-        identity: input.agent.name,
-      })
       if (!loggedSystemPromptForCacheKey.has(providerCacheKey)) {
         loggedSystemPromptForCacheKey.set(providerCacheKey, true)
         l.info("system prompt ready (once)", { content: system.join("\n") })
@@ -920,7 +922,7 @@ const live: Layer.Layer<
                 // provider.order disables OpenRouter's derived-key stickiness —
                 // without this header the endpoint can flip mid-session (cold
                 // cache resets, even for the system prompt).
-                ...(input.model.providerID === "openrouter" ? { "X-Session-Id": input.sessionID } : {}),
+                ...(input.model.providerID === "openrouter" ? { "X-Session-Id": providerCacheKey } : {}),
                 "User-Agent": `opencode/${InstallationVersion}`,
               }),
           ...input.model.headers,

@@ -1,5 +1,38 @@
 # Development Plan
 
+## 2026-09-06 OpenRouter unified cache namespace (plan: plans_completed/2026-09-06_openrouter-unified-cache-namespace.md)
+
+Goal: make the cache-visible session banner and all OpenRouter affinity/cache fields use the final provider cache namespace, including a reusable child-task lease rather than the physical child session ID.
+
+Tasks:
+
+- [x] T1 Compute the cache key before assembling the mutable session banner.
+- [x] T2 Use it for the OpenRouter header and request body affinity fields.
+- [x] T3 Add the child-lease wire oracle and verify with typecheck/diff checks.
+
+Verification:
+
+- [x] Baseline `bun test test/session/llm.test.ts` — 27 pass / 0 fail (`20260906T090346Z_ae973a27`).
+- [x] Post-change `llm.test.ts` — 27 pass / 0 fail (`20260906T090557Z_94070e8e`); `bun typecheck` — exit 0 (`20260906T090624Z_0602951d`).
+- [ ] Separate residual: `system-compose.test.ts` has an untouched installed prompt-artifact assertion failure (`REUSE_BEFORE|REUSE.BEFORE`; `20260906T091108Z_a2156d93`); the stale `CLAIM_LEDGER` assertion was removed and no Constitution/kernel mutation was authorized.
+
+## 2026-09-06 OpenRouter session identity and sticky routing (plan: plans_completed/2026-09-06_openrouter-session-sticky-routing.md)
+
+Goal: preserve OpenRouter upstream affinity for long cached sessions by sending one canonical session ID through both supported affinity channels and removing `provider.order` only from the active Z.AI-only runtime profile.
+
+Tasks:
+
+- [x] T1 Add OpenRouter body `session_id` without changing the model-scoped `prompt_cache_key` or existing `X-Session-Id` header.
+- [x] T2 Change the active Z.AI runtime route from `order` to `only`; preserve generic routing semantics.
+- [x] T3 Add a wire-level regression test, focused verification, typecheck, docs, and diff/read-back checks.
+
+Verification:
+
+- [x] Baseline focused tests — 32 pass / 0 fail (`20260906T043257Z_0bf92f6b`).
+- [x] Post-change: `llm.test.ts` 27 pass / 0 fail (`20260906T081358Z_8e0f7cf8`); routing 6 pass / 0 fail (`20260906T081322Z_9533abf4`).
+- [x] `bun typecheck` from `packages/opencode` — exit 0 (`20260906T081322Z_f84f121a`).
+- [x] `git diff --check`; Constitution and prompt-prefix surfaces unchanged; runtime config read-back has `only` and no `order` in the OpenRouter profile.
+
 ## 2026-09-06 Summary sidecar cost/cache repair (plan: plans_completed/2026-09-06_summary-sidecar-cost-cache-repair.md)
 
 Goal: bound the hidden 64K summary generation and make its provider usage observable/accounted without changing Constitution, tools, system prefix, checkpoint M, or provider cache identity.

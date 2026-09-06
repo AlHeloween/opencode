@@ -1,7 +1,7 @@
 # Subplan 04: OpenRouter routing — per-agent, per-model, defaults + interactive dialog
 
 plan_id: 2026-08-31-settings-04-routing
-state: IMPLEMENTED (rev 4, 2026-09-02) — server chain + defaults + dialog; rev 2 = live endpoints; rev 4 = scope-aware saves (global/worktree/session) + 2-line layout
+state: IMPLEMENTED (rev 5, 2026-09-06) — server chain + defaults + dialog; rev 2 = live endpoints; rev 4 = scope-aware saves (global/worktree/session) + 2-line layout; rev 5 documents sticky-routing-safe single-provider profiles
 parent: [master.md](master.md)
 origin: Alexander 2026-08-31 06:15–06:25 UTC — "настройки уникальны для каждой модели… типа глобальные, локальные"; "для DeepSeek v4 Flash v731 должен быть StreamLake по умолчанию"; "та же модель но разные провайдеры в зависимости от целей, разная квантизация. StreamLake четко указывает точность"; dialog: "всплывающее окно по hotkey, cursor move, space select unselect, в списке fp".
 
@@ -26,7 +26,9 @@ Cache safety: distinct routing → distinct `s.models` cache key (`#<sha256-12>`
   // Provider-level fallback: provider.openrouter.options.routing
 }
 ```
-OpenRouter native keys pass through verbatim (openrouter.ai/docs routing: order, allow_fallbacks, require_parameters, quantizations, sort, …).
+OpenRouter native keys pass through verbatim (openrouter.ai/docs routing: order, only, allow_fallbacks, require_parameters, quantizations, sort, …).
+
+Affinity note (rev 5): `provider.order` intentionally controls priority but disables OpenRouter sticky routing. For a single allowed upstream where cache continuity matters, use `provider.only` instead. The active Z.AI runtime profile therefore uses `{ only: ["Z.AI"], allow_fallbacks: false, quantizations: ["fp8"] }`; the generic dialog retains `order` semantics for users who explicitly choose an ordered provider sequence.
 
 ## Dialog — IMPLEMENTED, rev 2 (live endpoints; Alexander 16:36 UTC: «выбор inference point не реальный для конкретно выбранной модели… нормальный список со скроллом и выбор галками, fp precision из списка, а не от балды»)
 

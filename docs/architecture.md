@@ -1,7 +1,24 @@
+---
+title: OpenCode Architecture and System Design
+owner: OpenCode team
+status: production
+last_verified: 2026-09-06
+reproduce:
+  files:
+    - packages/opencode/src/provider/transform.ts
+    - packages/opencode/src/session/llm.ts
+    - packages/opencode/test/session/llm.test.ts
+  commands:
+    - cd packages/opencode && bun test test/session/llm.test.ts
+    - cd packages/opencode && bun typecheck
+  inputs: An OpenRouter chat turn, including a child task with a reusable cache lease.
+  expected_outputs: Mutable banner, body session_id, header x-session-id, and prompt_cache_key share one final provider cache namespace.
+---
+
 # OpenCode Architecture & System Design (2026-06-24)
 
 **Status:** production
-**Last Updated:** 2026-07-17
+**Last Updated:** 2026-09-06
 **See also:**
 - `docs/reasoning-framework.md` — PromptSpec schema, syntax/disciplinary projections, IR compilation
 - `docs/compaction.md` — mechanistic compaction (stable continuous memory)
@@ -38,8 +55,8 @@ Production system kernel: `prompt_kernel/source.py` → `packages/opencode/src/s
 │  └──────────────────────────────────────────────────────┘   │
 │                                                              │
 │  System prompt order:                                        │
-│  [session banner] [rules] [env] [skills] [instructions]      │
-│  AGENTS.md LAST (recency bias, max attention weight)         │
+│  [immutable rules/env/skills/instructions] [session banner]  │
+│  banner is the final mutable cache fence                     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -198,6 +215,13 @@ injectSummaryRequest: implemented, NOT called from prompt.ts
 │    • Stores structured prompt (not debug-formatted text)     │
 │    • kind: "checkpoint" distinguishes from diff baselines    │
 │    • Atomic write: tmp → rename → .enc                       │
+│                                                              │
+│  OpenRouter affinity (llm.ts + provider/transform.ts):       │
+│    • banner == body session_id == header x-session-id        │
+│      == prompt_cache_key (final provider cache namespace)    │
+│    • a subagent uses its reusable task-cache lease, not its  │
+│      physical child session ID                               │
+│    • provider.only filters a single upstream without order   │
 └─────────────────────────────────────────────────────────────┘
 ```
 

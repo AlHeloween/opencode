@@ -1160,6 +1160,7 @@ export function options(input: {
 
   if (input.model.providerID === "openrouter") {
     result["prompt_cache_key"] = promptCacheKey
+    result["session_id"] = promptCacheKey
   }
   if (input.model.api.npm === "@ai-sdk/gateway") {
     result["gateway"] = {

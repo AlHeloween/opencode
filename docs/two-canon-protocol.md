@@ -44,6 +44,8 @@ Direct lineage marker: 15.3's change summary introduced **canonical SV hashing**
 - This is **not a capability ceiling** for MLA-class (DeepSeek) models: they enter the state **smoothly, over iterations**. The kernel's loop reaches the same state in 1–2 passes (ground → draft plan → bounded delta → oracle → revise) because each iteration re-attends only small handles — never the whole canvas. Byte-stable prefix + externalized state (git/fossil/plans/DBs) is what makes iterative entry cheap.
 - DeepSeek's fast-answer bias (temperament, not capability) is compensated structurally by kernel guardrails — oracle-before-claim, plan binding, free-first model defaults — so the same state is reached with more Unknowns on the first pass and hard corrections after.
 
+> **Origin:** the gated workflow is itself the product of this constraint analysis. Deep research across GPT and DeepSeek returned the verdict: 15.3 cannot be used on MLA directly — **but nothing prevents a Gated Workflow, and everything will work**. The kernel is that verdict realized in production.
+
 ## 4. Turn economics — why 15.3 survives
 
 - GPT-class guardrails tax **every model turn**. Editing files one-by-one multiplies the taxed surface N times.
@@ -61,3 +63,4 @@ Direct lineage marker: 15.3's change summary introduced **canonical SV hashing**
 
 - **Exact** (from the 15.3 doc header and §V): canon separation, succession direction, ADM CLI mechanics, SV-hashing lineage.
 - **Author rationale** (session 2026-09-06, framework author): MHA/MLA state-entry styles, guardrail turn economics, and the parity claim ("gated workflow is essentially the same system"). Recorded here so the rationale survives the session.
+- **Origin story** (author, session 2026-09-06): the kernel came out of deep research in GPT + DeepSeek — DeepSeek's verdict was that 15.3 could not be used on MLA directly, but a Gated Workflow would work. The prediction was confirmed: the MLA-class models the verdict was about run the kernel daily.

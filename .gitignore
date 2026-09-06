@@ -110,6 +110,8 @@ packages/opencode/.opencode/data/opencode.db
 # ── Docs & Misc ──
 docs/opencode.db.sql
 docs/examples/
+# ADID framework docs are rendered by the external ADID package (versioned variants)
+docs/ADID_Framework_*.md
 UPCOMING_CHANGELOG.md
 /result
 logseq/

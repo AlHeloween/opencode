@@ -48,9 +48,16 @@ const PROMPT_REASONING = PROMPT_REASONING_RAW.replace(/\r\n/g, "\n")
 import MAX_STEPS from "../session/prompt/max-steps.txt"
 
 /** Bounded replay of completed tool outputs keeps per-turn cache-miss blocks small.
- *  Config: tool_output.replay_max_chars (default MessageV2.REPLAY_TOOL_OUTPUT_MAX_CHARS). */
-const toolReplayOptions = (cfg: { tool_output?: { replay_max_chars?: number } }) => ({
+ *  Config: tool_output.replay_max_chars (default MessageV2.REPLAY_TOOL_OUTPUT_MAX_CHARS).
+ *  Deliver-once (2026-09-07): currentTurnAssistantID marks the assistant turn
+ *  whose tool parts replay in FULL (delivery); earlier turns' heavy results
+ *  collapse to byte-stable ID-addressed placeholders (message-v2.ts). */
+const toolReplayOptions = (
+  cfg: { tool_output?: { replay_max_chars?: number } },
+  currentTurnAssistantID?: string,
+) => ({
   toolOutputMaxChars: cfg.tool_output?.replay_max_chars ?? MessageV2.REPLAY_TOOL_OUTPUT_MAX_CHARS,
+  currentTurnAssistantID,
 })
 import { ToolRegistry } from "@/tool/registry"
 import { MCP } from "../mcp"
@@ -2243,7 +2250,7 @@ export const layer = Layer.effect(
                 const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                   msgs,
                   model,
-                  toolReplayOptions(yield* config.get()),
+                  toolReplayOptions(yield* config.get(), lastAssistant?.id),
                 )
                 modelMsgs = converted.messages
                 modelMessageIDs = Checkpoint.expandMessageIDs(msgs.map((m) => m.info.id), converted.counts)
@@ -2252,7 +2259,7 @@ export const layer = Layer.effect(
                 const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                   suffix,
                   model,
-                  toolReplayOptions(yield* config.get()),
+                  toolReplayOptions(yield* config.get(), lastAssistant?.id),
                 )
                 modelMsgs = [...prefixModel, ...converted.messages]
                 // IDs must index modelMsgs positions, not DB messages: an assistant
@@ -2271,7 +2278,7 @@ export const layer = Layer.effect(
               const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                 msgs,
                 model,
-                toolReplayOptions(yield* config.get()),
+                toolReplayOptions(yield* config.get(), lastAssistant?.id),
               )
               modelMsgs = converted.messages
               modelMessageIDs = Checkpoint.expandMessageIDs(msgs.map((m) => m.info.id), converted.counts)

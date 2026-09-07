@@ -819,6 +819,34 @@ function evictIfFull() {
   }
 }
 
+/**
+ * Deliver-once replay gate (2026-09-07, Alexander): tool outputs heavier than
+ * this (chars) collapse to a stable ID-addressed placeholder on every build
+ * EXCEPT the delivery turn (currentTurnAssistantID). Byte-stable text keeps
+ * the provider prefix cache warm; Token estimate reads placeholders, not
+ * pages — the compaction threshold stops depending on history heaviness.
+ * 32k replay cap stays as the delivery-turn ceiling.
+ */
+export const TOOL_PLACEHOLDER_THRESHOLD_CHARS = 8_000
+
+/**
+ * Canonical heavy-tool-result placeholder: pure function of (tool, id, title,
+ * size) — byte-identical across builds so the wire prefix is stable.
+ */
+export function toolPlaceholder(input: {
+  tool: string
+  partID: string
+  title?: string
+  chars: number
+}): string {
+  const size =
+    input.chars >= 1024
+      ? `${(input.chars / 1024).toFixed(1)} KB`
+      : `${input.chars} chars`
+  const what = input.title ? ` ${input.title}` : ""
+  return `[${input.tool} id=${input.partID} — result delivered earlier (${size},${what}); re-read or re-run the tool if you need the full content again]`
+}
+
 /** Clear the module-level conversion cache. Intended for test isolation. */
 export function clearConversionCache() {
   msgConversionCache.clear()
@@ -836,7 +864,18 @@ function hashParts(parts: readonly Part[]): number {
 export const toModelMessagesEffect = Effect.fnUntraced(function* (
   input: WithParts[],
   model: Provider.Model,
-  options?: { stripMedia?: boolean; toolOutputMaxChars?: number },
+  options?: {
+    stripMedia?: boolean
+    toolOutputMaxChars?: number
+    /**
+     * Deliver-once (2026-09-07, Alexander): message ID of the assistant turn
+     * being continued. Tool parts of THIS turn replay in full (up to
+     * toolOutputMaxChars) — that is the delivery; tool parts of EARLIER turns
+     * heavier than TOOL_PLACEHOLDER_THRESHOLD_CHARS collapse to a byte-stable
+     * ID-addressed placeholder so history stops cloning heavy content.
+     */
+    currentTurnAssistantID?: string
+  },
 ) {
   const result: UIMessage[] = []
   const toolNames = new Set<string>()
@@ -925,7 +964,11 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
     // Per-message conversion cache: skip redundant conversion of stable messages.
     // The key includes all provider-visible part state, including tool outputs.
     const contentFp = hashParts(msg.parts)
-    const cacheKey = `${msg.info.id}:${model.id}:${options?.stripMedia ?? false}:${options?.toolOutputMaxChars ?? 0}:${contentFp}`
+    // currentTurnAssistantID is part of the key: the same message must
+    // convert differently when it is the delivery turn (full replay) vs an
+    // earlier turn (placeholder) — a shared cache entry would clone the
+    // full text into the wrong request.
+    const cacheKey = `${msg.info.id}:${model.id}:${options?.stripMedia ?? false}:${options?.toolOutputMaxChars ?? 0}:${options?.currentTurnAssistantID ?? ""}:${contentFp}`
     const cached = cache.get(cacheKey)
     if (cached) {
       result.push(cached)
@@ -1013,9 +1056,24 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
           const toolName = canonicalName(part.tool)
           toolNames.add(toolName)
           if (part.state.status === "completed") {
+            // Deliver-once replay gate (2026-09-07): tool parts of the CURRENT
+            // turn deliver in full; heavy parts of EARLIER turns collapse to a
+            // byte-stable ID-addressed placeholder. Light parts always replay.
+            // UNSET currentTurnAssistantID = legacy behavior everywhere (title,
+            // checkpoint conversions) — no gating, full replay up to the cap.
+            const isCurrentTurn =
+              !options?.currentTurnAssistantID || options.currentTurnAssistantID === msg.info.id
+            const rawOutput = part.state.time.compacted ? "" : stripFloodReminderBlocks(part.state.output)
             const outputText = part.state.time.compacted
               ? "[Old tool result content cleared]"
-              : truncateToolOutput(stripFloodReminderBlocks(part.state.output), options?.toolOutputMaxChars)
+              : !isCurrentTurn && rawOutput.length > TOOL_PLACEHOLDER_THRESHOLD_CHARS
+                ? toolPlaceholder({
+                    tool: part.tool,
+                    partID: part.id,
+                    title: part.state.title || undefined,
+                    chars: rawOutput.length,
+                  })
+                : truncateToolOutput(rawOutput, options?.toolOutputMaxChars)
             // Deliver-once (2026-09-07): when the processor already delivered
             // this tool result's media as a real user message (metadata
             // mediaDelivered = <userMessageID>), the media lives in history —
@@ -1155,7 +1213,11 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
 export function toModelMessages(
   input: WithParts[],
   model: Provider.Model,
-  options?: { stripMedia?: boolean; toolOutputMaxChars?: number },
+  options?: {
+    stripMedia?: boolean
+    toolOutputMaxChars?: number
+    currentTurnAssistantID?: string
+  },
 ): Promise<ModelMessage[]> {
   return Effect.runPromise(toModelMessagesEffect(input, model, options).pipe(Effect.provide(EffectLogger.layer)))
 }
@@ -1164,11 +1226,19 @@ export function toModelMessages(
  * Convert each DB message independently and record how many ModelMessages
  * each produced. Used by checkpoint save so prefix reuse can slice past
  * expanded tool-result messages (assistant tool-call → assistant + tool roles).
+ *
+ * Deliver-once: when `currentTurnAssistantID` is set, that assistant message's
+ * tool parts replay in full (delivery); earlier turns' heavy parts collapse to
+ * ID-addressed placeholders.
  */
 export const toModelMessagesWithCountsEffect = Effect.fnUntraced(function* (
   input: WithParts[],
   model: Provider.Model,
-  options?: { stripMedia?: boolean; toolOutputMaxChars?: number },
+  options?: {
+    stripMedia?: boolean
+    toolOutputMaxChars?: number
+    currentTurnAssistantID?: string
+  },
 ) {
   const messages: ModelMessage[] = []
   const counts: number[] = []

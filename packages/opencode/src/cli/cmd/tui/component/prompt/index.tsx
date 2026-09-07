@@ -973,13 +973,15 @@ export function Prompt(props: PromptProps) {
 
   // Model line extras (user spec 2026-09-06): per-MILLION registry price
   // parameters of the model, capability tags, and the OpenRouter serving
-  // endpoint. The endpoint is NEVER empty (user: an unpinned target breaks
-  // provider-side KV cache — routing drift = full-price re-prefill — and free
-  // providers punish uncacheable bursts): the TARGET resolves from the
-  // effective routing config (agent → model → provider → defaults, mirroring
-  // provider.ts getModel priority) before any response; the ACTUAL endpoint
-  // rides usage accounting once a response lands; a mismatch is a loud
-  // cache-break warning.
+  // endpoint. The endpoint label is OpenRouter-ONLY (user directive
+  // 2026-09-07: endpoint as a routable object exists for OpenRouter — the one
+  // provider with an upstream pool we can target and verify from response
+  // metadata; pure-play providers like Novita run their own iron and have no
+  // upstream choice, so "unpinned" is meaningless noise for them): the
+  // TARGET resolves from the effective routing config (agent → model →
+  // provider → defaults, mirroring provider.ts getModel priority) before any
+  // response; the ACTUAL endpoint rides usage accounting once a response
+  // lands; a mismatch is a loud cache-break warning.
   const modelMeta = createMemo(() => {
     const selected = local.model.current()
     if (!selected) return undefined
@@ -1041,9 +1043,16 @@ export function Prompt(props: PromptProps) {
     const messages = props.sessionID ? (sync.data.message[props.sessionID] ?? []) : []
     const last = messages.findLast((item) => item.role === "assistant") as Record<string, unknown> | undefined
     const actual = typeof last?.endpoint === "string" && last.endpoint ? last.endpoint : undefined
-    const sameEndpoint = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+    // Non-openrouter providers render NO endpoint label at all (undefined →
+    // <Show> hides the element). The old fallback "(endpoint unpinned)" fired
+    // for every direct provider with no routing config — categorical noise:
+    // Novita/Zen/DeepSeek have no upstream pool to pin.
+    if (selected.providerID !== "openrouter") {
+      return { price, capsLabel: caps.length > 0 ? `[${caps.join(" ")}]` : undefined, endpointLabel: undefined, endpointWarn: false }
+    }
     let endpointLabel: string
     let endpointWarn = false
+    const sameEndpoint = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
     if (actual && target.endpoint) {
       if (sameEndpoint(actual, target.endpoint)) {
         endpointLabel = `(${actual})`
@@ -1054,13 +1063,16 @@ export function Prompt(props: PromptProps) {
         endpointWarn = true
       }
     } else if (actual) {
-      endpointLabel = `(${actual} · unpinned)`
-      endpointWarn = true
+      // Response arrived but no routing config: sticky routing (OpenRouter
+      // default) is doing the pinning server-side — not a drift condition.
+      endpointLabel = `(${actual})`
     } else if (target.endpoint) {
       endpointLabel = `(${target.endpoint}${target.pinned ? "" : "?"})`
     } else {
-      endpointLabel = "(endpoint unpinned)"
-      endpointWarn = true
+      // OpenRouter with no routing config AND no response yet: neutral idle
+      // state, not a warning — nothing has drifted, nothing is missing.
+      endpointLabel = "(endpoint pending)"
+      endpointWarn = false
     }
     return {
       price,

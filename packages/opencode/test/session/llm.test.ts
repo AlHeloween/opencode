@@ -485,7 +485,10 @@ describe("session.llm.stream", () => {
         expect(url.pathname.startsWith("/v1/")).toBe(true)
         expect(url.pathname.endsWith("/chat/completions")).toBe(true)
         expect(headers.get("Authorization")).toBe("Bearer test-key")
-        expect(headers.get("x-session-affinity")).toBeNull()
+        // Correlation contract 2026-09-07: x-session-affinity is sent for ALL
+        // providers (= sessionID for non-openrouter routes), enabling
+        // provider-side session grouping and cache affinity.
+        expect(headers.get("x-session-affinity")).toBe("session-test-1")
         expect((body.messages as Array<{ role: string; content: string }>)
           .some(
             (message) =>

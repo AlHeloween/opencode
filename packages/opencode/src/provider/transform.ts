@@ -308,48 +308,26 @@ function applyCaching(msgs: ModelMessage[], model: Provider.Model): ModelMessage
   const system = msgs.filter((msg) => msg.role === "system").slice(0, 2)
   const final = msgs.filter((msg) => msg.role !== "system").slice(-2)
 
+  // Anthropic-only cache markers (2026-09-07 user directive):
+  // cache_control/ephemeral is an Anthropic-dialect concept (explicit
+  // breakpoints ARE the caching mechanism there). OpenAI-standard providers
+  // (Novita, Zen, DeepSeek, OpenAI, Azure — anything openai-compatible) cache
+  // AUTOMATICALLY by token prefix; the openaiCompatible stamp was unknown
+  // bytes that MOVED every turn (last-2 window) and broke the auto cache at
+  // the second-to-last message each request. openrouter/bedrock/copilot/
+  // alibaba dialects likewise dropped — none of them use this key shape on
+  // their own wire, and Claude-via-openaiCompatible routers are explicitly
+  // out of scope per user.
   const providerOptions = {
     anthropic: {
-      cacheControl: { type: "ephemeral" },
-    },
-    openrouter: {
-      cacheControl: { type: "ephemeral" },
-    },
-    bedrock: {
-      cachePoint: { type: "default" },
-    },
-    openaiCompatible: {
-      cache_control: { type: "ephemeral" },
-    },
-    copilot: {
-      copilot_cache_control: { type: "ephemeral" },
-    },
-    alibaba: {
       cacheControl: { type: "ephemeral" },
     },
   }
 
   for (const msg of unique([...system, ...final])) {
-    const useMessageLevelOptions =
-      model.providerID === "anthropic" ||
-      model.providerID.includes("bedrock") ||
-      model.api.npm === "@ai-sdk/amazon-bedrock"
-    const shouldUseContentOptions = !useMessageLevelOptions && Array.isArray(msg.content) && msg.content.length > 0
-
-    if (shouldUseContentOptions) {
-      const lastContent = msg.content[msg.content.length - 1]
-      if (
-        lastContent &&
-        typeof lastContent === "object" &&
-        lastContent.type !== "tool-approval-request" &&
-        lastContent.type !== "tool-approval-response"
-      ) {
-        const safeExistingPart = lastContent.providerOptions && typeof lastContent.providerOptions === "object" && !Array.isArray(lastContent.providerOptions) ? lastContent.providerOptions : {}
-        lastContent.providerOptions = mergeDeep(safeExistingPart, providerOptions)
-        continue
-      }
-    }
-
+    // Anthropic semantics: markers go at MESSAGE level (the SDK then places
+    // the wire cache_control on the last cacheable content block itself).
+    // Content-level stamping belonged to the removed dialects only.
     const safeExistingMsg = msg.providerOptions && typeof msg.providerOptions === "object" && !Array.isArray(msg.providerOptions) ? msg.providerOptions : {}
     msg.providerOptions = mergeDeep(safeExistingMsg, providerOptions)
   }
@@ -394,22 +372,13 @@ export function message(msgs: ModelMessage[], model: Provider.Model, options: Re
   msgs = unsupportedParts(msgs)
   msgs = normalizeMessages(msgs, model, options)
   if (
+    // Anthropic-only gate (2026-09-07): cacheControl markers exist for the
+    // anthropic dialect. DeepSeek / OpenAI / Azure / Copilot / Alibaba and
+    // claude-through-openaiCompatible routers do NOT take this key — their
+    // caching is automatic or uses different wire fields.
     (model.providerID === "anthropic" ||
       model.providerID === "google-vertex-anthropic" ||
-      model.providerID === "deepseek" ||
-      model.api.id.includes("anthropic") ||
-      model.api.id.includes("claude") ||
-      model.api.id.includes("deepseek") ||
-      model.id.includes("anthropic") ||
-      model.id.includes("claude") ||
-      model.id.includes("deepseek") ||
-      model.api.npm === "@ai-sdk/anthropic" ||
-      model.api.npm === "@ai-sdk/alibaba" ||
-      model.api.npm === "@ai-sdk/openai-compatible" ||
-      model.api.npm === "@ai-sdk/deepseek" ||
-      model.api.npm === "@ai-sdk/openai" ||
-      model.api.npm === "@ai-sdk/azure" ||
-      model.api.npm === "@ai-sdk/github-copilot") &&
+      model.api.npm === "@ai-sdk/anthropic") &&
     model.api.npm !== "@ai-sdk/gateway"
   ) {
     tlog.info("applyCaching triggered", {

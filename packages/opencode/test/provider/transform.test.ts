@@ -2243,7 +2243,7 @@ describe("ProviderTransform.message - providerOptions key remapping", () => {
 })
 
 describe("ProviderTransform.message - claude w/bedrock custom inference profile", () => {
-  test("adds cachePoint", () => {
+  test("adds no cache markers (anthropic-only directive 2026-09-07)", () => {
     const model = {
       id: "amazon-bedrock/custom-claude-sonnet-4.5",
       providerID: "amazon-bedrock",
@@ -2267,18 +2267,14 @@ describe("ProviderTransform.message - claude w/bedrock custom inference profile"
 
     const result = ProviderTransform.message(msgs, model, {})
 
-    expect(result[0].providerOptions?.bedrock).toEqual(
-      expect.objectContaining({
-        cachePoint: {
-          type: "default",
-        },
-      }),
-    )
+    // cachePoint stamping removed: the moving last-2 marker changed request
+    // bytes each turn and broke Bedrock's prefix cache. Anthropic-only.
+    expect(result[0].providerOptions?.bedrock).toBeUndefined()
   })
 })
 
 describe("ProviderTransform.message - bedrock caching with non-bedrock providerID", () => {
-  test("applies cache options at message level when npm package is amazon-bedrock", () => {
+  test("no cache options when npm package is amazon-bedrock (anthropic-only directive)", () => {
     const model = {
       id: "aws/us.anthropic.claude-opus-4-6-v1",
       providerID: "aws",
@@ -2306,10 +2302,8 @@ describe("ProviderTransform.message - bedrock caching with non-bedrock providerI
 
     const result = ProviderTransform.message(msgs, model, {}) as any[]
 
-    // Cache should be at the message level and not the content-part level
-    expect(result[0].providerOptions?.bedrock).toEqual({
-      cachePoint: { type: "default" },
-    })
+    // cachePoint stamping removed with the anthropic-only cache contract.
+    expect(result[0].providerOptions?.bedrock).toBeUndefined()
     expect(result[0].content[0].providerOptions?.bedrock).toBeUndefined()
   })
 })
@@ -2383,33 +2377,12 @@ describe("ProviderTransform.message - cache control on gateway", () => {
 
     const result = ProviderTransform.message(msgs, model, {}) as any[]
 
+    // Anthropic-only (2026-09-07): cache markers exist solely for the
+    // anthropic dialect. openrouter/bedrock/openaiCompatible/copilot/alibaba
+    // stamps removed — OpenAI-standard providers cache automatically by
+    // prefix, and the moving marker broke the auto-cache every turn.
     expect(result[0].providerOptions).toEqual({
       anthropic: {
-        cacheControl: {
-          type: "ephemeral",
-        },
-      },
-      openrouter: {
-        cacheControl: {
-          type: "ephemeral",
-        },
-      },
-      bedrock: {
-        cachePoint: {
-          type: "default",
-        },
-      },
-      openaiCompatible: {
-        cache_control: {
-          type: "ephemeral",
-        },
-      },
-      copilot: {
-        copilot_cache_control: {
-          type: "ephemeral",
-        },
-      },
-      alibaba: {
         cacheControl: {
           type: "ephemeral",
         },
@@ -2446,32 +2419,34 @@ describe("ProviderTransform.message - cache control on gateway", () => {
           type: "ephemeral",
         },
       },
-      openrouter: {
-        cacheControl: {
-          type: "ephemeral",
-        },
-      },
-      bedrock: {
-        cachePoint: {
-          type: "default",
-        },
-      },
-      openaiCompatible: {
-        cache_control: {
-          type: "ephemeral",
-        },
-      },
-      copilot: {
-        copilot_cache_control: {
-          type: "ephemeral",
-        },
-      },
-      alibaba: {
-        cacheControl: {
-          type: "ephemeral",
-        },
+    })
+  })
+
+  test("openai-compatible providers get NO cache markers (auto-cache by prefix)", () => {
+    // Regression 2026-09-07: the old applyCaching stamped
+    // openaiCompatible cache_control:{type:ephemeral} on the last 2
+    // messages — unknown bytes that MOVED each turn and broke the
+    // provider's automatic prefix cache (Novita wire dump proof).
+    const model = createModel({
+      providerID: "novita-ai",
+      api: {
+        id: "zai-org/glm-5.3-flash",
+        url: "https://api.novita.ai/openai",
+        npm: "@ai-sdk/openai-compatible",
       },
     })
+    const msgs = [
+      { role: "system", content: "You are a helpful assistant" },
+      { role: "user", content: "Hello" },
+      { role: "assistant", content: "Hi there" },
+      { role: "user", content: "Continue" },
+    ] as any[]
+
+    const result = ProviderTransform.message(msgs, model, {}) as any[]
+
+    expect(JSON.stringify(result)).not.toContain("cache_control")
+    expect(JSON.stringify(result)).not.toContain("ephemeral")
+    expect(JSON.stringify(result)).not.toContain("copilot_cache_control")
   })
 })
 

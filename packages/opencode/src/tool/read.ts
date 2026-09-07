@@ -10,6 +10,7 @@ import { assertExternalDirectoryEffect } from "./external-directory"
 import { Instruction } from "../session/instruction"
 import { isImageAttachment, sniffAttachmentMime } from "@/util/media"
 import { convertDocument, isSupportedDocumentFormat } from "../util/markdownify"
+import { extractVideoFrames } from "@/util/video"
 import { filePathDescription } from "./path-hint"
 
 const DEFAULT_READ_LIMIT = 2000
@@ -286,6 +287,68 @@ export const ReadTool = Tool.define(
               url: `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`,
             },
           ],
+        }
+      }
+
+      // Video: capability-aware dispatch (user spec 2026-09-07).
+      //  - model supports native video -> attach the file (openrouter SDK maps
+      //    video/* file parts to the wire video_url content block)
+      //  - no video but image input -> SPLIT: sample evenly spaced downscaled
+      //    frames via ffmpeg and attach them as images
+      //  - neither -> fall through to the markdownify stub below
+      if (mime.startsWith("video/")) {
+        const model = ctx.extra?.["model"] as
+          | { capabilities?: { input?: { video?: boolean; image?: boolean } } }
+          | undefined
+        const videoInput = model?.capabilities?.input?.video === true
+        const imageInput = model?.capabilities?.input?.image === true
+        const MAX_VIDEO_BYTES = 20 * 1024 * 1024
+        if (videoInput) {
+          if (Number(stat.size) > MAX_VIDEO_BYTES) {
+            return yield* Effect.fail(
+              new Error(
+                `Video too large for native input: ${filepath} (${(Number(stat.size) / 1048576).toFixed(1)} MiB > 20 MiB). ` +
+                  `Split or compress it first.`,
+              ),
+            )
+          }
+          const bytes = yield* fs.readFile(filepath)
+          return {
+            title,
+            output: "Video read successfully (native video input)",
+            metadata: {
+              preview: "Video read successfully",
+              truncated: false,
+              loaded: loaded.map((item) => item.filepath),
+            },
+            attachments: [
+              {
+                type: "file" as const,
+                mime,
+                url: `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`,
+              },
+            ],
+          }
+        }
+        if (imageInput) {
+          const frames = yield* Effect.promise(() => extractVideoFrames(filepath))
+          if (frames.length > 0) {
+            return {
+              title,
+              output: `Video split into ${frames.length} sampled frames (model has image input, no native video). Frames are evenly spaced across the full duration; analyze them as a sequence.`,
+              metadata: {
+                preview: `Video split into ${frames.length} frames`,
+                truncated: false,
+                loaded: loaded.map((item) => item.filepath),
+              },
+              attachments: frames.map((frame) => ({
+                type: "file" as const,
+                mime: "image/jpeg",
+                url: `data:image/jpeg;base64,${frame.base64}`,
+              })),
+            }
+          }
+          // ffmpeg/ffprobe unavailable — fall through to the markdownify stub.
         }
       }
 

@@ -985,17 +985,22 @@ export function Prompt(props: PromptProps) {
     if (!selected) return undefined
     const model = sync.data.provider.find((item) => item.id === selected.providerID)?.models[selected.modelID]
     const rates = model?.cost
+    // Icons per user spec (shorter than in()/out()/cached()): ⇣ input,
+    // ⇡ output, ↻ cached — per MILLION, trailing zeros trimmed.
+    const num = (value: number | undefined) => String(Number((value ?? 0).toFixed(3)))
     const price = rates
-      ? `in(${(rates.input ?? 0).toFixed(3)}) out(${(rates.output ?? 0).toFixed(3)}) cached(${(
-          (rates.cache?.read ?? 0) + (rates.cache?.write ?? 0)
-        ).toFixed(3)})`
+      ? `⇣${num(rates.input)} ⇡${num(rates.output)} ↻${num((rates.cache?.read ?? 0) + (rates.cache?.write ?? 0))}`
       : undefined
     const caps: string[] = []
-    // v2 sync model type doesn't expose the capability flags — narrow accessors.
+    // The TUI receives the PARSED model (provider.ts): capabilities live as a
+    // nested object, not flat registry flags.
     const flags = model as Record<string, unknown> | undefined
-    if (flags?.attachment === true) caps.push("vision")
-    if (flags?.reasoning === true) caps.push("reason")
-    if (flags?.tool_call === true) caps.push("tools")
+    const capsObj = (flags?.capabilities ?? {}) as Record<string, any>
+    const inputCaps = (capsObj.input ?? {}) as Record<string, any>
+    if (inputCaps.video === true) caps.push("🎥")
+    if (inputCaps.image === true) caps.push("👁")
+    if (capsObj.reasoning === true) caps.push("🧠")
+    if (capsObj.toolcall === true) caps.push("🔧")
 
     // Mirror of provider.ts OPENROUTER_ROUTING_DEFAULTS (the server module is
     // not importable from the TUI bundle — keep in sync manually).
@@ -1355,7 +1360,7 @@ export function Prompt(props: PromptProps) {
                   {(agent) => (
                     <>
                       <text fg={fadeColor(highlight(), agentMetaAlpha())}>
-                        {store.mode === "shell" ? "Shell" : Locale.titlecase(agent().name)}
+                        {store.mode === "shell" ? "Shell" : Locale.titlecase(agent().name.split("_")[0])}
                       </text>
                       <Show when={store.mode === "normal"}>
                         <box flexDirection="row" gap={1}>

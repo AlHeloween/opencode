@@ -264,14 +264,11 @@ export async function request(options: H2RequestOptions): Promise<H2Response> {
     const url = new URL(options.url)
     const path = url.pathname + url.search
 
-    const cleanHeaders = Object.fromEntries(
-      Object.entries(options.headers).filter(([key]) => !key.toLowerCase().startsWith("x-opencode-")),
-    )
-
     const req = session.session.request({
       ":method": options.method,
       ":path": path,
-      ...cleanHeaders,
+      // Verbatim headers — no cutting (user directive 2026-09-07).
+      ...options.headers,
     })
 
     let bodyChunks: Buffer[] = []
@@ -418,14 +415,11 @@ export async function requestStream(
     const url = new URL(options.url)
     const path = url.pathname + url.search
 
-    const cleanHeaders = Object.fromEntries(
-      Object.entries(options.headers).filter(([key]) => !key.toLowerCase().startsWith("x-opencode-")),
-    )
-
     const req = session.session.request({
       ":method": options.method,
       ":path": path,
-      ...cleanHeaders,
+      // Verbatim headers — no cutting (user directive 2026-09-07).
+      ...options.headers,
     })
 
     let firstChunk = true

@@ -12,7 +12,8 @@ import * as Truncate from "./truncate"
 import { Jobs } from "@/jobs"
 import { which } from "@/util/which"
 import * as Log from "@opencode-ai/core/util/log"
-import { enforceBinaryViaCmdRunner, enforceDestructiveShell } from "./shell-constitution"
+import { enforceBinaryViaCmdRunner, enforceDestructiveShell, autoWrapBinary } from "./shell-constitution"
+import { cmdRunnerTailBlock } from "./cmd-runner-tail"
 
 const log = Log.create({ service: "run-tool" })
 
@@ -290,6 +291,10 @@ export const RunTool = Tool.define(
             },
           })
 
+          // Auto-route crash-prone binaries through cmd_runner AFTER the run
+          // permission ask, so permission patterns stay granular ("bun *"),
+          // not the generic wrapper ("cmd_runner *").
+          const autoWrap = autoWrapBinary(binary, [...params.args])
           if (params.run_in_background !== false) {
             const jobs = yield* Effect.serviceOption(Jobs.Service)
             if (jobs._tag === "Some") {
@@ -298,18 +303,24 @@ export const RunTool = Tool.define(
                 kind: "run",
                 label: params.description || params.binary,
                 run: (writeOutput) => Effect.gen(function* () {
-                  return (yield* run(
+                  const result = yield* run(
                     {
-                      binary: params.binary,
-                      args: [...params.args],
+                      binary: autoWrap.binary,
+                      args: [...autoWrap.args],
                       cwd,
                       env: process.env,
-                      timeout,
+                      timeout: autoWrap.wrapped ? Math.max(timeout, 10 * 60 * 1000) : timeout,
                       description: params.description,
                     },
                     ctx,
                     writeOutput,
-                  )).output
+                  )
+                  if (autoWrap.wrapped) {
+                    result.output = `constitution: auto-wrapped via cmd_runner start --\n${result.output}`
+                  }
+                  // Append cmd_runner session tail so jobdone carries the real result.
+                  result.output += yield* Effect.promise(() => cmdRunnerTailBlock(result.output))
+                  return result.output
                 }),
               })
               return {
@@ -321,11 +332,11 @@ export const RunTool = Tool.define(
           }
           return yield* run(
             {
-              binary: params.binary,
-              args: [...params.args],
+              binary: autoWrap.binary,
+              args: [...autoWrap.args],
               cwd,
               env: process.env,
-              timeout,
+              timeout: autoWrap.wrapped ? Math.max(timeout, 10 * 60 * 1000) : timeout,
               description: params.description,
             },
             ctx,

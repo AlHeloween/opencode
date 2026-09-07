@@ -434,16 +434,19 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
           )
         }
         if (status.type === "balance") {
+          // User spec 2026-09-07: "provider name: $xxx" — one compact line.
+          const amount = Number(status.totalBalance)
+          const money =
+            Number.isFinite(amount) && status.currency === "USD"
+              ? `$${amount.toFixed(2)}`
+              : `${Number(status.totalBalance).toFixed(2)} ${status.currency}`
           return (
             <box marginTop={1}>
               <text fg={theme().text}>
                 <b>Status</b>
               </text>
               <text fg={status.isAvailable ? theme().success : theme().error}>
-                {status.isAvailable ? "✓ available" : "✗ insufficient"}
-              </text>
-              <text fg={theme().textMuted}>
-                {Number(status.totalBalance).toFixed(2)} {status.currency}
+                {pid}: {money} {status.isAvailable ? "" : "✗ insufficient"}
               </text>
             </box>
           )

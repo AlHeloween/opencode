@@ -14,6 +14,10 @@ import {
   stripCmdRunnerSendPayload,
   enforceDestructiveShell,
   enforceBrutalDestructiveOnly,
+  shouldRouteViaCmdRunner,
+  autoWrapCmdRunner,
+  autoWrapBinary,
+  enforceBinaryViaCmdRunner,
 } from "@/tool/shell-constitution"
 
 const isWin = process.platform === "win32"
@@ -60,6 +64,48 @@ describe("splitCmdRunnerSend", () => {
   test("stripCmdRunnerSendPayload matches shellScan", () => {
     const cmd = "cmd_runner send x -- dir /s"
     expect(stripCmdRunnerSendPayload(cmd)).toBe(splitCmdRunnerSend(cmd).shellScan)
+  })
+})
+
+describe("cmd_runner auto-wrap (constitution routing)", () => {
+  test("crash-prone binary command is auto-wrapped", () => {
+    const r = autoWrapCmdRunner("bun run script.ts")
+    expect(r.wrapped).toBe(true)
+    expect(r.command).toBe("cmd_runner start -- bun run script.ts")
+    expect(shouldRouteViaCmdRunner("bun run script.ts")).toBe(true)
+  })
+
+  test("already-wrapped and cmd_runner commands pass through unchanged", () => {
+    const r = autoWrapCmdRunner("cmd_runner start -- bun run script.ts")
+    expect(r.wrapped).toBe(false)
+    expect(r.command).toBe("cmd_runner start -- bun run script.ts")
+    expect(shouldRouteViaCmdRunner("cmd_runner status x")).toBe(false)
+  })
+
+  test("non-crash-prone commands are untouched", () => {
+    const r = autoWrapCmdRunner("git status")
+    expect(r.wrapped).toBe(false)
+    expect(shouldRouteViaCmdRunner("git status")).toBe(false)
+  })
+
+  test("send payload after -- is not wrapped (wrapper already isolated)", () => {
+    const r = autoWrapCmdRunner("cmd_runner send rid -- bun repl")
+    expect(r.wrapped).toBe(false)
+  })
+
+  test("binary+argv auto-wrap for run tool", () => {
+    const w = autoWrapBinary("bun", ["test", "foo.test.ts"])
+    expect(w.wrapped).toBe(true)
+    expect(w.binary).toBe("cmd_runner")
+    expect(w.args).toEqual(["start", "--", "bun", "test", "foo.test.ts"])
+    const plain = autoWrapBinary("git", ["status"])
+    expect(plain.wrapped).toBe(false)
+    expect(plain.binary).toBe("git")
+  })
+
+  test("safety net: bare crash-prone command still throws", () => {
+    expect(() => enforceBinaryViaCmdRunner("cargo build --release")).toThrow(/must run through cmd_runner/)
+    expect(() => enforceBinaryViaCmdRunner("cmd_runner start -- cargo build")).not.toThrow()
   })
 })
 

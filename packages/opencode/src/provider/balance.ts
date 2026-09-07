@@ -1,11 +1,14 @@
 /**
  * Multi-provider model status — standardised display for provider-specific
- * account state: credit balance (DeepSeek, OpenRouter), usage windows (OpenAI),
- * or unavailable.
+ * account state: credit balance (DeepSeek, OpenRouter, NovitaAI), usage
+ * windows (OpenAI), or unavailable.
  *
  * Supported providers:
  *   - deepseek:   balance via GET https://api.deepseek.com/user/balance
  *   - openrouter: balance via GET https://openrouter.ai/api/v1/credits
+ *   - novita-ai:  balance via GET https://api.novita.ai/openapi/v1/billing/balance/detail
+ *                 (availableBalance is 1/10000 USD — 10000 units = $1.00;
+ *                 source: novita.ai/docs/api-reference/basic-get-user-balance.md)
  *
  * Providers without a registered handler return { type: "unavailable" }.
  */
@@ -80,6 +83,7 @@ type StatusFetcher = (apiKey: string) => Promise<ModelStatus>
 const statusFetcherRegistry: Record<string, StatusFetcher> = {
   deepseek: fetchDeepSeekStatus,
   openrouter: fetchOpenRouterStatus,
+  "novita-ai": fetchNovitaStatus,
 }
 
 // ─── DeepSeek ────────────────────────────────────────────────────────────
@@ -156,6 +160,47 @@ async function fetchOpenRouterStatus(apiKey: string): Promise<ModelStatus> {
     currency: "USD",
     totalBalance: String(remaining),
     isAvailable: remaining > 0,
+  }
+}
+
+// ─── NovitaAI ────────────────────────────────────────────────────────────
+
+const NOVITA_BALANCE_URL = "https://api.novita.ai/openapi/v1/billing/balance/detail"
+
+async function fetchNovitaStatus(apiKey: string): Promise<ModelStatus> {
+  const response = await fetch(NOVITA_BALANCE_URL, {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Accept": "application/json",
+    },
+  })
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "")
+    throw new Error(`Novita status API returned ${response.status}: ${text.slice(0, 200)}`)
+  }
+
+  // Docs: amounts are integers in 1/10000 USD units (10000 = $1.00).
+  const data = (await response.json()) as {
+    availableBalance?: string
+    cashBalance?: string
+    creditLimit?: string
+  }
+
+  const raw = data.availableBalance ?? data.cashBalance
+  if (raw === undefined) {
+    return { type: "unavailable", reason: "api_error" }
+  }
+
+  const units = Number.parseFloat(raw)
+  const usd = Number.isFinite(units) ? units / 10_000 : Number.NaN
+
+  return {
+    type: "balance",
+    currency: "USD",
+    totalBalance: String(usd),
+    isAvailable: usd > 0,
   }
 }
 

@@ -26,11 +26,13 @@ import { InstanceState } from "@/effect/instance-state"
 import { Jobs } from "@/jobs"
 import { formatPathIssues, validatePaths as validatePathsShared, type SandboxRules } from "@/util/path-validator"
 import {
+  autoWrapCmdRunner,
   enforceBinaryViaCmdRunner,
   enforceBrutalDestructiveOnly,
   enforceDestructiveShellFromAst,
   splitCmdRunnerSend,
 } from "./shell-constitution"
+import { cmdRunnerTailBlock } from "./cmd-runner-tail"
 import { commands, getParser, hasRedirection, parts, source, unquote as tsUnquote } from "@/shell/tree-sitter"
 export { invalidatePermissionCache } from "./permission-cache"
 
@@ -689,7 +691,11 @@ export const BashTool = Tool.define(
               // cmd_runner send … -- <payload>: keys into live run (SSH remote or TUI debug).
               // - AST/full constitution = local wrapper only (no hard-block of session ls/dir)
               // - payload = brutal DESTRUCTIVE permission only (rm -rf etc., same as bare shell)
-              const { shellScan: scanCommand, payload: cmdRunnerPayload } = splitCmdRunnerSend(params.command)
+              // Auto-route crash-prone binaries through cmd_runner BEFORE parsing:
+              // the wrapper is transparent (same argv after `--`).
+              const autoWrap = autoWrapCmdRunner(params.command)
+              const effectiveCommand = autoWrap.command
+              const { shellScan: scanCommand, payload: cmdRunnerPayload } = splitCmdRunnerSend(effectiveCommand)
               // Fast regex check: crash-prone binaries (bun, cargo, go, etc.) must go through cmd_runner.
               // No false-positive risk — only checks binary name at command start.
               enforceBinaryViaCmdRunner(scanCommand)
@@ -701,7 +707,7 @@ export const BashTool = Tool.define(
               }
               const CMD_RUNNER_TIMEOUT = 10 * 60 * 1000 // 10 min — cmd_runner manages its own lifecycle
               const ADM_TIMEOUT = 3 * 60 * 1000 // 3 min — adm --query needs model cold-load (~20-30s)
-              const isCmdRunner = /\bcmd_runner(?:\.exe)?\b/i.test(params.command)
+              const isCmdRunner = /\bcmd_runner(?:\.exe)?\b/i.test(effectiveCommand)
               const isAdm = /\badm(?:\.exe)?\b|python(?:3)?(?:\.exe)? -m adm\b/i.test(params.command)
               const timeout =
                 params.timeout ?? (isCmdRunner ? CMD_RUNNER_TIMEOUT : isAdm ? ADM_TIMEOUT : DEFAULT_TIMEOUT)
@@ -755,7 +761,7 @@ export const BashTool = Tool.define(
                     const result = yield* run(
                       {
                         shell,
-                        command: params.command,
+                        command: effectiveCommand,
                         cwd,
                         env: yield* shellEnv(ctx, cwd),
                         timeout,
@@ -763,6 +769,13 @@ export const BashTool = Tool.define(
                       },
                       ctx,
                     )
+                    if (autoWrap.wrapped) {
+                      result.output = `constitution: auto-wrapped via cmd_runner start --\n${result.output}`
+                    }
+                    // cmd_runner sessions bootstrap a separate window; the job
+                    // output alone is just a banner + run_id. Append the session
+                    // tail so the jobdone block carries the real result.
+                    result.output += yield* Effect.promise(() => cmdRunnerTailBlock(result.output))
                     return result.output
                   }),
                 })

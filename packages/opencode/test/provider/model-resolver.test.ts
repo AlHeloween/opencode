@@ -3,14 +3,17 @@ import { resolveModel } from "@/provider/model-resolver"
 
 describe("model-resolver", () => {
   describe("priority providers", () => {
-    test("resolves deepseek/deepseek-chat via priority path", async () => {
+    // Priority path = lazy per-provider loadProvider() (src/provider/models/<id>.json)
+    // instead of the full ModelsDev registry. deepseek-chat was retired from the
+    // live catalog — the current DeepSeek generation is v4-flash / v4-pro.
+    test("resolves deepseek/deepseek-v4-flash via priority path", async () => {
       const start = Date.now()
-      const result = await resolveModel("deepseek", "deepseek-chat")
+      const result = await resolveModel("deepseek", "deepseek-v4-flash")
       const elapsed = Date.now() - start
 
       expect(result).not.toBeUndefined()
       expect(result?.providerID).toBe("deepseek")
-      expect(result?.modelID).toBe("deepseek-chat")
+      expect(result?.modelID).toBe("deepseek-v4-flash")
       expect(result?.source).toBe("cache")
       expect(elapsed).toBeLessThan(100) // generous bound; priority path should be fast
     })
@@ -61,8 +64,8 @@ describe("model-resolver", () => {
   })
 
   describe("model capabilities", () => {
-    test("deepseek-chat has expected capabilities", async () => {
-      const result = await resolveModel("deepseek", "deepseek-chat")
+    test("deepseek-v4-flash has expected capabilities", async () => {
+      const result = await resolveModel("deepseek", "deepseek-v4-flash")
 
       expect(result).not.toBeUndefined()
       expect(result?.parameters.capabilities).not.toBeUndefined()

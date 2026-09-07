@@ -20,11 +20,13 @@ import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import { Jobs } from "@/jobs"
 import {
+  autoWrapCmdRunner,
   enforceBinaryViaCmdRunner,
   enforceBrutalDestructiveOnly,
   enforceDestructiveShellFromAst,
   splitCmdRunnerSend,
 } from "./shell-constitution"
+import { cmdRunnerTailBlock } from "./cmd-runner-tail"
 import { getParser } from "@/shell/tree-sitter"
 
 const MAX_METADATA_LENGTH = 30_000
@@ -501,7 +503,10 @@ export const CmdTool = Tool.define(
         Effect.gen(function* () {
           // cmd_runner send … -- <payload>: live session (SSH or interactive TUI debug).
           // Wrapper AST only; payload = brutal DESTRUCTIVE ask (not enumeration hard-blocks).
-          const { shellScan: scanCommand, payload: cmdRunnerPayload } = splitCmdRunnerSend(params.command)
+          // Auto-route crash-prone binaries through cmd_runner BEFORE parsing.
+          const autoWrap = autoWrapCmdRunner(params.command)
+          const effectiveCommand = autoWrap.command
+          const { shellScan: scanCommand, payload: cmdRunnerPayload } = splitCmdRunnerSend(effectiveCommand)
           // Fast regex check: crash-prone binaries must go through cmd_runner.
           enforceBinaryViaCmdRunner(scanCommand)
 
@@ -511,7 +516,7 @@ export const CmdTool = Tool.define(
           }
           const CMD_RUNNER_TIMEOUT = 10 * 60 * 1000
           const ADM_TIMEOUT = 3 * 60 * 1000
-          const isCmdRunner = /\bcmd_runner(?:\.exe)?\b/i.test(params.command)
+          const isCmdRunner = /\bcmd_runner(?:\.exe)?\b/i.test(effectiveCommand)
           const isAdm = /\badm(?:\.exe)?\b|python(?:3)?(?:\.exe)? -m adm\b/i.test(params.command)
           const timeout = params.timeout ?? (isCmdRunner ? CMD_RUNNER_TIMEOUT : isAdm ? ADM_TIMEOUT : DEFAULT_TIMEOUT)
           const shell = process.env.COMSPEC || "cmd.exe"
@@ -558,9 +563,14 @@ export const CmdTool = Tool.define(
               label: params.description || params.command.slice(0, 80),
               run: (_writeOutput) => Effect.gen(function* () {
                 const result = yield* run(
-                  { shell, command: params.command, cwd, env, timeout, description: params.description },
+                  { shell, command: effectiveCommand, cwd, env, timeout, description: params.description },
                   ctx,
                 )
+                if (autoWrap.wrapped) {
+                  result.output = `constitution: auto-wrapped via cmd_runner start --\n${result.output}`
+                }
+                // Append cmd_runner session tail so jobdone carries the real result.
+                result.output += yield* Effect.promise(() => cmdRunnerTailBlock(result.output))
                 return result.output
               }),
             })

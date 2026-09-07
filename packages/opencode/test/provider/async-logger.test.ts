@@ -16,13 +16,12 @@ describe("gateway per-request logger", () => {
     await logger.dispose()
 
     const file = path.join(dir, "123_req_req_live_123.json")
-    const entry = JSON.parse(fs.readFileSync(file, "utf8")) as { body: { model: string }; body_raw: string }
+    const entry = JSON.parse(fs.readFileSync(file, "utf8")) as { body: { model: string } }
     expect(entry.body.model).toBe("deepseek-v4-pro")
-    expect(entry.body_raw).toContain('"messages":[]')
     fs.rmSync(dir, { recursive: true, force: true })
   })
 
-  test("formats JSON body as readable object + raw field preserves \\uXXXX", () => {
+  test("formats JSON body as readable object (no raw duplicate — lossless round-trip)", () => {
     const output = formatPerRequestEntry({
       type: "request",
       method: "POST",
@@ -33,9 +32,10 @@ describe("gateway per-request logger", () => {
     expect(output).toContain('\n  "body": {')
     expect(output).toContain('\n    "model": "deepseek-v4-pro"')
 
-    // body_raw preserves original \uXXXX escapes
-    expect(output).toContain('"body_raw": "')
-    expect(output).toContain("\\u041f")
+    // No body_raw duplicate (the escaped one-liner doubled every file); the
+    // parsed form is lossless, so \uXXXX decodes to the real character.
+    expect(output).not.toContain("body_raw")
+    expect(output).toContain("П")
   })
 
   test("non-JSON body stored as-is without body_raw", () => {

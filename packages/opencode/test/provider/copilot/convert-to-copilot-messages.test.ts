@@ -388,6 +388,9 @@ describe("reasoning (copilot-specific)", () => {
         role: "assistant",
         content: "The answer is 42.",
         tool_calls: undefined,
+        // 05a4c6cc5d: reasoning_content now falls back to the reasoning parts
+        // (DeepSeek vendors require the field on assistant turns with tools).
+        reasoning_content: "Let me think about this...",
         reasoning_text: undefined,
         reasoning_opaque: undefined,
       },
@@ -416,6 +419,7 @@ describe("reasoning (copilot-specific)", () => {
         role: "assistant",
         content: "Done!",
         tool_calls: undefined,
+        reasoning_content: "Thinking...",
         reasoning_text: "Thinking...",
         reasoning_opaque: "opaque-signature-123",
       },
@@ -509,6 +513,7 @@ describe("reasoning (copilot-specific)", () => {
         role: "assistant",
         content: null,
         tool_calls: undefined,
+        reasoning_content: "Just thinking, no response yet",
         reasoning_text: "Just thinking, no response yet",
         reasoning_opaque: "sig-abc",
       },

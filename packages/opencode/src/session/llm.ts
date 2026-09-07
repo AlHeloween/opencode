@@ -6,6 +6,7 @@ import { streamText, wrapLanguageModel, type ModelMessage, type Tool, tool, json
 import { mergeDeep, pipe } from "remeda"
 import { GitLabWorkflowLanguageModel } from "gitlab-ai-provider"
 import { ProviderTransform } from "@/provider/transform"
+import { responseCacheHeaders } from "@/provider/response-cache"
 import { Config } from "@/config/config"
 import { Instance } from "@/project/instance"
 import type { Agent } from "@/agent/agent"
@@ -933,27 +934,30 @@ const live: Layer.Layer<
           ? {}
           : { system: system.map((content) => ({ role: "system" as const, content })) }),
         headers: {
-          ...(input.model.providerID.startsWith("opencode")
-            ? {
-                "x-session-affinity": input.sessionID,
-                "x-opencode-project": Instance.project.id,
-                "x-opencode-session": input.sessionID,
-                "x-opencode-request": input.user.id,
-                "x-opencode-client": Flag.OPENCODE_CLIENT,
-                "User-Agent": `opencode/${InstallationVersion}`,
-              }
-            : {
-                ...(input.parentSessionID ? { "x-parent-session-id": input.parentSessionID } : {}),
-                // OpenRouter sticky routing: an explicit session key (x-session-id /
-                // body session_id) pins the upstream endpoint across prompt-prefix
-                // rewrites (compaction) and activates before the first cache hit.
-                // prompt_cache_key alone pins only after a hit, and manual
-                // provider.order disables OpenRouter's derived-key stickiness —
-                // without this header the endpoint can flip mid-session (cold
-                // cache resets, even for the system prompt).
-                ...(input.model.providerID === "openrouter" ? { "X-Session-Id": providerCacheKey } : {}),
-                "User-Agent": `opencode/${InstallationVersion}`,
-              }),
+          // Correlation IDs — EVERY provider (2026-09-07, user request).
+          // Providers' dashboards (Novita "Request ID"/"Session ID" columns,
+          // OpenRouter sessions view, Zen routing/affinity) read these
+          // standard headers; empty columns in provider logs mean we did not
+          // send them. x-request-id also feeds our own gateway metrics.
+          // x-session-id unifies the affinity namespace (commit 8e5bdc41:
+          // child sessions already used providerCacheKey — same value for
+          // OpenRouter X-Session-Id and body session_id).
+          "x-opencode-session": input.sessionID,
+          "x-opencode-request": input.user.id,
+          "x-opencode-project": Instance.project.id,
+          "x-opencode-client": Flag.OPENCODE_CLIENT,
+          "x-request-id": input.user.id,
+          "x-session-id": input.model.providerID === "openrouter" ? providerCacheKey : input.sessionID,
+          "x-session-affinity": input.model.providerID === "openrouter" ? providerCacheKey : input.sessionID,
+          ...(input.parentSessionID ? { "x-parent-session-id": input.parentSessionID } : {}),
+          // OpenRouter response caching (identical-request cache, 1-86400s):
+          // strict opt-in via provider options; NOT prompt caching.
+          // item = Provider.Info (getProvider) — its .options carries
+          // provider.<id>.options.* from config.
+          ...(input.model.providerID === "openrouter"
+            ? responseCacheHeaders(input.model.providerID, item.options)
+            : {}),
+          "User-Agent": `opencode/${InstallationVersion}`,
           ...input.model.headers,
           ...headers,
         },

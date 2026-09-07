@@ -257,6 +257,26 @@ injectSummaryRequest: implemented, NOT called from prompt.ts
 
 See **`docs/agi-workflow.md`**. Runtime `util/plan-status.ts` standardizes `plans/` vs `plans_completed/` by checkbox presence; AGI only terminates when hygiene is clean.
 
+## 8a. Provider request headers (2026-09-07)
+
+`session/llm.ts` builds ONE correlation header set for EVERY provider — no
+per-provider branching:
+
+- `x-opencode-session` / `x-opencode-request` / `x-opencode-project` / `x-opencode-client` — opencode correlation; Zen reads these for routing/telemetry.
+- `x-request-id` (= message id) — fills provider dashboards' "Request ID" columns (e.g. Novita) and our gateway metrics.
+- `x-session-id` + `x-session-affinity` — unified affinity namespace: `providerCacheKey` for openrouter, `sessionID` otherwise. OpenRouter's former `X-Session-Id` merged here (commit 8e5bdc41).
+- `x-parent-session-id` — set when subagent parent exists.
+- `X-OpenRouter-Cache` / `X-OpenRouter-Cache-TTL` — strict opt-in via `provider.<id>.options.responseCache` (+`responseCacheTtl`, 1–86400s; see `provider/response-cache.ts`). Response caching only — NOT prompt caching.
+- `User-Agent: opencode/<version>`.
+
+**Wire policy: transports send headers VERBATIM.** Gateway h1/h2 transports do
+not filter anything (user directive 2026-09-07; the earlier allowlist was
+superseded). Only `adaptive-client` removes consumed OAuth inputs
+(`x-opencode-oauth-token` → `Authorization`, `x-opencode-account-id` →
+`ChatGPT-Account-Id`, `x-opencode-oauth-url` → URL rewrite) so raw credentials
+never duplicate into provider logs. Local diagnostics (`wireHeaders`,
+`sanitizeHeaders`) still redact auth from gateway log files.
+
 ## 9. Key Files
 
 | File | Purpose | Lines |
@@ -264,7 +284,9 @@ See **`docs/agi-workflow.md`**. Runtime `util/plan-status.ts` standardizes `plan
 | `session/prompt.ts` | Main prompt loop, checkpoint, `maybeCaptureSidecar`, Layer-2 cadence gate | — |
 | `util/plan-status.ts` | Plan progress + reconcilePlans hygiene | — |
 | `cli/cmd/tui/context/agi-mode.tsx` | AGI loop, plan hygiene integration | — |
-| `session/llm.ts` | LLM orchestration; request size ≈ content/4+10k | — |
+| `session/llm.ts` | LLM orchestration; request size ≈ content/4+10k; correlation headers (§8a) | — |
+| `provider/response-cache.ts` | OpenRouter response-cache opt-in headers (§8a) | — |
+| `provider/balance.ts` | Model status registry: deepseek/openrouter/novita-ai balance, usage windows | — |
 | `session/system.ts` | Environment, capabilities, provider prompts | — |
 | `session/instruction.ts` | AGENTS.md/rules loading, caching | — |
 | `session/checkpoint.ts` | Per-model encrypted checkpoint save/load | — |

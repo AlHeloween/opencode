@@ -536,17 +536,12 @@ export function renderLineDiff(input: RenderInput, context = 3): string {
   return header + renderHunks(lcsLineOps(midPrev, midCurr), prefix - head, context)
 }
 
-/** LCS over the changed middle; falls back to del-then-add when the table would explode. */
+/** LCS over the changed middle; falls back to patience anchoring when the table would explode. */
 function lcsLineOps(a: string[], b: string[]): LineOp[] {
   const n = a.length
   const m = b.length
   if (n === 0 && m === 0) return []
-  if (n * m > 4_000_000) {
-    return [
-      ...a.map((line) => ({ type: "del" as const, line })),
-      ...b.map((line) => ({ type: "add" as const, line })),
-    ]
-  }
+  if (n * m > 4_000_000) return patienceOps(a, b)
   const dp: Uint32Array[] = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1))
   for (let i = n - 1; i >= 0; i--) {
     const row = dp[i]!
@@ -573,6 +568,86 @@ function lcsLineOps(a: string[], b: string[]): LineOp[] {
   }
   while (i < n) ops.push({ type: "del", line: a[i++]! })
   while (j < m) ops.push({ type: "add", line: b[j++]! })
+  return ops
+}
+
+/**
+ * Patience-diff fallback for giant middles (2026-09-07): the old behavior
+ * emitted the whole block as del-then-add once n*m exceeded the LCS table
+ * budget — 7.9k-line request bodies produced 15k-line "бредодифы" showing
+ * every line as changed when only max_tokens + appended messages differed.
+ *
+ * Anchors = lines that appear EXACTLY ONCE in each middle (pretty-printed
+ * content lines are highly unique). The longest increasing anchor chain
+ * partitions the middles into small segments; each segment either LCSes
+ * under the table budget or degrades to del/add for that segment only.
+ */
+function patienceOps(a: string[], b: string[]): LineOp[] {
+  const countA = new Map<string, number>()
+  const countB = new Map<string, number>()
+  for (const line of a) countA.set(line, (countA.get(line) ?? 0) + 1)
+  for (const line of b) countB.set(line, (countB.get(line) ?? 0) + 1)
+
+  // Candidate anchors: unique in a AND present (any multiplicity) in b.
+  const posB = new Map<string, number[]>()
+  b.forEach((line, j) => {
+    const list = posB.get(line)
+    if (list) list.push(j)
+    else posB.set(line, [j])
+  })
+  const anchors: Array<{ ai: number; bi: number }> = []
+  a.forEach((line, i) => {
+    if ((countA.get(line) ?? 0) !== 1) return
+    const jb = posB.get(line)
+    if (jb && jb.length === 1) anchors.push({ ai: i, bi: jb[0]! })
+  })
+
+  const segment = (segA: string[], segB: string[]) => {
+    if (segA.length === 0 && segB.length === 0) return
+    if (segA.length * segB.length <= 4_000_000) {
+      ops.push(...lcsLineOps(segA, segB))
+    } else {
+      for (const line of segA) ops.push({ type: "del", line })
+      for (const line of segB) ops.push({ type: "add", line })
+    }
+  }
+  const ops: LineOp[] = []
+
+  if (anchors.length === 0) {
+    for (const line of a) ops.push({ type: "del", line })
+    for (const line of b) ops.push({ type: "add", line })
+    return ops
+  }
+
+  // Longest increasing subsequence over b-positions (anchors are a-sorted).
+  const tails: number[] = []
+  const tailIdx: number[] = []
+  const prev: number[] = new Array(anchors.length).fill(-1)
+  for (let k = 0; k < anchors.length; k++) {
+    const bi = anchors[k]!.bi
+    let lo = 0
+    let hi = tails.length
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      if (tails[mid]! < bi) lo = mid + 1
+      else hi = mid
+    }
+    tails[lo] = bi
+    tailIdx[lo] = k
+    prev[k] = lo > 0 ? tailIdx[lo - 1]! : -1
+  }
+  const lis: Array<{ ai: number; bi: number }> = []
+  for (let k = tailIdx[tailIdx.length - 1]!; k !== undefined && k !== -1; k = prev[k]!) lis.unshift(anchors[k]!)
+
+  let pa = 0
+  let pb = 0
+  for (const anchor of lis) {
+    segment(a.slice(pa, anchor.ai), b.slice(pb, anchor.bi))
+    ops.push({ type: "same", line: a[anchor.ai]! })
+    pa = anchor.ai + 1
+    pb = anchor.bi + 1
+  }
+  segment(a.slice(pa), b.slice(pb))
   return ops
 }
 

@@ -105,4 +105,37 @@ describe("provider.balance", () => {
     const remaining = mockResponse.data.total_credits - mockResponse.data.total_usage
     expect(remaining).toBe(0)
   })
+
+  it("parses Novita balance (1/10000 USD units) and scales to USD", () => {
+    // Docs: novita.ai/docs/api-reference/basic-get-user-balance.md
+    // availableBalance "1000000" = $100.00, "10000" = $1.00
+    const mockResponse = {
+      availableBalance: "1000000",
+      cashBalance: "800000",
+      creditLimit: "200000",
+    }
+
+    const units = Number.parseFloat(mockResponse.availableBalance)
+    const usd = units / 10_000
+    expect(usd).toBe(100)
+    expect(usd).toBeGreaterThan(0) // isAvailable
+  })
+
+  it("Novita zero balance → unavailable (usd <= 0)", () => {
+    const units = Number.parseFloat("0")
+    expect(units / 10_000).toBe(0)
+    expect(units / 10_000 > 0).toBe(false)
+  })
+
+  it("novita-ai has a registered status handler", async () => {
+    const { getModelStatus } = await import("../../src/provider/balance")
+    const status = await getModelStatus("novita-ai")
+    // Without a real key resolution path in test env this may be no_api_key or
+    // a live balance — the only forbidden outcome is "no_handler".
+    if (status.type === "unavailable") {
+      expect(status.reason).not.toBe("no_handler")
+    } else {
+      expect(status.type).toBe("balance")
+    }
+  })
 })

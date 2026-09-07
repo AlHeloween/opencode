@@ -204,6 +204,28 @@ bash "long-command" --timeout 30000
 }
 ```
 
+## cmd_runner Jobs — Auto-Tail & Auto-Wrap (2026-09-07)
+
+Two integrations close the gap between a background job's tiny bootstrap output and
+the real result living in the cmd_runner session log:
+
+1. **Auto-tail on jobdone.** When a background job runs a `cmd_runner start -- …`
+   command, its captured output is usually just a banner + run_id (the session runs
+   in its own window). On job completion the runner appends a bounded
+   `cmd_runner tail <run_id> -n 60` snapshot (20s timeout) to the job output, marked
+   `--- cmd_runner session tail (<run_id>) ---`. Skipped when the session already
+   streamed to completion in-band (`[session …: finished]`). Tail failures are
+   debug-logged, never fatal. Implementation: `src/tool/cmd-runner-tail.ts`,
+   wired into the background paths of `bash.ts` / `cmd.ts` / `run.ts`.
+
+2. **Constitution auto-wrap.** Commands hitting crash-prone binaries (bun, cargo,
+   go, cmake, …) are no longer rejected with "must run through cmd_runner" —
+   `autoWrapCmdRunner()` / `autoWrapBinary()` (`src/tool/shell-constitution.ts`)
+   transparently route them as `cmd_runner start -- <command>` and the output gets a
+   one-line `constitution: auto-wrapped via cmd_runner start --` notice. Permission
+   patterns stay granular (`bun *`), send-payloads are untouched, and
+   `enforceBinaryViaCmdRunner` remains as a defense-in-depth net for bare calls.
+
 ## Internal Packages
 
 | Package | Role |

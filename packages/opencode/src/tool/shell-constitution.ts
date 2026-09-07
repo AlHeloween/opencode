@@ -203,12 +203,42 @@ const CRASH_PRONE_RE = new RegExp(
 
 const VIA_CMD_RUNNER = /\bcmd_runner(?:\.exe)?\b/i
 
+/** True when the command hits a crash-prone binary and is not already inside cmd_runner. */
+export function shouldRouteViaCmdRunner(command: string): boolean {
+  return CRASH_PRONE_RE.test(command) && !VIA_CMD_RUNNER.test(command)
+}
+
+/**
+ * Auto-route crash-prone binaries through cmd_runner (2026-09-07, user request):
+ * instead of throwing "must run through cmd_runner", wrap the command into
+ * `cmd_runner start -- <command>` so process isolation is applied automatically.
+ * Send payloads (`cmd_runner send … --`) and already-wrapped commands pass through.
+ */
+export function autoWrapCmdRunner(command: string): { command: string; wrapped: boolean } {
+  if (!shouldRouteViaCmdRunner(command)) return { command, wrapped: false }
+  return { command: `cmd_runner start -- ${command}`, wrapped: true }
+}
+
+/** Binary+argv form of {@link autoWrapCmdRunner} for the run tool. */
+export function autoWrapBinary(
+  binary: string,
+  args: string[],
+): { binary: string; args: string[]; wrapped: boolean } {
+  if (!shouldRouteViaCmdRunner([binary, ...args].join(" "))) return { binary, args, wrapped: false }
+  return { binary: "cmd_runner", args: ["start", "--", binary, ...args], wrapped: true }
+}
+
+/**
+ * Defense-in-depth safety net: normally the caller auto-wraps via
+ * {@link autoWrapCmdRunner} BEFORE execution and this becomes a no-op
+ * (wrapped commands contain `cmd_runner`). Still throws when a crash-prone
+ * binary would run bare — e.g. when a caller skips the wrap step.
+ */
 export function enforceBinaryViaCmdRunner(command: string): void {
-  if (CRASH_PRONE_RE.test(command) && !VIA_CMD_RUNNER.test(command)) {
-    const match = command.match(CRASH_PRONE_RE)?.[0]?.trim() ?? "binary"
-    throw new Error(
-      `constitution: ${match} must run through cmd_runner for process isolation. ` +
-      `Use: cmd_runner start -- ${match} <args...>`,
-    )
-  }
+  if (!shouldRouteViaCmdRunner(command)) return
+  const match = command.match(CRASH_PRONE_RE)?.[0]?.trim() ?? "binary"
+  throw new Error(
+    `constitution: ${match} must run through cmd_runner for process isolation. ` +
+    `Use: cmd_runner start -- ${match} <args...>`,
+  )
 }

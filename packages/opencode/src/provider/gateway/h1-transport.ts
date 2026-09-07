@@ -6,12 +6,6 @@ import type { NormalizedError } from "./errors"
 
 const log = Log.create({ service: "gateway/h1" })
 
-function cleanHeaders(headers: Record<string, string>): Record<string, string> {
-  return Object.fromEntries(
-    Object.entries(headers).filter(([key]) => !key.toLowerCase().startsWith("x-opencode-")),
-  )
-}
-
 export interface H1Response {
   status: number
   headers: Headers
@@ -38,7 +32,10 @@ export async function request(options: H1RequestOptions): Promise<H1Response> {
 
     const response = await fetch(options.url, {
       method: options.method,
-      headers: cleanHeaders(options.headers),
+      // User directive 2026-09-07: NO header cutting anywhere — transports send
+      // headers verbatim. Credential consumption (oauth-token → authorization etc.)
+      // happened upstream in adaptive-client.
+      headers: options.headers,
       body: options.body as BodyInit | null | undefined,
       signal: mergedSignal,
     })

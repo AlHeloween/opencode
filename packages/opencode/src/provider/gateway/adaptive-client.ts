@@ -103,8 +103,9 @@ function sanitizeHeaders(headers: Record<string, string>): Record<string, string
 }
 
 /**
- * Produce wire-format headers for logging: no auth, no internal x-opencode-*.
- * Matches both transport filters while keeping credentials out of diagnostics.
+ * Produce wire-format headers for LOGGING only: no auth, no internal
+ * x-opencode-*. Transports send the real headers VERBATIM (no filtering,
+ * user directive 2026-09-07); this view exists solely for diagnostics.
  */
 function wireHeaders(headers: Record<string, string>): Record<string, string> {
   const withoutInternal = Object.fromEntries(
@@ -339,6 +340,18 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
     if (oauthUrl) {
       input = oauthUrl
     }
+
+    // Consumed credential inputs are removed from the outgoing set (they were
+    // folded into real headers above; duplicating a bearer under a nonstandard
+    // name would leak it into provider request logs). Correlation headers
+    // (x-opencode-session/request/project/client, x-request-id, x-session-id…)
+    // stay verbatim — transports do not filter anything (user directive 2026-09-07).
+    delete headers["x-opencode-oauth-token"]
+    delete headers["X-Opencode-Oauth-Token"]
+    delete headers["x-opencode-account-id"]
+    delete headers["X-Opencode-Account-Id"]
+    delete headers["x-opencode-oauth-url"]
+    delete headers["X-Opencode-Oauth-Url"]
 
     // Compute URL after potential OAuth rewrite
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url

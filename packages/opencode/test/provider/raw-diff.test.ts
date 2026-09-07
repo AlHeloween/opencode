@@ -201,6 +201,52 @@ describe("renderLineDiff", () => {
     expect(added.length).toBeGreaterThan(0)
     expect(added.some((line) => line.includes("Semantic Vector (SV)"))).toBe(true)
   })
+
+  test("patience fallback: giant middles produce a REAL diff, not del-all/add-all (бредодиф regression)", () => {
+    // Emulates a real conversation pair: ~1400 lines each side (n*m ≈ 2M after
+    // prefix trim → LCS ok) — force the patience path directly instead by
+    // building 2400×2400 middles (n*m ≈ 5.8M > 4M table budget).
+    const block = (i: number, text: string) =>
+      [
+        `    {`,
+        `      "role": "user",`,
+        `      "content": [`,
+        `        {`,
+        `          "type": "text",`,
+        `          "text": "msg-${i}: ${text}"`,
+        `        }`,
+        `      ]`,
+        `    },`,
+      ].join("\n")
+    const prevParts: string[] = [`{`, `  "model": "m",`, `  "max_tokens": 1000,`, `  "messages": [`]
+    const currParts: string[] = [`{`, `  "model": "m",`, `  "max_tokens": 1048,`, `  "messages": [`]
+    for (let i = 0; i < 200; i++) {
+      // 12 lines per message → ~2400 lines per body
+      prevParts.push(block(i, "unchanged body line for message"))
+      currParts.push(block(i, "unchanged body line for message"))
+    }
+    prevParts.push(`  ]`, `}`)
+    currParts.push(block(200, "the newly appended message"), `  ]`, `}`)
+    const prev = prevParts.join("\n")
+    const curr = currParts.join("\n")
+
+    const text = renderLineDiff({ prevId: "p", prevRaw: prev, currId: "c", currRaw: curr })
+    const del = text.split("\n").filter((l) => l.startsWith("-") && !l.startsWith("---"))
+    const add = text.split("\n").filter((l) => l.startsWith("+") && !l.startsWith("+++"))
+    // The real delta: 1 top-level scalar + 9 appended lines. A del-all/add-all
+    // fallback would emit ~4800 changed lines.
+    expect(del.length).toBeLessThan(20)
+    expect(add.length).toBeLessThan(20)
+    expect(text).toContain("-  \"max_tokens\": 1000,")
+    expect(text).toContain("+  \"max_tokens\": 1048,")
+    expect(text).toContain("+          \"text\": \"msg-200:")
+    // Unchanged middle is correctly COLLAPSED — it must not appear as -/+ noise
+    // anywhere in the diff (hunks carry only their ±context around real changes).
+    expect(text).not.toContain("-          \"text\": \"msg-100:")
+    expect(text).not.toContain("+          \"text\": \"msg-100:")
+    // Hunk count stays tiny: header + 2 hunks (scalar + appended message).
+    expect(text.split("\n").filter((l) => l.startsWith("@@ ")).length).toBe(2)
+  })
 })
 
 describe("renderIntegrityReport", () => {

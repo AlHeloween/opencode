@@ -36,15 +36,15 @@ def test_primary_modes_match_runtime_acl_shape() -> None:
     identities = {item.id: item for item in KERNEL.identities}
     assert identities["BUILD_MODE"].runtime == "build_mode"
     assert identities["BUILD_MODE"].kind == "primary"
-    assert identities["BUILD_MODE"].gates == tuple(f"G{i}" for i in range(1, 10))
+    assert identities["BUILD_MODE"].gates == tuple(f"G{i}" for i in range(0, 10))
     assert identities["BUILD_MODE"].may_mutate is True
     assert identities["PLAN_MODE"].runtime == "plan_mode"
     assert identities["PLAN_MODE"].kind == "primary"
-    assert identities["PLAN_MODE"].gates == ("G1", "G2", "G3", "G4", "G5", "G6", "G9")
+    assert identities["PLAN_MODE"].gates == ("G0", "G1", "G2", "G3", "G4", "G5", "G6", "G9")
     assert identities["PLAN_MODE"].may_mutate is False
     assert identities["REASONING_MODE"].runtime == "reasoning_mode"
     assert identities["REASONING_MODE"].kind == "primary"
-    assert identities["REASONING_MODE"].gates == ()
+    assert identities["REASONING_MODE"].gates == ("G0",)
     assert identities["REASONING_MODE"].may_mutate is False
 
 

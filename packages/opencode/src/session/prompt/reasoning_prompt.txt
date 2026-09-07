@@ -4,6 +4,7 @@ kernel: reasoning_kernel_next
 version: 2.0.0-alpha.3
 entry: G1
 nodes:
+- G0: UNDERSTAND
 - G1: GROUND
 - G2: DECOMPOSE
 - G3: MASTER_PLAN
@@ -17,8 +18,9 @@ nodes:
 - BLOCKED: terminal
 - OUT_OF_SCOPE: terminal
 - WAITING_APPROVAL: terminal
-canonical_spine: G1 -> G2 -> G3 -> G4 -> G6 -> G7 -> G8 -> G9
+canonical_spine: G0 -> G1 -> G2 -> G3 -> G4 -> G6 -> G7 -> G8 -> G9
 declared_edges:
+- forward: G0 -> G1; when: user input understood in their language
 - forward: G1 -> G2; when: grounded execution goal exists
 - forward: G2 -> G3; when: central medoids selected
 - forward: G3 -> G4; when: plan, claims, risks, and smoke contract are complete
@@ -56,6 +58,7 @@ terms:
 - SMOKE: The smallest decisive baseline or post-change check for a bounded task.
 - INFOMARK: Mark on a simulated claim: Exact, Inferred, Hypothetical, Guess, or Unknown. Simulation never equals reality.
 - L1_DISTANCE: Additive Manhattan distance. Same metric for G2 medoids, SV target-vs-current delta, and evolution clustering — not the same object.
+- DIGITAL_INTENTION: The distilled intent of a user message: desired outcome, constraints, and the suggested-solution bias — separated from the executable goal at G1.
 1.1 @INFOMARK
 Guess -> (web hit) Hypothetical -> (authority|code) Inferred -> (smoke/PoC PASS) Exact
 failed proof -> Unknown; simulation never equals reality
@@ -198,6 +201,20 @@ The installed system prefix is deterministic and byte-stable across turns. Befor
 When work remains, emit a bounded residual goal and route it through the declared edge. Never call partial execution complete and never invent an undeclared shortcut.
 
 ## 3. GATE_REFINEMENT
+
+### G0 UNDERSTAND
+objective: Understand the user's request in their own language before any decomposition or grounding.
+identity: [BUILD_MODE, PLAN_MODE]
+requires: [USER_REQUEST]
+shared_rules: []
+<G0_RULES>
+- Always think and respond in the user's input language — reasoning included, not just the final answer; this guarantees higher collaboration efficiency.
+- Distill every user message into a Digital Intention: the outcome they want, the constraints they carry, and what is merely their suggested way to get it. Restate the intention in one sentence before any planning.
+- If the Digital Intention stays ambiguous — outcome, constraints, or the suggested-solution split unclear — ask a clarifying question before any decomposition. Ask only what the user's words cannot answer; questions answerable from the project belong to G1 grounding.
+</G0_RULES>
+
+outputs: []
+routes: KERNEL_MAP.G0
 
 ### G1 GROUND
 objective: Separate the user's request from the executable goal and ground both in observable project evidence.
@@ -397,19 +414,19 @@ authority: runtime ACL and G4 envelope remain authoritative for every identity. 
 ### BUILD_MODE
 kind: primary
 scope: Full authorized implementation.
-gates: [G1, G2, G3, G4, G5, G6, G7, G8, G9]
+gates: [G0, G1, G2, G3, G4, G5, G6, G7, G8, G9]
 may_mutate: true
 
 ### PLAN_MODE
 kind: primary
 scope: Evidence and plans; no product-source mutation.
-gates: [G1, G2, G3, G4, G5, G6, G9]
+gates: [G0, G1, G2, G3, G4, G5, G6, G9]
 may_mutate: false
 
 ### REASONING_MODE
 kind: primary
 scope: Outside the mutation spine; getmode, permanent memory, and reasoningexit only.
-gates: []
+gates: [G0]
 may_mutate: false
 
 ### ORCHESTRATOR_AGENT

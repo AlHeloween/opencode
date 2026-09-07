@@ -10,9 +10,10 @@ def test_canonical_kernel_is_valid() -> None:
 
 
 def test_map_declares_every_gate_and_explicit_g5_side_path() -> None:
-    assert tuple(gate.id for gate in KERNEL.gates) == tuple(f"G{i}" for i in range(1, 10))
-    assert KERNEL.spine == ("G1", "G2", "G3", "G4", "G6", "G7", "G8", "G9")
+    assert tuple(gate.id for gate in KERNEL.gates) == tuple(f"G{i}" for i in range(0, 10))
+    assert KERNEL.spine == ("G0", "G1", "G2", "G3", "G4", "G6", "G7", "G8", "G9")
     edges = {(edge.source, edge.target, edge.kind) for edge in KERNEL.edges}
+    assert ("G0", "G1", "forward") in edges
     assert ("G4", "G5", "side") in edges
     assert ("G5", "G2", "back") in edges
 

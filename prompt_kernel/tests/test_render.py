@@ -113,8 +113,13 @@ def test_kernel_does_not_restate_entities_under_three_spellings() -> None:
 
 def test_gate_details_follow_numeric_order() -> None:
     text = render_kernel(KERNEL)
-    offsets = tuple(text.index(f"### G{i} ") for i in range(1, 10))
+    offsets = tuple(text.index(f"### G{i} ") for i in range(0, 10))
     assert offsets == tuple(sorted(offsets))
+    # G0 UNDERSTAND: language + intention discipline precede all project gates.
+    assert "### G0 UNDERSTAND" in text
+    assert text.index("### G0 UNDERSTAND") < text.index("### G1 GROUND")
+    assert "reasoning included" in text
+    assert "Digital Intention" in text
 
 
 def test_dictionary_precedes_first_detailed_rule_use() -> None:

@@ -90,6 +90,33 @@ SHARED_RULES = (
 
 GATES = (
     Gate(
+        id="G0",
+        anchor="GATE_0_UNDERSTAND",
+        name="UNDERSTAND",
+        objective="Understand the user's request in their own language before any decomposition or grounding.",
+        identities=("BUILD_MODE", "PLAN_MODE"),
+        requires=("USER_REQUEST",),
+        outputs=(),
+        shared_rules=(),
+        local_rules=(
+            _rule(
+                "G0",
+                "INPUT_LANGUAGE",
+                "Always think and respond in the user's input language — reasoning included, not just the final answer; this guarantees higher collaboration efficiency.",
+            ),
+            _rule(
+                "G0",
+                "DIGITAL_INTENTION_RULE",
+                "Distill every user message into a Digital Intention: the outcome they want, the constraints they carry, and what is merely their suggested way to get it. Restate the intention in one sentence before any planning.",
+            ),
+            _rule(
+                "G0",
+                "INTENTION_CLARITY",
+                "If the Digital Intention stays ambiguous — outcome, constraints, or the suggested-solution split unclear — ask a clarifying question before any decomposition. Ask only what the user's words cannot answer; questions answerable from the project belong to G1 grounding.",
+            ),
+        ),
+    ),
+    Gate(
         id="G1",
         anchor="GATE_1_GROUND",
         name="GROUND",
@@ -333,9 +360,9 @@ SOURCE_ROUTING_CONTRACT = SourceRoutingContract(
 )
 
 IDENTITIES = (
-    Identity("BUILD_MODE", "build_mode", "primary", "Full authorized implementation.", tuple(f"G{i}" for i in range(1, 10)), True),
-    Identity("PLAN_MODE", "plan_mode", "primary", "Evidence and plans; no product-source mutation.", ("G1", "G2", "G3", "G4", "G5", "G6", "G9"), False),
-    Identity("REASONING_MODE", "reasoning_mode", "primary", "Outside the mutation spine; getmode, permanent memory, and reasoningexit only.", (), False),
+    Identity("BUILD_MODE", "build_mode", "primary", "Full authorized implementation.", tuple(f"G{i}" for i in range(0, 10)), True),
+    Identity("PLAN_MODE", "plan_mode", "primary", "Evidence and plans; no product-source mutation.", ("G0", "G1", "G2", "G3", "G4", "G5", "G6", "G9"), False),
+    Identity("REASONING_MODE", "reasoning_mode", "primary", "Outside the mutation spine; getmode, permanent memory, and reasoningexit only.", ("G0",), False),
     Identity("ORCHESTRATOR_AGENT", "orchestrator_agent", "specialized", "Plan and delegate; never self-authorize.", ("G2", "G3", "G9"), False),
     Identity("EXPLORER_AGENT", "explorer_agent", "subagent", "Read-only project grounding.", ("G1", "G6"), False),
     Identity("RESEARCHER_AGENT", "researcher_agent", "subagent", "Internet-only research via webfetch and universalsearch source web.", ("G1",), False),
@@ -350,7 +377,7 @@ KERNEL = Kernel(
     name="reasoning_kernel_next",
     version="2.0.0-alpha.3",
     precedence=("safety", "governance", "task", "domain", "style"),
-    utf8_budget=25_000,
+    utf8_budget=26_000,
     terms=MappingProxyType({
         "GROUNDING": "Observation tied to a source, path, command, or reproducible state.",
         "AUTHORIZATION": "A decision that permits a bounded class of effects; confidence is not authority.",
@@ -361,6 +388,7 @@ KERNEL = Kernel(
         "SMOKE": "The smallest decisive baseline or post-change check for a bounded task.",
         "INFOMARK": "Mark on a simulated claim: Exact, Inferred, Hypothetical, Guess, or Unknown. Simulation never equals reality.",
         "L1_DISTANCE": "Additive Manhattan distance. Same metric for G2 medoids, SV target-vs-current delta, and evolution clustering — not the same object.",
+        "DIGITAL_INTENTION": "The distilled intent of a user message: desired outcome, constraints, and the suggested-solution bias — separated from the executable goal at G1.",
     }),
     sv_contract=SV_CONTRACT,
     source_routing=SOURCE_ROUTING_CONTRACT,
@@ -404,8 +432,9 @@ KERNEL = Kernel(
     }),
     initial_state=("USER_REQUEST", "CONCERN"),
     terminals=("SUCCESS", "BLOCKED", "OUT_OF_SCOPE", "WAITING_APPROVAL"),
-    spine=("G1", "G2", "G3", "G4", "G6", "G7", "G8", "G9"),
+    spine=("G0", "G1", "G2", "G3", "G4", "G6", "G7", "G8", "G9"),
     edges=(
+        Edge("G0", "G1", "forward", "user input understood in their language"),
         Edge("G1", "G2", "forward", "grounded execution goal exists"),
         Edge("G2", "G3", "forward", "central medoids selected"),
         Edge("G3", "G4", "forward", "plan, claims, risks, and smoke contract are complete"),

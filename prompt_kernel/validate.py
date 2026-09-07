@@ -7,8 +7,8 @@ from .model import Kernel, SourceRoutingContract, SemanticVectorContract
 
 REFERENCE = re.compile(r"@([A-Z][A-Z0-9_]*)")
 SYMBOL = re.compile(r"[A-Z][A-Z0-9_]*")
-EXPECTED_GATES = tuple(f"G{i}" for i in range(1, 10))
-EXPECTED_SPINE = ("G1", "G2", "G3", "G4", "G6", "G7", "G8", "G9")
+EXPECTED_GATES = tuple(f"G{i}" for i in range(0, 10))
+EXPECTED_SPINE = ("G0", "G1", "G2", "G3", "G4", "G6", "G7", "G8", "G9")
 EXPECTED_SV_DIGEST = ("md5", "prev-md5", "parent-goal-md5")
 EXPECTED_EVIDENCE_STATUSES = ("Guess", "Hypothetical", "Inferred", "Exact", "Unknown")
 

@@ -53,4 +53,6 @@ def test_compacted_runtime_budget() -> None:
     assert len(text.encode("utf-8")) <= KERNEL.utf8_budget
     # 2_950: admits the gate-addons section 6 (2026-09-04, Alexander) —
     # +2.1% tokens for the addon surface against +3.5% bytes; kernel graph untouched.
-    assert normalized_token_count(text) <= 2_950
+    # 3_100: admits gate G0 UNDERSTAND (2026-09-07, Alexander) — language +
+    # Digital Intention discipline; graph grew by one node and one forward edge.
+    assert normalized_token_count(text) <= 3_100

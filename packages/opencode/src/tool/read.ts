@@ -8,7 +8,7 @@ import DESCRIPTION from "./read.txt"
 import { Instance } from "../project/instance"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import { Instruction } from "../session/instruction"
-import { isImageAttachment, sniffAttachmentMime } from "@/util/media"
+import { isImageAttachment, sniffAttachmentMime, sniffVideoMime } from "@/util/media"
 import { convertDocument, isSupportedDocumentFormat } from "../util/markdownify"
 import { extractVideoFrames } from "@/util/video"
 import { filePathDescription } from "./path-hint"
@@ -296,14 +296,24 @@ export const ReadTool = Tool.define(
       //  - no video but image input -> SPLIT: sample evenly spaced downscaled
       //    frames via ffmpeg and attach them as images
       //  - neither -> fall through to the markdownify stub below
-      if (mime.startsWith("video/")) {
+      //
+      // Video is recognized by MAGIC BYTES ONLY (sniffVideoMime). The
+      // extension fallback is deliberately excluded: mime-types maps .ts
+      // (TypeScript) to video/mp2t (MPEG Transport Stream), and a text
+      // source file must never enter the video pipeline (2026-09-07
+      // incident: reading a .ts source file shipped its text as a "video").
+      // Native path is mp4-only (provider contract): other sniffed
+      // containers (mp2t/webm/avi/flv) take the SPLIT path under an
+      // image-capable model, else fall through to the stub.
+      const videoMime = sniffVideoMime(new Uint8Array(sample))
+      if (videoMime) {
         const model = ctx.extra?.["model"] as
           | { capabilities?: { input?: { video?: boolean; image?: boolean } } }
           | undefined
         const videoInput = model?.capabilities?.input?.video === true
         const imageInput = model?.capabilities?.input?.image === true
         const MAX_VIDEO_BYTES = 20 * 1024 * 1024
-        if (videoInput) {
+        if (videoInput && videoMime === "video/mp4") {
           if (Number(stat.size) > MAX_VIDEO_BYTES) {
             return yield* Effect.fail(
               new Error(
@@ -324,8 +334,8 @@ export const ReadTool = Tool.define(
             attachments: [
               {
                 type: "file" as const,
-                mime,
-                url: `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`,
+                mime: videoMime,
+                url: `data:${videoMime};base64,${Buffer.from(bytes).toString("base64")}`,
               },
             ],
           }

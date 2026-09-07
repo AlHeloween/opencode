@@ -110,6 +110,12 @@ export function summaryNeedsCompactFirst(input: { model: Provider.Model; content
  * No tokenizer, no +10k. For cadence callers use
  * `SessionCompaction.computeOpenWindowTokens` instead.
  * `model` retained for call-site compatibility (calibration hooks later).
+ *
+ * Base64 / data:-URL payloads are NOT counted as text (2026-09-07, Alexander):
+ * the provider bills video by duration (measured: 1.97 MiB clip ≈ 2610 prompt
+ * tokens, video_tokens: 0), so counting 2.7M base64 chars as text produced
+ * ~688K phantom tokens and fired an emergency compaction that silently
+ * dropped the video from context.
  */
 export function estimateContentTokens(msgs: MessageV2.WithParts[], _model: Provider.Model): number {
   let chars = 0
@@ -120,11 +126,42 @@ export function estimateContentTokens(msgs: MessageV2.WithParts[], _model: Provi
       } else if (part.type === "reasoning") {
         chars += part.text.length
       } else if (part.type === "tool" && part.state.status === "completed") {
-        chars += part.state.output.length
+        chars += estimateToolOutputTokens(part.state.output, part.state.attachments)
       }
     }
   }
   return contentTokensFromSymbols(chars)
+}
+
+/**
+ * Fixed estimated cost (in text-equivalent chars) for a media attachment.
+ * The provider bills media by duration/dimensions, not by byte content, so a
+ * short clip or image is worth a small fixed allowance — not its base64 size.
+ */
+function mediaAttachmentChars(mime: string): number {
+  if (mime.startsWith("video/")) return 12_000 // ≈ 3000 provider tokens per clip
+  if (mime.startsWith("image/")) return 6_000 // ≈ 1500 tokens per image
+  if (mime === "application/pdf") return 12_000
+  return 2_000
+}
+
+/**
+ * Tool output token estimation for overflow/compaction heuristics.
+ * Text counts as chars/4; data:/base64 attachments count as a small fixed
+ * media allowance instead of their byte size.
+ */
+export function estimateToolOutputTokens(output: string, attachments?: Array<{ mime: string; url: string }>): number {
+  let chars = output.length
+  for (const attachment of attachments ?? []) {
+    // A data URL's payload is base64, not provider-visible text — exclude the
+    // payload, keep a fixed media allowance (see estimateContentTokens doc).
+    if (attachment.url.startsWith("data:")) {
+      chars += mediaAttachmentChars(attachment.mime)
+      continue
+    }
+    chars += attachment.url.length
+  }
+  return chars
 }
 
 /**

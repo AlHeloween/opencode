@@ -854,6 +854,11 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
   // images directly, regardless of provider SDK.
   const supportsMediaInToolResult = (attachment: { mime: string }) => {
     const kind = classifyKind(attachment.mime)
+    // Video NEVER rides inline in tool results (2026-09-07 wire evidence:
+    // Z.AI rejects video_url blocks inside role:"tool" messages with
+    // 视频输入格式/解析错误 — request 7ea4159d). Video always goes through the
+    // synthetic user-message injection below, the provider-accepted path.
+    if (kind === "video") return false
     if (kind === "image" && model.capabilities?.input?.image) return true
     if (kind === "image" && model.api.npm === "@ai-sdk/amazon-bedrock") return true
     if (kind === "image" && model.api.npm === "@ai-sdk/xai") return true

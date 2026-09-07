@@ -15,6 +15,32 @@ import { TokenCalibration } from "./token-calibration"
 import { ProviderError } from "@/provider/error"
 import { PartID } from "./schema"
 import type { SessionID } from "./schema"
+import { MessageID } from "./schema"
+import { registry } from "@/attachment/registry"
+import { MediaTokenCalibration } from "./media-token-calibration"
+
+/**
+ * Count media file parts in a wire request (ModelMessage[]): images and
+ * videos separately — the provider reports their token cost split the same
+ * way in prompt_tokens_details.
+ */
+function countRequestMedia(messages: unknown[]): { image: number; video: number } {
+  let image = 0
+  let video = 0
+  for (const message of messages) {
+    const content = (message as { content?: unknown })?.content
+    if (!Array.isArray(content)) continue
+    for (const part of content) {
+      if (!part || typeof part !== "object") continue
+      const mediaType =
+        (part as { mediaType?: unknown }).mediaType ?? (part as { mimeType?: unknown }).mimeType
+      if (typeof mediaType !== "string") continue
+      if (mediaType.startsWith("image/")) image++
+      else if (mediaType.startsWith("video/")) video++
+    }
+  }
+  return { image, video }
+}
 import { SessionRetry, EMPTY_RESPONSE_MAX_ATTEMPTS } from "./retry"
 
 import { SessionStatus } from "./status"
@@ -75,6 +101,9 @@ type Input = {
    * Inferred by default; upgraded to Exact after session-read.
    * Used to inject epistemic nudges before destructive tool calls. */
   evidenceFloor?: import("../session/constitution").InfoMark
+  /** Wire messages of the current request (set in process()) — used by
+   * media token calibration to count media items per answered request. */
+  wireMessages?: unknown[]
 }
 
 export interface Interface {
@@ -481,6 +510,55 @@ export const layer: Layer.Layer<
           ? Constitution.formatRuntimeEvidence(evidence) + "\n" + output.output
           : output.output
         const finalOutput = nudge ? nudge + "\n" + evidencedOutput : evidencedOutput
+
+        // Deliver-once (2026-09-07, Alexander): media attachments from tool
+        // results become a REAL user file-part in the message history — written
+        // ONCE with a stable PartID — instead of being stored in the tool part
+        // and re-serialized into every request (the cloning that produced two
+        // unstable wire forms, a 963k-text-token 400, and an emergency
+        // compaction that silently dropped the video). The tool part records
+        // `metadata.mediaDelivered = <userMessageID>`; serialization sees the
+        // marker and skips re-injection. The provider bills media by
+        // duration/dimensions, not payload bytes (measured: 1.97 MiB clip ≈
+        // 2610 prompt tokens), so one user-message delivery is the full cost.
+        const mediaAttachments = (output.attachments ?? []).filter((a) =>
+          registry.isMedia(a.mime),
+        )
+        let deliveredMsgID: string | undefined
+        if (mediaAttachments.length > 0) {
+          const mediaUserMsg = yield* session.updateMessage({
+            id: MessageID.ascending(),
+            role: "user",
+            sessionID: ctx.sessionID,
+            agent: ctx.assistantMessage.agent,
+            model: {
+              providerID: ctx.assistantMessage.providerID,
+              modelID: ctx.assistantMessage.modelID,
+            },
+            time: { created: Date.now() },
+          })
+          yield* session.updatePart({
+            id: PartID.ascending(),
+            messageID: mediaUserMsg.id,
+            sessionID: ctx.sessionID,
+            type: "text",
+            text: `[tool media delivered by ${match.part.tool} (call ${toolCallID}) — ${mediaAttachments.length} file(s)]`,
+            synthetic: true,
+          } satisfies MessageV2.Part)
+          for (const attachment of mediaAttachments) {
+            yield* session.updatePart({
+              id: PartID.ascending(),
+              messageID: mediaUserMsg.id,
+              sessionID: ctx.sessionID,
+              type: "file",
+              mime: attachment.mime,
+              url: attachment.url,
+              ...(attachment.filename ? { filename: attachment.filename } : {}),
+            } satisfies MessageV2.Part)
+          }
+          deliveredMsgID = mediaUserMsg.id
+        }
+
         yield* session.updatePart({
           ...match.part,
           state: {
@@ -490,7 +568,17 @@ export const layer: Layer.Layer<
             metadata: output.metadata,
             title: output.title,
             time: { start: match.part.state.time.start, end: Date.now() },
-            attachments: output.attachments,
+            // Non-media attachments (text/plain data URLs etc.) stay on the
+            // tool part; media NEVER rides the tool part (see deliver-once).
+            attachments: (output.attachments ?? []).filter((a) => !registry.isMedia(a.mime)),
+            ...(deliveredMsgID
+              ? {
+                  metadata: {
+                    ...output.metadata,
+                    mediaDelivered: deliveredMsgID,
+                  },
+                }
+              : {}),
           },
         })
         // Track changed files for snapshot
@@ -846,6 +934,40 @@ export const layer: Layer.Layer<
             // publish the sidebar stayed $0.00 for the whole session.
             const usagePatch = recordSessionUsage({ sessionID: ctx.sessionID, usage, cacheState })
             if (usagePatch) yield* session.patch(ctx.sessionID, usagePatch)
+            // Media token calibration (2026-09-07, Alexander): the provider
+            // reports the REAL media cost in raw usage
+            // (prompt_tokens_details.image_tokens / video_tokens). Fold it
+            // into the per-model EMA (SQLite) — media never rides the chars/4
+            // text estimate; this measurement IS the media price.
+            {
+              const raw = value.usage.raw as
+                | {
+                    prompt_tokens_details?: { image_tokens?: unknown; video_tokens?: unknown; audio_tokens?: unknown }
+                  }
+                | undefined
+              const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : 0)
+              const imageTokens = num(raw?.prompt_tokens_details?.image_tokens)
+              const videoTokens = num(raw?.prompt_tokens_details?.video_tokens)
+              if (imageTokens > 0 || videoTokens > 0) {
+                const counts = countRequestMedia(ctx.wireMessages ?? [])
+                if (imageTokens > 0 && counts.image > 0) {
+                  MediaTokenCalibration.record({
+                    model: ctx.model,
+                    modality: "image",
+                    measuredTokens: imageTokens,
+                    itemCount: counts.image,
+                  })
+                }
+                if (videoTokens > 0 && counts.video > 0) {
+                  MediaTokenCalibration.record({
+                    model: ctx.model,
+                    modality: "video",
+                    measuredTokens: videoTokens,
+                    itemCount: counts.video,
+                  })
+                }
+              }
+            }
             // Snapshot provider status and publish for TUI display.
             yield* Effect.gen(function* () {
               // Cost-validation snapshot (internal)
@@ -1139,6 +1261,9 @@ export const layer: Layer.Layer<
       const process = Effect.fn("SessionProcessor.process")(function* (streamInput: LLM.StreamInput) {
         slog.info("process")
         ctx.needsCompaction = false
+        // Wire messages of the CURRENT request — media calibration counts
+        // items in exactly the request the provider answered.
+        ctx.wireMessages = streamInput.messages
         // Live tools this turn (plugin/MCP) + built-in defaults for disguised-call allowlist.
         ctx.knownToolIds = knownToolIdsForTurn(streamInput.tools as Record<string, unknown>)
         // Sub-agents: don't stop on a single denied tool — let the LLM retry with

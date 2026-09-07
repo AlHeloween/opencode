@@ -3,6 +3,7 @@ import type { Provider } from "@/provider/provider"
 import { ProviderTransform } from "@/provider/transform"
 import type { MessageV2 } from "./message-v2"
 import { TokenCalibration } from "./token-calibration"
+import { MediaTokenCalibration } from "./media-token-calibration"
 
 /** Cap on output-token reserve so huge max_output does not erase 1M windows. */
 const MAX_OUTPUT_RESERVE_TOKENS = 32_768
@@ -111,11 +112,13 @@ export function summaryNeedsCompactFirst(input: { model: Provider.Model; content
  * `SessionCompaction.computeOpenWindowTokens` instead.
  * `model` retained for call-site compatibility (calibration hooks later).
  *
- * Base64 / data:-URL payloads are NOT counted as text (2026-09-07, Alexander):
- * the provider bills video by duration (measured: 1.97 MiB clip ≈ 2610 prompt
- * tokens, video_tokens: 0), so counting 2.7M base64 chars as text produced
- * ~688K phantom tokens and fired an emergency compaction that silently
- * dropped the video from context.
+ * Media is NOT counted as text (2026-09-07, Alexander): providers bill
+ * video/images by duration/dimensions, not payload bytes — counting the
+ * 2.7M-char base64 of a 1.97 MiB clip as text produced ~688K phantom tokens
+ * and an emergency compaction that silently dropped the video. The real
+ * media cost is measured per-model from provider usage responses
+ * (see media-token-calibration.ts); when a measurement exists it can be
+ * added via `estimateMediaTokens`, never via chars/4.
  */
 export function estimateContentTokens(msgs: MessageV2.WithParts[], _model: Provider.Model): number {
   let chars = 0
@@ -126,7 +129,9 @@ export function estimateContentTokens(msgs: MessageV2.WithParts[], _model: Provi
       } else if (part.type === "reasoning") {
         chars += part.text.length
       } else if (part.type === "tool" && part.state.status === "completed") {
-        chars += estimateToolOutputTokens(part.state.output, part.state.attachments)
+        // Tool output text counts; attachments (media/data URLs) do NOT —
+        // they are billed by the provider per duration/dimensions, not bytes.
+        chars += part.state.output.length
       }
     }
   }
@@ -134,34 +139,25 @@ export function estimateContentTokens(msgs: MessageV2.WithParts[], _model: Provi
 }
 
 /**
- * Fixed estimated cost (in text-equivalent chars) for a media attachment.
- * The provider bills media by duration/dimensions, not by byte content, so a
- * short clip or image is worth a small fixed allowance — not its base64 size.
+ * Provider-calibrated estimate for media items in the message list:
+ * per-model EMA of measured provider tokens per media item, gated by model
+ * modality support (media-token-calibration.ts). Returns 0 without a
+ * measurement — no heuristics for media, by design.
  */
-function mediaAttachmentChars(mime: string): number {
-  if (mime.startsWith("video/")) return 12_000 // ≈ 3000 provider tokens per clip
-  if (mime.startsWith("image/")) return 6_000 // ≈ 1500 tokens per image
-  if (mime === "application/pdf") return 12_000
-  return 2_000
-}
-
-/**
- * Tool output token estimation for overflow/compaction heuristics.
- * Text counts as chars/4; data:/base64 attachments count as a small fixed
- * media allowance instead of their byte size.
- */
-export function estimateToolOutputTokens(output: string, attachments?: Array<{ mime: string; url: string }>): number {
-  let chars = output.length
-  for (const attachment of attachments ?? []) {
-    // A data URL's payload is base64, not provider-visible text — exclude the
-    // payload, keep a fixed media allowance (see estimateContentTokens doc).
-    if (attachment.url.startsWith("data:")) {
-      chars += mediaAttachmentChars(attachment.mime)
-      continue
+export function estimateMediaTokens(msgs: MessageV2.WithParts[], model: Provider.Model): number {
+  let video = 0
+  let image = 0
+  for (const msg of msgs) {
+    for (const part of msg.parts) {
+      if (part.type !== "file") continue
+      if (part.mime.startsWith("video/")) video++
+      else if (part.mime.startsWith("image/")) image++
     }
-    chars += attachment.url.length
   }
-  return chars
+  let total = 0
+  if (video > 0) total += MediaTokenCalibration.estimate({ model, modality: "video", count: video })
+  if (image > 0) total += MediaTokenCalibration.estimate({ model, modality: "image", count: image })
+  return total
 }
 
 /**
@@ -179,7 +175,10 @@ export function isOverflowFromContent(input: {
   if (input.model.limit.context === 0) return false
   if (input.msgs.length === 0) return false
 
-  const content = estimateContentTokens(input.msgs, input.model)
+  // Text via chars/4 + media via the per-model provider-calibrated EMA
+  // (0 until a measurement exists — no heuristics for media).
+  const content =
+    estimateContentTokens(input.msgs, input.model) + estimateMediaTokens(input.msgs, input.model)
   const count = estimateRequestTokens(content)
   const output = ProviderTransform.maxOutputTokens(input.model, undefined, count)
   return count >= usable(input) || count + output >= input.model.limit.context

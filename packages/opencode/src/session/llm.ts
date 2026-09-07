@@ -363,8 +363,10 @@ export function resolveToolName(name: string, tools: Record<string, Tool>) {
  *
  * Media file parts (data:/base64) do NOT count as text (2026-09-07, Alexander):
  * providers bill media by duration/dimensions (measured: 1.97 MiB video ≈ 2610
- * prompt tokens), so a 2.7M-char base64 blob must not trip the pre-send
- * overflow guard or emergency compaction.
+ * prompt tokens, video_tokens: 0) — a 2.7M-char base64 blob must not trip the
+ * pre-send overflow guard. The measured per-model media cost lives in
+ * media-token-calibration (SQLite EMA from provider usage responses) and is
+ * added by overflow.estimateMediaTokens on the overflow paths — never here.
  */
 export function estimateContentTokens(system: string[], messages: ModelMessage[]): number {
   let chars = system.reduce((total, content) => total + content.length, 0)
@@ -380,22 +382,9 @@ export function estimateContentTokens(system: string[], messages: ModelMessage[]
           chars += part.text.length
           continue
         }
-        if (part && typeof part === "object" && "type" in part) {
-          // File parts carry their payload in `data` (base64), not text.
-          const data = (part as { data?: { type?: string; data?: string } }).data
-          if (typeof data === "object" && data?.type === "data" && typeof data.data === "string") {
-            chars += mediaAllowanceChars(part as { mediaType?: string })
-            continue
-          }
-          if (typeof (part as unknown as { url?: unknown }).url === "string") {
-            const url = (part as unknown as { url: string }).url
-            if (url.startsWith("data:")) {
-              chars += mediaAllowanceChars(part as { mediaType?: string })
-              continue
-            }
-          }
-          chars += 64
-        }
+        // Media/file parts: payload is base64, not provider-visible text —
+        // fixed small framing cost only (never the payload size).
+        chars += 64
       }
       continue
     }
@@ -403,15 +392,6 @@ export function estimateContentTokens(system: string[], messages: ModelMessage[]
   }
   if (chars <= 0) return 0
   return Math.ceil(chars / 4) + REQUEST_OVERHEAD_TOKENS
-}
-
-/** Fixed text-equivalent cost for a media part (provider bills by duration/dimensions). */
-function mediaAllowanceChars(part: { mediaType?: string }): number {
-  const mediaType = part.mediaType ?? ""
-  if (mediaType.startsWith("video/")) return 12_000 // ≈ 3000 tokens per clip
-  if (mediaType.startsWith("image/")) return 6_000 // ≈ 1500 tokens per image
-  if (mediaType === "application/pdf") return 12_000
-  return 2_000
 }
 
 export type StreamInput = {

@@ -1016,7 +1016,16 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             const outputText = part.state.time.compacted
               ? "[Old tool result content cleared]"
               : truncateToolOutput(stripFloodReminderBlocks(part.state.output), options?.toolOutputMaxChars)
-            const attachments = part.state.time.compacted || options?.stripMedia ? [] : (part.state.attachments ?? [])
+            // Deliver-once (2026-09-07): when the processor already delivered
+            // this tool result's media as a real user message (metadata
+            // mediaDelivered = <userMessageID>), the media lives in history —
+            // the tool part must NOT carry or re-inject it. Legacy parts
+            // without the marker keep the old behavior below.
+            const mediaDelivered = part.state.metadata?.mediaDelivered !== undefined
+            const attachments =
+              mediaDelivered || part.state.time.compacted || options?.stripMedia
+                ? []
+                : (part.state.attachments ?? [])
 
             // For providers that don't support media in tool results, extract media files
             // (images, PDFs) to be sent as a separate user message

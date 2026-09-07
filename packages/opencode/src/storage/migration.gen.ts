@@ -8,6 +8,7 @@ import cacheStateStatistics from "../../migration/20260817000000_cache_state_sta
 import projectCheckpointPlanState from "../../migration/20260827000000_project_checkpoint_plan_state"
 import sessionCostSidecar from "../../migration/20260906000000_session_cost_sidecar"
 import sessionCostSidecarBackfill from "../../migration/20260906000001_session_cost_sidecar_backfill"
+import mediaTokenCalibration from "../../migration/20260907000000_media_token_calibration"
 
 export const migrations: DatabaseMigration.Migration[] = [
   baseline,
@@ -19,4 +20,5 @@ export const migrations: DatabaseMigration.Migration[] = [
   projectCheckpointPlanState,
   sessionCostSidecar,
   sessionCostSidecarBackfill,
+  mediaTokenCalibration,
 ]

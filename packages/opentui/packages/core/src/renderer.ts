@@ -904,6 +904,18 @@ export class CliRenderer extends EventEmitter implements RenderContext {
   private shouldRestoreModesOnNextFocus: boolean = false
   private themeModeHandler!: (sequence: string) => boolean
 
+  /**
+   * Reentrancy guard for the stdin cascade (2026-09-09 hang, Alexander):
+   * a capability/OSC reply re-enters drainStdinParser synchronously via
+   * requestRender/palette queries and can drive an unbounded event loop
+   * (observed via minidump: handleStdinEvent → dispatchSequenceHandlers →
+   * processCapabilitySequence → emit(CAPABILITIES) → Solid cascade).
+   * While a drain is running, nested stdin events are queued and drained
+   * after the outer drain completes.
+   */
+  private stdinCascadeDepth = 0
+  private stdinCascadeQueued: Buffer[] = []
+
   private idleResolvers: (() => void)[] = []
 
   private _debugInputs: Array<{ timestamp: string; sequence: string }> = []
@@ -1161,7 +1173,9 @@ export class CliRenderer extends EventEmitter implements RenderContext {
       if (result.changedMode) {
         this.clearPaletteCache()
         if (this.shouldSyncNativePaletteState() || this.listenerCount(CliRenderEvents.PALETTE) > 0) {
-          this.refreshPalette()
+          // Deferred: this handler runs inside the stdin drain; a sync OSC
+          // write here can re-enter the parser mid-drain (see hang 2026-09-09).
+          this.refreshPaletteDeferred()
         }
         this.emit(CliRenderEvents.THEME_MODE, result.changedMode)
       }
@@ -3204,7 +3218,9 @@ export class CliRenderer extends EventEmitter implements RenderContext {
 
     this.queryPixelResolution()
     if (this.shouldSyncNativePaletteState()) {
-      this.refreshPalette()
+      // Deferred: startup palette query must not write OSC synchronously
+      // while the stdin parser/capability handshake is still mid-setup.
+      this.refreshPaletteDeferred()
     }
 
     // Feed-backed startup writes are async relative to the JS Writable. Wait
@@ -3219,13 +3235,48 @@ export class CliRenderer extends EventEmitter implements RenderContext {
     const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
     if (!this.stdinParser) return
 
+    // Reentrancy guard: if we are already inside a stdin-driven cascade
+    // (capability/palette/theme handling that itself writes OSC and can
+    // synchronously re-enter via parser timeouts), defer this chunk until
+    // the outer cascade completes. Prevents unbounded synchronous recursion.
+    if (this.stdinCascadeDepth > 0) {
+      this.stdinCascadeQueued.push(data)
+      return
+    }
+
     try {
       this.stdinParser.push(data)
-      this.drainStdinParser()
+      this.drainStdinParserGuarded()
+
     } catch (error) {
       this.handleStdinParserFailure(error)
     }
   }).bind(this)
+
+  private drainStdinParserGuarded(): void {
+    if (!this.stdinParser) return
+    this.stdinCascadeDepth++
+    try {
+      this.drainStdinParser()
+    } finally {
+      this.stdinCascadeDepth--
+    }
+    // Drain queued chunks (from nested listener firings) without recursion.
+    while (this.stdinCascadeQueued.length > 0 && this.stdinCascadeDepth === 0) {
+      const next = this.stdinCascadeQueued.shift()!
+      try {
+        this.stdinParser!.push(next)
+        this.stdinCascadeDepth++
+        try {
+          this.drainStdinParser()
+        } finally {
+          this.stdinCascadeDepth--
+        }
+      } catch (error) {
+        this.handleStdinParserFailure(error)
+      }
+    }
+  }
 
   public addInputHandler(handler: (sequence: string) => boolean): void {
     this.sequenceHandlers.push(handler)
@@ -5023,6 +5074,19 @@ export class CliRenderer extends EventEmitter implements RenderContext {
       .catch(() => {})
   }
 
+  /**
+   * Defer a palette refresh to the next microtask (2026-09-09 hang): when
+   * called from inside a stdin cascade (capability/theme handler), writing
+   * the OSC query synchronously can feed stdin again while the parser is
+   * mid-drain. Microtask deferral breaks the sync reentrancy while keeping
+   * the same eventual behavior.
+   */
+  private refreshPaletteDeferred(): void {
+    queueMicrotask(() => {
+      if (!this._isDestroyed) this.refreshPalette()
+    })
+  }
+
   public clearPaletteCache(): void {
     this._palettePublishGeneration++
     this._paletteCache.clear()
@@ -5101,7 +5165,9 @@ export class CliRenderer extends EventEmitter implements RenderContext {
           if (this.shouldSyncNativePaletteState() && result.palette.length >= NATIVE_PALETTE_QUERY_SIZE) {
             this.syncNativePaletteState(result)
           } else if (this.shouldSyncNativePaletteState() && !this._paletteCache.has(NATIVE_PALETTE_QUERY_SIZE)) {
-            this.refreshPalette()
+            // Re-query deferred: this callback may run while a stdin cascade
+            // is mid-drain (OSC replies land on stdin).
+            this.refreshPaletteDeferred()
           }
         }
 

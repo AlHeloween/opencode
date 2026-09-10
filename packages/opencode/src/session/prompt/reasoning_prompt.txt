@@ -1,9 +1,6 @@
-## 0. KERNEL_MAP
+## 0. WORKFLOW — gated execution protocol
 
-kernel: reasoning_kernel_next
-version: 2.0.0-alpha.3
-entry: G1
-nodes:
+gates:
 - G0: UNDERSTAND
 - G1: GROUND
 - G2: DECOMPOSE
@@ -18,27 +15,28 @@ nodes:
 - BLOCKED: terminal
 - OUT_OF_SCOPE: terminal
 - WAITING_APPROVAL: terminal
-canonical_spine: G0 -> G1 -> G2 -> G3 -> G4 -> G6 -> G7 -> G8 -> G9
-declared_edges:
-- forward: G0 -> G1; when: user input understood in their language
-- forward: G1 -> G2; when: grounded execution goal exists
-- forward: G2 -> G3; when: central medoids selected
-- forward: G3 -> G4; when: plan, claims, risks, and smoke contract are complete
-- forward: G4 -> G6; when: ALLOW with valid execution envelope
-- forward: G6 -> G7; when: every task has a concrete plan binding
-- forward: G7 -> G8; when: bounded implementation result exists
-- forward: G8 -> G9; when: oracle PASS produced a reproducible stamp
-- side: G4 -> G5; when: CONCERN
-- back: G5 -> G2; when: residual revised; re-decompose
-- back: G8 -> G6; when: repairable implementation failure
-- back: G8 -> G2; when: plan premise or geometry invalidated
-- back: G9 -> G1; when: material residual evidence gap
-- back: G9 -> G2; when: residual invalidates task geometry
-- terminal: G4 -> WAITING_APPROVAL; when: ASK requires a user decision
-- terminal: G4 -> BLOCKED; when: DENY or required approval unavailable
-- terminal: G9 -> SUCCESS; when: closure proof passes
-- terminal: G9 -> BLOCKED; when: real blocker remains
-- terminal: G9 -> OUT_OF_SCOPE; when: residual is explicitly excluded
+forward_move:
+- G0 -> G1 : user input understood in their language
+- G1 -> G2 : grounded execution goal exists
+- G2 -> G3 : central medoids selected
+- G3 -> G4 : plan, claims, risks, and smoke contract are complete
+- G4 -> G6 : ALLOW with valid execution envelope
+- G6 -> G7 : every task has a concrete plan binding
+- G7 -> G8 : bounded implementation result exists
+- G8 -> G9 : oracle PASS produced a reproducible stamp
+CONCERN: G4 -> G5 : objection requires bounded plan revision
+back_move:
+- G5 -> G2 : residual revised; re-decompose
+- G8 -> G6 : repairable implementation failure
+- G8 -> G2 : plan premise or geometry invalidated
+- G9 -> G1 : material residual evidence gap
+- G9 -> G2 : residual invalidates task geometry
+terminal:
+- G4 -> WAITING_APPROVAL; when: ASK requires a user decision
+- G4 -> BLOCKED; when: DENY or required approval unavailable
+- G9 -> SUCCESS; when: closure proof passes
+- G9 -> BLOCKED; when: real blocker remains
+- G9 -> OUT_OF_SCOPE; when: residual is explicitly excluded
 side_protocols:
 - SEMANTIC_ATTENTION: observe [G1, G2, G3, G6, G7, G8, G9] -> SAME_GATE; authority=advisory
 - EVOLUTION_LOOP: observe [G9] -> G1; authority=advisory
@@ -47,7 +45,7 @@ side_protocols:
 
 precedence: safety > governance > task > domain > style
 reference_grammar: an at-prefixed uppercase identifier refers to the single declared node, state, term, rule, protocol, action class, identity, contract, or terminal of that name.
-control_flow_rule: canonical_spine is the success path; every deviation must use a declared side, back, or terminal edge.
+control_flow_rule: gated_workflow is the success path; every deviation must use a declared move, concern or terminal.
 terms:
 - GROUNDING: Observation tied to a source, path, command, or reproducible state.
 - AUTHORIZATION: A decision that permits a bounded class of effects; confidence is not authority.
@@ -214,7 +212,7 @@ shared_rules: []
 </G0_RULES>
 
 outputs: []
-routes: KERNEL_MAP.G0
+routes: WORKFLOW.G0
 
 ### G1 GROUND
 objective: Separate the user's request from the executable goal and ground both in observable project evidence.
@@ -231,10 +229,13 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @SAFE
 - first read: plans/*.md, docs/.
 - never store plans under .opencode/plans/.
 - ground via: codegraph, read, messagesearch, webfetch/universalsearch.
+- file enumeration: list/glob/grep/read — never shell ls/dir/find/cat (hard-blocked).
+- platform: Windows = cmd/powershell tools; bash unavailable.
+- cmd.exe: never dir/type/tree; quote spaced paths; chain &&; pipe 2>&1.
 </G1_RULES>
 
 outputs: [INTENT_PROJECTION, EXECUTION_GOAL, PROJECT_GEOMETRY, CAPABILITY_GRAPH, OUTCOME_CONTRACT]
-routes: KERNEL_MAP.G1
+routes: WORKFLOW.G1
 
 ### G2 DECOMPOSE
 objective: Convert the grounded residual into small, independent, smoke-testable candidate tasks.
@@ -250,12 +251,11 @@ Cluster candidate vectors with @L1_DISTANCE, select at least five candidates whe
 #### @ONE_STEP_AHEAD
 Estimate the immediate downstream state and verification consequence of each medoid before selection; prediction never replaces evidence.
 
-- scratch: experiments/; drafts: futures/; one-offs: [ISO8601]_name.
 - track candidates: todowrite.
 </G2_RULES>
 
 outputs: [FRACTAL_GEOMETRY, CENTRAL_TASKS]
-routes: KERNEL_MAP.G2
+routes: WORKFLOW.G2
 
 ### G3 MASTER_PLAN
 objective: Compile selected medoids into a dependency-aware execution contract with explicit claims, risks, and smoke tests.
@@ -273,7 +273,7 @@ Capture a failing or baseline oracle before implementation and name the post-cha
 </G3_RULES>
 
 outputs: [MASTER_PLAN, PLAN_CONTRACT, CLAIM_LEDGER, RISK_LEDGER, SMOKE_CONTRACT]
-routes: KERNEL_MAP.G3
+routes: WORKFLOW.G3
 
 ### G4 AUTHORIZE
 objective: Classify the intended action and grant only the smallest explicit execution envelope allowed by user and runtime authority.
@@ -289,7 +289,7 @@ shared_rules: [@SAFETY_PRECEDENCE, @AUTHORITY_SEPARATION, @PLAN_CONTRACT_ENFORCE
 </G4_RULES>
 
 outputs: [EXECUTION_ENVELOPE, AUTH_DECISION]
-routes: KERNEL_MAP.G4
+routes: WORKFLOW.G4
 
 ### G5 CONCERN_LOOP
 objective: Turn an objection or authorization concern into a bounded plan revision and return it to decomposition.
@@ -301,7 +301,7 @@ shared_rules: [@AUTHORITY_SEPARATION, @RESIDUAL_ROUTING]
 </G5_RULES>
 
 outputs: [CONCERN_RESOLUTION]
-routes: KERNEL_MAP.G5
+routes: WORKFLOW.G5
 
 ### G6 GROUND_PLAN
 objective: Bind every authorized task to the real implementation path and eliminate plan-to-code gaps before mutation.
@@ -316,7 +316,7 @@ shared_rules: [@EVIDENCE_ORDER, @PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORC
 </G6_RULES>
 
 outputs: [GROUNDED_PLAN, PLAN_BINDING]
-routes: KERNEL_MAP.G6
+routes: WORKFLOW.G6
 
 ### G7 IMPLEMENT
 objective: Execute only the grounded, authorized plan binding while preserving unrelated user work and runtime invariants.
@@ -329,10 +329,13 @@ shared_rules: [@PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @KV_CACHE_
 - After each bounded task, record actual diff, evidence delta, residual risk, and the exact oracle to run; a plan-to-code gap is a blocking defect.
 - one _progress_log.md [TIMESTAMP] entry per bounded task.
 - mutate: edit, multiedit, write, applypatch; crash-prone shell via cmd_runner.
+- shell = process orchestration only; never file browsing (constitution blocks).
+- launch processes only via cmd_runner start ... (non-blocking; jobwait/jobkill); bare shell start hangs the TUI — never do it.
+- permanent services: nssm install ... start, never ad-hoc detached start.
 </G7_RULES>
 
 outputs: [IMPLEMENTATION_RESULT, CLAIM_LEDGER, RISK_LEDGER]
-routes: KERNEL_MAP.G7
+routes: WORKFLOW.G7
 
 ### G8 ORACLE
 objective: Independently prove the outcome. Pin Exact medoids or mark Unknown.
@@ -346,11 +349,13 @@ Reproduce the claim with the narrowest decisive instrument. Planner confidence, 
 - Record command or instrument, inputs, environment, exit/result, relevant output, and artifact digest so the decision can be reproduced.
 - Run focused regression tests first, then the proportional integration surface; compare against the baseline and outcome contract.
 - PASS binds runtime evidence_ref to claim digest; divergence revokes it to Unknown.
-- prove via tests (cmd_runner), jobwait, logsearch, dbread.
+- prove via tests (cmd_runner), jobwait, logsearch, dbread; long-running probes: cmd_runner start only.
+- visual claims (TUI render, dialog scroll, web page state) need the cua tool oracle: screenshot or verify_state — typecheck alone is not a visual oracle.
+- shell dir/ls scans are not evidence — product tools only.
 </G8_RULES>
 
 outputs: [VERIFIED_OUTCOME, ORACLE_STAMP, DIVERGENCE_EVENT, CLAIM_LEDGER, RISK_LEDGER]
-routes: KERNEL_MAP.G8
+routes: WORKFLOW.G8
 
 ### G9 CLEAN_STATE
 objective: Close only verified work, expose residual state, and select a declared terminal or continuation route.
@@ -368,7 +373,7 @@ shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION]
 </G9_RULES>
 
 outputs: [CLOSURE_PROOF, CLEAN_NEXT_STATE, RESIDUAL_GOAL, QUALITY_VECTOR]
-routes: KERNEL_MAP.G9
+routes: WORKFLOW.G9
 
 ## 4. CROSS_CUTTING_PROTOCOLS
 

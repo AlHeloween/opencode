@@ -26,37 +26,48 @@ const disposal = {
 
 function boot(input: { directory: string; init?: () => Promise<any>; worktree?: string; project?: Project.Info }) {
   return iife(async () => {
-    const ctx =
-      input.project && input.worktree
-        ? {
-            directory: input.directory,
-            worktree: input.worktree,
-            project: input.project,
-          }
-        : await project
-            .runPromise((svc) => svc.fromDirectory(input.directory))
-            .then(({ project, sandbox }) => ({
+    let stage = "project-discovery"
+    Log.Default.info("instance boot started", { directory: input.directory })
+    try {
+      const ctx =
+        input.project && input.worktree
+          ? {
               directory: input.directory,
-              worktree: sandbox,
-              project,
-            }))
-    Global.initFromWorktree(ctx.worktree)
-    // Set project context for DB operations: persistDiscovery, init (bootstrap), and all user code
-    await Database.withProject(ctx.project.id, ctx.worktree, async () => {
-      // Persist discovered project: merge with existing row, upsert, migrate sessions
-      Project.persistDiscovery(ctx.project, ctx.worktree)
-      await Log.reopen()
-      await context.provide(ctx, async () => {
-        await input.init?.()
+              worktree: input.worktree,
+              project: input.project,
+            }
+          : await project
+              .runPromise((svc) => svc.fromDirectory(input.directory))
+              .then(({ project, sandbox }) => ({
+                directory: input.directory,
+                worktree: sandbox,
+                project,
+              }))
+      stage = "initialize-global-paths"
+      Global.initFromWorktree(ctx.worktree)
+      // Set project context for initialization and all user code. fromDirectory owns
+      // its normal project upsert; relocating paths is an explicit `opencode db fix` operation.
+      stage = "open-project-log"
+      await Database.withProject(ctx.project.id, ctx.worktree, async () => {
+        await Log.reopen()
+        stage = "initialize-instance"
+        await context.provide(ctx, async () => {
+          await input.init?.()
+        })
       })
-    })
-    return ctx
+      Log.Default.info("instance boot completed", { directory: input.directory, projectID: ctx.project.id })
+      return ctx
+    } catch (error) {
+      Log.Default.error("instance boot failed", { directory: input.directory, stage, error: String(error) })
+      throw error
+    }
   })
 }
 
 function track(directory: string, next: Promise<InstanceContext>) {
   const task = next.catch((error) => {
     if (cache.get(directory) === task) cache.delete(directory)
+    Log.Default.error("instance boot rejected", { directory, error: String(error) })
     throw error
   })
   cache.set(directory, task)

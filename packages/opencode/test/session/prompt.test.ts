@@ -1292,7 +1292,7 @@ it.live(
 )
 
 it.live(
-  "prompt submitted during an active run is included in the next LLM input",
+  "prompt submitted during active reasoning replaces the active turn",
   () =>
     provideTmpdirServer(
       Effect.fnUntraced(function* ({ llm }) {
@@ -1341,6 +1341,8 @@ it.live(
         }
         if (!saved) throw new Error("timed out waiting for second prompt to save")
 
+        // The test server serializes a held HTTP/1 stream, so release its
+        // handler only after the replacement user message is durable.
         gate.resolve()
 
         const [ea, eb] = yield* Effect.all([Fiber.await(a), Fiber.await(b)])

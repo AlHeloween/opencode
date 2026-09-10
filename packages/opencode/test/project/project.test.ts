@@ -6,8 +6,8 @@ import {
   Info,
   remapWorktreePath,
   normalizeWorktreePath,
-  persistDiscovery,
 } from "@/project/project"
+import { ProjectDatabaseFix } from "@/project/database-fix"
 import * as Log from "@opencode-ai/core/util/log"
 import { $ } from "bun"
 import * as fs from "fs/promises"
@@ -733,7 +733,7 @@ describe("worktree relocate", () => {
     expect(variants.length).toBeGreaterThan(0)
   })
 
-  test("persistDiscovery rewrites session.directory when worktree moves", async () => {
+  test("db fix rewrites session.directory when worktree moves", async () => {
     await using tmp = await tmpdir()
     const oldPath = path.join(tmp.path, "old-location")
     const newPath = path.join(tmp.path, "new-location")
@@ -768,30 +768,42 @@ describe("worktree relocate", () => {
       })
       .run()
 
-    await Database.withProject(projectID, newPath, async () => {
-      persistDiscovery(
-        {
-          id: projectID,
-          worktree: newPath,
-          sandboxes: [],
-          time: { created: Date.now(), updated: Date.now() },
-        },
-        newPath,
-      )
-    })
+    Database.close()
+    ProjectDatabaseFix.run({ directory: newPath })
 
-    const project = db.select().from(ProjectTable).where(eq(ProjectTable.id, projectID)).get()
+    const fixed = Database.getProjectDb(projectID, newPath)
+    const project = fixed.select().from(ProjectTable).where(eq(ProjectTable.id, projectID)).get()
     expect(project?.worktree).toBe(normalizeWorktreePath(newPath))
 
-    const session = db.select().from(SessionTable).where(eq(SessionTable.id, sessionID)).get()
+    const session = fixed.select().from(SessionTable).where(eq(SessionTable.id, sessionID)).get()
     expect(session?.directory).toBe(normalizeWorktreePath(newPath))
     expect(session?.project_id).toBe(projectID)
 
-    // Sandbox path remapped under new root
-    const sandboxes = project?.sandboxes ?? []
-    expect(sandboxes.some((s) => s.includes("sandbox-a") && s.startsWith(normalizeWorktreePath(newPath)))).toBe(true)
-
     Database.closeProjectDb(projectID)
+  })
+
+  test("fromDirectory preserves the saved root until explicit db fix", async () => {
+    await using tmp = await tmpdir()
+    const oldPath = path.join(tmp.path, "previous-location")
+    const projectID = ProjectID.make("test-deferred-relocate-project-id")
+    const db = Database.getProjectDb(projectID, tmp.path)
+    db.insert(ProjectTable)
+      .values({
+        id: projectID,
+        worktree: oldPath,
+        vcs: null,
+        time_created: Date.now(),
+        time_updated: Date.now(),
+        sandboxes: [],
+      })
+      .run()
+    Database.close()
+
+    const { project } = await run((svc) => svc.fromDirectory(tmp.path))
+
+    expect(project.worktree).toBe(tmp.path)
+    expect(Database.getProjectDb(projectID, tmp.path).select().from(ProjectTable).where(eq(ProjectTable.id, projectID)).get()?.worktree).toBe(oldPath)
+    Database.close()
   })
 
   test("importFromDisk keeps stable id after folder rename (path-hash projects)", async () => {

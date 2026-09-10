@@ -1,9 +1,7 @@
 import z from "zod"
-import { and, ne } from "drizzle-orm"
 import { Database } from "@/storage/db"
 import { eq } from "drizzle-orm"
 import { ProjectTable } from "./project.sql"
-import { SessionTable } from "../session/session.sql"
 import * as Log from "@opencode-ai/core/util/log"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { BusEvent } from "@/bus/bus-event"
@@ -388,8 +386,8 @@ export const layer: Layer.Layer<
       })
 
       // Build project from discovery data only (no DB access).
-      // Persistence (merge with existing row, upsert, session migration) is handled
-      // by persistDiscovery() after initFromWorktree in instance.ts.
+      // Persistence is the local project-row upsert below. Session path repair is
+      // deliberately explicit through `opencode db fix`, never startup work.
       const result: Info = {
         id: data.id,
         worktree: data.worktree,
@@ -403,6 +401,14 @@ export const layer: Layer.Layer<
         Database.projectUse(data.id, data.worktree, (db) => {
           // Read existing row to merge sandboxes
           const existing = db.select().from(ProjectTable).where(eq(ProjectTable.id, data.id)).get()
+          if (existing && normalizeWorktreePath(existing.worktree) !== normalizeWorktreePath(result.worktree)) {
+            log.info("deferred relocated project database repair", {
+              stored: existing.worktree,
+              current: result.worktree,
+            })
+            result.sandboxes = existing.sandboxes
+            return
+          }
           const mergedSandboxes = existing
             ? [...new Set([...existing.sandboxes, ...result.sandboxes])]
             : result.sandboxes
@@ -669,102 +675,6 @@ export function setInitialized(id: ProjectID) {
   Database.projectUse(id, worktree, (db) =>
     db.update(ProjectTable).set({ time_initialized: Date.now() }).where(eq(ProjectTable.id, id)).run(),
   )
-}
-
-/**
- * Persist a newly discovered project into the project's own DB.
- * Reads the existing project row (if any) to preserve name/icon/timestamps,
- * merges with new discovery data, upserts, and migrates orphan sessions.
- * Must be called within a project context (Database.withProject).
- *
- * On worktree relocate (project folder moved): rewrites session.directory and
- * sandbox paths from the old absolute root to the new one so session.list
- * (which filters by directory from x-opencode-directory) still finds them.
- */
-export function persistDiscovery(result: Info, worktree: string) {
-  Database.use((db) => {
-    // Prefer the row that matches discovery id; fall back to any single project row
-    // (portable DB is one project — may still hold a pre-move path-hash id row).
-    const row =
-      db.select().from(ProjectTable).where(eq(ProjectTable.id, result.id)).get() ??
-      db.select().from(ProjectTable).get()
-    const existing = row ? fromRow(row) : result
-
-    const oldWorktree = normalizeWorktreePath(existing.worktree)
-    const newWorktree = normalizeWorktreePath(result.worktree || worktree)
-    const relocated = oldWorktree !== newWorktree
-
-    const remappedSandboxes = [
-      ...new Set(
-        [...existing.sandboxes, ...result.sandboxes].map((s) =>
-          relocated ? remapWorktreePath(s, oldWorktree, newWorktree) : s,
-        ),
-      ),
-    ].filter((s) => s !== newWorktree)
-
-    // Merge: preserve existing name/icon/timestamps, update worktree/vcs/sandboxes
-    const merged: Info = {
-      ...existing,
-      id: result.id,
-      worktree: newWorktree,
-      vcs: result.vcs,
-      sandboxes: remappedSandboxes,
-      time: { ...existing.time, updated: Date.now() },
-    }
-
-    // Upsert into the current project DB (already scoped by Database.withProject)
-    db.insert(ProjectTable)
-      .values(infoToInsertValues(merged))
-      .onConflictDoUpdate({
-        target: ProjectTable.id,
-        set: {
-          worktree: merged.worktree,
-          vcs: merged.vcs ?? null,
-          name: merged.name ?? null,
-          icon_url: merged.icon?.url ?? null,
-          icon_url_override: merged.icon?.override ?? null,
-          icon_color: merged.icon?.color ?? null,
-          time_updated: merged.time.updated,
-          time_initialized: merged.time.initialized ?? null,
-          sandboxes: merged.sandboxes,
-          commands: merged.commands ?? null,
-        },
-      })
-      .run()
-
-    // Portable DB is single-project: drop any other identity rows (e.g. path-hash
-    // id written before move-safe discovery).
-    db.delete(ProjectTable).where(ne(ProjectTable.id, merged.id)).run()
-
-    if (relocated) {
-      // Rewrite session.directory so SDK directory filter matches the new location.
-      const sessions = db.select({ id: SessionTable.id, directory: SessionTable.directory }).from(SessionTable).all()
-      let rewritten = 0
-      for (const session of sessions) {
-        const next = remapWorktreePath(session.directory, oldWorktree, newWorktree)
-        if (next === session.directory) continue
-        db.update(SessionTable).set({ directory: next }).where(eq(SessionTable.id, session.id)).run()
-        rewritten++
-      }
-      if (rewritten > 0) {
-        log.info("rewrote session directories after worktree relocate", {
-          from: oldWorktree,
-          to: newWorktree,
-          count: rewritten,
-        })
-      }
-    }
-
-    // Migrate all sessions in this portable project DB to the discovered project ID.
-    // Do not require directory == new worktree — that failed after moves (old paths).
-    // Covers: (a) global project ID, (b) path-hash vs git root-commit, (c) relocate.
-    if (merged.id !== ProjectID.global) {
-      db.update(SessionTable)
-        .set({ project_id: merged.id })
-        .where(ne(SessionTable.project_id, merged.id))
-        .run()
-    }
-  })
 }
 
 /**

@@ -1,11 +1,12 @@
 # Session run lifecycle semantics
 
-**status:** production · **last_verified:** 2026-08-27 · **owner:** Local_Development
+**status:** production · **last_verified:** 2026-09-10 · **owner:** Local_Development
 
 Two layers of truth, same as [`compaction.md`](compaction.md):
 
 1. **Intended contract** (below) — the lifecycle that this fork enforces.
-2. **Code Exact** — `runner.ts` / `run-state.ts` / `prompt.ts` / `session.ts` as of commit `8f8d1026f0`.
+2. **Code Exact** — `runner.ts` / `run-state.ts` / `prompt.ts` / `session.ts` in the
+   Local_Development working tree verified 2026-09-10.
 
 If they disagree, do not paper over it: fix code toward the contract or mark the gap here.
 
@@ -13,22 +14,23 @@ If they disagree, do not paper over it: fix code toward the contract or mark the
 
 ---
 
-## 0. Architecture at a glance (2026-08-27)
+## 0. Architecture at a glance (2026-09-10)
 
 | Mechanism | File | Contract |
 |---|---|---|
 | Join | `effect/runner.ts` `ensureRunning` | same-session callers share the active run's `done` |
+| User-turn supersede | `effect/runner.ts` `supersede` | a fresh `prompt()` aborts active inference and starts its replacement |
 | Bounded cancel | `effect/runner.ts` `cancel` | cancel ALWAYS returns; wedged fibers cannot stall callers |
-| Queue continuity | `session/prompt.ts` `runLoop` break gate | mid-run prompts are consumed by the running loop |
+| Loop continuity | `session/prompt.ts` `runLoop` break gate | internal continuation work re-reads the durable message tail |
 | Event identity | `session/session.ts` `patch` | every `session.updated` carries projectID/directory |
 | Abort chain | `session/llm.ts` `stream` → `run` → `streamText` | controller aborts when the consuming scope closes |
 
 ---
 
-## 1. Join, not supersede
+## 1. Join internal loops; supersede a fresh user turn
 
 `SessionRunState` keeps one `Runner` per session (`Map<SessionID, Runner>`). Concurrent
-`prompt.loop` / `prompt` callers arrive at `Runner.ensureRunning(work)`:
+`prompt.loop` callers arrive at `Runner.ensureRunning(work)`:
 
 ```
 state Idle          → startRun(work)                     (caller owns the run)
@@ -36,19 +38,20 @@ state Running       → awaitDone(st.run.done)             (caller JOINS)
 state RunningThenRun → awaitDone(st.run.done)            (joins the pending run)
 ```
 
-**Removed:** the old supersede path (fire-and-forget interrupt + fresh run for the new
-caller). Reasons, all tested:
+`SessionPrompt.prompt()` is different: it persisted a new explicit user message, then
+calls `SessionRunState.supersede()`. In `Running` / `RunningThenRun` it interrupts the
+provider-owning fiber, settles the old deferred through `onInterrupt`, drops a pending
+internal run, and starts the replacement immediately. The interruption is forked and
+bounded, so a wedged native read cannot keep the replacement from starting.
 
-- The session loop re-reads messages **every step** — it is designed to consume
-  mid-run submissions itself. Supersede killed the held turn instead of feeding it.
-- A superseded caller's `done` never settled when its fiber wedged in native I/O
-  → callers hung forever (`cancel with queued callers` 30 s stall).
-- The `onInterrupt → lastAssistant` fallback raced the new run's writes.
+The distinction is intentional: a duplicate/internal `loop()` preserves a single run;
+a new user turn is realtime input and must not wait behind model reasoning. The work is
+provided with the current `InstanceRef`. Synchronous system-environment formatting uses
+`InstanceState.bind()` so it restores the matching ALS context when a replacement fiber
+starts.
 
-Supersede remains available deliberately: `cancel` first, then a fresh call.
-
-**Runner.make has exactly one consumer** (`run-state.ts:59`) — no other subsystem
-depended on supersede (grep-verified 2026-08-27).
+**Runner.make has exactly one consumer** (`run-state.ts`) — session state owns the
+user-turn distinction; generic runner consumers keep join semantics.
 
 ## 2. Cancel: three phases, guaranteed return
 
@@ -75,7 +78,7 @@ data. The keep-alive mock experiment (1 s SSE comments, 2026-08-27) was **revert
 flipped abort semantics and broke the `records-aborted` contract. The no-data wedge is a
 real edge (dead provider socket); bounded force-fail is the designed answer.
 
-## 3. Queue continuity at the break gate
+## 3. Continuity at the break gate
 
 ```ts
 // prompt.ts runLoop
@@ -87,9 +90,9 @@ if (result === "stop" && !sidecarCaptured) {
 }
 ```
 
-A user message submitted while step N streamed is consumed by step N+1 of the SAME run.
-Known upstream race (message lands between the check and Idle) is covered by the next
-prompt: with join it re-opens a run and is consumed there.
+This is retained for internal continuation work. An ordinary `prompt()` does not depend
+on this gate: it supersedes the active stream before the next model step, so user input
+is live even when reasoning would otherwise continue indefinitely.
 
 ## 4. Project identity rides on events
 
@@ -112,21 +115,22 @@ Do not add new sync events without the project fields.
 | `running task tool preserves metadata…` | stamp is written synchronously (`SyncEvent.runBatch` immediate TX); poll matches by tool part, not agent identity string (`build` vs `build_mode`) |
 | `cancel with queued callers…` | join + bounded cancel; ~11 s |
 | `concurrent loop callers…` ×2 | join; stream errors persist as error-assistant |
-| `prompt submitted during an active run…` | queue-check; poll runs **in-context** (detached `Effect.runPromise` loses the database LocalContext → `Database.use` throws NotFound off-fiber) |
+| `prompt submitted during active reasoning replaces…` | durable second user message replaces the active run; both callers resolve and the replacement receives the new input |
+| `supersede interrupts active work…` | runner interrupts the active fiber and starts the replacement before the first can finish |
 | `keeps stored part order stable…` | forEach assembles in input order; PartID monotonic; UTC suffix on non-synthetic text parts |
 
 ## 6. Verify
 
 ```bash
 cd packages/opencode
-bun run typecheck                                   # 0 errors
-bun test test/session/prompt.test.ts                # 41 pass / 0 fail / 13 skip
-bun test -t "cancel with queued callers" test/session/prompt.test.ts
-python tools/cg.py ensureRunning --file src/effect/runner.ts   # structural pack
+bun typecheck
+bun test test/effect/runner.test.ts -t "supersede interrupts active work"
+bun test test/session/prompt.test.ts -t "prompt submitted during active reasoning replaces"
 ```
 
-Verified twice on 2026-08-27 (full2.log, full3.log). Single environmental flake observed:
-`EBADF uv_spawn` under fd pressure after ~6 min (green solo) — not a code defect.
+Verified 2026-09-10: both focused regressions and `bun typecheck` pass. The full
+`prompt.test.ts` currently retains two independent failures (native mode identity/tool
+stability; Layer-1 sidecar call count), present in the baseline before this change.
 
 ## 7. Deferred
 

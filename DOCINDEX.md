@@ -43,6 +43,8 @@ class DocIndex:
         DocRecord("docs/architecture.md", "OpenCode team", "System architecture: prompt, checkpoint, agents, media, cache/diff, OpenRouter affinity identity", last_verified="2026-09-06"),
         DocRecord("_application_workflow_diagram.md", "Local_Development", "Runtime module and function flow, including OpenRouter body/header session identity", last_verified="2026-09-06"),
         DocRecord("docs/external-file-locations.md", "OpenCode team", "File paths opencode reads/writes outside worktree"),
+        DocRecord("docs/startup-bootstrap.md", "Local_Development", "Cold-start and instance bootstrap, including SQLite freeze-stage diagnostics", last_verified="2026-09-10"),
+        DocRecord("docs/session-recovery.md", "Local_Development", "Portable session recovery and explicit db fix after a moved worktree", last_verified="2026-09-10"),
         DocRecord("docs/linux-deploy.md", "Local_Development", "Linux build + portable deploy for this fork (not upstream install.sh)"),
         DocRecord("docs/tools-and-sidecars.md", "Local_Development", "Sidecar tools inventory, resolution paths, Windows/Linux packaging"),
         DocRecord("docs/fossil-snapshot.md", "Local_Development", "Agent undo/redo snapshot system: leaf semantics, track scope, performance envelope, HISTORY_INVALID recovery"),
@@ -52,7 +54,7 @@ class DocIndex:
         DocRecord("docs/cot-reasoning-research.md", "Local_Development", "Research: how CoT affects task execution (Hi-CoT, TOPS, STITCH, Inkling, GPT-5) and why opencode drops reasoning echo"),
         DocRecord("docs/compaction.md", "Local_Development", "Compaction contract: s/m* layers, 64K sidecar cadence, 8K generation cap, finish-step cost/cache accounting, star bounds 32K+32K", last_verified="2026-09-06"),
         DocRecord("docs/summary-exact-handles.md", "Local_Development", "Layer-1 summary Exact enrichment: checkpoint-M cache prefix, Constitution tool denial, file diffs and CodeGraph impact", last_verified="2026-09-06"),
-        DocRecord("docs/run-lifecycle-semantics.md", "Local_Development", "Run lifecycle: join semantics (supersede removed), bounded cancel with force-fail, queue continuity at break gate, project identity on session.updated, verified abort chain + no-data wedge note", last_verified="2026-08-27"),
+        DocRecord("docs/run-lifecycle-semantics.md", "Local_Development", "Run lifecycle: internal join plus realtime user-turn supersede, bounded cancel with force-fail, project identity on session.updated, verified abort chain + no-data wedge note", last_verified="2026-09-10"),
     ])
     
     specs: list[DocRecord] = field(default_factory=lambda: [

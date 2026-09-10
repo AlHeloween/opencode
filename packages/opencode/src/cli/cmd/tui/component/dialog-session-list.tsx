@@ -17,6 +17,7 @@ import { DialogWorkspaceCreate, openWorkspaceSession, restoreWorkspaceSession } 
 import { Spinner } from "./spinner"
 import { errorMessage } from "@/util/error"
 import { DialogSessionDeleteFailed } from "./dialog-session-delete-failed"
+import { DialogSessionRecovery } from "./dialog-session-recovery"
 
 type WorkspaceStatus = "connected" | "connecting" | "disconnected" | "error"
 
@@ -148,7 +149,7 @@ export function DialogSessionList() {
             )
           }
         } else {
-          footer = Locale.time(x.time.updated)
+          footer = `${Locale.time(x.time.updated)} · saved: ${x.directory} · current: ${sdk.directory ?? "unknown"}`
         }
 
         const date = new Date(x.time.updated)
@@ -177,7 +178,15 @@ export function DialogSessionList() {
   return (
     <DialogSelect
       title="Sessions"
-      options={options()}
+      options={[
+        {
+          title: "Recover from another worktree...",
+          value: "session.recovery",
+          category: "Recovery",
+          footer: `current: ${sdk.directory ?? "unknown"}`,
+        },
+        ...options(),
+      ]}
       skipFilter={true}
       current={currentSessionID()}
       onFilter={setSearch}
@@ -185,6 +194,10 @@ export function DialogSessionList() {
         setToDelete(undefined)
       }}
       onSelect={(option) => {
+        if (option.value === "session.recovery") {
+          dialog.replace(() => <DialogSessionRecovery />)
+          return
+        }
         route.navigate({
           type: "session",
           sessionID: option.value,

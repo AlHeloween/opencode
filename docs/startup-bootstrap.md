@@ -1,3 +1,16 @@
+---
+last_verified: 2026-09-10
+reproduce:
+  files:
+    - packages/opencode/src/storage/db.ts
+    - packages/opencode/src/project/instance.ts
+  commands:
+    - cd packages/opencode && ..\\..\\tools\\adm.exe --cmd-runner start -- bun test test/storage/db.test.ts test/project/project.test.ts
+    - cd packages/opencode && ..\\..\\tools\\adm.exe --cmd-runner start -- bun typecheck
+  inputs: locked, slow, or malformed portable project database during startup
+  expected_outputs: bounded WAL lock wait and an exact logged startup stage or failure
+---
+
 # Startup, bootstrap, plugins, and related systems
 
 Operational notes for **cold start**, **instance bootstrap**, **plugins**, **snapshot vs VCS**, and **shell permissions**. Derived from production code paths and runtime logs on Local_Development.
@@ -52,8 +65,20 @@ Until `init` completes, that request (and concurrent first hits for the same dir
 | `Project.fromDirectory` | Yes | Worktree, project id, VCS metadata |
 | `Global.initFromWorktree` | Yes | Data/log/cache under `{worktree}/.opencode/data/` |
 | `Database.withProject` | Yes | Project SQLite binding |
-| `Project.persistDiscovery` | Yes | Upsert project row / session migration |
 | `Log.reopen` | Yes | Worktree log directory |
+
+`Project.fromDirectory` owns the ordinary project-row upsert. A moved portable database is not repaired during startup; `opencode db fix` is the explicit repair action.
+
+### SQLite startup freeze guard
+
+Opening `{worktree}/.opencode/data/opencode.db` is synchronous native work. The process cannot safely cancel a native call that has already entered SQLite, so startup uses a diagnostic-and-boundary guard rather than a fake Promise timeout:
+
+1. `PRAGMA busy_timeout = 5000` is applied before `journal_mode = WAL`, the only normal startup step that may need an exclusive lock.
+2. The passive WAL checkpoint is not run during startup; shutdown owns the explicit truncate checkpoint.
+3. Every native stage logs `started`, then either `completed` with duration or `failed` with the error: directory creation, client open, lock timeout, WAL, synchronous/cache/foreign-key pragmas, migrations, and core schema.
+4. `Instance.boot` logs its current phase and emits `instance boot failed` plus `instance boot rejected` before evicting a failed cached instance.
+
+If a native SQLite call itself wedges, the last `project database startup stage started` record names the exact operation and DB path; a subsequent request is not silently attached to a rejected instance promise.
 
 ### B. `InstanceBootstrap` (`packages/opencode/src/project/bootstrap.ts`)
 
@@ -202,6 +227,7 @@ TUI: `bash` / `cmd` / `run` share a **ShellTool** renderer (streaming `metadata.
 |------|------|
 | `packages/opencode/src/cli/cmd/tui/thread.ts` | TUI process + worker spawn |
 | `packages/opencode/src/project/instance.ts` | Instance cache + boot |
+| `packages/opencode/src/storage/db.ts` | Per-project SQLite open stages, lock bound, and shutdown checkpoint |
 | `packages/opencode/src/project/bootstrap.ts` | `InstanceBootstrap` |
 | `packages/opencode/src/plugin/index.ts` | Plugin state + internal plugins |
 | `packages/opencode/src/snapshot/fossil.ts` | Fossil snapshot backend |

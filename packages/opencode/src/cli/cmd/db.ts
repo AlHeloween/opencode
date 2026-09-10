@@ -6,7 +6,7 @@ import { Database as BunDatabase } from "bun:sqlite"
 import { UI } from "../ui"
 import { cmd } from "./cmd"
 import { errorMessage } from "../../util/error"
-import path from "path"
+import { ProjectDatabaseFix } from "@/project/database-fix"
 
 function resolveProjectDbPath(cwd: string): string {
   return Database.getProjectDbPath(cwd)
@@ -138,6 +138,22 @@ const CompactCommand = cmd({
   },
 })
 
+const FixCommand = cmd({
+  command: "fix",
+  describe: "repair paths in the current worktree database",
+  handler: () => {
+    try {
+      const result = ProjectDatabaseFix.run({ directory: process.cwd() })
+      UI.println(
+        `Fixed ${result.database}: ${result.projects} project path(s), ${result.sessions} session path(s) updated.`,
+      )
+    } catch (error) {
+      UI.error(errorMessage(error))
+      process.exit(1)
+    }
+  },
+})
+
 const PathCommand = cmd({
   command: "path",
   describe: "print the project database path",
@@ -156,8 +172,6 @@ const PathCommand = cmd({
 export const DbCommand = cmd({
   command: "db",
   describe: "database tools",
-  builder: (yargs: Argv) => {
-    return yargs.command(QueryCommand).command(PathCommand).command(CompactCommand).demandCommand()
-  },
+  builder: (yargs: Argv) => yargs.command(QueryCommand).command(PathCommand).command(CompactCommand).command(FixCommand).demandCommand(),
   handler: () => {},
 })

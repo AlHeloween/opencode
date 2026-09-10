@@ -19,6 +19,17 @@ describe("Database.getProjectDbPath", () => {
 })
 
 describe("Database project routing", () => {
+  test("configures the startup lock timeout before database use", async () => {
+    await using tmp = await tmpdir()
+    const projectID = ProjectID.make("project_" + crypto.randomUUID())
+    const db = Database.getProjectDb(projectID, tmp.path)
+    const timeout = (db.$client as { prepare: (sql: string) => { get: () => { timeout: number } } })
+      .prepare("PRAGMA busy_timeout")
+      .get()
+
+    expect(timeout.timeout).toBe(5000)
+  })
+
   test("routes real project context to project database", async () => {
     await using tmp = await tmpdir()
     const projectID = ProjectID.make("project_" + crypto.randomUUID())

@@ -146,7 +146,7 @@ This diagram covers the modified session-processing and compaction path only, no
 4. `packages/opencode/src/storage/db.ts` / `Database.getProjectDb`
    - Input: project ID and resolved worktree.
    - Output: SQLite client for `{worktree}/.opencode/data/opencode.db`.
-   - Logic: one cached DB connection per project DB path.
+   - Logic: one cached DB connection per project DB path. On first open, logs each native stage, applies `busy_timeout = 5000` before WAL mode, and does not run a startup checkpoint.
 
 5. `packages/opencode/src/account/repo.ts` / `AccountRepo.layer`
    - Input: experimental console account operations in the current process.
@@ -191,17 +191,29 @@ Coverage estimate vs actual codebase: 8%.
    - Output: resolved `opencode-markdownify` path.
    - Logic: check packaged cache/bin, executable-adjacent config/bin, actual executable directory, portable project `bin`, cwd `bin`, source-checkout `bin`, then development dist locations.
 
-## Session Run Lifecycle Semantics (2026-08-27)
+## Session Run Lifecycle Semantics (2026-09-10)
 
-1. `packages/opencode/src/effect/runner.ts` / `ensureRunning`, `cancel`
+## Portable Session Recovery (2026-09-10)
+
+1. `packages/opencode/src/cli/cmd/tui/component/dialog-session-list.tsx` / `DialogSessionList`
+   - Input: `/sessions` and an optional previous worktree supplied by the user.
+   - Output: ordinary sessions labelled with their saved and current paths, plus a recovery entry point.
+   - Logic: keeps file backup restore separate and delegates portable session recovery to its own dialog.
+
+2. `packages/opencode/src/session/recovery.ts` / `preview`, `restore`
+   - Input: an explicit source worktree, one root session ID, and the active instance context.
+   - Output: a validated preview or an event-replayed session in the current database.
+   - Logic: source DB is queried only; replay rebases project ID and source-root paths, normalizes the source sequence to a fresh target, and rejects malformed or duplicate streams.
+
+1. `packages/opencode/src/effect/runner.ts` / `ensureRunning`, `supersede`, `cancel`
    - Input: work effect; current Runner state (`Idle`/`Running`/`RunningThenRun`/`Shell*`).
-   - Output: joined `done` deferred resolution; guaranteed-cancel return.
-   - Logic: same-session callers JOIN the active run (supersede removed); cancel = fire-and-forget interrupt (3s cap) + bounded 2s wait + idempotent force-fail so wedged native-I/O fibers cannot stall callers.
+   - Output: joined internal-loop result or immediate replacement result; guaranteed-cancel return.
+   - Logic: `ensureRunning` keeps internal callers joined. `supersede` interrupts the provider-owning fiber, settles the old deferred, drops pending internal work, then starts a new run; the interrupt is bounded so wedged native I/O cannot block replacement. Cancel retains its fire-and-forget 3s interrupt + 2s wait + idempotent force-fail.
 
-2. `packages/opencode/src/session/prompt.ts` / `runLoop` break decision
-   - Input: step outcome `finish === "stop"`.
-   - Output: `"break"` or `"continue"`.
-   - Logic: before breaking, re-read tail; a newly submitted user message (id != lastUser.id) continues the loop — mid-run prompts are consumed by the active run.
+2. `packages/opencode/src/session/prompt.ts` + `session/run-state.ts` / user prompt and loop dispatch
+   - Input: a fresh `prompt()` or an internal `loop()` continuation.
+   - Output: a realtime replacement or a joined loop result.
+   - Logic: a fresh `prompt()` persists the user message then dispatches `supersede`; direct `loop()` remains joined. Replacement work carries the current `InstanceRef`; `InstanceState.bind()` restores the same project ALS for synchronous system-environment formatting.
 
 3. `packages/opencode/src/session/session.ts` / `patch`
    - Input: sessionID + info patch.
@@ -214,3 +226,32 @@ Coverage estimate vs actual codebase: 8%.
    - Logic: task-tool polls match by tool part; part-order accepts the static UTC suffix; polls run in-context (detached runPromise loses the database LocalContext).
 
 Coverage estimate vs actual codebase: 9% core-deep; session lifecycle layer now fully documented.
+
+## Explicit Portable Database Fix (2026-09-10)
+
+1. `packages/opencode/src/project/instance.ts` / `boot`
+   - Input: a normal project launch.
+   - Output: project context and log setup.
+   - Logic: `fromDirectory` performs the normal one-row project upsert; startup does not perform relocation repair or session mutation.
+
+2. `packages/opencode/src/project/database-fix.ts` / `ProjectDatabaseFix.run`
+   - Input: current worktree only.
+   - Output: `{ projects, sessions }` update counts.
+   - Logic: reads the saved project root from that DB (or one unambiguous old session path), opens `BEGIN IMMEDIATE`, remaps only selected path prefixes, and rolls back on failure.
+
+3. `packages/opencode/src/cli/cmd/db.ts` / `opencode db fix`
+   - Input: current working directory.
+   - Output: a user-visible summary or an error.
+   - Logic: exposes path repair as an explicit operator action, separate from ordinary startup and `/sessions` event replay.
+
+## Startup SQLite Freeze Guard (2026-09-10)
+
+1. `packages/opencode/src/storage/db.ts` / `startupStage`
+   - Input: a native SQLite startup operation.
+   - Output: paired start/completion records with duration, or a failure record with the error.
+   - Logic: establishes the last-known blocking operation even when native SQLite itself cannot be cancelled in-process.
+
+2. `packages/opencode/src/project/instance.ts` / `boot`, `track`
+   - Input: first instance request and its bootstrap phases.
+   - Output: explicit completion or rejection records, with the failed cache entry evicted.
+   - Logic: a DB failure is propagated and logged rather than leaving later callers attached to an opaque startup promise.

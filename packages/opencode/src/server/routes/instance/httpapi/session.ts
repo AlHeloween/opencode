@@ -14,6 +14,7 @@ import { MessageV2 } from "@/session/message-v2"
 import { SessionPrompt } from "@/session/prompt"
 import { SessionRevert } from "@/session/revert"
 import { SessionRunState } from "@/session/run-state"
+import * as SessionRecovery from "@/session/recovery"
 import { SessionStatus } from "@/session/status"
 import { SessionSummary } from "@/session/summary"
 import { Todo } from "@/session/todo"
@@ -97,6 +98,8 @@ const PermissionResponsePayload = Schema.Struct({
 
 export const SessionPaths = {
   list: root,
+  recoveryPreview: `${root}/recovery/preview`,
+  recoveryImport: `${root}/recovery/import`,
   status: `${root}/status`,
   get: `${root}/:sessionID`,
   children: `${root}/:sessionID/children`,
@@ -138,6 +141,28 @@ export const SessionApi = HttpApi.make("session")
             identifier: "session.list",
             summary: "List sessions",
             description: "Get a list of all OpenCode sessions, sorted by most recently updated.",
+          }),
+        ),
+        HttpApiEndpoint.post("recoveryPreview", SessionPaths.recoveryPreview, {
+          payload: SessionRecovery.PreviewInput,
+          success: Schema.Array(SessionRecovery.Candidate),
+          error: HttpApiError.BadRequest,
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.recovery.preview",
+            summary: "Preview recoverable sessions",
+            description: "List root sessions held by an explicitly selected portable OpenCode data root.",
+          }),
+        ),
+        HttpApiEndpoint.post("recoveryImport", SessionPaths.recoveryImport, {
+          payload: SessionRecovery.ImportInput,
+          success: SessionRecovery.Candidate,
+          error: HttpApiError.BadRequest,
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.recovery.import",
+            summary: "Recover a session into the current project",
+            description: "Replay one selected session from a portable source database into the current project directory.",
           }),
         ),
         HttpApiEndpoint.get("status", SessionPaths.status, {
@@ -481,6 +506,26 @@ export const sessionHandlers = Layer.unwrap(
           }),
         ),
       )
+    })
+
+    const recoveryPreview = Effect.fn("SessionHttpApi.recoveryPreview")(function* (ctx: {
+      payload: typeof SessionRecovery.PreviewInput.Type
+    }) {
+      const instance = yield* InstanceState.context
+      return yield* Effect.try({
+        try: () => Instance.restore(instance, () => SessionRecovery.preview(ctx.payload)),
+        catch: () => new HttpApiError.BadRequest({}),
+      })
+    })
+
+    const recoveryImport = Effect.fn("SessionHttpApi.recoveryImport")(function* (ctx: {
+      payload: typeof SessionRecovery.ImportInput.Type
+    }) {
+      const instance = yield* InstanceState.context
+      return yield* Effect.try({
+        try: () => Instance.restore(instance, () => SessionRecovery.restore(ctx.payload)),
+        catch: () => new HttpApiError.BadRequest({}),
+      })
     })
 
     const status = Effect.fn("SessionHttpApi.status")(function* () {
@@ -970,6 +1015,8 @@ export const sessionHandlers = Layer.unwrap(
     return HttpApiBuilder.group(SessionApi, "session", (handlers) =>
       handlers
         .handle("list", list)
+        .handle("recoveryPreview", recoveryPreview)
+        .handle("recoveryImport", recoveryImport)
         .handle("status", status)
         .handle("get", get)
         .handle("children", children)

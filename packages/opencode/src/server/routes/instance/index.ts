@@ -145,6 +145,8 @@ export const InstanceRoutes = (): Hono => {
   app.delete(PtyPaths.remove, (c) => handler(c.req.raw, context))
   app.get(PtyPaths.connect, (c) => handler(c.req.raw, context))
   app.get(SessionPaths.list, (c) => handler(c.req.raw, context))
+  app.post(SessionPaths.recoveryPreview, (c) => handler(c.req.raw, context))
+  app.post(SessionPaths.recoveryImport, (c) => handler(c.req.raw, context))
   app.get(SessionPaths.status, (c) => handler(c.req.raw, context))
   app.get(SessionPaths.get, (c) => handler(c.req.raw, context))
   app.get(SessionPaths.children, (c) => handler(c.req.raw, context))

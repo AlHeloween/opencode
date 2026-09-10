@@ -1,4 +1,5 @@
 import { InstanceState } from "@/effect/instance-state"
+import { InstanceRef } from "@/effect/instance-ref"
 import { Runner } from "@/effect/runner"
 import { Effect, Latch, Layer, Scope, Context } from "effect"
 import * as Session from "./session"
@@ -11,6 +12,11 @@ export interface Interface {
   readonly cancel: (sessionID: SessionID) => Effect.Effect<void>
   readonly isCancelled: (sessionID: SessionID) => Effect.Effect<boolean>
   readonly ensureRunning: (
+    sessionID: SessionID,
+    onInterrupt: Effect.Effect<MessageV2.WithParts>,
+    work: Effect.Effect<MessageV2.WithParts>,
+  ) => Effect.Effect<MessageV2.WithParts>
+  readonly supersede: (
     sessionID: SessionID,
     onInterrupt: Effect.Effect<MessageV2.WithParts>,
     work: Effect.Effect<MessageV2.WithParts>,
@@ -100,7 +106,21 @@ export const layer = Layer.effect(
     ) {
       const data = yield* InstanceState.get(state)
       data.cancelled.delete(sessionID)
-      return yield* (yield* runner(sessionID, onInterrupt)).ensureRunning(work)
+      return yield* (yield* runner(sessionID, onInterrupt)).ensureRunning(
+        work.pipe(Effect.provideService(InstanceRef, yield* InstanceState.context)),
+      )
+    })
+
+    const supersede = Effect.fn("SessionRunState.supersede")(function* (
+      sessionID: SessionID,
+      onInterrupt: Effect.Effect<MessageV2.WithParts>,
+      work: Effect.Effect<MessageV2.WithParts>,
+    ) {
+      const data = yield* InstanceState.get(state)
+      data.cancelled.delete(sessionID)
+      return yield* (yield* runner(sessionID, onInterrupt)).supersede(
+        work.pipe(Effect.provideService(InstanceRef, yield* InstanceState.context)),
+      )
     })
 
     const startShell = Effect.fn("SessionRunState.startShell")(function* (
@@ -112,7 +132,7 @@ export const layer = Layer.effect(
       return yield* (yield* runner(sessionID, onInterrupt)).startShell(work, ready)
     })
 
-    return Service.of({ assertNotBusy, cancel, isCancelled, ensureRunning, startShell })
+    return Service.of({ assertNotBusy, cancel, isCancelled, ensureRunning, supersede, startShell })
   }),
 )
 

@@ -4,6 +4,7 @@ export interface Runner<A, E = never> {
   readonly state: State<A, E>
   readonly busy: boolean
   readonly ensureRunning: (work: Effect.Effect<A, E>) => Effect.Effect<A, E>
+  readonly supersede: (work: Effect.Effect<A, E>) => Effect.Effect<A, E>
   readonly startShell: (work: Effect.Effect<A, E>, ready?: Latch.Latch) => Effect.Effect<A, E>
   readonly cancel: Effect.Effect<void>
 }
@@ -140,10 +141,50 @@ export const make = <A, E = never>(
           case "Running":
           case "RunningThenRun": {
             // Join: same-session callers share one run. The session loop
-            // re-reads messages at each step, so work submitted mid-run is
-            // consumed by the running loop naturally (queue semantics).
-            // Restart-from-scratch flows go through `cancel` first.
+            // re-reads messages at each step, so internal callers can queue
+            // work without needlessly aborting an active turn.
             return [awaitDone(st.run.done), st] as const
+          }
+          case "ShellThenRun":
+            return [awaitDone(st.run.done), st] as const
+          case "Shell": {
+            const run = {
+              id: next(),
+              done: yield* Deferred.make<A, E | Cancelled>(),
+              work,
+            } satisfies PendingHandle<A, E>
+            return [awaitDone(run.done), { _tag: "ShellThenRun", shell: st.shell, run }] as const
+          }
+          case "Idle": {
+            const done = yield* Deferred.make<A, E | Cancelled>()
+            const run = yield* startRun(work, done)
+            return [awaitDone(done), { _tag: "Running", run }] as const
+          }
+        }
+      }),
+    ).pipe(Effect.flatten)
+
+  const supersede = (work: Effect.Effect<A, E>) =>
+    SynchronizedRef.modifyEffect(
+      ref,
+      Effect.fnUntraced(function* (st) {
+        switch (st._tag) {
+          case "Running":
+          case "RunningThenRun": {
+            // A fresh user turn replaces in-flight inference. Its fiber owns
+            // the provider AbortSignal, so interruption also closes H3 cleanly.
+            yield* Fiber.interrupt(st.run.fiber).pipe(
+              Effect.timeout("3 seconds"),
+              Effect.ignore,
+              Effect.forkIn(scope),
+            )
+            yield* Deferred.fail(st.run.done, new Cancelled()).pipe(Effect.ignore)
+            if (st._tag === "RunningThenRun") {
+              yield* Deferred.fail(st.pending.done, new Cancelled()).pipe(Effect.ignore)
+            }
+            const done = yield* Deferred.make<A, E | Cancelled>()
+            const run = yield* startRun(work, done)
+            return [awaitDone(done), { _tag: "Running", run }] as const
           }
           case "ShellThenRun":
             return [awaitDone(st.run.done), st] as const
@@ -267,6 +308,7 @@ export const make = <A, E = never>(
       return state()._tag !== "Idle"
     },
     ensureRunning,
+    supersede,
     startShell,
     cancel,
   }

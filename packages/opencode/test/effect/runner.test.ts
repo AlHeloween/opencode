@@ -112,6 +112,32 @@ describe("Runner", () => {
     }),
   )
 
+  it.live(
+    "supersede interrupts active work and starts replacement immediately",
+    Effect.gen(function* () {
+      const s = yield* Scope.Scope
+      const runner = Runner.make<string>(s, { onInterrupt: Effect.succeed("interrupted") })
+      const started = yield* Deferred.make<void>()
+      const interrupted = yield* Deferred.make<void>()
+      const first = Deferred.succeed(started, undefined).pipe(
+        Effect.andThen(Effect.never),
+        Effect.onInterrupt(() => Deferred.succeed(interrupted, undefined)),
+        Effect.as("first"),
+      )
+
+      const a = yield* runner.ensureRunning(first).pipe(Effect.forkChild)
+      yield* Deferred.await(started)
+      const b = yield* runner.supersede(Effect.succeed("second")).pipe(Effect.forkChild)
+
+      yield* Deferred.await(interrupted)
+      const [exitA, exitB] = yield* Effect.all([Fiber.await(a), Fiber.await(b)])
+      expect(Exit.isSuccess(exitA)).toBe(true)
+      expect(Exit.isSuccess(exitB)).toBe(true)
+      if (Exit.isSuccess(exitA)) expect(exitA.value).toBe("interrupted")
+      if (Exit.isSuccess(exitB)) expect(exitB.value).toBe("second")
+    }),
+  )
+
   // --- cancel semantics ---
 
   it.live(

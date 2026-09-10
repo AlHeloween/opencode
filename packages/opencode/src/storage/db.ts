@@ -13,6 +13,7 @@ import { Fiber, Context } from "effect"
 import { InstanceRef } from "@/effect/instance-ref"
 
 const log = Log.create({ service: "db" })
+const STARTUP_LOCK_TIMEOUT_MS = 5_000
 
 /** Unified client cache keyed by DB file path (dbPath).
   * dbPath is always {worktree}/.opencode/data/opencode.db — one connection per project.
@@ -23,7 +24,13 @@ const pathClientCache = new Map<string, DrizzleClient>()
 function getOrCreateDb(dbPath: string): DrizzleClient {
   const cached = pathClientCache.get(dbPath)
   if (cached) return cached
-  const db = createAndInitDb(dbPath)
+  let db: DrizzleClient
+  try {
+    db = createAndInitDb(dbPath)
+  } catch (error) {
+    log.error("project database initialization failed", { dbPath, error: String(error) })
+    throw error
+  }
   pathClientCache.set(dbPath, db)
   return db
 }
@@ -38,31 +45,40 @@ export function getProjectDbPath(worktree: string) {
   return path.join(worktree, ".opencode", "data", "opencode.db")
 }
 
+function startupStage<T>(dbPath: string, stage: string, fn: () => T): T {
+  const started = Date.now()
+  log.info("project database startup stage started", { dbPath, stage })
+  try {
+    const result = fn()
+    log.info("project database startup stage completed", { dbPath, stage, duration: Date.now() - started })
+    return result
+  } catch (error) {
+    log.error("project database startup stage failed", { dbPath, stage, duration: Date.now() - started, error: String(error) })
+    throw error
+  }
+}
+
 function createAndInitDb(dbPath: string): DrizzleClient {
   const dir = path.dirname(dbPath)
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  if (!existsSync(dir)) startupStage(dbPath, "create-directory", () => mkdirSync(dir, { recursive: true }))
 
-  const db = init(dbPath) as DrizzleClient
+  const db = startupStage(dbPath, "open-client", () => init(dbPath) as DrizzleClient)
 
-  db.run("PRAGMA journal_mode = WAL")
-  db.run("PRAGMA synchronous = NORMAL")
-  db.run("PRAGMA busy_timeout = 5000")
-  db.run("PRAGMA cache_size = -64000")
-  db.run("PRAGMA foreign_keys = ON")
-  db.run("PRAGMA wal_checkpoint(PASSIVE)")
+  // Must precede journal_mode: switching to WAL may need an exclusive lock.
+  // Without this bound a locked portable DB can make startup appear frozen.
+  startupStage(dbPath, "configure-lock-timeout", () => db.run(`PRAGMA busy_timeout = ${STARTUP_LOCK_TIMEOUT_MS}`))
+  startupStage(dbPath, "configure-wal", () => db.run("PRAGMA journal_mode = WAL"))
+  startupStage(dbPath, "configure-synchronous", () => db.run("PRAGMA synchronous = NORMAL"))
+  startupStage(dbPath, "configure-cache", () => db.run("PRAGMA cache_size = -64000"))
+  startupStage(dbPath, "configure-foreign-keys", () => db.run("PRAGMA foreign_keys = ON"))
 
   try {
-    DatabaseMigration.apply(db as DatabaseMigration.DbClient)
+    startupStage(dbPath, "migrations", () => DatabaseMigration.apply(db as DatabaseMigration.DbClient))
   } catch (e) {
     log.warn("migration runner failed (non-fatal)", { error: String(e) })
   }
 
-  try {
-    db.$client.exec(CORE_SCHEMA_SQL)
-  } catch (e) {
-    log.error("core schema failed", { error: String(e) })
-    throw e
-  }
+  startupStage(dbPath, "core-schema", () => db.$client.exec(CORE_SCHEMA_SQL))
   return db
 }
 

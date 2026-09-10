@@ -49,6 +49,8 @@ REPO = RepoMap()
 #   docs/rendering.md       — Full rendering pipeline: LLM → terminal, TUI components, streaming, mermaid, images
 #   docs/architecture.md    — Prompt system, checkpoint, compaction, KV cache
 #   docs/compaction.md      — Mechanistic continuous memory (bounded/accounted sidecar summaries + message*)
+#   docs/startup-bootstrap.md — Cold start and instance bootstrap, including SQLite freeze diagnostics
+#   docs/session-recovery.md — Moved-worktree session replay and explicit `opencode db fix` path repair
 #   packages/opencode/src/session/sidecar-policy.ts — Layer-1 output/retry/cooldown bounds
 #   packages/opencode/src/provider/balance-storage.ts — provider balance snapshots and cumulative session-cost validation
 #   docs/ADID_Framework_15_4.md — ADID update manager framework

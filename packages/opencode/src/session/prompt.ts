@@ -1128,7 +1128,7 @@ export const layer = Layer.effect(
           ? [undefined, [] as string[], [] as string[], [] as string[]] as const
           : yield* Effect.all([
               sys.skills(),
-              Effect.sync(() => sys.environment(model)),
+              Effect.sync(InstanceState.bind(() => sys.environment(model))),
               instruction.system().pipe(Effect.orDie),
               instruction.rules().pipe(Effect.orDie),
             ])
@@ -1700,7 +1700,7 @@ export const layer = Layer.effect(
         }
 
         if (input.noReply === true) return message
-        return yield* loop({ sessionID: input.sessionID })
+        return yield* loop({ sessionID: input.sessionID, supersede: true })
       },
     )
 
@@ -2186,7 +2186,7 @@ export const layer = Layer.effect(
                     // Skills are a complete, agent-independent catalog in the system
                     // prefix. Runtime ACL gates each skill name when it is invoked.
                     sys.skills(),
-                    Effect.sync(() => sys.environment(model)),
+                    Effect.sync(InstanceState.bind(() => sys.environment(model))),
                     instruction.system().pipe(Effect.orDie),
                     instruction.rules().pipe(Effect.orDie),
                   ])
@@ -2725,7 +2725,8 @@ export const layer = Layer.effect(
     ) {
       // SessionTools.resolve() yields services that are already provided by the enclosing layer.
       // The type system can't unify the requirements through ensureRunning, but they are satisfied.
-      return yield* state.ensureRunning(
+      const run = input.supersede ? state.supersede : state.ensureRunning
+      return yield* run(
         input.sessionID,
         lastAssistant(input.sessionID),
         runLoop(input.sessionID) as Effect.Effect<MessageV2.WithParts>,
@@ -2943,6 +2944,7 @@ export type PromptInput = Omit<Schema.Schema.Type<typeof PromptInput>, "parts"> 
 
 export class LoopInput extends Schema.Class<LoopInput>("SessionPrompt.LoopInput")({
   sessionID: SessionID,
+  supersede: Schema.optional(Schema.Boolean),
 }) {
   static readonly zod = zod(this)
 }

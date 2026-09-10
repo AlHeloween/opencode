@@ -78,9 +78,7 @@ function sendNotification(method, params) {
   console.log("=== tools/call list_free_models (min_context 8000) ===");
   const r1 = await send("tools/call", { name: "list_free_models", arguments: { min_context: 8000 } });
   const freeText = r1.result?.content?.[0]?.text ?? JSON.stringify(r1.error);
-  const freeLines = freeText.split("\n").filter(Boolean);
-  console.log(`(${freeLines.length} free text-output models >=8000 ctx) first 5:`);
-  console.log(freeLines.slice(0, 5).join("\n"));
+  console.log(freeText);
 
   console.log("=== tools/call call_model, NO explicit model (must auto-pick a free text model) ===");
   const r2 = await send("tools/call", {

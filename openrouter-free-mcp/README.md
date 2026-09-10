@@ -57,9 +57,15 @@ Then `claude mcp list` / restart Claude Code to pick it up.
 
 ### `list_free_models`
 
-Lists currently free (`0/0` pricing) OpenRouter models, sorted by context
-window, largest first. Params: `min_context` (optional), `refresh` (optional,
-bypasses the 10-minute cache).
+Lists every currently free (`0/0` pricing) OpenRouter model, grouped by
+output modality (text first — the only group `call_model`'s auto-select can
+use — then text+image, image, audio, video) and sorted by context window
+within each group. Non-text-output models are shown, not hidden — like
+opencode's own `capability` tool, which lists every model's modality rather
+than filtering by it, so you can deliberately pick one via `call_model`'s
+`model` param (e.g. a free music/lyrics model) when you actually want that
+modality. Params: `min_context` (optional), `refresh` (optional, bypasses
+the 10-minute cache).
 
 ### `call_model`
 

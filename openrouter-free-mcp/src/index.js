@@ -42,6 +42,41 @@ function isTextGeneration(m) {
   return Array.isArray(out) && out.length === 1 && out[0] === "text";
 }
 
+// Group order for the free-model listing: text-output models first (what
+// call_model can actually use today), then other modalities. Mirrors
+// opencode's own `capability` tool (list_all / modality lookup), which
+// surfaces every model's modality rather than hiding non-text ones.
+const MODALITY_GROUP_ORDER = ["text", "text+image", "image", "audio", "video"];
+
+function outputModalityLabel(m) {
+  const out = m.architecture?.output_modalities;
+  return Array.isArray(out) && out.length ? out.join("+") : "text";
+}
+
+function modalityGroupKey(label) {
+  const idx = MODALITY_GROUP_ORDER.indexOf(label);
+  return idx === -1 ? MODALITY_GROUP_ORDER.length : idx;
+}
+
+// ALL free models (any modality), sorted by output-modality group first
+// (text-output first — that's what call_model's auto-select can use),
+// then by context window size within each group. Unlike pickFreeModels(),
+// this does not hide image/audio-output models — it labels them instead,
+// same spirit as opencode's `capability` tool listing every model's
+// modality rather than filtering it away.
+function listFreeModels(models, { minContext = 0 } = {}) {
+  return models
+    .filter(isFree)
+    .filter((m) => (m.context_length ?? 0) >= minContext)
+    .map((m) => ({ model: m, modality: outputModalityLabel(m) }))
+    .sort((a, b) => {
+      const ga = modalityGroupKey(a.modality);
+      const gb = modalityGroupKey(b.modality);
+      if (ga !== gb) return ga - gb;
+      return (b.model.context_length ?? 0) - (a.model.context_length ?? 0);
+    });
+}
+
 async function fetchModels({ force = false } = {}) {
   const fresh = !force && Date.now() - modelCache.at < MODEL_LIST_TTL_MS && modelCache.models.length > 0;
   if (fresh) return modelCache.models;
@@ -145,28 +180,36 @@ const server = new McpServer({ name: "openrouter-free-mcp", version: "1.0.0" });
 
 server.tool(
   "list_free_models",
-  "List OpenRouter models that currently cost 0/0 (free tier) AND produce text-only output (excludes audio/image-generation models like Lyria, which can be free-priced but return media, not chat replies), sorted by context window size, largest first. Cached for 10 minutes; pass refresh:true to bypass the cache.",
+  "List every OpenRouter model that currently costs 0/0 (free tier), grouped by output modality (text first — that's what call_model's auto-select can use; then text+image, image, audio, video) and sorted by context window size within each group. Non-text-output models are shown, not hidden — pick one explicitly via call_model's `model` param if you actually want that modality (e.g. music/lyrics generation). Cached for 10 minutes; pass refresh:true to bypass the cache.",
   {
     min_context: z.number().optional().describe("Only include models with at least this many tokens of context"),
     refresh: z.boolean().optional().describe("Bypass the 10-minute cache and refetch from OpenRouter"),
   },
   async ({ min_context, refresh }) => {
     const models = await fetchModels({ force: !!refresh });
-    const free = pickFreeModels(models, { minContext: min_context ?? 0 }).map((m) => ({
-      id: m.id,
-      name: m.name,
-      context_length: m.context_length,
-    }));
-    return {
-      content: [
-        {
-          type: "text",
-          text: free.length
-            ? free.map((m) => `${m.id}  (ctx: ${m.context_length ?? "?"})  — ${m.name}`).join("\n")
-            : "No free models found (or OpenRouter's free-tier list is currently empty).",
-        },
-      ],
-    };
+    const free = listFreeModels(models, { minContext: min_context ?? 0 });
+
+    if (free.length === 0) {
+      return {
+        content: [{ type: "text", text: "No free models found (or OpenRouter's free-tier list is currently empty)." }],
+      };
+    }
+
+    const idWidth = Math.max(...free.map((r) => r.model.id.length), 8);
+    const modWidth = Math.max(...free.map((r) => r.modality.length), 8);
+    const rows = [];
+    let lastGroup = null;
+    for (const { model, modality } of free) {
+      const group = modalityGroupKey(modality);
+      if (group !== lastGroup) {
+        rows.push(`-- ${modality} ${modality === "text" ? "(usable by call_model auto-select)" : "(pass model: explicitly to use)"} --`);
+        lastGroup = group;
+      }
+      const ctx = model.context_length ?? "?";
+      rows.push(`  ${model.id.padEnd(idWidth)}  [${modality.padEnd(modWidth)}]  ctx:${ctx}  — ${model.name}`);
+    }
+
+    return { content: [{ type: "text", text: rows.join("\n") }] };
   },
 );
 

@@ -2,26 +2,41 @@
 
 Date: 2026-09-07
 Status: DRAFT (pre-G4, staged)
-Companion: plans/2026-09-07_tool-result-deliver-once.md (Stage 0 lives there, C1-C3)
+Companion: plans_completed/2026-09-07_tool-result-deliver-once.md (Stage 0 shipped there, C1-C3; DONE 2026-09-11)
+
+## Model scope — GLM-5.3-Flash only, not a general model capability
+
+This channel works because of a specific trained capability, not a generic
+"any VLM can read code from pixels" property (user, 2026-09-11): GLM-5.3-Flash
+doesn't sample frames and OCR them — it reads the MPEG4 video stream itself as
+code. Lineage: the DeepSeek VL idea (not VL2), carried through to completion,
+trained specifically on compressed code-frame images. No other model in the
+current provider set is known to share this — do not assume the video-as-context
+approach ports to other providers/models without re-proving P1-P4 on them first.
 
 ## Thesis
 
 The model's visual input is a universal "page" reader (code, diagrams, spectra —
-one encoder, one tokenizer). Evidence:
+one encoder, one tokenizer) — for GLM-5.3-Flash specifically. Evidence:
 
 - wire probe [Exact]: 1.97 MiB mp4 → 2610 prompt tokens, video_tokens: 0 — video
   cost is duration-bounded (inter-frame deltas), NOT content-bounded;
 - history images cost ~1.5-2k image tokens EACH, re-sent every turn (measured:
   11,560 image tokens in one failed request);
-- vendor docs [Inferred]: GLM-5.3-Flash "native multimodal visual coding",
-  multimodal corpus in PRE-training, audio-input absent — document/VLM profile
-  (DeepSeek VL lineage), i.e. code rendered to frames is plausibly in-distribution;
+- model lineage [user, 2026-09-11]: GLM-5.3-Flash reads MPEG4 video as code
+  directly (not frame-sampling + OCR) — the DeepSeek VL idea (not VL2) finished,
+  trained on compressed code-frame images specifically. Supersedes the earlier
+  [Inferred] vendor-docs guess ("native multimodal visual coding") with a
+  sharper, model-specific claim — still not machine-verified against upstream
+  DeepSeek/GLM training disclosures, so treat as Inferred until a primary
+  source is found, not Exact;
 - audio: spectrogram = picture → rides the EXISTING vision channel (Whisper-line
-  practice), no audio encoder needed.
+  practice), no audio encoder needed — same GLM-5.3-Flash-only caveat applies.
 
 Consequence: heavy context (code, logs, audio, diagrams) can move to visual
-channels at 50-150x token density, with ripgrep/CodeGraph demoted to point-sampling.
-Transport prerequisite: deliver-once (Stage 0) — otherwise every modality clones.
+channels at 50-150x token density on GLM-5.3-Flash, with ripgrep/CodeGraph
+demoted to point-sampling on that model only. Transport prerequisite:
+deliver-once (Stage 0, shipped) — otherwise every modality clones.
 
 ## Stage 0 — Transport: deliver-once
 

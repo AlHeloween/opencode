@@ -10,6 +10,7 @@ import * as Log from "@opencode-ai/core/util/log"
 import { Service as SnapshotService, type Interface, type Patch, type FileDiff, type ImpactSummary } from "."
 import { hasCodegraphIndex, mcpTouchThenSqlitePack } from "@/codegraph/mcp-client"
 import { packToImpactFields } from "@/codegraph/sqlite-pack"
+import { composeIgnoreGlob } from "./ignore-glob"
 
 const log = Log.create({ service: "snapshot-fossil" })
 
@@ -209,25 +210,24 @@ export const layer = Layer.effect(
           return translated.join("\n")
         })
 
-        // Ensure .fossil-settings/ignore-glob exists and is synced from .gitignore
+        // Ensure .fossil-settings/ignore-glob exists and is synced from .gitignore.
+        // Union semantics (2026-09-09): defaults + gitignore + existing manual
+        // lines; hand edits survive regeneration instead of being overwritten.
         const ensureIgnoreGlob = Effect.fnUntraced(function* () {
           const settingsDir = path.join(worktree, ".fossil-settings")
           const ignorePath = path.join(settingsDir, "ignore-glob")
 
           const gitignorePatterns = yield* translateGitignore()
-          // Add our own patterns (expanded to cover nested paths too)
-          const extraPatterns = ["*.fsl", ".jj", ".git", "_FOSSIL_", "_fossil"].flatMap(expandGlob)
-          const allPatterns = [
-            ...extraPatterns,
-            ...gitignorePatterns.split("\n").filter(Boolean),
-          ]
-
           const existing = yield* fs.readFileString(ignorePath).pipe(Effect.catch(() => Effect.succeed("")))
-          const content = allPatterns.join("\n") + "\n"
+          const allPatterns = composeIgnoreGlob(
+            gitignorePatterns.split("\n"),
+            existing.split("\n"),
+          )
 
+          const content = allPatterns.join("\n") + "\n"
           if (existing === content) return
 
-          log.info("syncing ignore-glob from .gitignore", { patterns: allPatterns.length })
+          log.info("syncing ignore-glob (union)", { patterns: allPatterns.length })
           yield* fs.ensureDir(settingsDir).pipe(Effect.orDie)
           yield* fs.writeFileString(ignorePath, content).pipe(Effect.orDie)
         })
@@ -361,6 +361,31 @@ export const layer = Layer.effect(
             Effect.gen(function* () {
               if (!(yield* enabled())) return undefined
               if (!(yield* ensureInit())) return undefined
+
+              // ── Early-exit: nothing to snapshot (2026-09-09, measured 48s stall) ──
+              // Tool-driven snapshots provide the exact changed paths. When the
+              // caller passes an empty/undefined list AND fossil reports no
+              // changes and no extras-to-add, a commit would fail with
+              // "nothing has changed" after seconds of work (measured 4.75s
+              // no-op locally; ~48s inside the live loop with DB contention).
+              // Skip the entire commit/tag chain and return the current hash.
+              const noExplicitFiles = files === undefined || files.length === 0
+              if (noExplicitFiles) {
+                const changes = yield* fossil(["changes"], { cwd: worktree }).pipe(
+                  Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "" })),
+                )
+                const addremoveDry = yield* fossil(["addremove", "-n"], { cwd: worktree }).pipe(
+                  Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "" })),
+                )
+                const hasChanges = changes.code === 0 && changes.text.trim().length > 0
+                const hasAdds = addremoveDry.code === 0 && /added \d+ files?/i.test(addremoveDry.text)
+                if (!hasChanges && !hasAdds) {
+                  const probe = yield* fossil(["info"], { cwd: worktree })
+                  const hash = currentHash(probe.text)
+                  log.debug("snapshot skipped — no working-copy changes", { hash })
+                  return hash || undefined
+                }
+              }
 
               // Tool-driven snapshots provide the exact changed paths. Keep
               // that path bounded: a global Fossil scan here can traverse the

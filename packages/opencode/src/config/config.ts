@@ -45,6 +45,7 @@ import { ConfigProvider } from "./provider"
 import { ConfigServer } from "./server"
 import { ConfigSkills } from "./skills"
 import { ConfigVariable } from "./variable"
+import { PROJECT_GITIGNORE_HEADER } from "@/snapshot/ignore-glob"
 import { Npm } from "@opencode-ai/core/npm"
 
 const log = Log.create({ service: "config" })
@@ -633,11 +634,19 @@ export const layer = Layer.effect(
       const gitignore = path.join(dir, ".gitignore")
       const hasIgnore = yield* fs.existsSafe(gitignore)
       if (!hasIgnore) {
+        // Default block from the single source of truth (snapshot/ignore-glob),
+        // user directive 2026-09-09: new projects start with the full ignore
+        // discipline; project-specific additions are made explicitly below it.
+        const block = [
+          ...PROJECT_GITIGNORE_HEADER,
+          // opencode installation specifics (kept from the old hardcoded list)
+          "package.json",
+          "package-lock.json",
+          "bun.lock",
+          ".gitignore",
+        ]
         yield* fs
-          .writeFileString(
-            gitignore,
-            ["node_modules", "package.json", "package-lock.json", "bun.lock", ".gitignore"].join("\n"),
-          )
+          .writeFileString(gitignore, block.join("\n") + "\n")
           .pipe(
             Effect.catchIf(
               (e) => e.reason._tag === "PermissionDenied",

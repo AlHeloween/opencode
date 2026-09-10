@@ -132,6 +132,8 @@ interface ProcessorContext extends Input {
   streamStartTime: number | undefined
   firstTokenLogged: boolean
   hasWriteToolCall: boolean
+  /** True when an exact write tool (edit/write/multiedit/applypatch) ran — shell tools don't count. */
+  exclusiveWriteToolCall: boolean
   changedFiles: Set<string>
   /** Cumulative context token estimate from prompt loop. */
   contentTokenEstimate?: number
@@ -148,6 +150,9 @@ type StreamEvent = Event
  * Snapshot tracking only needed after these (names must match wire form, e.g. applypatch).
  */
 const WRITE_TOOLS = new Set(["write", "edit", "multiedit", "applypatch", "bash", "run", "task", "pipeline"])
+
+/** Exact file-mutation tools — these alone justify a snapshot without filediff evidence. */
+const EXACT_WRITE_TOOLS = new Set(["write", "edit", "multiedit", "applypatch"])
 
 /** True only for the exact provider tool id (canonical), not legacy separator forms. */
 export function writesWorkingCopy(toolName: string) {
@@ -398,6 +403,7 @@ export const layer: Layer.Layer<
         streamStartTime: undefined,
         firstTokenLogged: false,
         hasWriteToolCall: false,
+        exclusiveWriteToolCall: false,
         changedFiles: new Set<string>(),
         evidenceFloor: input.evidenceFloor ?? "Inferred",
       }
@@ -703,6 +709,7 @@ export const layer: Layer.Layer<
           case "tool-call": {
             ctx.toolCallEmitted = true
             if (writesWorkingCopy(value.toolName)) ctx.hasWriteToolCall = true
+            if (EXACT_WRITE_TOOLS.has(value.toolName)) ctx.exclusiveWriteToolCall = true
             // Raise coarse floor from evidence tools (sessionread / read / codegraph → Exact).
             if (providesExactEvidence(value.toolName)) {
               ctx.evidenceFloor = "Exact"
@@ -913,11 +920,17 @@ export const layer: Layer.Layer<
             // ctx.snapshot holds the hash BEFORE this tool step ran.
             // track() commits the changes and returns the NEW hash, but
             // patch() needs the BEFORE hash to diff against HEAD.
+            // 2026-09-09: shell tools (bash/run/task/pipeline) only track when
+            // filediff evidence exists — a bare `bun --version` previously
+            // triggered a full snapshot cycle (~48s measured stall). The
+            // early-exit in fossil.track() is the second safety net.
             const snapshotBeforeTrack = ctx.snapshot
+            const shellOnlyNoFiles =
+              ctx.hasWriteToolCall && ctx.changedFiles.size === 0 && !ctx.exclusiveWriteToolCall
             yield* session.updatePart({
               id: PartID.ascending(),
               reason: value.finishReason,
-              snapshot: ctx.hasWriteToolCall
+              snapshot: ctx.hasWriteToolCall && !shellOnlyNoFiles
                 ? yield* snapshot.track(ctx.changedFiles.size > 0 ? [...ctx.changedFiles] : undefined)
                 : ctx.snapshot,
               messageID: ctx.assistantMessage.id,
@@ -1152,14 +1165,18 @@ export const layer: Layer.Layer<
           // the patch. Without this, snapshot.patch() diffs against the
           // uncommitted working tree, mixing committed and uncommitted changes
           // into a single aggregate patch that loses per-step granularity.
+          // 2026-09-09: shell-only turns (bash/run/task/pipeline) with no
+          // filediff evidence skip track() — the early-exit inside track()
+          // remains as a cheap second net for edge cases (probe cost <100ms
+          // vs 5-48s commit chain).
           if (ctx.hasWriteToolCall) {
-            // changedFiles covers edit/write/multiedit/applypatch. bash/run may
-            // mutate the worktree too (scripts, redirects) — with an empty list
-            // track() performs a full addremove reconcile instead of the
-            // bounded no-op that silently returned beforeHash.
-            yield* snapshot
-              .track(ctx.changedFiles.size > 0 ? [...ctx.changedFiles] : undefined)
-              .pipe(Effect.catch(() => Effect.void))
+            const shellOnlyNoFiles =
+              ctx.changedFiles.size === 0 && !ctx.exclusiveWriteToolCall
+            if (!shellOnlyNoFiles) {
+              yield* snapshot
+                .track(ctx.changedFiles.size > 0 ? [...ctx.changedFiles] : undefined)
+                .pipe(Effect.catch(() => Effect.void))
+            }
           }
           const patch = yield* snapshot.patch(ctx.snapshot)
           if (patch.files.length) {

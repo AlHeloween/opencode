@@ -128,7 +128,11 @@ export async function renderDataUrlToTerminal(
     log.warn("bug: renderDataUrlToTerminal failed", { error: String(err) })
     return null
   } finally {
-    try { if (existsSync(tmpFile)) unlinkSync(tmpFile) } catch {}
+    try {
+      if (existsSync(tmpFile)) unlinkSync(tmpFile)
+    } catch (err) {
+      log.debug("temp file cleanup failed", { tmpFile, error: String(err) })
+    }
   }
 }
 

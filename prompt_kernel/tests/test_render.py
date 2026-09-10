@@ -12,7 +12,7 @@ from prompt_kernel.render import _named_rule_ids
 def test_runtime_is_map_first_and_progressively_refined() -> None:
     text = render_kernel(KERNEL)
     sections = (
-        "## 0. KERNEL_MAP",
+        "## 0. WORKFLOW",
         "## 1. ABI_AND_VOCABULARY",
         "## 2. SHARED_RULES",
         "## 3. GATE_REFINEMENT",

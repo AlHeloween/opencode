@@ -17,7 +17,7 @@ from prompt_kernel import (
     validate_migration,
     write_artifacts,
 )
-from prompt_kernel.cutover import cutover, install_production
+from prompt_kernel.cutover import cutover, install_claude_kernel, install_production
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -36,7 +36,7 @@ def test_next_kernel_covers_required_runtime_semantics() -> None:
 
 def test_production_prompt_matches_next_kernel_renderer() -> None:
     current = PRODUCTION.read_text(encoding="utf-8")
-    assert current.lstrip().startswith("## 0. KERNEL_MAP")
+    assert current.lstrip().startswith("## 0. WORKFLOW")
     assert current == render_kernel()
 
 
@@ -113,3 +113,16 @@ def test_install_production_writes_renderer_output(tmp_path: Path) -> None:
     digest = install_production(production_path=target, dist=tmp_path)
     assert target.read_text(encoding="utf-8") == render_kernel()
     assert digest == hashlib.sha256(render_kernel().encode("utf-8")).hexdigest()
+
+
+def test_install_claude_kernel_writes_claude_addon_renderer_output(tmp_path: Path) -> None:
+    from prompt_kernel.addons_claude import CLAUDE_GATE_ADDONS
+
+    target = tmp_path / "reasoning_kernel.md"
+    digest = install_claude_kernel(kernel_path=target, dist=tmp_path)
+    expected = render_kernel(KERNEL, CLAUDE_GATE_ADDONS)
+    assert target.read_text(encoding="utf-8") == expected
+    assert digest == hashlib.sha256(expected.encode("utf-8")).hexdigest()
+    # Distinct renderer output from the opencode variant — proves the
+    # installer actually used CLAUDE_GATE_ADDONS, not the opencode default.
+    assert expected != render_kernel()

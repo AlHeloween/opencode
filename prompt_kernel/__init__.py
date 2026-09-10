@@ -1,5 +1,6 @@
 from .addons import GATE_ADDONS, GateAddon, validate_addons
-from .artifacts import build_stamp, write_artifacts
+from .addons_claude import CLAUDE_GATE_ADDONS
+from .artifacts import DIST_CLAUDE, build_stamp, write_artifacts
 from .cutover import PRODUCTION_PROMPT, cutover, install_production
 from .compatibility import (
     REQUIRED_NEXT_SEMANTICS,
@@ -17,6 +18,8 @@ from .validate import validate_kernel
 __all__ = [
     "GATE_ADDONS",
     "GateAddon",
+    "CLAUDE_GATE_ADDONS",
+    "DIST_CLAUDE",
     "KERNEL",
     "LEGACY_RULE_MIGRATION",
     "LEGACY_RUNTIME_RULES",

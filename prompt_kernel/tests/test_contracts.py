@@ -62,7 +62,7 @@ def test_abi_establishes_status_sv_and_routing_before_state() -> None:
         text.index("## 2. SHARED_RULES"),
     )
     assert offsets == tuple(sorted(offsets))
-    assert text.index("## 0. KERNEL_MAP") < offsets[0]
+    assert text.index("## 0. WORKFLOW") < offsets[0]
 
 
 def test_rendered_kernel_keeps_sv_and_source_markers() -> None:

@@ -442,7 +442,7 @@ KERNEL = Kernel(
         Edge("G6", "G7", "forward", "every task has a concrete plan binding"),
         Edge("G7", "G8", "forward", "bounded implementation result exists"),
         Edge("G8", "G9", "forward", "oracle PASS produced a reproducible stamp"),
-        Edge("G4", "G5", "side", "CONCERN"),
+        Edge("G4", "G5", "side", "objection requires bounded plan revision"),
         Edge("G5", "G2", "back", "residual revised; re-decompose"),
         Edge("G8", "G6", "back", "repairable implementation failure"),
         Edge("G8", "G2", "back", "plan premise or geometry invalidated"),

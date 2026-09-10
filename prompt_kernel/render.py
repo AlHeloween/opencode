@@ -63,7 +63,7 @@ def _render_gate(kernel: Kernel, gate: Gate, addon_lines: tuple[str, ...], named
     ]
     lines.extend(_render_rules_block(gate.id, gate.local_rules, addon_lines, named))
     lines.append(f"outputs: {_list(gate.outputs)}")
-    lines.append(f"routes: KERNEL_MAP.{gate.id}")
+    lines.append(f"routes: WORKFLOW.{gate.id}")
     lines.append("")
     return lines
 
@@ -130,38 +130,55 @@ def _render_protocol(protocol: Protocol, named: set[str]) -> list[str]:
     return lines
 
 
-def render_kernel(kernel: Kernel | None = None) -> str:
+def render_kernel(kernel: Kernel | None = None, addons: tuple | None = None) -> str:
     if kernel is None:
         from .source import KERNEL
 
         kernel = KERNEL
+    if addons is None:
+        addons = GATE_ADDONS
     errors = validate_kernel(kernel)
     if errors:
         raise ValueError("invalid kernel:\n- " + "\n- ".join(errors))
-    addon_errors = validate_addons(GATE_ADDONS)
+    addon_errors = validate_addons(addons)
     if addon_errors:
         raise ValueError("invalid gate addons:\n- " + "\n- ".join(addon_errors))
-    addon_map = addon_lines_by_gate(GATE_ADDONS)
+    addon_map = addon_lines_by_gate(addons)
     named = _named_rule_ids(kernel)
 
     lines = [
-        "## 0. KERNEL_MAP",
+        # First line MUST be >= 19 bytes: Bun compile's asset sniffer turns .txt
+        # with a shorter first line into a BunFS file-asset (path stub) instead
+        # of inlining the text — proven by byte-probe bisect (18->fail, 19->ok).
+        "## 0. WORKFLOW — gated execution protocol",
         "",
-        f"kernel: {kernel.name}",
-        f"version: {kernel.version}",
-        "entry: G1",
-        "nodes:",
+        "gates:",
     ]
     for gate in kernel.gates:
         lines.append(f"- {gate.id}: {gate.name}")
     for terminal in kernel.terminals:
         lines.append(f"- {terminal}: terminal")
     lines.extend([
-        f"canonical_spine: {' -> '.join(kernel.spine)}",
-        "declared_edges:",
+        "forward_move:",
     ])
-    for edge in kernel.edges:
-        lines.append(f"- {edge.kind}: {edge.source} -> {edge.target}; when: {edge.condition}")
+    forward_edges = [e for e in kernel.edges if e.kind == "forward"]
+    for edge in forward_edges:
+        lines.append(f"- {edge.source} -> {edge.target} : {edge.condition}")
+    concern_edges = [e for e in kernel.edges if e.kind == "side"]
+    for edge in concern_edges:
+        lines.append(f"CONCERN: {edge.source} -> {edge.target} : {edge.condition}")
+    lines.extend([
+        "back_move:",
+    ])
+    back_edges = [e for e in kernel.edges if e.kind == "back"]
+    for edge in back_edges:
+        lines.append(f"- {edge.source} -> {edge.target} : {edge.condition}")
+    lines.extend([
+        "terminal:",
+    ])
+    terminal_edges = [e for e in kernel.edges if e.kind == "terminal"]
+    for edge in terminal_edges:
+        lines.append(f"- {edge.source} -> {edge.target}; when: {edge.condition}")
     lines.append("side_protocols:")
     for protocol in kernel.protocols:
         lines.append(f"- {protocol.id}: observe {_list(protocol.observed_at)} -> {protocol.returns_to}; authority={protocol.authority}")
@@ -172,7 +189,7 @@ def render_kernel(kernel: Kernel | None = None) -> str:
         "",
         f"precedence: {' > '.join(kernel.precedence)}",
         "reference_grammar: an at-prefixed uppercase identifier refers to the single declared node, state, term, rule, protocol, action class, identity, contract, or terminal of that name.",
-        "control_flow_rule: canonical_spine is the success path; every deviation must use a declared side, back, or terminal edge.",
+        "control_flow_rule: gated_workflow is the success path; every deviation must use a declared move, concern or terminal.",
         "terms:",
     ])
     for name, description in kernel.terms.items():
@@ -223,17 +240,17 @@ def render_kernel(kernel: Kernel | None = None) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def render_review(kernel: Kernel | None = None) -> str:
+def render_review(kernel: Kernel | None = None, addons: tuple | None = None) -> str:
     if kernel is None:
         from .source import KERNEL
 
         kernel = KERNEL
-    return "---\ndescription: map-first reasoning kernel candidate\nalwaysApply: true\n---\n\n" + render_kernel(kernel)
+    return "---\ndescription: map-first reasoning kernel candidate\nalwaysApply: true\n---\n\n" + render_kernel(kernel, addons)
 
 
-def kernel_digest(kernel: Kernel | None = None) -> str:
+def kernel_digest(kernel: Kernel | None = None, addons: tuple | None = None) -> str:
     if kernel is None:
         from .source import KERNEL
 
         kernel = KERNEL
-    return hashlib.sha256(render_kernel(kernel).encode("utf-8")).hexdigest()
+    return hashlib.sha256(render_kernel(kernel, addons).encode("utf-8")).hexdigest()

@@ -26,13 +26,9 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_GROUNDING",
         (
             "ground via: codegraph, read, messagesearch, webfetch/universalsearch.",
-        ),
-    ),
-    GateAddon(
-        "G2",
-        "PATH_EXPERIMENTS",
-        (
-            "scratch: experiments/; drafts: futures/; one-offs: [ISO8601]_name.",
+            "file enumeration: list/glob/grep/read — never shell ls/dir/find/cat (hard-blocked).",
+            "platform: Windows = cmd/powershell tools; bash unavailable.",
+            "cmd.exe: never dir/type/tree; quote spaced paths; chain &&; pipe 2>&1.",
         ),
     ),
     GateAddon(
@@ -75,13 +71,24 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_IMPLEMENT",
         (
             "mutate: edit, multiedit, write, applypatch; crash-prone shell via cmd_runner.",
+            "shell = process orchestration only; never file browsing (constitution blocks).",
+        ),
+    ),
+    GateAddon(
+        "G7",
+        "PROCESS_LAUNCH",
+        (
+            "launch processes only via cmd_runner start ... (non-blocking; jobwait/jobkill); bare shell start hangs the TUI — never do it.",
+            "permanent services: nssm install ... start, never ad-hoc detached start.",
         ),
     ),
     GateAddon(
         "G8",
         "TOOL_ORACLE",
         (
-            "prove via tests (cmd_runner), jobwait, logsearch, dbread.",
+            "prove via tests (cmd_runner), jobwait, logsearch, dbread; long-running probes: cmd_runner start only.",
+            "visual claims (TUI render, dialog scroll, web page state) need the cua tool oracle: screenshot or verify_state — typecheck alone is not a visual oracle.",
+            "shell dir/ls scans are not evidence — product tools only.",
         ),
     ),
     GateAddon(

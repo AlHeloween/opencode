@@ -17,6 +17,7 @@ from .source import KERNEL
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 DIST = PACKAGE_ROOT / "dist"
+DIST_CLAUDE = PACKAGE_ROOT / "dist_claude"
 STAMP_FORMAT = "%Y-%m-%d_%H-%M-%S"
 STAMP_RE = re.compile(r"^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$")
 
@@ -40,19 +41,22 @@ def _atomic_write(path: Path, content: str) -> None:
         staged.unlink(missing_ok=True)
 
 
-def write_artifacts(*, dist: Path | None = None, stamp: str | None = None) -> tuple[Path, Path]:
+def write_artifacts(
+    *, dist: Path | None = None, stamp: str | None = None, addons: tuple | None = None
+) -> tuple[Path, Path]:
     dest = dist if dist is not None else DIST
     prefix = stamp if stamp is not None else build_stamp()
     if not STAMP_RE.fullmatch(prefix):
         raise ValueError(f"build stamp must be {STAMP_FORMAT}, got {prefix!r}")
-    runtime = render_kernel(KERNEL)
-    review = render_review(KERNEL)
+    active_addons = addons if addons is not None else GATE_ADDONS
+    runtime = render_kernel(KERNEL, active_addons)
+    review = render_review(KERNEL, active_addons)
     review_path = dest / f"{prefix}_reasoning_prompt.mdc"
     runtime_path = dest / f"{prefix}_reasoning_prompt.txt"
     _atomic_write(runtime_path, runtime)
     _atomic_write(review_path, review)
     addon_payload = "\n".join(
-        "\n".join((addon.gate_id, addon.addon_id, *addon.lines)) for addon in GATE_ADDONS
+        "\n".join((addon.gate_id, addon.addon_id, *addon.lines)) for addon in active_addons
     )
     _atomic_write(
         dest / f"{prefix}_manifest.json",
@@ -60,11 +64,11 @@ def write_artifacts(*, dist: Path | None = None, stamp: str | None = None) -> tu
             {
                 "kernel": KERNEL.name,
                 "version": KERNEL.version,
-                "sha256": kernel_digest(KERNEL),
+                "sha256": kernel_digest(KERNEL, active_addons),
                 "utf8_bytes": len(runtime.encode("utf-8")),
                 "stamp": prefix,
                 "addons": {
-                    "count": len(GATE_ADDONS),
+                    "count": len(active_addons),
                     "sha256": hashlib.sha256(addon_payload.encode("utf-8")).hexdigest(),
                 },
             },

@@ -17,6 +17,16 @@ def test_addons_render_inside_gate_rule_blocks() -> None:
     assert "- first read: plans/*.md, docs/." in g1
     assert "- never store plans under .opencode/plans/." in g1
     assert "- ground via: codegraph, read, messagesearch, webfetch/universalsearch." in g1
+    assert (
+        "- file enumeration: list/glob/grep/read — never shell ls/dir/find/cat"
+        " (hard-blocked)." in g1
+    )
+    assert (
+        "- platform: Windows = cmd/powershell tools; bash unavailable." in g1
+    )
+    assert (
+        "- cmd.exe: never dir/type/tree; quote spaced paths; chain &&; pipe 2>&1." in g1
+    )
     g4 = _gate_block(text, "G4")
     assert "- identity or permission uncertain -> getmode; unresolved decision -> question (ASK)." in g4
     g9 = _gate_block(text, "G9")
@@ -29,7 +39,27 @@ def test_tool_addons_bind_expected_gates() -> None:
     assert "- track candidates: todowrite." in _gate_block(text, "G2")
     assert "- map symbols and ownership: codegraph explore/impact; read-only task grounding." in _gate_block(text, "G6")
     assert "- mutate: edit, multiedit, write, applypatch; crash-prone shell via cmd_runner." in _gate_block(text, "G7")
-    assert "- prove via tests (cmd_runner), jobwait, logsearch, dbread." in _gate_block(text, "G8")
+    assert (
+        "- shell = process orchestration only; never file browsing (constitution blocks)."
+        in _gate_block(text, "G7")
+    )
+    assert (
+        "- launch processes only via cmd_runner start ... (non-blocking; jobwait/jobkill);"
+        " bare shell start hangs the TUI — never do it." in _gate_block(text, "G7")
+    )
+    assert "- permanent services: nssm install ... start, never ad-hoc detached start." in _gate_block(text, "G7")
+    assert (
+        "- prove via tests (cmd_runner), jobwait, logsearch, dbread; long-running probes:"
+        " cmd_runner start only." in _gate_block(text, "G8")
+    )
+    assert (
+        "- visual claims (TUI render, dialog scroll, web page state) need the cua tool oracle:"
+        " screenshot or verify_state — typecheck alone is not a visual oracle." in _gate_block(text, "G8")
+    )
+    assert (
+        "- shell dir/ls scans are not evidence — product tools only."
+        in _gate_block(text, "G8")
+    )
 
 
 def test_addons_do_not_spawn_a_separate_section() -> None:

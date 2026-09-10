@@ -914,22 +914,30 @@ const live: Layer.Layer<
           ? {}
           : { system: system.map((content) => ({ role: "system" as const, content })) }),
         headers: {
-          // Correlation IDs — EVERY provider (2026-09-07, user request).
-          // Providers' dashboards (Novita "Request ID"/"Session ID" columns,
-          // OpenRouter sessions view, Zen routing/affinity) read these
-          // standard headers; empty columns in provider logs mean we did not
-          // send them. x-request-id also feeds our own gateway metrics.
-          // x-session-id unifies the affinity namespace (commit 8e5bdc41:
-          // child sessions already used providerCacheKey — same value for
-          // OpenRouter X-Session-Id and body session_id).
-          "x-opencode-session": input.sessionID,
-          "x-opencode-request": input.user.id,
-          "x-opencode-project": Instance.project.id,
-          "x-opencode-client": Flag.OPENCODE_CLIENT,
-          "x-request-id": input.user.id,
+          // Header three-layer contract (2026-09-08, user directive).
+          // Layer 1 — UNIVERSAL (every provider): correlation + UA. Safe names,
+          // dashboards read them (Novita Request ID column reads x-request-id).
+          // Layer 2 — PROVIDER-SPECIFIC: per-provider tuning (see isNovita /
+          // openrouter below). Third-party providers react badly to foreign
+          // namespaced headers — never send opencode-isms to them.
+          // Layer 3 — OPENCODE-ONLY (x-opencode-*): sent exclusively to
+          // opencode-owned providers (providerID.startsWith("opencode")).
+          // Session experiment 2026-09-08 [Exact]: Novita dashboard Session ID
+          // column reads NO client header (9-way differential smoke + wire
+          // dump + official SDK source). Binding x-request-id = sessionID for
+          // novita makes console rows group per session.
+          "x-request-id": input.model.providerID === "novita-ai" ? input.sessionID : input.user.id,
           "x-session-id": input.model.providerID === "openrouter" ? providerCacheKey : input.sessionID,
           "x-session-affinity": input.model.providerID === "openrouter" ? providerCacheKey : input.sessionID,
           ...(input.parentSessionID ? { "x-parent-session-id": input.parentSessionID } : {}),
+          ...(input.model.providerID.startsWith("opencode")
+            ? {
+                "x-opencode-session": input.sessionID,
+                "x-opencode-request": input.user.id,
+                "x-opencode-project": Instance.project.id,
+                "x-opencode-client": Flag.OPENCODE_CLIENT,
+              }
+            : {}),
           // OpenRouter response caching (identical-request cache, 1-86400s):
           // strict opt-in via provider options; NOT prompt caching.
           // item = Provider.Info (getProvider) — its .options carries

@@ -373,7 +373,10 @@ export async function request(options: H2RequestOptions): Promise<H2Response> {
           if (!completed) {
             completed = true
             cleanup()
-            req.destroy()
+            // Graceful per-stream cancel: RST_STREAM(CANCEL) keeps the H2
+            // session alive for other streams. req.destroy() would tear
+            // down the whole connection (user directive 2026-09-09).
+            closeStreamGracefully(req)
             sample.endedAt = Date.now()
             resolve({
               status: 0,
@@ -389,6 +392,17 @@ export async function request(options: H2RequestOptions): Promise<H2Response> {
       )
     }
   })
+}
+
+/** Graceful H2 stream close: RST_STREAM(CANCEL); destroy only as last resort. */
+function closeStreamGracefully(req: http2.ClientHttp2Stream): void {
+  try {
+    // Node http2: close(code) sends RST_STREAM with the code (8 = CANCEL).
+    ;(req as any).close?.(http2.constants.NGHTTP2_CANCEL)
+  } catch {
+    // Fall back to hard destroy if close is unavailable/fails.
+    req.destroy()
+  }
 }
 
 export async function requestStream(
@@ -506,7 +520,9 @@ export async function requestStream(
         "abort",
         () => {
           decrement()
-          req.destroy()
+          // Graceful per-stream cancel: RST_STREAM(CANCEL) keeps the H2
+          // session alive for other streams (user directive 2026-09-09).
+          closeStreamGracefully(req)
           const error = new Error("Request aborted")
           writer.abort(error).catch((e) => { log.debug("writer abort failed", { error: String(e) }) })
           if (!settled) reject(error)

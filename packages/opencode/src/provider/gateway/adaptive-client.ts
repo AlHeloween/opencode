@@ -49,7 +49,7 @@ export function configureLogging(enabled: boolean, _format: "json" | "text" = "j
   loggingEnabled = enabled
 }
 
-type GatewayProtocol = "h2" | "http/1.1"
+type GatewayProtocol = "h3" | "h2" | "http/1.1"
 
 export function resolveGatewayProtocol(provider: string, configured?: GatewayProtocol): GatewayProtocol {
   return configured ?? (provider === "openai" ? "h2" : "http/1.1")
@@ -599,7 +599,7 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
 
       sample.socketAcquiredAt = Date.now()
       let response: Response
-      let usedProtocol: "h2" | "http/1.1" = "http/1.1"
+      let usedProtocol: "h3" | "h2" | "http/1.1" = "http/1.1"
 
       // ── Raw wire dump (debug) ──
       // Requires the master switch too — enabled=false must stop the .diff
@@ -651,12 +651,20 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
 
       try {
         const useH2 = modelProtocol === "h2"
+        const useH3 = modelProtocol === "h3"
 
+        // h3 branch (2026-09-08): Bun 1.3.14+ experimental fetch client with
+        // pinned protocol. Proven live on api.novita.ai from MY (transit-loss
+        // route): median 2188ms vs h2 3294ms, 2x shorter tail, 0 give-ups.
+        // Fallback chain h3 -> http/1.1 rides the same shouldFallbackToH1
+        // categories (connection/TLS/protocol errors); a plain h2 hop is NOT
+        // inserted — Bun's own h3 failure modes are connection-class and h1 is
+        // the safe landing after any of them.
         log.info("gateway.protocol.decision", {
           provider,
           model,
           configured: modelProtocol,
-          using: useH2 ? "h2" : "http/1.1",
+          using: useH3 ? "h3" : useH2 ? "h2" : "http/1.1",
           streaming: routeKey.stream,
         })
 
@@ -667,12 +675,67 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
             provider,
             model,
             configured: modelProtocol,
-            using: useH2 ? "h2" : "http/1.1",
+            using: useH3 ? "h3" : useH2 ? "h2" : "http/1.1",
             streaming: routeKey.stream,
           })
         }
 
-        if (useH2) {
+        if (useH3) {
+          try {
+            // Bun pinned-protocol fetch ({ protocol: "http3" }); streaming and
+            // non-streaming share the same Response pipeline. AbortSignal and
+            // headers flow through standard RequestInit.
+            const h3Res = await fetch(url, {
+              method: init?.method ?? "POST",
+              headers,
+              body: typeof init?.body === "string" ? init.body : undefined,
+              signal: init?.signal ?? undefined,
+              // @ts-expect-error Bun-specific RequestInit extension (blog 1.3.14)
+              protocol: "http3",
+            })
+            if (!h3Res.ok && h3Res.status >= 500) {
+              // treat hard 5xx as transport-class for fallback parity with h2 path
+              const normalized = Errors.normalizeError(new Error(`h3 upstream ${h3Res.status}`))
+              if (Errors.shouldFallbackToH1(normalized)) throw new Error(`h3 upstream ${h3Res.status}`)
+            }
+            usedProtocol = "h3"
+            response = h3Res
+          } catch (h3Err) {
+            const normalized = Errors.normalizeError(h3Err)
+            if (Errors.shouldFallbackToH1(normalized)) {
+              writeLog({
+                level: "WARN",
+                event: "gateway.protocol.fallback",
+                timestamp: Date.now(),
+                requestId,
+                provider,
+                model,
+                fromProtocol: "h3",
+                toProtocol: "http/1.1",
+                reason: normalized.category,
+                message: normalized.message,
+              })
+              usedProtocol = "http/1.1"
+              const h1Result = await H1.request({
+                url,
+                method: init?.method ?? "POST",
+                headers,
+                body: typeof init?.body === "string" ? init.body : undefined,
+                signal: init?.signal ?? undefined,
+              })
+              response = new Response(h1Result.body, {
+                status: h1Result.status,
+                headers: h1Result.headers,
+              })
+            } else {
+              if (normalized.category !== "client_abort") {
+                Store.recordError(routeKey, normalized.category, Date.now() - startTime)
+                Store.recordCircuitBreakerFailure(routeKey)
+              }
+              throw h3Err
+            }
+          }
+        } else if (useH2) {
           try {
             if (routeKey.stream) {
               const h2Result = await H2.requestStream({
@@ -767,8 +830,10 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                 headers: h1Result.headers,
               })
             } else {
-              Store.recordError(routeKey, normalized.category, Date.now() - startTime)
-              Store.recordCircuitBreakerFailure(routeKey)
+              if (normalized.category !== "client_abort") {
+                Store.recordError(routeKey, normalized.category, Date.now() - startTime)
+                Store.recordCircuitBreakerFailure(routeKey)
+              }
               throw h2Err
             }
           }
@@ -791,9 +856,13 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
         sample.status = response.status
       } catch (err) {
         const normalized = Errors.normalizeError(err)
-        Store.recordError(routeKey, normalized.category, Date.now() - startTime)
-        Store.recordCircuitBreakerFailure(routeKey)
-        Store.adaptRoutePolicy(routeKey, false, 0)
+        // Client-initiated abort is not a provider fault: no health error,
+        // no circuit-breaker failure, no route policy downgrade.
+        if (normalized.category !== "client_abort") {
+          Store.recordError(routeKey, normalized.category, Date.now() - startTime)
+          Store.recordCircuitBreakerFailure(routeKey)
+          Store.adaptRoutePolicy(routeKey, false, 0)
+        }
 
         const caller = getCallerStack()
         const errorEntry: Record<string, unknown> = {

@@ -296,9 +296,15 @@ const NOVITA_STATIC_MODELS: ModelsDevModel[] = [
   embeddingModel("qwen/qwen3-reranker-8b", "Qwen3 Reranker 8B", 32768, 0.05, 0.05),
 ]
 
-// Transport defaults verified live on 2026-09-04 via scripts/smoke-test-*-h2.cjs
-// (ALPN h2 + non-stream + streaming inference PASS on both hosts).
+// Transport defaults verified live:
+//   h2: 2026-09-04 via scripts/smoke-test-*-h2.cjs (ALPN h2 + non-stream +
+//       streaming inference PASS on both hosts).
+//   h3: 2026-09-08 via scripts/bench-novita-h2-vs-h3.mjs (interleaved 6-pair
+//       benchmark from MY: h3 median 2188ms vs h2 3294ms, 2x shorter tail,
+//       0 give-ups; server advertises alt-svc h3; Bun 1.4.2 client proven).
+// openrouter stays h2 (h3 not benchmarked there yet).
 const VERIFIED_H2_OPTIONS: Record<string, unknown> = { protocol: "h2", streaming: true }
+const VERIFIED_NOVITA_OPTIONS: Record<string, unknown> = { protocol: "h3", streaming: true }
 
 export const PROVIDER_SOURCES: ProviderSource[] = [
   {
@@ -310,12 +316,15 @@ export const PROVIDER_SOURCES: ProviderSource[] = [
     apiKeyEnv: "NOVITA_API_KEY",
     mapModel: mapNovitaModel as (raw: never) => ModelsDevModel | undefined,
     staticModels: NOVITA_STATIC_MODELS,
-    modelOptions: VERIFIED_H2_OPTIONS,
+    modelOptions: VERIFIED_NOVITA_OPTIONS,
     shell: {
       name: "NovitaAI",
       env: ["NOVITA_API_KEY"],
       npm: "@ai-sdk/openai-compatible",
-      api: "https://api.novita.ai/openai",
+      // Canonical live base (2026-09-08): /v3/openai. The bare /openai path
+      // still works (same fusion layer — wire-dump-identical response headers)
+      // but /v3/openai is the documented base and matches the listing endpoint.
+      api: "https://api.novita.ai/v3/openai",
       doc: "https://novita.ai/docs/guides/introduction",
     },
   },
@@ -383,6 +392,14 @@ export async function applyProviderOverrides(
     try {
       const models = await fetchLiveModels(source)
       shell.models = models
+      // Source shell fields OVERRIDE the upstream entry: models.dev lags the
+      // canonical base URL (upstream shipped /openai while the live documented
+      // base is /v3/openai — 2026-09-08). Without this, a source-declared api
+      // fix never reaches the snapshot because the upstream shell wins.
+      for (const [key, value] of Object.entries(source.shell)) {
+        ;(shell as Record<string, unknown>)[key] = value
+      }
+      shell.id = source.id
       registry[source.id] = shell
       console.log(`provider-sync: ${source.id}: ${Object.keys(models).length} models from live source (${source.endpoint})`)
     } catch (e) {

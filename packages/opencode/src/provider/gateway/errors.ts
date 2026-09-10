@@ -11,6 +11,7 @@ export type ErrorCategory =
   | "context_overflow"
   | "auth_error"
   | "abort"
+  | "client_abort"
   | "unknown"
 
 export interface NormalizedError {
@@ -96,6 +97,13 @@ export function normalizeError(error: unknown): NormalizedError {
     return { category: "abort", retryable: false, message }
   }
 
+  // Client-initiated abort: we cancelled our own request (user stop, session
+  // interrupt, job_kill). NOT a provider fault — must not poison health
+  // stats, must not trigger h1 fallback (user directive 2026-09-09).
+  if (/^request aborted$/i.test(message) || /abort(ed)? signal|signal is aborted|operation was aborted/i.test(message)) {
+    return { category: "client_abort", retryable: false, message }
+  }
+
   if (/context.*overflow|context_length_exceeded|token.*limit/i.test(message)) {
     return { category: "context_overflow", retryable: false, message }
   }
@@ -104,6 +112,7 @@ export function normalizeError(error: unknown): NormalizedError {
 }
 
 export function shouldFallbackToH1(error: NormalizedError): boolean {
+  if (error.category === "client_abort") return false
   if (error.category === "goaway" || error.category === "refused_stream") return true
   if (error.category === "conn_reset") return true
   if (error.category === "unknown") return true

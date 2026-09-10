@@ -1,6 +1,6 @@
 # Cache markers: Anthropic-only (strip openaiCompatible/openrouter/bedrock/copilot/alibaba stamps)
 
-State: ACTIVE (user directive 2026-09-07 16:08–16:20: "openrouter вообще нет, да и по остальным тоже", "openaicompatible claude routers — выходит из правил").
+State: DONE (user directive 2026-09-07 16:08–16:20: "openrouter вообще нет, да и по остальным тоже", "openaicompatible claude routers — выходит из правил").
 
 ## Root cause
 `applyCaching()` (transform.ts) stamped ALL cache dialects on the same messages:

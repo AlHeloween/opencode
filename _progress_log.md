@@ -1,4 +1,60 @@
 # Progress Log
+
+## 2026-09-10 realtime user-turn replacement
+
+Reason: a second ordinary user message joined the active reasoning fiber and stayed
+queued until `finish: stop`; it no longer felt realtime. Change: keep generic
+`ensureRunning` join semantics, add explicit `supersede` through
+`SessionPrompt.prompt`, and bind replacement work/system environment to the current
+`InstanceRef`. H3 transport and its graceful abort behavior remain unchanged. Oracle:
+runner supersede regression PASS; session prompt replacement regression PASS;
+`bun typecheck` exit 0 (`20260910T062824Z_c4403290`). Full prompt suite: 40 pass,
+13 skip, 2 pre-existing unrelated failures.
+
+
+## 2026-09-09 FIX — kernel WORKFLOW rename shipped + build embed oracle rewritten (plans/2026-09-09_bun-txt-embed-firstline-sniffer.md)
+
+Reason: Alexander renamed the kernel map (`## 0. KERNEL_MAP` → `## 0. WORKFLOW`, gates/forward_move/CONCERN/back_move/terminal blocks, dropped kernel:/version:/entry: — version field was a KV-cache mutation vector) and asked to port it into the kernel source + fix the build failure "binary missing inlined reasoning kernel". Edge condition `CONCERN` replaced with his formulation "objection requires bounded plan revision" (source.py Edge G4→G5).
+
+Change:
+- `prompt_kernel/source.py` — G4→G5 side edge condition → "objection requires bounded plan revision" (user verbatim).
+- `prompt_kernel/render.py` — header `## 0. WORKFLOW — gated execution protocol` (≥19B first-line guardrail comment), `gates:`/`forward_move:`/`CONCERN:`/`back_move:`/`terminal:` edge serialization, `routes: WORKFLOW.Gx`, control_flow_rule reworded; README serialization section updated.
+- `prompt_kernel/tests/` — test_render/test_compatibility/test_contracts marker updates; test_dedup rewritten to per-kind edge-block counting (forward/CONCERN/back/terminal each serialized exactly once, no edge duplication inside GATE_REFINEMENT).
+- `prompt_kernel/baseline.json` — repinned to installed sha256 f5ea6c3b99836e5480e141d1dfba28b4689396da089fe676b8075f027464ef65.
+- `packages/opencode/script/build.ts` — embed oracle rewritten: removed the inline-plugin experiment; the txt rides as a BunFS file-asset whose CONTENT IS IN THE BINARY and the runtime reads it transparently (decisive probe: compiled exe without plugin printed LEN 25600 for the real kernel). New oracle verifies the `reasoning_prompt-<hash>.txt` asset name in the BunFS string table (content byte-scans are false-negative generators here); EMBED MODEL comment documents the mechanism.
+
+Oracle:
+- prompt_kernel pytest: 72 pass / 0 fail; byte-parity production == fresh render (diff empty).
+- Full rebuild `pwsh _build.ps1` → 10.0.951: "Smoke test passed: reasoning_prompt.txt embedded (BunFS asset present)", "[OK] Build complete - artifacts in dist/"; `dist/bin/opencode.exe --version` → 10.0.951.
+- Root-cause evidence chain (first-line 18/19B, encoding, size ≤32K, plugin/alias/tsconfig/cwd, scale ≤2MB, chunk reachability) preserved in `experiments/2026-09-08_bun-txt-embed-repro/` (sources + probes; ~6.2GB of repro exes deleted).
+
+Residual:
+- bun compile drops SOME large statically-reachable chunks in huge graphs (observed on a 1.75MB chunk while a 1.38MB sibling survived) — candidate upstream bug, workaround exists (smaller chunks), no product impact today.
+- tests still referencing KERNEL_MAP in packages/opencode/test (transform.test.ts, system-compose.test.ts, prompt.test.ts, system.test.ts) and the order check in system-compose.ts (KERNEL_MAP/GATED_WORKFLOW fallback) need a follow-up rename pass.
+
+## 2026-09-08 FIX — NovitaAI transport/headers contract: h3 + /v3/openai base + three-layer headers (plans/2026-09-08_novita-h3-transport-headers.md)
+
+Reason: Alexander — «давай зафиксируем и чтобы адрес был для novita правильный», «не забудь про request id = session id», «x-opencode-* только для opencode, провайдеры на них плохо реагируют». Session evidence [Exact]: h3 vs h2 interleaved benchmark from MY (`scripts/bench-novita-h2-vs-h3.mjs`): h3 median 2188ms vs h2 3294ms, tail 9314→4347ms, h3 6/6 vs h2 4/6 (one give-up after 4×429); Novita Session ID dashboard column reads NO client header (9-way differential smoke + wire dump + official novita-sandbox SDK source — no session header mechanism exists client-side); h3-over-IPv6 impossible via Bun literal fetch (SNI rule + no pinned-DNS API) — hostname happy-eyeballs only; bun upgraded canary 1.4.3 → stable 1.4.2 (`bun upgrade --stable`).
+
+Change:
+- `packages/opencode/src/provider/provider-sync.ts` — novita shell api → `https://api.novita.ai/v3/openai` (canonical documented base); `VERIFIED_NOVITA_OPTIONS {protocol:"h3",streaming:true}` (models only; openrouter stays h2); `applyProviderOverrides` now applies source shell fields OVER the upstream entry (models.dev lags: shipped /openai; without the override the v3 fix never reached the snapshot — build defect found by post-write artifact inspection).
+- `packages/opencode/src/provider/gateway/adaptive-client.ts` — `GatewayProtocol` + `"h3"`; h3 branch = Bun pinned fetch `{protocol:"http3"}`; fallback h3→http/1.1 via existing `shouldFallbackToH1`; `gateway.protocol.decision` logs the full triad.
+- `packages/opencode/src/session/llm.ts` — header three-layer contract: universal correlation (x-request-id/x-session-id/x-session-affinity) for everyone; `x-opencode-*` ONLY for `providerID.startsWith("opencode")`; novita binds `x-request-id = sessionID` (console rows group per session — replaces the unfillable Session ID column).
+- `packages/opencode/test/session/llm-headers.test.ts` (NEW) — layer decision-table pins.
+- `packages/opencode/test/provider/adaptive-client.test.ts` — updated to the current capture surface (parsed body, .raw.txt/.md sidecars, OpenAI-shaped SSE fixture, per-test isolation). The old assertions targeted `body_raw`/`.diff` removed by the 2026-09-04 readable-wire refactor (5d433565df) — pre-existing breakage, caught by the full-suite oracle and fixed here (Bug Policy).
+- Regenerated `models-snapshot.js` + 213 per-provider JSON (gitignored receivers, via declared pipeline `script/generate.ts`).
+
+Oracle:
+- typecheck exit 0 (final run `20260908T154118Z_2e211cad`).
+- Focused: adaptive-client + llm + llm-headers → 33 pass / 0 fail (`20260908T154032Z_8f9677d5`), adaptive-client solo re-run 2/0 after trim (`20260908T154242Z_50d79f9a`).
+- Full provider suite: 469 pass / 2 fail — both 5s-timeout class in provider.test.ts under full-file load; clean-tree baseline reproduces the same timeout (`20260908T152832Z_dd9ab179`: 77/1 same test) → pre-existing flake, passes solo with our changes. Residual filed.
+- Artifact inspection: per-provider novita JSON `api=https://api.novita.ai/v3/openai`, glm options `{protocol:"h3",streaming:true}`; snapshot dump confirms v3 base + 156 h3 models.
+
+Residual:
+- Live TUI verify on next novita turn: `gateway.protocol.decision using: h3` + Novita console rows grouped by session id.
+- provider.test.ts 5s timeouts under full-suite load (pre-existing; solo passes) — separate task.
+- IPv6-pinned h3: blocked on Bun API (pinned DNS in fetch) or an aioquic sidecar — deferred by decision.
+
 ## 2026-09-06 FIX — OpenRouter child task cache lease split across prompt and affinity fields
 Reason: the OpenRouter request used a transient physical child session for `X-Session-Id` and body `session_id`, while `prompt_cache_key` used the reusable `task-N` provider cache lease; OpenRouter could route/cache those as different sequences. The mutable session banner was omitted for OpenRouter, eliminating the deliberate prefix-to-history cache fence. User accepted the one-time namespace migration because the current sequence was already unstable; Constitution and prompt kernel remain untouched.
 Changes:
@@ -1141,6 +1197,12 @@ Windows (60s hangs) — run files individually.
 - Change: added the 8,192-token sidecar cap, two-attempt bound, failure-inclusive cooldown, shared `recordSessionUsage`, and cache/token/cost/duration logging. Constitution, tool catalog, system/checkpoint M, and `providerCacheKey` remain unchanged.
 - Oracle: focused runtime suite 72 pass / 0 fail (`20260905T192318Z_e6fdc418`); summary/docs reproduce suite 46 pass / 0 fail (`20260905T192445Z_98eaeb8e`); detached balance-accounting write path 9 pass / 0 fail (`20260905T192828Z_4735c203`); final `bun typecheck` exit 0 (`20260905T192934Z_effd4217`); `git diff --check` clean.
 
+## [2026-09-10T11:00:00+08:00] Portable session recovery after worktree move
+
+Reason: a previous portable database in `bin_tst/2026-09-09-Stable/.opencode/data` was invisible to a new launch because automatic relocation only works when the DB travels with its worktree.
+Changes: `/sessions` now displays saved and current directories and offers a recovery dialog. The dialog explicitly selects a former worktree, previews its root sessions, and replays one ordered event stream into the active project with its project ID and worktree paths rebased. It does not scan disks or write the source DB; duplicate IDs and malformed streams fail closed. `/restore` remains edit-backup recovery.
+Oracle: `test/session/recovery.test.ts` creates an isolated source DB and verifies replay, path/project rebasing, and duplicate rejection; package typecheck follows before closure.
+
 ## [2026-09-06T09:55:00+08:00] Provider loader paid-models bug: RCA + test fix, plan closed
 
 - Reason: plan `2026-09-05_opencode-loader-paid-models-auth` — test `opencode loader keeps paid models when auth exists` failed (`keyedCount` 0 at provider.test.ts:2723) on both trees. User's 2026-09-06 "works now" report was the compiled-binary surface (`51d9ac208e` registry overlay) — closure attempt denied by oracle: pre-fix re-run still 76 pass / 2 fail (`20260906T011933Z_e438c181`).
@@ -1261,3 +1323,21 @@ Windows (60s hangs) — run files individually.
 - Results [Exact]: CHARS_PER_TOKEN → "4" ✅; REQUEST_OVERHEAD_TOKENS → "10,000" ✅; FALLBACK_OUTPUT_RESERVE_TOKENS → "8192" ✅; first exported function → "isOverflow" ❌ (ground truth defaultUsableReserved — positional/list question at 55 lines/frame density). ~9.6k prompt tokens per video request; provider cache HIT on repeat video requests (cached_tokens 9600).
 - Verdict: the model READS TypeScript from video frames at 55 lines/frame 1440p — the video-as-context channel is real for code, at video-to-text token ratio ~4.4x for a single request, but with ZERO re-send tax on later turns (placeholders/cache) unlike text pages, and duration-bounded cost. Positional accuracy at this density is the weak spot (P2 sweep needed). Multi-question prompts trip reasoning loops — keep one question per call.
 - Ops note: cmd_runner stdout_text.log can lag the running process; verify completion via state.json (status/exit_code) before reading results.
+
+## [2026-09-10T13:35:00+08:00] Explicit portable database fix; startup relocation writes removed
+
+- Reason: `Instance.boot()` called a second, aggressive relocation path after ordinary project discovery. It rewrote every session directory and deleted unmatched project rows during startup.
+- Change: removed that startup path. Added `ProjectDatabaseFix.run` and `opencode db fix`; the current worktree is the only input, while the saved project root (or one unambiguous old session path) is read from its DB. It remaps only selected project/session path prefixes in `BEGIN IMMEDIATE`, preserves unrelated rows and IDs, and rolls back with a log on error.
+- Oracle: baseline storage test 2 pass (`20260910T133018Z_afa74dac`); focused project/storage suite 45 pass / 0 fail (`20260910T133357Z_209c5219`); package typecheck exit 0 (`20260910T133438Z_dd89435c`). Pending packaged-binary smoke and user verification against the moved worktree.
+
+## [2026-09-10T13:58:00+08:00] DB fix derives all relocation state from the current database
+
+- Reason: `db fix --from/--dir` incorrectly made the user remember a previous location even though the portable DB belongs to the current worktree.
+- Change: `opencode db fix` now accepts no root arguments. Its target is `cwd`; it uses the preserved `project.worktree` as the source. Normal startup preserves that source whenever its stored root differs from the launch root. For an older build that already overwrote it, fix falls back only to one unambiguous session directory outside the current root; ambiguous databases fail closed.
+- Oracle: automatic source and fallback test plus startup-preservation test: 45 pass / 0 fail (`20260910T135706Z_c46f8f12`); typecheck exit 0 (`20260910T135845Z_a5b9b441`); Windows build + packaged version smoke 10.0.959 (`20260910T135910Z_e44d3191`).
+
+## [2026-09-10T14:05:00+08:00] Startup SQLite freeze guard
+
+- Reason: a project database could leave startup unresponsive with only a coarse `opening project database` record. `journal_mode = WAL` ran before the busy timeout, and rejected instance boots were not logged.
+- Change: `busy_timeout = 5000` now precedes WAL mode; startup no longer performs a passive WAL checkpoint. Every synchronous native DB stage logs started/completed/failed with duration, while `Instance.boot` and its cached promise rejection log directory, phase, and error before eviction.
+- Oracle: new pragma oracle plus project bootstrap suite 46 pass / 0 fail (`20260910T140425Z_80929ee8`); typecheck exit 0 (`20260910T140505Z_c7752250`); Windows build + packaged version smoke 10.0.960 (`20260910T140531Z_cd118948`).

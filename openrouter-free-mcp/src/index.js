@@ -101,6 +101,26 @@ function pickFreeModels(models, { minContext = 0 } = {}) {
     .sort((a, b) => (b.context_length ?? 0) - (a.context_length ?? 0));
 }
 
+// Free-tier models with a known, non-standard consent/logging gate beyond
+// plain "free = 0/0". Live-confirmed 2026-09-10: thinkingmachines/inkling
+// (both variants) 403 outside an OpenRouter-recognized "agentic harness"
+// and its TML Free Research API terms log prompts/outputs (disassociated
+// from account) to improve Thinking Machines Lab's own models — a
+// separate ToS from OpenRouter's. Not detectable from the /models API
+// response; recorded here from the live 403 body + the endpoint's own
+// terms text. Surfaced so an explicit model: choice is an informed one —
+// never used to justify spoofing "agentic harness" identity to unlock it.
+const RESTRICTED_MODEL_NOTES = {
+  "thinkingmachines/inkling-small:free":
+    "gated: agentic-harness callers only; TML logs prompts/outputs (disassociated) to improve their models under a separate ToS",
+  "thinkingmachines/inkling:free":
+    "gated: agentic-harness callers only; TML logs prompts/outputs (disassociated) to improve their models under a separate ToS",
+};
+
+function restrictedNote(modelId) {
+  return RESTRICTED_MODEL_NOTES[modelId];
+}
+
 function findModel(models, id) {
   return models.find((m) => m.id === id);
 }
@@ -108,6 +128,7 @@ function findModel(models, id) {
 function requestEnvelope({ modelId, modelInfo, promptChars, filesIncluded }) {
   const free = modelInfo ? isFree(modelInfo) : /:free$/.test(modelId);
   const context = modelInfo?.context_length ?? "unknown";
+  const note = restrictedNote(modelId);
   const lines = [
     "openrouter-free-mcp direct call:",
     `model: ${modelId}`,
@@ -116,6 +137,7 @@ function requestEnvelope({ modelId, modelInfo, promptChars, filesIncluded }) {
     `files attached: ${filesIncluded}`,
     `prompt+context size: ${promptChars} chars`,
     "system: isolated call — no repo tools, no working-tree authority",
+    ...(note ? [`NOTICE: ${note}`] : []),
   ];
   return lines.join("\n");
 }
@@ -206,7 +228,11 @@ server.tool(
         lastGroup = group;
       }
       const ctx = model.context_length ?? "?";
-      rows.push(`  ${model.id.padEnd(idWidth)}  [${modality.padEnd(modWidth)}]  ctx:${ctx}  — ${model.name}`);
+      const note = restrictedNote(model.id);
+      rows.push(
+        `  ${model.id.padEnd(idWidth)}  [${modality.padEnd(modWidth)}]  ctx:${ctx}  — ${model.name}` +
+          (note ? `  ⚠ ${note}` : ""),
+      );
     }
 
     return { content: [{ type: "text", text: rows.join("\n") }] };
@@ -296,9 +322,16 @@ server.tool(
       if (params[k] !== undefined) sampling[k] = params[k];
     }
 
-    // Auto-selected free models: some free-tier models reject direct API
-    // calls (e.g. "only available on agentic harnesses", 403) despite being
-    // priced 0/0 — live-observed 2026-09-10 with thinkingmachines/inkling.
+    // Auto-selected free models: some free-tier models 403 with "only
+    // available on agentic harnesses" despite being priced 0/0 — live-
+    // observed 2026-09-10 with thinkingmachines/inkling. This is NOT a
+    // technical quirk to spoof around: Thinking Machines Lab's free Inkling
+    // endpoint is gated on that restriction because prompts/outputs are
+    // logged (disassociated from account first) to improve their models —
+    // a separate TML Free Research API ToS, not OpenRouter's own terms.
+    // Never fake an "agentic harness" identity (e.g. via HTTP-Referer/
+    // X-Title) to unlock it; a caller who wants Inkling specifically should
+    // pass model: explicitly, an informed choice, not an auto-selected one.
     // Fall through the sorted free candidates instead of failing on the
     // first (largest-context) one; an explicit model:param never falls back.
     const MAX_AUTO_ATTEMPTS = 4;

@@ -1,10 +1,11 @@
-import { TextAttributes } from "@opentui/core"
+import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core"
 import { useTheme, selectedForeground } from "../context/theme"
 import { useDialog } from "@tui/ui/dialog"
-import { For, Show, createMemo, createSignal, onMount } from "solid-js"
+import { For, Show, createEffect, createMemo, createSignal, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
-import { useKeyboard } from "@opentui/solid"
+import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import { EffectiveNavigation } from "../util/effective-navigation"
+import { getScrollAcceleration } from "../util/scroll"
 import { Truncate } from "@/tool/truncate"
 import { useSync } from "@tui/context/sync"
 import { existsSync, readdirSync } from "fs"
@@ -707,7 +708,55 @@ export function DialogPermissions() {
     const n = allRows().length
     if (n === 0) return
     setCursor((c) => (c + delta + n * 10) % n)
+    syncScroll()
   }
+
+  // Keep the cursor row inside the scrollbox viewport (canonical pattern:
+  // dialog-routing.tsx syncScroll, origin dialog-select.tsx moveTo).
+  let scroll: ScrollBoxRenderable | undefined
+  function syncScroll(center = false) {
+    if (!scroll) return
+    const target = scroll.getChildren().find((child) => child.id === `r${cursor()}`)
+    if (!target) return
+    const y = target.y - scroll.y
+    if (center) {
+      scroll.scrollBy(y - Math.floor(scroll.height / 2))
+      return
+    }
+    if (y >= scroll.height) scroll.scrollBy(y - scroll.height + 1)
+    if (y < 0) {
+      scroll.scrollBy(y)
+      if (cursor() === 0) scroll.scrollTo(0)
+    }
+  }
+
+  const dimensions = useTerminalDimensions()
+  const scrollAcceleration = createMemo(() => getScrollAcceleration())
+  // Viewport height counts rendered lines, not entries: section headers add a
+  // line, agent headers add two (paddingTop + label), action rows render in
+  // the footer only.
+  const totalLines = createMemo(() =>
+    allRows().reduce((n, row, i, rows) => {
+      if (row.kind === "action") return n
+      if (row.kind === "agent-header") return n + 2
+      const prev = i > 0 ? rows[i - 1] : undefined
+      const prevSection =
+        prev && prev.kind !== "action" && prev.kind !== "directory" && prev.kind !== "agent-header"
+          ? prev.section
+          : undefined
+      const section = row.kind === "tool" || row.kind === "external" ? row.section : undefined
+      return n + (section && section !== prevSection ? 2 : 1)
+    }, 1), // +1: trailing status hint inside the scrollbox
+  )
+  const maxHeight = createMemo(() => Math.min(totalLines(), Math.max(6, Math.floor(dimensions().height / 2) - 6)))
+
+  // Clamp the cursor when the list shrinks (agent overrides / directory rules
+  // added or removed) so keyboard actions never hit a stale index.
+  createEffect(() => {
+    const n = allRows().length
+    if (n === 0) return
+    setCursor((c) => (c < n ? c : n - 1))
+  })
 
   const addDirectoryFor = async (raw: string) => {
     const resolved = path.resolve(EffectiveNavigation.expandPath(raw))
@@ -811,6 +860,17 @@ export function DialogPermissions() {
     )
   }
 
+  /** Directory rows removable via UI (config-sourced rules only). */
+  const removableDir = (r: NavRow) =>
+    r.kind === "directory" &&
+    ((r.action === "allow" && (r.source === "config-allow" || r.source === "config-permission")) ||
+      (r.action === "deny" && (r.source === "config-deny" || r.source === "config-permission")))
+
+  const removeDirRow = (r: NavRow) => {
+    if (r.kind !== "directory" || busy()) return
+    void removeDirectory(r.displayPath, r.action)
+  }
+
   useKeyboard((evt) => {
     if (evt.defaultPrevented) return
     // While typing a path, only intercept Esc (dialog shell) and leave arrows to the input.
@@ -910,8 +970,14 @@ export function DialogPermissions() {
         Changes are written to config.json and persist across restarts.
       </text>
 
-      {/* Tool + external + agent-permission + directory rows (keyboard-navigable draft) */}
-      <box gap={0}>
+      {/* Tool + external + agent-permission + directory rows (keyboard-navigable draft).
+          Native scrollbox (canonical pattern from dialog-routing.tsx): overflow is
+          clipped with a visible scrollbar instead of spilling past the dialog. */}
+      <scrollbox
+        maxHeight={maxHeight()}
+        scrollAcceleration={scrollAcceleration()}
+        ref={(r: ScrollBoxRenderable) => (scroll = r)}
+      >
         <For each={allRows()}>
           {(row, i) => {
             const idx = () => i()
@@ -930,7 +996,7 @@ export function DialogPermissions() {
             // agent-header: render as section label
             if (row.kind === "agent-header") {
               return (
-                <box gap={0}>
+                <box id={`r${idx()}`} gap={0}>
                   <Show when={showSection()}>
                     <text fg={theme.accent} attributes={TextAttributes.BOLD} paddingTop={1}>
                       {row.agentName} — per-agent overrides
@@ -944,7 +1010,7 @@ export function DialogPermissions() {
               return null
             }
             return (
-              <box gap={0}>
+              <box id={`r${idx()}`} gap={0}>
                 <Show when={showSection()}>
                   <text fg={theme.text} attributes={TextAttributes.BOLD}>
                     {section()}
@@ -994,17 +1060,31 @@ export function DialogPermissions() {
                     {row.kind === "agent-permission" ? `${row.agentName} · ${row.label}` : row.kind === "directory" ? row.displayPath : row.label}
                   </text>
                   <text fg={busy() ? theme.textMuted : selected() ? selectedFg : theme.textMuted}>
-                    {row.kind === "directory" ? "" : row.hint}
+                    {row.kind === "directory" ? `(${sourceLabel(row.source)})${row.exists ? "" : " — missing"}` : row.hint}
                   </text>
+                  <Show when={removableDir(row)}>
+                    <text
+                      fg={busy() ? theme.textMuted : selected() ? selectedFg : theme.error}
+                      onMouseUp={(e) => {
+                        e.stopPropagation()
+                        removeDirRow(row)
+                      }}
+                    >
+                      ✕
+                    </text>
+                  </Show>
                 </box>
               </box>
             )
           }}
         </For>
+        <Show when={rules().length === 0}>
+          <text fg={theme.textMuted}>No directory rules</text>
+        </Show>
         <text fg={theme.textMuted}>
           {busy() ? "saving..." : dirty() ? "unsaved changes — press s or Save" : "click [mode] or ←→ to edit draft"}
         </text>
-      </box>
+      </scrollbox>
 
       {/* Add Directory */}
       <box gap={0}>
@@ -1064,91 +1144,15 @@ export function DialogPermissions() {
         />
       </box>
 
-      {/* Allowed / Denied Directories (keyboard-navigable) */}
-      <Show
-        when={rules().length > 0}
-        fallback={<text fg={theme.textMuted}>No directory rules</text>}
-      >
-        <text fg={theme.text} attributes={TextAttributes.BOLD}>
-          Directories
-        </text>
-        <For each={rules()}>
-          {(rule, i) => {
-            const idx = () => POLICY_ROWS.length + i()
-            const selected = () => isSelected(idx())
-            const removable = () =>
-              (rule.action === "allow" && (rule.source === "config-allow" || rule.source === "config-permission")) ||
-              (rule.action === "deny" && (rule.source === "config-deny" || rule.source === "config-permission"))
-            return (
-              <box
-                flexDirection="row"
-                gap={1}
-                alignItems="center"
-                backgroundColor={selected() ? theme.primary : undefined}
-                onMouseUp={() => {
-                  setPathFocused(false)
-                  pathInput?.blur?.()
-                  setCursor(idx())
-                }}
-                onMouseDown={() => {
-                  setPathFocused(false)
-                  setCursor(idx())
-                }}
-              >
-                <text
-                  fg={
-                    busy() ? theme.textMuted :
-                    selected() ? selectedFg :
-                    rule.action === "allow" ? theme.success : theme.error
-                  }
-                  attributes={TextAttributes.BOLD}
-                  onMouseUp={(e) => {
-                    e.stopPropagation()
-                    setPathFocused(false)
-                    setCursor(idx())
-                    cycleDraft(1, idx())
-                  }}
-                >
-                  [{rule.action === "allow" ? "Allow" : "Deny"}]
-                </text>
-                <text
-                  fg={
-                    busy() ? theme.textMuted :
-                    selected() ? selectedFg :
-                    rule.exists ? (rule.action === "allow" ? theme.success : theme.error) : theme.textMuted
-                  }
-                  wrapMode="word"
-                >
-                  {rule.exists ? (rule.action === "allow" ? "✓" : "✕") : "✗"} {rule.displayPath}
-                </text>
-                <text fg={busy() ? theme.textMuted : selected() ? selectedFg : theme.textMuted}>
-                  ({sourceLabel(rule.source)})
-                </text>
-                <Show when={removable()}>
-                  <text
-                    fg={busy() ? theme.textMuted : selected() ? selectedFg : theme.error}
-                    onMouseUp={(e) => {
-                      e.stopPropagation()
-                      if (!busy()) void removeDirectory(rule.displayPath, rule.action as "allow" | "deny")
-                    }}
-                  >
-                    ✕
-                  </text>
-                </Show>
-              </box>
-            )
-          }}
-        </For>
-        <text fg={theme.textMuted}>
-          ←→ toggle allow/deny · Enter browse · Del remove · +/- add/remove
-        </text>
-      </Show>
+      {/* Directory rules render inside the navigable scrollbox above — no
+          duplicate section here (was: second "Directories" block rendering the
+          same rows again and desyncing cursor indices). */}
 
       {/* Footer actions: Save / Reload / Close */}
       <box flexDirection="row" gap={2} justifyContent="flex-end" paddingTop={1}>
         <For each={FOOTER_ROWS}>
           {(row, i) => {
-            const idx = () => POLICY_ROWS.length + rules().length + i()
+            const idx = () => allRows().length - FOOTER_ROWS.length + i()
             const selected = () => isSelected(idx())
             const isSave = row.kind === "action" && row.id === "save"
             const accent = () => {

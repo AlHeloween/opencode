@@ -1,0 +1,21 @@
+{
+  "name": "openrouter-free-mcp",
+  "version": "1.0.0",
+  "description": "MCP server: isolated LLM calls routed to free-tier OpenRouter models by default, for bounded/low-stakes cognition tasks (aicall-style).",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "openrouter-free-mcp": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "inspect": "npx @modelcontextprotocol/inspector node src/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^3.23.8"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

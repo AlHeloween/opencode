@@ -25,7 +25,7 @@ def test_claude_addons_render_inside_gate_rule_blocks() -> None:
     assert "- never store plans under .claude/plans/." in g1
     assert "codegraph_explore" in g1
     assert "Glob/Grep/Read" in g1
-    assert "openrouter-free-mcp: list_free_models is discovery" in g1
+    assert "openrouter-free (user-scope MCP): list_free_models is discovery" in g1
     g4 = _gate_block(text, "G4")
     assert "AskUserQuestion" in g4
     assert "EXTERNAL_EFFECT" in g4
@@ -55,10 +55,11 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     text = render_kernel(KERNEL, CLAUDE_GATE_ADDONS)
     # KERNEL.utf8_budget (26_000) was calibrated for opencode's production
     # prompt insertion point (packages/opencode/.../reasoning_prompt.txt);
-    # the Claude variant has no such fixed slot (--claude only stamps
-    # dist_claude/, there is no cutover/install target), so it carries its
-    # own, slightly looser ceiling to admit project-specific MCP tool
-    # guidance (e.g. openrouter-free-mcp) without endless prose-golfing.
+    # the Claude variant has no such fixed slot (--claude --install writes
+    # .claude/reasoning_kernel.md as a whole file and stamps dist_claude/,
+    # rather than filling a sized slot), so it carries its own, slightly
+    # looser ceiling to admit host-level MCP tool guidance (e.g.
+    # openrouter-free) without endless prose-golfing.
     # Still a real regression guard, not a rubber stamp — bump it
     # deliberately, not just to make a failing test pass.
     assert len(text.encode("utf-8")) <= 27_000

@@ -231,7 +231,7 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @SAFE
 - ground via: codegraph_explore (if .codegraph/), Read, Grep/Glob, WebFetch/WebSearch.
 - file enumeration: Glob/Grep/Read — never shell ls/dir/find/cat (hard-blocked).
 - platform: Windows = Bash or PowerShell tool; never mix syntaxes.
-- openrouter-free-mcp: list_free_models is discovery; call_model is a network call, not local evidence.
+- openrouter-free (user-scope MCP): list_free_models is discovery; call_model is a network call, not local evidence.
 </G1_RULES>
 
 outputs: [INTENT_PROJECTION, EXECUTION_GOAL, PROJECT_GEOMETRY, CAPABILITY_GRAPH, OUTCOME_CONTRACT]

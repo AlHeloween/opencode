@@ -7,12 +7,11 @@ and a Monitor tool (deferred) plus a `run_in_background` flag for long-lived
 processes — it has no cmd_runner, applypatch, multiedit, getmode,
 messagesearch, logsearch, dbread, or nssm-equivalent tool. Where a CodeGraph
 MCP tool / `.codegraph/` index is present, it plays the same role opencode's
-`codegraph` tool plays. Project-specific MCP servers (e.g. the
-`openrouter-free-mcp` server under this repo, exposing `list_free_models`
-and `call_model`) get the same evidence discipline as any other tool: read
-calls are free grounding, network calls are EXTERNAL_EFFECT gated behind
-explicit authorization, and a sandbox-blocked call is Unknown, not proof of
-failure.
+`codegraph` tool plays. Host-level MCP servers (e.g. the user-scope
+`openrouter-free` server, exposing `list_free_models` and `call_model`) get
+the same evidence discipline as any other tool: read calls are free
+grounding, network calls are EXTERNAL_EFFECT gated behind explicit
+authorization, and a sandbox-blocked call is Unknown, not proof of failure.
 """
 
 from __future__ import annotations
@@ -38,7 +37,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
             "ground via: codegraph_explore (if .codegraph/), Read, Grep/Glob, WebFetch/WebSearch.",
             "file enumeration: Glob/Grep/Read — never shell ls/dir/find/cat (hard-blocked).",
             "platform: Windows = Bash or PowerShell tool; never mix syntaxes.",
-            "openrouter-free-mcp: list_free_models is discovery; call_model is a network call, not local evidence.",
+            "openrouter-free (user-scope MCP): list_free_models is discovery; call_model is a network call, not local evidence.",
         ),
     ),
     GateAddon(

@@ -230,6 +230,26 @@ const COMMAND_RULES: CommandRule[] = [
     sub: null,
   },
 
+  // ── Mass tree copy — permission ask (same risk class as tree walks) ──
+  {
+    family: CommandFamily.FILE_DESTRUCTIVE,
+    risk: "DESTRUCTIVE",
+    hardBlock: false,
+    permission: PermissionBucket.FILE,
+    cmd: "robocopy",
+    sub: null,
+    extra: (tokens) => tokens.some((t) => /^(\/|-(?!!))/.test(t) && /e|mir|purge|mov/i.test(t)),
+  },
+  {
+    family: CommandFamily.FILE_DESTRUCTIVE,
+    risk: "DESTRUCTIVE",
+    hardBlock: false,
+    permission: PermissionBucket.FILE,
+    cmd: "xcopy",
+    sub: null,
+    extra: (tokens) => tokens.some((t) => /^\/[a-z]*[es]/i.test(t)),
+  },
+
   // ── Database destruction ──
   {
     family: CommandFamily.DB_DESTRUCTIVE,

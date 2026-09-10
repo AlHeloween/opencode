@@ -5,7 +5,7 @@
  * After `cmd_runner send … --`: payload is session input — no enumeration
  * hard-block; brutal DESTRUCTIVE still needs permission.
  */
-import { expect, test, describe } from "bun:test"
+import { expect, test, describe, beforeEach, afterEach } from "bun:test"
 import { Effect } from "effect"
 import { MessageID, SessionID } from "@/session/schema"
 import { Constitution } from "@/session/constitution"
@@ -18,6 +18,7 @@ import {
   autoWrapCmdRunner,
   autoWrapBinary,
   enforceBinaryViaCmdRunner,
+  setCmdRunnerProbe,
 } from "@/tool/shell-constitution"
 
 const isWin = process.platform === "win32"
@@ -68,17 +69,30 @@ describe("splitCmdRunnerSend", () => {
 })
 
 describe("cmd_runner auto-wrap (constitution routing)", () => {
-  test("crash-prone binary command is auto-wrapped", () => {
-    const r = autoWrapCmdRunner("bun run script.ts")
+  // Routing tests assume cmd_runner IS available; graceful-skip tests below
+  // cover the missing-wrapper path. Reset in afterEach via the undefined probe.
+  beforeEach(() => setCmdRunnerProbe(true))
+  afterEach(() => setCmdRunnerProbe(undefined))
+
+  test("bun test is auto-wrapped (crash-prone test runner)", () => {
+    const r = autoWrapCmdRunner("bun test test/foo.test.ts")
     expect(r.wrapped).toBe(true)
-    expect(r.command).toBe("cmd_runner start -- bun run script.ts")
-    expect(shouldRouteViaCmdRunner("bun run script.ts")).toBe(true)
+    expect(r.command).toBe("cmd_runner start -- bun test test/foo.test.ts")
+    expect(shouldRouteViaCmdRunner("bun test")).toBe(true)
+  })
+
+  test("bun run/build/x are NOT wrapped (user directive 2026-09-09)", () => {
+    for (const cmd of ["bun run script.ts", "bun run build", "bun build ./x.ts", "bun x somepkg"]) {
+      const r = autoWrapCmdRunner(cmd)
+      expect(r.wrapped).toBe(false)
+      expect(shouldRouteViaCmdRunner(cmd)).toBe(false)
+    }
   })
 
   test("already-wrapped and cmd_runner commands pass through unchanged", () => {
-    const r = autoWrapCmdRunner("cmd_runner start -- bun run script.ts")
+    const r = autoWrapCmdRunner("cmd_runner start -- bun test x")
     expect(r.wrapped).toBe(false)
-    expect(r.command).toBe("cmd_runner start -- bun run script.ts")
+    expect(r.command).toBe("cmd_runner start -- bun test x")
     expect(shouldRouteViaCmdRunner("cmd_runner status x")).toBe(false)
   })
 
@@ -86,6 +100,12 @@ describe("cmd_runner auto-wrap (constitution routing)", () => {
     const r = autoWrapCmdRunner("git status")
     expect(r.wrapped).toBe(false)
     expect(shouldRouteViaCmdRunner("git status")).toBe(false)
+  })
+
+  test("other crash-prone binaries still wrap (cargo/clang/etc.)", () => {
+    const r = autoWrapCmdRunner("cargo build --release")
+    expect(r.wrapped).toBe(true)
+    expect(shouldRouteViaCmdRunner("zig build")).toBe(true)
   })
 
   test("send payload after -- is not wrapped (wrapper already isolated)", () => {
@@ -98,6 +118,9 @@ describe("cmd_runner auto-wrap (constitution routing)", () => {
     expect(w.wrapped).toBe(true)
     expect(w.binary).toBe("cmd_runner")
     expect(w.args).toEqual(["start", "--", "bun", "test", "foo.test.ts"])
+    const runNotWrapped = autoWrapBinary("bun", ["run", "script.ts"])
+    expect(runNotWrapped.wrapped).toBe(false)
+    expect(runNotWrapped.binary).toBe("bun")
     const plain = autoWrapBinary("git", ["status"])
     expect(plain.wrapped).toBe(false)
     expect(plain.binary).toBe("git")
@@ -106,6 +129,13 @@ describe("cmd_runner auto-wrap (constitution routing)", () => {
   test("safety net: bare crash-prone command still throws", () => {
     expect(() => enforceBinaryViaCmdRunner("cargo build --release")).toThrow(/must run through cmd_runner/)
     expect(() => enforceBinaryViaCmdRunner("cmd_runner start -- cargo build")).not.toThrow()
+  })
+
+  test("graceful skip: without cmd_runner in PATH nothing routes and nothing throws", () => {
+    setCmdRunnerProbe(false)
+    expect(autoWrapCmdRunner("cargo build --release").wrapped).toBe(false)
+    expect(shouldRouteViaCmdRunner("bun test x")).toBe(false)
+    expect(() => enforceBinaryViaCmdRunner("cargo build --release")).not.toThrow()
   })
 })
 

@@ -295,6 +295,8 @@ Runtime constitution hard-blocks shell **directory/file enumeration** and routes
 | `echo`, `printf` | ✅ ALLOWED | stdout, not enumeration |
 | `git ls-files` | ✅ ALLOWED | VCS oracle |
 | `where`, `which` | ✅ ALLOWED | PATH lookup |
+| `start <blocking-app>` | ❌ BLOCK | `cmd_runner start -- <app>` (background job) |
+| `nssm` | ✅ ALLOWED | Permanent Windows service only — never ad-hoc detached start |
 | `bun`, `tsc`, `cargo`, `make` | ⚠️ cmd_runner only | `cmd_runner start -- <binary>` |
 | `cmake`, `gcc`, `g++`, `clang` | ⚠️ cmd_runner only | same |
 | `rustc`, `dotnet`, `msbuild` | ⚠️ cmd_runner only | same |
@@ -323,6 +325,47 @@ Use `cmd_runner.exe` to automate TUI interactions. Launch from `dist/bin` for cl
 Workflow: build (`pwsh _build.ps1`) → start → tail → send text/keys → verify.
 
 See cmd-runner skill for full reference.
+
+### Process launch policy (TUI-hang protection)
+
+A bare `start <blocking-app>` in the agent shell **hangs the TUI**: the command
+never "exits", the runtime waits forever on an unjoined child process (observed
+2026-09-08 while installing a test framework in another project — TUI dialog
+froze mid-task).
+
+| Intent | Tool |
+|--------|------|
+| Temporary run (background job with output capture) | `cmd_runner start -- <app>` |
+| Permanent service (survives reboot, own lifecycle) | `nssm install <name> <app>` — never ad-hoc detached start |
+
+Never launch blocking processes (GUI apps, servers, test harnesses, TUI
+frameworks) through bare shell `start`/`&`/run tools without a job wrapper.
+
+### cmd_runner as a TUI debugger (and cua for windows)
+
+cmd_runner is not just a job runner — it is a **full TUI debugging surface**:
+per-run ConPTY session with an inbox bridge, so you can send text/keys into a
+LIVE TUI session and read the rendered output back. This solves most
+"TUI is interactive, how do I test it" problems without screenshots.
+
+- Launch TUI: `cmd_runner start -- dist\bin\opencode.exe`
+- Send input: write to the session inbox (`logs/cmd_runner/<id>/inbox.jsonl`)
+- Read output: `job_output` / `cmd_runner tail`
+
+**Recursion works**: a TUI → cmd_runner → TUI → cmd_runner → TUI chain is
+valid — each level is its own ConPTY instance with its own inbox. Nested
+harnesses (agent testing agent testing agent) are supported by design.
+
+**Division of labor with cua** (see [tools-and-sidecars.md §7.1](docs/tools-and-sidecars.md)):
+- **cmd_runner** — TUI / terminal-interactive surfaces (ConPTY text in/out).
+- **cua** — native windows + browser (background UIA/PostMessage input by
+  `(pid, window_id)`, screenshots, `verify_state`, agent cursor overlay for
+  user-visible action feedback). cua does not need cmd_runner to act — but
+  the cua *daemon* is a long-running process: launch it with
+  `cmd_runner start -- bin\cua.cmd serve` (jobkill to stop).
+- Node cannot spawn `.cmd` shims (EINVAL, CVE-2024-27980 hardening) — the
+  `cua` tool spawns `bin/cua/cua-driver.exe` directly; the shim is for
+  interactive shells only.
 
 ---
 

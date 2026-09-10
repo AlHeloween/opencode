@@ -36,11 +36,15 @@ describe("tool prompts vs constitution", () => {
     expect(text).toContain("coder_agent")
   })
 
-  test("shell prompts defer block lists to constitution", async () => {
+  test("shell prompts defer block lists to the kernel (no tool-level constitution restating)", async () => {
+    // 2026-09-09: constitution/workflow guidance moved to the kernel addons
+    // (prompt_kernel/addons.py — G1 TOOL_GROUNDING). Tool descriptions stay
+    // minimal: mechanics only. Neither the old boilerplate nor a hardcoded
+    // block list belongs here.
     const files = ["bash.txt", "cmd.txt", "powershell.txt", "run.txt"]
     for (const name of files) {
       const text = await readTool(name)
-      expect(text).toContain("Software constitution enforces")
+      expect(text).not.toContain("Software constitution enforces")
       expect(text).not.toContain("The following shell commands are HARD-BLOCKED and will fail")
     }
   })

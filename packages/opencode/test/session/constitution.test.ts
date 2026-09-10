@@ -913,6 +913,21 @@ claim_ledger:
     expect(rmSafe.family).toBe("ALLOWED") // rm without -rf is not destructive by our rules
   })
 
+  test("classifyAstNode: mass tree copy asks destructive-file permission", () => {
+    const roboMirror = Constitution.classifyAstNode("robocopy", undefined, ["robocopy", "C:\\a", "D:\\b", "/mir"])
+    expect(roboMirror.family).toBe("FILE_DESTRUCTIVE")
+    expect(roboMirror.permission).toBe("destructive-file")
+
+    const roboPlain = Constitution.classifyAstNode("robocopy", undefined, ["robocopy", "C:\\a", "D:\\b"])
+    expect(roboPlain.family).toBe("ALLOWED") // plain single-file copy is not mass-tree
+
+    const xcopyRecursive = Constitution.classifyAstNode("xcopy", undefined, ["xcopy", "C:\\a", "D:\\b", "/e", "/i"])
+    expect(xcopyRecursive.family).toBe("FILE_DESTRUCTIVE")
+
+    const xcopyPlain = Constitution.classifyAstNode("xcopy", undefined, ["xcopy", "C:\\a", "D:\\b"])
+    expect(xcopyPlain.family).toBe("ALLOWED")
+  })
+
   test("classifyAstNode: elevated commands", () => {
     const gitPush = Constitution.classifyAstNode("git", "push", ["git", "push"])
     expect(gitPush.family).toBe("ELEVATED_GENERAL")

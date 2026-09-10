@@ -266,7 +266,16 @@ export const RunTool = Tool.define(
           // Constitution on reconstructed argv (e.g. run git checkout → destructive)
           const argvLine = [params.binary, ...params.args].join(" ")
           yield* enforceDestructiveShell(argvLine, ctx, params.description)
-          enforceBinaryViaCmdRunner(argvLine)
+
+          // Auto-route crash-prone binaries through cmd_runner BEFORE the
+          // binary enforce net — same order as cmd.ts (wrap → enforce sees the
+          // wrapper). Otherwise the enforce throws before wrapping ever runs
+          // and crash-prone binaries become impossible to launch via run.
+          const autoWrap = autoWrapBinary(params.binary, [...params.args])
+
+          // Defense-in-depth: throws only when routing is required (wrapper
+          // present in PATH) and the command still arrives bare.
+          enforceBinaryViaCmdRunner([autoWrap.binary, ...autoWrap.args].join(" "))
 
           // Permission: dedicated "run" key (binary exec, not a shell).
           if (!Instance.containsPath(cwd)) {
@@ -291,10 +300,7 @@ export const RunTool = Tool.define(
             },
           })
 
-          // Auto-route crash-prone binaries through cmd_runner AFTER the run
-          // permission ask, so permission patterns stay granular ("bun *"),
-          // not the generic wrapper ("cmd_runner *").
-          const autoWrap = autoWrapBinary(binary, [...params.args])
+          // AutoWrap already computed above (before enforce).
           if (params.run_in_background !== false) {
             const jobs = yield* Effect.serviceOption(Jobs.Service)
             if (jobs._tag === "Some") {

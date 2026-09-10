@@ -1,16 +1,6 @@
 Executes a binary directly with arguments — no shell interpretation, no quoting issues.
 
-**Constitution**: `run` is **not** a shell. Pipelines, globs, and compound commands must use `bash`/`cmd`. Tests/builds used as oracles still follow G8.
-
-Software constitution enforces file enumeration, destructive actions, and crash-prone binaries. Use list/glob/grep/read for files. Crash-prone binaries (`bun`, `tsc`, `cargo`, `make`, `cmake`, `gcc`, `g++`, `clang`, `rustc`, `dotnet`, `msbuild`, `ninja`, `go`) must go through `cmd_runner`:
-```
-# ✅ Isolated terminal:
-cmd_runner start -- bun run script.ts
-
-# ❌ Blocked (can crash TUI):
-run({ binary: "bun", args: ["run", "script.ts"] })
-```
-Safe binaries (`node`, `python`, `python3`, `git`, `npm`, `npx`) are allowed. Each argument is a separate string — no globbing or quote interpretation.
+`run` is **not** a shell: pipelines, globs, and compound commands must use `bash`/`cmd`. Each argument is a separate string — no globbing or quote interpretation.
 
 `cmd_runner send … -- <payload>` is still scanned for brutal destructive actions (`guardBrutalDestructive`). Enumeration inside that TTY is allowed; `rm -rf`, DROP, force-push, git rewrite, and fossil mutate still require approval.
 

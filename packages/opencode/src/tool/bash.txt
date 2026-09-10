@@ -8,8 +8,6 @@ Executes a bash command as a **non-blocking background job** by default. Use `jo
 
 Be aware: OS: ${os}, Shell: ${shell}
 
-Software constitution enforces file enumeration, destructive actions, and crash-prone binaries. Use list/glob/grep/read for files; cmd_runner for bun/tsc/cargo/make/cmake/gcc/g++/clang/rustc/dotnet/msbuild/ninja/go. Do not restate the block list.
-
 This tool is for terminal operations like git, npm, docker. Default cwd is the current working directory; use `workdir` instead of `cd &&`.
 
 ## Background Jobs

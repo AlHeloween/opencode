@@ -2,8 +2,6 @@ Executes a PowerShell command as a **non-blocking background job** by default. U
 
 Be aware: OS: ${os}, Shell: powershell
 
-Software constitution enforces file enumeration, destructive actions, and crash-prone binaries. Use list/glob/grep/read for files; cmd_runner for bun/tsc/cargo/make/cmake/gcc/g++/clang/rustc/dotnet/msbuild/ninja/go. G8 when used as a test/build oracle. Do not restate the block list.
-
 Use `workdir` instead of `Set-Location`.
 
 ## Background Jobs

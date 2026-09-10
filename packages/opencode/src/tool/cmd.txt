@@ -2,8 +2,6 @@ Executes a Windows cmd.exe command as a **non-blocking background job** by defau
 
 Be aware: OS: ${os}, Shell: cmd
 
-Software constitution enforces file enumeration, destructive actions, and crash-prone binaries. Use list/glob/grep/read for files; cmd_runner for bun/tsc/cargo/make/cmake/gcc/g++/clang/rustc/dotnet/msbuild/ninja/go. Do not restate the block list.
-
 For interactive, long-running, or complex sessions (PowerShell, Git Bash), use the `cmd_runner` skill. Use `workdir` instead of `cd`.
 
 ## Background Jobs

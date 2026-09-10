@@ -13,6 +13,7 @@
  */
 import { Effect } from "effect"
 import { Constitution } from "@/session/constitution"
+import * as Log from "@opencode-ai/core/util/log"
 import type * as Tool from "./tool"
 import type { Node } from "web-tree-sitter"
 
@@ -203,9 +204,71 @@ const CRASH_PRONE_RE = new RegExp(
 
 const VIA_CMD_RUNNER = /\bcmd_runner(?:\.exe)?\b/i
 
+/**
+ * bun is crash-prone ONLY for `bun test` (TUI-crashing test runner).
+ * `bun run` / `bun build` / `bun x` stay unwrapped (user directive 2026-09-09).
+ * "bun test" | "bun ./test/..." → true; "bun run x" / bare "bun" → false.
+ */
+function isBunTestInvocation(command: string): boolean {
+  return /(?:^|[;&|]\s*)\bbun(?:\.exe)?\s+(?:test\b|\.\/test\b|\S*\.test\.)/i.test(command)
+}
+
+/**
+ * cmd_runner availability probe (cached). Constitution routing requires the
+ * wrapper binary; without it routing degrades gracefully (skip, one warn).
+ * Tests override the probe via setCmdRunnerProbe().
+ */
+let cmdRunnerProbe: boolean | undefined
+export function setCmdRunnerProbe(value: boolean | undefined): void {
+  cmdRunnerProbe = value
+}
+function cmdRunnerAvailable(): boolean {
+  if (cmdRunnerProbe !== undefined) return cmdRunnerProbe
+  try {
+    const dirs = (process.env.PATH ?? "").split(/[;:]/).filter(Boolean)
+    const exts = process.platform === "win32"
+      ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").map((e) => e.toLowerCase())
+      : [""]
+    const names = process.platform === "win32"
+      ? ["cmd_runner.exe", "cmd_runner", "cmd_runner.cmd"]
+      : ["cmd_runner"]
+    outer: for (const dir of dirs) {
+      for (const name of names) {
+        for (const ext of exts) {
+          const candidate = `${dir}\\${name}${ext}`.replace(/\\\\/g, "\\")
+          try {
+            require("fs").accessSync(candidate)
+            cmdRunnerProbe = true
+            return true
+          } catch {
+            continue
+          }
+        }
+      }
+    }
+    cmdRunnerProbe = false
+  } catch {
+    cmdRunnerProbe = false
+  }
+  if (!cmdRunnerProbe) {
+    Log.Default.warn("cmd_runner not found in PATH — crash-prone binary routing disabled (graceful skip)")
+  }
+  return cmdRunnerProbe
+}
+
 /** True when the command hits a crash-prone binary and is not already inside cmd_runner. */
 export function shouldRouteViaCmdRunner(command: string): boolean {
-  return CRASH_PRONE_RE.test(command) && !VIA_CMD_RUNNER.test(command)
+  if (VIA_CMD_RUNNER.test(command)) return false
+  const match = command.match(CRASH_PRONE_RE)
+  if (!match) return false
+  // bun: only test invocations are routed; run/build/x stay bare.
+  if (/\bbun(?:\.exe)?\b/i.test(match[0])) {
+    if (!isBunTestInvocation(command)) return false
+  }
+  // Graceful degradation: no wrapper binary → no routing (constitutional
+  // block would make the tool unusable on installs without cmd_runner).
+  if (!cmdRunnerAvailable()) return false
+  return true
 }
 
 /**

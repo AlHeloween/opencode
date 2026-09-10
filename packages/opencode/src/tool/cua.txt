@@ -1,0 +1,44 @@
+Computer-use visual oracle — self-built cua-driver (trycua/cua, MIT) as a CLI bridge.
+
+Drive GUI apps and browsers in background sessions: screenshots, UIA tree
+inspection, clicks/typing/scroll, browser navigation via CDP. Use as the
+SMOKE oracle for TUI/visual/web claims (G8) — `typecheck green` is not a
+visual oracle; a screenshot or `verify_state` result is.
+
+**Architecture:** vendored `bin/cua/cua-driver.exe` (discovered via
+`Global.Path.bin`). One-shot CLI: `call <tool> <json>` routes through the
+local daemon (`cua-driver serve`) — the daemon enforces policy, sessions and
+authorization; start it once with `cua serve` (long-running: launch via
+cmd_runner start, never bare shell). JSON args are piped via stdin to avoid
+PowerShell 5.1 quote stripping.
+
+**Actions:**
+- `list-tools` — enumerate all 64 daemon tools (desktop + browser).
+- `describe` — full schema of one tool.
+- `call` — invoke: tool name + JSON args + optional screenshot output path.
+- `serve` — NOT here: start daemon externally (cmd_runner start -- cua serve).
+
+**Key tools (subset):**
+- `get_desktop_state` — full-screen capture (true pixels, no downscale).
+- `get_accessibility_tree` — processes + visible windows + bounds (cheap).
+- `get_window_state` — UIA tree of one app (structured elements).
+- `verify_state` — deterministic predicate check against one window (best
+  for SMOKE assertions).
+- `click` / `type_text` / `scroll` / `press_key` / `hotkey` — input
+  (PostMessage-based, does not steal focus).
+- `launch_app` — start app hidden (SW_SHOWNOACTIVATE).
+- Browser suite: `browser_prepare`, `browser_navigate`, `browser_click`,
+  `browser_type`, `get_browser_state` — CDP over an exactly-bound tab.
+
+**Hard rules:**
+- Daemon must run: start via `cmd_runner start -- cua serve`; kill via
+  jobkill. Never `start` the daemon bare-shell (TUI-hang protection).
+- Screenshots: always pass `screenshot_out_file` — base64 inline output is
+  truncated by output caps; read the written artifact back instead.
+- Writes to disk count as PERSISTENT_WRITE — verify the artifact by reading
+  it back, not by exit code alone.
+
+**When to use:**
+- Visual smoke for TUI changes (dialog renders, list scrolls, footer visible).
+- Web/browser assertions (page element state, downloads, dialogs).
+- Any claim that needs *looking at* a real window rather than type-checking.

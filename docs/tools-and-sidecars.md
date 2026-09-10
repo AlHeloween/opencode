@@ -379,6 +379,40 @@ Location: `{worktree}/.opencode/tool/` (also tests under `packages/opencode/test
 
 Builtin tools remain in `packages/opencode/src/tool/` and are compiled into the binary.
 
+### 7.1 cua — computer-use visual oracle (vendored, 2026-09-08)
+
+Source: `external/cua` (trycua/cua, MIT, cloned shallow). Built binary is vendored as a local install surface — `bin/` is gitignored:
+
+| Piece | Path | Role |
+|-------|------|------|
+| Binary | `bin/cua/cua-driver.exe` | Self-built release (`cargo build -p cua-driver --release` in `external/cua/libs/cua-driver/rust`, toolchain pinned 1.97.1 via `rust-toolchain.toml`) |
+| CLI shim | `bin/cua.cmd` | `@"%~dp0\cua\cua-driver.exe" %*` — same pattern as `bin/codegraph.cmd` |
+| Builtin tool | `packages/opencode/src/tool/cua.ts` + `cua.txt` | `cua` tool: `list-tools` / `describe` / `call <tool> <json>` / `skill-index`; JSON piped via stdin (PS 5.1 quote-stripping workaround, upstream #1637) |
+| Kernel binding | G8 `TOOL_ORACLE` add-on | Visual claims (TUI render, dialog scroll, web page) require cua oracle — screenshot or `verify_state`; typecheck alone is not a visual oracle |
+
+Rebuild recipe:
+
+```powershell
+cd external\cua\libs\cua-driver\rust
+cargo build -p cua-driver --release
+copy target\release\cua-driver.exe ..\..\..\..\bin\cua\
+```
+
+Daemon model: `cua-driver call` routes through the local daemon — start it
+with `cmd_runner start -- bin\cua.cmd serve` (TUI-hang protection; never bare
+`start`), stop with `jobkill` or `bin\cua.cmd stop`. One-shot `call` without a
+daemon exits 1 with a "daemon is not running" hint.
+
+Skill guides (partial vendoring — index + links, not full copies):
+`external/cua/libs/cua-driver/rust/Skills/cua-driver/` — `SKILL.md`
+(snapshot→action→verify loop), `WINDOWS.md` (UIA, UWP hosting, PostMessage
+clicks), `BROWSER.md` (CDP binding, page refs), `RECORDING.md`,
+`EMBEDDING.md`. Read on demand via the `cua` tool `skill-index` action.
+
+Policy/safety: `CUA_DRIVER_POLICY_FILE` (YAML/Rego) enforces deny-by-default
+tool policy on the daemon — see `external/cua/libs/cua-driver/rust/README.md`
+§ Permission Policies. `doctor` is the host-readiness probe (`bin\cua.cmd doctor`).
+
 ---
 
 ## 8. Verification checklist

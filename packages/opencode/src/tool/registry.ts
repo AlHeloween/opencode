@@ -25,6 +25,7 @@ import { MultiEditTool } from "./multiedit"
 import { RestoreTool } from "./restore"
 import { UniversalSearchTool } from "./universalsearch"
 import { CodeGraphTool } from "./codegraph"
+import { CuaTool } from "./cua"
 import { MessageSearchTool } from "./messagesearch"
 import { DbReadTool } from "./dbread"
 import { LogSearchTool } from "./logsearch"
@@ -205,6 +206,7 @@ export const layer: Layer.Layer<
     const restore = yield* RestoreTool
     const universalsearch = yield* UniversalSearchTool
     const codegraph = yield* CodeGraphTool
+    const cua = yield* CuaTool
     const messagesearch = yield* MessageSearchTool
     const dbread = yield* DbReadTool
     const logsearch = yield* LogSearchTool
@@ -329,6 +331,7 @@ export const layer: Layer.Layer<
           restore: Tool.init(restore),
           universalsearch: Tool.init(universalsearch),
           codegraph: Tool.init(codegraph),
+          cua: Tool.init(cua),
           messagesearch: Tool.init(messagesearch),
           dbread: Tool.init(dbread),
           logsearch: Tool.init(logsearch),
@@ -366,6 +369,7 @@ export const layer: Layer.Layer<
             tool.restore,
             tool.universalsearch,
             tool.codegraph,
+            tool.cua,
             tool.messagesearch,
             tool.dbread,
             tool.logsearch,

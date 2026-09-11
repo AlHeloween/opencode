@@ -303,6 +303,15 @@ const NOVITA_STATIC_MODELS: ModelsDevModel[] = [
 //       benchmark from MY: h3 median 2188ms vs h2 3294ms, 2x shorter tail,
 //       0 give-ups; server advertises alt-svc h3; Bun 1.4.2 client proven).
 // openrouter stays h2 (h3 not benchmarked there yet).
+// 2026-09-11 h3 probe (Bun pinned-protocol fetch, experiments/20260911_openrouter-zen-h3):
+//   openrouter.ai AND opencode.ai zones have HTTP/3 disabled server-side —
+//   h3 pin fails HTTP3HandshakeFailed, no alt-svc advertised. h3 defaults stay
+//   impossible there until zone owners enable QUIC; no code change needed when
+//   they do (GatewayProtocol already accepts "h3" via config).
+// zen (provider id "opencode") upgraded h1 -> h2 via resolveGatewayProtocol
+//   family default: zone h2 verified live (pinned http2 200 on /zen/v1 and
+//   /zen/go/v1) + h2 SSE stream smoke end-to-end PASS
+//   (cmd_runner 20260911T051635Z_4eefe556).
 const VERIFIED_H2_OPTIONS: Record<string, unknown> = { protocol: "h2", streaming: true }
 const VERIFIED_NOVITA_OPTIONS: Record<string, unknown> = { protocol: "h3", streaming: true }
 

@@ -71,7 +71,12 @@ export const createClient = (config: Config = {}): Client => {
     const requestInit: ReqInit = {
       redirect: "follow",
       ...opts,
-      body: getValidRequestBody(opts),
+      // GET/HEAD must never carry a body. buildClientParams always seeds
+      // `body: {}` (stripEmptySlots deliberately skips the body slot), which
+      // serializes to "{}" and makes Bun >= 1.4 reject every parameterless GET
+      // with "fetch() request with GET/HEAD method cannot have body"
+      // (2026-09-11: this froze the TUI before its first frame).
+      body: opts.method === "GET" || opts.method === "HEAD" ? undefined : getValidRequestBody(opts),
     }
 
     let request = new Request(url, requestInit)

@@ -52,7 +52,19 @@ export function configureLogging(enabled: boolean, _format: "json" | "text" = "j
 type GatewayProtocol = "h3" | "h2" | "http/1.1"
 
 export function resolveGatewayProtocol(provider: string, configured?: GatewayProtocol): GatewayProtocol {
-  return configured ?? (provider === "openai" ? "h2" : "http/1.1")
+  // Per-family transport defaults (user directive 2026-09-08, "дефолтные
+  // настройки по протоколам per provider"):
+  //   openai   -> h2  (long-standing default)
+  //   opencode -> h2  (zen, provider id "opencode"/"opencode-go"; zone h2
+  //                     verified live 2026-09-11 — pinned http2 200 + h2 SSE
+  //                     stream smoke cmd_runner 20260911T051635Z_4eefe556;
+  //                     h3 disabled server-side in the zone, h3 pin
+  //                     HTTP3HandshakeFailed, probe 20260911T051102Z_9d5a214c)
+  //   other    -> http/1.1
+  // Config override (provider.<id>.models.<id>.options.protocol) always wins.
+  if (configured) return configured
+  if (provider === "openai" || provider.startsWith("opencode")) return "h2"
+  return "http/1.1"
 }
 
 interface AdaptiveFetchOptions extends RequestInit {

@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test"
 import fs from "fs"
 import os from "os"
 import path from "path"
-import { configureLogging, setDebugConfig, wrapFetch } from "@/provider/gateway/adaptive-client"
+import { configureLogging, resolveGatewayProtocol, setDebugConfig, wrapFetch } from "@/provider/gateway/adaptive-client"
 
 const logDir = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-gateway-capture-"))
 const originalLogDir = process.env.OPENCODE_GATEWAY_LOG_DIR
@@ -20,6 +20,22 @@ afterAll(() => {
   if (originalLogDir === undefined) delete process.env.OPENCODE_GATEWAY_LOG_DIR
   else process.env.OPENCODE_GATEWAY_LOG_DIR = originalLogDir
   fs.rmSync(logDir, { recursive: true, force: true })
+})
+
+describe("resolveGatewayProtocol", () => {
+  test("family defaults: openai and opencode (zen) -> h2, others -> http/1.1", () => {
+    expect(resolveGatewayProtocol("openai")).toBe("h2")
+    expect(resolveGatewayProtocol("opencode")).toBe("h2")
+    expect(resolveGatewayProtocol("opencode-go")).toBe("h2")
+    expect(resolveGatewayProtocol("novita-ai")).toBe("http/1.1")
+    expect(resolveGatewayProtocol("openrouter")).toBe("http/1.1")
+  })
+
+  test("configured override always wins", () => {
+    expect(resolveGatewayProtocol("opencode", "h3")).toBe("h3")
+    expect(resolveGatewayProtocol("novita-ai", "h2")).toBe("h2")
+    expect(resolveGatewayProtocol("openai", "http/1.1")).toBe("http/1.1")
+  })
 })
 
 describe("gateway wire capture", () => {

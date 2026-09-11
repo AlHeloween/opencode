@@ -12,7 +12,7 @@ import { useKeybind } from "../context/keybind"
 import { Keybind } from "@/util/keybind"
 import * as fuzzysort from "fuzzysort"
 import { useConnected } from "./use-connected"
-import { canActivateAgent } from "../util/agent"
+import { shouldActivateAgent } from "../util/agent"
 
 export function DialogModel(props: {
   providerID?: string
@@ -199,11 +199,15 @@ export function DialogModel(props: {
   function performSelect(providerID: string, modelID: string) {
     const agent = props.targetAgent ?? local.agent.current()?.name
     local.model.set({ providerID, modelID }, { recent: true, agent, scope: props.scope })
-    if (agent && canActivateAgent(agent, sync.data.agent)) {
+    // An explicit targetAgent means /agents is CONFIGURING another agent — the
+    // active prompt agent must stay where the user left it (2026-09-11,
+    // Alexander). The variant step below therefore resolves against `agent`
+    // instead of relying on the activation side effect.
+    if (agent && shouldActivateAgent(agent, props.targetAgent, sync.data.agent)) {
       local.agent.set(agent)
     }
-    const list = local.model.variant.list()
-    const cur = local.model.variant.selected()
+    const list = local.model.variant.list(agent)
+    const cur = local.model.variant.selected(agent)
     // "less annoying" skip removed (2026-08-30, Alexander): a stored "default"
     // sentinel made the variant menu vanish permanently for whole agents.
     // The dialog now opens whenever no CONCRETE variant is chosen.
@@ -213,7 +217,7 @@ export function DialogModel(props: {
       return
     }
     if (list.length > 0) {
-      dialog.replace(() => <DialogVariant scope={props.scope} onDone={props.onDone} />)
+      dialog.replace(() => <DialogVariant targetAgent={agent} scope={props.scope} onDone={props.onDone} />)
       return
     }
     if (props.onDone) { props.onDone(); return }

@@ -119,7 +119,7 @@ System prompt is **byte-stable** across all turns — no dates, no counters, no 
 
 **Before modifying prompt/system code:** assess KV cache impact. If risk exists, flag with `[KV-CACHE RISK]` and provide cache-safe alternative.
 
-Key files: `src/session/system.ts`, `src/session/prompt.ts`, `src/session/cache-control.ts`, `src/session/llm.ts`, `src/session/compaction.ts`
+Key files: `src/session/system.ts`, `src/session/prompt.ts`, `src/provider/transform.ts`, `src/session/llm.ts`, `src/session/compaction.ts`
 
 Full details: [docs/architecture.md](docs/architecture.md) § KV cache, [docs/compaction.md](docs/compaction.md)
 

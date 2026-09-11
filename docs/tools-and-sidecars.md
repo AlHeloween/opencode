@@ -102,7 +102,7 @@ Typical contents of repo-root `tools/` and stable portable copies (`bin_tst/…-
 
 ### 4.1 Fossil — required for snapshot/undo
 
-**Code:** `packages/opencode/src/snapshot/fossil.ts`, `packages/opencode/src/tool/fossil-grep.ts`
+**Code:** `packages/opencode/src/snapshot/fossil.ts`, `packages/opencode/src/tool/fossilgrep.ts`
 
 | Priority | Path / name | Source |
 |----------|-------------|--------|
@@ -232,7 +232,7 @@ Built by Zig via `packages/opentui/packages/core` (`bun run build`). Embedded in
 
 ### 4.6 apply_patch (model tool)
 
-**Code:** `packages/opencode/src/tool/apply_patch.ts` + `packages/opencode/src/patch/`
+**Code:** `packages/opencode/src/tool/applypatch.ts` + `packages/opencode/src/patch/`
 
 Does **not** execute `tools/apply_patch.exe`. The Windows `apply_patch.exe` in `tools/` is legacy/extra and must not be treated as a deploy dependency.
 
@@ -452,11 +452,11 @@ fossil version || /opt/opencode/tools/fossil.exe version
 | Concern | Primary files |
 |---------|----------------|
 | Path roots | `packages/core/src/global.ts` |
-| Fossil binary | `packages/opencode/src/snapshot/fossil.ts`, `tool/fossil-grep.ts` |
+| Fossil binary | `packages/opencode/src/snapshot/fossil.ts`, `tool/fossilgrep.ts` |
 | Ripgrep | `packages/opencode/src/file/ripgrep.ts` |
 | Markdownify | `packages/opencode/src/util/markdownify.ts` |
 | CodeGraph init | `packages/opencode/src/project/bootstrap.ts` |
-| apply_patch tool | `packages/opencode/src/tool/apply_patch.ts` |
+| apply_patch tool | `packages/opencode/src/tool/applypatch.ts` |
 | OpenTUI native select | `packages/opentui/packages/core/src/zig.ts` |
 | Compile targets | `packages/opencode/script/build.ts` |
 | Windows package stage | `_build.ps1`, `build.py` |

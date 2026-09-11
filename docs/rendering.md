@@ -434,14 +434,15 @@ Mermaid source
     → withTimeout() — 10s timeout guard
     → renderMermaidToSvg (mermaid.ts) — mermaid-wasm-renderer v0.3.1 (Rust → WASM)
     → renderSvgToPngDataUrl (mermaid.ts) — @resvg/resvg-js v2.6.2 (SVG → PNG)
-  → PNG data URL → <image-plane> → TexturePlaneRenderable
-    → @opentui/three (Three.js → WebGPU → block-char rendering) → terminal
+  → PNG data URL → <MediaImage interactive> (media-image.tsx)
+    → decode → RGBA → OpenTUI <image> PixelBuffer → Kitty or Sixel → terminal
+    → half-block symbols when the terminal has no graphics protocol
 ```
 
 **Files:**
 - `packages/opencode/src/util/mermaid.ts` (85 lines) — WASM SVG → PNG pipeline, lazy loader, timeout
 - `packages/opencode/src/cli/cmd/tui/routes/session/text-segments.ts` (27 lines) — Text splitter for ` ```mermaid ` fences
-- `packages/opencode/src/cli/cmd/tui/component/texture-plane-renderable.ts` (90 lines) — Three.js 3D image renderable
+- `packages/opencode/src/cli/cmd/tui/component/media-image.tsx` (683 lines) — decode, contain-fit, graphics-protocol path, zoom/pan viewport
 - `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` — text-part render integration (lines 1706-1728)
 
 ### 6a. Lazy WASM Loader
@@ -506,15 +507,20 @@ This prevents pathological diagrams (Rust recursion, infinite loop) from hanging
 
 ## 7. Image & Media Rendering
 
-### 7a. TexturePlaneRenderable — 3D Image Display
+### 7a. MediaImage — inline image display
 
-**File:** `packages/opencode/src/cli/cmd/tui/component/texture-plane-renderable.ts`
+**File:** `packages/opencode/src/cli/cmd/tui/component/media-image.tsx`
 
-Registered as `<image-plane>` via `extend()` in `app.tsx:78`.
+The Three.js `<image-plane>` / `TexturePlaneRenderable` path is gone; images go
+through OpenTUI's own `<image>` renderable.
 
-- Uses `@opentui/three` `ThreeRenderable` for GPU-accelerated block-char conversion
-- Loads image as Three.js texture → PlaneGeometry → Mesh → PerspectiveCamera → ThreeRenderable
-- Temporary file in `os.tmpdir()`, cleaned up in `finally` block
+- Primary path: decode → RGBA → OpenTUI `<image>` (PixelBuffer → Kitty or Sixel)
+- Fallback: half-block symbols (`util/image-to-ansi.ts`) when no graphics protocol
+- Sizing: natural width/height contain-fit into the terminal box (`util/fit-image.ts`),
+  capped at 80 cols × 40 rows; never a forced fixed width
+- Capability detection can land after first paint — the path stays unlocked for 1s
+- `interactive` (mermaid): keeps a high-res source buffer, wheel = zoom, drag = pan,
+  middle-click = reset (`util/image-viewport.ts`)
 
 ### 7b. Terminal Graphics Protocol Detection
 
@@ -529,10 +535,10 @@ Registered as `<image-plane>` via `extend()` in `app.tsx:78`.
 
 | File | Component | Rendering |
 |------|-----------|-----------|
-| `media-image.tsx` | `<MediaImage>` | `<image-plane>` → TexturePlaneRenderable → Three.js |
+| `media-image.tsx` | `<MediaImage>` | OpenTUI `<image>` → Kitty / Sixel, half-block fallback |
 | `media-video.tsx` | `<MediaVideo>` | Video playback widget |
 | `media-audio.tsx` | `<MediaAudio>` | Audio playback widget |
-| `media-mermaid.tsx` | `<MediaMermaid>` | Mermaid → SVG → PNG → `<image-plane>` |
+| `media-mermaid.tsx` | `<MediaMermaid>` | Mermaid → SVG → PNG → `<MediaImage interactive>` |
 
 ### 7d. ANSI / Kitty Renderers
 
@@ -651,7 +657,7 @@ Each attachment type has a `render()` method returning `TuiRenderResult`:
 | `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` | before 1697 | `healMarkdown()` function |
 | `packages/opencode/src/cli/cmd/tui/routes/session/text-segments.ts` | 1-27 | Mermaid text splitter |
 | `packages/opencode/src/util/mermaid.ts` | 1-68 | Mermaid SVG→PNG pipeline |
-| `packages/opencode/src/cli/cmd/tui/component/texture-plane-renderable.ts` | 1-90 | 3D image renderable |
+| `packages/opencode/src/cli/cmd/tui/component/media-image.tsx` | 1-683 | Inline image renderable (Kitty / Sixel / half-block) |
 | `packages/opencode/src/util/terminal-graphics.ts` | 1-50+ | Protocol detection |
 | `packages/opencode/src/util/kitty-render.ts` | 1-60 | Kitty escape sequences |
 | `packages/opencode/src/util/image-to-ansi.ts` | 1-100+ | ANSI TrueColor fallback |

@@ -157,7 +157,7 @@ as compilable, testable, immutable code. Each layer adds a concern:
 
 | Tier | Contents | Where |
 |------|----------|--------|
-| **A (identity)** | `PROMPT_ABI`, TERMS/RULES/WORKFLOWS/PACKS/CONTRACTS + **agent + policy** SPECS | `opencode_prompts_kernel.txt` — system identity prefix |
+| **A (identity)** | `PROMPT_ABI`, TERMS/RULES/WORKFLOWS/PACKS/CONTRACTS + **agent + policy** SPECS | `packages/opencode/src/session/prompt/reasoning_prompt.txt` — system identity prefix |
 | **B (surfaces)** | Skill + command SPECS | `SKILL.md` / command templates — loaded when used |
 | **C (offline)** | Full SPECS via `render_runtime_kernel(tier="full")` | Docs / debug only |
 
@@ -167,7 +167,7 @@ Memory ranks (InfoMark) live in TERMS/RULES (`infomark`, `MEMORY.RANK`, `MEMORY.
 
 **Research ladder (REUSE.BEFORE):** Guess → `universalsearch` web → code (Sourcegraph indexed git) → smoke/oracle: **PASS → Exact (stamped)** | **FAIL → Unknown**. Web/code hits alone stay Inferred. See [agentic-reasoning-runtime.md](agentic-reasoning-runtime.md).
 
-**Host-agnostic SPECS:** kernel + reasoning pocket do not encode host AGENTS.md, host skill/rule trees, or external CLI cookbooks (those update via ADID/host install). Product tools: `packages/opencode/src/tool/*`. Boundary: `opencode_prompts_kernel/21_skills_boundary.py`.
+**Host-agnostic SPECS:** kernel + reasoning pocket do not encode host AGENTS.md, host skill/rule trees, or external CLI cookbooks (those update via ADID/host install). Product tools: `packages/opencode/src/tool/*`. Boundary: the kernel SPECS in `prompt_kernel/source.py`.
 
 TS mirror (risk, InfoMark, claim ledger, grounding gate): `packages/opencode/src/session/constitution.ts`
 
@@ -219,8 +219,8 @@ The runtime prompt is split into two surfaces with different optimization target
 
 | Layer | File | Optimized for | Format |
 |-------|------|--------------|--------|
-| **Kernel** | `opencode_prompts_kernel.txt` | Parsing & immutability | Python `MappingProxyType` dicts |
-| **Protocol** | `reasoning.txt` | LLM comprehension | Commented prose + gate algorithms |
+| **Kernel** | `prompt_kernel/source.py` | Parsing & immutability | Python declarations compiled by `render.py` |
+| **Protocol** | `packages/opencode/src/session/prompt/reasoning_prompt.txt` | LLM comprehension | Rendered gates, rules and state contracts |
 
 Kernel uses compact Python declarations (`RULES = {'DOCUMENT.SURFACE': '...'}`) —
 machine-friendly, symbol-collision-proof, CI-testable. Protocol uses natural language
@@ -258,33 +258,38 @@ practices in humans: strip away noise, find the core, strengthen it.
 
 | File | Purpose |
 |------|---------|
-| `opencode_prompts_kernel.py` | Canonical kernel (all layers, ~3000 lines) |
-| `opencode_prompts_kernel.txt` | Synced copy loaded as system prompt prefix |
-| `_prompts/reasoning_kernel.py` | Inference kernel (layer 1 + spec system) |
-| `_prompts/reasoning.txt` | Protocol specification document |
-| `tests/test_reasoning_kernel.py` | 230+ pytest tests for kernel, projection, IR |
-| `tests/test_prompt_schema.py` | 60 pytest tests for prompt file conformance |
+| `prompt_kernel/source.py` | Canonical kernel — the only hand-edited surface |
+| `prompt_kernel/render.py` | Compiles the source into the runtime text |
+| `prompt_kernel/addons.py` | Host path bindings and advisory rules, rendered inline per gate |
+| `prompt_kernel/addons_claude.py` | Same for the Claude Code variant |
+| `prompt_kernel/validate.py` | Structural validation run by the test suite |
+| `prompt_kernel/tests/` | 78 pytest tests across 9 modules (render, contracts, addons, identity, dedup) |
+| `packages/opencode/src/session/prompt/reasoning_prompt.txt` | Installed runtime prefix — generated, never hand-edited |
+| `.claude/reasoning_kernel.md` | Claude Code variant, imported by `.claude/CLAUDE.md` |
 
 ---
 
 ## Running the Tests
 
 ```bash
-# All tests
-pytest tests/
+# All tests (78 collected)
+python -m pytest prompt_kernel/tests/ -q
 
-# Specific layers
-pytest tests/test_reasoning_kernel.py -v -k TestEnums
-pytest tests/test_reasoning_kernel.py -v -k TestContractValidation
-pytest tests/test_reasoning_kernel.py -v -k TestSyntaxProjection
-pytest tests/test_reasoning_kernel.py -v -k TestEpistemicProjection
-pytest tests/test_reasoning_kernel.py -v -k TestPromptIR
-pytest tests/test_prompt_schema.py -v
+# Specific surfaces
+python -m pytest prompt_kernel/tests/test_render.py -v
+python -m pytest prompt_kernel/tests/test_contracts.py -v
+python -m pytest prompt_kernel/tests/test_addons.py -v
+python -m pytest prompt_kernel/tests/test_addons_claude.py -v
+python -m pytest prompt_kernel/tests/test_agent_identity.py -v
+python -m pytest prompt_kernel/tests/test_architecture.py -v
 ```
+
+Install the rendered kernel after a green run: `python -m prompt_kernel --install`
+(add `--claude` to refresh `.claude/reasoning_kernel.md`), then rebuild the binary.
 
 ## CI Integration
 
-The 290-test suite is designed as a CI gate. Add to CI pipeline:
+The 78-test suite is designed as a CI gate. Add to CI pipeline:
 
 ```yaml
 test-reasoning-framework:

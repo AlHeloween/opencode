@@ -2,7 +2,7 @@
 
 **Status:** phase-2 implemented (2026-07-30) — `SyncEvent.runBatch` + cost in one TX  
 **Code:** `session.ts` `finishStep`, `sync/index.ts` `run` / `runBatch` / `applyProjectEvent`, `storage/db.ts` `projectTransaction` + `effect`  
-**Plan:** `plans_completed/2026-07-30-b1-phase2-finish-step-single-tx.md`
+**Plan:** `plans_completed/2026-07/2026-07-30_b1_phase2_finish_step_single_tx.md`
 
 ## Why this is slippery
 

@@ -79,7 +79,7 @@ This repository’s extra worktree policy lives only in root `AGENTS.md` (not SP
 
 ## 3. Gated spine (process)
 
-Mandatory for repository mutation (see `reasoning/01_gates.txt`):
+Mandatory for repository mutation (see § 0 WORKFLOW in `prompt_kernel/source.py`, installed as `packages/opencode/src/session/prompt/reasoning_prompt.txt`):
 
 ```text
 G1 GROUND → G2 DECOMPOSE → G3 MASTER_PLAN + claim_ledger

@@ -217,7 +217,7 @@ Layer-1 summary / resume injects are **orthogonal** to system order: they append
 | `session/system.ts` | `UNIVERSAL_ENV`, env/skills builders, provider family prompts |
 | `session/prompt.ts` | Builds pathSystem / checkpoint reuse; user-message dates |
 | `session/checkpoint.ts` | Encrypted system + identity fingerprint |
-| `session/cache-control.ts` | Fingerprints (post-plugin) |
+| `session/prompt.ts` | Fingerprints (post-plugin) |
 | `provider/transform.ts` | `systemPromptPrefix` → reasoning + kernel |
 
 ---

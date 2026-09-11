@@ -63,7 +63,7 @@ Compressing schemas to 5–30% of original density shifted the ENTIRE kernel int
 
 ### Rule
 
-> **Schema density must not drop below 80% of the historical stable kernel (`2026-08-09-historical-stable_kernel.txt`). Compressing one schema affects perception of the ENTIRE kernel.**
+> **Schema density must not drop below 80% of the historical stable kernel (the 2026-08-09 stable kernel, retired to git history). Compressing one schema affects perception of the ENTIRE kernel.**
 
 ### Critical Schema Density Requirements
 
@@ -193,7 +193,7 @@ A break at any link = loss of the assembly point.
 - [ ] Bold imperative: `**YOU must emit... protocol violation**`?
 - [ ] Closing anchor: `Omission = protocol violation. SV is a semantic fingerprint, NOT a claim status.`?
 - [ ] Schemas — H2 under `# Schemas`?
-- [ ] Schema density ≥ 80% of historical stable kernel (`2026-08-09-historical-stable_kernel.txt`)?
+- [ ] Schema density ≥ 80% of historical stable kernel (the 2026-08-09 stable kernel, retired to git history)?
 - [ ] Schema order: action → plan → authorization → verification → epistemics?
 - [ ] Root-of-truth — last line, no postscript?
 - [ ] Refcheck: @G9→@SV_EVERY_TURN→@SV_FORMAT chain resolved?

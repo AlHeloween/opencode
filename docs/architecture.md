@@ -196,11 +196,12 @@ injectSummaryRequest: implemented, NOT called from prompt.ts
 ┌─────────────────────────────────────────────────────────────┐
 │                 CACHE & DIFF SYSTEM                          │
 │                                                              │
-│  cache-control.ts:                                           │
-│    • MD5 fingerprint per turn (system + messages + tools)    │
-│    • Stored in memory (LRU 500) + SQLite (persistent)        │
-│    • auditCache(): detect system/tool/message changes        │
-│    • modelMsgsCache: reuse when fingerprint stable           │
+│  provider/transform.ts:                                      │
+│    • Anthropic-dialect `cache_control: ephemeral` markers    │
+│      on the last cacheable content block                     │
+│    • md5 of the system parts feeds the prompt-cache key      │
+│    • the speculative fingerprint audit was removed in        │
+│      352e073279 — cache:broken fired on false positives      │
 │                                                              │
 │  request-diff.ts:                                            │
 │    • Encrypted baseline (.enc files in .baselines/)          │
@@ -291,7 +292,7 @@ never duplicate into provider logs. Local diagnostics (`wireHeaders`,
 | `session/instruction.ts` | AGENTS.md/rules loading, caching | — |
 | `session/checkpoint.ts` | Per-model encrypted checkpoint save/load | — |
 | `session/incremental-checkpoint.ts` | Sidecar `project_checkpoint` CRUD / materialize | — |
-| `session/cache-control.ts` | MD5 fingerprint, cache audit | — |
+| `provider/transform.ts` | Anthropic `cache_control` breakpoints, prompt-cache key | — |
 | `session/request-diff.ts` | Encrypted baseline, diff engine | — |
 | `session/compaction.ts` | `compact()` + legacy summary helpers | — |
 | `session/overflow.ts` | Cadence vs safety gates; `needsContentCompaction` | — |

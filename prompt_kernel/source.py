@@ -235,7 +235,7 @@ GATES = (
         outputs=("VERIFIED_OUTCOME", "ORACLE_STAMP", "DIVERGENCE_EVENT", "CLAIM_LEDGER", "RISK_LEDGER"),
         shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "DIVERGENCE_PROTOCOL", "AUTHORITY_SEPARATION"),
         local_rules=(
-            _rule("G8", "ORACLE", "Reproduce the claim with the narrowest decisive instrument. Planner confidence, user certainty, and implementation appearance are not evidence. Pass pins Exact medoids; fail is Unknown."),
+            _rule("G8", "ORACLE", "Reproduce the claim with the narrowest decisive instrument. Purpose: an oracle ends the guess-invent-fail loop by freezing one claim as Exact, so it must be able to fail — an instrument that cannot fail proves nothing, and a claim with no falsifier is not a claim. Aim it at the layer the claim lives on: a persistent-write claim is proven by reading the written artifact back, never by typecheck or a resolver test alone. No self-grading — Exact needs runtime-issued evidence bound to the claim digest; planner confidence, user certainty, and implementation appearance are not evidence. Pass pins Exact medoids; fail is Unknown."),
             _rule("G8", "PROVENANCE", "Record command or instrument, inputs, environment, exit/result, relevant output, and artifact digest so the decision can be reproduced."),
             _rule("G8", "SMOKE_VERIFY", "Run focused regression tests first, then the proportional integration surface; compare against the baseline and outcome contract."),
             _rule("G8", "ORACLE_STAMP_RULE", "PASS binds runtime evidence_ref to claim digest; divergence revokes it to Unknown."),
@@ -377,7 +377,7 @@ KERNEL = Kernel(
     name="reasoning_kernel_next",
     version="2.0.0-alpha.3",
     precedence=("safety", "governance", "task", "domain", "style"),
-    utf8_budget=26_000,
+    utf8_budget=27_000,
     terms=MappingProxyType({
         "GROUNDING": "Observation tied to a source, path, command, or reproducible state.",
         "AUTHORIZATION": "A decision that permits a bounded class of effects; confidence is not authority.",

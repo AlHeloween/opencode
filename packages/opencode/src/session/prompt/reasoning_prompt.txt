@@ -344,13 +344,14 @@ requires: [IMPLEMENTATION_RESULT, SMOKE_CONTRACT, OUTCOME_CONTRACT, CLAIM_LEDGER
 shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @AUTHORITY_SEPARATION]
 <G8_RULES>
 #### @ORACLE
-Reproduce the claim with the narrowest decisive instrument. Planner confidence, user certainty, and implementation appearance are not evidence. Pass pins Exact medoids; fail is Unknown.
+Reproduce the claim with the narrowest decisive instrument. Purpose: an oracle ends the guess-invent-fail loop by freezing one claim as Exact, so it must be able to fail — an instrument that cannot fail proves nothing, and a claim with no falsifier is not a claim. Aim it at the layer the claim lives on: a persistent-write claim is proven by reading the written artifact back, never by typecheck or a resolver test alone. No self-grading — Exact needs runtime-issued evidence bound to the claim digest; planner confidence, user certainty, and implementation appearance are not evidence. Pass pins Exact medoids; fail is Unknown.
 
 - Record command or instrument, inputs, environment, exit/result, relevant output, and artifact digest so the decision can be reproduced.
 - Run focused regression tests first, then the proportional integration surface; compare against the baseline and outcome contract.
 - PASS binds runtime evidence_ref to claim digest; divergence revokes it to Unknown.
 - prove via tests (cmd_runner), jobwait, logsearch, dbread; long probes: cmd_runner start only.
 - render claims need an instrument: TUI via cmd_runner inbox (send keys, read render), windows/web via cua screenshot or verify_state — typecheck is not one.
+- a shared cmd_runner session has two writers: attribute who drove the state and re-read the render after handing the window over.
 - shell dir/ls scans are not evidence — product tools only.
 </G8_RULES>
 

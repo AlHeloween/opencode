@@ -66,4 +66,8 @@ def test_compacted_runtime_budget() -> None:
     # +2.1% tokens for the addon surface against +3.5% bytes; kernel graph untouched.
     # 3_100: admits gate G0 UNDERSTAND (2026-09-07, Alexander) — language +
     # Digital Intention discipline; graph grew by one node and one forward edge.
-    assert normalized_token_count(text) <= 3_100
+    # 3_300: admits the @ORACLE purpose clause (why an oracle exists, layer
+    # targeting, no self-grading) and the G8 shared-session attribution rule
+    # (2026-09-11, Alexander) — same decision raised utf8_budget to 27 000:
+    # "там всё нужно, сильная кастрация ведёт к непонятками".
+    assert normalized_token_count(text) <= 3_300

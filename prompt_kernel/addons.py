@@ -88,6 +88,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         (
             "prove via tests (cmd_runner), jobwait, logsearch, dbread; long probes: cmd_runner start only.",
             "render claims need an instrument: TUI via cmd_runner inbox (send keys, read render), windows/web via cua screenshot or verify_state — typecheck is not one.",
+            "a shared cmd_runner session has two writers: attribute who drove the state and re-read the render after handing the window over.",
             "shell dir/ls scans are not evidence — product tools only.",
         ),
     ),

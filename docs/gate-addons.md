@@ -84,12 +84,14 @@ skill-owned in the ADID package and stay out of the opencode kernel.
 1. Append `GateAddon(gate_id, addon_id, lines)` to `GATE_ADDONS` in `prompt_kernel/addons.py`.
 2. Constraints (enforced by `validate_addons()`): `gate_id` ∈ G1–G9, unique
    `addon_id`, non-empty lines. No `@`-references in lines.
-3. **Budgets are shared** — byte cap 25 000 (`KERNEL.utf8_budget`, frozen) and
-   token cap in `tests/test_dedup.py::test_compacted_runtime_budget` (2 950,
-   sanctioned 2026-09-04, Alexander). The inline-block refactor (2026-09-04)
-   freed ~650 bytes / ~60 tokens by inlining single-use rule headers; new addons
-   spend that margin. If a cap is breached, trim wording or trade with an
-   existing line; raising a budget is an owner decision.
+3. **Budgets are shared** — byte cap `KERNEL.utf8_budget` (**27 000**, raised from
+   26 000 on 2026-09-11 by Alexander: "там всё нужно, сильная кастрация ведёт к
+   непоняткам") and token cap in
+   `tests/test_dedup.py::test_compacted_runtime_budget` (**3 300**, same decision;
+   earlier steps 2 950 → 3 100 are recorded in that test's comments). Current
+   render: 26 509 bytes / 3 202 tokens. If a cap is breached, first trim wording or
+   trade with an existing line — **raising a budget is an owner decision**, never the
+   agent's.
 4. `python -m pytest prompt_kernel/tests/ -q` → all green.
 5. `python -m prompt_kernel --install` → note `installed=<sha256>`.
 6. Update `sha256` in `prompt_kernel/baseline.json`.

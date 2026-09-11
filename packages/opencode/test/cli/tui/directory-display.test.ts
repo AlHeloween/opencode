@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { formatProjectDirectory } from "../../../src/cli/cmd/tui/util/directory-display"
+import { formatProjectDirectory, isSameDirectory } from "../../../src/cli/cmd/tui/util/directory-display"
 
 describe("formatProjectDirectory", () => {
   test("keeps the project folder visible at the worktree root", () => {
@@ -29,5 +29,20 @@ describe("formatProjectDirectory", () => {
         worktree: "D:\\zPython\\opencode",
       }),
     ).toBe("D:/zPython/other")
+  })
+})
+
+describe("isSameDirectory", () => {
+  test("equal paths match regardless of separator, case, and trailing slash", () => {
+    expect(isSameDirectory("D:\\zPython\\opencode", "d:/zPython/opencode/")).toBe(true)
+  })
+
+  test("different paths do not match", () => {
+    expect(isSameDirectory("D:\\zPython\\opencode", "D:\\zPython\\other")).toBe(false)
+  })
+
+  test("undefined never matches", () => {
+    expect(isSameDirectory(undefined, "D:\\zPython\\opencode")).toBe(false)
+    expect(isSameDirectory("D:\\zPython\\opencode", undefined)).toBe(false)
   })
 })

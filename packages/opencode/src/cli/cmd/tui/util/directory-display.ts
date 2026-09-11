@@ -11,6 +11,13 @@ function basename(value: string) {
   return normalizePath(value).split("/").filter(Boolean).at(-1) ?? value
 }
 
+/** Case-insensitive equality on normalized absolute paths (win32 drives differ
+ * only by case; separators and trailing slashes are normalized first). */
+export function isSameDirectory(a: string | undefined, b: string | undefined) {
+  if (!a || !b) return false
+  return pathKey(a) === pathKey(b)
+}
+
 export function formatProjectDirectory(input: { directory: string; worktree: string; branch?: string }) {
   const directory = normalizePath(input.directory)
   const worktree = normalizePath(input.worktree)

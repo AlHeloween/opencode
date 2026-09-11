@@ -625,7 +625,10 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       value: "settings.dialog",
       category: "Agent",
       slash: {
-        name: "settings",
+        // /config is the primary name (2026-09-11, Alexander); /settings kept
+        // as an alias so muscle memory and old tips keep working.
+        name: "config",
+        aliases: ["settings"],
       },
       onSelect: () => {
         dialog.replace(() => <DialogSettings />)

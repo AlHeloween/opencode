@@ -18,6 +18,7 @@ import { Spinner } from "./spinner"
 import { errorMessage } from "@/util/error"
 import { DialogSessionDeleteFailed } from "./dialog-session-delete-failed"
 import { DialogSessionRecovery } from "./dialog-session-recovery"
+import { isSameDirectory } from "../util/directory-display"
 
 type WorkspaceStatus = "connected" | "connecting" | "disconnected" | "error"
 
@@ -41,6 +42,13 @@ export function DialogSessionList() {
 
   const currentSessionID = createMemo(() => (route.data.type === "session" ? route.data.sessionID : undefined))
   const sessions = createMemo(() => searchResults() ?? sync.data.session)
+
+  // Recovery is only meaningful when some session was saved from a directory
+  // OTHER than the current one (2026-09-11, Alexander: otherwise the row is
+  // pure noise at the top of the list).
+  const hasForeignSessions = createMemo(() =>
+    sessions().some((x) => !isSameDirectory(x.directory, sdk.directory)),
+  )
 
   function createWorkspace() {
     dialog.replace(() => (
@@ -149,7 +157,13 @@ export function DialogSessionList() {
             )
           }
         } else {
-          footer = `${Locale.time(x.time.updated)} · saved: ${x.directory} · current: ${sdk.directory ?? "unknown"}`
+          // Saved-path footer only when it carries information: a path equal to
+          // the current worktree is the default case and just noise (2026-09-11,
+          // Alexander: "просто море бесполезной информации").
+          const isCurrentWorktree = isSameDirectory(x.directory, sdk.directory)
+          footer = isCurrentWorktree
+            ? Locale.time(x.time.updated)
+            : `${Locale.time(x.time.updated)} · saved: ${x.directory} · current: ${sdk.directory ?? "unknown"}`
         }
 
         const date = new Date(x.time.updated)
@@ -179,12 +193,16 @@ export function DialogSessionList() {
     <DialogSelect
       title="Sessions"
       options={[
-        {
-          title: "Recover from another worktree...",
-          value: "session.recovery",
-          category: "Recovery",
-          footer: `current: ${sdk.directory ?? "unknown"}`,
-        },
+        ...(hasForeignSessions()
+          ? [
+              {
+                title: "Recover from another worktree...",
+                value: "session.recovery",
+                category: "Recovery",
+                footer: `current: ${sdk.directory ?? "unknown"}`,
+              },
+            ]
+          : []),
         ...options(),
       ]}
       skipFilter={true}

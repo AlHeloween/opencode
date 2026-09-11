@@ -87,6 +87,10 @@ type RuntimeState = {
 }
 
 const log = Log.create({ service: "tui.plugin" })
+
+/** Max time a theme install may wait on its flock before giving up. Themes are
+ * cosmetic — never let a contended/stale lock stall the whole TUI bootstrap. */
+const THEME_LOCK_TIMEOUT_MS = 5_000
 const DISPOSE_TIMEOUT_MS = 5000
 const KV_KEY = "plugin_enabled"
 const EMPTY_TUI: TuiPluginModule = {
@@ -176,7 +180,14 @@ function createThemeInstaller(
       size,
     }
 
-    await Flock.withLock(`tui-theme:${dest}`, async () => {
+    // Theme sync is cosmetic startup work — it must NEVER hold the whole TUI
+    // bootstrap hostage. A contended lock (another TUI instance open, crashed
+    // owner) used to stall activation for up to the 5-minute flock default
+    // (2026-09-11 freeze at "loading tui plugin" + 5m no-log gap). 5s budget:
+    // either install cleanly, or give up and let the plugin theme fall back.
+    await Flock.withLock(
+      `tui-theme:${dest}`,
+      async () => {
       const save = async () => {
         plugin.themes[name] = info
         await PluginMeta.setTheme(plugin.id, name, info).catch((error) => {
@@ -230,7 +241,9 @@ function createThemeInstaller(
 
       upsertTheme(name, data)
       await save()
-    }).catch((error) => {
+      },
+      { timeoutMs: THEME_LOCK_TIMEOUT_MS },
+    ).catch((error) => {
       log.warn("failed to lock tui plugin theme install", { path: spec, theme: src, dest, error })
     })
   }
@@ -439,11 +452,17 @@ async function activatePluginEntry(state: RuntimeState, plugin: PluginEntry, per
   if (persist) writePluginEnabledState(state.api, plugin.id, true)
   if (plugin.scope) return true
 
+  // Phase logs — the 2026-09-11 freeze left a silent gap after "loading tui
+  // plugin"; these make the next stall attributable (theme sync vs module).
+  log.info("activating tui plugin", { id: plugin.id, path: plugin.load.spec })
   const scope = createPluginScope(plugin.load, plugin.id)
   const api = pluginApi(state, plugin, scope, plugin.id)
   const ok = await Promise.resolve()
     .then(async () => {
-      if (!skipThemeSync) await syncPluginThemes(plugin)
+      if (!skipThemeSync) {
+        log.info("syncing tui plugin themes", { id: plugin.id, count: plugin.load.theme_files.length })
+        await syncPluginThemes(plugin)
+      }
       await plugin.plugin(api, plugin.load.options, plugin.meta)
       return true
     })
@@ -1037,6 +1056,7 @@ async function load(input: { api: Api; config: TuiConfig.Info }) {
           if (!plugin.enabled) continue
           await activatePluginEntry(next, plugin, false, true)
         }
+        log.info("tui plugins ready", { count: next.plugins.filter((p) => p.enabled).length })
       },
     })
   } catch (error) {

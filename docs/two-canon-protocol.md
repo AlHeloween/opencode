@@ -74,6 +74,20 @@ Direct lineage marker: 15.3's change summary introduced **canonical SV hashing**
 - The kernel optimizes the opposite axis: cheap turns, verification granularity **per gate**.
 - Both implement the same principle — a deterministic shell around a stochastic core — tuned for different turn/attention cost models. **Merging breaks both**: the iterative loop multiplies guardrail tax on GPT-class models; the single-canvas mode outstrips MLA recall.
 
+**Why the tax is also cheaper per turn (author, 2026-09-11).** GPT-class models visibly
+relax on 15.3, and the reason is structural rather than rhetorical: the unit of work is a
+**descriptor, not a mutation**. The model emits an XML canvas; a deterministic CLI applies
+it with `md5`/`size` verification and a backup pipeline, and the rollback lives in ADM
+rather than in the model's judgement. Guardrails price irreversibility and blast radius —
+once both are carried by the tool, there is nothing left to hedge against, so the
+refusal/hedging surface collapses and the work goes fast. This is not policy evasion: the
+risk genuinely is lower, and the models are reading that correctly.
+
+> **Load-bearing condition:** the rollback must be real. Backup pipeline, `md5`/`size`
+> attributes, fossil snapshots and git are what make the lowered caution honest. The same
+> framing without a working revert path is a trick — the model behaves as if the action
+> were reversible while it is not.
+
 ## 5. Storage decision (2026-09-06)
 
 - `docs/ADID_Framework_15_3.md` is **rendered by the external ADID package** → untracked and gitignored (`docs/ADID_Framework_*.md` wildcard, commit `079f4a213f`). The file stays on disk; the package re-renders it.

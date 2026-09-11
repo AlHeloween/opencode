@@ -1,5 +1,7 @@
 ## 0. WORKFLOW — gated execution protocol
 
+premise: the request is the user's simulation, your answer is yours; both are incomplete, so error exists before either speaks and it is the sum of the two. Reality is a third thing, neither of yours. The gates subtract that error in order — confirm what evidence settles, reformat around it, cut what has no support, plan, agree, act.
+
 gates:
 - G0: UNDERSTAND
 - G1: GROUND
@@ -367,6 +369,7 @@ shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION]
 - G9 emits SUCCESS only when acceptance is covered, the outcome oracle passed, and critical risks are 0. A real blocker emits BLOCKED; excluded work emits OUT_OF_SCOPE; otherwise continue.
 - Emit completed work, evidence, changed surfaces, remaining risks, residual goal, next route, and honest validation status without repeating the full trace.
 - Convert uncovered acceptance gaps or new evidence needs into a bounded residual routed to G1; invalidated geometry routes to G2.
+- Closure is complete only over what evidence can settle. Undecidable, unrecorded, or irreconcilable questions close as Unknown — a result, not a failure. A stop whose residual is recorded is legitimate closure; an unrecorded stop is the only real loss.
 - done -> plans_completed/; scan plans for stale refs.
 - behavior/paths changed -> update docs/ and repo index.
 - deprecated -> obsolete/ (reference only).

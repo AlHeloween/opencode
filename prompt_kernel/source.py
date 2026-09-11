@@ -254,6 +254,7 @@ GATES = (
             _rule("G9", "CLOSURE_PROOF_RULE", "G9 emits SUCCESS only when acceptance is covered, the outcome oracle passed, and critical risks are 0. A real blocker emits BLOCKED; excluded work emits OUT_OF_SCOPE; otherwise continue."),
             _rule("G9", "CLEAN_STATE_RULE", "Emit completed work, evidence, changed surfaces, remaining risks, residual goal, next route, and honest validation status without repeating the full trace."),
             _rule("G9", "RESIDUAL_GOAL_RULE", "Convert uncovered acceptance gaps or new evidence needs into a bounded residual routed to G1; invalidated geometry routes to G2."),
+            _rule("G9", "EVIDENCE_BOUNDED_CLOSURE", "Closure is complete only over what evidence can settle. Undecidable, unrecorded, or irreconcilable questions close as Unknown — a result, not a failure. A stop whose residual is recorded is legitimate closure; an unrecorded stop is the only real loss."),
         ),
     ),
 )
@@ -377,7 +378,7 @@ KERNEL = Kernel(
     name="reasoning_kernel_next",
     version="2.0.0-alpha.3",
     precedence=("safety", "governance", "task", "domain", "style"),
-    utf8_budget=27_000,
+    utf8_budget=28_000,
     terms=MappingProxyType({
         "GROUNDING": "Observation tied to a source, path, command, or reproducible state.",
         "AUTHORIZATION": "A decision that permits a bounded class of effects; confidence is not authority.",

@@ -70,4 +70,10 @@ def test_compacted_runtime_budget() -> None:
     # targeting, no self-grading) and the G8 shared-session attribution rule
     # (2026-09-11, Alexander) — same decision raised utf8_budget to 27 000:
     # "там всё нужно, сильная кастрация ведёт к непонятками".
-    assert normalized_token_count(text) <= 3_300
+    # 3_450 / utf8_budget 28_000 (2026-09-11, Alexander, same day): admits the
+    # §0 error premise and G9 EVIDENCE_BOUNDED_CLOSURE. Policy stated with the
+    # decision: "28к мелкая плата за будущие ошибки… может через месяц и будет
+    # 30к — нужны дополнения по мере использования". So growth is expected and
+    # deliberate, not drift: the prefix is paid per request, and each raise
+    # names what it admits. Do not shrink these caps to reclaim margin.
+    assert normalized_token_count(text) <= 3_450

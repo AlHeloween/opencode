@@ -84,14 +84,18 @@ skill-owned in the ADID package and stay out of the opencode kernel.
 1. Append `GateAddon(gate_id, addon_id, lines)` to `GATE_ADDONS` in `prompt_kernel/addons.py`.
 2. Constraints (enforced by `validate_addons()`): `gate_id` ∈ G1–G9, unique
    `addon_id`, non-empty lines. No `@`-references in lines.
-3. **Budgets are shared** — byte cap `KERNEL.utf8_budget` (**27 000**, raised from
-   26 000 on 2026-09-11 by Alexander: "там всё нужно, сильная кастрация ведёт к
-   непоняткам") and token cap in
-   `tests/test_dedup.py::test_compacted_runtime_budget` (**3 300**, same decision;
-   earlier steps 2 950 → 3 100 are recorded in that test's comments). Current
-   render: 26 509 bytes / 3 202 tokens. If a cap is breached, first trim wording or
-   trade with an existing line — **raising a budget is an owner decision**, never the
-   agent's.
+3. **Budgets are shared** — byte cap `KERNEL.utf8_budget` (**28 000**) and token cap
+   in `tests/test_dedup.py::test_compacted_runtime_budget` (**3 450**). The Claude
+   variant carries its own ceiling in `tests/test_addons_claude.py` (**28 000 / 3 450**)
+   because `--claude --install` writes a whole file rather than filling a sized slot.
+   Current renders: product 27 285 bytes / 3 332 tokens, Claude 27 587 / 3 382.
+   History: 25 000 → 26 000 → 27 000 → 28 000 bytes, 2 950 → 3 100 → 3 300 → 3 450
+   tokens, each step named in the test comments with what it admits.
+   **Growth policy (Alexander, 2026-09-11):** raises are deliberate, not drift —
+   "28к мелкая плата за будущие ошибки… может через месяц и будет 30к, нужны
+   дополнения по мере использования". Raising a cap remains an owner decision; an
+   agent trims or trades wording and reports the overflow instead of raising.
+
 4. `python -m pytest prompt_kernel/tests/ -q` → all green.
 5. `python -m prompt_kernel --install` → note `installed=<sha256>`.
 6. Update `sha256` in `prompt_kernel/baseline.json`.

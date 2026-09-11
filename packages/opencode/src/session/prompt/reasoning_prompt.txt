@@ -330,8 +330,8 @@ shared_rules: [@PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @KV_CACHE_
 - one _progress_log.md [TIMESTAMP] entry per bounded task.
 - mutate: edit, multiedit, write, applypatch; crash-prone shell via cmd_runner.
 - shell = process orchestration only; never file browsing (constitution blocks).
-- launch processes only via cmd_runner start ... (non-blocking; jobwait/jobkill); bare shell start hangs the TUI — never do it.
-- permanent services: nssm install ... start, never ad-hoc detached start.
+- launch via cmd_runner start (non-blocking; jobwait/jobkill) — a bare start hangs the TUI; reuse a live sidecar by lock/pid/port, never rebind a bound port.
+- permanent services: nssm install, never ad-hoc detach.
 </G7_RULES>
 
 outputs: [IMPLEMENTATION_RESULT, CLAIM_LEDGER, RISK_LEDGER]

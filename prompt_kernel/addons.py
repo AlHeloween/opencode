@@ -78,8 +78,8 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "G7",
         "PROCESS_LAUNCH",
         (
-            "launch processes only via cmd_runner start ... (non-blocking; jobwait/jobkill); bare shell start hangs the TUI — never do it.",
-            "permanent services: nssm install ... start, never ad-hoc detached start.",
+            "launch via cmd_runner start (non-blocking; jobwait/jobkill) — a bare start hangs the TUI; reuse a live sidecar by lock/pid/port, never rebind a bound port.",
+            "permanent services: nssm install, never ad-hoc detach.",
         ),
     ),
     GateAddon(

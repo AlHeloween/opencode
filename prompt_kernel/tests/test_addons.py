@@ -44,10 +44,10 @@ def test_tool_addons_bind_expected_gates() -> None:
         in _gate_block(text, "G7")
     )
     assert (
-        "- launch processes only via cmd_runner start ... (non-blocking; jobwait/jobkill);"
-        " bare shell start hangs the TUI — never do it." in _gate_block(text, "G7")
+        "- launch via cmd_runner start (non-blocking; jobwait/jobkill) — a bare start hangs the TUI;"
+        " reuse a live sidecar by lock/pid/port, never rebind a bound port." in _gate_block(text, "G7")
     )
-    assert "- permanent services: nssm install ... start, never ad-hoc detached start." in _gate_block(text, "G7")
+    assert "- permanent services: nssm install, never ad-hoc detach." in _gate_block(text, "G7")
     assert (
         "- prove via tests (cmd_runner), jobwait, logsearch, dbread; long-running probes:"
         " cmd_runner start only." in _gate_block(text, "G8")

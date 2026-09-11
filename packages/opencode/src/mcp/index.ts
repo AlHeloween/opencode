@@ -466,6 +466,34 @@ export const layer = Layer.effect(
       Effect.catch(() => Effect.succeed([] as number[])),
     )
 
+    /**
+     * Kill a stdio MCP server process TREE. POSIX walks pgrep; win32 delegates
+     * to `taskkill /T /F` (the /T flag covers the whole tree, including node
+     * grandchildren spawned by codegraph). Without this, stdio servers that do
+     * not exit on stdin-EOF (codegraph serve --mcp) leak as orphans after
+     * every TUI exit — observed 2026-09-11: five `serve --mcp` processes with
+     * dead parents accumulated across sessions (2026-09-11, Alexander).
+     */
+    const killTree = Effect.fnUntraced(function* (pid: number) {
+      if (process.platform === "win32") {
+        yield* spawner
+          .spawn(ChildProcess.make("taskkill", ["/PID", String(pid), "/T", "/F"], { stdin: "ignore" }))
+          .pipe(
+            Effect.flatMap((handle) => handle.exitCode),
+            Effect.catch(() => Effect.void),
+          )
+        return
+      }
+      const pids = yield* descendants(pid)
+      for (const dpid of [pid, ...pids]) {
+        try {
+          process.kill(dpid, "SIGTERM")
+        } catch (err) {
+          log.debug("mcp process kill failed", { dpid, error: err })
+        }
+      }
+    })
+
     function watch(s: State, name: string, client: MCPClient, bridge: EffectBridge.Shape, timeout?: number) {
       client.setNotificationHandler(ToolListChangedNotificationSchema, async () => {
         log.info("tools list changed notification received", { server: name })
@@ -526,14 +554,7 @@ export const layer = Layer.effect(
                 Effect.gen(function* () {
                   const pid = client.transport instanceof StdioClientTransport ? client.transport.pid : null
                   if (typeof pid === "number") {
-                    const pids = yield* descendants(pid)
-                    for (const dpid of pids) {
-                      try {
-                        process.kill(dpid, "SIGTERM")
-                      } catch (err) {
-                        log.debug("mcp process kill failed", { dpid, error: err })
-                      }
-                    }
+                    yield* killTree(pid)
                   }
                   yield* Effect.tryPromise(() => client.close()).pipe(Effect.ignore)
                 }),

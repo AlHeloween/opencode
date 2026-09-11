@@ -349,8 +349,8 @@ Reproduce the claim with the narrowest decisive instrument. Planner confidence, 
 - Record command or instrument, inputs, environment, exit/result, relevant output, and artifact digest so the decision can be reproduced.
 - Run focused regression tests first, then the proportional integration surface; compare against the baseline and outcome contract.
 - PASS binds runtime evidence_ref to claim digest; divergence revokes it to Unknown.
-- prove via tests (cmd_runner), jobwait, logsearch, dbread; long-running probes: cmd_runner start only.
-- visual claims (TUI render, dialog scroll, web page state) need the cua tool oracle: screenshot or verify_state — typecheck alone is not a visual oracle.
+- prove via tests (cmd_runner), jobwait, logsearch, dbread; long probes: cmd_runner start only.
+- render claims need an instrument: TUI via cmd_runner inbox (send keys, read render), windows/web via cua screenshot or verify_state — typecheck is not one.
 - shell dir/ls scans are not evidence — product tools only.
 </G8_RULES>
 

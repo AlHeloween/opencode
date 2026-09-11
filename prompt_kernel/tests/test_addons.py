@@ -49,12 +49,12 @@ def test_tool_addons_bind_expected_gates() -> None:
     )
     assert "- permanent services: nssm install, never ad-hoc detach." in _gate_block(text, "G7")
     assert (
-        "- prove via tests (cmd_runner), jobwait, logsearch, dbread; long-running probes:"
+        "- prove via tests (cmd_runner), jobwait, logsearch, dbread; long probes:"
         " cmd_runner start only." in _gate_block(text, "G8")
     )
     assert (
-        "- visual claims (TUI render, dialog scroll, web page state) need the cua tool oracle:"
-        " screenshot or verify_state — typecheck alone is not a visual oracle." in _gate_block(text, "G8")
+        "- render claims need an instrument: TUI via cmd_runner inbox (send keys, read render),"
+        " windows/web via cua screenshot or verify_state — typecheck is not one." in _gate_block(text, "G8")
     )
     assert (
         "- shell dir/ls scans are not evidence — product tools only."

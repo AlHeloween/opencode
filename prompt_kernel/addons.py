@@ -86,8 +86,8 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "G8",
         "TOOL_ORACLE",
         (
-            "prove via tests (cmd_runner), jobwait, logsearch, dbread; long-running probes: cmd_runner start only.",
-            "visual claims (TUI render, dialog scroll, web page state) need the cua tool oracle: screenshot or verify_state — typecheck alone is not a visual oracle.",
+            "prove via tests (cmd_runner), jobwait, logsearch, dbread; long probes: cmd_runner start only.",
+            "render claims need an instrument: TUI via cmd_runner inbox (send keys, read render), windows/web via cua screenshot or verify_state — typecheck is not one.",
             "shell dir/ls scans are not evidence — product tools only.",
         ),
     ),

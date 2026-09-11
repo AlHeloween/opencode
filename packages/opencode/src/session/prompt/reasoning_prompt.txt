@@ -72,7 +72,7 @@ parent-goal-md5: 00000000000000000000000000000000
 ```
 - Keywords: 3-9 unique terms; weights>0; sum=1.0; highest first
 - Semantic dominant: one sentence of this vector's focus
-- md5: 32 hex of canonical keywords+weights+dominant
+- md5: 32 hex — a distinct high-entropy label for linking and ranking these vectors, not a checksum. Do not compute or verify it, and never present a self-computed match as evidence; only form matters (32 hex, no other characters).
 - prev-md5: previous md5 or 00000000000000000000000000000000
 - parent-goal-md5: child vector to parent goal; 00000000000000000000000000000000 if none
 - trivial: Keywords: acknowledged 1.0; Semantic dominant: Received instruction.

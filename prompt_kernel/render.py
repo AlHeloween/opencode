@@ -80,7 +80,7 @@ def _render_sv_contract(contract: SemanticVectorContract) -> list[str]:
         "```",
         f"- Keywords: {contract.keyword_min}-{contract.keyword_max} unique terms; weights>0; sum={contract.weight_sum}; highest first",
         "- Semantic dominant: one sentence of this vector's focus",
-        "- md5: 32 hex of canonical keywords+weights+dominant",
+        "- md5: 32 hex — a distinct high-entropy label for linking and ranking these vectors, not a checksum. Do not compute or verify it, and never present a self-computed match as evidence; only form matters (32 hex, no other characters).",
         f"- prev-md5: previous md5 or {contract.first_prev_md5}",
         f"- parent-goal-md5: child vector to parent goal; {contract.first_prev_md5} if none",
         f"- trivial: {contract.trivial_emission}",

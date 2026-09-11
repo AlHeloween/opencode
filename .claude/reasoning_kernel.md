@@ -72,7 +72,7 @@ parent-goal-md5: 00000000000000000000000000000000
 ```
 - Keywords: 3-9 unique terms; weights>0; sum=1.0; highest first
 - Semantic dominant: one sentence of this vector's focus
-- md5: 32 hex of canonical keywords+weights+dominant
+- md5: 32 hex — a distinct high-entropy label for linking and ranking these vectors, not a checksum. Do not compute or verify it, and never present a self-computed match as evidence; only form matters (32 hex, no other characters).
 - prev-md5: previous md5 or 00000000000000000000000000000000
 - parent-goal-md5: child vector to parent goal; 00000000000000000000000000000000 if none
 - trivial: Keywords: acknowledged 1.0; Semantic dominant: Received instruction.
@@ -345,7 +345,7 @@ requires: [IMPLEMENTATION_RESULT, SMOKE_CONTRACT, OUTCOME_CONTRACT, CLAIM_LEDGER
 shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @AUTHORITY_SEPARATION]
 <G8_RULES>
 #### @ORACLE
-Reproduce the claim with the narrowest decisive instrument. Planner confidence, user certainty, and implementation appearance are not evidence. Pass pins Exact medoids; fail is Unknown.
+Reproduce the claim with the narrowest decisive instrument. Purpose: an oracle ends the guess-invent-fail loop by freezing one claim as Exact, so it must be able to fail — an instrument that cannot fail proves nothing, and a claim with no falsifier is not a claim. Aim it at the layer the claim lives on: a persistent-write claim is proven by reading the written artifact back, never by typecheck or a resolver test alone. No self-grading — Exact needs runtime-issued evidence bound to the claim digest; planner confidence, user certainty, and implementation appearance are not evidence. Pass pins Exact medoids; fail is Unknown.
 
 - Record command or instrument, inputs, environment, exit/result, relevant output, and artifact digest so the decision can be reproduced.
 - Run focused regression tests first, then the proportional integration surface; compare against the baseline and outcome contract.

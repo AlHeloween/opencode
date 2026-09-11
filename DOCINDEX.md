@@ -73,13 +73,8 @@ class DocIndex:
         DocRecord("specs/project.md", "OpenCode team", "API spec for project/session management"),
         DocRecord("specs/v2/session.md", "OpenCode team", "v2: remove dedicated POST /session/:id/init"),
     ])
-    
-    
-    upstream: list[DocRecord] = field(default_factory=lambda: [
-        DocRecord("upstream_comparison/README.md", "OpenCode team", "Fork point, divergence summary, adoptable patterns"),
-    ])
 
 INDEX = DocIndex()
 
 # Verify: {len(INDEX.governance)} governance docs, {len(INDEX.technical_docs)} technical docs,
-# {len(INDEX.specs)} specs, {len(INDEX.upstream)} upstream docs
+# {len(INDEX.specs)} specs

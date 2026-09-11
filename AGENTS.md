@@ -67,7 +67,7 @@ acceptance_tests:
 - ALWAYS USE PARALLEL TOOLS WHEN APPLICABLE.
 - The default branch in this repo is `Local_Development`.
 - Prefer automation: execute requested actions without confirmation unless blocked by safety/irreversibility.
-- This branch has **significant architectural divergence** from upstream `dev` (anomalyco/opencode). See `upstream_comparison/README.md`.
+- This branch has **significant architectural divergence** from upstream `dev` (anomalyco/opencode).
 
 ---
 

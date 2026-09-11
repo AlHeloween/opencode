@@ -23,6 +23,27 @@ The header states the succession direction explicitly:
 
 So: **the kernel is 15.3's successor**. 15.3 is frozen — it will not change; the current generation is rendered by the external ADID package. The canons coexist on purpose.
 
+### Transformation chain (author, 2026-09-11)
+
+An MLA-class model cannot lift 15.3 at all — so the document was not extended, it was
+*transformed*, in three steps:
+
+1. **Markdown/ADM canon → Python.** 15.3's prose-and-XML canon was re-expressed as
+   declarative Python data — machine-checkable, symbol-collision-proof.
+2. **Ordered by BGE.** Kernel symbols were arranged and integrity-checked with
+   BAAI/bge-base cosine similarity (plus schema-density gradients and a
+   `# Semantic Vector` assembly-point H1).
+3. **Simplified into the gate protocol.** The ordered kernel was cut down to the
+   G0–G9 control graph now in `prompt_kernel/source.py`.
+
+So the gate protocol is not a parallel invention: it is 15.3 pythonized, ordered and
+then simplified until MLA-class attention could carry it. Step 2 was scaffolding for
+step 3 — the BGE ordering, the density gradient and the assembly-point-as-first-H1 rule
+were **retired on 2026-09-11** (`docs/reasoning-framework.md`,
+`docs/kernel-stability-principles.md` and `kernel_semantic_map.json` deleted; the live
+kernel is map-first, its first heading is `## 0. WORKFLOW`). Reviving those rules now
+would break the kernel they were used to build.
+
 ## 2. One protocol, two compilers (parity)
 
 "По сути одно и то же" — the gated workflow is 15.3's ADM system re-expressed for transformer agents:
@@ -63,4 +84,5 @@ Direct lineage marker: 15.3's change summary introduced **canonical SV hashing**
 
 - **Exact** (from the 15.3 doc header and §V): canon separation, succession direction, ADM CLI mechanics, SV-hashing lineage.
 - **Author rationale** (session 2026-09-06, framework author): MHA/MLA state-entry styles, guardrail turn economics, and the parity claim ("gated workflow is essentially the same system"). Recorded here so the rationale survives the session.
+- **Transformation chain** (author, session 2026-09-11): 15.3 → Python → BGE-ordered → simplified to the gate protocol; 15.3 stays the reference standard for kernel design, realizable only on MHA-class attention.
 - **Origin story** (author, session 2026-09-06): the kernel came out of deep research in GPT + DeepSeek — DeepSeek's verdict was that 15.3 could not be used on MLA directly, but a Gated Workflow would work. The prediction was confirmed: the MLA-class models the verdict was about run the kernel daily.

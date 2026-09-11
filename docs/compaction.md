@@ -155,7 +155,7 @@ re-eligible — the tail is rebuilt from the DB on every compact, so repeated
 compacts are idempotent (content fixed point: 10 compacts in a row → same
 m\*) and undo restores the exact content window per m\*.
 
-**Summary cap:** total summary body text in m* is capped at `MAX_SUMMARY_BODY_TOKENS` (32 768 tokens). Older summaries are dropped from m* but remain accessible via `session-read`.
+**Summary cap:** total summary body text in m* is capped at `MAX_SUMMARY_BODY_TOKENS` (16 384 tokens). Older summaries are dropped from m* but remain accessible via `session-read`.
 
 **Prior m\* decisions:** decisions ride the carried-forward summaries —
 the Decisions block is rebuilt from ALL collected summaries each compact,

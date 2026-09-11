@@ -1,7 +1,7 @@
 # Rendering Pipeline — LLM Response → Terminal Display
 
 **Status:** production  
-**Last Updated:** 2026-07-12
+**Last Updated:** 2026-09-11
 
 > **3D terminal rendering note:** Three.js WebGPU via `@opentui/three` has known issues
 > on this platform (see §14). The working 3D pipeline uses GPU compute shaders + Sixel
@@ -28,52 +28,52 @@ The TUI path is the primary rendering pipeline for the interactive CLI. This doc
 LLM Provider Response
   │
   ▼
-Session Processor (processor.ts:695-748)
+Session Processor (processor.ts)
   └─ text-delta event → session.updatePartDelta()
        │
        ▼
-Bus (bus/index.ts:80)
+Bus (bus/index.ts)
   └─ publish via typed PubSub + GlobalBus.emit()
        │
        ▼
-SDK SSE Stream (sdk.tsx:100-103)
+SDK SSE Stream (sdk.tsx)
   └─ event → handleEvent → 16ms batch queue → emitter.emit("event", event)
        │
        ▼
-Sync Store (sync.tsx:229)
+Sync Store (sync.tsx)
   └─ event.subscribe → switch(event.type)
-       ├─ "message.part.delta" (sync.tsx:448-488):
+       ├─ "message.part.delta" (sync.tsx):
        │     deltaBuffer → Binary.search → produce → setStore
-       ├─ "message.part.updated" (sync.tsx:423-445):
+       ├─ "message.part.updated" (sync.tsx):
        │     Binary.search → reconcile → setStore
-       └─ "message.part.removed" (sync.tsx:491-503)
+       └─ "message.part.removed" (sync.tsx)
             │
             ▼
 SolidJS Reactivity
   └─ createMemo → store.part[messageID]
        │
        ▼
-Session Route (index.tsx:1244)
+Session Route (index.tsx)
   └─ <For each={messagesList()}>
-       ├─ UserMessage (index.tsx:1317): plain text + file badges
-       └─ AssistantMessage (index.tsx:1343)
+       ├─ UserMessage (index.tsx): plain text + file badges
+       └─ AssistantMessage (index.tsx)
             └─ <For each={props.parts}>
-                 ├─ TextPart (index.tsx:1697-1805):
+                 ├─ TextPart (index.tsx):
                  │     splitTextSegments → <code filetype="markdown"> or <markdown>
                  │     └─ tree-sitter syntax highlighting + streaming fallback
-                 ├─ ReasoningPart (index.tsx:1664-1695):
+                 ├─ ReasoningPart (index.tsx):
                  │     <code filetype="markdown"> dimmed, [REDACTED] stripped
-                 └─ ToolPart (index.tsx:1809-2712):
-                       ├─ InlineTool (index.tsx:1992): compact icon+text
-                       └─ BlockTool (index.tsx:2061): bordered, expandable
+                 └─ ToolPart (index.tsx):
+                       ├─ InlineTool (index.tsx): compact icon+text
+                       └─ BlockTool (index.tsx): bordered, expandable
                             └─ <diff> for edits, <code> for writes, nested media
                               │
                               ▼
 OpenTUI Core (@opentui/core)
   └─ CliRenderer → targetFps:30 → render loop
        └─ ScrollBoxRenderable for scrollable content (stickyScroll="bottom")
-            └─ ThreeRenderable for 3D image planes
-                 └─ Kitty/Sixel/Symbols escape codes
+            └─ MediaImage → OpenTUI <image> (PixelBuffer)
+                 └─ Kitty / Sixel / half-block escape codes
                       │
                       ▼
 Terminal Output
@@ -87,39 +87,39 @@ Terminal Output
 
 **File:** `packages/opencode/src/session/processor.ts`
 
-| Line | Event Type | Handler | What it does |
-|------|-----------|---------|-------------|
-| 695-713 | `text-start` | `case "text-start"` | Creates `ctx.currentText` part, calls `session.updatePart()` → publishes `message.part.updated` |
-| 716-727 | `text-delta` | `case "text-delta"` | Appends text to `StringBuilder`, calls `session.updatePartDelta()` → publishes `message.part.delta` via bus |
-| 729-748 | `text-end` | `case "text-end"` | Finalizes text part with `ctx.textBuilder.toString()`, triggers `experimental.text.complete` plugin hook |
-| 402-421 | `reasoning-start` | `case "reasoning-start"` | Creates reasoning part in `ctx.reasoningMap` |
-| 424-435 | `reasoning-delta` | `case "reasoning-delta"` | Appends to `StringBuilder`, calls `updatePartDelta()` |
-| 437-439 | `reasoning-end` | `case "reasoning-end"` | Finalizes reasoning part |
+| Event Type | Handler | What it does |
+|-----------|---------|-------------|
+| `text-start` | `case "text-start"` | Creates `ctx.currentText` part, calls `session.updatePart()` → publishes `message.part.updated` |
+| `text-delta` | `case "text-delta"` | Appends text to `StringBuilder`, calls `session.updatePartDelta()` → publishes `message.part.delta` via bus |
+| `text-end` | `case "text-end"` | Finalizes text part with `ctx.textBuilder.toString()`, triggers `experimental.text.complete` plugin hook |
+| `reasoning-start` | `case "reasoning-start"` | Creates reasoning part in `ctx.reasoningMap` |
+| `reasoning-delta` | `case "reasoning-delta"` | Appends to `StringBuilder`, calls `updatePartDelta()` |
+| `reasoning-end` | `case "reasoning-end"` | Finalizes reasoning part |
 
 ### Stage B: Session → Event Bus
 
 **File:** `packages/opencode/src/session/session.ts`
 
-| Method | Line | What it publishes | Event Type |
-|--------|------|-------------------|------------|
-| `updatePart` | 633-646 | `SyncEvent.run(MessageV2.Event.PartUpdated, ...)` — persists to DB + bus | `message.part.updated` |
-| `updatePartDelta` | 807-815 | `bus.publish(MessageV2.Event.PartDelta, input)` — live streaming only (no DB write) | `message.part.delta` |
+| Method | What it publishes | Event Type |
+|--------|-------------------|------------|
+| `updatePart` | `SyncEvent.run(MessageV2.Event.PartUpdated, ...)` — persists to DB + bus | `message.part.updated` |
+| `updatePartDelta` | `bus.publish(MessageV2.Event.PartDelta, input)` — live streaming only (no DB write) | `message.part.delta` |
 
 **File:** `packages/opencode/src/bus/index.ts`
-- `publish()` (line 80): Publishes event to typed PubSub AND wildcard PubSub AND `GlobalBus.emit()`
+- `publish()`: Publishes event to typed PubSub AND wildcard PubSub AND `GlobalBus.emit()`
 - `subscribe()` / `subscribeAll()`: Stream-based subscriptions
 
 ### Stage C: Event Bus → SDK Client → TUI
 
 **Files:**
-- `packages/opencode/src/cli/cmd/tui/context/sdk.tsx` — SSE connection (line 128: `startSSE()`)
-- `packages/opencode/src/cli/context/event.ts` — Event subscription
+- `packages/opencode/src/cli/cmd/tui/context/sdk.tsx` — SSE connection (`startSSE()`)
+- `packages/opencode/src/cli/cmd/tui/context/event.ts` — Event subscription
 
 Key behavior:
-1. **sdk.tsx:128**: `startSSE()` initiates SSE stream via `sdk.global.event()`
-2. **sdk.tsx:100-103**: Each event → `handleEvent(event)`
-3. **sdk.tsx:66-78**: Events queued with **16ms batch window**, flushed in SolidJS `batch()` call
-4. **event.ts:9-31**: `useEvent().subscribe()` subscribes via `sdk.event.on("event", ...)`, filters by workspace/directory
+1. **sdk.tsx**: `startSSE()` initiates SSE stream via `sdk.global.event()`
+2. **sdk.tsx**: Each event → `handleEvent(event)`
+3. **sdk.tsx**: Events queued with **16ms batch window**, flushed in SolidJS `batch()` call
+4. **event.ts**: `useEvent().subscribe()` subscribes via `sdk.event.on("event", ...)`, filters by workspace/directory
 
 ### Stage D: TUI Sync Store → SolidJS Reactivity
 
@@ -127,16 +127,16 @@ Key behavior:
 
 The sync store receives events and updates the SolidJS store:
 
-| Event Type | Handler (line) | Store Mutation | Notes |
-|------------|---------------|----------------|-------|
-| `message.part.updated` | 423-445 | `setStore("part", messageID, index, reconcile(...))` | Flushes delta buffer for this messageID |
-| `message.part.delta` | 448-488 | `setStore("part", messageID, produce(...))` | Guarded by `DELTA_SAFE_FIELDS` (line 122): `["text", "output"]` |
-| `message.updated` | 366-408 | Updates store.message[sessionID][index], evicts oldest if > 100 | Eviction only if no active parts |
-| `message.removed` | 409-421 | Removes from `store.message` | — |
-| `session.diff` | 313-315 | Stores `store.session_diff` | — |
-| `session.deleted` | 317-344 | Cleans up **all** orphaned session-keyed stores | Prevents RSS leak (was causing 1.18 GB Bun segfault on Windows) |
+| Event Type | Store Mutation | Notes |
+|------------|----------------|-------|
+| `message.part.updated` | `setStore("part", messageID, index, reconcile(...))` | Flushes delta buffer for this messageID |
+| `message.part.delta` | `setStore("part", messageID, produce(...))` | Guarded by `DELTA_SAFE_FIELDS`: `["text", "output"]` |
+| `message.updated` | Updates store.message[sessionID][index], evicts oldest if > 100 | Eviction only if no active parts |
+| `message.removed` | Removes from `store.message` | — |
+| `session.diff` | Stores `store.session_diff` | — |
+| `session.deleted` | Cleans up **all** orphaned session-keyed stores | Prevents RSS leak (was causing 1.18 GB Bun segfault on Windows) |
 
-**Delta buffering** (sync.tsx:114-153): If a delta event arrives before the part is created, it's buffered in `deltaBuffer` (Map<messageID, Map<partID, accumulatedText>). When the part arrives via `part.updated`, `flushDeltaBuffer()` is called to apply buffered content.
+**Delta buffering** (sync.tsx): If a delta event arrives before the part is created, it's buffered in `deltaBuffer` (Map<messageID, Map<partID, accumulatedText>). When the part arrives via `part.updated`, `flushDeltaBuffer()` is called to apply buffered content.
 
 ---
 
@@ -146,13 +146,12 @@ The sync store receives events and updates the SolidJS store:
 
 **File:** `packages/opencode/src/cli/cmd/tui/app.tsx`
 
-| Line | What it does |
-|------|-------------|
-| 78 | `extend({ "image-plane": TexturePlaneRenderable })` — registers custom 3D image renderable |
-| 84 | `targetFps: 30` — rendering rate |
-| 145-146 | `createCliRenderer(config)` + `renderer.waitForThemeMode(1000)` — initialize OpenTUI renderer |
+| Anchor | What it does |
+|--------|-------------|
+| `targetFps: 30` | rendering rate |
+| `createCliRenderer(cfg)` + `renderer.waitForThemeMode(400)` | initialize the OpenTUI renderer, resolve light/dark |
 
-**Provider tree** (lines 153-208):
+**Provider tree:**
 ```
 ErrorBoundary → Args → Exit → KV → Toast → Route → TuiConfig
   → SDK → Project → Sync → Theme → Local → Keybind → PromptStash
@@ -163,18 +162,18 @@ ErrorBoundary → Args → Exit → KV → Toast → Route → TuiConfig
 ### 4b. Session Route — Main Display View
 
 **File:** `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx`
-**Size:** 2775 lines (largest component file)
+**Size:** ~3.2k lines — the largest source file in the TUI tree
 
-| Line | Component | Role |
-|------|-----------|------|
-| 104 | `addDefaultParsers(parsers.parsers)` | Registers 28 tree-sitter parsers for syntax highlighting |
-| 1222-1419 | `<box>` layout | Root flex container: messages + sidebar |
-| 1225-1252 | `<scrollbox>` | Scrollable message container, `stickyScroll="bottom"`, vertical scrollbar on by default (`session_chat_scrollbar`) |
-| — | jump-to-live chip | When not at bottom: `↓ Live · N% · rows above` (click / End / command palette) — see `util/scroll-position.ts` |
-| 1244 | `<For each={messagesList()}>` | Iterates over messages |
-| 1317 | `<UserMessage>` | Renders user messages with file badges, compaction markers |
-| 1343 | `<AssistantMessage>` | Renders assistant messages with parts loop |
-| 1657-1662 | `PART_MAPPING` | Maps part types to renderer components |
+| Anchor | Component | Role |
+|--------|-----------|------|
+| `addDefaultParsers(resolvedParsers)` | parser registration | Registers the tree-sitter parsers used for syntax highlighting |
+| root `<box>` | layout | Root flex container: messages + sidebar |
+| `<scrollbox>` | message container | Scrollable, `stickyScroll="bottom"`, vertical scrollbar on by default (`session_chat_scrollbar`) |
+| jump-to-live chip | scroll affordance | When not at bottom: `↓ Live · N% · rows above` (click / End / command palette) — see `util/scroll-position.ts` |
+| `<For each={messagesList()}>` | message loop | Iterates over messages |
+| `UserMessage` | message renderer | User messages with file badges, compaction markers |
+| `AssistantMessage` | message renderer | Assistant messages with parts loop |
+| `PART_MAPPING` | part dispatch | Maps part types to renderer components |
 
 ### 4c. Part Rendering Components
 
@@ -228,16 +227,16 @@ Uses `PART_MAPPING` with tool-specific renderers:
 | todowrite | 2603 | Todo list with status checkboxes |
 
 **Inline vs Block tools:**
-- `InlineTool` (line 1992): Compact single-line display with icon, spinner, hover
-- `BlockTool` (line 2061): Full-width bordered display with expand/collapse
+- `InlineTool`: Compact single-line display with icon, spinner, hover
+- `BlockTool`: Full-width bordered display with expand/collapse
 
 ---
 
 ## 5. MarkdownRenderable Internals (@opentui/core)
 
 **File:** `node_modules/@opentui/core/renderables/Markdown.d.ts` (types)  
-**Implementation:** Bundled in `@opentui/core/index.js` (~388 KB)  
-**Status:** patched via bun `patchedDependencies` — see `patches/@opentui%2Fcore@0.4.3.patch`
+**Implementation:** `packages/opentui/packages/core/src/renderables/Markdown.ts` (workspace source)  
+**Status:** the former npm patch (`@opentui/core@0.4.3`) is gone — the fixes live in the vendored fork
 
 The TUI has two rendering paths for markdown, controlled by `Flag.OPENCODE_MARKDOWN` (default `true`):
 
@@ -434,8 +433,8 @@ The `trailingUnstable` parameter:
 
 ```
 Mermaid source
-  → splitTextSegments() (text-segments.ts:9 regex)
-  → renderMermaidToPngDataUrl (mermaid.ts:47)
+  → splitTextSegments() (text-segments.ts regex)
+  → renderMermaidToPngDataUrl (mermaid.ts)
     → getRenderer() lazy loader — first call dynamically imports WASM
     → withTimeout() — 10s timeout guard
     → renderMermaidToSvg (mermaid.ts) — mermaid-wasm-renderer v0.3.1 (Rust → WASM)
@@ -446,10 +445,10 @@ Mermaid source
 ```
 
 **Files:**
-- `packages/opencode/src/util/mermaid.ts` (85 lines) — WASM SVG → PNG pipeline, lazy loader, timeout
-- `packages/opencode/src/cli/cmd/tui/routes/session/text-segments.ts` (27 lines) — Text splitter for ` ```mermaid ` fences
-- `packages/opencode/src/cli/cmd/tui/component/media-image.tsx` (683 lines) — decode, contain-fit, graphics-protocol path, zoom/pan viewport
-- `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` — text-part render integration (lines 1706-1728)
+- `packages/opencode/src/util/mermaid.ts` — WASM SVG → PNG pipeline, lazy loader, `MERMAID_RENDER_TIMEOUT` guard
+- `packages/opencode/src/cli/cmd/tui/routes/session/text-segments.ts` — `splitTextSegments`, splitter for ` ```mermaid ` fences
+- `packages/opencode/src/cli/cmd/tui/component/media-image.tsx` — decode, contain-fit, graphics-protocol path, zoom/pan viewport
+- `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` — `RichText` text-part render integration
 
 ### 6a. Lazy WASM Loader
 
@@ -478,10 +477,10 @@ This prevents pathological diagrams (Rust recursion, infinite loop) from hanging
 
 | Location | Before | After | Rationale |
 |----------|--------|-------|-----------|
-| `mermaid.ts:25` — WASM failure | `log.debug(...)` | `log.warn("bug: ...")` | Rendering failure is a real problem, not ignorable |
-| `mermaid.ts:41` — resvg failure | `log.debug(...)` | `log.warn("bug: ...")` | PNG conversion failure should be observable |
-| `index.tsx:1760` — TextPart failure | `Log.Default.debug(...)` | `Log.Default.warn("bug: ...")` | Silent blank image is a user-visible bug |
-| `media-mermaid.tsx:25` | `log.debug(...)` | `log.warn("bug: ...")` | Same — visible failure |
+| `mermaid.ts` — WASM failure | `log.debug(...)` | `log.warn("bug: ...")` | Rendering failure is a real problem, not ignorable |
+| `mermaid.ts` — resvg failure | `log.debug(...)` | `log.warn("bug: ...")` | PNG conversion failure should be observable |
+| `index.tsx` — TextPart failure | `Log.Default.debug(...)` | `Log.Default.warn("bug: ...")` | Silent blank image is a user-visible bug |
+| `media-mermaid.tsx` | `log.debug(...)` | `log.warn("bug: ...")` | Same — visible failure |
 
 ### 6d. TexturePlaneRenderable Improvements
 
@@ -599,7 +598,7 @@ Defines 28 language parsers (Python, Rust, Go, TypeScript, etc.) with WASM files
 
 - Line 56-60: `getGrammarWasm(filetype)` — loads from local WASM cache or CDN fallback
 - Line 66-71: `preloadGrammars()` — preloads all grammars during initialization
-- Registered in session route at `index.tsx:104`: `addDefaultParsers(parsers.parsers)`
+- Registered in session route at `index.tsx`: `addDefaultParsers(resolvedParsers)`
 
 ---
 
@@ -611,14 +610,14 @@ Each attachment type has a `render()` method returning `TuiRenderResult`:
 
 | Handler File | Type | render() result |
 |-------------|------|-----------------|
-| `handlers/image.ts:95` | Images | TuiRenderResult → `<MediaImage>` |
-| `handlers/video.ts:108` | Video | → `<MediaVideo>` |
-| `handlers/audio.ts:72` | Audio | → `<MediaAudio>` |
-| `handlers/document.ts:32` | Documents | → "describe" (converted to markdown) |
-| `handlers/archive.ts:73` | Archives | → Directory listing |
-| `handlers/data.ts:77` | Data files | → Structured display |
-| `handlers/spatial.ts:99` | GIS | → Map/geo display |
-| `handlers/sensor.ts:140` | Sensor data | → Gauge/chart display |
+| `handlers/image.ts` | Images | TuiRenderResult → `<MediaImage>` |
+| `handlers/video.ts` | Video | → `<MediaVideo>` |
+| `handlers/audio.ts` | Audio | → `<MediaAudio>` |
+| `handlers/document.ts` | Documents | → "describe" (converted to markdown) |
+| `handlers/archive.ts` | Archives | → Directory listing |
+| `handlers/data.ts` | Data files | → Structured display |
+| `handlers/spatial.ts` | GIS | → Map/geo display |
+| `handlers/sensor.ts` | Sensor data | → Gauge/chart display |
 
 ---
 
@@ -680,18 +679,21 @@ Anchors are **symbol names, not line numbers** — line ranges rot on every edit
 | `packages/opencode/parsers-config.ts` | parser table | Tree-sitter parser config |
 | `packages/opencode/src/util/parser-wasm.ts` | `getGrammarWasm`, `preloadGrammars`, `availableLanguages` | Parser WASM loading |
 | `packages/opencode/src/attachment/registry.ts` | `registry`, `Service` | Attachment type registry |
-| `packages/opencode/src/cli/cmd/tui/config/tui-schema.ts` | 26-31 | TUI config schema |
-| `packages/opencode/test/cli/editor-context.test.ts` | 1-93 | ZED editor tests (moved from TUI dir) |
-| `packages/opencode/test/cli/tui/plugin-loader-entrypoint.test.ts` | 259-321 | Plugin entrypoint tests |
-| `node_modules/@opentui/core/renderables/Markdown.d.ts` | 1-255 | MarkdownRenderable type declarations |
-| `node_modules/@opentui/core/renderables/markdown-parser.d.ts` | 1-11 | `parseMarkdownIncremental()` types |
-| `node_modules/@opentui/core/index.js` | 8550-8555 | `shouldRenderSeparately()` dispatch |
-| `node_modules/@opentui/core/index.js` | 8113-8123 | `createInitialStyledText()` |
-| `node_modules/@opentui/core/index.js` | 8585-8625 | `buildRenderableTokens()` coalescing logic |
-| `node_modules/@opentui/core/index.js` | 8948-8973 | `createDefaultRenderable()` routing |
-| `node_modules/@opentui/core/index.js` | 8289-8300 | `createListRenderable()` list rendering |
-| `node_modules/@opentui/core/index-6xr3rbbe.js` | 3335-3358 | `ensureVisibleTextBeforeHighlight()` |
-| `patches/@opentui%2Fcore@0.4.3.patch` | 1-23 | Patch: markdown list/heading + streaming guard fix |
+| `packages/opencode/src/cli/cmd/tui/config/tui-schema.ts` | TUI config schema | TUI config schema |
+| `packages/opencode/test/cli/editor-context.test.ts` | whole file | ZED editor tests (moved from TUI dir) |
+| `packages/opencode/test/cli/tui/plugin-loader-entrypoint.test.ts` | whole file | Plugin entrypoint tests |
+
+**OpenTUI is consumed from the workspace, not from npm.** Root `package.json` pins
+`"@opentui/core": "workspace:*"` → `packages/opentui/packages/core`. Read the TypeScript
+source there; the old `node_modules/@opentui/core/index.js` bundle offsets this document
+used to cite are gone, and so is the `@opentui/core@0.4.3` patch (`patchedDependencies`
+now holds only `@npmcli/agent` and `@standard-community/standard-openapi`).
+
+| File | Anchor | Purpose |
+|------|--------|---------|
+| `packages/opentui/packages/core/src/renderables/Markdown.ts` | `MarkdownRenderable`, `shouldRenderSeparately`, `buildRenderableTokens`, `createDefaultRenderable`, `createListRenderable`, `createInitialStyledText` | Markdown renderable and token→renderable routing |
+| `packages/opentui/packages/core/src/renderables/markdown-parser.ts` | `parseMarkdownIncremental`, `reuseCount`, `trailingUnstable` | Incremental parse, stable-prefix reuse |
+| `packages/opentui/packages/core/src/renderables/Code.ts` | `CodeRenderable`, `startHighlight`, `ensureVisibleTextBeforeHighlight`, `_shouldRenderTextBuffer` | Tree-sitter highlight lifecycle |
 
 ---
 
@@ -738,7 +740,7 @@ supersampling modes (none, CPU, GPU). This is an upstream bug in
 | Issue | Status | Fix location |
 |-------|--------|-------------|
 | DXC DLL not found | ✅ Fixed | Copy x64 DLLs from Windows SDK or install DXC |
-| `getMappedRange` + `getMappedRangePtr` overlap | ✅ Fixed | Patch in `patches/@opentui%2Fthree@0.4.3.patch` |
+| `getMappedRange` + `getMappedRangePtr` overlap | ✅ Fixed | Fixed in the vendored `packages/opentui/packages/three` source |
 | `setCellWithAlphaBlending` char → U+FFFD | ❌ Upstream | `@opentui/three` `CLICanvas.readPixelsIntoBuffer()` |
 
 ### Quick Test Commands

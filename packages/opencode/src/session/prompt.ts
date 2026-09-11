@@ -1972,9 +1972,9 @@ export const layer = Layer.effect(
             const folded = yield* maybeCompactCadence({ model, agent: agent.name, force: true })
             if (!folded) {
               // Corner-case guard, normally unreachable. Post-fold m* is bounded
-              // by design: ≤ MAX_SUMMARY_BODY_TOKENS (32K) of summary bodies +
+              // by design: ≤ MAX_SUMMARY_BODY_TOKENS (16K) of summary bodies +
               // RECENT_MIN_TOKENS (32K) work tail, so on ≥256K windows the
-              // assembled request (~m* 64K + tools/schema ~50K + overhead)
+              // assembled request (~m* 48K + tools/schema ~50K + overhead)
               // stays far under the hasSpareOutput gate. Fires only on
               // small-window models or a single oversized input message.
               const error = new NamedError.Unknown({

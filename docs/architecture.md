@@ -282,7 +282,7 @@ never duplicate into provider logs. Local diagnostics (`wireHeaders`,
 
 | File | Purpose | Lines |
 |------|---------|-------|
-| `session/prompt.ts` | Main prompt loop, checkpoint, `maybeCaptureSidecar`, Layer-2 cadence gate | — |
+| `session/prompt.ts` | Main prompt loop, checkpoint, `captureSidecar`, Layer-2 cadence gate | — |
 | `util/plan-status.ts` | Plan progress + reconcilePlans hygiene | — |
 | `cli/cmd/tui/context/agi-mode.tsx` | AGI loop, plan hygiene integration | — |
 | `session/llm.ts` | LLM orchestration; request size ≈ content/4+10k; correlation headers (§8a) | — |

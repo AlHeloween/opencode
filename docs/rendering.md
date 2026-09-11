@@ -178,32 +178,38 @@ ErrorBoundary → Args → Exit → KV → Toast → Route → TuiConfig
 
 ### 4c. Part Rendering Components
 
-#### TextPart (index.tsx:1697-1805) — Primary text rendering
+#### `RichText` / `TextPart` (routes/session/index.tsx) — Primary text rendering
 
-The core streaming text renderer. Key behavior:
+`TextPart` wraps `RichText`, which is the streaming text renderer:
 
-1. **Line 1701**: `splitTextSegments(props.part.text)` — splits on `` ```mermaid `` fences into `TextSegment[]`
-2. **Lines 1706-1728**: **Progressive mermaid rendering** — renders each completed mermaid block as soon as its fence closes, instead of waiting for the entire part to finalize. Uses `renderedSources` Map to avoid re-rendering unchanged blocks.
-3. **Lines 1734-1801**: For each segment:
-   - **Markdown segment**: `<code filetype="markdown">` with `streaming=true`, tree-sitter highlighting, **markdown stream healing** via `healMarkdown()`
-   - **Mermaid segment**: `<image-plane>` once rendered, raw text fallback during rendering
+1. `createMemo(() => splitTextSegments(props.content()))` — splits on `` ```mermaid ``
+   fences into `TextSegment[]`, then `<Index each={segments()}>` keeps one renderable per
+   segment, so a closed fence renders while the model keeps writing after it.
+2. **Markdown segment** → the OpenTUI `<markdown>` renderable with `streaming`,
+   `syntaxStyle` (subtle variant when `props.subtle`), `conceal`, and theme fg/bg.
+3. **Mermaid segment** → `<MediaMermaid source={…}>`.
 
-**Streaming highlight fallback** (index.tsx:1757-1788): Persists last known good highlights. Tree-sitter frequently returns zero highlights for incomplete markdown mid-stream. When that happens, `@opentui/core`'s CodeRenderable overwrites the styled text buffer with plain text. The fallback returns last known highlights, keeping the styled path active.
+**Incremental parsing and healing are no longer owned by this route.** They moved into
+OpenTUI's markdown renderable: `parseMarkdownIncremental` in
+`packages/opentui/packages/core/src/renderables/markdown-parser.ts` reuses the stable
+token prefix (`reuseCount`) and always re-parses the last `trailingUnstable = 2` tokens,
+which is what keeps mid-stream markdown from flickering. The web side has its own healer,
+`packages/ui/src/components/markdown-stream.ts` (marked + remend).
 
-#### healMarkdown() (index.tsx, before 1697) — Markdown stream healing
+#### Historical: route-level markdown healing
 
-Closes unclosed formatting before tree-sitter processing:
+Earlier versions closed unclosed formatting in the route before tree-sitter processing:
 - Closes `**bold**`, `*italic*`, `~~strikethrough~~`, `` `inline code` ``
 - Operates on text **outside** code blocks (strips fenced/inline code before counting)
 - Drastically reduces zero-highlights events during streaming
 
-#### ReasoningPart (index.tsx:1664-1695)
+#### `ReasoningPart` (routes/session/index.tsx)
 
-- Strips `[REDACTED]` from OpenRouter reasoning (line 1670)
+- Strips `[REDACTED]` from OpenRouter reasoning (encrypted reasoning payloads)
 - Renders as `<code filetype="markdown">` with `streaming=true`, muted colors, dimmed border
 - Controlled by `ctx.showThinking()` toggle
 
-#### ToolPart (index.tsx:1809-2712)
+#### `ToolPart` (routes/session/index.tsx)
 
 Uses `PART_MAPPING` with tool-specific renderers:
 
@@ -501,7 +507,12 @@ This prevents pathological diagrams (Rust recursion, infinite loop) from hanging
 
 **Before:** Mermaid diagrams only rendered after `part.time?.end` — entire LLM response had to finish. Users saw raw ` ```mermaid ` code as plain text fallback for the entire streaming duration.
 
-**After:** Renders each mermaid block as soon as its code fence closes, even if the LLM continues writing after it. Uses `renderedSources` Map keyed by segment index + source hash to skip re-rendering unchanged blocks on every streaming tick.
+**After:** Renders each mermaid block as soon as its code fence closes, even if the LLM
+continues writing after it. Re-render avoidance is structural rather than a cache: the
+segment list is a `createMemo` and `<Index each={segments()}>` keys renderables by segment
+position, so an unchanged segment keeps its renderable across streaming ticks. (The
+original implementation used a `renderedSources` Map keyed by index + source hash; that
+map is gone.)
 
 ---
 
@@ -637,7 +648,7 @@ Each attachment type has a `render()` method returning `TuiRenderResult`:
 ### Known Test Considerations
 
 **SolidJS SSR Evaluation:** SolidJS evaluates renderable components during module import (when `.tsx` files are loaded). If a component requires context providers (Toast, Dialog, Theme) that don't exist at module-load time, it throws. Mitigations:
-- `DialogProvider` (dialog.tsx:154-184) gracefully handles missing `ToastProvider` — `useToast()` is wrapped in try/catch, copy-on-select guards with `if (!toast) return`
+- `DialogProvider` (`ui/dialog.tsx`) gracefully handles missing `ToastProvider` — `useToast()` is wrapped in try/catch, copy-on-select guards with `if (!toast) return`
 - Tests that don't depend on SolidJS should be placed **outside** `test/cli/tui/` to avoid the SSR cascade (e.g., `test/cli/editor-context.test.ts`)
 
 **Log Spy Target:** The plugin loader (`runtime.ts`) routes warnings through `Log.Default.warn()` → JSONL file I/O, not `console.warn`. Tests must spy on the log module, not `console.warn`.
@@ -646,29 +657,29 @@ Each attachment type has a `render()` method returning `TuiRenderResult`:
 
 ## 13. Key File Index
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `packages/opencode/src/session/processor.ts` | 695-748 | Delta event generation |
-| `packages/opencode/src/session/session.ts` | 633-646, 807-815 | Event bus publishing |
-| `packages/opencode/src/cli/cmd/tui/context/sync.tsx` | 448-488 | Delta store mutations |
-| `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` | 1697-1805 | TextPart rendering (markdown + mermaid) |
-| `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` | 1757-1788 | Streaming highlight fallback |
-| `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` | 1706-1728 | Progressive mermaid rendering |
-| `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` | before 1697 | `healMarkdown()` function |
-| `packages/opencode/src/cli/cmd/tui/routes/session/text-segments.ts` | 1-27 | Mermaid text splitter |
-| `packages/opencode/src/util/mermaid.ts` | 1-68 | Mermaid SVG→PNG pipeline |
-| `packages/opencode/src/cli/cmd/tui/component/media-image.tsx` | 1-683 | Inline image renderable (Kitty / Sixel / half-block) |
-| `packages/opencode/src/util/terminal-graphics.ts` | 1-50+ | Protocol detection |
-| `packages/opencode/src/util/kitty-render.ts` | 1-60 | Kitty escape sequences |
-| `packages/opencode/src/util/image-to-ansi.ts` | 1-100+ | ANSI TrueColor fallback |
-| `packages/opencode/src/util/markdownify.ts` | 1-170 | Document→Markdown conversion |
-| `packages/ui/src/components/markdown-stream.ts` | 1-49 | Web markdown stream healing |
-| `packages/ui/src/components/markdown.tsx` | 1-120+ | Web markdown→HTML rendering |
-| `packages/opencode/src/cli/cmd/tui/ui/dialog.tsx` | 154-184 | DialogProvider (optional toast) |
-| `packages/opencode/src/cli/cmd/tui/ui/toast.tsx` | 1-109 | Toast notifications |
-| `packages/opencode/parsers-config.ts` | 1-100+ | Tree-sitter parser config (28 langs) |
-| `packages/opencode/src/util/parser-wasm.ts` | 56-71 | Parser WASM loading |
-| `packages/opencode/src/attachment/registry.ts` | 1-50+ | Attachment type registry |
+Anchors are **symbol names, not line numbers** — line ranges rot on every edit.
+
+| File | Anchor | Purpose |
+|------|--------|---------|
+| `packages/opencode/src/session/processor.ts` | `"reasoning-delta"` / `"text-delta"` / `"tool-input-delta"` cases | Delta event generation |
+| `packages/opencode/src/session/session.ts` | `bus.publish(MessageV2.Event.PartDelta, …)`, `bus.publish(Event.Updated, …)` | Event bus publishing |
+| `packages/opencode/src/cli/cmd/tui/context/sync.tsx` | `deltaBuffer` + `MAX_DELTA_BUFFER_SIZE` / `DELTA_BUFFER_TTL_MS` | Delta store mutations, buffered pre-store deltas |
+| `packages/opencode/src/cli/cmd/tui/routes/session/index.tsx` | `RichText`, `TextPart` | Text rendering (markdown + mermaid segments) |
+| `packages/opentui/packages/core/src/renderables/markdown-parser.ts` | `parseMarkdownIncremental`, `reuseCount`, `trailingUnstable` | Incremental markdown parsing / stream stability |
+| `packages/ui/src/components/markdown-stream.ts` | `marked` + `remend` | Web markdown stream healing |
+| `packages/opencode/src/cli/cmd/tui/routes/session/text-segments.ts` | `splitTextSegments` | Mermaid text splitter |
+| `packages/opencode/src/util/mermaid.ts` | `renderMermaidToPngDataUrl` | Mermaid SVG→PNG pipeline |
+| `packages/opencode/src/cli/cmd/tui/component/media-image.tsx` | `MediaImage`, `mediaImageCellBounds` | Inline image renderable (Kitty / Sixel / half-block) |
+| `packages/opencode/src/util/terminal-graphics.ts` | `detectGraphicsProtocol`, `detectBestProtocol`, `GRAPHICS_PROTOCOLS` | Protocol detection |
+| `packages/opencode/src/util/kitty-render.ts` | `kittyImage` | Kitty escape sequences |
+| `packages/opencode/src/util/image-to-ansi.ts` | `imageToChunks`, `imageToAnsi` | ANSI TrueColor fallback |
+| `packages/opencode/src/util/markdownify.ts` | `convertDocument`, `isSupportedDocumentFormat` | Document→Markdown conversion |
+| `packages/ui/src/components/markdown.tsx` | `Markdown` | Web markdown→HTML rendering |
+| `packages/opencode/src/cli/cmd/tui/ui/dialog.tsx` | `DialogProvider` | Dialog provider (tolerates a missing toast provider) |
+| `packages/opencode/src/cli/cmd/tui/ui/toast.tsx` | `Toast`, `ToastProvider`, `useToast` | Toast notifications |
+| `packages/opencode/parsers-config.ts` | parser table | Tree-sitter parser config |
+| `packages/opencode/src/util/parser-wasm.ts` | `getGrammarWasm`, `preloadGrammars`, `availableLanguages` | Parser WASM loading |
+| `packages/opencode/src/attachment/registry.ts` | `registry`, `Service` | Attachment type registry |
 | `packages/opencode/src/cli/cmd/tui/config/tui-schema.ts` | 26-31 | TUI config schema |
 | `packages/opencode/test/cli/editor-context.test.ts` | 1-93 | ZED editor tests (moved from TUI dir) |
 | `packages/opencode/test/cli/tui/plugin-loader-entrypoint.test.ts` | 259-321 | Plugin entrypoint tests |

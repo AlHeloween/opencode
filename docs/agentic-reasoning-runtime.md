@@ -8,7 +8,7 @@ How OpenCode keeps **agentic process law** separate from **host packages** and
 
 Related:
 
-- [Reasoning framework](reasoning-framework.md) — kernel package / SPECS / IR
+- [Kernel package](../prompt_kernel/README.md) — gate graph, serialization order, install pipeline
 - [AGI workflow](agi-workflow.md) — orchestrator / plans
 - [Compaction](compaction.md) — memory ranks (Exact handles vs Inferred summaries)
 - [Tools and sidecars](tools-and-sidecars.md) — binaries vs built-in LLM tools

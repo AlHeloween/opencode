@@ -12,7 +12,15 @@
 - [Rendering Pipeline](rendering.md) — LLM→terminal display, mermaid, images
 - [Architecture](architecture.md) — prompt system, checkpoint, compaction, agents, KV cache
 - [Agentic reasoning runtime](agentic-reasoning-runtime.md) — gates, REUSE ladder, claim ledger, host-agnostic SPECS
-- [Reasoning framework](reasoning-framework.md) — kernel package / SPECS / IR
+- [Kernel package](../prompt_kernel/README.md) — gate graph, serialization order, source of the runtime prefix
+- [Kernel assembly point](kernel-assembly-point.md) — where `source.py` becomes `reasoning_prompt.txt`
+- [Two-canon protocol](two-canon-protocol.md) — ADID 15.3 ↔ kernel parity: one protocol, two compilers
+- [Reasoning mode](reasoning-mode.md) — memory-only calibration identity, no execution surface
+- [System prompt order](system-prompt-order.md) — slot order; any mid-prefix mutation is a full cache miss
+- [UNIVERSAL_ENV](system-prompt-universal-env.md) — the immutable `system[0]` head
+- [CodeGraph MCP](codegraph-mcp.md) — live graph contract + readonly SQLite pack
+- [Session recovery](session-recovery.md) — portable replay after a moved worktree
+- [Run lifecycle semantics](run-lifecycle-semantics.md) — join, supersede, bounded cancel
 - [Gate add-ons](gate-addons.md) — advisory path bindings per kernel gate, addon registry, budget guardrails
 - [AGI Workflow](agi-workflow.md) — orchestrator/worker loop, plan hygiene
 - [Startup & bootstrap](startup-bootstrap.md) — cold start, CodeGraph, Fossil vs git/jj
@@ -21,5 +29,14 @@
 - [Linux deploy](linux-deploy.md) — Linux build and portable install
 - [Tools and sidecars](tools-and-sidecars.md) — `tools/` binaries, Fossil/rg/markdownify
 - [Background Jobs](background-jobs.md) — non-blocking shell jobs, `joboutput` / `pattern`, TUI
-- [ADID Framework 15.3](ADID_Framework_15_3.md) — safe-update manager contract (reference only; 15.4.3 retired)
-- [Reasoning Kernel Tests](../tests/test_reasoning_kernel.py) — pytest for the reasoning kernel
+- [ADID Framework 15.3](ADID_Framework_15_3.md) — safe-update manager contract. Frozen, untracked,
+  package-rendered; still the reference standard for kernel design, but only realizable on MHA-class
+  attention — see [two-canon-protocol.md](two-canon-protocol.md) § 3 for why it did not port to MLA
+- [Kernel tests](../prompt_kernel/tests/) — `python -m pytest prompt_kernel/tests/ -q` (78 tests)
+
+## Measured vendor behaviour
+
+- [Reasoning round-trip contract](reasoning-round-trip-contract.md) — cross-vendor reasoning field behaviour
+- [DeepSeek thinking cache](deepseek-thinking-cache.md) — measured thinking vs prompt cache
+- [StreamLake/KAT thinking cache](streamlake-kat-thinking-cache.md) — measured gateway cache semantics
+- [CoT research](cot-reasoning-research.md) — how chain-of-thought length affects task execution

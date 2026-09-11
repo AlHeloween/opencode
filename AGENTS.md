@@ -460,7 +460,7 @@ All detailed docs live in `docs/`. Here's the quick map:
 
 ### Architecture / Stack
 - [Architecture](docs/architecture.md) — prompt system, checkpoint, compaction, agents, KV cache
-- [Reasoning framework](docs/reasoning-framework.md) — kernel / SPECS / IR
+- [Kernel package](prompt_kernel/README.md) — gate graph, serialization order, source of the runtime prefix
 - [Two-canon protocol](docs/two-canon-protocol.md) — ADID 15.3 (untracked, package-rendered) ↔ kernel parity: one protocol, two compilers; why both exist
 - [Gate add-ons](docs/gate-addons.md) — advisory path bindings per kernel gate, addon registry, budget guardrails
 - [Agentic reasoning runtime](docs/agentic-reasoning-runtime.md) — gates, REUSE ladder, claim ledger
@@ -474,7 +474,6 @@ All detailed docs live in `docs/`. Here's the quick map:
 - [External File Locations](docs/external-file-locations.md) — where opencode reads/writes
 - [Tools and sidecars](docs/tools-and-sidecars.md) — `tools/` binaries
 - [Background Jobs](docs/background-jobs.md) — non-blocking shell jobs
-- [Kernel stability principles](docs/kernel-stability-principles.md)
 - [Kernel assembly point](docs/kernel-assembly-point.md)
 
 ### Deployment

@@ -2,7 +2,7 @@
 
 **Status:** reference design note
 **Created:** 2026-09-06
-**Subjects:** [ADID_Framework_15_3.md](ADID_Framework_15_3.md) (untracked, package-rendered) · `reasoning_kernel_next` (G1–G9) · [reasoning-framework.md](reasoning-framework.md)
+**Subjects:** [ADID_Framework_15_3.md](ADID_Framework_15_3.md) (untracked, package-rendered) · `reasoning_kernel_next` (G1–G9) · [`prompt_kernel/README.md`](../prompt_kernel/README.md)
 
 ## Why this note exists
 
@@ -57,7 +57,7 @@ Direct lineage marker: 15.3's change summary introduced **canonical SV hashing**
 
 - `docs/ADID_Framework_15_3.md` is **rendered by the external ADID package** → untracked and gitignored (`docs/ADID_Framework_*.md` wildcard, commit `079f4a213f`). The file stays on disk; the package re-renders it.
 - Frozen by design: the kernel is the successor; 15.3.1 / 15.4.3 were already retired to git history (per the doc header's installer-asset policy decision D1).
-- Fresh clone: the file — and links to it in `DOCINDEX.md`, `docs/README.md`, `docs/reasoning-framework.md`, `docs/agentic-reasoning-runtime.md` — resolve only after the ADID package regenerates the doc. Same receiver model as `.cursor/` / `.opencode/` assets and `docs/examples/`.
+- Fresh clone: the file — and links to it in `DOCINDEX.md`, `docs/README.md`, `docs/agentic-reasoning-runtime.md` — resolve only after the ADID package regenerates the doc. Same receiver model as `.cursor/` / `.opencode/` assets and `docs/examples/`.
 
 ## Provenance
 

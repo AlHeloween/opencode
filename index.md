@@ -16,7 +16,7 @@ class DirEntry:
 @dataclass
 class RepoMap:
     """Complete folder-based repository index."""
-    last_updated: str = "2026-07-12"
+    last_updated: str = "2026-09-11"
     
     packages: list[DirEntry] = field(default_factory=lambda: [
         DirEntry("packages/opencode/", "Core CLI/TUI server — AI agent, tools, HTTP API, session mgmt", "src/index.ts"),
@@ -45,7 +45,7 @@ class RepoMap:
 REPO = RepoMap()
 
 # {len(REPO.packages)} packages tracked
-# Docs: docs/, specs/plans/, plans_completed/
+# Docs: docs/, specs/, plans/, plans_completed/
 #   docs/rendering.md       — Full rendering pipeline: LLM → terminal, TUI components, streaming, mermaid, images
 #   docs/architecture.md    — Prompt system, checkpoint, compaction, KV cache
 #   docs/compaction.md      — Mechanistic continuous memory (bounded/accounted sidecar summaries + message*)
@@ -53,6 +53,7 @@ REPO = RepoMap()
 #   docs/session-recovery.md — Moved-worktree session replay and explicit `opencode db fix` path repair
 #   packages/opencode/src/session/sidecar-policy.ts — Layer-1 output/retry/cooldown bounds
 #   packages/opencode/src/provider/balance-storage.ts — provider balance snapshots and cumulative session-cost validation
-#   docs/ADID_Framework_15_4.md — ADID update manager framework
+#   docs/ADID_Framework_15_3.md — ADID update manager framework (untracked, package-rendered)
+#   prompt_kernel/README.md — reasoning kernel package: gate graph, serialization, install
 # Tools: tools/, external/
 # Key files at root: package.json, bunfig.toml, turbo.json, tsconfig.json, sst.config.ts

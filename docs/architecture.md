@@ -20,7 +20,7 @@ reproduce:
 **Status:** production
 **Last Updated:** 2026-09-06
 **See also:**
-- `docs/reasoning-framework.md` — PromptSpec schema, syntax/disciplinary projections, IR compilation
+- `prompt_kernel/README.md` — kernel gate graph, serialization order, install pipeline
 - `docs/compaction.md` — mechanistic compaction (stable continuous memory)
 
 Production system kernel: `prompt_kernel/source.py` → `packages/opencode/src/session/prompt/reasoning_prompt.txt` (`python -m prompt_kernel --install`).

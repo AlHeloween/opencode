@@ -44,7 +44,7 @@ tuning record only after user approval.
 
 ## Relationship to the REASONING Framework
 
-The [REASONING Framework](reasoning-framework.md) defines universal evidence,
+The reasoning kernel (`prompt_kernel/README.md`) defines universal evidence,
 verification, and decision discipline. Reasoning Mode is one deliberately
 constrained setting in which to evaluate how those universal rules behave
 without tool-driven momentum.

@@ -338,7 +338,7 @@ tool does and HOW to call it, not WHEN or WHY.
 | Document | Purpose |
 |----------|---------|
 | [`docs/kernel-assembly-point.md`](../../docs/kernel-assembly-point.md) | How the production kernel is built and installed |
-| [`docs/kernel-stability-principles.md`](../../docs/kernel-stability-principles.md) | Stability checklist for kernel edits |
+| [`docs/kernel-assembly-point.md`](../../docs/kernel-assembly-point.md) | Kernel build, installed layout, assembly point |
 
 **Critical invariant**: `KERNEL_MAP` is first. `@SV_FORMAT` is a schema, not an emit. `@SIMULATION_ERROR` forbids treating simulation error.
 

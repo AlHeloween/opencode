@@ -69,8 +69,10 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # 30_000 / 3_700 (2026-09-12, Alexander): mirrors the product raise for the
     # kernel-review patch set; this variant keeps its own ceiling because it
     # writes a whole file rather than filling a sized slot.
-    assert len(text.encode("utf-8")) <= 30_000
-    assert normalized_token_count(text) <= 3_700
+    # 31_000 / 3_850 (2026-09-12): mirrors the product raise admitting the
+    # INTENTION_RESET protocol — the missing return path into G0.
+    assert len(text.encode("utf-8")) <= 31_000
+    assert normalized_token_count(text) <= 3_850
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

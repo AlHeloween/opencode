@@ -285,6 +285,18 @@ PROTOCOLS = (
         ),
     ),
     Protocol(
+        id="INTENTION_RESET",
+        objective="Return to understanding when the Digital Intention changes hands or the reasoning itself diverges.",
+        observed_at=("G2", "G3", "G5", "G6", "G7", "G8", "G9"),
+        returns_to="G0",
+        authority="advisory",
+        local_rules=(
+            _rule("INTENTION_RESET", "TARGET_RESTATED", "A user who restates or replaces the Digital Intention mid-flow is the only licensed way @DIGITAL_INTENTION.to_state moves. Re-enter G0 with their words, not with your reading of them."),
+            _rule("INTENTION_RESET", "SUPERSEDED_TARGET", "The superseded to_state closes as OUT_OF_SCOPE or becomes a bounded @RESIDUAL_GOAL — never dropped in silence. Stamped evidence survives the reset; only target, plan, and geometry are re-derived."),
+            _rule("INTENTION_RESET", "SELF_DIVERGENCE", "@REASONING_MODE — no tools, permanent memory only — is entered by the user's call or by your own, when a failure repeats instead of slipping: a one-off statistical miss you correct in place, a recurring one you stop for, and a STALL under @LOOP_PROGRESS is the objective signal. Diagnose your own divergence far enough to name the contradictory self-states, name the criteria that would have caught it earlier, persist them, and resume at G0. The product is a durable falsifier, not an apology."),
+        ),
+    ),
+    Protocol(
         id="EVOLUTION_LOOP",
         objective="Propose measurable project improvements after closure without bypassing a new authorization cycle.",
         observed_at=("G9",),
@@ -388,7 +400,7 @@ KERNEL = Kernel(
     name="reasoning_kernel_next",
     version="2.0.0-alpha.3",
     precedence=("safety", "governance", "task", "domain", "style"),
-    utf8_budget=30_000,
+    utf8_budget=31_000,
     terms=MappingProxyType({
         "GROUNDING": "Observation tied to a source, path, command, or reproducible state.",
         "AUTHORIZATION": "A decision that permits a bounded class of effects; confidence is not authority.",

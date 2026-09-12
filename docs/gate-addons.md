@@ -84,17 +84,23 @@ skill-owned in the ADID package and stay out of the opencode kernel.
 1. Append `GateAddon(gate_id, addon_id, lines)` to `GATE_ADDONS` in `prompt_kernel/addons.py`.
 2. Constraints (enforced by `validate_addons()`): `gate_id` ∈ G1–G9, unique
    `addon_id`, non-empty lines. No `@`-references in lines.
-3. **Budgets are shared** — byte cap `KERNEL.utf8_budget` (**30 000**) and token cap
-   in `tests/test_dedup.py::test_compacted_runtime_budget` (**3 700**). The Claude
-   variant carries its own ceiling in `tests/test_addons_claude.py` (**30 000 / 3 700**)
+3. **Budgets are shared** — byte cap `KERNEL.utf8_budget` (**31 000**) and token cap
+   in `tests/test_dedup.py::test_compacted_runtime_budget` (**3 850**). The Claude
+   variant carries its own ceiling in `tests/test_addons_claude.py` (**31 000 / 3 850**)
    because `--claude --install` writes a whole file rather than filling a sized slot.
-   Current renders: product 28 917 bytes / 3 542 tokens, Claude 29 219 / 3 592.
-   History: 25 000 → 26 000 → 27 000 → 28 000 → 30 000 bytes, 2 950 → 3 100 → 3 300
-   → 3 450 → 3 700 tokens, each step named in the test comments with what it admits.
-   **Growth policy (Alexander, 2026-09-11):** raises are deliberate, not drift —
-   "28к мелкая плата за будущие ошибки… может через месяц и будет 30к, нужны
-   дополнения по мере использования". Raising a cap remains an owner decision; an
-   agent trims or trades wording and reports the overflow instead of raising.
+   Current renders: product 30 206 bytes / 3 735 tokens, Claude 30 508 / 3 785.
+   History: 25 000 → 26 000 → 27 000 → 28 000 → 30 000 → 31 000 bytes, 2 950 → 3 100
+   → 3 300 → 3 450 → 3 700 → 3 850 tokens, each step named in the test comments with
+   what it admits.
+   **Growth policy (Alexander, 2026-09-11 → 2026-09-12):** raises are deliberate, not
+   drift — "28к мелкая плата за будущие ошибки… нужны дополнения по мере
+   использования". As of 2026-09-12 raising is no longer an owner gate ("можешь
+   поставить столько сколько тебе надо"): the cap existed partly to stop models that
+   append without reading, and that failure is actually caught by `dedup.py`
+   (`find_unapproved_semantic_overlaps` ≥ 0.58, `repeated_ngrams` width 5 / 4×), whose
+   allowlists are both empty. The cap now works as a scarcity detector — it forces the
+   question "what here is dead?" before anything new lands. Convention: raise at the
+   point of need, in the same commit, naming what it admits.
 
 4. `python -m pytest prompt_kernel/tests/ -q` → all green.
 5. `python -m prompt_kernel --install` → note `installed=<sha256>`.

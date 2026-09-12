@@ -1,5 +1,62 @@
 # Progress Log
 
+## 2026-09-12 KERNEL — INTENTION_RESET: the missing return path into G0
+
+Reason: yesterday's `@INTENTION_INVARIANCE` declared that only the user moves
+`@DIGITAL_INTENTION.to_state` — a licensed exception with no declared route. Probe
+[Exact]: `[e for e in KERNEL.edges if e.target=="G0"]` → **NONE**; back moves are
+G5→G2, G8→G6, G8→G2, G9→G1, G9→G2. Once the graph left G0 it could never return,
+while `control_flow_rule` demands every deviation use a declared move. Same class as
+K-2: the norm existed, the edge did not. Observed live in this session — the user
+redirected scope mid-flow ("сосредоточимся на кернеле"), a legitimate change of target
+that the graph performed silently.
+
+The runtime already implements this transition: `reasoningenter` / `reasoningexit`
+(`packages/opencode/src/tool/reasoning.ts:60`, `agent/agent.ts:201`). Verified [Exact]:
+it is a **model-callable tool**, gated to native `build_mode`, and `reasoning_mode`
+permits only getmode, permanent memory (`.opencode/data/memory/reasoning.md`,
+`session/tools.ts:176`) and its own exit. So the mode is entered by the user *or* by
+the model itself — per Alexander, DeepSeek does this routinely when inference will not
+settle: a one-off statistical miss it corrects in place, a recurring one makes it stop,
+amend, and continue.
+
+Change (`prompt_kernel/source.py`, `render.py`): new side protocol `INTENTION_RESET`,
+`observed_at [G2, G3, G5, G6, G7, G8, G9] → returns_to G0`, advisory. Three rules:
+- TARGET_RESTATED — a user restating the intention is the only licensed way to_state
+  moves; re-enter G0 with their words, not your reading of them.
+- SUPERSEDED_TARGET — the old to_state closes as OUT_OF_SCOPE or becomes a bounded
+  RESIDUAL_GOAL; stamped evidence survives, only target/plan/geometry are re-derived.
+- SELF_DIVERGENCE — REASONING_MODE is entered by the user's call or your own when a
+  failure repeats instead of slipping; a STALL under `@LOOP_PROGRESS` is the objective
+  signal. Name the contradictory self-states, name the criteria that would have caught
+  it earlier, persist them, resume at G0. The product is a durable falsifier.
+`control_flow_rule` now admits "or protocol return" — EVOLUTION_LOOP (G9→G1) was
+already such a transition, so the graph was under-describing itself before.
+
+G1 and G4 are deliberately outside `observed_at`: at G1 the intention was just formed,
+and at G4 an objection already has the declared CONCERN edge to G5. Narrowing there was
+forced by a real oracle — `repeated_ngrams` failed on "g1 g2 g3 g4 g5" ×4 once a nine-
+gate run was added twice. Fixed by re-deciding the scope, not by allowlisting: both
+dedup allowlists stay empty.
+
+Caps raised 30 000 → **31 000** bytes and 3 700 → **3 850** tokens (both variants).
+First raise made under the new policy — Alexander, 2026-09-12: "можешь поставить
+столько сколько тебе надо, просто некоторым моделям реально нельзя доверять изменения
+без ограничений, не прочитает и потом давай клонировать". Noted in reply and recorded
+here: cloning is caught by `dedup.py`, not by the cap; the cap earns its keep as a
+scarcity detector (it is what exposed the inert `DIGITAL_INTENTION` term earlier today).
+Convention kept: raise at the point of need, in the same commit, naming what it admits.
+
+Oracles [Exact]: validator clean, `repeated_ngrams` clean, **78 passed**. Product
+30 206 / 31 000 bytes, 3 735 / 3 850 tokens; Claude 30 508 / 31 000, 3 785 / 3 850.
+Installed both — product sha256
+`28ed289301fa1c8f8be383b7bc3e1202d7afa5368515cb0ef6eaf6fdf6a89ac9` (baseline repinned),
+Claude `cfc86a27eba731f3487782776bcb9f83637fac00b9f87020636ac9ae89b71c1c`.
+
+Residual unchanged: the intention still has no carrier across compaction (candidate:
+`PLAN_CONTRACT.intention_ref` + the G3 plan artifact), Unknown still has no declared
+route out of G8 (handoff P5), and `pwsh _build.ps1` is still pending.
+
 ## 2026-09-12 KERNEL — Digital Intention becomes a carrier: G0 output, @INTENTION_INVARIANCE
 
 Reason: user defined the Digital Intention as a transformation between two oracle-provable

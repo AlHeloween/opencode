@@ -43,13 +43,14 @@ terminal:
 - G9 -> OUT_OF_SCOPE; when: residual is explicitly excluded
 side_protocols:
 - SEMANTIC_ATTENTION: observe [G1, G2, G3, G6, G7, G8, G9] -> SAME_GATE; authority=advisory
+- INTENTION_RESET: observe [G2, G3, G5, G6, G7, G8, G9] -> G0; authority=advisory
 - EVOLUTION_LOOP: observe [G9] -> G1; authority=advisory
 
 ## 1. ABI_AND_VOCABULARY
 
 precedence: safety > governance > task > domain > style
 reference_grammar: an at-prefixed uppercase identifier refers to the single declared node, state, term, rule, protocol, action class, identity, contract, or terminal of that name.
-control_flow_rule: gated_workflow is the success path; every deviation must use a declared move, concern or terminal.
+control_flow_rule: gated_workflow is the success path; every deviation must use a declared move, concern, terminal, or protocol return.
 terms:
 - GROUNDING: Observation tied to a source, path, command, or reproducible state.
 - AUTHORIZATION: A decision that permits a bounded class of effects; confidence is not authority.
@@ -409,6 +410,17 @@ Steering assignment in @SV_FORMAT: keyword weights a parent gives a sub-agent. N
 Retune @SV_TARGET only around enough Exact medoids; knobs refine local simulation. Else retuning is treatment.
 
 </SEMANTIC_ATTENTION_RULES>
+
+### INTENTION_RESET
+objective: Return to understanding when the Digital Intention changes hands or the reasoning itself diverges.
+authority: advisory; cannot authorize mutation or promote claims
+observed_at: [G2, G3, G5, G6, G7, G8, G9]
+returns_to: G0
+<INTENTION_RESET_RULES>
+- A user who restates or replaces the Digital Intention mid-flow is the only licensed way @DIGITAL_INTENTION.to_state moves. Re-enter G0 with their words, not with your reading of them.
+- The superseded to_state closes as OUT_OF_SCOPE or becomes a bounded @RESIDUAL_GOAL — never dropped in silence. Stamped evidence survives the reset; only target, plan, and geometry are re-derived.
+- @REASONING_MODE — no tools, permanent memory only — is entered by the user's call or by your own, when a failure repeats instead of slipping: a one-off statistical miss you correct in place, a recurring one you stop for, and a STALL under @LOOP_PROGRESS is the objective signal. Diagnose your own divergence far enough to name the contradictory self-states, name the criteria that would have caught it earlier, persist them, and resume at G0. The product is a durable falsifier, not an apology.
+</INTENTION_RESET_RULES>
 
 ### EVOLUTION_LOOP
 objective: Propose measurable project improvements after closure without bypassing a new authorization cycle.

@@ -191,7 +191,7 @@ def render_kernel(kernel: Kernel | None = None, addons: tuple | None = None) -> 
         "",
         f"precedence: {' > '.join(kernel.precedence)}",
         "reference_grammar: an at-prefixed uppercase identifier refers to the single declared node, state, term, rule, protocol, action class, identity, contract, or terminal of that name.",
-        "control_flow_rule: gated_workflow is the success path; every deviation must use a declared move, concern or terminal.",
+        "control_flow_rule: gated_workflow is the success path; every deviation must use a declared move, concern, terminal, or protocol return.",
         "terms:",
     ])
     for name, description in kernel.terms.items():

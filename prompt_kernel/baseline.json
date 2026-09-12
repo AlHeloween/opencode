@@ -1,6 +1,6 @@
 {
   "production": {
     "path": "packages/opencode/src/session/prompt/reasoning_prompt.txt",
-    "sha256": "62961f8624101ab971035165e12a4fc0c77f0ed7d80b53885883353bc8d9be31"
+    "sha256": "28ed289301fa1c8f8be383b7bc3e1202d7afa5368515cb0ef6eaf6fdf6a89ac9"
   }
 }

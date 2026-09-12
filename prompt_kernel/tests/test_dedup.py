@@ -81,4 +81,15 @@ def test_compacted_runtime_budget() -> None:
     # G0/G1 terminals (K-2), typed SOURCE_STAMP (P12) and @LOOP_PROGRESS with
     # the LOOP_MEASURE tuple (P6). Raises stay owner decisions and each names
     # what it admits; agents trim or report overflow instead.
-    assert normalized_token_count(text) <= 3_700
+    # 3_850 / utf8_budget 31_000 (2026-09-12, Alexander: "можешь поставить
+    # столько сколько тебе надо" — the cap stopped being an owner gate and
+    # became an agent tool): admits the INTENTION_RESET protocol. The kernel
+    # had no edge back into G0 at all, while @INTENTION_INVARIANCE declares
+    # that only the user moves to_state — a licensed exception with no
+    # declared route. The protocol carries both triggers: the user restating
+    # the Digital Intention mid-flow, and REASONING_MODE, where the model
+    # diagnoses its own divergence and persists the criteria that would have
+    # caught it. Raising is now the agent's call, but the convention holds:
+    # raise at the point of need, in the same commit, naming what it admits.
+    # Duplication is guarded by dedup above, not by this cap.
+    assert normalized_token_count(text) <= 3_850

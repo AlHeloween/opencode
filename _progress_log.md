@@ -1,5 +1,61 @@
 # Progress Log
 
+## 2026-09-13 KERNEL — governance arc: detector, delegation, testimony, P5, amendment ruling
+
+Five commits, one thread: every defect of the day's largest class had the same shape —
+a mechanism declared and never wired to a consumer.
+
+`a83d1d4ba8` **reverse-reachability check.** The dataflow validator proved every
+`requires` is produced and nothing proved the converse, which is why G0 shipped with
+`outputs=()` on 2026-09-07 and survived five days. Two checks now: a spine gate must
+declare an output, and every output is required downstream or listed in
+`Kernel.terminal_outputs` (validator metadata, zero prefix cost). It flagged ten — eight
+genuine terminals with the three modelling limits that force them recorded in source,
+two real gaps closed (G4 requires CAPABILITY_GRAPH, G6 requires AUTH_DECISION). It also
+surfaced handoff P5 independently, by flagging DIVERGENCE_EVENT as consumed by nobody.
+Three mutation tests pin the detector itself.
+
+`eea0be20f8` **delegation binding + testimony rung.** The vector discipline lived in an
+advisory protocol while no gate mentioned handing work over, and every plan task already
+carried an `sv` list parsed into `PlanStateTask.sv` and used for nothing but display.
+Both halves existed; the wire did not. Separately, `MEMORY_RANK` had session history in
+the same list as source, fossil and codegraph — but those are artifacts, while an
+archived message and a user's assertion are testimony: what was said, including what was
+later refuted, since nothing in the index retracts.
+
+`360e9ff6bb` **two slips of mine**, recorded because they are the argument for the
+guardrails: `git add prompt_kernel/` missed the installed artifacts that `baseline.json`
+already pinned, and a `printf` without a newline fused the new ignore rule onto
+`.opencode`, un-ignoring a 78 MB memory.db for one commit.
+
+`0dc9216e9e` **P5 and the chain.** An Unknown claim leaves the loop instead of
+re-entering it; the same instrument again is a STALL, a weaker one is treating the
+simulation. `prev-md5` now says what a break means. Running that check over this session
+found 3 breaks in 96 links — two at boundaries, one a digest I mistyped, which is
+exactly the class that slips when no checker exists. README mermaid gained G0.
+
+`629b08f2d7` + `7d316fa130` **the amendment ruling** (Alexander's, applied as bootstrap
+L3). Prefix carries only the pointer and the deterrent; depths, constitution core,
+procedure, freeze and rollback live in `docs/kernel-amendment.md`. Threat model is
+compliance, not initiative — a model asked for a line opens the generated `.txt` because
+nothing told it the source is elsewhere. `constitution_core` is Kernel data, not prose:
+a second list could drift from the rules it names.
+
+Concreteness passes, twice: **seventeen restatements removed**, each repeating a
+neighbour or a shared rule. What was left uncut is rationale — deliberately, because a
+rule stripped of its why is what a later pass simplifies away first. Token cap
+3 950 → 4 050 for the remainder; `utf8_budget` untouched at 32 000.
+
+Oracles [Exact]: validator clean, ngrams clean, **88 passed**. Product 31 398 / 32 000
+bytes, 3 936 / 4 050 tokens; Claude 31 677 / 3 983; Codex 31 579 / 3 970. Built to dist
+and reviewed before install, per the ruling's own working order.
+
+Residual: **constitutional tests (procedure step 5) do not exist**, so by the ruling's own
+clause every SELF_MODIFY closes Unknown until they are written — including the five L2
+changes of 2026-09-12 that predate it. That is the first work under the ruling. Also
+open: an L3 proposal to add `@ROOT_OF_TRUTH` and `@INTENTION_INVARIANCE` to the core, and
+the binary rebuild, still not run.
+
 ## 2026-09-12 FIX — memory tool accepted any action and silently appended
 
 Reason: the provider files that broke `test/preload.ts` are committed (`0bdf8a827e`), so the two

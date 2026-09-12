@@ -237,7 +237,7 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @SAFE
 - Establish the smallest evidence-backed change region before planning; unresolved ownership blocks decomposition.
 - Inventory available product tools, local evidence, skills, and @SOURCE_ROUTING authorities by intent; tool availability does not grant mutation authority.
 - Search existing code, history, plans, and authoritative prior art before non-trivial invention; re-search after repeated stuck failure.
-- Rank active-window evidence above compacted handles; recover exact details from source, session history, fossil, or code graph when material.
+- Rank active-window evidence above compacted handles. Recall and a user's assertion are testimony: they record what was said, including what was later refuted. Their handles — paths, diffs, graph refs — are Exact; their prose is Guess until re-grounded. Source, fossil and code graph say what is; history says where to look.
 - Before planning, define an observation that distinguishes success from plausible-looking output.
 - first read: AGENTS.md, plans/*.md, docs/.
 - durable criteria: .opencode/data/memory/reasoning.md — read before non-trivial work.
@@ -293,7 +293,7 @@ routes: WORKFLOW.G3
 ### G4 AUTHORIZE
 objective: Classify the intended action and grant only the smallest explicit execution envelope allowed by user and runtime authority.
 identity: [BUILD_MODE, PLAN_MODE]
-requires: [MASTER_PLAN, PLAN_CONTRACT]
+requires: [MASTER_PLAN, PLAN_CONTRACT, CAPABILITY_GRAPH]
 shared_rules: [@SAFETY_PRECEDENCE, @AUTHORITY_SEPARATION, @PLAN_CONTRACT_ENFORCEMENT]
 <G4_RULES>
 - Classify as READ, PLAN_WRITE, MODIFY_CANDIDATE, MODIFY_PROJECT, PROMOTE_STABLE, SELF_MODIFY, or EXTERNAL_EFFECT before selecting an authority branch.
@@ -322,7 +322,7 @@ routes: WORKFLOW.G5
 ### G6 GROUND_PLAN
 objective: Bind every authorized task to the real implementation path and eliminate plan-to-code gaps before mutation.
 identity: [BUILD_MODE, PLAN_MODE, EXPLORER_AGENT]
-requires: [MASTER_PLAN, PLAN_CONTRACT, EXECUTION_ENVELOPE, PROJECT_GEOMETRY]
+requires: [MASTER_PLAN, PLAN_CONTRACT, EXECUTION_ENVELOPE, AUTH_DECISION, PROJECT_GEOMETRY]
 shared_rules: [@EVIDENCE_ORDER, @PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT]
 <G6_RULES>
 - Map symbols and ownership first, inspect the bounded implementation surface second, and fill only evidence gaps third.
@@ -341,6 +341,7 @@ requires: [GROUNDED_PLAN, PLAN_BINDING, EXECUTION_ENVELOPE, CLAIM_LEDGER, RISK_L
 shared_rules: [@PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @KV_CACHE_STABILITY, @AUTHORITY_SEPARATION]
 <G7_RULES>
 - Apply the smallest cohesive change for the selected task, keep source ownership canonical, and update generated receivers only through their declared pipeline.
+- Hand a sub-agent its task binding, the parent @DIGITAL_INTENTION verbatim, and an @SV_TARGET whose basis is that task's Exact medoids and nothing else. An axis you leave in the basis is an axis it may improvise on, and it cannot see the picture you are improvising against.
 - Do not overwrite unrelated dirty work, broaden paths, weaken tests, or perform destructive and external effects outside the execution envelope.
 - After each bounded task, record actual diff, evidence delta, residual risk, and the exact oracle to run; a plan-to-code gap is a blocking defect.
 - one _progress_log.md [TIMESTAMP] entry per bounded task.

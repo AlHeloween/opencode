@@ -127,4 +127,6 @@ packages/opencode/src/provider/models/
 
 .smit
 .cursor
-.opencodeprompt_kernel/dist_codex/
+.opencode
+prompt_kernel/dist_codex/
+

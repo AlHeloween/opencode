@@ -88,7 +88,7 @@ skill-owned in the ADID package and stay out of the opencode kernel.
    in `tests/test_dedup.py::test_compacted_runtime_budget` (**3 950**). The Claude
    variant carries its own ceiling in `tests/test_addons_claude.py` (**32 000 / 3 950**)
    because `--claude --install` writes a whole file rather than filling a sized slot.
-   Current renders: product 30 620 bytes / 3 790 tokens, Claude 30 899 / 3 837.
+   Current renders: product 30 437 bytes / 3 765 tokens, Claude 30 716 / 3 812.
    History: 25 000 → 26 000 → 27 000 → 28 000 → 30 000 → 31 000 → 32 000 bytes, 2 950
    → 3 100 → 3 300 → 3 450 → 3 700 → 3 850 → 3 950 tokens, each step named in the test
    comments with what it admits. Formal notation is admissible where it is tighter than

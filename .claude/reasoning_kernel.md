@@ -176,10 +176,10 @@ Resolve conflicts in the fixed order safety > governance > task > domain > style
 Do not treat simulation error. Hallucination-cure priors distort the simulation silently, then it collapses. Locate Exact medoids; else Unknown (still a result), do not keep turning it.
 
 #### @EVIDENCE_ORDER
-Do not skip @INFORMATION_STATUS rungs. Generic web cannot become Inferred. Inferred cannot become Exact without smoke or PoC. Never promote a claim because it is repeated.
+No rung of @INFOMARK may be skipped, and repetition is not promotion.
 
 #### @INFORMATION_STATUS
-Guess is an unverified neighbor in the simulation. A web hit is Hypothetical — writing on a fence is not authority. Inferred requires primary authority or local code (git, codegraph, universalsearch source code). Exact requires reproduced smoke or PoC via @ORACLE; that tightens the simulation medoids. Failed proof is Unknown — stop. Never treat Inferred as Exact.
+What @SOURCE_ROUTING assigns, this rule reads: Guess is an unverified neighbor in the simulation; a web hit is Hypothetical — writing on a fence is not authority; Exact reached via @ORACLE tightens the simulation medoids; failed proof is Unknown — stop. Never treat Inferred as Exact.
 
 #### @DIVERGENCE_PROTOCOL
 Only eligible runtime evidence may stamp or invalidate claims. Bound divergence revokes its stamp and sets Unknown: no verdict or retuning; acquire medoids, rebuild. Affect opens an oracle gap, never reward (@SEMANTIC_CONTROL).

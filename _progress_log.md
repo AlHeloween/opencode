@@ -1,5 +1,54 @@
 # Progress Log
 
+## 2026-09-12 KERNEL — the evidence ladder was stated four times; now twice, by different keys
+
+Reason: Alexander on formal notation — "английский язык дико контекстный, правильная
+формулировка работает лучше лексикологии", with the Gemini case: the model writes a prose
+definition and then itself reports that the definition has ten readings.
+
+Measured [Exact]. The promotion ladder appeared in four places:
+- §1.1 `@INFOMARK` — chain keyed by promotion trigger (formal)
+- §1.3 `@SOURCE_ROUTING.ladder` — rows keyed by source class (formal, pinned by
+  `_validate_source_routing` against EXPECTED_EVIDENCE_STATUSES)
+- `@INFORMATION_STATUS` — the §1.3 rows again as sentences, down to the verbatim
+  parenthetical "(git, codegraph, universalsearch source code)"
+- `@EVIDENCE_ORDER` — two of the rows again, plus its own two rules
+
+§1.1 is a strict subset of §1.3. The two prose rules contributed roughly five unique claims
+between them and restated the rest.
+
+Why no guard caught it [Exact]: pairwise similarity over all 64 rules peaks at **0.504**
+(`PLAN_CONTRACT_ENFORCEMENT` × `PLAN_BINDING_ENFORCEMENT`, genuinely distinct) against a
+0.58 threshold, and `EVIDENCE_ORDER` × `INFORMATION_STATUS` is not even in the top twelve
+despite being a near-restatement. The duplication is *semantic*, not lexical — jaccard and
+sequence matching see paraphrase as new text. Extending `dedup` to rule×rule pairs would
+have caught nothing; that avenue is closed, and the reason is the point: a relation written
+once as a relation cannot be silently restated, while a prose definition can be paraphrased
+five ways invisibly.
+
+Why this was not "repetition as emphasis": emphasis needs identity. Three differently-worded
+statements of one rule read as three *related but distinct* constraints — and the kernel's own
+`reference_grammar` pushes exactly that reading, since a distinct at-prefixed identifier
+denotes a distinct declared object. Two names over one rule manufactures the ambiguity the
+Gemini case describes.
+
+Change: `@EVIDENCE_ORDER` → "No rung of @INFOMARK may be skipped, and repetition is not
+promotion." `@INFORMATION_STATUS` now opens "What @SOURCE_ROUTING assigns, this rule reads:"
+and keeps only what the ladder cannot state — the fence, the medoid tightening, the
+Inferred≠Exact prohibition. §1.1 and §1.3 both stay: they are two keys into one function
+(promotion trigger vs source class), and the no-skipping rule is meaningless without §1.1's
+chain.
+
+Oracles: validator clean, ngrams clean, **78 passed**. Product 30 437 / 32 000 bytes,
+3 765 / 3 950 tokens (−183 B); Claude 30 716 / 32 000, 3 812 / 3 950. Caps untouched.
+Installed both — product sha256
+`c1f5a203c74a5441fe8b7baefc2788a8f38bbf4a18c625c254df0c4b2d7b827a` (baseline repinned),
+Claude `a815065c29d58fde6e3bfdaef42a2e732c23f8354683c58623eb700e26a36859`.
+
+Caveat recorded honestly: these oracles decide *form*. Whether evidence discipline stays as
+strong is a behavioural claim over long runs, and no instrument here can settle it — the same
+SELF_MODIFY gap noted 2026-09-12. Landed on the owner's judgment, revertible in one commit.
+
 ## 2026-09-12 KERNEL+TOOL — revision contract for persisted criteria
 
 Reason: `INTENTION_RESET` gave the model a place to persist criteria after diagnosing its

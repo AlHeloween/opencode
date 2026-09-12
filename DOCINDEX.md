@@ -54,6 +54,7 @@ class DocIndex:
         DocRecord("docs/summary-exact-handles.md", "Local_Development", "Layer-1 summary Exact enrichment: checkpoint-M cache prefix, Constitution tool denial, file diffs and CodeGraph impact", last_verified="2026-09-06"),
         DocRecord("docs/run-lifecycle-semantics.md", "Local_Development", "Run lifecycle: internal join plus realtime user-turn supersede, bounded cancel with force-fail, project identity on session.updated, verified abort chain + no-data wedge note", last_verified="2026-09-10"),
         DocRecord("prompt_kernel/README.md", "Local_Development", "Kernel package: graph, serialization, OpenCode/Claude/Codex variant rendering", last_verified="2026-09-12"),
+        DocRecord("docs/kernel-amendment.md", "Local_Development", "SELF_MODIFY depths, constitution core, amendment procedure and rollback point", last_verified="2026-09-13"),
         DocRecord("docs/kernel-assembly-point.md", "Local_Development", "Where the production prompt is assembled: prompt_kernel/source.py -> reasoning_prompt.txt"),
         DocRecord("docs/two-canon-protocol.md", "Local_Development", "Why ADID 15.3 and the reasoning kernel co-govern: one protocol, two compilers", last_verified="2026-09-06"),
         DocRecord("docs/agentic-reasoning-runtime.md", "Local_Development", "Runtime side of the kernel: gates, REUSE ladder, claim ledger", last_verified="2026-07-31"),

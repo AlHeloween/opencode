@@ -462,6 +462,7 @@ All detailed docs live in `docs/`. Here's the quick map:
 - [Architecture](docs/architecture.md) — prompt system, checkpoint, compaction, agents, KV cache
 - [Kernel package](prompt_kernel/README.md) — gate graph, serialization order, source of the runtime prefix
 - [Two-canon protocol](docs/two-canon-protocol.md) — ADID 15.3 (untracked, package-rendered) ↔ kernel parity: one protocol, two compilers; why both exist
+- [Kernel amendment](docs/kernel-amendment.md) — SELF_MODIFY depths, constitution core, the build procedure that replaces hand editing
 - [Gate add-ons](docs/gate-addons.md) — advisory path bindings per kernel gate, addon registry, budget guardrails
 - [Agentic reasoning runtime](docs/agentic-reasoning-runtime.md) — gates, REUSE ladder, claim ledger
 - [AGI Workflow](docs/agi-workflow.md) — orchestrator/worker loop, plan hygiene

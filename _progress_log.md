@@ -1,5 +1,28 @@
 # Progress Log
 
+## 2026-09-12 FIX — TUI чёрный экран: log rotation stalled the worker before Rpc.listen (plans/2026-09-11_tui-black-screen-flock-startup.md)
+
+Reason: user reported "TUI не стартует, чёрный экран — совсем пусто, без вывода", reproducible as «если есть логи то висит» and «запускаем, работаем, выходим, запускаем снова — висим».
+
+Root cause [Exact, A/B]: `Log.init()` runs in the TUI worker BEFORE `Rpc.listen()` (`worker.ts:17` vs `:86`) and awaited `cleanup(Global.Path.log)`. When the log directory held more than `keep = 100` files (`core/src/util/log.ts:15`), cleanup bulk-unlinked the oldest ones. Unlinking a file that another process still holds open fails on Windows (verified: "being used by another process"), the error is swallowed by `.catch(() => collectBug(...))`, and the worker did not reach `Rpc.listen()` until the loop finished — so the host's first RPC `fetch` timed out and the UI never rendered.
+
+A/B on one binary, one cwd, only file count differing: 87 files → instant boot; 111/127/236 files → black screen (or ~16s); 150 files created in a clean temp dir → stalled, and exactly 100 remained. That is literally the user's «если есть логи, то висит».
+
+Change:
+- `packages/core/src/util/log.ts` — `await cleanup(...)` → `void cleanup(...)`, moving log rotation off the startup critical path. (This edit was already in-tree from a concurrent session; independently verified here via the A/B above.)
+- `tui/context/sync.tsx` — `STARTUP_DEADLINE_MS = 15_000`; on expiry `loading → partial` + `warn("bug: tui bootstrap exceeded startup deadline")`, so a stall renders a visible UI and a log line instead of silent nothing (defence in depth).
+- `tui/context/kv.tsx` — `KV_LOCK_TIMEOUT_MS = 2_000` on read and write; never gate the UI on the lock.
+- `plugin/meta.ts` — `META_LOCK_TIMEOUT_MS = 5_000` on `touchMany`/`setTheme`/`list`; added the missing logger (these paths had no logging at all).
+- `provider/models.ts` — `MODELS_LOCK_TIMEOUT_MS = 10_000` on `Data()`/`refresh()`; timeout → bundled snapshot.
+- `util/rpc.ts` — `call()` accepts an optional `timeoutMs` and can reject; **omitting it preserves the previous unbounded behaviour**. `tui/thread.ts` — `WORKER_CALL_TIMEOUT_MS = 30_000` on the pre-render `fetch`/`server` calls.
+- `test/util/rpc.test.ts` (new) — regression: timeout rejects, normal resolve, no-timeout stays pending, late reply does not raise.
+
+Oracle:
+- A/B, identical ConPTY/cwd/env, 236 log files in the project log dir: WITHOUT the fix → black screen; WITH the fix (10.0.976) → `instance boot completed` → `tui plugins ready { count: 11 }` → UI. Chain in `1789182964690_log_system_internal.jsonl`.
+- `bun typecheck` exit 0; `core/test/util/flock.test.ts` 10 pass / 0 fail; `test/util/rpc.test.ts` 4 pass / 0 fail.
+- Full rebuild `pwsh _build.ps1` → 10.0.976: "Smoke test passed: 10.0.976", "Smoke test passed: reasoning_prompt.txt embedded", "[OK] Build complete - artifacts in dist/".
+- Residual: `bin\opencode.exe` (the copy on PATH) is still 10.0.975; the fix lives in `dist\bin\opencode.exe` 10.0.976 — copy it over to apply. CodeGraph MCP failure (`Cannot find module ...codegraph.js`) was ruled out as a cause: it fails in the working run too, and `OPENCODE_CODEGRAPH_MCP=0` still stalled.
+
 ## 2026-09-10 realtime user-turn replacement
 
 Reason: a second ordinary user message joined the active reasoning fiber and stayed
@@ -1498,3 +1521,19 @@ Oracle: `test/session/recovery.test.ts` creates an isolated source DB and verifi
 - Renders: product **27 285 bytes / 3 332 tokens**, Claude **27 587 / 3 382**.
 - Oracle: `python -m pytest prompt_kernel/tests/ -q` → **78 passed**; product `--install` → `installed=d43223a10d9a3ac88551bf4e841d3cc82996097ad327b2e688e617934d83a1c8`; `--claude --install` → `5c3421cdec14c69d223868d76f49c57d4d5235b4bd828446cf051c1bd27afdcf`; `baseline.json` repinned; suite re-run green; installed §0 head read back from disk to confirm the heading still precedes the premise.
 - [KV-CACHE] Fourth prefix change today, all deliberate. New sessions only; checkpointed sessions keep the old prefix until compact. Binary rebuild still pending (`pwsh _build.ps1`).
+
+## [2026-09-12T01:20:00+08:00] routing: sort, fp8 default, inherited pins, and staged Save
+
+- Grounding: the active executable-adjacent `bin/opencode.jsonc` contained provider-wide `only: ["Modal"]`; a raw-wire title-agent request inherited it and failed 404 because Modal was unavailable for the Anthropic model. The dialog only displayed `order`, so the pin was invisible.
+- Routing task: added `dialog-routing-state.ts` with tested `only`/`order` extraction, native `price`/`throughput`/`latency` sort validation, model-aware fp8 defaulting, and controlled reconstruction that preserves unrelated OpenRouter keys. `dialog-routing.tsx` now shows effective provider/model/agent routing, makes dynamic sort mutually exclusive with provider selection, and treats its Save row as the sole write action.
+- Save task: global `/agents` model selection now stages the pending model and variant in `DialogVariant`; `Save model and variant` commits both via one `setGlobalAgentSelection` call. Direct global variant edits also stage until Save. Variant labels now use the target agent's model instead of the active prompt model.
+- Runtime config task: replaced the provider-wide Modal-only/fp8 pin in `bin/opencode.jsonc` with `{ sort: "price", allow_fallbacks: true }`; read-back returned exactly that routing object. The global fp8 constraint was deliberately removed because not every OpenRouter model advertises fp8.
+- Oracle: baseline 20/20; post-change focused suite 25/25; `bun typecheck` exit 0; `_build.ps1` completed and binary smoke reported 10.0.971. cmd_runner TUI render showed Price/Throughput/Latency, `[x] fp8 (14 endpoints)`, `Save to GLOBAL config`, and staged `Save model and variant`.
+- Separate diagnosis, not modified: root `config.json` entry `D:\bin` is `/bin` passed through Windows `path.resolve` on drive D by `/permissions`; the loader then derives the duplicate `D:\bin\*` permission rule. This is a bounded navigation portability bug outside the authorized routing mutation.
+
+## [2026-09-12T06:25:00+08:00] /agents: active global model save synchronizes the next prompt
+
+- Reason: `/agents` displayed a newly saved global `plan_mode` DeepSeek model while the prompt status still showed an older GLM/Novita selection. The local effective-model order is session → worktree → global, but `setGlobalAgentSelection()` wrote only global config, leaving the older higher-priority override active.
+- Change: an explicit global Save for the active agent now writes the selected model and variant into that open session, preserving its routing and subagent controls. Saves for another agent do not change the active prompt; requests already in progress remain pinned to their recorded model.
+- Oracle: baseline 27 pass / 0 fail (`20260911T222134Z_ea066d0a`); post-change 29 pass / 0 fail (`20260911T222408Z_7b1f57e2`) including session-over-worktree resolution and session write/read-back; `bun typecheck` exit 0 (`20260911T222415Z_0a1f4f94`).
+- Build: `_build.ps1` passed and produced `10.0.973` (`20260911T222530Z_cc726959`). `bin/opencode.exe` is currently running (PID 20148), so Windows rejected the non-disruptive copy of the new binary; source and `dist/bin/opencode.exe` are ready, while executable-adjacent promotion waits for that process to exit.

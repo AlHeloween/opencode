@@ -42,6 +42,27 @@ Escape hatches:
 - `OPENCODE_PURE=1` — skip **external** `plugin_origins` (internal auth plugins still load)
 - `OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER` — skip file watcher native bind
 
+### TUI startup deadline (black-screen guard)
+
+The TUI wraps every provider in `SyncProvider`/`KVProvider`, and both gate
+rendering on `ready` (`context/helper.tsx` renders children only when
+`init.ready === true`). Because `App` — and therefore `StartupLoading`
+("Loading plugins...") — sits *inside* those gates, a bootstrap that never
+answers renders **nothing at all**, with no spinner and no log line.
+
+Bounds added 2026-09-12 (fix for the black-screen report):
+
+| Guard | Value | Behaviour on expiry |
+|-------|-------|---------------------|
+| `STARTUP_DEADLINE_MS` (`tui/context/sync.tsx`) | 15 s | `status: loading → partial`; gate opens, UI renders degraded, `warn("bug: tui bootstrap exceeded startup deadline")` |
+| `KV_LOCK_TIMEOUT_MS` (`tui/context/kv.tsx`) | 2 s | warn + fall back to default KV (never gate the UI on the lock) |
+| `META_LOCK_TIMEOUT_MS` (`plugin/meta.ts`) | 5 s | warn + continue without metadata bookkeeping |
+| `MODELS_LOCK_TIMEOUT_MS` (`provider/models.ts`) | 10 s | warn + serve the bundled models snapshot |
+| `WORKER_CALL_TIMEOUT_MS` (`tui/thread.ts` + `util/rpc.ts`) | 30 s | RPC `call()` rejects instead of hanging forever (opt-in; default stays unbounded) |
+
+A TUI that shows nothing is a defect, not a slow start: after these bounds it
+either renders or reports the stall in `--print-logs`.
+
 ---
 
 ## Instance bootstrap block
@@ -233,7 +254,9 @@ TUI: `bash` / `cmd` / `run` share a **ShellTool** renderer (streaming `metadata.
 | `packages/opencode/src/snapshot/fossil.ts` | Fossil snapshot backend |
 | `packages/opencode/src/project/vcs.ts` | Project git VCS |
 | `packages/opencode/src/shell/shell.ts` | `permissionKey` for shell tools |
-| `packages/opencode/src/cli/cmd/tui/context/sync.tsx` | TUI `bootstrap()` + `ready` / `OPENCODE_FAST_BOOT` |
+| `packages/opencode/src/cli/cmd/tui/context/sync.tsx` | TUI `bootstrap()` + `ready` / `OPENCODE_FAST_BOOT` / `STARTUP_DEADLINE_MS` (black-screen guard) |
+| `packages/opencode/src/cli/cmd/tui/context/kv.tsx` | KV state; `KV_LOCK_TIMEOUT_MS` — never gates the UI |
+| `packages/opencode/src/util/rpc.ts` | Worker RPC client; optional per-call `timeoutMs` |
 
 ---
 

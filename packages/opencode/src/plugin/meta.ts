@@ -3,10 +3,13 @@ import { fileURLToPath } from "url"
 
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { Global } from "@opencode-ai/core/global"
+import * as Log from "@opencode-ai/core/util/log"
 import { Filesystem } from "@/util/filesystem"
 import { Flock } from "@opencode-ai/core/util/flock"
 
 import { parsePluginSpecifier, pluginSource } from "./shared"
+
+const log = Log.create({ service: "plugin.meta" })
 
 type Source = "file" | "npm"
 
@@ -52,6 +55,14 @@ function storePath() {
 function lock(file: string) {
   return `plugin-meta:${file}`
 }
+
+/**
+ * Plugin metadata is bookkeeping (first/last load, themes) and is touched on the
+ * bootstrap path. A contended lock must never hold a TUI start hostage for the
+ * 5-minute flock default (2026-09-11 black screen / "5m no-log gap" class, same
+ * fix as the theme lock in tui/plugin/runtime.ts). Bounded: give up and continue.
+ */
+const META_LOCK_TIMEOUT_MS = 5_000
 
 function fileTarget(spec: string, target: string) {
   if (spec.startsWith("file://")) return fileURLToPath(spec)
@@ -144,17 +155,24 @@ export async function touchMany(items: Touch[]): Promise<Array<{ state: State; e
   const file = storePath()
   const rows = await Promise.all(items.map((item) => row(item)))
 
-  return Flock.withLock(lock(file), async () => {
-    const store = await read(file)
-    const now = Date.now()
-    const out: Array<{ state: State; entry: Entry }> = []
-    for (const item of rows) {
-      const hit = next(store[item.id], item.core, now)
-      store[item.id] = hit.entry
-      out.push(hit)
-    }
-    await Filesystem.writeJson(file, store)
-    return out
+  return Flock.withLock(
+    lock(file),
+    async () => {
+      const store = await read(file)
+      const now = Date.now()
+      const out: Array<{ state: State; entry: Entry }> = []
+      for (const item of rows) {
+        const hit = next(store[item.id], item.core, now)
+        store[item.id] = hit.entry
+        out.push(hit)
+      }
+      await Filesystem.writeJson(file, store)
+      return out
+    },
+    { timeoutMs: META_LOCK_TIMEOUT_MS },
+  ).catch((error) => {
+    log.warn("bug: timed out tracking plugin metadata", { file, error: String(error) })
+    return rows.map((item) => ({ state: "same" as State, entry: { ...item.core } as Entry }))
   })
 }
 
@@ -168,21 +186,30 @@ export async function touch(spec: string, target: string, id: string): Promise<{
 
 export async function setTheme(id: string, name: string, theme: Theme): Promise<void> {
   const file = storePath()
-  await Flock.withLock(lock(file), async () => {
-    const store = await read(file)
-    const entry = store[id]
-    if (!entry) return
-    entry.themes = {
-      ...entry.themes,
-      [name]: theme,
-    }
-    await Filesystem.writeJson(file, store)
+  await Flock.withLock(
+    lock(file),
+    async () => {
+      const store = await read(file)
+      const entry = store[id]
+      if (!entry) return
+      entry.themes = {
+        ...entry.themes,
+        [name]: theme,
+      }
+      await Filesystem.writeJson(file, store)
+    },
+    { timeoutMs: META_LOCK_TIMEOUT_MS },
+  ).catch((error) => {
+    log.warn("bug: timed out persisting plugin theme", { file, id, theme: name, error: String(error) })
   })
 }
 
 export async function list(): Promise<Store> {
   const file = storePath()
-  return Flock.withLock(lock(file), async () => read(file))
+  return Flock.withLock(lock(file), async () => read(file), { timeoutMs: META_LOCK_TIMEOUT_MS }).catch((error) => {
+    log.warn("bug: timed out reading plugin metadata", { file, error: String(error) })
+    return {} as Store
+  })
 }
 
 export * as PluginMeta from "./meta"

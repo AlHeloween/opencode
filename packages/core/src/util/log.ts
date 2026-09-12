@@ -210,7 +210,6 @@ function canDedup(level: Level, message: string): boolean {
 export async function init(options: Options = {}) {
   printLogs = options.print ?? false
   minLevel = options.logLevel ?? "INFO"
-  await cleanup(Global.Path.log)
   mkdirSync(Global.Path.log, { recursive: true })
   // Close any previous streams
   closeAllStreams()
@@ -218,6 +217,12 @@ export async function init(options: Options = {}) {
   if (dedupTimer) clearInterval(dedupTimer)
   dedupTimer = setInterval(flushDedup, DEDUP_WINDOW_MS)
   dedupTimer.unref?.()
+  // Log rotation is housekeeping and must NEVER sit on the startup critical path.
+  // `init()` runs in the TUI worker BEFORE `Rpc.listen()`, so awaiting a bulk
+  // unlink here kept the worker from serving RPC — the host's first `fetch` then
+  // timed out and the TUI showed nothing (2026-09-12 black screen: a project log
+  // dir above `keep` files stalled boot). Run it in the background instead.
+  void cleanup(Global.Path.log)
 }
 
 export async function reopen() {

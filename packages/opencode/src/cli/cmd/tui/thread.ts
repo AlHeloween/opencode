@@ -33,16 +33,26 @@ declare global {
 
 type RpcClient = ReturnType<typeof Rpc.client<typeof rpc>>
 
+// A worker that never replies used to hang the host forever: `Rpc.client.call`
+// had no timeout, and the pre-render calls below (worker `server`, worker `fetch`)
+// sit before `render()`. The result was a blank terminal with no message at all
+// (2026-09-11 black screen). Bound them so the failure surfaces as an error.
+const WORKER_CALL_TIMEOUT_MS = 30_000
+
 function createWorkerFetch(client: RpcClient): typeof fetch {
   const fn = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const request = new Request(input, init)
     const body = request.body ? await request.text() : undefined
-    const result = await client.call("fetch", {
-      url: request.url,
-      method: request.method,
-      headers: Object.fromEntries(request.headers.entries()),
-      body,
-    })
+    const result = await client.call(
+      "fetch",
+      {
+        url: request.url,
+        method: request.method,
+        headers: Object.fromEntries(request.headers.entries()),
+        body,
+      },
+      { timeoutMs: WORKER_CALL_TIMEOUT_MS },
+    )
     return new Response(result.body, {
       status: result.status,
       headers: result.headers,
@@ -208,7 +218,7 @@ export const TuiThreadCommand = cmd({
 
       const transport = external
         ? {
-            url: (await client.call("server", network)).url,
+            url: (await client.call("server", network, { timeoutMs: WORKER_CALL_TIMEOUT_MS })).url,
             fetch: undefined,
             events: undefined,
           }

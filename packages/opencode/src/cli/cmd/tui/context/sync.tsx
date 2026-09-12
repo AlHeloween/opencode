@@ -36,9 +36,17 @@ import { createSimpleContext } from "./helper"
 import type { Snapshot } from "@/snapshot"
 import { useExit } from "./exit"
 import { useArgs } from "./args"
-import { batch, onMount } from "solid-js"
+import { batch, onCleanup, onMount } from "solid-js"
 import * as Log from "@opencode-ai/core/util/log"
 import { emptyConsoleState, type ConsoleState } from "@/config/console-state"
+
+/**
+ * Upper bound for the first bootstrap round-trip before the UI stops waiting and
+ * renders degraded. Bounds the black-screen defect (2026-09-11): a stalled
+ * worker/server used to leave the whole tree unrendered, with no spinner and no
+ * log line, until the 5-minute flock default expired.
+ */
+const STARTUP_DEADLINE_MS = 15_000
 
 export const { use: useSync, provider: SyncProvider } = createSimpleContext({
   name: "Sync",
@@ -928,7 +936,23 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         })
     }
 
+    // Bootstrap must never gate the entire UI indefinitely. `ready` below is
+    // `status !== "loading"`, and this provider wraps every other provider, so a
+    // stalled first request renders NOTHING — not even the "Loading plugins..."
+    // spinner, because that lives inside App, which this gate blocks. That is the
+    // 2026-09-11 black-screen defect: an unresponsive worker/server left a blank
+    // screen with no diagnostics and no recovery. Bound the gate; the UI then
+    // renders degraded state and the stall is logged instead of hidden.
     onMount(() => {
+      const deadline = setTimeout(() => {
+        if (store.status !== "loading") return
+        Log.Default.warn("bug: tui bootstrap exceeded startup deadline", {
+          deadlineMs: STARTUP_DEADLINE_MS,
+        })
+        setStore("status", "partial")
+      }, STARTUP_DEADLINE_MS)
+      deadline.unref?.()
+      onCleanup(() => clearTimeout(deadline))
       void bootstrap()
     })
 

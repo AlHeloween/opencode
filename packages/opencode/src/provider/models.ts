@@ -123,6 +123,13 @@ function skip(force: boolean) {
   return !force && fresh()
 }
 
+/**
+ * Models registry is startup-path state. A contended lock must never stall the
+ * TUI for the 5-minute flock default (2026-09-11 black-screen class); on timeout
+ * the bundled snapshot still serves.
+ */
+const MODELS_LOCK_TIMEOUT_MS = 10_000
+
 const fetchApi = async () => {
   const result = await fetch(`${url()}/api.json`, {
     headers: { "User-Agent": Installation.USER_AGENT },
@@ -157,17 +164,29 @@ export const Data = lazy(async () => {
   if (cached) return overlay(cached as Record<string, unknown>)
   if (snapshot) return overlay({ ...snapshot })
   if (Flag.OPENCODE_DISABLE_MODELS_FETCH) return {}
-  return Flock.withLock(`models-dev:${filepath}`, async () => {
-    const result = await Filesystem.readJson(filepath).catch((e) => {
-      log.warn("bug: failed to read models json from cache", { error: e instanceof Error ? e.message : String(e) })
-    })
-    const result2 = await fetchApi()
-    if (result2.ok) {
-      await Filesystem.write(filepath, result2.text).catch((e) => {
-        log.error("Failed to write models cache", { error: e })
+  // Bounded: this runs on the provider/startup path. An orphaned models-dev lock
+  // must not stall a TUI start for the 5-minute flock default (2026-09-11
+  // black-screen class). On timeout, fall through to the bundled snapshot.
+  return Flock.withLock(
+    `models-dev:${filepath}`,
+    async () => {
+      const result = await Filesystem.readJson(filepath).catch((e) => {
+        log.warn("bug: failed to read models json from cache", { error: e instanceof Error ? e.message : String(e) })
       })
-    }
-    return overlay(JSON.parse(result2.text) as Record<string, unknown>)
+      const result2 = await fetchApi()
+      if (result2.ok) {
+        await Filesystem.write(filepath, result2.text).catch((e) => {
+          log.error("Failed to write models cache", { error: e })
+        })
+      }
+      return overlay(JSON.parse(result2.text) as Record<string, unknown>)
+    },
+    { timeoutMs: MODELS_LOCK_TIMEOUT_MS },
+  ).catch((e) => {
+    log.warn("bug: models-dev lock unavailable; serving bundled snapshot", {
+      error: e instanceof Error ? e.message : String(e),
+    })
+    return overlay({})
   })
 })
 
@@ -210,13 +229,17 @@ export async function get(providerID?: string) {
 
 export async function refresh(force = false) {
   if (skip(force)) return Data.reset()
-  await Flock.withLock(`models-dev:${filepath}`, async () => {
-    if (skip(force)) return Data.reset()
-    const result = await fetchApi()
-    if (!result.ok) return
-    await Filesystem.write(filepath, result.text)
-    Data.reset()
-  }).catch((e) => {
+  await Flock.withLock(
+    `models-dev:${filepath}`,
+    async () => {
+      if (skip(force)) return Data.reset()
+      const result = await fetchApi()
+      if (!result.ok) return
+      await Filesystem.write(filepath, result.text)
+      Data.reset()
+    },
+    { timeoutMs: MODELS_LOCK_TIMEOUT_MS },
+  ).catch((e) => {
     log.error("Failed to fetch models.dev", {
       error: e,
     })

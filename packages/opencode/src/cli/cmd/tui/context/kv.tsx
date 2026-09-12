@@ -8,6 +8,14 @@ import { createSimpleContext } from "./helper"
 import path from "path"
 import * as Log from "@opencode-ai/core/util/log"
 
+/**
+ * KV is a UI convenience store (theme/last-route/toggles). It must never gate
+ * startup: KVProvider wraps the entire TUI tree and `ready` gates rendering, so a
+ * contended or orphaned lock previously held the whole UI blank for the 5-minute
+ * flock default. Bounded so a slow/absent lock degrades to defaults instead.
+ */
+const KV_LOCK_TIMEOUT_MS = 2_000
+
 export const { use: useKV, provider: KVProvider } = createSimpleContext({
   name: "KV",
   init: () => {
@@ -17,7 +25,6 @@ export const { use: useKV, provider: KVProvider } = createSimpleContext({
     const lock = `tui-kv:${filePath}`
     // Queue same-process writes so rapid updates persist in order.
     let write = Promise.resolve()
-
     // Write to a temp file first so kv.json is only replaced once the JSON is complete, avoiding partial writes if shutdown interrupts persistence.
     function writeSnapshot(snapshot: Record<string, any>) {
       const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`
@@ -30,7 +37,11 @@ export const { use: useKV, provider: KVProvider } = createSimpleContext({
     }
 
     // Read under the same lock used for writes because kv.json is shared across processes.
-    Flock.withLock(lock, () => Filesystem.readJson<Record<string, any>>(filePath))
+    // Bounded: KVProvider wraps the whole UI tree and `ready` gates rendering, so an
+    // orphaned/contended lock used to hold the entire TUI on a blank screen for the
+    // 5-minute flock default (2026-09-11 black screen). Cold-start state may miss the
+    // lock and fall back to defaults — never gate the UI on it.
+    Flock.withLock(lock, () => Filesystem.readJson<Record<string, any>>(filePath), { timeoutMs: KV_LOCK_TIMEOUT_MS })
       .then((x) => {
         setStore(x)
       })
@@ -74,7 +85,7 @@ export const { use: useKV, provider: KVProvider } = createSimpleContext({
         setStore(key, value)
         const snapshot = structuredClone(unwrap(store))
         write = write
-          .then(() => Flock.withLock(lock, () => writeSnapshot(snapshot)))
+          .then(() => Flock.withLock(lock, () => writeSnapshot(snapshot), { timeoutMs: KV_LOCK_TIMEOUT_MS }))
           .catch((error) => {
             Log.Default.warn("bug: failed to write KV state", { filePath, error: String(error) })
           })

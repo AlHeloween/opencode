@@ -42,6 +42,25 @@ Escape hatches:
 - `OPENCODE_PURE=1` — skip **external** `plugin_origins` (internal auth plugins still load)
 - `OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER` — skip file watcher native bind
 
+### Log rotation must not gate the worker (black-screen root cause)
+
+`Log.init()` runs in the TUI **worker** before `Rpc.listen()`. It used to
+`await cleanup(Global.Path.log)`, which bulk-unlinks old log files once the flat
+log dir holds more than `keep = 100` entries
+(`packages/core/src/util/log.ts`). While that loop ran, the worker did not serve
+RPC, so the host's first `fetch` timed out and the UI painted nothing at all —
+the "second launch shows a black screen" report, reproduced as: >100 log files →
+hang; <100 → instant.
+
+Two things follow, and both are enforced:
+
+- **Rotation is background housekeeping.** `init()` uses `void cleanup(...)`, so
+  it never sits on the startup critical path. (On Windows, unlinking a file
+  another process still holds open *fails*; `cleanup()` swallows that per-file
+  error, so a large directory could keep the loop busy on every boot.)
+- **Any remaining stall must be visible, not silent.** The bounded guards below
+  convert a hang into a rendered, degraded UI plus a `--print-logs` line.
+
 ### TUI startup deadline (black-screen guard)
 
 The TUI wraps every provider in `SyncProvider`/`KVProvider`, and both gate

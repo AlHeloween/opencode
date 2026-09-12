@@ -1,5 +1,38 @@
 # Progress Log
 
+## 2026-09-12 T4 — DeepSeek variant dialog now shares the engine predicate
+
+Reason: T4 was the last open item of `plans_completed/2026-09-12_deepseek-thinking-h3.md`.
+`dialog-variant.tsx` gated its labels on the **catalog** id (`modelID.includes("deepseek-v4")`)
+while the engine gates on `api.id` via `isDeepSeekThinkingId` — two spellings of one
+family, so `deepseek-flash` (DeepSeek-V4.1-Flash) got the engine's new `off/low/high/max`
+keys but was still titled "Select variant" with no descriptions.
+
+Change:
+- `packages/opencode/src/cli/cmd/tui/component/variant-dialog-state.ts` — new pure module:
+  `variantFamily()` delegates to the engine's `isDeepSeekThinkingId` on `api.id` (GLM by
+  `id`), plus the label maps and the dialog title. Never throws (it runs inside
+  `createMemo` during render); a malformed model degrades to no labels.
+- `packages/opencode/src/cli/cmd/tui/component/dialog-variant.tsx` — the local
+  `deepseek-v4` memo and the two duplicated label maps are gone; family/labels/title come
+  from the shared gate.
+- `packages/opencode/test/tui/variant-dialog-state.test.ts` — new: real catalog ids, the
+  `deepseek-flash` regression, retired aliases, GLM case-insensitivity, unknown-key
+  fallthrough, malformed-model render safety.
+
+Oracle [Exact]:
+- `bun test test/tui/` → **42 pass / 0 fail** (run `20260912T181537Z_bec43e5c`; baseline recorded
+  before the edit: 36 pass / 0 fail, `20260912T181249Z_2eb4970d`).
+- `bun test test/provider/transform.test.ts` → **167 pass / 0 fail** (`20260912T181537Z_e8da4cef`).
+- `bun run typecheck` → exit 0, empty stderr (`20260912T181542Z_0e8207e6`).
+- Artifact read-back: no `deepseek-v4` / `isDeepSeekV4` / `modelID.includes` left in
+  `dialog-variant.tsx`.
+- Focused `variant-dialog-state.test.ts` → 6 pass / 0 fail (`20260912T181526Z_712f427c`).
+
+Residual: the live TUI render proof (open the dialog on `deepseek-flash`, see
+"Select thinking mode" + Off/Low/High/Max) was **not** run — the engine keys are proven
+and the gate is unit-tested, but the rendered dialog is unverified.
+
 ## 2026-09-13 KERNEL — governance arc: detector, delegation, testimony, P5, amendment ruling
 
 Five commits, one thread: every defect of the day's largest class had the same shape —
@@ -1952,3 +1985,26 @@ Oracle: `test/session/recovery.test.ts` creates an isolated source DB and verifi
 - Core correction: `CATALOG_INVARIANT`, `REASONING_MODE`, and rendered identity authority text no longer name OpenCode-only `getmode`; the product add-on retains that concrete tool instruction. Existing OpenCode and Claude outputs were regenerated and the production baseline repinned.
 - Oracle: focused Codex tests 7/7; full `python -m pytest prompt_kernel/tests/ -q` 85/85. Rendered product digest `35aff039df0b686d3a0d5d8e53e32bbaf6582da78382aa96919cf83689d58a44`, Claude digest `311aed4819c092bb8f01b9b460f2d26f9b99e62e2700877eb498f4ebd88eccad`, Codex artifact digest `d2b72b19b5bbe603bc762a68a3c481ec18f45cf4765172c3640995741194e71d`.
 - [KV-CACHE] The shared core wording changes the OpenCode and Claude prefixes. New sessions receive it; checkpointed sessions retain their prior prefix until compaction. No executable rebuild was run.
+
+## [2026-09-13T01:36:36+08:00] kernel: activate compiled Codex tool-host rule
+
+- Reason: Alexander authorized the compiled Codex kernel for future use.
+- Change: installed `prompt_kernel/dist_codex/2026-09-12_21-35-19_reasoning_prompt.mdc` as `.codex/rules/reasoning-kernel.mdc`, the repository-local `alwaysApply: true` Codex rule surface.
+- Oracle: the installed file has the candidate's 512 logical lines and header; `diff --strip-trailing-cr` reports no content difference. The installed Windows rule uses CRLF, so its byte digest differs from the LF build artifact by exactly one byte per line; this is a serialization difference, not a content difference.
+
+## [2026-09-13T01:42:59+08:00] kernel: route compiled rule through OpenCode receiver
+
+- Reason: `_run.cmd` reproduced the local startup symptom. The original `.codex/rules/` receiver is not part of OpenCode's rule discovery; its loader scans only `<worktree>/.opencode/rules/**/*.mdc|.md`.
+- Change: installed the compiled Codex artifact at `.opencode/rules/reasoning-kernel.mdc` with the original LF byte stream. The prior `.codex/rules/` copy remains relevant only to Codex-compatible hosts.
+- Oracle: the OpenCode receiver is byte-identical to `prompt_kernel/dist_codex/2026-09-12_21-35-19_reasoning_prompt.mdc` (30,913 bytes; LF; header read back). `_run.cmd` itself reaches instance boot, but ends after `/provider` returns HTTP 400 because `sarvam-105b.reasoning_options[0].values[0]` is `null`, where the provider schema requires a string. Its terminal `{}` is TUI output, not a rule-loader report; the boot log has no instruction-discovery event.
+
+## [2026-09-13T01:42:59+08:00] kernel: correct OpenCode prompt routing
+
+- Correction: the `.opencode/rules/` copy above was removed immediately. That directory contributes supplemental instructions; it must not contain the primary reasoning kernel.
+- Canonical route: OpenCode's primary prompt is compiled by `prompt_kernel` and promoted through the product build/install path. The Codex artifact remains in its Codex-local receiver only; it does not substitute OpenCode's primary prompt.
+
+## [2026-09-13T01:52:38+08:00] provider: reject malformed reasoning option metadata
+
+- Reason: OpenCode terminated during `/provider` serialization because the cached and bundled Sarvam registry entry declared `reasoning_options.values: [null, "low", "medium", "high"]`, while the public response schema requires strings.
+- Change: the ModelsDev-to-Provider boundary now omits an entire reasoning option when any declared value is not a string. It preserves `capabilities.reasoning`, but does not reinterpret `null` as an off-state or advertise undocumented effort values. Sarvam's primary documentation confirms the model is a reasoning model, but documents no effort control.
+- Oracle: focused regression `bun test test/provider/provider.test.ts --test-name-pattern "drops malformed registry reasoning options"` passed 1/1 (`cmd_runner` `20260912T175206Z_bde479f7`). `_run.cmd` remained running beyond its former 11-second failure window (`20260912T175223Z_134eb229`); its new log reports provider initialization completed and TUI plugins ready, with no `/provider` HTTP 400. The full provider test file had 78 pass / 1 unrelated timeout in `model inherits properties from existing database model`.

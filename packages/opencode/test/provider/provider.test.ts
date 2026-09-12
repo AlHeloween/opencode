@@ -2051,6 +2051,27 @@ test("models.dev normalization fills required response fields", () => {
   expect(model.release_date).toBe("")
 })
 
+test("drops malformed registry reasoning options without changing reasoning capability", () => {
+  const provider = {
+    id: "sarvam",
+    name: "Sarvam AI",
+    env: [],
+    models: {
+      "sarvam-105b": {
+        id: "sarvam-105b",
+        name: "Sarvam-105B",
+        reasoning: true,
+        reasoning_options: [{ type: "effort", values: [null, "low", "medium", "high"] }],
+        limit: { context: 131_072, output: 131_072 },
+      },
+    },
+  } as unknown as ModelsDev.Provider
+
+  const model = Provider.fromModelsDevProvider(provider).models["sarvam-105b"]
+  expect(model.capabilities.reasoning).toBe(true)
+  expect(model.reasoning_options).toBeUndefined()
+})
+
 test("model variants are generated for reasoning models", async () => {
   await using tmp = await tmpdir({
     init: async (dir) => {

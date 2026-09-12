@@ -1031,6 +1031,19 @@ function cost(c: ModelsDev.Model["cost"]): Model["cost"] {
   return result
 }
 
+function reasoningOptions(options: ModelsDev.Model["reasoning_options"]): Model["reasoning_options"] {
+  const normalized = options?.flatMap((option) => {
+    if (option.values?.some((value) => typeof value !== "string")) return []
+    return [
+      {
+        type: option.type,
+        ...(option.values ? { values: [...option.values] } : {}),
+      },
+    ]
+  })
+  return normalized?.length ? normalized : undefined
+}
+
 function fromModelsDevModel(provider: ModelsDev.Provider, model: ModelsDev.Model): Model {
   const base: Model = {
     id: ModelID.make(model.id),
@@ -1079,10 +1092,7 @@ function fromModelsDevModel(provider: ModelsDev.Provider, model: ModelsDev.Model
       interleaved: model.interleaved ?? false,
     },
     release_date: model.release_date ?? "",
-    reasoning_options: model.reasoning_options?.map((option) => ({
-      type: option.type,
-      ...(option.values ? { values: [...option.values] } : {}),
-    })),
+    reasoning_options: reasoningOptions(model.reasoning_options),
     variants: {},
   }
 

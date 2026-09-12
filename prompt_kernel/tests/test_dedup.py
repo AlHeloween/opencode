@@ -76,4 +76,9 @@ def test_compacted_runtime_budget() -> None:
     # 30к — нужны дополнения по мере использования". So growth is expected and
     # deliberate, not drift: the prefix is paid per request, and each raise
     # names what it admits. Do not shrink these caps to reclaim margin.
-    assert normalized_token_count(text) <= 3_450
+    # 3_700 / utf8_budget 30_000 (2026-09-12, Alexander: "кап на 30к — норм"):
+    # admits the kernel-review patch set — ORACLE_STAMP result typing (K-3),
+    # G0/G1 terminals (K-2), typed SOURCE_STAMP (P12) and @LOOP_PROGRESS with
+    # the LOOP_MEASURE tuple (P6). Raises stay owner decisions and each names
+    # what it admits; agents trim or report overflow instead.
+    assert normalized_token_count(text) <= 3_700

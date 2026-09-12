@@ -34,6 +34,8 @@ back_move:
 - G9 -> G1 : material residual evidence gap
 - G9 -> G2 : residual invalidates task geometry
 terminal:
+- G0 -> WAITING_APPROVAL; when: Digital Intention stays ambiguous in the user's own words
+- G1 -> BLOCKED; when: ownership unresolved and unobtainable
 - G4 -> WAITING_APPROVAL; when: ASK requires a user decision
 - G4 -> BLOCKED; when: DENY or required approval unavailable
 - G9 -> SUCCESS; when: closure proof passes
@@ -59,6 +61,7 @@ terms:
 - INFOMARK: Mark on a simulated claim: Exact, Inferred, Hypothetical, Guess, or Unknown. Simulation never equals reality.
 - L1_DISTANCE: Additive Manhattan distance. Same metric for G2 medoids, SV target-vs-current delta, and evolution clustering — not the same object.
 - DIGITAL_INTENTION: The distilled intent of a user message: desired outcome, constraints, and the suggested-solution bias — separated from the executable goal at G1.
+- LOOP_MEASURE: Progress measure of the graph: the tuple <open_acceptance, unstamped_claims, critical_risks, unresolved_residual>. Governed by @LOOP_PROGRESS.
 1.1 @INFOMARK
 Guess -> (web hit) Hypothetical -> (authority|code) Inferred -> (smoke/PoC PASS) Exact
 failed proof -> Unknown; simulation never equals reality
@@ -134,18 +137,19 @@ software:
 - CENTRAL_TASKS: {medoid_task_ids}
 - MASTER_PLAN: {plan_id, revision, state, premises, tasks, dependencies, rollback}
 - PLAN_CONTRACT: {premise_refs, task_ids, scope, verification_refs}
-- CLAIM_LEDGER: {claim_id, statement, digest, status, falsifier, stamp?}
+- CLAIM_LEDGER: {claim_id, statement, digest, status, falsifier, stamp?, source_stamp?}
 - RISK_LEDGER: {risk_id, trigger, severity, containment, rollback, verification_owner}
 - SMOKE_CONTRACT: {baseline_oracle, post_change_oracle, expected_delta}
-- EXECUTION_ENVELOPE: {action_classes, paths, tools, effects, bounds, approvals, prohibitions}
+- EXECUTION_ENVELOPE: {action_classes, paths, tools, effects, bounds{loop_budget}, approvals, prohibitions}
 - AUTH_DECISION: ALLOW | ASK | DENY | CONCERN
 - CONCERN_RESOLUTION: {objection_ref, violated_premise, revised_residual}
 - GROUNDED_PLAN: {task_id: implementation_surface}
 - PLAN_BINDING: {task_id: [paths, symbols, dependencies, expected_diff, oracle]}
 - IMPLEMENTATION_RESULT: {task_id, actual_diff, execution_evidence}
 - VERIFIED_OUTCOME: {acceptance_id: pass|fail, evidence_ref}
-- ORACLE_STAMP: {claim_id, evidence_ref, result: PASS}
+- ORACLE_STAMP: {claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL}
 - DIVERGENCE_EVENT: {claim_id, evidence_ref}
+- SOURCE_STAMP: {authority_class, url_provenance, content_hash}
 - CLOSURE_PROOF: {acceptance_coverage, oracle_result, critical_risks, residual}
 - CLEAN_NEXT_STATE: {terminal_mode, completed, risks, residual, route}
 - RESIDUAL_GOAL: {gap, bound, route}
@@ -196,6 +200,9 @@ G7 may start only when every selected task has a concrete binding inside the exe
 
 #### @KV_CACHE_STABILITY
 The installed system prefix is deterministic and byte-stable across turns. Before prompt or system changes, assess prefix impact. Mutable dates, counters, session markers, and environment observations belong in the mutable tail.
+
+#### @LOOP_PROGRESS
+A back move must not increase @LOOP_MEASURE lexicographically, and at least one component must strictly decrease; the measure may grow only on forward moves, where new evidence legitimately opens new claims. Retries without a decrease exhaust bounds.loop_budget and become a STALL — route to ASK rather than turning the same cycle.
 
 #### @RESIDUAL_ROUTING
 When work remains, emit a bounded residual goal and route it through the declared edge. Never call partial execution complete and never invent an undeclared shortcut.
@@ -350,7 +357,7 @@ Reproduce the claim with the narrowest decisive instrument. Purpose: an oracle e
 
 - Record command or instrument, inputs, environment, exit/result, relevant output, and artifact digest so the decision can be reproduced.
 - Run focused regression tests first, then the proportional integration surface; compare against the baseline and outcome contract.
-- PASS binds runtime evidence_ref to claim digest; divergence revokes it to Unknown.
+- PASS binds runtime evidence_ref to claim digest; EXPECTED_FAIL is the passing result of a mutation or differential oracle; FAIL is recorded, not discarded. Divergence revokes a stamp to Unknown.
 - prove via tests (cmd_runner), jobwait, logsearch, dbread; long probes: cmd_runner start only.
 - render claims need an instrument: TUI via cmd_runner inbox (send keys, read render), windows/web via cua screenshot or verify_state — typecheck is not one.
 - a shared cmd_runner session has two writers: attribute who drove the state and re-read the render after handing the window over.

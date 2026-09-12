@@ -1,5 +1,17 @@
 # Progress Log
 
+## 2026-09-12 PROBE — DeepSeek thinking-mode controls + h3/h2 transport (plans/2026-09-12_deepseek-thinking-h3.md)
+
+Reason: user asked to compare the DeepSeek thinking-mode guide against our code, clarify "h3", smoke-test, and propose a plan. "h3" in this repo = the HTTP/3 transport (`GatewayProtocol`, novita shipped), not a model.
+
+Live probes [Exact] (`experiments/20260912_deepseek-h3/`, 9 scripts + REPORT.md; cmd_runner runs 20260912T0402–0411):
+- **h3 unavailable on api.deepseek.com**: control `cloudflare-quic.com` http3 → 200 (client proven), deepseek http3 → `HTTP3HandshakeFailed`, no `alt-svc`, `server: elb`. Pinned h2 → 200; but interleaved h1.1-vs-h2 streaming on `deepseek-flash` is within noise (732 vs 726ms median, 6/6 each) → no transport change justified.
+- **The documented tool-turn HTTP 400 is MISATTRIBUTED.** It is caused by a `tool_call` id the server did not issue, not by a missing `reasoning_content`. Proof: real id verbatim → 200; same id with 1 char flipped / truncated / uppercased → 400; synthetic id (even with the real `call_00_` prefix) → 400; `reasoning_content` absent in all of them. The legacy 2026-08-28 dialect probe re-ran and reproduced the 400 — its variant C used a synthetic `call_probe_1`.
+- **Effort off-switch [Exact]**: `thinking:{type:"disabled"}` and `reasoning_effort:"none"` both disable thinking; wire enum is `none,minimal,low,medium,high,xhigh,max` — the documented `ultra` **400s**; the documented Anthropic-format `{"reasoning":{"effort":"none"}}` is **ignored** on `/chat/completions`.
+- **Code gap found**: `deepseek-flash` (V4.1-Flash, 2026-09-10, already in our catalog) lacks the `v4` substring, so `resolveNpm` gives it `@ai-sdk/openai-compatible`, `variants()` returns `low/medium/high` (no `off`, no `max`) and `thinking:{type:"enabled"}` is not injected — while `deepseek-v4-flash` (same backend) gets all of it.
+
+Baseline oracles recorded: `test/provider/transform.test.ts` 164 pass / **1 fail** (stale test still expects the pre-rename `KERNEL_MAP`, commit `84fd876f13`). Plan tasks T1–T7 with smoke contract; no product source edited yet.
+
 ## 2026-09-12 FIX — TUI чёрный экран: log rotation stalled the worker before Rpc.listen (plans_completed/2026-09-12_tui-black-screen-log-rotation.md)
 
 Reason: user reported "TUI не стартует, чёрный экран — совсем пусто, без вывода", reproducible as «если есть логи то висит» and «запускаем, работаем, выходим, запускаем снова — висим».
@@ -1540,3 +1552,27 @@ Oracle: `test/session/recovery.test.ts` creates an isolated source DB and verifi
 - Change: an explicit global Save for the active agent now writes the selected model and variant into that open session, preserving its routing and subagent controls. Saves for another agent do not change the active prompt; requests already in progress remain pinned to their recorded model.
 - Oracle: baseline 27 pass / 0 fail (`20260911T222134Z_ea066d0a`); post-change 29 pass / 0 fail (`20260911T222408Z_7b1f57e2`) including session-over-worktree resolution and session write/read-back; `bun typecheck` exit 0 (`20260911T222415Z_0a1f4f94`).
 - Build: `_build.ps1` passed and produced `10.0.973` (`20260911T222530Z_cc726959`). `bin/opencode.exe` is currently running (PID 20148), so Windows rejected the non-disruptive copy of the new binary; source and `dist/bin/opencode.exe` are ready, while executable-adjacent promotion waits for that process to exit.
+
+## [2026-09-12T06:59:00Z] provider: Anthropic Claude Pro/Max OAuth port
+
+- Reason: Alexander requested Anthropic OAuth in OpenCode to follow the high-quality OMP login flow.
+- Implementation: added `plugin/anthropic.ts` and internal registration. The plugin has OMP's base64 client ID, PKCE S256 (96 random bytes), `claude.ai` browser flow, port-54545 loopback callback with ephemeral-port fallback, five-minute timeout, code/redirect-URL fallback, JSON exchange/refresh, and token-rotation persistence. OAuth requests strip the SDK key, set Bearer auth + Claude-Code headers/betas, inject billing and identity system blocks, patch CCH with `Bun.hash.xxHash64`, retain existing cache markers, and cap output to 64K. API-key login remains an explicit method.
+- Storage/UI/docs: `Auth.Oauth` now preserves optional email/org/authorization fields; `/connect` advertises Claude Pro/Max alongside API keys; provider docs describe both browser and paste-code paths.
+- Oracle: deterministic PKCE/callback/state, refresh, CCH request-shape, auth persistence, and plugin registration tests passed `15 pass, 0 fail` (`cmd_runner` `20260912T070216Z_91d00628`); final `bun typecheck` passed (`20260912T070243Z_6d0d9052`).
+- Residual: baseline live refresh rotated the local OMP credential but the read-only probe did not persist it. The old access then returned 401 and recovery with the old refresh returned 400. Re-login OMP normally before re-running `02_plugin_loader_probe.ts`; live OpenCode loader evidence is Unknown, not PASS.
+
+## [2026-09-12T00:20:00+08:00] kernel: review patch set 1–4 (K-3, K-2, P12, P6); caps 30 000 / 3 700
+
+- Reason: Alexander handed over `kernel_review_handoff.md` (DeepSeek P1–P14 + GPT review + a third pass), then "кап на 30к — норм".
+- Verified the handoff against the live artifact before acting: subject is byte-identical to the installed prompt (481 lines / 27 285 bytes), and every load-bearing claim holds — `BUILD_MODE` holds all gates with `may_mutate: true` while `CODER_AGENT` holds `[G7, G8]` with the same flag (K-1); terminals existed only from G4 and G9 (K-2); `ORACLE_STAMP.result` was the literal `PASS` and `DIVERGENCE_EVENT` had no result field (K-3); `G4 requires [MASTER_PLAN, PLAN_CONTRACT]`, so even READ formally needs a plan (P2); `source_stamp` existed as prose with an untyped `stamp?` carrier (P12); the three cycles close and `bounds` was untyped with no numeric budget anywhere (P6/§4).
+- Landed, in cheapest-first order:
+  - **K-3** `ORACLE_STAMP: {claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL}`; `ORACLE_STAMP_RULE` now says EXPECTED_FAIL is the passing result of a mutation or differential oracle and FAIL is recorded rather than discarded. Without this a killed mutant had nowhere to live and P4 was unimplementable as a typed contract.
+  - **K-2** two terminals: `G0 -> WAITING_APPROVAL` (ambiguous Digital Intention) and `G1 -> BLOCKED` (ownership unresolved and unobtainable). G0_RULES already prescribed asking, and G1_RULES already said unresolved ownership blocks decomposition, but neither had a declared edge — an undeclared exit from a graph whose own `control_flow_rule` forbids exactly that.
+  - **P12** `SOURCE_STAMP: {authority_class, url_provenance, content_hash}` as a state type, carried by `CLAIM_LEDGER.source_stamp?`.
+  - **P6** term `LOOP_MEASURE` (the tuple) + rule `@LOOP_PROGRESS` (the norm), `bounds{loop_budget}` in the envelope. My refinement over the handoff: the measure must **not increase** on a back move and at least one component must strictly decrease — growth is legitimate on forward moves, since new evidence opens new claims, and strict decrease everywhere would punish honest progress.
+- Two defects found in my own patch and fixed before install: `LOOP_MEASURE` was declared as both a term and a rule (the validator rejects one symbol in two namespaces — the kernel's own precedent is term `L1_DISTANCE` + rule `@MANHATTAN_L1`), and the term then referenced itself instead of the rule.
+- Caps raised by owner decision to **30 000 / 3 700**, mirrored into the Claude ceiling, each step commented with what it admits. Render **28 184 bytes / 3 5xx tokens**, 1 816 bytes free.
+- Oracle: `python -m pytest prompt_kernel/tests/ -q` → **78 passed**; product `--install` → `installed=baa15b37ab5e1d8734b45f9df97669221c5030e5311112799f9cfb6b20dbfdf4`; `--claude --install` → `6a37fb430b751d63d1928efd5b8823991e9400043798c0b88a6479862ded5045`; `baseline.json` repinned; terminals, stamp, source stamp and loop rule read back from the installed file.
+- Not landed, deliberately: **K-1 / ORACLE_INDEPENDENCE**. The handoff asks for `stamp_author ≠ mutation_author`, but in this runtime the stamp is runtime-issued — the model selects the instrument and reads the result, it does not author evidence. The real hole is narrower and sits in `SELF_MODIFY` (handoff residual #4): editing the kernel and then running the kernel's own suite as the oracle is self-grading at system blast radius, which is exactly what happened in this session. Needs Alexander's ruling before wording.
+- Answered two handoff residuals: **#1** the external render is `prompt_kernel/README.md` (mermaid) and it lacks **G0** — P10 is closed in text but stale in the diagram; **#5** permanent memory lives at `.opencode/data/memory` (75 MB), owned by `tool/reasoning.ts`, with **no revision contract** anywhere — patches 5 and 7 of the handoff depend on a surface that is currently undescribed.
+- [KV-CACHE] Prefix changed again by design. New sessions only; binary rebuild still pending.

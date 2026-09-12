@@ -66,8 +66,11 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # 27_000 in the same decision, which collapsed the deliberate margin this
     # variant carries for having no fixed slot. Same step (+1 000 / +150)
     # restores the relationship; the product ceiling is unchanged.
-    assert len(text.encode("utf-8")) <= 28_000
-    assert normalized_token_count(text) <= 3_450
+    # 30_000 / 3_700 (2026-09-12, Alexander): mirrors the product raise for the
+    # kernel-review patch set; this variant keeps its own ceiling because it
+    # writes a whole file rather than filling a sized slot.
+    assert len(text.encode("utf-8")) <= 30_000
+    assert normalized_token_count(text) <= 3_700
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

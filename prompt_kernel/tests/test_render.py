@@ -104,7 +104,10 @@ def test_kernel_does_not_restate_entities_under_three_spellings() -> None:
     assert "sets Unknown" in text
     assert "runtime evidence_ref" in text
     assert "claim digest" in text
-    assert "ORACLE_STAMP: {claim_id, evidence_ref, result: PASS}" in text
+    # K-3 (2026-09-12): a negative oracle result had nowhere to live, which made
+    # mutation and differential oracles inexpressible — killed mutant is an
+    # EXPECTED_FAIL, not a divergence.
+    assert "ORACLE_STAMP: {claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL}" in text
     assert "DIVERGENCE_EVENT: {claim_id, evidence_ref}" in text
     assert "acquire medoids" in text
     assert "opens an oracle gap" in text

@@ -21,6 +21,10 @@ export class Oauth extends Schema.Class<Oauth>("OAuth")({
   expires: Schema.Number,
   accountId: Schema.optional(Schema.String),
   enterpriseUrl: Schema.optional(Schema.String),
+  email: Schema.optional(Schema.String),
+  orgId: Schema.optional(Schema.String),
+  orgName: Schema.optional(Schema.String),
+  authorizedAt: Schema.optional(Schema.Number),
 }) {}
 
 export class Api extends Schema.Class<Api>("ApiAuth")({

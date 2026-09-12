@@ -60,6 +60,13 @@ describe("plugin.auth-override", () => {
     expect(copilot.length).toBe(1)
     expect(copilot[0].label).toBe("Test Override Auth")
     expect(plainMethods[ProviderID.make("github-copilot")][0].label).not.toBe("Test Override Auth")
+
+    const anthropic = plainMethods[ProviderID.make("anthropic")]
+    expect(anthropic.map((method) => method.label)).toEqual([
+      "Claude Pro/Max (browser)",
+      "Claude Pro/Max (paste code)",
+      "API key",
+    ])
   }, 30000) // Increased timeout for plugin installation
 })
 

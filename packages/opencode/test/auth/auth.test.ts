@@ -107,6 +107,34 @@ describe("Auth", () => {
     ),
   )
 
+  it.live("persists optional OAuth identity fields", () =>
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const auth = yield* Auth.Service
+        yield* auth.set("anthropic", {
+          type: "oauth",
+          refresh: "refresh-test",
+          access: "access-test",
+          expires: 1_000,
+          accountId: "account-test",
+          email: "user@example.com",
+          orgId: "org-test",
+          orgName: "Test Org",
+          authorizedAt: 500,
+        })
+        const stored = yield* auth.get("anthropic")
+        expect(stored).toMatchObject({
+          type: "oauth",
+          accountId: "account-test",
+          email: "user@example.com",
+          orgId: "org-test",
+          orgName: "Test Org",
+          authorizedAt: 500,
+        })
+      }),
+    ),
+  )
+
   it.live("uses encrypted auth storage when auth.json is absent", () =>
     provideTmpdirInstance((dir) =>
       withConfigDir(

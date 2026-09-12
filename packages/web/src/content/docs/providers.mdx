@@ -301,36 +301,32 @@ For custom inference profiles, use the model and provider name in the key and se
    /connect
    ```
 
-2. Here you can select the **Claude Pro/Max** option and it'll open your browser
-   and ask you to authenticate.
+2. Choose **Claude Pro/Max (browser)** to open the Anthropic authorization page,
+   or **Claude Pro/Max (paste code)** when the browser cannot reach the
+   OpenCode machine. The browser flow returns to a local callback automatically;
+   the paste-code flow accepts either the final redirect URL or `code#state`.
 
    ```txt
    ┌ Select auth method
    │
-   │ Manually enter API Key
+   │ Claude Pro/Max (browser)
+   │ Claude Pro/Max (paste code)
+   │ API key
    └
    ```
 
-3. Now all the Anthropic models should be available when you use the `/models` command.
+3. Now all the Anthropic models available to your account should be available
+   when you use the `/models` command.
 
    ```txt
    /models
    ```
 
-:::info
-There are plugins that allow you to use your Claude Pro/Max models with
-OpenCode. Anthropic explicitly prohibits this.
-
-Previous versions of OpenCode came bundled with these plugins but that is no
-longer the case as of 1.3.0
-
-Other companies support freedom of choice with developer tooling - you can use
-the following subscriptions in OpenCode with zero setup:
-
-- ChatGPT Plus
-- Github Copilot
-- Gitlab Duo
-  :::
+:::note
+Anthropic controls subscription eligibility and OAuth grant lifetime. If a
+request reports an expired or revoked OAuth grant, run `/connect` again and
+complete a fresh Claude Pro/Max login.
+:::
 
 ---
 

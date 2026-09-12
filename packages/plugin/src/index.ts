@@ -176,6 +176,10 @@ export type AuthOAuthResult = { url: string; instructions: string } & (
                 expires: number
                 accountId?: string
                 enterpriseUrl?: string
+                email?: string
+                orgId?: string
+                orgName?: string
+                authorizedAt?: number
               }
             | { key: string }
           ))
@@ -197,6 +201,10 @@ export type AuthOAuthResult = { url: string; instructions: string } & (
                 expires: number
                 accountId?: string
                 enterpriseUrl?: string
+                email?: string
+                orgId?: string
+                orgName?: string
+                authorizedAt?: number
               }
             | { key: string }
           ))

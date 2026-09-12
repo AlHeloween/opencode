@@ -1,6 +1,6 @@
 # DeepSeek thinking-mode controls + h3/h2 transport for `deepseek-flash`
 
-state: COMPLETE (T4 open — TUI labels only)
+state: COMPLETE (T1–T7; live TUI render proof not exercised)
 scope: packages/opencode/src/provider (transform.ts, provider.ts) + TUI variant dialog + tests
 evidence: experiments/20260912_deepseek-h3/REPORT.md
 
@@ -130,9 +130,12 @@ already advertises**. T2 makes `variants()` agree with it.
       surfaced (vendor maps them onto low/high); unknown/aliased efforts are filtered.
 - [x] T3 `provider.ts` — `resolveNpm` uses the shared predicate; `Model` carries
       `reasoning_options` and `fromModelsDevModel` threads it from the registry.
-- [ ] T4 `dialog-variant.tsx:73` — replace `isDeepSeekV4` with the same shared
-      predicate so the dialog title and descriptions apply to `deepseek-flash`.
-      **Still open** — cosmetic (labels/title only); the engine now emits the keys.
+- [x] T4 `dialog-variant.tsx` — the `isDeepSeekV4` memo is gone. The dialog's family,
+      labels and title now come from `variant-dialog-state.ts`, which delegates to the
+      same `isDeepSeekThinkingId` predicate **on `api.id`** (the field the engine reads,
+      not the catalog `modelID`), so `deepseek-flash` gets "Select thinking mode" and the
+      `Off/Low/High/Max` descriptions. Covered by `test/tui/variant-dialog-state.test.ts`.
+      (The live TUI render was not exercised — see Result.)
 - [x] T5 docs — `reasoning-round-trip-contract.md` (table row + a correction section)
       and `deepseek-thinking-cache.md` now state the misattribution: the tool-turn 400
       fires on a non-server-issued `tool_call` id, not a missing `reasoning_content`.
@@ -152,8 +155,12 @@ already advertises**. T2 makes `variants()` agree with it.
   flash → `off,low,high,max`; pro → `off,high,max`; `ultra` filtered out.
 - One live literal remains by design: the NVIDIA `chat_template_kwargs` site
   (`transform.ts`, different mechanism, documented hang workaround).
-- **T4 is the only open item** (TUI predicate/labels; no behaviour change now that
-  the engine emits the right keys).
+- **T4 closed 2026-09-12** (TUI predicate/labels). `bun test test/tui/` → 42 pass / 0 fail
+  (baseline before the edit: 36 pass / 0 fail); `bun run typecheck` exit 0. The shared
+  predicate now drives the dialog, on `api.id`.
+- Not exercised: the live TUI render proof from the smoke table (open the variant dialog
+  on `deepseek-flash`). The engine keys and the gate are both proven; the rendered
+  dialog is not.
 
 ### Ordering constraint (blocking — read before T1/T3)
 

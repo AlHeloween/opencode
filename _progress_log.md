@@ -1,5 +1,63 @@
 # Progress Log
 
+## 2026-09-12 KERNEL+TOOL — revision contract for persisted criteria
+
+Reason: `INTENTION_RESET` gave the model a place to persist criteria after diagnosing its
+own divergence, but the store had no revision contract. Alexander: "Конечно должен быть".
+
+Evidence [Exact]: permanent memory has **none** of the project's three reversibility layers.
+git ignores it (`.gitignore:130` → `.opencode`), Fossil skips dot-dirs
+(`snapshot/ignore-glob.ts:10`), and `edit.ts:writeBackup` returns early for anything under
+`Global.Path.data` **and** for anything gitignored — so `memory` `action='write'` replaced
+10 588 B of accumulated criteria unrecoverably, from the one mode (`reasoning_mode`) where no
+other read tool is authorized (`session/tools.ts:176`). Reuse was checked before inventing:
+`writeBackup` cannot serve this path by design, so the memory tool needs its own mechanism.
+
+Second gap, worse: `reasoning.md` is **never read back**. It is not auto-injected anywhere
+(grep over `session/`, `agent/`), and no gate bound it. The criteria in it are real — one
+entry records a prior session mis-attributing its own duplicate edits to a "parallel writer"
+and derives the rule "re-read the exact region immediately before each edit" — written, and
+never consulted since.
+
+Changes:
+- `tool/memory.ts`: `write` keeps the replaced content under
+  `.opencode/data/memory/revisions/reasoning-<iso>.md`, last 20, and names the revision in
+  its output so build mode can restore it. `append` is untouched (non-destructive).
+- `source.py` / `INTENTION_RESET`: new rule PERSISTED_CRITERION — a persisted criterion
+  carries scope, falsifier and status, is read at grounding rather than only after failing,
+  and replacing the store is a @MUTATION that keeps the replaced revision.
+- `SELF_DIVERGENCE` now requires naming the contradictory self-states **from the trace**
+  (snapshot timeline, diff, session record), not from recollection — diagnosing yourself by
+  memory is the self-grading @ORACLE forbids. Alexander's field case: DeepSeek Flash 4.1
+  could not tell what it had edited until shown its own Fossil frames, then entered
+  reasoning mode, noted the criterion, and left the mode on its own; the splitting stopped.
+- `addons.py` / `addons_claude.py`: G1 now binds the criteria file (memory tool for the
+  product, plain Read for the Claude variant).
+- `@LOOP_PROGRESS` restated as a strict lexicographic decrease — its two prose conditions
+  ("must not increase" + "at least one component strictly decreases") are exactly that.
+  Formal notation is admissible where tighter than prose (Alexander, 2026-09-12).
+
+Caps 31 000 → **32 000** bytes, 3 850 → **3 950** tokens. New prose was tightened first; the
+last 5 tokens were not worth the wording. The `@LOOP_PROGRESS` restatement then gave back
+88 bytes / 18 tokens, so part of this step is headroom rather than spend — recorded as such
+in the test comment.
+
+Oracles: validator clean, ngrams clean, **78 passed**. Product 30 620 / 32 000 bytes,
+3 790 / 3 950 tokens; Claude 30 899 / 32 000, 3 837 / 3 950. Installed both — product sha256
+`51a3cfda55e287016aa7ef36f374ff6a31f58ce72475468c5a48fd7df43af486` (baseline repinned),
+Claude `d8fcdb002ea4875a2b55a872ce58f57a3649422eacba706e443647dcdfb09c9f`.
+`bun typecheck` delta **zero**: 3 errors before and after, all in `provider/provider.ts` and
+`provider/transform.ts` (user's in-flight files), none in `tool/memory.ts`.
+
+**Write-path oracle is Unknown, not passed.** Per AGENTS.md a PERSISTENT_WRITE change is
+verified by reading the artifact back, so `test/tool/memory.test.ts` gained a case that
+writes twice and asserts the replaced content is recoverable from `revisions/`. It cannot
+run: `provider/transform.ts:1441` is an unterminated string literal and
+`provider/provider.ts:47,49` do not parse, which breaks the import chain for the whole
+package (`bun test` → "Unhandled error between tests"). Both were already broken in the
+baseline taken before any edit here. The test is committed and will decide the claim as soon
+as the tree parses; until then the revision behaviour is Inferred, not Exact.
+
 ## 2026-09-12 KERNEL — INTENTION_RESET: the missing return path into G0
 
 Reason: yesterday's `@INTENTION_INVARIANCE` declared that only the user moves

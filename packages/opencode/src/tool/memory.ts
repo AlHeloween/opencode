@@ -5,6 +5,27 @@ import { Instance } from "../project/instance"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 
 const MEMORY_FILE = ".opencode/data/memory/reasoning.md"
+const REVISIONS_DIR = ".opencode/data/memory/revisions"
+const MAX_REVISIONS = 20
+
+/**
+ * Keep the content `write` is about to replace. The memory file is gitignored
+ * (.gitignore: .opencode) and Fossil skips dot-dirs, while edit.ts's writeBackup
+ * deliberately skips everything under Global.Path.data — so without this, replacing
+ * the reasoning memory is the one unrecoverable mutation an agent can make, and it
+ * is available in the mode where no other read tool exists.
+ */
+function keepRevision(previous: string, fs: AppFileSystem.Interface) {
+  return Effect.gen(function* () {
+    const dir = path.join(Instance.worktree, REVISIONS_DIR)
+    const name = `reasoning-${new Date().toISOString().replace(/[:.]/g, "-")}.md`
+    yield* fs.writeWithDirs(path.join(dir, name), previous)
+    const entries = yield* fs.readDirectory(dir).pipe(Effect.catch(() => Effect.succeed([] as string[])))
+    const stale = entries.filter((entry) => entry.endsWith(".md")).sort().slice(0, -MAX_REVISIONS)
+    yield* Effect.forEach(stale, (entry) => fs.remove(path.join(dir, entry)).pipe(Effect.catch(() => Effect.void)))
+    return path.posix.join(REVISIONS_DIR, name)
+  })
+}
 
 export const Parameters = Schema.Struct({
   action: Schema.String,
@@ -22,7 +43,8 @@ export const MemoryTool = Tool.define<typeof Parameters, Metadata, AppFileSystem
       description:
         "Read or write the project's permanent reasoning memory file " +
         `(${MEMORY_FILE}, per-project, gitignored). ` +
-        "action='read' reviews past self-assessments; action='write' replaces the file; " +
+        "action='read' reviews past self-assessments; action='write' replaces the file " +
+        `(the replaced content is kept under ${REVISIONS_DIR}, last ${MAX_REVISIONS}); ` +
         "action='append' adds insights without losing previous ones. " +
         "In reasoning mode this is the only authorized I/O (not the session DB).",
       parameters: Parameters,
@@ -48,10 +70,14 @@ export const MemoryTool = Tool.define<typeof Parameters, Metadata, AppFileSystem
           }
 
           if (params.action === "write") {
+            const previous = (yield* fs.existsSafe(filepath)) ? yield* fs.readFileString(filepath) : ""
+            const revision = previous ? yield* keepRevision(previous, fs) : undefined
             yield* fs.writeWithDirs(filepath, params.content ?? "")
             return {
               title: "Memory updated",
-              output: "Memory written successfully.",
+              output: revision
+                ? `Memory written. Replaced content kept at ${revision}.`
+                : "Memory written successfully.",
               metadata: { filepath, action: "write" },
             }
           }

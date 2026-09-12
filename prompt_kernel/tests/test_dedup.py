@@ -92,4 +92,18 @@ def test_compacted_runtime_budget() -> None:
     # caught it. Raising is now the agent's call, but the convention holds:
     # raise at the point of need, in the same commit, naming what it admits.
     # Duplication is guarded by dedup above, not by this cap.
-    assert normalized_token_count(text) <= 3_850
+    # 3_950 / utf8_budget 32_000 (2026-09-12): admits the revision contract for
+    # persisted criteria. Permanent memory had none of the project's three
+    # reversibility layers — git ignores .opencode, Fossil skips dot-dirs, and
+    # edit.ts's writeBackup skips everything under Global.Path.data — while the
+    # memory tool's write replaces the whole file from the one mode that has no
+    # other read tool. Admits PERSISTED_CRITERION (scope, falsifier, status, keep
+    # the replaced revision), the G1 binding that makes criteria read and not only
+    # written, and SELF_DIVERGENCE naming self-states from the trace rather than
+    # from recollection. Tightened the new prose first; the last 5 tokens were not
+    # worth the wording they would have cost. Then @LOOP_PROGRESS was restated as
+    # strict lexicographic decrease (the two prose conditions it listed are exactly
+    # that), giving back 88 bytes / 18 tokens — so part of this step is headroom,
+    # not spend. Formal notation is admissible where it is tighter than prose
+    # (Alexander, 2026-09-12: models and programmers both read it).
+    assert normalized_token_count(text) <= 3_950

@@ -18,6 +18,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "PATH_GROUNDING",
         (
             "first read: plans/*.md, docs/.",
+            "durable criteria: memory read (.opencode/data/memory/reasoning.md); memory write replaces it, revisions kept.",
             "never store plans under .opencode/plans/.",
         ),
     ),

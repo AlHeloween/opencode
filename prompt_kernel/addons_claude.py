@@ -27,6 +27,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "PATH_GROUNDING",
         (
             "first read: AGENTS.md, plans/*.md, docs/.",
+            "durable criteria: .opencode/data/memory/reasoning.md — read before non-trivial work.",
             "never store plans under .claude/plans/.",
         ),
     ),

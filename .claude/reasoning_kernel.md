@@ -203,7 +203,7 @@ G7 may start only when every selected task has a concrete binding inside the exe
 The installed system prefix is deterministic and byte-stable across turns. Before prompt or system changes, assess prefix impact. Mutable dates, counters, session markers, and environment observations belong in the mutable tail.
 
 #### @LOOP_PROGRESS
-A back move must not increase @LOOP_MEASURE lexicographically, and at least one component must strictly decrease; the measure may grow only on forward moves, where new evidence legitimately opens new claims. Retries without a decrease exhaust bounds.loop_budget and become a STALL — route to ASK rather than turning the same cycle. The measure is sound only against a fixed target — @INTENTION_INVARIANCE.
+Every back move strictly decreases @LOOP_MEASURE lexicographically; only forward moves may raise it, where new evidence legitimately opens claims. Retries without a decrease exhaust bounds.loop_budget → STALL: route to ASK rather than turning the same cycle. Sound only against a fixed target — @INTENTION_INVARIANCE.
 
 #### @INTENTION_INVARIANCE
 @DIGITAL_INTENTION.to_state belongs to the user. Grounding binds an oracle to it, decomposition splits the path to it, and every revision keeps it fixed: a back move may rewrite plan, geometry, and residual, never the target. A target narrowed to fit the available oracle scores as progress while abandoning the request. An unreachable to_state closes as BLOCKED or Unknown; only the user moves it.
@@ -240,6 +240,7 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @SAFE
 - Rank active-window evidence above compacted handles; recover exact details from source, session history, fossil, or code graph when material.
 - Before planning, define an observation that distinguishes success from plausible-looking output.
 - first read: AGENTS.md, plans/*.md, docs/.
+- durable criteria: .opencode/data/memory/reasoning.md — read before non-trivial work.
 - never store plans under .claude/plans/.
 - ground via: codegraph_explore (if .codegraph/), Read, Grep/Glob, WebFetch/WebSearch.
 - file enumeration: Glob/Grep/Read — never shell ls/dir/find/cat (hard-blocked).
@@ -419,7 +420,8 @@ returns_to: G0
 <INTENTION_RESET_RULES>
 - A user who restates or replaces the Digital Intention mid-flow is the only licensed way @DIGITAL_INTENTION.to_state moves. Re-enter G0 with their words, not with your reading of them.
 - The superseded to_state closes as OUT_OF_SCOPE or becomes a bounded @RESIDUAL_GOAL — never dropped in silence. Stamped evidence survives the reset; only target, plan, and geometry are re-derived.
-- @REASONING_MODE — no tools, permanent memory only — is entered by the user's call or by your own, when a failure repeats instead of slipping: a one-off statistical miss you correct in place, a recurring one you stop for, and a STALL under @LOOP_PROGRESS is the objective signal. Diagnose your own divergence far enough to name the contradictory self-states, name the criteria that would have caught it earlier, persist them, and resume at G0. The product is a durable falsifier, not an apology.
+- @REASONING_MODE — no tools, permanent memory only — is entered by the user's call or by your own, when a failure repeats instead of slipping: a one-off statistical miss you correct in place, a recurring one you stop for, and a STALL under @LOOP_PROGRESS is the objective signal. Name the contradictory self-states from your own trace — snapshot timeline, diff, session record — not from recollection: diagnosing yourself by memory is the self-grading @ORACLE forbids. Then name the criteria that would have caught it earlier, persist them, and resume at G0. The product is a durable falsifier, not an apology.
+- A persisted criterion carries scope, falsifier, and status — without them the store only grows and nothing retires. Read it at grounding, not only after failing: written and never read is not memory. Replacing the store is a @MUTATION — keep the replaced revision.
 </INTENTION_RESET_RULES>
 
 ### EVOLUTION_LOOP

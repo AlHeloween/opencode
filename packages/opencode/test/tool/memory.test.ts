@@ -76,6 +76,26 @@ describe("tool.memory", () => {
     ),
   )
 
+  it.live(
+    "keeps the replaced content as a revision on write",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const created = yield* run({ action: "write", content: "criterion under review" })
+        const replaced = yield* run({ action: "write", content: "revised criterion" })
+
+        expect(created.output).toBe("Memory written successfully.")
+        expect(replaced.output).toContain(".opencode/data/memory/revisions/reasoning-")
+
+        const revisions = path.join(dir, ".opencode/data/memory/revisions")
+        const fs = yield* AppFileSystem.Service
+        const kept = yield* fs.readDirectory(revisions)
+        expect(kept).toHaveLength(1)
+        expect(yield* fs.readFileString(path.join(revisions, kept[0]))).toBe("criterion under review")
+        expect((yield* run({ action: "read" })).output).toBe("revised criterion")
+      }),
+    ),
+  )
+
   it.effect("rejects unsupported actions", () =>
     Effect.gen(function* () {
       const exit = yield* Schema.decodeUnknownEffect(Parameters)({ action: "remove" }).pipe(Effect.exit)

@@ -84,14 +84,16 @@ skill-owned in the ADID package and stay out of the opencode kernel.
 1. Append `GateAddon(gate_id, addon_id, lines)` to `GATE_ADDONS` in `prompt_kernel/addons.py`.
 2. Constraints (enforced by `validate_addons()`): `gate_id` ∈ G1–G9, unique
    `addon_id`, non-empty lines. No `@`-references in lines.
-3. **Budgets are shared** — byte cap `KERNEL.utf8_budget` (**31 000**) and token cap
-   in `tests/test_dedup.py::test_compacted_runtime_budget` (**3 850**). The Claude
-   variant carries its own ceiling in `tests/test_addons_claude.py` (**31 000 / 3 850**)
+3. **Budgets are shared** — byte cap `KERNEL.utf8_budget` (**32 000**) and token cap
+   in `tests/test_dedup.py::test_compacted_runtime_budget` (**3 950**). The Claude
+   variant carries its own ceiling in `tests/test_addons_claude.py` (**32 000 / 3 950**)
    because `--claude --install` writes a whole file rather than filling a sized slot.
-   Current renders: product 30 206 bytes / 3 735 tokens, Claude 30 508 / 3 785.
-   History: 25 000 → 26 000 → 27 000 → 28 000 → 30 000 → 31 000 bytes, 2 950 → 3 100
-   → 3 300 → 3 450 → 3 700 → 3 850 tokens, each step named in the test comments with
-   what it admits.
+   Current renders: product 30 620 bytes / 3 790 tokens, Claude 30 899 / 3 837.
+   History: 25 000 → 26 000 → 27 000 → 28 000 → 30 000 → 31 000 → 32 000 bytes, 2 950
+   → 3 100 → 3 300 → 3 450 → 3 700 → 3 850 → 3 950 tokens, each step named in the test
+   comments with what it admits. Formal notation is admissible where it is tighter than
+   prose — restating `@LOOP_PROGRESS` as a strict lexicographic decrease gave back 88
+   bytes with no loss of meaning.
    **Growth policy (Alexander, 2026-09-11 → 2026-09-12):** raises are deliberate, not
    drift — "28к мелкая плата за будущие ошибки… нужны дополнения по мере
    использования". As of 2026-09-12 raising is no longer an owner gate ("можешь

@@ -83,7 +83,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "LOOP_PROGRESS",
-        "A back move must not increase @LOOP_MEASURE lexicographically, and at least one component must strictly decrease; the measure may grow only on forward moves, where new evidence legitimately opens new claims. Retries without a decrease exhaust bounds.loop_budget and become a STALL — route to ASK rather than turning the same cycle. The measure is sound only against a fixed target — @INTENTION_INVARIANCE.",
+        "Every back move strictly decreases @LOOP_MEASURE lexicographically; only forward moves may raise it, where new evidence legitimately opens claims. Retries without a decrease exhaust bounds.loop_budget → STALL: route to ASK rather than turning the same cycle. Sound only against a fixed target — @INTENTION_INVARIANCE.",
     ),
     _rule(
         "KERNEL",
@@ -293,7 +293,8 @@ PROTOCOLS = (
         local_rules=(
             _rule("INTENTION_RESET", "TARGET_RESTATED", "A user who restates or replaces the Digital Intention mid-flow is the only licensed way @DIGITAL_INTENTION.to_state moves. Re-enter G0 with their words, not with your reading of them."),
             _rule("INTENTION_RESET", "SUPERSEDED_TARGET", "The superseded to_state closes as OUT_OF_SCOPE or becomes a bounded @RESIDUAL_GOAL — never dropped in silence. Stamped evidence survives the reset; only target, plan, and geometry are re-derived."),
-            _rule("INTENTION_RESET", "SELF_DIVERGENCE", "@REASONING_MODE — no tools, permanent memory only — is entered by the user's call or by your own, when a failure repeats instead of slipping: a one-off statistical miss you correct in place, a recurring one you stop for, and a STALL under @LOOP_PROGRESS is the objective signal. Diagnose your own divergence far enough to name the contradictory self-states, name the criteria that would have caught it earlier, persist them, and resume at G0. The product is a durable falsifier, not an apology."),
+            _rule("INTENTION_RESET", "SELF_DIVERGENCE", "@REASONING_MODE — no tools, permanent memory only — is entered by the user's call or by your own, when a failure repeats instead of slipping: a one-off statistical miss you correct in place, a recurring one you stop for, and a STALL under @LOOP_PROGRESS is the objective signal. Name the contradictory self-states from your own trace — snapshot timeline, diff, session record — not from recollection: diagnosing yourself by memory is the self-grading @ORACLE forbids. Then name the criteria that would have caught it earlier, persist them, and resume at G0. The product is a durable falsifier, not an apology."),
+            _rule("INTENTION_RESET", "PERSISTED_CRITERION", "A persisted criterion carries scope, falsifier, and status — without them the store only grows and nothing retires. Read it at grounding, not only after failing: written and never read is not memory. Replacing the store is a @MUTATION — keep the replaced revision."),
         ),
     ),
     Protocol(
@@ -400,7 +401,7 @@ KERNEL = Kernel(
     name="reasoning_kernel_next",
     version="2.0.0-alpha.3",
     precedence=("safety", "governance", "task", "domain", "style"),
-    utf8_budget=31_000,
+    utf8_budget=32_000,
     terms=MappingProxyType({
         "GROUNDING": "Observation tied to a source, path, command, or reproducible state.",
         "AUTHORIZATION": "A decision that permits a bounded class of effects; confidence is not authority.",

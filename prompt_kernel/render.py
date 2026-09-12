@@ -82,7 +82,7 @@ def _render_sv_contract(contract: SemanticVectorContract) -> list[str]:
         "- Semantic dominant: one sentence of this vector's focus",
         "- md5: 32 hex — a distinct high-entropy label for linking and ranking these vectors, not a checksum. Do not compute or verify it, and never present a self-computed match as evidence; only form matters (32 hex, no other characters).",
         f"- prev-md5: previous md5 or {contract.first_prev_md5}",
-        f"- parent-goal-md5: child vector to parent goal; {contract.first_prev_md5} if none",
+        f"- parent-goal-md5: child vector to the parent goal — the anchor back to @DIGITAL_INTENTION; {contract.first_prev_md5} if none",
         f"- trivial: {contract.trivial_emission}",
         "- invariant: a semantic vector is an attention fingerprint, never a claim status",
         "",

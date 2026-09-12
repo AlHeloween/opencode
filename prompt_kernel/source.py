@@ -83,7 +83,12 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "LOOP_PROGRESS",
-        "A back move must not increase @LOOP_MEASURE lexicographically, and at least one component must strictly decrease; the measure may grow only on forward moves, where new evidence legitimately opens new claims. Retries without a decrease exhaust bounds.loop_budget and become a STALL — route to ASK rather than turning the same cycle.",
+        "A back move must not increase @LOOP_MEASURE lexicographically, and at least one component must strictly decrease; the measure may grow only on forward moves, where new evidence legitimately opens new claims. Retries without a decrease exhaust bounds.loop_budget and become a STALL — route to ASK rather than turning the same cycle. The measure is sound only against a fixed target — @INTENTION_INVARIANCE.",
+    ),
+    _rule(
+        "KERNEL",
+        "INTENTION_INVARIANCE",
+        "@DIGITAL_INTENTION.to_state belongs to the user. Grounding binds an oracle to it, decomposition splits the path to it, and every revision keeps it fixed: a back move may rewrite plan, geometry, and residual, never the target. A target narrowed to fit the available oracle scores as progress while abandoning the request. An unreachable to_state closes as BLOCKED or Unknown; only the user moves it.",
     ),
     _rule(
         "KERNEL",
@@ -101,7 +106,7 @@ GATES = (
         objective="Understand the user's request in their own language before any decomposition or grounding.",
         identities=("BUILD_MODE", "PLAN_MODE"),
         requires=("USER_REQUEST",),
-        outputs=(),
+        outputs=("DIGITAL_INTENTION",),
         shared_rules=(),
         local_rules=(
             _rule(
@@ -112,12 +117,12 @@ GATES = (
             _rule(
                 "G0",
                 "DIGITAL_INTENTION_RULE",
-                "Distill every user message into a Digital Intention: the outcome they want, the constraints they carry, and what is merely their suggested way to get it. Restate the intention in one sentence before any planning.",
+                "Distill every user message into a Digital Intention: the state the user is in and the state they want, holding their constraints and their merely suggested way there apart from both. It is a transformation between two states, not a wish. Restate it in one sentence before any planning.",
             ),
             _rule(
                 "G0",
                 "INTENTION_CLARITY",
-                "If the Digital Intention stays ambiguous — outcome, constraints, or the suggested-solution split unclear — ask a clarifying question before any decomposition. Ask only what the user's words cannot answer; questions answerable from the project belong to G1 grounding.",
+                "If the Digital Intention stays ambiguous — either state, or the suggested-solution split, unclear — record it in ambiguity and ask before any decomposition. Ask only what the user's words cannot answer; questions answerable from the project belong to G1 grounding.",
             ),
         ),
     ),
@@ -127,9 +132,9 @@ GATES = (
         name="GROUND",
         objective="Separate the user's request from the executable goal and ground both in observable project evidence.",
         identities=("BUILD_MODE", "PLAN_MODE", "EXPLORER_AGENT", "RESEARCHER_AGENT"),
-        requires=("USER_REQUEST",),
+        requires=("USER_REQUEST", "DIGITAL_INTENTION"),
         outputs=("INTENT_PROJECTION", "EXECUTION_GOAL", "PROJECT_GEOMETRY", "CAPABILITY_GRAPH", "OUTCOME_CONTRACT"),
-        shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "DIVERGENCE_PROTOCOL", "SAFETY_PRECEDENCE"),
+        shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "DIVERGENCE_PROTOCOL", "SAFETY_PRECEDENCE", "INTENTION_INVARIANCE"),
         local_rules=(
             _rule("G1", "INTENT_PROJECTION_RULE", "USER_REQUEST is not EXECUTION_GOAL. Derive EXECUTION_GOAL from the uncovered projection residual; never substitute the suggested solution for the requested outcome."),
             _rule("G1", "PROJECT_GEOMETRY_RULE", "Establish the smallest evidence-backed change region before planning; unresolved ownership blocks decomposition."),
@@ -147,7 +152,7 @@ GATES = (
         identities=("BUILD_MODE", "PLAN_MODE", "GENERAL_AGENT", "ORCHESTRATOR_AGENT"),
         requires=("EXECUTION_GOAL", "PROJECT_GEOMETRY"),
         outputs=("FRACTAL_GEOMETRY", "CENTRAL_TASKS"),
-        shared_rules=("SAFETY_PRECEDENCE", "RESIDUAL_ROUTING"),
+        shared_rules=("SAFETY_PRECEDENCE", "RESIDUAL_ROUTING", "INTENTION_INVARIANCE"),
         local_rules=(
             _rule("G2", "DECOMPOSE", "Generate candidates recursively until every leaf is searchable, independently executable, and has a bounded smoke oracle."),
             _rule("G2", "FRACTAL_CANDIDATES", "Preserve the parent goal and constraints at every scale; reject leaves whose verification blast radius remains monolithic."),
@@ -195,7 +200,7 @@ GATES = (
         identities=("BUILD_MODE", "PLAN_MODE"),
         requires=("MASTER_PLAN", "CONCERN"),
         outputs=("CONCERN_RESOLUTION",),
-        shared_rules=("AUTHORITY_SEPARATION", "RESIDUAL_ROUTING"),
+        shared_rules=("AUTHORITY_SEPARATION", "RESIDUAL_ROUTING", "INTENTION_INVARIANCE"),
         local_rules=(
             _rule("G5", "CONCERN_LOOP", "Preserve the objection verbatim, identify the violated premise or scope, revise the residual goal, return to G2, rebuild the plan, and re-enter G4."),
         ),
@@ -254,7 +259,7 @@ GATES = (
         identities=("BUILD_MODE", "PLAN_MODE", "ORCHESTRATOR_AGENT"),
         requires=("VERIFIED_OUTCOME", "ORACLE_STAMP", "CLAIM_LEDGER", "RISK_LEDGER"),
         outputs=("CLOSURE_PROOF", "CLEAN_NEXT_STATE", "RESIDUAL_GOAL", "QUALITY_VECTOR"),
-        shared_rules=("INFORMATION_STATUS", "RESIDUAL_ROUTING", "AUTHORITY_SEPARATION"),
+        shared_rules=("INFORMATION_STATUS", "RESIDUAL_ROUTING", "AUTHORITY_SEPARATION", "INTENTION_INVARIANCE"),
         local_rules=(
             _rule("G9", "CLOSURE_PROOF_RULE", "G9 emits SUCCESS only when acceptance is covered, the outcome oracle passed, and critical risks are 0. A real blocker emits BLOCKED; excluded work emits OUT_OF_SCOPE; otherwise continue."),
             _rule("G9", "CLEAN_STATE_RULE", "Emit completed work, evidence, changed surfaces, remaining risks, residual goal, next route, and honest validation status without repeating the full trace."),
@@ -275,7 +280,7 @@ PROTOCOLS = (
         local_rules=(
             _rule("SEMANTIC_ATTENTION", "SV_TARGET", "Steering assignment in @SV_FORMAT: keyword weights a parent gives a sub-agent. Not the current vector, not a claim, not ACL. Digest optional."),
             _rule("SEMANTIC_ATTENTION", "SV_TRAJECTORY", "Measure only: @L1_DISTANCE between @SV_TARGET and the current observed vector. Attention residual is not @RESIDUAL and does not by itself change weights or rewrite the answer."),
-            _rule("SEMANTIC_ATTENTION", "MULTI_AGENT_SV", "Parent assigns @SV_TARGET; sub-agent returns result plus current vector. Zero coefficients on axes that are not Exact medoids — Unknown, do not keep turning them — renormalize onto known Exact basis, and require the prose regenerated."),
+            _rule("SEMANTIC_ATTENTION", "MULTI_AGENT_SV", "Parent assigns @SV_TARGET and the parent @DIGITAL_INTENTION verbatim — weights steer attention, they never carry the goal; sub-agent returns result plus current vector. Zero coefficients on axes that are not Exact medoids — Unknown, do not keep turning them — renormalize onto known Exact basis, and require the prose regenerated."),
             _rule("SEMANTIC_ATTENTION", "SEMANTIC_CONTROL", "Retune @SV_TARGET only around enough Exact medoids; knobs refine local simulation. Else retuning is treatment."),
         ),
     ),
@@ -394,13 +399,13 @@ KERNEL = Kernel(
         "SMOKE": "The smallest decisive baseline or post-change check for a bounded task.",
         "INFOMARK": "Mark on a simulated claim: Exact, Inferred, Hypothetical, Guess, or Unknown. Simulation never equals reality.",
         "L1_DISTANCE": "Additive Manhattan distance. Same metric for G2 medoids, SV target-vs-current delta, and evolution clustering — not the same object.",
-        "DIGITAL_INTENTION": "The distilled intent of a user message: desired outcome, constraints, and the suggested-solution bias — separated from the executable goal at G1.",
         "LOOP_MEASURE": "Progress measure of the graph: the tuple <open_acceptance, unstamped_claims, critical_risks, unresolved_residual>. Governed by @LOOP_PROGRESS.",
     }),
     sv_contract=SV_CONTRACT,
     source_routing=SOURCE_ROUTING_CONTRACT,
     state_fields=MappingProxyType({
         "USER_REQUEST": "{observation, desired_outcome, suggested_solution, constraints}",
+        "DIGITAL_INTENTION": "{from_state, to_state, ambiguity?}",
         "CONCERN": "{verbatim_objection, authority_conflict?, unsafe_premise?}",
         "INTENT_PROJECTION": "{covered, uncovered, contradictions}",
         "EXECUTION_GOAL": "{residual, bounds, acceptance_ref}",

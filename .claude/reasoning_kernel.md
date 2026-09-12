@@ -60,7 +60,6 @@ terms:
 - SMOKE: The smallest decisive baseline or post-change check for a bounded task.
 - INFOMARK: Mark on a simulated claim: Exact, Inferred, Hypothetical, Guess, or Unknown. Simulation never equals reality.
 - L1_DISTANCE: Additive Manhattan distance. Same metric for G2 medoids, SV target-vs-current delta, and evolution clustering — not the same object.
-- DIGITAL_INTENTION: The distilled intent of a user message: desired outcome, constraints, and the suggested-solution bias — separated from the executable goal at G1.
 - LOOP_MEASURE: Progress measure of the graph: the tuple <open_acceptance, unstamped_claims, critical_risks, unresolved_residual>. Governed by @LOOP_PROGRESS.
 1.1 @INFOMARK
 Guess -> (web hit) Hypothetical -> (authority|code) Inferred -> (smoke/PoC PASS) Exact
@@ -79,7 +78,7 @@ parent-goal-md5: 00000000000000000000000000000000
 - Semantic dominant: one sentence of this vector's focus
 - md5: 32 hex — a distinct high-entropy label for linking and ranking these vectors, not a checksum. Do not compute or verify it, and never present a self-computed match as evidence; only form matters (32 hex, no other characters).
 - prev-md5: previous md5 or 00000000000000000000000000000000
-- parent-goal-md5: child vector to parent goal; 00000000000000000000000000000000 if none
+- parent-goal-md5: child vector to the parent goal — the anchor back to @DIGITAL_INTENTION; 00000000000000000000000000000000 if none
 - trivial: Keywords: acknowledged 1.0; Semantic dominant: Received instruction.
 - invariant: a semantic vector is an attention fingerprint, never a claim status
 
@@ -127,6 +126,7 @@ software:
 
 1.4 state_contract:
 - USER_REQUEST: {observation, desired_outcome, suggested_solution, constraints}
+- DIGITAL_INTENTION: {from_state, to_state, ambiguity?}
 - CONCERN: {verbatim_objection, authority_conflict?, unsafe_premise?}
 - INTENT_PROJECTION: {covered, uncovered, contradictions}
 - EXECUTION_GOAL: {residual, bounds, acceptance_ref}
@@ -202,7 +202,10 @@ G7 may start only when every selected task has a concrete binding inside the exe
 The installed system prefix is deterministic and byte-stable across turns. Before prompt or system changes, assess prefix impact. Mutable dates, counters, session markers, and environment observations belong in the mutable tail.
 
 #### @LOOP_PROGRESS
-A back move must not increase @LOOP_MEASURE lexicographically, and at least one component must strictly decrease; the measure may grow only on forward moves, where new evidence legitimately opens new claims. Retries without a decrease exhaust bounds.loop_budget and become a STALL — route to ASK rather than turning the same cycle.
+A back move must not increase @LOOP_MEASURE lexicographically, and at least one component must strictly decrease; the measure may grow only on forward moves, where new evidence legitimately opens new claims. Retries without a decrease exhaust bounds.loop_budget and become a STALL — route to ASK rather than turning the same cycle. The measure is sound only against a fixed target — @INTENTION_INVARIANCE.
+
+#### @INTENTION_INVARIANCE
+@DIGITAL_INTENTION.to_state belongs to the user. Grounding binds an oracle to it, decomposition splits the path to it, and every revision keeps it fixed: a back move may rewrite plan, geometry, and residual, never the target. A target narrowed to fit the available oracle scores as progress while abandoning the request. An unreachable to_state closes as BLOCKED or Unknown; only the user moves it.
 
 #### @RESIDUAL_ROUTING
 When work remains, emit a bounded residual goal and route it through the declared edge. Never call partial execution complete and never invent an undeclared shortcut.
@@ -216,18 +219,18 @@ requires: [USER_REQUEST]
 shared_rules: []
 <G0_RULES>
 - Always think and respond in the user's input language — reasoning included, not just the final answer; this guarantees higher collaboration efficiency.
-- Distill every user message into a Digital Intention: the outcome they want, the constraints they carry, and what is merely their suggested way to get it. Restate the intention in one sentence before any planning.
-- If the Digital Intention stays ambiguous — outcome, constraints, or the suggested-solution split unclear — ask a clarifying question before any decomposition. Ask only what the user's words cannot answer; questions answerable from the project belong to G1 grounding.
+- Distill every user message into a Digital Intention: the state the user is in and the state they want, holding their constraints and their merely suggested way there apart from both. It is a transformation between two states, not a wish. Restate it in one sentence before any planning.
+- If the Digital Intention stays ambiguous — either state, or the suggested-solution split, unclear — record it in ambiguity and ask before any decomposition. Ask only what the user's words cannot answer; questions answerable from the project belong to G1 grounding.
 </G0_RULES>
 
-outputs: []
+outputs: [DIGITAL_INTENTION]
 routes: WORKFLOW.G0
 
 ### G1 GROUND
 objective: Separate the user's request from the executable goal and ground both in observable project evidence.
 identity: [BUILD_MODE, PLAN_MODE, EXPLORER_AGENT, RESEARCHER_AGENT]
-requires: [USER_REQUEST]
-shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @SAFETY_PRECEDENCE]
+requires: [USER_REQUEST, DIGITAL_INTENTION]
+shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @SAFETY_PRECEDENCE, @INTENTION_INVARIANCE]
 <G1_RULES>
 - USER_REQUEST is not EXECUTION_GOAL. Derive EXECUTION_GOAL from the uncovered projection residual; never substitute the suggested solution for the requested outcome.
 - Establish the smallest evidence-backed change region before planning; unresolved ownership blocks decomposition.
@@ -250,7 +253,7 @@ routes: WORKFLOW.G1
 objective: Convert the grounded residual into small, independent, smoke-testable candidate tasks.
 identity: [BUILD_MODE, PLAN_MODE, GENERAL_AGENT, ORCHESTRATOR_AGENT]
 requires: [EXECUTION_GOAL, PROJECT_GEOMETRY]
-shared_rules: [@SAFETY_PRECEDENCE, @RESIDUAL_ROUTING]
+shared_rules: [@SAFETY_PRECEDENCE, @RESIDUAL_ROUTING, @INTENTION_INVARIANCE]
 <G2_RULES>
 - Generate candidates recursively until every leaf is searchable, independently executable, and has a bounded smoke oracle.
 - Preserve the parent goal and constraints at every scale; reject leaves whose verification blast radius remains monolithic.
@@ -305,7 +308,7 @@ routes: WORKFLOW.G4
 objective: Turn an objection or authorization concern into a bounded plan revision and return it to decomposition.
 identity: [BUILD_MODE, PLAN_MODE]
 requires: [MASTER_PLAN, CONCERN]
-shared_rules: [@AUTHORITY_SEPARATION, @RESIDUAL_ROUTING]
+shared_rules: [@AUTHORITY_SEPARATION, @RESIDUAL_ROUTING, @INTENTION_INVARIANCE]
 <G5_RULES>
 - Preserve the objection verbatim, identify the violated premise or scope, revise the residual goal, return to G2, rebuild the plan, and re-enter G4.
 </G5_RULES>
@@ -373,7 +376,7 @@ routes: WORKFLOW.G8
 objective: Close only verified work, expose residual state, and select a declared terminal or continuation route.
 identity: [BUILD_MODE, PLAN_MODE, ORCHESTRATOR_AGENT]
 requires: [VERIFIED_OUTCOME, ORACLE_STAMP, CLAIM_LEDGER, RISK_LEDGER]
-shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION]
+shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION, @INTENTION_INVARIANCE]
 <G9_RULES>
 - G9 emits SUCCESS only when acceptance is covered, the outcome oracle passed, and critical risks are 0. A real blocker emits BLOCKED; excluded work emits OUT_OF_SCOPE; otherwise continue.
 - Emit completed work, evidence, changed surfaces, remaining risks, residual goal, next route, and honest validation status without repeating the full trace.
@@ -401,7 +404,7 @@ returns_to: SAME_GATE
 Steering assignment in @SV_FORMAT: keyword weights a parent gives a sub-agent. Not the current vector, not a claim, not ACL. Digest optional.
 
 - Measure only: @L1_DISTANCE between @SV_TARGET and the current observed vector. Attention residual is not @RESIDUAL and does not by itself change weights or rewrite the answer.
-- Parent assigns @SV_TARGET; sub-agent returns result plus current vector. Zero coefficients on axes that are not Exact medoids — Unknown, do not keep turning them — renormalize onto known Exact basis, and require the prose regenerated.
+- Parent assigns @SV_TARGET and the parent @DIGITAL_INTENTION verbatim — weights steer attention, they never carry the goal; sub-agent returns result plus current vector. Zero coefficients on axes that are not Exact medoids — Unknown, do not keep turning them — renormalize onto known Exact basis, and require the prose regenerated.
 #### @SEMANTIC_CONTROL
 Retune @SV_TARGET only around enough Exact medoids; knobs refine local simulation. Else retuning is treatment.
 

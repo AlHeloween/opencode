@@ -1,5 +1,57 @@
 # Progress Log
 
+## 2026-09-12 KERNEL — Digital Intention becomes a carrier: G0 output, @INTENTION_INVARIANCE
+
+Reason: user defined the Digital Intention as a transformation between two oracle-provable
+states — A (what the oracle shows now) → B (what it must show after) — a target designator
+that must survive difficulty, because under pressure an agent mutates the goal instead of
+decomposing it: "сделай тетрис -> print('tetris')".
+
+Defect found [Inferred, from kernel text]: `@LOOP_PROGRESS` (landed 2026-09-12, commit
+`191ac6e58d`) is **unsound without a pinned target**. `@LOOP_MEASURE` =
+<open_acceptance, unstamped_claims, critical_risks, unresolved_residual>; the first and last
+components are derived from `OUTCOME_CONTRACT.acceptance_conditions` and
+`EXECUTION_GOAL.residual`, both revisable by back moves G8→G2 and G9→G1. Narrowing the goal
+therefore decreases every component at once — goal shrinkage scores *better* than honest
+implementation. This patch completes P6 rather than extending it.
+
+Structural holes closed:
+- G0 was the only spine gate with `outputs=()` — its product lived in prose, so no field's
+  absence could prove the gate was skipped, and its K-2 terminal `G0 → WAITING_APPROVAL`
+  emitted nothing (compare `G4 → WAITING_APPROVAL`, which carries `AUTH_DECISION = ASK`).
+- `USER_REQUEST {observation, desired_outcome, suggested_solution, constraints}` sits in
+  `initial_state`, i.e. the graph declared the distillation free on input while G0's own rule
+  declared it G0's work. Same object, both input and product.
+- term `DIGITAL_INTENTION` had **zero** `@`-references anywhere (grep over `prompt_kernel/`,
+  the installed prompt and `.claude/reasoning_kernel.md`) — inert prose paid for per request.
+
+Changes (`prompt_kernel/source.py`, `render.py`):
+- term → state field `DIGITAL_INTENTION: {from_state, to_state, ambiguity?}`; constraints and
+  suggested_solution stay in `USER_REQUEST`, so the intention is the vector and nothing else.
+- `G0.outputs = (DIGITAL_INTENTION,)`, `G1.requires = (USER_REQUEST, DIGITAL_INTENTION)`.
+- new shared rule `@INTENTION_INVARIANCE`, bound at the four drift sites G1, G2, G5, G9;
+  `@LOOP_PROGRESS` now cites it for its own soundness.
+- `MULTI_AGENT_SV`: a sub-agent receives the parent `@DIGITAL_INTENTION` verbatim —
+  `@SV_TARGET` steers attention and never carries the goal.
+- `parent-goal-md5` regains its semantics as the anchor back to the intention.
+
+Lineage [Inferred, docs/ADID_Framework_15_3.md]: the A→B pair existed in ADID 15.3 as the SVM
+("what the system **is** and **intends**", line 204), with a hashed target (`NEXT_STATE_HASH`,
+line 219) and update plans as "provably correct transition to a new, desired state" (line 366).
+It was lost in the map-first compression because the SVM was an *artifact* and only *rules*
+survived into a byte-bounded prefix. Per the two-canon protocol 15.3 is lineage, not authority:
+the patch stands on the `@LOOP_MEASURE` defect above.
+
+Oracles [Exact]: `validate_kernel(KERNEL)` clean; `python -m pytest prompt_kernel/tests/ -q`
+→ **78 passed**. No cap raised — product 28 917 / 30 000 bytes, 3 542 / 3 700 tokens; Claude
+29 219 / 30 000, 3 592 / 3 700. Installed both: product sha256
+`62961f8624101ab971035165e12a4fc0c77f0ed7d80b53885883353bc8d9be31` (baseline repinned), Claude
+`fca283ff88392e6b287956c04ba2ec925ee3ec736cb1833aaa412c42daec98fb`.
+
+Residual: `DIGITAL_INTENTION` lives in working state, which compaction erases — the durable
+carrier would be the G3 plan artifact (`plans/[ISO8601]_*.md`), our nearest equivalent of the
+ADID master SVM; not bound yet. Binary rebuild (`pwsh _build.ps1`) still pending.
+
 ## 2026-09-12 PROBE — DeepSeek thinking-mode controls + h3/h2 transport (plans/2026-09-12_deepseek-thinking-h3.md)
 
 Reason: user asked to compare the DeepSeek thinking-mode guide against our code, clarify "h3", smoke-test, and propose a plan. "h3" in this repo = the HTTP/3 transport (`GatewayProtocol`, novita shipped), not a model.
@@ -1576,3 +1628,10 @@ Oracle: `test/session/recovery.test.ts` creates an isolated source DB and verifi
 - Not landed, deliberately: **K-1 / ORACLE_INDEPENDENCE**. The handoff asks for `stamp_author ≠ mutation_author`, but in this runtime the stamp is runtime-issued — the model selects the instrument and reads the result, it does not author evidence. The real hole is narrower and sits in `SELF_MODIFY` (handoff residual #4): editing the kernel and then running the kernel's own suite as the oracle is self-grading at system blast radius, which is exactly what happened in this session. Needs Alexander's ruling before wording.
 - Answered two handoff residuals: **#1** the external render is `prompt_kernel/README.md` (mermaid) and it lacks **G0** — P10 is closed in text but stale in the diagram; **#5** permanent memory lives at `.opencode/data/memory` (75 MB), owned by `tool/reasoning.ts`, with **no revision contract** anywhere — patches 5 and 7 of the handoff depend on a surface that is currently undescribed.
 - [KV-CACHE] Prefix changed again by design. New sessions only; binary rebuild still pending.
+
+## [2026-09-12T10:45:00Z] provider: refresh Anthropic OAuth fingerprint from current OMP
+
+- Reason: Alexander correctly flagged that an older Claude-Code fingerprint can be rejected; he re-authenticated OMP and requested a current-version check before live closure.
+- Source refresh: local OMP is commit `72170690f9720863773c9a9255f490aa332ec762` (`Sync with upstream`). Its current fingerprint is Claude Code `2.1.257`, SDK `0.112.1`, `claude-cli/2.1.257 (external, cli)`, the official Claude Code system identity, `oauth-2025-04-20` beta, and no obsolete `advanced-tool-use` beta. OpenCode was updated to match, including host-correct Stainless OS/arch values and fixed Node runtime version.
+- Oracle: focused tests passed 15/15 (`20260912T104426Z_30880c1e`); typecheck passed (`20260912T104518Z_221cfc8f`); the safeguarded real OpenCode loader probe against the newly re-authenticated OMP credential returned `200` and `pong` without a refresh (`20260912T104717Z_2a9568a3`).
+- Safety: removed the refresh-capable baseline probe. The retained live probe refuses expired credentials because its minimal persistence stub cannot safely retain a rotated refresh token.

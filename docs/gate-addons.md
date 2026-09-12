@@ -6,14 +6,14 @@ title: "Gate add-ons for the reasoning kernel"
 owner: "Local_Development"
 status: "production"
 surface: "prompt_kernel_addons"
-last_verified: "2026-09-04"
+last_verified: "2026-09-12"
 tags: ["prompt_kernel", "kernel", "addons", "paths"]
 related_code: ["prompt_kernel/addons.py", "prompt_kernel/render.py"]
 summary: "Advisory host-path bindings per kernel gate, rendered as section 6 without touching the frozen kernel graph."
 reproduce:
   files: ["prompt_kernel/addons.py", "prompt_kernel/tests/test_addons.py"]
   commands: ["python -m pytest prompt_kernel/tests/ -q", "python -m prompt_kernel --install"]
-  expected_outputs: ["pytest: 72 passed", "installed=<sha256> matches prompt_kernel/baseline.json"]
+  expected_outputs: ["pytest: 78 passed", "installed=<sha256> matches prompt_kernel/baseline.json"]
 ---
 ```
 
@@ -84,13 +84,13 @@ skill-owned in the ADID package and stay out of the opencode kernel.
 1. Append `GateAddon(gate_id, addon_id, lines)` to `GATE_ADDONS` in `prompt_kernel/addons.py`.
 2. Constraints (enforced by `validate_addons()`): `gate_id` ∈ G1–G9, unique
    `addon_id`, non-empty lines. No `@`-references in lines.
-3. **Budgets are shared** — byte cap `KERNEL.utf8_budget` (**28 000**) and token cap
-   in `tests/test_dedup.py::test_compacted_runtime_budget` (**3 450**). The Claude
-   variant carries its own ceiling in `tests/test_addons_claude.py` (**28 000 / 3 450**)
+3. **Budgets are shared** — byte cap `KERNEL.utf8_budget` (**30 000**) and token cap
+   in `tests/test_dedup.py::test_compacted_runtime_budget` (**3 700**). The Claude
+   variant carries its own ceiling in `tests/test_addons_claude.py` (**30 000 / 3 700**)
    because `--claude --install` writes a whole file rather than filling a sized slot.
-   Current renders: product 27 285 bytes / 3 332 tokens, Claude 27 587 / 3 382.
-   History: 25 000 → 26 000 → 27 000 → 28 000 bytes, 2 950 → 3 100 → 3 300 → 3 450
-   tokens, each step named in the test comments with what it admits.
+   Current renders: product 28 917 bytes / 3 542 tokens, Claude 29 219 / 3 592.
+   History: 25 000 → 26 000 → 27 000 → 28 000 → 30 000 bytes, 2 950 → 3 100 → 3 300
+   → 3 450 → 3 700 tokens, each step named in the test comments with what it admits.
    **Growth policy (Alexander, 2026-09-11):** raises are deliberate, not drift —
    "28к мелкая плата за будущие ошибки… может через месяц и будет 30к, нужны
    дополнения по мере использования". Raising a cap remains an owner decision; an

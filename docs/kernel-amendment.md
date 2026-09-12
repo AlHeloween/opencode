@@ -13,7 +13,7 @@ summary: "Three depths of SELF_MODIFY, the constitution core that no depth may w
 reproduce:
   files: ["prompt_kernel/source.py", "prompt_kernel/tests/"]
   commands: ["python -m pytest prompt_kernel/tests/ -q", "python -m prompt_kernel", "python -m prompt_kernel --install"]
-  expected_outputs: ["pytest: 88 passed", "working_copy=not_updated before review", "installed=<sha256> matches prompt_kernel/baseline.json"]
+  expected_outputs: ["pytest: 100 passed", "working_copy=not_updated before review", "installed=<sha256> matches prompt_kernel/baseline.json"]
 ---
 ```
 
@@ -86,8 +86,15 @@ the criterion above is the argument for pinning them.
 3. **Constitutional check** — does it weaken the core? If yes, DENY without discussion.
 4. **Impact analysis** — which gates, contracts and identities are touched; which
    scenarios break.
-5. **Constitutional tests** — scenarios the kernel must pass before and after.
-   *Without them a SELF_MODIFY closes Unknown.*
+5. **Constitutional tests** — `prompt_kernel/tests/test_constitution.py`, run before and
+   after. *Without them a SELF_MODIFY closes Unknown.* They do not check that the kernel
+   renders — `test_render` does that. They check what makes it a kernel: the core set is
+   exactly the declared one (pinned in the test too, so changing the constitution means
+   changing a test), each core rule keeps its load-bearing clause, gutting or renaming one
+   is caught, core rules still render as named declarations, only three identities may
+   mutate, `SELF_MODIFY` and `PROMOTE_STABLE` stay distinct classes, G7 still requires its
+   envelope and G6 still requires ALLOW, and the evidence ladder still reaches Exact only
+   through smoke or PoC. Each is paired with a mutation that makes the guard fire.
 6. **Authorization** — the user for L2 and L3; runtime ACL as the second anchor for L3.
 7. **Version stamp** — new sha256 in `baseline.json`, `prev-md5` the previous one,
    `parent-goal-md5` the proposal. No stamp, no change.
@@ -128,7 +135,11 @@ derived from the system.
 
 - **Politics.** Which human authorizes an L3 is process governance, not protocol.
 - **Speed.** L2 and L3 are slower than a bare G4. That is the price.
-- **The tests.** Step 5 names constitutional tests that **do not exist yet**. Until
-  they are written, every SELF_MODIFY closes Unknown by this ruling's own clause —
-  including the five L2 changes landed on 2026-09-12, which predate the ruling and
-  went through no procedure at all. Writing them is the first work under it.
+- **Coverage.** The constitutional tests exist (12 cases, `test_constitution.py`) but
+  they pin the *structure* of the constitution, not its effect on reasoning. Whether a
+  kernel still reasons as well after an amendment is a behavioural claim over long runs,
+  and no instrument here settles it. That gap is the SELF_MODIFY hole the ruling narrows
+  rather than closes.
+- **History.** The five L2 changes of 2026-09-12 predate the ruling and went through no
+  procedure. They are covered retroactively only in the sense that the current kernel
+  passes these tests; nothing reconstructs the review they never had.

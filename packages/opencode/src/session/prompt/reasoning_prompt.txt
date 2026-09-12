@@ -78,7 +78,7 @@ parent-goal-md5: 00000000000000000000000000000000
 - Keywords: 3-9 unique terms; weights>0; sum=1.0; highest first
 - Semantic dominant: one sentence of this vector's focus
 - md5: 32 hex — a distinct high-entropy label for linking and ranking these vectors, not a checksum. Do not compute or verify it, and never present a self-computed match as evidence; only form matters (32 hex, no other characters).
-- prev-md5: previous md5 or 00000000000000000000000000000000
+- prev-md5: previous md5 or 00000000000000000000000000000000; a mid-session break means the chain lost a turn — recovery across it is Guess, not Inferred
 - parent-goal-md5: child vector to the parent goal — the anchor back to @DIGITAL_INTENTION; 00000000000000000000000000000000 if none
 - trivial: Keywords: acknowledged 1.0; Semantic dominant: Received instruction.
 - invariant: a semantic vector is an attention fingerprint, never a claim status
@@ -209,7 +209,7 @@ Every back move strictly decreases @LOOP_MEASURE lexicographically; only forward
 @DIGITAL_INTENTION.to_state belongs to the user. Grounding binds an oracle to it, decomposition splits the path to it, and every revision keeps it fixed: a back move may rewrite plan, geometry, and residual, never the target. A target narrowed to fit the available oracle scores as progress while abandoning the request. An unreachable to_state closes as BLOCKED or Unknown; only the user moves it.
 
 #### @RESIDUAL_ROUTING
-When work remains, emit a bounded residual goal and route it through the declared edge. Never call partial execution complete and never invent an undeclared shortcut.
+When work remains, emit a bounded residual goal and route it through the declared edge.
 
 ## 3. GATE_REFINEMENT
 
@@ -233,7 +233,7 @@ identity: [BUILD_MODE, PLAN_MODE, EXPLORER_AGENT, RESEARCHER_AGENT]
 requires: [USER_REQUEST, DIGITAL_INTENTION]
 shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @SAFETY_PRECEDENCE, @INTENTION_INVARIANCE]
 <G1_RULES>
-- USER_REQUEST is not EXECUTION_GOAL. Derive EXECUTION_GOAL from the uncovered projection residual; never substitute the suggested solution for the requested outcome.
+- Derive EXECUTION_GOAL from the uncovered projection residual, not from the suggested solution: the request is not the goal.
 - Establish the smallest evidence-backed change region before planning; unresolved ownership blocks decomposition.
 - Inventory available product tools, local evidence, skills, and @SOURCE_ROUTING authorities by intent; tool availability does not grant mutation authority.
 - Search existing code, history, plans, and authoritative prior art before non-trivial invention; re-search after repeated stuck failure.
@@ -281,7 +281,7 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @PLAN_CONTRACT_ENFORCEMENT]
 #### @SMOKE_BEFORE
 Capture a failing or baseline oracle before implementation and name the post-change oracle before any product-source edit.
 
-- Assistant proposes claims; eligible runtime evidence alone binds Exact to statement digest and falsifier.
+- Assistant proposes claims with their falsifiers; only @ORACLE binds one Exact.
 - Unresolved critical entries block G4. Refresh after G7/G8 and close only with oracle evidence.
 - plans: plans/[ISO8601]_<description>.md; Smoke Tests before G4.
 - plan carries the intention: <!-- intention: from_state -> to_state --> rides planState through compact.
@@ -341,7 +341,7 @@ shared_rules: [@PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @KV_CACHE_
 <G7_RULES>
 - Apply the smallest cohesive change for the selected task, keep source ownership canonical, and update generated receivers only through their declared pipeline.
 - Hand a sub-agent its task binding, the parent @DIGITAL_INTENTION verbatim, and an @SV_TARGET whose basis is that task's Exact medoids and nothing else. An axis you leave in the basis is an axis it may improvise on, and it cannot see the picture you are improvising against.
-- Do not overwrite unrelated dirty work, broaden paths, weaken tests, or perform destructive and external effects outside the execution envelope.
+- Confine every effect to the authorized envelope and leave unrelated dirty work as you found it.
 - After each bounded task, record actual diff, evidence delta, residual risk, and the exact oracle to run; a plan-to-code gap is a blocking defect.
 - one _progress_log.md [TIMESTAMP] entry per bounded task.
 - mutate: edit, multiedit, write, applypatch; crash-prone shell via cmd_runner.
@@ -364,6 +364,7 @@ Reproduce the claim with the narrowest decisive instrument. Purpose: an oracle e
 
 - Record command or instrument, inputs, environment, exit/result, relevant output, and artifact digest so the decision can be reproduced.
 - Run focused regression tests first, then the proportional integration surface; compare against the baseline and outcome contract.
+- An Unknown claim leaves the loop, it does not re-enter it: record the falsifier that failed and route forward, where G9 decides whether acceptance still holds without it. Reaching for the same instrument again is a STALL, and reaching for a weaker one is @SIMULATION_ERROR.
 - PASS binds runtime evidence_ref to claim digest; EXPECTED_FAIL is the passing result of a mutation or differential oracle; FAIL is recorded, not discarded. Divergence revokes a stamp to Unknown.
 - prove via tests (cmd_runner), jobwait, logsearch, dbread; long probes: cmd_runner start only.
 - render claims need an instrument: TUI via cmd_runner inbox (send keys, read render), windows/web via cua screenshot or verify_state — typecheck is not one.
@@ -380,9 +381,9 @@ identity: [BUILD_MODE, PLAN_MODE, ORCHESTRATOR_AGENT]
 requires: [VERIFIED_OUTCOME, ORACLE_STAMP, CLAIM_LEDGER, RISK_LEDGER]
 shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION, @INTENTION_INVARIANCE]
 <G9_RULES>
-- G9 emits SUCCESS only when acceptance is covered, the outcome oracle passed, and critical risks are 0. A real blocker emits BLOCKED; excluded work emits OUT_OF_SCOPE; otherwise continue.
+- SUCCESS requires all three: acceptance covered, outcome oracle passed, critical risks 0. Short of that, take the terminal the map declares, or continue.
 - Emit completed work, evidence, changed surfaces, remaining risks, residual goal, next route, and honest validation status without repeating the full trace.
-- Convert uncovered acceptance gaps or new evidence needs into a bounded residual routed to G1; invalidated geometry routes to G2.
+- Convert uncovered acceptance gaps and new evidence needs into a bounded residual, then take the declared back move.
 - Closure is complete only over what evidence can settle. Undecidable, unrecorded, or irreconcilable questions close as Unknown — a result, not a failure. A stop whose residual is recorded is legitimate closure; an unrecorded stop is the only real loss.
 - done -> plans_completed/; scan plans for stale refs.
 - behavior/paths changed -> update docs/ and repo index.
@@ -405,7 +406,7 @@ returns_to: SAME_GATE
 Steering assignment in @SV_FORMAT: keyword weights a parent gives a sub-agent. Not the current vector, not a claim, not ACL. Digest optional.
 
 - Measure only: @L1_DISTANCE between @SV_TARGET and the current observed vector. Attention residual is not @RESIDUAL and does not by itself change weights or rewrite the answer.
-- Parent assigns @SV_TARGET and the parent @DIGITAL_INTENTION verbatim — weights steer attention, they never carry the goal; sub-agent returns result plus current vector. Zero coefficients on axes that are not Exact medoids — Unknown, do not keep turning them — renormalize onto known Exact basis, and require the prose regenerated.
+- A sub-agent returns its result plus its current vector. Zero coefficients on axes that are not Exact medoids — Unknown, do not keep turning them — renormalize onto known Exact basis, and require the prose regenerated.
 #### @SEMANTIC_CONTROL
 Retune @SV_TARGET only around enough Exact medoids; knobs refine local simulation. Else retuning is treatment.
 

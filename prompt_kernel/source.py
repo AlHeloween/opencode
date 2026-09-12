@@ -93,7 +93,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "RESIDUAL_ROUTING",
-        "When work remains, emit a bounded residual goal and route it through the declared edge. Never call partial execution complete and never invent an undeclared shortcut.",
+        "When work remains, emit a bounded residual goal and route it through the declared edge.",
     ),
 )
 
@@ -136,7 +136,7 @@ GATES = (
         outputs=("INTENT_PROJECTION", "EXECUTION_GOAL", "PROJECT_GEOMETRY", "CAPABILITY_GRAPH", "OUTCOME_CONTRACT"),
         shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "DIVERGENCE_PROTOCOL", "SAFETY_PRECEDENCE", "INTENTION_INVARIANCE"),
         local_rules=(
-            _rule("G1", "INTENT_PROJECTION_RULE", "USER_REQUEST is not EXECUTION_GOAL. Derive EXECUTION_GOAL from the uncovered projection residual; never substitute the suggested solution for the requested outcome."),
+            _rule("G1", "INTENT_PROJECTION_RULE", "Derive EXECUTION_GOAL from the uncovered projection residual, not from the suggested solution: the request is not the goal."),
             _rule("G1", "PROJECT_GEOMETRY_RULE", "Establish the smallest evidence-backed change region before planning; unresolved ownership blocks decomposition."),
             _rule("G1", "CAPABILITY_GRAPH_RULE", "Inventory available product tools, local evidence, skills, and @SOURCE_ROUTING authorities by intent; tool availability does not grant mutation authority."),
             _rule("G1", "REUSE_BEFORE", "Search existing code, history, plans, and authoritative prior art before non-trivial invention; re-search after repeated stuck failure."),
@@ -172,7 +172,7 @@ GATES = (
         local_rules=(
             _rule("G3", "MASTER_PLAN_RULE", "Start DRAFT, become ACTIVE only after G4, and invalidate plus revise after any material premise or scope change."),
             _rule("G3", "SMOKE_BEFORE", "Capture a failing or baseline oracle before implementation and name the post-change oracle before any product-source edit."),
-            _rule("G3", "CLAIM_LEDGER_RULE", "Assistant proposes claims; eligible runtime evidence alone binds Exact to statement digest and falsifier."),
+            _rule("G3", "CLAIM_LEDGER_RULE", "Assistant proposes claims with their falsifiers; only @ORACLE binds one Exact."),
             _rule("G3", "RISK_LEDGER_RULE", "Unresolved critical entries block G4. Refresh after G7/G8 and close only with oracle evidence."),
         ),
     ),
@@ -232,7 +232,7 @@ GATES = (
         local_rules=(
             _rule("G7", "IMPLEMENT", "Apply the smallest cohesive change for the selected task, keep source ownership canonical, and update generated receivers only through their declared pipeline."),
             _rule("G7", "DELEGATION_BINDING", "Hand a sub-agent its task binding, the parent @DIGITAL_INTENTION verbatim, and an @SV_TARGET whose basis is that task's Exact medoids and nothing else. An axis you leave in the basis is an axis it may improvise on, and it cannot see the picture you are improvising against."),
-            _rule("G7", "CHANGE_SCOPE", "Do not overwrite unrelated dirty work, broaden paths, weaken tests, or perform destructive and external effects outside the execution envelope."),
+            _rule("G7", "CHANGE_SCOPE", "Confine every effect to the authorized envelope and leave unrelated dirty work as you found it."),
             _rule("G7", "PLAN_EXECUTION", "After each bounded task, record actual diff, evidence delta, residual risk, and the exact oracle to run; a plan-to-code gap is a blocking defect."),
         ),
     ),
@@ -249,6 +249,7 @@ GATES = (
             _rule("G8", "ORACLE", "Reproduce the claim with the narrowest decisive instrument. Purpose: an oracle ends the guess-invent-fail loop by freezing one claim as Exact, so it must be able to fail — an instrument that cannot fail proves nothing, and a claim with no falsifier is not a claim. Aim it at the layer the claim lives on: a persistent-write claim is proven by reading the written artifact back, never by typecheck or a resolver test alone. No self-grading — Exact needs runtime-issued evidence bound to the claim digest; planner confidence, user certainty, and implementation appearance are not evidence. Pass pins Exact medoids; fail is Unknown."),
             _rule("G8", "PROVENANCE", "Record command or instrument, inputs, environment, exit/result, relevant output, and artifact digest so the decision can be reproduced."),
             _rule("G8", "SMOKE_VERIFY", "Run focused regression tests first, then the proportional integration surface; compare against the baseline and outcome contract."),
+            _rule("G8", "UNKNOWN_ROUTING", "An Unknown claim leaves the loop, it does not re-enter it: record the falsifier that failed and route forward, where G9 decides whether acceptance still holds without it. Reaching for the same instrument again is a STALL, and reaching for a weaker one is @SIMULATION_ERROR."),
             _rule("G8", "ORACLE_STAMP_RULE", "PASS binds runtime evidence_ref to claim digest; EXPECTED_FAIL is the passing result of a mutation or differential oracle; FAIL is recorded, not discarded. Divergence revokes a stamp to Unknown."),
         ),
     ),
@@ -262,9 +263,9 @@ GATES = (
         outputs=("CLOSURE_PROOF", "CLEAN_NEXT_STATE", "RESIDUAL_GOAL", "QUALITY_VECTOR"),
         shared_rules=("INFORMATION_STATUS", "RESIDUAL_ROUTING", "AUTHORITY_SEPARATION", "INTENTION_INVARIANCE"),
         local_rules=(
-            _rule("G9", "CLOSURE_PROOF_RULE", "G9 emits SUCCESS only when acceptance is covered, the outcome oracle passed, and critical risks are 0. A real blocker emits BLOCKED; excluded work emits OUT_OF_SCOPE; otherwise continue."),
+            _rule("G9", "CLOSURE_PROOF_RULE", "SUCCESS requires all three: acceptance covered, outcome oracle passed, critical risks 0. Short of that, take the terminal the map declares, or continue."),
             _rule("G9", "CLEAN_STATE_RULE", "Emit completed work, evidence, changed surfaces, remaining risks, residual goal, next route, and honest validation status without repeating the full trace."),
-            _rule("G9", "RESIDUAL_GOAL_RULE", "Convert uncovered acceptance gaps or new evidence needs into a bounded residual routed to G1; invalidated geometry routes to G2."),
+            _rule("G9", "RESIDUAL_GOAL_RULE", "Convert uncovered acceptance gaps and new evidence needs into a bounded residual, then take the declared back move."),
             _rule("G9", "EVIDENCE_BOUNDED_CLOSURE", "Closure is complete only over what evidence can settle. Undecidable, unrecorded, or irreconcilable questions close as Unknown — a result, not a failure. A stop whose residual is recorded is legitimate closure; an unrecorded stop is the only real loss."),
         ),
     ),
@@ -281,7 +282,7 @@ PROTOCOLS = (
         local_rules=(
             _rule("SEMANTIC_ATTENTION", "SV_TARGET", "Steering assignment in @SV_FORMAT: keyword weights a parent gives a sub-agent. Not the current vector, not a claim, not ACL. Digest optional."),
             _rule("SEMANTIC_ATTENTION", "SV_TRAJECTORY", "Measure only: @L1_DISTANCE between @SV_TARGET and the current observed vector. Attention residual is not @RESIDUAL and does not by itself change weights or rewrite the answer."),
-            _rule("SEMANTIC_ATTENTION", "MULTI_AGENT_SV", "Parent assigns @SV_TARGET and the parent @DIGITAL_INTENTION verbatim — weights steer attention, they never carry the goal; sub-agent returns result plus current vector. Zero coefficients on axes that are not Exact medoids — Unknown, do not keep turning them — renormalize onto known Exact basis, and require the prose regenerated."),
+            _rule("SEMANTIC_ATTENTION", "MULTI_AGENT_SV", "A sub-agent returns its result plus its current vector. Zero coefficients on axes that are not Exact medoids — Unknown, do not keep turning them — renormalize onto known Exact basis, and require the prose regenerated."),
             _rule("SEMANTIC_ATTENTION", "SEMANTIC_CONTROL", "Retune @SV_TARGET only around enough Exact medoids; knobs refine local simulation. Else retuning is treatment."),
         ),
     ),
@@ -496,9 +497,10 @@ KERNEL = Kernel(
     #                 CONCERN_RESOLUTION -> G2)
     #   protocol    — consumed by a cross-cutting protocol, and protocols declare no
     #                 requires (QUALITY_VECTOR -> EVOLUTION_LOOP)
-    # DIVERGENCE_EVENT is listed under protest: @DIVERGENCE_PROTOCOL revokes a stamp to
-    # Unknown and Unknown has no declared route out of G8. That is handoff patch P5, and
-    # the reverse-reachability check found it independently (2026-09-12).
+    # DIVERGENCE_EVENT was listed under protest until G8 gained UNKNOWN_ROUTING
+    # (2026-09-12, handoff P5 — which this very check surfaced independently). It stays
+    # terminal for a different reason: divergence is optional, and `requires` cannot
+    # express an optional input.
     terminal_outputs=frozenset({
         "INTENT_PROJECTION",
         "FRACTAL_GEOMETRY",

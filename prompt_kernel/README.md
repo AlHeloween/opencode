@@ -4,7 +4,7 @@ Production map-first reasoning kernel. Source of `packages/opencode/src/session/
 
 ```mermaid
 flowchart LR
-    G1["G1 Ground"] --> G2["G2 Decompose"] --> G3["G3 Master plan"] --> G4["G4 Authorize"]
+    G0["G0 Understand"] --> G1["G1 Ground"] --> G2["G2 Decompose"] --> G3["G3 Master plan"] --> G4["G4 Authorize"]
     G4 -->|ALLOW| G6["G6 Ground plan"] --> G7["G7 Implement"] --> G8["G8 Oracle"] --> G9["G9 Closure"] --> SUCCESS
     G4 -->|CONCERN| G5["G5 Concern loop"] --> G2
     G4 -->|ASK| WAITING_APPROVAL
@@ -12,6 +12,9 @@ flowchart LR
     G8 -->|invalid plan| G2
     G9 -->|residual evidence| G1
     G9 -->|invalid geometry| G2
+    G0 -->|ambiguous intention| WAITING_APPROVAL
+    G1 -->|ownership unresolved| BLOCKED
+    G2 & G3 & G5 & G6 & G7 & G8 & G9 -.->|INTENTION_RESET| G0
 ```
 
 ## Serialization
@@ -19,7 +22,7 @@ flowchart LR
 1. `WORKFLOW`: gates, `gated_workflow` success path, `forward_move`/`CONCERN`/`back_move`/`terminal` edges.
 2. `ABI_AND_VOCABULARY`: precedence, reference grammar, `INFORMATION_STATUS`, `SV_CONTRACT`, `SOURCE_ROUTING`, state, and action classes.
 3. `SHARED_RULES`: definitions needed by multiple gates.
-4. `GATE_REFINEMENT`: `G1..G9`, with each gate's local rule definitions beside their use.
+4. `GATE_REFINEMENT`: `G0..G9`, with each gate's local rule definitions beside their use.
 5. Advisory semantic-attention and evolution protocols.
 6. Identity contracts.
 

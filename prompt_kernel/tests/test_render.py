@@ -70,7 +70,9 @@ def test_kernel_does_not_restate_entities_under_three_spellings() -> None:
     assert "regenerated" in text
     assert "coefficients" in text
     attention = text[text.index("<SEMANTIC_ATTENTION_RULES>") : text.index("</SEMANTIC_ATTENTION_RULES>")]
-    trajectory = attention[attention.index("- Measure only:") : attention.index("- Parent assigns")]
+    # anchor moved 2026-09-12: MULTI_AGENT_SV lost its hand-over clause to G7
+    # DELEGATION_BINDING, so the rule now opens "A sub-agent returns...".
+    trajectory = attention[attention.index("- Measure only:") : attention.index("- A sub-agent returns")]
     assert "regenerat" not in trajectory
     assert "coefficients" not in trajectory
     target = attention[attention.index("#### @SV_TARGET") : attention.index("- Measure only:")]

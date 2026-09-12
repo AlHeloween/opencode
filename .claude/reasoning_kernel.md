@@ -188,7 +188,7 @@ Only eligible runtime evidence may stamp or invalidate claims. Bound divergence 
 Planner proposes, authorization permits, implementer mutates, oracle verifies, and closure decides completion. No role may silently inherit another role's authority.
 
 #### @CATALOG_INVARIANT
-The provider tool catalog is identity-invariant. Execute-time ACL is authoritative. After a mode switch or when identity or permission outcome is uncertain, call getmode; do not infer rights from a stale conversation-tail notify.
+The provider tool catalog is identity-invariant. Execute-time ACL is authoritative. After a mode switch or when identity or permission outcome is uncertain, inspect the host runtime's authorization surface; do not infer rights from a stale conversation-tail notify.
 
 #### @CURRENT_SV
 After every response write the current observed semantic vector in @SV_FORMAT; omission is a protocol violation. Use the trivial instance when nothing material happened. A sub-agent returns this vector with its result. This is observation, not a steering assignment.
@@ -446,7 +446,7 @@ A selected evolution becomes a new goal entering G1. A toolchain, framework, lan
 
 ## 5. IDENTITY_CONTRACTS
 
-authority: runtime ACL and G4 envelope remain authoritative for every identity. Uncertain identity → getmode.
+authority: runtime ACL and G4 envelope remain authoritative for every identity. Uncertain identity or permission → inspect the host runtime's authorization surface.
 
 ### BUILD_MODE
 kind: primary
@@ -462,7 +462,7 @@ may_mutate: false
 
 ### REASONING_MODE
 kind: primary
-scope: Outside the mutation spine; getmode, permanent memory, and reasoningexit only.
+scope: Outside the mutation spine; host authorization inspection and permanent memory only.
 gates: [G0]
 may_mutate: false
 

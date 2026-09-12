@@ -37,7 +37,7 @@ class DocIndex:
     technical_docs: list[DocRecord] = field(default_factory=lambda: [
         DocRecord("docs/README.md", "OpenCode team", "Docs directory index"),
         DocRecord("docs/ADID_Framework_15_3.md", "ADID team", "Safe-update manager construction contract, epistemic markers, behavioral conformance oracle — reference only (15.4.3 retired to git history)"),
-        DocRecord("docs/gate-addons.md", "Local_Development", "Gate add-on registry: advisory host-path bindings per kernel gate, addon how-to, budget guardrails", last_verified="2026-09-04"),
+        DocRecord("docs/gate-addons.md", "Local_Development", "Gate add-on registries: OpenCode, Claude Code, and Codex harness bindings", last_verified="2026-09-12"),
         DocRecord("docs/architecture.md", "OpenCode team", "System architecture: prompt, checkpoint, agents, media, cache/diff, OpenRouter affinity and routing controls", last_verified="2026-09-12"),
         DocRecord("_application_workflow_diagram.md", "Local_Development", "Runtime module and function flow, including OpenRouter body/header identity and routing configuration", last_verified="2026-09-12"),
         DocRecord("docs/external-file-locations.md", "OpenCode team", "File paths opencode reads/writes outside worktree"),
@@ -53,7 +53,7 @@ class DocIndex:
         DocRecord("docs/compaction.md", "Local_Development", "Compaction contract: s/m* layers, 64K sidecar cadence, 8K generation cap, finish-step cost/cache accounting, star bounds 32K+32K", last_verified="2026-09-06"),
         DocRecord("docs/summary-exact-handles.md", "Local_Development", "Layer-1 summary Exact enrichment: checkpoint-M cache prefix, Constitution tool denial, file diffs and CodeGraph impact", last_verified="2026-09-06"),
         DocRecord("docs/run-lifecycle-semantics.md", "Local_Development", "Run lifecycle: internal join plus realtime user-turn supersede, bounded cancel with force-fail, project identity on session.updated, verified abort chain + no-data wedge note", last_verified="2026-09-10"),
-        DocRecord("prompt_kernel/README.md", "Local_Development", "Kernel package: gate graph, serialization order, install pipeline", last_verified="2026-09-11"),
+        DocRecord("prompt_kernel/README.md", "Local_Development", "Kernel package: graph, serialization, OpenCode/Claude/Codex variant rendering", last_verified="2026-09-12"),
         DocRecord("docs/kernel-assembly-point.md", "Local_Development", "Where the production prompt is assembled: prompt_kernel/source.py -> reasoning_prompt.txt"),
         DocRecord("docs/two-canon-protocol.md", "Local_Development", "Why ADID 15.3 and the reasoning kernel co-govern: one protocol, two compilers", last_verified="2026-09-06"),
         DocRecord("docs/agentic-reasoning-runtime.md", "Local_Development", "Runtime side of the kernel: gates, REUSE ladder, claim ledger", last_verified="2026-07-31"),

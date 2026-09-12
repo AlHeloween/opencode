@@ -32,8 +32,7 @@ def test_identity_headings_are_entity_names_not_host_slugs() -> None:
     assert "### REASONING_MODE\nkind: primary\n" in block
     assert "### build_mode\n" not in block
     assert "runtime: " not in block
-    assert "Uncertain identity → getmode." in block
-    assert "@GETMODE" not in block
+    assert "Uncertain identity or permission → inspect the host runtime's authorization surface." in block
 
 
 def test_kernel_does_not_restate_entities_under_three_spellings() -> None:

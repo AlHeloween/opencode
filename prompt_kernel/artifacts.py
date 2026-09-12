@@ -18,6 +18,7 @@ from .source import KERNEL
 PACKAGE_ROOT = Path(__file__).resolve().parent
 DIST = PACKAGE_ROOT / "dist"
 DIST_CLAUDE = PACKAGE_ROOT / "dist_claude"
+DIST_CODEX = PACKAGE_ROOT / "dist_codex"
 STAMP_FORMAT = "%Y-%m-%d_%H-%M-%S"
 STAMP_RE = re.compile(r"^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$")
 

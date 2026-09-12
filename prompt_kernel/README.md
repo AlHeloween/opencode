@@ -103,6 +103,21 @@ only prior renderer output. Re-run `--claude --install` after any change to
 `source.py` or `addons_claude.py` to keep it in sync — nothing does this
 automatically yet.
 
+### Codex harness
+
+`addons_codex.py` binds the same graph to this Codex harness: `Read`, `Glob`,
+`Grep`, `Edit`, `Write`, `LSP`, `AST Edit`, `Hub`, `Eval` Browser access,
+`Todo`, `Task`, and the mounted `codegraph_explore` device. It renders with:
+
+```powershell
+python -m prompt_kernel --codex
+```
+
+Artifacts are stamped under `prompt_kernel/dist_codex/`. There is deliberately
+no `--codex --install`: this external harness has no repository-local prompt
+import contract. It rejects that flag rather than pretending the artifact is
+active.
+
 Before wiring this in, note the size trade-off: the installed file is the
 full kernel render (~26 KB), so every session in this repo now spends that
 many tokens up front. If that is not wanted, remove the `@reasoning_kernel.md`

@@ -48,16 +48,16 @@ def test_primary_modes_match_runtime_acl_shape() -> None:
     assert identities["REASONING_MODE"].may_mutate is False
 
 
-def test_getmode_is_the_self_identification_tool_not_an_identity() -> None:
+def test_authorization_inspection_is_not_an_identity() -> None:
     assert "GETMODE" not in {item.id for item in KERNEL.identities}
     assert not any(rule.id == "GETMODE" for rule in KERNEL.shared_rules)
     catalog = next(rule for rule in KERNEL.shared_rules if rule.id == "CATALOG_INVARIANT")
-    assert "call getmode" in catalog.text
+    assert "inspect the host runtime's authorization surface" in catalog.text
     from prompt_kernel import render_kernel
 
     rendered = render_kernel(KERNEL)
     identity_block = rendered[rendered.index("## 5. IDENTITY_CONTRACTS") :]
-    assert "Uncertain identity → getmode." in identity_block
+    assert "Uncertain identity or permission → inspect the host runtime's authorization surface." in identity_block
     assert "@GETMODE" not in identity_block
     assert "### GETMODE\n" not in rendered
     text = "\n".join(

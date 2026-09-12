@@ -75,6 +75,19 @@ belongs in `source.py` (requires a full kernel change cycle). If it only says
 | G9 | PATH_CLOSURE | `plans_completed/` + stale-ref scan; docs/index update; `obsolete/` |
 | G9 | TOOL_CLOSURE | `messagesearch` verify; git status |
 
+## Codex harness variant
+
+`addons_codex.py` is a third registry, alongside the product default and
+`addons_claude.py`. It keeps the graph unchanged while binding this Codex
+harness to `Read`/`Glob`/`Grep`, `Edit`/`Write`, LSP, AST Edit, Hub, Eval
+Browser access, Todo, Task, and mounted `codegraph_explore`.
+
+`python -m prompt_kernel --codex` writes reviewed/runtime artifacts to
+`prompt_kernel/dist_codex/`. It intentionally has no installation command:
+the external Codex harness exposes no repository-local prompt-import contract.
+`--codex --install` fails rather than misreporting an inactive artifact as
+installed.
+
 Divergences from the ADID methodology (deliberate): `makeups/` is not bound —
 opencode bans mocks/stubs in tests; RAG indexing and the adm XML pipeline are
 skill-owned in the ADID package and stay out of the opencode kernel.

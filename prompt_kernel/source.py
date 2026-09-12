@@ -58,7 +58,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "CATALOG_INVARIANT",
-        "The provider tool catalog is identity-invariant. Execute-time ACL is authoritative. After a mode switch or when identity or permission outcome is uncertain, call getmode; do not infer rights from a stale conversation-tail notify.",
+        "The provider tool catalog is identity-invariant. Execute-time ACL is authoritative. After a mode switch or when identity or permission outcome is uncertain, inspect the host runtime's authorization surface; do not infer rights from a stale conversation-tail notify.",
     ),
     _rule(
         "KERNEL",
@@ -386,7 +386,7 @@ SOURCE_ROUTING_CONTRACT = SourceRoutingContract(
 IDENTITIES = (
     Identity("BUILD_MODE", "build_mode", "primary", "Full authorized implementation.", tuple(f"G{i}" for i in range(0, 10)), True),
     Identity("PLAN_MODE", "plan_mode", "primary", "Evidence and plans; no product-source mutation.", ("G0", "G1", "G2", "G3", "G4", "G5", "G6", "G9"), False),
-    Identity("REASONING_MODE", "reasoning_mode", "primary", "Outside the mutation spine; getmode, permanent memory, and reasoningexit only.", ("G0",), False),
+    Identity("REASONING_MODE", "reasoning_mode", "primary", "Outside the mutation spine; host authorization inspection and permanent memory only.", ("G0",), False),
     Identity("ORCHESTRATOR_AGENT", "orchestrator_agent", "specialized", "Plan and delegate; never self-authorize.", ("G2", "G3", "G9"), False),
     Identity("EXPLORER_AGENT", "explorer_agent", "subagent", "Read-only project grounding.", ("G1", "G6"), False),
     Identity("RESEARCHER_AGENT", "researcher_agent", "subagent", "Internet-only research via webfetch and universalsearch source web.", ("G1",), False),

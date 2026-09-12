@@ -1,5 +1,53 @@
 # Progress Log
 
+## 2026-09-12 KERNEL+PLAN — the intention now survives compaction (carrier closed)
+
+Reason: Alexander — "если посмотришь компакцию opencode в доках, то там с намерением всё
+окей, давай доделаем". Correct, and it made the invented `PLAN_CONTRACT.intention_ref`
+storage unnecessary: the carrier already exists and is **system-Exact**.
+
+Reuse found before inventing (`docs/compaction.md` §"What one summary `s` is"): every
+summary carries `planState`, a GATED WORKFLOW mirror of the active plans parsed by
+`util/plan-status.ts:collectPlanState` — lifecycle, gate, `goal_sv`, invariants, per-task
+`sv`/status/attempts/`last_failure`. It rides the Exact stamp into `m*`, so after each
+compact the model re-enters workflow state as native prompt vocabulary. What it did **not**
+carry was the target: `goal_sv` is an attention anchor for `## Semantic Vector`, not a
+to_state.
+
+Change:
+- `util/plan-status.ts`: `parseIntention` reads `<!-- intention: <from> -> <to> -->` into a
+  new `PlanStateIntention`, wired into `PlanStatePlan` and rendered by `formatPlanStateText`
+  above `goal_sv`. Both halves required — a marker without the arrow yields no intention.
+- `source.py`: `PLAN_CONTRACT` gains `intention_ref`; G3 addon (both variants) states the
+  marker and that it rides planState through compact.
+
+Oracle caught a real defect [Exact]. First implementation used
+`/<!--\s*intention:\s*([^>]*?)\s*-->/`, copied from the neighbouring `goal_sv` matcher —
+but `[^>]` cannot cross the arrow, because `->` contains `>`. Typecheck was green and the
+parser returned `undefined` for every well-formed marker. Fixed to `[\s\S]*?`; the comment
+in the code now says why. This is the AGENTS.md rule paying for itself: a green oracle
+aimed at the wrong layer proves nothing.
+
+Verification [Exact]: `bun test` still cannot run — `test/preload.ts` is loaded for every
+test file in the package, and it pulls `provider/transform.ts:1441` (unterminated string)
+and `provider/provider.ts:47,49`, which do not parse. Both were broken before any edit here.
+So the case was proven against the real implementation directly (scratchpad probe importing
+`src/util/plan-status`, no mocks): marker → `{from_state, to_state}`, mirror line
+`intention: ... -> ...`, arrowless marker → undefined and no line. The bun test
+(`test/util/plan-status.test.ts`) is committed and asserts the same four things the moment
+the tree parses.
+
+Also: `bun typecheck` delta **zero** (3 errors, both user files). Kernel validator clean,
+ngrams clean, **78 passed**. Product 30 558 / 32 000 bytes, 3 777 / 3 950 tokens; Claude
+30 837 / 32 000, 3 824 / 3 950. Caps untouched. Installed both — product sha256
+`678004f1446ffd04be814fc725134bbd3d54a922e1c3f52c0b47b9009b68fa4c` (baseline repinned),
+Claude `840e52b33b88664f2af11185de430ee3447200bad2a8257214669fc7a012c70f`.
+`docs/compaction.md` documents the anchor.
+
+Note: `formatPlanStateText` keeps its 1500-char cap, so on three busy plans the intention
+line competes with the 8th task line. That is the right trade — the target outranks a task
+row — but it is a trade, recorded here rather than discovered later.
+
 ## 2026-09-12 KERNEL — the evidence ladder was stated four times; now twice, by different keys
 
 Reason: Alexander on formal notation — "английский язык дико контекстный, правильная

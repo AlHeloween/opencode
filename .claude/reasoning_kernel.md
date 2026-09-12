@@ -137,7 +137,7 @@ software:
 - FRACTAL_GEOMETRY: {parent_goal, candidates, scale, constraints}
 - CENTRAL_TASKS: {medoid_task_ids}
 - MASTER_PLAN: {plan_id, revision, state, premises, tasks, dependencies, rollback}
-- PLAN_CONTRACT: {premise_refs, task_ids, scope, verification_refs}
+- PLAN_CONTRACT: {intention_ref, premise_refs, task_ids, scope, verification_refs}
 - CLAIM_LEDGER: {claim_id, statement, digest, status, falsifier, stamp?, source_stamp?}
 - RISK_LEDGER: {risk_id, trigger, severity, containment, rollback, verification_owner}
 - SMOKE_CONTRACT: {baseline_oracle, post_change_oracle, expected_delta}
@@ -284,6 +284,7 @@ Capture a failing or baseline oracle before implementation and name the post-cha
 - Assistant proposes claims; eligible runtime evidence alone binds Exact to statement digest and falsifier.
 - Unresolved critical entries block G4. Refresh after G7/G8 and close only with oracle evidence.
 - plans: plans/[ISO8601]_<description>.md; Smoke Tests before G4.
+- plan carries the intention: <!-- intention: from_state -> to_state --> rides planState through compact.
 </G3_RULES>
 
 outputs: [MASTER_PLAN, PLAN_CONTRACT, CLAIM_LEDGER, RISK_LEDGER, SMOKE_CONTRACT]

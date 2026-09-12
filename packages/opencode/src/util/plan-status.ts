@@ -83,10 +83,16 @@ export interface PlanStateTask {
   last_failure?: string
 }
 
+export interface PlanStateIntention {
+  from_state: string
+  to_state: string
+}
+
 export interface PlanStatePlan {
   file: string
   lifecycle?: string
   gate?: string
+  intention?: PlanStateIntention
   goal_sv: string[]
   invariants: string[]
   tasks: PlanStateTask[]
@@ -94,6 +100,23 @@ export interface PlanStatePlan {
 
 export interface PlanStatePayload {
   plans: PlanStatePlan[]
+}
+
+/**
+ * `<!-- intention: <from_state> -> <to_state> -->` — the plan's copy of the kernel's
+ * DIGITAL_INTENTION. It rides planState into every summary and through compact into
+ * `m*`, so the target survives as a system-Exact anchor instead of being re-derived
+ * from the model's recollection. Both halves are required: a marker without the arrow
+ * is not half an intention, it is no intention.
+ */
+function parseIntention(content: string): PlanStateIntention | undefined {
+  // `[^>]` would stop at the arrow itself — `->` contains `>`.
+  const raw = content.match(/<!--\s*intention:\s*([\s\S]*?)\s*-->/)?.[1]
+  if (!raw) return undefined
+  const [from, ...rest] = raw.split("->")
+  const to = rest.join("->").trim()
+  if (!from.trim() || !to) return undefined
+  return { from_state: from.trim(), to_state: to }
 }
 
 /** Trailing metadata tags on a task line:
@@ -179,6 +202,7 @@ export function collectPlanState(worktree: string): PlanStatePayload {
       file: `plans/${file.replace(/\\/g, "/")}`,
       lifecycle: parseLifecycle(content),
       gate: parseGate(content),
+      intention: parseIntention(content),
       goal_sv: goalSv,
       invariants,
       tasks,
@@ -221,6 +245,7 @@ export function formatPlanStateText(payload: PlanStatePayload): string {
   for (const p of payload.plans) {
     const lines = [
       `plan: ${p.file} · lifecycle ${p.lifecycle ?? "UNKNOWN"}${p.gate ? ` · gate ${p.gate}` : ""}`,
+      ...(p.intention ? [`intention: ${p.intention.from_state} -> ${p.intention.to_state}`] : []),
       ...(p.goal_sv.length ? [`goal_sv: ${p.goal_sv.join(", ")}`] : []),
     ]
     const open = p.tasks.filter((t) => t.status !== "PASS")

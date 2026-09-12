@@ -53,6 +53,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "PATH_PLANS",
         (
             "plans: plans/[ISO8601]_<description>.md; Smoke Tests before G4.",
+            "plan carries the intention: <!-- intention: from_state -> to_state --> rides planState through compact.",
         ),
     ),
     GateAddon(

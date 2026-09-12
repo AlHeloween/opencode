@@ -125,15 +125,15 @@ rows are consumed **only at compact** into `m*`.
 | System data | **Exact** | range `from_id`/`to_id`, locus for `session-read`, checkpoint id |
 | Tool diffs | **Exact** | write/edit/multiedit `filediff` from session DB — see `summary-exact-handles.md` |
 | CodeGraph | **Exact** | structural impact over those file paths (system, not model) |
-| Plan state | **Exact** | GATED WORKFLOW mirror of active `plans/*.md`: lifecycle, gate, per-task `sv`/status/attempts/last_failure, invariants — kernel-native anchors (see below) |
+| Plan state | **Exact** | GATED WORKFLOW mirror of active `plans/*.md`: lifecycle, gate, intention, per-task `sv`/status/attempts/last_failure, invariants — kernel-native anchors (see below) |
 | Fossil | **Rollback only** | WC track/restore — **not** summary Exact |
 
 **Not:** fossil span for memory. **Yes:** tool Exact + CodeGraph + plan state.
 
 **Plan state mirror (2026-08-27):** each `s` carries a system-Exact `planState`
-— a GATED WORKFLOW snapshot of the active plans: `lifecycle`, `gate`, per-task
-`sv`/status/oracle/`attempts`/`last_failure`, plan invariants — expressed in
-kernel-native anchors. It rides the Exact stamp into `m*`, so after every
+— a GATED WORKFLOW snapshot of the active plans: `lifecycle`, `gate`, the plan's
+`intention`, per-task `sv`/status/oracle/`attempts`/`last_failure`, plan invariants
+— expressed in kernel-native anchors. It rides the Exact stamp into `m*`, so after every
 compact the model re-enters the workflow state as native prompt vocabulary;
 task sv strings make summaries reverse-searchable (messagesearch → s row →
 sessionread → facts). `## Semantic Vector` in model prose is **dominant-only**
@@ -143,6 +143,15 @@ vectors come from the plan (system, not model). Relevance filter + caps
 collapsed to counts, open tasks ≤8/plan, 1500-char hard cap — stale-plan noise
 never enters `s`; `dominant` is anchored to the active plan's `goal_sv` via the
 sidecar request.
+
+**Intention anchor (2026-09-12):** a plan may declare the kernel's
+`@DIGITAL_INTENTION` as `<!-- intention: <from_state> -> <to_state> -->`
+(`util/plan-status.ts:parseIntention`). It rides `planState` into every `s` and through
+compact into `m*`, so `@INTENTION_INVARIANCE` has a system-Exact anchor: after a compact
+the target is read back rather than re-derived from the model's recollection. Both halves
+are required — a marker without the arrow parses to no intention at all. The line is
+rendered above `goal_sv`, which stays what it always was: the attention anchor for
+`## Semantic Vector`, not the target.
 
 <!-- goal_sv: summary, compaction, mirror, gated workflow -->
 

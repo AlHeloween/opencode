@@ -428,7 +428,7 @@ KERNEL = Kernel(
         "FRACTAL_GEOMETRY": "{parent_goal, candidates, scale, constraints}",
         "CENTRAL_TASKS": "{medoid_task_ids}",
         "MASTER_PLAN": "{plan_id, revision, state, premises, tasks, dependencies, rollback}",
-        "PLAN_CONTRACT": "{premise_refs, task_ids, scope, verification_refs}",
+        "PLAN_CONTRACT": "{intention_ref, premise_refs, task_ids, scope, verification_refs}",
         "CLAIM_LEDGER": "{claim_id, statement, digest, status, falsifier, stamp?, source_stamp?}",
         "RISK_LEDGER": "{risk_id, trigger, severity, containment, rollback, verification_owner}",
         "SMOKE_CONTRACT": "{baseline_oracle, post_change_oracle, expected_delta}",

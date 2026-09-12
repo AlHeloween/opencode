@@ -1,0 +1,360 @@
+{
+  "ADID_FREEZE": {
+    "boundary": "ADID framework governance",
+    "disposition": "delegated",
+    "rationale": "Generated receiver ownership belongs to the ADID pipeline.",
+    "targets": []
+  },
+  "ADID_OPS": {
+    "boundary": "ADID skill and runtime tools",
+    "disposition": "delegated",
+    "rationale": "Tool manuals and framework receivers are capability-specific packs.",
+    "targets": []
+  },
+  "CACHE_STABILITY": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "Prefix stability is one shared rule; G7 does not restate it.",
+    "targets": [
+      "KV_CACHE_STABILITY"
+    ]
+  },
+  "CLEAN_STATE": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "Clean-state output is owned by G9.",
+    "targets": [
+      "CLEAN_STATE_RULE"
+    ]
+  },
+  "CLOSURE_PROOF": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "State schema and proof rule have distinct names.",
+    "targets": [
+      "CLOSURE_PROOF_RULE"
+    ]
+  },
+  "CODE_STANDARDS": {
+    "boundary": "project governance",
+    "disposition": "delegated",
+    "rationale": "Language and repository style rules are host/project-specific packs.",
+    "targets": []
+  },
+  "CONSTITUTION_BLOCKS": {
+    "boundary": "runtime ACL",
+    "disposition": "delegated",
+    "rationale": "Hard tool blocks must be enforced by runtime policy, not repeated as prompt prose.",
+    "targets": []
+  },
+  "DECOMPOSE": {
+    "boundary": "kernel",
+    "disposition": "preserved",
+    "rationale": "Preserved as one canonical rule.",
+    "targets": [
+      "DECOMPOSE"
+    ]
+  },
+  "DOCUMENT_SURFACE": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "Documentation consumers are part of the concrete dependency surface.",
+    "targets": [
+      "DEPENDENCY_BINDING"
+    ]
+  },
+  "EMIT_STATE": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "State emission is part of the G9 clean-state contract.",
+    "targets": [
+      "CLEAN_STATE_RULE"
+    ]
+  },
+  "EVIDENCE_ORDER": {
+    "boundary": "kernel",
+    "disposition": "preserved",
+    "rationale": "Preserved as one canonical rule.",
+    "targets": [
+      "EVIDENCE_ORDER"
+    ]
+  },
+  "FRACTAL_CANDIDATES": {
+    "boundary": "kernel",
+    "disposition": "preserved",
+    "rationale": "Preserved as one canonical rule.",
+    "targets": [
+      "FRACTAL_CANDIDATES"
+    ]
+  },
+  "FRAMEWORK_INHERITANCE": {
+    "boundary": "project governance",
+    "disposition": "delegated",
+    "rationale": "Framework inheritance rules are not universal kernel semantics.",
+    "targets": []
+  },
+  "GOAL_PEAKS": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "Peak selection is represented by medoid selection under the declared metric.",
+    "targets": [
+      "MANHATTAN_L1"
+    ]
+  },
+  "GOAL_SEEDS": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "Seed generation is an internal step of fractal candidate generation.",
+    "targets": [
+      "FRACTAL_CANDIDATES"
+    ]
+  },
+  "GROUND": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "Grounding is split into intent projection and project evidence geometry.",
+    "targets": [
+      "INTENT_PROJECTION_RULE",
+      "PROJECT_GEOMETRY_RULE"
+    ]
+  },
+  "INFOMARK_SEP": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "Status separation is part of the canonical information-status rule.",
+    "targets": [
+      "INFORMATION_STATUS"
+    ]
+  },
+  "MEMORY_LINKS": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "Exact-handle recovery is part of memory evidence ranking.",
+    "targets": [
+      "MEMORY_RANK"
+    ]
+  },
+  "MEMORY_RANK": {
+    "boundary": "kernel",
+    "disposition": "preserved",
+    "rationale": "Preserved as one canonical rule.",
+    "targets": [
+      "MEMORY_RANK"
+    ]
+  },
+  "METRIC_ADAPTATION": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "Metric adaptation is local to attention and evolution measurements.",
+    "targets": [
+      "SV_TRAJECTORY",
+      "QUALITY_VECTOR_RULE"
+    ]
+  },
+  "NAMING": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "Plan naming belongs to the master-plan state contract.",
+    "targets": [
+      "MASTER_PLAN_RULE"
+    ]
+  },
+  "NO_HARDCODE": {
+    "boundary": "project governance",
+    "disposition": "delegated",
+    "rationale": "Configuration discovery depends on the active project and runtime.",
+    "targets": []
+  },
+  "NO_SCRIPT_EDITING": {
+    "boundary": "runtime tool policy",
+    "disposition": "delegated",
+    "rationale": "Editing mechanism restrictions depend on available product tools.",
+    "targets": []
+  },
+  "OBSOLETE_CLEANUP": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "Removal stays inside authorized scope and is verified at closure.",
+    "targets": [
+      "CHANGE_SCOPE",
+      "CLOSURE_PROOF_RULE"
+    ]
+  },
+  "PLANS_COMPLETED": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "Plan lifecycle is reconciled only when closure evidence passes.",
+    "targets": [
+      "MASTER_PLAN_RULE",
+      "CLOSURE_PROOF_RULE"
+    ]
+  },
+  "PLAN_BINDING": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "State schema and enforcement rule have distinct, unambiguous names.",
+    "targets": [
+      "PLAN_BINDING_ENFORCEMENT"
+    ]
+  },
+  "PLAN_CONTRACT": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "State schema and enforcement rule have distinct, unambiguous names.",
+    "targets": [
+      "PLAN_CONTRACT_ENFORCEMENT"
+    ]
+  },
+  "PLAN_LIFECYCLE": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "Lifecycle is a master-plan field rather than a free-standing global rule.",
+    "targets": [
+      "MASTER_PLAN_RULE"
+    ]
+  },
+  "PLAN_REVISION": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "Revision is a master-plan field and reauthorization trigger.",
+    "targets": [
+      "MASTER_PLAN_RULE"
+    ]
+  },
+  "PROGRESS_LOG": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "Progress is emitted as concise verified state, not a second protocol.",
+    "targets": [
+      "CLEAN_STATE_RULE"
+    ]
+  },
+  "READ_ENTIRE_FILE": {
+    "boundary": "host tool policy",
+    "disposition": "delegated",
+    "rationale": "File-read mechanics and limits belong to product tools.",
+    "targets": []
+  },
+  "RESIDUAL_LOOP": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "Residual semantics are split into global routing and G9 materialization.",
+    "targets": [
+      "RESIDUAL_ROUTING",
+      "RESIDUAL_GOAL_RULE"
+    ]
+  },
+  "REUSE_BEFORE": {
+    "boundary": "kernel",
+    "disposition": "preserved",
+    "rationale": "Preserved as one canonical rule.",
+    "targets": [
+      "REUSE_BEFORE"
+    ]
+  },
+  "SEARCH_ORDER": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "Intent routing and bounded plan grounding replace a universal linear search order.",
+    "targets": [
+      "CAPABILITY_GRAPH_RULE",
+      "GROUND_PLAN_RULE"
+    ]
+  },
+  "SMOKE_BEFORE": {
+    "boundary": "kernel",
+    "disposition": "preserved",
+    "rationale": "Preserved as one canonical rule.",
+    "targets": [
+      "SMOKE_BEFORE"
+    ]
+  },
+  "SMOKE_SPEC": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "The baseline rule now includes naming the post-change oracle.",
+    "targets": [
+      "SMOKE_BEFORE"
+    ]
+  },
+  "SMOKE_VALIDATE": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "Smoke validation is the G8 verification rule.",
+    "targets": [
+      "SMOKE_VERIFY"
+    ]
+  },
+  "SMOKE_VERIFY": {
+    "boundary": "kernel",
+    "disposition": "preserved",
+    "rationale": "Preserved as one canonical rule.",
+    "targets": [
+      "SMOKE_VERIFY"
+    ]
+  },
+  "SV_DELTA": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "Attention delta is defined once inside the semantic trajectory rule.",
+    "targets": [
+      "SV_TRAJECTORY"
+    ]
+  },
+  "SV_EVERY_TURN": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "Same current-vector obligation.",
+    "targets": [
+      "CURRENT_SV"
+    ]
+  },
+  "SV_OUTPUT": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "The end-of-turn write is the current semantic vector, not the format.",
+    "targets": [
+      "CURRENT_SV"
+    ]
+  },
+  "TONE_AND_STYLE": {
+    "boundary": "style layer",
+    "disposition": "delegated",
+    "rationale": "Tone is a lower-precedence identity or host concern, not execution control.",
+    "targets": []
+  },
+  "VCS_ROOT": {
+    "boundary": "host tool policy",
+    "disposition": "delegated",
+    "rationale": "VCS traversal restrictions belong to the host's tool constitution.",
+    "targets": []
+  },
+  "VERIFY_OUTCOME": {
+    "boundary": "kernel",
+    "disposition": "merged",
+    "rationale": "Outcome verification is the oracle's gate-local responsibility.",
+    "targets": [
+      "ORACLE"
+    ]
+  },
+  "WHERE_WHICH": {
+    "boundary": "host tool policy",
+    "disposition": "delegated",
+    "rationale": "Executable lookup syntax is host-specific, not universal reasoning.",
+    "targets": []
+  },
+  "WORKSPACE_LANES": {
+    "boundary": "project governance",
+    "disposition": "delegated",
+    "rationale": "Workspace topology and lane ownership are project-specific.",
+    "targets": []
+  },
+  "WRITE_SCOPE": {
+    "boundary": "kernel",
+    "disposition": "preserved",
+    "rationale": "Preserved as one canonical rule.",
+    "targets": [
+      "WRITE_SCOPE"
+    ]
+  }
+}

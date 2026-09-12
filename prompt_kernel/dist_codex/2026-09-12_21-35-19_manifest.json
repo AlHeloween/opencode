@@ -1,0 +1,11 @@
+{
+  "addons": {
+    "count": 12,
+    "sha256": "d5e61546d8a15e5a94a0d8cc4209c4cdb4eeffdba3e344ca74c1c1c8fb0bcda9"
+  },
+  "kernel": "reasoning_kernel_next",
+  "sha256": "d2b72b19b5bbe603bc762a68a3c481ec18f45cf4765172c3640995741194e71d",
+  "stamp": "2026-09-12_21-35-19",
+  "utf8_bytes": 30836,
+  "version": "2.0.0-alpha.3"
+}

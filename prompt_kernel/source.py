@@ -140,7 +140,7 @@ GATES = (
             _rule("G1", "PROJECT_GEOMETRY_RULE", "Establish the smallest evidence-backed change region before planning; unresolved ownership blocks decomposition."),
             _rule("G1", "CAPABILITY_GRAPH_RULE", "Inventory available product tools, local evidence, skills, and @SOURCE_ROUTING authorities by intent; tool availability does not grant mutation authority."),
             _rule("G1", "REUSE_BEFORE", "Search existing code, history, plans, and authoritative prior art before non-trivial invention; re-search after repeated stuck failure."),
-            _rule("G1", "MEMORY_RANK", "Rank active-window evidence above compacted handles; recover exact details from source, session history, fossil, or code graph when material."),
+            _rule("G1", "MEMORY_RANK", "Rank active-window evidence above compacted handles. Recall and a user's assertion are testimony: they record what was said, including what was later refuted. Their handles — paths, diffs, graph refs — are Exact; their prose is Guess until re-grounded. Source, fossil and code graph say what is; history says where to look."),
             _rule("G1", "OUTCOME_CONTRACT_RULE", "Before planning, define an observation that distinguishes success from plausible-looking output."),
         ),
     ),
@@ -231,6 +231,7 @@ GATES = (
         shared_rules=("PLAN_CONTRACT_ENFORCEMENT", "PLAN_BINDING_ENFORCEMENT", "KV_CACHE_STABILITY", "AUTHORITY_SEPARATION"),
         local_rules=(
             _rule("G7", "IMPLEMENT", "Apply the smallest cohesive change for the selected task, keep source ownership canonical, and update generated receivers only through their declared pipeline."),
+            _rule("G7", "DELEGATION_BINDING", "Hand a sub-agent its task binding, the parent @DIGITAL_INTENTION verbatim, and an @SV_TARGET whose basis is that task's Exact medoids and nothing else. An axis you leave in the basis is an axis it may improvise on, and it cannot see the picture you are improvising against."),
             _rule("G7", "CHANGE_SCOPE", "Do not overwrite unrelated dirty work, broaden paths, weaken tests, or perform destructive and external effects outside the execution envelope."),
             _rule("G7", "PLAN_EXECUTION", "After each bounded task, record actual diff, evidence delta, residual risk, and the exact oracle to run; a plan-to-code gap is a blocking defect."),
         ),

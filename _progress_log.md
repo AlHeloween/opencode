@@ -1,5 +1,27 @@
 # Progress Log
 
+## 2026-09-12 FIX — memory tool accepted any action and silently appended
+
+Reason: the provider files that broke `test/preload.ts` are committed (`0bdf8a827e`), so the two
+write-path oracles blocked earlier today could finally run. First run: 6 pass / **1 fail**.
+
+The failure was not mine — `git show 05ddc735f4 -- tool/memory.ts` touches no schema — but per
+AGENTS.md there are no pre-existing errors, and the test was asserting the correct contract while
+the implementation never honoured it. `Parameters.action` was `Schema.String`, and `execute()`
+branches read → write → **falls through to append**. So `memory({action:"delete"})` appended
+content instead of being rejected: a silent write on an unrecognised verb.
+
+Fix: `action: Schema.Literals(["read", "write", "append"])`. First attempt used
+`Schema.Literal("read","write","append")`, which in Effect 4 beta takes one literal and rejected
+`"write"` — the codebase idiom is `Schema.Literals([...])` (`agent/agent.ts:40`), found by grep
+before guessing again.
+
+Oracles [Exact]: `bun test test/tool/memory.test.ts test/util/plan-status.test.ts` → **7 pass /
+0 fail**, `bun typecheck` → **0 errors** (baseline earlier today was 3, all in the provider files
+since fixed). Both claims that were recorded Unknown this morning are now PASS:
+- the memory revision contract (write keeps the replaced content under `revisions/`)
+- the plan intention marker (`<!-- intention: from -> to -->` parsed and mirrored)
+
 ## 2026-09-12 FIX — DeepSeek name-drift: family predicate + catalog-driven variants (plans_completed/2026-09-12_deepseek-thinking-h3.md)
 
 Reason: `deepseek-flash` (DeepSeek-V4.1-Flash, 2026-09-10) dropped the `v4` token every DeepSeek predicate was written against, so it silently fell off the DeepSeek path — wrong npm package, `low/medium/high` variants (no `off`, no `max`), no `thinking` injection — while its twin `deepseek-v4-flash` got all three.

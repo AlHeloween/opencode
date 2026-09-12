@@ -28,7 +28,10 @@ function keepRevision(previous: string, fs: AppFileSystem.Interface) {
 }
 
 export const Parameters = Schema.Struct({
-  action: Schema.String,
+  // Literal union, not String: execute() falls through to append after the
+  // read/write branches, so a loose schema let any unknown action silently
+  // append instead of being rejected.
+  action: Schema.Literals(["read", "write", "append"]),
   content: Schema.optional(Schema.String),
 })
 

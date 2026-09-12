@@ -34,7 +34,7 @@ Official references (checked 2026-08-28):
 
 | Vendor / route | Extra fields (`reasoning`, `reasoning_details`) | `reasoning_content` on tool turns | Model sees CoT? |
 |---|---|---|---|
-| **DeepSeek direct** (`api.deepseek.com`) | **silently stripped** (D==B: 1403==1403 tokens) | **MANDATORY — HTTP 400 without it** (`"The reasoning_content in the thinking mode must be passed back"`); must exist **even when empty** | **yes** — concatenated into context |
+| **DeepSeek direct** (`api.deepseek.com`) | **silently stripped** (D==B: 1403==1403 tokens) | **echo required when `tools` present** — see the correction below: the 400 is triggered by a `tool_call` **id the server never issued**, not by a missing field | **yes** — concatenated into context |
 | **OpenRouter → Z.AI** | **stripped before upstream** (A==B==C: 1247==1247==1247 tokens) | not required (200 without) | **never** — reasoning is client↔OpenRouter only |
 | **OpenRouter → Z.AI** | **stripped before upstream** (A==B==C: 1247==1247==1247 tokens) | accepted at the OpenRouter layer (200), but stripped pre-upstream | **never** — reasoning is client↔OpenRouter only |
 | **Z.AI direct** (`api.z.ai`, per docs) | not part of the documented API | **untested** (no direct key; docs document the field as response-only) | undocumented |
@@ -48,6 +48,34 @@ DeepSeek rules (official, confirmed live):
 - Single native field name: **`reasoning_content`**. There is no `reasoning` (string)
   or `reasoning_details` (array) in either vendor's documented API — those are
   OpenRouter client-dialect fields.
+
+### Correction 2026-09-12 — the tool-turn 400 is misattributed [Exact]
+
+Re-probed against `api.deepseek.com` (`deepseek-flash` **and** `deepseek-v4-pro`;
+`experiments/20260912_deepseek-h3/REPORT.md`). The 400 message names
+`reasoning_content`, but the field is **not** what triggers it:
+
+| replay shape | `reasoning_content` | result |
+|---|---|---|
+| server-issued `tool_call` id, verbatim | absent | **200** |
+| server-issued id, arguments mutated | absent | **200** |
+| server-issued id, 1 char flipped / truncated / uppercased | absent | **400** |
+| synthetic id (even with the real `call_00_` prefix) | absent | **400** |
+
+The discriminator is whether the `tool_call` id was **issued by the server** in the
+same conversation — a replayed id it never produced fails regardless of the CoT
+field. The legacy 2026-08-28 probe (variant C) reproduced the 400 because its body
+used a synthetic `call_probe_1`, which is exactly this case.
+
+Consequences: (1) keep the echo — the CoT is still concatenated into context when
+`tools` is present, so dropping it changes what the model sees; (2) never *synthesise*
+a `tool_call` id when replaying (fixtures included) — the error text will point at
+`reasoning_content` and mislead the diagnosis.
+
+Also measured the same day: `reasoning_effort` accepts
+`none,minimal,low,medium,high,xhigh,max` — the documented `ultra` returns **400**;
+`thinking:{type:"disabled"}` and `reasoning_effort:"none"` both stop thinking; the
+Anthropic-format `{"reasoning":{"effort":"none"}}` is **ignored** on `/chat/completions`.
 
 ## Where the dual-field noise comes from
 

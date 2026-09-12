@@ -1,5 +1,24 @@
 # Progress Log
 
+## 2026-09-12 FIX — DeepSeek name-drift: family predicate + catalog-driven variants (plans_completed/2026-09-12_deepseek-thinking-h3.md)
+
+Reason: `deepseek-flash` (DeepSeek-V4.1-Flash, 2026-09-10) dropped the `v4` token every DeepSeek predicate was written against, so it silently fell off the DeepSeek path — wrong npm package, `low/medium/high` variants (no `off`, no `max`), no `thinking` injection — while its twin `deepseek-v4-flash` got all three.
+
+Change:
+- `packages/opencode/src/provider/transform.ts` — single `isDeepSeekThinkingId` predicate (retired aliases `chat|reasoner|r1|v3|ocr` excluded) replacing 4 `includes("deepseek-v4")` sites; the variant set is now derived from the model's own `reasoning_options` (`deepSeekEfforts` + `deepSeekThinkingVariants`), so `deepseek-v4-pro` keeps `off/high/max` and does NOT gain `low`.
+- `packages/opencode/src/provider/provider.ts` — `resolveNpm` uses the shared predicate; `Model` carries `reasoning_options`; `fromModelsDevModel` threads it from the registry.
+- `packages/opencode/src/provider/models.ts` — `reasoning_options` added to the registry schema.
+- `packages/opencode/test/provider/transform.test.ts` — new cases: `deepseek-flash` → `off/low/high/max`, `deepseek-v4-pro` → `off/high/max`; stale `KERNEL_MAP` expectation fixed to `WORKFLOW` (kernel renamed it in `84fd876f13`).
+
+Oracle [Exact]:
+- `bun run typecheck` exit 0, 0 errors (run `20260912T121509Z_ddc17bf6`).
+- `bun test test/provider/transform.test.ts` → **167 pass / 0 fail** (run `20260912T121833Z_c0a5a3f0`; baseline 164 pass / 1 fail).
+- Live proof `experiments/20260912_deepseek-h3/verify-deepseek-variants.ts`: predicate true for `deepseek-flash`/`deepseek-v4-pro`, false for retired aliases; flash → `off,low,high,max`; pro → `off,high,max`; unknown effort (`ultra`) filtered.
+
+Incident during this task [Exact]: I broke `transform.ts` twice (22 typecheck errors — 5× duplicate `isDeepSeekThinkingId` + duplicate helpers, plus lost `case "@openrouter/ai-sdk-provider"` / `case "@ai-sdk/gateway"` labels) by re-issuing `edit` against a stale anchor. Repaired from the per-edit `.bak` (HEAD-identical by hash), then from `git show HEAD:<path>` (read-only; `git checkout` is correctly blocked as destructive-git). Cause was mine — verified via the `part` table, 119/119 tool-parts in this session, no second writer. Kernel candidate filed: `plans_completed/2026-09-12_kernel-evidence-and-edit-discipline.md`.
+
+Residual: `provider.test.ts` has a pre-existing 5s-timeout class under full-file load (present on a clean tree too, 2026-09-08) — not from this change; the run was killed after 25 min without reaching a summary.
+
 ## 2026-09-12 KERNEL+PLAN — the intention now survives compaction (carrier closed)
 
 Reason: Alexander — "если посмотришь компакцию opencode в доках, то там с намерением всё
@@ -264,7 +283,7 @@ Residual: `DIGITAL_INTENTION` lives in working state, which compaction erases �
 carrier would be the G3 plan artifact (`plans/[ISO8601]_*.md`), our nearest equivalent of the
 ADID master SVM; not bound yet. Binary rebuild (`pwsh _build.ps1`) still pending.
 
-## 2026-09-12 PROBE — DeepSeek thinking-mode controls + h3/h2 transport (plans/2026-09-12_deepseek-thinking-h3.md)
+## 2026-09-12 PROBE — DeepSeek thinking-mode controls + h3/h2 transport (plans_completed/2026-09-12_deepseek-thinking-h3.md)
 
 Reason: user asked to compare the DeepSeek thinking-mode guide against our code, clarify "h3", smoke-test, and propose a plan. "h3" in this repo = the HTTP/3 transport (`GatewayProtocol`, novita shipped), not a model.
 

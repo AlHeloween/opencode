@@ -488,6 +488,59 @@ export function systemPromptPrefix(model: Provider.Model) {
 const WIDELY_SUPPORTED_EFFORTS = ["low", "medium", "high"]
 const OPENAI_EFFORTS = ["none", "minimal", ...WIDELY_SUPPORTED_EFFORTS, "xhigh"]
 
+/** Retired DeepSeek aliases: not thinking-toggle models — excluded from every path below. */
+const DEEPSEEK_RETIRED_ALIASES = ["deepseek-chat", "deepseek-reasoner", "deepseek-r1", "deepseek-v3"]
+/** Effort values api.deepseek.com accepts (live-verified 2026-09-12). */
+const DEEPSEEK_WIRE_EFFORTS = ["low", "high", "max"]
+
+/**
+ * DeepSeek V4.x thinking family — the single predicate for every DeepSeek site
+ * (resolveNpm, variants, thinking injection).
+ *
+ * The 2026-09-10 release ships as plain `deepseek-flash` (DeepSeek-V4.1-Flash),
+ * which contains neither `v4` nor `deepseek-v4`, so a version-substring test
+ * silently dropped the *current* model onto the generic openai-compatible path:
+ * wrong npm package, `low/medium/high` variants (no `off`, no `max`) and no
+ * `thinking` injection. Measured live — experiments/20260912_deepseek-h3/REPORT.md.
+ */
+export function isDeepSeekThinkingId(apiId: string): boolean {
+  const id = apiId.toLowerCase()
+  if (!id.includes("deepseek")) return false
+  if (DEEPSEEK_RETIRED_ALIASES.some((alias) => id.includes(alias))) return false
+  return id.includes("v4") || id.includes("deepseek-flash")
+}
+
+/**
+ * Effort values for a DeepSeek model, taken from the registry's own
+ * `reasoning_options` when present. The declared set is PER MODEL, not one
+ * family constant: `deepseek-flash` declares `low|high|max` while
+ * `deepseek-v4-pro` declares only `high|max` — a shared list would hand `-pro`
+ * an effort it never declared. `minimal`/`medium`/`xhigh` are vendor aliases
+ * (medium→high) and are not surfaced, so the menu has no duplicate entries.
+ */
+function deepSeekEfforts(model: Provider.Model): string[] {
+  const declared = model.reasoning_options?.find((option) => option.type === "effort")?.values ?? []
+  const supported = declared.filter((effort): effort is string => DEEPSEEK_WIRE_EFFORTS.includes(effort))
+  if (supported.length > 0) return [...new Set(supported)]
+  return model.api.id.toLowerCase().includes("pro") ? ["high", "max"] : [...DEEPSEEK_WIRE_EFFORTS]
+}
+
+/**
+ * Thinking variants for a DeepSeek model: `off` from the registry's `toggle`
+ * option, plus one entry per declared effort. `enabled` shapes the payload per
+ * route (SDK vs openai-compatible vs anthropic).
+ */
+function deepSeekThinkingVariants(
+  model: Provider.Model,
+  enabled: (effort: string) => Record<string, unknown>,
+): Record<string, Record<string, unknown>> {
+  const declaresToggle = model.reasoning_options?.some((option) => option.type === "toggle") ?? true
+  return {
+    ...(declaresToggle ? { off: { thinking: { type: "disabled" } } } : {}),
+    ...Object.fromEntries(deepSeekEfforts(model).map((effort) => [effort, enabled(effort)])),
+  }
+}
+
 function anthropicAdaptiveEfforts(apiId: string): string[] | null {
   if (["opus-4-7", "opus-4.7", "sonnet-5", "sonnet-5-20260630"].some((v) => apiId.includes(v))) {
     return ["low", "medium", "high", "xhigh", "max"]
@@ -586,13 +639,8 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
 
   switch (model.api.npm) {
     case "@ai-sdk/deepseek":
-      if (!model.api.id.includes("deepseek-v4")) return {}
-      return {
-        off: { thinking: { type: "disabled" } },
-        low: { thinking: { type: "enabled" }, reasoningEffort: "low" },
-        high: { thinking: { type: "enabled" }, reasoningEffort: "high" },
-        max: { thinking: { type: "enabled" }, reasoningEffort: "max" },
-      }
+      if (!isDeepSeekThinkingId(model.api.id)) return {}
+      return deepSeekThinkingVariants(model, (effort) => ({ thinking: { type: "enabled" }, reasoningEffort: effort }))
 
     case "@openrouter/ai-sdk-provider":
       if (!model.id.includes("gpt") && !model.id.includes("gemini-3") && !model.id.includes("claude")) return {}
@@ -694,14 +742,12 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
     case "venice-ai-sdk-provider":
     // https://docs.venice.ai/overview/guides/reasoning-models#reasoning-effort
     case "@ai-sdk/openai-compatible":
-      const efforts = [...WIDELY_SUPPORTED_EFFORTS]
-      if (model.api.id.includes("deepseek-v4")) {
-        return {
-          high: { reasoningEffort: "high" },
-          max: { reasoningEffort: "max" },
-        }
+      if (isDeepSeekThinkingId(model.api.id)) {
+        return deepSeekThinkingVariants(model, (effort) => ({ reasoningEffort: effort }))
       }
-      return Object.fromEntries(efforts.map((effort) => [effort, { reasoningEffort: effort }]))
+      return Object.fromEntries(
+        WIDELY_SUPPORTED_EFFORTS.map((effort) => [effort, { reasoningEffort: effort }]),
+      )
 
     case "@ai-sdk/azure":
       // https://v5.ai-sdk.dev/providers/ai-sdk-providers/azure
@@ -756,11 +802,11 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
     case "@ai-sdk/google-vertex/anthropic":
       // https://v5.ai-sdk.dev/providers/ai-sdk-providers/google-vertex#anthropic-provider
 
-      if (model.api.id.includes("deepseek-v4")) {
-        return {
-          high: { thinking: { type: "enabled" }, effort: "high" },
-          max: { thinking: { type: "enabled" }, effort: "max" },
-        }
+      if (isDeepSeekThinkingId(model.api.id)) {
+        return deepSeekThinkingVariants(model, (effort) => ({
+          thinking: { type: "enabled" },
+          effort,
+        }))
       }
 
       if (model.providerID === "github-copilot") {
@@ -1026,7 +1072,7 @@ export function options(input: {
   }
 
   if (
-    input.model.api.id.includes("deepseek-v4") &&
+    isDeepSeekThinkingId(input.model.api.id) &&
     ["@ai-sdk/deepseek", "@ai-sdk/openai-compatible"].includes(input.model.api.npm)
   ) {
     result["thinking"] = { type: "enabled" }

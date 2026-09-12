@@ -44,6 +44,21 @@ export const Model = Schema.Struct({
   release_date: Schema.String,
   attachment: Schema.Boolean,
   reasoning: Schema.Boolean,
+  /**
+   * Declared reasoning control surface from the registry (models.dev, or the
+   * live sync sources). e.g. `[{type:"toggle"},{type:"effort",values:["low","high","max"]}]`.
+   * The variant list MUST be derived from this, not from a hardcoded family set:
+   * `deepseek-flash` advertises low/high/max while `deepseek-v4-pro` advertises
+   * only high/max — one shared set would hand `pro` an effort it never declared.
+   */
+  reasoning_options: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        type: Schema.String,
+        values: Schema.optional(Schema.Array(Schema.String)),
+      }),
+    ),
+  ),
   temperature: Schema.Boolean,
   tool_call: Schema.Boolean,
   interleaved: Schema.optional(

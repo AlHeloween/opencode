@@ -131,11 +131,13 @@ describe("ProviderTransform.systemPromptPrefix", () => {
     ]) {
       const prefix = ProviderTransform.systemPromptPrefix(createModel(modelId))
       expect(prefix).toBeString()
-      expect(prefix).toContain("KERNEL_MAP")
+      // The kernel's section 0 is `WORKFLOW` (renamed from `KERNEL_MAP` in
+      // 84fd876f13); assert the live heading, not the retired token.
+      expect(prefix).toContain("WORKFLOW")
       expect(prefix).toContain("CLAIM_LEDGER")
       expect(prefix).toContain("ABI_AND_VOCABULARY")
       expect(prefix).toContain("SHARED_RULES")
-      expect(prefix.indexOf("KERNEL_MAP")).toBeLessThan(prefix.indexOf("ABI_AND_VOCABULARY"))
+      expect(prefix.indexOf("WORKFLOW")).toBeLessThan(prefix.indexOf("ABI_AND_VOCABULARY"))
       expect(prefix).not.toContain("_ALL_SPECS")
     }
   })
@@ -2507,7 +2509,7 @@ describe("ProviderTransform.variants", () => {
     expect(result).toEqual({})
   })
 
-  test("deepseek-v4 returns only high and max efforts", () => {
+  test("deepseek-v4-pro returns off/high/max (catalog declares toggle + high|max)", () => {
     const model = createMockModel({
       id: "deepseek/deepseek-v4-pro",
       providerID: "deepseek",
@@ -2519,11 +2521,58 @@ describe("ProviderTransform.variants", () => {
     })
     const result = ProviderTransform.variants(model)
     expect(result).toEqual({
+      off: { thinking: { type: "disabled" } },
       high: { reasoningEffort: "high" },
       max: { reasoningEffort: "max" },
     })
     expect(result.low).toBeUndefined()
     expect(result.medium).toBeUndefined()
+  })
+
+  test("deepseek-flash (V4.1 rename) returns off/low/high/max — no v4 substring required", () => {
+    const model = createMockModel({
+      id: "deepseek/deepseek-flash",
+      providerID: "deepseek",
+      api: {
+        id: "deepseek-flash",
+        url: "https://api.deepseek.com",
+        npm: "@ai-sdk/openai-compatible",
+      },
+      reasoning_options: [
+        { type: "toggle" },
+        { type: "effort", values: ["low", "high", "max"] },
+      ],
+    } as any)
+    const result = ProviderTransform.variants(model)
+    expect(result).toEqual({
+      off: { thinking: { type: "disabled" } },
+      low: { reasoningEffort: "low" },
+      high: { reasoningEffort: "high" },
+      max: { reasoningEffort: "max" },
+    })
+  })
+
+  test("deepseek-flash effort set follows the catalog when it differs", () => {
+    const model = createMockModel({
+      id: "deepseek/deepseek-flash",
+      providerID: "deepseek",
+      api: {
+        id: "deepseek-flash",
+        url: "https://api.deepseek.com",
+        npm: "@ai-sdk/openai-compatible",
+      },
+      reasoning_options: [
+        { type: "toggle" },
+        { type: "effort", values: ["high", "max"] },
+      ],
+    } as any)
+    const result = ProviderTransform.variants(model)
+    expect(result).toEqual({
+      off: { thinking: { type: "disabled" } },
+      high: { reasoningEffort: "high" },
+      max: { reasoningEffort: "max" },
+    })
+    expect(result.low).toBeUndefined()
   })
 
   test("minimax returns empty object", () => {

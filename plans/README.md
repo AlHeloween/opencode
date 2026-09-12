@@ -64,6 +64,8 @@ See `abstract_futures/README.md`. Includes parked Zig 0.16 migration notes and s
 
 ## Recently completed → `plans_completed/`
 
+- `2026-09-12_deepseek-thinking-h3.md` — DeepSeek name-drift fix: one `isDeepSeekThinkingId` family predicate + catalog-driven variant sets (`deepseek-flash` → `off/low/high/max`, `deepseek-v4-pro` → `off/high/max`); h3 unavailable on `api.deepseek.com`; the tool-turn 400 misattribution corrected. T4 (TUI labels) left open
+- `2026-09-12_kernel-evidence-and-edit-discipline.md` — candidate kernel/addon rules: query the record before attributing unexplained state; per-edit verification (grep -c == 1, oracle per edit). Owner decision pending
 - `2026-09-01_kernel-tautology-fix.md` — kernel headings no longer declare+reference themselves (`X (@X)` → `X`); parens kept only for title≠anchor; dictionary parser fallback
 - `2026-08-27_kernel-assembly-reverification.md` — fold supremacy-clause dedup into assembly pipeline: dist byte-identical to production, precompiled regen, refcheck path fix
 - `2026-07-23_codegraph_mcp_only.md` — CodeGraph MCP-touch → readonly SQLite pack, Fossil impact, and production smokes

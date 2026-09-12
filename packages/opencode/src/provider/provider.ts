@@ -35,8 +35,10 @@ const log = Log.create({ service: "provider" })
 
 /** Maps (provider, modelId) → npm package, overriding catalog defaults. */
 function resolveNpm(providerID: string, modelID: string, fallback: string): string {
-  const id = modelID.toLowerCase()
-  if (providerID === "deepseek" && id.includes("v4")) {
+  // The DeepSeek family ships as `deepseek-flash` (V4.1, 2026-09-10) as well as
+  // the `deepseek-v4*` aliases, so match the family predicate instead of a
+  // version substring — the literal missed the current model entirely.
+  if (providerID === "deepseek" && ProviderTransform.isDeepSeekThinkingId(modelID)) {
     return "@ai-sdk/deepseek"
   }
   return fallback
@@ -929,6 +931,20 @@ export const Model = Schema.Struct({
   options: Schema.Record(Schema.String, Schema.Any),
   headers: Schema.Record(Schema.String, Schema.String),
   release_date: Schema.String,
+  /**
+   * Declared reasoning control surface from the registry. The variant list is
+   * derived from this, not from a hardcoded family set: `deepseek-flash`
+   * declares `low|high|max` while `deepseek-v4-pro` declares only `high|max`,
+   * so one shared constant would offer an effort a model never declared.
+   */
+  reasoning_options: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        type: Schema.String,
+        values: Schema.optional(Schema.Array(Schema.String)),
+      }),
+    ),
+  ),
   variants: Schema.optional(Schema.Record(Schema.String, Schema.Record(Schema.String, Schema.Any))),
 })
   .annotate({ identifier: "Model" })
@@ -1063,6 +1079,10 @@ function fromModelsDevModel(provider: ModelsDev.Provider, model: ModelsDev.Model
       interleaved: model.interleaved ?? false,
     },
     release_date: model.release_date ?? "",
+    reasoning_options: model.reasoning_options?.map((option) => ({
+      type: option.type,
+      ...(option.values ? { values: [...option.values] } : {}),
+    })),
     variants: {},
   }
 

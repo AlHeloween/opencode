@@ -38,8 +38,8 @@ class DocIndex:
         DocRecord("docs/README.md", "OpenCode team", "Docs directory index"),
         DocRecord("docs/ADID_Framework_15_3.md", "ADID team", "Safe-update manager construction contract, epistemic markers, behavioral conformance oracle — reference only (15.4.3 retired to git history)"),
         DocRecord("docs/gate-addons.md", "Local_Development", "Gate add-on registry: advisory host-path bindings per kernel gate, addon how-to, budget guardrails", last_verified="2026-09-04"),
-        DocRecord("docs/architecture.md", "OpenCode team", "System architecture: prompt, checkpoint, agents, media, cache/diff, OpenRouter affinity identity", last_verified="2026-09-06"),
-        DocRecord("_application_workflow_diagram.md", "Local_Development", "Runtime module and function flow, including OpenRouter body/header session identity", last_verified="2026-09-06"),
+        DocRecord("docs/architecture.md", "OpenCode team", "System architecture: prompt, checkpoint, agents, media, cache/diff, OpenRouter affinity and routing controls", last_verified="2026-09-12"),
+        DocRecord("_application_workflow_diagram.md", "Local_Development", "Runtime module and function flow, including OpenRouter body/header identity and routing configuration", last_verified="2026-09-12"),
         DocRecord("docs/external-file-locations.md", "OpenCode team", "File paths opencode reads/writes outside worktree"),
         DocRecord("docs/startup-bootstrap.md", "Local_Development", "Cold-start and instance bootstrap, including SQLite freeze-stage diagnostics", last_verified="2026-09-10"),
         DocRecord("docs/session-recovery.md", "Local_Development", "Portable session recovery and explicit db fix after a moved worktree", last_verified="2026-09-10"),
@@ -47,8 +47,8 @@ class DocIndex:
         DocRecord("docs/tools-and-sidecars.md", "Local_Development", "Sidecar tools inventory, resolution paths, Windows/Linux packaging"),
         DocRecord("docs/fossil-snapshot.md", "Local_Development", "Agent undo/redo snapshot system: leaf semantics, track scope, performance envelope, HISTORY_INVALID recovery"),
         DocRecord("docs/streamlake-kat-thinking-cache.md", "Local_Development", "Measured thinking vs prompt cache semantics of the StreamLake/KAT gateway (include_usage, 64-token hits, ignored chat_template_kwargs)"),
-        DocRecord("docs/deepseek-thinking-cache.md", "Local_Development", "Measured thinking vs prompt cache semantics of DeepSeek v4 (auto usage, 128-token units, cold-turn cost, CoT rules, refuted user_id isolation)"),
-        DocRecord("docs/reasoning-round-trip-contract.md", "Local_Development", "Cross-vendor reasoning round-trip contract (measured 2026-08-28): DeepSeek-direct 400 without reasoning_content on tool turns, OpenRouter strips reasoning fields, Z.AI native field; gateway rewrite + smoke-test recipe", last_verified="2026-08-28"),
+        DocRecord("docs/deepseek-thinking-cache.md", "Local_Development", "Measured thinking vs prompt cache semantics of DeepSeek v4 (auto usage, 128-token units, cold-turn cost, CoT echo rules incl. the 2026-09-12 misattribution correction, refuted user_id isolation)"),
+        DocRecord("docs/reasoning-round-trip-contract.md", "Local_Development", "Cross-vendor reasoning round-trip contract (measured 2026-08-28, corrected 2026-09-12): the DeepSeek tool-turn 400 fires on a non-server-issued tool_call id, NOT a missing reasoning_content; OpenRouter strips reasoning fields, Z.AI native field; gateway rewrite + smoke-test recipe", last_verified="2026-09-12"),
         DocRecord("docs/cot-reasoning-research.md", "Local_Development", "Research: how CoT affects task execution (Hi-CoT, TOPS, STITCH, Inkling, GPT-5) and why opencode drops reasoning echo"),
         DocRecord("docs/compaction.md", "Local_Development", "Compaction contract: s/m* layers, 64K sidecar cadence, 8K generation cap, finish-step cost/cache accounting, star bounds 32K+32K", last_verified="2026-09-06"),
         DocRecord("docs/summary-exact-handles.md", "Local_Development", "Layer-1 summary Exact enrichment: checkpoint-M cache prefix, Constitution tool denial, file diffs and CodeGraph impact", last_verified="2026-09-06"),
@@ -66,6 +66,7 @@ class DocIndex:
         DocRecord("docs/codegraph-mcp.md", "Local_Development", "CodeGraph MCP live-graph contract plus the readonly SQLite pack for agents"),
         DocRecord("docs/background-jobs.md", "Local_Development", "Non-blocking shell/cmd jobs: job IDs, polling, hang elimination"),
         DocRecord("docs/rendering.md", "Local_Development", "Rendering pipeline: LLM response to terminal display, mermaid, images", last_verified="2026-07-12"),
+        DocRecord("packages/web/src/content/docs/providers.mdx", "OpenCode team", "Provider connection guide, including Anthropic Claude Pro/Max browser and paste-code OAuth", last_verified="2026-09-12"),
     ])
     
     specs: list[DocRecord] = field(default_factory=lambda: [

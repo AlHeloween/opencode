@@ -182,7 +182,7 @@ GATES = (
         name="AUTHORIZE",
         objective="Classify the intended action and grant only the smallest explicit execution envelope allowed by user and runtime authority.",
         identities=("BUILD_MODE", "PLAN_MODE"),
-        requires=("MASTER_PLAN", "PLAN_CONTRACT"),
+        requires=("MASTER_PLAN", "PLAN_CONTRACT", "CAPABILITY_GRAPH"),
         outputs=("EXECUTION_ENVELOPE", "AUTH_DECISION"),
         shared_rules=("SAFETY_PRECEDENCE", "AUTHORITY_SEPARATION", "PLAN_CONTRACT_ENFORCEMENT"),
         local_rules=(
@@ -211,7 +211,7 @@ GATES = (
         name="GROUND_PLAN",
         objective="Bind every authorized task to the real implementation path and eliminate plan-to-code gaps before mutation.",
         identities=("BUILD_MODE", "PLAN_MODE", "EXPLORER_AGENT"),
-        requires=("MASTER_PLAN", "PLAN_CONTRACT", "EXECUTION_ENVELOPE", "PROJECT_GEOMETRY"),
+        requires=("MASTER_PLAN", "PLAN_CONTRACT", "EXECUTION_ENVELOPE", "AUTH_DECISION", "PROJECT_GEOMETRY"),
         outputs=("GROUNDED_PLAN", "PLAN_BINDING"),
         shared_rules=("EVIDENCE_ORDER", "PLAN_CONTRACT_ENFORCEMENT", "PLAN_BINDING_ENFORCEMENT"),
         local_rules=(
@@ -486,4 +486,26 @@ KERNEL = Kernel(
     gates=GATES,
     protocols=PROTOCOLS,
     identities=IDENTITIES,
+    # Outputs that end the chain inside one pass. Three reasons a field lands here,
+    # none of which the dataflow model can express today:
+    #   record      — produced to be read by the user or a later audit, not by a gate
+    #                 (INTENT_PROJECTION, FRACTAL_GEOMETRY, CLOSURE_PROOF, CLEAN_NEXT_STATE)
+    #   next pass   — seeds a back edge whose target gate cannot require it, because on
+    #                 the first pass it does not exist yet (RESIDUAL_GOAL -> G1,
+    #                 CONCERN_RESOLUTION -> G2)
+    #   protocol    — consumed by a cross-cutting protocol, and protocols declare no
+    #                 requires (QUALITY_VECTOR -> EVOLUTION_LOOP)
+    # DIVERGENCE_EVENT is listed under protest: @DIVERGENCE_PROTOCOL revokes a stamp to
+    # Unknown and Unknown has no declared route out of G8. That is handoff patch P5, and
+    # the reverse-reachability check found it independently (2026-09-12).
+    terminal_outputs=frozenset({
+        "INTENT_PROJECTION",
+        "FRACTAL_GEOMETRY",
+        "CONCERN_RESOLUTION",
+        "DIVERGENCE_EVENT",
+        "CLOSURE_PROOF",
+        "CLEAN_NEXT_STATE",
+        "RESIDUAL_GOAL",
+        "QUALITY_VECTOR",
+    }),
 )

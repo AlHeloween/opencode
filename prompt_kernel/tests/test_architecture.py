@@ -98,3 +98,25 @@ def test_rendered_references_resolve_after_map_declaration() -> None:
     declared.update(rule.id for protocol in KERNEL.protocols for rule in protocol.local_rules)
     declared.update((KERNEL.sv_contract.tag, KERNEL.source_routing.tag, KERNEL.source_routing.alias))
     assert declared
+
+
+def test_validator_rejects_a_spine_gate_that_produces_nothing() -> None:
+    """G0 shipped with outputs=() on 2026-09-07 and survived five days: a gate that
+    produces nothing leaves no field whose absence proves it was skipped."""
+    gates = tuple(replace(g, outputs=()) if g.id == "G3" else g for g in KERNEL.gates)
+    errors = validate_kernel(replace(KERNEL, gates=gates))
+    assert any("G3 declares no output" in error for error in errors)
+
+
+def test_validator_rejects_an_output_nobody_consumes() -> None:
+    gates = tuple(
+        replace(g, outputs=(*g.outputs, "SOURCE_STAMP")) if g.id == "G7" else g
+        for g in KERNEL.gates
+    )
+    errors = validate_kernel(replace(KERNEL, gates=gates))
+    assert any("SOURCE_STAMP is consumed by nobody" in error for error in errors)
+
+
+def test_declared_terminal_outputs_are_real_and_produced() -> None:
+    errors = validate_kernel(replace(KERNEL, terminal_outputs=KERNEL.terminal_outputs | {"CONCERN"}))
+    assert any("terminal output CONCERN is produced by no gate" in error for error in errors)

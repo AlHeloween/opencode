@@ -92,6 +92,25 @@ def validate_kernel(kernel: Kernel) -> list[str]:
             errors.append(f"spine dataflow reaches {gate_id} before fields exist: {missing}")
         available.update(gate.outputs)
 
+    # Reverse reachability. The forward check above proves every `requires` is
+    # produced; nothing proved the converse. G0 shipped with `outputs=()` on
+    # 2026-09-07 and stayed undetected for five days precisely because a gate that
+    # produces nothing cannot be observed to have been skipped.
+    for gate_id in kernel.spine:
+        gate = gates.get(gate_id)
+        if gate is not None and not gate.outputs:
+            errors.append(f"spine gate {gate_id} declares no output")
+    consumed = {field for gate in kernel.gates for field in gate.requires}
+    for gate in kernel.gates:
+        for field in gate.outputs:
+            if field not in consumed and field not in kernel.terminal_outputs:
+                errors.append(f"gate {gate.id} output {field} is consumed by nobody and is not declared terminal")
+    for field in sorted(kernel.terminal_outputs):
+        if field not in state_fields:
+            errors.append(f"terminal output is unknown state field: {field}")
+        if not any(field in gate.outputs for gate in kernel.gates):
+            errors.append(f"terminal output {field} is produced by no gate")
+
     identities = {identity.id for identity in kernel.identities}
     for identity in kernel.identities:
         if not SYMBOL.fullmatch(identity.id):

@@ -100,3 +100,7 @@ class Kernel:
     gates: tuple[Gate, ...]
     protocols: tuple[Protocol, ...]
     identities: tuple[Identity, ...]
+    # Outputs that legitimately end the chain — emitted for the user or the record
+    # rather than consumed by a later gate. Everything else must have a consumer;
+    # see validate_kernel's reverse-reachability check.
+    terminal_outputs: frozenset[str] = frozenset()

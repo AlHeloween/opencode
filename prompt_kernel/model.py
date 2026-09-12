@@ -104,3 +104,6 @@ class Kernel:
     # rather than consumed by a later gate. Everything else must have a consumer;
     # see validate_kernel's reverse-reachability check.
     terminal_outputs: frozenset[str] = frozenset()
+    # Rules no SELF_MODIFY level may weaken. Marked in place at render time —
+    # a separate list in the prose would be a second copy able to drift.
+    constitution_core: frozenset[str] = frozenset()

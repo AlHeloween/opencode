@@ -61,7 +61,7 @@ def test_codex_variant_avoids_unavailable_tool_instructions() -> None:
 def test_codex_variant_stays_within_explicit_budget() -> None:
     text = render_kernel(KERNEL, CODEX_GATE_ADDONS)
     assert len(text.encode("utf-8")) <= 32_000
-    assert normalized_token_count(text) <= 3_950
+    assert normalized_token_count(text) <= 4_050
 
 
 def test_codex_addon_render_is_deterministic_lf() -> None:

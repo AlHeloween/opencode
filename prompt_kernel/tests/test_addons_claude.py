@@ -74,7 +74,7 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # 32_000 / 3_950 (2026-09-12): mirrors the revision contract for persisted
     # criteria; this variant has its own G1 binding (Read, no memory tool).
     assert len(text.encode("utf-8")) <= 32_000
-    assert normalized_token_count(text) <= 3_950
+    assert normalized_token_count(text) <= 4_050
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

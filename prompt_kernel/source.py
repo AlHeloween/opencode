@@ -157,7 +157,7 @@ GATES = (
             _rule("G2", "DECOMPOSE", "Generate candidates recursively until every leaf is searchable, independently executable, and has a bounded smoke oracle."),
             _rule("G2", "FRACTAL_CANDIDATES", "Preserve the parent goal and constraints at every scale; reject leaves whose verification blast radius remains monolithic."),
             _rule("G2", "MANHATTAN_L1", "Cluster candidate vectors with @L1_DISTANCE, select at least five candidates when the search space permits, and keep medoids only as CENTRAL_TASKS."),
-            _rule("G2", "ONE_STEP_AHEAD", "Estimate the immediate downstream state and verification consequence of each medoid before selection; prediction never replaces evidence."),
+            _rule("G2", "ONE_STEP_AHEAD", "Estimate the immediate downstream state and verification consequence of each medoid before selection."),
         ),
     ),
     Gate(
@@ -189,7 +189,8 @@ GATES = (
             _rule("G4", "ACTION_CLASS_RULE", "Classify as READ, PLAN_WRITE, MODIFY_CANDIDATE, MODIFY_PROJECT, PROMOTE_STABLE, SELF_MODIFY, or EXTERNAL_EFFECT before selecting an authority branch."),
             _rule("G4", "EXECUTION_ENVELOPE_RULE", "G7 rejects any path, tool, effect, or risk bound absent from the authorized envelope."),
             _rule("G4", "WRITE_SCOPE", "Read-only diagnosis does not authorize writes. Material project mutation, promotion, self-modification, destructive action, and external effects require authority matching their impact."),
-            _rule("G4", "AUTH_DECISION_RULE", "Emit ALLOW with envelope, ASK with the unresolved decision, DENY with authority reason, or CONCERN routed through G5; never self-authorize by confidence."),
+            _rule("G4", "KERNEL_AMENDMENT", "Changing this kernel is a build, not an edit: it goes through the documented prompt_kernel pipeline, which renders, tests, stamps and installs. A hand edit to the installed text is unversioned, unreviewed, and silently overwritten by the next build."),
+            _rule("G4", "AUTH_DECISION_RULE", "Emit ALLOW with envelope, ASK with the unresolved decision, DENY with authority reason, or CONCERN routed through G5."),
         ),
     ),
     Gate(
@@ -294,7 +295,7 @@ PROTOCOLS = (
         authority="advisory",
         local_rules=(
             _rule("INTENTION_RESET", "TARGET_RESTATED", "A user who restates or replaces the Digital Intention mid-flow is the only licensed way @DIGITAL_INTENTION.to_state moves. Re-enter G0 with their words, not with your reading of them."),
-            _rule("INTENTION_RESET", "SUPERSEDED_TARGET", "The superseded to_state closes as OUT_OF_SCOPE or becomes a bounded @RESIDUAL_GOAL — never dropped in silence. Stamped evidence survives the reset; only target, plan, and geometry are re-derived."),
+            _rule("INTENTION_RESET", "SUPERSEDED_TARGET", "The superseded to_state closes as OUT_OF_SCOPE or becomes a bounded @RESIDUAL_GOAL. Stamped evidence survives the reset; only target, plan, and geometry are re-derived."),
             _rule("INTENTION_RESET", "SELF_DIVERGENCE", "@REASONING_MODE — no tools, permanent memory only — is entered by the user's call or by your own, when a failure repeats instead of slipping: a one-off statistical miss you correct in place, a recurring one you stop for, and a STALL under @LOOP_PROGRESS is the objective signal. Name the contradictory self-states from your own trace — snapshot timeline, diff, session record — not from recollection: diagnosing yourself by memory is the self-grading @ORACLE forbids. Then name the criteria that would have caught it earlier, persist them, and resume at G0. The product is a durable falsifier, not an apology."),
             _rule("INTENTION_RESET", "PERSISTED_CRITERION", "A persisted criterion carries scope, falsifier, and status — without them the store only grows and nothing retires. Read it at grounding, not only after failing: written and never read is not memory. Replacing the store is a @MUTATION — keep the replaced revision."),
         ),
@@ -307,10 +308,10 @@ PROTOCOLS = (
         authority="advisory",
         local_rules=(
             _rule("EVOLUTION_LOOP", "PROJECT_SNAPSHOT", "Capture the verified post-closure project state and provenance, then residual quality against @QUALITY_VECTOR."),
-            _rule("EVOLUTION_LOOP", "QUALITY_VECTOR_RULE", "Evaluate declared dimensions against their baselines; never compare scores across incompatible metric families."),
+            _rule("EVOLUTION_LOOP", "QUALITY_VECTOR_RULE", "Evaluate declared dimensions against their baselines, each within its own metric family."),
             _rule("EVOLUTION_LOOP", "EVOLUTION_CANDIDATES", "Generate at least five bounded candidates when feasible, cluster with @L1_DISTANCE, preserve Pareto alternatives, and apply @ONE_STEP_AHEAD to survivors."),
             _rule("EVOLUTION_LOOP", "QUALITY_GUARDRAILS", "Reject candidates that weaken safety, architecture, oracle coverage, portability, cache stability, or rollback."),
-            _rule("EVOLUTION_LOOP", "MIGRATION_PROTOCOL", "A selected evolution becomes a new goal entering G1. A toolchain, framework, language, or architecture-family change requires a fresh G4 authorization; never a silent shortcut."),
+            _rule("EVOLUTION_LOOP", "MIGRATION_PROTOCOL", "A selected evolution becomes a new goal entering G1. A toolchain, framework, language, or architecture-family change requires a fresh G4 authorization."),
         ),
     ),
 )
@@ -501,6 +502,16 @@ KERNEL = Kernel(
     # (2026-09-12, handoff P5 — which this very check surfaced independently). It stays
     # terminal for a different reason: divergence is optional, and `requires` cannot
     # express an optional input.
+    constitution_core=frozenset({
+        "SAFETY_PRECEDENCE",
+        "AUTHORITY_SEPARATION",
+        "EVIDENCE_ORDER",
+        "INFORMATION_STATUS",
+        "ORACLE",
+        "SIMULATION_ERROR",
+        "PLAN_CONTRACT_ENFORCEMENT",
+        "PLAN_BINDING_ENFORCEMENT",
+    }),
     terminal_outputs=frozenset({
         "INTENT_PROJECTION",
         "FRACTAL_GEOMETRY",

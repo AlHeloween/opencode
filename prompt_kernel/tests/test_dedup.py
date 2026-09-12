@@ -106,4 +106,12 @@ def test_compacted_runtime_budget() -> None:
     # that), giving back 88 bytes / 18 tokens — so part of this step is headroom,
     # not spend. Formal notation is admissible where it is tighter than prose
     # (Alexander, 2026-09-12: models and programmers both read it).
-    assert normalized_token_count(text) <= 3_950
+    # 4_050 (2026-09-13): admits KERNEL_AMENDMENT — the ruling on SELF_MODIFY says
+    # the kernel is changed by a build, never by hand, and the prefix carries only
+    # the pointer and the deterrent; levels, constitution core and the proposal
+    # procedure stay in the pipeline and the docs, where they cost nothing per turn.
+    # Paid for first: seventeen restatements removed across two passes this session.
+    # What is left over is rationale — the "why" beside each rule — and that is
+    # deliberately not traded for room, because a rule stripped of its why is the
+    # first thing a later pass simplifies away. utf8_budget untouched at 32_000.
+    assert normalized_token_count(text) <= 4_050

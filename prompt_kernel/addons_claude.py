@@ -62,6 +62,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         (
             "permission/identity uncertain -> defer to the harness's prompt; unresolved decision -> AskUserQuestion.",
             "network-calling MCP tools (e.g. call_model) are EXTERNAL_EFFECT; stay free-tier unless allow_paid:true is explicit.",
+            "kernel source: prompt_kernel/source.py -> python -m prompt_kernel --install; the installed .txt is generated, never hand-edited.",
         ),
     ),
     GateAddon(

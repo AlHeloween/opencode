@@ -54,6 +54,7 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         (
             "runtime ACL is authoritative; unresolved user decision -> Ask.",
             "network tools and real Browser actions are EXTERNAL_EFFECT; do not exceed the user-authorized effect.",
+            "kernel source: prompt_kernel/source.py -> python -m prompt_kernel --install; the installed .txt is generated, never hand-edited.",
         ),
     ),
     GateAddon(

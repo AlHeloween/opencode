@@ -111,6 +111,10 @@ def validate_kernel(kernel: Kernel) -> list[str]:
         if not any(field in gate.outputs for gate in kernel.gates):
             errors.append(f"terminal output {field} is produced by no gate")
 
+    for rule_id in sorted(kernel.constitution_core):
+        if rule_id not in {rule.id for rule in all_rules}:
+            errors.append(f"constitution core names an unknown rule: {rule_id}")
+
     identities = {identity.id for identity in kernel.identities}
     for identity in kernel.identities:
         if not SYMBOL.fullmatch(identity.id):

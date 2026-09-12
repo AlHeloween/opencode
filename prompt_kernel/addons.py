@@ -52,6 +52,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_AUTHORIZE",
         (
             "identity or permission uncertain -> getmode; unresolved decision -> question (ASK).",
+            "kernel source: prompt_kernel/source.py -> python -m prompt_kernel --install; the installed .txt is generated, never hand-edited.",
         ),
     ),
     GateAddon(

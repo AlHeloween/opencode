@@ -1,6 +1,6 @@
 # Progress Log
 
-## 2026-09-12 FIX — TUI чёрный экран: log rotation stalled the worker before Rpc.listen (plans/2026-09-11_tui-black-screen-flock-startup.md)
+## 2026-09-12 FIX — TUI чёрный экран: log rotation stalled the worker before Rpc.listen (plans_completed/2026-09-12_tui-black-screen-log-rotation.md)
 
 Reason: user reported "TUI не стартует, чёрный экран — совсем пусто, без вывода", reproducible as «если есть логи то висит» and «запускаем, работаем, выходим, запускаем снова — висим».
 
@@ -21,7 +21,10 @@ Oracle:
 - A/B, identical ConPTY/cwd/env, 236 log files in the project log dir: WITHOUT the fix → black screen; WITH the fix (10.0.976) → `instance boot completed` → `tui plugins ready { count: 11 }` → UI. Chain in `1789182964690_log_system_internal.jsonl`.
 - `bun typecheck` exit 0; `core/test/util/flock.test.ts` 10 pass / 0 fail; `test/util/rpc.test.ts` 4 pass / 0 fail.
 - Full rebuild `pwsh _build.ps1` → 10.0.976: "Smoke test passed: 10.0.976", "Smoke test passed: reasoning_prompt.txt embedded", "[OK] Build complete - artifacts in dist/".
-- Residual: `bin\opencode.exe` (the copy on PATH) is still 10.0.975; the fix lives in `dist\bin\opencode.exe` 10.0.976 — copy it over to apply. CodeGraph MCP failure (`Cannot find module ...codegraph.js`) was ruled out as a cause: it fails in the working run too, and `OPENCODE_CODEGRAPH_MCP=0` still stalled.
+- Deployed artifact verified 2026-09-12 (follow-up): `bin\opencode.exe` (the copy on PATH, resolved by `Get-Command opencode`) and `dist\bin\opencode.exe` are byte-identical — both 10.0.976, SHA256 `12D46C4E…E468302942`. The earlier "PATH is stale 10.0.975" note is resolved; the fix is live on PATH.
+- Decisive A/B on the **shipped** binary, isolated worktree, 150 log files (> `keep = 100`): 10.0.976 → `instance boot completed` + `tui plugins ready` + painted UI in ~4 s; pre-fix `bin_tst\2026-09-09-Stable` 10.0.957 → stalled past 50 s past `kv state absent` with no `instance boot completed` (black-screen signature). This is the causal pair, not a correlation.
+- CodeGraph MCP failure (`Cannot find module ...codegraph.js`) was ruled out as a cause: it fails in the working run too, and `OPENCODE_CODEGRAPH_MCP=0` still stalled.
+- Residual (revised): the "live session holds the project DB and blocks a second boot" hypothesis did **not** reproduce — two 10.0.976 instances in one isolated worktree both reached `tui plugins ready` while sharing the same DB. The original in-project `RPC call timed out after 30000ms: fetch` is now explained by log cleanup itself (fixed). What remains Unknown is whether the much larger real project DB (152 MB) changes this; not reproducible in isolation. No action pending.
 
 ## 2026-09-10 realtime user-turn replacement
 

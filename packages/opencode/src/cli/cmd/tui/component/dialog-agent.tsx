@@ -45,17 +45,11 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
   }
 
   // ── All visible non-hidden agents ──
-  const allAgents = createMemo(() =>
-    sync.data.agent.filter((a) => !a.hidden),
-  )
+  const allAgents = createMemo(() => sync.data.agent.filter((a) => !a.hidden))
 
   // ── Group by mode ──
-  const primaryAgents = createMemo(() =>
-    allAgents().filter((a) => a.mode !== "subagent"),
-  )
-  const subagents = createMemo(() =>
-    allAgents().filter((a) => a.mode === "subagent"),
-  )
+  const primaryAgents = createMemo(() => allAgents().filter((a) => a.mode !== "subagent"))
+  const subagents = createMemo(() => allAgents().filter((a) => a.mode === "subagent"))
 
   // ── Local enable/disable toggles (v1: runtime only, v2: config write) ──
   const [disabled, setDisabled] = createSignal<Set<string>>(new Set())
@@ -103,9 +97,7 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
     const lastSession = sessions[sessions.length - 1]
     const msgs = sync.data.message[lastSession.id]
     if (!msgs?.length) return ""
-    const last = msgs.findLast(
-      (m: any) => m.role === "assistant" && (m as any).tokens?.output > 0,
-    )
+    const last = msgs.findLast((m: any) => m.role === "assistant" && (m as any).tokens?.output > 0)
     if (!last) return ""
     const t = (last as any).tokens
     const cacheRead = t.cache?.read ?? 0
@@ -157,6 +149,17 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
         footer: isCurrent ? "✓ current" : cur ? `→ ${cur.name}` : undefined,
         onSelect: () => {
           if (!cur) return
+          if (scope === "global") {
+            dialog.replace(() => (
+              <DialogVariant
+                targetAgent={cur.name}
+                scope="global"
+                pendingModel={{ providerID: item.providerID, modelID: item.modelID }}
+                onDone={() => dialog.replace(() => <DialogAgent scope={scope} restoreValue={cur.name} />)}
+              />
+            ))
+            return
+          }
           local.model.set({ providerID: item.providerID, modelID: item.modelID }, { recent: true, agent: cur.name })
           dialog.clear()
         },
@@ -188,12 +191,7 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
 
     // Session subagents override (worktree-local) else global Agent.Info
     const sub = local.model.subagentsFor(agent.name)
-    const subLabel =
-      sub === undefined
-        ? ""
-        : sub.length === 0
-          ? " · task: none"
-          : ` · task: ${sub.length}`
+    const subLabel = sub === undefined ? "" : sub.length === 0 ? " · task: none" : ` · task: ${sub.length}`
 
     const isActive = local.agent.current()?.name === agent.name
     const activeLabel = isActive ? " ← active" : ""
@@ -215,7 +213,9 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
           <DialogModel
             targetAgent={agent.name}
             scope={scope}
-            onDone={() => dialog.replace(() => <DialogAgent scope={scope} restoreValue={props.restoreValue ?? agent.name} />)}
+            onDone={() =>
+              dialog.replace(() => <DialogAgent scope={scope} restoreValue={props.restoreValue ?? agent.name} />)
+            }
           />
         ))
       },
@@ -224,7 +224,7 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
 
   return (
     <DialogSelect
-      title={`Agent Configuration — scope: ${scope}${scope === "global" ? " (confirm on write)" : ""}  (←/→ switch)`}
+      title={`Agent Configuration — scope: ${scope}${scope === "global" ? " (explicit Save)" : ""}  (←/→ switch)`}
       current={local.agent.current()?.name}
       cursorValue={props.restoreValue}
       options={options()}
@@ -339,7 +339,7 @@ function AgentScopeDialog(props: { current: ModelScope; onPick: (scope: ModelSco
     {
       value: "global" as const,
       title: "Global",
-      description: "applies to all projects — confirmation dialog on write",
+      description: "applies to all projects — staged changes write only on Save",
       onSelect: () => props.onPick("global"),
     },
   ]

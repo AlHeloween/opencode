@@ -2,14 +2,17 @@
 title: OpenCode Architecture and System Design
 owner: OpenCode team
 status: production
-last_verified: 2026-09-06
+last_verified: 2026-09-12
 reproduce:
   files:
     - packages/opencode/src/provider/transform.ts
     - packages/opencode/src/session/llm.ts
     - packages/opencode/test/session/llm.test.ts
+    - packages/opencode/src/cli/cmd/tui/component/dialog-routing-state.ts
+    - packages/opencode/test/tui/dialog-routing-state.test.ts
   commands:
     - cd packages/opencode && bun test test/session/llm.test.ts
+    - cd packages/opencode && bun test test/tui/dialog-routing-state.test.ts
     - cd packages/opencode && bun typecheck
   inputs: An OpenRouter chat turn, including a child task with a reusable cache lease.
   expected_outputs: Mutable banner, body session_id, header x-session-id, and prompt_cache_key share one final provider cache namespace.
@@ -277,6 +280,23 @@ superseded). Only `adaptive-client` removes consumed OAuth inputs
 `ChatGPT-Account-Id`, `x-opencode-oauth-url` → URL rewrite) so raw credentials
 never duplicate into provider logs. Local diagnostics (`wireHeaders`,
 `sanitizeHeaders`) still redact auth from gateway log files.
+
+## 8b. OpenRouter routing configuration (2026-09-12)
+
+`/agents` → `ctrl+o` opens a model-aware routing editor. It fetches the selected
+model's live OpenRouter endpoints, offers native dynamic sorting by `price`,
+`throughput`, or `latency`, and exposes both priority `order` and strict `only`
+provider selection. Dynamic sorting and a manual provider list are mutually
+exclusive. `fp8` starts selected only when the live model advertises at least
+one fp8 endpoint and the target layer has no explicit `quantizations` value.
+
+The form displays effective inherited routing but labels the write destination
+explicitly. Its Save row is the sole write action; it does not open a second
+confirmation dialog. In global `/agents` model editing, model and variant are
+staged together and committed by one Save and one global-config update. If that
+save targets the active agent, the current session adopts the same model and
+variant for its next prompt, overriding older worktree state; an already running
+request stays pinned to the model recorded when it began.
 
 ## 9. Key Files
 

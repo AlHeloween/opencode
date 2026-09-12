@@ -1,7 +1,7 @@
 # Subplan 04: OpenRouter routing — per-agent, per-model, defaults + interactive dialog
 
 plan_id: 2026-08-31-settings-04-routing
-state: IMPLEMENTED (rev 5, 2026-09-06) — server chain + defaults + dialog; rev 2 = live endpoints; rev 4 = scope-aware saves (global/worktree/session) + 2-line layout; rev 5 documents sticky-routing-safe single-provider profiles
+state: IMPLEMENTED (rev 6, 2026-09-12) — server chain + defaults + dialog; rev 6 = price/speed sorting, model-aware fp8 default, visible `only`, and one Save
 parent: [master.md](master.md)
 origin: Alexander 2026-08-31 06:15–06:25 UTC — "настройки уникальны для каждой модели… типа глобальные, локальные"; "для DeepSeek v4 Flash v731 должен быть StreamLake по умолчанию"; "та же модель но разные провайдеры в зависимости от целей, разная квантизация. StreamLake четко указывает точность"; dialog: "всплывающее окно по hotkey, cursor move, space select unselect, в списке fp".
 
@@ -28,7 +28,7 @@ Cache safety: distinct routing → distinct `s.models` cache key (`#<sha256-12>`
 ```
 OpenRouter native keys pass through verbatim (openrouter.ai/docs routing: order, only, allow_fallbacks, require_parameters, quantizations, sort, …).
 
-Affinity note (rev 5): `provider.order` intentionally controls priority but disables OpenRouter sticky routing. For a single allowed upstream where cache continuity matters, use `provider.only` instead. The active Z.AI runtime profile therefore uses `{ only: ["Z.AI"], allow_fallbacks: false, quantizations: ["fp8"] }`; the generic dialog retains `order` semantics for users who explicitly choose an ordered provider sequence.
+Affinity note (rev 5): `provider.order` intentionally controls priority but disables OpenRouter sticky routing. For a single allowed upstream where cache continuity matters, use `provider.only` instead. The dialog exposes both modes and visibly identifies a strict `only` selection.
 
 ## Dialog — IMPLEMENTED, rev 2 (live endpoints; Alexander 16:36 UTC: «выбор inference point не реальный для конкретно выбранной модели… нормальный список со скроллом и выбор галками, fp precision из списка, а не от балды»)
 
@@ -38,12 +38,13 @@ Affinity note (rev 5): `provider.order` intentionally controls priority but disa
 
 UI contract (rev 2):
 - **Data source**: `GET https://openrouter.ai/api/v1/models/{author}/{slug}/endpoints` — PUBLIC (no auth; verified live 2026-08-31 on deepseek-chat-v3.1 and deepseek-v4-flash). Response: `data.endpoints[]` with `provider_name`, `tag` (full endpoint slug, e.g. `streamlake/fp8`), `quantization`, `status` (0 = healthy, negative = degraded), `uptime_last_30m`, `pricing.prompt`, `context_length`.
-- **Order section** = REAL providers of the selected model, grouped by tag base slug; sorted healthy → uptime → price. Rows show name · slug · quants · ctx · $/M in · uptime. Saved-config slugs absent from the live list stay visible/deselectable («saved») — a save never silently drops them.
+- **Sort section** = OpenRouter-native `price`, `throughput`, or `latency`, plus default routing. Dynamic sorting clears an explicit provider list; choosing a provider clears dynamic sort.
+- **Providers section** = REAL providers of the selected model, grouped by tag base slug; sorted healthy → uptime → price. Rows show name · slug · quants · ctx · $/M in · uptime. Both priority `order` and strict `only` are visible/editable. Saved-config slugs absent from the live list stay visible/deselectable («saved»).
 - **Scrollable viewport** (14 rows) with `··· N more above/below` indicators; ↑/↓ move, ←/→ page.
 - **SPACE toggles** (checkbox); selection sequence = `order` priority, markers `[1][2]…`.
-- **Quantizations section DERIVED from live endpoints** (value + endpoint count) — no hardcoded fp enum. `unknown` appears if OpenRouter reports it.
+- **Quantizations section DERIVED from live endpoints** (value + endpoint count) — no hardcoded fp enum. `fp8` defaults on only when the selected model advertises it and the target layer has not explicitly configured quantizations.
 - **allow_fallbacks** toggle row.
-- Save → **global layer** → DialogConfirm (policy) → `sdk.client.global.config.update` (`writeGlobalAgentField` with `routing` for agent scope; `setProviderRouting` for model scope). Clearing routing from TUI remains a documented gap (patchJsonc set-only).
+- Save writes directly to the explicitly named layer and closes after success; there is no redundant DialogConfirm after the Save row.
 - **Degraded mode**: fetch failure → error line + `r` retry; `a` manual slug entry ONLY in this state (labeled manual) — never the primary path.
 
 ## Revision 4 (2026-09-02, Alexander live-test feedback)
@@ -63,7 +64,7 @@ Routing resolution becomes the SAME 3-layer chain as agent model/variant (sessio
 - `session-settings.ts`: `SessionAgentOverride.routing?: Record<string,unknown>`; `SessionSettings.modelRouting?: Record<"providerID/modelID", routing>`; normalize both; resolvers `sessionAgentRouting` / `sessionModelRouting`.
 - `llm.ts`: routing priority per stream = session-agent → agent options (config) → session-model → config model/provider → defaults.
 - TUI `local.model`: `setAgentRouting(name, routing, scope)` / `setModelRouting(providerID, modelID, routing, scope)` + session readers. Worktree writes via core-client PATCH /config (merge-patch, null = clear — the rev-2 merge-patch work pays off here).
-- Dialog: entries pass `scope` (DialogAgent/DialogModel both know it); save label + toast name the layer; DialogConfirm ONLY for global (policy); session/worktree save directly.
+- Dialog: entries pass `scope` (DialogAgent/DialogModel both know it); save label + toast name the layer; the Save row is authoritative for every scope.
 - Dialog initial selection reads the TARGET layer first (session file), falling back to the merged view.
 
 ### Layout (rev 4)
@@ -84,5 +85,5 @@ Routing resolution becomes the SAME 3-layer chain as agent model/variant (sessio
 1. typecheck — PASS (`20260831T063950Z_a7aab385`; rev 2: `20260831T164617Z_6b2f0f9c`).
 2. Server: agent routing wins over model config; defaults apply for deepseek-v4-flash when nothing set; non-openrouter ignores routing (loader ignores `extra`).
 3. Cache: two agents, same model, different routing → two built models (no cross-talk) — code review + runtime log `request shape` (body.provider differs).
-4. Dialog: live endpoints listed for the target model (real slugs/quantizations), space toggles, order = selection sequence, viewport scroll, global write with confirm, comments preserved.
+4. Dialog: live endpoints listed for the target model (real slugs/quantizations), price/speed sorting, visible order/only semantics, fp8 live default, viewport scroll, one explicit Save, comments preserved.
 5. Live API contract — verified 2026-08-31: endpoints payload shape (tag/quantization/status/uptime/pricing) fetched without auth for deepseek/deepseek-chat-v3.1 and deepseek/deepseek-v4-flash.

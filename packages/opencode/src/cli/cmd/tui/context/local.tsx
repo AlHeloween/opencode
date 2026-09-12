@@ -23,6 +23,7 @@ import {
   sessionModelRouting,
   workspaceAgentModel,
   workspaceModelScope,
+  setSessionAgentModel,
   setWorkspaceAgentModel,
   type SessionSettings,
 } from "@/session/session-settings"
@@ -457,7 +458,12 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
        * (comments survive), instances invalidated after write. */
       async function writeGlobalAgentField(
         agentName: string,
-        field: { model?: string; variant?: string; routing?: Record<string, unknown>; options?: Record<string, unknown> },
+        field: {
+          model?: string
+          variant?: string | null
+          routing?: Record<string, unknown>
+          options?: Record<string, unknown>
+        },
       ) {
         // hey-api v2 wraps the payload in { data } — spread .data ONLY (web-app
         // precedent: bootstrap.ts x.data). Spreading the wrapper sent {data,
@@ -467,7 +473,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         const agents = { ...((config.agent as Record<string, unknown> | undefined) ?? {}) }
         const agentConfig = { ...((agents[agentName] as Record<string, unknown> | undefined) ?? {}) }
         if (field.model !== undefined) agentConfig.model = field.model
-        if (field.variant !== undefined) agentConfig.variant = field.variant
+        if (field.variant === null) delete agentConfig.variant
+        else if (field.variant !== undefined) agentConfig.variant = field.variant
         if (field.options !== undefined) {
           // Deep-merge into the existing options block — the canonical shape
           // for routing (llm.ts reads agent options.routing directly; the
@@ -497,6 +504,57 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           variant: "info",
           duration: 5000,
         })
+      }
+
+      /** Commit the staged GLOBAL /agents model editor in one config write. */
+      async function setGlobalAgentSelection(
+        agentName: string,
+        model: { providerID: string; modelID: string },
+        variant: string | undefined,
+      ) {
+        if (!isModelValid(model)) throw new Error(`Model ${model.providerID}/${model.modelID} is not valid`)
+        await writeGlobalAgentField(agentName, {
+          model: `${model.providerID}/${model.modelID}`,
+          variant: variant ?? null,
+        })
+        // A global save is an explicit model choice. For the active agent,
+        // carry it into this session as well: otherwise an older session or
+        // worktree override keeps powering the next prompt while /agents
+        // displays the new global value. A running request remains untouched.
+        if (agent.current()?.name === agentName) {
+          const sid = getActiveSessionID()
+          if (sid) {
+            const next = setSessionAgentModel(
+              sessionSettings(),
+              agentName,
+              `${model.providerID}/${model.modelID}`,
+              variant,
+            )
+            setSessionSettings(next)
+            await saveSessionSettings(sid, {
+              agent: next.agent,
+              recent: modelStore.recent,
+              favorite: modelStore.favorite,
+              variant: Object.fromEntries(
+                Object.entries(modelStore.variant).filter((e): e is [string, string] => e[1] !== undefined),
+              ),
+              agentVariant: {
+                ...Object.fromEntries(
+                  Object.entries(modelStore.agentVariant).filter((e): e is [string, string] => e[1] !== undefined),
+                ),
+                ...next.agentVariant,
+              },
+              modelRouting: next.modelRouting,
+            })
+          }
+        }
+        const recent = uniqueBy([model, ...modelStore.recent], (item) => `${item.providerID}/${item.modelID}`)
+        if (recent.length > 10) recent.pop()
+        setModelStore(
+          "recent",
+          recent.map((item) => ({ providerID: item.providerID, modelID: item.modelID })),
+        )
+        save()
       }
 
       /** Layer-pure view for the /agents scope display (2026-08-31, Alexander:
@@ -571,7 +629,11 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
        * worktree → project config agent.<name>.options.routing (merge-patch,
        * null clears — rev 2 semantics); global → writeGlobalAgentField.
        * All three are runtime-honored (llm.ts / merged Config). */
-      async function setAgentRouting(agentName: string, routing: Record<string, unknown> | undefined, scope: ModelScope) {
+      async function setAgentRouting(
+        agentName: string,
+        routing: Record<string, unknown> | undefined,
+        scope: ModelScope,
+      ) {
         if (scope === "global") {
           if (routing === undefined) {
             toast.show({
@@ -600,7 +662,11 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         }
         const sid = getActiveSessionID()
         if (!sid) {
-          toast.show({ variant: "warning", message: "No active session — cannot save per-session routing", duration: 3000 })
+          toast.show({
+            variant: "warning",
+            message: "No active session — cannot save per-session routing",
+            duration: 3000,
+          })
           return
         }
         const ss = sessionSettings()
@@ -658,7 +724,11 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         }
         const sid = getActiveSessionID()
         if (!sid) {
-          toast.show({ variant: "warning", message: "No active session — cannot save per-session routing", duration: 3000 })
+          toast.show({
+            variant: "warning",
+            message: "No active session — cannot save per-session routing",
+            duration: 3000,
+          })
           return
         }
         const ss = sessionSettings()
@@ -693,6 +763,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         forAgent,
         layerView,
         writeGlobalAgentField,
+        setGlobalAgentSelection,
         setProviderRouting,
         setAgentRouting,
         setModelRouting,
@@ -772,7 +843,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (!a) return
           this.set(next, { recent: true, agent: a.name })
         },
-        set(model: { providerID: string; modelID: string }, options?: { recent?: boolean; agent?: string; scope?: ModelScope }) {
+        set(
+          model: { providerID: string; modelID: string },
+          options?: { recent?: boolean; agent?: string; scope?: ModelScope },
+        ) {
           if (options?.scope === "global") {
             // Global write — async via the server endpoint; the TUI shows a
             // confirmation dialog BEFORE calling set with scope "global".
@@ -786,16 +860,18 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             }
             const agentName = options?.agent ?? agent.current()?.name
             if (!agentName) return
-            void writeGlobalAgentField(agentName, { model: `${model.providerID}/${model.modelID}` }).catch((e: unknown) => {
-              const detail = e instanceof Error ? e.message : JSON.stringify(e)?.slice(0, 300) || String(e)
-              Log.Default.warn("bug: global config model write failed", { error: detail })
-              toast.show({
-                title: "Global config write failed",
-                message: detail,
-                variant: "error",
-                duration: 6000,
-              })
-            })
+            void writeGlobalAgentField(agentName, { model: `${model.providerID}/${model.modelID}` }).catch(
+              (e: unknown) => {
+                const detail = e instanceof Error ? e.message : JSON.stringify(e)?.slice(0, 300) || String(e)
+                Log.Default.warn("bug: global config model write failed", { error: detail })
+                toast.show({
+                  title: "Global config write failed",
+                  message: detail,
+                  variant: "error",
+                  duration: 6000,
+                })
+              },
+            )
             if (options?.recent) {
               const uniq = uniqueBy([model, ...modelStore.recent], (x) => `${x.providerID}/${x.modelID}`)
               if (uniq.length > 10) uniq.pop()
@@ -822,9 +898,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
               const sid = getActiveSessionID()
               const workspace = workspaceModelScope(getActiveWorkspaceID())
               if (options.scope !== "session") {
-                setModelStore("workspaceAgent", (agents) =>
-                  setWorkspaceAgentModel(agents, workspace, agentName, model),
-                )
+                setModelStore("workspaceAgent", (agents) => setWorkspaceAgentModel(agents, workspace, agentName, model))
               }
               // Per-session: record the explicit override alongside the workspace memory.
               // Global config remains the initial default only.

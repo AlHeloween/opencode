@@ -5,20 +5,30 @@ import { useLocal, type ModelScope } from "@tui/context/local"
 import { useSync } from "@tui/context/sync"
 import { useDialog } from "@tui/ui/dialog"
 import { useTheme } from "@tui/context/theme"
-import { DialogConfirm } from "./dialog-confirm"
 import { getScrollAcceleration } from "../util/scroll"
 import * as Log from "@opencode-ai/core/util/log"
+import {
+  buildRouting,
+  routingProviderSelection,
+  routingQuantizations,
+  routingSort,
+  type ProviderSelectionMode,
+  type RoutingSort,
+} from "./dialog-routing-state"
 
 /**
  * OpenRouter routing editor (subplan 04 — 2026-08-31, Alexander):
  * the provider list is NOT free-form — it is the LIVE OpenRouter endpoints of
  * the SELECTED model (GET /api/v1/models/{author}/{slug}/endpoints, public,
  * no auth): real providers, their actual quantization, uptime and price.
- * SPACE checkbox selection; selection sequence = order priority.
+ * SPACE checkbox selection; selection sequence = order priority unless the
+ * existing config is a strict `only` allow-list. Dynamic OpenRouter sorting
+ * (price/throughput/latency) is mutually exclusive with a provider list.
  * Quantization rows are DERIVED from the live endpoints — no hardcoded fp
- * enum ("не от балды"). Save → GLOBAL config with the mandatory confirmation
- * dialog. Manual slug entry exists ONLY as a degraded fallback when the live
- * fetch fails (labeled as such).
+ * enum ("не от балды"); fp8 is selected by default only when the current
+ * model's live endpoints advertise it. The Save row is the write action — no
+ * redundant confirmation dialog. Manual slug entry exists ONLY as a degraded
+ * fallback when the live fetch fails (labeled as such).
  *
  * Rows render inside a native <scrollbox> (canonical pattern from
  * dialog-select.tsx: maxHeight + id'd rows + keep-in-view scroll sync) —
@@ -50,6 +60,8 @@ type ProviderRow = {
 
 type Row =
   | { kind: "header"; label: string }
+  | { kind: "sort"; value: RoutingSort | undefined; label: string }
+  | { kind: "selection-mode" }
   | { kind: "provider"; row: ProviderRow }
   | { kind: "quant"; value: string; count: number }
   | { kind: "fallback" }
@@ -84,9 +96,9 @@ export function DialogRouting(props: {
     return undefined
   })
 
-  // Current routing — TARGET layer first (rev 4): the session file when the
-  // scope is session; otherwise the merged config view (project overrides
-  // global in the merge, so this is the effective worktree/global value).
+  // Current EFFECTIVE routing in runtime priority order. The synchronized
+  // config view is merged, so GLOBAL saves are explicit overrides and do not
+  // pretend to remove an inherited provider-wide source.
   const currentRouting = createMemo<Record<string, any>>(() => {
     if (props.agent) {
       if (props.scope === "session") {
@@ -95,7 +107,20 @@ export function DialogRouting(props: {
       }
       const a = sync.data.agent.find((x) => x.name === props.agent)
       const routing = (a as any)?.options?.routing
-      return routing && typeof routing === "object" && !Array.isArray(routing) ? routing : {}
+      if (routing && typeof routing === "object" && !Array.isArray(routing)) return routing
+      const model = local.model.forAgent(props.agent)
+      if (!model || model.providerID !== "openrouter") return {}
+      if (props.scope === "session") {
+        const s = local.model.sessionModelRoutingView(model.providerID, model.modelID)
+        if (s) return s
+      }
+      const provider = sync.data.provider.find((x) => x.id === model.providerID)
+      const modelRouting = (provider?.models?.[model.modelID.split(":")[0]] as any)?.options?.routing
+      if (modelRouting && typeof modelRouting === "object" && !Array.isArray(modelRouting)) return modelRouting
+      const providerRouting = (provider as any)?.options?.routing
+      return providerRouting && typeof providerRouting === "object" && !Array.isArray(providerRouting)
+        ? providerRouting
+        : {}
     }
     if (props.model) {
       if (props.scope === "session") {
@@ -104,13 +129,20 @@ export function DialogRouting(props: {
       }
       const p = sync.data.provider.find((x) => x.id === props.model!.providerID)
       const routing = (p?.models?.[props.model!.modelID] as any)?.options?.routing
-      return routing && typeof routing === "object" && !Array.isArray(routing) ? routing : {}
+      if (routing && typeof routing === "object" && !Array.isArray(routing)) return routing
+      const providerRouting = (p as any)?.options?.routing
+      return providerRouting && typeof providerRouting === "object" && !Array.isArray(providerRouting)
+        ? providerRouting
+        : {}
     }
     return {}
   })
 
-  const [order, setOrder] = createSignal<string[]>([...(currentRouting().order ?? [])])
-  const [quants, setQuants] = createSignal<string[]>([...(currentRouting().quantizations ?? [])])
+  const initialSelection = routingProviderSelection(currentRouting())
+  const [providers, setProviders] = createSignal<string[]>(initialSelection.providers)
+  const [selectionMode, setSelectionMode] = createSignal<ProviderSelectionMode>(initialSelection.mode)
+  const [sort, setSort] = createSignal<RoutingSort | undefined>(routingSort(currentRouting()))
+  const [quants, setQuants] = createSignal<string[]>(routingQuantizations(currentRouting(), []))
   const [fallback, setFallback] = createSignal<boolean>(currentRouting().allow_fallbacks !== false)
   const [cursor, setCursor] = createSignal(0)
 
@@ -137,7 +169,14 @@ export function DialogRouting(props: {
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = (await res.json()) as { data?: { endpoints?: Endpoint[] } }
-      setEndpoints(json.data?.endpoints ?? [])
+      const loaded = json.data?.endpoints ?? []
+      setEndpoints(loaded)
+      setQuants(
+        routingQuantizations(
+          currentRouting(),
+          loaded.flatMap((endpoint) => endpoint.quantization ?? []),
+        ),
+      )
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -196,9 +235,18 @@ export function DialogRouting(props: {
   const savedOnly = createMemo<ProviderRow[]>(() => {
     const live = new Set(providerRows().map((r) => r.slug))
     const out: ProviderRow[] = []
-    for (const slug of currentRouting().order ?? []) {
+    for (const slug of providers()) {
       if (typeof slug !== "string" || live.has(slug)) continue
-      out.push({ slug, name: slug, quants: [], ctx: undefined, priceIn: undefined, uptime: undefined, healthy: true, live: false })
+      out.push({
+        slug,
+        name: slug,
+        quants: [],
+        ctx: undefined,
+        priceIn: undefined,
+        uptime: undefined,
+        healthy: true,
+        live: false,
+      })
     }
     return out
   })
@@ -232,24 +280,32 @@ export function DialogRouting(props: {
 
   const scope = props.scope ?? "global"
   const layerLabel = scope === "global" ? "GLOBAL" : scope === "worktree" ? "WORKTREE" : "SESSION"
-  const saveLabel = createMemo(
-    () => `Save to ${layerLabel} config${scope === "global" ? " (confirmation required)" : ""}`,
-  )
+  const saveLabel = createMemo(() => `Save to ${layerLabel} config`)
 
   const rows = createMemo<Row[]>(() => [
+    { kind: "header", label: "SORT — OpenRouter dynamic provider priority" },
+    { kind: "sort", value: "price", label: "Lowest price" },
+    { kind: "sort", value: "throughput", label: "Highest throughput (fastest generation)" },
+    { kind: "sort", value: "latency", label: "Lowest latency (fastest first token)" },
+    { kind: "sort", value: undefined, label: "OpenRouter default routing" },
     {
       kind: "header",
-      label: `ORDER — providers of ${modelID() ?? targetLabel}${providerRows().length ? " (live)" : ""} · selection sequence = priority`,
+      label: `PROVIDERS — ${modelID() ?? targetLabel}${providerRows().length ? " (live)" : ""} · selecting one disables dynamic sort`,
     },
+    { kind: "selection-mode" },
     ...orderRows().map((row): Row => ({ kind: "provider", row })),
-    { kind: "header", label: `QUANTIZATIONS — ${quantRows().length ? "from live endpoints" : "(live list unavailable)"}` },
+    {
+      kind: "header",
+      label: `QUANTIZATIONS — ${quantRows().length ? "from live endpoints" : "(live list unavailable)"}`,
+    },
     ...quantRows().map(([value, count]): Row => ({ kind: "quant", value, count })),
     { kind: "fallback" },
     { kind: "save", label: saveLabel() },
   ])
 
   function toggleSlug(slug: string) {
-    setOrder((prev) => (prev.includes(slug) ? prev.filter((x) => x !== slug) : [...prev, slug]))
+    setSort(undefined)
+    setProviders((prev) => (prev.includes(slug) ? prev.filter((x) => x !== slug) : [...prev, slug]))
   }
 
   function toggleQuant(value: string) {
@@ -259,48 +315,41 @@ export function DialogRouting(props: {
   function act(row: Row | undefined) {
     if (!row) return
     if (row.kind === "provider") toggleSlug(row.row.slug)
+    else if (row.kind === "sort") {
+      setSort(row.value)
+      if (row.value) setProviders([])
+    } else if (row.kind === "selection-mode") setSelectionMode((value) => (value === "order" ? "only" : "order"))
     else if (row.kind === "quant") toggleQuant(row.value)
     else if (row.kind === "fallback") setFallback((v) => !v)
     else if (row.kind === "save") save()
   }
 
   function save() {
-    const routing: Record<string, unknown> = {
-      allow_fallbacks: fallback(),
-      ...(order().length > 0 ? { order: order() } : {}),
-      ...(quants().length > 0 ? { quantizations: quants() } : {}),
-    }
-    const proceed = () => {
-      const write = props.agent
-        ? local.model.setAgentRouting(props.agent, routing, scope)
-        : props.model
-          ? local.model.setModelRouting(props.model.providerID, props.model.modelID, routing, scope)
-          : Promise.resolve()
-      write.catch((e: unknown) => {
+    const routing = buildRouting({
+      current: currentRouting(),
+      providers: providers(),
+      selectionMode: selectionMode(),
+      quantizations: quants(),
+      sort: sort(),
+      allowFallbacks: fallback(),
+    })
+    const write = props.agent
+      ? local.model.setAgentRouting(props.agent, routing, scope)
+      : props.model
+        ? local.model.setModelRouting(props.model.providerID, props.model.modelID, routing, scope)
+        : Promise.resolve()
+    void write
+      .then(() => {
+        if (props.onDone) props.onDone()
+        else dialog.clear()
+      })
+      .catch((e: unknown) => {
         Log.Default.warn("bug: routing save failed", {
           scope,
           target: targetLabel,
           error: e instanceof Error ? e.message : String(e),
         })
       })
-      if (props.onDone) props.onDone()
-      else dialog.clear()
-    }
-    // Policy (2026-08-31, Alexander): GLOBAL writes require explicit
-    // confirmation (applies to all projects). Session/worktree saves are
-    // scoped to this session/project — direct.
-    if (scope === "global") {
-      dialog.replace(() => (
-        <DialogConfirm
-          title={`Write routing for ${targetLabel} to GLOBAL config?`}
-          description={JSON.stringify(routing)}
-          onConfirm={proceed}
-          onCancel={() => dialog.replace(() => <DialogRouting {...props} />)}
-        />
-      ))
-      return
-    }
-    proceed()
   }
 
   function moveCursor(delta: number, center = false) {
@@ -355,7 +404,7 @@ export function DialogRouting(props: {
         const slug = buffer().trim()
         if (slug) {
           setManual((prev) => [...new Set([...prev, slug])])
-          if (!order().includes(slug)) setOrder((prev) => [...prev, slug])
+          if (!providers().includes(slug)) setProviders((prev) => [...prev, slug])
         }
         setAdding(false)
         setBuffer("")
@@ -377,9 +426,12 @@ export function DialogRouting(props: {
 
   function marker(row: Row): string {
     if (row.kind === "provider") {
-      const i = order().indexOf(row.row.slug)
-      return i >= 0 ? `[${i + 1}]` : "[ ]"
+      const i = providers().indexOf(row.row.slug)
+      if (i < 0) return "[ ]"
+      return selectionMode() === "only" ? "[x]" : `[${i + 1}]`
     }
+    if (row.kind === "sort") return sort() === row.value && providers().length === 0 ? "[x]" : "[ ]"
+    if (row.kind === "selection-mode") return selectionMode() === "only" ? "[only]" : "[order]"
     if (row.kind === "quant") return quants().includes(row.value) ? "[x]" : "[ ]"
     if (row.kind === "fallback") return `[${fallback() ? "on" : "off"}]`
     return ""
@@ -390,6 +442,10 @@ export function DialogRouting(props: {
       case "header":
       case "save":
         return row.label
+      case "sort":
+        return row.label
+      case "selection-mode":
+        return selectionMode() === "only" ? "Strict provider allow-list" : "Provider priority order"
       case "provider": {
         const r = row.row
         const base = r.live ? `${r.name} (${r.slug})` : `${r.slug} (saved)`
@@ -408,22 +464,27 @@ export function DialogRouting(props: {
   function rowSecondary(row: Row): string | undefined {
     if (row.kind !== "provider") return undefined
     const r = row.row
-    return [
-      r.quants.length > 0 ? r.quants.join(", ") : "",
-      r.ctx ? `${Math.round(r.ctx / 1000)}k ctx` : "",
-      r.priceIn !== undefined ? `$${r.priceIn.toFixed(2)}/M in` : "",
-      r.uptime !== undefined ? `up ${r.uptime.toFixed(1)}%` : "",
-    ]
-      .filter(Boolean)
-      .join(" · ") || undefined
+    return (
+      [
+        r.quants.length > 0 ? r.quants.join(", ") : "",
+        r.ctx ? `${Math.round(r.ctx / 1000)}k ctx` : "",
+        r.priceIn !== undefined ? `$${r.priceIn.toFixed(2)}/M in` : "",
+        r.uptime !== undefined ? `up ${r.uptime.toFixed(1)}%` : "",
+      ]
+        .filter(Boolean)
+        .join(" · ") || undefined
+    )
   }
 
   return (
     <box paddingLeft={2} paddingRight={2} paddingTop={1} gap={1}>
       <text fg={theme.text} attributes={16}>
-        {`Routing — ${targetLabel} · saves to ${layerLabel}`}
+        {`Routing — ${targetLabel} · effective state · saves override to ${layerLabel}`}
       </text>
-      <Show when={!adding()} fallback={<text fg={theme.textMuted}>{`provider slug: ${buffer()}_ (enter add · esc cancel)`}</text>}>
+      <Show
+        when={!adding()}
+        fallback={<text fg={theme.textMuted}>{`provider slug: ${buffer()}_ (enter add · esc cancel)`}</text>}
+      >
         <text fg={theme.textMuted}>
           {`space toggle · ↑/↓ move · ←/→ page · enter toggle · esc cancel${error() ? " · r retry · a manual add" : ""}`}
         </text>
@@ -443,25 +504,22 @@ export function DialogRouting(props: {
           {(row, i) => {
             const active = createMemo(() => cursor() === i())
             if (row.kind === "header") {
-              return <text id={`r${i()}`} fg={theme.accent} attributes={16}>{row.label}</text>
+              return (
+                <text id={`r${i()}`} fg={theme.accent} attributes={16}>
+                  {row.label}
+                </text>
+              )
             }
             if (row.kind === "provider") {
               // Two-line row (rev 4): name+slug on line 1, metadata muted on line 2.
               const secondary = rowSecondary(row)
               return (
-                <box
-                  id={`r${i()}`}
-                  flexDirection="column"
-                  backgroundColor={active() ? theme.primary : undefined}
-                >
+                <box id={`r${i()}`} flexDirection="column" backgroundColor={active() ? theme.primary : undefined}>
                   <box flexDirection="row" gap={1} paddingLeft={active() ? 1 : 2} paddingRight={2}>
                     <text fg={active() ? theme.background : theme.text} flexShrink={0}>
                       {marker(row)}
                     </text>
-                    <text
-                      fg={active() ? theme.background : theme.text}
-                      attributes={active() ? 16 : undefined}
-                    >
+                    <text fg={active() ? theme.background : theme.text} attributes={active() ? 16 : undefined}>
                       {rowPrimary(row)}
                     </text>
                   </box>

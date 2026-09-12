@@ -177,13 +177,27 @@ export function DialogModel(props: {
 
   function onSelect(providerID: string, modelID: string) {
     const agent = props.targetAgent ?? local.agent.current()?.name
+    if (props.scope === "global" && props.targetAgent) {
+      dialog.replace(() => (
+        <DialogVariant
+          targetAgent={props.targetAgent}
+          scope="global"
+          pendingModel={{ providerID, modelID }}
+          onDone={props.onDone}
+        />
+      ))
+      return
+    }
     // Policy (2026-08-31, Alexander): saving to GLOBAL config requires an
-    // explicit confirmation — the write applies to all projects.
+    // explicit Save action — the write applies to all projects. The /agents
+    // path above stages model + variant together and does not use this dialog.
     if (props.scope === "global") {
       dialog.replace(() => (
         <DialogConfirm
-          title={`Write ${providerID}/${modelID} to GLOBAL config?`}
+          title={`Save ${providerID}/${modelID} to GLOBAL config`}
           description={agent ? `agent: ${agent} · applies to all projects` : "applies to all projects"}
+          confirm="Save"
+          cancel="Cancel"
           onConfirm={() => performSelect(providerID, modelID)}
           onCancel={() => {
             if (props.onDone) props.onDone()
@@ -212,7 +226,10 @@ export function DialogModel(props: {
     // sentinel made the variant menu vanish permanently for whole agents.
     // The dialog now opens whenever no CONCRETE variant is chosen.
     if (cur && list.includes(cur)) {
-      if (props.onDone) { props.onDone(); return }
+      if (props.onDone) {
+        props.onDone()
+        return
+      }
       dialog.clear()
       return
     }
@@ -220,7 +237,10 @@ export function DialogModel(props: {
       dialog.replace(() => <DialogVariant targetAgent={agent} scope={props.scope} onDone={props.onDone} />)
       return
     }
-    if (props.onDone) { props.onDone(); return }
+    if (props.onDone) {
+      props.onDone()
+      return
+    }
     dialog.clear()
   }
 
@@ -249,13 +269,7 @@ export function DialogModel(props: {
           onTrigger: (option) => {
             const value = option.value as { providerID: string; modelID: string }
             if (value.providerID !== "openrouter") return
-            dialog.replace(() => (
-              <DialogRouting
-                model={value}
-                scope={props.scope}
-                onDone={() => dialog.clear()}
-              />
-            ))
+            dialog.replace(() => <DialogRouting model={value} scope={props.scope} onDone={() => dialog.clear()} />)
           },
         },
       ]}

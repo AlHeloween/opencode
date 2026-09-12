@@ -1,8 +1,9 @@
-import { createMemo } from "solid-js"
+import { createMemo, createSignal } from "solid-js"
 import { useLocal, type ModelScope } from "@tui/context/local"
+import { useSync } from "@tui/context/sync"
 import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
-import { DialogConfirm } from "./dialog-confirm"
+import * as Log from "@opencode-ai/core/util/log"
 
 const deepseekThinkingVariant = {
   default: {
@@ -56,44 +57,65 @@ const glmThinkingVariant = {
   },
 }
 
-export function DialogVariant(props: { targetAgent?: string; scope?: ModelScope; onDone?: () => void }) {
+export function DialogVariant(props: {
+  targetAgent?: string
+  scope?: ModelScope
+  onDone?: () => void
+  /** GLOBAL /agents model selection is staged here so model + variant are one write. */
+  pendingModel?: { providerID: string; modelID: string }
+}) {
   const local = useLocal()
+  const sync = useSync()
   const dialog = useDialog()
-  const isDeepSeekV4 = createMemo(() => local.model.current()?.modelID.includes("deepseek-v4") === true)
-  const isGlm = createMemo(() => local.model.current()?.modelID.includes("glm") === true)
+  const model = createMemo(
+    () => props.pendingModel ?? (props.targetAgent ? local.model.forAgent(props.targetAgent) : local.model.current()),
+  )
+  const isDeepSeekV4 = createMemo(() => model()?.modelID.includes("deepseek-v4") === true)
+  const isGlm = createMemo(() => model()?.modelID.includes("glm") === true)
+  const staged = props.scope === "global" && props.targetAgent !== undefined
+  const [selected, setSelected] = createSignal<string | undefined>(
+    props.pendingModel ? undefined : local.model.variant.selected(props.targetAgent),
+  )
 
-  function apply(value: string | undefined) {
-    local.model.variant.set(value, props.targetAgent, props.scope)
+  function finish() {
     if (props.onDone) props.onDone()
     else dialog.clear()
   }
 
+  function apply(value: string | undefined) {
+    local.model.variant.set(value, props.targetAgent, props.scope)
+    finish()
+  }
+
   function choose(value: string | undefined) {
-    // Policy (2026-08-31, Alexander): saving to GLOBAL config requires an
-    // explicit confirmation — the write applies to all projects.
-    if (props.scope === "global" && value !== undefined) {
-      dialog.replace(() => (
-        <DialogConfirm
-          title={`Write variant "${value}" to GLOBAL config?`}
-          description="Applies to all projects — every session starts with this variant"
-          onConfirm={() => apply(value)}
-          onCancel={() => {
-            if (props.onDone) props.onDone()
-            else dialog.clear()
-          }}
-        />
-      ))
+    if (staged) {
+      setSelected(value)
       return
     }
     apply(value)
+  }
+
+  function save() {
+    if (!props.targetAgent) return
+    const write = props.pendingModel
+      ? local.model.setGlobalAgentSelection(props.targetAgent, props.pendingModel, selected())
+      : local.model.writeGlobalAgentField(props.targetAgent, { variant: selected() ?? null })
+    void write.then(finish).catch((error: unknown) => {
+      Log.Default.warn("bug: staged global agent save failed", {
+        agent: props.targetAgent,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    })
   }
 
   const options = createMemo(() => {
     const details = isDeepSeekV4() ? deepseekThinkingVariant : isGlm() ? glmThinkingVariant : undefined
     // targetAgent: from the /agents dialog the dialog must reflect the HIGHLIGHTED
     // agent's own model (real settings), not the active agent's model.
-    const list = local.model.variant.list(props.targetAgent)
-    return [
+    const target = model()
+    const provider = target ? sync.data.provider.find((item) => item.id === target.providerID) : undefined
+    const list = target ? Object.keys(provider?.models[target.modelID]?.variants ?? {}) : []
+    const variants = [
       {
         value: "default",
         title: details?.default.title ?? "Default",
@@ -110,13 +132,38 @@ export function DialogVariant(props: { targetAgent?: string; scope?: ModelScope;
         }
       }),
     ]
+    if (!staged) return variants
+    return [
+      ...variants,
+      {
+        value: "__save__",
+        title: props.pendingModel ? "Save model and variant" : "Save variant",
+        description: `Write once to GLOBAL config for agent ${props.targetAgent}`,
+        category: "Actions",
+        onSelect: save,
+      },
+      {
+        value: "__cancel__",
+        title: "Cancel",
+        category: "Actions",
+        onSelect: finish,
+      },
+    ]
   })
 
   return (
     <DialogSelect<string>
       options={options()}
-      title={isDeepSeekV4() ? "Select thinking mode" : "Select variant"}
-      current={local.model.variant.selected(props.targetAgent)}
+      title={
+        staged
+          ? props.pendingModel
+            ? "Configure model variant — then Save"
+            : "Configure variant — then Save"
+          : isDeepSeekV4()
+            ? "Select thinking mode"
+            : "Select variant"
+      }
+      current={staged ? (selected() ?? "default") : local.model.variant.selected(props.targetAgent)}
       flat={true}
     />
   )

@@ -11,6 +11,8 @@ import {
   saveSessionSettings,
   removeSessionSettings,
   effectiveSubagents,
+  resolveAgentModel,
+  setSessionAgentModel,
   setWorkspaceAgentModel,
 } from "../../src/session/session-settings"
 
@@ -64,6 +66,67 @@ describe("setWorkspaceAgentModel", () => {
     expect(result).toEqual({
       existing: { planner: { providerID: "openai", modelID: "gpt-5.6" } },
       default: { build_mode: { providerID: "anthropic", modelID: "claude-4.5" } },
+    })
+  })
+})
+
+describe("setSessionAgentModel", () => {
+  test("wins over an older workspace model without losing routing or task controls", async () => {
+    const result = setSessionAgentModel(
+      {
+        agent: {
+          plan_mode: {
+            model: "novitaai/glm-5.3-flash",
+            variant: "max",
+            routing: { order: ["novita"] },
+            subagents: ["explorer_agent"],
+          },
+        },
+      },
+      "plan_mode",
+      "openrouter/deepseek-v4.1-flash",
+      undefined,
+    )
+
+    expect(result.agent?.plan_mode).toEqual({
+      model: "openrouter/deepseek-v4.1-flash",
+      routing: { order: ["novita"] },
+      subagents: ["explorer_agent"],
+    })
+    expect(result.agentVariant).toEqual({ "plan_mode/openrouter/deepseek-v4.1-flash": "default" })
+    expect(
+      await resolveAgentModel(
+        "plan_mode",
+        { sessionID: "ses_active", workspaceID: "ws_active" },
+        {
+          settings: result,
+          modelState: {
+            workspaceAgent: {
+              ws_active: { plan_mode: { providerID: "novitaai", modelID: "glm-5.3-flash" } },
+            },
+          },
+        },
+      ),
+    ).toEqual({ providerID: "openrouter", modelID: "deepseek-v4.1-flash" })
+  })
+
+  test("persists the synchronized active-session selection", async () => {
+    await using tmp = await tmpdir()
+    await withDataDir(tmp, async () => {
+      const next = setSessionAgentModel(
+        { agent: { plan_mode: { routing: { sort: "price" }, subagents: ["explorer_agent"] } } },
+        "plan_mode",
+        "openrouter/deepseek-v4.1-flash",
+        undefined,
+      )
+      await saveSessionSettings("ses_active", next)
+      const loaded = await loadSessionSettings("ses_active")
+      expect(loaded?.agent?.plan_mode).toEqual({
+        model: "openrouter/deepseek-v4.1-flash",
+        routing: { sort: "price" },
+        subagents: ["explorer_agent"],
+      })
+      expect(loaded?.agentVariant).toEqual({ "plan_mode/openrouter/deepseek-v4.1-flash": "default" })
     })
   })
 })

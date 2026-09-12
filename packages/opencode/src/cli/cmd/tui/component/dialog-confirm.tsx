@@ -1,7 +1,7 @@
 import { DialogSelect } from "@tui/ui/dialog-select"
 
 /**
- * Generic yes/no confirmation dialog (2026-08-31).
+ * Generic confirmation/action dialog (2026-08-31).
  *
  * Used before destructive or cross-project writes — currently the GLOBAL
  * config scope (policy, Alexander: saving to global requires explicit
@@ -12,6 +12,7 @@ export function DialogConfirm(props: {
   title: string
   description?: string
   confirm?: string
+  cancel?: string
   onConfirm: () => void
   onCancel?: () => void
 }) {
@@ -26,7 +27,7 @@ export function DialogConfirm(props: {
           onSelect: () => props.onConfirm(),
         },
         {
-          title: "No",
+          title: props.cancel ?? "No",
           value: "cancel",
           onSelect: () => props.onCancel?.(),
         },

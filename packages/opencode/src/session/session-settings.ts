@@ -89,6 +89,33 @@ export function setWorkspaceAgentModel(
   }
 }
 
+/**
+ * Make one agent's next turn use an explicitly selected model in this session.
+ * Existing session-only controls (routing and task allow-list) stay intact.
+ * An absent variant writes the explicit `default` sentinel for the new model,
+ * so a stale selection cannot override the global choice.
+ */
+export function setSessionAgentModel(
+  settings: SessionSettings | null | undefined,
+  agentName: string,
+  model: string,
+  variant: string | undefined,
+): SessionSettings {
+  const agents = { ...(settings?.agent ?? {}) }
+  const agent = { ...(agents[agentName] ?? {}), model }
+  if (variant === undefined) delete agent.variant
+  else agent.variant = variant
+  agents[agentName] = agent
+  return {
+    ...settings,
+    agent: agents,
+    agentVariant: {
+      ...settings?.agentVariant,
+      [`${agentName}/${model}`]: variant ?? "default",
+    },
+  }
+}
+
 /** Read a valid agent model from the workspace-level state payload. */
 export function workspaceAgentModel(agentName: string, workspaceID: string | undefined, state: unknown): ModelRef | undefined {
   if (typeof state !== "object" || state === null) return undefined

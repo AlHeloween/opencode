@@ -58,6 +58,9 @@ Two things follow, and both are enforced:
   it never sits on the startup critical path. (On Windows, unlinking a file
   another process still holds open *fails*; `cleanup()` swallows that per-file
   error, so a large directory could keep the loop busy on every boot.)
+- **Rotation still bounds the directory.** Deferring it does not leak: with 300
+  files, boot completed in ~4 s and the background pass trimmed the dir to
+  `keep` (300 → 104, stable — 100 kept plus the new session's own files).
 - **Any remaining stall must be visible, not silent.** The bounded guards below
   convert a hang into a rendered, degraded UI plus a `--print-logs` line.
 

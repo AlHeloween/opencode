@@ -1,5 +1,62 @@
 # Progress Log
 
+## 2026-09-13 StreamLake Vanchin catalog-backed provider
+
+Reason: a custom Vanchin endpoint can send requests but its opaque account endpoint ID does not carry the deployed model’s modalities, context, output, reasoning, or Function Call information into OpenCode. The provider must be a visible TUI option and must not invent this metadata.
+
+Grounding [Inferred]:
+- Official Vanchin quickstart: endpoint detail identifies its deployed model and supplies the API-call setup. Official model list: `https://www.streamlake.com/document/WANQING/mdrax1ixkgpgh1ms1na`.
+- Authenticated shape-only reads of `/api/gateway/v1/models`, `/endpoints`, `/endpoints/models`, and three `ep-…` detail paths all returned HTTP 400 (`cmd_runner` `20260913T194512Z_63bb49b4`). No endpoint capability was inferred from these failures.
+
+Change:
+- `provider-sync.ts` adds the first-class `streamlake-vanchin` Pay-as-you-go provider without a fabricated endpoint model.
+- `dialog-streamlake-vanchin-state.ts` carries a filtered snapshot of official text and multimodal chat profiles. A selected profile supplies documented limits, reasoning, Function Call, and text/image/video input modes to exactly one console-provided endpoint ID.
+- `dialog-provider.tsx` prioritizes the provider and routes setup through existing API-key auth, endpoint-ID validation, an official-profile picker, minimal `/config` patch, and the ordinary model picker. Free-form modality fields were removed.
+- No DeepSeek source, tests, or patches were edited.
+
+Oracle [Exact]:
+- `bun test test/provider/provider-sync.test.ts test/tui/dialog-streamlake-vanchin-state.test.ts` — 9 pass / 0 fail, 21 expectations (`cmd_runner` `20260913T195450Z_0abc146b`).
+- `bun build --no-bundle src/cli/cmd/tui/component/dialog-provider.tsx --outfile NUL` — transpiled successfully.
+
+Residual [Unknown]:
+- The actual Vanchin endpoint → deployed-model association is available in the vendor console, not through the tested OpenAI-compatible GET routes. The TUI intentionally asks the user to choose that deployed model from the official catalog; rendered terminal interaction has not yet been visually captured.
+
+Verification note:
+- The unfiltered `test/provider/provider.test.ts` run had three 5 s timeouts (`20260913T195523Z_e14fc1af`); the same three tests passed when run by name (1 + 3 pass, `20260913T195821Z_6e825408` and `20260913T195845Z_8da98fd8`). The focused Vanchin oracle is green; the aggregate provider-file timing result is not used as proof.
+- `bun run dev` exited 0 before ConPTY could receive input (`20260913T195918Z_81b2e02f`); a direct Windows Terminal capture also exited before its window could be captured (`20260913T195955Z_624975ee`). Terminal rendering remains unobserved by this harness.
+
+## [2026-09-13T21:24Z] StreamLake Vanchin OpenAI protocol correction
+
+Reason: the official Chinese [OpenAI protocol](https://www.streamlake.com/document/WANQING/mq6k66r6xgqwnfbd8t) distinguishes a request-body `modalities` control from model capability metadata. The former is only for Qwen-Omni audio output; treating all image/video model capabilities as outgoing `modalities` would produce a wrong request.
+
+Change:
+- Reasoning profiles now persist `options.enable_thinking: true`, the documented request field.
+- The legacy StreamLake template option is constrained to `/api/gateway/coding/v1`, so Vanchin Pay-as-you-go requests use the standard OpenAI-compatible body without it.
+- The Vanchin request host remains `vanchin.streamlake.ai`; `WANQING` occurs only in official documentation URLs, never in provider request URLs.
+- No DeepSeek source, tests, or patches were changed.
+
+Oracle [Exact]:
+- `bun test test/tui/dialog-streamlake-vanchin-state.test.ts` — 3 pass / 0 fail (`cmd_runner` `20260913T212431Z_1c46d3e8`).
+- `bun test test/provider/transform.test.ts --test-name-pattern "keeps Vanchin PayGo requests free"` — 1 pass / 0 fail (`cmd_runner` `20260913T212409Z_9b316975`).
+
+
+## 2026-09-13 TUI routing interaction repair
+
+Reason: the routing form advertised controls that mouse input could not activate, put initial keyboard focus on a section heading, and rendered mutually exclusive dynamic routing modes as checkboxes. Sampling existed behind `ctrl+g` but was not named as a parameter editor.
+
+Change:
+- `dialog-routing.tsx` starts on the first actionable sort row; cursor traversal skips headings; all dynamic rows are radio choices; selecting any dynamic choice (including OpenRouter default) clears manual providers; the form reports its live routing mode.
+- Provider and other actionable rows bind OpenTUI `onMouseDown`/`onMouseUp` to the same `act()` path used by Space and Enter. Mouse down suppresses text selection.
+- `dialog-routing-state.ts` supplies the tested heading-skipping traversal; `dialog-agent.tsx` now labels the visible shortcut `Sampling parameters`.
+
+Oracle [Exact]:
+- Baseline `bun test test/tui/dialog-routing-state.test.ts` — 5 pass / 0 fail (`cmd_runner` `20260913T164707Z_8b3044a2`).
+- Post-change same command — 7 pass / 0 fail (`cmd_runner` `20260913T164949Z_80b9a39e`).
+- Captured `bun run dev` rendered the live TUI and its Agents panel through `Tab` (`cmd_runner` `20260913T165512Z_cf3f1230`); neither routing nor sampling was saved.
+
+Residual [Unknown]:
+- The `cmd_runner` direct-terminal screenshot captures terminal chrome at 159×27 rather than the application, and its captured ConPTY rows flatten the agent panel. The exact pointer/routing visual transition was therefore not independently observed. The code binding and focused state oracle are verified; visual confirmation remains a manual TUI check.
+
 ## 2026-09-12 T4 — DeepSeek variant dialog now shares the engine predicate
 
 Reason: T4 was the last open item of `plans_completed/2026-09-12_deepseek-thinking-h3.md`.

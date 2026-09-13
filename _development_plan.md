@@ -1,5 +1,44 @@
 # Development Plan
 
+## 2026-09-13 — StreamLake Vanchin provider onboarding
+
+Goal: expose StreamLake Vanchin as a first-class Pay-as-you-go provider in the TUI, retain credentials safely, and bind an account endpoint to the documented model profile that supplies its actual modalities and limits.
+
+| Task | Completion |
+|---|---|
+| Establish the PayGo metadata boundary and official catalog source | [COMPLETION] |
+| Register the canonical StreamLake Vanchin provider and PayGo gateway | [COMPLETION] |
+| Bind endpoint models to documented limits and capabilities | [COMPLETION] |
+| Prove provider selection, API-key setup, and model picker flow | [COMPLETION] — catalog/state oracle plus TUI transpile; terminal capture unavailable |
+| Record focused oracle and documentation | [COMPLETION] |
+
+Plan: `plans_completed/2026-09-13_streamlake-vanchin-provider.md`
+
+## 2026-09-13 — Vanchin OpenAI protocol alignment
+
+Goal: send the documented reasoning request option to the Vanchin Pay-as-you-go host without treating local model capability metadata as the Qwen-Omni wire-level `modalities` control.
+
+| Task | Completion |
+|---|---|
+| Constrain retired coding-template options to the coding gateway | [COMPLETION] |
+| Persist `enable_thinking` for reasoning profiles | [COMPLETION] |
+| Prove request-option shape and record the official protocol | [COMPLETION] |
+
+Plan: `plans_completed/2026-09-13_vanchin-openai-protocol.md`
+
+## 2026-09-13 — TUI routing interaction repair
+
+Goal: make OpenRouter routing controls visibly actionable by keyboard and mouse, distinguish dynamic sort from multi-select provider policy, and expose model sampling without a hidden shortcut.
+
+| Task | Completion |
+|---|---|
+| Make routing focus and choice semantics deterministic | [COMPLETION] |
+| Bind mouse and keyboard activation to the same control action | [COMPLETION] |
+| Surface the agent sampling entry point | [COMPLETION] |
+| Prove focused interaction and record visual smoke evidence | [ ] — rendered form capture is defective; exact visual routing transition remains manual |
+
+Plan: `plans/2026-09-13_tui-routing-interaction-repair.md`
+
 ## 2026-09-12 — Active agent model display sync
 
 Goal: an explicit global `/agents` model save for the active agent updates the

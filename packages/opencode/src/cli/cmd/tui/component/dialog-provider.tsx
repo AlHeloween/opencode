@@ -16,6 +16,13 @@ import { useToast } from "../ui/toast"
 import { isConsoleManagedProvider } from "@tui/util/provider-origin"
 import { useConnected } from "./use-connected"
 
+import {
+  STREAMLAKE_VANCHIN_MODELS,
+  STREAMLAKE_VANCHIN_PROVIDER_ID,
+  type StreamLakeVanchinModelProfile,
+  streamLakeVanchinConfig,
+  streamLakeVanchinEndpointID,
+} from "./dialog-streamlake-vanchin-state"
 const PROVIDER_PRIORITY: Record<string, number> = {
   opencode: 0,
   "opencode-go": 1,
@@ -23,6 +30,7 @@ const PROVIDER_PRIORITY: Record<string, number> = {
   "github-copilot": 3,
   anthropic: 4,
   google: 5,
+  [STREAMLAKE_VANCHIN_PROVIDER_ID]: 6,
 }
 
 export function createDialogProviderOptions() {
@@ -32,6 +40,87 @@ export function createDialogProviderOptions() {
   const toast = useToast()
   const { theme } = useTheme()
   const onboarded = useConnected()
+  function selectStreamLakeVanchinProfile() {
+    return new Promise<StreamLakeVanchinModelProfile | null>((resolve) => {
+      dialog.replace(
+        () => (
+          <DialogSelect
+            title="Select the deployed StreamLake Vanchin model"
+            placeholder="Models from Vanchin's official catalog"
+            options={STREAMLAKE_VANCHIN_MODELS.map((profile) => ({
+              value: profile,
+              title: profile.name,
+              category: profile.category,
+              description: [
+                `input: ${profile.modalities.input.join(", ")}`,
+                profile.reasoning ? "reasoning" : undefined,
+                profile.tool_call ? "tools" : undefined,
+                `${profile.limit.context / 1024}K context`,
+                profile.limit.output ? `${profile.limit.output / 1024}K output` : undefined,
+              ]
+                .filter((detail) => detail !== undefined)
+                .join(" · "),
+            }))}
+            onSelect={(option) => resolve(option.value)}
+          />
+        ),
+        () => resolve(null),
+      )
+    })
+  }
+
+
+  async function connectStreamLakeVanchin() {
+    const key = await DialogPrompt.show(dialog, "StreamLake Vanchin API key", {
+      placeholder: "API key",
+      description: () => (
+        <text fg={theme.textMuted}>Stored in the existing auth store; never written to provider config.</text>
+      ),
+    })
+    if (!key?.trim()) return
+
+    try {
+      await sdk.client.auth.set({
+        providerID: STREAMLAKE_VANCHIN_PROVIDER_ID,
+        auth: { type: "api", key: key.trim() },
+      })
+
+      const rawEndpointID = await DialogPrompt.show(dialog, "StreamLake Vanchin inference endpoint", {
+        placeholder: "ep-…",
+        description: () => (
+          <text fg={theme.textMuted}>Copy the running endpoint ID from the Vanchin console.</text>
+        ),
+      })
+      if (rawEndpointID === null) return
+
+      const endpointID = streamLakeVanchinEndpointID(rawEndpointID)
+      if (!endpointID) {
+        toast.show({ variant: "error", message: "Enter a Vanchin endpoint ID in the form ep-…" })
+        return
+      }
+
+      const profile = await selectStreamLakeVanchinProfile()
+      if (!profile) return
+
+      const core = Reflect.get(sdk.client, "client")
+      if (
+        core === null ||
+        typeof core !== "object" ||
+        !("patch" in core) ||
+        typeof core.patch !== "function"
+      ) {
+        throw new Error("OpenCode config client is unavailable")
+      }
+      const result = await core.patch({ url: "/config", body: streamLakeVanchinConfig(endpointID, profile) })
+      if (result !== null && typeof result === "object" && "error" in result && result.error) throw result.error
+
+      await sdk.client.instance.dispose()
+      await sync.bootstrap()
+      dialog.replace(() => <DialogModel providerID={STREAMLAKE_VANCHIN_PROVIDER_ID} />)
+    } catch {
+      toast.show({ variant: "error", message: "StreamLake Vanchin setup failed" })
+    }
+  }
   const options = createMemo(() => {
     return pipe(
       sync.data.provider_next.all,
@@ -54,6 +143,10 @@ export function createDialogProviderOptions() {
           gutter: connected && onboarded() ? <text fg={theme.success}>✓</text> : undefined,
           async onSelect() {
             if (consoleManaged) return
+            if (provider.id === STREAMLAKE_VANCHIN_PROVIDER_ID) {
+              await connectStreamLakeVanchin()
+              return
+            }
 
             const methods = sync.data.provider_auth[provider.id] ?? [
               {

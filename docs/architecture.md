@@ -12,13 +12,16 @@ reproduce:
     - packages/opencode/test/tui/dialog-routing-state.test.ts
     - packages/opencode/src/session/model-sampling.ts
     - packages/opencode/src/cli/cmd/tui/component/dialog-model-parameters.tsx
+    - packages/opencode/src/provider/provider-sync.ts
+    - packages/opencode/src/cli/cmd/tui/component/dialog-streamlake-vanchin-state.ts
+    - packages/opencode/test/tui/dialog-streamlake-vanchin-state.test.ts
   commands:
     - cd packages/opencode && bun test test/session/llm.test.ts
     - cd packages/opencode && bun test test/tui/dialog-routing-state.test.ts
     - cd packages/opencode && bun test test/session/model-sampling.test.ts test/session/session-settings-persist.test.ts test/tui/dialog-routing-state.test.ts
-    - cd packages/opencode && bun typecheck
-  inputs: An OpenRouter chat turn, including a child task with a reusable cache lease.
-  expected_outputs: Mutable banner, body session_id, header x-session-id, and prompt_cache_key share one final provider cache namespace; per-model sampling values survive the chosen scope and parameterize subsequent requests.
+    - cd packages/opencode && bun test test/provider/provider-sync.test.ts test/tui/dialog-streamlake-vanchin-state.test.ts
+  inputs: An OpenRouter chat turn, including a child task with a reusable cache lease; or a StreamLake Vanchin Pay-as-you-go endpoint and its deployed model selected from the official catalog.
+  expected_outputs: Mutable banner, body session_id, header x-session-id, and prompt_cache_key share one final provider cache namespace; per-model sampling survives the chosen scope; Vanchin endpoint configuration stores documented model limits and text/image/video input capabilities without an API key.
 ---
 
 # OpenCode Architecture & System Design (2026-06-24)
@@ -32,6 +35,30 @@ reproduce:
 Production system kernel: `prompt_kernel/source.py` → `packages/opencode/src/session/prompt/reasoning_prompt.txt` (`python -m prompt_kernel --install`).
 
 ---
+## StreamLake Vanchin Provider Setup
+
+1. `packages/opencode/src/provider/provider-sync.ts` / `PROVIDER_SOURCES`
+   - Input: canonical `streamlake-vanchin` provider ID.
+   - Output: a first-class Pay-as-you-go OpenAI-compatible provider at `https://vanchin.streamlake.ai/api/gateway/v1/endpoints`, authenticated through `STREAMLAKE_API_KEY`.
+   - Logic: this static source supplies no account-specific endpoint ID, so the provider chooser can render the provider without fabricating a model.
+
+2. `dialog-streamlake-vanchin-state.ts` / `STREAMLAKE_VANCHIN_MODELS`
+   - Input: the official Vanchin model-list snapshot and one endpoint ID.
+   - Output: a model profile containing documented context/output bounds, reasoning, Function Call, and text/image/video input modalities.
+   - Logic: only text and multimodal chat profiles are selectable. Gateway `GET` metadata paths returned HTTP 400 with an authenticated key, so the profile comes from the official catalog while the endpoint ID comes from the Vanchin console. Reasoning profiles add the vendor-documented `enable_thinking: true` option to the request body.
+
+3. `dialog-provider.tsx` / `connectStreamLakeVanchin`
+   - Input: API key, `ep-…` inference endpoint ID, and deployed profile selected by the user.
+   - Output: an auth-store credential plus a minimal RFC 7386 `/config` patch, then the ordinary `DialogModel` picker.
+   - Logic: the API key is never included in the configuration patch; the selected profile, rather than free-form modality input, determines model capabilities. The Chinese [OpenAI protocol](https://www.streamlake.com/document/WANQING/mq6k66r6xgqwnfbd8t) reserves wire-level `modalities` for Qwen-Omni audio output; normal image/video-understanding profiles do not send it.
+
+4. `provider/transform.ts` / `providerOptions`
+   - Input: a Vanchin Pay-as-you-go OpenAI-compatible request.
+   - Output: provider options containing the selected profile’s `enable_thinking` setting and no legacy coding-template field.
+   - Logic: the old template option is now limited to a `/api/gateway/coding/v1` URL and cannot leak into the Pay-as-you-go endpoint.
+
+Oracle: `bun test test/tui/dialog-streamlake-vanchin-state.test.ts` and `bun test test/provider/transform.test.ts --test-name-pattern "keeps Vanchin PayGo requests free"`.
+
 
 ## 1. Prompt System Architecture
 
@@ -287,11 +314,13 @@ never duplicate into provider logs. Local diagnostics (`wireHeaders`,
 ## 8b. OpenRouter routing configuration (2026-09-12)
 
 `/agents` → `ctrl+o` opens a model-aware routing editor. It fetches the selected
-model's live OpenRouter endpoints, offers native dynamic sorting by `price`,
-`throughput`, or `latency`, and exposes both priority `order` and strict `only`
-provider selection. Dynamic sorting and a manual provider list are mutually
-exclusive. `fp8` starts selected only when the live model advertises at least
-one fp8 endpoint and the target layer has no explicit `quantizations` value.
+model's live OpenRouter endpoints, offers a radio group for dynamic `price`,
+`throughput`, `latency`, or OpenRouter-default routing, and exposes checkbox
+controls for priority `order`, strict `only`, quantization, and fallback policy.
+The initial focus is the first sort choice; arrows skip section headings, and
+Space, Enter, or a mouse release activate the same row. Selecting a provider
+switches to manual policy; selecting any dynamic option, including the default,
+clears the manual provider list.
 
 The form displays effective inherited routing but labels the write destination
 explicitly. Its Save row is the sole write action; it does not open a second
@@ -303,7 +332,7 @@ request stays pinned to the model recorded when it began.
 
 ## 8c. Per-model sampling controls (2026-09-13)
 
-`/agents` exposes **Sampling** (`ctrl+g`) for every agent's resolved model.
+`/agents` exposes **Sampling parameters** (`ctrl+g`) for every agent's resolved model.
 The form initializes the balanced thinking-agent profile: `temperature: 0.65`,
 `repetition_penalty: 1.1`, `top_p: 0.95`, and `presence_penalty: 0.2`; each numeric field is editable and
 the final row is the only write action. Session overrides in

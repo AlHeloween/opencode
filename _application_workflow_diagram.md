@@ -2,7 +2,7 @@
 title: Application Workflow Diagram
 owner: Local_Development
 status: production
-last_verified: 2026-09-12
+last_verified: 2026-09-13
 reproduce:
   files:
     - packages/opencode/src/provider/transform.ts
@@ -11,15 +11,30 @@ reproduce:
     - packages/opencode/src/cli/cmd/tui/component/dialog-routing.tsx
     - packages/opencode/src/cli/cmd/tui/component/dialog-routing-state.ts
     - packages/opencode/test/tui/dialog-routing-state.test.ts
+    - packages/opencode/src/provider/provider-sync.ts
+    - packages/opencode/src/cli/cmd/tui/component/dialog-streamlake-vanchin-state.ts
+    - packages/opencode/src/cli/cmd/tui/component/dialog-provider.tsx
+    - packages/opencode/test/tui/dialog-streamlake-vanchin-state.test.ts
   commands:
     - cd packages/opencode && bun test test/session/llm.test.ts
     - cd packages/opencode && bun test test/tui/dialog-routing-state.test.ts
-    - cd packages/opencode && bun typecheck
-  inputs: Provider request assembly for an OpenRouter parent or child task session.
-  expected_outputs: Mutable banner, body session_id, header x-session-id, and prompt_cache_key share one provider cache namespace.
+    - cd packages/opencode && bun test test/provider/provider-sync.test.ts test/tui/dialog-streamlake-vanchin-state.test.ts
+  inputs: Provider request assembly for an OpenRouter parent or child task session; or a Vanchin Pay-as-you-go endpoint with the deployed model selected from the official catalog.
+  expected_outputs: Mutable banner, body session_id, header x-session-id, and prompt_cache_key share one provider cache namespace; Vanchin setup persists an endpoint model profile with documented text/image/video input modalities and no API key.
 ---
 
 # Application Workflow Diagram
+
+## StreamLake Vanchin Provider Setup (2026-09-13)
+
+1. `provider-sync.ts` / `PROVIDER_SOURCES` registers `streamlake-vanchin` as a visible static provider with the Pay-as-you-go OpenAI-compatible gateway. It intentionally has no bundled account endpoint.
+2. `DialogProvider` gathers the API key through existing auth storage and validates an `ep-…` endpoint ID. It then presents a picker backed by `STREAMLAKE_VANCHIN_MODELS`, rather than text fields for guessed capabilities.
+3. The selected official profile patches only `provider.streamlake-vanchin.models.<endpoint-id>` with documented context/output limits, reasoning, Function Call, text/image/video input modalities, and `options.enable_thinking: true` for reasoning profiles. `/config` never receives the API key.
+4. On request assembly, the profile’s `enable_thinking` option is forwarded in the OpenAI-compatible provider namespace. Request-level `modalities` is deliberately absent: the official protocol reserves it for Qwen-Omni audio output, not generic image/video understanding.
+5. The retired coding-template option is limited to `/api/gateway/coding/v1`; it cannot enter the Pay-as-you-go `vanchin.streamlake.ai/api/gateway/v1/endpoints` request path.
+6. The Pay-as-you-go gateway did not expose endpoint metadata through six authenticated `GET` routes (all HTTP 400); the endpoint ID is therefore from the Vanchin console and the model metadata from the official catalog snapshot.
+
+Oracle: focused Vanchin state and provider-option tests.
 
 ## OpenRouter Routing Editor Flow (2026-09-12)
 
@@ -318,7 +333,7 @@ Coverage estimate vs actual codebase: 9% core-deep; kernel host rendering is now
 
 1. `packages/opencode/src/cli/cmd/tui/component/dialog-agent.tsx` / `DialogAgent`
    - Input: highlighted agent and selected configuration scope.
-   - Output: `Sampling` (`ctrl+g`) opens the resolved model's parameter editor.
+   - Output: visible `Sampling parameters` (`ctrl+g`) opens the resolved model's parameter editor.
    - Logic: keeps model selection, variant selection, and sampling independent; configuring a non-active agent never changes the prompt agent.
 
 2. `packages/opencode/src/cli/cmd/tui/component/dialog-model-parameters.tsx` / `DialogModelParameters`
@@ -337,6 +352,6 @@ Coverage estimate vs actual codebase: 9% core-deep; kernel host rendering is now
    - Logic: agent-specific temperature/top-p still take precedence; the model-level values control the remaining request surface.
 
 5. `packages/opencode/src/cli/cmd/tui/component/dialog-routing.tsx` / `DialogRouting`
-   - Input: asynchronous OpenRouter endpoint data.
-   - Output: one permanent status line and stable form headings.
-   - Logic: live loading no longer inserts/removes status text or changes headings, so the selector does not visibly flash while endpoints resolve.
+   - Input: asynchronous OpenRouter endpoint data plus keyboard or pointer activation.
+   - Output: one permanent endpoint-status line, a persistent routing-mode summary, and stable form headings.
+   - Logic: the first focusable row is the dynamic-sort radio group; keyboard traversal skips headings, pointer release and Space/Enter share the same action, and every dynamic choice clears manual providers. Live loading never inserts/removes status text or changes headings, so the selector does not visibly flash while endpoints resolve.

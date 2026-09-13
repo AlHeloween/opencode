@@ -1276,21 +1276,16 @@ export function providerOptions(model: Provider.Model, options: { [x: string]: a
   if (model.api.npm === "@ai-sdk/azure") {
     return { openai: normalized, azure: normalized }
   }
-  // KAT/StreamLake gateways (verified live 2026-08-16, smoke_kat_cache_preserve.py):
-  // without preserve_thinking, the interleaved chat template breaks prefix-cache
-  // matching when tool-call messages enter the replay — cached_tokens collapses
-  // to 0 on the first write/edit turn (full 60K+ re-prefill). The vendor card
-  // (KAT-Coder-V2.5) documents preserve_thinking as improving KV cache
-  // utilization in agent scenarios. The flag lands in the request body via the
-  // copilot-compatible provider's passthrough (chat_template_kwargs is not in
-  // its options schema, so it is spread into the JSON body verbatim).
-  const isKatGateway =
+  // Keep the retired coding gateway's template control isolated from the
+  // Pay-as-you-go OpenAI-compatible endpoint.
+  const isLegacyStreamLakeCodingGateway =
     /streamlake|vanchin/i.test(model.api.url ?? "") &&
+    /\/api\/gateway\/coding\/v1(?:\/|$)/.test(model.api.url ?? "") &&
     (model.api.npm === "@ai-sdk/github-copilot" || model.api.npm === "@ai-sdk/openai-compatible")
   return {
     [key]: {
       ...normalized,
-      ...(isKatGateway ? { chat_template_kwargs: { preserve_thinking: true } } : {}),
+      ...(isLegacyStreamLakeCodingGateway ? { chat_template_kwargs: { preserve_thinking: true } } : {}),
     },
   }
 }

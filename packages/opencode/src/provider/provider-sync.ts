@@ -252,13 +252,15 @@ type ProviderSource = {
   /** models.dev registry id */
   id: string
   /** live model-list endpoint */
-  endpoint: string
+  endpoint?: string
   /** env var holding an API key, for listing endpoints that require auth */
   apiKeyEnv?: string
   /** raw model -> models.dev Model; return undefined to skip an entry */
-  mapModel: (raw: never) => ModelsDevModel | undefined
+  mapModel?: (raw: never) => ModelsDevModel | undefined
   /** curated entries merged under live results (live wins on id collision) */
   staticModels?: ModelsDevModel[]
+  /** The provider is selectable, but its endpoint models are account-scoped. */
+  staticOnly?: boolean
   /** per-model options written into every live entry (e.g. verified transport
    * defaults). User config provider.<id>.models.<id>.options merges over these
    * per key (provider.ts) and stays authoritative. */
@@ -350,6 +352,20 @@ export const PROVIDER_SOURCES: ProviderSource[] = [
       doc: "https://openrouter.ai/models",
     },
   },
+  {
+    // Vanchin Pay-as-you-go exposes account-scoped inference endpoint IDs, not
+    // a public shared model catalogue. The TUI collects one endpoint ID after
+    // auth; never bundle a fabricated `ep-*` model here.
+    id: "streamlake-vanchin",
+    staticOnly: true,
+    shell: {
+      name: "StreamLake Vanchin",
+      env: ["STREAMLAKE_API_KEY"],
+      npm: "@ai-sdk/openai-compatible",
+      api: "https://vanchin.streamlake.ai/api/gateway/v1/endpoints",
+      doc: "https://vanchin.streamlake.ai/",
+    },
+  },
 ]
 
 // ---------- sync engine ----------
@@ -358,21 +374,26 @@ async function fetchLiveModels(source: ProviderSource): Promise<Record<string, M
   const headers: Record<string, string> = { "User-Agent": "opencode-provider-sync" }
   const key = source.apiKeyEnv ? process.env[source.apiKeyEnv] : undefined
   if (key) headers.Authorization = `Bearer ${key}`
+  const models: Record<string, ModelsDevModel> = {}
+  for (const staticModel of source.staticModels ?? []) models[staticModel.id] = staticModel
+
+  if (!source.endpoint) {
+    if (source.staticOnly) return models
+    throw new Error("model-list endpoint missing")
+  }
 
   const response = await fetch(source.endpoint, { headers, signal: AbortSignal.timeout(30_000) })
   if (!response.ok) throw new Error(`${source.endpoint} -> ${response.status} ${response.statusText}`)
   const body = (await response.json()) as unknown
-  const items: unknown[] = Array.isArray(body)
-    ? body
-    : typeof body === "object" && body !== null && Array.isArray((body as { data?: unknown[] }).data)
-      ? (body as { data: unknown[] }).data
-      : []
+  const data =
+    body !== null && typeof body === "object" && "data" in body
+      ? body.data
+      : undefined
+  const items: unknown[] = Array.isArray(body) ? body : Array.isArray(data) ? data : []
 
-  const models: Record<string, ModelsDevModel> = {}
-  for (const staticModel of source.staticModels ?? []) models[staticModel.id] = staticModel
   let skipped = 0
   for (const raw of items) {
-    const mapped = source.mapModel(raw as never)
+    const mapped = source.mapModel?.(raw as never)
     if (!mapped) {
       skipped++
       continue
@@ -436,7 +457,13 @@ export async function applyBundledOverrides(
 ): Promise<Record<string, unknown>> {
   for (const source of PROVIDER_SOURCES) {
     const entry = bundled[source.id]
-    if (entry) registry[source.id] = entry
+    if (entry) {
+      registry[source.id] = entry
+      continue
+    }
+    if (source.staticOnly) {
+      registry[source.id] = { ...source.shell, id: source.id, models: {} }
+    }
   }
   return registry
 }

@@ -53,10 +53,14 @@ REPO = RepoMap()
 #   docs/session-recovery.md — Moved-worktree session replay and explicit `opencode db fix` path repair
 #   packages/opencode/src/session/sidecar-policy.ts — Layer-1 output/retry/cooldown bounds
 #   packages/opencode/src/provider/balance-storage.ts — provider balance snapshots and cumulative session-cost validation
-#   packages/opencode/src/cli/cmd/tui/component/dialog-routing-state.ts — OpenRouter routing sort, provider selection, and fp8 form state
+#   packages/opencode/src/cli/cmd/tui/component/dialog-routing-state.ts — OpenRouter routing radio/checkbox state and heading-skipping cursor traversal
+#   packages/opencode/src/cli/cmd/tui/component/dialog-routing.tsx — pointer and keyboard routing control bindings with a persistent mode summary
 #   packages/opencode/src/session/model-sampling.ts — scoped default and persisted per-model sampling parameters
 #   packages/opencode/src/cli/cmd/tui/component/dialog-model-parameters.tsx — `/agents` sampling editor with explicit Save
 #   packages/opencode/src/plugin/anthropic.ts — Claude Pro/Max PKCE OAuth, bearer request fingerprint, and refresh loader
+#   packages/opencode/src/provider/provider-sync.ts — built-in StreamLake Vanchin PayGo provider source (no fabricated account endpoint)
+#   packages/opencode/src/cli/cmd/tui/component/dialog-streamlake-vanchin-state.ts — official Vanchin text/multimodal profile snapshot bound to endpoint IDs
+#   packages/opencode/src/cli/cmd/tui/component/dialog-provider.tsx — first-class Vanchin auth, endpoint, and catalog-profile setup flow
 #   docs/ADID_Framework_15_3.md — ADID update manager framework (untracked, package-rendered)
 #   prompt_kernel/README.md — reasoning kernel package: graph, OpenCode/Claude/Codex variant rendering
 # Tools: tools/, external/

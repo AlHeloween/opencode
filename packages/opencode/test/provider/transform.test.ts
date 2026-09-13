@@ -716,6 +716,21 @@ describe("ProviderTransform.providerOptions", () => {
     })
   })
 
+  test("keeps Vanchin PayGo requests free of legacy coding-template fields", () => {
+    const model = createModel({
+      providerID: "streamlake-vanchin",
+      api: {
+        id: "ep-x7d49z-1787019286684713063",
+        url: "https://vanchin.streamlake.ai/api/gateway/v1/endpoints",
+        npm: "@ai-sdk/openai-compatible",
+      },
+    })
+
+    expect(ProviderTransform.providerOptions(model, { enable_thinking: true })).toEqual({
+      "streamlake-vanchin": { enable_thinking: true },
+    })
+  })
+
   test("uses gateway model provider slug for gateway models", () => {
     const model = createModel({
       providerID: "vercel",

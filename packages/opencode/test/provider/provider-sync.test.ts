@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { mapOpenRouterModel } from "../../src/provider/provider-sync"
+import { applyBundledOverrides, mapOpenRouterModel } from "../../src/provider/provider-sync"
 
 /**
  * OpenRouter live-model ingestion pricing contract (RCA 2026-09-06): the
@@ -54,5 +54,18 @@ describe("mapOpenRouterModel: pricing per-token → per-million", () => {
     const model = mapOpenRouterModel(base)
     expect(model).toBeDefined()
     expect(model!.cost).toBeUndefined()
+  })
+})
+
+test("registers StreamLake Vanchin without inventing an account endpoint", async () => {
+  const registry = await applyBundledOverrides({}, {})
+  expect(registry["streamlake-vanchin"]).toEqual({
+    id: "streamlake-vanchin",
+    name: "StreamLake Vanchin",
+    env: ["STREAMLAKE_API_KEY"],
+    npm: "@ai-sdk/openai-compatible",
+    api: "https://vanchin.streamlake.ai/api/gateway/v1/endpoints",
+    doc: "https://vanchin.streamlake.ai/",
+    models: {},
   })
 })

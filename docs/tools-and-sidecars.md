@@ -403,6 +403,23 @@ with `cmd_runner start -- bin\cua.cmd serve` (TUI-hang protection; never bare
 `start`), stop with `jobkill` or `bin\cua.cmd stop`. One-shot `call` without a
 daemon exits 1 with a "daemon is not running" hint.
 
+OpenCode enforces `start_minimized: true` for every CUA `launch_app` call.
+On Windows the driver uses `SW_SHOWMINNOACTIVE` and a foreground lock: the new
+app stays minimized while the user's active window keeps keyboard focus. If
+Windows cannot guarantee that constraint, the driver returns
+`background_unavailable`; it must not be retried via a foreground launch without
+the user's explicit approval.
+
+### 7.2 Visible Chrome debug workflow
+
+Universal search owns an existing local Chrome debugging target at
+`127.0.0.1:9222`; it remains background infrastructure by default. When — and
+only when — a user explicitly asks for visible web debugging, simulated clicks,
+or screenshots, bind that existing Chrome's exact native window through
+CUA/CDP, use CUA `bring_to_front`, then use typed browser actions and
+screenshots. Do not launch, restart, or change Chrome's debugging flags; do not
+make it visible for ordinary universal-search work.
+
 Skill guides (partial vendoring — index + links, not full copies):
 `external/cua/libs/cua-driver/rust/Skills/cua-driver/` — `SKILL.md`
 (snapshot→action→verify loop), `WINDOWS.md` (UIA, UWP hosting, PostMessage

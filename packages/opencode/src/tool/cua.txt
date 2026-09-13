@@ -26,7 +26,7 @@ PowerShell 5.1 quote stripping.
   for SMOKE assertions).
 - `click` / `type_text` / `scroll` / `press_key` / `hotkey` — input
   (PostMessage-based, does not steal focus).
-- `launch_app` — start app hidden (SW_SHOWNOACTIVATE).
+- `launch_app` — wrapper-enforced minimized, inactive start (`start_minimized:true`); background UIA/PostMessage actions remain available.
 - Browser suite: `browser_prepare`, `browser_navigate`, `browser_click`,
   `browser_type`, `get_browser_state` — CDP over an exactly-bound tab.
 

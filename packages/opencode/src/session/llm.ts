@@ -30,7 +30,15 @@ import { repairJsonWasm } from "@/util/json-repair-wasm"
 import { readWasmAsset } from "@/util/wasm-path"
 import { REQUEST_OVERHEAD_TOKENS, usable } from "./overflow"
 import { isPrimaryModeIdentity } from "./mode-identity"
-import { loadSessionSettings, sessionAgentRouting, sessionModelRouting } from "./session-settings"
+import {
+  loadSessionSettings,
+  readModelState,
+  sessionAgentRouting,
+  sessionModelSampling,
+  sessionModelRouting,
+} from "./session-settings"
+import { modelSampling, modelSamplingKey } from "./model-sampling"
+
 
 const log = Log.create({ service: "llm" })
 const loggedSystemPromptForCacheKey = new Map<string, boolean>()
@@ -456,11 +464,23 @@ const live: Layer.Layer<
       // session-agent → agent options (config) → session-model. Config model/
       // provider routing and per-model defaults resolve inside getModel when
       // this stays undefined (2026-09-02, subplan 04 rev 4).
-      const settings = yield* Effect.promise(() => loadSessionSettings(input.sessionID))
+      const [settings, modelState] = yield* Effect.all([
+        Effect.promise(() => loadSessionSettings(input.sessionID)),
+        Effect.promise(() => readModelState()),
+      ])
+      const persistedSampling =
+        sessionModelSampling(input.model.providerID, input.model.id, settings) ??
+        (modelState?.modelSampling &&
+        typeof modelState.modelSampling === "object" &&
+        !Array.isArray(modelState.modelSampling)
+          ? (modelState.modelSampling as Record<string, unknown>)[modelSamplingKey(input.model.providerID, input.model.id)]
+          : undefined)
+
       const routing =
         sessionAgentRouting(input.agent.name, settings) ??
         Provider.openRouterRouting(input.agent.options) ??
         sessionModelRouting(input.model.providerID, input.model.id.split(":")[0], settings)
+
 
       const [language, cfg, item, info] = yield* Effect.all(
         [
@@ -476,6 +496,10 @@ const live: Layer.Layer<
           auth.get(input.model.providerID),
         ],
         { concurrency: "unbounded" },
+      )
+      const configuredModelID = input.model.id.split(":")[0]
+      const sampling = modelSampling(
+        persistedSampling ?? cfg.provider?.[input.model.providerID]?.models?.[configuredModelID]?.sampling,
       )
 
       // TODO: move this to a proper hook
@@ -568,6 +592,8 @@ const live: Layer.Layer<
         mergeDeep(input.model.options),
         mergeDeep(input.agent.options),
         mergeDeep(variant),
+        mergeDeep({ repetition_penalty: sampling.repetition_penalty }),
+
       )
 
       if (isOpenaiOauth) {
@@ -619,13 +645,13 @@ const live: Layer.Layer<
           message: input.user,
         },
         {
-          temperature: input.model.capabilities.temperature
-            ? (input.agent.temperature ?? ProviderTransform.temperature(input.model))
-            : undefined,
-          topP: input.agent.topP ?? ProviderTransform.topP(input.model),
+          temperature: input.model.capabilities.temperature ? (input.agent.temperature ?? sampling.temperature) : undefined,
+          topP: input.agent.topP ?? sampling.top_p,
           topK: ProviderTransform.topK(input.model),
+          presencePenalty: sampling.presence_penalty,
           maxOutputTokens: ProviderTransform.maxOutputTokens(input.model, input.outputTokenMax, contentTokens),
           options,
+
         },
       )
 
@@ -904,6 +930,7 @@ const live: Layer.Layer<
         temperature: params.temperature,
         topP: params.topP,
         topK: params.topK,
+        presencePenalty: params.presencePenalty,
         providerOptions: ProviderTransform.providerOptions(input.model, params.options),
         activeTools: Object.keys(tools).filter((x) => x !== "invalid"),
         tools,

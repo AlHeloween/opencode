@@ -7,6 +7,8 @@ import { DialogModel } from "./dialog-model"
 import { DialogVariant } from "./dialog-variant"
 import { DialogRouting } from "./dialog-routing"
 import { DialogSubagentSettings } from "./dialog-subagent-settings"
+import { DialogModelParameters } from "./dialog-model-parameters"
+
 import { getModelStatus } from "@/provider/balance"
 import { useToast } from "../ui/toast"
 import { Keybind } from "@/util/keybind"
@@ -250,6 +252,19 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
             // real settings, not a silent cycle (2026-08-30, Alexander).
             dialog.replace(() => (
               <DialogVariant
+                targetAgent={option.value}
+                scope={scope}
+                onDone={() => dialog.replace(() => <DialogAgent scope={scope} restoreValue={option.value} />)}
+              />
+            ))
+          },
+        },
+        {
+          title: "Sampling",
+          keybind: Keybind.parse("ctrl+g")[0],
+          onTrigger: (option: { value: string }) => {
+            dialog.replace(() => (
+              <DialogModelParameters
                 targetAgent={option.value}
                 scope={scope}
                 onDone={() => dialog.replace(() => <DialogAgent scope={scope} restoreValue={option.value} />)}

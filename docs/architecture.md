@@ -2,7 +2,7 @@
 title: OpenCode Architecture and System Design
 owner: OpenCode team
 status: production
-last_verified: 2026-09-12
+last_verified: 2026-09-13
 reproduce:
   files:
     - packages/opencode/src/provider/transform.ts
@@ -10,12 +10,15 @@ reproduce:
     - packages/opencode/test/session/llm.test.ts
     - packages/opencode/src/cli/cmd/tui/component/dialog-routing-state.ts
     - packages/opencode/test/tui/dialog-routing-state.test.ts
+    - packages/opencode/src/session/model-sampling.ts
+    - packages/opencode/src/cli/cmd/tui/component/dialog-model-parameters.tsx
   commands:
     - cd packages/opencode && bun test test/session/llm.test.ts
     - cd packages/opencode && bun test test/tui/dialog-routing-state.test.ts
+    - cd packages/opencode && bun test test/session/model-sampling.test.ts test/session/session-settings-persist.test.ts test/tui/dialog-routing-state.test.ts
     - cd packages/opencode && bun typecheck
   inputs: An OpenRouter chat turn, including a child task with a reusable cache lease.
-  expected_outputs: Mutable banner, body session_id, header x-session-id, and prompt_cache_key share one final provider cache namespace.
+  expected_outputs: Mutable banner, body session_id, header x-session-id, and prompt_cache_key share one final provider cache namespace; per-model sampling values survive the chosen scope and parameterize subsequent requests.
 ---
 
 # OpenCode Architecture & System Design (2026-06-24)
@@ -297,6 +300,21 @@ staged together and committed by one Save and one global-config update. If that
 save targets the active agent, the current session adopts the same model and
 variant for its next prompt, overriding older worktree state; an already running
 request stays pinned to the model recorded when it began.
+
+## 8c. Per-model sampling controls (2026-09-13)
+
+`/agents` exposes **Sampling** (`ctrl+g`) for every agent's resolved model.
+The form initializes the balanced thinking-agent profile: `temperature: 0.65`,
+`repetition_penalty: 1.1`, `top_p: 0.95`, and `presence_penalty: 0.2`; each numeric field is editable and
+the final row is the only write action. Session overrides in
+`sessions/{sessionID}.jsonc` take precedence over worktree `model.json`, then
+over `provider.<id>.models.<id>.sampling` configuration. The request maps
+temperature/top-p/presence to the AI SDK's top-level parameters and routes
+`repetition_penalty` through the existing provider option transformation.
+
+The OpenRouter endpoint form retains a permanent one-line endpoint-status
+region while live data arrives. Its headers no longer change between loading
+and loaded states, avoiding transient text flashes and vertical form jumps.
 
 ## 9. Key Files
 

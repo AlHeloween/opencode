@@ -11,6 +11,14 @@ export const Model = Schema.Struct({
   reasoning: Schema.optional(Schema.Boolean),
   temperature: Schema.optional(Schema.Boolean),
   tool_call: Schema.optional(Schema.Boolean),
+  sampling: Schema.optional(
+    Schema.Struct({
+      temperature: Schema.optional(Schema.Number),
+      repetition_penalty: Schema.optional(Schema.Number),
+      top_p: Schema.optional(Schema.Number),
+      presence_penalty: Schema.optional(Schema.Number),
+    }).annotate({ description: "Per-model sampling parameters" }),
+  ),
   interleaved: Schema.optional(
     Schema.Union([
       Schema.Literal(true),

@@ -30,6 +30,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
             "file enumeration: list/glob/grep/read — never shell ls/dir/find/cat (hard-blocked).",
             "platform: Windows = cmd/powershell tools; bash unavailable.",
             "cmd.exe: never dir/type/tree; quote spaced paths; chain &&; pipe 2>&1.",
+            "Chrome at 127.0.0.1:9222 is universal-search's existing debug target: only when the user requests visible web debugging, click simulation, or screenshots, exact-bind it through CUA/CDP and use CUA bring_to_front plus typed browser actions/screenshots; otherwise leave it backgrounded — never launch, restart, or alter its debug flags.",
         ),
     ),
     GateAddon(

@@ -27,6 +27,12 @@ def test_addons_render_inside_gate_rule_blocks() -> None:
     assert (
         "- cmd.exe: never dir/type/tree; quote spaced paths; chain &&; pipe 2>&1." in g1
     )
+    assert (
+        "- Chrome at 127.0.0.1:9222 is universal-search's existing debug target: only when the user requests"
+        " visible web debugging, click simulation, or screenshots, exact-bind it through CUA/CDP and use CUA"
+        " bring_to_front plus typed browser actions/screenshots; otherwise leave it backgrounded — never launch,"
+        " restart, or alter its debug flags." in g1
+    )
     g4 = _gate_block(text, "G4")
     assert "- identity or permission uncertain -> getmode; unresolved decision -> question (ASK)." in g4
     g9 = _gate_block(text, "G9")

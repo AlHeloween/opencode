@@ -16,7 +16,7 @@ class DirEntry:
 @dataclass
 class RepoMap:
     """Complete folder-based repository index."""
-    last_updated: str = "2026-09-11"
+    last_updated: str = "2026-09-13"
     
     packages: list[DirEntry] = field(default_factory=lambda: [
         DirEntry("packages/opencode/", "Core CLI/TUI server — AI agent, tools, HTTP API, session mgmt", "src/index.ts"),
@@ -53,7 +53,11 @@ REPO = RepoMap()
 #   docs/session-recovery.md — Moved-worktree session replay and explicit `opencode db fix` path repair
 #   packages/opencode/src/session/sidecar-policy.ts — Layer-1 output/retry/cooldown bounds
 #   packages/opencode/src/provider/balance-storage.ts — provider balance snapshots and cumulative session-cost validation
+#   packages/opencode/src/cli/cmd/tui/component/dialog-routing-state.ts — OpenRouter routing sort, provider selection, and fp8 form state
+#   packages/opencode/src/session/model-sampling.ts — scoped default and persisted per-model sampling parameters
+#   packages/opencode/src/cli/cmd/tui/component/dialog-model-parameters.tsx — `/agents` sampling editor with explicit Save
+#   packages/opencode/src/plugin/anthropic.ts — Claude Pro/Max PKCE OAuth, bearer request fingerprint, and refresh loader
 #   docs/ADID_Framework_15_3.md — ADID update manager framework (untracked, package-rendered)
-#   prompt_kernel/README.md — reasoning kernel package: gate graph, serialization, install
+#   prompt_kernel/README.md — reasoning kernel package: graph, OpenCode/Claude/Codex variant rendering
 # Tools: tools/, external/
 # Key files at root: package.json, bunfig.toml, turbo.json, tsconfig.json, sst.config.ts

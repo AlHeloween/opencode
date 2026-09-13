@@ -2,20 +2,36 @@
 title: Application Workflow Diagram
 owner: Local_Development
 status: production
-last_verified: 2026-09-06
+last_verified: 2026-09-12
 reproduce:
   files:
     - packages/opencode/src/provider/transform.ts
     - packages/opencode/src/session/llm.ts
     - packages/opencode/test/session/llm.test.ts
+    - packages/opencode/src/cli/cmd/tui/component/dialog-routing.tsx
+    - packages/opencode/src/cli/cmd/tui/component/dialog-routing-state.ts
+    - packages/opencode/test/tui/dialog-routing-state.test.ts
   commands:
     - cd packages/opencode && bun test test/session/llm.test.ts
+    - cd packages/opencode && bun test test/tui/dialog-routing-state.test.ts
     - cd packages/opencode && bun typecheck
   inputs: Provider request assembly for an OpenRouter parent or child task session.
   expected_outputs: Mutable banner, body session_id, header x-session-id, and prompt_cache_key share one provider cache namespace.
 ---
 
 # Application Workflow Diagram
+
+## OpenRouter Routing Editor Flow (2026-09-12)
+
+1. `DialogAgent` or `DialogModel` opens `DialogRouting` with an explicit session, worktree, or global write scope.
+2. `DialogRouting` resolves the effective agent → model → provider routing source and fetches live endpoints for the selected OpenRouter model.
+3. `dialog-routing-state.ts` exposes an existing `only` or `order` selection, validates native `price`/`throughput`/`latency` sorting, and chooses fp8 by default only when live endpoint metadata supports it.
+4. Choosing dynamic sort clears manual provider selection; choosing a provider clears dynamic sort. Unknown native routing keys survive reconstruction.
+5. The Save row calls the scope-specific writer once and closes only after that write succeeds. There is no follow-up confirmation dialog.
+6. Global `/agents` model selection passes a pending model into `DialogVariant`; variant selection stays local until `Save model and variant`, which calls `setGlobalAgentSelection` once.
+7. For the active agent only, that explicit global Save writes the chosen model and variant into the open session's settings. Session precedence makes the next prompt and its status row agree with the saved selection; another agent and an in-flight request are not changed.
+
+Oracle: `test/tui/dialog-routing-state.test.ts`, package typecheck, and cmd_runner TUI render showing sort rows, `[x] fp8`, `Save to GLOBAL config`, and `Save model and variant`.
 
 ## Tools Wire Era-Freeze Flow (2026-08-16)
 
@@ -255,3 +271,72 @@ Coverage estimate vs actual codebase: 9% core-deep; session lifecycle layer now 
    - Input: first instance request and its bootstrap phases.
    - Output: explicit completion or rejection records, with the failed cache entry evicted.
    - Logic: a DB failure is propagated and logged rather than leaving later callers attached to an opaque startup promise.
+
+## Anthropic Claude Pro/Max OAuth Flow (2026-09-12)
+
+1. `packages/opencode/src/plugin/anthropic.ts` / `AnthropicAuthPlugin.methods`
+   - Input: `/connect` or `opencode auth login anthropic`, then browser or pasted callback input.
+   - Output: OAuth `{ access, refresh, expires, accountId?, email?, orgId?, orgName? }` persisted by the existing auth route.
+   - Logic: builds OMP-compatible Claude PKCE parameters, validates callback state on a loopback server (preferred 54545, ephemeral fallback), and exchanges JSON authorization codes at Anthropic's OAuth token endpoint.
+
+2. `packages/opencode/src/auth/index.ts` / `Oauth`
+   - Input: plugin callback result or a refreshed OAuth token pair.
+   - Output: encrypted auth record with optional account, organisation, and initial authorization metadata.
+   - Logic: keeps the existing API-key union untouched; optional fields preserve identity for the OAuth-specific login display without becoming a migration requirement.
+
+3. `packages/opencode/src/plugin/anthropic.ts` / auth loader + `transformOAuthRequest`
+   - Input: stored OAuth credential and the AI SDK's final Anthropic request.
+   - Output: `POST /v1/messages?beta=true` with Bearer auth, Claude-Code beta/header fingerprint, CCH-attested billing system block, Claude agent identity block, original system blocks/cache markers, and a 64K output ceiling.
+   - Logic: refreshes expired access tokens once, removes the SDK dummy API key, preserves API-key mode when the credential is not OAuth, and never logs token material.
+
+## Codex Tool-Host Kernel Render (2026-09-12)
+
+1. `prompt_kernel/addons_codex.py` / `CODEX_GATE_ADDONS`
+   - Input: the current Codex harness tool catalog.
+   - Output: host-specific advisory tool bindings while the core graph remains shared.
+   - Logic: binds CodeGraph, Read/Glob/Grep, Edit/Write, LSP/AST Edit, Hub,
+     Eval Browser, Todo, Task, and `cmd_runner`; excludes unavailable
+     OpenCode/Claude tools.
+
+2. `prompt_kernel/__main__.py` / `--codex`
+   - Input: explicit renderer mode.
+   - Output: timestamped runtime, review, manifest, and migration artifacts in
+     `prompt_kernel/dist_codex/`.
+   - Logic: renders only; `--codex --install` returns an error because the
+     external harness has no repository-local import contract.
+
+3. `prompt_kernel/source.py` + `render.py` / authorization wording
+   - Input: a host whose authorization-inspection tool is not `getmode`.
+   - Output: host-neutral core language; the product registry retains its
+     concrete `getmode` instruction.
+   - Logic: prevents a shared render from commanding a tool absent on the
+     target host.
+
+Coverage estimate vs actual codebase: 9% core-deep; kernel host rendering is now documented for OpenCode, Claude Code, and Codex.
+
+## TUI Per-Model Sampling and Stable Endpoint Routing (2026-09-13)
+
+1. `packages/opencode/src/cli/cmd/tui/component/dialog-agent.tsx` / `DialogAgent`
+   - Input: highlighted agent and selected configuration scope.
+   - Output: `Sampling` (`ctrl+g`) opens the resolved model's parameter editor.
+   - Logic: keeps model selection, variant selection, and sampling independent; configuring a non-active agent never changes the prompt agent.
+
+2. `packages/opencode/src/cli/cmd/tui/component/dialog-model-parameters.tsx` / `DialogModelParameters`
+   - Input: model plus session/worktree/global scope.
+   - Output: editable temperature, repetition penalty, top-p, and presence penalty with Save as the final row.
+   - Logic: numeric edits remain staged until Save; Escape exits without a write.
+
+3. `packages/opencode/src/cli/cmd/tui/context/local.tsx` + `session/model-sampling.ts`
+   - Input: a persisted model key and the selected scope.
+   - Output: effective sampling values.
+   - Logic: session state overrides worktree `model.json`, which overrides provider model configuration; missing or invalid fields normalize to the four standard defaults.
+
+4. `packages/opencode/src/session/llm.ts` / `LLM.run`
+   - Input: effective sampling and selected model.
+   - Output: `streamText` sampling parameters and namespaced repetition penalty.
+   - Logic: agent-specific temperature/top-p still take precedence; the model-level values control the remaining request surface.
+
+5. `packages/opencode/src/cli/cmd/tui/component/dialog-routing.tsx` / `DialogRouting`
+   - Input: asynchronous OpenRouter endpoint data.
+   - Output: one permanent status line and stable form headings.
+   - Logic: live loading no longer inserts/removes status text or changes headings, so the selector does not visibly flash while endpoints resolve.

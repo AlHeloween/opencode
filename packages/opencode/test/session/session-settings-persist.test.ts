@@ -14,6 +14,8 @@ import {
   resolveAgentModel,
   setSessionAgentModel,
   setWorkspaceAgentModel,
+  sessionModelSampling,
+
 } from "../../src/session/session-settings"
 
 // ── Helpers ──
@@ -158,6 +160,29 @@ describe("saveSessionSettings → loadSessionSettings", () => {
       const loaded = await loadSessionSettings("ses_2")
       expect(loaded!.variant).toEqual({ "openai/gpt-5.6": "high" })
       expect(loaded!.agentVariant).toEqual({ "plan_mode/openai/gpt-5.6": "explicit" })
+    })
+  })
+
+  test("round-trip: model sampling keeps the four standard parameters", async () => {
+    await using tmp = await tmpdir()
+    await withDataDir(tmp, async () => {
+      await saveSessionSettings("ses_sampling", {
+        modelSampling: {
+          "openrouter/deepseek-v4-flash": {
+            temperature: 0.6,
+            repetition_penalty: 1.15,
+            top_p: 0.92,
+            presence_penalty: 0.8,
+          },
+        },
+      })
+      const loaded = await loadSessionSettings("ses_sampling")
+      expect(sessionModelSampling("openrouter", "deepseek-v4-flash:nitro", loaded)).toEqual({
+        temperature: 0.6,
+        repetition_penalty: 1.15,
+        top_p: 0.92,
+        presence_penalty: 0.8,
+      })
     })
   })
 

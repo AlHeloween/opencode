@@ -71,6 +71,22 @@ function runCli(args: string[], stdin?: string): Effect.Effect<{ code: number; o
   })
 }
 
+/**
+ * Keep every CUA-managed Windows launch out of the user's active workspace.
+ * The driver maps this to SW_SHOWMINNOACTIVE while retaining UIA/PostMessage
+ * background delivery. This is intentionally enforced even if a caller sends
+ * false: foreground restoration is a separately authorized action.
+ */
+export function cuaCallArgs(tool: string, args?: string): string {
+  if (tool !== "launch_app") return args ?? "{}"
+
+  const parsed: unknown = JSON.parse(args ?? "{}")
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("launch_app arguments must be a JSON object")
+  }
+  return JSON.stringify({ ...parsed, start_minimized: true })
+}
+
 const Parameters = Schema.Struct({
   action: Schema.Literals(["list-tools", "describe", "call", "skill-index"]).annotate({
     description: "list-tools: enumerate daemon tools. describe: schema of one tool. call: invoke a tool. skill-index: reading map for skill guides.",
@@ -127,7 +143,7 @@ export const CuaTool = Tool.define(
           cliArgs.push(params.tool)
           // JSON goes via stdin — argv JSON breaks under PS 5.1 quote stripping
           // (documented upstream in cli.rs #1637).
-          stdin = params.args ?? "{}"
+          stdin = cuaCallArgs(params.tool, params.args)
           if (params.screenshot_out_file) cliArgs.push("--screenshot-out-file", params.screenshot_out_file)
         }
 

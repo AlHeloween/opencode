@@ -153,6 +153,14 @@ export function DialogRouting(props: {
   const [manual, setManual] = createSignal<string[]>([])
   const [adding, setAdding] = createSignal(false)
   const [buffer, setBuffer] = createSignal("")
+  /** Always occupies one line: live refreshes never make the form jump or blink. */
+  const endpointStatus = createMemo(() => {
+    if (loading()) return "Endpoint data: loading live providers"
+    if (error()) return `Endpoint data unavailable (${error()}) · r retry · a add provider manually`
+    if (endpoints().length === 0) return "Endpoint data: no providers advertised"
+    return `Endpoint data: ${endpoints().length} endpoints loaded`
+  })
+
 
   async function load() {
     const id = modelID()
@@ -288,16 +296,11 @@ export function DialogRouting(props: {
     { kind: "sort", value: "throughput", label: "Highest throughput (fastest generation)" },
     { kind: "sort", value: "latency", label: "Lowest latency (fastest first token)" },
     { kind: "sort", value: undefined, label: "OpenRouter default routing" },
-    {
-      kind: "header",
-      label: `PROVIDERS — ${modelID() ?? targetLabel}${providerRows().length ? " (live)" : ""} · selecting one disables dynamic sort`,
-    },
+    { kind: "header", label: `PROVIDERS — ${modelID() ?? targetLabel} · selecting one disables dynamic sort` },
     { kind: "selection-mode" },
     ...orderRows().map((row): Row => ({ kind: "provider", row })),
-    {
-      kind: "header",
-      label: `QUANTIZATIONS — ${quantRows().length ? "from live endpoints" : "(live list unavailable)"}`,
-    },
+    { kind: "header", label: "QUANTIZATIONS — derived from endpoint data" },
+
     ...quantRows().map(([value, count]): Row => ({ kind: "quant", value, count })),
     { kind: "fallback" },
     { kind: "save", label: saveLabel() },
@@ -489,12 +492,7 @@ export function DialogRouting(props: {
           {`space toggle · ↑/↓ move · ←/→ page · enter toggle · esc cancel${error() ? " · r retry · a manual add" : ""}`}
         </text>
       </Show>
-      <Show when={loading()}>
-        <text fg={theme.textMuted}>Loading endpoints…</text>
-      </Show>
-      <Show when={error() && !loading()}>
-        <text fg={theme.error}>{`Endpoints fetch failed: ${error()} — showing saved/manual slugs only (r retry)`}</text>
-      </Show>
+      <text fg={error() ? theme.error : theme.textMuted}>{endpointStatus()}</text>
       <scrollbox
         maxHeight={maxHeight()}
         scrollAcceleration={scrollAcceleration()}

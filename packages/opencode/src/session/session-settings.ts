@@ -3,6 +3,8 @@ import path from "path"
 import { Filesystem } from "@/util/filesystem"
 import * as Log from "@opencode-ai/core/util/log"
 import { parse as parseJsonc, type ParseError } from "jsonc-parser"
+import { modelSampling, modelSamplingKey, type ModelSampling } from "./model-sampling"
+
 
 /**
  * Session-specific settings — per-session overrides for agent models,
@@ -52,6 +54,9 @@ export interface SessionSettings {
   agentVariant?: Record<string, string>
   /** Session-scoped OpenRouter routing per model (key: "providerID/modelID", variant-stripped). */
   modelRouting?: Record<string, Record<string, unknown>>
+  /** Session-scoped sampling parameters per model (key: variant-stripped "providerID/modelID"). */
+  modelSampling?: Record<string, ModelSampling>
+
 }
 
 export interface ModelRef {
@@ -60,10 +65,27 @@ export interface ModelRef {
 }
 
 /** Runtime key inventory of SessionSettings (subplan 03 coverage policy test). */
-export const SESSION_SETTINGS_KEYS = ["agent", "recent", "favorite", "variant", "agentVariant", "modelRouting"] as const
+export const SESSION_SETTINGS_KEYS = [
+  "agent",
+  "recent",
+  "favorite",
+  "variant",
+  "agentVariant",
+  "modelRouting",
+  "modelSampling",
+] as const
 
 /** Runtime key inventory of the worktree model.json state file (local.tsx save shape). */
-export const MODEL_STATE_KEYS = ["recent", "favorite", "variant", "agentVariant", "workspaceAgent", "taskModel"] as const
+export const MODEL_STATE_KEYS = [
+  "recent",
+  "favorite",
+  "variant",
+  "agentVariant",
+  "workspaceAgent",
+  "taskModel",
+  "modelSampling",
+] as const
+
 
 export const DEFAULT_WORKSPACE_MODEL_SCOPE = "default"
 
@@ -299,6 +321,17 @@ export function sessionModelRouting(
   return value && typeof value === "object" && !Array.isArray(value) ? value : undefined
 }
 
+/** Session-scoped sampling for one model, normalized over the standard defaults. */
+export function sessionModelSampling(
+  providerID: string,
+  modelID: string,
+  settings: SessionSettings | null | undefined,
+): ModelSampling | undefined {
+  const value = settings?.modelSampling?.[modelSamplingKey(providerID, modelID)]
+  return value ? modelSampling(value) : undefined
+}
+
+
 // ── File path ──
 
 // ── Save concurrency ──
@@ -406,6 +439,13 @@ function normalizeSessionSettings(raw: Record<string, unknown>): SessionSettings
       if (value && typeof value === "object" && !Array.isArray(value)) map[key] = value as Record<string, unknown>
     }
     if (Object.keys(map).length > 0) settings.modelRouting = map
+  }
+
+  if (typeof raw.modelSampling === "object" && raw.modelSampling !== null && !Array.isArray(raw.modelSampling)) {
+    const map = Object.fromEntries(
+      Object.entries(raw.modelSampling as Record<string, unknown>).map(([key, value]) => [key, modelSampling(value)]),
+    )
+    if (Object.keys(map).length > 0) settings.modelSampling = map
   }
 
   return settings

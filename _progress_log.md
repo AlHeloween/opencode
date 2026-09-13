@@ -2008,3 +2008,52 @@ Oracle: `test/session/recovery.test.ts` creates an isolated source DB and verifi
 - Reason: OpenCode terminated during `/provider` serialization because the cached and bundled Sarvam registry entry declared `reasoning_options.values: [null, "low", "medium", "high"]`, while the public response schema requires strings.
 - Change: the ModelsDev-to-Provider boundary now omits an entire reasoning option when any declared value is not a string. It preserves `capabilities.reasoning`, but does not reinterpret `null` as an off-state or advertise undocumented effort values. Sarvam's primary documentation confirms the model is a reasoning model, but documents no effort control.
 - Oracle: focused regression `bun test test/provider/provider.test.ts --test-name-pattern "drops malformed registry reasoning options"` passed 1/1 (`cmd_runner` `20260912T175206Z_bde479f7`). `_run.cmd` remained running beyond its former 11-second failure window (`20260912T175223Z_134eb229`); its new log reports provider initialization completed and TUI plugins ready, with no `/provider` HTTP 400. The full provider test file had 78 pass / 1 unrelated timeout in `model inherits properties from existing database model`.
+
+## [2026-09-13T06:25:00Z] TUI: per-model sampling and stable endpoint status
+
+- Reason: Alexander requested standard editable/saved model controls — `temperature: 0.6`, `repetition_penalty: 1.15`, `top_p: 0.92`, `presence_penalty: 0.8` — and asked to remove unattractive blinking text from inference-endpoint selection.
+- Change: `/agents` now exposes `Sampling` (`ctrl+g`) for every agent's resolved model. The editor stages numeric edits and retains Save as its final row. Session settings, worktree `model.json`, and provider model config persist the chosen scope; `LLM.run` resolves session → worktree → configured values and passes temperature/top-p/presence through `streamText`, while repetition penalty follows the existing provider-option transform. `DialogRouting` now holds one permanent endpoint-status line and fixed headings while endpoint data loads.
+- Oracle: focused `bun test` suite passed **44 / 44**; `bun typecheck` passed. `bun run dev` rendered the terminal TUI in a supervised PTY. The process bridge accepted text/Enter but did not inject it into the focused TUI editor, so `/agents` navigation could not be visually exercised through that bridge.
+- Risk: providers that do not implement a requested sampling knob can reject it; the UI does not silently reinterpret or suppress model settings.
+
+## [2026-09-13T06:40:00Z] TUI: tune default model sampling for coding agents
+
+- Reason: Alexander approved replacing the initial exploratory defaults with the more stable coding-agent profile.
+- Change: `DEFAULT_MODEL_SAMPLING` is now `temperature: 0.5`, `repetition_penalty: 1.1`, `top_p: 1.0`, `presence_penalty: 0.2`. Persisted and configured explicit values remain unchanged; only absent or invalid fields resolve to this profile.
+- Oracle: `bun test test/session/model-sampling.test.ts test/session/session-settings-persist.test.ts` passed **30 / 30**; `bun typecheck` passed.
+
+## [2026-09-13T06:50:00Z] TUI: adopt balanced thinking-agent sampling profile
+
+- Reason: Alexander approved the compromise profile for an all-thinking-model fleet: more exploration than the coding baseline, without the high-randomness `0.8 / 0.95` combination.
+- Change: defaults are now `temperature: 0.65`, `repetition_penalty: 1.1`, `top_p: 0.95`, `presence_penalty: 0.2`. Explicit session, worktree, and global overrides are retained.
+- Oracle: `bun test test/session/model-sampling.test.ts test/session/session-settings-persist.test.ts` passed **30 / 30**; `bun typecheck` passed.
+
+## [2026-09-13T11:44:17Z] provider: measure the DeepSeek reasoning boundary instead of reading it
+
+- Reason: auditing the `0.65 / 1.1 / 0.95 / 0.2` defaults from the previous entry against the real wire showed three of the four knobs are inert on `api.deepseek.com` (vendor docs ×3 + live logprob differential: penalties do not perturb the distribution beyond the 0.5–1.5 run-to-run noise floor, while temperature spans ~90 logprob units). The audit then surfaced something larger: across 1976 raw-wire dumps, **262,468** DeepSeek assistant tool-call turns left with `reasoning_content: ""` and **zero** carried CoT text, while the database held 4587 messages with both tool and reasoning parts. Reading `message-v2.ts`, `convertToModelMessages` and `transform.ts` found every layer preserving reasoning — the chain reads correct and the wire disagrees, so the next step had to be a measurement, not another edit.
+- Change:
+  - `patches/@ai-sdk%2Fdeepseek@3.0.26.patch` (new, registered in root `package.json`) — `isDeepSeekV4` becomes `/deepseek-(?:v4|flash)/` on a lower-cased id: the substring `includes("deepseek-v4")` missed `deepseek-flash` (and would miss `deepseek-ai/DeepSeek-V4-Flash-0731-TEE` on case alone). The `&& !isDeepSeekV4` exemption is dropped from the tail rule, making "reasoning lives in the tail after the last user message" unconditional — matched by measurement on OpenRouter dumps (81% of tail turns carry CoT vs 12% of history) and by this repo's own StreamLake finding that echoing history CoT made the model re-think over itself (142 vs 50 reasoning tokens, 2× slower).
+  - `packages/opencode/src/provider/transform.ts` — new `reasoningCensus()` logged in `ProviderTransform.message()` before and after `normalizeMessages`, so the delta localises the loss to inside or upstream of this boundary; and the DeepSeek empty-reasoning injection now emits `warn("bug: empty reasoning injected on tool-call turns …")` with the turn count. That injection is a 400-guard, but it also converted a loud vendor rejection into silent CoT loss — which is why this shipped unnoticed.
+  - `packages/opencode/test/provider/transform-reasoning-guard.test.ts` (new) — the guard fills the hole, never clobbers a real CoT, and does not leak to other vendors.
+- Oracle [Exact]:
+  - `bun typecheck` (from `packages/opencode`) → exit 0.
+  - `bun test test/provider/transform.test.ts` → **167 pass / 0 fail**, identical to the baseline recorded on 2026-09-12 for the same file.
+  - `bun test test/provider/transform-reasoning-guard.test.ts` → **3 pass / 0 fail**.
+  - Patch verified by stub-fetch differential against the real SDK: history turn `reasoning_content` omitted → `""`; tail turn `"TAIL_COT_MUST_SURVIVE"` in both arms. `git apply --check` clean against a pristine copy.
+  - Live re-probe of the 400 contract (14 requests, both models, three field variants, two tails, multi-turn, non-thinking control): the field must be PRESENT on every assistant tool-call turn in thinking mode when the conversation ends on a tool result — an empty string satisfies it.
+- Residual: **the census has not been read from a live session** — that reading is the whole point of this change and needs one real run. The upstream cause of the CoT loss is therefore still undiagnosed; the patch fixes a latent 400 and the case bug but demonstrably does NOT restore CoT (the unpatched SDK already passed tail CoT through when a reasoning part existed). `bun install` not run, so the patch is registered but unproven through bun's own mechanism. GLM on Novita shows the same empty-field symptom on a different code path and is untouched here.
+- Risk: if the census reveals the CoT can be restored, returning it re-introduces the measured cost (349 → 1309 prompt tokens for an 840-word CoT) and a self-priming path for a degenerate chain — the n-gram guard on the outgoing reasoning stream must land before that, not after.
+
+## [2026-09-13T12:05:00Z] CUA: force minimized inactive application launch
+
+- Reason: Alexander reported that a CUA-launched application can disrupt typing by appearing over the active workspace. CUA background automation itself does not require foreground ownership.
+- Change: OpenCode's `cua` wrapper now rewrites every `call launch_app` payload to `start_minimized: true`, including callers that omit the field or pass `false`. The Windows driver maps this to `SW_SHOWMINNOACTIVE` and its foreground lock; unrelated CUA JSON is forwarded byte-for-byte.
+- Oracle: `bun test test/tool/cua.test.ts` passed **3 / 3**. Driver status reported an existing daemon, but a live `launch_app` probe returned `daemon closed connection without response`; it was not retried or escalated because that daemon fault cannot prove a foreground-safe launch. `bun typecheck` reached unrelated errors in `test/provider/transform-reasoning-guard.test.ts`.
+- Risk: a driver can return `background_unavailable` if Windows refuses the foreground lock. Preserve that refusal; never turn it into a foreground launch without explicit user approval.
+
+## [2026-09-13T13:35:00Z] prompt kernel: visible Chrome debugging on request
+
+- Reason: Alexander requires the agent to expose and drive the local Chrome debugging instance only when a user asks for visible web debugging, click simulation, or screenshots; ordinary universal search must remain backgrounded.
+- Change: OpenCode G1 now names `127.0.0.1:9222` as universal search's existing Chrome target. The rule requires exact CUA/CDP binding and CUA `bring_to_front` only for that explicit user request, then typed browser actions/screenshots; it forbids launch, restart, and debug-flag changes.
+- Oracle: `python -m prompt_kernel --install` installed digest `e194bb53b0c56e50de46f85e31cfb0bfe367030e54a3fadd5eb95645fec7b83c`; full `prompt_kernel/tests` passed **100 / 100** through `cmd_runner`. The installed production receiver contains the exact rule.
+- Risk: existing-profile CDP exposes sensitive browser state. The rule confines use to an explicit request and the exact bound window; it does not widen access for normal universal search.

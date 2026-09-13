@@ -27,6 +27,8 @@ import {
   setWorkspaceAgentModel,
   type SessionSettings,
 } from "@/session/session-settings"
+import { DEFAULT_MODEL_SAMPLING, modelSampling, modelSamplingKey, type ModelSampling } from "@/session/model-sampling"
+
 
 export function parseModel(model: string) {
   const [providerID, ...rest] = model.split("/")
@@ -162,6 +164,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         variant: Record<string, string | undefined>
         agentVariant: Record<string, string | undefined>
         workspaceAgent: Record<string, Record<string, { providerID: string; modelID: string }>>
+        modelSampling: Record<string, ModelSampling>
+
         taskModel:
           | {
               providerID: string
@@ -176,6 +180,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         agentVariant: {},
         workspaceAgent: {},
         taskModel: undefined,
+        modelSampling: {},
+
       })
 
       const filePath = path.join(Global.Path.state, "model.json")
@@ -228,30 +234,30 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         })
       }
 
+      function sessionPayload(settings = sessionSettings()): SessionSettings {
+        return {
+          agent: settings?.agent,
+          recent: modelStore.recent,
+          favorite: modelStore.favorite,
+          variant: Object.fromEntries(
+            Object.entries(modelStore.variant).filter((entry): entry is [string, string] => entry[1] !== undefined),
+          ),
+          agentVariant: Object.fromEntries(
+            Object.entries(modelStore.agentVariant).filter((entry): entry is [string, string] => entry[1] !== undefined),
+          ),
+          modelRouting: settings?.modelRouting,
+          modelSampling: settings?.modelSampling,
+        }
+      }
+
       /** Save workspace state and the current session's settings. */
       function saveAll() {
         save()
         // Also persist to session settings if a session is active
         const sid = getActiveSessionID()
         if (!sid) return
-        // Build variant maps without undefined values
-        const variant: Record<string, string> = {}
-        for (const [k, v] of Object.entries(modelStore.variant)) {
-          if (v !== undefined) variant[k] = v
-        }
-        const agentVariant: Record<string, string> = {}
-        for (const [k, v] of Object.entries(modelStore.agentVariant)) {
-          if (v !== undefined) agentVariant[k] = v
-        }
-        const ss = sessionSettings()
-        void saveSessionSettings(sid, {
-          agent: ss?.agent,
-          recent: modelStore.recent,
-          favorite: modelStore.favorite,
-          variant,
-          agentVariant,
-          modelRouting: ss?.modelRouting,
-        })
+        void saveSessionSettings(sid, sessionPayload())
+
       }
 
       function save() {
@@ -267,6 +273,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           agentVariant: modelStore.agentVariant,
           workspaceAgent: modelStore.workspaceAgent,
           taskModel: modelStore.taskModel,
+          modelSampling: modelStore.modelSampling,
+
         }
         state.write = state.write
           .then(() => Filesystem.writeJson(filePath, snapshot))
@@ -286,6 +294,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             setModelStore("agentVariant", x.agentVariant)
           if (typeof x.workspaceAgent === "object" && x.workspaceAgent !== null)
             setModelStore("workspaceAgent", x.workspaceAgent)
+          if (typeof x.modelSampling === "object" && x.modelSampling !== null)
+            setModelStore("modelSampling", Object.fromEntries(
+              Object.entries(x.modelSampling).map(([key, value]) => [key, modelSampling(value)]),
+            ))
           if (
             typeof x.taskModel === "object" &&
             x.taskModel !== null &&
@@ -411,18 +423,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         }
         const next: SessionSettings = { ...ss, agent: currentAgent }
         setSessionSettings(next)
-        void saveSessionSettings(sid, {
-          agent: next.agent,
-          recent: modelStore.recent,
-          favorite: modelStore.favorite,
-          variant: Object.fromEntries(
-            Object.entries(modelStore.variant).filter((e): e is [string, string] => e[1] !== undefined),
-          ),
-          agentVariant: Object.fromEntries(
-            Object.entries(modelStore.agentVariant).filter((e): e is [string, string] => e[1] !== undefined),
-          ),
-          modelRouting: ss?.modelRouting,
-        })
+        void saveSessionSettings(sid, sessionPayload(next))
+
       }
 
       function taskModel() {
@@ -531,21 +533,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
               variant,
             )
             setSessionSettings(next)
-            await saveSessionSettings(sid, {
-              agent: next.agent,
-              recent: modelStore.recent,
-              favorite: modelStore.favorite,
-              variant: Object.fromEntries(
-                Object.entries(modelStore.variant).filter((e): e is [string, string] => e[1] !== undefined),
-              ),
-              agentVariant: {
-                ...Object.fromEntries(
-                  Object.entries(modelStore.agentVariant).filter((e): e is [string, string] => e[1] !== undefined),
-                ),
-                ...next.agentVariant,
-              },
-              modelRouting: next.modelRouting,
-            })
+            await saveSessionSettings(sid, sessionPayload(next))
+
           }
         }
         const recent = uniqueBy([model, ...modelStore.recent], (item) => `${item.providerID}/${item.modelID}`)
@@ -571,9 +560,76 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           })
           return { model: workspace ? `${workspace.providerID}/${workspace.modelID}` : undefined }
         }
-        // global — config defaults (Agent.Info), never written by TUI selections
         const a = sync.data.agent.find((x) => x.name === name)
         return { model: a?.model ? `${a.model.providerID}/${a.model.modelID}` : undefined }
+      }
+
+      function configuredSampling(model: { providerID: string; modelID: string }): unknown {
+        const modelID = model.modelID.split(":")[0]
+        const configured = sync.data.config.provider?.[model.providerID]?.models?.[modelID]
+        return configured && typeof configured === "object" && "sampling" in configured ? configured.sampling : undefined
+      }
+
+      /** Effective model sampling: session override → worktree state → configured model → standard defaults. */
+      function samplingFor(model: { providerID: string; modelID: string }): ModelSampling {
+        const key = modelSamplingKey(model.providerID, model.modelID)
+        return (
+          sessionSettings()?.modelSampling?.[key] ??
+          modelStore.modelSampling[key] ??
+          modelSampling(configuredSampling(model))
+        )
+      }
+
+      /** Stored value for the selected layer, normalized for the sampling editor. */
+      function samplingLayerView(model: { providerID: string; modelID: string }, scope: ModelScope): ModelSampling {
+        const key = modelSamplingKey(model.providerID, model.modelID)
+        if (scope === "session") return sessionSettings()?.modelSampling?.[key] ?? DEFAULT_MODEL_SAMPLING
+        if (scope === "worktree") return modelStore.modelSampling[key] ?? DEFAULT_MODEL_SAMPLING
+        return modelSampling(
+          configuredSampling(model),
+        )
+      }
+
+      async function setProviderSampling(providerID: string, modelID: string, sampling: ModelSampling) {
+        const response = (await sdk.client.global.config.get({ throwOnError: true })) as unknown as {
+          data?: Record<string, unknown>
+        }
+        const config = { ...(response.data ?? {}) }
+        const providers = { ...((config.provider as Record<string, unknown> | undefined) ?? {}) }
+        const provider = { ...((providers[providerID] as Record<string, unknown> | undefined) ?? {}) }
+        const models = { ...((provider.models as Record<string, unknown> | undefined) ?? {}) }
+        models[modelID] = { ...((models[modelID] as Record<string, unknown> | undefined) ?? {}), sampling }
+        provider.models = models
+        providers[providerID] = provider
+        config.provider = providers
+        await sdk.client.global.config.update({ config: config as never }, { throwOnError: true })
+      }
+
+      async function setModelSampling(
+        model: { providerID: string; modelID: string },
+        sampling: ModelSampling,
+        scope: ModelScope,
+      ) {
+        const baseID = model.modelID.split(":")[0]
+        const key = modelSamplingKey(model.providerID, model.modelID)
+        if (scope === "global") {
+          await setProviderSampling(model.providerID, baseID, sampling)
+          return
+        }
+        if (scope === "worktree") {
+          await patchProjectConfig({ provider: { [model.providerID]: { models: { [baseID]: { sampling } } } } })
+          setModelStore("modelSampling", key, sampling)
+          save()
+          return
+        }
+        const sid = getActiveSessionID()
+        if (!sid) throw new Error("No active session — cannot save per-session sampling")
+        const next: SessionSettings = {
+          ...sessionSettings(),
+          modelSampling: { ...sessionSettings()?.modelSampling, [key]: sampling },
+        }
+        setSessionSettings(next)
+        await saveSessionSettings(sid, sessionPayload(next))
       }
 
       /** Write provider.openrouter.<id>.models.<modelID>.options.routing into the
@@ -681,18 +737,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         }
         const next: SessionSettings = { ...ss, agent: currentAgent }
         setSessionSettings(next)
-        void saveSessionSettings(sid, {
-          agent: next.agent,
-          recent: modelStore.recent,
-          favorite: modelStore.favorite,
-          variant: Object.fromEntries(
-            Object.entries(modelStore.variant).filter((e): e is [string, string] => e[1] !== undefined),
-          ),
-          agentVariant: Object.fromEntries(
-            Object.entries(modelStore.agentVariant).filter((e): e is [string, string] => e[1] !== undefined),
-          ),
-          modelRouting: next.modelRouting,
-        })
+        void saveSessionSettings(sid, sessionPayload(next))
+
       }
 
       /** Write OpenRouter routing for a MODEL into the SELECTED layer (rev 4):
@@ -737,18 +783,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         else map[`${providerID}/${baseID}`] = routing
         const next: SessionSettings = { ...ss, modelRouting: Object.keys(map).length > 0 ? map : undefined }
         setSessionSettings(next)
-        void saveSessionSettings(sid, {
-          agent: next.agent,
-          recent: modelStore.recent,
-          favorite: modelStore.favorite,
-          variant: Object.fromEntries(
-            Object.entries(modelStore.variant).filter((e): e is [string, string] => e[1] !== undefined),
-          ),
-          agentVariant: Object.fromEntries(
-            Object.entries(modelStore.agentVariant).filter((e): e is [string, string] => e[1] !== undefined),
-          ),
-          modelRouting: next.modelRouting,
-        })
+        void saveSessionSettings(sid, sessionPayload(next))
+
       }
 
       /** Session-layer routing reads for the dialog's initial state (rev 4). */
@@ -767,6 +803,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         setProviderRouting,
         setAgentRouting,
         setModelRouting,
+        samplingFor,
+        samplingLayerView,
+        setModelSampling,
         sessionAgentRoutingView,
         sessionModelRoutingView,
         subagentsFor,
@@ -930,19 +969,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             if (options?.scope === "session") {
               const sid = getActiveSessionID()
               if (sid) {
-                const ss = sessionSettings()
-                void saveSessionSettings(sid, {
-                  agent: ss?.agent,
-                  recent: modelStore.recent,
-                  favorite: modelStore.favorite,
-                  variant: Object.fromEntries(
-                    Object.entries(modelStore.variant).filter((e): e is [string, string] => e[1] !== undefined),
-                  ),
-                  agentVariant: Object.fromEntries(
-                    Object.entries(modelStore.agentVariant).filter((e): e is [string, string] => e[1] !== undefined),
-                  ),
-                  modelRouting: ss?.modelRouting,
-                })
+                void saveSessionSettings(sid, sessionPayload())
+
               }
               save()
               return
@@ -1054,19 +1082,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
               }
               const key = `${m.providerID}/${m.modelID}`
               setModelStore("variant", key, value ?? "default")
-              const ss = sessionSettings()
-              void saveSessionSettings(sid, {
-                agent: ss?.agent,
-                recent: modelStore.recent,
-                favorite: modelStore.favorite,
-                variant: Object.fromEntries(
-                  Object.entries(modelStore.variant).filter((e): e is [string, string] => e[1] !== undefined),
-                ),
-                agentVariant: Object.fromEntries(
-                  Object.entries(modelStore.agentVariant).filter((e): e is [string, string] => e[1] !== undefined),
-                ),
-                modelRouting: ss?.modelRouting,
-              })
+              void saveSessionSettings(sid, sessionPayload())
               return
             }
             if (agentKey) {

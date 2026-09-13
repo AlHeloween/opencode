@@ -1,5 +1,32 @@
 # Development Plan
 
+## 2026-09-12 — Active agent model display sync
+
+Goal: an explicit global `/agents` model save for the active agent updates the
+current session's next-prompt selection, rather than leaving an older session
+override active behind a changed global row.
+
+| Task | Completion |
+|---|---|
+| Synchronize global active-agent save into the current session | [COMPLETION] |
+| Prove focused TUI/session behavior and typecheck | [COMPLETION] |
+
+Plan: `plans_completed/2026-09-12_agent-model-display-sync.md`
+
+## 2026-09-12 — Routing sort, fp8 default, and explicit Save
+
+Goal: make OpenRouter provider routing visible and controllable, remove the accidental global Modal-only pin, and eliminate redundant global write confirmations in model/routing agent flows.
+
+| Task | Completion |
+|---|---|
+| Add tested routing-state helpers for sort, selection mode, and fp8 default | [COMPLETION] |
+| Extend routing form and make its Save action authoritative | [COMPLETION] |
+| Stage and save global agent model + variant in one config write | [COMPLETION] |
+| Repair and read back the executable-adjacent global config | [COMPLETION] |
+| Update docs/workflow records and pass focused oracles | [COMPLETION] |
+
+Plan: `plans_completed/2026-09-12_routing-sort-fp8-save.md`
+
 ## 2026-09-06 OpenRouter unified cache namespace (plan: plans_completed/2026-09-06_openrouter-unified-cache-namespace.md)
 
 Goal: make the cache-visible session banner and all OpenRouter affinity/cache fields use the final provider cache namespace, including a reusable child-task lease rather than the physical child session ID.
@@ -356,3 +383,94 @@ Verification:
 - [x] `bun test test/jobs/jobs.test.ts` — 4 pass, 0 fail
 - [x] `bun test test/cli/tui/effective-navigation.test.ts` — 11 pass, 0 fail
 - [x] `bun test test/config/config.test.ts` — 75 pass, 0 fail
+
+## 2026-09-12 Anthropic Claude Pro/Max OAuth
+
+Goal: restore first-party-style Claude Pro/Max authentication in this fork by
+porting OMP's PKCE/login and OAuth request fingerprint while retaining
+Anthropic API-key access.
+
+| Task | Completion |
+| --- | --- |
+| Add browser and paste-code OAuth flows with PKCE, callback CSRF checks, token exchange, and refresh | [COMPLETION] source + targeted tests |
+| Extend encrypted OAuth auth data with optional account/org/login identity fields | [COMPLETION] auth round-trip test |
+| Register the internal plugin and preserve manual API-key login | [COMPLETION] provider-auth method-list test |
+| Apply Bearer/Claude-Code request fingerprint, CCH, cache-marker preservation, and 64K output cap | [COMPLETION] deterministic request-shape test |
+| Prove a real prompt through the OpenCode OAuth loader | [COMPLETION] OMP re-login + redacted loader probe returned `200` / `pong` |
+
+Verification:
+
+- [x] `bun test test/plugin/anthropic-auth.test.ts test/auth/auth.test.ts test/plugin/auth-override.test.ts` from `packages/opencode` — 15 pass, 0 fail (`cmd_runner` `20260912T104426Z_30880c1e`).
+- [x] `bun typecheck` from `packages/opencode` (`cmd_runner` `20260912T104518Z_221cfc8f`).
+- [x] `bun run experiments/20260912_anthropic-oauth/02_plugin_loader_probe.ts` — safeguarded loader `200`, response `pong`, no refresh (`cmd_runner` `20260912T104717Z_2a9568a3`).
+
+## 2026-09-12 Codex Tool-Host Kernel Variant
+
+Goal: render the shared reasoning graph against the current Codex harness
+without leaking OpenCode or Claude-only tool names into its instructions.
+
+| Task | Completion |
+| --- | --- |
+| Bind Codex filesystem, CodeGraph, LSP/AST, Hub, Browser, task, and Windows command tools | [COMPLETION] `addons_codex.py` + render assertions |
+| Add isolated `--codex` artifact output and reject unsupported installation | [COMPLETION] CLI tests |
+| Make shared runtime-authorization wording host-neutral while retaining product `getmode` binding | [COMPLETION] core/render tests |
+| Regenerate product and Claude sinks; repin production baseline | [COMPLETION] renderer digests |
+
+Verification:
+
+- [x] `python -m pytest prompt_kernel/tests/ -q` — 85 passed.
+- [x] `python -m prompt_kernel --codex` — stamped `dist_codex/` artifact, digest `d2b72b19b5bbe603bc762a68a3c481ec18f45cf4765172c3640995741194e71d`.
+- [x] `python -m prompt_kernel --install` and `--claude --install` — regenerated renderer sinks and production baseline.
+
+## 2026-09-13 TUI Per-Model Sampling and Routing Ergonomics
+
+Goal: expose editable, persisted per-model sampling values in `/agents`, apply
+them to future model requests, and make the OpenRouter endpoint selector stable
+while its live data loads.
+
+| Task | Completion |
+| --- | --- |
+| Add typed session/worktree/global sampling state and resolution | [COMPLETION] session persistence and model.json state |
+| Apply the effective parameters to the LLM request | [COMPLETION] typed LLM path |
+| Add a scoped `/agents` sampling editor with Save as the final action | [COMPLETION] `DialogModelParameters` |
+| Stabilize the endpoint-routing dialog status and cursor behavior | [COMPLETION] permanent status line and headers |
+| Run focused persistence, UI-state, and typecheck oracles | [COMPLETION] 44 pass / 0 fail; typecheck |
+
+Verification:
+
+- [x] `bun test test/session/model-sampling.test.ts test/session/session-settings-persist.test.ts test/tui/agent-selection.test.ts test/tui/dialog-routing-state.test.ts test/tui/settings-registry.test.ts` from `packages/opencode` — 44 pass / 0 fail.
+- [x] `bun typecheck` from `packages/opencode` — passed.
+- [x] `bun run dev` from `packages/opencode` — TUI rendered in a supervised PTY; automated key injection did not reach the dialog.
+
+## 2026-09-13 CUA Minimized Background Launch
+
+Goal: prevent CUA-launched applications from taking focus or covering the
+user's active work while preserving CUA background automation.
+
+| Task | Completion |
+| --- | --- |
+| Enforce `launch_app.start_minimized: true` in the OpenCode CUA wrapper | [COMPLETION] `cuaCallArgs` |
+| Prove launch JSON policy and retain unrelated CUA payloads | [COMPLETION] 3 focused assertions |
+| Document the background-launch contract | [COMPLETION] CUA tool description + sidecar guide |
+
+Verification:
+
+- [x] `bun test test/tool/cua.test.ts` from `packages/opencode` — 3 pass, 0 fail.
+- [!] `bun typecheck` reached existing errors in `test/provider/transform-reasoning-guard.test.ts`; CUA paths are not named in the diagnostics.
+
+## 2026-09-13 Visible Chrome Debug Workflow
+
+Goal: tell the OpenCode agent how to expose the existing Chrome debug target
+only upon a user's explicit request, then use it for web debugging, click
+simulation, and screenshots.
+
+| Task | Completion |
+| --- | --- |
+| Add conditional Chrome 9222 / CUA-CDP instruction | [COMPLETION] rendered G1 rule |
+| Render and install the generated OpenCode prompt | [COMPLETION] digest `e194bb53b0c56e50de46f85e31cfb0bfe367030e54a3fadd5eb95645fec7b83c` |
+| Prove rendered contract and document the workflow | [COMPLETION] 100 kernel tests + sidecar guide |
+
+Verification:
+
+- [x] `python -m pytest prompt_kernel/tests/ -q` through `cmd_runner` — 100 passed.
+- [x] `python -m prompt_kernel --install` through `cmd_runner` — production prompt and baseline repinned to `e194bb53b0c56e50de46f85e31cfb0bfe367030e54a3fadd5eb95645fec7b83c`.

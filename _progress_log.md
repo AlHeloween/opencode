@@ -2125,3 +2125,17 @@ Oracle: `test/session/recovery.test.ts` creates an isolated source DB and verifi
   - Docs: `compaction.md` (cache bullet, lever bullet, Exact-table row, checklist), `summary-exact-handles.md` pipeline fence, `_application_workflow_diagram.md` §5, `DOCINDEX.md` (compaction + summary-exact rows bumped to 2026-09-14).
 - Oracle: `bun test test/session/summary-sidecar.test.ts test/session/summary-cadence.test.ts test/session/cache-injection.test.ts test/session/finish-step.test.ts test/session/llm.test.ts` → **73 pass / 0 fail** (162 expect, 10.73s); `bun typecheck` exit 0.
 - Residual: dormant lever still unwired; clamp has no dedicated boundary test (gap noted by the measuring session); binary rebuild not run (owner's call). [KV-CACHE] no prefix change — generation parameter only.
+
+## [2026-09-14T21:06:40+08:00] tui: routing interaction repair lands from the stash — heading skip, live mode line, pointer parity
+
+- Reason: Alexander — «TUI routing — да, только очень аккуратно и с пачкой тестов чтобы ничего не сломать». The 2026-09-13 routing entry (and the diagram §5 / architecture §8b / index.md claims) was committed while the code itself stayed parked in `stash@{0}` — that session's commit was reset and everything but the log went into the stash. This lands the routing subset and re-verifies the claims against the real UI.
+- Change (routing subset of `stash@{0}` only; the other three workstreams stay parked):
+  - `dialog-routing-state.ts` — `routingMoveCursor` (stash) + `routingModeLabel` extracted from the dialog's inline memo so the mode summary is unit-testable.
+  - `dialog-routing.tsx` — initial cursor on the first actionable sort row; heading-skipping traversal; sort rows as radios `(•)/( )`; every dynamic choice clears the manual provider list; pointer release and Space/Enter share `act()`; header «selecting one activates manual routing»; help line «space/enter/click»; persistent mode line.
+  - `dialog-agent.tsx` — shortcut label «Sampling» → «Sampling parameters».
+  - `test/tui/dialog-routing-state.test.ts` — the stash's 2 tests + 5 new: no-op guards (nothing actionable / delta 0), header-position normalization + header-run crossing, single-actionable capture, mode-label mapping for all three sorts + default, provider plurality. **12/12** in the file.
+  - Docs: diagram §5 now names both tested helpers; DOCINDEX diagram row bumped to 2026-09-14. No other edits — those doc claims already matched the (now-landed) behavior.
+- Oracle:
+  - `bun test test/tui/` → **52 pass / 0 fail** (7 files, 537 expects); focused file **12 pass / 0 fail**; `bun typecheck` exit 0.
+  - Live TUI (new recipe: plain `bun run dev` exits 0 after ~7s in the supervised environment — `_run.cmd` + `--terminal wt --direct-terminal` keeps it alive; run `20260914T130240Z_2815997c`): the routing dialog for `openrouter/z-ai/glm-5.3-flash` rendered `Mode: dynamic OpenRouter routing by lowest price`, radios `(•) Lowest price` / `( ) …`, focus on the first actionable row, and 4×DOWN skipped the `PROVIDERS` header straight to `[order]` (captures `routing.png`, `skip.png`). Navigation-only; nothing was saved.
+- Residual: none for the landed scope; reasoning-dialects / handle-census / cache-sampling remain parked in the stash. No binary rebuild (owner's call). [KV-CACHE] no prefix impact — TUI only.

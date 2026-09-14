@@ -9,6 +9,8 @@ import { getScrollAcceleration } from "../util/scroll"
 import * as Log from "@opencode-ai/core/util/log"
 import {
   buildRouting,
+  routingMoveCursor,
+  routingModeLabel,
   routingProviderSelection,
   routingQuantizations,
   routingSort,
@@ -144,7 +146,7 @@ export function DialogRouting(props: {
   const [sort, setSort] = createSignal<RoutingSort | undefined>(routingSort(currentRouting()))
   const [quants, setQuants] = createSignal<string[]>(routingQuantizations(currentRouting(), []))
   const [fallback, setFallback] = createSignal<boolean>(currentRouting().allow_fallbacks !== false)
-  const [cursor, setCursor] = createSignal(0)
+  const [cursor, setCursor] = createSignal(1)
 
   // Live endpoints fetch (public OpenRouter API — no auth required).
   const [endpoints, setEndpoints] = createSignal<Endpoint[]>([])
@@ -296,7 +298,7 @@ export function DialogRouting(props: {
     { kind: "sort", value: "throughput", label: "Highest throughput (fastest generation)" },
     { kind: "sort", value: "latency", label: "Lowest latency (fastest first token)" },
     { kind: "sort", value: undefined, label: "OpenRouter default routing" },
-    { kind: "header", label: `PROVIDERS — ${modelID() ?? targetLabel} · selecting one disables dynamic sort` },
+    { kind: "header", label: `PROVIDERS — ${modelID() ?? targetLabel} · selecting one activates manual routing` },
     { kind: "selection-mode" },
     ...orderRows().map((row): Row => ({ kind: "provider", row })),
     { kind: "header", label: "QUANTIZATIONS — derived from endpoint data" },
@@ -320,7 +322,7 @@ export function DialogRouting(props: {
     if (row.kind === "provider") toggleSlug(row.row.slug)
     else if (row.kind === "sort") {
       setSort(row.value)
-      if (row.value) setProviders([])
+      setProviders([])
     } else if (row.kind === "selection-mode") setSelectionMode((value) => (value === "order" ? "only" : "order"))
     else if (row.kind === "quant") toggleQuant(row.value)
     else if (row.kind === "fallback") setFallback((v) => !v)
@@ -356,8 +358,7 @@ export function DialogRouting(props: {
   }
 
   function moveCursor(delta: number, center = false) {
-    const max = rows().length - 1
-    setCursor((c) => (c + delta < 0 ? max : c + delta > max ? 0 : c + delta))
+    setCursor((current) => routingMoveCursor(rows(), current, delta))
     syncScroll(center)
   }
 
@@ -433,7 +434,7 @@ export function DialogRouting(props: {
       if (i < 0) return "[ ]"
       return selectionMode() === "only" ? "[x]" : `[${i + 1}]`
     }
-    if (row.kind === "sort") return sort() === row.value && providers().length === 0 ? "[x]" : "[ ]"
+    if (row.kind === "sort") return sort() === row.value && providers().length === 0 ? "(•)" : "( )"
     if (row.kind === "selection-mode") return selectionMode() === "only" ? "[only]" : "[order]"
     if (row.kind === "quant") return quants().includes(row.value) ? "[x]" : "[ ]"
     if (row.kind === "fallback") return `[${fallback() ? "on" : "off"}]`
@@ -479,6 +480,10 @@ export function DialogRouting(props: {
     )
   }
 
+  const routingMode = createMemo(() =>
+    routingModeLabel({ sort: sort(), providers: providers(), selectionMode: selectionMode() }),
+  )
+
   return (
     <box paddingLeft={2} paddingRight={2} paddingTop={1} gap={1}>
       <text fg={theme.text} attributes={16}>
@@ -489,10 +494,11 @@ export function DialogRouting(props: {
         fallback={<text fg={theme.textMuted}>{`provider slug: ${buffer()}_ (enter add · esc cancel)`}</text>}
       >
         <text fg={theme.textMuted}>
-          {`space toggle · ↑/↓ move · ←/→ page · enter toggle · esc cancel${error() ? " · r retry · a manual add" : ""}`}
+          {`space/enter/click toggle · ↑/↓ move · ←/→ page · esc cancel${error() ? " · r retry · a manual add" : ""}`}
         </text>
       </Show>
       <text fg={error() ? theme.error : theme.textMuted}>{endpointStatus()}</text>
+      <text fg={theme.textMuted}>{routingMode()}</text>
       <scrollbox
         maxHeight={maxHeight()}
         scrollAcceleration={scrollAcceleration()}
@@ -512,7 +518,16 @@ export function DialogRouting(props: {
               // Two-line row (rev 4): name+slug on line 1, metadata muted on line 2.
               const secondary = rowSecondary(row)
               return (
-                <box id={`r${i()}`} flexDirection="column" backgroundColor={active() ? theme.primary : undefined}>
+                <box
+                  id={`r${i()}`}
+                  flexDirection="column"
+                  backgroundColor={active() ? theme.primary : undefined}
+                  onMouseDown={(event) => {
+                    event.preventDefault()
+                    setCursor(i())
+                  }}
+                  onMouseUp={() => act(row)}
+                >
                   <box flexDirection="row" gap={1} paddingLeft={active() ? 1 : 2} paddingRight={2}>
                     <text fg={active() ? theme.background : theme.text} flexShrink={0}>
                       {marker(row)}
@@ -536,6 +551,11 @@ export function DialogRouting(props: {
                 gap={1}
                 backgroundColor={active() ? theme.primary : undefined}
                 paddingLeft={active() ? 1 : 2}
+                onMouseDown={(event) => {
+                  event.preventDefault()
+                  setCursor(i())
+                }}
+                onMouseUp={() => act(row)}
               >
                 <text fg={active() ? theme.background : theme.text} flexShrink={0}>
                   {marker(row)}

@@ -354,4 +354,4 @@ Coverage estimate vs actual codebase: 9% core-deep; kernel host rendering is now
 5. `packages/opencode/src/cli/cmd/tui/component/dialog-routing.tsx` / `DialogRouting`
    - Input: asynchronous OpenRouter endpoint data plus keyboard or pointer activation.
    - Output: one permanent endpoint-status line, a persistent routing-mode summary, and stable form headings.
-   - Logic: the first focusable row is the dynamic-sort radio group; keyboard traversal skips headings, pointer release and Space/Enter share the same action, and every dynamic choice clears manual providers. Live loading never inserts/removes status text or changes headings, so the selector does not visibly flash while endpoints resolve.
+   - Logic: the first focusable row is the dynamic-sort radio group; keyboard traversal (`routingMoveCursor`, heading-skip unit-tested) skips headings, pointer release and Space/Enter share the same action, every dynamic choice clears manual providers, and the summary line is derived by `routingModeLabel` (unit-tested). Live loading never inserts/removes status text or changes headings, so the selector does not visibly flash while endpoints resolve.

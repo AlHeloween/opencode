@@ -56,7 +56,11 @@ Every **implementable** plan must include:
 
 ## Active Plans
 
-(none — all active work is completed and archived; `plans_completed/` holds the full archive, most recently `2026-08-31_settings/` — all 5 subplans implemented 2026-09-06)
+- `2026-09-12_anthropic-cache-breakpoints.md` — DRAFT: Anthropic cache-breakpoint placement (55.1% of the static prefix behind no breakpoint) + thinking-variant payloads (13/14 catalog models emit an invalid/removed thinking payload)
+- `2026-09-12_deepseek-image-mode.md` — DRAFT: render large user-side text as WebP pages (measured 4.19× chars/token; images are user-side only, the kernel cannot be one)
+- `2026-09-13_reasoning-continuity-and-loop-guard.md` — DRAFT: CoT continuity upstream of the transform boundary (census + guard warn landed 2026-09-14 in `6e1df8b394`) + a mechanical loop guard for the degenerate-repeat corpus
+
+(Completed work moves to `plans_completed/`; most recently `2026-09-13_tui-routing-interaction-repair.md` — landed `918f114db8`.)
 
 ## Abstract futures (not active)
 
@@ -64,6 +68,7 @@ See `abstract_futures/README.md`. Includes parked Zig 0.16 migration notes and s
 
 ## Recently completed → `plans_completed/`
 
+- `2026-09-13_tui-routing-interaction-repair.md` — routing dialog interaction model: heading-skipping traversal, radios, pointer parity, live mode line; landed `918f114db8`, T4 closed by a direct-terminal capture
 - `2026-09-12_deepseek-thinking-h3.md` — DeepSeek name-drift fix: one `isDeepSeekThinkingId` family predicate + catalog-driven variant sets (`deepseek-flash` → `off/low/high/max`, `deepseek-v4-pro` → `off/high/max`); h3 unavailable on `api.deepseek.com`; the tool-turn 400 misattribution corrected. T4 (TUI labels) left open
 - `2026-09-12_kernel-evidence-and-edit-discipline.md` — candidate kernel/addon rules: query the record before attributing unexplained state; per-edit verification (grep -c == 1, oracle per edit). Owner decision pending
 - `2026-09-01_kernel-tautology-fix.md` — kernel headings no longer declare+reference themselves (`X (@X)` → `X`); parens kept only for title≠anchor; dictionary parser fallback

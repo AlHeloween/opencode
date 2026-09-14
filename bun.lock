@@ -883,6 +883,7 @@
     "web-tree-sitter",
   ],
   "patchedDependencies": {
+    "@ai-sdk/deepseek@3.0.26": "patches/@ai-sdk%2Fdeepseek@3.0.26.patch",
     "@standard-community/standard-openapi@0.2.9": "patches/@standard-community%2Fstandard-openapi@0.2.9.patch",
   },
   "overrides": {

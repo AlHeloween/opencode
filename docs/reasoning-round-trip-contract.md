@@ -1,7 +1,8 @@
 # Reasoning round-trip contract (thinking models): DeepSeek / Z.AI / OpenRouter
 
 **Status:** measured 2026-08-28 on `z-ai/glm-5.3-flash` (via OpenRouter) and
-`deepseek-v4-flash` (direct `api.deepseek.com`)
+`deepseek-v4-flash` (direct `api.deepseek.com`); capture dialects, boundary
+census, and the SDK tail-rule patch added 2026-09-14
 **Probes:** `experiments/kv-cache-parity/2026-08-28_dialect_reach_probe.py`,
 `experiments/kv-cache-parity/2026-08-28_deepseek_direct_dialect_probe.py`,
 `experiments/kv-cache-parity/2026-08-28_chain_cache_probe.py`
@@ -105,6 +106,23 @@ either stripped (DeepSeek) or undocumented (assume hostile).
   non-gateway routes: DeepSeek/MIMO tool-call turns keep full CoT echo; no-tool
   turns drop it (vendor-ignored); openai-compatible routes drop historical
   reasoning (KAT/StreamLake, Qwen docs, zen-proxied Kimi/GLM verified no-echo).
+- `packages/opencode/src/provider/gateway/raw-diff.ts` — the capture assembler
+  reads the native dialects too (`reasoning_content`, `reasoning_text`) next to
+  the OpenRouter pair, dispatching by FIELD: incremental native fragments are
+  concatenated, cumulative OpenRouter text keeps suffix-growth dedup. Measured
+  2026-09-14: 836 recorded chunks rendered as "Reasoning (0 chars)" because only
+  the OpenRouter fields were read.
+- `patches/@ai-sdk/deepseek@3.0.26.patch` — vendored SDK message conversion:
+  the family predicate is `/deepseek-(?:v4|flash)/` on a lower-cased id, and
+  "reasoning lives in the tail after the last user message" is unconditional for
+  the family. History CoT is dropped; matches the measured dumps (81% of tail
+  turns carry CoT vs 12% of history) and the KAT no-echo result above.
+- `packages/opencode/src/provider/transform.ts` / `reasoningCensus` — logs
+  `assistant/toolCall/cotText/cotEmpty/cotAbsent` before and after
+  `normalizeMessages` on every request, and warns loudly when the 400-guard
+  fills empty `reasoning_content` on tool-call turns (262k such turns across
+  1976 raw-wire dumps shipped silently; live read 2026-09-14: `cotAbsent 11` of
+  42 tool-call turns in, `cotEmpty 11` out, warn `turns: 9`).
 - Measured effect on a live 1.73 MB body: **−334k chars (−19.4%)** wire bytes,
   ~91k tokens of reasoning carried once instead of twice.
 

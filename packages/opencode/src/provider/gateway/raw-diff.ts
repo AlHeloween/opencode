@@ -302,10 +302,13 @@ export interface ReasoningCollect {
 /**
  * Assemble reasoning text from a captured response body (readableResponseBody
  * shape: array of SSE chunk strings, or a raw SSE/non-stream string).
- * Collects delta.reasoning + reasoning_details[].text in stream order.
+ * Collects delta.reasoning + reasoning_details[].text (OpenRouter, cumulative)
+ * and delta.reasoning_content / delta.reasoning_text (native, incremental) in
+ * stream order. Dispatch is by field name — the field is the dialect.
  */
 export function collectReasoning(body: unknown): ReasoningCollect {
   const out = new ReasoningCollector()
+  let native = ""
   const chunks: unknown[] = Array.isArray(body) ? body : typeof body === "string" ? body.split("\n") : []
   for (const chunk of chunks) {
     let parsed: any = chunk
@@ -331,9 +334,13 @@ export function collectReasoning(body: unknown): ReasoningCollect {
       for (const detail of details) {
         if (detail && typeof detail.text === "string") out.push(detail.text)
       }
+      // Native incremental dialects — concatenated, never pushed through the
+      // cumulative-dedup collector. See assembleMessage for the measurement.
+      if (typeof delta.reasoning_content === "string") native += delta.reasoning_content
+      if (typeof delta.reasoning_text === "string") native += delta.reasoning_text
     }
   }
-  return { text: out.text, provider: out.provider, model: out.model, usage: out.usage }
+  return { text: out.text + native, provider: out.provider, model: out.model, usage: out.usage }
 }
 
 class ReasoningCollector {
@@ -378,6 +385,7 @@ export interface AssembledMessage {
 export function assembleMessage(body: unknown): AssembledMessage {
   const out: AssembledMessage = { content: "", reasoning: "", toolCalls: [], finishReason: null, usage: null }
   const collector = new ReasoningCollector()
+  let nativeReasoning = ""
   const calls = new Map<number, { id: string; name: string; arguments: string }>()
   let finishReason: string | null = null
   let usage: unknown = null
@@ -388,7 +396,12 @@ export function assembleMessage(body: unknown): AssembledMessage {
     const choice = choices[0]
     const message = (choice?.message ?? {}) as Record<string, unknown>
     out.content = typeof message.content === "string" ? message.content : ""
-    out.reasoning = typeof message.reasoning_content === "string" ? message.reasoning_content : ""
+    out.reasoning =
+      typeof message.reasoning_content === "string"
+        ? message.reasoning_content
+        : typeof message.reasoning_text === "string"
+          ? message.reasoning_text
+          : ""
     out.finishReason = (choice?.finish_reason as string | null) ?? null
     out.usage = parsed.usage ?? null
     for (const call of (Array.isArray(message.tool_calls) ? message.tool_calls : []) as Array<
@@ -430,6 +443,18 @@ export function assembleMessage(body: unknown): AssembledMessage {
       for (const detail of details) {
         if (detail && typeof detail.text === "string") collector.push(detail.text)
       }
+      // Native dialects, INCREMENTAL: `reasoning_content` (DeepSeek / Z.AI / MIMO /
+      // Qwen) and `reasoning_text` (GitHub Copilot) — see the vendored SDK's own
+      // `delta.reasoning_content ?? delta.reasoning_text` chain. These must NOT go
+      // through the collector, whose suffix-growth dedup assumes the accumulating
+      // form and would eat a fragment that happens to start with the previous one
+      // ("to" then "tool" → "ol"). Keyed on the FIELD, not the provider name: the
+      // field IS the dialect, and this repo has already been bitten three times by
+      // name predicates (`deepseek-v4` vs `deepseek-flash` vs `DeepSeek-V4-Flash`).
+      // Measured 2026-09-14: 836 chunks carrying `reasoning_content` reported as
+      // "Reasoning (0 chars)" because only the OpenRouter fields were read.
+      if (typeof delta.reasoning_content === "string") nativeReasoning += delta.reasoning_content
+      if (typeof delta.reasoning_text === "string") nativeReasoning += delta.reasoning_text
       for (const callDelta of Array.isArray(delta.tool_calls) ? delta.tool_calls : []) {
         const index = typeof callDelta?.index === "number" ? callDelta.index : 0
         const slot = calls.get(index) ?? { id: "", name: "", arguments: "" }
@@ -441,7 +466,7 @@ export function assembleMessage(body: unknown): AssembledMessage {
       }
     }
   }
-  out.reasoning = collector.text
+  out.reasoning = collector.text + nativeReasoning
   out.finishReason = finishReason
   out.usage = usage
   out.toolCalls = [...calls.entries()].sort((a, b) => a[0] - b[0]).map(([, call]) => call)

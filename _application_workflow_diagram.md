@@ -25,6 +25,23 @@ reproduce:
 
 # Application Workflow Diagram
 
+## Reasoning Capture Dialects & Boundary Census (2026-09-14)
+
+1. `packages/opencode/src/provider/gateway/raw-diff.ts` / `collectReasoning`, `assembleMessage`
+   - Input: a captured response body (SSE chunk array, or raw SSE/non-stream string).
+   - Output: assembled content/reasoning/tool-calls with the native dialect preserved.
+   - Logic: dispatch by FIELD, not provider name — a delta contributes `reasoning_content`/`reasoning_text` (native, incremental → concatenated) and `reasoning`/`reasoning_details[].text` (OpenRouter, cumulative → suffix-growth dedup). Routing incremental fragments through the cumulative collector corrupts them (`to` + `tool` → `ol`). Measured 2026-09-14: 836 recorded chunks carrying `reasoning_content` rendered as "Reasoning (0 chars)".
+2. `packages/opencode/src/provider/transform.ts` / `reasoningCensus`
+   - Input: model messages before `unsupportedParts`/`normalizeMessages` and after.
+   - Output: `assistant`/`toolCall`/`cotText`/`cotEmpty`/`cotAbsent` counts logged per request, plus a loud warn when the DeepSeek 400-guard fills an empty `reasoning_content`.
+   - Logic: the before/after delta localizes CoT loss to inside or upstream of this boundary (262k silent empty tool-call turns measured across 1976 raw-wire dumps). Live read 2026-09-14: mature session `cotAbsent: 11` of 42 tool-call turns in → `cotEmpty: 11` out, warn `turns: 9`.
+3. `patches/@ai-sdk/deepseek@3.0.26.patch` / vendored SDK message conversion
+   - Input: the `@ai-sdk/deepseek` package's `convertToDeepSeekChatMessages`.
+   - Output: family predicate `/deepseek-(?:v4|flash)/` on a lower-cased id, and the "reasoning lives in the tail" rule made unconditional.
+   - Logic: the substring check missed `deepseek-flash` (and case alone would miss `DeepSeek-V4-Flash-…`); history CoT is now dropped for the whole family — matching the measured OpenRouter dumps (81% of tail turns carry CoT vs 12% of history) and the KAT no-echo result.
+
+Oracle: `bun test test/provider/raw-diff.test.ts test/provider/transform.test.ts test/provider/transform-reasoning-guard.test.ts test/provider/transform-reasoning.test.ts` (243 pass) and a live `opencode run` reading the census line.
+
 ## StreamLake Vanchin Provider Setup (2026-09-13)
 
 1. `provider-sync.ts` / `PROVIDER_SOURCES` registers `streamlake-vanchin` as a visible static provider with the Pay-as-you-go OpenAI-compatible gateway. It intentionally has no bundled account endpoint.

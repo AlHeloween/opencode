@@ -455,3 +455,67 @@ describe("renderRawWirePseudoDiff", () => {
     expect(text).toContain("gone")
   })
 })
+
+/**
+ * Native dialect (DeepSeek / Z.AI / MIMO) streams `delta.reasoning_content` and its
+ * deltas are INCREMENTAL. The OpenRouter fields (`reasoning`, `reasoning_details`)
+ * are CUMULATIVE and go through the suffix-growth dedup. Measured 2026-09-14: a
+ * captured stream of 836 chunks carrying 18,278 chars of `reasoning_content` was
+ * reported as "Reasoning (0 chars)" because only the OpenRouter fields were read.
+ */
+describe("reasoning dialects", () => {
+  const sse = (deltas: Array<Record<string, unknown>>) =>
+    deltas
+      .map((delta) => `data: ${JSON.stringify({ choices: [{ index: 0, delta }] })}`)
+      .join("\n")
+
+  test("native incremental reasoning_content is assembled verbatim", () => {
+    const raw = sse([
+      { role: "assistant", content: null, reasoning_content: "" },
+      { reasoning_content: "The user " },
+      { reasoning_content: "wants a " },
+      { reasoning_content: "diff." },
+      { content: "done" },
+    ])
+    const out = assembleMessage(raw)
+    expect(out.reasoning).toBe("The user wants a diff.")
+    expect(out.content).toBe("done")
+  })
+
+  test("an incremental fragment that prefixes the next one is not eaten", () => {
+    // The cumulative dedup would turn ["to", "tool"] into "to" + "ol".
+    const raw = sse([{ reasoning_content: "to" }, { reasoning_content: "tool" }])
+    expect(assembleMessage(raw).reasoning).toBe("totool")
+    expect(collectReasoning(raw).text).toBe("totool")
+  })
+
+  test("cumulative OpenRouter reasoning still de-duplicates", () => {
+    const raw = sse([{ reasoning: "ab" }, { reasoning: "abcd" }, { reasoning: "abcdef" }])
+    expect(assembleMessage(raw).reasoning).toBe("abcdef")
+  })
+
+  test("collectReasoning sees the native field too", () => {
+    const raw = sse([{ reasoning_content: "step one. " }, { reasoning_content: "step two." }])
+    expect(collectReasoning(raw).text).toBe("step one. step two.")
+  })
+
+  test("copilot reasoning_text is treated as native incremental", () => {
+    const raw = sse([{ reasoning_text: "plan " }, { reasoning_text: "then act" }])
+    expect(assembleMessage(raw).reasoning).toBe("plan then act")
+    expect(collectReasoning(raw).text).toBe("plan then act")
+  })
+
+  test("non-stream bodies fall back from reasoning_content to reasoning_text", () => {
+    const one = JSON.stringify({ choices: [{ message: { content: "c", reasoning_content: "native" } }] })
+    const two = JSON.stringify({ choices: [{ message: { content: "c", reasoning_text: "copilot" } }] })
+    expect(assembleMessage(JSON.parse(one)).reasoning).toBe("native")
+    expect(assembleMessage(JSON.parse(two)).reasoning).toBe("copilot")
+  })
+
+  test("the rendered report counts native reasoning instead of zero", () => {
+    const raw = sse([{ reasoning_content: "0123456789" }, { content: "x" }])
+    const md = renderResponseMarkdown({ id: "t", captured: "now", message: assembleMessage(raw) })
+    expect(md).toContain("## Reasoning (10 chars)")
+    expect(md).not.toContain("## Reasoning (0 chars)")
+  })
+})

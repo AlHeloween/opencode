@@ -472,10 +472,15 @@ describe("Dedicated DeepSeek V4 thinking", () => {
     api: { ...mkDeepseekModel().api, id: "deepseek-v4-pro", npm: "@ai-sdk/deepseek" },
   } as any
 
-  test("exposes off, low, high, and max variants for TUI selection", () => {
+  // Efforts are catalog-driven since 0bdf8a827e: `deepSeekEfforts` returns the
+  // registry's declared `effort` values, and with none declared falls back on the
+  // `pro` marker in `api.id` to ["high", "max"]. `deepseek-v4-pro` therefore has
+  // no `low` — offering one would put an effort on the wire the model never
+  // declared. This test asserted the pre-0bdf8a82 shared constant and was never
+  // updated with the code.
+  test("exposes off, high, and max variants for TUI selection", () => {
     expect(ProviderTransform.variants(model)).toEqual({
       off: { thinking: { type: "disabled" } },
-      low: { thinking: { type: "enabled" }, reasoningEffort: "low" },
       high: { thinking: { type: "enabled" }, reasoningEffort: "high" },
       max: { thinking: { type: "enabled" }, reasoningEffort: "max" },
     })
@@ -506,7 +511,6 @@ describe("Dedicated DeepSeek V4 thinking", () => {
     }
     expect(bodies.map((body) => ({ thinking: body.thinking, reasoningEffort: body.reasoning_effort }))).toEqual([
       { thinking: { type: "disabled" }, reasoningEffort: undefined },
-      { thinking: { type: "enabled" }, reasoningEffort: "low" },
       { thinking: { type: "enabled" }, reasoningEffort: "high" },
       { thinking: { type: "enabled" }, reasoningEffort: "max" },
     ])

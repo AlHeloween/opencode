@@ -1,0 +1,22 @@
+diff --git a/dist/index.js b/dist/index.js
+index 87a9910..b670eaf 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -33,7 +33,7 @@ function convertToDeepSeekChatMessages({
+   supportsStructuredOutputs = false
+ }) {
+   var _a;
+-  const isDeepSeekV4 = modelId.includes("deepseek-v4");
++  const isDeepSeekV4 = /deepseek-(?:v4|flash)/.test(modelId.toLowerCase());
+   const messages = [];
+   const warnings = [];
+   if ((responseFormat == null ? void 0 : responseFormat.type) === "json") {
+@@ -98,7 +98,7 @@ function convertToDeepSeekChatMessages({
+               break;
+             }
+             case "reasoning": {
+-              if (index <= lastUserMessageIndex && !isDeepSeekV4) {
++              if (index <= lastUserMessageIndex) {
+                 break;
+               }
+               if (reasoning == null) {

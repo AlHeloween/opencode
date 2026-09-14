@@ -39,6 +39,30 @@ function sdkKey(npm: string): string | undefined {
   return undefined
 }
 
+/**
+ * Reasoning-part census over assistant messages, measured at the transform
+ * boundary. Raw-wire dumps (2026-09-13) showed 262k DeepSeek tool-call turns
+ * leaving with `reasoning_content: ""` while the database still held the full
+ * CoT — and every layer READ as if it preserved reasoning. Reading the chain
+ * could not find the loss; only a measurement can. Logged before and after
+ * normalizeMessages so the delta says whether the CoT dies inside this
+ * boundary or upstream of it.
+ */
+function reasoningCensus(msgs: ModelMessage[]) {
+  const assistants = msgs.filter((msg) => msg.role === "assistant")
+  const parts = (msg: ModelMessage) => (Array.isArray(msg.content) ? msg.content : [])
+  const hasCotPart = (msg: ModelMessage) => parts(msg).some((part) => part.type === "reasoning")
+  const hasCotText = (msg: ModelMessage) =>
+    parts(msg).some((part) => part.type === "reasoning" && part.text.length > 0)
+  return {
+    assistant: assistants.length,
+    toolCall: assistants.filter((msg) => parts(msg).some((part) => part.type === "tool-call")).length,
+    cotText: assistants.filter(hasCotText).length,
+    cotEmpty: assistants.filter((msg) => hasCotPart(msg) && !hasCotText(msg)).length,
+    cotAbsent: assistants.filter((msg) => !hasCotPart(msg)).length,
+  }
+}
+
 function normalizeMessages(
   msgs: ModelMessage[],
   model: Provider.Model,
@@ -206,6 +230,25 @@ function normalizeMessages(
     (model.api.id.includes("deepseek") || model.api.id.toLowerCase().includes("mimo")) &&
     model.api.npm !== "@openrouter/ai-sdk-provider"
   ) {
+    // The injection below is a 400-guard, not a feature: DeepSeek rejects a
+    // tool-call turn whose `reasoning_content` is missing. Filling it with ""
+    // ALSO converts a loud vendor error into silent CoT loss, which is how
+    // 262k empty tool-call turns shipped unnoticed. Count the holes it plugs
+    // so the silence stops being free.
+    const silentHoles = msgs.filter(
+      (msg) =>
+        msg.role === "assistant" &&
+        Array.isArray(msg.content) &&
+        msg.content.some((part) => part.type === "tool-call") &&
+        !msg.content.some((part) => part.type === "reasoning"),
+    ).length
+    if (silentHoles > 0)
+      tlog.warn("bug: empty reasoning injected on tool-call turns — vendor CoT round-trip is lost", {
+        providerID: model.providerID,
+        modelID: model.id,
+        apiNpm: model.api.npm,
+        turns: silentHoles,
+      })
     msgs = msgs.map((msg) => {
       if (msg.role !== "assistant") return msg
       if (Array.isArray(msg.content)) {
@@ -369,8 +412,16 @@ function unsupportedParts(msgs: ModelMessage[]): ModelMessage[] {
 }
 
 export function message(msgs: ModelMessage[], model: Provider.Model, options: Record<string, unknown>) {
+  const censusIn = reasoningCensus(msgs)
   msgs = unsupportedParts(msgs)
   msgs = normalizeMessages(msgs, model, options)
+  tlog.info("reasoning census", {
+    providerID: model.providerID,
+    modelID: model.id,
+    apiNpm: model.api.npm,
+    in: censusIn,
+    out: reasoningCensus(msgs),
+  })
   if (
     // Anthropic-only gate (2026-09-07): cacheControl markers exist for the
     // anthropic dialect. DeepSeek / OpenAI / Azure / Copilot / Alibaba and

@@ -121,3 +121,37 @@ test "children can be invalidated after owner destroy begins" {
 
     handles.finishDestroy(token.handle);
 }
+
+test "saturation retires the index — the pool's finite-lifetime cost" {
+    var value: u32 = 42;
+    var current = try handles.insert(.renderer, &value);
+
+    // Churn one index (LIFO reuse keeps every cycle on the same one) until its
+    // 12-bit generation counter saturates. The starting generation depends on
+    // which free index this test receives, so saturation is DETECTED — the
+    // round whose destroy does not push the index back — not counted.
+    var rounds: usize = 0;
+    while (rounds <= 4096) : (rounds += 1) {
+        const free_before = handles.freeIndexCount();
+        const token = handles.beginDestroy(current, .renderer, u32) orelse return error.TestUnexpectedResult;
+        handles.finishDestroy(token.handle);
+
+        if (handles.freeIndexCount() == free_before) {
+            // 4095 + 1 does not fit the 12-bit field: the index is retired, not
+            // pushed back — the table permanently loses one of its 65_535 slots.
+            // This is the deliberate price of "a stale handle never resolves".
+            try std.testing.expect(handles.resolve(current, .renderer, u32) == null);
+
+            // The next insert must draw a different index; the retired one
+            // never returns.
+            const fresh = try handles.insert(.renderer, &value);
+            try std.testing.expect((fresh & 0xFFFF) != (current & 0xFFFF));
+            const fresh_token = handles.beginDestroy(fresh, .renderer, u32) orelse return error.TestUnexpectedResult;
+            handles.finishDestroy(fresh_token.handle);
+            return;
+        }
+
+        current = try handles.insert(.renderer, &value);
+    }
+    return error.TestUnexpectedResult;
+}

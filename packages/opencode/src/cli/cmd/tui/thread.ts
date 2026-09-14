@@ -14,6 +14,7 @@ import type { EventSource } from "./context/sdk"
 import { win32DisableProcessedInput, win32InstallCtrlCGuard } from "./win32"
 import { writeHeapSnapshot } from "v8"
 import { TuiConfig } from "./config/tui"
+import { nativeHandleCensus } from "@opentui/core"
 
 // Resolve DirectX Compiler DLLs before WebGPU/Three.js loads.
 // Must call BEFORE the dynamic import of the tui app module.
@@ -172,6 +173,14 @@ export const TuiThreadCommand = cmd({
           error: e.error,
         })
       }
+
+      // Native handle census heartbeat: `handles.zig` is one 65_535-slot table
+      // shared by every object kind, and create* failures name only the kind
+      // that happened to run out. A periodic census makes monotonic growth (a
+      // real leak) visible in the log before the pool runs dry.
+      setInterval(() => {
+        Log.Default.info("native handle census", { census: nativeHandleCensus() })
+      }, 120_000).unref()
 
       const client = Rpc.client<typeof rpc>(worker)
       const error = (e: unknown) => {

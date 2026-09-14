@@ -2139,3 +2139,15 @@ Oracle: `test/session/recovery.test.ts` creates an isolated source DB and verifi
   - `bun test test/tui/` → **52 pass / 0 fail** (7 files, 537 expects); focused file **12 pass / 0 fail**; `bun typecheck` exit 0.
   - Live TUI (new recipe: plain `bun run dev` exits 0 after ~7s in the supervised environment — `_run.cmd` + `--terminal wt --direct-terminal` keeps it alive; run `20260914T130240Z_2815997c`): the routing dialog for `openrouter/z-ai/glm-5.3-flash` rendered `Mode: dynamic OpenRouter routing by lowest price`, radios `(•) Lowest price` / `( ) …`, focus on the first actionable row, and 4×DOWN skipped the `PROVIDERS` header straight to `[order]` (captures `routing.png`, `skip.png`). Navigation-only; nothing was saved.
 - Residual: none for the landed scope; reasoning-dialects / handle-census / cache-sampling remain parked in the stash. No binary rebuild (owner's call). [KV-CACHE] no prefix impact — TUI only.
+
+## [2026-09-14T21:53:13+08:00] opentui: handle-table census lands; retire-at-saturation kept by ruling
+
+- Reason: Alexander — «давай начнем с хендла»: land the parked 2026-09-14 instrumentation for the `Failed to create TextBuffer` failure class. The stash's version also reworked `vacateSlot` to wrap saturated generations; measured RED (its own rewritten test asserts a free-list +1 after the `insert` that already popped the index back — the stash was never green there) and it contradicts the 06:20 record, so the owner ruled **retire**: the stale-handle guarantee outranks pool longevity, and the crash was capacity, not the retire rule.
+- Change:
+  - `zig.ts` — per-kind `live/created` census at the FFI boundary (7 create + 7 destroy sites, symmetric), `nativeHandleCensus()`, and every native allocation failure now carries the census in its message. No native rebuild needed for this part.
+  - `thread.ts` — 2-minute census heartbeat in the TUI host log.
+  - `handles.zig` — `tableStats()` + `slotCount()`/`freeIndexCount()` observability; the retire ruling documented at `vacateSlot`.
+  - `handles_test.zig` — new test pinning the retire contract and its cost: a saturated index is never pushed back and never returns. Saturation is DETECTED (the destroy that does not push), not counted — the starting generation depends on the free list left by earlier tests (the first draft assumed generation 1 and failed).
+  - `renderables/handle-leak.test.ts` — 400 content updates on one renderable + 200 mount/render/destroy cycles: the per-kind census returns to baseline; no leak in either streaming path.
+- Oracle: `bun run test:native` → **1701/1723 passed, 0 failed** (22 skipped, 11/11 steps); `handle-leak.test.ts` **2/2**; `bun typecheck` exit 0.
+- Residual: the crash mechanism stays **Inferred** (no live occurrence captured); the falsifier is the sidecar fix landed earlier today — if tails stop reaching 508K, the crash should not recur, and the next failure carries the census. The stash's handles hunks are superseded — do not re-apply; its 05:40/06:20 entries remain there until the cache-sampling workstream lands. No binary rebuild (owner's call). [KV-CACHE] no prefix impact.

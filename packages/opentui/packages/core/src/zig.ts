@@ -2642,6 +2642,43 @@ export interface RenderLib extends AudioEngineLib {
   onAnyNativeEvent: (handler: (name: string, data: ArrayBuffer) => void) => void
 }
 
+/**
+ * Native handle-table census.
+ *
+ * `handles.zig` backs every create/destroy pair in this class with ONE shared
+ * table of 65_535 slots, and `vacateSlot` retires a slot for good once its 12-bit
+ * generation counter saturates at 4_095 reuses — it returns early instead of
+ * pushing the index back onto the free list. The pool therefore only ever shrinks,
+ * a leak in ANY object kind exhausts it for every other kind, and the failure
+ * surfaces at whichever allocation happens to come next. `Failed to create
+ * TextBuffer` (observed 2026-09-14T04:19:10Z) names the messenger, not the culprit.
+ *
+ * Counting at this boundary costs one map write per handle and needs no native
+ * rebuild, so the thrown error can carry the census and the next occurrence is a
+ * diagnosis instead of a bare string.
+ */
+const handleCensus = new Map<string, { live: number; created: number }>()
+
+function handleOpened(kind: string): void {
+  const row = handleCensus.get(kind) ?? { live: 0, created: 0 }
+  row.live++
+  row.created++
+  handleCensus.set(kind, row)
+}
+
+function handleClosed(kind: string): void {
+  const row = handleCensus.get(kind)
+  if (row) row.live--
+}
+
+/** `kind=live/created` per object kind, most-live first. */
+export function nativeHandleCensus(): string {
+  return [...handleCensus.entries()]
+    .sort((a, b) => b[1].live - a[1].live)
+    .map(([kind, row]) => `${kind}=${row.live}/${row.created}`)
+    .join(" ")
+}
+
 class FFIRenderLib implements RenderLib {
   private opentui: ReturnType<typeof getOpenTUILib>
   public readonly encoder: TextEncoder = new TextEncoder()
@@ -2656,12 +2693,14 @@ class FFIRenderLib implements RenderLib {
 
   public createNativeRenderable(): NativeRenderableHandle {
     const handle = this.opentui.symbols.createNativeRenderable() as NativeRenderableHandle
-    if (!handle) throw new Error("Failed to create native renderable")
+    if (!handle) throw new Error(`Failed to create native renderable — handles: ${nativeHandleCensus()}`)
+    handleOpened("native_renderable")
     return handle
   }
 
   public destroyNativeRenderable(handle: NativeRenderableHandle): void {
     this.opentui.symbols.destroyNativeRenderable(handle)
+    handleClosed("native_renderable")
   }
 
   public nativeRenderableAttachYogaNode(handle: NativeRenderableHandle, node: Pointer): boolean {
@@ -2852,7 +2891,9 @@ class FFIRenderLib implements RenderLib {
       remoteMode,
       feedPtr,
     ) as RendererHandle
-    return renderer ? renderer : null
+    if (!renderer) return null
+    handleOpened("renderer")
+    return renderer
   }
 
   public setTerminalEnvVar(renderer: Pointer, key: string, value: string): boolean {
@@ -2877,6 +2918,7 @@ class FFIRenderLib implements RenderLib {
 
   public destroyRenderer(renderer: Pointer): void {
     this.opentui.symbols.destroyRenderer(renderer)
+    handleClosed("renderer")
   }
 
   public setUseThread(renderer: Pointer, useThread: boolean) {
@@ -3461,14 +3503,16 @@ class FFIRenderLib implements RenderLib {
       idBytes.byteLength,
     )
     if (!bufferPtr) {
-      throw new Error(`Failed to create optimized buffer: ${width}x${height}`)
+      throw new Error(`Failed to create optimized buffer: ${width}x${height} — handles: ${nativeHandleCensus()}`)
     }
 
+    handleOpened("optimized_buffer")
     return new OptimizedBuffer(this, bufferPtr, width, height, { respectAlpha, id, widthMethod })
   }
 
   public destroyOptimizedBuffer(bufferPtr: Pointer) {
     this.opentui.symbols.destroyOptimizedBuffer(bufferPtr)
+    handleClosed("optimized_buffer")
   }
 
   public pixelsDrawImage(
@@ -3888,14 +3932,16 @@ class FFIRenderLib implements RenderLib {
     const widthMethodCode = widthMethod === "wcwidth" ? 0 : 1
     const bufferPtr = this.opentui.symbols.createTextBuffer(widthMethodCode)
     if (!bufferPtr) {
-      throw new Error(`Failed to create TextBuffer`)
+      throw new Error(`Failed to create TextBuffer — handles: ${nativeHandleCensus()}`)
     }
 
+    handleOpened("text_buffer")
     return new TextBuffer(this, bufferPtr)
   }
 
   public destroyTextBuffer(buffer: Pointer): void {
     this.opentui.symbols.destroyTextBuffer(buffer)
+    handleClosed("text_buffer")
   }
 
   public textBufferGetLength(buffer: Pointer): number {
@@ -4081,13 +4127,15 @@ class FFIRenderLib implements RenderLib {
   public createTextBufferView(textBuffer: TextBufferHandle): TextBufferViewHandle {
     const viewPtr = this.opentui.symbols.createTextBufferView(textBuffer) as TextBufferViewHandle
     if (!viewPtr) {
-      throw new Error("Failed to create TextBufferView")
+      throw new Error(`Failed to create TextBufferView — handles: ${nativeHandleCensus()}`)
     }
+    handleOpened("text_buffer_view")
     return viewPtr
   }
 
   public destroyTextBufferView(view: Pointer): void {
     this.opentui.symbols.destroyTextBufferView(view)
+    handleClosed("text_buffer_view")
   }
 
   public textBufferViewSetSelection(
@@ -4494,13 +4542,15 @@ class FFIRenderLib implements RenderLib {
     const widthMethodCode = widthMethod === "wcwidth" ? 0 : 1
     const bufferPtr = this.opentui.symbols.createEditBuffer(widthMethodCode, this.eventSinkPtr ?? 0) as EditBufferHandle
     if (!bufferPtr) {
-      throw new Error("Failed to create EditBuffer")
+      throw new Error(`Failed to create EditBuffer — handles: ${nativeHandleCensus()}`)
     }
+    handleOpened("edit_buffer")
     return bufferPtr
   }
 
   public destroyEditBuffer(buffer: Pointer): void {
     this.opentui.symbols.destroyEditBuffer(buffer)
+    handleClosed("edit_buffer")
   }
 
   public editBufferSetText(buffer: Pointer, textBytes: Uint8Array): void {
@@ -5285,13 +5335,15 @@ class FFIRenderLib implements RenderLib {
   public createSyntaxStyle(): SyntaxStyleHandle {
     const styleHandle = this.opentui.symbols.createSyntaxStyle() as SyntaxStyleHandle
     if (!styleHandle) {
-      throw new Error("Failed to create SyntaxStyle")
+      throw new Error(`Failed to create SyntaxStyle — handles: ${nativeHandleCensus()}`)
     }
+    handleOpened("syntax_style")
     return styleHandle
   }
 
   public destroySyntaxStyle(style: SyntaxStyleHandle): void {
     this.opentui.symbols.destroySyntaxStyle(style)
+    handleClosed("syntax_style")
   }
 
   public syntaxStyleRegister(

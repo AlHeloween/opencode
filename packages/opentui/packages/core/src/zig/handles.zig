@@ -99,6 +99,14 @@ fn validateSlot(handle: Handle, expected_kind: ObjectKind) ?u16 {
     return index;
 }
 
+/// Returns the index to the free list with its generation advanced. A saturated
+/// 12-bit generation RETIRES the index (`nextGeneration` returns null) instead
+/// of wrapping the counter back to 1: the wrap reopens a 1-in-4096 window where
+/// a stale handle validates against whatever later occupies its index, and that
+/// use-after-free guarantee outranks pool longevity (decision 2026-09-14; a
+/// wrap variant was implemented and withdrawn for exactly this reason). The
+/// deliberate cost: the table has a finite lifetime under unbounded churn, so a
+/// long-lived process must bound handle churn rather than trust destroy alone.
 fn vacateSlot(index: u16) void {
     const slot = &slots[index];
     slot.ptr = 0;
@@ -265,4 +273,34 @@ pub fn liveCount(kind: ObjectKind) usize {
     var cursor: usize = 1;
     while (nextByKind(kind, &cursor)) |_| count += 1;
     return count;
+}
+
+/// Highest slot index ever handed out, +1. Never decreases — saturated indices
+/// are retired, not recycled (see `vacateSlot`), so this is the table's
+/// monotone capacity high-water mark.
+pub fn slotCount() usize {
+    return slot_count;
+}
+
+/// Indices currently on the free list. A saturated index is deliberately NOT
+/// pushed back, so sustained churn consumes this list monotonically — the
+/// table's finite-lifetime cost, observable by tests.
+pub fn freeIndexCount() usize {
+    return free_index_count;
+}
+
+pub const TableStats = struct {
+    /// Highest slot index ever handed out, +1. Never decreases.
+    slot_count: u32,
+    /// Indices currently available for reuse.
+    free_count: usize,
+};
+
+/// Capacity accounting for the shared object table. Exposed because the table
+/// is the resource that runs out first: every native object kind draws on the
+/// same 65_535 slots, so an exhaustion shows up as a failed allocation of
+/// whichever kind happens to be next rather than of the kind that consumed
+/// them.
+pub fn tableStats() TableStats {
+    return .{ .slot_count = slot_count, .free_count = free_index_count };
 }

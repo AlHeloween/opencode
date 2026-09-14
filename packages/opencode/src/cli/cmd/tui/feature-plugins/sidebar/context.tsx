@@ -1,6 +1,6 @@
 import type { AssistantMessage } from "@opencode-ai/sdk/v2"
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@opencode-ai/plugin/tui"
-import { createMemo, createSignal, onCleanup, onMount } from "solid-js"
+import { createMemo, createSignal, onCleanup, onMount, untrack } from "solid-js"
 import { getModelStatus } from "@/provider/balance"
 import { useAgiMode } from "@tui/context/agi-mode"
 
@@ -23,6 +23,9 @@ function compactNum(n: number): string {
   }
   return n.toString()
 }
+
+/** Wall-clock cadence for the cache readout — see `sampledSessionStats`. */
+const CACHE_STATS_SAMPLE_MS = 1_000
 
 function formatCacheStats(
   hitRate: number | null,
@@ -248,6 +251,28 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
     return stats
   })
 
+  /**
+   * Cache figures derive from the message stream, which fires on every
+   * `message.part.delta` — one log flush counted 614 events in 5s. At that rate
+   * the hit-rate digits change faster than they can be read, and a real cache
+   * break is indistinguishable from render churn.
+   *
+   * Sample on a fixed wall-clock cadence instead. The display then lags reality
+   * by at most one second and every value it shows stands still long enough to
+   * mean something. The memo depends ONLY on the tick: `allSessionStats` is read
+   * untracked, or solid would re-run it on each delta and the throttle would be
+   * decorative.
+   */
+  const [statsTick, setStatsTick] = createSignal(0)
+  onMount(() => {
+    const timer = setInterval(() => setStatsTick((n) => n + 1), CACHE_STATS_SAMPLE_MS)
+    onCleanup(() => clearInterval(timer))
+  })
+  const sampledSessionStats = createMemo(() => {
+    statsTick()
+    return untrack(allSessionStats)
+  })
+
   // Listen for standardised model status updates — all providers
   const unsub = (props.api.event as any).on("session.model_status_updated", (evt: any) => {
     const p = evt.properties ?? evt
@@ -402,8 +427,8 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       </text>
       <text fg={theme().textMuted}>{state().tokens.toLocaleString()} tokens</text>
       <text fg={theme().textMuted}>{state().percent ?? 0}% used</text>
-      {allSessionStats().length > 0 ? (
-        allSessionStats().map((s) => (
+      {sampledSessionStats().length > 0 ? (
+        sampledSessionStats().map((s) => (
           <text fg={(s.hitRate ?? 0) > 80 ? theme().success : (s.hitRate ?? 0) >= 40 ? theme().warning : theme().error}>
             {s.name}: {formatCacheStats(s.hitRate, s.cacheRead, s.cacheMiss, s.lastCacheRead, s.lastCacheMiss)}
           </text>

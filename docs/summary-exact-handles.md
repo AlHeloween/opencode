@@ -55,7 +55,8 @@ await Checkpoint.persist
   → sidecar LLM:
        messages = byte-stable checkpoint M + summaryRequestProse(lastSv)
        system/tools/providerCacheKey = trunk identity; Constitution denies execution
-       outputTokenMax = 8k; quality gate isValidSummaryBody (deep sections)
+       outputTokenMax = 32k (16K reasoning window + 16K stored answer; floor);
+       quality gate isValidSummaryBody (deep sections)
        finish-step = cache/tokens/cost/duration log + session-total accounting
   → enrichRange: tool filediffs + CodeGraph
   → save s (outside M)

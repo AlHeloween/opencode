@@ -8,9 +8,9 @@ import {
 } from "../../src/session/sidecar-policy"
 
 describe("summary sidecar policy", () => {
-  test("caps each request at 8K and allows only one repair", () => {
-    expect(streamOptions()).toEqual({ checkpoint: true, outputTokenMax: 8_192 })
-    expect(SIDECAR_OUTPUT_TOKEN_MAX).toBe(8_192)
+  test("caps each request at 32K and allows only one repair", () => {
+    expect(streamOptions()).toEqual({ checkpoint: true, outputTokenMax: 32_768 })
+    expect(SIDECAR_OUTPUT_TOKEN_MAX).toBe(32_768)
     expect(SIDECAR_MAX_ATTEMPTS).toBe(2)
   })
 

@@ -413,6 +413,8 @@ export type StreamInput = {
   system: string[]
   messages: ModelMessage[]
   small?: boolean
+  /** Per-request variant override; sole use is the sidecar lever (session/sidecar-policy.ts). */
+  variantOverride?: string
   tools: Record<string, Tool>
   retries?: number
   outputTokenMax?: number
@@ -575,10 +577,8 @@ const live: Layer.Layer<
         content: system.join(""),
       })
 
-      const variant =
-        !input.small && input.model.variants && input.user.model.variant
-          ? input.model.variants[input.user.model.variant]
-          : {}
+      const variantKey = input.variantOverride ?? input.user.model.variant
+      const variant = !input.small && input.model.variants && variantKey ? input.model.variants[variantKey] : {}
       const base = input.small
         ? ProviderTransform.smallOptions(input.model)
         : ProviderTransform.options({
@@ -660,7 +660,10 @@ const live: Layer.Layer<
       const rawMaxOutput = ProviderTransform.maxOutputTokens(input.model, input.outputTokenMax, contentTokens)
       let maxOut: number | undefined
       if (input.outputTokenMax !== undefined) {
-        maxOut = input.outputTokenMax
+        // Clamp to the model's declared ceiling. The sidecar budget is sized for
+        // a large-output reasoning model (384K on deepseek-flash); sent verbatim
+        // to a model that caps output lower it is a 400, not a smaller summary.
+        maxOut = Math.min(input.outputTokenMax, input.model.limit.output || input.outputTokenMax)
       } else if (input.model.capabilities.reasoning) {
         maxOut = Math.min(rawMaxOutput * 3, input.model.limit.output || rawMaxOutput * 3)
       } else {

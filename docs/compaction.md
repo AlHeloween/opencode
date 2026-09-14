@@ -54,10 +54,23 @@ If they disagree, **do not paper over it**. Fix code toward the contract, or mar
   request/response live only in the checkpoint) — the trunk cache prefix is
   intact; you can roll back freely.
 - The sidecar keeps the full trunk tool catalog and Constitution blocks tool
-  execution, but generation is explicitly capped at 8,192 tokens. Every
+  execution, but generation is explicitly capped at **32,768 tokens — a floor,
+  not a dial** (measured 2026-09-14). A thinking model spends `max_tokens` on
+  reasoning FIRST, and only the ANSWER is stored in the checkpoint, so the cap
+  funds both: a 16K reasoning window + the 16K body cap
+  (`MAX_SUMMARY_BODY_TOKENS`). At the previous 8,192 the cycle returned
+  `out=0 reasoning=8192`, `finish_reason: "length"`, `bodyLen: 0` — 68s and
+  ~$0.04 per attempt, zero yield, and the missing summaries left the next
+  compact a 508_320-token tail. Lowering `reasoning_effort` instead is
+  measured to be a full prefix miss (effort is part of DeepSeek's prompt-cache
+  key) — a cold prefill of the whole conversation every capture. Every
   `finish-step` logs cache state, token split, cost, and duration and is added
   to session totals. Balance snapshots persist that cumulative session-cost
   baseline, so the next validation delta includes detached sidecar usage too.
+- `SIDECAR_VARIANT_OVERRIDE` (dormant, not wired): the last-resort lever that
+  disables thinking for the sidecar chain only. It breaks the cached content
+  window immediately (variant ∈ prompt-cache key) and lowers the summary's
+  quality — a contingency, never a cost lever.
 - After a fold, ONE full-price request is inherent: `m*` replaces history, so
   the provider prefix changes at message 1. Unavoidable; everything after
   rides the cache again.
@@ -272,7 +285,7 @@ sequenceDiagram
 | Summary as user-message shape | Ephemeral stream appends `summaryRequestProse()` as user content | **Match** (stream-only, not DB user row) |
 | Store s + restore M | save checkpoint table; M never mutated | **Match** |
 | Checker after summary | `diagnoseSummaryGaps`: body ≥200 chars, per-section minima (Semantic Vector 40 / Goal 60 / Key decisions 40 / Current state 60 chars), ≥1 decision bullet; `isValidSummaryBody` = `gaps.length === 0`. Sidecar attempts ×2 (`SIDECAR_MAX_ATTEMPTS`): attempt 1 = fresh request, attempt 2 = targeted `gapFillRequest` + `mergeSummarySections`; invalid after the loop → warn + NOT stored. Every cycle, successful or not, starts the 30s cooldown. | **Match** (verified 2026-09-06: focused policy/accounting tests + typecheck) |
-| Summary generation/accounting | `streamOptions()` sets `outputTokenMax=8192`; `captureSidecar` consumes `finish-step`, classifies raw cache usage, logs duration/tokens/cost, and calls the same `recordSessionUsage` writer as normal turns. System, checkpoint M, tools, and `providerCacheKey` are unchanged. | **Fixed 2026-09-06** |
+| Summary generation/accounting | `streamOptions()` sets `outputTokenMax=32768` — a floor (16K reasoning window + 16K body; only the answer is stored); `captureSidecar` consumes `finish-step`, classifies raw cache usage, logs duration/tokens/cost, and calls the same `recordSessionUsage` writer as normal turns. System, checkpoint M, tools, and `providerCacheKey` are unchanged. | **Fixed 2026-09-14** (was 8,192 — unsatisfiable vs the 16K body + reasoning-first) |
 | Fossil only for WC rollback | `SnapshotFossil.track` / `restore` — not on summary Exact path | **Match** |
 | Cadence ~256k chars / ~64k tokens | `SUMMARY_INTERVAL_TOKENS = 65_536` content/4 | **Match** (order of magnitude) |
 | `m* = [s,s,recent m]` | `compact()` folds open sidecars + Recent; **zero summaries → tail-only m\*** (header + last ~32K of messages; `log: no summaries`) | **Match (2026-08-25)** — T2 refusal removed: manual /compact works on fresh sessions; uncovered tail is the memory |
@@ -358,7 +371,7 @@ No BPE/tiktoken authority (undercounts providers).
 - [x] AI sections + Exact enrich  
 - [x] Body checker (4 headings)  
 - [x] **Compact on cadence at stop** (`maybeCompactCadence` after sidecar)  
-- [x] **Bounded post-summary checker / retry** — `diagnoseSummaryGaps` (char minima + decision bullets), one initial request + one gap-fill repair, 8,192-token cap per request, reject-after-loop, and cooldown after every cycle
+- [x] **Bounded post-summary checker / retry** — `diagnoseSummaryGaps` (char minima + decision bullets), one initial request + one gap-fill repair, 32,768-token cap per request (floor: 16K reasoning + 16K body; was 8,192), reject-after-loop, and cooldown after every cycle
 - [x] **Removed dead `injectSummaryRequest` primary path** (2026-08-27: fn + service method + interface field + orphaned helpers; legacy `assistant.summary` fold retained for old sessions)  
 - [x] Docs cite contract + gap table  
 

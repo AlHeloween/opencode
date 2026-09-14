@@ -2114,3 +2114,14 @@ Oracle: `test/session/recovery.test.ts` creates an isolated source DB and verifi
 - Change: OpenCode G1 now names `127.0.0.1:9222` as universal search's existing Chrome target. The rule requires exact CUA/CDP binding and CUA `bring_to_front` only for that explicit user request, then typed browser actions/screenshots; it forbids launch, restart, and debug-flag changes.
 - Oracle: `python -m prompt_kernel --install` installed digest `e194bb53b0c56e50de46f85e31cfb0bfe367030e54a3fadd5eb95645fec7b83c`; full `prompt_kernel/tests` passed **100 / 100** through `cmd_runner`. The installed production receiver contains the exact rule.
 - Risk: existing-profile CDP exposes sensitive browser state. The rule confines use to an explicit request and the exact bound window; it does not widen access for normal universal search.
+
+## [2026-09-14T20:54:28+08:00] session: sidecar generation budget lands at 32K — floor and lever ruling recorded
+
+- Reason: Alexander — the measured fix parked in `stash@{0}` was right; land it precisely («влить в ветку точечно») and write the ruling into the docs: the variant lever «сразу ломает окно контента и снижает качество sidecar», only the answer is stored in the sidecar («мы в sidecar ложим ответ, только»), so out of 32K only 16K remains for the body — «меньше не будет, ну никак».
+- Change (re-landed from `stash@{0}`, sidecar subset only; the stash's other three workstreams stay parked):
+  - `sidecar-policy.ts` — `SIDECAR_OUTPUT_TOKEN_MAX` 8_192 → **32_768** with the measured rationale; floor ruling in the comment: a 16K reasoning window + the 16K body cap, reasoning discarded, only the answer stored. `SIDECAR_VARIANT_OVERRIDE` stays dormant and unwired, carrying the owner's warning (breaks the cached content window the moment it is set; lowers summary quality; no caller passes `variantOverride`).
+  - `llm.ts` — `maxOut = Math.min(input.outputTokenMax, model.limit.output)` (32_768 verbatim is a 400 on `kat-coder-pro-v1` out=32_000 and 83 other catalog entries); `variantOverride` plumbed for the dormant lever.
+  - `test/session/summary-sidecar.test.ts` — expectations 8_192 → 32_768.
+  - Docs: `compaction.md` (cache bullet, lever bullet, Exact-table row, checklist), `summary-exact-handles.md` pipeline fence, `_application_workflow_diagram.md` §5, `DOCINDEX.md` (compaction + summary-exact rows bumped to 2026-09-14).
+- Oracle: `bun test test/session/summary-sidecar.test.ts test/session/summary-cadence.test.ts test/session/cache-injection.test.ts test/session/finish-step.test.ts test/session/llm.test.ts` → **73 pass / 0 fail** (162 expect, 10.73s); `bun typecheck` exit 0.
+- Residual: dormant lever still unwired; clamp has no dedicated boundary test (gap noted by the measuring session); binary rebuild not run (owner's call). [KV-CACHE] no prefix change — generation parameter only.

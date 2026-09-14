@@ -101,7 +101,7 @@ Coverage estimate vs actual codebase: 9%.
 
 5. `packages/opencode/src/session/sidecar-policy.ts` + `prompt.ts` / Layer-1 summary request
    - Input: byte-stable checkpoint system/M, full trunk tool catalog, and the synthetic summary user tail.
-   - Output: at most two requests, each capped at 8,192 output tokens.
+   - Output: at most two requests, each capped at 32,768 output tokens (16K reasoning window + 16K body; only the answer is stored — a floor, not a dial).
    - Logic: preserve the trunk `providerCacheKey` and request prefix; Constitution denies tool execution; failed and successful cycles both start the 30s cooldown.
 
 6. `packages/opencode/src/session/processor.ts` / `recordSessionUsage`

@@ -1,3 +1,6 @@
+# ── Python ──
+.pip_cache 
+
 # ── IDE / Editor ──
 .idea
 .vscode

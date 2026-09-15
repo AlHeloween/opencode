@@ -1,13 +1,16 @@
 ---
 title: Session memory and compaction
 owner: Local_Development
-last_verified: 2026-09-06
+last_verified: 2026-09-16
 reproduce:
   files:
     - packages/opencode/src/session/prompt.ts
     - packages/opencode/src/session/sidecar-policy.ts
     - packages/opencode/src/session/processor.ts
     - packages/opencode/src/provider/balance-storage.ts
+    - packages/opencode/src/session/overflow.ts
+    - packages/opencode/src/session/message-v2.ts
+    - external/opencode-1.18.29/packages/opencode/src/session/compaction.ts
   commands:
     - cd packages/opencode && bun test test/session/summary-sidecar.test.ts test/session/summary-cadence.test.ts test/session/cache-injection.test.ts test/session/finish-step.test.ts test/session/llm.test.ts
     - cd packages/opencode && bun test test/provider/balance-storage.test.ts
@@ -27,6 +30,101 @@ If they disagree, **do not paper over it**. Fix code toward the contract, or mar
 
 **Graphs:** [`session-memory-graph.md`](session-memory-graph.md)  
 **Fossil Exact on s:** [`summary-exact-handles.md`](summary-exact-handles.md)
+
+---
+
+## Why this is not a summarizer (2026-09-16)
+
+The conventional design folds context with one model call: take everything
+except a recent tail, serialize it, ask for a summary, continue from that. It is
+what upstream does, and the shape is worth reading off its own source
+(`external/opencode-1.18.29/packages/opencode/src/session/compaction.ts`):
+
+```ts
+head = input.messages.slice(0, keep.start)        // unbounded
+MAX_PRESERVE_RECENT_TOKENS = 15_000               // tail, hard cap
+budget = min(15_000, max(2_000, usable * 0.25))
+```
+
+The preserved tail is clamped at 15K **regardless of window size**, and the head
+is whatever remains. On a 1M-context model at the moment compaction fires that
+is roughly 985K tokens through a single attention pass against 15K surviving
+verbatim — 1.5% of the context crosses the boundary intact. There is a
+degenerate branch too: `if (!keep || keep.start === 0) return { head:
+input.messages }` — nothing fits the tail budget, so the entire session becomes
+head and the tail is empty.
+
+### The failure is not lossiness
+
+Every compaction scheme loses information; that is the point of compaction. The
+defect in the single-pass design is that it loses information **without leaving
+a marker where the loss occurred.**
+
+After the fold the model holds prose about its artifacts instead of the
+artifacts. It cannot distinguish "this file was never touched" from "this file
+was touched and the summary did not mention it", because absence has no
+representation — a fact omitted looks exactly like a fact that never existed.
+So the model does the only thing available to it: it treats the summary as
+complete and continues. It re-derives work already done, re-edits files already
+correct, and cites conclusions it never verified — confidently, because nothing
+in its context marks the gap.
+
+### What this design preserves instead
+
+Not content — **addressability**.
+
+A summary carrying a resolvable pointer back to its source is not lossy
+compression, it is paging: the working set shrinks, the address space does not.
+A summary without that pointer is lossy compression, and the difference is
+categorical rather than a matter of degree.
+
+Every mechanism here follows from that one choice:
+
+| mechanism | what it preserves | where |
+|---|---|---|
+| Layer-1 `s` carries filediffs, plan_state and Exact links | each summary points at the artifacts it describes | [summary-exact-handles.md](summary-exact-handles.md) |
+| Layer-2 fold spends **0 LLM tokens** | a re-label cannot lose what it never re-encodes | `overflow.ts:188` |
+| soft-delete (`compacted=true`), never `DELETE` | the source rows outlive the summary | `82f88cf126` |
+| `m*` chain links every prior star | the address space is walkable backwards, not just one step | `compaction.ts` |
+| one recovery pointer closes `m*` | the model is told the address space exists | §0, m\* composition |
+
+`AGENTS.md` states the invariant this buys in one line:
+
+> Treat summaries as **Inferred handles, not Exact** — recover via session-read /
+> fossil / codegraph.
+
+The operative word is *recover*. It is only available because the fold kept the
+addresses. Upstream's head is gone from the prompt and no pointer to it survives,
+so the same sentence would be unimplementable there — the rows remain in its DB,
+but the model has no handle to reach them by.
+
+### Why the encoding is incremental
+
+Amortization is the lesser reason; the real one is that compression ratio is
+bounded per step.
+
+Layer-1 encodes a window of roughly 64K into a short row, on a schedule, while
+the source is still in context and its artifacts still resolve. Upstream encodes
+the entire history once, late, at whatever ratio the accumulated size dictates —
+an unbounded input against a roughly fixed output, so the information rate
+collapses precisely when the session has the most to lose.
+
+The fold then concatenates rows that are already encoded. Because concatenation
+is lossless, the total loss equals the sum of the per-window losses, each of
+which was bounded and each of which left a pointer. There is no step at which
+the history is compressed as a whole.
+
+### The cost, which is double
+
+A single-pass fold pays twice and the second half is usually missed:
+
+1. one request whose input is the entire head — ~985K tokens in the case above;
+2. the prefix is destroyed. The summary replaces the head, so the cached prefix
+   diverges at message 1 and the **next** request is a full prefill too.
+
+This design pays (2) as well — see §0, "After a fold, ONE full-price request is
+inherent" — but not (1): the fold itself costs nothing, and the Layer-1 requests
+that did the encoding rode a ~100% cached prefix when they ran.
 
 ---
 

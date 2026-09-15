@@ -145,8 +145,16 @@ function tryParseJSON(raw: string): unknown {
  * the calls it motivates). Key order is rebuilt; bodies stay minified.
  * Tool-call turns always carry the field — empty string when the model produced
  * no CoT at all (strict vendor paths 400 on a missing field).
+ *
+ * A body that ALREADY carries native `reasoning_content` — every DeepSeek SDK
+ * request does, the provider writes the field itself — has no dialect to
+ * collapse. Such a message is passed through, not rebuilt from the absent
+ * `reasoning`/`reasoning_details` pair: reading those on a native body yields
+ * "", and writing that back erased the real chain of thought on every
+ * tool-call turn (measured 2026-09-15: 32 messages entered the provider with
+ * text, 0 left this function with any).
  */
-function rewriteReasoningContent(body: string): string {
+export function rewriteReasoningContent(body: string): string {
   try {
     const parsed = JSON.parse(body) as { messages?: Array<Record<string, unknown>> }
     const messages = parsed.messages ?? []
@@ -155,11 +163,15 @@ function rewriteReasoningContent(body: string): string {
       if (message.role !== "assistant") continue
       const reasoning = typeof message.reasoning === "string" ? message.reasoning : undefined
       const details = Array.isArray(message.reasoning_details) ? message.reasoning_details : undefined
+      const native = typeof message.reasoning_content === "string" ? message.reasoning_content : undefined
       const hasToolCalls = Array.isArray(message.tool_calls)
-      if (reasoning === undefined && details === undefined && !hasToolCalls) continue
-      const text =
+      if (reasoning === undefined && details === undefined && native === undefined && !hasToolCalls) continue
+      const dialect =
         reasoning ??
         (details ?? []).map((detail) => (typeof (detail as any)?.text === "string" ? (detail as any).text : "")).join("")
+      // The dialect wins when it carries text; otherwise keep the native field.
+      // `||` not `??` on purpose — an empty dialect must not outrank real CoT.
+      const text = dialect || native || ""
       delete message.reasoning
       delete message.reasoning_details
       // Final answers without CoT carry no field at all.

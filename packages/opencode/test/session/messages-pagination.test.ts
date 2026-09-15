@@ -117,6 +117,40 @@ async function addCompactionPart(sessionID: SessionID, messageID: MessageID) {
   } as any)
 }
 
+/** Soft-hide messages the way production compaction does (compaction.ts:1091-1096):
+  * set info.compacted=true and persist through updateMessage. */
+async function markCompacted(sessionID: SessionID, ...messageIDs: MessageID[]) {
+  for (const messageID of messageIDs) {
+    const existing = MessageV2.get({ sessionID, messageID })
+    await svc.updateMessage({ ...existing.info, compacted: true })
+  }
+}
+
+/** Synthesize the message* (=== COMPACTED ===) user message a real fold writes
+  * (compaction.ts:1102-1117). Visible to the model, never hidden. */
+async function addMessageStar(sessionID: SessionID, body: string) {
+  const id = MessageID.ascending()
+  await svc.updateMessage({
+    id,
+    sessionID,
+    role: "user",
+    time: { created: Date.now() },
+    agent: "test",
+    model: { providerID: "test", modelID: "test" },
+    tools: {},
+    mode: "",
+  } as unknown as MessageV2.Info)
+  await svc.updatePart({
+    id: PartID.ascending(),
+    sessionID,
+    messageID: id,
+    type: "text",
+    text: `=== COMPACTED ===\n${body}`,
+    synthetic: true,
+  })
+  return id
+}
+
 describe("MessageV2.page", () => {
   test("returns sync result", async () => {
     await Instance.provide({
@@ -664,32 +698,27 @@ describe("MessageV2.filterCompacted", () => {
 
         const result = MessageV2.filterCompacted(MessageV2.stream(session.id))
         expect(result).toHaveLength(5)
-        // reversed from newest-first to chronological
-        expect(result.map((item) => item.info.id)).toEqual(ids)
+        // stream yields newest-first; the flag filter preserves input order
+        expect(result.map((item) => item.info.id)).toEqual(ids.slice().reverse())
 
         await svc.remove(session.id)
       },
     })
   })
 
-  test("stops at compaction boundary and returns chronological order", async () => {
+  test("excludes soft-hidden messages and preserves stream order", async () => {
     await Instance.provide({
       directory: root,
       fn: async () => {
         const session = await svc.create({})
 
-        // Chronological: u1(+compaction part), a1(summary, parentID=u1), u2, a2
-        // Stream (newest first): a2, u2, a1(adds u1 to completed), u1(in completed + compaction) -> break
+        // Soft-hide window (compaction.ts:1091-1096 marks info.compacted=true);
+        // a synthetic m* marker and post-fold messages stay visible.
+        // Chronological: u1(hidden), a1(hidden), u2, a2
         const u1 = await addUser(session.id, "first question")
-        const a1 = await addAssistant(session.id, u1, { summary: true, finish: "end_turn" })
-        await svc.updatePart({
-          id: PartID.ascending(),
-          sessionID: session.id,
-          messageID: a1,
-          type: "text",
-          text: "summary",
-        })
+        const a1 = await addAssistant(session.id, u1, { finish: "end_turn" })
         await addCompactionPart(session.id, u1)
+        await markCompacted(session.id, u1, a1)
 
         const u2 = await addUser(session.id, "new question")
         const a2 = await addAssistant(session.id, u2)
@@ -702,9 +731,8 @@ describe("MessageV2.filterCompacted", () => {
         })
 
         const result = MessageV2.filterCompacted(MessageV2.stream(session.id))
-        // Includes compaction boundary: u1, a1, u2, a2
-        expect(result[0].info.id).toBe(u1)
-        expect(result.length).toBe(4)
+        // Newest-first stream order preserved; hidden window excluded
+        expect(result.map((item) => item.info.id)).toEqual([a2, u2])
 
         await svc.remove(session.id)
       },
@@ -780,7 +808,7 @@ describe("MessageV2.filterCompacted", () => {
     })
   })
 
-  test("breaks at compaction boundary and returns completed compaction + newer messages", async () => {
+  test("returns message* marker and newer messages after a fold", async () => {
     await Instance.provide({
       directory: root,
       fn: async () => {
@@ -808,14 +836,9 @@ describe("MessageV2.filterCompacted", () => {
 
         const c1 = await addUser(session.id)
         await addCompactionPart(session.id, c1)
-        const s1 = await addAssistant(session.id, c1, { summary: true, finish: "end_turn" })
-        await svc.updatePart({
-          id: PartID.ascending(),
-          sessionID: session.id,
-          messageID: s1,
-          type: "text",
-          text: "summary",
-        })
+        // Fold hides the whole visible window — every message older than the marker
+        await markCompacted(session.id, u1, a1, u2, a2, c1)
+        const m1 = await addMessageStar(session.id, "fold one")
 
         const u3 = await addUser(session.id, "third")
         const a3 = await addAssistant(session.id, u3, { finish: "end_turn" })
@@ -829,14 +852,14 @@ describe("MessageV2.filterCompacted", () => {
 
         const result = MessageV2.filterCompacted(MessageV2.stream(session.id))
 
-        expect(result.map((item) => item.info.id)).toEqual([c1, s1, u3, a3])
+        expect(result.map((item) => item.info.id)).toEqual([a3, u3, m1])
 
         await svc.remove(session.id)
       },
     })
   })
 
-  test("retains an assistant tail when compaction starts inside a turn", async () => {
+  test("fold hides a mid-turn assistant tail along with the window", async () => {
     await Instance.provide({
       directory: root,
       fn: async () => {
@@ -872,14 +895,9 @@ describe("MessageV2.filterCompacted", () => {
 
         const c1 = await addUser(session.id)
         await addCompactionPart(session.id, c1)
-        const s1 = await addAssistant(session.id, c1, { summary: true, finish: "end_turn" })
-        await svc.updatePart({
-          id: PartID.ascending(),
-          sessionID: session.id,
-          messageID: s1,
-          type: "text",
-          text: "summary",
-        })
+        // Mid-turn second assistant (a3) is inside the folded window — hidden too
+        await markCompacted(session.id, u1, a1, u2, a2, a3, c1)
+        const m1 = await addMessageStar(session.id, "fold with mid-turn tail")
 
         const u3 = await addUser(session.id, "third")
         const a4 = await addAssistant(session.id, u3, { finish: "end_turn" })
@@ -893,14 +911,14 @@ describe("MessageV2.filterCompacted", () => {
 
         const result = MessageV2.filterCompacted(MessageV2.stream(session.id))
 
-        expect(result.map((item) => item.info.id)).toEqual([c1, s1, u3, a4])
+        expect(result.map((item) => item.info.id)).toEqual([a4, u3, m1])
 
         await svc.remove(session.id)
       },
     })
   })
 
-  test("prefers latest compaction boundary when repeated compactions exist", async () => {
+  test("second fold supersedes the first: only its marker and newer messages remain", async () => {
     await Instance.provide({
       directory: root,
       fn: async () => {
@@ -928,14 +946,8 @@ describe("MessageV2.filterCompacted", () => {
 
         const c1 = await addUser(session.id)
         await addCompactionPart(session.id, c1)
-        const s1 = await addAssistant(session.id, c1, { summary: true, finish: "end_turn" })
-        await svc.updatePart({
-          id: PartID.ascending(),
-          sessionID: session.id,
-          messageID: s1,
-          type: "text",
-          text: "summary one",
-        })
+        await markCompacted(session.id, u1, a1, u2, a2, c1)
+        const m1 = await addMessageStar(session.id, "fold one")
 
         const u3 = await addUser(session.id, "third")
         const a3 = await addAssistant(session.id, u3, { finish: "end_turn" })
@@ -949,14 +961,9 @@ describe("MessageV2.filterCompacted", () => {
 
         const c2 = await addUser(session.id)
         await addCompactionPart(session.id, c2)
-        const s2 = await addAssistant(session.id, c2, { summary: true, finish: "end_turn" })
-        await svc.updatePart({
-          id: PartID.ascending(),
-          sessionID: session.id,
-          messageID: s2,
-          type: "text",
-          text: "summary two",
-        })
+        // Second fold hides everything visible then: first marker m1 included
+        await markCompacted(session.id, m1, u3, a3, c2)
+        const m2 = await addMessageStar(session.id, "fold two")
 
         const u4 = await addUser(session.id, "fourth")
         const a4 = await addAssistant(session.id, u4, { finish: "end_turn" })
@@ -970,7 +977,7 @@ describe("MessageV2.filterCompacted", () => {
 
         const result = MessageV2.filterCompacted(MessageV2.stream(session.id))
 
-        expect(result.map((item) => item.info.id)).toEqual([c2, s2, u4, a4])
+        expect(result.map((item) => item.info.id)).toEqual([a4, u4, m2])
 
         await svc.remove(session.id)
       },
@@ -1092,7 +1099,7 @@ describe("MessageV2 consistency", () => {
         await fill(session.id, 4)
 
         const filtered = MessageV2.filterCompacted(MessageV2.stream(session.id))
-        const all = Array.from(MessageV2.stream(session.id)).reverse()
+        const all = Array.from(MessageV2.stream(session.id))
 
         expect(filtered.map((m) => m.info.id)).toEqual(all.map((m) => m.info.id))
 

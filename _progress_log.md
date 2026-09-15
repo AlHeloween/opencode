@@ -1,5 +1,26 @@
 # Progress Log
 
+## [2026-09-15] messages-pagination filterCompacted — contract alignment (tests were stale)
+
+Reason: 6 red tests in `test/session/messages-pagination.test.ts` encoded the pre-`82f88cf126` boundary-scan contract of `MessageV2.filterCompacted` (newest-first walk, compaction-part + summary-assistant boundary detection, `result.reverse()` to chronological). Commit `82f88cf126` (2026-07-16, "soft-delete instead of hard-delete") deliberately replaced that with an order-preserving `info.compacted` flag filter and updated `test/session/compaction.test.ts` but missed this file — reds since.
+
+Verdict: TESTS wrong, CODE right. Proof via callers:
+- `message-v2.ts:1519-1531` `filterCompactedEffect` feeds ASC-SQL rows to pure `filterCompacted` and returns to `prompt.ts` consumers; old `result.reverse()` would emit newest-first.
+- `prompt.ts:1842-1844` `lastKnownId = msgs[msgs.length-1]` → oldest id → `messagesSince` (`prompt.ts:1835`) re-appends the whole session each loop step (duplicate LLM context).
+- Production writer `compaction.ts:1091-1117` marks `info.compacted=true` for the folded window and writes one synthetic `=== COMPACTED ===` m* user message; CompactionPart/summary-assistant boundaries are no longer produced — old test scenarios are unproducible.
+
+Change (test file only, no src/):
+- `test/session/messages-pagination.test.ts`: added `markCompacted` (soft-hide via `updateMessage`, exactly compaction.ts semantics) and `addMessageStar` (synthetic `=== COMPACTED ===` user message) helpers; rewrote the 6 stale tests to the flag-based contract (full-array `toEqual` assertions, same strength — no weakening, no skips, no dropped cases); consistency test now compares against `Array.from(stream)` without `.reverse()`.
+
+Oracle [Exact]:
+- `bun test test/session/messages-pagination.test.ts` → 46 pass / 0 fail (baseline 40/6, reproduced).
+- `bun typecheck` → exit 0 (tsgo --noEmit clean).
+- `bun test test/session/` → 732 pass / 17 skip / 20 fail vs baseline 720/17/32; all 6 target tests green; every remaining failure name matches baseline. Two apparent "new" names disproven: `native mode transition…` was in the baseline run too (full assertion trace at prompt.test.ts:579 `KERNEL_MAP` vs regenerated kernel — present in baseline output lines 199-235; its `(fail)` line was the 32nd lost to the 51200-byte output cap), and `pointing at an assistant turn…` is a 5s-timeout flake (passes 2/0 in isolation).
+- src/ untouched — `git diff` confirms only the test file changed.
+
+Residual [Unknown]:
+- `native mode transition…` and 5 `system prefix digest`/`session.system` failures assert the literal `KERNEL_MAP` marker; the kernel was regenerated 2026-09-13 with `## 0. WORKFLOW` as the root heading (`transform.test.ts:134` documents the rename). These are a separate deliverable (kernel-marker contract sweep), not caused by this change — needs its own task with the kernel build pipeline.
+
 ## [2026-09-15] Hugging Face live model sync (provider-sync source)
 
 Reason: HF models came only from the stale models.dev snapshot (77 ids, no `zai-org/GLM-5.3-Flash-BF16`); the user asked for the same live pull that novita-ai/openrouter already have.

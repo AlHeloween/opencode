@@ -70,6 +70,40 @@ function clearCheckoutMarkers(fs: AppFileSystem.Interface, worktree: string) {
 
 type State = Omit<Interface, "init">
 
+/**
+ * Split paths into argv-sized batches.
+ *
+ * Windows caps a command line at 32_767 characters, so a manifest cannot simply
+ * be splatted into one invocation — a turn touching thousands of files would
+ * produce an unspawnable command. Bounded by BOTH total length and count: the
+ * length bound is the hard limit, the count bound keeps any single fossil
+ * invocation's failure blast radius small, since a batch that fails is caught
+ * and dropped as a unit.
+ */
+export function commandBatches(
+  paths: readonly string[],
+  limits: { maxChars?: number; maxCount?: number } = {},
+): string[][] {
+  const maxChars = limits.maxChars ?? 8_000
+  const maxCount = limits.maxCount ?? 200
+  const batches: string[][] = []
+  let current: string[] = []
+  let chars = 0
+  for (const p of paths) {
+    // +3: the quotes and separating space the shell-free spawn still budgets for.
+    const cost = p.length + 3
+    if (current.length > 0 && (chars + cost > maxChars || current.length >= maxCount)) {
+      batches.push(current)
+      current = []
+      chars = 0
+    }
+    current.push(p)
+    chars += cost
+  }
+  if (current.length > 0) batches.push(current)
+  return batches
+}
+
 export const layer = Layer.effect(
   SnapshotService,
   Effect.gen(function* () {
@@ -391,18 +425,26 @@ export const layer = Layer.effect(
               // that path bounded: a global Fossil scan here can traverse the
               // entire worktree while the model loop is waiting to continue.
               if (files !== undefined) {
+                // `fossil add` and `fossil rm` both take FILE1 ?FILE2 ...?, so a
+                // turn's whole manifest fits in a couple of invocations. Spawning
+                // one process per file made this O(files) in process creation —
+                // ~25ms each on Windows — while holding the repo lock, and this
+                // session's own history has turns carrying 231-252 changed files
+                // (60+ of them) with outliers at 8_013 and 9_441.
+                const present: string[] = []
+                const missing: string[] = []
                 for (const file of files) {
                   const rel = path.relative(worktree, file).replaceAll("\\", "/")
-                  if (yield* fs.exists(file)) {
-                    yield* fossil(["add", "--force", rel], { cwd: worktree }).pipe(
-                      Effect.catch(() => Effect.void),
-                    )
-                    continue
-                  }
-                  yield* fossil(["rm", rel], { cwd: worktree }).pipe(
+                  ;((yield* fs.exists(file)) ? present : missing).push(rel)
+                }
+                for (const batch of commandBatches(present))
+                  yield* fossil(["add", "--force", ...batch], { cwd: worktree }).pipe(
                     Effect.catch(() => Effect.void),
                   )
-                }
+                for (const batch of commandBatches(missing))
+                  yield* fossil(["rm", ...batch], { cwd: worktree }).pipe(
+                    Effect.catch(() => Effect.void),
+                  )
               } else {
                 // Manual or bootstrap tracking may intentionally reconcile the
                 // whole worktree. Fossil performs that in one process rather

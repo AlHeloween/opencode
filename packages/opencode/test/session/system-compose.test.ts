@@ -148,7 +148,9 @@ describe("system prefix digest (reasoning_prompt.txt)", () => {
     const digest = createHash("sha256").update(PROMPT_REASONING, "utf8").digest("hex")
     expect(digest).toBe(EXPECTED_REASONING_DIGEST)
     expect(PROMPT_REASONING).toContain("ABI_AND_VOCABULARY")
-    expect(PROMPT_REASONING).toContain("KERNEL_MAP")
+    // Section 0 is `WORKFLOW`, renamed from `KERNEL_MAP` in 75da19cbbc. Assert the
+    // header, not the bare word: `WORKFLOW` also appears in every `routes:` line.
+    expect(PROMPT_REASONING).toContain("## 0. WORKFLOW")
     expect(PROMPT_REASONING).not.toContain("_ALL_SPECS")
   })
 
@@ -157,9 +159,9 @@ describe("system prefix digest (reasoning_prompt.txt)", () => {
     const a = ProviderTransform.systemPromptPrefix(model)
     const b = ProviderTransform.systemPromptPrefix(model)
     expect(a).toBe(b)
-    expect(a).toContain("KERNEL_MAP")
+    expect(a).toContain("## 0. WORKFLOW")
     expect(a).toContain("ABI_AND_VOCABULARY")
-    expect(a.indexOf("KERNEL_MAP")).toBeLessThan(a.indexOf("ABI_AND_VOCABULARY"))
+    expect(a.indexOf("## 0. WORKFLOW")).toBeLessThan(a.indexOf("ABI_AND_VOCABULARY"))
     expect(a).toContain(PROMPT_REASONING.slice(0, 40))
   })
 
@@ -167,8 +169,10 @@ describe("system prefix digest (reasoning_prompt.txt)", () => {
     const parts = ProviderTransform.systemPromptParts(mockModel("anthropic/claude-sonnet-4"))
     expect(parts.reasoning.length).toBeGreaterThan(10_000)
     expect(parts.reasoning.length).toBeLessThan(80_000)
-    expect(parts.reasoning).toContain("KERNEL_MAP")
-    expect(parts.reasoning).toMatch(/REUSE_BEFORE|REUSE\.BEFORE/)
+    expect(parts.reasoning).toContain("## 0. WORKFLOW")
+    // The reuse-before-invent rule is prose in G1 now, not a named @REUSE_BEFORE
+    // node — assert the rule, which is what this test is actually about.
+    expect(parts.reasoning).toContain("before non-trivial invention")
     expect(parts.reasoning).toContain("ABI_AND_VOCABULARY")
     expect(parts.reasoning).toContain("SHARED_RULES")
     expect(parts.kernel).toBe("")

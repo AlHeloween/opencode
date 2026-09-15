@@ -42,16 +42,20 @@ describe("session.system", () => {
       expect(prompt).toContain("explore")
       expect(prompt).toContain("general")
     }
-    expect(PROMPT_REASONING).toContain("KERNEL_MAP")
+    // Section 0 is `WORKFLOW`, renamed from `KERNEL_MAP` in 75da19cbbc.
+    expect(PROMPT_REASONING).toContain("## 0. WORKFLOW")
     expect(PROMPT_REASONING).toContain("ABI_AND_VOCABULARY")
   })
 
   test("reasoning_prompt.txt contains compact runtime dictionary roots", () => {
     const prompt = PROMPT_REASONING
 
-    for (const root of ["ABI_AND_VOCABULARY", "SHARED_RULES", "KERNEL_MAP"]) {
+    // `WORKFLOW` is section 0's root; the header is asserted separately below
+    // because the bare word also appears in every `routes:` line.
+    for (const root of ["ABI_AND_VOCABULARY", "SHARED_RULES", "WORKFLOW"]) {
       expect(prompt).toContain(root)
     }
+    expect(prompt).toContain("## 0. WORKFLOW")
     expect(prompt).toMatch(/EVIDENCE_ORDER|EVIDENCE\.ORDER/)
     expect(prompt).toContain("CLAIM_LEDGER")
     expect(prompt).not.toContain("_ALL_SPECS")
@@ -80,7 +84,17 @@ describe("session.system", () => {
     expect(PROMPT_REASONING).toContain("### BUILD_MODE")
     expect(PROMPT_REASONING).toContain("### PLAN_MODE")
     expect(PROMPT_REASONING).toContain("### REASONING_MODE")
-    expect(PROMPT_REASONING).toContain("Uncertain identity → getmode.")
+    // Identity resolution is load-bearing, not a tool path. §5 gives ten
+    // identities with different `may_mutate`, and @CATALOG_INVARIANT makes the
+    // tool catalog identity-INVARIANT on purpose — so an agent cannot read its
+    // own rights off the tools it can see. `getmode` is the only thing that
+    // answers "which contract governs me": it returns the identity AND its
+    // complete ordered execute-time permission rules. Assert all three layers,
+    // since dropping any one leaves the question unanswerable.
+    expect(PROMPT_REASONING).toContain("The provider tool catalog is identity-invariant")
+    expect(PROMPT_REASONING).toContain("Uncertain identity or permission → inspect the host runtime's authorization surface")
+    expect(PROMPT_REASONING).toContain("identity or permission uncertain -> getmode")
+    expect(PROMPT_REASONING).toContain("may_mutate")
     expect(PROMPT_REASONING).not.toContain("### build_mode")
     expect(PROMPT_REASONING).not.toContain("#### @GETMODE")
     expect(PROMPT_REASONING).not.toContain("### GETMODE")

@@ -31,8 +31,8 @@ stops flinching toward VCS rewrite and stops externalising its own damage.
 - `docs/gate-addons.md` — the addon-vs-kernel test: *"if deleting the line would change
   what the kernel decides → source.py; if it only says where a thing lives in this host
   project → addon."*
-- `experiments/2026-09-12_deepseek-h3/transform.broken-20260912T0904Z.ts.bak` — the preserved
-  broken artifact (61186 B); recovery target was
+- a broken `transform.ts` snapshot (61186 B) — preserved during the incident, removed
+  2026-09-15 with the archive build leftovers; the recovery target was
   `20260912-164703_call_00_qVi2ku2vZYcbQVNgVE962796_…transform.ts.bak` (HEAD-identical by hash).
 - Recovery instruments that actually worked, in preference order:
   `edit`-tool `.bak` (per-edit, `restore` tool) → Fossil snapshot (`fossil info/diff`, read-only)

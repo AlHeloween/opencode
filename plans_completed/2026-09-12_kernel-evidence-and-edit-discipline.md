@@ -73,7 +73,8 @@ The two failures:
   `…20260912-164703_call_00_qVi2ku2vZYcbQVNgVE962796_…transform.ts.bak` — verified
   HEAD-identical by hash (LF-normalised), after a first attempt picked the wrong backup
   (filename is local time, not UTC — read `LastWriteTimeUtc`, never the name).
-- Artifact preserved: `experiments_history/2026-09-12_deepseek-h3/transform.broken-20260912T0904Z.ts.bak` (61186 B).
+- Artifact preserved during the incident: a broken `transform.ts` snapshot (61186 B), removed on
+  2026-09-15 with the rest of the archive build leftovers.
 
 ## Proposed change
 

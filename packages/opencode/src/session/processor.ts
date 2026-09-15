@@ -202,6 +202,35 @@ export function shouldSnapshot(input: {
   return true
 }
 
+/**
+ * Finalize the reasoning parts of a turn from their stream builders.
+ *
+ * `reasoningMap` and `reasoningBuilders` are both keyed by the PROVIDER's
+ * reasoning stream id (`value.id` on `reasoning-start`), never by the part id —
+ * the part carries a freshly minted `PartID.ascending()`. Indexing the builders
+ * by `part.id` silently returns undefined and persists `text: ""`.
+ *
+ * Observed 2026-09-15: a 26-second reasoning burst (~5,500 deltas) was aborted
+ * before `reasoning-end` and landed in the DB as an 81-byte row with empty text.
+ * Deltas are bus-only, so this cleanup path is the sole chance to persist an
+ * interrupted thought.
+ *
+ * A part `finishReasoning` already closed keeps its own `end` — cleanup runs at
+ * the end of the whole stream, so stamping `now` over it reported a thought that
+ * finished in second 2 of the turn as having run until second 26.
+ */
+export function finalizeReasoning(
+  reasoningMap: Record<string, MessageV2.ReasoningPart>,
+  reasoningBuilders: Record<string, StringBuilder>,
+  now: number,
+): MessageV2.ReasoningPart[] {
+  return Object.entries(reasoningMap).map(([streamID, part]) => ({
+    ...part,
+    text: reasoningBuilders[streamID]?.toString() ?? part.text,
+    time: { start: part.time?.start ?? now, end: part.time?.end ?? now },
+  }))
+}
+
 const pendingWrites = new Map<string, { files: Set<string>; exact: boolean; write: boolean; before?: string }>()
 
 function turnWrites(sessionID: string) {
@@ -1297,14 +1326,8 @@ export const layer: Layer.Layer<
           ctx.currentText = undefined
         }
 
-        for (const part of Object.values(ctx.reasoningMap)) {
-          const end = Date.now()
-          const builder = ctx.reasoningBuilders[part.id]
-          yield* session.updatePart({
-            ...part,
-            text: builder ? builder.toString() : part.text,
-            time: { start: part.time.start ?? end, end },
-          })
+        for (const part of finalizeReasoning(ctx.reasoningMap, ctx.reasoningBuilders, Date.now())) {
+          yield* session.updatePart(part)
         }
         ctx.reasoningMap = {}
         ctx.reasoningBuilders = {}

@@ -2246,3 +2246,60 @@ green in isolation in this tree.
 Oracles: `bun typecheck` exit 0. New tests 9/9. Session+snapshot suite 799 pass
 against a HEAD baseline of 790 pass / 52 fail, no regression attributable to
 this change.
+
+## [2026-09-15T14:30:00+08:00] session: an interrupted thought is no longer thrown away
+
+A reasoning part streams its text as `message.part.delta` — a `BusEvent`, never
+persisted, never replayable. The text reaches the database exactly twice: from
+`finishReasoning` on `reasoning-end`, and from the stream cleanup path. So a
+turn cut short has one chance to keep its thinking, and that path was broken.
+
+`ctx.reasoningMap` and `ctx.reasoningBuilders` are both keyed by the provider's
+reasoning **stream** id (`value.id` on `reasoning-start`). The part inside the
+map carries its own freshly minted `PartID.ascending()`. Cleanup looked the
+builder up by `ctx.reasoningBuilders[part.id]` — a key that is never present —
+got `undefined`, and wrote `part.text`, which no delta ever updates. Empty
+string. No type error, no throw, no log.
+
+What it cost, counted in the live database:
+
+| reasoning parts | 5 505 |
+| with empty text | 290 (5.3%), across 25 sessions |
+| of those, streamed > 3s | 257 (89%) |
+| mean duration of an empty part | 37.4s |
+| longest | **457s** |
+
+The one that surfaced it: `prt_0a37ab162001UUfEy6K8MS2T9C`, 05:12:02 → 05:12:28
+on 2026-09-15, ~5 500 deltas published to the bus over 26 seconds, stored as an
+81-byte row. Aborted before `reasoning-end`, so cleanup owned it.
+
+Second defect in the same six lines: cleanup runs once for the whole stream and
+stamped `end: now` over the `end` that `finishReasoning` had already set. A
+block that finished in second 2 of a 26-second turn was reported as having run
+26 seconds. It now keeps its own end.
+
+### Changed
+
+- `src/session/processor.ts` — `finalizeReasoning()` extracted and exported,
+  keyed by the stream id, preserving an existing `end`. The cleanup loop is now
+  three lines over its result.
+- `test/session/reasoning-finalize.test.ts` (new, 8 tests) — the key contract,
+  multi-stream flush, the `finishReasoning`-already-ran case, empty-builder vs
+  missing-builder (they must differ), and the end-time rule.
+
+### Oracles
+
+`bun typecheck` exit 0. New tests 8/8. Mutation check: restoring the `part.id`
+lookup turns 3 of the 8 red, including the headline one — the test holds the
+contract rather than merely describing it.
+
+`test/session/` with the fix: 728 pass / 18 fail. HEAD baseline: 721 pass /
+18 fail. Failure sets diffed identical — the +7 is the new file, zero
+regressions. Among those 18, `session.processor effect tests reset reasoning
+state across retries` is red on HEAD and green in isolation: order-dependent,
+pre-existing, and worth its own pass.
+
+Not yet proven: the end-to-end artifact oracle. The decisive check is to abort
+mid-reasoning against a rebuilt binary and read the row back — the "before"
+artifact is already on disk as the 81-byte part above. It needs a build and a
+live API call, so it is not run here.

@@ -2536,3 +2536,86 @@ found it was pairing one census line with the one capture it produced.
   guide does not mention `tools`; 20 turns at 99.7% with a monotonically growing
   cached prefix show the rendered prompt keeps tools ahead of the tail. Left
   alone — reordering is 3 lines and buys nothing measurable.
+
+## [2026-09-16T00:20:00+08:00] session: four defects found by disagreeing with the user, not by auditing
+
+Every item below started as an objection the user raised and I first argued
+against. In three of four the objection was right about the symptom and the
+cause turned out to be larger than either of us had named. Recording the method
+because it outperformed the audit: I chose measuring instruments that could
+confirm me, and each time the instrument answered honestly — about a different
+quantity than the one in question.
+
+### f0d425fb8e — the token estimator calibrated only on the failure it prevents
+
+`TokenCalibration` exists to correct chars/4 against provider ground truth.
+Three defects composed to make it inert: `getFactor()` had no caller in src/;
+`update()` fired only inside `halt()` on the ContextOverflowError branch; and
+that call passed `assistantMessage.tokens.input` — the provider's own count —
+as "our estimate", making the factor provider/provider.
+
+Measured over 20 paired requests: real/estimate runs 1.46–1.96, median **1.67**.
+The largest uncounted term is the tool catalog — 98,358 chars, ~24,589 tokens,
+constant on every request, larger than the whole conversation in a fresh
+session, and `estimateContentTokens(system, messages)` is never handed it.
+
+Fixed 2 and 3; deliberately not 1. Applying the factor moves when compaction
+fires, which is policy. The factor now accumulates in the logs instead.
+
+### 80560099d7 — the bounded tracking path spawned one process per file
+
+Found by following the user's observation about upstream spawning ~10 git
+processes per snapshot. Ours was worse: `fossil add` once per path, ~25ms of
+process creation each, under the repo lock, with the model loop blocked. This
+session's history carries turns of 231–252 changed files (60+ of them) and
+outliers at 8,013 and 9,441. `fossil add` takes `FILE1 ?FILE2 ...?`; a 252-file
+turn now costs 2 spawns.
+
+Correction to b90961aa0e's own log entry: that commit cut snapshot COMMITS
+1216 → 97, but spawn count stayed linear in files. The two wins are independent
+and I had conflated them.
+
+### 7375791097 — docs/compaction.md gained its rationale
+
+The mechanics were documented, the reason was not, so the design reads as an
+elaborate summarizer and the next reader reaches for the conventional shape.
+Read off upstream's source: tail clamped at 15,000 tokens regardless of window
+size, head unbounded, plus a degenerate branch where the whole session becomes
+head. On a 1M model that is ~985K tokens through one attention pass against 15K
+surviving verbatim.
+
+The failure named precisely: not lossiness — loss **without a marker where the
+loss occurred**, so an omitted fact is indistinguishable from one that never
+existed. What this design preserves instead is addressability, not content: a
+summary with a resolvable pointer is paging, not compression.
+
+### 400c4f2e0c — the kernel marker rename shipped, the tests did not
+
+`75da19cbbc` renamed section 0 `KERNEL_MAP` → `WORKFLOW` and never touched
+`packages/opencode/test/`. Six tests red since. Verified against the generator
+(`render.py:153`) rather than the artifact — `KERNEL_MAP` survives only in a
+dated `dist/` build output.
+
+Assertions came out stronger: `"## 0. WORKFLOW"` rather than the bare word,
+which appears in every `routes:` line. And the identity test — named "use entity
+names, not host slugs" while asserting `getmode` — now pins three layers.
+`getmode` is not a host path: it returns the identity AND its complete ordered
+execute-time permission rules, and it is load-bearing because
+@CATALOG_INVARIANT makes the tool catalog identity-INVARIANT on purpose.
+BUILD_MODE (`may_mutate: true`) and PLAN_MODE (`false`) see the same tools, so
+rights cannot be read off what is visible. Test now pins the invariant, the
+rule, and `may_mutate`; any one missing leaves "what may I change?"
+unanswerable.
+
+### State
+
+Red went 18 → 5 across `test/session/` + `test/provider/` (1252 tests).
+Remaining: Layer-1 sidecar 65_536 threshold, bash-only mutations vs Summary
+Exact diff, revert+compact sequential ×2, processor reset-reasoning-across-
+retries. `native mode transition` and revert-crossing T8 came up green this run
+but are order-dependent — not claimed.
+
+Open, by decision rather than difficulty: apply `getFactor()`;
+`message-v2.ts:1174` stripping reasoning from non-tool turns against the vendor
+contract's "for all turns"; the `round-trip is lost` warn that is now wrong
+twice. And the A/B that would move 078f55a2bb from Inferred to Exact.

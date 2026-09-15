@@ -830,6 +830,23 @@ function evictIfFull() {
 export const TOOL_PLACEHOLDER_THRESHOLD_CHARS = 8_000
 
 /**
+ * Delivery-turn sentinel: pass this as `currentTurnAssistantID` when NO message
+ * is the delivery turn, so every heavy tool output collapses to its placeholder.
+ *
+ * Leaving the option unset does the opposite — `!currentTurnAssistantID` reads as
+ * "every turn is the delivery turn" and replays everything in full. That default
+ * is why the sidecar checkpoint diverged from the trunk: the checkpoint was built
+ * with the option unset, so it froze 17 tool results at full size (401_856 chars,
+ * first at message index 9) while the trunk sent placeholders for the same
+ * messages. The shared prefix broke almost immediately and one summary call
+ * recomputed 541_502 tokens — 48% of that session's entire cache miss
+ * (measured 2026-09-15).
+ *
+ * Any string that cannot be a message ID works; this one is explicit about why.
+ */
+export const NO_DELIVERY_TURN = "__no_delivery_turn__"
+
+/**
  * Canonical heavy-tool-result placeholder: pure function of (tool, id, title,
  * size) — byte-identical across builds so the wire prefix is stable.
  */

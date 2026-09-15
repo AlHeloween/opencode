@@ -1140,10 +1140,15 @@ export const layer = Layer.effect(
           freshPath: assemblePathSystem({ skills: skills || undefined, env, rules, instructions }),
           identity: cleanIdentity,
         })
+        // The checkpoint is replayed LATER (by the sidecar), so by the time it is
+        // sent no message in it is the delivery turn. Built with the option unset
+        // it froze full tool outputs the trunk had already collapsed — 17 messages,
+        // 401_856 chars, prefix divergence from message 9, 541_502 tokens recomputed
+        // in one call. The sentinel makes the checkpoint store what the trunk sends.
         const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
           visible,
           model,
-          toolReplayOptions(yield* config.get()),
+          toolReplayOptions(yield* config.get(), MessageV2.NO_DELIVERY_TURN),
         )
         const checkpointData = {
           kind: Checkpoint.CHECKPOINT_KIND,

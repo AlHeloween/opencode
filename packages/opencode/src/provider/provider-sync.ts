@@ -17,7 +17,9 @@
  *
  * Adding a provider: append to PROVIDER_SOURCES with an endpoint and a
  * mapModel converter that emits the models.dev Model shape. Only grounded
- * fields — no invented metadata.
+ * fields — no invented metadata. When the live endpoint discloses less
+ * metadata than the curated registry, also supply mergeModels so curated
+ * fields survive the live refresh.
  */
 
 // ---------- models.dev registry types (runtime-consumed subset) ----------
@@ -193,7 +195,8 @@ export function mapOpenRouterModel(raw: OpenRouterRawModel): ModelsDevModel | un
   const input = (raw.architecture?.input_modalities ?? ["text"]).filter((m) => KNOWN_MODALITIES.has(m))
   const output = (raw.architecture?.output_modalities ?? ["text"]).filter((m) => KNOWN_MODALITIES.has(m))
   const features = raw.supported_parameters ?? []
-  const reasoning = features.includes("reasoning") || features.includes("include_reasoning") || raw.reasoning?.mandatory === true
+  const reasoning =
+    features.includes("reasoning") || features.includes("include_reasoning") || raw.reasoning?.mandatory === true
   const release = raw.created ? toISODate(raw.created) : ""
 
   const model: ModelsDevModel = {
@@ -246,6 +249,156 @@ export function mapOpenRouterModel(raw: OpenRouterRawModel): ModelsDevModel | un
   return model
 }
 
+// ---------- Hugging Face Inference Providers (https://router.huggingface.co/v1/models) ----------
+
+type HuggingFaceProviderEntry = {
+  provider?: string
+  status?: string
+  context_length?: number
+  pricing?: { input?: number; output?: number }
+  is_free?: boolean
+  supports_tools?: boolean
+  supports_structured_output?: boolean
+  throughput?: number
+  first_token_latency_ms?: number
+  is_model_author?: boolean
+}
+
+type HuggingFaceRawModel = {
+  id?: string
+  created?: number
+  owned_by?: string
+  architecture?: { input_modalities?: string[]; output_modalities?: string[] }
+  providers?: HuggingFaceProviderEntry[]
+}
+
+/**
+ * The router aggregates one entry per inference provider and routes to the
+ * fastest live one by default (the `:fastest` policy = highest throughput;
+ * huggingface.co/docs/inference-providers), so pricing/context collapse to the
+ * route a request would actually take. Same rule as models.dev's canonical
+ * sync (sst/models.dev packages/core/src/sync/providers/huggingface.ts):
+ * - cost: routed provider's pricing, else the fastest provider reporting one
+ * - context: routed context_length, else the largest reported context
+ * - tools/structured_output: union over live providers (a caller can pin one)
+ * Unlike OpenRouter, router pricing is already USD per million tokens.
+ */
+export function mapHuggingFaceModel(raw: HuggingFaceRawModel): ModelsDevModel | undefined {
+  if (!raw.id) return undefined
+  const providers = (raw.providers ?? []).filter((p) => p.status === "live")
+  if (providers.length === 0) return undefined
+
+  const byThroughput = [...providers].sort((a, b) => (b.throughput ?? -Infinity) - (a.throughput ?? -Infinity))
+  const routed = byThroughput[0]
+  const costProvider = routed?.pricing ? routed : byThroughput.find((p) => p.pricing)
+  const price = (value: number | undefined) =>
+    value !== undefined && Number.isFinite(value) && value >= 0 ? Math.round(value * 1_000_000) / 1_000_000 : undefined
+  const inputPrice = price(costProvider?.pricing?.input)
+  const outputPrice = price(costProvider?.pricing?.output)
+  const contexts = providers.map((p) => p.context_length).filter((value): value is number => value !== undefined)
+  const context = routed?.context_length ?? (contexts.length > 0 ? Math.max(...contexts) : 0)
+
+  const input = (raw.architecture?.input_modalities ?? ["text"]).filter((m) => KNOWN_MODALITIES.has(m))
+  const output = (raw.architecture?.output_modalities ?? ["text"]).filter((m) => KNOWN_MODALITIES.has(m))
+  const release = raw.created ? toISODate(raw.created) : ""
+
+  const model: ModelsDevModel = {
+    id: raw.id,
+    // Router ids are org/model; the picker searches hyphenated names, matching
+    // the convention every other provider uses for the same models.
+    name: raw.id.split("/").pop() || raw.id,
+    attachment: input.some((m) => m !== "text"),
+    // The router carries no reasoning flag — mergeModels fills it from the
+    // curated entry (or the variant base model) instead of inventing one here.
+    reasoning: false,
+    tool_call: providers.some((p) => p.supports_tools === true),
+    temperature: true,
+    release_date: release,
+    last_updated: release,
+    modalities: { input, output },
+    model_type: "chat",
+    limit: { context, output: 0 },
+  }
+  if (inputPrice !== undefined && outputPrice !== undefined) model.cost = { input: inputPrice, output: outputPrice }
+  if (providers.some((p) => p.supports_structured_output === true)) model.structured_output = true
+  return model
+}
+
+// Quantisation/precision suffixes: such variants are the same weights as their
+// base model, so capability metadata can be inherited when the router omits it.
+const HF_VARIANT_SUFFIX = /-(bf16|fp8|fp16|int8|int4|awq(-\d+bit)?|gguf|w4a4|nvfp4)$/i
+
+function inheritHuggingFaceVariant(model: ModelsDevModel, models: Record<string, ModelsDevModel>): ModelsDevModel {
+  const baseId = model.id.replace(HF_VARIANT_SUFFIX, "")
+  if (baseId === model.id) return model
+  const base = models[baseId]
+  if (!base) return model
+  return {
+    ...model,
+    reasoning: base.reasoning,
+    ...(base.reasoning_options ? { reasoning_options: base.reasoning_options } : {}),
+    ...(base.interleaved ? { interleaved: base.interleaved } : {}),
+    ...(base.knowledge ? { knowledge: base.knowledge } : {}),
+    ...(base.family ? { family: base.family } : {}),
+    ...(base.description ? { description: base.description } : {}),
+    ...(base.open_weights !== undefined ? { open_weights: base.open_weights } : {}),
+    temperature: base.temperature,
+    limit: {
+      ...model.limit,
+      context: model.limit.context > 0 ? model.limit.context : base.limit.context,
+      output: model.limit.output > 0 ? model.limit.output : base.limit.output,
+    },
+    // cost is deliberately NOT inherited: the variant route discloses no price.
+  }
+}
+
+/**
+ * Merge the live router catalog over the curated registry. The router cannot
+ * express reasoning/interleaved/description/output-limit, so a plain rebuild
+ * would regress every curated field; instead:
+ * - curated entries keep their curated-only fields, live-grounded fields
+ *   (pricing, context, modalities, tools/structured output, dates) win;
+ * - ids the router no longer lists are retained (models.dev deleteMissing:false);
+ * - new ids are added, quantisation variants inheriting their base model.
+ */
+export function mergeHuggingFaceModels(
+  upstream: Record<string, ModelsDevModel>,
+  live: Record<string, ModelsDevModel>,
+): Record<string, ModelsDevModel> {
+  const merged: Record<string, ModelsDevModel> = { ...upstream }
+  const added: string[] = []
+  for (const [id, model] of Object.entries(live)) {
+    const curated = upstream[id]
+    if (!curated) {
+      merged[id] = model
+      added.push(id)
+      continue
+    }
+    const modalities = model.modalities && model.modalities.input.length > 0 ? model.modalities : curated.modalities
+    const cost = model.cost ? { ...curated.cost, ...model.cost } : curated.cost
+    merged[id] = {
+      ...curated,
+      attachment: modalities ? modalities.input.some((m) => m !== "text") : curated.attachment,
+      tool_call: curated.tool_call || model.tool_call,
+      ...(model.structured_output || curated.structured_output ? { structured_output: true } : {}),
+      release_date: curated.release_date || model.release_date,
+      last_updated: curated.last_updated || model.last_updated,
+      limit: {
+        ...curated.limit,
+        context: model.limit.context > 0 ? model.limit.context : curated.limit.context,
+      },
+      ...(cost ? { cost } : {}),
+      ...(modalities ? { modalities } : {}),
+    }
+  }
+  // Variant inheritance runs after placement so a variant can inherit from a
+  // base that is itself live-only (e.g. GLM-4.6V-FP8 <- GLM-4.6V).
+  for (const id of added) {
+    merged[id] = inheritHuggingFaceVariant(merged[id], merged)
+  }
+  return merged
+}
+
 // ---------- source registry ----------
 
 type ProviderSource = {
@@ -257,6 +410,14 @@ type ProviderSource = {
   apiKeyEnv?: string
   /** raw model -> models.dev Model; return undefined to skip an entry */
   mapModel?: (raw: never) => ModelsDevModel | undefined
+  /** Merge live results over the upstream entry instead of replacing it.
+   * Use when the live endpoint discloses less metadata than the curated
+   * registry: curated-only fields survive, live-grounded fields win, and
+   * upstream-only ids are retained. */
+  mergeModels?: (
+    upstream: Record<string, ModelsDevModel>,
+    live: Record<string, ModelsDevModel>,
+  ) => Record<string, ModelsDevModel>
   /** curated entries merged under live results (live wins on id collision) */
   staticModels?: ModelsDevModel[]
   /** The provider is selectable, but its endpoint models are account-scoped. */
@@ -274,7 +435,13 @@ type ProviderSource = {
 // image checkpoints. Prices transcribed from novita.ai/models (verified
 // 2026-09-04); ids follow the console URL pattern
 // (novita.ai/models-console/model-detail/baai-bge-m3 -> baai/bge-m3).
-function embeddingModel(id: string, name: string, context: number, inputCost: number, outputCost: number): ModelsDevModel {
+function embeddingModel(
+  id: string,
+  name: string,
+  context: number,
+  inputCost: number,
+  outputCost: number,
+): ModelsDevModel {
   return {
     id,
     name,
@@ -353,6 +520,27 @@ export const PROVIDER_SOURCES: ProviderSource[] = [
     },
   },
   {
+    // HF Inference Providers router: one entry per model, each aggregating the
+    // providers serving it. The list discloses less metadata than the curated
+    // registry (no reasoning/interleaved/description/output-limit), so this
+    // source merges instead of replacing: curated fields survive, live pricing/
+    // context/modalities win, upstream-only ids are retained, and new ids
+    // (incl. quantisation variants like GLM-5.3-Flash-BF16) are added.
+    id: "huggingface",
+    endpoint: "https://router.huggingface.co/v1/models",
+    // Anonymous listing works; a token is sent when present (HF_TOKEN).
+    apiKeyEnv: "HF_TOKEN",
+    mapModel: mapHuggingFaceModel as (raw: never) => ModelsDevModel | undefined,
+    mergeModels: mergeHuggingFaceModels,
+    shell: {
+      name: "Hugging Face",
+      env: ["HF_TOKEN"],
+      npm: "@ai-sdk/openai-compatible",
+      api: "https://router.huggingface.co/v1",
+      doc: "https://huggingface.co/docs/inference-providers",
+    },
+  },
+  {
     // Vanchin Pay-as-you-go exposes account-scoped inference endpoint IDs, not
     // a public shared model catalogue. The TUI collects one endpoint ID after
     // auth; never bundle a fabricated `ep-*` model here.
@@ -385,10 +573,7 @@ async function fetchLiveModels(source: ProviderSource): Promise<Record<string, M
   const response = await fetch(source.endpoint, { headers, signal: AbortSignal.timeout(30_000) })
   if (!response.ok) throw new Error(`${source.endpoint} -> ${response.status} ${response.statusText}`)
   const body = (await response.json()) as unknown
-  const data =
-    body !== null && typeof body === "object" && "data" in body
-      ? body.data
-      : undefined
+  const data = body !== null && typeof body === "object" && "data" in body ? body.data : undefined
   const items: unknown[] = Array.isArray(body) ? body : Array.isArray(data) ? data : []
 
   let skipped = 0
@@ -418,9 +603,14 @@ export async function applyProviderOverrides(
   opts: { continueOnError?: boolean } = {},
 ): Promise<Record<string, unknown>> {
   for (const source of PROVIDER_SOURCES) {
-    const shell = (registry[source.id] as Partial<ModelsDevProvider> | undefined) ?? { ...source.shell, id: source.id, models: {} }
+    const upstream = registry[source.id] as Partial<ModelsDevProvider> | undefined
+    const shell = upstream ?? { ...source.shell, id: source.id, models: {} }
     try {
-      const models = await fetchLiveModels(source)
+      const live = await fetchLiveModels(source)
+      // Merge-mode sources keep curated metadata the live endpoint does not
+      // disclose (HF router: reasoning, interleaved, output limit) and retain
+      // upstream-only ids — models.dev's deleteMissing:false semantics.
+      const models = source.mergeModels ? source.mergeModels(upstream?.models ?? {}, live) : live
       shell.models = models
       // Source shell fields OVERRIDE the upstream entry: models.dev lags the
       // canonical base URL (upstream shipped /openai while the live documented
@@ -431,7 +621,9 @@ export async function applyProviderOverrides(
       }
       shell.id = source.id
       registry[source.id] = shell
-      console.log(`provider-sync: ${source.id}: ${Object.keys(models).length} models from live source (${source.endpoint})`)
+      console.log(
+        `provider-sync: ${source.id}: ${Object.keys(models).length} models from live source (${source.endpoint})`,
+      )
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e)
       if (!opts.continueOnError) throw e

@@ -1,5 +1,28 @@
 # Progress Log
 
+## [2026-09-15] Hugging Face live model sync (provider-sync source)
+
+Reason: HF models came only from the stale models.dev snapshot (77 ids, no `zai-org/GLM-5.3-Flash-BF16`); the user asked for the same live pull that novita-ai/openrouter already have.
+
+Change:
+- `packages/opencode/src/provider/provider-sync.ts`: new `huggingface` source (`https://router.huggingface.co/v1/models`) + `mapHuggingFaceModel` (fastest-route collapse per sst/models.dev canonical sync: routed-provider pricing else fastest priced; context routed ?? max; tools/structured union; already $/M; 6-dp rounding) + `mergeHuggingFaceModels` (curated fields survive; live cost/context/modalities win; upstream-only ids retained; new ids added; `-BF16/-FP8/…` variants inherit base capability metadata; cost never inherited) + `ProviderSource.mergeModels` hook.
+- `test/provider/provider-sync.test.ts`: +13 tests (aggregation, merge, BF16 inheritance, placement order).
+- `docs/architecture.md`: "Hugging Face Live Model Source" section.
+- Snapshot refreshed: huggingface 77 → 144 models (67 new incl. GLM-5.3-Flash-BF16, CohereLabs, Qwen2.5/3, Nemotron).
+
+Oracle [Exact]:
+- `bun test test/provider/provider-sync.test.ts` → 19 pass / 0 fail (baseline 6 pass).
+- `bun typecheck` (packages/opencode, cmd_runner `20260915T123821Z_17fb814a`) → exit 0.
+- `bun run script/provider-sync.ts` → exit 0; huggingface.json 144 ids; BF16 entry: reasoning=true + effort low/high/max + ctx 1M/output 131072 inherited, cost omitted; DeepSeek-V3 cost refreshed 0.4/1.3 → 0.32/0.89.
+- `pwsh _build.ps1` (cmd_runner `20260915T124007Z_175a0c9d`) → exit 0; `dist/bin/opencode.exe models huggingface` lists `huggingface/zai-org/GLM-5.3-Flash-BF16`.
+- Router smoke `zai-org/GLM-5.3-Flash-BF16` → HTTP 200, `x-inference-provider: zai-org`, `finish=stop`, content `OK`.
+- E2E `opencode run` → session `ses_f5ae8eb68ffeRrtOMHVabqgr0z` completed: reasoning + text `OK`, `finish: stop` [DB].
+
+Residual [Unknown]:
+- `opencode run` stdout prints only the session header, not the assistant text — reproduced on HF BF16 and on untouched `deepseek/deepseek-flash` (4 runs; default + `--format json` modes; responses complete correctly in the DB). Not caused by this change; needs its own investigation.
+- New non-variant reasoning models (e.g. `Qwen/Qwen3-4B-Thinking-2507`) default `reasoning=false` — the router exposes no reasoning signal; revisit if it mislabels in practice.
+- TUI verification needs a rebuilt binary restart: the running `bin/opencode.exe` keeps the old embedded snapshot; deploy = close TUI → copy `dist\bin\opencode.exe` → restart.
+
 ## [2026-09-15] experiments_history/ — tracked record archive
 
 Reason: `experiments/` is gitignored, so nothing in the repo recorded which smoke tests ran
@@ -2425,3 +2448,70 @@ The `bug: empty reasoning injected on tool-call turns — vendor CoT round-trip 
 lost` warn fires on every request. It is now wrong twice over: the round-trip
 works, and the injection it reports is the 400-guard covering turns where the
 vendor returned no CoT at all. Re-aim the census at the HTTP body and reword.
+
+## [2026-09-15T20:50:00+08:00] gateway: the reasoning rewrite erased the CoT it existed to preserve
+
+Three layers had to be fixed before a single character of chain-of-thought
+reached DeepSeek. Two were found by reading; the third only by matching a census
+line to the capture it produced, 50ms apart, on the same request.
+
+1. `processor.ts` — an aborted turn stored an empty reasoning part (f436f3b2cc).
+2. `patches/@ai-sdk%2Fdeepseek` — a second hunk cancelled the first, dropping
+   historical reasoning for V4 models against upstream (078f55a2bb).
+3. `adaptive-client.ts` — `rewriteReasoningContent`, meant to collapse the
+   OpenRouter dialect into the native field, rebuilt every tool-call turn from
+   the absent `reasoning`/`reasoning_details` pair and wrote "" over the real
+   `reasoning_content` the provider had already placed (bf850fa0e6).
+
+Only the third was load-bearing. Fixing 1 and 2 alone changed nothing on the
+wire, which is why the first two diagnoses looked confirmed and were not.
+
+### Live verification, one session, same build
+
+    before (20:39)  assistant 58   non-empty  0   chars          0
+    after  (20:42)  assistant 58   non-empty 53   chars  1 684 759
+
+Five empty are turns where the vendor returned no CoT at all; they carry "" per
+the documented contract. Non-empty appears BOTH below and above
+`lastUserMessageIndex`, which is the proof that fixes 2 and 3 address different
+cuts — the SDK tail rule could never have explained the messages above it.
+
+### Cost, measured not estimated
+
+    first request after the change   input 405 144   cacheRead  40 960   ratio 0.09
+    twenty turns after               input 187–10031 cacheRead ≤606 720  ratio 0.993–0.9996
+
+One 405k-token reprice, then 0.1–0.5% of a ~600k prompt per turn. My pre-flight
+estimate of ~150k was low by 2.7x.
+
+### Compaction bounds it
+
+    before compact  2 664 709 bytes  204 messages  CoT 1 684 759
+    after  compact    344 272 bytes   17 messages  CoT     6 746
+
+7.7x. The echo accumulates inside a compaction window and resets at its
+boundary — it is the top of a cycle, not a leak. Round-trip survives the
+compact: 3 of 3 assistant messages non-empty.
+
+### Where the oracles were standing
+
+`transform.ts`'s census sits above the gateway and reported `out.cotText: 32` on
+a request whose body carried zero. The SDK test I wrote sits below the census
+and above the gateway, so it passed while the wire stayed empty. Neither was
+wrong; both were aimed at a layer the defect was not on. The instrument that
+found it was pairing one census line with the one capture it produced.
+
+### Residual
+
+- `message-v2.ts:1174` strips reasoning from assistant turns without tool parts.
+  `docs/reasoning-round-trip-contract.md:46` requires the echo "for all turns,
+  even turns without tool calls". 4 of 186 messages in one session; the contract
+  says this is a violation, not a policy choice. Not changed here.
+- The `bug: empty reasoning injected — vendor CoT round-trip is lost` warn is now
+  wrong twice: the round-trip works, and the injection it counts is the
+  400-guard doing its job. Re-aim the census at the HTTP body and reword.
+- Body key order puts `tools` after `messages` (hardcoded in the provider's
+  `getArgs` literal). DeepSeek's docs state no ordering rule and the KV-cache
+  guide does not mention `tools`; 20 turns at 99.7% with a monotonically growing
+  cached prefix show the rendered prompt keeps tools ahead of the tail. Left
+  alone — reordering is 3 lines and buys nothing measurable.

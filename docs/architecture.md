@@ -60,6 +60,15 @@ Production system kernel: `prompt_kernel/source.py` → `packages/opencode/src/s
 Oracle: `bun test test/tui/dialog-streamlake-vanchin-state.test.ts` and `bun test test/provider/transform.test.ts --test-name-pattern "keeps Vanchin PayGo requests free"`.
 
 
+## Hugging Face Live Model Source
+
+`packages/opencode/src/provider/provider-sync.ts` / `PROVIDER_SOURCES` (`huggingface`):
+
+- Input: `https://router.huggingface.co/v1/models` (HF Inference Providers chat router; anonymous listing works, `HF_TOKEN` is sent when present).
+- Logic: the router list discloses less metadata than the curated registry (no reasoning/interleaved/description/output-limit), so this source **merges** instead of replacing — curated fields survive, live pricing/context/modalities win, upstream-only ids are retained (models.dev `deleteMissing:false` semantics), and new ids are added. Quantisation variants (`-BF16`, `-FP8`, …) inherit capability metadata from their base model. Pricing collapses the router's per-provider table to the default `:fastest` route (routed provider, else the fastest priced one) — already USD per million tokens.
+- Oracle: `bun test test/provider/provider-sync.test.ts`; targeted refresh: `bun run script/provider-sync.ts` (packages/opencode).
+
+
 ## 1. Prompt System Architecture
 
 ```

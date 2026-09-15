@@ -11,12 +11,3 @@ index 87a9910..b670eaf 100644
    const messages = [];
    const warnings = [];
    if ((responseFormat == null ? void 0 : responseFormat.type) === "json") {
-@@ -98,7 +98,7 @@ function convertToDeepSeekChatMessages({
-               break;
-             }
-             case "reasoning": {
--              if (index <= lastUserMessageIndex && !isDeepSeekV4) {
-+              if (index <= lastUserMessageIndex) {
-                 break;
-               }
-               if (reasoning == null) {

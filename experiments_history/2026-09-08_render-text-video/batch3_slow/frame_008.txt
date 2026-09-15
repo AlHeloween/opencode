@@ -1,0 +1,15 @@
+ * estimate then simply does not add phantom cost for media.
+ */
+export function estimate(input: {
+  model: Provider.Model
+  modality: MediaModality
+  count: number
+}): number {
+  if (input.count <= 0) return 0
+  if (!modelSupports(input.model, input.modality)) return 0
+  const row = readRow(input.model.providerID, input.model.id, input.modality)
+  if (!row) return 0
+  return Math.round(row.tokensPerItem * input.count)
+}
+
+export * as MediaTokenCalibration from "./media-token-calibration"

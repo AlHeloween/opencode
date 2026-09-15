@@ -1,0 +1,71 @@
+model=deepseek-flash font=consola.ttf em=14 adv=8px ink_h=9px pitch=15px cols=160
+PIL WebP support: True
+
+page: 1280x1260 (1.61M px) rows=84 capacity=13440 drawn=10045 ink=185086 px (18.43 px/glyph)
+
+variant                    bytes   B/char   vs PNG
+--------------------------------------------------
+PNG                       333048    33.16     100%
+WebP-lossless              96100     9.57      29%
+WebP-lossless-q80          97816     9.74      29%
+WebP-q95                  547092    54.46     164%
+WebP-q80                  398418    39.66     120%
+WebP-q60                  341036    33.95     102%
+JPEG-q85                  681081     67.8     204%
+
+== PNG (333048 bytes, 100% of PNG) ==
+    [PASS] gates == G0-G9     333048B tok=989
+          -> G0 | G1 | G2 | G3 | G4 | G5 | G6 | G7 | G8 | G9
+    [FAIL] gate count == 10   333048B tok=980
+          -> 9
+    [FAIL] G4 identities      333048B tok=982
+          -> G1, G2, G3, G6, G7, G8, G9.
+
+== WebP-lossless (96100 bytes, 29% of PNG) ==
+    [PASS] gates == G0-G9     96100B tok=989
+          -> G0, G1, G2, G3, G4, G5, G6, G7, G8, G9
+    [FAIL] gate count == 10   96100B tok=980
+          -> 9
+    [FAIL] G4 identities      96100B tok=982
+          -> AUTHORIZE, G5: CONCERN LOOP
+
+== WebP-lossless-q80 (97816 bytes, 29% of PNG) ==
+    [PASS] gates == G0-G9     97816B tok=989
+          -> G0 | G1 | G2 | G3 | G4 | G5 | G6 | G7 | G8 | G9
+    [FAIL] gate count == 10   97816B tok=980
+          -> 9
+    [FAIL] G4 identities      97816B tok=982
+          -> G4: AUTHORIZE – G5: CONCERN_LOOP – G6: GROUND_PLAN – G7: IMPLEMENT – G8: ORACLE – G9: CLEAN_STATE – SUCCESS
+
+== WebP-q95 (547092 bytes, 164% of PNG) ==
+    [PASS] gates == G0-G9     547092B tok=989
+          -> G0 | G1 | G2 | G3 | G4 | G5 | G6 | G7 | G8 | G9
+    [PASS] gate count == 10   547092B tok=980
+          -> 10
+    [FAIL] G4 identities      547092B tok=982
+          -> GOVERNED, PLAN_BINDING.
+
+== WebP-q80 (398418 bytes, 120% of PNG) ==
+    [FAIL] gates == G0-G9     398418B tok=989
+          -> G0, G1, G2, G3, G4, G5, G6, G7, G8, G9, G10, G1, G2, G3, G4, G6, G7, G8, G9, G4, G6, G2, G7, G10, G0, G1, G9, G6, G4, G9, G6, G1, G2, G3, G5, G6, G7, 
+    [PASS] gate count == 10   398418B tok=980
+          -> 10
+    [FAIL] G4 identities      398418B tok=982
+          -> G4: AUTHORIZE - G5: CONCERN_LOOP - G6: GROUND_PLAN - G7: IMPLEMENT - G8: ORACLE - G9: CLEAN_STATE - SUCCESS
+
+== WebP-q60 (341036 bytes, 102% of PNG) ==
+    [PASS] gates == G0-G9     341036B tok=989
+          -> G0 | G1 | G2 | G3 | G4 | G5 | G6 | G7 | G8 | G9
+    [PASS] gate count == 10   341036B tok=980
+          -> 10
+    [FAIL] G4 identities      341036B tok=982
+          -> @GOVERNOR, @CIRCUIT, @ORACLE, @ADJUTANT, @SAMPLER
+
+== JPEG-q85 (681081 bytes, 204% of PNG) ==
+    [PASS] gates == G0-G9     681081B tok=989
+          -> G0 | G1 | G2 | G3 | G4 | G5 | G6 | G7 | G8 | G9
+    [FAIL] gate count == 10   681081B tok=980
+          -> 9
+    [FAIL] G4 identities      681081B tok=982
+          -> GUIDANCE, ORACLE, DECISION, AUTHORITY, EVOLUTION_LOOP
+

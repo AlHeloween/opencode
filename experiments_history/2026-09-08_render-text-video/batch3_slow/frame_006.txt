@@ -1,0 +1,55 @@
+ * Does the model declare input support for this modality? Unsupported
+ * media is never calibrated (it should not be on the wire at all).
+ */
+export function modelSupports(model: Provider.Model, modality: MediaModality): boolean {
+  const caps = model.capabilities?.input
+  if (!caps) return false
+  if (modality === "video") return caps.video === true
+  if (modality === "image") return caps.image === true
+  return false
+}
+
+/** In-memory read-through cache: calibration rows are tiny and hot. */
+const cache = new Map<string, { tokensPerItem: number; observations: number }>()
+
+function key(providerID: string, modelID: string, modality: MediaModality) {
+  return `${providerID}\0${modelID}\0${modality}`
+}
+
+function readRow(providerID: string, modelID: string, modality: MediaModality) {
+  const k = key(providerID, modelID, modality)
+  const hit = cache.get(k)
+  if (hit) return hit
+  try {
+    const row = Database.use((db) =>
+      db
+        .select({
+          tokens_per_item: MediaTokenCalibrationTable.tokens_per_item,
+          observations: MediaTokenCalibrationTable.observations,
+        })
+        .from(MediaTokenCalibrationTable)
+        .where(
+          and(
+            eq(MediaTokenCalibrationTable.provider_id, providerID),
+            eq(MediaTokenCalibrationTable.model_id, modelID),
+            eq(MediaTokenCalibrationTable.modality, modality),
+          ),
+        )
+        .get(),
+    )
+    if (!row) return undefined
+    const value = { tokensPerItem: row.tokens_per_item, observations: row.observations }
+    cache.set(k, value)
+    return value
+  } catch (e) {
+    log.debug("media calibration read failed", { error: String(e) })
+    return undefined
+  }
+}
+
+/**
+ * Fold a fresh provider measurement into the per-model EMA and persist.
+ * `measuredTokens` = provider-reported tokens for the media in that request,
+ * `itemCount` = number of media items of this modality in the request.
+ */
+export function record(input: {

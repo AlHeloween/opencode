@@ -1,0 +1,58 @@
+model=deepseek-flash adv=8px cols=160 budget=1620000px
+kernel 31336 chars | as text ~8953 tokens | image <= 1024 tokens/page
+
+font candidates with advance 8px: 8
+  consola.ttf            em=14 adv=8 digit_ink=9 full_ink=13
+  consola.ttf            em=15 adv=8 digit_ink=10 full_ink=13
+  cour.ttf               em=13 adv=8 digit_ink=8 full_ink=10
+  cour.ttf               em=14 adv=8 digit_ink=9 full_ink=11
+  DejaVuSansMono.ttf     em=13 adv=8 digit_ink=9 full_ink=14
+  DejaVuSansMono.ttf     em=14 adv=8 digit_ink=10 full_ink=14
+  lucon.ttf              em=13 adv=8 digit_ink=9 full_ink=13
+  lucon.ttf              em=14 adv=8 digit_ink=10 full_ink=14
+
+reflowed rows=277 (blank lines dropped) chars=30760
+
+font            em pitch rows/pg  cells  drawn ink/glyph  inked  gap_ok pages     webp  vs_text
+-----------------------------------------------------------------------------------------------
+consola.ttf     14    10     126  20160  14913     18.57  16489   False     2   137580    4.37x
+consola.ttf     14    11     115  18400  13514     18.56  12681   False     3   126470    2.91x
+consola.ttf     14    12     105  16800  12508     18.55  11728   False     3   116982    2.91x
+consola.ttf     15    11     115  18400  13514     18.62  15797   False     2   130180    4.37x
+consola.ttf     15    12     105  16800  12508     18.69  12302   False     3   120878    2.91x
+cour.ttf        13     9     140  22400  16631     11.59  18533   False     2   128558    4.37x
+cour.ttf        13    10     126  20160  14913      11.6  16650    True     2   116448    4.37x
+cour.ttf        13    11     115  18400  13514     11.61  12792    True     3   106922    2.91x
+cour.ttf        13    12     105  16800  12508     11.65  11826    True     3    99474    2.91x
+cour.ttf        14    10     126  20160  14913     13.04  17441   False     2   124052    4.37x
+cour.ttf        14    11     115  18400  13514     13.03  15863    True     2   113486    4.37x
+cour.ttf        14    12     105  16800  12508      13.1  12363    True     3   105908    2.91x
+DejaVuSansMono  13    10     126  20160  14913     18.04  16684   False     2   135522    4.37x
+DejaVuSansMono  13    11     115  18400  13514     18.13  15177   False     3   122094    2.91x
+DejaVuSansMono  13    12     105  16800  12508     18.19  14044   False     3   113004    2.91x
+DejaVuSansMono  14    11     115  18400  13514     18.99  15841   False     2   138984    4.37x
+DejaVuSansMono  14    12     105  16800  12508     19.08  14667   False     3   129614    2.91x
+lucon.ttf       13    10     126  20160  14913     16.78  16708   False     2   128548    4.37x
+lucon.ttf       13    11     115  18400  13514     16.77  12794   False     3   117856    2.91x
+lucon.ttf       13    12     105  16800  12508     16.75  11863   False     3   109204    2.91x
+lucon.ttf       14    11     115  18400  13514     17.61  15823   False     2   124358    4.37x
+lucon.ttf       14    12     105  16800  12508     17.69  12315   False     3   115216    2.91x
+
+survivors: 5; best cour.ttf-em13-p10 at 4.37x
+
+== cour.ttf-em13-p10: pitch=10 rows/page=126 fill=83% ratio=4.37x ==
+    [FAIL] gates == G0-G9 exactly   tok=993 -> GO1, GO2, GO3, GO4, GO5, GO6, GO7, GO8, GO9, GO10, GO11, GO12, GO13, GO14, GO15, GO16, GO17, GO18, GO19, GO20, GO21, GO22, GO23, GO24, GO25,
+    [FAIL] gate count == 10         tok=980 -> 15
+    [FAIL] terminals named          tok=978 -> G1, G2, G3, G4, G5, G6, G7, G8, G9, G10, G11
+
+== cour.ttf-em14-p11: pitch=11 rows/page=115 fill=86% ratio=4.37x ==
+    [FAIL] gates == G0-G9 exactly   tok=1025 -> G0, G1, G2, G3, G4, G5, G6, G7, G8, G1, G2, G3, G4, G5, G6, G7, G8, G2, G1, G2, G3, G4, G2
+    [PASS] gate count == 10         tok=1012 -> 10
+    [FAIL] terminals named          tok=1010 -> CLEAN-STATE · SUCCESS · TERMINAL · BLOCKED · TERMINAL · OUT-OF-SCOPE · TERMINAL · WAITING-APPROVAL · TERMINAL · OUT-OF-CONTRACT · TERMINAL
+
+== cour.ttf-em13-p11: pitch=11 rows/page=115 fill=70% ratio=2.91x ==
+    [FAIL] gates == G0-G9 exactly   tok=1025 -> G0, G1, G2, G3, G4, G5, G6, G7, G8, G9, G10, G11
+    [FAIL] gate count == 10         tok=1012 -> 27
+    [FAIL] terminals named          tok=1010 -> G0, G1, G2, G3, G4, G5, G6, G7, G8, G9
+
+done

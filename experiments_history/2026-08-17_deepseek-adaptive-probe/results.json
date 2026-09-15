@@ -1,0 +1,30 @@
+[
+  {
+    "case": "adaptive (suspect)",
+    "status": "200",
+    "reasoning_tokens": 35,
+    "content": "ok",
+    "ms": 3696
+  },
+  {
+    "case": "enabled+high",
+    "status": "200",
+    "reasoning_tokens": 14,
+    "content": "ok",
+    "ms": 1090
+  },
+  {
+    "case": "enabled+max",
+    "status": "200",
+    "reasoning_tokens": 10,
+    "content": "ok",
+    "ms": 947
+  },
+  {
+    "case": "disabled",
+    "status": "200",
+    "reasoning_tokens": null,
+    "content": "ok",
+    "ms": 859
+  }
+]

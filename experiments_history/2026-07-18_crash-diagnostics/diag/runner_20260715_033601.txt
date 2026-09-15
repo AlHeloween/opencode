@@ -1,0 +1,3 @@
+20260714T193602Z_1918a648
+inbox=D:\zPython\opencode\logs\cmd_runner\20260714T193602Z_1918a648\inbox.jsonl
+[session 20260714T193602Z_1918a648: running]

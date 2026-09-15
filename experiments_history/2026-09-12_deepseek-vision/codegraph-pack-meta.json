@@ -1,0 +1,157 @@
+{
+  "db": "D:\\zPython\\opencode\\.codegraph\\codegraph.db",
+  "tables": {
+    "schema_versions": {
+      "rows": 3,
+      "cols": [
+        "version",
+        "applied_at",
+        "description"
+      ]
+    },
+    "nodes": {
+      "rows": 63947,
+      "cols": [
+        "id",
+        "kind",
+        "name",
+        "qualified_name",
+        "file_path",
+        "language",
+        "start_line",
+        "end_line",
+        "start_column",
+        "end_column",
+        "docstring",
+        "signature",
+        "visibility",
+        "is_exported",
+        "is_async",
+        "is_static",
+        "is_abstract",
+        "decorators",
+        "type_parameters",
+        "return_type",
+        "updated_at"
+      ]
+    },
+    "edges": {
+      "rows": 321311,
+      "cols": [
+        "id",
+        "source",
+        "target",
+        "kind",
+        "metadata",
+        "line",
+        "col",
+        "provenance"
+      ]
+    },
+    "sqlite_sequence": {
+      "rows": 2,
+      "cols": [
+        "name",
+        "seq"
+      ]
+    },
+    "files": {
+      "rows": 4558,
+      "cols": [
+        "path",
+        "content_hash",
+        "language",
+        "size",
+        "modified_at",
+        "indexed_at",
+        "node_count",
+        "errors",
+        "generated"
+      ]
+    },
+    "unresolved_refs": {
+      "rows": 162259,
+      "cols": [
+        "id",
+        "from_node_id",
+        "reference_name",
+        "reference_kind",
+        "line",
+        "col",
+        "candidates",
+        "file_path",
+        "language",
+        "status",
+        "name_tail"
+      ]
+    },
+    "nodes_fts": {
+      "rows": 63947,
+      "cols": [
+        "id",
+        "name",
+        "qualified_name",
+        "docstring",
+        "signature"
+      ]
+    },
+    "nodes_fts_data": {
+      "rows": 4495,
+      "cols": [
+        "id",
+        "block"
+      ]
+    },
+    "nodes_fts_idx": {
+      "rows": 3917,
+      "cols": [
+        "segid",
+        "term",
+        "pgno"
+      ]
+    },
+    "nodes_fts_docsize": {
+      "rows": 64009,
+      "cols": [
+        "id",
+        "sz"
+      ]
+    },
+    "nodes_fts_config": {
+      "rows": 1,
+      "cols": [
+        "k",
+        "v"
+      ]
+    },
+    "name_segment_vocab": {
+      "rows": 85533,
+      "cols": [
+        "segment",
+        "name"
+      ]
+    },
+    "project_metadata": {
+      "rows": 5,
+      "cols": [
+        "key",
+        "value",
+        "updated_at"
+      ]
+    },
+    "sqlite_stat1": {
+      "rows": 27,
+      "cols": [
+        "tbl",
+        "idx",
+        "stat"
+      ]
+    }
+  },
+  "pack": {
+    "bytes": 4285188,
+    "chars": 4284986,
+    "lines": 12012,
+    "est_text_tokens": 1286783
+  }
+}

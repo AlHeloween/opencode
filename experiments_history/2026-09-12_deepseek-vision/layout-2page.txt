@@ -1,0 +1,49 @@
+document: 31336 chars, 510 source lines
+cell=8x8 gap=1 -> pitch=9 -> 72 px/char
+budget=1620000 px per page (measured token plateau ~1.6M px)
+2 pages -> each must carry ~15668 chars = 1128096 px of content (70% of budget)
+
+== PRESERVE line breaks ==
+ cols  width_px  rows/all  rows/page  height_px    px/page   budget    fill  aspect   verdict
+---------------------------------------------------------------------------------------------
+   80       640       716        358       3222    2062080     127%             0.2      OVER
+   96       768       652        326       2934    2253312     139%            0.26      OVER
+  110       880       621        311       2799    2463120     152%            0.31      OVER
+  120       960       599        300       2700    2592000     160%            0.36      OVER
+  128      1024       588        294       2646    2709504     167%            0.39      OVER
+  133      1064       583        292       2628    2796192     173%             0.4      OVER
+  140      1120       572        286       2574    2882880     178%            0.44      OVER
+  150      1200       563        282       2538    3045600     188%            0.47      OVER
+  160      1280       551        276       2484    3179520     196%            0.52      OVER
+  176      1408       542        271       2439    3434112     212%            0.58      OVER
+  192      1536       537        269       2421    3718656     230%            0.63      OVER
+  208      1664       534        267       2403    3998592     247%            0.69      OVER
+  224      1792       531        266       2394    4290048     265%            0.75      OVER
+  240      1920       528        264       2376    4561920     282%            0.81      OVER
+
+== REFLOW (join paragraphs) ==
+ cols  width_px  rows/all  rows/page  height_px    px/page   budget    fill  aspect   verdict
+---------------------------------------------------------------------------------------------
+   80       640       641        321       2889    1848960     114%     60%    0.22      OVER
+   96       768       580        290       2610    2004480     124%     55%    0.29      OVER
+  110       880       551        276       2484    2185920     135%     51%    0.35      OVER
+  120       960       530        265       2385    2289600     141%     48%     0.4      OVER
+  128      1024       518        259       2331    2386944     147%     46%    0.44      OVER
+  133      1064       513        257       2313    2461032     152%     45%    0.46      OVER
+  140      1120       503        252       2268    2540160     157%     44%    0.49      OVER
+  150      1200       494        247       2223    2667600     165%     42%    0.54      OVER
+  160      1280       482        241       2169    2776320     171%     40%    0.59      OVER
+  176      1408       473        237       2133    3003264     185%     37%    0.66      OVER
+  192      1536       468        234       2106    3234816     200%     34%    0.73      OVER
+  208      1664       465        233       2097    3489408     215%     32%    0.79      OVER
+  224      1792       462        231       2079    3725568     230%     30%    0.86      OVER
+  240      1920       459        230       2070    3974400     245%     28%    0.93      OVER
+
+== recommendation ==
+  no configuration fits - widen the budget or add pages
+
+== what one page can carry at 8x8+1 ==
+  width=1024 (128 cols): rows=175, capacity=22400 chars, height=1575
+  width=1280 (160 cols): rows=140, capacity=22400 chars, height=1260
+  width=1600 (200 cols): rows=112, capacity=22400 chars, height=1008
+  width=1920 (240 cols): rows=93, capacity=22320 chars, height=837

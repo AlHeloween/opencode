@@ -1,0 +1,69 @@
+  return count >= usable(input)
+}
+
+/** Pure content tokens from symbol count — no overhead, no tokenizer. */
+export function contentTokensFromSymbols(symbols: number): number {
+  if (symbols <= 0) return 0
+  return Math.ceil(symbols / CHARS_PER_TOKEN)
+}
+
+/**
+ * Full request size for safety / context-fit decisions:
+ * `contentTokens + REQUEST_OVERHEAD_TOKENS`. Tokenizer is not used — it
+ * undercounts across providers relative to this empirical formula.
+ */
+export function estimateRequestTokens(contentTokens: number): number {
+  if (contentTokens <= 0) return 0
+  return contentTokens + REQUEST_OVERHEAD_TOKENS
+}
+
+/**
+ * Hard floor: the summary response must always have this much generation room
+ * under the provider limit — otherwise the provider cuts input content.
+ */
+export const SUMMARY_GENERATION_RESERVE_TOKENS = 32_768
+
+/**
+ * True when the full-M summary request + the 32K generation reserve would
+ * exceed the provider limit. Compaction MUST fire before the summary in that
+ * case (user invariant: always ≥32K room for generation, never risk truncated
+ * content). Unknown limits (≤0) never block.
+ */
+export function summaryNeedsCompactFirst(input: { model: Provider.Model; contentTokens: number }): boolean {
+  const limit =
+    TokenCalibration.getObservedLimit(input.model) ?? input.model.limit.input ?? input.model.limit.context
+  if (limit <= 0) return false
+  return estimateRequestTokens(input.contentTokens) + SUMMARY_GENERATION_RESERVE_TOKENS > limit
+}
+
+/**
+ * Content-only tokens from message parts (chars/4).
+ * No tokenizer, no +10k. For cadence callers use
+ * `SessionCompaction.computeOpenWindowTokens` instead.
+ * `model` retained for call-site compatibility (calibration hooks later).
+ *
+ * Media is NOT counted as text (2026-09-07, Alexander): providers bill
+ * video/images by duration/dimensions, not payload bytes — counting the
+ * 2.7M-char base64 of a 1.97 MiB clip as text produced ~688K phantom tokens
+ * and an emergency compaction that silently dropped the video. The real
+ * media cost is measured per-model from provider usage responses
+ * (see media-token-calibration.ts); when a measurement exists it can be
+ * added via `estimateMediaTokens`, never via chars/4.
+ */
+export function estimateContentTokens(msgs: MessageV2.WithParts[], _model: Provider.Model): number {
+  let chars = 0
+  for (const msg of msgs) {
+    for (const part of msg.parts) {
+      if (part.type === "text" && !part.ignored) {
+        chars += part.text.length
+      } else if (part.type === "reasoning") {
+        chars += part.text.length
+      } else if (part.type === "tool" && part.state.status === "completed") {
+        // Tool output text counts; attachments (media/data URLs) do NOT —
+        // they are billed by the provider per duration/dimensions, not bytes.
+        chars += part.state.output.length
+      }
+    }
+  }
+  return contentTokensFromSymbols(chars)
+}

@@ -1,0 +1,278 @@
+# Page dilution test
+
+Question: list the symbols in `index.ts` (page 1 of the map).
+Ground truth: 2 symbols.
+
+| arm | pages attached | tokens | symbols named | of 2 |
+|---|---:|---:|---:|---:|
+| A page1 only | 1 | 1007 | 1 | 50% |
+
+## A page1 only
+
+```
+context-breakdown.test.ts 1
+fil 1
+index.ts 1
+json 2
+lcm 2
+libs 2
+opencode-ai 2
+scripts 2
+```
+
+| B pages 1-4 | 4 | 3896 | 0 | 0% |
+
+## B pages 1-4
+
+```
+cwd 1
+normalizeWhitespace 1
+isComment 1
+isDirective 1
+stripDirectives 1
+readFileContent 2
+isLastLine 3
+defaultTimeoutExempt 6
+jsonSchema 8
+extractStringValueFromXmlTemplate 26
+parseToolArguments 26
+isStandaloneIdentifier 26
+inputSchema 26
+outputSchema 26
+isSpec 26
+isSpec 26
+isParameter 26
+isDef 26
+isRef 26
+isOpenApiV3Array 26
+extractStringValueFromXmlTemplate 46
+parseToolArguments 46
+isStandaloneIdentifier 46
+parseXmlString 46
+hasToolUse 76
+target 77
+apiUrl 78
+outputSchema 78
+replaceFinalOutput 78
+processToolUse 118
+writeOutput 118
+extractStringValueFromXmlTemplate 138
+parseToolArguments 138
+isStandaloneIdentifier 138
+inputSchema 138
+outputSchema 138
+isSpec 138
+isSpec 138
+isParameter 138
+isDef 138
+isRef 138
+isOpenApiV3Array 138
+extractStringValueFromXmlTemplate 158
+parseToolArguments 158
+isStandaloneIdentifier 158
+unwrapShellCommand 160
+replaceUnquotedExpression 163
+checkFiles 172
+apiBaseUrl 172
+file 172
+stdout 172
+stderr 175
+checkFileChanged 178
+extractAndParseAssistantPrompt 183
+getWorkingDirectory 191
+shellEscape 194
+readFileContent 198
+files 200
+errorMessage 201
+getBashOutput 203
+output 204
+getProcessOutput 206
+process 207
+finalResult 209
+proxyUrl 213
+fetch 218
+apiKey 223
+userMessage 223
+userContent 223
+assistantContent 223
+result 223
+data 223
+messages 223
+model 223
+maxTokens 223
+temperature 223
+apiUrl 224
+headers 228
+body 229
+response 230
+content 230
+ret 230
+lastMessage 230
+contentText 230
+text 230
+statusText 231
+model 238
+maxTokens 238
+temperature 238
+proxyUrl 238
+fetch 238
+headers 238
+body 238
+response 238
+data 238
+content 238
+```
+
+| C all pages | 20 | 19304 | 0 | 0% |
+
+## C all pages
+
+```
+GO_UPSELL_WINDOW 10
+SHOW_LLM_LAST_SEEN_AT 120
+SHOW_DOWN 121
+SHOW_LAST_SEEN_AT 122
+SESSION_PART_MAPPING 30
+SUBAGENT_FOOTER_TSX 54
+TOOL_DIALOG_TIMELINE_ITEMS 44
+REASONING_PARTS 60
+TOOL_STATUS_CONTAINERS 36
+READ_PLAN 126
+WRITE_PLAN 127
+PIPELINE 128
+TASKS 129
+PERMISSION_PROMPT 130
+PERMISSION_EDIT_BODY 131
+FILE_PATH 132
+PY_COMPILE 133
+TWITTER_STRIP_ANSI 134
+CLI_CMD_TUI_PLUGIN_RUNTIME 98
+CACHE_INJECTION_WARNING 32
+TOKEN_CALIBRATION 33
+PROVIDER_ERROR 99
+ABORT_ERROR 34
+TOOL_ERROR 51
+AUTH_ERROR 92
+STRUCTURED_OUTPUT_ERROR 29
+CONTEXT_OVERFLOW_ERROR 31
+UNKNOWN_ERROR 52
+OUTPUT_LENGTH_ERROR 35
+USER_MESSAGE 20
+ASSISTANT_MESSAGE 19
+EVENT 21
+FEATURE 22
+IMAGE 41
+AUDIO 45
+VIDEO 46
+PROMPT 27
+PREFERRED_LANGUAGE 23
+BREAKDOWN_COLOR 24
+CACHED_TOKENS 25
+COMPUTED_TOKENS 26
+LAST_ASSISTANT_WITH_TOKENS 28
+ASSISTANT_INFO 61
+CACHE_READ 62
+MODEL 38
+PROVIDER 39
+TOTAL_COST 16
+TOTAL_TOKENS 17
+INPUT 40
+OUTPUT 42
+REASONING 59
+LIMIT 47
+MESSAGE 37
+REQUESTS 93
+HAS_MORE 94
+CONTENT 15
+SKIP 95
+EMPTY_TABS 96
+TABS 97
+TERMINAL_HANDOFF 55
+SIZING 53
+MESSAGE_GESTURE 49
+SESSION_TAB 48
+TAB_STATE 87
+TAB_STATE_KEY 88
+MODEL_HELPERS 63
+SESSION_MODEL 14
+QUESTIONS 73
+AGENT 69
+PLUGIN 70
+SKILL 71
+SYSTEM 72
+EFFECT 77
+HOOKS 76
+STARTUP 85
+COMMAND 74
+TOOL 68
+HELPERS 18
+ALL_PROJECTS 111
+MCP 43
+DOOM_LOOP 64
+TASK 78
+UTIL_DATA 67
+WRITE_TOOLS 79
+EXACT_WRITE_TOOLS 80
+PYTHON 81
+SCHEMA 82
+CONSTITUTION 83
+OBSERVER 90
+MAIN_WORKTREE 36
+CREATE_WORKTREE 44
+ROOT_CLASS 116
+TERMINAL_TABS 1
+FILE_NAMES 56
+SESSION_LIST 117
+LAYOUT 6
+SESSION_HANDOFF 58
+CLIENT 57
+SHELL 114
+TUI_CONFIG 115
+EACH_PROMPT 84
+READER 89
+XTERM 91
+HTTP 86
+LSP 100
+TREE_SITTER 101
+PROFILES 123
+OUTPUT_FORMAT 4
+FORMAT 9
+TOOL_PREFIX 109
+TOOL_COMPLETED 110
+TOOL_PENDING 112
+TOOL_RUNNING 113
+TOOL_PROGRESS 118
+TOOL_CALL_PROVIDER 7
+TOOL_INVOCATION 5
+TOOL_ERROR 8
+NODE 108
+INSTANCE 64
+PROJECT 3
+SESSION 66
+MESSAGE_V2 2
+CHECKPOINT 88
+REQUEST_DIFF 105
+REVERT 106
+DRIZZLE_ORM 119
+SCHEMA 102
+IS 103
+IST 104
+PLAN 13
+USAGE 12
+DEBUG 11
+COMPLETION 54
+PERMISSION 65
+CONFIG 50
+DOM 75
+LIVE 107
+FOSSIL 77
+SNAPSHOT 76
+INCREMENTAL_CHECKPOINT 88
+```
+
+
+truth:
+```
+index.ts 1
+/session/composer 1
+```

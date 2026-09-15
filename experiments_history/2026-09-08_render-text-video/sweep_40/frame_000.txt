@@ -1,0 +1,40 @@
+import type { Config } from "@/config/config"
+import type { Provider } from "@/provider/provider"
+import { ProviderTransform } from "@/provider/transform"
+import type { MessageV2 } from "./message-v2"
+import { TokenCalibration } from "./token-calibration"
+import { MediaTokenCalibration } from "./media-token-calibration"
+
+/** Cap on output-token reserve so huge max_output does not erase 1M windows. */
+const MAX_OUTPUT_RESERVE_TOKENS = 32_768
+const FALLBACK_OUTPUT_RESERVE_TOKENS = 8_192
+
+/** Content body heuristic: ~1 token per 4 symbols (chars). Cadence uses this alone. */
+export const CHARS_PER_TOKEN = 4
+
+/**
+ * Empirical full-request overhead (system prefix, tools schema, framing).
+ * Validated across providers/windows: tokenizers systematically undercount the
+ * real request; `content/4 + 10_000` tracks provider limits better.
+ * Used only on **safety / fit** paths — never on Layer-1 open-window cadence.
+ */
+export const REQUEST_OVERHEAD_TOKENS = 10_000
+
+/**
+ * Default tokens reserved under model limit for a **normal LLM turn**
+ * (framing + output). Mechanistic compact is zero-token — no separate
+ * "leave 15%/20k for compaction model call" slab.
+ */
+export function defaultUsableReserved(model: Provider.Model): number {
+  const out = model.limit.output ?? 0
+  const outputReserve =
+    out > 0 ? Math.min(out, MAX_OUTPUT_RESERVE_TOKENS) : FALLBACK_OUTPUT_RESERVE_TOKENS
+  return REQUEST_OVERHEAD_TOKENS + outputReserve
+}
+
+
+/**
+ * Check if there is enough spare output room for a generation.
+ * Returns true if `limit - used >= outputReserve` (typically 32k).
+ * Used as a pre-flight gate before `llm.stream()` — if false, compact first.
+ */

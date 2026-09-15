@@ -1,0 +1,55 @@
+  }
+
+  existing.updatedAt = Date.now()
+  corrections.set(k, existing)
+}
+
+/** Get the correction factor for a model (default 1.0). */
+export function getFactor(model: Provider.Model): number {
+  return corrections.get(modelKey(model))?.factor ?? 1
+}
+
+/** Get the observed context limit from a previous provider error. */
+export function getObservedLimit(model: Provider.Model): number | undefined {
+  return corrections.get(modelKey(model))?.observedLimit
+}
+
+export * as TokenCalibration from "./token-calibration"
+
+// ===== FILE: packages/opencode/src/session/media-token-calibration.ts =====
+/**
+ * Media token calibration service (2026-09-07, Alexander).
+ *
+ * Media (video/image) does NOT count as text in the chars/4 overflow
+ * estimate — providers bill media by duration/dimensions, not payload bytes
+ * (measured [Exact]: 1.97 MiB mp4 → 2610 prompt tokens, video_tokens: 0).
+ *
+ * The REAL per-item cost is measured from the provider usage response
+ * (`prompt_tokens_details.image_tokens` / `video_tokens` / `audio_tokens`
+ * carried in LanguageModelUsage.raw) and folded into a per-model EMA
+ * persisted in SQLite (media_token_calibration table). Estimates then use
+ * the measured price: `count(media items) × tokens_per_item`.
+ *
+ * Modality gate: only modalities the model supports (capabilities.input.*)
+ * are calibrated or estimated.
+ */
+import { eq, and } from "drizzle-orm"
+import { MediaTokenCalibrationTable } from "./media-token-calibration.sql"
+import { Database } from "@/storage/db"
+import type { Provider } from "@/provider/provider"
+import * as Log from "@opencode-ai/core/util/log"
+
+const log = Log.create({ service: "session.media-token-calibration" })
+
+/** EMA smoothing: 70% old + 30% new observation. */
+const EMA_ALPHA = 0.3
+/** The first observation is trusted as-is (no history to smooth against). */
+export type MediaModality = "video" | "image"
+
+export function modalityFromMime(mime: string): MediaModality | undefined {
+  if (mime.startsWith("video/")) return "video"
+  if (mime.startsWith("image/")) return "image"
+  return undefined
+}
+
+/**

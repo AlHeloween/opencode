@@ -1,0 +1,5 @@
+## 0. WORKFLOW
+gates:
+- G0: UNDERSTAND
+- G1: GROUND
+filler line

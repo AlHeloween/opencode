@@ -1,0 +1,40 @@
+ * added via `estimateMediaTokens`, never via chars/4.
+ */
+export function estimateContentTokens(msgs: MessageV2.WithParts[], _model: Provider.Model): number {
+  let chars = 0
+  for (const msg of msgs) {
+    for (const part of msg.parts) {
+      if (part.type === "text" && !part.ignored) {
+        chars += part.text.length
+      } else if (part.type === "reasoning") {
+        chars += part.text.length
+      } else if (part.type === "tool" && part.state.status === "completed") {
+        // Tool output text counts; attachments (media/data URLs) do NOT —
+        // they are billed by the provider per duration/dimensions, not bytes.
+        chars += part.state.output.length
+      }
+    }
+  }
+  return contentTokensFromSymbols(chars)
+}
+
+/**
+ * Provider-calibrated estimate for media items in the message list:
+ * per-model EMA of measured provider tokens per media item, gated by model
+ * modality support (media-token-calibration.ts). Returns 0 without a
+ * measurement — no heuristics for media, by design.
+ */
+export function estimateMediaTokens(msgs: MessageV2.WithParts[], model: Provider.Model): number {
+  let video = 0
+  let image = 0
+  for (const msg of msgs) {
+    for (const part of msg.parts) {
+      if (part.type !== "file") continue
+      if (part.mime.startsWith("video/")) video++
+      else if (part.mime.startsWith("image/")) image++
+    }
+  }
+  let total = 0
+  if (video > 0) total += MediaTokenCalibration.estimate({ model, modality: "video", count: video })
+  if (image > 0) total += MediaTokenCalibration.estimate({ model, modality: "image", count: image })
+  return total

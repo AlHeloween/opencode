@@ -1,0 +1,57 @@
+   13*  fn todoState
+   24    c idle
+   26*  fn createSessionComposerState
+  198*  ty SessionComposerState
+@session-followup-dock.tsx
+    1  fil session-followup-dock.tsx
+    1  imp solid-js
+    2  imp solid-js/store
+    3  imp @opencode-ai/ui/button
+    4  imp @opencode-ai/ui/dock-surface
+    5  imp @opencode-ai/ui/icon-button
+    6  imp @/context/language
+    8*  fn SessionFollowupDock
+@session-permission-dock.tsx
+    1  fil session-permission-dock.tsx
+    1  imp solid-js
+    2  imp @opencode-ai/sdk/v2
+    3  imp @opencode-ai/ui/button
+    4  imp @opencode-ai/ui/dock-prompt
+    5  imp @opencode-ai/ui/icon
+    6  imp @/context/language
+    8*  fn SessionPermissionDock
+@session-question-dock.tsx
+    1  fil session-question-dock.tsx
+    1  imp solid-js
+    2  imp solid-js/store
+    3  imp @tanstack/solid-query
+    4  imp @opencode-ai/ui/button
+    5  imp @opencode-ai/ui/dock-prompt
+    6  imp @opencode-ai/ui/icon
+    7  imp @opencode-ai/ui/toast
+    8  imp @opencode-ai/sdk/v2
+    9  imp @/context/language
+   10  imp @/context/sdk
+   11  imp @solid-primitives/event-listener
+   12  imp @solid-primitives/resize-observer
+   14    c cache
+   16   fn Mark
+   28   fn Option
+   61*  fn SessionQuestionDock
+@session-request-tree.ts
+    1  fil session-request-tree.ts
+    1  imp @opencode-ai/sdk/v2/client
+    1   rt /session/composer/session-request-tree
+    3   fn sessionTreeRequest
+   36*  fn sessionPermissionRequest
+   45*  fn sessionQuestionRequest
+@session-revert-dock.tsx
+    1  fil session-revert-dock.tsx
+    1  imp solid-js
+    2  imp solid-js/store
+    3  imp @opencode-ai/ui/button
+    4  imp @opencode-ai/ui/dock-surface
+    5  imp @opencode-ai/ui/icon-button
+    6  imp @/context/language
+    8*  fn SessionRevertDock
+@session-todo-dock.tsx

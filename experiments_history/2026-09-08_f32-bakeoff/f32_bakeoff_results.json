@@ -1,0 +1,24 @@
+[
+  {
+    "codec": "PNG (source)",
+    "file": "experiments/render_text_video/sweep_85/frame_000.png",
+    "kb": "136.1",
+    "psnr": "inf"
+  },
+  {
+    "codec": "JPEG q~95",
+    "file": "experiments\\render_text_video\\sweep_85\\frame_000_q90.jpg",
+    "kb": "245.4",
+    "psnr": "55.35"
+  },
+  {
+    "codec": "PNG (source)",
+    "wireAnswer": "4",
+    "correct": true
+  },
+  {
+    "codec": "JPEG",
+    "wireAnswer": "4",
+    "correct": true
+  }
+]

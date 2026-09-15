@@ -1,0 +1,8 @@
+model=deepseek-flash grid=26 count=676 true_sum=376296 jpeg_bytes=500482
+max_tokens=32000 thinking=enabled
+status=200 usage={"prompt_tokens": 1070, "completion_tokens": 15395, "total_tokens": 16465, "prompt_tokens_details": {"cached_tokens": 896}, "completion_tokens_details": {"reasoning_tokens": 15384}, "prompt_cache_hit_tokens": 896, "prompt_cache_miss_tokens": 174}
+model_count=676 model_sum=376296
+sum_correct=True delta=0
+raw_answer:
+COUNT: 676
+SUM: 376296

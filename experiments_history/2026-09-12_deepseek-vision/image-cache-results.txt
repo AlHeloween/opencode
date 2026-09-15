@@ -1,0 +1,61 @@
+# Does a growing image sequence get cached?
+
+model=deepseek-flash pages=3 of 1280x1260, config C (JSON string, 100% fill, pitch 15)
+kernel 31,336 chars -> JSON stream 31,848 chars
+page files: C-p15-page1.webp, C-p15-page2.webp, C-p15-page3.webp
+sizes: 126,852, 120,018, 47,310 bytes
+
+## Page contents
+
+- page 1: chars 0-13,440 | headings: (continuation)
+- page 2: chars 13,440-26,880 | headings: (continuation)
+- page 3: chars 26,880-31,848 | headings: (continuation)
+
+## Growing prefix: one new page per turn
+
+| turn | pages in context | prompt_tokens | cache_hit | cache_miss | hit% | answer |
+|---:|---:|---:|---:|---:|---:|---|
+| 1 | 1 | 990 | 0 | 990 | 0.0% | # WORKFLOW, #2. SHARED RULES, #3. TRUTH-SAFETY, #4. SAFETY-P |
+| 2 | 2 | 3110 | 1152 | 1958 | 37.0% | 11 gates: G0, G1, G2, G3, G4, G5, G6, G7, G8, G9, G10. |
+| 3 | 3 | 6061 | 3072 | 2989 | 50.7% | The identity contracts defined are: PLAN_MODE, BUILD_MODE, R |
+
+## Verdict: caching
+
+- turn 1 (only the first page is new): cache_hit=0, cache_miss=990
+- turn 3 (two more pages in context): cache_hit=3072, cache_miss=2989
+- cache_hit GREW as the prefix grew (0 -> 3072)
+- on the last turn only 2989 tokens were billed as a miss (50.7% of the context came from cache)
+
+## Window capacity: text vs images
+
+| metric | value |
+|---|---|
+| characters per token, TEXT | ~3.33 (vendor: 1 char ~ 0.3 token) |
+| characters per token, IMAGE | **13.96** (13,440 chars in ~963 tokens) |
+| multiplier | **4.19x** |
+
+| context window | as text | as images | gain |
+|---:|---:|---:|---:|
+| 128,000 tokens | 426,240 chars | **1,786,417 chars** | 4.19x |
+| 530,000 tokens | 1,764,900 chars | **7,396,884 chars** | 4.19x |
+| 1,000,000 tokens | 3,330,000 chars | **13,956,386 chars** | 4.19x |
+
+Note the second constraint: the API allows 600 images per request and 64 MiB total,
+which at 126,852 bytes/page is ~529 pages (7,109,760 chars) - in the same range as a large window, so both limits bind together.
+
+## What cached tokens cost
+
+| token type | price per 1M | relative |
+|---|---:|---:|
+| input (cache miss) | $0.15 | 1x |
+| **cache_read (hit)** | **$0.003** | **1/50x** |
+| output | $0.6 | |
+
+A 530k-token context fully cached costs 530,000 x $0.003/1M = **$0.00159** per request.
+The same context billed as fresh input would cost 530,000 x $0.15/1M = **$0.07950** - 50x more.
+
+## Answers received (raw)
+
+- turn 1 (cache_hit 0): # WORKFLOW, #2. SHARED RULES, #3. TRUTH-SAFETY, #4. SAFETY-PRECEDENCE, #5. SIMULATION-ERROR-HANDLING, #6. EVIDENCE-ORDER, #7. DIVERGENCE-PROTOCOL, #8. SEPARATION-OF-PLANNER, #9. CATALOG-INVARIANT, #10. CONTROL-INVARIANT, #11. PLAN-CONTRACT-ENFORCEMENT, #12. BINDING-ENFORCEMENT, #13. CACHE-STABILITY,
+- turn 2 (cache_hit 1152): 11 gates: G0, G1, G2, G3, G4, G5, G6, G7, G8, G9, G10.
+- turn 3 (cache_hit 3072): The identity contracts defined are: PLAN_MODE, BUILD_MODE, REASONING_MODE, ORCHESTRATOR_AGENT, EXPLORER_AGENT, RESEARCHER_AGENT, GENERAL_AGENT, CODER_AGENT, MEDIA_AGENT, and TITLE_AGENT. The hidden title agent present is TITLE_AGENT.

@@ -1,0 +1,77 @@
+[
+  {
+    "old": "Fixed null-byte JSON parse error in acp/agent.ts",
+    "new": "Resolved JSON Parse error (null bytes) in agent.ts",
+    "label": "same"
+  },
+  {
+    "old": "Added sanitizeText() function to strip control characters",
+    "new": "Implemented text sanitization helper for null bytes",
+    "label": "same"
+  },
+  {
+    "old": "EWMA metrics removed from health-window.ts",
+    "new": "Replaced EWMA with p50 medians in health scoring",
+    "label": "same"
+  },
+  {
+    "old": "Removed hardcoded hideDetails for webfetch/task/skill",
+    "new": "Tools now display output by default (webfetch, task, skill)",
+    "label": "same"
+  },
+  {
+    "old": "Log payload naming changed to timestamp with milliseconds",
+    "new": "Payload files now use ISO timestamps instead of counters",
+    "label": "same"
+  },
+  {
+    "old": "Fixed TS errors at lines 457 and 952",
+    "new": "Resolved TypeScript compilation errors in agent module",
+    "label": "same"
+  },
+  {
+    "old": "Compaction system prompt changed to match main agent",
+    "new": "Added GPU acceleration for embedding computation",
+    "label": "different"
+  },
+  {
+    "old": "Updated compaction tests to handle new cache behavior",
+    "new": "Wrote new integration tests for the gateway module",
+    "label": "different"
+  },
+  {
+    "old": "Replaced InlineTool renderBefore with static margin",
+    "new": "Improved TUI rendering performance by removing signal writes",
+    "label": "same"
+  },
+  {
+    "old": "DeepSeek model ID changed from v3 to v4-pro",
+    "new": "Updated model configuration to use latest DeepSeek version",
+    "label": "same"
+  },
+  {
+    "old": "Added type-safe error handling to llm.ts",
+    "new": "Removed database indexes for query optimization",
+    "label": "different"
+  },
+  {
+    "old": "Parallelized compaction estimate calls",
+    "new": "Changed concurrency from sequential to unbounded",
+    "label": "same"
+  },
+  {
+    "old": "Moved date out of system prompt to preserve cache",
+    "new": "Added new system prompt section for environment variables",
+    "label": "different"
+  },
+  {
+    "old": "Added p50 median computation to health-window.ts",
+    "new": "Implemented circular buffer median helper function",
+    "label": "same"
+  },
+  {
+    "old": "Fixed filterCompacted boundary detection bug",
+    "new": "Corrected message ordering in compaction filter",
+    "label": "same"
+  }
+]

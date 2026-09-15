@@ -1,0 +1,38 @@
+model=deepseek-flash cell_w=8 ink=6px (CONSTANT) cols=100 pitches=[9, 10, 11, 12, 14, 16]
+budget=1620000 px | reflowed rows=470 | chars=30636
+
+ pitch  px/char  rows_fit  chars_cap    png_B  vs_text  gates  count  nomut
+---------------------------------------------------------------------------
+     9       72       225      22500     8975    6.28x
+      [FAIL] gates == G0-G9       tok=981 -> The image contains no text or gate identifiers.
+      [FAIL] gate count == 10     tok=980 -> 0
+      [PASS] PLAN_MODE no mutate  tok=983 -> NO
+    10       80       202      20200     8565    5.64x
+      [FAIL] gates == G0-G9       tok=981 -> The image contains no text or gate identifiers. It is a blank page with a faint, scattered dot pattern. Theref
+      [FAIL] gate count == 10     tok=980 -> 0
+      [PASS] PLAN_MODE no mutate  tok=983 -> NO
+    11       88       184      18400     8454    5.13x
+      [FAIL] gates == G0-G9       tok=981 -> The image contains no text or gate identifiers; it is a blank, dotted background. Therefore, there are no iden
+      [FAIL] gate count == 10     tok=980 -> 0
+      [PASS] PLAN_MODE no mutate  tok=983 -> NO
+    12       96       168      16800     8137    4.69x
+      [FAIL] gates == G0-G9       tok=1029 -> The image contains no text or discernible content.
+      [FAIL] gate count == 10     tok=1028 -> 0
+      [PASS] PLAN_MODE no mutate  tok=1031 -> NO
+    14      112       144      14400     7769    4.02x
+      [FAIL] gates == G0-G9       tok=1029 -> The image contains no text or gate identifiers; it is completely blank.
+      [FAIL] gate count == 10     tok=1028 -> 0
+      [PASS] PLAN_MODE no mutate  tok=1031 -> NO
+    16      128       126      12600     7509    3.52x
+      [FAIL] gates == G0-G9       tok=1029 -> The image has been processed to extract the text. However, no text was found in the provided image.
+      [FAIL] gate count == 10     tok=1028 -> 0
+      [PASS] PLAN_MODE no mutate  tok=1031 -> NO
+
+== control: ink 24 px, pitch 30 ==
+    control -> G0 | G1 | G2 | G3 | G4 | G5 | G6 | G7 | G8 | G9 | SIMULATION_ERROR | M0 | L1_O1 | O0
+    control gate set = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+== summary ==
+  gates == G0-G9       0/6: -
+  gate count == 10     0/6: -
+  PLAN_MODE no mutate  6/6: pitch10, pitch11, pitch12, pitch14, pitch16, pitch9

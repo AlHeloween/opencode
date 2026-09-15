@@ -1,0 +1,30 @@
+Verification of the archived failing configuration (read back from pixels).
+
+--- FAILING: ink 6px, pitch 9px ---
+file         : failed-8x8-dense.png (8975 bytes)
+size         : 800x2025 px
+cell/pitch   : 8px / 9px
+grid         : 100 cols x 225 rows = 22500 cells
+ink coverage : 0.09% of page pixels
+cells with ink: 1406 | empty cells: 21094
+avg ink/cell : 1.0 px  (of 72 px cell)
+horizontal ink runs in top 200 rows: 19
+gap lengths between runs: [2, 16, 18, 8, 16, 7, 8, 9, 7, 8, 7, 8]
+median gap   : 8 px
+
+--- CONTROL: ink 24px, pitch 30px ---
+file         : control-24px.png (24102 bytes)
+size         : 960x1800 px
+cell/pitch   : 24px / 30px
+grid         : 40 cols x 60 rows = 2400 cells
+ink coverage : 1.76% of page pixels
+cells with ink: 1816 | empty cells: 584
+avg ink/cell : 16.8 px  (of 720 px cell)
+horizontal ink runs in top 200 rows: 5
+gap lengths between runs: [7, 49, 19, 20, 19]
+median gap   : 19 px
+
+interpretation:
+  ink/cell near 6-8 px at cell 8x9 px means the glyph occupies a tiny fraction
+  of its cell, and adjacent lines are separated by only 1-2 px of white -
+  which is why the model reports a scattered dot pattern rather than text.

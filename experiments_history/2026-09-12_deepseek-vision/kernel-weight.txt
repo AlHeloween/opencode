@@ -1,0 +1,30 @@
+kernel: packages\opencode\src\session\prompt\reasoning_prompt.txt
+  31336 chars, 510 source lines
+geometry: adv=8px em=14 ink_h=9px pitch=15px cols=160
+page: 1280x1260 px (1.61M px, within the 1.62M budget)
+rows/page=84 capacity=13440 cells
+
+== 5 page(s) ==
+ page  rows   chars  inked_cells  ink/glyph       PNG      WebP  WP/PNG
+------------------------------------------------------------------------
+    1    84   10045         9222      18.43    144125     96100    0.67
+    2    84    6439         5947      19.06    108920     66504    0.61
+    3    84    7872         7265      18.83    127145     75386    0.59
+    4    84    5968         5504      18.73    104959     59474    0.57
+    5    10     436          401      19.21     12880      5650    0.44
+
+total drawn glyphs : 30760
+document chars     : 31336
+coverage           : 98.2%
+
+== weight ==
+PNG total                 498029 bytes  (486 KiB)
+WebP total                303114 bytes  (296 KiB)
+WebP per page (avg)        60623 bytes
+bytes per glyph             9.85
+
+== cost in tokens ==
+as text                ~    8953 tokens
+as image               ~    5120 tokens  (5 page(s) x ~1024)
+ratio                      1.75x cheaper as image
+body size limit            0.6% of the 48 MiB request body

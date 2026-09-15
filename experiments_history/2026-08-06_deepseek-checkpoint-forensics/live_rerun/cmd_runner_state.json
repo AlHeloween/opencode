@@ -1,0 +1,20 @@
+﻿{
+  "status": "running",
+  "pids": [
+    4764
+  ],
+  "exit_code": null,
+  "started_utc": "2026-08-05T23:36:02Z",
+  "finished_utc": null,
+  "stopped_utc": null,
+  "timeout_utc": null,
+  "backend": "raw-pipe",
+  "log": {
+    "limit_bytes": 52428800,
+    "bytes_written": 0,
+    "bytes_dropped": 0,
+    "truncated": false
+  },
+  "creation_tick": 0,
+  "notes": "started"
+}

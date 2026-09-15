@@ -1,0 +1,57 @@
+model=deepseek-flash canvas=2048x2048 cell=8x8 grid=256x256 = 65536 characters seed=99
+glyphs: hand-coded 3x5 bitmap, integer-scaled, 1-bit canvas (no antialiasing)
+
+== P1: lossless (PNG) ceiling at 8x8 px per character ==
+ canvas  cell  grid   chars  scale  png_bytes  first row   last row
+--------------------------------------------------------------------------
+   2048     8   256   65536      1     198088
+         first row:  27/256 =  10.5%  tok=1043  (read 256 chars)
+          last row:  19/256 =   7.4%  tok=1043  (read 256 chars)
+   2048    16   128   16384      2      72764
+         first row:  13/128 =  10.2%  tok=1043  (read 168 chars)
+          last row:  14/128 =  10.9%  tok=1043  (read 158 chars)
+   2048    32    64    4096      5      30699
+         first row:   7/64 =  10.9%  tok=1043  (read 80 chars)
+          last row:   6/64 =   9.4%  tok=1043  (read 70 chars)
+no grid read perfectly even lossless
+
+== P2: size ladder at grid=64 (4096 chars, cell=32px, glyph=15x25px ink) ==
+reference: lossless PNG = 30699 bytes
+target_KB    bytes   q  scale  B/char     bpp    first     last
+---------------------------------------------------------------
+      100    72239  40    0.2   17.64  0.1378 (downscaled x0.2)
+         first row:   5/64 =   7.8%  tok=233  (read 64 chars)
+          last row:   5/64 =   7.8%  tok=233  (read 64 chars)
+       80    72239  40    0.2   17.64  0.1378 (downscaled x0.2)
+         first row:   7/64 =  10.9%  tok=233  (read 64 chars)
+          last row:   6/64 =   9.4%  tok=233  (read 62 chars)
+       60    72239  40    0.2   17.64  0.1378 (downscaled x0.2)
+         first row:   3/64 =   4.7%  tok=233  (read 64 chars)
+          last row:   5/64 =   7.8%  tok=233  (read 66 chars)
+       50    72239  40    0.2   17.64  0.1378 (downscaled x0.2)
+         first row:   6/64 =   9.4%  tok=233  (read 64 chars)
+          last row:   5/64 =   7.8%  tok=233  (read 64 chars)
+       40    72239  40    0.2   17.64  0.1378 (downscaled x0.2)
+         first row:   8/64 =  12.5%  tok=233  (read 64 chars)
+          last row:   5/64 =   7.8%  tok=233  (read 64 chars)
+       30    72239  40    0.2   17.64  0.1378 (downscaled x0.2)
+         first row:   8/64 =  12.5%  tok=233  (read 64 chars)
+          last row:   2/64 =   3.1%  tok=233  (read 64 chars)
+       20    72239  40    0.2   17.64  0.1378 (downscaled x0.2)
+         first row:   3/64 =   4.7%  tok=233  (read 64 chars)
+          last row:   3/64 =   4.7%  tok=233  (read 50 chars)
+       15    72239  40    0.2   17.64  0.1378 (downscaled x0.2)
+         first row:   8/64 =  12.5%  tok=233  (read 73 chars)
+          last row:   5/64 =   7.8%  tok=233  (read 64 chars)
+       10    72239  40    0.2   17.64  0.1378 (downscaled x0.2)
+         first row:   4/64 =   6.2%  tok=233  (read 58 chars)
+          last row:   4/64 =   6.2%  tok=233  (read 70 chars)
+        7    72239  40    0.2   17.64  0.1378 (downscaled x0.2)
+         first row:   7/64 =  10.9%  tok=233  (read 68 chars)
+          last row:   5/64 =   7.8%  tok=233  (read 64 chars)
+        5    72239  40    0.2   17.64  0.1378 (downscaled x0.2)
+         first row:   8/64 =  12.5%  tok=233  (read 64 chars)
+          last row:   9/64 =  14.1%  tok=233  (read 64 chars)
+        3    72239  40    0.2   17.64  0.1378 (downscaled x0.2)
+         first row:  11/64 =  17.2%  tok=233  (read 64 chars)
+          last row:   8/64 =  12.5%  tok=233  (read 64 chars)

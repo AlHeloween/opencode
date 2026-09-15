@@ -1,0 +1,116 @@
+{
+  "lines": 1181,
+  "chars": 51705,
+  "funcs": [
+    "isLayer1SummaryText",
+    "isLayer1SummaryMessage",
+    "formatExactSystemStamp",
+    "formatLayer1SummaryDisplay",
+    "isMessageStar",
+    "messageText",
+    "contentChars",
+    "isSummaryAssistant",
+    "selectRecentTail",
+    "computeOutputSinceLastSummary",
+    "isSummaryRequestMessage",
+    "isTerminalSummaryRequestMessage",
+    "summaryTerminalMarker",
+    "summaryAttemptCount",
+    "layer1SummaryThreshold",
+    "computeOpenWindowTokens",
+    "hasFoldableContent",
+    "hasPendingSummaryRequest",
+    "isValidSummaryBody",
+    "diagnoseSummaryGaps",
+    "gapFillRequest",
+    "mergeSummarySections",
+    "isAssistantTurnComplete",
+    "extractSemanticVector",
+    "summaryRequestProse",
+    "extractDecisions",
+    "renderSummaryBlock",
+    "stripReminderBlocks",
+    "collapseToolOutput",
+    "tailContentChars",
+    "tailMessageText",
+    "buildMessageStar",
+    "extractSummaryLinks"
+  ],
+  "consts": [
+    {
+      "name": "log",
+      "value": "Log.create({ service: \"session.compaction\" })"
+    },
+    {
+      "name": "Event",
+      "value": "{"
+    },
+    {
+      "name": "SUMMARY_INTERVAL_TOKENS",
+      "value": "65_536"
+    },
+    {
+      "name": "MAX_SUMMARY_ATTEMPTS",
+      "value": "2"
+    },
+    {
+      "name": "RECENT_MIN_TOKENS",
+      "value": "32_768"
+    },
+    {
+      "name": "MAX_SUMMARY_BODY_TOKENS",
+      "value": "16_384"
+    },
+    {
+      "name": "CHARS_PER_TOKEN",
+      "value": "4"
+    },
+    {
+      "name": "SUMMARY_TERMINAL_MARKER",
+      "value": "\"<!-- summary-terminal -->\""
+    },
+    {
+      "name": "LAYER1_SUMMARY_MARKER",
+      "value": "\""
+    },
+    {
+      "name": "EXACT_SYSTEM_MARKER",
+      "value": "\"--- Exact (system) ---\""
+    },
+    {
+      "name": "TAIL_TOOL_KEEP_FULL",
+      "value": "3"
+    },
+    {
+      "name": "TAIL_TOOL_HEAD_LINES",
+      "value": "40"
+    },
+    {
+      "name": "TAIL_TOOL_TAIL_LINES",
+      "value": "10"
+    },
+    {
+      "name": "DECISIONS_MAX_CHARS",
+      "value": "8_192"
+    },
+    {
+      "name": "defaultLayer",
+      "value": "Layer.suspend(()"
+    },
+    {
+      "name": "compact",
+      "value": "fn("
+    }
+  ],
+  "numbers": {
+    "SUMMARY_INTERVAL_TOKENS": 65536,
+    "MAX_SUMMARY_ATTEMPTS": 2,
+    "RECENT_MIN_TOKENS": 32768,
+    "MAX_SUMMARY_BODY_TOKENS": 16384,
+    "CHARS_PER_TOKEN": 4,
+    "TAIL_TOOL_KEEP_FULL": 3,
+    "TAIL_TOOL_HEAD_LINES": 40,
+    "TAIL_TOOL_TAIL_LINES": 10,
+    "DECISIONS_MAX_CHARS": 8192
+  }
+}

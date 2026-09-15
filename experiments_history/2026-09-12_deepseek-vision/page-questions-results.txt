@@ -1,0 +1,148 @@
+model=deepseek-flash source=packages\opencode\src\session\prompt\reasoning_prompt.txt
+document 31336 chars | as TEXT ~8953 tokens | as IMAGE <= ~1024 tokens
+fonts body=consola.ttf bold=consolab.ttf max_side=8192
+
+== c16x3col: em=29 adv=16 page=3712x7594 (28.19M px) PNG=1759044B bits/char=456.3
+   economics: 30840 chars | text ~8953 tok | image <=1024 tok | compression ratio 8.74x
+    [FAIL] gates listed in order      tok=983
+          -> G0 | G1 | G2 | G3 | G4 | G5 | G6 | G7
+    [FAIL] G4 allowed identities      tok=972
+          -> CISO, LEGAL, PRIVACY, INTERNAL_AUDIT
+    [FAIL] plan lifecycle states      tok=982
+          -> A master plan starts as a draft and becomes content only after G4.
+    [FAIL] who may not mutate         tok=976
+          -> ImmutableCore; "This scope forbids mutation."
+    [PASS] false-statement check      tok=990
+          -> NO
+   -- c16x3col jpeg q85: 5952798 B
+    [FAIL] gates listed in order      tok=983
+          -> CALC_TOTAL_LOAD | SYSTEM_INIT | START_TIMER | CYCLE | PROCESS_LOAD_DEV | CALC_UNIT_PRICE | CAST_UNIT_PRICE | LOGIC_OUT | CALC_LNG_PRICE | CAST_LNG_PRICE | CALC_BIO_PRICE | CAST_BIO_P
+    [FAIL] G4 allowed identities      tok=972
+          -> PROJECT MANAGER, SYSTEM ADMINISTRATOR, MACHINE OPERATOR
+    [FAIL] plan lifecycle states      tok=982
+          -> An idea, and then a law.
+    [FAIL] who may not mutate         tok=976
+          -> ImmutableModel; "...forbids any mutation"
+    [PASS] false-statement check      tok=990
+          -> NO
+   -- c16x3col jpeg q60: 3984982 B
+    [PASS] gates listed in order      tok=983
+          -> G0 | G1 | G2 | G3 | G4 | G5 | G6 | G7 | G8 | G9
+    [FAIL] G4 allowed identities      tok=972
+          -> TEACHER, STUDENT, CENTRAL ADMIN
+    [FAIL] plan lifecycle states      tok=982
+          -> A master plan starts as a hypothesis and becomes binding only after G4.
+    [FAIL] who may not mutate         tok=976
+          -> SHADER PROGRAMMER, “The shader programmer's role is immutable”
+    [PASS] false-statement check      tok=990
+          -> NO
+   -- c16x3col jpeg q40: 3251054 B
+    [FAIL] gates listed in order      tok=983
+          -> G0 | G1 | G2 | G3 | G4
+    [FAIL] G4 allowed identities      tok=972
+          -> WHO SITE OFFICER, AMBULATORY CARE, HEAD NURSE, SENIOR NURSE
+    [FAIL] plan lifecycle states      tok=982
+          -> A master plan starts as static JSON and becomes an executable contract after G4.
+    [FAIL] who may not mutate         tok=976
+          -> IMMUTABLE STORAGE: “storage whose scope forbids mutation and provides a root data pointer, plus derived read-only views”
+    [PASS] false-statement check      tok=990
+          -> NO
+
+== c12x3col: em=21 adv=12 page=2784x5570 (15.51M px) PNG=1083087B bits/char=280.96
+   economics: 30840 chars | text ~8953 tok | image <=1024 tok | compression ratio 8.74x
+    [FAIL] gates listed in order      tok=1049
+          -> G0 | G1 | G2 | G3 | G4 | G5 | G6
+    [FAIL] G4 allowed identities      tok=1038
+          -> identity.manager, compliance.officer, legal.counsel, cro, cfo
+    [FAIL] plan lifecycle states      tok=1048
+          -> It starts as DRAFT and becomes a full working plan only after G4.
+    [FAIL] who may not mutate         tok=1042
+          -> 'const' (scope 03) — "Any later change to the binding, or any attempt to rebind it, is forbidden."
+    [PASS] false-statement check      tok=1056
+          -> NO
+   -- c12x3col jpeg q85: 3859013 B
+    [FAIL] gates listed in order      tok=1049
+          -> G0 | G1 | G2 | G3 | G4 | G5
+    [FAIL] G4 allowed identities      tok=1038
+          -> AUDITOR, REVIEWER, ONTOLOGY_ENGINEER, RETRIEVAL_ENGINEER
+    [FAIL] plan lifecycle states      tok=1048
+          -> A master plan starts as a mission and becomes a world model only after G4.
+    [FAIL] who may not mutate         tok=1042
+          -> AUDITOR role; "Grant read-only access to the external auditor role." |  | (Alternatively: AUDITOR); "AUDITOR: read only" or "AUDITOR: read only; no writes" dependin
+    [PASS] false-statement check      tok=1056
+          -> NO
+   -- c12x3col jpeg q60: 2565640 B
+    [FAIL] gates listed in order      tok=1049
+          -> GATE_1 | GATE_2 | GATE_3 | GATE_4 | GATE_5 | GATE_6 | GATE_7 | GATE_8 | GATE_9 | GATE_10 | GATE_11 | GATE_12 | GATE_13 | GATE_14 | GATE_15 | GATE_16 | GATE_17 | GATE_18 | GATE_19 | GATE_20 | GATE_21 | G
+    [FAIL] G4 allowed identities      tok=1038
+          -> PROJECT_MANAGER, CLIENT, TECH_LEAD
+    [FAIL] plan lifecycle states      tok=1048
+          -> A master plan starts as a draft document, and becomes authoritative and executable only after G4.
+    [FAIL] who may not mutate         tok=1042
+          -> An immutable role (immutable); the phrase "immutable role (immutable);" appears in the document.
+    [PASS] false-statement check      tok=1056
+          -> NO
+   -- c12x3col jpeg q40: 2079754 B
+    [PASS] gates listed in order      tok=1049
+          -> G0 | G1 | G2 | G3 | G4 | G5 | G6 | G7 | G8 | G9 | G10 | G11 | G12 | G13 | G14 | G15 | G16 | G17 | G18 | G19 | G20 | G21 | G22 | G23 | G24 | G25 | G26 | G27 | G28 | G29 | G30 | G31 | G32 | G33 | G34 | G35 | G36 | G37 | G38 | G39 | G40 | G41 | G4
+    [FAIL] G4 allowed identities      tok=1038
+          -> GATEKEEPER, ORCHESTRATOR, ARCHITECT, SENTINEL, VALIDATOR
+    [FAIL] plan lifecycle states      tok=1048
+          -> DRAFT / PROVISIONAL; COMMITTED
+    [FAIL] who may not mutate         tok=1042
+          -> ANSWER role; phrase: "does not include ... mutation".
+    [PASS] false-statement check      tok=1056
+          -> NO
+
+== c10x3col: em=18 adv=10 page=2320x4809 (11.16M px) PNG=873914B bits/char=226.7
+   economics: 30840 chars | text ~8953 tok | image <=1024 tok | compression ratio 8.74x
+    [FAIL] gates listed in order      tok=1005
+          -> START_WORKFLOW | INTENT_CLASSIFICATION | POWER_AUTOMATION_SELECTION | PROTOCOL_RESOLUTION | SESSION_ESTABLISHMENT | WORKFLOW_DEFINITION | WORKFLOW_EXECUTION | ERROR_HANDLING | 
+    [FAIL] G4 allowed identities      tok=994
+          -> SENIOR ARCHITECT, ARCHITECTURAL DESIGNER
+    [FAIL] plan lifecycle states      tok=1004
+          -> A master plan starts in DRAFT and becomes FROZEN only after G4.
+    [FAIL] who may not mutate         tok=998
+          -> READ-ONLY SCOPE; "This scope provides read-only access and must not modify existing resources."
+    [PASS] false-statement check      tok=1012
+          -> NO
+   -- c10x3col jpeg q85: 3133059 B
+    [FAIL] gates listed in order      tok=1005
+          -> INTENT_CLASSIFICATION | DOMAIN_AND_POLICY | NORMALIZATION | ENTITY_EXTRACTION | TOOL_SELECTION | SAFETY_RISK_CHECK | ESCALATION_DECISION | ANSWER_GENERATION | VERIFICATION | FINA
+    [FAIL] G4 allowed identities      tok=994
+          -> omits, director, supervisor, and assessor.
+    [FAIL] plan lifecycle states      tok=1004
+          -> It starts as a plan and only becomes state after G4.
+    [FAIL] who may not mutate         tok=998
+          -> WORKER: "Tool mutation is not allowed in this state."
+    [PASS] false-statement check      tok=1012
+          -> NO
+   -- c10x3col jpeg q60: 2095048 B
+    [FAIL] gates listed in order      tok=1005
+          -> G0, G1, G2, G3, G4, G5
+    [FAIL] G4 allowed identities      tok=994
+          -> security-admin, security-auditor
+    [FAIL] plan lifecycle states      tok=1004
+          -> The master plan is created and approved in PLAN state; only after G4, G5, and G6 approve it does it become a frozen execution specification.
+    [FAIL] who may not mutate         tok=998
+          -> Scope Lock Role; "Scope Lock Role: read-only comparative analysis only; no mutation."
+    [PASS] false-statement check      tok=1012
+          -> NO
+   -- c10x3col jpeg q40: 1698351 B
+    [PASS] gates listed in order      tok=1005
+          -> G0, G1, G2, G3, G4, G5, G6, G7, G8, G9
+    [FAIL] G4 allowed identities      tok=994
+          -> reviewer, approver, arbiter, admin
+    [FAIL] plan lifecycle states      tok=1004
+          -> A master plan starts as a coarse-grained descriptive plan and becomes a formal executable plan only after G4.
+    [FAIL] who may not mutate         tok=998
+          -> READ-ONLY, quote: 'This scope explicitly forbids mutation of the DOM.'
+    [PASS] false-statement check      tok=1012
+          -> NO
+
+== summary ==
+  gates listed in order      3/12 pass: c10x3col/q40, c12x3col/q40, c16x3col/q60
+  G4 allowed identities      0/12 pass: -
+  plan lifecycle states      0/12 pass: -
+  who may not mutate         0/12 pass: -
+  false-statement check      12/12 pass: c10x3col/png, c10x3col/q40, c10x3col/q60, c10x3col/q85, c12x3col/png, c12x3col/q40, c12x3col/q60, c12x3col/q85, c16x3col/png, c16x3col/q40, c16x3col/q60, c16x3col/q85

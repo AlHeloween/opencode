@@ -1,0 +1,110 @@
+{
+  "model": "deepseek-v4-pro",
+  "timestamp": "20260814T151512Z",
+  "runs": {
+    "big_default": [
+      {
+        "turn": 1,
+        "ms": 7069,
+        "prompt": 48147,
+        "hit": 128,
+        "miss": 48019,
+        "completion": 25,
+        "reasoning": 23,
+        "reason_echo": 117,
+        "answer_chars": 5,
+        "question_chars": 74,
+        "balanced": true
+      },
+      {
+        "turn": 2,
+        "ms": 2421,
+        "prompt": 48177,
+        "hit": 48128,
+        "miss": 49,
+        "completion": 84,
+        "reasoning": 79,
+        "reason_echo": 323,
+        "answer_chars": 15,
+        "question_chars": 109,
+        "balanced": true
+      },
+      {
+        "turn": 3,
+        "ms": 2347,
+        "prompt": 48192,
+        "hit": 48128,
+        "miss": 64,
+        "completion": 35,
+        "reasoning": 31,
+        "reason_echo": 119,
+        "answer_chars": 6,
+        "question_chars": 26,
+        "balanced": true
+      },
+      {
+        "turn": 4,
+        "ms": 4143,
+        "prompt": 48211,
+        "hit": 48128,
+        "miss": 83,
+        "completion": 235,
+        "reasoning": 218,
+        "reason_echo": 832,
+        "answer_chars": 45,
+        "question_chars": 54,
+        "balanced": true
+      },
+      {
+        "turn": 5,
+        "ms": 1836,
+        "prompt": 48238,
+        "hit": 48128,
+        "miss": 110,
+        "completion": 25,
+        "reasoning": 21,
+        "reason_echo": 78,
+        "answer_chars": 6,
+        "question_chars": 26,
+        "balanced": true
+      },
+      {
+        "turn": 6,
+        "ms": 30435,
+        "prompt": 48260,
+        "hit": 48128,
+        "miss": 132,
+        "completion": 2048,
+        "reasoning": 2048,
+        "reason_echo": 8834,
+        "answer_chars": 0,
+        "question_chars": 62,
+        "balanced": true
+      }
+    ]
+  },
+  "verification": {
+    "big_default": {
+      "series": "big_default",
+      "turns": 6,
+      "balanced_all": true,
+      "hit_ratio_avg": 0.8323,
+      "hit_ratio_max": 0.999,
+      "miss_tail_turns_after_first": [
+        49,
+        64,
+        83,
+        110,
+        132
+      ],
+      "median_ms_hit": 3282.0,
+      "median_ms_cold": null,
+      "reasoning_turn1": 23,
+      "reasoning_any": true,
+      "hits_64_lattice": true,
+      "hits_128_lattice": true,
+      "est_cost_usd": 0.024085,
+      "prompt_growth_slope": 22.6
+    }
+  }
+}

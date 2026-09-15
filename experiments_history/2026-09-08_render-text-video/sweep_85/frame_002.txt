@@ -1,0 +1,40 @@
+  msgs: MessageV2.WithParts[]
+  model: Provider.Model
+}) {
+  if (input.cfg.compaction?.auto === false) return false
+  if (input.model.limit.context === 0) return false
+  if (input.msgs.length === 0) return false
+
+  // Text via chars/4 + media via the per-model provider-calibrated EMA
+  // (0 until a measurement exists — no heuristics for media).
+  const content =
+    estimateContentTokens(input.msgs, input.model) + estimateMediaTokens(input.msgs, input.model)
+  const count = estimateRequestTokens(content)
+  const output = ProviderTransform.maxOutputTokens(input.model, undefined, count)
+  return count >= usable(input) || count + output >= input.model.limit.context
+}
+
+/**
+ * Mechanistic Layer-2 compact **gate** (zero LLM tokens — pure fold to m*).
+ *
+ * Callers pass **full visible** content tokens (chars/4) and a **model-sized**
+ * target — typically `usable({ cfg, model })` — **not** Layer-1's 65_536.
+ * Layer-1 sidecar cadence is separate (`SUMMARY_INTERVAL_TOKENS` / open window).
+ *
+ * Avoids importing compaction.ts (cycle: compaction → overflow).
+ */
+export function needsContentCompaction(input: {
+  cfg: Config.Info
+  /** Full visible content tokens (chars/4) for Layer-2; not open-since-s. */
+  openTokens: number
+  /**
+   * Fold threshold. Layer-2 must pass `usable(model)` (or similar model room).
+   * Do **not** pass SUMMARY_INTERVAL_TOKENS (65k) — that is Layer-1 s only.
+   */
+  target: number
+}) {
+  if (input.cfg.compaction?.auto === false) return false
+  if (input.openTokens <= 0) return false
+  const target = Math.max(1, input.target)
+  return input.openTokens >= target
+}

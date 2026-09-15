@@ -1,0 +1,1 @@
+{"id":"l-0001","time_ms":1788763080976,"ts":"2026-09-07T06:38:00.976Z","op":"log","level":"INFO","message":"resolve-dxc: DirectX Compiler DLLs resolved — WebGPU should initialize","model":"system","session_id":"internal","version":"10.0.921","caller":"chunk-ydabkyde.js:1085","service":"util.resolve-dxc"}

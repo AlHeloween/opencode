@@ -1,0 +1,98 @@
+[
+  {
+    "probe": "P2-density",
+    "linesPerFrame": 40,
+    "depth": "frame-0",
+    "truth": "4",
+    "answer": "4",
+    "correct": true,
+    "promptTokens": 14418,
+    "reasoningTokens": 69,
+    "cost": 0.00109985
+  },
+  {
+    "probe": "P2-density",
+    "linesPerFrame": 40,
+    "depth": "deep",
+    "truth": "32768",
+    "answer": "32768",
+    "correct": true,
+    "promptTokens": 14421,
+    "reasoningTokens": 732,
+    "cost": 0.000401825
+  },
+  {
+    "probe": "P2-density",
+    "linesPerFrame": 70,
+    "depth": "frame-0",
+    "truth": "4",
+    "answer": "4",
+    "correct": true,
+    "promptTokens": 9628,
+    "reasoningTokens": 100,
+    "cost": 0.0007481
+  },
+  {
+    "probe": "P2-density",
+    "linesPerFrame": 70,
+    "depth": "deep",
+    "truth": "32768",
+    "answer": "32768",
+    "correct": true,
+    "promptTokens": 9631,
+    "reasoningTokens": 209,
+    "cost": 0.000199825
+  },
+  {
+    "probe": "P2-density",
+    "linesPerFrame": 85,
+    "depth": "frame-0",
+    "truth": "4",
+    "answer": "4",
+    "correct": true,
+    "promptTokens": 9628,
+    "reasoningTokens": 1285,
+    "cost": 0.0010446
+  },
+  {
+    "probe": "P2-density",
+    "linesPerFrame": 85,
+    "depth": "deep",
+    "truth": "32768",
+    "answer": "32768",
+    "correct": true,
+    "promptTokens": 9631,
+    "reasoningTokens": 325,
+    "cost": 0.000228825
+  },
+  {
+    "probe": "batch-3files",
+    "depth": "cross-file:overflow.ts",
+    "truth": "4",
+    "answer": "4",
+    "correct": true,
+    "promptTokens": 23998,
+    "reasoningTokens": 211,
+    "cost": 0.00185335
+  },
+  {
+    "probe": "batch-3files",
+    "depth": "cross-file:media-token-calibration.ts",
+    "truth": "0.3",
+    "answer": "0.3",
+    "correct": true,
+    "promptTokens": 23997,
+    "reasoningTokens": 402,
+    "cost": 0.001901525
+  },
+  {
+    "probe": "duration-AB",
+    "depth": "36s vs 18s",
+    "truth": "4",
+    "answer": "4",
+    "correct": true,
+    "promptTokens": 23998,
+    "reasoningTokens": 197,
+    "cost": 0.0018501
+  }
+]

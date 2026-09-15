@@ -1,0 +1,82 @@
+{
+  "model": "deepseek-v4-pro",
+  "timestamp": "20260814T152059Z",
+  "runs": {
+    "no_think": [
+      {
+        "turn": 1,
+        "ms": 6208,
+        "prompt": 48068,
+        "hit": 0,
+        "miss": 48068,
+        "completion": 1,
+        "reasoning": null,
+        "reason_echo": 0,
+        "answer_chars": 5,
+        "question_chars": 74,
+        "balanced": true
+      },
+      {
+        "turn": 2,
+        "ms": 1623,
+        "prompt": 48098,
+        "hit": 48000,
+        "miss": 98,
+        "completion": 4,
+        "reasoning": null,
+        "reason_echo": 0,
+        "answer_chars": 15,
+        "question_chars": 109,
+        "balanced": true
+      },
+      {
+        "turn": 3,
+        "ms": 1172,
+        "prompt": 48113,
+        "hit": 48000,
+        "miss": 113,
+        "completion": 3,
+        "reasoning": null,
+        "reason_echo": 0,
+        "answer_chars": 6,
+        "question_chars": 26,
+        "balanced": true
+      },
+      {
+        "turn": 4,
+        "ms": 1272,
+        "prompt": 48132,
+        "hit": 48000,
+        "miss": 132,
+        "completion": 7,
+        "reasoning": null,
+        "reason_echo": 0,
+        "answer_chars": 39,
+        "question_chars": 54,
+        "balanced": true
+      }
+    ]
+  },
+  "verification": {
+    "no_think": {
+      "series": "no_think",
+      "turns": 4,
+      "balanced_all": true,
+      "hit_ratio_avg": 0.7482,
+      "hit_ratio_max": 0.998,
+      "miss_tail_turns_after_first": [
+        98,
+        113,
+        132
+      ],
+      "median_ms_hit": 1272,
+      "median_ms_cold": 6208,
+      "reasoning_turn1": null,
+      "reasoning_any": false,
+      "hits_64_lattice": true,
+      "hits_128_lattice": true,
+      "est_cost_usd": 0.021594,
+      "prompt_growth_slope": 21.33
+    }
+  }
+}

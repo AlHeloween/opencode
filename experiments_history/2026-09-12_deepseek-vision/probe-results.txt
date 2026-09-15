@@ -1,0 +1,6 @@
+model=deepseek-flash
+== P2: detail=low (512x512) vs original ==
+detail=low      status=200 usage={"prompt_tokens": 201, "completion_tokens": 1, "reasoning_tokens": null, "cache_hit": 0, "cache_miss": 201} answer='64'
+detail=high     status=200 usage={"prompt_tokens": 1011, "completion_tokens": 1, "reasoning_tokens": null, "cache_hit": 0, "cache_miss": 1011} answer='64'
+detail=original status=200 usage={"prompt_tokens": 1011, "completion_tokens": 1, "reasoning_tokens": null, "cache_hit": 768, "cache_miss": 243} answer='64'
+detail=None     status=200 usage={"prompt_tokens": 1011, "completion_tokens": 1, "reasoning_tokens": null, "cache_hit": 768, "cache_miss": 243} answer='64'

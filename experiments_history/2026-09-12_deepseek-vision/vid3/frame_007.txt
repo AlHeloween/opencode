@@ -1,0 +1,86 @@
+   26    m setActiveMessage
+   27    m focusInput
+   28    m review
+   31   fn withCategory
+   38*  fn useSessionCommands
+@use-session-hash-scroll.test.ts
+    1  fil use-session-hash-scroll.test.ts
+    1  imp bun:test
+    1   rt /session/use-session-hash-scroll.test
+    2  imp ./message-id-from-hash
+@use-session-hash-scroll.ts
+    1  fil use-session-hash-scroll.ts
+    1  imp @opencode-ai/sdk/v2
+    1   rt /session/use-session-hash-scroll
+    2  imp @solidjs/router
+    3  imp solid-js
+    4  imp ./message-id-from-hash
+    6*  fn useSessionHashScroll
+@dialog-fork-from-timeline.tsx
+    1  fil dialog-fork-from-timeline.tsx
+    1  imp solid-js
+    2  imp @tui/context/sync
+    3  imp @tui/ui/dialog-select
+    4  imp @opencode-ai/sdk/v2
+    5  imp @/util/locale
+    6  imp @tui/context/sdk
+    7  imp @tui/context/route
+    8  imp ../../ui/dialog
+    9  imp @tui/component/prompt/history
+   10  imp @tui/component/prompt/part
+   12*  fn DialogForkFromTimeline
+@dialog-message.tsx
+    1  fil dialog-message.tsx
+    1  imp solid-js
+    2  imp @tui/context/sync
+    3  imp @tui/ui/dialog-select
+    4  imp @tui/context/sdk
+    5  imp @tui/context/route
+    6  imp @tui/util/clipboard
+    7  imp @opencode-ai/core/util/log
+    8  imp @tui/ui/dialog
+    9  imp @tui/component/prompt/history
+   10  imp @tui/component/prompt/part
+   12*  fn DialogMessage
+@dialog-restore.tsx
+    1  fil dialog-restore.tsx
+    1  imp solid-js
+    2  imp @tui/context/sdk
+    3  imp @tui/ui/dialog-select
+    4  imp @tui/ui/dialog-confirm
+    5  imp ../../ui/dialog
+    6  imp ../../ui/toast
+    7  imp @/util/error
+    9*  fn DialogRestore
+   21*  fn loadBackups
+@dialog-subagent.tsx
+    1  fil dialog-subagent.tsx
+    1  imp @tui/ui/dialog-select
+    2  imp @tui/context/route
+    4*  fn DialogSubagent
+@dialog-timeline.tsx
+    1  fil dialog-timeline.tsx
+    1  imp solid-js
+    2  imp @tui/context/sync
+    3  imp @opentui/solid
+    4  imp @tui/ui/dialog-select
+    5  imp @opencode-ai/sdk/v2
+    6  imp @/util/locale
+    7  imp ./dialog-message
+    8  imp ../../ui/dialog
+    9  imp ../../component/prompt/history
+   11*  fn DialogTimeline
+@footer.tsx
+    1  fil footer.tsx
+    1  imp solid-js
+    2  imp ../../context/theme
+    3  imp ../../context/sync
+    4  imp ../../context/directory
+    5  imp ../../component/use-connected
+    6  imp solid-js/store
+    7  imp ../../context/route
+    9*  fn Footer
+   31*  fn tick
+@index.tsx
+    1  fil index.tsx
+    1  imp solid-js

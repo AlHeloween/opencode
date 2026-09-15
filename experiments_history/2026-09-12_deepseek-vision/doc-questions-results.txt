@@ -1,0 +1,148 @@
+model=deepseek-flash source=packages\opencode\src\session\prompt\reasoning_prompt.txt
+document: 31336 chars, ~8953 tokens as TEXT; one image <= ~1024 tokens
+fonts: body=consola.ttf bold=consolab.ttf
+
+== cell16: em=29 adv=16 canvas=1568x21567 (33.82M px) ==
+   PNG=1820781 bytes  bits/char=473.7  chars=30750  text_tokens~8953  ratio_vs_image=8.74x
+    [FAIL] gate count and names       tok=None
+          -> 
+    [FAIL] G4 identity requirement    tok=None
+          -> 
+    [FAIL] plan document states       tok=None
+          -> 
+    [FAIL] non-mutating identity      tok=None
+          -> 
+    [FAIL] false-statement check      tok=None
+          -> 
+   -- cell16 jpeg q85: 6075750 bytes
+    [FAIL] gate count and names       tok=None
+          -> 
+    [FAIL] G4 identity requirement    tok=None
+          -> 
+    [FAIL] plan document states       tok=None
+          -> 
+    [FAIL] non-mutating identity      tok=None
+          -> 
+    [FAIL] false-statement check      tok=None
+          -> 
+   -- cell16 jpeg q60: 4090780 bytes
+    [FAIL] gate count and names       tok=None
+          -> 
+    [FAIL] G4 identity requirement    tok=None
+          -> 
+    [FAIL] plan document states       tok=None
+          -> 
+    [FAIL] non-mutating identity      tok=None
+          -> 
+    [FAIL] false-statement check      tok=None
+          -> 
+   -- cell16 jpeg q40: 3355376 bytes
+    [FAIL] gate count and names       tok=None
+          -> 
+    [FAIL] G4 identity requirement    tok=None
+          -> 
+    [FAIL] plan document states       tok=None
+          -> 
+    [FAIL] non-mutating identity      tok=None
+          -> 
+    [FAIL] false-statement check      tok=None
+          -> 
+
+== cell12: em=21 adv=12 canvas=1176x15769 (18.54M px) ==
+   PNG=955059 bytes  bits/char=248.47  chars=30750  text_tokens~8953  ratio_vs_image=8.74x
+    [FAIL] gate count and names       tok=None
+          -> 
+    [FAIL] G4 identity requirement    tok=None
+          -> 
+    [FAIL] plan document states       tok=None
+          -> 
+    [FAIL] non-mutating identity      tok=None
+          -> 
+    [FAIL] false-statement check      tok=None
+          -> 
+   -- cell12 jpeg q85: 3966814 bytes
+    [FAIL] gate count and names       tok=None
+          -> 
+    [FAIL] G4 identity requirement    tok=None
+          -> 
+    [FAIL] plan document states       tok=None
+          -> 
+    [FAIL] non-mutating identity      tok=None
+          -> 
+    [FAIL] false-statement check      tok=None
+          -> 
+   -- cell12 jpeg q60: 2655292 bytes
+    [FAIL] gate count and names       tok=None
+          -> 
+    [FAIL] G4 identity requirement    tok=None
+          -> 
+    [FAIL] plan document states       tok=None
+          -> 
+    [FAIL] non-mutating identity      tok=None
+          -> 
+    [FAIL] false-statement check      tok=None
+          -> 
+   -- cell12 jpeg q40: 2161378 bytes
+    [FAIL] gate count and names       tok=None
+          -> 
+    [FAIL] G4 identity requirement    tok=None
+          -> 
+    [FAIL] plan document states       tok=None
+          -> 
+    [FAIL] non-mutating identity      tok=None
+          -> 
+    [FAIL] false-statement check      tok=None
+          -> 
+
+== cell10: em=18 adv=10 canvas=980x13647 (13.37M px) ==
+   PNG=786049 bytes  bits/char=204.5  chars=30750  text_tokens~8953  ratio_vs_image=8.74x
+    [FAIL] gate count and names       tok=None
+          -> 
+    [FAIL] G4 identity requirement    tok=None
+          -> 
+    [FAIL] plan document states       tok=None
+          -> 
+    [FAIL] non-mutating identity      tok=None
+          -> 
+    [FAIL] false-statement check      tok=None
+          -> 
+   -- cell10 jpeg q85: 3187074 bytes
+    [FAIL] gate count and names       tok=None
+          -> 
+    [FAIL] G4 identity requirement    tok=None
+          -> 
+    [FAIL] plan document states       tok=None
+          -> 
+    [FAIL] non-mutating identity      tok=None
+          -> 
+    [FAIL] false-statement check      tok=None
+          -> 
+   -- cell10 jpeg q60: 2142266 bytes
+    [FAIL] gate count and names       tok=None
+          -> 
+    [FAIL] G4 identity requirement    tok=None
+          -> 
+    [FAIL] plan document states       tok=None
+          -> 
+    [FAIL] non-mutating identity      tok=None
+          -> 
+    [FAIL] false-statement check      tok=None
+          -> 
+   -- cell10 jpeg q40: 1743927 bytes
+    [FAIL] gate count and names       tok=None
+          -> 
+    [FAIL] G4 identity requirement    tok=None
+          -> 
+    [FAIL] plan document states       tok=None
+          -> 
+    [FAIL] non-mutating identity      tok=None
+          -> 
+    [FAIL] false-statement check      tok=None
+          -> 
+
+== summary: which encoding carried the meaning ==
+  gate count and names       passed 0/12: 
+  G4 identity requirement    passed 0/12: 
+  plan document states       passed 0/12: 
+  non-mutating identity      passed 0/12: 
+  false-statement check      passed 0/12: 

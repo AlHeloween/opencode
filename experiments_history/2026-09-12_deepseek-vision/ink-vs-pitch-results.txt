@@ -1,0 +1,18 @@
+model=deepseek-flash canvas=1280x1280 (under the ~1.69M px normalisation budget) seed=99
+task: sum of the first 16 digits of the top row
+
+== TEST 1: is the 3x5 bitmap legible at all when scaled up? (pitch 80 px, same pattern) ==
+  3x5 scale x1 pitch 16px            ink= 3x5  truth= 78 model=   77  WRONG  tok=1034
+  3x5 scale x4 pitch 64px            ink= 3x5  truth= 78 model=    6  WRONG  tok=1034
+  3x5 scale x10 pitch 160px          ink= 3x5  truth= 34 model=    6  WRONG  tok=1034
+  3x5 scale x20 pitch 320px          ink= 3x5  truth= 24 model=    6  WRONG  tok=1034
+
+== TEST 2: how much ink fits in an 8 px pitch? ==
+  3x5 scale x1 pitch 8px             ink= 3x5  truth= 78 model=    3  WRONG  tok=1034
+        (ink height 5px inside a 8px cell)
+  3x5 scale x2 pitch 16px            ink= 3x5  truth= 78 model=6639233214688197  WRONG  tok=1034
+        (ink height 10px inside a 16px cell)
+  4x6 scale x1 pitch 8px             ink= 4x6  truth= 78 model=   86  WRONG  tok=1034
+        (ink height 6px inside a 8px cell)
+  5x7 scale x1 pitch 8px             ink= 5x7  truth= 78 model=   87  WRONG  tok=1034
+        (ink height 7px inside a 8px cell)

@@ -1,0 +1,42 @@
+model=deepseek-flash pages=4 of 1280x1260 | cell adv=8 pitch=15 | gap=64px
+font em=14 | kernel 31336 chars | as text ~8953 tokens
+
+PREDICTION: a 4.5x over-budget canvas is downscaled ~2.1x, so the readable cell
+(adv 8, ink 9) arrives as adv ~3.8 / ink ~4.3 px - below the 6 px threshold at which
+the model already reported 'a faint, scattered dot pattern'.
+Expected: page structure survives, body text does not.
+
+== layout 2x2: 2752x2712 = 7,463,424 px = **4.56x over budget** ==
+   server downscale ~2.13x -> effective adv 3.75 px, ink 4.22 px
+   webp 288,264 B | png 524,564 B
+    [PASS] page structure       tok=1019
+          -> The image contains 4 numbered pages, carrying the headers PAGE 1/4, PAGE 2/4, PAGE 3/4, and PAGE 4/4.
+    [FAIL] gate set == G0..G9   tok=1018
+          -> (00_boot_selftest) | (01_commission) | (02_commission) | (03_ack_prepare) | (04_commit) | (05_commit) | (06_rollback) | (07_rollback) | (08_estop) | (09_heartbeat) | (10_query_state) | (11_que
+    [FAIL] which page holds G8  tok=1012
+          -> Page 1
+    [FAIL] terminals            tok=1009
+          -> COMPLETED, FAILED, REVOKED, TIMEOUT, CANCELLED.
+
+== layout 1x4: 1408x5360 = 7,546,880 px = **4.61x over budget** ==
+   server downscale ~2.15x -> effective adv 3.73 px, ink 4.19 px
+   webp 286,866 B | png 486,413 B
+    [PASS] page structure       tok=939
+          -> The image contains 4 numbered pages, carrying the headers PAGE 1/4, PAGE 2/4, PAGE 3/4, and PAGE 4/4 respectively.
+    [FAIL] gate set == G0..G9   tok=938
+          -> GATE-1.4A | GATE-2.2A | GATE-2.2B | GATE-2.2C | GATE-2.2D | GATE-2.2E | GATE-2.2F | GATE-2.2G | GATE-2.2H | GATE-2.2I | GATE-2.3A | GATE-2.3B | GATE-2.3C | GATE-2.3D | GATE-2.3E | GATE-2.3F | GATE-2.3G | 
+    [FAIL] which page holds G8  tok=932
+          -> G8 appears on page 2.
+    [FAIL] terminals            tok=929
+          -> MONEY, POWER, PURPOSE, LOVE, SELF, and FAME
+
+== verdict ==
+
+| layout | over budget | effective adv | page structure | gates | locate | terminals |
+|---|---:|---:|---|---|---|---|
+| 2x2 | 4.56x | 3.75 px | yes | no | no | no |
+| 1x4 | 4.61x | 3.73 px | yes | no | no | no |
+
+tiled canvas cost: ~1024 tokens (ONE image) vs 4 separate pages = 4096 tokens
+if both tiled layouts fail to read the body, the 4 separate pages remain the working form:
+  4 images x ~963 tokens = ~3852 tokens vs ~8953 as text = 2.32x

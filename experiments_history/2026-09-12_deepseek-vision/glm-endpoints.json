@@ -1,0 +1,423 @@
+{
+  "slug": "z-ai/glm-5.3-flash",
+  "model_name": "Z.ai: GLM 5.3 Flash",
+  "endpoint_count": 26,
+  "endpoints": [
+    {
+      "provider": "DeepInfra",
+      "tag": "deepinfra/fp4",
+      "name": "DeepInfra | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048576,
+      "quantization": "fp4",
+      "max_completion_tokens": 131072,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.000000075",
+        "completion": "0.00000025",
+        "input_cache_read": "0.000000015",
+        "discount": 0.5
+      }
+    },
+    {
+      "provider": "Relace",
+      "tag": "relace",
+      "name": "Relace | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048576,
+      "quantization": "unknown",
+      "max_completion_tokens": 131072,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.00000009",
+        "completion": "0.0000003",
+        "input_cache_read": "0.000000018",
+        "discount": 0
+      }
+    },
+    {
+      "provider": "Morph",
+      "tag": "morph/fp8",
+      "name": "Morph | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048576,
+      "quantization": "fp8",
+      "max_completion_tokens": 943718,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.0000001",
+        "completion": "0.00000035",
+        "input_cache_read": "0.00000002",
+        "discount": 0
+      }
+    },
+    {
+      "provider": "Wafer",
+      "tag": "wafer",
+      "name": "Wafer | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048576,
+      "quantization": "unknown",
+      "max_completion_tokens": 943718,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.0000001",
+        "completion": "0.00000035",
+        "input_cache_read": "0.00000002",
+        "discount": 0
+      }
+    },
+    {
+      "provider": "StreamLake",
+      "tag": "streamlake/fp8",
+      "name": "StreamLake | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1024000,
+      "quantization": "fp8",
+      "max_completion_tokens": 128000,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.00000011235",
+        "completion": "0.0000003745",
+        "input_cache_read": "0.00000002247",
+        "discount": 0.251
+      }
+    },
+    {
+      "provider": "GMICloud",
+      "tag": "gmicloud/fp8",
+      "name": "GMICloud | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048576,
+      "quantization": "fp8",
+      "max_completion_tokens": 943718,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.0000001125",
+        "completion": "0.000000375",
+        "input_cache_read": "0.0000000225",
+        "discount": 0.25
+      }
+    },
+    {
+      "provider": "Reka",
+      "tag": "reka/fp8",
+      "name": "Reka | z-ai/glm-5.3-flash-20260826",
+      "context_length": 262144,
+      "quantization": "fp8",
+      "max_completion_tokens": 235929,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.000000132",
+        "completion": "0.00000044",
+        "input_cache_read": "0.0000000264",
+        "discount": 0.12
+      }
+    },
+    {
+      "provider": "Novita",
+      "tag": "novita/fp8",
+      "name": "Novita | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048576,
+      "quantization": "fp8",
+      "max_completion_tokens": 131072,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.000000132",
+        "completion": "0.00000044",
+        "input_cache_read": "0.0000000264",
+        "discount": 0.12
+      }
+    },
+    {
+      "provider": "Makora",
+      "tag": "makora",
+      "name": "Makora | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048576,
+      "quantization": "unknown",
+      "max_completion_tokens": 943718,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.00000014",
+        "completion": "0.00000047",
+        "input_cache_read": "0.000000024",
+        "discount": 0
+      }
+    },
+    {
+      "provider": "Crusoe",
+      "tag": "crusoe/fp4",
+      "name": "Crusoe | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048576,
+      "quantization": "fp4",
+      "max_completion_tokens": 943718,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.00000015",
+        "completion": "0.0000005",
+        "input_cache_read": "0.00000003",
+        "discount": 0
+      }
+    },
+    {
+      "provider": "CoreWeave",
+      "tag": "coreweave/fp8",
+      "name": "CoreWeave | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048576,
+      "quantization": "fp8",
+      "max_completion_tokens": 943718,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.00000015",
+        "completion": "0.0000005",
+        "input_cache_read": "0.00000005",
+        "discount": 0
+      }
+    },
+    {
+      "provider": "Sail Research",
+      "tag": "sail-research/fp8",
+      "name": "Sail Research | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048576,
+      "quantization": "fp8",
+      "max_completion_tokens": 131072,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.00000015",
+        "completion": "0.0000005",
+        "input_cache_read": "0.00000003",
+        "discount": 0
+      }
+    },
+    {
+      "provider": "Fireworks",
+      "tag": "fireworks",
+      "name": "Fireworks | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048576,
+      "quantization": "unknown",
+      "max_completion_tokens": 943718,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.00000015",
+        "completion": "0.0000005",
+        "input_cache_read": "0.00000003",
+        "discount": 0
+      }
+    },
+    {
+      "provider": "Phala",
+      "tag": "phala/fp8",
+      "name": "Phala | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048576,
+      "quantization": "fp8",
+      "max_completion_tokens": 131072,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.00000015",
+        "completion": "0.0000005",
+        "input_cache_read": "0.00000003",
+        "discount": 0
+      }
+    },
+    {
+      "provider": "Friendli",
+      "tag": "friendli",
+      "name": "Friendli | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048576,
+      "quantization": "unknown",
+      "max_completion_tokens": 943718,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.00000015",
+        "completion": "0.0000005",
+        "input_cache_read": "0.00000003",
+        "discount": 0
+      }
+    },
+    {
+      "provider": "SiliconFlow",
+      "tag": "siliconflow/fp8",
+      "name": "SiliconFlow | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048576,
+      "quantization": "fp8",
+      "max_completion_tokens": 262144,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.00000015",
+        "completion": "0.0000005",
+        "input_cache_read": "0.00000003",
+        "discount": 0
+      }
+    },
+    {
+      "provider": "DigitalOcean",
+      "tag": "digitalocean",
+      "name": "DigitalOcean | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048576,
+      "quantization": "unknown",
+      "max_completion_tokens": 943718,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.00000015",
+        "completion": "0.0000005",
+        "input_cache_read": "0.00000003",
+        "discount": 0
+      }
+    },
+    {
+      "provider": "Together",
+      "tag": "together",
+      "name": "Together | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048575,
+      "quantization": "unknown",
+      "max_completion_tokens": 943717,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.00000015",
+        "completion": "0.0000005",
+        "input_cache_read": "0.00000003",
+        "discount": 0
+      }
+    },
+    {
+      "provider": "Parasail",
+      "tag": "parasail/fp8",
+      "name": "Parasail | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048576,
+      "quantization": "fp8",
+      "max_completion_tokens": 943718,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.00000015",
+        "completion": "0.0000005",
+        "input_cache_read": "0.00000003",
+        "discount": 0
+      }
+    },
+    {
+      "provider": "BaseTen",
+      "tag": "baseten/fp8",
+      "name": "BaseTen | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048576,
+      "quantization": "fp8",
+      "max_completion_tokens": 131072,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.00000015",
+        "completion": "0.0000005",
+        "input_cache_read": "0.00000003",
+        "discount": 0
+      }
+    },
+    {
+      "provider": "Venice",
+      "tag": "venice",
+      "name": "Venice | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048576,
+      "quantization": "unknown",
+      "max_completion_tokens": 131072,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.00000015",
+        "completion": "0.0000005",
+        "input_cache_read": "0.00000003",
+        "discount": 0
+      }
+    },
+    {
+      "provider": "Io Net",
+      "tag": "io-net/fp8",
+      "name": "Io Net | z-ai/glm-5.3-flash-20260826",
+      "context_length": 262144,
+      "quantization": "fp8",
+      "max_completion_tokens": 131072,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.00000015",
+        "completion": "0.0000005",
+        "input_cache_read": "0.00000003",
+        "discount": 0
+      }
+    },
+    {
+      "provider": "Cloudflare",
+      "tag": "cloudflare",
+      "name": "Cloudflare | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1310720,
+      "quantization": "unknown",
+      "max_completion_tokens": 1179648,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.00000015",
+        "completion": "0.0000005",
+        "input_cache_read": "0.00000003",
+        "discount": 0
+      }
+    },
+    {
+      "provider": "Z.AI",
+      "tag": "z-ai/fp8",
+      "name": "Z.AI | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048576,
+      "quantization": "fp8",
+      "max_completion_tokens": 131072,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.00000015",
+        "completion": "0.0000005",
+        "input_cache_read": "0.00000003",
+        "discount": 0
+      }
+    },
+    {
+      "provider": "NextBit",
+      "tag": "nextbit/fp8",
+      "name": "NextBit | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048576,
+      "quantization": "fp8",
+      "max_completion_tokens": 128000,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.000000177",
+        "completion": "0.00000059",
+        "input_cache_read": "0.000000036",
+        "discount": 0
+      }
+    },
+    {
+      "provider": "Modal",
+      "tag": "modal/fp8",
+      "name": "Modal | z-ai/glm-5.3-flash-20260826",
+      "context_length": 1048576,
+      "quantization": "fp8",
+      "max_completion_tokens": 943718,
+      "modalities": null,
+      "supports_image": false,
+      "pricing": {
+        "prompt": "0.00000045",
+        "completion": "0.0000015",
+        "input_cache_read": "0.00000009",
+        "discount": 0
+      }
+    }
+  ]
+}

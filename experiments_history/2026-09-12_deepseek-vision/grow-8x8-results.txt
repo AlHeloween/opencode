@@ -1,0 +1,54 @@
+model=deepseek-flash cell=8x8 px FIXED, canvas grows from 1:1 seed=99
+normalisation budget ~1690000 px (~1300x1300 equivalent)
+tasks per rung: sum of first 16 digits, sum of first 32 digits, max digit of first 32
+
+ canvas    Mpx  grid   chars     png_B  B/char   tok   sum16   sum32   max32          zone
+------------------------------------------------------------------------------------------
+    128   0.02    16     256      1213    4.74   222   WRONG   WRONG      OK       up/keep
+      truth: sum16=78 sum32=157 max32=9
+      model: sum16=84 sum32=145 max32=9
+    192   0.04    24     576      2424    4.21   222   WRONG   WRONG   WRONG       up/keep
+      truth: sum16=78 sum32=157 max32=9
+      model: sum16=72 sum32=118 max32=7
+    256   0.07    32    1024      3924    3.83   222   WRONG   WRONG      OK       up/keep
+      truth: sum16=78 sum32=157 max32=9
+      model: sum16=66 sum32=170 max32=9
+    384   0.15    48    2304      8376    3.64   222   WRONG   WRONG      OK       up/keep
+      truth: sum16=78 sum32=157 max32=9
+      model: sum16=67 sum32=168 max32=9
+    512   0.26    64    4096     14097    3.44   222   WRONG   WRONG      OK       up/keep
+      truth: sum16=78 sum32=157 max32=9
+      model: sum16=16 sum32=162 max32=9
+    640   0.41    80    6400     21480    3.36   312   WRONG   WRONG   WRONG       up/keep
+      truth: sum16=78 sum32=157 max32=9
+      model: sum16=72 sum32=4 max32=7
+    768   0.59    96    9216     30109    3.27   420   WRONG   WRONG   WRONG       up/keep
+      truth: sum16=78 sum32=157 max32=9
+      model: sum16=2 sum32=2 max32=8
+    896   0.80   112   12544     40487    3.23   546   WRONG   WRONG      OK       up/keep
+      truth: sum16=78 sum32=157 max32=9
+      model: sum16=16 sum32=160 max32=9
+   1024   1.05   128   16384     52257    3.19   690   WRONG   WRONG   WRONG       up/keep
+      truth: sum16=78 sum32=157 max32=9
+      model: sum16=64 sum32=158 max32=8
+   1152   1.33   144   20736     65633    3.17   852   WRONG   WRONG   WRONG       up/keep
+      truth: sum16=78 sum32=157 max32=9
+      model: sum16=77 sum32=32 max32=1
+   1280   1.64   160   25600     79975    3.12  1032   WRONG   WRONG      OK       up/keep
+      truth: sum16=78 sum32=157 max32=9
+      model: sum16=16 sum32=108 max32=9
+   1408   1.98   176   30976     95902     3.1  1032   WRONG   WRONG   WRONG   server-down
+      truth: sum16=78 sum32=157 max32=9
+      model: sum16=16 sum32=32 max32=7
+   1536   2.36   192   36864    113714    3.08  1032   WRONG   WRONG   WRONG   server-down
+      truth: sum16=78 sum32=157 max32=9
+      model: sum16=50 sum32=32 max32=7
+   1792   3.21   224   50176    152498    3.04  1032   WRONG   WRONG   WRONG   server-down
+      truth: sum16=78 sum32=157 max32=9
+      model: sum16=8 sum32=32 max32=8
+   2048   4.19   256   65536    198268    3.03  1032   WRONG   WRONG      OK   server-down
+      truth: sum16=78 sum32=157 max32=9
+      model: sum16=None sum32=32 max32=9
+   2560   6.55   320  102400    303204    2.96  1032   WRONG   WRONG   WRONG   server-down
+      truth: sum16=78 sum32=157 max32=9
+      model: sum16=83 sum32=184 max32=8

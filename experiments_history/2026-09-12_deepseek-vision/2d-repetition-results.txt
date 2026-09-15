@@ -1,0 +1,42 @@
+geometry: adv=8px em=14 ink_h=9px pitch=15px cols=160 rows=64
+cells per page: 10240 | PIL WebP: True
+
+  random-digits          drawn=10240 ink=204398 (19.96 px/glyph)
+  random-line-repeated   drawn=10240 ink=199808 (19.51 px/glyph)
+  prose                  drawn=9832 ink=181083 (18.42 px/glyph)
+  kernel-code            drawn=9825 ink=180869 (18.41 px/glyph)
+
+== sizes by codec (bytes) ==
+content                      PNG     WP-m4     WP-m6   WP-nl60  WP-nl100
+------------------------------------------------------------------------
+random-digits             189469    153360    153360    153360    153360
+random-line-repeated       12941      4584      4550      4550      4550
+prose                     120304     72888     72888     72888     72888
+kernel-code               135022     93630     93616     93616     93616
+
+== WebP-lossless as a fraction of PNG (lower = bigger WebP win) ==
+content                  WP/PNG  bytes/glyph  PNG B/glyph   entropy
+------------------------------------------------------------------------
+random-digits             0.81x       14.977       18.503      0.81
+random-line-repeated      0.35x        0.444        1.264      0.35
+prose                     0.61x        7.413       12.236      0.61
+kernel-code               0.69x        9.528       13.743      0.69
+
+== encoder effort and near-lossless on the realistic content ==
+codec                         kernel-code      prose     random
+--------------------------------------------------------------
+PNG (optimize, level 9)            135022     120304     189469
+WebP lossless method=4              93630      72888     153360
+WebP lossless method=6              93616      72888     153360
+WebP near_lossless=60               93616      72888     153360
+WebP near_lossless=100              93616      72888     153360
+
+== verdict ==
+  vertical repetition (one line x 64 rows): WebP = 0.352 x PNG
+  no repetition (independent cells)          : WebP = 0.809 x PNG
+  -> WebP's advantage GROWS with 2D repetition (by 57%),
+     consistent with 2D spatial prediction rather than linear matching.
+
+  best absolute result on realistic content:
+    kernel-code WP-m6: 93616 bytes (69% of PNG)
+    kernel-code WP-nl60: 93616 bytes (69% of PNG)

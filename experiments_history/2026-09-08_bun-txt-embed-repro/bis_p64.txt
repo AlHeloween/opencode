@@ -1,0 +1,6 @@
+## 0. WORKFLOW
+
+gates:
+- G0: UNDERSTAND
+- G1: GROUND
+- G2: DECOM

@@ -1,0 +1,57 @@
+   41   fn retry
+   51   fn memoryState
+   59   fn active
+   67   fn run
+   71   fn last
+   77   fn texts_of
+   83   fn reasons
+   89   fn tools
+   95   fn tool
+   99   fn retriesOf
+  105   fn adapterStore
+  112   fn adapterFor
+@session-schema.test.ts
+    1  fil session-schema.test.ts
+    1  imp bun:test
+    2  imp effect
+    3  imp ../../src/project/schema
+    4  imp ../../src/session/schema
+    5  imp ../../src/session/session
+    7    c info
+@session-settings-persist.test.ts
+    1  fil session-settings-persist.test.ts
+    1  imp bun:test
+    2  imp fs/promises
+    3  imp fs
+    4  imp path
+    5  imp @opencode-ai/core/global
+    6  imp @opencode-ai/core/util/log
+    7  imp ../fixture/fixture
+    8  imp ../../src/session/session-settings
+   22   fn withDataDir
+   37   fn writeRaw
+@session-settings-routing.test.ts
+    1  fil session-settings-routing.test.ts
+    1  imp bun:test
+    2  imp ../../src/session/session-settings
+    3  imp ../../src/session/session-settings
+@session-settings-subagents.test.ts
+    1  fil session-settings-subagents.test.ts
+    1  imp bun:test
+    2  imp ../../src/session/session-settings
+@session-undo-fossil.test.ts
+    1  fil session-undo-fossil.test.ts
+    5  imp bun:test
+    6  imp fs/promises
+    7  imp path
+    8  imp effect
+    9  imp @/session/session
+   10  imp ../../src/provider/schema
+   11  imp ../../src/session/revert
+   12  imp ../../src/snapshot
+   13  imp ../../src/snapshot/fossil
+   14  imp @opencode-ai/core/util/log
+   15  imp ../../src/session/schema
+   16  imp @opencode-ai/core/cross-spawn-spawner
+   17  imp ../../src/project/instance
+   18  imp ../fixture/fixture

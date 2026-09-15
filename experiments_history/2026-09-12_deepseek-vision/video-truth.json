@@ -1,0 +1,26 @@
+{
+  "map": "D:\\zPython\\opencode\\experiments\\20260912_deepseek-vision\\symbol-map.txt",
+  "lines": 7195,
+  "questions": [
+    {
+      "q": "the line number shown for the symbol estimateRequestTokens in overflow.ts",
+      "truth": "85",
+      "where": "map: overflow.ts section; all occurrences [{\"file\":\"overflow.ts\",\"line\":\"85\",\"kind\":\"fn\"}]"
+    },
+    {
+      "q": "the name of the file whose section lists the symbol EMA_ALPHA",
+      "truth": "media-token-calibration.ts",
+      "where": "map: media-token-calibration.ts"
+    },
+    {
+      "q": "how many symbol rows the map lists for the file media-token-calibration.ts",
+      "truth": "16",
+      "where": "map: media-token-calibration.ts section"
+    },
+    {
+      "q": "the name of the file whose section lists the symbol ToolStateRunning",
+      "truth": "message-v2.ts",
+      "where": "map: message-v2.ts:327, message-v2.ts:339"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+model=deepseek-flash canvas=1280x1280 (1.64M px) font=consola.ttf
+content=packages\opencode\src\attachment\capability.ts wrapped to 96 cols
+total wrapped lines=114 chars=5165
+
+economics: one image <= ~1024 tokens regardless of dimensions; code as TEXT ~3.5 chars/token
+
+ cell  adv  line_h  cols  rows   chars    png_B  B/char    jpeg_B as_text_tok  ratio      exact
+-----------------------------------------------------------------------------------------------
+   16   16      30    80    42    3360    98133  29.206    316112         960   0.94  312/445  70.1%
+   14   14      26    91    49    4459    97292  21.819    333126        1274   1.24   21/445   4.7%
+      truth: /** * Declarative provider capability matrix. * * Maps model.api.npm → AttachmentKind → ProviderCapability. * Replaces the old hardcoded boolean `supp
+      model: import type { Kind } from "./kind" import type { ProviderCapability } from "./handler" import type { Provider } from "@/provider/provider" /** * Decla
+   12   12      22   106    58    6148    68049  11.068    298307        1757   1.72   21/445   4.7%
+      truth: /** * Declarative provider capability matrix. * * Maps model.api.npm → AttachmentKind → ProviderCapability. * Replaces the old hardcoded boolean `supp
+      model: import type { Kind } from "./kind" import type { ProviderCapability } from "./handler" import type { Provider } from "@/provider/provider" /** * Decla
+   10   10      19   128    67    8576    66755   7.784    295469        2450   2.39   21/445   4.7%
+      truth: /** * Declarative provider capability matrix. * * Maps model.api.npm → AttachmentKind → ProviderCapability. * Replaces the old hardcoded boolean `supp
+      model: import type { Kind } from "./kind" import type { ProviderCapability } from "./handler" import type { Provider } from "@/provider/provider" /** * Decla
+    9    9      17   142    75   10650    61400   5.765    267817        3043   2.97   21/445   4.7%
+      truth: /** * Declarative provider capability matrix. * * Maps model.api.npm → AttachmentKind → ProviderCapability. * Replaces the old hardcoded boolean `supp
+      model: import type { Kind } from "./kind" import type { ProviderCapability } from "./handler" import type { Provider } from "@/provider/provider" /** * Decla
+    8    8      15   160    85   13600    66278   4.873    261628        3886   3.79   16/445   3.6%
+      truth: /** * Declarative provider capability matrix. * * Maps model.api.npm → AttachmentKind → ProviderCapability. * Replaces the old hardcoded boolean `supp
+      model: import type { Kind } from "./kind" import type { ProviderCapability } from "./handler" import type { Provider } from "@/provider/provider" /** * Decla
+    7    7      13   182    98   17836    61520   3.449    258550        5096   4.98   21/445   4.7%
+      truth: /** * Declarative provider capability matrix. * * Maps model.api.npm → AttachmentKind → ProviderCapability. * Replaces the old hardcoded boolean `supp
+      model: import type { Kind } from "./kind" import type { ProviderCapability } from "./handler" import type { Provider } from "@/provider/provider" /** * Decla
+    6    6      11   213   114   24282    52694    2.17    218878        6938   6.78   13/445   2.9%
+      truth: /** * Declarative provider capability matrix. * * Maps model.api.npm → AttachmentKind → ProviderCapability. * Replaces the old hardcoded boolean `supp
+      model: * Declarative provider capability matrix. * * Maps model.api_nm + AttachmentKind -> ProviderCapability. * Replaces the old hardcoded boolean `supports
+    5    5      10   256   114   29184    42166   1.445    191574        8338   8.14   46/445  10.3%
+      truth: /** * Declarative provider capability matrix. * * Maps model.api.npm → AttachmentKind → ProviderCapability. * Replaces the old hardcoded boolean `supp
+      model: * - Declarative provider capability matrix. * * - Maps model.api_npm -> AttachmentKind -> ProviderCapability. * - Replaces the old hardcoded boolean `

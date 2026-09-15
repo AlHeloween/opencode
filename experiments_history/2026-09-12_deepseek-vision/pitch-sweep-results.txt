@@ -1,0 +1,50 @@
+model=deepseek-flash page=1280x1260 adv=8 cols=160
+kernel 31336 chars | reflowed rows 277 | as text ~8953 tokens
+tokens per image measured: 963 | ratio = 8953 / (pages x 963)
+
+fonts at advance 8 px (ink height decides the minimum pitch):
+  consola.ttf            em=14 ink=13 px -> min pitch 14
+  consola.ttf            em=15 ink=13 px -> min pitch 14
+  cour.ttf               em=13 ink=10 px -> min pitch 11
+  cour.ttf               em=14 ink=12 px -> min pitch 13
+  DejaVuSansMono.ttf     em=13 ink=14 px -> min pitch 15
+  DejaVuSansMono.ttf     em=14 ink=14 px -> min pitch 15
+  lucon.ttf              em=13 ink=13 px -> min pitch 14
+  lucon.ttf              em=14 ink=14 px -> min pitch 15
+
+font            em pitch  ink  gap  rows  cap/pg  pages  tokens  vs_text  gates  term   G4
+------------------------------------------------------------------------------------------
+consola.ttf     14    14   13    5    90   14400      4    3852    2.32x     OK    --   --   (1/3)
+        [terminals] -> G0 UNDERSTAND · G1 GROUND · G2 DECOMPOSE · G3 MASTER_PLAN · G4 AUTHORIZE · G5 CONCERN_LOOP · G6 GROUND_PLAN · 
+        [G4 roles] -> CODER_AGENT, MEDIA_AGENT
+consola.ttf     14    15   13    6    84   13440      4    3852    2.32x     OK    --   OK   (2/3)
+        [terminals] -> CLEAN_NEXT_STATE, terminal_mode_completed, risks, residual, route
+consola.ttf     14    16   13    7    78   12480      4    3852    2.32x     OK    OK   OK   (3/3)
+consola.ttf     14    17   13    8    74   11840      4    3852    2.32x     OK    OK   OK   (3/3)
+consola.ttf     14    18   13    9    70   11200      4    3852    2.32x     OK    OK   OK   (3/3)
+consola.ttf     15    14   13    4    90   14400      4    3852    2.32x     OK    --   --   (1/3)
+        [terminals] -> REALITY, VALUE_BOUND.
+        [G4 roles] -> BUILD MODE, PLAN MODE, GENERAL AGENT
+consola.ttf     15    15   13    5    84   13440      4    3852    2.32x     OK    OK   OK   (3/3)
+consola.ttf     15    16   13    6    78   12480      4    3852    2.32x     OK    OK   OK   (3/3)
+consola.ttf     15    17   13    7    74   11840      4    3852    2.32x     OK    OK   OK   (3/3)
+consola.ttf     15    18   13    8    70   11200      4    3852    2.32x     OK    OK   OK   (3/3)
+cour.ttf        13    11   10    3   114   18240      3    2889    3.10x     OK    --   --   (1/3)
+        [terminals] -> G0 CLOSURE, G1 GROUNDING, G2 DECOMPOSE, G3 SOLUTION, G4 AUTHORIZE, G5 CONTRACT, G6 PLAN, G7 IMPLEMENT, G8 ORAC
+        [G4 roles] -> Based on the provided documentation, the identity roles that may execute gate **G4** are **BUILD MODE**, **PLA
+cour.ttf        13    12   10    4   105   16800      3    2889    3.10x     OK    --   --   (1/3)
+        [terminals] -> G0, G1, G2, G3, G4, G5, G6, G7, G8, G9
+        [G4 roles] -> Based on the provided documentation, the identity roles that may execute gate G4 are **BUILD MODE**, **PLAN MO
+cour.ttf        13    13   10    5    96   15360      3    2889    3.10x     OK    --   --   (1/3)
+        [terminals] -> PASS, FAIL, UNKNOWN, SILENT, BLOCKED, GATED, STALL, MINIMAL, DECIDE-BY-TEST, DEFER, CLOSED, COLLAPSE, RESIDUAL
+        [G4 roles] -> Authorize
+cour.ttf        13    14   10    6    90   14400      4    3852    2.32x     OK    --   --   (1/3)
+        [terminals] -> DONE, ABSTAIN, BLOCKED, OUT_OF_SCOPE, AUTHORITY, SEMANTIC_ATTENTION, INTENTION_RESET, EVOLUTION_LOOP
+        [G4 roles] -> Based on the provided images, the identity roles that may execute gate G4 are **BUILD MODE** and **PLAN MODE**
+cour.ttf        13    15   10    7    84   13440      4    3852    2.32x     OK    OK   OK   (3/3)
+cour.ttf        14    13   12    4    96   15360      3    2889    3.10x     OK    --   --   (1/3)
+        [terminals] -> SUCCESS, EMPTY, BLOCKED, ESCALATED, AMBIGUOUS.
+        [G4 roles] -> BUILD_MODE, CODER_AGENT, MEDIA_AGENT
+cour.ttf        14    14   12    5    90   14400      4    3852    2.32x     OK    --   --   (1/3)
+        [terminals] -> WAITING, APPROVAL, BLOCKED, OUT_OF_SCOPE
+        [G4 roles] -> AUTHORIZE

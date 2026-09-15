@@ -1,0 +1,48 @@
+model=deepseek-flash source=packages\opencode\src\session\prompt\reasoning_prompt.txt chars=31336 text_tokens~8953
+budget_px=1620000 (token plateau measured at 1280x1280)
+
+== 8x8+1: ink 7x7 px | page 1280x1260 (1.61M px) | capacity 22400 chars | drawn 7601 | PNG 7705B
+   px/char=72 bits/char=8.11 | whole kernel would need 2 page(s) | ratio 8.74x for the full text
+    [PASS] gates in order           tok=996
+          -> G0 | G1 | G2 | G3 | G4 | G5 | G6 | G7 | G8 | G9 | G10 | G11 | G12 | G13 | G14 | G15 | G16 | G17 | G18 | G19 | G20 | G21 | G22 | G23 | G24 | G25 | G26
+    [FAIL] G4 allowed identities    tok=983
+          -> The identity roles that may execute gate G4 are: Project Architect, Design Lead, and Project Manager.
+    [FAIL] plan lifecycle           tok=994
+          -> A master plan starts as a draft and only after G4 does it become policy.
+    [FAIL] goal of G1               tok=990
+          -> To verify that all men in the image are naked.
+    [PASS] false-statement check    tok=987
+          -> NO
+
+== 10x10+1: ink 9x9 px | page 1600x1012 (1.62M px) | capacity 14720 chars | drawn 4815 | PNG 8290B
+   px/char=110 bits/char=13.77 | whole kernel would need 3 page(s) | ratio 8.74x for the full text
+    [FAIL] gates in order           tok=1036
+          -> G0 | G1 | G2 | G3 | G4 | G5 | G6 | G7 | G8
+    [FAIL] G4 allowed identities    tok=1023
+          -> Security Architect and Release Manager
+    [FAIL] plan lifecycle           tok=1034
+          -> A Master Plan starts as a draft and becomes final only after G4.
+    [FAIL] goal of G1               tok=1030
+          -> The objective of G1 is to prevent the trainee from gaining access to the SM blade.
+    [PASS] false-statement check    tok=1027
+          -> NO
+
+== 12x12+2: ink 11x11 px | page 1920x840 (1.61M px) | capacity 9600 chars | drawn 2687 | PNG 10687B
+   px/char=168 bits/char=31.82 | whole kernel would need 4 page(s) | ratio 8.74x for the full text
+    [PASS] gates in order           tok=976
+          -> G0 | G1 | G2 | G3 | G4 | G5 | G6 | G7 | G8 | G9 | G10 | G11
+    [FAIL] G4 allowed identities    tok=963
+          -> The identity roles that may execute gate G4 are ITGC, Process, and Management.
+    [FAIL] plan lifecycle           tok=974
+          -> A master plan starts as an unratified draft and only becomes ratified after G4.
+    [FAIL] goal of G1               tok=970
+          -> The objective of gate G1 is to evaluate and provide an early alert on the overall cost and progress situation at the end of the Definition phase, enabling preparation of 
+    [PASS] false-statement check    tok=967
+          -> NO
+
+== summary ==
+  gates in order           2/3: 12x12+2, 8x8+1
+  G4 allowed identities    0/3: -
+  plan lifecycle           0/3: -
+  goal of G1               0/3: -
+  false-statement check    3/3: 10x10+1, 12x12+2, 8x8+1

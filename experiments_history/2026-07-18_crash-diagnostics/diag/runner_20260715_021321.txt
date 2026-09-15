@@ -1,0 +1,4 @@
+20260714T181321Z_8523cb2c
+inbox=d:\zPython\opencode\experiments\crash-diagnostics\logs\cmd_runner\20260714T181321Z_8523cb2c\inbox.jsonl
+[session 20260714T181321Z_8523cb2c: running]
+30: {"id":"l-0002","time_ms":1784052806233,"ts":"2026-07-14T18:13:26.233Z","op":"log","level":"INFO","message":"opencode","model":"system","session_id":"internal","version":"local","caller":"index.ts:107","service":"default","payload":{"version":"local","args":["--log-level","DEBUG","--print-logs"],"process_role":"main","run_id":"1fd4c63b-c08d-4565-ae1b-c10d49a0ef9d"}}

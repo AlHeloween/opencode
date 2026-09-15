@@ -1,0 +1,4 @@
+20260714T193656Z_519c79b3
+inbox=D:\zPython\opencode\logs\cmd_runner\20260714T193656Z_519c79b3\inbox.jsonl
+[session 20260714T193656Z_519c79b3: running]
+30: {"id":"l-0002","time_ms":1784057820782,"ts":"2026-07-14T19:37:00.782Z","op":"log","level":"INFO","message":"opencode","model":"system","session_id":"internal","version":"10.0.508","caller":"chunk-ye4fgb10.js:3","service":"default","payload":{"version":"10.0.508","args":["--log-level","DEBUG","--print-logs"],"process_role":"worker","run_id":"f0d92078-5c8c-4b59-80e3-1089293851ea"}}

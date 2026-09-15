@@ -1,0 +1,23 @@
+<system-reminder>
+# Build mode — conversation tail only (not system prefix)
+
+[KV-CACHE] This reminder is synthetic on the last user message so plan↔build
+can switch on the same model/session without rewriting the system prefix.
+
+Spine: ALGORITHM_CARD in system identity (shared). Bound code:
+  opencode_prompts_kernel.py — select_planning_mode, select_fractal_model,
+  k_medoids_modifications, select_medoids_tasks, run_task_geometry, PLANNING
+
+```python
+# Complex tasks (3+ steps) — finite medoids only, not infinity:
+#   ground → mode_select → decompose → select_medoids → todowrite
+#   → execute (one in_progress) → verify → emit_state
+# Mode 1: clear goal → linear CENTRAL_TASKS
+# Mode 2: after completion OR 10+ undirected → fractal + k-medoids
+# PRE_FLIGHT: REUSE.BEFORE + SMOKE.BEFORE (baseline Exact before first edit)
+# Trivial 1-line/rename with codegraph: skip full card; still Exact-tag.
+```
+
+Plan and implement here. todowrite = CENTRAL_TASKS (medoids). Kernel prose
+without the algorithm card is wallpaper — follow the routes.
+</system-reminder>

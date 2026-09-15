@@ -1,0 +1,10 @@
+   * Fold threshold. Layer-2 must pass `usable(model)` (or similar model room).
+   * Do **not** pass SUMMARY_INTERVAL_TOKENS (65k) — that is Layer-1 s only.
+   */
+  target: number
+}) {
+  if (input.cfg.compaction?.auto === false) return false
+  if (input.openTokens <= 0) return false
+  const target = Math.max(1, input.target)
+  return input.openTokens >= target
+}

@@ -1,0 +1,28 @@
+model=deepseek-flash page=1280x1260 adv=8 cols=160
+kernel raw 31336 chars | as JSON string 31848 chars (+512 escape chars)
+as text ~8953 tokens | tokens per image 963
+
+fonts with advance 8 px:
+  consola.ttf            em=14 ink=13 px -> min pitch 14
+  consola.ttf            em=15 ink=13 px -> min pitch 14
+  cour.ttf               em=13 ink=10 px -> min pitch 11
+  cour.ttf               em=14 ink=12 px -> min pitch 13
+  DejaVuSansMono.ttf     em=13 ink=14 px -> min pitch 15
+  DejaVuSansMono.ttf     em=14 ink=14 px -> min pitch 15
+  lucon.ttf              em=13 ink=13 px -> min pitch 14
+  lucon.ttf              em=14 ink=14 px -> min pitch 15
+
+config         chars  ink  gap rows/pg  cap/pg  pages  fill%    tok  vs_text  gates  term   G4  struct
+------------------------------------------------------------------------------------------------------
+A cont p15     31336   13    2      84   13440      3    100   2889    3.10x     --    --   OK      OK
+        [gates == G0..G9] tok=2921 -> G0, G1, G2, G3, G4, G5, G6
+        [terminals] tok=2903 -> PASS | FAIL | EXPECTED_FAIL
+B cont p12     31336   10    2     105   16800      2    100   1926    4.65x     --    --   --      OK
+        [gates == G0..G9] tok=1958 -> @DIGITAL_INTENTION, @INSPECTOR, @ORACLE, @QUALITY_VECTOR, @LOOP_PROGRESS, @ASK, @HARD_STOP, @BOUNDARY, @PLAN, @SEARCH_SPACE, @PROJ
+        [terminals] tok=1940 -> PASS, FAIL, EXPECTED_FAIL, BLOCKED, UNKNOWN
+        [G4 roles] tok=1941 -> EXECUTOR_AGENT, VERIFIER_AGENT (or VERIFIER)
+C json p15     31848   13    2      84   13440      3    100   2889    3.10x     OK    OK   --      OK
+        [G4 roles] tok=2904 -> G4 may be executed by the following identity roles: |  | *   **plan** | *   **general_agent** | *   **orchestrator_agent**
+D cont p13   SKIPPED: gap 0 px - lines would overlap
+
+word-wrapped baseline for comparison: 4 pages, pitch 15, 2.32x, all questions passing.

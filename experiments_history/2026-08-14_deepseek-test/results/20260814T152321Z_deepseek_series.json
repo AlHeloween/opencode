@@ -1,0 +1,100 @@
+{
+  "model": "deepseek-v4-pro",
+  "timestamp": "20260814T152308Z",
+  "runs": {
+    "isolation_a": [
+      {
+        "turn": 1,
+        "ms": 2586,
+        "prompt": 48147,
+        "hit": 48128,
+        "miss": 19,
+        "completion": 32,
+        "reasoning": 30,
+        "reason_echo": 132,
+        "answer_chars": 5,
+        "question_chars": 74,
+        "balanced": true
+      },
+      {
+        "turn": 2,
+        "ms": 3572,
+        "prompt": 48177,
+        "hit": 48128,
+        "miss": 49,
+        "completion": 189,
+        "reasoning": 184,
+        "reason_echo": 766,
+        "answer_chars": 15,
+        "question_chars": 109,
+        "balanced": true
+      }
+    ],
+    "isolation_b": [
+      {
+        "turn": 1,
+        "ms": 1525,
+        "prompt": 48147,
+        "hit": 48128,
+        "miss": 19,
+        "completion": 12,
+        "reasoning": 10,
+        "reason_echo": 44,
+        "answer_chars": 5,
+        "question_chars": 74,
+        "balanced": true
+      },
+      {
+        "turn": 2,
+        "ms": 3768,
+        "prompt": 48177,
+        "hit": 48128,
+        "miss": 49,
+        "completion": 169,
+        "reasoning": 164,
+        "reason_echo": 691,
+        "answer_chars": 15,
+        "question_chars": 109,
+        "balanced": true
+      }
+    ]
+  },
+  "verification": {
+    "isolation_a": {
+      "series": "isolation_a",
+      "turns": 2,
+      "balanced_all": true,
+      "hit_ratio_avg": 0.9993,
+      "hit_ratio_max": 0.9996,
+      "miss_tail_turns_after_first": [
+        49
+      ],
+      "median_ms_hit": 3079.0,
+      "median_ms_cold": null,
+      "reasoning_turn1": 30,
+      "reasoning_any": true,
+      "hits_64_lattice": true,
+      "hits_128_lattice": true,
+      "est_cost_usd": 0.000571,
+      "prompt_growth_slope": 30.0
+    },
+    "isolation_b": {
+      "series": "isolation_b",
+      "turns": 2,
+      "balanced_all": true,
+      "hit_ratio_avg": 0.9993,
+      "hit_ratio_max": 0.9996,
+      "miss_tail_turns_after_first": [
+        49
+      ],
+      "median_ms_hit": 2646.0,
+      "median_ms_cold": null,
+      "reasoning_turn1": 10,
+      "reasoning_any": true,
+      "hits_64_lattice": true,
+      "hits_128_lattice": true,
+      "est_cost_usd": 0.000536,
+      "prompt_growth_slope": 30.0
+    }
+  }
+}

@@ -1,0 +1,2 @@
+gated_workflow: G0 -> G1
+Second line padding to make the file non-trivial.

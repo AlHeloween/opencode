@@ -1,0 +1,46 @@
+model=deepseek-flash canvas=1280x1280 (at the 1,638,400 px budget point, no server rescale)
+kernel 31336 chars | as TEXT ~8953 tokens | one image <= ~1024 tokens
+one image capacity law: 13653 chars at adv8/pitch15
+
+== SAFE: consola.ttf em=14 adv=8px pitch=15px (120 px/char) ==
+   80 cols x 40 rows per quadrant -> capacity 12800 chars | kernel 31336 chars | fits: False
+   drawn=10972 (35.0% of kernel) | webp=110294B
+    [PASS] pages numbered?  tok=1018
+          -> The image contains 4 numbered pages, with headers: PAGE 1/4, PAGE 2/4, PAGE 3/4, and PAGE 4/4.
+    [FAIL] which page has G8 tok=1021
+          -> The gate named G8 appears on Page 1, line 6.
+    [FAIL] gate set         tok=1013
+          -> @WORKFLOW | @GATE | @CONCERN_WRAP | @PROOF | @CLEAN_STATE | @TASK | @OUT_OF_SCOPE | @WAITING_APPROVAL | @BLOCKED | @SEMANTIC_ATTENTION | @AUTHORITY | @EVOLUTION_LOOP | @INFERENCE | @SOURCE_ROUTING
+    [FAIL] terminals        tok=1009
+          -> STOP, BLOCKED, OUT_OF_SCOPE, WAITING, DONE, FAILED, TIMEOUT, CANCELLED
+
+== MED: consola.ttf em=10 adv=6px pitch=12px (72 px/char) ==
+   106 cols x 51 rows per quadrant -> capacity 21624 chars | kernel 31336 chars | fits: False
+   drawn=17097 (54.6% of kernel) | webp=101478B
+    [PASS] pages numbered?  tok=1018
+          -> The image contains 4 numbered pages, with headers: PAGE 1/4, PAGE 2/4, PAGE 3/4, PAGE 4/4.
+    [PASS] which page has G8 tok=1021
+          -> The gate named G8 is on PAGE 1/4, specifically at line 38.
+    [FAIL] gate set         tok=1013
+          -> G0 | G1 | G2 | G3 | G4 | G5 | G6 | G7
+    [FAIL] terminals        tok=1009
+          -> Unverified neighbor / 2. Shared rules
+
+== DENSE: consola.ttf em=9 adv=5px pitch=10px (50 px/char) ==
+   128 cols x 62 rows per quadrant -> capacity 31744 chars | kernel 31336 chars | fits: True
+   drawn=24412 (77.9% of kernel) | webp=109960B
+    [PASS] pages numbered?  tok=1018
+          -> The image contains 4 numbered pages, with headers "PAGE 1/4", "PAGE 2/4", "PAGE 3/4", and "PAGE 4/4".
+    [PASS] which page has G8 tok=1021
+          -> Page 3, line 13.
+    [FAIL] gate set         tok=1013
+          -> INTENTION | GOAL | DECOMPOSE | MASTER_PLAN | CONSENT | IDENTITY | ORACLE | INTERPRET | TASK | ENVELOPE | RUNBOOK | BINDING | SEMANTIC | SELF_MODIFY | REPAIR_MOD | NEW_TASK | CAPABILITY | EVOLUTION | DRIFT | H
+    [FAIL] terminals        tok=1009
+          -> BLOCKED, UNKNOWN, ERROR, OUT-OF-SCOPE
+
+== summary: which layer survives at which density ==
+variant   px/char  capacity  pages?  locate  gates  terminals
+--------------------------------------------------------------
+SAFE          120               yes      no     no         no
+MED            72               yes     yes     no         no
+DENSE          50               yes     yes     no         no

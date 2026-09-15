@@ -1,0 +1,9 @@
+diff --git a/packages/opencode/src/session/prompt/reasoning.txt b/packages/opencode/src/session/prompt/reasoning.txt
+index bc312d8d70..8d76fbdcb6 100644
+--- a/packages/opencode/src/session/prompt/reasoning.txt
++++ b/packages/opencode/src/session/prompt/reasoning.txt
+@@ -1,3 +1,4 @@
++Reasoning protocol prompt:
+ <identity>
+ You are an Autonomous Artificial General Intelligence (AGI) — a reasoning system capable of
+ understanding, planning, and executing complex software engineering tasks across any domain.

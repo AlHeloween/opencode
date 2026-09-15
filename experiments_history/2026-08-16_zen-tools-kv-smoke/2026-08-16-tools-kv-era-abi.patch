@@ -1,0 +1,861 @@
+diff --git a/packages/opencode/src/mcp/index.ts b/packages/opencode/src/mcp/index.ts
+index 1cad753969..b5dcdefc17 100644
+--- a/packages/opencode/src/mcp/index.ts
++++ b/packages/opencode/src/mcp/index.ts
+@@ -634,30 +634,38 @@ export const layer = Layer.effect(
+       const config = cfg.mcp ?? {}
+       const defaultTimeout = cfg.experimental?.mcp_timeout
+ 
+-      const connectedClients = Object.entries(s.clients).filter(
+-        ([clientName]) => s.status[clientName]?.status === "connected",
+-      )
+-
+-      yield* Effect.forEach(
+-        connectedClients,
+-        ([clientName, client]) =>
+-          Effect.gen(function* () {
+-            const mcpConfig = config[clientName]
+-            const entry = mcpConfig && isMcpConfigured(mcpConfig) ? mcpConfig : undefined
+-
+-            const listed = s.defs[clientName]
+-            if (!listed) {
+-              log.warn("missing cached tools for connected server", { clientName })
+-              return
+-            }
+-
+-            const timeout = entry?.timeout ?? defaultTimeout
+-            for (const mcpTool of listed) {
+-              result[sanitize(clientName) + "_" + sanitize(mcpTool.name)] = convertMcpTool(mcpTool, client, timeout)
+-            }
+-          }),
+-        { concurrency: 4 },
+-      )
++      // Deterministic wire order: iterate clients in SORTED name order and
++      // tools in server-listed order. The previous concurrency:4 wrote keys
++      // into the shared result in completion order — the wire tool order was
++      // a race between MCP servers (KV prefix instability).
++      const connectedClients = Object.entries(s.clients)
++        .filter(([clientName]) => s.status[clientName]?.status === "connected")
++        .toSorted(([a], [b]) => a.localeCompare(b))
++
++      for (const [clientName, client] of connectedClients) {
++        const mcpConfig = config[clientName]
++        const entry = mcpConfig && isMcpConfigured(mcpConfig) ? mcpConfig : undefined
++        const timeout = entry?.timeout ?? defaultTimeout
++        let listed = s.defs[clientName]
++        if (!listed) {
++          // Never silently drop a connected server from the wire catalog —
++          // a shrinking tool set changes the request prefix (KV cache) with no
++          // observable event. Re-fetch defs; only a failed re-fetch omits.
++          log.warn("missing cached tools for connected server — re-fetching defs", { clientName })
++          const fetched = yield* defs(clientName, client, timeout)
++          if (!fetched) {
++            log.warn("bug: defs re-fetch failed; connected MCP server omitted from tool catalog", {
++              clientName,
++            })
++            continue
++          }
++          s.defs[clientName] = fetched
++          listed = fetched
++        }
++        for (const mcpTool of listed) {
++          result[sanitize(clientName) + "_" + sanitize(mcpTool.name)] = convertMcpTool(mcpTool, client, timeout)
++        }
++      }
+       return result
+     })
+ 
+diff --git a/packages/opencode/src/session/prompt.ts b/packages/opencode/src/session/prompt.ts
+index bce83a79e6..80dd8dbca2 100644
+--- a/packages/opencode/src/session/prompt.ts
++++ b/packages/opencode/src/session/prompt.ts
+@@ -1005,12 +1005,14 @@ export const layer = Layer.effect(
+      * sidecar summary WITHOUT a full turn. Returns true when a valid
+      * checkpoint was saved (the caller may then fold safely).
+      */
+-    const captureSummary = (input: {
++    const captureSummary: (input: {
+       sessionID: SessionID
+       model: { providerID: ProviderID; modelID: ModelID }
+       agent: string
+-    }) =>
+-      Effect.gen(function* () {
++    }) => Effect.Effect<boolean> = Effect.fn("SessionPrompt.captureSummary")(function* (input) {
++      // Service requirements from SessionTools.resolve are satisfied by the
++      // enclosing layer; the cast mirrors the runLoop usage in loop() below.
++      return yield* Effect.gen(function* () {
+         const ctx = yield* InstanceState.context
+         const visible = yield* MessageV2.filterCompactedEffect(input.sessionID)
+         if (!visible.length) return false
+@@ -1076,6 +1078,27 @@ export const layer = Layer.effect(
+         // Emergency branch: never fold here. If the window exceeds headroom,
+         // the capture returns false and the route surfaces an error instead of
+         // silently folding uncovered history.
++        //
++        // Wire parity with the working turn: resolve the SAME tool catalog
++        // (schemas + order). Execution is blocked by the sidecar summary flag
++        // (captureSidecar sets it before streaming); the stub processor is only
++        // consumed by execute callbacks, which answer with the summary-mode
++        // denial while the flag is active (see tools.ts summary guard).
++        const sessionInfo = yield* sessions.get(input.sessionID)
++        const tools = yield* SessionTools.resolve({
++          agent,
++          providerAgent: cacheAgent,
++          model,
++          session: sessionInfo,
++          processor: {
++            message: { id: MessageID.ascending() } as SessionProcessor.Handle["message"],
++            updateToolCall: () => Effect.succeed(undefined),
++            completeToolCall: () => Effect.succeed(undefined),
++          } as Pick<SessionProcessor.Handle, "message" | "updateToolCall" | "completeToolCall">,
++          bypassAgentCheck: false,
++          messages: visible,
++          promptOps: yield* ops(),
++        })
+         return yield* captureSidecar({
+           sessionID: input.sessionID,
+           visible,
+@@ -1084,7 +1107,7 @@ export const layer = Layer.effect(
+           cacheIdentity: cacheAgent,
+           user,
+           checkpoint: checkpointData,
+-          tools: {},
++          tools,
+           afterAssistant: undefined,
+           onHeadroomCompact: () => Effect.succeed(false),
+         })
+@@ -1096,7 +1119,8 @@ export const layer = Layer.effect(
+           })
+           return Effect.succeed(false)
+         }),
+-      )
++      ) as Effect.Effect<boolean, never, never>
++    })
+ 
+     const lastModel = Effect.fnUntraced(function* (sessionID: SessionID) {
+       const match = yield* sessions.findMessage(sessionID, (m) => m.info.role === "user" && !!m.info.model)
+@@ -1858,13 +1882,17 @@ export const layer = Layer.effect(
+           const outcome: "break" | "continue" = yield* Effect.gen(function* () {
+             const bypassAgentCheck = lastUserMsg?.parts.some((p) => p.type === "agent") ?? false
+ 
++            // Layer-1 in-loop summary turn: the FULL tool catalog stays on the
++            // wire — prefix parity with working turns (KV cache). Execution of
++            // all tools is blocked while the summary request is in flight, via
++            // the same constitution flag the sidecar uses (tools.ts summary guard).
++            if (summaryAttempt) Constitution.setSummaryMode(sessionID, true)
++
+             let tools: Record<string, AITool>
+-            // Layer-1 summary turn: prose only. Full tools let the model Read/bash
+-            // instead of writing SVM/goal/decisions. The accepted `summary` flag
+-            // is set only after validation, so use the persisted request state here.
+-            if (summaryAttempt) {
+-              tools = {}
+-            } else if (cachedTools && cachedToolsAgent === agent.name) {
++            // Same catalog for summary and working turns — never strip schemas
++            // per turn kind: a different tool set breaks inference and the
++            // provider cache prefix.
++            if (cachedTools && cachedToolsAgent === agent.name) {
+               tools = cachedTools
+             } else {
+               tools = yield* SessionTools.resolve({
+@@ -1971,6 +1999,11 @@ export const layer = Layer.effect(
+                 providerID: model.providerID,
+                 modelID: model.id,
+               })
++              // New system version (kernel/identity changed): era-frozen tool
++              // descriptions and the MCP wire snapshot refresh with the
++              // rebuilt prefix.
++              yield* registry.invalidateToolDescriptions(sessionID)
++              yield* SessionTools.invalidateMCPEra(sessionID)
+             }
+             // Use checkpoint for everything EXCEPT structured output prompt mismatch.
+             // Structured prompt is a one-line append/remove — no reason to drop the
+@@ -2413,6 +2446,11 @@ export const layer = Layer.effect(
+               // Invalidate checkpoint — the old checkpoint contains pre-compaction
+               // message IDs that won't match the new compacted state.
+               yield* Checkpoint.remove(sessionID)
++              // Compact = new system version: era-frozen tool descriptions
++              // (task/skill catalogs) and the MCP wire snapshot refresh here,
++              // not mid-era.
++              yield* registry.invalidateToolDescriptions(sessionID)
++              yield* SessionTools.invalidateMCPEra(sessionID)
+               // Reset sidecar cooldown: fresh message window after compaction.
+               lastSidecarCapture.delete(sessionID)
+               cachedMsgs = undefined
+@@ -2489,6 +2527,14 @@ export const layer = Layer.effect(
+             return "continue" as const
+           }).pipe(
+             Effect.ensuring(instruction.clear(handle.message.id)),
++            // Clear the summary-mode flag set above — normal turns must not
++            // inherit the tool-execution block. Safe to clear unconditionally:
++            // the sidecar manages its own flag lifecycle inside captureSidecar.
++            Effect.ensuring(
++              Effect.sync(() => {
++                if (summaryAttempt) Constitution.setSummaryMode(sessionID, false)
++              }),
++            ),
+             Effect.onInterrupt(() => finalizeInterruptedAssistant),
+           )
+           if (outcome === "break") break
+diff --git a/packages/opencode/src/session/tools.ts b/packages/opencode/src/session/tools.ts
+index 8f564fc92d..86280a7eb6 100644
+--- a/packages/opencode/src/session/tools.ts
++++ b/packages/opencode/src/session/tools.ts
+@@ -17,11 +17,56 @@ import { SessionProcessor } from "./processor"
+ import { PartID } from "./schema"
+ import * as Log from "@opencode-ai/core/util/log"
+ import { EffectBridge } from "@/effect/bridge"
++import { InstanceState } from "@/effect/instance-state"
+ import { ModelID } from "@/provider/schema"
+ import { Wildcard } from "@/util/wildcard"
+ import { Constitution } from "./constitution"
++import { SessionID } from "./schema"
+ 
+ const log = Log.create({ service: "session.tools" })
++
++/** Wire-frozen MCP tool entry: everything the provider sees, nothing else. */
++type McpWire = {
++  key: string
++  name: string
++  description: AITool["description"]
++  schema: Parameters<typeof jsonSchema>[0]
++}
++
++type McpEra = { sig: string; wire: McpWire[] }
++
++/** Per session+model era snapshots of the MCP wire catalog. */
++const mcpEraCache = InstanceState.make(
++  Effect.sync(() => new Map<string, McpEra>()),
++)
++
++/** Era boundary (compact / system-version bump): refresh the MCP wire catalog. */
++export function invalidateMCPEra(sessionID: SessionID): Effect.Effect<void> {
++  return Effect.gen(function* () {
++    const era = yield* InstanceState.get(mcpEraCache)
++    const prefix = `${sessionID}\0`
++    for (const key of [...era.keys()]) {
++      if (key.startsWith(prefix)) era.delete(key)
++    }
++  })
++}
++
++export function mcpLiveSig(tools: Record<string, AITool>): string {
++  return Object.keys(tools)
++    .toSorted()
++    .map((key) => {
++      const item = tools[key]
++      let schemaLen = 0
++      try {
++        schemaLen = JSON.stringify(asSchema(item.inputSchema).jsonSchema).length
++      } catch {
++        schemaLen = 0
++      }
++      const descLen = typeof item.description === "string" ? item.description.length : 0
++      return `${key}:${schemaLen}:${descLen}`
++    })
++    .join("\u0000")
++}
+ const policyNames = new WeakMap<Record<string, AITool>, Map<string, string>>()
+ 
+ export function policyName(tools: Record<string, AITool>, name: string) {
+@@ -179,6 +224,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
+     modelID: ModelID.make(input.model.api.id),
+     providerID: input.model.providerID,
+     agent: input.providerAgent ?? input.agent,
++    sessionID: input.session.id,
+   })) {
+     const name = canonicalName(item.id)
+     const schema = ProviderTransform.schema(input.model, EffectZod.toJsonSchema(item.parameters))
+@@ -262,83 +308,138 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
+   }
+ 
+   // MCP stays in the stable provider tool surface; mode ACL refuses at execute.
+-  const mcpTools = yield* mcp.tools()
+-  for (const [key, item] of Object.entries(mcpTools)) {
+-    const execute = item.execute
+-    if (!execute) continue
++  // Era-freeze: the WIRE catalog (names, descriptions, schemas) is snapshotted
++  // per session+model. Live connects/disconnects or server-side tool-list
++  // changes do NOT reshape the wire until invalidateMCPEra (compact / system
++  // version bump). Execute closures are rebuilt per resolve from the live
++  // client when present — only the wire bytes are frozen.
++  const liveMcpTools = yield* mcp.tools()
++  const mcpEra = yield* InstanceState.get(mcpEraCache)
++  const mcpEraKey = `${input.session.id}\0${input.model.api.id}`
++  const liveSig = mcpLiveSig(liveMcpTools)
++  const snapshot = mcpEra.get(mcpEraKey)
++  let wire: McpWire[]
++  if (snapshot) {
++    if (snapshot.sig !== liveSig) {
++      log.info("MCP tool catalog changed — deferred to next era", {
++        sessionID: input.session.id,
++        snapshotTools: snapshot.wire.length,
++        liveTools: Object.keys(liveMcpTools).length,
++      })
++    }
++    wire = snapshot.wire
++  } else {
++    wire = []
++    for (const [key, item] of Object.entries(liveMcpTools)) {
++      const schema = yield* Effect.promise(() => Promise.resolve(asSchema(item.inputSchema).jsonSchema))
++      wire.push({
++        key,
++        name: canonicalName(key),
++        description: item.description,
++        schema: ProviderTransform.schema(input.model, schema),
++      })
++    }
++    mcpEra.set(mcpEraKey, { sig: liveSig, wire })
++  }
+ 
+-    const schema = yield* Effect.promise(() => Promise.resolve(asSchema(item.inputSchema).jsonSchema))
+-    const name = canonicalName(key)
+-    const transformed = ProviderTransform.schema(input.model, schema)
+-    item.inputSchema = jsonSchema(transformed)
+-    item.execute = (args, opts) =>
+-      run.promise(
+-        Effect.gen(function* () {
+-          if (denied(key) || denied(name)) return yield* rejected(key, opts.toolCallId)
+-          const ctx = context(args, opts)
+-          yield* plugin.trigger(
+-            "tool.execute.before",
+-            { tool: key, sessionID: ctx.sessionID, callID: opts.toolCallId },
+-            { args },
+-          )
+-          yield* ctx.ask({ permission: key, metadata: {}, patterns: ["*"], always: ["*"] })
+-          const result: Awaited<ReturnType<NonNullable<typeof execute>>> = yield* Effect.promise(() =>
+-            execute(args, opts),
+-          )
+-          yield* plugin.trigger(
+-            "tool.execute.after",
+-            { tool: key, sessionID: ctx.sessionID, callID: opts.toolCallId, args },
+-            result,
+-          )
++  for (const entry of wire) {
++    const key = entry.key
++    const name = entry.name
++    const live = liveMcpTools[key]
++    const execute = live?.execute
++    if (!execute) {
++      // Disconnected mid-era: schema stays on the wire (prefix parity);
++      // execution refuses loudly until the next era.
++      register(
++        name,
++        tool({
++          description: entry.description,
++          inputSchema: jsonSchema(entry.schema),
++          execute: () =>
++            run.promise(
++              Effect.sync(() => ({
++                title: "MCP tool unavailable",
++                metadata: { denied: true, tool: key, deferredEra: true },
++                output: `MCP tool "${key}" is unavailable until the next session era.`,
++              })),
++            ),
++        }),
++        key,
++      )
++      continue
++    }
++    const item = tool({
++      description: entry.description,
++      inputSchema: jsonSchema(entry.schema),
++      execute: (args, opts) =>
++        run.promise(
++          Effect.gen(function* () {
++            if (denied(key) || denied(name)) return yield* rejected(key, opts.toolCallId)
++            const ctx = context(args, opts)
++            yield* plugin.trigger(
++              "tool.execute.before",
++              { tool: key, sessionID: ctx.sessionID, callID: opts.toolCallId },
++              { args },
++            )
++            yield* ctx.ask({ permission: key, metadata: {}, patterns: ["*"], always: ["*"] })
++            const result: Awaited<ReturnType<NonNullable<typeof execute>>> = yield* Effect.promise(() =>
++              execute(args, opts),
++            )
++            yield* plugin.trigger(
++              "tool.execute.after",
++              { tool: key, sessionID: ctx.sessionID, callID: opts.toolCallId, args },
++              result,
++            )
+ 
+-          const textParts: string[] = []
+-          const attachments: Omit<MessageV2.FilePart, "id" | "sessionID" | "messageID">[] = []
+-          for (const contentItem of result.content) {
+-            if (contentItem.type === "text") textParts.push(contentItem.text)
+-            else if (contentItem.type === "image") {
+-              attachments.push({
+-                type: "file",
+-                mime: contentItem.mimeType,
+-                url: `data:${contentItem.mimeType};base64,${contentItem.data}`,
+-              })
+-            } else if (contentItem.type === "resource") {
+-              const { resource } = contentItem
+-              if (resource.text) textParts.push(resource.text)
+-              if (resource.blob) {
++            const textParts: string[] = []
++            const attachments: Omit<MessageV2.FilePart, "id" | "sessionID" | "messageID">[] = []
++            for (const contentItem of result.content) {
++              if (contentItem.type === "text") textParts.push(contentItem.text)
++              else if (contentItem.type === "image") {
+                 attachments.push({
+                   type: "file",
+-                  mime: resource.mimeType ?? "application/octet-stream",
+-                  url: `data:${resource.mimeType ?? "application/octet-stream"};base64,${resource.blob}`,
+-                  filename: resource.uri,
++                  mime: contentItem.mimeType,
++                  url: `data:${contentItem.mimeType};base64,${contentItem.data}`,
+                 })
++              } else if (contentItem.type === "resource") {
++                const { resource } = contentItem
++                if (resource.text) textParts.push(resource.text)
++                if (resource.blob) {
++                  attachments.push({
++                    type: "file",
++                    mime: resource.mimeType ?? "application/octet-stream",
++                    url: `data:${resource.mimeType ?? "application/octet-stream"};base64,${resource.blob}`,
++                    filename: resource.uri,
++                  })
++                }
+               }
+             }
+-          }
+ 
+-          const truncated = yield* truncate.output(textParts.join("\n\n"), {}, input.agent)
+-          const metadata = {
+-            ...result.metadata,
+-            truncated: truncated.truncated,
+-            ...(truncated.truncated && { outputPath: truncated.outputPath }),
+-          }
++            const truncated = yield* truncate.output(textParts.join("\n\n"), {}, input.agent)
++            const metadata = {
++              ...result.metadata,
++              truncated: truncated.truncated,
++              ...(truncated.truncated && { outputPath: truncated.outputPath }),
++            }
+ 
+-          const output = {
+-            title: "",
+-            metadata,
+-            output: truncated.content,
+-            attachments: attachments.map((attachment) => ({
+-              ...attachment,
+-              id: PartID.ascending(),
+-              sessionID: ctx.sessionID,
+-              messageID: input.processor.message.id,
+-            })),
+-            content: result.content,
+-          }
+-          // Always complete — "tool-result" may not fire if stream interrupted.
+-          yield* input.processor.completeToolCall(opts.toolCallId, output)
+-          return output
+-        }),
+-      )
++            const output = {
++              title: "",
++              metadata,
++              output: truncated.content,
++              attachments: attachments.map((attachment) => ({
++                ...attachment,
++                id: PartID.ascending(),
++                sessionID: ctx.sessionID,
++                messageID: input.processor.message.id,
++              })),
++              content: result.content,
++            }
++            // Always complete — "tool-result" may not fire if stream interrupted.
++            yield* input.processor.completeToolCall(opts.toolCallId, output)
++            return output
++          }),
++        ),
++    })
+     register(name, item, key)
+   }
+ 
+diff --git a/packages/opencode/src/tool/registry.ts b/packages/opencode/src/tool/registry.ts
+index 7946759431..6c0ec12e04 100644
+--- a/packages/opencode/src/tool/registry.ts
++++ b/packages/opencode/src/tool/registry.ts
+@@ -43,6 +43,7 @@ import { ZodOverride } from "@/util/effect-zod"
+ import { Plugin } from "../plugin"
+ import { Provider } from "@/provider/provider"
+ import { ProviderID, type ModelID } from "../provider/schema"
++import { SessionID } from "@/session/schema"
+ import { Flag } from "@opencode-ai/core/flag/flag"
+ import * as Log from "@opencode-ai/core/util/log"
+ import { LspTool } from "./lsp"
+@@ -87,13 +88,44 @@ type State = {
+   getmode: GetModeDef
+   reasoningEnter: ReasoningEnterDef
+   reasoningExit: ReasoningExitDef
++  /** Era-frozen task/skill descriptions (see createEraMemo). */
++  descEra: EraMemo
++}
++
++/**
++ * Per-session-era memo for volatile description sources (agent list, skill
++ * catalog). Values are computed ONCE per era and frozen until invalidated —
++ * a new skill/agent mid-session must NOT change tool JSON on the wire
++ * (KV prefix stability). Compact / system-version bump invalidates the era.
++ */
++export type EraMemo = ReturnType<typeof createEraMemo>
++
++export function createEraMemo() {
++  const cache = new Map<string, { task: string; skill: string }>()
++  return {
++    get(key: string) {
++      return cache.get(key)
++    },
++    set(key: string, value: { task: string; skill: string }) {
++      cache.set(key, value)
++    },
++    invalidate(key: string) {
++      cache.delete(key)
++    },
++  }
+ }
+ 
+ export interface Interface {
+   readonly ids: () => Effect.Effect<string[]>
+   readonly all: () => Effect.Effect<Tool.Def[]>
+   readonly named: () => Effect.Effect<{ task: TaskDef; read: ReadDef }>
+-  readonly tools: (model: { providerID: ProviderID; modelID: ModelID; agent: Agent.Info }) => Effect.Effect<Tool.Def[]>
++  readonly tools: (model: {
++    providerID: ProviderID
++    modelID: ModelID
++    agent: Agent.Info
++    sessionID?: SessionID
++  }) => Effect.Effect<Tool.Def[]>
++  readonly invalidateToolDescriptions: (sessionID: SessionID) => Effect.Effect<void>
+ }
+ 
+ export class Service extends Context.Service<Service, Interface>()("@opencode/ToolRegistry") {}
+@@ -285,6 +317,7 @@ export const layer: Layer.Layer<
+         })
+ 
+         return {
++          descEra: createEraMemo(),
+           builtin: [
+             tool.invalid,
+             ...(questionEnabled ? [tool.question] : []),
+@@ -387,6 +420,20 @@ export const layer: Layer.Layer<
+       // reasoningEnter/reasoningExit are always present in the schema — execute is
+       // gated by SessionTools, not by removing the tool definition (KV cache stable).
+       const filtered = yield* all()
++      // Task/skill descriptions come from LIVE catalogs (agents, skills). They are
++      // era-frozen per session: computed once, reused until invalidateToolDescriptions
++      // (compact / system-version bump) — a new skill mid-session must not change
++      // the tool JSON on the wire.
++      let descriptions: { task: string; skill: string } | undefined
++      if (input.sessionID) {
++        descriptions = s.descEra.get(input.sessionID)
++        if (!descriptions) {
++          descriptions = { task: yield* describeTask(input.agent), skill: yield* describeSkill() }
++          s.descEra.set(input.sessionID, descriptions)
++        }
++      } else {
++        descriptions = { task: yield* describeTask(input.agent), skill: yield* describeSkill() }
++      }
+ 
+       return yield* Effect.forEach(
+         filtered,
+@@ -402,8 +449,8 @@ export const layer: Layer.Layer<
+             policy: tool.policy,
+             description: [
+               output.description,
+-              tool.id === TaskTool.id ? yield* describeTask(input.agent) : undefined,
+-              tool.id === SkillTool.id ? yield* describeSkill() : undefined,
++              tool.id === TaskTool.id ? descriptions.task : undefined,
++              tool.id === SkillTool.id ? descriptions.skill : undefined,
+             ]
+               .filter(Boolean)
+               .join("\n"),
+@@ -416,12 +463,20 @@ export const layer: Layer.Layer<
+       )
+     })
+ 
++    const invalidateToolDescriptions: Interface["invalidateToolDescriptions"] = Effect.fn(
++      "ToolRegistry.invalidateToolDescriptions",
++    )(function* (sessionID: SessionID) {
++      const s = yield* InstanceState.get(state)
++      s.descEra.invalidate(sessionID)
++      log.info("tool descriptions era invalidated", { sessionID })
++    })
++
+     const named: Interface["named"] = Effect.fn("ToolRegistry.named")(function* () {
+       const s = yield* InstanceState.get(state)
+       return { task: s.task, read: s.read }
+     })
+ 
+-    return Service.of({ ids, all, named, tools })
++    return Service.of({ ids, all, named, tools, invalidateToolDescriptions })
+   }),
+ )
+ 
+diff --git a/packages/opencode/test/mcp/lifecycle.test.ts b/packages/opencode/test/mcp/lifecycle.test.ts
+index 1b459481f3..e24c898cc0 100644
+--- a/packages/opencode/test/mcp/lifecycle.test.ts
++++ b/packages/opencode/test/mcp/lifecycle.test.ts
+@@ -239,6 +239,34 @@ test(
+ // Test: tool change notifications refresh the cache
+ // ========================================================================
+ 
++test(
++  "tools() returns a deterministic client-sorted tool order",
++  withInstance({}, (mcp) =>
++    Effect.gen(function* () {
++      // Add in reverse-alphabetical order: the wire order must NOT depend on
++      // connection order (KV prefix stability across reconnects).
++      lastCreatedClientName = "z-server"
++      const zState = getOrCreateClientState("z-server")
++      zState.tools = [{ name: "z_tool", description: "z", inputSchema: { type: "object", properties: {} } }]
++      yield* mcp.add("z-server", { type: "local", command: ["echo", "test"] })
++
++      lastCreatedClientName = "a-server"
++      const aState = getOrCreateClientState("a-server")
++      aState.tools = [{ name: "a_tool", description: "a", inputSchema: { type: "object", properties: {} } }]
++      yield* mcp.add("a-server", { type: "local", command: ["echo", "test"] })
++
++      let previous: string[] | undefined
++      for (let i = 0; i < 5; i++) {
++        const keys = Object.keys(yield* mcp.tools())
++        const mcpKeys = keys.filter((key) => key.startsWith("a-server") || key.startsWith("z-server"))
++        expect(mcpKeys).toEqual(["a-server_a_tool", "z-server_z_tool"])
++        if (previous) expect(keys).toEqual(previous)
++        previous = keys
++      }
++    }),
++  ),
++)
++
+ test(
+   "tool change notifications refresh cached tool definitions",
+   withInstance({}, (mcp) =>
+diff --git a/packages/opencode/test/session/prompt.test.ts b/packages/opencode/test/session/prompt.test.ts
+index 511c66a286..f503c3abe8 100644
+--- a/packages/opencode/test/session/prompt.test.ts
++++ b/packages/opencode/test/session/prompt.test.ts
+@@ -11,6 +11,7 @@ import { Command } from "../../src/command"
+ import { Config } from "@/config/config"
+ import { LSP } from "@/lsp/lsp"
+ import { MCP } from "../../src/mcp"
++import { Constitution } from "../../src/session/constitution"
+ import { Permission } from "../../src/permission"
+ import { Plugin } from "../../src/plugin"
+ import { Provider as ProviderSvc } from "@/provider/provider"
+@@ -315,6 +316,26 @@ function reasoning65kProviderCfg(url: string) {
+   }
+ }
+ 
++// Big context so the emergency sidecar passes the M+32K headroom gate while
++// the Layer-1 open window (65 536 tokens) is open.
++function bigCaptureProviderCfg(url: string) {
++  return {
++    ...providerCfg(url),
++    provider: {
++      ...providerCfg(url).provider,
++      test: {
++        ...providerCfg(url).provider.test,
++        models: {
++          "test-model": {
++            ...providerCfg(url).provider.test.models["test-model"],
++            limit: { context: 200_000, output: 32_000 },
++          },
++        },
++      },
++    },
++  }
++}
++
+ const user = Effect.fn("test.user")(function* (sessionID: SessionID, text: string) {
+   const session = yield* Session.Service
+   const msg = yield* session.updateMessage({
+@@ -810,6 +831,110 @@ expect((inputs[1]?.tools as unknown[] | undefined) ?? []).toHaveLength(0)
+   30_000,
+ )
+ 
++it.live(
++  "Layer-1 in-loop summary turn keeps the full tool catalog on the wire",
++  () =>
++    provideTmpdirServer(
++      Effect.fnUntraced(function* ({ llm }) {
++        const prompt = yield* SessionPrompt.Service
++        const sessions = yield* Session.Service
++        const compact = yield* SessionCompaction.Service
++        const session = yield* sessions.create({
++          title: "Layer-1 tools on summary wire",
++          permission: [{ permission: "*", pattern: "*", action: "allow" }],
++        })
++        yield* prompt.prompt({
++          sessionID: session.id,
++          agent: "build",
++          noReply: true,
++          parts: [{ type: "text", text: "hello" }],
++        })
++        yield* llm.text("working answer")
++        yield* prompt.loop({ sessionID: session.id })
++        // Manual inject: runLoop no longer injects the summary request itself
++        // (the sidecar owns cadence) — this test pins the in-loop summary path.
++        yield* compact.injectSummaryRequest({ sessionID: session.id, model: ref, agent: "build" })
++        yield* llm.text(`## Semantic Vector
++dominant: "summary turns keep the full tool catalog on the wire for KV parity"
++
++## Goal
++Keep the full tool catalog on the wire for summary turns so the provider cache prefix stays byte-stable across turn kinds.
++
++## Key decisions
++- Never strip tool schemas per turn kind; block execution via the summary-mode flag instead.
++
++## Current state
++Summary turns carry the full tool catalog on the wire and tool execution is blocked while the summary request is in flight.`)
++        yield* prompt.loop({ sessionID: session.id })
++
++        const inputs = yield* llm.inputs
++        expect(inputs).toHaveLength(2)
++        const summaryTools = (inputs[1]?.tools as unknown[] | undefined) ?? []
++        const workingTools = (inputs[0]?.tools as unknown[] | undefined) ?? []
++        expect(summaryTools).not.toHaveLength(0)
++        expect(JSON.stringify(summaryTools)).toEqual(JSON.stringify(workingTools))
++        expect(Constitution.isSummaryMode(session.id)).toBe(false)
++      }),
++      { git: true, config: providerCfg },
++    ),
++  30_000,
++)
++
++it.live(
++  "emergency captureSummary carries the full tool catalog on the wire",
++  () =>
++    provideTmpdirServer(
++      Effect.fnUntraced(function* ({ llm }) {
++        const prompt = yield* SessionPrompt.Service
++        const sessions = yield* Session.Service
++        const session = yield* sessions.create({
++          title: "Layer-1 emergency capture tools",
++          permission: [{ permission: "*", pattern: "*", action: "allow" }],
++        })
++        // Phase 1: a normal working turn pins the trunk wire catalog.
++        yield* prompt.prompt({
++          sessionID: session.id,
++          agent: "build",
++          noReply: true,
++          parts: [{ type: "text", text: "hello" }],
++        })
++        yield* llm.text("working answer")
++        yield* prompt.loop({ sessionID: session.id })
++        // Phase 2: big content opens the Layer-1 cadence window; captureSummary
++        // (emergency /summarize route) must send the SAME catalog as the trunk.
++        yield* prompt.prompt({
++          sessionID: session.id,
++          agent: "build",
++          noReply: true,
++          parts: [{ type: "text", text: "x".repeat(SessionCompaction.SUMMARY_INTERVAL_TOKENS * 4) }],
++        })
++        yield* llm.text(`## Semantic Vector
++dominant: "emergency capture keeps the full tool catalog on the wire for KV parity"
++
++## Goal
++Keep the full tool catalog on the wire for the emergency summary route so the provider cache prefix stays byte-stable across turn kinds.
++
++## Key decisions
++- Resolve the trunk catalog instead of stripping schemas for the emergency capture route.
++
++## Current state
++The emergency capture route carries the full tool catalog on the wire and tool execution is blocked while the summary request is in flight.`)
++        const captured = yield* prompt.captureSummary({ sessionID: session.id, model: ref, agent: "build" })
++        expect(captured).toBe(true)
++
++        const inputs = yield* llm.inputs
++        expect(inputs).toHaveLength(2)
++        const emergencyTools = (inputs[1]?.tools as unknown[] | undefined) ?? []
++        const workingTools = (inputs[0]?.tools as unknown[] | undefined) ?? []
++        expect(emergencyTools).not.toHaveLength(0)
++        expect(JSON.stringify(emergencyTools)).toEqual(JSON.stringify(workingTools))
++        expect(Constitution.isSummaryMode(session.id)).toBe(false)
++      }),
++      { git: true, config: bigCaptureProviderCfg },
++    ),
++  30_000,
++)
++
+ it.live(
+   "Layer-1 sidecar handoff stays within the 65K reasoning-model budget",
+   () =>
+diff --git a/packages/opencode/test/tool/registry.test.ts b/packages/opencode/test/tool/registry.test.ts
+index 1e0c22f861..6f4778980e 100644
+--- a/packages/opencode/test/tool/registry.test.ts
++++ b/packages/opencode/test/tool/registry.test.ts
+@@ -1,12 +1,13 @@
+-import { afterEach, describe, expect } from "bun:test"
++import { afterEach, describe, expect, test } from "bun:test"
+ import path from "path"
+ import fs from "fs/promises"
+ import { Effect, Layer } from "effect"
+ import { Instance } from "../../src/project/instance"
+ import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
+-import { ToolRegistry } from "@/tool/registry"
++import { createEraMemo, ToolRegistry } from "@/tool/registry"
+ import { Agent } from "@/agent/agent"
+ import { ModelID, ProviderID } from "@/provider/schema"
++import { SessionID } from "../../src/session/schema"
+ import { provideTmpdirInstance } from "../fixture/fixture"
+ import { testEffect } from "../lib/effect"
+ 
+@@ -19,6 +20,56 @@ afterEach(async () => {
+ })
+ 
+ describe("tool.registry", () => {
++  test("createEraMemo freezes values per key until invalidate", () => {
++    const memo = createEraMemo()
++    expect(memo.get("era-a")).toBeUndefined()
++    memo.set("era-a", { task: "task-v1", skill: "skill-v1" })
++    expect(memo.get("era-a")).toEqual({ task: "task-v1", skill: "skill-v1" })
++    // Second set within the same era keeps the FIRST value semantics via
++    // callers skipping compute — the memo itself stores the last set.
++    memo.invalidate("era-a")
++    expect(memo.get("era-a")).toBeUndefined()
++    memo.set("era-a", { task: "task-v2", skill: "skill-v2" })
++    expect(memo.get("era-a")).toEqual({ task: "task-v2", skill: "skill-v2" })
++    // Other keys are unaffected.
++    memo.set("era-b", { task: "task-b", skill: "skill-b" })
++    memo.invalidate("era-a")
++    expect(memo.get("era-b")).toEqual({ task: "task-b", skill: "skill-b" })
++  })
++
++  it.live(
++    "era-freezes task/skill descriptions per session until invalidateToolDescriptions",
++    () =>
++      provideTmpdirInstance(() =>
++        Effect.gen(function* () {
++          const registry = yield* ToolRegistry.Service
++          const agents = yield* Agent.Service
++          const build = yield* agents.get("build")
++          expect(build).toBeDefined()
++          const sid = SessionID.descending()
++          const base = {
++            providerID: ProviderID.make("test"),
++            modelID: ModelID.make("test-model"),
++            agent: build!,
++          }
++          const first = yield* registry.tools({ ...base, sessionID: sid })
++          const second = yield* registry.tools({ ...base, sessionID: sid })
++          const desc = (tools: { id: string; description: string }[], id: string) =>
++            tools.find((tool) => tool.id === id)?.description
++          // Same era → identical task/skill descriptions (frozen, not recomputed).
++          expect(desc(second, "task")).toBe(desc(first, "task"))
++          expect(desc(second, "skill")).toBe(desc(first, "skill"))
++          expect(desc(first, "skill")).toBeDefined()
++          expect(desc(first, "task")).toBeDefined()
++          // Era boundary (compact / system-version bump) refreshes the memo.
++          yield* registry.invalidateToolDescriptions(sid)
++          const third = yield* registry.tools({ ...base, sessionID: sid })
++          expect(desc(third, "task")).toBe(desc(first, "task"))
++          expect(desc(third, "skill")).toBe(desc(first, "skill"))
++        }),
++      ),
++  )
++
+   it.live(
+     "exposes unique platform-appropriate built-in tool IDs",
+     () =>

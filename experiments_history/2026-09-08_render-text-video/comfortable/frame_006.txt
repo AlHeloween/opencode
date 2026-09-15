@@ -1,0 +1,6 @@
+}) {
+  if (input.cfg.compaction?.auto === false) return false
+  if (input.openTokens <= 0) return false
+  const target = Math.max(1, input.target)
+  return input.openTokens >= target
+}

@@ -1,0 +1,138 @@
+{
+  "model": "deepseek-v4-pro",
+  "timestamp": "20260814T151205Z",
+  "runs": {
+    "ladder": [
+      {
+        "turn": 1,
+        "ms": 1503,
+        "prompt": 182,
+        "hit": 0,
+        "miss": 182,
+        "completion": 14,
+        "reasoning": 11,
+        "reason_echo": 43,
+        "answer_chars": 4,
+        "question_chars": 24,
+        "balanced": true
+      },
+      {
+        "turn": 2,
+        "ms": 1179,
+        "prompt": 195,
+        "hit": 128,
+        "miss": 67,
+        "completion": 32,
+        "reasoning": 28,
+        "reason_echo": 109,
+        "answer_chars": 6,
+        "question_chars": 26,
+        "balanced": true
+      },
+      {
+        "turn": 3,
+        "ms": 1486,
+        "prompt": 209,
+        "hit": 128,
+        "miss": 81,
+        "completion": 35,
+        "reasoning": 31,
+        "reason_echo": 109,
+        "answer_chars": 6,
+        "question_chars": 26,
+        "balanced": true
+      },
+      {
+        "turn": 4,
+        "ms": 1391,
+        "prompt": 223,
+        "hit": 128,
+        "miss": 95,
+        "completion": 27,
+        "reasoning": 23,
+        "reason_echo": 93,
+        "answer_chars": 6,
+        "question_chars": 26,
+        "balanced": true
+      },
+      {
+        "turn": 5,
+        "ms": 1187,
+        "prompt": 237,
+        "hit": 128,
+        "miss": 109,
+        "completion": 16,
+        "reasoning": 12,
+        "reason_echo": 45,
+        "answer_chars": 6,
+        "question_chars": 26,
+        "balanced": true
+      },
+      {
+        "turn": 6,
+        "ms": 1475,
+        "prompt": 251,
+        "hit": 128,
+        "miss": 123,
+        "completion": 34,
+        "reasoning": 30,
+        "reason_echo": 118,
+        "answer_chars": 6,
+        "question_chars": 26,
+        "balanced": true
+      },
+      {
+        "turn": 7,
+        "ms": 894,
+        "prompt": 265,
+        "hit": 128,
+        "miss": 137,
+        "completion": 30,
+        "reasoning": 26,
+        "reason_echo": 91,
+        "answer_chars": 6,
+        "question_chars": 26,
+        "balanced": true
+      },
+      {
+        "turn": 8,
+        "ms": 1062,
+        "prompt": 279,
+        "hit": 256,
+        "miss": 23,
+        "completion": 34,
+        "reasoning": 30,
+        "reason_echo": 122,
+        "answer_chars": 6,
+        "question_chars": 26,
+        "balanced": true
+      }
+    ]
+  },
+  "verification": {
+    "ladder": {
+      "series": "ladder",
+      "turns": 8,
+      "balanced_all": true,
+      "hit_ratio_avg": 0.5367,
+      "hit_ratio_max": 0.9176,
+      "miss_tail_turns_after_first": [
+        67,
+        81,
+        95,
+        109,
+        123,
+        137,
+        23
+      ],
+      "median_ms_hit": 1187,
+      "median_ms_cold": 1503,
+      "reasoning_turn1": 11,
+      "reasoning_any": true,
+      "hits_64_lattice": true,
+      "hits_128_lattice": true,
+      "est_cost_usd": 0.000552,
+      "prompt_growth_slope": 13.86
+    }
+  }
+}

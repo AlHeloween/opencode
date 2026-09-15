@@ -1,0 +1,55 @@
+  model: Provider.Model
+  modality: MediaModality
+  measuredTokens: number
+  itemCount: number
+}): void {
+  if (input.itemCount <= 0) return
+  if (!Number.isFinite(input.measuredTokens) || input.measuredTokens < 0) return
+  if (!modelSupports(input.model, input.modality)) return
+
+  const perItem = input.measuredTokens / input.itemCount
+  const k = key(input.model.providerID, input.model.id, input.modality)
+  const existing = readRow(input.model.providerID, input.model.id, input.modality)
+  const tokensPerItem = existing ? existing.tokensPerItem * (1 - EMA_ALPHA) + perItem * EMA_ALPHA : perItem
+  const observations = (existing?.observations ?? 0) + 1
+  const now = Date.now()
+
+  cache.set(k, { tokensPerItem, observations })
+  try {
+    Database.use((db) =>
+      db
+        .insert(MediaTokenCalibrationTable)
+        .values({
+          provider_id: input.model.providerID,
+          model_id: input.model.id,
+          modality: input.modality,
+          tokens_per_item: tokensPerItem,
+          observations,
+          time_updated: now,
+        })
+        .onConflictDoUpdate({
+          target: [
+            MediaTokenCalibrationTable.provider_id,
+            MediaTokenCalibrationTable.model_id,
+            MediaTokenCalibrationTable.modality,
+          ],
+          set: { tokens_per_item: tokensPerItem, observations, time_updated: now },
+        })
+        .run(),
+    )
+    log.debug("media token calibration updated", {
+      model: input.model.id,
+      modality: input.modality,
+      perItem: Math.round(perItem),
+      ema: Math.round(tokensPerItem),
+      observations,
+    })
+  } catch (e) {
+    log.debug("media calibration write failed", { error: String(e) })
+  }
+}
+
+/**
+ * Estimated provider tokens for `count` media items of `modality` on this
+ * model. Returns 0 when the model does not support the modality (media
+ * should not be on the wire) or when no measurement exists yet — the

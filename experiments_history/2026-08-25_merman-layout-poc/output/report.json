@@ -1,0 +1,60 @@
+{
+  "fixture": "fixtures/feedback-flowchart.mmd",
+  "fixtureSha256": "dcdc2d40fe4d81582f952e5710bae08fd90620173f8c7f199bc4f16857a2ab29",
+  "background": "#1a1b26",
+  "containBudget": {
+    "maxWidth": 720,
+    "maxHeight": 480
+  },
+  "rendererConfig": {
+    "currentWasm": {
+      "package": "mermaid-wasm-renderer@0.3.1",
+      "theme": "dark"
+    },
+    "merman": {
+      "package": "merman@0.7.0",
+      "theme": "HostThemeProfile::editor_dark",
+      "output": "resvg-safe SVG"
+    }
+  },
+  "artifacts": {
+    "current-wasm": {
+      "sha256": "70af8af75aa7c06476a95f7b0d56e3e468811c82c907c813fb0de13b7aec37dc",
+      "bytes": 4675,
+      "width": "177.09201",
+      "height": "317.88666",
+      "viewBox": [
+        0,
+        0,
+        177.09201,
+        317.88666
+      ],
+      "viewBoxArea": 56295.1875715866,
+      "png": {
+        "width": 267,
+        "height": 480
+      }
+    },
+    "merman-resvg-safe": {
+      "sha256": "e8467a8e879b8cd8817fa280e00bdf033fb5f852ad6be4b43c1a2f0a05172abf",
+      "bytes": 14191,
+      "width": "100%",
+      "height": null,
+      "viewBox": [
+        0,
+        0,
+        110.421875,
+        337.09375
+      ],
+      "viewBoxArea": 37222.52392578125,
+      "png": {
+        "width": 157,
+        "height": 480
+      }
+    }
+  },
+  "feedbackEdgeReview": {
+    "currentWasm": "No -> Start follows a wide external route around the decision branch.",
+    "merman": "No -> Start uses a compact left channel between Start and OK?; Yes and No remain legible."
+  }
+}

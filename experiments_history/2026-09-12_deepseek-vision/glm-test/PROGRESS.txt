@@ -1,0 +1,4 @@
+now = 06:25:46
+
+READBACK.md: 450 bytes, mtime 06:24:39, age 67s, last line: <!-- call 1 2026-09-12T22:24:39.947Z -->
+RUNNING.lock: 46 bytes, mtime 06:24:39, age 67s, last line: 2026-09-12T22:24:39.933Z pid=976 1789251879934

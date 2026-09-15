@@ -1,0 +1,8 @@
+const fs = require("fs")
+const entries = fs.readdirSync("D:/zPython/opencode/experiments", { withFileTypes: true })
+const files = entries.filter((e) => e.isFile()).map((e) => e.name)
+const dirs = entries.filter((e) => e.isDirectory()).map((e) => e.name)
+console.log("=== DIRS (" + dirs.length + ") ===")
+for (const d of dirs.sort()) console.log(d)
+console.log("=== FILES (" + files.length + ") ===")
+for (const f of files.sort()) console.log(f)

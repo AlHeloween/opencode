@@ -1,0 +1,7 @@
+const fs = require("fs")
+const bin = fs.readFileSync("D:/zPython/opencode/experiments/2026-09-08_bun-txt-embed-repro/probe_jsl.exe").toString("latin1")
+console.log("size:", bin.length)
+console.log("ASCII tail 'line line line' x3:", bin.includes("line line line line line"))
+console.log("escaped em-dash u2014:", bin.includes("\\u2014"))
+console.log("raw utf8 em-dash:", bin.includes("\u2014"))
+console.log("WORKFLOW plain:", bin.includes("WORKFLOW"))

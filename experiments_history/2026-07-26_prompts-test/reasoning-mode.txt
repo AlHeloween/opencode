@@ -1,0 +1,9 @@
+<system-reminder>
+# Reasoning mode — conversation tail only (not system prefix)
+
+[KV-CACHE] This reminder is synthetic on the last user message so build↔reasoning
+can switch on the same model/session without rewriting the system prefix.
+
+You are in Reasoning mode — right now you can only operate with your memory.
+Answer to user question based on memory only.
+</system-reminder>

@@ -74,6 +74,68 @@ playground
 test_deep/
 refs
 
+# ── Experiments History (tracked archive) ──
+# Tracked record of finished experiments. Selection is content-based, so the tree
+# holds only files that passed the privacy gate; these rules are a second line of
+# defence for artifacts copied in by hand.
+experiments_history/**/*.exe
+experiments_history/**/*.dll
+experiments_history/**/*.pdb
+experiments_history/**/*.rlib
+experiments_history/**/*.rmeta
+experiments_history/**/*.pyd
+experiments_history/**/*.so
+experiments_history/**/*.dylib
+experiments_history/**/*.lib
+experiments_history/**/*.node
+experiments_history/**/*.bin
+experiments_history/**/*.zip
+experiments_history/**/*.7z
+experiments_history/**/*.tar
+experiments_history/**/*.gz
+experiments_history/**/*.whl
+experiments_history/**/*.fsl
+experiments_history/**/*.fossil
+experiments_history/**/*.db
+experiments_history/**/*.db-wal
+experiments_history/**/*.db-shm
+experiments_history/**/*.enc
+experiments_history/**/*.mp4
+experiments_history/**/*.webm
+experiments_history/**/*.mov
+experiments_history/**/*.avi
+experiments_history/**/*.npy
+experiments_history/**/*.npz
+experiments_history/**/*.pt
+experiments_history/**/*.onnx
+experiments_history/**/*.pkl
+experiments_history/**/*.png
+experiments_history/**/*.jpg
+experiments_history/**/*.jpeg
+experiments_history/**/*.gif
+experiments_history/**/*.webp
+experiments_history/**/*.bmp
+experiments_history/**/*.ico
+experiments_history/**/auth.json
+experiments_history/**/.env*
+experiments_history/**/*.pem
+experiments_history/**/*.key
+experiments_history/**/node_modules/
+experiments_history/**/.venvs/
+experiments_history/**/__pycache__/
+experiments_history/**/.pytest_cache/
+experiments_history/**/target/
+experiments_history/**/build/
+experiments_history/**/deps/
+experiments_history/**/release/
+experiments_history/**/dist/
+experiments_history/**/coverage/
+experiments_history/**/.cache/
+experiments_history/**/.pip_cache/
+experiments_history/**/.opencode/
+experiments_history/**/wc/
+experiments_history/**/backups/
+
 # ── Backups & Restore ──
 *.backup_*
 *.baseline

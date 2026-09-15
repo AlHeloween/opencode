@@ -655,20 +655,16 @@ const live: Layer.Layer<
         },
       )
 
-      // For reasoning models, max_tokens includes both reasoning and output tokens.
-      // Reasoning can consume 50-80% of the budget, so we need to account for that.
-      const rawMaxOutput = ProviderTransform.maxOutputTokens(input.model, input.outputTokenMax, contentTokens)
-      let maxOut: number | undefined
-      if (input.outputTokenMax !== undefined) {
-        // Clamp to the model's declared ceiling. The sidecar budget is sized for
-        // a large-output reasoning model (384K on deepseek-flash); sent verbatim
-        // to a model that caps output lower it is a 400, not a smaller summary.
-        maxOut = Math.min(input.outputTokenMax, input.model.limit.output || input.outputTokenMax)
-      } else if (input.model.capabilities.reasoning) {
-        maxOut = Math.min(rawMaxOutput * 3, input.model.limit.output || rawMaxOutput * 3)
-      } else {
-        maxOut = rawMaxOutput
-      }
+      // One number, from one function. The reasoning headroom, the model ceiling
+      // and the remaining-window clamp all live in ProviderTransform.maxOutputTokens
+      // so the overflow gate in overflow.ts subtracts exactly what the wire asks for.
+      // Splitting them is what opened the 154K band where a request no longer fit the
+      // context and the compaction gate did not know (measured 2026-09-15).
+      let maxOut: number | undefined = ProviderTransform.maxOutputTokens(
+        input.model,
+        input.outputTokenMax,
+        contentTokens,
+      )
 
       // OpenAI Responses API reasoning models (gpt-5.x, o-series) reject
       // max_output_tokens with "Unsupported parameter: max_output_tokens".
@@ -684,7 +680,7 @@ const live: Layer.Layer<
         provider: input.model.providerID,
         limitOutput: input.model.limit.output,
         contentTokens,
-        rawMaxOutput: rawMaxOutput,
+        rawMaxOutput: maxOut,
         maxOutputTokens: maxOut,
         reasoning: input.model.capabilities.reasoning,
       })

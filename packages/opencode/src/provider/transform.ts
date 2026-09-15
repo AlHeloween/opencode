@@ -1341,18 +1341,44 @@ export function providerOptions(model: Provider.Model, options: { [x: string]: a
   }
 }
 
+/**
+ * The single answer to "how many output tokens may this request ask for".
+ *
+ * It is both the `max_tokens` on the wire AND the number the overflow gate in
+ * `overflow.ts` subtracts from the context window, so there must be exactly one
+ * of it. Until 2026-09-15 there were two: `llm.ts` multiplied this result by 3
+ * for reasoning models while the gate used it raw. Measured on a live session,
+ * the gate believed the request would ask for 76_825 tokens while it actually
+ * asked for 230_475 — a ~154_000 token band where the request no longer fit the
+ * context and the compaction gate did not know. The multiplier now lives here,
+ * so both read the same number.
+ *
+ * The 25% content ratio is a POLICY (keep a quarter of the window free for the
+ * answer), not an implementation detail — `compaction.test.ts` pins its boundary
+ * at exact equality. Quantising the result to stop `max_tokens` drifting every
+ * turn was tried on 2026-09-15 and moved that boundary by 3_392 tokens, which
+ * silently disabled an overflow trigger. Drift is measurably free on DeepSeek
+ * (98% cache hit across 280 requests, every one with a distinct `max_tokens`),
+ * so it is not worth buying with a policy change.
+ */
 export function maxOutputTokens(model: Provider.Model, outputTokenMax?: number, contentTokens?: number): number {
-  if (outputTokenMax !== undefined) return outputTokenMax
   const native = model.limit.output
+  // Explicit override (sidecar, title). Honour it, but never above the model's
+  // declared ceiling: a budget sized for a 384K-output model is a 400 on one
+  // that caps lower, not a shorter answer.
+  if (outputTokenMax !== undefined) return native > 0 ? Math.min(outputTokenMax, native) : outputTokenMax
+
+  // Reasoning is spent from the same budget as the answer, and vendors report it
+  // taking 50-80% of it, so a reasoning model needs headroom a plain one does not.
+  const reasoningRoom = model.capabilities.reasoning ? 3 : 1
   const dynamic = contentTokens === undefined ? undefined : Math.max(1, Math.floor(contentTokens * 0.25))
   if (native > 0) {
     if (dynamic !== undefined) {
-      // For large-output models, the 25% ratio creates unnecessarily tight
-      // caps (e.g. deepseek-v4-pro: 384K native, but 25% of 200K content = 50K).
-      // Ensure a floor of at least 10% of native (minimum 8K) so large-output
-      // models aren't restricted below their intended capability.
+      // For large-output models the 25% ratio creates unnecessarily tight caps
+      // (deepseek-v4-pro: 384K native, but 25% of 200K content = 50K). Floor at
+      // 10% of native (minimum 8K) so they are not held below their capability.
       const floor = Math.min(native, Math.max(8192, Math.floor(native * 0.1)))
-      return Math.min(native, Math.max(dynamic, floor))
+      return Math.min(native, Math.max(dynamic * reasoningRoom, floor))
     }
     if (model.limit.context > 0 && native >= model.limit.context) {
       return Math.min(

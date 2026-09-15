@@ -2178,3 +2178,71 @@ Oracle: `test/session/recovery.test.ts` creates an isolated source DB and verifi
   - Live TUI (`_run.cmd` + `--terminal wt --direct-terminal`, run `20260914T180656Z_8c01f571`): the session view rendered the sidebar with a sampled cache row from the non-empty branch (`86%(…hit …miss)` shape of `formatCacheStats`) beside Greeting/Context/Status/MCP/LSP; read-only drive — no prompt sent into the opened session.
 - Stash state: drained — every workstream landed (sidecar `3951dcc6bf`, routing `918f114db8`, handles `8710415d18`, dialects `6e1df8b394`, sampling in the previous commit). The remaining `stash@{0}` content is superseded copies (sidecar/routing/dialects/handles hunks, the `.gitignore` duplicate, the 05:40/06:20 entries whose substance these landing entries carry). Safe to drop (owner's call).
 - Residual: the cache line wraps inside its ~42-column sidebar panel (`formatCacheStats` output is longer than the panel) — cosmetic, pre-existing; no binary rebuild (owner's call). [KV-CACHE] none — TUI-only.
+
+## [2026-09-15T09:10:00Z] session: fossil once per user turn, and the contract pinned so it stays that way
+
+### The measurement that started it
+
+The user reported tool calls "залипают". Timed from the logs of a live session,
+between the model finishing and the next request going out: **median 1080ms,
+p90 2938ms** over 271 turns. Composition:
+
+    session.summary/summarize   267 turns   589ms avg   157s total
+    snapshot-fossil/tracking     62 turns  1861ms avg   115s total
+    session.processor/finish-step 271 turns  264ms avg    72s total
+
+And `SessionProcessor.create` called `snapshot.checkpoint()` — which spawns
+`fossil info` under the repo lock — on EVERY turn. Of 2380 snapshot-bearing
+assistant messages in that database, **1220 (51%) called no write-class tool at
+all**: 365 pure `read`, 299 `cua`, 138 `jobwait`, 69 `grep`, 13 `webfetch`.
+
+### The insight (the user's)
+
+A snapshot is only ever restored at user-message granularity — `revert.ts:69`
+already folds every revert target back to the last user message. So a snapshot
+taken between two tool steps of the same turn can never be reverted to. It is
+pure cost. And `track()`'s early-exit is not free either: it still spawns
+`changes`, `addremove -n` and `info` under the lock.
+
+Summaries already granulate the same way and carry the filediffs, so all four
+boundaries now coincide: snapshot, summary+diffs, revert target, redo target.
+
+### Change
+
+- `create()` no longer snapshots. The baseline resolves lazily at the first
+  write-class `tool-call` of the turn, and lives on a per-session turn
+  accumulator, NOT on `ctx` — `ctx` is rebuilt per assistant message, and the
+  step that finally commits is often a later one that called no tools. Losing
+  the before-hash there would drop the `patch` part, which is exactly what
+  `revert.ts` walks to rebuild the file manifest. That hole was introduced and
+  closed inside this change.
+- `shouldSnapshot()` extracted as a pure predicate and exported, so the rule can
+  be pinned without a Fossil binary.
+- Writes accumulate across the steps of a turn; `track()` runs once, at the step
+  whose `finishReason` is not `tool-calls`.
+
+Measured over the project database: assistant messages carrying a write-class
+tool **1216**, user turns containing a write **97**. So the commit cycles drop
+**1216 → 97**, ~12.5x, at 1861ms each.
+
+### Tests
+
+- `test/session/snapshot-granularity.test.ts` (new, 7 tests) — every branch of
+  `shouldSnapshot`, pure, no Fossil needed.
+- `test/session/revert-user-anchor.test.ts` (new, 2 tests) — pointing at an
+  assistant turn folds the anchor to its user message; a turn with no snapshot
+  still yields a message-level revert.
+
+### A claim I made and withdrew
+
+I reported that this change fixed T7 and T8 in `revert-crossing.test.ts` (red
+since 2026-08-30) and gave a causal story for it. It does not hold: run in
+isolation at HEAD, those tests are **flaky** — two fails on one run, one on the
+next. The "fixed" readings were full-suite noise. My tree is stable across three
+isolated runs (T7 green, T8 red) but that is not evidence of a fix.
+The `T3/T4` failure that appeared in the full suite is order-dependent; it is
+green in isolation in this tree.
+
+Oracles: `bun typecheck` exit 0. New tests 9/9. Session+snapshot suite 799 pass
+against a HEAD baseline of 790 pass / 52 fail, no regression attributable to
+this change.

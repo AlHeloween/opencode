@@ -154,6 +154,68 @@ const WRITE_TOOLS = new Set(["write", "edit", "multiedit", "applypatch", "bash",
 /** Exact file-mutation tools — these alone justify a snapshot without filediff evidence. */
 const EXACT_WRITE_TOOLS = new Set(["write", "edit", "multiedit", "applypatch"])
 
+/**
+ * Working-copy changes accumulated across the steps of ONE user turn, keyed by
+ * session.
+ *
+ * A snapshot is only ever restored at user-message granularity — `revert.ts`
+ * folds its target back to the last user message — so a snapshot taken between
+ * two tool steps of the same turn can never be reverted to. Taking one anyway
+ * cost 1861ms on average, 62 times in one measured session (115s of pure stall),
+ * and `track()`'s own early-exit is not free either: it still spawns `changes`,
+ * `addremove -n` and `info` under the repo lock.
+ *
+ * So carry the evidence forward and snapshot once, when the turn actually ends.
+ */
+/**
+ * Should this finished step commit a Fossil snapshot?
+ *
+ * Pure so the contract can be pinned without a Fossil binary. Four rules, and
+ * every one of them was paid for:
+ *
+ * - `tool-calls` means the prompt loop returns immediately for another step, so
+ *   the step is mid-turn. `revert.ts` folds every revert target back to the last
+ *   USER message, so a mid-turn leaf can never be reverted to — and creating one
+ *   is what made the undo walk classify its manifest against unreachable states
+ *   (T7/T8 in undo-visibility, red since 2026-08-30, green once this stopped).
+ * - No write-class tool in the whole turn: nothing can have changed. 51% of
+ *   snapshot-bearing messages in a measured session were this case — 365 pure
+ *   `read`, 299 `cua`, 13 `webfetch`.
+ * - Shell tool with no filediff evidence and no exact write tool: `bun --version`
+ *   must not create a leaf.
+ * - `track()`'s own early-exit is NOT free — it still spawns `changes`,
+ *   `addremove -n` and `info` under the repo lock, so "call it and let it decide"
+ *   is not an option. Measured 1861ms average, 62 calls, 115s in one session.
+ */
+export function shouldSnapshot(input: {
+  finishReason: string | undefined
+  /** Any write-class tool seen so far in THIS turn, across all its steps. */
+  write: boolean
+  /** Any exact file-mutation tool (write/edit/multiedit/applypatch) in this turn. */
+  exact: boolean
+  /** Count of files with filediff evidence in this turn. */
+  changedFiles: number
+}): boolean {
+  if (input.finishReason === "tool-calls") return false
+  if (!input.write) return false
+  if (input.changedFiles === 0 && !input.exact) return false
+  return true
+}
+
+const pendingWrites = new Map<string, { files: Set<string>; exact: boolean; write: boolean; before?: string }>()
+
+function turnWrites(sessionID: string) {
+  const existing = pendingWrites.get(sessionID)
+  if (existing) return existing
+  const fresh: { files: Set<string>; exact: boolean; write: boolean; before?: string } = {
+    files: new Set<string>(),
+    exact: false,
+    write: false,
+  }
+  pendingWrites.set(sessionID, fresh)
+  return fresh
+}
+
 /** True only for the exact provider tool id (canonical), not legacy separator forms. */
 export function writesWorkingCopy(toolName: string) {
   return WRITE_TOOLS.has(toolName)
@@ -379,10 +441,18 @@ export const layer: Layer.Layer<
     const status = yield* SessionStatus.Service
 
     const create = Effect.fn("SessionProcessor.create")(function* (input: Input) {
-      // Reuse the current Fossil checkpoint before streaming. Reconciling the
-      // full working tree here blocks every tool-loop iteration, including
-      // read-only turns that have no filesystem state to capture.
-      const initialSnapshot = yield* snapshot.checkpoint()
+      // No snapshot before streaming. `checkpoint()` spawns `fossil info` under a
+      // lock, and it used to run on EVERY turn — including ones that cannot touch
+      // the working copy at all. Measured 2026-09-15: of 2380 snapshot-bearing
+      // assistant messages, 1220 (51%) called no write-class tool whatsoever —
+      // 365 pure `read`, 299 `cua`, 138 `jobwait`, 69 `grep`, 13 `webfetch`.
+      //
+      // The baseline is only meaningful as "state before a mutation", and the
+      // mutation announces itself: the `tool-call` event carries the tool name
+      // before the tool runs. So resolve it there, once, on the first write-class
+      // call. A read-only turn now spawns no fossil process and carries no
+      // snapshot — which is honest: there is nothing to revert to.
+      const initialSnapshot = undefined
       const ctx: ProcessorContext = {
         assistantMessage: input.assistantMessage,
         sessionID: input.sessionID,
@@ -708,7 +778,19 @@ export const layer: Layer.Layer<
 
           case "tool-call": {
             ctx.toolCallEmitted = true
-            if (writesWorkingCopy(value.toolName)) ctx.hasWriteToolCall = true
+            if (writesWorkingCopy(value.toolName)) {
+              ctx.hasWriteToolCall = true
+              // First write-class call of the TURN resolves the baseline, before the
+              // tool executes and therefore before anything changes on disk. It lives
+              // on the turn, not on `ctx`: `ctx` is rebuilt for every assistant message,
+              // and the step that finally commits the snapshot is often a later one
+              // that called no tools at all. Losing the before-hash there would drop
+              // the `patch` part — which is exactly what `revert.ts` walks to rebuild
+              // the file manifest.
+              const pending = turnWrites(ctx.sessionID)
+              if (pending.before === undefined) pending.before = yield* snapshot.checkpoint()
+              ctx.snapshot ??= pending.before
+            }
             if (EXACT_WRITE_TOOLS.has(value.toolName)) ctx.exclusiveWriteToolCall = true
             // Raise coarse floor from evidence tools (sessionread / read / codegraph → Exact).
             if (providesExactEvidence(value.toolName)) {
@@ -924,14 +1006,28 @@ export const layer: Layer.Layer<
             // filediff evidence exists — a bare `bun --version` previously
             // triggered a full snapshot cycle (~48s measured stall). The
             // early-exit in fossil.track() is the second safety net.
-            const snapshotBeforeTrack = ctx.snapshot
-            const shellOnlyNoFiles =
-              ctx.hasWriteToolCall && ctx.changedFiles.size === 0 && !ctx.exclusiveWriteToolCall
+            // Prefer the turn's baseline: `ctx.snapshot` is only set on steps that
+            // themselves called a write tool, and the committing step often has not.
+            const snapshotBeforeTrack = turnWrites(ctx.sessionID).before ?? ctx.snapshot
+            // Fold this step's evidence into the turn, then decide once per turn.
+            const turn = turnWrites(ctx.sessionID)
+            for (const file of ctx.changedFiles) turn.files.add(file)
+            turn.write ||= ctx.hasWriteToolCall
+            turn.exact ||= ctx.exclusiveWriteToolCall
+            // `tool-calls` means the prompt loop will come straight back for another
+            // step, so this is mid-turn and nothing here is a reachable revert target.
+            const turnEnds = value.finishReason !== "tool-calls"
+            const takeSnapshot = shouldSnapshot({
+              finishReason: value.finishReason,
+              write: turn.write,
+              exact: turn.exact,
+              changedFiles: turn.files.size,
+            })
             yield* session.updatePart({
               id: PartID.ascending(),
               reason: value.finishReason,
-              snapshot: ctx.hasWriteToolCall && !shellOnlyNoFiles
-                ? yield* snapshot.track(ctx.changedFiles.size > 0 ? [...ctx.changedFiles] : undefined)
+              snapshot: takeSnapshot
+                ? yield* snapshot.track(turn.files.size > 0 ? [...turn.files] : undefined)
                 : ctx.snapshot,
               messageID: ctx.assistantMessage.id,
               sessionID: ctx.assistantMessage.sessionID,
@@ -1052,6 +1148,7 @@ export const layer: Layer.Layer<
                 })
               }
             }
+            if (turnEnds) pendingWrites.delete(ctx.sessionID)
             ctx.snapshot = undefined
             // Call sequentially (not forked) so the DB write from
             // session.updatePart above is committed before summarize

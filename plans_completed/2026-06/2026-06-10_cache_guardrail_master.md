@@ -96,7 +96,7 @@ Apply the guardrail specifically to the compaction pipeline.
 ## Experiment Files
 
 ```
-packages/opencode/test/experiments/20260610_cache_guardrail/
+experiments_history/2026-06-10_cache-guardrail/
 ├── README.md                 # Experiment overview and run instructions
 ├── phase1_baseline.ts        # Cache-hit vs output quality measurement
 ├── phase2_divergence.ts      # Token-level prefix divergence detection

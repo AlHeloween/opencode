@@ -95,7 +95,7 @@ Request 2:
 ## File
 
 ```
-packages/opencode/test/experiments/20260610_cache_guardrail/phase1_position_tests.ts
+experiments_history/2026-06-10_cache-guardrail/phase1_position_tests.ts
 ```
 
 Runs all 4 experiments sequentially. Each experiment:

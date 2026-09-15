@@ -63,7 +63,7 @@ Smoke tests:
 - P2: accuracy ≥ 95% at the chosen density before any product integration;
 - P4 table written: tokens, cost, accuracy per modality.
 
-### Stage-1 first results (2026-09-08, experiments/c5_sweep.mts — 9/9 exact)
+### Stage-1 first results (2026-09-08, experiments_history/2026-09-07_deliver-once-media-smoke/c5_sweep.mts — 9/9 exact)
 
 Renderer quirks (gyan.dev ffmpeg 2022): fontfile=<drive>\: → "Both text and
 text file provided" (parser bug; use fontconfig Sans), expansion=none mandatory

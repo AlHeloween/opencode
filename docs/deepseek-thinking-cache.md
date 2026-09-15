@@ -1,8 +1,8 @@
 # DeepSeek: thinking vs prompt cache
 
 **Status:** measured 2026-08-14 on `deepseek-v4-pro` via `https://api.deepseek.com`
-**Script:** `experiments/deepseek-test/deepseek_test.py` (key from `DEEPSEEK_API_KEY` env)
-**Raw:** `experiments/deepseek-test/results/20260814T15*_deepseek_series.json`
+**Script:** `experiments/2026-08-14_deepseek-test/deepseek_test.py` (key from `DEEPSEEK_API_KEY` env)
+**Raw:** `experiments_history/2026-08-14_deepseek-test/results/20260814T15*_deepseek_series.json`
 **Sibling:** `docs/streamlake-kat-thinking-cache.md` (same suite against the StreamLake/KAT gateway)
 
 Everything below is grounded in the official references (read before the runs) plus live measurements.
@@ -75,11 +75,11 @@ Everything below is grounded in the official references (read before the runs) p
 ## How to re-run
 
 ```
-python experiments/deepseek-test/deepseek_test.py --series ladder
-python experiments/deepseek-test/deepseek_test.py --series big --turns 6
-python experiments/deepseek-test/deepseek_test.py --series no_think --turns 4
-python experiments/deepseek-test/deepseek_test.py --series isolation
-python experiments/deepseek-test/deepseek_test.py --series all
+python experiments/2026-08-14_deepseek-test/deepseek_test.py --series ladder
+python experiments/2026-08-14_deepseek-test/deepseek_test.py --series big --turns 6
+python experiments/2026-08-14_deepseek-test/deepseek_test.py --series no_think --turns 4
+python experiments/2026-08-14_deepseek-test/deepseek_test.py --series isolation
+python experiments/2026-08-14_deepseek-test/deepseek_test.py --series all
 ```
 
-Requires `DEEPSEEK_API_KEY` in env. Results land in `experiments/deepseek-test/results/` with per-turn rows + auto verification summaries (balance, lattice, hit ratio, cost).
+Requires `DEEPSEEK_API_KEY` in env. Results land in `experiments/2026-08-14_deepseek-test/results/` with per-turn rows + auto verification summaries (balance, lattice, hit ratio, cost).

@@ -305,7 +305,7 @@ const NOVITA_STATIC_MODELS: ModelsDevModel[] = [
 //       benchmark from MY: h3 median 2188ms vs h2 3294ms, 2x shorter tail,
 //       0 give-ups; server advertises alt-svc h3; Bun 1.4.2 client proven).
 // openrouter stays h2 (h3 not benchmarked there yet).
-// 2026-09-11 h3 probe (Bun pinned-protocol fetch, experiments/20260911_openrouter-zen-h3):
+// 2026-09-11 h3 probe (Bun pinned-protocol fetch, experiments/2026-09-11_openrouter-zen-h3):
 //   openrouter.ai AND opencode.ai zones have HTTP/3 disabled server-side —
 //   h3 pin fails HTTP3HandshakeFailed, no alt-svc advertised. h3 defaults stay
 //   impossible there until zone owners enable QUIC; no code change needed when

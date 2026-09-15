@@ -2,7 +2,7 @@
 
 **Status:** measured 2026-08-14 on `pasha-coder` / `ep-kneqk9-1786632248553436783`  
 **Smoke:** `python bin/pasha_test.py --mode all --turns 8`  
-**Raw:** `experiments/cache-tests/results/20260814T142502Z_think_modes.json`
+**Raw:** `experiments/2026-08-17_cache-tests/results/20260814T142502Z_think_modes.json`
 
 This is the small detail we were missing. It is not `cache_control` and not whether we echo `reasoning_content` in JSON.
 
@@ -45,7 +45,7 @@ On the short ladder we saw **128** then **192** (`128+64`). Still 128-token step
 
 Evidence: KAT live matrix (this doc), DeepSeek + MIMO official docs, Qwen official docs
 ("do not add the reasoning_content field when you add to the context"), zen live
-matrix 2026-08-15 (`experiments/cache-alignment-smoke/smoke_zen_reasoning_echo.py`).
+matrix 2026-08-15 (`experiments/2026-08-18_cache-alignment-smoke/smoke_zen_reasoning_echo.py`).
 
 ### Why we drop the echo (live verified 2026-08-15)
 
@@ -158,7 +158,7 @@ python bin/pasha_test.py --mode preserve
 ### Reasoning echo experiment (2026-08-15)
 
 ```
-python experiments/cache-alignment-smoke/smoke_kat_reasoning_echo.py
+python experiments/2026-08-18_cache-alignment-smoke/smoke_kat_reasoning_echo.py
 ```
 
 Compares turn-2 with echo vs without echo (plain + tool-call scenarios) — acceptance, prompt tokens, output reasoning tokens, duration.

@@ -71,7 +71,7 @@ opt-out user.tools) не должен менять bytes провода внут
   - саммари-тур S: prompt length **равен** рабочему (тулы на проводе), cached>0 в том же префиксе;
   - T4 (drop last tool) → префикс отличается, кэш-мисс — ожидаемо и видимо.
 
-**Live-верификация на zen free-модели (2026-08-16, `experiments/2026-08-16-zen-tools-kv-smoke/tools_kv_zen_smoke.py`, nemotron-3-ultra-free, 31 тул):**
+**Live-верификация на zen free-модели (2026-08-16, `experiments/2026-08-16_zen-tools-kv-smoke/tools_kv_zen_smoke.py`, nemotron-3-ultra-free, 31 тул):**
 - W1 холодный: prompt 3244, 5.32s → W2 идентичный повтор: prompt 3244, **2.88s** (префикс тёплый; `cached_tokens` остаётся 0 — известное KAT-поведение null/0≠miss).
 - W3 drop last tool: prompt **3160** (−84 токена = ровно один тул) — смена каталога видимо меняет префикс.
 - W4 снова полный каталог: prompt 3244, **2.31s** — кэш префикса эры переиспользуется, ключ стабилен.
@@ -108,7 +108,7 @@ opt-out user.tools) не должен менять bytes провода внут
 
 ### T6 — ORACLES_AND_TESTS (финальная проверка) — [x] DONE
 - **what**: все задачи закрыты ораклами выше; план перенесён в `plans_completed/`; `_progress_log.md` и `_application_workflow_diagram.md` обновлены.
-- **Итог ораклов**: typecheck exit 0 (последний `20260816T193056Z_e933d5a8`); новые тесты: T1+T2 = 2 pass, T3 = 1 pass, T4 = 1 pass, T5 = в наборе 21 pass; KAT acceptance — живой zen smoke (`experiments/2026-08-16-zen-tools-kv-smoke/`): W2 2.88s vs W1 5.32s (тёплый префикс), W3 −84 токена при drop тула, W4 2.31s (кэш эры переиспользуется).
+- **Итог ораклов**: typecheck exit 0 (последний `20260816T193056Z_e933d5a8`); новые тесты: T1+T2 = 2 pass, T3 = 1 pass, T4 = 1 pass, T5 = в наборе 21 pass; KAT acceptance — живой zen smoke (`experiments/2026-08-16_zen-tools-kv-smoke/`): W2 2.88s vs W1 5.32s (тёплый префикс), W3 −84 токена при drop тула, W4 2.31s (кэш эры переиспользуется).
 
 ## Risks
 

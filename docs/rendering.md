@@ -5,7 +5,7 @@
 
 > **3D terminal rendering note:** Three.js WebGPU via `@opentui/three` has known issues
 > on this platform (see §14). The working 3D pipeline uses GPU compute shaders + Sixel
-> output via Python `wgpu` — see `experiments/20260712-rotating-cube-3d/test_cube.py`.
+> output via Python `wgpu` — see `experiments_history/2026-07-28_rotating-cube-3d/test_cube.py`.
 
 ---
 
@@ -716,7 +716,7 @@ bindings and outputs directly via the Sixel protocol. Key advantages:
 | **Readback** | `map_sync()` — synchronous, no double-map hazard |
 | **Output** | Raw pixel bits (uint32 ON/OFF) → Sixel → terminal |
 | **Dep**s | `python-wgpu`, `numpy` |
-| **Files** | `experiments/20260712-rotating-cube-3d/test_cube.py` |
+| **Files** | `experiments_history/2026-07-28_rotating-cube-3d/test_cube.py` |
 | **Run** | `python test_cube.py` (with DXC DLLs in PATH) |
 
 The `resolve_and_inject_dependencies()` function in `test_cube.py` handles
@@ -747,14 +747,14 @@ supersampling modes (none, CPU, GPU). This is an upstream bug in
 
 ```bash
 # Working: Python WGSL + Sixel (WebGPU, needs DXC DLLs in PATH)
-python packages/opencode/experiments/20260712-rotating-cube-3d/test_cube.py
+python experiments_history/2026-07-28_rotating-cube-3d/test_cube.py
 
 # Working: Python software raster + Sixel (no GPU needed)
-python packages/opencode/experiments/20260712-rotating-cube-3d/term_rend.py
+python experiments_history/2026-07-28_rotating-cube-3d/term_rend.py
 
 # Working: Three.js WebGL in browser
-# Open packages/opencode/experiments/20260712-rotating-cube-3d/web.html
+# Open experiments_history/2026-07-28_rotating-cube-3d/web.html
 
 # Not working: Three.js WebGPU in terminal (U+FFFD bug)
-bun run packages/opencode/experiments/20260712-rotating-cube-3d/smoke.ts
+bun run experiments_history/2026-07-28_rotating-cube-3d/smoke.ts
 ```

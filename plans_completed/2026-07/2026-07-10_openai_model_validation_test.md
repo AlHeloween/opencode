@@ -17,7 +17,7 @@ Create a standalone test script that validates ALL OpenAI model IDs against the 
 
 ## Implementation
 
-### File: `experiments/test_openai_models.ts`
+### File: `experiments_history/2026-07-10_model-tester/test_openai_models.ts`
 
 **Dependencies**: None except Bun standard library (fetch, file read)
 

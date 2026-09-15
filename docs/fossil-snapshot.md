@@ -104,8 +104,8 @@ disk". Consequences:
 
 Fossil handles large unchanged trees at the same speed as tiny ones; do not add
 caching layers for "many files" — the cost model is per-invocation, not per-file.
-Benchmarks: `experiments/2026-08-23_fossil_smoke.ps1`,
-`experiments/2026-08-23_undo_scale.test.ts`, `experiments/2026-08-23_undo_scale10k.test.ts`.
+Benchmarks: `experiments_history/2026-08-23_fossil-smoke/2026-08-23_fossil_smoke.ps1`,
+`experiments_history/2026-08-23_fossil-smoke/2026-08-23_undo_scale.test.ts`, `experiments_history/2026-08-23_fossil-smoke/2026-08-23_undo_scale10k.test.ts`.
 
 ---
 

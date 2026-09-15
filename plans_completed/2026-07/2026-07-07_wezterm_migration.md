@@ -26,7 +26,7 @@
 
 | File | Content |
 |------|---------|
-| `experiments/wezterm/wezterm.lua` | Optimal config for opencode |
+| `experiments_history/2026-07-08_wezterm-config/wezterm.lua` | Optimal config for opencode |
 
 Key settings:
 - `enable_kitty_graphics = true` — Kitty protocol for best image quality

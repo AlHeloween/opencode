@@ -9,7 +9,7 @@ Status: COMPLETED 2026-08-28T00:35Z — all tasks [x], all oracles PASS
 Restore automated detection of cache-poisoning content mutations (the role the
 removed 639-line speculative fingerprint audit played) at O(1) per-message cost,
 and ground the regression analysis in a reusable log-timeline analyzer under
-`experiments/kv-cache-parity/`.
+`experiments/2026-08-29_kv-cache-parity/`.
 
 ## Background (claim ledger)
 
@@ -27,13 +27,13 @@ and ground the regression analysis in a reusable log-timeline analyzer under
 
 ### T1 — Timeline analyzer (experiments lane)
 
-- what: `experiments/kv-cache-parity/2026-08-28_analyze_cache_timeline.py`
+- what: `experiments_history/2026-08-29_kv-cache-parity/2026-08-28_analyze_cache_timeline.py`
   - parse `*_log_*.jsonl` events: cache hit/miss, cache marker check, system
     prompt content changed, prefix reset, system prompt ready (once)
   - parse `*_diff_*.diff` turn pairs: added/removed/changed, reasoning bytes,
     tool-result bytes
   - markdown timeline per session + anchor verification mode `--require-anchors`
-- files: `experiments/kv-cache-parity/2026-08-28_analyze_cache_timeline.py`, `experiments/kv-cache-parity/README.md`
+- files: `experiments_history/2026-08-29_kv-cache-parity/2026-08-28_analyze_cache_timeline.py`, `experiments_history/2026-08-29_kv-cache-parity/README.md`
 - oracle: script exit 0 on real logs; report contains C1, C2, C3 anchors (ts + token numbers)
 - depends_on_claims: C1, C2, C3 (anchors used as oracle fixture)
 - status: [x] — oracle PASS: --require-anchors FOUND×3 (92 rows, 75 diffs)
@@ -58,7 +58,7 @@ and ground the regression analysis in a reusable log-timeline analyzer under
   nested-AGENTS touch, clean-turn baseline; analyzer `--session`/`--since`
   filters to extract each matrix row. No invented server endpoints — scenarios
   run through the normal TUI/server usage, analyzer reads logs.
-- files: `experiments/kv-cache-parity/README.md`
+- files: `experiments_history/2026-08-29_kv-cache-parity/README.md`
 - oracle: analyzer filters run exit 0 on post-scenario logs (documented manual run)
 - depends_on_claims: C3, C4
 - status: [x] — README procedures + E4 baseline recorded (clean turns 108–209 uncached)
@@ -93,11 +93,11 @@ post_checks:
   cmd: pwsh -NoProfile -c "cd packages/opencode; bun test test/session/llm.test.ts"
   expected_exit: 0
 - label: analyzer-anchors
-  cmd: python experiments/kv-cache-parity/2026-08-28_analyze_cache_timeline.py --require-anchors
+  cmd: python experiments_history/2026-08-29_kv-cache-parity/2026-08-28_analyze_cache_timeline.py --require-anchors
   expected_exit: 0
 
 blast_radius: llm.ts (additive module-level guards, one call site), llm.test.ts
-(additive describe), new experiments/kv-cache-parity/* files, _progress_log.md.
+(additive describe), new experiments/2026-08-29_kv-cache-parity/* files, _progress_log.md.
 No behavior change on request path beyond two Map ops + hash per message.
 
 ## Outcome Contract
@@ -107,7 +107,7 @@ acceptance_criteria:
   oracle_cmd: bun test test/session/llm.test.ts (new block)
   expected_result: PASS
 - id: AC2 — analyzer reproduces C1/C2/C3 anchors from existing logs
-  oracle_cmd: python experiments/kv-cache-parity/2026-08-28_analyze_cache_timeline.py --require-anchors
+  oracle_cmd: python experiments_history/2026-08-29_kv-cache-parity/2026-08-28_analyze_cache_timeline.py --require-anchors
   expected_result: PASS
 - id: AC3 — typecheck clean
   oracle_cmd: bun run typecheck (packages/opencode)

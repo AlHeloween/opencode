@@ -13,11 +13,11 @@ budget: utf8 30 000 / rendered **28 184** → **1 816 bytes free** (measured 202
 > and proposed overlapping addon lines. Creating a second overlapping candidate was itself
 > an instance of the duplication the rule is meant to prevent, so the drafts are merged here
 > and archived (not deleted) at
-> `experiments/20260912_deepseek-h3/superseded-plans/` — recoverable if the owner prefers
+> `experiments/2026-09-12_deepseek-h3/superseded-plans/` — recoverable if the owner prefers
 > one of their wordings over this text.
 >
 > The superseded drafts are archived (not deleted) at
-> `experiments/20260912_deepseek-h3/superseded-plans/` for provenance; they are reference-only
+> `experiments/2026-09-12_deepseek-h3/superseded-plans/` for provenance; they are reference-only
 > and must not be treated as active plans.
 
 ## Context / goal
@@ -73,7 +73,7 @@ The two failures:
   `…20260912-164703_call_00_qVi2ku2vZYcbQVNgVE962796_…transform.ts.bak` — verified
   HEAD-identical by hash (LF-normalised), after a first attempt picked the wrong backup
   (filename is local time, not UTC — read `LastWriteTimeUtc`, never the name).
-- Artifact preserved: `experiments/20260912_deepseek-h3/transform.broken-20260912T0904Z.ts.bak` (61186 B).
+- Artifact preserved: `experiments_history/2026-09-12_deepseek-h3/transform.broken-20260912T0904Z.ts.bak` (61186 B).
 
 ## Proposed change
 

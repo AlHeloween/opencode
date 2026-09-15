@@ -309,7 +309,7 @@ To: `Design the implementation yourself based on exploration results from Phase 
 
 ## Bonus: Token Calibration Test Script
 
-**File: `experiments/20260708_token_calibration_test/kat_coder_token_test.py`**
+**File: `experiments/2026-07-18_token-calibration-test/kat_coder_token_test.py`**
 
 Standalone Python test that compares our tokenizer estimate with kat-coder-pro-v2's actual token counts. Reads auth from `bin/auth.json`.
 

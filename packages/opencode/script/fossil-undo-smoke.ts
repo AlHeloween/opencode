@@ -2,11 +2,11 @@
  * Isolated Fossil full-leaf undo smoke — product Snapshot/SnapshotFossil only.
  * No TUI, no agent.
  *
- * Worktree default: <repo>/experiments/20260806_fossil_undo_smoke/wc
+ * Worktree default: <repo>/experiments/2026-08-06_fossil-undo-smoke/wc
  *
  * Run from packages/opencode:
  *   bun script/fossil-undo-smoke.ts
- * Or: pwsh experiments/20260806_fossil_undo_smoke/run.ps1
+ * Or: pwsh experiments_history/2026-08-06_fossil-undo-smoke/run.ps1
  */
 import fs from "fs/promises"
 import path from "path"
@@ -22,7 +22,7 @@ Log.init()
 const REPO = path.resolve(import.meta.dirname!, "..", "..", "..")
 const WC =
   process.argv[2] ??
-  path.join(REPO, "experiments", "20260806_fossil_undo_smoke", "wc")
+  path.join(REPO, "experiments", "2026-08-06_fossil-undo-smoke", "wc")
 
 function fwd(...parts: string[]) {
   return path.join(...parts).replaceAll("\\", "/")

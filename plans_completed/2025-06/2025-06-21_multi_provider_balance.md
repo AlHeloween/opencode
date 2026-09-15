@@ -2,7 +2,7 @@
 
 **Created:** 2025-06-21
 **Status:** Research Complete — Ready for Approval
-**Experiment:** `experiments/20250621_balance_smoke_test/` — all APIs tested live
+**Experiment:** `experiments/2025-06-21_balance-smoke/` — all APIs tested live
 **SV:** `[["balance","provider","registry","tui","OpenRouter","DeepSeek","OpenCode"], [0.28,0.22,0.18,0.12,0.09,0.07,0.04]]`
 
 ---

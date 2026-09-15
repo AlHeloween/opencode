@@ -552,7 +552,7 @@ const DEEPSEEK_WIRE_EFFORTS = ["low", "high", "max"]
  * which contains neither `v4` nor `deepseek-v4`, so a version-substring test
  * silently dropped the *current* model onto the generic openai-compatible path:
  * wrong npm package, `low/medium/high` variants (no `off`, no `max`) and no
- * `thinking` injection. Measured live — experiments/20260912_deepseek-h3/REPORT.md.
+ * `thinking` injection. Measured live — experiments_history/2026-09-12_deepseek-h3/REPORT.md.
  */
 export function isDeepSeekThinkingId(apiId: string): boolean {
   const id = apiId.toLowerCase()

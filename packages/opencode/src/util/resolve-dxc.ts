@@ -10,7 +10,7 @@
  * ALL discovered DLL directories to the process PATH so Dawn can
  * resolve both DLLs regardless of where they're installed.
  *
- * Adapted from experiments/20260712-rotating-cube-3d/test_cube.py
+ * Adapted from experiments_history/2026-07-28_rotating-cube-3d/test_cube.py
  */
 import { execSync } from "child_process"
 import { platform } from "os"

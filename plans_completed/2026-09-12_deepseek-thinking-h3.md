@@ -2,7 +2,7 @@
 
 state: COMPLETE (T1–T7; live TUI render proof not exercised)
 scope: packages/opencode/src/provider (transform.ts, provider.ts) + TUI variant dialog + tests
-evidence: experiments/20260912_deepseek-h3/REPORT.md
+evidence: experiments_history/2026-09-12_deepseek-h3/REPORT.md
 
 ## Context / goal
 
@@ -30,11 +30,11 @@ predicate was written against, so it silently falls off the DeepSeek code path.
 - `docs/reasoning-round-trip-contract.md` — existing vendor matrix. Its DeepSeek
   row attributes the 400 to `reasoning_content`; **T5 corrects that row**.
 - `docs/deepseek-thinking-cache.md` — the 2026-08-14 DeepSeek measurements.
-- `experiments/20260829T000000Z_kv-cache-parity/2026-08-28_deepseek_direct_dialect_probe.py`
+- `experiments/2026-08-29_kv-cache-parity/2026-08-28_deepseek_direct_dialect_probe.py`
   — the probe whose variant C "proved" the 400. Re-ran 2026-09-12: it reproduced
   the 400 because it uses a **synthetic** `call_probe_1` id.
-- `experiments/20260912_deepseek-h3/` — the new probes (9 scripts + REPORT.md),
-  rewritten from `experiments/20260908T000000Z_novita-h3-session-probes/`.
+- `experiments/2026-09-12_deepseek-h3/` — the new probes (9 scripts + REPORT.md),
+  rewritten from `experiments/2026-09-08_novita-h3-session-probes/`.
 - `plans_completed/2026-09-08_novita-h3-transport-headers.md` — the h3 transport
   pattern for any future provider.
 - `plans/README.md` — plan structure + the cmd_runner `tail` convention.
@@ -150,7 +150,7 @@ already advertises**. T2 makes `variants()` agree with it.
 - `bun run typecheck` → exit 0, 0 errors (run `20260912T121509Z_ddc17bf6`).
 - `bun test test/provider/transform.test.ts` → **167 pass / 0 fail**
   (run `20260912T121833Z_c0a5a3f0`; baseline 164 pass / 1 fail).
-- Live proof `experiments/20260912_deepseek-h3/verify-deepseek-variants.ts`:
+- Live proof `experiments_history/2026-09-12_deepseek-h3/verify-deepseek-variants.ts`:
   predicate true for `deepseek-flash`/`deepseek-v4-pro`, false for retired aliases;
   flash → `off,low,high,max`; pro → `off,high,max`; `ultra` filtered out.
 - One live literal remains by design: the NVIDIA `chat_template_kwargs` site
@@ -180,7 +180,7 @@ npm changed (risk R1).
 | 1 | `cmd_runner start --cwd packages/opencode -- bun test test/provider/transform.test.ts` then `cmd_runner tail <run_id>` | 164 pass / 1 fail (stale `KERNEL_MAP`) | 164 pass / 1 fail — run `20260912T041206Z_54ba1480` |
 | 2 | `cmd_runner start --cwd packages/opencode -- bun test test/provider/provider.test.ts` then tail | pass | (record) |
 | 3 | `cmd_runner start --cwd packages/opencode -- bun run typecheck` then tail | exit 0 | (record) |
-| 4 | live wire: `cmd_runner start -- bun experiments/20260912_deepseek-h3/probe-thinking-off-switch.mjs` | off-switches work | F1 `effort:none` off, F2 `minimal` on (41 rtok), F3 default on (76 rtok), F4 `disabled` off — run `20260912T041020Z_41f8d254` |
+| 4 | live wire: `cmd_runner start -- bun experiments_history/2026-09-12_deepseek-h3/probe-thinking-off-switch.mjs` | off-switches work | F1 `effort:none` off, F2 `minimal` on (41 rtok), F3 default on (76 rtok), F4 `disabled` off — run `20260912T041020Z_41f8d254` |
 
 ### Post-implementation oracles
 | # | Command (cwd) | Pass criteria |

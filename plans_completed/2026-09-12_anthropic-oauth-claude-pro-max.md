@@ -6,10 +6,10 @@ created_by: build_mode
 origin: user — «хотел заимплементить oauth для антропика как в d:\zPython\oh-my-pi»; confirmed that OMP login UX is the implementation target
 reproduce:
   files:
-    - experiments/20260912_anthropic-oauth/02_plugin_loader_probe.ts
+    - experiments_history/2026-09-12_anthropic-oauth/02_plugin_loader_probe.ts
     - d:/zPython/oh-my-pi/packages/ai/src/providers/claude-code-fingerprint.ts
   commands:
-    - bun run experiments/20260912_anthropic-oauth/02_plugin_loader_probe.ts
+    - bun run experiments_history/2026-09-12_anthropic-oauth/02_plugin_loader_probe.ts
   inputs: A current, non-expired OMP Anthropic OAuth access credential; token material is read from SQLite and never printed.
   expected_outputs: The actual OpenCode OAuth loader returns HTTP 200 and the model replies `pong`; the probe refuses to refresh because its minimal test client cannot persist a rotated token.
 ---
@@ -31,7 +31,7 @@ The user explicitly replaced the earlier plan's out-of-scope decision for subscr
 | `d:/zPython/oh-my-pi/packages/ai/src/providers/anthropic.ts` | Inferred | OAuth-only Bearer auth, beta headers, system identity/billing blocks, CCH attestation, and 64k clamp. |
 | `packages/opencode/src/plugin/codex.ts` | Inferred | OpenCode plugin hook, callback lifecycle, stored OAuth credential loader, and request-time refresh. |
 | `packages/opencode/src/auth/index.ts` | Inferred | Encrypted auth-store schema and persistence surface. |
-| `experiments/20260912_anthropic-oauth/01_refresh_probe.ts` | Exact | On 2026-09-12: token refresh `200`; OAuth-fingerprinted `POST /v1/messages?beta=true` returned `200` and `pong` from `claude-sonnet-4-5-20250929`. |
+| `experiments_history/2026-09-12_anthropic-oauth/01_refresh_probe.ts` | Exact | On 2026-09-12: token refresh `200`; OAuth-fingerprinted `POST /v1/messages?beta=true` returned `200` and `pong` from `claude-sonnet-4-5-20250929`. |
 
 ## Contract
 
@@ -109,7 +109,7 @@ max_tokens: min(current value, 64000)
 
 1. `cd packages/opencode && bun test test/plugin/anthropic-auth.test.ts test/auth/auth.test.ts test/plugin/auth-override.test.ts`.
 2. `cd packages/opencode && bun typecheck`.
-3. Live loader proof: `bun run experiments/20260912_anthropic-oauth/02_plugin_loader_probe.ts` against a current OMP OAuth credential; expect `200` and `pong`.
+3. Live loader proof: `bun run experiments_history/2026-09-12_anthropic-oauth/02_plugin_loader_probe.ts` against a current OMP OAuth credential; expect `200` and `pong`.
 4. Re-run cache smoke scripts from `2026-09-12_anthropic-cache-breakpoints.md` because OAuth system blocks coexist with its Anthropic cache controls.
 
 ## No-go conditions

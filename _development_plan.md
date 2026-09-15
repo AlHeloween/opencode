@@ -441,7 +441,7 @@ Verification:
 
 - [x] `bun test test/plugin/anthropic-auth.test.ts test/auth/auth.test.ts test/plugin/auth-override.test.ts` from `packages/opencode` — 15 pass, 0 fail (`cmd_runner` `20260912T104426Z_30880c1e`).
 - [x] `bun typecheck` from `packages/opencode` (`cmd_runner` `20260912T104518Z_221cfc8f`).
-- [x] `bun run experiments/20260912_anthropic-oauth/02_plugin_loader_probe.ts` — safeguarded loader `200`, response `pong`, no refresh (`cmd_runner` `20260912T104717Z_2a9568a3`).
+- [x] `bun run experiments_history/2026-09-12_anthropic-oauth/02_plugin_loader_probe.ts` — safeguarded loader `200`, response `pong`, no refresh (`cmd_runner` `20260912T104717Z_2a9568a3`).
 
 ## 2026-09-12 Codex Tool-Host Kernel Variant
 

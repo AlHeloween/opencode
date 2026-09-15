@@ -58,7 +58,7 @@ showing `"provider": {"order": [...], ...}` in the request body.
 - PENDING (E2): rebuild binary → live session with routing.order=["Z.AI"],
   allow_fallbacks=false → gateway raw-wire body must contain provider block;
   per-response upstream stays Z.AI across turns (mechanism probe-proven: 3/3, cache
-  896/931). Analyzer: experiments/kv-cache-parity/2026-08-28_gateway_wire_analysis.py.
+  896/931). Analyzer: experiments_history/2026-08-29_kv-cache-parity/2026-08-28_gateway_wire_analysis.py.
 
 ## Out of scope (follow-up)
 
@@ -83,7 +83,7 @@ post_checks:
   workdir: packages/opencode
   expected_exit: 0
 - label: E2 wire contains provider block
-  cmd: python experiments/kv-cache-parity/2026-08-28_gateway_wire_analysis.py
+  cmd: python experiments_history/2026-08-29_kv-cache-parity/2026-08-28_gateway_wire_analysis.py
   expected_exit: 0
 blast_radius: packages/opencode/src/provider/schema.ts (config schema),
   packages/opencode/src/provider/provider.ts (settings passthrough), tests.

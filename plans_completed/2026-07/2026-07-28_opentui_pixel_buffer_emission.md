@@ -84,6 +84,6 @@ path and `TestRenderer` captures native memory output for protocol assertions.
 - [x] Direct visual baseline recorded [Exact].
 - [x] Baseline encoder test recorded [Exact]: `zig test sixel.zig` — 3 pass, 0 fail.
 - [x] Regression assertion added: queued RGBA must yield `ESC P0;1;0q` in native memory output.
-- [x] Direct Windows Terminal post-implementation oracle passed: [opentui-direct-wt-fixed.png](../experiments/tui-image-rendering/opentui-direct-wt-fixed.png) shows the Mermaid raster with `sixel:true` and `10×20px` cells.
+- [x] Direct Windows Terminal post-implementation oracle passed: [opentui-direct-wt-fixed.png](../experiments/2026-07-28_tui-image-rendering/opentui-direct-wt-fixed.png) shows the Mermaid raster with `sixel:true` and `10×20px` cells.
 - [x] `bun run build:native` passed (`packages/opentui/packages/core`, 2026-07-28).
 - [x] Windows native-test command restored: `bun run test:native` — 1,688 pass, 22 skipped.

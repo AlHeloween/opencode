@@ -1,5 +1,78 @@
 # Progress Log
 
+## [2026-09-15] experiments_history/ — tracked record archive
+
+Reason: `experiments/` is gitignored, so nothing in the repo recorded which smoke tests ran
+or when. The request was a tracked archive that survives in git history.
+
+Change:
+- Created `experiments_history/` (tracked) with `INDEX.md` as the catalogue; 2601 files / 9 MB.
+- Selection is **content-based, not name-based**: a file is archived only if it holds no session
+  conversation, no foreign-project reference, no credential and no session/message id. `.gitignore`
+  cannot filter by content, so the tracked tree physically contains only checked files; everything
+  else stays in the gitignored scratch tree (binaries 797, run logs 132, conversation dumps 108,
+  request dumps 54, foreign-project refs 33, …).
+- `packages/opencode/test/experiments/20260610_cache_guardrail/` folded in as
+  `experiments_history/2026-06-10_cache-guardrail/`; old tree removed.
+- Commits: `babc24c5de` (archive), `e41d7abc71` (moves recorded as renames).
+
+Security (this was a blocker — the repo is **public**):
+- Found **live credentials** in the scratch tree: opencode key (67ch ×34), DeepSeek key (35ch ×11),
+  OpenRouter key (73ch ×2), plus `auth.json` copies carrying an xAI key and OpenAI OAuth
+  refresh+access JWTs with the owner's email. `git log -S` across all history: **not previously
+  committed** — no leak, but a full commit would have published them.
+- Hardcoded DeepSeek key in `deepseek_cache_test.py` / `deepseek_smoke.py` → `os.environ["DEEPSEEK_API_KEY"]`.
+- Live keys inside cot-semantic-map dumps → `sk-REDACTED-BY-ARCHIVE-PREP` (37 occurrences, 5 files).
+- `auth.json`, `.enc`, raw payload/checkpoint dumps excluded from the archive entirely.
+
+Oracle [Exact]:
+- `finalgate.cjs` → **SAFE** (exit 0): no credential, email or session identifier in the archive.
+- `privacyaudit.cjs` → **CLEAN** on the tracked set.
+- `secretscan.cjs experiments_history` → **CLEAN**.
+- `bun test experiments_history/2026-06-10_cache-guardrail/phase2_divergence.test.ts` → 18 pass / 0 fail
+  (`20260915T100043Z_f0717070`), same result as the pre-move baseline (`20260915T073947Z_bf05b25b`).
+- `fixrefs3.cjs` repointed 53 references across 22 files; re-run idempotent.
+
+Residual [Unknown]:
+- 15 references name paths that exist in **neither** tree — historical prose in `plans_completed/`
+  (`20260609_cache_semantics`, `20260626_cache_break_debug`, `20260629_jj_smoke.ts`, …). Left as
+  written; they record what was true then.
+- Raw CoT dumps (`sentences.jsonl`, 8804 reasoning sentences) deliberately stay out of the public
+  archive.
+
+## [2026-09-15] experiments/ canonization → `yyyy-mm-dd_brief`
+
+Reason: the gitignored scratch tree carried three competing name formats (`20260718T000000Z_*`,
+`20260912_*`, `2026-09-12_*`) plus ~50 undated loose files, so no single convention told you
+where an experiment lived or how old it was.
+
+Change:
+- `experiments/` top level is now uniformly `yyyy-mm-dd_brief/` (dirs) and `yyyy-mm-dd_brief.ext`
+  (loose files); related loose files grouped into dated folders of the same type.
+- 113 move ops (dir renames, 3 dir merges, 46 file moves, 10 file renames, 4 rmdir, 6 mkdir).
+- Harness `experiments/2026-09-13_experiments-canon/`: `canonize.cjs` (dry-run/--apply + manifest),
+  `fixrefs.cjs` (wave 1, 38 files), `fixrefs2.cjs` (wave 2, 166 files, backups kept),
+  `scanrefs.cjs` (residual scanner), `verify.cjs` (oracle).
+- Captured evidence (`logs/`, `diag/`, decrypted payload/checkpoint dumps) deliberately not
+  rewritten — it records what was true at capture time.
+
+Oracle [Exact]:
+- `verify.cjs` → **PASS** exit 0: all 113 manifest ops landed, inventory `before 5251 / after 5251 /
+  missing 0 / extra 0`, `all top-level entries canonical`.
+- `fixrefs.cjs` / `fixrefs2.cjs` re-run → 0 files changed (idempotent).
+- `bun typecheck` (packages/opencode, `20260915T070836Z_1475d0cd`) → exit 0.
+- Git tracking preserved: `experiments_history/2026-09-12_anthropic-oauth/02_plugin_loader_probe.ts` was the
+  only force-added tracked file under the gitignored tree; re-added at its new path so git records
+  a rename (`R`) instead of a deletion (content differs only by the path string on line 8).
+
+Residual [Unknown]:
+- `scanrefs.cjs` reports 63 hits, all excluded by design: captured evidence, foreign trees
+  (`packages/opencode/test/experiments/`, `external/`, other projects' skill files), and
+  historical `plans_completed/` prose about names that never existed in this tree.
+- `20260718T000000Z_model-tester/model-tester.ts` was already a truncated 173-byte fragment;
+  preserved as `2026-07-10_model-tester/model-tester.ts.corrupt` rather than deleted.
+- Tree is gitignored, so `manifest.json` + `before.json` are the rollback path, not git.
+
 ## 2026-09-13 StreamLake Vanchin catalog-backed provider
 
 Reason: a custom Vanchin endpoint can send requests but its opaque account endpoint ID does not carry the deployed model’s modalities, context, output, reasoning, or Function Call information into OpenCode. The provider must be a visible TUI option and must not invent this metadata.
@@ -181,7 +254,7 @@ Change:
 Oracle [Exact]:
 - `bun run typecheck` exit 0, 0 errors (run `20260912T121509Z_ddc17bf6`).
 - `bun test test/provider/transform.test.ts` → **167 pass / 0 fail** (run `20260912T121833Z_c0a5a3f0`; baseline 164 pass / 1 fail).
-- Live proof `experiments/20260912_deepseek-h3/verify-deepseek-variants.ts`: predicate true for `deepseek-flash`/`deepseek-v4-pro`, false for retired aliases; flash → `off,low,high,max`; pro → `off,high,max`; unknown effort (`ultra`) filtered.
+- Live proof `experiments_history/2026-09-12_deepseek-h3/verify-deepseek-variants.ts`: predicate true for `deepseek-flash`/`deepseek-v4-pro`, false for retired aliases; flash → `off,low,high,max`; pro → `off,high,max`; unknown effort (`ultra`) filtered.
 
 Incident during this task [Exact]: I broke `transform.ts` twice (22 typecheck errors — 5× duplicate `isDeepSeekThinkingId` + duplicate helpers, plus lost `case "@openrouter/ai-sdk-provider"` / `case "@ai-sdk/gateway"` labels) by re-issuing `edit` against a stale anchor. Repaired from the per-edit `.bak` (HEAD-identical by hash), then from `git show HEAD:<path>` (read-only; `git checkout` is correctly blocked as destructive-git). Cause was mine — verified via the `part` table, 119/119 tool-parts in this session, no second writer. Kernel candidate filed: `plans_completed/2026-09-12_kernel-evidence-and-edit-discipline.md`.
 
@@ -455,7 +528,7 @@ ADID master SVM; not bound yet. Binary rebuild (`pwsh _build.ps1`) still pending
 
 Reason: user asked to compare the DeepSeek thinking-mode guide against our code, clarify "h3", smoke-test, and propose a plan. "h3" in this repo = the HTTP/3 transport (`GatewayProtocol`, novita shipped), not a model.
 
-Live probes [Exact] (`experiments/20260912_deepseek-h3/`, 9 scripts + REPORT.md; cmd_runner runs 20260912T0402–0411):
+Live probes [Exact] (`experiments/2026-09-12_deepseek-h3/`, 9 scripts + REPORT.md; cmd_runner runs 20260912T0402–0411):
 - **h3 unavailable on api.deepseek.com**: control `cloudflare-quic.com` http3 → 200 (client proven), deepseek http3 → `HTTP3HandshakeFailed`, no `alt-svc`, `server: elb`. Pinned h2 → 200; but interleaved h1.1-vs-h2 streaming on `deepseek-flash` is within noise (732 vs 726ms median, 6/6 each) → no transport change justified.
 - **The documented tool-turn HTTP 400 is MISATTRIBUTED.** It is caused by a `tool_call` id the server did not issue, not by a missing `reasoning_content`. Proof: real id verbatim → 200; same id with 1 char flipped / truncated / uppercased → 400; synthetic id (even with the real `call_00_` prefix) → 400; `reasoning_content` absent in all of them. The legacy 2026-08-28 dialect probe re-ran and reproduced the 400 — its variant C used a synthetic `call_probe_1`.
 - **Effort off-switch [Exact]**: `thinking:{type:"disabled"}` and `reasoning_effort:"none"` both disable thinking; wire enum is `none,minimal,low,medium,high,xhigh,max` — the documented `ultra` **400s**; the documented Anthropic-format `{"reasoning":{"effort":"none"}}` is **ignored** on `/chat/completions`.
@@ -881,7 +954,7 @@ Reason: user spotted `content: ""` in provider deltas vs `content: null` on outg
 Changes:
 - Origin [Exact]: `@openrouter/ai-sdk-provider@3.0.0` dist/index.js:3204 — `content: text || null` (JS falsy conflation) destroys the accumulated "" at body-build time. Provider truth (smoke step 1 on real SSE): 690/1190 empty-string content deltas per capture, accumulated "".
 - Fix: `adaptive-client.ts` rewriteReasoningContent restores `content: ""` when null on rebuilt assistant messages (null never arrives as message-level content on this route). Commit `1e88f00f36`; typecheck PASS (`20260829T051854Z_9b5a393f`).
-- Smoke: `experiments/kv-cache-parity/2026-08-29_content_null_roundtrip_smoke.py` — 3 steps on real captures (response truth -> SDK birth -> wire state). Pre-fix wire: 200 nulls / 0 empty / 191 text. Re-run after rebuild: must flip to "".
+- Smoke: `experiments_history/2026-08-29_kv-cache-parity/2026-08-29_content_null_roundtrip_smoke.py` — 3 steps on real captures (response truth -> SDK birth -> wire state). Pre-fix wire: 200 nulls / 0 empty / 191 text. Re-run after rebuild: must flip to "".
 
 ## 2026-08-29 overflow-last-line plan closed (was ACTIVE with 2 open gate boxes)
 Reason: user asked for status. Mirror said ACTIVE + TASK-8/9 pending — correct: Gate boxes "Implementation only after baseline" / "Post-impl smoke passed" were unticked; a premature archive had also left a tracked ghost copy in plans/ alongside plans_completed/.
@@ -907,7 +980,7 @@ Changes:
 - `packages/opencode/src/session/prompt.ts` — captureSummary + main checkpoint save unified on the composer (both sites repair + single-prepend); import updated.
 - `packages/opencode/test/session/system-compose.test.ts` (NEW) — single-identity invariant smoke: fresh-once, reuse-unchanged, 3-compaction repair, non-identity duplicates preserved, empty identity, empty stored.
 Script Output:
-- smoke 6 pass / 0 fail (`20260829T000224Z_da030c83`, repair warns removed:2/removed:1); typecheck PASS (`20260829T000316Z_e336e2c0`). Scanner `experiments/kv-cache-parity/2026-08-28_scan_kernel_copies.py`: all 33 retained captures carry kernels=3 (~114k chars ≈ 35-40k dead tokens/request); self-heals on next checkpoint save after rebuild.
+- smoke 6 pass / 0 fail (`20260829T000224Z_da030c83`, repair warns removed:2/removed:1); typecheck PASS (`20260829T000316Z_e336e2c0`). Scanner `experiments_history/2026-08-29_kv-cache-parity/2026-08-28_scan_kernel_copies.py`: all 33 retained captures carry kernels=3 (~114k chars ≈ 35-40k dead tokens/request); self-heals on next checkpoint save after rebuild.
 
 ## 2026-08-28 Home purity guard + test-debt audit (portability contract)
 Reason: user doctrine — tests must NEVER write to os.homedir() (portability = founding reason of Local_Development; old unified-SQLite-era tests are debt). Session-suite run showed mass 5s-timeout noise: bun default 5000ms vs full-stack it.live tests taking 5-31s on a loaded machine.
@@ -955,7 +1028,7 @@ Reason: диффы нужны по body_raw (сырые байты) — pretty-�
 Changes:
 - `packages/opencode/src/provider/gateway/raw-diff.ts` (NEW) — байт-истинный анализ: prefix/suffix/inserted, вердикты identical|pure-append|vanished|mutation (substitution → mutation, insertion → pure-append), маскировка max_tokens (кэш-нейтральный, доказан живьём) со сдвиг-компенсацией в RAW-пространстве, message-spans сканер (brace-depth, string-aware), prettified BEFORE/AFTER секции, RAW-контекст, est uncached. Плюс collectReasoning/renderReasoningMarkdown (suffix-dedup накапливающихся дельт).
 - `adaptive-client.ts` — raw-wire конверт: body как parsed-объект (был эскейп-строкой); per-request/per-response .diff → renderRawDiff (был createPatch по pretty); reasoning-.md сайдкар для стримов; **rewriteReasoningContent**: GLM/DeepSeek тела (матч `z-ai/|glm|deepseek` по gatewayModel — все z-ai модели) переписываются до dispatch и dump: `reasoning`+`reasoning_details` → единый `reasoning_content`.
-- `experiments/kv-cache-parity/2026-08-28_backlog_reasoning_and_rawdiff.py` — бэклог: 231 raw-diff отчёт + 152 reasoning-.md; `2026-08-28_smoke_reasoning_content.py` — смок переписывания на живом теле; `2026-08-28_check_bodyraw_parse.py` — wire-truth проверка (все body_raw валидны).
+- `experiments_history/2026-08-29_kv-cache-parity/2026-08-28_backlog_reasoning_and_rawdiff.py` — бэклог: 231 raw-diff отчёт + 152 reasoning-.md; `2026-08-28_smoke_reasoning_content.py` — смок переписывания на живом теле; `2026-08-28_check_bodyraw_parse.py` — wire-truth проверка (все body_raw валидны).
 - Тесты: `test/provider/raw-diff.test.ts` (NEW, 14), adaptive-client +2 (rewrite + passthrough).
 
 Script Output:
@@ -987,7 +1060,7 @@ Changes:
 - `packages/opencode/src/session/request-diff.ts` — `MessageBlock`/`RequestSnapshot` (key = messageID | #N, hash = контент-хеш блока, + systemHash), `formatRequestDetailed()` (полная последовательность, без вьюпорта), `rememberSnapshot()`/`getPreviousSnapshot()`, `diffBlocks()` — позиционный проход от 0; вердикты: `append-only` | `divergence@D` (replaced/mutated: old-vs-new блоки на позиции D + однострочники до 8 позиций) | `divergence@D (vanished)` | `divergence@system`; counts-строка «N added, M removed, K changed» сохранена для анализаторов; `clearPreviousFormatted` чистит оба стора. Текстовый `diffRequest` не тронут (compat).
 - `packages/opencode/src/session/prompt.ts` — call-site переведён на snapshot-путь; fromIndex-вьюпорт удалён из диффа.
 - `packages/opencode/test/session/request-diff.test.ts` — describe diffBlocks: 9 тестов (append-only, mutation@1, vanish@1, restructure@0 при front-compaction, tool-loop без ложных removed, divergence@system, roundtrip, first-request).
-- `experiments/kv-cache-parity/2026-08-28_correlate_diff_cache.py` — коррелятор: чендж-байты дифов ↔ uncached из БД (`message.data.tokens`, ротация логов не мешает) + TOP-losses по excess; отчёт `2026-08-28_correlation_report.txt`.
+- `experiments_history/2026-08-29_kv-cache-parity/2026-08-28_correlate_diff_cache.py` — коррелятор: чендж-байты дифов ↔ uncached из БД (`message.data.tokens`, ротация логов не мешает) + TOP-losses по excess; отчёт `2026-08-28_correlation_report.txt`.
 
 Script Output:
 - baseline: request-diff 25 pass (`20260828T053543Z_668423ac`); post: 34 pass 0 fail (`20260828T054634Z_323e57ed`); typecheck PASS exit 0 (`20260828T054707Z_a9981d68`).
@@ -1016,7 +1089,7 @@ Script/Changes:
 
 - `packages/opencode/src/session/llm.ts` — `messagesStabilityVerdict()` (pure, exported: first|stable|mutated{position,mutatedTail}|restructured) + `checkMessagesStability()` (per-position Bun.hash ledger по providerCacheKey, LRU 200; warn `bug: sent message content mutated mid-session` при частичной дивергенции отправленной истории, info при реструктуризации compact/restart) + `resetMessagesStability()` (test hook); вызов в run() рядом с checkToolStability. Роль удалённого аудита — автоматическая сигнализация при поломке кэша агентскими правками — восстановлена за O(1)/сообщение.
 - `packages/opencode/test/session/llm.test.ts` — describe session.llm.messagesStabilityVerdict: 7 тестов (first/append-only/partial mutation/50% boundary/full divergence/majority/ vanish).
-- `experiments/kv-cache-parity/2026-08-28_analyze_cache_timeline.py` + README — анализатор таймлайна (jsonl usage/mutation/reset/marker + diff-файлы: added/removed/changed, reasoning/tool bytes; --session/--since/--require-anchors). Оракул-якоря C1/C2/C3 — FOUND.
+- `experiments_history/2026-08-29_kv-cache-parity/2026-08-28_analyze_cache_timeline.py` + README — анализатор таймлайна (jsonl usage/mutation/reset/marker + diff-файлы: added/removed/changed, reasoning/tool bytes; --session/--since/--require-anchors). Оракул-якоря C1/C2/C3 — FOUND.
 
 Script Output:
 
@@ -1067,7 +1140,7 @@ Script/Changes:
 
 - `packages/opencode/src/session/prompt.ts` — T1: убрана ветка `tools = {}` из `summaryAttempt` (саммари-тур использует тот же `cachedTools`/`SessionTools.resolve`); ин-луп саммари-тур обёрнут в `Constitution.setSummaryMode(sessionID, true)` с очисткой в `Effect.ensuring` (по образцу сайдкара 854/992-998; guard — `tools.ts:194-210`).
 - `packages/opencode/test/session/prompt.test.ts` — 4 ассерта `tools.length===0` заменены на паритет JSON каталога саммари/рабочего тура + снятие флага; новый тест «Layer-1 in-loop summary turn keeps the full tool catalog on the wire» (ручной инжект через `SessionCompaction.Service.injectSummaryRequest`, т.к. runLoop больше сам не инжектит).
-- `experiments/2026-08-16-zen-tools-kv-smoke/tools_kv_zen_smoke.py` — живой zen-smoke: W1 cold → W2 identical → W3 drop-last-tool → W4 full-again; ключ из bin/auth.json (не печатается).
+- `experiments/2026-08-16_zen-tools-kv-smoke/tools_kv_zen_smoke.py` — живой zen-smoke: W1 cold → W2 identical → W3 drop-last-tool → W4 full-again; ключ из bin/auth.json (не печатается).
 
 Script Output:
 
@@ -1123,7 +1196,7 @@ Script Output:
 - `bun test -t "Layer-1" test/session/prompt.test.ts`: HANG без вывода — **pre-existing**: зависает и БЕЗ наших правок (stash-дискриминатор `20260814T182831Z_e8a075e3`), не вызвано фиксом.
 - Rebuild `_build.ps1 -SkipOpenTui`: exit 0 (`20260814T183632Z_2cbf9ef5`) → dist 10.0.842, smoke: version OK + reasoning_prompt.txt inlined.
 - Soft gap-fill (spec: «второй запрос включает что дополнить, без выключения чего-либо»): `prompt.ts` retry-цикл — attempt 1 = `summaryRequestProse`; attempts 2+ = тот же полный M + `gapFillRequest(body, gaps)` + «Previous draft for reference» в user-сообщении, ответ мержится `mergeSummarySections`; ничего не выключается (те же system/tools/бюджет).
-- LIVE smoke `experiments/cache-alignment-smoke/smoke_gapfill_parity.py` (`20260814T185804Z_58f188fd`): retry-same — быстро; **parity gap-fill B1: cached 12096/12216 = 0.990 (M-префикс HIT, miss только tail)**; old-style (system:[], 2 msg) — cold. ВЕРДИКТ: мягкий gap-fill кеш-безопасен.
+- LIVE smoke `experiments_history/2026-08-18_cache-alignment-smoke/smoke_gapfill_parity.py` (`20260814T185804Z_58f188fd`): retry-same — быстро; **parity gap-fill B1: cached 12096/12216 = 0.990 (M-префикс HIT, miss только tail)**; old-style (system:[], 2 msg) — cold. ВЕРДИКТ: мягкий gap-fill кеш-безопасен.
 - Typecheck после soft gap-fill: exit 0 (`20260814T185939Z_f622bb26`); rebuild: exit 0 (`20260814T190011Z_98028f28`) → dist 10.0.843.
 - LSP «Cannot find module openai»: root cause — pyrefly LSP авто-выбирает venv `.rag_env` (по pyvenv.cfg), а тот создан с `include-system-site-packages = false` → базовые site-packages (где стоит openai) не видны; PATH при наличии venv игнорируется. Fix: `include-system-site-packages = true` в `.rag_env\pyvenv.cfg` (gitignored, локально). Проверено: `.rag_env\Scripts\python.exe` теперь резолвит openai из `D:\USESoft\Python313\Lib\site-packages`. Эффект после рестарта LSP/opencode (пирайт кеширует интерпретатор).
 
@@ -1182,7 +1255,7 @@ Output:
 
 ## 2026-08-15 KAT reasoning_content: не возвращать в replay (гипотеза подтверждена live + доки)
 
-Reason: kat-coder-v2.5 — эхо reasoning_content в мультитёрне не нужно. LIVE (experiments/cache-alignment-smoke/smoke_kat_reasoning_echo.py `20260815T093520Z_7510f28e`): no-echo принят, prompt не растёт (73 vs 73), output reasoning tokens 50 vs 142 (с эхом модель пере-думает), быстрее (1042 vs 1768ms), явный cache hit. Tool-call сценарий (smoke_kat_reasoning_toolcall.py `20260815T093655Z_19ed03e8`): no-echo принят БЕЗ 400 (в отличие от DeepSeek), prompt 78 vs 101. Интернет: DeepSeek docs — без tool call reasoning_content игнорируется, с tool call обязателен; Alibaba/Qwen docs — «retain only content, ignore reasoning_content».
+Reason: kat-coder-v2.5 — эхо reasoning_content в мультитёрне не нужно. LIVE (experiments/2026-08-18_cache-alignment-smoke/smoke_kat_reasoning_echo.py `20260815T093520Z_7510f28e`): no-echo принят, prompt не растёт (73 vs 73), output reasoning tokens 50 vs 142 (с эхом модель пере-думает), быстрее (1042 vs 1768ms), явный cache hit. Tool-call сценарий (smoke_kat_reasoning_toolcall.py `20260815T093655Z_19ed03e8`): no-echo принят БЕЗ 400 (в отличие от DeepSeek), prompt 78 vs 101. Интернет: DeepSeek docs — без tool call reasoning_content игнорируется, с tool call обязателен; Alibaba/Qwen docs — «retain only content, ignore reasoning_content».
 
 Changes:
 - `packages/opencode/src/provider/transform.ts` — normalizeMessages: для streamlake/vanchin URL + npm github-copilot/openai-compatible → дроп reasoning-частей из assistant replay + зачистка `providerOptions.openaiCompatible.reasoning_content/reasoning_details`. Copilot opaque (github URL) и прочие прокси не тронуты; deepseek-правила выше не затронуты.
@@ -1209,21 +1282,21 @@ Script Output:
 - Rebuild `_build.ps1 -SkipOpenTui`: exit 0 (`20260814T160217Z_082209ae`) → dist 10.0.840.
 - LIVE OC1: dist TUI на pasha-coder → wire содержит `stream_options.include_usage` → финальный чанк с реальным usage `{prompt_tokens:42008, completion_tokens:130, reasoning_tokens:37}`; `prompt_tokens_details:null` (cached_tokens гейтвей не отдаёт).
 
-## 2026-08-14 DeepSeek Verification Series (experiments/deepseek-test)
+## 2026-08-14 DeepSeek Verification Series (experiments/2026-08-14_deepseek-test)
 
 Reason: mirror the StreamLake verification suite against api.deepseek.com (deepseek-v4-pro, DEEPSEEK_API_KEY from env) after reading the official API refs (chat completions, thinking mode, kv_cache).
 
-Script: `experiments/deepseek-test/deepseek_test.py`, run via cmd_runner (`20260814T151203Z_c15f4a79` ladder, `20260814T151509Z_96b2ba97` big, `20260814T152056Z_23a60af4` no_think, `20260814T152307Z_546f0cb3` isolation).
+Script: `experiments/2026-08-14_deepseek-test/deepseek_test.py`, run via cmd_runner (`20260814T151203Z_c15f4a79` ladder, `20260814T151509Z_96b2ba97` big, `20260814T152056Z_23a60af4` no_think, `20260814T152307Z_546f0cb3` isolation).
 
-Output: D1/D2/D3/D4/D6 CONFIRMED (balance, auto-cache full prefix, CoT ignored, thinking toggle works, usage auto). D5 NOT confirmed — user_id does not isolate KV cache (both new user_ids hit 48 128 on turn 1). Cold turn = 87% of series cost ($0.0209 miss on 48K). Report: `experiments/deepseek-test/REPORT.md`.
+Output: D1/D2/D3/D4/D6 CONFIRMED (balance, auto-cache full prefix, CoT ignored, thinking toggle works, usage auto). D5 NOT confirmed — user_id does not isolate KV cache (both new user_ids hit 48 128 on turn 1). Cold turn = 87% of series cost ($0.0209 miss on 48K). Report: `experiments_history/2026-08-14_deepseek-test/REPORT.md`.
 
-## 2026-08-14 StreamLake KAT Verification Series (experiments/streamlake-test)
+## 2026-08-14 StreamLake KAT Verification Series (experiments/2026-08-24_streamlake-test)
 
 Reason: confirm docs/streamlake-kat-thinking-cache.md claims (128-step cache, null≠miss, echo not billed, chat_template_kwargs ignored, bucket isolation) with multiturn+thinking series; measure cache hit/miss ratio.
 
-Script: `experiments/streamlake-test/pasha_test.py` (modified from `bin/pasha_test.py`, key from `bin/auth.json`), run via cmd_runner (`20260814T143109Z_6b42b820` ladder, `20260814T143309Z_0419930b` big series).
+Script: `experiments_history/2026-08-24_streamlake-test/pasha_test.py` (modified from `bin/pasha_test.py`, key from `bin/auth.json`), run via cmd_runner (`20260814T143109Z_6b42b820` ladder, `20260814T143309Z_0419930b` big series).
 
-Output: all 5 doc claims CONFIRMED (C1 with 64-token lattice nuance; C2 with latency nuance on big prompts). Hit ratio on 72K prefix: 0.969–0.9993 (miss = appended turn only). NEW ROOT CAUSE: gateway reports usage only with `stream_options.include_usage`; copilot-provider didn't send it → fixed in `packages/opencode/src/provider/sdk/copilot/copilot-provider.ts` (includeUsage default true); typecheck PASS (`20260814T143736Z_65596181`). Report: `experiments/streamlake-test/REPORT.md`.
+Output: all 5 doc claims CONFIRMED (C1 with 64-token lattice nuance; C2 with latency nuance on big prompts). Hit ratio on 72K prefix: 0.969–0.9993 (miss = appended turn only). NEW ROOT CAUSE: gateway reports usage only with `stream_options.include_usage`; copilot-provider didn't send it → fixed in `packages/opencode/src/provider/sdk/copilot/copilot-provider.ts` (includeUsage default true); typecheck PASS (`20260814T143736Z_65596181`). Report: `experiments_history/2026-08-24_streamlake-test/REPORT.md`.
 
 ## 2026-08-14 Cache-Miss Tail Fix (plan: plans/2026-08-14-cache-miss-tail.md)
 
@@ -1478,7 +1551,7 @@ Script output:
 **Reason:** Map the semantic structure of CoT reasoning — how the model's thinking
 flows through a task (phases, jumps, revisits), instead of guessing from anecdote.
 
-**Scripts:** `experiments/cot-semantic-map/` — `extract_cot.py` (DB → sentences.jsonl),
+**Scripts:** `experiments/2026-08-16_cot-semantic-map/` — `extract_cot.py` (DB → sentences.jsonl),
 `embed_sentences.py` (BGE-bge-base-en-v1.5 on GPU, shim for torch.distributed-less build),
 `build_map.py` (PCA 768→32, UMAP 2D, k-means phases, stats, self-contained `map.html`).
 
@@ -1488,7 +1561,7 @@ flows through a task (phases, jumps, revisits), instead of guessing from anecdot
 Phase lexicons match real work topics: prompt.ts inspection, echo policy, summary
 sidecar, cache modeling, compaction mechanics, transform blocks.
 
-**Artifacts:** `experiments/cot-semantic-map/map.html` (interactive: hover = sentence
+**Artifacts:** `experiments/2026-08-16_cot-semantic-map/map.html` (interactive: hover = sentence
 text, trajectory arrows = message flow, phase legend). `map_data.json` for replays.
 
 ---
@@ -1528,10 +1601,10 @@ update". Suite failed 5/8 under bun default 5000ms per-test timeout.
 
 **Findings:** With `--timeout 30000`: 8 pass / 0 fail (46.31s total, ~5.8s/test).
 Logic intact; failures were pure latency. Stage profile
-(experiments/2026-08-23_undo_profile.test.ts): first snap.track ≈ 2.4s
+(experiments_history/2026-08-23_fossil-smoke/2026-08-23_undo_profile.test.ts): first snap.track ≈ 2.4s
 (fossil auto-configure ~0.8s + clean init ~0.8s, fossil.ts:211/246/310),
 subsequent tracks 0.5–0.9s, revert ≈ 0.9s. Raw fossil CLI smoke
-(experiments/2026-08-23_fossil_smoke.ps1, via cmd_runner): 12 ops in 1216ms
+(experiments_history/2026-08-23_fossil-smoke/2026-08-23_fossil_smoke.ps1, via cmd_runner): 12 ops in 1216ms
 (20–102ms/op) — app-side wrapper is 5–10x costlier per operation than raw CLI.
 Fossil docs (external/fossil/fossil-src-2.28/www): temp dir = FOSSIL_TEMP→TEMP→TMP,
 SQLite uses GetTempPath(); recommend excluding %TEMP%\fossil from antivirus scans
@@ -1567,7 +1640,7 @@ false v3 failures in earlier profiling runs).
 **Reason:** User challenged the linear-scaling extrapolation: fossil should handle
 1000 files as fast as one.
 
-**Experiment:** experiments/2026-08-23_undo_scale.test.ts — SU-1 shape with a
+**Experiment:** experiments_history/2026-08-23_fossil-smoke/2026-08-23_undo_scale.test.ts — SU-1 shape with a
 1000-file bank across 10 dirs, single-file change per track.
 Results: track#1 (full bank first snapshot) ≈ 2.6s; track#2/#3 with one changed
 file on a 1000-file tree ≈ 0.45-0.5s (same as 1-file case); revert ≈ 1.4s;
@@ -1776,14 +1849,14 @@ Oracle: `test/session/recovery.test.ts` creates an isolated source DB and verifi
 
 - Reason: user — `read D:\generated_video.mp4` returned the markdownify stub; challenged whether video exists in capabilities at all (OpenRouter T/🖼/🎥→T; registry input ["text","image","video"]) and directed: video content must reach the model natively or as frame batches; supplied the vendor `video_url` example + Z.ai GLM-5.3-Flash docs (input: Video/Image/Text/File).
 - Verified [Exact]: @openrouter/ai-sdk-provider v3.0.0 maps `mediaType: video/*` file parts to the wire `{"type":"video_url"}` block (streaming ~:3000, non-streaming ~:3193; data URLs supported) — native path needs no frames. Upstream opencode ships NO video path (docs: video "not currently included in the model request"; #22260 open, #10531 closed not-planned) — fork-first feature.
-- Change: `read.ts` three-way dispatch on `ctx.extra.model.capabilities.input` (model already threaded at tools.ts:198): video → native `data:video/mp4;base64` attachment (20 MiB cap); no-video-but-image → SPLIT (new `util/video.ts` `extractVideoFrames()`: ffprobe duration, 6 evenly spaced timestamps, `scale='min(768,iw)':-2` JPEGs, temp-dir cleanup, graceful ENOENT → [] → markdownify fallback); neither → stub unchanged. `prompt/index.tsx`: 🎥 icon (inputCaps.video, rendered first). `experiments/2026-09-07_video_wire_probe.mjs` kept as the standing wire regression (key from bin/auth.json, never printed; experiments/ is gitignored — stays local-only).
+- Change: `read.ts` three-way dispatch on `ctx.extra.model.capabilities.input` (model already threaded at tools.ts:198): video → native `data:video/mp4;base64` attachment (20 MiB cap); no-video-but-image → SPLIT (new `util/video.ts` `extractVideoFrames()`: ffprobe duration, 6 evenly spaced timestamps, `scale='min(768,iw)':-2` JPEGs, temp-dir cleanup, graceful ENOENT → [] → markdownify fallback); neither → stub unchanged. `prompt/index.tsx`: 🎥 icon (inputCaps.video, rendered first). `experiments_history/2026-09-07_deliver-once-media-smoke/2026-09-07_video_wire_probe.mjs` kept as the standing wire regression (key from bin/auth.json, never printed; experiments/ is gitignored — stays local-only).
 - Oracles: wire probe [Exact] — 1.97 MiB mp4 → 2.75M-char data URL → HTTP 200, model answered "A dark race car approaches from a distance on a foggy track... rear taillights", usage 2610 prompt tokens / $0.0005 (20260907T020730Z_c5f8d865). Split path [Exact] — 6 frames 0.50s–5.54s, JPEG 18–34 KB, 1068 ms (20260907T020301Z_9e264a79). Typecheck exit 0 post-edit (20260907T020113Z_044e505f, fresh-session provenance). User rebuilt: live `read` returned "Video read successfully (native video input)".
 - Deferred by user: dual-quaternion car-dynamics Q&A over the clip — plan: prepend a preamble (rotating cubes + dual-quaternion captions) to the video so the dynamics are visually annotated. End-to-end in-chat video Q&A stays UNVERIFIED until that rerun (the wire probe proves the model path; the live in-session turn ended right after the read, before any content answer).
 
 ## [2026-09-07T13:40:00+08:00] .ts-as-video incident: magic-byte video sniffing + tool-role video ban + phantom-token fix
 
 - Reason (user): reading a TypeScript file shipped its TEXT to the provider as a "video" — pipeline corrupted, user rolled back 5 turns via fossil. Root cause chain: `mime-types` maps the `.ts` extension to `video/mp2t` (MPEG Transport Stream) — `foo.ts → video/mp2t` [Exact probe]; `sniffAttachmentMime` had NO video magic detection, so the extension fallback declared any `.ts` a video; my video branch keyed on `mime.startsWith("video/")` → fired. Provider contract per user: video in tool results rejected (7ea4159d RCA), native path mp4-only.
-- Wire probe [Exact] (experiments/2026-09-07_mp2t_wire_probe.mjs): remuxed clip to MPEG-TS (container-only, same H.264); honest `data:video/mp2t` → HTTP 200, model described the clip correctly (2609 prompt tokens, $0.00025) — Z.AI tolerates mp2t from a USER message; mislabeled mp2t-as-mp4 → 200 but EMPTY answer (provider does not blindly trust declared mime). Verdict: sniff honestly, send mp4 natively.
+- Wire probe [Exact] (experiments_history/2026-09-07_deliver-once-media-smoke/2026-09-07_mp2t_wire_probe.mjs): remuxed clip to MPEG-TS (container-only, same H.264); honest `data:video/mp2t` → HTTP 200, model described the clip correctly (2609 prompt tokens, $0.00025) — Z.AI tolerates mp2t from a USER message; mislabeled mp2t-as-mp4 → 200 but EMPTY answer (provider does not blindly trust declared mime). Verdict: sniff honestly, send mp4 natively.
 - Fix 1 (util/media.ts): new `sniffVideoMime()` — video containers recognized by MAGIC BYTES ONLY: ftyp@4 (mp4, qt/heic excluded), 0x47 sync at 0/188/376 packet stride (mp2t), EBML (webm), RIFF..AVI, FLV. `sniffAttachmentMime` calls it before the extension fallback; a text file starting with 'G' (0x47) without valid packet stride is NOT video.
 - Fix 2 (tool/read.ts): video branch keys on `sniffVideoMime(sample)` — extension fallback can NEVER trigger video; native path only for `video/mp4` (user contract); other sniffed containers (mp2t/webm/avi/flv) take the SPLIT (frames) path under an image-capable model.
 - Fix 3 (session/message-v2.ts): `supportsMediaInToolResult` now returns false for video kind unconditionally — video from tool results ALWAYS rides the synthetic user-message injection (provider-accepted path; tool-role video is what killed 7ea4159d with 视频输入格式/解析错误).
@@ -1807,8 +1880,8 @@ Oracle: `test/session/recovery.test.ts` creates an isolated source DB and verifi
 ## [2026-09-07T22:00:00+08:00] Stage-1 probe: code rendered as VIDEO — model reads source from frames (3/4 exact)
 
 - Reason (user): «давай попробуем текст в картинки и из них собрать видео» — the first decisive probe of the video-context program (plans/2026-09-07_video-context-fractal-program.md, Stage 1/P2). Subject: session/overflow.ts (211 lines / 8,874 chars, strong ground truth — just written by me).
-- Renderer (experiments/render_text_video.mts): source → per-frame text files → ffmpeg drawtext pages → x264 mp4. Live-diagnosed quirks: fontfile=<drive>\: triggers "Both text and text file provided" in this gyan.dev 2022 build (parser bug; use fontconfig Sans — monospace look preserved), expansion=none mandatory (% in code = "Stray %"), forward slashes fine. Two renders: comfortable 34 lines/frame@1080p (7 frames/14s/684 KB), dense 55 lines/frame@1440p (4 frames/6s/549 KB).
-- Wire probe (experiments/text_video_wire_probe.mjs): video_url block + ground-truth questions, one question per call. Z.AI endpoint refuses reasoning disable (400 "Reasoning is mandatory for this endpoint") and GLM-5.3-Flash burned 15.3k reasoning tokens with null answer on the 5-question "exact value" batch form — single short questions finish in 300-1050 reasoning tokens.
+- Renderer (experiments_history/2026-09-08_render-text-video/render_text_video.mts): source → per-frame text files → ffmpeg drawtext pages → x264 mp4. Live-diagnosed quirks: fontfile=<drive>\: triggers "Both text and text file provided" in this gyan.dev 2022 build (parser bug; use fontconfig Sans — monospace look preserved), expansion=none mandatory (% in code = "Stray %"), forward slashes fine. Two renders: comfortable 34 lines/frame@1080p (7 frames/14s/684 KB), dense 55 lines/frame@1440p (4 frames/6s/549 KB).
+- Wire probe (experiments_history/2026-08-12_gateway-wire-analysis/text_video_wire_probe.mjs): video_url block + ground-truth questions, one question per call. Z.AI endpoint refuses reasoning disable (400 "Reasoning is mandatory for this endpoint") and GLM-5.3-Flash burned 15.3k reasoning tokens with null answer on the 5-question "exact value" batch form — single short questions finish in 300-1050 reasoning tokens.
 - Results [Exact]: CHARS_PER_TOKEN → "4" ✅; REQUEST_OVERHEAD_TOKENS → "10,000" ✅; FALLBACK_OUTPUT_RESERVE_TOKENS → "8192" ✅; first exported function → "isOverflow" ❌ (ground truth defaultUsableReserved — positional/list question at 55 lines/frame density). ~9.6k prompt tokens per video request; provider cache HIT on repeat video requests (cached_tokens 9600).
 - Verdict: the model READS TypeScript from video frames at 55 lines/frame 1440p — the video-as-context channel is real for code, at video-to-text token ratio ~4.4x for a single request, but with ZERO re-send tax on later turns (placeholders/cache) unlike text pages, and duration-bounded cost. Positional accuracy at this density is the weak spot (P2 sweep needed). Multi-question prompts trip reasoning loops — keep one question per call.
 - Ops note: cmd_runner stdout_text.log can lag the running process; verify completion via state.json (status/exit_code) before reading results.
@@ -2303,3 +2376,52 @@ Not yet proven: the end-to-end artifact oracle. The decisive check is to abort
 mid-reasoning against a rebuilt binary and read the row back — the "before"
 artifact is already on disk as the 81-byte part above. It needs a build and a
 live API call, so it is not run here.
+
+## [2026-09-15T15:40:00+08:00] provider: the patch that installed the CoT guard also deleted the round-trip
+
+Two hunks landed together in `6e1df8b394`. The first taught the DeepSeek SDK
+that `deepseek-flash` is a V4 model, which is what makes it emit
+`reasoning_content: ""` instead of omitting the key — the 400-guard. The second
+removed `&& !isDeepSeekV4` from the tail rule, so reasoning older than the last
+user message was dropped for every model, V4 included. Upstream keeps it for V4.
+One hunk opened the door, the other nailed it shut.
+
+Measured on the wire before removing the second hunk, 289-message request:
+
+    assistant below last_user : n=40  non-empty=0  empty=40
+    assistant above last_user : n=67  non-empty=0  empty=67
+                                       CoT characters on the wire: 0
+
+Meanwhile `transform.ts` logged `out.cotText: 71` for the same request. That
+census runs over `ModelMessage[]`, above `convertToDeepSeekChatMessages` — it
+reports a round-trip the layer below deletes. An oracle aimed one layer too
+high, which is how this shipped unnoticed. (Why all 67 above the boundary were
+also empty is still Unknown: both `raw-wire` and `per-request` record the
+already-converted HTTP body, so the pre-SDK array is not on disk.)
+
+### Changed
+
+- `patches/@ai-sdk%2Fdeepseek@3.0.26.patch` — second hunk removed. The
+  `isDeepSeekV4` widening stays; the drop rule returns to upstream.
+- `test/provider/deepseek-cot-roundtrip.test.ts` (new, 4 tests) — asserts the
+  HTTP BODY, not the message array: flash and v4 both return a thought older
+  than the last user message; the 400-guard still puts an empty key on a
+  thoughtless tool turn; `deepseek-chat` is untouched, so the patch stays
+  targeted.
+
+### Oracles
+
+Direct probe through `createDeepSeek({ fetch })` capturing `init.body`:
+historical reasoning arrives as `"OLD THOUGHT"`; with the hunk restored the same
+probe yields `""`. Mutation check on the suite: restoring the hunk turns 2 of 4
+red. `bun typecheck` exit 0. `test/provider/` 461 pass / 0 fail.
+
+Not proven: end-to-end on a live request. Needs a rebuilt binary, and the
+running TUI holds `dist/bin/opencode.exe`.
+
+### Follow-up, not done here
+
+The `bug: empty reasoning injected on tool-call turns — vendor CoT round-trip is
+lost` warn fires on every request. It is now wrong twice over: the round-trip
+works, and the injection it reports is the 400-guard covering turns where the
+vendor returned no CoT at all. Re-aim the census at the HTTP body and reword.

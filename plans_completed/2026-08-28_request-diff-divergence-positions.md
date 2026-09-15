@@ -75,7 +75,7 @@ post_checks:
   expected_exit: 0
 blast_radius: src/session/request-diff.ts, src/session/prompt.ts (diff call site only),
   test/session/request-diff.test.ts. New .diff file format from next request; count line
-  kept for experiments/kv-cache-parity analyzers (messages_from_index line disappears —
+  kept for experiments/2026-08-29_kv-cache-parity analyzers (messages_from_index line disappears —
   correlate script tolerates missing value).
 
 ## Prior art

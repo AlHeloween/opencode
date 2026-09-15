@@ -2,7 +2,7 @@
 
 state: DRAFT
 scope: `packages/opencode/src/provider/transform.ts`, `packages/opencode/src/session/llm.ts` + tests
-evidence: `experiments/20260912_anthropic-cache/REPORT.md`
+evidence: `experiments_history/2026-09-12_anthropic-cache/REPORT.md`
 
 ## Context / goal
 
@@ -34,13 +34,13 @@ Two independent deliverables, both narrow:
   change below is what makes those slots actually payable.
 - `packages/opencode/test/provider/transform.test.ts:2311` — existing
   `cache control on gateway` describe. New assertions extend it, no new file.
-- `experiments/20260912_anthropic-cache/` — the probes this plan is built on.
+- `experiments/2026-09-12_anthropic-cache/` — the probes this plan is built on.
 - `docs/reasoning-round-trip-contract.md` — the "never assume vendor reasoning
   behaviour, probe it" rule that T1 follows.
 
 ## Findings that bind the implementation
 
-Tags map to `experiments/20260912_anthropic-cache/REPORT.md`.
+Tags map to `experiments_history/2026-09-12_anthropic-cache/REPORT.md`.
 
 | # | Finding | Status | Code surface |
 |---|---------|--------|--------------|
@@ -143,10 +143,10 @@ Baseline (before any edit) — all four must run green **today**, on this machin
 without a key:
 
 ```bash
-bun run experiments/20260912_anthropic-cache/01_wire_shape.mts
-bun run experiments/20260912_anthropic-cache/02_breakpoint_ab.mts
-bun run experiments/20260912_anthropic-cache/03_variants_matrix.mts
-bun run experiments/20260912_anthropic-cache/04_sdk_contract.mts
+bun run experiments_history/2026-09-12_anthropic-cache/01_wire_shape.mts
+bun run experiments_history/2026-09-12_anthropic-cache/02_breakpoint_ab.mts
+bun run experiments_history/2026-09-12_anthropic-cache/03_variants_matrix.mts
+bun run experiments_history/2026-09-12_anthropic-cache/04_sdk_contract.mts
 ```
 
 Recorded baseline (2026-09-12): `01` → 4 breakpoints, 55.1% of the static

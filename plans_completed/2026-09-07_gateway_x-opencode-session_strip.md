@@ -76,7 +76,7 @@ so user can override per provider/model.
    - NEW packages/opencode/test/provider/response-cache.test.ts: opt-in matrix
      (non-openrouter → {}; openrouter no opt → {}; openrouter opt-in → header set;
      ttl clamp 1..86400; invalid ttl → omitted).
-8. Smoke in experiments/2026-09-07_go_session_smoke/ (user-required):
+8. Smoke in experiments/2026-09-07_go-session-smoke/ (user-required):
    `wire-probe.mjs` — starts local Bun server asserting `x-opencode-session`
    presence, drives H1.request with opencode-shaped headers; writes RESULTS.md.
 

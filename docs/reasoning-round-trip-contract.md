@@ -3,9 +3,9 @@
 **Status:** measured 2026-08-28 on `z-ai/glm-5.3-flash` (via OpenRouter) and
 `deepseek-v4-flash` (direct `api.deepseek.com`); capture dialects, boundary
 census, and the SDK tail-rule patch added 2026-09-14
-**Probes:** `experiments/kv-cache-parity/2026-08-28_dialect_reach_probe.py`,
-`experiments/kv-cache-parity/2026-08-28_deepseek_direct_dialect_probe.py`,
-`experiments/kv-cache-parity/2026-08-28_chain_cache_probe.py`
+**Probes:** `experiments/2026-08-29_kv-cache-parity/2026-08-28_dialect_reach_probe.py`,
+`experiments/2026-08-29_kv-cache-parity/2026-08-28_deepseek_direct_dialect_probe.py`,
+`experiments/2026-08-29_kv-cache-parity/2026-08-28_chain_cache_probe.py`
 **Siblings:** `docs/deepseek-thinking-cache.md`, `docs/streamlake-kat-thinking-cache.md`
 
 ## ⚠️ Governing rule — read before touching reasoning fields
@@ -53,7 +53,7 @@ DeepSeek rules (official, confirmed live):
 ### Correction 2026-09-12 — the tool-turn 400 is misattributed [Exact]
 
 Re-probed against `api.deepseek.com` (`deepseek-flash` **and** `deepseek-v4-pro`;
-`experiments/20260912_deepseek-h3/REPORT.md`). The 400 message names
+`experiments_history/2026-09-12_deepseek-h3/REPORT.md`). The 400 message names
 `reasoning_content`, but the field is **not** what triggers it:
 
 | replay shape | `reasoning_content` | result |

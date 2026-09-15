@@ -4,7 +4,7 @@
 
 state: DRAFT
 scope: packages/opencode/src/session (deliver-once path, processor.ts, message-v2.ts) + a new image-page renderer module + tests
-evidence: `experiments/20260912_deepseek-vision/BREAKTHROUGH.md` (all numbers below are from live probes in that directory)
+evidence: `experiments_history/2026-09-12_deepseek-vision/BREAKTHROUGH.md` (all numbers below are from live probes in that directory)
 
 ## Context / goal
 
@@ -48,7 +48,7 @@ Consequences, decided not discovered:
   the same vocabulary rather than inventing a parallel one.
 - `overflow.ts:147-159` `estimateMediaTokens` — calibrated per-model media accounting exists;
   rendered pages must be counted here, not as chars/4 (the 688K-phantom-token incident).
-- `experiments/20260912_deepseek-vision/sharp-render.ts` — **working prototype**: SVG text on
+- `experiments_history/2026-09-12_deepseek-vision/sharp-render.ts` — **working prototype**: SVG text on
   an exact grid → WebP lossless via sharp. Verified readable on the wire (2/3 checks,
   identical to the PIL reference). Rendering the whole kernel: 3 pages, 266 KB, 5.4 s.
 - `docs/reasoning-round-trip-contract.md` — the vendor contract doc that must record the

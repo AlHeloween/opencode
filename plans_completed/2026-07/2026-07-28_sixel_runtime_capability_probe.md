@@ -33,7 +33,7 @@ defines `CSI ? 2 ; 1 ; 0 S` and successful `CSI ? 2 ; 0 ; … S` replies.
 | # | Command (cwd) | Expected now | Actual [Exact] |
 |---|---------------|--------------|----------------|
 | 1 | packaged TUI Mermaid run | native Sixel | fallback; `sixel:false`, `detectedMode:none`, 2026-07-28 unified log `1785242635707` |
-| 2 | direct Windows Terminal OpenTUI lab | native Sixel | passed; `sixel:true`, 10x20px cells, `experiments/tui-image-rendering/opentui-direct-wt-fixed.png` |
+| 2 | direct Windows Terminal OpenTUI lab | native Sixel | passed; `sixel:true`, 10x20px cells, `experiments/2026-07-28_tui-image-rendering/opentui-direct-wt-fixed.png` |
 | 3 | raw capability probe through ConPTY | usable Sixel response | no XTSMGRAPHICS reply; DA1/DA2/DA3 only, `20260728T134052Z_0adc8323` |
 
 ### Post-implementation oracles

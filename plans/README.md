@@ -68,6 +68,7 @@ See `abstract_futures/README.md`. Includes parked Zig 0.16 migration notes and s
 
 ## Recently completed → `plans_completed/`
 
+- `2026-09-13_experiments-canonization.md` — `experiments/` top level unified to `yyyy-mm-dd_brief`; 113 move ops (5251 files, no loss), 204 reference rewrites across two waves, `verify.cjs` PASS + typecheck exit 0
 - `2026-09-13_tui-routing-interaction-repair.md` — routing dialog interaction model: heading-skipping traversal, radios, pointer parity, live mode line; landed `918f114db8`, T4 closed by a direct-terminal capture
 - `2026-09-12_deepseek-thinking-h3.md` — DeepSeek name-drift fix: one `isDeepSeekThinkingId` family predicate + catalog-driven variant sets (`deepseek-flash` → `off/low/high/max`, `deepseek-v4-pro` → `off/high/max`); h3 unavailable on `api.deepseek.com`; the tool-turn 400 misattribution corrected. T4 (TUI labels) left open
 - `2026-09-12_kernel-evidence-and-edit-discipline.md` — candidate kernel/addon rules: query the record before attributing unexplained state; per-edit verification (grep -c == 1, oracle per edit). Owner decision pending

@@ -24,7 +24,7 @@ flowchart TD
 
 ## Implementation
 
-- [x] Add `experiments/merman-layout-poc/` with `merman = { version = "0.7.0", features = ["render"] }`, the fixed fixture, and a runner using `render_svg_resvg_safe_sync`.
+- [x] Add `experiments/2026-08-25_merman-layout-poc/` with `merman = { version = "0.7.0", features = ["render"] }`, the fixed fixture, and a runner using `render_svg_resvg_safe_sync`.
 - [x] Render the fixture through current WASM and `merman`; generate ignored local artifacts `current-wasm.svg`, `merman-resvg-safe.svg`, same-contain-budget PNG previews on the same background, and `report.json` under `output/`.
 - [x] Record SHA-256, SVG width/height/viewBox, viewBox area, applied theme/config, and a manually reviewed feedback-edge route. Merman passed: valid raster output, 37,222.52 vs 56,295.19 viewBox area (-33.9%), and a compact readable feedback channel.
 
@@ -41,7 +41,7 @@ flowchart TD
 
 | # | Command (cwd) | Pass criteria |
 |---|---------------|---------------|
-| 1 | `bun run render-current.ts && cargo +1.95.0 run --release && bun run compare.ts` (`experiments/merman-layout-poc`) | both paths create non-empty SVG/PNG/report artifacts from identical source |
+| 1 | `bun run render-current.ts && cargo +1.95.0 run --release && bun run compare.ts` (`experiments/2026-08-25_merman-layout-poc`) | both paths create non-empty SVG/PNG/report artifacts from identical source |
 | 2 | `output/report.json` + PNG inspection | report records hashes and geometry; feedback route is judged against the explicit reject criterion |
 
 ## Results
@@ -52,7 +52,7 @@ fixture and runners are force-added as reproducible experiment source.
 | # | Command (cwd) | Actual [Exact] |
 |---|---------------|----------------|
 | 1 | `bun test test/util/mermaid.test.ts` (`packages/opencode`) | 11 pass, 0 fail, 26 expects |
-| 2 | `bun run render-current.ts && cargo +1.95.0 run --release && bun run compare.ts` (`experiments/merman-layout-poc`) | completed; `merman` cold build 7m47s, both SVG/PNG artifacts valid, report written |
+| 2 | `bun run render-current.ts && cargo +1.95.0 run --release && bun run compare.ts` (`experiments/2026-08-25_merman-layout-poc`) | completed; `merman` cold build 7m47s, both SVG/PNG artifacts valid, report written |
 | 3 | PNG inspection | `merman` makes the feedback route compact and readable; current WASM creates a wide external loop |
 
 Recommendation: advance `merman` to an additive integration POC, retaining the current WASM renderer as fallback.

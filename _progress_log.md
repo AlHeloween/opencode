@@ -2619,3 +2619,45 @@ Open, by decision rather than difficulty: apply `getFactor()`;
 `message-v2.ts:1174` stripping reasoning from non-tool turns against the vendor
 contract's "for all turns"; the `round-trip is lost` warn that is now wrong
 twice. And the A/B that would move 078f55a2bb from Inferred to Exact.
+
+[2026-09-16] kernel: DELEGATION protocol; TITLE_AGENT leaves §5
+- `prompt_kernel/source.py`: new side protocol DELEGATION observed at [G1,G2,G6,G7,G8]
+  → SAME_GATE. DELEGATE_BY_GATE (delegation moves work, never authority),
+  FRESH_EYES (a sub-agent shares our frame — send it for the test, not the
+  verdict), AICall falsifier (an isolated call can contradict the frame but
+  cannot stamp; only when no smoke test exists and the packet is already Inferred).
+- TITLE_AGENT removed: an internal procedure, never delegated to, `"*": "deny"`
+  at runtime. A per-turn contract that governs nothing is prefix spent on nothing.
+- `render.py`: the advisory clause hoisted out of four protocol headers into §4
+  — 158 bytes back, and it was about to trip the five-gram dedup guard.
+- 32 946 / 33 000 bytes. baseline sha ab392a5c… → 9148f1bb…. 100 pytest green.
+
+[2026-09-16] agent: general_agent honours may_mutate:false; per-identity sampling
+- `agent.ts`: general_agent denied edit/write outside `plans/*` (kernel said
+  may_mutate:false, runtime let it write any file). Guard test parses §5 out of
+  the installed artifact, so a new identity cannot skip the check.
+- Per-identity sampling for the five subagents. Every one was sending
+  DEFAULT_MODEL_SAMPLING (0.65/0.95/0.2/1.1) — the model-wide TUI default.
+  Verifiers tight and unpenalised, generators loose.
+- `llm.ts`: model-wide `repetition_penalty` merged BEFORE `agent.options`, not
+  after — an agent-declared value was unreachable. `presencePenalty` now reads
+  `agent.presencePenalty ?? sampling.presence_penalty`, mirroring temperature.
+- Oracles: 4 + 4 tests; both merge-order and hidden-agent guards mutation-tested
+  (restored the bug, watched them redden). test/agent 64 pass / 0 fail.
+
+[2026-09-16] kernel: compaction cadence + per-host bindings
+- `@COMPACTION_CADENCE` (SEMANTIC_ATTENTION): compact at a closed boundary, not
+  when the window fills. The auto gate is context-safety — it can only see the
+  ceiling, never that a task finished. A finished task's trace dilutes every
+  vector formed after it; mid-task compaction costs the handles still held, so
+  persist first.
+- Host bindings for DELEGATION and the falsifier, rendered per host:
+  opencode G7 `task`/`pipeline` + per-identity sampling, G8 `aicall`;
+  Claude G7 `Agent`/`SendMessage` + background semantics, G8 `call_model`.
+- G9 compaction binding differs by host on purpose: opencode `/compact` is one
+  Layer-1 sidecar call then a free fold (`captureSummary`, prompt.ts T3);
+  Claude Code `/compact` is a lossy summarizer, so handles must be on disk first.
+- Caught mid-flight: first draft said opencode `/compact` was zero-token. It is
+  not — the fold is, the capture is a model call. Read prompt.ts before shipping it.
+- utf8_budget 33_000 -> 34_000; 33 957 used, 43 free. Variants 35_000 / 4_450.
+  baseline 9148f1bb… -> 5fbae483…. 100 pytest green.

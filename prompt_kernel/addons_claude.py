@@ -89,6 +89,14 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
     ),
     GateAddon(
         "G7",
+        "TOOL_DELEGATE",
+        (
+            "delegate: Agent (subagent_type); SendMessage continues one with its context intact, a fresh Agent call does not.",
+            "sub-agents run in the background — never state a pending one's result before its notification arrives.",
+        ),
+    ),
+    GateAddon(
+        "G7",
         "PROCESS_LAUNCH",
         (
             "launch long-lived processes only via run_in_background:true; a blocking start stalls the turn.",
@@ -104,6 +112,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
             "rendered-page/visual claims need the Browser tool oracle (screenshot/read_page); typecheck is not proof.",
             "shell ls/dir scans are not evidence — Glob/Grep/Read only.",
             "sandbox egress blocking an MCP call is Unknown, not a failed oracle — retest with real network.",
+            "the isolated call is openrouter-free call_model: EXTERNAL_EFFECT, free tier, no repo access — attach the evidence inline. Inferred at best, never a stamp.",
         ),
     ),
     GateAddon(
@@ -120,6 +129,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_CLOSURE",
         (
             "verify completion: git status; no message-search tool exists.",
+            "compact at the boundary: /compact here is an LLM summarizer, not a mechanistic fold — write the handles to plans/, docs/ and _progress_log.md BEFORE it runs, or they are gone.",
             "a smoke-tested MCP contract (handshake, tools/list, errors) is Exact; live response shape stays Hypothetical until run live.",
         ),
     ),

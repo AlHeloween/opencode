@@ -121,4 +121,12 @@ def test_compacted_runtime_budget() -> None:
     # Paid for first: TITLE_AGENT left §5 (an internal procedure, never delegated
     # to, everything denied at runtime) and the advisory clause was hoisted out of
     # the four protocol headers into §4 — 158 bytes back before a byte was spent.
-    assert normalized_token_count(text) <= 4_250
+    # 4_400 / utf8_budget 34_000 (2026-09-16): admits @COMPACTION_CADENCE — compact
+    # at a closed boundary, not when the window fills, because a finished task's
+    # trace dilutes every vector formed after it. Plus the per-host bindings that
+    # make it and DELEGATION actionable: which tool delegates, which tool is the
+    # isolated call, and what /compact actually does on this host (a mechanistic
+    # zero-token fold in opencode, a lossy summarizer under Claude Code — the
+    # difference decides whether handles must be persisted before it runs).
+    # Headroom left is 43 bytes: the next admission pays or raises, deliberately.
+    assert normalized_token_count(text) <= 4_400

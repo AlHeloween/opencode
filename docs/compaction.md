@@ -126,6 +126,41 @@ This design pays (2) as well — see §0, "After a fold, ONE full-price request 
 inherent" — but not (1): the fold itself costs nothing, and the Layer-1 requests
 that did the encoding rode a ~100% cached prefix when they ran.
 
+## When to compact by hand (2026-09-16)
+
+Automatic compaction is a **context-safety** gate: it fires when the window is
+about to overflow (`isOverflowFromContent`, `needsContentCompaction` in
+`session/overflow.ts`). That is the only thing it can see. It cannot see that a
+task finished.
+
+The kernel adds the other trigger — `@COMPACTION_CADENCE` in the
+`SEMANTIC_ATTENTION` protocol:
+
+> Compact at a closed boundary, not when the window fills.
+
+The reason is attention, not memory. A `@DIGITAL_INTENTION` that reached a
+terminal leaves a trace behind it that is no longer evidence, and every semantic
+vector formed afterwards is formed partly from that trace — the same defect as a
+basis carrying non-Exact axes. Waiting for the overflow gate means the dilution
+is already priced into every turn between the boundary and the ceiling.
+
+Mid-task compaction is the opposite error: it costs the handles still being
+held. So the order is **persist, then compact** — plans, docs, `_progress_log.md`
+first.
+
+**What the manual call actually costs, per host:**
+
+| Host | `/compact` | Implication |
+|------|-----------|-------------|
+| opencode | `captureSummary` (`session/prompt.ts` T3) — one Layer-1 sidecar model call, then the Layer-2 fold | The fold is free and already automatic; the manual call buys the *handle* and the attention boundary, not room |
+| Claude Code | LLM summarizer over the transcript | Lossy prose. Handles survive only if they were written to a file before it ran |
+
+That asymmetry is why the two kernels carry different G9 bindings for the same
+rule: under opencode the mechanism preserves Exact handles by construction,
+under Claude Code it does not.
+
+---
+
 ---
 
 ## 0. Architecture at a glance (2026-08-25)

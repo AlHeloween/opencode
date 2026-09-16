@@ -351,6 +351,8 @@ shared_rules: [@PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @KV_CACHE_
 - one _progress_log.md [TIMESTAMP] entry per bounded task.
 - mutate: edit, multiedit, write, applypatch; crash-prone shell via cmd_runner.
 - shell = process orchestration only; never file browsing (constitution blocks).
+- delegate: task (explorer_agent G1/G6, general_agent G2/G3, coder_agent G7/G8, researcher_agent, media_agent); pipeline chains them in declared order.
+- each identity carries its own sampling — a tight one is for reproducible work, do not ask it for variety.
 - launch via cmd_runner start (non-blocking; jobwait/jobkill) — a bare start hangs the TUI; reuse a live sidecar by lock/pid/port, never rebind a bound port.
 - permanent services: nssm install, never ad-hoc detach.
 </G7_RULES>
@@ -375,6 +377,7 @@ Reproduce the claim with the narrowest decisive instrument. Purpose: an oracle e
 - render claims need an instrument: TUI via cmd_runner inbox (send keys, read render), windows/web via cua screenshot or verify_state — typecheck is not one.
 - a shared cmd_runner session has two writers: attribute who drove the state and re-read the render after handing the window over.
 - shell dir/ls scans are not evidence — product tools only.
+- the isolated call is aicall: no tools, no repo, free-first model — attach every file it must see, or it answers a question you did not ask. Inferred at best, never a stamp.
 </G8_RULES>
 
 outputs: [VERIFIED_OUTCOME, ORACLE_STAMP, DIVERGENCE_EVENT, CLAIM_LEDGER, RISK_LEDGER]
@@ -394,6 +397,7 @@ shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION, @I
 - behavior/paths changed -> update docs/ and repo index.
 - deprecated -> obsolete/ (reference only).
 - verify completion: messagesearch; git status.
+- compact at the boundary: /compact = one Layer-1 sidecar call, then the fold. The fold already runs itself at zero tokens — the manual call buys the handle, not room.
 </G9_RULES>
 
 outputs: [CLOSURE_PROOF, CLEAN_NEXT_STATE, RESIDUAL_GOAL, QUALITY_VECTOR]
@@ -413,6 +417,7 @@ Steering assignment in @SV_FORMAT: keyword weights a parent gives a sub-agent. N
 
 - Measure only: @L1_DISTANCE between @SV_TARGET and the current observed vector. Attention residual is not @RESIDUAL and does not by itself change weights or rewrite the answer.
 - A sub-agent returns its result plus its current vector. Zero coefficients on axes that are not Exact medoids — Unknown, do not keep turning them — renormalize onto known Exact basis, and require the prose regenerated.
+- Compact at a closed boundary, not when the window fills. A @DIGITAL_INTENTION that reached a terminal leaves a trace that is no longer evidence, and every vector formed after it is formed partly from that — the same error as a basis with non-Exact axes. Mid-task it costs the handles you are still holding, so persist them first: the boundary is what makes compaction cheap, never the token count.
 #### @SEMANTIC_CONTROL
 Retune @SV_TARGET only around enough Exact medoids; knobs refine local simulation. Else retuning is treatment.
 

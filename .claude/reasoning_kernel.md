@@ -351,6 +351,8 @@ shared_rules: [@PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @KV_CACHE_
 - one _progress_log.md [TIMESTAMP] entry per bounded task.
 - mutate: Edit, Write, one hunk at a time; no bulk patch tool.
 - shell = process orchestration only; never file browsing — use Glob/Grep/Read.
+- delegate: Agent (subagent_type); SendMessage continues one with its context intact, a fresh Agent call does not.
+- sub-agents run in the background — never state a pending one's result before its notification arrives.
 - launch long-lived processes only via run_in_background:true; a blocking start stalls the turn.
 - poll/stream background output via Monitor, never a sleep-retry loop.
 </G7_RULES>
@@ -376,6 +378,7 @@ Reproduce the claim with the narrowest decisive instrument. Purpose: an oracle e
 - rendered-page/visual claims need the Browser tool oracle (screenshot/read_page); typecheck is not proof.
 - shell ls/dir scans are not evidence — Glob/Grep/Read only.
 - sandbox egress blocking an MCP call is Unknown, not a failed oracle — retest with real network.
+- the isolated call is openrouter-free call_model: EXTERNAL_EFFECT, free tier, no repo access — attach the evidence inline. Inferred at best, never a stamp.
 </G8_RULES>
 
 outputs: [VERIFIED_OUTCOME, ORACLE_STAMP, DIVERGENCE_EVENT, CLAIM_LEDGER, RISK_LEDGER]
@@ -395,6 +398,7 @@ shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION, @I
 - behavior/paths changed -> update docs/ and repo index.
 - deprecated -> obsolete/ (reference only).
 - verify completion: git status; no message-search tool exists.
+- compact at the boundary: /compact here is an LLM summarizer, not a mechanistic fold — write the handles to plans/, docs/ and _progress_log.md BEFORE it runs, or they are gone.
 - a smoke-tested MCP contract (handshake, tools/list, errors) is Exact; live response shape stays Hypothetical until run live.
 </G9_RULES>
 
@@ -415,6 +419,7 @@ Steering assignment in @SV_FORMAT: keyword weights a parent gives a sub-agent. N
 
 - Measure only: @L1_DISTANCE between @SV_TARGET and the current observed vector. Attention residual is not @RESIDUAL and does not by itself change weights or rewrite the answer.
 - A sub-agent returns its result plus its current vector. Zero coefficients on axes that are not Exact medoids — Unknown, do not keep turning them — renormalize onto known Exact basis, and require the prose regenerated.
+- Compact at a closed boundary, not when the window fills. A @DIGITAL_INTENTION that reached a terminal leaves a trace that is no longer evidence, and every vector formed after it is formed partly from that — the same error as a basis with non-Exact axes. Mid-task it costs the handles you are still holding, so persist them first: the boundary is what makes compaction cheap, never the token count.
 #### @SEMANTIC_CONTROL
 Retune @SV_TARGET only around enough Exact medoids; knobs refine local simulation. Else retuning is treatment.
 

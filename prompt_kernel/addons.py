@@ -80,6 +80,14 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
     ),
     GateAddon(
         "G7",
+        "TOOL_DELEGATE",
+        (
+            "delegate: task (explorer_agent G1/G6, general_agent G2/G3, coder_agent G7/G8, researcher_agent, media_agent); pipeline chains them in declared order.",
+            "each identity carries its own sampling — a tight one is for reproducible work, do not ask it for variety.",
+        ),
+    ),
+    GateAddon(
+        "G7",
         "PROCESS_LAUNCH",
         (
             "launch via cmd_runner start (non-blocking; jobwait/jobkill) — a bare start hangs the TUI; reuse a live sidecar by lock/pid/port, never rebind a bound port.",
@@ -94,6 +102,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
             "render claims need an instrument: TUI via cmd_runner inbox (send keys, read render), windows/web via cua screenshot or verify_state — typecheck is not one.",
             "a shared cmd_runner session has two writers: attribute who drove the state and re-read the render after handing the window over.",
             "shell dir/ls scans are not evidence — product tools only.",
+            "the isolated call is aicall: no tools, no repo, free-first model — attach every file it must see, or it answers a question you did not ask. Inferred at best, never a stamp.",
         ),
     ),
     GateAddon(
@@ -110,6 +119,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_CLOSURE",
         (
             "verify completion: messagesearch; git status.",
+            "compact at the boundary: /compact = one Layer-1 sidecar call, then the fold. The fold already runs itself at zero tokens — the manual call buys the handle, not room.",
         ),
     ),
 )

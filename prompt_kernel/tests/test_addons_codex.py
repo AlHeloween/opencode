@@ -63,8 +63,12 @@ def test_codex_variant_stays_within_explicit_budget() -> None:
     # 34_000 / 4_250 (2026-09-16): mirrors the product raise admitting the
     # DELEGATION protocol — when to send a sub-agent, and the AICall falsifier for
     # the verdict a sub-agent cannot give because it shares our frame.
-    assert len(text.encode("utf-8")) <= 34_000
-    assert normalized_token_count(text) <= 4_250
+    # 35_000 / 4_450 (2026-09-16): mirrors the product raise to 34_000 for
+    # @COMPACTION_CADENCE and the host bindings for it, for delegation, and for
+    # the isolated-call falsifier. This variant keeps its +1 000 for having no
+    # fixed slot.
+    assert len(text.encode("utf-8")) <= 35_000
+    assert normalized_token_count(text) <= 4_450
 
 
 def test_codex_addon_render_is_deterministic_lf() -> None:

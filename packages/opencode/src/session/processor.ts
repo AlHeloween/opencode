@@ -168,38 +168,38 @@ const EXACT_WRITE_TOOLS = new Set(["write", "edit", "multiedit", "applypatch"])
  * So carry the evidence forward and snapshot once, when the turn actually ends.
  */
 /**
- * Should this finished step commit a Fossil snapshot?
+ * The turn boundary, made explicit.
  *
- * Pure so the contract can be pinned without a Fossil binary. Four rules, and
- * every one of them was paid for:
+ * There is no longer a decision about WHETHER to snapshot. The baseline is
+ * taken once, at the start of the user turn, before anything is touched — see
+ * `create`. The only thing worth pinning is that "once" really is once: a turn
+ * spans several assistant messages, `create` runs for each of them, and the
+ * snapshot must fire on the first only.
  *
- * - `tool-calls` means the prompt loop returns immediately for another step, so
- *   the step is mid-turn. `revert.ts` folds every revert target back to the last
- *   USER message, so a mid-turn leaf can never be reverted to — and creating one
- *   is what made the undo walk classify its manifest against unreachable states
- *   (T7/T8 in undo-visibility, red since 2026-08-30, green once this stopped).
- * - No write-class tool in the whole turn: nothing can have changed. 51% of
- *   snapshot-bearing messages in a measured session were this case — 365 pure
- *   `read`, 299 `cua`, 13 `webfetch`.
- * - Shell tool with no filediff evidence and no exact write tool: `bun --version`
- *   must not create a leaf.
- * - `track()`'s own early-exit is NOT free — it still spawns `changes`,
- *   `addremove -n` and `info` under the repo lock, so "call it and let it decide"
- *   is not an option. Measured 1861ms average, 62 calls, 115s in one session.
+ * The predecessor of this pair decided at the END of the turn from per-tool
+ * evidence, which is what lost shell mutations: `bash`/`run`/`task`/`pipeline`
+ * emit no `filediff` metadata at all — only edit.ts and write.ts do — so "zero
+ * reported files" covered both `bun --version` and a command that had just
+ * created a file. Fossil has no autotrack (a new file stays `extras` until
+ * `addremove` runs), so nothing downstream recovered the difference.
+ *
+ * `beginTurn` both answers and registers, so the answer cannot be read twice by
+ * accident. `endTurn` is called on the step whose `finishReason` is not
+ * `tool-calls`, which is the same boundary `revert.ts` folds to.
  */
-export function shouldSnapshot(input: {
-  finishReason: string | undefined
-  /** Any write-class tool seen so far in THIS turn, across all its steps. */
-  write: boolean
-  /** Any exact file-mutation tool (write/edit/multiedit/applypatch) in this turn. */
-  exact: boolean
-  /** Count of files with filediff evidence in this turn. */
-  changedFiles: number
-}): boolean {
-  if (input.finishReason === "tool-calls") return false
-  if (!input.write) return false
-  if (input.changedFiles === 0 && !input.exact) return false
+export function beginTurn(sessionID: string): boolean {
+  if (pendingWrites.has(sessionID)) return false
+  turnWrites(sessionID)
   return true
+}
+
+export function endTurn(sessionID: string): void {
+  pendingWrites.delete(sessionID)
+}
+
+/** Test seam: forget every in-flight turn. */
+export function resetTurns(): void {
+  pendingWrites.clear()
 }
 
 /**
@@ -483,18 +483,35 @@ export const layer: Layer.Layer<
     const status = yield* SessionStatus.Service
 
     const create = Effect.fn("SessionProcessor.create")(function* (input: Input) {
-      // No snapshot before streaming. `checkpoint()` spawns `fossil info` under a
-      // lock, and it used to run on EVERY turn — including ones that cannot touch
-      // the working copy at all. Measured 2026-09-15: of 2380 snapshot-bearing
-      // assistant messages, 1220 (51%) called no write-class tool whatsoever —
-      // 365 pure `read`, 299 `cua`, 138 `jobwait`, 69 `grep`, 13 `webfetch`.
+      // ── One snapshot, at the start of the user turn ──
       //
-      // The baseline is only meaningful as "state before a mutation", and the
-      // mutation announces itself: the `tool-call` event carries the tool name
-      // before the tool runs. So resolve it there, once, on the first write-class
-      // call. A read-only turn now spawns no fossil process and carries no
-      // snapshot — which is honest: there is nothing to revert to.
-      const initialSnapshot = undefined
+      // The baseline is the state to revert TO, so it belongs before the turn
+      // touches anything — and taken there it needs no evidence about what the
+      // turn will do. `track(undefined)` runs `addremove`, so it picks up
+      // whatever appeared since the last turn no matter who wrote it: bash,
+      // edit, or the user's own editor between turns. Fossil has no autotrack —
+      // a new file stays `extras` until `addremove` runs — so this call IS the
+      // automatic tracking.
+      //
+      // What this replaces: from c41c4b9bf2 the decision was made at the END of
+      // the turn from per-tool evidence, and shell tools emit no `filediff`
+      // metadata at all (only edit.ts and write.ts do). "Zero reported files"
+      // therefore covered both `bun --version` and a command that had just
+      // created a file, so every shell mutation silently fell out of undo
+      // coverage — snapshot-tool-race.test.ts was red from that day.
+      //
+      // Cost is unchanged in the shape that mattered: once per USER turn, not
+      // per command and not per assistant message. `pendingWrites` has no entry
+      // only on the turn's first assistant message, and track()'s own
+      // early-exit returns the current hash without a commit chain when the
+      // working copy has not moved — which is the 51%-of-turns read-only case
+      // that 2026-09-15 measured (1220 of 2380 messages called no write tool).
+      const turnStart = beginTurn(input.sessionID)
+      const turn = turnWrites(input.sessionID)
+      if (turnStart) {
+        turn.before = yield* snapshot.track(undefined).pipe(Effect.catch(() => Effect.succeed(undefined)))
+      }
+      const initialSnapshot = turn.before
       const ctx: ProcessorContext = {
         assistantMessage: input.assistantMessage,
         sessionID: input.sessionID,
@@ -1040,18 +1057,11 @@ export const layer: Layer.Layer<
                 totalDurationMs: ctx.streamStartTime ? Date.now() - ctx.streamStartTime : undefined,
               })
             }
-            // Save the pre-track snapshot for patch diffing.
-            // ctx.snapshot holds the hash BEFORE this tool step ran.
-            // track() commits the changes and returns the NEW hash, but
-            // patch() needs the BEFORE hash to diff against HEAD.
-            // 2026-09-09: shell tools (bash/run/task/pipeline) only track when
-            // filediff evidence exists — a bare `bun --version` previously
-            // triggered a full snapshot cycle (~48s measured stall). The
-            // early-exit in fossil.track() is the second safety net.
-            // Prefer the turn's baseline: `ctx.snapshot` is only set on steps that
-            // themselves called a write tool, and the committing step often has not.
+            // The turn's baseline was committed at its start (see `create`), so
+            // there is nothing to decide here and nothing to commit: every step
+            // of the turn carries that one hash. `patch()` diffs the working
+            // copy against it, which is exactly what `revert.ts` walks.
             const snapshotBeforeTrack = turnWrites(ctx.sessionID).before ?? ctx.snapshot
-            // Fold this step's evidence into the turn, then decide once per turn.
             const turn = turnWrites(ctx.sessionID)
             for (const file of ctx.changedFiles) turn.files.add(file)
             turn.write ||= ctx.hasWriteToolCall
@@ -1059,18 +1069,13 @@ export const layer: Layer.Layer<
             // `tool-calls` means the prompt loop will come straight back for another
             // step, so this is mid-turn and nothing here is a reachable revert target.
             const turnEnds = value.finishReason !== "tool-calls"
-            const takeSnapshot = shouldSnapshot({
-              finishReason: value.finishReason,
-              write: turn.write,
-              exact: turn.exact,
-              changedFiles: turn.files.size,
-            })
             yield* session.updatePart({
               id: PartID.ascending(),
               reason: value.finishReason,
-              snapshot: takeSnapshot
-                ? yield* snapshot.track(turn.files.size > 0 ? [...turn.files] : undefined)
-                : ctx.snapshot,
+              // The turn's own baseline, committed once at its start. No commit
+              // chain runs here on any step, so a fifty-tool turn costs one
+              // snapshot rather than fifty decisions about whether to take one.
+              snapshot: turn.before ?? ctx.snapshot,
               messageID: ctx.assistantMessage.id,
               sessionID: ctx.assistantMessage.sessionID,
               type: "step-finish",
@@ -1207,7 +1212,7 @@ export const layer: Layer.Layer<
                 })
               }
             }
-            if (turnEnds) pendingWrites.delete(ctx.sessionID)
+            if (turnEnds) endTurn(ctx.sessionID)
             ctx.snapshot = undefined
             // Call sequentially (not forked) so the DB write from
             // session.updatePart above is committed before summarize
@@ -1321,13 +1326,15 @@ export const layer: Layer.Layer<
           // the patch. Without this, snapshot.patch() diffs against the
           // uncommitted working tree, mixing committed and uncommitted changes
           // into a single aggregate patch that loses per-step granularity.
-          // 2026-09-09: shell-only turns (bash/run/task/pipeline) with no
-          // filediff evidence skip track() — the early-exit inside track()
-          // remains as a cheap second net for edge cases (probe cost <100ms
-          // vs 5-48s commit chain).
+          // The shell-only case is handled by the step-finish path, which
+          // probes ONCE per user turn (see snapshotMode). It must not be
+          // repeated here: `cleanup` runs per assistant message and one user
+          // turn can span several, so probing here would multiply the spawns
+          // the turn-level decision exists to bound. By the time cleanup runs,
+          // step-finish has already committed anything a shell turn changed,
+          // so skipping is not a coverage gap — it is the same commit, once.
           if (ctx.hasWriteToolCall) {
-            const shellOnlyNoFiles =
-              ctx.changedFiles.size === 0 && !ctx.exclusiveWriteToolCall
+            const shellOnlyNoFiles = ctx.changedFiles.size === 0 && !ctx.exclusiveWriteToolCall
             if (!shellOnlyNoFiles) {
               yield* snapshot
                 .track(ctx.changedFiles.size > 0 ? [...ctx.changedFiles] : undefined)

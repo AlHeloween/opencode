@@ -1,65 +1,67 @@
 import { describe, expect, test } from "bun:test"
-import { shouldSnapshot } from "@/session/processor"
+import { beginTurn, endTurn, resetTurns } from "@/session/processor"
 
 /**
  * The snapshot/revert/summary contract, pinned.
  *
- * All four boundaries are the SAME boundary — the end of one user turn:
+ * All four boundaries are the SAME boundary — one user turn:
  *
  *   fossil snapshot  ──┐
- *   summary + filediffs ├── end of turn
+ *   summary + filediffs ├── the turn
  *   revert target     ──┤   (revert.ts folds its target to the last user message)
  *   redo target       ──┘
  *
- * Taking a snapshot anywhere else produces a leaf nothing can ever revert to,
- * costs ~1861ms (measured, 62 calls / 115s in one session), and made the undo
- * walk classify its manifest against unreachable states — T7 and T8 in
- * undo-visibility were red from 2026-08-30 until this stopped.
+ * The baseline is taken at the turn's START, before anything is touched: that
+ * is the state revert goes back to, and taken there it needs no evidence about
+ * what the turn is going to do. `track(undefined)` runs `addremove`, so it
+ * picks up whatever appeared since the last turn regardless of who wrote it —
+ * bash, edit, or the user's own editor between turns. Fossil has no autotrack;
+ * a new file stays `extras` until `addremove` runs, so that call IS the
+ * automatic tracking.
  *
- * These are pure-predicate tests on purpose: the full-stack path needs a Fossil
- * binary and is red in environments without one, so it cannot hold a contract.
+ * What this replaced decided at the END of the turn, from per-tool evidence.
+ * Shell tools emit no `filediff` metadata at all (only edit.ts and write.ts
+ * do), so "zero reported files" covered both `bun --version` and a command that
+ * had just created a file — and every shell mutation fell out of undo coverage
+ * from c41c4b9bf2 until this. snapshot-tool-race.test.ts was red that whole
+ * time, stating the intent the code had dropped.
+ *
+ * What is left to pin is that "once per turn" is literally once. A turn spans
+ * several assistant messages and `create` runs for each, so the snapshot has to
+ * fire on the first and no other. These are pure state-machine tests on
+ * purpose: the full-stack path needs a Fossil binary and is red in environments
+ * without one, so it cannot hold a contract.
  */
-describe("shouldSnapshot — one snapshot per user turn, at its end", () => {
-  const base = { finishReason: "stop", write: true, exact: true, changedFiles: 1 }
-
-  test("mid-turn steps never snapshot, however much they wrote", () => {
-    expect(shouldSnapshot({ ...base, finishReason: "tool-calls" })).toBe(false)
-    expect(shouldSnapshot({ ...base, finishReason: "tool-calls", changedFiles: 40 })).toBe(false)
+describe("one snapshot per user turn, at its start", () => {
+  test("the first assistant message of a turn opens it, the rest do not", () => {
+    resetTurns()
+    expect(beginTurn("s1")).toBe(true)
+    // A fifty-tool turn is still one snapshot: create() runs per assistant
+    // message, and every one after the first must answer false.
+    for (let i = 0; i < 50; i++) expect(beginTurn("s1")).toBe(false)
   })
 
-  test("a turn that ends with file mutations snapshots exactly once", () => {
-    expect(shouldSnapshot(base)).toBe(true)
-    expect(shouldSnapshot({ ...base, finishReason: "length" })).toBe(true)
-    expect(shouldSnapshot({ ...base, finishReason: undefined })).toBe(true)
+  test("the next turn opens again once the previous one ended", () => {
+    resetTurns()
+    expect(beginTurn("s1")).toBe(true)
+    expect(beginTurn("s1")).toBe(false)
+    endTurn("s1")
+    expect(beginTurn("s1")).toBe(true)
   })
 
-  test("read-only turns spawn no fossil process at all", () => {
-    // 51% of snapshot-bearing messages in the measured session were this case:
-    // 365 pure `read`, 299 `cua`, 138 `jobwait`, 69 `grep`, 13 `webfetch`.
-    expect(shouldSnapshot({ ...base, write: false, exact: false, changedFiles: 0 })).toBe(false)
+  test("sessions do not close each other's turns", () => {
+    resetTurns()
+    expect(beginTurn("s1")).toBe(true)
+    expect(beginTurn("s2")).toBe(true)
+    endTurn("s1")
+    // s2 is mid-turn and must not be reopened by s1 ending.
+    expect(beginTurn("s2")).toBe(false)
+    expect(beginTurn("s1")).toBe(true)
   })
 
-  test("a shell tool that changed nothing is not a mutation", () => {
-    // `bun --version` through bash: write-class tool, zero filediff evidence,
-    // no exact write tool. Creating a leaf for it is the 2026-09-09 defect.
-    expect(shouldSnapshot({ finishReason: "stop", write: true, exact: false, changedFiles: 0 })).toBe(false)
-  })
-
-  test("a shell tool WITH filediff evidence does snapshot", () => {
-    expect(shouldSnapshot({ finishReason: "stop", write: true, exact: false, changedFiles: 1 })).toBe(true)
-  })
-
-  test("an exact write tool snapshots even without filediff evidence", () => {
-    // edit/write/multiedit/applypatch are self-evident: the diff may be absent
-    // (new file, binary) but the mutation is not in doubt.
-    expect(shouldSnapshot({ finishReason: "stop", write: true, exact: true, changedFiles: 0 })).toBe(true)
-  })
-
-  test("the mid-turn rule outranks every write signal", () => {
-    // Ordering matters: a turn can be both mid-flight and full of exact writes.
-    // Those writes are carried forward and land in the end-of-turn snapshot.
-    for (const exact of [true, false])
-      for (const changedFiles of [0, 1, 99])
-        expect(shouldSnapshot({ finishReason: "tool-calls", write: true, exact, changedFiles })).toBe(false)
+  test("ending a turn that never opened is not an error and opens nothing", () => {
+    resetTurns()
+    endTurn("never-seen")
+    expect(beginTurn("never-seen")).toBe(true)
   })
 })

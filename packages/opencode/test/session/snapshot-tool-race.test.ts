@@ -49,6 +49,7 @@ import { SessionProcessor } from "../../src/session/processor"
 import { SessionRunState } from "../../src/session/run-state"
 import { SessionStatus } from "../../src/session/status"
 import { SnapshotFossil } from "../../src/snapshot/fossil"
+import { Snapshot } from "@/snapshot"
 import { ToolRegistry } from "@/tool/registry"
 import { Jobs } from "@/jobs"
 import { Truncate } from "@/tool/truncate"
@@ -251,17 +252,33 @@ it.live("bash-only mutations are snapshotted but stay out of Summary Exact diff"
         )
       expect(steps.map((p) => p.type)).toContain("step-start")
       expect(steps.map((p) => p.type)).toContain("step-finish")
-      const snapshots = steps
-        .filter((p) => Boolean(p.snapshot))
-        .map((p) => p.snapshot)
+      const snapshots = steps.filter((p) => Boolean(p.snapshot)).map((p) => p.snapshot)
       expect(snapshots.length).toBeGreaterThanOrEqual(2)
-      expect(snapshots.at(0)).not.toBe(snapshots.at(-1))
+      // Every step of one turn carries the SAME hash, by design: the baseline is
+      // committed once at the turn's start. Diverging step hashes was the old
+      // per-step model, whose mid-turn leaves nothing could revert to.
+      expect(new Set(snapshots).size).toBe(1)
+      const baseline = snapshots[0]!
 
-      // Fossil captured the bash-created file: step snapshots diverged (:258),
-      // so undo/rollback covers it. Summary Exact is deliberately
-      // product-tool filediffs only (summary.ts computeDiff — "Fossil is
-      // rollback, not memory"): a bash-only mutation must NOT appear in
-      // session_diff.
+      // Fossil covers the bash-created file — relative to the turn baseline,
+      // and at the NEXT boundary rather than inside this turn.
+      //
+      // `diff(hash)` is `fossil diff --from <hash>`, which only reports TRACKED
+      // files, and a file bash just created is still `extras` (fossil has no
+      // autotrack). It becomes tracked at the next `track()` — the next turn's
+      // start baseline, or the pre-sidecar one. Simulate that boundary here:
+      // the baseline must still resolve, and the mutation must appear against
+      // it. Reddens on the real failure this file was written for — a
+      // reinitialized rather than reused checkout stops the hash resolving and
+      // `diff` returns "" — and on a lost `addremove`, which is what dropped
+      // shell mutations out of coverage from c41c4b9bf2.
+      const snapshots2 = yield* Snapshot.Service
+      yield* snapshots2.track(undefined)
+      expect(yield* snapshots2.diff(baseline)).toContain("race-test")
+
+      // Summary Exact is deliberately product-tool filediffs only (summary.ts
+      // computeDiff — "Fossil is rollback, not memory"): a bash-only mutation
+      // must NOT appear in session_diff.
       const diff = yield* summary.diff({ sessionID: session.id })
       expect(diff.filter((d) => d.file.replaceAll("\\", "/").includes("race-test"))).toHaveLength(0)
     }),

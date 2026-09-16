@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import {
   classifyVariantState,
   pruneSummary,
+  removable,
   withoutKeys,
 } from "../../src/cli/cmd/tui/component/model-state-prune"
 
@@ -118,12 +119,71 @@ describe("variant state prune", () => {
   })
 
   test("the summary names what is kept, not only what goes", () => {
-    expect(pruneSummary({ inert: [], unresolved: [] })).toBe("0 inert")
+    expect(pruneSummary({ inert: [], dead: [], unresolved: [] })).toBe("0 inert")
     expect(
       pruneSummary({
         inert: [{ map: "variant", key: "a", value: "default", reason: "no-variants" }],
+        dead: [{ map: "variant", key: "c", value: "default", reason: "dead-provider" }],
         unresolved: [{ map: "variant", key: "b", value: "default", reason: "unresolved" }],
       }),
-    ).toBe("1 inert · 1 unresolved (kept)")
+    ).toBe("1 inert · 1 dead provider · 1 unconfigured (kept)")
+  })
+
+  test("with a registry, a retired provider is dead and an unconfigured one is kept", () => {
+    // provider_next.all is the FULL catalogue; connected is the subset with a
+    // key. An entry for a catalogue provider that simply has no key here is a
+    // legitimate choice awaiting credentials — removing it would lose it.
+    const report = classifyVariantState(
+      {
+        variant: {
+          "kat-coder-pro-v2-5/ep-x7d49z-1787019286684713063": "default",
+          "anthropic/claude-opus-5": "max",
+        },
+      },
+      PROVIDERS,
+      AGENTS,
+      ["deepseek", "groq", "streamlake-vanchin", "anthropic"],
+    )
+    expect(report.dead.map((x) => x.key)).toEqual(["kat-coder-pro-v2-5/ep-x7d49z-1787019286684713063"])
+    expect(report.unresolved.map((x) => x.key)).toEqual(["anthropic/claude-opus-5"])
+  })
+
+  test("without a registry nothing is ever called dead", () => {
+    const report = classifyVariantState(
+      { variant: { "kat-coder-pro-v2-5/ep-x7d49z-1787019286684713063": "default" } },
+      PROVIDERS,
+      AGENTS,
+    )
+    expect(report.dead).toEqual([])
+    expect(report.unresolved.length).toBe(1)
+  })
+
+  test("an agent key is judged on its model part, once the agent prefix is matched off", () => {
+    const report = classifyVariantState(
+      {
+        agentVariant: {
+          "build_mode/kat-coder-pro-v2-5/ep-x7d49z-1787019286684713063": "default",
+          "retired_agent/kat-coder-pro-v2-5/ep-x": "default",
+        },
+      },
+      PROVIDERS,
+      AGENTS,
+      ["deepseek", "groq", "streamlake-vanchin"],
+    )
+    expect(report.dead.map((x) => x.key)).toEqual([
+      "build_mode/kat-coder-pro-v2-5/ep-x7d49z-1787019286684713063",
+    ])
+    // An unknown agent prefix leaves no resolvable model part, so there is no
+    // basis to call it dead.
+    expect(report.unresolved.map((x) => x.key)).toEqual(["retired_agent/kat-coder-pro-v2-5/ep-x"])
+  })
+
+  test("removable is inert plus dead, never unresolved", () => {
+    const report: import("../../src/cli/cmd/tui/component/model-state-prune").PruneReport = {
+      inert: [{ map: "variant", key: "a", value: "default", reason: "no-variants" }],
+      dead: [{ map: "agentVariant", key: "b", value: "default", reason: "dead-provider" }],
+      unresolved: [{ map: "variant", key: "c", value: "default", reason: "unresolved" }],
+    }
+    expect(removable(report).map((x) => x.key)).toEqual(["a", "b"])
   })
 })

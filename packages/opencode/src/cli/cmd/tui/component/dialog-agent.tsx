@@ -2,7 +2,7 @@ import { createMemo, createSignal, onMount } from "solid-js"
 import { useLocal, type ModelScope } from "@tui/context/local"
 import { useKV } from "@tui/context/kv"
 import { cycleScope as nextScope, inheritLabel, parentScope, readScope, SCOPE_KV_KEY } from "./config-scope"
-import { classifyVariantState, pruneSummary } from "./model-state-prune"
+import { classifyVariantState, pruneSummary, removable } from "./model-state-prune"
 import { DialogConfirm } from "./dialog-confirm"
 import { useSync } from "@tui/context/sync"
 import { DialogSelect } from "@tui/ui/dialog-select"
@@ -396,37 +396,41 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
               local.model.variant.state(),
               sync.data.provider,
               sync.data.agent.map((item) => item.name),
+              // The FULL catalogue, not the connected subset: a provider with
+              // no key here is still a legitimate choice, while one absent
+              // from the catalogue can never apply again.
+              sync.data.provider_next.all.map((item) => item.id),
             )
-            if (report.inert.length === 0) {
+            const targets = removable(report)
+            if (targets.length === 0) {
               toast.show({
                 title: "Nothing to clean",
                 message:
                   report.unresolved.length > 0
-                    ? `${report.unresolved.length} entries reference providers that are not loaded — kept`
+                    ? `${report.unresolved.length} entries belong to providers not configured here — kept`
                     : "no stale variant entries in model.json",
                 variant: "info",
                 duration: 4000,
               })
               return
             }
-            // Only the inert tier is offered: those models are loaded AND
-            // declare no variants, so the entry cannot ever apply. Unresolved
-            // entries are reported but never removed — an absent provider may
-            // just be unconfigured in this session.
+            // Offered: inert (model loaded, declares no variants) and dead
+            // (provider absent from the catalogue). Never offered: unresolved —
+            // the provider exists and is simply unconfigured here.
             dialog.replace(() => (
               <DialogConfirm
-                title={`Remove ${report.inert.length} inert variant entries?`}
-                description={`${pruneSummary(report)} — ${report.inert
+                title={`Remove ${targets.length} stale variant entries?`}
+                description={`${pruneSummary(report)} — ${targets
                   .slice(0, 4)
                   .map((item) => item.key)
-                  .join(", ")}${report.inert.length > 4 ? ", …" : ""}`}
+                  .join(", ")}${targets.length > 4 ? ", …" : ""}`}
                 confirm="Yes, clean model.json"
                 onConfirm={() => {
-                  const removed = local.model.variant.prune(report.inert)
+                  const removed = local.model.variant.prune(targets)
                   toast.show({
                     title: "Variant state cleaned",
                     message: `${removed} entries removed${
-                      report.unresolved.length > 0 ? ` · ${report.unresolved.length} unresolved kept` : ""
+                      report.unresolved.length > 0 ? ` · ${report.unresolved.length} unconfigured kept` : ""
                     }`,
                     variant: "success",
                     duration: 4000,

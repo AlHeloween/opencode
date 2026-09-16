@@ -9,20 +9,22 @@
  * returns `{}` for qwen/kimi/minimax/deepseek-v3 families, so those keys are
  * inert by construction (2026-09-16, Alexander).
  *
- * Two tiers, deliberately not merged:
+ * Three tiers, deliberately not merged:
  *
  * - `inert` — the provider AND model are loaded right now and the model offers
  *   no variants. Removing these provably cannot lose a choice.
- * - `unresolved` — the key matches no loaded model. That is NOT proof of death:
- *   `sync.data.provider` carries the available providers, so an entry can be
- *   unresolved simply because its key is not configured in this session.
- *   Reported, never removed automatically.
+ * - `dead` — the provider id does not appear in the registry at all, so no key
+ *   could ever make the entry apply. Decided against `provider_next.all`, the
+ *   full catalogue, NOT against the connected subset.
+ * - `unresolved` — the provider exists in the registry but is not configured
+ *   here, or no registry was supplied. Reported, never removed: an entry can be
+ *   unresolved simply because its key is absent from this machine.
  *
  * Keys are matched, never parsed. `agentVariant` keys are built as
  * `agentName/providerID/modelID` and both ids contain "/", so the composite key
  * cannot be split unambiguously — see the prefix walk in `matchAgentKey`.
  */
-export type PruneReason = "no-variants" | "unresolved"
+export type PruneReason = "no-variants" | "dead-provider" | "unresolved"
 
 export interface PruneTarget {
   map: "variant" | "agentVariant"
@@ -33,7 +35,13 @@ export interface PruneTarget {
 
 export interface PruneReport {
   inert: PruneTarget[]
+  dead: PruneTarget[]
   unresolved: PruneTarget[]
+}
+
+/** Everything it is safe to remove: provably inert, or provably unreachable. */
+export function removable(report: PruneReport): PruneTarget[] {
+  return [...report.inert, ...report.dead]
 }
 
 interface ProviderLike {
@@ -69,6 +77,24 @@ function matchAgentKey(key: string, agents: readonly string[], counts: Map<strin
   return undefined
 }
 
+/**
+ * Provider id of a model key. Unambiguous because a provider id never contains
+ * "/" — unlike the agent/provider/model composite, which is why the agent
+ * prefix must be stripped by matching first.
+ */
+function providerOf(modelKey: string) {
+  const slash = modelKey.indexOf("/")
+  return slash === -1 ? modelKey : modelKey.slice(0, slash)
+}
+
+function stripAgent(key: string, agents: readonly string[]) {
+  for (const agent of agents) {
+    const prefix = `${agent}/`
+    if (key.startsWith(prefix)) return key.slice(prefix.length)
+  }
+  return undefined
+}
+
 export function classifyVariantState(
   state: {
     variant?: Record<string, string | undefined>
@@ -76,27 +102,47 @@ export function classifyVariantState(
   },
   providers: readonly ProviderLike[],
   agents: readonly string[],
+  /**
+   * Every provider id the registry knows, connected or not
+   * (`sync.data.provider_next.all`). Omit it and nothing is ever classified
+   * dead — the caller then has no basis to distinguish "retired" from
+   * "not configured here".
+   */
+  registryProviderIDs?: readonly string[],
 ): PruneReport {
   const counts = variantCounts(providers)
-  const report: PruneReport = { inert: [], unresolved: [] }
+  const registry = registryProviderIDs ? new Set(registryProviderIDs) : undefined
+  const report: PruneReport = { inert: [], dead: [], unresolved: [] }
 
-  const push = (map: PruneTarget["map"], key: string, value: string, count: number | undefined) => {
-    if (count === undefined) {
-      report.unresolved.push({ map, key, value, reason: "unresolved" })
+  const push = (
+    map: PruneTarget["map"],
+    key: string,
+    value: string,
+    count: number | undefined,
+    modelKey: string | undefined,
+  ) => {
+    if (count !== undefined) {
+      // A live model that declares variants is a real, usable choice.
+      if (count > 0) return
+      report.inert.push({ map, key, value, reason: "no-variants" })
       return
     }
-    // A live model that declares variants is a real, usable choice.
-    if (count > 0) return
-    report.inert.push({ map, key, value, reason: "no-variants" })
+    // No key at all without a resolvable model part, and no verdict without a
+    // registry to check against.
+    if (registry && modelKey && !registry.has(providerOf(modelKey))) {
+      report.dead.push({ map, key, value, reason: "dead-provider" })
+      return
+    }
+    report.unresolved.push({ map, key, value, reason: "unresolved" })
   }
 
   for (const [key, value] of Object.entries(state.variant ?? {})) {
     if (typeof value !== "string") continue
-    push("variant", key, value, counts.get(key))
+    push("variant", key, value, counts.get(key), key)
   }
   for (const [key, value] of Object.entries(state.agentVariant ?? {})) {
     if (typeof value !== "string") continue
-    push("agentVariant", key, value, matchAgentKey(key, agents, counts))
+    push("agentVariant", key, value, matchAgentKey(key, agents, counts), stripAgent(key, agents))
   }
 
   return report
@@ -115,6 +161,7 @@ export function withoutKeys(
 /** One-line summary for the confirmation dialog. */
 export function pruneSummary(report: PruneReport): string {
   const parts = [`${report.inert.length} inert`]
-  if (report.unresolved.length > 0) parts.push(`${report.unresolved.length} unresolved (kept)`)
+  if (report.dead.length > 0) parts.push(`${report.dead.length} dead provider`)
+  if (report.unresolved.length > 0) parts.push(`${report.unresolved.length} unconfigured (kept)`)
   return parts.join(" · ")
 }

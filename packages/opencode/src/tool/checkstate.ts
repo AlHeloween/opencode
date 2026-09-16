@@ -28,6 +28,7 @@ type Metadata = {
     turns_left: number | null
     compact_armed: boolean
   }
+  summaries: { id: string; from: string; to: string; chars: number }[]
 }
 
 export function formatModeSnapshot(
@@ -92,6 +93,28 @@ export function formatWindow(input: {
     input.auto
       ? "Automatic fold: ON. It fires on window fill, wherever that lands — including mid-edit. Call `compact` at a boundary you choose instead."
       : "Automatic fold: OFF (compaction.auto=false). Nothing folds unless you call `compact`.",
+  ].join("\n")
+}
+
+/**
+ * The open Layer-1 summaries — exactly what the next fold will pack into `m*`.
+ *
+ * Their bodies are Inferred prose and stay editable right up to the fold; their
+ * `from_id`/`to_id` links are Exact and are not. Listing the ids here is what
+ * makes "put your affairs in order before compacting" actionable: without them
+ * an identity can read summaries via `sessionread` but cannot tell which ones
+ * are still open, so it does not know what it is about to carry forward.
+ */
+export function formatSummaries(
+  open: { id: string; fromMessageID: string; toMessageID: string; body: string }[],
+) {
+  if (open.length === 0) return "Open summaries: none — the next fold would carry the recent tail only."
+  return [
+    `Open summaries (${open.length}) — these fold into the next m*. Bodies are Inferred and editable until then; from/to links are Exact.`,
+    ...open.map((s) => {
+      const label = (s.body.split("\n").find((line) => line.trim().length > 0) ?? "").trim().slice(0, 70)
+      return `- \`${s.id}\`  ${s.fromMessageID}..${s.toMessageID}  ${s.body.length.toLocaleString("en-US")} chars  ${label}`
+    }),
   ].join("\n")
 }
 
@@ -164,6 +187,7 @@ export const CheckStateTool = Tool.define<
           }).pipe(Effect.catch(() => Effect.succeed(null)))
 
           const headroom = window ? Math.max(0, window.foldAt - window.open) : 0
+          const open = IncrementalCheckpoint.listOpen(ctx.sessionID)
 
           return {
             title: `State: ${currentAgent}`,
@@ -175,6 +199,8 @@ export const CheckStateTool = Tool.define<
               window
                 ? formatWindow(window)
                 : "Context window: unavailable (no user message in this session yet, or the model could not be resolved).",
+              "",
+              formatSummaries(open),
             ].join("\n"),
             metadata: {
               mode: currentAgent,
@@ -192,6 +218,12 @@ export const CheckStateTool = Tool.define<
                   compact_armed: window.armed,
                 },
               }),
+              summaries: open.map((s) => ({
+                id: s.id,
+                from: s.fromMessageID,
+                to: s.toMessageID,
+                chars: s.body.length,
+              })),
             },
           }
         }).pipe(Effect.orDie),

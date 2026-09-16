@@ -2698,3 +2698,15 @@ twice. And the A/B that would move 078f55a2bb from Inferred to Exact.
   `raw: true` is what SKIPS them.
 - Oracles: 2 ACL/reader guards + 2 end-to-end fold tests; the <memory> fold was
   mutation-tested. session suite 750 pass / 6 fail = baseline 5 + known T8 flake.
+
+[2026-09-16] read numbering + checkstate lists open summaries
+- read: converted documents (pdf/docx -> markdown) came back as bare markdown,
+  so nothing in them was addressable. Numbered like the plain-text path. Plain
+  files and hex already carried numbers/offsets — only this path was missing.
+- checkstate: lists the open Layer-1 summaries (id, from..to, size, first body
+  line) plus `summaries` in metadata. These are exactly what the next fold packs
+  into m*; their bodies are Inferred and editable until then, their from/to
+  links are Exact and are not.
+- Remaining from the same batch: edit startLine/endLine (scope the match, and
+  replace a line range with no oldString), and editing a summary body in place
+  with the prior revision kept.

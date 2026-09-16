@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { burnRate, formatModeSnapshot, formatWindow } from "../../src/tool/checkstate"
+import { burnRate, formatModeSnapshot, formatSummaries, formatWindow } from "../../src/tool/checkstate"
 
 test("checkstate returns the complete ordered runtime ACL without changing the tool catalog", () => {
   const output = formatModeSnapshot(
@@ -72,4 +72,26 @@ test("one turn is not a rate", () => {
   expect(burnRate(64_000, 1)).toBeNull()
   expect(burnRate(0, 5)).toBeNull()
   expect(burnRate(60_000, 4)).toBe(15_000)
+})
+
+test("open summaries are listed with their ids, so they can be fixed before the fold", () => {
+  // Without the ids an identity can read summaries but cannot tell which are
+  // still open — it does not know what it is about to carry into m*.
+  const output = formatSummaries([
+    { id: "ckpt_01", fromMessageID: "msg_a", toMessageID: "msg_b", body: "## Goal\n- ship the fold\n" },
+    { id: "ckpt_02", fromMessageID: "msg_c", toMessageID: "msg_d", body: "## Goal\n- rename getmode\n" },
+  ])
+  expect(output).toContain("Open summaries (2)")
+  expect(output).toContain("`ckpt_01`  msg_a..msg_b")
+  expect(output).toContain("`ckpt_02`  msg_c..msg_d")
+  // The label is the first non-empty body line, so the list is readable.
+  expect(output).toContain("## Goal")
+  // Bodies are Inferred and editable; links are Exact. Say so where it is read.
+  expect(output).toContain("Bodies are Inferred and editable")
+})
+
+test("no open summaries says what the next fold would carry", () => {
+  const output = formatSummaries([])
+  expect(output).toContain("none")
+  expect(output).toContain("recent tail only")
 })

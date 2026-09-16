@@ -376,7 +376,13 @@ export const ReadTool = Tool.define(
               `<path>${filepath}</path>`,
               `<type>${ext}</type>`,
               "<content>",
-              markdown,
+              // Numbered like the plain-text path. A converted document used to
+              // come back as bare markdown, so nothing in it was addressable —
+              // you could read a contract clause but not cite the line it is on.
+              markdown
+                .split("\n")
+                .map((line, i) => `${i + 1}: ${line}`)
+                .join("\n"),
               "</content>",
             ].join("\n"),
             metadata: {

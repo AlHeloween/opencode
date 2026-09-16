@@ -17,6 +17,7 @@
 export interface ModelCost {
   input?: number
   output?: number
+  cache?: { read?: number; write?: number }
 }
 
 /**
@@ -39,6 +40,22 @@ export function costLabel(cost: ModelCost | undefined): string | undefined {
   const output = cost?.output ?? 0
   if (input <= 0 && output <= 0) return undefined
   return `$${formatCost(input)}→$${formatCost(output)}/1M`
+}
+
+/**
+ * `cache $0.003` — cached-prefix read price per million.
+ *
+ * Separate chip rather than a fourth number in the price label, because for an
+ * agent loop it is often the decisive figure: deepseek-flash reads cache at
+ * $0.003 against $0.15 fresh input, a fiftyfold difference, and a long session
+ * spends most of its input tokens on the cached prefix. Shown only when the
+ * registry publishes a non-zero read price, so it stays absent for the
+ * providers that publish nothing.
+ */
+export function cacheLabel(cost: ModelCost | undefined): string | undefined {
+  const read = cost?.cache?.read ?? 0
+  if (read <= 0) return undefined
+  return `cache $${formatCost(read)}`
 }
 
 /**

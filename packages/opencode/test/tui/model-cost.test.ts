@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { costLabel, formatCost, isFreeModel } from "../../src/cli/cmd/tui/component/model-cost"
+import { cacheLabel, costLabel, formatCost, isFreeModel } from "../../src/cli/cmd/tui/component/model-cost"
 
 describe("model cost footer", () => {
   test("keeps the cheap end readable without padding the expensive end", () => {
@@ -33,5 +33,15 @@ describe("model cost footer", () => {
     expect(isFreeModel({ input: 0, output: 0 }, "streamlake-vanchin")).toBe(false)
     expect(isFreeModel({ input: 0.15, output: 0.6 }, "opencode")).toBe(false)
     expect(isFreeModel(undefined, "opencode")).toBe(true)
+  })
+  test("the cache chip appears only where a read price is published", () => {
+    // For an agent loop this is often the decisive number: deepseek-flash
+    // reads cache at $0.003 against $0.15 fresh input.
+    expect(cacheLabel({ input: 0.15, output: 0.6, cache: { read: 0.003 } })).toBe("cache $0.003")
+    expect(cacheLabel({ input: 0.15, output: 0.6, cache: { read: 0 } })).toBeUndefined()
+    expect(cacheLabel({ input: 0.15, output: 0.6 })).toBeUndefined()
+    expect(cacheLabel(undefined)).toBeUndefined()
+    // Write price alone is not a read price.
+    expect(cacheLabel({ cache: { write: 0.2 } })).toBeUndefined()
   })
 })

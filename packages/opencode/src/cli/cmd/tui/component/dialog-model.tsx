@@ -1,6 +1,6 @@
 import { createMemo, createSignal, onMount } from "solid-js"
 import { useLocal, type ModelScope } from "@tui/context/local"
-import { costLabel, isFreeModel } from "./model-cost"
+import { cacheLabel, costLabel, isFreeModel } from "./model-cost"
 import { useSync } from "@tui/context/sync"
 import { map, pipe, flatMap, entries, filter, sortBy, take } from "remeda"
 import { DialogSelect } from "@tui/ui/dialog-select"
@@ -71,14 +71,19 @@ export function DialogModel(props: {
   }
 
   function withFooter(
-    info: Parameters<typeof capabilityFooter>[0] & { cost?: { input?: number; output?: number } },
+    info: Parameters<typeof capabilityFooter>[0] & {
+      cost?: { input?: number; output?: number; cache?: { read?: number } }
+    },
     free: boolean,
   ) {
     // Price leads the footer: it is the field the choice actually turns on.
     // `free` and `costLabel` are mutually exclusive by construction — a free
-    // row has zero cost, and costLabel returns undefined for zeros.
+    // row has zero cost, and costLabel returns undefined for zeros. The cache
+    // chip follows the price and only appears where a read price is published.
     return (
-      [free ? "Free" : costLabel(info.cost), capabilityFooter(info)].filter(Boolean).join(" · ") || undefined
+      [free ? "Free" : costLabel(info.cost), free ? undefined : cacheLabel(info.cost), capabilityFooter(info)]
+        .filter(Boolean)
+        .join(" · ") || undefined
     )
   }
 

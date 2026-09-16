@@ -300,6 +300,7 @@ export const layer = Layer.effect(
                 "pipeline",
                 "jobkill",
                 "compact",
+                "summaryedit",
                 "apply_patch",
                 "multiedit",
                 "restore",
@@ -354,6 +355,7 @@ export const layer = Layer.effect(
                 "pipeline",
                 "jobkill",
                 "compact",
+                "summaryedit",
               ),
               externalDirectory,
             ),
@@ -381,6 +383,7 @@ export const layer = Layer.effect(
                 "pipeline",
                 "jobkill",
                 "compact",
+                "summaryedit",
               ),
               Permission.fromConfig({
                 // Every mutation tool reaches ctx.ask({ permission: "edit" })
@@ -424,6 +427,7 @@ export const layer = Layer.effect(
                 "pipeline",
                 "jobkill",
                 "compact",
+                "summaryedit",
                 // Researcher is web-only. Keep checkstate/todowrite as universal
                 // session tools and constrain universalsearch in its executor.
                 "invalid",
@@ -472,6 +476,7 @@ export const layer = Layer.effect(
                 "pipeline",
                 "jobkill",
                 "compact",
+                "summaryedit",
               ),
             ),
             prompt: PROMPT_MEDIA,

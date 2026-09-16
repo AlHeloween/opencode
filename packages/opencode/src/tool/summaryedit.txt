@@ -1,0 +1,36 @@
+Read or correct the prose of a Layer-1 summary before it is folded into `m*`.
+
+A summary has two halves and they do not have the same standing:
+
+- The **body** is Inferred — an account of what happened, written by a model.
+  Accounts can be wrong, and a wrong one folded into `m*` is inherited by every
+  turn after it. That half is yours to fix.
+- The **structure** — `from_id`, `to_id`, `checkpoint_id`, the tool diffs and
+  CodeGraph impact — is `Exact — system-computed, not model output`. This tool
+  cannot touch it, by construction: the update names one column.
+
+## When to use
+- `checkstate` listed an open summary whose body misstates what happened, omits
+  a decision that must survive, or records a claim that was later refuted.
+- Before calling `compact`. After the fold the body is in `m*` and correcting it
+  there is no longer a correction — it is a contradiction between two records.
+
+## When NOT to use
+- To delete an inconvenient record. A summary that says the work failed is
+  evidence; rewriting it is not a fix, and the replaced text is kept anyway.
+- To add facts you have not grounded. The body stays Inferred after your edit —
+  editing it does not promote anything. @EVIDENCE_ORDER still applies.
+- To restate the structure in prose. If you find yourself writing message ids
+  into the body, the handles are already there and Exact.
+
+## Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | yes | Checkpoint id from `checkstate` (e.g. `ckpt_…`) |
+| `action` | `"read"` \| `"write"` | yes | `read` returns the current body; `write` replaces it |
+| `body` | string | for `write` | The corrected prose |
+
+The replaced text is kept under `.opencode/data/summary-revisions/` — the
+compaction contract is that nothing is lost, and that applies to a correction
+exactly as it applies to a fold.

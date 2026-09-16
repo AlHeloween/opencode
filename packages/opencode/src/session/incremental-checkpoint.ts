@@ -109,6 +109,38 @@ export function save(input: Omit<Record, "timeCreated" | "timeMaterialized" | "m
   })
 }
 
+/**
+ * Replace a summary's prose, and nothing else.
+ *
+ * A summary has two halves with different standing. The body is Inferred — a
+ * model's account of what happened, and wrong accounts are worth correcting
+ * before they are folded into `m*` and inherited by every later turn. The rest
+ * of the row is structure: `from_message_id`, `to_message_id`,
+ * `predecessor_id`, the diffs and impact computed by the system. Those are
+ * `Exact — system-computed, not model output`, and nothing here may touch them.
+ *
+ * The enforcement is that `set` names one column. A caller cannot widen it by
+ * passing a bigger object, because there is no object to pass.
+ *
+ * Returns the replaced body so it can be kept — this is a @MUTATION on recorded
+ * history, and the compaction contract is that nothing is lost.
+ */
+export function reviseBody(input: { sessionID: SessionID; id: string; body: string }): string | undefined {
+  return Database.use((db) => {
+    const row = db
+      .select()
+      .from(ProjectCheckpointTable)
+      .where(and(eq(ProjectCheckpointTable.session_id, input.sessionID), eq(ProjectCheckpointTable.id, input.id)))
+      .get()
+    if (!row) return undefined
+    db.update(ProjectCheckpointTable)
+      .set({ body: input.body })
+      .where(and(eq(ProjectCheckpointTable.session_id, input.sessionID), eq(ProjectCheckpointTable.id, input.id)))
+      .run()
+    return row.body
+  })
+}
+
 export function materialize(input: { sessionID: SessionID; ids: string[]; messageID: MessageID }) {
   if (input.ids.length === 0) return
   Database.use((db) =>

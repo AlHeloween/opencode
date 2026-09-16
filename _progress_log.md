@@ -2710,3 +2710,21 @@ twice. And the A/B that would move 078f55a2bb from Inferred to Exact.
 - Remaining from the same batch: edit startLine/endLine (scope the match, and
   replace a line range with no oldString), and editing a summary body in place
   with the prior revision kept.
+
+[2026-09-16] summaryedit: the anecdote is editable, the structure is not
+- `IncrementalCheckpoint.reviseBody` updates exactly one column. The guarantee
+  is the `set` clause itself, not a convention: from/to links, predecessor,
+  provider/model, diffs and impact are `Exact — system-computed` and no caller
+  can widen the update, because there is no object to widen.
+- New `summaryedit` tool: read/write a summary body by checkpoint id (listed by
+  checkstate). Replaced text kept under .opencode/data/summary-revisions/.
+- Session isolation: another session's summaries are READABLE, never writable.
+  The guard runs on the resolved target before the row is read, and the write
+  names ctx.sessionID rather than the target so a later edit to the guard
+  cannot silently widen it.
+- ACL: denied to the five subagents, allowed to build/plan/orchestrator — same
+  standing as `compact`.
+- Oracles: 5 tests. Two mutation-tested — widening the `set` to touch
+  to_message_id reddens the structure test; disabling the ownership guard
+  reddens the isolation test. 161 pass / 0 fail across summary+compaction+
+  agent+compact+checkstate.

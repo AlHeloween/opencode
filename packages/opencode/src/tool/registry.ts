@@ -24,6 +24,7 @@ import { ListTool } from "./ls"
 import { MultiEditTool } from "./multiedit"
 import { RestoreTool } from "./restore"
 import { CompactTool } from "./compact"
+import { SummaryEditTool } from "./summaryedit"
 import { UniversalSearchTool } from "./universalsearch"
 import { CodeGraphTool } from "./codegraph"
 import { CuaTool } from "./cua"
@@ -206,6 +207,7 @@ export const layer: Layer.Layer<
     const multiedit = yield* MultiEditTool
     const restore = yield* RestoreTool
     const compact = yield* CompactTool
+    const summaryedit = yield* SummaryEditTool
     const universalsearch = yield* UniversalSearchTool
     const codegraph = yield* CodeGraphTool
     const cua = yield* CuaTool
@@ -332,6 +334,7 @@ export const layer: Layer.Layer<
           multiedit: Tool.init(multiedit),
           restore: Tool.init(restore),
           compact: Tool.init(compact),
+          summaryedit: Tool.init(summaryedit),
           universalsearch: Tool.init(universalsearch),
           codegraph: Tool.init(codegraph),
           cua: Tool.init(cua),
@@ -371,6 +374,7 @@ export const layer: Layer.Layer<
             tool.multiedit,
             tool.restore,
             tool.compact,
+            tool.summaryedit,
             tool.universalsearch,
             tool.codegraph,
             tool.cua,

@@ -1000,6 +1000,26 @@ export function defaultModelIDs<T extends { models: Record<string, { id: string 
   return mapValues(withModels, (item) => sort(Object.values(item.models))[0].id)
 }
 
+/**
+ * True when a config provider entry wipes env vars the registry had declared.
+ *
+ * Replace-semantics for `env` is correct — a keyless local provider must be
+ * able to declare `env: []`. The footgun is the shadowing case: the key loader
+ * resolves with `provider.env.map(...).find(Boolean)`, which is `undefined` on
+ * an empty list, so env discovery goes off for EVERY model of that provider.
+ *
+ * Observed 2026-09-16: a custom StreamLake inference point was registered under
+ * the catalogue id `streamlake-vanchin`, and its `"env": []` left all 32
+ * catalogue models reachable only through auth.json. A custom endpoint is a
+ * different entity from a catalogue provider and belongs under its own id.
+ */
+export function clearsRegistryEnv(
+  configEnv: readonly string[] | undefined,
+  registryEnv: readonly string[] | undefined,
+) {
+  return configEnv?.length === 0 && (registryEnv?.length ?? 0) > 0
+}
+
 export interface Interface {
   readonly list: () => Effect.Effect<Record<ProviderID, Info>>
   readonly getProvider: (providerID: ProviderID) => Effect.Effect<Info>
@@ -1225,6 +1245,23 @@ const layer: Layer.Layer<
         // extend database from config
         for (const [providerID, provider] of configProviders) {
           const existing = database[providerID]
+          // A config entry REPLACES name/env rather than merging them, which is
+          // correct — a keyless local provider must be able to declare `env: []`.
+          // But when the entry shadows a registry provider that did declare env
+          // vars, that empty list silently kills env key discovery for EVERY
+          // model of that provider: the loop below resolves the key with
+          // `provider.env.map(...).find(Boolean)`, which is undefined on `[]`.
+          // Observed 2026-09-16: a custom StreamLake inference point registered
+          // under the catalogue id `streamlake-vanchin` left all 32 catalogue
+          // models reachable only through auth.json. Say so instead of failing
+          // silently on the next machine.
+          if (clearsRegistryEnv(provider.env, existing?.env)) {
+            log.warn("config provider clears the registry env vars", {
+              providerID,
+              cleared: existing.env,
+              hint: "env key discovery is now off for this provider; use a separate provider id for a custom endpoint",
+            })
+          }
           const parsed: Info = {
             id: ProviderID.make(providerID),
             name: provider.name ?? existing?.name ?? providerID,

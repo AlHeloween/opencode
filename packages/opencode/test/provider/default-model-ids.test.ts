@@ -54,3 +54,24 @@ test("streamlake-vanchin ships the catalogue it is callable with", () => {
   expect(models).not.toContain("kat-coder-pro-v2.5")
   expect(models).not.toContain("deepseek-r1-0528")
 })
+
+/**
+ * A config provider entry replaces `name`/`env` instead of merging them, which
+ * is right — a keyless local provider must be able to say `env: []`. The
+ * failure mode is the shadowing case: `bin/opencode.jsonc` registered a custom
+ * StreamLake inference point under the catalogue id `streamlake-vanchin` with
+ * `"env": []`, and since the key loader resolves with
+ * `provider.env.map(...).find(Boolean)` — undefined on an empty list — env
+ * discovery went off for all 32 catalogue models. It kept working only because
+ * auth.json holds an entry under the same id.
+ */
+test("clearing registry env vars is reported, an intentionally keyless provider is not", () => {
+  expect(Provider.clearsRegistryEnv([], ["STREAMLAKE_API_KEY"])).toBe(true)
+  // A provider that never declared env vars (local ollama) may legitimately
+  // declare none — nothing was cleared.
+  expect(Provider.clearsRegistryEnv([], [])).toBe(false)
+  expect(Provider.clearsRegistryEnv([], undefined)).toBe(false)
+  // Omitting env inherits the registry list; only an explicit [] clears it.
+  expect(Provider.clearsRegistryEnv(undefined, ["STREAMLAKE_API_KEY"])).toBe(false)
+  expect(Provider.clearsRegistryEnv(["STREAMLAKE_API_KEY"], ["STREAMLAKE_API_KEY"])).toBe(false)
+})

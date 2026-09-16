@@ -2869,3 +2869,15 @@ twice. And the A/B that would move 078f55a2bb from Inferred to Exact.
   key — directly useful for the round-trip work parked earlier this session.
 - First sweep reported 44/44 failures; the cause was CRLF in my own input file,
   not the API. Checked with cat -A before believing it.
+
+[2026-09-16] aicall: prefer a model WITHOUT reasoning
+- Follows from the DELEGATION rule rather than from taste: aicall is only
+  licensed once the packet is complete and every claim in it is Inferred, so
+  the thinking is finished before the call. The wanted answer is a verdict on a
+  stated claim, not a re-derivation.
+- A reasoning model reasons its way to a coherent story, and a coherent story
+  from a second simulator IS the "self-grading with a second seat" the rule
+  names. Non-reasoning answers against what was put in front of it.
+- Also: prefer natively non-reasoning over reasoning bolted on (Alexander on
+  KAT-Coder-Pro V2 vs V2.5; the vendor catalogue records the same difference in
+  its own category field).

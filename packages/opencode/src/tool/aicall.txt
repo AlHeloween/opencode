@@ -41,6 +41,14 @@ user/file content.
   balance generating content).
 - The envelope reports cost, parameter count and context: calibrate
   expectations — a 10B model is not asked for miracles.
+- **Prefer a model without reasoning.** By contract you only call `aicall` once
+  the packet is complete and every claim in it is already Inferred — the
+  thinking is done before the call. What you want back is a verdict on a stated
+  claim, not a re-derivation of it. A reasoning model will reason its way to a
+  coherent story, and a coherent story from a second simulator is exactly the
+  self-grading-with-an-extra-seat that the falsifier exists to avoid. Prefer a
+  model designed without reasoning over one that had it bolted on — the
+  registry's `reasoning` flag is the field to read.
 
 ## Parameters
 

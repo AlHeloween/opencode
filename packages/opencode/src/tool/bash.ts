@@ -84,7 +84,19 @@ const CMD_FILES = new Set([
   "xcopy",
   "robocopy",
 ])
-const POWERSHELL_SAFE = new Set(["get-location", "write-host", "write-output"])
+// Aliases count. PowerShell resolves `echo`, `write` and `pwd` to cmdlets that
+// are already on this list, so leaving them off meant the same harmless command
+// prompted under one name and not under the other — and `echo` under cmd (which
+// is in CMD_SAFE) prompted where `echo` under PowerShell did not.
+const POWERSHELL_SAFE = new Set([
+  "get-location",
+  "write-host",
+  "write-output",
+  "echo", // Write-Output
+  "write", // Write-Output
+  "pwd", // Get-Location
+  "gl", // Get-Location
+])
 const POWERSHELL_FILES = new Set([
   "add-content",
   "copy-item",

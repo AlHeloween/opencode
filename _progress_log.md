@@ -2787,3 +2787,25 @@ twice. And the A/B that would move 078f55a2bb from Inferred to Exact.
   wide anchor match the guard rejects, swallowing items 2..10. Rewritten to
   assert the clean failure its own comment always described, plus an untouched
   file. 40 pass / 0 fail.
+
+[2026-09-16] bash/shell: per-shell permission keys, PowerShell aliases, no Git Bash on Windows
+- Tests asserted `permission === "bash"` for every shell. bash.ts:334 says the
+  opposite in as many words — "separate keys so /permissions can gate each
+  shell" — so the assertion would pass just as happily if denying `bash` failed
+  to gate powershell. Now asserts Shell.permissionKey(shell).
+- Real bug found doing it: POWERSHELL_SAFE listed write-output/get-location but
+  not their aliases, so `echo`/`pwd` prompted under PowerShell while `echo`
+  under cmd (in CMD_SAFE) did not. Same harmless command, two answers. Aliases
+  added.
+- Those two tests used `echo`, which is safe everywhere now, so they could only
+  ever pass via the over-asking just fixed. Switched to commands no safe list
+  knows; capture() throws at the ask, so nothing runs.
+- Git Bash is no longer advertised on Windows. `ok()` already refused it for the
+  agent shell (quoting through cmd /s /c, unpredictable env) but `win()` still
+  listed it, and `Shell.list()` — which feeds the PTY route and the shell
+  picker — filtered only by resolve(), not by ok(). One policy, two answers.
+  `list()` now respects ok(). Verified no regression: the 6 shell/pty failures
+  are identical with and without the change.
+- Remaining in test/tool/bash.test.ts (24): the external_directory arg scanner
+  finds no external dirs for `cat <path>`, and the truncation/abort tests force
+  C:\Program Files\Git\usr\bin\bash.exe, which the policy now refuses.

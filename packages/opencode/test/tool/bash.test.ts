@@ -190,7 +190,7 @@ describe("tool.bash", () => {
 })
 
 describe("tool.bash permissions", () => {
-  each("asks for bash permission with correct pattern", async () => {
+  each("asks for the permission of the shell it actually runs", async (item) => {
     await using tmp = await tmpdir()
     await Instance.provide({
       directory: tmp.path,
@@ -200,20 +200,20 @@ describe("tool.bash permissions", () => {
         await Effect.runPromise(
           bash.execute(
             {
-              command: "echo hello",
-              description: "Echo hello",
+              command: "mytool --flag",
+              description: "Run an unknown tool",
             },
             capture(requests),
           ),
         )
         expect(requests.length).toBe(1)
-        expect(requests[0].permission).toBe("bash")
-        expect(requests[0].patterns).toContain("echo hello")
+        expect(requests[0].permission).toBe(Shell.permissionKey(item.shell))
+        expect(requests[0].patterns).toContain("mytool --flag")
       },
     })
   })
 
-  each("asks for bash permission with multiple commands", async () => {
+  each("asks for the shell permission once for multiple commands", async (item) => {
     await using tmp = await tmpdir()
     await Instance.provide({
       directory: tmp.path,
@@ -223,16 +223,16 @@ describe("tool.bash permissions", () => {
         await Effect.runPromise(
           bash.execute(
             {
-              command: "echo foo && echo bar",
-              description: "Echo twice",
+              command: "mytool foo && othertool bar",
+              description: "Run two unknown tools",
             },
             capture(requests),
           ),
         )
         expect(requests.length).toBe(1)
-        expect(requests[0].permission).toBe("bash")
-        expect(requests[0].patterns).toContain("echo foo")
-        expect(requests[0].patterns).toContain("echo bar")
+        expect(requests[0].permission).toBe(Shell.permissionKey(item.shell))
+        expect(requests[0].patterns).toContain("mytool foo")
+        expect(requests[0].patterns).toContain("othertool bar")
       },
     })
   })

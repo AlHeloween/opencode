@@ -99,9 +99,15 @@ function resolve(file: string) {
 }
 
 function win() {
+  // Git Bash is deliberately absent. `ok()` already refuses it for the agent's
+  // shell — quoting through cmd.exe's /s /c wrapper and an unpredictable
+  // environment — but it was still listed here, which is what `Shell.list()`
+  // hands to the PTY route and therefore to the shell picker. One policy
+  // answering two different ways is how it gets selected anyway. Anything that
+  // genuinely needs Git Bash asks `gitbash()` for it by name.
   return Array.from(
     new Set(
-      [process.env.COMSPEC || "cmd.exe", gitbash(), which("pwsh"), which("powershell")]
+      [process.env.COMSPEC || "cmd.exe", which("pwsh"), which("powershell")]
         .filter((item): item is string => Boolean(item))
         .map(full),
     ),
@@ -232,7 +238,9 @@ acceptable.reset = () => defaultAcceptable.reset()
 
 export async function list(): Promise<Item[]> {
   const shells = process.platform === "win32" ? win() : await unix()
-  return shells.filter((s) => resolve(s)).map(info)
+  // `ok()` is the single owner of "may this shell be used here". Listing
+  // something the runtime would then refuse is an offer it cannot honour.
+  return shells.filter((s) => ok(s) && resolve(s)).map(info)
 }
 
 export * as Shell from "./shell"

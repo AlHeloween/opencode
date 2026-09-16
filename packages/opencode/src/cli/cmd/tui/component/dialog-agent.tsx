@@ -2,6 +2,8 @@ import { createMemo, createSignal, onMount } from "solid-js"
 import { useLocal, type ModelScope } from "@tui/context/local"
 import { useKV } from "@tui/context/kv"
 import { cycleScope as nextScope, inheritLabel, readScope, SCOPE_KV_KEY } from "./config-scope"
+import { classifyVariantState, pruneSummary } from "./model-state-prune"
+import { DialogConfirm } from "./dialog-confirm"
 import { useSync } from "@tui/context/sync"
 import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
@@ -333,14 +335,68 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
         },
         {
           title: "Edit allow-list",
+          // DialogSelect ignores any entry without a keybind, so this action
+          // and "Toggle enable" below were unreachable from the dialog.
+          keybind: Keybind.parse("ctrl+alt+l")[0],
           onTrigger: (option: any) => {
             dialog.replace(() => <DialogSubagentSettings targetAgent={option.value} />)
           },
         },
         {
           title: "Toggle enable",
+          keybind: Keybind.parse("ctrl+alt+t")[0],
           onTrigger: (option: any) => {
             toggleDisabled(option.value)
+          },
+        },
+        {
+          title: "Clean variant state",
+          keybind: Keybind.parse("ctrl+alt+p")[0],
+          onTrigger: () => {
+            const report = classifyVariantState(
+              local.model.variant.state(),
+              sync.data.provider,
+              sync.data.agent.map((item) => item.name),
+            )
+            if (report.inert.length === 0) {
+              toast.show({
+                title: "Nothing to clean",
+                message:
+                  report.unresolved.length > 0
+                    ? `${report.unresolved.length} entries reference providers that are not loaded — kept`
+                    : "no stale variant entries in model.json",
+                variant: "info",
+                duration: 4000,
+              })
+              return
+            }
+            // Only the inert tier is offered: those models are loaded AND
+            // declare no variants, so the entry cannot ever apply. Unresolved
+            // entries are reported but never removed — an absent provider may
+            // just be unconfigured in this session.
+            dialog.replace(() => (
+              <DialogConfirm
+                title={`Remove ${report.inert.length} inert variant entries?`}
+                description={`${pruneSummary(report)} — ${report.inert
+                  .slice(0, 4)
+                  .map((item) => item.key)
+                  .join(", ")}${report.inert.length > 4 ? ", …" : ""}`}
+                confirm="Yes, clean model.json"
+                onConfirm={() => {
+                  const removed = local.model.variant.prune(report.inert)
+                  toast.show({
+                    title: "Variant state cleaned",
+                    message: `${removed} entries removed${
+                      report.unresolved.length > 0 ? ` · ${report.unresolved.length} unresolved kept` : ""
+                    }`,
+                    variant: "success",
+                    duration: 4000,
+                  })
+                  dialog.replace(() => <DialogAgent scope={scope} restoreValue={props.restoreValue} />)
+                }}
+                onCancel={() => dialog.replace(() => <DialogAgent scope={scope} restoreValue={props.restoreValue} />)}
+              />
+            ))
           },
         },
       ]}

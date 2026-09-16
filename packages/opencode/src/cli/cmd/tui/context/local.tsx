@@ -1,4 +1,5 @@
 import { createStore } from "solid-js/store"
+import { withoutKeys, type PruneTarget } from "@tui/component/model-state-prune"
 import { createSimpleContext } from "./helper"
 import { batch, createEffect, createMemo, createSignal } from "solid-js"
 import { useSync } from "@tui/context/sync"
@@ -1006,6 +1007,24 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           })
         },
         variant: {
+          /** Raw worktree maps, for the /agents prune action to classify. */
+          state() {
+            return { variant: modelStore.variant, agentVariant: modelStore.agentVariant }
+          },
+          /**
+           * Drop stale entries from the worktree variant maps. Worktree only —
+           * `save()`, not `saveAll()`: the accumulation is in model.json, and a
+           * cleanup must not reach into the active session's settings.
+           */
+          prune(targets: readonly PruneTarget[]) {
+            if (targets.length === 0) return 0
+            batch(() => {
+              setModelStore("variant", withoutKeys(modelStore.variant, targets, "variant"))
+              setModelStore("agentVariant", withoutKeys(modelStore.agentVariant, targets, "agentVariant"))
+              save()
+            })
+            return targets.length
+          },
           selected(agentName?: string) {
             const m = agentName ? forAgent(agentName) : currentModel()
             if (!m) return undefined

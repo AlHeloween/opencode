@@ -1,7 +1,7 @@
 import { createMemo, createSignal, onMount } from "solid-js"
 import { useLocal, type ModelScope } from "@tui/context/local"
 import { useKV } from "@tui/context/kv"
-import { cycleScope as nextScope, inheritLabel, readScope, SCOPE_KV_KEY } from "./config-scope"
+import { cycleScope as nextScope, inheritLabel, parentScope, readScope, SCOPE_KV_KEY } from "./config-scope"
 import { classifyVariantState, pruneSummary } from "./model-state-prune"
 import { DialogConfirm } from "./dialog-confirm"
 import { useSync } from "@tui/context/sync"
@@ -347,6 +347,45 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
           keybind: Keybind.parse("ctrl+alt+t")[0],
           onTrigger: (option: any) => {
             toggleDisabled(option.value)
+          },
+        },
+        {
+          // Materialise the parent layer here so it can be edited without
+          // touching the parent. The counterpart to "Clear", which releases
+          // this layer instead of copying into it.
+          title: parentScope(scope) ? `Copy from ${parentScope(scope)}` : "Copy from parent",
+          keybind: Keybind.parse("ctrl+alt+i")[0],
+          onTrigger: (option: any) => {
+            const planned = local.model.layer.copyFromParent(option.value, scope)
+            if (!planned.ok) {
+              toast.show({ title: "Nothing copied", message: planned.reason, variant: "info", duration: 4000 })
+              return
+            }
+            toast.show({
+              title: `Copied ${planned.plan.from} → ${planned.plan.to}`,
+              message: `${option.value}: ${planned.plan.model}${planned.plan.variant ? ` · ${planned.plan.variant}` : ""}`,
+              variant: "success",
+              duration: 4000,
+            })
+            dialog.replace(() => <DialogAgent scope={scope} restoreValue={option.value} />)
+          },
+        },
+        {
+          title: `Clear ${scope} layer`,
+          keybind: Keybind.parse("ctrl+alt+k")[0],
+          onTrigger: (option: any) => {
+            const planned = local.model.layer.clear(option.value, scope)
+            if (!planned.ok) {
+              toast.show({ title: "Nothing cleared", message: planned.reason, variant: "info", duration: 4000 })
+              return
+            }
+            toast.show({
+              title: `${planned.plan.scope} layer cleared`,
+              message: `${option.value} now inherits from ${planned.plan.fallsTo}`,
+              variant: "success",
+              duration: 4000,
+            })
+            dialog.replace(() => <DialogAgent scope={scope} restoreValue={option.value} />)
           },
         },
         {

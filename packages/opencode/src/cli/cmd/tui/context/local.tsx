@@ -1,5 +1,6 @@
 import { createStore } from "solid-js/store"
 import { withoutKeys, type PruneTarget } from "@tui/component/model-state-prune"
+import { planClear, planCopyFromParent, type LayerValue, type Layers } from "@tui/component/layer-inherit"
 import { createSimpleContext } from "./helper"
 import { batch, createEffect, createMemo, createSignal } from "solid-js"
 import { useSync } from "@tui/context/sync"
@@ -25,6 +26,8 @@ import {
   workspaceAgentModel,
   workspaceModelScope,
   setSessionAgentModel,
+  clearSessionAgentModel,
+  clearWorkspaceAgentModel,
   setWorkspaceAgentModel,
   type SessionSettings,
 } from "@/session/session-settings"
@@ -1005,6 +1008,73 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             )
             saveAll()
           })
+        },
+        /**
+         * Move one agent's selection between layers. `copyFromParent`
+         * materialises the parent value here so it can be edited without
+         * touching the parent; `clear` releases this layer so resolution falls
+         * through again (2026-09-16, Alexander: "нету опции для session
+         * settings from worktree, для worktree — settings from global").
+         */
+        layer: {
+          value(name: string, scope: ModelScope): LayerValue {
+            if (scope === "session") {
+              const o = sessionSettings()?.agent?.[name]
+              return { model: o?.model, variant: o?.variant }
+            }
+            if (scope === "worktree") {
+              const workspace = workspaceAgentModel(name, getActiveWorkspaceID(), {
+                workspaceAgent: modelStore.workspaceAgent,
+              })
+              if (!workspace) return {}
+              const key = `${workspace.providerID}/${workspace.modelID}`
+              return {
+                model: key,
+                variant: modelStore.agentVariant[`${name}/${key}`] ?? modelStore.variant[key],
+              }
+            }
+            const a = sync.data.agent.find((x) => x.name === name)
+            return {
+              model: a?.model ? `${a.model.providerID}/${a.model.modelID}` : undefined,
+              variant: a?.variant,
+            }
+          },
+          all(name: string): Layers {
+            return {
+              session: this.value(name, "session"),
+              worktree: this.value(name, "worktree"),
+              global: this.value(name, "global"),
+            }
+          },
+          copyFromParent(name: string, scope: ModelScope) {
+            const planned = planCopyFromParent(scope, this.all(name))
+            if (!planned.ok) return planned
+            const model = parseModel(planned.plan.model)
+            if (!isModelValid(model)) return { ok: false as const, reason: `${planned.plan.model} is not a valid model` }
+            result.model.set(model, { agent: name, scope })
+            // The variant rides the model it was chosen for; without one the
+            // copied layer inherits the model's own default.
+            if (planned.plan.variant) result.model.variant.set(planned.plan.variant, name, scope)
+            return planned
+          },
+          clear(name: string, scope: ModelScope) {
+            const planned = planClear(scope, this.all(name))
+            if (!planned.ok) return planned
+            if (scope === "session") {
+              const sid = getActiveSessionID()
+              if (!sid) return { ok: false as const, reason: "no active session" }
+              setSessionSettings(clearSessionAgentModel(sessionSettings(), name))
+              void saveSessionSettings(sid, sessionPayload())
+              return planned
+            }
+            batch(() => {
+              setModelStore("workspaceAgent", (agents) =>
+                clearWorkspaceAgentModel(agents, workspaceModelScope(getActiveWorkspaceID()), name),
+              )
+              save()
+            })
+            return planned
+          },
         },
         variant: {
           /** Raw worktree maps, for the /agents prune action to classify. */

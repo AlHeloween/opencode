@@ -2,6 +2,7 @@ import { Effect, Schema } from "effect"
 import { MessageV2 } from "../session/message-v2"
 import { SessionID } from "../session/schema"
 import * as Tool from "./tool"
+import { optionalPattern } from "./pattern"
 
 import DESCRIPTION from "./sessionread.txt"
 import { Constitution } from "@/session/constitution"
@@ -23,11 +24,35 @@ export const Parameters = Schema.Struct({
   limit: Schema.optional(Schema.Number).annotate({
     description: "Number of messages to read (default: 10)",
   }),
+  pattern: Schema.optional(Schema.String).annotate({
+    description:
+      "Regular expression. Only messages whose rendered text matches are returned, so a session can be searched instead of paged by offset.",
+  }),
+  ignoreCase: Schema.optional(Schema.Boolean).annotate({
+    description: "Case-insensitive `pattern`. Default false.",
+  }),
   raw: Schema.optional(Schema.Boolean).annotate({
     description:
       "When true, skip compaction summary messages and show only original conversation. Default: false.",
   }),
 })
+
+/**
+ * Does any part of this message match? Tool output and reasoning count — the
+ * thing you are looking for in a session is as often in a command's output as
+ * in what anyone said about it.
+ */
+export function matchesMessage(msg: MessageV2.WithParts, filter: RegExp): boolean {
+  return msg.parts.some((part) => {
+    if ("text" in part && typeof (part as { text?: unknown }).text === "string")
+      return filter.test((part as { text: string }).text)
+    if (part.type === "tool" && "state" in part) {
+      const state = (part as { state?: { output?: string; error?: string } }).state
+      return filter.test(state?.output ?? "") || filter.test(state?.error ?? "")
+    }
+    return false
+  })
+}
 
 export const SessionReadTool = Tool.define(
   "sessionread",
@@ -35,7 +60,17 @@ export const SessionReadTool = Tool.define(
     return {
       description: DESCRIPTION,
       parameters: Parameters,
-      execute: (params: { sessionId: string; offset?: number; limit?: number; raw?: boolean }, ctx: Tool.Context) =>
+      execute: (
+        params: {
+          sessionId: string
+          offset?: number
+          limit?: number
+          raw?: boolean
+          pattern?: string
+          ignoreCase?: boolean
+        },
+        ctx: Tool.Context,
+      ) =>
         Effect.gen(function* () {
           yield* ctx.ask({
             permission: "session-read",
@@ -48,6 +83,9 @@ export const SessionReadTool = Tool.define(
             },
           })
 
+          // Compiled before the stream opens: a bad pattern should cost nothing.
+          const filter = optionalPattern(params.pattern, params.ignoreCase)
+
           const result = yield* Effect.sync(() => {
             const sid = params.sessionId as SessionID
             const messages: MessageV2.WithParts[] = []
@@ -56,6 +94,10 @@ export const SessionReadTool = Tool.define(
                 if (msg.info.role === "user" && msg.parts.some((p) => p.type === "compaction")) continue
                 if (msg.info.role === "assistant" && (msg.info as any).summary) continue
               }
+              // Match against every part's own text, not the rendered entry:
+              // the rendering adds `#N <role>` and `[tool] …` labels, and a
+              // pattern would otherwise hit its own scaffolding.
+              if (filter && !matchesMessage(msg, filter)) continue
               messages.push(msg)
             }
 

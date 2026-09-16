@@ -3,6 +3,7 @@ import { InstanceState } from "@/effect/instance-state"
 import { Memory } from "@/memory/memory"
 import { getProjectDbPath } from "@/storage/db"
 import * as Tool from "./tool"
+import { optionalPattern } from "./pattern"
 
 import DESCRIPTION from "./messagesearch.txt"
 
@@ -15,7 +16,31 @@ export const Parameters = Schema.Struct({
   limit: Schema.optional(Schema.Number).annotate({
     description: "Maximum number of results to return (default: 20)",
   }),
+  pattern: Schema.optional(Schema.String).annotate({
+    description:
+      "Regular expression applied to the matched text. FTS5 finds candidates by word; this filters them by shape — `reasoning_content` or `ckpt_[0-9a-f]+`. Usable on its own (omit `query`) to regex-scan a session.",
+  }),
+  ignoreCase: Schema.optional(Schema.Boolean).annotate({
+    description: "Case-insensitive `pattern`. Default false.",
+  }),
+  session: Schema.optional(Schema.String).annotate({
+    description:
+      "Scope: 'all' (default, every session in the project), 'current' (this session only), or an explicit session id. Narrow it when a project-wide sweep buries the answer in other sessions' noise.",
+  }),
 })
+
+/**
+ * Resolve the scope to a session id, or undefined for the whole project.
+ *
+ * Default stays project-wide: `messagesearch` exists to find work done in other
+ * sessions, and silently narrowing that would turn "no prior art" into a wrong
+ * answer rather than a smaller one. Narrowing is the caller's choice.
+ */
+export function resolveScope(scope: string | undefined, current: string): string | undefined {
+  if (scope === undefined || scope === "all") return undefined
+  if (scope === "current") return current
+  return scope
+}
 
 export const MessageSearchTool = Tool.define(
   "messagesearch",
@@ -23,9 +48,15 @@ export const MessageSearchTool = Tool.define(
     return {
       description: DESCRIPTION,
       parameters: Parameters,
-      execute: (params: { query?: string; limit?: number }, ctx: Tool.Context) =>
+      execute: (
+          params: { query?: string; limit?: number; session?: string; pattern?: string; ignoreCase?: boolean },
+          ctx: Tool.Context,
+        ) =>
         Effect.gen(function* () {
           const mode = params.query && params.query.trim().length > 0 ? "search" : "browse"
+          const scope = resolveScope(params.session, ctx.sessionID)
+          // Compiled before the DB is touched: a bad pattern should cost nothing.
+          const filter = optionalPattern(params.pattern, params.ignoreCase)
 
           yield* ctx.ask({
             permission: "messagesearch",
@@ -35,6 +66,7 @@ export const MessageSearchTool = Tool.define(
               query: params.query || "(browse)",
               limit: params.limit,
               mode,
+              session: scope ?? "all",
             },
           })
 
@@ -49,7 +81,9 @@ export const MessageSearchTool = Tool.define(
 
           if (mode === "browse") {
             return yield* Effect.gen(function* () {
-              const results = Memory.browse({ worktree })
+              const results = Memory.browse({ worktree, sessionID: scope }).filter(
+                (r) => !filter || filter.test(r.text),
+              )
 
               if (results.length === 0) {
                 return {
@@ -125,7 +159,8 @@ export const MessageSearchTool = Tool.define(
               worktree,
               query: params.query!,
               limit,
-            })
+              sessionID: scope,
+            }).filter((r) => !filter || filter.test(r.text))
 
             if (searchResults.length === 0) {
               return {

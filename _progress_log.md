@@ -2728,3 +2728,22 @@ twice. And the A/B that would move 078f55a2bb from Inferred to Exact.
   to_message_id reddens the structure test; disabling the ownership guard
   reddens the isolation test. 161 pass / 0 fail across summary+compaction+
   agent+compact+checkstate.
+
+[2026-09-16] history readers get scope and regex
+- messagesearch: `session` = 'all' (default, unchanged) | 'current' | explicit id.
+  Memory.search/browse take an optional sessionID and filter in SQL. Default
+  stays project-wide on purpose — the tool exists to find work done in OTHER
+  sessions, so silently narrowing turns "no prior art" into a wrong answer.
+- messagesearch + sessionread: `pattern` / `ignoreCase` regex. sessionread had
+  no filter at all — a session could only be paged by offset. The match runs
+  against each part's own text (including tool output and reasoning), not the
+  rendered entry, so a pattern cannot hit its own `#N <role>` scaffolding.
+- Correction: there is no regex in messagesearch today and never was — it is
+  FTS5 MATCH (phrases, `*` prefix, AND/OR/NOT, NEAR). Regex lives in grep,
+  fossilgrep and logsearch. That is why this was added.
+- Bad patterns come back as a message naming the pattern and the reason; `u`
+  rejection falls back to the default engine so a pattern that works in grep is
+  not refused here.
+- Next: the same `pattern` for shell tools (bash/cmd/run/joboutput) so no one
+  pipes through grep just to filter output. Blocked on a trustworthy oracle —
+  test/tool/bash.test.ts is inside the 64 failures that reproduce on clean HEAD.

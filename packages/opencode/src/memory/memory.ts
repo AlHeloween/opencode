@@ -216,6 +216,8 @@ export function search(params: {
   worktree: string
   query: string
   limit: number
+  /** Restrict to one session. Omit to search every session in the project. */
+  sessionID?: string
 }): MemorySearchResult[] {
   const memDb = openMemoryDb(params.worktree)
 
@@ -252,9 +254,14 @@ export function search(params: {
       FROM part_fts
       JOIN part_index p ON p.rowid = part_fts.rowid
       WHERE part_fts MATCH ?
+        ${params.sessionID ? "AND p.session_id = ?" : ""}
       ORDER BY combined_rank DESC
       LIMIT ?
-    `).all(params.query, params.limit) as Array<{
+    `).all(
+      ...(params.sessionID
+        ? [params.query, params.sessionID, params.limit]
+        : [params.query, params.limit]),
+    ) as Array<{
       part_id: string
       message_id: string
       session_id: string
@@ -294,6 +301,8 @@ export function browse(params: {
   worktree: string
   limit?: number
   modelContextLimit?: number
+  /** Restrict to one session. Omit to browse every session in the project. */
+  sessionID?: string
 }): MemorySearchResult[] {
   const memDb = openMemoryDb(params.worktree)
 
@@ -308,8 +317,9 @@ export function browse(params: {
       FROM part_index
       WHERE role IN ('user', 'assistant')
         AND part_type IN ('text', 'reasoning')
+        ${params.sessionID ? "AND session_id = ?" : ""}
       ORDER BY session_id, time_created ASC
-    `).all() as Array<{
+    `).all(...(params.sessionID ? [params.sessionID] : [])) as Array<{
       part_id: string
       message_id: string
       session_id: string

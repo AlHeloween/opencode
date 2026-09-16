@@ -204,6 +204,71 @@ describe("session undo + fossil (SP-03)", () => {
   )
 
   it.live(
+    "SU-6 redo restores work that was never committed as a leaf",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        // SU-2 commits the agent's write before undoing (its `track` after the
+        // write), which models the OLD end-of-turn snapshot. Baselines are now
+        // taken at the START of a turn and before a sidecar, so a turn's own
+        // writes are still uncommitted when /undo arrives — and `checkpoint()`
+        // only READS the current leaf. An anchor read that way names the
+        // turn-start leaf, so redo walks forward to the state BEFORE the work
+        // and silently discards exactly what it was asked to bring back.
+        //
+        // No `track` after the agent write here, on purpose: that is the real
+        // shape of an undo mid-session, and it is what makes this test able to
+        // fail.
+        const session = yield* Session.Service
+        const revert = yield* SessionRevert.Service
+        const snap = yield* Snapshot.Service
+
+        const info = yield* session.create({})
+        const sessionID = info.id
+        const file = path.join(dir, "y.txt")
+
+        yield* write(file, "before")
+        const turnStart = yield* snap.track([file])
+
+        const user = yield* userWithText(session, sessionID)
+        const asst = yield* session.updateMessage({
+          id: MessageID.ascending(),
+          role: "assistant",
+          sessionID,
+          mode: "build",
+          agent: "build",
+          path: { cwd: dir, root: dir },
+          cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          modelID: ModelID.make("gpt-4"),
+          providerID: ProviderID.make("openai"),
+          parentID: user.id,
+          time: { created: Date.now() },
+          finish: "end_turn",
+        })
+        yield* session.updatePart({
+          id: PartID.ascending(),
+          messageID: asst.id,
+          sessionID,
+          type: "patch",
+          hash: turnStart!,
+          files: [file.replaceAll("\\", "/")],
+        })
+
+        // The agent's work, left in the working copy exactly as a live turn
+        // leaves it: no leaf of its own.
+        yield* write(file, "uncommitted-agent-work")
+
+        yield* revert.revert({ sessionID, messageID: user.id })
+        expect(yield* read(file)).toBe("before")
+
+        yield* revert.unrevert({ sessionID })
+        expect(yield* read(file)).toBe("uncommitted-agent-work")
+      }),
+    ),
+    30_000,
+  )
+
+  it.live(
     "SU-5 user-only untracked file survives undo",
     provideTmpdirInstance((dir) =>
       Effect.gen(function* () {
@@ -317,8 +382,19 @@ describe("session undo + fossil (SP-03)", () => {
         // Fresh anchor each undo (BUG-3) — must not reuse prior revert snapshot blindly
         expect(anchor2).not.toBe(anchor1)
         expect(yield* read(file)).toBe("s0")
+
+        // A chain of undos with nothing edited between them must add NO leaves.
+        // Each anchor is the leaf the previous step left, not a freshly minted
+        // one: the first undo landed on s1.h, so that IS the second undo's
+        // anchor. Committing unconditionally before an undo mints a leaf per
+        // step instead, and the walk this feature exists for —
+        //   undo → undo → undo → m* → undo … redo → m* → redo → redo
+        // — stops landing where the previous step left off.
+        expect(anchor1).toBe(s2.h)
+        expect(anchor2).toBe(s1.h)
       }),
     ),
+    30_000,
   )
 
   it.live(

@@ -268,10 +268,34 @@ const Time = Schema.Struct({
 })
 
 /** One step of multi-level redo (fossil leaf to restore + message cursor). */
+/**
+ * One operation in the undo/redo sequence, recorded whole.
+ *
+ * Undo, redo and revert-to-a-specific-message are not three features: they are
+ * steps of ONE sequence with a cursor, and the walk has to survive being
+ * re-entered from either direction —
+ *
+ *   undo → undo → undo → m* → undo … redo → m* → redo → redo
+ *
+ * That only holds if a frame carries everything the operation produced. It used
+ * to carry `{op_id, messageID, partID}` and drop `crossing`, so `unrevert`
+ * could not put the boundary manifest back: the next undo then re-scanned over
+ * flags an earlier crossing undo had already inverted, which is precisely the
+ * 2026-08-30 context-wipe regression the comment in revert.ts describes.
+ */
 const RevertRedoFrame = Schema.Struct({
   op_id: Schema.String,
   messageID: MessageID,
   partID: optionalOmitUndefined(PartID),
+  /** Pre-undo visibility of every row at/after the fold point, verbatim. */
+  crossing: optionalOmitUndefined(
+    Schema.Array(
+      Schema.Struct({
+        id: MessageID,
+        visible: Schema.Boolean,
+      }),
+    ),
+  ),
 })
 
 const Revert = Schema.Struct({

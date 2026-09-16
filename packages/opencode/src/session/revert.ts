@@ -120,7 +120,48 @@ export const layer = Layer.effect(
       // I-2: FRESH redo anchor = current fossil leaf BEFORE this undo.
       // Multi-undo: push previous op_id frame onto redo_stack so redo walks
       // forward through leaves (T0 ← T1 ← T2 undo, then T0 → T1 → T2 redo).
-      const anchor = yield* snap.checkpoint()
+      //
+      // `track`, not `checkpoint`: checkpoint only READS the current leaf, and
+      // the state being undone is not a leaf yet. Baselines are committed at
+      // the start of a turn and before a sidecar, so anything the current turn
+      // did is still sitting uncommitted in the working copy — an anchor read
+      // with `checkpoint` would name the PREVIOUS leaf and redo would walk
+      // forward to a state that never existed, silently dropping the work it
+      // was supposed to restore. Undo is the third boundary, for the same
+      // reason as the other two: the state you are leaving has to be
+      // recoverable before you leave it.
+      //
+      // Bounded to the SESSION's own files, never `undefined`. `track(undefined)`
+      // runs a blanket `addremove`, which takes a user's untracked file under
+      // fossil control — and then `revertTo` deletes it, because it is tracked
+      // and absent from the target leaf. That is SU-5 ("user-only untracked file
+      // survives undo"), and it reddened the moment this was unbounded. Undo
+      // must make the AGENT's work recoverable without conscripting the user's.
+      //
+      // `patches` holds the patch parts of everything after the revert point, so
+      // their files are exactly the session-written paths being undone. With no
+      // patches there is no agent work to anchor, and reading the current leaf
+      // is all that is needed.
+      //
+      // ONLY when the working copy is actually dirty. `patches` is non-empty on
+      // very nearly every undo, and `track()` with explicit paths SKIPS the
+      // early-exit that protects the no-op case — so committing on that
+      // condition alone mints a fresh leaf per undo even when nothing moved.
+      // That is what breaks the walk the feature exists for:
+      //
+      //   undo → undo → undo → m* → undo … redo → m* → redo → redo
+      //
+      // Each of those steps has to land on the leaf the previous one left, and
+      // a chain of undos with no edits between them must add no leaves at all.
+      // So: read the current leaf, ask once whether the working copy differs
+      // from it, and commit only then. `diff` is `fossil diff --from <hash>`
+      // over TRACKED files, which is exactly the right question here — an
+      // untracked user file must not be conscripted (SU-5) and so must not
+      // count as dirt either.
+      const sessionFiles = [...new Set(patches.flatMap((p) => p.files))]
+      const currentLeaf = yield* snap.checkpoint()
+      const dirty = currentLeaf ? (yield* snap.diff(currentLeaf)).trim().length > 0 : false
+      const anchor = dirty && sessionFiles.length > 0 ? yield* snap.track(sessionFiles) : currentLeaf
       if (!anchor) {
         // Fossil unavailable (test env / disabled / corrupt repo): persist a
         // message-level revert — cleanup still removes the tail, only the
@@ -131,12 +172,16 @@ export const layer = Layer.effect(
         })
       }
       // `prior` was read above the crossing scan (pristine-manifest composition).
+      // The frame records the whole prior operation, `crossing` included: redo
+      // has to put the boundary manifest back exactly as the undo found it, or
+      // the next undo re-scans over already-inverted flags.
       const redo_stack = [...(prior?.redo_stack ?? [])]
       if (prior?.op_id) {
         redo_stack.unshift({
           op_id: prior.op_id,
           messageID: prior.messageID,
           partID: prior.partID,
+          crossing: prior.crossing,
         })
       }
       if (anchor) {
@@ -215,6 +260,10 @@ export const layer = Layer.effect(
         op_id: next!.op_id,
       }
       if (next!.partID) nextRevert!.partID = next!.partID
+      // Restore the frame's manifest, not nothing. Without it the next undo
+      // finds `prior.crossing` empty and classifies over flags this walk has
+      // already inverted — the regression revert.ts:85 documents.
+      if (next!.crossing?.length) nextRevert!.crossing = [...next!.crossing]
       if (rest.length) nextRevert!.redo_stack = rest
       yield* sessions.setRevert({
         sessionID: input.sessionID,

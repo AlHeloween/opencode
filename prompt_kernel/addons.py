@@ -52,7 +52,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "G4",
         "TOOL_AUTHORIZE",
         (
-            "identity or permission uncertain -> getmode; unresolved decision -> question (ASK).",
+            "identity or permission uncertain -> checkstate; unresolved decision -> question (ASK).",
             "kernel source: prompt_kernel/source.py -> python -m prompt_kernel --install; the installed .txt is generated, never hand-edited.",
         ),
     ),
@@ -119,7 +119,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_CLOSURE",
         (
             "verify completion: messagesearch; git status.",
-            "compact at the boundary: /compact = one Layer-1 sidecar call, then the fold. The fold already runs itself at zero tokens — the manual call buys the handle, not room.",
+            "compact at the boundary: the compact tool arms the fold for turn end (sidecar capture, then fold). The window-fill gate already folds for room — this one is for attention.",
         ),
     ),
 )

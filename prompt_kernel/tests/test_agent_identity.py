@@ -64,7 +64,7 @@ def test_authorization_inspection_is_not_an_identity() -> None:
         (SESSION_PROMPT_DIR / name).read_text(encoding="utf-8")
         for name in ("build.txt", "plan.txt", "reasoning-mode.txt")
     )
-    assert text.lower().count("getmode") >= 3
+    assert text.lower().count("checkstate") >= 3
 
 
 def test_identity_contracts_define_the_entities_that_are_used() -> None:

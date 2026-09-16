@@ -34,7 +34,7 @@ def test_addons_render_inside_gate_rule_blocks() -> None:
         " restart, or alter its debug flags." in g1
     )
     g4 = _gate_block(text, "G4")
-    assert "- identity or permission uncertain -> getmode; unresolved decision -> question (ASK)." in g4
+    assert "- identity or permission uncertain -> checkstate; unresolved decision -> question (ASK)." in g4
     g9 = _gate_block(text, "G9")
     assert "- done -> plans_completed/; scan plans for stale refs." in g9
     assert "- verify completion: messagesearch; git status." in g9

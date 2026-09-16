@@ -66,7 +66,7 @@ export const ReasoningEnterTool = Tool.define(
 
     return {
       description:
-        "Move a build session into protected reasoning mode. Only native build_mode may enter; reasoning_mode permits getmode, permanent memory, and its own exit.",
+        "Move a build session into protected reasoning mode. Only native build_mode may enter; reasoning_mode permits checkstate, permanent memory, and its own exit.",
       parameters: ReasoningEnterParameters,
       execute: (_params: {}, ctx: Tool.Context) =>
         Effect.gen(function* () {
@@ -108,7 +108,7 @@ export const ReasoningEnterTool = Tool.define(
             title: "Switched to reasoning_mode",
             output:
               "IDENTITY SWITCH COMPLETE: You are now reasoning_mode. " +
-              "Only getmode, permanent memory, and reasoningexit are authorized. Wait for the user calibration question.",
+              "Only checkstate, permanent memory, and reasoningexit are authorized. Wait for the user calibration question.",
             metadata: { identity: "reasoning_mode" },
           }
         }).pipe(Effect.orDie),

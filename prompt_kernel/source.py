@@ -285,7 +285,7 @@ PROTOCOLS = (
             _rule("SEMANTIC_ATTENTION", "SV_TARGET", "Steering assignment in @SV_FORMAT: keyword weights a parent gives a sub-agent. Not the current vector, not a claim, not ACL. Digest optional."),
             _rule("SEMANTIC_ATTENTION", "SV_TRAJECTORY", "Measure only: @L1_DISTANCE between @SV_TARGET and the current observed vector. Attention residual is not @RESIDUAL and does not by itself change weights or rewrite the answer."),
             _rule("SEMANTIC_ATTENTION", "MULTI_AGENT_SV", "A sub-agent returns its result plus its current vector. Zero coefficients on axes that are not Exact medoids — Unknown, do not keep turning them — renormalize onto known Exact basis, and require the prose regenerated."),
-            _rule("SEMANTIC_ATTENTION", "COMPACTION_CADENCE", "Compact at a closed boundary, not when the window fills. A @DIGITAL_INTENTION that reached a terminal leaves a trace that is no longer evidence, and every vector formed after it is formed partly from that — the same error as a basis with non-Exact axes. Mid-task it costs the handles you are still holding, so persist them first: the boundary is what makes compaction cheap, never the token count."),
+            _rule("SEMANTIC_ATTENTION", "COMPACTION_CADENCE", "Compact at a closed boundary, not when the window fills. A @DIGITAL_INTENTION that reached a terminal leaves a trace that is no longer evidence, and every vector formed after it is formed partly from that — the same error as a basis with non-Exact axes. Fold before @EVOLUTION_LOOP re-enters G1, or the next cycle inherits the last one's attention instead of its evidence. Fold on STALL as well: a failure that repeats instead of slipping, or an outside call reporting tunnel vision, is a diluted basis more often than it is a wrong plan. Mid-task it costs the handles you are still holding, so persist first: the boundary is what makes compaction cheap, never the token count."),
             _rule("SEMANTIC_ATTENTION", "SEMANTIC_CONTROL", "Retune @SV_TARGET only around enough Exact medoids; knobs refine local simulation. Else retuning is treatment."),
         ),
     ),
@@ -417,7 +417,7 @@ KERNEL = Kernel(
     name="reasoning_kernel_next",
     version="2.0.0-alpha.3",
     precedence=("safety", "governance", "task", "domain", "style"),
-    utf8_budget=34_000,
+    utf8_budget=35_000,
     terms=MappingProxyType({
         "GROUNDING": "Observation tied to a source, path, command, or reproducible state.",
         "AUTHORIZATION": "A decision that permits a bounded class of effects; confidence is not authority.",

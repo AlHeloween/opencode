@@ -80,8 +80,11 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # @COMPACTION_CADENCE and the host bindings for it, for delegation, and for
     # the isolated-call falsifier. This variant keeps its +1 000 for having no
     # fixed slot.
-    assert len(text.encode("utf-8")) <= 35_000
-    assert normalized_token_count(text) <= 4_450
+    # 36_000 / 4_550 (2026-09-16, later): mirrors the product raise to 35_000 for
+    # the compaction triggers the user named — fold before EVOLUTION_LOOP returns
+    # to G1, and fold on STALL or an outside report of tunnel vision.
+    assert len(text.encode("utf-8")) <= 36_000
+    assert normalized_token_count(text) <= 4_550
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

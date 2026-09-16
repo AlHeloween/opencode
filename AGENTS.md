@@ -444,7 +444,9 @@ All findings triaged and resolved — see `plans_completed/`.
 | `media` | subagent | `prompt/media.txt` | Media generation via capability tool |
 | `title` | primary (hidden) | `prompt/title.txt` | Session title generation |
 
-Tools: `pipeline` chains subagents sequentially. `capability` looks up model modalities.
+Tools: `pipeline` chains subagents sequentially. `capability` looks up model
+modalities. `compact` arms a boundary fold of the session window — primaries
+only (see [Mechanistic Compaction](docs/compaction.md) § three triggers).
 
 **Per-identity sampling.** Each native subagent declares its own
 `temperature` / `topP` / `presencePenalty` / `options.repetition_penalty` in

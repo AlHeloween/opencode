@@ -2661,3 +2661,23 @@ twice. And the A/B that would move 078f55a2bb from Inferred to Exact.
   not — the fold is, the capture is a model call. Read prompt.ts before shipping it.
 - utf8_budget 33_000 -> 34_000; 33 957 used, 43 free. Variants 35_000 / 4_450.
   baseline 9148f1bb… -> 5fbae483…. 100 pytest green.
+
+[2026-09-16] compact tool + getmode -> checkstate
+- New `compact` tool: arms a Layer-2 fold consumed at turn end. A tool cannot
+  fold inline — it runs inside the window it would fold — so the request goes
+  through `session/compaction-request.ts` and `foldDecision()` decides at the
+  boundary. Subagents denied; build/plan/orchestrator allowed.
+- Triggers per the user: task terminal, before EVOLUTION_LOOP re-enters G1, and
+  on STALL / an outside call reporting tunnel vision. Kernel rule extended,
+  utf8_budget 34_000 -> 35_000.
+- `getmode` -> `checkstate`, policy `get_mode` -> `check_state`. It now reports
+  the runtime version and the context window: fold threshold, open tokens,
+  headroom, and headroom converted to turns at the recent burn rate. A person
+  knows when they are about to run out; an agent had no such sense, so the only
+  trigger it could act on was the ceiling — which lands mid-edit.
+- burnRate() refuses to answer from one turn: the first turn after a fold
+  carries the folded star and would report zero turns left on every call.
+- Removed two 0-byte strays from a collapsed shell one-liner (same mtime to the
+  ms): packages/opencode/i+1).join(...) and a root opencode.db shadowing the
+  real 350MB .opencode/data/opencode.db.
+- Baseline check: test/tool/{edit,bash,parameters} are 114/64 on clean HEAD too.

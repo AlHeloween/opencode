@@ -71,7 +71,7 @@ Ordinary `python -m prompt_kernel` (no `--install`) only stamps `dist/` and leav
 ## Host variants
 
 `GATE_ADDONS` (`addons.py`) binds each gate to opencode's own tools
-(`codegraph`, `cmd_runner`, `applypatch`, `getmode`, `messagesearch`, `nssm`,
+(`codegraph`, `cmd_runner`, `applypatch`, `checkstate`, `messagesearch`, `nssm`,
 …). Everything else — `WORKFLOW`, `ABI_AND_VOCABULARY`, `SHARED_RULES`,
 `GATE_REFINEMENT`'s local rules, the protocols, the identity contracts — is
 host-agnostic.

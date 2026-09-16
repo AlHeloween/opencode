@@ -398,7 +398,7 @@ shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION, @I
 - behavior/paths changed -> update docs/ and repo index.
 - deprecated -> obsolete/ (reference only).
 - verify completion: git status; no message-search tool exists.
-- compact at the boundary: /compact here is an LLM summarizer, not a mechanistic fold — write the handles to plans/, docs/ and _progress_log.md BEFORE it runs, or they are gone.
+- compact at the boundary: no compact tool here — /compact is the user's, and it is a lossy summarizer, not a mechanistic fold. Write the handles to plans/, docs/ and _progress_log.md, then ask.
 - a smoke-tested MCP contract (handshake, tools/list, errors) is Exact; live response shape stays Hypothetical until run live.
 </G9_RULES>
 
@@ -419,7 +419,7 @@ Steering assignment in @SV_FORMAT: keyword weights a parent gives a sub-agent. N
 
 - Measure only: @L1_DISTANCE between @SV_TARGET and the current observed vector. Attention residual is not @RESIDUAL and does not by itself change weights or rewrite the answer.
 - A sub-agent returns its result plus its current vector. Zero coefficients on axes that are not Exact medoids — Unknown, do not keep turning them — renormalize onto known Exact basis, and require the prose regenerated.
-- Compact at a closed boundary, not when the window fills. A @DIGITAL_INTENTION that reached a terminal leaves a trace that is no longer evidence, and every vector formed after it is formed partly from that — the same error as a basis with non-Exact axes. Mid-task it costs the handles you are still holding, so persist them first: the boundary is what makes compaction cheap, never the token count.
+- Compact at a closed boundary, not when the window fills. A @DIGITAL_INTENTION that reached a terminal leaves a trace that is no longer evidence, and every vector formed after it is formed partly from that — the same error as a basis with non-Exact axes. Fold before @EVOLUTION_LOOP re-enters G1, or the next cycle inherits the last one's attention instead of its evidence. Fold on STALL as well: a failure that repeats instead of slipping, or an outside call reporting tunnel vision, is a diluted basis more often than it is a wrong plan. Mid-task it costs the handles you are still holding, so persist first: the boundary is what makes compaction cheap, never the token count.
 #### @SEMANTIC_CONTROL
 Retune @SV_TARGET only around enough Exact medoids; knobs refine local simulation. Else retuning is treatment.
 

@@ -1,7 +1,7 @@
 import { PlanEnterTool, PlanExitTool } from "./plan"
 import { ReasoningEnterTool, ReasoningExitTool } from "./reasoning"
 import { MemoryTool } from "./memory"
-import { GetModeTool } from "./getmode"
+import { CheckStateTool } from "./checkstate"
 import { Session } from "@/session/session"
 import { QuestionTool } from "./question"
 import { BashTool } from "./bash"
@@ -23,6 +23,7 @@ import { SkillTool } from "./skill"
 import { ListTool } from "./ls"
 import { MultiEditTool } from "./multiedit"
 import { RestoreTool } from "./restore"
+import { CompactTool } from "./compact"
 import { UniversalSearchTool } from "./universalsearch"
 import { CodeGraphTool } from "./codegraph"
 import { CuaTool } from "./cua"
@@ -77,7 +78,7 @@ const log = Log.create({ service: "tool.registry" })
 type TaskDef = Tool.InferDef<typeof TaskTool>
 type ReadDef = Tool.InferDef<typeof ReadTool>
 type MemoryDef = Tool.InferDef<typeof MemoryTool>
-type GetModeDef = Tool.InferDef<typeof GetModeTool>
+type CheckStateDef = Tool.InferDef<typeof CheckStateTool>
 type ReasoningEnterDef = Tool.InferDef<typeof ReasoningEnterTool>
 type ReasoningExitDef = Tool.InferDef<typeof ReasoningExitTool>
 
@@ -86,7 +87,7 @@ type State = {
   task: TaskDef
   read: ReadDef
   memory: MemoryDef
-  getmode: GetModeDef
+  checkstate: CheckStateDef
   reasoningEnter: ReasoningEnterDef
   reasoningExit: ReasoningExitDef
   /** Era-frozen task/skill descriptions (see createEraMemo). */
@@ -189,7 +190,7 @@ export const layer: Layer.Layer<
     const reasoningEnter = yield* ReasoningEnterTool
     const reasoningExit = yield* ReasoningExitTool
     const memory = yield* MemoryTool
-    const getmode = yield* GetModeTool
+    const checkstate = yield* CheckStateTool
     const webfetch = yield* WebFetchTool
     const bash = yield* BashTool
     const cmd = yield* CmdTool
@@ -204,6 +205,7 @@ export const layer: Layer.Layer<
     const listtool = yield* ListTool
     const multiedit = yield* MultiEditTool
     const restore = yield* RestoreTool
+    const compact = yield* CompactTool
     const universalsearch = yield* UniversalSearchTool
     const codegraph = yield* CodeGraphTool
     const cua = yield* CuaTool
@@ -325,10 +327,11 @@ export const layer: Layer.Layer<
           reasoningEnter: Tool.init(reasoningEnter),
           reasoningExit: Tool.init(reasoningExit),
           memory: Tool.init(memory),
-          getmode: Tool.init(getmode),
+          checkstate: Tool.init(checkstate),
           list: Tool.init(listtool),
           multiedit: Tool.init(multiedit),
           restore: Tool.init(restore),
+          compact: Tool.init(compact),
           universalsearch: Tool.init(universalsearch),
           codegraph: Tool.init(codegraph),
           cua: Tool.init(cua),
@@ -367,6 +370,7 @@ export const layer: Layer.Layer<
             tool.list,
             tool.multiedit,
             tool.restore,
+            tool.compact,
             tool.universalsearch,
             tool.codegraph,
             tool.cua,
@@ -385,12 +389,12 @@ export const layer: Layer.Layer<
             tool.reasoningEnter,
             tool.reasoningExit,
             tool.memory,
-            tool.getmode,
+            tool.checkstate,
           ],
           task: tool.task,
           read: tool.read,
           memory: tool.memory,
-          getmode: tool.getmode,
+          checkstate: tool.checkstate,
           reasoningEnter: tool.reasoningEnter,
           reasoningExit: tool.reasoningExit,
         }

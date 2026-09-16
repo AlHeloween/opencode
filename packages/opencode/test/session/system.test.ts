@@ -65,18 +65,18 @@ describe("session.system", () => {
   test("plan reminder is a compact reference to the stable kernel contract", async () => {
     expect(PROMPT_PLAN).toContain('id="plan_mode"')
     expect(PROMPT_PLAN).toContain("@PLAN_MODE")
-    expect(PROMPT_PLAN).toContain("getmode")
+    expect(PROMPT_PLAN).toContain("checkstate")
     expect(PROMPT_PLAN).not.toContain("Plan subagent")
     expect(PROMPT_PLAN).not.toContain("Plan agent")
   })
 
-  test("mode notices name kernel entities and the getmode tool", () => {
+  test("mode notices name kernel entities and the checkstate tool", () => {
     expect(PROMPT_BUILD).toContain('id="build_mode"')
     expect(PROMPT_BUILD).toContain("@BUILD_MODE")
-    expect(PROMPT_BUILD).toContain("getmode")
+    expect(PROMPT_BUILD).toContain("checkstate")
     expect(PROMPT_REASONING_MODE).toContain('id="reasoning_mode"')
     expect(PROMPT_REASONING_MODE).toContain("@REASONING_MODE")
-    expect(PROMPT_REASONING_MODE).toContain("getmode")
+    expect(PROMPT_REASONING_MODE).toContain("checkstate")
     expect(PROMPT_PLAN).toContain("@PLAN_MODE")
   })
 
@@ -87,13 +87,13 @@ describe("session.system", () => {
     // Identity resolution is load-bearing, not a tool path. §5 gives ten
     // identities with different `may_mutate`, and @CATALOG_INVARIANT makes the
     // tool catalog identity-INVARIANT on purpose — so an agent cannot read its
-    // own rights off the tools it can see. `getmode` is the only thing that
+    // own rights off the tools it can see. `checkstate` is the only thing that
     // answers "which contract governs me": it returns the identity AND its
     // complete ordered execute-time permission rules. Assert all three layers,
     // since dropping any one leaves the question unanswerable.
     expect(PROMPT_REASONING).toContain("The provider tool catalog is identity-invariant")
     expect(PROMPT_REASONING).toContain("Uncertain identity or permission → inspect the host runtime's authorization surface")
-    expect(PROMPT_REASONING).toContain("identity or permission uncertain -> getmode")
+    expect(PROMPT_REASONING).toContain("identity or permission uncertain -> checkstate")
     expect(PROMPT_REASONING).toContain("may_mutate")
     expect(PROMPT_REASONING).not.toContain("### build_mode")
     expect(PROMPT_REASONING).not.toContain("#### @GETMODE")

@@ -118,7 +118,7 @@ test("reasoning agent permits only status, permanent memory, and its own exit", 
       const reasoning = await load(tmp.path, (svc) => svc.get("reasoning_mode"))
       expect(reasoning).toBeDefined()
       expect(reasoning?.mode).toBe("primary")
-      expect(evalPerm(reasoning, "get_mode")).toBe("allow")
+      expect(evalPerm(reasoning, "check_state")).toBe("allow")
       expect(evalPerm(reasoning, "memory")).toBe("allow")
       expect(evalPerm(reasoning, "reasoning_exit")).toBe("allow")
       expect(evalPerm(reasoning, "todowrite")).toBe("deny")
@@ -324,7 +324,7 @@ test("researcher agent permits only Internet search plus universal session tools
       expect(evalPerm(researcher, "messagesearch")).toBe("deny")
       expect(evalPerm(researcher, "webfetch")).toBe("allow")
       expect(evalPerm(researcher, "universalsearch")).toBe("allow")
-      expect(evalPerm(researcher, "get_mode")).toBe("allow")
+      expect(evalPerm(researcher, "check_state")).toBe("allow")
       expect(evalPerm(researcher, "todowrite")).toBe("allow")
     },
   })
@@ -382,7 +382,7 @@ test("general agent allows todo tools (per-session list)", async () => {
       expect(Permission.evaluate("edit", path.join("plans", "x.md"), general!.permission).action).not.toBe("deny")
       expect(Permission.evaluate("write", path.join("plans", "x.md"), general!.permission).action).not.toBe("deny")
       expect(evalPerm(general, "pipeline")).toBe("deny")
-      expect(evalPerm(general, "get_mode")).toBe("allow")
+      expect(evalPerm(general, "check_state")).toBe("allow")
       expect(evalPerm(general, "todowrite")).toBe("allow")
     },
   })

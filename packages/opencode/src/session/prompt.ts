@@ -24,6 +24,7 @@ import {
   SUMMARY_GENERATION_RESERVE_TOKENS,
   needsContentCompaction,
 } from "./overflow"
+import * as CompactionRequest from "./compaction-request"
 import { Jobs } from "../jobs"
 import { RequestDiff } from "./request-diff"
 import { Checkpoint, type CheckpointData } from "./checkpoint"
@@ -2515,6 +2516,11 @@ export const layer = Layer.effect(
                     IncrementalCheckpoint.latestOpen(sessionID)?.toMessageID,
                   ) >= SessionCompaction.layer1SummaryThreshold())
               let sidecarCaptured = false
+              // The `compact` tool armed a boundary fold during this turn. It
+              // cannot fold inline — it runs inside the window it would fold —
+              // so the request is consumed here, at the boundary the kernel
+              // rule actually names. @COMPACTION_CADENCE.
+              const foldRequested = CompactionRequest.take(sessionID)
               if (captureDue) {
                 // Publish normal M before opening the ephemeral sidecar branch.
                 // Its disk copy is durability only; the sidecar receives this exact
@@ -2557,29 +2563,38 @@ export const layer = Layer.effect(
                   afterAssistant: completedAsst,
                   onHeadroomCompact: () => maybeCompactCadence({ model, agent: lastUser.agent, force: true }),
                 })
-                // Never compact on the same stop as a new s — work continues with M
-                // intact and s outside. Layer-2 runs on a later stop (and only when
-                // ≥2 open sidecars, see maybeCompactCadence).
-                if (!sidecarCaptured) {
-                  yield* maybeCompactCadence({
-                    model,
+              }
+              // Layer-2 boundary decision. The branch table lives in
+              // compaction-request.ts so it can be proven without driving a
+              // turn: forced/capture-then-forced when the `compact` tool armed
+              // this turn, defer when a new s was just captured and nothing
+              // asked, plain window-fill cadence otherwise.
+              switch (CompactionRequest.foldDecision({ requested: foldRequested, captureDue, sidecarCaptured })) {
+                case "forced":
+                  yield* slog.info("layer2.cadence.requested", { sessionID, sidecarCaptured })
+                  yield* maybeCompactCadence({ model, agent: lastUser.agent, force: true })
+                  break
+                case "capture-then-forced":
+                  // Mirror the /summarize route: a forced fold with no summary
+                  // at all goes tail-only and leaves the head unrepresented.
+                  yield* slog.info("layer2.cadence.requested", { sessionID, sidecarCaptured: false })
+                  yield* captureSummary({
+                    sessionID,
+                    model: { providerID: model.providerID, modelID: model.id },
                     agent: lastUser.agent,
                   })
-                } else {
+                  yield* maybeCompactCadence({ model, agent: lastUser.agent, force: true })
+                  break
+                case "cadence":
+                  // Fires at every turn end regardless of the Layer-1 summary
+                  // cadence: compact when the open window reaches limit − 32K
+                  // (+request gap). The counter never counts message*, so a
+                  // fold cannot pre-arm the next one.
+                  yield* maybeCompactCadence({ model, agent: lastUser.agent })
+                  break
+                case "defer":
                   yield* slog.info("layer2.cadence.defer_after_sidecar", { sessionID })
-                }
-              } else {
-                // Layer-2 fold gate runs at every turn end regardless of the
-                // Layer-1 summary cadence: compact fires when the open window
-                // reaches limit − 32K (+request gap) — even before 64K of new
-                // content accumulated for the summary cadence. The counter
-                // never counts message* — after a fold it measures only NEW
-                // work (leading star chain skipped), so the fold cannot
-                // pre-arm the next one.
-                yield* maybeCompactCadence({
-                  model,
-                  agent: lastUser.agent,
-                })
+                  break
               }
               if (result === "stop" && !titleRequested) {
                 titleRequested = true

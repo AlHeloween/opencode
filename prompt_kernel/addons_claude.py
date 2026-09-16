@@ -4,7 +4,7 @@ Same gate graph as `.addons` (opencode); different tool bindings. Claude Code
 exposes Read/Edit/Write/Glob/Grep, a Bash tool (POSIX/git-bash) and a
 PowerShell tool side by side, an Agent tool for sub-tasks, AskUserQuestion,
 and a Monitor tool (deferred) plus a `run_in_background` flag for long-lived
-processes — it has no cmd_runner, applypatch, multiedit, getmode,
+processes — it has no cmd_runner, applypatch, multiedit, checkstate,
 messagesearch, logsearch, dbread, or nssm-equivalent tool. Where a CodeGraph
 MCP tool / `.codegraph/` index is present, it plays the same role opencode's
 `codegraph` tool plays. Host-level MCP servers (e.g. the user-scope
@@ -129,7 +129,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_CLOSURE",
         (
             "verify completion: git status; no message-search tool exists.",
-            "compact at the boundary: /compact here is an LLM summarizer, not a mechanistic fold — write the handles to plans/, docs/ and _progress_log.md BEFORE it runs, or they are gone.",
+            "compact at the boundary: no compact tool here — /compact is the user's, and it is a lossy summarizer, not a mechanistic fold. Write the handles to plans/, docs/ and _progress_log.md, then ask.",
             "a smoke-tested MCP contract (handshake, tools/list, errors) is Exact; live response shape stays Hypothetical until run live.",
         ),
     ),

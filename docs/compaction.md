@@ -148,16 +148,47 @@ Mid-task compaction is the opposite error: it costs the handles still being
 held. So the order is **persist, then compact** — plans, docs, `_progress_log.md`
 first.
 
+### The three triggers
+
+| Trigger | Who sees it | Why fold |
+|---------|-------------|----------|
+| A `@DIGITAL_INTENTION` reached a terminal | the agent | The trace behind a closed task is no longer evidence |
+| `EVOLUTION_LOOP` about to return to G1 | the agent | A new cycle built on the closed cycle's window inherits its *attention*, not its evidence |
+| STALL — a repeating failure, `loop_budget` spent, or an outside call reporting tunnel vision | the agent (the third one only via `aicall`) | A diluted basis reads as a wrong plan. Fold before re-deciding, not after |
+| Visible window ≥ `usable(model)` | the runtime | Context safety. The only one the automatic gate can see |
+
+The first three are the reason `compact` exists as a tool: no window-fill gate
+can observe any of them.
+
+### How the agent calls it
+
+`compact` **arms** a fold; it does not perform one. A tool runs inside the very
+window it would be folding, so folding inline would fold the window the current
+turn is still streaming against. The request is consumed at turn end by
+`foldDecision()` in `session/compaction-request.ts` — which is literally the
+boundary the rule names:
+
+| `requested` | `captureDue` | `sidecarCaptured` | decision |
+|---|---|---|---|
+| yes | yes | either | `forced` — a summary already represents the head |
+| yes | no | — | `capture-then-forced` — summarize first, or the fold goes tail-only |
+| no | yes | yes | `defer` — never fold on the same stop as a new `s` |
+| no | otherwise | — | `cadence` — the ordinary window-fill gate |
+
+ACL: the five subagents are denied `compact`. A subagent folds a window it was
+*handed*, not one it owns — @AUTHORITY_SEPARATION. `build_mode`, `plan_mode` and
+`orchestrator_agent` own G9 and may call it.
+
 **What the manual call actually costs, per host:**
 
-| Host | `/compact` | Implication |
+| Host | trigger | Implication |
 |------|-----------|-------------|
-| opencode | `captureSummary` (`session/prompt.ts` T3) — one Layer-1 sidecar model call, then the Layer-2 fold | The fold is free and already automatic; the manual call buys the *handle* and the attention boundary, not room |
-| Claude Code | LLM summarizer over the transcript | Lossy prose. Handles survive only if they were written to a file before it ran |
+| opencode | `compact` tool (agent) or `/compact` → `captureSummary` (`session/prompt.ts` T3) | One Layer-1 sidecar model call on a cached prefix, then a zero-token fold. It buys the *handle* and the attention boundary, not room |
+| Claude Code | `/compact`, user-typed only — no tool exists | LLM summarizer over the transcript. Lossy prose; handles survive only if written to a file first |
 
 That asymmetry is why the two kernels carry different G9 bindings for the same
-rule: under opencode the mechanism preserves Exact handles by construction,
-under Claude Code it does not.
+rule: under opencode the mechanism preserves Exact handles by construction and
+the agent can fire it, under Claude Code neither holds.
 
 ---
 

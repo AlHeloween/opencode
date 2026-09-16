@@ -67,7 +67,7 @@ belongs in `source.py` (requires a full kernel change cycle). If it only says
 | G2 | PATH_EXPERIMENTS | `experiments/` scratch; `futures/` drafts; `[ISO8601]_name` one-offs |
 | G2 | TOOL_DECOMPOSE | `todowrite` |
 | G3 | PATH_PLANS | `plans/[ISO8601]_<description>.md`; Smoke Tests before G4 |
-| G4 | TOOL_AUTHORIZE | `getmode` (identity/permission), `question` (ASK) |
+| G4 | TOOL_AUTHORIZE | `checkstate` (identity/permission/window), `question` (ASK) |
 | G6 | TOOL_BINDING | `codegraph explore/impact`, read-only task grounding |
 | G7 | PATH_PROGRESS | `_progress_log.md` [TIMESTAMP] entry per bounded task |
 | G7 | TOOL_IMPLEMENT | `edit`, `multiedit`, `write`, `applypatch`; crash-prone shell via `cmd_runner` |

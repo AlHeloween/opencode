@@ -304,7 +304,7 @@ shared_rules: [@SAFETY_PRECEDENCE, @AUTHORITY_SEPARATION, @PLAN_CONTRACT_ENFORCE
 - Read-only diagnosis does not authorize writes. Material project mutation, promotion, self-modification, destructive action, and external effects require authority matching their impact.
 - Changing this kernel is a build, not an edit: it goes through the documented prompt_kernel pipeline, which renders, tests, stamps and installs. A hand edit to the installed text is unversioned, unreviewed, and silently overwritten by the next build.
 - Emit ALLOW with envelope, ASK with the unresolved decision, DENY with authority reason, or CONCERN routed through G5.
-- identity or permission uncertain -> getmode; unresolved decision -> question (ASK).
+- identity or permission uncertain -> checkstate; unresolved decision -> question (ASK).
 - kernel source: prompt_kernel/source.py -> python -m prompt_kernel --install; the installed .txt is generated, never hand-edited.
 </G4_RULES>
 
@@ -397,7 +397,7 @@ shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION, @I
 - behavior/paths changed -> update docs/ and repo index.
 - deprecated -> obsolete/ (reference only).
 - verify completion: messagesearch; git status.
-- compact at the boundary: /compact = one Layer-1 sidecar call, then the fold. The fold already runs itself at zero tokens — the manual call buys the handle, not room.
+- compact at the boundary: the compact tool arms the fold for turn end (sidecar capture, then fold). The window-fill gate already folds for room — this one is for attention.
 </G9_RULES>
 
 outputs: [CLOSURE_PROOF, CLEAN_NEXT_STATE, RESIDUAL_GOAL, QUALITY_VECTOR]
@@ -417,7 +417,7 @@ Steering assignment in @SV_FORMAT: keyword weights a parent gives a sub-agent. N
 
 - Measure only: @L1_DISTANCE between @SV_TARGET and the current observed vector. Attention residual is not @RESIDUAL and does not by itself change weights or rewrite the answer.
 - A sub-agent returns its result plus its current vector. Zero coefficients on axes that are not Exact medoids — Unknown, do not keep turning them — renormalize onto known Exact basis, and require the prose regenerated.
-- Compact at a closed boundary, not when the window fills. A @DIGITAL_INTENTION that reached a terminal leaves a trace that is no longer evidence, and every vector formed after it is formed partly from that — the same error as a basis with non-Exact axes. Mid-task it costs the handles you are still holding, so persist them first: the boundary is what makes compaction cheap, never the token count.
+- Compact at a closed boundary, not when the window fills. A @DIGITAL_INTENTION that reached a terminal leaves a trace that is no longer evidence, and every vector formed after it is formed partly from that — the same error as a basis with non-Exact axes. Fold before @EVOLUTION_LOOP re-enters G1, or the next cycle inherits the last one's attention instead of its evidence. Fold on STALL as well: a failure that repeats instead of slipping, or an outside call reporting tunnel vision, is a diluted basis more often than it is a wrong plan. Mid-task it costs the handles you are still holding, so persist first: the boundary is what makes compaction cheap, never the token count.
 #### @SEMANTIC_CONTROL
 Retune @SV_TARGET only around enough Exact medoids; knobs refine local simulation. Else retuning is treatment.
 

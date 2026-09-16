@@ -202,7 +202,7 @@ export const layer = Layer.effect(
           reasoning_mode: {
             name: "reasoning_mode",
             description:
-              "Reasoning mode (reasoning_mode). Runtime allows getmode, permanent memory, and its own exit.",
+              "Reasoning mode (reasoning_mode). Runtime allows checkstate, permanent memory, and its own exit.",
             prompt: PROMPT_REASONING_MODE,
             options: {},
             permission: Permission.merge(
@@ -213,7 +213,7 @@ export const layer = Layer.effect(
                 // Mode inspection, permanent memory, and this mode's own exit
                 // transition are authorized. Every other tool remains denied.
                 "*": "deny",
-                get_mode: "allow",
+                check_state: "allow",
                 memory: "allow",
                 reasoning_exit: "allow",
               }),
@@ -302,6 +302,7 @@ export const layer = Layer.effect(
                 "task",
                 "pipeline",
                 "jobkill",
+                "compact",
                 "apply_patch",
                 "multiedit",
                 "restore",
@@ -356,6 +357,7 @@ export const layer = Layer.effect(
                 "task",
                 "pipeline",
                 "jobkill",
+                "compact",
               ),
               externalDirectory,
             ),
@@ -383,6 +385,7 @@ export const layer = Layer.effect(
                 "task",
                 "pipeline",
                 "jobkill",
+                "compact",
               ),
               Permission.fromConfig({
                 // Every mutation tool reaches ctx.ask({ permission: "edit" })
@@ -426,7 +429,8 @@ export const layer = Layer.effect(
                 "task",
                 "pipeline",
                 "jobkill",
-                // Researcher is web-only. Keep getmode/todowrite as universal
+                "compact",
+                // Researcher is web-only. Keep checkstate/todowrite as universal
                 // session tools and constrain universalsearch in its executor.
                 "invalid",
                 "question",
@@ -474,6 +478,7 @@ export const layer = Layer.effect(
                 "task",
                 "pipeline",
                 "jobkill",
+                "compact",
               ),
             ),
             prompt: PROMPT_MEDIA,

@@ -128,5 +128,12 @@ def test_compacted_runtime_budget() -> None:
     # isolated call, and what /compact actually does on this host (a mechanistic
     # zero-token fold in opencode, a lossy summarizer under Claude Code — the
     # difference decides whether handles must be persisted before it runs).
-    # Headroom left is 43 bytes: the next admission pays or raises, deliberately.
-    assert normalized_token_count(text) <= 4_400
+    # Headroom left was 43 bytes: the next admission pays or raises, deliberately.
+    # 4_500 / utf8_budget 35_000 (2026-09-16, later same day): it raised. The user
+    # named the two triggers the boundary rule was missing — fold before
+    # EVOLUTION_LOOP re-enters G1 (a new cycle built on the closed cycle's window
+    # inherits its attention, not its evidence), and fold on STALL or when an
+    # outside call reports tunnel vision (a diluted basis reads as a wrong plan).
+    # Both are triggers no window-fill gate can see, which is the whole reason the
+    # `compact` tool exists. 34 243 used, 757 free.
+    assert normalized_token_count(text) <= 4_500

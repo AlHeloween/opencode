@@ -1,0 +1,40 @@
+Re-assemble yourself at a boundary. Finish what can be finished, call this, and
+the next turn starts on a rebuilt window instead of dragging the last task's
+trace behind it. Mechanistic Layer-2 compaction — see @COMPACTION_CADENCE.
+
+## When to use
+- A `@DIGITAL_INTENTION` reached a terminal: the work closed, plans moved to
+  `plans_completed/`, docs and `_progress_log.md` are written. The trace behind
+  that boundary is no longer evidence, and every semantic vector you form after
+  it is formed partly from that trace.
+- **Before `EVOLUTION_LOOP` returns to G1.** A new cycle assembled on the closed
+  cycle's window inherits its attention rather than its evidence. Fold, then
+  re-ground.
+- **On STALL.** A failure that repeats instead of slipping, `bounds.loop_budget`
+  running out, the same instrument reached for twice — that is a diluted basis
+  more often than it is a wrong plan. Fold before re-deciding, not after.
+- **When an outside call reports tunnel vision.** If `aicall` — which shares
+  none of your framing — comes back saying the reasoning is fatigued, narrowed,
+  or circling, that is the one report you cannot produce about yourself. Treat it
+  as a fold signal, not as a verdict on the work.
+- The user redirected to unrelated work (`INTENTION_RESET`), and the previous
+  target closed as OUT_OF_SCOPE or became a bounded residual.
+
+## When NOT to use
+- Mid-task. It costs you the handles you are still holding. Persist first —
+  compaction preserves Exact handles (tool filediffs, CodeGraph refs, paths),
+  not your working memory of them.
+- To make room. You do not need to: the window-fill gate already folds
+  automatically when the visible window reaches `usable(model)`. Calling this
+  for space does nothing the runtime was not about to do.
+- To hide a failure. A fold is not closure; @CLOSURE needs an oracle.
+
+## What happens
+Nothing immediately. The request is armed and consumed at the end of this turn:
+a Layer-1 sidecar summary is captured first (so the fold cannot go tail-only and
+drop the head), then the window folds to `m*` = summaries + recent tail. The
+fold itself costs zero LLM tokens; the sidecar capture is one model call on a
+cached prefix.
+
+Compaction is never lossy about handles — `message*` keeps the Exact references
+and nothing is deleted. Recover detail with `sessionread`.

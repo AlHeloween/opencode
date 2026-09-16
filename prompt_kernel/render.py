@@ -122,7 +122,9 @@ def _render_protocol(protocol: Protocol, named: set[str]) -> list[str]:
     lines = [
         f"### {protocol.id}",
         f"objective: {protocol.objective}",
-        f"authority: {protocol.authority}; cannot authorize mutation or promote claims",
+        # The advisory clause is hoisted into the section header — repeating it
+        # per protocol cost a five-gram four times over once DELEGATION landed.
+        *([] if protocol.authority == "advisory" else [f"authority: {protocol.authority}"]),
         f"observed_at: {_list(protocol.observed_at)}",
         f"returns_to: {protocol.returns_to}",
     ]
@@ -220,7 +222,12 @@ def render_kernel(kernel: Kernel | None = None, addons: tuple | None = None) -> 
     for gate in kernel.gates:
         lines.extend(_render_gate(kernel, gate, addon_map.get(gate.id, ()), named))
 
-    lines.extend(["## 4. CROSS_CUTTING_PROTOCOLS", ""])
+    lines.extend([
+        "## 4. CROSS_CUTTING_PROTOCOLS",
+        "",
+        "authority: advisory unless stated — a protocol steers, it cannot authorize mutation or promote claims.",
+        "",
+    ])
     for protocol in kernel.protocols:
         lines.extend(_render_protocol(protocol, named))
 

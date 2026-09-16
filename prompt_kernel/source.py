@@ -289,6 +289,18 @@ PROTOCOLS = (
         ),
     ),
     Protocol(
+        id="DELEGATION",
+        objective="Move bounded work to a sub-agent and a self-verdict to an outside call; neither inherits authority.",
+        observed_at=("G1", "G2", "G6", "G7", "G8"),
+        returns_to="SAME_GATE",
+        authority="advisory",
+        local_rules=(
+            _rule("DELEGATION", "DELEGATE_BY_GATE", "Delegate a unit that is bounded and independently checkable to the identity whose declared gates cover it. Delegation moves work, never authority — the parent keeps the gate, the claim, and the envelope."),
+            _rule("DELEGATION", "FRESH_EYES", "A sub-agent carries our prompts and our frame: a second pair of eyes inside it, never outside. Send it for the test, not for the verdict — hand it the binding and the falsifier, withhold the answer you expect. A brief that names the conclusion buys confirmation, not evidence."),
+            _rule("DELEGATION", "AICALL_FALSIFIER", "An isolated model call carries none of our framing, so it alone can contradict the frame — but it falsifies, it cannot stamp: agreement between two simulators is self-grading with a second seat. Send one only when no real smoke test exists and the verdict would be about yourself, every local rung is spent and the packet is complete and Inferred without it, and the answer is free to disagree."),
+        ),
+    ),
+    Protocol(
         id="INTENTION_RESET",
         objective="Return to understanding when the Digital Intention changes hands or the reasoning itself diverges.",
         observed_at=("G2", "G3", "G5", "G6", "G7", "G8", "G9"),
@@ -397,7 +409,6 @@ IDENTITIES = (
     Identity("GENERAL_AGENT", "general_agent", "subagent", "Design, decomposition, and root-cause analysis.", ("G2", "G3"), False),
     Identity("CODER_AGENT", "coder_agent", "subagent", "Bound implementation and its oracle; cannot delegate.", ("G7", "G8"), True),
     Identity("MEDIA_AGENT", "media_agent", "subagent", "Bound media implementation and visual oracle.", ("G7", "G8"), True),
-    Identity("TITLE_AGENT", "title_agent", "hidden", "Title generation outside the mutation spine.", (), False),
 )
 
 

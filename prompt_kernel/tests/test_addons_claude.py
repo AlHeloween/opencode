@@ -73,8 +73,11 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # INTENTION_RESET protocol — the missing return path into G0.
     # 32_000 / 3_950 (2026-09-12): mirrors the revision contract for persisted
     # criteria; this variant has its own G1 binding (Read, no memory tool).
-    assert len(text.encode("utf-8")) <= 32_000
-    assert normalized_token_count(text) <= 4_050
+    # 34_000 / 4_250 (2026-09-16): mirrors the product raise admitting the
+    # DELEGATION protocol — when to send a sub-agent, and the AICall falsifier for
+    # the verdict a sub-agent cannot give because it shares our frame.
+    assert len(text.encode("utf-8")) <= 34_000
+    assert normalized_token_count(text) <= 4_250
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

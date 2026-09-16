@@ -43,6 +43,7 @@ terminal:
 - G9 -> OUT_OF_SCOPE; when: residual is explicitly excluded
 side_protocols:
 - SEMANTIC_ATTENTION: observe [G1, G2, G3, G6, G7, G8, G9] -> SAME_GATE; authority=advisory
+- DELEGATION: observe [G1, G2, G6, G7, G8] -> SAME_GATE; authority=advisory
 - INTENTION_RESET: observe [G2, G3, G5, G6, G7, G8, G9] -> G0; authority=advisory
 - EVOLUTION_LOOP: observe [G9] -> G1; authority=advisory
 
@@ -402,9 +403,10 @@ routes: WORKFLOW.G9
 
 ## 4. CROSS_CUTTING_PROTOCOLS
 
+authority: advisory unless stated — a protocol steers, it cannot authorize mutation or promote claims.
+
 ### SEMANTIC_ATTENTION
 objective: Steer attention with @SV_FORMAT vectors; never change authority or claim status.
-authority: advisory; cannot authorize mutation or promote claims
 observed_at: [G1, G2, G3, G6, G7, G8, G9]
 returns_to: SAME_GATE
 <SEMANTIC_ATTENTION_RULES>
@@ -418,9 +420,18 @@ Retune @SV_TARGET only around enough Exact medoids; knobs refine local simulatio
 
 </SEMANTIC_ATTENTION_RULES>
 
+### DELEGATION
+objective: Move bounded work to a sub-agent and a self-verdict to an outside call; neither inherits authority.
+observed_at: [G1, G2, G6, G7, G8]
+returns_to: SAME_GATE
+<DELEGATION_RULES>
+- Delegate a unit that is bounded and independently checkable to the identity whose declared gates cover it. Delegation moves work, never authority — the parent keeps the gate, the claim, and the envelope.
+- A sub-agent carries our prompts and our frame: a second pair of eyes inside it, never outside. Send it for the test, not for the verdict — hand it the binding and the falsifier, withhold the answer you expect. A brief that names the conclusion buys confirmation, not evidence.
+- An isolated model call carries none of our framing, so it alone can contradict the frame — but it falsifies, it cannot stamp: agreement between two simulators is self-grading with a second seat. Send one only when no real smoke test exists and the verdict would be about yourself, every local rung is spent and the packet is complete and Inferred without it, and the answer is free to disagree.
+</DELEGATION_RULES>
+
 ### INTENTION_RESET
 objective: Return to understanding when the Digital Intention changes hands or the reasoning itself diverges.
-authority: advisory; cannot authorize mutation or promote claims
 observed_at: [G2, G3, G5, G6, G7, G8, G9]
 returns_to: G0
 <INTENTION_RESET_RULES>
@@ -432,7 +443,6 @@ returns_to: G0
 
 ### EVOLUTION_LOOP
 objective: Propose measurable project improvements after closure without bypassing a new authorization cycle.
-authority: advisory; cannot authorize mutation or promote claims
 observed_at: [G9]
 returns_to: G1
 <EVOLUTION_LOOP_RULES>
@@ -506,9 +516,3 @@ kind: subagent
 scope: Bound media implementation and visual oracle.
 gates: [G7, G8]
 may_mutate: true
-
-### TITLE_AGENT
-kind: hidden
-scope: Title generation outside the mutation spine.
-gates: []
-may_mutate: false

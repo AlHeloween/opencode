@@ -114,4 +114,11 @@ def test_compacted_runtime_budget() -> None:
     # What is left over is rationale — the "why" beside each rule — and that is
     # deliberately not traded for room, because a rule stripped of its why is the
     # first thing a later pass simplifies away. utf8_budget untouched at 32_000.
-    assert normalized_token_count(text) <= 4_050
+    # 4_250 (2026-09-16): spends the 33_000 raise on the DELEGATION protocol —
+    # DELEGATE_BY_GATE, FRESH_EYES, the AICall falsifier. Subagent use was only ever
+    # a G7 handoff rule; it is now a declared side protocol, because the Myers
+    # point (the tester is not the author) is a workflow property, not advice.
+    # Paid for first: TITLE_AGENT left §5 (an internal procedure, never delegated
+    # to, everything denied at runtime) and the advisory clause was hoisted out of
+    # the four protocol headers into §4 — 158 bytes back before a byte was spent.
+    assert normalized_token_count(text) <= 4_250

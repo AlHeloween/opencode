@@ -60,8 +60,11 @@ def test_codex_variant_avoids_unavailable_tool_instructions() -> None:
 
 def test_codex_variant_stays_within_explicit_budget() -> None:
     text = render_kernel(KERNEL, CODEX_GATE_ADDONS)
-    assert len(text.encode("utf-8")) <= 32_000
-    assert normalized_token_count(text) <= 4_050
+    # 34_000 / 4_250 (2026-09-16): mirrors the product raise admitting the
+    # DELEGATION protocol — when to send a sub-agent, and the AICall falsifier for
+    # the verdict a sub-agent cannot give because it shares our frame.
+    assert len(text.encode("utf-8")) <= 34_000
+    assert normalized_token_count(text) <= 4_250
 
 
 def test_codex_addon_render_is_deterministic_lf() -> None:

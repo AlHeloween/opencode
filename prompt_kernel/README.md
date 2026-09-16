@@ -15,6 +15,7 @@ flowchart LR
     G0 -->|ambiguous intention| WAITING_APPROVAL
     G1 -->|ownership unresolved| BLOCKED
     G2 & G3 & G5 & G6 & G7 & G8 & G9 -.->|INTENTION_RESET| G0
+    G1 & G2 & G6 & G7 & G8 -.->|DELEGATION| SUB["sub-agent / AICall falsifier"]
 ```
 
 ## Serialization
@@ -23,7 +24,7 @@ flowchart LR
 2. `ABI_AND_VOCABULARY`: precedence, reference grammar, `INFORMATION_STATUS`, `SV_CONTRACT`, `SOURCE_ROUTING`, state, and action classes.
 3. `SHARED_RULES`: definitions needed by multiple gates.
 4. `GATE_REFINEMENT`: `G0..G9`, with each gate's local rule definitions beside their use.
-5. Advisory semantic-attention and evolution protocols.
+5. Advisory protocols: semantic attention, delegation, intention reset, evolution.
 6. Identity contracts.
 
 `source.py` is the only semantic owner. `validate.py` rejects incomplete topology, duplicate rule ownership, broken state flow, unresolved identities/references, authorizing optional loops, and unsafe size budgets before rendering.

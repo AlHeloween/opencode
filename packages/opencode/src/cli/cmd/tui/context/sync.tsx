@@ -856,22 +856,34 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           .then((x) => (x.data ?? []).toSorted((a, b) => a.id.localeCompare(b.id))),
       )
 
+      // Name the step in the failure. `Promise.all` reports only the first
+      // rejection and the SDK throws a response envelope, so "tui bootstrap
+      // failed" with no step is a dead end — the same defect class as an error
+      // that serialises to `{}`: recorded, unreadable, unactionable.
+      const step = <T,>(name: string, work: Promise<T>): Promise<T> =>
+        work.catch((cause) => {
+          throw new Error(`bootstrap step "${name}" failed: ${errorMessage(cause)}`, { cause })
+        })
+
       // Critical for interactive UI (model picker, agents, config, project path)
-      const providersPromise = sdk.client.config.providers({ workspace }, { throwOnError: true })
-      const providerListPromise = sdk.client.provider.list({ workspace }, { throwOnError: true })
+      const providersPromise = step(
+        "config.providers",
+        sdk.client.config.providers({ workspace }, { throwOnError: true }),
+      )
+      const providerListPromise = step("provider.list", sdk.client.provider.list({ workspace }, { throwOnError: true }))
       const consoleStatePromise = sdk.client.experimental.console
         .get({ workspace }, { throwOnError: true })
         .then((x) => x.data)
         .catch(() => emptyConsoleState)
-      const agentsPromise = sdk.client.app.agents({ workspace }, { throwOnError: true })
-      const configPromise = sdk.client.config.get({ workspace }, { throwOnError: true })
+      const agentsPromise = step("app.agents", sdk.client.app.agents({ workspace }, { throwOnError: true }))
+      const configPromise = step("config.get", sdk.client.config.get({ workspace }, { throwOnError: true }))
 
       await Promise.all([
         providersPromise,
         providerListPromise,
         agentsPromise,
         configPromise,
-        projectPromise,
+        step("project.sync", projectPromise),
       ])
         .then(async () => {
           const [providers, providerList, agents, config] = await Promise.all([

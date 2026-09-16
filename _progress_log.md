@@ -2827,3 +2827,22 @@ twice. And the A/B that would move 078f55a2bb from Inferred to Exact.
   with one of its own. Guarded, not tried.
 - test/util/error.test.ts 7/0 with three new cases. The bootstrap failure itself
   is still UNDIAGNOSED — the instrument could not name it until now.
+
+[2026-09-16] one catalog row with no models killed every standalone start
+- Chain, Exact at every link: fresh directory -> no cached models.json -> the
+  bundled snapshot is used -> `streamlake-vanchin` has 0 models (1 of 218) ->
+  `defaultModelIDs` does sort(Object.values(models))[0].id unguarded ->
+  TypeError -> GET /provider returns 500 with an EMPTY body -> the SDK rethrows
+  an envelope with no fields -> TUI prints `{}` and exits 0.
+- Invisible from dist/bin: that path has a repo above it with a cached
+  models.json, so the bundled snapshot is never reached. Only someone copying
+  the exe somewhere else — i.e. anyone trying it for the first time — hits it.
+- streamlake-vanchin is NOT broken data. provider-sync.ts says so explicitly:
+  Vanchin exposes account-scoped endpoint IDs, the TUI collects one after auth,
+  "never bundle a fabricated ep-* model here". Dropping it would remove a
+  working provider to work around a missing guard. Guard added instead.
+- Diagnosis needed three instrument fixes first, each hiding the next: `{}` on
+  stderr (errorFormat), "[object Object]" in the log (sync.tsx), and "bootstrap
+  failed" naming no step. Probed with curl: /config, /config/providers,
+  /app/agents, /path all 200; only /provider 500.
+- 3 tests, mutation-tested against the real snapshot rather than a fixture.

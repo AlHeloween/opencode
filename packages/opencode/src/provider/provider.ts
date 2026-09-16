@@ -979,8 +979,25 @@ export const ConfigProvidersResult = Schema.Struct({
 }).pipe(withStatics((s) => ({ zod: zod(s) })))
 export type ConfigProvidersResult = Types.DeepMutable<Schema.Schema.Type<typeof ConfigProvidersResult>>
 
+/**
+ * Default model per provider. Providers with no models are omitted — they have
+ * no default, which is a fact about them, not an error.
+ *
+ * The unguarded `sort(...)[0].id` threw on exactly one entry in the bundled
+ * catalog (`streamlake-vanchin`, 1 of 218). That took out the whole `/provider`
+ * route with a 500 and an empty body, which the SDK rethrows as an envelope
+ * with no fields — the TUI then died at startup saying nothing at all. Only
+ * reproducible outside a project, because a repo with a cached models.json
+ * never reaches the bundled snapshot.
+ *
+ * The bad entry is worth removing too, but a catalog is external data: one
+ * malformed row must not be able to take down the provider route.
+ */
 export function defaultModelIDs<T extends { models: Record<string, { id: string }> }>(providers: Record<string, T>) {
-  return mapValues(providers, (item) => sort(Object.values(item.models))[0].id)
+  const withModels = Object.fromEntries(
+    Object.entries(providers).filter(([, item]) => Object.keys(item.models ?? {}).length > 0),
+  ) as Record<string, T>
+  return mapValues(withModels, (item) => sort(Object.values(item.models))[0].id)
 }
 
 export interface Interface {

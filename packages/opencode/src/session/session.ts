@@ -927,7 +927,28 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
         workspaceID: original.workspaceID,
         title,
       })
-      const msgs = yield* messages({ sessionID: input.sessionID })
+      // TRUE history, not the visible window, and not the newest 500.
+      //
+      // `messages()` defaults to `visibleOnly: true` and `limit: 500`, and
+      // `page` sorts DESCENDING before reversing — so the default is the newest
+      // 500 VISIBLE rows. Both defaults broke forking from a point:
+      //
+      // - Depth: forking at a message older than those 500 left the loop
+      //   breaking on its first iteration, and the fork was created EMPTY.
+      // - Window: a summary is written after the messages it folds, so it has a
+      //   HIGHER id than they do. Forking inside a folded region therefore lost
+      //   both halves — the covering m* sat above the fork point and was cut by
+      //   the break, while the rows it folded were `compacted` and cut by
+      //   `visibleOnly`. The region right before the fork point ended up
+      //   represented by nothing at all.
+      //
+      // Passing true history fixes both without new assembly code: the m*
+      // builder already walks compacted rows (`selectRecentTail`), so with the
+      // structure intact below the fork point it yields the previous m* plus the
+      // raw tail from there — which is exactly the window a forked session
+      // needs. Compaction flags ride along in `...msg.info`, so the fork
+      // reproduces the same structure rather than a flattened copy.
+      const msgs = yield* messages({ sessionID: input.sessionID, visibleOnly: false, limit: 10_000 })
       const idMap = new Map<string, MessageID>()
 
       for (const msg of msgs) {

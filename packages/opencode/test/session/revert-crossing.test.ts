@@ -7,7 +7,7 @@
  * The boundary is simulated directly with info.compacted flags — the unit under
  * test is revert()/unrevert() crossing mechanics, not SessionCompaction.
  */
-import { describe, expect, test } from "bun:test"
+import { describe, expect, test, jest } from "bun:test"
 import fs from "fs/promises"
 import path from "path"
 import { Effect, Layer } from "effect"
@@ -23,6 +23,18 @@ import { Config } from "@/config/config"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { provideTmpdirInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
+
+/**
+ * These tests drive real Fossil restores: each one spawns `checkout`, `clean`
+ * and `info` serially under the repo lock, so they run past bun's 5s default
+ * while every non-restore test in the same file finishes well inside it. They
+ * were failing at 5001ms — a timeout, not an assertion.
+ *
+ * Set once for the file rather than per call: the per-test third argument means
+ * editing twelve call closings, and `jest.setTimeout` states the intent in one
+ * place.
+ */
+jest.setTimeout(30_000)
 const env = Layer.mergeAll(
     Session.defaultLayer,
     SessionRevert.defaultLayer,

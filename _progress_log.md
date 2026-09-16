@@ -2881,3 +2881,28 @@ twice. And the A/B that would move 078f55a2bb from Inferred to Exact.
 - Also: prefer natively non-reasoning over reasoning bolted on (Alexander on
   KAT-Coder-Pro V2 vs V2.5; the vendor catalogue records the same difference in
   its own category field).
+
+[2026-09-16] TUI: one remembered configuration scope for every settings dialog
+- Symptom (Alexander): "постоянно приходится выбирать" global/worktree/session.
+  Cause: nobody remembered it. app.tsx opens <DialogAgent /> bare and the
+  dialog hardcoded `?? "session"`; dialog-routing hardcoded `?? "global"`;
+  dialog-settings kept `lastScope` in a module variable that dies with the
+  process and knew only worktree|global.
+- New `component/config-scope.ts` — the scope now lives in the TUI KV store
+  (Global.Path.state/kv.json, per worktree) under `config.scope`. /agents is
+  the hub: ←/→ and "Switch scope" write it, every other dialog reads it.
+  coerceScope() narrows for surfaces that lack a layer (/settings has no
+  session) WITHOUT writing back, so opening /settings cannot downgrade a
+  session choice. 7 tests in test/tui/config-scope.test.ts.
+- Three dual-write leaks closed on the way. local.model.set / variant.set treat
+  a missing scope as "legacy dual write" (session AND worktree), so every
+  opener that dropped the scope silently wrote two layers while the title named
+  one: the recent-model row in dialog-agent, the /models path through
+  dialog-provider -> DialogModel, and app.tsx's bare <DialogVariant />.
+- An empty layer now says "inherits from worktree" instead of "not set in
+  session" — the fall-through was invisible.
+- Trap while editing: `staged` became a memo in dialog-variant and four call
+  sites still read it as a bare value. A function reference is always truthy,
+  so every variant write would have staged. Caught by reading the grep output,
+  not by typecheck — tsgo accepts a truthy function.
+- Still open: no "copy parent layer into this one" / "clear this layer" action.

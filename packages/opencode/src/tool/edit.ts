@@ -7,6 +7,7 @@ import * as path from "path"
 import { Effect, Schema, Semaphore } from "effect"
 import * as Tool from "./tool"
 import { LSP } from "@/lsp/lsp"
+import type * as LSPClient from "@/lsp/client"
 import { createPatch, diffStats } from "@/util/diff-wasm"
 import DESCRIPTION from "./edit.txt"
 import { File } from "../file"
@@ -22,6 +23,16 @@ import * as Bom from "@/util/bom"
 import { execFile } from "child_process"
 import { Constitution } from "@/session/constitution"
 import { filePathDescription } from "./path-hint"
+import * as Log from "@opencode-ai/core/util/log"
+
+const log = Log.create({ service: "edit-tool" })
+
+/**
+ * How long an already-written edit will wait for advisory LSP diagnostics.
+ * Short on purpose: a server that has not answered by now is not going to make
+ * the difference between a useful warning and a stalled tool.
+ */
+const DIAGNOSTICS_BUDGET = "1500 millis"
 
 const MAX_BACKUPS_PER_SESSION = 50
 
@@ -31,13 +42,29 @@ function formatTimestamp() {
   return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`
 }
 
+/**
+ * Is this path gitignored? Used to skip backups for node_modules, build output
+ * and the like.
+ *
+ * It used to run `git check-ignore --stdin` and then never write to stdin or
+ * close it — `filePath` was accepted and unused. Git sat waiting for input
+ * until the 5 000 ms timeout killed it, which produced an error, which the
+ * callback read as "not ignored". So it did two things wrong at once: it never
+ * actually checked (backups were taken for every ignored path it was written to
+ * skip), and it cost a flat five seconds on EVERY edit that takes a backup.
+ * That is the stall the whole edit suite was timing out on.
+ *
+ * `--quiet` answers by exit code: 0 ignored, 1 not ignored, 128 not a git repo.
+ * Anything that is not a clean 0 means "take the backup", which is the safe
+ * direction to be wrong in.
+ */
 function isGitIgnored(filePath: string): Promise<boolean> {
   return new Promise((resolve) => {
     execFile(
       "git",
-      ["check-ignore", "--stdin"],
+      ["check-ignore", "--quiet", "--", filePath],
       { cwd: Instance.worktree, timeout: 5000 },
-      (error, stdout) => resolve(error ? false : stdout.trim().length > 0),
+      (error) => resolve(!error),
     )
   })
 }
@@ -270,8 +297,23 @@ export const EditTool = Tool.define(
           })
 
           let output = "Edit applied successfully."
-          yield* lsp.touchFile(filePath, "document")
-          const diagnostics = yield* lsp.diagnostics()
+          // Diagnostics are advisory and the edit has already been written, so
+          // they must never gate the return. `waitForDocumentDiagnostics` is
+          // bounded at 5s (lsp/client.ts DIAGNOSTICS_DOCUMENT_WAIT_TIMEOUT_MS),
+          // which is what a spawned-but-silent server costs on EVERY edit —
+          // long enough to look like the tool hung, and exactly what made the
+          // whole edit suite time out at ~5 040ms against bun's 5 000ms default.
+          // Where a server answers promptly this changes nothing.
+          const diagnostics = yield* lsp
+            .touchFile(filePath, "document")
+            .pipe(
+              Effect.andThen(() => lsp.diagnostics()),
+              Effect.timeout(DIAGNOSTICS_BUDGET),
+              Effect.catch((cause) => {
+                log.debug("diagnostics skipped; reporting the edit without them", { filePath, error: cause })
+                return Effect.succeed({} as Record<string, LSPClient.Diagnostic[]>)
+              }),
+            )
           const normalizedFilePath = AppFileSystem.normalizePath(filePath)
           const block = LSP.Diagnostic.report(filePath, diagnostics[normalizedFilePath] ?? [])
           if (block) output += `\n\nLSP errors detected in this file, please fix:\n${block}`

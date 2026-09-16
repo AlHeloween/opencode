@@ -2765,3 +2765,25 @@ twice. And the A/B that would move 078f55a2bb from Inferred to Exact.
 - Not yet wired: bash, cmd, joboutput, read. bash/cmd sit inside the 64 failures
   that reproduce on clean HEAD, so they need a trustworthy oracle first — the
   run-view suite is the template.
+
+[2026-09-16] edit: a five-second stall on every edit, and a check that never checked
+- `isGitIgnored` ran `git check-ignore --stdin` and never wrote to stdin or
+  closed it; `filePath` was accepted and unused. Git blocked on stdin until the
+  5 000 ms timeout killed it, the resulting error was read as "not ignored".
+  Two bugs in four lines: a flat 5s stall on EVERY edit that takes a backup, and
+  a gitignore check that always answered false — so backups were written for
+  node_modules and build output, exactly what it was written to skip.
+  Now `--quiet -- <path>`, answered by exit code.
+- That single fix took test/tool/edit.test.ts from 32 failures to 6. Mutation-
+  tested: restore `--stdin` and exactly those 32 come back.
+- Also bounded the post-edit LSP diagnostics wait (1500ms). They are advisory
+  and the file is already written, so a spawned-but-silent server must not gate
+  the tool's return — `waitForDocumentDiagnostics` allows itself 5s.
+- Backup tests now use `tmpdir({git: true})`: the shared temp root lives under
+  the outer repo's gitignored `.temp/`, so a working check-ignore correctly
+  calls every test file ignored and skips the backup under test.
+- "BlockAnchorReplacer rejects oversized single candidate" asserted the bug it
+  is named for: it demanded `- replaced` appear, which is only possible via the
+  wide anchor match the guard rejects, swallowing items 2..10. Rewritten to
+  assert the clean failure its own comment always described, plus an untouched
+  file. 40 pass / 0 fail.

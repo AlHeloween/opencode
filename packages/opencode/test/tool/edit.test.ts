@@ -632,24 +632,29 @@ describe("tool.edit", () => {
           // The anchors appear 12+ lines apart, but the search is only 3 lines.
           // BlockAnchorReplacer should reject this and fall through.
           // A later replacer should handle it or the edit should fail cleanly.
-          const result = await Effect.runPromise(
-            edit.execute(
-              {
-                filePath: filepath,
-                oldString: "section-a:\n  - item 1\nsection-b:",
-                newString: "section-a:\n  - replaced\nsection-b:",
-              },
-              ctx,
+          // Failing cleanly IS the pass, which is what the comment above always
+          // said. The assertions used to demand that "- replaced" appear — but
+          // that block does not exist in the file, so the only way to produce it
+          // is the wide anchor match this guard exists to reject, which would
+          // swallow items 2..10. The test was asserting the bug it is named for.
+          await expect(
+            Effect.runPromise(
+              edit.execute(
+                {
+                  filePath: filepath,
+                  oldString: "section-a:\n  - item 1\nsection-b:",
+                  newString: "section-a:\n  - replaced\nsection-b:",
+                },
+                ctx,
+              ),
             ),
-          )
-          // Should NOT have matched the widely-spaced anchors.
-          // If BlockAnchor misbehaves, it would replace far more than intended.
+          ).rejects.toThrow(/Could not find oldString/)
+
+          // And a rejected edit leaves the file exactly as it was.
           const content = await fs.readFile(filepath, "utf-8")
-          // The content should still have all the items — BlockAnchor should not
-          // have swallowed them with a bad anchor-span match.
           expect(content).toContain("- item 2")
           expect(content).toContain("- item 10")
-          expect(content).toContain("- replaced")
+          expect(content).not.toContain("- replaced")
         },
       })
     })
@@ -697,7 +702,10 @@ describe("tool.edit", () => {
 
   describe("backups", () => {
     test("creates backup on successful edit", async () => {
-      await using tmp = await tmpdir()
+      // Own git repo: the shared test temp root sits under the outer repo's
+      // gitignored .temp/, so check-ignore would walk up and (correctly) call
+      // every file here ignored — which skips the backup under test.
+      await using tmp = await tmpdir({ git: true })
       const filepath = path.join(tmp.path, "file.txt")
       await fs.writeFile(filepath, "original\nmiddle\nend", "utf-8")
       const callID = "call_backup_test"
@@ -730,7 +738,10 @@ describe("tool.edit", () => {
     })
 
     test("no backup when edit fails (oldString not found)", async () => {
-      await using tmp = await tmpdir()
+      // Own git repo: the shared test temp root sits under the outer repo's
+      // gitignored .temp/, so check-ignore would walk up and (correctly) call
+      // every file here ignored — which skips the backup under test.
+      await using tmp = await tmpdir({ git: true })
       const filepath = path.join(tmp.path, "file.txt")
       await fs.writeFile(filepath, "actual content", "utf-8")
 
@@ -755,7 +766,10 @@ describe("tool.edit", () => {
     })
 
     test("backup on empty oldString when file exists", async () => {
-      await using tmp = await tmpdir()
+      // Own git repo: the shared test temp root sits under the outer repo's
+      // gitignored .temp/, so check-ignore would walk up and (correctly) call
+      // every file here ignored — which skips the backup under test.
+      await using tmp = await tmpdir({ git: true })
       const filepath = path.join(tmp.path, "file.txt")
       await fs.writeFile(filepath, "existing content", "utf-8")
 
@@ -787,7 +801,10 @@ describe("tool.edit", () => {
 
   describe("backup metadata", () => {
     test("creates meta.json alongside backup", async () => {
-      await using tmp = await tmpdir()
+      // Own git repo: the shared test temp root sits under the outer repo's
+      // gitignored .temp/, so check-ignore would walk up and (correctly) call
+      // every file here ignored — which skips the backup under test.
+      await using tmp = await tmpdir({ git: true })
       const filepath = path.join(tmp.path, "file.txt")
       await fs.writeFile(filepath, "meta test content", "utf-8")
       const callID = "call_meta_test"
@@ -821,7 +838,10 @@ describe("tool.edit", () => {
 
   describe("list and restore backups", () => {
     test("listBackups returns entries for session", async () => {
-      await using tmp = await tmpdir()
+      // Own git repo: the shared test temp root sits under the outer repo's
+      // gitignored .temp/, so check-ignore would walk up and (correctly) call
+      // every file here ignored — which skips the backup under test.
+      await using tmp = await tmpdir({ git: true })
       const filepath = path.join(tmp.path, "list_test.txt")
       await fs.writeFile(filepath, "list test content", "utf-8")
       const callID = "call_list_test"
@@ -853,7 +873,10 @@ describe("tool.edit", () => {
     })
 
     test("restoreBackup restores file content", async () => {
-      await using tmp = await tmpdir()
+      // Own git repo: the shared test temp root sits under the outer repo's
+      // gitignored .temp/, so check-ignore would walk up and (correctly) call
+      // every file here ignored — which skips the backup under test.
+      await using tmp = await tmpdir({ git: true })
       const filepath = path.join(tmp.path, "restore_test.txt")
       await fs.writeFile(filepath, "restore original", "utf-8")
       const callID = "call_restore_test"

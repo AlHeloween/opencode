@@ -2906,3 +2906,35 @@ twice. And the A/B that would move 078f55a2bb from Inferred to Exact.
   so every variant write would have staged. Caught by reading the grep output,
   not by typecheck — tsgo accepts a truthy function.
 - Still open: no "copy parent layer into this one" / "clear this layer" action.
+
+## [2026-09-16] Layer copy/clear, cache price, catalogue-based prune
+
+- `/agents` gained ctrl+alt+i (copy from parent layer) and ctrl+alt+k (clear
+  this layer). Planned as pure decisions in `layer-inherit.ts` so every refusal
+  is a testable string, not an inline toast: global has no parent, an empty
+  parent is refused rather than copying nothing, a parent with a variant but no
+  model is refused because the variant would key to a model the user never saw,
+  an already-empty layer is refused so a no-op cannot report success, and a
+  global key cannot be removed at all (patchJsonc only SETS).
+- `clearWorkspaceAgentModel` / `clearSessionAgentModel` are the missing
+  counterparts to the existing setters. The session one is narrow on purpose:
+  `sessionPayload()` writes the variant maps from the WORKTREE store on every
+  session save, so filtering them in the session helper would be overwritten,
+  and clearing them for real would take the worktree layer with it. Discovered
+  by reading sessionPayload before writing the helper, not after.
+- Cache read price is a separate footer chip, shown only where the registry
+  publishes a non-zero read price. For an agent loop it is the decisive figure:
+  deepseek-flash reads cache at $0.003 against $0.15 fresh input.
+- The prune action now decides against `provider_next.all` (full catalogue)
+  rather than `sync.data.provider` (available). That splits the old
+  "unresolved" tier into dead (absent from the catalogue — removable) and
+  unconfigured (in the catalogue, no key here — always kept).
+- Two self-inflicted traps, both caught by the nets rather than by care:
+  a mutation-test harness that backed up the same file twice restored the
+  intermediate state and silently dropped a guard (typecheck AND its own test
+  caught it); and a backup `cp` whose fallback path never ran left a mutated
+  file in the tree until the restore failed loudly.
+- Inherited red in test/session/: 7 unique failures across processor-effect,
+  prompt, revert-compact, revert-crossing, snapshot-tool-race (first run showed
+  11 — four are flaky). None reference the modules touched here, and
+  session-settings.ts is changed strictly additively: zero deleted lines.

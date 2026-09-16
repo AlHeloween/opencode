@@ -42,6 +42,7 @@ export const Info = Schema.Struct({
   hidden: Schema.optional(Schema.Boolean),
   topP: Schema.optional(Schema.Number),
   temperature: Schema.optional(Schema.Number),
+  presencePenalty: Schema.optional(Schema.Number),
   color: Schema.optional(Schema.String),
   permission: Permission.Ruleset,
   model: Schema.optional(
@@ -267,6 +268,21 @@ export const layer = Layer.effect(
             // Explorer and coder workers are dispatched by the AGI main session.
             subagents: ["explorer_agent", "coder_agent"],
           },
+          // Per-identity sampling (2026-09-16). Every subagent was sending the
+          // same DEFAULT_MODEL_SAMPLING triple — 0.65 / 0.95 / 0.2 / 1.1 — which
+          // is the TUI's model-wide default, never a decision about the job.
+          //
+          // The axis is what the output is for. Grounding, implementation and
+          // oracle work gets verified: it must be reproducible, and its text
+          // legitimately repeats (paths, symbols, identifiers), so a repetition
+          // penalty there corrupts rather than diversifies. Decomposition and
+          // media produce a candidate SET — @MANHATTAN_L1 asks for five
+          // candidates that actually differ, which is what temperature and
+          // presence_penalty buy.
+          //
+          // Only what the provider honors binds: `capabilities.temperature`
+          // gates temperature, and a thinking model may treat the penalties as
+          // no-ops (DeepSeek V4 documents top_p as the only live knob there).
           general_agent: {
             name: "general_agent",
             description: `General-purpose subagent (general_agent) for planning, design alternatives, root-cause analysis, and multi-step implementation strategy. Use after explorer_agent has gathered scope evidence, or when a focused non-explore subtask should run in parallel.`,
@@ -286,10 +302,34 @@ export const layer = Layer.effect(
                 "task",
                 "pipeline",
                 "jobkill",
+                "apply_patch",
+                "multiedit",
+                "restore",
               ),
+              Permission.fromConfig({
+                // The kernel declares GENERAL_AGENT `may_mutate: false`, and
+                // nothing was enforcing it: unlike explorer_agent this agent
+                // never denied the mutation tools, and unlike coder_agent it
+                // carried no path rule either, so it could edit any file in the
+                // project while its contract told the delegating parent it
+                // could not. Its gates are [G2, G3], which produce plan
+                // artifacts — the PLAN_WRITE action class, not MODIFY_PROJECT.
+                // Same shape plan_mode already uses for exactly this reason.
+                edit: {
+                  "*": "deny",
+                  [path.join("plans", "*")]: "allow",
+                },
+                write: {
+                  "*": "deny",
+                  [path.join("plans", "*")]: "allow",
+                },
+              }),
             ),
             prompt: PROMPT_GENERAL,
-            options: {},
+            temperature: 0.8,
+            topP: 0.95,
+            presencePenalty: 0.4,
+            options: { repetition_penalty: 1.1 },
             mode: "subagent",
             native: true,
           },
@@ -321,7 +361,10 @@ export const layer = Layer.effect(
             ),
             description: `Fast agent (explorer_agent) specialized for exploring codebases and researching conversation history. Use when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), answer questions about the codebase, or search past conversations. Thoroughness: "quick" | "medium" | "very thorough". Not codegraph mode "explore".`,
             prompt: PROMPT_EXPLORE,
-            options: {},
+            temperature: 0.2,
+            topP: 0.85,
+            presencePenalty: 0,
+            options: { repetition_penalty: 1 },
             mode: "subagent",
             native: true,
           },
@@ -352,7 +395,10 @@ export const layer = Layer.effect(
               }),
             ),
             prompt: PROMPT_CODER,
-            options: {},
+            temperature: 0.25,
+            topP: 0.9,
+            presencePenalty: 0,
+            options: { repetition_penalty: 1 },
             mode: "subagent",
             native: true,
           },
@@ -406,7 +452,10 @@ export const layer = Layer.effect(
               externalDirectory,
             ),
             prompt: PROMPT_RESEARCHER,
-            options: {},
+            temperature: 0.3,
+            topP: 0.9,
+            presencePenalty: 0.1,
+            options: { repetition_penalty: 1.05 },
             mode: "subagent",
             native: true,
           },
@@ -428,7 +477,10 @@ export const layer = Layer.effect(
               ),
             ),
             prompt: PROMPT_MEDIA,
-            options: {},
+            temperature: 0.9,
+            topP: 0.95,
+            presencePenalty: 0.5,
+            options: { repetition_penalty: 1.1 },
             mode: "subagent",
             native: true,
           },
@@ -473,6 +525,7 @@ export const layer = Layer.effect(
           item.prompt = value.prompt ?? item.prompt
           item.description = value.description ?? item.description
           item.temperature = value.temperature ?? item.temperature
+          item.presencePenalty = value.presencePenalty ?? item.presencePenalty
           item.topP = value.top_p ?? item.topP
           item.mode = value.mode ?? item.mode
           item.color = value.color ?? item.color

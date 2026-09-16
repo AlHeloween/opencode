@@ -590,10 +590,15 @@ const live: Layer.Layer<
       const options: Record<string, any> = pipe(
         base,
         mergeDeep(input.model.options),
+        // Model-wide sampling merges BEFORE the agent, not after. It used to be
+        // last, which made `agent.options.repetition_penalty` unreachable: a
+        // subagent could declare a value and the model default silently
+        // overwrote it on every request. Agent beats model-wide here for the
+        // same reason `agent.temperature ?? sampling.temperature` does below —
+        // the narrower declaration is the deliberate one.
+        mergeDeep({ repetition_penalty: sampling.repetition_penalty }),
         mergeDeep(input.agent.options),
         mergeDeep(variant),
-        mergeDeep({ repetition_penalty: sampling.repetition_penalty }),
-
       )
 
       if (isOpenaiOauth) {
@@ -648,7 +653,7 @@ const live: Layer.Layer<
           temperature: input.model.capabilities.temperature ? (input.agent.temperature ?? sampling.temperature) : undefined,
           topP: input.agent.topP ?? sampling.top_p,
           topK: ProviderTransform.topK(input.model),
-          presencePenalty: sampling.presence_penalty,
+          presencePenalty: input.agent.presencePenalty ?? sampling.presence_penalty,
           maxOutputTokens: ProviderTransform.maxOutputTokens(input.model, input.outputTokenMax, contentTokens),
           options,
 

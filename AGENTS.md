@@ -446,6 +446,16 @@ All findings triaged and resolved — see `plans_completed/`.
 
 Tools: `pipeline` chains subagents sequentially. `capability` looks up model modalities.
 
+**Per-identity sampling.** Each native subagent declares its own
+`temperature` / `topP` / `presencePenalty` / `options.repetition_penalty` in
+`src/agent/agent.ts` — verification identities (`explorer`, `coder`) are
+sampled tight and unpenalised so their output is reproducible and their
+repeated tokens (paths, identifiers) survive; generative ones (`general`,
+`media`) are sampled loose so a candidate set actually differs. Model-wide
+sampling merges *before* the agent in `session/llm.ts`, so the narrower
+declaration wins. Only what the provider honors binds — see the vendor
+reasoning contract below.
+
 ---
 
 ## Documentation Index

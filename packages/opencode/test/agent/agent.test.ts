@@ -60,7 +60,7 @@ test("plan agent is read-only except for plans/*", async () => {
       const plan = await load(tmp.path, (svc) => svc.get("plan_mode"))
       expect(plan).toBeDefined()
       expect(plan?.mode).toBe("primary")
-      expect(plan?.prompt).toContain("Active identity: plan_mode")
+      expect(plan?.prompt).toContain("Active identity: @PLAN_MODE")
       // Wildcard is denied
       expect(evalPerm(plan, "edit")).toBe("deny")
       // But specific path is allowed
@@ -375,8 +375,12 @@ test("general agent allows todo tools (per-session list)", async () => {
       expect(general?.mode).toBe("subagent")
       expect(general?.hidden).toBeUndefined()
       expect(general?.description).toContain("planning")
-      expect(evalPerm(general, "edit")).toBe("allow")
-      expect(evalPerm(general, "write")).toBe("allow")
+      // GENERAL_AGENT is `may_mutate: false` in the kernel and its gates are
+      // [G2, G3] — PLAN_WRITE, not MODIFY_PROJECT. It writes plans, not source.
+      expect(evalPerm(general, "edit")).toBe("deny")
+      expect(evalPerm(general, "write")).toBe("deny")
+      expect(Permission.evaluate("edit", path.join("plans", "x.md"), general!.permission).action).not.toBe("deny")
+      expect(Permission.evaluate("write", path.join("plans", "x.md"), general!.permission).action).not.toBe("deny")
       expect(evalPerm(general, "pipeline")).toBe("deny")
       expect(evalPerm(general, "get_mode")).toBe("allow")
       expect(evalPerm(general, "todowrite")).toBe("allow")

@@ -62,7 +62,7 @@ test("orchestrator prompt is coordinator contract (plans, no source edits)", asy
     fn: async () => {
       const orch = await load(tmp.path, (svc) => svc.get("orchestrator_agent"))
       expect(orch!.prompt).toBeDefined()
-      expect(orch!.prompt!).toContain("agent.orchestrator_agent")
+      expect(orch!.prompt!).toContain('<agent id="orchestrator_agent">')
       expect(orch!.prompt!).toMatch(/plans|delegate/i)
     },
   })

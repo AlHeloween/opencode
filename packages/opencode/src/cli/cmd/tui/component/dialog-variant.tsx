@@ -5,6 +5,8 @@ import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
 import * as Log from "@opencode-ai/core/util/log"
 import { variantDetail, variantDialogTitle, variantFamily, variantLabels } from "./variant-dialog-state"
+import { useKV } from "@tui/context/kv"
+import { readScope, SCOPE_KV_KEY } from "./config-scope"
 
 export function DialogVariant(props: {
   targetAgent?: string
@@ -24,7 +26,12 @@ export function DialogVariant(props: {
   const family = createMemo(() =>
     variantFamily(sync.data.provider.find((item) => item.id === model()?.providerID)?.models[model()?.modelID ?? ""]),
   )
-  const staged = props.scope === "global" && props.targetAgent !== undefined
+  // app.tsx opens <DialogVariant /> bare; without a scope variant.set falls
+  // into the legacy dual write (session + worktree) instead of the layer the
+  // user selected.
+  const kv = useKV()
+  const scope = createMemo(() => props.scope ?? readScope(kv.get(SCOPE_KV_KEY)))
+  const staged = createMemo(() => scope() === "global" && props.targetAgent !== undefined)
   const [selected, setSelected] = createSignal<string | undefined>(
     props.pendingModel ? undefined : local.model.variant.selected(props.targetAgent),
   )
@@ -35,12 +42,12 @@ export function DialogVariant(props: {
   }
 
   function apply(value: string | undefined) {
-    local.model.variant.set(value, props.targetAgent, props.scope)
+    local.model.variant.set(value, props.targetAgent, scope())
     finish()
   }
 
   function choose(value: string | undefined) {
-    if (staged) {
+    if (staged()) {
       setSelected(value)
       return
     }
@@ -84,7 +91,7 @@ export function DialogVariant(props: {
         }
       }),
     ]
-    if (!staged) return variants
+    if (!staged()) return variants
     return [
       ...variants,
       {
@@ -107,13 +114,13 @@ export function DialogVariant(props: {
     <DialogSelect<string>
       options={options()}
       title={
-        staged
+        staged()
           ? props.pendingModel
             ? "Configure model variant — then Save"
             : "Configure variant — then Save"
           : variantDialogTitle(family())
       }
-      current={staged ? (selected() ?? "default") : local.model.variant.selected(props.targetAgent)}
+      current={staged() ? (selected() ?? "default") : local.model.variant.selected(props.targetAgent)}
       flat={true}
     />
   )

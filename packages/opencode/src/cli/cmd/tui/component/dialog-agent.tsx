@@ -1,5 +1,7 @@
 import { createMemo, createSignal, onMount } from "solid-js"
 import { useLocal, type ModelScope } from "@tui/context/local"
+import { useKV } from "@tui/context/kv"
+import { cycleScope as nextScope, inheritLabel, readScope, SCOPE_KV_KEY } from "./config-scope"
 import { useSync } from "@tui/context/sync"
 import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
@@ -29,7 +31,11 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
   // Resolution chain (local.forAgent): session override → worktree (model.json)
   // → global (Agent.Info config). Session is the default configuration target
   // (2026-08-30, Alexander: explicit scope choice instead of hidden dual writes).
-  const scope = props.scope ?? "session"
+  // The scope is remembered in KV so /agents reopens where the user left it.
+  // app.tsx opens <DialogAgent /> bare, so a hardcoded default reset the choice
+  // on every open (2026-09-16, Alexander: "постоянно приходится выбирать").
+  const kv = useKV()
+  const scope = props.scope ?? readScope(kv.get(SCOPE_KV_KEY))
 
   // Track the HIGHLIGHTED row so scope switches preserve the cursor even on a
   // fresh /agents open (restoreValue is undefined until the user clicks a row).
@@ -38,11 +44,12 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
 
   // ←/→ cycles the configuration scope directly on the form
   // (2026-08-30, Alexander: arrows must switch global/worktree/session).
-  const SCOPE_ORDER: ModelScope[] = ["global", "worktree", "session"]
   function cycleScope(direction: 1 | -1) {
-    const index = SCOPE_ORDER.indexOf(scope)
-    const next = SCOPE_ORDER[(index + direction + SCOPE_ORDER.length) % SCOPE_ORDER.length]
-    if (!next || next === scope) return
+    const next = nextScope(scope, direction)
+    if (next === scope) return
+    // /agents is the hub: the choice made here is what every other settings
+    // dialog opens with.
+    kv.set(SCOPE_KV_KEY, next)
     dialog.replace(() => <DialogAgent scope={next} restoreValue={props.restoreValue ?? lastCursor()} />)
   }
 
@@ -162,7 +169,13 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
             ))
             return
           }
-          local.model.set({ providerID: item.providerID, modelID: item.modelID }, { recent: true, agent: cur.name })
+          // Without `scope` local.model.set falls into the legacy dual-write
+          // branch and saves session AND worktree, contradicting the layer the
+          // title says is selected.
+          local.model.set(
+            { providerID: item.providerID, modelID: item.modelID },
+            { recent: true, agent: cur.name, scope },
+          )
           dialog.clear()
         },
       })
@@ -187,9 +200,7 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
     // resolution) — switching scope switches the CONTENT, not just the title.
     // (2026-08-31, Alexander: "список не переключается, просто меняется слово".)
     const view = local.model.layerView(agent.name, scope)
-    const layerModel =
-      view.model ??
-      (scope === "session" ? "not set in session" : scope === "worktree" ? "not set in worktree" : "no config default")
+    const layerModel = view.model ?? inheritLabel(scope)
 
     // Session subagents override (worktree-local) else global Agent.Info
     const sub = local.model.subagentsFor(agent.name)
@@ -312,9 +323,10 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
             dialog.replace(() => (
               <AgentScopeDialog
                 current={scope}
-                onPick={(next) =>
+                onPick={(next) => {
+                  kv.set(SCOPE_KV_KEY, next)
                   dialog.replace(() => <DialogAgent scope={next} restoreValue={props.restoreValue ?? lastCursor()} />)
-                }
+                }}
               />
             ))
           },

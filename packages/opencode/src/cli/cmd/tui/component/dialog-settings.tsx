@@ -7,6 +7,8 @@ import { DialogConfirm } from "./dialog-confirm"
 import { useTheme } from "../context/theme"
 import { envValue, SETTINGS_REGISTRY, type SettingRow } from "../settings/registry"
 import * as Log from "@opencode-ai/core/util/log"
+import { useKV } from "@tui/context/kv"
+import { coerceScope, cycleScope, readScope, SCOPE_KV_KEY, type ConfigScope } from "./config-scope"
 
 /**
  * Unified /settings dialog (subplan 03). Every row of the settings registry
@@ -23,8 +25,8 @@ import * as Log from "@opencode-ai/core/util/log"
  * ESC contract (2026-09-06): sub-dialogs (enum select, global confirm) are
  * dialog.push()-ed onto the stack so ESC pops ONE level back to this list
  * instead of leaving /settings entirely; the text prompt resolves null on ESC
- * and the list is restored here. Scope + cursor survive each remount via the
- * module state below (lastScope / lastCursor).
+ * and the list is restored here. Cursor survives each remount via the module
+ * state below; the scope lives in KV, shared with /agents.
  *
  * Writes reuse existing plumbing only:
  *   worktree → PATCH /config minimal subtree (RFC 7386; subplan 05 rev 2)
@@ -33,7 +35,10 @@ import * as Log from "@opencode-ai/core/util/log"
  *   session/model-state rows are read-only pointers to /agents and /model.
  */
 
-type Scope = "worktree" | "global"
+type Scope = Extract<ConfigScope, "worktree" | "global">
+
+/** There is no session-scoped config layer: /settings writes files only. */
+const SETTINGS_SCOPES: readonly ConfigScope[] = ["global", "worktree"]
 
 const SCOPE_LABEL: Record<Scope, string> = {
   worktree: "project (this worktree)",
@@ -43,14 +48,20 @@ const SCOPE_LABEL: Record<Scope, string> = {
 // Every replace/push cycle REMOUNTS this component (ESC-return, post-write
 // refresh), resetting in-dialog signals. Scope and cursor position live at
 // module scope so the list reopens where the user left it.
-let lastScope: Scope = "worktree"
 let lastCursor: string | undefined
 
 export function DialogSettings() {
   const sdk = useSDK()
   const dialog = useDialog()
   const { theme } = useTheme()
-  const [scope, setScope] = createSignal<Scope>(lastScope)
+  const kv = useKV()
+  // Shared with /agents through KV instead of a module variable that died with
+  // the process. A shared scope of "session" has no settings layer, so it
+  // displays as its parent — coerceScope does NOT write back, so opening
+  // /settings never downgrades the user's session choice.
+  const [scope, setScope] = createSignal<Scope>(
+    coerceScope(readScope(kv.get(SCOPE_KV_KEY)), SETTINGS_SCOPES) as Scope,
+  )
   const [merged, setMerged] = createSignal<Record<string, any> | undefined>(undefined)
   const [global, setGlobal] = createSignal<Record<string, any> | undefined>(undefined)
   const [status, setStatus] = createSignal<string | null>(null)
@@ -124,8 +135,11 @@ export function DialogSettings() {
   function switchScope() {
     // In-place switch (no remount): options() reads scope(), so titles and
     // previews update reactively and the cursor/filter stay put.
-    lastScope = scope() === "worktree" ? "global" : "worktree"
-    setScope(lastScope)
+    const next = cycleScope(scope(), 1, SETTINGS_SCOPES) as Scope
+    // An explicit switch here is an explicit choice of layer — persist it so
+    // /agents opens on the same one.
+    kv.set(SCOPE_KV_KEY, next)
+    setScope(next)
   }
 
   async function writeWorktree(row: SettingRow, value: unknown) {

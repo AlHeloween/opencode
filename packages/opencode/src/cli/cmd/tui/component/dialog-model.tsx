@@ -13,6 +13,8 @@ import { Keybind } from "@/util/keybind"
 import * as fuzzysort from "fuzzysort"
 import { useConnected } from "./use-connected"
 import { shouldActivateAgent } from "../util/agent"
+import { useKV } from "@tui/context/kv"
+import { readScope, SCOPE_KV_KEY } from "./config-scope"
 
 export function DialogModel(props: {
   providerID?: string
@@ -25,6 +27,12 @@ export function DialogModel(props: {
   const dialog = useDialog()
   const keybind = useKeybind()
   const [query, setQuery] = createSignal("")
+  // Openers that pass no scope (the /models path through DialogProvider) used
+  // to reach local.model.set with scope undefined, which is the legacy
+  // dual-write branch: session AND worktree, ignoring the layer the user
+  // selected in /agents. Fall back to the shared scope instead.
+  const kv = useKV()
+  const scope = createMemo(() => props.scope ?? readScope(kv.get(SCOPE_KV_KEY)))
 
   const connected = useConnected()
   const providers = createDialogProviderOptions()
@@ -177,7 +185,7 @@ export function DialogModel(props: {
 
   function onSelect(providerID: string, modelID: string) {
     const agent = props.targetAgent ?? local.agent.current()?.name
-    if (props.scope === "global" && props.targetAgent) {
+    if (scope() === "global" && props.targetAgent) {
       dialog.replace(() => (
         <DialogVariant
           targetAgent={props.targetAgent}
@@ -191,7 +199,7 @@ export function DialogModel(props: {
     // Policy (2026-08-31, Alexander): saving to GLOBAL config requires an
     // explicit Save action — the write applies to all projects. The /agents
     // path above stages model + variant together and does not use this dialog.
-    if (props.scope === "global") {
+    if (scope() === "global") {
       dialog.replace(() => (
         <DialogConfirm
           title={`Save ${providerID}/${modelID} to GLOBAL config`}
@@ -212,7 +220,7 @@ export function DialogModel(props: {
 
   function performSelect(providerID: string, modelID: string) {
     const agent = props.targetAgent ?? local.agent.current()?.name
-    local.model.set({ providerID, modelID }, { recent: true, agent, scope: props.scope })
+    local.model.set({ providerID, modelID }, { recent: true, agent, scope: scope() })
     // An explicit targetAgent means /agents is CONFIGURING another agent — the
     // active prompt agent must stay where the user left it (2026-09-11,
     // Alexander). The variant step below therefore resolves against `agent`
@@ -234,7 +242,7 @@ export function DialogModel(props: {
       return
     }
     if (list.length > 0) {
-      dialog.replace(() => <DialogVariant targetAgent={agent} scope={props.scope} onDone={props.onDone} />)
+      dialog.replace(() => <DialogVariant targetAgent={agent} scope={scope()} onDone={props.onDone} />)
       return
     }
     if (props.onDone) {
@@ -269,7 +277,7 @@ export function DialogModel(props: {
           onTrigger: (option) => {
             const value = option.value as { providerID: string; modelID: string }
             if (value.providerID !== "openrouter") return
-            dialog.replace(() => <DialogRouting model={value} scope={props.scope} onDone={() => dialog.clear()} />)
+            dialog.replace(() => <DialogRouting model={value} scope={scope()} onDone={() => dialog.clear()} />)
           },
         },
       ]}

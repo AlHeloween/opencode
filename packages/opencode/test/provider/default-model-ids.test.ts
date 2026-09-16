@@ -27,13 +27,30 @@ test("every provider is omitted rather than throwing when none have models", () 
 })
 
 test("the real bundled catalog does not throw", () => {
-  // The regression itself, against the actual data that produced it rather
-  // than a fixture shaped like it. If the snapshot ever ships another
-  // zero-model provider, this stays green — that is the point.
+  // The regression against the actual data rather than a fixture shaped like
+  // it. When this was written the snapshot DID ship a zero-model provider
+  // (streamlake-vanchin) and that assertion was part of the test; the
+  // catalogue has since been populated from 32 live-verified ids, so the
+  // trigger is gone from the data as well. The guard stays either way — a
+  // catalog is external input and the next sync can reintroduce the shape.
   const registry = snapshot as Record<string, { models?: Record<string, { id: string }> }>
-  const zero = Object.keys(registry).filter((k) => Object.keys(registry[k]?.models ?? {}).length === 0)
-  expect(zero.length).toBeGreaterThan(0) // the condition is real, not hypothetical
   expect(() =>
     Provider.defaultModelIDs(registry as Record<string, { models: Record<string, { id: string }> }>),
   ).not.toThrow()
+  expect(Object.keys(Provider.defaultModelIDs(registry as never)).length).toBeGreaterThan(200)
+})
+
+test("streamlake-vanchin ships the catalogue it is callable with", () => {
+  // Every id here answered a live max_tokens:1 call on 2026-09-16. Names the
+  // provider so a future sync that empties it fails loudly rather than
+  // silently reverting to "authenticate first, then guess your endpoint".
+  const registry = snapshot as Record<string, { models?: Record<string, { id: string }> }>
+  const models = Object.keys(registry["streamlake-vanchin"]?.models ?? {})
+  expect(models.length).toBeGreaterThan(25)
+  expect(models).toContain("glm-5.3-flash")
+  expect(models).toContain("deepseek-v4-flash")
+  // Measured as UnavailableModel / EndpointNotFound — bundling them would
+  // offer models the gateway refuses.
+  expect(models).not.toContain("kat-coder-pro-v2.5")
+  expect(models).not.toContain("deepseek-r1-0528")
 })

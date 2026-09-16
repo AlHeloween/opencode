@@ -2846,3 +2846,26 @@ twice. And the A/B that would move 078f55a2bb from Inferred to Exact.
   failed" naming no step. Probed with curl: /config, /config/providers,
   /app/agents, /path all 200; only /provider 500.
 - 3 tests, mutation-tested against the real snapshot rather than a fixture.
+
+[2026-09-16] streamlake-vanchin: the catalogue is callable by name after all
+- Corrected an earlier wrong reading. The API reference says `model: Inference
+  Endpoint ID`, and I concluded the public catalogue could not be bundled. The
+  integration guide contradicts it (Model ID: kat-coder-pro-v2.5 against
+  .../v1/endpoints), and live calls settle it: catalogue names work, the server
+  normalises case, `ep-*` is an ADDITIONAL account-scoped mechanism, not the
+  only one. User config keeps its ep-* entries unchanged; they merge per key.
+- Probed all 44 non-retired catalogue ids with max_tokens:1. 32 answer 200.
+  Excluded with their reasons: 4 UnavailableModel (the whole KAT-Coder line,
+  including the only model the docs put in their examples), 3 EndpointNotFound
+  (keye-vl-2.0-30b-a3b, deepseek-v3.2-exp, deepseek-r1-0528), 5 repeated 500.
+  The catalogue page lists more than the gateway serves.
+- Bundled the 32 as staticModels; staticOnly stays because there is no list
+  route (the gateway is Action-based: /v1/models -> "Missing Action parameter").
+  Snapshot: 218 providers, 32 streamlake models, ZERO providers with no models.
+- The guard in defaultModelIDs stays regardless — a catalog is external input.
+- Also measured: the gateway speaks the ANTHROPIC wire format per model at
+  /v1/endpoints/<model>/claude-code-proxy and returns native `thinking` blocks.
+  That is an Anthropic-format reasoning surface reachable without an Anthropic
+  key — directly useful for the round-trip work parked earlier this session.
+- First sweep reported 44/44 failures; the cause was CRLF in my own input file,
+  not the API. Checked with cat -A before believing it.

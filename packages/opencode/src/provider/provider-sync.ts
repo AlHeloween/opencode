@@ -484,6 +484,81 @@ const NOVITA_STATIC_MODELS: ModelsDevModel[] = [
 const VERIFIED_H2_OPTIONS: Record<string, unknown> = { protocol: "h2", streaming: true }
 const VERIFIED_NOVITA_OPTIONS: Record<string, unknown> = { protocol: "h3", streaming: true }
 
+/**
+ * StreamLake Vanchin catalogue model.
+ *
+ * Vanchin has no OpenAI-style `/models` route — its gateway is Action-based and
+ * answers "Missing Action parameter" — so the list cannot be synced live and is
+ * bundled instead. Every id below was confirmed with a live `max_tokens:1` call
+ * (2026-09-16): the catalogue's display name lowercased IS the model id, and
+ * the server normalises case either way. Entries that answered
+ * UnavailableModel (the whole KAT-Coder line), EndpointNotFound, or a repeated
+ * 500 are deliberately absent — the catalogue page lists more than the gateway
+ * serves.
+ *
+ * Account-scoped `ep-*` inference points are a SEPARATE mechanism and still
+ * belong in user config; they merge over these per key.
+ */
+function vanchin(
+  id: string,
+  name: string,
+  context: number,
+  output: number,
+  reasoning: boolean,
+  toolCall: boolean,
+  vision: boolean,
+): ModelsDevModel {
+  return {
+    id,
+    name,
+    attachment: vision,
+    reasoning,
+    tool_call: toolCall,
+    temperature: true,
+    release_date: "",
+    modalities: {
+      input: vision ? ["text", "image", "video"] : ["text"],
+      output: ["text"],
+    },
+    limit: { context, output },
+  }
+}
+
+const VANCHIN_STATIC_MODELS: ModelsDevModel[] = [
+  vanchin("glm-5.3-flash", "GLM-5.3-Flash", 1048576, 131072, true, true, true),
+  vanchin("qwen3.8-2.4t-a95b", "Qwen3.8-2.4T-A95B", 1048576, 131072, true, true, true),
+  vanchin("glm-5.3", "GLM-5.3", 1048576, 131072, true, true, false),
+  vanchin("deepseek-v4-pro-0813", "DeepSeek-V4-Pro-0813", 1048576, 393216, true, true, false),
+  vanchin("minimax-m3", "MiniMax-M3", 1024000, 524288, true, true, true),
+  vanchin("deepseek-v4-flash-0731", "DeepSeek-V4-Flash-0731", 1048576, 393216, true, true, false),
+  vanchin("mimo-v2.5", "MiMo-V2.5", 1024000, 131072, true, true, false),
+  vanchin("mimo-v2.5-pro", "MiMo-V2.5-Pro", 1024000, 131072, true, true, false),
+  vanchin("kimi-k2.7-code", "Kimi-K2.7-Code", 262144, 32768, true, true, true),
+  vanchin("glm-5.2", "GLM-5.2", 1048576, 131072, true, true, false),
+  vanchin("qwen3.5-397b-a17b", "Qwen3.5-397B-A17B", 262144, 65536, true, true, true),
+  vanchin("deepseek-v4-pro", "DeepSeek-V4-Pro", 1048576, 393216, true, true, false),
+  vanchin("deepseek-v4-flash", "DeepSeek-V4-Flash", 1048576, 393216, true, true, false),
+  vanchin("qwen3-vl-235b-a22b-thinking", "Qwen3-VL-235B-A22B-Thinking", 131072, 32768, false, true, true),
+  vanchin("qwen3-coder-next", "Qwen3-Coder-Next", 262144, 65536, false, false, false),
+  vanchin("qwen3-30b-a3b-thinking-2507", "Qwen3-30B-A3B-Thinking-2507", 131072, 32768, true, true, false),
+  vanchin("qwen3.6-35b-a3b", "Qwen3.6-35B-A3B", 262144, 65536, false, true, true),
+  vanchin("qwen3.6-27b", "Qwen3.6-27B", 262144, 65536, false, true, true),
+  vanchin("minimax-m2.5", "MiniMax-M2.5", 204800, 131072, true, true, false),
+  vanchin("kimi-k2.6", "Kimi-K2.6", 262144, 262144, false, true, true),
+  vanchin("glm-5.1", "GLM-5.1", 204800, 131072, true, true, false),
+  vanchin("glm-5", "GLM-5", 204800, 131072, true, true, false),
+  vanchin("deepseek-v3.1-terminus", "DeepSeek-V3.1-Terminus", 131072, 32768, true, true, false),
+  vanchin("qwen3-vl-235b-a22b-instruct", "Qwen3-VL-235B-A22B-Instruct", 131072, 32768, false, true, true),
+  vanchin("deepseek-v3.2", "DeepSeek-V3.2", 131072, 65536, true, true, false),
+  vanchin("qwen3-235b-a22b-instruct-2507", "Qwen3-235B-A22B-Instruct-2507", 131072, 32768, false, true, false),
+  vanchin("qwen3-30b-a3b-instruct-2507", "Qwen3-30B-A3B-Instruct-2507", 131072, 32768, false, true, false),
+  vanchin("kimi-k2-instruct-0905", "Kimi-K2-Instruct-0905", 262144, 32768, false, true, false),
+  vanchin("deepseek-v3", "DeepSeek-V3", 65536, 8192, false, true, false),
+  vanchin("deepseek-v3.1", "DeepSeek-V3.1", 131072, 32768, true, true, false),
+  vanchin("qwen3-235b-a22b-thinking-2507", "Qwen3-235B-A22B-Thinking-2507", 131072, 32768, true, true, false),
+  vanchin("qwen3-30b-a3b", "Qwen3-30B-A3B", 32768, 8192, false, true, false),
+]
+
 export const PROVIDER_SOURCES: ProviderSource[] = [
   {
     id: "novita-ai",
@@ -541,11 +616,14 @@ export const PROVIDER_SOURCES: ProviderSource[] = [
     },
   },
   {
-    // Vanchin Pay-as-you-go exposes account-scoped inference endpoint IDs, not
-    // a public shared model catalogue. The TUI collects one endpoint ID after
-    // auth; never bundle a fabricated `ep-*` model here.
+    // The public catalogue IS addressable by model name — proven with live
+    // calls on 2026-09-16, which corrected the earlier reading of the API
+    // reference ("model: Inference Endpoint ID"). `ep-*` ids remain a separate,
+    // account-scoped mechanism configured per user; never fabricate one here.
+    // staticOnly stays: there is no list endpoint to sync from.
     id: "streamlake-vanchin",
     staticOnly: true,
+    staticModels: VANCHIN_STATIC_MODELS,
     shell: {
       name: "StreamLake Vanchin",
       env: ["STREAMLAKE_API_KEY"],

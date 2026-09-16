@@ -2809,3 +2809,21 @@ twice. And the A/B that would move 078f55a2bb from Inferred to Exact.
 - Remaining in test/tool/bash.test.ts (24): the external_directory arg scanner
   finds no external dirs for `cat <path>`, and the truncation/abort tests force
   C:\Program Files\Git\usr\bin\bash.exe, which the policy now refuses.
+
+[2026-09-16] the crash that erased its own message
+- Reproduced: copy opencode.exe into an empty directory, run it. TUI paints,
+  clears, stderr gets `{}`, exit code 0. The log said "tui bootstrap failed"
+  with error "[object Object]".
+- Two independent erasures. sync.tsx:926 logged `e instanceof Error ? e.message
+  : String(e)` — SDK/Effect failures are envelopes, not Errors, so every one of
+  them recorded as "[object Object]". And errorFormat's object branch returned
+  JSON.stringify(envelope) = "{}" because the useful fields are non-enumerable;
+  that is what reached stderr. A bare `{}` reads as output, not as a failure.
+- errorMessage already knew those shapes. Using it introduced mutual recursion
+  (errorMessage ends by calling errorFormat) -> stack overflow on an object
+  neither can answer. Extracted a non-recursive envelopeMessage() for both.
+- The new test found a third: Object.create(null) has no toString, so String()
+  throws. An error formatter that throws replaces the failure being reported
+  with one of its own. Guarded, not tried.
+- test/util/error.test.ts 7/0 with three new cases. The bootstrap failure itself
+  is still UNDIAGNOSED — the instrument could not name it until now.

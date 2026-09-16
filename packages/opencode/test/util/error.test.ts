@@ -48,3 +48,32 @@ describe("util.error", () => {
     expect(bare.length).toBeGreaterThan(0)
   })
 })
+
+test("an envelope with no enumerable fields never prints as a bare {}", () => {
+  // This is what reached stderr when the TUI failed to bootstrap: the envelope
+  // JSON-stringifies to "{}", which reads as output rather than as a failure
+  // and deletes the only clue about what went wrong.
+  const envelope = {}
+  Object.defineProperty(envelope, "message", {
+    value: "workspace unavailable",
+    enumerable: false,
+  })
+
+  expect(JSON.stringify(envelope)).toBe("{}")
+  expect(errorFormat(envelope)).toBe("workspace unavailable")
+  expect(errorMessage(envelope)).toBe("workspace unavailable")
+})
+
+test("an envelope with nothing at all says so in words", () => {
+  // Still never "{}": if there is genuinely no message, the reader needs to
+  // know that IS the situation, not wonder whether output went missing.
+  expect(errorFormat({})).toBe("Unexpected error with no message or fields")
+  expect(errorFormat(Object.create(null))).toBe("Unexpected error with no message or fields")
+})
+
+test("errorFormat and errorMessage do not fall back into each other", () => {
+  // Both used to end by calling the other; an object neither could answer was
+  // a stack overflow rather than a message.
+  expect(() => errorFormat({ a: undefined })).not.toThrow()
+  expect(() => errorMessage({ a: undefined })).not.toThrow()
+})

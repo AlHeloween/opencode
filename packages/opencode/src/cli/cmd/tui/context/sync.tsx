@@ -18,6 +18,7 @@ import type {
   ProviderAuthMethod,
   VcsInfo,
 } from "@opencode-ai/sdk/v2"
+import { errorFormat, errorMessage } from "@/util/error"
 import { createStore, produce, reconcile } from "solid-js/store"
 import { useProject } from "@tui/context/project"
 import { useEvent } from "@tui/context/event"
@@ -923,9 +924,16 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           })
         })
         .catch(async (e) => {
+          // `String(e)` on a non-Error gives "[object Object]", which is what
+          // this line logged for every SDK/Effect envelope — a recorded failure
+          // with its cause deleted. `errorMessage`/`errorFormat` know those
+          // shapes; the raw keys go alongside so an unknown shape still leaves
+          // a trail instead of a shrug.
           Log.Default.error("tui bootstrap failed", {
-            error: e instanceof Error ? e.message : String(e),
+            error: errorMessage(e),
+            detail: errorFormat(e),
             name: e instanceof Error ? e.name : undefined,
+            fields: e && typeof e === "object" ? Object.keys(e).join(",") : undefined,
             stack: e instanceof Error ? e.stack : undefined,
           })
           if (fatal) {

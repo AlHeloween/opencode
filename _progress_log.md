@@ -2938,3 +2938,45 @@ twice. And the A/B that would move 078f55a2bb from Inferred to Exact.
   prompt, revert-compact, revert-crossing, snapshot-tool-race (first run showed
   11 — four are flaky). None reference the modules touched here, and
   session-settings.ts is changed strictly additively: zero deleted lines.
+
+## [2026-09-16] Fossil snapshot boundaries, undo/redo sequence, fork window
+
+- Revision of the 7 red session tests, one at a time. 5 of them were one defect:
+  shell mutations had no undo coverage since c41c4b9bf2 (2026-09-10), because
+  bash/run/task/pipeline emit no `filediff` metadata and the end-of-turn
+  decision read "zero changed files" for both `bun --version` and a command
+  that had just created a file. Fossil has no autotrack — checked the full
+  `fossil settings` list, zero keys match track/auto-add — so nothing
+  downstream recovered it. snapshot-tool-race.test.ts stated the lost contract
+  and had been red the whole time.
+- Snapshots now happen at boundaries, all of them BEFORE the thing they cover:
+  turn start, before a sidecar, before an undo. No evidence scale, no
+  end-of-turn decision, `snapshotMode` deleted.
+- Pre-undo recording is gated on the working copy being dirty and bounded to
+  the session's own files. Unbounded it minted a leaf per undo (breaks the
+  undo→undo→m*→redo walk) and conscripted the user's untracked files, which
+  `revertTo` then deleted (SU-5).
+- `RevertRedoFrame` now records the operation whole, `crossing` included. It
+  carried a subset, so redo could not restore the boundary manifest and the
+  next undo re-scanned over already-inverted flags — the 2026-08-30
+  context-wipe regression.
+- Fork from a point was starving the existing m* assembler: `visibleOnly: true`
+  cut the folded rows, `limit: 500` over a DESC page cut the depth. A fork from
+  older than 500 rows came out EMPTY. One argument fixed both; the assembler
+  needed no changes, which was the user's point.
+- Mutation-verified, not assumed: SU-6 (checkpoint() → redo returns the state
+  before the work), SU-3 (unconditional commit → anchor stops being the leaf
+  the previous step left), both fork tests (empty fork / missing folded rows).
+- Own-tooling lesson, third time this session: hand-rolled parsing of
+  TypeScript from shell keeps failing (apostrophes in comments read as string
+  delimiters; a per-mutation backup overwriting the pristine copy). Read + Edit
+  with line numbers is the instrument — it was there the whole time.
+- test/session/: 7 unique failures down to 2 — the Layer-1 fixed-65_536 test
+  (encodes a design already discarded: firing a sidecar mid-turn interrupts an
+  unfinished reasoning block, and since CoT is not round-tripped the model
+  restarts it from zero) and processor-effect, which passes in isolation and so
+  is cross-file interference.
+- Still open: TUI arrows for stepping the sequence, recording on the redo side
+  (a user edit between undo and redo is still overwritten), the m* rebuild for
+  undo/redo across a fold, and a file-level fork (blocked by one worktree
+  shared between sessions).

@@ -214,15 +214,29 @@ describe("Truncate", () => {
       }),
     )
 
-    it.live("does not write file when not truncated", () =>
+    it.live("keeps the full output even when nothing was truncated", () =>
+      // Changed deliberately (2026-09-16, Alexander: "полный результат должен
+      // сохраняться в toolcalls чтобы можно было его обсосать"). Output used to
+      // be saved only when it was cut, so the one result you could never go
+      // back over was one that fit — you re-ran the command instead, which for
+      // anything with a side effect or a cost is not a re-read at all.
       Effect.gen(function* () {
         const svc = yield* Truncate.Service
         const content = "short content"
         const result = yield* svc.output(content)
 
         expect(result.truncated).toBe(false)
-        if (result.truncated) throw new Error("expected not truncated")
-        expect("outputPath" in result).toBe(false)
+        expect(result.content).toBe(content)
+        expect(result.outputPath).toBeTruthy()
+        expect(yield* Effect.promise(() => Bun.file(result.outputPath!).text())).toBe(content)
+      }),
+    )
+
+    it.live("an empty result is not worth a file", () =>
+      Effect.gen(function* () {
+        const result = yield* (yield* Truncate.Service).output("")
+        expect(result.truncated).toBe(false)
+        expect(result.outputPath).toBeUndefined()
       }),
     )
 

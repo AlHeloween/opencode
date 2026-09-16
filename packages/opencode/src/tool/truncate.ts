@@ -18,7 +18,10 @@ export const MAX_BYTES = 50 * 1024
 export function truncateDir() { return truncationDir() }
 export function truncateGlob() { return path.join(truncationDir(), "*") }
 
-export type Result = { content: string; truncated: false } | { content: string; truncated: true; outputPath: string }
+export type Result =
+  /** `outputPath` is absent only when there was nothing to keep. */
+  | { content: string; truncated: false; outputPath?: string }
+  | { content: string; truncated: true; outputPath: string }
 
 export interface Options {
   maxLines?: number
@@ -92,7 +95,14 @@ export const layer = Layer.effect(
       const totalBytes = Buffer.byteLength(text, "utf-8")
 
       if (lines.length <= maxLines && totalBytes <= maxBytes) {
-        return { content: text, truncated: false } as const
+        // Keep it anyway. Output used to be saved only when it was cut, so the
+        // one thing you could never do was go back over a result that fit —
+        // you re-ran the command instead, which for anything with side effects
+        // or cost is not a re-read at all. Retention and cleanup already exist
+        // (7 days, `Truncate.cleanup`), so this costs a small file per call.
+        // An empty result is not worth a file.
+        const kept = text === "" ? undefined : yield* write(text).pipe(Effect.catch(() => Effect.succeed(undefined)))
+        return { content: text, truncated: false, outputPath: kept } as const
       }
 
       const out: string[] = []

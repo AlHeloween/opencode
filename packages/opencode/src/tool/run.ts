@@ -3,6 +3,7 @@ import { forkDrainStdoutStderr } from "./shell-output"
 import { createWriteStream } from "node:fs"
 import path from "path"
 import * as Tool from "./tool"
+import * as View from "./view"
 import DESCRIPTION from "./run.txt"
 import { Instance } from "../project/instance"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
@@ -26,6 +27,22 @@ const Parameters = Schema.Struct({
   timeout: Schema.optional(Schema.Number),
   description: Schema.String,
   run_in_background: Schema.optional(Schema.Boolean),
+  // The runtime already holds the output as a string. Making the *command*
+  // narrow it — `… | grep …`, `| head -50` — spends a pipeline on work that can
+  // be done here, and does not survive a platform change.
+  pattern: Schema.optional(Schema.String).annotate({
+    description: "Regular expression: keep only matching output lines. Applied before lines/head/tail.",
+  }),
+  ignoreCase: Schema.optional(Schema.Boolean).annotate({
+    description: "Case-insensitive `pattern`. Default false.",
+  }),
+  lines: Schema.optional(Schema.String).annotate({
+    description: 'Line range over what the pattern kept, 1-based inclusive: "120-180", "120-", "-180", "42".',
+  }),
+  head: Schema.optional(Schema.Number).annotate({ description: "First N remaining lines." }),
+  tail: Schema.optional(Schema.Number).annotate({
+    description: "Last N remaining lines. With `head`, the two take a window.",
+  }),
 })
 
 interface Chunk {
@@ -129,7 +146,7 @@ export const RunTool = Tool.define(
     })
 
     const run = Effect.fn("RunTool.run")(function* (
-      input: {
+      input: View.View & {
         binary: string
         args: string[]
         cwd: string
@@ -230,12 +247,18 @@ export const RunTool = Tool.define(
         )
 
       const raw = list.map((i) => i.text).join("")
-      const end = tail(raw, limits.maxLines, limits.maxBytes)
+      // Keep the whole thing regardless of the view or the cut: a view is only
+      // useful if what it narrowed is still there to go back over, and re-running
+      // a command with a side effect or a cost is not a re-read.
+      if (!file && raw !== "") file = yield* trunc.write(raw).pipe(Effect.catch(() => Effect.succeed(undefined as never)))
+
+      const viewed = View.isActive(input) ? View.applyView(raw, input) : undefined
+      const end = tail(viewed ? viewed.text : raw, limits.maxLines, limits.maxBytes)
       if (end.cut) cut = true
-      if (!file && end.cut) file = yield* trunc.write(raw)
 
       let output = end.text
-      if (!output) output = "(no output)"
+      if (!output) output = viewed ? "(no lines matched)" : "(no output)"
+      if (viewed) output = `${View.describe(viewed, file)}\n\n${output}`
       if (cut && file) output = `...output truncated...\n\nFull output saved to: ${file}\n\n` + output
       return {
         title: input.description,
@@ -245,7 +268,7 @@ export const RunTool = Tool.define(
           description: input.description,
           truncated: cut,
           jobID: undefined as string | undefined,
-          ...(cut && file ? { outputPath: file } : {}),
+          ...(file ? { outputPath: file } : {}),
         },
         output,
       }
@@ -317,6 +340,11 @@ export const RunTool = Tool.define(
                       env: process.env,
                       timeout: autoWrap.wrapped ? Math.max(timeout, 10 * 60 * 1000) : timeout,
                       description: params.description,
+                      pattern: params.pattern,
+                      ignoreCase: params.ignoreCase,
+                      lines: params.lines,
+                      head: params.head,
+                      tail: params.tail,
                     },
                     ctx,
                     writeOutput,
@@ -344,6 +372,11 @@ export const RunTool = Tool.define(
               env: process.env,
               timeout: autoWrap.wrapped ? Math.max(timeout, 10 * 60 * 1000) : timeout,
               description: params.description,
+              pattern: params.pattern,
+              ignoreCase: params.ignoreCase,
+              lines: params.lines,
+              head: params.head,
+              tail: params.tail,
             },
             ctx,
           )

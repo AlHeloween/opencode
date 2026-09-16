@@ -2747,3 +2747,21 @@ twice. And the A/B that would move 078f55a2bb from Inferred to Exact.
 - Next: the same `pattern` for shell tools (bash/cmd/run/joboutput) so no one
   pipes through grep just to filter output. Blocked on a trustworthy oracle —
   test/tool/bash.test.ts is inside the 64 failures that reproduce on clean HEAD.
+
+[2026-09-16] a uniform view over tool output: pattern / lines / head / tail
+- `src/tool/view.ts`: one pure function, one fixed order — pattern -> lines ->
+  head -> tail. Filtering first is the point: "the first 2 errors" must not mean
+  "however many errors are in the first 2 lines". head+tail compose into a
+  window rather than cancelling.
+- Truncate now keeps the FULL output on every call, not only when it was cut.
+  The one result you could never go back over was one that fit — you re-ran the
+  command, which for anything with a side effect or a cost is not a re-read.
+  Retention (7d) and cleanup already existed. Empty output gets no file.
+- `run` wired: pattern/ignoreCase/lines/head/tail, a `view:` line saying what
+  was dropped and where the full text is, `outputPath` always in metadata.
+- Oracles: 11 pure + 6 live on a real spawned command. Mutation-tested — stub
+  the view out of run.ts and 4 of the 6 live tests redden. Two truncation tests
+  rewritten to the new persistence contract, with the reason recorded.
+- Not yet wired: bash, cmd, joboutput, read. bash/cmd sit inside the 64 failures
+  that reproduce on clean HEAD, so they need a trustworthy oracle first — the
+  run-view suite is the template.

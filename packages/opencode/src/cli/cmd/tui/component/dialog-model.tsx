@@ -1,5 +1,6 @@
 import { createMemo, createSignal, onMount } from "solid-js"
 import { useLocal, type ModelScope } from "@tui/context/local"
+import { costLabel, isFreeModel } from "./model-cost"
 import { useSync } from "@tui/context/sync"
 import { map, pipe, flatMap, entries, filter, sortBy, take } from "remeda"
 import { DialogSelect } from "@tui/ui/dialog-select"
@@ -69,8 +70,16 @@ export function DialogModel(props: {
     return parts.length > 0 ? parts.join(" · ") : undefined
   }
 
-  function withFooter(info: Parameters<typeof capabilityFooter>[0], free: boolean) {
-    return [free ? "Free" : undefined, capabilityFooter(info)].filter(Boolean).join(" · ") || undefined
+  function withFooter(
+    info: Parameters<typeof capabilityFooter>[0] & { cost?: { input?: number; output?: number } },
+    free: boolean,
+  ) {
+    // Price leads the footer: it is the field the choice actually turns on.
+    // `free` and `costLabel` are mutually exclusive by construction — a free
+    // row has zero cost, and costLabel returns undefined for zeros.
+    return (
+      [free ? "Free" : costLabel(info.cost), capabilityFooter(info)].filter(Boolean).join(" · ") || undefined
+    )
   }
 
   const options = createMemo(() => {
@@ -94,7 +103,7 @@ export function DialogModel(props: {
             description: provider.name,
             category,
             disabled: provider.id === "opencode" && model.id.includes("-nano"),
-            footer: withFooter(model, model.cost?.input === 0 && provider.id === "opencode"),
+            footer: withFooter(model, isFreeModel(model.cost, provider.id)),
             onSelect: () => {
               onSelect(provider.id, model.id)
             },
@@ -131,7 +140,10 @@ export function DialogModel(props: {
               : undefined,
             category: connected() ? provider.name : undefined,
             disabled: provider.id === "opencode" && model.includes("-nano"),
-            footer: withFooter(info, info.cost?.input === 0 && provider.id === "opencode"),
+            // Carried on the row so the free-first sort below reads data
+            // rather than re-parsing the rendered footer.
+            cost: info.cost,
+            footer: withFooter(info, isFreeModel(info.cost, provider.id)),
             onSelect() {
               onSelect(provider.id, model)
             },
@@ -145,7 +157,9 @@ export function DialogModel(props: {
             return true
           }),
           sortBy(
-            (x) => x.footer !== "Free",
+            // Was `x.footer !== "Free"`, but the footer is a join — it never
+            // equalled "Free", so free models were never sorted first.
+            (x) => !isFreeModel(x.cost, x.value.providerID),
             (x) => x.title,
           ),
         ),

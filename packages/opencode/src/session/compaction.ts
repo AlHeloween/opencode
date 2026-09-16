@@ -10,6 +10,7 @@ import { Config } from "@/config/config"
 import { NotFoundError } from "@/storage/storage"
 import { ModelID, ProviderID } from "@/provider/schema"
 import { Effect, Layer, Context, Schema, Option } from "effect"
+import { readMemory } from "@/tool/memory"
 import { isOverflow as overflow } from "./overflow"
 import { makeRuntime } from "@/effect/run-service"
 import { fn } from "@/util/fn"
@@ -753,6 +754,8 @@ function buildMessageStar(input: {
   recentStartOffset?: number
   /** Prior message* ID — chain link for recovering older summaries via session-read. */
   priorMessageStarId?: string
+  /** Permanent reasoning memory, folded in verbatim. Empty string when unwritten. */
+  memory?: string
 }): string {
   const summaryBlocks = input.summaries.map((s, i) =>
     renderSummaryBlock({ sessionID: input.sessionID, s, index: i }),
@@ -824,6 +827,22 @@ function buildMessageStar(input: {
   // A single closing line keeps the archive reachable without framing m* as
   // a recovery manual.
   const recoveryLine = "Use messagesearch, sessionread and dbread to restore missing facts."
+
+  // Permanent memory rides every fold verbatim. A summary is Inferred prose
+  // about what happened; this is what an identity deliberately wrote down to
+  // survive the boundary, so it is reproduced unsummarized and placed before
+  // the summaries — it is the most durable thing in the star, not a recovery
+  // recipe, and the closing pointer stays the only "go look it up" line.
+  const memoryBlock = input.memory?.trim()
+    ? [
+        "<memory>",
+        "info_mark: Exact — written deliberately, reproduced verbatim, not re-summarized.",
+        "",
+        input.memory.trim(),
+        "</memory>",
+      ].join("\n")
+    : undefined
+
   return [
     "=== COMPACTED ===",
     "Active memory for this session. Older messages remain soft-hidden in the DB (not deleted).",
@@ -834,6 +853,7 @@ function buildMessageStar(input: {
       : []),
     lastSvLine,
     "",
+    memoryBlock,
     ...summaryBlocks,
     decisionsBlock,
     recentHeader,
@@ -1080,6 +1100,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           recent,
           recentStartOffset,
           priorMessageStarId: priorMsgStarId,
+          memory: yield* readMemory(),
         })
 
         // Soft-hide every currently visible message (DB retained for

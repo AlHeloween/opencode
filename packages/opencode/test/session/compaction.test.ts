@@ -1,4 +1,5 @@
 import { NodeFileSystem } from "@effect/platform-node"
+import nodePath from "path"
 import { afterEach, describe, expect, mock, test } from "bun:test"
 import { Cause, Effect, Exit, Fiber, Layer, ManagedRuntime } from "effect"
 import * as Stream from "effect/Stream"
@@ -276,6 +277,95 @@ function createModel(opts: {
 }
 
 const wide = () => ProviderTest.fake({ model: createModel({ context: 100_000, output: 32_000 })
+})
+
+// --- permanent memory rides the fold ---
+
+describe("session.compaction.memory", () => {
+  it.live(
+    "m* reproduces permanent memory verbatim inside <memory>",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        // A summary is Inferred prose about what happened. Memory is what an
+        // identity deliberately wrote to survive the boundary, so the fold
+        // reproduces it rather than summarizing it — otherwise "persist before
+        // you compact" buys nothing the next cycle can rely on.
+        const criterion = "criterion: an instrument that cannot fail proves nothing"
+        yield* Effect.promise(() =>
+          Bun.write(nodePath.join(dir, ".opencode/data/memory/reasoning.md"), criterion + "\n"),
+        )
+
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+
+        const su = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: su.id, sessionID: info.id, type: "text", text: "summary-req" })
+        const sa = yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "assistant", sessionID: info.id,
+          mode: "build", agent: "build", parentID: su.id,
+          modelID: ref.modelID, providerID: ref.providerID,
+          path: { cwd: dir, root: dir }, cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          summary: true, finish: "end_turn",
+          time: { created: Date.now() },
+        } as MessageV2.Assistant)
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: sa.id, sessionID: info.id, type: "text", text: "## Goal\n- fold with memory present" })
+        const ru = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: ru.id, sessionID: info.id, type: "text", text: "recent-msg" })
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+
+        const after = yield* MessageV2.filterCompactedEffect(info.id)
+        const star = after.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text)).join("\n")
+        expect(star).toContain("=== COMPACTED ===")
+        expect(star).toContain("<memory>")
+        expect(star).toContain("</memory>")
+        expect(star).toContain(criterion)
+        // Before the summaries: it is the most durable content in the star,
+        // not a recovery recipe, and the one recovery pointer stays last.
+        expect(star.indexOf("<memory>")).toBeLessThan(star.indexOf("--- Recent"))
+        expect(star.trimEnd().endsWith("Use messagesearch, sessionread and dbread to restore missing facts.")).toBe(true)
+      }),
+    ),
+  )
+
+  it.live(
+    "a session with no memory folds without an empty <memory> block",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        // Never-written memory is the normal case. An empty block would spend
+        // window on nothing and read as "memory exists and is empty".
+        const compact = yield* SessionCompaction.Service
+        const ssn = yield* SessionNs.Service
+        const info = yield* ssn.create({})
+        const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+
+        const su = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: su.id, sessionID: info.id, type: "text", text: "summary-req" })
+        const sa = yield* ssn.updateMessage({
+          id: MessageID.ascending(), role: "assistant", sessionID: info.id,
+          mode: "build", agent: "build", parentID: su.id,
+          modelID: ref.modelID, providerID: ref.providerID,
+          path: { cwd: dir, root: dir }, cost: 0,
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          summary: true, finish: "end_turn",
+          time: { created: Date.now() },
+        } as MessageV2.Assistant)
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: sa.id, sessionID: info.id, type: "text", text: "## Goal\n- fold without memory" })
+        const ru = yield* ssn.updateMessage({ id: MessageID.ascending(), role: "user", sessionID: info.id, agent: "build", model: ref, time: { created: Date.now() } })
+        yield* ssn.updatePart({ id: PartID.ascending(), messageID: ru.id, sessionID: info.id, type: "text", text: "recent-msg" })
+
+        yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+
+        const after = yield* MessageV2.filterCompactedEffect(info.id)
+        const star = after.flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text)).join("\n")
+        expect(star).toContain("=== COMPACTED ===")
+        expect(star).not.toContain("<memory>")
+      }),
+    ),
+  )
 })
 
 // --- sequential compact safety ---

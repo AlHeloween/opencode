@@ -160,6 +160,24 @@ first.
 The first three are the reason `compact` exists as a tool: no window-fill gate
 can observe any of them.
 
+### Permanent memory rides the fold
+
+`m*` reproduces `.opencode/data/memory/reasoning.md` verbatim inside a
+`<memory>` block, placed before the summaries. A summary is Inferred prose
+*about* what happened; memory is what an identity deliberately wrote down to
+survive the boundary, so it is not re-summarized. An unwritten memory emits no
+block at all — an empty `<memory>` would spend window on nothing and read as
+"memory exists and is empty".
+
+This is what makes "persist, then compact" mean something: whatever is in memory
+when the fold runs is still in context after it. `readMemory()` is deliberately
+service-free (`Bun.file`) — `compact()` is on the turn-end path, and a service
+requirement there propagates into every layer that provides `SessionCompaction`.
+
+Every identity may now read and write it. It used to be reachable only from
+`reasoning_mode`, while the kernel told G1 — whose identities all denied the
+tool — to read it at grounding.
+
 ### How the agent calls it
 
 `compact` **arms** a fold; it does not perform one. A tool runs inside the very

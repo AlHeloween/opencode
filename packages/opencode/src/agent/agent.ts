@@ -147,7 +147,7 @@ export const layer = Layer.effect(
             permission: Permission.merge(
               defaults,
               user,
-              deny("memory", "plan_exit", "reasoning_exit"),
+              deny("plan_exit", "reasoning_exit"),
             ),
             mode: "primary",
             native: true,
@@ -161,7 +161,6 @@ export const layer = Layer.effect(
               defaults,
               user,
               deny(
-                "memory",
                 "plan_enter",
                 "reasoning_enter",
                 "reasoning_exit",
@@ -233,7 +232,6 @@ export const layer = Layer.effect(
               defaults,
               user,
               deny(
-                "memory",
                 "plan_enter",
                 "plan_exit",
                 "reasoning_enter",
@@ -290,7 +288,6 @@ export const layer = Layer.effect(
               defaults,
               user,
               deny(
-                "memory",
                 "plan_enter",
                 "plan_exit",
                 "reasoning_enter",
@@ -340,7 +337,6 @@ export const layer = Layer.effect(
               defaults,
               user,
               deny(
-                "memory",
                 "plan_enter",
                 "plan_exit",
                 "reasoning_enter",
@@ -377,7 +373,6 @@ export const layer = Layer.effect(
               defaults,
               user,
               deny(
-                "memory",
                 "plan_enter",
                 "plan_exit",
                 "reasoning_enter",
@@ -412,7 +407,6 @@ export const layer = Layer.effect(
               defaults,
               user,
               deny(
-                "memory",
                 "plan_enter",
                 "plan_exit",
                 "reasoning_enter",
@@ -470,7 +464,6 @@ export const layer = Layer.effect(
               defaults,
               user,
               deny(
-                "memory",
                 "plan_enter",
                 "plan_exit",
                 "reasoning_enter",

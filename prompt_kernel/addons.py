@@ -18,7 +18,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "PATH_GROUNDING",
         (
             "first read: plans/*.md, docs/.",
-            "durable criteria: memory read (.opencode/data/memory/reasoning.md); memory write replaces it, revisions kept.",
+            "durable criteria: memory read (.opencode/data/memory/reasoning.md) — every identity may read and write it, and compact folds it into m* inside <memory> verbatim; memory write replaces the file, revisions kept, append adds.",
             "never store plans under .opencode/plans/.",
         ),
     ),
@@ -119,7 +119,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_CLOSURE",
         (
             "verify completion: messagesearch; git status.",
-            "compact at the boundary: the compact tool arms the fold for turn end (sidecar capture, then fold). The window-fill gate already folds for room — this one is for attention.",
+            "compact at the boundary: memory write first (it rides m* verbatim), then the compact tool arms the fold for turn end. The window-fill gate already folds for room — this one is for attention.",
         ),
     ),
 )

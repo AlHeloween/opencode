@@ -2681,3 +2681,20 @@ twice. And the A/B that would move 078f55a2bb from Inferred to Exact.
   ms): packages/opencode/i+1).join(...) and a root opencode.db shadowing the
   real 350MB .opencode/data/opencode.db.
 - Baseline check: test/tool/{edit,bash,parameters} are 114/64 on clean HEAD too.
+
+[2026-09-16] memory: open to every identity, folded into m*
+- ACL: `memory` was denied by all eight identities except reasoning_mode, while
+  the kernel's G1 rule told BUILD/PLAN/EXPLORER/RESEARCHER to read it at
+  grounding. All deny entries removed — everyone reads and writes.
+- `m*` now reproduces reasoning.md verbatim in a <memory> block before the
+  summaries. Unwritten memory emits no block. `readMemory()` is service-free
+  (Bun.file): requiring AppFileSystem in compact() propagated into every layer
+  providing SessionCompaction — caught by the test, reverted to the right layer.
+- Kernel @COMPACTION_CADENCE: before folding, write to memory what the next
+  cycle must not re-derive; the fold reproduces memory verbatim and summarizes
+  everything else. utf8_budget 34 580 / 35 000. baseline f98f0f11.
+- Answered: sessionread DOES read summaries — it walks MessageV2.stream (raw,
+  unfiltered by `compacted`) and renders compaction parts as `[summary] …`;
+  `raw: true` is what SKIPS them.
+- Oracles: 2 ACL/reader guards + 2 end-to-end fold tests; the <memory> fold was
+  mutation-tested. session suite 750 pass / 6 fail = baseline 5 + known T8 flake.

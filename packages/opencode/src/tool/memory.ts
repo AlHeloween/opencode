@@ -3,8 +3,11 @@ import { Effect, Schema } from "effect"
 import * as Tool from "./tool"
 import { Instance } from "../project/instance"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
+import * as Log from "@opencode-ai/core/util/log"
 
-const MEMORY_FILE = ".opencode/data/memory/reasoning.md"
+const log = Log.create({ service: "memory" })
+
+export const MEMORY_FILE = ".opencode/data/memory/reasoning.md"
 const REVISIONS_DIR = ".opencode/data/memory/revisions"
 const MAX_REVISIONS = 20
 
@@ -25,6 +28,28 @@ function keepRevision(previous: string, fs: AppFileSystem.Interface) {
     yield* Effect.forEach(stale, (entry) => fs.remove(path.join(dir, entry)).pipe(Effect.catch(() => Effect.void)))
     return path.posix.join(REVISIONS_DIR, name)
   })
+}
+
+/**
+ * Read the permanent memory as plain text, for callers that are not the tool:
+ * compaction folds it into `m*` so what an identity wrote before a boundary is
+ * still there after it.
+ *
+ * Deliberately service-free (Bun.file, not AppFileSystem): `compact()` runs on
+ * the turn-end path, and adding a service requirement there propagates into
+ * every layer that provides SessionCompaction. A missing file is "" — a session
+ * that never wrote memory is the normal case, not an error.
+ */
+export function readMemory() {
+  return Effect.tryPromise(async () => {
+    const file = Bun.file(path.join(Instance.worktree, MEMORY_FILE))
+    return (await file.exists()) ? await file.text() : ""
+  }).pipe(
+    Effect.catch((cause) => {
+      log.debug("permanent memory unreadable; folding without it", { error: cause })
+      return Effect.succeed("")
+    }),
+  )
 }
 
 export const Parameters = Schema.Struct({

@@ -3172,3 +3172,42 @@ Oracle [Exact]:
 - Mutation: disabling the crossing inversion (`if (false && crossed)`) fails T9
   with the right symptom — the window stays `[m*]` and the rolled-back rows
   never return.
+
+## [2026-09-17 23:20] Codex kernel variant — release, and the four bindings it was missing
+
+Task: evaluate the three rendered variants and cut a current Codex release.
+
+Findings [Exact, measured]:
+- Product `reasoning_prompt.txt` in sync — render sha256 `f98f0f11…` equals
+  `baseline.json`. Claude `.claude/reasoning_kernel.md` in sync — byte-identical
+  to its render (34 346 B).
+- Codex stale in two different ways. The artifact was from
+  `dist_codex/2026-09-16_04-08-55_…`, four kernel commits behind (budget raise,
+  DELEGATION + TITLE_AGENT removal, compaction cadence, memory fold). And
+  `addons_codex.py` had not been touched since 2026-09-13: commit `24c8bb6a53`
+  added host bindings for delegation, the isolated-call falsifier and the
+  compaction boundary to `addons.py` and `addons_claude.py`, and mirrored the
+  *budget comments* into `test_addons_codex.py` — but never the bindings. The
+  tests tracked a change the registry never received.
+
+Change: four bindings in `addons_codex.py`, none of them a norm —
+G1 file-backed criterion store (no memory tool on this host), G7 `TOOL_DELEGATE`
+via `Task`, G8 the absent isolated call (self-verdict closes Inferred/Unknown),
+G9 the lossy fold (handles to disk first). Pinned in
+`test_addons_codex.py::test_codex_addons_render_host_tool_bindings`.
+
+Release: `prompt_kernel/dist_codex/2026-09-17_23-18-49_reasoning_prompt.txt`,
+sha256 `23cf3069adbe41b7b7afd119a7065e02db2ae9d5797ceceff852500e23c9f75f`,
+34 621 / 36 000 B, 4 478 / 4 550 tokens — no budget raise needed.
+
+Oracle [Exact]:
+- `python -m pytest prompt_kernel/tests/ -q` → 100 passed.
+- Artifact read back from disk: equals the in-memory render, sha256 matches the
+  CLI stamp, and all four new lines are inside their own `<Gx_RULES>` blocks.
+- dedup on the Codex render: `find_unapproved_semantic_overlaps` `[]`,
+  `repeated_ngrams(width=5, minimum=4)` `{}`.
+- `--codex --install` still exits 2 (no repository-local import contract).
+
+Residual: the Codex artifact is injected by hand into an external harness, so
+nothing verifies that the released text is the one actually running there —
+Hypothetical until that harness reports its own prefix digest.

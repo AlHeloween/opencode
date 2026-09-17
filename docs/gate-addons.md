@@ -92,6 +92,24 @@ Divergences from the ADID methodology (deliberate): `makeups/` is not bound —
 opencode bans mocks/stubs in tests; RAG indexing and the adm XML pipeline are
 skill-owned in the ADID package and stay out of the opencode kernel.
 
+**Absences are bindings too** (2026-09-17). Three shared mechanisms landed in
+`source.py` on 2026-09-16 — the DELEGATION protocol, `@COMPACTION_CADENCE`, and
+the persisted-criterion store `INTENTION_RESET` requires — and the product and
+Claude registries each got a host binding for them while this one did not, which
+left the variant declaring mechanisms it named no instrument for. It now binds
+them, including where the honest binding is that the instrument does not exist:
+
+| Gate | Addon | Binding |
+|------|-------|---------|
+| G1 | `PATH_GROUNDING` | no memory tool here, so criteria persist in `plans/*.md` and `_progress_log.md`, read at grounding |
+| G7 | `TOOL_DELEGATE` | `Task` — brief it once with binding, falsifier and the parent intention; re-brief a follow-up slice |
+| G8 | `TOOL_ORACLE` | no isolated model call is bound, and a `Task` shares this frame → a self-verdict closes Inferred or Unknown |
+| G9 | `TOOL_CLOSURE` | the fold is lossy — handles go to `plans/`, `docs/`, `_progress_log.md` before it runs |
+
+Naming a missing instrument is what keeps the rung from being skipped silently:
+an agent told only "stamp it with an outside falsifier" on a host that has none
+will reach for the nearest thing that answers, which is itself.
+
 ## How to add an addon
 
 1. Append `GateAddon(gate_id, addon_id, lines)` to `GATE_ADDONS` in `prompt_kernel/addons.py`.

@@ -20,6 +20,7 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "PATH_GROUNDING",
         (
             "first read: plans/*.md, docs/.",
+            "durable criteria: no permanent-memory tool is bound here, so a persisted criterion lives in plans/*.md and _progress_log.md — read them at grounding, not only after failing, and write the new criterion back.",
             "never store plans under .opencode/plans/.",
         ),
     ),
@@ -82,6 +83,14 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
     ),
     GateAddon(
         "G7",
+        "TOOL_DELEGATE",
+        (
+            "delegate through Task: hand it the task binding, the falsifier, and the parent intention verbatim, and withhold the answer you expect — a brief that names the conclusion buys confirmation.",
+            "a batch runs unattended and reports once: never state a pending result, and re-brief a follow-up slice instead of assuming it kept the earlier context.",
+        ),
+    ),
+    GateAddon(
+        "G7",
         "PROCESS_LAUNCH",
         (
             "persistent services, watchers, debuggers, and REPLs start through Hub; do not daemonize them through Bash.",
@@ -95,6 +104,7 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
             "prove via the narrowest instrument; long, interactive, or crash-prone Windows commands use the cmd_runner skill.",
             "rendered web claims require Browser through Eval with an observed page/screenshot; typecheck is not a visual oracle.",
             "read artifacts and logs with Read; shell directory scans are not evidence.",
+            "no isolated model call is bound here, and a Task shares this frame: a verdict about your own reasoning has no outside falsifier, so it closes Inferred or Unknown rather than as a stamp.",
         ),
     ),
     GateAddon(
@@ -111,6 +121,7 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_CLOSURE",
         (
             "verify scoped working-tree state before closure; no message-search tool exists.",
+            "compact at a closed boundary and treat the fold as lossy: criteria, falsifiers and the open residual go into plans/, docs/ and _progress_log.md first, because nothing here carries them across verbatim.",
             "a smoke-tested MCP contract is Exact; live response shape remains Hypothetical until run live.",
         ),
     ),

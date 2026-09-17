@@ -28,6 +28,7 @@ def test_codex_addons_render_host_tool_bindings() -> None:
     assert "codegraph_explore" in g1
     assert "Glob/Grep/Read" in g1
     assert "Browser through Eval" in g1
+    assert "durable criteria" in g1
     g4 = _gate_block(text, "G4")
     assert "unresolved user decision -> Ask" in g4
     g6 = _gate_block(text, "G6")
@@ -35,11 +36,14 @@ def test_codex_addons_render_host_tool_bindings() -> None:
     g7 = _gate_block(text, "G7")
     assert "AST Edit" in g7
     assert "Hub" in g7
+    assert "delegate through Task" in g7
     g8 = _gate_block(text, "G8")
     assert "cmd_runner skill" in g8
     assert "Browser through Eval" in g8
+    assert "no isolated model call is bound here" in g8
     g9 = _gate_block(text, "G9")
     assert "no message-search tool exists" in g9
+    assert "treat the fold as lossy" in g9
 
 
 def test_codex_variant_avoids_unavailable_tool_instructions() -> None:
@@ -70,6 +74,10 @@ def test_codex_variant_stays_within_explicit_budget() -> None:
     # 36_000 / 4_550 (2026-09-16, later): mirrors the product raise to 35_000 for
     # the compaction triggers the user named — fold before EVOLUTION_LOOP returns
     # to G1, and fold on STALL or an outside report of tunnel vision.
+    # 2026-09-17: the four bindings this variant had been missing land
+    # here — Task for DELEGATION, the absent isolated call at G8, the lossy fold
+    # at G9, and a file-backed criterion store at G1 for a host with no memory
+    # tool. 34 621 / 4 478 used; no raise, the existing caps absorb it.
     assert len(text.encode("utf-8")) <= 36_000
     assert normalized_token_count(text) <= 4_550
 

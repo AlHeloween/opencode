@@ -122,6 +122,13 @@ no `--codex --install`: this external harness has no repository-local prompt
 import contract. It rejects that flag rather than pretending the artifact is
 active.
 
+Because it installs nowhere, nothing detects it going stale: the artifact only
+changes when someone runs `--codex`. Re-render it in the same motion as
+`--install` and `--claude --install`, and check `addons_codex.py` whenever a
+sibling registry gains a host binding — a shared mechanism with no instrument
+named on this host is the defect the reverse-reachability check catches inside
+the graph and nothing catches across variants.
+
 Before wiring this in, note the size trade-off: the installed file is the
 full kernel render (~26 KB), so every session in this repo now spends that
 many tokens up front. If that is not wanted, remove the `@reasoning_kernel.md`

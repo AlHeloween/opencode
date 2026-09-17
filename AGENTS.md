@@ -4,7 +4,11 @@ Paradigm, agent rules, coding standards, KV cache, backup, testing.
 
 state:
   default_branch: Local_Development
-  upstream: anomalyco/opencode (branch has architectural divergence)
+  upstream: none — total divergence, measured 2026-09-17 against a local copy of
+    opencode 1.18.29: 190 source files share a name and ZERO are byte-identical;
+    365 upstream files vs 612 ours; 90 upstream-only, 234 ours-only. There is no
+    merge surface. Model data comes from models.dev plus our own provider-sync,
+    not from upstream, so upstream has no functional role at all.
   paradigm: outer-loop fractal prior + continuous memory + reuse + smoke
 
 scope:
@@ -72,7 +76,12 @@ acceptance_tests:
 - ALWAYS USE PARALLEL TOOLS WHEN APPLICABLE.
 - The default branch in this repo is `Local_Development`.
 - Prefer automation: execute requested actions without confirmation unless blocked by safety/irreversibility.
-- This branch has **significant architectural divergence** from upstream `dev` (anomalyco/opencode).
+- This is **not a branch of anything** — it is a separate project that shares an
+  ancestor. Never port upstream architecture in, never "sync with upstream", and
+  never treat an upstream diff as mergeable: the same identifier names a
+  different system on each side (Hono vs Effect server, Fossil vs git snapshots,
+  per-worktree vs central state). Measured 2026-09-17: of 190 same-named source
+  files, zero are byte-identical.
 
 ---
 
@@ -390,7 +399,7 @@ harnesses (agent testing agent testing agent) are supported by design.
 | File | Regeneration |
 |------|-------------|
 | `packages/sdk/js/src/gen/` | **NOT generated on this branch.** `ea7ec60f51` (2025-12-07) repointed `createClient` output to `./src/v2/gen`; eight hand-edit commits landed in v1 afterwards. Hand-maintained — TUI imports `@opencode-ai/sdk/v2`, so v1 is doubly irrelevant. |
-| `packages/sdk/js/src/v2/gen/` | **Do not regenerate without reading this row.** `bun run packages/sdk/js/script/build.ts` exits 0 and removes ~7100 lines, because the committed files were pasted in from the upstream Effect-HttpApi lineage rather than generated here: `79c5b4a04e` (2026-07-16, mislabelled `Revert "Regenerate SDK…"`) shrank `packages/sdk/openapi.json` by 763 lines while growing the two gen files by +7357. The deletion is the generator working correctly against this branch's Hono spec. `bun typecheck` is not a valid gate — live code references the pasted-in types, so a *correct* regeneration fails it. `openapi.json` is frozen at that commit, so regeneration also cannot pick up later schema changes until the spec itself is regenerated from the Hono server. |
+| `packages/sdk/js/src/v2/gen/` | **OURS, hand-maintained. Do NOT regenerate.** `bun run packages/sdk/js/script/build.ts` exits 0 and removes ~7100 lines — the generator working *correctly*, because the committed files were never its output: `79c5b4a04e` (2026-07-16, mislabelled `Revert "Regenerate SDK…"`) shrank the spec by 763 lines while growing the two gen files by +7357. Root cause of the gap: **the API is described twice and the generator reads the half with no description.** 46 `describeRoute` entries against 275 route registrations, while 108 `HttpApiEndpoint` declarations across 17 files carry 149 `OpenApi.annotations` that nothing reads (`OpenApi.fromApi` has zero call sites despite shipping in the installed effect); the Effect half enters Hono as opaque pass-throughs (`routes/instance/index.ts:29`). Hence 233 typecheck errors collapsing to 12 missing symbols. Note `packages/sdk/openapi.json` is an ORPHAN — `script/build.ts:12` writes its own spec to `packages/sdk/js/openapi.json` from the live server and deletes it at line 62; the committed file one directory up is never read. `bun typecheck` is not a valid gate here: live code references the hand-maintained types, so a correct regeneration fails it. Add fields by hand. |
 | `packages/desktop/src/bindings.ts` | `cargo run -p specta-bindings` |
 | `packages/opencode/src/session/prompt/reasoning_prompt.txt` | `python -m prompt_kernel --install` (stamps `prompt_kernel/dist/` and copies runtime `.txt` into production) |
 

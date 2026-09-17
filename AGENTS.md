@@ -53,6 +53,9 @@ forbidden_actions:
 - Running tests from repo root
 - Changing Global.Path.home from worktree to os.homedir()
 - Hand-editing ADID framework receivers — change only via kernel SPECS or ADM pipelines
+- Reopening the SDK/upstream/regeneration question — see the STOP section; run the diff instead
+- Regenerating packages/sdk/js/src/v2/gen or src/gen — hand-maintained source, add fields by hand
+- Treating `bun run packages/sdk/js/script/build.ts` exit 0 as success — it deletes ~7100 of our lines
 - Pinning a provider to a legacy API version or transport when it publishes a newer one
 - Rewriting an OpenAI-compatible `/v1` path to `/v3` — that suffix is a dialect marker, not a version
 - Probing the version/transport descent per request instead of recording the winning rung
@@ -82,6 +85,58 @@ acceptance_tests:
   different system on each side (Hono vs Effect server, Fossil vs git snapshots,
   per-worktree vs central state). Measured 2026-09-17: of 190 same-named source
   files, zero are byte-identical.
+
+---
+
+## STOP — the SDK/upstream question is CLOSED. Do not reopen it.
+
+**This question has been raised and re-answered three times (latest 2026-09-17).
+Every time, the cost was hours spent theorising instead of one diff. Read this
+section and move on.**
+
+### If you are about to think about upstream, regeneration, or "syncing"
+
+Run the diff. That is the whole procedure. It takes one command and it settles
+every version of this question:
+
+```bash
+diff -rq external/opencode-1.18.29/packages/opencode/src packages/opencode/src
+```
+
+Measured result, 2026-09-17: **190 source files share a name and ZERO are
+byte-identical.** 365 upstream `.ts/.tsx` against 612 ours; 90 upstream-only,
+234 ours-only. There is no merge surface, no shared file, nothing to align to.
+
+### The conclusions — do not re-derive these
+
+1. **`packages/sdk/js/src/v2/gen` and `src/gen` are OURS.** Hand-maintained
+   source. Not generator output. **There is nothing to regenerate.** Missing a
+   field? Add it by hand, like any other source file.
+2. **Upstream has no functional role whatsoever.** Not architecture (Hono vs
+   Effect, Fossil vs git, per-worktree vs central state — same identifiers,
+   different systems). Not the model catalog either: that is `models.dev` plus
+   our own `provider-sync`. Nothing in the tree fetches from upstream.
+3. **`bun run packages/sdk/js/script/build.ts` regenerates with `clean: true`.**
+   It exits 0 and DELETES ~7100 lines of our source. Exit 0 is not success here.
+4. **`packages/sdk/openapi.json` is an orphan.** The generator writes its own
+   spec to `packages/sdk/js/openapi.json` from the live server and removes it
+   again; the committed file one directory up is never read by anything.
+5. **`bun typecheck` cannot validate a regeneration.** Live code references the
+   hand-maintained types, so a *correct* regeneration fails typecheck. If you
+   find yourself using typecheck as the gate, you have already lost the thread.
+
+### Why the gap exists, so nobody goes hunting for a missing flag
+
+The API is described **twice**, and the generator reads the half that carries no
+description: 46 `describeRoute` entries against 275 route registrations, while
+108 `HttpApiEndpoint` declarations across 17 files carry **149
+`OpenApi.annotations` that nothing reads** — `OpenApi.fromApi` has zero call
+sites despite shipping in the installed `effect`. The Effect half enters Hono as
+opaque pass-throughs (`routes/instance/index.ts:29`). That is why a regeneration
+loses 422 exported types and 233 typecheck errors collapse to 12 symbols.
+
+Completing that spec is a real project. Until someone decides to do it
+deliberately, **the hand-maintained folder is the answer, not a workaround.**
 
 ---
 

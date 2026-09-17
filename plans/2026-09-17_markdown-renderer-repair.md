@@ -224,6 +224,54 @@ Trace which of styled vs unstyled text lands in the buffer for a heading, then
 compare `drawUnstyledText` / `streaming` handling in `Code.ts`. That is the next
 and, on current evidence, last hop.
 
+## ROOT CAUSE — found 2026-09-18. Two stacked local workarounds.
+
+Probed the styled output itself: for a heading, `styledTextFromHighlights`
+returns `["Heading 1", "\n", "\n"]` — **the `#` is correctly concealed**. It
+never reaches the screen.
+
+`Code.ts:448` is why, and upstream has no such branch (it unconditionally does
+`this.textBuffer.setStyledText(new StyledText(chunks))`):
+
+```ts
+// Preserve initialStyledText for markdown and ansi — tree-sitter's markdown
+// grammar doesn't capture strong/em/codespan inline formatting, so its output
+// would overwrite rich styled text with structural-only highlights.
+if (!(this._initialStyledText && (filetype === "markdown" || filetype === "ansi"))) {
+  this.textBuffer.setStyledText(new StyledText(chunks))
+}
+```
+
+When the filetype is markdown and an `initialStyledText` exists, tree-sitter's
+styled text — the one carrying the conceal — is **discarded**. What wins is the
+chunk-built `initialStyledText`, which conceals inline markers (`**`, `*`,
+`` ` ``) because `renderInlineToken` handles them, and knows nothing about
+heading markers, which are block-level and exist only in tree-sitter's output.
+
+### The stack, in order
+
+1. **Workaround A** (`Code.ts:448`): tree-sitter's markdown highlights lost
+   strong/em/codespan, rendering inline formatting black and white. Fix: let
+   `initialStyledText` win permanently for markdown. **Cost: heading conceal.**
+2. **Workaround B** (`shouldRenderSeparately` + heading/list, `3b07819193`):
+   headings now showed their `#`. Fix: route headings out of the markdown
+   `CodeRenderable` entirely, into the structured path, which conceals by using
+   `token.text`. **Cost: `conceal=false` is ignored, and blocks stop coalescing.**
+
+Each workaround repairs the previous one's damage and adds its own. That is why
+removing B alone makes things worse — it exposes A.
+
+### What the real fix has to do
+
+Keep the rich inline styling **and** apply tree-sitter's conceal. Either merge
+the two styled texts rather than choosing between them, or teach the chunk path
+to conceal block-level markers so `initialStyledText` is complete on its own.
+Once that holds, both workarounds can be removed and all seven tests should
+resolve together — including `default block mode still coalesces` and
+`block type change creates new renderable`, which are B's collateral.
+
+Do not remove B before A is fixed. The 88→94 experiment already measured that.
+
 ## Method
 
 1. Port `addMarkdownLinkHighlights`, reconciled with `detectLinks`. Oracle:

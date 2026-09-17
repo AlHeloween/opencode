@@ -329,6 +329,74 @@ describe("Renderable - layout read caching invariants", () => {
   })
 })
 
+describe("Renderable - declared size vs laid-out size", () => {
+  // Two contracts meet in the width/height setters and they pull opposite ways.
+  // The graphics path (Kitty/Sixel stamps, calibrated mermaid) needs the
+  // draw-time size to be readable IMMEDIATELY after assignment, before the next
+  // layout pass, or an image slot is stamped against a stale size. Resize
+  // detection needs the opposite: the size the LAST LAYOUT computed, so it can
+  // tell that a newly declared size is in fact a change.
+  //
+  // Holding both in one field broke the second: a declared width became its own
+  // "old" value, `sizeChanged` was false for the very resize that had just been
+  // requested, and `onResize` never fired (Textarea stopped re-wrapping on
+  // resize). Neither contract has a test above this one, and this package
+  // declares no `test:ci`, so the graphics half in particular is only guarded
+  // here. Delete either assertion and the other side breaks silently.
+
+  class ResizeRecordingRenderable extends Renderable {
+    public resizes: Array<{ width: number; height: number }> = []
+
+    constructor(ctx: RenderContext, options: RenderableOptions) {
+      super(ctx, options)
+    }
+
+    protected override onResize(width: number, height: number): void {
+      this.resizes.push({ width, height })
+    }
+  }
+
+  test("a numeric width is readable immediately, before the next layout pass", async () => {
+    const box = new ResizeRecordingRenderable(testRenderer, { id: "eager-size", width: 10, height: 4 })
+    testRenderer.root.add(box)
+    await renderOnce()
+
+    box.width = 42
+    box.height = 9
+
+    // No renderOnce() here on purpose: this is the graphics contract.
+    expect(box.width).toBe(42)
+    expect(box.height).toBe(9)
+  })
+
+  test("declaring a new size still fires onResize once layout confirms it", async () => {
+    const box = new ResizeRecordingRenderable(testRenderer, { id: "resize-fires", width: 10, height: 4 })
+    testRenderer.root.add(box)
+    await renderOnce()
+    box.resizes = []
+
+    box.width = 42
+    await renderOnce()
+
+    expect(box.resizes).toHaveLength(1)
+    expect(box.resizes[0]!.width).toBe(42)
+  })
+
+  test("a size that layout confirms unchanged does not fire onResize", async () => {
+    const box = new ResizeRecordingRenderable(testRenderer, { id: "resize-quiet", width: 10, height: 4 })
+    testRenderer.root.add(box)
+    await renderOnce()
+    box.resizes = []
+
+    // Same value: no layout change, so no resize — otherwise every frame that
+    // re-declares a size would re-wrap text and re-stamp images for nothing.
+    box.width = 10
+    await renderOnce()
+
+    expect(box.resizes).toHaveLength(0)
+  })
+})
+
 describe("Renderable - Child Management", () => {
   test("can add and remove children", () => {
     const parent = new TestRenderable(testRenderer, { id: "parent" })

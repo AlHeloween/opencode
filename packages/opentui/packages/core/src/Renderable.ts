@@ -239,6 +239,15 @@ export abstract class Renderable extends BaseRenderable {
   protected _height: number | "auto" | `${number}%`
   protected _widthValue: number = 0
   protected _heightValue: number = 0
+  // What the LAST LAYOUT PASS computed — not what was declared. The two are
+  // different questions and must not share a field: `_widthValue` is the
+  // draw-time size (the setter refreshes it eagerly so graphics can stamp a
+  // slot before the next layout), while resize detection has to compare
+  // against the previously *laid out* size. Sharing one field made a declared
+  // width its own "old" value, so `sizeChanged` was false for the very resize
+  // that had just been requested and `onResize` never fired.
+  private _laidOutWidth: number = 0
+  private _laidOutHeight: number = 0
   private _zIndex: number
   public selectable: boolean = false
   protected buffered: boolean
@@ -299,9 +308,11 @@ export abstract class Renderable extends BaseRenderable {
 
     if (typeof this._width === "number") {
       this._widthValue = this._width
+      this._laidOutWidth = this._width
     }
     if (typeof this._height === "number") {
       this._heightValue = this._height
+      this._laidOutHeight = this._height
     }
 
     this._zIndex = options.zIndex ?? 0
@@ -1110,8 +1121,8 @@ export abstract class Renderable extends BaseRenderable {
 
     const oldX = this._x
     const oldY = this._y
-    const oldWidth = this._widthValue
-    const oldHeight = this._heightValue
+    const oldWidth = this._laidOutWidth
+    const oldHeight = this._laidOutHeight
 
     this._x = layout.left
     this._y = layout.top
@@ -1132,6 +1143,8 @@ export abstract class Renderable extends BaseRenderable {
 
     this._widthValue = newWidth
     this._heightValue = newHeight
+    this._laidOutWidth = newWidth
+    this._laidOutHeight = newHeight
 
     if (sizeChanged) {
       this.onLayoutResize(newWidth, newHeight)

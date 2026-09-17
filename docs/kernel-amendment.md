@@ -175,6 +175,59 @@ cannot settle it: they pin the structure of the kernel, not its effect on
 reasoning — the same limit recorded under *Coverage* below. Until such a run
 exists this stays parked; do not promote it on argument alone.
 
+## Open problems — long-horizon autonomy
+
+The system is built for runs of a day to a month, and the stated target
+(2026-09-17) is operation **with no human in the loop at all**. These are the
+gaps that scale-out exposes. None has a proposed amendment yet; they are here so
+a long run has something to look for.
+
+### Flawless execution of a wrong plan
+
+`@LOOP_PROGRESS` catches stalling. `@INTENTION_INVARIANCE` catches goal drift.
+Neither catches three hundred hours of disciplined, measurable, oracle-backed
+work down a branch that was architecturally dead at hour three — every gate
+moves correctly, the measure decreases, the ledger fills. `@ONE_STEP_AHEAD` and
+the G5 concern loop look in this direction but act at decomposition time, not at
+hour 300. Tolerable over a day; not over a month.
+
+### The human-free target removes a backstop the graph relies on
+
+`G0 → WAITING_APPROVAL` and `G4 → ASK` are terminals that assume someone
+answers, and `@LOOP_PROGRESS` routes an exhausted loop budget to ASK rather than
+letting it turn. With no human those are not terminals, they are stops. Either
+they need an autonomous resolution path, or a run must be able to close as
+BLOCKED with a recorded residual and be resumed by a later cycle — a different
+contract from the one written. Same for the oracle of last resort: today a
+human can settle what no instrument settles, and that fallback disappears.
+
+### Correction rate, not step quality
+
+Over 10^4 steps the governing quantity is whether errors are corrected faster
+than they are introduced. An agent correct in 99% of steps yields a broken
+project, broken invisibly. This is why an oracle on every leaf outranks a better
+model: a better model raises the percentage, an oracle changes the sign.
+Falsifier: a long run instrumented to count injected vs corrected defects per
+100 steps — if the ratio is stable rather than improving as leaves get smaller,
+this is wrong.
+
+### A month is not one run
+
+It is hundreds of sessions, crashes, restarts, model swaps. State must live
+outside the model, which is what `plans/`, `_progress_log.md`, fossil snapshots,
+checkpoints and m\* are for — substrate for resumability, not conveniences. A
+fast task solver is not resumable in principle: its state is its context, and
+its context dies with the session.
+
+### The deliverable is the trail
+
+At 200 lines a human is the verifier. At a month's scale nobody reads it all, so
+verification has to be delegated to the process, and the product of a run is not
+the code but **the evidence that makes the code acceptable without redoing the
+work** — claim ledger, per-layer oracles, timing tables, reference comparisons.
+With no human at the end either, that trail's consumer is the next cycle and a
+later audit, which raises rather than lowers the bar on it.
+
 ## What this does not fix
 
 - **Politics.** Which human authorizes an L3 is process governance, not protocol.

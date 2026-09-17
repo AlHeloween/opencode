@@ -23,10 +23,17 @@ afterAll(() => {
 })
 
 describe("resolveGatewayProtocol", () => {
-  test("family defaults: openai and opencode (zen) -> h2, others -> http/1.1", () => {
+  test("family defaults: openai, opencode (zen) and deepseek -> h2, others -> http/1.1", () => {
     expect(resolveGatewayProtocol("openai")).toBe("h2")
     expect(resolveGatewayProtocol("opencode")).toBe("h2")
     expect(resolveGatewayProtocol("opencode-go")).toBe("h2")
+    // 2026-09-17: api.deepseek.com negotiates h2 by ALPN and PICKS h2 when
+    // offered "h2,http/1.1". It was falling through to the legacy rung — the
+    // exact failure the provider-reach postulate exists to prevent, so the
+    // default is pinned here rather than left to a comment.
+    expect(resolveGatewayProtocol("deepseek")).toBe("h2")
+    // Novita's rung is h3 and rides `options.protocol` from the catalog, not
+    // this family default — so the default for it stays the floor.
     expect(resolveGatewayProtocol("novita-ai")).toBe("http/1.1")
     expect(resolveGatewayProtocol("openrouter")).toBe("http/1.1")
   })

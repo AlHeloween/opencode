@@ -60,10 +60,15 @@ export function resolveGatewayProtocol(provider: string, configured?: GatewayPro
   //                     stream smoke cmd_runner 20260911T051635Z_4eefe556;
   //                     h3 disabled server-side in the zone, h3 pin
   //                     HTTP3HandshakeFailed, probe 20260911T051102Z_9d5a214c)
+  //   deepseek -> h2  (2026-09-17: ALPN probe on api.deepseek.com returns h2,
+  //                     and offered "h2,http/1.1" the server PICKS h2 — it
+  //                     prefers it. No alt-svc, so h2 is the top rung there.
+  //                     Was falling through to http/1.1, i.e. we were asking
+  //                     for the legacy path on a server that prefers h2.)
   //   other    -> http/1.1
   // Config override (provider.<id>.models.<id>.options.protocol) always wins.
   if (configured) return configured
-  if (provider === "openai" || provider.startsWith("opencode")) return "h2"
+  if (provider === "openai" || provider === "deepseek" || provider.startsWith("opencode")) return "h2"
   return "http/1.1"
 }
 

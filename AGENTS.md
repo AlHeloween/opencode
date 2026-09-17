@@ -37,6 +37,7 @@ constraints:
 - After plan changes, run explore agent to validate
 - Tests cannot run from repo root — run from package dirs
 - Avoid mocks in tests — test actual implementation
+- Reach every provider from the HIGHEST surface down: newest API version first, then h3 -> h2 -> http/1.1
 
 forbidden_actions:
 - Exposing secrets (API keys, tokens, passwords, private keys) to git
@@ -48,6 +49,9 @@ forbidden_actions:
 - Running tests from repo root
 - Changing Global.Path.home from worktree to os.homedir()
 - Hand-editing ADID framework receivers — change only via kernel SPECS or ADM pipelines
+- Pinning a provider to a legacy API version or transport when it publishes a newer one
+- Rewriting an OpenAI-compatible `/v1` path to `/v3` — that suffix is a dialect marker, not a version
+- Probing the version/transport descent per request instead of recording the winning rung
 
 invariants:
 - Default branch is Local_Development — never assume main or dev exists
@@ -56,6 +60,7 @@ invariants:
 - Plan documents must match actual code state
 - .opencode/plans/ is prohibited for plan storage
 - git push --no-verify is never permitted for developer pushes
+- Every provider's recorded version rung and transport rung name the probe that established them
 
 acceptance_tests:
 - git status confirms Local_Development branch
@@ -411,6 +416,78 @@ Host path bindings and new advisory rules go through `prompt_kernel/addons.py` (
 All shared deps MUST be in root `catalog` (`package.json` → `workspaces.catalog`) and referenced as `"catalog:"`. After changes: `python consolidate_catalog.py --dry-run` → resolve conflicts → apply → `bun install` (zero warnings).
 
 Desktop TS pins `~5.6.2` (Tauri/Electron compat); rest uses `5.8.2` via catalog.
+
+---
+
+## Provider Reach — descend from the highest surface (POSTULATE)
+
+**Always reach a provider from the highest surface it publishes and step down only
+on a recorded failure.** Two independent ladders, same rule:
+
+| Ladder | Order |
+|--------|-------|
+| API version | highest published → … → lowest |
+| Transport | `h3` → `h2` → `http/1.1` |
+
+Applies to catalog sync and to inference alike, and to every provider —
+openrouter, huggingface, deepseek included.
+
+**Why this is a postulate and not a preference.** Providers migrate to their newest
+version and newest transport, and the legacy path then costs them extra: protocol
+translation, older connection pools, separate capacity. That path is therefore the
+*first* to be rate-limited, deprioritised or simply refused. A legacy surface that
+works today is the one that gets throttled first under load — so pinning to it buys
+a quiet week and then an outage whose cause looks like "the provider is flaky".
+Climbing removes that whole class of intermittent failure instead of diagnosing it
+one incident at a time.
+
+### The number is not a constant — read it per provider
+
+Never write a version literal into the rule. As of 2026-09-17:
+
+| Provider | Endpoint | What the number is |
+|---|---|---|
+| `zai` | `api.z.ai/api/paas/v4` | own API **v4** |
+| `novita-ai` | `api.novita.ai/v3/openai` | own API **v3**, then openai dialect |
+| `openrouter` | `openrouter.ai/api/v1` | own API v1 |
+| `huggingface` | `router.huggingface.co/v1` | router v1 |
+| `deepseek` | `api.deepseek.com` | unversioned host; SDK appends the dialect |
+
+A rule saying "use v3" would already have been wrong for Z.AI on the day it was
+written.
+
+### Guards — these keep the rule from doing damage
+
+1. **Version ≠ dialect.** Hundreds of catalog entries end in `/v1` because `/v1` is
+   the OpenAI-compatible *dialect* path, not a version — those providers have no
+   `/v3`. Climb only where the provider versions its OWN API. Blind `/v1` → `/v3`
+   rewriting breaks the catalog wholesale.
+2. **Descend once, record the rung.** Probing per request pays a failed handshake on
+   every call wherever the top rung is dead. The winning rung belongs in the catalog
+   `options` — that is exactly what `VERIFIED_NOVITA_OPTIONS = { protocol: "h3" }`
+   is, applied across 117 entries in `models/novita-ai.json`, honoured first by
+   `resolveGatewayProtocol`. Runtime then falls back only on a live failure.
+3. **The transport oracle is `alt-svc`, not a blind probe.** A server that serves h3
+   advertises it. Novita does; the `openrouter.ai` and `opencode.ai` zones do not —
+   the 2026-09-11 pin returned `HTTP3HandshakeFailed` with no `alt-svc` at all. Read
+   the header, then pin.
+4. **Record the negative result with the same weight as the positive one.** The only
+   reason nobody re-probes openrouter h3 every week is that the failure is written
+   down next to the code. An unrecorded "we tried, it didn't work" gets re-tried
+   forever.
+5. **Step down to the rung that lands, not the next one.** Novita's h3 falls straight
+   to `http/1.1`, deliberately skipping h2: Bun's h3 failure modes are
+   connection-class, and h1 is the safe landing after any of them.
+
+### Evidence
+
+Novita h3 vs h2, interleaved 6-pair benchmark 2026-09-08: median **2188 ms vs
+3294 ms**, tail 2× shorter, zero give-ups, server advertising `alt-svc h3`.
+Transport defaults and their probes are recorded in `provider/provider-sync.ts`
+above `VERIFIED_H2_OPTIONS`.
+
+A new provider is not finished until both rungs are recorded with the probe that
+established them.
 
 ---
 

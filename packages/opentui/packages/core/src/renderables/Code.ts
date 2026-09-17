@@ -443,25 +443,29 @@ export class CodeRenderable extends TextBufferRenderable {
         // ONE styled text wins, always. Two sources competing at paint time is
         // how you get flicker.
         //
-        // `markdown` used to be preserved here too, on the premise that
-        // tree-sitter's markdown grammar drops strong/em/codespan and would
-        // repaint rich text as structural black-and-white. That premise is
-        // false and was measured false on 2026-09-18: with the markdown_inline
-        // injection live, the highlights for `**Bold**` are
-        // `["**Bold**", "markup.strong"]` plus four `["*", "conceal", ""]`.
-        // The branch was a leftover from the failed mermaid rendering attempts,
-        // whose real cause turned out to be in the zig engine — the crutch
-        // outlived the fix.
+        // WHICH one wins is the whole question, and it was answered wrongly on
+        // 2026-09-18. `markdown` was dropped from this guard on the measured
+        // premise that the markdown_inline injection is live, so tree-sitter
+        // carries `markup.strong` plus conceal for `**Bold**` and nothing is
+        // lost by regenerating. That measurement holds IN THE TEST HARNESS and
+        // does not hold in the built binary: there the inline layer is absent,
+        // so regenerating produced block-only styling — `**` markers visible,
+        // no bold, and, because `_initialStyledText` also carries the app's own
+        // colours, reasoning text lost its dimming (Alexander, same day:
+        // "правильная отрисовка затирается чернобелой").
         //
-        // Keeping it cost heading conceal: tree-sitter's styled text carries
-        // `(#set! conceal "")` for `#` markers and was thrown away, which in
-        // turn was patched around by routing headings out of this renderable
-        // entirely. Both are gone; do not restore either without re-measuring
-        // the premise above.
+        // So `markdown` is preserved again. This is NOT the end state: the
+        // right answer is to MERGE — app styling as the base, tree-sitter
+        // adding syntax on top — rather than either side discarding the other.
+        // Until that merge exists, losing heading conceal is the cheaper defect
+        // than losing every colour the application applied.
         //
-        // `ansi` genuinely stays: its chunks are pre-rendered image-to-ansi
-        // output with no tree-sitter source to regenerate them from.
-        if (!(this._initialStyledText && filetype === "ansi")) {
+        // Before touching this again: measure against the BUILT BINARY, not the
+        // test harness. That is the difference the previous attempt missed.
+        //
+        // `ansi` stays for a different reason: its chunks are pre-rendered
+        // image-to-ansi output with no tree-sitter source to regenerate from.
+        if (!(this._initialStyledText && (filetype === "markdown" || filetype === "ansi"))) {
           const styledText = new StyledText(chunks)
           this.textBuffer.setStyledText(styledText)
         }

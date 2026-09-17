@@ -5,7 +5,9 @@ import {
   renderMermaidToRgba,
   renderSvgToPngDataUrl,
   resetRendererCache,
+  resvgOptionsForSvg,
 } from "../../src/util/mermaid"
+import { parseSvgFontSize, parseSvgNaturalSize } from "../../src/util/fit-image"
 
 describe("mermaid rendering", () => {
   const flowchart = `graph TD
@@ -122,5 +124,79 @@ describe("mermaid rendering", () => {
   test("empty input returns null", async () => {
     const svg = await renderMermaidToSvg("")
     expect(svg).toBeNull()
+  })
+})
+
+describe("mermaid raster scale is anchored to the terminal font", () => {
+  // End-to-end over real wasm output, not synthetic SVG. The defect this pins:
+  // width-filling made the rendered label size a function of the diagram's
+  // natural width, which tracks node count. Measured 2026-09-18 on a 1200px
+  // budget: 9.7x for two nodes, 0.44x for twelve — a 22x spread in apparent
+  // text size that no user could predict or control.
+  const CELL_H = 20
+
+  const twoNodes = `graph TD
+    A[Start] --> B[End]`
+
+  const sixNodes = `graph TD
+    A[Start] --> B[Parse]
+    B --> C[Validate]
+    C --> D[Transform]
+    D --> E[Emit]
+    E --> F[End]`
+
+  const twelveNodeChain = `graph LR
+    ${Array.from({ length: 12 }, (_, i) => `N${i}[Node number ${i}] --> N${i + 1}[Node number ${i + 1}]`).join("\n    ")}`
+
+  beforeEach(() => resetRendererCache())
+
+  /** Rendered label height in device px for a real diagram at a real budget. */
+  async function labelPx(source: string, maxWidth: number): Promise<number> {
+    const svg = await renderMermaidToSvg(source)
+    expect(svg).not.toBeNull()
+    const natural = parseSvgNaturalSize(svg!)
+    expect(natural).not.toBeNull()
+    const opts = resvgOptionsForSvg(svg!, "#ffffff", { maxWidth, cellHeight: CELL_H })
+    expect(opts.fitTo).toBeDefined()
+    const scale = opts.fitTo!.value / natural!.width
+    return scale * (parseSvgFontSize(svg!) ?? 14)
+  }
+
+  test("two diagrams that fit render their labels at the same size", async () => {
+    const small = await labelPx(twoNodes, 1200)
+    const medium = await labelPx(sixNodes, 1200)
+    // Within a pixel — the only slack is integer rounding of the target width.
+    expect(Math.abs(small - medium)).toBeLessThan(1)
+  })
+
+  test("a label that fits is one terminal row tall", async () => {
+    expect(await labelPx(twoNodes, 1200)).toBeCloseTo(CELL_H, 0)
+  })
+
+  test("a narrow diagram is no longer blown up to the full width", async () => {
+    const svg = await renderMermaidToSvg(twoNodes)
+    const natural = parseSvgNaturalSize(svg!)!
+    const opts = resvgOptionsForSvg(svg!, "#ffffff", { maxWidth: 1200, cellHeight: CELL_H })
+    expect(opts.fitTo!.value).toBeLessThan(1200)
+    expect(opts.fitTo!.value).toBeGreaterThan(natural.width)
+  })
+
+  test("a diagram too wide to fit is clamped to the budget, not to the anchor", async () => {
+    const svg = await renderMermaidToSvg(twelveNodeChain)
+    const opts = resvgOptionsForSvg(svg!, "#ffffff", { maxWidth: 1200, cellHeight: CELL_H })
+    expect(opts.fitTo!.value).toBeLessThanOrEqual(1200)
+  })
+
+  test("doubling the terminal font doubles the rendered label", async () => {
+    const svg = await renderMermaidToSvg(twoNodes)
+    const at10 = resvgOptionsForSvg(svg!, "#ffffff", { maxWidth: 100000, cellHeight: 10 }).fitTo!.value
+    const at20 = resvgOptionsForSvg(svg!, "#ffffff", { maxWidth: 100000, cellHeight: 20 }).fitTo!.value
+    expect(at20 / at10).toBeCloseTo(2, 1)
+  })
+
+  test("without a measured cell the old width-filling behaviour is kept", async () => {
+    const svg = await renderMermaidToSvg(twoNodes)
+    // The PNG symbol fallback has no CSI 16t geometry to anchor to.
+    expect(resvgOptionsForSvg(svg!, "#ffffff", { maxWidth: 1200 }).fitTo!.value).toBe(1200)
   })
 })

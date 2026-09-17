@@ -282,7 +282,12 @@ export function MediaImage(props: {
   /** Enable mouse-wheel zoom and drag-to-pan (mermaid diagrams). */
   interactive?: boolean
   /** Native source that is rendered after terminal graphics capabilities settle. */
-  renderNative?: (budget: { maxWidth: number; maxHeight: number }) => Promise<RgbaFrame | null>
+  renderNative?: (budget: {
+    maxWidth: number
+    maxHeight: number
+    /** Measured cell height — lets vector sources scale their text per terminal font. */
+    cellHeight: number
+  }) => Promise<RgbaFrame | null>
   /** Lazy fallback for terminals without native graphics support. */
   fallbackDataUrl?: () => Promise<string | null>
 }) {
@@ -382,6 +387,7 @@ export function MediaImage(props: {
           ? await props.renderNative({
               maxWidth: Math.max(1, Math.round(bounds.maxCols * cells.cellWidth)),
               maxHeight: Math.max(1, Math.round(bounds.maxRows * cells.cellHeight)),
+              cellHeight: Math.max(1, Math.round(cells.cellHeight)),
             })
           : null
         if (cancelled) return

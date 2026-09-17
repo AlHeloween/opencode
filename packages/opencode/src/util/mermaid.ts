@@ -12,7 +12,7 @@
 import { Resvg } from "@resvg/resvg-js"
 import { RGBA } from "@opentui/core"
 import * as Log from "@opencode-ai/core/util/log"
-import { fitToWidthSize, parseSvgNaturalSize } from "./fit-image"
+import { fitFontAnchoredSize, fitToWidthSize, parseSvgFontSize, parseSvgNaturalSize } from "./fit-image"
 import { getMermaidWasmRenderer, resetMermaidWasmRenderer, type MermaidWasmRenderer } from "./mermaid-wasm"
 import type { AnsiChunk } from "./image-to-ansi"
 
@@ -37,6 +37,15 @@ export type SvgFitBudget = {
    * Kept optional so MediaImage can still pass a terminal box without effect.
    */
   maxHeight?: number
+  /**
+   * Physical terminal cell height in device px (CSI 16t). When present, the
+   * raster scale is anchored to the FONT and `maxWidth` becomes a clamp instead
+   * of a target — see {@link fitFontAnchoredSize}. Without it the old
+   * width-filling behaviour is kept, because there is nothing to anchor to.
+   */
+  cellHeight?: number
+  /** How many terminal rows one line of diagram text should occupy. Default 1. */
+  labelCells?: number
 }
 
 /** Terminal width budget (px) for mermaid SVG — height is not a budget input. */
@@ -77,8 +86,31 @@ export function resvgOptionsForSvg(
     // Unparseable SVG — still force width so large unknown trees fit horizontally.
     return { background, fitTo: { mode: "width", value: maxWidth } }
   }
-  // Vector: always fill the width budget (upscale small diagrams for sharp sixel).
-  // Height is not an input — fitToWidthSize only uses width + natural aspect.
+
+  // Preferred path: anchor the scale to the terminal cell so label text is the
+  // same size in every diagram and follows the user's font. Width only clamps.
+  if (budget?.cellHeight && budget.cellHeight > 0) {
+    const { width, scale, clamped } = fitFontAnchoredSize({
+      srcWidth: srcW,
+      srcHeight: srcH,
+      srcFontPx: parseSvgFontSize(svg) ?? 0,
+      cellHeight: budget.cellHeight,
+      labelCells: budget.labelCells,
+      maxWidth,
+    })
+    log.debug("mermaid raster scale anchored to cell", {
+      srcW,
+      srcH,
+      cellHeight: budget.cellHeight,
+      scale: Number(scale.toFixed(3)),
+      clamped,
+      outW: width,
+    })
+    return { background, fitTo: { mode: "width", value: width } }
+  }
+
+  // No measured cell (PNG symbol fallback): nothing to anchor to, so keep the
+  // old width-filling behaviour rather than inventing a cell size.
   const { width } = fitToWidthSize({
     srcWidth: srcW,
     srcHeight: srcH,

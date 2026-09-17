@@ -88,6 +88,9 @@ export const NativeAudioStreamFormat = NativeAudioStreamFormatValue
 export type NativeAudioStreamFormat = NativeAudioStreamFormatType
 import { isBunfsPath } from "./lib/bunfs.js"
 
+/** Upper bound for a link URL read back from the native link table. */
+export const MAX_LINK_URL_BYTES = 512
+
 registerEnvVar({
   name: "OPENTUI_LIBC",
   description: "Select Linux native libc package. Supported values: glibc, musl.",

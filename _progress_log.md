@@ -3065,3 +3065,49 @@ Oracle:
   the surrounding code (`flexDirection="row"`, `onMouseUp` on a box, `←`/`→`
   glyphs already used by the tool renderers). Falsifier: drive a built binary
   through `cmd_runner`, undo once, read the banner back.
+
+## [2026-09-17] The fourth boundary: record before a redo too
+
+Redo was the one boundary that did not follow the rule the other three do.
+`checkout` replaces the working copy wholesale, so an edit made while the cursor
+sat back in the sequence was destroyed with no trace at all.
+
+- `unrevert` now records first, dirty-gated, and the hash lands in
+  `revert.pre_redo` (new optional field on the `Revert` schema).
+- `track([])`, not `track(undefined)`: an empty *explicit* list adds and removes
+  nothing, so no untracked user file is conscripted (the SU-5 failure), while
+  `fossil commit` still records every tracked modification — exactly the edit
+  being overwritten. No path discovery needed: commit is repo-wide, the argument
+  only governs the index.
+- The handle is part of the guarantee, not decoration. A recorded leaf that
+  nothing can name is orphaned, which is not a record — so SU-7's decisive
+  assertion is `checkout(pre_redo)` returning the edit itself, not that some
+  field is truthy.
+
+Where I was wrong first time round, and what it changed:
+- My initial SU-8 asserted "a clean redo mints no leaf". It passed **with the
+  gate removed**, so it was testing nothing. `track([])` already self-guards the
+  no-op case — `files.length === 0` takes the same early-exit as `undefined`,
+  returning the current hash without committing. So the gate does not prevent a
+  leaf; it prevents `pre_redo` being set to the leaf the redo just left — a
+  handle claiming "your edit is here" when nothing was edited. SU-8 rewritten to
+  the double-undo shape (where revert state survives the redo and the handle is
+  observable) and now fails on the ungated version with exactly that symptom.
+
+Oracle [Exact]:
+- `bun test` on the four revert suites → 25 pass / 0 fail. `bun typecheck` → 0.
+- Both mutations bite: disabling the recording fails SU-7; removing the dirty
+  gate fails SU-8.
+
+Residual: on the **last** forward step revert state clears, so the handle has
+nowhere to live. The leaf exists and the hash is logged at info, but no UI points
+at it; reaching it belongs to the fork path.
+
+Not done, deliberately: `packages/sdk/js/src/gen/types.gen.ts` declares `revert`
+as `{messageID, partID?, snapshot?, diff?}` — already missing `op_id`,
+`redo_stack`, `crossing` and `conflicts` before this change, which is why the TUI
+reads conflicts through `(info as any)`. The documented regeneration
+(`bun run packages/sdk/js/script/build.ts`) exits 0 but DELETES most of the v2
+surface (-3984 / -3776 lines) and does not touch the v1 file where `revert`
+lives. Reverted with `git checkout -- packages/sdk/`; filed as its own task
+rather than committed.

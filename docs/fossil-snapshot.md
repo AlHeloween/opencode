@@ -28,7 +28,7 @@ Bootstrap: [startup-bootstrap.md](startup-bootstrap.md).
 
 ## 2. Mental model: leaves, not per-file soup
 
-### 2.0 When a leaf is taken — three boundaries, all of them BEFORE (2026-09-17)
+### 2.0 When a leaf is taken — four boundaries, all of them BEFORE (2026-09-17)
 
 A snapshot is the state you revert **to**, so it is taken before the thing it
 covers. There is no decision about *whether* to snapshot and no inspection of
@@ -38,7 +38,8 @@ what a turn did:
 |---|---|---|
 | Start of a user turn | `session/processor.ts` — `beginTurn` + `track(undefined)` | The baseline to revert to. Taken before anything is touched, so it needs no evidence about what the turn will do. |
 | Before a sidecar summary | `session/prompt.ts` — `captureSidecar` | After the fold, the trunk history that could rebuild that state is summarised away. |
-| Before an undo | `session/revert.ts` | The state you are leaving must be recoverable, or redo has nothing to return to. |
+| Before an undo | `session/revert.ts` — `revert` | The state you are leaving must be recoverable, or redo has nothing to return to. |
+| Before a redo | `session/revert.ts` — `unrevert` | Same rule in the other direction. `checkout` replaces the working copy wholesale, so an edit made while the cursor sat back in the sequence was destroyed with no trace. |
 
 `track(undefined)` runs `addremove`, so it captures whatever appeared since the
 last boundary **regardless of who wrote it** — bash, edit, or the user's own
@@ -101,7 +102,7 @@ Session undo uses **`revertTo(targetHash)`** = full leaf only.
 |--------|----------|
 | **Undo** to message `M` | Collect `patch` parts after `M`. Target leaf = `patches[0].hash` (tree **before** earliest undone agent step). Redo anchor = `track(sessionFiles)` when the working copy is dirty, else `checkpoint()`. |
 | **Multi-level undo** | Previous frames push onto `session.revert.redo_stack`, each carrying the **whole** operation — `op_id`, `messageID`, `partID` and `crossing`. |
-| **Redo (unrevert)** | `checkout(op_id)`, restore the frame's `crossing`; if `redo_stack` non-empty, pop next frame; else clear revert. |
+| **Redo (unrevert)** | Record the working copy first when dirty (`track([])` → `revert.pre_redo`), then `checkout(op_id)`, restore the frame's `crossing`; if `redo_stack` non-empty, pop next frame; else clear revert. |
 | **Isolation** | Does not read or write edit `.bak` files. The `restore` tool owns point recovery from pre-edit backups. |
 
 Three properties of the undo anchor, each paid for (2026-09-17):
@@ -121,8 +122,27 @@ Three properties of the undo anchor, each paid for (2026-09-17):
   `revertTo` then deletes it — tracked and absent from the target leaf. Pinned
   by `SU-5`.
 
-Not covered yet: a user edit made **between** undo and redo is uncommitted, and
-`checkout` overwrites it. Same principle, narrower case.
+The redo anchor, added 2026-09-17, follows the same rule from the other side —
+`checkout` replaces the working copy wholesale, so an edit made while the cursor
+sat back in the sequence was destroyed with no trace:
+
+- **`track([])`, not `track(undefined)`.** An empty *explicit* list adds and
+  removes nothing, so no untracked user file is conscripted (the SU-5 failure),
+  while `fossil commit` still records every tracked modification — which is
+  exactly the edit about to be overwritten. The file set needs no discovery
+  because commit is repo-wide; the argument only governs the index.
+- **Only when dirty — but for a different reason than the undo side.** `track([])`
+  already self-guards the no-op case, so an ungated recording mints no leaf. It
+  does something subtler: it sets `pre_redo` to the leaf the redo just left, a
+  handle claiming "your edit is here" when nothing was edited. Pinned by `SU-8`.
+- **The handle is part of the guarantee.** A recorded leaf nothing can name is
+  orphaned, which is not a record — hence `revert.pre_redo`, asserted by `SU-7`
+  through `checkout(pre_redo)` returning the edit itself.
+
+Residual: on the **last** forward step the revert state clears, so there is
+nowhere to keep the handle. The leaf exists and `unrevert` logs its hash at
+info, but no UI points at it. Reaching it needs the fork path, not a fourth
+field.
 
 Patch parts (written by processor after track) store:
 

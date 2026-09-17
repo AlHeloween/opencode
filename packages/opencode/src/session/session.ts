@@ -309,6 +309,17 @@ const Revert = Schema.Struct({
    * each unrevert pops one frame. Git remains project VCS; this is Fossil leaves only.
    */
   redo_stack: optionalOmitUndefined(Schema.Array(RevertRedoFrame)),
+  /**
+   * Leaf recorded before the last forward move, when the working copy was
+   * dirty at that moment.
+   *
+   * Redo replaces the working copy wholesale, so an edit made between an undo
+   * and the redo used to be destroyed with no trace. It is now committed
+   * first — the same rule as the other three boundaries: the state you are
+   * leaving has to be recoverable before you leave it. This is the handle to
+   * it; without a handle a recorded leaf is orphaned, which is not a record.
+   */
+  pre_redo: optionalOmitUndefined(Schema.String),
   diff: optionalOmitUndefined(Schema.String),
   /**
    * Boundary-crossing manifest (undo past a compaction boundary): every row

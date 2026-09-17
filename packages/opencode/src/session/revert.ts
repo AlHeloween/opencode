@@ -241,6 +241,35 @@ export const layer = Layer.effect(
           yield* sessions.updateMessage(row.info)
         }
       }
+      // Record before moving forward — the fourth application of the one rule
+      // the other three boundaries follow: the state you are leaving has to be
+      // recoverable before you leave it. `checkout` replaces the working copy
+      // wholesale, so an edit made between the undo and this redo was destroyed
+      // with no trace at all.
+      //
+      // `track([])`, not `track(undefined)`: an empty explicit list adds and
+      // removes nothing, so no untracked user file is conscripted into fossil
+      // (SU-5) — while `fossil commit` still records every tracked
+      // modification, which is exactly the edit about to be overwritten. The
+      // file set needs no discovery for the same reason: commit is repo-wide,
+      // the argument only governs the index.
+      //
+      // Gated on the working copy being dirty, for the same reason as the undo
+      // anchor: a chain of redos with nothing edited between them must add no
+      // leaves at all, or the walk stops landing on the leaf its previous step
+      // left. `diff` is `fossil diff --from <hash>` over TRACKED files, which is
+      // the right question — an untracked user file must not be conscripted and
+      // so must not count as dirt either.
+      const leafBefore = yield* snap.checkpoint()
+      const preRedo =
+        leafBefore && (yield* snap.diff(leafBefore)).trim().length > 0 ? yield* snap.track([]) : undefined
+      if (preRedo) {
+        log.info("unrevert: recorded the working copy before moving forward", {
+          sessionID: input.sessionID,
+          pre_redo: preRedo,
+          from: leafBefore,
+        })
+      }
       // Move forward one leaf (op_id). On failure leave revert intact (SP-02).
       if (session.revert.op_id) {
         yield* snap.checkout(session.revert.op_id)
@@ -249,6 +278,15 @@ export const layer = Layer.effect(
       }
       const stack = session.revert.redo_stack ?? []
       if (stack.length === 0) {
+        // Last forward step: revert state goes away, so there is nowhere to
+        // keep the handle. The leaf exists and the line above names it, but
+        // nothing in the UI points at it — a bounded residual, not a silent
+        // loss, and the reason it is logged at info rather than debug.
+        if (preRedo)
+          log.info("unrevert: pre-redo leaf has no handle once revert state clears", {
+            sessionID: input.sessionID,
+            pre_redo: preRedo,
+          })
         yield* sessions.clearRevert(input.sessionID)
         return yield* sessions.get(input.sessionID)
       }
@@ -260,6 +298,8 @@ export const layer = Layer.effect(
         op_id: next!.op_id,
       }
       if (next!.partID) nextRevert!.partID = next!.partID
+      // Carry the handle forward, or the leaf just recorded is orphaned.
+      if (preRedo) nextRevert!.pre_redo = preRedo
       // Restore the frame's manifest, not nothing. Without it the next undo
       // finds `prior.crossing` empty and classifies over flags this walk has
       // already inverted — the regression revert.ts:85 documents.

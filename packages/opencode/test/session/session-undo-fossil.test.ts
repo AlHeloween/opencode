@@ -398,6 +398,156 @@ describe("session undo + fossil (SP-03)", () => {
   )
 
   it.live(
+    "SU-7 an edit made between undo and redo is recorded before redo overwrites it",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        // Redo replaces the working copy wholesale. Until now the redo side
+        // took no anchor, so anything edited while the cursor sat back in the
+        // sequence was destroyed with no trace — the one boundary that did not
+        // follow the rule the other three do.
+        const session = yield* Session.Service
+        const revert = yield* SessionRevert.Service
+        const snap = yield* Snapshot.Service
+
+        const info = yield* session.create({})
+        const sessionID = info.id
+        const file = path.join(dir, "steps.txt")
+
+        yield* write(file, "s0")
+        const h0 = yield* snap.track([file])
+
+        const step = Effect.fn("test.step")(function* (content: string, parentHash: string) {
+          const user = yield* userWithText(session, sessionID, content)
+          const asst = yield* session.updateMessage({
+            id: MessageID.ascending(),
+            role: "assistant",
+            sessionID,
+            mode: "build",
+            agent: "build",
+            path: { cwd: dir, root: dir },
+            cost: 0,
+            tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+            modelID: ModelID.make("gpt-4"),
+            providerID: ProviderID.make("openai"),
+            parentID: user.id,
+            time: { created: Date.now() },
+            finish: "end_turn",
+          })
+          yield* session.updatePart({
+            id: PartID.ascending(),
+            messageID: asst.id,
+            sessionID,
+            type: "patch",
+            hash: parentHash,
+            files: [file.replaceAll("\\", "/")],
+          })
+          yield* write(file, content)
+          const h = yield* snap.track([file])
+          return { user, h: h! }
+        })
+
+        const s1 = yield* step("s1", h0!)
+        const s2 = yield* step("s2", s1.h)
+
+        // Two undos, so a frame remains on the stack and the redo leaves a
+        // revert state that can carry the handle.
+        yield* revert.revert({ sessionID, messageID: s2.user.id })
+        yield* revert.revert({ sessionID, messageID: s1.user.id })
+        expect(yield* read(file)).toBe("s0")
+
+        // The user works while the cursor sits back in the sequence.
+        yield* write(file, "user-edit-between-undo-and-redo")
+
+        yield* revert.unrevert({ sessionID })
+        // Redo still moves forward — recording must not turn into preserving.
+        expect(yield* read(file)).toBe("s1")
+
+        const after = yield* session.get(sessionID)
+        const preRedo = after.revert?.pre_redo
+        expect(preRedo).toBeTruthy()
+        // A handle that names nothing is not a record: the decisive check is
+        // that the edit comes back from it.
+        yield* snap.checkout(preRedo!)
+        expect(yield* read(file)).toBe("user-edit-between-undo-and-redo")
+      }),
+    ),
+    30_000,
+  )
+
+  it.live(
+    "SU-8 a clean redo leaves no pre-redo handle",
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        // The gate's real property. `track([])` already self-guards the no-op
+        // case (its early-exit returns the current hash without committing),
+        // so an ungated recording does not mint a leaf — it does something
+        // subtler and worse: it sets `pre_redo` to the leaf the redo just left,
+        // a handle claiming "your edit is here" when nothing was edited.
+        //
+        // Two undos, so the redo leaves a revert state where the handle would
+        // be visible if it were set.
+        const session = yield* Session.Service
+        const revert = yield* SessionRevert.Service
+        const snap = yield* Snapshot.Service
+
+        const info = yield* session.create({})
+        const sessionID = info.id
+        const file = path.join(dir, "clean.txt")
+
+        yield* write(file, "c0")
+        const h0 = yield* snap.track([file])
+
+        const step = Effect.fn("test.step")(function* (content: string, parentHash: string) {
+          const user = yield* userWithText(session, sessionID, content)
+          const asst = yield* session.updateMessage({
+            id: MessageID.ascending(),
+            role: "assistant",
+            sessionID,
+            mode: "build",
+            agent: "build",
+            path: { cwd: dir, root: dir },
+            cost: 0,
+            tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+            modelID: ModelID.make("gpt-4"),
+            providerID: ProviderID.make("openai"),
+            parentID: user.id,
+            time: { created: Date.now() },
+            finish: "end_turn",
+          })
+          yield* session.updatePart({
+            id: PartID.ascending(),
+            messageID: asst.id,
+            sessionID,
+            type: "patch",
+            hash: parentHash,
+            files: [file.replaceAll("\\", "/")],
+          })
+          yield* write(file, content)
+          const h = yield* snap.track([file])
+          return { user, h: h! }
+        })
+
+        const c1 = yield* step("c1", h0!)
+        const c2 = yield* step("c2", c1.h)
+
+        yield* revert.revert({ sessionID, messageID: c2.user.id })
+        yield* revert.revert({ sessionID, messageID: c1.user.id })
+        expect(yield* read(file)).toBe("c0")
+
+        // Nothing edited here — the working copy matches the leaf it sits on.
+        yield* revert.unrevert({ sessionID })
+        expect(yield* read(file)).toBe("c1")
+
+        const after = yield* session.get(sessionID)
+        expect(after.revert?.pre_redo).toBeUndefined()
+        // And the redo landed exactly on the leaf the undo left.
+        expect(yield* snap.checkpoint()).toBe(c1.h)
+      }),
+    ),
+    30_000,
+  )
+
+  it.live(
     "RT-1 revertTo invalid hash fails",
     provideTmpdirInstance((dir) =>
       Effect.gen(function* () {

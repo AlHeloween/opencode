@@ -1,6 +1,6 @@
 import { createMemo, createSignal, onMount } from "solid-js"
 import { useLocal, type ModelScope } from "@tui/context/local"
-import { cacheLabel, costLabel, isFreeModel } from "./model-cost"
+import { capabilityGlyphs, compactCostLabel, isFreeModel } from "./model-cost"
 import { useSync } from "@tui/context/sync"
 import { map, pipe, flatMap, entries, filter, sortBy, take } from "remeda"
 import { DialogSelect } from "@tui/ui/dialog-select"
@@ -54,20 +54,25 @@ export function DialogModel(props: {
     return `${n} ctx`
   }
 
-  /** Capability footer so the user doesn't guess what a model can do (2026-08-30). */
+  /**
+   * Capability footer so the user doesn't guess what a model can do (2026-08-30).
+   *
+   * Glyphs, not words: the prose form ("reasoning · tools · vision · 1.3M ctx ·
+   * variants") was wider than the row it annotated and crushed the model name.
+   * Same encoding as the status line, via the shared helper.
+   */
   function capabilityFooter(info: {
-    capabilities?: { reasoning?: boolean; toolcall?: boolean; input?: { image?: boolean } }
+    capabilities?: { reasoning?: boolean; toolcall?: boolean; input?: { image?: boolean; video?: boolean } }
     limit?: { context?: number }
     variants?: Record<string, unknown>
   }) {
     const parts: string[] = []
-    if (info.capabilities?.reasoning) parts.push("reasoning")
-    if (info.capabilities?.toolcall) parts.push("tools")
-    if (info.capabilities?.input?.image) parts.push("vision")
+    const caps = capabilityGlyphs(info.capabilities)
+    if (caps) parts.push(caps)
     const ctx = compactCtx(info.limit?.context)
     if (ctx) parts.push(ctx)
-    if (info.variants && Object.keys(info.variants).length > 0) parts.push("variants")
-    return parts.length > 0 ? parts.join(" · ") : undefined
+    if (info.variants && Object.keys(info.variants).length > 0) parts.push("±")
+    return parts.length > 0 ? parts.join(" ") : undefined
   }
 
   function withFooter(
@@ -77,13 +82,11 @@ export function DialogModel(props: {
     free: boolean,
   ) {
     // Price leads the footer: it is the field the choice actually turns on.
-    // `free` and `costLabel` are mutually exclusive by construction — a free
-    // row has zero cost, and costLabel returns undefined for zeros. The cache
-    // chip follows the price and only appears where a read price is published.
+    // `free` and the price label are mutually exclusive by construction — a
+    // free row has zero cost, and the label returns undefined for zeros, so an
+    // unpublished price shows nothing rather than claiming zero.
     return (
-      [free ? "Free" : costLabel(info.cost), free ? undefined : cacheLabel(info.cost), capabilityFooter(info)]
-        .filter(Boolean)
-        .join(" · ") || undefined
+      [free ? "Free" : compactCostLabel(info.cost), capabilityFooter(info)].filter(Boolean).join(" ") || undefined
     )
   }
 

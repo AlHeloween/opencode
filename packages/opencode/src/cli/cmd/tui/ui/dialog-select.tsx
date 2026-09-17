@@ -65,9 +65,26 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
 
   const [store, setStore] = createStore({
     selected: 0,
+    // The VALUE the cursor sits on, not just its ordinal.
+    //
+    // `selected` alone is an index into a list that is rebuilt reactively:
+    // for the model picker `options()` recomputes from sync.data.provider,
+    // favorites and recents, and its sort reads cost data that arrives
+    // asynchronously. Re-anchoring used to happen only when the filter or
+    // `props.current` changed, so any other rebuild left the index pointing at
+    // whatever model had moved into that slot — the cursor silently jumped to a
+    // different row, and Enter selected that one (2026-09-18, Alexander:
+    // highlighted Z.ai via OpenRouter, got GLM-5.3-Flash-BF16 via Hugging Face).
+    anchor: undefined as T | undefined,
     filter: "",
     input: "keyboard" as "keyboard" | "mouse",
   })
+
+  /** Move the cursor and remember WHAT it is on, so a rebuild cannot repoint it. */
+  function setCursor(index: number) {
+    setStore("selected", index)
+    setStore("anchor", () => flat()[index]?.value)
+  }
 
   createEffect(
     on(
@@ -76,7 +93,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
         if (current) {
           const currentIndex = flat().findIndex((opt) => isDeepEqual(opt.value, current))
           if (currentIndex >= 0) {
-            setStore("selected", currentIndex)
+            setCursor(currentIndex)
           }
         }
       },
@@ -89,7 +106,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
       (cursorValue) => {
         if (cursorValue === undefined) return
         const index = flat().findIndex((opt) => isDeepEqual(opt.value, cursorValue))
-        if (index >= 0) setStore("selected", index)
+        if (index >= 0) setCursor(index)
       },
     ),
   )
@@ -145,12 +162,65 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
     )
   })
 
+  // The list is rebuilt whenever its inputs change — provider sync, favorites,
+  // recents, a sort that reads late-arriving cost data. Follow the anchored
+  // VALUE to its new position instead of leaving the ordinal where it was.
+  createEffect(
+    on(flat, (options) => {
+      const anchor = store.anchor
+      if (anchor === undefined) return
+      const index = options.findIndex((opt) => isDeepEqual(opt.value, anchor))
+      if (index >= 0) {
+        if (index !== store.selected) setStore("selected", index)
+        return
+      }
+      // The anchored option is gone (filtered out, deprecated, provider
+      // dropped). Clamp rather than leave an index past the end, and drop the
+      // anchor so the next move re-establishes it.
+      setStore("selected", Math.min(store.selected, Math.max(0, options.length - 1)))
+      setStore("anchor", () => options[store.selected]?.value)
+    }),
+  )
+
+  // Usable text width for Option rows (rev 4: long rows must split into two
+  // lines instead of overlapping/crushing) — dialog width minus list paddings.
+  const rowWidth = createMemo(() => {
+    const size = dialog.size
+    return size === "xlarge" ? 116 : size === "large" ? 88 : 60
+  })
+
   const rows = createMemo(() => {
     const headers = grouped().reduce((acc, [category], i) => {
       if (!category) return acc
       return acc + (i > 0 ? 2 : 1)
     }, 0)
-    return flat().length + headers
+    // Count the lines a row actually renders. This used to assume one line per
+    // option, which stopped being true when long rows started splitting their
+    // description onto a second line — the list height, and every scroll
+    // computation derived from it, was short by the number of split rows.
+    const lines = grouped().reduce(
+      (acc, [category, options]) =>
+        acc +
+        options.reduce(
+          (sum, option) =>
+            sum +
+            (isTwoLineRow({
+              title: option.title,
+              description: flatten()
+                ? (option.description ?? option.category)
+                : option.description !== category
+                  ? option.description
+                  : undefined,
+              footer: option.footer,
+              rowWidth: rowWidth(),
+            })
+              ? 2
+              : 1),
+          0,
+        ),
+      0,
+    )
+    return lines + headers
   })
 
   const dimensions = useTerminalDimensions()
@@ -185,7 +255,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   }
 
   function moveTo(next: number, center = false) {
-    setStore("selected", next)
+    setCursor(next)
     const option = selected()
     if (option) props.onMove?.(option)
     if (!scroll) return
@@ -260,11 +330,6 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
 
   // Usable text width for Option rows (rev 4: long rows must split into two
   // lines instead of overlapping/crushing) — dialog width minus list paddings.
-  const rowWidth = createMemo(() => {
-    const size = dialog.size
-    return size === "xlarge" ? 116 : size === "large" ? 88 : 60
-  })
-
   return (
     <box gap={1} paddingBottom={1}>
       <box paddingLeft={4} paddingRight={4}>
@@ -441,6 +506,32 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   )
 }
 
+/** A model name below this is not identifiable; the footer yields first. */
+const MIN_TITLE_WIDTH = 24
+
+/**
+ * Does this row render on two lines?
+ *
+ * Shared by the renderer and by the list's line count. They used to decide this
+ * separately — the renderer split long rows while `rows()` still counted one
+ * line each, so the scrollbox height was short by the number of split rows.
+ * One predicate, two callers: they cannot drift again.
+ */
+export function isTwoLineRow(input: {
+  title: string
+  description?: string
+  footer?: JSX.Element | string
+  rowWidth?: number
+}): boolean {
+  if (!input.description) return false
+  const width = input.rowWidth ?? 60
+  const footerLen = typeof input.footer === "string" ? input.footer.length : 6
+  // scrollbox padding 2, row padding 6, marker/gutter ~2, gaps 2 — usable
+  // width is roughly dialogWidth - 12; inline needs title + description +
+  // footer plus separators.
+  return input.title.length + input.description.length + footerLen + 4 > width - 12
+}
+
 function Option(props: {
   title: string
   description?: string
@@ -457,16 +548,14 @@ function Option(props: {
   const { theme } = useTheme()
   const fg = selectedForeground(theme)
 
-  const twoLine = createMemo(() => {
-    if (!props.description) return false
-    const width = props.rowWidth ?? 60
-    const footerLen = typeof props.footer === "string" ? props.footer.length : 6
-    // scrollbox padding 2, row padding 6, marker/gutter ~2, gaps 2 — usable
-    // width is roughly dialogWidth - 12; inline needs title + description +
-    // footer plus separators.
-    const usable = width - 12
-    return props.title.length + props.description.length + footerLen + 4 > usable
-  })
+  const twoLine = createMemo(() =>
+    isTwoLineRow({
+      title: props.title,
+      description: props.description,
+      footer: props.footer,
+      rowWidth: props.rowWidth,
+    }),
+  )
 
   return (
     <Show
@@ -518,6 +607,13 @@ function Option(props: {
         <box flexDirection="row">
           <text
             flexGrow={1}
+            // The model NAME is what the row is for. A footer wide enough to
+            // fill the row used to squeeze this to three characters ("Z.a",
+            // "Dee") and butt it against the price with no gap — the row became
+            // unreadable exactly when it carried the most information.
+            // The title keeps a floor and the footer yields instead.
+            flexShrink={0}
+            minWidth={MIN_TITLE_WIDTH}
             fg={props.active ? fg : props.current ? theme.primary : theme.text}
             attributes={props.active ? TextAttributes.BOLD : undefined}
             overflow="hidden"
@@ -527,8 +623,10 @@ function Option(props: {
             {Locale.truncate(props.title, 61)}
           </text>
           <Show when={props.footer}>
-            <box flexShrink={0}>
-              <text fg={props.active ? fg : theme.textMuted}>{props.footer}</text>
+            <box flexShrink={1} overflow="hidden">
+              <text fg={props.active ? fg : theme.textMuted} wrapMode="none" overflow="hidden">
+                {props.footer}
+              </text>
             </box>
           </Show>
         </box>

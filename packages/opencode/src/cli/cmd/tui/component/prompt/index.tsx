@@ -44,6 +44,7 @@ import { DialogSkill } from "../dialog-skill"
 import { DialogWorkspaceCreate, restoreWorkspaceSession } from "../dialog-workspace-create"
 import { DialogWorkspaceUnavailable } from "../dialog-workspace-unavailable"
 import { useArgs } from "@tui/context/args"
+import { capabilityGlyphs, compactCostLabel } from "../model-cost"
 
 export type PromptProps = {
   sessionID?: string
@@ -986,23 +987,20 @@ export function Prompt(props: PromptProps) {
     const selected = local.model.current()
     if (!selected) return undefined
     const model = sync.data.provider.find((item) => item.id === selected.providerID)?.models[selected.modelID]
-    const rates = model?.cost
     // Icons per user spec (shorter than in()/out()/cached()): ⇣ input,
     // ⇡ output, ↻ cached — per MILLION, trailing zeros trimmed.
-    const num = (value: number | undefined) => String(Number((value ?? 0).toFixed(3)))
-    const price = rates
-      ? `⇣${num(rates.input)} ⇡${num(rates.output)} ↻${num((rates.cache?.read ?? 0) + (rates.cache?.write ?? 0))}`
-      : undefined
-    const caps: string[] = []
+    //
+    // Shared with the model picker rather than inlined here: this encoding was
+    // local to the prompt, so the picker grew its own verbose one that did not
+    // fit its rows. It also printed `⇣0 ⇡0 ↻0` for providers that publish no
+    // price at all (Hugging Face), showing absence of data as a claim of zero —
+    // the exact thing model-cost.ts exists to prevent.
+    const price = compactCostLabel(model?.cost)
     // The TUI receives the PARSED model (provider.ts): capabilities live as a
     // nested object, not flat registry flags.
-    const flags = model as Record<string, unknown> | undefined
-    const capsObj = (flags?.capabilities ?? {}) as Record<string, any>
-    const inputCaps = (capsObj.input ?? {}) as Record<string, any>
-    if (inputCaps.video === true) caps.push("🎥")
-    if (inputCaps.image === true) caps.push("👁")
-    if (capsObj.reasoning === true) caps.push("🧠")
-    if (capsObj.toolcall === true) caps.push("🔧")
+    const capsLabelText = capabilityGlyphs(
+      (model as { capabilities?: Parameters<typeof capabilityGlyphs>[0] } | undefined)?.capabilities,
+    )
 
     // Mirror of provider.ts OPENROUTER_ROUTING_DEFAULTS (the server module is
     // not importable from the TUI bundle — keep in sync manually).
@@ -1048,7 +1046,7 @@ export function Prompt(props: PromptProps) {
     // for every direct provider with no routing config — categorical noise:
     // Novita/Zen/DeepSeek have no upstream pool to pin.
     if (selected.providerID !== "openrouter") {
-      return { price, capsLabel: caps.length > 0 ? `[${caps.join(" ")}]` : undefined, endpointLabel: undefined, endpointWarn: false }
+      return { price, capsLabel: capsLabelText, endpointLabel: undefined, endpointWarn: false }
     }
     let endpointLabel: string
     let endpointWarn = false
@@ -1076,7 +1074,7 @@ export function Prompt(props: PromptProps) {
     }
     return {
       price,
-      capsLabel: caps.length > 0 ? `[${caps.join(" ")}]` : undefined,
+      capsLabel: capsLabelText,
       endpointLabel,
       endpointWarn,
     }

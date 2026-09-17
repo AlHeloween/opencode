@@ -59,6 +59,44 @@ export function cacheLabel(cost: ModelCost | undefined): string | undefined {
 }
 
 /**
+ * `⇣0.09 ⇡0.3 ↻0.018` — the same glyph encoding the status line already uses,
+ * at roughly half the width of the prose form.
+ *
+ * The picker's verbose footer (`$0.09→$0.3/1M · cache $0.018 · reasoning ·
+ * tools · vision · 1.3M ctx · variants`, 78 chars) was wider than the usable
+ * row at every dialog size, so it crushed the model name it was annotating.
+ * The status line had already solved this — it just lived inline in the prompt
+ * component where the picker could not reach it (2026-09-18, Alexander).
+ *
+ * Zeros still render as nothing, never as `⇣0`: an unpublished price is not a
+ * price of zero, and printing it as one makes a paid model look free.
+ */
+export function compactCostLabel(cost: ModelCost | undefined): string | undefined {
+  const parts: string[] = []
+  if ((cost?.input ?? 0) > 0) parts.push(`⇣${formatCost(cost!.input!)}`)
+  if ((cost?.output ?? 0) > 0) parts.push(`⇡${formatCost(cost!.output!)}`)
+  const cached = (cost?.cache?.read ?? 0) + (cost?.cache?.write ?? 0)
+  if (cached > 0) parts.push(`↻${formatCost(cached)}`)
+  return parts.length > 0 ? parts.join(" ") : undefined
+}
+
+export interface ModelCapabilities {
+  reasoning?: boolean
+  toolcall?: boolean
+  input?: { image?: boolean; video?: boolean }
+}
+
+/** `[🎥 👁 🧠 🔧]` — capability glyphs in the status line's order. */
+export function capabilityGlyphs(capabilities: ModelCapabilities | undefined): string | undefined {
+  const glyphs: string[] = []
+  if (capabilities?.input?.video) glyphs.push("🎥")
+  if (capabilities?.input?.image) glyphs.push("👁")
+  if (capabilities?.reasoning) glyphs.push("🧠")
+  if (capabilities?.toolcall) glyphs.push("🔧")
+  return glyphs.length > 0 ? `[${glyphs.join(" ")}]` : undefined
+}
+
+/**
  * Whether a row should be sorted and labelled as free.
  *
  * The previous predicate compared the RENDERED footer to the literal "Free",

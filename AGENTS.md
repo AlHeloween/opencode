@@ -138,6 +138,29 @@ loses 422 exported types and 233 typecheck errors collapse to 12 symbols.
 Completing that spec is a real project. Until someone decides to do it
 deliberately, **the hand-maintained folder is the answer, not a workaround.**
 
+### The two upstreams are NOT the same relation — do not confuse them
+
+| | `external/opencode-1.18.29` | `external/opentui-0.5.11` |
+|---|---|---|
+| Ours | `packages/opencode` (612 files) | `packages/opentui` @ `0.4.4`, all 62 commits local |
+| Relation | **separate project, nothing to take** | **parts source, take selectively** |
+| Rule | never port, never sync, never regenerate | pull a specific part when you need it |
+
+The prohibition above is about **opencode** upstream: there is no merge surface,
+so there is nothing there to want. OpenTUI is the opposite case — the external
+copy is newer (`0.5.11` vs our `0.4.4`) and it is legitimate to reach into it
+for a specific fix or renderable.
+
+**But never wholesale, and never "let's just update to 0.5.11".** Our copy
+carries work upstream does not have — the Kitty/Sixel graphics path,
+`Image.ts` with `mode: "kitty" | "sixel" | "none"`, the native Sixel backend,
+calibrated Sixel mermaid, scroll-locked graphics. A version bump deletes it, and
+nothing in CI would notice, because `packages/opentui/packages/core` declares no
+`test:ci`.
+
+Take a named part, for a named reason, and keep our graphics path. Directive
+from Alexander, 2026-09-17: "дергать без разбору лучше не стоит."
+
 ---
 
 ## Project Paradigm — Outer-Loop Continuous Development

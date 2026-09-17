@@ -12,7 +12,12 @@ interface TextChunkOptions {
   enabled?: boolean
   baseHighlight?: string
   /**
-   * Colour the APPLICATION assigned to a given source offset, if any.
+   * Style the APPLICATION assigned to a given source offset, if any.
+   *
+   * Colour AND attributes, because markdown's own emphasis lives in the
+   * attributes: carrying only the colour drops every bold and italic the
+   * markdown renderer produced, which is the same defect one field over
+   * (2026-09-18, twice).
    *
    * Two sources describe the same text: tree-sitter knows the syntax, the
    * application knows things tree-sitter cannot infer — that this paragraph is
@@ -28,7 +33,17 @@ interface TextChunkOptions {
    * is the better answer, and this hook supplies it. Neither side is discarded,
    * so there is no order in which one can overwrite the other.
    */
-  appFgAt?: (sourceOffset: number) => TextChunk["fg"] | undefined
+  appStyleAt?: (sourceOffset: number) => { fg?: TextChunk["fg"]; attributes?: number } | undefined
+  /**
+   * Source offsets where the application's styling changes.
+   *
+   * Without these, a single tree-sitter segment can span several application
+   * spans and would take the style of whichever one it starts in — a bold run
+   * inside an otherwise plain paragraph silently loses its bold. Adding them as
+   * cut points costs one boundary each and makes the composition exact instead
+   * of approximate.
+   */
+  appBoundaries?: number[]
 }
 
 interface Boundary {
@@ -76,6 +91,14 @@ export function treeSitterToTextChunks(
     }
     boundaries.push({ offset: start, type: "start", highlightIndex: i })
     boundaries.push({ offset: end, type: "end", highlightIndex: i })
+  }
+
+  // Cut points only: they open and close nothing, they just force a segment
+  // break so each emitted chunk lies inside exactly one application span.
+  for (const offset of options?.appBoundaries ?? []) {
+    if (offset > 0 && offset < content.length) {
+      boundaries.push({ offset, type: "start", highlightIndex: -1 })
+    }
   }
 
   // Sort boundaries by offset, with ends before starts at same offset
@@ -206,43 +229,53 @@ export function treeSitterToTextChunks(
         // application's, which knows things the grammar cannot (muted
         // reasoning, agent tints). Where the grammar DID resolve a colour it
         // keeps it: syntax highlighting is not overridable from outside.
-        const appFg = mergedStyle.fg === undefined ? options?.appFgAt?.(currentOffset) : undefined
+        // Attributes are additive rather than exclusive — bold and italic
+        // compose — so the application's are OR-ed in, never replaced.
+        const appStyle = options?.appStyleAt?.(currentOffset)
 
         chunks.push({
           __isChunk: true,
           text: segmentText,
-          fg: appFg ?? finalStyle?.fg,
+          fg: (mergedStyle.fg === undefined ? appStyle?.fg : undefined) ?? finalStyle?.fg,
           bg: finalStyle?.bg,
-          attributes: finalStyle
-            ? createTextAttributes({
-                bold: finalStyle.bold,
-                italic: finalStyle.italic,
-                underline: finalStyle.underline,
-                dim: finalStyle.dim,
-              })
-            : 0,
+          attributes:
+            (finalStyle
+              ? createTextAttributes({
+                  bold: finalStyle.bold,
+                  italic: finalStyle.italic,
+                  underline: finalStyle.underline,
+                  dim: finalStyle.dim,
+                })
+              : 0) | (appStyle?.attributes ?? 0),
         })
       }
     } else if (currentOffset < boundary.offset) {
       const text = content.slice(currentOffset, boundary.offset)
       const style = baseStyle ?? defaultStyle
       // Unhighlighted prose — the grammar has no opinion here by definition, so
-      // this is exactly where the application's colour belongs.
-      const appFg = options?.appFgAt?.(currentOffset)
+      // this is exactly where the application's style belongs.
+      const appStyle = options?.appStyleAt?.(currentOffset)
       chunks.push({
         __isChunk: true,
         text,
-        fg: appFg ?? style?.fg,
+        fg: appStyle?.fg ?? style?.fg,
         bg: style?.bg,
-        attributes: style
-          ? createTextAttributes({
-              bold: style.bold,
-              italic: style.italic,
-              underline: style.underline,
-              dim: style.dim,
-            })
-          : 0,
+        attributes:
+          (style
+            ? createTextAttributes({
+                bold: style.bold,
+                italic: style.italic,
+                underline: style.underline,
+                dim: style.dim,
+              })
+            : 0) | (appStyle?.attributes ?? 0),
       })
+    }
+
+    if (boundary.highlightIndex === -1) {
+      // Pure cut point — see `appBoundaries`. It must not join the active set.
+      currentOffset = boundary.offset
+      continue
     }
 
     if (boundary.type === "start") {
@@ -287,20 +320,21 @@ export function treeSitterToTextChunks(
   if (currentOffset < content.length) {
     const text = content.slice(currentOffset)
     const style = baseStyle ?? defaultStyle
-    const appFg = options?.appFgAt?.(currentOffset)
+    const appStyle = options?.appStyleAt?.(currentOffset)
     chunks.push({
       __isChunk: true,
       text,
-      fg: appFg ?? style?.fg,
+      fg: appStyle?.fg ?? style?.fg,
       bg: style?.bg,
-      attributes: style
-        ? createTextAttributes({
-            bold: style.bold,
-            italic: style.italic,
-            underline: style.underline,
-            dim: style.dim,
-          })
-        : 0,
+      attributes:
+        (style
+          ? createTextAttributes({
+              bold: style.bold,
+              italic: style.italic,
+              underline: style.underline,
+              dim: style.dim,
+            })
+          : 0) | (appStyle?.attributes ?? 0),
     })
   }
 

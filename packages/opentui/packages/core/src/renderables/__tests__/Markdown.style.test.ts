@@ -208,6 +208,28 @@ test("application styling is not silently replaced by body colour", async () => 
   expect(span!.fg.toInts()).not.toEqual(BODY.toInts())
 })
 
+test("application EMPHASIS survives highlighting, not just colour", async () => {
+  // The same defect one field over: the first merge carried the application's
+  // colour and dropped its attributes, so markdown's own bold and italic
+  // vanished while the syntax colouring looked perfect (Alexander, 2026-09-18:
+  // "триситтер отображается верно - markdown форматирование исчезло").
+  const text = "Considering the transport ladder before answering."
+  await renderCode({
+    content: text,
+    filetype: "markdown",
+    initialStyledText: new StyledText([
+      { __isChunk: true, text: "Considering the ", fg: REASONING_DIM },
+      { __isChunk: true, text: "transport ladder", fg: REASONING_DIM, attributes: TextAttributes.BOLD },
+      { __isChunk: true, text: " before answering.", fg: REASONING_DIM },
+    ]),
+  })
+
+  const emphasised = spanContaining("transport ladder")
+  expect(emphasised).toBeDefined()
+  expect(emphasised!.attributes & TextAttributes.BOLD).toBeTruthy()
+  expect(emphasised!.fg.toInts()).toEqual(REASONING_DIM.toInts())
+})
+
 test("a source file with no application styling is fully driven by its grammar", async () => {
   // The other side of the same rule, and Alexander's editing constraint: where
   // the application supplies nothing, tree-sitter must own the colour outright.

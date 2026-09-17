@@ -144,7 +144,11 @@ export class CodeRenderable extends TextBufferRenderable {
   }
 
   /**
-   * Colour-by-source-offset from the application's styled text, or undefined.
+   * Style-by-source-offset from the application's styled text, or undefined.
+   *
+   * Colour AND attributes: markdown's own emphasis is carried in the
+   * attributes, so a lookup that returned only colour dropped every bold and
+   * italic the markdown renderer had produced.
    *
    * The application styles the SAME text tree-sitter is about to highlight, so
    * its chunks tile the source in order and their lengths give the offsets.
@@ -153,29 +157,37 @@ export class CodeRenderable extends TextBufferRenderable {
    * styled something else) the offsets would be meaningless and would tint the
    * wrong words, so the lookup is refused rather than approximated.
    */
-  private buildAppColourLookup(content: string): ((offset: number) => TextChunk["fg"]) | undefined {
+  private buildAppStyleLookup(content: string):
+    | {
+        boundaries: number[]
+        at: (offset: number) => { fg?: TextChunk["fg"]; attributes?: number } | undefined
+      }
+    | undefined {
     const styled = this._initialStyledText
     if (!styled) return undefined
 
     const starts: number[] = []
-    const colours: TextChunk["fg"][] = []
+    const styles: Array<{ fg?: TextChunk["fg"]; attributes?: number }> = []
     let offset = 0
     for (const chunk of styled.chunks) {
       starts.push(offset)
-      colours.push(chunk.fg)
+      styles.push({ fg: chunk.fg, attributes: chunk.attributes })
       offset += chunk.text.length
     }
     if (offset !== content.length) return undefined
-    if (colours.every((colour) => colour === undefined)) return undefined
+    if (styles.every((style) => style.fg === undefined && !style.attributes)) return undefined
 
-    return (sourceOffset: number) => {
-      // Chunk counts here are small (the application styles by paragraph, not
-      // by token), so a linear scan is cheaper than the binary search it would
-      // take to beat it.
-      for (let i = starts.length - 1; i >= 0; i -= 1) {
-        if (sourceOffset >= starts[i]!) return colours[i]
-      }
-      return undefined
+    return {
+      boundaries: starts,
+      at: (sourceOffset: number) => {
+        // Chunk counts here are small (the application styles by span, not by
+        // token), so a linear scan is cheaper than the binary search it would
+        // take to beat it.
+        for (let i = starts.length - 1; i >= 0; i -= 1) {
+          if (sourceOffset >= starts[i]!) return styles[i]
+        }
+        return undefined
+      },
     }
   }
 
@@ -460,10 +472,12 @@ export class CodeRenderable extends TextBufferRenderable {
           highlights,
         }
 
+        const appStyle = this.buildAppStyleLookup(content)
         let chunks = treeSitterToTextChunks(content, highlights, this._syntaxStyle, {
           enabled: this._conceal,
           baseHighlight: this._baseHighlight,
-          appFgAt: this.buildAppColourLookup(content),
+          appStyleAt: appStyle?.at,
+          appBoundaries: appStyle?.boundaries,
         })
         // onChunks may rewrite text arbitrarily, so the conceal-only source map would be invalid.
         const renderedLineSources = this._onChunks ? undefined : this.getConcealLinesSourceMap(content, highlights)

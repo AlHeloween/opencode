@@ -3111,3 +3111,35 @@ reads conflicts through `(info as any)`. The documented regeneration
 surface (-3984 / -3776 lines) and does not touch the v1 file where `revert`
 lives. Reverted with `git checkout -- packages/sdk/`; filed as its own task
 rather than committed.
+
+## [2026-09-17] m* window across a fold — the oracle was one layer off
+
+Last item on the undo/redo list: "rebuild the content window from m* when
+undo/redo crosses a fold". Grounding first showed the mechanism already exists
+— `revert.ts` inverts visibility over true history via the `crossing` manifest,
+so the folded rows resurrect and the m* row hides, which IS the rebuild. What
+did not exist was an oracle at the layer that matters.
+
+- Every crossing test (T3-T8) asserts `info.compacted`, i.e. storage. The list
+  the prompt is actually built from is `MessageV2.filterCompactedEffect`, and
+  nothing asserted that. Right flags with a wrong window is precisely the
+  one-layer-off green oracle the bug policy names.
+- The failure that matters is not a missing row, it is DOUBLE context: m* and
+  the rows it folds both present, so the model reads the same history twice —
+  once summarised, once verbatim. That is invisible to a flag assertion.
+- New `T9` in `test/session/revert-crossing.test.ts` drives real compaction,
+  then asserts the assembled window across fold → crossing undo → redo:
+  folded window is exactly `[m*]`; after the crossing undo it contains the
+  rollback tail and NOT the m*; ids ascending so the tail reads in order;
+  after redo it is exactly `[m*]` again.
+
+Outcome: the window is correct. This converted an Inferred claim to Exact
+rather than finding a defect — worth saying plainly, because the item had been
+sitting on the open list as if it were unimplemented.
+
+Oracle [Exact]:
+- `bun test` on revert-crossing, revert-compact, session-undo-fossil,
+  session-fork-window → 26 pass / 0 fail. `bun typecheck` → 0.
+- Mutation: disabling the crossing inversion (`if (false && crossed)`) fails T9
+  with the right symptom — the window stays `[m*]` and the rolled-back rows
+  never return.

@@ -391,6 +391,23 @@ re-eligible — the tail is rebuilt from the DB on every compact, so repeated
 compacts are idempotent (content fixed point: 10 compacts in a row → same
 m\*) and undo restores the exact content window per m\*.
 
+**Undo across a boundary rebuilds the window, verified at the consumption
+layer (2026-09-17).** An undo whose target sits inside a folded region inverts
+visibility over the true history (`session/revert.ts`, the `crossing`
+manifest): the rows the m\* folded resurrect and the m\* row itself hides. The
+window the model then receives is the raw tail from the rollback point, with
+the summarised form absent — the failure that matters is not a missing row but
+**double context**, m\* and the rows it folds both present, the same history
+read twice.
+
+Until `T9` in `test/session/revert-crossing.test.ts` every crossing test
+asserted `info.compacted` flags, i.e. storage. `T9` asserts
+`MessageV2.filterCompactedEffect` — the list the prompt is actually built
+from — across fold → crossing undo → redo, and checks the order is ascending
+so the tail reads in the order it happened. Right flags with a wrong window is
+the one-layer-off oracle the bug policy names; the flags were in fact correct,
+so this converted an Inferred claim to Exact rather than finding a defect.
+
 **Summary cap:** total summary body text in m* is capped at `MAX_SUMMARY_BODY_TOKENS` (16 384 tokens). Older summaries are dropped from m* but remain accessible via `session-read`.
 
 **Prior m\* decisions:** decisions ride the carried-forward summaries —

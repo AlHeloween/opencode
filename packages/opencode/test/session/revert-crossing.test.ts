@@ -16,6 +16,7 @@ import { SessionRevert } from "../../src/session/revert"
 import { SnapshotFossil } from "../../src/snapshot/fossil"
 import { Snapshot } from "../../src/snapshot"
 import { MessageID, PartID } from "../../src/session/schema"
+import { MessageV2 } from "../../src/session/message-v2"
 import { ModelID, ProviderID } from "../../src/provider/schema"
 import { SessionCompaction } from "../../src/session/compaction"
 import { Bus } from "../../src/bus"
@@ -359,6 +360,105 @@ describe("undo across visibility boundary", () => {
                 // Redo returns to the pre-undo state of the SECOND undo: the
                 // first undo was never redone, so the world sits at h2 (v2).
                 expect(yield* Effect.promise(() => fs.readFile(file, "utf-8"))).toBe("v2")
+            }),
+        ),
+    )
+
+    it.live(
+        "T9: the window the model receives is rebuilt from m*, not just the flags",
+        provideTmpdirInstance((dir) =>
+            Effect.gen(function* () {
+                // Every crossing test above asserts `info.compacted` — the storage
+                // layer. Nothing asserted what `filterCompactedEffect` returns, and
+                // that is the list the prompt is actually built from. Right flags
+                // with a wrong window is exactly the shape of defect AGENTS.md
+                // warns about: a green oracle pointed one layer off.
+                //
+                // The failure that matters here is DOUBLE context — m* and the raw
+                // rows it folds both present, so the model reads the same history
+                // twice, once summarised and once verbatim.
+                const session = yield* Session.Service
+                const revert = yield* SessionRevert.Service
+                const snap = yield* Snapshot.Service
+                const compaction = yield* SessionCompaction.Service
+
+                const info = yield* session.create({})
+                const sid = info.id
+                const file = path.join(dir, "note.txt")
+
+                const mkUserPatch = (text: string, hash: string) =>
+                    Effect.gen(function* () {
+                        const u = yield* session.updateMessage({
+                            id: MessageID.ascending(),
+                            role: "user",
+                            sessionID: sid,
+                            agent: "build",
+                            model: MODEL,
+                            time: { created: Date.now() },
+                        })
+                        yield* session.updatePart({
+                            id: PartID.ascending(),
+                            messageID: u.id,
+                            sessionID: sid,
+                            type: "text",
+                            text,
+                        })
+                        yield* session.updatePart({
+                            id: PartID.ascending(),
+                            messageID: u.id,
+                            sessionID: sid,
+                            type: "patch",
+                            hash,
+                            files: [file.replaceAll("\\", "/")],
+                        })
+                        return u
+                    })
+
+                yield* Effect.promise(() => fs.writeFile(file, "v1", "utf-8"))
+                const h1 = yield* snap.track([file])
+                const user1 = yield* mkUserPatch("step1", h1!)
+                yield* Effect.promise(() => fs.writeFile(file, "v2", "utf-8"))
+                const h2 = yield* snap.track([file])
+                const user2 = yield* mkUserPatch("step2", h2!)
+                yield* Effect.promise(() => fs.writeFile(file, "v3", "utf-8"))
+                const h3 = yield* snap.track([file])
+                const user3 = yield* mkUserPatch("step3", h3!)
+
+                yield* compaction.compact({ sessionID: sid, model: MODEL, agent: "build", force: true })
+
+                const all = yield* session.messages({ sessionID: sid, visibleOnly: false })
+                const star = all.find(
+                    (m) =>
+                        m.info.role === "user" &&
+                        m.parts.some((p) => p.type === "text" && (p as { synthetic?: boolean }).synthetic),
+                )
+                expect(star).toBeTruthy()
+
+                // Folded: the window is the boundary row and nothing else.
+                const folded = yield* MessageV2.filterCompactedEffect(sid)
+                expect(folded.map((m) => m.info.id)).toEqual([star!.info.id])
+
+                // Crossing undo to user2. The window must now be the raw tail from
+                // the rollback point — and the m* covering it must be GONE from the
+                // window, or its content is counted twice.
+                yield* revert.revert({ sessionID: sid, messageID: user2.id })
+                const resurrected = yield* MessageV2.filterCompactedEffect(sid)
+                const ids = resurrected.map((m) => m.info.id)
+
+                expect(ids).toContain(user2.id)
+                expect(ids).toContain(user3.id)
+                expect(ids).not.toContain(star!.info.id)
+                // Ascending, so the model reads the tail in the order it happened.
+                expect([...ids].sort()).toEqual(ids)
+                // user1 is below the rollback point; whether it resurrects is the
+                // crossing rule's business, asserted above. What matters here is
+                // that the summarised and the verbatim form never coexist.
+                expect(ids.filter((id) => id === star!.info.id)).toHaveLength(0)
+
+                // Redo restores the folded window exactly.
+                yield* revert.unrevert({ sessionID: sid })
+                const refolded = yield* MessageV2.filterCompactedEffect(sid)
+                expect(refolded.map((m) => m.info.id)).toEqual([star!.info.id])
             }),
         ),
     )

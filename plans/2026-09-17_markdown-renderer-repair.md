@@ -97,6 +97,49 @@ components in opencode.
 Upstream has 231 lines we lack; ours has 54 they lack; 48 hunks total. **Take
 named hunks for named tests. Never copy the file.**
 
+## Measured 2026-09-18 — the blocking conflict
+
+**`shouldRenderSeparately` is the crux, and our version of it is load-bearing.**
+
+```diff
+-  ... || token.type === "hr" || token.type === "heading" || token.type === "list"   // ours
++  ... || token.type === "hr"                                                        // upstream
+```
+
+Ours was set deliberately by `3b07819193` (2026-07-15), which *changed* it from
+the upstream form. No rationale was recorded — that commit is a one-line subject
+bundling six unrelated items, and it is the same commit that introduced the
+audio FFI stubs now known to make 72 tests assert nothing. So the patch is an
+expedient of unknown intent, but it is **not** inert.
+
+Experiment: removed it, ran the full 5149-test suite.
+
+| | Result |
+|---|---|
+| Total | 88 → **94** failures |
+| Fixed (3) | `headings with conceal=false show markers`, `default block mode still coalesces ordinary markdown blocks`, `block type change creates new renderable` |
+| Broken (9) | `headings h1 through h3`, four × `headings and … keep exactly one separator row`, `complex markdown document`, `trailing blank lines do not add spacing`, `streaming-like content with partial code block`, `no tables returns original content` |
+
+So the local patch buys **correct heading separator rows** and pays with
+**conceal and block coalescing**. Upstream has both, therefore upstream gets its
+spacing from somewhere else. Reverted; the patch stays until that somewhere is
+found.
+
+### Ruled out as the difference — all byte-identical to upstream
+
+- `getInterBlockMargin` and `applyInterBlockMargin`
+- tree-sitter assets: `markdown/highlights.scm`, `markdown/injections.scm`,
+  `markdown_inline/highlights.scm` (`diff -q` same, both contain `markup.link.url`)
+- `Code.ts` conceal handling (21 hunks between the copies, none touching conceal)
+
+### Next cut
+
+The remaining candidate is the **coalesced block assembly** — the
+`markdownRaw += token.raw` accumulation and `parseMarkdownIncremental` usage.
+With headings kept inside a coalesced block, upstream's separator rows must come
+from the raw source's own blank lines. That is where to look, and it is a
+region-level comparison rather than a hunk port.
+
 ## Method
 
 1. Port `addMarkdownLinkHighlights`, reconciled with `detectLinks`. Oracle:

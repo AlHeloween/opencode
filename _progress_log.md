@@ -3027,3 +3027,41 @@ Oracle [Exact]:
 - New: 3 tests in `test/provider/h1-transport.test.ts` — the throw is an `Error`
   the session classifies as retryable; `normalizeError` reads code and cause;
   an abort is never widened into a retryable reset.
+
+## [2026-09-17] TUI undo/redo arrows — both directions, with the steps left in each
+
+The revert banner only ever offered redo, and only by clicking the whole box,
+behind a confirm dialog. Nothing showed where the cursor sat in the sequence, so
+walking `undo → undo → m* → undo … redo → redo` meant guessing.
+
+- New pure module `src/cli/cmd/tui/util/revert-steps.ts`: `back` = user messages
+  strictly behind the cursor (mirrors what `session.undo` targets), `forward` =
+  `1 + redo_stack.length`, because `op_id` is itself the immediate forward leaf.
+  Both derived, never stored — a stored counter beside the fossil leaves is the
+  drift the sequence model exists to avoid.
+- Banner now renders `← undo (n)` / `redo (n) →` as separate hit targets, dimmed
+  when a direction is exhausted, and advertises both keybinds instead of only
+  `messages_redo`. Stepping through the arrows is deliberately unconfirmed: every
+  step is itself reversible and a dialog per step defeats the walk. The old
+  whole-box click keeps its confirm — the arrows call `stopPropagation()`, which
+  `Renderable.processMouseEvent` honours before bubbling to the parent.
+- Fixed a silent `catch {}` in `util/revert-diff.ts` (AGENTS.md: every catch
+  logs). An unparseable diff showed an empty file list while the revert still
+  carried one.
+
+Oracle:
+- [Exact] `bun test test/tui/` → 96 pass / 0 fail, incl. 7 new in
+  `test/tui/revert-steps.test.ts`. `bun typecheck` → exit 0.
+- [Exact] The conservation property is asserted directly: walking the cursor
+  down a 3-user-message session gives `{2,1} → {1,2} → {0,3}`, so
+  `back + forward` stays 3. A drifting total means one arrow is lying about
+  where the cursor can go. My first version of this test asserted `[3,2,1]`
+  under a comment claiming invariance — it passed while contradicting itself,
+  because I had pinned `redo_stack: []` at every position instead of letting it
+  accumulate. Rewritten to the real walk.
+- [Inferred] The render itself. There is no TUI render harness in `test/tui/`
+  (all pure logic), and reaching the banner needs a live assistant turn, so
+  "the arrows draw and click" rests on typecheck plus using the same idioms as
+  the surrounding code (`flexDirection="row"`, `onMouseUp` on a box, `←`/`→`
+  glyphs already used by the tool renderers). Falsifier: drive a built binary
+  through `cmd_runner`, undo once, read the banner back.

@@ -104,6 +104,7 @@ import { TuiPluginRuntime } from "@/cli/cmd/tui/plugin/runtime"
 import { DialogGoUpsell } from "../../component/dialog-go-upsell"
 import { SessionRetry } from "@/session/retry"
 import { getRevertDiffFiles } from "../../util/revert-diff"
+import { revertSteps } from "../../util/revert-steps"
 import * as Log from "@opencode-ai/core/util/log"
 import { embeddedWasmAssetPath } from "@/util/wasm-embedded"
 
@@ -1399,6 +1400,7 @@ export function Session() {
       diff: info.diff,
       diffFiles: revertDiffFiles(),
       conflicts,
+      steps: revertSteps({ messages: messages(), revert: info }),
     }
   })
 
@@ -1524,6 +1526,8 @@ export function Session() {
                       {(function () {
                         const command = useCommandDialog()
                         const [hover, setHover] = createSignal(false)
+                        const [hoverBack, setHoverBack] = createSignal(false)
+                        const [hoverForward, setHoverForward] = createSignal(false)
                         const dialog = useDialog()
 
                         const handleUnrevert = async () => {
@@ -1555,9 +1559,48 @@ export function Session() {
                               backgroundColor={hover() ? theme.backgroundElement : theme.backgroundPanel}
                             >
                               <text fg={theme.textMuted}>{revert()!.reverted.length} message reverted</text>
+                              {/*
+                                Undo and redo are one sequence with a cursor, so
+                                the banner offers both directions with the steps
+                                still available in each. Stepping is deliberately
+                                unconfirmed — every step is itself reversible, and
+                                a dialog per step defeats walking the sequence.
+                              */}
+                              <box flexDirection="row" gap={1}>
+                                <box
+                                  onMouseOver={() => setHoverBack(true)}
+                                  onMouseOut={() => setHoverBack(false)}
+                                  onMouseUp={(evt) => {
+                                    evt.stopPropagation()
+                                    if (revert()!.steps.back === 0) return
+                                    command.trigger("session.undo")
+                                  }}
+                                  backgroundColor={
+                                    hoverBack() && revert()!.steps.back > 0
+                                      ? theme.backgroundElement
+                                      : theme.backgroundPanel
+                                  }
+                                >
+                                  <text fg={revert()!.steps.back > 0 ? theme.text : theme.textMuted}>
+                                    {` ← undo (${revert()!.steps.back}) `}
+                                  </text>
+                                </box>
+                                <box
+                                  onMouseOver={() => setHoverForward(true)}
+                                  onMouseOut={() => setHoverForward(false)}
+                                  onMouseUp={(evt) => {
+                                    evt.stopPropagation()
+                                    command.trigger("session.redo")
+                                  }}
+                                  backgroundColor={hoverForward() ? theme.backgroundElement : theme.backgroundPanel}
+                                >
+                                  <text fg={theme.text}>{` redo (${revert()!.steps.forward}) → `}</text>
+                                </box>
+                              </box>
                               <text fg={theme.textMuted}>
-                                <span style={{ fg: theme.text }}>{keybind.print("messages_redo")}</span> or /redo to
-                                restore
+                                <span style={{ fg: theme.text }}>{keybind.print("messages_undo")}</span> /{" "}
+                                <span style={{ fg: theme.text }}>{keybind.print("messages_redo")}</span> to step, /redo
+                                to restore
                               </text>
                               <Show when={revert()!.conflicts?.length}>
                                 <text fg={theme.warning}>

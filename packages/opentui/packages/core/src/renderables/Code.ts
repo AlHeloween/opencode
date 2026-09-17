@@ -143,6 +143,42 @@ export class CodeRenderable extends TextBufferRenderable {
     }
   }
 
+  /**
+   * Colour-by-source-offset from the application's styled text, or undefined.
+   *
+   * The application styles the SAME text tree-sitter is about to highlight, so
+   * its chunks tile the source in order and their lengths give the offsets.
+   * That only holds if the two really describe the same string: if the styled
+   * text has drifted from `content` (a stale paint mid-stream, a caller that
+   * styled something else) the offsets would be meaningless and would tint the
+   * wrong words, so the lookup is refused rather than approximated.
+   */
+  private buildAppColourLookup(content: string): ((offset: number) => TextChunk["fg"]) | undefined {
+    const styled = this._initialStyledText
+    if (!styled) return undefined
+
+    const starts: number[] = []
+    const colours: TextChunk["fg"][] = []
+    let offset = 0
+    for (const chunk of styled.chunks) {
+      starts.push(offset)
+      colours.push(chunk.fg)
+      offset += chunk.text.length
+    }
+    if (offset !== content.length) return undefined
+    if (colours.every((colour) => colour === undefined)) return undefined
+
+    return (sourceOffset: number) => {
+      // Chunk counts here are small (the application styles by paragraph, not
+      // by token), so a linear scan is cheaper than the binary search it would
+      // take to beat it.
+      for (let i = starts.length - 1; i >= 0; i -= 1) {
+        if (sourceOffset >= starts[i]!) return colours[i]
+      }
+      return undefined
+    }
+  }
+
   public override get lineInfo(): LineInfo {
     if (!this._renderedLineSources) return super.lineInfo
     if (this._mappedLineInfo) return this._mappedLineInfo
@@ -427,6 +463,7 @@ export class CodeRenderable extends TextBufferRenderable {
         let chunks = treeSitterToTextChunks(content, highlights, this._syntaxStyle, {
           enabled: this._conceal,
           baseHighlight: this._baseHighlight,
+          appFgAt: this.buildAppColourLookup(content),
         })
         // onChunks may rewrite text arbitrarily, so the conceal-only source map would be invalid.
         const renderedLineSources = this._onChunks ? undefined : this.getConcealLinesSourceMap(content, highlights)
@@ -440,32 +477,24 @@ export class CodeRenderable extends TextBufferRenderable {
 
         if (this.isDestroyed) return
 
-        // ONE styled text wins, always. Two sources competing at paint time is
-        // how you get flicker.
+        // ONE styled text is painted, always — two sources competing at paint
+        // time is how you get flicker. But "one wins" is not the same as "one
+        // is discarded", and conflating those cost this renderer two
+        // regressions in a row (2026-09-18): keeping the application's text
+        // lost heading and emphasis conceal, keeping tree-sitter's lost every
+        // colour the application had applied, including muted reasoning.
         //
-        // WHICH one wins is the whole question, and it was answered wrongly on
-        // 2026-09-18. `markdown` was dropped from this guard on the measured
-        // premise that the markdown_inline injection is live, so tree-sitter
-        // carries `markup.strong` plus conceal for `**Bold**` and nothing is
-        // lost by regenerating. That measurement holds IN THE TEST HARNESS and
-        // does not hold in the built binary: there the inline layer is absent,
-        // so regenerating produced block-only styling — `**` markers visible,
-        // no bold, and, because `_initialStyledText` also carries the app's own
-        // colours, reasoning text lost its dimming (Alexander, same day:
-        // "правильная отрисовка затирается чернобелой").
+        // They were never in conflict. Tree-sitter owns the text, the conceal
+        // and the attributes, and owns colour wherever the grammar has an
+        // opinion; the application owns colour where it does not. That split is
+        // applied inside `treeSitterToTextChunks` via `appFgAt`, so the result
+        // below is a single styled text that already carries both — there is no
+        // branch left in which either side can overwrite the other.
         //
-        // So `markdown` is preserved again. This is NOT the end state: the
-        // right answer is to MERGE — app styling as the base, tree-sitter
-        // adding syntax on top — rather than either side discarding the other.
-        // Until that merge exists, losing heading conceal is the cheaper defect
-        // than losing every colour the application applied.
-        //
-        // Before touching this again: measure against the BUILT BINARY, not the
-        // test harness. That is the difference the previous attempt missed.
-        //
-        // `ansi` stays for a different reason: its chunks are pre-rendered
-        // image-to-ansi output with no tree-sitter source to regenerate from.
-        if (!(this._initialStyledText && (filetype === "markdown" || filetype === "ansi"))) {
+        // `ansi` is the one genuine exception: its chunks are pre-rendered
+        // image-to-ansi output with no tree-sitter source to regenerate from,
+        // so regenerating would not merge anything, it would fabricate.
+        if (!(this._initialStyledText && filetype === "ansi")) {
           const styledText = new StyledText(chunks)
           this.textBuffer.setStyledText(styledText)
         }

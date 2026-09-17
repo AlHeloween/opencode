@@ -11,6 +11,24 @@ registerEnvVar({ name: "OTUI_TS_STYLE_WARN", default: false, description: "Enabl
 interface TextChunkOptions {
   enabled?: boolean
   baseHighlight?: string
+  /**
+   * Colour the APPLICATION assigned to a given source offset, if any.
+   *
+   * Two sources describe the same text: tree-sitter knows the syntax, the
+   * application knows things tree-sitter cannot infer — that this paragraph is
+   * reasoning and should be muted, that this run belongs to another agent.
+   * Previously the renderer picked one and discarded the other, so whichever
+   * lost took its whole contribution with it: keeping the application's text
+   * lost heading and emphasis conceal, keeping tree-sitter's lost every colour
+   * the application had applied (2026-09-18).
+   *
+   * They are not actually in conflict. Tree-sitter owns the text, the conceal
+   * and the attributes; it also owns colour WHERE IT HAS AN OPINION. Where it
+   * resolves to nothing more than the default style, the application's colour
+   * is the better answer, and this hook supplies it. Neither side is discarded,
+   * so there is no order in which one can overwrite the other.
+   */
+  appFgAt?: (sourceOffset: number) => TextChunk["fg"] | undefined
 }
 
 interface Boundary {
@@ -184,10 +202,16 @@ export function treeSitterToTextChunks(
         // Use merged style, falling back to default if nothing was merged
         const finalStyle = Object.keys(mergedStyle).length > 0 ? mergedStyle : defaultStyle
 
+        // Tree-sitter had no colour opinion for this run — defer to the
+        // application's, which knows things the grammar cannot (muted
+        // reasoning, agent tints). Where the grammar DID resolve a colour it
+        // keeps it: syntax highlighting is not overridable from outside.
+        const appFg = mergedStyle.fg === undefined ? options?.appFgAt?.(currentOffset) : undefined
+
         chunks.push({
           __isChunk: true,
           text: segmentText,
-          fg: finalStyle?.fg,
+          fg: appFg ?? finalStyle?.fg,
           bg: finalStyle?.bg,
           attributes: finalStyle
             ? createTextAttributes({
@@ -202,10 +226,13 @@ export function treeSitterToTextChunks(
     } else if (currentOffset < boundary.offset) {
       const text = content.slice(currentOffset, boundary.offset)
       const style = baseStyle ?? defaultStyle
+      // Unhighlighted prose — the grammar has no opinion here by definition, so
+      // this is exactly where the application's colour belongs.
+      const appFg = options?.appFgAt?.(currentOffset)
       chunks.push({
         __isChunk: true,
         text,
-        fg: style?.fg,
+        fg: appFg ?? style?.fg,
         bg: style?.bg,
         attributes: style
           ? createTextAttributes({
@@ -260,10 +287,11 @@ export function treeSitterToTextChunks(
   if (currentOffset < content.length) {
     const text = content.slice(currentOffset)
     const style = baseStyle ?? defaultStyle
+    const appFg = options?.appFgAt?.(currentOffset)
     chunks.push({
       __isChunk: true,
       text,
-      fg: style?.fg,
+      fg: appFg ?? style?.fg,
       bg: style?.bg,
       attributes: style
         ? createTextAttributes({

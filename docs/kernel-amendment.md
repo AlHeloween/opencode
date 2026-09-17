@@ -131,6 +131,50 @@ derived from the system.
 | dist snapshot | `prompt_kernel/dist/2026-09-13_00-07-28_reasoning_prompt.txt` |
 | ruling landed in | `629b08f2d7` |
 
+## Parked proposals
+
+Amendments that were argued for and deliberately NOT applied, because the claim
+behind them is behavioural and nothing short of a long run settles it. Kept here
+so the reasoning is not re-derived from scratch, and so a future run has
+something to measure against.
+
+### Choose the oracle at G3, not at G8
+
+| | |
+|---|---|
+| raised | 2026-09-17 |
+| status | **parked, unvalidated** |
+| scope | G3 `SMOKE_CONTRACT`, G8 `@ORACLE` |
+| decision | leave the kernel as is — it is battle-tested in this shape |
+
+**Proposal.** Require the instrument for each claim to be named in G3, alongside
+the smoke contract, rather than selected in G8 when the claim is verified.
+
+**Argument.** `@ORACLE` demands an instrument that *can fail*. That catches the
+tautological oracle; it does not catch the mis-aimed one, because an instrument
+pointed at the adjacent layer fails perfectly well — it just answers a different
+question. And by G8 a hypothesis already exists, so the instrument gets picked
+to confirm it. G1 already carries the rule ("choose the instrument by the layer
+the problem lives on, not by what is nearest… right numbers end the search"),
+but as an attention rule at grounding, not as a binding on the claim.
+
+**Evidence for.** A win32→win64 port of a large Delphi codebase (GR32 blend path
+rewritten to AVX2 in an external x64 assembler library) mapped four layers in
+advance — bit-exactness against the Pascal reference, dispatch via the priority
+registry with the PUREPASCAL fallback live, frame behaviour through cua, and a
+per-routine timing table — and all four claims landed. A `vzeroupper` omission
+is bit-exact and merely slow; only the visual/timing layer can see it.
+
+**Evidence against.** None measured. The same session that produced the argument
+aimed three instruments at the wrong layer *while the gates moved correctly*,
+which shows the gap is real but not that this amendment closes it.
+
+**Falsifier.** A day-scale autonomous run on a large codebase, counting
+mis-aimed-instrument incidents with and without the binding. Ordinary smokes
+cannot settle it: they pin the structure of the kernel, not its effect on
+reasoning — the same limit recorded under *Coverage* below. Until such a run
+exists this stays parked; do not promote it on argument alone.
+
 ## What this does not fix
 
 - **Politics.** Which human authorizes an L3 is process governance, not protocol.

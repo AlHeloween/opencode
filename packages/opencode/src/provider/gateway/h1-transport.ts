@@ -1,7 +1,7 @@
 import * as Log from "@opencode-ai/core/util/log"
 import type { MetricsSample, MetricsResult } from "./metrics"
 import * as M from "./metrics"
-import { normalizeError } from "./errors"
+import { normalizeError, TransportError } from "./errors"
 import type { NormalizedError } from "./errors"
 
 const log = Log.create({ service: "gateway/h1" })
@@ -91,13 +91,14 @@ export async function request(options: H1RequestOptions): Promise<H1Response> {
     sample.endedAt = Date.now()
     sample.status = (err as any)?.status || (err as any)?.statusCode || 0
 
-    throw {
+    throw new TransportError({
       status: sample.status,
       headers: new Headers(),
       body: null,
       metrics: M.computeMetrics(sample),
       error: normalized,
       requestId: options.headers["x-request-id"],
-    }
+      cause: err,
+    })
   }
 }

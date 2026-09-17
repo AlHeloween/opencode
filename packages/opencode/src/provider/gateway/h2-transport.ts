@@ -3,7 +3,7 @@ import { Readable } from "node:stream"
 import * as Log from "@opencode-ai/core/util/log"
 import type { MetricsResult } from "./metrics"
 import * as M from "./metrics"
-import { normalizeError } from "./errors"
+import { normalizeError, TransportError } from "./errors"
 import type { NormalizedError } from "./errors"
 
 const log = Log.create({ service: "gateway/h2" })
@@ -233,14 +233,15 @@ export async function request(options: H2RequestOptions): Promise<H2Response> {
     const err = new Error("Failed to create H2 session")
     const normalized = normalizeError(err)
     sample.endedAt = Date.now()
-    throw {
+    throw new TransportError({
       status: 0,
       headers: {},
       body: "",
       metrics: M.computeMetrics(sample),
       error: normalized,
       requestId: options.headers["x-request-id"],
-    }
+      cause: err,
+    })
   }
 
   sample.socketAcquiredAt = Date.now()
@@ -250,14 +251,15 @@ export async function request(options: H2RequestOptions): Promise<H2Response> {
   } catch (err) {
     const normalized = normalizeError(err as Error)
     sample.endedAt = Date.now()
-    throw {
+    throw new TransportError({
       status: 0,
       headers: {},
       body: "",
       metrics: M.computeMetrics(sample),
       error: normalized,
       requestId: options.headers["x-request-id"],
-    }
+      cause: err,
+    })
   }
 
   return new Promise<H2Response>((resolve, rejectPromise) => {

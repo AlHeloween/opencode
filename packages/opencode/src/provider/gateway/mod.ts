@@ -100,6 +100,13 @@ export const layer = Layer.effect(
         Effect.andThen(
           Effect.sync(() => {
             H2.closeAll()
+            // The wrapped fetch is a process global, so leaving it installed
+            // outlives the layer that acquired it: anything constructed later
+            // keeps routing through a gateway whose store and sessions are
+            // gone. Inside one app that is merely wrong; across test files in
+            // a single bun process it silently changes which transport the
+            // next suite exercises.
+            delete globalThis.__gatewayFetch
             // Clear periodic status logging
             if (globalThis.__gatewayStatusInterval) {
               clearInterval(globalThis.__gatewayStatusInterval)

@@ -2980,3 +2980,50 @@ twice. And the A/B that would move 078f55a2bb from Inferred to Exact.
   (a user edit between undo and redo is still overwritten), the m* rebuild for
   undo/redo across a fold, and a file-level fork (blocked by one worktree
   shared between sessions).
+
+## [2026-09-17] Gateway threw a plain object, so a connection reset was never retried
+
+The last red test — processor-effect passing alone and failing after llm.test —
+was not a fixture race. It was the product.
+
+- Measured, not reasoned: probe at `SessionRetry.policy` printing the value that
+  reaches it. Solo it is an `APICallError` with `cause: TypeError{code:
+  ECONNRESET}` and a message, so `retryable()` returns one and the turn retries.
+  Paired it is a plain `Object` — `{status, headers, body, metrics, error,
+  requestId}` — with no `message`, so `MessageV2.fromError` falls to
+  `UnknownError` and `retryable()` returns undefined.
+- Root cause: `h1-transport.ts:94` (and `h2-transport.ts` ×2) used `throw {…}`
+  — an object literal, not an `Error`. Every downstream consumer reads
+  `message`, `code`, or `instanceof Error`, so all three were blind to it:
+  `normalizeError` saw `String(obj)` = "[object Object]", and even the gateway's
+  own `shouldFallbackToH1` was deciding on that. The normalized category was
+  computed correctly inside the catch and then buried where nothing could read it.
+- Consequence in production, not just in tests: `app-runtime.ts` always installs
+  the gateway, so **a dropped provider stream was never retried** — the turn
+  simply died. The solo-green test was false assurance: it exercised the
+  non-gateway path.
+- Why it looked like test pollution: `mod.ts` sets `globalThis.__gatewayFetch`
+  and never cleared it, so the wrapped fetch outlived its own `acquireRelease`
+  and leaked across test files in one bun process. `provider.ts:1605` picks it up
+  via `customFetch ?? gwFetch ?? fetch`. Now deleted on shutdown — a resource
+  must not outlive the layer that acquired it.
+- Second, independent hole: Bun words a mid-stream close as "The socket
+  connection was closed unexpectedly" and carries ECONNRESET only in `code`,
+  while `normalizeError` matched on `.message` alone. No pattern hit →
+  `category:"unknown", retryable:false`. Classification now reads message, code,
+  name and the `cause` chain (depth 4).
+- Widening is one-directional by construction: only the retryable branches match
+  the enriched text, so it can turn `unknown` into a retry, never the reverse.
+  Aborts are classified first, because tearing down a live stream also surfaces
+  as a socket close — without that ordering the user's stop would be retried.
+
+Oracle [Exact]:
+- `bun test test/session/` → 767 pass / 17 skip / 0 fail (was 1 fail).
+- Attribution A/B: with `delete globalThis.__gatewayFetch` suppressed so the leak
+  stays, the pair still passes — the fix is the transport, not the isolation.
+- Mutation: restoring `throw {…}` in h1 fails the new test (`Expected
+  constructor: [class Error]`); restoring it makes it pass.
+- `bun test test/provider/` → 490 pass / 0 fail. `bun typecheck` → exit 0.
+- New: 3 tests in `test/provider/h1-transport.test.ts` — the throw is an `Error`
+  the session classifies as retryable; `normalizeError` reads code and cause;
+  an abort is never widened into a retryable reset.

@@ -21,6 +21,51 @@ export interface NormalizedError {
   statusCode?: number
 }
 
+/**
+ * What a transport throws when the request never produced a response.
+ *
+ * It must be a real `Error`: the value travels out of the gateway into the
+ * provider SDK and then into `MessageV2.fromError` / `SessionRetry.retryable`,
+ * and every one of those consumers reads `message`, `code` or `instanceof
+ * Error`. Throwing a plain object literal (as h1/h2 did until 2026-09-17) made
+ * all of them fall through to `UnknownError`, so a connection reset was never
+ * retried — the turn just died.
+ *
+ * The structured envelope the transports used to throw is preserved as fields,
+ * and `code` is lifted off the underlying error so the existing ECONNRESET
+ * branch in `MessageV2.fromError` still fires.
+ */
+export class TransportError extends Error {
+  readonly status: number
+  readonly headers: Headers | Record<string, string>
+  readonly body: ReadableStream<Uint8Array> | string | null
+  readonly metrics: unknown
+  readonly error: NormalizedError
+  readonly requestId?: string
+  readonly code?: string
+
+  constructor(input: {
+    status: number
+    headers: Headers | Record<string, string>
+    body: ReadableStream<Uint8Array> | string | null
+    metrics: unknown
+    error: NormalizedError
+    requestId?: string
+    cause?: unknown
+  }) {
+    super(input.error.message, { cause: input.cause })
+    this.name = "GatewayTransportError"
+    this.status = input.status
+    this.headers = input.headers
+    this.body = input.body
+    this.metrics = input.metrics
+    this.error = input.error
+    this.requestId = input.requestId
+    const code = (input.cause as { code?: unknown })?.code
+    if (typeof code === "string") this.code = code
+  }
+}
+
 const RATE_LIMIT_PATTERNS = [
   /rate[_\s]?limit/i,
   /too[_\s]?many[_\s]?requests/i,
@@ -45,6 +90,11 @@ const CONN_RESET_PATTERNS = [
   /socket.*hang/i,
   /broken.*pipe/i,
   /EPIPE/i,
+  // Bun words a mid-stream socket close as "The socket connection was closed
+  // unexpectedly" and carries ECONNRESET only in `code` — see errorText().
+  /socket.*clos/i,
+  /premature.*close/i,
+  /ERR_STREAM_PREMATURE_CLOSE/i,
 ]
 
 const TLS_ERROR_PATTERNS = [/TLS/i, /SSL/i, /CERT_/i, /certificate/i, /handshake/i]
@@ -53,15 +103,49 @@ const GOAWAY_PATTERNS = [/GOAWAY/i, /http2.*goaway/i]
 
 const REFUSED_STREAM_PATTERNS = [/REFUSED_STREAM/i, /stream.*refused/i, /RST_STREAM/i]
 
+// The classification below matches on text, but the decisive token is often
+// not in the message: Bun reports a mid-stream socket close as "The socket
+// connection was closed unexpectedly" and puts ECONNRESET in `code`, and
+// fetch buries the real failure one level down in `cause`. Match against all
+// three so a reset is not classified as `unknown` (i.e. non-retryable).
+function errorText(error: unknown): string {
+  const parts: string[] = []
+  for (let cur: unknown = error, depth = 0; cur && depth < 4; depth += 1) {
+    const message = (cur as { message?: unknown }).message
+    if (typeof message === "string") parts.push(message)
+    const code = (cur as { code?: unknown }).code
+    if (typeof code === "string") parts.push(code)
+    const name = (cur as { name?: unknown }).name
+    if (typeof name === "string") parts.push(name)
+    cur = (cur as { cause?: unknown }).cause
+  }
+  if (parts.length === 0) return String(error)
+  return parts.join(" ")
+}
+
 export function normalizeError(error: unknown): NormalizedError {
-  const message = error instanceof Error ? error.message : String(error)
+  const human = (error as { message?: unknown })?.message
+  const message = typeof human === "string" ? human : String(error)
+  // Only the retryable categories widen to the enriched text: that can turn
+  // `unknown` (non-retryable) into a retry, never the other way round. The
+  // non-retryable branches below keep matching the message alone, so nothing
+  // that used to be retried stops being retried.
+  const text = errorText(error)
   const statusCode = (error as any)?.statusCode ?? (error as any)?.status
 
-  if (statusCode === 429 || RATE_LIMIT_PATTERNS.some((p) => p.test(message))) {
+  // An abort is ours, and tearing down a live stream can surface as a socket
+  // close — classify it first so the widened patterns cannot turn the user's
+  // stop into a retry.
+  const aborted =
+    (error instanceof DOMException && error.name === "AbortError") ||
+    /^request aborted$/i.test(message) ||
+    /abort(ed)? signal|signal is aborted|operation was aborted/i.test(message)
+
+  if (!aborted && (statusCode === 429 || RATE_LIMIT_PATTERNS.some((p) => p.test(text)))) {
     return { category: "rate_or_rejection", retryable: true, message }
   }
 
-  if (CONN_RESET_PATTERNS.some((p) => p.test(message))) {
+  if (!aborted && CONN_RESET_PATTERNS.some((p) => p.test(text))) {
     return { category: "conn_reset", retryable: true, message }
   }
 
@@ -69,19 +153,19 @@ export function normalizeError(error: unknown): NormalizedError {
     return { category: "tls_error", retryable: false, message }
   }
 
-  if (GOAWAY_PATTERNS.some((p) => p.test(message))) {
+  if (!aborted && GOAWAY_PATTERNS.some((p) => p.test(text))) {
     return { category: "goaway", retryable: true, message }
   }
 
-  if (REFUSED_STREAM_PATTERNS.some((p) => p.test(message))) {
+  if (!aborted && REFUSED_STREAM_PATTERNS.some((p) => p.test(text))) {
     return { category: "refused_stream", retryable: true, message }
   }
 
-  if (/read.*timed?\s*out/i.test(message) || /ETIMEDOUT/i.test(message)) {
+  if (!aborted && (/read.*timed?\s*out/i.test(text) || /ETIMEDOUT/i.test(text))) {
     return { category: "read_timeout", retryable: true, message }
   }
 
-  if (/write.*timed?\s*out/i.test(message)) {
+  if (!aborted && /write.*timed?\s*out/i.test(text)) {
     return { category: "write_timeout", retryable: true, message }
   }
 

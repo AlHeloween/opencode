@@ -132,13 +132,49 @@ found.
   `markdown_inline/highlights.scm` (`diff -q` same, both contain `markup.link.url`)
 - `Code.ts` conceal handling (21 hunks between the copies, none touching conceal)
 
-### Next cut
+### CORRECTED 2026-09-18 — the patch only flips which value conceal is stuck at
 
-The remaining candidate is the **coalesced block assembly** — the
-`markdownRaw += token.raw` accumulation and `parseMarkdownIncremental` usage.
-With headings kept inside a coalesced block, upstream's separator rows must come
-from the raw source's own blank lines. That is where to look, and it is a
-region-level comparison rather than a hunk port.
+My reading of the nine broken tests as "spacing" was wrong. Ran
+`headings h1 through h3` (byte-identical to upstream's copy) with the patch
+removed and read the diff: it fails on **markers**, not separator rows.
+
+| Configuration | Heading path | Behaviour |
+|---|---|---|
+| with our patch | structured | conceal effectively always **ON** |
+| without it (upstream form) | markdown `CodeRenderable` | conceal effectively always **OFF** |
+
+`conceal` is honoured in **neither**. The patch does not fix or break anything —
+it chooses which constant the flag is stuck at, and each choice satisfies one
+set of tests and fails the other. That is why 3 fix and 9 break: it is one
+defect seen from two sides, not a trade-off between two features.
+
+### Also ruled out, byte-identical to upstream
+
+- the coalesced block assembly region (`markdownRaw` accumulation) — `diff` of
+  ours `1165-1215` against upstream `1242-1292` returns **identical**
+- `internalBlockMode` and its `"coalesced"` default
+- `markdown/highlights.scm` — and it *does* conceal the markers
+  (`(atx_h1_marker) @conceal` + `(#set! conceal "")`), so the query is not the gap
+- the nine "broken" tests all exist upstream, and `headings h1 through h3` is
+  byte-identical to theirs, so our tests were not tuned to the patch either
+
+### Where it actually lives
+
+The conceal predicate is applied by the **tree-sitter pipeline**, and that is
+where our copy diverges — 8 files differ from 0.5.11:
+
+| File | Ours | Upstream | Hunks |
+|---|---|---|---|
+| `client.ts` | 847 | 858 | 5 |
+| `parser.worker.ts` | 1098 | 1101 | 6 |
+| `types.ts` | 132 | 132 | 2 |
+| `default-parsers.ts` | 133 | 103 | 1 |
+| `parsers-config.ts` | 81 | 81 | 1 |
+
+Next cut: find where `#set! conceal` metadata is turned into highlight meta and
+compare that specific path. Note `default-parsers.ts` is +30 lines on our side —
+likely local, check before touching. This is the highlight pipeline, so the
+graphics trio plus the full suite are the gate on every step.
 
 ## Method
 

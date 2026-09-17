@@ -6,7 +6,7 @@ import { createTextAttributes } from "../utils.js"
 import type { BorderStyle } from "../lib/border.js"
 import { RGBA, parseColor, type ColorInput } from "../lib/RGBA.js"
 import { Lexer, type MarkedToken, type Token, type Tokens } from "marked"
-import { CodeRenderable, type OnChunksCallback } from "./Code.js"
+import { CodeRenderable, type OnChunksCallback, type OnHighlightCallback } from "./Code.js"
 import { BoxRenderable } from "./Box.js"
 import { StyledText } from "../lib/styled-text.js"
 import { TextRenderable } from "./Text.js"
@@ -21,7 +21,9 @@ import type { TreeSitterClient } from "../lib/tree-sitter/index.js"
 import { infoStringToFiletype } from "../lib/tree-sitter/resolve-ft.js"
 import { parseMarkdownIncremental, type ParseState } from "./markdown-parser.js"
 import type { OptimizedBuffer } from "../buffer.js"
-import { detectLinks } from "../lib/detect-links.js"
+import { detectLinks, normalizeMarkdownLinkTarget } from "../lib/detect-links.js"
+import type { SimpleHighlight } from "../lib/tree-sitter/types.js"
+import { MAX_LINK_URL_BYTES } from "../zig.js"
 
 export type MarkdownTableStyle = "grid" | "columns"
 
@@ -230,6 +232,12 @@ interface ResolvedTableRenderableOptions {
 
 const TRAILING_MARKDOWN_BLOCK_BREAKS_RE = /(?:\r?\n){2,}$/
 const TRAILING_MARKDOWN_BLOCK_NEWLINES_RE = /(?:\r?\n)+$/
+const markdownLinkEncoder = new TextEncoder()
+
+function isSupportedLinkTarget(url: string): boolean {
+  if (url.length > MAX_LINK_URL_BYTES) return false
+  return markdownLinkEncoder.encode(url).byteLength <= MAX_LINK_URL_BYTES
+}
 
 function colorsEqual(left?: RGBA, right?: RGBA): boolean {
   if (!left || !right) return left === right
@@ -285,6 +293,16 @@ export class MarkdownRenderable extends Renderable {
       content: context.content,
       highlights: context.highlights,
     })
+  /**
+   * Conceals a link destination once tree-sitter has highlighted it.
+   *
+   * Without this pass the raw `](url)` stays visible while `detectLinks` also
+   * renders the URL it found, so an unterminated link showed the markup AND a
+   * duplicated address. Ported from opentui 0.5.11, which asserts the same
+   * expected output our tests do.
+   */
+  private _highlightMarkdownLinks: OnHighlightCallback = (highlights, context) =>
+    this.addMarkdownLinkHighlights(highlights, context.content)
 
   protected _contentDefaultOptions = {
     content: "",
@@ -626,6 +644,74 @@ export class MarkdownRenderable extends Renderable {
     }
   }
 
+  private addMarkdownLinkHighlights(highlights: SimpleHighlight[], content: string): SimpleHighlight[] {
+    if (!highlights.some(([, , group]) => group === "markup.link.url" || group === "string.special.url")) {
+      return highlights
+    }
+
+    const modified = [...highlights]
+    const labels = new Map<number, SimpleHighlight>()
+    const bracketConceals = new Map<number, number>()
+    const closings: SimpleHighlight[] = []
+
+    for (let index = 0; index < highlights.length; index++) {
+      const highlight = highlights[index]!
+      const [start, end, group, meta] = highlight
+      if (group === "markup.link.label" && start < end && !labels.has(end)) labels.set(end, highlight)
+      if (end === start + 1 && meta?.conceal === " " && !bracketConceals.has(start)) {
+        bracketConceals.set(start, index)
+      }
+      if (group === "markup.link" && content.slice(start, end) === ")") closings.push(highlight)
+    }
+
+    let closingIndex = 0
+    for (let index = 0; index < highlights.length; index++) {
+      const [start, end, group, meta] = highlights[index]!
+      if (group !== "markup.link.url" && group !== "string.special.url") continue
+
+      let urlStart = start
+      let urlEnd = end
+      if (content[start] === "<" && content[end - 1] === ">") {
+        urlStart++
+        urlEnd--
+        modified[index] = [urlStart, urlEnd, group, meta]
+        if (this._conceal) {
+          modified.push([start, start + 1, "conceal", { conceal: "", isInjection: true }])
+          modified.push([end - 1, end, "conceal", { conceal: "", isInjection: true }])
+        }
+      }
+
+      let destinationStart = start
+      while (destinationStart > 0 && /\s/.test(content[destinationStart - 1]!)) destinationStart--
+      if (!this._conceal || content[destinationStart - 1] !== "(" || content[destinationStart - 2] !== "]") continue
+
+      const label = labels.get(destinationStart - 2)
+      if (!label) continue
+      const destination = content.slice(urlStart, urlEnd)
+      const url = group === "markup.link.url" ? normalizeMarkdownLinkTarget(destination) : destination
+      if (
+        (this.ctx.capabilities?.hyperlinks !== true || !isSupportedLinkTarget(url)) &&
+        content.slice(label[0], label[1]) !== url
+      ) {
+        continue
+      }
+
+      while (closingIndex < closings.length && closings[closingIndex]![0] < end) closingIndex++
+      const close = closings[closingIndex]
+      if (!close) continue
+
+      const bracketConcealIndex = bracketConceals.get(destinationStart - 2)
+      if (bracketConcealIndex !== undefined) {
+        const [bracketStart, bracketEnd, bracketGroup, bracketMeta] = modified[bracketConcealIndex]!
+        modified[bracketConcealIndex] = [bracketStart, bracketEnd, bracketGroup, { ...bracketMeta, conceal: "" }]
+      }
+
+      modified.push([destinationStart - 1, close[1], "conceal", { conceal: "", isInjection: true }])
+    }
+
+    return modified
+  }
+
   private applyMargins(renderable: Renderable, marginTop: number, marginBottom: number): void {
     renderable.marginTop = marginTop
     renderable.marginBottom = marginBottom
@@ -654,6 +740,7 @@ export class MarkdownRenderable extends Renderable {
       initialStyledText,
       baseHighlight,
       onChunks,
+      onHighlight: this._highlightMarkdownLinks,
       treeSitterClient: this._treeSitterClient,
       width: "100%",
       marginBottom,

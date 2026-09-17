@@ -296,6 +296,38 @@ After compact:
              + decisions from CURRENT summaries only (not from prior m*)
 ```
 
+### Forking a session takes the same window (2026-09-17)
+
+`Session.fork({ sessionID, messageID })` copies the conversation up to a chosen
+message into a new session and leaves the original **untouched** — its future and
+its redo stack survive, so "rewind, fork, come back" needs no branch identity and
+no change to deletion semantics.
+
+Nothing assembles a window inside `fork`, and nothing needs to: the m\* builder
+already walks compacted rows (`selectRecentTail` is explicit about it), so with
+the structure intact below the fork point it yields **the previous m\* plus the
+raw tail from there** — exactly the window a forked session needs. Compaction
+flags ride along in `...msg.info`, so the fork reproduces the structure rather
+than flattening it.
+
+That only holds if the fork copies TRUE history. It used to call
+`messages({ sessionID })`, whose defaults are `visibleOnly: true` and
+`limit: 500` over a DESC-sorted page — the newest 500 VISIBLE rows — and both
+defaults broke it:
+
+- **Depth.** Forking at a message older than those 500 broke the copy loop on its
+  first iteration and produced an **empty** fork, with no error.
+- **Window.** A summary is written after the messages it folds, so its id is
+  HIGHER. Forking inside a folded region lost both halves — the covering m\* sat
+  above the fork point and was cut by the loop's break, the rows it folded were
+  `compacted` and cut by `visibleOnly` — leaving the region right before the fork
+  point represented by nothing.
+
+Files are a separate matter: both sessions share one worktree, so the fork does
+not check out the state of that moment. A file-level fork needs its own worktree.
+
+Pinned by `test/session/session-fork-window.test.ts`.
+
 ### Cadence counter
 
 ```text

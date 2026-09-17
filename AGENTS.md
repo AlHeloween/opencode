@@ -256,6 +256,15 @@ Agent snapshot / undo-redo timeline only. **Git** is project VCS.
 - Repo: `{data}/fossil/{projectID}/snapshot.fsl`
 - Binary: `external/fossil/fossil.exe` or `tools/fossil.exe`
 - Undo/redo: full leaf checkout (`revertTo`), not per-file hash mix
+- **Three boundaries, all BEFORE the thing they cover** (2026-09-17): the start of
+  a user turn, before a sidecar summary, before an undo. No decision about
+  *whether* to snapshot and no inspection of what a turn did — `track(undefined)`
+  runs `addremove`, so it catches whatever changed regardless of who wrote it.
+  Fossil has no autotrack; that call is the automatic tracking.
+- Deciding from per-tool evidence instead cost shell mutations their undo
+  coverage for a week: `bash`/`run`/`task`/`pipeline` emit no `filediff`
+  metadata, so "zero changed files" could not tell `bun --version` from a
+  command that had just created a file.
 
 Not the same as: Git (VCS), jj (TUI detection), TUI indicator (fossil green / jj blue / git red).
 

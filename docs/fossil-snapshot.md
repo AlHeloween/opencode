@@ -28,6 +28,45 @@ Bootstrap: [startup-bootstrap.md](startup-bootstrap.md).
 
 ## 2. Mental model: leaves, not per-file soup
 
+### 2.0 When a leaf is taken — three boundaries, all of them BEFORE (2026-09-17)
+
+A snapshot is the state you revert **to**, so it is taken before the thing it
+covers. There is no decision about *whether* to snapshot and no inspection of
+what a turn did:
+
+| Boundary | Code | Why here |
+|---|---|---|
+| Start of a user turn | `session/processor.ts` — `beginTurn` + `track(undefined)` | The baseline to revert to. Taken before anything is touched, so it needs no evidence about what the turn will do. |
+| Before a sidecar summary | `session/prompt.ts` — `captureSidecar` | After the fold, the trunk history that could rebuild that state is summarised away. |
+| Before an undo | `session/revert.ts` | The state you are leaving must be recoverable, or redo has nothing to return to. |
+
+`track(undefined)` runs `addremove`, so it captures whatever appeared since the
+last boundary **regardless of who wrote it** — bash, edit, or the user's own
+editor between turns. Fossil has no autotrack setting (the full `fossil settings`
+list contains no track/auto-add key); a new file stays `extras` until
+`addremove` runs, and `addremove` only runs inside `track()`. That call *is* the
+automatic tracking.
+
+Once per USER turn, never per command and never per assistant message:
+`beginTurn` both answers and registers, so a turn spanning fifty tool calls and
+several assistant messages snapshots once. `track()`'s early-exit returns the
+current hash without a commit chain when the working copy has not moved, which
+covers the read-only turns (measured 2026-09-15: 1220 of 2380 snapshot-bearing
+messages called no write-class tool at all).
+
+**What this replaced.** From c41c4b9bf2 (2026-09-10) the decision was made at the
+END of a turn from per-tool evidence. `bash`/`run`/`task`/`pipeline` emit no
+`filediff` metadata — only `edit.ts` and `write.ts` do — so "zero changed files"
+covered both `bun --version` and a command that had just created a file, and
+every shell mutation fell out of undo coverage. `test/session/snapshot-tool-race.test.ts`
+stated the lost contract and was red the whole time.
+
+A bash mutation is therefore covered **relative to the turn baseline, at the next
+boundary**: `Snapshot.diff(hash)` is `fossil diff --from`, which reports tracked
+files only, and a freshly created file is `extras` until the next `track()`.
+
+### 2.1 Leaves
+
 Each successful agent write era ends as a **Fossil checkin (leaf)**: a complete tree state.
 
 ```
@@ -60,10 +99,30 @@ Session undo uses **`revertTo(targetHash)`** = full leaf only.
 
 | Action | Behavior |
 |--------|----------|
-| **Undo** to message `M` | Collect `patch` parts after `M`. Target leaf = `patches[0].hash` (tree **before** earliest undone agent step). Fresh `checkpoint()` → `op_id` / `snapshot` (redo anchor). |
-| **Multi-level undo** | Previous `op_id` frames push onto `session.revert.redo_stack`. |
-| **Redo (unrevert)** | `checkout(op_id)`; if `redo_stack` non-empty, pop next frame; else clear revert. |
+| **Undo** to message `M` | Collect `patch` parts after `M`. Target leaf = `patches[0].hash` (tree **before** earliest undone agent step). Redo anchor = `track(sessionFiles)` when the working copy is dirty, else `checkpoint()`. |
+| **Multi-level undo** | Previous frames push onto `session.revert.redo_stack`, each carrying the **whole** operation — `op_id`, `messageID`, `partID` and `crossing`. |
+| **Redo (unrevert)** | `checkout(op_id)`, restore the frame's `crossing`; if `redo_stack` non-empty, pop next frame; else clear revert. |
 | **Isolation** | Does not read or write edit `.bak` files. The `restore` tool owns point recovery from pre-edit backups. |
+
+Three properties of the undo anchor, each paid for (2026-09-17):
+
+- **`track`, not `checkpoint`.** `checkpoint()` only READS the current leaf, and
+  with baselines taken at a turn's start the work being undone is still
+  uncommitted. An anchor read that way names the PREVIOUS leaf, so redo walks
+  forward to a state before the work and silently discards what it was asked to
+  restore. Pinned by `SU-6`.
+- **Only when dirty.** `patches` is non-empty on nearly every undo, and `track()`
+  with explicit paths skips the early-exit that protects the no-op case — so
+  committing on that alone mints a fresh leaf per undo, and a chain of undos
+  with nothing edited between them stops landing where the previous step left
+  off. Pinned by `SU-3`.
+- **Bounded to the session's files.** `track(undefined)` runs a blanket
+  `addremove`, which takes a user's untracked file under fossil control, and
+  `revertTo` then deletes it — tracked and absent from the target leaf. Pinned
+  by `SU-5`.
+
+Not covered yet: a user edit made **between** undo and redo is uncommitted, and
+`checkout` overwrites it. Same principle, narrower case.
 
 Patch parts (written by processor after track) store:
 

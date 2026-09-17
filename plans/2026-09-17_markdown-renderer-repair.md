@@ -171,10 +171,58 @@ where our copy diverges — 8 files differ from 0.5.11:
 | `default-parsers.ts` | 133 | 103 | 1 |
 | `parsers-config.ts` | 81 | 81 | 1 |
 
-Next cut: find where `#set! conceal` metadata is turned into highlight meta and
-compare that specific path. Note `default-parsers.ts` is +30 lines on our side —
-likely local, check before touching. This is the highlight pipeline, so the
-graphics trio plus the full suite are the gate on every step.
+### 2026-09-18, second pass — the conceal data is correct all the way down
+
+Probed the actual values rather than comparing more files. With our patch
+removed, so headings take the `CodeRenderable` path:
+
+```
+PROBE/hl   conceal:true
+           ["# Heading 1\n", "markup.heading.1", null]
+           ["#",             "conceal",          ""]      ← correct
+           ["Heading 1",     "spell",            null]
+PROBE/styled  {"concealEnabled": true, "enabled": true}   ← correct
+```
+
+So: the query emits the conceal capture, the worker turns `#set! conceal ""`
+into `meta.conceal`, the highlight reaches `onHighlight` intact, and
+`concealEnabled` is true at styling time. The consumer logic is right too — in
+`tree-sitter-styled-text.ts`, `meta.conceal === ""` makes `replacementText`
+falsy, so the segment is simply not pushed, which IS concealment.
+
+**Every input to concealment is correct, and the output still shows `#`.**
+
+### Everything now ruled out by measurement
+
+| Candidate | Verdict |
+|---|---|
+| `markdown/highlights.scm` and the other two assets | byte-identical; do conceal the markers |
+| conceal predicate extraction (`parser.worker.ts`) | identical logic |
+| `tree-sitter-styled-text.ts` | 6 hunks, all additive `ranges` tracking; conceal untouched |
+| `default-parsers.ts` | restructured generated file, same markdown assets |
+| `getInterBlockMargin`, block assembly, `internalBlockMode` | byte-identical |
+| `Code.ts` conceal handling | no conceal-related hunks |
+| the nine "spacing" tests | exist upstream, `headings h1 through h3` byte-identical to theirs |
+
+### Next cut — the only remaining question
+
+Which text actually reaches the buffer. Concealment happens while building
+styled chunks, so if the renderable draws the **unstyled** content instead, the
+markers survive regardless of everything above. The diff shows exactly that
+knob differing:
+
+```diff
+-      drawUnstyledText: true,                                        // ours
++      drawUnstyledText: !this._streaming,                            // upstream
+-    renderable.drawUnstyledText = this._streaming || initialStyledText !== undefined
++    renderable.drawUnstyledText = initialStyledText !== undefined
+-    renderable.streaming = this._streaming
++    renderable.streaming = true
+```
+
+Trace which of styled vs unstyled text lands in the buffer for a heading, then
+compare `drawUnstyledText` / `streaming` handling in `Code.ts`. That is the next
+and, on current evidence, last hop.
 
 ## Method
 

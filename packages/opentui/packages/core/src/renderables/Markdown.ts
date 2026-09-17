@@ -1125,7 +1125,7 @@ export class MarkdownRenderable extends Renderable {
   }
 
   private shouldRenderSeparately(token: MarkedToken): boolean {
-    return token.type === "code" || token.type === "table" || token.type === "blockquote" || token.type === "hr" || token.type === "heading" || token.type === "list"
+    return token.type === "code" || token.type === "table" || token.type === "blockquote" || token.type === "hr"
   }
 
   private getInterBlockMargin(token: MarkedToken, nextToken: MarkedToken | undefined): number {

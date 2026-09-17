@@ -440,12 +440,28 @@ export class CodeRenderable extends TextBufferRenderable {
 
         if (this.isDestroyed) return
 
-        // Preserve initialStyledText for markdown and ansi — tree-sitter's
-        // markdown grammar doesn't capture strong/em/codespan inline
-        // formatting, so its output would overwrite rich styled text
-        // with structural-only highlights (black and white).
-        // "ansi" filetype uses pre-rendered styled chunks (image-to-ansi).
-        if (!(this._initialStyledText && (filetype === "markdown" || filetype === "ansi"))) {
+        // ONE styled text wins, always. Two sources competing at paint time is
+        // how you get flicker.
+        //
+        // `markdown` used to be preserved here too, on the premise that
+        // tree-sitter's markdown grammar drops strong/em/codespan and would
+        // repaint rich text as structural black-and-white. That premise is
+        // false and was measured false on 2026-09-18: with the markdown_inline
+        // injection live, the highlights for `**Bold**` are
+        // `["**Bold**", "markup.strong"]` plus four `["*", "conceal", ""]`.
+        // The branch was a leftover from the failed mermaid rendering attempts,
+        // whose real cause turned out to be in the zig engine — the crutch
+        // outlived the fix.
+        //
+        // Keeping it cost heading conceal: tree-sitter's styled text carries
+        // `(#set! conceal "")` for `#` markers and was thrown away, which in
+        // turn was patched around by routing headings out of this renderable
+        // entirely. Both are gone; do not restore either without re-measuring
+        // the premise above.
+        //
+        // `ansi` genuinely stays: its chunks are pre-rendered image-to-ansi
+        // output with no tree-sitter source to regenerate them from.
+        if (!(this._initialStyledText && filetype === "ansi")) {
           const styledText = new StyledText(chunks)
           this.textBuffer.setStyledText(styledText)
         }

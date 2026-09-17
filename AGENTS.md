@@ -384,8 +384,8 @@ harnesses (agent testing agent testing agent) are supported by design.
 
 | File | Regeneration |
 |------|-------------|
-| `packages/sdk/js/src/gen/` | `bun run packages/sdk/js/script/build.ts` |
-| `packages/sdk/js/src/v2/gen/` | same |
+| `packages/sdk/js/src/gen/` | **NOT generated on this branch.** `ea7ec60f51` (2025-12-07) repointed `createClient` output to `./src/v2/gen`; eight hand-edit commits landed in v1 afterwards. Hand-maintained — TUI imports `@opencode-ai/sdk/v2`, so v1 is doubly irrelevant. |
+| `packages/sdk/js/src/v2/gen/` | **Do not regenerate without reading this row.** `bun run packages/sdk/js/script/build.ts` exits 0 and removes ~7100 lines, because the committed files were pasted in from the upstream Effect-HttpApi lineage rather than generated here: `79c5b4a04e` (2026-07-16, mislabelled `Revert "Regenerate SDK…"`) shrank `packages/sdk/openapi.json` by 763 lines while growing the two gen files by +7357. The deletion is the generator working correctly against this branch's Hono spec. `bun typecheck` is not a valid gate — live code references the pasted-in types, so a *correct* regeneration fails it. `openapi.json` is frozen at that commit, so regeneration also cannot pick up later schema changes until the spec itself is regenerated from the Hono server. |
 | `packages/desktop/src/bindings.ts` | `cargo run -p specta-bindings` |
 | `packages/opencode/src/session/prompt/reasoning_prompt.txt` | `python -m prompt_kernel --install` (stamps `prompt_kernel/dist/` and copies runtime `.txt` into production) |
 

@@ -3107,10 +3107,39 @@ Not done, deliberately: `packages/sdk/js/src/gen/types.gen.ts` declares `revert`
 as `{messageID, partID?, snapshot?, diff?}` — already missing `op_id`,
 `redo_stack`, `crossing` and `conflicts` before this change, which is why the TUI
 reads conflicts through `(info as any)`. The documented regeneration
-(`bun run packages/sdk/js/script/build.ts`) exits 0 but DELETES most of the v2
-surface (-3984 / -3776 lines) and does not touch the v1 file where `revert`
-lives. Reverted with `git checkout -- packages/sdk/`; filed as its own task
-rather than committed.
+(`bun run packages/sdk/js/script/build.ts`) exits 0 but removes ~7100 lines of
+the v2 surface and does not touch the v1 file where `revert` lives. Reverted
+with `git checkout -- packages/sdk/`; filed as its own task rather than
+committed.
+
+> **Correction (2026-09-17, later the same day).** I read that deletion as the
+> generator misbehaving — "destructive regeneration", a missing flag or spec.
+> Wrong, and the delegated session disproved it with one number. Commit
+> `79c5b4a04e` (2026-07-16), labelled `Revert "Regenerate SDK for expanded v2
+> API schema"`, **shrank** the input spec `packages/sdk/openapi.json` by 763
+> lines while **growing** `sdk.gen.ts` by +3721 and `types.gen.ts` by +3636.
+> Generated output cannot grow 7357 lines when its input loses 763: those files
+> were pasted in from the upstream Effect-HttpApi lineage, not generated here.
+> So the deletion is the generator working **correctly** against this branch's
+> Hono spec — the committed artifact is the anomaly, not the tool. Verified
+> independently with `git show --stat 79c5b4a04e`.
+>
+> Two consequences I had backwards:
+> - Regeneration alone cannot give `revert` its new fields anyway:
+>   `openapi.json` is frozen at 2026-07-16, two months before this work, so the
+>   spec itself would have to be regenerated from the live Hono server first.
+> - `bun typecheck` is the wrong acceptance gate here. Live code references the
+>   pasted-in types, so a *correct* regeneration fails typecheck. My task brief
+>   demanded both "regenerate" and "keep typecheck green", which is
+>   unsatisfiable — the delegated session was right to stop rather than pick one
+>   silently.
+>
+> Also established there: **nothing** regenerates `packages/sdk/js/src/gen/`
+> (v1) on either branch. `ea7ec60f51` (2025-12-07) repointed `createClient`
+> output to `./src/v2/gen` and left a stray `bun prettier --write src/gen`
+> behind; eight hand-edit commits landed in v1 afterwards, through 2026-05-12.
+> The AGENTS.md "Auto-Generated Code" row naming that script as v1's
+> regeneration was false and is corrected in this commit.
 
 ## [2026-09-17] m* window across a fold — the oracle was one layer off
 

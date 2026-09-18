@@ -63,6 +63,14 @@ Every **implementable** plan must include:
 
 (Completed work moves to `plans_completed/`; most recently `2026-09-13_tui-routing-interaction-repair.md` — landed `918f114db8`.)
 
+## Futures → `plans/futures/`
+
+Research-complete or parked directions, kept as reference rather than active work:
+
+- `futures/2026-09-16_reasoning-roundtrip-vendor-matrix.md` (+ `MATRIX.md`) — primary-source
+  vendor CoT-replay contract matrix (2026-09-18). Research delivered; encoding it into
+  `transform.ts` branches is the remaining step.
+
 ## Abstract futures (not active)
 
 See `abstract_futures/README.md`. Includes parked Zig 0.16 migration notes and superseded HTTP API v2 design.

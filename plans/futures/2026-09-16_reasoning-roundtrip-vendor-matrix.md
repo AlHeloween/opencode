@@ -1,7 +1,7 @@
 ---
 title: Vendor reasoning round-trip contract — external research brief
 owner: Local_Development
-status: research delivered 2026-09-18 — matrix in `plans/2026-09-16_reasoning-roundtrip-vendor-matrix/MATRIX.md` (Anthropic, OpenAI, Gemini, Qwen, Z.AI, xAI, Mistral, OpenRouter answered from primary docs; Kimi + MiniMax primary URLs not obtained)
+status: research delivered 2026-09-18 — matrix in `plans/futures/2026-09-16_reasoning-roundtrip-vendor-matrix/MATRIX.md` (Anthropic, OpenAI, Gemini, Qwen, Z.AI, xAI, Mistral, OpenRouter answered from primary docs; Kimi + MiniMax primary URLs not obtained)
 kind: research
 ---
 

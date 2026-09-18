@@ -312,7 +312,7 @@ function normalizeMessages(
   //   it); when history lacks it the call is NOT an error. The default is off, so
   //   no-echo is the documented default — the older "do not add the
   //   reasoning_content field" instruction is not what the current docs say
-  //   (2026-09-18; see plans/2026-09-16_reasoning-roundtrip-vendor-matrix/MATRIX.md).
+  //   (2026-09-18; see plans/futures/2026-09-16_reasoning-roundtrip-vendor-matrix/MATRIX.md).
   // - zen-proxied Kimi/GLM/MiniMax/hy3: live-verified — no reasoning surfaced
   //   on this key, all no-echo replays accepted without 400.
   // Excluded: real GitHub Copilot (opaque reasoning replay is a different

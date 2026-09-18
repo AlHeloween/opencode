@@ -112,7 +112,7 @@ either stripped (DeepSeek) or undocumented (assume hostile).
   so no-echo matches the documented default, but the old "do not add the
   reasoning_content field" citation is not what the docs say.
 - **Vendor replay matrix (2026-09-18)** —
-  `plans/2026-09-16_reasoning-roundtrip-vendor-matrix/MATRIX.md`: primary-source
+  `plans/futures/2026-09-16_reasoning-roundtrip-vendor-matrix/MATRIX.md`: primary-source
   answers per vendor. **Anthropic (`signature`) and Gemini (`thought_signature`)
   REQUIRE replay**; OpenAI, xAI, Qwen and OpenRouter treat it as
   optional-but-used; Z.AI GLM and Mistral document nothing request-side. Anthropic

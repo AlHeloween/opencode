@@ -1,13 +1,21 @@
 import * as fs from "fs/promises"
+import { existsSync } from "node:fs"
 import * as os from "os"
 import * as path from "path"
 
 /**
- * Video frame extraction for the read tool's "split" path (2026-09-07):
+ * Video frame extraction and duration probing for the read tool (2026-09-07):
  * when the target model has image input but NO native video support, a video
  * file is sampled into evenly spaced downscaled JPEG frames so a vision model
- * can still analyze the footage. Requires ffmpeg/ffprobe on PATH; when
- * unavailable the caller falls back to the markdownify stub.
+ * can still analyze the footage.
+ *
+ * Binary resolution (2026-09-18): `ffmpeg` and `ffprobe` are looked up NEXT TO
+ * THE EXECUTABLE first (we ship them in `bin/`), then on PATH. PATH alone was
+ * wrong in two ways — `where ffmpeg` on this host returns the SYSTEM copy while
+ * the repo's own `bin/ffmpeg.exe` went unused, and `ffprobe` was not shipped at
+ * all, so a portable install could not read a video at all: `duration` came back
+ * 0 and the split path returned no frames. A missing binary degrades to the
+ * markdownify stub; it never throws.
  *
  * Models WITH native video input skip this entirely — the video rides the
  * wire as a video_url content block (openrouter SDK maps video/* file parts).
@@ -22,14 +30,42 @@ export interface VideoFrame {
 const MAX_FRAMES = 6
 const MAX_WIDTH = 768
 
+/**
+ * Resolve a tool binary: exe-adjacent first (that is where we ship it), then
+ * PATH. Mirrors the constitution guard's `cmd_runner` probe — a PATH-only
+ * lookup silently ignores the binary that ships with the product.
+ */
+const toolPaths = new Map<string, string | null>()
+function toolPath(name: "ffmpeg" | "ffprobe"): string | null {
+  const cached = toolPaths.get(name)
+  if (cached !== undefined) return cached
+  const exeDir = path.dirname(process.execPath)
+  const exts = process.platform === "win32" ? ["", ".exe", ".cmd", ".bat"] : [""]
+  const dirs = [exeDir, path.join(exeDir, "bin"), path.dirname(exeDir)]
+  const found =
+    dirs
+      .flatMap((dir) => exts.map((ext) => path.join(dir, `${name}${ext}`)))
+      .find((candidate) => existsSync(candidate)) ??
+    Bun.which(name) ??
+    null
+  toolPaths.set(name, found)
+  return found
+}
+
 async function run(cmd: string[], capture = false): Promise<{ ok: boolean; stdout: string }> {
+  const name = cmd[0] === "ffmpeg" ? "ffmpeg" : cmd[0] === "ffprobe" ? "ffprobe" : undefined
+  if (!name) return { ok: false, stdout: "" }
+  // A missing binary is a degraded path, not an error: `probeDuration` returns 0
+  // and `extractVideoFrames` returns [] so the caller falls back to the stub.
+  const binary = toolPath(name)
+  if (!binary) return { ok: false, stdout: "" }
   try {
-    const proc = Bun.spawn(cmd, { stdout: "pipe", stderr: "ignore", stdin: "ignore" })
+    const proc = Bun.spawn([binary, ...cmd.slice(1)], { stdout: "pipe", stderr: "ignore", stdin: "ignore" })
     const stdout = capture ? await new Response(proc.stdout).text() : ""
     const code = await proc.exited
     return { ok: code === 0, stdout }
   } catch {
-    // ENOENT etc — ffmpeg/ffprobe not installed
+    // Spawn failure (deleted between probe and use, permissions): same degrade.
     return { ok: false, stdout: "" }
   }
 }

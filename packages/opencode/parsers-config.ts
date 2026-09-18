@@ -341,26 +341,6 @@ export default {
       },
     },
     {
-      // Markdown is TWO grammars. The block grammar above parses paragraphs,
-      // lists and fences; everything inside a line — emphasis, inline code,
-      // link syntax — belongs to `markdown_inline`, which the block grammar's
-      // injections query reaches for by name.
-      //
-      // Without this entry that lookup fails and the worker logs "No parser
-      // found for injection language: markdown_inline", so the whole inline
-      // layer is silently absent: `**bold**` keeps its markers and its weight,
-      // backticks stay visible, and only block-level colouring shows. The wasm
-      // was embedded in the binary all along — it was simply never registered
-      // as a filetype, so nothing could ask for it (2026-09-18).
-      filetype: "markdown_inline",
-      wasm: "https://github.com/tree-sitter-grammars/tree-sitter-markdown/releases/download/v0.5.3/tree-sitter-markdown_inline.wasm",
-      queries: {
-        highlights: [
-          "https://raw.githubusercontent.com/nvim-treesitter/nvim-treesitter/master/queries/markdown_inline/highlights.scm",
-        ],
-      },
-    },
-    {
       filetype: "powershell",
       wasm: "grammars/tree-sitter-powershell.wasm",
       queries: {

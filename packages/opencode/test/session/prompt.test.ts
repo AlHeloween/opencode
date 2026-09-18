@@ -898,9 +898,15 @@ it.live(
           parts: [{ type: "text", text: "x".repeat(70_000 * 4) }],
         })
         yield* llm.text("completed reasoning answer")
-        // Deliberately short of two minimums (Goal 60, Current state 60) so the
-        // gap-fill retry is exercised rather than assumed. `diagnoseSummaryGaps`
-        // scores this body at Goal 53/60 and Current state 30/60.
+        // Deliberately short of two minimums (Goal 60, Current state 60).
+        //
+        // This used to EXERCISE the gap-fill retry. The owner retired forced
+        // repair on 2026-09-18 (SIDECAR_MAX_ATTEMPTS = 1), so the same deficient
+        // body now exercises the opposite contract: it is STORED with those gaps
+        // named, and the agent fills them while the checkpoint is still open
+        // (`summaryedit`). The second queued response that used to carry the
+        // repair is gone with the retry — nothing consumes it any more, and a
+        // queued reply nothing reads is a test lying about what it proves.
         yield* llm.text(`## Semantic Vector
 dominant: "threshold crossing"
 
@@ -912,19 +918,6 @@ Keep the summary handoff inside the provider context.
 
 ## Current state
 The protected flow can resume.`)
-        // Attempt 2 is a TARGETED repair: the request names the deficient
-        // sections and the reply carries only those, merged over the draft by
-        // `mergeSummarySections`. The previous version of this test queued the
-        // continuation text here instead, so the retry consumed it, the body
-        // stayed invalid, no capture happened — and the fourth call the
-        // assertion demanded was never made.
-        yield* llm.text(`## Goal
-Keep the Layer-1 summary handoff inside the provider context window so the
-protected reasoning flow survives the boundary.
-
-## Current state
-The protected flow can resume from the summary handle without re-reading the
-folded trunk history.`)
 
         const result = yield* prompt.loop({ sessionID: session.id })
         expect(result.parts.some((p) => p.type === "text" && p.text === "completed reasoning answer")).toBe(true)
@@ -932,24 +925,20 @@ folded trunk history.`)
         const inputs = yield* llm.inputs
         expect(JSON.stringify(inputs[1]?.messages)).toContain("completed reasoning answer")
         expect(inputs[1]?.tools).toEqual(inputs[0]?.tools)
-        // call1 main turn; call2 sidecar summary request (full trunk catalogue,
-        // messages carry the trunk answer); call3 the targeted gap-fill repair.
-        //
-        // THREE, not four. This test used to demand a fourth "continuation
-        // after capture" call, which belongs to a design that was abandoned:
-        // the sidecar firing the moment the open window crossed the threshold,
-        // mid-turn. That cannot work — it interrupts an unclosed reasoning
-        // block, and because CoT is not round-tripped without tool calls the
-        // model restarts its reasoning from zero, paying for the whole burst
-        // twice. The sidecar now runs only once the assistant turn is complete
-        // (`isAssistantTurnComplete`, prompt.ts:2528 "Never inject mid-stream
-        // or mid-tool-loop"), so by the time it captures there is nothing left
-        // to continue — the next user turn carries on from the summary handle.
-        expect(inputs.length).toBe(3)
-        // The retry is a targeted repair, not a second full draft: its request
-        // names the gaps measured on attempt 1.
-        expect(JSON.stringify(inputs[2]?.messages)).toContain("sections need more detail")
-        expect(JSON.stringify(inputs[2]?.messages)).toContain("Goal (53/60 chars)")
+        // TWO, not three: call1 the main turn, call2 the single sidecar request.
+        // The third was the targeted gap-fill repair, retired by owner ruling
+        // 2026-09-18 because it cost a full sidecar call on every
+        // template-deficient capture and could still come back invalid.
+        expect(inputs.length).toBe(2)
+        // The contract that replaced it: the deficient body is STORED, and its
+        // gaps are NAMED so they can be filled before the fold. Asserted through
+        // the shared validator, so this fails if either half drifts.
+        const open = IncrementalCheckpoint.listOpen(session.id)
+        expect(open).toHaveLength(1)
+        expect(open[0]?.body).toContain("## Semantic Vector")
+        const gaps = SessionCompaction.diagnoseSummaryGaps(open[0]?.body ?? "")
+        expect(gaps.some((gap) => gap.includes("Goal"))).toBe(true)
+        expect(gaps.some((gap) => gap.includes("Current state"))).toBe(true)
       }),
       { git: true, config: reasoningBigProviderCfg },
     ),

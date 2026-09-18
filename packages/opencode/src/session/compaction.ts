@@ -421,6 +421,16 @@ const MIN_SUMMARY_SECTION_CHARS: Record<string, number> = {
   Goal: 60,
   "Key decisions": 40,
   "Current state": 60,
+  // The anchored template's four additions (owner ruling 2026-09-18). Lower
+  // minima on purpose: the SHAPE is the contract, the detail is the model's
+  // judgement. A 40-char floor on all eight turned every capture into a
+  // gap-fill candidate, and a gap-fill candidate used to lose the whole
+  // checkpoint (see the reject in prompt.ts) — which is a hole in memory, not
+  // a style complaint. Continuity outranks completeness.
+  "Constraints & Preferences": 24,
+  "Next Steps": 24,
+  "Critical Context": 24,
+  "Relevant Files": 24,
 }
 
 /** Required Layer-1 sections with real content — not headings + one line. */
@@ -436,8 +446,22 @@ export function diagnoseSummaryGaps(text: string): string[] {
     // Short-circuit — if the whole body is a stub, listing individual sections is noise.
     return gaps
   }
-  for (const heading of ["Semantic Vector", "Goal", "Key decisions", "Current state"] as const) {
+  for (const heading of [
+    "Semantic Vector",
+    "Goal",
+    "Constraints & Preferences",
+    "Current state",
+    "Key decisions",
+    "Next Steps",
+    "Critical Context",
+    "Relevant Files",
+  ] as const) {
     // Do not use /m with `$` — `$` would match end-of-line and truncate sections.
+    // Level-2 headings only: `### Done` / `### In Progress` / `### Blocked` live
+    // INSIDE `## Current state` and do not terminate its body, so one floor
+    // measures all three together. Enforcing the sub-headings needs a different
+    // matcher and has no oracle yet — the prompt asks for them, the validator
+    // does not grade them.
     const section = text.match(new RegExp(`## ${heading}\\s*\\n([\\s\\S]*?)(?=\\n## |$)`, "i"))
     const body = section?.[1]?.trim() ?? ""
     const min = MIN_SUMMARY_SECTION_CHARS[heading] ?? 40
@@ -475,7 +499,16 @@ Do NOT repeat the full summary or add introductory text. Start with \`## \`.`;
 export function mergeSummarySections(original: string, fillResponse: string): string {
   if (!fillResponse?.trim()) return original
   let merged = original
-  for (const heading of ["Semantic Vector", "Goal", "Key decisions", "Current state"] as const) {
+  for (const heading of [
+    "Semantic Vector",
+    "Goal",
+    "Constraints & Preferences",
+    "Current state",
+    "Key decisions",
+    "Next Steps",
+    "Critical Context",
+    "Relevant Files",
+  ] as const) {
     const fillSection = fillResponse.match(
       new RegExp(`## ${heading}\\s*\\n([\\s\\S]*?)(?=\\n## |$)`, "i"),
     )
@@ -547,9 +580,9 @@ export function summaryRequestProse(lastSv?: SemanticVector, planGoalSv?: string
     : ""
   return `You are writing a **Layer-1 memory summary** of the conversation window above (all prior messages in this request). This is the durable handle used after compaction — not a chat reply.
 
-Write **Inferred** narrative only under the four headings below. Be specific and dense (names of systems, files, bugs, decisions). Thin 2–3 sentence stubs are **rejected**.
+Write **Inferred** narrative only under the headings below. Be specific and dense (names of systems, files, bugs, decisions). Thin stubs are **rejected**.
 Do **not** call tools — write the summary as plain text only.
-Do **not** invent or list message IDs, session IDs, database positions, file diffs, hashes, or codegraph data.
+Do **not** invent or list message IDs, session IDs, database positions, file diffs, hashes, or codegraph data — the system attaches those Exact handles itself, next to this body.
 Do **not** open with "Sure" / "Here is a summary" — start with \`## Semantic Vector\`.
 ${svHint}${planHint}
 ## Semantic Vector
@@ -560,13 +593,34 @@ Format:
 ## Goal
 (What the user was trying to accomplish in this window — at least a few sentences, concrete.)
 
+## Constraints & Preferences
+(User constraints, preferences, specs — or "(none)".)
+
+## Current state
+(Checklist-style prose, not one line. Use the three sub-headings:
+### Done
+### In Progress
+### Blocked)
+
 ## Key decisions
 (Explicit decisions: approaches chosen, design tradeoffs.
 Each decision on a separate line starting with "-". Specific and actionable —
 this section is preserved verbatim across compaction cycles. At least one solid bullet.)
 
-## Current state
-(What was completed, what is in progress, what remains — concrete checklist-style prose, not one line.)`
+## Next Steps
+(Ordered next actions — or "(none)".)
+
+## Critical Context
+(Important technical facts, errors, open questions — or "(none)".)
+
+## Relevant Files
+(Path: why it matters. Paths only — the system attaches the diffs itself, and a diff
+written here would compete with the Exact handle instead of pointing at it.)
+
+**Continuity rule — this is the point of the handle.** When a prior summary is in the
+window, keep every still-true fact at the SAME position and with the SAME wording, and add
+new or changed facts at the END of their section. The next fold inherits this text; a rewrite
+loses exactly what a positional diff would have carried forward.`
 }
 
 /** Extract ## Key decisions blocks from summary or messageStar text.

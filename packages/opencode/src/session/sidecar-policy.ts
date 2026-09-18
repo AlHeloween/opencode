@@ -34,8 +34,20 @@ export const SIDECAR_OUTPUT_TOKEN_MAX = 32_768
  */
 export const SIDECAR_VARIANT_OVERRIDE: string | undefined = undefined
 
-/** One full draft plus one targeted repair; later turns must not multiply cost. */
-export const SIDECAR_MAX_ATTEMPTS = 2
+/**
+ * ONE request — no forced repair (owner ruling 2026-09-18; was 2).
+ *
+ * The repair iteration was load-bearing against the owner's intent and against
+ * the budget: with the anchored template in place a four-section body is
+ * invalid, so every capture took a second LLM call — caught as "3 calls,
+ * expected 2" at `prompt.test.ts:866` the moment the template widened. It could
+ * also come back invalid regardless (measured 2026-09-14: an 8_192 budget burned
+ * 68 s and ~$0.04 to return `bodyLen: 0`, rejected). The draft is now stored as
+ * written and its gaps are NAMED (`diagnoseSummaryGaps`), so a deficient summary
+ * becomes something the agent fills while the checkpoint is still open, instead
+ * of another request it may not be able to answer.
+ */
+export const SIDECAR_MAX_ATTEMPTS = 1
 
 /** Minimum delay after every capture cycle, including failed/invalid cycles. */
 export const SIDECAR_COOLDOWN_MS = 30_000

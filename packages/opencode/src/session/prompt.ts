@@ -915,17 +915,13 @@ export const layer = Layer.effect(
           const planState = collectPlanState((yield* InstanceState.context).worktree)
           const planGoalSv = planState.plans.find((p) => p.goal_sv.length > 0)?.goal_sv
           let body = ""
-          // Retry loop, soft gap-fill: attempt 1 = fresh summary request;
-          // attempts 2+ = the SAME full-M request shape, user message names
-          // the deficient sections + previous draft. Nothing is switched
-          // off — same system, same tools, standard budget. Identical M
-          // prefix → provider cache hits on retries (verified live: M
-          // prefix hit 0.990 with a changed tail message).
+          // ONE request, no forced repair (owner ruling 2026-09-18). See
+          // SIDECAR_MAX_ATTEMPTS for why the iteration was removed: it cost a full
+          // sidecar call on every template-deficient capture and could still come
+          // back invalid. The gaps are named further down instead, while the
+          // checkpoint is still open and therefore still fixable.
           for (let attempt = 0; attempt < SIDECAR_MAX_ATTEMPTS; attempt++) {
-            const requestText =
-              attempt === 0
-                ? SessionCompaction.summaryRequestProse(lastSv, planGoalSv)
-                : `${SessionCompaction.gapFillRequest(body, SessionCompaction.diagnoseSummaryGaps(body))}\n\nPrevious draft for reference:\n${body}`
+            const requestText = SessionCompaction.summaryRequestProse(lastSv, planGoalSv)
             const attemptStartedAt = Date.now()
             const result = yield* llm
               .stream({
@@ -1008,14 +1004,7 @@ export const layer = Layer.effect(
                 durationMs: Date.now() - attemptStartedAt,
               })
             }
-            if (attempt === 0) body = result.text
-            else body = SessionCompaction.mergeSummarySections(body, result.text)
-            if (SessionCompaction.isValidSummaryBody(body)) break
-            yield* slog.debug("sidecar summary invalid — retrying same request", {
-              attempt: attempt + 1,
-              bodyLen: body.length,
-              gaps: SessionCompaction.diagnoseSummaryGaps(body),
-            })
+            body = result.text
           }
           // Exact: write/edit/multiedit tool filediffs in range + CodeGraph on those paths.
           // Fossil is rollback only — not used here. Soft-fail enrich, keep body.
@@ -1036,12 +1025,20 @@ export const layer = Layer.effect(
           const checkpointID = ulid()
           const fromID = range[0].info.id
           const toID = range[range.length - 1].info.id
-          if (!SessionCompaction.isValidSummaryBody(body)) {
-            yield* slog.warn("sidecar rejecting invalid summary body", {
+          // A gapped body is STORED, not rejected (owner ruling 2026-09-18).
+          // Continuity outranks completeness: returning false here loses the whole
+          // checkpoint, and with it the window the fold is about to drop — an
+          // imperfect record replaces no record at all. Widening the template
+          // without this change would have made that loss MORE likely, because
+          // more sections means more chances to fall short. The gaps are named so
+          // they can be filled while the checkpoint is still open; `summaryedit`
+          // refuses once it is folded, since editing then contradicts m*.
+          const summaryGaps = SessionCompaction.diagnoseSummaryGaps(body)
+          if (summaryGaps.length > 0) {
+            yield* slog.warn("sidecar summary stored WITH GAPS — fill before the fold", {
               bodyLen: body.length,
-              gaps: SessionCompaction.diagnoseSummaryGaps(body),
+              gaps: summaryGaps,
             })
-            return false
           }
           IncrementalCheckpoint.save({
             id: checkpointID,

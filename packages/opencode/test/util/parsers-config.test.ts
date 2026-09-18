@@ -47,6 +47,35 @@ describe("parsers-config", () => {
     expect(entry!.queries?.highlights?.length ?? 0).toBeGreaterThan(0)
   })
 
+  test("markdown maps its inline node types to markdown_inline", () => {
+    // Registering the grammar is necessary but NOT sufficient. The worker
+    // resolves a node type's language only through `injectionMapping.nodeTypes`
+    // — it never reads the `(#set! injection.language ...)` the query declares.
+    // Without the mapping the injection is skipped silently, with no warning
+    // logged anywhere, so the inline layer is absent while everything else
+    // looks healthy. `addDefaultParsers` replaces an entry by filetype instead
+    // of merging, so overriding markdown here drops OpenTUI's own mapping.
+    const markdown = PARSER_CONFIG.parsers.find((parser) => parser.filetype === "markdown")
+    expect(markdown).toBeDefined()
+    const nodeTypes = (markdown as { injectionMapping?: { nodeTypes?: Record<string, string> } }).injectionMapping
+      ?.nodeTypes
+    expect(nodeTypes).toBeDefined()
+    expect(nodeTypes!["inline"]).toBe("markdown_inline")
+    expect(nodeTypes!["pipe_table_cell"]).toBe("markdown_inline")
+  })
+
+  test("every injection target named by a mapping is a registered filetype", () => {
+    // The general form: a mapping that points at an unregistered language fails
+    // exactly as silently as a missing mapping.
+    for (const parser of PARSER_CONFIG.parsers) {
+      const nodeTypes = (parser as { injectionMapping?: { nodeTypes?: Record<string, string> } }).injectionMapping
+        ?.nodeTypes
+      for (const target of Object.values(nodeTypes ?? {})) {
+        expect(registered).toContain(target)
+      }
+    }
+  })
+
   test("filetypes are unique", () => {
     const filetypes = PARSER_CONFIG.parsers.map((parser) => parser.filetype)
     expect(new Set(filetypes).size).toBe(filetypes.length)

@@ -314,6 +314,31 @@ export default {
           "https://raw.githubusercontent.com/nvim-treesitter/nvim-treesitter/master/queries/markdown/injections.scm",
         ],
       },
+      // WITHOUT THIS the inline layer is dead, silently.
+      //
+      // The injections query captures an `inline` node and declares its
+      // language with `(#set! injection.language "markdown_inline")`, but the
+      // worker does not read that property: for a node type it consults ONLY
+      // `injectionMapping.nodeTypes`. No mapping means `targetLanguage` stays
+      // undefined and the injection is skipped with no warning at all — the
+      // one failure mode that leaves no trace anywhere.
+      //
+      // OpenTUI's own markdown entry carries this mapping. `addDefaultParsers`
+      // REPLACES an entry by filetype rather than merging it, so registering a
+      // markdown parser here dropped the mapping along with it, and with it
+      // every emphasis, every inline code span and every concealed marker
+      // (2026-09-18).
+      //
+      // Fenced blocks kept working because they take the other branch, which
+      // reads the info string and falls back to the literal language name —
+      // which is why syntax highlighting looked perfectly healthy while inline
+      // markup did nothing.
+      injectionMapping: {
+        nodeTypes: {
+          inline: "markdown_inline",
+          pipe_table_cell: "markdown_inline",
+        },
+      },
     },
     {
       // Markdown is TWO grammars. The block grammar above parses paragraphs,

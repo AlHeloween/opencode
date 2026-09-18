@@ -31,6 +31,17 @@ D also fixes a cost nobody had named: today the base64 image is stored **inside 
 
 - Store: `{worktree}/.opencode/data/images/`, content-addressed — `<sha256>.<ext>` for the original and `<sha256>.webp` for the derived. Same bytes ⇒ same name ⇒ no duplicates, and a re-paste costs nothing.
 - Reference in the part: the existing `url` field keeps its meaning ("where the bytes are") but points at the store instead of holding a `data:` payload. The exact form is a task, not a guess — it must satisfy every consumer of `part.url` listed below.
+- **Every reference carries a timestamp, and the store entry does not** (owner ruling 2026-09-18:
+  "впереди каждого шота сделай timestamp, чтобы не микшировались"). Two names, two jobs:
+  the BYTES are addressed by content (`<sha256>.webp`) so a re-paste of the same screenshot is ONE
+  store entry; the OCCURRENCE is addressed by time, because the same frame pasted twice is two
+  distinct events in the conversation. Putting the timestamp in the filename would kill the dedup —
+  identical bytes would start spawning copies — so it lives in the reference and in the TUI render.
+- The timestamp is stamped ONCE at ingestion and never recomputed, exactly like the text part's
+  (`prompt.ts:1665`: "Append UTC timestamp once at message submission — static, never re-injected").
+  A timestamp rebuilt per request changes the prefix every turn and the KV prefix cache misses on
+  every turn: "so they do not get mixed up" would become "so the cache never hits". The value the
+  model sees is therefore the submission time of the part, not the time of the request.
 - Read rule, one place: prefer the WebP; if it is missing, unreadable, or sharp refuses it, read the original. A missing store entry is NOT a lost attachment — that is the whole point of keeping both.
 - Back-compat: existing `data:`-URL parts in history are read as they are. No migration, no rewriting of recorded sessions.
 
@@ -61,7 +72,7 @@ D also fixes a cost nobody had named: today the base64 image is stored **inside 
       This is a defect from the SAME commit that this plan replaces, so it lands first: it is the
       reason the user's 1000-screenshot scenario is not hypothetical.
 - [ ] **I1 — the store.** Content-addressed write of original + derived WebP under `.opencode/data/images/`; read with the WebP-first rule; nothing rewrites history. Oracle: a test that writes a PNG, asserts both files exist, asserts the reference round-trips, and asserts that deleting the `.webp` makes the read fall back to the original (the read rule is the only part that can silently regress).
-- [ ] **I2 — the part carries a reference.** Decide and pin the reference form, then update every consumer in the table above. Oracle: the existing clipboard tests, rewritten deliberately (see below).
+- [ ] **I2 — the part carries a reference.** Decide and pin the reference form — content hash for the bytes, submission timestamp for the occurrence — then update every consumer in the table above. Oracle: the existing clipboard tests, rewritten deliberately (see below), plus a case that pasting the SAME image twice yields ONE store entry and TWO references with different timestamps.
 - [ ] **I3 — the send path chooses the form.** `capability(model, …) === "native"` ⇒ the original goes on the wire (the test's intent); `describe` ⇒ the derived WebP / the text fallback. Oracle: the two clipboard tests, one per branch.
 - [ ] **I4 — the tests are rewritten to the new contract.** `keeps clipboard image parts for vision-capable models` currently asserts `url === "data:image/png;base64,…"` (`prompt.test.ts:2228`); under a reference that assertion is false by construction. The replacement asserts: the part carries a reference, BOTH files exist in the store, and the vision branch sends the original. Its neighbour (non-vision → markdown) is the other branch of the same gate.
 

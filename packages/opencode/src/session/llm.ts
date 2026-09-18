@@ -654,22 +654,19 @@ const live: Layer.Layer<
           topP: input.agent.topP ?? sampling.top_p,
           topK: ProviderTransform.topK(input.model),
           presencePenalty: input.agent.presencePenalty ?? sampling.presence_penalty,
-          maxOutputTokens: ProviderTransform.maxOutputTokens(input.model, input.outputTokenMax, contentTokens),
+          maxOutputTokens: ProviderTransform.maxOutputTokens(input.model, input.outputTokenMax),
           options,
 
         },
       )
 
-      // One number, from one function. The reasoning headroom, the model ceiling
-      // and the remaining-window clamp all live in ProviderTransform.maxOutputTokens
-      // so the overflow gate in overflow.ts subtracts exactly what the wire asks for.
-      // Splitting them is what opened the 154K band where a request no longer fit the
-      // context and the compaction gate did not know (measured 2026-09-15).
-      let maxOut: number | undefined = ProviderTransform.maxOutputTokens(
-        input.model,
-        input.outputTokenMax,
-        contentTokens,
-      )
+      // One number, from one function, and it is now CONSTANT: the model ceiling
+      // and the fixed 32 768 budget live in ProviderTransform.maxOutputTokens, so
+      // the overflow gate in overflow.ts subtracts exactly what the wire asks for.
+      // The retired content-derived policy (3 × 25% of content, 2026-06-12 →
+      // 2026-09-18) drifted every turn and left a ~100K band between the reserve
+      // the gate kept and the value the request actually sent.
+      let maxOut: number | undefined = ProviderTransform.maxOutputTokens(input.model, input.outputTokenMax)
 
       // OpenAI Responses API reasoning models (gpt-5.x, o-series) reject
       // max_output_tokens with "Unsupported parameter: max_output_tokens".

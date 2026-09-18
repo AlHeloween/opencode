@@ -34,63 +34,46 @@ const createModel = (limit: Provider.Model["limit"]): Provider.Model => ({
 })
 
 describe("ProviderTransform.maxOutputTokens", () => {
-  test("returns native output for normal models", () => {
+  test("returns the FIXED budget when the model ceiling is higher", () => {
+    // Owner ruling 2026-09-18: the output budget is a CONSTANT, not a function of
+    // content. A 1M-context model with 384K native output still asks 32 768.
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 1_000_000, output: 384_000 }))).toBe(32_768)
+  })
+
+  test("a lower model ceiling wins over the fixed budget", () => {
+    // Asking 32 768 of an 8 192-output model is a 400, not a longer answer.
     expect(ProviderTransform.maxOutputTokens(createModel({ context: 200_000, output: 8_192 }))).toBe(8_192)
   })
 
-  test("caps output when native output equals context", () => {
-    expect(ProviderTransform.maxOutputTokens(createModel({ context: 262_000, output: 262_000 }))).toBe(20_000)
+  test("caps output when native output equals or exceeds context", () => {
+    // The qwen-class defect this cap exists for: native output declared as the whole
+    // window. A constant caps it without needing any context-derived reserve.
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 262_000, output: 262_000 }))).toBe(32_768)
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 128_000, output: 200_000 }))).toBe(32_768)
   })
 
-  test("caps output when native output exceeds context", () => {
-    expect(ProviderTransform.maxOutputTokens(createModel({ context: 128_000, output: 200_000 }))).toBe(19_200)
+  test("unknown native output falls back to the budget itself", () => {
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 0, output: 0 }))).toBe(32_768)
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 0, output: 262_000 }))).toBe(32_768)
   })
 
-  test("preserves native output when context is zero", () => {
-    expect(ProviderTransform.maxOutputTokens(createModel({ context: 0, output: 262_000 }))).toBe(262_000)
-  })
-
-  test("respects explicit output override", () => {
+  test("respects an explicit override, still capped by the ceiling", () => {
+    // The sidecar (32 768) and the title generator (512) pass their own budget.
     expect(ProviderTransform.maxOutputTokens(createModel({ context: 262_000, output: 262_000 }), 4_096)).toBe(4_096)
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 200_000, output: 8_192 }), 32_768)).toBe(8_192)
   })
 
-  test("applies 25% cap when contentTokens provided for small-output model", () => {
-    // 40K content * 0.25 = 10K, min(8K, 10K) = 8K
-    expect(ProviderTransform.maxOutputTokens(createModel({ context: 128_000, output: 8_192 }), undefined, 40_000)).toBe(
-      8_192,
+  test("the budget equals the reserve the compaction gate keeps free", () => {
+    // The whole point of fixing it: `usable()` subtracts REQUEST_OVERHEAD_TOKENS
+    // plus `min(limit.output, MAX_OUTPUT_RESERVE_TOKENS)`, and the wire now asks
+    // for exactly that `min` — so `prompt + max <= context` is checked with the
+    // arithmetic the provider performs. While the value was content-derived the two
+    // sides were 131 535 against 32 768, a ~100K band where the gate believed there
+    // was room (same class as the ×3 bug fixed on 2026-09-15).
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 1_000_000, output: 384_000 }))).toBe(32_768)
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 1_000_000, output: 384_000 }))).toBe(
+      ProviderTransform.maxOutputTokens(createModel({ context: 512_000, output: 384_000 })),
     )
-  })
-
-  test("floor prevents excessive capping for large-output models", () => {
-    // deepseek-v4-pro: native 384K, content 50K → dynamic = 12.5K
-    // floor = min(384K, max(8K, 38.4K)) = 38.4K → result = 38.4K
-    const model = createModel({ context: 1_000_000, output: 384_000 })
-    expect(ProviderTransform.maxOutputTokens(model, undefined, 50_000)).toBeGreaterThanOrEqual(38_400)
-  })
-
-  test("returns native output for large-output model without contentTokens", () => {
-    const model = createModel({ context: 1_000_000, output: 384_000 })
-    expect(ProviderTransform.maxOutputTokens(model)).toBe(384_000)
-  })
-
-  test("floor does not exceed native limit", () => {
-    // 8K model: floor = min(8192, max(8192, 819)) = 8192 = native
-    // With 10K content: dynamic = 2.5K, max(2.5K, 8K) = 8K, min(8K, 8K) = 8K
-    expect(
-      ProviderTransform.maxOutputTokens(createModel({ context: 128_000, output: 8_192 }), undefined, 10_000),
-    ).toBe(8_192)
-  })
-
-  test("fallback path: uses dynamic without artificial floor when native token limit is zero", () => {
-    // Models with limit.output === 0 use the fallback path.
-    // Previously Math.max(dynamic, 8192) enforced an 8K floor — removed now.
-    // With 4K content: dynamic = 1K, OUTPUT_TOKEN_MAX = 32K, result = min(32K, 1K) = 1K
-    expect(ProviderTransform.maxOutputTokens(createModel({ context: 0, output: 0 }), undefined, 4_000)).toBe(1_000)
-  })
-
-  test("fallback path: clamps at OUTPUT_TOKEN_MAX", () => {
-    // With 200K content: dynamic = 50K, result = min(32K, 50K) = 32K
-    expect(ProviderTransform.maxOutputTokens(createModel({ context: 0, output: 0 }), undefined, 200_000)).toBe(32_000)
   })
 })
 

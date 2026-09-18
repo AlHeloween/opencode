@@ -1577,11 +1577,14 @@ describe("isOverflowFromContent", () => {
     expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(false)
   })
 
-  test("returns true for 3.2M chars of text on 1M context model", () => {
-    // 3.2M chars = 800K tokens в†’ 800K + 200K = 1M в†’ triggers
-    const msgs = [
-      makeMsg("user", [{ type: "text", text: "x".repeat(3_200_000) }]),
-    ]
+  test("returns true for content that actually exceeds the usable window", () => {
+    // The trigger moved on 2026-09-18, when the output budget became a CONSTANT
+    // (32 768). This case used to lean on `count + output >= context` with a
+    // content-derived output of ~200K; with a fixed budget the only honest trigger is
+    // the first clause, `count >= usable` = 1M − 10K overhead − 32 768 = 957 232.
+    // 3.9M chars ⇒ 975K + 10K = 985K ⇒ over it. (3.2M chars is ~810K and genuinely
+    // FITS, which is why the old expectation was a symptom of the retired policy.)
+    const msgs = [makeMsg("user", [{ type: "text", text: "x".repeat(3_900_000) }])]
     const model = deepseekV4Model()
     expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(true)
   })
@@ -2427,10 +2430,9 @@ describe("session.compaction.overflow-triggers", () => {
     "isOverflowFromContent detects text overflow on small context models",
     provideTmpdirInstance(() =>
       Effect.gen(function* () {
-        // 3.2M chars = ~800K tokens → triggers on 1M model
-        const msgs = [
-          makeMsg("user", [{ type: "text", text: "x".repeat(3_200_000) }]),
-        ]
+        // Content must genuinely exceed `usable` (1M − 10K − 32 768 = 957 232) now
+        // that the output budget is a constant: 4M chars ⇒ 1.01M tokens.
+        const msgs = [makeMsg("user", [{ type: "text", text: "x".repeat(4_000_000) }])]
         const model = createModel({ context: 1_000_000, output: 384_000 })
         expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(true)
       }),

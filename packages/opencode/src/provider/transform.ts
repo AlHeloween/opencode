@@ -10,8 +10,7 @@ import PROMPT_REASONING from "@/session/prompt/reasoning_prompt.txt"
 
 const tlog = Log.create({ service: "provider.transform" })
 
-export const OUTPUT_TOKEN_MAX = Flag.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX || 32_000
-const OUTPUT_TOKEN_CONTEXT_RESERVE = 20_000
+export const OUTPUT_TOKEN_MAX = Flag.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX || 32_768
 
 // Maps npm package to the key the AI SDK expects for providerOptions
 function sdkKey(npm: string): string | undefined {
@@ -1348,52 +1347,41 @@ export function providerOptions(model: Provider.Model, options: { [x: string]: a
 /**
  * The single answer to "how many output tokens may this request ask for".
  *
- * It is both the `max_tokens` on the wire AND the number the overflow gate in
- * `overflow.ts` subtracts from the context window, so there must be exactly one
- * of it. Until 2026-09-15 there were two: `llm.ts` multiplied this result by 3
- * for reasoning models while the gate used it raw. Measured on a live session,
- * the gate believed the request would ask for 76_825 tokens while it actually
- * asked for 230_475 — a ~154_000 token band where the request no longer fit the
- * context and the compaction gate did not know. The multiplier now lives here,
- * so both read the same number.
+ * FIXED POLICY (owner ruling 2026-09-18): **32 768 for every model**, capped only
+ * by the model's own ceiling. It is no longer a function of the content.
  *
- * The 25% content ratio is a POLICY (keep a quarter of the window free for the
- * answer), not an implementation detail — `compaction.test.ts` pins its boundary
- * at exact equality. Quantising the result to stop `max_tokens` drifting every
- * turn was tried on 2026-09-15 and moved that boundary by 3_392 tokens, which
- * silently disabled an overflow trigger. Drift is measurably free on DeepSeek
- * (98% cache hit across 280 requests, every one with a distinct `max_tokens`),
- * so it is not worth buying with a policy change.
+ * Why fixed again. From 2026-06-12 to 2026-09-18 this was `3 × 25% of content` for
+ * reasoning models, which made `max_tokens` grow with the prompt: measured on a
+ * live session, `contentTokens 255 518 → max_tokens 191 637`. Two consequences,
+ * both bad:
+ *   - the value DRIFTED every turn (280 requests, 280 distinct values). That was
+ *     measurably free for the provider cache, but it made the request impossible
+ *     to reason about;
+ *   - it stopped being comparable to the RESERVE. `hasSpareOutput` keeps
+ *     `min(limit.output, 32_768)` free, so a gate reserving 32 768 was inspecting a
+ *     request that actually asked for 131 535 — a ~100K band where the gate
+ *     believed there was room. Same class as the ×3 bug this function was fixed
+ *     for on 2026-09-15 (gate 76 825 against wire 230 475), one layer over.
+ *
+ * Fixing it AT the reserve closes that band by construction: the number subtracted
+ * and the number asked for are the same, so `prompt + max <= context` is checked
+ * with exactly what the provider will check. It is also the number the sidecar
+ * already uses (`SIDECAR_OUTPUT_TOKEN_MAX = 32_768`) and the one the pre-flight
+ * reserves for it.
+ *
+ * Reasoning still spends from this budget (vendors report 50-80% of it), and
+ * 32 768 is the value that reserve was sized for. A model's own ceiling still caps
+ * it (`limit.output` 8 192 ⇒ 8 192), so a small-output model is never handed a 400.
+ *
+ * Quantisation is no longer a concern: a constant has nothing to quantise.
  */
-export function maxOutputTokens(model: Provider.Model, outputTokenMax?: number, contentTokens?: number): number {
+export function maxOutputTokens(model: Provider.Model, outputTokenMax?: number): number {
   const native = model.limit.output
   // Explicit override (sidecar, title). Honour it, but never above the model's
   // declared ceiling: a budget sized for a 384K-output model is a 400 on one
   // that caps lower, not a shorter answer.
   if (outputTokenMax !== undefined) return native > 0 ? Math.min(outputTokenMax, native) : outputTokenMax
-
-  // Reasoning is spent from the same budget as the answer, and vendors report it
-  // taking 50-80% of it, so a reasoning model needs headroom a plain one does not.
-  const reasoningRoom = model.capabilities.reasoning ? 3 : 1
-  const dynamic = contentTokens === undefined ? undefined : Math.max(1, Math.floor(contentTokens * 0.25))
-  if (native > 0) {
-    if (dynamic !== undefined) {
-      // For large-output models the 25% ratio creates unnecessarily tight caps
-      // (deepseek-v4-pro: 384K native, but 25% of 200K content = 50K). Floor at
-      // 10% of native (minimum 8K) so they are not held below their capability.
-      const floor = Math.min(native, Math.max(8192, Math.floor(native * 0.1)))
-      return Math.min(native, Math.max(dynamic * reasoningRoom, floor))
-    }
-    if (model.limit.context > 0 && native >= model.limit.context) {
-      return Math.min(
-        native,
-        OUTPUT_TOKEN_MAX,
-        Math.max(1, Math.min(OUTPUT_TOKEN_CONTEXT_RESERVE, Math.floor(model.limit.context * 0.15))),
-      )
-    }
-    return native
-  }
-  if (dynamic !== undefined) return Math.min(OUTPUT_TOKEN_MAX, dynamic)
+  if (native > 0) return Math.min(native, OUTPUT_TOKEN_MAX)
   return OUTPUT_TOKEN_MAX
 }
 

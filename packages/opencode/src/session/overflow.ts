@@ -292,7 +292,11 @@ export function isOverflowFromContent(input: {
   const content =
     estimateContentTokens(input.msgs, input.model) + estimateMediaTokens(input.msgs, input.model)
   const count = estimateRequestTokens(content)
-  const output = ProviderTransform.maxOutputTokens(input.model, undefined, count)
+  // The output budget is a CONSTANT (32 768, capped by the model ceiling), so it
+  // no longer needs a content argument — and it equals the reserve
+  // `hasSpareOutput` keeps free, which is what makes `count + output` here the
+  // same arithmetic the provider performs.
+  const output = ProviderTransform.maxOutputTokens(input.model)
   return count >= usable(input) || count + output >= input.model.limit.context
 }
 

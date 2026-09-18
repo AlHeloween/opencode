@@ -47,6 +47,19 @@ D also fixes a cost nobody had named: today the base64 image is stored **inside 
 
 ## Tasks
 
+- [ ] **I0 — the budget counter currently cannot see an image at all.** `contentChars` ends with
+      `// step-start, step-finish, snapshot, agent, retry, file, compaction — negligible, skip for perf`
+      (`compaction.ts:242`). That was true while a `file` part was a path; after `a42599aa60`
+      (2026-09-18) it is a base64 data URL, so the assumption under the comment is false and image
+      bytes are invisible to BOTH thresholds — the Layer-1 cadence (`SUMMARY_INTERVAL_TOKENS`) and the
+      Layer-2 fold (`usable({cfg, model})`). A thousand screenshots therefore raise no signal: the
+      budget reports headroom while the real request is orders of magnitude over, and the failure
+      arrives from the provider instead of from compaction. Fix: count what actually goes on the wire.
+      With references that means the derived WebP's size read from the store entry — not the inline
+      payload, and not zero. Oracle: a test that a message carrying N images moves the counter by the
+      store entries' size, plus a negative control that removing the count moves it by zero.
+      This is a defect from the SAME commit that this plan replaces, so it lands first: it is the
+      reason the user's 1000-screenshot scenario is not hypothetical.
 - [ ] **I1 — the store.** Content-addressed write of original + derived WebP under `.opencode/data/images/`; read with the WebP-first rule; nothing rewrites history. Oracle: a test that writes a PNG, asserts both files exist, asserts the reference round-trips, and asserts that deleting the `.webp` makes the read fall back to the original (the read rule is the only part that can silently regress).
 - [ ] **I2 — the part carries a reference.** Decide and pin the reference form, then update every consumer in the table above. Oracle: the existing clipboard tests, rewritten deliberately (see below).
 - [ ] **I3 — the send path chooses the form.** `capability(model, …) === "native"` ⇒ the original goes on the wire (the test's intent); `describe` ⇒ the derived WebP / the text fallback. Oracle: the two clipboard tests, one per branch.

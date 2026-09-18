@@ -138,25 +138,58 @@ export function estimateContentTokens(msgs: MessageV2.WithParts[], _model: Provi
   return contentTokensFromSymbols(chars)
 }
 
-/** 512-px tile grid + a base — the shape VLM providers bill an image with. */
-const IMAGE_TILE_PX = 512
-const IMAGE_BASE_TOKENS = 85
-const IMAGE_TILE_TOKENS = 170
+/**
+ * The image-token curve, MEASURED against the live API (2026-09-12,
+ * `deepseek-flash`): one identical question on a growing square canvas, image
+ * cost isolated from the ~35-token request overhead. Raw sweep and table live in
+ * `experiments_history/2026-09-12_deepseek-vision/`.
+ *
+ *   canvas    pixels     image tokens
+ *    512²     262_144    187   ← floor: smaller canvases are upscaled to ~544²
+ *    640²     409_600    277
+ *    768²     589_824    385
+ *   1024²   1_048_576    655
+ *   1280²   1_638_400    997   ← cap reached
+ *   2048²   4_194_304    997   ← and beyond: the server DOWNSCALES; you pay the
+ *                                 maximum and lose sharpness (double penalty)
+ *
+ * Linear at 1 token / 1700 px with an intercept of 36, clamped at both ends:
+ * `clamp(pixels / 1700 + 36, 187, 997)` reproduces every measured row within
+ * ~0.4%.
+ *
+ * The SATURATION is the part a tile grid gets wrong, and it is why this is not a
+ * `85 + 170 x tiles` shape: past 1280×1280 the price stops growing while the
+ * image shrinks, so an area-linear estimate overcharges exactly where our own
+ * 2000-px ingestion cap parks the pixels (2000² ⇒ cap 997, not ~2800).
+ *
+ * Read the numbers, not the experiment's prose: that page writes
+ * `pixels / 1700 + 187`, but 187 is the FLOOR — the plateau value for small
+ * canvases — not the intercept. With 187 as the intercept the curve misses its
+ * own table by 15-23% (1024² ⇒ 804 predicted against 655 measured), while the
+ * sweep data and the `PAGE-LIMITS.md` table independently agree on 36.
+ *
+ * Scope: measured on DeepSeek's vision path. A per-model measurement overrides
+ * it (see `estimateMediaTokens`); for any other vision provider this curve is a
+ * stated approximation, not a claim.
+ */
+const IMAGE_PIXELS_PER_TOKEN = 1700
+const IMAGE_INTERCEPT_TOKENS = 36
+const IMAGE_FLOOR_TOKENS = 187
+const IMAGE_CAP_TOKENS = 997
 
 /**
  * Price an image from its PIXEL DIMENSIONS (owner ruling 2026-09-18).
  *
  * Bytes are never the price: counting a 2.7M-char base64 blob as text produced
  * ~688K phantom tokens and an emergency compaction that silently dropped the
- * video (measured 2026-09-07). Dimensions are what providers actually bill on,
- * and the size is stamped onto the part at ingestion — in the same sharp pass
- * that encodes the WebP — so pricing here costs no extra decode.
+ * video (measured 2026-09-07). The dimensions are stamped onto the part at
+ * ingestion — in the same sharp pass that encodes the WebP — so pricing here
+ * costs no extra decode.
  */
 export function imageTokensFromDimensions(width: number, height: number): number {
   if (!(width > 0) || !(height > 0)) return 0
-  return (
-    IMAGE_BASE_TOKENS + IMAGE_TILE_TOKENS * Math.ceil(width / IMAGE_TILE_PX) * Math.ceil(height / IMAGE_TILE_PX)
-  )
+  const linear = Math.round((width * height) / IMAGE_PIXELS_PER_TOKEN) + IMAGE_INTERCEPT_TOKENS
+  return Math.min(IMAGE_CAP_TOKENS, Math.max(IMAGE_FLOOR_TOKENS, linear))
 }
 
 /**

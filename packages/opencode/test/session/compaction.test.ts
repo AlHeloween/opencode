@@ -2149,11 +2149,32 @@ describe("session.compaction.computeOpenWindowTokens", () => {
       ],
     }) as any
 
-  test("prices an image from its dimensions on a model that takes images", () => {
+  test("prices an image from the MEASURED token curve", () => {
     const model = createModel({ context: 100_000, output: 32_000, image: true })
-    // 1024/512 = 2 and 768/512 = 2 ⇒ 4 tiles ⇒ 85 + 170×4 = 765
+    // 1024×768 = 786_432 px ⇒ 786_432/1700 + 36 = 499 on the curve measured
+    // against the live API (2026-09-12). Deliberately NOT a tile count: a tile
+    // grid says ~765 here and ~2805 at 2000², where the real price has long
+    // saturated — it would overcharge exactly where the images are biggest.
     const msgs = [imageMsg("u0", { width: 1024, height: 768 })]
-    expect(SessionCompaction.computeOpenWindowTokens(msgs, undefined, model)).toBe(765)
+    expect(SessionCompaction.computeOpenWindowTokens(msgs, undefined, model)).toBe(499)
+  })
+
+  test("a small canvas hits the measured FLOOR, not a fraction of it", () => {
+    // 128² = 16_384 px prices at ~46 linearly, but the provider upscales small
+    // canvases to ~544² and charges the plateau: 187, measured.
+    const model = createModel({ context: 100_000, output: 32_000, image: true })
+    const msgs = [imageMsg("u0", { width: 128, height: 128 })]
+    expect(SessionCompaction.computeOpenWindowTokens(msgs, undefined, model)).toBe(187)
+  })
+
+  test("a large canvas SATURATES — the server downscales and the price stops", () => {
+    // 2000² is what our own ingestion cap produces. Linear-in-area would say
+    // ~2389 and a tile grid ~2805; the measured cap is 997 and nothing grows
+    // past 1280². Overcharging here folds early, for no reason, on precisely the
+    // images that are most expensive to re-encode — the wrong direction to err.
+    const model = createModel({ context: 100_000, output: 32_000, image: true })
+    const msgs = [imageMsg("u0", { width: 2000, height: 2000 })]
+    expect(SessionCompaction.computeOpenWindowTokens(msgs, undefined, model)).toBe(997)
   })
 
   test("NEGATIVE CONTROL: without a model the image stays invisible", () => {

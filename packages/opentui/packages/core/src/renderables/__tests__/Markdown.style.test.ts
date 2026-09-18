@@ -263,6 +263,35 @@ test("a long token in the LAST fenced block is emitted once, not duplicated at t
   expect(zeroCount).toBe(32)
 })
 
+test("streaming: a grown tail leaves no fragment behind", async () => {
+  // The screenshot fragment was exactly ELEVEN zeros of a 32-zero token, and it
+  // did not move when the window was resized (Alexander, 2026-09-18: "не
+  // сдвигается, похоже перенос произошел не при отрисовке"). The stored text is
+  // clean — checked in the raw DB: `parent-goal-md5: 000…0\n``` ` is contiguous —
+  // so the fragment is born while the answer STREAMS, when the same line was
+  // briefly set as a prefix. Count the characters; a stale tail makes 32 become 43.
+  const zeros = "0".repeat(32)
+  const head = ["Streaming probe.", "", "```yaml"]
+  const markdown = createMarkdown({
+    content: [...head, `parent-goal-md5: ${zeros.slice(0, 11)}`].join("\n"),
+    syntaxStyle,
+    streaming: true,
+  })
+  renderer.root.add(markdown)
+  await renderer.idle()
+
+  markdown.content = [...head, `parent-goal-md5: ${zeros}`, "```"].join("\n")
+  await renderer.idle()
+  for (const state of markdown._blockStates) {
+    const block = state?.renderable as CodeRenderable | undefined
+    if (block?.highlightingDone) await block.highlightingDone
+  }
+  await renderer.idle()
+
+  const zeroCount = [...renderedText()].filter((character) => character === "0").length
+  expect(zeroCount).toBe(32)
+})
+
 test("a source file with no application styling is fully driven by its grammar", async () => {
   // The other side of the same rule, and Alexander's editing constraint: where
   // the application supplies nothing, tree-sitter must own the colour outright.

@@ -481,6 +481,21 @@ export function computeOpenWindowTokens(
   const billed = lastBilledPrompt(slice)
   if (billed) {
     const growthMedia = model ? estimateMediaTokens(slice.slice(billed.from), model) : 0
+    // CHEAP BOUND FIRST, TOKENIZER ONLY NEAR THE EDGE (owner ruling 2026-09-18).
+    //
+    // Growth cannot cost more than ~2 tokens per character even in the worst BPE case
+    // (measured worst is 1.30 chars/token, Chinese), so a slack twice the growth's
+    // CHARACTER count cannot be closed by it. While that slack exists the exact count
+    // changes no decision, and the tokenizer is skipped entirely — which is the whole
+    // point of counting growth at all: a free answer stays free.
+    const growthChars = contentChars(slice.slice(billed.from))
+    const limit = model?.limit.context ?? 0
+    if (limit > 0 && limit - billed.tokens > 2 * growthChars) {
+      // Deliberately PESSIMISTIC (one token per character) rather than exact: the
+      // number is compared against a threshold, and over-counting here can only fold
+      // early, never let a real overflow through.
+      return billed.tokens + growthChars + growthMedia
+    }
     return billed.tokens + partTokens(slice, billed.from) + growthMedia
   }
   // No billed response in this window — a fresh session, or everything newer than the

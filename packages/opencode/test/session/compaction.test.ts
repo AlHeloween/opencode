@@ -2381,6 +2381,25 @@ describe("session.compaction.computeOpenWindowTokens", () => {
     ]
     expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(1_000 + countTokens("w".repeat(4_000)))
   })
+
+  test("a slack twice the growth skips the tokenizer entirely", () => {
+    const model = createModel({ context: 1_000_000, output: 384_000 })
+    const msgs = [
+      billedMsg("a1", { input: 1_000, cacheRead: 0 }),
+      textMsg("u2", "user", "z".repeat(8_000)),
+    ]
+    // 1M context against 8 000 chars of growth: no token in that growth can close the
+    // slack, so the count is the cheap pessimistic bound — one token per character —
+    // and the tokenizer is never started.
+    expect(SessionCompaction.computeOpenWindowTokens(msgs, undefined, model)).toBe(1_000 + 8_000)
+    // A tight window takes the exact path instead, which for this text is strictly
+    // smaller — proving the two branches really differ.
+    const tight = createModel({ context: 9_000, output: 1_000 })
+    expect(SessionCompaction.computeOpenWindowTokens(msgs, undefined, tight)).toBe(
+      1_000 + countTokens("z".repeat(8_000)),
+    )
+    expect(countTokens("z".repeat(8_000))).toBeLessThan(8_000)
+  })
 })
 
 describe("session.compaction.hasPendingSummaryRequest", () => {

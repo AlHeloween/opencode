@@ -253,8 +253,9 @@ function createModel(opts: {
   input?: number
   cost?: Provider.Model["cost"]
   npm?: string
-  /** Modality support — the gate deciding whether image bytes reach the wire. */
+  /** Modality support — the gate deciding whether media bytes reach the wire. */
   image?: boolean
+  video?: boolean
 }): Provider.Model {
   return {
     id: "test-model",
@@ -271,7 +272,7 @@ function createModel(opts: {
       attachment: false,
       reasoning: false,
       temperature: true,
-      input: { text: true, image: opts.image ?? false, audio: false, video: false },
+      input: { text: true, image: opts.image ?? false, audio: false, video: opts.video ?? false },
       output: { text: true, image: false, audio: false, video: false },
     },
     api: { npm: opts.npm ?? "@ai-sdk/anthropic" },
@@ -2198,10 +2199,56 @@ describe("session.compaction.computeOpenWindowTokens", () => {
     expect(SessionCompaction.computeOpenWindowTokens([imageMsg("u0")], undefined, model)).toBe(0)
   })
 
-  test("video stays unpriced until measured (no dimensions are known for it)", () => {
+  test("a video the model cannot take natively is not charged (frames are priced instead)", () => {
+    // createModel defaults video:false. Such a model receives SAMPLED IMAGES from
+    // `read.ts`, never the mp4, so the mp4's duration is not its price — and the
+    // frames themselves are image parts, priced by dimensions like any other.
     const model = createModel({ context: 100_000, output: 32_000, image: true })
     const msgs = [imageMsg("u0", { width: 1024, height: 768 }, "video/mp4")]
     expect(SessionCompaction.computeOpenWindowTokens(msgs, undefined, model)).toBe(0)
+  })
+
+  // ── Video is priced by DURATION (2026-09-18) ─────────────────────────────────
+  //
+  // A video-capable model receives the mp4 as one `video_url` block, and the
+  // provider bills it by duration while reporting `video_tokens: 0` — the cost is
+  // folded into prompt_tokens, so there is no per-item figure to calibrate from.
+  // ONE point is measured (2026-09-07: 1.97 MiB ≈ 6s → 2610 tokens); the planned
+  // 30/120/600s curve (C5) was never run, so the price is a linear upper bound.
+  const videoMsg = (id: string, durationSeconds?: number): MessageV2.WithParts =>
+    ({
+      info: { id, role: "user", tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } } },
+      parts: [
+        {
+          id: `p-${id}`,
+          messageID: id,
+          sessionID: "s",
+          type: "file",
+          mime: "video/mp4",
+          url: "data:video/mp4;base64,AAAA",
+          durationSeconds,
+        },
+      ],
+    }) as any
+
+  test("prices a video from its duration on a video-capable model", () => {
+    const model = createModel({ context: 100_000, output: 32_000, video: true })
+    // 6s × 435 = 2610 — the measured point, reproduced by the extrapolation.
+    expect(SessionCompaction.computeOpenWindowTokens([videoMsg("u0", 6)], undefined, model)).toBe(2_610)
+  })
+
+  test("a video with no stamped duration stays unpriced", () => {
+    // No duration ⇒ no price, never a fabricated one — the same contract an image
+    // with unknown dimensions has. `read.ts` stamps it via ffprobe, and ffprobe
+    // being absent is exactly the case that must not invent a cost.
+    const model = createModel({ context: 100_000, output: 32_000, video: true })
+    expect(SessionCompaction.computeOpenWindowTokens([videoMsg("u0")], undefined, model)).toBe(0)
+  })
+
+  test("linear in duration: two videos of 6s cost twice one", () => {
+    const model = createModel({ context: 100_000, output: 32_000, video: true })
+    const msgs = [videoMsg("u0", 6), videoMsg("u1", 6)]
+    expect(SessionCompaction.computeOpenWindowTokens(msgs, undefined, model)).toBe(5_220)
   })
 
   it.live("a measured per-model price OVERRIDES the dimensional formula", () =>

@@ -230,6 +230,21 @@ export const FilePart = Schema.Struct({
       height: Schema.Number,
     }),
   ),
+  /**
+   * Duration in seconds of a VIDEO part, stamped once by the read tool via
+   * ffprobe (2026-09-18).
+   *
+   * Why it lives on the part: a model with native video input receives the mp4
+   * on the wire as one `video_url` block, and the provider bills it by DURATION,
+   * not by payload size (`video_tokens: 0` — the cost arrives folded into
+   * `prompt_tokens`, so the provider does not report it per-item either). Without
+   * this number a video is invisible to the window budget for exactly the reason
+   * an image was: nothing on the part says how big it is.
+   *
+   * `undefined` ⇒ 0 tokens, same contract as `dimensions`: an unmeasured media
+   * item is never given a fabricated price.
+   */
+  durationSeconds: Schema.optional(Schema.Number),
 })
   .annotate({ identifier: "FilePart" })
   .pipe(withStatics((s) => ({ zod: zod(s) })))

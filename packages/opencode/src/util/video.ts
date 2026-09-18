@@ -70,7 +70,13 @@ async function run(cmd: string[], capture = false): Promise<{ ok: boolean; stdou
   }
 }
 
-async function probeDuration(filepath: string): Promise<number> {
+/**
+ * Duration in seconds via ffprobe, or 0 when it cannot be established (ffprobe
+ * absent, unreadable container). Exported because the WINDOW BUDGET needs it:
+ * a video that rides the wire as a native `video_url` block is priced from its
+ * duration, and this is the only place that number comes from (2026-09-18).
+ */
+export async function probeDuration(filepath: string): Promise<number> {
   const { ok, stdout } = await run(
     ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", filepath],
     true,

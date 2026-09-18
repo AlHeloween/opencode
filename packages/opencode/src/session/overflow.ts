@@ -193,33 +193,63 @@ export function imageTokensFromDimensions(width: number, height: number): number
 }
 
 /**
+ * Upper-bound price for a video, per second of duration.
+ *
+ * LINEAR EXTRAPOLATION FROM ONE MEASURED POINT — not a fitted curve. Measured
+ * 2026-09-07: a 1.97 MiB mp4 (~6s) → **2610 prompt tokens with `video_tokens: 0`**,
+ * so the provider folds the cost into `prompt_tokens` and never reports it
+ * per-item either. Hence 2610/6 ≈ 435.
+ *
+ * The token-per-second curve (30s/120s/600s) was PLANNED — task C5 in
+ * `plans_completed/2026-09-07_tool-result-deliver-once.md` — and never run, so
+ * whether video price SATURATES the way an image's does (flat at 997 past
+ * 1280²) is UNKNOWN. Extrapolating linearly is deliberately the conservative
+ * direction: a long clip folds earlier than it had to, rather than overflowing
+ * the window from the provider side.
+ *
+ * Replace this the moment the curve exists. The image path already showed both
+ * halves of that lesson: an invented tile grid was wrong by 2.8×, while the
+ * measured curve gave a floor (187) and a cap (997) that no guess produced.
+ */
+const VIDEO_TOKENS_PER_SECOND = 435
+
+export function videoTokensFromDuration(seconds: number): number {
+  if (!(seconds > 0)) return 0
+  return Math.ceil(seconds * VIDEO_TOKENS_PER_SECOND)
+}
+
+/**
  * Media price for the window budget: the MEASURED per-model EMA wherever it
- * exists, the dimensional formula only as the floor beneath it.
+ * exists, the dimensional (images) or duration (video) formula as the floor
+ * beneath it.
  *
  * Measured-first is not a preference — `media_token_calibration` is the real
  * invoice. But it is EMPTY for every model we talk to: our providers never send
- * `prompt_tokens_details.image_tokens`, so `record` (`processor.ts:1135`) never
- * fires (measured 2026-09-18: 0 rows against 51 images in history). A
- * measurement-only price therefore means images are FREE and a thousand
- * screenshots raise no signal. The formula covers exactly that gap, and is
- * overridden the moment a real measurement appears.
+ * `prompt_tokens_details.image_tokens` / `video_tokens`, so `record`
+ * (`processor.ts:1135`) never fires (measured 2026-09-18: 0 rows against 51
+ * images in history). A measurement-only price therefore means media is FREE and
+ * a thousand screenshots raise no signal. The formulas cover exactly that gap,
+ * and are overridden the moment a real measurement appears.
  *
- * Gated by modality support on both paths: a model that cannot take images does
- * not receive them on the wire (they leave as text), so pricing them would
- * invent cost for bytes that are never sent.
+ * Gated by modality support on both paths: a model that cannot take the modality
+ * does not receive it on the wire (it leaves as text, or as sampled frames), so
+ * pricing it would invent cost for bytes that are never sent.
  *
- * Video/audio stay 0 until measured — no dimensions are known for them, and
- * guessing from duration is exactly the phantom-token class this rule forbids.
+ * Audio stays 0 — no duration is stamped for it.
  */
 export function estimateMediaTokens(msgs: MessageV2.WithParts[], model: Provider.Model): number {
   let video = 0
   let image = 0
   let byDimensions = 0
+  let byDuration = 0
   for (const msg of msgs) {
     for (const part of msg.parts) {
       if (part.type !== "file") continue
       if (part.mime.startsWith("video/")) {
         video++
+        // Duration is the only price input a video has (`read.ts` stamps it via
+        // ffprobe): no stamped duration ⇒ no price, never a fabricated one.
+        if (part.durationSeconds) byDuration += videoTokensFromDuration(part.durationSeconds)
         continue
       }
       if (!part.mime.startsWith("image/")) continue
@@ -229,7 +259,11 @@ export function estimateMediaTokens(msgs: MessageV2.WithParts[], model: Provider
   }
   if (video === 0 && image === 0) return 0
   let total = 0
-  if (video > 0) total += MediaTokenCalibration.estimate({ model, modality: "video", count: video })
+  if (video > 0) {
+    const measured = MediaTokenCalibration.estimate({ model, modality: "video", count: video })
+    if (measured > 0) total += measured
+    else if (MediaTokenCalibration.modelSupports(model, "video")) total += byDuration
+  }
   if (image > 0) {
     const measured = MediaTokenCalibration.estimate({ model, modality: "image", count: image })
     if (measured > 0) total += measured

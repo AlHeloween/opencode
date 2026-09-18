@@ -33,7 +33,12 @@ const registerHandlers = () => (handlersReady ??= import("./handlers/index").the
  * its own decode errors).
  */
 export function normalizeAttachment<
-  T extends { mime: string; url: string; dimensions?: { width: number; height: number } },
+  T extends {
+    mime: string
+    url: string
+    dimensions?: { width: number; height: number }
+    durationSeconds?: number
+  },
 >(value: T, config?: unknown): Effect.Effect<T> {
   return Effect.gen(function* () {
     const normalized = yield* Effect.gen(function* () {
@@ -53,21 +58,26 @@ export function normalizeAttachment<
       }),
     )
     if (!normalized) return value
-    // The handler may report the dimensions it produced (`ImageHandler.normalize`
-    // does). Lift them onto the stored part: the window budget prices an image
-    // from its dimensions, and this is the only moment the image is decoded
-    // anyway — recomputing them later would decode it on every turn.
-    // See `MessageV2.FilePart.dimensions` for why bytes must never be the price.
-    const dims =
-      normalized.metadata?._tag === "image" && normalized.metadata.width > 0 && normalized.metadata.height > 0
-        ? { width: normalized.metadata.width, height: normalized.metadata.height }
-        : undefined
-    if (normalized.mime === value.mime && normalized.url === value.url && !dims) return value
+    // The handler may report what it measured about the artifact — dimensions for
+    // an image, duration for a video. Lift it onto the stored part: the window
+    // budget prices media from those numbers, and ingestion is the only moment the
+    // bytes are examined anyway. See `MessageV2.FilePart.dimensions` for why the
+    // price can never be the payload.
+    const measured: { dimensions?: { width: number; height: number }; durationSeconds?: number } = {}
+    const md = normalized.metadata
+    if (md?._tag === "image" && md.width > 0 && md.height > 0) {
+      measured.dimensions = { width: md.width, height: md.height }
+    }
+    if (md?._tag === "video" && md.duration > 0) {
+      measured.durationSeconds = md.duration
+    }
+    const hasMeasurement = measured.dimensions !== undefined || measured.durationSeconds !== undefined
+    if (normalized.mime === value.mime && normalized.url === value.url && !hasMeasurement) return value
     return {
       ...value,
       mime: normalized.mime,
       url: normalized.url,
-      ...(dims ? { dimensions: dims } : {}),
+      ...measured,
     } as T
   })
 }
@@ -82,8 +92,8 @@ export function normalizeAttachment<
  * `image/jpeg` parts arrived with a media price of 0 (2026-09-18).
  *
  * Anything a handler learns about the artifact belongs here, never at the call
- * site: a field added to `normalize` must reach the stored part by construction,
- * not by remembering to copy it.
+ * site: `dimensions` and `durationSeconds` reach the stored part by construction,
+ * not by remembering to copy them.
  */
 export function filePartFromNormalized<
   T extends {
@@ -91,6 +101,7 @@ export function filePartFromNormalized<
     url: string
     filename?: string
     dimensions?: { width: number; height: number }
+    durationSeconds?: number
   },
   M extends string,
   S extends string,
@@ -101,6 +112,7 @@ export function filePartFromNormalized<
     url: normalized.url,
     ...(normalized.filename ? { filename: normalized.filename } : {}),
     ...(normalized.dimensions ? { dimensions: normalized.dimensions } : {}),
+    ...(normalized.durationSeconds ? { durationSeconds: normalized.durationSeconds } : {}),
     messageID: ids.messageID,
     sessionID: ids.sessionID,
   }

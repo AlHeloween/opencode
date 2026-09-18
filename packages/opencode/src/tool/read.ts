@@ -10,7 +10,7 @@ import { assertExternalDirectoryEffect } from "./external-directory"
 import { Instruction } from "../session/instruction"
 import { isImageAttachment, sniffAttachmentMime, sniffVideoMime } from "@/util/media"
 import { convertDocument, isSupportedDocumentFormat } from "../util/markdownify"
-import { extractVideoFrames } from "@/util/video"
+import { extractVideoFrames, probeDuration } from "@/util/video"
 import { filePathDescription } from "./path-hint"
 
 const DEFAULT_READ_LIMIT = 2000
@@ -323,6 +323,12 @@ export const ReadTool = Tool.define(
             )
           }
           const bytes = yield* fs.readFile(filepath)
+          // The window budget prices a NATIVE video by DURATION — the provider bills
+          // it that way (measured 1.97 MiB ≈ 6s → 2610 prompt tokens, and
+          // `video_tokens: 0`, so it never reports a per-item figure either), so
+          // ffprobe here is the only source for it. 0 when the container cannot be
+          // probed: the part then carries no price rather than a fabricated one.
+          const durationSeconds = yield* Effect.promise(() => probeDuration(filepath))
           return {
             title,
             output: "Video read successfully (native video input)",
@@ -336,6 +342,7 @@ export const ReadTool = Tool.define(
                 type: "file" as const,
                 mime: videoMime,
                 url: `data:${videoMime};base64,${Buffer.from(bytes).toString("base64")}`,
+                ...(durationSeconds > 0 ? { durationSeconds } : {}),
               },
             ],
           }

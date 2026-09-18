@@ -17,6 +17,7 @@ import { PartID } from "./schema"
 import type { SessionID } from "./schema"
 import { MessageID } from "./schema"
 import { registry } from "@/attachment/registry"
+import { normalizeAttachment } from "@/attachment/normalize"
 import { MediaTokenCalibration } from "./media-token-calibration"
 
 /**
@@ -681,14 +682,17 @@ export const layer: Layer.Layer<
             synthetic: true,
           } satisfies MessageV2.Part)
           for (const attachment of mediaAttachments) {
+            // Images become WebP once, before storage (2026-09-18) — the
+            // deliver-once part is what every later request replays.
+            const normalized = yield* normalizeAttachment(attachment)
             yield* session.updatePart({
               id: PartID.ascending(),
               messageID: mediaUserMsg.id,
               sessionID: ctx.sessionID,
               type: "file",
-              mime: attachment.mime,
-              url: attachment.url,
-              ...(attachment.filename ? { filename: attachment.filename } : {}),
+              mime: normalized.mime,
+              url: normalized.url,
+              ...(normalized.filename ? { filename: normalized.filename } : {}),
             } satisfies MessageV2.Part)
           }
           deliveredMsgID = mediaUserMsg.id
@@ -911,14 +915,21 @@ export const layer: Layer.Layer<
 
           case "file": {
             const fileValue = value as { mediaType?: string; mime?: string; url?: string; filename?: string }
+            // Stream-emitted files (provider-generated images) normalise the
+            // same way as ingested ones (2026-09-18).
+            const normalized = yield* normalizeAttachment({
+              mime: fileValue.mediaType ?? fileValue.mime ?? "application/octet-stream",
+              url: fileValue.url ?? "",
+              filename: fileValue.filename,
+            })
             yield* session.updatePart({
               id: PartID.ascending(),
               messageID: ctx.assistantMessage.id,
               sessionID: ctx.assistantMessage.sessionID,
               type: "file",
-              mime: fileValue.mediaType ?? fileValue.mime ?? "application/octet-stream",
-              url: fileValue.url ?? "",
-              ...(fileValue.filename ? { filename: fileValue.filename } : {}),
+              mime: normalized.mime,
+              url: normalized.url,
+              ...(normalized.filename ? { filename: normalized.filename } : {}),
             } satisfies MessageV2.FilePart)
             return
           }

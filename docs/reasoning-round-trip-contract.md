@@ -112,11 +112,15 @@ either stripped (DeepSeek) or undocumented (assume hostile).
   concatenated, cumulative OpenRouter text keeps suffix-growth dedup. Measured
   2026-09-14: 836 recorded chunks rendered as "Reasoning (0 chars)" because only
   the OpenRouter fields were read.
-- `patches/@ai-sdk/deepseek@3.0.26.patch` — vendored SDK message conversion:
-  the family predicate is `/deepseek-(?:v4|flash)/` on a lower-cased id, and
-  "reasoning lives in the tail after the last user message" is unconditional for
-  the family. History CoT is dropped; matches the measured dumps (81% of tail
-  turns carry CoT vs 12% of history) and the KAT no-echo result above.
+- `@ai-sdk/deepseek` (3.0.48, unpatched) — the SDK's own converter owns the
+  family contract now: `isDeepSeekV4Model` matches `deepseek-v4*`,
+  `deepseek-flash*` and `deepseek-pro*`; V4 assistant turns keep their full
+  CoT (`reasoning_content` = concatenated reasoning parts, regardless of
+  position), and an empty `reasoning_content` is backfilled when a V4 turn
+  produced none. The fork-side patch on 3.0.26 (`/deepseek-(?:v4|flash)/`
+  predicate) was retired 2026-09-18 — upstream absorbed the predicate. Matches
+  the measured dumps (81% of tail turns carry CoT vs 12% of history) and the
+  KAT no-echo result above.
 - `packages/opencode/src/provider/transform.ts` / `reasoningCensus` — logs
   `assistant/toolCall/cotText/cotEmpty/cotAbsent` before and after
   `normalizeMessages` on every request, and warns loudly when the 400-guard

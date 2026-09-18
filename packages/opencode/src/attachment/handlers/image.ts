@@ -18,16 +18,22 @@ async function extractImageMeta(buffer: Buffer): Promise<{
   }
 }
 
-async function resizeImage(buffer: Buffer, maxWidth: number, maxHeight: number): Promise<Buffer> {
-  try {
-    const image = sharp(buffer)
-    const meta = await image.metadata()
-    if (!meta.width || !meta.height) return buffer
-    if (meta.width <= maxWidth && meta.height <= maxHeight) return buffer
-    return await image.resize(maxWidth, maxHeight, { fit: "inside", withoutEnlargement: true }).toBuffer()
-  } catch {
-    return buffer
-  }
+/**
+ * Every image attachment is normalised to WebP — quality 80 at compression
+ * effort 6 (the maximum) after the resize (2026-09-18, Alexander). The
+ * provider SDKs that accept images take `image/webp` natively (DeepSeek's
+ * `image_url` part lists gif/jpeg/png/webp), and the text-only fallback reads
+ * the same bytes through sharp — a smaller payload is a smaller wire.
+ * `animated: true` keeps GIF/WebP animation instead of collapsing it.
+ */
+async function toWebp(buffer: Buffer, maxWidth: number, maxHeight: number): Promise<Buffer> {
+  const image = sharp(buffer, { animated: true })
+  const meta = await image.metadata()
+  const resized =
+    meta.width && meta.height && (meta.width > maxWidth || meta.height > maxHeight)
+      ? image.resize(maxWidth, maxHeight, { fit: "inside", withoutEnlargement: true })
+      : image
+  return resized.webp({ quality: 80, effort: 6 }).toBuffer()
 }
 
 export const ImageHandler: Handler = {
@@ -80,15 +86,17 @@ export const ImageHandler: Handler = {
       const commaIdx = attachment.url.indexOf(",")
       if (commaIdx <= 0) return attachment
 
-      try {
-        const mimePrefix = attachment.url.slice(5, commaIdx).split(";")[0]
-        const buf = Buffer.from(attachment.url.slice(commaIdx + 1), "base64")
-        const resized = yield* Effect.tryPromise(() => resizeImage(buf, maxWidth, maxHeight))
-        const newUrl = `data:${mimePrefix};base64,${resized.toString("base64")}`
-        return { ...attachment, url: newUrl }
-      } catch {
-        return attachment
-      }
+      const buf = Buffer.from(attachment.url.slice(commaIdx + 1), "base64")
+      const webp = yield* Effect.tryPromise(() => toWebp(buf, maxWidth, maxHeight)).pipe(
+        // Undecodable or exotic input: keep the original bytes rather than
+        // losing the attachment. sharp cannot read every format — expected.
+        Effect.catch((error) => {
+          log.debug("image normalize failed, keeping original", { error: String(error) })
+          return Effect.succeed(undefined as Buffer | undefined)
+        }),
+      )
+      if (!webp) return attachment
+      return { ...attachment, mime: "image/webp", url: `data:image/webp;base64,${webp.toString("base64")}` }
     })
   },
 

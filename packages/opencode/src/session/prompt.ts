@@ -14,6 +14,7 @@ import { type Tool as AITool, type ModelMessage, tool, jsonSchema, type ToolExec
 import type { JSONSchema7 } from "@ai-sdk/provider"
 import { SessionCompaction } from "./compaction"
 import { Constitution } from "./constitution"
+import { normalizeAttachment } from "@/attachment/normalize"
 import {
   estimateContentTokens,
   estimateRequestTokens,
@@ -1647,6 +1648,18 @@ export const layer = Layer.effect(
 
       const parts = yield* Effect.forEach(input.parts, resolvePart, { concurrency: "unbounded" }).pipe(
         Effect.map((x) => x.flat().map(assign)),
+        // Ingestion normalisation (2026-09-18): an image becomes WebP once,
+        // here — before the parts are written to the history — instead of
+        // being re-encoded on every later request. Covers paste, @-mentions,
+        // ACP and API clients: every user part flows through this pipeline.
+        Effect.flatMap((x) =>
+          Effect.forEach(
+            x,
+            (part): Effect.Effect<MessageV2.Part> =>
+              part.type === "file" ? normalizeAttachment(part) : Effect.succeed(part),
+            { concurrency: "unbounded" },
+          ),
+        ),
       )
 
       // Append UTC timestamp once at message submission — static, never

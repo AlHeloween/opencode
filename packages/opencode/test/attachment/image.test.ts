@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
+import sharp from "sharp"
 import { ImageHandler } from "../../src/attachment/handlers/image"
 
 // Minimal valid 1x1 PNG (smallest possible)
@@ -50,6 +51,12 @@ function makeDataUrl(buf: Buffer, mime: string): string {
   return `data:${mime};base64,${buf.toString("base64")}`
 }
 
+/** A real, decodable image — the synthetic PNG above has no valid pixel data. */
+async function makeRealImage(width: number, height: number, format: "png" | "jpeg" = "png"): Promise<Buffer> {
+  const image = sharp({ create: { width, height, channels: 3, background: { r: 200, g: 40, b: 40 } } })
+  return format === "png" ? image.png().toBuffer() : image.jpeg().toBuffer()
+}
+
 describe("ImageHandler", () => {
   test("detect returns true for image/ mime types", () => {
     expect(ImageHandler.detect("image/png")).toBe(true)
@@ -84,8 +91,8 @@ describe("ImageHandler", () => {
     expect((result.metadata as any).height).toBe(0)
   })
 
-  test("normalize does not upscale small images", async () => {
-    const small = makePngBuffer(10, 10)
+  test("normalize converts to webp (quality 80, effort 6) without upscaling", async () => {
+    const small = await makeRealImage(10, 10)
     const url = makeDataUrl(small, "image/png")
     const att: any = {
       type: "file", kind: "image", mime: "image/png", url, filename: "small.png",
@@ -95,49 +102,47 @@ describe("ImageHandler", () => {
       (ImageHandler as any).normalize(att, { image: { max_width: 2000, max_height: 2000 } }).pipe(Effect.orDie),
     ) as any
 
-    expect(result.url).toBe(url) // unchanged — already within limits
+    expect(result.mime).toBe("image/webp")
+    expect(result.url.startsWith("data:image/webp;base64,")).toBe(true)
+    const out = Buffer.from(result.url.split(",")[1], "base64")
+    const meta = await sharp(out).metadata()
+    expect(meta.format).toBe("webp")
+    expect(meta.width).toBe(10)
+    expect(meta.height).toBe(10)
   })
 
-  // NOTE: The resizeImage() function has a known issue — toBuffer() is called
-  // without await, so Promise rejections escape the try/catch. When the PNG
-  // fixture lacks valid pixel data, the resize fails uncaught. This is a
-  // handler bug, not a test bug. The error path (returning original buffer)
-  // works correctly for valid images.
-  test("normalize gracefully returns original on error", async () => {
-    const png = makePngBuffer(4000, 3000)
-    const url = makeDataUrl(png, "image/png")
+  test("normalize caps dimensions (jpeg input) and still yields webp", async () => {
+    const big = await makeRealImage(4000, 3000, "jpeg")
+    const url = makeDataUrl(big, "image/jpeg")
     const att: any = {
-      type: "file", kind: "image", mime: "image/png", url, filename: "big.png",
-    }
-
-    await Effect.runPromise(
-      (ImageHandler as any).normalize(att, { image: { max_width: 200, max_height: 200 } }).pipe(
-        Effect.matchEffect({
-          onSuccess: (result: any) => {
-            // May succeed or fail depending on fixture validity
-            return Effect.succeed(undefined)
-          },
-          onFailure: () => {
-            // Expected for synthetic PNG without valid pixel data
-            return Effect.succeed(undefined)
-          },
-        }),
-      ),
-    )
-  })
-
-  test("normalize does not resize small images", async () => {
-    const small = makePngBuffer(10, 10)
-    const url = makeDataUrl(small, "image/png")
-    const att: any = {
-      type: "file", kind: "image", mime: "image/png", url, filename: "small.png",
+      type: "file", kind: "image", mime: "image/jpeg", url, filename: "big.jpg",
     }
 
     const result = await Effect.runPromise(
-      (ImageHandler as any).normalize(att, { image: { max_width: 2000, max_height: 2000 } }).pipe(Effect.orDie),
+      (ImageHandler as any).normalize(att, { image: { max_width: 200, max_height: 200 } }).pipe(Effect.orDie),
     ) as any
 
-    expect(result.url).toBe(url) // unchanged
+    expect(result.mime).toBe("image/webp")
+    const out = Buffer.from(result.url.split(",")[1], "base64")
+    const meta = await sharp(out).metadata()
+    expect(meta.format).toBe("webp")
+    expect(meta.width).toBeLessThanOrEqual(200)
+    expect(meta.height).toBeLessThanOrEqual(200)
+  })
+
+  test("normalize keeps the original when the input cannot be decoded", async () => {
+    const junk = Buffer.from("this is not an image")
+    const url = makeDataUrl(junk, "image/png")
+    const att: any = {
+      type: "file", kind: "image", mime: "image/png", url, filename: "junk.png",
+    }
+
+    const result = await Effect.runPromise(
+      (ImageHandler as any).normalize(att, {}).pipe(Effect.orDie),
+    ) as any
+
+    expect(result.url).toBe(url)
+    expect(result.mime).toBe("image/png")
   })
 
   test("describe formats image info", () => {

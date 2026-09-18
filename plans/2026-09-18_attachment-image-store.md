@@ -76,10 +76,17 @@ D also fixes a cost nobody had named: today the base64 image is stored **inside 
       overflow arrives from the provider where the cause is invisible.
       **Price rule (owner ruling 2026-09-18): dimensions, never bytes.** Bytes are forbidden outright —
       2026-09-07 measured a 2.7M-char base64 blob at ~688K phantom tokens and an emergency compaction
-      that silently dropped the video (`overflow.ts:115-121`). Formula: `85 + 170 × tiles` over
-      512-px tiles of the CAPPED output size (the size that actually goes on the wire). When a
-      per-model measurement exists it OVERRIDES the formula (`MediaTokenCalibration.estimate` first,
-      formula only as the fallback) — so the heuristic is a floor for the unmeasured case, not a
+      that silently dropped the video (`overflow.ts:115-121`). The curve is the one ALREADY MEASURED on
+      2026-09-12 (`experiments_history/2026-09-12_deepseek-vision/`, live API): `187` floor at 512²,
+      `277` at 640², `385` at 768², `655` at 1024², `817` at 1152², `997` cap at 1280² and 997
+      beyond (the server downscales). Fitted: `clamp(pixels / 1700 + 36, 187, 997)` within ~0.4%.
+      **A first attempt shipped an invented `85 + 170 × tiles` grid and was wrong** — it is
+      area-linear, so it never saturates and overcharges the biggest images by ~2.8× (2000² ⇒ ~2805
+      against the real 997), folding early exactly where re-encoding is most expensive. The
+      experiment page states the formula as `pixels / 1700 + 187`, which is also wrong: 187 is the
+      FLOOR, not the intercept; with 187 as the intercept the curve misses its own table by 15–23%.
+      When a per-model measurement exists it OVERRIDES the curve (`MediaTokenCalibration.estimate`
+      first, curve only as the fallback) — so the curve is a floor for the unmeasured case, not a
       replacement for the measurement. Video/audio stay 0 until measured: no dimensions are known.
       **Where the dimensions come from:** `ImageHandler.classify` already extracts them
       (`image.ts:46-71`) and `normalize` now returns them in the same sharp pass that encodes the

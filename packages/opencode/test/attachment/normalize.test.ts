@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 import sharp from "sharp"
-import { normalizeAttachment } from "../../src/attachment/normalize"
+import { normalizeAttachment, filePartFromNormalized } from "../../src/attachment/normalize"
 
 /** A real, decodable image — synthetic PNGs carry no valid pixel data. */
 async function makePng(width: number, height: number): Promise<Buffer> {
@@ -100,5 +100,49 @@ describe("normalizeAttachment", () => {
     expect(out.filename).toBe("big.png")
     expect(out.mime).toBe("image/webp")
     expect("kind" in out).toBe(false)
+  })
+})
+
+/**
+ * The stored part is built in ONE place, because building it by hand is how a
+ * field gets lost. Tool media (`processor.ts` tool-result path) and
+ * provider-generated images each rebuilt the part field-by-field, so when
+ * `normalize` started reporting `dimensions` neither carried them — the video
+ * frames `read.ts` samples arrive as `image/jpeg` parts and were priced at 0
+ * (2026-09-18). These cases pin the constructor, not the call sites.
+ */
+describe("filePartFromNormalized", () => {
+  test("carries every field a handler reported, dimensions included", () => {
+    const part = filePartFromNormalized(
+      {
+        mime: "image/webp",
+        url: "data:image/webp;base64,AAAA",
+        filename: "shot.webp",
+        dimensions: { width: 1280, height: 720 },
+      },
+      { messageID: "msg-1", sessionID: "ses-1" },
+    )
+
+    // The regression this exists for: without this line the price is 0 and the
+    // image is invisible to both compaction thresholds.
+    expect(part.dimensions).toEqual({ width: 1280, height: 720 })
+    expect(part.type).toBe("file")
+    expect(part.mime).toBe("image/webp")
+    expect(part.filename).toBe("shot.webp")
+    expect(part.messageID).toBe("msg-1")
+    expect(part.sessionID).toBe("ses-1")
+  })
+
+  test("omits absent fields rather than writing undefined into the part", () => {
+    const part = filePartFromNormalized(
+      { mime: "application/pdf", url: "data:application/pdf;base64,AAAA" },
+      { messageID: "m", sessionID: "s" },
+    )
+
+    // A part with `filename: undefined` still serialises a key; an unexpected
+    // size must stay ABSENT, the same reason an unmeasured image prices at 0
+    // rather than at a fabricated number.
+    expect("filename" in part).toBe(false)
+    expect("dimensions" in part).toBe(false)
   })
 })

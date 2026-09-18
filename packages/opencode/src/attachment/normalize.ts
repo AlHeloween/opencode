@@ -71,3 +71,37 @@ export function normalizeAttachment<
     } as T
   })
 }
+
+/**
+ * Build the STORED file part from a normalised attachment.
+ *
+ * ONE constructor, because assembling the part by hand is exactly how fields get
+ * lost. The tool-media path and the provider-generated-image path rebuilt the
+ * part field-by-field, so the moment a handler started reporting `dimensions`
+ * they were dropped on both — and the six video frames `read.ts` turns into
+ * `image/jpeg` parts arrived with a media price of 0 (2026-09-18).
+ *
+ * Anything a handler learns about the artifact belongs here, never at the call
+ * site: a field added to `normalize` must reach the stored part by construction,
+ * not by remembering to copy it.
+ */
+export function filePartFromNormalized<
+  T extends {
+    mime: string
+    url: string
+    filename?: string
+    dimensions?: { width: number; height: number }
+  },
+  M extends string,
+  S extends string,
+>(normalized: T, ids: { messageID: M; sessionID: S }) {
+  return {
+    type: "file" as const,
+    mime: normalized.mime,
+    url: normalized.url,
+    ...(normalized.filename ? { filename: normalized.filename } : {}),
+    ...(normalized.dimensions ? { dimensions: normalized.dimensions } : {}),
+    messageID: ids.messageID,
+    sessionID: ids.sessionID,
+  }
+}

@@ -292,6 +292,79 @@ test("streaming: a grown tail leaves no fragment behind", async () => {
   expect(zeroCount).toBe(32)
 })
 
+test("with conceal OFF the last fenced block still emits its token once", async () => {
+  // Alexander's screenshots show `##`, `-` and `- [ ]` — conceal is OFF there,
+  // and every test above ran with conceal ON (the default). The whole skip
+  // bookkeeping — including the closing delimiter's `conceal_lines` — sits inside
+  // `if (concealEnabled)` in treeSitterToTextChunks, so with conceal off the last
+  // boundaries no longer advance `currentOffset` and the end-of-content push can
+  // re-emit the tail. Same count as the conceal-ON case, or the fragment shows up.
+  const zeros = "0".repeat(32)
+  await render(["Text before.", "", "```yaml", `parent-goal-md5: ${zeros}`, "```"].join("\n"), {
+    conceal: false,
+  })
+
+  const zeroCount = [...renderedText()].filter((character) => character === "0").length
+  expect(zeroCount).toBe(32)
+})
+
+test("streaming a multi-block document does not paste a stale tail from the block cache", async () => {
+  // `rerenderBlocks` hands a block its text from a CACHE (Markdown.ts:2194:
+  // `state.renderable.content = cache.content`). Every tail test so far used a
+  // SINGLE block, so the cache was never exercised across blocks. A real reply
+  // is many blocks whose last one grows while it streams, and the stray zeros
+  // appear only at the end — which is what a stale cache entry would look like.
+  const zeros = "0".repeat(32)
+  const before = ["## Heading", "", "A paragraph of ordinary prose.", "", "```yaml"]
+  const markdown = createMarkdown({
+    content: [...before, `parent-goal-md5: ${zeros.slice(0, 11)}`].join("\n"),
+    syntaxStyle,
+    streaming: true,
+  })
+  renderer.root.add(markdown)
+  await renderer.idle()
+
+  markdown.content = [...before, `parent-goal-md5: ${zeros}`, "```"].join("\n")
+  await renderer.idle()
+  for (const state of markdown._blockStates) {
+    const block = state?.renderable as CodeRenderable | undefined
+    if (block?.highlightingDone) await block.highlightingDone
+  }
+  await renderer.idle()
+
+  const zeroCount = [...renderedText()].filter((character) => character === "0").length
+  expect(zeroCount).toBe(32)
+})
+
+test("an fg applied AFTER content still reaches the chunks", async () => {
+  // The live order, which the constructor-options case above cannot reproduce:
+  // the Solid reconciler applies props as setters and `content` is declared
+  // BEFORE `fg` (index.tsx:2146 vs :2148). So the chunks are built with no tint,
+  // and the later `fg` setter only raised `_styleDirty` — which re-renders
+  // against the CACHED block text (`state.renderable.content = cache.content`,
+  // Markdown.ts:2194). This is why thinking stayed light after the colour rule
+  // itself was fixed.
+  const markdown = createMarkdown({ content: "Considering the transport ladder.", syntaxStyle })
+  renderer.root.add(markdown)
+  await renderer.idle()
+  for (const state of markdown._blockStates) {
+    const block = state?.renderable as CodeRenderable | undefined
+    if (block?.highlightingDone) await block.highlightingDone
+  }
+
+  markdown.fg = REASONING_DIM
+  await renderer.idle()
+  for (const state of markdown._blockStates) {
+    const block = state?.renderable as CodeRenderable | undefined
+    if (block?.highlightingDone) await block.highlightingDone
+  }
+  await renderer.idle()
+
+  const span = spanContaining("transport ladder")
+  expect(span).toBeDefined()
+  expect(span!.fg.toInts()).toEqual(REASONING_DIM.toInts())
+})
+
 test("a source file with no application styling is fully driven by its grammar", async () => {
   // The other side of the same rule, and Alexander's editing constraint: where
   // the application supplies nothing, tree-sitter must own the colour outright.

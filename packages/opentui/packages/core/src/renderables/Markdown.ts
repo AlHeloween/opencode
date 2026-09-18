@@ -357,6 +357,15 @@ export class MarkdownRenderable extends Renderable {
       this._syntaxStyle = value
       // Mark dirty - actual re-render happens in renderSelf
       this._styleDirty = true
+      // Marking the flag is not enough: the consumer is `renderSelf` →
+      // `rerenderBlocks`, and `requestRender` is what schedules it. `content`
+      // already did both; these setters marked dirty and never asked for a
+      // paint, so a colour applied AFTER `content` — which is the live order,
+      // since the Solid reconciler sets props in declaration order and
+      // `content` is declared before `fg` (index.tsx:2146 vs :2148) — stayed
+      // unapplied and muted reasoning kept the syntax default's colour
+      // (2026-09-18).
+      this.requestRender()
     }
   }
 
@@ -369,6 +378,15 @@ export class MarkdownRenderable extends Renderable {
     if (!colorsEqual(this._fg, next)) {
       this._fg = next
       this._styleDirty = true
+      // Marking the flag is not enough: the consumer is `renderSelf` →
+      // `rerenderBlocks`, and `requestRender` is what schedules it. `content`
+      // already did both; these setters marked dirty and never asked for a
+      // paint, so a colour applied AFTER `content` — which is the live order,
+      // since the Solid reconciler sets props in declaration order and
+      // `content` is declared before `fg` (index.tsx:2146 vs :2148) — stayed
+      // unapplied and muted reasoning kept the syntax default's colour
+      // (2026-09-18).
+      this.requestRender()
     }
   }
 
@@ -381,6 +399,15 @@ export class MarkdownRenderable extends Renderable {
     if (!colorsEqual(this._bg, next)) {
       this._bg = next
       this._styleDirty = true
+      // Marking the flag is not enough: the consumer is `renderSelf` →
+      // `rerenderBlocks`, and `requestRender` is what schedules it. `content`
+      // already did both; these setters marked dirty and never asked for a
+      // paint, so a colour applied AFTER `content` — which is the live order,
+      // since the Solid reconciler sets props in declaration order and
+      // `content` is declared before `fg` (index.tsx:2146 vs :2148) — stayed
+      // unapplied and muted reasoning kept the syntax default's colour
+      // (2026-09-18).
+      this.requestRender()
     }
   }
 
@@ -393,6 +420,15 @@ export class MarkdownRenderable extends Renderable {
       this._conceal = value
       // Mark dirty - actual re-render happens in renderSelf
       this._styleDirty = true
+      // Marking the flag is not enough: the consumer is `renderSelf` →
+      // `rerenderBlocks`, and `requestRender` is what schedules it. `content`
+      // already did both; these setters marked dirty and never asked for a
+      // paint, so a colour applied AFTER `content` — which is the live order,
+      // since the Solid reconciler sets props in declaration order and
+      // `content` is declared before `fg` (index.tsx:2146 vs :2148) — stayed
+      // unapplied and muted reasoning kept the syntax default's colour
+      // (2026-09-18).
+      this.requestRender()
     }
   }
 
@@ -405,6 +441,15 @@ export class MarkdownRenderable extends Renderable {
       this._concealCode = value
       // Mark dirty - actual re-render happens in renderSelf
       this._styleDirty = true
+      // Marking the flag is not enough: the consumer is `renderSelf` →
+      // `rerenderBlocks`, and `requestRender` is what schedules it. `content`
+      // already did both; these setters marked dirty and never asked for a
+      // paint, so a colour applied AFTER `content` — which is the live order,
+      // since the Solid reconciler sets props in declaration order and
+      // `content` is declared before `fg` (index.tsx:2146 vs :2148) — stayed
+      // unapplied and muted reasoning kept the syntax default's colour
+      // (2026-09-18).
+      this.requestRender()
     }
   }
 

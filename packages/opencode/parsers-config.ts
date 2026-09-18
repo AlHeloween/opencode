@@ -338,6 +338,24 @@ export default {
           inline: "markdown_inline",
           pipe_table_cell: "markdown_inline",
         },
+        // Short aliases from fence info strings. The worker falls back to the
+        // literal info string when this map has no entry, and a bare alias is
+        // not a registered filetype — the fence then loses highlighting with
+        // only `bug: No parser found for injection language: ts` in the log
+        // (2026-09-18). OpenTUI's default markdown entry carried this map;
+        // addDefaultParsers replaces the entry, so the override must carry it.
+        infoStringMap: {
+          javascript: "javascript",
+          js: "javascript",
+          jsx: "javascriptreact",
+          javascriptreact: "javascriptreact",
+          typescript: "typescript",
+          ts: "typescript",
+          tsx: "typescriptreact",
+          typescriptreact: "typescriptreact",
+          markdown: "markdown",
+          md: "markdown",
+        },
       },
     },
     {

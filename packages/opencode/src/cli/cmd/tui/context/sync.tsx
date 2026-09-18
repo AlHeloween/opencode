@@ -893,6 +893,18 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
             configPromise.then((x) => x.data!),
           ])
 
+          // The Logging setting (`config.logLevel`) must actually reach the
+          // logger — nothing consumed it before (2026-09-18). The CLI flag
+          // still wins over the config.
+          if (config.logLevel && !process.argv.includes("--log-level")) {
+            void Log.init({
+              print: process.argv.includes("--print-logs"),
+              logLevel: config.logLevel as Log.Level,
+            }).catch((error) => {
+              Log.Default.warn("log level from config was not applied", { error: errorMessage(error) })
+            })
+          }
+
           batch(() => {
             setStore("provider", reconcile(providers.providers))
             setStore("provider_default", reconcile(providers.default))

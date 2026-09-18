@@ -14,8 +14,15 @@ import { ensureProcessMetadata } from "@opencode-ai/core/util/opencode-process"
 
 ensureProcessMetadata("worker")
 
+// The worker's own logs must follow the same knob as the host process:
+// `--log-level` was previously ignored here, so worker logs could never be
+// put into DEBUG (the flag only reached the root middleware).
+const logLevelIndex = process.argv.indexOf("--log-level")
+const logLevel = logLevelIndex >= 0 ? (process.argv[logLevelIndex + 1] as Log.Level | undefined) : undefined
+
 await Log.init({
   print: process.argv.includes("--print-logs"),
+  logLevel,
 })
 
 Heap.start()

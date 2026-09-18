@@ -107,18 +107,26 @@ import { getRevertDiffFiles } from "../../util/revert-diff"
 import { revertSteps } from "../../util/revert-steps"
 import * as Log from "@opencode-ai/core/util/log"
 import { embeddedWasmAssetPath } from "@/util/wasm-embedded"
+import { embeddedQueryPath } from "@/util/wasm-embedded-queries"
 
-// Resolve parser WASM paths to local files before registering with the OpenTUI worker.
-// The parsers-config.ts uses CDN URLs, but the same WASM grammars are bundled in the
-// binary via wasm-embedded.ts. Local paths load faster and work offline.
+// Resolve parser WASM and query paths to local files before registering with the
+// OpenTUI worker. The parsers-config.ts uses CDN URLs, but the same WASM grammars
+// and the query files are bundled in the binary (wasm-embedded.ts,
+// wasm-embedded-queries.ts). Local paths load faster, work offline, and stop the
+// worker downloading into the OpenTUI data path at runtime.
 const resolvedParsers = parsers.parsers.map((parser) => {
   const filename = parser.wasm.split("/").pop() ?? ""
   const localKey = `grammars/${filename}`
   const localPath = embeddedWasmAssetPath(localKey) as string | undefined
-  if (localPath) {
-    return { ...parser, wasm: localPath }
+  const queries = {
+    ...parser.queries,
+    highlights: parser.queries.highlights.map((url) => embeddedQueryPath(url) ?? url),
+    injections: parser.queries.injections?.map((url) => embeddedQueryPath(url) ?? url),
   }
-  return parser
+  if (localPath) {
+    return { ...parser, wasm: localPath, queries }
+  }
+  return { ...parser, queries }
 })
 addDefaultParsers(resolvedParsers)
 

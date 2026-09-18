@@ -505,9 +505,15 @@ export const layer = Layer.effect(
               log.info("tracking", { hash: afterHash, before: beforeHash })
 
               // Structural tagging via CodeGraph MCP only (SQLite/CLI blocked when MCP owns graph).
-              // Soft-skip forbidden: if .codegraph exists, MCP failure fails this Effect (hard-fail).
-              // Fossil commit already succeeded; tag failure still surfaces as track error so agents
-              // never think impact ran when MCP was down.
+              // `mcpTouchThenSqlitePack` keeps its own contract — it hard-fails rather than
+              // fabricate an empty pack — and that contract is pinned by the codegraph smokes.
+              // What is contained HERE is the blast radius: a structural tag is a property of
+              // THIS SNAPSHOT, so losing it must not fail the snapshot, the compaction, or the
+              // turn. It did exactly that on 2026-09-18 (XEComponents, session ClientSoft): the
+              // codegraph MCP connection closed, the hard-fail propagated out of the summarize
+              // request after 180 s, and the worker shut down with the session still marked
+              // compacting. The tag is now skipped and the snapshot is MARKED instead, so an
+              // agent still never reads it as impact-verified.
               if (beforeHash && hasCodegraphIndex(worktree)) {
                 const diff = yield* fossil(
                   ["diff", "--from", beforeHash, "--to", afterHash, "--brief"],
@@ -524,31 +530,37 @@ export const layer = Layer.effect(
                   if (changedFiles.length > 0) {
                     // Hybrid: MCP touch (refresh) → SQLite pack → compact tag (not MCP prose)
                     const hybrid = yield* mcpTouchThenSqlitePack(worktree, changedFiles).pipe(
-                      Effect.mapError((err) => {
+                      Effect.catch((err) => {
                         const msg = err instanceof Error ? err.message : String(err)
-                        log.error("bug: codegraph hybrid required for structural tag (hard-fail)", {
+                        log.warn("bug: codegraph unavailable — structural sym tag SKIPPED (impact unverified)", {
                           err: msg,
                           hash: afterHash,
+                          files: changedFiles.length,
                         })
-                        return new Error(
-                          `CodeGraph MCP→SQLite unavailable for fossil structural tag (hard-fail). ${msg}`,
-                        )
+                        return Effect.succeed(undefined)
                       }),
                     )
-                    // fossil tag add OPTIONS TAGNAME ARTIFACT-ID ?VALUE?
-                    // VALUE must come after the check-in hash — otherwise fossil
-                    // treats the KINDS:… string as an artifact ID (hard fail).
-                    const tagValue = hybrid.symTag
-                    const tagResult = yield* fossil(
-                      ["tag", "add", "--propagate", "sym", afterHash, tagValue],
-                      { cwd: worktree },
-                    )
-                    if (tagResult.code !== 0) {
-                      return yield* Effect.fail(
-                        new Error(
-                          `fossil tag add sym failed: ${tagResult.stderr || tagResult.text}`.trim(),
-                        ),
+                    if (hybrid === undefined) {
+                      // Best-effort marker: the check-in is real, its impact is not verified.
+                      yield* fossil(["tag", "add", "--propagate", "sym-missing", afterHash, "1"], {
+                        cwd: worktree,
+                      })
+                    } else {
+                      // fossil tag add OPTIONS TAGNAME ARTIFACT-ID ?VALUE?
+                      // VALUE must come after the check-in hash — otherwise fossil
+                      // treats the KINDS:… string as an artifact ID (hard fail).
+                      const tagValue = hybrid.symTag
+                      const tagResult = yield* fossil(
+                        ["tag", "add", "--propagate", "sym", afterHash, tagValue],
+                        { cwd: worktree },
                       )
+                      if (tagResult.code !== 0) {
+                        return yield* Effect.fail(
+                          new Error(
+                            `fossil tag add sym failed: ${tagResult.stderr || tagResult.text}`.trim(),
+                          ),
+                        )
+                      }
                     }
                   }
                 }

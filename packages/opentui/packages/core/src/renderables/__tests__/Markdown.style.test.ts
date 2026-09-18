@@ -166,11 +166,16 @@ function styledParagraph(text: string, fg: RGBA): StyledText {
   return new StyledText([{ __isChunk: true, text, fg }])
 }
 
-async function renderCode(options: { content: string; filetype: string; initialStyledText?: StyledText }) {
+async function renderCode(options: {
+  content: string
+  filetype: string
+  syntaxStyle?: SyntaxStyle
+  initialStyledText?: StyledText
+}) {
   const code = new CodeRenderable(renderer, {
     content: options.content,
     filetype: options.filetype,
-    syntaxStyle,
+    syntaxStyle: options.syntaxStyle ?? syntaxStyle,
     treeSitterClient,
     initialStyledText: options.initialStyledText,
   })
@@ -363,6 +368,30 @@ test("an fg applied AFTER content still reaches the chunks", async () => {
   const span = spanContaining("transport ladder")
   expect(span).toBeDefined()
   expect(span!.fg.toInts()).toEqual(REASONING_DIM.toInts())
+})
+
+// ── The merge's own rule ─────────────────────────────────────────────────────
+//
+// The same one rule `Markdown.createChunk` applies, one stage lower. Inside a
+// tree-sitter span the merge tested `mergedStyle.fg === undefined` — STRUCTURE
+// ("the grammar resolved something") instead of VALUE ("it differs from the
+// ordinary"). A group whose colour IS the ordinary is not an opinion, and a real
+// grammar colour must not outrank the application's deliberate tint, or a muted
+// block breaks up wherever it contains markup.
+
+const PANEL = RGBA.fromValues(0.1, 0.1, 0.1, 1)
+
+test("the application's background survives a grammar span", async () => {
+  const text = "Considering the transport ladder before answering."
+  await renderCode({
+    content: text,
+    filetype: "markdown",
+    initialStyledText: new StyledText([{ __isChunk: true, text, fg: REASONING_DIM, bg: PANEL }]),
+  })
+
+  const span = spanContaining("transport ladder")
+  expect(span).toBeDefined()
+  expect(span!.bg.toInts()).toEqual(PANEL.toInts())
 })
 
 test("a source file with no application styling is fully driven by its grammar", async () => {

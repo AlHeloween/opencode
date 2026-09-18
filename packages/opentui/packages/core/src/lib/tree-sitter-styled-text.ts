@@ -33,7 +33,9 @@ interface TextChunkOptions {
    * is the better answer, and this hook supplies it. Neither side is discarded,
    * so there is no order in which one can overwrite the other.
    */
-  appStyleAt?: (sourceOffset: number) => { fg?: TextChunk["fg"]; attributes?: number } | undefined
+  appStyleAt?: (
+    sourceOffset: number,
+  ) => { fg?: TextChunk["fg"]; bg?: TextChunk["bg"]; attributes?: number } | undefined
   /**
    * Source offsets where the application's styling changes.
    *
@@ -67,6 +69,25 @@ function shouldSuppressInInjection(group: string, meta: any): boolean {
   // The styles need to be more like a stack that gets merged
   // and for a container with injections we just don't push that container style
   return group === "markup.raw.block"
+}
+
+/**
+ * One rule for two sources (2026-09-18): the value that DIFFERS from the
+ * ordinary one wins, and the source does not matter. `default` IS the ordinary,
+ * so a grammar colour equal to it is not an opinion — and the application's
+ * deliberate tint outranks a real grammar colour, the same precedence
+ * `Markdown.createChunk` applies one stage up. A colour has no composition to
+ * fall back on, so the order is: the application, then the grammar, then the
+ * caller's ordinary fallback.
+ */
+function mergeColour(
+  grammar: TextChunk["fg"] | undefined,
+  app: TextChunk["fg"] | undefined,
+  ordinary: TextChunk["fg"] | undefined,
+): TextChunk["fg"] | undefined {
+  const isOpinion = (colour: TextChunk["fg"] | undefined) =>
+    colour !== undefined && (ordinary === undefined || !colour.equals(ordinary))
+  return isOpinion(app) ? app : isOpinion(grammar) ? grammar : undefined
 }
 
 export function treeSitterToTextChunks(
@@ -236,8 +257,8 @@ export function treeSitterToTextChunks(
         chunks.push({
           __isChunk: true,
           text: segmentText,
-          fg: (mergedStyle.fg === undefined ? appStyle?.fg : undefined) ?? finalStyle?.fg,
-          bg: finalStyle?.bg,
+          fg: mergeColour(mergedStyle.fg, appStyle?.fg, defaultStyle?.fg) ?? finalStyle?.fg,
+          bg: mergeColour(finalStyle?.bg, appStyle?.bg, defaultStyle?.bg) ?? finalStyle?.bg,
           attributes:
             (finalStyle
               ? createTextAttributes({
@@ -258,8 +279,8 @@ export function treeSitterToTextChunks(
       chunks.push({
         __isChunk: true,
         text,
-        fg: appStyle?.fg ?? style?.fg,
-        bg: style?.bg,
+        fg: mergeColour(style?.fg, appStyle?.fg, defaultStyle?.fg) ?? style?.fg,
+        bg: mergeColour(style?.bg, appStyle?.bg, defaultStyle?.bg) ?? style?.bg,
         attributes:
           (style
             ? createTextAttributes({
@@ -324,8 +345,8 @@ export function treeSitterToTextChunks(
     chunks.push({
       __isChunk: true,
       text,
-      fg: appStyle?.fg ?? style?.fg,
-      bg: style?.bg,
+      fg: mergeColour(style?.fg, appStyle?.fg, defaultStyle?.fg) ?? style?.fg,
+      bg: mergeColour(style?.bg, appStyle?.bg, defaultStyle?.bg) ?? style?.bg,
       attributes:
         (style
           ? createTextAttributes({

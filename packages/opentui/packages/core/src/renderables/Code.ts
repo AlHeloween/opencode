@@ -160,22 +160,23 @@ export class CodeRenderable extends TextBufferRenderable {
   private buildAppStyleLookup(content: string):
     | {
         boundaries: number[]
-        at: (offset: number) => { fg?: TextChunk["fg"]; attributes?: number } | undefined
+        at: (offset: number) => { fg?: TextChunk["fg"]; bg?: TextChunk["bg"]; attributes?: number } | undefined
       }
     | undefined {
     const styled = this._initialStyledText
     if (!styled) return undefined
 
     const starts: number[] = []
-    const styles: Array<{ fg?: TextChunk["fg"]; attributes?: number }> = []
+    const styles: Array<{ fg?: TextChunk["fg"]; bg?: TextChunk["bg"]; attributes?: number }> = []
     let offset = 0
     for (const chunk of styled.chunks) {
       starts.push(offset)
-      styles.push({ fg: chunk.fg, attributes: chunk.attributes })
+      styles.push({ fg: chunk.fg, bg: chunk.bg, attributes: chunk.attributes })
       offset += chunk.text.length
     }
     if (offset !== content.length) return undefined
-    if (styles.every((style) => style.fg === undefined && !style.attributes)) return undefined
+    if (styles.every((style) => style.fg === undefined && style.bg === undefined && !style.attributes))
+      return undefined
 
     return {
       boundaries: starts,

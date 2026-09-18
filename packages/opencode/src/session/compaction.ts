@@ -12,6 +12,8 @@ import { ModelID, ProviderID } from "@/provider/schema"
 import { Effect, Layer, Context, Schema, Option } from "effect"
 import { readMemory } from "@/tool/memory"
 import { estimateMediaTokens, isOverflow as overflow } from "./overflow"
+import { countTokens } from "./token-count"
+import { promptTokensFromUsage } from "./processor"
 import { makeRuntime } from "@/effect/run-service"
 import { fn } from "@/util/fn"
 import { SessionStatus } from "./status"
@@ -372,6 +374,75 @@ export function layer1SummaryThreshold(): number {
  * - Real context (text + reasoning + tool output), not provider usage
  * - Survives runLoop restarts (pure function of persisted messages)
  */
+/**
+ * The newest message in the slice whose response carried a provider-billed prompt
+ * size, and the index just past it.
+ *
+ * Those `tokens` are the provider's own count of everything that was on the wire for
+ * that request — system prefix, tool schemas and message framing included — which is
+ * exactly the part `estimateContentTokens` cannot see (measured on this session:
+ * 493 088 tokens of parts + 99 390 of prefix/schemas/framing = 592 478 billed).
+ */
+/**
+ * The newest message in the slice whose response carried a provider-billed prompt
+ * size, and the tokens that message contributes to the window.
+ *
+ * Two parts, both from the provider and neither needing a tokenizer:
+ *
+ *   prompt   — the request's INPUT (`input + cache.read + cache.write`). That is the
+ *              system prefix, the tool schemas and the message framing, i.e. exactly
+ *              what `estimateContentTokens` cannot see (measured on this session:
+ *              493 088 tokens of parts + 99 390 of prefix/schemas/framing = 592 478).
+ *   response — the answer itself, which the provider also counted and which becomes
+ *              part of the NEXT request's prompt. Reasoning rides the wire only on
+ *              tool turns (`message-v2` strips it elsewhere), so it is added exactly
+ *              then and not otherwise.
+ *
+ * `from: i + 1` — with the response included, growth is only what came after it: tool
+ * results and new user messages, i.e. the one thing no provider has counted yet.
+ */
+function lastBilledPrompt(msgs: MessageV2.WithParts[]): { from: number; tokens: number } | undefined {
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const msg = msgs[i]
+    const info = msg.info
+    if (info.role !== "assistant") continue
+    const prompt = promptTokensFromUsage(info.tokens)
+    if (prompt <= 0) continue
+    const reasoningCounts = msg.parts.some((p) => p.type === "tool")
+    const response = info.tokens.output + (reasoningCounts ? info.tokens.reasoning : 0)
+    return { from: i + 1, tokens: prompt + response }
+  }
+  return undefined
+}
+
+/**
+ * Tokens for the parts that appeared from `from` onward, over the same part set
+ * `contentChars` walks.
+ *
+ * This is the only stretch a tokenizer has to read — the provider has already counted
+ * the prompt and its own response, so what remains is tool results (~2.8k chars at the
+ * median, 188k at the observed maximum) plus any new user message: 1.2 ms typically,
+ * 64 ms at the answer ceiling, against 967 ms for the whole visible window.
+ */
+function partTokens(msgs: MessageV2.WithParts[], from: number): number {
+  let tokens = 0
+  for (let i = from; i < msgs.length; i++) {
+    if (isLayer1SummaryMessage(msgs[i])) continue
+    for (const p of msgs[i].parts) {
+      if (p.type === "text") {
+        const text = (p as any).text as string | undefined
+        if (isLayer1SummaryText(text)) continue
+        tokens += countTokens(text ?? "")
+      } else if (p.type === "reasoning") tokens += countTokens((p as any).text ?? "")
+      else if (p.type === "tool") tokens += countTokens((p.state as any)?.output ?? "")
+      else if (p.type === "subtask") {
+        tokens += countTokens((p as any).prompt ?? "") + countTokens((p as any).description ?? "")
+      } else if (p.type === "patch") tokens += countTokens((p as any).content ?? "")
+    }
+  }
+  return tokens
+}
+
 export function computeOpenWindowTokens(
   msgs: MessageV2.WithParts[],
   checkpointBoundaryID?: string,
@@ -394,12 +465,26 @@ export function computeOpenWindowTokens(
     while (start < msgs.length && isMessageStar(msgs[start])) start++
   }
   const slice = msgs.slice(start)
-  // Media is priced by DIMENSIONS, never by payload bytes (see
-  // `estimateMediaTokens`). Opt-in by argument: only a caller holding the model
-  // can price an image, because whether those bytes reach the wire at all
-  // depends on that model's modality support — and until this was wired, an
-  // image was invisible to BOTH thresholds, so a window full of screenshots
-  // reported headroom and overflow arrived from the provider (2026-09-18).
+
+  // ABSOLUTE FROM THE PROVIDER, GROWTH FROM THE TOKENIZER (2026-09-18).
+  //
+  // `prompt_tokens` on the newest response in this window is exact and already
+  // includes what the counter cannot see, so only what came AFTER it needs counting.
+  // That removes the 1.2-1.45x undercount the estimate carried while keeping the
+  // tokenizer's cost at 1.2 ms typically instead of 967 ms for the whole window
+  // (`experiments/2026-09-18_tokenizer-gap/bench.mts`).
+  //
+  // Media is still priced by DIMENSIONS (see `estimateMediaTokens`), never by
+  // tokenizing bytes: doing that once produced ~688K phantom tokens and dropped a
+  // video (2026-09-07). Only media in the GROWTH is added — the base already carries
+  // the images that were on the wire when it was billed.
+  const billed = lastBilledPrompt(slice)
+  if (billed) {
+    const growthMedia = model ? estimateMediaTokens(slice.slice(billed.from), model) : 0
+    return billed.tokens + partTokens(slice, billed.from) + growthMedia
+  }
+  // No billed response in this window — a fresh session, or everything newer than the
+  // fold. Fall back to the estimate over the whole slice.
   const media = model ? estimateMediaTokens(slice, model) : 0
   return Math.ceil(contentChars(slice) / CHARS_PER_TOKEN) + media
 }

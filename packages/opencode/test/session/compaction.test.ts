@@ -11,6 +11,7 @@ import { LLM } from "../../src/session/llm"
 import { SessionCompaction } from "../../src/session/compaction"
 import { isOverflowFromContent, estimateContentTokens } from "../../src/session/overflow"
 import { MediaTokenCalibration } from "../../src/session/media-token-calibration"
+import { countTokens } from "../../src/session/token-count"
 import { Token } from "@/util/token"
 import { Instance } from "../../src/project/instance"
 import * as Log from "@opencode-ai/core/util/log"
@@ -2272,6 +2273,114 @@ describe("session.compaction.computeOpenWindowTokens", () => {
       }),
     ),
   )
+  // ── The absolute comes from the provider; only growth is counted (2026-09-18) ──
+  //
+  // `prompt_tokens` on the newest response is exact and already carries the system
+  // prefix and tool schemas the counter cannot see (measured on this session: 99 390
+  // of 592 478 tokens). Counting only what came after it removes the 1.2-1.45x
+  // undercount the estimate carried, and it is what makes a real tokenizer affordable
+  // at all: growth is 1.2 ms typically against 967 ms for the whole visible window.
+  //
+  // The billed response's OWN text is not tokenized either: the provider counted it as
+  // `output`, and it becomes part of the NEXT request's prompt. Only tool results and
+  // new user messages are left for the tokenizer.
+  const billedMsg = (
+    id: string,
+    tokens: { input: number; cacheRead: number; cacheWrite?: number; output?: number; reasoning?: number },
+    text = "",
+    withTool = false,
+  ): MessageV2.WithParts =>
+    ({
+      info: {
+        id,
+        role: "assistant",
+        tokens: {
+          output: tokens.output ?? 0,
+          input: tokens.input,
+          reasoning: tokens.reasoning ?? 0,
+          cache: { read: tokens.cacheRead, write: tokens.cacheWrite ?? 0 },
+        },
+      },
+      parts: [
+        { id: `p-${id}`, messageID: id, sessionID: "s", type: "text", text },
+        ...(withTool
+          ? [
+              {
+                id: `t-${id}`,
+                messageID: id,
+                sessionID: "s",
+                type: "tool",
+                state: { status: "completed", output: "" },
+              },
+            ]
+          : []),
+      ],
+    }) as any
+
+  test("takes the absolute from the provider and counts only the growth", () => {
+    const msgs = [
+      textMsg("u0", "user", "x".repeat(40_000)),
+      billedMsg("a1", { input: 10_000, cacheRead: 5_000, output: 400 }, "answer"),
+      textMsg("u2", "user", "z".repeat(8_000)),
+    ]
+    // 10 000 + 5 000 prompt and 400 response, both billed, plus the tool-free growth.
+    // The answer's own text is NOT tokenized — the provider already counted it.
+    const expected = 15_400 + countTokens("z".repeat(8_000))
+    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(expected)
+    expect(expected).toBeGreaterThan(Math.ceil(48_000 / 4))
+  })
+
+  test("the response's tokens come from the provider, never from the tokenizer", () => {
+    // A long answer with a SMALL billed output: if the answer were tokenized the count
+    // would explode with its text; it must not — the provider's number is the truth.
+    const long = "y".repeat(40_000)
+    const msgs = [billedMsg("a1", { input: 1_000, cacheRead: 0, output: 7 }, long)]
+    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(1_007)
+    expect(countTokens(long)).toBeGreaterThan(1_000)
+  })
+
+  test("reasoning is added only on tool turns, where it stays on the wire", () => {
+    const withTool = [billedMsg("a1", { input: 1_000, cacheRead: 0, output: 10, reasoning: 500 }, "", true)]
+    const withoutTool = [billedMsg("a2", { input: 1_000, cacheRead: 0, output: 10, reasoning: 500 }, "", false)]
+    expect(SessionCompaction.computeOpenWindowTokens(withTool)).toBe(1_510)
+    expect(SessionCompaction.computeOpenWindowTokens(withoutTool)).toBe(1_010)
+  })
+
+  test("an uncached write counts toward the billed prompt", () => {
+    const msgs = [billedMsg("a1", { input: 2_000, cacheRead: 500, cacheWrite: 300 })]
+    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(2_800)
+  })
+
+  test("NEGATIVE CONTROL: with no billed response the estimate path is unchanged", () => {
+    // No assistant usage anywhere ⇒ chars/4 over the whole slice, i.e. exactly what
+    // this counter returned before the change. That is what keeps every existing
+    // fixture — and a brand-new session — behaving as it did.
+    const msgs = [textMsg("u0", "user", "x".repeat(40_000))]
+    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(10_000)
+  })
+
+  test("tool output after the billed response counts as growth", () => {
+    const msgs = [
+      billedMsg("a1", { input: 1_000, cacheRead: 0 }),
+      {
+        info: {
+          id: "t1",
+          role: "assistant",
+          tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+        },
+        parts: [
+          {
+            id: "p-t1",
+            messageID: "t1",
+            sessionID: "s",
+            type: "tool",
+            state: { status: "completed", output: "w".repeat(4_000) },
+          },
+        ],
+      } as any,
+    ]
+    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(1_000 + countTokens("w".repeat(4_000)))
+  })
 })
 
 describe("session.compaction.hasPendingSummaryRequest", () => {

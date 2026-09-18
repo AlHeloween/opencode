@@ -2,7 +2,7 @@
 # Attachments: a content-addressed image store, referenced from messages
 
 ```yaml
-status: DRAFT (2026-09-18) — owner design taken; implementation not started
+status: IN PROGRESS (2026-09-18) — I0 LANDED (`bd68b677c6`); I1–I4 open
 raised: 2026-09-18, from the failing `keeps clipboard image parts for vision-capable models` red
 owner_ruling:
   - `{worktree}/.opencode/data/images/` holds BOTH the original and the derived WebP
@@ -58,7 +58,9 @@ D also fixes a cost nobody had named: today the base64 image is stored **inside 
 
 ## Tasks
 
-- [ ] **I0 — the window budget cannot see an image, and its accounting path was never connected.**
+- [x] **I0 — LANDED (`bd68b677c6`). The window budget could not see an image, and its accounting
+      path was never connected.** The bullets below record the DEFECT as measured; the fix and its
+      oracles are named at the end of this task.
       Three independent layers are dead, all measured 2026-09-18:
       1. The live counter `contentChars` (`compaction.ts:242`) skips `file` as "negligible" — true
          while a `file` part was a path, false since `a42599aa60` made it a base64 data URL. It feeds
@@ -82,7 +84,8 @@ D also fixes a cost nobody had named: today the base64 image is stored **inside 
       **Where the dimensions come from:** `ImageHandler.classify` already extracts them
       (`image.ts:46-71`) and `normalize` now returns them in the same sharp pass that encodes the
       WebP (`toBuffer({resolveWithObject:true})`), so stamping them costs no extra decode.
-      `normalizeAttachment` lifts them onto `MessageV2.FilePart.dimensions`.
+      `normalizeAttachment` lifts it onto `MessageV2.FilePart.dimensions` — the seam where it used to
+      be dropped, since the value was rebuilt as `{ ...value, mime, url }`.
       Oracle: one case per branch — dimensions ⇒ the formula; a calibrated row ⇒ the measurement wins;
       no dimensions ⇒ exactly 0 (never a fabricated number); video ⇒ 0. Plus a negative control:
       removing the count must move the delta to zero. `compaction.test.ts` figures must not move when
@@ -92,6 +95,18 @@ D also fixes a cost nobody had named: today the base64 image is stored **inside 
       *history*, but request assembly still resolves it to bytes on the wire, and user file parts are
       re-sent every turn (`message-v2.ts:1011-1024`; only tool-result media is deliver-once). The
       budget is what makes the fold reclaim the window.
+      **LANDED (`bd68b677c6`), 11 files +344/−37.** Oracles: 6 new cases in `compaction.test.ts`
+      (formula; measurement OVERRIDES the formula — a real calibrated row in a tmpdir instance; no
+      model ⇒ 0; non-vision model ⇒ 0; unknown dimensions ⇒ 0; video ⇒ 0) and the dimension-stamp plus
+      seam cases in the attachment suites (`image.test.ts`, `normalize.test.ts`). `136 pass / 0 fail`
+      across the four suites, `bun typecheck` exit 0. The existing 76-case `compaction.test.ts` figure
+      did NOT move, because the price is opt-in by argument.
+      **A note on the seam, kept as a falsifier:** `test/attachment/normalize.test.ts` ALREADY
+      existed (added by `a42599aa60`) with 4 cases, including `expect(out).toBe(part)` for the
+      pass-through paths. It was overwritten by a `write` that assumed the file was new — the
+      existence check was a `glob` pattern matching the FILE NAME while the file lives in a DIRECTORY
+      named `attachment`. Restored from HEAD and extended; the lesson is that absence is proven by a
+      path lookup (`git ls-files --error-unmatch <path>`), never by a name-pattern glob.
 - [ ] **I1 — the store.** Content-addressed write of original + derived WebP under `.opencode/data/images/`; read with the WebP-first rule; nothing rewrites history. Oracle: a test that writes a PNG, asserts both files exist, asserts the reference round-trips, and asserts that deleting the `.webp` makes the read fall back to the original (the read rule is the only part that can silently regress).
 - [ ] **I2 — the part carries a reference.** Decide and pin the reference form — content hash for the bytes, submission timestamp for the occurrence — then update every consumer in the table above. Oracle: the existing clipboard tests, rewritten deliberately (see below), plus a case that pasting the SAME image twice yields ONE store entry and TWO references with different timestamps.
 - [ ] **I3 — the send path chooses the form.** `capability(model, …) === "native"` ⇒ the original goes on the wire (the test's intent); `describe` ⇒ the derived WebP / the text fallback. Oracle: the two clipboard tests, one per branch.

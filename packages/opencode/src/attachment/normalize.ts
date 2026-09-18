@@ -32,10 +32,9 @@ const registerHandlers = () => (handlersReady ??= import("./handlers/index").the
  * failed conversion keeps the original bytes (ImageHandler.normalize catches
  * its own decode errors).
  */
-export function normalizeAttachment<T extends { mime: string; url: string }>(
-  value: T,
-  config?: unknown,
-): Effect.Effect<T> {
+export function normalizeAttachment<
+  T extends { mime: string; url: string; dimensions?: { width: number; height: number } },
+>(value: T, config?: unknown): Effect.Effect<T> {
   return Effect.gen(function* () {
     const normalized = yield* Effect.gen(function* () {
       yield* Effect.tryPromise(() => registerHandlers())
@@ -54,7 +53,21 @@ export function normalizeAttachment<T extends { mime: string; url: string }>(
       }),
     )
     if (!normalized) return value
-    if (normalized.mime === value.mime && normalized.url === value.url) return value
-    return { ...value, mime: normalized.mime, url: normalized.url } as T
+    // The handler may report the dimensions it produced (`ImageHandler.normalize`
+    // does). Lift them onto the stored part: the window budget prices an image
+    // from its dimensions, and this is the only moment the image is decoded
+    // anyway — recomputing them later would decode it on every turn.
+    // See `MessageV2.FilePart.dimensions` for why bytes must never be the price.
+    const dims =
+      normalized.metadata?._tag === "image" && normalized.metadata.width > 0 && normalized.metadata.height > 0
+        ? { width: normalized.metadata.width, height: normalized.metadata.height }
+        : undefined
+    if (normalized.mime === value.mime && normalized.url === value.url && !dims) return value
+    return {
+      ...value,
+      mime: normalized.mime,
+      url: normalized.url,
+      ...(dims ? { dimensions: dims } : {}),
+    } as T
   })
 }

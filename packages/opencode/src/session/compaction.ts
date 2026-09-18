@@ -11,7 +11,7 @@ import { NotFoundError } from "@/storage/storage"
 import { ModelID, ProviderID } from "@/provider/schema"
 import { Effect, Layer, Context, Schema, Option } from "effect"
 import { readMemory } from "@/tool/memory"
-import { isOverflow as overflow } from "./overflow"
+import { estimateMediaTokens, isOverflow as overflow } from "./overflow"
 import { makeRuntime } from "@/effect/run-service"
 import { fn } from "@/util/fn"
 import { SessionStatus } from "./status"
@@ -372,7 +372,11 @@ export function layer1SummaryThreshold(): number {
  * - Real context (text + reasoning + tool output), not provider usage
  * - Survives runLoop restarts (pure function of persisted messages)
  */
-export function computeOpenWindowTokens(msgs: MessageV2.WithParts[], checkpointBoundaryID?: string): number {
+export function computeOpenWindowTokens(
+  msgs: MessageV2.WithParts[],
+  checkpointBoundaryID?: string,
+  model?: Provider.Model,
+): number {
   let start = 0
   // Sidecar checkpoints are the canonical Layer-1 boundary; the legacy
   // assistant.summary flag is no longer written in the sidecar path.
@@ -389,7 +393,15 @@ export function computeOpenWindowTokens(msgs: MessageV2.WithParts[], checkpointB
     // the 64K cadence due immediately after every compact.
     while (start < msgs.length && isMessageStar(msgs[start])) start++
   }
-  return Math.ceil(contentChars(msgs.slice(start)) / CHARS_PER_TOKEN)
+  const slice = msgs.slice(start)
+  // Media is priced by DIMENSIONS, never by payload bytes (see
+  // `estimateMediaTokens`). Opt-in by argument: only a caller holding the model
+  // can price an image, because whether those bytes reach the wire at all
+  // depends on that model's modality support — and until this was wired, an
+  // image was invisible to BOTH thresholds, so a window full of screenshots
+  // reported headroom and overflow arrived from the provider (2026-09-18).
+  const media = model ? estimateMediaTokens(slice, model) : 0
+  return Math.ceil(contentChars(slice) / CHARS_PER_TOKEN) + media
 }
 
 /**

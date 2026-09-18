@@ -833,7 +833,11 @@ export const layer = Layer.effect(
         // Layer-2 compaction; the pre-flight below guards request fit.
         const threshold = SessionCompaction.layer1SummaryThreshold()
         const previous = IncrementalCheckpoint.latestOpen(sessionID)
-        const openTokens = SessionCompaction.computeOpenWindowTokens(input.visible, previous?.toMessageID)
+        const openTokens = SessionCompaction.computeOpenWindowTokens(
+          input.visible,
+          previous?.toMessageID,
+          input.model,
+        )
         if (openTokens < threshold) {
           slog.debug("sidecar skip: below Layer-1 threshold", { sessionID, openTokens, threshold })
           return false
@@ -1823,7 +1827,7 @@ export const layer = Layer.effect(
             // (usable <= 0) is owned by the pre-send hasSpareOutput force
             // gate — the stop cadence stays out of its way.
             const compactTarget = usable({ cfg, model: input.model })
-            const visibleTokens = SessionCompaction.computeOpenWindowTokens(visible)
+            const visibleTokens = SessionCompaction.computeOpenWindowTokens(visible, undefined, input.model)
             if (
               !input.force &&
               (compactTarget <= 0 ||
@@ -2551,6 +2555,7 @@ export const layer = Layer.effect(
                   SessionCompaction.computeOpenWindowTokens(
                     visibleAfter,
                     IncrementalCheckpoint.latestOpen(sessionID)?.toMessageID,
+                    model,
                   ) >= SessionCompaction.layer1SummaryThreshold())
               let sidecarCaptured = false
               // The `compact` tool armed a boundary fold during this turn. It

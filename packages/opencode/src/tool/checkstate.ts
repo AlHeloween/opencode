@@ -167,7 +167,7 @@ export const CheckStateTool = Tool.define<
             if (!lastUser || lastUser.info.role !== "user") return null
             const model = yield* provider.getModel(lastUser.info.model.providerID, lastUser.info.model.modelID)
             const cfg = yield* config.get()
-            const open = SessionCompaction.computeOpenWindowTokens(visible)
+            const open = SessionCompaction.computeOpenWindowTokens(visible, undefined, model)
             return {
               model: `${model.providerID}/${model.id}`,
               limit: model.limit.context,
@@ -179,6 +179,7 @@ export const CheckStateTool = Tool.define<
               sinceSummary: SessionCompaction.computeOpenWindowTokens(
                 visible,
                 IncrementalCheckpoint.latestOpen(ctx.sessionID)?.toMessageID,
+                model,
               ),
               perTurn: burnRate(open, visible.filter((m) => m.info.role === "user").length),
               armed: CompactionRequest.pendingFor(ctx.sessionID),

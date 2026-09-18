@@ -138,25 +138,70 @@ export function estimateContentTokens(msgs: MessageV2.WithParts[], _model: Provi
   return contentTokensFromSymbols(chars)
 }
 
+/** 512-px tile grid + a base — the shape VLM providers bill an image with. */
+const IMAGE_TILE_PX = 512
+const IMAGE_BASE_TOKENS = 85
+const IMAGE_TILE_TOKENS = 170
+
 /**
- * Provider-calibrated estimate for media items in the message list:
- * per-model EMA of measured provider tokens per media item, gated by model
- * modality support (media-token-calibration.ts). Returns 0 without a
- * measurement — no heuristics for media, by design.
+ * Price an image from its PIXEL DIMENSIONS (owner ruling 2026-09-18).
+ *
+ * Bytes are never the price: counting a 2.7M-char base64 blob as text produced
+ * ~688K phantom tokens and an emergency compaction that silently dropped the
+ * video (measured 2026-09-07). Dimensions are what providers actually bill on,
+ * and the size is stamped onto the part at ingestion — in the same sharp pass
+ * that encodes the WebP — so pricing here costs no extra decode.
+ */
+export function imageTokensFromDimensions(width: number, height: number): number {
+  if (!(width > 0) || !(height > 0)) return 0
+  return (
+    IMAGE_BASE_TOKENS + IMAGE_TILE_TOKENS * Math.ceil(width / IMAGE_TILE_PX) * Math.ceil(height / IMAGE_TILE_PX)
+  )
+}
+
+/**
+ * Media price for the window budget: the MEASURED per-model EMA wherever it
+ * exists, the dimensional formula only as the floor beneath it.
+ *
+ * Measured-first is not a preference — `media_token_calibration` is the real
+ * invoice. But it is EMPTY for every model we talk to: our providers never send
+ * `prompt_tokens_details.image_tokens`, so `record` (`processor.ts:1135`) never
+ * fires (measured 2026-09-18: 0 rows against 51 images in history). A
+ * measurement-only price therefore means images are FREE and a thousand
+ * screenshots raise no signal. The formula covers exactly that gap, and is
+ * overridden the moment a real measurement appears.
+ *
+ * Gated by modality support on both paths: a model that cannot take images does
+ * not receive them on the wire (they leave as text), so pricing them would
+ * invent cost for bytes that are never sent.
+ *
+ * Video/audio stay 0 until measured — no dimensions are known for them, and
+ * guessing from duration is exactly the phantom-token class this rule forbids.
  */
 export function estimateMediaTokens(msgs: MessageV2.WithParts[], model: Provider.Model): number {
   let video = 0
   let image = 0
+  let byDimensions = 0
   for (const msg of msgs) {
     for (const part of msg.parts) {
       if (part.type !== "file") continue
-      if (part.mime.startsWith("video/")) video++
-      else if (part.mime.startsWith("image/")) image++
+      if (part.mime.startsWith("video/")) {
+        video++
+        continue
+      }
+      if (!part.mime.startsWith("image/")) continue
+      image++
+      if (part.dimensions) byDimensions += imageTokensFromDimensions(part.dimensions.width, part.dimensions.height)
     }
   }
+  if (video === 0 && image === 0) return 0
   let total = 0
   if (video > 0) total += MediaTokenCalibration.estimate({ model, modality: "video", count: video })
-  if (image > 0) total += MediaTokenCalibration.estimate({ model, modality: "image", count: image })
+  if (image > 0) {
+    const measured = MediaTokenCalibration.estimate({ model, modality: "image", count: image })
+    if (measured > 0) total += measured
+    else if (MediaTokenCalibration.modelSupports(model, "image")) total += byDimensions
+  }
   return total
 }
 

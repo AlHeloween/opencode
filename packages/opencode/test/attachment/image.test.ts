@@ -166,4 +166,54 @@ describe("ImageHandler", () => {
     expect(rendered.label).toBe("pic.jpg")
     expect(rendered.preview).toBe("800×600")
   })
+
+  // ── Dimensions are the window budget's only legal price for an image ────────
+  //
+  // The image is decoded here anyway, so the dimensions it comes out with cost
+  // nothing extra and are stamped onto the stored part (2026-09-18). Payload
+  // BYTES are never the price: counting a base64 blob as text produced ~688K
+  // phantom tokens on a single video and an emergency compaction that silently
+  // dropped it (2026-09-07). These cases pin the OUTPUT dimensions — the ones
+  // that actually go on the wire after the cap — not the input's.
+
+  test("normalize reports the capped output dimensions it produced", async () => {
+    const big = await makeRealImage(4000, 3000)
+    const att: any = {
+      type: "file", kind: "image", mime: "image/png",
+      url: makeDataUrl(big, "image/png"), filename: "big.png",
+    }
+
+    const result = await Effect.runPromise(
+      (ImageHandler as any).normalize(att, { image: { max_width: 2000, max_height: 2000 } }).pipe(Effect.orDie),
+    ) as any
+
+    expect(result.mime).toBe("image/webp")
+    expect(result.metadata).toBeDefined()
+    expect(result.metadata._tag).toBe("image")
+    // 4000×3000 fit inside 2000×2000 → 2000×1500, so the price follows the wire,
+    // not the original file.
+    expect(result.metadata.width).toBe(2000)
+    expect(result.metadata.height).toBe(1500)
+
+    // The reported dimensions must match the bytes actually emitted.
+    const out = Buffer.from(result.url.split(",")[1], "base64")
+    const meta = await sharp(out).metadata()
+    expect(result.metadata.width).toBe(meta.width)
+    expect(result.metadata.height).toBe(meta.height)
+  })
+
+  test("normalize records no dimensions when it could not decode", async () => {
+    const url = makeDataUrl(Buffer.from("this is not an image"), "image/png")
+    const att: any = { type: "file", kind: "image", mime: "image/png", url, filename: "junk.png" }
+
+    const result = await Effect.runPromise(
+      (ImageHandler as any).normalize(att, {}).pipe(Effect.orDie),
+    ) as any
+
+    // Original bytes survive, and an unknown size must stay unknown rather than
+    // become a fabricated number — the same reason media is 0 without a
+    // measurement rather than an invented heuristic.
+    expect(result.url).toBe(url)
+    expect(result.metadata).toBeUndefined()
+  })
 })

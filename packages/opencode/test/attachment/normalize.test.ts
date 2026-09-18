@@ -69,4 +69,36 @@ describe("normalizeAttachment", () => {
 
     expect(out).toBe(part)
   })
+
+  test("lifts the produced dimensions onto the part the budget will price", async () => {
+    // THIS is the seam where the dimensions used to be lost: the handler decodes
+    // the image and knows the size it produced, but the value was rebuilt as
+    // `{ ...value, mime, url }`, so everything else the handler learned was
+    // dropped on the way to the stored part. The window budget prices an image
+    // from `MessageV2.FilePart.dimensions` (`overflow.estimateMediaTokens`), so
+    // this seam decides whether an image is visible to the Layer-1 cadence and
+    // the Layer-2 fold at all. Bytes can never be the price: counting a base64
+    // blob as text produced ~688K phantom tokens and silently dropped a video
+    // (measured 2026-09-07).
+    const png = await makePng(4000, 3000)
+    const part = {
+      type: "file" as const,
+      mime: "image/png",
+      url: `data:image/png;base64,${png.toString("base64")}`,
+      filename: "big.png",
+    }
+
+    const out: any = await Effect.runPromise(
+      normalizeAttachment(part, { image: { max_width: 2000, max_height: 2000 } }).pipe(Effect.orDie),
+    )
+
+    // 4000×3000 inside 2000×2000 ⇒ 2000×1500 — the size that goes ON THE WIRE,
+    // not the size of the file the user pasted.
+    expect(out.dimensions).toEqual({ width: 2000, height: 1500 })
+    // The lift ADDS; it never replaces. The part keeps its identity otherwise.
+    expect(out.type).toBe("file")
+    expect(out.filename).toBe("big.png")
+    expect(out.mime).toBe("image/webp")
+    expect("kind" in out).toBe(false)
+  })
 })

@@ -58,19 +58,40 @@ D also fixes a cost nobody had named: today the base64 image is stored **inside 
 
 ## Tasks
 
-- [ ] **I0 — the budget counter currently cannot see an image at all.** `contentChars` ends with
-      `// step-start, step-finish, snapshot, agent, retry, file, compaction — negligible, skip for perf`
-      (`compaction.ts:242`). That was true while a `file` part was a path; after `a42599aa60`
-      (2026-09-18) it is a base64 data URL, so the assumption under the comment is false and image
-      bytes are invisible to BOTH thresholds — the Layer-1 cadence (`SUMMARY_INTERVAL_TOKENS`) and the
-      Layer-2 fold (`usable({cfg, model})`). A thousand screenshots therefore raise no signal: the
-      budget reports headroom while the real request is orders of magnitude over, and the failure
-      arrives from the provider instead of from compaction. Fix: count what actually goes on the wire.
-      With references that means the derived WebP's size read from the store entry — not the inline
-      payload, and not zero. Oracle: a test that a message carrying N images moves the counter by the
-      store entries' size, plus a negative control that removing the count moves it by zero.
-      This is a defect from the SAME commit that this plan replaces, so it lands first: it is the
-      reason the user's 1000-screenshot scenario is not hypothetical.
+- [ ] **I0 — the window budget cannot see an image, and its accounting path was never connected.**
+      Three independent layers are dead, all measured 2026-09-18:
+      1. The live counter `contentChars` (`compaction.ts:242`) skips `file` as "negligible" — true
+         while a `file` part was a path, false since `a42599aa60` made it a base64 data URL. It feeds
+         BOTH thresholds: the Layer-1 cadence (`prompt.ts:836`, `:2551`) and the Layer-2 fold gate
+         (`prompt.ts:1826`).
+      2. The only reader of the calibration, `isOverflowFromContent` (`overflow.ts:169`), has **15
+         assertions in tests and zero call sites in production** — `git grep` on `4db8001bae`, the
+         commit that introduced it, shows it was stillborn, not later unplugged.
+      3. `media_token_calibration` holds **0 rows against 51 images in history** (37 PNG, 11 WebP,
+         2 JPEG, 1 JP2), because `record` requires `prompt_tokens_details.image_tokens`
+         (`processor.ts:1135`) and our providers never send it.
+      Net: media moves no threshold under any condition, a thousand screenshots raise no signal, and
+      overflow arrives from the provider where the cause is invisible.
+      **Price rule (owner ruling 2026-09-18): dimensions, never bytes.** Bytes are forbidden outright —
+      2026-09-07 measured a 2.7M-char base64 blob at ~688K phantom tokens and an emergency compaction
+      that silently dropped the video (`overflow.ts:115-121`). Formula: `85 + 170 × tiles` over
+      512-px tiles of the CAPPED output size (the size that actually goes on the wire). When a
+      per-model measurement exists it OVERRIDES the formula (`MediaTokenCalibration.estimate` first,
+      formula only as the fallback) — so the heuristic is a floor for the unmeasured case, not a
+      replacement for the measurement. Video/audio stay 0 until measured: no dimensions are known.
+      **Where the dimensions come from:** `ImageHandler.classify` already extracts them
+      (`image.ts:46-71`) and `normalize` now returns them in the same sharp pass that encodes the
+      WebP (`toBuffer({resolveWithObject:true})`), so stamping them costs no extra decode.
+      `normalizeAttachment` lifts them onto `MessageV2.FilePart.dimensions`.
+      Oracle: one case per branch — dimensions ⇒ the formula; a calibrated row ⇒ the measurement wins;
+      no dimensions ⇒ exactly 0 (never a fabricated number); video ⇒ 0. Plus a negative control:
+      removing the count must move the delta to zero. `compaction.test.ts` figures must not move when
+      no model is passed (the path is opt-in by argument).
+      This lands first: it is the reason the 1000-screenshot scenario is not hypothetical.
+      **It is also why the store alone does not answer the user's scenario:** a reference shrinks the
+      *history*, but request assembly still resolves it to bytes on the wire, and user file parts are
+      re-sent every turn (`message-v2.ts:1011-1024`; only tool-result media is deliver-once). The
+      budget is what makes the fold reclaim the window.
 - [ ] **I1 — the store.** Content-addressed write of original + derived WebP under `.opencode/data/images/`; read with the WebP-first rule; nothing rewrites history. Oracle: a test that writes a PNG, asserts both files exist, asserts the reference round-trips, and asserts that deleting the `.webp` makes the read fall back to the original (the read rule is the only part that can silently regress).
 - [ ] **I2 — the part carries a reference.** Decide and pin the reference form — content hash for the bytes, submission timestamp for the occurrence — then update every consumer in the table above. Oracle: the existing clipboard tests, rewritten deliberately (see below), plus a case that pasting the SAME image twice yields ONE store entry and TWO references with different timestamps.
 - [ ] **I3 — the send path chooses the form.** `capability(model, …) === "native"` ⇒ the original goes on the wire (the test's intent); `describe` ⇒ the derived WebP / the text fallback. Oracle: the two clipboard tests, one per branch.

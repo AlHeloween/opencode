@@ -207,6 +207,29 @@ export const FilePart = Schema.Struct({
   filename: Schema.optional(Schema.String),
   url: Schema.String,
   source: Schema.optional(_FilePartSource),
+  /**
+   * Pixel dimensions of an image part, stamped ONCE at ingestion (2026-09-18)
+   * and never recomputed.
+   *
+   * Why it lives on the part: the window budget must price an image the way the
+   * provider does — by dimensions, not by payload bytes. Counting the base64
+   * payload as text is forbidden outright (2026-09-07: a 2.7M-char blob became
+   * ~688K phantom tokens and an emergency compaction silently dropped the
+   * video), and the measured alternative never arrives for our providers
+   * (`prompt_tokens_details.image_tokens` is absent, so `media_token_calibration`
+   * has 0 rows against 51 images in history). Dimensions are the only input that
+   * is cheap, deterministic and available at every turn: sharp already decodes
+   * the image once during normalisation, so the cost of stamping them is zero.
+   *
+   * Optional for backward compatibility: parts written before this field exists
+   * simply carry no price (`undefined` ⇒ 0 tokens), exactly as they do today.
+   */
+  dimensions: Schema.optional(
+    Schema.Struct({
+      width: Schema.Number,
+      height: Schema.Number,
+    }),
+  ),
 })
   .annotate({ identifier: "FilePart" })
   .pipe(withStatics((s) => ({ zod: zod(s) })))

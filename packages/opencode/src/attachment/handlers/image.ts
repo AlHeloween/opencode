@@ -26,14 +26,23 @@ async function extractImageMeta(buffer: Buffer): Promise<{
  * the same bytes through sharp — a smaller payload is a smaller wire.
  * `animated: true` keeps GIF/WebP animation instead of collapsing it.
  */
-async function toWebp(buffer: Buffer, maxWidth: number, maxHeight: number): Promise<Buffer> {
+async function toWebp(
+  buffer: Buffer,
+  maxWidth: number,
+  maxHeight: number,
+): Promise<{ data: Buffer; width: number; height: number }> {
   const image = sharp(buffer, { animated: true })
   const meta = await image.metadata()
   const resized =
     meta.width && meta.height && (meta.width > maxWidth || meta.height > maxHeight)
       ? image.resize(maxWidth, maxHeight, { fit: "inside", withoutEnlargement: true })
       : image
-  return resized.webp({ quality: 80, effort: 6 }).toBuffer()
+  // `resolveWithObject` returns the OUTPUT dimensions — what actually goes on
+  // the wire AFTER the cap — in the same pass that already encodes the WebP.
+  // Asking sharp for them separately would decode the image a second time, and
+  // the window budget needs them on every turn (2026-09-18).
+  const out = await resized.webp({ quality: 80, effort: 6 }).toBuffer({ resolveWithObject: true })
+  return { data: out.data, width: out.info.width, height: out.info.height }
 }
 
 export const ImageHandler: Handler = {
@@ -90,13 +99,23 @@ export const ImageHandler: Handler = {
       const webp = yield* Effect.tryPromise(() => toWebp(buf, maxWidth, maxHeight)).pipe(
         // Undecodable or exotic input: keep the original bytes rather than
         // losing the attachment. sharp cannot read every format — expected.
+        // The failure value is `undefined` (not a `Buffer`) so the success type
+        // stays `{ data, width, height }`, which the return below reads.
         Effect.catch((error) => {
           log.debug("image normalize failed, keeping original", { error: String(error) })
-          return Effect.succeed(undefined as Buffer | undefined)
+          return Effect.succeed(undefined)
         }),
       )
       if (!webp) return attachment
-      return { ...attachment, mime: "image/webp", url: `data:image/webp;base64,${webp.toString("base64")}` }
+      return {
+        ...attachment,
+        mime: "image/webp",
+        url: `data:image/webp;base64,${webp.data.toString("base64")}`,
+        // Carry the produced dimensions forward: `normalizeAttachment` lifts
+        // them onto the stored part so the window budget can price the image by
+        // size instead of by payload bytes — see `MessageV2.FilePart.dimensions`.
+        metadata: { _tag: "image", width: webp.width, height: webp.height },
+      }
     })
   },
 

@@ -10,6 +10,7 @@ import { Agent } from "../../src/agent/agent"
 import { LLM } from "../../src/session/llm"
 import { SessionCompaction } from "../../src/session/compaction"
 import { isOverflowFromContent, estimateContentTokens } from "../../src/session/overflow"
+import { MediaTokenCalibration } from "../../src/session/media-token-calibration"
 import { Token } from "@/util/token"
 import { Instance } from "../../src/project/instance"
 import * as Log from "@opencode-ai/core/util/log"
@@ -252,6 +253,8 @@ function createModel(opts: {
   input?: number
   cost?: Provider.Model["cost"]
   npm?: string
+  /** Modality support — the gate deciding whether image bytes reach the wire. */
+  image?: boolean
 }): Provider.Model {
   return {
     id: "test-model",
@@ -268,7 +271,7 @@ function createModel(opts: {
       attachment: false,
       reasoning: false,
       temperature: true,
-      input: { text: true, image: false, audio: false, video: false },
+      input: { text: true, image: opts.image ?? false, audio: false, video: false },
       output: { text: true, image: false, audio: false, video: false },
     },
     api: { npm: opts.npm ?? "@ai-sdk/anthropic" },
@@ -2115,6 +2118,89 @@ describe("session.compaction.computeOpenWindowTokens", () => {
   test("empty message list returns 0", () => {
     expect(SessionCompaction.computeOpenWindowTokens([])).toBe(0)
   })
+
+  // ── Media is priced by DIMENSIONS, never by payload bytes (2026-09-18) ─────
+  //
+  // Until this was wired an image was invisible to BOTH thresholds: `contentChars`
+  // never saw a `file` part (it skips them as "negligible" — true while a `file`
+  // was a path, false once it held base64), the only calibration reader
+  // (`isOverflowFromContent`) has zero production call sites, and
+  // `media_token_calibration` is empty because our providers never send
+  // `prompt_tokens_details.image_tokens`. A window full of screenshots therefore
+  // reported headroom. Bytes can never be the price: counting a base64 blob as
+  // text produced ~688K phantom tokens and dropped a video (measured 2026-09-07).
+  const imageMsg = (
+    id: string,
+    dimensions?: { width: number; height: number },
+    mime = "image/png",
+  ): MessageV2.WithParts =>
+    ({
+      info: { id, role: "user", tokens: { output: 0, input: 0, reasoning: 0, cache: { read: 0, write: 0 } } },
+      parts: [
+        {
+          id: `p-${id}`,
+          messageID: id,
+          sessionID: "s",
+          type: "file",
+          mime,
+          url: "data:image/png;base64,AAAA",
+          dimensions,
+        },
+      ],
+    }) as any
+
+  test("prices an image from its dimensions on a model that takes images", () => {
+    const model = createModel({ context: 100_000, output: 32_000, image: true })
+    // 1024/512 = 2 and 768/512 = 2 ⇒ 4 tiles ⇒ 85 + 170×4 = 765
+    const msgs = [imageMsg("u0", { width: 1024, height: 768 })]
+    expect(SessionCompaction.computeOpenWindowTokens(msgs, undefined, model)).toBe(765)
+  })
+
+  test("NEGATIVE CONTROL: without a model the image stays invisible", () => {
+    // The identical messages with no model argument give exactly what this
+    // counter returned before the change — the price is OPT-IN by argument, not
+    // a blanket rewrite of every call site.
+    const msgs = [imageMsg("u0", { width: 1024, height: 768 })]
+    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(0)
+  })
+
+  test("a model that cannot take images is not charged for them", () => {
+    // createModel defaults to image:false — those bytes never reach that
+    // provider's wire (they leave as text), so pricing them invents cost.
+    const model = createModel({ context: 100_000, output: 32_000 })
+    const msgs = [imageMsg("u0", { width: 1024, height: 768 })]
+    expect(SessionCompaction.computeOpenWindowTokens(msgs, undefined, model)).toBe(0)
+  })
+
+  test("unknown dimensions stay unknown — never a fabricated number", () => {
+    const model = createModel({ context: 100_000, output: 32_000, image: true })
+    expect(SessionCompaction.computeOpenWindowTokens([imageMsg("u0")], undefined, model)).toBe(0)
+  })
+
+  test("video stays unpriced until measured (no dimensions are known for it)", () => {
+    const model = createModel({ context: 100_000, output: 32_000, image: true })
+    const msgs = [imageMsg("u0", { width: 1024, height: 768 }, "video/mp4")]
+    expect(SessionCompaction.computeOpenWindowTokens(msgs, undefined, model)).toBe(0)
+  })
+
+  it.live("a measured per-model price OVERRIDES the dimensional formula", () =>
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        // A distinct model id keeps the module-level calibration cache from
+        // leaking into the pure cases above. `ModelID.make` keeps the brand the
+        // spread would otherwise drop (`Provider.Model["id"]` is branded).
+        const model = {
+          ...createModel({ context: 100_000, output: 32_000, image: true }),
+          id: ModelID.make("test-measured-model"),
+        } as Provider.Model
+        MediaTokenCalibration.record({ model, modality: "image", measuredTokens: 5_000, itemCount: 5 })
+        // Measured 1_000 per item beats the formula's 765 for this image: the
+        // provider's invoice is the price, and the formula only fills its gap.
+        const msgs = [imageMsg("u0", { width: 1024, height: 768 })]
+        expect(SessionCompaction.computeOpenWindowTokens(msgs, undefined, model)).toBe(1_000)
+      }),
+    ),
+  )
 })
 
 describe("session.compaction.hasPendingSummaryRequest", () => {

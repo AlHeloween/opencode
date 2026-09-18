@@ -12,6 +12,7 @@
  * Constitution is the single authority — this module is a thin Effect wrapper.
  */
 import { Effect } from "effect"
+import path from "node:path"
 import { Constitution } from "@/session/constitution"
 import * as Log from "@opencode-ai/core/util/log"
 import type * as Tool from "./tool"
@@ -210,13 +211,42 @@ const VIA_CMD_RUNNER = /\bcmd_runner(?:\.exe)?\b/i
  * Tests override the probe via setCmdRunnerProbe().
  */
 let cmdRunnerProbe: boolean | undefined
+/** Which rung established availability — recorded, like the provider transport rungs. */
+let cmdRunnerRung: string | undefined
 export function setCmdRunnerProbe(value: boolean | undefined): void {
   cmdRunnerProbe = value
+  cmdRunnerRung = value === undefined ? undefined : "test-override"
 }
+export function cmdRunnerRungName(): string | undefined {
+  return cmdRunnerRung
+}
+/**
+ * Where to look for the wrapper. PATH alone is NOT enough: this repo keeps
+ * `cmd_runner.exe` at the repo ROOT while PATH carries `<repo>\bin`, so the
+ * PATH-only probe returned false, the guard disabled itself, and EVERY
+ * crash-prone binary (cargo, msbuild, zig, bun) ran bare with one WARN as the
+ * only trace (2026-09-18). Widen, then fail CLOSED below.
+ */
+function probeDirs(): string[] {
+  const strip = (d: string) => d.trim().replace(/^"|"$/g, "")
+  const fromPath = (process.env.PATH ?? "").split(/[;:]/).filter(Boolean).map(strip)
+  const exeDir = path.dirname(process.execPath)
+  const extra = [exeDir, path.dirname(exeDir), path.join(exeDir, "bin"), process.cwd()]
+  return [...new Set([...fromPath, ...extra].filter(Boolean))]
+}
+
 function cmdRunnerAvailable(): boolean {
   if (cmdRunnerProbe !== undefined) return cmdRunnerProbe
+  // Cheap, idiomatic lookup — the `which cmd_runner` equivalent. The PATH scan
+  // below is only a fallback for a wrapper that is NOT on PATH.
+  const viaWhich = Bun.which("cmd_runner")
+  if (viaWhich) {
+    cmdRunnerProbe = true
+    cmdRunnerRung = `Bun.which -> ${viaWhich}`
+    return true
+  }
   try {
-    const dirs = (process.env.PATH ?? "").split(/[;:]/).filter(Boolean)
+    const dirs = probeDirs()
     const exts = process.platform === "win32"
       ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").map((e) => e.toLowerCase())
       : [""]
@@ -242,7 +272,7 @@ function cmdRunnerAvailable(): boolean {
     cmdRunnerProbe = false
   }
   if (!cmdRunnerProbe) {
-    Log.Default.warn("cmd_runner not found in PATH — crash-prone binary routing disabled (graceful skip)")
+    Log.Default.warn("cmd_runner not found (PATH + beside the binary) — crash-prone commands will be BLOCKED (fail-closed)")
   }
   return cmdRunnerProbe
 }
@@ -257,9 +287,9 @@ export function shouldRouteViaCmdRunner(command: string): boolean {
   // runs for minutes: the exact class this guard exists for. The old "bun test
   // only" exception (user directive 2026-09-09) left them bare and exposed to
   // the background-job stall heartbeat, which auto-kills a silent child at 120s.
-  // Graceful degradation: no wrapper binary → no routing (constitutional
-  // block would make the tool unusable on installs without cmd_runner).
-  if (!cmdRunnerAvailable()) return false
+  // FAIL-CLOSED (2026-09-18): availability is NOT part of routing. The old
+  // graceful skip let a missing wrapper disable the whole guard silently;
+  // now the absence surfaces in enforceBinaryViaCmdRunner as a BLOCK.
   return true
 }
 
@@ -271,6 +301,9 @@ export function shouldRouteViaCmdRunner(command: string): boolean {
  */
 export function autoWrapCmdRunner(command: string): { command: string; wrapped: boolean } {
   if (!shouldRouteViaCmdRunner(command)) return { command, wrapped: false }
+  // No wrapper binary → do not wrap (the shell would only say "not found");
+  // stay bare so enforceBinaryViaCmdRunner throws with the real reason.
+  if (!cmdRunnerAvailable()) return { command, wrapped: false }
   return { command: `cmd_runner start -- ${command}`, wrapped: true }
 }
 
@@ -280,6 +313,7 @@ export function autoWrapBinary(
   args: string[],
 ): { binary: string; args: string[]; wrapped: boolean } {
   if (!shouldRouteViaCmdRunner([binary, ...args].join(" "))) return { binary, args, wrapped: false }
+  if (!cmdRunnerAvailable()) return { binary, args, wrapped: false }
   return { binary: "cmd_runner", args: ["start", "--", binary, ...args], wrapped: true }
 }
 
@@ -292,8 +326,11 @@ export function autoWrapBinary(
 export function enforceBinaryViaCmdRunner(command: string): void {
   if (!shouldRouteViaCmdRunner(command)) return
   const match = command.match(CRASH_PRONE_RE)?.[0]?.trim() ?? "binary"
+  const hint = cmdRunnerAvailable()
+    ? `Use: cmd_runner start -- ${match} <args...>`
+    : `cmd_runner was NOT found (searched PATH and beside the binary) — the command is ` +
+      `blocked rather than run bare. Install or locate cmd_runner, then retry.`
   throw new Error(
-    `constitution: ${match} must run through cmd_runner for process isolation. ` +
-    `Use: cmd_runner start -- ${match} <args...>`,
+    `constitution: ${match} must run through cmd_runner for process isolation. ${hint}`,
   )
 }

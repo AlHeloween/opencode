@@ -142,11 +142,16 @@ describe("cmd_runner auto-wrap (constitution routing)", () => {
     expect(() => enforceBinaryViaCmdRunner("cmd_runner start -- cargo build")).not.toThrow()
   })
 
-  test("graceful skip: without cmd_runner in PATH nothing routes and nothing throws", () => {
+  // 2026-09-18: fail-closed. A missing wrapper used to disable the whole guard
+  // silently (one WARN), so every crash-prone binary ran bare. Routing is now
+  // independent of availability; the absence surfaces as a BLOCK with the reason.
+  test("fail-closed: without cmd_runner the crash-prone command is BLOCKED, not run bare", () => {
     setCmdRunnerProbe(false)
     expect(autoWrapCmdRunner("cargo build --release").wrapped).toBe(false)
-    expect(shouldRouteViaCmdRunner("bun test x")).toBe(false)
-    expect(() => enforceBinaryViaCmdRunner("cargo build --release")).not.toThrow()
+    expect(shouldRouteViaCmdRunner("bun test x")).toBe(true)
+    expect(() => enforceBinaryViaCmdRunner("cargo build --release")).toThrow(/must run through cmd_runner/)
+    expect(() => enforceBinaryViaCmdRunner("cargo build --release")).toThrow(/NOT found/)
+    expect(() => enforceBinaryViaCmdRunner("cmd_runner start -- cargo build")).not.toThrow()
   })
 })
 

@@ -205,15 +205,6 @@ const CRASH_PRONE_RE = new RegExp(
 const VIA_CMD_RUNNER = /\bcmd_runner(?:\.exe)?\b/i
 
 /**
- * bun is crash-prone ONLY for `bun test` (TUI-crashing test runner).
- * `bun run` / `bun build` / `bun x` stay unwrapped (user directive 2026-09-09).
- * "bun test" | "bun ./test/..." → true; "bun run x" / bare "bun" → false.
- */
-function isBunTestInvocation(command: string): boolean {
-  return /(?:^|[;&|]\s*)\bbun(?:\.exe)?\s+(?:test\b|\.\/test\b|\S*\.test\.)/i.test(command)
-}
-
-/**
  * cmd_runner availability probe (cached). Constitution routing requires the
  * wrapper binary; without it routing degrades gracefully (skip, one warn).
  * Tests override the probe via setCmdRunnerProbe().
@@ -261,10 +252,11 @@ export function shouldRouteViaCmdRunner(command: string): boolean {
   if (VIA_CMD_RUNNER.test(command)) return false
   const match = command.match(CRASH_PRONE_RE)
   if (!match) return false
-  // bun: only test invocations are routed; run/build/x stay bare.
-  if (/\bbun(?:\.exe)?\b/i.test(match[0])) {
-    if (!isBunTestInvocation(command)) return false
-  }
+  // bun is a full member of the class (carve-out retired 2026-09-18).
+  // `bun typecheck` → `tsgo --noEmit` prints NOTHING on success and `bun build`
+  // runs for minutes: the exact class this guard exists for. The old "bun test
+  // only" exception (user directive 2026-09-09) left them bare and exposed to
+  // the background-job stall heartbeat, which auto-kills a silent child at 120s.
   // Graceful degradation: no wrapper binary → no routing (constitutional
   // block would make the tool unusable on installs without cmd_runner).
   if (!cmdRunnerAvailable()) return false

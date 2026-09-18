@@ -81,11 +81,22 @@ describe("cmd_runner auto-wrap (constitution routing)", () => {
     expect(shouldRouteViaCmdRunner("bun test")).toBe(true)
   })
 
-  test("bun run/build/x are NOT wrapped (user directive 2026-09-09)", () => {
-    for (const cmd of ["bun run script.ts", "bun run build", "bun build ./x.ts", "bun x somepkg"]) {
+  // 2026-09-18: the "bun test only" carve-out (user directive 2026-09-09) is
+  // RETIRED. `bun run` drives long, SILENT children (tsgo prints nothing on
+  // success) — the exact class the guard exists for, and one the background-job
+  // stall heartbeat auto-kills after 120s of silence.
+  test("bun run/build/x/typecheck are wrapped (carve-out retired 2026-09-18)", () => {
+    for (const cmd of [
+      "bun typecheck",
+      "bun run script.ts",
+      "bun run build",
+      "bun build ./x.ts",
+      "bun x somepkg",
+    ]) {
       const r = autoWrapCmdRunner(cmd)
-      expect(r.wrapped).toBe(false)
-      expect(shouldRouteViaCmdRunner(cmd)).toBe(false)
+      expect(r.wrapped).toBe(true)
+      expect(r.command).toBe(`cmd_runner start -- ${cmd}`)
+      expect(shouldRouteViaCmdRunner(cmd)).toBe(true)
     }
   })
 
@@ -118,9 +129,9 @@ describe("cmd_runner auto-wrap (constitution routing)", () => {
     expect(w.wrapped).toBe(true)
     expect(w.binary).toBe("cmd_runner")
     expect(w.args).toEqual(["start", "--", "bun", "test", "foo.test.ts"])
-    const runNotWrapped = autoWrapBinary("bun", ["run", "script.ts"])
-    expect(runNotWrapped.wrapped).toBe(false)
-    expect(runNotWrapped.binary).toBe("bun")
+    const runWrapped = autoWrapBinary("bun", ["run", "script.ts"])
+    expect(runWrapped.wrapped).toBe(true)
+    expect(runWrapped.binary).toBe("cmd_runner")
     const plain = autoWrapBinary("git", ["status"])
     expect(plain.wrapped).toBe(false)
     expect(plain.binary).toBe("git")

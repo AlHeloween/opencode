@@ -87,8 +87,8 @@ function renderedText(): string {
     .join("\n")
 }
 
-async function render(content: string): Promise<void> {
-  const markdown = createMarkdown({ content, syntaxStyle })
+async function render(content: string, options: Partial<MarkdownOptions> = {}): Promise<void> {
+  const markdown = createMarkdown({ content, syntaxStyle, ...options })
   renderer.root.add(markdown)
   await renderer.idle()
   // Highlighting is async per block; capturing before it lands would assert the
@@ -228,6 +228,39 @@ test("application EMPHASIS survives highlighting, not just colour", async () => 
   expect(emphasised).toBeDefined()
   expect(emphasised!.attributes & TextAttributes.BOLD).toBeTruthy()
   expect(emphasised!.fg.toInts()).toEqual(REASONING_DIM.toInts())
+})
+
+// ── The renderable's OWN colour ──────────────────────────────────────────────
+//
+// The gap that let the 2026-09-18 regression through TWICE: every test above
+// hands the renderer a hand-built `initialStyledText`, so `createChunk` — the
+// place the renderer builds its own chunks, and the place the `fg` prop was
+// being replaced by the syntax `default` scope — had no coverage at all. With
+// no tree-sitter the text buffer paints the `fg` prop, which is why muted
+// reasoning looked right before highlighting existed and light once it landed
+// (Alexander, 2026-09-18: "цвет thinking должен быть как у комментов", and
+// `syntaxComment` IS `textMuted` — theme.tsx:618).
+test("the renderable's fg prop reaches its own chunks, not the syntax default", async () => {
+  await render("Considering the transport ladder.", { fg: REASONING_DIM })
+
+  const span = spanContaining("transport ladder")
+  expect(span).toBeDefined()
+  expect(span!.fg.toInts()).toEqual(REASONING_DIM.toInts())
+  expect(span!.fg.toInts()).not.toEqual(BODY.toInts())
+})
+
+test("a long token in the LAST fenced block is emitted once, not duplicated at the end", async () => {
+  // Alexander, 2026-09-18: the SV block is the last block of every reply, and a
+  // fragment of its 32-zero `parent-goal-md5` line shows up AGAIN on its own
+  // line at the very end — "эта ошибка вылезает только в конце". A wrap would hit
+  // any line, so only the end-of-content path can do this: the trailing
+  // `content.slice(currentOffset)` push (tree-sitter-styled-text.ts:320). Count
+  // the characters rather than trusting the shape.
+  const zeros = "0".repeat(32)
+  await render(["Text before.", "", "```yaml", `parent-goal-md5: ${zeros}`, "```"].join("\n"))
+
+  const zeroCount = [...renderedText()].filter((character) => character === "0").length
+  expect(zeroCount).toBe(32)
 })
 
 test("a source file with no application styling is fully driven by its grammar", async () => {

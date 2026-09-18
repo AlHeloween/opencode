@@ -467,18 +467,33 @@ export class MarkdownRenderable extends Renderable {
   }
 
   private createChunk(text: string, group: string, link?: { url: string }): TextChunk {
-    const style = this.getStyle(group) || this.getStyle("default")
+    // One rule for two sources (2026-09-18): the value that DIFFERS from the
+    // ordinary one wins, and the source does not matter. `default` IS the
+    // ordinary — asking for the `default` group is not a colour opinion — so the
+    // renderable's own `fg` takes it. That is exactly what the text buffer
+    // paints when there is no highlighting, which is why muted reasoning looked
+    // right before highlighting and light after it landed (Alexander,
+    // 2026-09-18: "цвет thinking должен быть как у комментов"; and
+    // `syntaxComment` IS `textMuted` — theme.tsx:618). The application's tint
+    // also outranks a REAL group colour, the same precedence the tree-sitter
+    // merge applies. For ordinary text `_fg` equals the default, so nothing
+    // outside tinted content moves.
+    const groupStyle = this.getStyle(group)
+    const ordinary = this.getStyle("default")
+    const isOpinion = (colour?: RGBA) => colour !== undefined && !colorsEqual(colour, ordinary?.fg)
+    const fg = isOpinion(this._fg) ? this._fg : isOpinion(groupStyle?.fg) ? groupStyle!.fg : ordinary?.fg
+    const attributes = groupStyle ?? ordinary
     return {
       __isChunk: true,
       text,
-      fg: style?.fg,
-      bg: style?.bg,
-      attributes: style
+      fg,
+      bg: groupStyle?.bg ?? ordinary?.bg,
+      attributes: attributes
         ? createTextAttributes({
-            bold: style.bold,
-            italic: style.italic,
-            underline: style.underline,
-            dim: style.dim,
+            bold: attributes.bold,
+            italic: attributes.italic,
+            underline: attributes.underline,
+            dim: attributes.dim,
           })
         : 0,
       link,

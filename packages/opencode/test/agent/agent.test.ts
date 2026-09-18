@@ -1,10 +1,17 @@
-import { afterEach, test, expect } from "bun:test"
+import { afterEach, setDefaultTimeout, test, expect } from "bun:test"
 import { Effect } from "effect"
 import path from "path"
 import { provideInstance, tmpdir } from "../fixture/fixture"
 import { Instance } from "../../src/project/instance"
 import { Agent } from "../../src/agent/agent"
 import { Permission } from "../../src/permission"
+
+// Heavy integration suite: every test boots an instance over a fresh tmpdir
+// (some with `git: true`), measured 4–5.5s under load — the 5s default made
+// borderline tests flake nondeterministically (2026-09-18: two different
+// tests timed out in two consecutive full-file runs). Explicit default for
+// this file; per-test options still win where set.
+setDefaultTimeout(20_000)
 
 // Helper to evaluate permission for a tool with wildcard pattern
 function evalPerm(agent: Agent.Info | undefined, permission: string): Permission.Action | undefined {
@@ -248,6 +255,10 @@ test("coder can implement product files but cannot delegate or change plans", as
       expect(evalPerm(coder, "task")).toBe("deny")
       expect(evalPerm(coder, "pipeline")).toBe("deny")
       expect(evalPerm(coder, "jobkill")).toBe("deny")
+      // jobreset is deliberately NOT denied: it is session-scoped and
+      // non-destructive (re-arms the stall deadline the warning announces),
+      // and coder runs its own long oracle jobs in background (2026-09-18).
+      expect(evalPerm(coder, "jobreset")).toBe("allow")
     },
   })
 })
@@ -398,6 +409,8 @@ test("media agent cannot delegate or cancel shared jobs", async () => {
       expect(evalPerm(media, "task")).toBe("deny")
       expect(evalPerm(media, "pipeline")).toBe("deny")
       expect(evalPerm(media, "jobkill")).toBe("deny")
+      // Same as coder: reset ≠ cancel — media may re-arm its own jobs.
+      expect(evalPerm(media, "jobreset")).toBe("allow")
     },
   })
 })

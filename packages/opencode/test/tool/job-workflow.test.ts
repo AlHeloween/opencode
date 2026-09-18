@@ -1,12 +1,13 @@
 /**
  * End-to-end tests for the full background job workflow:
- *   bash (background) → job_output → job_wait → stalled detection → job_kill
+ *   bash (background) → job_output → job_wait → stalled detection → job_kill / job_reset
  *
  * Validates:
  *   - Commands run non-blocking by default
- *   - job_output returns incremental output + status
+ *   - job_output returns incremental output + status WHILE the job runs (streaming)
  *   - job_wait polls until terminal state
  *   - Stalled detection fires after 15s no output
+ *   - job_reset re-arms a running job's stall deadline; no-op on terminal jobs
  *   - job_kill transitions running/stalled → killed
  *   - job_kill is a no-op on already-terminal jobs
  */
@@ -18,6 +19,7 @@ import { Shell } from "../../src/shell/shell"
 import { BashTool } from "../../src/tool/bash"
 import { JobOutputTool, JobWaitTool } from "../../src/tool/joboutput"
 import { JobKillTool } from "../../src/tool/jobkill"
+import { JobResetTool } from "../../src/tool/jobreset"
 import { Instance } from "../../src/project/instance"
 import { Agent } from "../../src/agent/agent"
 import { Truncate } from "@/tool/truncate"
@@ -50,6 +52,9 @@ async function initJobWait() {
 }
 async function initJobKill() {
   return runtime.runPromise(JobKillTool.pipe(Effect.flatMap((info) => info.init())))
+}
+async function initJobReset() {
+  return runtime.runPromise(JobResetTool.pipe(Effect.flatMap((info) => info.init())))
 }
 
 const projectRoot = path.join(__dirname, "../..")
@@ -107,14 +112,25 @@ describe("tool.job-workflow", () => {
         expect(jobID).toBeDefined()
         expect(started.output).toContain("background job")
 
-        // 2. Read output incrementally — should see partial lines
-        await runtime.runPromise(Effect.sleep(1500)) // wait for first lines
-        const out1 = await runtime.runPromise(
-          jobOutput.execute({ job_id: jobID as string }, ctx),
-        )
-        expect(out1.metadata.status).toMatch(/running|done/)
-        // Should have some output from the first 1-2 lines
-        expect(out1.output.length).toBeGreaterThan(0)
+        // 2. Poll job_output until real command output appears. It MUST appear
+        //    while the job is still running: this is the streaming invariant.
+        //    Without the cmd/bash `onOutput` wiring the job output never leaves
+        //    the `[started]` banner and this read never sees command output
+        //    (2026-09-18 — silent long jobs used to be auto-killed because of it).
+        let streamedText = ""
+        let streamedStatus = ""
+        const streamDeadline = Date.now() + 8000
+        while (Date.now() < streamDeadline) {
+          const out = await runtime.runPromise(
+            jobOutput.execute({ job_id: jobID as string }, ctx),
+          )
+          streamedText = out.output
+          streamedStatus = out.metadata.status as string
+          if (/line \d/.test(streamedText) || streamedStatus !== "running") break
+          await Bun.sleep(250)
+        }
+        expect(streamedText).toMatch(/line \d/)
+        expect(streamedStatus).toBe("running")
 
         // 3. Wait for completion
         const waited = await runtime.runPromise(
@@ -202,7 +218,50 @@ describe("tool.job-workflow", () => {
         )
         expect(result.metadata.killed).toBe(false)
         expect(result.output).toContain("not running")
+
+        // The no-op must PRESERVE the terminal record — a done job stays done
+        // (the old code rewrote it to "killed" and reported success).
+        const final = await runtime.runPromise(
+          jobOutput.execute({ job_id: jobID as string }, ctx),
+        )
+        expect(final.metadata.status).toBe("done")
       },
     })
   }, { timeout: 15_000 })
+
+  test("job_reset re-arms a running job; no-op on a killed job", async () => {
+    await Instance.provide({
+      directory: projectRoot,
+      fn: async () => {
+        const bash = await initBash()
+        const jobReset = await initJobReset()
+        const jobKill = await initJobKill()
+
+        // 1. Running job → reset accepted (deadline re-armed, job keeps running)
+        const started = await runtime.runPromise(
+          bash.execute(
+            { command: silentCmd(), description: "Reset target" },
+            ctx,
+          ),
+        )
+        const jobID = started.metadata.jobID as string
+        const reset = await runtime.runPromise(
+          jobReset.execute({ job_id: jobID }, ctx),
+        )
+        expect(reset.metadata.reset).toBe(true)
+        expect(reset.output).toContain("reset")
+
+        // 2. Terminal job → no-op (reset never revives a killed job)
+        const killed = await runtime.runPromise(
+          jobKill.execute({ job_id: jobID }, ctx),
+        )
+        expect(killed.metadata.killed).toBe(true)
+        const resetAgain = await runtime.runPromise(
+          jobReset.execute({ job_id: jobID }, ctx),
+        )
+        expect(resetAgain.metadata.reset).toBe(false)
+        expect(resetAgain.output).toContain("not running")
+      },
+    })
+  }, { timeout: 20_000 })
 })

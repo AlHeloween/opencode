@@ -528,6 +528,14 @@ export const BashTool = Tool.define(
         env: NodeJS.ProcessEnv
         timeout: number
         description: string
+        /** Background mode: live job writer. Called per chunk so the job's
+         *  lastOutputAt tracks real output — the stall heartbeat measures
+         *  silence, not a buffered pipe (2026-09-18). */
+        onOutput?: (chunk: string) => void
+        /** Background mode: pid of the spawned root, attached to the job so
+         *  the stall warning can read CPU and the kill can taskkill /T the
+         *  tree (2026-09-18). */
+        onSpawn?: (pid: number) => void
       },
       ctx: Tool.Context,
     ) {
@@ -553,6 +561,7 @@ export const BashTool = Tool.define(
       const code: number | null = yield* Effect.scoped(
         Effect.gen(function* () {
           const handle = yield* spawner.spawn(cmd(input.shell, input.command, input.cwd, input.env))
+          input.onSpawn?.(Number(handle.pid))
 
           // NOTE: Do NOT early-return for cmd_runner. Effect.scoped release kills any
           // still-running child (Windows taskkill tree) — that aborted `cmd_runner start`
@@ -564,6 +573,7 @@ export const BashTool = Tool.define(
           // Separate stdout + stderr drains (tsc/bun/TS diagnostics → stderr).
           // Await both after exit. Prefer agent `2>&1` when piping into parsers.
           const onChunk = (chunk: string) => {
+            input.onOutput?.(chunk)
             const size = Buffer.byteLength(chunk, "utf-8")
             list.push({ text: chunk, size })
             used += size
@@ -769,7 +779,7 @@ export const BashTool = Tool.define(
                   sessionID: ctx.sessionID,
                   kind: "bash",
                   label: params.description || params.command.slice(0, 80),
-                  run: (_writeOutput) => Effect.gen(function* () {
+                  run: (writeOutput, self) => Effect.gen(function* () {
                     const result = yield* run(
                       {
                         shell,
@@ -778,6 +788,12 @@ export const BashTool = Tool.define(
                         env: yield* shellEnv(ctx, cwd),
                         timeout,
                         description: params.description,
+                        // Stream chunks into the job: `joboutput` shows
+                        // progress while running and the stall heartbeat sees
+                        // liveness (2026-09-18 — this wiring was missing and
+                        // every silent >2min job was auto-killed).
+                        onOutput: writeOutput,
+                        onSpawn: (pid) => self.setPid(pid),
                       },
                       ctx,
                     )

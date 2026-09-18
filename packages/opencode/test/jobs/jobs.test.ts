@@ -1,6 +1,11 @@
-import { describe, test, expect } from "bun:test"
+import { describe, test, expect, afterEach } from "bun:test"
 import { Effect } from "effect"
-import { Jobs } from "../../src/jobs"
+import { spawn, spawnSync } from "node:child_process"
+import { mkdtempSync, readFileSync, rmSync } from "fs"
+import { Database } from "bun:sqlite"
+import os from "os"
+import path from "path"
+import { Jobs, setStallThresholdsForTests, setCpuSamplerForTests, setJobsDbPathForTests } from "../../src/jobs"
 
 describe("JobManager", () => {
   test("starts a bash job and returns ID", async () => {
@@ -461,4 +466,451 @@ describe("JobManager", () => {
       }).pipe(Effect.provide(Jobs.layer)),
     )
   })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hard invariants (2026-09-18): stall warning, agent-resettable deadline, real
+// tree kill. Each test FAILS if the corresponding wiring is removed. They exist
+// because a silent >2min background job used to be auto-killed (blind heartbeat
+// — the tools never streamed into the job) while its process tree survived the
+// kill (taskkill ran after the root was already dead).
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("JobManager stall deadline + tree kill (hard invariants)", () => {
+  afterEach(() => {
+    setStallThresholdsForTests(undefined)
+    setCpuSamplerForTests(undefined)
+  })
+
+  test("silent job → stalled + warning with cpu, deadline and reset hint", async () => {
+    setStallThresholdsForTests({ stallMs: 80, killMs: 10_000, heartbeatMs: 40 })
+    setCpuSamplerForTests(async () => "42.0s")
+    const sessionID = `stall-warn-${Date.now()}` as any
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const svc = yield* Jobs.Service
+        const id = yield* svc.startEffect({
+          sessionID,
+          kind: "bash",
+          label: "silent-build",
+          run: (_write, self) => {
+            self.setPid(1234)
+            return Effect.never
+          },
+        })
+        yield* Effect.sleep(350)
+
+        const list = yield* svc.list({ sessionID })
+        expect(list.find((j) => j.id === id)?.status).toBe("stalled")
+
+        const note = yield* svc.drainBackgroundNote({ sessionID })
+        expect(note).toContain("potentially stalled")
+        expect(note).toContain(`jobreset ${id}`)
+        expect(note).toContain("42.0s")
+        expect(note).toMatch(/will be killed in \d+s/)
+
+        // The warning is one-per-episode: a second drain must not repeat it.
+        const note2 = yield* svc.drainBackgroundNote({ sessionID })
+        expect(note2).not.toContain("potentially stalled")
+      }).pipe(Effect.provide(Jobs.layer)),
+    )
+  })
+
+  test("jobreset returns the job to running and re-arms the deadline", async () => {
+    setStallThresholdsForTests({ stallMs: 60, killMs: 10_000, heartbeatMs: 30 })
+    const sessionID = `stall-reset-${Date.now()}` as any
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const svc = yield* Jobs.Service
+        const id = yield* svc.startEffect({ sessionID, kind: "bash", label: "long-build", run: () => Effect.never })
+        yield* Effect.sleep(250)
+        expect((yield* svc.list({ sessionID })).find((j) => j.id === id)?.status).toBe("stalled")
+
+        expect(yield* svc.reset({ sessionID, jobID: id })).toBe(true)
+        expect((yield* svc.list({ sessionID })).find((j) => j.id === id)?.status).toBe("running")
+
+        // A finished job cannot be re-armed.
+        yield* svc.kill({ sessionID, jobID: id })
+        expect(yield* svc.reset({ sessionID, jobID: id })).toBe(false)
+      }).pipe(Effect.provide(Jobs.layer)),
+    )
+  })
+
+  test("a reset job outlives the ORIGINAL deadline; without a reset it is killed", async () => {
+    setStallThresholdsForTests({ stallMs: 60, killMs: 1_500, heartbeatMs: 30 })
+    const sessionID = `stall-deadline-${Date.now()}` as any
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const svc = yield* Jobs.Service
+        const id = yield* svc.startEffect({ sessionID, kind: "bash", label: "deadline", run: () => Effect.never })
+        yield* Effect.sleep(600) // stalled at ~60; ORIGINAL kill would fire at ~1500
+        expect(yield* svc.reset({ sessionID, jobID: id })).toBe(true)
+
+        yield* Effect.sleep(1_100) // t≈1700 > original 1500, well before new ≈2100
+        const status = (yield* svc.list({ sessionID })).find((j) => j.id === id)?.status
+        expect(status).not.toBe("killed")
+
+        yield* Effect.sleep(900) // t≈2600 > new deadline ≈2100
+        expect((yield* svc.list({ sessionID })).find((j) => j.id === id)?.status).toBe("killed")
+      }).pipe(Effect.provide(Jobs.layer)),
+    )
+  })
+
+  test("kill terminates the REAL process tree (no orphan survives)", async () => {
+    setStallThresholdsForTests({ stallMs: 60_000, killMs: 60_000, heartbeatMs: 60_000 })
+    const sessionID = `tree-kill-${Date.now()}` as any
+    const isWin = process.platform === "win32"
+    // Root → child tree: cmd.exe → ping.exe (win) / sh → sleep (posix).
+    const child = isWin
+      ? spawn(process.env.COMSPEC ?? "cmd.exe", ["/c", "ping -t 127.0.0.1"], { windowsHide: true, stdio: "ignore" })
+      : spawn("sh", ["-c", "sleep 300"], { stdio: "ignore" })
+    const pid = child.pid!
+    const descendant = isWin ? "PING.EXE" : "sleep"
+    const countDescendants = async (): Promise<number> => {
+      const { execFile } = await import("node:child_process")
+      const out = await new Promise<string>((resolve) => {
+        execFile(
+          isWin ? "tasklist" : "pgrep",
+          isWin ? ["/FI", `IMAGENAME eq ${descendant}`, "/FO", "CSV", "/NH"] : ["-f", "sleep 300"],
+          { windowsHide: true },
+          (_e, stdout) => resolve(String(stdout)),
+        )
+      })
+      const lines = out
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean)
+      // tasklist prints an INFO line when nothing matches; match the image name.
+      return isWin ? lines.filter((l) => l.toUpperCase().includes(descendant.toUpperCase())).length : lines.length
+    }
+
+    try {
+      // Pre-condition: the descendant must be alive BEFORE the kill — otherwise
+      // the post-kill assertion would pass vacuously.
+      await new Promise((r) => setTimeout(r, 400))
+      expect(await countDescendants()).toBeGreaterThan(0)
+
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const svc = yield* Jobs.Service
+          const id = yield* svc.startEffect({
+            sessionID,
+            kind: "bash",
+            label: "tree",
+            run: (_w, self) => {
+              self.setPid(pid)
+              return Effect.never
+            },
+          })
+          yield* Effect.sleep(150)
+          yield* svc.kill({ sessionID, jobID: id })
+        }).pipe(Effect.provide(Jobs.layer)),
+      )
+
+      // Root must exit… (exitCode guard: the event may already have fired)
+      const exited =
+        child.exitCode !== null || child.signalCode !== null
+          ? true
+          : await Promise.race([
+              new Promise<boolean>((resolve) => child.once("exit", () => resolve(true))),
+              new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5_000)),
+            ])
+      expect(exited).toBe(true)
+
+      // …and the descendant must be gone too (this is the orphan the old order
+      // left behind: taskkill ran after the root was already dead).
+      let left = await countDescendants()
+      for (let i = 0; i < 20 && left > 0; i++) {
+        await new Promise((r) => setTimeout(r, 150))
+        left = await countDescendants()
+      }
+      expect(left).toBe(0)
+    } finally {
+      try {
+        child.kill()
+      } catch {
+        /* already dead */
+      }
+    }
+  }, { timeout: 30_000 })
+
+  test("incremental read sees streamed chunks after the [started] banner is replaced", async () => {
+    const sessionID = `stream-read-${Date.now()}` as any
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const svc = yield* Jobs.Service
+        const id = yield* svc.startEffect({
+          sessionID,
+          kind: "bash",
+          label: "stream-target",
+          run: (write) =>
+            Effect.gen(function* () {
+              yield* Effect.sleep(150)
+              write("chunk-1\n")
+              write("chunk-2\n")
+              return ""
+            }),
+        })
+        // Consume the [started] banner FIRST — the common agent pattern.
+        const banner = yield* svc.output({ sessionID, jobID: id })
+        expect(banner.text).toContain("[started]")
+        yield* Effect.sleep(300)
+        // The first chunk REWRITES the buffer (banner stripped). The read
+        // offset must not survive that rewrite, or the stream stays invisible
+        // (2026-09-18: slice(offset) past the shorter buffer returned "").
+        const next = yield* svc.output({ sessionID, jobID: id })
+        expect(next.text).toContain("chunk-1")
+        expect(next.text).toContain("chunk-2")
+      }).pipe(Effect.provide(Jobs.layer)),
+    )
+  })
+
+  // Source-level guards: these pin the WIRING, not the behaviour — exactly the
+  // kind of edit an upstream merge drops silently (the tools stopped streaming
+  // into the job, so the blind heartbeat killed every long job).
+  test("background tools stream into the job (cmd/bash wiring guard)", () => {
+    for (const file of ["cmd.ts", "bash.ts"]) {
+      const src = readFileSync(path.join(import.meta.dir, "..", "..", "src", "tool", file), "utf8")
+      expect(src).not.toContain("_writeOutput")
+      expect(src).toContain("onOutput: writeOutput")
+      expect(src).toContain("onSpawn: (pid) => self.setPid(pid)")
+    }
+  })
+
+  test("spawner kills the process TREE before the root (order guard)", () => {
+    const src = readFileSync(
+      path.join(import.meta.dir, "..", "..", "..", "core", "src", "cross-spawn-spawner.ts"),
+      "utf8",
+    )
+    const body = src.slice(src.indexOf("const killGroup"), src.indexOf("const killOne"))
+    const taskkill = body.indexOf("taskkill /pid")
+    const procKill = body.indexOf('proc.kill("SIGTERM")')
+    expect(taskkill).toBeGreaterThan(-1)
+    expect(procKill).toBeGreaterThan(-1)
+    expect(taskkill).toBeLessThan(procKill)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// pid persistence + instance-aware boot recovery + guarded zombie re-kill
+// (2026-09-18). Each test FAILS if the corresponding wiring is removed:
+//   * the pid must reach jobs.db (a PERSISTENT_WRITE claim — read the artifact
+//     back, never trust the in-memory map or a green typecheck),
+//   * a second runtime booting in the SAME worktree must leave a live
+//     runtime's rows alone (the old recovery flipped every `running` row),
+//   * a DEAD runtime's orphan tree must be killed, under the pid-reuse guard,
+//   * `job_kill` on a `killed` job must re-attempt a kill for a survivor.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("JobManager pid persistence + orphan recovery (hard invariants)", () => {
+  const spawned: Array<ReturnType<typeof spawn>> = []
+  const tmpDirs: string[] = []
+
+  function tempDbPath(): string {
+    const dir = mkdtempSync(path.join(os.tmpdir(), "jobs-pid-"))
+    tmpDirs.push(dir)
+    return path.join(dir, "jobs.db")
+  }
+
+  /** A real, long-lived process with NO children — a single pid to attach and
+   *  reap. Deliberately not a `cmd → ping` tree: `child.kill()` reaps the root
+   *  only, so the ping would survive as an orphan AND the sibling tree-kill test
+   *  counts PING.EXE machine-wide (2026-09-18: leaked pings broke that test). */
+  function longLivedChild() {
+    const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" })
+    spawned.push(child)
+    return child
+  }
+
+  /** A pid that is provably dead by the time it is returned. */
+  async function deadPid(): Promise<number> {
+    const p = spawn(process.execPath, ["-e", "0"], { stdio: "ignore" })
+    const pid = p.pid as number
+    await new Promise((resolve) => p.once("exit", resolve))
+    return pid
+  }
+
+  function isAlive(pid: number): boolean {
+    try {
+      process.kill(pid, 0)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /** Effect-friendly poll for a real process death. */
+  function waitGone(pid: number, ms: number) {
+    return Effect.gen(function* () {
+      const deadline = Date.now() + ms
+      while (Date.now() < deadline) {
+        if (!isAlive(pid)) return true
+        yield* Effect.sleep(150)
+      }
+      return false
+    })
+  }
+
+  function seedRow(
+    dbPath: string,
+    row: { id: string; status: string; pid: number | null; ownerPid: number | null; startedAt: number },
+  ) {
+    const db = new Database(dbPath, { create: true })
+    db.run(
+      `CREATE TABLE IF NOT EXISTS job (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, kind TEXT NOT NULL,
+        label TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'running', output TEXT NOT NULL DEFAULT '',
+        result TEXT NOT NULL DEFAULT '', started_at INTEGER NOT NULL, finished_at INTEGER NOT NULL DEFAULT 0,
+        pid INTEGER, owner_pid INTEGER)`,
+    )
+    db.run(
+      "INSERT OR REPLACE INTO job (id, session_id, kind, label, status, started_at, pid, owner_pid) VALUES (?, 's', 'bash', 'seeded', ?, ?, ?, ?)",
+      [row.id, row.status, row.startedAt, row.pid, row.ownerPid],
+    )
+    db.close()
+  }
+
+  function readRow(dbPath: string, id: string): { status: string; pid: number | null; owner_pid: number | null } | null {
+    const db = new Database(dbPath, { readonly: true })
+    const row = db.query("SELECT status, pid, owner_pid FROM job WHERE id = ?").get(id) as any
+    db.close()
+    return row ?? null
+  }
+
+  function readLatest(dbPath: string): { id: string; pid: number | null; owner_pid: number | null } | null {
+    const db = new Database(dbPath, { readonly: true })
+    const row = db.query("SELECT id, pid, owner_pid FROM job ORDER BY started_at DESC LIMIT 1").get() as any
+    db.close()
+    return row ?? null
+  }
+
+  /** Touch the DB through the service so `getJobsDb()` opens and runs recovery. */
+  async function openViaService(sessionID: string) {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const svc = yield* Jobs.Service
+        yield* svc.start({ sessionID: sessionID as any, kind: "bash", label: "touch", run: async () => "" })
+      }).pipe(Effect.provide(Jobs.layer)),
+    )
+  }
+
+  afterEach(() => {
+    setJobsDbPathForTests(undefined)
+    setStallThresholdsForTests(undefined)
+    for (const c of spawned.splice(0)) {
+      if (!c.pid || c.exitCode !== null) continue
+      if (process.platform === "win32") {
+        // Tree-kill, not child.kill(): reap whatever the test left attached.
+        try {
+          spawnSync("taskkill", ["/pid", String(c.pid), "/T", "/F"], { windowsHide: true })
+        } catch {
+          /* already dead */
+        }
+      } else {
+        try {
+          c.kill("SIGKILL")
+        } catch {
+          /* already dead */
+        }
+      }
+    }
+    for (const d of tmpDirs.splice(0)) {
+      try {
+        rmSync(d, { recursive: true, force: true })
+      } catch {
+        /* best effort */
+      }
+    }
+  })
+
+  test("persists pid + owner_pid to jobs.db (write-path artifact read)", async () => {
+    const dbPath = tempDbPath()
+    setJobsDbPathForTests(dbPath)
+    const sessionID = `pid-persist-${Date.now()}` as any
+
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const svc = yield* Jobs.Service
+        yield* svc.startEffect({
+          sessionID,
+          kind: "bash",
+          label: "pid-persist",
+          run: (_write, self) => {
+            self.setPid(424242)
+            return Effect.never
+          },
+        })
+        yield* Effect.sleep(150)
+      }).pipe(Effect.provide(Jobs.layer)),
+    )
+
+    const row = readLatest(dbPath)
+    expect(row).not.toBeNull()
+    expect(row!.pid).toBe(424242)
+    expect(row!.owner_pid).toBe(process.pid)
+  }, { timeout: 20_000 })
+
+  test("boot recovery leaves a LIVE runtime's running job alone", async () => {
+    const dbPath = tempDbPath()
+    const owner = longLivedChild() // a live process that is NOT us
+    const peer = longLivedChild() // would be killed if the owner gate failed
+    seedRow(dbPath, { id: "bash-99", status: "running", pid: peer.pid as number, ownerPid: owner.pid as number, startedAt: Date.now() })
+
+    setJobsDbPathForTests(dbPath)
+    await openViaService(`recover-live-${Date.now()}`)
+    // The tree kill is fire-and-forget; give a wrong implementation time to act.
+    await new Promise((r) => setTimeout(r, 1_000))
+
+    expect(readRow(dbPath, "bash-99")!.status).toBe("running") // NOT clobbered
+    expect(isAlive(peer.pid as number)).toBe(true) // process untouched
+  }, { timeout: 20_000 })
+
+  test("boot recovery kills a DEAD runtime's orphan tree (pid-reuse guarded)", async () => {
+    const dbPath = tempDbPath()
+    const victim = longLivedChild()
+    const gone = await deadPid()
+    seedRow(dbPath, { id: "bash-98", status: "running", pid: victim.pid as number, ownerPid: gone, startedAt: Date.now() })
+
+    setJobsDbPathForTests(dbPath)
+    await openViaService(`recover-dead-${Date.now()}`)
+
+    const dead = await Effect.runPromise(waitGone(victim.pid as number, 8_000))
+    expect(dead).toBe(true)
+    expect(readRow(dbPath, "bash-98")!.status).toBe("killed")
+  }, { timeout: 30_000 })
+
+  test("job_kill on a killed job re-attempts a guarded re-kill for a survivor", async () => {
+    const sessionID = `zombie-${Date.now()}` as any
+    const survivor = longLivedChild()
+
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const svc = yield* Jobs.Service
+        let self: { setPid: (pid: number) => void } | undefined
+        const id = yield* svc.startEffect({
+          sessionID,
+          kind: "bash",
+          label: "zombie",
+          run: (_write, s) => {
+            self = s
+            return Effect.never
+          },
+        })
+
+        // First kill: no pid attached yet, so the job goes terminal without
+        // touching a process — reproducing exactly the state the agent sees
+        // when a kill failed to reap its tree (status "killed", process alive).
+        expect(yield* svc.kill({ sessionID, jobID: id })).toBe(true)
+        expect((yield* svc.list({ sessionID })).find((j) => j.id === id)?.status).toBe("killed")
+        self!.setPid(survivor.pid as number)
+
+        // Guarded re-kill: the pid is still ours → the tree is killed again.
+        expect(yield* svc.kill({ sessionID, jobID: id })).toBe(true)
+        expect(yield* waitGone(survivor.pid as number, 8_000)).toBe(true)
+
+        // The pid is gone → nothing to sweep, and the terminal record stays.
+        expect(yield* svc.kill({ sessionID, jobID: id })).toBe(false)
+        expect((yield* svc.list({ sessionID })).find((j) => j.id === id)?.status).toBe("killed")
+      }).pipe(Effect.provide(Jobs.layer)),
+    )
+  }, { timeout: 30_000 })
 })

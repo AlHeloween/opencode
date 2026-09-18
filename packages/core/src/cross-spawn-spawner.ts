@@ -297,15 +297,20 @@ export const make = Effect.gen(function* () {
   ) => {
     if (globalThis.process.platform === "win32") {
       return Effect.callback<void>((resume) => {
-        // Try proc.kill() first — sends to the direct child immediately.
-        // Then taskkill /T /F to ensure the entire process tree (grandchildren,
-        // job objects, detached processes) is terminated.
-        try {
-          proc.kill("SIGTERM")
-        } catch (e) {
-          log.debug("proc.kill SIGTERM failed", { error: String(e) })
-        }
-        NodeChildProcess.exec(`taskkill /pid ${proc.pid} /T /F`, { windowsHide: true }, (_err) => {
+        // taskkill /T /F FIRST, while the root is still alive: `/T` walks the
+        // CURRENT process tree of the given pid, and a dead root has no tree
+        // to walk — its grandchildren are re-parented and survive. That is how
+        // a "killed" build job kept running as an orphan and wiped dist
+        // (2026-09-18). proc.kill is the fallback for the unlikely case
+        // taskkill cannot find the pid at all.
+        NodeChildProcess.exec(`taskkill /pid ${proc.pid} /T /F`, { windowsHide: true }, (err) => {
+          if (err) {
+            try {
+              proc.kill("SIGTERM")
+            } catch (e) {
+              log.debug("proc.kill SIGTERM failed", { error: String(e) })
+            }
+          }
           // Don't fail on taskkill errors — process may have already exited,
           // PID may have been reused, or the process tree was already cleaned up.
           // The important thing is we tried. Zombie processes are better than a

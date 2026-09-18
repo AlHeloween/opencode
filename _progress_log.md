@@ -1,5 +1,81 @@
 # Progress Log
 
+## [2026-09-18] Jobs: rebuild + deploy (10.0.1013) with a live boot-recovery smoke
+
+Reason: the jobs-pid task closed with a residual — the running binary predated the change, so pid persistence + instance-aware recovery existed only in source. User authorized "пересобрать сейчас" (PROMOTE_STABLE).
+
+Build: `pwsh _build.ps1 -Task build` → exit 0, `[OK] Build complete` (no `[FAIL]`). Artifact `dist/bin/opencode.exe`: SHA256 `99fd77c6…c0a` → `d6c5db66…b95`, size 306 472 960 → 306 475 520, version 10.0.1012 → **10.0.1013**.
+
+Deploy: `bin/opencode.exe` was **locked** (the live session, PID 9320). Windows permits RENAMING a running exe but not overwriting it — so `move bin\opencode.exe bin\opencode.exe.prebuild-bak` then `copy dist\bin\opencode.exe bin\opencode.exe`. The live TUI was **not** interrupted (PID 9320 alive throughout). `opentui.dll` + `opencode-markdownify.exe` are byte-identical between `dist\bin` and `bin\` → not copied.
+
+Oracles [Exact]:
+- Deploy read-back: `bin\opencode.exe` SHA256 == `dist\bin\opencode.exe` == `d6c5db66…b95`; rollback `bin\opencode.exe.prebuild-bak` == old `99fd77c6…c0a`.
+- `bin\opencode.exe --version` → **10.0.1013**.
+- Compiled-in proof: `findstr` finds my new strings inside the deployed binary (`re-killing a surviving process tree`, `orphan recovery left live runtimes`, `owner_pid`).
+- **Live runtime smoke** (new binary, `run` with a trivial prompt): `jobs.db` migrated **9 → 11 columns** (`pid`, `owner_pid` added — read back), and the log shows `service:"jobs"` → `"orphan jobs recovered", count:1` (`index.ts:335` is the new code). So T1 (migration) and T2 (recovery) execute in the COMPILED binary, not only in tests.
+
+Cleanup: the smoke created session `ses_f4c073d36ffe…` — deleted (`opencode session delete`). No stray `opencode.exe`/`bun.exe` left.
+
+Residual [Unknown]:
+- The live session (PID 9320) still runs the OLD binary; the new one takes over on the user's next start. `bin\opencode.exe.prebuild-bak` (306 MB) is the rollback.
+- Not exercised live: an orphan kill against a genuinely crashed runtime (seeded-dead-owner is covered by unit test #3), and a binary-created job row with a non-null `pid`.
+- Observed live and matching the recorded residual: the OLD runtime writes no `owner_pid`, so its rows are legacy → the new runtime flips them (`count:1`, cosmetic, no process touched).
+
+Post-restart live verification (user restarted into the new binary; running PID 596, `bin\opencode.exe`): a binary-created job row carries `pid=11172`/`owner_pid=596` (→ `done`) and a second `pid=3468`/`owner_pid=596` (→ `killed`); tree kill left **0 `PING.EXE`**; queue empty; no stray `cmd.exe`. The T1 write path is now proven live, closing that residual (old binary could not write `owner_pid`).
+
+## [2026-09-18] Jobs: pid persistence, instance-aware boot recovery, guarded zombie sweep
+
+Reason: the previous jobs task closed with two recorded residuals, both traced at G6 grounding to ONE root cause — a job's OS pid lived only in the in-memory `Map` (`Job.pid` / `setPid`) while `jobs.db` had no `pid` column, so (a) boot recovery had nothing to kill (a crashed runtime's trees survive: the spawner uses `detached:false` on Windows, and Windows does not kill children on parent death), and (b) recovery was a blind `UPDATE job SET status='killed' WHERE status='running'`, which corrupts a **live** neighbouring runtime's rows because `jobs.db` is per-worktree and shared.
+
+Change (`src/jobs/index.ts`):
+- Schema: `pid INTEGER`, `owner_pid INTEGER` in `CREATE TABLE` + guarded `ALTER TABLE` migration (`PRAGMA table_info`); `dbInsert`/`dbUpdate` write both; `Job.ownerPid = process.pid` at both construction sites.
+- `recoverOrphans(db)` replaces the blind UPDATE: a row whose `owner_pid` is a **live** process other than us is left alone; a dead owner's row → `killed` + guarded tree kill; a **legacy** row (`owner_pid IS NULL`) → `killed` but never killed (ownership unverifiable).
+- pid-reuse guard: module-level `processStartTimes` (one batched `Get-Process … .StartTime.ToUniversalTime().Ticks`), `isPidOurs` (|start − startedAt| ≤ 60 s), `killTreePid` (the in-layer `killTree` now delegates to it), `killOrphanTrees`. Fail-safe: an unreadable probe ⇒ do not kill.
+- `kill()` on a `killed` job re-attempts a **guarded** tree kill (zombie sweep) → `true` when the pid is still ours, else `false` + warn; `done`/`failed` unchanged.
+- Test hook `setJobsDbPathForTests` (isolates jobs.db per test).
+
+Bug found and fixed during the work — by an isolated probe, not by a guess: `Process.StartTime.Ticks` is **local** wall-clock, so comparing it to `Date.now()` (UTC epoch) put every pid exactly −8 h outside the 60 s window (measured `delta = −28 799 352 ms`). The guard would have silently **never** fired — a no-op, not an error. `.ToUniversalTime().Ticks` fixes it (re-measured `delta = 520 ms`).
+
+Test defect found and fixed: my new tests first spawned `cmd → ping` trees; `child.kill()` reaps the root only, so PING.EXE leaked — and the sibling tree-kill test counts PING.EXE **machine-wide**, so the suite broke. Now the tests use a single childless long-lived process and reap via `taskkill /T /F`. The 6 pings leaked by the aborted runs were killed by explicit pid (verified: 0 remain). The machine-wide counting in the sibling test is a pre-existing weakness, worked around rather than fixed here.
+
+Oracle [Exact]:
+- `bun test test/jobs/` → **27 pass / 0 fail** (baseline 23; +4 new).
+- `bun test test/tool/job-workflow.test.ts` → **4 pass / 0 fail**; `bun test test/agent/agent.test.ts` → **50 pass / 0 fail**; `bun test test/effect/cross-spawn-spawner.test.ts` (packages/core) → **24 pass / 0 fail**.
+- `bun typecheck` both packages → **exit 0**.
+- Write-path artifact read: the pid test reads `jobs.db` back (`pid = 424242`, `owner_pid = process.pid`) instead of trusting the in-memory map.
+- **Negative control:** with `PID_MATCH_WINDOW_MS = 0` the two kill tests FAIL (dead-owner orphan survives; zombie re-kill returns `false`) while the live-owner test still PASSES — the tests are sensitive to the guard itself, not vacuous. Reverted to `60_000`, re-confirmed green.
+
+Residual [Unknown]:
+- Legacy rows (`owner_pid IS NULL`) from a previous build are flipped to `killed` by the first new-code open even while that old runtime is live — cosmetic in the DB only (the live runtime's in-memory map is authoritative, no process is touched); not backfillable, the owner was never recorded.
+- The pid-reuse probe is Windows-only; on POSIX the process group is signalled directly with no start-time check.
+- Rebuild/deploy not part of this task: the running binary predates the change, so recovery/sweep go live on the next build + start.
+
+## [2026-09-18] Jobs pipeline — streaming, agent-resettable stall deadline, real tree kill (+ hard tests)
+
+Reason: measured incident — every background `cmd`/`bash` job silent for >2 min was auto-killed by the stall heartbeat (bash-6/8/9 at +2m01–2m04s, output = `[started]` only) because the tools never passed `writeOutput` into the job (`cmd.ts:564` / `bash.ts:772` `run: (_writeOutput)`), so `lastOutputAt` never advanced. The kill also failed to kill the tree (bash-9 survived, wiped `dist`): `cross-spawn-spawner.ts` killed the ROOT first, then `taskkill /T` had no tree left to walk. User requirement (Alexander): the agent must be able to RESET the deadline after the `⚠ … potentially stalled; will be killed in Ns` notice.
+
+Change:
+- `src/tool/{cmd,bash}.ts`: background `run()` consumes `writeOutput` (`onOutput` in the run helper) + `onSpawn` attaches the root pid (`self.setPid`).
+- `src/jobs/index.ts`: job writer throttles persist/publish to ≥500ms (in-memory `lastOutputAt` updates on every chunk); heartbeat emits ONE ⚠ notice per stall episode (cpu, remaining seconds, `jobreset` hint); `Jobs.reset()` re-arms `stallResetAt`, clears the episode, returns to `running`; auto-kill at `max(lastOutputAt, stallResetAt) + 120s` kills the pid tree; `killTree` via `taskkill /T /F` / `kill(-pid)`.
+- `src/tool/jobreset.ts` (new, registered): `job_reset <id>`; deliberately NOT denied for coder/media agents (session-scoped, non-destructive; pinned in agent.test.ts).
+- `packages/core/src/cross-spawn-spawner.ts`: `killGroup` runs `taskkill /T /F` FIRST (tree walk needs a live root); `proc.kill` only as fallback.
+- Read-offset bug found during the work: the first chunk REWRITES the buffer (strips `[started]`), so an agent that had already read the banner got `slice(offset)` past the shorter buffer — the stream stayed invisible. Fixed in `output()` (restart from 0 when offset > buffer length) + offset reset at the three rewrite sites.
+- Pre-existing red resolved: `job_kill` on a terminal job flipped the status to "killed" and returned `true`, contradicting the tool contract + workflow test (red at HEAD — verified with `git show HEAD`). Now: terminal → no-op `false`, status preserved; warn kept for status="killed" (zombie suspicion).
+- `test/agent/agent.test.ts`: file-level `setDefaultTimeout(20_000)` (heavy Instance.provide+tmpdir suite; two tests flaked at 5.4–5.5s vs the 5s default under load, pass isolated).
+
+Oracle [Exact]:
+- `bun test test/jobs/` (packages/opencode) → 23 pass / 0 fail.
+- `bun test test/tool/job-workflow.test.ts` → 4 pass / 0 fail (streaming-while-running + job_reset).
+- `bun test test/agent/agent.test.ts` → 50 pass / 0 fail.
+- `bun test test/effect/cross-spawn-spawner.test.ts` (packages/core) → 24 pass / 0 fail.
+- `bun typecheck` both packages → exit 0.
+- Hard guards: stall notice text, reset survives the ORIGINAL deadline / killed after the NEW one, real-process tree kill (precondition asserted), source invariants (no `_writeOutput` in cmd/bash; taskkill before proc.kill), banner-replacement read recovery.
+- Rebuild `pwsh _build.ps1` via cmd_runner `20260918T083132Z_bc9b9ea5` → exit 0; build smoke `opencode.exe --version` → 10.0.1012. First attempt (`20260918T082805Z_58661675`) failed on the `dist\bin\opencode.exe` lock held by a leftover nested opencode (PID 8760, child of this session, 14:16 local) — killed with user approval, rebuild clean.
+
+Residual [Unknown]:
+- A pid-based re-kill sweep for a zombie that survived its kill (status "killed", process alive) does not exist: `job_kill` on a killed job now returns `false` + warns but does not attempt `taskkill` again (pid-reuse risk). The kill-time tree sweep covers the primary path.
+- Deploy [resolved 2026-09-18T08:36Z]: user rebuilt + restarted. The live session (only opencode process: PID 9320, `bin\opencode.exe`, started 16:35:43 local — after the 16:32:17 build) is byte-identical to the build artifact: SHA256 `99fd77c6e9aca200bbfc02c33c83a1e3cd9c7c51624336b6ee72aabd8e967c0a` for both `bin\opencode.exe` and `dist\bin\opencode.exe` (306,472,960 B). `bin/` is the runtime dir (`bin\.gitignore` hides the exe from `list`); the build mirrors `dist\bin\` into it. Fix is live in the running runtime; any process still on the pre-16:32 image picks it up on its next start.
+
 ## [2026-09-15] messages-pagination filterCompacted — contract alignment (tests were stale)
 
 Reason: 6 red tests in `test/session/messages-pagination.test.ts` encoded the pre-`82f88cf126` boundary-scan contract of `MessageV2.filterCompacted` (newest-first walk, compaction-part + summary-assistant boundary detection, `result.reverse()` to chronological). Commit `82f88cf126` (2026-07-16, "soft-delete instead of hard-delete") deliberately replaced that with an order-preserving `info.compacted` flag filter and updated `test/session/compaction.test.ts` but missed this file — reds since.
@@ -3211,3 +3287,55 @@ Oracle [Exact]:
 Residual: the Codex artifact is injected by hand into an external harness, so
 nothing verifies that the released text is the one actually running there —
 Hypothetical until that harness reports its own prefix digest.
+
+## [2026-09-18T00:01:23+08:00] PDF: Software Maturity Engine client cleanup
+
+- Preserved the original commercial report and produced a separate client PDF under `output/pdf/`.
+- Removed three internal `filecite/turn0file0` export artifacts and two dead chart-download prompts with true PDF redaction.
+- Reflowed the clipped page-14 financial outcome table into fully visible economics and return-metrics blocks without changing any values.
+- Replaced the clipped page-16 maturity cycle with an in-bounds searchable rendering; removed hidden out-of-media-box source glyphs.
+- Oracle [Exact]: 19/19 pages reopen and render; extracted text contains none of the removed markers; no glyph exceeds the media box; full contact-sheet review and original-resolution review of changed pages found no clipping, overlap, black squares, or unreadable text.
+- Source SHA-256 remained `F5B4C73449387C1D4BBE12B1B80F822281183EDE6457A3F919B92BADEFA40069`; output SHA-256 `E04BDA2CECB97B43199C9E9425D26DDC458CE29F3D2A1FD839E6B0C5B62D1EA8`.
+- The supplied eight-hour, two-agent benchmark under `D:\zPascal\XEComponents\.opencode\data` was acknowledged but intentionally excluded from this presentation-only edit.
+
+## [2026-09-18T08:45:00+08:00] Markdown inline layer verified fixed in the built binary; tree-sitter cache dirs audited
+
+- Drove the built product through cmd_runner (`dist/bin/opencode.exe --log-level DEBUG`): sent `markdown test: **bold** and `code` done`; the render concealed every marker (`markdown test: bold and code done`), the stored message kept them (session `ses_f4e0db194ffehQzM1pVpU8hndh`).
+- Worker log proves the chain: markdown wasm + both cached markdown queries load, then `tree-sitter-markdown_inline` wasm and its bundled `highlights.scm` load from `B:\~BUN\root` — the injection runs. No `bug:` lines.
+- The plan's "next step" as written could not have worked: `tui/worker.ts:17` pins INFO with no `logLevel`; the `/settings → Logging → logLevel` option has no consumer. The lever is `--log-level DEBUG` on the main process.
+- Audited the two paradigm-violating directories: `~/.local/share/opentui` (live: worker `initialize()` mkdirs `tree-sitter/{languages,queries}` per run; `download-utils.ts` is cache-first; `data-paths.ts` falls back to `os.homedir()` because the product never sets `XDG_DATA_HOME`) and `~/.local/share/opencode` (empty, created 2026-09-17 17:44:01 during the test window; no current writer; already a home-purity sentinel).
+- Fix proposal recorded in `plans/2026-09-18_markdown-inline-layer-missing.md` (redirect the opentui data path + embed queries at build time + sentinel + cleanup); not started, awaiting authorization.
+
+## [2026-09-18T09:07:00+08:00] Portability fix slice 1: OPENTUI_DATA_HOME redirect, infoStringMap, logLevel wiring, guard
+
+- A (redirect): `OPENTUI_DATA_HOME` registered in opentui `data-paths.ts` as a base override; `thread.ts`/`attach.ts` set it to `{worktree}/.opencode/data/cache` before the app module loads — the tree-sitter cache and the worker's eager mkdir no longer target the user home. Test `data-paths.test.ts` 5/5.
+- E (infoStringMap): restored in `packages/opencode/parsers-config.ts` (ts/js/jsx/tsx/md → canonical) — kills the live `bug: No parser found for injection language: ts`; the target-resolution invariant now covers infoStringMap. `parsers-config.test.ts` 5/5.
+- F (logLevel): the setting is wired — the TUI re-inits `Log` from `config.logLevel` after its bootstrap config fetch (CLI flag wins); `tui/worker.ts` now honors `--log-level` from argv.
+- C (guard): `.local/share/opentui` added to home-purity SENTINELS.
+- Cleanup: test session `ses_f4e0db194ffehQzM1pVpU8hndh` deleted (DB rows, checkpoint, `sessions/` + `session_diff/` state; log files left as history). `~/.local/share/opencode` — Alexander deletes himself (contains empty `log/` + `repos/`, hidden from list/glob).
+- Open: embed queries at build time (design + smoke contract in the plan) + one rebuild to activate A/F; delete the home opentui cache after the rebuild; full-suite purity run.
+
+## [2026-09-18T09:33:00+08:00] Portability fix slice 2: query embedding (offline-first, no runtime downloads)
+
+- `script/fetch-queries.ts`: fetches every query URL in `parsers-config.ts` into `assets/queries/<filetype>-<kind>-<n>.scm` (30 files) and generates `src/util/wasm-embedded-queries.ts` (URL → asset map). URLs stay the update source; `--refresh` re-pulls.
+- `resolvedParsers` (TUI session route) rewrites `queries.highlights`/`queries.injections` URLs to embedded paths, so the worker reads them from the binary instead of downloading into the OpenTUI data path.
+- `src/assets.d.ts` declares `*.scm`; without it tsgo hangs on the 30 unresolved file-attribute imports (12+ min, 3.3 GB) — declared, `tsgo --noEmit` exits 0 in seconds.
+- Found: `bat`'s query URL 404s upstream (nvim-treesitter has no batch query; the npm package ships none) — documented dead case, allowlisted in the embed test; runtime behaviour unchanged.
+- Oracles: `parsers-config.test.ts` 6/6 (incl. "every query URL is embedded"); `tsgo --noEmit` exit 0.
+- Smoke of slice 1 on the rebuilt v10.0.1006 (cmd_runner, DEBUG): cache reads from `{worktree}/.opencode/data/cache/opentui/…`; both home dirs gone and not recreated; a ```ts fence loaded `tree-sitter-typescript` from the embedded root with no warn; `--log-level DEBUG` produced the breadcrumbs.
+- Open: one rebuild to activate the embed; then the same smoke must show the queries loading from `B:\~BUN\root\…`; full-suite purity run.
+
+## [2026-09-18T12:47:00+08:00] Portability fix verified end to end on the embed build (v10.0.1007)
+
+- Embed smoke (cmd_runner, `--log-level DEBUG`): the markdown queries load from `B:\~BUN\root\markdown-highlights-0-*.scm` / `…markdown-injections-0-*.scm` — no `Loaded from cache` line, no runtime download. The `ts` fence still loads the typescript parser, no warn.
+- Cleanup: the smoke test session deleted; the stale pre-embed query cache under `{worktree}/.opencode/data/cache/opentui/tree-sitter/queries/` (4 files) removed; both home directories gone and not recreated.
+- Remaining: full `bun test` in `packages/opencode` (home-purity guard). First attempt used bare `bun test` — the default 5s timeout stalls the live tests; the package script is `bun test --timeout 30000` (`bun run test`), and the run is redone with it.
+
+## [2026-09-18T14:05:00+08:00] DeepSeek image delivery fixed (SDK bump) + WebP ingestion wired + whole @ai-sdk family updated
+
+- Root cause of vanishing images: `@ai-sdk/deepseek@3.0.26`'s converter is text-only — non-text parts went to `warnings` and were never serialized. 183 raw-wire bodies scanned: zero image parts; the 4-image turn shipped as plain text `"[Image 1]…"`. Fix: bump to 3.0.48 (emits `image_url` for gif/jpeg/png/webp) and delete `patches/@ai-sdk%2Fdeepseek@3.0.26.patch` — upstream `isDeepSeekV4Model` now covers `deepseek-flash` (keeps V4 CoT, backfills `reasoning_content`); `docs/reasoning-round-trip-contract.md` updated.
+- WebP: `attachment/handlers/image.ts` `normalize()` → quality 80 / effort 6 / resize cap 2000² / `animated: true`, `Effect.catch` (NOT `catchAll` — absent in effect@4.0.0-beta.57), never-failing fallback keeps original bytes. New `attachment/normalize.ts` side-effect-registers all handlers (the registry had NO importer in src/ — handlers were never registered) and exposes `normalizeAttachment()`; wired at ingestion: `session/prompt.ts` (every resolved user part) + `session/processor.ts` (tool-result media, stream-emitted files).
+- sharp: `packages/opencode/node_modules/sharp` was a stale REAL dir (2026-07-18 install) shadowing the root store symlink and carrying no `@img/*` deps → `Cannot find module '@img/colour'`. Moved to `.temp/stale-nm-20260918/sharp`; resolution now climbs to the root store link (vips 8.18.3 loads).
+- Family update (user directive, "массовая замена на проводах"): `ai` 7.0.31→7.0.106, `@ai-sdk/provider` 4.0.2→4.0.17, `provider-utils` 5.0.5→5.0.44, all 21 `@ai-sdk/*` + `ai-gateway-provider` 4.0.1 + `gitlab-ai-provider` 6.15.1; root catalog updated; `bun install` → 29 packages, clean.
+- Oracle [Exact]: `bun typecheck` exit 0; `bun test test/attachment/` 42/0; `test/provider/deepseek-image.test.ts` 1/0 (wire capture: `image_url` + `data:image/webp;base64,…`); LIVE `api.deepseek.com` smoke — text `ok` (in=37), 8×8 WebP → model answered **"Red"** (in=225); `bun test test/provider/` 490 pass / 1 fail = 5s-timeout flake under full-suite load (file passes isolated 79/79).
+- Residual [Unknown]: pre-fix history images stay PNG (ingestion-time conversion, no re-encode on replay); `config/attachment.ts` not mounted in the root Config schema (handler always uses its 2000² default); `@ai-sdk/vercel@3.0.30` still pins provider 4.0.7 (upstream lag, assignable — typecheck green); `venice-ai-sdk-provider` remains on the provider 3.x line (V3 models).

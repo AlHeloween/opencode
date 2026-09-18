@@ -16,7 +16,7 @@ export const JobOutputTool = Tool.define(
     const jobs = yield* Jobs.Service
     return {
       description:
-        "Read output from a background job. Returns any new output since the last read, plus the job's current status (running, stalled, done, failed, killed). Stalled means no output for 15s — the agent should consider killing it with jobkill.\n\n" +
+        "Read output from a background job. Returns any new output since the last read, plus the job's current status (running, stalled, done, failed, killed). Stalled means no output for 15s — call jobreset to extend the auto-kill deadline when the job is legitimately long, or jobkill to abort it.\n\n" +
         "Use the optional `pattern` parameter to grep/filter the full accumulated output without advancing the read offset. This lets you call joboutput multiple times with different patterns on the same output — unlike incremental reads which consume the output.\n\n" +
         "Example: after `jobwait` returns a large test output, call `joboutput` with pattern=\"FAIL\" to see failures, then pattern=\"Error\" to see errors — both see the same full output.",
       parameters: JobOutputParameters,

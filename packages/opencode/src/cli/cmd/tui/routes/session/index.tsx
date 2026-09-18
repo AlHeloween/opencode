@@ -23,7 +23,7 @@ import { useEvent } from "@tui/context/event"
 import { SplitBorder } from "@tui/component/border"
 import { Spinner } from "@tui/component/spinner"
 import { selectedForeground, useTheme } from "@tui/context/theme"
-import { ScrollBoxRenderable, addDefaultParsers, TextAttributes, RGBA } from "@opentui/core"
+import { ScrollBoxRenderable, addDefaultParsers, getTreeSitterClient, TextAttributes, RGBA } from "@opentui/core"
 import { Prompt, type PromptRef } from "@tui/component/prompt"
 import { splitTextSegments, type TextSegment } from "./text-segments"
 
@@ -121,6 +121,30 @@ const resolvedParsers = parsers.parsers.map((parser) => {
   return parser
 })
 addDefaultParsers(resolvedParsers)
+
+// The tree-sitter worker reports every failure it has — a missing parser for an
+// injected language, a highlight query that would not download, a query that
+// would not compile — by emitting `worker:log`. Nothing in the product was
+// listening, so all of it was discarded and the subsystem had NO observability
+// at all: a grammar could be absent for months and every surface would look
+// healthy (2026-09-18, half a day spent guessing at a pipeline that was telling
+// us what was wrong the whole time).
+//
+// Route it into the normal log. Warnings and errors carry the "bug:" prefix the
+// repo uses for unexpected conditions; the chatty per-query "Loaded from cache"
+// lines stay at debug.
+const treeSitterLog = Log.create({ service: "tree-sitter.worker" })
+getTreeSitterClient().on("worker:log", (logType, message) => {
+  if (logType === "error") {
+    treeSitterLog.warn(`bug: ${message}`)
+    return
+  }
+  if (logType === "warn") {
+    treeSitterLog.warn(`bug: ${message}`)
+    return
+  }
+  treeSitterLog.debug(message)
+})
 
 const GO_UPSELL_LAST_SEEN_AT = "go_upsell_last_seen_at"
 const GO_UPSELL_DONT_SHOW = "go_upsell_dont_show"

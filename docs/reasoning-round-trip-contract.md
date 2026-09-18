@@ -105,7 +105,19 @@ either stripped (DeepSeek) or undocumented (assume hostile).
 - `packages/opencode/src/provider/transform.ts` — per-vendor branches for the
   non-gateway routes: DeepSeek/MIMO tool-call turns keep full CoT echo; no-tool
   turns drop it (vendor-ignored); openai-compatible routes drop historical
-  reasoning (KAT/StreamLake, Qwen docs, zen-proxied Kimi/GLM verified no-echo).
+  reasoning (KAT/StreamLake live-verified, Qwen opt-in, zen-proxied Kimi/GLM
+  live-verified). Qwen's rationale was corrected 2026-09-18: its current docs
+  describe `preserve_thinking`, an opt-in that feeds historical
+  `reasoning_content` back as billed input, and a missing field is NOT an error —
+  so no-echo matches the documented default, but the old "do not add the
+  reasoning_content field" citation is not what the docs say.
+- **Vendor replay matrix (2026-09-18)** —
+  `plans/2026-09-16_reasoning-roundtrip-vendor-matrix/MATRIX.md`: primary-source
+  answers per vendor. **Anthropic (`signature`) and Gemini (`thought_signature`)
+  REQUIRE replay**; OpenAI, xAI, Qwen and OpenRouter treat it as
+  optional-but-used; Z.AI GLM and Mistral document nothing request-side. Anthropic
+  and Gemini ride their own SDKs, so they sit outside the openai-compatible strip
+  branch above.
 - `packages/opencode/src/provider/gateway/raw-diff.ts` — the capture assembler
   reads the native dialects too (`reasoning_content`, `reasoning_text`) next to
   the OpenRouter pair, dispatching by FIELD: incremental native fragments are

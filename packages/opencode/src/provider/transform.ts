@@ -307,8 +307,12 @@ function normalizeMessages(
   // - KAT/StreamLake: live-verified no-echo accepted in plain AND tool-call
   //   replays; echo made the model re-think over its own CoT (50 vs 142
   //   output reasoning tokens) and was slower (1042 vs 1768 ms).
-  // - Qwen: official Alibaba docs — "do not add the reasoning_content field
-  //   when you add to the context".
+  // - Qwen: replay is OPT-IN. Alibaba's current docs describe `preserve_thinking`,
+  //   which when true feeds historical `reasoning_content` back as input (and bills
+  //   it); when history lacks it the call is NOT an error. The default is off, so
+  //   no-echo is the documented default — the older "do not add the
+  //   reasoning_content field" instruction is not what the current docs say
+  //   (2026-09-18; see plans/2026-09-16_reasoning-roundtrip-vendor-matrix/MATRIX.md).
   // - zen-proxied Kimi/GLM/MiniMax/hy3: live-verified — no reasoning surfaced
   //   on this key, all no-echo replays accepted without 400.
   // Excluded: real GitHub Copilot (opaque reasoning replay is a different

@@ -1,13 +1,22 @@
 ---
 title: Vendor reasoning round-trip contract — external research brief
 owner: Local_Development
-status: open
+status: research delivered 2026-09-18 — matrix in `plans/2026-09-16_reasoning-roundtrip-vendor-matrix/MATRIX.md` (Anthropic, OpenAI, Gemini, Qwen, Z.AI, xAI, Mistral, OpenRouter answered from primary docs; Kimi + MiniMax primary URLs not obtained)
 kind: research
 ---
 
 <!-- intention: per-vendor CoT replay rules are Unknown outside DeepSeek -> an authoritative, dated matrix we can encode as per-provider policy -->
 
 # Research brief: what each vendor requires on reasoning replay
+
+> **Result (2026-09-18):** the filled matrix is `MATRIX.md` in this folder. Actionable change found:
+> Qwen's official docs describe an opt-in (`preserve_thinking`) that **does** add historical
+> `reasoning_content` to the input and bills it — the undated "do not add reasoning_content to the
+> context" instruction our code carries is not what the current docs say. **Anthropic and Gemini
+> REQUIRE replay** (`thinking` blocks with `signature` / `thought_signature`); OpenAI, xAI, Qwen and
+> OpenRouter treat it as optional-but-used via an explicit flag or field. Z.AI GLM and Mistral
+> document nothing request-side (a finding, not a gap). Encoding the matrix into `transform.ts`
+> branches is the next step and is not done here.
 
 ## Why this is blocked on research, not on measurement
 

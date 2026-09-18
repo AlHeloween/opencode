@@ -1,3 +1,4 @@
+import path from "path"
 import { cmd } from "../cmd"
 import { UI } from "@/cli/ui"
 import { win32DisableProcessedInput, win32InstallCtrlCGuard } from "./win32"
@@ -84,6 +85,10 @@ export const AttachCommand = cmd({
         process.exitCode = 1
         return
       }
+
+      // Keep OpenTUI's data path inside the worktree, not the user home
+      // (see thread.ts — same portability contract).
+      process.env.OPENTUI_DATA_HOME = path.join(process.cwd(), ".opencode", "data", "cache")
 
       const { tui } = await import("./app")
       await tui({

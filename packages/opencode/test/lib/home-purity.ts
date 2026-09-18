@@ -41,6 +41,7 @@ export const SENTINELS = [
   path.join(".config", "opencode"),
   path.join(".local", "share", "opencode"),
   path.join(".local", "state", "opencode"),
+  path.join(".local", "share", "opentui"),
   path.join(".cache", "opencode"),
   path.join("Library", "Application Support", "opencode"),
   path.join("Library", "Caches", "opencode"),

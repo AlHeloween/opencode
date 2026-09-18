@@ -151,6 +151,14 @@ export const TuiThreadCommand = cmd({
         return
       }
       const cwd = Filesystem.resolve(process.cwd())
+
+      // OpenTUI's data path defaults to the user home (~/.local/share/opentui);
+      // the tree-sitter query cache and its eager mkdir land there. Keep all
+      // state under {worktree}/.opencode/data instead (portability contract).
+      // Must be set before the app module loads — the first getDataPaths()
+      // call happens while its imports run.
+      process.env.OPENTUI_DATA_HOME = path.join(cwd, ".opencode", "data", "cache")
+
       const env = sanitizedProcessEnv({
         [OPENCODE_PROCESS_ROLE]: "worker",
         [OPENCODE_RUN_ID]: ensureRunID(),

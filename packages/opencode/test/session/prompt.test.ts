@@ -1,6 +1,6 @@
 import { NodeFileSystem } from "@effect/platform-node"
 import { FetchHttpClient } from "effect/unstable/http"
-import { expect } from "bun:test"
+import { expect, setDefaultTimeout } from "bun:test"
 import { Cause, Effect, Exit, Fiber, Layer } from "effect"
 import path from "path"
 import { fileURLToPath } from "url"
@@ -52,6 +52,15 @@ import { testEffect } from "../lib/effect"
 import { reply, TestLLMServer } from "../lib/llm-server"
 
 Log.init()
+
+// Bun's 5 s default sits below these tests: each boots an Instance in a tmpdir and drives a real
+// LLM fixture. Worse, bun's timeout ABANDONS the fiber without interrupting it, so the tmpdir
+// fixture lock stays held and EVERY LATER TEST IN THE FILE STARVES — measured 2026-09-19 as a
+// cascade of five identical ~5000 ms failures with `killed 1 dangling process` between them. A
+// file-level budget lets the tests finish and release their own locks; `compaction.test.ts`
+// carries the same remedy. Raising bun's timeout is NOT the same as `it.live(name, fn, ms)`: that
+// third argument is what arms the inner Effect deadline in `test/lib/effect.ts`.
+setDefaultTimeout(30_000)
 
 const summary = Layer.succeed(
   SessionSummary.Service,

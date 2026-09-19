@@ -56,6 +56,12 @@ export type TdaHeld = {
   /** Digest of the base64 payload, from `payloadDigest` — the only handle a body payload exposes. */
   digest: string
   /**
+   * Set when the runtime released it explicitly (the tool's de-actualize leg). A release is a
+   * DIFFERENT fact from a spent span — the plan's own words are "a released or expired item" — and
+   * writing it as "the expiry moved into the past" would blur a decision into a coincidence.
+   */
+  released?: boolean
+  /**
    * The tool that can hand it back. Declared by the runtime, never invented here: naming a reader
    * that cannot return the item is exactly the defect the tool placeholder shipped once and had to
    * fix («re-read or re-run the tool» was impossible for a `task` result and unsafe for `bash`).
@@ -77,6 +83,17 @@ export function payloadDigest(url: string): string {
   const comma = url.indexOf(",")
   const payload = url.startsWith("data:") && comma >= 0 ? url.slice(comma + 1) : url
   return new Bun.CryptoHasher("sha256").update(payload).digest("hex")
+}
+
+/**
+ * One rule, in ONE place: an item is WITHHELD when it was released, or when its span has passed.
+ * "Held" is the absence of both — never a third state to keep in sync, and never two implementations
+ * of the same judgement. The runtime decides what to send and the gateway decides what to replace, so
+ * they must agree BY CONSTRUCTION rather than by review: below the transform calls this, and the
+ * runtime's store calls the same function.
+ */
+export function isWithheld(item: TdaHeld, turn: number): boolean {
+  return item.released === true || item.expiresAtTurn < turn
 }
 
 /** The size convention the dropped-result placeholder uses, so the two surfaces read alike. */
@@ -129,13 +146,13 @@ export function applyTemporaryDataAcquisition(body: string, set: TdaSet, turn: n
 
   // Rule 3 at the entry to the replacement: an item without an address cannot be pointed at, so it
   // is dropped from the withholding set rather than replaced by a pointer that names nothing.
-  const released = new Map<string, TdaHeld>()
+  const withheld = new Map<string, TdaHeld>()
   for (const item of set.held) {
-    if (item.expiresAtTurn >= turn) continue
+    if (!isWithheld(item, turn)) continue
     if (!item.id) continue
-    released.set(item.digest, item)
+    withheld.set(item.digest, item)
   }
-  if (released.size === 0) return body
+  if (withheld.size === 0) return body
 
   let replaced = 0
   for (const message of messages) {
@@ -146,7 +163,7 @@ export function applyTemporaryDataAcquisition(body: string, set: TdaSet, turn: n
       if (!entry || typeof entry !== "object") continue
       const url = payloadUrl(entry as Record<string, unknown>)
       if (url === undefined) continue
-      const item = released.get(payloadDigest(url))
+      const item = withheld.get(payloadDigest(url))
       if (item === undefined) continue
       content[index] = { type: "text", text: withheldPointer(item, url.length) }
       replaced++
@@ -194,6 +211,7 @@ function isTdaHeld(value: unknown): value is TdaHeld {
     typeof item.expiresAtTurn === "number" &&
     typeof item.digest === "string" &&
     TDA_KINDS.includes(item.kind as TdaKind) &&
-    (item.reader === undefined || typeof item.reader === "string")
+    (item.reader === undefined || typeof item.reader === "string") &&
+    (item.released === undefined || typeof item.released === "boolean")
   )
 }

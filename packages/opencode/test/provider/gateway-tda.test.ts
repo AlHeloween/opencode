@@ -85,6 +85,13 @@ describe("gateway temporary data acquisition", () => {
     expect(content[2]).toEqual({ type: "text", text: "Called the Read tool with the following input: {}" })
   })
 
+  test("a RELEASED item is withheld even though its span has not passed", () => {
+    // Release and expiry are TWO facts (the plan's words: "a released or expired item"). Here the span
+    // still runs to turn 99 — the item is held by time — and the explicit release withholds it anyway.
+    const out = applyTemporaryDataAcquisition(body(), set(held({ expiresAtTurn: 99, released: true })), 41)
+    expect(JSON.stringify(contentOf(out)[1])).toContain("released;")
+  })
+
   test("the pointer is recognised by the same marker the dropped-result placeholder uses", () => {
     expect(isReplayReduced(withheldPointer(held(), IMAGE_URL.length))).toBe(true)
   })

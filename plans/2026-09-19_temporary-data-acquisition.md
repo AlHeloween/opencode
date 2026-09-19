@@ -138,8 +138,18 @@ one of them [SQLite / LMDB] under a declared namespace — never to a new file»
 TWO writers — the race that paradigm exists to prevent.
 
 **Decision: the RUNTIME owns the set on the SQLite plane, and the gateway receives it in a header.**
-`x-opencode-tda`, beside `x-opencode-has-attachments` at `adaptive-client.ts:394-398` — a mechanism that
-already exists and already carries session-scoped facts into the gateway.
+`x-opencode-tda`, read beside `x-opencode-has-attachments` at `adaptive-client.ts:410-414`.
+
+**Corrected at T3a — the mechanism is HALF-there, and the header has a REACH.** Measured:
+`x-opencode-has-attachments` occurs exactly ONCE in `packages/opencode/src` and it is the READER; no
+writer exists, so the classifier's `hasAttachments` is permanently false (the same "N reads, zero
+writers" class the modality gate had). The send site is `session/llm.ts:977-981`, and its three-layer
+contract (2026-09-08, stated in-file) is explicit: `x-opencode-*` are sent **exclusively to opencode-owned
+providers** (`providerID.startsWith("opencode")`) because «third-party providers react badly to foreign
+namespaced headers». ⇒ TDA is INERT on third-party routes (deepseek-direct, novita, openrouter): the
+instruction cannot be sent there, so the gateway can never withhold. That is not a defect to route around —
+it is where the mechanism legitimately reaches today — and it makes the sandbox's `opencode/big-pickle`
+choice load-bearing for the OBSERVATION, not only for the cost.
 
 ```
 transform = pure(body, setFromHeader)   →  one owner: the runtime
@@ -205,7 +215,7 @@ zero-cost short-circuit stays true whenever nothing is held.
 |---|---|---|---|
 | **T0** | ground `Store` and the exact body shape a media part takes | the Store module, `adaptive-client.ts`, a raw-wire capture | **DONE — §0.3 + §0.3.1** |
 | **T1** | the pure transform | new `provider/gateway/tda.ts` | **DONE — 2026-09-19.** withhold · keep · blank-guard · no-op on an unparsable body · untouched body returned as the SAME STRING (T2's flag-off control) · payload-digest stability across mime wrappers. Oracle: `bun typecheck` exit 0 · `test/provider/gateway-tda.test.ts` **8 pass / 0 fail / 25 expect**. Fixture provenance MEASURED, not assumed — §0.3.1 |
-| **T2** | wire it into `wrapFetch` beside `rewriteReasoningContent` | `adaptive-client.ts:347` | integration: flag on → a pointer where the payload was; flag off → byte-identical to today |
+| **T2** | wire it into `wrapFetch` beside `rewriteReasoningContent` | `adaptive-client.ts` — with the other consumed `x-opencode-*` headers | **DONE — 2026-09-19.** The set arrives in `x-opencode-tda` and is CONSUMED, not forwarded (it has been folded into the body). Integration oracle `test/provider/gateway-tda-wire.test.ts` **5 pass / 0 fail / 17 expect**: withheld on the wire with the pointer in place and its neighbours untouched · byte-identical with no header · a held item untouched · a body carrying a different payload untouched · five malformed headers degrade to nothing · the instruction is not forwarded, with a forwarded header as control. `test/provider/adaptive-client.test.ts` 4/0/35 unchanged. |
 | **T3** | the set's write path — acquire, hold, release, expire | the Store + the runtime attachment path | a held item survives a turn; an expired one is withheld; a released one is withheld at once |
 | **T4** | the flag | `config/config.ts` gateway section + `gateway.jsonc` | config test: default false, true only when declared |
 | **T5** | the sandbox run | separate build, `model: opencode/big-pickle` | the per-request log shows the withheld body; no request corrupted; the model still answers |
@@ -832,17 +842,4 @@ attachment half.
 - **T3 — sources as one acquired set.** Several `read` results held as a working set, narrowed with
   `keep` where useful, released together. Oracle: after the release the sources are gone from the
   window, and the edits they drove are visible in `git diff` and in the fossil leaves.
-- **T4 — the report.** At release, the set's diffs are emitted as the report's evidence. Oracle: the
-  report names files the snapshot actually shows changed — checked against `git status`, not recalled.
-
-### Open decisions (the owner's)
-
-- **Span units.** Turns, wall-clock, or “until the task's plan completes”? Turns is measurable today;
-  a plan-keyed span matches «будем возиться 3 хода» more faithfully but couples this to plan state.
-- **Where the set lives.** Permanent memory (the §4.1 ledger) is inlined into `m*` verbatim and so
-  survives a fold — but it is prose the model must keep correct. A keyed store on the SQLite plane would
-  make the set READABLE rather than remembered. Not decided.
-- **Whether a release is ever automatic.** A span can expire by itself, or only the model may release
-  and a forgotten set keeps costing. The falsifiers differ: a model-released set can be forgotten, an
-  expiring one can drop what is still needed mid-task.
-
+- **T4 — the report.** At release, the set's diffs are emitted as the report's evidence. Orac

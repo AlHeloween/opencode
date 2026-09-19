@@ -22,6 +22,8 @@ import { MessageTable, PartTable, SessionTable } from "./session.sql"
 import * as ProviderError from "@/provider/error"
 import { registry } from "@/attachment/registry"
 import { fromMime as classifyKind } from "@/attachment/kind"
+/** The expired-hold map the CALLER supplies — this module must not reach for a database of its own. */
+export type ExpiredMedia = Map<string, string | undefined>
 import { iife } from "@/util/iife"
 import { errorMessage } from "@/util/error"
 import { Token } from "@/util/token"
@@ -1029,6 +1031,14 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
      * steps, so a heavy result collapsed the moment the next step began.
      */
     afterMessageID?: string
+    /**
+     * Held media whose span has passed, supplied by the CALLER. It is an option rather than a lookup
+     * because this module must not reach for a database: the conversion runs in unit tests and in paths
+     * with no project DB at all, and an unconditional query here threw `No context found for database`
+     * for every one of them (caught by the proportional suite, 2026-09-19). The runtime that owns the
+     * hold has an Instance; the conversion has an input.
+     */
+    expiredMedia?: ExpiredMedia
   },
 ) {
   const result: UIMessage[] = []
@@ -1101,7 +1111,63 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
     return { type: "json", value: (output ?? null) as unknown as Record<string, unknown> }
   }
 
-  for (const msg of input) {
+  // HELD MEDIA (owner ruling, 2026-09-19): «нам по сути не хватает просто маленькой таблички message id и
+  // ttl… тогда будет просто read file c ttl». A message acquired with a span stops SENDING its payload once
+  // the span has passed — the record, the parts table and the TUI are untouched, because only the copy this
+  // conversion walks is changed. The gate is placed HERE, UPSTREAM of every emission site (the user
+  // file-part branch, the tool-result output, the synthetic attachment message), so no site can forget it:
+  // one decision, taken once, inherited by all of them.
+  /**
+   * The conversion's copy of the messages, with the payload of spent holds removed.
+   *
+   * TWO shapes carry media, and both are stripped HERE rather than at the sites that emit them: a `file`
+   * part (an attachment on a message) and a tool part's `state.attachments` (what `read` produces). One
+   * place, so a future emission site inherits the gate instead of having to remember it.
+   *
+   * Nothing is lost by accident: a file part becomes a TEXT part that says the payload was released, and
+   * a tool result keeps its own text with the note appended. The model is TOLD — that is the difference
+   * between a release and a silent deletion, and it is what lets the agent read the file again itself.
+   */
+  function dropExpiredMedia(
+    messages: typeof input,
+    expired: Map<string, string | undefined>,
+  ): typeof input {
+    const note = (messageID: string) =>
+      `[held media] its payload was released (${expired.get(String(messageID)) ?? "span ended"}); read the file again if it is still needed.`
+    return messages.map((msg) => {
+      if (!expired.has(String(msg.info.id))) return msg
+      return {
+        ...msg,
+        parts: msg.parts.map((part) => {
+          if (part.type === "file")
+            return {
+              id: part.id,
+              sessionID: part.sessionID,
+              messageID: part.messageID,
+              type: "text" as const,
+              text: note(String(msg.info.id)),
+            }
+          if (part.type === "tool" && part.state.status === "completed" && (part.state.attachments?.length ?? 0) > 0)
+            return {
+              ...part,
+              state: { ...part.state, attachments: [], output: `${part.state.output}\n${note(String(msg.info.id))}` },
+            }
+          return part
+        }),
+      }
+    })
+  }
+
+  // HELD MEDIA (owner ruling, 2026-09-19): «нам по сути не хватает просто маленькой таблички message id и
+  // ttl… тогда будет просто read file c ttl». A message whose span has passed stops SENDING its payload;
+  // the record, the parts table and the TUI are untouched, because only the copy this conversion walks
+  // changes. The gate sits HERE, UPSTREAM of every emission site (the user file-part branch, the tool-result
+  // output, the synthetic attachment message), so none of them can forget it. The map comes from the caller
+  // — this module holds no session and reads no database.
+  const expiredMedia = options?.expiredMedia ?? new Map<string, string | undefined>()
+  const outbound = expiredMedia.size === 0 ? input : dropExpiredMedia(input, expiredMedia)
+
+  for (const msg of outbound) {
     if (msg.parts.length === 0) continue
     // Layer-1 summary panels are UI-only (synthetic+ignored). Never send to the provider.
     if (

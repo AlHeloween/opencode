@@ -138,8 +138,18 @@ one of them [SQLite / LMDB] under a declared namespace — never to a new file»
 TWO writers — the race that paradigm exists to prevent.
 
 **Decision: the RUNTIME owns the set on the SQLite plane, and the gateway receives it in a header.**
-`x-opencode-tda`, beside `x-opencode-has-attachments` at `adaptive-client.ts:394-398` — a mechanism that
-already exists and already carries session-scoped facts into the gateway.
+`x-opencode-tda`, read beside `x-opencode-has-attachments` at `adaptive-client.ts:410-414`.
+
+**Corrected at T3a — the mechanism is HALF-there, and the header has a REACH.** Measured:
+`x-opencode-has-attachments` occurs exactly ONCE in `packages/opencode/src` and it is the READER; no
+writer exists, so the classifier's `hasAttachments` is permanently false (the same "N reads, zero
+writers" class the modality gate had). The send site is `session/llm.ts:977-981`, and its three-layer
+contract (2026-09-08, stated in-file) is explicit: `x-opencode-*` are sent **exclusively to opencode-owned
+providers** (`providerID.startsWith("opencode")`) because «third-party providers react badly to foreign
+namespaced headers». ⇒ TDA is INERT on third-party routes (deepseek-direct, novita, openrouter): the
+instruction cannot be sent there, so the gateway can never withhold. That is not a defect to route around —
+it is where the mechanism legitimately reaches today — and it makes the sandbox's `opencode/big-pickle`
+choice load-bearing for the OBSERVATION, not only for the cost.
 
 ```
 transform = pure(body, setFromHeader)   →  one owner: the runtime
@@ -193,16 +203,76 @@ gateway.tda.maxItems       §0.9-3  keeps the header transport valid
 gateway.tda.holdTurns      §10     the declared lifetime
 ```
 
+**Refined at T2 — it removes a surface.** The GATEWAY needs no flag: it withholds only when the runtime
+hands it a set, so the ABSENCE of `x-opencode-tda` already is "off". These keys therefore belong to the
+RUNTIME's config, read where the set is built, and T4 becomes "the runtime reads the flag and sends the
+header" rather than "the gateway reads config". One authority for the switch instead of two, and the
+zero-cost short-circuit stays true whenever nothing is held.
+
 ### 0.5 Tasks
 
 | id | task | binding | oracle |
 |---|---|---|---|
 | **T0** | ground `Store` and the exact body shape a media part takes | the Store module, `adaptive-client.ts`, a raw-wire capture | **DONE — §0.3 + §0.3.1** |
 | **T1** | the pure transform | new `provider/gateway/tda.ts` | **DONE — 2026-09-19.** withhold · keep · blank-guard · no-op on an unparsable body · untouched body returned as the SAME STRING (T2's flag-off control) · payload-digest stability across mime wrappers. Oracle: `bun typecheck` exit 0 · `test/provider/gateway-tda.test.ts` **8 pass / 0 fail / 25 expect**. Fixture provenance MEASURED, not assumed — §0.3.1 |
-| **T2** | wire it into `wrapFetch` beside `rewriteReasoningContent` | `adaptive-client.ts:347` | integration: flag on → a pointer where the payload was; flag off → byte-identical to today |
-| **T3** | the set's write path — acquire, hold, release, expire | the Store + the runtime attachment path | a held item survives a turn; an expired one is withheld; a released one is withheld at once |
-| **T4** | the flag | `config/config.ts` gateway section + `gateway.jsonc` | config test: default false, true only when declared |
-| **T5** | the sandbox run | separate build, `model: opencode/big-pickle` | the per-request log shows the withheld body; no request corrupted; the model still answers |
+| **T2** | wire it into `wrapFetch` beside `rewriteReasoningContent` | `adaptive-client.ts` — with the other consumed `x-opencode-*` headers | **DONE — 2026-09-19.** The set arrives in `x-opencode-tda` and is CONSUMED, not forwarded (it has been folded into the body). Integration oracle `test/provider/gateway-tda-wire.test.ts` **5 pass / 0 fail / 17 expect**: withheld on the wire with the pointer in place and its neighbours untouched · byte-identical with no header · a held item untouched · a body carrying a different payload untouched · five malformed headers degrade to nothing · the instruction is not forwarded, with a forwarded header as control. `test/provider/adaptive-client.test.ts` 4/0/35 unchanged. |
+| **T3a** | the set's RULES — acquire, hold, release, expire — as PURE functions | new `session/acquired-item.ts`; `isWithheld` imported from the contract module | **DONE — 2026-09-19.** held survives every turn of its span and is withheld after it · a release withholds AT ONCE and does NOT rewrite the span (two facts, not one) · releasing another id changes nothing · the instruction round-trips through `parseTdaHeader` and withholds the very payload it describes · an empty set says nothing. Oracle: `bun typecheck` exit 0 · `test/session/acquired-item.test.ts` **5 pass / 0 fail / 23 expect** · gateway suites 9/0/26 and 5/0/17. |
+| **T3b** | PERSISTENCE: the `acquired_item` table (DDL + drizzle) and the store — reads/writes plus the turn counter | `storage/db.ts`, `storage/schema-project.sql.ts`, new `session/acquired-item-store.ts` | **DONE — 2026-09-19.** the two descriptions of the table are reconciled by reading the ARTIFACT back (`PRAGMA table_info`, 10 columns) · held → withheld when the span passes · released → withheld at once with the span untouched · re-acquiring one payload refreshes instead of duplicating. Oracle: `bun typecheck` exit 0 · `test/session/acquired-item-store.test.ts` **3 pass / 0 fail / 13 expect** |
+| **T3c** | the SEND SITE: the header in `llm.ts`, inside the `providerID.startsWith("opencode")` block — created, not joined, since `x-opencode-has-attachments` has no writer | `session/llm.ts` + the pure `tdaHeaders` decision in `session/acquired-item.ts` | **DONE (pure half) — 2026-09-19.** `tdaHeaders` returns `{}` for no value and for every third-party provider, and the header for `opencode`/`opencode-go` — both boundaries pinned at `test/session/acquired-item.test.ts`, 5/0/23 → see the suite. **Residual: the wiring LINE is observed on the wire, not in a unit test — T5's sandbox is its oracle.** The store is read on that branch only, so a session that never acquired sends nothing |
+| **T3d** | the FOLD TRIGGER: a bulk release at the fold boundary, decided in the SAME seam as the fold | `session/acquired-item-store.ts` (`releaseAll`) + `session/prompt.ts` (one `const foldChoice` computed before the switch) | **DONE — 2026-09-19.** every item of the session is released when `foldDecision` answers anything but `defer` — the trigger is the FOLD, not the clock — and it is a release, not an erasure: the spans are untouched and the items remain, which is what lets the model re-acquire them by the id the pointer prints. Oracle: `bun typecheck` exit 0 · `test/session/acquired-item-store.test.ts` **4 pass / 0 fail / 17 expect**. Residual: the hook LINE itself is observed on the wire (T5), the same residual T3c carries |
+| **T4** | the flag | `config/config.ts` gateway section + `gateway.jsonc` | **DONE — 2026-09-19.** `gateway.tda` declared beside `gateway.logDir`: `enabled` (default off), `holdTurns`, `maxItems`, `maxItemBytes`, `maxHeldTokens`, `priceMargin` — every §0.9 limit a number in a file. The pure `tdaHeaders(providerID, value, enabled)` carries BOTH gates (the switch and the header contract) so neither can be forgotten at a call site. Oracle: `bun typecheck` exit 0 · the three gates pinned in `test/session/acquired-item.test.ts` (switch off ⇒ nothing, even for `opencode`; third party ⇒ nothing, even with the switch on; nothing acquired ⇒ nothing). **Enforcement of the four limits lands with the ACQUIRER** — declaring a limit before there is anything to refuse is honest; enforcing it where nothing can be acquired yet would be a guard with no subject |
+| **T5** | the sandbox run | the double lives at `experiments/2026-09-19_tda-sandbox/` (`mock-zen.mjs` + `gateway.jsonc` provider `opencode-sandbox`); the OBSERVATION runs as `observe-real-body.ts` | **OBSERVATION OBTAINED — 2026-09-19, though not through the sandbox.** The transform was driven over a REAL captured body (938 424 chars) carrying a real 143-char WebP payload: the `image_url` block was replaced by the pointer, delta +44, **everything else byte-identical**, control (unmatched digest) untouching — §0.6-4 on real bytes. **Finding:** the payload rides in 6 forms; only the structured `content[]` entry is rewritten, five survive inside strings (`messages[101] tool`, `[102] assistant` ×2, `[113] tool`, `[115] tool`), so a release leaves the bytes on the wire as text. **Sandbox residual:** no request reaches the local double and the error is identical to Zen's, i.e. upstream-independent; the untested discriminator is a CLOSED port (connection error ⇒ the URL is consulted; same message ⇒ no fetch at all) |
+| **T6** | the TTL FIELD — the owner's final form: a `ttl` on the part itself, TWO tools, ALL spammy tools | `ttl` on the part schema (`FilePart` / tool state, so it rides the part's own `data` — no new table, no migration) · `TempEnable` / `TempDisable` returning id + report + ids_range · the conversion gate reading the PART's own ttl against ONE number (the current turn) · summary exclusion · fold auto-reset | **DESIGNED — 2026-09-19.** Owner, verbatim: «не только для read, а для всех тулов которые спамят… TempEnable и TempDisable(…report…) return id+report+ids_range; ttl=null (permanent)… поле в базе ttl=[null - permanent, tmp_xxx session, число - ttl turns); в summary не считается; доползли до компакта — ок, сбрасываем автоматом, оставляем сообщение». Off by default. **This SUPERSEDES the table shipped in `74f0ab0d8a`** — `held_media`, `session/held-media.ts`, its test and the `expiredMedia: Map` option are DELETED (zero consumers, so the removal costs nothing), and the conversion needs one number instead of a map, which also removes the DB query that broke 42 cases. |
+
+### What THIS plan covers now — and what it no longer does (owner, 2026-09-19: «а то мы наш tda никогда не доделаем»)
+
+**Covers, and this is the whole of it:** `ttl` on the part (`null` = permanent ⇒ the mechanism does not
+apply at all | `"tmp_xxx"` = scoped to a temporary enable | a number = turns), `TempEnable` / `TempDisable`
+returning id + report + ids_range, the ONE conversion gate reading the part's own ttl against the current
+turn, the summary exclusion, the fold auto-reset, and the tests for each.
+
+Its domain is the **sub-threshold spam** — hundreds of small tool results that today live in the window
+forever, because neither the 8 000-char placeholder nor a fold ever touches them. That is why the owner
+said «все тулы которые спамят» and not «тяжёлые тулы»: where the payload is heavy, the size rule already
+fires first and the ttl adds nothing.
+
+**No longer covers, kept rather than deleted:** the gateway transform, the `x-opencode-*` header, the
+`expected` / verdict / note design, and the `releaseAll` fold hook. All committed, green and tested; they
+retire when nothing calls them («мы ничего выкорчевывать не будем»). The `held_media` TABLE goes: zero
+consumers, and a table was the wrong shape from the start.
+
+**Moved out to `plans/2026-09-19_database-truth.md`:** the dead turn source (`session_entry`, 0 rows), the
+table inventory, and the fixture rule — a property of the storage plane, not of TDA.
+
+### T6 design, and the three things it deliberately does NOT do
+
+> **SUPERSEDED WITHIN THE HOUR — recorded rather than deleted, because the reason it was wrong is the useful part.**
+> Owner, 2026-09-19: «мы стрипаем мультимедиа сообщения сейчас… не хватает просто маленькой таблички message id
+> и ttl… ничего городить не надо». The design below moves the release ONTO THE WIRE (a digest, an expectation in
+> the header, a verdict, a note). If the runtime already removes a payload at CONVERSION — which it does for a heavy
+> tool result — then nothing needs to reach the wire at all, and every piece below becomes machinery built to
+> solve a problem that a table of `(id, ttl)` and one branch at the existing decision point solves outright.
+> Cost compared, and it is the SAME: both remove bytes from the middle of the body at the moment of expiry, so the
+> prefix changes once in either case — the «частичная потеря кэша» the owner accepted when choosing the chain
+> placement. Effect compared: identical, because the strip is at conversion, so HISTORY stays intact and only the
+> request changes. Kept, not deleted: the gateway leg is committed, green and tested, and the transition is
+> problem-driven and gradual («мы ничего выкорчевывать не будем») — it retires when nothing uses it.
+
+1. **The runtime states the EXPECTATION; the gateway reports the OUTCOME.** `expect: string[]` rides the same header, holding the ids whose payload this request should find on the wire. It is computed where the model IS known (`llm.ts` has `input.model`): released ∧ the model accepts the item's kind ∧ `attachment`. Nothing else is needed — and that matters, because:
+2. **The window is NOT checked.** A part still being inside the sent window is not cheaply knowable at the send site (`input.messages` are provider-shaped, no part ids), so the note instead behaves like the fold nag: it repeats until the situation is resolved. Bounded by the item's span, and it retires itself the moment the payload is re-acquired.
+3. **The gateway stays stateless and the body stays the only surface.** No callbacks, no response headers, no new state: the note is written into the body the transform is already rewriting, at the END, so the prefix — and therefore the KV cache — is untouched.
+
+Kind→modality is deliberately INCOMPLETE: `image` maps to `capabilities.input.image && attachment`; `document` and `source` map to nothing yet, so they stay SILENT. An incomplete map can lose a note; an invented one would raise a false alarm, and a false alarm sends the agent re-acquiring what never rode.
+
+### Smoke Tests
+
+- **baseline (before any edit):** `bun typecheck` exit 0 · `gateway-tda` 9/0 · `acquired-item` 6/0 · `acquired-item-store` 4/0 · `gateway-tda-wire` 5/0.
+- **branch 1 — expected ∧ found:** the payload is replaced by the pointer, and NO note is added (`asked 1, withheld 1`).
+- **branch 2 — expected ∧ NOT found:** the body gains exactly ONE trailing message, naming the item id, kind and reason; the original body is still a byte-exact PREFIX of the result (prefix ⇒ cache held).
+- **branch 3 — NOT expected (blind model, or a kind with no wire form):** silence. **This is the false-alarm control**: with `expect: []` the output is byte-identical to the input.
+- **branch 4 — held, not released:** untouched, whatever the expectation says.
+- **the count is reported, not inferred:** `asked` counts the RELEASED items only; a held item in the same set never inflates it.
+- **post-change:** the same suites green, plus the capture harness (`observe-real-body.ts`) still replacing the real payload in the real 938 KB body.
 | **T6** | the release report | — | the report names files the snapshot shows changed (`git status`), not recalled |
 | **T7** | acquire a STORED RECORD — a `project_checkpoint` row, a message range — by id | the SQLite plane + the runtime's set | priced by `data.tokens` for an assistant message, by measure otherwise; **refused** when it would cross `usable()`; released to a pointer like any other item |
 | **T8** | epoch-addressable memory — pull a specific earlier summary, hold it for the span, release it | T7 + §0.8 | the summary is in the request while held and absent after the release, and the same one is re-acquirable by id |
@@ -210,8 +280,17 @@ gateway.tda.holdTurns      §10     the declared lifetime
 ### 0.6 The sandbox protocol — the owner's requirement, made checkable
 
 1. `pwsh _build.ps1 -Task build` into a SEPARATE artifact; do **not** deploy to `bin/`.
-2. The sandbox config sets `"model": "opencode/big-pickle"` — the key is real (`config/config.ts:149`) —
-   so a test run cannot burn the real budget.
+2. The sandbox config sets `"model": "opencode/qwen3.6-plus-free"` (owner ruling, 2026-09-19), NOT
+   `opencode/big-pickle`, which is TEXT-ONLY — verified against the catalog: `big-pickle` is absent from
+   the 88 vision-capable models the `opencode` provider hosts (measured with
+   `.opencode/opencode-models-probe.mjs`: 107 models on `opencode`, 88 with image input, SEVEN of them
+   at cost 0/0). The ROUTE matters as much as the eyes: `x-opencode-*` reach only
+   `providerID.startsWith("opencode")` (§0.3), so a free vision model on OpenRouter — `inkling:free` was
+   the first suggestion — would leave the gateway with no set to act on and the sandbox observing a
+   clean no-op, i.e. «works» read out of silence. `qwen3.6-plus-free` satisfies all three at once:
+   vision (`text+image+video`, `attachment: true`), cost 0/0, and a route the instruction actually
+   travels. Catalog caveat: `minimax-m3-free` declares image input with `attachment: false` — "sees
+   images" is not enough, the item must be an ATTACHMENT.
 3. `gateway.jsonc` already logs `logBodies: true` + `perRequest: true`: every request is a file under the
    per-request directory. **The sandbox is observed there, not by reading the TUI.**
 4. Whole-sandbox falsifier: a flag-ON body differs from the flag-OFF body in NOTHING except the withheld
@@ -300,6 +379,43 @@ Four limits, and each catches a different mistake — none of them is redundant:
    count cap is what keeps that decision valid; without it the header transport degrades quietly.
 4. **Nothing is acquired by default.** `gateway.tda.enabled: false` — a pipeline that can hold a gigabyte
    must be something you turned ON.
+
+### 0.9.1 Placement and the compact trigger (owner ruling, 2026-09-19 — it supersedes §2.2's rationale)
+
+Owner, verbatim:
+
+> «Я вот что думаю, если TDA больше чем на один ход, то пусть они двигаюся по цепочке сообщений чтобы
+> быть закешированными, потом они конечно исчезнут и мы получим частичную потерю кэша, но мы сэкономим
+> токены на удержании. Но здесь один нюанс если мы залезаем на компакт, мы должны их тут же отпустить
+> и информировать модель, модель сама решит что с этим делать, скорее всего приведет дела в порядок,
+> сделает компакт и захватит файлы снова.»
+
+**Placement: the item rides the MESSAGE CHAIN, not a re-appended tail block.** §2.2 argued the opposite —
+appending to the mutable tail keeps the prefix untouched — and that argument is right about the PREFIX and
+wrong about the BILL. Measured in §0.10's own terms: a tail block is re-sent every turn at FULL input
+price, while a payload that has entered the chain costs `cache_read` (1/50 on our models). A hold longer
+than one turn therefore wins by the ratio itself; «сэкономим токены на удержании» is that arithmetic, not
+a preference.
+
+**The release is where the cache is paid — and it is paid ONCE.** Withholding removes the payload from
+inside that message, so the prefix changes at that point: «частичная потеря кэша», accepted deliberately —
+once, versus every turn. Note that this is EXACTLY what the built transform already does (find the payload
+by digest, replace it in place with a pointer), which is why the transform is PLACEMENT-AGNOSTIC: prefix
+or tail, it matches by content and rewrites where the payload sits.
+
+**Compaction is a HARD release trigger.** «если мы залезаем на компакт, мы должны их тут же отпустить и
+информировать модель» — at the fold boundary every held item is released and the model is TOLD, because the
+pointer stands exactly where the payload was: it reads `[… — released; <reader>(id=…) to attach it again]`
+and decides for itself. The expected behaviour, in the owner's own words, is that it «приведет дела в
+порядок, сделает компакт и захватит файлы снова» — the release is not a loss for the runtime to repair, it
+is a decision handed to the model with everything needed to make it.
+
+⇒ Two consequences for the task list:
+- the ACQUIRER mints a MESSAGE (or a part inside one), not a tail block — §2.2's mechanism is superseded
+  together with the reason it gave;
+- a **bulk release at the fold boundary** becomes a runtime duty, in the same seam this session already
+  touched (`session/prompt.ts`: `CompactionRequest.take` → `foldDecision`), so the release and the fold are
+  decided in one place rather than by two mechanisms that could disagree.
 
 ### 0.10 The economics — the grep loop COMPOUNDS, and the window fouls (owner, 2026-09-19)
 

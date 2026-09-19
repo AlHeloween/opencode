@@ -182,6 +182,21 @@ CREATE INDEX IF NOT EXISTS "session_entry_session_idx" ON "session_entry" ("sess
 CREATE INDEX IF NOT EXISTS "session_entry_session_type_idx" ON "session_entry" ("session_id", "type");
 CREATE INDEX IF NOT EXISTS "session_entry_time_created_idx" ON "session_entry" ("time_created");
 
+CREATE TABLE IF NOT EXISTS "acquired_item" (
+  id text PRIMARY KEY NOT NULL,
+  session_id text NOT NULL,
+  kind text NOT NULL,
+  reason text NOT NULL,
+  reader text,
+  digest text NOT NULL,
+  expires_at_turn integer NOT NULL,
+  released integer NOT NULL DEFAULT 0,
+  time_created integer NOT NULL,
+  time_updated integer NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "acquired_item_session_idx" ON "acquired_item" ("session_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "acquired_item_session_digest_idx" ON "acquired_item" ("session_id", "digest");
+
 CREATE TABLE IF NOT EXISTS "permission" (
   project_id text PRIMARY KEY NOT NULL,
   time_created integer NOT NULL,

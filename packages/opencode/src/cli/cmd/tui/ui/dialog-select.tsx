@@ -485,14 +485,15 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
           paddingRight={2}
           paddingLeft={4}
           flexDirection="row"
+          flexWrap="wrap"
           justifyContent="space-between"
           flexShrink={0}
           paddingTop={1}
         >
-          <box flexDirection="row" gap={2}>
+          <box flexDirection="row" flexWrap="wrap" flexShrink={1} gap={2}>
             <For each={left()}>
               {(item) => (
-                <text>
+                <text flexShrink={0}>
                   <span style={{ fg: theme.text }}>
                     <b>{item.title}</b>{" "}
                   </span>
@@ -501,10 +502,10 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
               )}
             </For>
           </box>
-          <box flexDirection="row" gap={2}>
+          <box flexDirection="row" flexWrap="wrap" flexShrink={1} gap={2}>
             <For each={right()}>
               {(item) => (
-                <text>
+                <text flexShrink={0}>
                   <span style={{ fg: theme.text }}>
                     <b>{item.title}</b>{" "}
                   </span>

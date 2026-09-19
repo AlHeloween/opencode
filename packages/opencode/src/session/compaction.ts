@@ -288,15 +288,9 @@ export function selectRecentTail(
   minTokens: number = RECENT_MIN_TOKENS,
   coveredThroughIndex?: number,
 ): MessageV2.WithParts[] {
-  const summaryParents = new Set<string>()
+  const summaryParents = collectSummaryParents(msgs)
   let lastSummary = -1
-  for (let i = 0; i < msgs.length; i++) {
-    const m = msgs[i]!
-    if (!isSummaryAssistant(m)) continue
-    lastSummary = i
-    const parentID = (m.info as MessageV2.Assistant).parentID
-    if (parentID) summaryParents.add(parentID)
-  }
+  for (let i = 0; i < msgs.length; i++) if (isSummaryAssistant(msgs[i]!)) lastSummary = i
   const minChars = minTokens * CHARS_PER_TOKEN
   const selected: MessageV2.WithParts[] = []
   let chars = 0
@@ -306,11 +300,7 @@ export function selectRecentTail(
   const boundary = coveredThroughIndex ?? lastSummary
   for (let i = msgs.length - 1; i >= 0; i--) {
     const m = msgs[i]!
-    if (isMessageStar(m)) continue
-    if (isLayer1SummaryMessage(m)) continue
-    if (isSummaryRequestMessage(m)) continue
-    if (isSummaryAssistant(m)) continue
-    if (summaryParents.has(m.info.id)) continue
+    if (tailExclusion(m, summaryParents) !== undefined) continue
     // Everything after the covered end is MANDATORY tail — a message the
     // summaries do not cover is the hole, and no break may happen inside it,
     // however large it is. Only once we are at the represented region may the
@@ -321,6 +311,37 @@ export function selectRecentTail(
     chars += tailContentChars(m)
   }
   return selected
+}
+
+/** The message a summary hangs off — its content rides the summary block, so the
+  * tail must not carry it a second time. */
+function collectSummaryParents(msgs: MessageV2.WithParts[]): Set<string> {
+  const parents = new Set<string>()
+  for (const m of msgs) {
+    if (!isSummaryAssistant(m)) continue
+    const parentID = (m.info as MessageV2.Assistant).parentID
+    if (parentID) parents.add(parentID)
+  }
+  return parents
+}
+
+/** WHY a row never renders into a tail, or `undefined` when it does.
+  *
+  * ONE predicate, shared by `selectRecentTail` and the closing range accounting.
+  * Two definitions of "a message the tail renders" disagree INVISIBLY, and this
+  * one already did: measured 2026-09-19, the first fold under the contiguity rule
+  * printed `continuity: GAP — … 1 message(s) represented by neither`, and the
+  * message was `msg_0b9bdc0b70011O6AWB9yu16rVD` — a Layer-1 panel
+  * (`=== LAYER-1 SUMMARY ===`), i.e. machinery the selector drops BY DESIGN. A GAP
+  * line that fires on a clean fold stops being evidence, and then a real hole
+  * rides through with the false ones. */
+function tailExclusion(m: MessageV2.WithParts, summaryParents: Set<string>): string | undefined {
+  if (isMessageStar(m)) return "a prior m* row"
+  if (isLayer1SummaryMessage(m)) return "a Layer-1 panel"
+  if (isSummaryRequestMessage(m)) return "a summary request"
+  if (isSummaryAssistant(m)) return "a summary row"
+  if (summaryParents.has(m.info.id)) return "a summary anchor"
+  return undefined
 }
 
 /** Walk backward through msgs from the end, summing output tokens of assistants
@@ -1098,6 +1119,29 @@ export function tailMessageText(msg: MessageV2.WithParts): string {
   return parts.join("\n").trim()
 }
 
+/** m*'s closing continuity statement, as a PURE function so the RULE — not merely
+  * its wiring — is falsifiable. A line that cannot fail proves nothing; a line
+  * that fails on a clean fold is worse, because it retires the check itself.
+  *
+  * `between` = the rows strictly between the newest summary's coverage and the
+  * tail's first message: `excluded` names the machinery the selector omits (so a
+  * reader sees WHY the positions are not adjacent), `unrepresented` counts what is
+  * neither covered nor in the tail — a real hole. */
+export function continuityLine(args: {
+  tailFirst: number
+  summaryLast?: number
+  between?: { excluded: string[]; unrepresented: number }
+}): string {
+  if (args.summaryLast == null)
+    return "continuity: not verifiable here — the summaries carry no positions to compare against"
+  if (args.tailFirst <= args.summaryLast + 1)
+    return `continuity: summaries end at #${args.summaryLast}, tail starts at #${args.tailFirst} — no gap, no overlap`
+  if (args.between != null && args.between.unrepresented === 0)
+    return `continuity: summaries end at #${args.summaryLast}, tail starts at #${args.tailFirst} — no gap (excluded by design: ${args.between.excluded.join(", ")})`
+  const unrepresented = args.between?.unrepresented ?? args.tailFirst - args.summaryLast - 1
+  return `continuity: GAP — summaries end at #${args.summaryLast}, tail starts at #${args.tailFirst} (${unrepresented} message(s) represented by neither)`
+}
+
 function buildMessageStar(input: {
   sessionID: string
   summaries: SummaryEntry[]
@@ -1106,6 +1150,7 @@ function buildMessageStar(input: {
     * Used to render `#N` positions so the model can call session-read
     * with an exact offset directly, without messagesearch indirection. */
   recentStartOffset?: number
+  between?: { excluded: string[]; unrepresented: number }
   /** Prior message* ID — chain link for recovering older summaries via session-read. */
   priorMessageStarId?: string
   /** 1-based position of a message id — the same walk the tail's `#N` uses. */
@@ -1201,11 +1246,7 @@ function buildMessageStar(input: {
             ? `summaries: #${summaryFirst}..#${summaryLast} (each Summary block above lists its own from#/to#)`
             : "summaries: positions unavailable in this render (no from_id/to_id on the summaries)",
           `tail: #${tailFirst}..#${tailLast} (${input.recent.length} messages, verbatim — nothing in it is compressed)`,
-          summaryLast == null
-            ? "continuity: not verifiable here — the summaries carry no positions to compare against"
-            : tailFirst <= summaryLast + 1
-              ? `continuity: summaries end at #${summaryLast}, tail starts at #${tailFirst} — no gap, no overlap`
-              : `continuity: GAP — summaries end at #${summaryLast}, tail starts at #${tailFirst} (${tailFirst - summaryLast - 1} message(s) represented by neither)`,
+          continuityLine({ tailFirst, summaryLast, between: input.between }),
         ].join("\n")
       : undefined
 
@@ -1492,11 +1533,30 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           if (idx >= 0) recentStartOffset = idx + 1 // 1-based
         }
 
+        // Rows strictly BETWEEN the covered end and the tail's first message, by
+        // the SAME predicate the selector uses. The selector omits machinery by
+        // design, so the closing reference must not call one a hole: it names them
+        // and counts only the genuinely unrepresented. Rows that are neither = the
+        // real hole, and only that number may reach the GAP branch.
+        const betweenRows =
+          coveredThroughIndex != null && recentStartOffset != null
+            ? msgs.slice(coveredThroughIndex + 1, recentStartOffset - 1)
+            : []
+        const betweenParents = collectSummaryParents(msgs)
+        const betweenExcluded = betweenRows
+          .map((m) => tailExclusion(m, betweenParents))
+          .filter((k): k is string => k != null)
+        const between =
+          betweenRows.length > 0
+            ? { excluded: betweenExcluded, unrepresented: betweenRows.length - betweenExcluded.length }
+            : undefined
+
         const combined = buildMessageStar({
           sessionID: input.sessionID,
           summaries,
           recent,
           recentStartOffset,
+          between,
           priorMessageStarId: priorMsgStarId,
           positionOf,
           memory: yield* readMemory(),

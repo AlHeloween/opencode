@@ -296,6 +296,11 @@ Three rulings fix the contract, each bought by a defect the agent could not diag
    номеров сообщений которые мы прикрепляем к m* должна быть непротиворечивая картина … в конце *
    должен быть четкий реф … чтобы был четкий evidence.» So `m*` closes with a range accounting, and a
    decision carries its reason (`compact`'s `reason` is required and echoed into its own output).
+   The accounting shares the SELECTOR's predicate for "a message the tail renders" and NAMES the
+   machinery it omits (a prior m\* row, a Layer-1 panel, a summary request/row/anchor). Otherwise a
+   clean fold prints `GAP`, and a check that cries wolf on a healthy fold is a check nobody reads —
+   measured 2026-09-19, on the first fold under this rule: `GAP … 1 message(s) represented by neither`
+   for `#2999` (`msg_0b9bdc0b70011O6AWB9yu16rVD`), which is a Layer-1 panel.
 
 **The measured defect that produced these rulings** (2026-09-19, read out of a real folded window):
 `m*` rendered `[tool:edit] (completed)` + "Edit applied successfully." — no file, no patch;

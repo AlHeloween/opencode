@@ -3190,3 +3190,28 @@ test("the tail is contiguous with the summaries — a late summary leaves no hol
   // …whereas the summary ROW as boundary drops the hole entirely — the defect.
   expect(SessionCompaction.selectRecentTail(msgs, 1).map((m) => m.info.id as string)).toEqual(["msg_9"])
 })
+
+test("the closing continuity line names what the selector omits instead of calling it a hole", () => {
+  // Measured 2026-09-19, on the FIRST fold under the contiguity rule: the line
+  // printed `GAP — … 1 message(s) represented by neither`, and that message was
+  // #2999 = `msg_0b9bdc0b70011O6AWB9yu16rVD` — a Layer-1 panel
+  // (`=== LAYER-1 SUMMARY ===`) which `selectRecentTail` drops BY DESIGN. The
+  // accounting had re-implemented the selector's notion of a rendered message,
+  // so it called machinery a hole. A GAP line that fires on a clean fold retires
+  // the check itself, and then a real hole rides through with the false ones —
+  // so the RULE is pinned here, branch by branch.
+  const line = SessionCompaction.continuityLine
+  // Machinery between the halves: NAMED, and not a hole. This is the exact shape
+  // the real fold must produce for #2999 once the fix is live.
+  expect(
+    line({ tailFirst: 3000, summaryLast: 2998, between: { excluded: ["a Layer-1 panel"], unrepresented: 0 } }),
+  ).toBe("continuity: summaries end at #2998, tail starts at #3000 — no gap (excluded by design: a Layer-1 panel)")
+  // Adjacent halves — neither machinery nor a hole.
+  expect(line({ tailFirst: 2999, summaryLast: 2998 })).toContain("— no gap, no overlap")
+  // A REAL hole still reports as one, and counts only what nothing represents.
+  expect(
+    line({ tailFirst: 3002, summaryLast: 2998, between: { excluded: ["a summary row"], unrepresented: 2 } }),
+  ).toContain("GAP — summaries end at #2998, tail starts at #3002 (2 message(s) represented by neither)")
+  // No positions to compare: SAY so rather than print a guess.
+  expect(line({ tailFirst: 3000 })).toContain("not verifiable here")
+})

@@ -392,8 +392,9 @@ Three rules, each bought by a defect the agent could not diagnose about itself:
    (what happened there) xxx 32k tokens?» 32k is a floor that reaches further BACK; the boundary is
    the newest COVERED message, so a late summary cannot leave a hole — and `m*` names one if it exists.
 3. **Nothing hidden without representation, and the representation is CHECKABLE.** `m*` closes with a
-   range accounting (summaries `#a..#b`, tail `#b+1..#c`, `no gap` or a named `GAP`), and a decision
-   carries its reason — `compact`'s `reason` is required and echoed into the tool's own output.
+   range accounting (summaries `#a..#b`, tail `#b+1..#c`): `no gap` — with the rows the selector omits
+   by design NAMED, never counted as holes — or a `GAP` with its count. A decision carries its reason:
+   `compact`'s `reason` is required and echoed into the tool's own output.
 
 **Falsifier:** if you have to go and CHECK what your own window held, the boundary broke continuity.
 The saving is a token; the cost is a recall turn. Full design:

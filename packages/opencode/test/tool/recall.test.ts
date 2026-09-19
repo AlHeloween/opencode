@@ -22,8 +22,12 @@ const db = new BunDatabase(dbPath, { create: true })
 db.exec("CREATE TABLE part (id TEXT PRIMARY KEY, type TEXT NOT NULL, data TEXT NOT NULL)")
 const insert = db.prepare("INSERT INTO part (id, type, data) VALUES (?, ?, ?)")
 
+function seed(id: string, type: string, data: unknown) {
+  insert.run(id, type, JSON.stringify(data))
+}
+
 function seedTool(id: string, status: string, output: string, tool = "grep", title?: string) {
-  insert.run(id, "tool", JSON.stringify({ type: "tool", tool, state: { status, output, ...(title === undefined ? {} : { title }) } }))
+  seed(id, "tool", { type: "tool", tool, state: { status, output, ...(title === undefined ? {} : { title }) } })
 }
 
 function call(input: { id: string; range?: string; pattern?: string; ignoreCase?: boolean; maxChars?: number }) {
@@ -160,14 +164,20 @@ describe("recall: reading a stored tool result by part id", () => {
     expect(call({ id: "prt_missing" }).ok).toBe(false)
   })
 
-  test("refuses a failed or unfinished result — a dead end is not worth a round trip", () => {
+  test("an errored result is recallable — an error is what must stay filterable", () => {
+    seed("prt_err", "tool", { type: "tool", tool: "bash", state: { status: "error", error: "boom: exit 2\nsecond line" } })
+    const result = call({ id: "prt_err" })
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error(result.error)
+    expect(result.matchedLines).toBe(2)
+    expect(result.text).toContain("1: boom: exit 2")
+  })
+
+  test("refuses a result that never finished", () => {
     seedTool("prt_run", "running", "partial", "bash")
-    seedTool("prt_err", "error", "boom", "bash")
-    for (const id of ["prt_run", "prt_err"]) {
-      const result = call({ id })
-      expect(result.ok).toBe(false)
-      if (result.ok) throw new Error("expected refusal")
-      expect(result.error).toContain("not recallable")
-    }
+    const result = call({ id: "prt_run" })
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error("expected refusal")
+    expect(result.error).toContain("running")
   })
 })

@@ -909,23 +909,41 @@ export function isReplayReduced(content: string): boolean {
 }
 
 /**
- * Canonical heavy-tool-result placeholder: pure function of (tool, id, title,
- * size) — byte-identical across builds so the wire prefix is stable. It names the
- * tool that reads the content back, because the previous advice ("re-read or
- * re-run the tool") is impossible for a `task` result and unsafe for `bash`.
+ * Lines of a dropped result shown in its place, so the decision to fetch is informed rather than
+ * blind. A bare reference made a failed call indistinguishable from a good one and left the caller
+ * unable to filter anything without paying a round trip to find out whether it was worth one.
+ */
+export const PLACEHOLDER_HEAD_LINES = 6
+/** Per-line cap inside that head — one pathological line must not become the whole message. */
+export const PLACEHOLDER_HEAD_LINE_CHARS = 120
+
+/**
+ * Canonical heavy-tool-result placeholder: pure function of (tool, id, title, output) — byte-identical
+ * across builds so the wire prefix is stable. It names the tool that reads the content back, because
+ * the previous advice ("re-read or re-run the tool") is impossible for a `task` result and unsafe for
+ * `bash`, and it carries a NUMBERED head so what was dropped can be judged before it is fetched.
  */
 export function toolPlaceholder(input: {
   tool: string
   partID: string
   title?: string
-  chars: number
+  output: string
 }): string {
-  const size =
-    input.chars >= 1024
-      ? `${(input.chars / 1024).toFixed(1)} KB`
-      : `${input.chars} chars`
+  const chars = input.output.length
+  const lines = input.output.split("\n")
+  const size = chars >= 1024 ? `${(chars / 1024).toFixed(1)} KB` : `${chars} chars`
   const what = input.title ? ` ${input.title}` : ""
-  return `[${input.tool} id=${input.partID} ${REPLAY_DELIVERED_MARKER}${size},${what}); call recall with id=${input.partID} for the full content]`
+  const shown = Math.min(PLACEHOLDER_HEAD_LINES, lines.length)
+  const head = lines
+    .slice(0, shown)
+    .map((line, i) => `${i + 1}: ${line.slice(0, PLACEHOLDER_HEAD_LINE_CHARS)}`)
+    .join("\n")
+  return (
+    `[${input.tool} id=${input.partID} ${REPLAY_DELIVERED_MARKER}${size},${what}) — ` +
+    `first ${shown} of ${lines.length} line(s), to judge without paying a round trip:]\n` +
+    `${head}\n` +
+    `… recall(id=${input.partID}, range="<line>-") for the rest]`
+  )
 }
 
 /** Clear the module-level conversion cache. Intended for test isolation. */
@@ -1151,7 +1169,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
                     tool: part.tool,
                     partID: part.id,
                     title: part.state.title || undefined,
-                    chars: rawOutput.length,
+                    output: rawOutput,
                   })
                 : truncateToolOutput(rawOutput, options?.toolOutputMaxChars, part.id)
             // Deliver-once (2026-09-07): when the processor already delivered

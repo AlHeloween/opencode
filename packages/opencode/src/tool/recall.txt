@@ -18,6 +18,9 @@ How to use it:
    ABSOLUTE line number, so the next call can address them.
 2. Then narrow: `range` picks a window, `pattern` filters inside it. Only what you ask for is sent.
 
+The placeholder itself already shows the first lines of what was dropped, numbered, so you can judge
+whether it is worth fetching BEFORE you pay for fetching it.
+
 Parameters:
 - `id` (required) — the `id=` value printed in the placeholder.
 - `range` — 1-based inclusive: `"120-180"`, `"120-"`, `"-180"`, `"42"`, or `0` for everything.
@@ -26,8 +29,8 @@ Parameters:
   absolute numbers.
 - `maxChars` — body cap, defaulting to the same 32 000 ceiling the replay path applies.
 
-Not for failures: a result whose status is not `completed` is refused. An error body is a dead end,
-and re-reading it costs a round trip to learn nothing.
+Errors ARE recallable: an errored result is exactly what tells you to discard or repair a step, so
+refusing it would hide the failure behind a count. Only a result that never finished is refused.
 
 Not a substitute for `sessionread`, which truncates every tool output to 500 characters. And when the
 placeholder's advice ("re-read or re-run the tool") is impossible — a `task` result cannot be

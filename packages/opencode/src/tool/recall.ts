@@ -95,7 +95,7 @@ export function readToolResult(input: {
       | undefined
     if (!row) return { ok: false, error: `no part with id ${input.id} in this project` }
 
-    let part: { type?: string; tool?: string; state?: { status?: string; output?: string; title?: string } }
+    let part: { type?: string; tool?: string; state?: { status?: string; output?: string; error?: string; title?: string } }
     try {
       part = JSON.parse(row.data) as typeof part
     } catch (error) {
@@ -103,14 +103,18 @@ export function readToolResult(input: {
     }
 
     if (part.type !== "tool") return { ok: false, error: `part ${input.id} is a ${part.type ?? "unknown"} part, not a tool result` }
-    if (part.state?.status !== "completed") {
+    // An ERRORED result is recallable on purpose. It is exactly what tells the caller to discard or
+    // repair a step; refusing it — as this tool first did — makes a failure invisible behind a count
+    // and removes the ability to filter errors of inference or of a tool call.
+    const status = part.state?.status
+    if (status !== "completed" && status !== "error") {
       return {
         ok: false,
-        error: `part ${input.id} is ${part.state?.status ?? "unknown"} — a failed or unfinished result is not recallable`,
+        error: `part ${input.id} is ${status ?? "unknown"} — only a finished result can be recalled`,
       }
     }
 
-    const output = part.state.output ?? ""
+    const output = status === "completed" ? (part.state?.output ?? "") : (part.state?.error ?? "")
     if (output.length === 0) return { ok: false, error: `part ${input.id} stored an empty result` }
 
     // A trailing newline terminates the last line rather than opening an empty one.
@@ -155,7 +159,7 @@ export function readToolResult(input: {
 
     const lastSelected = selected.length > 0 ? selected[selected.length - 1]!.n : 0
     const tool = part.tool ?? "tool"
-    const title = part.state.title ?? ""
+    const title = part.state?.title ?? ""
     return {
       ok: true,
       tool,

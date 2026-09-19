@@ -151,6 +151,39 @@ PNG is weak. Raising `quality` would make those files bigger; lowering it would 
 those ever need to shrink, the untested candidate is lossless webp, which needs its own measurement
 before anyone claims it helps.
 
+## 9. The failure mode this replaces — and the bound it therefore must carry
+
+Owner, 2026-09-19: «большое приложение может насобирать 1000 скриншотов — начало работы будет очень
+хорошим, а потом всё упадёт, потому что запрос будет весить 100 мегабайт, нас провайдер пошлёт.»
+
+Arithmetic, from the measured frame: one frame is `126 236 B` → base64 **168 339 chars ≈ 168 KB**, so
+**1 000 frames in the window ≈ 168 MB in ONE request**.
+
+### Where it bites TODAY, before any actualizer (grounded in code)
+`prompt.ts:1412-1421` — when the model can take images, the part is returned as-is, so **every stored
+image rides every request**. For a vision model, a hundred screenshots in the window are a hundred
+screenshots on the wire, every turn. Fixing this is not a nicety: it is what makes a long session
+survivable.
+
+### The rule that inverts
+| | today | after |
+|---|---|---|
+| default | bytes always (vision models) | **caption only, for everyone** |
+| on demand | nothing | `actualize(ids)` appends N frames to the tail |
+| bound | none | an explicit cap on frames per request |
+| when exceeded | the PROVIDER rejects | **the runtime refuses locally** |
+
+**The bound must be local.** A provider rejection is an error we cannot enumerate ahead of time, and
+it costs a round trip to discover. A local refusal reads as "too many frames, drop some" and costs
+nothing. The cap is expressed in **FRAMES, not bytes** — price follows dimensions (997 tokens/frame),
+so bytes are not the currency the budget uses.
+
+### What still needs measuring before the cap is chosen
+- Whether the fold currently DROPS image parts from the request when it folds old messages, or only
+  replaces them in the summary text. If it drops them, the fold is already a second, slower bound; if
+  not, the cap is the only one there is.
+- The provider's real per-request size ceiling, if it publishes one, rather than guessing at "100 MB".
+
 ## 8. Related surface found while verifying — the prompt footer has its own gauge
 
 The sidebar gauge is fixed, but the **prompt footer** prints `466.6K (47%)` — `tokens / context`

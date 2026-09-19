@@ -1,0 +1,33 @@
+Recover the content of an earlier tool result by its id, with line numbers so you can narrow it.
+
+Why this exists: a completed tool result heavier than 8 000 characters is replaced on the wire by a
+one-line placeholder once its turn is no longer the one being continued:
+
+  [grep id=prt_0b8da48fb001xD6AvY4MQp2Mo0 — result delivered earlier (10.0 KB, <pattern>);
+   re-read or re-run the tool if you need the full content again]
+
+Only the copy sent to the provider was dropped — the bytes are still stored in the session. `recall`
+reads them back by that id.
+
+How to use it:
+1. Call it with just the id to see the whole result as `N: text` rows — every line carries its
+   ABSOLUTE line number, so the next call can address them.
+2. Then narrow: `range` picks a window, `pattern` filters inside it. Only what you ask for is sent.
+
+Parameters:
+- `id` (required) — the `id=` value printed in the placeholder.
+- `range` — 1-based inclusive: `"120-180"`, `"120-"`, `"-180"`, `"42"`, or `0` for everything.
+  Each answer prints the next range to continue with, so a result larger than the cap is walked.
+- `pattern` — a regular expression; only matching lines inside the range come back, keeping their
+  absolute numbers.
+- `maxChars` — body cap, defaulting to the same 32 000 ceiling the replay path applies.
+
+Not for failures: a result whose status is not `completed` is refused. An error body is a dead end,
+and re-reading it costs a round trip to learn nothing.
+
+Not a substitute for `sessionread`, which truncates every tool output to 500 characters. And when the
+placeholder's advice ("re-read or re-run the tool") is impossible — a `task` result cannot be
+reproduced at all, and re-running `bash` re-applies its side effects — `recall` is the only way back.
+
+Recalled content is attached to the current request only and is not remembered as part of history,
+so asking twice costs twice and leaves nothing behind.

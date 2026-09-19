@@ -1115,6 +1115,7 @@ const ORACLE_EVIDENCE_TOOLS = new Set([
   "joboutput",
   "jobwait",
   "sessionread",
+  "recall",
   "read",
   "codegraph",
   "codegraphexplore",

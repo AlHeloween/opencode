@@ -31,6 +31,7 @@ import { CuaTool } from "./cua"
 import { MessageSearchTool } from "./messagesearch"
 import { DbReadTool } from "./dbread"
 import { LogSearchTool } from "./logsearch"
+import { RecallTool } from "./recall"
 import { CapabilityTool } from "./capability"
 import { PipelineTool } from "./pipeline"
 import { Capability } from "@/capability"
@@ -215,6 +216,7 @@ export const layer: Layer.Layer<
     const messagesearch = yield* MessageSearchTool
     const dbread = yield* DbReadTool
     const logsearch = yield* LogSearchTool
+    const recall = yield* RecallTool
     const sessionread = yield* SessionReadTool
     const joboutput = yield* JobOutputTool
     const jobwait = yield* JobWaitTool
@@ -343,6 +345,7 @@ export const layer: Layer.Layer<
           messagesearch: Tool.init(messagesearch),
           dbread: Tool.init(dbread),
           logsearch: Tool.init(logsearch),
+          recall: Tool.init(recall),
           sessionread: Tool.init(sessionread),
           joboutput: Tool.init(joboutput),
           jobwait: Tool.init(jobwait),
@@ -384,6 +387,7 @@ export const layer: Layer.Layer<
             tool.messagesearch,
             tool.dbread,
             tool.logsearch,
+            tool.recall,
             tool.sessionread,
             tool.joboutput,
             tool.jobwait,

@@ -109,6 +109,8 @@ export const DEFAULT_KNOWN_TOOL_IDS: ReadonlySet<string> = new Set(
     "logsearch",
     "sessionread",
     "recall",
+    "tempenable",
+    "tempdisable",
     "joboutput",
     "jobwait",
     "jobkill",

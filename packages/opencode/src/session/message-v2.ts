@@ -1174,9 +1174,18 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
    */
   function releaseExpiredParts(messages: typeof input, turn: number | undefined): typeof input {
     if (turn === undefined) return messages
-    const expired = (part: Part) => part.ttlUntil !== undefined && part.ttlUntil < turn
+    // `null` means "no declaration" exactly like `undefined` does, and the difference is not academic:
+    // the contract says null IS permanent, the `ttl_until` COLUMN is nullable, and a bare
+    // `!== undefined` test would have coerced null to 0 and RELEASED the very piece it was told to
+    // keep. Read the number, not the absence of a keyword — the same trap as the migration guard, where
+    // bun's `get()` answers null for an empty result and `!== undefined` called a missing table present.
+    const declaredUntil = (part: Part) => (typeof part.ttlUntil === "number" ? part.ttlUntil : undefined)
+    const expired = (part: Part) => {
+      const until = declaredUntil(part)
+      return until !== undefined && until < turn
+    }
     const note = (part: Part) =>
-      `[held] payload released: the declared span ended at turn ${part.ttlUntil} (now ${turn}). ` +
+      `[held] payload released: the declared span ended at turn ${declaredUntil(part)} (now ${turn}). ` +
       (part.type === "tool"
         ? `Call recall with id=${part.id} for the full result.`
         : "Read the file again if it is still needed.")

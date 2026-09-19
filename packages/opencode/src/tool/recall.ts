@@ -1,10 +1,9 @@
 import { Effect, Schema } from "effect"
-import { Database as BunDatabase } from "bun:sqlite"
 import { Global } from "@opencode-ai/core/global"
 import * as Tool from "./tool"
 import path from "path"
-import { existsSync } from "fs"
 import { MessageV2, REPLAY_TOOL_OUTPUT_MAX_CHARS, resultLines, selectLines } from "../session/message-v2"
+import { readStoredPart } from "../session/stored-part"
 import { optionalPattern } from "./pattern"
 import { Session } from "../session/session"
 
@@ -117,37 +116,26 @@ export function readToolResult(input: {
   /** WHY — carried into the persisted selection so a narrowed result can be audited later. */
   reason?: string
 }): RecallResult {
-  if (!existsSync(input.dbPath)) return { ok: false, error: `database not found at ${input.dbPath}` }
-
-  const db = new BunDatabase(input.dbPath, { readonly: true })
+  // ONE lookup, shared with every other writer (`@/session/stored-part`). The identity lives in the
+  // table COLUMNS, so a lookup that selects `data` alone yields a part that reads back perfectly and
+  // cannot be written — and two lookups would be two places that must remember that.
+  const lookup = readStoredPart({ dbPath: input.dbPath, id: input.id })
+  if (!lookup.ok) return { ok: false, error: lookup.error }
   try {
-    // The identity is in COLUMNS; the JSON holds only the part's own fields. BOTH are needed — the
-    // columns to write the part back, the JSON to read it. Selecting `data` alone produced a part that
-    // could be read forever and never written.
-    const row = db.prepare("SELECT id, session_id, message_id, data FROM part WHERE id = ? LIMIT 1").get(input.id) as
-      | { id: string; session_id: string; message_id: string; data: string }
-      | undefined
-    if (!row) return { ok: false, error: `no part with id ${input.id} in this project` }
-
-    let part: StoredToolPart
-    try {
-      const stored = JSON.parse(row.data) as {
-        type?: string
-        tool?: string
-        callID?: string
-        state?: StoredToolPart["state"]
-      }
-      part = {
-        id: row.id,
-        sessionID: row.session_id,
-        messageID: row.message_id,
-        type: stored.type ?? "",
-        tool: stored.tool ?? "",
-        callID: stored.callID ?? "",
-        state: stored.state ?? {},
-      }
-    } catch (error) {
-      return { ok: false, error: `part ${input.id} is unreadable: ${String(error)}` }
+    const stored = lookup.part.json as {
+      type?: string
+      tool?: string
+      callID?: string
+      state?: StoredToolPart["state"]
+    }
+    const part: StoredToolPart = {
+      id: lookup.part.id,
+      sessionID: lookup.part.sessionID,
+      messageID: lookup.part.messageID,
+      type: stored.type ?? "",
+      tool: stored.tool ?? "",
+      callID: stored.callID ?? "",
+      state: stored.state ?? {},
     }
 
     if (part.type !== "tool") return { ok: false, error: `part ${input.id} is a ${part.type ?? "unknown"} part, not a tool result` }
@@ -252,8 +240,6 @@ export function readToolResult(input: {
     }
   } catch (error) {
     return { ok: false, error: `lookup failed: ${String(error)}` }
-  } finally {
-    db.close()
   }
 }
 

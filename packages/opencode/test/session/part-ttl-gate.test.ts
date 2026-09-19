@@ -152,4 +152,16 @@ describe("the declared-lifetime gate", () => {
     expect(JSON.stringify(spent)).not.toContain(SPAM)
     expect(JSON.stringify(spent)).toContain("prt-cached")
   })
+
+  test("a null span means PERMANENT, not expired — the contract's own value for it", async () => {
+    // The contract says a null span IS permanent. A bare `!== undefined` test coerced null to 0 and
+    // RELEASED exactly the piece it was told to keep — and the `ttl_until` column is nullable, so
+    // another writer's null must never read as "expired" either.
+    MessageV2.clearConversionCache()
+    const input: MessageV2.WithParts[] = [
+      { info: assistantInfo("m-a"), parts: [{ ...toolPart("prt-null"), ttlUntil: null } as unknown as MessageV2.Part] },
+    ]
+    const body = JSON.stringify(await MessageV2.toModelMessages(input, model, { turn: 1000 }))
+    expect(body).toContain(SPAM)
+  })
 })

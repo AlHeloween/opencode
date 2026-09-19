@@ -84,6 +84,26 @@ export function releaseItem(sessionID: SessionID, id: PartID): void {
 }
 
 /**
+ * Release EVERY item of a session at once.
+ *
+ * Compaction is a HARD release trigger (owner ruling, plan §0.9.1): held content must not be carried
+ * across a fold. The fold is where the window is rebuilt, and an item that survived it would keep
+ * paying for attention it no longer has — while the pointer standing where its payload was is exactly
+ * what the model needs to decide. The release is therefore not a loss for the runtime to repair: it is
+ * a decision handed over, and the expected answer («приведет дела в порядок, сделает компакт и
+ * захватит файлы снова») is the model making it.
+ */
+export function releaseAll(sessionID: SessionID): void {
+  projectDb((db) =>
+    db
+      .update(AcquiredItemTable)
+      .set({ released: 1, time_updated: Date.now() })
+      .where(eq(AcquiredItemTable.session_id, sessionID))
+      .run(),
+  )
+}
+
+/**
  * A turn is a USER PROMPT, counted from the session's own event log — `session_entry.type = 'user'`,
  * indexed by `(session_id, type)`. Derived, so it cannot drift, and it survives a restart for free.
  */

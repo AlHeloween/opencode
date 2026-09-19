@@ -9,7 +9,7 @@ import { use as projectDb } from "@/storage/project-db"
 import { PartID } from "@/session/schema"
 import { ID as SessionEntryID } from "@/v2/session-entry"
 import { acquiredItem, type Turn } from "@/session/acquired-item"
-import { acquire, currentTurn, listAcquired, releaseItem, tdaHeaderFor } from "@/session/acquired-item-store"
+import { acquire, currentTurn, listAcquired, releaseAll, releaseItem, tdaHeaderFor } from "@/session/acquired-item-store"
 import { isWithheld, parseTdaHeader } from "@/provider/gateway/tda"
 
 /**
@@ -108,6 +108,31 @@ describe("the acquisition store", () => {
         // The ROW is the truth: every call re-reads, so what a fresh read returns is what was stored —
         // which is also why the span survives a restart rather than restarting with the process.
         expect(listAcquired(sid).map((item) => String(item.id)).sort()).toEqual(["prt_1", "prt_2"])
+      }),
+    ),
+  )
+
+  it.live("a fold releases EVERYTHING at once, including items whose span still runs", () =>
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const session = yield* Session.Service
+        const sid = (yield* session.create({})).id
+        acquire(sid, acquiredItem({ id: "prt_1", kind: "image", reason: "a", url: IMAGE_URL, turn: 1, holdTurns: 99 }))
+        acquire(sid, acquiredItem({ id: "prt_2", kind: "image", reason: "b", url: OTHER_URL, turn: 1, holdTurns: 99 }))
+
+        // Held by span, both of them.
+        const before = parseTdaHeader(tdaHeaderFor(sid)!)!
+        expect(before.set.held.every((item) => !isWithheld(item, before.turn))).toBe(true)
+
+        // The trigger is the FOLD, not the clock (owner ruling, plan §0.9.1).
+        releaseAll(sid)
+        const after = parseTdaHeader(tdaHeaderFor(sid)!)!
+        expect(after.set.held.every((item) => isWithheld(item, after.turn))).toBe(true)
+
+        // A release, not an erasure: the spans are untouched and the items are still there, which is what
+        // lets the model re-acquire them by the id the pointer prints.
+        expect(after.set.held.map((item) => item.expiresAtTurn)).toEqual([100, 100])
+        expect(listAcquired(sid)).toHaveLength(2)
       }),
     ),
   )

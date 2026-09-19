@@ -219,7 +219,8 @@ zero-cost short-circuit stays true whenever nothing is held.
 | **T3a** | the set's RULES — acquire, hold, release, expire — as PURE functions | new `session/acquired-item.ts`; `isWithheld` imported from the contract module | **DONE — 2026-09-19.** held survives every turn of its span and is withheld after it · a release withholds AT ONCE and does NOT rewrite the span (two facts, not one) · releasing another id changes nothing · the instruction round-trips through `parseTdaHeader` and withholds the very payload it describes · an empty set says nothing. Oracle: `bun typecheck` exit 0 · `test/session/acquired-item.test.ts` **5 pass / 0 fail / 23 expect** · gateway suites 9/0/26 and 5/0/17. |
 | **T3b** | PERSISTENCE: the `acquired_item` table (DDL + drizzle) and the store — reads/writes plus the turn counter | `storage/db.ts`, `storage/schema-project.sql.ts`, new `session/acquired-item-store.ts` | **DONE — 2026-09-19.** the two descriptions of the table are reconciled by reading the ARTIFACT back (`PRAGMA table_info`, 10 columns) · held → withheld when the span passes · released → withheld at once with the span untouched · re-acquiring one payload refreshes instead of duplicating. Oracle: `bun typecheck` exit 0 · `test/session/acquired-item-store.test.ts` **3 pass / 0 fail / 13 expect** |
 | **T3c** | the SEND SITE: the header in `llm.ts`, inside the `providerID.startsWith("opencode")` block — created, not joined, since `x-opencode-has-attachments` has no writer | `session/llm.ts` + the pure `tdaHeaders` decision in `session/acquired-item.ts` | **DONE (pure half) — 2026-09-19.** `tdaHeaders` returns `{}` for no value and for every third-party provider, and the header for `opencode`/`opencode-go` — both boundaries pinned at `test/session/acquired-item.test.ts`, 5/0/23 → see the suite. **Residual: the wiring LINE is observed on the wire, not in a unit test — T5's sandbox is its oracle.** The store is read on that branch only, so a session that never acquired sends nothing |
-| **T4** | the flag | `config/config.ts` gateway section + `gateway.jsonc` | **DONE — 2026-09-19.** `gateway.tda` declared beside `gateway.logDir`: `enabled` (default off), `holdTurns`, `maxItems`, `maxItemBytes`, `maxHeldTokens`, `priceMargin` — every §0.9 limit a number in a file. The pure `tdaHeaders(providerID, value, enabled)` carries BOTH gates (the switch and the header contract) so neither can be forgotten at a call site. Oracle: `bun typecheck` exit 0 · the three gates pinned in `test/session/acquired-item.test.ts` (switch off ⇒ nothing, even for `opencode`; third party ⇒ nothing, even with the switch on; nothing acquired ⇒ nothing) · `test/config/*` see the config suite. **Enforcement of the four limits lands with the ACQUIRER** — declaring a limit before there is anything to refuse is honest; enforcing it where nothing can be acquired yet would be a guard with no subject |
+| **T3d** | the FOLD TRIGGER: a bulk release at the fold boundary, decided in the SAME seam as the fold | `session/acquired-item-store.ts` (`releaseAll`) + `session/prompt.ts` (one `const foldChoice` computed before the switch) | **DONE — 2026-09-19.** every item of the session is released when `foldDecision` answers anything but `defer` — the trigger is the FOLD, not the clock — and it is a release, not an erasure: the spans are untouched and the items remain, which is what lets the model re-acquire them by the id the pointer prints. Oracle: `bun typecheck` exit 0 · `test/session/acquired-item-store.test.ts` **4 pass / 0 fail / 17 expect**. Residual: the hook LINE itself is observed on the wire (T5), the same residual T3c carries |
+| **T4** | the flag | `config/config.ts` gateway section + `gateway.jsonc` | **DONE — 2026-09-19.** `gateway.tda` declared beside `gateway.logDir`: `enabled` (default off), `holdTurns`, `maxItems`, `maxItemBytes`, `maxHeldTokens`, `priceMargin` — every §0.9 limit a number in a file. The pure `tdaHeaders(providerID, value, enabled)` carries BOTH gates (the switch and the header contract) so neither can be forgotten at a call site. Oracle: `bun typecheck` exit 0 · the three gates pinned in `test/session/acquired-item.test.ts` (switch off ⇒ nothing, even for `opencode`; third party ⇒ nothing, even with the switch on; nothing acquired ⇒ nothing). **Enforcement of the four limits lands with the ACQUIRER** — declaring a limit before there is anything to refuse is honest; enforcing it where nothing can be acquired yet would be a guard with no subject |
 | **T5** | the sandbox run | separate build, `model: opencode/qwen3.6-plus-free` | the per-request log shows the withheld body; no request corrupted; the model still answers |
 | **T6** | the release report | — | the report names files the snapshot shows changed (`git status`), not recalled |
 | **T7** | acquire a STORED RECORD — a `project_checkpoint` row, a message range — by id | the SQLite plane + the runtime's set | priced by `data.tokens` for an assistant message, by measure otherwise; **refused** when it would cross `usable()`; released to a pointer like any other item |
@@ -327,6 +328,43 @@ Four limits, and each catches a different mistake — none of them is redundant:
    count cap is what keeps that decision valid; without it the header transport degrades quietly.
 4. **Nothing is acquired by default.** `gateway.tda.enabled: false` — a pipeline that can hold a gigabyte
    must be something you turned ON.
+
+### 0.9.1 Placement and the compact trigger (owner ruling, 2026-09-19 — it supersedes §2.2's rationale)
+
+Owner, verbatim:
+
+> «Я вот что думаю, если TDA больше чем на один ход, то пусть они двигаюся по цепочке сообщений чтобы
+> быть закешированными, потом они конечно исчезнут и мы получим частичную потерю кэша, но мы сэкономим
+> токены на удержании. Но здесь один нюанс если мы залезаем на компакт, мы должны их тут же отпустить
+> и информировать модель, модель сама решит что с этим делать, скорее всего приведет дела в порядок,
+> сделает компакт и захватит файлы снова.»
+
+**Placement: the item rides the MESSAGE CHAIN, not a re-appended tail block.** §2.2 argued the opposite —
+appending to the mutable tail keeps the prefix untouched — and that argument is right about the PREFIX and
+wrong about the BILL. Measured in §0.10's own terms: a tail block is re-sent every turn at FULL input
+price, while a payload that has entered the chain costs `cache_read` (1/50 on our models). A hold longer
+than one turn therefore wins by the ratio itself; «сэкономим токены на удержании» is that arithmetic, not
+a preference.
+
+**The release is where the cache is paid — and it is paid ONCE.** Withholding removes the payload from
+inside that message, so the prefix changes at that point: «частичная потеря кэша», accepted deliberately —
+once, versus every turn. Note that this is EXACTLY what the built transform already does (find the payload
+by digest, replace it in place with a pointer), which is why the transform is PLACEMENT-AGNOSTIC: prefix
+or tail, it matches by content and rewrites where the payload sits.
+
+**Compaction is a HARD release trigger.** «если мы залезаем на компакт, мы должны их тут же отпустить и
+информировать модель» — at the fold boundary every held item is released and the model is TOLD, because the
+pointer stands exactly where the payload was: it reads `[… — released; <reader>(id=…) to attach it again]`
+and decides for itself. The expected behaviour, in the owner's own words, is that it «приведет дела в
+порядок, сделает компакт и захватит файлы снова» — the release is not a loss for the runtime to repair, it
+is a decision handed to the model with everything needed to make it.
+
+⇒ Two consequences for the task list:
+- the ACQUIRER mints a MESSAGE (or a part inside one), not a tail block — §2.2's mechanism is superseded
+  together with the reason it gave;
+- a **bulk release at the fold boundary** becomes a runtime duty, in the same seam this session already
+  touched (`session/prompt.ts`: `CompactionRequest.take` → `foldDecision`), so the release and the fold are
+  decided in one place rather than by two mechanisms that could disagree.
 
 ### 0.10 The economics — the grep loop COMPOUNDS, and the window fouls (owner, 2026-09-19)
 

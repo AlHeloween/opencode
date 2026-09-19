@@ -25,6 +25,7 @@ import {
   needsContentCompaction,
 } from "./overflow"
 import * as CompactionRequest from "./compaction-request"
+import * as AcquiredSet from "./acquired-item-store"
 import { Jobs } from "../jobs"
 import { RequestDiff } from "./request-diff"
 import { Checkpoint, type CheckpointData } from "./checkpoint"
@@ -2681,7 +2682,19 @@ export const layer = Layer.effect(
               // turn: forced/capture-then-forced when the `compact` tool armed
               // this turn, defer when a new s was just captured and nothing
               // asked, plain window-fill cadence otherwise.
-              switch (CompactionRequest.foldDecision({ requested: foldRequest.requested, captureDue, sidecarCaptured })) {
+              const foldChoice = CompactionRequest.foldDecision({
+                requested: foldRequest.requested,
+                captureDue,
+                sidecarCaptured,
+              })
+              // Compaction is a HARD release trigger (owner ruling, plan §0.9.1): held content must not
+              // survive a fold. Releasing FIRST means the window is rebuilt without it, and the pointer
+              // left where the payload was is what tells the model what happened — it decides what to do
+              // next («приведет дела в порядок, сделает компакт и захватит файлы снова»). `defer` folds
+              // nothing, so nothing is released: the two decisions are made in ONE place, so they cannot
+              // disagree.
+              if (foldChoice !== "defer") AcquiredSet.releaseAll(sessionID)
+              switch (foldChoice) {
                 case "forced":
                   yield* slog.info("layer2.cadence.requested", {
                     sessionID,

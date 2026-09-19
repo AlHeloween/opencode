@@ -81,13 +81,41 @@ ownership of the same bytes. The gateway WITHHOLDS; it does not supply.
 
 ```ts
 // provider/gateway/tda.ts
-export type TdaSet = { held: Array<{ id: string; kind: "image" | "document" | "source"; reason: string; expiresAtTurn: number }> }
+export type TdaHeld = {
+  id: string
+  kind: "image" | "document" | "source"
+  reason: string
+  expiresAtTurn: number
+  digest: string      // ← ADDED by T1. Matching is content-addressed; see below.
+  reader?: string     // ← ADDED by T1. Declared by the runtime, never invented by the gateway.
+}
+export type TdaSet = { held: TdaHeld[] }
 export function applyTemporaryDataAcquisition(body: string, set: TdaSet, turn: number): string
+export function payloadDigest(url: string): string   // ONE implementation, shared with the acquirer
 ```
 
+### 0.2.1 Matching is CONTENT-ADDRESSED — decided by T1, and the plan's type did not have it
+
+An `image_url` entry is `{type, image_url: {url}}`: **the body carries no part id**. So the only thing
+that can tie a body payload to a set item is the payload itself, and `digest` is therefore a FIELD of
+the held item, computed by the runtime at acquire time with the SAME exported function the gateway
+matches with. Two implementations of "which payload is this" would drift invisibly and the drift would
+surface as an item that can never be released.
+
+The alternative — matching the `[Image N]` ordinal the transcript prints beside the image — was
+rejected because it couples this layer to the numbering decision (§4.1, still open) and breaks for any
+item acquired without a transcript label (a CUA frame, a fetched document, a stored source).
+
+`reader` exists for the same reason `reason` does: the pointer must not name a reader it cannot
+promise. It is declared by the runtime (which knows what is registered), and when it is absent the
+pointer SAYS the runtime holds it rather than naming a tool that cannot return the item — the exact
+lie the dropped-result placeholder shipped once ("re-read or re-run the tool" is impossible for a
+`task` result and unsafe for `bash`).
+
 1. **Withhold a released or expired item** — its payload in `messages[]` is replaced by the one-line
-   pointer, using the SAME grammar the tool placeholder already prints (an id, a size, the reader that
-   returns it). Pure function of `(id, kind, size)`, so the replacement is byte-stable.
+   pointer, using the SAME grammar the tool placeholder already prints (`REPLAY_DELIVERED_MARKER`,
+   imported rather than copied). Pure function of `(kind, id, reason, reader, size)`, so the
+   replacement is byte-stable.
 2. **Keep a held item** — untouched.
 3. **Never blank.** A replaced payload must leave a pointer; if a pointer cannot be built (no id), the
    payload is left alone. This is the invariant the `keep` defect bought.
@@ -170,7 +198,7 @@ gateway.tda.holdTurns      §10     the declared lifetime
 | id | task | binding | oracle |
 |---|---|---|---|
 | **T0** | ground `Store` and the exact body shape a media part takes | the Store module, `adaptive-client.ts`, a raw-wire capture | **DONE — §0.3 + §0.3.1** |
-| **T1** | the pure transform | new `provider/gateway/tda.ts` | unit: withhold · keep · blank-guard · no-op on an unparsable body; the fixture is a REAL body captured from the gateway's own per-request log |
+| **T1** | the pure transform | new `provider/gateway/tda.ts` | **DONE — 2026-09-19.** withhold · keep · blank-guard · no-op on an unparsable body · untouched body returned as the SAME STRING (T2's flag-off control) · payload-digest stability across mime wrappers. Oracle: `bun typecheck` exit 0 · `test/provider/gateway-tda.test.ts` **8 pass / 0 fail / 25 expect**. Fixture provenance MEASURED, not assumed — §0.3.1 |
 | **T2** | wire it into `wrapFetch` beside `rewriteReasoningContent` | `adaptive-client.ts:347` | integration: flag on → a pointer where the payload was; flag off → byte-identical to today |
 | **T3** | the set's write path — acquire, hold, release, expire | the Store + the runtime attachment path | a held item survives a turn; an expired one is withheld; a released one is withheld at once |
 | **T4** | the flag | `config/config.ts` gateway section + `gateway.jsonc` | config test: default false, true only when declared |
@@ -188,6 +216,11 @@ gateway.tda.holdTurns      §10     the declared lifetime
    per-request directory. **The sandbox is observed there, not by reading the TUI.**
 4. Whole-sandbox falsifier: a flag-ON body differs from the flag-OFF body in NOTHING except the withheld
    payloads.
+5. **The run must carry an image.** Measured 2026-09-19: no capture in `raw-wire/` carries a media
+   entry, and the reason is age, not a logging gap — this session's 25 image parts are ~5.3 h older
+   than the earliest capture (newest part `1789801838037` ms vs earliest capture `1789820960963` ms).
+   So whether the surface logs a media body at all is UNKNOWN until a run carries one; the sandbox
+   must therefore attach or acquire an image INSIDE the run, or it observes nothing.
 
 ### 0.7 Risks, each with its falsifier
 
@@ -196,6 +229,11 @@ gateway.tda.holdTurns      §10     the declared lifetime
   byte-identical.
 - **An O(body) scan on the hot path**, for every request of a wrapped provider. `rewriteReasoningContent`
   is already O(body), so the shape is allowed — but the cost must be MEASURED, not assumed.
+  **Shape measured at T1:** the transform short-circuits on an empty set and on a set whose items all
+  still hold, so the flag-OFF cost is exactly ZERO (the input string is returned, not re-serialised);
+  with something actually released it is one `JSON.parse` + `JSON.stringify` — the shape the reasoning
+  rewrite already pays — plus one sha256 per `data:` payload. The NUMBER belongs to T2 on the real hot
+  path; a synthetic body would measure the fixture, not the path.
 - **Two writers to one session's set** (runtime and gateway) is exactly the race the storage paradigm
   exists to prevent. T0 names ONE owner; if both write, the set is broken by construction.
 

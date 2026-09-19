@@ -52,6 +52,28 @@ function track(files?: string[]): string {
   return getCurrentHash()
 }
 
+/**
+ * Write a version whose LENGTH grows with the version number, and return the text.
+ *
+ * Fossil decides whether a file changed from (size, mtime) BEFORE it hashes content, and
+ * on Windows that mtime comparison sits on the DOS 2-second tick. Two rewrites of the
+ * SAME length inside one tick are therefore INVISIBLE: `commit` answers "nothing has
+ * changed; use --allow-empty to override", no version is created, and a later
+ * `update <older>` reports "Already up-to-date" — the file keeps its current content.
+ *
+ * Measured 2026-09-19 (four arms): same size/0 s FAIL, same size/+1.2 s FAIL,
+ * same size/+2 s OK, different size/0 s OK. The old fixture wrote `"v1"` / `"v2"` /
+ * `"v3"` — all two bytes — so the second and third commits silently did nothing, and two
+ * tests were skipped for a FIXTURE bug rather than a product one. Making the length carry
+ * the version makes that impossible by construction, so no case in this file can quietly
+ * stop creating versions again.
+ */
+function writeVersion(file: string, version: number): string {
+  const text = `v${version}${" updated".repeat(version - 1)}`
+  writeFileSync(path.join(TMP, file), text)
+  return text
+}
+
 describe("Fossil Rollback & Undo", () => {
   beforeEach(() => {
     mkdirSync(TMP, { recursive: true })
@@ -62,27 +84,14 @@ describe("Fossil Rollback & Undo", () => {
     try { rmSync(TMP, { recursive: true, force: true }) } catch {}
   })
 
-  // SKIP WITH A REASON, never bare (2026-09-19). Root cause FOUND and measured, and it
-  // is the FIXTURE — not fossil, not the product: fossil decides whether a file changed
-  // from (size, mtime) BEFORE it hashes content, and on Windows that mtime comparison
-  // sits on the DOS 2-second tick. So `"v1"` → `"v2"` — same length, same tick — is
-  // INVISIBLE to `commit`, which answers "nothing has changed; use --allow-empty to
-  // override" and creates no new version; `update <older>` is then "Already up-to-date"
-  // and the file keeps its current content. Measured in four arms (2026-09-19):
-  //   same size, no delay  → commit FAILS, no h2 created, update is a no-op  (this test)
-  //   same size, +1.2 s    → commit FAILS
-  //   same size, +2 s      → commit OK, `update h1` restores "v1"
-  //   different size, 0 s  → commit OK, `update h1` restores "v1"
-  // The fix is to give successive versions DIFFERENT LENGTHS. Note the whole file writes
-  // v1/v2/v3 (all two bytes), so its other cases currently pass only because
-  // `revert -r h1` does not depend on the later commits existing.
-  test.skip("update rolls back committed files", () => {
-    writeFileSync(path.join(TMP, "a.txt"), "v1")
-    writeFileSync(path.join(TMP, "b.txt"), "v1")
+  test("update rolls back committed files", () => {
+    writeVersion("a.txt", 1)
+    writeVersion("b.txt", 1)
     const h1 = track([path.join(TMP, "a.txt"), path.join(TMP, "b.txt")])
 
-    writeFileSync(path.join(TMP, "a.txt"), "v2")
-    writeFileSync(path.join(TMP, "b.txt"), "v2")
+    // Different LENGTH on purpose — see `writeVersion`.
+    writeVersion("a.txt", 2)
+    writeVersion("b.txt", 2)
     track()
 
     // Rollback to h1 (state is clean, no uncommitted changes)
@@ -105,13 +114,13 @@ describe("Fossil Rollback & Undo", () => {
   })
 
   test("revert -r VERSION restores file to specific version", () => {
-    writeFileSync(path.join(TMP, "y.txt"), "v1")
+    writeVersion("y.txt", 1)
     const h1 = track([path.join(TMP, "y.txt")])
 
-    writeFileSync(path.join(TMP, "y.txt"), "v2")
+    writeVersion("y.txt", 2)
     track()
 
-    writeFileSync(path.join(TMP, "y.txt"), "v3")
+    writeVersion("y.txt", 3)
     track()
 
     // Revert to v1
@@ -134,13 +143,13 @@ describe("Fossil Rollback & Undo", () => {
   })
 
   test("opRestore (checkout) preserves version history", () => {
-    writeFileSync(path.join(TMP, "d.txt"), "v1")
+    writeVersion("d.txt", 1)
     const h1 = track([path.join(TMP, "d.txt")])
 
-    writeFileSync(path.join(TMP, "d.txt"), "v2")
+    writeVersion("d.txt", 2)
     track()
 
-    writeFileSync(path.join(TMP, "d.txt"), "v3")
+    writeVersion("d.txt", 3)
     const h3 = track()
 
     // Rollback to v1
@@ -152,7 +161,7 @@ describe("Fossil Rollback & Undo", () => {
 
     // Can go back to v3
     fossil(["update", h3])
-    expect(readFileSync(path.join(TMP, "d.txt"), "utf-8")).toBe("v3")
+    expect(readFileSync(path.join(TMP, "d.txt"), "utf-8")).toBe("v3 updated updated")
   })
 
   test("rollback to non-existent version fails gracefully", () => {
@@ -163,14 +172,15 @@ describe("Fossil Rollback & Undo", () => {
     expect(result.code).not.toBe(0)
   })
 
-  test.skip("multiple rollbacks don't corrupt history", () => {
-    writeFileSync(path.join(TMP, "f.txt"), "v1")
+  test("multiple rollbacks don't corrupt history", () => {
+    writeVersion("f.txt", 1)
     const h1 = track([path.join(TMP, "f.txt")])
 
-    writeFileSync(path.join(TMP, "f.txt"), "v2")
+    // Each version differs in LENGTH — see `writeVersion`.
+    writeVersion("f.txt", 2)
     const h2 = track()
 
-    writeFileSync(path.join(TMP, "f.txt"), "v3")
+    writeVersion("f.txt", 3)
     const h3 = track()
 
     // Rollback to v1, then v3, then v2
@@ -178,10 +188,10 @@ describe("Fossil Rollback & Undo", () => {
     expect(readFileSync(path.join(TMP, "f.txt"), "utf-8")).toBe("v1")
 
     fossil(["update", h3])
-    expect(readFileSync(path.join(TMP, "f.txt"), "utf-8")).toBe("v3")
+    expect(readFileSync(path.join(TMP, "f.txt"), "utf-8")).toBe("v3 updated updated")
 
     fossil(["update", h2])
-    expect(readFileSync(path.join(TMP, "f.txt"), "utf-8")).toBe("v2")
+    expect(readFileSync(path.join(TMP, "f.txt"), "utf-8")).toBe("v2 updated")
 
     // Timeline still intact
     const timeline = fossil(["timeline"])

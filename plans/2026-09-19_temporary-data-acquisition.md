@@ -11,6 +11,106 @@ Owner ruling, 2026-09-19 (verbatim): «Идея с links для изображе
 This SUPERSEDES `plans/2026-09-18_attachment-image-store.md` (content-addressed store + messages
 carrying references + derived-copy fallback). That plan is dead — see §5.
 
+## 0. Implementation plan (2026-09-19) — one gateway transform, behind a flag, proven in a sandbox
+
+Owner, 2026-09-19 (verbatim):
+
+> «Назовем temporary data aquisition, впихнем в gateway, больше некуда, картинки только часть, тсчательно
+> спланируй, потом сделай и проведи тесты, на сколько точно на сколько это вообще возможно, потом собери
+> отдельно и запусти в песочнице, будем смотреть логи и чего делает, через jsonc задай ему модель
+> big-pickle чтобы не напалить токены на тестах, пока не убедимся что все палит - лучше это не копировать
+> в workflow. Это серьезный пайплайн. И требует не менее серьезного подхода.»
+
+### 0.1 The division of labour — checked against the code, not assumed
+
+«Впихнем в gateway» is right, and the seam already exists:
+
+```
+provider/gateway/adaptive-client.ts:332   export function wrapFetch(_baseFetch)        ← installed by mod.ts:79
+provider/gateway/adaptive-client.ts:347   init = { ...init, body: rewriteReasoningContent(init.body) }
+```
+
+`rewriteReasoningContent` is the PRECEDENT: a pure `body → body` function applied inside `wrapFetch`,
+collapsing a duplication the runtime cannot see. It fetches nothing, stores nothing.
+
+The gateway sees the TRUE outgoing body, and that decides the split:
+
+| half | owner | why |
+|---|---|---|
+| **acquire / re-attach** | the RUNTIME | the only thing holding the parts and the DB; new content enters as a tool attachment, which already works (`tool/tool.ts:32`) |
+| **hold** | the SET | a keyed record, not a computation |
+| **release / withhold** | the GATEWAY | only the gateway sees the real body — and withholding needs no payload source, because the payload is already IN the body |
+| **re-acquire** | `recall` (results) / the runtime (attachments) | shipped for tool results; the attachment leg is T2 |
+
+**Rejected: payloads in a gateway store.** Re-attaching from the gateway would make the gateway hold
+image bytes — the store the earlier plan explicitly refused («no caching») — and it would duplicate
+ownership of the same bytes. The gateway WITHHOLDS; it does not supply.
+
+### 0.2 The transform, as one pure function
+
+```ts
+// provider/gateway/tda.ts
+export type TdaSet = { held: Array<{ id: string; kind: "image" | "document" | "source"; reason: string; expiresAtTurn: number }> }
+export function applyTemporaryDataAcquisition(body: string, set: TdaSet, turn: number): string
+```
+
+1. **Withhold a released or expired item** — its payload in `messages[]` is replaced by the one-line
+   pointer, using the SAME grammar the tool placeholder already prints (an id, a size, the reader that
+   returns it). Pure function of `(id, kind, size)`, so the replacement is byte-stable.
+2. **Keep a held item** — untouched.
+3. **Never blank.** A replaced payload must leave a pointer; if a pointer cannot be built (no id), the
+   payload is left alone. This is the invariant the `keep` defect bought.
+4. **Do nothing when the set is empty**, and return the input UNCHANGED when the body does not parse. A
+   transform that corrupts a request is worse than one that does nothing.
+
+### 0.3 Where the set lives
+
+`Store` already exists in this client (`await Store.init()`, `Store.getStreamingEnabled`). The set is a
+keyed record under it, namespaced per session. **T0 names the exact path, shape and single owner before
+any code is written** — the answer decides whether the transport is a store read or a header.
+
+Alternative considered: carry the set in a header (`x-opencode-tda`) beside `x-opencode-has-attachments`
+(`:398`). Cheaper per request, but it must stay under transport header limits while the set grows with
+every held item.
+
+### 0.4 Behind a FLAG, default OFF
+
+`gateway.tda.enabled: false`. The sandbox config turns it on; the workflow config does not until the
+sandbox is green. That is «лучше это не копировать в workflow» expressed as a DEFAULT rather than as
+discipline — a flag cannot be forgotten, a resolution can.
+
+### 0.5 Tasks
+
+| id | task | binding | oracle |
+|---|---|---|---|
+| **T0** | ground `Store` (path, shape, namespacing, single owner) and the exact body shape an image part takes | `provider/gateway/adaptive-client.ts`, the Store module | a note with `file:line` per fact — **no code** |
+| **T1** | the pure transform | new `provider/gateway/tda.ts` | unit: withhold · keep · blank-guard · no-op on an unparsable body; the fixture is a REAL body captured from the gateway's own per-request log |
+| **T2** | wire it into `wrapFetch` beside `rewriteReasoningContent` | `adaptive-client.ts:347` | integration: flag on → a pointer where the payload was; flag off → byte-identical to today |
+| **T3** | the set's write path — acquire, hold, release, expire | the Store + the runtime attachment path | a held item survives a turn; an expired one is withheld; a released one is withheld at once |
+| **T4** | the flag | `config/config.ts` gateway section + `gateway.jsonc` | config test: default false, true only when declared |
+| **T5** | the sandbox run | separate build, `model: opencode/big-pickle` | the per-request log shows the withheld body; no request corrupted; the model still answers |
+| **T6** | the release report | — | the report names files the snapshot shows changed (`git status`), not recalled |
+
+### 0.6 The sandbox protocol — the owner's requirement, made checkable
+
+1. `pwsh _build.ps1 -Task build` into a SEPARATE artifact; do **not** deploy to `bin/`.
+2. The sandbox config sets `"model": "opencode/big-pickle"` — the key is real (`config/config.ts:149`) —
+   so a test run cannot burn the real budget.
+3. `gateway.jsonc` already logs `logBodies: true` + `perRequest: true`: every request is a file under the
+   per-request directory. **The sandbox is observed there, not by reading the TUI.**
+4. Whole-sandbox falsifier: a flag-ON body differs from the flag-OFF body in NOTHING except the withheld
+   payloads.
+
+### 0.7 Risks, each with its falsifier
+
+- **Byte-stability.** Withholding changes that session's prefix on the first turn after a release. That
+  is the feature — but it must happen ONCE. Falsifier: two consecutive requests with the same set are
+  byte-identical.
+- **An O(body) scan on the hot path**, for every request of a wrapped provider. `rewriteReasoningContent`
+  is already O(body), so the shape is allowed — but the cost must be MEASURED, not assumed.
+- **Two writers to one session's set** (runtime and gateway) is exactly the race the storage paradigm
+  exists to prevent. T0 names ONE owner; if both write, the set is broken by construction.
+
 ## 1. What exists today (grounded)
 
 - **The link is already visible to the model.** `prompt.ts:1455` emits

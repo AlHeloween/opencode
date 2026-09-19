@@ -27,7 +27,7 @@ released content remain reachable without occupying it.
 | **release — automatic** | a result heavier than 8 000 chars, from an earlier turn, collapses to an ID-addressed placeholder | `TOOL_PLACEHOLDER_THRESHOLD_CHARS` | **shipped** |
 | **release — deliberate** | `recall(…, keep: true)` REPLACES the result with the chosen slice | `ToolKeptSelection` | **shipped** |
 | **re-acquire** | `recall(id, range, pattern)` returns the stored result by its address | `tool/recall.ts` | **shipped** |
-| **hold for attachments** (image, document, sources) | — | — | **NOT shipped** — see `plans/2026-09-19_image-actualizer.md` |
+| **hold for attachments** (image, document, sources) | — | — | **NOT shipped** — see `plans/2026-09-19_temporary-data-acquisition.md` |
 
 The first five are one mechanism. They are described here together because they only make sense
 together: a release with no address is a loss, and an address with no re-acquire is decoration.
@@ -92,7 +92,7 @@ Owner, 2026-09-19 (verbatim):
 
 A screenshot, a document, and a set of source files are **the same shape**: external content brought
 into the window for a bounded purpose, worked on, and then let go. The image actualizer
-(`plans/2026-09-19_image-actualizer.md`) is the image instance of it, and its §2.3 already names the
+(`plans/2026-09-19_temporary-data-acquisition.md`) is the image instance of it, and its §2.3 already names the
 shape — *an active set*.
 
 What the generalisation adds:
@@ -119,7 +119,7 @@ What the generalisation adds:
 
 ## Related
 
-- `plans/2026-09-19_image-actualizer.md` — the image instance, its gateway-transform design, and the
+- `plans/2026-09-19_temporary-data-acquisition.md` — the image instance, its gateway-transform design, and the
   five dead `x-opencode-*` reads that need their writer.
 - `docs/compaction.md` — the three measures, one space each; the window budget this lifecycle spends.
 - `packages/opencode/src/session/message-v2.ts` — the gate, the placeholder, `selectLines`, the shared

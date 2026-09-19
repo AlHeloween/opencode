@@ -367,7 +367,7 @@ the wrong query.
 
 **Planned, not shipped:** attachments have no release and no re-acquire (a part that entered the
 conversation is immutable until the fold), and nothing counts a lifetime. The generalisation to
-*temporary data acquisition* is in [plans/2026-09-19_image-actualizer.md](plans/2026-09-19_image-actualizer.md):
+*temporary data acquisition* is in [plans/2026-09-19_temporary-data-acquisition.md](plans/2026-09-19_temporary-data-acquisition.md):
 a document, a set of sources, a screenshot — acquire, hold for a declared span, release, and let the
 recorded diffs be the report's evidence.
 

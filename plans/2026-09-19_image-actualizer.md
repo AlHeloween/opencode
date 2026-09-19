@@ -88,9 +88,19 @@ compaction.ts:200,1001 [file: <name> (<mime>)]                ← into the summa
 
 So after a fold the **summary is the index the agent reads**, and three things follow:
 
-1. **The summary must render the ordinal.** Without `#N` in the compaction rendering the link has no
-   address: the agent sees the name and cannot ask for it. This is not cosmetic — it is the condition
-   under which the post-fold loop works at all.
+1. **~~The summary must render the ordinal~~ — CORRECTED: it already does, with no code change.**
+   The caption is a **stored synthetic TEXT part**, and BOTH summary renderers render every text part
+   unconditionally: `compaction.ts:179` and `:982` both carry the comment «Render ALL text parts
+   regardless of `ignored` flag», and `:235` counts them the same way. A grep for `synthetic` in
+   `compaction.ts` returns no filter on any rendering path. So the ordinal reaches the summary because
+   it was frozen into the text at ingestion — which is the whole reason for freezing it there.
+   The plan's original claim (that the summary renders only the `file` part) was wrong; the summary
+   renders the `file` placeholder **and** the caption, two lines for one image.
+
+   **The real gap this leaves: images ingested before the caption existed** (every session so far).
+   Their summary link carries no number and nothing can invent one per-message. This is exactly what
+   the session-vs-summary split below is for — the tool must offer `list`, which is not a convenience
+   but the only way to address an image whose caption was never written.
 2. **The ordinal must be DERIVED, not counted.** The summary renders links to parts that are no longer
    in the window, so a counter that lived with the window is useless here. "Position in document
    order" is correct for a part regardless of whether it is still visible — which is a REASON for the

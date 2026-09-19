@@ -22,8 +22,8 @@ const db = new BunDatabase(dbPath, { create: true })
 db.exec("CREATE TABLE part (id TEXT PRIMARY KEY, type TEXT NOT NULL, data TEXT NOT NULL)")
 const insert = db.prepare("INSERT INTO part (id, type, data) VALUES (?, ?, ?)")
 
-function seedTool(id: string, status: string, output: string, tool = "grep") {
-  insert.run(id, "tool", JSON.stringify({ type: "tool", tool, state: { status, output } }))
+function seedTool(id: string, status: string, output: string, tool = "grep", title?: string) {
+  insert.run(id, "tool", JSON.stringify({ type: "tool", tool, state: { status, output, ...(title === undefined ? {} : { title }) } }))
 }
 
 function call(input: { id: string; range?: string; pattern?: string; ignoreCase?: boolean; maxChars?: number }) {
@@ -91,6 +91,23 @@ describe("recall: reading a stored tool result by part id", () => {
     if (!result.ok) throw new Error(result.error)
     expect(result.matchedLines).toBe(1)
     expect(result.text).toBe("3: gamma three\n")
+  })
+
+  test("carries the same label the placeholder printed, so two recalls cannot be confused", () => {
+    // The placeholder on the wire reads `[grep id=prt_x — result delivered earlier (10.0 KB, <title>)]`.
+    // If the answer did not repeat that title, the only thing distinguishing two recalled results
+    // would be an opaque id.
+    seedTool("prt_labelled", "completed", five, "grep", "log\\.(debug|info)")
+    const labelled = call({ id: "prt_labelled" })
+    if (!labelled.ok) throw new Error(labelled.error)
+    expect(labelled.title).toBe("log\\.(debug|info)")
+    expect(labelled.label).toBe("grep: log\\.(debug|info)")
+
+    seedTool("prt_bare", "completed", five, "bash")
+    const bare = call({ id: "prt_bare" })
+    if (!bare.ok) throw new Error(bare.error)
+    expect(bare.title).toBe("")
+    expect(bare.label).toBe("bash")
   })
 
   test("an invalid pattern is refused with its own reason", () => {

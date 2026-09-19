@@ -12,6 +12,10 @@ import DESCRIPTION from "./recall.txt"
 export type RecallSuccess = {
   ok: true
   tool: string
+  /** The stored `state.title` of that part — the same label the wire placeholder prints. */
+  title: string
+  /** `tool: title` (just the tool when it stored no title) — ONE handle, identical in both places. */
+  label: string
   /** Lines in the stored result (a single trailing newline is a terminator, not a line). */
   totalLines: number
   totalChars: number
@@ -91,7 +95,7 @@ export function readToolResult(input: {
       | undefined
     if (!row) return { ok: false, error: `no part with id ${input.id} in this project` }
 
-    let part: { type?: string; tool?: string; state?: { status?: string; output?: string } }
+    let part: { type?: string; tool?: string; state?: { status?: string; output?: string; title?: string } }
     try {
       part = JSON.parse(row.data) as typeof part
     } catch (error) {
@@ -150,9 +154,13 @@ export function readToolResult(input: {
     }
 
     const lastSelected = selected.length > 0 ? selected[selected.length - 1]!.n : 0
+    const tool = part.tool ?? "tool"
+    const title = part.state.title ?? ""
     return {
       ok: true,
-      tool: part.tool ?? "tool",
+      tool,
+      title,
+      label: title ? `${tool}: ${title}` : tool,
       totalLines,
       totalChars: output.length,
       firstLine: chunks.length > 0 ? selected[0]!.n : 0,
@@ -221,23 +229,26 @@ export const RecallTool = Tool.define(
           if (!result.ok) {
             return {
               title: `recall: ${params.id}`,
-              metadata: { id: params.id, tool: "", totalLines: 0, totalChars: 0, matched: 0, returned: 0, error: result.error },
+              metadata: { id: params.id, label: "", title: "", tool: "", totalLines: 0, totalChars: 0, matched: 0, returned: 0, error: result.error },
               output: `recall failed: ${result.error}`,
             }
           }
 
           const scope = params.pattern ? `, pattern ${JSON.stringify(params.pattern)}` : ""
           const header =
-            `recall: ${result.tool} id=${params.id} — range ${JSON.stringify(params.range ?? "0")} of ${result.totalLines} line(s), ${result.totalChars} chars${scope}\n` +
+            `recall: ${result.label} — id=${params.id}\n` +
+            `range ${JSON.stringify(params.range ?? "0")} of ${result.totalLines} line(s), ${result.totalChars} chars${scope}\n` +
             (result.matchedLines === 0
               ? `no line matched in that range — widen the range or drop the pattern`
               : `showing ${result.text.split("\n").filter(Boolean).length} line(s), absolute ${result.firstLine}-${result.lastLine}` +
                 (result.nextLine === null ? ` (complete)` : `; continue with range=${result.nextLine}-`))
 
           return {
-            title: `recall: ${result.tool} lines ${result.firstLine}-${result.lastLine} of ${result.totalLines}`,
+            title: `recall: ${result.label} lines ${result.firstLine}-${result.lastLine} of ${result.totalLines}`,
             metadata: {
               id: params.id,
+              label: result.label,
+              title: result.title,
               tool: result.tool,
               totalLines: result.totalLines,
               totalChars: result.totalChars,

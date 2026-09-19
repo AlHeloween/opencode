@@ -9,6 +9,10 @@ one-line placeholder once its turn is no longer the one being continued:
 Only the copy sent to the provider was dropped — the bytes are still stored in the session. `recall`
 reads them back by that id.
 
+Every answer opens with the SAME label the placeholder printed — `<tool>: <title>`, for example
+`recall: grep: log\.(debug|info) — id=prt_0b8da48fb001…`. One handle in both places, so a recalled
+result cannot be confused with another one recalled in the same turn.
+
 How to use it:
 1. Call it with just the id to see the whole result as `N: text` rows — every line carries its
    ABSOLUTE line number, so the next call can address them.

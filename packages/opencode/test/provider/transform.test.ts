@@ -64,12 +64,13 @@ describe("ProviderTransform.maxOutputTokens", () => {
   })
 
   test("the budget equals the reserve the compaction gate keeps free", () => {
-    // The whole point of fixing it: `usable()` subtracts REQUEST_OVERHEAD_TOKENS
-    // plus `min(limit.output, MAX_OUTPUT_RESERVE_TOKENS)`, and the wire now asks
-    // for exactly that `min` — so `prompt + max <= context` is checked with the
-    // arithmetic the provider performs. While the value was content-derived the two
-    // sides were 131 535 against 32 768, a ~100K band where the gate believed there
-    // was room (same class as the ×3 bug fixed on 2026-09-15).
+    // The whole point of fixing it: the compaction reserve IS this function's value, on
+    // every path and for every model (owner ruling 2026-09-19), so `prompt + max <=
+    // context` is checked with exactly the arithmetic the provider performs. While the
+    // value was content-derived the two sides were 131 535 against 32 768, a ~100K band
+    // where the gate believed there was room (same class as the ×3 bug fixed on
+    // 2026-09-15). An UNDECLARED ceiling is the standard 32 768 profile, never a
+    // small-window reserve: the retired 8 192 fallback left a 24 576 band.
     expect(ProviderTransform.maxOutputTokens(createModel({ context: 1_000_000, output: 384_000 }))).toBe(32_768)
     expect(ProviderTransform.maxOutputTokens(createModel({ context: 1_000_000, output: 384_000 }))).toBe(
       ProviderTransform.maxOutputTokens(createModel({ context: 512_000, output: 384_000 })),

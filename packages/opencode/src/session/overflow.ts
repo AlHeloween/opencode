@@ -5,10 +5,6 @@ import type { MessageV2 } from "./message-v2"
 import { TokenCalibration } from "./token-calibration"
 import { MediaTokenCalibration } from "./media-token-calibration"
 
-/** Cap on output-token reserve so huge max_output does not erase 1M windows. */
-const MAX_OUTPUT_RESERVE_TOKENS = 32_768
-const FALLBACK_OUTPUT_RESERVE_TOKENS = 8_192
-
 /** Content body heuristic: ~1 token per 4 symbols (chars). Cadence uses this alone. */
 export const CHARS_PER_TOKEN = 4
 
@@ -24,31 +20,38 @@ export const REQUEST_OVERHEAD_TOKENS = 10_000
  * Default tokens reserved under model limit for a **normal LLM turn**
  * (framing + output). Mechanistic compact is zero-token — no separate
  * "leave 15%/20k for compaction model call" slab.
+ *
+ * The output half is `ProviderTransform.maxOutputTokens` — the very value the request
+ * asks for — rather than a parallel reserve constant.
+ *
+ * Owner ruling 2026-09-19: the system is tuned around models whose ceiling is ≥ 32 768,
+ * so an UNDECLARED ceiling is read as that same profile instead of as a small-window
+ * model. The retired `FALLBACK_OUTPUT_RESERVE_TOKENS = 8_192` meant the reserve and the
+ * request disagreed by 24 576 tokens on every model that declares no `limit.output` —
+ * the gate believed there was room the provider had not left. Taking the number from
+ * `maxOutputTokens` makes the subtracted value and the requested value the same by
+ * construction, on every path, for every model.
  */
 export function defaultUsableReserved(model: Provider.Model): number {
-  const out = model.limit.output ?? 0
-  const outputReserve =
-    out > 0 ? Math.min(out, MAX_OUTPUT_RESERVE_TOKENS) : FALLBACK_OUTPUT_RESERVE_TOKENS
-  return REQUEST_OVERHEAD_TOKENS + outputReserve
+  return REQUEST_OVERHEAD_TOKENS + ProviderTransform.maxOutputTokens(model)
 }
 
 
 /**
  * Check if there is enough spare output room for a generation.
- * Returns true if `limit - used >= outputReserve` (typically 32k).
- * Used as a pre-flight gate before `llm.stream()` — if false, compact first.
+ * Returns true if `limit - used >= reserve`, where the reserve is the output the request
+ * will actually ask for. Used as a pre-flight gate before `llm.stream()` — if false,
+ * compact first.
  */
 export function hasSpareOutput(input: {
   cfg: Config.Info
   model: Provider.Model
-  used: number  // full request estimate (content/4 + REQUEST_OVERHEAD_TOKENS)
+  used: number  // REQUEST size: the provider's own prompt_tokens + growth, or its estimate
 }): boolean {
   const observedLimit = TokenCalibration.getObservedLimit(input.model)
   const limit = observedLimit ?? input.model.limit.input ?? input.model.limit.context
   if (limit <= 0) return true  // unknown limit — never block
-  const outputReserve = input.model.limit.output ?? 0
-  const reserve = outputReserve > 0 ? Math.min(outputReserve, MAX_OUTPUT_RESERVE_TOKENS) : FALLBACK_OUTPUT_RESERVE_TOKENS
-  return limit - input.used >= reserve
+  return limit - input.used >= ProviderTransform.maxOutputTokens(input.model)
 }
 
 export function usable(input: { cfg: Config.Info; model: Provider.Model }) {

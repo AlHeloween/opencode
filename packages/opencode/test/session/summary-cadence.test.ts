@@ -18,6 +18,7 @@ import type { Provider } from "@/provider/provider"
 import type { Config } from "@/config/config"
 import type { MessageV2 } from "../../src/session/message-v2"
 import type { MessageID } from "../../src/session/schema"
+import { ProviderTransform } from "../../src/provider/transform"
 
 /**
  * Layer-1 summary cadence regression tests.
@@ -222,6 +223,49 @@ describe("hasSpareOutput (32k spare gate for every generation)", () => {
         used: 91_808,
       }),
     ).toBe(true)
+  })
+
+  test("an UNDECLARED output ceiling is the standard 32 768 profile, not a small window", () => {
+    // Owner ruling 2026-09-19: the system is tuned around ceilings ≥ 32 768, so a model
+    // that declares none is read as that profile. The retired 8 192 fallback meant the
+    // reserve and the request disagreed here by 24 576 tokens — the gate believed there
+    // was room the provider had not left.
+    const model = modelFixture(128_000, 0)
+    expect(hasSpareOutput({ cfg, model, used: 95_232 })).toBe(true)
+    expect(hasSpareOutput({ cfg, model, used: 95_233 })).toBe(false)
+  })
+
+  test("the reserve is the value the request will actually ask for", () => {
+    // Structural, not a coincidence of constants: both sides call `maxOutputTokens`, so
+    // `prompt + max <= context` is checked with the provider's own arithmetic on every
+    // path — ceiling declared ≥ 32 768, ceiling declared lower, or none at all.
+    for (const output of [0, 8_192, 32_768, 384_000]) {
+      const model = modelFixture(1_000_000, output)
+      const lastFit = 1_000_000 - ProviderTransform.maxOutputTokens(model)
+      expect(hasSpareOutput({ cfg, model, used: lastFit })).toBe(true)
+      expect(hasSpareOutput({ cfg, model, used: lastFit + 1 })).toBe(false)
+    }
+  })
+})
+
+describe("stated operating envelope: a NORMAL model is ≥ 256k; below that is aicall-only", () => {
+  test("the fold threshold stays positive across the envelope", () => {
+    // Owner ruling 2026-09-19: models with ≥ 256k of context are the ones the session loop
+    // runs; everything smaller is used through `aicall`, which is an isolated call and does
+    // not consult this spine at all (verified: `usable`/`hasSpareOutput`/
+    // `computeOpenWindowTokens` have no caller in `tool/aicall.ts`). Pinning the arithmetic
+    // keeps the envelope falsifiable instead of folklore — widening it downward is what
+    // this test would catch, because `usable()` would then reach 0 and the cadence would
+    // hand the whole job to the pre-send gate.
+    for (const context of [256_000, 262_144, 1_000_000]) {
+      const value = usable({ cfg, model: modelFixture(context, 0) })
+      expect(value).toBe(context - 42_768)
+      expect(value > 0).toBe(true)
+    }
+    // 1M ⇒ 957 232 — the fold threshold an undeclared ceiling now produces.
+    expect(usable({ cfg, model: modelFixture(1_000_000, 0) })).toBe(957_232)
+    // 42 768 = REQUEST_OVERHEAD_TOKENS + the standard 32 768 output reserve.
+    expect(REQUEST_OVERHEAD_TOKENS + 32_768).toBe(42_768)
   })
 })
 

@@ -2214,7 +2214,13 @@ it.live("keeps clipboard image parts for vision-capable models", () =>
         const filePart = msg.parts.find((part) => part.type === "file")
         expect(filePart).toBeDefined()
         if (filePart?.type !== "file") throw new Error("expected file part")
-        expect(filePart.url).toBe(`data:image/png;base64,${tinyPngBase64}`)
+        // WebP is the ingestion encoding by owner ruling (2026-09-19: «надо в контент кидать webp,
+        // без вариантов»). Every image is re-encoded on the way in, so the payload can NEVER equal
+        // the PNG input — this case asserted byte identity with the source and was stale, not a
+        // broken path. Assert the ENCODING and that bytes survived instead.
+        expect(filePart.mime).toBe("image/webp")
+        expect(filePart.url.startsWith("data:image/webp;base64,")).toBe(true)
+        expect(filePart.url.length).toBeGreaterThan("data:image/webp;base64,".length)
         const readNote = msg.parts.some(
           (part) => part.type === "text" && part.synthetic && part.text.includes("Called the Read tool"),
         )

@@ -1,6 +1,16 @@
 <!-- intention: image bytes live inline in every message and every request -> one content-addressed store holds original + derived WebP, and messages carry a reference -->
 # Attachments: a content-addressed image store, referenced from messages
 
+> **SUPERSEDED — DO NOT IMPLEMENT I1–I4.**
+> Owner ruling, 2026-09-19: «Идея с links для изображений провалилась. Короче надо в контент кидать
+> webp, без вариантов.» The store + reference design is dead; the replacement is
+> [2026-09-19_image-actualizer.md](./2026-09-19_image-actualizer.md) — images ride inline as WebP, and
+> a tool re-attaches named images to the mutable tail on demand.
+> Kept for the record only: I0 (the media price, `bd68b677c6`) landed and stays valid — media must
+> still be priced by dimensions/duration, never by payload bytes. The stale-PNG test this plan was
+> written to avoid is now settled in the opposite direction: the ingestion path is correct and
+> `prompt.test.ts:2228` must assert WebP.
+
 ```yaml
 status: IN PROGRESS (2026-09-18) — I0 LANDED (`bd68b677c6`); I1–I4 open
 raised: 2026-09-18, from the failing `keeps clipboard image parts for vision-capable models` red

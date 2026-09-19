@@ -330,6 +330,47 @@ bug), but it is a floor, not a licence: the 124 `bug:` markers are 124 defects w
 them should be **removed by deleting the catch**, not kept as a written-down shrug. A `bug:` marker
 that survives a release is an unfixed defect with a receipt.
 
+## Content Lifecycle — self-cleaning content (2026-09-19)
+
+Owner, 2026-09-19: «здесь не просто экономия токенов здесь самоподчистка контента, то что человек
+делает автоматом и то что в большинстве агентных систем отсутствует на прочь, это сильно снижает
+эффективность размазывая внимание нерелевантной информацией». The attended window must hold what the
+CURRENT task needs; released content stays reachable without occupying it. Full design:
+[docs/content-lifecycle.md](docs/content-lifecycle.md).
+
+| verb | mechanism |
+|---|---|
+| **acquire** | a tool result arrives (`read` / `webfetch` / `codegraph` / …) |
+| **hold** | resident for the WHOLE user turn, not one assistant step (`afterMessageID` gate) |
+| **release** | `> 8 000` chars from an earlier turn → an ID-addressed placeholder; or `recall(…, keep: true)` → only the chosen slice |
+| **re-acquire** | `recall(id, range, pattern)` returns the stored result by its address |
+
+**Invariants — each one cost a defect to learn:**
+
+1. **Never reduce without printing an address.** A drop with no way back is a loss, and "re-read or
+   re-run the tool" is not a way back: a `task` result cannot be reproduced and re-running `bash`
+   re-applies its side effects.
+2. **A reduction must never blank content.** Both guards are required — the producer refuses a
+   selection that selects nothing, AND the consumer treats an empty selection as no selection.
+3. **Release replaces on the wire; it never deletes.** The full text stays stored and stays reachable —
+   `keep` narrows what replays, it does not shrink the record.
+4. **The status with no release path is the one that grows without bound.** Errors had no size gate at
+   all, so `keep` matters most there.
+5. **A narrowed selection carries a `reason`** — narrowing history without a motive is a silent edit.
+
+**Corollary — verify a reduction where it LANDS.** `keep` was reported "shipped and verified" and had
+never written a byte: a part's identity lives in the `part` table COLUMNS, the lookup read only `data`,
+and an `as` asserted the missing `sessionID` into existence. `bun typecheck` exit 0 and three green
+suites missed it; **one live call against the real database found it**. A cast in a write path is a
+disabled oracle — type the value; and a fixture's schema must match production's, or it cannot observe
+the wrong query.
+
+**Planned, not shipped:** attachments have no release and no re-acquire (a part that entered the
+conversation is immutable until the fold), and nothing counts a lifetime. The generalisation to
+*temporary data acquisition* is in [plans/2026-09-19_image-actualizer.md](plans/2026-09-19_image-actualizer.md):
+a document, a set of sources, a screenshot — acquire, hold for a declared span, release, and let the
+recorded diffs be the report's evidence.
+
 ## Bug Policy
 
 - No such thing as an "unimportant" bug. Every bug degrades the tool — fix it.
@@ -776,6 +817,7 @@ reasoning contract below.
 All detailed docs live in `docs/`. Here's the quick map:
 
 ### Memory / Session
+- [Content lifecycle](docs/content-lifecycle.md) — acquire / hold / release / re-acquire; the ID-addressed placeholder and `recall`
 - [Mechanistic Compaction](docs/compaction.md) — Layer-1 summary + Layer-2 compact
 - [Summary Exact handles](docs/summary-exact-handles.md) — tool filediffs + CodeGraph
 - [Session memory graph](docs/session-memory-graph.md) — cadence vs safety (mermaid)

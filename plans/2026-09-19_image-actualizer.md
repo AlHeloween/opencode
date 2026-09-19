@@ -1,6 +1,6 @@
-# Image actualizer — images ride in content as webp, a tool re-attaches them to the tail
+# Temporary data acquisition — images, documents and sources held in one active set
 
-<!-- intention: an image's bytes leave the visible window (only a "[file: name (mime)]" link remains) and there is no way to get them back -> the agent asks for named images with a tool and they are appended to the mutable tail, with no store and no caching -->
+<!-- intention: an acquired item stays in the attended window for ever, has no lifetime, and cannot be released -> acquired content (frames, documents, sources) is held in one active set for a declared span, released to an addressable pointer, and the release carries the recorded diffs as its report -->
 
 Owner ruling, 2026-09-19 (verbatim): «Идея с links для изображений провалилась. Короче надо в
 контент кидать webp, без вариантов. Но тут мы вот что сделаем! Мы делаем контент — и добавим тул —
@@ -429,4 +429,69 @@ The sidebar gauge is fixed, but the **prompt footer** prints `466.6K (47%)` — 
 (466 633 / 1 005 808) while the sidebar now prints `49% of fold budget` (466 633 / 957 232). A THIRD
 surface, same word, different denominator. Not in this plan's scope, recorded so it is not mistaken
 for a regression of the sidebar fix.
+
+## 10. Temporary data acquisition — the generalisation (owner, 2026-09-19)
+
+Owner, verbatim:
+
+> «долелываем наш пайплайн с картинками, хотя вообще давай его расширим до temporary data aquisition.
+> Например документ — окей мы сним будем возиться 3 хода, все отпустили, кстати - включая исходники,
+> иногда лучше цепануть несколько исходников и поправить где надо, а потом отпустить и сделать отчет.
+> Дифы покажут правки.»
+
+This is not an image feature. A screenshot, a document and a set of source files are the SAME shape —
+external content brought into the attended window for a bounded purpose, worked on, then let go — and
+§2.3 already named it: *an active set*. §1–§9 stay as the image instance and its grounding.
+
+### The shape in four verbs (full design: `docs/content-lifecycle.md`)
+
+| verb | for a tool result | for an attachment |
+|---|---|---|
+| acquire | the result arrives (`read`, `webfetch`, `codegraph`, …) | `read` media / an upload / a CUA frame |
+| hold | for the whole user turn (`afterMessageID` gate) | **missing** |
+| release | `> 8 000` chars from an earlier turn → placeholder; `recall(…, keep: true)` → a slice | **missing** |
+| re-acquire | `recall(id, range, pattern)` | **missing** (the actualizer of §2–§3) |
+
+So the non-media half is SHIPPED — sources read via `read`, search results and codegraph packs all
+arrive as tool results, so they already have an address, a placeholder and a re-acquire. This plan does
+NOT need to invent that half; it needs to (a) use it on sources deliberately and (b) build the
+attachment half.
+
+### What the generalisation ADDS
+
+1. **A lifetime.** Today a release happens by SIZE (over the threshold, earlier turn) or explicitly
+   (`keep`). Temporary acquisition needs the third trigger: *held for the next N turns, or until
+   released*. This answers §4 decision 3 (“auto-detach at a fold, or only by the tool”): neither — the
+   span is declared and expires, with the fold as an upper bound.
+2. **One set, not one per type.** The active set holds ids of any acquired item — frame, document,
+   source — and the release is one operation for all of them. §4.1's numbering rule (session-wide,
+   stable, printed next to the link) is what makes an id mean the same thing after the window moves.
+3. **The report IS the release.** «а потом отпустить и сделать отчет. Дифы покажут правки.» Letting go
+   of a working set is the moment to state what changed, and the evidence is the RECORDED diffs —
+   fossil leaves and tool `filediff`s — not a recollection of them. The same rule as “verify a write by
+   reading the artefact back”, applied to a whole set.
+
+### Tasks (each independently smoke-testable)
+
+- **T1 — the hold.** An acquired item carries an expiry in turns. Oracle: with an expiry of 1, the item
+  is in the request after acquisition and gone a turn later, while recovery by its id still returns it.
+  Falsifier: an item that outlives its span, or one that is dropped leaving no address.
+- **T2 — the attachment release.** The actualizer's de-actualize leg (§2–§3): the appended block is
+  dropped by the same transform that appends it, and a repeated cycle does not ACCUMULATE.
+- **T3 — sources as one acquired set.** Several `read` results held as a working set, narrowed with
+  `keep` where useful, released together. Oracle: after the release the sources are gone from the
+  window, and the edits they drove are visible in `git diff` and in the fossil leaves.
+- **T4 — the report.** At release, the set's diffs are emitted as the report's evidence. Oracle: the
+  report names files the snapshot actually shows changed — checked against `git status`, not recalled.
+
+### Open decisions (the owner's)
+
+- **Span units.** Turns, wall-clock, or “until the task's plan completes”? Turns is measurable today;
+  a plan-keyed span matches «будем возиться 3 хода» more faithfully but couples this to plan state.
+- **Where the set lives.** Permanent memory (the §4.1 ledger) is inlined into `m*` verbatim and so
+  survives a fold — but it is prose the model must keep correct. A keyed store on the SQLite plane would
+  make the set READABLE rather than remembered. Not decided.
+- **Whether a release is ever automatic.** A span can expire by itself, or only the model may release
+  and a forgotten set keeps costing. The falsifiers differ: a model-released set can be forgotten, an
+  expiring one can drop what is still needed mid-task.
 

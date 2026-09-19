@@ -174,3 +174,38 @@ beside the exe is NOT enough. **(2)** A statically imported `.node` IS embedded:
 Cost: **+912 896 B** (lmdb) in the binary, plus `@msgpackr-extract` at 225 736 B if that path is used.
 **Not yet done:** the per-platform import shim naming `@lmdb/lmdb-<platform>-<arch>` literally, and a
 real `_build.ps1` binary carrying it. The remaining work is a named shim, not an open question.
+
+## 8c. Store options — what we set, and what we do NOT (checked against the package README, 2026-09-19)
+
+Three options were proposed (by an outside model) as the concurrency fix. Checked verbatim against
+the `lmdb` README: one is real but for a different reason, two are wrong for settings — and one of
+those does not exist.
+
+| proposed | README says | verdict |
+|---|---|---|
+| `sharedStructuresKey: Symbol.for('shared')` — "lets several processes safely open one DB" | "stores the structural information about objects stored in database in dedicated entry … for much more efficient storage and faster retrieval" (§ Shared structures) | **real, wrong reason.** Multi-process safety is inherent ("designed for high concurrency, and we recommend using multiple processes", §Concurrency). Keep it — but because our records are uniform, which is its actual stated benefit |
+| `noSync: true` — "async flush; if one process crashes the DB won't be locked; writes batched" | "Does not explicitly flush data to disk at all … **we discourage this flag for data that needs integrity and durability in storage, since it can result in data loss/corruption if the computer crashes**" | **wrong for settings.** Batching is already the default (`eventTurnBatching`); a crashed process's locks are released by the OS, not by `noSync`. It trades INTEGRITY for WRITE speed |
+| `noMetaSync: true` | "This isn't as dangerous as `noSync`, but **doesn't improve performance much either**" | **pointless** — a stated downside with no stated upside |
+| `overlappingSource: true` — "disable mmap for writing so the OS manages page locks" | **no such option in the README.** There is `overlappingSync` (a different thing, default ON off-Windows). The closest real one is `useWritemap` — "can increase risk of a stray pointer corrupting data, and **may be slower on Windows**" | **rejected.** Wrong name, invented rationale, and the nearest real flag is contraindicated on our platform |
+
+**None of these touches the race we actually have.** Ours is *logical* — two read-modify-write
+cycles over `{state}/model.json` from three modules. No engine flag removes that; only one
+serialized writer or optimistic conditional writes do. `noSync` is orthogonal to races and costs
+exactly the property being bought (settings must not be losable).
+
+**What we DO set**, from the same README:
+
+- `useVersions: true` + `ifVersion` / `ifNoExists` — the direct answer to the lost-update class:
+  "provides a robust mechanism for concurrent data updates even with multiple processes are
+  accessing the same database". This matters concretely because `jobs.db` already showed that a
+  store in this project is **shared by every runtime in the worktree**.
+  **Constraint:** "you can not change this flag once a database has entries in it" ⇒ versioning
+  must be decided **at store creation**, before `model.json` is migrated. Decide it first, not later.
+- `sharedStructuresKey` — yes, for storage/read efficiency on uniform records.
+- **Default sync config**, and `await db.put()` as the durable commit (a resolved promise means
+  "fully written to the physical storage medium … even if there is power loss or system crash").
+  `separateFlushed` only if we ever need to distinguish *visible* from *durable*.
+- **Explicitly NOT set:** `noSync`, `noMetaSync`, `useWritemap`.
+- Caveat that limits all of the above: `ifVersion` only helps if **every** writer goes through the
+  store. A writer that ignores versions still wins — which is why §7's inventory (all three writers
+  of `model.json`) is the completion condition, not a starting point.

@@ -123,6 +123,30 @@ The earlier objection to a header was about an UNBOUNDED set. With a cap (a few 
 item) the header stays small — so the cap stops being a nicety and becomes load-bearing, and it is T3's
 decision.
 
+### 0.3.1 The payload's shape on the wire — read from a real capture, not from code
+
+`.opencode/data/gateway/raw-wire/<ts>-<id>.json` holds the bodies the gateway actually SENT. A media part
+there is exactly:
+
+```json
+{ "role": "user",
+  "content": [
+    { "type": "text", "text": "[Image 1] …" },
+    { "type": "image_url", "image_url": { "url": "data:image/webp;base64,…" } },
+    { "type": "text", "text": "Called the Read tool with the following input: {…}" }
+  ] }
+```
+
+⇒ the transform's target is exact: **a `content[]` entry of `type: "image_url"` whose `image_url.url`
+starts with `data:`**. That entry is what a release replaces with the pointer.
+
+Grounding the fixture from a CAPTURED body rather than a hand-written one is what T1's oracle depends on —
+the same lesson the `recall` fixture taught: a fixture shaped by the author cannot observe the author's
+mistake. The captures are on disk, so the fixture is reproducible rather than invented.
+
+Side finding: the wire ALREADY carries an ordinal beside the image (`[Image 1]`), which is the inventory
+§4.1 requires — so that half of the numbering exists today and only the release half is missing.
+
 ### 0.4 Behind a FLAG, default OFF
 
 `gateway.tda.enabled: false`. The sandbox config turns it on; the workflow config does not until the
@@ -133,7 +157,7 @@ discipline — a flag cannot be forgotten, a resolution can.
 
 | id | task | binding | oracle |
 |---|---|---|---|
-| **T0** | ground `Store` (path, shape, namespacing, single owner) and the exact body shape an image part takes | `provider/gateway/adaptive-client.ts`, the Store module | **Store half DONE — see §0.3**: `store.ts:24,26,37`; the set therefore does NOT live there. Still to ground: the exact shape a media part takes in the outgoing body |
+| **T0** | ground `Store` and the exact body shape a media part takes | the Store module, `adaptive-client.ts`, a raw-wire capture | **DONE — §0.3 + §0.3.1** |
 | **T1** | the pure transform | new `provider/gateway/tda.ts` | unit: withhold · keep · blank-guard · no-op on an unparsable body; the fixture is a REAL body captured from the gateway's own per-request log |
 | **T2** | wire it into `wrapFetch` beside `rewriteReasoningContent` | `adaptive-client.ts:347` | integration: flag on → a pointer where the payload was; flag off → byte-identical to today |
 | **T3** | the set's write path — acquire, hold, release, expire | the Store + the runtime attachment path | a held item survives a turn; an expired one is withheld; a released one is withheld at once |

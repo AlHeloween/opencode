@@ -40,8 +40,10 @@ here. Process intervention is what remains after elimination, not by taste.
 - `reasoningCensus()` + the loud injection warn — landed this session, already measuring.
 - `patches/@ai-sdk%2Fdeepseek@3.0.26.patch` — predicate `/deepseek-(?:v4|flash)/` on a
   lower-cased id, tail rule made unconditional. Survives `bun install`, in `bun.lock`.
-- `collapseToolOutput` / `TAIL_TOOL_KEEP_FULL` — the tail already has a size discipline;
-  the reasoning fix rides on it rather than inventing a second one.
+- `collapseToolOutput` / `TAIL_TOOL_KEEP_FULL` — REMOVED 2026-09-19 (they were anchored here): the
+  tail is now INVIOLATE — nothing inside it is reduced, `reasoning` included — so the reasoning fix
+  no longer rides on a size discipline that no longer exists. See `docs/compaction.md`
+  § "Continuity is the invariant this file exists to serve".
 - `isDeepSeekThinkingId` — the repo's own case-normalised family predicate, the pattern any
   new predicate must copy.
 - `.opencode/data/gateway/raw-wire/` — the capture mechanism exists and is on; what was

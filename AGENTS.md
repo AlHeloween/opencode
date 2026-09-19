@@ -371,6 +371,34 @@ conversation is immutable until the fold), and nothing counts a lifetime. The ge
 a document, a set of sources, a screenshot — acquire, hold for a declared span, release, and let the
 recorded diffs be the report's evidence.
 
+## Continuity Paradigm — the invariant the project exists for (2026-09-19)
+
+Owner, 2026-09-19: «у нас очень важное размышление которое раскрывает суть проекта - максимально
+возможная агентная непрерывность - AGI в идеале.» The outer loop installs priors as process, and every
+prior is only as good as the agent's continuity across a boundary: a plan whose evidence was folded
+away, a decision whose reason went unrecorded, an edit whose call left no trace — each forces a fresh
+grounding pass, and the passes are what an agent spends its life on. **Maximum continuity is not
+"remembering more"; it is being able to act without re-deriving** — the difference between a long
+session and a session that keeps restarting.
+
+Three rules, each bought by a defect the agent could not diagnose about itself:
+
+1. **The tail is INVIOLATE.** «32к токенов хвоста должны быть неприкосновенны иначе это ломает тему…
+   если edit write был - значит был… если это корректировать то мы нарушаем chain of thoughts.»
+   Compression belongs in `memory` and in summaries-with-diffs. In the tail: nothing compressed,
+   nothing dropped, and BOTH halves of every tool exchange kept — the result AND the call.
+2. **The tail is CONTIGUOUS with what the summaries COVER.** «все сообщения до предыдущего summary
+   если оно где нибудь не вызвалось надо забрать весь контент до него. Чтобы не было s..s..s xxxxx
+   (what happened there) xxx 32k tokens?» 32k is a floor that reaches further BACK; the boundary is
+   the newest COVERED message, so a late summary cannot leave a hole — and `m*` names one if it exists.
+3. **Nothing hidden without representation, and the representation is CHECKABLE.** `m*` closes with a
+   range accounting (summaries `#a..#b`, tail `#b+1..#c`, `no gap` or a named `GAP`), and a decision
+   carries its reason — `compact`'s `reason` is required and echoed into the tool's own output.
+
+**Falsifier:** if you have to go and CHECK what your own window held, the boundary broke continuity.
+The saving is a token; the cost is a recall turn. Full design:
+[docs/compaction.md](docs/compaction.md) § "Continuity is the invariant this file exists to serve".
+
 ## Bug Policy
 
 - No such thing as an "unimportant" bug. Every bug degrades the tool — fix it.

@@ -272,6 +272,51 @@ messages that followed it — the DB keeps every soft-hidden row
 (`compacted=true`, never deleted), reachable via `session-read`.
 ---
 
+## Continuity is the invariant this file exists to serve (2026-09-19)
+
+Owner, 2026-09-19: «у нас очень важное размышление которое раскрывает суть проекта - максимально
+возможная агентная непрерывность - AGI в идеале.» A fold is judged by ONE question: does the next
+window still know what happened, and WHY it happened — or has the agent been handed a consequence
+with no decision behind it?
+
+Three rulings fix the contract, each bought by a defect the agent could not diagnose about itself:
+
+1. **The tail is INVIOLATE.** «32к токенов хвоста должны быть неприкосновенны иначе это ломает тему.
+   Всё что можно сжать у нас в memory и в summaries с дифами, и ещё если edit write был - значит был…
+   если это корректировать то мы нарушаем chain of thoughts, что сразу потребует проверки и
+   кажущаяся экономия превратится в серию припоминательных ходов.» Compression belongs in `memory`
+   and in summaries-with-diffs. Inside the tail: nothing compressed, nothing dropped, and BOTH halves
+   of every tool exchange kept — the result AND the call that produced it.
+2. **The tail is CONTIGUOUS with what the summaries COVER.** «там не просто 32к нам не менее 32к и все
+   сообщения до предыдущего summary если оно где нибудь не вызвалось надо забрать весь контент до
+   него. Чтобы не было s..s..s xxxxx (what happened there) xxx 32k tokens?» The 32k is a floor that
+   reaches further BACK; the boundary is the newest message a summary actually covers. A hole —
+   history represented by neither a summary nor the tail — is the failure mode, and `m*` names it.
+3. **Nothing hidden without representation, and the representation is CHECKABLE.** «в статистике
+   номеров сообщений которые мы прикрепляем к m* должна быть непротиворечивая картина … в конце *
+   должен быть четкий реф … чтобы был четкий evidence.» So `m*` closes with a range accounting, and a
+   decision carries its reason (`compact`'s `reason` is required and echoed into its own output).
+
+**The measured defect that produced these rulings** (2026-09-19, read out of a real folded window):
+`m*` rendered `[tool:edit] (completed)` + "Edit applied successfully." — no file, no patch;
+`[tool:memory]` with no content; `[tool:compact]` with no reason; every tool output but the newest 3
+collapsed to 40 head + 10 tail lines; `reasoning` dropped whole. The live wire carried `tool_calls`
+with arguments, so the folded window held the **consequences of decisions without the decisions** —
+and the agent's first act in the next turn was to go and check, three times, what its own window had
+held. That round trip is the cost this invariant exists to remove: an unverifiable claim about
+continuity is not free, it is paid for in recall turns.
+
+**Why this is the project's thesis and not a compaction detail.** The outer loop installs priors as
+process (planning grammar, memory handles, search, oracles — see `AGENTS.md`). Every one of those
+priors is only as good as the agent's CONTINUITY across a boundary: a plan whose evidence has been
+folded away, a decision whose reason was not recorded, an edit whose call left no trace — each forces
+a fresh grounding pass, and the passes are what an agent spends its life on. **Maximum continuity is
+not "remembering more"; it is being able to act without re-deriving** — the difference between a long
+session and a session that keeps restarting.
+
+Falsifier for any future change here: **if you have to go and CHECK what your own window held, the
+boundary broke continuity.** The saving is a token; the cost is a turn.
+
 ## 1. Intended contract (restore target)
 
 ### Content window vs summaries
@@ -382,14 +427,24 @@ rendered above `goal_sv`, which stays what it always was: the attention anchor f
 
 <!-- goal_sv: summary, compaction, mirror, gated workflow -->
 
-**Recent tail:** the last ~`RECENT_MIN_TOKENS` (32 768) content tokens of
-REAL messages, copied verbatim (floor semantics, whole-message granularity —
-"30k ±"). Selection walks the FULL message list (compacted rows included)
-and skips memory-machinery rows: prior m\* rows, Layer-1 UI panels, summary
-requests/assistants. Real messages folded into a prior m\* tail are
-re-eligible — the tail is rebuilt from the DB on every compact, so repeated
-compacts are idempotent (content fixed point: 10 compacts in a row → same
+**Recent tail:** every message SINCE THE PREVIOUS SUMMARY — the whole epoch, however large — with
+`RECENT_MIN_TOKENS` (32 768) as a FLOOR that reaches further BACK into the summarised region, never a
+ceiling that trims the epoch (2026-09-19). The boundary is the newest message a summary actually
+COVERS (`coveredThroughIndex`, resolved from the summaries' `toId` through the same positions map the
+`#N` labels use), so a summary that fired late cannot leave a hole between its covered range and the
+tail. Selection walks the FULL message list (compacted rows included) and skips memory-machinery rows:
+prior m\* rows, Layer-1 UI panels, summary requests/assistants. Real messages folded into a prior m\*
+tail are re-eligible — the tail is rebuilt from the DB on every compact, so repeated compacts are
+idempotent (content fixed point: 10 compacts in a row → same
 m\*) and undo restores the exact content window per m\*.
+
+**Nothing inside the tail is compressed** (§ "Continuity is the invariant"): both halves of every tool
+exchange — the invocation in the runtime's own `Called the <tool> tool with the following input: {…}`
+caption shape, and the result — plus `reasoning` and `patch` parts all render; tool output is capped
+only at `REPLAY_TOOL_OUTPUT_MAX_CHARS`, i.e. at what the wire actually carried. `tailContentChars`
+measures exactly what `tailMessageText` emits, so the budget cannot diverge from the injected bytes.
+The removed regime (`TAIL_TOOL_KEEP_FULL = 3` + `collapseToolOutput`, reasoning dropped) is why an
+agent could not say why its own window had folded.
 
 **Undo across a boundary rebuilds the window, verified at the consumption
 layer (2026-09-17).** An undo whose target sits inside a folded region inverts
@@ -456,7 +511,10 @@ Trigger — window fill (checked BEFORE sending a new message, re-checked at sto
 
   compact()  — ZERO LLM tokens, pure system fold
 
-  m* = [ s, s, … (≤32K tokens), recent m, m, m (≥32K tokens) ]
+  m* = [ s, s, … (≤32K tokens),
+         recent m, m, m (EVERY message since the previous summary — the whole epoch, however
+                         large; RECENT_MIN_TOKENS = 32K is a FLOOR that reaches further BACK,
+                         and the tail is CONTIGUOUS with the newest message the s's COVER) ]
        decisions from current s only (not from prior m*)
 
   zero summaries (manual /compact on a fresh session):
@@ -523,7 +581,7 @@ sequenceDiagram
 | Summaries capped at 16K tokens (FULL render: body+diffs+plan_state+links) | `MAX_SUMMARY_BODY_TOKENS = 16_384` measured via `renderSummaryBlock` — body-only counting let 76K bodies render into 237K of m* | **Fixed 2026-08-29** |
 | Prior m* decisions | decisions rebuilt from ALL carried-forward summaries each compact | **Fixed 2026-08-29** (was: current-window summaries only) |
 | Prior m\* row excluded, real messages re-eligible | `selectRecentTail(msgs)` skips star rows (continue, not break); full-archive walk over `session.messages(visibleOnly: false)` | **Fixed 2026-08-29** (was: visible-only walk, hard-stop at star) |
-| Recent tail ~32 768 tokens, floor semantics | `selectRecentTail(msgs, RECENT_MIN_TOKENS)` — verbatim copy until budget reached | **Fixed 2026-08-29** (was: boundary-preference + thin-tail overlap) |
+| Recent tail — the WHOLE epoch since the previous summary, 32K as a FLOOR | `selectRecentTail(msgs, RECENT_MIN_TOKENS, coveredThroughIndex)` — everything after the newest COVERED message is mandatory, then the floor reaches further back | **Offsets 2026-09-19** (was: stop at ~32K wherever it landed → dropped the OLDEST messages of the epoch; and a late summary left a hole) |
 | Summaries carry forward | `IncrementalCheckpoint.listAll` — open AND materialized checkpoints feed every m\* | **Fixed 2026-08-29** (was: open-only → summaries lost after compact) |
 | Compact idempotent (10 compacts → same m\*) | lone-star no-op + deterministic rebuild from DB | **Match (tested 2026-08-29)** |
 | Compact on window fill | **`maybeCompactCadence`**: target=`usable(model)` (limit − 32K response − 10K overhead); pre-send `hasSpareOutput` force-folds before the turn; stop-cadence is an earlier evaluation of the same rule; degenerate window (usable ≤ 0) folds only via the pre-send force path. T4 (≥2 sidecars) gate removed 2026-08-25 | **Fixed 2026-08-25** |
@@ -577,7 +635,7 @@ never a silent never-fold (the 2026-08-24 dead-end stays fixed).
 | Safety / request fit | `chars/4 + 10_000` |
 | Summary cap in m* | `MAX_SUMMARY_BODY_TOKENS` (16 384 tokens, measured on the full rendered block) |
 | compact() | **0** LLM tokens |
-| Post-fold m\* bound | ≤ `MAX_SUMMARY_BODY_TOKENS` (32K) summary bodies + ~`RECENT_MIN_TOKENS` (32K) recent tail (floor: whole-message overshoot "30k ±"; + per-block diff snippets, tools/schema overhead) — why the no-progress guard is unreachable on ≥256K windows |
+| Post-fold m\* bound | ≤ `MAX_SUMMARY_BODY_TOKENS` (32K) summary bodies + the WHOLE epoch since the previous summary (floor `RECENT_MIN_TOKENS` = 32K, no ceiling) + per-block diff snippets, tools/schema overhead. The tail is deliberately unbounded now, so the no-progress guard IS reachable whenever one epoch alone approaches the window |
 
 No BPE/tiktoken authority (undercounts providers).
 

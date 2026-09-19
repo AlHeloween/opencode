@@ -3,7 +3,7 @@
 **Canonical contract + gap table:** [`compaction.md`](compaction.md)  
 **Tool diffs + CodeGraph on s:** [`summary-exact-handles.md`](summary-exact-handles.md)
 
-- Content without `s`; after durable checkpoint → summary; M restored; compact → `m*=[s,s(≤32K),recent m(~32K real)]` (prior m* ROW excluded — real messages re-eligible by budget; summaries carry forward)
+- Content without `s`; after durable checkpoint → summary; M restored; compact → `m*=[s,s(≤32K),recent m (the WHOLE epoch since the previous summary — 32K is a floor that reaches further BACK)]` (prior m* ROW excluded — real messages re-eligible; summaries carry forward; the tail is CONTIGUOUS with the newest message the s's COVER)
 - Exact on s: **write/edit/multiedit** tool filediffs in range + CodeGraph on those paths
 - Fossil: **rollback only** (track/restore) — not summary memory
 
@@ -17,12 +17,17 @@ If a graph is prettier than code, **code wins** for Exact claims.
 M (content):   [m m m]     [m m m]     [m m m]
 s (outside):        s1          s2          s3
 
-compact → m* = [ s1, s2 (≤32K tokens), recent m m m (last ~32K of ALL real messages) ]
+compact → m* = [ s1, s2 (≤32K tokens),
+                 recent m m m (EVERY message since the previous summary — the whole epoch,
+                               with RECENT_MIN_TOKENS = 32K as a FLOOR reaching further back;
+                               contiguous with the newest message the s's COVER) ]
            each s = AI body + Exact range/sessionread
                      + tool filediffs + CodeGraph
            decisions from carried-forward summaries
            prior m* ROWS skipped in selection (never embedded);
            real messages re-eligible — idempotent rebuild per compact
+           the tail is INVIOLATE: both halves of every tool call, reasoning, patches
+           m* closes with a Range accounting block (summaries #a..#b, tail #b+1..#c, or a named GAP)
 ```
 
 ```text

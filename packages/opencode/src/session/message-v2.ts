@@ -22,8 +22,6 @@ import { MessageTable, PartTable, SessionTable } from "./session.sql"
 import * as ProviderError from "@/provider/error"
 import { registry } from "@/attachment/registry"
 import { fromMime as classifyKind } from "@/attachment/kind"
-/** The expired-hold map the CALLER supplies — this module must not reach for a database of its own. */
-export type ExpiredMedia = Map<string, string | undefined>
 import { iife } from "@/util/iife"
 import { errorMessage } from "@/util/error"
 import { Token } from "@/util/token"
@@ -1034,29 +1032,40 @@ function hashParts(parts: readonly Part[]): number {
   return Number(Bun.hash(JSON.stringify(parts)))
 }
 
+/**
+ * ONE declaration of the conversion's options. It used to be written out THREE times — on the effect and
+ * on both wrappers — so a new field reached only the copy that was edited, and the compiler caught it
+ * only because a test passed the field to a wrapper that did not declare it. A shared type is what makes
+ * that silence impossible.
+ */
+export type ConversionOptions = {
+  toolOutputMaxChars?: number
+  /**
+   * Deliver-once (2026-09-07, Alexander): BOUNDARY message id — the last user message. Every assistant
+   * message with a GREATER id is the current turn and replays its tool parts in full (up to
+   * toolOutputMaxChars); tool parts of EARLIER turns heavier than TOOL_PLACEHOLDER_THRESHOLD_CHARS
+   * collapse to a byte-stable ID-addressed placeholder. One assistant message was the wrong boundary: a
+   * user turn spans several assistant steps, so a heavy result collapsed the moment the next step began.
+   */
+  afterMessageID?: string
+  /**
+   * The session's CURRENT TURN, supplied by the caller.
+   *
+   * The part carries its own declared lifetime (`ttlUntil`), so judging it needs exactly this one number
+   * — no map of message ids, and above all no query: this module is also called from unit tests and from
+   * paths with no project DB at all, and an unconditional database read here broke every one of them
+   * (2026-09-19). The runtime that owns the session has an Instance; the conversion has an input.
+   *
+   * An ABSENT turn means "not judged", never "expired": the direction of that mistake matters, because
+   * guessing wrongly the other way empties a result the model still needed.
+   */
+  turn?: number
+}
+
 export const toModelMessagesEffect = Effect.fnUntraced(function* (
   input: WithParts[],
   model: Provider.Model,
-  options?: {
-    toolOutputMaxChars?: number
-    /**
-     * Deliver-once (2026-09-07, Alexander): BOUNDARY message id — the last user message.
-     * Every assistant message with a GREATER id is the current turn and replays its tool
-     * parts in full (up to toolOutputMaxChars); tool parts of EARLIER turns heavier than
-     * TOOL_PLACEHOLDER_THRESHOLD_CHARS collapse to a byte-stable ID-addressed placeholder.
-     * One assistant message was the wrong boundary: a user turn spans several assistant
-     * steps, so a heavy result collapsed the moment the next step began.
-     */
-    afterMessageID?: string
-    /**
-     * Held media whose span has passed, supplied by the CALLER. It is an option rather than a lookup
-     * because this module must not reach for a database: the conversion runs in unit tests and in paths
-     * with no project DB at all, and an unconditional query here threw `No context found for database`
-     * for every one of them (caught by the proportional suite, 2026-09-19). The runtime that owns the
-     * hold has an Instance; the conversion has an input.
-     */
-    expiredMedia?: ExpiredMedia
-  },
+  options?: ConversionOptions,
 ) {
   const result: UIMessage[] = []
   const toolNames = new Set<string>()
@@ -1142,47 +1151,63 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
    * place, so a future emission site inherits the gate instead of having to remember it.
    *
    * Nothing is lost by accident: a file part becomes a TEXT part that says the payload was released, and
-   * a tool result keeps its own text with the note appended. The model is TOLD — that is the difference
-   * between a release and a silent deletion, and it is what lets the agent read the file again itself.
+   * a tool result keeps a note that NAMES ITS ID — the address `recall` can actually fetch, because the
+   * stored part still holds the full text. That is the difference between a release and a silent deletion,
+   * and it is what lets the agent recover the content itself. The judgement is now per PART, against the
+   * part's own declared lifetime and one number the caller supplies, so no map of message ids is needed.
    */
-  function dropExpiredMedia(
-    messages: typeof input,
-    expired: Map<string, string | undefined>,
-  ): typeof input {
-    const note = (messageID: string) =>
-      `[held media] its payload was released (${expired.get(String(messageID)) ?? "span ended"}); read the file again if it is still needed.`
+  /**
+   * The declared-lifetime gate: a part whose span has passed stops SENDING its payload, while the record,
+   * the parts table and the TUI stay untouched — only the copy this conversion walks changes.
+   *
+   * It sits here, UPSTREAM of every emission site (the user file-part branch, the tool-result output, the
+   * synthetic attachment message), so none of them can forget it. `ttlUntil` is an ABSOLUTE turn, so the
+   * judgement is a comparison and never arithmetic, and the part itself carries it.
+   *
+   * A released tool result keeps a note that NAMES ITS ID, which is the address `recall` can fetch: the
+   * stored part still holds the full output, so the release is on the WIRE and not in the record. For a
+   * file part the note says to read the file again, which is that case's real address.
+   *
+   * `ttlScope` (`tmp_xxx`) is deliberately NOT judged yet: nothing yet says whether a temporary enable is
+   * still alive, and a guess would either release what is held or hold what was released. An unjudged
+   * scope rides and says nothing.
+   */
+  function releaseExpiredParts(messages: typeof input, turn: number | undefined): typeof input {
+    if (turn === undefined) return messages
+    const expired = (part: Part) => part.ttlUntil !== undefined && part.ttlUntil < turn
+    const note = (part: Part) =>
+      `[held] payload released: the declared span ended at turn ${part.ttlUntil} (now ${turn}). ` +
+      (part.type === "tool"
+        ? `Call recall with id=${part.id} for the full result.`
+        : "Read the file again if it is still needed.")
     return messages.map((msg) => {
-      if (!expired.has(String(msg.info.id))) return msg
+      if (!msg.parts.some(expired)) return msg
       return {
         ...msg,
         parts: msg.parts.map((part) => {
+          if (!expired(part)) return part
           if (part.type === "file")
             return {
               id: part.id,
               sessionID: part.sessionID,
               messageID: part.messageID,
               type: "text" as const,
-              text: note(String(msg.info.id)),
+              text: note(part),
             }
-          if (part.type === "tool" && part.state.status === "completed" && (part.state.attachments?.length ?? 0) > 0)
-            return {
-              ...part,
-              state: { ...part.state, attachments: [], output: `${part.state.output}\n${note(String(msg.info.id))}` },
-            }
+          if (part.type === "tool" && part.state.status === "completed")
+            return { ...part, state: { ...part.state, attachments: [], output: note(part) } }
+          if (part.type === "tool" && part.state.status === "error")
+            return { ...part, state: { ...part.state, error: note(part) } }
           return part
         }),
       }
     })
   }
 
-  // HELD MEDIA (owner ruling, 2026-09-19): «нам по сути не хватает просто маленькой таблички message id и
-  // ttl… тогда будет просто read file c ttl». A message whose span has passed stops SENDING its payload;
-  // the record, the parts table and the TUI are untouched, because only the copy this conversion walks
-  // changes. The gate sits HERE, UPSTREAM of every emission site (the user file-part branch, the tool-result
-  // output, the synthetic attachment message), so none of them can forget it. The map comes from the caller
-  // — this module holds no session and reads no database.
-  const expiredMedia = options?.expiredMedia ?? new Map<string, string | undefined>()
-  const outbound = expiredMedia.size === 0 ? input : dropExpiredMedia(input, expiredMedia)
+  // THE GATE (owner ruling, 2026-09-19): a part whose declared span has passed stops sending its payload.
+  // The judgement comes from the PART's own field against one number the caller supplies — not from a map
+  // of message ids, and never from a query, because this module is also called with no project DB at all.
+  const outbound = releaseExpiredParts(input, options?.turn)
 
   for (const msg of outbound) {
     if (msg.parts.length === 0) continue
@@ -1472,10 +1497,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
 export function toModelMessages(
   input: WithParts[],
   model: Provider.Model,
-  options?: {
-    toolOutputMaxChars?: number
-    afterMessageID?: string
-  },
+  options?: ConversionOptions,
 ): Promise<ModelMessage[]> {
   return Effect.runPromise(toModelMessagesEffect(input, model, options).pipe(Effect.provide(EffectLogger.layer)))
 }
@@ -1492,10 +1514,7 @@ export function toModelMessages(
 export const toModelMessagesWithCountsEffect = Effect.fnUntraced(function* (
   input: WithParts[],
   model: Provider.Model,
-  options?: {
-    toolOutputMaxChars?: number
-    afterMessageID?: string
-  },
+  options?: ConversionOptions,
 ) {
   const messages: ModelMessage[] = []
   const counts: number[] = []

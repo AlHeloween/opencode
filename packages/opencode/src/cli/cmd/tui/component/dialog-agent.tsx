@@ -239,7 +239,12 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
 
   return (
     <DialogSelect
-      title={`Agent Configuration — scope: ${scope}${scope === "global" ? " (explicit Save)" : ""}  (←/→ switch)`}
+      // The `(←/→ switch)` hint used to live INSIDE this title, and that was the real defect:
+      // at medium width the header has 52 columns and the title budget is 48, so a 50-character
+      // title truncated to `…(←/→ swit…` — which then filled the whole row, left `space-between`
+      // nothing to distribute, and made `esc` hug it exactly as before the width fix. A keybind
+      // hint belongs to the keybind footer, not to the title (2026-09-19).
+      title={`Agent Configuration — scope: ${scope}${scope === "global" ? " (save)" : ""}`}
       current={local.agent.current()?.name}
       cursorValue={props.restoreValue}
       options={options()}

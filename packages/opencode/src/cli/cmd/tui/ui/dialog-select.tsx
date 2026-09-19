@@ -189,6 +189,19 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
     return size === "xlarge" ? 116 : size === "large" ? 88 : 60
   })
 
+  // Header geometry, from the SAME width the rows use.
+  //
+  // The row width must be stated EXPLICITLY: the flex chain above it resolves to content
+  // size, so `justifyContent="space-between"` had no free space to hand out and the esc
+  // hint sat hard against the title even with the dialog almost empty (reported
+  // 2026-09-19) — the same pattern in dialog-confirm/dialog-alert/dialog-prompt is
+  // affected for the same reason.
+  //
+  // `titleWidth` then keeps a title from overrunning the row at the smallest size:
+  // 60 − 8 (padding) − 3 ("esc") − 1 (gap) = 48.
+  const headerWidth = createMemo(() => rowWidth() - 8)
+  const titleWidth = createMemo(() => headerWidth() - 4)
+
   const rows = createMemo(() => {
     const headers = grouped().reduce((acc, [category], i) => {
       if (!category) return acc
@@ -333,9 +346,9 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   return (
     <box gap={1} paddingBottom={1}>
       <box paddingLeft={4} paddingRight={4}>
-        <box flexDirection="row" justifyContent="space-between">
+        <box flexDirection="row" justifyContent="space-between" width={headerWidth()}>
           <text fg={theme.text} attributes={TextAttributes.BOLD}>
-            {props.title}
+            {Locale.truncate(props.title, titleWidth())}
           </text>
           <text fg={theme.textMuted} onMouseUp={() => dialog.clear()}>
             esc

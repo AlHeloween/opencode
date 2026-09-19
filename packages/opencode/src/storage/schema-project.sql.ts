@@ -110,6 +110,35 @@ export const SessionEntryTable = sqliteTable(
   ],
 )
 
+/**
+ * Temporary data acquisition — the set the RUNTIME owns (plan §0.3). The gateway only withholds what it
+ * is handed, so this is the single writer's record: an acquired item, the span it is held for, and
+ * whether it was released. Deliberately NO payload column — the bytes stay in the part that already
+ * holds them, which is what «кешировать не надо» means, and it is why `digest` (the content-addressed
+ * handle the gateway matches on) is the only thing that need travel.
+ */
+export const AcquiredItemTable = sqliteTable(
+  "acquired_item",
+  {
+    id: text().$type<PartID>().primaryKey(),
+    session_id: text()
+      .$type<SessionID>()
+      .notNull()
+      .references(() => SessionTable.id, { onDelete: "cascade" }),
+    kind: text().notNull(),
+    reason: text().notNull(),
+    reader: text(),
+    digest: text().notNull(),
+    expires_at_turn: integer().notNull(),
+    released: integer().notNull().default(0),
+    ...Timestamps,
+  },
+  (table) => [
+    index("acquired_item_session_idx").on(table.session_id),
+    uniqueIndex("acquired_item_session_digest_idx").on(table.session_id, table.digest),
+  ],
+)
+
 export const PermissionTable = sqliteTable("permission", {
   project_id: text().$type<ProjectID>().primaryKey(),
   ...Timestamps,

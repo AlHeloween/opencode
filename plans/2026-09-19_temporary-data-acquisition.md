@@ -216,7 +216,8 @@ zero-cost short-circuit stays true whenever nothing is held.
 | **T0** | ground `Store` and the exact body shape a media part takes | the Store module, `adaptive-client.ts`, a raw-wire capture | **DONE — §0.3 + §0.3.1** |
 | **T1** | the pure transform | new `provider/gateway/tda.ts` | **DONE — 2026-09-19.** withhold · keep · blank-guard · no-op on an unparsable body · untouched body returned as the SAME STRING (T2's flag-off control) · payload-digest stability across mime wrappers. Oracle: `bun typecheck` exit 0 · `test/provider/gateway-tda.test.ts` **8 pass / 0 fail / 25 expect**. Fixture provenance MEASURED, not assumed — §0.3.1 |
 | **T2** | wire it into `wrapFetch` beside `rewriteReasoningContent` | `adaptive-client.ts` — with the other consumed `x-opencode-*` headers | **DONE — 2026-09-19.** The set arrives in `x-opencode-tda` and is CONSUMED, not forwarded (it has been folded into the body). Integration oracle `test/provider/gateway-tda-wire.test.ts` **5 pass / 0 fail / 17 expect**: withheld on the wire with the pointer in place and its neighbours untouched · byte-identical with no header · a held item untouched · a body carrying a different payload untouched · five malformed headers degrade to nothing · the instruction is not forwarded, with a forwarded header as control. `test/provider/adaptive-client.test.ts` 4/0/35 unchanged. |
-| **T3** | the set's write path — acquire, hold, release, expire | the Store + the runtime attachment path | a held item survives a turn; an expired one is withheld; a released one is withheld at once |
+| **T3a** | the set's RULES — acquire, hold, release, expire — as PURE functions | new `session/acquired-item.ts`; `isWithheld` imported from the contract module | **DONE — 2026-09-19.** held survives every turn of its span and is withheld after it · a release withholds AT ONCE and does NOT rewrite the span (two facts, not one) · releasing another id changes nothing · the instruction round-trips through `parseTdaHeader` and withholds the very payload it describes · an empty set says nothing. Oracle: `bun typecheck` exit 0 · `test/session/acquired-item.test.ts` **5 pass / 0 fail / 23 expect** · gateway suites 9/0/26 and 5/0/17. |
+| **T3b** | PERSISTENCE + the send site: the `acquired_item` table (DDL in `storage/db.ts` — `CREATE TABLE IF NOT EXISTS`, idempotent at open so existing DBs self-heal — plus the drizzle schema), the turn counter (`session_entry.type = 'user'`, indexed), and the header at `llm.ts` | `storage/db.ts`, `storage/schema-project.sql.ts`, `session/llm.ts` | the row survives a restart; the header rides an `opencode/*` provider and NOT a third-party one; a session with no items sends no header; **and the DDL is verified against the SCHEMA by reading it back** — `PRAGMA table_info('acquired_item')` on a fresh project DB, because a DDL string and a drizzle declaration are two descriptions of one table and nothing else compares them (the write-path rule: inspect the artifact, not the source) |
 | **T4** | the flag | `config/config.ts` gateway section + `gateway.jsonc` | config test: default false, true only when declared |
 | **T5** | the sandbox run | separate build, `model: opencode/big-pickle` | the per-request log shows the withheld body; no request corrupted; the model still answers |
 | **T6** | the release report | — | the report names files the snapshot shows changed (`git status`), not recalled |
@@ -226,8 +227,17 @@ zero-cost short-circuit stays true whenever nothing is held.
 ### 0.6 The sandbox protocol — the owner's requirement, made checkable
 
 1. `pwsh _build.ps1 -Task build` into a SEPARATE artifact; do **not** deploy to `bin/`.
-2. The sandbox config sets `"model": "opencode/big-pickle"` — the key is real (`config/config.ts:149`) —
-   so a test run cannot burn the real budget.
+2. The sandbox config sets `"model": "opencode/qwen3.6-plus-free"` (owner ruling, 2026-09-19), NOT
+   `opencode/big-pickle`, which is TEXT-ONLY — verified against the catalog: `big-pickle` is absent from
+   the 88 vision-capable models the `opencode` provider hosts (measured with
+   `.opencode/opencode-models-probe.mjs`: 107 models on `opencode`, 88 with image input, SEVEN of them
+   at cost 0/0). The ROUTE matters as much as the eyes: `x-opencode-*` reach only
+   `providerID.startsWith("opencode")` (§0.3), so a free vision model on OpenRouter — `inkling:free` was
+   the first suggestion — would leave the gateway with no set to act on and the sandbox observing a
+   clean no-op, i.e. «works» read out of silence. `qwen3.6-plus-free` satisfies all three at once:
+   vision (`text+image+video`, `attachment: true`), cost 0/0, and a route the instruction actually
+   travels. Catalog caveat: `minimax-m3-free` declares image input with `attachment: false` — "sees
+   images" is not enough, the item must be an ATTACHMENT.
 3. `gateway.jsonc` already logs `logBodies: true` + `perRequest: true`: every request is a file under the
    per-request directory. **The sandbox is observed there, not by reading the TUI.**
 4. Whole-sandbox falsifier: a flag-ON body differs from the flag-OFF body in NOTHING except the withheld
@@ -842,4 +852,17 @@ attachment half.
 - **T3 — sources as one acquired set.** Several `read` results held as a working set, narrowed with
   `keep` where useful, released together. Oracle: after the release the sources are gone from the
   window, and the edits they drove are visible in `git diff` and in the fossil leaves.
-- **T4 — the report.** At release, the set's diffs are emitted as the report's evidence. Orac
+- **T4 — the report.** At release, the set's diffs are emitted as the report's evidence. Oracle: the
+  report names files the snapshot actually shows changed — checked against `git status`, not recalled.
+
+### Open decisions (the owner's)
+
+- **Span units.** Turns, wall-clock, or “until the task's plan completes”? Turns is measurable today;
+  a plan-keyed span matches «будем возиться 3 хода» more faithfully but couples this to plan state.
+- **Where the set lives.** Permanent memory (the §4.1 ledger) is inlined into `m*` verbatim and so
+  survives a fold — but it is prose the model must keep correct. A keyed store on the SQLite plane would
+  make the set READABLE rather than remembered. Not decided.
+- **Whether a release is ever automatic.** A span can expire by itself, or only the model may release
+  and a forgotten set keeps costing. The falsifiers differ: a model-released set can be forgotten, an
+  expiring one can drop what is still needed mid-task.
+

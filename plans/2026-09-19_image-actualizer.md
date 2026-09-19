@@ -146,24 +146,49 @@ no removal path except the fold. A second `actualize` therefore adds ANOTHER mes
 replace the previous frames. Repeated actualize/de-actualize cycles would ACCUMULATE, which walks
 straight back into the 168 MB failure mode (§9). **Append-only cannot satisfy «деактуализируешь».**
 
-### Decision: the frames live in an ACTIVE SET, not in the conversation
-| | what it does |
-|---|---|
-| `attachments` | appends permanently — the wrong primitive here |
-| **active set** | a session-scoped list of frame ordinals, injected into each request, removed on command |
+### Decision (owner's advice, grounded): do it AT THE GATEWAY — one transform, not five layers
 
-- `list` enumerates the session's image parts with their derived ordinals (mandatory for pre-caption
-  images, §2.2).
-- `actualize(ids)` adds ordinals to the active set → their payloads are injected at the END of the
-  request (the mutable tail, so `@KV_CACHE_STABILITY` holds).
-- `deactivate(ids \| all)` removes them → the next request no longer carries them. This is the part
-  `attachments` cannot do.
-- The set is session-scoped state and belongs in the store under a declared namespace — **never a new
-  file** (storage paradigm), and it must survive a fold, because the work outlives the window.
+Owner, 2026-09-19: «Все такие приблуды надо делать на уровне гейтвея и не парить себе мозг.»
 
-**Not yet grounded:** where the injection point is in the request assembly, and whether an existing
-per-request overlay mechanism already exists that I have not found. Both are code questions and will be
-read, not asked.
+Grounded, and it is not merely a preference — the interception point already exists and already does
+exactly this shape of work:
+
+```
+adaptive-client.ts:332   export function wrapFetch(_baseFetch)                       ← installed by mod.ts:79
+adaptive-client.ts:162   export function rewriteReasoningContent(body: string): string {
+                           const parsed = JSON.parse(body)
+                           const messages = parsed.messages ?? []
+                           for (…) messages[index] = rebuilt          ← walks and rewrites messages[]
+                           return body                                ← a pure body → body function
+                         }
+adaptive-client.ts:347   applied per request for z-ai/glm/deepseek
+provider.ts:1639         gatewayModel: model.id  ← what that condition tests
+```
+
+And the gateway can key on the SESSION, which is what an active set needs:
+
+```
+llm.ts:963               "x-opencode-session": input.sessionID      ← the session rides in a header
+adaptive-client.ts:389   headers["x-opencode-provider"]              ← the gateway READS these
+adaptive-client.ts:398   headers["x-opencode-has-attachments"]       ← it already reasons about attachments
+adaptive-client.ts:129   x-opencode-* are stripped BEFORE the provider sees them  ← internal by design
+```
+
+**So the whole design collapses to one function:**
+
+1. a pure `applyActiveFrames(body, active)` next to `rewriteReasoningContent`, keyed by
+   `x-opencode-session`, which (a) **drops** media payloads from `messages[]` — the default becomes
+   caption-only, for every model, and (b) **injects** the active set's frames at the end of `messages[]`;
+2. the tool (`list` / `actualize` / `deactivate`) only edits the active set for that session — it never
+   touches the request, the ingestion path, the summary or the assembly;
+3. the set lives in the store under a namespace, surviving folds.
+
+**Why this is the right shape, not just the easiest:** removal comes free (a frame not in the set is
+simply not injected), the KV prefix stays byte-identical because only the tail changes, and there is
+ONE place to look when a frame is missing. The five-layer version I had planned — ingestion → schema →
+summary → assembly → tool — existed only because I was looking for the mechanism from the inside
+instead of at the boundary.
+
 
 ## 3. Where it plugs in
 

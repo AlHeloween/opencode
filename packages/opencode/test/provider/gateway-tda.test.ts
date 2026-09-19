@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { REPLAY_DELIVERED_MARKER, isReplayReduced } from "@/session/message-v2"
+import { PartID } from "@/session/schema"
 import {
   applyTemporaryDataAcquisition,
   payloadDigest,
@@ -55,7 +56,7 @@ const body = (media: string[] = [IMAGE_URL]) =>
   })
 
 const held = (over: Partial<TdaHeld> = {}): TdaHeld => ({
-  id: "prt_0b9bdc0b70011O6AWB9yu16rVD",
+  id: PartID.make("prt_0b9bdc0b70011O6AWB9yu16rVD"),
   kind: "image",
   reason: "screenshot under repair",
   expiresAtTurn: 40,
@@ -107,7 +108,11 @@ describe("gateway temporary data acquisition", () => {
     const before = body()
     // Rule 3. A released, expired item whose id is empty cannot be pointed at, so it is not
     // withheld at all — the payload stays. A reduction that cannot name what it removed is a loss.
-    expect(applyTemporaryDataAcquisition(before, set(held({ id: "" })), 41)).toBe(before)
+    //
+    // Note WHERE this case can still arise: the runtime cannot build an item without an address
+    // (`AcquiredItemTable.id` is a primary key and `acquiredItem` brands it), so an empty id reaches
+    // the transform only off the WIRE — which is precisely why the guard belongs on this side.
+    expect(applyTemporaryDataAcquisition(before, set(held({ id: PartID.make("") })), 41)).toBe(before)
   })
 
   test("an unparsable body comes back as the SAME STRING", () => {

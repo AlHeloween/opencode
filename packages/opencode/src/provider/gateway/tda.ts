@@ -1,4 +1,5 @@
 import { REPLAY_DELIVERED_MARKER } from "../../session/message-v2"
+import type { PartID } from "../../session/schema"
 
 /**
  * Temporary data acquisition — the gateway's half: WITHHOLD, never supply.
@@ -43,8 +44,13 @@ import { REPLAY_DELIVERED_MARKER } from "../../session/message-v2"
 export type TdaKind = "image" | "document" | "source"
 
 export type TdaHeld = {
-  /** The part id — what the pointer prints, so the runtime can find the bytes again. */
-  id: string
+  /**
+   * The part id — what the pointer prints, so the runtime can find the bytes again. BRANDED on purpose:
+   * an item's address IS a part's address, and the brand is what stops a session or message id from
+   * being accepted where a part id is meant. Callers hold it as a plain string and `acquiredItem`
+   * brands it once, in the single constructor, rather than each call site remembering to.
+   */
+  id: PartID
   kind: TdaKind
   /** Why it was acquired. Printed in the pointer: a release without a motive is a silent edit. */
   reason: string

@@ -55,8 +55,11 @@ describe("the runtime's acquisition set", () => {
     expect(parsed?.turn).toBe(16)
     expect(parsed?.set.held).toHaveLength(1)
     expect(parsed?.set.held[0]!.digest).toBe(payloadDigest(IMAGE_URL))
-    // `acquiredTurn` is the runtime's business and does not ride the header.
-    expect(Object.keys(parsed?.set.held[0] ?? {})).not.toContain("acquiredTurn")
+    // The header carries the item's own fields and nothing else — the item IS the contract type, so
+    // there is no runtime-only field to keep out of it.
+    expect(Object.keys(parsed?.set.held[0] ?? {}).sort()).toEqual(
+      ["digest", "expiresAtTurn", "id", "kind", "reader", "reason"].sort(),
+    )
   })
 
   test("and the instruction withholds the very payload it describes", () => {

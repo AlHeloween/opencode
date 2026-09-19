@@ -1,4 +1,5 @@
 import { isWithheld, payloadDigest, type TdaHeld, type TdaKind } from "@/provider/gateway/tda"
+import { PartID } from "@/session/schema"
 
 /**
  * Temporary data acquisition — the RUNTIME's half: the set, its lifecycle, and the instruction the
@@ -24,12 +25,6 @@ import { isWithheld, payloadDigest, type TdaHeld, type TdaKind } from "@/provide
 export type Turn = number
 
 /**
- * An item plus the turn it arrived at. `acquiredTurn` is the runtime's business and never leaves it —
- * the gateway receives only the fields it must judge with.
- */
-export type AcquiredItem = TdaHeld & { acquiredTurn: Turn }
-
-/**
  * How an acquisition becomes an item.
  *
  * The span is the CALLER's policy (a number in config, §0.4) and this function's only job is to turn
@@ -47,14 +42,15 @@ export function acquiredItem(input: {
   turn: Turn
   holdTurns: number
   reader?: string
-}): AcquiredItem {
+}): TdaHeld {
   return {
-    id: input.id,
+    // Branded HERE, once, in the single constructor: the caller holds a plain string (it IS a part id),
+    // and no call site has to remember which kind of id this is.
+    id: PartID.make(input.id),
     kind: input.kind,
     reason: input.reason,
     digest: payloadDigest(input.url),
     expiresAtTurn: input.turn + input.holdTurns,
-    acquiredTurn: input.turn,
     ...(input.reader === undefined ? {} : { reader: input.reader }),
   }
 }
@@ -63,7 +59,7 @@ export function acquiredItem(input: {
  * The release the tool performs (the de-actualize leg). A live item becomes withheld AT ONCE — not at
  * its span's end — and every other item is returned exactly as it was.
  */
-export function release(items: AcquiredItem[], id: string): AcquiredItem[] {
+export function release(items: TdaHeld[], id: string): TdaHeld[] {
   return items.map((item) => (item.id === id ? { ...item, released: true } : item))
 }
 
@@ -75,16 +71,9 @@ export function release(items: AcquiredItem[], id: string): AcquiredItem[] {
  * to take on trust. `undefined` when there is nothing to say, and that IS the switch being off: the
  * gateway withholds only what it is handed, so an absent header cannot be confused with an empty one.
  */
-export function tdaHeaderValue(items: AcquiredItem[], turn: Turn): string | undefined {
+export function tdaHeaderValue(items: TdaHeld[], turn: Turn): string | undefined {
   if (items.length === 0) return undefined
-  const held: TdaHeld[] = items.map((item) => ({
-    id: item.id,
-    kind: item.kind,
-    reason: item.reason,
-    digest: item.digest,
-    expiresAtTurn: item.expiresAtTurn,
-    ...(item.reader === undefined ? {} : { reader: item.reader }),
-    ...(item.released === undefined ? {} : { released: item.released }),
-  }))
-  return JSON.stringify({ turn, held })
+  // Nothing is stripped: the item IS the contract type, so a field the gateway must not see has no
+  // business riding the item in the first place — one shape instead of two that must be kept in step.
+  return JSON.stringify({ turn, held: items })
 }

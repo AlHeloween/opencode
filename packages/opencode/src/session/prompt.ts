@@ -21,7 +21,6 @@ import {
   hasSpareOutput,
   summaryNeedsCompactFirst,
   usable,
-  REQUEST_OVERHEAD_TOKENS,
   SUMMARY_GENERATION_RESERVE_TOKENS,
   needsContentCompaction,
 } from "./overflow"
@@ -2013,8 +2012,15 @@ export const layer = Layer.effect(
           // before starting the LLM turn. If not, compact first (free) rather than
           // hitting the wall mid-generation.
           const cfg = yield* config.get()
-          const contentOnly = estimateContentTokens(msgs, model)  // chars/4, no overhead
-          const used = contentOnly + REQUEST_OVERHEAD_TOKENS  // full request estimate
+          // Same BASE as the cadence — the provider's own `prompt_tokens` — but a BOUND,
+          // not an exact count. This gate runs once per loop step, and the exact counter
+          // is unaffordable here: measured 2026-09-18, pointing it at
+          // `computeOpenWindowTokens` turned a single prompt-suite case from 3.6 s into
+          // 17 s and stalled the whole file, because near the edge that function
+          // tokenizes the growth on every call. A fit gate may over-count — it can only
+          // fold early — but it must never under-count, which is what fed a ×3 blind
+          // band on 2026-09-15.
+          const used = SessionCompaction.openWindowTokensBound(msgs, undefined, model)
           if (!hasSpareOutput({ cfg, model, used })) {
             const folded = yield* maybeCompactCadence({ model, agent: agent.name, force: true })
             if (!folded) {

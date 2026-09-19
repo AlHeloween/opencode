@@ -11,7 +11,7 @@ import { NotFoundError } from "@/storage/storage"
 import { ModelID, ProviderID } from "@/provider/schema"
 import { Effect, Layer, Context, Schema, Option } from "effect"
 import { readMemory } from "@/tool/memory"
-import { estimateMediaTokens, isOverflow as overflow } from "./overflow"
+import { estimateMediaTokens, estimateRequestTokens, isOverflow as overflow } from "./overflow"
 import { countTokens } from "./token-count"
 import { promptTokensFromUsage } from "./processor"
 import { makeRuntime } from "@/effect/run-service"
@@ -362,19 +362,6 @@ export function layer1SummaryThreshold(): number {
 }
 
 /**
- * Layer-1 summary **token counter**: content tokens (chars/4) of NEW work since
- * the last sidecar checkpoint, or of the entire visible list when none.
- *
- * message* is an ASSEMBLY of prior summaries + folded history, not new work:
- * it is never counted toward the increment (with no checkpoint boundary the
- * leading star chain is skipped). Otherwise every fold would leave the counter
- * at ~len(message*)/4 ≈ the whole 64K interval and a summary would fire on the
- * next stop regardless of real activity.
- *
- * - Real context (text + reasoning + tool output), not provider usage
- * - Survives runLoop restarts (pure function of persisted messages)
- */
-/**
  * The newest message in the slice whose response carried a provider-billed prompt
  * size, and the index just past it.
  *
@@ -416,6 +403,38 @@ function lastBilledPrompt(msgs: MessageV2.WithParts[]): { from: number; tokens: 
 }
 
 /**
+ * Tokens per part id.
+ *
+ * A part is immutable once written, so this memo is exact, and it is what keeps the
+ * counter affordable at all: the same window is walked two to three times per turn and
+ * the tokenizer would otherwise re-read every part each time. Measured cost of NOT
+ * having it — one prompt-suite case went 3.6 s → 17.2 s (2026-09-18).
+ *
+ * The key must name the STRING counted, not just the part: a `subtask` part carries two
+ * of them (`prompt` and `description`), and keying both by `p.id` returned the first
+ * one's count for the second.
+ */
+const partTokenCache = new Map<string, number>()
+const PART_CACHE_MAX = 4096
+
+function cachedCountTokens(key: string | undefined, text: string): number {
+  if (!key) return countTokens(text)
+  const hit = partTokenCache.get(key)
+  if (hit !== undefined) return hit
+  const tokens = countTokens(text)
+  if (partTokenCache.size >= PART_CACHE_MAX) {
+    // Drop the oldest quarter; a Map iterates in insertion order.
+    let drop = PART_CACHE_MAX >> 2
+    for (const evict of partTokenCache.keys()) {
+      partTokenCache.delete(evict)
+      if (--drop <= 0) break
+    }
+  }
+  partTokenCache.set(key, tokens)
+  return tokens
+}
+
+/**
  * Tokens for the parts that appeared from `from` onward, over the same part set
  * `contentChars` walks.
  *
@@ -432,22 +451,36 @@ function partTokens(msgs: MessageV2.WithParts[], from: number): number {
       if (p.type === "text") {
         const text = (p as any).text as string | undefined
         if (isLayer1SummaryText(text)) continue
-        tokens += countTokens(text ?? "")
-      } else if (p.type === "reasoning") tokens += countTokens((p as any).text ?? "")
-      else if (p.type === "tool") tokens += countTokens((p.state as any)?.output ?? "")
+        tokens += cachedCountTokens(p.id, text ?? "")
+      } else if (p.type === "reasoning") tokens += cachedCountTokens(p.id, (p as any).text ?? "")
+      else if (p.type === "tool") tokens += cachedCountTokens(p.id, (p.state as any)?.output ?? "")
       else if (p.type === "subtask") {
-        tokens += countTokens((p as any).prompt ?? "") + countTokens((p as any).description ?? "")
-      } else if (p.type === "patch") tokens += countTokens((p as any).content ?? "")
+        tokens +=
+          cachedCountTokens(`${p.id}:prompt`, (p as any).prompt ?? "") +
+          cachedCountTokens(`${p.id}:description`, (p as any).description ?? "")
+      } else if (p.type === "patch") tokens += cachedCountTokens(p.id, (p as any).content ?? "")
     }
   }
   return tokens
 }
 
-export function computeOpenWindowTokens(
+/**
+ * The window both counters walk: everything after the Layer-1 checkpoint boundary, or
+ * after the leading message* chain when there is none.
+ *
+ * message* is an ASSEMBLY of prior summaries + folded history, not new work: it is
+ * never counted toward the increment, or every fold would leave the counter at
+ * ~len(message*)/4 ≈ the whole 64K interval and a summary would fire on the next stop
+ * regardless of real activity.
+ *
+ * ONE resolver, because the cadence counter and the pre-send bound must walk a
+ * byte-identical window — two thresholds disagreeing about what "the window" is is
+ * what opened a ×3 blind band on 2026-09-15.
+ */
+function openWindowSlice(
   msgs: MessageV2.WithParts[],
   checkpointBoundaryID?: string,
-  model?: Provider.Model,
-): number {
+): MessageV2.WithParts[] {
   let start = 0
   // Sidecar checkpoints are the canonical Layer-1 boundary; the legacy
   // assistant.summary flag is no longer written in the sidecar path.
@@ -460,11 +493,22 @@ export function computeOpenWindowTokens(
     }
   } else {
     // No boundary (e.g. right after a fold): skip the leading message* chain.
-    // The star is rebuilt from summaries — counting it as increment would make
-    // the 64K cadence due immediately after every compact.
     while (start < msgs.length && isMessageStar(msgs[start])) start++
   }
-  const slice = msgs.slice(start)
+  return msgs.slice(start)
+}
+
+/**
+ * Layer-1 summary **token counter** / open-window size: the provider's own count for
+ * the newest billed response in the window, plus everything after it. Survives runLoop
+ * restarts (a pure function of persisted messages).
+ */
+export function computeOpenWindowTokens(
+  msgs: MessageV2.WithParts[],
+  checkpointBoundaryID?: string,
+  model?: Provider.Model,
+): number {
+  const slice = openWindowSlice(msgs, checkpointBoundaryID)
 
   // ABSOLUTE FROM THE PROVIDER, GROWTH FROM THE TOKENIZER (2026-09-18).
   //
@@ -502,6 +546,42 @@ export function computeOpenWindowTokens(
   // fold. Fall back to the estimate over the whole slice.
   const media = model ? estimateMediaTokens(slice, model) : 0
   return Math.ceil(contentChars(slice) / CHARS_PER_TOKEN) + media
+}
+
+/**
+ * Upper bound on the size of the NEXT request, with NO tokenizer — the pre-send fit
+ * gate's instrument.
+ *
+ * It shares the cadence's BASE (the provider's own `prompt_tokens`, which already
+ * contains the system prefix and tool schemas `estimateContentTokens` cannot see) and
+ * prices the growth PESSIMISTICALLY at one token per character. No BPE reaches that:
+ * the measured worst case is 1.30 chars/token (Chinese, 2026-09-18), so this is
+ * genuinely an upper bound rather than an estimate pretending to be one.
+ *
+ * Why a bound and not the exact counter: this gate runs on the hot path, once per loop
+ * step, before `llm.stream()`. Measured 2026-09-18 — pointing it at
+ * `computeOpenWindowTokens` turned one prompt-suite case from 3.6 s into 17 s and
+ * stalled the whole file, because near the edge that function tokenizes the growth on
+ * every single call. Over-counting here is safe BY CONSTRUCTION: the gate can only fold
+ * early, never let a real overflow through — which is the failure it exists to prevent.
+ *
+ * With no billed response (fresh session) the previous estimate is returned unchanged,
+ * so the change only reaches windows that carry a provider count, where the base is
+ * measured rather than assumed.
+ */
+export function openWindowTokensBound(
+  msgs: MessageV2.WithParts[],
+  checkpointBoundaryID?: string,
+  model?: Provider.Model,
+): number {
+  const slice = openWindowSlice(msgs, checkpointBoundaryID)
+  const billed = lastBilledPrompt(slice)
+  if (!billed) {
+    const media = model ? estimateMediaTokens(slice, model) : 0
+    return estimateRequestTokens(Math.ceil(contentChars(slice) / CHARS_PER_TOKEN)) + media
+  }
+  const growth = slice.slice(billed.from)
+  return billed.tokens + contentChars(growth) + (model ? estimateMediaTokens(growth, model) : 0)
 }
 
 /**

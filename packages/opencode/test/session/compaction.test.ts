@@ -9,7 +9,7 @@ import { Config } from "@/config/config"
 import { Agent } from "../../src/agent/agent"
 import { LLM } from "../../src/session/llm"
 import { SessionCompaction } from "../../src/session/compaction"
-import { isOverflowFromContent, estimateContentTokens } from "../../src/session/overflow"
+import { isOverflowFromContent, estimateContentTokens, estimateRequestTokens } from "../../src/session/overflow"
 import { MediaTokenCalibration } from "../../src/session/media-token-calibration"
 import { countTokens } from "../../src/session/token-count"
 import { Token } from "@/util/token"
@@ -2399,6 +2399,41 @@ describe("session.compaction.computeOpenWindowTokens", () => {
       1_000 + countTokens("z".repeat(8_000)),
     )
     expect(countTokens("z".repeat(8_000))).toBeLessThan(8_000)
+  })
+
+  // ── The pre-send FIT gate's instrument (2026-09-18) ──
+  //
+  // This gate runs once per loop step, so it cannot afford the exact counter: pointing
+  // it at `computeOpenWindowTokens` turned one prompt-suite case from 3.6 s into 17 s
+  // and stalled the file. It keeps the same BASE and over-counts the growth instead,
+  // which is safe because the gate can only fold early — never let an overflow through.
+  test("the pre-send bound keeps the provider base and charges one token per growth char", () => {
+    const msgs = [
+      billedMsg("a1", { input: 10_000, cacheRead: 5_000, output: 400 }, "answer"),
+      textMsg("u2", "user", "z".repeat(8_000)),
+    ]
+    // prompt (15 000) + response (400) + 8 000 growth chars priced pessimistically.
+    expect(SessionCompaction.openWindowTokensBound(msgs)).toBe(15_400 + 8_000)
+  })
+
+  test("the pre-send bound is never below the exact counter", () => {
+    const msgs = [
+      billedMsg("a1", { input: 1_000, cacheRead: 0, output: 10 }),
+      textMsg("u2", "user", "z".repeat(8_000)),
+    ]
+    const bound = SessionCompaction.openWindowTokensBound(msgs)
+    const exact = SessionCompaction.computeOpenWindowTokens(msgs)
+    // The contract that makes it usable as a fit gate: over-count is allowed, under-
+    // count is not.
+    expect(bound).toBeGreaterThanOrEqual(exact)
+    expect(exact).toBe(1_010 + countTokens("z".repeat(8_000)))
+  })
+
+  test("with no billed response the bound is the previous estimate, unchanged", () => {
+    // A fresh session has no provider count to build on, so the old `chars/4 + 10k`
+    // safety estimate stands — this path must not have moved.
+    const msgs = [textMsg("u1", "user", "z".repeat(4_000))]
+    expect(SessionCompaction.openWindowTokensBound(msgs)).toBe(estimateRequestTokens(1_000))
   })
 })
 

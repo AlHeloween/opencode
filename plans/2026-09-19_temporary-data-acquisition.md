@@ -164,6 +164,8 @@ discipline — a flag cannot be forgotten, a resolution can.
 | **T4** | the flag | `config/config.ts` gateway section + `gateway.jsonc` | config test: default false, true only when declared |
 | **T5** | the sandbox run | separate build, `model: opencode/big-pickle` | the per-request log shows the withheld body; no request corrupted; the model still answers |
 | **T6** | the release report | — | the report names files the snapshot shows changed (`git status`), not recalled |
+| **T7** | acquire a STORED RECORD — a `project_checkpoint` row, a message range — by id | the SQLite plane + the runtime's set | priced by `data.tokens` for an assistant message, by measure otherwise; **refused** when it would cross `usable()`; released to a pointer like any other item |
+| **T8** | epoch-addressable memory — pull a specific earlier summary, hold it for the span, release it | T7 + §0.8 | the summary is in the request while held and absent after the release, and the same one is re-acquirable by id |
 
 ### 0.6 The sandbox protocol — the owner's requirement, made checkable
 
@@ -184,6 +186,45 @@ discipline — a flag cannot be forgotten, a resolution can.
   is already O(body), so the shape is allowed — but the cost must be MEASURED, not assumed.
 - **Two writers to one session's set** (runtime and gateway) is exactly the race the storage paradigm
   exists to prevent. T0 names ONE owner; if both write, the set is broken by construction.
+
+### 0.8 Acquiring from the DATABASE — memory modules from another epoch (owner, 2026-09-19)
+
+Owner, verbatim:
+
+> «надо бы его расширить до сообщений из базы тогда ты сможешь временно подключать модули памяти из
+> разных эпох работы, какой нибудь summary или просто память состояния. Разумеется в разумных пределах
+> чтобы не вылезти за пределы окна контента. Токены считать ... в принципе в базе есть значения, так
+> что все должно быть окей.»
+
+This makes the acquire unit a **stored record**, not a payload: a `project_checkpoint` row (a summary), a
+message range, a block of state memory. The mechanism is unchanged — acquire, hold, release — but the set
+addresses RECORDS rather than only frames. The set therefore holds **references (ids)**, not bodies, which
+is a second reason the header transport of §0.3 is right: the runtime resolves a reference against the DB
+at request-assembly time, so nothing large ever rides a header.
+
+**The price, checked in the database rather than assumed — and the premise is HALF true:**
+
+```
+message, role=assistant    2604 rows, 2604 carry `tokens`    → price is a LOOKUP
+message, role=user          269 rows,    0 carry `tokens`    → price must be MEASURED
+project_checkpoint           24 rows, NO token column at all → price must be MEASURED
+             307 016 chars of `body` + 330 543 chars of `diffs`+`impact`+`plan_state`; 22 materialized
+```
+
+So: an assistant message is priced by reading `data.tokens` — billed by the provider, exact. A user message
+and a checkpoint carry no token count at all, and their price is the same measure the window budget already
+uses for growth (`token-count.ts`, whose `chars/4` fallback reports itself inexact). **Do not write "the DB
+has the values" as if it covered all three** — it covers exactly one of them.
+
+**The bound is the WINDOW, not a count.** «в разумных пределах чтобы не вылезти за пределы окна» is
+`usable()`: an acquisition is refused when held + acquired would cross the fold threshold. A count cap
+cannot express this — two checkpoints from different epochs differ by an order of magnitude (the 24 here
+average ~26 600 chars, while a single `diffs` block has been measured at 96 797).
+
+**Why this is worth doing at all:** a fold is one-way today. Content is summarised, the summary is
+materialised into `m*`, and nothing can pull a SPECIFIC earlier epoch back for a bounded time. Acquisition
+makes memory addressable in BOTH directions — and the release is what guarantees the window returns to
+clean instead of slowly filling with everything anyone ever looked at.
 
 ## 1. What exists today (grounded)
 

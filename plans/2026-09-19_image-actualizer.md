@@ -97,3 +97,37 @@ irrelevant image is not merely expensive, it is noise in the attended window.
   answerable from context — proving the block is gone rather than merely hidden.
 - **S5** Cache: the system prefix hash is unchanged across an actualize/de-actualize pair (the tail
   moves, the prefix does not).
+
+## 7. CUA frames are first-class images (owner, 2026-09-19)
+
+Owner: «надо чтобы актуализатор автоматом цеплял твою работу с CUA как доп фреймом».
+
+A CUA capture already lands as a file (`get_desktop_state` / `zoom` /
+`browser_*` with `screenshot_out_file`), and the driver has a trajectory recorder
+(`start_recording` → per-turn folders). So a CUA frame needs no new mechanism: it enters the SAME
+inventory as an uploaded screenshot, gets a stable id, and is **attached automatically to the tail**
+while the CUA work is in progress — no explicit request needed. `zoom` is the natural frame extractor:
+it returns a rectangular region of a window at native resolution, which is what a "frame" is.
+
+### Verified before designing it (2026-09-19)
+- **Background capture works and does not disturb the foreground.** `get_desktop_state` →
+  `exit 0`, **2560×1440 true screen pixels**, artifact read back, with the owner's TUI still frontmost
+  and still working. `launch_app` is documented `SW_SHOWNOACTIVATE` ("does not steal focus"), and
+  `press_key`/`type_text` deliver via `PostMessage`.
+- **Trap: `list-tools` answers WITHOUT the daemon.** It is served from the local binary catalog, so a
+  responding tool list is NOT proof that the driver is up. Only a real `call` proves it — the first
+  attempt failed with `daemon is not running on \\.\pipe\cua-driver`.
+- **Defect worth fixing separately:** on that failure the tool still printed
+  `Exit 1. Screenshot written to <path>` while **no file existed** (verified by reading the path back).
+  A success message emitted before the work is done is the same class as the silent `catch {}` this
+  repo already forbids.
+- The daemon must be started as `cmd_runner start -- bin\cua.cmd serve` (never a bare shell), and
+  reports `listening on \\.\pipe\cua-driver`.
+
+## 8. Related surface found while verifying — the prompt footer has its own gauge
+
+The sidebar gauge is fixed, but the **prompt footer** prints `466.6K (47%)` — `tokens / context`
+(466 633 / 1 005 808) while the sidebar now prints `49% of fold budget` (466 633 / 957 232). A THIRD
+surface, same word, different denominator. Not in this plan's scope, recorded so it is not mistaken
+for a regression of the sidebar fix.
+

@@ -30,6 +30,13 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
   const sync = useSync()
   const dialog = useDialog()
   const toast = useToast()
+  onMount(() => {
+    // Ten keybind hints and long agent rows: at medium (60) the footer crushes into
+    // five letter-broken lines while two thirds of a wide terminal stays unused
+    // (2026-09-19). xlarge (116) is the largest existing size and is already what
+    // DialogRouting picks for the same reason.
+    dialog.setSize("xlarge")
+  })
   // Resolution chain (local.forAgent): session override → worktree (model.json)
   // → global (Agent.Info config). Session is the default configuration target
   // (2026-08-30, Alexander: explicit scope choice instead of hidden dual writes).

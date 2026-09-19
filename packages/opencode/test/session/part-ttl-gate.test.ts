@@ -164,4 +164,26 @@ describe("the declared-lifetime gate", () => {
     const body = JSON.stringify(await MessageV2.toModelMessages(input, model, { turn: 1000 }))
     expect(body).toContain(SPAM)
   })
+
+  test("the fold's reset EXPIRES a running span and never un-declares it", () => {
+    const running = toolPart("prt-fold", 102)
+    const alreadyExpired = toolPart("prt-fold-old", 40)
+    const undeclared = toolPart("prt-fold-none")
+    const messages = [{ parts: [running, alreadyExpired, undeclared] }]
+
+    // Only what is still RUNNING at the boundary moves. An already-expired span is left exactly as it is
+    // (moving it again would erase when it actually ended) and an undeclared part is not touched at all.
+    expect(MessageV2.spansToExpire(messages, 100).map((part) => String(part.id))).toEqual(["prt-fold"])
+    expect(MessageV2.expiredSpan(100)).toBe(99)
+
+    // The release takes effect IN THIS TURN, not the next: the gate reads the moved value as expired
+    // immediately, which is what puts the payload off the wire in the same request.
+    const moved = { ...running, ttlUntil: MessageV2.expiredSpan(100) } as MessageV2.Part
+    expect(MessageV2.isSpanExpired(moved, 100)).toBe(true)
+    expect(MessageV2.isSpanExpired(running, 100)).toBe(false)
+
+    // And the boundary rule is the SAME one the gate uses, so a span ending exactly ON the turn rides.
+    expect(MessageV2.isSpanExpired(toolPart("prt-edge", 100), 100)).toBe(false)
+    expect(MessageV2.isSpanExpired(toolPart("prt-edge", 99), 100)).toBe(true)
+  })
 })

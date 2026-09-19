@@ -2715,7 +2715,32 @@ export const layer = Layer.effect(
               // next («приведет дела в порядок, сделает компакт и захватит файлы снова»). `defer` folds
               // nothing, so nothing is released: the two decisions are made in ONE place, so they cannot
               // disagree.
-              if (foldChoice !== "defer") AcquiredSet.releaseAll(sessionID)
+              if (foldChoice !== "defer") {
+                AcquiredSet.releaseAll(sessionID)
+                // THE FOLD'S HARD RELEASE. A declared span still RUNNING at the boundary is moved into
+                // the past, so its payload stops riding from this very request on and the MESSAGE stays —
+                // the model is told by the pointer, which names the part id, and re-acquires with recall.
+                // Expired, never un-declared: clearing the declaration would make the piece permanent
+                // again and put its payload straight back on the wire.
+                //
+                // It walks the window being folded rather than querying, because those parts are already
+                // loaded and each carries its own declaration; a piece outside the window is not being
+                // sent, so leaving it declared costs nothing. The enumeration is logged, because a
+                // release nobody can list is indistinguishable from a loss.
+                const foldTurn = currentTurn(sessionID)
+                const releasedAtFold = MessageV2.spansToExpire(visibleAfter, foldTurn)
+                for (const part of releasedAtFold) {
+                  yield* sessions.updatePart({ ...part, ttlUntil: MessageV2.expiredSpan(foldTurn) })
+                }
+                if (releasedAtFold.length > 0) {
+                  yield* slog.info("declared spans released at the fold", {
+                    sessionID,
+                    turn: foldTurn,
+                    count: releasedAtFold.length,
+                    ids: releasedAtFold.map((part) => part.id),
+                  })
+                }
+              }
               switch (foldChoice) {
                 case "forced":
                   yield* slog.info("layer2.cadence.requested", {

@@ -1033,6 +1033,53 @@ function hashParts(parts: readonly Part[]): number {
 }
 
 /**
+ * The declared lifetime, as ONE pair of predicates with TWO readers: the wire gate
+ * (`releaseExpiredParts`) and the fold's bulk reset (`spansToExpire`). They must agree on what a
+ * declaration means AND on which side of the boundary an expired span sits — a disagreement of one
+ * turn would be invisible in both, which is why the comparison lives here exactly once.
+ *
+ * `null` means "no declaration" exactly like `undefined` does, and the difference is not academic: the
+ * contract says null IS permanent, the `ttl_until` COLUMN is nullable, and a bare `!== undefined` test
+ * would have coerced null to 0 and RELEASED the very piece it was told to keep. Read the number, not the
+ * absence of a keyword — the same trap as the migration guard, where bun's `get()` answers null for an
+ * empty result and `!== undefined` called a missing table present.
+ */
+export function declaredUntil(part: Part): number | undefined {
+  return typeof part.ttlUntil === "number" ? part.ttlUntil : undefined
+}
+
+/** A span ending exactly ON this turn is still RUNNING: it rides now and leaves from the next turn on. */
+export function isSpanExpired(part: Part, turn: number): boolean {
+  const until = declaredUntil(part)
+  return until !== undefined && until < turn
+}
+
+/** The turn a released span is moved TO. In the past by one, so the release takes effect in THIS turn. */
+export function expiredSpan(turn: number): number {
+  return turn - 1
+}
+
+/**
+ * THE FOLD'S HARD RELEASE (owner ruling, 2026-09-19: «доползли до компакта — ок, сбрасываем автоматом,
+ * осталяем сообщение»). Every declaration still RUNNING at the boundary is moved into the past, so its
+ * payload stops riding the wire from this very request on while the message stays.
+ *
+ * EXPIRED, never UN-DECLARED, and the difference is the whole mechanism: clearing the declaration makes a
+ * part PERMANENT again and puts its payload straight back on the wire — the exact opposite of a reset.
+ *
+ * It RETURNS what it releases, because a release nobody can enumerate is indistinguishable from a loss,
+ * and a caller that logs the count and the ids makes the reset checkable after the fact.
+ */
+export function spansToExpire(messages: readonly { parts: readonly Part[] }[], turn: number): Part[] {
+  return messages.flatMap((msg) =>
+    msg.parts.filter((part) => {
+      const until = declaredUntil(part)
+      return until !== undefined && until >= turn
+    }),
+  )
+}
+
+/**
  * ONE declaration of the conversion's options. It used to be written out THREE times — on the effect and
  * on both wrappers — so a new field reached only the copy that was edited, and the compiler caught it
  * only because a test passed the field to a wrapper that did not declare it. A shared type is what makes
@@ -1174,16 +1221,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
    */
   function releaseExpiredParts(messages: typeof input, turn: number | undefined): typeof input {
     if (turn === undefined) return messages
-    // `null` means "no declaration" exactly like `undefined` does, and the difference is not academic:
-    // the contract says null IS permanent, the `ttl_until` COLUMN is nullable, and a bare
-    // `!== undefined` test would have coerced null to 0 and RELEASED the very piece it was told to
-    // keep. Read the number, not the absence of a keyword — the same trap as the migration guard, where
-    // bun's `get()` answers null for an empty result and `!== undefined` called a missing table present.
-    const declaredUntil = (part: Part) => (typeof part.ttlUntil === "number" ? part.ttlUntil : undefined)
-    const expired = (part: Part) => {
-      const until = declaredUntil(part)
-      return until !== undefined && until < turn
-    }
+    const expired = (part: Part) => isSpanExpired(part, turn)
     const note = (part: Part) =>
       `[held] payload released: the declared span ended at turn ${declaredUntil(part)} (now ${turn}). ` +
       (part.type === "tool"

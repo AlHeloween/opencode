@@ -153,6 +153,18 @@ Side finding: the wire ALREADY carries an ordinal beside the image (`[Image 1]`)
 sandbox is green. That is «лучше это не копировать в workflow» expressed as a DEFAULT rather than as
 discipline — a flag cannot be forgotten, a resolution can.
 
+The whole surface, declared in `.opencode/gateway.jsonc` beside the existing gateway settings, so every
+limit in §0.9 is a number in a file rather than a constant in a function:
+
+```
+gateway.tda.enabled        false   the master switch
+gateway.tda.maxItemBytes   §0.9-1  the cap that stops «захватить 1 гигабайт»
+gateway.tda.maxHeldTokens  §0.9-2  held total against usable()
+gateway.tda.priceMargin    §0.9-2  the reserve for an inexactly-priced item
+gateway.tda.maxItems       §0.9-3  keeps the header transport valid
+gateway.tda.holdTurns      §10     the declared lifetime
+```
+
 ### 0.5 Tasks
 
 | id | task | binding | oracle |
@@ -225,6 +237,54 @@ average ~26 600 chars, while a single `diffs` block has been measured at 96 797)
 materialised into `m*`, and nothing can pull a SPECIFIC earlier epoch back for a bounded time. Acquisition
 makes memory addressable in BOTH directions — and the release is what guarantees the window returns to
 clean instead of slowly filling with everything anyone ever looked at.
+
+### 0.9 The bound: a margin and three caps (owner, 2026-09-19)
+
+Owner, verbatim:
+
+> «Расчетчик токенов есть, сделаем запас… Конечно надо бы туда добавить ограничивающие приблуды чтобы
+> не захватить 1 гигабайт)))»
+
+Four limits, and each catches a different mistake — none of them is redundant:
+
+1. **Per-item BYTE cap.** One acquisition above the cap is refused outright; a large text may instead be
+   acquired TRUNCATED with a pointer, the same grammar as every other release. This is the one that stops
+   «захватить 1 гигабайт».
+2. **Held-total TOKEN cap against `usable()`**, with the MARGIN the owner asked for:
+   `Σ held + acquired × (1 + TDA_PRICE_MARGIN) + reserve ≤ usable()`. The margin exists for a measured
+   reason: the price is EXACT only for an assistant message (`data.tokens`); a checkpoint and a user
+   message go through the counter's inexact fallback, which reports itself inexact (§0.8). A constant, not
+   a feeling — and it is the reason a marginal acquisition is refused rather than attempted.
+3. **Item COUNT cap.** The set travels in the header, so the set's size is the header's size (§0.3). The
+   count cap is what keeps that decision valid; without it the header transport degrades quietly.
+4. **Nothing is acquired by default.** `gateway.tda.enabled: false` — a pipeline that can hold a gigabyte
+   must be something you turned ON.
+
+### 0.10 The economics — the grep loop is the EXPENSIVE option (owner, 2026-09-19)
+
+Owner, verbatim:
+
+> «Может показаться это дороже - нет если файл большой будет кажем 50 грепов столько же reasoning и как
+> следствие это будет во много раз дороже при том что шанс на получение результата будет низким.»
+
+On the prices measured tonight (`docs/compaction.md`, `r = input / cache_read = 50` on deepseek-flash):
+
+| | a 1 MB source | the equivalent grep loop |
+|---|---|---|
+| turns | 1 acquire | ~50 |
+| cost | ~250 000 tokens ONCE (~$0.0375), then 1/50 per held turn (~$0.00075) | 50 turns ≈ $0.095, and each turn also carries its whole reasoning |
+| residue | none after the release | every fragment STAYS in the transcript |
+| quality | edits made against the whole artifact | edits made against fragments — which is why they come out as «лажа» |
+
+⇒ the price argument and the quality argument point the SAME way, which is why this is not an optimisation.
+And the honest caveat: the price advantage is model-dependent — it is LARGEST on a deep-cache-discount route
+like ours (`r = 50`) and shrinks as `r` falls (GLM ~5, no-discount ~1). The QUALITY advantage does not
+depend on `r` at all: fewer turns and an edit made against the whole artifact on every route.
+
+**Reverse engineering is the extreme case** the owner named («а если заниматься reverse engineering, так
+тут вообще раздолье»): there the artifact cannot be summarised into fragments at all, because the REASON
+for every line is what is being reconstructed. That is the shape a grep loop cannot do and an acquired
+hold does by construction.
 
 ## 1. What exists today (grounded)
 

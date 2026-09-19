@@ -40,6 +40,11 @@ The distinction is not framing, it decides the design:
 | the edit | made against fragments — which is WHY edits come out as «лажа» | made against the whole artifact, attended |
 | the end | fragments keep accumulating | RELEASE: window clean, result and report |
 
+**The sharpest form of the distinction (owner, 2026-09-19): «Да - это не поиск - поиск оставляет следы,
+это TDA и точка.»** A grep, a read, a fetch — each one DEPOSITS a fragment in the transcript and it stays
+there. Acquisition ends in a RELEASE, so the artifact leaves no residue. The difference is not the
+retrieval, it is what is left behind.
+
 ⇒ «grep the file, fill the window, edit blind» is the failure mode this replaces. The agent does not
 SEARCH the artifact; it **holds** it, so an edit is made with the whole thing in front of it.
 

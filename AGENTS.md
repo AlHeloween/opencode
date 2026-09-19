@@ -200,14 +200,17 @@ Full details: [docs/architecture.md](docs/architecture.md), [docs/compaction.md]
 
 ---
 
-## Storage Paradigm — one store, keyed, lazy (2026-09-19)
+## Storage Paradigm — two planes by access pattern; no ad-hoc state files (2026-09-19)
 
-**Rule: runtime state has exactly ONE home.** Not "a database for messages plus JSON files for
-settings" — one store, with explicit key namespaces, and every new piece of state goes there.
-Owner, 2026-09-19: «jsons -> lmdb с чётким разделением ключей, ленивое обновление обратно если
-реально редактируем пользовательские настройки. И вот что вылазит сразу wire туда — никаких
-гонок эффектов, никаких гонок настроек.» and «это не просто хранилище, оно нам развяжет все
-гонки по effects.»
+**Rule: runtime state has exactly TWO homes, chosen by ACCESS PATTERN.** Not "a relational
+database plus a growing pile of JSON files per feature": SQLite for long/relational queries, LMDB
+for fast keyed state. Every new piece of state goes to one of them under a declared key namespace —
+never to a new file.
+Owner, 2026-09-19: «мы с дуру обновились на effects вместо нормального разделения хранилищ:
+sqlite для долгих запросов, lmdb для быстрых. Это принесло много неприятностей, снижения
+быстродействия, крашей, и гонки эффектов.» and earlier «jsons -> lmdb с чётким разделением
+ключей, ленивое обновление обратно если реально редактируем пользовательские настройки… это не
+просто хранилище, оно нам развяжет все гонки по effects.»
 
 **This is a concurrency decision, not a taste one.** Every JSON file written by more than one
 effect is a race with no arbiter: two writers, two read-modify-write cycles, one lost update. A
@@ -217,8 +220,12 @@ in" must never again be answered by adding a file.
 
 ### The four rules
 
-1. **One store.** A new state surface does not get a new file. It gets a key namespace, declared
-   next to the other namespaces.
+1. **Two planes, by access pattern.** LMDB is the FAST plane: small, hot, keyed state read on the
+   interactive path (settings layers, TUI KV, plugin meta, gateway store) — 0.71 µs/read and
+   100 000 reads in 70.7 ms measured on this host. SQLite is the RELATIONAL plane: long queries,
+   joins, history (sessions, messages, parts, jobs, balance, sync, codegraph). A new state surface
+   gets a key namespace in the plane that matches its ACCESS PATTERN — it does not get a file, and
+   it does not go to one engine merely because that engine happened to be closer.
 2. **Strict key separation.** Namespaces are explicit and flat — `session:<id>:agent:<name>`,
    `worktree:<scope>:agent:<name>`, `global:agent:<name>` — and a reader addresses ONE key. No
    prefix scan to reconstruct a value that should have been materialised, and no reader walks a
@@ -237,17 +244,40 @@ creating a file is the growth this rule exists to stop. The measured inventory �
 `{state}/model.json`, which three modules already write — is in
 [plans/2026-09-19_fill-every-settings-layer.md](plans/2026-09-19_fill-every-settings-layer.md) §7.
 
-### The engine — measured, do not re-argue from scratch
+**The wrong turn, recorded so it is not repeated.** Owner, 2026-09-19: the storage split was NOT
+done, and the effort went into adopting the effect runtime instead — «это принесло много
+неприятностей, снижения быстродействия, крашей, и гонки эффектов.» Take that as the account of
+what happened. The codebase's own signal corroborates the shape of the problem: ten floating
+`slog.*` effects sit un-yielded in `session/prompt.ts` (lines 345, 368, 383, 817, 821, 828, 838,
+985, 1028, 1252). The lesson is not "effects are bad" — it is that a concurrency story built on a
+runtime framework, with no single arbiter underneath it, has nothing to serialize against. The
+store is that arbiter; the framework is not.
 
-`bun:sqlite` + `drizzle-orm` is **already** this project's store and already provides every
-property above: one file, WAL, serialized writers, schema files (`src/storage/schema.sql.ts`,
-`session.sql.ts`, `balance.sql.ts`, …), migrations (`src/storage/migration.ts`), and **92 call
-sites** across sessions, messages, jobs, balance, sync and codegraph.
+**Accepted cost, on the owner's ruling.** LMDB keeps its file mapped, so on Windows `rmSync` of a
+store directory throws `EBUSY` until the env is closed. Owner, 2026-09-19: «шанс на ebusy намного
+ниже чем шанс на гонку effects.» Accepted and bounded: tests close the env. It is not a reason to
+keep the JSON files.
 
-So the default reading of this rule is: **move the remaining ad-hoc JSON state into the existing
-store** — which adds no engine and no new dependency. LMDB is the owner's named alternative
-(mmap, zero-copy reads, single-writer); choosing it means a SECOND engine beside SQLite, so it is
-an explicit decision rather than a default. `lmdb` appears in no manifest today.
+### The engines — decided and measured, do not re-argue
+
+**SQLite** (`bun:sqlite` + `drizzle-orm`) — the RELATIONAL plane, already installed: schema files
+(`src/storage/schema.sql.ts`, `session.sql.ts`, `balance.sql.ts`, …), migrations
+(`src/storage/migration.ts`), **92 call sites** across sessions, messages, jobs, balance, sync and
+codegraph. It does not change.
+
+**LMDB** (`lmdb@3.5.6`, MIT, Node-API) — the FAST plane, DECIDED 2026-09-19 for hot keyed state.
+Measured on this host under Bun/win32-x64: `bun add` fetches its prebuild
+(`download-lmdb-prebuilds11`) so no compiler is needed; three DBs live in ONE environment via
+`openDB` and read back independently; **100 000 sync reads in 70.7 ms (0.71 µs/read)** straight from
+mmap with no I/O; one `transaction()` spans two DBs; footprint `data.mdb` 262 144 B + `lock.mdb`
+8 128 B.
+
+**Not yet budgeted, and the one thing that could still change the plan:** the `.node` addon must
+ship beside the compiled binary, and the `bun --compile` path for a Node-API addon is **UNVERIFIED**.
+Verify it BEFORE the migration, not after.
+
+Migration order (see the plan §7 inventory): `{state}/model.json` FIRST — it is the only entry with
+three writers, so moving it retires a real lost-update race on its own.
 
 ## Bug Policy
 

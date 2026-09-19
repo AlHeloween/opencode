@@ -142,6 +142,12 @@ export default [
     const toolName = partType === "tool" ? (rest as any).tool ?? null : null
     const partStatus = (rest as any).state?.status ?? null
 
+    // The declared lifetime's columns, derived from the same json the part is stored as. On the BASE of
+    // the part type, so no cast is needed here — and because they are derived at this single write point,
+    // the columns cannot drift from the payload they describe.
+    const ttlUntil = rest.ttlUntil ?? null
+    const ttlScope = rest.ttlScope ?? null
+
     try {
       db.insert(PartTable)
         .values({
@@ -151,6 +157,8 @@ export default [
           type: partType,
           tool_name: toolName,
           status: partStatus,
+          ttl_until: ttlUntil,
+          ttl_scope: ttlScope,
           time_created: data.time,
           data: rest,
         })
@@ -161,6 +169,8 @@ export default [
             type: partType,
             tool_name: toolName,
             status: partStatus,
+            ttl_until: ttlUntil,
+            ttl_scope: ttlScope,
           },
         })
         .run()

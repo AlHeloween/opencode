@@ -101,6 +101,23 @@ const partBase = {
   id: PartID,
   sessionID: SessionID,
   messageID: MessageID,
+  /**
+   * The part's DECLARED LIFETIME, resolved to an absolute turn at the moment it is declared.
+   *
+   * `ttlUntil` is a TURN NUMBER, not "turns remaining": a relative value would not say from WHEN, so a
+   * reader that did not write it could not judge it — and the reader here is the conversion, which sees
+   * stored parts long after the tool that made them. Absent means the mechanism does not apply at all,
+   * which is why "permanent" needs no value of its own. `ttlScope` (`tmp_xxx`) binds the span to one
+   * temporary enable, so it can be revoked whole.
+   *
+   * It sits on the base, so every part type carries it, and it rides in the part's json `data` the way
+   * `compacted` does on a message — `PartData` is derived from this type, so nothing else has to copy it.
+   * The matching `part` COLUMNS are DERIVED from these two fields at the single write point
+   * (projectors.ts), which is what makes them walkable by query. That promotion is the one `compacted`
+   * and `type`/`tool_name`/`status` already went through.
+   */
+  ttlUntil: Schema.optional(Schema.Number),
+  ttlScope: Schema.optional(Schema.String),
 }
 
 export const SnapshotPart = Schema.Struct({

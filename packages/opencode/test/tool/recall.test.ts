@@ -19,15 +19,20 @@ const dir = mkdtempSync(path.join(tmpdir(), "recall-"))
 const dbPath = path.join(dir, "opencode.db")
 
 const db = new BunDatabase(dbPath, { create: true })
-db.exec("CREATE TABLE part (id TEXT PRIMARY KEY, type TEXT NOT NULL, data TEXT NOT NULL)")
-const insert = db.prepare("INSERT INTO part (id, type, data) VALUES (?, ?, ?)")
+// The REAL column set: the identity lives in COLUMNS and the JSON blob holds only the part's own
+// fields. A fixture with `id/data` alone cannot see a lookup that reads the wrong thing — which is
+// exactly how a `keep` that could never write anything shipped green.
+db.exec(
+  "CREATE TABLE part (id TEXT PRIMARY KEY, message_id TEXT NOT NULL, session_id TEXT NOT NULL, type TEXT NOT NULL, data TEXT NOT NULL)",
+)
+const insert = db.prepare("INSERT INTO part (id, message_id, session_id, type, data) VALUES (?, ?, ?, ?, ?)")
 
 function seed(id: string, type: string, data: unknown) {
-  insert.run(id, type, JSON.stringify(data))
+  insert.run(id, "message", "session", type, JSON.stringify(data))
 }
 
 function seedTool(id: string, status: string, output: string, tool = "grep", title?: string) {
-  seed(id, "tool", { type: "tool", tool, state: { status, output, ...(title === undefined ? {} : { title }) } })
+  seed(id, "tool", { type: "tool", tool, callID: "call", state: { status, output, ...(title === undefined ? {} : { title }) } })
 }
 
 function call(input: { id: string; range?: string; pattern?: string; ignoreCase?: boolean; maxChars?: number; keep?: boolean }) {
@@ -117,6 +122,21 @@ describe("recall: reading a stored tool result by part id", () => {
     expect(wider.matchedLines).toBe(5)
   })
 
+  test("a recalled part carries the identity from the COLUMNS, so it can be written back", () => {
+    // The identity is NOT in the JSON blob: a lookup that read only `data` returned a part that looked
+    // complete and could not be written — `session.updatePart` rejected it with "sessionID required
+    // but not found", so `keep` never persisted anything until a live run caught it. This is the
+    // assertion the fixture could not make while it had no `session_id`/`message_id` columns.
+    seedTool("prt_identity", "completed", five)
+    const result = call({ id: "prt_identity", keep: true })
+    if (!result.ok) throw new Error(result.error)
+    expect(result.part.id).toBe("prt_identity")
+    expect(result.part.sessionID).toBe("session")
+    expect(result.part.messageID).toBe("message")
+    expect(result.part.type).toBe("tool")
+    expect(result.part.callID).toBe("call")
+  })
+
   test("carries the same label the placeholder printed, so two recalls cannot be confused", () => {
     // The placeholder on the wire reads `[grep id=prt_x — result delivered earlier (10.0 KB, <title>)]`.
     // If the answer did not repeat that title, the only thing distinguishing two recalled results
@@ -173,7 +193,7 @@ describe("recall: reading a stored tool result by part id", () => {
   })
 
   test("refuses a part that is not a tool result", () => {
-    insert.run("prt_text", "text", JSON.stringify({ type: "text", text: "hello" }))
+    seed("prt_text", "text", { type: "text", text: "hello" })
     const result = call({ id: "prt_text" })
     expect(result.ok).toBe(false)
     if (result.ok) throw new Error("expected refusal")

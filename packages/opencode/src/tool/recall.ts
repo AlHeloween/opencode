@@ -10,13 +10,35 @@ import { Session } from "../session/session"
 
 import DESCRIPTION from "./recall.txt"
 
+/**
+ * A stored tool part as it must be RETURNED TO BE WRITABLE. The identity lives in the `part` table
+ * COLUMNS, not in the JSON blob, so a lookup that reads only `data` yields a part that looks complete
+ * and cannot be written back — `session.updatePart` rejects it with "sessionID required but not
+ * found", which is how `keep` silently persisted nothing until a live run caught it.
+ */
+export type StoredToolPart = {
+  id: string
+  sessionID: string
+  messageID: string
+  type: string
+  tool: string
+  callID: string
+  state: {
+    status?: string
+    output?: string
+    error?: string
+    title?: string
+    [field: string]: unknown
+  }
+}
+
 export type RecallSuccess = {
   ok: true
   tool: string
   /** Set when the caller asked to KEEP this selection; the tool persists it onto the stored part. */
   kept?: { from: number; to: number; pattern?: string; ignoreCase?: boolean; reason?: string }
-  /** The stored part as parsed, so the tool can write the selection back through the session service. */
-  part: unknown
+  /** The stored part, IDENTITY INCLUDED, ready to hand straight to `session.updatePart`. */
+  part: StoredToolPart
   /** The stored `state.title` of that part — the same label the wire placeholder prints. */
   title: string
   /** `tool: title` (just the tool when it stored no title) — ONE handle, identical in both places. */
@@ -80,8 +102,8 @@ export function parseRange(
  * current — the JSON in `data` is the authority, and a stale projection would silently hide a part
  * (measured: the live row carries both, but the lookup validates the JSON it is about to return).
  *
- * A failed result is NOT recoverable, deliberately: an error body is a dead end, and re-reading it
- * costs a round trip to learn nothing.
+ * An ERRORED result is fully readable AND narrowable: it has no size gate at all, so it is the one
+ * thing that spams the context with nothing able to shrink it, and `keep` is the way out.
  */
 export function readToolResult(input: {
   dbPath: string
@@ -99,14 +121,31 @@ export function readToolResult(input: {
 
   const db = new BunDatabase(input.dbPath, { readonly: true })
   try {
-    const row = db.prepare("SELECT data FROM part WHERE id = ? LIMIT 1").get(input.id) as
-      | { data: string }
+    // The identity is in COLUMNS; the JSON holds only the part's own fields. BOTH are needed — the
+    // columns to write the part back, the JSON to read it. Selecting `data` alone produced a part that
+    // could be read forever and never written.
+    const row = db.prepare("SELECT id, session_id, message_id, data FROM part WHERE id = ? LIMIT 1").get(input.id) as
+      | { id: string; session_id: string; message_id: string; data: string }
       | undefined
     if (!row) return { ok: false, error: `no part with id ${input.id} in this project` }
 
-    let part: { type?: string; tool?: string; state?: { status?: string; output?: string; error?: string; title?: string } }
+    let part: StoredToolPart
     try {
-      part = JSON.parse(row.data) as typeof part
+      const stored = JSON.parse(row.data) as {
+        type?: string
+        tool?: string
+        callID?: string
+        state?: StoredToolPart["state"]
+      }
+      part = {
+        id: row.id,
+        sessionID: row.session_id,
+        messageID: row.message_id,
+        type: stored.type ?? "",
+        tool: stored.tool ?? "",
+        callID: stored.callID ?? "",
+        state: stored.state ?? {},
+      }
     } catch (error) {
       return { ok: false, error: `part ${input.id} is unreadable: ${String(error)}` }
     }
@@ -291,15 +330,10 @@ export const RecallTool = Tool.define(
           // these lines instead of a placeholder, so the result stops costing what it used to — this
           // is what makes the call an optimisation rather than a tax.
           if (result.kept !== undefined) {
-            const stored = result.part as {
-              id: string
-              sessionID: string
-              messageID: string
-              type: "tool"
-              callID: string
-              tool: string
-              state: Record<string, unknown>
-            }
+            // `result.part` carries the table COLUMNS as well as the JSON, so this is typed rather
+            // than asserted. The cast that used to sit here let a part with no `sessionID` look
+            // correct at compile time and fail only at runtime — which is why keep never persisted.
+            const stored = result.part
             yield* session.updatePart({
               id: stored.id,
               sessionID: stored.sessionID,

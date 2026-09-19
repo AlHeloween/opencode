@@ -1889,11 +1889,22 @@ export const layer = Layer.effect(
             ) {
               return false
             }
+            // `forced` keeps this record honest, and it is the field whose
+            // absence cost a hunt: a tool-armed fold (and the headroom-safety
+            // callback) reach this same call site, so without it the line reads
+            // as a CADENCE decision while its own numbers disprove that.
+            // Measured 2026-09-19: a requested fold printed visibleTokens
+            // 387 106 against compactTarget 865 000 — below threshold by
+            // construction — and the owner read exactly that as "the cadence
+            // fired at 386k". The cause sat in a SEPARATE line
+            // (`layer2.cadence.requested`, 65 ms earlier) with nothing linking
+            // them, so answering one question took three tables.
             yield* slog.info("layer2.cadence.compact", {
               sessionID,
               visibleTokens,
               openSidecars,
               compactTarget,
+              forced: input.force === true,
               modelContext: input.model.limit.context,
               summaryInterval: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
             })
@@ -2618,8 +2629,10 @@ export const layer = Layer.effect(
               // The `compact` tool armed a boundary fold during this turn. It
               // cannot fold inline — it runs inside the window it would fold —
               // so the request is consumed here, at the boundary the kernel
-              // rule actually names. @COMPACTION_CADENCE.
-              const foldRequested = CompactionRequest.take(sessionID)
+              // rule actually names. @COMPACTION_CADENCE. `take` returns the
+              // reason WITH the arming, so the fold is recorded with its motive
+              // and there is no second lookup that could be forgotten.
+              const foldRequest = CompactionRequest.take(sessionID)
               if (captureDue) {
                 // Publish normal M before opening the ephemeral sidecar branch.
                 // Its disk copy is durability only; the sidecar receives this exact
@@ -2668,15 +2681,23 @@ export const layer = Layer.effect(
               // turn: forced/capture-then-forced when the `compact` tool armed
               // this turn, defer when a new s was just captured and nothing
               // asked, plain window-fill cadence otherwise.
-              switch (CompactionRequest.foldDecision({ requested: foldRequested, captureDue, sidecarCaptured })) {
+              switch (CompactionRequest.foldDecision({ requested: foldRequest.requested, captureDue, sidecarCaptured })) {
                 case "forced":
-                  yield* slog.info("layer2.cadence.requested", { sessionID, sidecarCaptured })
+                  yield* slog.info("layer2.cadence.requested", {
+                    sessionID,
+                    sidecarCaptured,
+                    reason: foldRequest.reason,
+                  })
                   yield* maybeCompactCadence({ model, agent: lastUser.agent, force: true })
                   break
                 case "capture-then-forced":
                   // Mirror the /summarize route: a forced fold with no summary
                   // at all goes tail-only and leaves the head unrepresented.
-                  yield* slog.info("layer2.cadence.requested", { sessionID, sidecarCaptured: false })
+                  yield* slog.info("layer2.cadence.requested", {
+                    sessionID,
+                    sidecarCaptured: false,
+                    reason: foldRequest.reason,
+                  })
                   yield* captureSummary({
                     sessionID,
                     model: { providerID: model.providerID, modelID: model.id },

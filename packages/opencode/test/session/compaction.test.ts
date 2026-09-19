@@ -1637,7 +1637,7 @@ describe("estimateContentTokens", () => {
 
 describe("session.compaction.compact", () => {
   it.live(
-    "keeps the last ~32K of real messages; budget prunes the rest",
+    "keeps the WHOLE epoch since the last summary; the 32k floor only reaches further back",
     provideTmpdirInstance((dir) =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
@@ -1677,10 +1677,12 @@ describe("session.compaction.compact", () => {
           type: "text", text: "## Goal\n- summary content here",
         })
 
-        // Create recent messages. recent-2 is padded past RECENT_MIN_TOKENS:
-        // the budget ceiling stops the tail walk right after it, so recent-1
-        // and the pre-summary history stay budget-excluded (they remain in
-        // the archive — re-eligible on a future compact).
+        // Create recent messages. recent-2 is padded past RECENT_MIN_TOKENS, and
+        // that must change NOTHING: the epoch after the previous summary is kept
+        // whole regardless of size (owner ruling 2026-09-19: «мы должны брать все
+        // токены с момента предыдущего summary но не меньше чем 32к»). Only the
+        // pre-summary history stays out, and only because this epoch already
+        // satisfies the floor.
         for (const text of ["recent-1", "recent-2" + "y".repeat(140_000)]) {
           const u = yield* ssn.updateMessage({
             id: MessageID.ascending(), role: "user", sessionID: info.id,
@@ -1701,10 +1703,13 @@ describe("session.compaction.compact", () => {
         expect(combined).toContain("=== COMPACTED ===")
         expect(combined).toContain("## Goal")
         expect(combined).toContain("summary content here")
-        // Budget ceiling: recent-2 alone (~35K tokens) fills the tail budget,
-        // so recent-1 and the older messages stay out of this m*.
+        // EPOCH, not budget: recent-1 rides along even though recent-2 alone
+        // already crossed the floor — the tail is everything since the previous
+        // summary. The old rule stopped at ~32K wherever that landed and so
+        // dropped the OLDEST messages of the epoch, which is the defect the
+        // ruling names.
         expect(combined).toContain("recent-2")
-        expect(combined).not.toContain("recent-1")
+        expect(combined).toContain("recent-1")
         expect(combined).not.toContain("old-1")
         expect(combined).not.toContain("old-2")
         // System Exact handles present as passive ID lines (not recovery recipes)
@@ -3005,7 +3010,7 @@ describe("session.compaction.full-cycle", () => {
           { type: "text", text: "assistant-text-1" },
           { type: "reasoning", text: "reasoning-for-m1" },
           { type: "tool", tool: "bash", callID: "c1",
-            state: { status: "completed", output: "tool-output-1", input: {}, metadata: {}, time: { start: 0, end: 1 }, title: "" } },
+            state: { status: "completed", output: "tool-output-1", input: { command: "grep -n fixture m7" }, metadata: {}, time: { start: 0, end: 1 }, title: "" } },
         ])
         yield* mkAssistant([{ type: "text", text: "assistant-text-2" }])
         yield* mkAssistant([
@@ -3022,7 +3027,7 @@ describe("session.compaction.full-cycle", () => {
         yield* mkAssistant([
           { type: "text", text: "assistant-text-5" },
           { type: "tool", tool: "cmd", callID: "c2",
-            state: { status: "completed", output: "tool-output-2", input: {}, metadata: {}, time: { start: 0, end: 1 }, title: "" } },
+            state: { status: "completed", output: "tool-output-2", input: { command: "grep -n fixture m8" }, metadata: {}, time: { start: 0, end: 1 }, title: "" } },
         ])
         yield* mkAssistant([{ type: "text", text: "assistant-text-6" }])
         yield* mkSummary("summary for segment 2", "decision-from-s2")
@@ -3042,7 +3047,7 @@ describe("session.compaction.full-cycle", () => {
         yield* mkAssistant([
           { type: "text", text: "assistant-text-9" },
           { type: "tool", tool: "bash", callID: "c3",
-            state: { status: "running", input: {}, time: { start: Date.now() } } },
+            state: { status: "running", input: { command: "bun test test/session/compaction.test.ts" }, time: { start: Date.now() } } },
         ])
 
         // ============================================================
@@ -3085,13 +3090,24 @@ describe("session.compaction.full-cycle", () => {
         // User messages must be faithfully rendered (test of ignored guard fix)
         expect(combined).toContain("user-msg-3")
 
-        // Assistant text is labeled; reasoning is STRIPPED from the tail
-        // (2026-08-30 contract: facts, not process — conclusions live in text).
+        // Assistant text is labeled; reasoning is KEPT in the tail. The 2026-08-30
+        // rule ("facts, not process") predates the 2026-09-19 owner ruling: the 32k
+        // tail is INVIOLATE — «иначе это ломает тему» — and everything compressible
+        // belongs in memory and in summaries-with-diffs. Dropped reasoning is
+        // exactly the chain of thought that ruling protects: measured on a folded
+        // window the agent could not say why its own window had folded, and went to
+        // the logs for what its own window had held.
         expect(combined).toContain("[text]")
-        expect(combined).not.toContain("[reasoning]")
+        expect(combined).toContain("[reasoning]")
 
         // Completed tool outputs in Recent (m9's bash tool, running)
         expect(combined).toContain("[tool:bash]")
+        // ...and the CALL half rides with them. Measured 2026-09-19 in a real
+        // folded window: `[tool:edit] (completed)` + "Edit applied successfully."
+        // carried no file and no patch, `[tool:memory]` no content, and
+        // `[tool:compact]` no reason — half of every exchange was absent, so the
+        // window held the CONSEQUENCES of decisions without the decisions.
+        expect(combined).toContain("Called the bash tool with the following input:")
         // Tool output on summarized messages (m1, m5) is NOT in Recent —
         // those messages were covered by s1/s2 summaries. Only Recent messages
         // after the last summary are faithfully rendered.
@@ -3099,9 +3115,12 @@ describe("session.compaction.full-cycle", () => {
         // Running tool must also be visible (not just completed)
         expect(combined).toContain("(running)")
 
-        // Recent messages must be in chronological order. The budget stops the
-        // tail walk after u3 (~35K tokens) — m7 and earlier segments stay
-        // archive-only (re-eligible once the budget frees up).
+        // Recent messages must be in chronological order. The EPOCH BOUNDARY —
+        // not the budget — decides where the tail starts: everything since the
+        // previous summary is kept whole, so m7 belongs even though u3 already
+        // satisfied the floor. Owner ruling 2026-09-19: «мы должны брать все
+        // токены с момента предыдущего summary но не меньше чем 32к» — the floor
+        // reaches further BACK, it never trims the epoch forward.
         const u3Idx = combined.indexOf("user-msg-3")
         const r8Idx = combined.indexOf("assistant-text-8")
         const r9Idx = combined.indexOf("assistant-text-9")
@@ -3110,8 +3129,22 @@ describe("session.compaction.full-cycle", () => {
         expect(r9Idx).toBeGreaterThan(-1)
         expect(u3Idx).toBeLessThan(r8Idx)
         expect(r8Idx).toBeLessThan(r9Idx)
-        expect(combined).not.toContain("assistant-text-7")
+        // In the epoch after s2: kept even though the 32k floor was already met.
+        expect(combined).toContain("assistant-text-7")
+        // Before the previous summary: still archive-only.
         expect(combined).not.toContain("assistant-text-1")
+
+        // Range accounting is m*'s CLOSING reference: the two halves must read as
+        // one picture — a summary's from#/to# and the tail's `#N` are the same
+        // positions, so `to# + 1` must be where the tail starts. These fixture
+        // summaries carry no from_id/to_id, so the render must SAY that the
+        // comparison is unavailable rather than print a guess; in production a
+        // sidecar summary carries both and a gap is NAMED (owner, 2026-09-19:
+        // «непротиворечивая картина», «чёткий evidence», «в конце * должен быть
+        // четкий реф»).
+        expect(combined).toContain("--- Range accounting")
+        expect(combined).toContain("tail: #")
+        expect(combined).toContain("not verifiable here")
       }),
     ),
   )

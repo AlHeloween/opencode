@@ -1,5 +1,5 @@
 import { test, expect, afterEach } from "bun:test"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Schema } from "effect"
 import fs from "fs"
 import path from "path"
 import { provideInstance, tmpdir } from "../fixture/fixture"
@@ -8,7 +8,7 @@ import { Agent } from "../../src/agent/agent"
 import { Permission } from "../../src/permission"
 import { Truncate } from "@/tool/truncate"
 import { SessionID, MessageID } from "../../src/session/schema"
-import { CompactTool } from "../../src/tool/compact"
+import { CompactTool, Parameters } from "../../src/tool/compact"
 import * as CompactionRequest from "../../src/session/compaction-request"
 
 /**
@@ -31,27 +31,47 @@ afterEach(async () => {
 test("a request is taken exactly once", () => {
   const id = "ses_take_once"
   expect(CompactionRequest.pendingFor(id)).toBe(false)
-  CompactionRequest.request(id)
+  CompactionRequest.request(id, "why this window folded")
   expect(CompactionRequest.pendingFor(id)).toBe(true)
-  expect(CompactionRequest.take(id)).toBe(true)
-  // Second take is false: one boundary, one fold. A sticky flag would refold
+  // `take` returns the arming AND the boundary that asked for it, from the one
+  // call that consumes it — there is no second lookup a caller could forget.
+  expect(CompactionRequest.take(id)).toEqual({ requested: true, reason: "why this window folded" })
+  // Second take is not armed: one boundary, one fold. A sticky flag would refold
   // every turn for the rest of the session.
-  expect(CompactionRequest.take(id)).toBe(false)
+  expect(CompactionRequest.take(id).requested).toBe(false)
   expect(CompactionRequest.pendingFor(id)).toBe(false)
 })
 
 test("arming twice in one turn still folds once", () => {
   const id = "ses_idempotent"
-  CompactionRequest.request(id)
-  CompactionRequest.request(id)
-  expect(CompactionRequest.take(id)).toBe(true)
-  expect(CompactionRequest.take(id)).toBe(false)
+  CompactionRequest.request(id, "first arming")
+  CompactionRequest.request(id, "second arming — same boundary, so it replaces the first")
+  expect(CompactionRequest.take(id)).toEqual({
+    requested: true,
+    reason: "second arming — same boundary, so it replaces the first",
+  })
+  expect(CompactionRequest.take(id).requested).toBe(false)
 })
 
 test("requests do not leak across sessions", () => {
-  CompactionRequest.request("ses_a")
-  expect(CompactionRequest.take("ses_b")).toBe(false)
-  expect(CompactionRequest.take("ses_a")).toBe(true)
+  CompactionRequest.request("ses_a", "a's boundary")
+  expect(CompactionRequest.take("ses_b").requested).toBe(false)
+  expect(CompactionRequest.take("ses_a")).toEqual({ requested: true, reason: "a's boundary" })
+})
+
+test("the boundary is REQUIRED, and it travels with the request", () => {
+  // A fold whose motive is recorded nowhere cannot be audited. The reason used
+  // to reach only the part's `metadata`, so the fold itself carried none; now
+  // it rides the request and the schema refuses an arming that names none.
+  expect(() => Schema.decodeUnknownSync(Parameters)({})).toThrow()
+  expect(Schema.decodeUnknownSync(Parameters)({ reason: "plan closed" })).toEqual({ reason: "plan closed" })
+
+  const id = "ses_reason"
+  CompactionRequest.request(id, "plan closed, memory written, next is a new build")
+  expect(CompactionRequest.take(id)).toEqual({
+    requested: true,
+    reason: "plan closed, memory written, next is a new build",
+  })
 })
 
 test("an armed request forces the fold; an unarmed one keeps the old cadence", () => {
@@ -75,9 +95,9 @@ test("the run loop consumes the request at the turn boundary, not mid-stream", (
   // still streaming against. `take` must sit in the turn-end cadence block,
   // and its result must reach foldDecision rather than being computed twice.
   const prompt = fs.readFileSync(path.join(__dirname, "../../src/session/prompt.ts"), "utf8")
-  const take = prompt.indexOf("const foldRequested = CompactionRequest.take(sessionID)")
+  const take = prompt.indexOf("const foldRequest = CompactionRequest.take(sessionID)")
   const captureDue = prompt.indexOf("const captureDue =")
-  const decision = prompt.indexOf("CompactionRequest.foldDecision({ requested: foldRequested")
+  const decision = prompt.indexOf("CompactionRequest.foldDecision({ requested: foldRequest.requested")
   expect(take).toBeGreaterThan(-1)
   expect(captureDue).toBeGreaterThan(-1)
   expect(decision).toBeGreaterThan(-1)
@@ -139,17 +159,25 @@ test("the tool initializes and arms the session it was called in", async () => {
           Effect.gen(function* () {
             const tool = yield* (yield* CompactTool).init()
             expect(tool.description.length).toBeGreaterThan(200)
-            const first = yield* tool.execute({}, ctx as never)
-            const second = yield* tool.execute({ reason: "plan closed" }, ctx as never)
+            const first = yield* tool.execute({ reason: "plan closed; docs and progress log written" }, ctx as never)
+            const second = yield* tool.execute({ reason: "plan closed; docs and progress log written" }, ctx as never)
             return { first, second }
           }),
         ).pipe(Effect.provide(Layer.mergeAll(Truncate.defaultLayer, Agent.defaultLayer))),
       )
       expect(result.first.metadata.armed).toBe(true)
+      // The boundary rides the OUTPUT. m* copies a tool RESULT into the next
+      // window and NOT a call's arguments — measured 2026-09-19: the folded
+      // window held `[tool:compact] (completed)` and its output, with no
+      // `reason` anywhere — so the output is the only place the motive survives.
+      expect(result.first.output).toContain("Boundary: plan closed; docs and progress log written")
       // Second call in the same turn does not arm a second fold.
       expect(result.second.metadata.armed).toBe(false)
-      expect(CompactionRequest.take(sessionID)).toBe(true)
-      expect(CompactionRequest.take(sessionID)).toBe(false)
+      expect(CompactionRequest.take(sessionID)).toEqual({
+        requested: true,
+        reason: "plan closed; docs and progress log written",
+      })
+      expect(CompactionRequest.take(sessionID).requested).toBe(false)
     },
   })
 })

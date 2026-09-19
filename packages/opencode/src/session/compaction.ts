@@ -252,32 +252,40 @@ function isSummaryAssistant(msg: MessageV2.WithParts): boolean {
 }
 
 /**
- * Recent tail for message* (compaction contract, 2026-08-29 Alexander):
- * a verbatim copy of the last ~minTokens of REAL messages — user, assistant,
- * reasoning, tool outputs, everything, whole messages, no re-rendering.
+ * Recent tail for message* — the INVIOLATE copy of the current epoch.
  *
- * Selection walks the FULL message list (compacted rows included) from the
- * end and skips memory-machinery rows: prior message* rows (an m* NEVER
- * enters another m*), Layer-1 UI panels, and legacy summary
- * requests/assistants (their content rides the summaries block). Real
- * messages folded into a prior m* tail are re-eligible — the tail is
- * rebuilt from the DB on every compact, which makes repeated compacts
- * idempotent: compact(m*) == m* (content fixed point).
+ * Owner ruling, 2026-09-19: «мы должны брать все токены с момента предыдущего
+ * summary но не меньше чем 32к.» So the tail is EVERYTHING since the previous
+ * summary, and 32k is a FLOOR that reaches further BACK — never a ceiling that
+ * trims the epoch. The previous rule walked back to 32k and stopped wherever that
+ * landed, so an epoch larger than the floor lost its OLDEST messages while the
+ * fold still claimed «the tail IS the memory: nothing is hidden without
+ * representation» — false for exactly the newest work.
  *
- * Floor semantics with whole-message granularity (2026-08-29 Alexander:
- * "30k +-"): walk back until the budget is reached, then stop — the last
- * collected message may overshoot the budget (never split a message).
+ * Selection walks the FULL message list (compacted rows included) from the end
+ * and skips memory-machinery rows: prior message* rows (an m* NEVER enters
+ * another m*), Layer-1 UI panels, and legacy summary requests/assistants (their
+ * content rides the summaries block). Real messages folded into a prior m* tail
+ * are re-eligible — the tail is rebuilt from the DB on every compact, which
+ * makes repeated compacts idempotent: compact(m*) == m* (content fixed point).
+ *
+ * Whole-message granularity (2026-08-29 Alexander: "30k +-"): the message that
+ * crosses the floor is kept WHOLE, so the tail may overshoot it — never split a
+ * message. With no summary at all (a manual /compact on a fresh session) there is
+ * no epoch boundary, and the floor alone decides, exactly as before.
  */
 export function selectRecentTail(
   msgs: MessageV2.WithParts[],
   minTokens: number = RECENT_MIN_TOKENS,
 ): MessageV2.WithParts[] {
   const summaryParents = new Set<string>()
-  for (const m of msgs) {
-    if (isSummaryAssistant(m)) {
-      const parentID = (m.info as MessageV2.Assistant).parentID
-      if (parentID) summaryParents.add(parentID)
-    }
+  let lastSummary = -1
+  for (let i = 0; i < msgs.length; i++) {
+    const m = msgs[i]!
+    if (!isSummaryAssistant(m)) continue
+    lastSummary = i
+    const parentID = (m.info as MessageV2.Assistant).parentID
+    if (parentID) summaryParents.add(parentID)
   }
   const minChars = minTokens * CHARS_PER_TOKEN
   const selected: MessageV2.WithParts[] = []
@@ -289,9 +297,15 @@ export function selectRecentTail(
     if (isSummaryRequestMessage(m)) continue
     if (isSummaryAssistant(m)) continue
     if (summaryParents.has(m.info.id)) continue
+    // The EPOCH — everything AFTER the previous summary — is kept whole: no break
+    // inside it, however large it is. Once the epoch is exhausted the floor
+    // decides how much older history the tail still reaches, which is why this
+    // check sits BEFORE the add: the message that crosses the boundary must not
+    // be conscripted into the epoch. `lastSummary < 0` = no summary exists, so
+    // the floor is the only rule (manual /compact on a fresh session).
+    if ((lastSummary < 0 || i < lastSummary) && chars >= minChars) break
     selected.unshift(m)
     chars += tailContentChars(m)
-    if (chars >= minChars) break
   }
   return selected
 }
@@ -874,8 +888,18 @@ type SummaryEntry = {
 /** Render one summary exactly as it appears inside m*. Single rendering path
  * shared with the budget cap — the cap can never drift from the injected
  * bytes (2026-08-29: body-only counting let 76K of bodies render into 237K). */
-function renderSummaryBlock(input: { sessionID: string; s: SummaryEntry; index: number }): string {
+function renderSummaryBlock(input: {
+  sessionID: string
+  s: SummaryEntry
+  index: number
+  /** 1-based position of a message id in the session, measured by the SAME walk
+   * the tail's `#N` labels use. Present ⇒ the block prints from#/to#, so a
+   * summary's coverage and the tail's range are one unit, not two. */
+  positionOf?: (id: string) => number | undefined
+}): string {
   const s = input.s
+  const fromPos = s.fromId ? input.positionOf?.(s.fromId) : undefined
+  const toPos = s.toId ? input.positionOf?.(s.toId) : undefined
   const sv = extractSemanticVector(s.text)
   const svLine = sv?.dominant ? `- sv_dominant: \`${sv.dominant}\`` : undefined
   const diffLine =
@@ -924,6 +948,12 @@ function renderSummaryBlock(input: { sessionID: string; s: SummaryEntry; index: 
     planStateLine,
     s.fromId ? `- from_id: \`${s.fromId}\`` : undefined,
     s.toId ? `- to_id: \`${s.toId}\`` : undefined,
+    // Numbers beside the ids: the tail prints `#N` and these are the SAME
+    // positions, so `to#` + 1 is where the tail must start — a gap is readable
+    // rather than assumed away (owner, 2026-09-19: the message-number statistics
+    // must be «непротиворечивая картина» and give «чёткий evidence»).
+    fromPos != null ? `- from#: ${fromPos}` : undefined,
+    toPos != null ? `- to#: ${toPos}` : undefined,
     `- session_id: \`${input.sessionID}\``,
   ]
     .filter(Boolean)
@@ -931,18 +961,29 @@ function renderSummaryBlock(input: { sessionID: string; s: SummaryEntry; index: 
   return `--- Summary ${input.index + 1} ---\n${links}\n\n${s.text}`
 }
 
-// ── m* Recent-tail stripper (2026-08-30, Alexander) ──
-// The tail must carry FACTS, not process. Stripped at render time (the DB keeps
-// everything; sessionread recovers): reasoning blocks (~40-50% of tail chars —
-// conclusions already live in the text parts), <system-reminder> floods
-// (read.ts injects full AGENTS.md content on every read), [step-start]/
-// [step-finish] markers, empty messages. The newest TAIL_TOOL_KEEP_FULL tool
-// parts render in FULL — fresh bash/test output is working context
-// ("сам себя не кастрируй"); older tool outputs collapse to head+tail lines
-// with a sessionread pointer.
-const TAIL_TOOL_KEEP_FULL = 3
-const TAIL_TOOL_HEAD_LINES = 40
-const TAIL_TOOL_TAIL_LINES = 10
+// ── m* Recent-tail — the INVIOLATE copy (2026-09-19, owner ruling) ──
+// «32к токенов хвоста должны быть неприкосновенны иначе это ломает тему. Всё что
+// можно сжать у нас в memory и в summaries с дифами, и ещё если edit write был -
+// значит был… если это корректировать то мы нарушаем chain of thoughts, что сразу
+// потребует проверки и кажущаяся экономия превратится в серию припоминательных
+// ходов.»
+//
+// So this renderer reduces NOTHING the model was shown. What it used to do,
+// measured on the folded window of 2026-09-19 (substring of the m* part):
+//   - the CALL half was never rendered at all: `[tool:edit] (completed)` +
+//     "Edit applied successfully." — no file, no patch; `[tool:memory]` with no
+//     content; `[tool:compact]` with no reason. Half of every exchange was
+//     absent, so the window held the CONSEQUENCES of decisions without the
+//     decisions, and the agent could not say why its own window had folded.
+//   - every tool output but the newest 3 collapsed to 40 head + 10 tail lines.
+//   - `reasoning` was dropped whole.
+// The 2026-08-30 rationale ("facts, not process") and the ruling agree that
+// compression belongs in memory and in summaries-with-diffs. What that rationale
+// got wrong is that the CALL is not process — it is the fact of what was asked.
+//
+// Dropped are only what the WIRE also does not carry: <system-reminder> floods
+// (read.ts injects AGENTS.md wholesale) and the [step-*] bookkeeping markers.
+const TAIL_TOOL_OUTPUT_MAX_CHARS = MessageV2.REPLAY_TOOL_OUTPUT_MAX_CHARS
 /** Decisions cap — the block accumulated monotonically (38K chars, uncapped). Newest kept. */
 const DECISIONS_MAX_CHARS = 8_192
 
@@ -950,31 +991,53 @@ function stripReminderBlocks(text: string): string {
   return text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "").replace(/\n{3,}/g, "\n\n")
 }
 
-function collapseToolOutput(output: string): string {
-  const lines = output.split("\n")
-  if (lines.length <= TAIL_TOOL_HEAD_LINES + TAIL_TOOL_TAIL_LINES + 5) return output
-  const head = lines.slice(0, TAIL_TOOL_HEAD_LINES).join("\n")
-  const tail = lines.slice(-TAIL_TOOL_TAIL_LINES).join("\n")
-  return `${head}\n… (+${output.length} chars collapsed — sessionread this message for the full output)\n${tail}`
+/** The CALL half of an exchange, in the shape the runtime already prints beside
+ * a `read` attachment caption (prompt.ts:1388): `Called the <tool> tool with the
+ * following input: {…}`. Empty when the part carries no input, so a part cannot
+ * render a lie about itself. */
+function toolCallText(part: { tool?: string; state?: { input?: unknown } }): string {
+  if (part.state?.input === undefined) return ""
+  const args = JSON.stringify(part.state.input)
+  if (!args || args === "{}") return ""
+  return `Called the ${part.tool ?? "?"} tool with the following input: ${args}\n`
 }
 
-/** Render-aware char count for tail selection: reasoning stripped, reminder
- * blocks stripped, tool outputs counted at their collapsed size (the newest
- * few render full — the "30k ±" floor absorbs the delta). */
+/** Tool output at the size the CONVERSATION carried it: the wire caps a replayed
+ * result at REPLAY_TOOL_OUTPUT_MAX_CHARS, so rendering a larger stored row in
+ * full would put more in the tail than the model ever saw — a copy of the
+ * database, not of the exchange. */
+function tailToolOutput(output: string): string {
+  if (output.length <= TAIL_TOOL_OUTPUT_MAX_CHARS) return output
+  return `${output.slice(0, TAIL_TOOL_OUTPUT_MAX_CHARS)}\n… (+${output.length - TAIL_TOOL_OUTPUT_MAX_CHARS} chars beyond what the wire carried — recall(id) returns the stored result)`
+}
+
+/** Render-aware char count for tail selection. It measures EXACTLY what
+ * `tailMessageText` emits — a budget that measures something else is the
+ * two-measures-one-name defect, and it is what let the tail carry a call whose
+ * size was never counted. `selectRecentTail` walks back to RECENT_MIN_TOKENS and
+ * never splits a message, so the last collected message may overshoot. */
 function tailContentChars(msg: MessageV2.WithParts): number {
   let chars = 0
   for (const p of msg.parts) {
     if (p.type === "text") chars += stripReminderBlocks((p as any).text ?? "").length
-    else if (p.type === "tool") chars += collapseToolOutput(stripReminderBlocks((p as any).state?.output ?? "")).length
+    else if (p.type === "reasoning") chars += ((p as any).text ?? "").length
+    else if (p.type === "tool")
+      chars +=
+        toolCallText(p as never).length +
+        tailToolOutput(stripReminderBlocks((p as any).state?.output ?? "")).length
     else if (p.type === "subtask") chars += ((p as any).prompt?.length ?? 0) + ((p as any).description?.length ?? 0)
-    else if (p.type === "patch") chars += Math.min(((p as any).content?.length ?? 0), 500)
-    // reasoning (stripped), step markers, snapshot/agent/retry/file — not rendered
+    else if (p.type === "patch") chars += ((p as any).content?.length ?? 0)
+    // step markers, snapshot/agent/retry — not rendered
   }
   return chars
 }
 
-/** Tail renderer: messageText minus process noise. `fullTools` = tool parts rendered verbatim. */
-function tailMessageText(msg: MessageV2.WithParts, fullTools: Set<unknown>): string {
+/** Tail renderer: the message AS THE MODEL SAW IT — both halves of every tool
+ * exchange, reasoning included, nothing collapsed. Exported so the rendering can
+ * be pinned by a test on the bytes rather than through a whole fold (the artifact
+ * is what caught the missing call half; string probes over guessed text missed it
+ * three times). */
+export function tailMessageText(msg: MessageV2.WithParts): string {
   const parts: string[] = []
   for (const p of msg.parts) {
     switch (p.type) {
@@ -984,12 +1047,13 @@ function tailMessageText(msg: MessageV2.WithParts, fullTools: Set<unknown>): str
         parts.push(`[text]\n${stripReminderBlocks((p as any).text ?? "")}`)
         break
       case "reasoning":
-        break // process noise — conclusions live in the text parts
+        parts.push(`[reasoning]\n${(p as any).text ?? ""}`)
+        break
       case "tool": {
         const label = `[tool:${(p as any).tool}]`
         const status = (p as any).state?.status ?? "unknown"
-        const raw = stripReminderBlocks((p as any).state?.output ?? "")
-        parts.push(`${label} (${status})\n${fullTools.has(p) ? raw : collapseToolOutput(raw)}`)
+        const raw = tailToolOutput(stripReminderBlocks((p as any).state?.output ?? ""))
+        parts.push(`${label} (${status})\n${toolCallText(p as never)}${raw}`)
         break
       }
       case "subtask":
@@ -1004,7 +1068,7 @@ function tailMessageText(msg: MessageV2.WithParts, fullTools: Set<unknown>): str
         parts.push(`[snapshot: ${(p as any).hash ?? "?"}]`)
         break
       case "patch":
-        parts.push(collapseToolOutput(((p as any).content ?? "").slice(0, 500)))
+        parts.push((p as any).content ?? "")
         break
       case "agent":
         parts.push(`[agent: ${(p as any).agent ?? "?"}]`)
@@ -1031,11 +1095,13 @@ function buildMessageStar(input: {
   recentStartOffset?: number
   /** Prior message* ID — chain link for recovering older summaries via session-read. */
   priorMessageStarId?: string
+  /** 1-based position of a message id — the same walk the tail's `#N` uses. */
+  positionOf?: (id: string) => number | undefined
   /** Permanent reasoning memory, folded in verbatim. Empty string when unwritten. */
   memory?: string
 }): string {
   const summaryBlocks = input.summaries.map((s, i) =>
-    renderSummaryBlock({ sessionID: input.sessionID, s, index: i }),
+    renderSummaryBlock({ sessionID: input.sessionID, s, index: i, positionOf: input.positionOf }),
   )
 
   // Collect decisions from current summaries only (prior m* decisions are not pulled forward)
@@ -1072,20 +1138,12 @@ function buildMessageStar(input: {
     : ""
 
   const recentIds = input.recent.map((m) => m.info.id)
-  // Tool parts rendered in full: the last TAIL_TOOL_KEEP_FULL across the tail.
-  const tailToolParts: unknown[] = []
-  for (const m of input.recent) {
-    for (const p of m.parts) {
-      if (p.type === "tool") tailToolParts.push(p)
-    }
-  }
-  const fullTools = new Set(tailToolParts.slice(-TAIL_TOOL_KEEP_FULL))
   const recentBlocks: string[] = []
   for (let i = 0; i < input.recent.length; i++) {
     const m = input.recent[i]!
     const offset = input.recentStartOffset != null ? input.recentStartOffset + i : undefined
     const offsetTag = offset != null ? ` #${offset}` : ""
-    const body = tailMessageText(m, fullTools)
+    const body = tailMessageText(m)
     if (!body) continue // empty message (markers only) — drops out entirely
     recentBlocks.push(`[${m.info.role} \`${m.info.id}\`${offsetTag} info_mark=Mixed]\n${body}`)
   }
@@ -1105,6 +1163,38 @@ function buildMessageStar(input: {
   // a recovery manual.
   const recoveryLine =
     "Use messagesearch, sessionread and dbread to restore missing facts; recall(id) returns a dropped tool result in full."
+
+  // Range accounting — the closing reference. m* has two halves and they must
+  // read as ONE checkable picture: each Summary block prints from#/to# in the
+  // same 1-based positions the tail prints as `#N`, and this states where the
+  // tail begins. «В каждом summary указаны номера сообщений» — so the reader can
+  // verify that the tail starts exactly where the newest summary ends, and a GAP
+  // is NAMED here instead of being assumed away.
+  const summaryStarts = input.summaries
+    .map((s) => (s.fromId ? input.positionOf?.(s.fromId) : undefined))
+    .filter((n): n is number => n != null)
+  const summaryEnds = input.summaries
+    .map((s) => (s.toId ? input.positionOf?.(s.toId) : undefined))
+    .filter((n): n is number => n != null)
+  const summaryFirst = summaryStarts.length > 0 ? Math.min(...summaryStarts) : undefined
+  const summaryLast = summaryEnds.length > 0 ? Math.max(...summaryEnds) : undefined
+  const tailFirst = input.recentStartOffset
+  const tailLast = tailFirst != null && input.recent.length > 0 ? tailFirst + input.recent.length - 1 : undefined
+  const rangeAccounting =
+    tailFirst != null && tailLast != null
+      ? [
+          "--- Range accounting (system Exact — `#N` are the positions the Recent messages print) ---",
+          summaryFirst != null && summaryLast != null
+            ? `summaries: #${summaryFirst}..#${summaryLast} (each Summary block above lists its own from#/to#)`
+            : "summaries: positions unavailable in this render (no from_id/to_id on the summaries)",
+          `tail: #${tailFirst}..#${tailLast} (${input.recent.length} messages, verbatim — nothing in it is compressed)`,
+          summaryLast == null
+            ? "continuity: not verifiable here — the summaries carry no positions to compare against"
+            : tailFirst <= summaryLast + 1
+              ? `continuity: summaries end at #${summaryLast}, tail starts at #${tailFirst} — no gap, no overlap`
+              : `continuity: GAP — summaries end at #${summaryLast}, tail starts at #${tailFirst} (${tailFirst - summaryLast - 1} message(s) represented by neither)`,
+        ].join("\n")
+      : undefined
 
   // Permanent memory rides every fold verbatim. A summary is Inferred prose
   // about what happened; this is what an identity deliberately wrote down to
@@ -1135,6 +1225,7 @@ function buildMessageStar(input: {
     ...summaryBlocks,
     decisionsBlock,
     recentHeader,
+    rangeAccounting,
     recoveryLine,
   ]
     .filter((line, idx, arr) => !(line === "" && arr[idx - 1] === ""))
@@ -1343,10 +1434,17 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         // the exact bytes buildMessageStar injects. Body-only counting was a
         // budget cheat (76K bodies → 237K render, 2026-08-29). Oldest
         // summaries drop first — session-read only.
+        // 1-based positions of our OWN messages: one walk, shared by the
+        // summary blocks' from#/to# and by the tail's `#N`, so the two halves of
+        // m* can be compared. The cap below renders through the SAME lookup, so
+        // what it measures cannot drift from what gets injected.
+        const positions = new Map<string, number>()
+        msgs.forEach((m, i) => positions.set(m.info.id, i + 1))
+        const positionOf = (id: string) => positions.get(id)
         {
           const maxChars = MAX_SUMMARY_BODY_TOKENS * CHARS_PER_TOKEN
           const rendered = (s: SummaryEntry) =>
-            renderSummaryBlock({ sessionID: input.sessionID, s, index: 0 }).length
+            renderSummaryBlock({ sessionID: input.sessionID, s, index: 0, positionOf }).length
           let totalChars = summaries.reduce((sum, s) => sum + rendered(s), 0)
           while (totalChars > maxChars && summaries.length > 1) {
             const removed = summaries.shift()!
@@ -1378,6 +1476,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           recent,
           recentStartOffset,
           priorMessageStarId: priorMsgStarId,
+          positionOf,
           memory: yield* readMemory(),
         })
 

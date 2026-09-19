@@ -260,26 +260,55 @@ Four limits, and each catches a different mistake — none of them is redundant:
 4. **Nothing is acquired by default.** `gateway.tda.enabled: false` — a pipeline that can hold a gigabyte
    must be something you turned ON.
 
-### 0.10 The economics — the grep loop is the EXPENSIVE option (owner, 2026-09-19)
+### 0.10 The economics — the grep loop COMPOUNDS, and the window fouls (owner, 2026-09-19)
 
-Owner, verbatim:
+Owner, first pass (verbatim):
 
 > «Может показаться это дороже - нет если файл большой будет кажем 50 грепов столько же reasoning и как
 > следствие это будет во много раз дороже при том что шанс на получение результата будет низким.»
+
+Owner, correcting this section (verbatim):
+
+> «Почему я сказал про 50 грепов - 50 грепов это как минимум 50 раз переиспользования кэша и засранное
+> окно контента потом вообще без компакта ничего не сделать. Ведь захватив файл на один ход следующим
+> ходом можно написать про него все, даже то о чем файл сам о себе не знает.»
+
+The first draft compared 50 turns against 1 acquire and stopped there. That understates it in three ways,
+and each clause of the correction names one:
+
+**1. The cost COMPOUNDS.** A fragment is not paid for once: its miss price lands on the turn that produced
+it, and then its tokens are re-read on EVERY later turn — which is exactly what a 99 % cache hit rate
+means. For a fragment of `F` tokens added at turn `t` of a session of `T` turns:
+
+```
+cost = F·M + F·H·(T − t)      M = miss, H = cache-read
+     = F·H·(r + T − t)        because M = r·H
+```
+
+⇒ the LAST grep is cheap and the FIRST one is not: a grep loop buys its worst value first. The same
+arithmetic is what makes an acquire cheap — `P·H·(r + held turns)`, with `held turns` = 2 instead of 50.
+
+**2. The window fouls, and compaction is then FORCED.** «потом вообще без компакта ничего не сделать.»
+A compaction is not free even when the summary is good: it rewrites the prefix once, and the summary is
+Inferred prose ABOUT content the model could have read directly.
+
+**3. One acquire, then the NEXT turn writes everything.** This is not economics at all: with the whole
+artifact attended, the following turn can produce a SYNTHESIS — «даже то о чем файл сам о себе не знает».
+Fragments never present the whole at once, so no sequence of greps reaches that; it is a capability
+difference, not a price one.
 
 On the prices measured tonight (`docs/compaction.md`, `r = input / cache_read = 50` on deepseek-flash):
 
 | | a 1 MB source | the equivalent grep loop |
 |---|---|---|
-| turns | 1 acquire | ~50 |
-| cost | ~250 000 tokens ONCE (~$0.0375), then 1/50 per held turn (~$0.00075) | 50 turns ≈ $0.095, and each turn also carries its whole reasoning |
-| residue | none after the release | every fragment STAYS in the transcript |
-| quality | edits made against the whole artifact | edits made against fragments — which is why they come out as «лажа» |
+| turns | 1 acquire + 1 write-up | ~50 |
+| cost | `P·(M + 2H)` — once, then nothing after the release | `Σ F·H·(r + T − t)` — compounding, worst value first |
+| window | clean after the release | fouled; a compaction is the only way back |
+| output | a synthesis of the WHOLE artifact | a sequence of fragments |
 
-⇒ the price argument and the quality argument point the SAME way, which is why this is not an optimisation.
-And the honest caveat: the price advantage is model-dependent — it is LARGEST on a deep-cache-discount route
-like ours (`r = 50`) and shrinks as `r` falls (GLM ~5, no-discount ~1). The QUALITY advantage does not
-depend on `r` at all: fewer turns and an edit made against the whole artifact on every route.
+**Honest caveat:** the PRICE gap depends on `r` — widest on a deep-cache route like ours, vanishing where
+there is no discount. The TURN-COUNT gap, the forced compaction and the synthesis capability do NOT depend
+on `r` at all — which is why this is not an optimisation on the route we happen to use.
 
 **Reverse engineering is the extreme case** the owner named («а если заниматься reverse engineering, так
 тут вообще раздолье»): there the artifact cannot be summarised into fragments at all, because the REASON

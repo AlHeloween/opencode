@@ -66,9 +66,12 @@ D also fixes a cost nobody had named: today the base64 image is stored **inside 
          while a `file` part was a path, false since `a42599aa60` made it a base64 data URL. It feeds
          BOTH thresholds: the Layer-1 cadence (`prompt.ts:836`, `:2551`) and the Layer-2 fold gate
          (`prompt.ts:1826`).
-      2. The only reader of the calibration, `isOverflowFromContent` (`overflow.ts:169`), has **15
+      2. The only reader of the calibration, `isOverflowFromContent` (`overflow.ts:169`), had **15
          assertions in tests and zero call sites in production** — `git grep` on `4db8001bae`, the
-         commit that introduced it, shows it was stillborn, not later unplugged.
+         commit that introduced it, shows it was stillborn, not later unplugged. RESOLVED
+         2026-09-19: the function and its 15 assertions are DELETED. The live measures are now
+         `windowFillTokens` (request space, for the fold gate) and `computeOpenWindowTokens`
+         (content space, for Layer-1) — see `docs/compaction.md`.
       3. `media_token_calibration` holds **0 rows against 51 images in history** (37 PNG, 11 WebP,
          2 JPEG, 1 JP2), because `record` requires `prompt_tokens_details.image_tokens`
          (`processor.ts:1135`) and our providers never send it.

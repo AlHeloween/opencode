@@ -1,12 +1,22 @@
 /**
  * Token Calibration — self-correcting token estimates from provider ground truth.
  *
- * When a provider returns a context overflow error, the error message often
- * contains the actual token count or context limit. We parse these numbers
- * and compute a correction factor to improve future token estimates.
+ * When a provider returns a context overflow error, the error message often contains the
+ * ACTUAL context limit, which can differ from the declared one. We parse it and expose it
+ * via {@link getObservedLimit}; `usable()` and `hasSpareOutput` prefer it over
+ * `model.limit`.
  *
- * Correction is smoothed: 70% old factor + 30% new observation, so a single
- * outlier doesn't skew estimates.
+ * The multiplicative correction factor that used to live here is GONE (2026-09-19). Its
+ * only reader was `getFactor`, which had zero call sites, and the code that APPLIED it was
+ * removed in `e86abaab42` when the BPE/tiktoken tokenizer was replaced by a constant — so
+ * every turn computed a factor and nothing ever read it.
+ *
+ * The measurement it encoded was real: over 20 paired requests the ratio was 1.46–1.96
+ * (median 1.67), the largest uncounted term being the tool catalog at 24 589 tokens per
+ * request, which `estimateContentTokens` never sees. It is kept as a FACT in
+ * `docs/compaction.md`, not as code: under the current budget model the absolute comes
+ * from the provider's own `prompt_tokens`, so there is nothing left for a factor to
+ * correct.
  */
 import type { Provider } from "@/provider/provider"
 import * as Log from "@opencode-ai/core/util/log"
@@ -14,8 +24,6 @@ import * as Log from "@opencode-ai/core/util/log"
 const log = Log.create({ service: "token-calibration" })
 
 interface CalibrationEntry {
-  /** Multiplicative correction: provider_count / our_estimate */
-  factor: number
   /** Observed context limit from provider error (may differ from config) */
   observedLimit?: number
   /** When this calibration was last updated */
@@ -28,14 +36,10 @@ function modelKey(model: Provider.Model): string {
   return `${model.providerID}:${model.id}`
 }
 
-/** Update calibration from a provider overflow error. */
-export function update(
-  model: Provider.Model,
-  info: { contextLimit?: number; inputTokens?: number },
-  ourEstimate?: number,
-): void {
+/** Update the observed context limit from a provider overflow error. */
+export function update(model: Provider.Model, info: { contextLimit?: number }): void {
   const k = modelKey(model)
-  const existing = corrections.get(k) ?? { factor: 1, updatedAt: 0 }
+  const existing = corrections.get(k) ?? { updatedAt: 0 }
 
   if (info.contextLimit) {
     existing.observedLimit = info.contextLimit
@@ -46,28 +50,8 @@ export function update(
     })
   }
 
-  if (info.inputTokens && ourEstimate && ourEstimate > 0) {
-    const newFactor = info.inputTokens / ourEstimate
-    // Smooth: blend old factor (70%) with new observation (30%)
-    // First observation uses the value directly
-    existing.factor = existing.factor === 1
-      ? newFactor
-      : existing.factor * 0.7 + newFactor * 0.3
-    log.info("token calibration updated", {
-      model: model.id,
-      factor: existing.factor.toFixed(3),
-      providerCount: info.inputTokens,
-      ourEstimate,
-    })
-  }
-
   existing.updatedAt = Date.now()
   corrections.set(k, existing)
-}
-
-/** Get the correction factor for a model (default 1.0). */
-export function getFactor(model: Provider.Model): number {
-  return corrections.get(modelKey(model))?.factor ?? 1
 }
 
 /** Get the observed context limit from a previous provider error. */

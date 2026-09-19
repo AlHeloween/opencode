@@ -1,6 +1,6 @@
 import { NodeFileSystem } from "@effect/platform-node"
 import nodePath from "path"
-import { afterEach, describe, expect, mock, test } from "bun:test"
+import { afterEach, describe, expect, mock, setDefaultTimeout, test } from "bun:test"
 import { Cause, Effect, Exit, Fiber, Layer, ManagedRuntime } from "effect"
 import * as Stream from "effect/Stream"
 import z from "zod"
@@ -9,7 +9,7 @@ import { Config } from "@/config/config"
 import { Agent } from "../../src/agent/agent"
 import { LLM } from "../../src/session/llm"
 import { SessionCompaction } from "../../src/session/compaction"
-import { isOverflowFromContent, estimateContentTokens, estimateRequestTokens } from "../../src/session/overflow"
+import { estimateContentTokens, estimateRequestTokens } from "../../src/session/overflow"
 import { MediaTokenCalibration } from "../../src/session/media-token-calibration"
 import { countTokens } from "../../src/session/token-count"
 import { Token } from "@/util/token"
@@ -35,6 +35,14 @@ import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { IncrementalCheckpoint } from "../../src/session/incremental-checkpoint"
 
 Log.init()
+
+// This file is HEAVY: 80+ cases, most booting a tmpdir Instance and several spawning real
+// processes, and it runs alongside four other files. bun's 5 s default sits below that, so
+// a loaded machine turns a passing case into `✗ ... [5004.00ms] this test timed out` — a
+// red that says nothing about the code (measured 2026-09-19: the same case ran 3.70 s
+// alone and 5.004 s inside the 5-file run). File-level, not per-test: the whole file
+// shares the load profile, and whack-a-mole per test only moves the boundary.
+setDefaultTimeout(20_000)
 
 // --- planState mirror: sidecar → m* fold (GATED WORKFLOW post-compact pickup) ---
 
@@ -1527,8 +1535,6 @@ describe("SessionNs.getUsage", () => {
   })
 })
 
-// --- isOverflowFromContent tests (overflow.ts) ---
-
 function makeMsg(role: "user" | "assistant", parts: Partial<MessageV2.Part>[]): MessageV2.WithParts {
   return {
     info: {
@@ -1546,132 +1552,9 @@ function makeMsg(role: "user" | "assistant", parts: Partial<MessageV2.Part>[]): 
   } as MessageV2.WithParts
 }
 
-function defaultCfg(): Config.Info {
-  return { compaction: { auto: true } } as Config.Info
-}
-
-function deepseekV4Model(): Provider.Model {
-  return createModel({ context: 1_000_000, output: 384_000 })
-}
-
 function deepseekChatModel(): Provider.Model {
   return createModel({ context: 128_000, output: 8_192 })
 }
-
-describe("isOverflowFromContent", () => {
-  test("returns false for small text content on 1M context model", () => {
-    // Simulate ~15K chars of text (3,750 tokens) вЂ” well under 980K usable
-    const msgs = [
-      makeMsg("user", [{ type: "text", text: "x".repeat(10_000) }]),
-      makeMsg("assistant", [{ type: "text", text: "x".repeat(5_000) }]),
-    ]
-    const model = deepseekV4Model()
-    expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(false)
-  })
-
-  test("returns false for 200K chars of text on 1M context model", () => {
-    // 200K chars = 50K tokens вЂ” well under 980K usable
-    const msgs = [
-      makeMsg("user", [{ type: "text", text: "x".repeat(200_000) }]),
-    ]
-    const model = deepseekV4Model()
-    expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(false)
-  })
-
-  test("returns true for content that actually exceeds the usable window", () => {
-    // The trigger moved on 2026-09-18, when the output budget became a CONSTANT
-    // (32 768). This case used to lean on `count + output >= context` with a
-    // content-derived output of ~200K; with a fixed budget the only honest trigger is
-    // the first clause, `count >= usable` = 1M − 10K overhead − 32 768 = 957 232.
-    // 3.9M chars ⇒ 975K + 10K = 985K ⇒ over it. (3.2M chars is ~810K and genuinely
-    // FITS, which is why the old expectation was a symptom of the retired policy.)
-    const msgs = [makeMsg("user", [{ type: "text", text: "x".repeat(3_900_000) }])]
-    const model = deepseekV4Model()
-    expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(true)
-  })
-
-  test("counts reasoning part text", () => {
-    // 700K of reasoning + 100K of text = 800K chars = 200K tokens
-    // But 200K tokens << 800K needed for overflow on 1M context
-    const msgs = [
-      makeMsg("assistant", [
-        { type: "reasoning", text: "x".repeat(100_000) },
-        { type: "text", text: "x".repeat(700_000) },
-      ]),
-    ]
-    const model = deepseekV4Model()
-    expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(false)
-  })
-
-  test("skips ignored text parts", () => {
-    // 4M chars total but 3.9M are ignored в†’ only 100K counted в†’ no overflow
-    const msgs = [
-      makeMsg("user", [
-        { type: "text", text: "x".repeat(100_000) },
-        { type: "text", text: "x".repeat(3_900_000), ignored: true },
-      ]),
-    ]
-    const model = deepseekV4Model()
-    expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(false)
-  })
-
-  test("counts completed tool output", () => {
-    // 500K of tool output + 500K of text = 1M chars = 250K tokens
-    const msgs = [
-      makeMsg("assistant", [
-        {
-          type: "tool",
-          tool: "bash",
-          callID: "call-1",
-          state: { status: "completed", output: "x".repeat(500_000), input: {}, metadata: {}, time: { start: 0, end: 1 }, title: "" },
-        },
-      ]),
-      makeMsg("user", [{ type: "text", text: "x".repeat(500_000) }]),
-    ]
-    const model = deepseekV4Model()
-    expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(false)
-  })
-
-  test("skips non-completed tool state", () => {
-    // Only completed tools count; running/pending/error should not
-    const msgs = [
-      makeMsg("assistant", [
-        {
-          type: "tool",
-          tool: "bash",
-          callID: "call-1",
-          state: { status: "running", input: {}, time: { start: 0 } },
-        },
-        {
-          type: "tool",
-          tool: "bash",
-          callID: "call-2",
-          state: { status: "error", error: "fail", input: {}, time: { start: 0, end: 1 } },
-        },
-      ]),
-    ]
-    const model = deepseekV4Model()
-    expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(false)
-  })
-
-  test("returns false when compaction.auto is disabled", () => {
-    const msgs = [makeMsg("user", [{ type: "text", text: "x".repeat(4_000_000) }])]
-    const cfg = { compaction: { auto: false } } as Config.Info
-    const model = deepseekV4Model()
-    expect(isOverflowFromContent({ cfg, msgs, model })).toBe(false)
-  })
-
-  test("returns false when context limit is 0", () => {
-    const msgs = [makeMsg("user", [{ type: "text", text: "x".repeat(4_000_000) }])]
-    const model = createModel({ context: 0, output: 384_000 })
-    expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(false)
-  })
-
-  test("returns false for empty message array", () => {
-    const model = deepseekV4Model()
-    expect(isOverflowFromContent({ cfg: defaultCfg(), msgs: [], model })).toBe(false)
-  })
-})
 
 // --- estimateContentTokens tests (overflow.ts) ---
 
@@ -2128,8 +2011,8 @@ describe("session.compaction.computeOpenWindowTokens", () => {
   //
   // Until this was wired an image was invisible to BOTH thresholds: `contentChars`
   // never saw a `file` part (it skips them as "negligible" — true while a `file`
-  // was a path, false once it held base64), the only calibration reader
-  // (`isOverflowFromContent`) has zero production call sites, and
+  // was a path, false once it held base64), the only calibration reader was itself
+  // dead (it had zero call sites and was deleted on 2026-09-19), and
   // `media_token_calibration` is empty because our providers never send
   // `prompt_tokens_details.image_tokens`. A window full of screenshots therefore
   // reported headroom. Bytes can never be the price: counting a base64 blob as
@@ -2612,32 +2495,6 @@ describe("session.compaction.overflow-triggers", () => {
     ),
   )
 
-  it.live(
-    "isOverflowFromContent detects text overflow on small context models",
-    provideTmpdirInstance(() =>
-      Effect.gen(function* () {
-        // Content must genuinely exceed `usable` (1M − 10K − 32 768 = 957 232) now
-        // that the output budget is a constant: 4M chars ⇒ 1.01M tokens.
-        const msgs = [makeMsg("user", [{ type: "text", text: "x".repeat(4_000_000) }])]
-        const model = createModel({ context: 1_000_000, output: 384_000 })
-        expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(true)
-      }),
-    ),
-  )
-
-  it.live(
-    "isOverflowFromContent stays false for normal content on large context",
-    provideTmpdirInstance(() =>
-      Effect.gen(function* () {
-        const msgs = [
-          makeMsg("user", [{ type: "text", text: "x".repeat(10_000) }]),
-          makeMsg("assistant", [{ type: "text", text: "x".repeat(5_000) }]),
-        ]
-        const model = createModel({ context: 1_000_000, output: 384_000 })
-        expect(isOverflowFromContent({ cfg: defaultCfg(), msgs, model })).toBe(false)
-      }),
-    ),
-  )
 })
 
 // --- provider overflow (token-based, via processor) ---

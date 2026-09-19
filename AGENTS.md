@@ -41,6 +41,9 @@ constraints:
 - After plan changes, run explore agent to validate
 - Tests cannot run from repo root — run from package dirs
 - Avoid mocks in tests — test actual implementation
+- A measure and its threshold must share a SPACE (content vs request) and a SCOPE (slice vs whole window) — two spaces under one name is how a threshold silently changes meaning (2026-09-19)
+- A skipped test must state WHY, and `test.todo` is NOT a test (bun never runs its body) — a bare skip hides a defect, which is a bug
+- Heavy test files carry a FILE-level timeout (`setDefaultTimeout(20_000)`), never per-test whack-a-mole — bun's 5 s default turns a loaded machine into a red that says nothing about the code
 - Reach every provider from the HIGHEST surface down: newest API version first, then h3 -> h2 -> http/1.1
 
 forbidden_actions:
@@ -55,6 +58,7 @@ forbidden_actions:
 - Hand-editing ADID framework receivers — change only via kernel SPECS or ADM pipelines
 - Reopening the SDK/upstream/regeneration question — see the STOP section; run the diff instead
 - Regenerating packages/sdk/js/src/v2/gen or src/gen — hand-maintained source, add fields by hand
+- Fetching instructions over the network — `config.instructions` URLs are ignored by design: a fetched body lands in the system prompt with instruction authority, i.e. prompt injection, and the well-known remote config can chain into such a URL. Inherited from upstream opencode; removed 2026-09-19
 - Treating `bun run packages/sdk/js/script/build.ts` exit 0 as success — it deletes ~7100 of our lines
 - Pinning a provider to a legacy API version or transport when it publishes a newer one
 - Rewriting an OpenAI-compatible `/v1` path to `/v3` — that suffix is a dialect marker, not a version

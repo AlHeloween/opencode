@@ -1106,23 +1106,6 @@ export const layer: Layer.Layer<
             // (prompt_tokens_details.image_tokens / video_tokens). Fold it
             // into the per-model EMA (SQLite) — media never rides the chars/4
             // text estimate; this measurement IS the media price.
-            // Text token calibration (2026-09-15): the provider reports the real
-            // prompt size on EVERY successful step, so that is where the
-            // estimator should learn. Before this, `TokenCalibration.update`
-            // had exactly one call site — inside `halt()`, on the
-            // ContextOverflowError branch — so it calibrated solely on the
-            // failure it exists to prevent, and it was handed
-            // `assistantMessage.tokens.input` as "our estimate", which is the
-            // provider's own count: factor = provider/provider = 1 by
-            // construction. Measured over 20 paired requests the real ratio is
-            // 1.46-1.96 (median 1.67); the single largest uncounted term is the
-            // tool catalog, 24,589 tokens on every request, which
-            // `estimateContentTokens` never sees.
-            {
-              const realPrompt = promptTokensFromUsage(usage.tokens)
-              if (realPrompt > 0 && ctx.contentTokenEstimate && ctx.contentTokenEstimate > 0)
-                TokenCalibration.update(ctx.model, { inputTokens: realPrompt }, ctx.contentTokenEstimate)
-            }
             {
               const raw = value.usage.raw as
                 | {
@@ -1427,12 +1410,7 @@ export const layer: Layer.Layer<
           ctx.needsCompaction = true
           // Calibrate token estimator from provider's ground-truth error message
           const tokenInfo = ProviderError.extractTokenLimits(error.data.message)
-          if (tokenInfo.contextLimit || tokenInfo.inputTokens) {
-            // `ourEstimate` must be OUR number. This used to pass
-            // `assistantMessage.tokens.input` — the provider's own count —
-            // so the factor compared the provider against itself.
-            TokenCalibration.update(ctx.model, tokenInfo, ctx.contentTokenEstimate)
-          }
+          if (tokenInfo.contextLimit) TokenCalibration.update(ctx.model, tokenInfo)
           return
         }
         ctx.assistantMessage.error = error

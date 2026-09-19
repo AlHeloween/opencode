@@ -8,7 +8,9 @@ import { promptTokensFromUsage } from "@/session/processor"
  * provider's ground truth, and three defects composed to make it inert:
  *
  *   1. `getFactor()` had no caller in src/ — the correction was computed,
- *      EMA-smoothed, logged, and never applied.
+ *      EMA-smoothed, logged, and never applied. The factor and its reader were
+ *      deleted on 2026-09-19: `update()` now records only the observed context
+ *      limit, which `usable()` and `hasSpareOutput` DO consume.
  *   2. `update()` had one call site, inside `halt()` on the
  *      ContextOverflowError branch — it calibrated only on the failure it
  *      exists to prevent, never on the successful turns that carry the same

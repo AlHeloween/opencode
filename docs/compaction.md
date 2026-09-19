@@ -129,9 +129,9 @@ that did the encoding rode a ~100% cached prefix when they ran.
 ## When to compact by hand (2026-09-16)
 
 Automatic compaction is a **context-safety** gate: it fires when the window is
-about to overflow (`isOverflowFromContent`, `needsContentCompaction` in
-`session/overflow.ts`). That is the only thing it can see. It cannot see that a
-task finished.
+about to overflow (`needsContentCompaction` for the cadence, `hasSpareOutput`
+for the pre-send fit gate, both in `session/overflow.ts`). That is the only thing
+it can see. It cannot see that a task finished.
 
 The kernel adds the other trigger — `@COMPACTION_CADENCE` in the
 `SEMANTIC_ATTENTION` protocol:
@@ -605,6 +605,38 @@ No BPE/tiktoken authority (undercounts providers).
 - [x] **Bounded post-summary checker / retry** — `diagnoseSummaryGaps` (char minima + decision bullets), one initial request + one gap-fill repair, 32,768-token cap per request (floor: 16K reasoning + 16K body; was 8,192), reject-after-loop, and cooldown after every cycle
 - [x] **Removed dead `injectSummaryRequest` primary path** (2026-08-27: fn + service method + interface field + orphaned helpers; legacy `assistant.summary` fold retained for old sessions)  
 - [x] Docs cite contract + gap table  
+
+---
+
+## Two measures, one space each (2026-09-19)
+
+The window is measured by **three functions**, each with exactly ONE space and ONE scope.
+Mixing them is how a threshold silently changes meaning: a number and the threshold it is
+compared against must agree on what is being counted.
+
+| function | space | scope | compared against |
+|---|---|---|---|
+| `windowFillTokens(msgs, model)` | **request** — the provider's own `prompt_tokens` for the newest billed response plus growth after it, so the system prefix and tool schemas are INCLUDED | whole visible window, **never** a boundary slice | `usable(model)` |
+| `computeOpenWindowTokens(msgs, boundary?, model?)` | **content** — `chars/4` + media, nothing from the provider | the slice after the Layer-1 boundary | `layer1SummaryThreshold()` — 65 536, a CONTENT constant |
+| `openWindowTokensBound(msgs, boundary?, model?)` | **request**, growth priced pessimistically at 1 token/char, no tokenizer | whole window | `usable(model)` — pre-send fit gate; it runs once per loop step and cannot afford the tokenizer |
+
+The scope rule is why Layer-1 does NOT take the provider base: `prompt_tokens` measures a whole
+REQUEST, while Layer-1 asks for NEW WORK since the boundary. Feeding the former to the latter
+opened that counter at ~99K on any billed session — straight through the 65 536 threshold — so
+the sidecar cadence silently became "summarize on every stop". No fixture could see it: every
+cadence fixture carried no provider usage and so took the fallback path.
+
+## The output reserve IS the requested output (2026-09-19)
+
+`usable()` and `hasSpareOutput` reserve `ProviderTransform.maxOutputTokens(model)` — the value
+the request actually asks for — not a parallel constant, so `prompt + max <= context` is checked
+with the provider's own arithmetic. On a 1M window `10 000 + 32 768 = 42 768`, giving
+`usable() = 957 232`, the number `checkstate` prints.
+
+An UNDECLARED ceiling is read as the standard 32 768 profile, not as a small-window model (owner
+ruling): the retired `8 192` fallback made reserve and request disagree by 24 576 tokens on every
+model that declares no `limit.output`. The operating envelope is stated and pinned in
+`summary-cadence.test.ts` — a NORMAL model is ≥ 256k of context, below that is `aicall`-only.
 
 ---
 

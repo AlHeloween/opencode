@@ -276,34 +276,6 @@ export function estimateMediaTokens(msgs: MessageV2.WithParts[], model: Provider
 }
 
 /**
- * Hard **context-safety** heuristic (usable window + output room).
- * Uses `content/4 + 10k` request estimate — not tokenizer.
- * Do **not** use for Layer-2 cadence — `compact()` costs **zero** LLM tokens
- * and must fire on open-window content via {@link needsContentCompaction}.
- */
-export function isOverflowFromContent(input: {
-  cfg: Config.Info
-  msgs: MessageV2.WithParts[]
-  model: Provider.Model
-}) {
-  if (input.cfg.compaction?.auto === false) return false
-  if (input.model.limit.context === 0) return false
-  if (input.msgs.length === 0) return false
-
-  // Text via chars/4 + media via the per-model provider-calibrated EMA
-  // (0 until a measurement exists — no heuristics for media).
-  const content =
-    estimateContentTokens(input.msgs, input.model) + estimateMediaTokens(input.msgs, input.model)
-  const count = estimateRequestTokens(content)
-  // The output budget is a CONSTANT (32 768, capped by the model ceiling), so it
-  // no longer needs a content argument — and it equals the reserve
-  // `hasSpareOutput` keeps free, which is what makes `count + output` here the
-  // same arithmetic the provider performs.
-  const output = ProviderTransform.maxOutputTokens(input.model)
-  return count >= usable(input) || count + output >= input.model.limit.context
-}
-
-/**
  * Mechanistic Layer-2 compact **gate** (zero LLM tokens — pure fold to m*).
  *
  * Callers pass **full visible** content tokens (chars/4) and a **model-sized**

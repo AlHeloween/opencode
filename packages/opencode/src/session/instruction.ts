@@ -1,12 +1,10 @@
 import os from "os"
 import path from "path"
 import { Effect, Layer, Context } from "effect"
-import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http"
 import { Config } from "@/config/config"
 import { InstanceState } from "@/effect/instance-state"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
-import { withTransientReadRetry } from "@/util/effect-http-client"
 import { Global } from "@opencode-ai/core/global"
 import * as Log from "@opencode-ai/core/util/log"
 import type { MessageV2 } from "./message-v2"
@@ -75,13 +73,12 @@ export interface Interface {
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Instruction") {}
 
-export const layer: Layer.Layer<Service, never, AppFileSystem.Service | Config.Service | HttpClient.HttpClient> =
+export const layer: Layer.Layer<Service, never, AppFileSystem.Service | Config.Service> =
   Layer.effect(
     Service,
     Effect.gen(function* () {
       const cfg = yield* Config.Service
       const fs = yield* AppFileSystem.Service
-      const http = HttpClient.filterStatusOk(withTransientReadRetry(yield* HttpClient.HttpClient))
 
       const claimsState = yield* InstanceState.make(
         Effect.fn("Instruction.claims")(() =>
@@ -118,16 +115,6 @@ export const layer: Layer.Layer<Service, never, AppFileSystem.Service | Config.S
         return yield* fs.readFileString(filepath).pipe(Effect.catch(() => Effect.succeed("")))
       })
 
-      const fetch = Effect.fnUntraced(function* (url: string) {
-        const res = yield* http.execute(HttpClientRequest.get(url)).pipe(
-          Effect.timeout(5000),
-          Effect.catch(() => Effect.succeed(null)),
-        )
-        if (!res) return ""
-        const body = yield* res.arrayBuffer.pipe(Effect.catch(() => Effect.succeed(new ArrayBuffer(0))))
-        return new TextDecoder().decode(body)
-      })
-
       const instructionCache = yield* InstanceState.make(
         Effect.fn("Instruction.cache")(() =>
           Effect.gen(function* () {
@@ -155,7 +142,13 @@ export const layer: Layer.Layer<Service, never, AppFileSystem.Service | Config.S
 
           if (config.instructions) {
             for (const raw of config.instructions) {
-              if (raw.startsWith("https://") || raw.startsWith("http://")) continue
+              // NOT loaded on purpose — see the note on `systemResult` below. Warn rather
+              // than skip silently: a config that lists a URL should say it was ignored,
+              // instead of looking like rules that loaded.
+              if (raw.startsWith("https://") || raw.startsWith("http://")) {
+                log.warn("remote instruction URL ignored — remote instruction loading is not supported", { url: raw })
+                continue
+              }
               const instruction = raw.startsWith("~/") ? path.join(os.homedir(), raw.slice(2)) : raw
               const matches = yield* (
                 path.isAbsolute(instruction)
@@ -171,15 +164,16 @@ export const layer: Layer.Layer<Service, never, AppFileSystem.Service | Config.S
           }
 
           // --- system (computed once) ---
-          const urls = (config.instructions ?? []).filter(
-            (item) => item.startsWith("https://") || item.startsWith("http://"),
-          )
+          //
+          // LOCAL FILES ONLY. Remote instruction URLs are deliberately NOT supported (owner
+          // ruling 2026-09-19): fetching a config-listed URL and injecting its body into the
+          // system prompt hands that body instruction authority, and the well-known remote
+          // config can chain into such a URL. Upstream opencode did exactly that (Kit
+          // Langton, 51d8219c46f, 2026-04-16) and we inherited it; it is gone here.
           const files = yield* Effect.forEach(Array.from(paths), read, { concurrency: 8 })
-          const remote = yield* Effect.forEach(urls, fetch, { concurrency: 4 })
-          const systemResult = [
-            ...Array.from(paths).flatMap((item, i) => (files[i] ? [`Instructions from: ${item}\n${files[i]}`] : [])),
-            ...urls.flatMap((item, i) => (remote[i] ? [`Instructions from: ${item}\n${remote[i]}`] : [])),
-          ]
+          const systemResult = Array.from(paths).flatMap((item, i) =>
+            files[i] ? [`Instructions from: ${item}\n${files[i]}`] : [],
+          )
 
           // --- rules (computed once) ---
           const rulesDir = path.join(ctx.worktree, ".opencode", "rules")
@@ -294,7 +288,6 @@ export const layer: Layer.Layer<Service, never, AppFileSystem.Service | Config.S
 export const defaultLayer = layer.pipe(
   Layer.provide(Config.defaultLayer),
   Layer.provide(AppFileSystem.defaultLayer),
-  Layer.provide(FetchHttpClient.layer),
 )
 
 export function loaded(messages: MessageV2.WithParts[]) {

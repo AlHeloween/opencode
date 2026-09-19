@@ -945,7 +945,6 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
   input: WithParts[],
   model: Provider.Model,
   options?: {
-    stripMedia?: boolean
     toolOutputMaxChars?: number
     /**
      * Deliver-once (2026-09-07, Alexander): message ID of the assistant turn
@@ -1048,7 +1047,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
     // convert differently when it is the delivery turn (full replay) vs an
     // earlier turn (placeholder) — a shared cache entry would clone the
     // full text into the wrong request.
-    const cacheKey = `${msg.info.id}:${model.id}:${options?.stripMedia ?? false}:${options?.toolOutputMaxChars ?? 0}:${options?.currentTurnAssistantID ?? ""}:${contentFp}`
+    const cacheKey = `${msg.info.id}:${model.id}:${options?.toolOutputMaxChars ?? 0}:${options?.currentTurnAssistantID ?? ""}:${contentFp}`
     const cached = cache.get(cacheKey)
     if (cached) {
       result.push(cached)
@@ -1072,19 +1071,15 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
           })
         // text/plain and directory files are converted into text parts, ignore them
         if (part.type === "file" && part.mime !== "text/plain" && part.mime !== "application/x-directory") {
-          if (options?.stripMedia && registry.isMedia(part.mime)) {
-            userMessage.parts.push({
-              type: "text",
-              text: `[Attached ${part.mime}: ${part.filename ?? "file"}]`,
-            })
-          } else {
-            userMessage.parts.push({
-              type: "file",
-              url: part.url,
-              mediaType: part.mime,
-              filename: part.filename,
-            })
-          }
+          // No `stripMedia` branch: nothing ever set it, so the option only described a capability
+          // the runtime did not have — media was never actually strippable here. The gate that
+          // decides whether a model may see an image lives at ingestion (`prompt.ts`), not here.
+          userMessage.parts.push({
+            type: "file",
+            url: part.url,
+            mediaType: part.mime,
+            filename: part.filename,
+          })
         }
 
         // compaction parts are markers only — the real instruction
@@ -1161,7 +1156,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             // without the marker keep the old behavior below.
             const mediaDelivered = part.state.metadata?.mediaDelivered !== undefined
             const attachments =
-              mediaDelivered || part.state.time.compacted || options?.stripMedia
+              mediaDelivered || part.state.time.compacted
                 ? []
                 : (part.state.attachments ?? [])
 
@@ -1294,7 +1289,6 @@ export function toModelMessages(
   input: WithParts[],
   model: Provider.Model,
   options?: {
-    stripMedia?: boolean
     toolOutputMaxChars?: number
     currentTurnAssistantID?: string
   },
@@ -1315,7 +1309,6 @@ export const toModelMessagesWithCountsEffect = Effect.fnUntraced(function* (
   input: WithParts[],
   model: Provider.Model,
   options?: {
-    stripMedia?: boolean
     toolOutputMaxChars?: number
     currentTurnAssistantID?: string
   },

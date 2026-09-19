@@ -244,6 +244,37 @@ consumers, and a table was the wrong shape from the start.
 **Moved out to `plans/2026-09-19_database-truth.md`:** the dead turn source (`session_entry`, 0 rows), the
 table inventory, and the fixture rule — a property of the storage plane, not of TDA.
 
+### Why a TTL at all — the owner's two cases, and the AGI frame (2026-09-19)
+
+**Case 1 — reconnaissance.** «Мы конечно можем отправить explorer agent — но это не всегда целесообразно,
+иногда надо просто решить вопрос по быстрому и не засрать своё окно.» A source is acquired, read, its answer
+taken, and it is released: the question is settled and the window keeps the conclusion, not the reading.
+
+**Case 2 — GUI debugging.** «Ловим снапшоты каждую секунду, пачка форм, кликов — сделали по сути мы ничего в
+коде не правили, просто сделали гуй, но окно забито и надо вызывать компакт.» Screenshots accumulate, the code
+did not change, and the window is full of evidence already read. Today the only way out is a compaction; with a
+TTL the agent reports to itself, stops the snapshots, and the content is clean and the head is clear.
+
+**The frame, and it is the whole point.** «Человек берёт справочник, читает оглавление, открывает страницу,
+выписывает формулу, закрывает и забывает о нём — формула на столе. А мы всё, чего касаемся, за собой тянем…
+attention размажется.» This is `docs/content-lifecycle.md`'s own thesis — the cost is ATTENTION first, budget
+second — and a declared lifetime is the third release trigger that document already anticipated.
+
+### One migration carries all of it (do not split it)
+
+1. `part.ttl_until integer NULL` — the RESOLVED absolute turn (`applied_at + ttl`); NULL means the mechanism does
+   not apply at all, which is why `permanent` needs no value of its own.
+2. `part.ttl_scope text NULL` — `"tmp_xxx"`, scoped to one temporary enable.
+3. Index `(session_id, ttl_until)` — a range scan per session instead of a scan of 65 184 parts.
+4. `DROP TABLE held_media` — it was physically created; zero consumers.
+5. Index on `message (session_id, json_extract(data, '$.role'))` — the turn counter stops scanning 15 368 rows.
+6. A verdict for the six zero-row tables: name the writer, or remove the surface.
+
+**Follow the `compacted` precedent, which the repository already signs:** a soft-hide flag *promoted from JSON
+`data.compacted` to a real column for indexable visible loads* (`schema-project.sql.ts:51`), reversible by
+`revert` (`revert.ts:115,240`), migrated by `20260601000002_message_compacted_column`. The difference: `compacted`
+hides the WHOLE message; `ttl` removes only the PAYLOAD and the result text stays readable.
+
 ### T6 design, and the three things it deliberately does NOT do
 
 > **SUPERSEDED WITHIN THE HOUR — recorded rather than deleted, because the reason it was wrong is the useful part.**

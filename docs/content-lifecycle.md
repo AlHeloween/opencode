@@ -109,6 +109,44 @@ What the generalisation adds:
    `filediff`s) are the report's evidence, not a recollection of it. This is the same rule as
    "a write is verified by reading the artefact back", applied to a whole working set.
 
+## The declared lifetime — the third release trigger, and why (owner, 2026-09-19)
+
+Release has two triggers today: size (`TOOL_PLACEHOLDER_THRESHOLD_CHARS`) and the fold. The third is a DECLARED
+SPAN, and the owner's two cases are what it exists for:
+
+- **Reconnaissance.** «Мы конечно можем отправить explorer agent — но это не всегда целесообразно, иногда надо
+  просто решить вопрос по быстрому и не засрать своё окно.» Acquire the source, read it, take the answer,
+  release it: the window keeps the conclusion, not the reading.
+- **GUI debugging.** «Ловим снапшоты каждую секунду, пачка форм, кликов — сделали по сути мы ничего в коде не
+  правили, просто сделали гуй, но окно забито и надо вызывать компакт.» Screenshots accumulate as evidence that
+  has already been read. Today the only exit is a compaction; with a declared span the agent reports to itself,
+  stops the snapshots, and the content is clean and the head is clear.
+
+**The frame, in the owner's words.** «Человек берёт справочник, читает оглавление, открывает страницу,
+выписывает формулу, закрывает и забывает о нём — формула на столе. А мы всё, чего касаемся, за собой тянем…
+attention размажется.» That is this document's own thesis, stated by the person the tool is for: the cost is
+ATTENTION first, budget second, and the window must hold what the CURRENT task needs.
+
+**Shape: `ttl` on the part that already carries the payload** — not a table, because the part has a row already,
+and because the field has to be walkable on its own:
+
+```
+null                ⇒ permanent: the mechanism does not apply at all
+"tmp_xxx"           ⇒ scoped to one temporary enable
+an integer turn     ⇒ a RESOLVED absolute turn, so the comparison is a numeric range, never per-row arithmetic
+```
+
+It follows a precedent this repository already signs: `compacted` was *promoted from JSON `data.compacted` to a
+real column for indexable visible loads* (`schema-project.sql.ts:51`) and is reversible (`revert.ts:115,240`).
+The difference that matters: `compacted` hides the WHOLE message; `ttl` removes only the PAYLOAD, and the result
+text stays readable.
+
+Its domain is the **sub-threshold spam** — hundreds of small tool results that today live in the window forever,
+because neither the 8 000-char placeholder nor a fold ever touches them.
+
+Plans: `plans/2026-09-19_temporary-data-acquisition.md` (T6, with the one-pass migration that also drops
+`held_media`, indexes the turn counter and settles the six zero-row tables).
+
 ## What is NOT shipped (do not read as done)
 
 - **No hold, no lifetime.** Nothing counts turns for a frame; a held set has no expiry.

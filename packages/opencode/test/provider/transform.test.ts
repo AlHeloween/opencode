@@ -34,22 +34,23 @@ const createModel = (limit: Provider.Model["limit"]): Provider.Model => ({
 })
 
 describe("ProviderTransform.maxOutputTokens", () => {
-  test("returns the FIXED budget when the model ceiling is higher", () => {
-    // Owner ruling 2026-09-18: the output budget is a CONSTANT, not a function of
-    // content. A 1M-context model with 384K native output still asks 32 768.
-    expect(ProviderTransform.maxOutputTokens(createModel({ context: 1_000_000, output: 384_000 }))).toBe(32_768)
+  test("returns a quarter of the content window when the model ceiling is higher", () => {
+    // Owner ruling 2026-09-19: the budget SCALES with the window. A 1M-context model with 384K
+    // native output asks 250 000 (1 000 000 / 4), not a fixed 32 768.
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 1_000_000, output: 384_000 }))).toBe(250_000)
   })
 
-  test("a lower model ceiling wins over the fixed budget", () => {
-    // Asking 32 768 of an 8 192-output model is a 400, not a longer answer.
+  test("a lower model ceiling wins over the window budget", () => {
+    // Asking more of an 8 192-output model than it declares is a 400, not a longer answer.
     expect(ProviderTransform.maxOutputTokens(createModel({ context: 200_000, output: 8_192 }))).toBe(8_192)
   })
 
   test("caps output when native output equals or exceeds context", () => {
-    // The qwen-class defect this cap exists for: native output declared as the whole
-    // window. A constant caps it without needing any context-derived reserve.
-    expect(ProviderTransform.maxOutputTokens(createModel({ context: 262_000, output: 262_000 }))).toBe(32_768)
-    expect(ProviderTransform.maxOutputTokens(createModel({ context: 128_000, output: 200_000 }))).toBe(32_768)
+    // The qwen-class defect this cap exists for: native output declared as the whole window. The
+    // window quarter caps it (262 000 / 4 = 65 500; 128 000 / 4 = 32 000), so a model that declares
+    // its output as its entire context is never asked for more than a quarter of it.
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 262_000, output: 262_000 }))).toBe(65_500)
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 128_000, output: 200_000 }))).toBe(32_000)
   })
 
   test("unknown native output falls back to the budget itself", () => {
@@ -63,17 +64,17 @@ describe("ProviderTransform.maxOutputTokens", () => {
     expect(ProviderTransform.maxOutputTokens(createModel({ context: 200_000, output: 8_192 }), 32_768)).toBe(8_192)
   })
 
-  test("the budget equals the reserve the compaction gate keeps free", () => {
-    // The whole point of fixing it: the compaction reserve IS this function's value, on
-    // every path and for every model (owner ruling 2026-09-19), so `prompt + max <=
-    // context` is checked with exactly the arithmetic the provider performs. While the
-    // value was content-derived the two sides were 131 535 against 32 768, a ~100K band
-    // where the gate believed there was room (same class as the ×3 bug fixed on
-    // 2026-09-15). An UNDECLARED ceiling is the standard 32 768 profile, never a
-    // small-window reserve: the retired 8 192 fallback left a 24 576 band.
-    expect(ProviderTransform.maxOutputTokens(createModel({ context: 1_000_000, output: 384_000 }))).toBe(32_768)
+  test("the budget scales with the window and equals the reserve the gate keeps free", () => {
+    // Owner ruling 2026-09-19: the budget is a QUARTER OF THE CONTENT WINDOW. A fixed 32 768 was
+    // the same number for a 1M model and a 200K one, which is the wrong invariant — this assertion
+    // is the inverse of the one it replaces, which required 1M and 512K to be IDENTICAL.
+    // What survives from the previous fix is the STRUCTURAL property, not the value: reserve and
+    // request are the same number because both sides call this function, so `prompt + max <=
+    // context` is checked with exactly the arithmetic the provider performs.
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 1_000_000, output: 384_000 }))).toBe(250_000)
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 512_000, output: 384_000 }))).toBe(128_000)
     expect(ProviderTransform.maxOutputTokens(createModel({ context: 1_000_000, output: 384_000 }))).toBe(
-      ProviderTransform.maxOutputTokens(createModel({ context: 512_000, output: 384_000 })),
+      2 * ProviderTransform.maxOutputTokens(createModel({ context: 500_000, output: 384_000 })),
     )
   })
 })

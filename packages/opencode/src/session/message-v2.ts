@@ -393,10 +393,13 @@ export const ToolStateCompleted = Schema.Struct({
   .pipe(withStatics((s) => ({ zod: zod(s) })))
 export type ToolStateCompleted = Types.DeepMutable<Schema.Schema.Type<typeof ToolStateCompleted>>
 
-function truncateToolOutput(text: string, maxChars?: number) {
+function truncateToolOutput(text: string, maxChars?: number, partID?: string) {
   if (!maxChars || text.length <= maxChars) return text
   const omitted = text.length - maxChars
-  return `${text.slice(0, maxChars)}\n[Tool output truncated for compaction: omitted ${omitted} chars]`
+  // Name the address here too: the tail of a delivery-turn result is otherwise unreachable, and
+  // this notice used to blame compaction, which never truncates anything.
+  const address = partID ? `; call recall with id=${partID} and a later range for the rest` : ""
+  return `${text.slice(0, maxChars)}\n${REPLAY_TRUNCATED_MARKER} at ${maxChars} chars: omitted ${omitted} chars${address}]`
 }
 
 /**
@@ -885,8 +888,30 @@ export const TOOL_PLACEHOLDER_THRESHOLD_CHARS = 8_000
 export const NO_DELIVERY_TURN = "__no_delivery_turn__"
 
 /**
+ * Markers of a DELIBERATE replay reduction — shared with the stability check in `llm.ts`.
+ *
+ * A heavy tool result of a turn that is no longer current is replaced by its placeholder, so the
+ * SAME message legitimately renders differently once the turn moves on. That is the mechanism that
+ * makes the drop addressable, not an accidental mutation: reporting it under `bug:` trains the
+ * reader to ignore the marker that exists for real ones.
+ */
+export const REPLAY_DELIVERED_MARKER = "— result delivered earlier ("
+export const REPLAY_CLEARED_MARKER = "[Old tool result content cleared]"
+export const REPLAY_TRUNCATED_MARKER = "[Tool output truncated"
+
+export function isReplayReduced(content: string): boolean {
+  return (
+    content.includes(REPLAY_DELIVERED_MARKER) ||
+    content.includes(REPLAY_CLEARED_MARKER) ||
+    content.includes(REPLAY_TRUNCATED_MARKER)
+  )
+}
+
+/**
  * Canonical heavy-tool-result placeholder: pure function of (tool, id, title,
- * size) — byte-identical across builds so the wire prefix is stable.
+ * size) — byte-identical across builds so the wire prefix is stable. It names the
+ * tool that reads the content back, because the previous advice ("re-read or
+ * re-run the tool") is impossible for a `task` result and unsafe for `bash`.
  */
 export function toolPlaceholder(input: {
   tool: string
@@ -899,7 +924,7 @@ export function toolPlaceholder(input: {
       ? `${(input.chars / 1024).toFixed(1)} KB`
       : `${input.chars} chars`
   const what = input.title ? ` ${input.title}` : ""
-  return `[${input.tool} id=${input.partID} — result delivered earlier (${size},${what}); re-read or re-run the tool if you need the full content again]`
+  return `[${input.tool} id=${input.partID} ${REPLAY_DELIVERED_MARKER}${size},${what}); call recall with id=${input.partID} for the full content]`
 }
 
 /** Clear the module-level conversion cache. Intended for test isolation. */
@@ -1120,7 +1145,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
               !options?.currentTurnAssistantID || options.currentTurnAssistantID === msg.info.id
             const rawOutput = part.state.time.compacted ? "" : stripFloodReminderBlocks(part.state.output)
             const outputText = part.state.time.compacted
-              ? "[Old tool result content cleared]"
+              ? REPLAY_CLEARED_MARKER
               : !isCurrentTurn && rawOutput.length > TOOL_PLACEHOLDER_THRESHOLD_CHARS
                 ? toolPlaceholder({
                     tool: part.tool,
@@ -1128,7 +1153,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
                     title: part.state.title || undefined,
                     chars: rawOutput.length,
                   })
-                : truncateToolOutput(rawOutput, options?.toolOutputMaxChars)
+                : truncateToolOutput(rawOutput, options?.toolOutputMaxChars, part.id)
             // Deliver-once (2026-09-07): when the processor already delivered
             // this tool result's media as a real user message (metadata
             // mediaDelivered = <userMessageID>), the media lives in history —

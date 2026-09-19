@@ -862,12 +862,23 @@ describe("session.message-v2.toModelMessage", () => {
             toolName: "bash",
             output: {
               type: "text",
-              value: "abcd\n[Tool output truncated for compaction: omitted 6 chars]",
+              value: "abcd\n[Tool output truncated at 4 chars: omitted 6 chars; call recall with id=a1 and a later range for the rest]",
             },
           },
         ],
       },
     ])
+  })
+
+  test("a replay-reduced tool result is recognisable by the marker the stability check reads", () => {
+    // Producer/consumer pairing: `llm.ts` only treats a re-rendered sent message as expected when
+    // its content carries one of these markers, so they must match what the producers emit. Drift
+    // here would silently re-label a deliberate replay substitution as a mutation bug — or, worse,
+    // hide a real mutation behind the marker.
+    expect(MessageV2.isReplayReduced(MessageV2.toolPlaceholder({ tool: "grep", partID: "prt_1", chars: 9_000 }))).toBe(true)
+    expect(MessageV2.isReplayReduced("x\n[Tool output truncated at 4 chars: omitted 6 chars]")).toBe(true)
+    expect(MessageV2.isReplayReduced("[Old tool result content cleared]")).toBe(true)
+    expect(MessageV2.isReplayReduced("ordinary content carrying no marker")).toBe(false)
   })
 
   test("converts assistant tool error into error-text tool result", async () => {

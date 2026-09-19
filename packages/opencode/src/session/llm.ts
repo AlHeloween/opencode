@@ -10,7 +10,7 @@ import { responseCacheHeaders } from "@/provider/response-cache"
 import { Config } from "@/config/config"
 import { Instance } from "@/project/instance"
 import type { Agent } from "@/agent/agent"
-import { MessageV2 } from "./message-v2"
+import { MessageV2, isReplayReduced } from "./message-v2"
 import { Plugin } from "@/plugin"
 import { SystemPrompt, UNIVERSAL_ENV } from "./system"
 import { assembleSystemMessages, collapseSystemMessagesInPlace } from "./system-compose"
@@ -286,17 +286,31 @@ function checkMessagesStability(input: {
   const hashes = input.messages.map((message) => Number(Bun.hash(stableStringify(message))))
   const verdict = messagesStabilityVerdict(messagesWireHashes.get(input.cacheKey), hashes)
   if (verdict.kind === "mutated") {
-    log.warn("bug: sent message content mutated mid-session", {
-      sessionID: input.sessionID,
-      agent: input.agent,
-      modelID: input.modelID,
-      cacheKeyHash: Number(Bun.hash(input.cacheKey)),
-      position: verdict.position,
-      role: input.messages[verdict.position]?.role,
-      mutatedTail: verdict.mutatedTail,
-      messageCount: input.messages.length,
-      sample: stableStringify(input.messages[verdict.position]).slice(0, 200),
-    })
+    const mutated = input.messages[verdict.position]
+    const content = typeof mutated?.content === "string" ? mutated.content : stableStringify(mutated?.content ?? {})
+    if (isReplayReduced(content)) {
+      // Expected, not a defect: a heavy tool result of a turn that is no longer current is replaced
+      // by its placeholder, so the same message legitimately renders differently once the turn moves
+      // on (`message-v2.ts`). The content is recoverable through the id that placeholder prints.
+      log.info("replay substitution re-rendered a sent message (heavy tool result)", {
+        sessionID: input.sessionID,
+        position: verdict.position,
+        role: mutated?.role,
+        mutatedTail: verdict.mutatedTail,
+      })
+    } else {
+      log.warn("bug: sent message content mutated mid-session", {
+        sessionID: input.sessionID,
+        agent: input.agent,
+        modelID: input.modelID,
+        cacheKeyHash: Number(Bun.hash(input.cacheKey)),
+        position: verdict.position,
+        role: input.messages[verdict.position]?.role,
+        mutatedTail: verdict.mutatedTail,
+        messageCount: input.messages.length,
+        sample: stableStringify(input.messages[verdict.position]).slice(0, 200),
+      })
+    }
   } else if (verdict.kind === "restructured") {
     log.info("messages prefix restructured (compact/restart?)", {
       sessionID: input.sessionID,

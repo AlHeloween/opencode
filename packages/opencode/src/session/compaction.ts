@@ -1103,7 +1103,8 @@ function buildMessageStar(input: {
   // TOP and pushed models into session-read/db-read spirals instead of work.
   // A single closing line keeps the archive reachable without framing m* as
   // a recovery manual.
-  const recoveryLine = "Use messagesearch, sessionread and dbread to restore missing facts."
+  const recoveryLine =
+    "Use messagesearch, sessionread and dbread to restore missing facts; recall(id) returns a dropped tool result in full."
 
   // Permanent memory rides every fold verbatim. A summary is Inferred prose
   // about what happened; this is what an identity deliberately wrote down to

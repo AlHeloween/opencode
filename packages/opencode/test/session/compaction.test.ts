@@ -339,7 +339,13 @@ describe("session.compaction.memory", () => {
         // Before the summaries: it is the most durable content in the star,
         // not a recovery recipe, and the one recovery pointer stays last.
         expect(star.indexOf("<memory>")).toBeLessThan(star.indexOf("--- Recent"))
-        expect(star.trimEnd().endsWith("Use messagesearch, sessionread and dbread to restore missing facts.")).toBe(true)
+        expect(
+          star
+            .trimEnd()
+            .endsWith(
+              "Use messagesearch, sessionread and dbread to restore missing facts; recall(id) returns a dropped tool result in full.",
+            ),
+        ).toBe(true)
       }),
     ),
   )

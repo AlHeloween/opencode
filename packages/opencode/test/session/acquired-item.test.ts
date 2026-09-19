@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { acquiredItem, release, tdaHeaderValue } from "@/session/acquired-item"
+import { acquiredItem, release, tdaHeaders, tdaHeaderValue } from "@/session/acquired-item"
 import { applyTemporaryDataAcquisition, isWithheld, parseTdaHeader, payloadDigest } from "@/provider/gateway/tda"
 
 /**
@@ -92,5 +92,19 @@ describe("the runtime's acquisition set", () => {
   test("an empty set says NOTHING — that is the switch being off", () => {
     expect(tdaHeaderValue([], 16)).toBeUndefined()
     expect(parseTdaHeader(tdaHeaderValue([], 16))).toBeUndefined()
+  })
+
+  test("the instruction rides ONLY where the header contract allows it", () => {
+    const value = tdaHeaderValue([item(5, 10)], 16)!
+    // An opencode-owned route carries it.
+    expect(tdaHeaders("opencode", value)).toEqual({ "x-opencode-tda": value })
+    expect(tdaHeaders("opencode-go", value)).toEqual({ "x-opencode-tda": value })
+    // A third-party route carries NOTHING, even with a live set: `x-opencode-*` must never be sent to a
+    // provider that did not ask for them. This is the boundary, pinned rather than described.
+    for (const provider of ["openrouter", "deepseek", "novita-ai", "openai"]) {
+      expect(tdaHeaders(provider, value)).toEqual({})
+    }
+    // And nothing acquired ⇒ nothing sent, whatever the provider.
+    expect(tdaHeaders("opencode", undefined)).toEqual({})
   })
 })

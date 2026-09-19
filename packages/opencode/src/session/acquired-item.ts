@@ -77,3 +77,19 @@ export function tdaHeaderValue(items: TdaHeld[], turn: Turn): string | undefined
   // business riding the item in the first place — one shape instead of two that must be kept in step.
   return JSON.stringify({ turn, held: items })
 }
+
+/**
+ * WHICH headers the instruction may ride in — a pure decision, so the contract's boundary is testable
+ * without driving a whole request through the pipeline.
+ *
+ * `x-opencode-*` are sent EXCLUSIVELY to opencode-owned providers (`session/llm.ts`, three-layer
+ * contract, 2026-09-08): third-party providers react badly to foreign namespaced headers. That makes
+ * TDA INERT on deepseek-direct / novita / openrouter — a boundary, not an accident, and the honest
+ * statement of where the mechanism reaches today. Returning `{}` rather than throwing keeps the send
+ * site a plain spread and means an ineligible route simply carries nothing.
+ */
+export function tdaHeaders(providerID: string, value: string | undefined): Record<string, string> {
+  if (value === undefined) return {}
+  if (!providerID.startsWith("opencode")) return {}
+  return { "x-opencode-tda": value }
+}

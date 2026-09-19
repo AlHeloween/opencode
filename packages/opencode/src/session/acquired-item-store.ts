@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm"
 import { use as projectDb } from "@/storage/project-db"
 import { AcquiredItemTable, SessionEntryTable } from "@/storage/schema-project.sql"
-import { PartID, type SessionID } from "@/session/schema"
+import { PartID, SessionID } from "@/session/schema"
 import { type TdaHeld, type TdaKind } from "@/provider/gateway/tda"
 import { tdaHeaderValue, type Turn } from "@/session/acquired-item"
 
@@ -106,8 +106,12 @@ export function currentTurn(sessionID: SessionID): Turn {
  * feature costs nothing at all until something is actually acquired — the same property the transform
  * keeps on the other side of the wire.
  */
-export function tdaHeaderFor(sessionID: SessionID): string | undefined {
-  const items = listAcquired(sessionID)
+export function tdaHeaderFor(sessionID: string): string | undefined {
+  // The transport layer holds a session id as a PLAIN STRING, so the read path accepts one and brands it
+  // here — once, at the boundary — instead of making every call site remember the brand. The WRITE path
+  // stays branded on purpose: a wrongly-shaped id there would write a row nobody could ever find again.
+  const sid = SessionID.make(sessionID)
+  const items = listAcquired(sid)
   if (items.length === 0) return undefined
-  return tdaHeaderValue(items, currentTurn(sessionID))
+  return tdaHeaderValue(items, currentTurn(sid))
 }

@@ -11,6 +11,8 @@ import { Config } from "@/config/config"
 import { Instance } from "@/project/instance"
 import type { Agent } from "@/agent/agent"
 import { MessageV2, isReplayReduced } from "./message-v2"
+import { tdaHeaders } from "./acquired-item"
+import { tdaHeaderFor } from "./acquired-item-store"
 import { Plugin } from "@/plugin"
 import { SystemPrompt, UNIVERSAL_ENV } from "./system"
 import { assembleSystemMessages, collapseSystemMessagesInPlace } from "./system-compose"
@@ -978,6 +980,13 @@ const live: Layer.Layer<
                 "x-opencode-request": input.user.id,
                 "x-opencode-project": Instance.project.id,
                 "x-opencode-client": Flag.OPENCODE_CLIENT,
+                // Temporary data acquisition: the runtime OWNS the set, and this is the only place it can
+                // reach the gateway that WITHHOLDS (plan §0.3). It rides HERE, in the opencode-only layer,
+                // because the contract above forbids sending `x-opencode-*` to a third-party provider —
+                // so TDA is inert on those routes by design rather than by accident. The store is read on
+                // this branch only, and `tdaHeaders` returns {} whenever nothing is acquired, so a session
+                // that never acquired anything sends no header at all.
+                ...tdaHeaders(input.model.providerID, tdaHeaderFor(input.sessionID)),
               }
             : {}),
           // OpenRouter response caching (identical-request cache, 1-86400s):

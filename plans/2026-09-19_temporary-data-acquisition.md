@@ -216,11 +216,14 @@ gateway.tda.holdTurns      §10     the declared lifetime
    per-request directory. **The sandbox is observed there, not by reading the TUI.**
 4. Whole-sandbox falsifier: a flag-ON body differs from the flag-OFF body in NOTHING except the withheld
    payloads.
-5. **The run must carry an image.** Measured 2026-09-19: no capture in `raw-wire/` carries a media
-   entry, and the reason is age, not a logging gap — this session's 25 image parts are ~5.3 h older
-   than the earliest capture (newest part `1789801838037` ms vs earliest capture `1789820960963` ms).
-   So whether the surface logs a media body at all is UNKNOWN until a run carries one; the sandbox
-   must therefore attach or acquire an image INSIDE the run, or it observes nothing.
+5. **The run must carry an image.** No capture in `raw-wire/` carries a media entry — and the reason is
+   the CONVERTER, not age: `@ai-sdk/deepseek@3.0.26` was text-only, so every non-text part went to
+   `warnings` and was never serialized («183 raw-wire bodies scanned: zero image parts»,
+   `_progress_log.md`), fixed by the 3.0.48 bump. The sandbox must therefore attach or acquire an image
+   INSIDE the run, or the surface it is observed on has nothing to show. *(First attributed to age from
+   two timestamps — the record refuted it. A plausible cause stated before the record is queried is the
+   reflex this project's memory already names; keeping the correction here costs one line and stops the
+   next cycle from re-deriving it.)*
 
 ### 0.7 Risks, each with its falsifier
 

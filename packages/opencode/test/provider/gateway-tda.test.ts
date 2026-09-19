@@ -13,25 +13,20 @@ import {
  *
  * ## Provenance of the fixture, stated rather than implied
  *
- * The plan requires the fixture to be a REAL body from the gateway's own log, and T0 read the media
- * shape there (§0.3.1). Measured 2026-09-19 while building this test: no capture in this worktree
- * carries a media entry — `grep '"type"\s*:\s*"image_url"'` over
- * `.opencode/data/gateway/raw-wire/*.json` returns nothing, while the session's own DB holds 24
- * `image/webp` and 1 `image/png` file parts.
+ * The plan requires the fixture to be a REAL body, and the media shape is settleable without
+ * guessing: `test/provider/deepseek-image.test.ts` captures a real request body from the INSTALLED
+ * SDK and asserts exactly what this file reproduces — `user.content` is an ARRAY holding an entry
+ * `{type: "image_url", image_url: {url}}` whose url is a `data:image/webp;base64,…` URL.
  *
- * The reason is MEASURABLE and it is not a logging gap: the newest of those 25 parts is
- * `1789801838037` ms and the earliest capture in `raw-wire/` is `1789820960963` ms — the images are
- * ~5.3 h OLDER than the capture window. So the absence is age. Whether the surface logs a media body
- * at all stays UNKNOWN until a run carries one, which is why T5's sandbox must attach or acquire an
- * image INSIDE the run.
+ * A correction worth keeping, because the wrong explanation was the tempting one: no capture in this
+ * worktree's `raw-wire/` carries a media entry, and I first attributed that to AGE (the session's 25
+ * image parts are ~5.3 h older than the earliest capture). The record refuted it — `_progress_log.md`:
+ * `@ai-sdk/deepseek@3.0.26`'s converter was TEXT-ONLY, so every non-text part went to `warnings` and
+ * was never serialized — "183 raw-wire bodies scanned: zero image parts". The absence is the
+ * CONVERTER, fixed by the 3.0.48 bump, and a capture taken after it can carry media.
  *
- * Hence the SHAPE below is the captured one (§0.3.1, plus the wire's own `[Image 1]` caption) and the
- * base64 payload is a byte-exact PREFIX of a real webp seen in a captured body's transcript; it is
- * shortened only because the transform treats the payload as opaque.
- *
- * That is the honest limit of this fixture, and it is enough for what T1 must pin: which entries
- * are withheld, which are kept, that nothing is ever blanked, and that an untouched body comes back
- * as the SAME STRING (not a re-serialisation) — the property T2's flag-off control rests on.
+ * So the base64 payload below is a byte-exact PREFIX of a real webp (`UklGR` = RIFF), shortened only
+ * because the transform treats the payload as opaque; the shape is the SDK-asserted one.
  */
 
 /** Byte-exact opening of a real `image/webp` payload seen in a captured body (`UklGR` = RIFF). */

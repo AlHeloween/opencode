@@ -178,10 +178,26 @@ it costs a round trip to discover. A local refusal reads as "too many frames, dr
 nothing. The cap is expressed in **FRAMES, not bytes** — price follows dimensions (997 tokens/frame),
 so bytes are not the currency the budget uses.
 
+### Measurement 1 — ANSWERED: the fold DOES eat image parts
+Owner, 2026-09-19: «Съедает как положено — ты же сам сказал что не видишь скриншотов чтобы кодить,
+ты начал кодить, а потом шот в ссылку превратился, кодить стало невозможно.» Corroborated by my own
+record from this session: screenshots I had just been reading became `[file: …]` links mid-task.
+
+**So a bound already exists — and it is the wrong kind.** The fold removes images from the wire when
+the WINDOW fills, which is a question about size; the work needs them until the TASK is done, which is
+a question about relevance. Coupling the two means images disappear exactly while they are still being
+used. That is the defect being fixed, and it is why "just always send the images" is not an option:
+it trades a wrong-timed removal for a 168 MB request.
+
+**This is what makes keeping the payload (`935b803d46`) load-bearing.** Before it, a fold lost the
+picture for good; now the fold merely takes it off the wire, and the payload is still in the session
+for the actualizer to put back. The fold and the actualizer are complements: one bounds size, the
+other answers need.
+
+Not yet read in code: the exact mechanism by which the fold omits the part (whether it drops the
+message or rewrites it) — the behaviour is confirmed by experience, the implementation is not.
+
 ### What still needs measuring before the cap is chosen
-- Whether the fold currently DROPS image parts from the request when it folds old messages, or only
-  replaces them in the summary text. If it drops them, the fold is already a second, slower bound; if
-  not, the cap is the only one there is.
 - The provider's real per-request size ceiling, if it publishes one, rather than guessing at "100 MB".
 
 ## 8. Related surface found while verifying — the prompt footer has its own gauge

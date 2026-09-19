@@ -45,6 +45,7 @@ constraints:
 - A skipped test must state WHY, and `test.todo` is NOT a test (bun never runs its body) — a bare skip hides a defect, which is a bug
 - Heavy test files carry a FILE-level timeout (`setDefaultTimeout(20_000)`), never per-test whack-a-mole — bun's 5 s default turns a loaded machine into a red that says nothing about the code
 - Reach every provider from the HIGHEST surface down: newest API version first, then h3 -> h2 -> http/1.1
+- Tool names ARE wire ids: lowercase ASCII alphanumerics only — `_` and `-` are refused and the tool fails to load at `Tool.define`; the same spelling must appear in the registry, its `builtin` list and `util/dsml-normalizer`, or a DeepSeek-emitted call is never recognised (2026-09-19, restating 2026-08-26: `canonicalName` strips non-alphanumerics — `multi_edit`→`multiedit`, `session-read`→`sessionread`)
 
 forbidden_actions:
 - Exposing secrets (API keys, tokens, passwords, private keys) to git

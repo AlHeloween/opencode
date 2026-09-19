@@ -21,6 +21,32 @@ Owner, 2026-09-19 (verbatim):
 > big-pickle чтобы не напалить токены на тестах, пока не убедимся что все палит - лучше это не копировать
 > в workflow. Это серьезный пайплайн. И требует не менее серьезного подхода.»
 
+### 0.0 What this is NOT: it is not RAG (owner, 2026-09-19)
+
+Owner, verbatim:
+
+> «есть исходник - 1мб - его надо поправить что мы делаем начинаем грепом его лазить забиваем окно,
+> делаем исправления которые скорее всего будут лажей и трахаемся с ним до посинения, тут мы целяем его
+> в хвост, точто правим по месту или делаем рефактор как обычно без ошибок без грепов, он же у нас в
+> памяти висит, исправлили и отпускаем - окно чистое - только резульатат и отчет… это даже не раг это
+> другое, это временные данные которые мы делаем частью агентного потока только временно.»
+
+The distinction is not framing, it decides the design:
+
+| | RAG | TDA |
+|---|---|---|
+| the unit | a FRAGMENT retrieved on demand | the WHOLE artifact, acquired once |
+| the cost | a round trip per fragment, each one partial | one hold, then nothing |
+| the edit | made against fragments — which is WHY edits come out as «лажа» | made against the whole artifact, attended |
+| the end | fragments keep accumulating | RELEASE: window clean, result and report |
+
+⇒ «grep the file, fill the window, edit blind» is the failure mode this replaces. The agent does not
+SEARCH the artifact; it **holds** it, so an edit is made with the whole thing in front of it.
+
+**The acceptance story, in one line:** a ~1 MB source is acquired, edited or refactored with NO greps,
+then released, and what remains in the window is the result and the report. Its measurable half: fewer
+turns than the equivalent grep loop, and a compaction that did NOT happen.
+
 ### 0.1 The division of labour — checked against the code, not assumed
 
 «Впихнем в gateway» is right, and the seam already exists:
@@ -63,15 +89,34 @@ export function applyTemporaryDataAcquisition(body: string, set: TdaSet, turn: n
 4. **Do nothing when the set is empty**, and return the input UNCHANGED when the body does not parse. A
    transform that corrupts a request is worse than one that does nothing.
 
-### 0.3 Where the set lives
+### 0.3 Where the set lives — ANSWERED (T0, 2026-09-19), and the draft was wrong
 
-`Store` already exists in this client (`await Store.init()`, `Store.getStreamingEnabled`). The set is a
-keyed record under it, namespaced per session. **T0 names the exact path, shape and single owner before
-any code is written** — the answer decides whether the transport is a store read or a header.
+Grounded, and it changes the answer:
 
-Alternative considered: carry the set in a header (`x-opencode-tda`) beside `x-opencode-has-attachments`
-(`:398`). Cheaper per request, but it must stay under transport header limits while the set grows with
-every held item.
+```
+provider/gateway/store.ts:24   const STORE_FILE = "gateway-adjustments.json"
+provider/gateway/store.ts:26   const PERSIST_INTERVAL_MS = 30000
+provider/gateway/store.ts:37   path.join(Global.Path.data, "gateway")      ← its own dir, plus a policy log
+```
+
+The gateway's `Store` is an ad-hoc JSON file flushed every 30 s. Putting the TDA set there would GROW an
+ad-hoc state file, which `AGENTS.md`'s storage paradigm forbids by name («Every new piece of state goes to
+one of them [SQLite / LMDB] under a declared namespace — never to a new file»), and it would give the set
+TWO writers — the race that paradigm exists to prevent.
+
+**Decision: the RUNTIME owns the set on the SQLite plane, and the gateway receives it in a header.**
+`x-opencode-tda`, beside `x-opencode-has-attachments` at `adaptive-client.ts:394-398` — a mechanism that
+already exists and already carries session-scoped facts into the gateway.
+
+```
+transform = pure(body, setFromHeader)   →  one owner: the runtime
+no gateway persistence                  →  the paradigm holds
+no second writer                        →  the race is absent, not unlikely
+```
+
+The earlier objection to a header was about an UNBOUNDED set. With a cap (a few dozen bytes per held
+item) the header stays small — so the cap stops being a nicety and becomes load-bearing, and it is T3's
+decision.
 
 ### 0.4 Behind a FLAG, default OFF
 
@@ -83,7 +128,7 @@ discipline — a flag cannot be forgotten, a resolution can.
 
 | id | task | binding | oracle |
 |---|---|---|---|
-| **T0** | ground `Store` (path, shape, namespacing, single owner) and the exact body shape an image part takes | `provider/gateway/adaptive-client.ts`, the Store module | a note with `file:line` per fact — **no code** |
+| **T0** | ground `Store` (path, shape, namespacing, single owner) and the exact body shape an image part takes | `provider/gateway/adaptive-client.ts`, the Store module | **Store half DONE — see §0.3**: `store.ts:24,26,37`; the set therefore does NOT live there. Still to ground: the exact shape a media part takes in the outgoing body |
 | **T1** | the pure transform | new `provider/gateway/tda.ts` | unit: withhold · keep · blank-guard · no-op on an unparsable body; the fixture is a REAL body captured from the gateway's own per-request log |
 | **T2** | wire it into `wrapFetch` beside `rewriteReasoningContent` | `adaptive-client.ts:347` | integration: flag on → a pointer where the payload was; flag off → byte-identical to today |
 | **T3** | the set's write path — acquire, hold, release, expire | the Store + the runtime attachment path | a held item survives a turn; an expired one is withheld; a released one is withheld at once |

@@ -141,6 +141,7 @@ CREATE TABLE IF NOT EXISTS "message" (
 );
 CREATE INDEX IF NOT EXISTS "message_session_time_created_id_idx" ON "message" ("session_id", "time_created", "id");
 CREATE INDEX IF NOT EXISTS "message_session_compacted_time_id_idx" ON "message" ("session_id", "compacted", "time_created", "id");
+CREATE INDEX IF NOT EXISTS "message_session_role_idx" ON "message" ("session_id", json_extract("data", '$.role'));
 
 CREATE TABLE IF NOT EXISTS "part" (
   id text PRIMARY KEY NOT NULL,
@@ -149,6 +150,8 @@ CREATE TABLE IF NOT EXISTS "part" (
   type text NOT NULL DEFAULT 'unknown',
   tool_name text,
   status text,
+  ttl_until integer,
+  ttl_scope text,
   time_created integer NOT NULL,
   time_updated integer NOT NULL,
   data text NOT NULL
@@ -157,6 +160,7 @@ CREATE INDEX IF NOT EXISTS "part_message_id_id_idx" ON "part" ("message_id", "id
 CREATE INDEX IF NOT EXISTS "part_session_idx" ON "part" ("session_id");
 CREATE INDEX IF NOT EXISTS "part_type_idx" ON "part" ("type");
 CREATE INDEX IF NOT EXISTS "part_tool_status_idx" ON "part" ("tool_name", "status");
+CREATE INDEX IF NOT EXISTS "part_ttl_until_idx" ON "part" ("session_id", "ttl_until");
 
 CREATE TABLE IF NOT EXISTS "todo" (
   session_id text NOT NULL,

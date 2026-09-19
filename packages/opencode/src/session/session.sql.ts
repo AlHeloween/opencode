@@ -99,6 +99,14 @@ export const PartTable = sqliteTable(
     type: text().notNull().default("unknown"),
     tool_name: text(),
     status: text(),
+    /**
+     * The declared lifetime (migration `20260919000000_part_ttl_columns`). `ttl_until` is the RESOLVED
+     * absolute turn; NULL means the mechanism does not apply at all, so "permanent" needs no value of its
+     * own and an old row already reads as permanent. `ttl_scope` (`tmp_xxx`) binds the span to one
+     * temporary enable. `compacted` is the precedent for this shape: a flag promoted out of the JSON.
+     */
+    ttl_until: integer(),
+    ttl_scope: text(),
     ...Timestamps,
     data: text({ mode: "json" }).notNull().$type<PartData>(),
   },
@@ -107,6 +115,7 @@ export const PartTable = sqliteTable(
     index("part_session_idx").on(table.session_id),
     index("part_type_idx").on(table.type),
     index("part_tool_status_idx").on(table.tool_name, table.status),
+    index("part_ttl_until_idx").on(table.session_id, table.ttl_until),
   ],
 )
 

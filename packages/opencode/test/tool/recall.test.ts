@@ -200,4 +200,37 @@ describe("recall: reading a stored tool result by part id", () => {
     if (result.ok) throw new Error("expected refusal")
     expect(result.error).toContain("running")
   })
+
+  test("keep refuses a selection that would blank the result", () => {
+    // `kept` REPLACES the result on the wire, so keeping nothing would destroy exactly the content
+    // being narrowed, and the model would receive an empty tool result carrying only its call id.
+    seedTool("prt_blank", "completed", five)
+    const result = call({ id: "prt_blank", pattern: "no such line", keep: true })
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error("expected refusal")
+    expect(result.error).toContain("EMPTY")
+  })
+
+  test("keep narrows an ERRORED result — an error has no size gate, so this is the only way to clean it up", () => {
+    seed("prt_err_keep", "tool", {
+      type: "tool",
+      tool: "bash",
+      state: { status: "error", error: "boom: exit 2\nsecond line\nnoise" },
+    })
+    const narrowed = call({ id: "prt_err_keep", range: "1-2", keep: true })
+    if (!narrowed.ok) throw new Error(narrowed.error)
+    expect(narrowed.kept).toEqual({ from: 1, to: 2, reason: "test" })
+
+    // The whole failure stays reachable: keep narrows what replays, it does not delete.
+    const whole = call({ id: "prt_err_keep", range: "0" })
+    if (!whole.ok) throw new Error(whole.error)
+    expect(whole.matchedLines).toBe(3)
+  })
+
+  test("an errored result is still filterable with range and pattern", () => {
+    seed("prt_err_filter", "tool", { type: "tool", tool: "bash", state: { status: "error", error: "boom: exit 2\nsecond line" } })
+    const result = call({ id: "prt_err_filter", range: "2" })
+    if (!result.ok) throw new Error(result.error)
+    expect(result.text).toContain("2: second line")
+  })
 })

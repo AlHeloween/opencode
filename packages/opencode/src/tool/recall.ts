@@ -171,8 +171,21 @@ export function readToolResult(input: {
     const lastSelected = selection.numbers.length > 0 ? selection.numbers[selection.numbers.length - 1]! : 0
     const tool = part.tool ?? "tool"
     const title = part.state?.title ?? ""
+    // A kept selection REPLACES the result on the wire, so it must never be allowed to blank it: a
+    // selection that matched nothing would leave the model an EMPTY tool result carrying only its call
+    // id, and the caller would have paid a round trip to destroy the content it was narrowing.
+    if (input.keep === true && selected.length === 0) {
+      return {
+        ok: false,
+        error:
+          "nothing matched in that window, so keep would leave the result EMPTY — widen the range or drop the pattern, then keep",
+      }
+    }
+    // `kept` works on an ERRORED result too, and there it matters most: an errored result has no size
+    // gate at all, so a heavy failure replays in full on every later turn with nothing able to shrink
+    // it. `recall(..., keep: true)` is that way out — clean the failure up on the fly and keep working.
     // What the caller asked to KEEP, ready to persist. Writing it is what turns this call from a cost
-    // into an optimisation: from then on the replay carries these lines instead of the placeholder.
+    // into an optimisation: from then on the replay carries these lines instead of the whole result.
     const kept =
       input.keep === true
         ? {

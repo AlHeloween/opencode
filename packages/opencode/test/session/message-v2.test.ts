@@ -881,6 +881,128 @@ describe("session.message-v2.toModelMessage", () => {
     expect(MessageV2.isReplayReduced("ordinary content carrying no marker")).toBe(false)
   })
 
+  test("a kept selection replaces the whole result on the wire, and never blanks it", async () => {
+    // The CONSUMER half of `recall(..., keep: true)` — the branch nothing exercised until now. `kept`
+    // is what makes the narrowing pay: from then on the replay carries exactly these lines instead of
+    // the placeholder. And it must select at least one line, or the model would be handed an EMPTY
+    // tool result carrying only its call id, so an empty selection falls back to the full result.
+    const keptPart = (kept: { from: number; to: number }) => ({
+      ...basePart("m-assistant", "a1"),
+      type: "tool" as const,
+      callID: "call-1",
+      tool: "bash",
+      state: {
+        status: "completed" as const,
+        input: { cmd: "ls" },
+        output: "alpha\nbeta\ngamma\ndelta\nepsilon",
+        title: "Bash",
+        metadata: {},
+        time: { start: 0, end: 1 },
+        kept,
+      },
+    })
+    const conversation = (kept: { from: number; to: number }): MessageV2.WithParts[] => [
+      {
+        info: userInfo("m-user-kept"),
+        parts: [{ ...basePart("m-user-kept", "u1"), type: "text", text: "run tool" }] as MessageV2.Part[],
+      },
+      {
+        info: assistantInfo("m-assistant", "m-user-kept"),
+        parts: [keptPart(kept)] as MessageV2.Part[],
+      },
+    ]
+
+    const narrowed = await MessageV2.toModelMessages(conversation({ from: 2, to: 3 }), model, {
+      afterMessageID: MessageV2.NO_DELIVERY_TURN,
+    })
+    expect(narrowed.at(-1)).toStrictEqual({
+      role: "tool",
+      content: [
+        {
+          type: "tool-result",
+          toolCallId: "call-1",
+          toolName: "bash",
+          output: { type: "text", value: "2: beta\n3: gamma" },
+        },
+      ],
+    })
+
+    const blanking = await MessageV2.toModelMessages(conversation({ from: 90, to: 99 }), model, {
+      afterMessageID: MessageV2.NO_DELIVERY_TURN,
+    })
+    expect(blanking.at(-1)).toStrictEqual({
+      role: "tool",
+      content: [
+        {
+          type: "tool-result",
+          toolCallId: "call-1",
+          toolName: "bash",
+          output: { type: "text", value: "alpha\nbeta\ngamma\ndelta\nepsilon" },
+        },
+      ],
+    })
+  })
+
+  test("a kept selection narrows an ERROR too, because an error has no size gate", async () => {
+    // An errored result is never gated by the placeholder: it replays in FULL on every later turn
+    // until something shrinks it. `keep` is that something, and it must act on the error text.
+    const errored = (kept?: { from: number; to: number; reason?: string }): MessageV2.WithParts[] => [
+      {
+        info: userInfo("m-user-err"),
+        parts: [{ ...basePart("m-user-err", "u1"), type: "text", text: "run tool" }] as MessageV2.Part[],
+      },
+      {
+        info: assistantInfo("m-assistant-err", "m-user-err"),
+        parts: [
+          {
+            ...basePart("m-assistant-err", "a1"),
+            type: "tool",
+            callID: "call-err",
+            tool: "bash",
+            state: {
+              status: "error",
+              input: { cmd: "ls" },
+              error: "could not find the file\nthe only line that matters\nnoise",
+              metadata: {},
+              time: { start: 0, end: 1 },
+              ...(kept === undefined ? {} : { kept }),
+            },
+          },
+        ] as MessageV2.Part[],
+      },
+    ]
+    const errorOutput = async (kept?: { from: number; to: number; reason?: string }) => {
+      const rendered = await MessageV2.toModelMessages(errored(kept), model)
+      const last = rendered.at(-1) as { content: { output: { type: string; value: string } }[] }
+      return last.content[0]?.output
+    }
+
+    // Control first: with no kept selection the WHOLE error rides, which is what makes the narrowing
+    // below a narrowing rather than a coincidence.
+    expect(await errorOutput()).toStrictEqual({
+      type: "error-text",
+      value: "could not find the file\nthe only line that matters\nnoise",
+    })
+    expect(await errorOutput({ from: 2, to: 2, reason: "only the actionable line" })).toStrictEqual({
+      type: "error-text",
+      value: "2: the only line that matters",
+    })
+
+    // The SCHEMA is the layer the live path depends on: `recall` persists `kept` onto a stored error
+    // state through `session.updatePart`, which decodes against this struct. A field the schema does
+    // not declare would be dropped there, and the narrowing would never reach the replay at all —
+    // a green render test against a hand-built object would not notice.
+    expect(
+      MessageV2.ToolStateError.zod.parse({
+        status: "error",
+        input: { cmd: "ls" },
+        error: "boom",
+        time: { start: 0, end: 1 },
+        kept: { from: 1, to: 1, reason: "why" },
+      }).kept,
+    ).toEqual({ from: 1, to: 1, reason: "why" })
+  })
+
   test("converts assistant tool error into error-text tool result", async () => {
     const userID = "m-user"
     const assistantID = "m-assistant"

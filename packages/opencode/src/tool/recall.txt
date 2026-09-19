@@ -3,8 +3,11 @@ Recover the content of an earlier tool result by its id, with line numbers so yo
 Why this exists: a completed tool result heavier than 8 000 characters is replaced on the wire by a
 one-line placeholder once its turn is no longer the one being continued:
 
-  [grep id=prt_0b8da48fb001xD6AvY4MQp2Mo0 — result delivered earlier (10.0 KB, <pattern>);
-   re-read or re-run the tool if you need the full content again]
+  [grep id=prt_0b8da48fb001xD6AvY4MQp2Mo0 — result delivered earlier (10.0 KB, <pattern>) —
+   first 6 of 412 line(s), to judge without paying a round trip:]
+  1: <first line>
+  …
+  … recall(id=prt_0b8da48fb001xD6AvY4MQp2Mo0, range="<line>-") for the rest]
 
 Only the copy sent to the provider was dropped — the bytes are still stored in the session. `recall`
 reads them back by that id.
@@ -37,9 +40,15 @@ Parameters:
 Errors ARE recallable: an errored result is exactly what tells you to discard or repair a step, so
 refusing it would hide the failure behind a count. Only a result that never finished is refused.
 
-Not a substitute for `sessionread`, which truncates every tool output to 500 characters. And when the
-placeholder's advice ("re-read or re-run the tool") is impossible — a `task` result cannot be
-reproduced at all, and re-running `bash` re-applies its side effects — `recall` is the only way back.
+And errors are the case where `keep` matters MOST, because an errored result has no size gate at all:
+it replays in FULL on every later turn until something shrinks it. Read the part that matters, then
+`keep` it — that is what stops a failure from spamming the context for the rest of the session. Put
+the mistake itself in `reason` ("multiedit: stale anchor; re-read the region first") so the same error
+is not repeated.
+
+Not a substitute for `sessionread`, which truncates every tool output to 500 characters. And when
+the placeholder's advice cannot be followed — a `task` result cannot be reproduced at all, and
+re-running `bash` re-applies its side effects — `recall` is the only way back.
 
 Recalled content is attached to the current request only and is not remembered as part of history,
 so asking twice costs twice and leaves nothing behind.

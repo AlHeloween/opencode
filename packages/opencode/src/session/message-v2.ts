@@ -377,6 +377,20 @@ export const ToolStateRunning = Schema.Struct({
   .pipe(withStatics((s) => ({ zod: zod(s) })))
 export type ToolStateRunning = Types.DeepMutable<Schema.Schema.Type<typeof ToolStateRunning>>
 
+/**
+ * The slice the model chose to KEEP from a stored result (`recall(..., keep: true)`). ONE definition,
+ * shared by the completed and the errored state: two copies would drift, and the drift would be
+ * invisible — the tool writing a shape the replay does not read.
+ */
+export const ToolKeptSelection = Schema.Struct({
+  from: Schema.Number,
+  to: Schema.Number,
+  pattern: Schema.optional(Schema.String),
+  ignoreCase: Schema.optional(Schema.Boolean),
+  /** WHY this slice was kept — persisted with the selection, so the narrowing is auditable. */
+  reason: Schema.optional(Schema.String),
+})
+
 export const ToolStateCompleted = Schema.Struct({
   status: Schema.Literal("completed"),
   input: Schema.Record(Schema.String, Schema.Any),
@@ -393,16 +407,7 @@ export const ToolStateCompleted = Schema.Struct({
    * replay carries exactly this selection instead of the placeholder — a smaller resident result,
    * which is the point: recall stops being a cost and becomes an optimisation.
    */
-  kept: Schema.optional(
-    Schema.Struct({
-      from: Schema.Number,
-      to: Schema.Number,
-      pattern: Schema.optional(Schema.String),
-      ignoreCase: Schema.optional(Schema.Boolean),
-      /** WHY this slice was kept — persisted with the selection, so the narrowing is auditable. */
-      reason: Schema.optional(Schema.String),
-    }),
-  ),
+  kept: Schema.optional(ToolKeptSelection),
   attachments: Schema.optional(Schema.Array(FilePart)),
 })
   .annotate({ identifier: "ToolStateCompleted" })
@@ -454,6 +459,12 @@ export const ToolStateError = Schema.Struct({
     start: Schema.Number,
     end: Schema.Number,
   }),
+  /**
+   * An errored result has NO size gate — it replays in full on every later turn, so a heavy failure
+   * spams the context with nothing able to shrink it. `kept` is that way out: the same narrowing a
+   * completed result gets, applied to the error text.
+   */
+  kept: Schema.optional(ToolKeptSelection),
 })
   .annotate({ identifier: "ToolStateError" })
   .pipe(withStatics((s) => ({ zod: zod(s) })))
@@ -1207,14 +1218,16 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
               options?.afterMessageID === undefined || msg.info.id > options.afterMessageID
             const rawOutput = part.state.time.compacted ? "" : stripFloodReminderBlocks(part.state.output)
             // A kept selection REPLACES the whole result on the wire — that is what turns recall from
-            // a cost into an optimisation: one round trip paid once to stop paying for the rest.
+            // a cost into an optimisation: one round trip paid once to stop paying for the rest. It
+            // must select at least one line, or the model would receive an EMPTY tool result carrying
+            // only its call id; an empty selection falls through to the normal path instead.
             const keptRows =
               part.state.kept && rawOutput.length > 0
                 ? selectLines(rawOutput, part.state.kept).rows
                 : undefined
             const outputText = part.state.time.compacted
               ? REPLAY_CLEARED_MARKER
-              : keptRows !== undefined
+              : keptRows !== undefined && keptRows.length > 0
                 ? truncateToolOutput(keptRows.join("\n"), options?.toolOutputMaxChars, part.id)
                 : !isCurrentTurn && rawOutput.length > TOOL_PLACEHOLDER_THRESHOLD_CHARS
                 ? toolPlaceholder({
@@ -1265,6 +1278,19 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
           }
           if (part.state.status === "error") {
             const output = part.state.metadata?.interrupted === true ? part.state.metadata.output : undefined
+            // An errored result has NO size gate, so without this a heavy failure replays in full on
+            // every later turn — spam with nothing able to shrink it. `kept` is the way to clean it up
+            // on the fly: the same narrowing a completed result gets, applied to the error text. It
+            // must select at least one line, or the caller would be handed an empty result carrying
+            // only its call id.
+            const keptError =
+              part.state.kept && part.state.error.length > 0
+                ? selectLines(part.state.error, part.state.kept).rows
+                : undefined
+            const errorText =
+              keptError !== undefined && keptError.length > 0
+                ? truncateToolOutput(keptError.join("\n"), options?.toolOutputMaxChars, part.id)
+                : part.state.error
             if (typeof output === "string") {
               assistantMessage.parts.push({
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
@@ -1283,7 +1309,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
                 state: "output-error",
                 toolCallId: part.callID,
                 input: part.state.input,
-                errorText: part.state.error,
+                errorText,
                 ...(part.metadata?.providerExecuted ? { providerExecuted: true } : {}),
                 ...(differentModel ? {} : { callProviderMetadata: providerMeta(part.metadata) }),
               })

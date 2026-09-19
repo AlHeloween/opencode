@@ -279,6 +279,45 @@ Verify it BEFORE the migration, not after.
 Migration order (see the plan §7 inventory): `{state}/model.json` FIRST — it is the only entry with
 three writers, so moving it retires a real lost-update race on its own.
 
+## Debugging Paradigm — read state before adding a log (2026-09-19)
+
+Owner, 2026-09-19: «раньше можно было работать грепом и всё было ок, сейчас у нас codegraph и
+этого мало, трёхъярусные смоки… дебаг неудобен, **логи приходится прописывать на каждом углу
+вместо того чтобы прочитать state**.»
+
+**Measured before writing it down:** `packages/opencode/src` carries **924** `log.(debug|info|warn|
+error)` call sites and **124** `bug:` markers — roughly 1.5 logs per source file. That is 924
+pre-committed hypotheses about what will go wrong.
+
+**And the evidence that they do not cover the real one — all from 2026-09-19:**
+
+| what was found | how it was found |
+|---|---|
+| `jobs.db` had no `pid` column | reading state |
+| fossil leaves missing after a boundary | reading state (`snapshot.fsl`) |
+| window is 236 280 / 23 %, not "exhausted" | reading state (`checkstate`) |
+| **`{state}/model.json` is written by THREE modules** | **no log exists at all** |
+
+The last row is the verdict on the approach: the only genuine lost-update race in the inventory is
+logged **nowhere**, because nobody anticipated a *silent* write. Logs cover the anticipated; readable
+state answers questions nobody asked. That is precisely «читать state вместо логов».
+
+**The rule.** A log may record only what STATE CANNOT SHOW:
+
+1. **Time and rate** — latency, TTFB, a stall that has no key to live under.
+2. **An external system's failure** — a provider, `fossil`, `rg`, a spawned process; the state plane
+   cannot see outside itself.
+3. **A transition with no key yet** — a one-shot during boot, before any namespace exists.
+
+Everything else: **if the event has a key, it is STATE.** State is durable, two-way and queryable;
+a log is ephemeral, one-way, and must be pre-placed where someone guessed the problem would be. Read
+it with `dbread` / `checkstate` instead of grepping for a line you hoped would be there.
+
+**Corollary — logging is not a fix.** «Every catch must log» still stands (a silent `catch {}` is a
+bug), but it is a floor, not a licence: the 124 `bug:` markers are 124 defects wearing a log. Most of
+them should be **removed by deleting the catch**, not kept as a written-down shrug. A `bug:` marker
+that survives a release is an unfixed defect with a receipt.
+
 ## Bug Policy
 
 - No such thing as an "unimportant" bug. Every bug degrades the tool — fix it.

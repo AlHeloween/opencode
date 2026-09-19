@@ -128,6 +128,43 @@ So after a fold the **summary is the index the agent reads**, and three things f
 and drops the BYTES (so nothing dilutes the window). The frame returns only when the work needs it, and
 leaves when the work is done — relevance decided by the agent, size bounded by the fold.
 
+## 2.3 The append mechanism EXISTS, the removal one does NOT — so the shape is an active set
+
+Grounded in the tool layer:
+
+```
+tool/tool.ts:32   attachments?: Omit<MessageV2.FilePart, "id" | "sessionID" | "messageID">[]
+tool/read.ts:283,340,361   the read tool returns images and video frames exactly this way
+tool/webfetch.ts:151       same
+```
+
+So a tool result can carry attachments and the runtime turns them into conversation parts — i.e.
+"append to the tail" needs **no change to request assembly**. That is the good half.
+
+**The bad half, and it is decisive:** a part that has entered the conversation is immutable. There is
+no removal path except the fold. A second `actualize` therefore adds ANOTHER message; it does not
+replace the previous frames. Repeated actualize/de-actualize cycles would ACCUMULATE, which walks
+straight back into the 168 MB failure mode (§9). **Append-only cannot satisfy «деактуализируешь».**
+
+### Decision: the frames live in an ACTIVE SET, not in the conversation
+| | what it does |
+|---|---|
+| `attachments` | appends permanently — the wrong primitive here |
+| **active set** | a session-scoped list of frame ordinals, injected into each request, removed on command |
+
+- `list` enumerates the session's image parts with their derived ordinals (mandatory for pre-caption
+  images, §2.2).
+- `actualize(ids)` adds ordinals to the active set → their payloads are injected at the END of the
+  request (the mutable tail, so `@KV_CACHE_STABILITY` holds).
+- `deactivate(ids \| all)` removes them → the next request no longer carries them. This is the part
+  `attachments` cannot do.
+- The set is session-scoped state and belongs in the store under a declared namespace — **never a new
+  file** (storage paradigm), and it must survive a fold, because the work outlives the window.
+
+**Not yet grounded:** where the injection point is in the request assembly, and whether an existing
+per-request overlay mechanism already exists that I have not found. Both are code questions and will be
+read, not asked.
+
 ## 3. Where it plugs in
 
 | concern | site |

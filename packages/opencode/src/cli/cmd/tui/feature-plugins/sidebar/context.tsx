@@ -2,6 +2,7 @@ import type { AssistantMessage } from "@opencode-ai/sdk/v2"
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@opencode-ai/plugin/tui"
 import { createMemo, createSignal, onCleanup, onMount, untrack } from "solid-js"
 import { getModelStatus } from "@/provider/balance"
+import { usable } from "@/session/overflow"
 import { useAgiMode } from "@tui/context/agi-mode"
 
 const id = "internal:sidebar-context"
@@ -345,6 +346,13 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       last.tokens.input + last.tokens.output + last.tokens.reasoning + last.tokens.cache.read + last.tokens.cache.write
     const provider = props.api.state.provider.find((item) => item.id === last.providerID) as any
     const model = provider?.models[last.modelID] as any
+    // The budget the ENGINE folds at, from the SAME function the engine calls — never a
+    // copy of its formula (`limit = observedLimit ?? limit.input ?? context`, then minus
+    // `compaction.reserved ?? 10_000 + maxOutputTokens`). This panel used to divide by the
+    // raw context limit, so for one and the same window it printed "24% used" while
+    // `checkstate` printed "26% of the fold threshold" — two bases under one word, and the
+    // headroom read ~4x larger than the budget that actually governs folding (2026-09-19).
+    const budget = model?.limit?.context ? usable({ cfg: props.api.state.config as any, model }) : 0
     const gatewayEnabled = model?.gateway?.enabled !== false && provider?.gateway?.enabled !== false
     const outputLimit = (model?.limit?.output as number | undefined) ?? 0
 
@@ -368,7 +376,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
 
     return {
       tokens,
-      percent: model?.limit?.context ? Math.round((tokens / model.limit.context) * 100) : null,
+      percent: budget > 0 ? Math.round((tokens / budget) * 100) : null,
       gatewayEnabled,
       protocol: gatewayEnabled ? model?.options?.protocol || "http/1.1" : undefined,
       streaming: gatewayEnabled ? (model?.options?.streaming ?? true) : undefined,
@@ -426,7 +434,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
         <b>Context</b>
       </text>
       <text fg={theme().textMuted}>{state().tokens.toLocaleString()} tokens</text>
-      <text fg={theme().textMuted}>{state().percent ?? 0}% used</text>
+      <text fg={theme().textMuted}>{state().percent ?? 0}% of fold budget</text>
       {sampledSessionStats().length > 0 ? (
         sampledSessionStats().map((s) => (
           <text fg={(s.hitRate ?? 0) > 80 ? theme().success : (s.hitRate ?? 0) >= 40 ? theme().warning : theme().error}>

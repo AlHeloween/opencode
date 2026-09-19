@@ -21,7 +21,7 @@ import {
   hasSpareOutput,
   summaryNeedsCompactFirst,
   usable,
-  SUMMARY_GENERATION_RESERVE_TOKENS,
+  summaryGenerationReserve,
   needsContentCompaction,
 } from "./overflow"
 import * as CompactionRequest from "./compaction-request"
@@ -100,7 +100,6 @@ import { canonicalIdentity, isPrimaryModeIdentity } from "./mode-identity"
 import { resolveAgentModel, resolveAgentVariant } from "./session-settings"
 import {
   SIDECAR_MAX_ATTEMPTS,
-  SIDECAR_OUTPUT_TOKEN_MAX,
   isCoolingDown as isSidecarCoolingDown,
   streamOptions as sidecarStreamOptions,
 } from "./sidecar-policy"
@@ -853,7 +852,7 @@ export const layer = Layer.effect(
               sessionID,
               fullMTokens,
               requestTokens: estimateRequestTokens(fullMTokens),
-              generationReserve: SUMMARY_GENERATION_RESERVE_TOKENS,
+              generationReserve: summaryGenerationReserve(input.model),
               modelContext: input.model.limit.context,
             })
             yield* input.onHeadroomCompact()
@@ -863,7 +862,7 @@ export const layer = Layer.effect(
             sessionID,
             fullMTokens,
             requestTokens: estimateRequestTokens(fullMTokens),
-            generationReserve: SUMMARY_GENERATION_RESERVE_TOKENS,
+            generationReserve: summaryGenerationReserve(input.model),
             modelContext: input.model.limit.context,
           })
         }
@@ -995,7 +994,7 @@ export const layer = Layer.effect(
               if (usagePatch) yield* sessions.patch(sessionID, usagePatch)
               yield* slog.info("sidecar finish-step", {
                 attempt: attempt + 1,
-                outputTokenMax: SIDECAR_OUTPUT_TOKEN_MAX,
+                outputTokenMax: ProviderTransform.maxOutputTokens(input.model),
                 cacheState: step.cacheState,
                 cacheRatio: SessionProcessor.cacheRatio(step.usage.tokens),
                 inputTokens: step.usage.tokens.input,

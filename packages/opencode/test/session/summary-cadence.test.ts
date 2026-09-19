@@ -8,7 +8,7 @@ import {
   selectRecentTail,
 } from "../../src/session/compaction"
 import {
-  SUMMARY_GENERATION_RESERVE_TOKENS,
+  summaryGenerationReserve,
   hasSpareOutput,
   REQUEST_OVERHEAD_TOKENS,
   summaryNeedsCompactFirst,
@@ -68,9 +68,13 @@ describe("layer1SummaryThreshold (pure content cadence)", () => {
 })
 
 
-describe("summaryNeedsCompactFirst (≥32K generation headroom invariant)", () => {
-  test("reserve is 32 768 tokens", () => {
-    expect(SUMMARY_GENERATION_RESERVE_TOKENS).toBe(32_768)
+describe("summaryNeedsCompactFirst (generation headroom invariant)", () => {
+  test("the reserve follows the shared output rule instead of a pinned constant", () => {
+    // Owner ruling 2026-09-19 («для сайдкара тоже самое»): the reserve is derived from the model by
+    // the SAME function the request uses, so the gate cannot reserve one number while the request
+    // asks for another. Its floor is exactly the 32 768 that used to be pinned here.
+    expect(summaryGenerationReserve(modelFixture(1_000_000, 384_000))).toBe(125_000)
+    expect(summaryGenerationReserve(modelFixture(100_000, 8_192))).toBe(32_768)
   })
 
   test("room exists: full M + framing + 32K fits → no compact first", () => {
@@ -257,14 +261,17 @@ describe("stated operating envelope: a NORMAL model is ≥ 256k; below that is a
     // keeps the envelope falsifiable instead of folklore — widening it downward is what
     // this test would catch, because `usable()` would then reach 0 and the cadence would
     // hand the whole job to the pre-send gate.
-    for (const context of [256_000, 262_144, 1_000_000]) {
+    // The reserve is `max(32 768, context/8)` (owner ruling 2026-09-19), so on a window small
+    // enough for the floor to bind the subtraction is still the flat 42 768…
+    for (const context of [256_000, 262_144]) {
       const value = usable({ cfg, model: modelFixture(context, 0) })
       expect(value).toBe(context - 42_768)
       expect(value > 0).toBe(true)
     }
-    // 1M ⇒ 957 232 — the fold threshold an undeclared ceiling now produces.
-    expect(usable({ cfg, model: modelFixture(1_000_000, 0) })).toBe(957_232)
-    // 42 768 = REQUEST_OVERHEAD_TOKENS + the standard 32 768 output reserve.
+    // …and above it the window term takes over: 1 000 000 − 10 000 overhead − 125 000 (an eighth).
+    expect(usable({ cfg, model: modelFixture(1_000_000, 0) })).toBe(865_000)
+    // 42 768 = REQUEST_OVERHEAD_TOKENS + the 32 768 FLOOR of the output rule, which is exactly what
+    // the subtraction collapses to wherever the floor binds.
     expect(REQUEST_OVERHEAD_TOKENS + 32_768).toBe(42_768)
   })
 })

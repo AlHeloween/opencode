@@ -18,7 +18,9 @@
  * Shrinking it re-creates the unsatisfiable budget; a lower value needs a new
  * measurement, not reclaimed margin.
  */
-export const SIDECAR_OUTPUT_TOKEN_MAX = 32_768
+// 32_768 is no longer a SEPARATE constant here: it is the FLOOR of the shared output rule
+// (`ProviderTransform.maxOutputTokens`, owner ruling 2026-09-19 «для сайдкара тоже самое»), so the
+// sidecar inherits it and scales with the window above it instead of being pinned to it.
 
 /**
  * Contingency lever, dormant by default. If a live capture still shows
@@ -52,10 +54,15 @@ export const SIDECAR_MAX_ATTEMPTS = 1
 /** Minimum delay after every capture cycle, including failed/invalid cycles. */
 export const SIDECAR_COOLDOWN_MS = 30_000
 
+/**
+ * No `outputTokenMax`: the sidecar takes the SAME budget rule as a normal turn (owner ruling
+ * 2026-09-19), whose floor is exactly the 32 768 that used to be pinned here. Passing an override
+ * would pin it back to a constant and re-open the gap between what the gate reserves and what the
+ * request asks for — the defect class this value was part of.
+ */
 export function streamOptions() {
   return {
     checkpoint: true,
-    outputTokenMax: SIDECAR_OUTPUT_TOKEN_MAX,
   } as const
 }
 

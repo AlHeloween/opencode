@@ -2,15 +2,17 @@ import { describe, expect, test } from "bun:test"
 import {
   SIDECAR_COOLDOWN_MS,
   SIDECAR_MAX_ATTEMPTS,
-  SIDECAR_OUTPUT_TOKEN_MAX,
   isCoolingDown,
   streamOptions,
 } from "../../src/session/sidecar-policy"
 
 describe("summary sidecar policy", () => {
-  test("caps each request at 32K and never repairs", () => {
-    expect(streamOptions()).toEqual({ checkpoint: true, outputTokenMax: 32_768 })
-    expect(SIDECAR_OUTPUT_TOKEN_MAX).toBe(32_768)
+  test("inherits the shared budget rule instead of pinning one, and never repairs", () => {
+    // Owner ruling 2026-09-19 («для сайдкара тоже самое»): the sidecar no longer carries its own
+    // MAX. It inherits `ProviderTransform.maxOutputTokens`, whose 32 768 FLOOR is exactly the value
+    // that used to be pinned here, so nothing guaranteed is lost — and the budget now scales with
+    // the window instead of disagreeing with what the gate reserves.
+    expect(streamOptions()).toEqual({ checkpoint: true })
     // ONE attempt, not two: the forced gap-fill repair was retired on 2026-09-18 —
     // widening the summary template made a four-section body invalid, so every such
     // capture took a SECOND request and could still come back invalid (measured

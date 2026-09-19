@@ -91,22 +91,37 @@ export function estimateRequestTokens(contentTokens: number): number {
 }
 
 /**
- * Hard floor: the summary response must always have this much generation room
- * under the provider limit — otherwise the provider cuts input content.
+ * Generation room the summary response must have under the provider limit — otherwise the provider
+ * cuts input content.
+ *
+ * Owner ruling 2026-09-14, still binding: «always ≥32K room for generation, never risk truncated
+ * content». Owner ruling 2026-09-19 («для сайдкара тоже самое») makes the reserve scale with the
+ * window — but as a FLOOR, not as a strict copy of the request.
+ *
+ * Why the floor cannot be dropped: `ProviderTransform.maxOutputTokens` returns
+ * `min(model.limit.output, budget)`, so a model declaring an 8 192 output ceiling would drive the
+ * RESERVE down to 8 192 — a gate reserving less than the summary needs is the truncation the ruling
+ * forbids, and three tests caught exactly that when this function copied the request outright.
+ *
+ * For a fit gate the asymmetry is the point: over-reserving folds early and costs a round trip;
+ * under-reserving truncates content. So this derives UP from the shared rule and never below 32 768.
  */
-export const SUMMARY_GENERATION_RESERVE_TOKENS = 32_768
+export const SUMMARY_GENERATION_FLOOR_TOKENS = 32_768
+
+export function summaryGenerationReserve(model: Provider.Model): number {
+  return Math.max(SUMMARY_GENERATION_FLOOR_TOKENS, ProviderTransform.maxOutputTokens(model))
+}
 
 /**
- * True when the full-M summary request + the 32K generation reserve would
- * exceed the provider limit. Compaction MUST fire before the summary in that
- * case (user invariant: always ≥32K room for generation, never risk truncated
- * content). Unknown limits (≤0) never block.
+ * True when the full-M summary request + the generation reserve would exceed the provider limit.
+ * Compaction MUST fire before the summary in that case (user invariant: always room for generation,
+ * never risk truncated content). Unknown limits (≤0) never block.
  */
 export function summaryNeedsCompactFirst(input: { model: Provider.Model; contentTokens: number }): boolean {
   const limit =
     TokenCalibration.getObservedLimit(input.model) ?? input.model.limit.input ?? input.model.limit.context
   if (limit <= 0) return false
-  return estimateRequestTokens(input.contentTokens) + SUMMARY_GENERATION_RESERVE_TOKENS > limit
+  return estimateRequestTokens(input.contentTokens) + summaryGenerationReserve(input.model) > limit
 }
 
 /**

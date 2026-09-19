@@ -50,15 +50,18 @@ import MAX_STEPS from "../session/prompt/max-steps.txt"
 
 /** Bounded replay of completed tool outputs keeps per-turn cache-miss blocks small.
  *  Config: tool_output.replay_max_chars (default MessageV2.REPLAY_TOOL_OUTPUT_MAX_CHARS).
- *  Deliver-once (2026-09-07): currentTurnAssistantID marks the assistant turn
- *  whose tool parts replay in FULL (delivery); earlier turns' heavy results
- *  collapse to byte-stable ID-addressed placeholders (message-v2.ts). */
+ *  Deliver-once (2026-09-07): afterMessageID is the TURN BOUNDARY — the last user
+ *  message. Every assistant message after it replays its tool parts in full
+ *  (delivery); heavy results from earlier turns collapse to byte-stable
+ *  ID-addressed placeholders (message-v2.ts). Passing the newest assistant
+ *  message instead made the window one step wide, so a heavy result collapsed
+ *  as soon as the turn took its next step. */
 const toolReplayOptions = (
   cfg: { tool_output?: { replay_max_chars?: number } },
-  currentTurnAssistantID?: string,
+  afterMessageID?: string,
 ) => ({
   toolOutputMaxChars: cfg.tool_output?.replay_max_chars ?? MessageV2.REPLAY_TOOL_OUTPUT_MAX_CHARS,
-  currentTurnAssistantID,
+  afterMessageID,
 })
 import { ToolRegistry } from "@/tool/registry"
 import { MCP } from "../mcp"
@@ -2351,7 +2354,7 @@ export const layer = Layer.effect(
                 const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                   msgs,
                   model,
-                  toolReplayOptions(yield* config.get(), lastAssistant?.id),
+                  toolReplayOptions(yield* config.get(), lastUser?.id),
                 )
                 modelMsgs = converted.messages
                 modelMessageIDs = Checkpoint.expandMessageIDs(msgs.map((m) => m.info.id), converted.counts)
@@ -2360,7 +2363,7 @@ export const layer = Layer.effect(
                 const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                   suffix,
                   model,
-                  toolReplayOptions(yield* config.get(), lastAssistant?.id),
+                  toolReplayOptions(yield* config.get(), lastUser?.id),
                 )
                 modelMsgs = [...prefixModel, ...converted.messages]
                 // IDs must index modelMsgs positions, not DB messages: an assistant
@@ -2379,7 +2382,7 @@ export const layer = Layer.effect(
               const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                 msgs,
                 model,
-                toolReplayOptions(yield* config.get(), lastAssistant?.id),
+                toolReplayOptions(yield* config.get(), lastUser?.id),
               )
               modelMsgs = converted.messages
               modelMessageIDs = Checkpoint.expandMessageIDs(msgs.map((m) => m.info.id), converted.counts)

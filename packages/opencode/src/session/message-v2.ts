@@ -863,7 +863,7 @@ function evictIfFull() {
 /**
  * Deliver-once replay gate (2026-09-07, Alexander): tool outputs heavier than
  * this (chars) collapse to a stable ID-addressed placeholder on every build
- * EXCEPT the delivery turn (currentTurnAssistantID). Byte-stable text keeps
+ * EXCEPT the delivery turn (afterMessageID). Byte-stable text keeps
  * the provider prefix cache warm; Token estimate reads placeholders, not
  * pages — the compaction threshold stops depending on history heaviness.
  * 32k replay cap stays as the delivery-turn ceiling.
@@ -871,10 +871,10 @@ function evictIfFull() {
 export const TOOL_PLACEHOLDER_THRESHOLD_CHARS = 8_000
 
 /**
- * Delivery-turn sentinel: pass this as `currentTurnAssistantID` when NO message
+ * Delivery-turn sentinel: pass this as `afterMessageID` when NO message
  * is the delivery turn, so every heavy tool output collapses to its placeholder.
  *
- * Leaving the option unset does the opposite — `!currentTurnAssistantID` reads as
+ * Leaving the option unset does the opposite — `!afterMessageID` reads as
  * "every turn is the delivery turn" and replays everything in full. That default
  * is why the sidecar checkpoint diverged from the trunk: the checkpoint was built
  * with the option unset, so it froze 17 tool results at full size (401_856 chars,
@@ -883,9 +883,10 @@ export const TOOL_PLACEHOLDER_THRESHOLD_CHARS = 8_000
  * recomputed 541_502 tokens — 48% of that session's entire cache miss
  * (measured 2026-09-15).
  *
- * Any string that cannot be a message ID works; this one is explicit about why.
+ * MUST compare greater than every ULID message id: the gate is now "ids strictly after this one
+ * are the current turn", so a smaller sentinel would silently make real messages current.
  */
-export const NO_DELIVERY_TURN = "__no_delivery_turn__"
+export const NO_DELIVERY_TURN = "\uffff"
 
 /**
  * Markers of a DELIBERATE replay reduction — shared with the stability check in `llm.ts`.
@@ -947,13 +948,14 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
   options?: {
     toolOutputMaxChars?: number
     /**
-     * Deliver-once (2026-09-07, Alexander): message ID of the assistant turn
-     * being continued. Tool parts of THIS turn replay in full (up to
-     * toolOutputMaxChars) — that is the delivery; tool parts of EARLIER turns
-     * heavier than TOOL_PLACEHOLDER_THRESHOLD_CHARS collapse to a byte-stable
-     * ID-addressed placeholder so history stops cloning heavy content.
+     * Deliver-once (2026-09-07, Alexander): BOUNDARY message id — the last user message.
+     * Every assistant message with a GREATER id is the current turn and replays its tool
+     * parts in full (up to toolOutputMaxChars); tool parts of EARLIER turns heavier than
+     * TOOL_PLACEHOLDER_THRESHOLD_CHARS collapse to a byte-stable ID-addressed placeholder.
+     * One assistant message was the wrong boundary: a user turn spans several assistant
+     * steps, so a heavy result collapsed the moment the next step began.
      */
-    currentTurnAssistantID?: string
+    afterMessageID?: string
   },
 ) {
   const result: UIMessage[] = []
@@ -1043,11 +1045,11 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
     // Per-message conversion cache: skip redundant conversion of stable messages.
     // The key includes all provider-visible part state, including tool outputs.
     const contentFp = hashParts(msg.parts)
-    // currentTurnAssistantID is part of the key: the same message must
+    // afterMessageID is part of the key: the same message must
     // convert differently when it is the delivery turn (full replay) vs an
     // earlier turn (placeholder) — a shared cache entry would clone the
     // full text into the wrong request.
-    const cacheKey = `${msg.info.id}:${model.id}:${options?.toolOutputMaxChars ?? 0}:${options?.currentTurnAssistantID ?? ""}:${contentFp}`
+    const cacheKey = `${msg.info.id}:${model.id}:${options?.toolOutputMaxChars ?? 0}:${options?.afterMessageID ?? ""}:${contentFp}`
     const cached = cache.get(cacheKey)
     if (cached) {
       result.push(cached)
@@ -1134,10 +1136,13 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             // Deliver-once replay gate (2026-09-07): tool parts of the CURRENT
             // turn deliver in full; heavy parts of EARLIER turns collapse to a
             // byte-stable ID-addressed placeholder. Light parts always replay.
-            // UNSET currentTurnAssistantID = legacy behavior everywhere (title,
+            // UNSET afterMessageID = legacy behavior everywhere (title,
             // checkpoint conversions) — no gating, full replay up to the cap.
+            // The delivery window is the WHOLE CURRENT USER TURN, not one assistant message. Ordering
+            // by id is the existing idiom (`prompt.ts` compares `lastUser.id < lastAssistant.id`), and
+            // message ids are ascending ULIDs — so "after the last user message" is a comparison.
             const isCurrentTurn =
-              !options?.currentTurnAssistantID || options.currentTurnAssistantID === msg.info.id
+              options?.afterMessageID === undefined || msg.info.id > options.afterMessageID
             const rawOutput = part.state.time.compacted ? "" : stripFloodReminderBlocks(part.state.output)
             const outputText = part.state.time.compacted
               ? REPLAY_CLEARED_MARKER
@@ -1290,7 +1295,7 @@ export function toModelMessages(
   model: Provider.Model,
   options?: {
     toolOutputMaxChars?: number
-    currentTurnAssistantID?: string
+    afterMessageID?: string
   },
 ): Promise<ModelMessage[]> {
   return Effect.runPromise(toModelMessagesEffect(input, model, options).pipe(Effect.provide(EffectLogger.layer)))
@@ -1301,7 +1306,7 @@ export function toModelMessages(
  * each produced. Used by checkpoint save so prefix reuse can slice past
  * expanded tool-result messages (assistant tool-call → assistant + tool roles).
  *
- * Deliver-once: when `currentTurnAssistantID` is set, that assistant message's
+ * Deliver-once: when `afterMessageID` is set, that assistant message's
  * tool parts replay in full (delivery); earlier turns' heavy parts collapse to
  * ID-addressed placeholders.
  */
@@ -1310,7 +1315,7 @@ export const toModelMessagesWithCountsEffect = Effect.fnUntraced(function* (
   model: Provider.Model,
   options?: {
     toolOutputMaxChars?: number
-    currentTurnAssistantID?: string
+    afterMessageID?: string
   },
 ) {
   const messages: ModelMessage[] = []

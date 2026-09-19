@@ -89,13 +89,20 @@ compaction.ts:200,1001 [file: <name> (<mime>)]                ← into the summa
 So after a fold the **summary is the index the agent reads**, and three things follow:
 
 1. **~~The summary must render the ordinal~~ — CORRECTED: it already does, with no code change.**
-   The caption is a **stored synthetic TEXT part**, and BOTH summary renderers render every text part
-   unconditionally: `compaction.ts:179` and `:982` both carry the comment «Render ALL text parts
-   regardless of `ignored` flag», and `:235` counts them the same way. A grep for `synthetic` in
-   `compaction.ts` returns no filter on any rendering path. So the ordinal reaches the summary because
-   it was frozen into the text at ingestion — which is the whole reason for freezing it there.
-   The plan's original claim (that the summary renders only the `file` part) was wrong; the summary
-   renders the `file` placeholder **and** the caption, two lines for one image.
+   Grounded end to end, three links, each read rather than inferred:
+   - **written** — `prompt.ts:1757` runs `sessions.updatePart(part)` for EVERY part in the array, and
+     the caption is in that array (`:1707`), receiving its `id` from `assign`.
+   - **schema-valid** — `prompt.ts:1742-1754` runs `MessageV2.Part.zod.safeParse(part)` and logs
+     `invalid user part before save` on failure. `message-v2.ts:122-142` shows `TextPart` requires
+     `id`, `sessionID`, `messageID`, `type: "text"`, `text`; the caption has exactly those plus
+     `synthetic`, which is optional. So the parse succeeds and no error is logged.
+   - **rendered** — `compaction.ts:179` and `:982` both carry «Render ALL text parts regardless of
+     `ignored` flag», `:235` counts them the same, and a grep for `synthetic` in `compaction.ts`
+     returns no filter on any rendering path.
+   ∴ the ordinal reaches the summary because it was frozen into the text at ingestion — which is the
+   whole reason for freezing it there. The plan's original claim (that the summary renders only the
+   `file` part) was wrong: the summary renders the `file` placeholder **and** the caption, two lines
+   for one image.
 
    **The real gap this leaves: images ingested before the caption existed** (every session so far).
    Their summary link carries no number and nothing can invent one per-message. This is exactly what

@@ -3149,3 +3149,44 @@ describe("session.compaction.full-cycle", () => {
     ),
   )
 })
+
+test("the tail is contiguous with the summaries — a late summary leaves no hole", () => {
+  // The case the selector must never regress. A summary fires LATE, so the range
+  // it COVERS ends at #3 while its ROW sits at #8. Taking the row as the boundary
+  // leaves #4..#7 represented by NOTHING — the owner's picture, verbatim:
+  // «чтобы не было s..s..s xxxxx (what happened there) xxx 32k tokens?»
+  // `coveredThroughIndex` is the covered END, and everything after it is
+  // mandatory tail whatever its size; only past it may the floor stop the walk.
+  //
+  // Hand-built on purpose: `selectRecentTail` is pure and reads only
+  // `info.id`/`info.role`/`summary` and text parts, so every field these objects
+  // omit is a field it never touches.
+  const mk = (id: string, text: string, summary = false) =>
+    ({
+      info: { id, role: summary ? "assistant" : "user", ...(summary ? { summary: true } : {}) },
+      parts: [{ type: "text", text }],
+    }) as never
+
+  const msgs = [
+    mk("msg_1", "covered-1"),
+    mk("msg_2", "covered-2"),
+    mk("msg_3", "covered-3"), // index 2 — the COVERED END
+    mk("msg_4", "hole-4"), // index 3 — represented by nothing without the fix
+    mk("msg_5", "hole-5"),
+    mk("msg_6", "hole-6"),
+    mk("msg_7", "hole-7"),
+    mk("msg_8", "the summary row", true), // index 7 — the ROW, not the boundary
+    mk("msg_9", "after-the-row"),
+  ]
+
+  // minTokens = 1: the floor is already satisfied, so only the boundary decides.
+  expect(SessionCompaction.selectRecentTail(msgs, 1, 2).map((m) => m.info.id as string)).toEqual([
+    "msg_4",
+    "msg_5",
+    "msg_6",
+    "msg_7",
+    "msg_9",
+  ])
+  // …whereas the summary ROW as boundary drops the hole entirely — the defect.
+  expect(SessionCompaction.selectRecentTail(msgs, 1).map((m) => m.info.id as string)).toEqual(["msg_9"])
+})

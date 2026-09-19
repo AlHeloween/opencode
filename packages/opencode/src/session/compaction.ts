@@ -273,10 +273,20 @@ function isSummaryAssistant(msg: MessageV2.WithParts): boolean {
  * crosses the floor is kept WHOLE, so the tail may overshoot it — never split a
  * message. With no summary at all (a manual /compact on a fresh session) there is
  * no epoch boundary, and the floor alone decides, exactly as before.
+ *
+ * `coveredThroughIndex` — the 0-based index of the newest message a summary
+ * actually COVERS — is the boundary the tail must be CONTIGUOUS with, and it is
+ * passed in by the caller that parsed the ranges rather than re-derived here (one
+ * implementation of "which messages are represented"). Using the summary ROW as
+ * the boundary instead leaves a hole whenever a summary fired late: that covered
+ * range ends at #50, the row sits at #80, and #51..#79 are represented by NOTHING
+ * — «s..s..s [xxxxx what happened there?] tail» (owner, 2026-09-19). Everything
+ * after the covered end is therefore MANDATORY tail, whatever its size.
  */
 export function selectRecentTail(
   msgs: MessageV2.WithParts[],
   minTokens: number = RECENT_MIN_TOKENS,
+  coveredThroughIndex?: number,
 ): MessageV2.WithParts[] {
   const summaryParents = new Set<string>()
   let lastSummary = -1
@@ -290,6 +300,10 @@ export function selectRecentTail(
   const minChars = minTokens * CHARS_PER_TOKEN
   const selected: MessageV2.WithParts[] = []
   let chars = 0
+  // The covered end is authoritative when the caller could resolve it; the
+  // summary ROW is only the fallback (a fixture or a legacy summary with no
+  // from_id/to_id). `-1` = neither exists, so the floor is the only rule.
+  const boundary = coveredThroughIndex ?? lastSummary
   for (let i = msgs.length - 1; i >= 0; i--) {
     const m = msgs[i]!
     if (isMessageStar(m)) continue
@@ -297,13 +311,12 @@ export function selectRecentTail(
     if (isSummaryRequestMessage(m)) continue
     if (isSummaryAssistant(m)) continue
     if (summaryParents.has(m.info.id)) continue
-    // The EPOCH — everything AFTER the previous summary — is kept whole: no break
-    // inside it, however large it is. Once the epoch is exhausted the floor
-    // decides how much older history the tail still reaches, which is why this
-    // check sits BEFORE the add: the message that crosses the boundary must not
-    // be conscripted into the epoch. `lastSummary < 0` = no summary exists, so
-    // the floor is the only rule (manual /compact on a fresh session).
-    if ((lastSummary < 0 || i < lastSummary) && chars >= minChars) break
+    // Everything after the covered end is MANDATORY tail — a message the
+    // summaries do not cover is the hole, and no break may happen inside it,
+    // however large it is. Only once we are at the represented region may the
+    // floor stop the walk, which is why this check sits BEFORE the add: the
+    // message at the boundary must not be conscripted into the tail.
+    if ((boundary < 0 || i <= boundary) && chars >= minChars) break
     selected.unshift(m)
     chars += tailContentChars(m)
   }
@@ -1441,6 +1454,15 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         const positions = new Map<string, number>()
         msgs.forEach((m, i) => positions.set(m.info.id, i + 1))
         const positionOf = (id: string) => positions.get(id)
+        // The boundary the tail must be CONTIGUOUS with: the newest message any
+        // summary actually COVERS. The summary ROW is not the boundary — when a
+        // summary fires late the messages between its covered range and its row
+        // are represented by nothing, and taking the row would drop them
+        // («s..s..s [xxxxx what happened there?] tail», owner 2026-09-19).
+        const coveredPositions = summaries
+          .map((s) => (s.toId ? positions.get(s.toId) : undefined))
+          .filter((n): n is number => n != null)
+        const coveredThroughIndex = coveredPositions.length > 0 ? Math.max(...coveredPositions) - 1 : undefined
         {
           const maxChars = MAX_SUMMARY_BODY_TOKENS * CHARS_PER_TOKEN
           const rendered = (s: SummaryEntry) =>
@@ -1457,7 +1479,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         // included) and skips memory-machinery rows — prior m* rows never
         // enter another m*; every real message (including ones folded into a
         // prior m* tail) is re-eligible. Deterministic → idempotent compacts.
-        const recent = selectRecentTail(msgs, RECENT_MIN_TOKENS)
+        const recent = selectRecentTail(msgs, RECENT_MIN_TOKENS, coveredThroughIndex)
 
         // Prior m* decisions are NOT pulled forward — each m* owns its own decisions.
 

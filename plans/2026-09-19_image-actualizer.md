@@ -165,14 +165,86 @@ adaptive-client.ts:347   applied per request for z-ai/glm/deepseek
 provider.ts:1639         gatewayModel: model.id  ← what that condition tests
 ```
 
-And the gateway can key on the SESSION, which is what an active set needs:
+And the gateway can key on the SESSION — but **the header that carries it depends on the provider**,
+which a read of the block corrects:
 
 ```
-llm.ts:963               "x-opencode-session": input.sessionID      ← the session rides in a header
-adaptive-client.ts:389   headers["x-opencode-provider"]              ← the gateway READS these
-adaptive-client.ts:398   headers["x-opencode-has-attachments"]       ← it already reasons about attachments
-adaptive-client.ts:129   x-opencode-* are stripped BEFORE the provider sees them  ← internal by design
+llm.ts:961-968   x-opencode-session is sent ONLY when providerID.startsWith("opencode")
+                 ⇒ for our own deepseek/deepseek-flash it is NOT SENT AT ALL
+llm.ts:957-959   x-request-id / x-session-id / x-session-affinity
+                 x-session-id = providerID === "openrouter" ? providerCacheKey : input.sessionID
+                 ⇒ for deepseek the session rides in x-session-id
+adaptive-client.ts:376  the gateway already knows both names
 ```
+
+So the transform must resolve the session from **`x-opencode-session` OR `x-session-id`**, and must not
+assume the opencode-only one. (This corrects what I first wrote here from a partial read.)
+
+### The modality gate — the owner's one condition, and how this layer expresses it
+Owner, 2026-09-19: «Единственное мы должны проверять модальность — можно или нельзя.»
+
+**The gateway does not look up models; it reads facts from headers.** That is the established shape:
+
+```
+adaptive-client.ts:389-398   reads x-opencode-provider, x-opencode-model, x-opencode-endpoint-kind,
+                             x-opencode-has-tools, x-opencode-max-tokens, x-opencode-context-tokens,
+                             x-opencode-has-attachments
+llm.ts:944-979               where those headers are composed, with `input.model` in hand
+```
+
+So the modality verdict must ARRIVE as a header, decided where the model object exists — the same
+predicate already used at `prompt.ts:1411` (`mdl.value.capabilities?.input?.image`) and named once in
+`media-token-calibration.ts:40` (`modelSupports`). Injecting a frame into a request for a model that
+cannot take images is exactly the provider-side 400 this design exists to avoid, and the refusal must
+be local.
+
+**Not verified, and worth one check before implementing:** `x-opencode-has-attachments` is READ at
+`adaptive-client.ts:398` and I found no writer in the header block — it may come from the `...headers`
+spread. If it truly has no writer, that read is dead, and it is the natural place to hang the modality
+verdict rather than inventing a second flag.
+
+### CHECKED — and it is worse than "one dead read": FIVE reads, ZERO writers
+
+Grepped the whole package for the family. Every one of these is read by the gateway and written by
+NOTHING:
+
+| header | read at | consequence |
+|---|---|---|
+| `x-opencode-endpoint-kind` | `:391` | always the default `"chat"` |
+| `x-opencode-has-tools` | `:394` | `hasTools` is **always false** |
+| `x-opencode-max-tokens` | `:396` | `maxTokens` is **always undefined** |
+| `x-opencode-context-tokens` | `:397` | `contextTokens` is **always undefined** |
+| `x-opencode-has-attachments` | `:398` | `hasAttachments` is **always false** |
+
+`classify()` therefore runs on constants, and the ladder collapses at its SECOND rung:
+
+```
+classifier.ts:26  hasAttachments        → false   ⇒ "file_attached" UNREACHABLE
+classifier.ts:27  hasTools && max>1000  → false   ⇒ "long_codegen_stream" UNREACHABLE
+classifier.ts:28  if (streaming) → "stream_default"   ← every streaming request lands HERE
+classifier.ts:29  hasTools              → false   ⇒ "tool_planning" UNREACHABLE
+classifier.ts:30  contextTokens > 50k   → undefined ⇒ "large_context_sync" UNREACHABLE
+classifier.ts:31  maxTokens < 200       → undefined ⇒ "tiny_sync" UNREACHABLE
+```
+
+**Four of the five shape classes are dead**, and the gateway cannot tell a tool-planning turn from a
+100k-context turn from a file-attached one. Only `streaming` is genuinely derived (from the body,
+`adaptive-client.ts:249`).
+
+### So the modality gate needs NO new surface — it needs the missing WRITER
+`x-opencode-has-attachments` is exactly the right hook and is already read. One writer in the header
+block of `llm.ts` (`:944-979`, where `input.model` is in hand) computing
+`input.model.capabilities?.input?.image === true` — the same predicate `prompt.ts:1411` and
+`media-token-calibration.ts:40 modelSupports` already use — does three things at once:
+
+1. gives the gateway's `applyActiveFrames` its **modality verdict** (inject or refuse **locally**);
+2. **revives `file_attached`** and, with siblings for the other four, the whole classifier;
+3. introduces no new surface — it connects a read that was always there.
+
+Recorded as a DEFECT as well as a design input: five readers with no writer is the same class the whole
+project is fighting, and it has been silently shaping gateway routing.
+
+
 
 **So the whole design collapses to one function:**
 

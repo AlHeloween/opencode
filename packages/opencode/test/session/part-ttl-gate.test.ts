@@ -134,4 +134,22 @@ describe("the declared-lifetime gate", () => {
     const { body } = await wire(toolPart("prt-unjudged", 100), undefined)
     expect(body).toContain(SPAM)
   })
+
+  test("a cached pre-release entry is never served after the release — the fingerprint carries it", async () => {
+    const part = toolPart("prt-cached", 5)
+    MessageV2.clearConversionCache()
+    const input: MessageV2.WithParts[] = [{ info: assistantInfo("m-a"), parts: [part] }]
+
+    // Turn 4 — the span is still RUNNING, so this entry is the full payload.
+    const running = await MessageV2.toModelMessages(input, model, { turn: 4 })
+    expect(JSON.stringify(running)).toContain(SPAM)
+
+    // The SAME parts, now past the span, with no clearing in between: the release must reach the wire
+    // even though these very messages are already cached. It holds because the release REWRITES the
+    // parts and the cache key is taken from them — established by the negative control that dropped a
+    // `turn` component from the key and left this case green.
+    const spent = await MessageV2.toModelMessages(input, model, { turn: 6 })
+    expect(JSON.stringify(spent)).not.toContain(SPAM)
+    expect(JSON.stringify(spent)).toContain("prt-cached")
+  })
 })

@@ -4,6 +4,7 @@ import z from "zod"
 import * as EffectZod from "@/util/effect-zod"
 import { SessionID, MessageID, PartID } from "./schema"
 import { MessageV2 } from "./message-v2"
+import { currentTurn } from "./turn"
 import * as Log from "@opencode-ai/core/util/log"
 import { SessionRevert } from "./revert"
 import * as Session from "./session"
@@ -25,6 +26,7 @@ import {
   needsContentCompaction,
 } from "./overflow"
 import * as CompactionRequest from "./compaction-request"
+import * as AcquiredSet from "./acquired-item-store"
 import { Jobs } from "../jobs"
 import { RequestDiff } from "./request-diff"
 import { Checkpoint, type CheckpointData } from "./checkpoint"
@@ -55,13 +57,34 @@ import MAX_STEPS from "../session/prompt/max-steps.txt"
  *  (delivery); heavy results from earlier turns collapse to byte-stable
  *  ID-addressed placeholders (message-v2.ts). Passing the newest assistant
  *  message instead made the window one step wide, so a heavy result collapsed
- *  as soon as the turn took its next step. */
+ *  as soon as the turn took its next step.
+ *
+ *  Declared lifetime (2026-09-19): the third argument is the SESSION whose history is
+ *  being converted, and the current turn is derived from it HERE — one resolver, not
+ *  an expression repeated at every call site that would otherwise have to remember
+ *  it. The turn is what lets a part whose declared span has passed stop sending its
+ *  payload, and the conversion's own cache key carries it (message-v2.ts), so a
+ *  release cannot be undone by a cache entry taken while the span was still running.
+ *
+ *  Every conversion of session history goes through here, and not only the request:
+ *  the checkpoint paths MUST see the same turn, because a checkpoint has to store what
+ *  the trunk sends — one built without it froze full tool outputs the trunk had already
+ *  collapsed (prefix divergence from message 9, 541_502 tokens recomputed, 2026-09-07).
+ *
+ *  Both arguments are required, and passing `undefined` is a DECISION rather than an
+ *  omission: a site that judges nothing says so at the call, and a site added later
+ *  cannot inherit "no release" by forgetting. The compiler asks at every one of them.
+ *  The single exception is title generation, which names the session's opening messages
+ *  rather than delivering history to the main model, and runs where no declared span can
+ *  have passed — it passes neither argument, deliberately. */
 const toolReplayOptions = (
   cfg: { tool_output?: { replay_max_chars?: number } },
-  afterMessageID?: string,
+  afterMessageID: string | undefined,
+  sessionID: SessionID | undefined,
 ) => ({
   toolOutputMaxChars: cfg.tool_output?.replay_max_chars ?? MessageV2.REPLAY_TOOL_OUTPUT_MAX_CHARS,
   afterMessageID,
+  turn: sessionID === undefined ? undefined : currentTurn(sessionID),
 })
 import { ToolRegistry } from "@/tool/registry"
 import { MCP } from "../mcp"
@@ -341,7 +364,7 @@ export const layer = Layer.effect(
         if (mdl) {
           const msgs = onlySubtasks
             ? [{ role: "user" as const, content: subtasks.map((p) => p.prompt).join("\n") }]
-            : yield* MessageV2.toModelMessagesEffect(context, mdl, toolReplayOptions(yield* config.get())).pipe(
+            : yield* MessageV2.toModelMessagesEffect(context, mdl, toolReplayOptions(yield* config.get(), undefined, undefined)).pipe(
                 Effect.catchCause((cause) => {
                   elog.error("title model messages failed", { error: Cause.squash(cause) })
                   return Effect.succeed([] as ModelMessage[])
@@ -1179,7 +1202,7 @@ export const layer = Layer.effect(
         const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
           visible,
           model,
-          toolReplayOptions(yield* config.get(), MessageV2.NO_DELIVERY_TURN),
+          toolReplayOptions(yield* config.get(), MessageV2.NO_DELIVERY_TURN, input.sessionID),
         )
         const checkpointData = {
           kind: Checkpoint.CHECKPOINT_KIND,
@@ -2365,7 +2388,7 @@ export const layer = Layer.effect(
                 const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                   msgs,
                   model,
-                  toolReplayOptions(yield* config.get(), lastUser?.id),
+                  toolReplayOptions(yield* config.get(), lastUser?.id, sessionID),
                 )
                 modelMsgs = converted.messages
                 modelMessageIDs = Checkpoint.expandMessageIDs(msgs.map((m) => m.info.id), converted.counts)
@@ -2374,7 +2397,7 @@ export const layer = Layer.effect(
                 const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                   suffix,
                   model,
-                  toolReplayOptions(yield* config.get(), lastUser?.id),
+                  toolReplayOptions(yield* config.get(), lastUser?.id, sessionID),
                 )
                 modelMsgs = [...prefixModel, ...converted.messages]
                 // IDs must index modelMsgs positions, not DB messages: an assistant
@@ -2393,7 +2416,7 @@ export const layer = Layer.effect(
               const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                 msgs,
                 model,
-                toolReplayOptions(yield* config.get(), lastUser?.id),
+                toolReplayOptions(yield* config.get(), lastUser?.id, sessionID),
               )
               modelMsgs = converted.messages
               modelMessageIDs = Checkpoint.expandMessageIDs(msgs.map((m) => m.info.id), converted.counts)
@@ -2640,7 +2663,7 @@ export const layer = Layer.effect(
                 const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                   visibleAfter,
                   model,
-                  toolReplayOptions(yield* config.get()),
+                  toolReplayOptions(yield* config.get(), undefined, sessionID),
                 )
                 const checkpointData = {
                   kind: Checkpoint.CHECKPOINT_KIND,
@@ -2681,7 +2704,19 @@ export const layer = Layer.effect(
               // turn: forced/capture-then-forced when the `compact` tool armed
               // this turn, defer when a new s was just captured and nothing
               // asked, plain window-fill cadence otherwise.
-              switch (CompactionRequest.foldDecision({ requested: foldRequest.requested, captureDue, sidecarCaptured })) {
+              const foldChoice = CompactionRequest.foldDecision({
+                requested: foldRequest.requested,
+                captureDue,
+                sidecarCaptured,
+              })
+              // Compaction is a HARD release trigger (owner ruling, plan §0.9.1): held content must not
+              // survive a fold. Releasing FIRST means the window is rebuilt without it, and the pointer
+              // left where the payload was is what tells the model what happened — it decides what to do
+              // next («приведет дела в порядок, сделает компакт и захватит файлы снова»). `defer` folds
+              // nothing, so nothing is released: the two decisions are made in ONE place, so they cannot
+              // disagree.
+              if (foldChoice !== "defer") AcquiredSet.releaseAll(sessionID)
+              switch (foldChoice) {
                 case "forced":
                   yield* slog.info("layer2.cadence.requested", {
                     sessionID,
@@ -2803,7 +2838,7 @@ export const layer = Layer.effect(
                   const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                     checkpointMsgs.slice(prefixLen),
                     model,
-                    toolReplayOptions(yield* config.get()),
+                    toolReplayOptions(yield* config.get(), undefined, sessionID),
                   )
                   fullModel = [...prefixModel, ...converted.messages]
                   modelMessageCounts = [
@@ -2814,7 +2849,7 @@ export const layer = Layer.effect(
                   const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                     checkpointMsgs,
                     model,
-                    toolReplayOptions(yield* config.get()),
+                    toolReplayOptions(yield* config.get(), undefined, sessionID),
                   )
                   fullModel = converted.messages
                   modelMessageCounts = converted.counts

@@ -1230,6 +1230,14 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
     // convert differently when it is the delivery turn (full replay) vs an
     // earlier turn (placeholder) — a shared cache entry would clone the
     // full text into the wrong request.
+    //
+    // The declared lifetime needs NO component of its own here, and that is worth stating
+    // because the opposite looks compelling: a release REWRITES the parts (the payload becomes
+    // the note), and this fingerprint is taken FROM those parts — so a pre-release entry and a
+    // released one cannot share a key, at any turn. MEASURED, not reasoned: the gate suite's
+    // cache case passes with and without a `turn` component, and the negative control that
+    // removes it stays green — the property holds structurally rather than by this line. Adding
+    // `turn` would be a guard over an invariant contentFp already derives.
     const cacheKey = `${msg.info.id}:${model.id}:${options?.toolOutputMaxChars ?? 0}:${options?.afterMessageID ?? ""}:${contentFp}`
     const cached = cache.get(cacheKey)
     if (cached) {

@@ -391,6 +391,23 @@ rules: Schema.optional(Schema.Record(Schema.String, Schema.Union([Schema.Boolean
   gateway: Schema.optional(
     Schema.Struct({
       logDir: Schema.optional(Schema.String).annotate({ description: "Gateway log directory" }),
+      // Temporary data acquisition (plan §0.4, §0.9): the RUNTIME reads these and hands the gateway an
+      // instruction; the gateway owns no switch of its own, because it withholds only what it is handed.
+      // Every limit is a number in a file rather than a constant in a function, and none of them is
+      // redundant: bytes stop «захватить 1 гигабайт», tokens stop the window from fouling, and the count
+      // is what keeps the header transport valid (§0.3).
+      tda: Schema.optional(
+        Schema.Struct({
+          enabled: Schema.optional(Schema.Boolean).annotate({
+            description: "Master switch — OFF unless declared (§0.9-4)",
+          }),
+          holdTurns: Schema.optional(Schema.Number).annotate({ description: "Declared lifetime, in user turns" }),
+          maxItems: Schema.optional(Schema.Number).annotate({ description: "Item COUNT cap — the header's size" }),
+          maxItemBytes: Schema.optional(Schema.Number).annotate({ description: "Per-item BYTE cap" }),
+          maxHeldTokens: Schema.optional(Schema.Number).annotate({ description: "Held-total TOKEN cap against usable()" }),
+          priceMargin: Schema.optional(Schema.Number).annotate({ description: "Reserve for an inexactly-priced item" }),
+        }),
+      ).annotate({ description: "Temporary data acquisition — one margin, three caps, off by default" }),
     }),
   ).annotate({ description: "Gateway configuration" }),
   terminal: Schema.optional(

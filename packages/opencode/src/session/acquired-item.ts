@@ -82,13 +82,20 @@ export function tdaHeaderValue(items: TdaHeld[], turn: Turn): string | undefined
  * WHICH headers the instruction may ride in — a pure decision, so the contract's boundary is testable
  * without driving a whole request through the pipeline.
  *
- * `x-opencode-*` are sent EXCLUSIVELY to opencode-owned providers (`session/llm.ts`, three-layer
- * contract, 2026-09-08): third-party providers react badly to foreign namespaced headers. That makes
- * TDA INERT on deepseek-direct / novita / openrouter — a boundary, not an accident, and the honest
- * statement of where the mechanism reaches today. Returning `{}` rather than throwing keeps the send
- * site a plain spread and means an ineligible route simply carries nothing.
+ * TWO gates, and both are here rather than at the call site:
+ *  - `enabled` — the master switch, OFF unless declared (plan §0.4, §0.9-4). A pipeline that can hold a
+ *    gigabyte must be something you turned ON, and expressing that as a DEFAULT rather than as
+ *    discipline means it cannot be forgotten: a resolution can, a flag cannot.
+ *  - `x-opencode-*` are sent EXCLUSIVELY to opencode-owned providers (`session/llm.ts`, three-layer
+ *    contract, 2026-09-08): third-party providers react badly to foreign namespaced headers. That makes
+ *    TDA INERT on deepseek-direct / novita / openrouter — a boundary, not an accident, and the honest
+ *    statement of where the mechanism reaches today.
+ *
+ * Returning `{}` rather than throwing keeps the send site a plain spread and means an ineligible route
+ * simply carries nothing.
  */
-export function tdaHeaders(providerID: string, value: string | undefined): Record<string, string> {
+export function tdaHeaders(providerID: string, value: string | undefined, enabled: boolean): Record<string, string> {
+  if (!enabled) return {}
   if (value === undefined) return {}
   if (!providerID.startsWith("opencode")) return {}
   return { "x-opencode-tda": value }

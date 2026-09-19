@@ -984,9 +984,13 @@ const live: Layer.Layer<
                 // reach the gateway that WITHHOLDS (plan §0.3). It rides HERE, in the opencode-only layer,
                 // because the contract above forbids sending `x-opencode-*` to a third-party provider —
                 // so TDA is inert on those routes by design rather than by accident. The store is read on
-                // this branch only, and `tdaHeaders` returns {} whenever nothing is acquired, so a session
-                // that never acquired anything sends no header at all.
-                ...tdaHeaders(input.model.providerID, tdaHeaderFor(input.sessionID)),
+                // this branch only, `tdaHeaders` returns {} whenever nothing is acquired, and the master
+                // switch is OFF unless config declares it: an untouched install sends nothing at all.
+                ...tdaHeaders(
+                  input.model.providerID,
+                  tdaHeaderFor(input.sessionID),
+                  cfg.gateway?.tda?.enabled === true,
+                ),
               }
             : {}),
           // OpenRouter response caching (identical-request cache, 1-86400s):

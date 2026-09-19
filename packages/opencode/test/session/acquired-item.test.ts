@@ -94,17 +94,20 @@ describe("the runtime's acquisition set", () => {
     expect(parseTdaHeader(tdaHeaderValue([], 16))).toBeUndefined()
   })
 
-  test("the instruction rides ONLY where the header contract allows it", () => {
+  test("the instruction is gated by the switch AND the header contract — both pinned", () => {
     const value = tdaHeaderValue([item(5, 10)], 16)!
-    // An opencode-owned route carries it.
-    expect(tdaHeaders("opencode", value)).toEqual({ "x-opencode-tda": value })
-    expect(tdaHeaders("opencode-go", value)).toEqual({ "x-opencode-tda": value })
-    // A third-party route carries NOTHING, even with a live set: `x-opencode-*` must never be sent to a
-    // provider that did not ask for them. This is the boundary, pinned rather than described.
+    // Switch ON, opencode-owned route: it rides.
+    expect(tdaHeaders("opencode", value, true)).toEqual({ "x-opencode-tda": value })
+    expect(tdaHeaders("opencode-go", value, true)).toEqual({ "x-opencode-tda": value })
+    // Switch OFF: nothing rides, even for `opencode` with a live set. §0.9-4 — a pipeline that can hold a
+    // gigabyte must be something you turned ON, and a DEFAULT cannot be forgotten the way a resolution can.
+    expect(tdaHeaders("opencode", value, false)).toEqual({})
+    // A third-party route carries NOTHING even with the switch on: `x-opencode-*` must never be sent to a
+    // provider that did not ask for them.
     for (const provider of ["openrouter", "deepseek", "novita-ai", "openai"]) {
-      expect(tdaHeaders(provider, value)).toEqual({})
+      expect(tdaHeaders(provider, value, true)).toEqual({})
     }
-    // And nothing acquired ⇒ nothing sent, whatever the provider.
-    expect(tdaHeaders("opencode", undefined)).toEqual({})
+    // Nothing acquired ⇒ nothing sent, whatever the provider and whatever the switch.
+    expect(tdaHeaders("opencode", undefined, true)).toEqual({})
   })
 })

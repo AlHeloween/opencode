@@ -105,3 +105,55 @@ The build the owner is waiting on is **independent** of this work, but `bin/open
 every commit from today, so a build now ships tonight's budget/cleanup work and NOT this. Recommend:
 land S1–S3 first (global and worktree fills — they are what make `/agents` non-empty before a
 session exists), then S4–S5 (session fill), then S6 after the rebuild.
+
+---
+
+## 7. Inventory — the ad-hoc state this rule retires (measured 2026-09-19)
+
+Owner: «Я не про только agents — у нас соплей море, вылезло — туда, ещё вылезло — опять туда.»
+So the list, so the next "вылезло" has a DEFINED destination instead of a new file.
+
+**True runtime state — the actual сопли (not user config, not relational data):**
+
+| file | touched by | why it is a race |
+|---|---|---|
+| `{state}/model.json` | `session-settings.ts:243`, `provider.ts:1837`, `gateway/config-manager.ts:304` | **one file, three modules** — a lost-update surface by construction |
+| `{state}/kv.json` | TUI KV (`config-scope.ts:12`) | scope choice plus whatever else the KV store accumulates |
+| `{state}/plugin-meta.json` | `plugin/meta.ts:52` | |
+| `{data}/sessions/{sessionID}.jsonc` | `session-settings.ts:389` | **one file per session** |
+| `{data}/gateway/<STORE_FILE>` | `gateway/store.ts:131,181` | |
+| `{data}/memory/memory.db` | `memory/memory.ts:12` | its own SQLite beside the main one |
+| `{data}/bugs/*` | `index.ts:210` | |
+| `{data}/backups/{sessionID}/*` | `edit.ts:87`, `edit-backup.ts:17` | edit-tool `.bak` files |
+| `{data}/tool-output/*` | `truncation-dir.ts:5` | |
+
+**User-authored config — STAYS a file** (rule 3 writes back only on a real edit):
+`opencode.jsonc` / `opencode.json` / `config.json`, `auth.json`, `mcp-auth.json`, `gateway.jsonc`,
+`models_capabilities.yaml`, `tui/*`, `themes/*`.
+
+**Already relational, stays on SQLite unchanged:** sessions, messages, parts, jobs, balance, sync,
+codegraph.
+
+So the migration target is small and NAMED: the state-plane rows above, `model.json` first — it is
+the one with three writers.
+
+## 8. Engine probe — measured, so it is not re-argued (2026-09-19)
+
+`lmdb@3.5.6` (MIT, Node-API) installed and ran under Bun on this host; the prebuild
+(`download-lmdb-prebuilds11`) is fetched by `bun add`, so win32-x64 works with no compiler.
+
+| property the ruling needs | measured |
+|---|---|
+| strict key separation | **3 DBs in ONE environment** via `openDB`, read back independently ✓ |
+| sync hot-path reads | **100 000 reads in 70.7 ms = 0.71 µs/read** (mmap, no I/O) ✓ |
+| one writer / one batch queue | `transaction()` spanning two DBs committed together ✓ |
+| footprint | `data.mdb` 262 144 B (preallocated map) + `lock.mdb` 8 128 B |
+
+Two honest caveats: the `ifVersion` line in the probe is INCONCLUSIVE (the version was passed
+positionally, so both conditional puts returned false — the probe was malformed, not the feature),
+and on Windows LMDB keeps the file mapped, so `rmSync` of the directory throws `EBUSY` — a test must
+close the env, or a temp store cannot be cleaned up.
+
+Cost not yet budgeted: the `.node` addon must ship beside the compiled binary (the build already
+ships `opentui.dll` / `opencode-markdownify.exe` / `ffmpeg.exe`, so the pattern exists, but the
+`bun --compile` path for a Node-API addon is UNVERIFIED).

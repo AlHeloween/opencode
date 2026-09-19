@@ -231,6 +231,12 @@ in" must never again be answered by adding a file.
    session`, materialised, no inheritance at read time — see
    [plans/2026-09-19_fill-every-settings-layer.md](plans/2026-09-19_fill-every-settings-layer.md).
 
+**Scope: ALL runtime state, not just settings.** Owner, 2026-09-19: «Я не про только agents — у нас
+соплей море, вылезло — туда, ещё вылезло — опять туда.» Every "where does this live" answered by
+creating a file is the growth this rule exists to stop. The measured inventory — including
+`{state}/model.json`, which three modules already write — is in
+[plans/2026-09-19_fill-every-settings-layer.md](plans/2026-09-19_fill-every-settings-layer.md) §7.
+
 ### The engine — measured, do not re-argue from scratch
 
 `bun:sqlite` + `drizzle-orm` is **already** this project's store and already provides every

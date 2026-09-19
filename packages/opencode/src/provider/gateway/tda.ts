@@ -154,3 +154,46 @@ export function applyTemporaryDataAcquisition(body: string, set: TdaSet, turn: n
   }
   return replaced > 0 ? JSON.stringify(parsed) : body
 }
+
+/**
+ * The set arrives in ONE header (`x-opencode-tda`, beside the other `x-opencode-*` session facts the
+ * gateway already receives), so the parse and every one of its failure modes live here rather than in
+ * the wiring.
+ *
+ * Every failure answers `undefined` — no header, malformed JSON, wrong shape, nothing held — because
+ * this sits on the hot path of every request: an unreadable instruction must degrade to "nothing is
+ * held", never to a throw and never to a half-applied set. That is the same rule the transform itself
+ * follows when a body does not parse.
+ *
+ * `turn` travels WITH the set: expiry is counted in turns, and only the runtime knows which turn the
+ * outgoing request belongs to.
+ */
+export function parseTdaHeader(value: string | undefined): { turn: number; set: TdaSet } | undefined {
+  if (!value) return undefined
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(value)
+  } catch {
+    return undefined
+  }
+  if (!parsed || typeof parsed !== "object") return undefined
+  const candidate = parsed as { turn?: unknown; held?: unknown }
+  if (typeof candidate.turn !== "number" || !Array.isArray(candidate.held)) return undefined
+  const held = candidate.held.filter(isTdaHeld)
+  return held.length === 0 ? undefined : { turn: candidate.turn, set: { held } }
+}
+
+const TDA_KINDS: ReadonlyArray<TdaKind> = ["image", "document", "source"]
+
+function isTdaHeld(value: unknown): value is TdaHeld {
+  if (!value || typeof value !== "object") return false
+  const item = value as Record<string, unknown>
+  return (
+    typeof item.id === "string" &&
+    typeof item.reason === "string" &&
+    typeof item.expiresAtTurn === "number" &&
+    typeof item.digest === "string" &&
+    TDA_KINDS.includes(item.kind as TdaKind) &&
+    (item.reader === undefined || typeof item.reader === "string")
+  )
+}

@@ -193,6 +193,12 @@ gateway.tda.maxItems       §0.9-3  keeps the header transport valid
 gateway.tda.holdTurns      §10     the declared lifetime
 ```
 
+**Refined at T2 — it removes a surface.** The GATEWAY needs no flag: it withholds only when the runtime
+hands it a set, so the ABSENCE of `x-opencode-tda` already is "off". These keys therefore belong to the
+RUNTIME's config, read where the set is built, and T4 becomes "the runtime reads the flag and sends the
+header" rather than "the gateway reads config". One authority for the switch instead of two, and the
+zero-cost short-circuit stays true whenever nothing is held.
+
 ### 0.5 Tasks
 
 | id | task | binding | oracle |

@@ -39,6 +39,41 @@ carrying references + derived-copy fallback). That plan is dead — see §5.
    that already holds them.
 5. **Numbering** — open decision, see §4. The tool's contract depends on it.
 
+## 2.1 What the appended frame SAYS (owner, 2026-09-19)
+
+Owner: «актуализатор должен писать так: шот от такого-то линка, изображение… — тогда трансформер их
+свяжет и у тебя вообще никаких сложностей не будет.»
+
+An image appended to the tail with no caption is a floating picture: the model cannot tell which entry
+in the transcript it belongs to. So every appended frame carries ONE synthetic line above it:
+
+```
+[Actualize #3 — from [Attached file: clipboard.png (image/webp)], message at 2026-09-19T07:31:26Z]
+<the image part>
+```
+
+Three parts, and every one of them is DERIVED at actualize time rather than stored:
+
+| field | where it comes from |
+|---|---|
+| `#3` | the stable session-wide ordinal (see §4.1) |
+| the link text | the same string the transcript already shows, so the two match character for character |
+| the time | `filePart.messageID` → that message row's `time_created` |
+
+### Fact check on the timestamp — images have none today
+- `message-v2.ts:97` — `partBase = { id, sessionID, messageID }`: **no time**.
+- `message-v2.ts:203-248` — `FilePart` adds `mime`, `filename`, `url`, `source`, `dimensions`,
+  `durationSeconds`: **still no time**.
+- `prompt.ts:1679` — `if (part.type === "text" && !part.synthetic)` gates the `UTC: <iso>` suffix, so the
+  synthetic lines that DESCRIBE an image are explicitly skipped.
+- The DB row has `time_created` (messages are ordered by it), so the time exists in storage but appears
+  **nowhere the model reads**. (The retired image-store plan's rule — "bytes by content, occurrence by
+  timestamp" — was never implemented.)
+
+⇒ **Do not add a field to `FilePart` for this.** The time is reachable from `messageID` at the moment of
+composition, and a derived value cannot drift from the part it describes. (If it ever had to be stored,
+it must travel through `filePartFromNormalized`, the single constructor — the rule from 2026-09-18.)
+
 ## 3. Where it plugs in
 
 | concern | site |

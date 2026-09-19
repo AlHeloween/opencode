@@ -59,6 +59,8 @@ forbidden_actions:
 - Reopening the SDK/upstream/regeneration question — see the STOP section; run the diff instead
 - Regenerating packages/sdk/js/src/v2/gen or src/gen — hand-maintained source, add fields by hand
 - Fetching instructions over the network — `config.instructions` URLs are ignored by design: a fetched body lands in the system prompt with instruction authority, i.e. prompt injection, and the well-known remote config can chain into such a URL. Inherited from upstream opencode; removed 2026-09-19
+- Adding a new JSON file as a home for runtime state — a new surface gets a KEY NAMESPACE in the store (see § Storage Paradigm)
+- Reintroducing a read-time inheritance or parent walk — a missing value is FILLED, never resolved on read
 - Treating `bun run packages/sdk/js/script/build.ts` exit 0 as success — it deletes ~7100 of our lines
 - Pinning a provider to a legacy API version or transport when it publishes a newer one
 - Rewriting an OpenAI-compatible `/v1` path to `/v3` — that suffix is a dialect marker, not a version
@@ -197,6 +199,49 @@ Full details: [docs/architecture.md](docs/architecture.md), [docs/compaction.md]
 - Do not hand-edit ADID receivers; kernel + ADM own framework surfaces (why both canons exist: [docs/two-canon-protocol.md](docs/two-canon-protocol.md)).
 
 ---
+
+## Storage Paradigm — one store, keyed, lazy (2026-09-19)
+
+**Rule: runtime state has exactly ONE home.** Not "a database for messages plus JSON files for
+settings" — one store, with explicit key namespaces, and every new piece of state goes there.
+Owner, 2026-09-19: «jsons -> lmdb с чётким разделением ключей, ленивое обновление обратно если
+реально редактируем пользовательские настройки. И вот что вылазит сразу wire туда — никаких
+гонок эффектов, никаких гонок настроек.» and «это не просто хранилище, оно нам развяжет все
+гонки по effects.»
+
+**This is a concurrency decision, not a taste one.** Every JSON file written by more than one
+effect is a race with no arbiter: two writers, two read-modify-write cycles, one lost update. A
+transactional store has exactly ONE writer, serialized by the engine, so the race is *absent* —
+not merely unlikely. That is the property being bought, and it is why "which file does this live
+in" must never again be answered by adding a file.
+
+### The four rules
+
+1. **One store.** A new state surface does not get a new file. It gets a key namespace, declared
+   next to the other namespaces.
+2. **Strict key separation.** Namespaces are explicit and flat — `session:<id>:agent:<name>`,
+   `worktree:<scope>:agent:<name>`, `global:agent:<name>` — and a reader addresses ONE key. No
+   prefix scan to reconstruct a value that should have been materialised, and no reader walks a
+   parent chain (rule 4).
+3. **Lazy write-back.** The store is the authority for reads of committed state; the
+   user-authored on-disk config is written back ONLY when the user actually edits it. Generated
+   state never rewrites a hand-written config just because a process started.
+4. **Fill, do not resolve.** A layer that lacks a value is FILLED from its source once, at the
+   moment the layer is created; reads are then a plain lookup. `global -> new worktree ->
+   session`, materialised, no inheritance at read time — see
+   [plans/2026-09-19_fill-every-settings-layer.md](plans/2026-09-19_fill-every-settings-layer.md).
+
+### The engine — measured, do not re-argue from scratch
+
+`bun:sqlite` + `drizzle-orm` is **already** this project's store and already provides every
+property above: one file, WAL, serialized writers, schema files (`src/storage/schema.sql.ts`,
+`session.sql.ts`, `balance.sql.ts`, …), migrations (`src/storage/migration.ts`), and **92 call
+sites** across sessions, messages, jobs, balance, sync and codegraph.
+
+So the default reading of this rule is: **move the remaining ad-hoc JSON state into the existing
+store** — which adds no engine and no new dependency. LMDB is the owner's named alternative
+(mmap, zero-copy reads, single-writer); choosing it means a SECOND engine beside SQLite, so it is
+an explicit decision rather than a default. `lmdb` appears in no manifest today.
 
 ## Bug Policy
 

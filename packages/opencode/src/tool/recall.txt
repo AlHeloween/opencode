@@ -17,6 +17,9 @@ How to use it:
 1. Call it with just the id to see the whole result as `N: text` rows — every line carries its
    ABSOLUTE line number, so the next call can address them.
 2. Then narrow: `range` picks a window, `pattern` filters inside it. Only what you ask for is sent.
+3. Add `keep: true` to LEAVE exactly that selection on the result. From then on the replay carries
+   these lines instead of the placeholder, so the result stops costing what it used to — this is what
+   turns the call into an optimisation rather than a tax. Ask for more lines later with another recall.
 
 The placeholder itself already shows the first lines of what was dropped, numbered, so you can judge
 whether it is worth fetching BEFORE you pay for fetching it.
@@ -28,6 +31,8 @@ Parameters:
 - `pattern` — a regular expression; only matching lines inside the range come back, keeping their
   absolute numbers.
 - `maxChars` — body cap, defaulting to the same 32 000 ceiling the replay path applies.
+- `reason` (required) — why you are reading this, and why the kept slice is enough. It is stored WITH
+  the selection, so a narrowed result can be audited later instead of being a silent edit.
 
 Errors ARE recallable: an errored result is exactly what tells you to discard or repair a step, so
 refusing it would hide the failure behind a count. Only a result that never finished is refused.

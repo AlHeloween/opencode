@@ -30,8 +30,8 @@ function seedTool(id: string, status: string, output: string, tool = "grep", tit
   seed(id, "tool", { type: "tool", tool, state: { status, output, ...(title === undefined ? {} : { title }) } })
 }
 
-function call(input: { id: string; range?: string; pattern?: string; ignoreCase?: boolean; maxChars?: number }) {
-  return readToolResult({ dbPath, maxChars: 32_000, ...input })
+function call(input: { id: string; range?: string; pattern?: string; ignoreCase?: boolean; maxChars?: number; keep?: boolean }) {
+  return readToolResult({ dbPath, maxChars: 32_000, reason: "test", ...input })
 }
 
 /** Five known lines, so a range answer can be read off by eye. */
@@ -95,6 +95,26 @@ describe("recall: reading a stored tool result by part id", () => {
     if (!result.ok) throw new Error(result.error)
     expect(result.matchedLines).toBe(1)
     expect(result.text).toBe("3: gamma three\n")
+  })
+
+  test("keep hands back the selection to persist, and only when asked for", () => {
+    // `keep` is what turns recall from a cost into an optimisation: the caller states the slice it
+    // wants to LEAVE on the result, and the tool persists exactly that. Nothing may be written when
+    // the caller did not ask, or a plain read would silently shrink the stored result.
+    seedTool("prt_keep", "completed", five)
+
+    const plain = call({ id: "prt_keep", range: "2-4" })
+    if (!plain.ok) throw new Error(plain.error)
+    expect(plain.kept).toBeUndefined()
+
+    const kept = call({ id: "prt_keep", range: "2-4", pattern: "gamma", keep: true })
+    if (!kept.ok) throw new Error(kept.error)
+    expect(kept.kept).toEqual({ from: 2, to: 4, pattern: "gamma", reason: "test" })
+
+    // The whole result stays addressable afterwards: keep narrows what replays, it does not delete.
+    const wider = call({ id: "prt_keep", range: "0" })
+    if (!wider.ok) throw new Error(wider.error)
+    expect(wider.matchedLines).toBe(5)
   })
 
   test("carries the same label the placeholder printed, so two recalls cannot be confused", () => {

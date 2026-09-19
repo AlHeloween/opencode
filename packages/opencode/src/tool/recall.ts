@@ -4,14 +4,19 @@ import { Global } from "@opencode-ai/core/global"
 import * as Tool from "./tool"
 import path from "path"
 import { existsSync } from "fs"
-import { REPLAY_TOOL_OUTPUT_MAX_CHARS } from "../session/message-v2"
+import { MessageV2, REPLAY_TOOL_OUTPUT_MAX_CHARS, resultLines, selectLines } from "../session/message-v2"
 import { optionalPattern } from "./pattern"
+import { Session } from "../session/session"
 
 import DESCRIPTION from "./recall.txt"
 
 export type RecallSuccess = {
   ok: true
   tool: string
+  /** Set when the caller asked to KEEP this selection; the tool persists it onto the stored part. */
+  kept?: { from: number; to: number; pattern?: string; ignoreCase?: boolean; reason?: string }
+  /** The stored part as parsed, so the tool can write the selection back through the session service. */
+  part: unknown
   /** The stored `state.title` of that part — the same label the wire placeholder prints. */
   title: string
   /** `tool: title` (just the tool when it stored no title) — ONE handle, identical in both places. */
@@ -85,6 +90,10 @@ export function readToolResult(input: {
   pattern?: string
   ignoreCase?: boolean
   maxChars: number
+  /** Persist the selection onto the stored result, so later replays carry these lines and not a placeholder. */
+  keep?: boolean
+  /** WHY — carried into the persisted selection so a narrowed result can be audited later. */
+  reason?: string
 }): RecallResult {
   if (!existsSync(input.dbPath)) return { ok: false, error: `database not found at ${input.dbPath}` }
 
@@ -117,57 +126,73 @@ export function readToolResult(input: {
     const output = status === "completed" ? (part.state?.output ?? "") : (part.state?.error ?? "")
     if (output.length === 0) return { ok: false, error: `part ${input.id} stored an empty result` }
 
-    // A trailing newline terminates the last line rather than opening an empty one.
-    const all = output.split("\n")
-    const lines = all.length > 1 && all[all.length - 1] === "" ? all.slice(0, -1) : all
-    const totalLines = lines.length
+    // ONE selector, shared with the replay rendering of a kept selection (`message-v2.selectLines`).
+    // Two implementations would drift invisibly — the tool showing one thing and the wire another.
+    const totalLines = resultLines(output).length
 
     const window = parseRange(input.range, totalLines)
     if (!window.ok) return window
 
-    let filter: RegExp | undefined
-    try {
-      filter = optionalPattern(input.pattern, input.ignoreCase)
-    } catch (error) {
-      return { ok: false, error: error instanceof Error ? error.message : String(error) }
+    // Validate the pattern BEFORE selecting: a malformed regex is a user error with an obvious fix,
+    // so it must come back as a message rather than die inside the selector.
+    if (input.pattern !== undefined && input.pattern !== "") {
+      try {
+        optionalPattern(input.pattern, input.ignoreCase)
+      } catch (error) {
+        return { ok: false, error: error instanceof Error ? error.message : String(error) }
+      }
     }
 
-    const selected: Array<{ n: number; text: string }> = []
-    for (let n = window.from; n <= Math.min(window.to, totalLines); n++) {
-      const text = lines[n - 1] ?? ""
-      if (filter && !filter.test(text)) continue
-      selected.push({ n, text })
-    }
+    const selection = selectLines(output, {
+      from: window.from,
+      to: window.to,
+      pattern: input.pattern,
+      ignoreCase: input.ignoreCase,
+    })
+    const selected = selection.rows
 
     const chunks: string[] = []
     let used = 0
     let lastLine = 0
-    for (const entry of selected) {
-      const rowText = `${entry.n}: ${entry.text}\n`
+    for (let i = 0; i < selected.length; i++) {
+      const rowText = `${selected[i]}\n`
       if (used + rowText.length > input.maxChars) break
       chunks.push(rowText)
       used += rowText.length
-      lastLine = entry.n
+      lastLine = selection.numbers[i] ?? 0
     }
     // Never answer with an empty body when lines WERE selected: a single line longer than the cap is
     // cut instead, so the caller always learns the content starts here.
     if (selected.length > 0 && chunks.length === 0) {
-      const first = selected[0]!
-      chunks.push(`${first.n}: ${first.text}\n`.slice(0, input.maxChars))
-      lastLine = first.n
+      chunks.push(`${selected[0]}\n`.slice(0, input.maxChars))
+      lastLine = selection.numbers[0] ?? 0
     }
 
-    const lastSelected = selected.length > 0 ? selected[selected.length - 1]!.n : 0
+    const lastSelected = selection.numbers.length > 0 ? selection.numbers[selection.numbers.length - 1]! : 0
     const tool = part.tool ?? "tool"
     const title = part.state?.title ?? ""
+    // What the caller asked to KEEP, ready to persist. Writing it is what turns this call from a cost
+    // into an optimisation: from then on the replay carries these lines instead of the placeholder.
+    const kept =
+      input.keep === true
+        ? {
+            from: window.from,
+            to: Math.min(window.to, totalLines),
+            ...(input.pattern ? { pattern: input.pattern } : {}),
+            ...(input.ignoreCase ? { ignoreCase: true } : {}),
+            ...(input.reason ? { reason: input.reason } : {}),
+          }
+        : undefined
     return {
       ok: true,
       tool,
+      kept,
+      part,
       title,
       label: title ? `${tool}: ${title}` : tool,
       totalLines,
       totalChars: output.length,
-      firstLine: chunks.length > 0 ? selected[0]!.n : 0,
+      firstLine: chunks.length > 0 ? (selection.numbers[0] ?? 0) : 0,
       lastLine,
       matchedLines: selected.length,
       text: chunks.join(""),
@@ -197,16 +222,25 @@ export const Parameters = Schema.Struct({
   maxChars: Schema.optional(Schema.Number).annotate({
     description: `Maximum characters of body to return (default ${REPLAY_TOOL_OUTPUT_MAX_CHARS}). Same ceiling the replay path applies — asking for more would be cut anyway.`,
   }),
+  reason: Schema.String.annotate({
+    description:
+      "WHY you are reading or narrowing this result — e.g. \"need the failing assertion, the rest is noise\". Required, and stored with the kept selection, so a narrowed result can be audited afterwards.",
+  }),
+  keep: Schema.optional(Schema.Boolean).annotate({
+    description:
+      "Keep exactly this selection on the stored result. Use it to LEAVE only what you need: from then on the replay carries these lines instead of the placeholder, so the result stops costing what it used to. Ask for more later with another recall.",
+  }),
 })
 
 export const RecallTool = Tool.define(
   "recall",
   Effect.gen(function* () {
+    const session = yield* Session.Service
     return {
       description: DESCRIPTION,
       parameters: Parameters,
       execute: (
-        params: { id: string; range?: string; pattern?: string; ignoreCase?: boolean; maxChars?: number },
+        params: { id: string; range?: string; pattern?: string; ignoreCase?: boolean; maxChars?: number; keep?: boolean; reason: string },
         ctx: Tool.Context,
       ) =>
         Effect.gen(function* () {
@@ -228,6 +262,8 @@ export const RecallTool = Tool.define(
             pattern: params.pattern,
             ignoreCase: params.ignoreCase,
             maxChars,
+            keep: params.keep,
+            reason: params.reason,
           })
 
           if (!result.ok) {
@@ -236,6 +272,30 @@ export const RecallTool = Tool.define(
               metadata: { id: params.id, label: "", title: "", tool: "", totalLines: 0, totalChars: 0, matched: 0, returned: 0, error: result.error },
               output: `recall failed: ${result.error}`,
             }
+          }
+
+          // Persist the kept selection onto the stored part. From now on the replay renders exactly
+          // these lines instead of a placeholder, so the result stops costing what it used to — this
+          // is what makes the call an optimisation rather than a tax.
+          if (result.kept !== undefined) {
+            const stored = result.part as {
+              id: string
+              sessionID: string
+              messageID: string
+              type: "tool"
+              callID: string
+              tool: string
+              state: Record<string, unknown>
+            }
+            yield* session.updatePart({
+              id: stored.id,
+              sessionID: stored.sessionID,
+              messageID: stored.messageID,
+              type: "tool",
+              callID: stored.callID,
+              tool: stored.tool,
+              state: { ...stored.state, kept: result.kept },
+            } as unknown as MessageV2.Part)
           }
 
           const scope = params.pattern ? `, pattern ${JSON.stringify(params.pattern)}` : ""

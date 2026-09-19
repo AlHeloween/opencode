@@ -35,6 +35,7 @@ import { NonNegativeInt, withStatics } from "@/util/schema"
 import { namedSchemaError } from "@/util/named-schema-error"
 import * as EffectLogger from "@opencode-ai/core/effect/logger"
 import { canonicalName } from "@/tool/tool"
+import { optionalPattern } from "@/tool/pattern"
 
 /** Error shape thrown by Bun's fetch() when gzip/br decompression fails mid-stream */
 interface FetchDecompressionError extends Error {
@@ -387,6 +388,21 @@ export const ToolStateCompleted = Schema.Struct({
     end: Schema.Number,
     compacted: Schema.optional(Schema.Number),
   }),
+  /**
+   * The slice the model chose to KEEP from this result (`recall(..., keep: true)`). When set, the
+   * replay carries exactly this selection instead of the placeholder — a smaller resident result,
+   * which is the point: recall stops being a cost and becomes an optimisation.
+   */
+  kept: Schema.optional(
+    Schema.Struct({
+      from: Schema.Number,
+      to: Schema.Number,
+      pattern: Schema.optional(Schema.String),
+      ignoreCase: Schema.optional(Schema.Boolean),
+      /** WHY this slice was kept — persisted with the selection, so the narrowing is auditable. */
+      reason: Schema.optional(Schema.String),
+    }),
+  ),
   attachments: Schema.optional(Schema.Array(FilePart)),
 })
   .annotate({ identifier: "ToolStateCompleted" })
@@ -946,6 +962,34 @@ export function toolPlaceholder(input: {
   )
 }
 
+/** A trailing newline terminates the last line rather than opening an empty one. One rule, one home. */
+export function resultLines(output: string): string[] {
+  const all = output.split("\n")
+  return all.length > 1 && all[all.length - 1] === "" ? all.slice(0, -1) : all
+}
+
+/**
+ * The ONE line selector: absolute-numbered rows for a stored result. Used by the replay rendering of
+ * a `kept` selection AND by the `recall` tool. Two implementations of "which lines" would drift, and
+ * the drift would be invisible — the tool would show one thing and the wire another.
+ */
+export function selectLines(
+  output: string,
+  spec: { from: number; to: number; pattern?: string; ignoreCase?: boolean },
+): { rows: string[]; numbers: number[]; totalLines: number; matched: number } {
+  const lines = resultLines(output)
+  const filter = optionalPattern(spec.pattern, spec.ignoreCase)
+  const rows: string[] = []
+  const numbers: number[] = []
+  for (let n = spec.from; n <= Math.min(spec.to, lines.length); n++) {
+    const text = lines[n - 1] ?? ""
+    if (filter && !filter.test(text)) continue
+    rows.push(`${n}: ${text}`)
+    numbers.push(n)
+  }
+  return { rows, numbers, totalLines: lines.length, matched: rows.length }
+}
+
 /** Clear the module-level conversion cache. Intended for test isolation. */
 export function clearConversionCache() {
   msgConversionCache.clear()
@@ -1162,9 +1206,17 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             const isCurrentTurn =
               options?.afterMessageID === undefined || msg.info.id > options.afterMessageID
             const rawOutput = part.state.time.compacted ? "" : stripFloodReminderBlocks(part.state.output)
+            // A kept selection REPLACES the whole result on the wire — that is what turns recall from
+            // a cost into an optimisation: one round trip paid once to stop paying for the rest.
+            const keptRows =
+              part.state.kept && rawOutput.length > 0
+                ? selectLines(rawOutput, part.state.kept).rows
+                : undefined
             const outputText = part.state.time.compacted
               ? REPLAY_CLEARED_MARKER
-              : !isCurrentTurn && rawOutput.length > TOOL_PLACEHOLDER_THRESHOLD_CHARS
+              : keptRows !== undefined
+                ? truncateToolOutput(keptRows.join("\n"), options?.toolOutputMaxChars, part.id)
+                : !isCurrentTurn && rawOutput.length > TOOL_PLACEHOLDER_THRESHOLD_CHARS
                 ? toolPlaceholder({
                     tool: part.tool,
                     partID: part.id,

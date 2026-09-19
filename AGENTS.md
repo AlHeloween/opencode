@@ -256,7 +256,9 @@ store is that arbiter; the framework is not.
 **Accepted cost, on the owner's ruling.** LMDB keeps its file mapped, so on Windows `rmSync` of a
 store directory throws `EBUSY` until the env is closed. Owner, 2026-09-19: «шанс на ebusy намного
 ниже чем шанс на гонку effects.» Accepted and bounded: tests close the env. It is not a reason to
-keep the JSON files.
+keep the JSON files. *(Re-confirmed live 2026-09-19, outside LMDB entirely: deleting the probe
+directory failed `EBUSY` on an **empty** directory because a live process held it as its cwd — the
+same Windows handle class, so treat `EBUSY` as "somebody still holds it", not as an LMDB trait.)*
 
 ### The engines — decided and measured, do not re-argue
 
@@ -272,9 +274,19 @@ Measured on this host under Bun/win32-x64: `bun add` fetches its prebuild
 mmap with no I/O; one `transaction()` spans two DBs; footprint `data.mdb` 262 144 B + `lock.mdb`
 8 128 B.
 
-**Not yet budgeted, and the one thing that could still change the plan:** the `.node` addon must
-ship beside the compiled binary, and the `bun --compile` path for a Node-API addon is **UNVERIFIED**.
-Verify it BEFORE the migration, not after.
+**Native addon + `bun --compile` — MEASURED 2026-09-19.** This was the one open risk under the whole
+migration; it is now measured, and the answer has two halves. `lmdb` resolves its `.node`
+*dynamically*, and a compiled executable runs in Bun's virtual root (`B:\~BUN\root`), resolving such
+a path against the **cwd** — so the addon is **not found even with `node_modules` sitting beside the
+exe**. A **static ESM `import`** of the `.node`, by contrast, is visible to the bundler and is
+**embedded into the executable**: proven by running that exe from an empty directory with the addon
+file **physically deleted from disk** (`STATIC_IMPORT_OK`), while the dynamic build failed in the
+same conditions — and corroborated independently by bytes, `87 000 064 − 86 087 168 = +912 896 B`
+against `912 925 B` for `node_modules/@lmdb/lmdb-win32-x64`.
+⇒ The fast plane **is** deployable, but only through a small per-platform import shim naming the
+platform package literally, and `lmdb` also drags `@msgpackr-extract`'s addon (225 736 B). The shim
+is **not yet written** and the real `bin/opencode.exe` has **not** been built with it — that is the
+remaining step, not an assumption. Details: plan §8b.
 
 Migration order (see the plan §7 inventory): `{state}/model.json` FIRST — it is the only entry with
 three writers, so moving it retires a real lost-update race on its own.

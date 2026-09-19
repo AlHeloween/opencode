@@ -154,6 +154,23 @@ positionally, so both conditional puts returned false — the probe was malforme
 and on Windows LMDB keeps the file mapped, so `rmSync` of the directory throws `EBUSY` — a test must
 close the env, or a temp store cannot be cleaned up.
 
-Cost not yet budgeted: the `.node` addon must ship beside the compiled binary (the build already
-ships `opentui.dll` / `opencode-markdownify.exe` / `ffmpeg.exe`, so the pattern exists, but the
-`bun --compile` path for a Node-API addon is UNVERIFIED).
+## 8b. `bun --compile` + a native addon — MEASURED 2026-09-19
+
+This was the open "could still change the plan" risk. Four arms, one host, one moment:
+
+| arm | build | runtime cwd | result |
+|---|---|---|---|
+| A | `import { open } from "lmdb"` (lmdb resolves its own `.node` at runtime) | node_modules adjacent | **FAIL** — `No native build was found … attempted loading from B:\~BUN\root` |
+| B | `createRequire` **literal** path to the `.node` | dir WITH node_modules | PASS |
+| C | same build as B | dir WITHOUT node_modules | **FAIL** — `Cannot find module './node_modules/…' from 'B:\~BUN\root\probe-static.exe'` |
+| D | **static ESM `import` of the `.node`** | dir WITHOUT node_modules, **addon deleted from disk** | **PASS** (`STATIC_IMPORT_OK`) |
+
+Two facts follow. **(1)** A runtime-resolved addon is invisible to the bundler, and inside a compiled
+binary the path resolves through Bun's virtual root against the **cwd** — copying `node_modules`
+beside the exe is NOT enough. **(2)** A statically imported `.node` IS embedded: the build reports
+`bundle 2 modules`, the run succeeds with the addon absent from disk, and the byte delta
+`87 000 064 − 86 087 168 = +912 896 B` matches `912 925 B` for `node_modules/@lmdb/lmdb-win32-x64`.
+
+Cost: **+912 896 B** (lmdb) in the binary, plus `@msgpackr-extract` at 225 736 B if that path is used.
+**Not yet done:** the per-platform import shim naming `@lmdb/lmdb-<platform>-<arch>` literally, and a
+real `_build.ps1` binary carrying it. The remaining work is a named shim, not an open question.

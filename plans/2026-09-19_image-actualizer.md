@@ -124,6 +124,33 @@ it returns a rectangular region of a window at native resolution, which is what 
 - The daemon must be started as `cmd_runner start -- bin\cua.cmd serve` (never a bare shell), and
   reports `listening on \\.\pipe\cua-driver`.
 
+### The frame's real cost, measured through the product's own pipeline (2026-09-19)
+
+Ran `ImageHandler.classify` + `.normalize` — the actual code, not a re-implementation — over every
+image in `.opencode/shots/`:
+
+| source | in | out | ratio |
+|---|---|---|---|
+| **`cua-desktop.png`** (CUA) | 783 087 B, 2560×1440 | **126 236 B, 2000×1125** | **0.161 — 6.2× smaller** |
+| TUI screenshots (8 files) | 22–69 KB, ≤1543 wide | — | 0.60–0.99 |
+
+Every output is `image/webp`, the 2000 cap holds, and the aspect is exact (2560/2000 = 1440/1125 =
+1.28). Output dimensions — not the source's — are what travels forward, so the budget sees the truth.
+
+**Two consequences for this design:**
+1. **A CUA desktop frame costs 997 tokens**, not its file size: 2000×1125 = 2 250 000 px →
+   `clamp(pixels/1700 + 36, 187, 997)` → 1359 → capped at **997**. The same as any large image. File
+   size is irrelevant to the price, which is why attaching frames on demand is affordable.
+2. Inline cost is base64 — 4/3 of bytes (126 236 B → 168 339 chars) — but the budget prices
+   DIMENSIONS, so the actualizer's cap should be expressed in **frames**, not bytes.
+
+**Honest caveat, reported rather than hidden:** on small TUI screenshots webp gains almost nothing
+(0.60–0.99; one file is a wash at 0.994). That is content, not a pipeline defect — a flat dark
+background with thin text is already near-optimal for PNG, while a desktop capture is exactly where
+PNG is weak. Raising `quality` would make those files bigger; lowering it would blur the text. If
+those ever need to shrink, the untested candidate is lossless webp, which needs its own measurement
+before anyone claims it helps.
+
 ## 8. Related surface found while verifying — the prompt footer has its own gauge
 
 The sidebar gauge is fixed, but the **prompt footer** prints `466.6K (47%)` — `tokens / context`

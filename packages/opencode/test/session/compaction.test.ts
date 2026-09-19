@@ -2326,7 +2326,7 @@ describe("session.compaction.computeOpenWindowTokens", () => {
     // 10 000 + 5 000 prompt and 400 response, both billed, plus the tool-free growth.
     // The answer's own text is NOT tokenized — the provider already counted it.
     const expected = 15_400 + countTokens("z".repeat(8_000))
-    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(expected)
+    expect(SessionCompaction.windowFillTokens(msgs)).toBe(expected)
     expect(expected).toBeGreaterThan(Math.ceil(48_000 / 4))
   })
 
@@ -2335,28 +2335,31 @@ describe("session.compaction.computeOpenWindowTokens", () => {
     // would explode with its text; it must not — the provider's number is the truth.
     const long = "y".repeat(40_000)
     const msgs = [billedMsg("a1", { input: 1_000, cacheRead: 0, output: 7 }, long)]
-    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(1_007)
+    expect(SessionCompaction.windowFillTokens(msgs)).toBe(1_007)
     expect(countTokens(long)).toBeGreaterThan(1_000)
   })
 
   test("reasoning is added only on tool turns, where it stays on the wire", () => {
     const withTool = [billedMsg("a1", { input: 1_000, cacheRead: 0, output: 10, reasoning: 500 }, "", true)]
     const withoutTool = [billedMsg("a2", { input: 1_000, cacheRead: 0, output: 10, reasoning: 500 }, "", false)]
-    expect(SessionCompaction.computeOpenWindowTokens(withTool)).toBe(1_510)
-    expect(SessionCompaction.computeOpenWindowTokens(withoutTool)).toBe(1_010)
+    expect(SessionCompaction.windowFillTokens(withTool)).toBe(1_510)
+    expect(SessionCompaction.windowFillTokens(withoutTool)).toBe(1_010)
   })
 
   test("an uncached write counts toward the billed prompt", () => {
     const msgs = [billedMsg("a1", { input: 2_000, cacheRead: 500, cacheWrite: 300 })]
-    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(2_800)
+    expect(SessionCompaction.windowFillTokens(msgs)).toBe(2_800)
   })
 
-  test("NEGATIVE CONTROL: with no billed response the estimate path is unchanged", () => {
-    // No assistant usage anywhere ⇒ chars/4 over the whole slice, i.e. exactly what
-    // this counter returned before the change. That is what keeps every existing
-    // fixture — and a brand-new session — behaving as it did.
+  test("NEGATIVE CONTROL: with no billed response both measures fall back, each in its OWN space", () => {
+    // No assistant usage anywhere, so `chars/4` over the slice is the only instrument
+    // left. Each measure keeps ITS own space on this path — content for the Layer-1
+    // counter, content + framing for the window-fill measure — because a threshold
+    // cannot compare two different spaces. A fallback that returned the other one would
+    // re-open exactly the hole this split closed.
     const msgs = [textMsg("u0", "user", "x".repeat(40_000))]
     expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(10_000)
+    expect(SessionCompaction.windowFillTokens(msgs)).toBe(estimateRequestTokens(10_000))
   })
 
   test("tool output after the billed response counts as growth", () => {
@@ -2379,7 +2382,7 @@ describe("session.compaction.computeOpenWindowTokens", () => {
         ],
       } as any,
     ]
-    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(1_000 + countTokens("w".repeat(4_000)))
+    expect(SessionCompaction.windowFillTokens(msgs)).toBe(1_000 + countTokens("w".repeat(4_000)))
   })
 
   test("a slack twice the growth skips the tokenizer entirely", () => {
@@ -2391,11 +2394,11 @@ describe("session.compaction.computeOpenWindowTokens", () => {
     // 1M context against 8 000 chars of growth: no token in that growth can close the
     // slack, so the count is the cheap pessimistic bound — one token per character —
     // and the tokenizer is never started.
-    expect(SessionCompaction.computeOpenWindowTokens(msgs, undefined, model)).toBe(1_000 + 8_000)
+    expect(SessionCompaction.windowFillTokens(msgs, model)).toBe(1_000 + 8_000)
     // A tight window takes the exact path instead, which for this text is strictly
     // smaller — proving the two branches really differ.
     const tight = createModel({ context: 9_000, output: 1_000 })
-    expect(SessionCompaction.computeOpenWindowTokens(msgs, undefined, tight)).toBe(
+    expect(SessionCompaction.windowFillTokens(msgs, tight)).toBe(
       1_000 + countTokens("z".repeat(8_000)),
     )
     expect(countTokens("z".repeat(8_000))).toBeLessThan(8_000)
@@ -2422,7 +2425,7 @@ describe("session.compaction.computeOpenWindowTokens", () => {
       textMsg("u2", "user", "z".repeat(8_000)),
     ]
     const bound = SessionCompaction.openWindowTokensBound(msgs)
-    const exact = SessionCompaction.computeOpenWindowTokens(msgs)
+    const exact = SessionCompaction.windowFillTokens(msgs)
     // The contract that makes it usable as a fit gate: over-count is allowed, under-
     // count is not.
     expect(bound).toBeGreaterThanOrEqual(exact)
@@ -2434,6 +2437,26 @@ describe("session.compaction.computeOpenWindowTokens", () => {
     // safety estimate stands — this path must not have moved.
     const msgs = [textMsg("u1", "user", "z".repeat(4_000))]
     expect(SessionCompaction.openWindowTokensBound(msgs)).toBe(estimateRequestTokens(1_000))
+  })
+
+  // ── The scope rule: a slice-relative question cannot take a whole-request base ──
+  test("the Layer-1 content counter ignores the provider base (scope, not precision)", () => {
+    // The defect this pins (found 2026-09-19): the counter used to take the provider's
+    // whole-REQUEST `prompt_tokens` as its base while Layer-1 asks for NEW WORK since the
+    // boundary. On any billed session it therefore opened at ~99K — straight through
+    // `layer1SummaryThreshold()` (65 536) — and the sidecar cadence silently became
+    // "summarize on every stop". Nothing in the suite could see it: every cadence fixture
+    // carries no provider usage and so took the fallback path.
+    const msgs = [
+      textMsg("u0", "user", "x".repeat(40_000)),
+      billedMsg("a1", { input: 60_000, cacheRead: 39_000, output: 400 }),
+    ]
+    // Content only: 40 000 chars / 4. The provider's 99 400 never enters this number, so
+    // a billed session still has to EARN its 65 536 the way a fresh one does.
+    expect(SessionCompaction.computeOpenWindowTokens(msgs)).toBe(10_000)
+    expect(SessionCompaction.computeOpenWindowTokens(msgs) < 65_536).toBe(true)
+    // …while the window-fill measure, whose threshold IS a request budget, does use it.
+    expect(SessionCompaction.windowFillTokens(msgs)).toBe(99_400)
   })
 })
 

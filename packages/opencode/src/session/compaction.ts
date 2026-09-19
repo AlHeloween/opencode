@@ -499,9 +499,16 @@ function openWindowSlice(
 }
 
 /**
- * Layer-1 summary **token counter** / open-window size: the provider's own count for
- * the newest billed response in the window, plus everything after it. Survives runLoop
- * restarts (a pure function of persisted messages).
+ * CONTENT tokens in the open window — the Layer-1 cadence counter.
+ *
+ * `chars/4` + media over the slice, and NOTHING from the provider. That is a SCOPE
+ * rule, not a precision one: `prompt_tokens` measures a whole REQUEST (system prefix,
+ * tool schemas and framing included), while Layer-1 asks how much NEW WORK accumulated
+ * since the summary boundary. Feeding a whole-request number to a slice-relative
+ * question opened this counter at ~99K on any billed session, straight through
+ * `layer1SummaryThreshold()` (65 536) — the cadence silently became "summarize on every
+ * stop" (found 2026-09-19). Its threshold is a CONTENT constant, so its number must be
+ * content. Use {@link windowFillTokens} for window fill.
  */
 export function computeOpenWindowTokens(
   msgs: MessageV2.WithParts[],
@@ -509,22 +516,41 @@ export function computeOpenWindowTokens(
   model?: Provider.Model,
 ): number {
   const slice = openWindowSlice(msgs, checkpointBoundaryID)
+  const media = model ? estimateMediaTokens(slice, model) : 0
+  return Math.ceil(contentChars(slice) / CHARS_PER_TOKEN) + media
+}
 
-  // ABSOLUTE FROM THE PROVIDER, GROWTH FROM THE TOKENIZER (2026-09-18).
-  //
-  // `prompt_tokens` on the newest response in this window is exact and already
-  // includes what the counter cannot see, so only what came AFTER it needs counting.
-  // That removes the 1.2-1.45x undercount the estimate carried while keeping the
-  // tokenizer's cost at 1.2 ms typically instead of 967 ms for the whole window
-  // (`experiments/2026-09-18_tokenizer-gap/bench.mts`).
-  //
-  // Media is still priced by DIMENSIONS (see `estimateMediaTokens`), never by
-  // tokenizing bytes: doing that once produced ~688K phantom tokens and dropped a
-  // video (2026-09-07). Only media in the GROWTH is added — the base already carries
-  // the images that were on the wire when it was billed.
+/**
+ * REQUEST-space fill of the whole visible window: what the provider would bill for the
+ * next request — its own count for the newest billed response, plus everything after
+ * it.
+ *
+ * TWO RULES BIND EVERY CALLER, and both are about matching the number to its threshold:
+ *
+ *   SPACE — this is a REQUEST size, which already contains the system prefix and the
+ *   tool schemas. Its threshold is therefore a request budget (`usable()`), never a
+ *   content constant like Layer-1's 65 536.
+ *
+ *   SCOPE — call it WITHOUT a boundary. The base is a whole-request absolute, so a
+ *   boundary slice would combine that absolute with a sub-window increment.
+ *
+ * ABSOLUTE FROM THE PROVIDER, GROWTH FROM THE TOKENIZER (2026-09-18): `prompt_tokens`
+ * on the newest response is exact and already includes what the counter cannot see, so
+ * only what came AFTER it needs counting — which keeps the tokenizer at 1.2 ms typically
+ * instead of 967 ms for the whole window
+ * (`experiments/2026-09-18_tokenizer-gap/bench.mts`).
+ *
+ * Media is still priced by DIMENSIONS (see `estimateMediaTokens`), never by tokenizing
+ * bytes: doing that once produced ~688K phantom tokens and dropped a video (2026-09-07).
+ * Only media in the GROWTH is added — the base already carries the images that were on
+ * the wire when it was billed.
+ */
+export function windowFillTokens(msgs: MessageV2.WithParts[], model?: Provider.Model): number {
+  const slice = openWindowSlice(msgs)
   const billed = lastBilledPrompt(slice)
   if (billed) {
-    const growthMedia = model ? estimateMediaTokens(slice.slice(billed.from), model) : 0
+    const growth = slice.slice(billed.from)
+    const growthMedia = model ? estimateMediaTokens(growth, model) : 0
     // CHEAP BOUND FIRST, TOKENIZER ONLY NEAR THE EDGE (owner ruling 2026-09-18).
     //
     // Growth cannot cost more than ~2 tokens per character even in the worst BPE case
@@ -532,7 +558,7 @@ export function computeOpenWindowTokens(
     // CHARACTER count cannot be closed by it. While that slack exists the exact count
     // changes no decision, and the tokenizer is skipped entirely — which is the whole
     // point of counting growth at all: a free answer stays free.
-    const growthChars = contentChars(slice.slice(billed.from))
+    const growthChars = contentChars(growth)
     const limit = model?.limit.context ?? 0
     if (limit > 0 && limit - billed.tokens > 2 * growthChars) {
       // Deliberately PESSIMISTIC (one token per character) rather than exact: the
@@ -543,9 +569,11 @@ export function computeOpenWindowTokens(
     return billed.tokens + partTokens(slice, billed.from) + growthMedia
   }
   // No billed response in this window — a fresh session, or everything newer than the
-  // fold. Fall back to the estimate over the whole slice.
+  // fold. The estimate is the only instrument left, and it is expressed in the SAME
+  // space as the billed figure (content + framing overhead) rather than as content
+  // alone: a threshold cannot compare two different spaces.
   const media = model ? estimateMediaTokens(slice, model) : 0
-  return Math.ceil(contentChars(slice) / CHARS_PER_TOKEN) + media
+  return estimateRequestTokens(Math.ceil(contentChars(slice) / CHARS_PER_TOKEN)) + media
 }
 
 /**
@@ -559,11 +587,14 @@ export function computeOpenWindowTokens(
  * genuinely an upper bound rather than an estimate pretending to be one.
  *
  * Why a bound and not the exact counter: this gate runs on the hot path, once per loop
- * step, before `llm.stream()`. Measured 2026-09-18 — pointing it at
- * `computeOpenWindowTokens` turned one prompt-suite case from 3.6 s into 17 s and
- * stalled the whole file, because near the edge that function tokenizes the growth on
- * every single call. Over-counting here is safe BY CONSTRUCTION: the gate can only fold
+ * step, before `llm.stream()`. Measured 2026-09-18 — pointing it at the exact fill
+ * measure turned one prompt-suite case from 3.6 s into 17 s and stalled the whole file,
+ * because near the edge that counter tokenizes the growth on every single call.
+ * Over-counting here is safe BY CONSTRUCTION: the gate can only fold
  * early, never let a real overflow through — which is the failure it exists to prevent.
+ *
+ * Same SPACE and SCOPE rules as {@link windowFillTokens}: a REQUEST size, so its
+ * threshold is `usable()`, and it is called without a boundary.
  *
  * With no billed response (fresh session) the previous estimate is returned unchanged,
  * so the change only reaches windows that carry a provider count, where the base is

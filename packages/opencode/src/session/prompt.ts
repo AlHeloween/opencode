@@ -1826,7 +1826,11 @@ export const layer = Layer.effect(
             // (usable <= 0) is owned by the pre-send hasSpareOutput force
             // gate — the stop cadence stays out of its way.
             const compactTarget = usable({ cfg, model: input.model })
-            const visibleTokens = SessionCompaction.computeOpenWindowTokens(visible, undefined, input.model)
+            // REQUEST-space measure to match a REQUEST-space target: `windowFillTokens`
+            // includes the system prefix and tool schemas because the provider's limit
+            // counts them, and it is called without a boundary for the same reason —
+            // its base is a whole-request absolute (2026-09-19).
+            const visibleTokens = SessionCompaction.windowFillTokens(visible, input.model)
             if (
               !input.force &&
               (compactTarget <= 0 ||

@@ -167,7 +167,7 @@ export const CheckStateTool = Tool.define<
             if (!lastUser || lastUser.info.role !== "user") return null
             const model = yield* provider.getModel(lastUser.info.model.providerID, lastUser.info.model.modelID)
             const cfg = yield* config.get()
-            const open = SessionCompaction.computeOpenWindowTokens(visible, undefined, model)
+            const open = SessionCompaction.windowFillTokens(visible, model)
             return {
               model: `${model.providerID}/${model.id}`,
               limit: model.limit.context,

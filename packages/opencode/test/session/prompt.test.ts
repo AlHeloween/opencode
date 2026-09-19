@@ -2269,6 +2269,15 @@ it.live("converts clipboard image parts to markdown for non-vision models, keepi
           (part) => part.type === "text" && part.synthetic && part.text.includes("![clipboard.png](clipboard.png)"),
         )
         expect(converted).toBe(true)
+        // The caption carries the stable ordinal that the image actualiser addresses — the whole
+        // point of numbering. It must name the STORED mime, which is why captions are inserted
+        // after normalisation: naming the pre-normalisation `image/png` would contradict the part.
+        const caption = msg.parts.find(
+          (part) => part.type === "text" && part.synthetic && part.text.startsWith("[Attached file #"),
+        )
+        expect(caption?.type === "text" ? caption.text : undefined).toBe(
+          "[Attached file #1: clipboard.png (image/webp)]",
+        )
 
         yield* sessions.remove(session.id)
       }),

@@ -1655,6 +1655,38 @@ export const layer = Layer.effect(
         return [{ ...part, messageID: info.id, sessionID: input.sessionID }]
       })
 
+      // ── Stable ordinals for image parts (2026-09-19) ────────────────────────────────────
+      // DERIVED as the part's position among the session's image parts in document order — never
+      // stored, so it cannot drift from what it names, and it survives folding: `compaction.ts`
+      // re-derives the same number for a link whose parts have left the window. It is the address
+      // the image actualiser takes as input, and it must be VISIBLE to the model, so every image
+      // gets a caption line carrying it. One derivation, three render sites, one format.
+      //
+      // Cost note: this reads the session's messages once per user prompt to count the images
+      // already seen. That is one read per turn, not one per part; if it ever shows up as hot, the
+      // same number comes from a COUNT over parts with an image mime.
+      const isImagePart = (p: { type?: unknown; mime?: unknown }) =>
+        p.type === "file" && typeof p.mime === "string" && p.mime.startsWith("image/")
+      const priorImages = (yield* sessions.messages({ sessionID: input.sessionID }))
+        .flatMap((m) => m.parts)
+        .filter(isImagePart).length
+
+      const withMediaCaptions = (list: Draft<MessageV2.Part>[]): Draft<MessageV2.Part>[] => {
+        let n = priorImages
+        return list.flatMap((part) => {
+          if (!isImagePart(part)) return [part]
+          n += 1
+          const caption: Draft<MessageV2.Part> = {
+            messageID: info.id,
+            sessionID: input.sessionID,
+            type: "text",
+            synthetic: true,
+            text: `[Attached file #${n}: ${(part as any).filename ?? "file"} (${(part as any).mime})]`,
+          } as Draft<MessageV2.Part>
+          return [caption, part]
+        })
+      }
+
       const parts = yield* Effect.forEach(input.parts, resolvePart, { concurrency: "unbounded" }).pipe(
         Effect.map((x) => x.flat().map(assign)),
         // Ingestion normalisation (2026-09-18): an image becomes WebP once,
@@ -1669,6 +1701,10 @@ export const layer = Layer.effect(
             { concurrency: "unbounded" },
           ),
         ),
+        // Captions come LAST, after normalisation, because a caption must describe what is
+        // actually STORED: the mime is `image/webp` only once normalisation has run, and a caption
+        // naming the pre-normalisation `image/png` would contradict the very part it labels.
+        Effect.map((x) => withMediaCaptions(x).map(assign)),
       )
 
       // Append UTC timestamp once at message submission — static, never

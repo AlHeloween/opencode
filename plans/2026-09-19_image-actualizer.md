@@ -74,6 +74,43 @@ Three parts, and every one of them is DERIVED at actualize time rather than stor
 composition, and a derived value cannot drift from the part it describes. (If it ever had to be stored,
 it must travel through `filePartFromNormalized`, the single constructor — the rule from 2026-09-18.)
 
+## 2.2 After a fold the SUMMARY becomes the index — three consequences
+
+Owner, 2026-09-19: «после компакта актуализатор тебе сразу покажет скриншот из линков которые были в
+компакте — на лету. Потери внимания — 0.»
+
+The link that survives a fold is rendered by a DIFFERENT code path than the one at ingestion:
+
+```
+prompt.ts:1455        [Attached file: <name> (<mime>)]        ← at ingestion
+compaction.ts:200,1001 [file: <name> (<mime>)]                ← into the summary
+```
+
+So after a fold the **summary is the index the agent reads**, and three things follow:
+
+1. **The summary must render the ordinal.** Without `#N` in the compaction rendering the link has no
+   address: the agent sees the name and cannot ask for it. This is not cosmetic — it is the condition
+   under which the post-fold loop works at all.
+2. **The ordinal must be DERIVED, not counted.** The summary renders links to parts that are no longer
+   in the window, so a counter that lived with the window is useless here. "Position in document
+   order" is correct for a part regardless of whether it is still visible — which is a REASON for the
+   §4.1 choice, not merely a preference.
+3. **The summary is an index, not the inventory.** If compaction ever trims the link list, the payload
+   still exists but its address is gone — the picture is there and cannot be requested. So the tool
+   must enumerate from the **session**, not from the summary:
+
+   | | what it is |
+   |---|---|
+   | summary | what is VISIBLE in the prompt — the index |
+   | session | what is ADDRESSABLE — the authoritative inventory |
+
+   The summary is what the agent happens to see; the session is what it can ask for. Conflating them
+   is how an image becomes unreachable while still being stored.
+
+**Why the loop loses no attention:** the summary keeps the LINK (so the agent knows the picture exists)
+and drops the BYTES (so nothing dilutes the window). The frame returns only when the work needs it, and
+leaves when the work is done — relevance decided by the agent, size bounded by the fold.
+
 ## 3. Where it plugs in
 
 | concern | site |

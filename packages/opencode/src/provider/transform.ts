@@ -1373,12 +1373,15 @@ export function providerOptions(model: Provider.Model, options: { [x: string]: a
  * 32 768 is the value that reserve was sized for. A model's own ceiling still caps
  * it (`limit.output` 8 192 ⇒ 8 192), so a small-output model is never handed a 400.
  *
- * Owner ruling 2026-09-19 (replaces the constant): the output budget is a QUARTER OF THE CONTENT
- * WINDOW. A fixed 32 768 is the same number for a 1M model and a 200K one, which is the wrong
- * invariant — the budget should scale with what the window can hold. `limit.context / 4` keeps the
- * structural property this function was fixed for (the number subtracted and the number asked for are
- * the SAME, so `prompt + max <= context` is checked with the provider's own arithmetic) while making
- * the value follow the window.
+ * Owner ruling 2026-09-19 (replaces the constant): the output budget is an EIGHTH OF THE CONTENT
+ * WINDOW, with a FLOOR of 32 768. A fixed 32 768 is the same number for a 1M model and a 200K one,
+ * which is the wrong invariant — the budget should scale with what the window can hold. The floor
+ * keeps a small window on the profile the system was tuned around rather than asking for a fraction
+ * too small to answer with.
+ *
+ * `max(32 768, limit.context / 8)` keeps the structural property this function was fixed for (the
+ * number subtracted and the number asked for are the SAME, so `prompt + max <= context` is checked
+ * with the provider's own arithmetic) while letting the value follow the window ABOVE the floor.
  *
  * The model's own ceiling still caps it (`limit.output` 8 192 ⇒ 8 192), so a small-output model is
  * never handed a 400. `OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX` still overrides everything, since it is
@@ -1388,7 +1391,8 @@ export function maxOutputTokens(model: Provider.Model, outputTokenMax?: number):
   const native = model.limit.output
   const context = model.limit.context
   const budget =
-    Flag.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX || (context > 0 ? Math.floor(context / 4) : OUTPUT_TOKEN_MAX)
+    Flag.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX ||
+    (context > 0 ? Math.max(OUTPUT_TOKEN_MAX, Math.floor(context / 8)) : OUTPUT_TOKEN_MAX)
   // Explicit override (sidecar, title). Honour it, but never above the model's
   // declared ceiling: a budget sized for a 384K-output model is a 400 on one
   // that caps lower, not a shorter answer.

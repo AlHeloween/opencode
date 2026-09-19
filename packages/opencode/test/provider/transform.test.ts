@@ -34,10 +34,18 @@ const createModel = (limit: Provider.Model["limit"]): Provider.Model => ({
 })
 
 describe("ProviderTransform.maxOutputTokens", () => {
-  test("returns a quarter of the content window when the model ceiling is higher", () => {
-    // Owner ruling 2026-09-19: the budget SCALES with the window. A 1M-context model with 384K
-    // native output asks 250 000 (1 000 000 / 4), not a fixed 32 768.
-    expect(ProviderTransform.maxOutputTokens(createModel({ context: 1_000_000, output: 384_000 }))).toBe(250_000)
+  test("returns an eighth of the content window when the model ceiling is higher", () => {
+    // Owner ruling 2026-09-19: the budget SCALES with the window above a floor of 32 768.
+    // A 1M-context model with 384K native output asks 125 000 (1 000 000 / 8).
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 1_000_000, output: 384_000 }))).toBe(125_000)
+  })
+
+  test("never drops below the 32 768 floor, whatever the window", () => {
+    // The floor is what keeps this the system's tuned profile for a small window instead of
+    // a fraction too small to answer with.
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 200_000, output: 384_000 }))).toBe(32_768)
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 262_000, output: 262_000 }))).toBe(32_768)
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 128_000, output: 200_000 }))).toBe(32_768)
   })
 
   test("a lower model ceiling wins over the window budget", () => {
@@ -46,11 +54,11 @@ describe("ProviderTransform.maxOutputTokens", () => {
   })
 
   test("caps output when native output equals or exceeds context", () => {
-    // The qwen-class defect this cap exists for: native output declared as the whole window. The
-    // window quarter caps it (262 000 / 4 = 65 500; 128 000 / 4 = 32 000), so a model that declares
-    // its output as its entire context is never asked for more than a quarter of it.
-    expect(ProviderTransform.maxOutputTokens(createModel({ context: 262_000, output: 262_000 }))).toBe(65_500)
-    expect(ProviderTransform.maxOutputTokens(createModel({ context: 128_000, output: 200_000 }))).toBe(32_000)
+    // The qwen-class defect this cap exists for: native output declared as the whole window.
+    // With the floor in place both of these land on the floor rather than on a model that
+    // declares its entire context as its answer budget.
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 262_000, output: 262_000 }))).toBe(32_768)
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 128_000, output: 200_000 }))).toBe(32_768)
   })
 
   test("unknown native output falls back to the budget itself", () => {
@@ -64,15 +72,14 @@ describe("ProviderTransform.maxOutputTokens", () => {
     expect(ProviderTransform.maxOutputTokens(createModel({ context: 200_000, output: 8_192 }), 32_768)).toBe(8_192)
   })
 
-  test("the budget scales with the window and equals the reserve the gate keeps free", () => {
-    // Owner ruling 2026-09-19: the budget is a QUARTER OF THE CONTENT WINDOW. A fixed 32 768 was
-    // the same number for a 1M model and a 200K one, which is the wrong invariant — this assertion
-    // is the inverse of the one it replaces, which required 1M and 512K to be IDENTICAL.
-    // What survives from the previous fix is the STRUCTURAL property, not the value: reserve and
-    // request are the same number because both sides call this function, so `prompt + max <=
-    // context` is checked with exactly the arithmetic the provider performs.
-    expect(ProviderTransform.maxOutputTokens(createModel({ context: 1_000_000, output: 384_000 }))).toBe(250_000)
-    expect(ProviderTransform.maxOutputTokens(createModel({ context: 512_000, output: 384_000 }))).toBe(128_000)
+  test("the budget scales with the window above the floor and equals the reserve the gate keeps free", () => {
+    // Owner ruling 2026-09-19: the budget is an EIGHTH OF THE CONTENT WINDOW above a 32 768 floor.
+    // A fixed 32 768 was the same number for a 1M model and a 200K one, which is the wrong
+    // invariant. What survives from the earlier fix is the STRUCTURAL property, not the value:
+    // reserve and request are the same number because both sides call this function, so
+    // `prompt + max <= context` is checked with exactly the arithmetic the provider performs.
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 1_000_000, output: 384_000 }))).toBe(125_000)
+    expect(ProviderTransform.maxOutputTokens(createModel({ context: 512_000, output: 384_000 }))).toBe(64_000)
     expect(ProviderTransform.maxOutputTokens(createModel({ context: 1_000_000, output: 384_000 }))).toBe(
       2 * ProviderTransform.maxOutputTokens(createModel({ context: 500_000, output: 384_000 })),
     )

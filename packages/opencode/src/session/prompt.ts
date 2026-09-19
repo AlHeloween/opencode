@@ -1444,6 +1444,15 @@ export const layer = Layer.effect(
                     synthetic: true,
                     text,
                   },
+                  // The BYTES stay in the session even when the model cannot take images
+                  // (2026-09-19). This branch used to return the converted text alone, so a
+                  // text-only model lost the payload entirely at ingestion — which is why a
+                  // screenshot showed up as a caption with nothing behind it. The model still
+                  // does NOT receive the bytes here; it receives the converted text as before.
+                  // Persisting the part is what gives the image-actualiser something to address:
+                  // the agent reads the caption, asks for the frame, and the payload is appended
+                  // to the request tail on demand.
+                  { ...part, messageID: info.id, sessionID: input.sessionID },
                 ]
               }
               return [

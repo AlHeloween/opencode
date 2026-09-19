@@ -2232,7 +2232,7 @@ it.live("keeps clipboard image parts for vision-capable models", () =>
   ),
 )
 
-it.live("converts clipboard image parts to markdown for non-vision models", () =>
+it.live("converts clipboard image parts to markdown for non-vision models, keeping the webp payload", () =>
   provideTmpdirInstance(
     () =>
       Effect.gen(function* () {
@@ -2256,8 +2256,15 @@ it.live("converts clipboard image parts to markdown for non-vision models", () =
         })
 
         if (msg.info.role !== "user") throw new Error("expected user message")
+        // The part is KEPT — as WebP — even though the model receives only the converted text.
+        // Dropping it here lost the picture for good for every non-vision model, and left the
+        // image actualiser nothing to re-attach (2026-09-19). This assertion is the inverse of
+        // the one it replaces: the drop was pinned, and unpinning it is the point.
         const filePart = msg.parts.find((part) => part.type === "file")
-        expect(filePart).toBeUndefined()
+        expect(filePart).toBeDefined()
+        if (filePart?.type !== "file") throw new Error("expected file part")
+        expect(filePart.mime).toBe("image/webp")
+        expect(filePart.url.startsWith("data:image/webp;base64,"))
         const converted = msg.parts.some(
           (part) => part.type === "text" && part.synthetic && part.text.includes("![clipboard.png](clipboard.png)"),
         )

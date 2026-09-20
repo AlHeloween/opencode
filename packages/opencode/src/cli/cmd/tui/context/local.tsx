@@ -333,6 +333,32 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         refreshSessionSettings()
       })
 
+      // A model chosen AT STARTUP is an edit to the WORKTREE layer (Alexander, 2026-09-20:
+      // «При старте редактироваться должно worktree»). It is written there — never into the
+      // session — so the layers stay honest: the worktree holds the choice, and a session
+      // copies it at creation like every other value. This is also what makes a startup
+      // choice actually reach the wire again: the previous chain that honoured it was
+      // removed as a read-time search outside the session.
+      createEffect(() => {
+        const chosen = args.model
+        if (!chosen) return
+        const a = agent.current()
+        if (!a) return
+        const parsed = parseModel(chosen)
+        if (!parsed || !isModelValid(parsed)) return
+        const scopeKey = workspaceModelScope(getActiveWorkspaceID())
+        const current = modelStore.workspaceAgent[scopeKey]?.[a.name]
+        if (current?.providerID === parsed.providerID && current?.modelID === parsed.modelID) return
+        setModelStore("workspaceAgent", {
+          ...modelStore.workspaceAgent,
+          [scopeKey]: {
+            ...(modelStore.workspaceAgent[scopeKey] ?? {}),
+            [a.name]: { providerID: parsed.providerID, modelID: parsed.modelID },
+          },
+        })
+        save()
+      })
+
       // Fill the worktree layer the moment the agent list is known, then re-fill the session:
       // the session copies FROM the worktree, so the worktree goes first. Both fills are
       // idempotent, which is why the extra pass costs nothing.

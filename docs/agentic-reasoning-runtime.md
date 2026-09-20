@@ -100,9 +100,9 @@ Standard scientific path (not “search = Done”):
 
 ```text
 Guess  (parametric)
-  →  universalsearch source=web
-  →  universalsearch source=code   (Sourcegraph over indexed git)
-  →  Hypothetical (falsifier = smoke criteria)
+  →  universalsearch source=web          →  Hypothetical (a fetched page is not authority)
+  →  universalsearch source=code         →  Inferred     (Sourcegraph over indexed git = local code)
+  →  falsifier = smoke criteria
   →  smoke / oracle
         PASS + evidence-bound runtime stamp  →  Exact (grounded, scoped)  →  may Done
         bound divergence                  →  Unknown  (stamp revoked; no Done)
@@ -111,9 +111,12 @@ Guess  (parametric)
 | Step | InfoMark | Notes |
 |------|----------|--------|
 | Guess only | Guess | Starting hypothesis |
-| web + code only | **Inferred** | Prior art — still not Done |
-| smoke **PASS** + stamp | **Exact** | Grounded; self-`[Exact]` rejected without stamp |
+| web hit, page fetched | **Hypothetical** | A web hit is never Inferred — writing on a fence is not authority |
+| primary authority, or local code (git, codegraph, `universalsearch source=code`) | **Inferred** | Prior art — still not Done |
+| smoke **PASS** + runtime stamp | **Exact** | Grounded; self-`[Exact]` rejected without stamp |
 | smoke **FAIL** | **Unknown** | Re-open only with a new falsifier |
+
+**The owner of this ladder is `@SOURCE_ROUTING` in `prompt_kernel/source.py`; this section is a summary of it, not a second owner.** The previous "web + code only → Inferred" row was looser than the kernel (which requires primary authority or local code) and contradicted the diagram above it. Corrected 2026-09-20 (H4).
 
 Prefer **web / code / hybrid** over `source=agent` for ordinary prior art
 (`universalsearch` tool). Agent mode is multi-hop and expensive.

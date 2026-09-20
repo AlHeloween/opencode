@@ -40,7 +40,12 @@ def test_primary_modes_match_runtime_acl_shape() -> None:
     assert identities["BUILD_MODE"].may_mutate is True
     assert identities["PLAN_MODE"].runtime == "plan_mode"
     assert identities["PLAN_MODE"].kind == "primary"
-    assert identities["PLAN_MODE"].gates == ("G0", "G1", "G2", "G3", "G4", "G5", "G6", "G9")
+    # G9 used to be listed here while G8 was not. G9's requires include VERIFIED_OUTCOME and
+    # ORACLE_STAMP, which G8 produces, and the runtime ACL denies plan_mode bash, cmd, run and
+    # pipeline (agent.ts), so this identity can obtain them neither by running an oracle nor by
+    # delegation. The list now holds only gates whose inputs the ACL actually permits, and the
+    # lawful completion is the handover terminal edge from G6.
+    assert identities["PLAN_MODE"].gates == ("G0", "G1", "G2", "G3", "G4", "G5", "G6")
     assert identities["PLAN_MODE"].may_mutate is False
     assert identities["REASONING_MODE"].runtime == "reasoning_mode"
     assert identities["REASONING_MODE"].kind == "primary"

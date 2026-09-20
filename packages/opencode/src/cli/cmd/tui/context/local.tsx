@@ -31,6 +31,7 @@ import {
   setWorkspaceAgentModel,
   type SessionSettings,
 } from "@/session/session-settings"
+import { fillSessionAgents, fillWorkspaceAgents } from "@/session/fill-layers"
 import { DEFAULT_MODEL_SAMPLING, modelSampling, modelSamplingKey, type ModelSampling } from "@/session/model-sampling"
 
 
@@ -216,24 +217,29 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         const settings = await loadSessionSettings(sid)
         // Ignore a delayed read after the user has moved to another session.
         if (getActiveSessionID() !== sid) return
-        if (!settings) {
-          setSessionSettings(null)
-          return
+        // FILL, do not search: a session that comes into existence gets one concrete model
+        // per agent, copied from the layer above, and every later read is a lookup of THIS
+        // layer. An unresolved name is reported as a bug rather than left as a hole.
+        fillWorktreeLayer()
+        const filled = fillSessionAgents(settings, agentNames(), fillSourceFor)
+        if (filled.filled.length > 0) await saveSessionSettings(sid, sessionPayload(filled.settings))
+        if (filled.unresolved.length > 0) {
+          Log.Default.warn("bug: session settings layer left unfilled", { agents: filled.unresolved.join(",") })
         }
-        setSessionSettings(settings)
+        setSessionSettings(filled.settings)
         // Merge into model store for reactive reads
         batch(() => {
-          if (settings.recent && settings.recent.length > 0) {
-            setModelStore("recent", settings.recent)
+          if (filled.settings.recent && filled.settings.recent.length > 0) {
+            setModelStore("recent", filled.settings.recent)
           }
-          if (settings.favorite && settings.favorite.length > 0) {
-            setModelStore("favorite", settings.favorite)
+          if (filled.settings.favorite && filled.settings.favorite.length > 0) {
+            setModelStore("favorite", filled.settings.favorite)
           }
-          if (settings.variant) {
-            setModelStore("variant", { ...modelStore.variant, ...settings.variant })
+          if (filled.settings.variant) {
+            setModelStore("variant", { ...modelStore.variant, ...filled.settings.variant })
           }
-          if (settings.agentVariant) {
-            setModelStore("agentVariant", { ...modelStore.agentVariant, ...settings.agentVariant })
+          if (filled.settings.agentVariant) {
+            setModelStore("agentVariant", { ...modelStore.agentVariant, ...filled.settings.agentVariant })
           }
         })
       }
@@ -327,75 +333,76 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         refreshSessionSettings()
       })
 
-      const args = useArgs()
-      const fallbackModel = createMemo(() => {
-        if (args.model) {
-          const { providerID, modelID } = parseModel(args.model)
-          if (isModelValid({ providerID, modelID })) {
-            return {
-              providerID,
-              modelID,
-            }
-          }
-        }
-
-        if (sync.data.config.model) {
-          const { providerID, modelID } = parseModel(sync.data.config.model)
-          if (isModelValid({ providerID, modelID })) {
-            return {
-              providerID,
-              modelID,
-            }
-          }
-        }
-
-        for (const item of modelStore.recent) {
-          if (isModelValid(item)) {
-            return item
-          }
-        }
-
-        const provider =
-          sync.data.provider.find(
-            (p) => !sync.data.config.provider || Object.keys(sync.data.config.provider).includes(p.id),
-          ) ?? sync.data.provider[0]
-        if (!provider) return undefined
-        const defaultModel = sync.data.provider_default[provider.id]
-        const firstModel = Object.values(provider.models)[0]
-        const model = defaultModel ?? firstModel?.id
-        if (!model) return undefined
-        return {
-          providerID: provider.id,
-          modelID: model,
-        }
+      // Fill the worktree layer the moment the agent list is known, then re-fill the session:
+      // the session copies FROM the worktree, so the worktree goes first. Both fills are
+      // idempotent, which is why the extra pass costs nothing.
+      createEffect(() => {
+        if (sync.data.agent.length === 0) return
+        fillWorktreeLayer()
+        void refreshSessionSettings()
       })
 
+      const args = useArgs()
+      // The four-step model chain that used to live here (args.model -> config.model ->
+      // recent[0] -> provider default -> first model) is GONE: it searched for a model
+      // OUTSIDE the session layer, which is exactly what the fill ruling removes
+      // (Alexander, 2026-09-20: «Reading model config not from session settings also all
+      // tests failed»). The session is filled from the worktree when it comes into
+      // existence, so its own entry is the only source a read needs.
       const currentModel = createMemo(() => {
         const a = agent.current()
-        return (
-          getFirstValidModel(
-            () => a && forAgent(a.name), // Session → workspace → global agent config
-            fallbackModel,
-          ) ?? undefined
-        )
+        return a ? forAgent(a.name) : undefined
       })
 
+      /** THE read: the session's OWN entry for this agent. After the fill every layer holds a
+       * value, so this is a plain lookup — no parent is walked at read time. */
       function forAgent(name: string) {
-        // 1. Check session-specific agent model override
-        const ss = sessionSettings()
-        const agentOverride = ss?.agent?.[name]
-        if (agentOverride?.model) {
-          const parsed = parseModel(agentOverride.model)
-          if (isModelValid(parsed)) return parsed
-        }
-        // 2. Workspace remembers the last explicit session selection.
+        const stored = sessionSettings()?.agent?.[name]?.model
+        if (!stored) return undefined
+        const parsed = parseModel(stored)
+        return isModelValid(parsed) ? parsed : undefined
+      }
+
+      /** FILL-TIME source for one agent — the layer above. Called only while a layer is being
+       * populated; never from a read path. */
+      function fillSourceFor(name: string): { model: string; variant?: string } | undefined {
         const workspace = workspaceAgentModel(name, getActiveWorkspaceID(), {
           workspaceAgent: modelStore.workspaceAgent,
         })
-        if (workspace && isModelValid(workspace)) return workspace
-        // 3. Global config is a default, never overwritten by TUI selections.
+        if (workspace) {
+          const key = `${workspace.providerID}/${workspace.modelID}`
+          return { model: key, variant: modelStore.agentVariant[`${name}/${key}`] ?? modelStore.variant[key] }
+        }
         const a = sync.data.agent.find((x) => x.name === name)
-        return a?.model ?? undefined
+        if (a?.model) return { model: `${a.model.providerID}/${a.model.modelID}`, variant: a.variant }
+        // Nothing anywhere: the widest default — and only once the agent list is known, so a
+        // fill can never invent a model while sync is still loading.
+        const build = sync.data.agent.find((x) => x.name === "build" || x.name === "build_mode")
+        if (build?.model) return { model: `${build.model.providerID}/${build.model.modelID}`, variant: build.variant }
+        return sync.data.agent.length > 0 ? { model: "opencode/big-pickle" } : undefined
+      }
+
+      const agentNames = () => sync.data.agent.map((a) => a.name)
+
+      /** Populate THIS worktree's layer from the one above. Idempotent: a filled entry is left
+       * alone, so re-running is free and a later change above does not flow into it. */
+      function fillWorktreeLayer() {
+        const agents = agentNames()
+        if (agents.length === 0) return
+        const result = fillWorkspaceAgents(modelStore.workspaceAgent, getActiveWorkspaceID(), agents, (name) => {
+          const a = sync.data.agent.find((x) => x.name === name)
+          if (a?.model) return { providerID: a.model.providerID, modelID: a.model.modelID }
+          const source = fillSourceFor(name)
+          const parsed = source ? parseModel(source.model) : undefined
+          return parsed && isModelValid(parsed) ? parsed : undefined
+        })
+        if (result.filled.length > 0) {
+          setModelStore("workspaceAgent", result.workspaceAgent)
+          save()
+        }
+        if (result.unresolved.length > 0) {
+          Log.Default.warn("bug: worktree settings layer left unfilled", { agents: result.unresolved.join(",") })
+        }
       }
 
       /** Session task() allow-list (worktree-local) then global Agent.Info.subagents. */

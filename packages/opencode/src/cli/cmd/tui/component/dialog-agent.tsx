@@ -209,16 +209,16 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
   })
 
   function buildOption(agent: any, category: string) {
-    // Scope-aware footer: show THE SELECTED LAYER's stored value (not the merged
-    // resolution) — switching scope switches the CONTENT, not just the title.
-    // (2026-08-31, Alexander: "список не переключается, просто меняется слово".)
+    // Layer-pure, and now honest: the fill materialises a model into EVERY layer, so this
+    // lookup finds a real value in every scope and `inheritLabel` remains only as a guard
+    // that becomes visible if a layer is somehow unfilled (that is a bug to fix by filling,
+    // not a state to display). No resolution happens here — a read is a lookup.
     const view = local.model.layerView(agent.name, scope)
     const layerModel = view.model ?? inheritLabel(scope)
 
     // Session subagents override (worktree-local) else global Agent.Info
     const sub = local.model.subagentsFor(agent.name)
     const subLabel = sub === undefined ? "" : sub.length === 0 ? " · task: none" : ` · task: ${sub.length}`
-
     const isActive = local.agent.current()?.name === agent.name
 
     const color: RGBA = local.agent.color(agent.name)

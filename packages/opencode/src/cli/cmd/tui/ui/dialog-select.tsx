@@ -53,7 +53,6 @@ export interface DialogSelectOption<T = any> {
   disabled?: boolean
   bg?: RGBA
   gutter?: JSX.Element
-  margin?: JSX.Element
   onSelect?: (ctx: DialogContext) => void
 }
 
@@ -471,11 +470,6 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                         paddingRight={3}
                         gap={1}
                       >
-                        <Show when={!current() && option.margin}>
-                          <box position="absolute" left={1} flexShrink={0}>
-                            {option.margin}
-                          </box>
-                        </Show>
                         <Option
                           title={option.title}
                           // Flatten (filter active, flat=true) hides the section

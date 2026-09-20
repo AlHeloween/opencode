@@ -12,8 +12,6 @@ import { DialogVariant } from "./dialog-variant"
 import { DialogRouting } from "./dialog-routing"
 import { DialogSubagentSettings } from "./dialog-subagent-settings"
 import { DialogModelParameters } from "./dialog-model-parameters"
-
-import { getModelStatus } from "@/provider/balance"
 import { useToast } from "../ui/toast"
 import { Keybind } from "@/util/keybind"
 import type { RGBA } from "@opentui/core"
@@ -21,9 +19,9 @@ import type { RGBA } from "@opentui/core"
 /**
  * Rich agent configuration dialog.
  *
- * Groups agents by type (primary / subagent), shows per-agent model,
- * provides model selection and enable/disable toggle, with balance
- * and cache hit stats summary in the footer.
+ * Groups agents by type (primary / subagent), shows each agent's model and
+ * variant, and exposes the per-agent actions (model, variant, sampling,
+ * routing, allow-list) on the highlighted row.
  */
 export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }) {
   const local = useLocal()
@@ -62,25 +60,6 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
   const primaryAgents = createMemo(() => allAgents().filter((a) => a.mode !== "subagent"))
   const subagents = createMemo(() => allAgents().filter((a) => a.mode === "subagent"))
 
-  // ── Local enable/disable toggles (v1: runtime only, v2: config write) ──
-  const [disabled, setDisabled] = createSignal<Set<string>>(new Set())
-
-  function isDisabled(name: string) {
-    return disabled().has(name)
-  }
-
-  function toggleDisabled(name: string) {
-    setDisabled((prev) => {
-      const next = new Set(prev)
-      if (next.has(name)) next.delete(name)
-      else next.add(name)
-      return next
-    })
-  }
-
-  // ── Balance per provider ──
-  const [balances, setBalances] = createSignal<Record<string, string>>({})
-
   // The form is a TABLE — agent | model | capability — and it needs the width for the
   // columns to be readable: at `medium` (60) the model column was cut mid-word even with
   // 110 columns of terminal available (owner, 2026-09-20: «надо было её просто расширить
@@ -90,58 +69,6 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
   // and because `dialog.replace()` resets the size to medium, this runs again on every
   // remount (each sub-dialog returning here goes through replace).
   onMount(() => dialog.setSize("xlarge"))
-
-
-  onMount(() => {
-    const providers = new Set<string>()
-    for (const agent of allAgents()) {
-      const m = local.model.forAgent(agent.name)
-      if (m) providers.add(m.providerID)
-    }
-    for (const pid of providers) {
-      getModelStatus(pid)
-        .then((status) => {
-          if (status.type === "balance" && (status as any).totalBalance) {
-            setBalances((prev) => ({
-              ...prev,
-              [pid]: `${(status as any).currency ?? "$"}${(status as any).totalBalance}`,
-            }))
-          }
-        })
-        .catch((e) => console.debug("agent balance fetch failed", e))
-    }
-  })
-
-  // ── Cache stats from last assistant in last session ──
-  const cacheStats = createMemo(() => {
-    const sessions = sync.data.session
-    if (!sessions?.length) return ""
-    const lastSession = sessions[sessions.length - 1]
-    const msgs = sync.data.message[lastSession.id]
-    if (!msgs?.length) return ""
-    const last = msgs.findLast((m: any) => m.role === "assistant" && (m as any).tokens?.output > 0)
-    if (!last) return ""
-    const t = (last as any).tokens
-    const cacheRead = t.cache?.read ?? 0
-    const totalIn = t.input ?? 0
-    if (totalIn + cacheRead <= 0) return ""
-    const rate = Math.round((cacheRead / (totalIn + cacheRead)) * 100)
-    return `Cache: ${rate}% hit`
-  })
-
-  // ── Balance summary line ──
-  const balanceLine = createMemo(() => {
-    const b = balances()
-    const keys = Object.keys(b)
-    if (!keys.length) return ""
-    return keys.map((k) => `${k}: ${b[k]}`).join("  ")
-  })
-
-  // ── Status footer ──
-  const statusLine = createMemo(() => {
-    const parts = [cacheStats(), balanceLine()].filter(Boolean)
-    return parts.join("  │  ")
-  })
 
   // ── Build options grouped by category ──
   const options = createMemo(() => {
@@ -194,17 +121,6 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
       })
     }
 
-    // Status footer
-    const status = statusLine()
-    if (status) {
-      items.push({
-        value: "__status__",
-        title: status,
-        category: "Status",
-        disabled: true,
-      })
-    }
-
     return items
   })
 
@@ -222,7 +138,6 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
     const isActive = local.agent.current()?.name === agent.name
 
     const color: RGBA = local.agent.color(agent.name)
-    const off = isDisabled(agent.name)
 
     return {
       value: agent.name,
@@ -236,10 +151,8 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
       title: `${agent.name}${isActive ? " ← active" : ""}`,
       description: agent.description ?? "",
       category,
-      disabled: off,
-      gutter: <text fg={color}>{off ? "○" : "●"}</text>,
+      gutter: <text fg={color}>●</text>,
       footer: `${layerModel}${view.variant ? ` · ${view.variant}` : ""}${subLabel}`,
-      margin: <text>{off ? "[ ]" : "[✓]"}</text>,
       onSelect: () => {
         dialog.replace(() => (
           <DialogModel
@@ -273,7 +186,6 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
       hint={(option: any) => {
         if (!option) return undefined
         const bits: string[] = []
-        if (option.disabled) bits.push("disabled")
         bits.push("Enter — choose this agent's model")
         bits.push(`edits target the ${scope} layer`)
         return bits.join(" · ")
@@ -370,18 +282,11 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
         },
         {
           title: "Edit allow-list",
-          // DialogSelect ignores any entry without a keybind, so this action
-          // and "Toggle enable" below were unreachable from the dialog.
+          // DialogSelect ignores a keybind entry that carries no keybind, so
+          // this action needs one to be reachable from the dialog at all.
           keybind: Keybind.parse("ctrl+alt+l")[0],
           onTrigger: (option: any) => {
             dialog.replace(() => <DialogSubagentSettings targetAgent={option.value} />)
-          },
-        },
-        {
-          title: "Toggle enable",
-          keybind: Keybind.parse("ctrl+alt+t")[0],
-          onTrigger: (option: any) => {
-            toggleDisabled(option.value)
           },
         },
         {

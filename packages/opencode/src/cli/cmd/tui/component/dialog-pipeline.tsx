@@ -51,8 +51,10 @@ export function DialogPipeline() {
         options={[{
           value: "none",
           title: "No pipelines configured",
+          // NOT `disabled: true`: the shared `filtered()` treats a disabled option as absent, so the
+          // intended message row never rendered — the user saw "No results found" instead
+          // (2026-09-20). A message row is the one row this dialog has; it must be visible.
           description: "Add pipelines to opencode.json to use this feature",
-          disabled: true,
         }]}
       />
     )

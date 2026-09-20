@@ -11,6 +11,7 @@
  *   - imageToChunks()   → structured rows of {fg, bg, text} for TUI inline rendering
  */
 import { RGBA } from "@opentui/core"
+import { readImage } from "./image-decode"
 
 export interface AnsiImageOptions {
   width: number       // target width in columns
@@ -25,9 +26,7 @@ export interface AnsiChunk {
 }
 
 async function decodeImage(imagePath: string, cols: number, rows: number): Promise<any> {
-  const j = await import("jimp") as any
-  const Jimp = j.Jimp
-  const img = await Jimp.read(imagePath)
+  const img = await readImage(imagePath)
   img.resize({ w: cols, h: rows * 2 })
   return img
 }
@@ -37,9 +36,7 @@ export async function imageToChunks(
   imagePath: string,
   options: AnsiImageOptions,
 ): Promise<AnsiChunk[][]> {
-  const j = await import("jimp") as any
-  const Jimp = j.Jimp
-  const img = await Jimp.read(imagePath)
+  const img = await readImage(imagePath)
 
   const aspect = img.width / img.height
   const cols = options.width
@@ -76,9 +73,7 @@ export async function imageToAnsi(
   imagePath: string,
   options: AnsiImageOptions,
 ): Promise<string> {
-  const j = await import("jimp") as any
-  const Jimp = j.Jimp
-  const img = await Jimp.read(imagePath)
+  const img = await readImage(imagePath)
 
   const aspect = img.width / img.height
   const cols = options.width

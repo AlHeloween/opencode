@@ -18,6 +18,7 @@ import { useRenderer } from "@opentui/solid"
 import { useTheme } from "@tui/context/theme"
 import { Spinner } from "./spinner"
 import { imageToChunks } from "@/util/image-to-ansi"
+import { readImage, toPngBytes } from "@/util/image-decode"
 import { fitContainSize } from "@/util/fit-image"
 import {
   type ViewportState,
@@ -244,8 +245,9 @@ async function decodeDataUrlToRgba(
 
   const [, , base64] = match
   const bytes = Buffer.from(base64!, "base64")
-  const j = (await import("jimp")) as any
-  const img = await j.Jimp.read(bytes)
+  // WebP-aware (util/image-decode): jimp has no WebP codec while every ingested
+  // attachment is WebP — the exact reason this path ended at [image unavailable].
+  const img = await readImage(bytes)
 
   // Optional: cap huge sources for interactive zoom memory
   const keepMax = opts?.keepSourceMax
@@ -673,7 +675,9 @@ async function decodeAndSymbols(dataUrl: string, maxCols: number): Promise<{ sty
   const extName = ext === "jpeg" ? ".jpg" : ".png"
   const tmpFile = join(tmpdir(), `opencode_img_${Date.now()}_${Math.random().toString(36).slice(2, 6)}${extName}`)
   try {
-    writeFileSync(tmpFile, Buffer.from(base64!, "base64"))
+    // Transcode first: the temp file is named .png, and WebP bytes under a .png
+    // name fail both decoders (see util/image-decode).
+    writeFileSync(tmpFile, await toPngBytes(Buffer.from(base64!, "base64")))
     const chunks = await imageToChunks(tmpFile, { width: maxCols })
     const all: Array<{ __isChunk: true; text: string; fg: any; bg: any }> = []
     const lines: string[] = []

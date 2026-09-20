@@ -2107,6 +2107,9 @@ const PART_MAPPING = {
   file: FilePartRenderer,
 }
 
+/** Reasoning longer than this renders as its tail — see ReasoningPart. */
+const THINKING_DISPLAY_MAX = 6_000
+
 function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: AssistantMessage }) {
   const ctx = use()
   const { theme } = useTheme()
@@ -2114,7 +2117,17 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
     // Filter out redacted reasoning chunks from OpenRouter
     // OpenRouter sends encrypted reasoning data that appears as [REDACTED]
     const text = props.part.text.replace("[REDACTED]", "").trim()
-    return text ? `*Thinking:* ${text}` : ""
+    if (!text) return ""
+    // A turn's reasoning runs to tens of thousands of characters (17k-117k per
+    // step in this session). Rendering every character turned the transcript into
+    // walls of gray text that read as cut mid-thought, with very large blocks
+    // laying out unpainted regions (owner, 2026-09-20: «немножко странный
+    // рендеринг, почини форматирование»). Show the tail — the live edge while
+    // streaming, the conclusions afterwards — and name what is hidden; the full
+    // text stays on the part and in message*.
+    if (text.length <= THINKING_DISPLAY_MAX) return `*Thinking:* ${text}`
+    const omitted = text.length - THINKING_DISPLAY_MAX
+    return `*Thinking:* … ${omitted} characters omitted — the latest ${THINKING_DISPLAY_MAX} shown\n\n${text.slice(-THINKING_DISPLAY_MAX)}`
   })
   return (
     <Show when={content() && ctx.showThinking()}>

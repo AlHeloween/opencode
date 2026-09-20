@@ -49,6 +49,13 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         ),
     ),
     GateAddon(
+        "G1",
+        "PROJECT_STRUCTURE",
+        (
+            "project shape, grounded not assumed: root manifests (project.dpr/dpk, pyproject.toml, Cargo.toml, package.json, tsconfig.json) in the root; core = pure testable library, separate from UI (GUI/CLI) and I/O (SoC); src/ + include/ layout; README.md names the modules; ONE canonical dependency file; settings are strict validated models (formal configuration), the config utility lives in-repo.",
+        ),
+    ),
+    GateAddon(
         "G2",
         "PATH_EXPERIMENTS",
         (
@@ -122,6 +129,13 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         (
             "launch via cmd_runner start (non-blocking; jobwait/jobkill) — a bare start hangs the TUI; reuse a live sidecar by lock/pid/port, never rebind a bound port.",
             "permanent services: nssm install, never ad-hoc detach.",
+        ),
+    ),
+    GateAddon(
+        "G7",
+        "STYLE_AUTHORITY",
+        (
+            "style authority per language: Python PEP-8; JS/TS Google JS Style Guide + Prettier/ESLint; Go gofmt + Effective Go; C/C++ clang-format + Google C++ Style Guide; Rust rustfmt; Delphi Embarcadero Style Guide; MSVC MSDN; 8051 Intel MCS-51 (MIT 6.115). A repo formatter config is the executable form of its guide.",
         ),
     ),
     GateAddon(

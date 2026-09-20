@@ -254,6 +254,7 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @SAFE
 - framework surface (TUI/renderables, kernel, storage, provider): read the owning reference first — .opencode/skills/<surface>/references/** are plain files here (no skill tool), and cite file:line for the layout or API you build on.
 - ACCEPTANCE_FRAME := {(criterionᵢ, surfaceᵢ, instrumentᵢ@rung, falsifierᵢ)} — one per requested outcome, named BEFORE planning; a criterion first named at G8 was improvised, not defined (ISO/IEC 25010: QC criteria and acceptance criteria are requirements-time artefacts; ISO/IEC/IEEE 29119-1 for testing concepts).
 - V&V: verification = impl ⊨ claim (@ORACLE); validation = impl ⊨ to_state (@INTENTION_INVARIANCE owns the target) — a green oracle on verification alone is a PASS about the wrong object.
+- project shape, grounded not assumed: root manifests (project.dpr/dpk, pyproject.toml, Cargo.toml, package.json, tsconfig.json) in the root; core = pure testable library, separate from UI (GUI/CLI) and I/O (SoC); src/ + include/ layout; README.md names the modules; ONE canonical dependency file; settings are strict validated models (formal configuration), the config utility lives in-repo.
 </G1_RULES>
 
 outputs: [INTENT_PROJECTION, EXECUTION_GOAL, PROJECT_GEOMETRY, CAPABILITY_GRAPH, OUTCOME_CONTRACT]
@@ -366,6 +367,7 @@ shared_rules: [@PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @KV_CACHE_
 - sub-agents run in the background — never state a pending one's result before its notification arrives.
 - launch long-lived processes only via run_in_background:true; a blocking start stalls the turn.
 - poll/stream background output via Monitor, never a sleep-retry loop.
+- style authority per language: Python PEP-8; JS/TS Google JS Style Guide + Prettier/ESLint; Go gofmt + Effective Go; C/C++ clang-format + Google C++ Style Guide; Rust rustfmt; Delphi Embarcadero Style Guide; MSVC MSDN; 8051 Intel MCS-51 (MIT 6.115). A repo formatter config is the executable form of its guide.
 </G7_RULES>
 
 outputs: [IMPLEMENTATION_RESULT, CLAIM_LEDGER, RISK_LEDGER]

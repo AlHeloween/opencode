@@ -88,7 +88,11 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # comment anticipated for them is taken here, restoring this variant's +1_000 B / +150 tok
     # margin for having no fixed slot on top of the product's 37_000 / 5_000.
     # Measured after them: 36_691 B / 4_782 tok.
-    assert len(text.encode("utf-8")) <= 38_000
+    # 39_000 / 5_150 (2026-09-20, later): mirrors the product raise to 38_000 for the QA/QC
+    # bindings (@ACCEPTANCE_FRAME at G1, @ACCEPTANCE_PASS at G9) and for PROJECT_STRUCTURE
+    # (G1) + STYLE_AUTHORITY (G7), which the framework's own 15.3 sections 1-2 supply.
+    # Measured after them: 38_134 B — the byte cap steps, the token cap already had the room.
+    assert len(text.encode("utf-8")) <= 39_000
     assert normalized_token_count(text) <= 5_150
 
 

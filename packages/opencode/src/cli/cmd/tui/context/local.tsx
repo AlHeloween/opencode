@@ -357,6 +357,18 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           },
         })
         save()
+        // …and into the ACTIVE SESSION, because that is where every read goes now. The
+        // worktree holds the durable choice; the session holds the value the request and the
+        // status line both use. Without this the two disagree: the server takes the startup
+        // argument while `local.model.current()` reads the session — the exact glitch reported
+        // (Alexander, 2026-09-20: «введено было дипсику, ответил дипсик, а билд показывает
+        // glm»). Same rule the global save already follows (2026-09-18, below).
+        const sid = getActiveSessionID()
+        if (sid) {
+          const next = setSessionAgentModel(sessionSettings(), a.name, `${parsed.providerID}/${parsed.modelID}`, undefined)
+          setSessionSettings(next)
+          void saveSessionSettings(sid, sessionPayload(next))
+        }
       })
 
       // Fill the worktree layer the moment the agent list is known, then re-fill the session:

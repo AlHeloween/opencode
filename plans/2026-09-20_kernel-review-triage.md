@@ -39,7 +39,7 @@ each hypothesis gets a full cycle, so a fold can land between them without losin
 |---|---|---|---|
 | **H1** sources ≠ explanations | **confirmed — and it hits a norm written today** | `@MEDOID_SIMPLEX` says "≥3 medoids with independent **sources**"; three sources supporting ONE explanation are a degenerate simplex. The axes are conflated **in my clause** | kernel text; the fix is one clause |
 | **H2** no consistent completion path | **confirmed: tables disagree, not a missing edge** | installed prompt `:481` `PLAN_MODE gates: [G0…G6, G9]`, yet `forward_move` has no `G6 -> G9` and G7 is not in those gates. Second instance: `STALL` is a declared state (`@LOOP_PROGRESS` → ASK; `INTENTION_RESET` → REASONING_MODE) with **no edge at all** | installed prompt; grep the transition table |
-| **H3** evidence scope not expressed | **confirmed, narrowed by T0 to ONE axis: version/environment. Invalidation already exists.** | `constitution.ts:1227` a stamp carries `{claimDigest, evidenceRef, evidenceDigest, at}` where `claimDigest = contentHash(claim.text)` ⇒ **the statement itself is the scope**; `:1253` `invalidateClaim` revokes to `Unknown` with `invalidatedEvidenceRef`; `:1011` `STATEMENT_CHANGED` exists as an event kind. Absent on every axis: the **build/environment** — a stamp proven under version N is indistinguishable from N+1. "critical risks 0" is still ambiguous | a version-change probe: stamp a claim, bump the build, does the stamp survive? |
+| **H3** evidence scope not expressed | **CLOSED 2026-09-20: the premise is REFUTED — the axis is unreachable, and the real gap is volatility.** | `constitution.ts:1043` keeps the entire epistemic state in a **module-private in-memory Map** (`SessionEpistemic`: ledger, evidence, events, stamps, evidenceFloor), created empty per session (`:1055`) and never serialized, stored or hydrated — validated tree-wide, not from one file: the only producer/consumer pair in `packages/opencode/src` is the model's own `claim_ledger` ingest (`processor.ts:1292`) and `epistemicNudge` (`processor.ts:639`). A stamp cannot outlive its process, and a process IS one build ⇒ a version field would ALWAYS equal the running version: a constant, never a check. Invalidation and statement-scope do exist (`:1227`, `:1253`) | **The residual is bigger and different:** after any restart or build bump the agent's epistemic position resets to EMPTY while the transcript still says which claims were stamped — the record and the runtime disagree, silently. The fix is a DECISION (persist the ledger, or state the volatility in the contract), not a binding. Also found: `resetEpistemicState` (`:1064`) and `getClaimEvidenceEvents` (`:1211`) are exported with **0 call sites** in `src` |
 | **H4** ladder read contradictorily | **confirmed at doc level, already queued as L4** | `docs/agentic-reasoning-runtime.md:111-116` states a looser rule than the kernel ⇒ a second owner of one ladder. Also: the ladder is an order of **statuses**, not a procedure — read as procedure it forces a web search before local code | doc + kernel diff |
 | **H5** attention conflates observation/research/execution | **not confirmed: closed by existing mechanisms** | `@SV_FORMAT.invariant` "an attention fingerprint, **never a claim status**"; `@SV_TARGET` "not the current vector, not a claim, **not ACL**"; the right to steer changes is gated by `@AUTHORITY_SEPARATION` + `@PLAN_CONTRACT_ENFORCEMENT`. An unverified hypothesis in the vector cannot authorize a change | none — quote the clauses |
 | **H6** labels become fictitious evidence | **semantics closed; observability absent** | kernel already forbids the misuse ("32 hex … **not a checksum** … never present a self-computed match as evidence") and already says what a break means. No form check, no record of a break | grep for md5 continuity across a fold |
@@ -75,15 +75,50 @@ Full patch-bindings are written when each is taken. Order follows dependency, no
    (`test_agent_identity.py:43`), updated with the reason in place.
    Oracle: **99 passed / 1 failed** (the red is the promotion gate), render `2026-09-20_13-24-39`
    lines 40/41/483, `utf8_bytes=35628`, `working_copy=not_updated`.
-2. **H3 — bind the stamp to a version.** `ORACLE_STAMP` gains the version it was proven under, taken
-   from the existing `session.version`; "critical risks 0" is disambiguated in G9's own wording.
-   Oracle: a stamp produced under version N is readable as inapplicable to N+1.
-3. **H1 — one clause separating the axes.** `@MEDOID_SIMPLEX`: independent sources are not independent
-   explanations. Oracle: the clause renders; the phrase is distinct enough to pass `dedup.py`.
-4. **H4 — one owner for the ladder.** `docs/agentic-reasoning-runtime.md` derives its table from
-   `source.py` or declares itself a summary. Oracle: the two texts agree.
-5. **T0 — settle H3's Unknown: where `ev_*` comes from.** One grep and one read. Until it runs, H3's
-   decision is `Unknown`, not "absent".
+2. **H3 — CLOSED 2026-09-20, and NOT as a binding.** The probe was answered by reading rather than by
+   running, and it REFUTES the premise: `constitution.ts:1043` keeps the entire epistemic state in a
+   module-private in-memory `Map`, created empty per session and never serialized, persisted or
+   hydrated — validated tree-wide, since the only producer is the model's `claim_ledger` ingest
+   (`processor.ts:1292`) and the only consumer is `epistemicNudge` (`processor.ts:639`). **A stamp
+   cannot outlive its process, and a process is one build**, so a version field would always equal the
+   running version: a constant, never a check. Binding it would have added decoration — the exact
+   failure mode this triage exists to catch, and the reason the probe came first. The real residual is
+   bigger: after any restart the agent's epistemic position resets to EMPTY while the transcript still
+   says which claims were stamped. That is a decision (persist the ledger, or state the volatility in
+   the contract), so it is recorded for the owner rather than taken.
+3. **H1 — DONE 2026-09-20.** The clause now reads "…pins from one source are one point repeated, and
+   three sources resting on ONE explanation are a degenerate simplex — it is the explanations that must
+   be independent, not only the sources." The defect was in the wording of a norm written the same day,
+   which is why the pin is the line itself (`source.py:163`) rather than a mechanism.
+   Oracle: the phrase renders in `dist/2026-09-20_14-16-43_reasoning_prompt.txt` (hunk `@@ -271,3 +273,3 @@`);
+   the suite's own dedup guard passes; the render moved 35 628 -> 35 914 bytes.
+4. **H4 — DONE 2026-09-20, and it returned NO kernel budget (checked, not assumed).** The doc's §4 held
+   a second, looser ladder **and contradicted itself**: the diagram sent web+code to Hypothetical while
+   the table called the same steps Inferred — and both were looser than `@SOURCE_ROUTING`, which requires
+   primary authority or local code for Inferred. The section now derives from the kernel and names it as
+   the owner. Oracle: the two texts agree, and the kernel render is unchanged by it because it is a doc
+   and not prompt text — so the 86 spare bytes stand.
+5. **T0 — DONE 2026-09-20.** The runtime consumer EXISTS and is **stricter** than the norms describing
+   it: `session/constitution.ts` mints evidence as a content digest, holds **two tool tiers**
+   (`ORACLE_EVIDENCE_TOOLS` 19 / `EXACT_ORACLE_TOOLS` 12), refuses a bind on six grounds including
+   `missing_falsifier`, and hard-gates mutation on ungrounded premises. **Its own conclusion — "the ONE
+   missing axis is build/environment" — was later REFUTED by the H3 probe (item 2): the axis is
+   unreachable because the carrier is volatile.** The two norms that restated it were then aligned with
+   the code (`@CLAIM_CITATION` names the required falsifier; `@INSTRUMENT_RUNG` says eligibility does not
+   transfer).
+
+**Phase 2 — DONE 2026-09-20: the isolated install, and it proves itself.** `python -m prompt_kernel
+--install` → `installed=0ae3b7f80e7b154fc5063af47a2cda3a1d55a2db5db97b69a067d6e29c5d86e7`,
+`utf8_bytes=35914` of 36 000 (**86 spare, measured, not estimated**), `working_copy=updated`.
+`install_production` was READ before it ran, which is how the repin was known to be mine: it returns
+`sha256(runtime)` (`cutover.py:70`) and never touches the manifest, so `baseline.json` was repinned by
+hand — and the install's returned digest proved EQUAL to the render's `sha256`, verified rather than
+assumed. Oracle: the promotion gate was **red** before the install (99 passed / 1 failed) and **GREEN**
+after it (**100 passed** in 0.97 s) — that red-to-green transition is the proof the install landed, which
+is exactly why a kernel change is committed only after it. Commits: `21469aeb4e` (the kernel),
+`5a544fe027` (the log).
+**Live status:** nothing reaches a running session until the binary is rebuilt AND a new session or a
+compact picks up the prefix — a checkpoint holds the old one.
 
 ## 5. The memory carrier must be budgeted (from the second review, and it is ours)
 

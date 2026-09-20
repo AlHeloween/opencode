@@ -41,12 +41,17 @@ owner: «Ага, давай» (2026-09-20) — the package: decoder port + sixel
       `zig build test` exit 0; `--native` rebuild exit 0.
       Finding recorded: the whole-canvas cache cannot fix the remaining cost (any patch change re-encodes
       ALL images as one canvas); a per-placement payload model would — that is a design decision, not a sneak.
-- [ ] **T2 — native decoder vendor.** Copy `image.zig` + C shims + `vendor/libwebp` (+ the resample used
-      by `ot_image_resize_rgba`) into `packages/core/src/zig`; wire into `build.zig` (C sources + include
-      paths + SSE4.1/AVX2 flags — yoga/miniaudio are the precedent). Adapt 0.16→0.15.2 (`root.io`, API drift).
-      Oracle: `zig build` produces the dll with the new symbols; decode of a webp fixture passes.
-- [ ] **T3 — bindings.** Expose `ot_image_*` through `zig.ts` (function table + structs); TS wrapper
-      `nativeImageDecode(bytes) -> {width, height, rgba}`. Oracle: a bun test against the built dll.
+- [ ] **T2 — native decoder vendor (REVISED 2026-09-20, owner question «они перешли на 0.16.0?»).**
+      Upstream is on Zig **0.16.0** (`external/opentui-0.5.11/packages/native/build.zig:10-12`), our core on
+      **0.15.2** — so `image.zig` (1307 lines, 0.16 APIs) is NOT ported and the toolchain is NOT bumped.
+      Vendored 2026-09-20: `src/zig/vendor/libwebp` (**85 files**, pinned 1.6.0, staged by
+      `experiments/2026-09-20_native-decode/vendor-libwebp.mjs`). Still to do: a minimal C shim
+      (`ot_webp_probe`/`ot_webp_decode` — their `image-shim.c:753-798` touches ONLY libwebp's public API;
+      lcms2/stb/wuffs stay behind) + a thin 0.15.2 Zig binding in our lib. PNG/JPEG/GIF keep the working
+      jimp/sharp path. Oracle: `zig build` produces the lib with the new symbols; decode of a real webp
+      fixture passes.
+- [ ] **T3 — bindings.** Expose the webp decode through `zig.ts` (function table + struct); TS wrapper
+      `nativeWebpDecode(bytes) -> {width, height, rgba}`. Oracle: a bun test against the built dll.
 - [ ] **T4 — app switch.** `util/image-decode.ts` prefers the native decode; jimp/sharp remain the fallback.
       Oracle: `test/util/image-decode.test.ts` stays green; media-image renders the webp screenshot.
 - [ ] **T5 — rebuild + deploy note.** One dll rebuild; deploy to `bin/` is the owner's action.
@@ -60,6 +65,7 @@ owner: «Ага, давай» (2026-09-20) — the package: decoder port + sixel
 
 ## Risks / guards
 
-- Version skew (their 0.16 vs our 0.15.2): `image.zig` may need small API fixes — compile-driven, bounded.
+- Version skew (their 0.16 vs our 0.15.2) — RESOLVED by design: only the C layer + libwebp are taken
+  (`image.zig` and the toolchain are not touched).
 - First-ever fork-lib rebuild on this host: T0 proves it before anything is ported.
 - Keep every checkpoint green: T1 lands alone (ours, no vendoring); T2+ lands as one patch with the dll build.

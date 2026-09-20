@@ -7,6 +7,20 @@ import { useToast } from "./toast"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import * as Selection from "@tui/util/selection"
 
+/** The one width table for a dialog size.
+ *
+ * Read by `Dialog` itself AND by `DialogSelect`'s row geometry. A row must be laid out
+ * against the width the PANEL actually got, never against the size name alone: the panel is
+ * clamped by the terminal (`maxWidth = terminal − 2`), so a row sized from the name alone is
+ * laid out for columns the panel does not have and is clipped at the right edge — measured
+ * 2026-09-20 on /agents, where a 116-column row sat inside a narrower panel.
+ */
+export function dialogSizeWidth(size: "medium" | "large" | "xlarge"): number {
+  if (size === "xlarge") return 116
+  if (size === "large") return 88
+  return 60
+}
+
 export function Dialog(
   props: ParentProps<{
     size?: "medium" | "large" | "xlarge"
@@ -18,11 +32,7 @@ export function Dialog(
   const renderer = useRenderer()
 
   let dismiss = false
-  const width = () => {
-    if (props.size === "xlarge") return 116
-    if (props.size === "large") return 88
-    return 60
-  }
+  const width = () => dialogSizeWidth(props.size ?? "medium")
 
   return (
     <box

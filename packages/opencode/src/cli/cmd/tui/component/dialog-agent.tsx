@@ -81,6 +81,17 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
   // ── Balance per provider ──
   const [balances, setBalances] = createSignal<Record<string, string>>({})
 
+  // The form is a TABLE — agent | model | capability — and it needs the width for the
+  // columns to be readable: at `medium` (60) the model column was cut mid-word even with
+  // 110 columns of terminal available (owner, 2026-09-20: «надо было её просто расширить
+  // чтобы колонки выглядели правильно»). Requested here rather than measured from the
+  // terminal because `Dialog` already clamps the panel with `maxWidth = terminal − 2`
+  // (`ui/dialog.tsx:55`), so on a narrow terminal the dialog narrows instead of clipping —
+  // and because `dialog.replace()` resets the size to medium, this runs again on every
+  // remount (each sub-dialog returning here goes through replace).
+  onMount(() => dialog.setSize("xlarge"))
+
+
   onMount(() => {
     const providers = new Set<string>()
     for (const agent of allAgents()) {

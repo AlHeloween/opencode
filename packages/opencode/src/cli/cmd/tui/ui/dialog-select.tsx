@@ -6,7 +6,7 @@ import { createStore } from "solid-js/store"
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import * as fuzzysort from "fuzzysort"
 import { isDeepEqual } from "remeda"
-import { useDialog, type DialogContext } from "@tui/ui/dialog"
+import { dialogSizeWidth, useDialog, type DialogContext } from "@tui/ui/dialog"
 import { useKeybind } from "@tui/context/keybind"
 import { Keybind } from "@/util/keybind"
 import { Locale } from "@/util/locale"
@@ -182,12 +182,14 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
     }),
   )
 
-  // Usable text width for Option rows (rev 4: long rows must split into two
-  // lines instead of overlapping/crushing) — dialog width minus list paddings.
-  const rowWidth = createMemo(() => {
-    const size = dialog.size
-    return size === "xlarge" ? 116 : size === "large" ? 88 : 60
-  })
+  const dimensions = useTerminalDimensions()
+
+  // The width every row is laid out against: the size table CAPPED BY THE TERMINAL, which is
+  // exactly how `Dialog` clamps the panel (`maxWidth = terminal − 2`, ui/dialog.tsx). Reading
+  // the size name alone was a real defect: /agents asked for `xlarge`, the terminal was
+  // narrower, the panel was clamped — and the rows still laid out for 116 columns, so the
+  // model column ran past the panel and was cut at its right edge (measured 2026-09-20).
+  const rowWidth = createMemo(() => Math.min(dialogSizeWidth(dialog.size), dimensions().width - 2))
 
   // Header geometry, from the SAME width the rows use.
   //
@@ -202,19 +204,25 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   const headerWidth = createMemo(() => rowWidth() - 8)
   const titleWidth = createMemo(() => headerWidth() - 4)
 
-  // The TEXT budget of an option row, from the SAME one width as the header.
+  // Row geometry, from the SAME one width table as the header.
   //
-  // The row is a flex child of the scrollbox, and a child in a flex column gets NO
-  // width from its parent — so the row resolved to CONTENT size, overran the dialog and
-  // the last columns were cut mid-word with no ellipsis (measured 2026-09-20 in the
-  // /agents capture: `huggingface/zai-org/GLM-5.3-`). The row's width is now stated
-  // explicitly below, and this number is what its fields are truncated to, so the
-  // ellipsis is REACHABLE instead of being clipped away with the text.
+  // The row is a flex child of the scrollbox, and a child in a flex column gets NO width
+  // from its parent — so the row resolved to CONTENT size, overran the dialog and the last
+  // columns were cut mid-word with no ellipsis (measured 2026-09-20 in the /agents capture:
+  // `huggingface/zai-org/GLM-5.3-`). The row now states its width explicitly below, and
+  // these two derived the fields' budgets, so an ellipsis is REACHABLE instead of being
+  // clipped away with the text.
   //
-  // Arithmetic, worst case (the row that carries both a marker and a gutter):
-  //   dialog content 60 − row padding (5 left + 3 right) − marker/gutter and gaps (8) = 44.
-  // A row without a marker spends 2 less; the budget is the worst case for all of them.
-  const rowTextWidth = createMemo(() => rowWidth() - 16)
+  // The left padding is stated ONCE: the marker renders absolutely at columns 1..3, so a
+  // row that carries one must start at 5, a gutter alone needs 3, and the "current" row
+  // (whose dot is in the flow) needs 1. The budget reads the same function, or it would be
+  // computed against a padding the row does not use.
+  const rowPaddingLeft = (option: DialogSelectOption<T>) =>
+    isDeepEqual(option.value, props.current) ? 1 : option.margin ? 5 : 3
+  // Row box is (dialog − 2) for the scrollbox padding; then its own padding, the gutter
+  // and the gap (2), and the field's own indent (3), with one spare column so the ellipsis
+  // itself is never the character that gets cut.
+  const rowTextWidth = (option: DialogSelectOption<T>) => rowWidth() - 11 - rowPaddingLeft(option)
 
   const rows = createMemo(() => {
     const headers = grouped().reduce((acc, [category], i) => {
@@ -250,7 +258,6 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
     return lines + headers
   })
 
-  const dimensions = useTerminalDimensions()
   const height = createMemo(() => Math.min(rows(), Math.floor(dimensions().height / 2) - 6))
 
   const selected = createMemo(() => flat()[store.selected])
@@ -454,11 +461,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                           moveTo(index)
                         }}
                         backgroundColor={active() ? (option.bg ?? theme.primary) : RGBA.fromInts(0, 0, 0, 0)}
-                        // A margin renders ABSOLUTELY at left 1 and is three columns wide
-                        // (`[✓]`), so the flow must start clear of it. Reserving 3 while the
-                        // marker sat on columns 1..3 made the two overlap — the capture showed
-                        // `●✓orchestrator_agent`, i.e. the brackets eaten by the glyphs.
-                        paddingLeft={current() ? 1 : option.margin ? 5 : 3}
+                        paddingLeft={rowPaddingLeft(option)}
                         paddingRight={3}
                         gap={1}
                         // Stated EXPLICITLY for the same reason as the header row: without
@@ -493,7 +496,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                           current={current()}
                           gutter={option.gutter}
                           rowWidth={rowWidth()}
-                          textWidth={rowTextWidth()}
+                          textWidth={rowTextWidth(option)}
                         />
                       </box>
                     )

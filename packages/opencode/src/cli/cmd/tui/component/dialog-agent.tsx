@@ -265,6 +265,23 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
       current={local.agent.current()?.name}
       cursorValue={props.restoreValue}
       options={options()}
+      // The bottom hint is USER-FACING, not a copy of the agent's own description. That
+      // description is internal prose (for this project, kernel-flavoured) and putting it in
+      // the UI is wrong even where it is accurate (Alexander, 2026-09-20: «копипастить кенел
+      // в пользовательском интерфейсе - нууу так себе»). What a user of THIS screen needs to
+      // know is the state of the row under the cursor and what Enter will do to it.
+      hint={(option: any) => {
+        if (!option) return undefined
+        const bits: string[] = []
+        if (option.disabled) bits.push("disabled")
+        bits.push(
+          option.value === local.agent.current()?.name
+            ? "active in this session"
+            : "Enter — choose this agent's model",
+        )
+        bits.push(`edits target the ${scope} layer`)
+        return bits.join(" · ")
+      }}
       onMove={(opt: any) => setLastCursor(opt?.value)}
       keybind={[
         {

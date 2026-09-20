@@ -534,8 +534,13 @@ const MIN_TITLE_WIDTH = 24
 export function descriptionBudget(input: { title: string; footer?: JSX.Element | string; rowWidth?: number }): number {
   const width = input.rowWidth ?? 60
   const footerLen = typeof input.footer === "string" ? input.footer.length : 0
+  // The title occupies its own length OR ITS FLOOR — the floor wins for a short name, and
+  // missing that made the budget wider than the space the layout actually hands out, so the
+  // description was clipped by the renderer with no ellipsis and ran into the runtime hint
+  // (measured on /agents: «Autonomous development orchestrato huggingfac…»).
+  const titleWidth = Math.max(input.title.length, MIN_TITLE_WIDTH)
   // 2 marker/gutter + 3 title indent + 2 gaps + 3 row padding right + 2 separators
-  return width - 12 - input.title.length - footerLen
+  return width - 12 - titleWidth - footerLen
 }
 
 function Option(props: {

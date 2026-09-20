@@ -14,9 +14,12 @@ const LARGE = 88
 const XLARGE = 116
 
 describe("one-line rows: the description takes what is left", () => {
-  test("budget is the dialog width minus the row's chrome", () => {
-    // 60 − 12 chrome − 10 title − 0 footer
-    expect(descriptionBudget({ title: "build_mode", rowWidth: MEDIUM })).toBe(60 - 12 - 10)
+  test("budget is the dialog width minus the row's chrome, and the title floor counts", () => {
+    // 60 − 12 chrome − 24 FLOOR (not "build_mode".length = 10) − 0 footer
+    expect(descriptionBudget({ title: "build_mode", rowWidth: MEDIUM })).toBe(60 - 12 - 24)
+    // A long title past the floor pays for its own length instead.
+    const long = "x".repeat(40)
+    expect(descriptionBudget({ title: long, rowWidth: MEDIUM })).toBe(60 - 12 - 40)
   })
 
   test("the runtime hint is subtracted — it never yields to the description", () => {
@@ -42,6 +45,18 @@ describe("one-line rows: the description takes what is left", () => {
     const medium = descriptionBudget({ title: "agent", rowWidth: MEDIUM })
     const xlarge = descriptionBudget({ title: "agent", rowWidth: XLARGE })
     expect(xlarge - medium).toBe(XLARGE - MEDIUM)
+  })
+
+  test("the /agents case that was NONSENSE on screen now elides with room to spare", () => {
+    // The exact row measured 2026-09-20: title, a long model hint, and a sentence that was
+    // clipped mid-word and butted into the hint. The budget must leave the hint intact and
+    // still give the description a usable run.
+    const footer = "huggingface/zai-org/GLM-5.3-Flash-BF16 · task: 2"
+    const budget = descriptionBudget({ title: "orchestrator_agent", footer, rowWidth: XLARGE })
+    expect(budget).toBeGreaterThan(20)
+    // The title floor (24) is what the layout reserves, not the 18 characters of the name —
+    // the same correction that made the on-screen row overflow.
+    expect(budget).toBe(XLARGE - 12 - 24 - footer.length)
   })
 
   test("an absurd title or hint drives the budget non-positive, which HIDES the description", () => {

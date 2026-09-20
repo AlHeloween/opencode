@@ -2,6 +2,7 @@ import path from "path"
 import { Effect, Schema } from "effect"
 import * as Tool from "./tool"
 import { Instance } from "../project/instance"
+import { memoryFlag } from "../memory/budget"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import * as Log from "@opencode-ai/core/util/log"
 
@@ -100,12 +101,17 @@ export const MemoryTool = Tool.define<typeof Parameters, Metadata, AppFileSystem
           if (params.action === "write") {
             const previous = (yield* fs.existsSafe(filepath)) ? yield* fs.readFileString(filepath) : ""
             const revision = previous ? yield* keepRevision(previous, fs) : undefined
-            yield* fs.writeWithDirs(filepath, params.content ?? "")
+            const written = params.content ?? ""
+            yield* fs.writeWithDirs(filepath, written)
+            // The FLAG rides the MUTATION, never `read`: a read is a passthrough whose output IS the file
+            // (its tests assert that), so a caller echoing a read back into `write` would copy the flag
+            // into the carrier. Growth happens here, and here is where the actor sees the number.
             return {
               title: "Memory updated",
-              output: revision
-                ? `Memory written. Replaced content kept at ${revision}.`
-                : "Memory written successfully.",
+              output:
+                (revision
+                  ? `Memory written. Replaced content kept at ${revision}.`
+                  : "Memory written successfully.") + `\n\n${memoryFlag(written)}`,
               metadata: { filepath, action: "write" },
             }
           }
@@ -115,10 +121,11 @@ export const MemoryTool = Tool.define<typeof Parameters, Metadata, AppFileSystem
             ? yield* fs.readFileString(filepath)
             : ""
           const separator = existing && !existing.endsWith("\n") ? "\n" : ""
-          yield* fs.writeWithDirs(filepath, existing + separator + (params.content ?? "") + "\n")
+          const appended = existing + separator + (params.content ?? "") + "\n"
+          yield* fs.writeWithDirs(filepath, appended)
           return {
             title: "Memory appended",
-            output: "Insight appended to memory.",
+            output: `Insight appended to memory.\n\n${memoryFlag(appended)}`,
             metadata: { filepath, action: "append" },
           }
         }).pipe(Effect.orDie),

@@ -6,6 +6,7 @@ import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { Agent } from "../../src/agent/agent"
 import { Instance } from "../../src/project/instance"
 import { MessageID, SessionID } from "../../src/session/schema"
+import { memoryFlag } from "../../src/memory/budget"
 import { MemoryTool, Parameters } from "../../src/tool/memory"
 import { Tool } from "../../src/tool/tool"
 import { Truncate } from "../../src/tool/truncate"
@@ -83,7 +84,10 @@ describe("tool.memory", () => {
         const created = yield* run({ action: "write", content: "criterion under review" })
         const replaced = yield* run({ action: "write", content: "revised criterion" })
 
-        expect(created.output).toBe("Memory written successfully.")
+        // The flag rides the MUTATION output (deliberately not `read`, which stays a pure passthrough —
+        // see the `read` assertions below). Asserted through the same function so no number is hardcoded,
+        // while the pure tests in test/memory/budget.test.ts pin what that function actually says.
+        expect(created.output).toBe(`Memory written successfully.\n\n${memoryFlag("criterion under review")}`)
         expect(replaced.output).toContain(".opencode/data/memory/revisions/reasoning-")
 
         const revisions = path.join(dir, ".opencode/data/memory/revisions")

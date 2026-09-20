@@ -122,33 +122,117 @@ compact picks up the prefix — a checkpoint holds the old one.
 
 ## 5. The memory carrier must be budgeted (from the second review, and it is ours)
 
-Measured today: `.opencode/data/memory/reasoning.md` is **281 347 bytes / 232 856 chars / 76 dated
-entries**, and it is folded into `m*` **verbatim** on every fold. Three of our own instruments disagree
-about its cost by **5×**:
+**T-M1 — DONE 2026-09-20: the number is MEASURED, with the instrument that governs the fold.**
+`experiments/2026-09-20_memory-budget/memory-tokens.ts` (and its `.out.txt`) drives the real
+`countTokens()` from `session/token-count.ts` over the real carrier:
 
 ```
-kernel normalized counter    26 542
-estimated @3.69 chars/token  63 105
-estimated @1.78 chars/token 130 818
+exact=true                      the tokenizer ran — this is NOT the chars/4 fallback
+bytes=303353  chars=251723  tokens=72771
+entries=82                      independently confirmed against 82 dated headers
 ```
 
-**None of them is the instrument that governs the fold** (`session/token-count.ts`, tiktoken
-`o200k_base`). Setting a limit off the wrong instrument is the "two measures under one name" defect this
-project has already paid for — so the task's first step is the measurement, not the number.
+⇒ **The resident cost of memory is 72 771 tokens per fold — 7.6 % of the 957 232 fold budget.** Its
+real divisor is **3.46 chars/token** (mixed Russian/English technical prose). The rivals, for the
+record — and note WHICH one was worst:
 
-- **T-M1** — measure with the window's own counter. Oracle: the number comes from `token-count.ts`, not
-  from a ratio. Until then the resident cost of memory is `Unknown`.
-- **T-M2** — one declared limit, as a number where limits live (the `gateway.tda.*` precedent), never a
-  constant inside a function.
-- **T-M3** — the eviction unit is the **dated entry** (76 exist). Mechanical, no judgement.
-- **T-M4** — eviction order: **closed episodes oldest-first; an entry carrying an ACTIVE criterion is
-  pinned.** The mark already exists — a criterion carries scope, falsifier and status
-  (`INTENTION_RESET`'s contract) — and the rule mirrors the summary nag ("only OPEN summaries get a line").
-- **T-M5** — eviction is a **move, not a delete**: retired entries go to a generation file and stay
-  addressable. Acquire / hold / release / re-acquire applied to memory itself.
+| instrument | value | error |
+|---|---:|---:|
+| **the fold's own counter (exact)** | **72 771** | — |
+| `@3.69 chars/token` | 68 218 | −6.3 % |
+| `chars/4` | 62 931 | −13.5 % |
+| `@1.78 chars/token` | 141 418 | +94 % |
+| the kernel's normalized counter (at the earlier 281 347 B) | 26 542 | ≈ **−2.7×** |
+
+**The worst of the four is the counter we use to budget the PROMPT** — a different SPACE, i.e. exactly
+the "two measures under one name" defect this project has already paid for. Neither cheap instrument is
+admissible here; the measurement is, and it cost one script.
+
+**Eviction material (T-M3/T-M4), measured:** the distribution is FLAT — median entry **831 tokens**,
+largest 2 536 (**3.5 %** of the total), 5 largest 2 536/1 815/1 624/1 623/1 536. Reaching any target
+means dropping a NUMBER of entries, not one fat one, which is what makes "oldest-first, ACTIVE criterion
+pinned" the right unit rather than a size heuristic. `count_ms=1331` includes the one-time tiktoken init
+in a fresh process; the same package's own bench records 1.9 Mchars/s for pure encoding, so the encode
+is ~130 ms of that — arithmetic from two measurements, not a separate run.
+
+**A HOLE IN THE PIN RULE, found by the owner's own question** («Сорян, погоди что ты собрался
+выкидывать?») and measured with `experiments/2026-09-20_memory-budget/memory-composition.ts`:
+
+```
+total                        72 758 tok · 82 entries
+pinned (carries ACTIVE)       5 987 tok ·  8 entries
+closed history (no ACTIVE)   66 771 tok · 74 entries
+declared limit               96 000 tok   ⇒ entries displaced TODAY = 0
+```
+
+So at today's size the whole mechanism is a **no-op** — 72 758 < 96 000, and it is a bound, not a cut.
+**But the pin test is unsafe as written:** the oldest entries of the "closed" class are NOT the most
+worthless. The first three are 2026-09-12, and two of them are the *misattribution-reflex* self-analysis
+and the repair-decision — durable criteria the agent still works under, carrying no `Status: ACTIVE`
+line, so the mechanical test would retire them FIRST. The plan's own falsifier catches it: *after
+rotation the agent must not have to re-derive a criterion it had already written* — and a LESSON is not
+a statused criterion, so it looks exactly like a task log to the test.
+
+**Revision, applying to every variant:** (a) the pin widens to "carries an ACTIVE criterion **or** a
+durable lesson/criterion marker"; (b) an eviction LEAVES A ONE-LINE INDEX in the resident file — date ·
+headline · where the entry went — so retirement is visible and reversible **from the file itself** and the
+falsifier is checkable by reading rather than by memory (cost measured: 74 × ~15 tok ≈ **1 100 tok**
+resident).
+- **T-M2 — DONE 2026-09-20.** The declared ceiling is `MEMORY_TOKENS_LIMIT = 96_000` in
+  `packages/opencode/src/memory/budget.ts`, named at module scope — **not a literal inside a function**.
+  It is deliberately NOT a config key: the only reader would be this flag, and requiring `Config.Service`
+  in the memory tool would break its fixture layer (`test/tool/memory.test.ts` builds AppFileSystem +
+  Spawner + Truncate + Agent). One line to add if the owner wants it configurable.
+- **T-M3 / T-M4 / T-M5 — SUPERSEDED, NOT IMPLEMENTED.** They described an automaton, and the owner
+  rejected it while the measurement backed him (the oldest entries are the most ALIVE). What exists
+  instead: the flag names the oldest dates when it fires, and **nothing moves**.
 - **T-M6** — a **dedup criterion for appends**: the kernel guards its own prompt against restatement
   (0.58 similarity, five-token boilerplate) and memory has no such guard, so appends accumulate
   paraphrases. An append that restates an existing criterion is a merge.
+
+### REVISED 2026-09-20, on the owner's objection — and the objection is correct
+
+Owner, verbatim: «Стоп, ты хочешь чтобы твоя память ротовалась сама собой?» The original shape (a
+declared limit that MOVES the oldest entries out when crossed) was wrong in three measured ways:
+
+1. **A threshold may not be an actor.** A token count deciding what the agent forgets is a decision
+   taken by nobody — the silent class this whole session has been hunting (a silent `catch {}`, a silent
+   no-op, a silent write). Forgetting is an act; an act needs an author: the agent while curating, or
+   the owner.
+2. **Retention by AGE is refuted by the measurement two sections above.** The oldest entries of the
+   "closed" class include the *misattribution-reflex* criterion — the most alive thing in the file — so
+   oldest-first is a proxy for OLD, not for worthless. It would retire that entry first.
+3. **The real defect is duplication, not size**, and a size guard does not touch it. Project rule: a
+   defect is fixed by REMOVING A SURFACE, not by adding a guard. **T-M6 is the fix**; T-M3…T-M5 were a
+   guard around a cause nobody had addressed.
+
+**Corrected shape:**
+
+- **The limit stays, as a MEASURED FLAG and never an actor:** one line in the MUTABLE TAIL (`memory at
+  X of Y tokens; oldest closed entries: …`) — the same shape as the summary nag that already exists
+  ("only OPEN summaries get a line"). It SUMMONS an actor; it moves nothing.
+- **T-M4 (the schedule) becomes MATERIAL, not a mechanism:** when the flag fires, that list is what the
+  ACTOR is shown; it is not a queue that fires itself.
+- **T-M5 (the move) survives only as a deliberate act**, and it MUST leave the one-line pointer, so
+  whatever moved is visible from the resident file rather than silently absent.
+- **T-M6 (merge-on-append) is promoted to the first task** — it removes the cause, and it is curation
+  the agent performs while writing, not a background process.
+
+### AS BUILT 2026-09-20
+
+`memoryFlag(text, limit)` + `oldestEntryDates(text, n)` in `packages/opencode/src/memory/budget.ts`
+(pure, no write path at all), wired into the **`append` and `write` outputs** of `src/tool/memory.ts` —
+**deliberately not into `read`**, whose output IS the file (asserted by its own tests) and where a caller
+echoing a read back into `write` would copy the flag into the carrier. Growth happens on mutation, so
+that is where the actor sees the number.
+
+Oracles: `bun typecheck` exit 0 (a baseline was taken BEFORE the edit, also 0);
+`test/memory/budget.test.ts` + `test/tool/memory.test.ts` **11 pass / 0 fail / 23 expect**; and the flag
+driven over the REAL carrier by `experiments/2026-09-20_memory-budget/flag-live.ts`.
+
+**T-M6 is a discipline, not code:** merge-on-append is an act of curation the agent performs while writing
+(read the carrier first; if a criterion is already there, rewrite that entry merged rather than append a
+paraphrase). It needs no mechanism — which is exactly why it is the right fix: the cause is duplication.
 
 **Invariant and falsifier.** What must never happen: after rotation the agent must **not** have to
 re-derive a criterion it had already written. Falsifier: any re-derivation of a retired-but-still-true

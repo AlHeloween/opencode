@@ -2,6 +2,7 @@ import { Database as BunDatabase } from "bun:sqlite"
 import * as Log from "@opencode-ai/core/util/log"
 import { Global } from "@opencode-ai/core/global"
 import { classifyText } from "../session/semantic-vector"
+import { DOMINANT_MARKER } from "./spine"
 import path from "path"
 import { existsSync, mkdirSync } from "fs"
 
@@ -390,6 +391,81 @@ export function stats(worktree: string): { indexedParts: number; watermark: numb
       watermark: wm?.last_rowid ?? 0,
       ftsRows,
     }
+  } finally {
+    memDb.close()
+  }
+}
+
+export interface MemoryDominant {
+  partID: string
+  messageID: string
+  messageIndex: number
+  role: string
+  partType: string
+  text: string
+}
+
+/**
+ * Parts inside a message range that carry a semantic vector — the level below the spine.
+ *
+ * The range compares `message_id` as TEXT, which is sound because our ids are ULIDs: measured
+ * 2026-09-20, the lexicographic order of `message_id` equals the order of `message_index` for
+ * all 3 510 messages of the owner session, and the probe was validated by a positive control
+ * (reversing one comparator yields 3 510 of 3 510 inversions — it can see disorder).
+ *
+ * The marker filter runs INSIDE the range on purpose, and the order is the measurement's, not
+ * a preference: the same marker filter over the whole index costs 1 563 ms, while a range query
+ * costs 15 ms. Restricted first, filtered second.
+ *
+ * Two exclusions, both measured (2026-09-20, owner session): 17 parts are `=== COMPACTED ===`
+ * snapshots that carry the dominants of EVERY summary, and a tool output quotes dominants it
+ * read. So this reads the assistant's own `text` parts only — the one place a vector is written.
+ */
+export function listDominants(params: {
+  worktree: string
+  sessionID?: string
+  from?: string
+  to?: string
+  limit?: number
+}): MemoryDominant[] {
+  const memDb = openMemoryDb(params.worktree)
+
+  try {
+    const rows = memDb.prepare(`
+      SELECT part_id, message_id, message_index, role, part_type, text
+      FROM part_index
+      WHERE role = 'assistant'
+        AND part_type = 'text'
+        AND substr(text, 1, 17) <> '=== COMPACTED ==='
+        ${params.sessionID ? "AND session_id = ?" : ""}
+        ${params.from ? "AND message_id >= ?" : ""}
+        ${params.to ? "AND message_id <= ?" : ""}
+        AND instr(text, ?) > 0
+      ORDER BY message_index ASC, part_id ASC
+      LIMIT ?
+    `).all(
+      ...(params.sessionID ? [params.sessionID] : []),
+      ...(params.from ? [params.from] : []),
+      ...(params.to ? [params.to] : []),
+      DOMINANT_MARKER,
+      params.limit ?? 200,
+    ) as Array<{
+      part_id: string
+      message_id: string
+      message_index: number
+      role: string
+      part_type: string
+      text: string
+    }>
+
+    return rows.map((row) => ({
+      partID: row.part_id,
+      messageID: row.message_id,
+      messageIndex: row.message_index,
+      role: row.role,
+      partType: row.part_type,
+      text: row.text,
+    }))
   } finally {
     memDb.close()
   }

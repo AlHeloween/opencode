@@ -60,7 +60,7 @@ describe("MediaImage native pixel sizing (contain-fit)", () => {
     expect(size.width).toBeLessThanOrEqual(Math.ceil(100 * (maxH / 10000)) + 1)
   })
 
-  test("wide source is width-limited to maxCols cells", () => {
+  test("wide source is width-limited to maxCols cells, and the 512 px cap wins", () => {
     const size = nativeImagePixelSize({
       srcWidth: 3000,
       srcHeight: 400,
@@ -70,8 +70,12 @@ describe("MediaImage native pixel sizing (contain-fit)", () => {
       cellWidth: 18,
       cellHeight: 35,
     })
-    expect(size.width).toBe(80 * 18)
+    // The cell budget allows 80*18 = 1440 px, but a cell grid cannot show more than 512 on a
+    // side (Alexander, 2026-09-20: «Для рендера картинок - 512x512 более чем достаточно»),
+    // so the cap wins — the previous expectation (80*18) pinned the contract without a cap.
+    expect(size.width).toBe(512)
     expect(size.height % 6).toBe(0)
+    expect(size.height).toBeLessThanOrEqual(512)
   })
 
   test("diagrams use the same terminal-aware contain budget as attachments", () => {

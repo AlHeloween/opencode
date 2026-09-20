@@ -161,6 +161,14 @@ export function cellPixelSize(renderer: CapsRenderer, mode?: GraphicsLayoutMode)
 }
 
 /**
+ * A terminal cell grid cannot show more than this on either side, however wide the window is:
+ * past it the pixels are decoded for nothing. Owner ruling (Alexander, 2026-09-20): «Для
+ * рендера картинок - 512x512 более чем достаточно» — enough for every cell grid we draw into,
+ * and a bound instead of "whatever the window happens to be".
+ */
+export const NATIVE_IMAGE_MAX_PIXELS = 512
+
+/**
  * Target RGBA size for native graphics protocols.
  * Pure helper — unit-tested; keeps MediaImage and OpenTUI Image layout aligned.
  */
@@ -180,13 +188,14 @@ export function nativeImagePixelSize(input: {
   const fitted = fitContainSize({
     srcWidth: input.srcWidth,
     srcHeight: input.srcHeight,
-    maxWidth: maxCols * cellW,
-    maxHeight: maxRows * cellH,
+    maxWidth: Math.min(maxCols * cellW, NATIVE_IMAGE_MAX_PIXELS),
+    maxHeight: Math.min(maxRows * cellH, NATIVE_IMAGE_MAX_PIXELS),
     allowUpscale: false,
   })
   let { width, height } = fitted
   if (input.mode === "sixel") {
-    height = Math.ceil(height / 6) * 6
+    // Sixel bands are 6 px tall; round first, then hold the cap.
+    height = Math.min(Math.ceil(height / 6) * 6, NATIVE_IMAGE_MAX_PIXELS)
   }
   return { width, height }
 }

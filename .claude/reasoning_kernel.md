@@ -37,6 +37,8 @@ terminal:
 - G0 -> WAITING_APPROVAL; when: Digital Intention stays ambiguous in the user's own words
 - G1 -> BLOCKED; when: ownership unresolved and unobtainable
 - G4 -> WAITING_APPROVAL; when: ASK requires a user decision
+- G6 -> WAITING_APPROVAL; when: the plan is complete and implementing it requires an identity this one does not own
+- G8 -> WAITING_APPROVAL; when: STALL - the loop was retried without a decrease in @LOOP_MEASURE
 - G4 -> BLOCKED; when: DENY or required approval unavailable
 - G9 -> SUCCESS; when: closure proof passes
 - G9 -> BLOCKED; when: real blocker remains
@@ -240,6 +242,7 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @SAFE
 - Search existing code, history, plans, and authoritative prior art before non-trivial invention; re-search after repeated stuck failure.
 - Rank active-window evidence above compacted handles. Recall and a user's assertion are testimony: they record what was said, including what was later refuted. Their handles — paths, diffs, graph refs — are Exact; their prose is Guess until re-grounded. Source, fossil and code graph say what is; history says where to look.
 - Choose the instrument by the layer the problem lives on, not by what is nearest. The adjacent layer returns accurate data about a different process — the costliest error there is, because right numbers end the search.
+- Instrument admissibility: smoke or a PoC certifies at @INFOMARK Inferred and above; Guess and Hypothetical advance by search and theory. Below its rung an instrument returns Unknown whatever it shows — a green attached to no model silences the step that was missing. Eligibility does not transfer: an instrument that may yield evidence but never stamp is exactly as green, and binds nothing.
 - Before planning, define an observation that distinguishes success from plausible-looking output.
 - first read: AGENTS.md, plans/*.md, docs/.
 - durable criteria: .opencode/data/memory/reasoning.md — read before non-trivial work.
@@ -248,6 +251,7 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @SAFE
 - file enumeration: Glob/Grep/Read — never shell ls/dir/find/cat (hard-blocked).
 - platform: Windows = Bash or PowerShell tool; never mix syntaxes.
 - openrouter-free (user-scope MCP): list_free_models is discovery; call_model is a network call, not local evidence.
+- framework surface (TUI/renderables, kernel, storage, provider): read the owning reference first — .opencode/skills/<surface>/references/** are plain files here (no skill tool), and cite file:line for the layout or API you build on.
 </G1_RULES>
 
 outputs: [INTENT_PROJECTION, EXECUTION_GOAL, PROJECT_GEOMETRY, CAPABILITY_GRAPH, OUTCOME_CONTRACT]
@@ -267,6 +271,9 @@ Cluster candidate vectors with @L1_DISTANCE, select at least five candidates whe
 #### @ONE_STEP_AHEAD
 Estimate the immediate downstream state and verification consequence of each medoid before selection.
 
+- A surface needs at least three medoids with independent sources, each carrying its @INFOMARK rung: one point fixes a position, a simplex fixes a region, and only then is the uncovered part sayable. Coverage is computed over the lattice, not asserted from one point; pins from one source are one point repeated, and three sources resting on ONE explanation are a degenerate simplex — it is the explanations that must be independent, not only the sources.
+- scratch: experiments/; drafts: futures/; one-offs: [ISO8601]_name.
+- experiments are born in experiments/ (gitignored, untracked) and verified results are archived to experiments_history/ (tracked) after a content check — canon: experiments_history/README.md, harness: experiments/2026-09-13_experiments-canon/archive.cjs.
 - track candidates: TodoWrite if available, else inline in the plan file.
 </G2_RULES>
 
@@ -284,6 +291,7 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @PLAN_CONTRACT_ENFORCEMENT]
 Capture a failing or baseline oracle before implementation and name the post-change oracle before any product-source edit.
 
 - Assistant proposes claims with their falsifiers; only @ORACLE binds one Exact.
+- Above Guess a claim carries its mechanism, its falsifier, and a pin: what the system does, what that predicts here, and path:line or an authority with a hash. Unpinned is Unknown, never Inferred; a PASS is evidence about the implementation, not about an absent theory.
 - Unresolved critical entries block G4. Refresh after G7/G8 and close only with oracle evidence.
 - plans: plans/[ISO8601]_<description>.md; Smoke Tests before G4.
 - plan carries the intention: <!-- intention: from_state -> to_state --> rides planState through compact.
@@ -333,6 +341,7 @@ shared_rules: [@EVIDENCE_ORDER, @PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORC
 - For each task, record the reused implementation or authoritative pattern and explain any necessary invention.
 - Resolve task inputs, outputs, affected consumers, generated files, tests, and rollback points to concrete paths and symbols.
 - map symbols/ownership: codegraph_explore (if .codegraph/) else Grep/Glob/Read; read-only.
+- a surface with more than one consumer (shared renderer, component or route): enumerate the consumers by import (codegraph_explore if .codegraph/, else Grep/Glob) before binding, and name which one your change touches.
 </G6_RULES>
 
 outputs: [GROUNDED_PLAN, PLAN_BINDING]
@@ -379,6 +388,7 @@ Reproduce the claim with the narrowest decisive instrument. Purpose: an oracle e
 - shell ls/dir scans are not evidence — Glob/Grep/Read only.
 - sandbox egress blocking an MCP call is Unknown, not a failed oracle — retest with real network.
 - the isolated call is openrouter-free call_model: EXTERNAL_EFFECT, free tier, no repo access — attach the evidence inline. Inferred at best, never a stamp.
+- a capture is evidence only after it is validated: prove it shows the WHOLE object and is unoccluded — the Browser tool (screenshot/read_page) is the instrument, a viewport crop is not; an unvalidated frame is not an oracle.
 </G8_RULES>
 
 outputs: [VERIFIED_OUTCOME, ORACLE_STAMP, DIVERGENCE_EVENT, CLAIM_LEDGER, RISK_LEDGER]
@@ -477,7 +487,7 @@ may_mutate: true
 ### PLAN_MODE
 kind: primary
 scope: Evidence and plans; no product-source mutation.
-gates: [G0, G1, G2, G3, G4, G5, G6, G9]
+gates: [G0, G1, G2, G3, G4, G5, G6]
 may_mutate: false
 
 ### REASONING_MODE

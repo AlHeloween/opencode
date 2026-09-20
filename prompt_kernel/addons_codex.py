@@ -34,6 +34,21 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         ),
     ),
     GateAddon(
+        "G1",
+        "PATH_SURFACE_DOCS",
+        (
+            "framework surface (TUI/renderables, kernel, storage, provider): read the owning reference first — .opencode/skills/<surface>/references/** are plain files here (no skill tool), and cite file:line for the layout or API you build on.",
+        ),
+    ),
+    GateAddon(
+        "G2",
+        "PATH_EXPERIMENTS",
+        (
+            "scratch: experiments/; drafts: futures/; one-offs: [ISO8601]_name.",
+            "experiments are born in experiments/ (gitignored, untracked) and verified results are archived to experiments_history/ (tracked) after a content check — canon: experiments_history/README.md, harness: experiments/2026-09-13_experiments-canon/archive.cjs.",
+        ),
+    ),
+    GateAddon(
         "G2",
         "TOOL_DECOMPOSE",
         (
@@ -64,6 +79,13 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         (
             "map symbols and ownership: codegraph_explore; use LSP definition, references, and implementation for language-aware impact.",
             "LSP rename/code-action precedes textual cross-file refactors; task grounding is read-only.",
+        ),
+    ),
+    GateAddon(
+        "G6",
+        "SURFACE_CONSUMERS",
+        (
+            "a surface with more than one consumer (shared renderer, component or route): enumerate the consumers by import — codegraph_explore, plus LSP references/implementation for language-aware reach — before binding, and name which one your change touches.",
         ),
     ),
     GateAddon(
@@ -105,6 +127,13 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
             "rendered web claims require Browser through Eval with an observed page/screenshot; typecheck is not a visual oracle.",
             "read artifacts and logs with Read; shell directory scans are not evidence.",
             "no isolated model call is bound here, and a Task shares this frame: a verdict about your own reasoning has no outside falsifier, so it closes Inferred or Unknown rather than as a stamp.",
+        ),
+    ),
+    GateAddon(
+        "G8",
+        "ORACLE_INSTRUMENT_CHECK",
+        (
+            "a capture is evidence only after it is validated: prove it shows the WHOLE object and is unoccluded — Browser through Eval is the instrument, a viewport crop is not; an unvalidated frame is not an oracle.",
         ),
     ),
     GateAddon(

@@ -252,6 +252,7 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @SAFE
 - platform: Windows = cmd/powershell tools; bash unavailable.
 - cmd.exe: never dir/type/tree; quote spaced paths; chain &&; pipe 2>&1.
 - Chrome at 127.0.0.1:9222 is universal-search's existing debug target: only when the user requests visible web debugging, click simulation, or screenshots, exact-bind it through CUA/CDP and use CUA bring_to_front plus typed browser actions/screenshots; otherwise leave it backgrounded — never launch, restart, or alter its debug flags.
+- framework surface (TUI/renderables, kernel, storage, provider): read the owning skill first — .opencode/skills/<surface>/references/**, and cite file:line for the layout or API you build on.
 </G1_RULES>
 
 outputs: [INTENT_PROJECTION, EXECUTION_GOAL, PROJECT_GEOMETRY, CAPABILITY_GRAPH, OUTCOME_CONTRACT]
@@ -272,6 +273,8 @@ Cluster candidate vectors with @L1_DISTANCE, select at least five candidates whe
 Estimate the immediate downstream state and verification consequence of each medoid before selection.
 
 - A surface needs at least three medoids with independent sources, each carrying its @INFOMARK rung: one point fixes a position, a simplex fixes a region, and only then is the uncovered part sayable. Coverage is computed over the lattice, not asserted from one point; pins from one source are one point repeated, and three sources resting on ONE explanation are a degenerate simplex — it is the explanations that must be independent, not only the sources.
+- scratch: experiments/; drafts: futures/; one-offs: [ISO8601]_name.
+- experiments are born in experiments/ (gitignored, untracked) and verified results are archived to experiments_history/ (tracked) after a content check — canon: experiments_history/README.md, harness: experiments/2026-09-13_experiments-canon/archive.cjs.
 - track candidates: todowrite.
 </G2_RULES>
 
@@ -338,6 +341,7 @@ shared_rules: [@EVIDENCE_ORDER, @PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORC
 - For each task, record the reused implementation or authoritative pattern and explain any necessary invention.
 - Resolve task inputs, outputs, affected consumers, generated files, tests, and rollback points to concrete paths and symbols.
 - map symbols and ownership: codegraph explore/impact; read-only task grounding.
+- a surface with more than one consumer (shared renderer, component or route): enumerate the consumers by import before binding, and name which one your change touches.
 </G6_RULES>
 
 outputs: [GROUNDED_PLAN, PLAN_BINDING]
@@ -383,6 +387,7 @@ Reproduce the claim with the narrowest decisive instrument. Purpose: an oracle e
 - a shared cmd_runner session has two writers: attribute who drove the state and re-read the render after handing the window over.
 - shell dir/ls scans are not evidence — product tools only.
 - the isolated call is aicall: no tools, no repo, free-first model — attach every file it must see, or it answers a question you did not ask. Inferred at best, never a stamp.
+- a capture is evidence only after it is validated: prove it shows the WHOLE object and is unoccluded — cmd_runner screenshot crops a wide window, cua zoom caps one region at 500 px, get_window_state on Windows Terminal returns chrome without terminal text; an unvalidated frame is not an oracle.
 </G8_RULES>
 
 outputs: [VERIFIED_OUTCOME, ORACLE_STAMP, DIVERGENCE_EVENT, CLAIM_LEDGER, RISK_LEDGER]

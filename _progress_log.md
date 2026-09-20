@@ -3620,3 +3620,33 @@ Hypothetical until that harness reports its own prefix digest.
   + `test/tool/memory.test.ts` **11 pass / 0 fail / 23 expect**; the live flag over the real carrier.
 - Residual: nothing is live until the owner rebuilds the binary. Open owner decisions: **H3** (persist the
   claim ledger or declare its volatility) and the kernel ceiling for the four addon bindings.
+
+## 2026-09-20 — the four addon bindings LANDED: the project's own law is back in the working prompt
+
+- **The ruling that unblocked it** (owner, verbatim): «потолка кернела не существует, потолок сделан чтобы
+  писать лаконично и все. Reasoning на первом месте всегда. Это окупается не 1000 токенов, а забегами на
+  100000000 токенов.» · «Тоже самое про резание памяти и прочего.» · «Да, мы экономим и токены и кэш, но не
+  на решениях.» ⇒ the caps are **brevity prompts, never gates**; the discipline is **cut prose, never a
+  decision**. Recorded in `docs/gate-addons.md` (growth policy) and beside the number in `source.py`.
+- **Landed:** `PATH_EXPERIMENTS` (G2 — the project's experiments law, absent from the working prompt since an
+  addon-registry change while `docs/gate-addons.md:67` kept listing the binding), `PATH_SURFACE_DOCS` (G1),
+  `SURFACE_CONSUMERS` (G6), `ORACLE_INSTRUMENT_CHECK` (G8) — in **all three** registries, each with its host's
+  instrument. Unique ids, no existing line reworded (`test_addons.py` pins lines by exact string).
+- **P2 correction found by grounding:** the plan proposed `.claude/` as the Claude host's surface docs;
+  `.claude/` holds only `CLAUDE.md`, `reasoning_kernel.md` and `settings*.json` — there is no `.claude/skills/`.
+  Writing it would have re-created the defect being fixed, so the variants name the real tree and say the
+  skill tool is absent there ("absences are bindings too").
+- **Caps raised in the same commit, each named:** `utf8_budget` 36 000 → **37 000**; product tokens 4 750 →
+  **5 000**; both variants 36 000 / 4 750 → **38 000 / 5 150**.
+- **Measurement trap exposed:** the budget test asserts bytes BEFORE tokens, so the first run showed four byte
+  failures and left the token cap **unexercised**; the token numbers came from one instrument reporting both
+  (`experiments/2026-09-20_kernel-bindings/render-budget.py`), never from inference.
+- **Oracles:** 5 failed / 95 passed (after the bindings) → **1 failed / 99 passed** (caps raised; the single
+  red = the promotion gate, the designed pre-install state) → `--install` (`installed=0109d037…`, equal to the
+  render sha — verified, not assumed) + repin + `--claude --install` → **100 passed**. Renders: product
+  **36 904 B / 4 819 tok**, Claude 36 691 / 4 782, Codex 36 983 / 4 836. Artifact check: the installed prompt
+  carries all five lines (255 / 276–277 / 344 / 390).
+- **Not claimed:** that reasoning improves — only that the instruction is present and bounded (the plan's own
+  falsifier). P5 (two failed captures → back to the documentation) stays an L2 candidate in `source.py`.
+- Residual: the binary is the owner's to rebuild; a session sees the new prefix only after a rebuild plus a
+  new session or a compact.

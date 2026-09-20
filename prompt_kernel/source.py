@@ -423,11 +423,14 @@ KERNEL = Kernel(
     name="reasoning_kernel_next",
     version="2.0.0-alpha.3",
     precedence=("safety", "governance", "task", "domain", "style"),
-    utf8_budget=36_000,  # 35_000 -> 36_000 (2026-09-20) for @INSTRUMENT_RUNG, @MEDOID_SIMPLEX and
-    # @CLAIM_CITATION. The H1 degenerate-simplex clause and the two alignments (a REQUIRED falsifier,
-    # non-transferable eligibility) then took the render to 35_914 — 86 bytes spare, measured, not
-    # estimated. Deliberately NOT raised again here: H4 is a doc and returns nothing, so the next raise
-    # belongs to the addon bindings, at their own point of need.
+    utf8_budget=37_000,  # 36_000 -> 37_000 (2026-09-20) for the four addon bindings: PATH_EXPERIMENTS
+    # (the project's own law, which had left the working prompt), PATH_SURFACE_DOCS, SURFACE_CONSUMERS
+    # (enumerate a shared surface's consumers before binding, name the one you touch) and
+    # ORACLE_INSTRUMENT_CHECK (a capture is evidence only after it is validated). Measured after them:
+    # product render 36_904 — 96 bytes spare, as the cap's own habit. The cap is a brevity prompt and
+    # never a gate (owner, 2026-09-20: "потолка кернела не существует, потолок сделан чтобы писать
+    # лаконично… Reasoning на первом месте всегда"): a missing rule costs whole runs of 100M tokens,
+    # while a line costs bytes. Cut prose, never a decision.
     terms=MappingProxyType({
         "GROUNDING": "Observation tied to a source, path, command, or reproducible state.",
         "AUTHORIZATION": "A decision that permits a bounded class of effects; confidence is not authority.",

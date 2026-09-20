@@ -147,3 +147,47 @@ only that the instruction is **present and bounded**, never that it improves rea
 `assert_current_kernel_unchanged()` must be green (`docs/gate-addons.md:144-148`). The stamped
 `dist/` renders stay as the record of what was promoted, and `docs/kernel-amendment.md`'s rollback table
 carries the pre-change sha and commit.
+
+## AS BUILT 2026-09-20 — P1–P4 LANDED, P5 not taken
+
+All four bindings are in **all three** registries (`addons.py`, `addons_claude.py`, `addons_codex.py`), each
+with its host's instrument. P1's text is identical across them because `experiments/` and
+`experiments_history/` are the REPOSITORY's folders — "say so rather than skip" applies to the *instruments*,
+not to the geography.
+
+**P2 correction, found by grounding.** The plan's table proposed `.claude/` as the Claude host's surface docs.
+`.claude/` holds only `CLAUDE.md`, `reasoning_kernel.md`, `settings.json` and `settings.local.json` — there is
+no `.claude/skills/`. Writing that path into governance would have re-created precisely the defect this plan
+exists to fix (a documented binding absent from reality), so the variants name the real tree
+(`.opencode/skills/<surface>/references/**`, plain files) and, per "absences are bindings too", say the skill
+tool does not exist there.
+
+**The decisive oracle — measured in the artifact**, at its own line numbers in the installed prompt:
+`PATH_SURFACE_DOCS` 255 · `PATH_EXPERIMENTS` 276–277 · `SURFACE_CONSUMERS` 344 · `ORACLE_INSTRUMENT_CHECK`
+390. Renders: product **36 904 B / 4 819 tok** (was 35 419 / 4 603), Claude 36 691 / 4 782, Codex
+36 983 / 4 836. Caps: `utf8_budget` 36 000 → **37 000**; product tokens 4 750 → **5 000**; both variants
+36 000 / 4 750 → **38 000 / 5 150** (their documented +1 000 B / +150 tok margin, restored).
+
+**Caps were raised in the same commit and named** — and the ceiling is not a gate. Owner, 2026-09-20:
+"потолка кернела не существует, потолок сделан чтобы писать лаконично и все. Reasoning на первом месте
+всегда. Это окупается не 1000 токенов, а забегами на 100000000 токенов", plus "Да, мы экономим и токены и
+кэш, но не на решениях." So: **cut prose, never a decision.**
+
+**A measurement trap this change exposed.** `test_compacted_runtime_budget` asserts BYTES before TOKENS, so
+the first run reported four byte failures and left the token cap **unexercised**; the token numbers had to
+come from an instrument that reports both (`experiments/2026-09-20_kernel-bindings/render-budget.py`), never
+from inferring them from a byte failure.
+
+**Oracles, in order:** `pytest prompt_kernel/tests/ -q` → **5 failed / 95 passed** after the bindings (four
+budget + the promotion gate) → **1 failed / 99 passed** once the caps were raised (the single red being the
+promotion gate — the designed pre-install state) → `--install` (`installed=0109d037…`, equal to the render
+sha, **verified rather than assumed**) + `baseline.json` repinned + `--claude --install` → **100 passed**.
+That red-to-green transition is the proof the install landed, and it is why a kernel change is committed only
+after it.
+
+**Still not claimed**, per this plan's own falsifier: that reasoning *improves*. The claim is that the
+instruction is **present and bounded**. P5 (two failed captures in a row → back to the documentation) stays
+an L2 candidate in `source.py`, not an addon.
+
+**Not live yet:** the binary is the owner's to rebuild, and a session picks up the new prefix only after a
+rebuild plus a new session or a compact — a checkpoint holds the old one.

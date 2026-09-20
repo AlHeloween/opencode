@@ -64,14 +64,17 @@ belongs in `source.py` (requires a full kernel change cycle). If it only says
 |------|-------|---------|
 | G1 | PATH_GROUNDING | `plans/*.md`, `docs/` first; never `.opencode/plans/` |
 | G1 | TOOL_GROUNDING | `codegraph`, `read`, `messagesearch`, `webfetch/universalsearch` |
-| G2 | PATH_EXPERIMENTS | `experiments/` scratch; `futures/` drafts; `[ISO8601]_name` one-offs |
+| G1 | PATH_SURFACE_DOCS | `.opencode/skills/<surface>/references/**` before building on a framework API; cite file:line (2026-09-20) |
+| G2 | PATH_EXPERIMENTS | `experiments/` scratch; `futures/` drafts; `[ISO8601]_name` one-offs. **This row was the ONLY record of the binding for a month** — the registry lacked it until 2026-09-20, so the working prompt carried no trace of the project's own law while this doc described it (2026-09-20) |
 | G2 | TOOL_DECOMPOSE | `todowrite` |
 | G3 | PATH_PLANS | `plans/[ISO8601]_<description>.md`; Smoke Tests before G4 |
 | G4 | TOOL_AUTHORIZE | `checkstate` (identity/permission/window), `question` (ASK) |
 | G6 | TOOL_BINDING | `codegraph explore/impact`, read-only task grounding |
+| G6 | SURFACE_CONSUMERS | enumerate a multi-consumer surface's importers before binding, and name the one you touch (2026-09-20) |
 | G7 | PATH_PROGRESS | `_progress_log.md` [TIMESTAMP] entry per bounded task |
 | G7 | TOOL_IMPLEMENT | `edit`, `multiedit`, `write`, `applypatch`; crash-prone shell via `cmd_runner` |
 | G8 | TOOL_ORACLE | tests via `cmd_runner`, `jobwait`, `logsearch`, `dbread` |
+| G8 | ORACLE_INSTRUMENT_CHECK | a capture is evidence only after it is validated — whole object, unoccluded, not a viewport crop (2026-09-20) |
 | G9 | PATH_CLOSURE | `plans_completed/` + stale-ref scan; docs/index update; `obsolete/` |
 | G9 | TOOL_CLOSURE | `messagesearch` verify; git status |
 
@@ -102,6 +105,10 @@ them, including where the honest binding is that the instrument does not exist:
 | Gate | Addon | Binding |
 |------|-------|---------|
 | G1 | `PATH_GROUNDING` | no memory tool here, so criteria persist in `plans/*.md` and `_progress_log.md`, read at grounding |
+| G2 | `PATH_EXPERIMENTS` | the same law as the product — `experiments/` scratch, `experiments_history/` after a content check; both folders are the REPOSITORY's, so this line is host-independent |
+| G1 | `PATH_SURFACE_DOCS` | no skill tool — `.opencode/skills/<surface>/references/**` are plain files to read |
+| G6 | `SURFACE_CONSUMERS` | `codegraph_explore`, plus LSP references/implementation for language-aware reach |
+| G8 | `ORACLE_INSTRUMENT_CHECK` | Browser through Eval is the instrument; a viewport crop is not |
 | G7 | `TOOL_DELEGATE` | `Task` — brief it once with binding, falsifier and the parent intention; re-brief a follow-up slice |
 | G8 | `TOOL_ORACLE` | no isolated model call is bound, and a `Task` shares this frame → a self-verdict closes Inferred or Unknown |
 | G9 | `TOOL_CLOSURE` | the fold is lossy — handles go to `plans/`, `docs/`, `_progress_log.md` before it runs |
@@ -120,17 +127,24 @@ will reach for the nearest thing that answers, which is itself.
    raised from 4 500 there). The Claude and Codex variants carry their own ceilings in
    `tests/test_addons_claude.py` and `tests/test_addons_codex.py` (**36 000 / 4 750**) because
    `--claude --install` writes a whole file rather than filling a sized slot.
-   **Current renders, measured 2026-09-20:** product **35 419 bytes / 4 603 tokens**, Claude
-   35 185, Codex 35 460. (The figures previously recorded here — 32 000 / 3 950 and renders of
-   30 558 / 3 777 — were a month stale and described caps the code no longer had; same class as
-   a documented binding missing from the registry.)
+   **Current renders, measured 2026-09-20, second step (the four addon bindings):** product
+   **36 904 bytes / 4 819 tokens**, Claude 36 691 / 4 782, Codex 36 983 / 4 836. The caps are now
+   **37 000 bytes** (`KERNEL.utf8_budget`) and **5 000 tokens** (`test_compacted_runtime_budget`), with
+   both variants at **38 000 / 5 150** — their +1 000 B / +150 tok margin, restored, because
+   `--claude --install` writes a whole file rather than filling a sized slot. Before this step:
+   product 35 419 / 4 603. Both figures were MEASURED, never estimated, and measured with an
+   instrument that reports bytes and tokens TOGETHER — the byte assert runs first, so a failing byte
+   cap hides the token number entirely: the first run of this change reported four byte failures and
+   left the token cap unexercised.
    History: 25 000 → 26 000 → 27 000 → 28 000 → 30 000 → 31 000 → 32 000 → **35 000** →
-   **36 000** bytes, 2 950 → 3 100 → 3 300 → 3 450 → 3 700 → 3 850 → 3 950 → **4 500** →
-   **4 750** tokens, each step named in the test comments with what it admits. The
-   2026-09-20 step admits `@INSTRUMENT_RUNG`, `@MEDOID_SIMPLEX` and `@CLAIM_CITATION` — the
+   **36 000** → **37 000** bytes, 2 950 → 3 100 → 3 300 → 3 450 → 3 700 → 3 850 → 3 950 → **4 500** →
+   **4 750** → **5 000** tokens, each step named in the test comments with what it admits. The
+   2026-09-20 steps admit, first, `@INSTRUMENT_RUNG`, `@MEDOID_SIMPLEX` and `@CLAIM_CITATION` — the
    three rules that describe the **entry**: an instrument may not certify below its rung, a
    surface needs at least three medoids with independent sources, and a claim above Guess
-   carries its mechanism and a pin. Formal notation is admissible where it is tighter than
+   carries its mechanism and a pin — and then the four addon bindings those rules pointed at:
+   `PATH_EXPERIMENTS`, `PATH_SURFACE_DOCS`, `SURFACE_CONSUMERS`, `ORACLE_INSTRUMENT_CHECK`.
+   Formal notation is admissible where it is tighter than
    prose — restating `@LOOP_PROGRESS` as a strict lexicographic decrease gave back 88
    bytes with no loss of meaning.
    **Growth policy (Alexander, 2026-09-11 → 2026-09-12):** raises are deliberate, not
@@ -142,6 +156,17 @@ will reach for the nearest thing that answers, which is itself.
    allowlists are both empty. The cap now works as a scarcity detector — it forces the
    question "what here is dead?" before anything new lands. Convention: raise at the
    point of need, in the same commit, naming what it admits.
+
+   **The cap is a brevity prompt, never a gate (Alexander, 2026-09-20):** "потолка кернела
+   не существует, потолок сделан чтобы писать лаконично и все. Reasoning на первом месте
+   всегда. Это окупается не 1000 токенов, а забегами на 100000000 токенов." On the same class
+   of limit: "Да, мы экономим и токены и кэш, но не на решениях." The discipline is therefore
+   **cut prose, never a decision** — redundancy, preamble and formatting go first; a rule, a
+   criterion or a falsifier is never trimmed to fit a number. The exchange rate is not
+   symmetric and the owner states it from experience, not from arithmetic: a missing rule is
+   paid for in whole runs (his own comparison, 2026-09-20 — a task this governed loop closed in
+   five requests, which a stronger ungoverned model failed outright and reviewers called
+   commodity work), while a line is paid for in bytes.
 
 4. `python -m pytest prompt_kernel/tests/ -q` → all green.
 5. `python -m prompt_kernel --install` → note `installed=<sha256>`.

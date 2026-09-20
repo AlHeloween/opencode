@@ -139,4 +139,11 @@ def test_compacted_runtime_budget() -> None:
     # 4_500 -> 4_750 (2026-09-20): admits @INSTRUMENT_RUNG, @MEDOID_SIMPLEX and
     # @CLAIM_CITATION, plus the four pending addon bindings (experiments lane, surface
     # docs, capture validation, surface consumers) so the cap is not raised twice.
-    assert normalized_token_count(text) <= 4_750
+    # 4_750 -> 5_000 (2026-09-20, same day): those four bindings are no longer pending — they LANDED,
+    # measured at 36_904 B / 4_819 tok, so utf8_budget moved 36_000 -> 37_000 in source.py and this
+    # assert takes the step it was reserved for. 181 tokens spare, the same band as the 147 before it.
+    # Recorded with it, because it is the reason the step is taken without hesitation: the cap is a
+    # brevity prompt and never a gate (owner, 2026-09-20: "потолка кернела не существует, потолок
+    # сделан чтобы писать лаконично… Reasoning на первом месте всегда. Это окупается не 1000 токенов,
+    # а забегами на 100000000 токенов."). Cut prose, never a decision.
+    assert normalized_token_count(text) <= 5_000

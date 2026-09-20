@@ -42,6 +42,21 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         ),
     ),
     GateAddon(
+        "G1",
+        "PATH_SURFACE_DOCS",
+        (
+            "framework surface (TUI/renderables, kernel, storage, provider): read the owning reference first — .opencode/skills/<surface>/references/** are plain files here (no skill tool), and cite file:line for the layout or API you build on.",
+        ),
+    ),
+    GateAddon(
+        "G2",
+        "PATH_EXPERIMENTS",
+        (
+            "scratch: experiments/; drafts: futures/; one-offs: [ISO8601]_name.",
+            "experiments are born in experiments/ (gitignored, untracked) and verified results are archived to experiments_history/ (tracked) after a content check — canon: experiments_history/README.md, harness: experiments/2026-09-13_experiments-canon/archive.cjs.",
+        ),
+    ),
+    GateAddon(
         "G2",
         "TOOL_DECOMPOSE",
         (
@@ -70,6 +85,13 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_BINDING",
         (
             "map symbols/ownership: codegraph_explore (if .codegraph/) else Grep/Glob/Read; read-only.",
+        ),
+    ),
+    GateAddon(
+        "G6",
+        "SURFACE_CONSUMERS",
+        (
+            "a surface with more than one consumer (shared renderer, component or route): enumerate the consumers by import (codegraph_explore if .codegraph/, else Grep/Glob) before binding, and name which one your change touches.",
         ),
     ),
     GateAddon(
@@ -113,6 +135,13 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
             "shell ls/dir scans are not evidence — Glob/Grep/Read only.",
             "sandbox egress blocking an MCP call is Unknown, not a failed oracle — retest with real network.",
             "the isolated call is openrouter-free call_model: EXTERNAL_EFFECT, free tier, no repo access — attach the evidence inline. Inferred at best, never a stamp.",
+        ),
+    ),
+    GateAddon(
+        "G8",
+        "ORACLE_INSTRUMENT_CHECK",
+        (
+            "a capture is evidence only after it is validated: prove it shows the WHOLE object and is unoccluded — the Browser tool (screenshot/read_page) is the instrument, a viewport crop is not; an unvalidated frame is not an oracle.",
         ),
     ),
     GateAddon(

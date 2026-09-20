@@ -83,10 +83,13 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # 36_000 / 4_550 (2026-09-16, later): mirrors the product raise to 35_000 for
     # the compaction triggers the user named — fold before EVOLUTION_LOOP returns
     # to G1, and fold on STALL or an outside report of tunnel vision.
-    assert len(text.encode("utf-8")) <= 36_000
-    # 4_550 -> 4_750 (2026-09-20): same raise as the product ceiling, for the same three
-    # epistemic rules and the four pending addon bindings; this registry renders the same kernel.
-    assert normalized_token_count(text) <= 4_750
+    # 38_000 / 5_150 (2026-09-20): the four addon bindings LANDED — PATH_EXPERIMENTS,
+    # PATH_SURFACE_DOCS, SURFACE_CONSUMERS, ORACLE_INSTRUMENT_CHECK — so the raise the previous
+    # comment anticipated for them is taken here, restoring this variant's +1_000 B / +150 tok
+    # margin for having no fixed slot on top of the product's 37_000 / 5_000.
+    # Measured after them: 36_691 B / 4_782 tok.
+    assert len(text.encode("utf-8")) <= 38_000
+    assert normalized_token_count(text) <= 5_150
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

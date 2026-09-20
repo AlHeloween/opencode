@@ -34,6 +34,21 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         ),
     ),
     GateAddon(
+        "G1",
+        "PATH_SURFACE_DOCS",
+        (
+            "framework surface (TUI/renderables, kernel, storage, provider): read the owning skill first — .opencode/skills/<surface>/references/**, and cite file:line for the layout or API you build on.",
+        ),
+    ),
+    GateAddon(
+        "G2",
+        "PATH_EXPERIMENTS",
+        (
+            "scratch: experiments/; drafts: futures/; one-offs: [ISO8601]_name.",
+            "experiments are born in experiments/ (gitignored, untracked) and verified results are archived to experiments_history/ (tracked) after a content check — canon: experiments_history/README.md, harness: experiments/2026-09-13_experiments-canon/archive.cjs.",
+        ),
+    ),
+    GateAddon(
         "G2",
         "TOOL_DECOMPOSE",
         (
@@ -61,6 +76,13 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_BINDING",
         (
             "map symbols and ownership: codegraph explore/impact; read-only task grounding.",
+        ),
+    ),
+    GateAddon(
+        "G6",
+        "SURFACE_CONSUMERS",
+        (
+            "a surface with more than one consumer (shared renderer, component or route): enumerate the consumers by import before binding, and name which one your change touches.",
         ),
     ),
     GateAddon(
@@ -103,6 +125,13 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
             "a shared cmd_runner session has two writers: attribute who drove the state and re-read the render after handing the window over.",
             "shell dir/ls scans are not evidence — product tools only.",
             "the isolated call is aicall: no tools, no repo, free-first model — attach every file it must see, or it answers a question you did not ask. Inferred at best, never a stamp.",
+        ),
+    ),
+    GateAddon(
+        "G8",
+        "ORACLE_INSTRUMENT_CHECK",
+        (
+            "a capture is evidence only after it is validated: prove it shows the WHOLE object and is unoccluded — cmd_runner screenshot crops a wide window, cua zoom caps one region at 500 px, get_window_state on Windows Terminal returns chrome without terminal text; an unvalidated frame is not an oracle.",
         ),
     ),
     GateAddon(

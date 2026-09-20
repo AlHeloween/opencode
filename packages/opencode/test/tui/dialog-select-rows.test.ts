@@ -1,73 +1,54 @@
+/**
+ * The one-line row contract, pinned.
+ *
+ * The layout is the owner's (Alexander, 2026-09-20): «все в одну строчку» — every row is one
+ * line, and what yields is the DESCRIPTION, never the identity and never the runtime hint.
+ * The arithmetic that decides how much width the description gets is a pure function so these
+ * cases fail if the contract moves, instead of a screenshot being argued about.
+ */
 import { describe, expect, test } from "bun:test"
-import { isTwoLineRow } from "../../src/cli/cmd/tui/ui/dialog-select"
-import { capabilityGlyphs, compactCostLabel } from "../../src/cli/cmd/tui/component/model-cost"
+import { descriptionBudget } from "../../src/cli/cmd/tui/ui/dialog-select"
 
-describe("dialog row line count", () => {
-  // `rows()` used to assume one line per option while the renderer split long
-  // rows onto two, so the scrollbox height — and every scroll computation
-  // derived from it — was short by the number of split rows. Both now call this
-  // one predicate, so they cannot disagree again.
+const MEDIUM = 60
+const LARGE = 88
+const XLARGE = 116
 
-  const MEDIUM = 60
-  const LARGE = 88
-
-  test("a row with no description is always one line", () => {
-    expect(
-      isTwoLineRow({ title: "x".repeat(200), description: undefined, footer: "y".repeat(200), rowWidth: MEDIUM }),
-    ).toBe(false)
+describe("one-line rows: the description takes what is left", () => {
+  test("budget is the dialog width minus the row's chrome", () => {
+    // 60 − 12 chrome − 10 title − 0 footer
+    expect(descriptionBudget({ title: "build_mode", rowWidth: MEDIUM })).toBe(60 - 12 - 10)
   })
 
-  test("a short row stays inline", () => {
-    expect(isTwoLineRow({ title: "GPT-5", description: "OpenAI", footer: "⇣1 ⇡2", rowWidth: LARGE })).toBe(false)
-  })
-
-  test("a row that cannot fit inline splits", () => {
-    expect(
-      isTwoLineRow({
-        title: "DeepSeek V4.1 Flash Thinking",
-        description: "OpenRouter",
-        footer: "$0.09→$0.3/1M · cache $0.018 · reasoning · tools · vision · 1.3M ctx · variants",
-        rowWidth: LARGE,
-      }),
-    ).toBe(true)
-  })
-
-  test("a non-string footer is costed, not treated as free", () => {
-    // JSX footers have no measurable length here; the predicate reserves a
-    // nominal width rather than pretending they take none.
-    const withJsx = isTwoLineRow({
-      title: "x".repeat(70),
-      description: "OpenRouter",
-      footer: undefined,
+  test("the runtime hint is subtracted — it never yields to the description", () => {
+    const withoutHint = descriptionBudget({ title: "plan_mode", rowWidth: LARGE })
+    const withHint = descriptionBudget({
+      title: "plan_mode",
+      footer: "huggingface/zai-org/GLM-5.3-Flash-BF16",
       rowWidth: LARGE,
     })
-    expect(withJsx).toBe(true)
-  })
-})
-
-describe("the compact footer buys back the model name", () => {
-  // The defect, stated as a measurement: at width 88 the usable row is 76
-  // columns, and the prose footer alone was 78 — so the title was squeezed to
-  // three characters ("Z.a", "Dee") with no gap before the price.
-  const USABLE = 88 - 12
-
-  const cost = { input: 0.09, output: 0.3, cache: { read: 0.018 } }
-  const capabilities = { reasoning: true, toolcall: true, input: { image: true } }
-
-  const prose = "$0.09→$0.3/1M · cache $0.018 · reasoning · tools · vision · 1.3M ctx · variants"
-  const compact = [compactCostLabel(cost), capabilityGlyphs(capabilities), "1.3M"].filter(Boolean).join(" ")
-
-  test("the prose footer alone overflowed the usable row", () => {
-    expect(prose.length).toBeGreaterThan(USABLE)
+    expect(withHint).toBe(withoutHint - "huggingface/zai-org/GLM-5.3-Flash-BF16".length)
+    // At some point a long hint simply eats the description — that is the intended order of
+    // sacrifice: the runtime is what the row is FOR, the prose is what it can spare.
+    expect(withHint).toBeLessThan(withoutHint)
   })
 
-  test("the compact footer leaves room for a readable name", () => {
-    expect(USABLE - compact.length).toBeGreaterThanOrEqual(24)
+  test("a JSX footer contributes no length — only a text hint can be measured", () => {
+    const asText = descriptionBudget({ title: "x", footer: "abcd", rowWidth: MEDIUM })
+    const asJsx = descriptionBudget({ title: "x", footer: undefined, rowWidth: MEDIUM })
+    expect(asJsx).toBeGreaterThan(asText)
   })
 
-  test("a realistic row now fits inline instead of splitting", () => {
-    expect(isTwoLineRow({ title: "DeepSeek V4.1 Flash", description: "DeepSeek", footer: compact, rowWidth: 88 })).toBe(
-      false,
-    )
+  test("the budget shrinks with the dialog, so a narrow form truncates first", () => {
+    const medium = descriptionBudget({ title: "agent", rowWidth: MEDIUM })
+    const xlarge = descriptionBudget({ title: "agent", rowWidth: XLARGE })
+    expect(xlarge - medium).toBe(XLARGE - MEDIUM)
+  })
+
+  test("an absurd title or hint drives the budget non-positive, which HIDES the description", () => {
+    // The renderer treats <= 4 as "no room": better no description than four characters of it.
+    expect(descriptionBudget({ title: "t".repeat(200), rowWidth: MEDIUM })).toBeLessThan(0)
+    expect(
+      descriptionBudget({ title: "agent", footer: "f".repeat(200), rowWidth: MEDIUM }),
+    ).toBeLessThan(0)
   })
 })

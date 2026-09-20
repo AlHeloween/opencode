@@ -212,32 +212,10 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
       if (!category) return acc
       return acc + (i > 0 ? 2 : 1)
     }, 0)
-    // Count the lines a row actually renders. This used to assume one line per
-    // option, which stopped being true when long rows started splitting their
-    // description onto a second line — the list height, and every scroll
-    // computation derived from it, was short by the number of split rows.
-    const lines = grouped().reduce(
-      (acc, [category, options]) =>
-        acc +
-        options.reduce(
-          (sum, option) =>
-            sum +
-            (isTwoLineRow({
-              title: option.title,
-              description: flatten()
-                ? (option.description ?? option.category)
-                : option.description !== category
-                  ? option.description
-                  : undefined,
-              footer: option.footer,
-              rowWidth: rowWidth(),
-            })
-              ? 2
-              : 1),
-          0,
-        ),
-      0,
-    )
+    // One line per option, always (Alexander, 2026-09-20: «все в одну строчку»). A row used
+    // to be allowed a second line for a long description, and the height had to model it;
+    // now the DESCRIPTION yields width instead of taking a line, so this count is exact.
+    const lines = grouped().reduce((acc, [, options]) => acc + options.length, 0)
     return lines + headers
   })
 
@@ -345,6 +323,17 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   const keybinds = createMemo(() => props.keybind?.filter((x) => !x.disabled && x.keybind) ?? [])
   const left = createMemo(() => keybinds().filter((item) => item.side !== "right"))
   const right = createMemo(() => keybinds().filter((item) => item.side === "right"))
+  /** Hotkeys in COLUMNS, not a wrapped run: every hint gets the SAME cell width, so the keys
+   * line up vertically and the eye can scan down a column (Alexander, 2026-09-20: «hotkeys -
+   * четко столбиками»). Three per line at the dialog's width. */
+  const KEYBIND_COLUMNS = 3
+  const keybindCellWidth = createMemo(() => Math.max(20, Math.floor((rowWidth() - 8) / KEYBIND_COLUMNS)))
+  const keybindRows = createMemo(() => {
+    const all = [...left(), ...right()]
+    const out: (typeof all)[] = []
+    for (let i = 0; i < all.length; i += KEYBIND_COLUMNS) out.push(all.slice(i, i + KEYBIND_COLUMNS))
+    return out
+  })
   /** The highlighted option's explanation, computed live so the footer follows
    * the cursor: the list says WHERE you are, the footer says WHAT it does. */
   const hintText = createMemo(() => props.hint?.(selected()))
@@ -507,69 +496,46 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
         </box>
       </Show>
       <Show when={keybinds().length} fallback={<box flexShrink={0} />}>
-        <box
-          paddingRight={2}
-          paddingLeft={4}
-          flexDirection="row"
-          flexWrap="wrap"
-          justifyContent="space-between"
-          flexShrink={0}
-          paddingTop={1}
-        >
-          <box flexDirection="row" flexWrap="wrap" flexShrink={1} gap={2}>
-            <For each={left()}>
-              {(item) => (
-                <text flexShrink={0}>
-                  <span style={{ fg: theme.text }}>
-                    <b>{item.title}</b>{" "}
-                  </span>
-                  <span style={{ fg: theme.textMuted }}>{Keybind.toString(item.keybind)}</span>
-                </text>
-              )}
-            </For>
-          </box>
-          <box flexDirection="row" flexWrap="wrap" flexShrink={1} gap={2}>
-            <For each={right()}>
-              {(item) => (
-                <text flexShrink={0}>
-                  <span style={{ fg: theme.text }}>
-                    <b>{item.title}</b>{" "}
-                  </span>
-                  <span style={{ fg: theme.textMuted }}>{Keybind.toString(item.keybind)}</span>
-                </text>
-              )}
-            </For>
-          </box>
+        <box paddingLeft={4} paddingRight={4} paddingTop={1} flexDirection="column" flexShrink={0}>
+          <For each={keybindRows()}>
+            {(row) => (
+              <box flexDirection="row" flexShrink={0}>
+                <For each={row}>
+                  {(item) => (
+                    <box width={keybindCellWidth()} flexShrink={0}>
+                      <text wrapMode="none">
+                        <span style={{ fg: theme.text }}>
+                          <b>{item.title}</b>{" "}
+                        </span>
+                        <span style={{ fg: theme.textMuted }}>{Keybind.toString(item.keybind)}</span>
+                      </text>
+                    </box>
+                  )}
+                </For>
+              </box>
+            )}
+          </For>
         </box>
       </Show>
     </box>
   )
 }
 
-/** A model name below this is not identifiable; the footer yields first. */
+/** A model name below this is not identifiable; the runtime hint yields first. */
 const MIN_TITLE_WIDTH = 24
 
 /**
- * Does this row render on two lines?
+ * Width the description may take in a one-line row.
  *
- * Shared by the renderer and by the list's line count. They used to decide this
- * separately — the renderer split long rows while `rows()` still counted one
- * line each, so the scrollbox height was short by the number of split rows.
- * One predicate, two callers: they cannot drift again.
+ * Pure, and exported so a test pins the CONTRACT rather than the appearance: the description
+ * is the part that yields, so its budget is the dialog width minus the marker/gutter, the
+ * title's indent, the gaps, the row's right padding and the runtime hint.
  */
-export function isTwoLineRow(input: {
-  title: string
-  description?: string
-  footer?: JSX.Element | string
-  rowWidth?: number
-}): boolean {
-  if (!input.description) return false
+export function descriptionBudget(input: { title: string; footer?: JSX.Element | string; rowWidth?: number }): number {
   const width = input.rowWidth ?? 60
-  const footerLen = typeof input.footer === "string" ? input.footer.length : 6
-  // scrollbox padding 2, row padding 6, marker/gutter ~2, gaps 2 — usable
-  // width is roughly dialogWidth - 12; inline needs title + description +
-  // footer plus separators.
-  return input.title.length + input.description.length + footerLen + 4 > width - 12
+  const footerLen = typeof input.footer === "string" ? input.footer.length : 0
+  // 2 marker/gutter + 3 title indent + 2 gaps + 3 row padding right + 2 separators
+  return width - 12 - input.title.length - footerLen
 }
 
 function Option(props: {
@@ -588,51 +554,23 @@ function Option(props: {
   const { theme } = useTheme()
   const fg = selectedForeground(theme)
 
-  const twoLine = createMemo(() =>
-    isTwoLineRow({
-      title: props.title,
-      description: props.description,
-      footer: props.footer,
-      rowWidth: props.rowWidth,
-    }),
-  )
+  // ONE line, in columns:
+  //   [marker/gutter] [title: floor] [description: what is left] [runtime hint: right]
+  // What yields is the DESCRIPTION — never the identity and never the runtime — because a
+  // row is a statement about one subject and its name and its runtime are the parts that may
+  // not be cut. The description is elided to the width it is given, so a long one ends in an
+  // ellipsis rather than being clipped mid-word at the panel edge.
+  const descriptionText = createMemo(() => {
+    const text = props.description
+    if (!text) return undefined
+    if (typeof props.footer !== "string") return text
+    const budget = descriptionBudget({ title: props.title, footer: props.footer, rowWidth: props.rowWidth })
+    if (budget <= 4) return undefined
+    return Locale.truncate(text, budget)
+  })
 
   return (
-    <Show
-      when={twoLine()}
-      fallback={
-        <>
-          <Show when={props.current}>
-            <text flexShrink={0} fg={props.active ? fg : props.current ? theme.primary : theme.text} marginRight={0}>
-              ●
-            </text>
-          </Show>
-          <Show when={!props.current && props.gutter}>
-            <box flexShrink={0} marginRight={0}>
-              {props.gutter}
-            </box>
-          </Show>
-          <text
-            flexGrow={1}
-            fg={props.active ? fg : props.current ? theme.primary : theme.text}
-            attributes={props.active ? TextAttributes.BOLD : undefined}
-            overflow="hidden"
-            wrapMode="none"
-            paddingLeft={3}
-          >
-            {Locale.truncate(props.title, 61)}
-            <Show when={props.description}>
-              <span style={{ fg: props.active ? fg : theme.textMuted }}> {props.description}</span>
-            </Show>
-          </text>
-          <Show when={props.footer}>
-            <box flexShrink={0}>
-              <text fg={props.active ? fg : theme.textMuted}>{props.footer}</text>
-            </box>
-          </Show>
-        </>
-      }
-    >
+    <>
       <Show when={props.current}>
         <text flexShrink={0} fg={props.active ? fg : props.current ? theme.primary : theme.text} marginRight={0}>
           ●
@@ -643,44 +581,29 @@ function Option(props: {
           {props.gutter}
         </box>
       </Show>
-      <box flexDirection="column" flexGrow={1}>
-        <box flexDirection="row">
-          <text
-            flexGrow={1}
-            // The model NAME is what the row is for. A footer wide enough to
-            // fill the row used to squeeze this to three characters ("Z.a",
-            // "Dee") and butt it against the price with no gap — the row became
-            // unreadable exactly when it carried the most information.
-            // The title keeps a floor and the footer yields instead.
-            flexShrink={0}
-            minWidth={MIN_TITLE_WIDTH}
-            fg={props.active ? fg : props.current ? theme.primary : theme.text}
-            attributes={props.active ? TextAttributes.BOLD : undefined}
-            overflow="hidden"
-            wrapMode="none"
-            paddingLeft={3}
-          >
-            {Locale.truncate(props.title, 61)}
+      <text
+        flexShrink={0}
+        minWidth={MIN_TITLE_WIDTH}
+        fg={props.active ? fg : props.current ? theme.primary : theme.text}
+        attributes={props.active ? TextAttributes.BOLD : undefined}
+        overflow="hidden"
+        wrapMode="none"
+        paddingLeft={3}
+      >
+        {Locale.truncate(props.title, 61)}
+      </text>
+      <Show when={descriptionText()}>
+        <text flexShrink={1} overflow="hidden" wrapMode="none" fg={props.active ? fg : theme.textMuted}>
+          {descriptionText()}
+        </text>
+      </Show>
+      <Show when={props.footer}>
+        <box flexShrink={0}>
+          <text fg={props.active ? fg : theme.textMuted} wrapMode="none">
+            {props.footer}
           </text>
-          <Show when={props.footer}>
-            <box flexShrink={1} overflow="hidden">
-              <text fg={props.active ? fg : theme.textMuted} wrapMode="none" overflow="hidden">
-                {props.footer}
-              </text>
-            </box>
-          </Show>
         </box>
-        <Show when={props.description}>
-          <text
-            paddingLeft={3}
-            overflow="hidden"
-            wrapMode="none"
-            fg={props.active ? fg : theme.textMuted}
-          >
-            {props.description}
-          </text>
-        </Show>
-      </box>
-    </Show>
+      </Show>
+    </>
   )
 }

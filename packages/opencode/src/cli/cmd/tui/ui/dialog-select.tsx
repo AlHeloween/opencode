@@ -36,6 +36,11 @@ export interface DialogSelectProps<T> {
    * in-place action (DialogAgent ctrl+t variant cycle) so the highlighted
    * row stays stable instead of resetting to the first option. */
   cursorValue?: T
+  /** Footer hint for the highlighted option — the command palette uses it to
+   * explain what the SELECTED command does, changing as the cursor moves.
+   * Return undefined to hide the line. Additive: dialogs that do not pass it
+   * are unaffected. */
+  hint?: (option: DialogSelectOption<T> | undefined) => string | undefined
 }
 
 export interface DialogSelectOption<T = any> {
@@ -340,6 +345,9 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   const keybinds = createMemo(() => props.keybind?.filter((x) => !x.disabled && x.keybind) ?? [])
   const left = createMemo(() => keybinds().filter((item) => item.side !== "right"))
   const right = createMemo(() => keybinds().filter((item) => item.side === "right"))
+  /** The highlighted option's explanation, computed live so the footer follows
+   * the cursor: the list says WHERE you are, the footer says WHAT it does. */
+  const hintText = createMemo(() => props.hint?.(selected()))
 
   // Usable text width for Option rows (rev 4: long rows must split into two
   // lines instead of overlapping/crushing) — dialog width minus list paddings.
@@ -479,6 +487,16 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
             )}
           </For>
         </scrollbox>
+      </Show>
+      <Show when={hintText()}>
+        <box paddingLeft={4} paddingRight={4} paddingTop={1} flexShrink={0}>
+          <text wrapMode="word">
+            <span style={{ fg: theme.text }}>
+              <b>{selected()?.title ?? ""}</b>{" "}
+            </span>
+            <span style={{ fg: theme.textMuted }}>{hintText()}</span>
+          </text>
+        </box>
       </Show>
       <Show when={keybinds().length} fallback={<box flexShrink={0} />}>
         <box

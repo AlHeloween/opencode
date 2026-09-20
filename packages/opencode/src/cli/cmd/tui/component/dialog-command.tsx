@@ -13,6 +13,7 @@ import {
 } from "solid-js"
 import { useKeyboard } from "@opentui/solid"
 import { useKeybind, type KeybindKey } from "@tui/context/keybind"
+import { ConfigKeybinds } from "@/config/keybinds"
 
 type Context = ReturnType<typeof init>
 const ctx = createContext<Context>()
@@ -162,11 +163,27 @@ export function CommandProvider(props: ParentProps) {
   return <ctx.Provider value={value}>{props.children}</ctx.Provider>
 }
 
+/** What the highlighted command DOES, in one line under the list.
+ *
+ * One text, one owner: a command's own `description` wins when a registration
+ * authored one; otherwise the description its keybind ALREADY carries in
+ * `config/keybinds.ts` is read through the exported zod shape (reachability
+ * verified at runtime, not assumed). A command with neither shows no hint, and
+ * the way to give it one is to author a `description` at its registration site
+ * — this reads existing text rather than inventing a second copy of it. */
+function commandHint(option: CommandOption | undefined) {
+  if (!option) return undefined
+  if (option.description) return option.description
+  if (!option.keybind) return undefined
+  const shape = ConfigKeybinds.Keybinds.shape as Record<string, { description?: string } | undefined>
+  return shape[option.keybind]?.description
+}
+
 function DialogCommand(props: { options: CommandOption[]; suggestedOptions: CommandOption[] }) {
   let ref: DialogSelectRef<string>
   const list = () => {
     if (ref?.filter) return props.options
     return [...props.suggestedOptions, ...props.options]
   }
-  return <DialogSelect ref={(r) => (ref = r)} title="Commands" options={list()} />
+  return <DialogSelect ref={(r) => (ref = r)} title="Commands" options={list()} hint={commandHint} />
 }

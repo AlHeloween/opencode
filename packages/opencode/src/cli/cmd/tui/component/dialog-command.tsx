@@ -13,7 +13,7 @@ import {
 } from "solid-js"
 import { useKeyboard } from "@opentui/solid"
 import { useKeybind, type KeybindKey } from "@tui/context/keybind"
-import { ConfigKeybinds } from "@/config/keybinds"
+import { COMMAND_HINTS } from "./command-hints"
 
 type Context = ReturnType<typeof init>
 const ctx = createContext<Context>()
@@ -165,18 +165,20 @@ export function CommandProvider(props: ParentProps) {
 
 /** What the highlighted command DOES, in one line under the list.
  *
- * One text, one owner: a command's own `description` wins when a registration
- * authored one; otherwise the description its keybind ALREADY carries in
- * `config/keybinds.ts` is read through the exported zod shape (reachability
- * verified at runtime, not assumed). A command with neither shows no hint, and
- * the way to give it one is to author a `description` at its registration site
- * — this reads existing text rather than inventing a second copy of it. */
+ * The text comes from `command-hints.ts` — a per-command table written from the
+ * registrations and their handlers, NOT from the keybind descriptions: those are
+ * phrased for a keybind list, are terse, and do not exist for a command without a
+ * keybind (Alexander, 2026-09-20: «для каждой команды хинт … не копипастить, а
+ * написать свою таблицу хинтов проверив кодовую базу»). A command with no entry
+ * yet falls back to the `description` its own registration authored.
+ *
+ * `suggestedOptions()` rewrites a value as `suggested:<value>` for the Suggested
+ * section, so the prefix is stripped before the lookup — otherwise every suggested
+ * row would silently lose its hint. */
 function commandHint(option: CommandOption | undefined) {
   if (!option) return undefined
-  if (option.description) return option.description
-  if (!option.keybind) return undefined
-  const shape = ConfigKeybinds.Keybinds.shape as Record<string, { description?: string } | undefined>
-  return shape[option.keybind]?.description
+  const value = option.value.startsWith("suggested:") ? option.value.slice("suggested:".length) : option.value
+  return COMMAND_HINTS[value] ?? option.description
 }
 
 function DialogCommand(props: { options: CommandOption[]; suggestedOptions: CommandOption[] }) {

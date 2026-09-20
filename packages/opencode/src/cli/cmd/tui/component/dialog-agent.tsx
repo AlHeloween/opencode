@@ -220,19 +220,25 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
     const subLabel = sub === undefined ? "" : sub.length === 0 ? " · task: none" : ` · task: ${sub.length}`
 
     const isActive = local.agent.current()?.name === agent.name
-    const activeLabel = isActive ? " ← active" : ""
 
     const color: RGBA = local.agent.color(agent.name)
     const off = isDisabled(agent.name)
 
     return {
       value: agent.name,
-      title: agent.name,
+      // The active agent is marked in the TITLE — not in the footer, and never by
+      // colour alone. Two measured reasons (Alexander, 2026-09-20: "не вижу в
+      // настройках /agents который выбран сейчас"): every row already carries a
+      // bullet (the enabled gutter dot), so a "current" bullet distinguished only by
+      // COLOUR was invisible; and the old " ← active" suffix sat at the END of the
+      // footer, which is the part that yields first when the row is narrow
+      // (dialog-select.tsx: flexShrink 1 + overflow hidden).
+      title: `${agent.name}${isActive ? " ← active" : ""}`,
       description: agent.description ?? "",
       category,
       disabled: off,
       gutter: <text fg={color}>{off ? "○" : "●"}</text>,
-      footer: `${layerModel}${view.variant ? ` · ${view.variant}` : ""}${subLabel}${activeLabel}`,
+      footer: `${layerModel}${view.variant ? ` · ${view.variant}` : ""}${subLabel}`,
       margin: <text>{off ? "[ ]" : "[✓]"}</text>,
       onSelect: () => {
         dialog.replace(() => (

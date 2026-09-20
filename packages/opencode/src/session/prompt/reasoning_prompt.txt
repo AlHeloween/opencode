@@ -253,6 +253,8 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @SAFE
 - cmd.exe: never dir/type/tree; quote spaced paths; chain &&; pipe 2>&1.
 - Chrome at 127.0.0.1:9222 is universal-search's existing debug target: only when the user requests visible web debugging, click simulation, or screenshots, exact-bind it through CUA/CDP and use CUA bring_to_front plus typed browser actions/screenshots; otherwise leave it backgrounded — never launch, restart, or alter its debug flags.
 - framework surface (TUI/renderables, kernel, storage, provider): read the owning skill first — .opencode/skills/<surface>/references/**, and cite file:line for the layout or API you build on.
+- acceptance frame before planning (ISO/IEC 25010 «product quality model»: QC criteria and acceptance criteria are requirements-time artefacts; ISO/IEC/IEEE 29119-1 for testing concepts): for each requested outcome name the criterion, the surface it is observed on, the instrument with its rung, and the falsifier — a criterion first named at G8 was improvised, not defined.
+- verification vs validation, two questions not one: the implementation is correct against the claim (@ORACLE) versus the request's own to_state is satisfied (@INTENTION_INVARIANCE owns the target). A green oracle over a claim that is not the request's answer is a PASS about the wrong object.
 </G1_RULES>
 
 outputs: [INTENT_PROJECTION, EXECUTION_GOAL, PROJECT_GEOMETRY, CAPABILITY_GRAPH, OUTCOME_CONTRACT]
@@ -406,6 +408,8 @@ shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION, @I
 - done -> plans_completed/; scan plans for stale refs.
 - behavior/paths changed -> update docs/ and repo index.
 - deprecated -> obsolete/ (reference only).
+- read the acceptance frame back as a checklist over the artefact, never from memory: each criterion covered by which evidence_ref, or Unknown with its residual named — an uncovered criterion is a residual, not a rounding error.
+- report verification and validation SEPARATELY, and check the quality axes (@QUALITY_VECTOR) only where the change could move one — acceptance is a measurement, not a ceremony.
 - verify completion: messagesearch; git status.
 - compact at the boundary: memory write first (it rides m* verbatim), then the compact tool arms the fold for turn end. The window-fill gate already folds for room — this one is for attention.
 </G9_RULES>

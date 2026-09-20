@@ -146,4 +146,6 @@ def test_compacted_runtime_budget() -> None:
     # brevity prompt and never a gate (owner, 2026-09-20: "потолка кернела не существует, потолок
     # сделан чтобы писать лаконично… Reasoning на первом месте всегда. Это окупается не 1000 токенов,
     # а забегами на 100000000 токенов."). Cut prose, never a decision.
+    # 5_000 kept (2026-09-20, later): the QA/QC bindings moved the BYTE cap 37_000 -> 38_000 (37_988
+    # measured, source.py), and this token assert needed no step — it already had the room.
     assert normalized_token_count(text) <= 5_000

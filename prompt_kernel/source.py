@@ -423,11 +423,13 @@ KERNEL = Kernel(
     name="reasoning_kernel_next",
     version="2.0.0-alpha.3",
     precedence=("safety", "governance", "task", "domain", "style"),
-    utf8_budget=37_000,  # 36_000 -> 37_000 (2026-09-20) for the four addon bindings: PATH_EXPERIMENTS
-    # (the project's own law, which had left the working prompt), PATH_SURFACE_DOCS, SURFACE_CONSUMERS
-    # (enumerate a shared surface's consumers before binding, name the one you touch) and
-    # ORACLE_INSTRUMENT_CHECK (a capture is evidence only after it is validated). Measured after them:
-    # product render 36_904 — 96 bytes spare, as the cap's own habit. The cap is a brevity prompt and
+    utf8_budget=38_000,  # 37_000 -> 38_000 (2026-09-20) for the QA/QC bindings: @ACCEPTANCE_FRAME at G1
+    # (the criterion, the surface it is observed on, the instrument with its rung and the falsifier named BEFORE
+    # planning — ISO/IEC 25010 puts QC criteria and acceptance criteria at requirements time; ISO/IEC/IEEE 29119-1
+    # for the testing concepts) and @ACCEPTANCE_PASS at G9 (read that frame back over the artefact, verification
+    # and validation reported apart). Measured after them: product render 37_988 — 12 bytes spare, the same habit
+    # as the 96 before it. The previous step, 36_000 -> 37_000, admitted the four addon bindings
+    # (PATH_EXPERIMENTS, PATH_SURFACE_DOCS, SURFACE_CONSUMERS, ORACLE_INSTRUMENT_CHECK). The cap is a brevity prompt and
     # never a gate (owner, 2026-09-20: "потолка кернела не существует, потолок сделан чтобы писать
     # лаконично… Reasoning на первом месте всегда"): a missing rule costs whole runs of 100M tokens,
     # while a line costs bytes. Cut prose, never a decision.

@@ -115,14 +115,22 @@ will reach for the nearest thing that answers, which is itself.
 1. Append `GateAddon(gate_id, addon_id, lines)` to `GATE_ADDONS` in `prompt_kernel/addons.py`.
 2. Constraints (enforced by `validate_addons()`): `gate_id` ∈ G1–G9, unique
    `addon_id`, non-empty lines. No `@`-references in lines.
-3. **Budgets are shared** — byte cap `KERNEL.utf8_budget` (**32 000**) and token cap
-   in `tests/test_dedup.py::test_compacted_runtime_budget` (**3 950**). The Claude
-   variant carries its own ceiling in `tests/test_addons_claude.py` (**32 000 / 3 950**)
-   because `--claude --install` writes a whole file rather than filling a sized slot.
-   Current renders: product 30 558 bytes / 3 777 tokens, Claude 30 837 / 3 824.
-   History: 25 000 → 26 000 → 27 000 → 28 000 → 30 000 → 31 000 → 32 000 bytes, 2 950
-   → 3 100 → 3 300 → 3 450 → 3 700 → 3 850 → 3 950 tokens, each step named in the test
-   comments with what it admits. Formal notation is admissible where it is tighter than
+3. **Budgets are shared** — byte cap `KERNEL.utf8_budget` (**36 000**, raised from 35 000 on
+   2026-09-20) and token cap in `tests/test_dedup.py::test_compacted_runtime_budget` (**4 750**,
+   raised from 4 500 there). The Claude and Codex variants carry their own ceilings in
+   `tests/test_addons_claude.py` and `tests/test_addons_codex.py` (**36 000 / 4 750**) because
+   `--claude --install` writes a whole file rather than filling a sized slot.
+   **Current renders, measured 2026-09-20:** product **35 419 bytes / 4 603 tokens**, Claude
+   35 185, Codex 35 460. (The figures previously recorded here — 32 000 / 3 950 and renders of
+   30 558 / 3 777 — were a month stale and described caps the code no longer had; same class as
+   a documented binding missing from the registry.)
+   History: 25 000 → 26 000 → 27 000 → 28 000 → 30 000 → 31 000 → 32 000 → **35 000** →
+   **36 000** bytes, 2 950 → 3 100 → 3 300 → 3 450 → 3 700 → 3 850 → 3 950 → **4 500** →
+   **4 750** tokens, each step named in the test comments with what it admits. The
+   2026-09-20 step admits `@INSTRUMENT_RUNG`, `@MEDOID_SIMPLEX` and `@CLAIM_CITATION` — the
+   three rules that describe the **entry**: an instrument may not certify below its rung, a
+   surface needs at least three medoids with independent sources, and a claim above Guess
+   carries its mechanism and a pin. Formal notation is admissible where it is tighter than
    prose — restating `@LOOP_PROGRESS` as a strict lexicographic decrease gave back 88
    bytes with no loss of meaning.
    **Growth policy (Alexander, 2026-09-11 → 2026-09-12):** raises are deliberate, not

@@ -84,7 +84,9 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # the compaction triggers the user named — fold before EVOLUTION_LOOP returns
     # to G1, and fold on STALL or an outside report of tunnel vision.
     assert len(text.encode("utf-8")) <= 36_000
-    assert normalized_token_count(text) <= 4_550
+    # 4_550 -> 4_750 (2026-09-20): same raise as the product ceiling, for the same three
+    # epistemic rules and the four pending addon bindings; this registry renders the same kernel.
+    assert normalized_token_count(text) <= 4_750
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

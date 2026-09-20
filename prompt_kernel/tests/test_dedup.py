@@ -136,4 +136,7 @@ def test_compacted_runtime_budget() -> None:
     # outside call reports tunnel vision (a diluted basis reads as a wrong plan).
     # Both are triggers no window-fill gate can see, which is the whole reason the
     # `compact` tool exists. 34 243 used, 757 free.
-    assert normalized_token_count(text) <= 4_500
+    # 4_500 -> 4_750 (2026-09-20): admits @INSTRUMENT_RUNG, @MEDOID_SIMPLEX and
+    # @CLAIM_CITATION, plus the four pending addon bindings (experiments lane, surface
+    # docs, capture validation, surface consumers) so the cap is not raised twice.
+    assert normalized_token_count(text) <= 4_750

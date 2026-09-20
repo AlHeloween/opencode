@@ -79,7 +79,9 @@ def test_codex_variant_stays_within_explicit_budget() -> None:
     # at G9, and a file-backed criterion store at G1 for a host with no memory
     # tool. 34 621 / 4 478 used; no raise, the existing caps absorb it.
     assert len(text.encode("utf-8")) <= 36_000
-    assert normalized_token_count(text) <= 4_550
+    # 4_550 -> 4_750 (2026-09-20): same raise as the product ceiling, for the same three
+    # epistemic rules and the four pending addon bindings; this registry renders the same kernel.
+    assert normalized_token_count(text) <= 4_750
 
 
 def test_codex_addon_render_is_deterministic_lf() -> None:

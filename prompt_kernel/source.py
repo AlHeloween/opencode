@@ -142,6 +142,7 @@ GATES = (
             _rule("G1", "REUSE_BEFORE", "Search existing code, history, plans, and authoritative prior art before non-trivial invention; re-search after repeated stuck failure."),
             _rule("G1", "MEMORY_RANK", "Rank active-window evidence above compacted handles. Recall and a user's assertion are testimony: they record what was said, including what was later refuted. Their handles — paths, diffs, graph refs — are Exact; their prose is Guess until re-grounded. Source, fossil and code graph say what is; history says where to look."),
             _rule("G1", "INSTRUMENT_LAYER", "Choose the instrument by the layer the problem lives on, not by what is nearest. The adjacent layer returns accurate data about a different process — the costliest error there is, because right numbers end the search."),
+            _rule("G1", "INSTRUMENT_RUNG", "Instrument admissibility: smoke or a PoC certifies at @INFOMARK Inferred and above; Guess and Hypothetical advance by search and theory. Below its rung an instrument returns Unknown whatever it shows — a green attached to no model silences the step that was missing."),
             _rule("G1", "OUTCOME_CONTRACT_RULE", "Before planning, define an observation that distinguishes success from plausible-looking output."),
         ),
     ),
@@ -159,6 +160,7 @@ GATES = (
             _rule("G2", "FRACTAL_CANDIDATES", "Preserve the parent goal and constraints at every scale; reject leaves whose verification blast radius remains monolithic."),
             _rule("G2", "MANHATTAN_L1", "Cluster candidate vectors with @L1_DISTANCE, select at least five candidates when the search space permits, and keep medoids only as CENTRAL_TASKS."),
             _rule("G2", "ONE_STEP_AHEAD", "Estimate the immediate downstream state and verification consequence of each medoid before selection."),
+            _rule("G2", "MEDOID_SIMPLEX", "A surface needs at least three medoids with independent sources, each carrying its @INFOMARK rung: one point fixes a position, a simplex fixes a region, and only then is the uncovered part sayable. Coverage is computed over the lattice, not asserted from one point; pins from one source are one point repeated."),
         ),
     ),
     Gate(
@@ -174,6 +176,7 @@ GATES = (
             _rule("G3", "MASTER_PLAN_RULE", "Start DRAFT, become ACTIVE only after G4, and invalidate plus revise after any material premise or scope change."),
             _rule("G3", "SMOKE_BEFORE", "Capture a failing or baseline oracle before implementation and name the post-change oracle before any product-source edit."),
             _rule("G3", "CLAIM_LEDGER_RULE", "Assistant proposes claims with their falsifiers; only @ORACLE binds one Exact."),
+            _rule("G3", "CLAIM_CITATION", "Above Guess a claim carries its mechanism and a pin: what the system does, what that predicts here, and path:line or an authority with a hash. Unpinned is Unknown, never Inferred; a PASS is evidence about the implementation, not about an absent theory."),
             _rule("G3", "RISK_LEDGER_RULE", "Unresolved critical entries block G4. Refresh after G7/G8 and close only with oracle evidence."),
         ),
     ),
@@ -417,7 +420,7 @@ KERNEL = Kernel(
     name="reasoning_kernel_next",
     version="2.0.0-alpha.3",
     precedence=("safety", "governance", "task", "domain", "style"),
-    utf8_budget=35_000,
+    utf8_budget=36_000,  # raised 35_000 -> 36_000 (2026-09-20): admits @INSTRUMENT_RUNG, @MEDOID_SIMPLEX, @CLAIM_CITATION (581 bytes spare; the pending addon bindings raise it again at their own point of need)
     terms=MappingProxyType({
         "GROUNDING": "Observation tied to a source, path, command, or reproducible state.",
         "AUTHORIZATION": "A decision that permits a bounded class of effects; confidence is not authority.",

@@ -103,8 +103,13 @@ function routeCurrent(route: ReturnType<typeof useRoute>): TuiPluginApi["route"]
 }
 
 function mapOption<Value>(item: TuiDialogSelectOption<Value>): SelectOption<Value> {
+  // The plugin surface keeps `disabled` (published API); internally the field is `hidden`, because
+  // hiding is the only behaviour implemented. Spreading `item` would carry a field nothing reads,
+  // so the translation is explicit (2026-09-20).
+  const { disabled, ...rest } = item
   return {
-    ...item,
+    ...rest,
+    hidden: disabled,
     onSelect: () => item.onSelect?.(),
   }
 }
@@ -116,7 +121,7 @@ function pickOption<Value>(item: SelectOption<Value>): TuiDialogSelectOption<Val
     description: item.description,
     footer: item.footer,
     category: item.category,
-    disabled: item.disabled,
+    disabled: item.hidden,
   }
 }
 

@@ -27,6 +27,9 @@ export interface DialogSelectProps<T> {
     keybind?: Keybind.Info
     title: string
     side?: "left" | "right"
+    /** An unavailable keybind: the footer omits the cell and the handler does not fire. This one IS
+     * honoured — the OPTION-level flag that used to share this name was removed 2026-09-20 (see
+     * `hidden` below): it named a selectability the renderer never honoured. */
     disabled?: boolean
     onTrigger: (option: DialogSelectOption<T>) => void
   }[]
@@ -50,7 +53,15 @@ export interface DialogSelectOption<T = any> {
   footer?: JSX.Element | string
   category?: string
   categoryView?: JSX.Element
-  disabled?: boolean
+  /**
+   * The option is NOT part of the list: `filtered()` drops it. That is the whole contract — the row
+   * is not dimmed and the cursor does not skip it, because a "visible but not selectable" option is
+   * deliberately NOT implemented (an option that cannot be chosen is a surface that lies about being
+   * one). Renamed from `disabled` (2026-09-20): the old name promised a selectability the renderer
+   * never honoured — the flag only ever removed the row, which is why three dialogs lost rows that
+   * their authors meant to be visible.
+   */
+  hidden?: boolean
   bg?: RGBA
   gutter?: JSX.Element
   onSelect?: (ctx: DialogContext) => void
@@ -118,11 +129,11 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   let input: InputRenderable
 
   const filtered = createMemo(() => {
-    if (props.skipFilter) return props.options.filter((x) => x.disabled !== true)
+    if (props.skipFilter) return props.options.filter((x) => x.hidden !== true)
     const needle = store.filter.toLowerCase()
     const options = pipe(
       props.options,
-      filter((x) => x.disabled !== true),
+      filter((x) => x.hidden !== true),
     )
     if (!needle) return options
 

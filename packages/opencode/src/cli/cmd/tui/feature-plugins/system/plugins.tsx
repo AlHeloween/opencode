@@ -144,7 +144,8 @@ function row(api: TuiPluginApi, item: TuiPluginStatus, width: number): DialogSel
     category: item.source === "internal" ? "Internal" : "External",
     description: meta(item, width),
     footer: state(api, item),
-    disabled: item.id === id,
+    // The plugin itself is not offered inside its own list.
+    hidden: item.id === id,
   }
 }
 

@@ -110,7 +110,8 @@ export function DialogModel(props: {
             title: model.name ?? item.modelID,
             description: provider.name,
             category,
-            disabled: provider.id === "opencode" && model.id.includes("-nano"),
+            // The provider's -nano helpers are internal: not offered in the picker.
+            hidden: provider.id === "opencode" && model.id.includes("-nano"),
             footer: withFooter(model, isFreeModel(model.cost, provider.id)),
             onSelect: () => {
               onSelect(provider.id, model.id)
@@ -147,7 +148,8 @@ export function DialogModel(props: {
               ? "(Favorite)"
               : undefined,
             category: connected() ? provider.name : undefined,
-            disabled: provider.id === "opencode" && model.includes("-nano"),
+            // The provider's -nano helpers are internal: not offered in the picker.
+            hidden: provider.id === "opencode" && model.includes("-nano"),
             // Carried on the row so the free-first sort below reads data
             // rather than re-parsing the rendered footer.
             cost: info.cost,

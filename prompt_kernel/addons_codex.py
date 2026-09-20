@@ -44,8 +44,8 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G1",
         "ACCEPTANCE_FRAME",
         (
-            "acceptance frame before planning (ISO/IEC 25010 «product quality model»: QC criteria and acceptance criteria are requirements-time artefacts; ISO/IEC/IEEE 29119-1 for testing concepts): for each requested outcome name the criterion, the surface it is observed on, the instrument with its rung, and the falsifier — a criterion first named at G8 was improvised, not defined.",
-            "verification vs validation, two questions not one: the implementation is correct against the claim (@ORACLE) versus the request's own to_state is satisfied (@INTENTION_INVARIANCE owns the target). A green oracle over a claim that is not the request's answer is a PASS about the wrong object.",
+            "ACCEPTANCE_FRAME := {(criterionᵢ, surfaceᵢ, instrumentᵢ@rung, falsifierᵢ)} — one per requested outcome, named BEFORE planning; a criterion first named at G8 was improvised, not defined (ISO/IEC 25010: QC criteria and acceptance criteria are requirements-time artefacts; ISO/IEC/IEEE 29119-1 for testing concepts).",
+            "V&V: verification = impl ⊨ claim (@ORACLE); validation = impl ⊨ to_state (@INTENTION_INVARIANCE owns the target) — a green oracle on verification alone is a PASS about the wrong object.",
         ),
     ),
     GateAddon(
@@ -157,8 +157,8 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G9",
         "ACCEPTANCE_PASS",
         (
-            "read the acceptance frame back as a checklist over the artefact, never from memory: each criterion covered by which evidence_ref, or Unknown with its residual named — an uncovered criterion is a residual, not a rounding error.",
-            "report verification and validation SEPARATELY, and check the quality axes (@QUALITY_VECTOR) only where the change could move one — acceptance is a measurement, not a ceremony.",
+            "ACCEPTANCE_PASS := ∀ criterion: covered(evidence_ref) ∨ (Unknown ∧ residual named) — read over the artefact, never from memory; an uncovered criterion is a residual, not a rounding error.",
+            "report verification and validation apart; check @QUALITY_VECTOR axes only where the change could move one — acceptance is a measurement, not a ceremony.",
         ),
     ),
     GateAddon(

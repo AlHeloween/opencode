@@ -3685,3 +3685,21 @@ Hypothetical until that harness reports its own prefix digest.
 - **Residual:** nothing is live until the owner rebuilds. The `Recently Used Models` header rendering without
   rows in one frame is recorded as an UNEXPLAINED observation (not a defect), with the instrument named that
   would settle it.
+
+## 2026-09-20 — the State Vector Manifest becomes the worked example inside the compaction contract (owner: «посмотри какая прелесть» → «можешь удалить»)
+
+- The July-2026 per-turn artifact (`.svm/svm_2026-07-22.yaml`, single commit `fc59ac1e0f`, sitting under a
+  pending deletion since 2026-09-19) was first annotated in place (`ff99a8a5a1`), then moved INTO the contract
+  it explains and deleted (`61a99e9131`): `docs/compaction.md` now carries, beside the `## Semantic Vector`
+  specification, a "what each block was FOR" list (`header` chains turns; `goals` carry the commit that
+  closed them; `tasks` are atomic steps; `test_status` is counts, not prose; `goal_hierarchy` names a
+  dominant per level) and the full manifest in a yaml fence — session id a placeholder, hashes historical.
+- **WHY the shape and not the file:** the Layer-1 summary is the surviving half of the same idea — the STATE
+  moved to the system-Exact `planState` mirror and the model keeps the one anchor it can honestly judge,
+  `dominant`; invented `key_phrases` were removed for having zero consumers. Knowledge belongs where it is
+  read (the contract), not in a dead experiment's directory.
+- **Destination lesson, paid once:** the first placement went to `docs/examples/` and git refused — that
+  directory is gitignored (line 177, a receiver dir). A file's home is a fact: `git check-ignore -v` before
+  writing, not memory.
+- **Oracles:** DOCINDEX compiles as Python and all **44** DocRecord paths exist; exactly one yaml fence in
+  `compaction.md` and it parses (8 keys / 4 goals / 8 tasks). Tree clean afterwards.

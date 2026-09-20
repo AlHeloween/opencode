@@ -8,7 +8,6 @@ import { Session } from "@/session/session"
 import { MessageV2 } from "@/session/message-v2"
 import { SessionCompaction } from "@/session/compaction"
 import { IncrementalCheckpoint } from "@/session/incremental-checkpoint"
-import { usable } from "@/session/overflow"
 import * as CompactionRequest from "@/session/compaction-request"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 
@@ -48,18 +47,6 @@ export function formatModeSnapshot(
     "Effective permission rules (ordered; the executor evaluates the matching rule for the actual action and target):",
     ...rules,
   ].join("\n")
-}
-
-/**
- * Average visible tokens added per user turn in the open window.
- *
- * One turn is not a rate: the first turn after a fold carries the folded star
- * and would read as an enormous burn, which would then report a headroom of
- * zero turns and provoke a pointless fold. Two is the smallest honest sample.
- */
-export function burnRate(open: number, userTurns: number): number | null {
-  if (userTurns < 2 || open <= 0) return null
-  return open / userTurns
 }
 
 /**
@@ -167,21 +154,22 @@ export const CheckStateTool = Tool.define<
             if (!lastUser || lastUser.info.role !== "user") return null
             const model = yield* provider.getModel(lastUser.info.model.providerID, lastUser.info.model.modelID)
             const cfg = yield* config.get()
-            const open = SessionCompaction.windowFillTokens(visible, model)
+            // One computation, shared with the pushed tail note: pull and push
+            // must report the same numbers, or the boundary is chosen from two
+            // gauges. Spaces and boundary live in `windowState`.
+            const state = SessionCompaction.windowState({
+              visible,
+              model,
+              cfg,
+              boundary: IncrementalCheckpoint.latestOpen(ctx.sessionID)?.toMessageID,
+            })
             return {
               model: `${model.providerID}/${model.id}`,
               limit: model.limit.context,
-              foldAt: usable({ cfg, model }),
-              open,
-              // Layer-1 cadence is measured from the newest sidecar boundary,
-              // Layer-2 from the whole visible window. Reporting the Layer-2
-              // number is the one the fold threshold is actually compared to.
-              sinceSummary: SessionCompaction.computeOpenWindowTokens(
-                visible,
-                IncrementalCheckpoint.latestOpen(ctx.sessionID)?.toMessageID,
-                model,
-              ),
-              perTurn: burnRate(open, visible.filter((m) => m.info.role === "user").length),
+              foldAt: state.foldAt,
+              open: state.open,
+              sinceSummary: state.sinceSummary,
+              perTurn: state.perTurn,
               armed: CompactionRequest.pendingFor(ctx.sessionID),
               auto: cfg.compaction?.auto !== false,
             }

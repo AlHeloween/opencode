@@ -2267,6 +2267,58 @@ export const layer = Layer.effect(
               }
             }
 
+            // Push the compaction status onto the freshest user message: which
+            // summaries are still OPEN (editable until the fold) and what is
+            // deficient in them, plus the distance to the fold threshold and to
+            // the next Layer-1 capture. Pushed, not pulled — mid-edit nobody
+            // calls checkstate, and the boundary then lands wherever it lands
+            // (owner ruling 2026-09-18). One note per user message: a snapshot
+            // taken at its first step, not a per-step tracker.
+            const freshUserMsg = msgs.findLast(
+              (m) => m.info.role === "user" && !SessionCompaction.isLayer1SummaryMessage(m),
+            )
+            const wantsStatusNote =
+              freshUserMsg !== undefined &&
+              !freshUserMsg.parts.some(
+                (p) =>
+                  p.type === "text" &&
+                  (p as MessageV2.TextPart).synthetic === true &&
+                  p.text.startsWith(SessionCompaction.TAIL_NOTE_PREFIX),
+              )
+            if (wantsStatusNote && freshUserMsg) {
+              const statusNote = yield* Effect.gen(function* () {
+                try {
+                  const open = IncrementalCheckpoint.listOpen(sessionID)
+                  const cfg = yield* config.get()
+                  const window = SessionCompaction.windowState({
+                    visible: msgs,
+                    model,
+                    cfg,
+                    boundary: open.at(-1)?.toMessageID,
+                  })
+                  return SessionCompaction.tailNote({ open, window })
+                } catch (e) {
+                  Log.Default.warn("bug: failed to build the compaction status note", {
+                    error: String(e),
+                    sessionID,
+                  })
+                  return ""
+                }
+              })
+              if (statusNote) {
+                const notePart = yield* sessions.updatePart({
+                  id: PartID.ascending(),
+                  messageID: freshUserMsg.info.id,
+                  sessionID: freshUserMsg.info.sessionID,
+                  type: "text" as const,
+                  text: statusNote,
+                  synthetic: true,
+                })
+                // Append — do not unshift over the user's original part 0.
+                freshUserMsg.parts.push(notePart)
+              }
+            }
+
             const format = lastUser.format ?? { type: "text" as const }
 
             // Current identity must match the checkpoint's identityFingerprint.

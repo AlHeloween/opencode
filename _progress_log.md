@@ -3703,3 +3703,29 @@ Hypothetical until that harness reports its own prefix digest.
   writing, not memory.
 - **Oracles:** DOCINDEX compiles as Python and all **44** DocRecord paths exist; exactly one yaml fence in
   `compaction.md` and it parses (8 keys / 4 goals / 8 tasks). Tree clean afterwards.
+
+## 2026-09-20 — the pushed compaction note: the nag and the countdown land (plans/2026-09-18 T3+T4)
+
+- **T3+T4 LANDED**: `tailNote` names each OPEN summary's gaps (computed on read, so filling a section
+  retires its own nag) and carries the fold countdown; `prompt.ts` injects it as a synthetic part on the
+  freshest user message — the request tail, where new tokens cost no cache — idempotent by
+  `TAIL_NOTE_PREFIX`, one note per user message (a snapshot at its first step, not a tracker).
+- **One source for the numbers**: `windowState` (`compaction.ts`) is the single computation behind BOTH
+  `checkstate` (pull) and the note (push); `burnRate` moved out of the tool layer with it. Spaces are
+  fixed in one place: `open`/`foldAt` are request-space, `sinceSummary` content-space, boundary = the
+  newest OPEN summary — the same one the capture site uses.
+- **Oracles** (exit codes read from `state.json`): `bun typecheck` exit 0; `tail-note + compaction +
+  summary-template + summary-cadence + checkstate` **135 pass / 0 fail** (baseline 128/0; +7 = the new
+  file); `prompt.test.ts` **42 pass / 13 skip / 0 fail** — identical to its pre-change baseline.
+- **The control that matters, on the real DB**: save → `listOpen` names the summary → `materialize` →
+  `listOpen` empty → the note is empty. A nag cannot outlive its deadline (`summaryedit` refuses a
+  folded body).
+- **Two mistakes of mine, recorded**: a `multiedit` newString pasted a fragment from ANOTHER function
+  (`return [` from `formatModeSnapshot`) into `checkstate.ts` — the tool applied it, and only the LSP +
+  re-reading the seam caught it. Lesson: replacement text is taken VERBATIM from a read, never from
+  memory. And the first DB-test harness (`it.live` + `provideTmpdirInstance`) failed typecheck for
+  missing services; the working recipe is `summary-revise.test.ts`'s (`tmpdir` + `Instance.provide` +
+  `provideInstance` + `SessionNs.defaultLayer`; the checkpoint FK is on `session_id` only, so literal
+  `MessageID.make(...)` values are enough — no real messages needed).
+- **Not live**: `bin/opencode.exe` 10.0.1044 predates this; the note rides new turns after the owner's
+  next rebuild.

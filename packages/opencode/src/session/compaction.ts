@@ -11,7 +11,7 @@ import { NotFoundError } from "@/storage/storage"
 import { ModelID, ProviderID } from "@/provider/schema"
 import { Effect, Layer, Context, Schema, Option } from "effect"
 import { readMemory } from "@/tool/memory"
-import { estimateMediaTokens, estimateRequestTokens, isOverflow as overflow } from "./overflow"
+import { estimateMediaTokens, estimateRequestTokens, isOverflow as overflow, usable } from "./overflow"
 import { countTokens } from "./token-count"
 import { promptTokensFromUsage } from "./processor"
 import { makeRuntime } from "@/effect/run-service"
@@ -622,6 +622,104 @@ export function windowFillTokens(msgs: MessageV2.WithParts[], model?: Provider.M
   // alone: a threshold cannot compare two different spaces.
   const media = model ? estimateMediaTokens(slice, model) : 0
   return estimateRequestTokens(Math.ceil(contentChars(slice) / CHARS_PER_TOKEN)) + media
+}
+
+/**
+ * Average visible tokens added per user turn in the open window.
+ *
+ * One turn is not a rate: the first turn after a fold carries the folded star
+ * and would read as an enormous burn, which would then report a headroom of
+ * zero turns and provoke a pointless fold. Two is the smallest honest sample.
+ */
+export function burnRate(open: number, userTurns: number): number | null {
+  if (userTurns < 2 || open <= 0) return null
+  return open / userTurns
+}
+
+/**
+ * One session's window arithmetic, computed ONCE and formatted by every consumer.
+ *
+ * Two surfaces report these numbers — the `checkstate` tool (pull) and the tail
+ * note below (push) — and they must never disagree; a number and its threshold
+ * living in different spaces is how the Layer-1 cadence silently became
+ * "summarize on every stop" (2026-09-19). The spaces are fixed here, once:
+ * `open` and `foldAt` are REQUEST-space (compared to the fold threshold),
+ * `sinceSummary` is CONTENT-space (compared to the 65 536 cadence), and its
+ * boundary is the newest OPEN summary — the same one the capture site uses.
+ */
+export type WindowState = {
+  open: number
+  foldAt: number
+  sinceSummary: number
+  perTurn: number | null
+}
+
+export function windowState(input: {
+  visible: MessageV2.WithParts[]
+  model: Provider.Model
+  cfg: Config.Info
+  /** Newest open summary's coverage end — the Layer-1 cadence boundary. */
+  boundary?: MessageID
+}): WindowState {
+  const open = windowFillTokens(input.visible, input.model)
+  return {
+    open,
+    foldAt: usable({ cfg: input.cfg, model: input.model }),
+    sinceSummary: computeOpenWindowTokens(input.visible, input.boundary, input.model),
+    perTurn: burnRate(
+      open,
+      input.visible.filter((m) => m.info.role === "user").length,
+    ),
+  }
+}
+
+/** The tag the pushed note is recognised by — its own idempotency key. */
+export const TAIL_NOTE_PREFIX = "<compaction-status>"
+
+/**
+ * The note pushed onto the newest user message after every user turn: which
+ * summaries are still OPEN and what is deficient in them, plus the distance to
+ * both boundaries.
+ *
+ * WHY pushed, not pulled: these numbers used to live only behind `checkstate`,
+ * and an identity mid-edit does not call a tool to ask how far the wall is — so
+ * the fold arrived wherever it happened to land (owner ruling 2026-09-18). The
+ * note rides the newest user message: new tokens by construction, so it costs
+ * no cache (a counter in the system prefix would miss every turn), and it is
+ * written once per user message rather than refreshed per step.
+ *
+ * WHY deadline-aware: only an OPEN summary gets a line — a folded one is `m*`
+ * already and `summaryedit` refuses to touch it — and the gaps are computed
+ * from the body ON READ, so filling a section retires its own nag without a
+ * new column.
+ */
+export function tailNote(input: {
+  open: { id: string; body: string }[]
+  window: WindowState | null
+}): string {
+  const lines: string[] = []
+  for (const summary of input.open) {
+    const gaps = diagnoseSummaryGaps(summary.body)
+    lines.push(
+      gaps.length > 0
+        ? `summary ${summary.id} open · gaps: ${gaps.join(", ")} · fill with summaryedit before the fold`
+        : `summary ${summary.id} open · no gaps — folds into the next m* as-is`,
+    )
+  }
+  if (input.window) {
+    const w = input.window
+    const headroom = Math.max(0, w.foldAt - w.open)
+    const turns = w.perTurn && w.perTurn > 0 ? Math.floor(headroom / w.perTurn) : null
+    const burn =
+      turns === null
+        ? `headroom ${headroom.toLocaleString("en-US")} (burn rate unknown — too few turns since the last fold)`
+        : `headroom ${headroom.toLocaleString("en-US")} ~ ${turns} more turn${turns === 1 ? "" : "s"} at the recent ${Math.round(w.perTurn ?? 0).toLocaleString("en-US")}/turn (estimate)`
+    lines.push(
+      `ctx ${w.open.toLocaleString("en-US")}/${w.foldAt.toLocaleString("en-US")} · ${burn} · layer-1 ${w.sinceSummary.toLocaleString("en-US")}/${SUMMARY_INTERVAL_TOKENS.toLocaleString("en-US")}`,
+    )
+  }
+  if (lines.length === 0) return ""
+  return [TAIL_NOTE_PREFIX, ...lines, "</compaction-status>"].join("\n")
 }
 
 /**

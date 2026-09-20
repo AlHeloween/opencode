@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
-import { burnRate, formatModeSnapshot, formatSummaries, formatWindow } from "../../src/tool/checkstate"
+import { burnRate } from "../../src/session/compaction"
+import { formatModeSnapshot, formatSummaries, formatWindow } from "../../src/tool/checkstate"
 
 test("checkstate returns the complete ordered runtime ACL without changing the tool catalog", () => {
   const output = formatModeSnapshot(

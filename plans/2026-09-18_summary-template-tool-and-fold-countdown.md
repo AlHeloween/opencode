@@ -2,7 +2,7 @@
 # Layer-1 summary: shared template, gap nag, and a fold countdown
 
 ```yaml
-status: IN PROGRESS (2026-09-18) — T1 and T2 LANDED (oracles green); T3/T4/T5 open
+status: 2026-09-20 — T1–T4 LANDED (oracles green); T5 deferred (measurement first)
 raised: 2026-09-18, from the ClientSoft incident (worker died mid-compaction) and the owner's design call
 scope: packages/opencode/src/session/compaction.ts, packages/opencode/src/session/prompt.ts, packages/opencode/src/tool/summaryedit.ts
 owner_ruling:
@@ -32,10 +32,10 @@ owner_ruling:
       Oracle: new `test/session/summary-template.test.ts` 5/5 (a missing added heading is named; the additions clear at 24 chars; the core four did NOT drop to 24), `compaction.test.ts` 76/0, `bun typecheck` exit 0.
 - [x] **T2 — gaps are reported, not iterated.** LANDED: the required-heading list covers all eight, the four additions carry a 24-char floor, `SIDECAR_MAX_ATTEMPTS = 1` retires the forced repair, and the hard reject is replaced by a stored body plus a named-gap warn (`summary_gaps` computed on read, so filling a section retires its own nag).
       Oracle: attribution table below; and the loop's removal is proven by the edited `prompt.test.ts:884` case (2 requests, body stored with both named gaps).
-- [ ] **T3 — the nag, deadline-aware.** After each user message, in the MUTABLE TAIL, one line per OPEN summary (`IncrementalCheckpoint.listOpen`, i.e. `materializedMessageID` is null): `summary <id> open · gaps: Next Steps (0/24), Relevant Files (0/24) · fill with summaryedit before the fold`. A folded summary produces NO line — the tool itself says correcting it contradicts `m*`.
-      Oracle: a rendering test for the tail line; a negative control that a folded summary yields no nag.
-- [ ] **T4 — the countdown, pushed.** After each user message, in the MUTABLE TAIL: `ctx open/foldAt (headroom) · layer-1 sinceSummary/65 536 · ~N turns at recent rate`, reusing `computeOpenWindowTokens` and `burnRate`. The estimate is labelled an estimate; the token numbers are Exact.
-      Oracle: reuse the existing `checkstate` numbers, so a test can assert the tail line equals them for the same session state.
+- [x] **T3 — the nag, deadline-aware.** LANDED 2026-09-20: `tailNote` (`compaction.ts`) renders one line per OPEN summary; the gaps come from `diagnoseSummaryGaps` computed ON READ, so filling a section retires its own nag. `prompt.ts` injects the note as a synthetic part on the freshest user message, idempotent by `TAIL_NOTE_PREFIX`. A folded summary gets no line — it has left `listOpen`.
+      Oracle: `test/session/tail-note.test.ts` — the gaps are named; the no-gaps variant stays quiet; and the DB control: save → `listOpen` names it → `materialize` → `listOpen` empty → the note is empty.
+- [x] **T4 — the countdown, pushed.** LANDED 2026-09-20: the same note carries `ctx open/foldAt · headroom ~ N more turns at the recent X/turn (estimate) · layer-1 sinceSummary/65 536`, rendered from `windowState` — the ONE computation `checkstate` also formats, so the pull and the push cannot drift (spaces and boundary live in `windowState`; `burnRate` moved there from the tool layer). The note rides the newest user message, so it never touches the stable prefix (@KV_CACHE_STABILITY).
+      Oracle: the cross-check renders `formatWindow` and the note from one `WindowState` and asserts the same numbers in both; `prompt.test.ts` stayed at its baseline (42 pass / 13 skip / 0 fail).
 - [ ] **T5 (deferred, measurement first).** Decide the body target (30 KB) only after measuring rendered-block sizes per checkpoint against the 65 536 aggregate. Raising it without that measurement trades thin prose for evicted history — the failure the owner is trying to prevent.
 
 ## Smoke Tests

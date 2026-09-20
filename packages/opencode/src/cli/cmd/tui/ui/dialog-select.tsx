@@ -202,6 +202,20 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   const headerWidth = createMemo(() => rowWidth() - 8)
   const titleWidth = createMemo(() => headerWidth() - 4)
 
+  // The TEXT budget of an option row, from the SAME one width as the header.
+  //
+  // The row is a flex child of the scrollbox, and a child in a flex column gets NO
+  // width from its parent — so the row resolved to CONTENT size, overran the dialog and
+  // the last columns were cut mid-word with no ellipsis (measured 2026-09-20 in the
+  // /agents capture: `huggingface/zai-org/GLM-5.3-`). The row's width is now stated
+  // explicitly below, and this number is what its fields are truncated to, so the
+  // ellipsis is REACHABLE instead of being clipped away with the text.
+  //
+  // Arithmetic, worst case (the row that carries both a marker and a gutter):
+  //   dialog content 60 − row padding (5 left + 3 right) − marker/gutter and gaps (8) = 44.
+  // A row without a marker spends 2 less; the budget is the worst case for all of them.
+  const rowTextWidth = createMemo(() => rowWidth() - 16)
+
   const rows = createMemo(() => {
     const headers = grouped().reduce((acc, [category], i) => {
       if (!category) return acc
@@ -440,9 +454,18 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                           moveTo(index)
                         }}
                         backgroundColor={active() ? (option.bg ?? theme.primary) : RGBA.fromInts(0, 0, 0, 0)}
-                        paddingLeft={current() || option.gutter ? 1 : 3}
+                        // A margin renders ABSOLUTELY at left 1 and is three columns wide
+                        // (`[✓]`), so the flow must start clear of it. Reserving 3 while the
+                        // marker sat on columns 1..3 made the two overlap — the capture showed
+                        // `●✓orchestrator_agent`, i.e. the brackets eaten by the glyphs.
+                        paddingLeft={current() ? 1 : option.margin ? 5 : 3}
                         paddingRight={3}
                         gap={1}
+                        // Stated EXPLICITLY for the same reason as the header row: without
+                        // it the flex chain resolves to content size and the content runs past
+                        // the dialog edge, where it is cut mid-word. Same table as
+                        // `rowTextWidth`, so the width and the budget cannot disagree.
+                        width={rowWidth() - 2}
                       >
                         <Show when={!current() && option.margin}>
                           <box position="absolute" left={1} flexShrink={0}>
@@ -470,6 +493,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                           current={current()}
                           gutter={option.gutter}
                           rowWidth={rowWidth()}
+                          textWidth={rowTextWidth()}
                         />
                       </box>
                     )
@@ -557,6 +581,10 @@ function Option(props: {
    * title + description + footer exceed it drop the description to a second
    * muted line instead of crushing the title against the footer (rev 4). */
   rowWidth?: number
+  /** The row's TEXT budget, from the same width table. Fields are truncated to it
+   * so an over-long name yields an ellipsis instead of being cut mid-word at the
+   * dialog edge (`Locale.truncate(props.title, 61)` was a hard 61 for every size). */
+  textWidth?: number
   onMouseOver?: () => void
 }) {
   const { theme } = useTheme()
@@ -570,6 +598,27 @@ function Option(props: {
       rowWidth: props.rowWidth,
     }),
   )
+
+  // ONE budget table for the row's three fields, so the title, the footer and the
+  // description cannot each invent their own width. The footer is metadata: it yields
+  // first and never takes more than half the row. The name keeps a floor, because a
+  // row whose name is unreadable is not a row. The description gets the full width
+  // when it has a line to itself.
+  const textWidth = () => props.textWidth ?? 60
+  const footerBudget = () =>
+    typeof props.footer === "string" ? Math.min(props.footer.length, Math.max(8, Math.floor(textWidth() / 2))) : 0
+  const titleText = () =>
+    Locale.truncate(
+      props.title,
+      Math.max(MIN_TITLE_WIDTH, textWidth() - (footerBudget() > 0 ? footerBudget() + 1 : 0)),
+    )
+  const footerText = () =>
+    typeof props.footer === "string" ? Locale.truncate(props.footer, footerBudget()) : props.footer
+  const descText = () => (props.description ? Locale.truncate(props.description, textWidth()) : undefined)
+  const descInlineText = () =>
+    props.description
+      ? Locale.truncate(props.description, Math.max(8, textWidth() - titleText().length - footerBudget() - 2))
+      : undefined
 
   return (
     <Show
@@ -594,14 +643,16 @@ function Option(props: {
             wrapMode="none"
             paddingLeft={3}
           >
-            {Locale.truncate(props.title, 61)}
+            {titleText()}
             <Show when={props.description}>
-              <span style={{ fg: props.active ? fg : theme.textMuted }}> {props.description}</span>
+              <span style={{ fg: props.active ? fg : theme.textMuted }}> {descInlineText()}</span>
             </Show>
           </text>
           <Show when={props.footer}>
-            <box flexShrink={0}>
-              <text fg={props.active ? fg : theme.textMuted}>{props.footer}</text>
+            <box flexShrink={0} overflow="hidden">
+              <text fg={props.active ? fg : theme.textMuted} wrapMode="none" overflow="hidden">
+                {footerText()}
+              </text>
             </box>
           </Show>
         </>
@@ -634,12 +685,12 @@ function Option(props: {
             wrapMode="none"
             paddingLeft={3}
           >
-            {Locale.truncate(props.title, 61)}
+            {titleText()}
           </text>
           <Show when={props.footer}>
             <box flexShrink={1} overflow="hidden">
               <text fg={props.active ? fg : theme.textMuted} wrapMode="none" overflow="hidden">
-                {props.footer}
+                {footerText()}
               </text>
             </box>
           </Show>
@@ -651,7 +702,7 @@ function Option(props: {
             wrapMode="none"
             fg={props.active ? fg : theme.textMuted}
           >
-            {props.description}
+            {descText()}
           </text>
         </Show>
       </box>

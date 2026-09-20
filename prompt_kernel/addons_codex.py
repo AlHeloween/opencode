@@ -93,7 +93,7 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G6",
         "SURFACE_CONSUMERS",
         (
-            "a surface with more than one consumer (shared renderer, component or route): enumerate the consumers by import — codegraph_explore, plus LSP references/implementation for language-aware reach — before binding, and name which one your change touches.",
+            "shared surface (renderer, component or route with more than one consumer): impact analysis by import — codegraph_explore, plus LSP references/implementation — before binding, and name which consumer your change touches.",
         ),
     ),
     GateAddon(
@@ -115,7 +115,7 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G7",
         "TOOL_DELEGATE",
         (
-            "delegate through Task: hand it the task binding, the falsifier, and the parent intention verbatim, and withhold the answer you expect — a brief that names the conclusion buys confirmation.",
+            "delegate through Task: hand it the binding, the falsifier and the parent intention verbatim, withholding the answer you expect.",
             "a batch runs unattended and reports once: never state a pending result, and re-brief a follow-up slice instead of assuming it kept the earlier context.",
         ),
     ),
@@ -141,7 +141,7 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G8",
         "ORACLE_INSTRUMENT_CHECK",
         (
-            "a capture is evidence only after it is validated: prove it shows the WHOLE object and is unoccluded — Browser through Eval is the instrument, a viewport crop is not; an unvalidated frame is not an oracle.",
+            "an unvalidated frame is not an oracle: prove the capture shows the WHOLE object unoccluded — Browser through Eval is the instrument, a viewport crop is not.",
         ),
     ),
     GateAddon(
@@ -166,7 +166,7 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_CLOSURE",
         (
             "verify scoped working-tree state before closure; no message-search tool exists.",
-            "compact at a closed boundary and treat the fold as lossy: criteria, falsifiers and the open residual go into plans/, docs/ and _progress_log.md first, because nothing here carries them across verbatim.",
+            "compact at a closed boundary and treat the fold as lossy: criteria, falsifiers and the open residual go to plans/, docs/ and _progress_log.md first.",
             "a smoke-tested MCP contract is Exact; live response shape remains Hypothetical until run live.",
         ),
     ),

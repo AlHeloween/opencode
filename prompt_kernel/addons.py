@@ -18,7 +18,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "PATH_GROUNDING",
         (
             "first read: plans/*.md, docs/.",
-            "durable criteria: memory read (.opencode/data/memory/reasoning.md) — every identity may read and write it, and compact folds it into m* inside <memory> verbatim; memory write replaces the file, revisions kept, append adds.",
+            "durable criteria store: memory tool over .opencode/data/memory/reasoning.md — read/append/write; write replaces (revisions kept); folds into m* verbatim.",
             "never store plans under .opencode/plans/.",
         ),
     ),
@@ -30,7 +30,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
             "file enumeration: list/glob/grep/read — never shell ls/dir/find/cat (hard-blocked).",
             "platform: Windows = cmd/powershell tools; bash unavailable.",
             "cmd.exe: never dir/type/tree; quote spaced paths; chain &&; pipe 2>&1.",
-            "Chrome at 127.0.0.1:9222 is universal-search's existing debug target: only when the user requests visible web debugging, click simulation, or screenshots, exact-bind it through CUA/CDP and use CUA bring_to_front plus typed browser actions/screenshots; otherwise leave it backgrounded — never launch, restart, or alter its debug flags.",
+            "Chrome 127.0.0.1:9222 is universal-search's debug target: bind it only for user-requested visible web debugging or screenshots (CUA/CDP + bring_to_front); never launch, restart or alter its flags.",
         ),
     ),
     GateAddon(
@@ -83,14 +83,14 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "G6",
         "TOOL_BINDING",
         (
-            "map symbols and ownership: codegraph explore/impact; read-only task grounding.",
+            "symbols + ownership: codegraph explore/impact (impact analysis); read-only.",
         ),
     ),
     GateAddon(
         "G6",
         "SURFACE_CONSUMERS",
         (
-            "a surface with more than one consumer (shared renderer, component or route): enumerate the consumers by import before binding, and name which one your change touches.",
+            "shared surface (renderer, component or route with more than one consumer): impact analysis by import before binding, and name which consumer your change touches.",
         ),
     ),
     GateAddon(
@@ -113,7 +113,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_DELEGATE",
         (
             "delegate: task (explorer_agent G1/G6, general_agent G2/G3, coder_agent G7/G8, researcher_agent, media_agent); pipeline chains them in declared order.",
-            "each identity carries its own sampling — a tight one is for reproducible work, do not ask it for variety.",
+            "per-identity sampling: tight for reproducible verification, loose for generation.",
         ),
     ),
     GateAddon(
@@ -129,17 +129,17 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_ORACLE",
         (
             "prove via tests (cmd_runner), jobwait, logsearch, dbread; long probes: cmd_runner start only.",
-            "render claims need an instrument: TUI via cmd_runner inbox (send keys, read render), windows/web via cua screenshot or verify_state — typecheck is not one.",
+            "render claims: cmd_runner inbox (send keys, read render) or cua screenshot|verify_state — typecheck is not an instrument.",
             "a shared cmd_runner session has two writers: attribute who drove the state and re-read the render after handing the window over.",
             "shell dir/ls scans are not evidence — product tools only.",
-            "the isolated call is aicall: no tools, no repo, free-first model — attach every file it must see, or it answers a question you did not ask. Inferred at best, never a stamp.",
+            "isolated call: aicall (free-first, no tools, no repo) — attach every file it must see; Inferred at best, never a stamp.",
         ),
     ),
     GateAddon(
         "G8",
         "ORACLE_INSTRUMENT_CHECK",
         (
-            "a capture is evidence only after it is validated: prove it shows the WHOLE object and is unoccluded — cmd_runner screenshot crops a wide window, cua zoom caps one region at 500 px, get_window_state on Windows Terminal returns chrome without terminal text; an unvalidated frame is not an oracle.",
+            "an unvalidated frame is not an oracle: prove the capture shows the WHOLE object unoccluded — screenshot crops a wide window, zoom caps one region at 500 px.",
         ),
     ),
     GateAddon(
@@ -164,7 +164,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_CLOSURE",
         (
             "verify completion: messagesearch; git status.",
-            "compact at the boundary: memory write first (it rides m* verbatim), then the compact tool arms the fold for turn end. The window-fill gate already folds for room — this one is for attention.",
+            "compact at a boundary: memory write first (it rides m* verbatim), then arm the fold; the fill gate already folds for room — this one is for attention.",
         ),
     ),
 )

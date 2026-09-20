@@ -28,10 +28,8 @@ def test_addons_render_inside_gate_rule_blocks() -> None:
         "- cmd.exe: never dir/type/tree; quote spaced paths; chain &&; pipe 2>&1." in g1
     )
     assert (
-        "- Chrome at 127.0.0.1:9222 is universal-search's existing debug target: only when the user requests"
-        " visible web debugging, click simulation, or screenshots, exact-bind it through CUA/CDP and use CUA"
-        " bring_to_front plus typed browser actions/screenshots; otherwise leave it backgrounded — never launch,"
-        " restart, or alter its debug flags." in g1
+        "- Chrome 127.0.0.1:9222 is universal-search's debug target: bind it only for user-requested"
+        " visible web debugging or screenshots (CUA/CDP + bring_to_front); never launch, restart or alter its flags." in g1
     )
     g4 = _gate_block(text, "G4")
     assert "- identity or permission uncertain -> checkstate; unresolved decision -> question (ASK)." in g4
@@ -43,7 +41,7 @@ def test_addons_render_inside_gate_rule_blocks() -> None:
 def test_tool_addons_bind_expected_gates() -> None:
     text = render_kernel(KERNEL)
     assert "- track candidates: todowrite." in _gate_block(text, "G2")
-    assert "- map symbols and ownership: codegraph explore/impact; read-only task grounding." in _gate_block(text, "G6")
+    assert "- symbols + ownership: codegraph explore/impact (impact analysis); read-only." in _gate_block(text, "G6")
     assert "- mutate: edit, multiedit, write, applypatch; crash-prone shell via cmd_runner." in _gate_block(text, "G7")
     assert (
         "- shell = process orchestration only; never file browsing (constitution blocks)."
@@ -59,8 +57,8 @@ def test_tool_addons_bind_expected_gates() -> None:
         " cmd_runner start only." in _gate_block(text, "G8")
     )
     assert (
-        "- render claims need an instrument: TUI via cmd_runner inbox (send keys, read render),"
-        " windows/web via cua screenshot or verify_state — typecheck is not one." in _gate_block(text, "G8")
+        "- render claims: cmd_runner inbox (send keys, read render) or cua screenshot|verify_state"
+        " — typecheck is not an instrument." in _gate_block(text, "G8")
     )
     assert (
         "- shell dir/ls scans are not evidence — product tools only."

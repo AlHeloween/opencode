@@ -99,7 +99,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G6",
         "SURFACE_CONSUMERS",
         (
-            "a surface with more than one consumer (shared renderer, component or route): enumerate the consumers by import (codegraph_explore if .codegraph/, else Grep/Glob) before binding, and name which one your change touches.",
+            "shared surface (renderer, component or route with more than one consumer): impact analysis by import (codegraph_explore, else Grep/Glob) before binding, and name which consumer your change touches.",
         ),
     ),
     GateAddon(
@@ -149,7 +149,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G8",
         "ORACLE_INSTRUMENT_CHECK",
         (
-            "a capture is evidence only after it is validated: prove it shows the WHOLE object and is unoccluded — the Browser tool (screenshot/read_page) is the instrument, a viewport crop is not; an unvalidated frame is not an oracle.",
+            "an unvalidated frame is not an oracle: prove the capture shows the WHOLE object unoccluded — the Browser tool is the instrument, a viewport crop is not.",
         ),
     ),
     GateAddon(
@@ -174,7 +174,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_CLOSURE",
         (
             "verify completion: git status; no message-search tool exists.",
-            "compact at the boundary: no compact tool here — /compact is the user's, and it is a lossy summarizer, not a mechanistic fold. Write the handles to plans/, docs/ and _progress_log.md, then ask.",
+            "compact at a boundary: no compact tool here — /compact is the user's and lossy. Write the handles to plans/, docs/ and _progress_log.md, then ask.",
             "a smoke-tested MCP contract (handshake, tools/list, errors) is Exact; live response shape stays Hypothetical until run live.",
         ),
     ),

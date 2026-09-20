@@ -252,6 +252,8 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @SAFE
 - platform: Windows = Bash or PowerShell tool; never mix syntaxes.
 - openrouter-free (user-scope MCP): list_free_models is discovery; call_model is a network call, not local evidence.
 - framework surface (TUI/renderables, kernel, storage, provider): read the owning reference first — .opencode/skills/<surface>/references/** are plain files here (no skill tool), and cite file:line for the layout or API you build on.
+- acceptance frame before planning (ISO/IEC 25010 «product quality model»: QC criteria and acceptance criteria are requirements-time artefacts; ISO/IEC/IEEE 29119-1 for testing concepts): for each requested outcome name the criterion, the surface it is observed on, the instrument with its rung, and the falsifier — a criterion first named at G8 was improvised, not defined.
+- verification vs validation, two questions not one: the implementation is correct against the claim (@ORACLE) versus the request's own to_state is satisfied (@INTENTION_INVARIANCE owns the target). A green oracle over a claim that is not the request's answer is a PASS about the wrong object.
 </G1_RULES>
 
 outputs: [INTENT_PROJECTION, EXECUTION_GOAL, PROJECT_GEOMETRY, CAPABILITY_GRAPH, OUTCOME_CONTRACT]
@@ -341,7 +343,7 @@ shared_rules: [@EVIDENCE_ORDER, @PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORC
 - For each task, record the reused implementation or authoritative pattern and explain any necessary invention.
 - Resolve task inputs, outputs, affected consumers, generated files, tests, and rollback points to concrete paths and symbols.
 - map symbols/ownership: codegraph_explore (if .codegraph/) else Grep/Glob/Read; read-only.
-- a surface with more than one consumer (shared renderer, component or route): enumerate the consumers by import (codegraph_explore if .codegraph/, else Grep/Glob) before binding, and name which one your change touches.
+- shared surface (renderer, component or route with more than one consumer): impact analysis by import (codegraph_explore, else Grep/Glob) before binding, and name which consumer your change touches.
 </G6_RULES>
 
 outputs: [GROUNDED_PLAN, PLAN_BINDING]
@@ -388,7 +390,7 @@ Reproduce the claim with the narrowest decisive instrument. Purpose: an oracle e
 - shell ls/dir scans are not evidence — Glob/Grep/Read only.
 - sandbox egress blocking an MCP call is Unknown, not a failed oracle — retest with real network.
 - the isolated call is openrouter-free call_model: EXTERNAL_EFFECT, free tier, no repo access — attach the evidence inline. Inferred at best, never a stamp.
-- a capture is evidence only after it is validated: prove it shows the WHOLE object and is unoccluded — the Browser tool (screenshot/read_page) is the instrument, a viewport crop is not; an unvalidated frame is not an oracle.
+- an unvalidated frame is not an oracle: prove the capture shows the WHOLE object unoccluded — the Browser tool is the instrument, a viewport crop is not.
 </G8_RULES>
 
 outputs: [VERIFIED_OUTCOME, ORACLE_STAMP, DIVERGENCE_EVENT, CLAIM_LEDGER, RISK_LEDGER]
@@ -407,8 +409,10 @@ shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION, @I
 - done -> plans_completed/; scan plans for stale refs.
 - behavior/paths changed -> update docs/ and repo index.
 - deprecated -> obsolete/ (reference only).
+- read the acceptance frame back as a checklist over the artefact, never from memory: each criterion covered by which evidence_ref, or Unknown with its residual named — an uncovered criterion is a residual, not a rounding error.
+- report verification and validation SEPARATELY, and check the quality axes (@QUALITY_VECTOR) only where the change could move one — acceptance is a measurement, not a ceremony.
 - verify completion: git status; no message-search tool exists.
-- compact at the boundary: no compact tool here — /compact is the user's, and it is a lossy summarizer, not a mechanistic fold. Write the handles to plans/, docs/ and _progress_log.md, then ask.
+- compact at a boundary: no compact tool here — /compact is the user's and lossy. Write the handles to plans/, docs/ and _progress_log.md, then ask.
 - a smoke-tested MCP contract (handshake, tools/list, errors) is Exact; live response shape stays Hypothetical until run live.
 </G9_RULES>
 

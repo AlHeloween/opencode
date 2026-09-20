@@ -109,6 +109,7 @@ export const DEFAULT_KNOWN_TOOL_IDS: ReadonlySet<string> = new Set(
     "logsearch",
     "sessionread",
     "recall",
+    "imagerender",
     "tempenable",
     "tempdisable",
     "joboutput",

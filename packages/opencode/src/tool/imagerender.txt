@@ -1,0 +1,10 @@
+Render a picture as structure: ink bands, a text map, and an SVG diagram.
+
+`source` is a file path, or a `prt_…` id of a stored image part — a screenshot attached to the session.
+
+The result carries the row/column ink bands in PIXELS, a half-block text map (the picture readable as
+text), and an SVG written to `.opencode/data/renders/<sha256>.svg`: the raster plus the detected
+structure, and — when `boxes` are passed — your planned change drawn in the picture's own coordinates.
+
+Use it to turn a screenshot into something structure can be stated about, and to diagram a GUI
+modification ({x,y,w,h,label} boxes) on the real screen geometry instead of describing it in prose.

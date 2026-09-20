@@ -32,6 +32,7 @@ import { MessageSearchTool } from "./messagesearch"
 import { DbReadTool } from "./dbread"
 import { LogSearchTool } from "./logsearch"
 import { RecallTool } from "./recall"
+import { ImageRenderTool } from "./imagerender"
 import { TempDisableTool, TempEnableTool } from "./temp-lifetime"
 import { CapabilityTool } from "./capability"
 import { PipelineTool } from "./pipeline"
@@ -218,6 +219,7 @@ export const layer: Layer.Layer<
     const dbread = yield* DbReadTool
     const logsearch = yield* LogSearchTool
     const recall = yield* RecallTool
+    const imagerender = yield* ImageRenderTool
     const tempEnable = yield* TempEnableTool
     const tempDisable = yield* TempDisableTool
     const sessionread = yield* SessionReadTool
@@ -349,6 +351,7 @@ export const layer: Layer.Layer<
           dbread: Tool.init(dbread),
           logsearch: Tool.init(logsearch),
           recall: Tool.init(recall),
+          imagerender: Tool.init(imagerender),
           tempenable: Tool.init(tempEnable),
           tempdisable: Tool.init(tempDisable),
           sessionread: Tool.init(sessionread),
@@ -393,6 +396,7 @@ export const layer: Layer.Layer<
             tool.dbread,
             tool.logsearch,
             tool.recall,
+            tool.imagerender,
             tool.tempenable,
             tool.tempdisable,
             tool.sessionread,

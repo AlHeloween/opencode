@@ -3587,3 +3587,36 @@ Hypothetical until that harness reports its own prefix digest.
 - **Oracles, in order**: baseline render `utf8_bytes=35628`; after the three rule edits `35914`; suite **1 failed / 99 passed**, the single red being the promotion gate — the DESIGNED intermediate state; after `--install` and the repin, suite **100 passed**. That red-to-green transition is the proof the install landed, and it is exactly why a kernel change is committed only after it.
 - Method that held: the rendered diff was taken **before** the install and shown for the owner's eyes (`git diff --no-index`, 5 hunks and nothing else); the install's **returned** digest was used for the manifest rather than the render's sha (they proved equal — verified, not assumed); and `install_production` was read before running it, which is how I knew the repin was mine and not the pipeline's.
 - Residual: nothing is live until the owner rebuilds the binary AND a new session or a compact picks up the prefix — a checkpoint holds the old one. The four addon bindings (`plans/2026-09-20_kernel-addon-bindings.md`) will force the next raise of the ceiling, and the question to ask first is what is DEAD, not how much more fits.
+
+## 2026-09-20 — the memory carrier gets a budget that reports and never acts
+
+- **Shipped** `70b4281eba` — `feat(memory): the carrier's budget is a flag, not an actor` (5 files,
+  +236/−27): `src/memory/budget.ts` (pure: `MEMORY_TOKENS_LIMIT = 96_000`, `memoryFlag`,
+  `oldestEntryDates`), wired into the **`append`/`write` outputs** of `src/tool/memory.ts`, plus
+  `test/memory/budget.test.ts` and one deliberately updated assertion in `test/tool/memory.test.ts`.
+- **The measurement that started it (T-M1):** the carrier is **73 345 tokens — 7.6 % of the 957 232 fold
+  budget**, taken with the fold's OWN counter, `countTokens` (never a ratio). Of four instruments the WORST
+  was **the one we use to budget the PROMPT** (≈ −2.7×): a different SPACE, i.e. the "two measures under one
+  name" defect again. Evidence: `experiments/2026-09-20_memory-budget/`.
+- **The owner's objection IS the design.** An earlier version of this task proposed a declared limit that
+  automatically ROTATES the oldest entries out. Owner: «Стоп, ты хочешь чтобы твоя память ротовалась сама
+  собой?» — and the measurement backed him: of 82 entries only **8 carry `Status: ACTIVE`**, and the OLDEST
+  of the rest is the *misattribution-reflex* criterion, the most ALIVE thing in the file, so oldest-first
+  would retire it FIRST. **A threshold deciding what the agent forgets is a decision taken by nobody** —
+  the silent class this project hunts. So the limit is a FLAG and never an actor; retirement is a
+  deliberate act that leaves a one-line pointer.
+- **Placement, and why NOT `read`:** the flag rides the mutation outputs, because the four `read`
+  assertions pin the passthrough contract (`output` IS the file) — and, more importantly, a caller echoing
+  a read back into `write` would copy the flag INTO the carrier. Growth happens on mutation, so that is
+  where the actor sees the number. Above **80 %** the flag names the oldest dates and says who decides;
+  below it, it is a number. Live over the real carrier: `Memory: 73,345 tokens of 96,000 (76.4 %).`
+- **FINDING that limits T-M6, and it is a SURFACE problem, not a policy one:** «merge-on-append» **cannot
+  be performed with today's tool surface at this size** — `append` only appends, and merging a dated entry
+  would mean rewriting the whole ~250 KB carrier through `write`, which cannot be reproduced by hand and is
+  priced in output tokens. So growth is FORCED by the surface. The realistic deliberate act when the flag
+  fires is a consolidation `write` (the previous content is kept in `revisions/`), or a small bounded tool
+  addition: an action that replaces ONE dated entry. Recorded, not taken.
+- Oracles: `bun typecheck` exit 0 (a baseline was taken BEFORE the edit, also 0); `test/memory/budget.test.ts`
+  + `test/tool/memory.test.ts` **11 pass / 0 fail / 23 expect**; the live flag over the real carrier.
+- Residual: nothing is live until the owner rebuilds the binary. Open owner decisions: **H3** (persist the
+  claim ledger or declare its volatility) and the kernel ceiling for the four addon bindings.

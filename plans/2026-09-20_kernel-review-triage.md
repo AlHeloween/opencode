@@ -234,6 +234,14 @@ driven over the REAL carrier by `experiments/2026-09-20_memory-budget/flag-live.
 (read the carrier first; if a criterion is already there, rewrite that entry merged rather than append a
 paraphrase). It needs no mechanism — which is exactly why it is the right fix: the cause is duplication.
 
+**But that discipline is NOT PERFORMABLE with today's tool surface at this size, and that is a surface
+problem rather than a policy one:** `append` only appends, and merging a dated entry means rewriting the
+whole ~250 KB carrier through `write` — which cannot be reproduced by hand and is priced in output tokens.
+So the carrier's growth is **FORCED by the surface**, not by anyone's discipline. The realistic deliberate
+act when the flag fires is a consolidation `write` (the previous content is kept in `revisions/`), or a
+small bounded tool addition: an action that replaces ONE dated entry. Recorded, not taken — and it is the
+honest reason the FLAG carries the weight here and the merge discipline does not yet.
+
 **Invariant and falsifier.** What must never happen: after rotation the agent must **not** have to
 re-derive a criterion it had already written. Falsifier: any re-derivation of a retired-but-still-true
 criterion ⇒ the budget cut the wrong thing. This is the same shape as the continuity doctrine's own

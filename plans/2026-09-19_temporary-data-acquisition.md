@@ -298,6 +298,46 @@ hides the WHOLE message; `ttl` removes only the PAYLOAD and the result text stay
 
 Kind→modality is deliberately INCOMPLETE: `image` maps to `capabilities.input.image && attachment`; `document` and `source` map to nothing yet, so they stay SILENT. An incomplete map can lose a note; an invented one would raise a false alarm, and a false alarm sends the agent re-acquiring what never rode.
 
+## 0.11 What a FULL layer needs — measured, not recited (2026-09-20)
+
+Owner, 2026-09-20: «ты впихнул незаконченный кусок мертвого кода в дерево прямо сейчас, ну вот сча
+будешь делать из него полный слой, сказал а, значит будет Б.» So: the inventory of the gap, each item
+with the instrument that would close it.
+
+**The first item is the diagnosis, and it is why the leg is dead code rather than superseded code:**
+there is NO ACQUIRER. Measured — `grep acquire` over `src/tool/` returns nothing. Nothing fills
+`acquired_item`, so `tdaHeaderFor` is always empty, `tdaHeaders` always answers `{}`, and the transform's
+empty-set short-circuit returns every body untouched. The wire path is not dormant because the TTL design
+replaced it; it is dormant because **nothing can call it**.
+
+| # | what is missing | where it lands | oracle |
+|---|---|---|---|
+| **A1** | **The accepter tool** — acquire by address, plus a `list` mode | new `tool/acquire.ts` (+ registry, + `dsml-normalizer`; id lowercase alphanumeric ONLY) | a test that drives the whole path and reads the BODY that would be sent, not the tool's report |
+| **A2** | The four §0.9 limits, DECLARED BUT NOT ENFORCED (the plan says so itself: enforcement «lands with the ACQUIRER») | inside A1, every limit a number in `gateway.jsonc` | one case that breaks each limit, one that passes; the token cap against `usable()`, which now exists |
+| **A3** | The expectation / verdict / note — the runtime states which payloads THIS request should find on the wire, the gateway reports the outcome | `llm.ts` (the header) + `tda.ts` (the note) | the four branches already written in §Smoke Tests: expected∧found, expected∧NOT found, not expected, held |
+| **A4** | The caption and ordinal (§2.1/§2.2) — `[Actualize #N — from [Attached file: …], message at <iso>]`, all three fields DERIVED at acquire time | the accepter's writer | the caption matches the transcript's own link text character for character; no field added to `FilePart` |
+| **A5** | Records from the DB (§0.8) — a `project_checkpoint` row, a message range — priced by `data.tokens` where it exists and by measure where it does not | the SQLite plane + the accepter | acquire a real checkpoint, hold it, release it, re-acquire it by id |
+| **A6** | The sandbox run that never happened: no request reaches the local double, and the discriminator is untested | `experiments/2026-09-19_tda-sandbox/` | point the baseURL at a CLOSED port: a connection error proves the URL is consulted; the same message proves no fetch happens at all |
+| **A7** | The hot-path number — an O(body) scan per request on a wrapped provider | — | measured on the real path; a synthetic body measures the fixture |
+
+**Two boundaries that decide where the layer is real at all** (both measured, neither a defect):
+
+1. `x-opencode-*` reach ONLY `providerID.startsWith("opencode")` ⇒ on deepseek-direct, novita and
+   openrouter the layer is inert. That is its reach today, not a bug to route around.
+2. The payload rides in SIX forms on a real body and only the structured `content[]` entry is rewritten,
+   so a release leaves the bytes on the wire as text in five of them. Found on the captured 938 KB body.
+
+**And the one thing that cannot go unsaid.** The `ttl` mechanism built on 2026-09-19 serves the SAME
+purpose for parts that are IN the window, and it does it at conversion — no digest, no header, no
+verdict. So TDA's irreducible value is not the wire half: it is **records from OTHER epochs** (a summary,
+a message range, a block of state memory) that the window no longer shows, which is exactly §0.8's own
+argument. Build order follows from that, lest a "full layer" be a rewrite of a working mechanism:
+**A1 → A2 → A5**, and A3/A4 land where they are load-bearing rather than everywhere.
+
+**State of the table, measured 2026-09-20:** the live database holds 16 tables and `acquired_item` is NOT
+among them. It appears on the next boot, because the core DDL is `CREATE TABLE IF NOT EXISTS` and runs
+after migrations — so this is the standing "nothing here is live until a rebuild", not a broken install.
+
 ### Smoke Tests
 
 - **baseline (before any edit):** `bun typecheck` exit 0 · `gateway-tda` 9/0 · `acquired-item` 6/0 · `acquired-item-store` 4/0 · `gateway-tda-wire` 5/0.

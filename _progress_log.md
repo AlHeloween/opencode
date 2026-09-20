@@ -3534,3 +3534,21 @@ Hypothetical until that harness reports its own prefix digest.
 - **Honest residual, recorded rather than hidden:** this turn's summary is captured BEFORE the fold is decided (`captureSidecar` at 2689, `foldDecision` at 2707), so a span still live at that instant appears in it as live; the reset turns it into a pointer from the next request on. The strict reading of «в summary не считается» needs the fold to be known BEFORE the summary is taken — a re-ordering of the seam, not a two-line change.
 - Oracles: `bun typecheck` exit 0 · `part-ttl-gate + temp-lifetime + recall + part-ttl-storage + message-v2` **74 pass / 0 fail / 175 expect** · `prompt.test.ts` **42 pass / 13 skip / 0 fail / 169 expect**, exactly the recorded baseline.
 - **Falsifier of this change, and it bit TWICE in one session:** inserting a test while anchoring on the closing braces TRUNCATES the body of the test above it. `createChunk`-style appends must anchor on real content ABOVE the insertion point, and the file must be read back afterwards — the tool's own success report is not evidence. The first instance was caught by `bun typecheck`, the second only by reading the file; both times the lost body was already gone.
+
+## 2026-09-20 — eyes on `/agents` at last, and the pipeline test's recipe
+
+- I have a TUI of my own now — `cmd_runner start --terminal wt --direct-terminal --auto-tail 0 --cols 110 --rows 34 -- bin\opencode.exe`, run `20260920T010405Z_09332e87`, `/agents` opened through the inbox — so the form is judged from PIXELS, which is exactly what the earlier blind edits lacked. Capture: `.opencode/shots/mine-agents.png`; boot check: `.opencode/shots/mine-boot.png`.
+- **The form's defects, read off my own capture** (all four visible at `medium`, 60 wide inside a 110-column terminal):
+  1. the value column is CLIPPED at the dialog's right edge mid-word, with no ellipsis (`huggingface/zai-org/GLM-5.3-`);
+  2. the description line is clipped at that same edge instead of WRAPPING (`Autonomous development orchestrator (orchestrator_ag`);
+  3. the state markers are jammed against the name (`●✓orchestrator_agent`, no gap);
+  4. the dialog occupies roughly 55% of the terminal while its own content is cut.
+- The cause class is already recorded from the earlier dialog work: **in a flex column a child gets NO explicit width from its parent**, so `space-between` / `flex-end` silently degrade. The HEADER was fixed that way (`72ce065a0e`); the ROW columns were not. So the fix is explicit column widths plus `wrapMode` on the row texts — NOT the dialog size: `8c9a8aefb1` (xlarge) was REVERTED by `59d0a0bc90` because "a wide dialog breaks the row columns", i.e. widening moved the clipping instead of removing it. That revert is the record of the blind-first approach the owner named («ты сломал эту форму потому что у тебя не было видения»).
+- Observed difference, NOT explained: in my fresh session the rows show real models (`openai/gpt-5.6-sol ← active`, `huggingface/zai-org/GLM-5.3-…`) while the owner's session shows `inherits from worktree` for the same agents. Same binary, different session layer.
+- **The pipeline test's recipe** (the session must be younger than the tools; THIS one is not — the provider tool catalog is fixed at session start, so `tempenable` is absent from it even though it is in the binary):
+  1. a session started AFTER the rebuild, so `tempenable` / `tempdisable` are in its catalog;
+  2. a turn whose result is heavy enough for the delivered-once placeholder to print `id=prt_…`;
+  3. `tempenable(id=…, turns=0, reason=…)` — `turns: 0` resolves to THIS turn, so the release must bite in the very next request;
+  4. read the captured body under `.opencode/data/gateway/raw-wire/` for that next request: the payload must be GONE and `[held] payload released … recall with id=…` must stand in its place — the two mechanisms print DIFFERENT strings, so the note is distinguishable from the placeholder;
+  5. `tempdisable(id=…)` and re-read: the payload returns.
+- Model choice matters for that test: a fresh session defaults to `openai/gpt-5.6-sol` (paid), so the run must name a free model explicitly.

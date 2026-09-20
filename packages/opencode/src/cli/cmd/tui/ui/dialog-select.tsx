@@ -429,6 +429,14 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                         id={JSON.stringify(option.value)}
                         flexDirection="row"
                         position="relative"
+                        // The row needs an EXPLICIT width, for the same reason the header does:
+                        // that flex chain resolves to content size, so `flex-end` on the footer
+                        // had no free space to consume and every row's model sat at a different
+                        // x — measured on /agents at scope:worktree, the right column landed at
+                        // 977/870/808/840/800/810 px (Alexander: «Теперь посмотри на
+                        // форматирование»). With a stated width the footer reaches the panel's
+                        // right edge and the rows share ONE column.
+                        width={rowWidth() - 2}
                         onMouseMove={() => {
                           setStore("input", "mouse")
                         }}

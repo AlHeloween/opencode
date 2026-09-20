@@ -1947,22 +1947,34 @@ function UserMessage(props: {
             </Show>
             <RichText content={text} id={props.message.id} muted={isMemoryPanel()} streaming={false} surface="panel" />
             <Show when={files().length}>
-              <box flexDirection="row" paddingBottom={metadataVisible() ? 1 : 0} paddingTop={1} gap={1} flexWrap="wrap">
-                <For each={files()}>
-                  {(file) => {
-                    const bg = createMemo(() => {
-                      if (file.mime.startsWith("image/")) return theme.accent
-                      if (file.mime === "application/pdf") return theme.primary
-                      return theme.secondary
-                    })
-                    return (
-                      <text fg={theme.text}>
-                        <span style={{ bg: bg(), fg: theme.background }}> {MIME_BADGE[file.mime] ?? (file.filename?.split(".").pop()?.toLowerCase()) ?? file.mime} </span>
-                        <span style={{ bg: theme.backgroundElement, fg: theme.textMuted }}> {file.filename} </span>
-                      </text>
-                    )
-                  }}
+              <box flexDirection="column" paddingTop={1} gap={1}>
+                {/* An image the USER attached is DRAWN, not summarised as a chip. This block
+                 * was the ONLY rendering for user attachments, so a pasted screenshot showed
+                 * as `[img] clipboard.png` — while an image a TOOL attached went through the
+                 * tool renderer (→ MediaImage) and painted normally, which is exactly the
+                 * asymmetry observed (Alexander, 2026-09-20: «если ты вставишь скриншот в чат -
+                 * он отрисуется»). The badge row stays: it names the file, and it is the only
+                 * signal left when a terminal cannot paint at all. */}
+                <For each={files().filter((file) => file.mime.startsWith("image/"))}>
+                  {(file) => <MediaImage url={file.url} mime={file.mime} />}
                 </For>
+                <box flexDirection="row" paddingBottom={metadataVisible() ? 1 : 0} gap={1} flexWrap="wrap">
+                  <For each={files()}>
+                    {(file) => {
+                      const bg = createMemo(() => {
+                        if (file.mime.startsWith("image/")) return theme.accent
+                        if (file.mime === "application/pdf") return theme.primary
+                        return theme.secondary
+                      })
+                      return (
+                        <text fg={theme.text}>
+                          <span style={{ bg: bg(), fg: theme.background }}> {MIME_BADGE[file.mime] ?? (file.filename?.split(".").pop()?.toLowerCase()) ?? file.mime} </span>
+                          <span style={{ bg: theme.backgroundElement, fg: theme.textMuted }}> {file.filename} </span>
+                        </text>
+                      )
+                    }}
+                  </For>
+                </box>
               </box>
             </Show>
             <Show

@@ -187,12 +187,28 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
     }),
   )
 
-  // Usable text width for Option rows (rev 4: long rows must split into two
-  // lines instead of overlapping/crushing) — dialog width minus list paddings.
+  // Usable text width for Option rows — dialog width minus list paddings. One line per row now,
+  // so this is a width and no longer a two-line wrap budget.
   const rowWidth = createMemo(() => {
     const size = dialog.size
     return size === "xlarge" ? 116 : size === "large" ? 88 : 60
   })
+
+  // The row's three columns, computed ONCE for the whole list: a column is a POSITION, and a
+  // position must be the same on every row. Per-row widths put each runtime at its own x — the
+  // ragged column reported twice.
+  //
+  // The input is `props.options`, NOT the filtered list: a column belongs to the TABLE, so it
+  // must not move while the user types. Computing it from `flat()` made every row shift
+  // horizontally on each keystroke, because the longest title in a filtered list is shorter.
+  const columns = createMemo(() =>
+    rowColumns({
+      titles: props.options.map((option) => option.title),
+      descriptions: props.options.map((option) => option.description ?? option.category),
+      footers: props.options.map((option) => (typeof option.footer === "string" ? option.footer : undefined)),
+      rowWidth: rowWidth(),
+    }),
+  )
 
   // Header geometry, from the SAME width the rows use.
   //
@@ -323,13 +339,21 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   const keybinds = createMemo(() => props.keybind?.filter((x) => !x.disabled && x.keybind) ?? [])
   const left = createMemo(() => keybinds().filter((item) => item.side !== "right"))
   const right = createMemo(() => keybinds().filter((item) => item.side === "right"))
-  /** Hotkeys in COLUMNS, not a wrapped run: every hint gets the SAME cell width, so the keys
-   * line up vertically and the eye can scan down a column (Alexander, 2026-09-20: «hotkeys -
-   * четко столбиками»). Three per line at the dialog's width. */
+  /** Hotkeys in COLUMNS, not a wrapped run: BOTH the cell and the name slot inside it are
+   * fixed, so the keys sit at the same x down a column (Alexander, 2026-09-20: «hotkeys - четко
+   * столбиками»). Three per line at the dialog's width. */
   const KEYBIND_COLUMNS = 3
   const keybindCellWidth = createMemo(() => Math.max(20, Math.floor((rowWidth() - 8) / KEYBIND_COLUMNS)))
+  const keybindAll = createMemo(() => [...left(), ...right()])
+  // A key aligns only if the name before it does: without a fixed name slot the keybind starts
+  // wherever its label happens to end, which is a gap, not a column.
+  const keybindLabelWidth = createMemo(() => {
+    const all = keybindAll()
+    if (all.length === 0) return 0
+    return Math.min(20, Math.max(...all.map((item) => item.title.length)) + 1)
+  })
   const keybindRows = createMemo(() => {
-    const all = [...left(), ...right()]
+    const all = keybindAll()
     const out: (typeof all)[] = []
     for (let i = 0; i < all.length; i += KEYBIND_COLUMNS) out.push(all.slice(i, i + KEYBIND_COLUMNS))
     return out
@@ -338,8 +362,6 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
    * the cursor: the list says WHERE you are, the footer says WHAT it does. */
   const hintText = createMemo(() => props.hint?.(selected()))
 
-  // Usable text width for Option rows (rev 4: long rows must split into two
-  // lines instead of overlapping/crushing) — dialog width minus list paddings.
   return (
     <box gap={1} paddingBottom={1}>
       <box paddingLeft={4} paddingRight={4}>
@@ -474,7 +496,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                           active={active()}
                           current={current()}
                           gutter={option.gutter}
-                          rowWidth={rowWidth()}
+                          columns={columns()}
                         />
                       </box>
                     )
@@ -502,12 +524,12 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
               <box flexDirection="row" flexShrink={0}>
                 <For each={row}>
                   {(item) => (
-                    <box width={keybindCellWidth()} flexShrink={0}>
-                      <text wrapMode="none">
-                        <span style={{ fg: theme.text }}>
-                          <b>{item.title}</b>{" "}
-                        </span>
-                        <span style={{ fg: theme.textMuted }}>{Keybind.toString(item.keybind)}</span>
+                    <box width={keybindCellWidth()} flexShrink={0} flexDirection="row">
+                      <text width={keybindLabelWidth()} wrapMode="none" fg={theme.text}>
+                        <b>{item.title}</b>
+                      </text>
+                      <text wrapMode="none" fg={theme.textMuted}>
+                        {Keybind.toString(item.keybind)}
                       </text>
                     </box>
                   )}
@@ -521,26 +543,52 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   )
 }
 
-/** A model name below this is not identifiable; the runtime hint yields first. */
+/** A name narrower than this cannot be told apart; every row gives it this much. */
 const MIN_TITLE_WIDTH = 24
+/** A title column wider than this spends the row on a name nobody reads in full. */
+const MAX_TITLE_WIDTH = 28
+/** The runtime column is as wide as the widest runtime in the list, up to this. */
+const MAX_FOOTER_WIDTH = 48
 
 /**
- * Width the description may take in a one-line row.
+ * The three columns of a one-line row, computed ONCE for the whole list.
  *
- * Pure, and exported so a test pins the CONTRACT rather than the appearance: the description
- * is the part that yields, so its budget is the dialog width minus the marker/gutter, the
- * title's indent, the gaps, the row's right padding and the runtime hint.
+ * Why list-level and not per-row: a column is a POSITION, and a position has to be the same on
+ * every row. A per-row budget elided each description to that row's own title and footer, so
+ * the runtime began at a different x on every row — the ragged right column reported twice. It
+ * looked aligned only while the renderer CLIPPED the description at a fixed edge, and that clip
+ * is the mid-word cut the owner called nonsense. Fixed widths give both at once: the ellipsis
+ * lands on a word boundary and the columns line up.
+ *
+ * Pure and exported, so the contract is pinned by tests instead of argued over a screenshot.
  */
-export function descriptionBudget(input: { title: string; footer?: JSX.Element | string; rowWidth?: number }): number {
+export function rowColumns(input: {
+  titles: string[]
+  descriptions: Array<string | undefined>
+  footers: Array<string | undefined>
+  rowWidth?: number
+}): {
+  title: number
+  description: number
+  footer: number
+} {
   const width = input.rowWidth ?? 60
-  const footerLen = typeof input.footer === "string" ? input.footer.length : 0
-  // The title occupies its own length OR ITS FLOOR — the floor wins for a short name, and
-  // missing that made the budget wider than the space the layout actually hands out, so the
-  // description was clipped by the renderer with no ellipsis and ran into the runtime hint
-  // (measured on /agents: «Autonomous development orchestrato huggingfac…»).
-  const titleWidth = Math.max(input.title.length, MIN_TITLE_WIDTH)
-  // 2 marker/gutter + 3 title indent + 2 gaps + 3 row padding right + 2 separators
-  return width - 12 - titleWidth - footerLen
+  const longestTitle = input.titles.reduce((acc, title) => Math.max(acc, title.length), 0)
+  const longestFooter = input.footers.reduce((acc, footer) => Math.max(acc, footer?.length ?? 0), 0)
+  const footer = Math.min(longestFooter, MAX_FOOTER_WIDTH)
+  const wanted = Math.max(longestTitle, MIN_TITLE_WIDTH)
+  // The title cap exists to protect the DESCRIPTION's column — and only for that. With no
+  // description anywhere in the list there is nothing to protect and the name IS the row: a
+  // file picker must not have its paths elided at 28 characters, which an unconditional cap
+  // would do.
+  const title = input.descriptions.some((description) => description !== undefined)
+    ? Math.min(wanted, MAX_TITLE_WIDTH)
+    : Math.min(wanted, Math.max(MAX_TITLE_WIDTH, width - 10 - footer))
+  // The row's box is `rowWidth - 2`; it pads 1 left and 3 right, and its four flow children
+  // take three one-cell gaps and a one-cell marker — so `rowWidth - 10` is what the three
+  // columns share. The marker-less shape spends the marker's cell on its own left padding, so
+  // the arithmetic is identical for both and every row lands on the same grid.
+  return { title, description: Math.max(0, width - 10 - title - footer), footer }
 }
 
 function Option(props: {
@@ -550,28 +598,29 @@ function Option(props: {
   current?: boolean
   footer?: JSX.Element | string
   gutter?: JSX.Element
-  /** Dialog inner width (medium 60 / large 88 / xlarge 116) — rows whose
-   * title + description + footer exceed it drop the description to a second
-   * muted line instead of crushing the title against the footer (rev 4). */
-  rowWidth?: number
+  /** The row's three fixed columns, computed once for the whole list by `rowColumns`. */
+  columns: { title: number; description: number; footer: number }
   onMouseOver?: () => void
 }) {
   const { theme } = useTheme()
   const fg = selectedForeground(theme)
 
-  // ONE line, in columns:
-  //   [marker/gutter] [title: floor] [description: what is left] [runtime hint: right]
-  // What yields is the DESCRIPTION — never the identity and never the runtime — because a
-  // row is a statement about one subject and its name and its runtime are the parts that may
-  // not be cut. The description is elided to the width it is given, so a long one ends in an
-  // ellipsis rather than being clipped mid-word at the panel edge.
+  // ONE line, three FIXED columns:
+  //   [marker/gutter] [title] [description] [runtime]
+  // The description is the part that yields — never the identity and never the runtime — and
+  // it yields by ELIDING INSIDE ITS OWN COLUMN, so the columns stay aligned and a long sentence
+  // ends on an ellipsis instead of being cut mid-word at the panel edge.
+  const titleText = createMemo(() => Locale.truncate(props.title, props.columns.title))
   const descriptionText = createMemo(() => {
     const text = props.description
     if (!text) return undefined
-    if (typeof props.footer !== "string") return text
-    const budget = descriptionBudget({ title: props.title, footer: props.footer, rowWidth: props.rowWidth })
-    if (budget <= 4) return undefined
-    return Locale.truncate(text, budget)
+    if (props.columns.description <= 4) return undefined
+    return Locale.truncate(text, props.columns.description)
+  })
+  const footerText = createMemo(() => {
+    if (typeof props.footer !== "string") return props.footer
+    if (props.columns.footer <= 0) return props.footer
+    return Locale.truncate(props.footer, props.columns.footer)
   })
 
   return (
@@ -588,26 +637,29 @@ function Option(props: {
       </Show>
       <text
         flexShrink={0}
-        minWidth={MIN_TITLE_WIDTH}
+        width={props.columns.title}
         fg={props.active ? fg : props.current ? theme.primary : theme.text}
         attributes={props.active ? TextAttributes.BOLD : undefined}
         overflow="hidden"
         wrapMode="none"
-        paddingLeft={3}
       >
-        {Locale.truncate(props.title, 61)}
+        {titleText()}
       </text>
       <Show when={descriptionText()}>
-        <text flexShrink={1} overflow="hidden" wrapMode="none" fg={props.active ? fg : theme.textMuted}>
+        <text
+          flexShrink={0}
+          width={props.columns.description}
+          overflow="hidden"
+          wrapMode="none"
+          fg={props.active ? fg : theme.textMuted}
+        >
           {descriptionText()}
         </text>
       </Show>
       <Show when={props.footer}>
-        <box flexShrink={0}>
-          <text fg={props.active ? fg : theme.textMuted} wrapMode="none">
-            {props.footer}
-          </text>
-        </box>
+        <text flexShrink={0} width={props.columns.footer} fg={props.active ? fg : theme.textMuted} wrapMode="none">
+          {footerText()}
+        </text>
       </Show>
     </>
   )

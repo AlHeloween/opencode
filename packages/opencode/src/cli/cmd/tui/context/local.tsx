@@ -1,6 +1,6 @@
 import { createStore } from "solid-js/store"
 import { withoutKeys, type PruneTarget } from "@tui/component/model-state-prune"
-import { planClear, planCopyFromParent, type LayerValue, type Layers } from "@tui/component/layer-inherit"
+import { planCopyFromParent, type LayerValue, type Layers } from "@tui/component/layer-inherit"
 import { createSimpleContext } from "./helper"
 import { batch, createEffect, createMemo, createSignal } from "solid-js"
 import { useSync } from "@tui/context/sync"
@@ -26,8 +26,6 @@ import {
   workspaceAgentModel,
   workspaceModelScope,
   setSessionAgentModel,
-  clearSessionAgentModel,
-  clearWorkspaceAgentModel,
   setWorkspaceAgentModel,
   type SessionSettings,
 } from "@/session/session-settings"
@@ -1055,11 +1053,13 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           })
         },
         /**
-         * Move one agent's selection between layers. `copyFromParent`
-         * materialises the parent value here so it can be edited without
-         * touching the parent; `clear` releases this layer so resolution falls
-         * through again (2026-09-16, Alexander: "нету опции для session
-         * settings from worktree, для worktree — settings from global").
+         * Move one agent's selection between layers: `copyFromParent` materialises the parent
+         * value here so it can be edited without touching the parent (2026-09-16, Alexander:
+         * "нету опции для session settings from worktree, для worktree — settings from global").
+         * `clear` used to sit beside it and was removed 2026-09-20: under the fill ruling a layer
+         * is never empty and the read (`forAgent`) is a plain lookup, so clearing left the agent
+         * with NO model instead of letting it "fall through" — the toast promised an inheritance
+         * the read no longer performs.
          */
         layer: {
           value(name: string, scope: ModelScope): LayerValue {
@@ -1100,24 +1100,6 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             // The variant rides the model it was chosen for; without one the
             // copied layer inherits the model's own default.
             if (planned.plan.variant) result.model.variant.set(planned.plan.variant, name, scope)
-            return planned
-          },
-          clear(name: string, scope: ModelScope) {
-            const planned = planClear(scope, this.all(name))
-            if (!planned.ok) return planned
-            if (scope === "session") {
-              const sid = getActiveSessionID()
-              if (!sid) return { ok: false as const, reason: "no active session" }
-              setSessionSettings(clearSessionAgentModel(sessionSettings(), name))
-              void saveSessionSettings(sid, sessionPayload())
-              return planned
-            }
-            batch(() => {
-              setModelStore("workspaceAgent", (agents) =>
-                clearWorkspaceAgentModel(agents, workspaceModelScope(getActiveWorkspaceID()), name),
-              )
-              save()
-            })
             return planned
           },
         },

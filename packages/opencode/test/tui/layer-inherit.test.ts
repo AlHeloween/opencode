@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { planClear, planCopyFromParent, type Layers } from "../../src/cli/cmd/tui/component/layer-inherit"
+import { planCopyFromParent, type Layers } from "../../src/cli/cmd/tui/component/layer-inherit"
 
 const LAYERS: Layers = {
   session: {},
@@ -7,7 +7,7 @@ const LAYERS: Layers = {
   global: { model: "openrouter/z-ai/glm-5.3-flash", variant: "max" },
 }
 
-describe("layer copy and release", () => {
+describe("layer copy between layers", () => {
   test("session copies down from worktree, worktree from global", () => {
     const toSession = planCopyFromParent("session", LAYERS)
     expect(toSession).toEqual({
@@ -50,26 +50,4 @@ describe("layer copy and release", () => {
     })
   })
 
-  test("clearing names where resolution lands next", () => {
-    expect(planClear("session", { ...LAYERS, session: { model: "groq/qwen/qwen3.6-27b" } })).toEqual({
-      ok: true,
-      plan: { scope: "session", fallsTo: "worktree" },
-    })
-    expect(planClear("worktree", LAYERS)).toEqual({
-      ok: true,
-      plan: { scope: "worktree", fallsTo: "global" },
-    })
-  })
-
-  test("an already-empty layer is refused, so a no-op never reports success", () => {
-    const planned = planClear("session", LAYERS)
-    expect(planned.ok).toBe(false)
-    if (!planned.ok) expect(planned.reason).toBe("session holds nothing to clear")
-  })
-
-  test("a global key cannot be removed from the TUI — patchJsonc only sets", () => {
-    const planned = planClear("global", LAYERS)
-    expect(planned.ok).toBe(false)
-    if (!planned.ok) expect(planned.reason).toContain("edit the global opencode.jsonc")
-  })
 })

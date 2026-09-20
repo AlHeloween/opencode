@@ -138,52 +138,6 @@ export function setSessionAgentModel(
   }
 }
 
-/**
- * Return a workspace model map with one agent selection REMOVED, so resolution
- * falls through to the layer above instead of being pinned here.
- *
- * The counterpart to `setWorkspaceAgentModel`. Without it a worktree choice
- * could only ever be replaced, never released — "settings from global" had no
- * implementation (2026-09-16, Alexander).
- */
-export function clearWorkspaceAgentModel(
-  workspaceAgent: Record<string, Record<string, ModelRef>>,
-  workspaceID: string | undefined,
-  agentName: string,
-): Record<string, Record<string, ModelRef>> {
-  const scope = workspaceModelScope(workspaceID)
-  const current = workspaceAgent[scope]
-  if (!current || !(agentName in current)) return workspaceAgent
-  const next = { ...current }
-  delete next[agentName]
-  return { ...workspaceAgent, [scope]: next }
-}
-
-/**
- * Drop one agent's session model override so the session layer stops shadowing
- * the worktree one.
- *
- * Scope is deliberately narrow. Routing and the task allow-list are
- * session-only controls — clearing a model choice is not a request to discard
- * them — and the `variant`/`agentVariant` maps are NOT touched: the TUI writes
- * them from the worktree store on every session save, so filtering them here
- * would be overwritten on the next write and clearing them for real would take
- * the worktree layer with it.
- */
-export function clearSessionAgentModel(
-  settings: SessionSettings | null | undefined,
-  agentName: string,
-): SessionSettings {
-  const agents = { ...(settings?.agent ?? {}) }
-  const agent = { ...(agents[agentName] ?? {}) }
-  delete agent.model
-  delete agent.variant
-  // An entry left with only routing or subagents is still meaningful.
-  if (Object.keys(agent).length === 0) delete agents[agentName]
-  else agents[agentName] = agent
-  return { ...settings, agent: agents }
-}
-
 /** Read a valid agent model from the workspace-level state payload. */
 export function workspaceAgentModel(agentName: string, workspaceID: string | undefined, state: unknown): ModelRef | undefined {
   if (typeof state !== "object" || state === null) return undefined

@@ -291,8 +291,10 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
         },
         {
           // Materialise the parent layer here so it can be edited without
-          // touching the parent. The counterpart to "Clear", which releases
-          // this layer instead of copying into it.
+          // touching the parent. This is the ONLY layer operation: a "clear" that
+          // released the layer so resolution would fall through was removed 2026-09-20 —
+          // a filled world has no gap to fall through, and the read (`forAgent`) is a
+          // plain lookup that would simply find nothing.
           title: parentScope(scope) ? `Copy from ${parentScope(scope)}` : "Copy from parent",
           keybind: Keybind.parse("ctrl+alt+i")[0],
           onTrigger: (option: any) => {
@@ -304,24 +306,6 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
             toast.show({
               title: `Copied ${planned.plan.from} → ${planned.plan.to}`,
               message: `${option.value}: ${planned.plan.model}${planned.plan.variant ? ` · ${planned.plan.variant}` : ""}`,
-              variant: "success",
-              duration: 4000,
-            })
-            dialog.replace(() => <DialogAgent scope={scope} restoreValue={option.value} />)
-          },
-        },
-        {
-          title: `Clear ${scope} layer`,
-          keybind: Keybind.parse("ctrl+alt+k")[0],
-          onTrigger: (option: any) => {
-            const planned = local.model.layer.clear(option.value, scope)
-            if (!planned.ok) {
-              toast.show({ title: "Nothing cleared", message: planned.reason, variant: "info", duration: 4000 })
-              return
-            }
-            toast.show({
-              title: `${planned.plan.scope} layer cleared`,
-              message: `${option.value} now inherits from ${planned.plan.fallsTo}`,
               variant: "success",
               duration: 4000,
             })

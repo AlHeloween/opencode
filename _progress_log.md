@@ -3650,3 +3650,38 @@ Hypothetical until that harness reports its own prefix digest.
   falsifier). P5 (two failed captures → back to the documentation) stays an L2 candidate in `source.py`.
 - Residual: the binary is the owner's to rebuild; a session sees the new prefix only after a rebuild plus a
   new session or a compact.
+
+## 2026-09-20 — /agents and the shared row renderer: dead and lying surfaces removed, one flag renamed (owner: «разобрать по полкам»)
+
+- **One mechanism behind four symptoms, removed at the root:** `DialogSelect.filtered()` treats an option marked
+  `disabled` as ABSENT (both branches). Producers did exist (the model picker hides the provider's `-nano`
+  helpers; the plugin list hides the plugin itself) and each author meant "not offered" — while the /agents
+  Status row and the old "Toggle enable" control used the same flag for rows meant to be VISIBLE. Removed:
+  the Status row (never rendered, while its own mount called `getModelStatus` per provider on every open) and
+  "Toggle enable" (a component-local Set nothing consumed: no effect on any agent, not persisted; its only
+  behaviour was hiding the row, which made the `○`/`[ ]` glyphs it fed unreachable). Same class one dialog
+  over: the `/pipelines` empty-state message reached the user as "No results found".
+- **The flag now says what it does:** `DialogSelectOption.disabled` → **`hidden`**, contract written at the
+  field (not dimmed, cursor does not skip it; "visible but not selectable" is deliberately NOT implemented —
+  owner: no enable/disable). The plugin surface (`@opencode-ai/plugin/tui`) keeps its published name; the
+  bridge translates explicitly both ways. The keybind-level `disabled` is a different, honoured field.
+- **`Clear <scope> layer` removed with ALL its collateral** (it had carried its own note "RETAINED ONLY UNTIL
+  ITS COLLATERAL LANDS … do not add callers" since 2026-09-19): `planClear`/`ClearPlan`,
+  `local.model.layer.clear`, `clearSessionAgentModel`/`clearWorkspaceAgentModel`, the `ctrl+alt+k` action and
+  two test files. WHY it could not work: after the fill ruling a layer is never empty and `forAgent` is a plain
+  lookup — clearing left that agent with NO model while the toast promised "now inherits from X".
+  `Copy from parent` remains the one layer operation.
+- **Oracles:** `bun typecheck` exit 0 read from `state.json` after each step; `bun test test/tui` **110 pass /
+  0 fail / 674 expect** before and after; + session-settings-persist/routing/subagents + fill-layers →
+  **161 pass / 0 fail / 778 expect**; the `/agents` frame `agents-9-window.png` captured with
+  `cua get_window_state` (window-anchored — an occluded desktop cannot fake it).
+- **Instrument found:** `get_window_state {pid, window_id, include_accessibility_tree:false,
+  screenshot_out_file}` captures the WINDOW at native size — this is the fix for the crop/occlusion problem
+  that killed earlier verification loops. Capture order: launch → confirm by frame that the splash is gone →
+  send `/agents` → capture → `stop` in the same batch.
+- **My own false claim, corrected:** "producers of the flag: zero" rested on a grep that cannot see
+  expressions; there were live ones. The corrected inventory took reading each line's context — a zero from an
+  unvalidated probe is not a fact.
+- **Residual:** nothing is live until the owner rebuilds. The `Recently Used Models` header rendering without
+  rows in one frame is recorded as an UNEXPLAINED observation (not a defect), with the instrument named that
+  would settle it.

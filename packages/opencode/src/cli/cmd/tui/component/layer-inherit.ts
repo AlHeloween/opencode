@@ -12,10 +12,11 @@
  * and everywhere else just reads what is there.
  *
  * `clear` used to sit next to `copy` here: "remove this layer's value so resolution falls
- * through to the parent again". Under a filled world that operation no longer has a valid
- * outcome — it would create exactly the gap the ruling removes — so it is gone. Releasing a
- * layer is now indistinguishable from re-filling it, which is what `planCopyFromParent`
- * already does as the explicit action.
+ * through to the parent again". Under a filled world that operation has no valid outcome — it
+ * would create exactly the gap the ruling removes — so it was REMOVED 2026-09-20 together with
+ * its callers (`local.model.layer.clear`, the `ctrl+alt+k` action in /agents) and the two
+ * session-settings helpers that existed only for it. Releasing a layer is indistinguishable from
+ * re-filling it, which is what `planCopyFromParent` does as the explicit action.
  */
 import { parentScope, type ConfigScope } from "./config-scope"
 
@@ -40,20 +41,6 @@ export interface FillPlan {
   from: ConfigScope
   model: string
   variant?: string
-}
-
-/**
- * RETAINED ONLY UNTIL ITS COLLATERAL LANDS (2026-09-19).
- *
- * "Release this layer so resolution falls through again" contradicts the fill ruling — a
- * filled world has no valid gap to fall through. It is still here because
- * `local.model.layer.clear` and the `ctrl+alt+k` action in `/agents` call it, and removing
- * all three in one step is a separate change. It goes with them; do not add callers.
- */
-export interface ClearPlan {
-  scope: ConfigScope
-  /** Where resolution lands once this layer is empty. */
-  fallsTo: ConfigScope
 }
 
 export type Planned<T> = { ok: true; plan: T } | { ok: false; reason: string }
@@ -106,16 +93,4 @@ export function planCopyFromParent(scope: ConfigScope, layers: Layers): Planned<
   // which is not the value the user saw in the parent row.
   if (!source?.model) return { ok: false, reason: `${parent} has a variant but no model — nothing to pin` }
   return { ok: true, plan: { from: parent, to: scope, model: source.model, variant: source.variant } }
-}
-
-/** See the `ClearPlan` note — retained with its callers; do not add new ones. */
-export function planClear(scope: ConfigScope, layers: Layers): Planned<ClearPlan> {
-  const parent = parentScope(scope)
-  if (!parent) {
-    // patchJsonc only SETS keys; removing one needs a delete op the config
-    // writer does not expose. Same documented gap as clearing a global variant.
-    return { ok: false, reason: "a global key cannot be removed from the TUI — edit the global opencode.jsonc" }
-  }
-  if (isEmpty(layers[scope])) return { ok: false, reason: `${scope} holds nothing to clear` }
-  return { ok: true, plan: { scope, fallsTo: parent } }
 }

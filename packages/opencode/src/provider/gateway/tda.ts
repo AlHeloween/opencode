@@ -1,4 +1,5 @@
 import { REPLAY_DELIVERED_MARKER } from "../../session/message-v2"
+import type { PartID } from "../../session/schema"
 
 /**
  * Temporary data acquisition — the gateway's half: WITHHOLD, never supply.
@@ -43,8 +44,13 @@ import { REPLAY_DELIVERED_MARKER } from "../../session/message-v2"
 export type TdaKind = "image" | "document" | "source"
 
 export type TdaHeld = {
-  /** The part id — what the pointer prints, so the runtime can find the bytes again. */
-  id: string
+  /**
+   * The part id — what the pointer prints, so the runtime can find the bytes again. BRANDED on purpose:
+   * an item's address IS a part's address, and the brand is what stops a session or message id from
+   * being accepted where a part id is meant. Callers hold it as a plain string and `acquiredItem`
+   * brands it once, in the single constructor, rather than each call site remembering to.
+   */
+  id: PartID
   kind: TdaKind
   /** Why it was acquired. Printed in the pointer: a release without a motive is a silent edit. */
   reason: string
@@ -55,6 +61,12 @@ export type TdaHeld = {
   expiresAtTurn: number
   /** Digest of the base64 payload, from `payloadDigest` — the only handle a body payload exposes. */
   digest: string
+  /**
+   * Set when the runtime released it explicitly (the tool's de-actualize leg). A release is a
+   * DIFFERENT fact from a spent span — the plan's own words are "a released or expired item" — and
+   * writing it as "the expiry moved into the past" would blur a decision into a coincidence.
+   */
+  released?: boolean
   /**
    * The tool that can hand it back. Declared by the runtime, never invented here: naming a reader
    * that cannot return the item is exactly the defect the tool placeholder shipped once and had to
@@ -77,6 +89,17 @@ export function payloadDigest(url: string): string {
   const comma = url.indexOf(",")
   const payload = url.startsWith("data:") && comma >= 0 ? url.slice(comma + 1) : url
   return new Bun.CryptoHasher("sha256").update(payload).digest("hex")
+}
+
+/**
+ * One rule, in ONE place: an item is WITHHELD when it was released, or when its span has passed.
+ * "Held" is the absence of both — never a third state to keep in sync, and never two implementations
+ * of the same judgement. The runtime decides what to send and the gateway decides what to replace, so
+ * they must agree BY CONSTRUCTION rather than by review: below the transform calls this, and the
+ * runtime's store calls the same function.
+ */
+export function isWithheld(item: TdaHeld, turn: number): boolean {
+  return item.released === true || item.expiresAtTurn < turn
 }
 
 /** The size convention the dropped-result placeholder uses, so the two surfaces read alike. */
@@ -129,13 +152,13 @@ export function applyTemporaryDataAcquisition(body: string, set: TdaSet, turn: n
 
   // Rule 3 at the entry to the replacement: an item without an address cannot be pointed at, so it
   // is dropped from the withholding set rather than replaced by a pointer that names nothing.
-  const released = new Map<string, TdaHeld>()
+  const withheld = new Map<string, TdaHeld>()
   for (const item of set.held) {
-    if (item.expiresAtTurn >= turn) continue
+    if (!isWithheld(item, turn)) continue
     if (!item.id) continue
-    released.set(item.digest, item)
+    withheld.set(item.digest, item)
   }
-  if (released.size === 0) return body
+  if (withheld.size === 0) return body
 
   let replaced = 0
   for (const message of messages) {
@@ -146,11 +169,55 @@ export function applyTemporaryDataAcquisition(body: string, set: TdaSet, turn: n
       if (!entry || typeof entry !== "object") continue
       const url = payloadUrl(entry as Record<string, unknown>)
       if (url === undefined) continue
-      const item = released.get(payloadDigest(url))
+      const item = withheld.get(payloadDigest(url))
       if (item === undefined) continue
       content[index] = { type: "text", text: withheldPointer(item, url.length) }
       replaced++
     }
   }
   return replaced > 0 ? JSON.stringify(parsed) : body
+}
+
+/**
+ * The set arrives in ONE header (`x-opencode-tda`, beside the other `x-opencode-*` session facts the
+ * gateway already receives), so the parse and every one of its failure modes live here rather than in
+ * the wiring.
+ *
+ * Every failure answers `undefined` — no header, malformed JSON, wrong shape, nothing held — because
+ * this sits on the hot path of every request: an unreadable instruction must degrade to "nothing is
+ * held", never to a throw and never to a half-applied set. That is the same rule the transform itself
+ * follows when a body does not parse.
+ *
+ * `turn` travels WITH the set: expiry is counted in turns, and only the runtime knows which turn the
+ * outgoing request belongs to.
+ */
+export function parseTdaHeader(value: string | undefined): { turn: number; set: TdaSet } | undefined {
+  if (!value) return undefined
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(value)
+  } catch {
+    return undefined
+  }
+  if (!parsed || typeof parsed !== "object") return undefined
+  const candidate = parsed as { turn?: unknown; held?: unknown }
+  if (typeof candidate.turn !== "number" || !Array.isArray(candidate.held)) return undefined
+  const held = candidate.held.filter(isTdaHeld)
+  return held.length === 0 ? undefined : { turn: candidate.turn, set: { held } }
+}
+
+const TDA_KINDS: ReadonlyArray<TdaKind> = ["image", "document", "source"]
+
+function isTdaHeld(value: unknown): value is TdaHeld {
+  if (!value || typeof value !== "object") return false
+  const item = value as Record<string, unknown>
+  return (
+    typeof item.id === "string" &&
+    typeof item.reason === "string" &&
+    typeof item.expiresAtTurn === "number" &&
+    typeof item.digest === "string" &&
+    TDA_KINDS.includes(item.kind as TdaKind) &&
+    (item.reader === undefined || typeof item.reader === "string") &&
+    (item.released === undefined || typeof item.released === "boolean")
+  )
 }

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { REPLAY_DELIVERED_MARKER, isReplayReduced } from "@/session/message-v2"
+import { PartID } from "@/session/schema"
 import {
   applyTemporaryDataAcquisition,
   payloadDigest,
@@ -55,7 +56,7 @@ const body = (media: string[] = [IMAGE_URL]) =>
   })
 
 const held = (over: Partial<TdaHeld> = {}): TdaHeld => ({
-  id: "prt_0b9bdc0b70011O6AWB9yu16rVD",
+  id: PartID.make("prt_0b9bdc0b70011O6AWB9yu16rVD"),
   kind: "image",
   reason: "screenshot under repair",
   expiresAtTurn: 40,
@@ -85,6 +86,13 @@ describe("gateway temporary data acquisition", () => {
     expect(content[2]).toEqual({ type: "text", text: "Called the Read tool with the following input: {}" })
   })
 
+  test("a RELEASED item is withheld even though its span has not passed", () => {
+    // Release and expiry are TWO facts (the plan's words: "a released or expired item"). Here the span
+    // still runs to turn 99 — the item is held by time — and the explicit release withholds it anyway.
+    const out = applyTemporaryDataAcquisition(body(), set(held({ expiresAtTurn: 99, released: true })), 41)
+    expect(JSON.stringify(contentOf(out)[1])).toContain("released;")
+  })
+
   test("the pointer is recognised by the same marker the dropped-result placeholder uses", () => {
     expect(isReplayReduced(withheldPointer(held(), IMAGE_URL.length))).toBe(true)
   })
@@ -100,7 +108,11 @@ describe("gateway temporary data acquisition", () => {
     const before = body()
     // Rule 3. A released, expired item whose id is empty cannot be pointed at, so it is not
     // withheld at all — the payload stays. A reduction that cannot name what it removed is a loss.
-    expect(applyTemporaryDataAcquisition(before, set(held({ id: "" })), 41)).toBe(before)
+    //
+    // Note WHERE this case can still arise: the runtime cannot build an item without an address
+    // (`AcquiredItemTable.id` is a primary key and `acquiredItem` brands it), so an empty id reaches
+    // the transform only off the WIRE — which is precisely why the guard belongs on this side.
+    expect(applyTemporaryDataAcquisition(before, set(held({ id: PartID.make("") })), 41)).toBe(before)
   })
 
   test("an unparsable body comes back as the SAME STRING", () => {

@@ -18,6 +18,7 @@ import fs from "fs"
 import type { AsyncLogger, PerRequestLogger } from "./async-logger"
 import { make as makeAsyncLogger, makePerRequest, readableResponseBody } from "./async-logger"
 import type { ResolvedDebugConfig } from "./debug-config"
+import { applyTemporaryDataAcquisition, parseTdaHeader } from "./tda"
 
 const log = Log.create({ service: "gateway.adaptive-client" })
 
@@ -381,6 +382,21 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
     delete headers["X-Opencode-Account-Id"]
     delete headers["x-opencode-oauth-url"]
     delete headers["X-Opencode-Oauth-Url"]
+
+    // Temporary data acquisition: the runtime OWNS the set and hands it over in a header; this layer
+    // WITHHOLDS what has been released or let expire and leaves everything else as it was. Withholding
+    // needs no payload source — the payload is already in the body — and re-attaching from here would
+    // mean the gateway holding image bytes, which the design refuses. It runs AFTER the reasoning
+    // rewrite so it sees the body that will actually go out, and it applies only when the runtime
+    // declared a set: the ABSENCE of the header is the flag being off, so the switch stays where the
+    // authority is — and the transform can short-circuit to zero cost when nothing is held.
+    const tda = parseTdaHeader(headers["x-opencode-tda"])
+    if (tda && typeof init?.body === "string") {
+      init = { ...init, body: applyTemporaryDataAcquisition(init.body, tda.set, tda.turn) }
+    }
+    // Consumed like the credential headers above: it has been folded into the body, and an instruction
+    // the provider can read is noise at best.
+    delete headers["x-opencode-tda"]
 
     // Compute URL after potential OAuth rewrite
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url

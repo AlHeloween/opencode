@@ -149,6 +149,21 @@ const SplitFooterTransition = struct {
     }
 };
 
+const SixelCacheKey = struct {
+    content_hash: u64,
+    width: u32,
+    height: u32,
+};
+
+const SixelCacheEntry = struct {
+    payload: []u8,
+    last_used: u64,
+};
+
+/// The same shape and limits upstream's sixel cache uses (32 MiB / 256 entries).
+const SIXEL_CACHE_MAX_BYTES: usize = 32 * 1024 * 1024;
+const SIXEL_CACHE_MAX_ENTRIES: usize = 256;
+
 pub const CliRenderer = struct {
     width: u32,
     height: u32,
@@ -217,6 +232,16 @@ pub const CliRenderer = struct {
         cellsUpdated: std.ArrayListUnmanaged(u32),
         frameCallbackTime: std.ArrayListUnmanaged(f64),
     },
+    /// Encoded SIXEL payloads, keyed by content hash + size. The DCS bytes do NOT
+    /// depend on where the scene is stamped, so a repaint of an unchanged scene
+    /// reuses the encode and only re-writes the cursor position — measured, not a
+    /// shortcut: `Image.renderPixels` stamps pixels on every render pass, so before
+    /// this cache every keystroke re-encoded the whole visible picture.
+    sixelPayloadCache: std.AutoHashMapUnmanaged(SixelCacheKey, SixelCacheEntry) = .empty,
+    sixelPayloadCacheBytes: usize = 0,
+    sixelCacheClock: u64 = 0,
+    sixelCacheHits: u64 = 0,
+    sixelCacheMisses: u64 = 0,
     lastRenderTime: i64,
     allocator: Allocator,
     writeOutBuf: [1024]u8 = undefined,
@@ -462,6 +487,11 @@ pub const CliRenderer = struct {
         self.statSamples.cellsUpdated.deinit(self.allocator);
         self.statSamples.frameCallbackTime.deinit(self.allocator);
         self.palette_index_cache.deinit(self.allocator);
+        {
+            var iterator = self.sixelPayloadCache.iterator();
+            while (iterator.next()) |entry| self.allocator.free(entry.value_ptr.payload);
+        }
+        self.sixelPayloadCache.deinit(self.allocator);
 
         self.allocator.free(self.currentHitGrid);
         self.allocator.free(self.nextHitGrid);
@@ -1730,11 +1760,85 @@ pub const CliRenderer = struct {
             return true;
         }
         var timing: sixel.Timing = .{};
-        const ok = sixel.IMAGE.create(writer, COMPOSITED_NATIVE_IMAGE_ID, scene.x, scene.y + self.renderOffset, scene.width, scene.height, scene.data, scene.cell_w, scene.cell_h, self.allocator, &timing);
+        const ok = self.emitCachedSixelScene(writer, &scene, &timing);
         self.renderStats.nativeGraphicsComposeTime = compose_us;
         self.renderStats.nativeGraphicsEncodeTime = timing.encode_us;
         self.renderStats.nativeGraphicsWriteTime = timing.write_us;
         return ok;
+    }
+
+    /// Encode-or-reuse, then stamp at the scene position. The position stays OUT
+    /// of the cache key: the DCS bytes depend on content and size only (the same
+    /// invariant upstream's sixel cache states — "terminal position and DCS/tmux
+    /// framing do not [determine the bytes]"). A miss encodes and stores under the
+    /// byte/entry caps; a hit reuses the payload and re-writes the position.
+    fn emitCachedSixelScene(self: *CliRenderer, writer: anytype, scene: *const CompositedPixelScene, timing: ?*sixel.Timing) bool {
+        const encode_start = std.time.microTimestamp();
+        const key = SixelCacheKey{
+            .content_hash = std.hash.Wyhash.hash(0, scene.data),
+            .width = scene.width,
+            .height = scene.height,
+        };
+        self.advanceSixelCacheClock();
+        var payload: []const u8 = undefined;
+        if (self.sixelPayloadCache.getPtr(key)) |cached| {
+            cached.last_used = self.sixelCacheClock;
+            self.sixelCacheHits += 1;
+            payload = cached.payload;
+        } else {
+            const encoded = sixel.IMAGE.encodePayload(scene.data, scene.width, scene.height, self.allocator) catch return false;
+            self.sixelCacheMisses += 1;
+            self.storeSixelPayload(key, encoded);
+            payload = self.sixelPayloadCache.getPtr(key).?.payload;
+        }
+        const encode_end = std.time.microTimestamp();
+
+        const write_start = encode_end;
+        const ok = sixel.IMAGE.writePayload(writer, scene.x, scene.y + self.renderOffset, payload);
+        const write_end = std.time.microTimestamp();
+
+        if (timing) |t| {
+            t.encode_us = @floatFromInt(encode_end - encode_start);
+            t.write_us = @floatFromInt(write_end - write_start);
+        }
+        return ok;
+    }
+
+    fn storeSixelPayload(self: *CliRenderer, key: SixelCacheKey, payload: []u8) void {
+        self.sixelPayloadCache.ensureUnusedCapacity(self.allocator, 1) catch {
+            self.allocator.free(payload);
+            return;
+        };
+        while (self.sixelPayloadCache.count() > 0 and
+            (self.sixelPayloadCacheBytes + payload.len > SIXEL_CACHE_MAX_BYTES or
+                self.sixelPayloadCache.count() >= SIXEL_CACHE_MAX_ENTRIES))
+        {
+            var iterator = self.sixelPayloadCache.iterator();
+            var oldest_key: ?SixelCacheKey = null;
+            var oldest_used: u64 = std.math.maxInt(u64);
+            while (iterator.next()) |entry| {
+                if (entry.value_ptr.last_used <= oldest_used) {
+                    oldest_used = entry.value_ptr.last_used;
+                    oldest_key = entry.key_ptr.*;
+                }
+            }
+            const target = oldest_key orelse break;
+            const removed = self.sixelPayloadCache.fetchRemove(target) orelse break;
+            self.sixelPayloadCacheBytes -= removed.value.payload.len;
+            self.allocator.free(removed.value.payload);
+        }
+        self.sixelPayloadCache.putAssumeCapacity(key, .{ .payload = payload, .last_used = self.sixelCacheClock });
+        self.sixelPayloadCacheBytes += payload.len;
+    }
+
+    fn advanceSixelCacheClock(self: *CliRenderer) void {
+        if (self.sixelCacheClock == std.math.maxInt(u64)) {
+            var iterator = self.sixelPayloadCache.iterator();
+            while (iterator.next()) |entry| entry.value_ptr.last_used = 0;
+            self.sixelCacheClock = 1;
+        } else {
+            self.sixelCacheClock += 1;
+        }
     }
 
     /// Completes the one renderer display list after text and native graphics

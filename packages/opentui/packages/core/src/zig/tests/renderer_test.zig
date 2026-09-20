@@ -175,6 +175,45 @@ test "renderer - recomposes the sixel scene before repainting a moved image" {
     try std.testing.expect(cursor_show < sync_end);
 }
 
+test "renderer - sixel payload cache: an unchanged scene skips the encode" {
+    const pool = gp.initGlobalPool(std.testing.allocator);
+    defer gp.deinitGlobalPool();
+    var local_link_pool = link.LinkPool.init(std.testing.allocator);
+    defer local_link_pool.deinit();
+
+    var test_renderer = try TestRenderer.create(std.testing.allocator, 8, 4, pool);
+    defer test_renderer.deinit();
+    const cli_renderer = test_renderer.renderer;
+    cli_renderer.terminal.caps.sixel = true;
+
+    const red = [_]u8{ 255, 0, 0, 255 } ** 4;
+    cli_renderer.nextPixelBuffer.drawImage(1, 1, 2, 2, &red, 1, 1);
+    _ = cli_renderer.render(true);
+    try std.testing.expectEqual(@as(u64, 1), cli_renderer.sixelCacheMisses);
+    try std.testing.expectEqual(@as(u64, 0), cli_renderer.sixelCacheHits);
+
+    // An UNCHANGED scene never reaches the encoder at all: `pixelSceneChanged`
+    // already skips the frame (the fork's own first-level dedup, pinned above).
+    cli_renderer.nextPixelBuffer.drawImage(1, 1, 2, 2, &red, 1, 1);
+    _ = cli_renderer.render(false);
+    try std.testing.expectEqual(@as(u64, 1), cli_renderer.sixelCacheMisses);
+    try std.testing.expectEqual(@as(u64, 0), cli_renderer.sixelCacheHits);
+
+    // A new composition at the same slot encodes.
+    const blue = [_]u8{ 0, 0, 255, 255 } ** 4;
+    cli_renderer.nextPixelBuffer.drawImage(1, 1, 2, 2, &blue, 1, 1);
+    _ = cli_renderer.render(false);
+    try std.testing.expectEqual(@as(u64, 2), cli_renderer.sixelCacheMisses);
+    try std.testing.expectEqual(@as(u64, 0), cli_renderer.sixelCacheHits);
+
+    // Returning to the first composition reuses its payload — the scroll-back,
+    // dialog-toggle, animation-alternation case the cache exists for.
+    cli_renderer.nextPixelBuffer.drawImage(1, 1, 2, 2, &red, 1, 1);
+    _ = cli_renderer.render(false);
+    try std.testing.expectEqual(@as(u64, 2), cli_renderer.sixelCacheMisses);
+    try std.testing.expectEqual(@as(u64, 1), cli_renderer.sixelCacheHits);
+}
+
 test "renderer - scroll-lock: stamp moves one cell row with clear of previous footprint" {
     // Hybrid discipline: image at (col=2,row=2) then scroll to row=3 → clear old, emit new.
     const pool = gp.initGlobalPool(std.testing.allocator);

@@ -64,35 +64,48 @@ pub const IMAGE = struct {
         _ = id;
         _ = cell_w;
         _ = cell_h;
-        if (width == 0 or height == 0) return false;
-        const expected = @as(usize, width) * @as(usize, height) * 4;
-        if (data.len < expected) return false;
-
-        // Encode at source resolution (pad height to a sixel band). Do not
-        // downscale to cell_w × cell_h*6 — that produced stamp-sized images.
-        const target_w = width;
-        const target_h: u32 = @max(6, ((height + 5) / 6) * 6);
 
         const encode_start = std.time.microTimestamp();
-        const scaled = scaleRgba(data, width, height, target_w, target_h, allocator) catch return false;
-        defer allocator.free(scaled);
-
-        const encoded = encode(scaled, target_w, target_h, allocator) catch return false;
+        const encoded = encodePayload(data, width, height, allocator) catch return false;
         defer allocator.free(encoded);
         const encode_end = std.time.microTimestamp();
 
         const write_start = encode_end;
-        // CSI positions are 1-based; clamp so full-viewport frames are not lost at 0.
-        const pos_x = if (x == 0) 1 else x;
-        const pos_y = if (y == 0) 1 else y;
-        ansi.ANSI.moveToOutput(writer, pos_x, pos_y) catch return false;
-        writer.writeAll(encoded) catch return false;
+        if (!writePayload(writer, x, y, encoded)) return false;
         const write_end = std.time.microTimestamp();
 
         if (timing) |t| {
             t.encode_us = @floatFromInt(encode_end - encode_start);
             t.write_us = @floatFromInt(write_end - write_start);
         }
+        return true;
+    }
+
+    /// The encode half of `create`, position-independent: the DCS bytes depend on
+    /// the CONTENT and SIZE only. The payload cache rests on exactly that fact —
+    /// so this is the one place that turns pixels into bytes, for both paths.
+    pub fn encodePayload(data: []const u8, width: u32, height: u32, allocator: Allocator) ![]u8 {
+        if (width == 0 or height == 0) return error.InvalidImage;
+        const expected = @as(usize, width) * @as(usize, height) * 4;
+        if (data.len < expected) return error.InvalidImage;
+
+        // Encode at source resolution (pad height to a sixel band). Do not
+        // downscale to cell_w × cell_h*6 — that produced stamp-sized images.
+        const target_w = width;
+        const target_h: u32 = @max(6, ((height + 5) / 6) * 6);
+
+        const scaled = try scaleRgba(data, width, height, target_w, target_h, allocator);
+        defer allocator.free(scaled);
+        return try encode(scaled, target_w, target_h, allocator);
+    }
+
+    /// The write half of `create`: stamp a previously encoded payload at cursor (x,y).
+    pub fn writePayload(writer: anytype, x: u32, y: u32, payload: []const u8) bool {
+        // CSI positions are 1-based; clamp so full-viewport frames are not lost at 0.
+        const pos_x = if (x == 0) 1 else x;
+        const pos_y = if (y == 0) 1 else y;
+        ansi.ANSI.moveToOutput(writer, pos_x, pos_y) catch return false;
+        writer.writeAll(payload) catch return false;
         return true;
     }
 

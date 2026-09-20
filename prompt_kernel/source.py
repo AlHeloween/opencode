@@ -423,7 +423,10 @@ KERNEL = Kernel(
     name="reasoning_kernel_next",
     version="2.0.0-alpha.3",
     precedence=("safety", "governance", "task", "domain", "style"),
-    utf8_budget=38_000,  # 37_000 -> 38_000 (2026-09-20) for the QA/QC bindings: @ACCEPTANCE_FRAME at G1
+    utf8_budget=40_000,  # 38_000 -> 40_000 (2026-09-20) for the GUI/TUI/ergonomics rule sets and the GUI oracle
+    # (owner: «эти стандарты экономят миллионы токенов» — a standard's NAME replaces both the paragraph that would
+    # explain it and the experiments an agent would otherwise run to re-derive it). Measured after them: 39_395.
+    # Previous step 37_000 -> 38_000 admitted the QA/QC bindings: @ACCEPTANCE_FRAME at G1
     # (the criterion, the surface it is observed on, the instrument with its rung and the falsifier named BEFORE
     # planning — ISO/IEC 25010 puts QC criteria and acceptance criteria at requirements time; ISO/IEC/IEEE 29119-1
     # for the testing concepts) and @ACCEPTANCE_PASS at G9 (read that frame back over the artefact, verification

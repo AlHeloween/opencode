@@ -85,8 +85,12 @@ def test_codex_variant_stays_within_explicit_budget() -> None:
     # 39_000 / 5_150 (2026-09-20, later): mirrors the product raise to 38_000 for the QA/QC bindings
     # (@ACCEPTANCE_FRAME at G1, @ACCEPTANCE_PASS at G9). Measured after them: 38_067 B — the byte cap
     # steps, the token cap already had the room.
-    assert len(text.encode("utf-8")) <= 39_000
-    assert normalized_token_count(text) <= 5_150
+    # 40_000 / 5_150 (2026-09-20, later): mirrors the product raise to 40_000 for the GUI/TUI/ergonomics
+    # rule sets and the GUI oracle. Measured after them: 39_788 B — the tightest of the three.
+    assert len(text.encode("utf-8")) <= 40_000
+    # 5_150 -> 5_400 (2026-09-20, same step): measured 5_247 tokens after the GUI/TUI/ergonomics
+    # rule sets — the token cap steps with the byte cap, 153 spare.
+    assert normalized_token_count(text) <= 5_400
 
 
 def test_codex_addon_render_is_deterministic_lf() -> None:

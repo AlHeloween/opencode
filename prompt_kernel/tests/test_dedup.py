@@ -148,4 +148,7 @@ def test_compacted_runtime_budget() -> None:
     # а забегами на 100000000 токенов."). Cut prose, never a decision.
     # 5_000 kept (2026-09-20, later): the QA/QC bindings moved the BYTE cap 37_000 -> 38_000 (37_988
     # measured, source.py), and this token assert needed no step — it already had the room.
-    assert normalized_token_count(text) <= 5_000
+    # Kept again at the 40_000 byte step (39_395 measured: GUI/TUI/ergonomics rule sets + GUI oracle).
+    # 5_000 -> 5_300 (2026-09-20, same step): the token cap moves WITH the byte cap here — measured 5_171,
+    # so "it already had the room" stopped being true at this batch. 129 spare, the band this pair keeps.
+    assert normalized_token_count(text) <= 5_300

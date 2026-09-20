@@ -421,6 +421,16 @@ collapsed to counts, open tasks ≤8/plan, 1500-char hard cap — stale-plan noi
 never enters `s`; `dominant` is anchored to the active plan's `goal_sv` via the
 sidecar request.
 
+**State Vector Manifest — the ancestor of `## Semantic Vector` (kept as an example 2026-09-20):** before this
+Layer-1 existed, every ADID turn emitted one *State Vector Manifest* — `master_plan`, per-goal vectors with
+`key_phrases` **and the commit(s) that closed them**, task statuses, `test_status` counts, and a
+`goal_hierarchy` in which every level names its own dominant (`ADID_Framework_15_3.md`, § The State Vector
+Manifest). The summary is the surviving half of that idea: the STATE moved to the system-Exact `planState`
+mirror above — where the task vectors have readers — and the model keeps the one anchor it can honestly
+judge, `dominant`. The full shape is kept as a worked example:
+`.svm/svm_2026-07-22.yaml` (annotated in place — `docs/examples/` is a gitignored receiver
+dir, so the example lives where the manifests lived).
+
 **Intention anchor (2026-09-12):** a plan may declare the kernel's
 `@DIGITAL_INTENTION` as `<!-- intention: <from_state> -> <to_state> -->`
 (`util/plan-status.ts:parseIntention`). It rides `planState` into every `s` and through

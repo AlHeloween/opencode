@@ -3729,3 +3729,20 @@ Hypothetical until that harness reports its own prefix digest.
   `MessageID.make(...)` values are enough — no real messages needed).
 - **Not live**: `bin/opencode.exe` 10.0.1044 predates this; the note rides new turns after the owner's
   next rebuild.
+
+## 2026-09-20 — owner's four points: the reserve is code (an eighth of the window), and the docs catch up
+
+- **foldAt 865 000 explained** (owner: «Это правильно... 32к токенов → залипание → подняли лимит»):
+  `ProviderTransform.maxOutputTokens` = `max(32 768, context / 8)`, capped by `limit.output` (owner
+  ruling 2026-09-19, replacing the fixed 32 768) → 125 000 on a 1M window → reserve 135 000 →
+  `usable() = 865 000`. Not config, not calibration — code; the fixed budget made the agent «залипать»
+  on long operations and raising it stopped that (owner, 2026-09-20).
+- **Docs corrected**: `docs/compaction.md` §reserve carried the stale `42 768 / 957 232`; it now states
+  the scaling rule and the «залипание» rationale. Plus a new section, "The pushed status note": tail
+  placement (KV cache), idempotence by `TAIL_NOTE_PREFIX`, the one-source `windowState`, and that it is
+  model-facing only — synthetic parts are hidden from the TUI transcript.
+- **Owner directive recorded**: «Обновляй регулярно доки, у тебя очень серьезные архитектурные
+  подвижки, чтобы помнил о себе» — docs ride every architectural shift.
+- Points 2–4 answered in-session: user-friendly / no silent disappearance (the verified landscape: the
+  note is invisible to the user; the fold stops paging the archive to the transcript; `/agents` now
+  shows the effective model); the reserve question «разобраться»; the config stays where it is.

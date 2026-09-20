@@ -829,14 +829,34 @@ opened that counter at ~99K on any billed session — straight through the 65 53
 the sidecar cadence silently became "summarize on every stop". No fixture could see it: every
 cadence fixture carried no provider usage and so took the fallback path.
 
+## The pushed status note (2026-09-20)
+
+After every user message the runtime pushes a small `<compaction-status>` block onto its first step:
+one line per OPEN summary with the gaps `diagnoseSummaryGaps` finds on read (filling a section
+retires its own nag), plus `ctx open/foldAt · headroom ~N more turns at the recent X/turn (estimate)
+· layer-1 sinceSummary/65 536`. Two properties make it safe:
+
+- it rides the REQUEST TAIL — a synthetic part on the newest user message, the freshest mutable
+  surface — never the byte-stable prefix, so a counter cannot break the KV cache; it is idempotent
+  by `TAIL_NOTE_PREFIX` and written once per user message: a snapshot at its first step, not a tracker;
+- its numbers come from `windowState`, the same computation `checkstate` formats, so the pull and
+  the push cannot disagree about a threshold.
+
+The note is MODEL-facing: synthetic parts are hidden from the TUI transcript (`UserMessage` renders
+real text plus the `=== COMPACTED ===` / `=== LAYER-1 SUMMARY ===` panels only).
+
 ## The output reserve IS the requested output (2026-09-19)
 
 `usable()` and `hasSpareOutput` reserve `ProviderTransform.maxOutputTokens(model)` — the value
 the request actually asks for — not a parallel constant, so `prompt + max <= context` is checked
-with the provider's own arithmetic. On a 1M window `10 000 + 32 768 = 42 768`, giving
-`usable() = 957 232`, the number `checkstate` prints.
+with the provider's own arithmetic. The budget scales with the window: `max(32 768, context / 8)`,
+capped by a model's own `limit.output` (owner ruling 2026-09-19, replacing the fixed 32 768).
+On a 1M window that is `125 000`, so the reserve is `10 000 + 125 000 = 135 000` and
+`usable() = 865 000` — the number `checkstate` prints. The 32 768 is the FLOOR, not the value:
+the fixed budget was measured to make the agent «залипать» on long operations, and raising it
+stopped the sticking (owner, 2026-09-20).
 
-An UNDECLARED ceiling is read as the standard 32 768 profile, not as a small-window model (owner
+An UNDECLARED ceiling is read as the 32 768 FLOOR profile, not as a small-window model (owner
 ruling): the retired `8 192` fallback made reserve and request disagree by 24 576 tokens on every
 model that declares no `limit.output`. The operating envelope is stated and pinned in
 `summary-cadence.test.ts` — a NORMAL model is ≥ 256k of context, below that is `aicall`-only.

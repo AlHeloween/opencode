@@ -299,9 +299,9 @@ per-turn UI ledger keeps its tool-metadata scope. Pinned by
 
 ## 11. Concurrency — multiple checkouts, multiple processes (2026-09-21)
 
-Pulled from the official docs (`fossil-scm.org/home/doc/trunk/www/concepts.wiki`,
-`…/tech_overview.wiki`) and held against this layer. The one thing the docs do **not**
-state is marked as such.
+Pulled from the **pinned source in this tree** — `external/fossil/fossil-src-2.28/`,
+version-matched to the shipped `fossil.exe` (2.28): `www/` for the docs, `src/` for the
+mechanism — and held against this layer. fossil-scm.org is the fallback, not the first stop.
 
 **What fossil's own docs state:**
 
@@ -334,7 +334,7 @@ state is marked as such.
 | Leaf granularity | degrades silently: fewer leaves, wider intervals |
 | Commit scope | repo-wide — a neighbour's half-written tree lands in your leaf |
 | **Undo/redo** | **one chain per worktree, and destructive**: `revertTo` = `checkout --force` of the whole tree + `preTracked − postTracked` cleanup — a neighbour's uncommitted work is overwritten and its tracked-but-absent-from-target file is deleted. The code refuses to *steal* another repository's checkout; it has no "neighbour alive" guard for undo |
-| Lock wait under contention | **not stated in the fetched docs** — the repo is SQLite, so writes take the SQLite lock; the exact busy-wait/retry behavior is implementation-level and unmeasured here. Settle with a two-instance experiment, not an argument |
+| Lock wait under contention | writes wait on the SQLite lock with a **15-second busy timeout** (`src/db.c:2208`), then fail as busy. The repo runs in **rollback-journal mode by default** (`www/server/whyuseaserver.wiki`), so a writer's exclusive lock can block readers too — while one long operation holds the repo (the >180 s `extras` walk, 2026-09-21), every other fossil call queues behind it and then errors at the 15 s mark |
 
 **Envelope:** one interactive instance per worktree; parallel agents get **separate worktrees**
 (own `.opencode/data`, own chain, own undo). If N-on-one-folder must be supported, the bounded

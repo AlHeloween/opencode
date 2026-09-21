@@ -36,6 +36,7 @@ constraints:
 - Never expose secrets to public git
 - Silent catch {} blocks are bugs — every catch must log
 - Plan-to-code gaps are bugs — correct immediately
+- When behavior moves, its test suite moves in the SAME change — a stale or red suite left behind is a collected defect, not history («код меняем, тесты не правим, говно собираем», owner 2026-09-21; the fossil swap 2026-07-04 shipped without its test file and snapshot.test.ts sat red for 2.5 months)
 - KV cache must be byte-stable across session turns
 - No .opencode/plans/ — only plans/ and plans_completed/
 - After plan changes, run explore agent to validate
@@ -555,6 +556,8 @@ Agent snapshot / undo-redo timeline only. **Git** is project VCS.
 
 - Repo: `{data}/fossil/{projectID}/snapshot.fsl`
 - Binary: `external/fossil/fossil.exe` or `tools/fossil.exe`
+- **The snapshot backend is Fossil — git/jj are NOT alternatives.** `test/snapshot/snapshot.test.ts` was written for the git backend (`864041ba3f`, 2025-09) and the Fossil port (`63e088ff7d`, 2026-07-04) shipped without it: its reds were a stale SPEC of git, not a defect list of the code. Re-baselined 2026-09-21 to the Fossil contract. A red test there is never a reason to move code back to git — decide which side is right, record the decision, then move ONE side with evidence.
+- **The pinned Fossil source is in-tree**: `external/fossil/fossil-src-2.28/` — version-matched to the shipped `fossil.exe` (2.28). `www/` is the docs, `src/` is the mechanism (e.g. the 15 s SQLite busy timeout at `src/db.c:2208`). Reach for it BEFORE fossil-scm.org — the web is the fallback, not the first stop.
 - Undo/redo: full leaf checkout (`revertTo`), not per-file hash mix
 - **Four boundaries, all BEFORE the thing they cover** (2026-09-17): the start of
   a user turn, before a sidecar summary, before an undo, before a redo. No

@@ -59,9 +59,10 @@ function isEmpty(value: LayerValue | undefined) {
  * whatever model resolves later, which is not the value the parent row displayed. It is
  * skipped and the walk continues (same rule `planCopyFromParent` refuses on).
  *
- * `undefined` means the entire chain is empty — no layer holds anything. The caller must
- * then supply the widest default (the build agent's model, else `opencode/big-pickle`);
- * this module deliberately does not know about models.
+ * `undefined` means the entire chain is empty — no layer holds anything. The caller must then
+ * REPORT it: an empty chain is a defect to fix by filling, never a value to invent. This module
+ * deliberately does not know about models — and a hardcoded id supplied here would be
+ * indistinguishable downstream from a real choice, so the hole could not be reported at all.
  */
 export function fillValue(scope: ConfigScope, layers: Layers): LayerValue | undefined {
   let current: ConfigScope | undefined = scope
@@ -81,7 +82,7 @@ export function planFill(scope: ConfigScope, layers: Layers): Planned<FillPlan> 
     if (value?.model) return { ok: true, plan: { scope, from: current, model: value.model, variant: value.variant } }
     current = parentScope(current)
   }
-  return { ok: false, reason: "no layer in the chain holds a value — fill from the build model or opencode/big-pickle" }
+  return { ok: false, reason: "no layer in the chain holds a value — the chain is empty and that is reported, not defaulted" }
 }
 
 export function planCopyFromParent(scope: ConfigScope, layers: Layers): Planned<CopyPlan> {

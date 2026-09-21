@@ -867,6 +867,7 @@ All detailed docs live in `docs/`. Here's the quick map:
 
 ### Architecture / Stack
 - [Architecture](docs/architecture.md) — prompt system, checkpoint, compaction, agents, KV cache
+- [Agent model resolution](docs/agent-model-resolution.md) — the full graph: TUI surfaces → server → the four stores (global jsonc, worktree model.json, session jsonc, kv scope), identity canonicalization, write/read chains, proven contradictions
 - [Kernel package](prompt_kernel/README.md) — gate graph, serialization order, source of the runtime prefix
 - [Two-canon protocol](docs/two-canon-protocol.md) — ADID 15.3 (untracked, package-rendered) ↔ kernel parity: one protocol, two compilers; why both exist
 - [Kernel amendment](docs/kernel-amendment.md) — SELF_MODIFY depths, constitution core, the build procedure that replaces hand editing
@@ -881,6 +882,7 @@ All detailed docs live in `docs/`. Here's the quick map:
 - [CodeGraph MCP](docs/codegraph-mcp.md) — MCP live graph + SQLite readonly
 - [External File Locations](docs/external-file-locations.md) — where opencode reads/writes
 - [Tools and sidecars](docs/tools-and-sidecars.md) — `tools/` binaries
+- [Tool playbook](docs/tool-playbook.md) — task → instrument routing, three habits, and the anti-patterns measured on 2026-09-21
 - [Background Jobs](docs/background-jobs.md) — non-blocking shell jobs
 - [Kernel assembly point](docs/kernel-assembly-point.md)
 

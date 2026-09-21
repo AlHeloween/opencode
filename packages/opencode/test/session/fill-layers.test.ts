@@ -13,6 +13,9 @@
  * session and nowhere else.
  */
 import { describe, expect, test } from "bun:test"
+import fs from "fs"
+import path from "path"
+import { sessionAgentModel, type SessionSettings } from "../../src/session/session-settings"
 import {
   fillSessionAgents,
   fillWorkspaceAgents,
@@ -119,5 +122,101 @@ describe("fill-layers: WORKTREE layer is filled from global", () => {
     const result = fillWorkspaceAgents({}, WORKSPACE, ["build_mode", "ghost"], () => undefined)
     expect(result.filled).toEqual([])
     expect(result.unresolved).toEqual(["build_mode", "ghost"])
+  })
+})
+
+// ── The READ half ──
+//
+// The ruling is a READ rule as much as a fill rule: the reader takes ONE layer and nothing else.
+// The read lives in `local.tsx` (where the session-settings signal is) and `sessionAgentModel`
+// (`session-settings.ts:157`) is its one implementation. BOTH ends are pinned, because the defect
+// deleted on 2026-09-21 was a READ-TIME parent walk and the two ends fail on different mutations:
+//
+//   - the behavioural case fails if `sessionAgentModel` grows a fallback inside itself;
+//   - the structural case fails if `local.tsx` stops delegating and walks worktree/declared again.
+//
+// The second is not hypothetical: it is the exact shape that was reverted.
+const LOCAL_TSX = path.join(import.meta.dir, "../../src/cli/cmd/tui/context/local.tsx")
+const SOURCE = fs.readFileSync(LOCAL_TSX, "utf8")
+
+/** Slice ONE function body out of a source file: its signature line to its own closing line. */
+function bodyOf(source: string, signature: string): string {
+  const start = source.indexOf(signature)
+  if (start < 0) throw new Error(`the probe is BLIND, not the code: ${signature} is not in the file`)
+  const end = source.indexOf("\n      }\n", start)
+  if (end < 0) throw new Error(`the probe cannot delimit ${signature} — fix the instrument, not the code`)
+  return source.slice(start, end)
+}
+
+describe("the read takes ONE layer", () => {
+  test("the probe itself is not blind — the same slice finds a body that IS there", () => {
+    // POSITIVE CONTROL. Without it a renamed file or a slice that never matches would make every
+    // assertion below pass for the wrong reason — absence proved by a broken instrument.
+    const fillSource = bodyOf(SOURCE, "function fillSourceFor(")
+    expect(fillSource).toContain("workspaceAgentModel")
+  })
+
+  test("forAgent delegates to the ONE implementation and walks NO parent", () => {
+    const read = bodyOf(SOURCE, "function forAgent(")
+    expect(read).toContain("sessionAgentModel(")
+    // The deleted recursion, in every spelling it had:
+    expect(read).not.toContain("workspaceAgentModel")
+    expect(read).not.toContain("isModelValid")
+    expect(read).not.toContain("sync.data.agent")
+  })
+
+  test("no second spelling of the read survives beside it", () => {
+    // `effectiveModelFor` was an identity wrapper over `forAgent` — a layer with no content.
+    expect(SOURCE).not.toContain("effectiveModelFor")
+  })
+
+  test("one authority for an agent NAME, not a hedge between two spellings", () => {
+    const source = bodyOf(SOURCE, "function fillSourceFor(")
+    expect(source).toContain("canonicalIdentity(")
+    // The hedge that stood here decided, at this one site, that two names are the same agent.
+    // Pinned by SHAPE (`|| x.name ===`), not by a word — a word in a nearby comment must not be able
+    // to make this pass or fail on its own.
+    expect(source).not.toContain("|| x.name ===")
+  })
+
+  test("no model is INVENTED — a layer with no source is REPORTED, never defaulted", () => {
+    // A hardcoded last-resort id made an unfilled layer indistinguishable from a real choice, so the
+    // hole it hid could never be reported. The source chain must END in `undefined`, not a constant.
+    expect(bodyOf(SOURCE, "function fillSourceFor(")).toContain("return undefined")
+    // …and the worktree fill resolves through ONE source, with no connectivity gate on a WRITE.
+    const fill = bodyOf(SOURCE, "function fillWorktreeLayer(")
+    expect(fill).toContain("fillSourceFor(name)")
+    expect(fill).not.toContain("isModelValid")
+    expect(fill).not.toContain("sync.data.agent.find")
+  })
+
+  test("a fill hole is REPORTED as a bug, never left as a silent hole", () => {
+    const refresh = bodyOf(SOURCE, "async function refreshSessionSettings(")
+    expect(refresh).toContain("fillSessionAgents(")
+    expect(refresh).toContain("unresolved.length > 0")
+    expect(refresh).toContain("bug: session settings layer left unfilled")
+  })
+
+  test("sessionAgentModel reads the session's OWN entry", () => {
+    expect(
+      sessionAgentModel("build_mode", { agent: { build_mode: { model: "huggingface/zai-org/GLM-5.3-Flash-BF16" } } }),
+    ).toEqual({ providerID: "huggingface", modelID: "zai-org/GLM-5.3-Flash-BF16" })
+  })
+
+  test("an empty session layer is undefined — layers handed alongside it are NOT consulted", () => {
+    // Handed the layer above in the SAME object: a fallback reading it would answer here.
+    const settings = {
+      agent: {},
+      workspaceAgent: { default: { build_mode: { providerID: "worktree", modelID: "from-above" } } },
+      variant: { "worktree/from-above": "max" },
+    } as unknown as SessionSettings
+    expect(sessionAgentModel("build_mode", settings)).toBeUndefined()
+  })
+
+  test("a malformed stored value is refused, never repaired from elsewhere", () => {
+    expect(sessionAgentModel("build_mode", { agent: { build_mode: { model: "no-slash" } } })).toBeUndefined()
+    expect(sessionAgentModel("build_mode", { agent: { build_mode: { model: "/leading" } } })).toBeUndefined()
+    expect(sessionAgentModel("build_mode", { agent: { build_mode: { model: "trailing/" } } })).toBeUndefined()
+    expect(sessionAgentModel("build_mode", undefined)).toBeUndefined()
   })
 })

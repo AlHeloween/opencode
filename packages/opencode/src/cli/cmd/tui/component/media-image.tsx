@@ -42,6 +42,49 @@ const DEFAULT_CELL_WIDTH = 18
 const DEFAULT_CELL_HEIGHT = 35
 /** Capability detection can arrive after first paint — wait before locking path. */
 const CAPS_WAIT_MS = 1000
+
+/**
+ * ONE capabilities listener per renderer, shared by every media element.
+ *
+ * The subscription below used to be registered per element — `renderer.on(CAPS, handler)` in the
+ * component body — so a conversation holding N images/diagrams kept N live handlers on the single
+ * shared renderer. Eleven media elements produced exactly that, and Node said it out loud:
+ *
+ *   MaxListenersExceededWarning: Possible EventEmitter memory leak detected.
+ *   11 capabilities listeners added to [VH]. MaxListeners is 10.
+ *
+ * (owner, 2026-09-21, on a build carrying 11 diagrams).
+ *
+ * It is not only a warning. Every element's handler calls `pipeline()`, so ONE capabilities event
+ * fanned out into N concurrent renders — the very event meant to repair a media element left on the
+ * half-block raster instead stampeded it, and concurrent mermaid WASM renders racing on shared
+ * frame buffers is how a diagram ends up drawn over itself.
+ *
+ * The fix keeps the per-element semantics — every mounted element still re-attempts its OWN
+ * pipeline, which is what the 2026-09-21 media repair was for — while the renderer carries exactly
+ * ONE handler. That handler is registered on first use and never removed: the renderer outlives
+ * every element, so a single registration cannot leak, and no `off` is required (the previous
+ * `off?.()` was optional-chained, i.e. a silent no-op whenever the renderer did not expose one).
+ */
+const capabilitySubscribers = new WeakMap<object, Set<() => void>>()
+
+export function subscribeCapabilities(renderer: CapsRenderer, handler: () => void): () => void {
+  let subscribers = capabilitySubscribers.get(renderer as object)
+  if (!subscribers) {
+    subscribers = new Set()
+    capabilitySubscribers.set(renderer as object, subscribers)
+    ;(renderer as unknown as { on: (event: unknown, fn: () => void) => void }).on(
+      CliRenderEvents.CAPABILITIES,
+      () => {
+        for (const subscriber of [...subscribers!]) subscriber()
+      },
+    )
+  }
+  subscribers.add(handler)
+  return () => {
+    subscribers.delete(handler)
+  }
+}
 const CAPS_POLL_MS = 50
 /** Cap source decode for interactive zoom (memory). */
 const INTERACTIVE_SRC_MAX = 2048
@@ -540,10 +583,9 @@ export function MediaImage(props: {
     if (nativeGraphicsLayoutMode(renderer as CapsRenderer) === "none") return
     void pipeline()
   }
-  ;(renderer as unknown as { on: (event: unknown, handler: () => void) => void }).on(
-    CliRenderEvents.CAPABILITIES,
-    onCapabilities,
-  )
+  // One renderer-level listener for all elements; this call only joins the fan-out. See
+  // subscribeCapabilities above for the leak this replaced.
+  const unsubscribeCapabilities = subscribeCapabilities(renderer as CapsRenderer, onCapabilities)
 
   createEffect(() => {
     const f = frame()
@@ -553,10 +595,7 @@ export function MediaImage(props: {
 
   onCleanup(() => {
     cancelled = true
-    ;(renderer as unknown as { off?: (event: unknown, handler: () => void) => void }).off?.(
-      CliRenderEvents.CAPABILITIES,
-      onCapabilities,
-    )
+    unsubscribeCapabilities()
     imageRef = undefined
     sourceFrame = null
     fitFrame = null

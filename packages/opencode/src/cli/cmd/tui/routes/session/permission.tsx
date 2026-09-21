@@ -15,6 +15,7 @@ import { LANGUAGE_EXTENSIONS } from "@/lsp/language"
 import { Keybind } from "@/util/keybind"
 import { Locale } from "@/util/locale"
 import { Global } from "@opencode-ai/core/global"
+import * as Log from "@opencode-ai/core/util/log"
 import { useDialog } from "../../ui/dialog"
 import { getScrollAcceleration } from "../../util/scroll"
 import { useTuiConfig } from "../../context/tui-config"
@@ -145,6 +146,48 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
 
   const session = createMemo(() => sync.data.session.find((s) => s.id === props.request.sessionID))
 
+  /**
+   * Answer a permission request and clear it locally.
+   *
+   * The reply used to be a bare `void sdk.client.permission.reply(...)`: a refusal from the
+   * server, or a rejected promise, vanished silently, and the store entry is removed ONLY by
+   * the `permission.replied` event. A reply that never produced that event therefore left the
+   * request in `sync.data.permission[sessionID]` forever, which is exactly what
+   * `routes/session/index.tsx` turns into `disabled` — and the prompt answers `disabled` by
+   * calling `preventDefault()` on EVERY keystroke, so the session silently stopped accepting
+   * input (owner, 2026-09-21). An accepted reply now clears the entry outright, so a lost event
+   * cannot wedge the session; a failed one is recorded instead of swallowed.
+   */
+  function respond(reply: "once" | "always" | "reject", message?: string) {
+    void sdk.client.permission
+      .reply({
+        reply,
+        requestID: props.request.id,
+        sessionID: props.request.sessionID,
+        message,
+        directory: project.instance.directory(),
+        workspace: project.workspace.current(),
+      })
+      .then((res) => {
+        if (res.error) {
+          Log.Default.warn("bug: permission reply refused — the request is left pending", {
+            requestID: props.request.id,
+            reply,
+            error: JSON.stringify(res.error)?.slice(0, 300),
+          })
+          return
+        }
+        sync.permission.clear(props.request.sessionID, props.request.id)
+      })
+      .catch((e: unknown) => {
+        Log.Default.warn("bug: permission reply threw — the request is left pending", {
+          requestID: props.request.id,
+          reply,
+          error: e instanceof Error ? e.message : String(e),
+        })
+      })
+  }
+
   const input = createMemo(() => {
     const tool = props.request.tool
     if (!tool) return {}
@@ -211,27 +254,14 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
           onSelect={(option) => {
             setStore("stage", "permission")
             if (option === "cancel") return
-            void sdk.client.permission.reply({
-              reply: "always",
-              requestID: props.request.id,
-              sessionID: props.request.sessionID,
-              directory: project.instance.directory(),
-              workspace: project.workspace.current(),
-            })
+            respond("always")
           }}
         />
       </Match>
       <Match when={store.stage === "reject"}>
         <RejectPrompt
           onConfirm={(message) => {
-            void sdk.client.permission.reply({
-              reply: "reject",
-              requestID: props.request.id,
-              sessionID: props.request.sessionID,
-              message: message || undefined,
-              directory: project.instance.directory(),
-              workspace: project.workspace.current(),
-            })
+            respond("reject", message || undefined)
           }}
           onCancel={() => {
             setStore("stage", "permission")
@@ -508,22 +538,10 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
                     setStore("stage", "reject")
                     return
                   }
-                  void sdk.client.permission.reply({
-                    reply: "reject",
-                    requestID: props.request.id,
-                    sessionID: props.request.sessionID,
-                    directory: project.instance.directory(),
-                    workspace: project.workspace.current(),
-                  })
+                  respond("reject")
                   return
                 }
-                void sdk.client.permission.reply({
-                  reply: "once",
-                  requestID: props.request.id,
-                  sessionID: props.request.sessionID,
-                  directory: project.instance.directory(),
-                  workspace: project.workspace.current(),
-                })
+                respond("once")
               }}
             />
           )

@@ -5,7 +5,7 @@
  * должен быть заполнен … всё заполнено, чёткий дубль», and «missing model at any config
  * settings from global till worktree and session — ANY — all tests failed». So:
  *
- *   global  ← build model (else `opencode/big-pickle`)
+ *   global  ← the agent's declaration, else the build agent's, else REPORTED (never invented)
  *   worktree ← global          (at the moment the worktree state comes into existence)
  *   session  ← worktree        (at the moment the session comes into existence)
  *

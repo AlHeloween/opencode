@@ -4,6 +4,8 @@ import {
   agentModelCell,
   agentModelRef,
   agentRowModelCell,
+  nextVariant,
+  scopedModelCell,
 } from "../../src/cli/cmd/tui/component/agent-model-cell"
 
 describe("agentModelCell", () => {
@@ -41,6 +43,39 @@ describe("agentModelCell", () => {
   })
 })
 
+describe("scopedModelCell", () => {
+  test("a scoped row shows the layer the title names — the exact defect of 2026-09-21", () => {
+    // `scope: global (save)` displayed `Muse Spark 1.3 Free` for build_mode — a SESSION-only
+    // value — while bin/opencode.jsonc:32-35 declared huggingface/zai-org/GLM-5.3-Flash-BF16.
+    // The form was editing one layer and showing another.
+    expect(scopedModelCell("global", "huggingface/zai-org/GLM-5.3-Flash-BF16", "no config default")).toEqual({
+      model: "huggingface/zai-org/GLM-5.3-Flash-BF16",
+      origin: "global",
+    })
+    // The same agent at session scope shows the session's own value — and says so.
+    expect(scopedModelCell("session", "opencode/muse-spark-1.3-contributor-free", "inherits from worktree")).toEqual({
+      model: "opencode/muse-spark-1.3-contributor-free",
+      origin: "session",
+    })
+  })
+
+  test("the effective chain is NOT consulted — one scope, one layer", () => {
+    // A session override leaking into the global row IS the defect; an empty global layer must
+    // answer with the guard, never with a value borrowed from below.
+    const sessionValue = "opencode/muse-spark-1.3-contributor-free"
+    const cell = scopedModelCell("global", undefined, "no config default")
+    expect(cell.model).toBe("no config default")
+    expect(cell.model).not.toBe(sessionValue)
+    expect(cell.origin).toBeUndefined()
+  })
+
+  test("an empty layer answers with the guard, and the guard carries no origin", () => {
+    expect(scopedModelCell("session", undefined, "inherits from worktree")).toEqual({
+      model: "inherits from worktree",
+    })
+  })
+})
+
 describe("agentModelRef", () => {
   test("splits at the FIRST slash — model ids carry their own slashes", () => {
     expect(agentModelRef("custom/org/Model-BF16")).toEqual({
@@ -55,8 +90,10 @@ describe("agentModelRef", () => {
 })
 
 describe("agentRowModelCell", () => {
-  test("renders the model picker's cell: pretty name, provider, price, capabilities, variant", () => {
+  test("renders the model picker's cell: pretty name, price, capabilities, variant", () => {
     // The owner's target row (2026-09-21): `DeepSeek V4.1 Flash  DeepSeek  ⇣0.15 ⇡0.6 ↻0.003 [👁 🧠 🔧] · max`.
+    // The provider chip is NOT here: at `large` (88 cells) the name column needs those cells,
+    // and the provider rides the hint instead.
     expect(
       agentRowModelCell({
         ref: "deepseek/deepseek-flash",
@@ -70,7 +107,7 @@ describe("agentRowModelCell", () => {
       }),
     ).toEqual({
       description: "DeepSeek V4.1 Flash",
-      footer: "DeepSeek ⇣0.15 ⇡0.6 ↻0.003 [👁 🧠 🔧] · max",
+      footer: "⇣0.15 ⇡0.6 ↻0.003 [👁 🧠 🔧] · max",
     })
   })
 
@@ -81,7 +118,7 @@ describe("agentRowModelCell", () => {
         provider: { id: "custom", name: "Custom" },
         info: { name: "Local Model", capabilities: { toolcall: true } },
       }),
-    ).toEqual({ description: "Local Model", footer: "Custom [🔧]" })
+    ).toEqual({ description: "Local Model", footer: "[🔧]" })
   })
 
   test("a Zen free-tier model reads Free — the test model on this host", () => {
@@ -100,7 +137,7 @@ describe("agentRowModelCell", () => {
       }),
     ).toEqual({
       description: "Muse Spark 1.2 Free",
-      footer: "OpenCode Zen Free [🎥 👁 🧠 🔧] · high",
+      footer: "Free [🎥 👁 🧠 🔧] · high",
     })
   })
 
@@ -127,7 +164,34 @@ describe("agentHintText", () => {
     expect(agentHintText({ origin: "agent" })).toBe("model from the agent layer")
   })
 
+  test("the provider rides the hint, because the row has no room for it", () => {
+    expect(agentHintText({ description: "Primary implementer", provider: "OpenCode Zen" })).toBe(
+      "Primary implementer · OpenCode Zen",
+    )
+  })
+
   test("nothing to say → no hint, so the line is hidden rather than blank", () => {
     expect(agentHintText({})).toBeUndefined()
+  })
+})
+
+describe("nextVariant", () => {
+  test("no selection steps into the first declared variant", () => {
+    expect(nextVariant(["low", "high"], undefined)).toBe("low")
+  })
+
+  test("steps forward and wraps through the model default", () => {
+    expect(nextVariant(["low", "high"], "low")).toBe("high")
+    expect(nextVariant(["low", "high"], "high")).toBeUndefined()
+    expect(nextVariant(["low", "high"], undefined)).toBe("low")
+  })
+
+  test("a selection the model no longer declares re-enters at the head", () => {
+    expect(nextVariant(["low", "high"], "max")).toBe("low")
+  })
+
+  test("a model with no variants has nowhere to step", () => {
+    expect(nextVariant([], undefined)).toBeUndefined()
+    expect(nextVariant([], "high")).toBeUndefined()
   })
 })

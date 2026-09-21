@@ -1032,6 +1032,47 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       },
       bootstrap,
       loadOlder: loadOlderMessages,
+      /**
+       * Drop a pending request from the TUI store without waiting for its `*.replied` event.
+       *
+       * The event is the ONLY other remover (`permission.replied` / `question.replied` below), so a
+       * reply that was accepted but whose event was lost left the entry in `permission[sessionID]`
+       * forever. That list is what `routes/session/index.tsx` turns into `disabled`, and the prompt
+       * answers `disabled` by calling `preventDefault()` on EVERY keystroke — so the session stops
+       * accepting input with nothing on screen to answer (owner, 2026-09-21: «в предыдущей сессии
+       * сообщения вообще не вводятся»). Call this only once the server has ACCEPTED the reply:
+       * removing on a failed reply would hide a request the server is still waiting on.
+       */
+      permission: {
+        clear(sessionID: string, requestID: string) {
+          const requests = store.permission[sessionID]
+          if (!requests) return
+          const match = Binary.search(requests, requestID, (r) => r.id)
+          if (!match.found) return
+          setStore(
+            "permission",
+            sessionID,
+            produce((draft) => {
+              draft.splice(match.index, 1)
+            }),
+          )
+        },
+      },
+      question: {
+        clear(sessionID: string, requestID: string) {
+          const requests = store.question[sessionID]
+          if (!requests) return
+          const match = Binary.search(requests, requestID, (r) => r.id)
+          if (!match.found) return
+          setStore(
+            "question",
+            sessionID,
+            produce((draft) => {
+              draft.splice(match.index, 1)
+            }),
+          )
+        },
+      },
     }
     return result
   },

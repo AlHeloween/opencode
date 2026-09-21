@@ -20,6 +20,7 @@ import {
   loadSessionSettings,
   saveSessionSettings,
   effectiveSubagents,
+  sessionAgentModel,
   sessionAgentVariant,
   sessionAgentRouting,
   sessionModelRouting,
@@ -29,7 +30,8 @@ import {
   setWorkspaceAgentModel,
   type SessionSettings,
 } from "@/session/session-settings"
-import { fillSessionAgents, fillWorkspaceAgents } from "@/session/fill-layers"
+import { canonicalIdentity } from "@/session/mode-identity"
+import { fillSessionAgents, fillWorkspaceAgents, parseModelKey } from "@/session/fill-layers"
 import { DEFAULT_MODEL_SAMPLING, modelSampling, modelSamplingKey, type ModelSampling } from "@/session/model-sampling"
 
 
@@ -324,19 +326,32 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           refreshSessionSettings()
         })
 
-      // Watch for session changes and reload session settings
+      // Watch for session changes and reload session settings.
+      //
+      // Same `ready` gate for the same reason as the fill effect below: `refreshSessionSettings`
+      // FILLS the session from `fillSourceFor`, which reads the worktree out of MEMORY. Running it
+      // before model.json is parsed copies the agent declaration instead of the worktree — and the
+      // copy is written to disk, so the wrong layer becomes the session's permanent value. Because
+      // `lastSettingsSessionID` is only assigned inside `refreshSessionSettings`, returning early
+      // here leaves the session unfilled until `ready` flips, and the store read re-runs the effect
+      // then.
       createEffect(() => {
         const sid = getActiveSessionID()
         if (!sid || sid === lastSettingsSessionID) return
+        if (!modelStore.ready) return
         refreshSessionSettings()
       })
 
       // A model chosen AT STARTUP is an edit to the WORKTREE layer (Alexander, 2026-09-20:
-      // «При старте редактироваться должно worktree»). It is written there — never into the
-      // session — so the layers stay honest: the worktree holds the choice, and a session
-      // copies it at creation like every other value. This is also what makes a startup
-      // choice actually reach the wire again: the previous chain that honoured it was
-      // removed as a read-time search outside the session.
+      // «При старте редактироваться должно worktree»): the worktree holds the durable choice, and a
+      // session created afterwards copies it like every other value.
+      //
+      // It is ALSO written into the ACTIVE session — and that is not a second copy of one fact, it is
+      // the only way the choice reaches the wire. Two layers, two readers: the server resolves the
+      // session file, and a fill only touches agents a session does not already hold (`:392`), so an
+      // already-OPEN session would keep its old model while the server took the startup argument —
+      // the measured disagreement «введено было дипсику, ответил дипсик, а билд показывает glm»
+      // (Alexander, 2026-09-20). Every read goes to the session; a write that must be read lands there.
       createEffect(() => {
         const chosen = args.model
         if (!chosen) return
@@ -372,8 +387,28 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       // Fill the worktree layer the moment the agent list is known, then re-fill the session:
       // the session copies FROM the worktree, so the worktree goes first. Both fills are
       // idempotent, which is why the extra pass costs nothing.
+      //
+      // TWO gates, not one. `sync.data.agent.length` says "the agent list is here"; it does NOT
+      // say "model.json is loaded", and `fillSourceFor` reads S1 from MEMORY
+      // (`modelStore.workspaceAgent`, filled asynchronously in the readJson .finally at :320-325
+      // together with `ready`). Without the `ready` gate this effect ran as soon as agents
+      // arrived — i.e. BEFORE model.json was parsed — so `fillSourceFor` saw an empty worktree,
+      // fell through to the agent's own declaration, and wrote GLOBAL values into the session
+      // file, permanently (the fill only touches agents the session does not already hold).
+      //
+      // Measured 2026-09-21 on `ses_f7fca79dcffe6RZ3PtUHAQiiiv.jsonc:2-50`: every agent held
+      // `huggingface/zai-org/GLM-5.3-Flash-BF16` / `GLM-5.3-BF16` — byte-for-byte the global
+      // `bin/opencode.jsonc:31-68` — while `model.json` held `deepseek/deepseek-flash` for the
+      // same agents. The session had copied the layer ABOVE the worktree, which is exactly the
+      // owner's report (2026-09-21: «настройки новой сессии должны копироваться из настроек
+      // worktree, а сейчас они копируются непонятно откуда» / «сессия берёт начальные значения
+      // из global»).
+      //
+      // `ready` is a store field, so this effect re-runs when the read resolves and the fill then
+      // reads a materialised worktree — the layer the invariant names.
       createEffect(() => {
         if (sync.data.agent.length === 0) return
+        if (!modelStore.ready) return
         fillWorktreeLayer()
         void refreshSessionSettings()
       })
@@ -385,42 +420,30 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       // (Alexander, 2026-09-20: «Reading model config not from session settings also all
       // tests failed»). The session is filled from the worktree when it comes into
       // existence, so its own entry is the only source a read needs.
-      /**
-       * The model the runtime WILL use for this agent, by the chain it actually resolves:
-       * the session's own entry → the worktree layer (model.json) → the agent's own declaration
-       * (`Agent.Info`). The read used to stop at the session layer, so a session whose layer had
-       * not materialised reported «No provider selected» in the footer while /agents showed a
-       * model for every agent — two surfaces contradicting each other on the same screen
-       * (owner, 2026-09-21: «no provider selected, дальше /agents показывает что все выбрано»).
-       */
-      function effectiveModelFor(name: string): { providerID: string; modelID: string } | undefined {
-        const own = forAgent(name)
-        if (own) return own
-        const workspace = workspaceAgentModel(name, getActiveWorkspaceID(), {
-          workspaceAgent: modelStore.workspaceAgent,
-        })
-        if (workspace && isModelValid(workspace)) {
-          return { providerID: workspace.providerID, modelID: workspace.modelID }
-        }
-        const declared = sync.data.agent.find((x) => x.name === name)?.model
-        if (declared && isModelValid(declared)) {
-          return { providerID: declared.providerID, modelID: declared.modelID }
-        }
-        return undefined
-      }
-
       const currentModel = createMemo(() => {
         const a = agent.current()
-        return a ? effectiveModelFor(a.name) : undefined
+        return a ? forAgent(a.name) : undefined
       })
 
-      /** THE read: the session's OWN entry for this agent. After the fill every layer holds a
-       * value, so this is a plain lookup — no parent is walked at read time. */
+      /**
+       * THE read: the session's OWN entry for this agent, and NOTHING above it.
+       *
+       * After the fill every layer holds a value, so this is a plain lookup — no parent is walked at
+       * read time. It used to walk session → worktree → declared HERE, each upper link guarded by
+       * `isModelValid`; that recursion is the defect, not the fix (owner, 2026-09-21: «мы рекурсивно
+       * чекали вместо дубового линейного чекапа и на этом погорели»). It papered over a fill hole that
+       * `:224-226` now REPORTS rather than guesses, and `fill-layers.ts:12-14` has always said a parent
+       * is walked at FILL time only.
+       *
+       * The parse is `sessionAgentModel` (`session-settings.ts:157`) — the ONE implementation, not a
+       * second spelling of it. Stored-valid and connected-now are different axes: `isModelValid`
+       * answers the second and belongs where a CHOICE is made (`:617` throws, pickers toast, `:1026`
+       * warns). Applied here it made a stored-but-not-connected pair return `undefined` SILENTLY,
+       * which killed `selected`/`list`/`set`/`current` at once (measured ctrl+t dead-end on an agent
+       * row, 2026-09-21) and left the selected agent's model stale after an edit.
+       */
       function forAgent(name: string) {
-        const stored = sessionSettings()?.agent?.[name]?.model
-        if (!stored) return undefined
-        const parsed = parseModel(stored)
-        return isModelValid(parsed) ? parsed : undefined
+        return sessionAgentModel(name, sessionSettings())
       }
 
       /** FILL-TIME source for one agent — the layer above. Called only while a layer is being
@@ -435,11 +458,20 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         }
         const a = sync.data.agent.find((x) => x.name === name)
         if (a?.model) return { model: `${a.model.providerID}/${a.model.modelID}`, variant: a.variant }
-        // Nothing anywhere: the widest default — and only once the agent list is known, so a
-        // fill can never invent a model while sync is still loading.
-        const build = sync.data.agent.find((x) => x.name === "build" || x.name === "build_mode")
+        // ONE authority for the name, not a hedge between two spellings of it. This site used to
+        // compare the name against BOTH spellings inline, deciding for itself which names are the same
+        // agent — the exact compensation DISAS names. `canonicalIdentity` (`session/mode-identity.ts:21`)
+        // is the server's own alias table, called on the server in `prompt.ts`/`agent.ts`/`task.ts`
+        // and — until now — never in the TUI.
+        const build = sync.data.agent.find((x) => x.name === canonicalIdentity("build"))
         if (build?.model) return { model: `${build.model.providerID}/${build.model.modelID}`, variant: build.variant }
-        return sync.data.agent.length > 0 ? { model: "opencode/big-pickle" } : undefined
+        // NOTHING anywhere — and this is where a hardcoded last-resort model id used to stand. It made
+        // an unfilled layer LOOK filled: a constant is indistinguishable downstream from a real
+        // choice, so the hole it hid could never be reported. The owner's two rules are «all values
+        // must be set» AND «missing model at any layer — ANY — all tests failed»; the constant
+        // satisfied the first by breaking the second. `undefined` flows into `fillWorkspaceAgents`'
+        // `unresolved` and out as a `bug:` (`:482`) — ONE mechanism, and the hole SHOUTS.
+        return undefined
       }
 
       const agentNames = () => sync.data.agent.map((a) => a.name)
@@ -450,11 +482,17 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         const agents = agentNames()
         if (agents.length === 0) return
         const result = fillWorkspaceAgents(modelStore.workspaceAgent, getActiveWorkspaceID(), agents, (name) => {
-          const a = sync.data.agent.find((x) => x.name === name)
-          if (a?.model) return { providerID: a.model.providerID, modelID: a.model.modelID }
+          // ONE source, not two: this used to look the agent's declaration up itself and then call
+          // `fillSourceFor`, which looks the SAME declaration up again — one value resolved in two
+          // spellings, free to drift. `fillSourceFor` IS the layer above; it is read once here.
+          //
+          // The CONNECTED-now check used to gate the result too: the axis that answers «is this
+          // provider usable right now» applied to a layer being MATERIALISED. A declared pair whose
+          // provider was merely not connected yet became an unfilled hole — the same axis mix already
+          // removed from the read (`forAgent`), and the likely origin of the holes that read had been
+          // papering over. Shape only: `parseModelKey`.
           const source = fillSourceFor(name)
-          const parsed = source ? parseModel(source.model) : undefined
-          return parsed && isModelValid(parsed) ? parsed : undefined
+          return source ? parseModelKey(source.model) : undefined
         })
         if (result.filled.length > 0) {
           setModelStore("workspaceAgent", result.workspaceAgent)
@@ -1007,9 +1045,20 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             if (options?.agent) {
               const sid = getActiveSessionID()
               const workspace = workspaceModelScope(getActiveWorkspaceID())
-              if (options.scope !== "session") {
-                setModelStore("workspaceAgent", (agents) => setWorkspaceAgentModel(agents, workspace, agentName, model))
-              }
+              // The worktree ALWAYS learns the pick — session scope included.
+              //
+              // The worktree layer is "the last model selected in that workspace"
+              // (session-settings.ts:18) and it is the layer a NEW session is FILLED from
+              // (`fillSessionAgents(..., fillSourceFor)`, fillSourceFor reads workspaceAgentModel).
+              // The old `scope !== "session"` guard kept it stale, so a pick made in one session
+              // never reached the layer the next session copies — the next session started on the
+              // PREVIOUS model while every surface claimed the new one (owner, 2026-09-21:
+              // «настройки новой сессии должны копироваться из настроек worktree, а сейчас они
+              // копируются непонятно откуда»).
+              //
+              // Session scope still means "this session's own value" (written just below); it
+              // no longer means "the workspace forgets it".
+              setModelStore("workspaceAgent", (agents) => setWorkspaceAgentModel(agents, workspace, agentName, model))
               // Per-session: record the explicit override alongside the workspace memory.
               // Global config remains the initial default only.
               if (options.scope !== "worktree" && sid) {
@@ -1159,6 +1208,69 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             }
             const key = `${m.providerID}/${m.modelID}`
             return modelStore.variant[key]
+          },
+          /**
+           * The variant a MODEL carries on its own, with no agent in the picture.
+           *
+           * The recents rows are models to assign, not agents: `selected()` would resolve through
+           * whichever agent happens to be active and report a variant that belongs to someone else.
+           * This reads the same model-level key `set()` fills as its second half (`local.tsx`),
+           * which is also where a plain model's variant lives.
+           */
+          selectedForModel(model: { providerID: string; modelID: string }, agentName?: string) {
+            if (agentName) {
+              const agentVar = modelStore.agentVariant[`${agentName}/${model.providerID}/${model.modelID}`]
+              if (agentVar) return agentVar
+            }
+            return modelStore.variant[`${model.providerID}/${model.modelID}`]
+          },
+          /**
+           * Write the model-level variant without going through an agent — the entry the recents
+           * rows need so ctrl+t can step them (owner, 2026-09-21: «Включая recents»). Same layer
+           * rule as `set()`: session → the session file, worktree → model.json, no scope → both.
+           * Global is refused rather than faked: global config stores variants per AGENT, and a
+           * model-level key has no home there.
+           */
+          setForModel(
+            model: { providerID: string; modelID: string },
+            value: string | undefined,
+            scope?: ModelScope,
+            agentName?: string,
+          ) {
+            if (scope === "global") {
+              toast.show({
+                title: "Set the variant on the agent",
+                message: "Global config carries variants per agent — step it from the agent's own row",
+                variant: "warning",
+                duration: 4000,
+              })
+              return
+            }
+            // Both keys are written from the CALLER's model reference. `Sett()` resolves the model
+            // through `forAgent()` and returns silently when that chain cannot answer — measured
+            // 2026-09-21: three ctrl+t on build_mode toasted «Variant: low» while model.json kept
+            // `variant: {}` / `agentVariant: {}`, and `selected()` read nothing back, so every press
+            // stepped from "no selection" to the same first variant. The reference the row already
+            // resolved (its own `layerView`) is the one that cannot disagree with what is on screen.
+            if (agentName) {
+              setModelStore("agentVariant", `${agentName}/${model.providerID}/${model.modelID}`, value ?? "default")
+            }
+            setModelStore("variant", `${model.providerID}/${model.modelID}`, value ?? "default")
+            if (scope === "session") {
+              const sid = getActiveSessionID()
+              if (!sid) {
+                toast.show({
+                  variant: "warning",
+                  message: "No active session — cannot save per-session variant",
+                  duration: 3000,
+                })
+                return
+              }
+              void saveSessionSettings(sid, sessionPayload())
+              return
+            }
+            if (scope === "worktree") save()
+            else saveAll()
           },
           current(agentName?: string) {
             const v = this.selected(agentName)

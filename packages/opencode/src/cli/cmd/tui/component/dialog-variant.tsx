@@ -1,12 +1,13 @@
 import { createMemo, createSignal } from "solid-js"
-import { useLocal, type ModelScope } from "@tui/context/local"
+import { activeSessionID, useLocal, type ModelScope } from "@tui/context/local"
+import { useRoute } from "@tui/context/route"
 import { useSync } from "@tui/context/sync"
 import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
 import * as Log from "@opencode-ai/core/util/log"
 import { variantDetail, variantDialogTitle, variantFamily, variantLabels } from "./variant-dialog-state"
 import { useKV } from "@tui/context/kv"
-import { readScope, SCOPE_KV_KEY } from "./config-scope"
+import { availableScopes, coerceScope, readScope, SCOPE_KV_KEY } from "./config-scope"
 
 export function DialogVariant(props: {
   targetAgent?: string
@@ -18,6 +19,7 @@ export function DialogVariant(props: {
   const local = useLocal()
   const sync = useSync()
   const dialog = useDialog()
+  const route = useRoute()
   const model = createMemo(
     () => props.pendingModel ?? (props.targetAgent ? local.model.forAgent(props.targetAgent) : local.model.current()),
   )
@@ -30,7 +32,10 @@ export function DialogVariant(props: {
   // into the legacy dual write (session + worktree) instead of the layer the
   // user selected.
   const kv = useKV()
-  const scope = createMemo(() => props.scope ?? readScope(kv.get(SCOPE_KV_KEY)))
+  // Coerced, not raw — same rule as dialog-model.tsx and dialog-agent.tsx:46-48. A bare open
+  // (app.tsx) must not fall into a layer that cannot hold the value.
+  const scopes = createMemo(() => availableScopes(Boolean(activeSessionID(route.data, sync.data.session))))
+  const scope = createMemo(() => props.scope ?? coerceScope(readScope(kv.get(SCOPE_KV_KEY)), scopes()))
   const staged = createMemo(() => scope() === "global" && props.targetAgent !== undefined)
   const [selected, setSelected] = createSignal<string | undefined>(
     props.pendingModel ? undefined : local.model.variant.selected(props.targetAgent),

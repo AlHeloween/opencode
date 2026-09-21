@@ -73,6 +73,20 @@ export function coerceScope(scope: ConfigScope, supported: readonly ConfigScope[
 }
 
 /**
+ * The layers a dialog may offer, given whether there is a session to write into.
+ *
+ * `/agents` writes the session layer into the OPEN session's settings file, and with no session
+ * at all that layer is a dead end: the picked model lands nowhere while the row still claims the
+ * write went to "session" (owner, 2026-09-21: «в session настройках модель больше не выбирается …
+ * потому что сессии нету … раз worktree значит она должна быть активной чтобы не было путаницы»).
+ * Dropping the layer here is what makes the dialog open on worktree instead — the layer the
+ * settings surfaces display, so both screens name the same place.
+ */
+export function availableScopes(sessionAvailable: boolean): readonly ConfigScope[] {
+  return sessionAvailable ? SCOPE_ORDER : SCOPE_ORDER.filter((scope) => scope !== "session")
+}
+
+/**
  * Footer text for a layer that holds no value of its own. Names the layer the
  * value actually comes from instead of the previous bare "not set in session",
  * which left the inheritance invisible.

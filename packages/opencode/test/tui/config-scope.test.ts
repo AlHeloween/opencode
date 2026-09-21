@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import {
+  availableScopes,
   coerceScope,
   cycleScope,
   inheritLabel,
@@ -61,5 +62,22 @@ describe("config scope", () => {
 
   test("the selector order is widest layer first", () => {
     expect([...SCOPE_ORDER]).toEqual(["global", "worktree", "session"])
+  })
+
+  test("without an open session the session layer is not offered, and a stored session value falls through", () => {
+    // The owner's report: «в session настройках модель больше не выбирается … потому что сессии
+    // нету». With nothing to write into, the layer must leave the selector and the shared KV value
+    // must resolve to the layer the settings surfaces display — worktree — so both screens agree.
+    const noSession = availableScopes(false)
+    expect([...noSession]).toEqual(["global", "worktree"])
+    expect(coerceScope("session", noSession)).toBe("worktree")
+    expect(coerceScope("worktree", noSession)).toBe("worktree")
+    expect(cycleScope("worktree", 1, noSession)).toBe("global")
+    expect(cycleScope("global", -1, noSession)).toBe("worktree")
+  })
+
+  test("with an open session every layer stays available", () => {
+    expect([...availableScopes(true)]).toEqual(["global", "worktree", "session"])
+    expect(coerceScope("session", availableScopes(true))).toBe("session")
   })
 })

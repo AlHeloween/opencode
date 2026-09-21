@@ -1,9 +1,10 @@
 import { createMemo, createSignal, onMount } from "solid-js"
-import { useLocal, type ModelScope } from "@tui/context/local"
+import { activeSessionID, useLocal, type ModelScope } from "@tui/context/local"
 import { useKV } from "@tui/context/kv"
-import { cycleScope as nextScope, inheritLabel, parentScope, readScope, SCOPE_KV_KEY } from "./config-scope"
+import { useRoute } from "@tui/context/route"
+import { availableScopes, coerceScope, cycleScope as nextScope, inheritLabel, parentScope, readScope, SCOPE_KV_KEY } from "./config-scope"
 import { classifyVariantState, pruneSummary, removable } from "./model-state-prune"
-import { agentHintText, agentModelCell, agentModelRef, agentRowModelCell } from "./agent-model-cell"
+import { agentHintText, agentModelRef, agentRowModelCell, nextVariant, scopedModelCell } from "./agent-model-cell"
 import { DialogConfirm } from "./dialog-confirm"
 import { useSync } from "@tui/context/sync"
 import { DialogSelect } from "@tui/ui/dialog-select"
@@ -29,6 +30,7 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
   const sync = useSync()
   const dialog = useDialog()
   const toast = useToast()
+  const route = useRoute()
   // Resolution chain (local.forAgent): session override → worktree (model.json)
   // → global (Agent.Info config). Session is the default configuration target
   // (2026-08-30, Alexander: explicit scope choice instead of hidden dual writes).
@@ -36,7 +38,14 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
   // app.tsx opens <DialogAgent /> bare, so a hardcoded default reset the choice
   // on every open (2026-09-16, Alexander: "постоянно приходится выбирать").
   const kv = useKV()
-  const scope = props.scope ?? readScope(kv.get(SCOPE_KV_KEY))
+  // Which layers this form may write to. The session layer needs an open session; without one the
+  // pick landed nowhere while the title still said "session" (owner, 2026-09-21: «в session
+  // настройках модель больше не выбирается … потому что сессии нету … раз worktree значит она
+  // должна быть активной чтобы не было путаницы»). The coerced layer is written back to the
+  // shared KV below, so /agents and the settings surfaces name the SAME place.
+  const scopes = createMemo(() => availableScopes(Boolean(activeSessionID(route.data, sync.data.session))))
+  const stored = readScope(kv.get(SCOPE_KV_KEY))
+  const scope = props.scope ?? coerceScope(stored, scopes())
 
   // Track the HIGHLIGHTED row so scope switches preserve the cursor even on a
   // fresh /agents open (restoreValue is undefined until the user clicks a row).
@@ -46,7 +55,7 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
   // ←/→ cycles the configuration scope directly on the form
   // (2026-08-30, Alexander: arrows must switch global/worktree/session).
   function cycleScope(direction: 1 | -1) {
-    const next = nextScope(scope, direction)
+    const next = nextScope(scope, direction, scopes())
     if (next === scope) return
     // /agents is the hub: the choice made here is what every other settings
     // dialog opens with.
@@ -69,7 +78,11 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
   // (`ui/dialog.tsx:55`), so on a narrow terminal the dialog narrows instead of clipping —
   // and because `dialog.replace()` resets the size to medium, this runs again on every
   // remount (each sub-dialog returning here goes through replace).
-  onMount(() => dialog.setSize("xlarge"))
+  onMount(() => {
+    dialog.setSize("large")
+    // Persist the coercion once: the hub records where the user actually landed.
+    if (!props.scope && scope !== stored) kv.set(SCOPE_KV_KEY, scope)
+  })
 
   // ── Build options grouped by category ──
   const options = createMemo(() => {
@@ -91,12 +104,24 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
       const modelInfo = provider.models[item.modelID]
       if (!modelInfo) continue
       const isCurrent = cur && cur.model?.providerID === item.providerID && cur.model?.modelID === item.modelID
+      const modelRef = { providerID: item.providerID, modelID: item.modelID }
+      // The recents rows carry the model's own variant, written without an agent: ctrl+t steps
+      // them too (owner, 2026-09-21: «Включая recents»), and a step you cannot see is no step.
+      const recentVariant = local.model.variant.selectedForModel(modelRef)
       items.push({
         value: `__recent__${item.providerID}/${item.modelID}`,
         title: modelInfo.name ?? item.modelID,
         description: provider.name,
         category: "Recently Used Models",
-        footer: isCurrent ? "✓ current" : cur ? `→ ${cur.name}` : undefined,
+        footer: `${isCurrent ? "✓ current" : cur ? `→ ${cur.name}` : ""}${recentVariant ? ` · ${recentVariant}` : ""}` || undefined,
+        variantStep: {
+          // In recents → step in the row; the picking form is for models the user has not run.
+          inline: true,
+          model: modelRef,
+          list: Object.keys(modelInfo.variants ?? {}),
+          current: recentVariant,
+        },
+        variantLabel: modelInfo.name ?? item.modelID,
         onSelect: () => {
           if (!cur) return
           if (scope === "global") {
@@ -126,18 +151,20 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
   })
 
   function buildOption(agent: any, category: string) {
-    // The model column must never be empty, and a bare value cannot be told apart from an
-    // inherited one — so the row resolves the effective chain (session → worktree → the agent's
-    // own declaration → guard) and NAMES which link answered. Measured on the live dialog: every
-    // row read «inherits from worktree» while the session layer file held a model for 11 agents.
-    const cell = agentModelCell({
-      session: local.model.layerView(agent.name, "session").model,
-      worktree: local.model.layerView(agent.name, "worktree").model,
-      declared: agent.model ? `${agent.model.providerID}/${agent.model.modelID}` : undefined,
-      guard: inheritLabel(scope),
-    })
+    // The row shows the layer the title NAMES — not the effective chain.
+    //
+    // It used to resolve session → worktree → declared whatever the scope, so at
+    // `scope: global (save)` a row could read a value no global layer holds while the title
+    // promised a global save. Measured 2026-09-21 on the live dialog: `build_mode` read
+    // «Muse Spark 1.3 Free» (a session-only value) while `bin/opencode.jsonc:32-35` declared
+    // `huggingface/zai-org/GLM-5.3-Flash-BF16` (owner: «давай починять»).
+    //
+    // The effective chain is a RUNTIME question and the prompt's status line answers it; a scoped
+    // settings form answers «what does the layer I am editing hold». The hint still names the
+    // layer, so nothing becomes unlabelled — it now names the SCOPE, which is what the title says.
     const view = local.model.layerView(agent.name, scope)
-    const layerVariant = view.variant ?? (view.model ? undefined : agent.variant)
+    const cell = scopedModelCell(scope, view.model, inheritLabel(scope))
+    const layerVariant = view.variant
 
     // Session subagents override (worktree-local) else global Agent.Info
     const sub = local.model.subagentsFor(agent.name)
@@ -152,10 +179,16 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
     const provider = ref ? sync.data.provider.find((p) => p.id === ref.providerID) : undefined
     const row = agentRowModelCell({
       ref: cell.model,
-      provider: provider ? { id: provider.id, name: provider.name } : undefined,
       info: provider && ref ? (provider.models[ref.modelID] as any) : undefined,
       variant: layerVariant ?? undefined,
     })
+
+    // Whether ctrl+t steps this row in place or opens the picking form: the owner's rule is the
+    // recents list (a model already run → step it; a model never run → show the form).
+    const inRecents = Boolean(
+      ref && local.model.recent().some((x) => x.providerID === ref.providerID && x.modelID === ref.modelID),
+    )
+    const variants = ref && provider ? Object.keys(provider.models[ref.modelID]?.variants ?? {}) : []
 
     const color: RGBA = local.agent.color(agent.name)
 
@@ -179,9 +212,20 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
       // origin is the difference between an override this scope owns and an inherited one.
       hint: agentHintText({
         description: agent.description ?? undefined,
+        provider: provider?.name,
         origin: cell.origin,
         taskCount: sub === undefined ? undefined : sub.length,
       }),
+      variantStep: ref
+        ? {
+            inline: inRecents,
+            agent: agent.name,
+            model: ref,
+            list: variants,
+            current: local.model.variant.selectedForModel(ref, agent.name),
+          }
+        : undefined,
+      variantLabel: row.description,
       onSelect: () => {
         dialog.replace(() => (
           <DialogModel
@@ -232,6 +276,38 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
           title: "Variant",
           keybind: Keybind.parse("ctrl+t")[0],
           onTrigger: (option: any) => {
+            const step = option?.variantStep
+            // Order matters: a model with no variants has one choice, so say so instead of opening
+            // a dialog whose only row is Default (measured 2026-09-21: ctrl+t on Big Pickle opened
+            // exactly that, and a dialog with one row reads as «ноль эмоций»). Only then does the
+            // owner's rule apply: a model already in recents steps in the row, a model never run
+            // gets the picking form (owner, 2026-09-21: «Форма выбора ризонинга должна появляться
+            // только если эта модель не в recents»).
+            if (step && step.list.length === 0) {
+              toast.show({
+                title: "No variants",
+                message: `${option?.variantLabel ?? "this model"} declares none — the model itself is the only choice`,
+                variant: "info",
+                duration: 3000,
+              })
+              return
+            }
+            if (step?.inline) {
+              const next = nextVariant(step.list, step.current)
+              // Written through the row's OWN model reference, never through `forAgent`: that
+              // resolver answers with silence when it cannot resolve, which is how a step
+              // disappeared while its toast still claimed it happened.
+              local.model.variant.setForModel(step.model, next, scope, step.agent)
+              // The step must be visible even if the row itself does not repaint: the store write
+              // is real either way, and silence is indistinguishable from a dead keybind.
+              toast.show({
+                title: `Variant: ${next ?? "default"}`,
+                message: option?.variantLabel ?? step.agent ?? step.model.modelID,
+                variant: "info",
+                duration: 2000,
+              })
+              return
+            }
             // Open the variant dialog for the HIGHLIGHTED agent's own model —
             // real settings, not a silent cycle (2026-08-30, Alexander).
             dialog.replace(() => (
@@ -296,6 +372,7 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
             dialog.replace(() => (
               <AgentScopeDialog
                 current={scope}
+                supported={scopes()}
                 onPick={(next) => {
                   kv.set(SCOPE_KV_KEY, next)
                   dialog.replace(() => <DialogAgent scope={next} restoreValue={props.restoreValue ?? lastCursor()} />)
@@ -396,8 +473,13 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
 }
 
 /** Which settings layer /agents configures — session is the default target. */
-function AgentScopeDialog(props: { current: ModelScope; onPick: (scope: ModelScope) => void }) {
-  const options = [
+function AgentScopeDialog(props: {
+  current: ModelScope
+  /** Layers this form can write: the session layer disappears when no session is open. */
+  supported: readonly ModelScope[]
+  onPick: (scope: ModelScope) => void
+}) {
+  const all = [
     {
       value: "session" as const,
       title: "Session",
@@ -417,5 +499,12 @@ function AgentScopeDialog(props: { current: ModelScope; onPick: (scope: ModelSco
       onSelect: () => props.onPick("global"),
     },
   ]
-  return <DialogSelect title="Configure scope" current={props.current} options={options} flat={true} />
+  return (
+    <DialogSelect
+      title="Configure scope"
+      current={props.current}
+      options={all.filter((option) => props.supported.includes(option.value))}
+      flat={true}
+    />
+  )
 }

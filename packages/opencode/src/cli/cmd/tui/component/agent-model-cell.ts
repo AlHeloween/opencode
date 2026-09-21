@@ -14,7 +14,7 @@
  */
 import { capabilityGlyphs, compactCostLabel, isFreeModel, type ModelCapabilities, type ModelCost } from "./model-cost"
 
-export type AgentModelOrigin = "session" | "worktree" | "agent"
+export type AgentModelOrigin = "session" | "worktree" | "global" | "agent"
 
 export interface AgentModelCell {
   readonly model: string
@@ -32,6 +32,24 @@ export function agentModelCell(input: {
   if (input.worktree) return { model: input.worktree, origin: "worktree" }
   if (input.declared) return { model: input.declared, origin: "agent" }
   return { model: input.guard }
+}
+
+/**
+ * The row cell for a SCOPED settings dialog: the layer the dialog edits, or the guard.
+ *
+ * A scoped form must show the layer its title names. The row used to print the EFFECTIVE chain
+ * (session → worktree → declared) whatever the scope, so `scope: global (save)` could display a
+ * value no global layer holds — measured 2026-09-21 on the live dialog: `build_mode` read
+ * «Muse Spark 1.3 Free», a session-only value, while `bin/opencode.jsonc:32-35` declared
+ * `huggingface/zai-org/GLM-5.3-Flash-BF16`. Owner: «давай починять».
+ *
+ * `origin` is the SCOPE, not a chain link: the reader is being told which layer this form is
+ * showing, which is the question the title already asks. What the runtime WILL use is a different
+ * question, and it belongs to the prompt's status line — not to a settings form.
+ */
+export function scopedModelCell(scope: "global" | "worktree" | "session", own: string | undefined, guard: string): AgentModelCell {
+  if (own) return { model: own, origin: scope }
+  return { model: guard }
 }
 
 /**
@@ -53,9 +71,9 @@ export function agentModelRef(ref: string): { providerID: string; modelID: strin
  * as the target). The raw `provider/modelID` it replaced named the model in the one form the
  * reader cannot price or recognise.
  *
- * `description` is the pretty name alone: the provider leads the footer, so the two columns
- * read left to right like the picker's row. Price and capability glyphs come from the shared
- * cost module — zeros render as nothing, never as a claim of zero price.
+ * `description` is the pretty name alone and the PROVIDER is not in the footer: the form was
+ * narrowed to `large` (88 cells) and `agent | model | runtime` needs the columns — a provider
+ * chip in the footer pushed the name past the budget. The provider rides the hint instead.
  */
 export function agentRowModelCell(input: {
   ref: string
@@ -69,7 +87,7 @@ export function agentRowModelCell(input: {
 }): { description: string; footer: string } {
   const parsed = agentModelRef(input.ref)
   if (!parsed) return { description: input.ref, footer: "" }
-  const parts: string[] = [input.provider?.name ?? parsed.providerID]
+  const parts: string[] = []
   const price = isFreeModel(input.info?.cost, parsed.providerID) ? "Free" : compactCostLabel(input.info?.cost)
   if (price) parts.push(price)
   const caps = capabilityGlyphs(input.info?.capabilities)
@@ -89,14 +107,35 @@ export function agentRowModelCell(input: {
  * The resolution facts ride along: the rows no longer print which layer answered the model, and
  * that is the difference between an override this scope owns and one it inherited.
  */
+/**
+ * The next variant in a model's own list, wrapping through the model default.
+ *
+ * ctrl+t on a row steps the variant in place — recents included (owner, 2026-09-21: «когда я
+ * подвожу к надписи и кликаю ctrl-t то вариант модели должен циклироваться для этой записи.
+ * Включая recents»). The step is a pure function of the list and what is selected now, so the wrap
+ * is pinned by a test instead of argued over a keystroke: no selection → the first variant, a
+ * selection → the next one, the last one → back to the model default (undefined). An empty list has
+ * nowhere to step, and returning its first entry would claim a variant the model never declared.
+ */
+export function nextVariant(variants: readonly string[], current: string | undefined): string | undefined {
+  if (variants.length === 0) return undefined
+  const index = current ? variants.indexOf(current) : -1
+  if (current && index === -1) return variants[0]
+  const next = index + 1
+  return next >= variants.length ? undefined : variants[next]
+}
+
 export function agentHintText(input: {
   description?: string
+  /** The provider the model is served by — the row has no room for it at `large` width. */
+  provider?: string
   origin?: AgentModelOrigin
   /** Undefined when the agent has no subagent overrides at all; 0 reads «none». */
   taskCount?: number
 }): string | undefined {
   const parts: string[] = []
   if (input.description) parts.push(input.description)
+  if (input.provider) parts.push(input.provider)
   if (input.origin) parts.push(`model from the ${input.origin} layer`)
   if (input.taskCount !== undefined) parts.push(input.taskCount === 0 ? "task: none" : `task: ${input.taskCount}`)
   return parts.length > 0 ? parts.join(" · ") : undefined

@@ -6,12 +6,15 @@ import { useKeybind } from "../../context/keybind"
 import { selectedForeground, tint, useTheme } from "../../context/theme"
 import type { QuestionAnswer, QuestionRequest } from "@opencode-ai/sdk/v2"
 import { useSDK } from "../../context/sdk"
+import { useSync } from "../../context/sync"
 import { SplitBorder } from "../../component/border"
 import { useTextareaKeybindings } from "../../component/textarea-keybindings"
 import { useDialog } from "../../ui/dialog"
+import * as Log from "@opencode-ai/core/util/log"
 
 export function QuestionPrompt(props: { request: QuestionRequest }) {
   const sdk = useSDK()
+  const sync = useSync()
   const { theme } = useTheme()
   const keybind = useKeybind()
   const bindings = useTextareaKeybindings()
@@ -45,16 +48,44 @@ export function QuestionPrompt(props: { request: QuestionRequest }) {
 
   function submit() {
     const answers = questions().map((_, i) => store.answers[i] ?? [])
-    void sdk.client.question.reply({
-      requestID: props.request.id,
-      answers,
-    })
+    answerQuestion({ answers })
+  }
+
+  /**
+   * Answer / reject a question and clear it locally — same rule as `PermissionPrompt.respond`.
+   *
+   * A bare `void sdk.client.question.reply(...)` left the store entry to the
+   * `question.replied` / `question.rejected` event alone; that entry feeds `disabled` in
+   * `routes/session/index.tsx`, and a disabled prompt `preventDefault()`s every keystroke. A
+   * silently refused or thrown reply therefore made the session stop accepting input with
+   * nothing on screen to answer (owner, 2026-09-21).
+   */
+  function settle(promise: Promise<{ error?: unknown }>, what: string) {
+    void promise
+      .then((res) => {
+        if (res.error) {
+          Log.Default.warn(`bug: question ${what} refused — the request is left pending`, {
+            requestID: props.request.id,
+            error: JSON.stringify(res.error)?.slice(0, 300),
+          })
+          return
+        }
+        sync.question.clear(props.request.sessionID, props.request.id)
+      })
+      .catch((e: unknown) => {
+        Log.Default.warn(`bug: question ${what} threw — the request is left pending`, {
+          requestID: props.request.id,
+          error: e instanceof Error ? e.message : String(e),
+        })
+      })
+  }
+
+  function answerQuestion(payload: { answers: QuestionAnswer[] }) {
+    settle(sdk.client.question.reply({ requestID: props.request.id, ...payload }), "reply")
   }
 
   function reject() {
-    void sdk.client.question.reject({
-      requestID: props.request.id,
-    })
+    settle(sdk.client.question.reject({ requestID: props.request.id }), "reject")
   }
 
   function pick(answer: string, custom: boolean = false) {
@@ -67,10 +98,7 @@ export function QuestionPrompt(props: { request: QuestionRequest }) {
       setStore("custom", inputs)
     }
     if (single()) {
-      void sdk.client.question.reply({
-        requestID: props.request.id,
-        answers: [[answer]],
-      })
+      answerQuestion({ answers: [[answer]] })
       return
     }
     setStore("tab", store.tab + 1)

@@ -1,5 +1,6 @@
 import { createMemo, createSignal, onMount } from "solid-js"
-import { useLocal, type ModelScope } from "@tui/context/local"
+import { activeSessionID, useLocal, type ModelScope } from "@tui/context/local"
+import { useRoute } from "@tui/context/route"
 import { capabilityGlyphs, compactCostLabel, isFreeModel } from "./model-cost"
 import { useSync } from "@tui/context/sync"
 import { map, pipe, flatMap, entries, filter, sortBy, take } from "remeda"
@@ -15,7 +16,7 @@ import * as fuzzysort from "fuzzysort"
 import { useConnected } from "./use-connected"
 import { shouldActivateAgent } from "../util/agent"
 import { useKV } from "@tui/context/kv"
-import { readScope, SCOPE_KV_KEY } from "./config-scope"
+import { availableScopes, coerceScope, readScope, SCOPE_KV_KEY } from "./config-scope"
 
 export function DialogModel(props: {
   providerID?: string
@@ -27,13 +28,23 @@ export function DialogModel(props: {
   const sync = useSync()
   const dialog = useDialog()
   const keybind = useKeybind()
+  const route = useRoute()
   const [query, setQuery] = createSignal("")
   // Openers that pass no scope (the /models path through DialogProvider) used
   // to reach local.model.set with scope undefined, which is the legacy
   // dual-write branch: session AND worktree, ignoring the layer the user
   // selected in /agents. Fall back to the shared scope instead.
   const kv = useKV()
-  const scope = createMemo(() => props.scope ?? readScope(kv.get(SCOPE_KV_KEY)))
+  // COERCE, do not read raw: the persisted scope is shared with /agents, and a pick is
+  // only meaningful if the layer it names can actually hold the value. Reading it raw let
+  // a stale "session" (kv.json) send a `/models` pick into the session file alone, leaving
+  // the worktree layer — the one a NEW session is filled from — holding the previous model.
+  // The user picked one model and the next session started on another; this is that bug
+  // (owner, 2026-09-21). Resolution mirrors dialog-agent.tsx:46-48 exactly, so both screens
+  // name the same layer.
+  const scopes = createMemo(() => availableScopes(Boolean(activeSessionID(route.data, sync.data.session))))
+  const stored = readScope(kv.get(SCOPE_KV_KEY))
+  const scope = createMemo(() => props.scope ?? coerceScope(stored, scopes()))
 
   const connected = useConnected()
   const providers = createDialogProviderOptions()

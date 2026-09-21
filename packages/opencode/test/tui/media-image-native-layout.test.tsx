@@ -11,7 +11,7 @@
  * `minHeight`, and no pixels on screen (mermaid and pasted screenshots alike).
  */
 import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test"
-import { ImageRenderable } from "@opentui/core"
+import { CliRenderEvents, ImageRenderable } from "@opentui/core"
 import { testRender } from "@opentui/solid"
 import sharp from "sharp"
 import { MediaImage } from "../../src/cli/cmd/tui/component/media-image"
@@ -154,5 +154,39 @@ describe("MediaImage native branch layout", () => {
     await setup.renderOnce()
 
     expect(/[▀▄█]/.test(setup.captureCharFrame())).toBe(true)
+  })
+
+  test("a late capability answer upgrades the half-block raster to the pixel path", async () => {
+    const url = await whitePngDataUrl(24, 24)
+
+    setup = await testRender(
+      () => (
+        <Providers>
+          <MediaImage url={url} mime="image/png" />
+        </Providers>
+      ),
+      { width: 40, height: 20 },
+    )
+
+    // The terminal stays silent through the whole probe window — the raster is what it gets.
+    reportNoGraphics(setup.renderer)
+    await new Promise((resolve) => setTimeout(resolve, 1400))
+    await setup.renderOnce()
+    expect(findImages(setup.renderer.root).length).toBe(0)
+
+    // ...and only then admits it can paint pixels. Before the fix the mode was read once at
+    // mount, so this answer was lost and the image stayed blurry for the element's whole life.
+    reportSixelTerminal(setup.renderer, {})
+    const lateAnswer = setup.renderer as unknown as { emit: (event: unknown, payload: unknown) => void }
+    lateAnswer.emit(CliRenderEvents.CAPABILITIES, (setup.renderer as any).capabilities)
+
+    await new Promise((resolve) => setTimeout(resolve, 800))
+    await setup.renderOnce()
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    await setup.renderOnce()
+
+    const images = findImages(setup.renderer.root)
+    expect(images.length).toBe(1)
+    expect(images[0]!.image).not.toBeNull()
   })
 })

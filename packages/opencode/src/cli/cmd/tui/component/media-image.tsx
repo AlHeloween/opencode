@@ -13,7 +13,7 @@
  *   - Mouse wheel = zoom, drag = pan, middle-click = reset
  */
 import { createSignal, Switch, Match, onMount, createEffect, onCleanup, Show } from "solid-js"
-import { StyledText, SyntaxStyle, type ImageRenderable, type MouseEvent } from "@opentui/core"
+import { CliRenderEvents, StyledText, SyntaxStyle, type ImageRenderable, type MouseEvent } from "@opentui/core"
 import { useRenderer } from "@opentui/solid"
 import { useTheme } from "@tui/context/theme"
 import { Spinner } from "./spinner"
@@ -162,10 +162,15 @@ export function cellPixelSize(renderer: CapsRenderer, mode?: GraphicsLayoutMode)
 }
 
 /**
- * A terminal cell grid cannot show more than this on either side, however wide the window is:
- * past it the pixels are decoded for nothing. Owner ruling (Alexander, 2026-09-20): «Для
- * рендера картинок - 512x512 более чем достаточно» — enough for every cell grid we draw into,
- * and a bound instead of "whatever the window happens to be".
+ * Per-side ceiling on a decoded frame: anything larger is scaled down to it.
+ *
+ * Not a target size — a smaller image is never enlarged (`allowUpscale: false` in
+ * nativeImagePixelSize). Owner ruling, restated 2026-09-21: «512 это сторона если вылазит за
+ * границу, а если нет то не надо … скейлить если больше чем 512 иначе мы получим громоздкие
+ * вставки что совсем не гуд». So a fitting image stays untouched, and an oversized one becomes a
+ * 512 px stamp instead of a wall of pixels. (The blur reported earlier the same day came from the
+ * half-block raster — a media element mounted before the terminal answered and locked itself to
+ * the symbols path; that is fixed in the capabilities listener, not here.)
  */
 export const NATIVE_IMAGE_MAX_PIXELS = 512
 
@@ -328,6 +333,8 @@ export function MediaImage(props: {
   let lastDragY = 0
   let dragging = false
   let nativeImageMounted = false
+  /** Monotonic attempt id — only the newest pipeline run may publish state. */
+  let runToken = 0
 
   const resolveDataUrl = async () => props.url ?? (props.fallbackDataUrl ? await props.fallbackDataUrl() : null)
 
@@ -370,14 +377,12 @@ export function MediaImage(props: {
     setHint(`zoom ${z.toFixed(1)}× · drag pan · middle-click reset`)
   }
 
-  onMount(async () => {
-    if (!props.url && !props.renderNative && !props.fallbackDataUrl) {
-      setState("error")
-      return
-    }
-
-    await waitForCapabilities(renderer as CapsRenderer, CAPS_WAIT_MS)
-    if (cancelled) return
+  /** One attempt at the whole pipeline: pixel path first, half-block raster second. */
+  async function pipeline() {
+    const token = ++runToken
+    // `alive()` replaces the bare `cancelled` checks: a late capability answer starts a SECOND
+    // attempt while the first may still be decoding, and only the newest one may write state.
+    const alive = () => !cancelled && token === runToken
 
     const detectedMode = graphicsLayoutMode(renderer as CapsRenderer)
     mode = nativeGraphicsLayoutMode(renderer as CapsRenderer)
@@ -406,7 +411,7 @@ export function MediaImage(props: {
               cellHeight: Math.max(1, Math.round(cells.cellHeight)),
             })
           : null
-        if (cancelled) return
+        if (!alive()) return
         if (nativeFrame) {
           sourceFrame = nativeFrame
           fitFrame = nativeFrame
@@ -438,7 +443,7 @@ export function MediaImage(props: {
             ...(props.layout === "diagram" ? { cropSolidBorder: true } : {}),
           },
         )
-        if (cancelled) return
+        if (!alive()) return
         if (decoded) {
           sourceFrame = decoded.source
           fitFrame = decoded.display
@@ -490,7 +495,7 @@ export function MediaImage(props: {
       const dataUrl = await resolveDataUrl()
       if (!dataUrl) throw new Error("image source unavailable")
       const tmp = await decodeAndSymbols(dataUrl, bounds.maxCols)
-      if (cancelled) return
+      if (!alive()) return
       if (tmp) {
         if (props.layout === "diagram") {
           log.warn("bug: mermaid image fell back to ANSI symbols", { mode, detectedMode, bounds })
@@ -510,11 +515,35 @@ export function MediaImage(props: {
       }
     }
 
-    if (!cancelled) {
+    if (alive()) {
       traceDiagram("mermaid image unavailable", { mode, detectedMode, bounds })
       setState("error")
     }
+  }
+
+  onMount(async () => {
+    if (!props.url && !props.renderNative && !props.fallbackDataUrl) {
+      setState("error")
+      return
+    }
+    await waitForCapabilities(renderer as CapsRenderer, CAPS_WAIT_MS)
+    if (cancelled) return
+    await pipeline()
   })
+
+  // A terminal may answer its capability queries AFTER the short probe window closes, and that
+  // answer used to be lost: `mode` was read once at mount, so the media stayed on the half-block
+  // raster for the rest of its life (owner, 2026-09-21: «размазаное, нечеткое» — a pasted
+  // screenshot that had every right to real pixels). Re-attempt the pipeline when it arrives.
+  const onCapabilities = () => {
+    if (cancelled || state() === "native") return
+    if (nativeGraphicsLayoutMode(renderer as CapsRenderer) === "none") return
+    void pipeline()
+  }
+  ;(renderer as unknown as { on: (event: unknown, handler: () => void) => void }).on(
+    CliRenderEvents.CAPABILITIES,
+    onCapabilities,
+  )
 
   createEffect(() => {
     const f = frame()
@@ -524,6 +553,10 @@ export function MediaImage(props: {
 
   onCleanup(() => {
     cancelled = true
+    ;(renderer as unknown as { off?: (event: unknown, handler: () => void) => void }).off?.(
+      CliRenderEvents.CAPABILITIES,
+      onCapabilities,
+    )
     imageRef = undefined
     sourceFrame = null
     fitFrame = null

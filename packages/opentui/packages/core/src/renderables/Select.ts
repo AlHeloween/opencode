@@ -64,7 +64,7 @@ export enum SelectRenderableEvents {
 }
 
 export class SelectRenderable extends Renderable {
-  protected override _focusable: boolean = true
+  protected _focusable: boolean = true
 
   private _options: SelectOption[] = []
   private _selectedIndex: number = 0
@@ -160,7 +160,7 @@ export class SelectRenderable extends Renderable {
     this.requestRender() // Initial render needed
   }
 
-  protected override renderSelf(buffer: OptimizedBuffer, deltaTime: number): void {
+  protected renderSelf(buffer: OptimizedBuffer, deltaTime: number): void {
     if (!this.visible || !this.frameBuffer) return
 
     if (this.isDirty) {
@@ -329,13 +329,13 @@ export class SelectRenderable extends Renderable {
     }
   }
 
-  protected override onResize(width: number, height: number): void {
+  protected onResize(width: number, height: number): void {
     this.maxVisibleItems = Math.max(1, Math.floor(height / this.linesPerItem))
     this.updateScrollOffset()
     this.requestRender()
   }
 
-  public override handleKeyPress(key: KeyEvent): boolean {
+  public handleKeyPress(key: KeyEvent): boolean {
     const action = getKeyBindingAction(this._keyBindingsMap, key)
 
     if (action) {

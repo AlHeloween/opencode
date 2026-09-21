@@ -870,8 +870,6 @@ describe("StdinParser", () => {
       ["focus out", "\x1b[O", [resp("csi", "\x1b[O")]],
       // DA (Device Attributes)
       ["DA1", "\x1b[?62;1;2;6;7;8;9;15;22c", [resp("csi", "\x1b[?62;1;2;6;7;8;9;15;22c")]],
-      // XTSMGRAPHICS Sixel geometry response
-      ["Sixel geometry", "\x1b[?2;0;1500;800S", [resp("csi", "\x1b[?2;0;1500;800S")]],
       // CPR (Cursor Position Report)
       ["CPR", "\x1b[24;80R", [resp("cpr", "\x1b[24;80R")]],
       // Window/cell size
@@ -1256,18 +1254,158 @@ describe("StdinParser", () => {
     })
 
     test("partial pixel resolution response stays pending after timeout while query is active", () => {
-      const { parser, clock } = createTimedParser({
-        protocolContext: { pixelResolutionQueryActive: true },
-      })
+      const response = Buffer.from("\x1b[4;1080;1920t")
+      const secondSemicolon = response.indexOf(";", 4)
 
+      for (let split = secondSemicolon + 1; split < response.length; split++) {
+        const { parser, clock } = createTimedParser({
+          protocolContext: { pixelResolutionQueryActive: true },
+        })
+
+        try {
+          parser.push(response.subarray(0, split))
+          expect(snap(parser)).toEqual([])
+          clock.advance(10)
+          expect(snap(parser)).toEqual([])
+
+          parser.push(response.subarray(split))
+          expect(snap(parser)).toEqual([resp("csi", "\x1b[4;1080;1920t")])
+        } finally {
+          parser.destroy()
+        }
+      }
+    })
+
+    test("recognizes every partial pixel resolution response prefix", () => {
+      const response = Buffer.from("\x1b[4;1080;1920t")
+
+      for (let split = 1; split < response.length; split++) {
+        const parser = createParser({ protocolContext: { pixelResolutionQueryActive: true } })
+        try {
+          parser.push(response.subarray(0, split))
+          expect(parser.hasPendingPixelResolutionResponse()).toBe(true)
+        } finally {
+          parser.destroy()
+        }
+      }
+    })
+
+    test("does not mistake unrelated pending input for a pixel resolution response", () => {
+      for (const input of ["a", "\x1b[A", "\x1b[3;1080;", "\x1b[4;1080:", "\x1b[4;;", "\x1b[4;1:2;3"]) {
+        const parser = createParser({ protocolContext: { pixelResolutionQueryActive: true } })
+        try {
+          parser.push(Buffer.from(input))
+          expect(parser.hasPendingPixelResolutionResponse()).toBe(false)
+        } finally {
+          parser.destroy()
+        }
+      }
+    })
+
+    test("partial pixel resolution response flushes after timeout when no query is active", () => {
+      const { parser, clock } = createTimedParser()
       try {
-        parser.push(Buffer.from("\x1b[4;1080;192"))
+        parser.push(Buffer.from("\x1b[4;1080"))
         expect(snap(parser)).toEqual([])
+        clock.advance(10)
+        expect(snap(parser)).toEqual([resp("unknown", "\x1b[4;1080")])
+      } finally {
+        parser.destroy()
+      }
+    })
+
+    test("separates a suspended lone escape from a later pixel resolution response", () => {
+      const parser = createParser({ protocolContext: { pixelResolutionQueryActive: true } })
+      try {
+        parser.push(Buffer.from("\x1b"))
+        parser.pausePendingTimeout()
+        parser.resumePendingTimeout()
+        parser.push(Buffer.from("\x1b[4;1080;1920t"))
+        expect(snap(parser)).toEqual([resp("csi", "\x1b[4;1080;1920t")])
+      } finally {
+        parser.destroy()
+      }
+    })
+
+    test("separates every suspended pixel response prefix from later input", () => {
+      const response = Buffer.from("\x1b[4;1080;1920t")
+
+      for (let split = 1; split < response.length; split++) {
+        const parser = createParser({ protocolContext: { pixelResolutionQueryActive: true } })
+        try {
+          parser.push(response.subarray(0, split))
+          parser.pausePendingTimeout()
+          parser.resumePendingTimeout()
+          parser.push(Buffer.from("a"))
+          expect(snap(parser)).toEqual([k("a", { raw: "a" })])
+        } finally {
+          parser.destroy()
+        }
+      }
+    })
+
+    test("query cancellation separates a suspended pixel prefix from later input", () => {
+      const parser = createParser({ protocolContext: { pixelResolutionQueryActive: true } })
+      try {
+        parser.push(Buffer.from("\x1b[4;1080"))
+        parser.pausePendingTimeout()
+        parser.resumePendingTimeout()
+        parser.updateProtocolContext({ pixelResolutionQueryActive: false })
+        parser.push(Buffer.from("a"))
+        expect(snap(parser)).toEqual([k("a", { raw: "a" })])
+      } finally {
+        parser.destroy()
+      }
+    })
+
+    test("reset restores a paused pending timeout", () => {
+      const { parser, clock } = createTimedParser()
+      try {
+        parser.push(Buffer.from("\x1b"))
+        parser.pausePendingTimeout()
+        parser.reset()
+        parser.push(Buffer.from("\x1b"))
+        clock.advance(10)
+        expect(snap(parser)).toEqual([k("escape", { raw: "\x1b" })])
+      } finally {
+        parser.destroy()
+      }
+    })
+
+    test("keeps consecutive suspended escapes pending until the pixel response arrives", () => {
+      const { parser, clock } = createTimedParser({ protocolContext: { pixelResolutionQueryActive: true } })
+      try {
+        parser.push(Buffer.from("\x1b"))
+        parser.pausePendingTimeout()
+        parser.resumePendingTimeout()
+        parser.push(Buffer.from("\x1b"))
+        parser.pausePendingTimeout()
+        parser.resumePendingTimeout()
         clock.advance(10)
         expect(snap(parser)).toEqual([])
 
-        parser.push(Buffer.from("0t"))
+        parser.push(Buffer.from("\x1b[4;1080;1920t"))
         expect(snap(parser)).toEqual([resp("csi", "\x1b[4;1080;1920t")])
+      } finally {
+        parser.destroy()
+      }
+    })
+
+    test("pending overflow clears suspended pixel response state", () => {
+      const { parser, clock } = createTimedParser({
+        maxPendingBytes: 8,
+        protocolContext: { pixelResolutionQueryActive: true },
+      })
+      try {
+        parser.push(Buffer.from("\x1b"))
+        parser.pausePendingTimeout()
+        parser.resumePendingTimeout()
+        parser.push(Buffer.from("[4;123456789"))
+        expect(snap(parser)).toEqual([resp("unknown", "\x1b[4;123456789")])
+
+        parser.push(Buffer.from("\x1b"))
+        clock.advance(10)
+        expect(snap(parser)).toEqual([k("escape", { raw: "\x1b" })])
       } finally {
         parser.destroy()
       }
@@ -1304,24 +1442,6 @@ describe("StdinParser", () => {
 
         parser.push(Buffer.from("c"))
         expect(snap(parser)).toEqual([resp("csi", "\x1b[?62;c")])
-      } finally {
-        parser.destroy()
-      }
-    })
-
-    test("partial Sixel geometry reply stays pending after timeout while capability probe is active", () => {
-      const { parser, clock } = createTimedParser({
-        protocolContext: { privateCapabilityRepliesActive: true },
-      })
-
-      try {
-        parser.push(Buffer.from("\x1b[?2;0;1500;"))
-        expect(snap(parser)).toEqual([])
-        clock.advance(10)
-        expect(snap(parser)).toEqual([])
-
-        parser.push(Buffer.from("800S"))
-        expect(snap(parser)).toEqual([resp("csi", "\x1b[?2;0;1500;800S")])
       } finally {
         parser.destroy()
       }

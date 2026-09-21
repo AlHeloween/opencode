@@ -21,6 +21,7 @@ export type OnHighlightCallback = (
 
 export interface ChunkRenderContext extends HighlightContext {
   highlights: SimpleHighlight[]
+  sourceRanges?: Array<{ start: number; end: number }>
 }
 
 export type OnChunksCallback = (
@@ -52,6 +53,9 @@ export class CodeRenderable extends TextBufferRenderable {
   private _treeSitterClient: TreeSitterClient
   private _highlightsDirty: boolean = false
   private _highlightSnapshotId: number = 0
+  private _highlightLoopActive: boolean = false
+  private _highlightPromise?: Promise<void>
+  private _highlightRerun: boolean = false
   private _conceal: boolean
   private _drawUnstyledText: boolean
   private _shouldRenderTextBuffer: boolean = true
@@ -66,13 +70,6 @@ export class CodeRenderable extends TextBufferRenderable {
   // Temporary rendered-line -> source-line map for concealment; native extmarks should replace this.
   private _renderedLineSources?: number[]
   private _mappedLineInfo?: LineInfo
-  // Debounce highlighting during streaming to avoid tree-sitter re-parse on every token.
-  // Trailing timer ensures a final highlight runs after content settles (and when
-  // streaming ends) — a bare "return while dirty" left text unstyled forever.
-  private _lastContentChangeAt: number = 0
-  private _highlightDebounceTimer: ReturnType<typeof setTimeout> | undefined
-  /** Public for tests. Quiet period before a streaming re-highlight. */
-  static readonly HIGHLIGHT_DEBOUNCE_MS = 150
 
   protected _contentDefaultOptions = {
     content: "",
@@ -113,83 +110,38 @@ export class CodeRenderable extends TextBufferRenderable {
     return this._content
   }
 
+  private invalidateHighlights(): void {
+    this._highlightsDirty = true
+    this._highlightSnapshotId++
+  }
+
   set content(value: string) {
     if (this._content !== value) {
       this._content = value
-      this._highlightsDirty = true
-      this._highlightSnapshotId++
-      this._lastContentChangeAt = performance.now()
+      this.invalidateHighlights()
 
-      // Always keep the text buffer in sync with content.
-      //
-      // Prior behavior skipped the buffer update when streaming +
-      // drawUnstyledText=false, waiting for tree-sitter before paint. Combined
-      // with HIGHLIGHT_DEBOUNCE_MS, continuous token streams never went quiet
-      // long enough to highlight — the UI reserved height (lineCount from an
-      // empty/stale paint path) and showed black empty lines until the answer
-      // finished. Progressive unstyled text is correct; styling still follows
-      // on the debounced trailing highlight.
-      if (this._initialStyledText && this._drawUnstyledText) {
+      if (this._streaming && this._filetype && !this._drawUnstyledText) {
+        this.requestRender()
+        return
+      }
+
+      if (value && this._initialStyledText && this._drawUnstyledText) {
         this.textBuffer.setStyledText(this._initialStyledText)
       } else {
         this.textBuffer.setText(value)
       }
       this.setRenderedLineSources(undefined)
       this.updateTextInfo()
-      if (this._streaming || this._drawUnstyledText || !this._filetype) {
-        this._shouldRenderTextBuffer = true
-      }
-      this.requestRender()
     }
   }
 
-  /**
-   * Style-by-source-offset from the application's styled text, or undefined.
-   *
-   * Colour AND attributes: markdown's own emphasis is carried in the
-   * attributes, so a lookup that returned only colour dropped every bold and
-   * italic the markdown renderer had produced.
-   *
-   * The application styles the SAME text tree-sitter is about to highlight, so
-   * its chunks tile the source in order and their lengths give the offsets.
-   * That only holds if the two really describe the same string: if the styled
-   * text has drifted from `content` (a stale paint mid-stream, a caller that
-   * styled something else) the offsets would be meaningless and would tint the
-   * wrong words, so the lookup is refused rather than approximated.
-   */
-  private buildAppStyleLookup(content: string):
-    | {
-        boundaries: number[]
-        at: (offset: number) => { fg?: TextChunk["fg"]; bg?: TextChunk["bg"]; attributes?: number } | undefined
-      }
-    | undefined {
-    const styled = this._initialStyledText
-    if (!styled) return undefined
-
-    const starts: number[] = []
-    const styles: Array<{ fg?: TextChunk["fg"]; bg?: TextChunk["bg"]; attributes?: number }> = []
-    let offset = 0
-    for (const chunk of styled.chunks) {
-      starts.push(offset)
-      styles.push({ fg: chunk.fg, bg: chunk.bg, attributes: chunk.attributes })
-      offset += chunk.text.length
-    }
-    if (offset !== content.length) return undefined
-    if (styles.every((style) => style.fg === undefined && style.bg === undefined && !style.attributes))
-      return undefined
-
-    return {
-      boundaries: starts,
-      at: (sourceOffset: number) => {
-        // Chunk counts here are small (the application styles by span, not by
-        // token), so a linear scan is cheaper than the binary search it would
-        // take to beat it.
-        for (let i = starts.length - 1; i >= 0; i -= 1) {
-          if (sourceOffset >= starts[i]!) return styles[i]
-        }
-        return undefined
-      },
-    }
+  public updateStreamingPreview(content: string, initialStyledText: StyledText): void {
+    this._content = content
+    this._initialStyledText = initialStyledText
+    this.invalidateHighlights()
+    this.textBuffer.setStyledText(initialStyledText)
+    this.setRenderedLineSources(undefined)
+    this.updateTextInfo()
   }
 
   public override get lineInfo(): LineInfo {
@@ -205,6 +157,15 @@ export class CodeRenderable extends TextBufferRenderable {
       lineSources: lineInfo.lineSources.map((line) => renderedLineSources[line] ?? line),
     }
     return this._mappedLineInfo
+  }
+
+  public override getLineSources(startLine: number, lineCount: number): number[] {
+    if (this.needsLineInfoFallback(CodeRenderable.prototype)) {
+      return this.lineInfo.lineSources.slice(startLine, startLine + lineCount)
+    }
+    const sources = this.textBufferView.getLineSources(startLine, lineCount)
+    const renderedLineSources = this._renderedLineSources
+    return renderedLineSources ? sources.map((line) => renderedLineSources[line] ?? line) : sources
   }
 
   public override get wrapMode(): "none" | "char" | "word" {
@@ -235,7 +196,7 @@ export class CodeRenderable extends TextBufferRenderable {
   set filetype(value: string | undefined) {
     if (this._filetype !== value) {
       this._filetype = value
-      this._highlightsDirty = true
+      this.invalidateHighlights()
     }
   }
 
@@ -246,7 +207,7 @@ export class CodeRenderable extends TextBufferRenderable {
   set syntaxStyle(value: SyntaxStyle) {
     if (this._syntaxStyle !== value) {
       this._syntaxStyle = value
-      this._highlightsDirty = true
+      this.invalidateHighlights()
     }
   }
 
@@ -257,7 +218,7 @@ export class CodeRenderable extends TextBufferRenderable {
   set conceal(value: boolean) {
     if (this._conceal !== value) {
       this._conceal = value
-      this._highlightsDirty = true
+      this.invalidateHighlights()
     }
   }
 
@@ -268,7 +229,7 @@ export class CodeRenderable extends TextBufferRenderable {
   set drawUnstyledText(value: boolean) {
     if (this._drawUnstyledText !== value) {
       this._drawUnstyledText = value
-      this._highlightsDirty = true
+      this.invalidateHighlights()
     }
   }
 
@@ -278,8 +239,13 @@ export class CodeRenderable extends TextBufferRenderable {
 
   set initialStyledText(value: StyledText | undefined) {
     if (this._initialStyledText !== value) {
+      if (value && this._streaming && this._drawUnstyledText && this._isHighlighting) {
+        this.updateStreamingPreview(this._content, value)
+        return
+      }
+
       this._initialStyledText = value
-      this._highlightsDirty = true
+      this.invalidateHighlights()
     }
   }
 
@@ -288,33 +254,8 @@ export class CodeRenderable extends TextBufferRenderable {
       this._streaming = value
       this._hadInitialContent = false
       this._lastHighlights = []
-      this._highlightsDirty = true
-      // Streaming finished: cancel quiet-period wait and highlight immediately
-      // on the next render (content is stable; further tokens will not arrive).
-      if (!value) this.clearHighlightDebounce()
+      this.invalidateHighlights()
     }
-  }
-
-  private clearHighlightDebounce() {
-    if (this._highlightDebounceTimer === undefined) return
-    clearTimeout(this._highlightDebounceTimer)
-    this._highlightDebounceTimer = undefined
-  }
-
-  /** After quiet period, force a render so dirty highlights flush. */
-  private scheduleHighlightDebounce() {
-    this.clearHighlightDebounce()
-    this._highlightDebounceTimer = setTimeout(() => {
-      this._highlightDebounceTimer = undefined
-      if (this.isDestroyed) return
-      this._highlightsDirty = true
-      this.requestRender()
-    }, CodeRenderable.HIGHLIGHT_DEBOUNCE_MS)
-  }
-
-  override destroy(): void {
-    this.clearHighlightDebounce()
-    super.destroy()
   }
 
   get treeSitterClient(): TreeSitterClient {
@@ -324,7 +265,7 @@ export class CodeRenderable extends TextBufferRenderable {
   set treeSitterClient(value: TreeSitterClient) {
     if (this._treeSitterClient !== value) {
       this._treeSitterClient = value
-      this._highlightsDirty = true
+      this.invalidateHighlights()
     }
   }
 
@@ -339,14 +280,14 @@ export class CodeRenderable extends TextBufferRenderable {
   set baseHighlight(value: string | undefined) {
     if (this._baseHighlight !== value) {
       this._baseHighlight = value
-      this._highlightsDirty = true
+      this.invalidateHighlights()
     }
   }
 
   set onHighlight(value: OnHighlightCallback | undefined) {
     if (this._onHighlight !== value) {
       this._onHighlight = value
-      this._highlightsDirty = true
+      this.invalidateHighlights()
     }
   }
 
@@ -357,12 +298,12 @@ export class CodeRenderable extends TextBufferRenderable {
   set onChunks(value: OnChunksCallback | undefined) {
     if (this._onChunks !== value) {
       this._onChunks = value
-      this._highlightsDirty = true
+      this.invalidateHighlights()
     }
   }
 
   get isHighlighting(): boolean {
-    return this._isHighlighting
+    return this._isHighlighting || this._highlightRerun
   }
 
   get highlightingDone(): Promise<void> {
@@ -386,21 +327,12 @@ export class CodeRenderable extends TextBufferRenderable {
       return
     }
 
-    // Streaming: always paint progressive text while tree-sitter is debounced
-    // or in-flight. Non-streaming + drawUnstyledText=false can still wait for
-    // the first highlight (static blocks that prefer no unstyled flash).
-    if (this._streaming) {
-      if (this._initialStyledText && this._drawUnstyledText) {
-        this.textBuffer.setStyledText(this._initialStyledText)
-      } else if (this.textBuffer.getPlainText() !== content) {
-        this.textBuffer.setText(content)
-        this.setRenderedLineSources(undefined)
-      }
-      this._shouldRenderTextBuffer = true
-      return
-    }
+    const isInitialContent = this._streaming && !this._hadInitialContent
+    const shouldDrawUnstyledNow = this._streaming ? isInitialContent && this._drawUnstyledText : this._drawUnstyledText
 
-    if (this._drawUnstyledText) {
+    if (this._streaming && !isInitialContent) {
+      this._shouldRenderTextBuffer = true
+    } else if (shouldDrawUnstyledNow) {
       if (this._initialStyledText) {
         this.textBuffer.setStyledText(this._initialStyledText)
       } else {
@@ -408,10 +340,9 @@ export class CodeRenderable extends TextBufferRenderable {
       }
       this.setRenderedLineSources(undefined)
       this._shouldRenderTextBuffer = true
-      return
+    } else {
+      this._shouldRenderTextBuffer = false
     }
-
-    this._shouldRenderTextBuffer = false
   }
 
   private async startHighlight(): Promise<void> {
@@ -466,19 +397,19 @@ export class CodeRenderable extends TextBufferRenderable {
       }
 
       if (highlights.length > 0 || this._onChunks || this._baseHighlight) {
+        const sourceRanges: Array<{ start: number; end: number }> | undefined = this._onChunks ? [] : undefined
         const context: ChunkRenderContext = {
           content,
           filetype,
           syntaxStyle: this._syntaxStyle,
           highlights,
+          sourceRanges,
         }
 
-        const appStyle = this.buildAppStyleLookup(content)
         let chunks = treeSitterToTextChunks(content, highlights, this._syntaxStyle, {
           enabled: this._conceal,
           baseHighlight: this._baseHighlight,
-          appStyleAt: appStyle?.at,
-          appBoundaries: appStyle?.boundaries,
+          ranges: sourceRanges,
         })
         // onChunks may rewrite text arbitrarily, so the conceal-only source map would be invalid.
         const renderedLineSources = this._onChunks ? undefined : this.getConcealLinesSourceMap(content, highlights)
@@ -492,38 +423,12 @@ export class CodeRenderable extends TextBufferRenderable {
 
         if (this.isDestroyed) return
 
-        // ONE styled text is painted, always — two sources competing at paint
-        // time is how you get flicker. But "one wins" is not the same as "one
-        // is discarded", and conflating those cost this renderer two
-        // regressions in a row (2026-09-18): keeping the application's text
-        // lost heading and emphasis conceal, keeping tree-sitter's lost every
-        // colour the application had applied, including muted reasoning.
-        //
-        // They were never in conflict. Tree-sitter owns the text, the conceal
-        // and the attributes, and owns colour wherever the grammar has an
-        // opinion; the application owns colour where it does not. That split is
-        // applied inside `treeSitterToTextChunks` via `appFgAt`, so the result
-        // below is a single styled text that already carries both — there is no
-        // branch left in which either side can overwrite the other.
-        //
-        // `ansi` is the one genuine exception: its chunks are pre-rendered
-        // image-to-ansi output with no tree-sitter source to regenerate from,
-        // so regenerating would not merge anything, it would fabricate.
-        if (!(this._initialStyledText && filetype === "ansi")) {
-          const styledText = new StyledText(chunks)
-          this.textBuffer.setStyledText(styledText)
-        }
+        const styledText = new StyledText(chunks)
+        this.textBuffer.setStyledText(styledText)
         this.setRenderedLineSources(renderedLineSources)
       } else {
-        // Preserve initialStyledText when tree-sitter returns zero highlights.
-        // "ansi" and "markdown" with initialStyledText use pre-rendered chunks
-        // (image-to-ansi, quadrant rendering, rich inline formatting).
-        if (this._initialStyledText && (filetype === "markdown" || filetype === "ansi")) {
-          // Keep existing styled text — don't overwrite with plain text
-        } else {
-          this.textBuffer.setText(content)
-          this.setRenderedLineSources(undefined)
-        }
+        this.textBuffer.setText(content)
+        this.setRenderedLineSources(undefined)
       }
 
       this._shouldRenderTextBuffer = true
@@ -547,6 +452,25 @@ export class CodeRenderable extends TextBufferRenderable {
       this.updateTextInfo()
       this.requestRender()
     }
+  }
+
+  private async runHighlights(): Promise<void> {
+    try {
+      do {
+        this._highlightRerun = false
+        await this.startHighlight()
+      } while (this._highlightRerun && !this.isDestroyed && this._content.length > 0 && this._filetype)
+    } finally {
+      this._highlightLoopActive = false
+      this._highlightRerun = false
+    }
+  }
+
+  private clearPendingHighlight(): void {
+    this._highlightSnapshotId++
+    this._isHighlighting = false
+    this._highlightRerun = false
+    this._highlightingPromise = Promise.resolve()
   }
 
   private setRenderedLineSources(lineSources: number[] | undefined): void {
@@ -661,42 +585,59 @@ export class CodeRenderable extends TextBufferRenderable {
     return this.textBuffer.getLineHighlights(lineIdx)
   }
 
-  protected override renderSelf(buffer: OptimizedBuffer): void {
+  protected renderSelf(buffer: OptimizedBuffer): void {
     if (this._highlightsDirty) {
       if (this.isDestroyed) return
 
-      if (this._content.length === 0) {
-        this._shouldRenderTextBuffer = false
+      const hasContent = this._content.length > 0
+      if (!hasContent || !this._filetype) {
+        this._shouldRenderTextBuffer = hasContent
         this._highlightsDirty = false
-      } else if (!this._filetype) {
-        this._shouldRenderTextBuffer = true
-        this._highlightsDirty = false
+        this.clearPendingHighlight()
+
+        if (hasContent) {
+          this.textBuffer.setText(this._content)
+          this.setRenderedLineSources(undefined)
+          this.updateTextInfo()
+        }
       } else {
-        // Always populate the text buffer with unstyled content so the
-        // renderer has something visible even while we debounce highlighting.
         this.ensureVisibleTextBeforeHighlight()
-        // During streaming, debounce tree-sitter re-parse. Schedule a trailing
-        // flush so we still highlight after tokens stop (and when streaming ends).
-        //
-        // IMPORTANT: do NOT return early here. Returning skipped super.renderSelf
-        // and left reserved height with black empty cells until the quiet period
-        // (or stream end) finally started a highlight. Paint unstyled buffer now;
-        // only the tree-sitter work is deferred.
-        if (
-          this._streaming &&
-          performance.now() - this._lastContentChangeAt < CodeRenderable.HIGHLIGHT_DEBOUNCE_MS
-        ) {
-          this._highlightsDirty = true
-          this.scheduleHighlightDebounce()
+        this._highlightsDirty = false
+        if (this._highlightLoopActive) {
+          this._isHighlighting = true
+          this._highlightRerun = true
+          this._highlightingPromise = this._highlightPromise!
         } else {
-          this.clearHighlightDebounce()
-          this._highlightsDirty = false
-          this._highlightingPromise = this.startHighlight()
+          const { promise: highlightingPromise, resolve, reject } = Promise.withResolvers<void>()
+          this._highlightLoopActive = true
+          this._highlightPromise = highlightingPromise
+          this._highlightingPromise = highlightingPromise
+          const clearHighlight = () => {
+            if (this._highlightPromise === highlightingPromise) {
+              this._highlightPromise = undefined
+            }
+          }
+          void this.runHighlights().then(
+            () => {
+              clearHighlight()
+              resolve()
+            },
+            (error) => {
+              clearHighlight()
+              reject(error)
+            },
+          )
         }
       }
     }
 
     if (!this._shouldRenderTextBuffer) return
     super.renderSelf(buffer)
+  }
+
+  public override destroy(): void {
+    if (this.isDestroyed) return
+    this.clearPendingHighlight()
+    super.destroy()
   }
 }

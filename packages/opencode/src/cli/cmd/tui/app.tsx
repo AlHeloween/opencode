@@ -79,14 +79,6 @@ import { detectGraphicsProtocol } from "@/util/terminal-graphics"
 
 function rendererConfig(_config: TuiConfig.Info): CliRendererConfig {
   const mouseEnabled = !Flag.OPENCODE_DISABLE_MOUSE && (_config.mouse ?? true)
-  // Raster is experimental. On SIXEL-only terminals (Windows Terminal) the
-  // native layer refuses full-viewport raster and stays hybrid — env alone is
-  // not enough; Kitty is required for the full-image replace path.
-  const rasterViewport =
-    process.env.OPENTUI_RASTER_VIEWPORT === "1" ||
-    process.env.OPENCODE_RASTER_VIEWPORT === "1" ||
-    process.env.OPENCODE_RASTER_VIEWPORT === "true"
-
   return {
     externalOutputMode: "passthrough",
     targetFps: 30,
@@ -97,7 +89,6 @@ function rendererConfig(_config: TuiConfig.Info): CliRendererConfig {
     autoFocus: false,
     openConsoleOnError: false,
     useMouse: mouseEnabled,
-    rasterViewport,
     consoleOptions: {
       keyBindings: [{ name: "y", ctrl: true, action: "copy-selection" }],
       onCopySelection: (text) => {
@@ -154,11 +145,6 @@ export function tui(input: {
     const cfg = rendererConfig(input.config)
     const renderer = await createCliRenderer(cfg)
     Log.Default.info("TUI renderer mode", {
-      rasterViewportRequested: Boolean(cfg.rasterViewport),
-      rasterEnv:
-        process.env.OPENTUI_RASTER_VIEWPORT ??
-        process.env.OPENCODE_RASTER_VIEWPORT ??
-        "(unset — hybrid ANSI+Sixel)",
       externalOutputMode: cfg.externalOutputMode,
     })
     const graphicsProtocol = detectGraphicsProtocol(input.config.image_protocol)

@@ -1,6 +1,6 @@
 import { EventEmitter } from "events"
 import Yoga, { Direction, Display, Edge, FlexDirection, type Node as YogaNode } from "./yoga.js"
-import { OptimizedBuffer, PixelBuffer } from "./buffer.js"
+import { OptimizedBuffer } from "./buffer.js"
 import type { KeyEvent, PasteEvent } from "./lib/KeyHandler.js"
 import type { MouseEventType } from "./lib/parse.mouse.js"
 import type { Selection } from "./lib/selection.js"
@@ -239,15 +239,6 @@ export abstract class Renderable extends BaseRenderable {
   protected _height: number | "auto" | `${number}%`
   protected _widthValue: number = 0
   protected _heightValue: number = 0
-  // What the LAST LAYOUT PASS computed — not what was declared. The two are
-  // different questions and must not share a field: `_widthValue` is the
-  // draw-time size (the setter refreshes it eagerly so graphics can stamp a
-  // slot before the next layout), while resize detection has to compare
-  // against the previously *laid out* size. Sharing one field made a declared
-  // width its own "old" value, so `sizeChanged` was false for the very resize
-  // that had just been requested and `onResize` never fired.
-  private _laidOutWidth: number = 0
-  private _laidOutHeight: number = 0
   private _zIndex: number
   public selectable: boolean = false
   protected buffered: boolean
@@ -278,7 +269,7 @@ export abstract class Renderable extends BaseRenderable {
   protected _childrenInLayoutOrder: Renderable[] = []
   protected _childrenInZIndexOrder: Renderable[] = []
   private needsZIndexSort: boolean = false
-  public override parent: Renderable | null = null
+  public parent: Renderable | null = null
 
   private childrenPrimarySortDirty: boolean = true
   private childrenSortedByPrimaryAxis: Renderable[] = []
@@ -308,11 +299,9 @@ export abstract class Renderable extends BaseRenderable {
 
     if (typeof this._width === "number") {
       this._widthValue = this._width
-      this._laidOutWidth = this._width
     }
     if (typeof this._height === "number") {
       this._heightValue = this._height
-      this._laidOutHeight = this._height
     }
 
     this._zIndex = options.zIndex ?? 0
@@ -345,7 +334,7 @@ export abstract class Renderable extends BaseRenderable {
     return this._ctx
   }
 
-  public override get visible(): boolean {
+  public get visible(): boolean {
     return this._visible
   }
 
@@ -354,7 +343,7 @@ export abstract class Renderable extends BaseRenderable {
     return dir === 2 || dir === 3 ? "row" : "column"
   }
 
-  public override set visible(value: boolean) {
+  public set visible(value: boolean) {
     if (this._visible === value) return
 
     const wasVisible = this._visible
@@ -635,18 +624,11 @@ export abstract class Renderable extends BaseRenderable {
 
   public set width(value: number | "auto" | `${number}%`) {
     if (!isDimensionType(value) || this._width === value) {
-      // Still refresh the draw-time value when Yoga/numeric size must stay in sync.
-      if (typeof value === "number" && Number.isFinite(value) && this._widthValue !== value) {
-        this._widthValue = value
-      }
       return
     }
 
     this._width = value
     this.yogaNode.setWidth(value)
-    if (typeof value === "number" && Number.isFinite(value)) {
-      this._widthValue = value
-    }
 
     if (typeof value === "number" && this._flexShrink === 1) {
       this._flexShrink = 0
@@ -662,17 +644,11 @@ export abstract class Renderable extends BaseRenderable {
 
   public set height(value: number | "auto" | `${number}%`) {
     if (!isDimensionType(value) || this._height === value) {
-      if (typeof value === "number" && Number.isFinite(value) && this._heightValue !== value) {
-        this._heightValue = value
-      }
       return
     }
 
     this._height = value
     this.yogaNode.setHeight(value)
-    if (typeof value === "number" && Number.isFinite(value)) {
-      this._heightValue = value
-    }
 
     if (typeof value === "number" && this._flexShrink === 1) {
       this._flexShrink = 0
@@ -1121,8 +1097,8 @@ export abstract class Renderable extends BaseRenderable {
 
     const oldX = this._x
     const oldY = this._y
-    const oldWidth = this._laidOutWidth
-    const oldHeight = this._laidOutHeight
+    const oldWidth = this._widthValue
+    const oldHeight = this._heightValue
 
     this._x = layout.left
     this._y = layout.top
@@ -1133,18 +1109,12 @@ export abstract class Renderable extends BaseRenderable {
     this._screenX = parentScreenX + this._x + this._translateX
     this._screenY = parentScreenY + this._y + this._translateY
 
-    // Yoga can report NaN before the first real layout pass. Math.max(NaN, 1) is
-    // NaN and used to poison image slots (single-line / zero-area graphics).
-    const layoutW = layout.width
-    const layoutH = layout.height
-    const newWidth = Number.isFinite(layoutW) ? Math.max(layoutW, 1) : Math.max(oldWidth, 1)
-    const newHeight = Number.isFinite(layoutH) ? Math.max(layoutH, 1) : Math.max(oldHeight, 1)
+    const newWidth = Math.max(layout.width, 1)
+    const newHeight = Math.max(layout.height, 1)
     const sizeChanged = oldWidth !== newWidth || oldHeight !== newHeight
 
     this._widthValue = newWidth
     this._heightValue = newHeight
-    this._laidOutWidth = newWidth
-    this._laidOutHeight = newHeight
 
     if (sizeChanged) {
       this.onLayoutResize(newWidth, newHeight)
@@ -1459,8 +1429,8 @@ export abstract class Renderable extends BaseRenderable {
         y: scissorRect.y,
         width: scissorRect.width,
         height: scissorRect.height,
-        screenX: this._screenX,
-        screenY: this._screenY,
+        screenX: this.buffered ? this._screenX : scissorRect.x,
+        screenY: this.buffered ? this._screenY : scissorRect.y,
       })
     }
     // Most renderables expose all children. Skip building a visible-child list
@@ -1535,11 +1505,6 @@ export abstract class Renderable extends BaseRenderable {
     return this._childrenInZIndexOrder.map((child) => child.num)
   }
 
-  public renderPixels(pixels: PixelBuffer): void {
-    // Default implementation: do nothing
-    // Override this method to provide custom pixel rendering
-  }
-
   public canReuseRenderCommandList(): boolean {
     return (
       this.onUpdate === Renderable.prototype.onUpdate &&
@@ -1576,7 +1541,7 @@ export abstract class Renderable extends BaseRenderable {
     return this._isDestroyed
   }
 
-  public override destroy(): void {
+  public destroy(): void {
     if (this._isDestroyed) {
       return
     }
@@ -1614,7 +1579,7 @@ export abstract class Renderable extends BaseRenderable {
     }
   }
 
-  public override destroyRecursively(): void {
+  public destroyRecursively(): void {
     // Destroy children first to ensure removal as destroy clears child array
     // Make a copy of the children array to avoid iteration issues when children are destroyed
     const children = [...this._childrenInLayoutOrder]
@@ -1630,6 +1595,7 @@ export abstract class Renderable extends BaseRenderable {
   }
 
   public processMouseEvent(event: MouseEvent): void {
+    ;(event as { currentTarget: Renderable | null }).currentTarget = this
     this._mouseListener?.call(this, event)
     this._mouseListeners[event.type]?.call(this, event)
     this.onMouseEvent(event)
@@ -1774,6 +1740,7 @@ export type RenderCommand =
 
 export class RootRenderable extends Renderable {
   private renderList: RenderCommand[] = []
+  private _currentRenderable: Renderable | undefined
   private appliedLayoutGeneration: number = -1
   private appliedRenderListRevision: number = -1
   private renderListReusable: boolean = false
@@ -1800,7 +1767,18 @@ export class RootRenderable extends Renderable {
     this.calculateLayout()
   }
 
-  public override render(buffer: OptimizedBuffer, deltaTime: number): void {
+  public get currentRenderable(): Renderable | undefined {
+    return this._currentRenderable
+  }
+
+  public takeCurrentRenderable(): Renderable | undefined {
+    const renderable = this._currentRenderable
+    this._currentRenderable = undefined
+    return renderable
+  }
+
+  public render(buffer: OptimizedBuffer, deltaTime: number): void {
+    this._currentRenderable = undefined
     if (!this.visible) return
 
     // 0. Run lifecycle pass
@@ -1848,7 +1826,9 @@ export class RootRenderable extends Renderable {
         case "render":
           // Skip if renderable was destroyed during a previous render callback
           if (!command.renderable.isDestroyed) {
+            this._currentRenderable = command.renderable
             command.renderable.render(buffer, deltaTime)
+            this._currentRenderable = undefined
           }
           break
         case "pushScissorRect":
@@ -1869,20 +1849,7 @@ export class RootRenderable extends Renderable {
     }
   }
 
-  public override renderPixels(pixels: PixelBuffer): void {
-    for (let i = 1; i < this.renderList.length; i++) {
-      const command = this.renderList[i]
-      switch (command.action) {
-        case "render":
-          if (!command.renderable.isDestroyed) {
-            command.renderable.renderPixels(pixels)
-          }
-          break
-      }
-    }
-  }
-
-  protected override propagateLiveCount(delta: number): void {
+  protected propagateLiveCount(delta: number): void {
     const oldCount = this._liveCount
     this._liveCount += delta
 

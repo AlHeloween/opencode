@@ -337,7 +337,7 @@ export class TextTableRenderable extends Renderable {
     this.invalidateRasterOnly()
   }
 
-  public override shouldStartSelection(x: number, y: number): boolean {
+  public shouldStartSelection(x: number, y: number): boolean {
     if (!this.selectable) return false
 
     this.ensureLayoutReady()
@@ -347,7 +347,7 @@ export class TextTableRenderable extends Renderable {
     return this.getCellAtLocalPosition(localX, localY) !== null
   }
 
-  public override onSelectionChanged(selection: Selection | null): boolean {
+  public onSelectionChanged(selection: Selection | null): boolean {
     this.ensureLayoutReady()
 
     const previousLocalSelection = this._lastLocalSelection
@@ -369,7 +369,7 @@ export class TextTableRenderable extends Renderable {
     return this.hasSelection()
   }
 
-  public override hasSelection(): boolean {
+  public hasSelection(): boolean {
     for (const row of this._cells) {
       for (const cell of row) {
         if (cell.textBufferView.hasSelection()) {
@@ -394,7 +394,7 @@ export class TextTableRenderable extends Renderable {
     return null
   }
 
-  public override getSelectedText(): string {
+  public getSelectedText(): string {
     const selectedRows: string[] = []
 
     for (let rowIdx = 0; rowIdx < this._rowCount; rowIdx++) {
@@ -418,12 +418,12 @@ export class TextTableRenderable extends Renderable {
     return selectedRows.join("\n")
   }
 
-  protected override onResize(width: number, height: number): void {
+  protected onResize(width: number, height: number): void {
     this.invalidateLayoutAndRaster(false)
     super.onResize(width, height)
   }
 
-  protected override renderSelf(buffer: OptimizedBuffer): void {
+  protected renderSelf(buffer: OptimizedBuffer): void {
     if (!this.visible || this.isDestroyed) return
 
     if (this._layoutDirty) {
@@ -445,7 +445,7 @@ export class TextTableRenderable extends Renderable {
     this._rasterDirty = false
   }
 
-  protected override destroySelf(): void {
+  protected destroySelf(): void {
     this.destroyCells()
     super.destroySelf()
   }

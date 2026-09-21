@@ -1,5 +1,5 @@
 import { Renderable, type RenderableOptions } from "../Renderable.js"
-import { type RenderContext } from "../types.js"
+import { type RenderContext, type TerminalCapabilities } from "../types.js"
 import { SyntaxStyle, type StyleDefinition } from "../syntax-style.js"
 import type { TextChunk } from "../text-buffer.js"
 import { createTextAttributes } from "../utils.js"
@@ -108,10 +108,6 @@ export interface MarkdownOptions extends RenderableOptions<MarkdownRenderable> {
    * - Set this to false once streaming is complete to finalize trailing token parsing.
    */
   streaming?: boolean
-  /**
-   * Wrap mode for fenced code blocks. Defaults to "none" — code must not reflow.
-   */
-  codeWrapMode?: "none" | "char" | "word"
   /**
    * Options for internally rendered markdown tables.
    */
@@ -271,6 +267,10 @@ interface ListItemRenderInput {
 }
 
 export class MarkdownRenderable extends Renderable {
+  private static _capabilitySubscriptions = new WeakMap<
+    RenderContext,
+    { renderables: Set<MarkdownRenderable>; listener: (capabilities: TerminalCapabilities) => void }
+  >()
   private _content: string = ""
   private _syntaxStyle: SyntaxStyle
   private _fg?: RGBA
@@ -279,7 +279,6 @@ export class MarkdownRenderable extends Renderable {
   private _concealCode: boolean
   private _treeSitterClient?: TreeSitterClient
   private _tableOptions?: MarkdownTableOptions
-  private _codeWrapMode: "none" | "char" | "word"
   private _renderNode?: MarkdownOptions["renderNode"]
   private _internalBlockMode: "coalesced" | "top-level"
 
@@ -288,21 +287,67 @@ export class MarkdownRenderable extends Renderable {
   _blockStates: BlockState[] = []
   _stableBlockCount = 0
   private _styleDirty: boolean = false
-  private _linkifyMarkdownChunks: OnChunksCallback = (chunks, context) =>
-    detectLinks(chunks, {
-      content: context.content,
-      highlights: context.highlights,
-    })
-  /**
-   * Conceals a link destination once tree-sitter has highlighted it.
-   *
-   * Without this pass the raw `](url)` stays visible while `detectLinks` also
-   * renders the URL it found, so an unterminated link showed the markup AND a
-   * duplicated address. Ported from opentui 0.5.11, which asserts the same
-   * expected output our tests do.
-   */
   private _highlightMarkdownLinks: OnHighlightCallback = (highlights, context) =>
     this.addMarkdownLinkHighlights(highlights, context.content)
+  private _linkifyMarkdownChunks: OnChunksCallback = detectLinks
+  private _ownedStructuredRenderables = new WeakSet<Renderable>()
+
+  private handleCapabilities(): void {
+    if (!this._renderNode && !this._content.includes("]")) return
+
+    const previousHighlight = this._highlightMarkdownLinks
+    this._highlightMarkdownLinks = (highlights, context) => this.addMarkdownLinkHighlights(highlights, context.content)
+
+    for (const state of this._blockStates) {
+      const renderables: Array<[Renderable, MarkedToken?]> = [[state.renderable, state.token]]
+      while (renderables.length > 0) {
+        const [renderable, token] = renderables.pop()!
+        if (
+          renderable instanceof TextTableRenderable &&
+          token?.type === "table" &&
+          this._ownedStructuredRenderables.has(renderable)
+        ) {
+          const { cache } = this.buildTableContentCache(
+            token as Tokens.Table,
+            renderable === state.renderable ? state.tableContentCache : undefined,
+            true,
+          )
+          if (cache) {
+            renderable.content = cache.content
+            if (renderable === state.renderable) state.tableContentCache = cache
+          }
+          continue
+        }
+
+        if (
+          renderable instanceof CodeRenderable &&
+          renderable.filetype === "markdown" &&
+          renderable.onChunks === this._linkifyMarkdownChunks &&
+          renderable.onHighlight === previousHighlight
+        ) {
+          if (this._streaming && token) renderable.initialStyledText = this.createInitialStyledText(token)
+          renderable.onHighlight = this._highlightMarkdownLinks
+        }
+
+        if (token?.type === "list" && this._ownedStructuredRenderables.has(renderable)) {
+          const items = (token as Tokens.List).items
+          const rows = renderable.getChildren()
+          for (let index = 0; index < items.length; index++) {
+            const children = rows[index]?.getChildren()[1]?.getChildren() ?? []
+            const tokens = this.getRenderableListItemTokens(items[index]!)
+            for (let childIndex = 0; childIndex < children.length; childIndex++) {
+              renderables.push([children[childIndex]!, tokens[childIndex]])
+            }
+          }
+          continue
+        }
+
+        for (const child of renderable.getChildren()) renderables.push([child, token])
+      }
+    }
+
+    this.requestRender()
+  }
 
   protected _contentDefaultOptions = {
     content: "",
@@ -327,12 +372,28 @@ export class MarkdownRenderable extends Renderable {
     this._content = options.content ?? this._contentDefaultOptions.content
     this._treeSitterClient = options.treeSitterClient
     this._tableOptions = options.tableOptions
-    this._codeWrapMode = options.codeWrapMode ?? "none"
     this._renderNode = options.renderNode
     this._streaming = options.streaming ?? this._contentDefaultOptions.streaming
     this._internalBlockMode = options.internalBlockMode ?? this._contentDefaultOptions.internalBlockMode
 
     this.updateBlocks()
+
+    let subscription = MarkdownRenderable._capabilitySubscriptions.get(ctx)
+    if (!subscription) {
+      const renderables = new Set<MarkdownRenderable>()
+      let hyperlinksSupported = ctx.capabilities?.hyperlinks === true
+      subscription = {
+        renderables,
+        listener: (capabilities) => {
+          if (hyperlinksSupported === (capabilities.hyperlinks === true)) return
+          hyperlinksSupported = capabilities.hyperlinks === true
+          for (const renderable of renderables) renderable.handleCapabilities()
+        },
+      }
+      ctx.on("capabilities", subscription.listener)
+      MarkdownRenderable._capabilitySubscriptions.set(ctx, subscription)
+    }
+    subscription.renderables.add(this)
   }
 
   get content(): string {
@@ -357,15 +418,6 @@ export class MarkdownRenderable extends Renderable {
       this._syntaxStyle = value
       // Mark dirty - actual re-render happens in renderSelf
       this._styleDirty = true
-      // Marking the flag is not enough: the consumer is `renderSelf` →
-      // `rerenderBlocks`, and `requestRender` is what schedules it. `content`
-      // already did both; these setters marked dirty and never asked for a
-      // paint, so a colour applied AFTER `content` — which is the live order,
-      // since the Solid reconciler sets props in declaration order and
-      // `content` is declared before `fg` (index.tsx:2146 vs :2148) — stayed
-      // unapplied and muted reasoning kept the syntax default's colour
-      // (2026-09-18).
-      this.requestRender()
     }
   }
 
@@ -378,15 +430,6 @@ export class MarkdownRenderable extends Renderable {
     if (!colorsEqual(this._fg, next)) {
       this._fg = next
       this._styleDirty = true
-      // Marking the flag is not enough: the consumer is `renderSelf` →
-      // `rerenderBlocks`, and `requestRender` is what schedules it. `content`
-      // already did both; these setters marked dirty and never asked for a
-      // paint, so a colour applied AFTER `content` — which is the live order,
-      // since the Solid reconciler sets props in declaration order and
-      // `content` is declared before `fg` (index.tsx:2146 vs :2148) — stayed
-      // unapplied and muted reasoning kept the syntax default's colour
-      // (2026-09-18).
-      this.requestRender()
     }
   }
 
@@ -399,15 +442,6 @@ export class MarkdownRenderable extends Renderable {
     if (!colorsEqual(this._bg, next)) {
       this._bg = next
       this._styleDirty = true
-      // Marking the flag is not enough: the consumer is `renderSelf` →
-      // `rerenderBlocks`, and `requestRender` is what schedules it. `content`
-      // already did both; these setters marked dirty and never asked for a
-      // paint, so a colour applied AFTER `content` — which is the live order,
-      // since the Solid reconciler sets props in declaration order and
-      // `content` is declared before `fg` (index.tsx:2146 vs :2148) — stayed
-      // unapplied and muted reasoning kept the syntax default's colour
-      // (2026-09-18).
-      this.requestRender()
     }
   }
 
@@ -420,15 +454,6 @@ export class MarkdownRenderable extends Renderable {
       this._conceal = value
       // Mark dirty - actual re-render happens in renderSelf
       this._styleDirty = true
-      // Marking the flag is not enough: the consumer is `renderSelf` →
-      // `rerenderBlocks`, and `requestRender` is what schedules it. `content`
-      // already did both; these setters marked dirty and never asked for a
-      // paint, so a colour applied AFTER `content` — which is the live order,
-      // since the Solid reconciler sets props in declaration order and
-      // `content` is declared before `fg` (index.tsx:2146 vs :2148) — stayed
-      // unapplied and muted reasoning kept the syntax default's colour
-      // (2026-09-18).
-      this.requestRender()
     }
   }
 
@@ -441,15 +466,6 @@ export class MarkdownRenderable extends Renderable {
       this._concealCode = value
       // Mark dirty - actual re-render happens in renderSelf
       this._styleDirty = true
-      // Marking the flag is not enough: the consumer is `renderSelf` →
-      // `rerenderBlocks`, and `requestRender` is what schedules it. `content`
-      // already did both; these setters marked dirty and never asked for a
-      // paint, so a colour applied AFTER `content` — which is the live order,
-      // since the Solid reconciler sets props in declaration order and
-      // `content` is declared before `fg` (index.tsx:2146 vs :2148) — stayed
-      // unapplied and muted reasoning kept the syntax default's colour
-      // (2026-09-18).
-      this.requestRender()
     }
   }
 
@@ -512,44 +528,31 @@ export class MarkdownRenderable extends Renderable {
   }
 
   private createChunk(text: string, group: string, link?: { url: string }): TextChunk {
-    // One rule for two sources (2026-09-18): the value that DIFFERS from the
-    // ordinary one wins, and the source does not matter. `default` IS the
-    // ordinary — asking for the `default` group is not a colour opinion — so the
-    // renderable's own `fg` takes it. That is exactly what the text buffer
-    // paints when there is no highlighting, which is why muted reasoning looked
-    // right before highlighting and light after it landed (Alexander,
-    // 2026-09-18: "цвет thinking должен быть как у комментов"; and
-    // `syntaxComment` IS `textMuted` — theme.tsx:618). The application's tint
-    // also outranks a REAL group colour, the same precedence the tree-sitter
-    // merge applies. For ordinary text `_fg` equals the default, so nothing
-    // outside tinted content moves.
-    const groupStyle = this.getStyle(group)
-    const ordinary = this.getStyle("default")
-    const isOpinion = (colour?: RGBA) => colour !== undefined && !colorsEqual(colour, ordinary?.fg)
-    const fg = isOpinion(this._fg) ? this._fg : isOpinion(groupStyle?.fg) ? groupStyle!.fg : ordinary?.fg
-    const attributes = groupStyle ?? ordinary
+    const style = this.getStyle(group) || this.getStyle("default")
     return {
       __isChunk: true,
       text,
-      fg,
-      bg: groupStyle?.bg ?? ordinary?.bg,
-      attributes: attributes
+      fg: style?.fg,
+      bg: style?.bg,
+      attributes: style
         ? createTextAttributes({
-            bold: attributes.bold,
-            italic: attributes.italic,
-            underline: attributes.underline,
-            dim: attributes.dim,
+            bold: style.bold,
+            italic: style.italic,
+            underline: style.underline,
+            dim: style.dim,
           })
         : 0,
       link,
     }
   }
 
-  private createDefaultChunk(text: string): TextChunk {
-    return this.createChunk(text, "default")
+  private createDefaultChunk(text: string, link?: { url: string }): TextChunk {
+    return this.createChunk(text, "default", link)
   }
 
   private createInitialStyledText(token: MarkedToken): StyledText | undefined {
+    if (!this._streaming) return undefined
+
     const chunks: TextChunk[] = []
     if ("tokens" in token && Array.isArray(token.tokens)) {
       this.renderInlineContent(token.tokens, chunks)
@@ -562,20 +565,20 @@ export class MarkdownRenderable extends Renderable {
     return chunks.length > 0 ? new StyledText(chunks) : undefined
   }
 
-  private renderInlineContent(tokens: Token[], chunks: TextChunk[]): void {
+  private renderInlineContent(tokens: Token[], chunks: TextChunk[], link?: { url: string }): void {
     for (const token of tokens) {
-      this.renderInlineToken(token as MarkedToken, chunks)
+      this.renderInlineToken(token as MarkedToken, chunks, link)
     }
   }
 
-  private renderInlineToken(token: MarkedToken, chunks: TextChunk[]): void {
+  private renderInlineToken(token: MarkedToken, chunks: TextChunk[], link?: { url: string }): void {
     switch (token.type) {
       case "text":
-        chunks.push(this.createDefaultChunk(token.text))
+        chunks.push(this.createDefaultChunk(token.text, link))
         break
 
       case "escape":
-        chunks.push(this.createDefaultChunk(token.text))
+        chunks.push(this.createDefaultChunk(token.text, link))
         break
 
       case "codespan":
@@ -590,37 +593,37 @@ export class MarkdownRenderable extends Renderable {
 
       case "strong":
         if (!this._conceal) {
-          chunks.push(this.createChunk("**", "markup.strong"))
+          chunks.push(this.createChunk("**", "markup.strong", link))
         }
         for (const child of token.tokens) {
-          this.renderInlineTokenWithStyle(child as MarkedToken, chunks, "markup.strong")
+          this.renderInlineTokenWithStyle(child as MarkedToken, chunks, "markup.strong", link)
         }
         if (!this._conceal) {
-          chunks.push(this.createChunk("**", "markup.strong"))
+          chunks.push(this.createChunk("**", "markup.strong", link))
         }
         break
 
       case "em":
         if (!this._conceal) {
-          chunks.push(this.createChunk("*", "markup.italic"))
+          chunks.push(this.createChunk("*", "markup.italic", link))
         }
         for (const child of token.tokens) {
-          this.renderInlineTokenWithStyle(child as MarkedToken, chunks, "markup.italic")
+          this.renderInlineTokenWithStyle(child as MarkedToken, chunks, "markup.italic", link)
         }
         if (!this._conceal) {
-          chunks.push(this.createChunk("*", "markup.italic"))
+          chunks.push(this.createChunk("*", "markup.italic", link))
         }
         break
 
       case "del":
         if (!this._conceal) {
-          chunks.push(this.createChunk("~~", "markup.strikethrough"))
+          chunks.push(this.createChunk("~~", "markup.strikethrough", link))
         }
         for (const child of token.tokens) {
-          this.renderInlineTokenWithStyle(child as MarkedToken, chunks, "markup.strikethrough")
+          this.renderInlineTokenWithStyle(child as MarkedToken, chunks, "markup.strikethrough", link)
         }
         if (!this._conceal) {
-          chunks.push(this.createChunk("~~", "markup.strikethrough"))
+          chunks.push(this.createChunk("~~", "markup.strikethrough", link))
         }
         break
 
@@ -630,9 +633,22 @@ export class MarkdownRenderable extends Renderable {
           for (const child of token.tokens) {
             this.renderInlineTokenWithStyle(child as MarkedToken, chunks, "markup.link.label", linkHref)
           }
-          chunks.push(this.createChunk(" (", "markup.link", linkHref))
-          chunks.push(this.createChunk(token.href, "markup.link.url", linkHref))
-          chunks.push(this.createChunk(")", "markup.link", linkHref))
+          if (
+            (this.ctx.capabilities?.hyperlinks !== true || !isSupportedLinkTarget(token.href)) &&
+            token.text !== token.href &&
+            token.raw !== token.text &&
+            token.raw !== `<${token.text}>`
+          ) {
+            chunks.push(this.createChunk(" (", "markup.link", linkHref))
+            chunks.push(this.createChunk(token.href, "markup.link.url", linkHref))
+            chunks.push(this.createChunk(")", "markup.link", linkHref))
+          }
+        } else if (token.raw === token.text || token.raw === `<${token.text}>`) {
+          if (token.raw.startsWith("<")) chunks.push(this.createChunk("<", "markup.link", linkHref))
+          for (const child of token.tokens) {
+            this.renderInlineTokenWithStyle(child as MarkedToken, chunks, "markup.link.label", linkHref)
+          }
+          if (token.raw.startsWith("<")) chunks.push(this.createChunk(">", "markup.link", linkHref))
         } else {
           chunks.push(this.createChunk("[", "markup.link", linkHref))
           for (const child of token.tokens) {
@@ -646,7 +662,7 @@ export class MarkdownRenderable extends Renderable {
       }
 
       case "image": {
-        const imageHref = { url: token.href }
+        const imageHref = link ?? { url: token.href }
         if (this._conceal) {
           chunks.push(this.createChunk(token.text || "image", "markup.link.label", imageHref))
         } else {
@@ -660,14 +676,14 @@ export class MarkdownRenderable extends Renderable {
       }
 
       case "br":
-        chunks.push(this.createDefaultChunk("\n"))
+        chunks.push(this.createDefaultChunk("\n", link))
         break
 
       default:
         if ("tokens" in token && Array.isArray(token.tokens)) {
-          this.renderInlineContent(token.tokens, chunks)
+          this.renderInlineContent(token.tokens, chunks, link)
         } else if ("text" in token && typeof token.text === "string") {
-          chunks.push(this.createDefaultChunk(token.text))
+          chunks.push(this.createDefaultChunk(token.text, link))
         }
         break
     }
@@ -699,7 +715,7 @@ export class MarkdownRenderable extends Renderable {
         break
 
       default:
-        this.renderInlineToken(token, chunks)
+        this.renderInlineToken(token, chunks, link)
         break
     }
   }
@@ -793,14 +809,12 @@ export class MarkdownRenderable extends Renderable {
       fg: this._fg,
       bg: this._bg,
       conceal: this._conceal,
-      // Stream: always allow progressive paint (plain or initialStyled).
-      // Static: prefer initialStyled when present so inline markup shows before tree-sitter.
-      drawUnstyledText: this._streaming || initialStyledText !== undefined,
-      streaming: this._streaming,
+      drawUnstyledText: initialStyledText !== undefined,
+      streaming: true,
       initialStyledText,
       baseHighlight,
-      onChunks,
       onHighlight: this._highlightMarkdownLinks,
+      onChunks,
       treeSitterClient: this._treeSitterClient,
       width: "100%",
       marginBottom,
@@ -847,6 +861,7 @@ export class MarkdownRenderable extends Renderable {
       flexShrink: 0,
       marginBottom,
     })
+    this._ownedStructuredRenderables.add(list)
 
     for (const item of this.getListItemInputs(token, id)) {
       list.add(this.createListItemRenderable(item))
@@ -1113,13 +1128,10 @@ export class MarkdownRenderable extends Renderable {
       fg: this._fg,
       bg: this._bg,
       conceal: this._concealCode,
-      // Progressive unstyled code while streaming; still true when complete so
-      // empty highlight results never blank the block.
-      drawUnstyledText: true,
+      drawUnstyledText: !this._streaming,
       streaming: this._streaming,
       treeSitterClient: this._treeSitterClient,
       width: "100%",
-      wrapMode: this._codeWrapMode ?? "none",
       marginBottom,
     })
   }
@@ -1131,15 +1143,20 @@ export class MarkdownRenderable extends Renderable {
     baseHighlight?: string,
     initialStyledText?: StyledText,
   ): void {
-    renderable.initialStyledText = initialStyledText
+    if (initialStyledText && renderable.streaming && renderable.drawUnstyledText && renderable.isHighlighting) {
+      renderable.updateStreamingPreview(content, initialStyledText)
+    } else {
+      renderable.initialStyledText = initialStyledText
+    }
     renderable.filetype = "markdown"
     renderable.syntaxStyle = this._syntaxStyle
     renderable.fg = this._fg
     renderable.bg = this._bg
     renderable.conceal = this._conceal
-    renderable.drawUnstyledText = this._streaming || initialStyledText !== undefined
-    renderable.streaming = this._streaming
+    renderable.drawUnstyledText = initialStyledText !== undefined
+    renderable.streaming = true
     renderable.baseHighlight = baseHighlight
+    renderable.onHighlight = this._highlightMarkdownLinks
     renderable.content = content
     renderable.marginBottom = marginBottom
   }
@@ -1178,7 +1195,7 @@ export class MarkdownRenderable extends Renderable {
     renderable.fg = this._fg
     renderable.bg = this._bg
     renderable.conceal = this._concealCode
-    renderable.drawUnstyledText = true
+    renderable.drawUnstyledText = !this._streaming
     renderable.streaming = this._streaming
     renderable.content = token.text
     renderable.marginBottom = marginBottom
@@ -1541,7 +1558,7 @@ export class MarkdownRenderable extends Renderable {
     marginBottom: number = 0,
   ): TextTableRenderable {
     const options = this.resolveTableRenderableOptions()
-    return new TextTableRenderable(this.ctx, {
+    const table = new TextTableRenderable(this.ctx, {
       id,
       content,
       width: "100%",
@@ -1560,6 +1577,8 @@ export class MarkdownRenderable extends Renderable {
       borderColor: options.borderColor,
       selectable: options.selectable,
     })
+    this._ownedStructuredRenderables.add(table)
+    return table
   }
 
   private createTableBlock(
@@ -1944,7 +1963,6 @@ export class MarkdownRenderable extends Renderable {
 
       if (
         existing &&
-        !forceTableRefresh &&
         existing.canUpdateInPlace &&
         existing.token.type === block.token.type &&
         this.canUpdateBlockRenderable(existing.renderable, block.token)
@@ -2289,12 +2307,24 @@ export class MarkdownRenderable extends Renderable {
     this.requestRender()
   }
 
-  protected override renderSelf(buffer: OptimizedBuffer, deltaTime: number): void {
+  protected renderSelf(buffer: OptimizedBuffer, deltaTime: number): void {
     // Check if style/conceal changed - re-render blocks before rendering
     if (this._styleDirty) {
       this._styleDirty = false
       this.rerenderBlocks()
     }
     super.renderSelf(buffer, deltaTime)
+  }
+
+  protected destroySelf(): void {
+    const subscription = MarkdownRenderable._capabilitySubscriptions.get(this.ctx)
+    if (subscription) {
+      subscription.renderables.delete(this)
+      if (subscription.renderables.size === 0) {
+        this.ctx.off("capabilities", subscription.listener)
+        MarkdownRenderable._capabilitySubscriptions.delete(this.ctx)
+      }
+    }
+    super.destroySelf()
   }
 }

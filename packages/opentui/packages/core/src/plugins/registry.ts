@@ -85,10 +85,7 @@ export class SlotRegistry<TNode, TSlots extends object, TContext extends PluginC
 
   public register(plugin: Plugin<TNode, TSlots, TContext>): () => void {
     if (this.plugins.some((entry) => entry.plugin.id === plugin.id)) {
-      if (this.options.debugPluginErrors) {
-        console.debug(`[SlotRegistry] Plugin with id "${plugin.id}" is already registered, skipping`)
-      }
-      return noop
+      throw new Error(`Plugin with id "${plugin.id}" is already registered`)
     }
 
     try {

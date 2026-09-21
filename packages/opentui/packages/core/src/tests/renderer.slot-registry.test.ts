@@ -96,7 +96,7 @@ describe("SlotRegistry", () => {
     expect(plugin.rendererSeen).toBe(renderer)
   })
 
-  test("silently skips duplicate plugin ids and returns noop unsubscribe", () => {
+  test("rejects duplicate plugin ids", () => {
     const registry = new SlotRegistry<TestNode, AppSlots, AppContext>(createMockRenderer(), hostContext)
 
     const plugin: TestPlugin = {
@@ -108,18 +108,11 @@ describe("SlotRegistry", () => {
       },
     }
 
-    const firstUnsubscribe = registry.register(plugin)
+    registry.register(plugin)
 
-    // Second registration of same plugin id should return noop and not throw
-    const secondUnsubscribe = registry.register(plugin)
-    expect(secondUnsubscribe).toBeDefined()
-    // Calling the noop unsubscribe should not affect the registry
-    secondUnsubscribe()
-    expect(registry.resolve("statusbar").length).toBe(1)
-
-    // First unsubscribe should still work and remove the plugin
-    firstUnsubscribe()
-    expect(registry.resolve("statusbar")).toEqual([])
+    expect(() => {
+      registry.register(plugin)
+    }).toThrow('Plugin with id "duplicate" is already registered')
   })
 
   test("sorts renderers deterministically by order then registration order", () => {

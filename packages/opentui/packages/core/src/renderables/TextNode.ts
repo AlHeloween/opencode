@@ -39,7 +39,7 @@ export class TextNodeRenderable extends BaseRenderable {
   private _attributes: number
   private _link?: { url: string }
   private _children: (string | TextNodeRenderable)[] = []
-  public override parent: TextNodeRenderable | null = null
+  public parent: TextNodeRenderable | null = null
 
   constructor(options: TextNodeOptions) {
     super(options)
@@ -372,7 +372,7 @@ export class RootTextNodeRenderable extends TextNodeRenderable {
     this.textParent = textParent
   }
 
-  public override requestRender(): void {
+  public requestRender(): void {
     this.markDirty()
     this.ctx.requestRender()
   }

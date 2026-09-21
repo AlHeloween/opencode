@@ -252,7 +252,7 @@ export class BoxRenderable extends Renderable {
     }
   }
 
-  protected override renderSelf(buffer: OptimizedBuffer): void {
+  protected renderSelf(buffer: OptimizedBuffer): void {
     const hasBorder = this.borderSides.top || this.borderSides.right || this.borderSides.bottom || this.borderSides.left
     const hasVisibleFill = this.shouldFill && this._backgroundColor.a > 0
     // Many boxes are used only for layout. Skip drawBox entirely when a box
@@ -285,7 +285,7 @@ export class BoxRenderable extends Renderable {
     })
   }
 
-  protected override getScissorRect(): { x: number; y: number; width: number; height: number } {
+  protected getScissorRect(): { x: number; y: number; width: number; height: number } {
     const baseRect = super.getScissorRect()
 
     if (!this.borderSides.top && !this.borderSides.right && !this.borderSides.bottom && !this.borderSides.left) {

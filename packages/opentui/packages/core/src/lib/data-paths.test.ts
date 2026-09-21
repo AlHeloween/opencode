@@ -1,7 +1,5 @@
 import { test, expect } from "bun:test"
-import path from "path"
 import { DataPathsManager } from "./data-paths.js"
-import { clearEnvCache } from "./env.js"
 
 test("DataPathsManager validates appName", () => {
   const manager = new DataPathsManager()
@@ -132,20 +130,4 @@ test("DataPathsManager does not emit event when appName is set to same value", (
   manager.appName = manager.appName
 
   expect(eventFired).toBe(false)
-})
-
-test("OPENTUI_DATA_HOME overrides the base data directory", () => {
-  // The host sets this to keep OpenTUI's data (e.g. the tree-sitter query
-  // cache) inside its own project instead of the user home.
-  const original = process.env.OPENTUI_DATA_HOME
-  try {
-    process.env.OPENTUI_DATA_HOME = path.join("override-root", "data")
-    clearEnvCache()
-    const manager = new DataPathsManager()
-    expect(manager.globalDataPath).toBe(path.join("override-root", "data", "opentui"))
-  } finally {
-    if (original === undefined) delete process.env.OPENTUI_DATA_HOME
-    else process.env.OPENTUI_DATA_HOME = original
-    clearEnvCache()
-  }
 })

@@ -3,6 +3,11 @@
   "extends": "@tsconfig/bun/tsconfig.json",
   "compilerOptions": {
     "jsx": "preserve",
+    // @opentui sources are compiled here through the paths below, and their own tsconfig
+    // (packages/opentui/packages/core/tsconfig.json) does not enable this flag — their code
+    // carries no `override` keywords. Relaxing it here mirrors the option set they are written
+    // against; it cannot hide an error in this package's own code.
+    "noImplicitOverride": false,
     "jsxImportSource": "@opentui/solid",
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "types": [],
@@ -14,8 +19,8 @@
       "@test/*": ["./test/*"],
       "@opentui/core": ["../../packages/opentui/packages/core/src"],
       "@opentui/core/*": ["../../packages/opentui/packages/core/src/*"],
-      "@opentui/solid": ["../../packages/opentui/packages/solid/src"],
-      "@opentui/solid/*": ["../../packages/opentui/packages/solid/src/*"],
+      "@opentui/solid": ["../../packages/opentui/packages/solid"],
+      "@opentui/solid/*": ["../../packages/opentui/packages/solid/*"],
       "@opentui/keymap": ["../../packages/opentui/packages/keymap/src"],
       "@opentui/keymap/*": ["../../packages/opentui/packages/keymap/src/*"],
       "@opentui/three": ["../../packages/opentui/packages/three/src"],

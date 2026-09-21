@@ -1,9 +1,7 @@
 import { test, expect, describe } from "bun:test"
 import {
   isCapabilityResponse,
-  isCellPixelSizeResponse,
   isPixelResolutionResponse,
-  parseCellPixelSize,
   parsePixelResolution,
 } from "./terminal-capability-detection.js"
 
@@ -55,11 +53,6 @@ describe("isCapabilityResponse", () => {
     expect(isCapabilityResponse("\x1b[?62;22c")).toBe(true)
     expect(isCapabilityResponse("\x1b[?1;2;4c")).toBe(true)
     expect(isCapabilityResponse("\x1b[?6c")).toBe(true)
-  })
-
-  test("detects XTSMGRAPHICS Sixel geometry responses", () => {
-    expect(isCapabilityResponse("\x1b[?2;0;1500;800S")).toBe(true)
-    expect(isCapabilityResponse("\x1b[?2;3;0S")).toBe(true)
   })
 
   test("detects Kitty keyboard query responses", () => {
@@ -125,19 +118,6 @@ describe("isPixelResolutionResponse", () => {
   })
 })
 
-describe("cell pixel size responses", () => {
-  test("detects and parses CSI 16t replies", () => {
-    expect(isCellPixelSizeResponse("\x1b[6;20;8t")).toBe(true)
-    expect(parseCellPixelSize("\x1b[6;20;8t")).toEqual({ width: 8, height: 20 })
-    expect(isCapabilityResponse("\x1b[6;20;8t")).toBe(true)
-  })
-
-  test("rejects non-cell-size replies", () => {
-    expect(isCellPixelSizeResponse("\x1b[4;720;1280t")).toBe(false)
-    expect(parseCellPixelSize("\x1b[6;20t")).toBeNull()
-  })
-})
-
 describe("parsePixelResolution", () => {
   test("parses valid pixel resolution responses", () => {
     expect(parsePixelResolution("\x1b[4;720;1280t")).toEqual({ width: 1280, height: 720 })
@@ -149,6 +129,8 @@ describe("parsePixelResolution", () => {
     expect(parsePixelResolution("a")).toBeNull()
     expect(parsePixelResolution("\x1b[A")).toBeNull()
     expect(parsePixelResolution("\x1b[?1016;2$y")).toBeNull()
+    expect(parsePixelResolution("\x1b[4;4294967295;4294967295t")).toBeNull()
+    expect(parsePixelResolution(`\x1b[4;${"9".repeat(400)};80t`)).toBeNull()
   })
 })
 
@@ -196,10 +178,12 @@ describe("renderer capabilities event", () => {
     const { createTestRenderer } = await import("../testing/test-renderer.js")
     const { renderer } = await createTestRenderer({})
 
+    await renderer.setupTerminal()
+
     const events: any[] = []
     renderer.on("capabilities", (caps) => events.push({ ...caps }))
 
-    // Simulate all 10 Kitty capability responses (as they arrive separately)
+    // Simulate Kitty capability responses as they arrive separately.
     const kittyResponses = [
       "\x1b[?1016;2$y", // 1. sgr_pixels
       "\x1b[?2027;0$y", // 2. unicode query
@@ -207,10 +191,12 @@ describe("renderer capabilities event", () => {
       "\x1b[?1004;2$y", // 4. focus_tracking
       "\x1b[?2004;2$y", // 5. bracketed_paste
       "\x1b[?2026;2$y", // 6. sync
-      "\x1b[1;2R", // 7. explicit_width (CPR)
-      "\x1b[1;3R", // 8. scaled_text (CPR)
-      "\x1bP>|kitty(0.42.2)\x1b\\", // 9. xtversion (triggers kitty detection)
-      "\x1b[?0u", // 10. kitty keyboard query
+      "\x1b[15;42R", // 7. startup cursor position (CPR)
+      "\x1b[1;2R", // 8. explicit_width probe reply (CPR)
+      "\x1b[1;3R", // 9. scaled_text probe reply (CPR)
+      "\x1bP>|kitty(0.42.2)\x1b\\", // 10. xtversion (triggers kitty detection)
+      "\x1b[?0u", // 11. kitty keyboard query
+      "\x1b_Gi=31337;OK\x1b\\", // 12. exact graphics query response
     ]
 
     for (const response of kittyResponses) {
@@ -218,21 +204,20 @@ describe("renderer capabilities event", () => {
       await new Promise((resolve) => setTimeout(resolve, 10))
     }
 
-    // Should have received 10 capability events
-    expect(events.length).toBe(10)
+    expect(events.length).toBe(12)
 
     // First event: sgr_pixels detected
     expect(events[0].sgr_pixels).toBe(true)
 
-    // After xtversion (event 9): kitty_keyboard should be true
-    expect(events[8].kitty_keyboard).toBe(true)
-    expect(events[8].kitty_graphics).toBe(true)
-    expect(events[8].notifications).toBe(true)
-    expect(events[8].terminal.name).toBe("kitty")
-    expect(events[8].terminal.version).toBe("0.42.2")
+    // After xtversion (event 10): kitty_keyboard should be true
+    expect(events[9].kitty_keyboard).toBe(true)
+    expect(events[9].kitty_graphics).toBe(true)
+    expect(events[9].notifications).toBe(true)
+    expect(events[9].terminal.name).toBe("kitty")
+    expect(events[9].terminal.version).toBe("0.42.2")
 
     // Final state should have all kitty capabilities
-    const finalCaps = events[9]
+    const finalCaps = events[11]
     expect(finalCaps.kitty_keyboard).toBe(true)
     expect(finalCaps.sgr_pixels).toBe(true)
     expect(finalCaps.color_scheme_updates).toBe(true)
@@ -240,6 +225,7 @@ describe("renderer capabilities event", () => {
     expect(finalCaps.sync).toBe(true)
     expect(finalCaps.explicit_width).toBe(true)
     expect(finalCaps.scaled_text).toBe(true)
+    expect(finalCaps.kitty_graphics).toBe(true)
 
     renderer.destroy()
   })

@@ -20,17 +20,6 @@ registerEnvVar({
   default: "",
 })
 
-// Explicit base override for OpenTUI's own data (the tree-sitter query cache
-// lives under it). Hosts that keep all state inside their project set this
-// instead of relying on the home-directory fallback below — opencode points it
-// at {worktree}/.opencode/data/cache so nothing is written to the user home.
-registerEnvVar({
-  name: "OPENTUI_DATA_HOME",
-  description: "Base directory override for OpenTUI's own data files",
-  type: "string",
-  default: "",
-})
-
 export interface DataPaths {
   globalConfigPath: string
   globalConfigFile: string
@@ -98,9 +87,8 @@ export class DataPathsManager extends EventEmitter<DataPathsEvents> {
   get globalDataPath(): string {
     if (this._globalDataPath === undefined) {
       const homeDir = os.homedir()
-      const override = env.OPENTUI_DATA_HOME
       const xdgDataHome = env.XDG_DATA_HOME
-      const baseDataDir = override || xdgDataHome || path.join(homeDir, ".local/share")
+      const baseDataDir = xdgDataHome || path.join(homeDir, ".local/share")
       this._globalDataPath = path.join(baseDataDir, this._appName)
     }
     return this._globalDataPath

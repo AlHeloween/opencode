@@ -9,7 +9,6 @@ import {
   TextRenderable,
   VRenderable,
   FrameBufferRenderable,
-  ImageRenderable,
   type ASCIIFontOptions,
   type BoxOptions,
   type CodeOptions,
@@ -20,7 +19,6 @@ import {
   type SelectRenderableOptions,
   type TabSelectRenderableOptions,
   type FrameBufferOptions,
-  type ImageOptions,
 } from "..//index.js"
 import { TextNodeRenderable, type TextNodeOptions } from "../TextNode.js"
 import { h, type VChild } from "./vnode.js"
@@ -57,10 +55,6 @@ export function TabSelect(props?: TabSelectRenderableOptions, ...children: VChil
 
 export function FrameBuffer(props: FrameBufferOptions, ...children: VChild[]) {
   return h(FrameBufferRenderable, props, ...children)
-}
-
-export function Image(props: ImageOptions, ...children: VChild[]) {
-  return h(ImageRenderable, props, ...children)
 }
 
 export function Code(props: CodeOptions, ...children: VChild[]) {

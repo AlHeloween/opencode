@@ -124,6 +124,31 @@ function add(a, b) {
     expect(reconstructed).toBe(originalCode)
   })
 
+  test("records exactly one original source range per emitted chunk, including conceal replacements", () => {
+    const content = "xx [xx](https://example.com) xx"
+    const labelStart = content.indexOf("xx", 3)
+    const urlStart = content.indexOf("https://")
+    const highlights: SimpleHighlight[] = [
+      [3, 4, "conceal", { conceal: "" }],
+      [labelStart, labelStart + 2, "markup.link.label"],
+      [labelStart + 2, labelStart + 3, "conceal", { conceal: "xx" }],
+      [urlStart, urlStart + "https://example.com".length, "markup.link.url"],
+    ]
+    const ranges: Array<{ start: number; end: number }> = []
+
+    const chunks = treeSitterToTextChunks(content, highlights, syntaxStyle, { ranges })
+
+    expect(chunks.map((item) => item.text)).toEqual(["xx ", "xx", "xx", "(", "https://example.com", ") xx"])
+    expect(ranges).toEqual([
+      { start: 0, end: 3 },
+      { start: 4, end: 6 },
+      { start: 6, end: 7 },
+      { start: 7, end: 8 },
+      { start: 8, end: 27 },
+      { start: 27, end: 31 },
+    ])
+  })
+
   test("should apply different styles to different syntax elements", async () => {
     const jsCode = "const number = 42; // comment"
 
@@ -1248,55 +1273,6 @@ Normal paragraph with [link](https://example.com).`
 
       const expectedAttributes = createTextAttributes({ bold: false, italic: true, underline: true })
       expect(chunk.attributes).toBe(expectedAttributes)
-    })
-  })
-
-  // ── The one colour rule (2026-09-18) ─────────────────────────────────────────
-  //
-  // The same rule `Markdown.createChunk` applies, one stage lower. The merge
-  // tested `mergedStyle.fg === undefined` — STRUCTURE, "the grammar resolved
-  // something" — instead of VALUE, "it differs from the ordinary". `default` IS
-  // the ordinary, and the application's tint is a deliberate opinion, so it
-  // outranks a real grammar colour; where the application has no opinion the
-  // grammar keeps its colour outright. Alexander: thinking must stay the colour
-  // of comments, and it broke up wherever the text contained markup.
-  describe("the one colour rule", () => {
-    const ORDINARY = RGBA.fromInts(255, 255, 255, 255)
-    const GRAMMAR = RGBA.fromInts(200, 255, 200, 255)
-    const TINT = RGBA.fromInts(115, 115, 115, 255)
-    const PANEL = RGBA.fromInts(26, 26, 26, 255)
-    const at = (style: { fg?: RGBA; bg?: RGBA }) => () => style
-
-    test("the application's tint outranks a real grammar colour inside a span", () => {
-      const chunks = treeSitterToTextChunks("code", [[0, 4, "markup.raw"]], syntaxStyle, {
-        appStyleAt: at({ fg: TINT }),
-      })
-      expect(chunks[0].fg).toEqual(TINT)
-      expect(chunks[0].fg).not.toEqual(GRAMMAR)
-    })
-
-    test("a group colour equal to the ordinary is not an opinion", () => {
-      // The discriminating case: the grammar DID resolve a colour, but it is the
-      // ordinary one — so it is not an opinion and must not displace the tint.
-      const local = SyntaxStyle.fromStyles({ default: { fg: ORDINARY }, spell: { fg: ORDINARY } })
-      const chunks = treeSitterToTextChunks("prose", [[0, 5, "spell"]], local, {
-        appStyleAt: at({ fg: TINT }),
-      })
-      local.destroy()
-      expect(chunks[0].fg).toEqual(TINT)
-      expect(chunks[0].fg).not.toEqual(ORDINARY)
-    })
-
-    test("the application's background is merged, not dropped", () => {
-      const chunks = treeSitterToTextChunks("code", [[0, 4, "markup.raw"]], syntaxStyle, {
-        appStyleAt: at({ bg: PANEL }),
-      })
-      expect(chunks[0].bg).toEqual(PANEL)
-    })
-
-    test("where the application has no opinion the grammar keeps the colour", () => {
-      const chunks = treeSitterToTextChunks("code", [[0, 4, "markup.raw"]], syntaxStyle)
-      expect(chunks[0].fg).toEqual(GRAMMAR)
     })
   })
 })

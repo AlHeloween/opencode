@@ -8,9 +8,7 @@
  * - Kitty Graphics: ESC _ G ... ESC \
  * - Kitty Keyboard Query: ESC[?Nu where N is 0,1,2,etc
  * - DA1 (Device Attributes): ESC[?...c
- * - XTSMGRAPHICS Sixel geometry: ESC[?2;status;value...S
  * - Pixel Resolution: ESC[4;height;widtht
- * - Cell Pixel Size: ESC[6;height;widtht
  * - OSC 99 notification capability query response
  * - iTerm2 OSC 1337 feature-reporting response
  */
@@ -62,17 +60,6 @@ export function isCapabilityResponse(sequence: string): boolean {
     return true
   }
 
-  // XTSMGRAPHICS Sixel geometry reply. Its status is interpreted by the
-  // native terminal layer; consume all replies so terminal control traffic
-  // never reaches application input handlers.
-  if (/\x1b\[\?2;[0-3];\d+(?:;\d+)*S/.test(sequence)) {
-    return true
-  }
-
-  if (isPixelResolutionResponse(sequence) || isCellPixelSizeResponse(sequence)) {
-    return true
-  }
-
   // Kitty desktop notification capability query response.
   if (/\x1b\]99;[^\x07\x1b]*i=opentui-notifications[^\x07\x1b]*p=\?[\s\S]*?(?:\x07|\x1b\\)/.test(sequence)) {
     return true
@@ -95,11 +82,6 @@ export function isPixelResolutionResponse(sequence: string): boolean {
   return /\x1b\[4;\d+;\d+t/.test(sequence)
 }
 
-/** Check whether a terminal reported one character cell's pixel dimensions. */
-export function isCellPixelSizeResponse(sequence: string): boolean {
-  return /\x1b\[6;\d+;\d+t/.test(sequence)
-}
-
 /**
  * Parse pixel resolution from response sequence.
  * Returns { width, height } or null if not a valid resolution response.
@@ -107,22 +89,11 @@ export function isCellPixelSizeResponse(sequence: string): boolean {
 export function parsePixelResolution(sequence: string): { width: number; height: number } | null {
   const match = sequence.match(/\x1b\[4;(\d+);(\d+)t/)
   if (match) {
-    return {
-      width: parseInt(match[2]),
-      height: parseInt(match[1]),
-    }
-  }
-  return null
-}
-
-/** Parse CSI 16t's CSI 6;height;widtht response. */
-export function parseCellPixelSize(sequence: string): { width: number; height: number } | null {
-  const match = sequence.match(/\x1b\[6;(\d+);(\d+)t/)
-  if (match) {
-    return {
-      width: parseInt(match[2]),
-      height: parseInt(match[1]),
-    }
+    const width = Number(match[2])
+    const height = Number(match[1])
+    if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width > 0x7fffffff || height > 0x7fffffff)
+      return null
+    return { width, height }
   }
   return null
 }

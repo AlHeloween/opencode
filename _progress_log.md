@@ -1,5 +1,21 @@
 # Progress Log
 
+## [2026-09-21 06:35Z] MediaImage: кадр не доходил до `<image>` после re-base на OpenTUI 0.5.11
+
+Reason: владелец с диста (скриншот + «mermaid тоже не отрисовывается, думаю тот же баг»). В `dist/bin/opencode.exe` **10.0.1057** не отображались ни вставленный скриншот, ни mermaid-диаграмма: место под картинку зарезервировано, пикселей нет, ни спиннера, ни `[image unavailable]`.
+
+Diagnosis [Exact] — рантайм-лог dist, `1789971997428_log_system_internal.jsonl`: `mermaid image pipeline selected` → `SVG rendered` → `SVG rasterized to RGBA {outW:494,outH:792}` → `RGBA frame ready for native image` → `native image mounted`. Кадр есть, элемент смонтирован — и `_image === null` (подтверждено падающим тестом: `width/height > 0`, `image === null`).
+
+Root cause [Exact]: `createEffect` в `media-image.tsx` проверяет `!f || !imageRef || state() !== "native"` — к моменту готовности кадра элемента ещё нет, эффект выходит на `!imageRef`, **не прочитав `state()`**, поэтому `setState("native")` его не перезапускает, и `setImage` не зовётся никогда. Плюс контракт 0.5.11: у `ImageRenderable` нет measure-функции и нет пропсов `data`/`imageWidth`/`imageHeight` (reconciler кладёт незнакомый пропс обычным JS-свойством); штатный вход — `setImage()`.
+
+Поправка к первой версии диагноза: `layoutWidth: 0` в трейсе — артефакт момента (ref-колбэк читает размер до раскладки Yoga); тест после `renderOnce()` показывает ненулевые `width/height` уже на сломанном коде — как основание правки нулевой layout снят.
+
+Change (`packages/opencode/src/cli/cmd/tui/component/media-image.tsx`): кадр отдаётся в ref-колбэке (`r.setImage(current.data, current.width, current.height)`), `<image>` получает явный размер в клетках, мёртвые пропсы удалены; новый чистый помощник `nativeImageCellCols`. Новый тест `packages/opencode/test/tui/media-image-native-layout.test.tsx` (реальный `MediaImage` через `testRender`, две ветки: sixel-терминал и терминал без графики).
+
+Oracles: baseline до правки — `1 fail / 0 pass` (падение на `image === null`); после — `2 pass`; `bun test test/tui/media-image-native-layout.test.tsx test/tui/media-image-size.test.ts` → **15 pass / 0 fail**; `bun typecheck` (`tsgo --noEmit`) в `packages/opencode` → exit 0 (run `20260921T063429Z_446ba201`).
+
+Residual [Unknown]: бинарь не пересобран — на живом TUI 10.0.1057 поведение не изменится до сборки; символьная ветка (`<code>` при `sixel:false`) покрыта тестом, но на бинаре глазами не проверена. План: `plans/2026-09-21_media-image-zero-layout-after-opentui-rebase.md`.
+
 ## [2026-09-18] Jobs: rebuild + deploy (10.0.1013) with a live boot-recovery smoke
 
 Reason: the jobs-pid task closed with a residual — the running binary predated the change, so pid persistence + instance-aware recovery existed only in source. User authorized "пересобрать сейчас" (PROMOTE_STABLE).

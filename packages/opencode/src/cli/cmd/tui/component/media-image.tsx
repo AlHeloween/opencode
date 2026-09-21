@@ -206,6 +206,11 @@ export function nativeImageCellRows(imageHeight: number, cellHeight: number): nu
   return Math.max(1, Math.ceil(imageHeight / Math.max(1, cellHeight)))
 }
 
+/** Cell columns for a frame — the width side of {@link nativeImageCellRows}. */
+export function nativeImageCellCols(imageWidth: number, cellWidth: number): number {
+  return Math.max(1, Math.ceil(imageWidth / Math.max(1, cellWidth)))
+}
+
 async function waitForCapabilities(renderer: CapsRenderer, timeoutMs: number): Promise<void> {
   if (nativeGraphicsLayoutMode(renderer) !== "none") return
   const deadline = Date.now() + timeoutMs
@@ -616,9 +621,24 @@ export function MediaImage(props: {
             onMouseDragEnd={props.interactive ? handleMouse : undefined}
             onMouseUp={props.interactive ? handleMouse : undefined}
           >
+            {/* OpenTUI 0.5.11 contract (packages/opentui/.../renderables/Image.ts): the
+             * renderable has NO Yoga measure function and NO `data`/`imageWidth`/`imageHeight`
+             * props — an unknown prop is assigned as a plain JS property and read by nobody
+             * (reconciler setProperty). Two things are therefore mandatory and both were
+             * missing after the re-base:
+             *   1. the frame must be handed over through setImage() AT REF TIME. The old
+             *      frame-effect never ran: it returned on `!imageRef` while the element did
+             *      not exist yet, so `state()` was never read and never tracked — the later
+             *      setState("native") could not re-trigger it, and the mounted element kept
+             *      `image === null` (measured 2026-09-21 in the dist build: mermaid frame
+             *      ready, element mounted, nothing painted).
+             *   2. the cell box must be explicit, because renderSelf() bails on
+             *      `!this._image || width <= 0 || height <= 0` (Image.ts:184). */}
             <image
               ref={(r: ImageRenderable) => {
                 imageRef = r
+                const current = frame()
+                if (current) r.setImage(current.data, current.width, current.height)
                 if (nativeImageMounted) return
                 nativeImageMounted = true
                 traceDiagram("mermaid native image mounted", {
@@ -629,9 +649,8 @@ export function MediaImage(props: {
                   layoutHeight: r.height,
                 })
               }}
-              data={f().data}
-              imageWidth={f().width}
-              imageHeight={f().height}
+              width={nativeImageCellCols(f().width, cellPixelSize(renderer as CapsRenderer, mode).cellWidth)}
+              height={nativeImageCellRows(f().height, cellPixelSize(renderer as CapsRenderer, mode).cellHeight)}
             />
             <Show when={props.interactive && hint()}>
               <text fg={theme.textMuted}>{hint()}</text>

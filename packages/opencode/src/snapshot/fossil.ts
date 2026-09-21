@@ -177,6 +177,12 @@ export const layer = Layer.effect(
           return (yield* config.get()).snapshot !== false
         })
 
+        /**
+         * Every fossil call is bounded: a hung child (big tree, repo lock) must not
+         * freeze the turn forever. 300s sits above the worst legitimate case measured
+         * on a 106k-file tree (`commit` 163.7s, 2026-09-21) and below "forever".
+         */
+        const FOSSIL_TIMEOUT = "300 seconds"
         const fossil = Effect.fnUntraced(
           function* (args: string[], opts?: { cwd?: string }) {
             const proc = ChildProcess.make(FOSSIL_BIN, args, {
@@ -196,6 +202,19 @@ export const layer = Layer.effect(
             return { code, text, stderr }
           },
           Effect.scoped,
+          // A wedged fossil call used to freeze the turn forever: the spawn is scoped,
+          // so a timeout interrupts the fiber and closes the handle. The budget must
+          // exceed the worst LEGITIMATE call — a real commit measured 163.7 s on a
+          // 106k-file tree (2026-09-21) — so 5 minutes is headroom, not a target.
+          Effect.timeoutOrElse({
+            duration: "5 minutes",
+            orElse: () =>
+              Effect.succeed({
+                code: 1 as any,
+                text: "",
+                stderr: "fossil call exceeded its 5-minute budget",
+              }),
+          }),
           Effect.catch((err) =>
             Effect.succeed({
               code: 1 as any,
@@ -286,11 +305,18 @@ export const layer = Layer.effect(
           return { ok: retry.code === 0, stderr: retry.stderr || openResult.stderr }
         })
 
+        // The checkout-open verdict is stable for the life of this instance, and the
+        // probe spawn (`fossil info`) used to run on EVERY boundary. Invalidated when a
+        // later call shows the checkout is gone; set on every proven path below.
+        let repoVerified = false
+
         // Self-healing bootstrap:
         // - missing folder/repo → clean init (user wipe / first boot) — no HISTORY_INVALID
         // - existing .fsl open fails after soft marker clear → bak + HISTORY_INVALID + reinit
         const ensureInit = Effect.fnUntraced(function* () {
           yield* ensureIgnoreGlob()
+
+          if (repoVerified) return true
 
           const repoExists = yield* fs.exists(repoPath)
 
@@ -306,6 +332,7 @@ export const layer = Layer.effect(
             )
             const probeRepo = probe.text.match(/^repository:\s+(.+)$/m)?.[1]?.trim()
             if (probe.code === 0 && sameRepoPath(probeRepo)) {
+              repoVerified = true
               return true
             }
 
@@ -374,6 +401,7 @@ export const layer = Layer.effect(
             log.warn("fossil open failed after init", { stderr: opened.stderr })
             return false
           }
+          repoVerified = true
 
           // Establish a checkpointable baseline even when the worktree has
           // no files Fossil can add yet.
@@ -409,6 +437,8 @@ export const layer = Layer.effect(
                   Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "" })),
                 )
                 const hasChanges = changes.code === 0 && changes.text.trim().length > 0
+                // A failed probe means the checkout is not what we cached — re-verify next call.
+                if (changes.code !== 0) repoVerified = false
                 // `addremove -n` walks the whole tree; its verdict is consulted only
                 // when `changes` reports nothing. Running it unconditionally cost 14.3s
                 // per boundary on a 106k-file tree (measured 2026-09-21) and its result
@@ -461,6 +491,23 @@ export const layer = Layer.effect(
                 )
               }
 
+              // The commit is O(whole tree) in fossil, and the explicit-list path could
+              // reach it with nothing actually staged: `add --force` is silent for paths
+              // that are already tracked, so a boundary that re-passes the same files
+              // committed nothing and paid full price — 163.7 s per call on a 106k-file
+              // tree (measured 2026-09-21) plus a false `bug: tracking commit failed`
+              // (14 of them in one session of our own logs). `changes` reads the mtime
+              // cache: 0.3 s here, 0.8 s there — the gate is what makes the commit rare.
+              const pending = yield* fossil(["changes"], { cwd: worktree }).pipe(
+                Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "" })),
+              )
+              if (pending.code === 0 && !pending.text.trim()) {
+                const probe = yield* fossil(["info"], { cwd: worktree })
+                const hash = currentHash(probe.text)
+                log.debug("tracking skipped — nothing to commit", { hash })
+                return hash || undefined
+              }
+
               // Get current version before commit
               const before = yield* fossil(["info"], { cwd: worktree })
               const beforeHash = currentHash(before.text) ?? ""
@@ -485,13 +532,23 @@ export const layer = Layer.effect(
                   .map((abs) => path.relative(worktree, abs).replaceAll("\\", "/"))
                   .filter((rel) => rel.length > 0 && !rel.startsWith(".."))
                 if (missing.length === 0) {
+                  // A commit that raced the gate above is not a defect: nothing was
+                  // staged by the time fossil looked. Keep it out of the bug markers.
+                  if (/nothing has changed/i.test(commitResult.stderr)) {
+                    log.debug("tracking skipped — nothing to commit (raced the gate)", {
+                      hash: beforeHash,
+                    })
+                    return beforeHash || undefined
+                  }
                   log.error("bug: tracking commit failed", { hash: beforeHash, stderr: commitResult.stderr })
                   return beforeHash || undefined
                 }
                 for (const rel of missing) {
                   log.warn("tracking: reconciling vanished tracked path (no DB owner)", { rel })
-                  yield* fossil(["rm", rel], { cwd: worktree }).pipe(Effect.catch(() => Effect.void))
                 }
+                // One spawn for the whole batch — this used to be one per path.
+                for (const batch of commandBatches(missing))
+                  yield* fossil(["rm", ...batch], { cwd: worktree }).pipe(Effect.catch(() => Effect.void))
                 commitResult = yield* fossil(commitArgs, { cwd: worktree })
                 if (commitResult.code !== 0) {
                   log.error("bug: tracking commit failed after reconciling vanished paths", {
@@ -522,18 +579,27 @@ export const layer = Layer.effect(
               // compacting. The tag is now skipped and the snapshot is MARKED instead, so an
               // agent still never reads it as impact-verified.
               if (beforeHash && hasCodegraphIndex(worktree)) {
-                const diff = yield* fossil(
-                  ["diff", "--from", beforeHash, "--to", afterHash, "--brief"],
-                  { cwd: worktree },
-                )
-                if (diff.code === 0 && diff.text.trim()) {
-                  const changedFiles = diff.text
-                    .trim()
-                    .split("\n")
-                    .map((l: string) => l.replace(/^[A-Z]+\s+/, "").trim())
-                    .filter((f: string) => f.length > 0)
-                    .map((f: string) => f.replace(/\\/g, "/"))
-
+                // The changed-file set is ALREADY known when the caller passed an explicit
+                // list (the tool path) — re-diffing the repo for it was a redundant spawn.
+                let changedFiles: string[]
+                if (files !== undefined && files.length > 0) {
+                  changedFiles = files
+                    .map((f) => path.relative(worktree, f).replaceAll("\\", "/"))
+                    .filter((f) => f.length > 0)
+                } else {
+                  const diff = yield* fossil(["diff", "--from", beforeHash, "--to", afterHash, "--brief"], {
+                    cwd: worktree,
+                  })
+                  changedFiles =
+                    diff.code === 0 && diff.text.trim()
+                      ? diff.text
+                          .trim()
+                          .split("\n")
+                          .map((l: string) => l.replace(/^[A-Z]+\s+/, "").trim())
+                          .filter((f: string) => f.length > 0)
+                          .map((f: string) => f.replace(/\\/g, "/"))
+                      : []
+                }
                   if (changedFiles.length > 0) {
                     // Hybrid: MCP touch (refresh) → SQLite pack → compact tag (not MCP prose)
                     const hybrid = yield* mcpTouchThenSqlitePack(worktree, changedFiles).pipe(
@@ -570,7 +636,6 @@ export const layer = Layer.effect(
                       }
                     }
                   }
-                }
               }
 
               return afterHash

@@ -897,32 +897,14 @@ export const layer = Layer.effect(
         const range = input.visible.slice(Math.max(0, start))
         if (!range.length) return false
         sidecarInFlight.add(sessionID)
-        // ── Fossil baseline BEFORE the sidecar ──
-        //
-        // The summary is the other boundary where snapshot, revert and redo
-        // coincide, so it needs its own restorable point — and like the
-        // turn-start baseline it has to be taken BEFORE, not reconstructed
-        // after. What it captures is the working copy as it stood when the
-        // summary was requested; after the fold, the trunk history that would
-        // otherwise let you rebuild that state is summarised away.
-        //
-        // `track(undefined)` runs `addremove`, so it needs no evidence about
-        // who wrote what: fossil has no autotrack, and this call is what makes
-        // tracking automatic. Its early-exit returns the current hash without a
-        // commit chain when nothing moved, so a sidecar on an unchanged tree is
-        // cheap.
-        //
-        // Read through `serviceOption` rather than as a layer requirement:
-        // captureSidecar sits at layer level so the /summarize HTTP route can
-        // run an emergency capture, and making Snapshot mandatory here pushed
-        // the requirement into every wiring that builds SessionPrompt —
-        // prompt.test.ts and structured-output-integration stopped resolving.
-        // A missing snapshot service degrades to no baseline, never to a
-        // failed summary.
-        const snapshotOpt = yield* Effect.serviceOption(Snapshot.Service)
-        if (Option.isSome(snapshotOpt)) {
-          yield* snapshotOpt.value.track(undefined).pipe(Effect.catch(() => Effect.succeed(undefined)))
-        }
+        // (The sidecar used to take its own whole-tree snapshot here —
+        // `track(undefined)` — from the era when a summary was not granular and
+        // needed a fresh committed leaf to diff from. Both halves are covered
+        // now: the turn loop takes the boundaries, and the summary's diffs come
+        // from the tool filediffs plus the session diff store. Keeping the call
+        // meant a whole-tree `changes` probe, and a whole-tree commit whenever
+        // anything moved, at EVERY sidecar capture — a commit measured 163.7 s
+        // on a 106k-file tree, 2026-09-21.)
         // System flag: execution of ALL tools is blocked while the summary
         // request is in flight. Tools stay on the wire — prefix parity with
         // the trunk is preserved (see tools.ts summary guard).

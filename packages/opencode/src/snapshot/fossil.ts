@@ -408,11 +408,18 @@ export const layer = Layer.effect(
                 const changes = yield* fossil(["changes"], { cwd: worktree }).pipe(
                   Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "" })),
                 )
-                const addremoveDry = yield* fossil(["addremove", "-n"], { cwd: worktree }).pipe(
-                  Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "" })),
-                )
                 const hasChanges = changes.code === 0 && changes.text.trim().length > 0
-                const hasAdds = addremoveDry.code === 0 && /added \d+ files?/i.test(addremoveDry.text)
+                // `addremove -n` walks the whole tree; its verdict is consulted only
+                // when `changes` reports nothing. Running it unconditionally cost 14.3s
+                // per boundary on a 106k-file tree (measured 2026-09-21) and its result
+                // was unused whenever `changes` was non-empty.
+                let hasAdds = false
+                if (!hasChanges) {
+                  const addremoveDry = yield* fossil(["addremove", "-n"], { cwd: worktree }).pipe(
+                    Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "" })),
+                  )
+                  hasAdds = addremoveDry.code === 0 && /added \d+ files?/i.test(addremoveDry.text)
+                }
                 if (!hasChanges && !hasAdds) {
                   const probe = yield* fossil(["info"], { cwd: worktree })
                   const hash = currentHash(probe.text)
@@ -605,18 +612,19 @@ export const layer = Layer.effect(
          * h4; renames leave both old and new names). Remove only extras that were
          * in the pre-checkout `fossil ls` set (agent-tracked at previous leaf).
          * Never-tracked user files are not in preLs → kept.
+         *
+         * `fossil extras` answers that question by WALKING THE WHOLE TREE — measured
+         * >180s on a 106k-file tree (2026-09-21; this was the undo hang) — while the
+         * same answer follows from two manifest reads: a path is an extra iff it was
+         * tracked before the checkout and is not tracked after it. `checkout --force`
+         * leaves exactly those on disk, so no filesystem walk is needed.
          */
         const cleanupExtrasAfterCheckout = Effect.fnUntraced(function* (preTracked: Set<string>) {
-          const extras = yield* fossil(["extras"], { cwd: worktree })
-          if (extras.code !== 0 || !extras.text.trim()) return
-          for (const line of extras.text.trim().split("\n")) {
-            const file = line.trim().replaceAll("\\", "/")
+          const postTracked = yield* listTrackedRel()
+          for (const file of preTracked) {
             if (!file || file.startsWith(".")) continue
             if (file.endsWith(".fsl")) continue
-            if (!preTracked.has(file)) {
-              log.debug("extras cleanup skipped never-tracked file", { file })
-              continue
-            }
+            if (postTracked.has(file)) continue
             yield* fs.remove(path.join(worktree, file)).pipe(Effect.catch(() => Effect.void))
           }
         })

@@ -1,7 +1,11 @@
 <!-- intention: the fork has no native image decode (webp broken, jimp+sharp bridge in the app layer) and re-encodes sixel payloads every render -> take upstream's two named parts (native decoder, sixel payload cache) into our zig core, one dll rebuild -->
 # Native image decode + sixel payload cache — two named parts from opentui-0.5.11
 
-status: 2026-09-20 — planned; T0 in progress
+status: 2026-09-21 — SUPERSEDED by the re-base (`plans/2026-09-20_rebase-on-opentui-0.5.11.md`). Their tree
+IS the base now, so the decoder arrives with it and vendoring libwebp into OUR zig core is moot. T0 ✅ and
+T1 ✅ (the sixel payload cache) landed, then were PARKED together with the whole raster stack by the re-base —
+their per-placement sixel cache covers the same ground. T2–T5 are NOT executed; do not resume them without a
+measured need.
 scope: packages/opentui/packages/core/src/zig/**, packages/opentui/packages/core/scripts/build.ts,
        packages/opencode/src/util/image-decode.ts, packages/opencode/src/cli/cmd/tui/component/media-image.tsx
 owner: «Ага, давай» (2026-09-20) — the package: decoder port + sixel cache, one dll rebuild.

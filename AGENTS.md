@@ -151,24 +151,32 @@ deliberately, **the hand-maintained folder is the answer, not a workaround.**
 
 | | `external/opencode-1.18.29` | `external/opentui-0.5.11` |
 |---|---|---|
-| Ours | `packages/opencode` (612 files) | `packages/opentui` @ `0.4.4`, all 62 commits local |
-| Relation | **separate project, nothing to take** | **parts source, take selectively** |
-| Rule | never port, never sync, never regenerate | pull a specific part when you need it |
+| Ours | `packages/opencode` (612 files) | `packages/opentui` — **re-based on their 0.5.11 tree (2026-09-20)** |
+| Relation | **separate project, nothing to take** | **the base of our fork; our modules are the patches** |
+| Rule | never port, never sync, never regenerate | merge module by module under tests; park, never silently drop |
 
-The prohibition above is about **opencode** upstream: there is no merge surface,
-so there is nothing there to want. OpenTUI is the opposite case — the external
-copy is newer (`0.5.11` vs our `0.4.4`) and it is legitimate to reach into it
-for a specific fix or renderable.
+The prohibition above is about **opencode** upstream: there is no merge surface, so there is nothing there to
+want. OpenTUI is the opposite case — and since 2026-09-20 it is no longer "reach in selectively": the
+**re-base was decided and executed**.
 
-**But never wholesale, and never "let's just update to 0.5.11".** Our copy
-carries work upstream does not have — the Kitty/Sixel graphics path,
-`Image.ts` with `mode: "kitty" | "sixel" | "none"`, the native Sixel backend,
-calibrated Sixel mermaid, scroll-locked graphics. A version bump deletes it, and
-nothing in CI would notice, because `packages/opentui/packages/core` declares no
-`test:ci`.
+Owner: «Может нам вообще зиг обновить выдрать наши модули из нашей версии и впихнуть в их, 0.16 это
+серьёзный архитектурный сдвиг», then «Делаем как ты говоришь». Their 0.5.11 tree (Zig **0.16.0**) is now the
+base of `packages/opentui/**` in the working tree; our modules are the patches. Full record:
+`plans/2026-09-20_rebase-on-opentui-0.5.11.md` (S0–S4, evidence per step).
 
-Take a named part, for a named reason, and keep our graphics path. Directive
-from Alexander, 2026-09-17: "дергать без разбору лучше не стоит."
+The old warning named a real hazard, so it survives as the RESIDUAL LIST — parked, never silently dropped,
+each entry naming where the thing went:
+
+- **Raster/Sixel stack + the app's `rasterViewport`** — parked (git history +
+  `experiments/2026-09-20_rebase-stage/pre-swap/`); it returns only when a pixel oracle proves a behaviour
+  needs it. Our sixel payload cache is subsumed by their per-placement sixel cache.
+- **Keymap is still our 0.4.x copy** while core/solid are 0.5.11 — a live mismatch (nothing imports it; their
+  packages declare it only as a workspace devDep). Reconcile it or remove it.
+- **The swap is UNCOMMITTED** and `bin/opencode.exe` still runs the old engine. "A version bump deletes it and
+  nothing in CI would notice" is exactly why the commit and the calibrated-graphics pixel oracle
+  (sixel/mermaid/images on the re-based lib) are named as completion criteria, not assumed.
+
+For anything that plan does not cover, the 2026-09-17 directive still stands: "дергать без разбору лучше не стоит."
 
 ---
 

@@ -28,7 +28,7 @@ Bootstrap: [startup-bootstrap.md](startup-bootstrap.md).
 
 ## 2. Mental model: leaves, not per-file soup
 
-### 2.0 When a leaf is taken — four boundaries, all of them BEFORE (2026-09-17)
+### 2.0 When a leaf is taken — boundaries, all of them BEFORE (2026-09-17; sidecar row removed 2026-09-21)
 
 A snapshot is the state you revert **to**, so it is taken before the thing it
 covers. There is no decision about *whether* to snapshot and no inspection of
@@ -37,9 +37,15 @@ what a turn did:
 | Boundary | Code | Why here |
 |---|---|---|
 | Start of a user turn | `session/processor.ts` — `beginTurn` + `track(undefined)` | The baseline to revert to. Taken before anything is touched, so it needs no evidence about what the turn will do. |
-| Before a sidecar summary | `session/prompt.ts` — `captureSidecar` | After the fold, the trunk history that could rebuild that state is summarised away. |
 | Before an undo | `session/revert.ts` — `revert` | The state you are leaving must be recoverable, or redo has nothing to return to. |
 | Before a redo | `session/revert.ts` — `unrevert` | Same rule in the other direction. `checkout` replaces the working copy wholesale, so an edit made while the cursor sat back in the sequence was destroyed with no trace. |
+
+**The sidecar boundary is gone (2026-09-21, `380ae6e422`).** `captureSidecar` used to take its
+own whole-tree `track(undefined)` because a non-granular summary needed a fresh committed leaf
+to diff from. The summary is granular now and its range diff derives from the turn baselines
+already stored on message parts ([summary-exact-handles.md](summary-exact-handles.md)); keeping
+the call meant a whole-tree `changes` probe — and a commit whenever anything moved — at every
+capture.
 
 `track(undefined)` runs `addremove`, so it captures whatever appeared since the
 last boundary **regardless of who wrote it** — bash, edit, or the user's own
@@ -241,7 +247,7 @@ Old session patch hashes are then **invalid**. Undo fails with a clear error poi
 | Area | Behavior |
 |------|----------|
 | **Processor** | Checkpoint at create; `track` after write tools; emit `patch` with pre-step hash; weak hash → soft warn |
-| **Summary / Modified Files** | Tool `filediff` + CodeGraph for Exact memory — Fossil is **rollback**, not summary Exact ([summary-exact-handles.md](summary-exact-handles.md)) |
+| **Summary / Modified Files** | Range diffs derive from the stored snapshot anchors (`diffFull`: anchor → working copy) merged with tool `filediff` + CodeGraph; the UI `session_diff` ledger keeps its tool-metadata scope ([summary-exact-handles.md](summary-exact-handles.md)) |
 | **Compaction** | Fossil diffs may attach to summary handles when available; soft-fail if missing |
 | **TUI** | Footer: fossil green when sidecar/open markers present; undo/redo UI via session revert |
 
@@ -264,7 +270,7 @@ Old session patch hashes are then **invalid**. Undo fails with a clear error poi
 
 - [startup-bootstrap.md](startup-bootstrap.md) — Snapshot vs Git vs TUI  
 - [tools-and-sidecars.md](tools-and-sidecars.md) — `fossil.exe` layout  
-- [summary-exact-handles.md](summary-exact-handles.md) — Fossil ≠ summary Exact  
+- [summary-exact-handles.md](summary-exact-handles.md) — summary range diffs from the snapshot anchors  
 - [background-jobs.md](background-jobs.md) — jobs (orthogonal)  
 - `plans_completed/fossil-undo-redo-fix.md` — bug catalog + smoke stamps  
 - `plans_completed/2026-08-05_master_critical_remediation.md` — SP-01…05 delivery record  
@@ -283,8 +289,54 @@ processor rule per LLM step (`session/processor.ts`):
   full reconcile `track(undefined)`: shell redirects/scripts can mutate the
   worktree outside `changedFiles`, and undo must still see those mutations.
 
-Boundary: Summary Exact session_diff deliberately stays product-tool
-filediffs only (`summary.ts computeDiff` — "Fossil is rollback, not
-memory"). A bash-created file is undoable via Fossil leaves but does not
-appear in session_diff. Pinned by
-`test/session/snapshot-tool-race.test.ts`.
+Boundary: the UI `session_diff` ledger deliberately stays product-tool filediffs only.
+Since 2026-09-21 (`79c4b02271`) the **summary range diff** reads the stored anchors instead —
+a bash-created, boundary-tracked file DOES appear in a checkpoint's diffs — while the
+per-turn UI ledger keeps its tool-metadata scope. Pinned by
+`test/session/snapshot-tool-race.test.ts` + `test/session/summary-anchors.test.ts`.
+
+---
+
+## 11. Concurrency — multiple checkouts, multiple processes (2026-09-21)
+
+Pulled from the official docs (`fossil-scm.org/home/doc/trunk/www/concepts.wiki`,
+`…/tech_overview.wiki`) and held against this layer. The one thing the docs do **not**
+state is marked as such.
+
+**What fossil's own docs state:**
+
+- "a single repository can be associated with **many source trees**, but each source tree is
+  associated with only one repository" (concepts).
+- "**Fossil source trees may not overlap.** A Fossil source tree is identified by a file named
+  `_FOSSIL_` (or `.fslckout`) in the root directory" — which is why `ensureInit` opens with
+  `--nested`: the product worktree is itself a checkout, so a checkout inside it is otherwise
+  refused.
+- "Fossil allows a single repository to have multiple working checkouts. **Each working checkout
+  has a single database in its root directory**" (tech_overview) — and that database holds the
+  staged adds/removes/renames, the mtime/size edit cache, *"copies of files prior to the most
+  recent undoable operation — needed to implement the undo and redo commands"*, the stash and
+  bisect state. **Undo/redo state belongs to the checkout**, and the repository keeps no record
+  of its checkouts.
+- "SQLite updates are atomic, so even in the event of a system crash or power failure the
+  repository content is protected" (tech_overview).
+
+**What this layer does** (`snapshot/fossil.ts`): one checkout per worktree
+(`{worktree}/_FOSSIL_`), one repository per project id
+(`{worktree}/.opencode/data/fossil/{projectID}/snapshot.fsl`), and a **per-process**
+`Semaphore(1)` on the repo directory. There is no inter-process lock.
+
+**With N opencode instances on the SAME worktree** (N = 1 is the design point):
+
+| Surface | Behavior |
+|---|---|
+| SQLite DBs (sessions, messages, jobs) | survive — WAL + one transaction per step; jobs boot-recovery is owner-pid gated |
+| Repository file | writes serialize on the SQLite write transaction; a losing call surfaces as an error, `track()` returns the previous hash and logs |
+| Leaf granularity | degrades silently: fewer leaves, wider intervals |
+| Commit scope | repo-wide — a neighbour's half-written tree lands in your leaf |
+| **Undo/redo** | **one chain per worktree, and destructive**: `revertTo` = `checkout --force` of the whole tree + `preTracked − postTracked` cleanup — a neighbour's uncommitted work is overwritten and its tracked-but-absent-from-target file is deleted. The code refuses to *steal* another repository's checkout; it has no "neighbour alive" guard for undo |
+| Lock wait under contention | **not stated in the fetched docs** — the repo is SQLite, so writes take the SQLite lock; the exact busy-wait/retry behavior is implementation-level and unmeasured here. Settle with a two-instance experiment, not an argument |
+
+**Envelope:** one interactive instance per worktree; parallel agents get **separate worktrees**
+(own `.opencode/data`, own chain, own undo). If N-on-one-folder must be supported, the bounded
+steps are a lock file with a live-pid owner around write operations, and a refusal (or prompt)
+for destructive undo while a neighbour is alive.

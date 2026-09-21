@@ -104,6 +104,54 @@ export function commandBatches(
   return batches
 }
 
+/**
+ * Split `fossil diff --verbose` output into per-file unified patches.
+ *
+ * Sections begin at `Index: <path>` and end at the next section or status line. A
+ * section's patch is its text from the `--- ` header through its last hunk — the
+ * shape a reader expects, without fossil's `Index:`/`====` decoration. Files whose
+ * content cannot be diffed (binaries carry no hunk lines) are left out on purpose:
+ * the caller keeps their stats and status, never an empty snippet that a reader
+ * would take for "no change".
+ */
+export function parseDiffSections(text: string): Map<string, string> {
+  const patches = new Map<string, string>()
+  let file: string | undefined
+  let body: string[] = []
+  const flush = () => {
+    if (file !== undefined) {
+      const start = body.findIndex((line) => line.startsWith("--- "))
+      const hunks = start >= 0 ? body.slice(start) : []
+      if (hunks.some((line) => line.startsWith("@@"))) {
+        patches.set(
+          file,
+          hunks
+            .map((line) => (line.startsWith("--- ") || line.startsWith("+++ ") ? line.trimEnd() : line))
+            .join("\n")
+            .trimEnd(),
+        )
+      }
+    }
+    file = undefined
+    body = []
+  }
+  for (const line of text.split("\n")) {
+    const head = line.match(/^Index: (.+)$/)
+    if (head) {
+      flush()
+      file = head[1]!.trim()
+      continue
+    }
+    if (/^(ADDED|DELETED|MISSING|CHANGED|EDITED|UPDATE)\s{2,}/.test(line)) {
+      flush()
+      continue
+    }
+    if (file !== undefined) body.push(line)
+  }
+  flush()
+  return patches
+}
+
 export const layer = Layer.effect(
   SnapshotService,
   Effect.gen(function* () {
@@ -903,76 +951,91 @@ export const layer = Layer.effect(
           )
         })
 
-        const diffFull = Effect.fnUntraced(function* (from: string, to: string, paths?: readonly string[]) {
+        /**
+         * Diff a check-in against another check-in — or against the WORKING COPY when
+         * `to` is omitted, which is the view a summary capture needs: the newest turn's
+         * changes are not committed yet, and "revision → working copy" is exactly the
+         * range the anchors bracket.
+         *
+         * `--verbose` is what carries the CONTENT of added and deleted files; without
+         * it fossil prints a bare status line for them — and those are precisely the
+         * files a reader cannot reconstruct from the tree (deleted) or would have to
+         * re-read (added).
+         */
+        const diffFull = Effect.fnUntraced(function* (from: string, to?: string, paths?: readonly string[]) {
           return yield* locked(
             Effect.gen(function* () {
               if (!(yield* ensureInit())) return []
 
               // Resolve hashes — fallback for old git hashes
               const resolvedFrom = yield* resolveHash(from)
-              const resolvedTo = yield* resolveHash(to)
+              const resolvedTo = to ? yield* resolveHash(to) : undefined
+              const range = ["diff", "--from", resolvedFrom, ...(resolvedTo ? ["--to", resolvedTo] : [])]
               const selected = paths
                 ?.map((file) => path.relative(worktree, file).replaceAll("\\", "/"))
                 .filter((file) => file && !file.startsWith("../"))
               const targets = selected?.length ? selected : undefined
+              const scoped = targets ?? []
 
-              // Get numstat (insertions/deletions per file)
-              const statusResult = yield* fossil(
-                ["diff", "--from", resolvedFrom, "--to", resolvedTo, "-s", ...(targets ?? [])],
-                {
-                  cwd: worktree,
-                },
-              )
+              // Numstat, one file per line: `N M path`. The whole remainder of the line
+              // is the path, so names with spaces survive. A binary file prints a
+              // "cannot compute…" line followed by the bare path — kept as an entry with
+              // 0/0, because a dropped binary reads as an unchanged file.
+              const statusResult = yield* fossil([...range, "-s", ...scoped], { cwd: worktree })
               if (statusResult.code !== 0) return []
+              const stats: { file: string; additions: number; deletions: number }[] = []
+              const statLines = statusResult.text.split("\n")
+              for (let i = 0; i < statLines.length; i++) {
+                const line = statLines[i]!
+                if (!line.trim() || line.includes("INSERTED")) continue
+                if (line.includes("TOTAL")) break
+                if (line.includes("cannot compute difference between binary files")) {
+                  const next = statLines[i + 1]?.trim()
+                  if (next && !/^\d/.test(next)) {
+                    stats.push({ file: next, additions: 0, deletions: 0 })
+                    i++
+                  }
+                  continue
+                }
+                const match = line.match(/^\s*(\d+)\s+(\d+)\s+(.+)$/)
+                if (!match) continue
+                stats.push({
+                  file: match[3]!.trim(),
+                  additions: parseInt(match[1]!) || 0,
+                  deletions: parseInt(match[2]!) || 0,
+                })
+              }
 
-              // Get brief status (ADDED/DELETED/EDITED/CHANGED per file)
-              const briefResult = yield* fossil(
-                ["diff", "--from", resolvedFrom, "--to", resolvedTo, "--brief", ...(targets ?? [])],
-                {
-                  cwd: worktree,
-                },
-              )
+              // ADDED/DELETED/MISSING/CHANGED per file. MISSING is the working-copy
+              // deletion (gone from disk, still in the manifest) — a deletion to a
+              // reader, not a modification.
+              const briefResult = yield* fossil([...range, "--brief", ...scoped], { cwd: worktree })
               const statusMap = new Map<string, "added" | "deleted" | "modified">()
               if (briefResult.code === 0) {
-                for (const line of briefResult.text.trim().split("\n").filter(Boolean)) {
-                  const match = line.match(/^(ADDED|DELETED|EDITED|CHANGED|UPDATE)\s+(.+)$/)
-                  if (match) {
-                    const status = match[1]
-                    const file = match[2].trim()
-                    statusMap.set(file, status === "ADDED" ? "added" : status === "DELETED" ? "deleted" : "modified")
-                  }
+                for (const line of briefResult.text.split("\n")) {
+                  const match = line.match(/^(ADDED|DELETED|MISSING|CHANGED|EDITED|UPDATE)\s+(.+)$/)
+                  if (!match) continue
+                  const kind = match[1]!
+                  statusMap.set(
+                    match[2]!.trim(),
+                    kind === "ADDED" ? "added" : kind === "DELETED" || kind === "MISSING" ? "deleted" : "modified",
+                  )
                 }
               }
 
-              const files = statusResult.text
-                .trim()
-                .split("\n")
-                .filter(Boolean)
-                .filter((line) => !line.includes("TOTAL") && !line.includes("INSERTED"))
-                .map((line) => {
-                  const parts = line.trim().split(/\s+/)
-                  return parts.length >= 3 ? parts[2] : ""
-                })
-                .filter(Boolean)
+              const fullResult = yield* fossil([...range, "--verbose", ...scoped], { cwd: worktree })
+              const patches =
+                fullResult.code === 0 ? parseDiffSections(fullResult.text) : new Map<string, string>()
 
-              const result: FileDiff[] = []
-              for (const file of files) {
-                const rel = path.join(worktree, file).replaceAll("\\", "/")
-                const statLine = statusResult.text.split("\n").find((l) => l.includes(file)) ?? ""
-                const parts = statLine.trim().split(/\s+/)
-                const additions = parts.length >= 2 ? parseInt(parts[0]) || 0 : 0
-                const deletions = parts.length >= 3 ? parseInt(parts[1]) || 0 : 0
-
-                result.push({
-                  file: rel,
-                  patch: "",
-                  additions,
-                  deletions,
-                  status: statusMap.get(file) ?? "modified",
-                })
-              }
-
-              return result
+              return stats.map(
+                (stat): FileDiff => ({
+                  file: path.join(worktree, stat.file).replaceAll("\\", "/"),
+                  patch: patches.get(stat.file) ?? "",
+                  additions: stat.additions,
+                  deletions: stat.deletions,
+                  status: statusMap.get(stat.file) ?? "modified",
+                }),
+              )
             }).pipe(Effect.orDie),
           )
         })
@@ -1196,7 +1259,7 @@ export const layer = Layer.effect(
       }),
       diffFull: Effect.fn("SnapshotFossil.diffFull")(function* (
         from: string,
-        to: string,
+        to?: string,
         paths?: readonly string[],
       ) {
         return yield* InstanceState.useEffect(state, (s) => s.diffFull(from, to, paths))

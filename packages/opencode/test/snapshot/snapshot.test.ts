@@ -1,4 +1,4 @@
-import { afterEach, test, expect } from "bun:test"
+import { afterEach, setDefaultTimeout, test, expect } from "bun:test"
 import { $ } from "bun"
 import fs from "fs/promises"
 import path from "path"
@@ -13,6 +13,10 @@ import { provideInstance, tmpdir } from "../fixture/fixture"
 // with path.join (which produces \ on Windows) then normalizes back to /.
 // This helper does the same for expected values so assertions match cross-platform.
 const fwd = (...parts: string[]) => path.join(...parts).replaceAll("\\", "/")
+
+// Fossil spawns dominate this file (each test boots its own repo); bun's 5 s default
+// turns a loaded machine into reds that say nothing about the code.
+setDefaultTimeout(20_000)
 
 afterEach(async () => {
   await Instance.disposeAll()

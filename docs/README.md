@@ -3,7 +3,7 @@
 ## Memory / session (canonical)
 
 - [Mechanistic Compaction](compaction.md) — **canonical** Layer-1 summary outside content + Layer-2 compact
-- [Summary Exact handles](summary-exact-handles.md) — tool write/edit/multiedit filediffs + CodeGraph (critical; Fossil = rollback only)
+- [Summary Exact handles](summary-exact-handles.md) — snapshot anchors (fossil range diff) + tool filediffs + CodeGraph (critical)
 - [Session memory graph](session-memory-graph.md) — end-to-end mermaid: cadence vs safety
 - [Finish-step TX graph](finish-step-tx-graph.md) — `runBatch` / single SQLite TX at step boundary
 

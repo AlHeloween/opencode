@@ -1037,7 +1037,9 @@ function renderSummaryBlock(input: {
   const diffLine =
     s.diffs && s.diffs.length > 0
       ? [
-          `- tool_diff: system Exact (write/edit/multiedit filediff from session DB)`,
+          s.sidecar
+            ? `- tool_diff: system Exact (snapshot range diff — fossil anchors + tool metadata)`
+            : `- tool_diff: system Exact (write/edit/multiedit filediff from session DB)`,
           `  files=${s.diffs.length}; additions=${s.diffs.reduce((sum, diff) => sum + diff.additions, 0)}; deletions=${s.diffs.reduce((sum, diff) => sum + diff.deletions, 0)}`,
           ...s.diffs.slice(0, 20).flatMap((diff) => {
             const head = `  - ${diff.file} (+${diff.additions}/-${diff.deletions} ${diff.status ?? "modified"})`

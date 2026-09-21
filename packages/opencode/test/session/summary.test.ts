@@ -363,10 +363,11 @@ Create a structured summary of the conversation from message \`msg_aaa\` to \`ms
 })
 
 /**
- * Legacy fossil hash helpers (rollback anchors only — not summary Exact).
- * Summary Exact: collectToolFileDiffs — see summary-exact-live.test.ts.
+ * Summary-range anchors. These are the SAME hashes the undo/redo chain stores, so a
+ * range diff is derived from them (anchors first, tool metadata merged — the live
+ * path is pinned in summary-anchors.test.ts).
  */
-describe("SessionSummary.snapshotRangeForMessages (deprecated fossil helpers)", () => {
+describe("SessionSummary summary-range anchors", () => {
   const mk = (
     id: string,
     parts: Array<Record<string, unknown>>,
@@ -394,14 +395,7 @@ describe("SessionSummary.snapshotRangeForMessages (deprecated fossil helpers)", 
     expect(SessionSummary.snapshotHashesOnMessage(msg)).toEqual(["H0", "H1", "H2"])
   })
 
-  test("no hash in range → skip even when prior exists", () => {
-    const prior = [mk("msg_p", [{ type: "step-finish", snapshot: "H_prior" }])]
-    const range = [mk("msg_r", [{ type: "text", text: "hello only" }], "user")]
-    expect(SessionSummary.snapshotRangeForMessages(range, prior)).toBeUndefined()
-  })
-
-  test("prior hash + last hash in multi-hash range → full WC span for CodeGraph", () => {
-    const prior = [mk("msg_p", [{ type: "step-finish", snapshot: "H_prior" }])]
+  test("the first anchored message in the range is the start", () => {
     const range = [
       mk("msg_1", [{ type: "step-start", snapshot: "H1" }]),
       mk("msg_2", [
@@ -410,58 +404,28 @@ describe("SessionSummary.snapshotRangeForMessages (deprecated fossil helpers)", 
       ]),
       mk("msg_3", [{ type: "step-finish", snapshot: "H_last" }]),
     ]
-    // Multiple changes in summary window: from = prior, to = LAST in range (not H1/H2).
-    expect(SessionSummary.snapshotRangeForMessages(range, prior)).toEqual({
-      from: "H_prior",
-      to: "H_last",
-    })
+    expect(SessionSummary.summaryRangeStartHash(range)).toBe("H1")
+    // Prior messages never move the start when the range carries its own anchor.
+    const prior = [mk("msg_p", [{ type: "step-finish", snapshot: "H_prior" }])]
+    expect(SessionSummary.summaryRangeStartHash(range, prior)).toBe("H1")
   })
 
-  test("no prior: first hash in range is baseline, last is end", () => {
-    const range = [
-      mk("msg_1", [{ type: "step-start", snapshot: "H_open" }]),
-      mk("msg_2", [{ type: "step-finish", snapshot: "H_mid" }]),
-      mk("msg_3", [{ type: "patch", hash: "H_end", files: ["b.ts"] }]),
+  test("a range without anchors falls back to the last stored anchor before it", () => {
+    const before = [
+      mk("msg_p1", [{ type: "step-finish", snapshot: "H_old" }]),
+      mk("msg_p2", [{ type: "step-finish", snapshot: "H_prior" }]),
     ]
-    expect(SessionSummary.snapshotRangeForMessages(range)).toEqual({
-      from: "H_open",
-      to: "H_end",
-    })
-    expect(SessionSummary.snapshotRangeForMessages(range, [])).toEqual({
-      from: "H_open",
-      to: "H_end",
-    })
+    const range = [mk("msg_r", [{ type: "text", text: "hello only" }], "user")]
+    expect(SessionSummary.summaryRangeStartHash(range, before)).toBe("H_prior")
   })
 
-  test("single hash in range, no prior → from === to (empty fossil span is valid)", () => {
-    const range = [mk("msg_1", [{ type: "step-finish", snapshot: "H_only" }])]
-    expect(SessionSummary.snapshotRangeForMessages(range)).toEqual({
-      from: "H_only",
-      to: "H_only",
-    })
-  })
-
-  test("prior wins over first-in-range when both exist", () => {
-    const prior = [mk("msg_p", [{ type: "step-finish", snapshot: "H0" }])]
-    const range = [
-      mk("msg_1", [{ type: "step-start", snapshot: "H1" }]),
-      mk("msg_2", [{ type: "step-finish", snapshot: "H2" }]),
-    ]
-    expect(SessionSummary.snapshotRangeForMessages(range, prior)).toEqual({
-      from: "H0",
-      to: "H2",
-    })
-  })
-
-  test("empty range messages → skip", () => {
-    expect(SessionSummary.snapshotRangeForMessages([])).toBeUndefined()
-    expect(
-      SessionSummary.snapshotRangeForMessages([], [mk("msg_p", [{ type: "step-finish", snapshot: "H0" }])]),
-    ).toBeUndefined()
+  test("no anchors anywhere is undefined", () => {
+    expect(SessionSummary.summaryRangeStartHash([])).toBeUndefined()
+    expect(SessionSummary.summaryRangeStartHash([mk("msg_r", [{ type: "text", text: "x" }])], [])).toBeUndefined()
   })
 })
 
-// Exact tool filediffs + CodeGraph: see summary-exact-live.test.ts (no Fossil for summary).
+// Anchored summary diffs: summary-anchors.test.ts (live) + summary-exact-live.test.ts (tool fallback).
 
 describe("SessionSummary.update / updateFallback (tool filediffs only)", () => {
   test("merges explicit tool filediffs without Fossil diffFull", async () => {

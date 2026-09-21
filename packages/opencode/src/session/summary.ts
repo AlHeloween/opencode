@@ -138,7 +138,13 @@ export function collectToolFileDiffs(messages: MessageV2.WithParts[]): Snapshot.
   return [...filediffs.values()]
 }
 
-/** @deprecated Fossil hashes are for rollback only — not summary Exact. Kept for callers that still read step/patch hashes. */
+/**
+ * The snapshot anchors a message carries — the SAME hashes the undo/redo chain walks.
+ *
+ * `step-start`/`step-finish` carry the turn's baseline (committed once at the turn
+ * start); `patch` parts carry the pre-write context their patch diffed from. Order
+ * within the message is the write order, so the LAST hash is the freshest.
+ */
 export function snapshotHashesOnMessage(msg: MessageV2.WithParts): string[] {
   const hashes: string[] = []
   for (const part of msg.parts) {
@@ -149,30 +155,56 @@ export function snapshotHashesOnMessage(msg: MessageV2.WithParts): string[] {
   return hashes
 }
 
-/** @deprecated Fossil endpoints are for rollback only — summary Exact uses collectToolFileDiffs. */
-export function snapshotRangeForMessages(
-  rangeMessages: MessageV2.WithParts[],
-  beforeMessages?: MessageV2.WithParts[],
-): { from: string; to: string } | undefined {
-  let prior: string | undefined
+/**
+ * The snapshot a summary range starts from.
+ *
+ * The FIRST anchor inside the range wins: a range begins at a message boundary, and
+ * the first message's step baseline was committed at its turn's start — at or before
+ * the range start, so the diff can over-cover a same-turn tail but never skips a
+ * change. `beforeMessages` is the fallback for rows that carry no anchors at all
+ * (history older than the anchor), where the LAST stored hash is the closest state.
+ */
+export function summaryRangeStartHash(
+  rangeMessages: readonly MessageV2.WithParts[],
+  beforeMessages?: readonly MessageV2.WithParts[],
+): string | undefined {
+  for (const msg of rangeMessages) {
+    const hashes = snapshotHashesOnMessage(msg)
+    if (hashes.length > 0) return hashes[hashes.length - 1]
+  }
   if (beforeMessages?.length) {
-    for (const item of beforeMessages) {
-      for (const h of snapshotHashesOnMessage(item)) prior = h
+    for (let i = beforeMessages.length - 1; i >= 0; i--) {
+      const hashes = snapshotHashesOnMessage(beforeMessages[i]!)
+      if (hashes.length > 0) return hashes[hashes.length - 1]
     }
   }
-  let firstInRange: string | undefined
-  let lastInRange: string | undefined
-  for (const item of rangeMessages) {
-    for (const h of snapshotHashesOnMessage(item)) {
-      if (!firstInRange) firstInRange = h
-      lastInRange = h
+  return undefined
+}
+
+/**
+ * Merge an anchor diff (the worktree's truth: shell edits, deletions, renames) with
+ * tool filediffs (the agent's own writes).
+ *
+ * The anchored entry wins on stats and status — it is the chain's measurement of the
+ * same path. Tool metadata still contributes: a snippet where the chain ships stats
+ * only, and whole entries for paths the chain cannot see yet — a file written THIS
+ * turn is untracked until its boundary commits.
+ */
+export function mergeAnchorDiffs(
+  anchored: readonly Snapshot.FileDiff[],
+  tools: readonly Snapshot.FileDiff[],
+): Snapshot.FileDiff[] {
+  const key = (file: string) => file.replaceAll("\\", "/")
+  const merged = new Map<string, Snapshot.FileDiff>(anchored.map((item) => [key(item.file), { ...item }]))
+  for (const tool of tools) {
+    const existing = merged.get(key(tool.file))
+    if (!existing) {
+      merged.set(key(tool.file), tool)
+      continue
     }
+    if (!existing.patch?.trim() && tool.patch?.trim()) merged.set(key(tool.file), { ...existing, patch: tool.patch })
   }
-  if (!lastInRange) return undefined
-  const from = prior ?? firstInRange
-  const to = lastInRange
-  if (!from) return undefined
-  return { from, to }
+  return [...merged.values()]
 }
 
 function unquoteGitPath(input: string) {
@@ -235,7 +267,8 @@ export interface Interface {
   readonly summarize: (input: { sessionID: SessionID; messageID: MessageID }) => Effect.Effect<void>
   /**
    * Incremental session-diff merge from tool filediffs already in session DB.
-   * `before`/`after` fossil hashes are ignored (rollback-only); Exact memory is tool metadata.
+   * `before`/`after` fossil hashes are ignored here — the range diffs that read the
+   * snapshot chain are `enrichRange`'s; this merge stays tool-metadata only.
    */
   readonly update: (input: {
     sessionID: SessionID
@@ -255,7 +288,7 @@ export interface Interface {
   readonly enrichRange: (input: {
     sessionID: SessionID
     messages: MessageV2.WithParts[]
-    /** Unused for Exact (tool diffs only). Kept for call-site compatibility. */
+    /** Messages before the range — the anchor fallback when the range itself carries none. */
     beforeMessages?: MessageV2.WithParts[]
   }) => Effect.Effect<{
     diffs: Snapshot.FileDiff[]
@@ -272,6 +305,9 @@ export const layer = Layer.effect(
     const storage = yield* Storage.Service
     const config = yield* Effect.serviceOption(Config.Service)
     const bus = yield* Bus.Service
+    // Optional by design: a layer without the snapshot service keeps the tool-metadata
+    // path whole (tests, `snapshot: false`, an instance that never inited fossil).
+    const snapshot = yield* Effect.serviceOption(Snapshot.Service)
 
     const normalizePath = (file: string) => file.replaceAll("\\", "/")
 
@@ -279,7 +315,8 @@ export const layer = Layer.effect(
       messages: MessageV2.WithParts[]
       beforeMessages?: MessageV2.WithParts[]
     }) {
-      // Summary Exact: tool filediffs only. Fossil is rollback (track/restore), not memory.
+      // Tool-metadata diff: the merge source and the no-snapshot fallback. Range
+      // summaries read the snapshot anchors first — see `rangeDiffs`.
       void input.beforeMessages
       const diffs = collectToolFileDiffs(input.messages)
       log.info("computeDiff tool filediffs", { msgCount: input.messages.length, count: diffs.length })
@@ -531,22 +568,57 @@ export const layer = Layer.effect(
       return next
     })
 
+    /**
+     * Range diffs for a summary, anchors first.
+     *
+     * The anchors are the hashes the undo/redo chain already stores on message parts —
+     * one fossil diff answers what the WHOLE worktree did in the range, including the
+     * shell-made edits and deletions a tool-metadata harvest cannot see. Tool metadata
+     * is merged in (see `mergeAnchorDiffs`) and is the entire answer when no anchor
+     * resolves — old rows, `snapshot: false`, a recreated repo — so the fallback is
+     * exactly the behaviour this path had before.
+     */
+    const rangeDiffs = Effect.fn("SessionSummary.rangeDiffs")(function* (input: {
+      messages: MessageV2.WithParts[]
+      beforeMessages?: MessageV2.WithParts[]
+    }) {
+      const tools = collectToolFileDiffs(input.messages)
+      if (snapshot._tag !== "Some") return tools
+      const from = summaryRangeStartHash(input.messages, input.beforeMessages)
+      if (!from) return tools
+      const anchored = yield* snapshot.value.diffFull(from).pipe(
+        Effect.catchCause((cause) => {
+          log.debug("summary range diff: anchor unavailable — tool filediffs only", {
+            from: from.slice(0, 12),
+            error: Cause.pretty(cause),
+          })
+          return Effect.succeed(undefined as Snapshot.FileDiff[] | undefined)
+        }),
+      )
+      if (!anchored) return tools
+      log.info("summary range diff from snapshot anchors", {
+        from: from.slice(0, 12),
+        anchored: anchored.length,
+        tools: tools.length,
+      })
+      return mergeAnchorDiffs(anchored, tools)
+    })
+
     const enrichRange = Effect.fn("SessionSummary.enrichRange")(function* (input: {
       sessionID: SessionID
       messages: MessageV2.WithParts[]
       beforeMessages?: MessageV2.WithParts[]
     }) {
-      void input.beforeMessages
-      const diffs = collectToolFileDiffs(input.messages)
+      const diffs = yield* rangeDiffs({ messages: input.messages, beforeMessages: input.beforeMessages })
       if (diffs.length === 0) {
-        log.info("enrichRange: no write/edit/multiedit filediffs in range", {
+        log.info("enrichRange: no file diffs in range", {
           sessionID: input.sessionID,
           rangeMessages: input.messages.length,
         })
         return { diffs: [] as Snapshot.FileDiff[] }
       }
       const impact = yield* impactForToolFiles(diffs.map((d) => d.file))
-      log.info("enrichRange: tool Exact + CodeGraph", {
+      log.info("enrichRange: range diffs + CodeGraph", {
         sessionID: input.sessionID,
         files: diffs.length,
         hasImpact: !!impact,

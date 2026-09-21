@@ -65,8 +65,8 @@ export interface Interface {
   /** @deprecated Prefer revertTo — implemented as full-tree checkout to patches[0].hash */
   readonly revert: (patches: Patch[]) => Effect.Effect<void>
   readonly diff: (hash: string) => Effect.Effect<string>
-  /** Optional `paths` scopes the fossil range to selected files (absolute or worktree-relative). */
-  readonly diffFull: (from: string, to: string, paths?: readonly string[]) => Effect.Effect<FileDiff[]>
+  /** Optional `paths` scopes the fossil range to selected files (absolute or worktree-relative). Omit `to` to diff `from` against the working copy. */
+  readonly diffFull: (from: string, to?: string, paths?: readonly string[]) => Effect.Effect<FileDiff[]>
   /**
    * Structural impact between two snapshots via CodeGraph MCP only.
    * Hard-fails if MCP unavailable or index missing — never soft-returns empty success.

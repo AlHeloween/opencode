@@ -400,12 +400,12 @@ rows are consumed **only at compact** into `m*`.
 |-------|--------|------|
 | AI body | **Inferred** | `## Semantic Vector`, `## Goal`, `## Key decisions`, `## Current state` |
 | System data | **Exact** | range `from_id`/`to_id`, locus for `session-read`, checkpoint id |
-| Tool diffs | **Exact** | write/edit/multiedit `filediff` from session DB — see `summary-exact-handles.md` |
+| Tool diffs | **Exact** | snapshot anchor range diff (fossil, revision → working copy) merged with write/edit/multiedit `filediff` — see `summary-exact-handles.md` |
 | CodeGraph | **Exact** | structural impact over those file paths (system, not model) |
 | Plan state | **Exact** | GATED WORKFLOW mirror of active `plans/*.md`: lifecycle, gate, intention, per-task `sv`/status/attempts/last_failure, invariants — kernel-native anchors (see below) |
-| Fossil | **Rollback only** | WC track/restore — **not** summary Exact |
+| Fossil | **Anchors + rollback** | the range diff starts from the stored anchor; track/restore remain undo/redo — see `summary-exact-handles.md` |
 
-**Not:** fossil span for memory. **Yes:** tool Exact + CodeGraph + plan state.
+**Not:** a fossil span re-derived per summary. **Yes:** the stored anchors (one range diff) + tool Exact merge + CodeGraph + plan state.
 
 **Plan state mirror (2026-08-27):** each `s` carries a system-Exact `planState`
 — a GATED WORKFLOW snapshot of the active plans: `lifecycle`, `gate`, the plan's
@@ -715,12 +715,12 @@ sequenceDiagram
 | `s` not in content window | `captureSidecar` → `project_checkpoint` + UI panel with **old** Exact stamp product (`=== LAYER-1 SUMMARY ===`, ignored/synthetic; skipped by `toModelMessages` / cadence) | **Match** (old s product, new placement) |
 | Exact stamp / multi-s fold | `formatExactSystemStamp` shared with legacy inject; `compact` folds **all** open checkpoints + legacy `assistant.summary` via `buildMessageStar` | **Match** |
 | After checkpoint when inferences done | `stop` → `publish` + **await `persist`** → `captureSidecar` | **Match** (disk before summary); capture now runs on normal clean completions (`completedCleanly`), not only on blocked/error turns |
-| Exact tool diffs + CodeGraph on s | `enrichRange`: `collectToolFileDiffs` + `mcpTouchThenSqlitePack` (no Fossil) | **Match**; no write/edit/multiedit in range ⇒ empty Exact |
+| Range diffs + CodeGraph on s | `enrichRange`: `summaryRangeStartHash` → `Snapshot.diffFull` (revision → working copy) merged with `collectToolFileDiffs`; `mcpTouchThenSqlitePack` over the merged paths | **Match** (2026-09-21); tool filediffs are the whole answer only where no anchor resolves |
 | Summary as user-message shape | Ephemeral stream appends `summaryRequestProse()` as user content | **Match** (stream-only, not DB user row) |
 | Store s + restore M | save checkpoint table; M never mutated | **Match** |
 | Checker after summary | `diagnoseSummaryGaps`: body ≥200 chars, per-section minima (Semantic Vector 40 / Goal 60 / Key decisions 40 / Current state 60 chars), ≥1 decision bullet; `isValidSummaryBody` = `gaps.length === 0`. Sidecar attempts ×2 (`SIDECAR_MAX_ATTEMPTS`): attempt 1 = fresh request, attempt 2 = targeted `gapFillRequest` + `mergeSummarySections`; invalid after the loop → warn + NOT stored. Every cycle, successful or not, starts the 30s cooldown. | **Match** (verified 2026-09-06: focused policy/accounting tests + typecheck) |
 | Summary generation/accounting | `streamOptions()` sets `outputTokenMax=32768` — a floor (16K reasoning window + 16K body; only the answer is stored); `captureSidecar` consumes `finish-step`, classifies raw cache usage, logs duration/tokens/cost, and calls the same `recordSessionUsage` writer as normal turns. System, checkpoint M, tools, and `providerCacheKey` are unchanged. | **Fixed 2026-09-14** (was 8,192 — unsatisfiable vs the 16K body + reasoning-first) |
-| Fossil only for WC rollback | `SnapshotFossil.track` / `restore` — not on summary Exact path | **Match** |
+| Fossil anchors on the summary path | `SnapshotFossil.diffFull(anchor)` reads the undo/redo anchors for the range diff; `track`/`restore` stay rollback | **Match** (2026-09-21) |
 | Cadence ~256k chars / ~64k tokens | `SUMMARY_INTERVAL_TOKENS = 65_536` content/4 | **Match** (order of magnitude) |
 | `m* = [s,s,recent m]` | `compact()` folds open sidecars + Recent; **zero summaries → tail-only m\*** (header + last ~32K of messages; `log: no summaries`) | **Match (2026-08-25)** — T2 refusal removed: manual /compact works on fresh sessions; uncovered tail is the memory |
 | Summaries capped at 16K tokens (FULL render: body+diffs+plan_state+links) | `MAX_SUMMARY_BODY_TOKENS = 16_384` measured via `renderSummaryBlock` — body-only counting let 76K bodies render into 237K of m* | **Fixed 2026-08-29** |

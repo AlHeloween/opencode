@@ -17,6 +17,7 @@ import { spawnSync } from "child_process"
 import { createHash } from "crypto"
 import type { Node, Parser } from "web-tree-sitter"
 import { getParser, commands as tsCommands, parts as tsParts, source as tsSource } from "@/shell/tree-sitter"
+import { enumerationToolDecision, resolveEnumerationTool } from "./enumeration-tools"
 
 const log = Log.create({ service: "session.constitution" })
 
@@ -59,8 +60,16 @@ function _probeBinary(name: string): boolean {
   }
 }
 
-for (const t of ["find", "fd", "fdfind", "rg", "more", "busybox"]) {
+// Unambiguous unix tools: PATH is evidence for these names.
+for (const t of ["fd", "fdfind", "rg", "busybox"]) {
   if (_probeBinary(t)) _KNOWN_ENUM_FIRST_TOKENS.add(t)
+}
+// An AMBIGUOUS name (`find` is System32's text search on Windows, not a directory walker) counts
+// only where a real unix build can sit: beside the binary, or in the worktree's tools/. Using
+// `where find` as the evidence classified a working text search as directory enumeration and
+// blocked it (measured 2026-09-21: `find /c "??"` — grep-shaped — was refused).
+for (const t of ["find", "more", "ls", "cat", "grep", "sed", "awk", "head", "tail", "wc", "sort"]) {
+  if (resolveEnumerationTool(t)) _KNOWN_ENUM_FIRST_TOKENS.add(t)
 }
 
 // Always-scanned: for-globs + wrappers. echo/printf are NOT enumerators (allowed).
@@ -766,6 +775,18 @@ export function guardCommand(command: string, meta?: { sessionID?: string; agent
         // git ls-files, where/which, rg without --files are allowed
         if (firstToken === "git" || firstToken === "where" || firstToken === "which") continue
         if ((firstToken === "rg" || firstToken === "rg.exe") && !seg.includes("--files")) continue
+        // A tool that RESOLVES is a tool that works: beside the binary, in tools/, or on PATH.
+        // Blocking a command that would have run is its own kind of wrong decision.
+        const decision = enumerationToolDecision(firstToken)
+        if (decision.allowed) {
+          log.info("constitution.enumeration_allowed_unix_tool", {
+            command: seg.slice(0, 200),
+            tool: decision.path,
+            sessionID: meta?.sessionID,
+            agent: meta?.agent,
+          })
+          continue
+        }
 
         log.warn("constitution.directory_browsing_blocked", {
           command: command.slice(0, 200),
@@ -777,10 +798,7 @@ export function guardCommand(command: string, meta?: { sessionID?: string; agent
           family: CommandFamily.FILE_ENUMERATOR,
           needsDestructivePermission: false,
           blocked: true,
-          message:
-            "constitution: BLOCKED shell directory/file enumeration (ls/dir/find/fd/rg --files/…). " +
-            "Use the list tool for browsing; glob for path patterns; grep for content. " +
-            "VCS checks (e.g. git ls-files --error-unmatch <path>) and PATH lookup (where/which) stay allowed.",
+          message: decision.message,
         }
       }
     }
@@ -799,8 +817,26 @@ export function guardCommand(command: string, meta?: { sessionID?: string; agent
   const classification = classifyAstNode(cmd, sub, lower)
   const allow = allowDestructiveCommands()
 
-  // FILE_ENUMERATOR is hard-blocked regardless of risk level (risk=LOW but blocked=true)
+  // FILE_ENUMERATOR is blocked unless the real tool is present for this runtime (risk=LOW but
+  // blocked=true by default). The probe is the difference between a capability that is missing and
+  // one that is merely disbelieved.
   if (classification.family === CommandFamily.FILE_ENUMERATOR) {
+    const decision = enumerationToolDecision(cmd)
+    if (decision.allowed) {
+      log.info("constitution.enumeration_allowed_unix_tool", {
+        command: command.slice(0, 200),
+        tool: decision.path,
+        sessionID: meta?.sessionID,
+        agent: meta?.agent,
+      })
+      return {
+        risk: classification.risk,
+        family: classification.family,
+        needsDestructivePermission: false,
+        blocked: false,
+      }
+    }
+
     log.warn("constitution.directory_browsing_blocked", {
       command: command.slice(0, 200),
       sessionID: meta?.sessionID,
@@ -811,10 +847,7 @@ export function guardCommand(command: string, meta?: { sessionID?: string; agent
       family: CommandFamily.FILE_ENUMERATOR,
       needsDestructivePermission: false,
       blocked: true,
-      message:
-        "constitution: BLOCKED shell directory/file enumeration (ls/dir/find/fd/rg --files/…). " +
-        "Use the list tool for browsing; glob for path patterns; grep for content. " +
-        "VCS checks (e.g. git ls-files --error-unmatch <path>) and PATH lookup (where/which) stay allowed.",
+      message: decision.message,
     }
   }
 

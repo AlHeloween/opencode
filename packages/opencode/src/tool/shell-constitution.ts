@@ -14,6 +14,7 @@
 import { Effect } from "effect"
 import path from "node:path"
 import { Constitution } from "@/session/constitution"
+import { enumerationToolDecision, ENUMERATION_TOOLS } from "@/session/enumeration-tools"
 import * as Log from "@opencode-ai/core/util/log"
 import type * as Tool from "./tool"
 import type { Node } from "web-tree-sitter"
@@ -68,10 +69,17 @@ export function enforceDestructiveShellFromAst(
 
     // Hard blocks (FILE_ENUMERATOR, GIT_HISTORY_REWRITE, FOSSIL_MUTATE)
     for (const finding of result.blocked) {
+      // The block is only reachable when the tool is genuinely ABSENT for this runtime —
+      // Constitution.evaluate already allowed every resolvable enumerator — so the message comes
+      // from the resolver, which names where to put the tool instead of pretending the capability
+      // does not exist (owner, 2026-09-21: either the tools are beside the binary, or the message
+      // says so).
+      const enumerator = finding.command.trim().split(/\s+/)[0]?.replace(/\.exe$/i, "").toLowerCase() ?? ""
       const msg = finding.isFileEnumerator
-        ? "constitution: BLOCKED shell directory/file enumeration (ls/dir/find/fd/rg --files/…). " +
-          "Use the list tool for browsing; glob for path patterns; grep for content. " +
-          "VCS checks (e.g. git ls-files --error-unmatch <path>) and PATH lookup (where/which) stay allowed."
+        ? ENUMERATION_TOOLS.includes(enumerator as never)
+          ? enumerationToolDecision(enumerator).message
+          : "constitution: BLOCKED directory/file enumeration — the list tool browses, glob finds paths, " +
+            "grep finds content, read reads files."
         : finding.classification.family === "FOSSIL_MUTATE"
           ? "constitution: BLOCKED fossil CLI mutate (permission: destructive-fossil). " +
             "Fossil is automatic session undo/snapshot — not project VCS. " +

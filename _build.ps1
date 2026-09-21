@@ -146,6 +146,40 @@ function Invoke-Build {
     }
     New-Item -ItemType Directory -Path $DistDir | Out-Null
 
+    # Enforce the OpenTUI precondition instead of only declaring it (line 125 above).
+    # packages/opencode/script/build.ts:177-182 resolves the parser worker by LITERAL PATH
+    # (node_modules/@opentui/core/dist/parser.worker.js, else .../core/parser.worker.js, else the
+    # repo-root fallback) and calls fs.realpathSync on it - so an unbuilt or stale OpenTUI lib
+    # dies as a bare ENOENT deep inside the opencode bundle, naming neither the cause nor the tool.
+    # Measured 2026-09-21 after the 0.5.11 re-base: dist/ did not exist at all.
+    # The lib half is cheap (TS only); the Zig DLL half stays _opentui.ps1's job, and the
+    # failure message names it.
+    $openTuiCore = Join-Path $Root "packages\opentui\packages\core"
+    $parserWorker = Join-Path $openTuiCore "dist\parser.worker.js"
+    $openTuiStale = $true
+    if (Test-Path $parserWorker) {
+        $openTuiStale = $null -ne (
+            Get-ChildItem (Join-Path $openTuiCore "src") -Recurse -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.LastWriteTimeUtc -gt (Get-Item $parserWorker).LastWriteTimeUtc } |
+                Select-Object -First 1
+        )
+    }
+    if ($openTuiStale) {
+        Write-Host "  OpenTUI lib dist missing or stale - building (bun run build:lib)..." -ForegroundColor Yellow
+        Push-Location $openTuiCore
+        try {
+            bun run build:lib
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path $parserWorker)) {
+                throw "OpenTUI lib build did not produce dist/parser.worker.js - run .\_opentui.ps1 (Invoke-OpenTuiBuild) for the full Zig + lib build"
+            }
+        } finally {
+            Pop-Location
+        }
+        Write-Success "OpenTUI lib dist rebuilt"
+    } else {
+        Write-Success "OpenTUI lib dist is current"
+    }
+
     # Build opencode package (single-platform)
     # script/build.ts copies core-win32-x64/opentui.dll into node_modules for bun --compile
     Write-Host "  Building packages..." -ForegroundColor Yellow

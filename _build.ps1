@@ -140,11 +140,22 @@ function Invoke-Build {
     Write-Host "  Building Rust WASM modules..." -ForegroundColor Yellow
     & "$PSScriptRoot\_build_rust.ps1"
 
-    # Clean dist directory
+    # Clean dist directory — CONTENT-level, not `Remove-Item $DistDir -Recurse -Force`.
+    # Why: a run of `dist\bin\opencode.exe` from inside that directory leaves its runtime state
+    # there (`bin\.opencode\data` — session DB, logs — and `bin\locks\`), and Windows refuses to
+    # delete a directory another process still holds, so the WHOLE build died on scratch data
+    # (measured 2026-09-21: "cannot access dist\bin\.opencode\data\log"). Build outputs are the
+    # artifacts; the binary's own runtime state is preserved across a rebuild.
     if (Test-Path $DistDir) {
-        Remove-Item $DistDir -Recurse -Force
+        Get-ChildItem $DistDir -Recurse -Force -ErrorAction SilentlyContinue |
+            Where-Object {
+                $relative = $_.FullName.Substring($DistDir.Length).TrimStart("\")
+                $relative -notlike "bin\.opencode*" -and $relative -notlike "bin\locks*"
+            } |
+            Sort-Object { $_.FullName.Length } -Descending |
+            Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
     }
-    New-Item -ItemType Directory -Path $DistDir | Out-Null
+    New-Item -ItemType Directory -Path $DistDir -Force | Out-Null
 
     # Enforce the OpenTUI precondition instead of only declaring it (line 125 above).
     # packages/opencode/script/build.ts:177-182 resolves the parser worker by LITERAL PATH

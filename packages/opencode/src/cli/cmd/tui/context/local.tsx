@@ -385,9 +385,33 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       // (Alexander, 2026-09-20: «Reading model config not from session settings also all
       // tests failed»). The session is filled from the worktree when it comes into
       // existence, so its own entry is the only source a read needs.
+      /**
+       * The model the runtime WILL use for this agent, by the chain it actually resolves:
+       * the session's own entry → the worktree layer (model.json) → the agent's own declaration
+       * (`Agent.Info`). The read used to stop at the session layer, so a session whose layer had
+       * not materialised reported «No provider selected» in the footer while /agents showed a
+       * model for every agent — two surfaces contradicting each other on the same screen
+       * (owner, 2026-09-21: «no provider selected, дальше /agents показывает что все выбрано»).
+       */
+      function effectiveModelFor(name: string): { providerID: string; modelID: string } | undefined {
+        const own = forAgent(name)
+        if (own) return own
+        const workspace = workspaceAgentModel(name, getActiveWorkspaceID(), {
+          workspaceAgent: modelStore.workspaceAgent,
+        })
+        if (workspace && isModelValid(workspace)) {
+          return { providerID: workspace.providerID, modelID: workspace.modelID }
+        }
+        const declared = sync.data.agent.find((x) => x.name === name)?.model
+        if (declared && isModelValid(declared)) {
+          return { providerID: declared.providerID, modelID: declared.modelID }
+        }
+        return undefined
+      }
+
       const currentModel = createMemo(() => {
         const a = agent.current()
-        return a ? forAgent(a.name) : undefined
+        return a ? effectiveModelFor(a.name) : undefined
       })
 
       /** THE read: the session's OWN entry for this agent. After the fill every layer holds a

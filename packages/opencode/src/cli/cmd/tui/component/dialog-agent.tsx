@@ -3,6 +3,7 @@ import { useLocal, type ModelScope } from "@tui/context/local"
 import { useKV } from "@tui/context/kv"
 import { cycleScope as nextScope, inheritLabel, parentScope, readScope, SCOPE_KV_KEY } from "./config-scope"
 import { classifyVariantState, pruneSummary, removable } from "./model-state-prune"
+import { agentHintText, agentModelCell, agentModelRef, agentRowModelCell } from "./agent-model-cell"
 import { DialogConfirm } from "./dialog-confirm"
 import { useSync } from "@tui/context/sync"
 import { DialogSelect } from "@tui/ui/dialog-select"
@@ -125,17 +126,36 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
   })
 
   function buildOption(agent: any, category: string) {
-    // Layer-pure, and now honest: the fill materialises a model into EVERY layer, so this
-    // lookup finds a real value in every scope and `inheritLabel` remains only as a guard
-    // that becomes visible if a layer is somehow unfilled (that is a bug to fix by filling,
-    // not a state to display). No resolution happens here — a read is a lookup.
+    // The model column must never be empty, and a bare value cannot be told apart from an
+    // inherited one — so the row resolves the effective chain (session → worktree → the agent's
+    // own declaration → guard) and NAMES which link answered. Measured on the live dialog: every
+    // row read «inherits from worktree» while the session layer file held a model for 11 agents.
+    const cell = agentModelCell({
+      session: local.model.layerView(agent.name, "session").model,
+      worktree: local.model.layerView(agent.name, "worktree").model,
+      declared: agent.model ? `${agent.model.providerID}/${agent.model.modelID}` : undefined,
+      guard: inheritLabel(scope),
+    })
     const view = local.model.layerView(agent.name, scope)
-    const layerModel = view.model ?? inheritLabel(scope)
+    const layerVariant = view.variant ?? (view.model ? undefined : agent.variant)
 
     // Session subagents override (worktree-local) else global Agent.Info
     const sub = local.model.subagentsFor(agent.name)
-    const subLabel = sub === undefined ? "" : sub.length === 0 ? " · task: none" : ` · task: ${sub.length}`
     const isActive = local.agent.current()?.name === agent.name
+
+    // The cell renders like the MODEL PICKER's row (owner, 2026-09-21: «сам список — чтобы было
+    // так»): a resolved reference becomes the model's readable name plus its provider, price,
+    // capability glyphs and variant — the raw `provider/modelID` named the model in the one form
+    // the reader cannot price or recognise. Anything that is not a reference (the guard label)
+    // stays verbatim, with no provider and no invented price.
+    const ref = agentModelRef(cell.model)
+    const provider = ref ? sync.data.provider.find((p) => p.id === ref.providerID) : undefined
+    const row = agentRowModelCell({
+      ref: cell.model,
+      provider: provider ? { id: provider.id, name: provider.name } : undefined,
+      info: provider && ref ? (provider.models[ref.modelID] as any) : undefined,
+      variant: layerVariant ?? undefined,
+    })
 
     const color: RGBA = local.agent.color(agent.name)
 
@@ -149,10 +169,19 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
       // footer, which is the part that yields first when the row is narrow
       // (dialog-select.tsx: flexShrink 1 + overflow hidden).
       title: `${agent.name}${isActive ? " ← active" : ""}`,
-      description: agent.description ?? "",
+      description: row.description,
       category,
       gutter: <text fg={color}>●</text>,
-      footer: `${layerModel}${view.variant ? ` · ${view.variant}` : ""}${subLabel}`,
+      footer: row.footer || undefined,
+      // The hint follows the cursor: the per-agent explanation the row used to carry (and
+      // truncate mid-word), plus which layer answered the model and how many task overrides the
+      // agent has. Those two no longer fit in the row once it carries the picker's cell, and the
+      // origin is the difference between an override this scope owns and an inherited one.
+      hint: agentHintText({
+        description: agent.description ?? undefined,
+        origin: cell.origin,
+        taskCount: sub === undefined ? undefined : sub.length,
+      }),
       onSelect: () => {
         dialog.replace(() => (
           <DialogModel
@@ -178,18 +207,13 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
       current={local.agent.current()?.name}
       cursorValue={props.restoreValue}
       options={options()}
-      // The bottom hint is USER-FACING, not a copy of the agent's own description (that prose is
-      // internal and kernel-flavoured — Alexander, 2026-09-20: «копипастить кенел в
-      // пользовательском интерфейсе - нууу так себе»). It says what Enter will DO and which layer
-      // the edit lands in. It does NOT restate the row's state: the title already carries
-      // «← active», and repeating it read as «active active» on screen.
-      hint={(option: any) => {
-        if (!option) return undefined
-        const bits: string[] = []
-        bits.push("Enter — choose this agent's model")
-        bits.push(`edits target the ${scope} layer`)
-        return bits.join(" · ")
-      }}
+      // The hint follows the cursor and carries the per-agent explanation, which the row can no
+      // longer hold: truncated mid-word there it competed with the runtime column for the same
+      // characters (owner, 2026-09-21: «детальное объяснение должно быть в hint, а не в списке —
+      // идёт наложение»). The earlier round moved the details INTO the rows because the hint then
+      // said «Enter — choose this agent's model · edits target the session layer» — a keybind the
+      // keybind footer already lists and a scope the title already prints, i.e. nothing.
+      hint={(option: any) => option?.hint}
       onMove={(opt: any) => setLastCursor(opt?.value)}
       keybind={[
         {

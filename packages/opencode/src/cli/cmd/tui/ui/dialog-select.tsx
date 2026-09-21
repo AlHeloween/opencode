@@ -512,14 +512,20 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
           </For>
         </scrollbox>
       </Show>
-      <Show when={hintText()}>
+      {/* A dialog that asked for a hint keeps the line for the WHOLE list. Showing the box
+       * only while the highlighted row had something to say resized the panel every time the
+       * cursor crossed onto a row without one, and the whole dialog jumped (owner, 2026-09-21:
+       * «при отрисовке экран дёргается»). An empty reserved line is the price of a stable one. */}
+      <Show when={props.hint}>
         <box paddingLeft={4} paddingRight={4} paddingTop={1} flexShrink={0}>
-          <text wrapMode="word">
-            <span style={{ fg: theme.text }}>
-              <b>{selected()?.title ?? ""}</b>{" "}
-            </span>
-            <span style={{ fg: theme.textMuted }}>{hintText()}</span>
-          </text>
+          <Show when={hintText()}>
+            <text wrapMode="word">
+              <span style={{ fg: theme.text }}>
+                <b>{selected()?.title ?? ""}</b>{" "}
+              </span>
+              <span style={{ fg: theme.textMuted }}>{hintText()}</span>
+            </text>
+          </Show>
         </box>
       </Show>
       <Show when={keybinds().length} fallback={<box flexShrink={0} />}>

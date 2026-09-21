@@ -118,6 +118,45 @@ export function dominantLine(input: {
 }
 
 /**
+ * The ordinal a caller meant by `epoch`, or undefined when they meant "not set".
+ *
+ * The ordinal is 1-based, so 0 and every negative number are ABSENCES, not requests. A model that
+ * fills an optional number with 0 must get the spine — not «No epoch 0», which is a turn lost to a
+ * defect rather than to a mistake (found by an outside call testing this mechanism on its own
+ * history, 2026-09-21). Non-integers truncate rather than matching an epoch nobody has.
+ */
+export function epochOrdinal(value: number | undefined): number | undefined {
+  if (value === undefined || !Number.isFinite(value)) return undefined
+  const ordinal = Math.trunc(value)
+  return ordinal >= 1 ? ordinal : undefined
+}
+
+/**
+ * What opening one epoch prints BEFORE its body: the address, its standing, and the exact call that
+ * descends into it.
+ *
+ * The range used to have to come from the compaction anchor instead of from this answer (same
+ * outside call, 2026-09-21) — an address the caller must reconstruct is an address the mechanism
+ * did not give. `info_mark` states the asymmetry that call confirmed on its own history: ids and
+ * ranges are Exact, the body is model prose, and a LATER epoch may have refuted it.
+ */
+export function epochOpen(input: {
+  id: string
+  fromMessageID: string
+  toMessageID: string
+  body: string
+}): string {
+  return [
+    `checkpoint_id: \`${input.id}\``,
+    `from_id: \`${input.fromMessageID}\`  to_id: \`${input.toMessageID}\``,
+    "info_mark: ids and ranges Exact — the body is Inferred model prose, and a later epoch may have refuted it.",
+    `descend: messagesearch { corpus: "parts", dominants: true, range: "${input.fromMessageID}..${input.toMessageID}" }`,
+    "",
+    input.body,
+  ].join("\n")
+}
+
+/**
  * The dominant of a MESSAGE's own text, or undefined when it carries none.
  *
  * The LAST marker wins here — the asymmetry with `extractDominant` is measured, not a taste.

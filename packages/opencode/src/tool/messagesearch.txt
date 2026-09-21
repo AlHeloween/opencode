@@ -17,6 +17,7 @@ Ground conversation facts before judgment. Epistemic ranking: Exact > Inferred >
   - `[Guess]` → 2x weight
   - `[Unknown]` → 1x weight
 - Results are ordered by combined rank descending (relevance + confidence).
+- The epistemic weight is **historical**: it ranks which record is the most reliable ABOUT ITS OWN WINDOW, not which statement is true now. An `[Exact]` from five days ago outranks today's `[Hypothetical]` as a record; it does not outrank it as a current fact.
 - Search indexes a separate `memory.db` — main project database is unaffected.
 
 ## Output Format
@@ -40,7 +41,7 @@ Results are grouped by session. Each result includes:
 
 Output is capped at 50KB. Use `sessionread` to get full context around found messages.
 
-**Epistemic ranks:** messagesearch hits are **Inferred** (index snippets). Use `sessionread` for **Exact** ground truth around those IDs.
+**Epistemic ranks:** messagesearch hits are **Inferred** (index snippets) — a LOCATOR, not a verdict. `sessionread` gives **Exact** *provenance*: that this text is what the transcript said around those ids. Neither makes the proposition current: a historical claim keeps the rung and the scope it was written with, so a `[Exact] port 8123 is free` from five days ago proves the message existed — not that the port is free now. Current applicability needs re-grounding.
 
 ## Parameters
 
@@ -49,7 +50,7 @@ Output is capped at 50KB. Use `sessionread` to get full context around found mes
 | `query` | string (optional) | — | Search keywords or phrase. Omit to browse all sessions. |
 | `limit` | number | 20 | Maximum results to return |
 | `corpus` | string | `parts` | `parts` = the indexed transcript (unchanged); `summaries` = the session memory spine |
-| `dominant` | string | — | With `summaries`, keep only epochs whose semantic dominant contains this text — searching meaning rather than words |
+| `dominant` | string | — | With `summaries`, keep only epochs whose semantic dominant contains this text. A LEXICAL lookup in a semantically rich field, not a similarity search: the dominant is an address the epoch once wrote for itself, and matching it resolves that address — so a phrase nobody ever wrote will not match |
 | `goals` | boolean | false | With `summaries`, also print each epoch's `## Goal` head |
 | `epoch` | number | — | With `summaries`, print ONLY that epoch's full body (1-based, in spine order) — the second query |
 | `last` | number | — | Keep only the last N units of the selected corpus: epochs for `summaries`, message dominants for `dominants` |

@@ -130,6 +130,67 @@ test("subagents cannot rewrite the record of what happened", async () => {
   })
 })
 
+test("an empty sessionId means THIS session, not a session with no name", async () => {
+  // Measured 2026-09-21: two summaryedit calls carried `sessionId=` and both answered
+  // «No summary `…` in session ``» for a summary open in the very session that asked. `??` does
+  // not catch an empty string, and a present-but-empty optional field is the ordinary shape of a
+  // model-filled argument — so an omitted session and an empty one must mean the same thing.
+  await using tmp = await tmpdir()
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const ids = await Effect.runPromise(
+        provideInstance(tmp.path)(
+          Effect.gen(function* () {
+            const info = yield* (yield* SessionNs.Service).create({})
+            const saved = IncrementalCheckpoint.save({
+              id: "ckpt_empty_session",
+              sessionID: info.id,
+              fromMessageID: MessageID.make("msg_from"),
+              toMessageID: MessageID.make("msg_to"),
+              predecessorID: "ckpt_prior",
+              providerID: ProviderID.make("test"),
+              modelID: ModelID.make("test-model"),
+              agent: "build_mode",
+              body: "the body this session owns",
+              diffs: [] as never,
+            })
+            return { session: info.id as string, checkpoint: saved.id }
+          }).pipe(Effect.provide(SessionNs.defaultLayer)),
+        ),
+      )
+
+      const run = (params: Record<string, unknown>) =>
+        Effect.runPromise(
+          provideInstance(tmp.path)(
+            Effect.gen(function* () {
+              const tool = yield* (yield* SummaryEditTool).init()
+              return yield* tool.execute(params as never, {
+                sessionID: SessionID.make(ids.session),
+                messageID: MessageID.make(""),
+                callID: "",
+                agent: "build_mode",
+                abort: AbortSignal.any([]),
+                messages: [],
+                metadata: () => Effect.void,
+                ask: () => Effect.void,
+              } as never)
+            }).pipe(Effect.provide(Layer.mergeAll(AppFileSystem.defaultLayer, Truncate.defaultLayer, Agent.defaultLayer))),
+          ),
+        )
+
+      const read = (await run({ id: ids.checkpoint, sessionId: "", action: "read" })) as { output: string }
+      expect(read.output).toContain("the body this session owns")
+
+      // Whitespace is the same absence, and a genuinely unknown id now names the session that was
+      // searched — a stale id must not be reported as a broken tool.
+      await expect(run({ id: "ckpt_nope", sessionId: "   ", action: "read" })).rejects.toThrow(
+        new RegExp(`No summary .* in session .*${ids.session}`),
+      )
+    },
+  })
+})
+
 test("another session's summary is readable but not writable", async () => {
   // Consulting someone else's record is research; rewriting it is forging a
   // record you were not present for. The guard runs on the resolved target

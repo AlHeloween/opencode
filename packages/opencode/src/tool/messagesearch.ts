@@ -4,7 +4,7 @@ import { Memory } from "@/memory/memory"
 import { getProjectDbPath } from "@/storage/db"
 import { IncrementalCheckpoint } from "@/session/incremental-checkpoint"
 import type { SessionID } from "@/session/schema"
-import { dominantLine, extractDominant, extractGoal, extractMessageDominant, parseRange, spineLine } from "@/memory/spine"
+import { dominantLine, epochOpen, epochOrdinal, extractDominant, extractGoal, extractMessageDominant, parseRange, spineLine } from "@/memory/spine"
 import * as Tool from "./tool"
 import { optionalPattern } from "./pattern"
 
@@ -152,19 +152,29 @@ export const MessageSearchTool = Tool.define(
                 : ""
 
             // The SECOND query: one epoch, whole. The spine exists so this call can be aimed.
-            if (params.epoch !== undefined) {
-              const chosen = epochs[params.epoch - 1]
+            // `epoch: 0` means "not set", not "the epoch before the first one" — see epochOrdinal.
+            const wantedEpoch = epochOrdinal(params.epoch)
+            if (wantedEpoch !== undefined) {
+              const chosen = epochs[wantedEpoch - 1]
               if (!chosen) {
                 return {
-                  title: `Memory Spine (epoch ${params.epoch} of ${epochs.length})`,
+                  title: `Memory Spine (epoch ${wantedEpoch} of ${epochs.length})`,
                   metadata: { query: params.query ?? "(spine)", mode: "summaries", results: 0 },
-                  output: `No epoch ${params.epoch} — the spine holds ${epochs.length}`,
+                  output: `No epoch ${wantedEpoch} — the spine holds ${epochs.length}`,
                 }
               }
               return {
                 title: `Memory Spine (epoch ${chosen.ordinal} of ${epochs.length}) · ${chosen.record.id}`,
                 metadata: { query: params.query ?? "(spine)", mode: "summaries", results: 1 },
-                output: chosen.record.body,
+                // The address travels WITH the body: the caller needs the range for the descent,
+                // and reconstructing it from the compaction anchor is the mechanism withholding
+                // something it already has (same outside call, 2026-09-21).
+                output: epochOpen({
+                  id: chosen.record.id,
+                  fromMessageID: chosen.record.fromMessageID,
+                  toMessageID: chosen.record.toMessageID,
+                  body: chosen.record.body,
+                }),
               }
             }
 
@@ -178,6 +188,7 @@ export const MessageSearchTool = Tool.define(
               `## Memory spine — ${epochs.length} epoch(s)` +
               (wanted ? `, ${listed.length} matching "${params.dominant}"` : "") +
               `\ninfo_mark: Inferred — summary bodies are model prose; ids and ranges are Exact.` +
+              `\nolder epochs are POINTERS, not current conclusions — a later epoch or sessionread is what confirms or refutes one.` +
               ignoredQuery +
               notApplicable +
               `\nsecond query: messagesearch { corpus: "summaries", epoch: N }\n`

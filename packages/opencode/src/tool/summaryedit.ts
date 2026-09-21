@@ -53,7 +53,15 @@ export const SummaryEditTool = Tool.define<typeof Parameters, Metadata, AppFileS
           // rewriting it is forging a record you were not present for. The
           // check is on the resolved target, before anything is read, so a
           // write can never reach a row the current session does not own.
-          const target = (params.sessionId ?? ctx.sessionID) as typeof ctx.sessionID
+          //
+          // `??` alone is NOT enough — and this is the bug it hid: the parameter is optional, but
+          // an EMPTY STRING passes the schema, and `"" ?? ctx.sessionID` is `""`. The tool then
+          // searched a session that does not exist and answered «No summary … in session ``» for
+          // a summary that was open in THIS session (measured 2026-09-21: two calls carried
+          // `sessionId=` and both refused). An omitted session and an empty one mean the same
+          // thing: the current session.
+          const requested = params.sessionId?.trim()
+          const target = (requested && requested.length > 0 ? requested : ctx.sessionID) as typeof ctx.sessionID
           const foreign = target !== ctx.sessionID
           if (foreign && params.action === "write")
             return yield* Effect.fail(

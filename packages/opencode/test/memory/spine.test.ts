@@ -1,5 +1,43 @@
 import { describe, expect, test } from "bun:test"
-import { dominantLine, extractDominant, extractGoal, extractMessageDominant, parseRange, spineLine } from "@/memory/spine"
+import { dominantLine, epochOpen, epochOrdinal, extractDominant, extractGoal, extractMessageDominant, parseRange, spineLine } from "@/memory/spine"
+
+/**
+ * Two findings from an OUTSIDE call that navigated its own history with this mechanism
+ * (2026-09-21): `epoch: 0` was read as a request for an epoch rather than as "not set", and
+ * opening an epoch printed the body without the address the descent needs — the caller had to
+ * reconstruct the range from the compaction anchor. Both are pinned here.
+ */
+describe("epochOrdinal", () => {
+  test("0 and negatives mean NOT SET — an optional number filled with zero is an absence", () => {
+    expect(epochOrdinal(0)).toBeUndefined()
+    expect(epochOrdinal(-3)).toBeUndefined()
+  })
+
+  test("the ordinal is 1-based, and a fraction matches nobody", () => {
+    expect(epochOrdinal(1)).toBe(1)
+    expect(epochOrdinal(7)).toBe(7)
+    expect(epochOrdinal(2.8)).toBe(2)
+    expect(epochOrdinal(Number.NaN)).toBeUndefined()
+    expect(epochOrdinal(undefined)).toBeUndefined()
+  })
+})
+
+describe("epochOpen", () => {
+  test("prints the address WITH the body, so the descent needs no reconstruction", () => {
+    const text = epochOpen({
+      id: "ckpt_1",
+      fromMessageID: "msg_a",
+      toMessageID: "msg_b",
+      body: "## Goal\nx",
+    })
+    expect(text).toContain("checkpoint_id: `ckpt_1`")
+    expect(text).toContain("from_id: `msg_a`  to_id: `msg_b`")
+    expect(text).toContain('range: "msg_a..msg_b"')
+    // The reviewer's own finding: an older epoch holds conclusions that later epochs refuted.
+    expect(text).toContain("a later epoch may have refuted it")
+    expect(text.endsWith("## Goal\nx")).toBe(true)
+  })
+})
 
 // Shaped after a real checkpoint body: the vector block at the head, then the sections.
 const BODY = [

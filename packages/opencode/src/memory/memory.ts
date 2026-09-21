@@ -210,6 +210,21 @@ export interface MemorySearchResult {
 }
 
 /**
+ * FTS5 reads the MATCH argument as an EXPRESSION, not as words: `-` is an operator and
+ * `col:term` is a column filter. Our own vocabulary is full of hyphens (`re-base`, `Layer-1`,
+ * `deliver-once`), so a raw query dies with `no such column: base` and the instrument looks
+ * broken. Quote every whitespace-separated token, doubling embedded quotes, so each term is
+ * matched literally and FTS5's implicit AND still joins them.
+ */
+export function toFtsQuery(query: string): string {
+  return query
+    .split(/\s+/)
+    .filter((token) => token.length > 0)
+    .map((token) => `"${token.replaceAll('"', '""')}"`)
+    .join(" ")
+}
+
+/**
  * Search memory.db with FTS5 + BM25 + epistemic hybrid ranking.
  * If BM25 is unavailable (e.g. FTS5 not yet populated), falls back to epistemic-only.
  */
@@ -220,6 +235,9 @@ export function search(params: {
   /** Restrict to one session. Omit to search every session in the project. */
   sessionID?: string
 }): MemorySearchResult[] {
+  const ftsQuery = toFtsQuery(params.query)
+  if (ftsQuery.length === 0) return []
+
   const memDb = openMemoryDb(params.worktree)
 
   try {
@@ -260,8 +278,8 @@ export function search(params: {
       LIMIT ?
     `).all(
       ...(params.sessionID
-        ? [params.query, params.sessionID, params.limit]
-        : [params.query, params.limit]),
+        ? [ftsQuery, params.sessionID, params.limit]
+        : [ftsQuery, params.limit]),
     ) as Array<{
       part_id: string
       message_id: string

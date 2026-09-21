@@ -1,3 +1,6 @@
+import { statSync } from "node:fs"
+import { dirname, join } from "node:path"
+
 import { resolveBundledDefaultParserAsset } from "../lib/tree-sitter/default-parser-assets.bun.js"
 import { getCurrentNodeAssetTarget, getNativeAssetDescriptor } from "../node-asset-target.js"
 import { resolveAssetPath, resolveAssetRootPath } from "./assets.js"
@@ -41,6 +44,17 @@ export async function resolveNativeLibraryPath(): Promise<string> {
   const configuredPath = resolveAssetRootPath(asset.key)
   if (configuredPath !== undefined) {
     return configuredPath
+  }
+
+  // Restored after the 0.5.11 re-base, where the overlay dropped this branch: a `bun --compile`
+  // binary bundles the platform package into the virtual root (`B:\~BUN\root`), so the path its
+  // `index.js` computes from `import.meta.url` names a file that was never embedded there —
+  // `Failed to open library "B:\~BUN\root\opentui.dll": error code 126`. The standalone layout
+  // ships the library BESIDE the executable (dist/bin, bin), so prefer that exact file; a source
+  // run (`process.execPath` = bun) finds nothing there and falls through unchanged.
+  const exeAdjacent = join(dirname(process.execPath), asset.fileName)
+  if (statSync(exeAdjacent, { throwIfNoEntry: false })?.isFile() === true) {
+    return exeAdjacent
   }
 
   if (process.platform === "darwin") {

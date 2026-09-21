@@ -160,6 +160,25 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         ),
     ),
     GateAddon(
+        "G7",
+        "DISAS",
+        (
+            "DISAS — do it simple and stupid: complexity here is the DEFECT, not the price. Ask of every change «can this be done dumber and more linear?»; if yes, do that — a clever shape must first prove the dumb one fails.",
+            "a chain is walked ONCE, LINEARLY, at ONE point (a fill); every later reader is a lookup of ONE source. A reader that decides how full the layer above it is has become a second, competing authority.",
+            "a compensation built on top of a defect is the signature: a reader-side parent chain, a hedge between two spellings of one name, a second validity filter. Fix the hole and REMOVE the layer (owner, 2026-09-21: «мы рекурсивно чекали вместо дубового линейного чекапа и на этом погорели»).",
+            "one predicate, one axis: «the stored value is well-formed» is not «the provider is connected now» — a gate that borrows its source from another question answers neither.",
+        ),
+    ),
+    GateAddon(
+        "G8",
+        "RUN_ARTIFACT_FIRST",
+        (
+            "a cmd_runner run REPORTS ITSELF: read `<run>/state.json` (status, exit_code, bytes_written, bytes_dropped, truncated) and the WHOLE `<run>/stdout_text.log`. Never `tail` — it shows the last lines, so a crash banner hides the entire failure inventory behind it.",
+            "measure `bytes_written` before choosing an instrument: the whole log is usually small, and one whole read costs less than the peeks it replaces. Where the same reading will recur, write the reader ONCE into `experiments/<ISO-date>_<name>/` and reason from its OUTPUT as a report.",
+            "an oracle that cannot print its own verdict is not an oracle: a suite cut off by crash, kill or timeout yields UNKNOWN, and its failure inventory is a FLOOR, not a total.",
+        ),
+    ),
+    GateAddon(
         "G8",
         "TOOL_ORACLE",
         (
@@ -197,8 +216,12 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "G9",
         "ACCEPTANCE_PASS",
         (
-            "ACCEPTANCE_PASS := ∀ criterion: covered(evidence_ref) ∨ (Unknown ∧ residual named) — read over the artefact, never from memory; an uncovered criterion is a residual, not a rounding error.",
-            "report verification and validation apart; check @QUALITY_VECTOR axes only where the change could move one — acceptance is a measurement, not a ceremony.",
+            "ACCEPTANCE_PASS := ∀ criterion: covered(evidence_ref) — every criterion PROVEN. An unproven criterion is not a PASS-shaped exception, and PASS may never be declared over one; read over the artefact, never from memory.",
+            "Unknown is a RECORD, never an argument: it may not be an input to any decision — no closure, no PASS, no acceptance, no risk acceptance may rest on it. An Inferred whose proof did not confirm is a CLEAN Unknown: it drops out of the basis entirely and the decision is made WITHOUT it.",
+            "an unproven criterion ESCALATES — it does not close. Call aicall on the cheapest available model with the complete packet: claim, target, falsifier, instrument tried, result. aicall may only falsify; it never stamps, and its agreement is never evidence.",
+            "· aicall judges the claim unsound or the attempt misconceived -> G0: write the finding to permanent memory, then compact — the same error must not be re-derived next cycle.",
+            "· aicall judges the claim sound -> G1: re-enter grounding and decompose the task into smaller, independently testable pieces.",
+            "an uncovered criterion is a residual, not a rounding error; report verification and validation apart; check @QUALITY_VECTOR axes only where the change could move one — acceptance is a measurement, not a ceremony.",
         ),
     ),
     GateAddon(

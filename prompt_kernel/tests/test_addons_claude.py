@@ -92,12 +92,13 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # bindings (@ACCEPTANCE_FRAME at G1, @ACCEPTANCE_PASS at G9) and for PROJECT_STRUCTURE
     # (G1) + STYLE_AUTHORITY (G7), which the framework's own 15.3 sections 1-2 supply.
     # Measured after them: 38_134 B — the byte cap steps, the token cap already had the room.
-    # 40_000 / 5_150 (2026-09-20, later): mirrors the product raise to 40_000 for the GUI/TUI/ergonomics
-    # rule sets and the GUI oracle. Measured after them: 39_553 B.
-    assert len(text.encode("utf-8")) <= 40_000
+    # 44_000 (2026-09-21): the product went 42_000 -> 43_000 for the G8 RUN_ARTIFACT_FIRST binding; this
+    # variant keeps its documented +1_000 for having no fixed slot.
+    assert len(text.encode("utf-8")) <= 44_000
     # 5_150 -> 5_400 (2026-09-20, same step): measured 5_202 after the GUI/TUI/ergonomics rule sets —
     # the token cap steps with the byte cap at this batch, 198 spare.
-    assert normalized_token_count(text) <= 5_400
+    # 5_600 -> 5_800 (2026-09-21): steps with the byte cap for the G8 binding. Measured 5_630.
+    assert normalized_token_count(text) <= 5_800
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

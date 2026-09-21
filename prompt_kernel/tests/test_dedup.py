@@ -149,6 +149,10 @@ def test_compacted_runtime_budget() -> None:
     # 5_000 kept (2026-09-20, later): the QA/QC bindings moved the BYTE cap 37_000 -> 38_000 (37_988
     # measured, source.py), and this token assert needed no step — it already had the room.
     # Kept again at the 40_000 byte step (39_395 measured: GUI/TUI/ergonomics rule sets + GUI oracle).
-    # 5_000 -> 5_300 (2026-09-20, same step): the token cap moves WITH the byte cap here — measured 5_171,
-    # so "it already had the room" stopped being true at this batch. 129 spare, the band this pair keeps.
-    assert normalized_token_count(text) <= 5_300
+        # 5_000 -> 5_300 (2026-09-20, same step): the token cap moves WITH the byte cap here — measured 5_171,
+        # so "it already had the room" stopped being true at this batch. 129 spare, the band this pair keeps.
+        # 5_300 -> 5_400 (2026-09-21): the G9 closure amendment moved the byte cap 40_000 -> 41_000 in
+        # source.py and this assert stepped with it.
+        # 5_400 -> 5_600 (2026-09-21): the DISAS binding at G7 moved the byte cap 41_000 -> 42_000 and
+        # this assert steps with it. Measured 5_470 — the next band above the measurement.
+    assert normalized_token_count(text) <= 5_600

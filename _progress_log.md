@@ -14,7 +14,7 @@ Change (`packages/opencode/src/cli/cmd/tui/component/media-image.tsx`): кадр
 
 Oracles: baseline до правки — `1 fail / 0 pass` (падение на `image === null`); после — `2 pass`; `bun test test/tui/media-image-native-layout.test.tsx test/tui/media-image-size.test.ts` → **15 pass / 0 fail**; `bun typecheck` (`tsgo --noEmit`) в `packages/opencode` → exit 0 (run `20260921T063429Z_446ba201`).
 
-Residual [Unknown]: бинарь не пересобран — на живом TUI 10.0.1057 поведение не изменится до сборки; символьная ветка (`<code>` при `sixel:false`) покрыта тестом, но на бинаре глазами не проверена. План: `plans/2026-09-21_media-image-zero-layout-after-opentui-rebase.md`.
+Residual [Unknown]: бинарь не пересобран — на живом TUI 10.0.1057 поведение не изменится до сборки; символьная ветка (`<code>` при `sixel:false`) покрыта тестом, но на бинаре глазами не проверена. План: `plans_completed/2026-09-21_media-image-zero-layout-after-opentui-rebase.md`.
 
 ## [2026-09-18] Jobs: rebuild + deploy (10.0.1013) with a live boot-recovery smoke
 

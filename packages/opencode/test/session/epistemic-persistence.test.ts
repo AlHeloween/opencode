@@ -6,12 +6,23 @@
  * fold cares about became uncountable exactly when a new window needed it. The falsifier is therefore
  * a RESTART, simulated the way the process does it — the Map is dropped, and the same numbers must
  * come back from the row.
+ *
+ * HARNESS, and this file carries its second lesson: `test(name, effect)` hands bun an Effect object,
+ * which is not a promise, so the body NEVER RUNS and the test passes. Written that way first, this
+ * file reported 1 pass — with unprovided services in its type, which is what the typecheck caught and
+ * the runner could not. The working shape is `tail-note.test.ts`'s: async test → `tmpdir()` →
+ * `Instance.provide` → `Effect.runPromise(provideInstance(...)(...))`, with `R` discharged (no service
+ * is needed here: the ledger row is keyed by session id and carries no foreign key).
  */
-import { describe, expect, setDefaultTimeout, test } from "bun:test"
+import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test"
 import { Effect } from "effect"
 import { Constitution } from "../../src/session/constitution"
-import { Session as SessionNs } from "@/session/session"
-import { provideTmpdirInstance } from "../fixture/fixture"
+import { Instance } from "../../src/project/instance"
+import { provideInstance, tmpdir } from "../fixture/fixture"
+
+afterEach(async () => {
+  await Instance.disposeAll()
+})
 
 setDefaultTimeout(30_000)
 
@@ -26,26 +37,33 @@ claim_ledger:
   premises_for_plan: [C1]
 `
 
+const SID = "ses_epistemic_persistence"
+
 describe("the claim ledger's durable row", () => {
-  test("a restart rehydrates the debt instead of zeroing it", () =>
-    provideTmpdirInstance(() =>
-      Effect.gen(function* () {
-        const ssn = yield* SessionNs.Service
-        const info = yield* ssn.create({})
-        const sid = info.id
+  test("a restart rehydrates the debt instead of zeroing it", async () => {
+    await using tmp = await tmpdir()
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        await Effect.runPromise(
+          provideInstance(tmp.path)(
+            Effect.gen(function* () {
+              Constitution.resetEpistemicState(SID)
+              Constitution.ingestAssistantText(SID, LEDGER)
+              Constitution.flushEpistemic(SID)
+              const before = Constitution.claimDebt(SID)
+              expect(before).toEqual({ claims: 1, unstamped: 1 })
 
-        Constitution.ingestAssistantText(sid, LEDGER)
-        Constitution.flushEpistemic(sid)
-        const before = Constitution.claimDebt(sid)
-        expect(before).toEqual({ claims: 1, unstamped: 1 })
+              // THE RESTART — exactly what the process does to the Map when it dies.
+              Constitution.resetEpistemicState(SID)
+              expect(Constitution.claimDebt(SID)).toEqual(before)
 
-        // THE RESTART — exactly what the process does to the Map when it dies.
-        Constitution.resetEpistemicState(sid)
-        expect(Constitution.claimDebt(sid)).toEqual(before)
-
-        // And the row is per SESSION: a fresh one does not inherit a claim it never made.
-        const other = yield* ssn.create({})
-        expect(Constitution.claimDebt(other.id)).toEqual({ claims: 0, unstamped: 0 })
-      }),
-    ))
+              // And the row is per SESSION: another one does not inherit a claim it never made.
+              expect(Constitution.claimDebt("ses_epistemic_other")).toEqual({ claims: 0, unstamped: 0 })
+            }),
+          ),
+        )
+      },
+    })
+  })
 })

@@ -119,7 +119,11 @@ export function parsePlanMap(memory: string): PlanMapEntry[] {
       named = plan[1]!
       continue
     }
-    const label = line.match(new RegExp(`^md5:\\s*${HEX32_SOURCE}`))
+    // The map is a markdown LIST, so its label lines are INDENTED (`  md5: …`). A `^md5:` anchor
+    // matched NOTHING in the live memory (measured 2026-09-23: `^md5:` -> no matches,
+    // `^[ \t]+md5:` -> 3), which left `labels` empty and reported every non-zero `parent-goal-md5`
+    // as off-plan. The watcher's first live finding was its own bug, not a vector's.
+    const label = line.match(new RegExp(`^[ \\t]*md5:\\s*${HEX32_SOURCE}`))
     if (label && named) {
       entries.push({ plan: named, label: label[1]!.replace(/\s+/g, "") })
       named = undefined

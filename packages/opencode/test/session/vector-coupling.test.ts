@@ -85,21 +85,30 @@ describe("the coupling watcher", () => {
     expect(result.findings[0]).toContain(PLAN)
   })
 
-  test("the map is read as WRITTEN — 8×4 labels included, which is the form memory uses", () => {
+  test("the map is read as WRITTEN — the memory's markdown-list indentation included", () => {
     const memory = [
       "## Мастер-план: план ↔ SVM ↔ носитель",
       "",
-      `**\`${PLAN}\`** — носитель: the fold's head`,
-      "Keywords: fold-head 0.30, mStarRow 0.24",
-      "Semantic dominant: …",
-      `md5: ${LABEL_SPACED}`,
-      `prev-md5: ${EMPTY_HASH}`,
-      `parent-goal-md5: ${EMPTY_HASH}`,
+      `- \`${PLAN}\` — carrier: the fold's head`,
+      "  Keywords: fold-head 0.30, mStarRow 0.24",
+      "  Semantic dominant: …",
+      `  md5: ${LABEL_SPACED}`,
+      `  prev-md5: ${EMPTY_HASH}`,
+      `  parent-goal-md5: ${EMPTY_HASH}`,
       "",
       "**Храповик:** `plans/2026-09-20_y.md` · `plans/2026-09-19_z.md`",
     ].join("\n")
-    // A ratchet entry with no `md5:` line is not a link, and the reader must not invent one for it.
+    // THE FORM THAT COST A LIVE FINDING (2026-09-23). The map is a markdown LIST, so its label lines
+    // are INDENTED. This fixture used to write `md5:` flush left — a shape the live memory never uses
+    // — so the parser's `^md5:` anchor passed HERE and matched NOTHING there: `labels` came out empty
+    // and the watcher reported every non-zero `parent-goal-md5` as off-plan, its own bug read as a
+    // vector's. A fixture must repeat the prod schema or it cannot observe the wrong query.
     expect(parsePlanMap(memory)).toEqual([{ plan: PLAN, label: LABEL }])
+    // AND the unindented form stays readable — a hand-written or generated map may legitimately use
+    // it, and a reader that alarms on a shape it was never shown is not a reader.
+    expect(parsePlanMap(`\`${PLAN}\`\nmd5: ${LABEL_SPACED}`)).toEqual([{ plan: PLAN, label: LABEL }])
+    // A ratchet entry with no `md5:` line is not a link, and the reader must not invent one for it.
+    expect(parsePlanMap(memory).length).toBe(1)
     // The same form is readable where the OTHER writer puts it: in a message's vector.
     expect(extractVectorChain(carrier("msg_1", LABEL_SPACED).text).parentGoalMd5).toBe(LABEL)
   })

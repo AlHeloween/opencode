@@ -124,9 +124,6 @@ import { convertDocument, isSupportedDocumentFormat } from "@/util/markdownify"
 
 import { canonicalIdentity, isPrimaryModeIdentity } from "./mode-identity"
 import { resolveAgentModel, resolveAgentVariant } from "./session-settings"
-import {
-  isCoolingDown as isSidecarCoolingDown,
-} from "./sidecar-policy"
 
 /**
  * Mode text is a one-shot conversation transition record. It must never be
@@ -191,12 +188,9 @@ const STRUCTURED_OUTPUT_SYSTEM_PROMPT = `IMPORTANT: The user has requested struc
 
 const log = Log.create({ service: "session.prompt" })
 const elog = EffectLogger.create({ service: "session.prompt" })
-const sidecarInFlight = new Set<string>()
-/** Minimum interval between sidecar checkpoint captures per session (ms).
- *  Prevents excessive LLM calls when the model completes many short turns
- *  in rapid succession. 30s balances freshness vs cost. */
-/** Track the end of every sidecar cycle, including invalid/failed captures. */
-const lastSidecarAttempt = new Map<string, number>()
+// The sidecar in-flight set and the attempt map were removed with the capture itself (2026-09-22,
+// bff5f50f7a + 73d78e4138): nothing populates them once no summary is generated, so every gate built
+// on them was a constant — a no-op wearing the shape of a check.
 
 /** Track the last injected mode per session. Compaction can hide the previous
  *  message, but another session must never affect this transition record. */
@@ -1619,14 +1613,11 @@ export const layer = Layer.effect(
               agent: input.agent,
               threshold: SessionCompaction.SUMMARY_INTERVAL_TOKENS,
             })
-            // Nothing folded (e.g. lone message*) — keep the checkpoint and
-            // cooldown untouched; reporting false lets callers know M did not
-            // shrink (the Layer-1 headroom gate must not loop on a no-op).
+            // Nothing folded (e.g. lone message*) — keep the checkpoint
+            // untouched; reporting false lets callers know M did not shrink
+            // (the Layer-1 headroom gate must not loop on a no-op).
             if (!folded.folded) return false
             yield* Checkpoint.remove(sessionID)
-            // Reset sidecar cooldown: compaction opens a fresh message window,
-            // so a new sidecar summary is appropriate on the next turn.
-            lastSidecarAttempt.delete(sessionID)
             cachedMsgs = undefined
             lastKnownId = undefined
             return true
@@ -2367,20 +2358,20 @@ export const layer = Layer.effect(
               // the open turn to finish before any synthetic user message.
               const visibleAfter = yield* MessageV2.filterCompactedEffect(sessionID)
               const completedAsst = visibleAfter.find((m) => m.info.id === msg.id)
-              // Cheap gates before the expensive full-M conversion: on normal
-              // completions, build the model-ready checkpoint + attempt capture
-              // only when the Layer-1 cadence window is open.
-              const captureDue =
+              // Cheap gate before the expensive full-M conversion: on normal
+              // completions, build the model-ready checkpoint only when the Layer-1
+              // cadence window is open. It is named for what it now PRODUCES — a
+              // checkpoint the fold reads. It used to also open a capture window;
+              // that capture is gone (2026-09-22), and with it the in-flight and
+              // cooldown gates, which could only ever have delayed a call nobody makes.
+              const checkpointDue =
                 result === "stop" ||
                 (SessionCompaction.isAssistantTurnComplete(completedAsst) &&
-                  !sidecarInFlight.has(sessionID) &&
-                  !isSidecarCoolingDown(lastSidecarAttempt.get(sessionID), Date.now()) &&
                   SessionCompaction.computeOpenWindowTokens(
                     visibleAfter,
                     IncrementalCheckpoint.latestOpen(sessionID)?.toMessageID,
                     model,
                   ) >= SessionCompaction.layer1SummaryThreshold())
-              const sidecarCaptured = false
               // The `compact` tool armed a boundary fold during this turn. It
               // cannot fold inline — it runs inside the window it would fold —
               // so the request is consumed here, at the boundary the kernel
@@ -2388,10 +2379,9 @@ export const layer = Layer.effect(
               // reason WITH the arming, so the fold is recorded with its motive
               // and there is no second lookup that could be forgotten.
               const foldRequest = CompactionRequest.take(sessionID)
-              if (captureDue) {
-                // Publish normal M before opening the ephemeral sidecar branch.
-                // Its disk copy is durability only; the sidecar receives this exact
-                // model-ready state and cannot alter the main outcome.
+              if (checkpointDue) {
+                // Publish and persist the model-ready frame M. There is no capture branch to open
+                // behind it any more (2026-09-22): the checkpoint is written because the FOLD reads it.
                 const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                   visibleAfter,
                   model,
@@ -2426,67 +2416,52 @@ export const layer = Layer.effect(
                 // the branch table folds directly instead of capturing first.
               }
               // Layer-2 boundary decision. The branch table lives in
-              // compaction-request.ts so it can be proven without driving a
-              // turn: forced/capture-then-forced when the `compact` tool armed
-              // this turn, defer when a new s was just captured and nothing
-              // asked, plain window-fill cadence otherwise.
-              const foldChoice = CompactionRequest.foldDecision({
-                requested: foldRequest.requested,
-                captureDue,
-                sidecarCaptured,
-              })
+              // compaction-request.ts so it can be proven without driving a turn:
+              // a forced fold when the `compact` tool armed this turn, plain
+              // window-fill cadence otherwise. The capture axis is gone — with no
+              // summary to wait for there is no third state to defer to.
+              const foldChoice = CompactionRequest.foldDecision({ requested: foldRequest.requested })
               // Compaction is a HARD release trigger (owner ruling, plan §0.9.1): held content must not
               // survive a fold. Releasing FIRST means the window is rebuilt without it, and the pointer
               // left where the payload was is what tells the model what happened — it decides what to do
-              // next («приведет дела в порядок, сделает компакт и захватит файлы снова»). `defer` folds
-              // nothing, so nothing is released: the two decisions are made in ONE place, so they cannot
-              // disagree.
-              if (foldChoice !== "defer") {
-                AcquiredSet.releaseAll(sessionID)
-                // THE FOLD'S HARD RELEASE. A declared span still RUNNING at the boundary is moved into
-                // the past, so its payload stops riding from this very request on and the MESSAGE stays —
-                // the model is told by the pointer, which names the part id, and re-acquires with recall.
-                // Expired, never un-declared: clearing the declaration would make the piece permanent
-                // again and put its payload straight back on the wire.
-                //
-                // It walks the window being folded rather than querying, because those parts are already
-                // loaded and each carries its own declaration; a piece outside the window is not being
-                // sent, so leaving it declared costs nothing. The enumeration is logged, because a
-                // release nobody can list is indistinguishable from a loss.
-                const foldTurn = currentTurn(sessionID)
-                const releasedAtFold = MessageV2.spansToExpire(visibleAfter, foldTurn)
-                for (const part of releasedAtFold) {
-                  yield* sessions.updatePart({ ...part, ttlUntil: MessageV2.expiredSpan(foldTurn) })
-                }
-                if (releasedAtFold.length > 0) {
-                  yield* slog.info("declared spans released at the fold", {
-                    sessionID,
-                    turn: foldTurn,
-                    count: releasedAtFold.length,
-                    ids: releasedAtFold.map((part) => part.id),
-                  })
-                }
+              // next («приведет дела в порядок, сделает компакт и захватит файлы снова»).
+              //
+              // Unconditional since 2026-09-22: this was wrapped in `if (foldChoice !== "defer")`, and
+              // `defer` — the one decision that folded nothing and therefore released nothing — died
+              // with the sidecar. Both remaining decisions can fold, so the release always belongs.
+              AcquiredSet.releaseAll(sessionID)
+              // THE FOLD'S HARD RELEASE. A declared span still RUNNING at the boundary is moved into
+              // the past, so its payload stops riding from this very request on and the MESSAGE stays —
+              // the model is told by the pointer, which names the part id, and re-acquires with recall.
+              // Expired, never un-declared: clearing the declaration would make the piece permanent
+              // again and put its payload straight back on the wire.
+              //
+              // It walks the window being folded rather than querying, because those parts are already
+              // loaded and each carries its own declaration; a piece outside the window is not being
+              // sent, so leaving it declared costs nothing. The enumeration is logged, because a
+              // release nobody can list is indistinguishable from a loss.
+              const foldTurn = currentTurn(sessionID)
+              const releasedAtFold = MessageV2.spansToExpire(visibleAfter, foldTurn)
+              for (const part of releasedAtFold) {
+                yield* sessions.updatePart({ ...part, ttlUntil: MessageV2.expiredSpan(foldTurn) })
+              }
+              if (releasedAtFold.length > 0) {
+                yield* slog.info("declared spans released at the fold", {
+                  sessionID,
+                  turn: foldTurn,
+                  count: releasedAtFold.length,
+                  ids: releasedAtFold.map((part) => part.id),
+                })
               }
               switch (foldChoice) {
                 case "forced":
                   yield* slog.info("layer2.cadence.requested", {
                     sessionID,
-                    sidecarCaptured,
-                    reason: foldRequest.reason,
-                  })
-                  yield* maybeCompactCadence({ model, agent: lastUser.agent, force: true })
-                  break
-                case "capture-then-forced":
-                  // Mirror the /summarize route: a forced fold with no summary
-                  // at all goes tail-only and leaves the head unrepresented.
-                  yield* slog.info("layer2.cadence.requested", {
-                    sessionID,
-                    sidecarCaptured: false,
                     reason: foldRequest.reason,
                   })
                   // No capture first: under the 2026-09-22 revision the fold carries its own head
                   // (memory, the plan's goal, the rows' dominants and terms), so there is nothing to
-                  // generate before it.
+                  // generate before it and nothing to lose by folding on the same stop.
                   yield* maybeCompactCadence({ model, agent: lastUser.agent, force: true })
                   break
                 case "cadence":
@@ -2495,9 +2470,6 @@ export const layer = Layer.effect(
                   // (+request gap). The counter never counts message*, so a
                   // fold cannot pre-arm the next one.
                   yield* maybeCompactCadence({ model, agent: lastUser.agent })
-                  break
-                case "defer":
-                  yield* slog.info("layer2.cadence.defer_after_sidecar", { sessionID })
                   break
               }
               if (result === "stop" && !titleRequested) {
@@ -2512,7 +2484,7 @@ export const layer = Layer.effect(
                   Effect.forkIn(scope),
                 )
               }
-              if (result === "stop" && !sidecarCaptured) {
+              if (result === "stop") {
                 // Queue semantics: a user message submitted while this run was
                 // in flight must be consumed by this loop, not stranded until
                 // the next prompt re-opens a run.
@@ -2523,8 +2495,6 @@ export const layer = Layer.effect(
                 }
                 return "break" as const
               }
-              // After sidecar capture: continue loop so work can finish naturally.
-              // Sidecar is a checkpoint mechanism, not a termination signal.
             }
             if (result === "compact") {
               // Compact → message*. Next loop recomputes the open-window
@@ -2545,8 +2515,6 @@ export const layer = Layer.effect(
               // not mid-era.
               yield* registry.invalidateToolDescriptions(sessionID)
               SessionTools.invalidateMCPEra(sessionID)
-              // Reset sidecar cooldown: fresh message window after compaction.
-              lastSidecarAttempt.delete(sessionID)
               cachedMsgs = undefined
               lastKnownId = undefined
               return "continue" as const

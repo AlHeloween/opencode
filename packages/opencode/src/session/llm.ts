@@ -429,7 +429,8 @@ export type StreamInput = {
   system: string[]
   messages: ModelMessage[]
   small?: boolean
-  /** Per-request variant override; sole use is the sidecar lever (session/sidecar-policy.ts). */
+  /** Per-request variant override. Its one intended caller was the sidecar's reasoning lever,
+   *  removed with the capture itself (2026-09-22) — so nothing passes it today. */
   variantOverride?: string
   tools: Record<string, Tool>
   retries?: number

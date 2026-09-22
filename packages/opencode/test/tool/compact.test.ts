@@ -75,19 +75,13 @@ test("the boundary is REQUIRED, and it travels with the request", () => {
 })
 
 test("an armed request forces the fold; an unarmed one keeps the old cadence", () => {
-  // The branch table, proven directly. Every row is a behaviour someone could
-  // break by reordering the conditions.
+  // The branch table, proven directly. TWO rows, because that is what the decision has:
+  // the capture axis that used to split it four ways died with the summary (2026-09-22), and
+  // with it the `defer` state — whose entire premise was "never fold on the same stop as a new
+  // summary" — and `capture-then-forced`, which (with no capture to run first) was the same fold.
   const d = CompactionRequest.foldDecision
-  // Armed, a capture ran this stop: fold now — the fresh s represents the head.
-  expect(d({ requested: true, captureDue: true, sidecarCaptured: true })).toBe("forced")
-  // Armed, capture attempted but idempotent (lone message*): prior s stand in.
-  expect(d({ requested: true, captureDue: true, sidecarCaptured: false })).toBe("forced")
-  // Armed, no capture ran: summarize first or the fold goes tail-only.
-  expect(d({ requested: false || true, captureDue: false, sidecarCaptured: false })).toBe("capture-then-forced")
-  // Unarmed: the pre-existing rules are untouched.
-  expect(d({ requested: false, captureDue: true, sidecarCaptured: true })).toBe("defer")
-  expect(d({ requested: false, captureDue: true, sidecarCaptured: false })).toBe("cadence")
-  expect(d({ requested: false, captureDue: false, sidecarCaptured: false })).toBe("cadence")
+  expect(d({ requested: true })).toBe("forced")
+  expect(d({ requested: false })).toBe("cadence")
 })
 
 test("the run loop consumes the request at the turn boundary, not mid-stream", () => {
@@ -96,12 +90,13 @@ test("the run loop consumes the request at the turn boundary, not mid-stream", (
   // and its result must reach foldDecision rather than being computed twice.
   const prompt = fs.readFileSync(path.join(__dirname, "../../src/session/prompt.ts"), "utf8")
   const take = prompt.indexOf("const foldRequest = CompactionRequest.take(sessionID)")
-  const captureDue = prompt.indexOf("const captureDue =")
-  const decision = prompt.indexOf("CompactionRequest.foldDecision({")
+  // Named for what it produces since 2026-09-22: a CHECKPOINT the fold reads, not a capture window.
+  const checkpointDue = prompt.indexOf("const checkpointDue =")
+  const decision = prompt.indexOf("CompactionRequest.foldDecision({ requested:")
   expect(take).toBeGreaterThan(-1)
-  expect(captureDue).toBeGreaterThan(-1)
+  expect(checkpointDue).toBeGreaterThan(-1)
   expect(decision).toBeGreaterThan(-1)
-  expect(take).toBeGreaterThan(captureDue)
+  expect(take).toBeGreaterThan(checkpointDue)
   expect(take).toBeLessThan(decision)
   // The decision is handed the request `take` consumed, not a second lookup — pinned by ARGUMENT,
   // because the call is formatted across lines and a single-line string pin went stale silently

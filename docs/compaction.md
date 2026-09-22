@@ -5,14 +5,13 @@ last_verified: 2026-09-16
 reproduce:
   files:
     - packages/opencode/src/session/prompt.ts
-    - packages/opencode/src/session/sidecar-policy.ts
     - packages/opencode/src/session/processor.ts
     - packages/opencode/src/provider/balance-storage.ts
     - packages/opencode/src/session/overflow.ts
     - packages/opencode/src/session/message-v2.ts
     - external/opencode-1.18.29/packages/opencode/src/session/compaction.ts
   commands:
-    - cd packages/opencode && bun test test/session/summary-sidecar.test.ts test/session/summary-cadence.test.ts test/session/cache-injection.test.ts test/session/finish-step.test.ts test/session/llm.test.ts
+    - cd packages/opencode && bun test test/session/summary-cadence.test.ts test/session/cache-injection.test.ts test/session/finish-step.test.ts test/session/llm.test.ts
     - cd packages/opencode && bun test test/provider/balance-storage.test.ts
     - cd packages/opencode && bun typecheck
   inputs: A clean completed turn at the 65,536-token open-window cadence.

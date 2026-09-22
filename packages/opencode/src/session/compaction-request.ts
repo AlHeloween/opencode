@@ -59,25 +59,23 @@ export function pendingFor(sessionID: string): boolean {
  * turn through the run loop.
  */
 export type FoldDecision =
-  /** Fold now, past the window-fill threshold. A summary already represents the head. */
+  /** Fold now, past the window-fill threshold, because the `compact` tool asked. */
   | "forced"
-  /** No capture ran this stop — summarize first, then fold, or the fold goes tail-only. */
-  | "capture-then-forced"
   /** Ordinary window-fill gate: fold only if the visible window reached `usable(model)`. */
   | "cadence"
-  /** A new summary was just captured and nothing asked to fold — keep M intact. */
-  | "defer"
 
-export function foldDecision(input: {
-  requested: boolean
-  captureDue: boolean
-  sidecarCaptured: boolean
-}): FoldDecision {
-  // An explicit request folds on this stop even when a sidecar was just
-  // captured. The deferral exists so CONTINUING work keeps M intact; asking to
-  // compact says the work is not continuing.
-  if (input.requested) return input.captureDue ? "forced" : "capture-then-forced"
-  if (!input.captureDue) return "cadence"
-  // Never fold on the same stop as a new s — Layer-2 runs on a later stop.
-  return input.sidecarCaptured ? "defer" : "cadence"
+/**
+ * Two states, because the other two were about a capture.
+ *
+ * The old table answered four ways — `forced`, `capture-then-forced`, `defer`,
+ * `cadence` — and three of them branched on the sidecar: whether a capture was
+ * due, whether one had just happened. Generation was removed on 2026-09-22
+ * (`bff5f50f7a`), so the capture flag became the constant `false` and, measured
+ * then, EVERY non-requested case returned `cadence` anyway: the capture axis
+ * never changed the fold decision, it only gated the one state (`defer`) whose
+ * own premise — do not fold on the same stop as a new summary — died with the
+ * summary. What is left is the decision the boundary actually makes.
+ */
+export function foldDecision(input: { requested: boolean }): FoldDecision {
+  return input.requested ? "forced" : "cadence"
 }

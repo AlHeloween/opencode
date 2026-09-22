@@ -25,6 +25,9 @@ export interface PlanStatus {
   active: string[]
   completed: string[]
   misplaced: string[]
+  /** Files under `plans/` that state NO checklist at all. Their state is UNKNOWN from outside —
+    * which is not the same as done. Never moved; see `isFinished`. */
+  noChecklist: string[]
   totalPlans: number
   totalTasks: number
   completedTasks: number
@@ -48,6 +51,30 @@ export function hasOpenItems(filePath: string): boolean {
   } catch {
     return false
   }
+}
+
+/** Check if a plan file states any checkbox item AT ALL — open, done or partial. */
+export function hasChecklist(filePath: string): boolean {
+  try {
+    const content = readFileSync(filePath, "utf-8")
+    return /^\s*- \[[ x~]\]/m.test(content)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * A plan is FINISHED only when it states a checklist and nothing in it is open.
+ *
+ * `hasOpenItems` alone answers «is anything left open», and a file with NO checkbox items answers
+ * FALSE to that — so a prose plan read as complete. Measured 2026-09-22: 18 of the 20 files the
+ * report called `misplaced` state no checklist at all, among them plans whose work is demonstrably
+ * open (`2026-09-19_fill-every-settings-layer.md`: the LMDB shim is not written;
+ * `2026-09-19_temporary-data-acquisition.md`: planned, not shipped). Completion needs the state to
+ * BE stated; with no checklist the state is UNKNOWN, and nothing may move it mechanically.
+ */
+export function isFinished(filePath: string): boolean {
+  return hasChecklist(filePath) && !hasOpenItems(filePath)
 }
 
 /**
@@ -414,14 +441,19 @@ export function getPlanStatus(worktree: string): PlanStatus {
   const completed = allCompleted.filter((f) => !reopenEligible(path.join(completedDir, f)))
   const active = allActive.filter((f) => hasOpenItems(path.join(plansDir, f)))
 
-  // Misplaced: plans in completedDir that still have [ ] items,
-  // or plans in plansDir that have NO [ ] items (should be moved)
+  // Misplaced: plans in completedDir that still have [ ] items, or plans in plansDir whose
+  // CHECKLIST is fully closed (those belong in completed/). A file with no checklist at all is a
+  // third thing — `noChecklist`, state unknown — and it is never moved: moving it would declare
+  // work DONE that was never ticked (measured 2026-09-22, 18 of 20).
   const misplacedCompleted = allCompleted.filter((f) => reopenEligible(path.join(completedDir, f)))
-  const misplacedActive = allActive.filter((f) => !hasOpenItems(path.join(plansDir, f)))
+  const misplacedActive = allActive.filter((f) => isFinished(path.join(plansDir, f)))
   const misplaced = [
     ...misplacedCompleted.map((f) => `plans_completed/${f.replace(/\\/g, "/")}`),
     ...misplacedActive.map((f) => `plans/${f.replace(/\\/g, "/")}`),
   ]
+  const noChecklist = allActive
+    .filter((f) => !hasChecklist(path.join(plansDir, f)))
+    .map((f) => `plans/${f.replace(/\\/g, "/")}`)
 
   const totalPlans = allActive.length + allCompleted.length
 
@@ -446,6 +478,7 @@ export function getPlanStatus(worktree: string): PlanStatus {
     active: active.map((f) => f.replace(/\\/g, "/")),
     completed: completed.map((f) => f.replace(/\\/g, "/")),
     misplaced,
+    noChecklist,
     totalPlans,
     totalTasks,
     completedTasks,
@@ -519,10 +552,11 @@ export function reconcilePlans(worktree: string): ReconcileResult {
     }
   }
 
-  // Finished files sitting in plans/ → plans_completed/
+  // Finished files sitting in plans/ → plans_completed/. `isFinished`, NOT `!hasOpenItems`: a file
+  // that states no checklist answers «nothing open» and would be moved as if it were done.
   for (const rel of collectPlans(plansDir)) {
     const src = path.join(plansDir, rel)
-    if (hasOpenItems(src)) continue
+    if (!isFinished(src)) continue
     try {
       const dest = movePlanFile(src, path.join(completedDir, rel))
       const finalRel = path.relative(completedDir, dest).replace(/\\/g, "/")
@@ -576,6 +610,13 @@ export function formatPlanHygiene(status: PlanStatus, reconcile?: ReconcileResul
     `Plan progress: ${formatProgressBar(status)}`,
     `Active (open [ ]): ${status.active.join(", ") || "none"}`,
     `Misplaced: ${status.misplaced.join(", ") || "none"}`,
+    // The third fact, and the one that used to be silently folded into `Misplaced`: a plan whose
+    // state is not STATED is not a plan whose state is DONE.
+    ...(status.noChecklist.length
+      ? [
+          `No checklist: ${status.noChecklist.length} plan(s) — state UNKNOWN from outside; a checklist or an explicit **Status:** with an oracle is what decides them, and nothing moves them mechanically`,
+        ]
+      : []),
   ]
   if (reconcile) {
     if (reconcile.movedToCompleted.length) {

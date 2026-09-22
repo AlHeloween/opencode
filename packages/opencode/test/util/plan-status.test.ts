@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { mkdirSync, mkdtempSync, writeFileSync } from "fs"
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "fs"
 import { tmpdir } from "os"
 import path from "path"
 import {
@@ -8,9 +8,11 @@ import {
   formatPlanHygiene,
   formatPlanStateText,
   getPlanStatus,
+  hasChecklist,
   isPlanHygieneClean,
   isPlanPlacementClean,
   planDebt,
+  reconcilePlans,
 } from "../../src/util/plan-status"
 
 function worktreeWith(plan: string) {
@@ -133,5 +135,36 @@ describe("util.plan-status hygiene axes", () => {
       }),
     )
     expect(risks).toEqual({ plans: ["plans/2026-01-06_open.md"], count: 1 })
+  })
+
+  test("a plan with NO checklist is NOT complete — its state is unknown, and nothing moves it", () => {
+    // Measured 2026-09-22: 18 of the 20 files the report called `misplaced` state no checklist at
+    // all. `hasOpenItems` answers «is anything open», which a file with no items answers FALSE — so a
+    // prose plan read as COMPLETE and `reconcilePlans` would have moved it into plans_completed/,
+    // declaring work done that is not. The falsifier is the MOVE itself: only the ticked file may go.
+    const dir = fixture({
+      "2026-01-08_prose.md": "# Prose\n\nThe work is described here and nowhere ticked.\n",
+      "2026-01-09_done.md": "# Done\n\n- [x] one\n",
+    })
+    const status = getPlanStatus(dir)
+    expect(status.misplaced).toEqual(["plans/2026-01-09_done.md"])
+    expect(status.noChecklist).toEqual(["plans/2026-01-08_prose.md"])
+    const moved = reconcilePlans(dir)
+    expect(moved.movedToCompleted).toEqual(["2026-01-09_done.md"])
+    expect(existsSync(path.join(dir, "plans", "2026-01-08_prose.md"))).toBe(true)
+  })
+
+  test("hasChecklist reads all three item forms — a box-less file is the only false", () => {
+    const dir = fixture({
+      "2026-01-10_open.md": "# A\n\n- [ ] a\n",
+      "2026-01-11_done.md": "# B\n\n- [x] b\n",
+      "2026-01-12_partial.md": "# C\n\n- [~] c\n",
+      "2026-01-13_none.md": "# D\n\nno items here\n",
+    })
+    const p = (f: string) => path.join(dir, "plans", f)
+    expect(hasChecklist(p("2026-01-10_open.md"))).toBe(true)
+    expect(hasChecklist(p("2026-01-11_done.md"))).toBe(true)
+    expect(hasChecklist(p("2026-01-12_partial.md"))).toBe(true)
+    expect(hasChecklist(p("2026-01-13_none.md"))).toBe(false)
   })
 })

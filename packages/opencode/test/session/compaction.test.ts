@@ -3280,7 +3280,7 @@ it.live(
         // whose lifecycle is not ACTIVE/EXECUTING — so a plan written without it is invisible to the
         // fold and the goal silently loses its first carrier (measured while writing this test: the
         // head came back with the window's goal and no plan goal at all).
-        "# Head\n\n**Status:** ACTIVE\n\n<!-- intention: the fold loses the why -> the fold reads it -->\n",
+        "# Head\n\n**Status:** ACTIVE\n\n- [ ] read the fold's head\n\n<!-- intention: the fold loses the why -> the fold reads it -->\n",
         "utf8",
       )
       fs.mkdirSync(nodePath.join(dir, ".opencode", "data", "memory"), { recursive: true })
@@ -3326,6 +3326,15 @@ it.live(
       expect(head).toMatch(/#\d+ "first epoch".*msg_/)
       // 5. THE TAIL is still there, verbatim.
       expect(head).toContain("tail yyyy")
+      // 6. THE ASSEMBLY POINT — the gated protocol's state, which used to ride ONLY inside summary
+      // blocks and therefore vanished from every fold made after generation was removed. The context
+      // is lost either way; the state that says where the work stands has to ride the head itself.
+      // It names the plan, its lifecycle and its OPEN TASKS — the title is not rendered by design
+      // (the noise cap keeps ids, statuses, attempts and vectors, never prose).
+      expect(head).toContain("--- Plan state")
+      expect(head).toContain("plan: plans/2026-09-22_head.md")
+      expect(head).toContain("lifecycle ACTIVE")
+      expect(head).toContain("TASK-1 [PENDING]")
     }),
   ),
 )

@@ -1265,6 +1265,12 @@ export function buildMessageStar(input: {
   goal?: string[]
   /** The window's TOPICAL AXIS — one pre-rendered line from `buildTableOfContents` (`topics`). */
   topics?: string
+  /** THE ASSEMBLY POINT — the plan mirror (`collectPlanState`), read once at the fold. Rendered as
+    * its own block, because the summary blocks used to be its ONLY carrier: a fold with no summaries
+    * carried no workflow state at all, and since generation was removed that is every new fold. The
+    * context is lost either way (owner, 2026-09-22: «так или иначе контекст пропадает — нужна точка
+    * сборки»), so the state that says where the work stands has to ride the head itself. */
+  planState?: PlanStatePayload
   /** 1-based global offset of the first recent message in the session.
     * Used to render `#N` positions so the model can call session-read
     * with an exact offset directly, without messagesearch indirection. */
@@ -1400,6 +1406,14 @@ export function buildMessageStar(input: {
 
   const goalBlock =
     input.goal && input.goal.length > 0 ? ["--- Goal ---", ...input.goal].join("\n") : undefined
+  // The gated protocol's state, in the head rather than only inside legacy summary blocks.
+  const planStateBlock =
+    input.planState && input.planState.plans.length > 0
+      ? [
+          "--- Plan state (gated workflow — read from the plan files, system Exact) ---",
+          formatPlanStateText(input.planState),
+        ].join("\n")
+      : undefined
   const topicsBlock = input.topics
     ? ["--- Window topics (read from the vectors the rows carry) ---", input.topics].join("\n")
     : undefined
@@ -1421,6 +1435,7 @@ export function buildMessageStar(input: {
     memoryBlock,
     goalBlock,
     fadingBlock,
+    planStateBlock,
     topicsBlock,
     tocBlock,
     ...summaryBlocks,
@@ -1689,8 +1704,9 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
                 (part as { text: string }).text.trim().length > 0,
             ),
         )
+        const planState = collectPlanState((yield* InstanceState.context).worktree)
         const goal = buildGoalLines({
-          planState: collectPlanState((yield* InstanceState.context).worktree),
+          planState,
           window: openingRequest
             ? {
                 messageID: openingRequest.info.id,
@@ -1741,6 +1757,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           toc: toc.lines,
           topics: toc.topics,
           goal,
+          planState,
           recentStartOffset,
           between,
           priorMessageStarId: priorMsgStarId,

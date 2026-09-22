@@ -1710,8 +1710,14 @@ describe("session.compaction.compact", () => {
         // ruling names.
         expect(combined).toContain("recent-2")
         expect(combined).toContain("recent-1")
-        expect(combined).not.toContain("old-1")
-        expect(combined).not.toContain("old-2")
+        // `old-1` is the request that OPENED this window, so it is quoted ONCE as the goal, with
+        // its address (owner, 2026-09-22). What must not happen — and what this pin is about — is
+        // an old message riding into the TAIL as a message.
+        expect(combined).toContain("--- Goal ---")
+        expect(combined).toContain("goal (window")
+        const tailOnly = combined.slice(combined.indexOf("--- Recent"))
+        expect(tailOnly).not.toContain("old-1")
+        expect(tailOnly).not.toContain("old-2")
         // System Exact handles present as passive ID lines (not recovery recipes)
         expect(combined).toContain("summary_message_id")
         expect(combined).toContain("session_id")
@@ -1852,7 +1858,10 @@ describe("session.compaction.compact", () => {
         expect(combined).toContain("=== COMPACTED ===")
         expect(combined).toContain("msg-5-")
         expect(combined).toContain("msg-29-")
-        expect(combined).not.toContain("msg-0-")
+        // msg-0- opened this window ⇒ it is the goal, quoted once with its address; the TAIL holds
+        // the recent messages and nothing older.
+        expect(combined).toContain("goal (window")
+        expect(combined.slice(combined.indexOf("--- Recent"))).not.toContain("msg-0-")
       }),
     ),
   )
@@ -2461,8 +2470,10 @@ describe("session.compaction.multiple-summaries", () => {
           .flatMap((m) => m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text))
           .join("\n")
 
-        // Old content not in message* (pre-summary)
-        expect(combined).not.toContain("old-before-s1")
+        // Old content not in the TAIL of message* (pre-summary). The request that opened the
+        // window is quoted as the goal WITH its address — representation, not a raw dump.
+        expect(combined).toContain("goal (window")
+        expect(combined.slice(combined.indexOf("--- Recent"))).not.toContain("old-before-s1")
         // All summaries folded into message*
         expect(combined).toContain("## Goal")
         expect(combined).toContain("summary for segment")

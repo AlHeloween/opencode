@@ -14,8 +14,9 @@
 import { describe, expect, test } from "bun:test"
 import fs from "fs"
 import path from "path"
-import { buildMessageStar, buildTableOfContents, diagnoseSummaryGaps, renderFileDiffLegend, renderSummaryBlock } from "../../src/session/compaction"
+import { buildGoalLines, buildMessageStar, buildTableOfContents, diagnoseSummaryGaps, renderFileDiffLegend, renderSummaryBlock } from "../../src/session/compaction"
 import type { MessageV2 } from "../../src/session/message-v2"
+import type { PlanStatePayload } from "../../src/util/plan-status"
 
 describe("summary block shape", () => {
   test("the legend carries counts and addresses, and drops patch bodies", () => {
@@ -213,5 +214,44 @@ describe("summary block shape", () => {
     expect(capped.trimmed).toBeGreaterThan(0)
     expect(capped.lines[0]).toContain("trimmed")
     expect(capped.lines.at(-1)).toContain("epoch 39")
+  })
+
+  test("FALSIFIER — the goal is READ: the plan's intention and the owner's own words", () => {
+    const planState: PlanStatePayload = {
+      plans: [
+        {
+          file: "plans/2026-09-21_mstar-order-and-summary-restore.md",
+          intention: { from_state: "the fold loses the why", to_state: "the fold reads it" },
+          goal_sv: ["fold", "intention", "goal"],
+          invariants: [],
+          tasks: [],
+        },
+      ],
+    }
+
+    const lines = buildGoalLines({
+      planState,
+      window: {
+        messageID: "msg_opening",
+        position: 7,
+        text: "Fix the fold.\nSecond line.\nThird line.\nFourth line that must be cut.",
+      },
+    })
+    const text = lines.join("\n")
+
+    // The plan's intention, with the file it came from — an address, not a paraphrase.
+    expect(text).toContain("plans/2026-09-21_mstar-order-and-summary-restore.md")
+    expect(text).toContain("the fold loses the why -> the fold reads it")
+    expect(text).toContain("fold, intention, goal")
+    // The owner's words, quoted verbatim, with the message they came from.
+    expect(text).toContain("#7")
+    expect(text).toContain("msg_opening")
+    expect(text).toContain('"Fix the fold. / Second line. / Third line.')
+    // Bounded, and the cut is NAMED — a shortened quote is never mistaken for the whole request.
+    expect(text).not.toContain("Fourth line")
+    expect(text).toContain("(cut")
+
+    // No carrier ⇒ the goal is UNKNOWN and says so. It is a record, never an invented line.
+    expect(buildGoalLines({}).join("\n")).toContain("goal: Unknown")
   })
 })

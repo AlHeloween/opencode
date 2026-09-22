@@ -20,7 +20,8 @@ import { fn } from "@/util/fn"
 import { SessionStatus } from "./status"
 import { IncrementalCheckpoint } from "./incremental-checkpoint"
 import { parseSummaryRange } from "./summary"
-import { formatPlanStateText, type PlanStatePayload } from "@/util/plan-status"
+import { collectPlanState, formatPlanStateText, type PlanStatePayload } from "@/util/plan-status"
+import { InstanceState } from "@/effect/instance-state"
 import { Snapshot } from "@/snapshot"
 
 const log = Log.create({ service: "session.compaction" })
@@ -1153,6 +1154,9 @@ const TAIL_TOOL_OUTPUT_MAX_CHARS = MessageV2.REPLAY_TOOL_OUTPUT_MAX_CHARS
 const DECISIONS_MAX_CHARS = 8_192
 /** Table-of-contents cap — same discipline as decisions: newest lines kept, the trim NAMED. */
 const TOC_MAX_CHARS = 8_192
+/** Goal head — the owner's opening words are quoted, not paraphrased: three lines, then a named cut. */
+const GOAL_HEAD_LINES = 3
+const GOAL_MAX_CHARS = 400
 
 function stripReminderBlocks(text: string): string {
   return text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "").replace(/\n{3,}/g, "\n\n")
@@ -1327,6 +1331,50 @@ export function buildTableOfContents(
   return { lines: kept, trimmed }
 }
 
+/**
+ * The GOAL of the window — READ, never derived (owner, 2026-09-22: «Единственное узкое место goal»).
+ *
+ * The dominant is in every message, but the goal never was: it lived in the summary body, i.e. in
+ * the generation this revision removes. Two carriers already exist and both are reads:
+ *   1. the PLAN — 24 files under `plans/` carry `<!-- intention: from -> to -->`, and
+ *      `plan-status.ts` already parses it (`parseIntention`, `goal_sv`). The plan is the one place
+ *      where the goal is written ONCE, by a mind, instead of being restated at every boundary;
+ *      `collectPlanState(worktree)` is a plain read of those files.
+ *   2. the OWNER'S OWN WORDS — the request that opened the window is the goal of that window, and
+ *      it is Exact, not a summary of it.
+ *
+ * When neither carrier answers, the goal is UNKNOWN and says so: it is a record, never an argument,
+ * and a boundary may not invent one.
+ */
+export function buildGoalLines(input: {
+  planState?: PlanStatePayload
+  window?: { messageID: string; position: number; text: string }
+}): string[] {
+  const lines: string[] = []
+  const plan = input.planState?.plans.find((candidate) => candidate.intention)
+  if (plan?.intention) {
+    lines.push(`- goal (plan \`${plan.file}\`): ${plan.intention.from_state} -> ${plan.intention.to_state}`)
+    if (plan.goal_sv.length > 0) lines.push(`- goal_sv: ${plan.goal_sv.join(", ")}`)
+  }
+  if (input.window) {
+    const source = input.window.text
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+    const head = source.slice(0, GOAL_HEAD_LINES).join(" / ")
+    const bounded = head.length > GOAL_MAX_CHARS ? head.slice(0, GOAL_MAX_CHARS) : head
+    const cut = bounded.length < head.length || source.length > GOAL_HEAD_LINES
+    lines.push(
+      `- goal (window, owner's words — #${input.window.position} \`${input.window.messageID}\`): "${bounded}"${
+        cut ? " …(cut — sessionread the message for the rest)" : ""
+      }`,
+    )
+  }
+  return lines.length > 0
+    ? lines
+    : ["- goal: Unknown — no plan carries an intention and no request opened this window"]
+}
+
 export function buildMessageStar(input: {
   sessionID: string
   summaries: SummaryEntry[]
@@ -1334,6 +1382,9 @@ export function buildMessageStar(input: {
   /** The folded window's TABLE OF CONTENTS — one pre-rendered line per message, built from the
     * semantic dominant that message already carries (`buildTableOfContents`). */
   toc?: string[]
+  /** The window's GOAL — pre-rendered lines from `buildGoalLines` (plan intention + the owner's
+    * opening words), read at the fold rather than derived. */
+  goal?: string[]
   /** 1-based global offset of the first recent message in the session.
     * Used to render `#N` positions so the model can call session-read
     * with an exact offset directly, without messagesearch indirection. */
@@ -1467,6 +1518,8 @@ export function buildMessageStar(input: {
       ? ["--- Fading (links only — the durable blocks above carry the content) ---", ...fadingLines].join("\n")
       : undefined
 
+  const goalBlock =
+    input.goal && input.goal.length > 0 ? ["--- Goal ---", ...input.goal].join("\n") : undefined
   const tocBlock =
     input.toc && input.toc.length > 0
       ? [
@@ -1482,6 +1535,7 @@ export function buildMessageStar(input: {
     "Continue the task from this memory. Re-read archive only when a specific fact is missing.",
     "",
     memoryBlock,
+    goalBlock,
     fadingBlock,
     tocBlock,
     ...summaryBlocks,
@@ -1738,6 +1792,34 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           { skipIds: new Set(recent.map((m) => m.info.id)) },
         ).lines
 
+        // The GOAL of this fold — the plan's intention (a read of the plan files) and the request
+        // that opened the window, in the owner's own words. Neither carrier ⇒ Unknown, recorded.
+        const openingRequest = visible.find(
+          (m) =>
+            m.info.role === "user" &&
+            m.parts.some(
+              (part) =>
+                part.type === "text" &&
+                !(part as { synthetic?: boolean }).synthetic &&
+                (part as { text: string }).text.trim().length > 0,
+            ),
+        )
+        const goal = buildGoalLines({
+          planState: collectPlanState((yield* InstanceState.context).worktree),
+          window: openingRequest
+            ? {
+                messageID: openingRequest.info.id,
+                position: positions.get(openingRequest.info.id) ?? 0,
+                text: openingRequest.parts
+                  .filter(
+                    (part) => part.type === "text" && !(part as { synthetic?: boolean }).synthetic,
+                  )
+                  .map((part) => (part as { text: string }).text)
+                  .join("\n"),
+              }
+            : undefined,
+        })
+
         // Prior m* decisions are NOT pulled forward — each m* owns its own decisions.
 
         // Compute 1-based global offset of the first recent message
@@ -1772,6 +1854,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           summaries,
           recent,
           toc,
+          goal,
           recentStartOffset,
           between,
           priorMessageStarId: priorMsgStarId,

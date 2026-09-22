@@ -2,7 +2,7 @@
  * SP-03: Session undo against real Fossil snapshots (no mocks).
  * Git is project VCS; Fossil is agent snapshot/undo only.
  */
-import { describe, expect } from "bun:test"
+import { describe, expect, setDefaultTimeout } from "bun:test"
 import fs from "fs/promises"
 import path from "path"
 import { Effect, Layer } from "effect"
@@ -19,6 +19,15 @@ import { provideTmpdirInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
 Log.init()
+
+/**
+ * File-level budget, never per-test whack-a-mole. Every restore here spawns `checkout`, `clean` and
+ * `info` serially under the fossil repo lock, so a loaded machine pushes a single restore past bun's
+ * 5 s default and reports it as a red. Measured 2026-09-21: SU-1 and SP-05 «timed out after 5000ms»
+ * in a 9-file run, while the whole file is GREEN in isolation (11 pass / 0 fail, 43.8 s) — and the
+ * same file carried no file-level budget at all, which is why it could not tell the two apart.
+ */
+setDefaultTimeout(20_000)
 
 const env = Layer.mergeAll(
   Session.defaultLayer,
@@ -369,15 +378,26 @@ describe("session undo + fossil (SP-03)", () => {
         const s1 = yield* step("s1", h0!)
         const s2 = yield* step("s2", s1.h)
 
+        // INSTRUMENT (2026-09-21). This test is FLAKY, not deterministic: it failed twice with
+        // `anchor2 === anchor1` and then passed on the next run. Per I-2 the anchor is "the leaf you are
+        // LEAVING", so the shape to read is: anchor1 == the leaf before undo 1, anchor2 == the leaf after
+        // undo 1. These lines print all four hashes, so the next failure says WHICH one diverged instead
+        // of only reporting equality — the earlier claim that this was deterministic was made from one
+        // observation and did not survive the probe.
+        const leafBeforeFirst = yield* snap.checkpoint()
         yield* revert.revert({ sessionID, messageID: s2.user.id })
         const mid = yield* session.get(sessionID)
         const anchor1 = mid.revert?.snapshot
+        const leafAfterFirst = yield* snap.checkpoint()
+        console.log("[SU3-PROBE] leaves", JSON.stringify({ leafBeforeFirst, anchor1, leafAfterFirst }))
         expect(anchor1).toBeTruthy()
         expect(yield* read(file)).toBe("s1")
 
         yield* revert.revert({ sessionID, messageID: s1.user.id })
         const mid2 = yield* session.get(sessionID)
         const anchor2 = mid2.revert?.snapshot
+        const leafAfterSecond = yield* snap.checkpoint()
+        console.log("[SU3-PROBE] anchors", JSON.stringify({ leafAfterFirst, anchor2, leafAfterSecond }))
         expect(anchor2).toBeTruthy()
         // Fresh anchor each undo (BUG-3) — must not reuse prior revert snapshot blindly
         expect(anchor2).not.toBe(anchor1)

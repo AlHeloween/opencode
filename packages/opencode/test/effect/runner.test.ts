@@ -30,7 +30,7 @@ describe("Runner", () => {
   )
 
   it.live(
-    "concurrent callers queue: first runs immediately, second runs after",
+    "concurrent callers JOIN the running work — it executes once, both get its result",
     Effect.gen(function* () {
       const s = yield* Scope.Scope
       const runner = Runner.make<string>(s)
@@ -45,11 +45,13 @@ describe("Runner", () => {
         concurrency: "unbounded",
       })
 
-      // Both callers get "shared", but work executes twice — second caller's
-      // work is queued via RunningThenRun and executes after the first finishes.
+      // Both callers JOIN the one run: the work executes ONCE and both receive its
+      // result. A caller whose run is already going has its own `work` DISCARDED —
+      // `supersede` is the operation that replaces in-flight work, and the session
+      // turn picks between the two (`prompt.ts:2962`).
       expect(a).toBe("shared")
       expect(b).toBe("shared")
-      expect(yield* Ref.get(calls)).toBe(2)
+      expect(yield* Ref.get(calls)).toBe(1)
     }),
   )
 
@@ -84,7 +86,7 @@ describe("Runner", () => {
   )
 
   it.live(
-    "ensureRunning queues new work behind running, then executes it",
+    "a second ensureRunning caller JOINS the running work — its own work is discarded",
     Effect.gen(function* () {
       const s = yield* Scope.Scope
       const runner = Runner.make<string>(s)
@@ -104,11 +106,14 @@ describe("Runner", () => {
         concurrency: "unbounded",
       })
 
-      // First caller gets first result. Second caller gets second result
-      // because its work was queued and executed after the first finished.
+      // First caller starts its work. The second caller does NOT queue: it joins the
+      // run already in flight, so it receives the FIRST result and its own `second`
+      // effect never executes. That is the contract `ensureRunning` carries — the name
+      // says "ensure it is running", and a caller that must REPLACE the active turn
+      // calls `supersede` instead.
       expect(a).toBe("first-result")
-      expect(b).toBe("second-result")
-      expect(yield* Ref.get(ran)).toEqual(["first", "second"])
+      expect(b).toBe("first-result")
+      expect(yield* Ref.get(ran)).toEqual(["first"])
     }),
   )
 

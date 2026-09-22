@@ -1020,6 +1020,34 @@ type SummaryEntry = {
 /** Render one summary exactly as it appears inside m*. Single rendering path
  * shared with the budget cap — the cap can never drift from the injected
  * bytes (2026-08-29: body-only counting let 76K of bodies render into 237K). */
+/**
+ * The file-diff LEGEND a summary block carries: counts, then one address line per file — and NO
+ * patch bodies.
+ *
+ * Bodies used to be inlined here (up to 40 lines per file × up to 20 files), so the block read as a
+ * dump of code churn and the intention was displaced — the measured way a window's goals are lost
+ * (owner, 2026-09-21: «умник решил проза не нужна и оставил только диффы»). The bodies are not the
+ * record: the Exact list is recoverable from the session, and the header says where.
+ */
+export function renderFileDiffLegend(
+  diffs: readonly { file: string; additions: number; deletions: number; status?: string }[],
+  sidecar: boolean,
+): string {
+  const shown = diffs.slice(0, 20)
+  const additions = diffs.reduce((sum, diff) => sum + diff.additions, 0)
+  const deletions = diffs.reduce((sum, diff) => sum + diff.deletions, 0)
+  return [
+    sidecar
+      ? `- tool_diff: system Exact (snapshot range diff — fossil anchors + tool metadata; file bodies via sessionread of this range)`
+      : `- tool_diff: system Exact (write/edit/multiedit filediff from session DB; file bodies via sessionread of this range)`,
+    `  files=${diffs.length}; additions=${additions}; deletions=${deletions}`,
+    ...shown.map((diff) => `  - ${diff.file} (+${diff.additions}/-${diff.deletions} ${diff.status ?? "modified"})`),
+    ...(diffs.length > shown.length
+      ? [`  - … +${diffs.length - shown.length} more; sessionread this summary range for the full Exact list`]
+      : []),
+  ].join("\n")
+}
+
 function renderSummaryBlock(input: {
   sessionID: string
   s: SummaryEntry
@@ -1034,26 +1062,7 @@ function renderSummaryBlock(input: {
   const toPos = s.toId ? input.positionOf?.(s.toId) : undefined
   const sv = extractSemanticVector(s.text)
   const svLine = sv?.dominant ? `- sv_dominant: \`${sv.dominant}\`` : undefined
-  const diffLine =
-    s.diffs && s.diffs.length > 0
-      ? [
-          s.sidecar
-            ? `- tool_diff: system Exact (snapshot range diff — fossil anchors + tool metadata)`
-            : `- tool_diff: system Exact (write/edit/multiedit filediff from session DB)`,
-          `  files=${s.diffs.length}; additions=${s.diffs.reduce((sum, diff) => sum + diff.additions, 0)}; deletions=${s.diffs.reduce((sum, diff) => sum + diff.deletions, 0)}`,
-          ...s.diffs.slice(0, 20).flatMap((diff) => {
-            const head = `  - ${diff.file} (+${diff.additions}/-${diff.deletions} ${diff.status ?? "modified"})`
-            // Bounded unified snippet for agent recovery — not empty stats-only.
-            if (!diff.patch?.trim()) return [head]
-            const lines = diff.patch.trim().split("\n").slice(0, 40)
-            const more = diff.patch.split("\n").length > 40 ? "\n    …" : ""
-            return [head, "    ```diff", ...lines.map((l) => `    ${l}`), `    \`\`\`${more}`]
-          }),
-          ...(s.diffs.length > 20
-            ? [`  - … +${s.diffs.length - 20} more; sessionread this summary range for the full Exact list`]
-            : []),
-        ].join("\n")
-      : undefined
+  const diffLine = s.diffs && s.diffs.length > 0 ? renderFileDiffLegend(s.diffs, !!s.sidecar) : undefined
   const impactLine = s.impact
     ? [
         `- structural_impact: system index-time Structural`,

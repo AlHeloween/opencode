@@ -182,6 +182,22 @@ export function summaryRangeStartHash(
 }
 
 /**
+ * The snapshot a summary range ENDS at — the mirror of `summaryRangeStartHash`.
+ *
+ * Without it the range diff ran to the WORKING COPY: `diffFull(from)` takes the current tree as the
+ * end, so a summary of an older range reported everything changed since as part of itself
+ * (measured 2026-09-21 — the block became a dump of unrelated file bodies and the intention was
+ * displaced). The LAST anchor inside the range is the state the range ended in.
+ */
+export function summaryRangeEndHash(rangeMessages: readonly MessageV2.WithParts[]): string | undefined {
+  for (let i = rangeMessages.length - 1; i >= 0; i--) {
+    const hashes = snapshotHashesOnMessage(rangeMessages[i]!)
+    if (hashes.length > 0) return hashes[hashes.length - 1]
+  }
+  return undefined
+}
+
+/**
  * Merge an anchor diff (the worktree's truth: shell edits, deletions, renames) with
  * tool filediffs (the agent's own writes).
  *
@@ -586,7 +602,15 @@ export const layer = Layer.effect(
       if (snapshot._tag !== "Some") return tools
       const from = summaryRangeStartHash(input.messages, input.beforeMessages)
       if (!from) return tools
-      const anchored = yield* snapshot.value.diffFull(from).pipe(
+      // The range END, not the working copy: `diffFull(from, undefined)` means «anchor → tree right
+      // now», which is only correct when the summary genuinely ends at HEAD. A range with no end
+      // anchor keeps the old behaviour — and says so, so it is never mistaken for an exact range.
+      const to = summaryRangeEndHash(input.messages)
+      if (!to)
+        log.debug("summary range diff: no end anchor in the range — diffing to the working copy", {
+          from: from.slice(0, 12),
+        })
+      const anchored = yield* snapshot.value.diffFull(from, to).pipe(
         Effect.catchCause((cause) => {
           log.debug("summary range diff: anchor unavailable — tool filediffs only", {
             from: from.slice(0, 12),

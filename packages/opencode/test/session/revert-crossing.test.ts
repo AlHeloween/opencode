@@ -7,7 +7,7 @@
  * The boundary is simulated directly with info.compacted flags — the unit under
  * test is revert()/unrevert() crossing mechanics, not SessionCompaction.
  */
-import { describe, expect, test, jest } from "bun:test"
+import { describe, expect, test, setDefaultTimeout } from "bun:test"
 import fs from "fs/promises"
 import path from "path"
 import { Effect, Layer } from "effect"
@@ -32,10 +32,13 @@ import { testEffect } from "../lib/effect"
  * were failing at 5001ms — a timeout, not an assertion.
  *
  * Set once for the file rather than per call: the per-test third argument means
- * editing twelve call closings, and `jest.setTimeout` states the intent in one
- * place.
+ * editing twelve call closings, so the budget is stated in one place.
+ *
+ * `setDefaultTimeout`, not the legacy `jest` alias — a probe measured 2026-09-21
+ * (`experiments/2026-09-21_timeout-alias-probe/`) that BOTH bind in this Bun 1.4.2: a 300 ms body under
+ * a 50 ms budget was killed either way. So this swap is alignment with the project rule, not a repair.
  */
-jest.setTimeout(30_000)
+setDefaultTimeout(30_000)
 const env = Layer.mergeAll(
     Session.defaultLayer,
     SessionRevert.defaultLayer,

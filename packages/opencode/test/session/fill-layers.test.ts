@@ -156,11 +156,16 @@ describe("the read takes ONE layer", () => {
     expect(fillSource).toContain("workspaceAgentModel")
   })
 
-  test("forAgent delegates to the ONE implementation and walks NO parent", () => {
+  test("forAgent names ONE layer, and walks no parent chain", () => {
     const read = bodyOf(SOURCE, "function forAgent(")
-    expect(read).toContain("sessionAgentModel(")
-    // The deleted recursion, in every spelling it had:
-    expect(read).not.toContain("workspaceAgentModel")
+    // The RETURN, not merely the call: a pin on `sessionAgentModel(` alone would pass with the
+    // `return` dropped, and the read would then yield `undefined` silently — type-legal, and
+    // invisible to typecheck. Pinning the returning form is what makes that failure impossible to
+    // commit unnoticed.
+    expect(read).toContain("return sessionAgentModel(name, sessionSettings())")
+    // Naming the worktree is legitimate — it IS the governing layer when no session is open yet.
+    // What must never come back is the WALK: a per-link validity filter deciding whether an upper
+    // layer is "full enough", and a third source reached by searching the agent list.
     expect(read).not.toContain("isModelValid")
     expect(read).not.toContain("sync.data.agent")
   })

@@ -196,6 +196,38 @@ export const layer = Layer.effect(
         // Not per-file mix — renames/moves/deletes must match the leaf exactly.
         const targetHash = patches[0]!.hash
         yield* snap.revertTo(targetHash)
+        // ORACLE IN THE CODE (2026-09-21): the restore is not done until the WORKTREE says it moved.
+        //
+        // Measured failure: with the file restore applied, the checkout could leave the tree where it
+        // was — the probe printed identical leaves for the two consecutive undos (`leafBeforeFirst ==
+        // leafAfterFirst`, `anchor2 === anchor1`) — and nothing checked, so the undo reported success
+        // either way. A rollback that cannot show the tree landed on its target is not a rollback
+        // this project may report as one.
+        //
+        // The check is on CONTENT, not on the leaf's name: `revertTo` navigates to the leaf holding
+        // `targetHash`, and what a restore promises is that the working copy matches it. An empty
+        // diff is exactly that promise, so this can neither be satisfied by a stale hash probe nor
+        // fail because the navigation named the same content differently.
+        const drift = (yield* snap.diff(targetHash)).trim()
+        if (drift.length > 0) {
+          for (const c of crossing) {
+            const row = all.find((m) => m.info.id === c.id)
+            if (!row) continue
+            row.info.compacted = !c.visible
+            yield* sessions.updateMessage(row.info)
+          }
+          // Loud, but NOT fatal: the interface declares `revert` with an empty error channel
+          // (`Effect.Effect<Session.Info>`), and a die here would take the TUI down mid-rollback —
+          // exactly when a rehearsal needs it alive. The state is left as found (flags restored, no
+          // revert record), so the undo visibly does not happen, and this line names why.
+          log.error("bug: revert aborted — the worktree did not reach the target leaf", {
+            sessionID: input.sessionID,
+            expected: targetHash,
+            target: patches[0]!.files[0] ?? "unknown",
+            driftLines: drift.split("\n").length,
+          })
+          return yield* sessions.get(input.sessionID)
+        }
       }
 
       rev.diff = anchor ? yield* snap.diff(anchor) : undefined

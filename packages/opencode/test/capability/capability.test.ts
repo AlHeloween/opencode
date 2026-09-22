@@ -275,7 +275,10 @@ describe("CapabilityTool", () => {
     expect(result.title).toBe("Capability lookup: generate image")
     expect(result.output).toContain("image-model")
     expect(result.output).toContain("P proven")
-    expect(result.metadata.results).toHaveLength(1)
+    // `results` is a COUNT, not a list — the tool's own metadata type says so
+    // (`capability.ts:45` `results: number`) and so do its siblings (`logsearch.ts:32`,
+    // `messagesearch`). `multiedit` is the one that returns per-item metadata instead.
+    expect(result.metadata.results).toBe(1)
   })
 
   test("rejects unsupported modality values at the parameter schema", () => {

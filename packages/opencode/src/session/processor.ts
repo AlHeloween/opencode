@@ -1311,6 +1311,12 @@ export const layer: Layer.Layer<
                   floor: Constitution.decisionFloor(ctx.sessionID),
                 })
                 ctx.evidenceFloor = Constitution.decisionFloor(ctx.sessionID)
+                // THE FLUSH BELONGS WHERE THE LEDGER CHANGES, not (only) where it is read. Relying on
+                // the status note made persistence a side effect of a surface that may not run on a
+                // given turn; the ingest is the mutation, so the row is written here, immediately
+                // after it, and a restart rehydrates what the turn actually recorded (found by an
+                // outside review, 2026-09-22).
+                Constitution.flushEpistemic(ctx.sessionID)
               }
             }
             if (value.providerMetadata) ctx.currentText.metadata = value.providerMetadata

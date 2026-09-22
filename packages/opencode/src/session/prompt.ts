@@ -31,7 +31,7 @@ import { Jobs } from "../jobs"
 import { RequestDiff } from "./request-diff"
 import { Checkpoint, type CheckpointData } from "./checkpoint"
 import { IncrementalCheckpoint } from "./incremental-checkpoint"
-import { collectPlanState, planFiles } from "@/util/plan-status"
+import { collectPlanState, planDebt, planFiles } from "@/util/plan-status"
 import { couplingFindings, parsePlanMap } from "@/memory/spine"
 import { readMemory } from "@/tool/memory"
 import { Bus } from "../bus"
@@ -1985,20 +1985,23 @@ export const layer = Layer.effect(
                     map: parsePlanMap(yield* readMemory()),
                     plans: new Set(planFiles(worktree)),
                   })
+                  // THE FLUSH POINT — and it must stand BEFORE the return. Written after it, the call
+                  // was unreachable and the row never landed in production; the typecheck did not catch
+                  // it (`allowUnreachableCode` is not an error here) and the pin did not either, because
+                  // the pin calls `flushEpistemic` itself. Found by an outside review, 2026-09-22.
+                  Constitution.flushEpistemic(sessionID)
                   return SessionCompaction.tailNote({
                     open,
                     window,
                     // THE CALL TO ACTION: what the protocol still OWES, read from the plan files. The
                     // user is not allowed to be the only thing that ever asks for an account of the work.
                     debt: collectPlanState(worktree),
+                    debtTotal: planDebt(worktree),
                     coupling,
                     // `@LOOP_MEASURE`'s other half: claims with no oracle stamp, counted from the row
                     // that now outlives the process.
                     claims: Constitution.claimDebt(sessionID),
                   })
-                  // The read above is also the FLUSH POINT: the ledger is written back once per user
-                  // message, so a restart rehydrates what the last turn knew.
-                  Constitution.flushEpistemic(sessionID)
                 } catch (e) {
                   Log.Default.warn("bug: failed to build the compaction status note", {
                     error: String(e),

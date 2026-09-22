@@ -1151,7 +1151,15 @@ function decodeEpistemic(raw: string | undefined): SessionEpistemic | undefined 
       stamps?: [string, ActiveClaimStamp][]
       evidenceFloor?: InfoMark
     }
-    if (parsed.v !== EPISTEMIC_STORE_VERSION) return undefined
+    if (parsed.v !== EPISTEMIC_STORE_VERSION) {
+      // Expected after a deliberate bump — but NAMED, with both versions, because the alternative is a
+      // ledger that disappears between two releases with nothing in the log to say why.
+      log.debug("epistemic blob has another version — starting from an empty ledger", {
+        stored: parsed.v,
+        expected: EPISTEMIC_STORE_VERSION,
+      })
+      return undefined
+    }
     return {
       ledger: {
         claims: new Map(parsed.claims ?? []),
@@ -1165,7 +1173,14 @@ function decodeEpistemic(raw: string | undefined): SessionEpistemic | undefined 
       stamps: new Map(parsed.stamps ?? []),
       evidenceFloor: parsed.evidenceFloor ?? "Inferred",
     }
-  } catch {
+  } catch (cause) {
+    // A blob that cannot be parsed is a CORRUPTED row, not an absent one, and it is said out loud:
+    // the previous version swallowed it, so the next flush overwrote the damaged state with an empty
+    // ledger and the loss left no trace at all (found by an outside review, 2026-09-22). Every catch
+    // logs — that rule is older than this file's row and was broken by it.
+    log.warn("bug: epistemic blob unreadable — starting from an empty ledger", {
+      error: String(cause),
+    })
     return undefined
   }
 }

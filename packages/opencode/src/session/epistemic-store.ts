@@ -26,15 +26,21 @@ const log = Log.create({ service: "session.epistemic-store" })
  * or a closed database, the ledger simply stays in memory — the behaviour every caller had before
  * this row existed. Measured 2026-09-22: the constitution suite calls the epistemic functions with no
  * instance at all, and `Database.use` throws "No context found for database" — the whole suite went
- * red until this became a fallback instead of a requirement. Logged, never silent: a store that
- * quietly stops storing is the defect class this project keeps paying for.
+ * red until this became a fallback instead of a requirement.
+ *
+ * The two failures are NOT the same and are not logged the same: an absent instance context is the
+ * documented fallback (debug), while a store that was supposed to persist and did not is a defect
+ * (warn + `bug:`). Logging both at debug would hide the second behind the first — which is exactly
+ * what the first version did (found by an outside review, 2026-09-22).
  */
-function noContext(op: string, sessionID: string, cause: unknown) {
-  log.debug("epistemic store unavailable — the ledger stays in memory", {
-    op,
-    sessionID,
-    error: String(cause),
-  })
+function storeFailure(op: string, sessionID: string, cause: unknown) {
+  const error = String(cause)
+  const detail = { op, sessionID, error }
+  if (error.includes("No context found for database")) {
+    log.debug("epistemic store unavailable — the ledger stays in memory", detail)
+    return
+  }
+  log.warn("bug: epistemic store failed — the ledger stays in memory", detail)
 }
 
 /** The stored blob for a session, or undefined when nothing was ever written (or nothing is open). */
@@ -49,7 +55,7 @@ export function loadEpistemic(sessionID: string): string | undefined {
           .all()[0]?.data,
     )
   } catch (cause) {
-    noContext("load", sessionID, cause)
+    storeFailure("load", sessionID, cause)
     return undefined
   }
 }
@@ -68,6 +74,6 @@ export function saveEpistemic(sessionID: string, data: string): void {
         .run()
     })
   } catch (cause) {
-    noContext("save", sessionID, cause)
+    storeFailure("save", sessionID, cause)
   }
 }

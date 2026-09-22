@@ -648,6 +648,10 @@ export function tailNote(input: {
   /** The plan mirror — the protocol's OWED work. Absent ⇒ no debt line (the note keeps its old
     * contract with callers that have no plan context). */
   debt?: PlanStatePayload | null
+  /** The FULL debt across every plan on disk, when the caller can afford the read. `debt` is a head
+    * surface capped at three relevant plans, so a count taken from it under-reports: this is the
+    * measure, that is the address. */
+  debtTotal?: { plans: number; open: number } | null
   /** The coupling watcher's result: how many vectors were actually looked at, and what floated free.
     * A silent check is indistinguishable from no check, so the count is printed even at zero. */
   coupling?: { checked: number; findings: readonly string[] } | null
@@ -675,11 +679,21 @@ export function tailNote(input: {
       plan.tasks.filter((task) => task.status !== "PASS").map((task) => ({ plan: plan.file, task })),
     )
     const next = owed[0]
+    // THE MEASURE IS THE TOTAL; THE ADDRESS IS THE NEXT TASK. `debt` carries at most three relevant
+    // plans — that is what a head surface is for — so a count taken from it UNDER-REPORTS its own
+    // name (measured 2026-09-22: twelve printed while the root had thirty open). When the caller can
+    // afford the full read, the total is what the line states, and the capped view only names where
+    // to start.
+    const total = input.debtTotal ?? { plans: input.debt.plans.length, open: owed.length }
     lines.push(
-      owed.length === 0
+      total.open === 0
         ? "owed: no open plan task — the boxes are clear; memory's open list is the remainder (not machine-readable yet)"
-        : `owed: ${owed.length} open plan task(s) · next: ${next!.plan} ${next!.task.id} [${next!.task.status}]${
-            next!.task.attempts > 0 ? ` · attempts ${next!.task.attempts}` : ""
+        : `owed: ${total.open} open plan task(s) in ${total.plans} plan(s)${
+            next
+              ? ` · next: ${next.plan} ${next.task.id} [${next.task.status}]${
+                  next.task.attempts > 0 ? ` · attempts ${next.task.attempts}` : ""
+                }`
+              : ""
           }`,
     )
   }
@@ -1311,13 +1325,22 @@ export function buildTableOfContents(
     // own md5, the thread was interrupted at a place the model itself named. Unknown cases (no
     // predecessor hash on either side) are NOT marked: a missing field is not a break.
     const chain = extractVectorChain(text)
-    const olderEntry = i > 0 ? entries[i - 1] : undefined
-    const olderCarrier = olderEntry?.message.parts.findLast((part) =>
-      part.type === "text" && extractMessageDominant((part as { text: string }).text) != null,
-    )
-    const olderChain = olderCarrier
-      ? extractVectorChain((olderCarrier as { text: string }).text)
-      : undefined
+    // The chain is a relation between VECTORS, so the predecessor is the nearest OLDER CARRIER — not
+    // the array neighbour. A window of assistant → user → assistant made `entries[i - 1]` a message
+    // with no vector at all and the break went unmarked (found by an outside review, 2026-09-22). The
+    // comparison stays on the message that DECLARES it, because that is where the marker must land;
+    // scanning back to the carrier is what keeps the declaration attached to its own address.
+    let olderChain: { md5?: string; prevMd5?: string } | undefined
+    for (let j = i - 1; j >= 0; j--) {
+      const olderEntryParts = entries[j]!.message.parts
+      const olderCarrier = olderEntryParts.findLast(
+        (part) =>
+          part.type === "text" && extractMessageDominant((part as { text: string }).text) != null,
+      )
+      if (!olderCarrier) continue
+      olderChain = extractVectorChain((olderCarrier as { text: string }).text)
+      break
+    }
     const brokenChain =
       chain.prevMd5 != null &&
       chain.prevMd5 !== EMPTY_HASH &&

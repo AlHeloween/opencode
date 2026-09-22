@@ -303,6 +303,23 @@ export function planFiles(worktree: string): string[] {
   return collectPlans(path.join(worktree, "plans")).map((file) => `plans/${file}`)
 }
 
+/**
+ * The FULL debt across every plan on disk — `@LOOP_MEASURE`'s `open_acceptance`, counted without the
+ * relevance filter.
+ *
+ * WHY it is separate from `collectPlanState`: that payload is a HEAD surface, capped at three newest
+ * relevant plans on purpose, so a debt read from it under-reports — measured 2026-09-22, it said
+ * twelve while the root `plans/` held thirty open boxes across six plans. A measure and its scope must
+ * agree: the compact view says WHICH plan to work next, this says HOW MUCH is owed in total.
+ */
+export function planDebt(worktree: string): { plans: number; open: number } {
+  const plansDir = path.join(worktree, "plans")
+  const files = collectPlans(plansDir)
+  let open = 0
+  for (const file of files) open += countTasks(path.join(plansDir, file)).total - countTasks(path.join(plansDir, file)).done
+  return { plans: files.length, open }
+}
+
 /** Get plan completion status for a worktree. */
 export function getPlanStatus(worktree: string): PlanStatus {
   const plansDir = path.join(worktree, "plans")

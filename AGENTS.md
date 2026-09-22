@@ -64,6 +64,7 @@ constraints:
 - After plan changes, run explore agent to validate
 - Tests cannot run from repo root — run from package dirs
 - Avoid mocks in tests — test actual implementation
+- **Never run a full package test suite** (`bun test` with no path) — measured 2026-09-22: `packages/opencode` ran 18 minutes with `bytes_written: 0` and ~5 GB RSS, indistinguishable from a stall; name a file or a directory instead. If one was started anyway, every error in its log is RED and needs the owner's explicit clearance — see § Full package test suite (owner, 2026-09-22)
 - **"Don't litter in .opencode folder"** — instruments live in `experiments/<ISO-date>_<name>/` while in use and move to `experiments_history/` when the finding is recorded; runtime data lives under `.opencode/data/`. `.opencode/` is NOT a drawer: no `.ps1`, `.mjs`, `.ts` or scratch `.json` is written there (owner, 2026-09-20: «почем каждый придурок срет в папке .opencode без резонного обоснования, вместо того чтобы использовать папку experiments или этого нет в правилах» — it was NOT in the rules; this is the rule)
 - A measure and its threshold must share a SPACE (content vs request) and a SCOPE (slice vs whole window) — two spaces under one name is how a threshold silently changes meaning (2026-09-19)
 - A skipped test must state WHY, and `test.todo` is NOT a test (bun never runs its body) — a bare skip hides a defect, which is a bug
@@ -79,6 +80,7 @@ forbidden_actions:
 - Planning from .opencode/plans/ directory
 - Breaking KV cache continuity (system prompt must be byte-stable)
 - Running tests from repo root
+- Running the full package test suite (`bun test` with no path) — see § Full package test suite
 - Changing Global.Path.home from worktree to os.homedir()
 - Hand-editing ADID framework receivers — change only via kernel SPECS or ADM pipelines
 - Reopening the SDK/upstream/regeneration question — see the STOP section; run the diff instead
@@ -694,6 +696,31 @@ Override: `OPENCODE_ALLOW_DESTRUCTIVE=1` or `bypass_constitution`.
 ## Type Checking
 
 Always run `bun typecheck` from package directories (e.g., `packages/opencode`), never `tsc` directly.
+
+---
+
+## Full package test suite — forbidden (owner, 2026-09-22)
+
+**Never launch the full suite** — `bun test` with no path. Owner, verbatim: «полный bun test никогда не
+запускать… чтобы больше не палил комп за зря, а потом с соплями типа нуууу то 50000 строк кода.»
+
+Measured 2026-09-22 in `packages/opencode`: **18 minutes, `bytes_written: 0`, ~5 GB RSS, no progress
+signal of any kind** — the run cannot be told apart from a stall, and killing it is the only way to
+learn that. Two consequences, both load-bearing:
+
+1. **`bytes_written: 0` after minutes means UNKNOWN, never «green»** — read `<run>/state.json`, and
+treat a silent instrument as an instrument that has said nothing.
+2. **A wall of output is not a report.** 50 000 lines with no address is a haystack: it cannot be read,
+cited or turned into a fix, and paying for it twice (machine + context) is the defect.
+
+Always name a path — a file or a directory that owns the claim:
+`cmd_runner start --cwd packages/opencode -- bun test test/session/foo.test.ts` (canon:
+`plans/README.md` § Testing Convention). The package root is not a path.
+
+**If a full run was started anyway: every error in its log is RED and requires explicit clearance.**
+No partial reading — a failure there is never noise, never «pre-existing» (already forbidden), and is
+waived only by a named owner decision. An instrument that cannot show its own progress does not get to
+colour anything green.
 
 ---
 

@@ -25,9 +25,14 @@ export interface PlanStatus {
   active: string[]
   completed: string[]
   misplaced: string[]
-  /** Files under `plans/` that state NO checklist at all. Their state is UNKNOWN from outside —
-    * which is not the same as done. Never moved; see `isFinished`. */
+  /** Files under `plans/` that state NO checklist at all. Never moved; see `isFinished`. */
   noChecklist: string[]
+  /** The same set split by ONE further question: did the file WRITE its state? A stated plan is
+    * decidable by READING it (`parseLifecycle` knows four spellings since 2026-09-22: the workflow
+    * comment, `**Status:**`, «Статус:», and a bare `state:`/`status:` line); `noChecklist` minus these
+    * is the genuinely silent set. Reading a state is not earning a completion — neither half moves
+    * mechanically. */
+  noChecklistStated: { file: string; lifecycle: string }[]
   totalPlans: number
   totalTasks: number
   completedTasks: number
@@ -170,15 +175,40 @@ function parseTaskTags(
   }
 }
 
+/** The lifecycle, read from the FOUR forms the plan files actually write.
+ *
+ * The reader knew ONE form — a bold English `**Status:**` at the start of a line — while the files
+ * write four: the workflow comment, `**Status:** ACTIVE`, the Russian `Статус: **DRAFT**` (often
+ * mid-line, after «Дата: …»), and a bare `state: DRAFT` / `status: parked` line. Measured
+ * 2026-09-22: thirteen plans under `plans/` state no checklist AND every one of them rendered as
+ * `lifecycle UNKNOWN` — the state was WRITTEN and the reader could not see it. Same class as the
+ * coupling watcher's `8×4` labels one layer over: a reader that knows one form while the writers
+ * use another declares the rest ABSENT.
+ */
 function parseLifecycle(content: string): string | undefined {
   const workflow = content.match(
     /<!--\s*workflow:\s*lifecycle\s+(\w+)(?:\s*\|\s*gate\s*(G\d+))?\s*-->/,
   )
   if (workflow) return workflow[1]
-  const status = content.match(/\*\*Status:\*\*\s*(\w+)/)?.[1]
-  if (!status) return undefined
+  // The HEAD of the document, because a lifecycle is an attribute of the plan, not of its prose:
+  // a `**Status:**` quoted deep inside a body is somebody else's state. 40 lines covers every
+  // header form this repo writes, while keeping a citation from being read as a claim.
+  const head = content.split("\n").slice(0, 40).join("\n")
+  // ONE pattern per spelling family, not four that drift. Notes that cost a run each (2026-09-22):
+  //  · `:` is REQUIRED — the colon is what keeps prose («the status was…») out of the match.
+  //  · `\*{0,2}` on BOTH sides of the label is what lets `**Status:**` and `Статус: **DRAFT**` share
+  //    one pattern.
+  //  · the human form is NOT line-anchored: ours follows a date on the same line
+  //    («Дата: 2026-09-21. Статус: **DRAFT**.»), and anchoring it there is exactly how the first
+  //    version promised «anywhere in the line» in its comment and failed the pin.
+  //  · the machine form (`state:`/`status:`) IS line-anchored: it is always its own line, so the
+  //    anchor costs nothing and buys the exclusion of prose.
+  const stated =
+    head.match(/\*{0,2}(?:Status|Статус)\s*:\s*\*{0,2}\s*([A-Za-z][\w-]*)/i)?.[1] ??
+    head.match(/(?:^|\n)[^\S\n]*(?:state|status)\s*:\s*([A-Za-z][\w-]*)/im)?.[1]
+  if (!stated) return undefined
   const map: Record<string, string> = { PROPOSED: "DRAFT" }
-  return map[status.toUpperCase()] ?? status.toUpperCase()
+  return map[stated.toUpperCase()] ?? stated.toUpperCase()
 }
 
 function parseGate(content: string): string | undefined {
@@ -451,9 +481,20 @@ export function getPlanStatus(worktree: string): PlanStatus {
     ...misplacedCompleted.map((f) => `plans_completed/${f.replace(/\\/g, "/")}`),
     ...misplacedActive.map((f) => `plans/${f.replace(/\\/g, "/")}`),
   ]
-  const noChecklist = allActive
-    .filter((f) => !hasChecklist(path.join(plansDir, f)))
-    .map((f) => `plans/${f.replace(/\\/g, "/")}`)
+  const checklistless = allActive.filter((f) => !hasChecklist(path.join(plansDir, f)))
+  const noChecklist = checklistless.map((f) => `plans/${f.replace(/\\/g, "/")}`)
+  const noChecklistStated = checklistless.flatMap((f) => {
+    try {
+      const lifecycle = parseLifecycle(readFileSync(path.join(plansDir, f), "utf-8"))
+      return lifecycle ? [{ file: `plans/${f.replace(/\\/g, "/")}`, lifecycle }] : []
+    } catch (e) {
+      log.debug("plan file unreadable while reading its stated lifecycle", {
+        file: f,
+        error: e instanceof Error ? e.message : String(e),
+      })
+      return []
+    }
+  })
 
   const totalPlans = allActive.length + allCompleted.length
 
@@ -479,6 +520,7 @@ export function getPlanStatus(worktree: string): PlanStatus {
     completed: completed.map((f) => f.replace(/\\/g, "/")),
     misplaced,
     noChecklist,
+    noChecklistStated,
     totalPlans,
     totalTasks,
     completedTasks,
@@ -606,15 +648,28 @@ export function planHygieneWorkerFooter(): string {
 
 /** One-line hygiene summary for orch prompts. */
 export function formatPlanHygiene(status: PlanStatus, reconcile?: ReconcileResult): string {
+  const statedNoChecklist = status.noChecklistStated.length
   const lines = [
     `Plan progress: ${formatProgressBar(status)}`,
     `Active (open [ ]): ${status.active.join(", ") || "none"}`,
     `Misplaced: ${status.misplaced.join(", ") || "none"}`,
     // The third fact, and the one that used to be silently folded into `Misplaced`: a plan whose
-    // state is not STATED is not a plan whose state is DONE.
+    // state is not STATED is not a plan whose state is DONE. Since 2026-09-22 it is split in TWO,
+    // because «the file states nothing» and «the reader could not see what the file states» are
+    // different findings: the second was a defect in this very tool, and printing them under one
+    // count would have hidden it behind a plausible number.
     ...(status.noChecklist.length
       ? [
-          `No checklist: ${status.noChecklist.length} plan(s) — state UNKNOWN from outside; a checklist or an explicit **Status:** with an oracle is what decides them, and nothing moves them mechanically`,
+          `No checklist: ${status.noChecklist.length} plan(s) — ` +
+            (statedNoChecklist
+              ? `${statedNoChecklist} write their own state (next line), ${status.noChecklist.length - statedNoChecklist} state nothing; `
+              : `none of them states its state; `) +
+            `a checklist or an explicit state with an oracle is what decides them, and nothing moves them mechanically`,
+        ]
+      : []),
+    ...(status.noChecklistStated.length
+      ? [
+          `Stated, no checklist: ${status.noChecklistStated.map((p) => `${p.file} ${p.lifecycle}`).join(" · ")}`,
         ]
       : []),
   ]

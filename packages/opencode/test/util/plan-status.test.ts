@@ -167,4 +167,32 @@ describe("util.plan-status hygiene axes", () => {
     expect(hasChecklist(p("2026-01-12_partial.md"))).toBe(true)
     expect(hasChecklist(p("2026-01-13_none.md"))).toBe(false)
   })
+
+  test("the lifecycle is read from FOUR forms — a reader that knows one declares the rest UNKNOWN", () => {
+    // Measured 2026-09-22: thirteen plans under `plans/` state no checklist and EVERY one rendered as
+    // `lifecycle UNKNOWN`, while several of them write their state outright — `**Status:** ACTIVE`,
+    // «Статус: **DRAFT**» (mid-line, after a date), `state: DRAFT`. The reader knew only a bold English
+    // `**Status:**` at the start of a line, so the state was written and unreadable: the coupling
+    // watcher's `8×4`/`16+16` defect one layer over. The falsifier has two halves — each form must
+    // ARRIVE, and the silent file must NOT be given a state it never wrote.
+    const dir = fixture({
+      "2026-01-20_bold-en.md": "# A\n\n**Status:** ACTIVE (2026-09-21) — impl landed\n",
+      "2026-01-21_bold-ru.md": "# B\n\nДата: 2026-09-21. Статус: **DRAFT**.\n",
+      "2026-01-22_yaml.md": "# C\n\nstate: DRAFT\nscope: src\n",
+      "2026-01-23_silent.md": "# D\n\nThe work is described here and nowhere stated.\n",
+    })
+    const status = getPlanStatus(dir)
+    const stated = Object.fromEntries(status.noChecklistStated.map((p) => [p.file, p.lifecycle]))
+    expect(stated["plans/2026-01-20_bold-en.md"]).toBe("ACTIVE")
+    expect(stated["plans/2026-01-21_bold-ru.md"]).toBe("DRAFT")
+    expect(stated["plans/2026-01-22_yaml.md"]).toBe("DRAFT")
+    expect(stated["plans/2026-01-23_silent.md"]).toBeUndefined()
+    expect(status.noChecklist.length).toBe(4)
+    // And the report names WHICH is which: one UNKNOWN count for all four is what hid the reader's
+    // own defect behind a plausible number.
+    const line = formatPlanHygiene(status)
+    expect(line).toContain("3 write their own state")
+    expect(line).toContain("1 state nothing")
+    expect(line).toContain("plans/2026-01-21_bold-ru.md DRAFT")
+  })
 })

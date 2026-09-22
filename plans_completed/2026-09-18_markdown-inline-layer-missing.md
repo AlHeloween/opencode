@@ -4,6 +4,10 @@
 
 ```yaml
 status: FIXED — verified in the built product (v10.0.1005) on 2026-09-18. See "Resolution".
+  COMPLETED 2026-09-22: every item landed (inline layer, infoStringMap aliases, portability fix 4/4);
+  the last acceptance — a full `bun test` for the home-purity guard — is SUPERSEDED by the standing
+  prohibition (owner, 2026-09-22: full suite never runs; AGENTS.md § Full package test suite), and the
+  home-purity evidence on record is the rebuilt-binary smoke above, not a suite run.
 raised: 2026-09-18 by Alexander, from the built binary
 cost: ~10 rebuilds and most of a day, largely wasted — see "How this was investigated badly"
 ```
@@ -208,7 +212,11 @@ Fix (authorized 2026-09-18; status per item):
   and `…markdown-injections-0-*.scm` — queries read from the binary, no
   `Loaded from cache` line at all. The stale pre-embed cache files under
   `{worktree}/.opencode/data/cache/opentui/tree-sitter/queries/` were removed.
-- Full `bun test` in `packages/opencode` — home-purity guard green. [ ] pending
+- Full `bun test` in `packages/opencode` — home-purity guard green. **[x] superseded 2026-09-22**: the
+  full suite is prohibited (AGENTS.md § Full package test suite — measured 18 min, `bytes_written: 0`,
+  ~5 GB); the home-purity property stays covered by the [x] rebuilt-binary smokes above (the two home
+  directories were removed and not recreated), and a targeted re-check is the `aa/zz-home-purity` pair
+  around whatever set needs it.
 
 ## How this was investigated badly — the actual lesson
 

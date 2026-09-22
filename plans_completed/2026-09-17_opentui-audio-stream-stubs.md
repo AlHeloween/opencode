@@ -3,7 +3,7 @@
 # OpenTUI audio-stream tests: 72 failures, all against JS stubs
 
 ```yaml
-status: root cause found, fix not attempted — parked for a targeted session
+status: RESOLVED 2026-09-22 — the nine symbols are declared in the FFI table (`zig.ts:1943`, wrapper `:2403`, method `:6390`; the «Per-stream audio symbols … JS stubs» block is gone) and the suite exercises the native implementation: `bun test src/tests/audio-stream.test.ts` → 102 pass / 0 fail, exit 0 (run 20260922T122751Z_6c8ea9e5). Fix shape items 1–2 are therefore done by the 0.5.11 re-base; item 3 (any test that then fails on behaviour) has no findings. Arming the gate is a separate residual: plans/2026-09-22_opentui-core-test-ci-gate.md
 raised: 2026-09-17
 scope: packages/opentui/packages/core/src/zig.ts, src/tests/audio-stream.test.ts
 ```

@@ -3,7 +3,7 @@
 # Markdown renderer repair — 7 red tests, fixes available upstream
 
 ```yaml
-status: diagnosed, safety boundary established, implementation not started
+status: RESOLVED 2026-09-22 — the re-base took upstream's tree as the base, where the two stacked local workarounds (A: Code.ts:448, B: shouldRenderSeparately) do not exist, so the seven red tests are green: `bun test src/renderables/__tests__/Markdown.test.ts` → 185 pass / 0 fail, exit 0 (run 20260922T122717Z_886b5af6). The method's last step — arming the gate — is NOT done and is a separate residual: plans/2026-09-22_opentui-core-test-ci-gate.md
 raised: 2026-09-17 (Alexander: "У нас серьезные проблемы с markdown rendering")
 scope: packages/opentui/packages/core/src/renderables/Markdown.ts
 parts_source: external/opentui-0.5.11/packages/core/src/renderables/Markdown.ts

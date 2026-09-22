@@ -45,6 +45,15 @@ constraints:
   процессоре.» An embedding run that takes minutes on cores and seconds on the GPU is not a slow
   probe, it is a misconfigured one — and it was a misconfigured one here, broken by an explicit
   `device="cpu"` written to dodge an unrelated torch error.
+- **Never edit code with a script** — source changes go through `edit` / `write` / `applypatch`, by
+  hand. A script that rewrites source carries its own anchors, computes its own diff and reports its
+  own success: nobody reads the seam, a stale anchor is indistinguishable from a fresh one, and the
+  read-before-edit that makes a change reviewable never happens. Owner, 2026-09-22, verbatim:
+  «Руками блин.» — and, in the same minute, «Добавь в agents.md - никогда не редактируй код
+  скриптами.» Measured the same day, which is where the rule comes from: a 75-line `cut.py` removed
+  ~400 lines of dead sidecar machinery by anchor and saved nothing — the seam still had to be re-read
+  by hand afterwards, while the edit itself had been withheld from review in the meantime. Scripts
+  stay for READING and MEASURING (a probe over the DB, a log analysis) — never for writing source.
 - No .opencode/plans/ — only plans/ and plans_completed/
 - **A plan hand-off is JOB FAILED** when any of these is true: a box its code has earned is still unconfirmed, the plan is still in `plans/` after its last item closed, or the plan's work has no commit that names it (owner, 2026-09-22) — details and rationale in § Plan Maintenance
 - After plan changes, run explore agent to validate

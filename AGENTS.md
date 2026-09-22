@@ -39,6 +39,7 @@ constraints:
 - When behavior moves, its test suite moves in the SAME change — a stale or red suite left behind is a collected defect, not history («код меняем, тесты не правим, говно собираем», owner 2026-09-21; the fossil swap 2026-07-04 shipped without its test file and snapshot.test.ts sat red for 2.5 months)
 - KV cache must be byte-stable across session turns
 - No .opencode/plans/ — only plans/ and plans_completed/
+- **A plan hand-off is JOB FAILED** when any of these is true: a box its code has earned is still unconfirmed, the plan is still in `plans/` after its last item closed, or the plan's work has no commit that names it (owner, 2026-09-22) — details and rationale in § Plan Maintenance
 - After plan changes, run explore agent to validate
 - Tests cannot run from repo root — run from package dirs
 - Avoid mocks in tests — test actual implementation
@@ -84,7 +85,7 @@ acceptance_tests:
 - Plan files in plans/ match actual code state
 - KV cache fingerprint stable across consecutive turns
 - No git push --no-verify in development workflow
-
+- **Answer in the user's language — reasoning included, not only the final text.** An answer in another language is a failed UNDERSTAND and returns the session to G0.
 - ALWAYS USE PARALLEL TOOLS WHEN APPLICABLE.
 - The default branch in this repo is `Local_Development`.
 - Prefer automation: execute requested actions without confirmation unless blocked by safety/irreversibility.
@@ -94,6 +95,18 @@ acceptance_tests:
   different system on each side (Hono vs Effect server, Fossil vs git snapshots,
   per-worktree vs central state). Measured 2026-09-17: of 190 same-named source
   files, zero are byte-identical.
+
+## Language — the user's, always (auto-return to G0)
+
+The user's input language is the language of the work: the reasoning, the reports, and the plan text written for them. A reply in a different language is **not** a style slip — it means the model drifted off the user's frame, which is exactly what G0 (UNDERSTAND) exists to establish.
+
+**Consequence: an answer in a language other than the user's automatically returns the session to G0** — restate the Digital Intention in their language before any further planning, decomposition or mutation. Owner, 2026-09-22, verbatim: «ответ на языке отличном от языка пользователя автоматически перемещает в G0».
+
+**Why a language slip resets the whole loop and not just this rule.** G0 already carries the phrase («Always think and respond in the user's input language — reasoning included»), so a reply in another language is not a defect *of the language rule* — it is evidence that **the kernel is not executing**: the gate that was supposed to be in force at step zero was skipped, and everything built on it (decomposition, plan, envelope, closure) was built on a skipped gate. That is why the move is to G0 and not a correction in place. Owner, 2026-09-22, verbatim: «в G0 есть фраза про язык, если она не выполняется — значит кернел не выполняется».
+
+Reasoning is part of the answer: a report in the user's language over an English chain of thought is still a violation — and it is the one that hides, because only the final text is visible.
+
+Technical identifiers, commit subjects, code and quoted log lines stay in English; the prose around them does not.
 
 ---
 
@@ -453,6 +466,29 @@ Full details: [docs/architecture.md](docs/architecture.md) § Checkpoint, [docs/
 - After moving to `plans_completed/`, scan active plans for stale references.
 
 Tool: `packages/opencode/src/util/plan-status.ts` — `reconcilePlans()` auto-moves completed plans. See [docs/agi-workflow.md](docs/agi-workflow.md).
+
+### JOB FAILED — a plan is not finished by shipping code
+
+A unit of work is **JOB FAILED** — not "mostly done", not "code landed" — when any of these is true at hand-off:
+
+1. **No confirmed box.** The plan still carries `- [ ]` for work that is actually done, or `[x]` for work that is not. Both are the same lie in opposite directions, and both make the plan unreadable to the next cycle. A confirmed box means **the acceptance declared in the plan was run and passed** — never that the code "looks right".
+2. **The plan is still in `plans/`.** After the last open item closes, the file moves to `plans_completed/` **in the same change**. Tool: `reconcilePlans`. Known blindness: `collectPlans` is flat (no recursion), so a plan inside `plans/emergency/`, `plans/futures/` or any archive subdirectory is **invisible** to the mover and must be moved by hand — that is not an excuse, it is part of the job.
+3. **No commit for the plan.** One plan's work lands as one coherent commit (or a short series that names the plan), so plan and diff can be read together. Work spread over unrelated commits with no reference to the plan is indistinguishable from a lost job.
+
+Owner, 2026-09-22, verbatim: «Отсутствие подтвержденной галки в плане, не перемещение в plans_completed или отсутствие общего коммита на план — считается **JOB FAILED**.»
+
+**Why this is a failure and not bookkeeping.** A plan whose boxes, folder and commit disagree with its code has to be re-derived from scratch by the next cycle — the cost is paid again at every hand-off. Measured 2026-09-22: the project's own status footer read `152/181 plans 395/576 tasks (84%) misplaced:23` while **181 tasks sat open in the visible set alone**, ~121 archived plans were outside the count entirely, and 23 files contradicted their own placement. That footer is what "eternal DRAFT" looks like from the outside.
+
+### A commit is NOT closure
+
+A commit — however green its oracle — is **not by itself grounds for G9**. To close a unit of work the commit must be accompanied by one of:
+
+1. a **confirmed box** in the plan, earned by an **artifact** (a run id, a hash, a rehearsal log) — never by the code "looking right"; or
+2. the plan's **move to `plans_completed/`**, and only when the plan is **fully complete**.
+
+Owner, 2026-09-22, verbatim: «коммит не сопровождаемый подтвержденной артефактом галкой в плане или перемещением плана в plans_completed, при условии полной завершенности — поводом для G9 не считается.»
+
+**Why.** A commit is a change to the TREE; closure is a statement about the PLAN. Taking the first for the second is exactly how a session lands a dozen commits and leaves every plan open — the "eternal DRAFT" measured the same day above. When reporting, name the box and its artifact; if there is no box, the work is not closed, whatever the commit says.
 
 ---
 

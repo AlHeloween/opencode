@@ -16,7 +16,7 @@ reproduce:
     - cd packages/opencode && bun test test/provider/balance-storage.test.ts
     - cd packages/opencode && bun typecheck
   inputs: A clean completed turn at the 65,536-token open-window cadence.
-  expected_outputs: A bounded sidecar request, persisted summary when valid, and logged/accounted finish-step usage.
+  expected_outputs: A published checkpoint and a fold that READS its own head — no model request at the boundary (generation removed 2026-09-22); logged/accounted finish-step usage.
 ---
 
 # Session memory & compaction
@@ -201,7 +201,7 @@ ACL: the five subagents are denied `compact`. A subagent folds a window it was
 
 | Host | trigger | Implication |
 |------|-----------|-------------|
-| opencode | `compact` tool (agent) or `/compact` → `captureSummary` (`session/prompt.ts` T3) | One Layer-1 sidecar model call on a cached prefix, then a zero-token fold. It buys the *handle* and the attention boundary, not room |
+| opencode | `compact` tool (agent) or `/compact` | A zero-token fold and nothing else: the head is READ — memory verbatim, the plan's intention plus the opening request as the goal, each row's own dominant and weighted terms as the table of contents — so the boundary costs no model call at all (generation removed 2026-09-22, `bff5f50f7a`). It buys the *attention boundary*, not room |
 | Claude Code | `/compact`, user-typed only — no tool exists | LLM summarizer over the transcript. Lossy prose; handles survive only if written to a file first |
 
 That asymmetry is why the two kernels carry different G9 bindings for the same
@@ -418,8 +418,18 @@ sessionread → facts). `## Semantic Vector` in model prose is **dominant-only**
 vectors come from the plan (system, not model). Relevance filter + caps
 (2026-08-28): only kernel-lifecycle plans with open work, newest ≤3, PASS
 collapsed to counts, open tasks ≤8/plan, 1500-char hard cap — stale-plan noise
-never enters `s`; `dominant` is anchored to the active plan's `goal_sv` via the
-sidecar request.
+never enters `s`. The window's GOAL is read rather than requested — the plan's
+`intention` and the request that opened the window — and `dominant` stays what the
+message itself wrote; the capture that used to ask a model for it was removed
+2026-09-22 (`bff5f50f7a`, `51afd6c2e6`).
+
+**Reversal, recorded because the earlier decision was recorded:** `key_phrases`
+were removed (2026-08-27) *for having no consumer*, and the model's own weighted
+terms are read again as of 2026-09-22 — not invented weights, only the
+`Keywords:` line a message writes about itself, and only because a consumer now
+exists: the table-of-contents line and the window's topic axis (a COUNT of
+carriers). Weights are read literally, left to right, stopping at the first chunk
+that is not `term weight`, and are never renormalised.
 
 **State Vector Manifest — the ancestor of `## Semantic Vector` (kept as an example 2026-09-20):** before this
 Layer-1 existed, every ADID turn emitted one *State Vector Manifest* — `master_plan`, per-goal vectors with
@@ -712,17 +722,17 @@ sequenceDiagram
 
 | Contract item | Code today | Status |
 |---------------|------------|--------|
-| `s` not in content window | `captureSidecar` → `project_checkpoint` + UI panel with **old** Exact stamp product (`=== LAYER-1 SUMMARY ===`, ignored/synthetic; skipped by `toModelMessages` / cadence) | **Match** (old s product, new placement) |
+| `s` not in content window | the CHECKPOINT is published (`project_checkpoint`) and the star row carrying `m*` is the product; no `=== LAYER-1 SUMMARY ===` panel is built any more (removed 2026-09-22, `73d78e4138`) | **Match** (checkpoint path only) |
 | Exact stamp / multi-s fold | `formatExactSystemStamp` shared with legacy inject; `compact` folds **all** open checkpoints + legacy `assistant.summary` via `buildMessageStar` | **Match** |
-| After checkpoint when inferences done | `stop` → `publish` + **await `persist`** → `captureSidecar` | **Match** (disk before summary); capture now runs on normal clean completions (`completedCleanly`), not only on blocked/error turns |
+| After checkpoint when inferences done | `stop` → `publish` + **await `persist`** → the fold reads its head from memory, the plan and the rows | **Match** (disk before the fold); no capture runs on any path — it was removed 2026-09-22 |
 | Range diffs + CodeGraph on s | `enrichRange`: `summaryRangeStartHash` → `Snapshot.diffFull` (revision → working copy) merged with `collectToolFileDiffs`; `mcpTouchThenSqlitePack` over the merged paths | **Match** (2026-09-21); tool filediffs are the whole answer only where no anchor resolves |
-| Summary as user-message shape | Ephemeral stream appends `summaryRequestProse()` as user content | **Match** (stream-only, not DB user row) |
+| Summary request as user-message shape | not used: no request is built for a model to answer (`summaryRequestProse` removed 2026-09-22, `51afd6c2e6`) | **N/A** |
 | Store s + restore M | save checkpoint table; M never mutated | **Match** |
-| Checker after summary | `diagnoseSummaryGaps`: body ≥200 chars, per-section minima (Semantic Vector 40 / Goal 60 / Key decisions 40 / Current state 60 chars), ≥1 decision bullet; `isValidSummaryBody` = `gaps.length === 0`. Sidecar attempts ×2 (`SIDECAR_MAX_ATTEMPTS`): attempt 1 = fresh request, attempt 2 = targeted `gapFillRequest` + `mergeSummarySections`; invalid after the loop → warn + NOT stored. Every cycle, successful or not, starts the 30s cooldown. | **Match** (verified 2026-09-06: focused policy/accounting tests + typecheck) |
-| Summary generation/accounting | `streamOptions()` sets `outputTokenMax=32768` — a floor (16K reasoning window + 16K body; only the answer is stored); `captureSidecar` consumes `finish-step`, classifies raw cache usage, logs duration/tokens/cost, and calls the same `recordSessionUsage` writer as normal turns. System, checkpoint M, tools, and `providerCacheKey` are unchanged. | **Fixed 2026-09-14** (was 8,192 — unsatisfiable vs the 16K body + reasoning-first) |
+| Checker after summary | KEPT as READERS only: `diagnoseSummaryGaps` (body ≥200 chars, per-section minima, ≥1 decision bullet), `isValidSummaryBody`, `MIN_SUMMARY_SECTION_CHARS`. Nothing calls them on a new fold, because no summary is created; they exist for rows that earlier sessions already wrote. `SIDECAR_MAX_ATTEMPTS`, `gapFillRequest`, `mergeSummarySections` and the cooldown gate were removed 2026-09-22 (`73d78e4138`) | **N/A for new folds** (kept for history) |
+| Summary generation/accounting | not used: no sidecar stream, no `streamOptions()`. Normal turns keep the unchanged accounting (raw cache classes, `recordSessionUsage`, `providerCacheKey`) — removed 2026-09-22 (`73d78e4138`) | **N/A** |
 | Fossil anchors on the summary path | `SnapshotFossil.diffFull(anchor)` reads the undo/redo anchors for the range diff; `track`/`restore` stay rollback | **Match** (2026-09-21) |
 | Cadence ~256k chars / ~64k tokens | `SUMMARY_INTERVAL_TOKENS = 65_536` content/4 | **Match** (order of magnitude) |
-| `m* = [s,s,recent m]` | `compact()` folds open sidecars + Recent; **zero summaries → tail-only m\*** (header + last ~32K of messages; `log: no summaries`) | **Match (2026-08-25)** — T2 refusal removed: manual /compact works on fresh sessions; uncovered tail is the memory |
+| `m* = [s,s,recent m]` | `compact()` folds any OPEN checkpoints + Recent (legacy rows only — none are created now); **zero summaries → tail-only m\*** (header + last ~32K of messages; `log: no summaries`) | **Match (2026-08-25)** — T2 refusal removed: manual /compact works on fresh sessions; uncovered tail is the memory |
 | Summaries capped at 16K tokens (FULL render: body+diffs+plan_state+links) | `MAX_SUMMARY_BODY_TOKENS = 16_384` measured via `renderSummaryBlock` — body-only counting let 76K bodies render into 237K of m* | **Fixed 2026-08-29** |
 | Prior m* decisions | decisions rebuilt from ALL carried-forward summaries each compact | **Fixed 2026-08-29** (was: current-window summaries only) |
 | Prior m\* row excluded, real messages re-eligible | `selectRecentTail(msgs)` skips star rows (continue, not break); full-archive walk over `session.messages(visibleOnly: false)` | **Fixed 2026-08-29** (was: visible-only walk, hard-stop at star) |
@@ -738,9 +748,8 @@ sequenceDiagram
 ### Stop-path cadence (shipped)
 
 ```text
-stop → Checkpoint M → maybeCaptureSidecar (s outside M)
-     → if sidecar captured this stop: do NOT compact (defer Layer-2)
-     → else maybeCompactCadence:
+stop → Checkpoint M (the frame the fold reads; nothing is asked of a model)
+     → maybeCompactCadence:
           target = usable(model)  (limit − 32K − 10K)
           full visible content/4 ≥ target → compact() → m*; soft-hide m
           (degenerate target ≤ 0 → skip here; the pre-send force gate owns it)
@@ -759,7 +768,7 @@ pre-send (before each LLM turn):
 
 | Gate | Target | Meaning |
 |------|--------|---------|
-| Sidecar s | ~`SUMMARY_INTERVAL_TOKENS` (65 536) open since last s | periodic Exact memory rows |
+| Layer-1 cadence | ~`SUMMARY_INTERVAL_TOKENS` (65 536) open since the last checkpoint | publishes the checkpoint the fold reads — no model call (2026-09-22) |
 | Compact m* | **`usable(model)`** (limit − 42K) — window fill | fold when the model window is actually filling; checked pre-send, re-checked at stop |
 
 **`usable` headroom** is the compact trigger (2026-08-25): a fixed 64K
@@ -800,12 +809,12 @@ No BPE/tiktoken authority (undercounts providers).
 
 ## 6. Implementation checklist (toward contract)
 - [x] **Compact on window fill** (`usable(model)` target; pre-send `hasSpareOutput` force gate + stop-cadence re-check; tail-only m\* when zero summaries)  
-- [x] Checkpoint then sidecar capture on stop  
+- [x] Checkpoint on stop — the frame the fold reads; a capture no longer follows it (removed 2026-09-22)  
 - [x] `s` outside M (`project_checkpoint`)  
 - [x] AI sections + Exact enrich  
 - [x] Body checker (4 headings)  
-- [x] **Compact on cadence at stop** (`maybeCompactCadence` after sidecar)  
-- [x] **Bounded post-summary checker / retry** — `diagnoseSummaryGaps` (char minima + decision bullets), one initial request + one gap-fill repair, 32,768-token cap per request (floor: 16K reasoning + 16K body; was 8,192), reject-after-loop, and cooldown after every cycle
+- [x] **Compact on cadence at stop** (`maybeCompactCadence` after the checkpoint)  
+- [x] **Post-summary checker / retry — the RETRY half is gone** (2026-09-22, `73d78e4138`): no request, no repair loop, no cooldown, no attempt cap. The checker survives as a READER of rows earlier sessions wrote (`diagnoseSummaryGaps`: char minima + decision bullets; `isValidSummaryBody`). It has no caller on a new fold because no summary is created
 - [x] **Removed dead `injectSummaryRequest` primary path** (2026-08-27: fn + service method + interface field + orphaned helpers; legacy `assistant.summary` fold retained for old sessions)  
 - [x] Docs cite contract + gap table  
 
@@ -832,7 +841,7 @@ cadence fixture carried no provider usage and so took the fallback path.
 ## The pushed status note (2026-09-20)
 
 After every user message the runtime pushes a small `<compaction-status>` block onto its first step:
-one line per OPEN summary with the gaps `diagnoseSummaryGaps` finds on read (filling a section
+one line per LEGACY open checkpoint (nothing creates new ones since 2026-09-22) with the gaps `diagnoseSummaryGaps` finds on read (filling a section
 retires its own nag), plus `ctx open/foldAt · headroom ~N more turns at the recent X/turn (estimate)
 · layer-1 sinceSummary/65 536`. Two properties make it safe:
 

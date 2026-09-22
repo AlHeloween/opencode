@@ -24,6 +24,24 @@ export type StoredPart = {
 export type StoredPartLookup = { ok: true; part: StoredPart } | { ok: false; error: string }
 
 /**
+ * How a part labels itself to a reader: `tool: title` when it stored one, else the tool (or its type).
+ *
+ * ONE definition, because three readers print it — the placeholder's caption, the `tempenable` report,
+ * and the tail's `temp` stub (owner, 2026-09-22). Two spellings of a piece's name drift, and the drift
+ * is invisible until somebody tries to find a piece by the name they were shown.
+ */
+export function describePart(json: { type?: unknown; tool?: unknown; state?: { title?: unknown } }): string {
+  const tool =
+    typeof json.tool === "string" && json.tool !== ""
+      ? json.tool
+      : typeof json.type === "string" && json.type !== ""
+        ? json.type
+        : "part"
+  const title = json.state?.title
+  return typeof title === "string" && title !== "" ? `${tool}: ${title}` : tool
+}
+
+/**
  * Read one part by id, identity included. A plain keyed lookup: every address this system prints
  * (the placeholder's `id=<partID>`) hands over exactly one id, so the way back takes exactly one id.
  */

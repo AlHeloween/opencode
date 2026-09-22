@@ -20,6 +20,7 @@ import { fn } from "@/util/fn"
 import { SessionStatus } from "./status"
 import { IncrementalCheckpoint } from "./incremental-checkpoint"
 import { parseSummaryRange } from "./summary"
+import { describePart } from "./stored-part"
 import { collectPlanState, formatPlanStateText, type PlanStatePayload } from "@/util/plan-status"
 import { InstanceState } from "@/effect/instance-state"
 import { Snapshot } from "@/snapshot"
@@ -1182,6 +1183,64 @@ function tailToolOutput(output: string): string {
   return `${output.slice(0, TAIL_TOOL_OUTPUT_MAX_CHARS)}\n… (+${output.length - TAIL_TOOL_OUTPUT_MAX_CHARS} chars beyond what the wire carried — recall(id) returns the stored result)`
 }
 
+/**
+ * A HELD PIECE, RENDERED AS WHAT IT IS (owner, 2026-09-22): «temp стафф не входит ни в компакт ни в
+ * summary, в tail они обозначаются как temp и просто пишутся семантические вектора и ссылка на
+ * сообщение для чтения если есть на то охота. Темп на то он и темп.»
+ *
+ * WHY this is not cosmetic: the fold is assembled from the DB ROWS, and a release only MARKS a hold
+ * released — so without this branch the payload of a held piece would ride into m* anyway, which is the
+ * one thing the declared-lifetime mechanism exists to prevent. In the tail the piece becomes an
+ * ADDRESS: how it labels itself, the message's own semantic vector (the dominant and the weighted terms
+ * the row already wrote — nothing is derived here that was not written there), the message id, and the
+ * part id `recall` takes. Nothing is deleted; the payload is one call away.
+ *
+ * The marker is the SPAN ON THE PART (`ttlUntil`), not the store row: the declaration lives on the part
+ * and outlives the release, so the renderer stays a pure function of the row it renders.
+ */
+function tempStub(part: MessageV2.Part, msg: MessageV2.WithParts): string {
+  const own = part.type === "text" ? ((part as { text?: string }).text ?? "") : ""
+  const text = own || ((msg.parts.findLast((p) => p.type === "text") as { text?: string } | undefined)?.text ?? "")
+  const dominant = text ? extractMessageDominant(text) : undefined
+  const keywords = text ? extractKeywords(text) : undefined
+  // NOTHING IS DISCARDED, EVER (owner, 2026-09-22: «у нас вообще ничего не выбрасывается, просто кое
+  // где сворачивается до наших семантических векторов с ссылками»), and the md5 sequence is what
+  // continuity IS («темп это или нет у нас есть md5 последовательность и нарушение непрерывности это
+  // не хорошо»). So a collapsed TEXT part prints its OWN chain fields: the collapse is to the vector,
+  // and the vector's links are part of it, not decoration.
+  const chain = own ? extractVectorChain(own) : undefined
+  return [
+    `[temp:${describePart(part as unknown as { type?: unknown; tool?: unknown; state?: { title?: unknown } })}]`,
+    ...(dominant ? [`dominant: "${dominant}"`] : []),
+    ...(keywords && keywords.length
+      ? [`kw: ${keywords.slice(0, 5).map((k) => `${k.term} ${k.weight}`).join(", ")}`]
+      : []),
+    ...(chain?.md5
+      ? [
+          `md5: ${chain.md5}${chain.prevMd5 ? ` · prev-md5: ${chain.prevMd5}` : ""}${
+            chain.parentGoalMd5 ? ` · parent-goal-md5: ${chain.parentGoalMd5}` : ""
+          }`,
+        ]
+      : []),
+    `message: ${msg.info.id} · payload withheld — recall(id=${part.id}) returns it`,
+  ].join("\n")
+}
+
+/**
+ * A HELD PIECE, RENDERED AS WHAT IT IS (owner, 2026-09-22): «temp стафф не входит ни в компакт ни в
+ * summary, в tail они обозначаются как temp и просто пишутся семантические вектора и ссылка на
+ * сообщение для чтения если есть на то охота. Темп на то он и темп.»
+ *
+ * WHY this is not cosmetic: the fold is assembled from the DB ROWS, and a release only MARKS a hold
+ * released — so without this branch the payload of a held piece would ride into m* anyway, which is the
+ * one thing the declared-lifetime mechanism exists to prevent. In the tail the piece becomes an
+ * ADDRESS: how it labels itself, the message's own semantic vector (the dominant and the weighted terms
+ * the row already wrote — nothing is derived here that was not written there), the message id, and the
+ * part id `recall` takes. Nothing is deleted; the payload is one call away.
+ *
+ * The marker is the SPAN ON THE PART (`ttlUntil`), not the store row: the declaration lives on the part
+ * and outlives the release, so the renderer stays a pure function of the row it renders.
+ */
 /** Render-aware char count for tail selection. It measures EXACTLY what
  * `tailMessageText` emits — a budget that measures something else is the
  * two-measures-one-name defect, and it is what let the tail carry a call whose
@@ -1190,6 +1249,11 @@ function tailToolOutput(output: string): string {
 function tailContentChars(msg: MessageV2.WithParts): number {
   let chars = 0
   for (const p of msg.parts) {
+    // A held piece measures as its STUB, because that is what the renderer emits for it.
+    if (typeof (p as { ttlUntil?: number | null }).ttlUntil === "number") {
+      chars += tempStub(p, msg).length
+      continue
+    }
     if (p.type === "text") chars += stripReminderBlocks((p as any).text ?? "").length
     else if (p.type === "reasoning") chars += ((p as any).text ?? "").length
     else if (p.type === "tool")
@@ -1211,6 +1275,13 @@ function tailContentChars(msg: MessageV2.WithParts): number {
 export function tailMessageText(msg: MessageV2.WithParts): string {
   const parts: string[] = []
   for (const p of msg.parts) {
+    // A declared span means "temp", and in the tail that is an ADDRESS, never bytes (see tempStub):
+    // what the model saw ON THE WIRE for a held piece was its pointer too, so this is the same rule
+    // one layer down, not a collapse of content the window was shown.
+    if (typeof (p as { ttlUntil?: number | null }).ttlUntil === "number") {
+      parts.push(tempStub(p, msg))
+      continue
+    }
     switch (p.type) {
       case "text":
         // Render ALL text parts regardless of `ignored` flag — dropping them

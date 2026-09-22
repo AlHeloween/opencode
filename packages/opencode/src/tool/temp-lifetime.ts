@@ -6,7 +6,7 @@ import { Session } from "../session/session"
 import { MessageV2 } from "../session/message-v2"
 import { SessionID } from "../session/schema"
 import { currentTurn } from "../session/turn"
-import { readStoredPart, type StoredPart } from "../session/stored-part"
+import { readStoredPart, describePart, type StoredPart } from "../session/stored-part"
 
 /**
  * THE WRITERS OF THE DECLARED LIFETIME (owner ruling, 2026-09-19).
@@ -64,12 +64,9 @@ export function withLifetime(stored: StoredPart, ttlUntil?: number, ttlScope?: s
   } as unknown as MessageV2.Part
 }
 
-/** `tool: title` when the part stored one, else just the tool — the same label the placeholder prints. */
+/** `tool: title` when the part stored one, else just the tool — one label, shared with the tail stub. */
 function describe(stored: StoredPart): string {
-  const json = stored.json as { type?: string; tool?: string; state?: { title?: string } }
-  const tool = typeof json.tool === "string" && json.tool !== "" ? json.tool : (json.type ?? "part")
-  const title = json.state?.title
-  return typeof title === "string" && title !== "" ? `${tool}: ${title}` : tool
+  return describePart(stored.json as { type?: string; tool?: string; state?: { title?: string } })
 }
 
 /** A part that carries no payload cannot be held, so it is refused BY NAME rather than silently ignored. */

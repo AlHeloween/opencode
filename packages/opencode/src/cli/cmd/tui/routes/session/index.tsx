@@ -25,7 +25,7 @@ import { Spinner } from "@tui/component/spinner"
 import { selectedForeground, useTheme } from "@tui/context/theme"
 import { ScrollBoxRenderable, addDefaultParsers, getTreeSitterClient, TextAttributes, RGBA } from "@opentui/core"
 import { Prompt, type PromptRef } from "@tui/component/prompt"
-import { reasoningWindow, splitTextSegments, type TextSegment } from "./text-segments"
+import { reasoningView, splitTextSegments, type TextSegment } from "./text-segments"
 
 import type {
   AssistantMessage,
@@ -2119,29 +2119,16 @@ const THINKING_DISPLAY_MAX = 6_000
 function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: AssistantMessage }) {
   const ctx = use()
   const { theme } = useTheme()
-  // The omitted-count and the window are ONE decision, taken by a pure function that carries its own
-  // pin (`text-segments.ts:reasoningWindow`).
-  //
-  // BEFORE (measured 2026-09-22 — the flicker plan's P0): the counter was the FIRST markdown token and
-  // the window was `text.slice(-THINKING_DISPLAY_MAX)`, so on EVERY delta the head of the rendered text
-  // changed twice: the number, then the window start. `parseMarkdownIncremental` matches tokens strictly
-  // from offset 0 (`markdown-parser.ts:35-43`), so `reuseCount` collapsed to 0 and the whole
-  // 6 000-character tail was re-lexed per delta: an append-only stream rendered as replace-head+append-tail.
-  //
-  // NOW: the counter renders as PLAIN TEXT above the markdown, and the markdown gets an append-only
-  // window that rotates in blocks at blank lines. Between rotations the prefix is byte-identical and the
-  // parser reuses it. A turn's reasoning runs to tens of thousands of characters (17k–117k per step this
-  // session); the full text stays on the part and in message*.
+  // The counter and the markdown BODY are two values, not one string. Inside the markdown the counter
+  // is the FIRST token, and a head that changes on every delta breaks `parseMarkdownIncremental`'s
+  // offset-0 prefix match (`markdown-parser.ts:35-43`) — the whole display window was re-lexed per
+  // delta, which is the flicker this plan exists for. The pair comes from a pure function that carries
+  // its own pin: `text-segments.ts:reasoningView`, where the measured BEFORE is written down.
   const view = createMemo(() => {
     // OpenRouter sends encrypted reasoning data that appears as [REDACTED]
     const text = props.part.text.replace("[REDACTED]", "").trim()
     if (!text) return null
-    if (text.length <= THINKING_DISPLAY_MAX) return { body: `*Thinking:* ${text}`, omitted: "" }
-    const window = reasoningWindow(text, THINKING_DISPLAY_MAX, !!props.part.time?.end)
-    return {
-      body: `*Thinking:*\n\n${text.slice(window.start)}`,
-      omitted: `… ${window.omitted} characters omitted — the latest ${THINKING_DISPLAY_MAX} shown`,
-    }
+    return reasoningView(text, THINKING_DISPLAY_MAX, !!props.part.time?.end)
   })
   // The gate's inputs are recorded on the ONE transition that leaves no trace afterwards: the block
   // going away while its text was still there.

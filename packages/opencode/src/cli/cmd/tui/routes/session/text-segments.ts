@@ -60,3 +60,30 @@ export function reasoningWindow(
   const start = Math.min(text.length, blank < 0 ? quantised : blank + 2)
   return { start, omitted: start }
 }
+
+/**
+ * What `ReasoningPart` renders, as ONE value: the markdown BODY and the counter, kept apart.
+ *
+ * The split IS the fix, so it lives here rather than inline in the component. Inside the markdown the
+ * counter is the first token, and a head that changes on every delta makes the parser's offset-0
+ * prefix match fail — the whole display window is re-lexed per delta. Rendered as plain text above
+ * the markdown it costs nothing, and what the markdown receives is a body that only ever APPENDS
+ * between rotations.
+ *
+ * That last property is the one the plan's acceptance names, and it is checkable only on the exact
+ * string the markdown is fed — hence this function: `test/tui/reasoning-window.test.ts` feeds its
+ * output to `parseMarkdownIncremental` and asserts token reuse, with the OLD representation as a
+ * positive control (it must fail the same assertions, or the oracle proves nothing).
+ */
+export function reasoningView(
+  text: string,
+  max: number,
+  final: boolean,
+): { body: string; omitted: string } {
+  if (text.length <= max) return { body: `*Thinking:* ${text}`, omitted: "" }
+  const window = reasoningWindow(text, max, final)
+  return {
+    body: `*Thinking:*\n\n${text.slice(window.start)}`,
+    omitted: `… ${window.omitted} characters omitted — the latest ${max} shown`,
+  }
+}

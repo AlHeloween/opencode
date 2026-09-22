@@ -43,12 +43,24 @@ its **application to this stream**, which is §2's oracle.
 
 ## 2. Tasks
 
-- [ ] **T1 — windowStart rotation (P0).** Keep an append-only visible window: move the
-  «N characters omitted» line OUT of `<markdown>` into a plain `<text>`; pin `windowStart` to a
-  paragraph/block boundary; append only; rotate the window in blocks (1000–2000 chars) and only at a
-  blank line; on `time.end` take the final last-6 000 once.
-  Oracle: `parseMarkdownIncremental` reuseCount stays > 0 across deltas between rotations (unit pin on
-  the parser with a synthetic stream, plus a counter assertion in the component test).
+- [x] **T1 — windowStart rotation (P0).** DONE, `585973ce50` + the acceptance commit — the counter
+  renders as a plain `<text>` ABOVE the markdown, the window rotates in 1 024-character blocks snapped
+  to a blank line, and `time.end` takes the exact tail once.
+  Oracle, RUN: `test/tui/reasoning-window.test.ts` = **7 pass / 0 fail** (18 expect, 4.99 s, run
+  `20260922T144906Z_5275bc4d`, `exit_code 0`) and `bun typecheck` `exit_code 0`
+  (`20260922T144906Z_80e5ba45`). The parser pin runs the REAL `parseMarkdownIncremental` over the
+  string the component renders: across 2 400 appended deltas the window rotates fewer than 10 times,
+  NOTHING is re-lexed from offset 0 between rotations, and token reuse by reference stays > 0 — with
+  the LEGACY representation as a POSITIVE CONTROL that fails both assertions (`appended === 0`,
+  `reused === 0`), so the oracle CAN fail.
+  ACCEPTANCE SUBSTITUTION, named (same class as R2 in `close-open-residuals`): the plan asked for
+  «a counter assertion in the component test». `ReasoningPart` is a plain `function` inside the
+  3 000-line route (`routes/session/index.tsx`) and is not exported, so a component test would need
+  that internal exported for one assertion — and it would assert a COPY of the rendered value. The
+  rendered value now comes from the pure `reasoningView` (`text-segments.ts`), and the pin asserts on
+  that exact value, which is what the markdown receives.
+  NOT evidenced: the pixel oracle (T4) — no frame of a live stream has been captured, so the flicker
+  itself is still unobserved; the box above is earned by the two RUNTIME oracles, not by that one.
 - [ ] **T2 — two modes instead of the race (P1).** While streaming: render `initialStyledText`
   synchronously; run Tree-sitter for markdown prose only after a quiet window (75–100 ms without
   deltas); fenced code highlights after the fence closes or at `time.end`. At `time.end`: one final
@@ -76,7 +88,9 @@ its **application to this stream**, which is §2's oracle.
 Baseline [Exact], from `packages/opencode`:
 
 1. `bun test test/tui/` — record pass/fail counts (2026-09-22: **158 pass / 0 fail**, run
-   `20260922T124815Z_724fe65e`).
+   `20260922T124815Z_724fe65e`). DRIFT, unexplained: the same set re-measured later that day gives
+   **140 pass / 0 fail** (738 expect, run `20260922T140344Z_d25a6938`) — do not treat 158 as current
+   until the difference is named; it is a finding, not a baseline.
 2. `bun typecheck` — exit 0 (2026-09-22: exit 0).
 3. Pixel baseline: one capture run of the flow in T4 with the CURRENT build — recorded as the
    reference the fix must move.

@@ -447,6 +447,20 @@ became — the worked example of 2026-07-22 (a session id sat where the placehol
 - `test_status` — the oracles with counts; a manifest without numbers is a wish;
 - `goal_hierarchy` — the fractal, every level naming its own dominant.
 
+**The `sv:` inside that example is the ANCESTOR shape, not the live one** (owner, 2026-09-22: «там вообще не sv — правильный sv должны быть как те что ты пишешь»). A vector written today is `@SV_FORMAT`, and a plan's vector takes that form too:
+
+```text
+Keywords: fold-head 0.30, mStarRow 0.24, mechanical-fold 0.20, rollback-rehearsal 0.16, plan-hygiene 0.10
+Semantic dominant: One line of what this vector is about.
+md5: 32 hex — a label for linking, NOT a checksum
+prev-md5: the previous vector's label, or 32 zeros at the head of a chain
+parent-goal-md5: the label of the PLAN's vector this turn works under, or 32 zeros
+```
+
+Mapping, so the example reads correctly: `key_phrases[phrase, weight]` → `Keywords: term weight` (weights sum to 1.0, highest first, read literally and never renormalised); `semantic_dominant` → `Semantic dominant:`; the manifest chain (`turn_id` / `parent_turn_id`) → the `md5` / `prev-md5` chain, whose DECLARED break is the fold's boundary marker; `info_mark` → the @INFOMARK rung, which belongs on the claim, not inside the vector.
+
+**Where the manifest's duty went — and why memory must carry it.** Summaries are no longer generated (2026-09-22), so nobody produces that state automatically. Owner, same day: «Раз мы убрали summary — мы обязаны заполнять и сопровождать эту форму в memory.» The three carriers are `m*` (memory verbatim, the plan's `intention` and the opening request as the goal, the rows' own dominants and weighted terms), the system-Exact `planState` mirror (tasks, vectors, statuses), and — the part that has no generator at all — the plan ↔ vector ↔ carrier map the AGENT maintains in `memory/reasoning.md` on **every** fold: which plan is live, what its vector is (in `@SV_FORMAT`), and where its work lives. Absent that map, the next window does not know which plan is alive: it is the hole the removed capture used to fill.
+
 ```yaml
 session_id: ses_example_replace_with_the_session_id
 turn_id: 15

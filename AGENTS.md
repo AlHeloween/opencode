@@ -38,6 +38,13 @@ constraints:
 - Plan-to-code gaps are bugs — correct immediately
 - When behavior moves, its test suite moves in the SAME change — a stale or red suite left behind is a collected defect, not history («код меняем, тесты не правим, говно собираем», owner 2026-09-21; the fossil swap 2026-07-04 shipped without its test file and snapshot.test.ts sat red for 2.5 months)
 - KV cache must be byte-stable across session turns
+- **Never run neural networks on the CPU** — this host has a GPU. Pin the device explicitly
+  (`device="cuda"`, `torch.cuda`); a launcher quirk (a broken `torch.distributed` probe, no default
+  device) is a reason to pass the device BY HAND, never a reason to fall back to CPU. Owner,
+  2026-09-22, verbatim: «у нас GPU есть, добавь в agents.md - никогда не ранать нейронки на
+  процессоре.» An embedding run that takes minutes on cores and seconds on the GPU is not a slow
+  probe, it is a misconfigured one — and it was a misconfigured one here, broken by an explicit
+  `device="cpu"` written to dodge an unrelated torch error.
 - No .opencode/plans/ — only plans/ and plans_completed/
 - **A plan hand-off is JOB FAILED** when any of these is true: a box its code has earned is still unconfirmed, the plan is still in `plans/` after its last item closed, or the plan's work has no commit that names it (owner, 2026-09-22) — details and rationale in § Plan Maintenance
 - After plan changes, run explore agent to validate

@@ -228,6 +228,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
             "done -> plans_completed/; scan plans for stale refs.",
             "behavior/paths changed -> update docs/ and repo index.",
             "deprecated -> obsolete/ (reference only).",
+            "a plan that CONTRADICTS the architecture -> plans_deferred/ (canon in its README), moved by `git mv` in a commit that names the architecture it breaks — not closed by a tick (the work is not done) and not left in plans/ (it would come back as open debt in every scan).",
         ),
     ),
     GateAddon(

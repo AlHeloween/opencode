@@ -1,10 +1,18 @@
 <!-- intention: the fork sits on a frozen 0.4.x-shaped base with no native image decode and a diverging zig layer -> re-base on upstream opentui-0.5.11 (Zig 0.16): their tree is the base, OUR modules are the patches to transplant -->
 # Re-base the opentui fork on 0.5.11 (Zig 0.16) — their trunk, our modules
 
-status: 2026-09-21 — S0 ✅ S1 ✅ S2 ✅ S3 ✅ S4 ✅ (swap executed: typecheck 0, ABI smoke OK, TUI renders
-from source). **The swap is UNCOMMITTED** — `packages/opentui/**` carries the re-base in the working tree and
-`bin/opencode.exe` still runs the old engine. Open: the calibrated-graphics pixel oracle (sixel/mermaid/
-images), the commit itself, the keymap 0.4.x/0.5.11 mismatch, the parked raster stack.
+status: 2026-09-22 — COMPLETED (machine-readable below). The residuals are NOT lost: this plan put them in
+`AGENTS.md` § the re-base residual list on 2026-09-21, and that is where they live — which is exactly why the
+status prose below no longer reads as an open plan.
+
+- [x] S0 — their base builds here: `zig 0.16.0 build -Doptimize=ReleaseFast` → exit 0 (run `20260920T145747Z_40dd1021`), artifact `packages/native/lib/x86_64-windows/opentui.dll`
+- [x] S1 — delta inventory of the three layers (§ Measured below)
+- [x] S2/S3 — our modules transplanted onto their tree (their tree is the base, ours are the patches)
+- [x] S4 — swap executed: typecheck 0, ABI smoke OK, TUI renders from source
+- [x] the swap is COMMITTED — verified 2026-09-22: `git status --short` is empty, so the working tree no longer carries the re-base as uncommitted work (this is the box the status prose called open)
+- [~] calibrated-graphics pixel oracle (sixel/mermaid/images) — PARKED, carried in `AGENTS.md` § re-base residual list
+- [~] keymap 0.4.x vs 0.5.11 mismatch — PARKED (nothing imports it), `AGENTS.md`
+- [~] raster/Sixel stack — PARKED (git history + `experiments/2026-09-20_rebase-stage/pre-swap/`), `AGENTS.md`
 scope: packages/opentui/** ← external/opentui-0.5.11/** ; app side packages/opencode/src/cli/cmd/tui/**
 owner ruling: «Может нам вообще зиг обновить выдрать наши модули из нашей версии и впихнуть в их, 0.16 это
 серьёзный архитектурный сдвиг» — this SUPERSEDED the AGENTS.md line "never 'let's just update to 0.5.11'".

@@ -423,7 +423,7 @@ KERNEL = Kernel(
     name="reasoning_kernel_next",
     version="2.0.0-alpha.3",
     precedence=("safety", "governance", "task", "domain", "style"),
-    utf8_budget=45_000,  # 44_000 -> 45_000 (2026-09-22) for the G9 plan-terminal canon (five terminals: plans/, plans_completed/, plans_deferred/, plans/futures/, plans/postponed/) — the prose lives in each folder's README and only the RULE rides the prompt. Measured 44_261 B after trimming the first draft by 430 B; the smallest thousand above the measurement
+    utf8_budget=46_000,  # 45_000 -> 46_000 (2026-09-22, later same day): the ASSERTION_STATUS addon in G7 — every written artifact carries the status of each assertion (confirmed/refuted), the owner's ruling «надо ввести стандартом в кернел для всех типов документации которую пишет ИИ». Measured 45_824 B with the addon installed; the smallest thousand above the measurement. Was 45_000 (<- 44_000, 2026-09-22) for the G9 plan-terminal canon (five terminals: plans/, plans_completed/, plans_deferred/, plans/futures/, plans/postponed/) — the prose lives in each folder's README and only the RULE rides the prompt. Measured 44_261 B after trimming the first draft by 430 B
     # (owner: «эти стандарты экономят миллионы токенов» — a standard's NAME replaces both the paragraph that would
     # explain it and the experiments an agent would otherwise run to re-derive it). Measured after them: 39_395.
     # Previous step 37_000 -> 38_000 admitted the QA/QC bindings: @ACCEPTANCE_FRAME at G1

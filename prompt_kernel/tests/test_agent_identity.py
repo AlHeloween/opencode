@@ -171,7 +171,12 @@ def test_explorer_prompt_does_not_invent_codegraphstatus() -> None:
     assert "`codegraph`" in text
 
 
-def test_orchestrator_does_not_treat_getplanstatus_as_a_tool() -> None:
+def test_orchestrator_knows_the_sanctioned_plan_report() -> None:
+    """The pin used to require «not a tool» — true while no report existed, and FALSE the moment one
+    shipped (`68f7e08f93`, wired in `d84be2cece`). Re-aimed, not deleted, because its original point
+    survives: the orchestrator must not INVENT an internal function of the host. What changed is that
+    the host now provides one, and the prompt must name it rather than forbid the idea of it."""
     text = (AGENT_PROMPT_DIR / "orchestrator.txt").read_text(encoding="utf-8")
     assert "Call getPlanStatus()" not in text
-    assert "not a tool" in text
+    assert "`planstatus`" in text
+    assert "inventing a status tool of your own" in text

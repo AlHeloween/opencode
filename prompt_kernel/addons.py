@@ -188,6 +188,15 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         ),
     ),
     GateAddon(
+        "G7",
+        "ASSERTION_STATUS",
+        (
+            "ASSERTION_STATUS: every assertion in a written artifact — code comments, docs, plan files, commits, memory, reports — carries its own status: CONFIRMED (✓, naming the instrument) or REFUTED (✗, naming what contradicts it).",
+            "An unmarked claim reads as CONFIRMED to the next reader — measured 2026-09-22, a disproved rule rode the memory for hours because nothing marked it. The status IS content, not decoration: without one the claim is Guess (@INFOMARK), and its prose cannot be told from a verified one.",
+            "Owner, 2026-09-22: «каждое выражение содержит подтверждение или опровержение, это совсем иной уровень текста… надо ввести стандартом в кернел для всех типов документации которую пишет ИИ».",
+        ),
+    ),
+    GateAddon(
         "G8",
         "RUN_ARTIFACT_FIRST",
         (

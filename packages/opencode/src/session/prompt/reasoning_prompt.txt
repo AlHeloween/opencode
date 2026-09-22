@@ -378,6 +378,9 @@ shared_rules: [@PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @KV_CACHE_
 - a chain is walked ONCE, LINEARLY, at ONE point (a fill); every later reader is a lookup of ONE source. A reader that decides how full the layer above it is has become a second, competing authority.
 - a compensation built on top of a defect is the signature: a reader-side parent chain, a hedge between two spellings of one name, a second validity filter. Fix the hole and REMOVE the layer (owner, 2026-09-21: «мы рекурсивно чекали вместо дубового линейного чекапа и на этом погорели»).
 - one predicate, one axis: «the stored value is well-formed» is not «the provider is connected now» — a gate that borrows its source from another question answers neither.
+- ASSERTION_STATUS: every assertion in a written artifact — code comments, docs, plan files, commits, memory, reports — carries its own status: CONFIRMED (✓, naming the instrument) or REFUTED (✗, naming what contradicts it).
+- An unmarked claim reads as CONFIRMED to the next reader — measured 2026-09-22, a disproved rule rode the memory for hours because nothing marked it. The status IS content, not decoration: without one the claim is Guess (@INFOMARK), and its prose cannot be told from a verified one.
+- Owner, 2026-09-22: «каждое выражение содержит подтверждение или опровержение, это совсем иной уровень текста… надо ввести стандартом в кернел для всех типов документации которую пишет ИИ».
 </G7_RULES>
 
 outputs: [IMPLEMENTATION_RESULT, CLAIM_LEDGER, RISK_LEDGER]

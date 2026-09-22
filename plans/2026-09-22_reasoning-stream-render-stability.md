@@ -84,6 +84,37 @@ its **application to this stream**, which is §2's oracle.
   highlight applies only when `revision` is current AND its visible text/line count matches the
   preview; otherwise defer to stabilisation/finalisation.
   Oracle: the same recorder asserts no intermediate plain/blank frame and a single layout per commit.
+  **ATTEMPT 1 ROLLED BACK (2026-09-23) — findings are BINDING for the next attempt.** What is missing
+  here is smaller than the wording above, and it is NOT a `revision` parameter: `_highlightSnapshotId`
+  already discards a late highlight in four places (`Code.ts:383,404,437,458`), and
+  `updateStreamingPreview` (`Code.ts:152-163`) is ALREADY the atomic commit — content + preview + ONE
+  invalidation + ONE `updateTextInfo` + ONE `requestRender`. The defect sits in the CALLER:
+  `Markdown.ts:applyMarkdownCodeRenderable` runs `updateStreamingPreview` FIRST and then NINE setters,
+  and `renderable.content = content` at the end is a SECOND invalidation per delta — the preview already
+  assigned `_content` and `_lastContentChangeAt` — so it discards the highlight the preview just started.
+  That is the re-parse. Reordering it (configuration first, one commit last, `content` assigned only on
+  the non-preview path) was written, measured and REVERTED WHOLE: `254 pass` is IDENTICAL in all three
+  runs — with the edit (`20260922T171428Z_d6427f99`), after the revert (`20260922T171611Z_15524cae`) and
+  with it again (`20260922T171745Z_895fe16d`) — so it neither breaks prose nor is PROVEN by anything,
+  because the pin could not be made into an oracle (see (c)). Per the half-edit rule it was rolled back
+  rather than kept on a critical path with a note.
+  (a) A `CodeRenderable` in `Code.test.ts` MUST be mounted — `currentRenderer.root.add(renderable)`, 61
+      call sites. Unmounted, the frame recorder sees ONLY BLANK FRAMES and the pin lies silently: my
+      first attempt failed on `previewStart === -1`, which was the instrument, not the code.
+  (b) `packages/opentui/packages/core/src/renderables/__tests__/Markdown.test.ts` is ALREADY RED in this
+      tree — 5 failures (`streaming structured list updates keep previous item text visible`,
+      `streaming nested structured list updates keep previous nested text visible`, `hyperlink capability
+      changes preserve custom Markdown code callbacks`, `theme switching (syntaxStyle change)`,
+      `paragraph updates do not flash raw markdown markers`). They reproduce with AND without the edit,
+      so they are NOT a T3 regression: they are part of the `88 failures accumulated unseen` owned by
+      `plans/2026-09-22_opentui-core-test-ci-gate.md` G1. T3's baseline is these 5, never zero.
+      MEASURED TRAP, recorded because it cost this cycle: I first read the 5 reds as MY regression and
+      reverted a neutral edit — a correlated signal taken for a causal one. The counter that settles it
+      is the pass COUNT across a controlled revert (`254` either way), never the presence of reds.
+  (c) The control I proposed is INVALID: with `drawUnstyledText === false` the frames are still
+      non-empty (measured `20260922T171745Z_895fe16d`: expected `false`, received `true`), so "no blank
+      frame" does NOT separate the setter path from the preview path. The next pin must observe what
+      does — the rendered TEXT (`captureFrame()`) or the parse count via `recordHighlightContents`.
 - [ ] **T4 — pixel oracle for exactly this flow (the missing instrument).** `cmd_runner start --
   dist\bin\opencode.exe` + a prompt forcing a long reasoning stream; capture frames at fixed intervals
   (`cua get_window_state` with `screenshot_out_file`); a reader script asserts: stable lines above the

@@ -11,6 +11,7 @@ import { NotFoundError } from "@/storage/storage"
 import { ModelID, ProviderID } from "@/provider/schema"
 import { Effect, Layer, Context, Schema, Option } from "effect"
 import { readMemory } from "@/tool/memory"
+import { dominantLine, extractMessageDominant } from "@/memory/spine"
 import { estimateMediaTokens, estimateRequestTokens, isOverflow as overflow, usable } from "./overflow"
 import { countTokens } from "./token-count"
 import { promptTokensFromUsage } from "./processor"
@@ -1150,6 +1151,8 @@ export function renderSummaryBlock(input: {
 const TAIL_TOOL_OUTPUT_MAX_CHARS = MessageV2.REPLAY_TOOL_OUTPUT_MAX_CHARS
 /** Decisions cap — the block accumulated monotonically (38K chars, uncapped). Newest kept. */
 const DECISIONS_MAX_CHARS = 8_192
+/** Table-of-contents cap — same discipline as decisions: newest lines kept, the trim NAMED. */
+const TOC_MAX_CHARS = 8_192
 
 function stripReminderBlocks(text: string): string {
   return text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "").replace(/\n{3,}/g, "\n\n")
@@ -1272,10 +1275,65 @@ export function continuityLine(args: {
   return `continuity: GAP — summaries end at #${args.summaryLast}, tail starts at #${args.tailFirst} (${unrepresented} message(s) represented by neither)`
 }
 
+/**
+ * The TABLE OF CONTENTS of a folded window (owner, 2026-09-22): one line per message, taken from
+ * the semantic dominant the message ALREADY carries.
+ *
+ * `@SV_FORMAT` writes a dominant at the end of every answer, so «чего же мы там делали» is not
+ * something to DERIVE — it is a substring of rows that already exist (`memory/spine.ts` measured
+ * the same idea at epoch level: 59 epochs = 4 248 characters against ~100k tokens for a raw
+ * snapshot of the same window). What this replaces is a MODEL CALL at every fold that re-wrote,
+ * worse, what the rows already say.
+ *
+ * A message with no dominant contributes no line — a smaller error than an invented one. Newest
+ * lines are kept when the cap bites, and the trim is NAMED, so a short table is never mistaken
+ * for a quiet window.
+ */
+export function buildTableOfContents(
+  entries: readonly { message: MessageV2.WithParts; position: number }[],
+  input: { skipIds?: ReadonlySet<string>; maxChars?: number } = {},
+): { lines: string[]; trimmed: number } {
+  const maxChars = input.maxChars ?? TOC_MAX_CHARS
+  const kept: string[] = []
+  let chars = 0
+  let trimmed = 0
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i]!
+    if (input.skipIds?.has(entry.message.info.id)) continue
+    const carrier = entry.message.parts.findLast((part) => {
+      if (part.type !== "text") return false
+      return extractMessageDominant((part as { text: string }).text) != null
+    })
+    if (!carrier) continue
+    const dominant = extractMessageDominant((carrier as { text: string }).text)
+    const line = dominantLine({
+      messageIndex: entry.position,
+      dominant,
+      role: entry.message.info.role,
+      partType: carrier.type,
+      messageID: entry.message.info.id,
+      partID: carrier.id,
+    })
+    if (kept.length > 0 && chars + line.length + 1 > maxChars) {
+      trimmed = i + 1
+      break
+    }
+    kept.unshift(line)
+    chars += line.length + 1
+  }
+  if (trimmed > 0) {
+    kept.unshift(`… ${trimmed} older line(s) trimmed — sessionread the folded range for the full table`)
+  }
+  return { lines: kept, trimmed }
+}
+
 export function buildMessageStar(input: {
   sessionID: string
   summaries: SummaryEntry[]
   recent: MessageV2.WithParts[]
+  /** The folded window's TABLE OF CONTENTS — one pre-rendered line per message, built from the
+    * semantic dominant that message already carries (`buildTableOfContents`). */
+  toc?: string[]
   /** 1-based global offset of the first recent message in the session.
     * Used to render `#N` positions so the model can call session-read
     * with an exact offset directly, without messagesearch indirection. */
@@ -1409,6 +1467,14 @@ export function buildMessageStar(input: {
       ? ["--- Fading (links only — the durable blocks above carry the content) ---", ...fadingLines].join("\n")
       : undefined
 
+  const tocBlock =
+    input.toc && input.toc.length > 0
+      ? [
+          "--- Table of contents (one line per folded message — the dominant it already carried) ---",
+          ...input.toc,
+        ].join("\n")
+      : undefined
+
   return [
     "=== COMPACTED ===",
     "Active memory for this session. Older messages remain soft-hidden in the DB (not deleted).",
@@ -1417,6 +1483,7 @@ export function buildMessageStar(input: {
     "",
     memoryBlock,
     fadingBlock,
+    tocBlock,
     ...summaryBlocks,
     decisionsBlock,
     recentHeader,
@@ -1663,6 +1730,14 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         // prior m* tail) is re-eligible. Deterministic → idempotent compacts.
         const recent = selectRecentTail(msgs, RECENT_MIN_TOKENS, coveredThroughIndex)
 
+        // The TABLE OF CONTENTS of this fold: the dominants the hidden rows already carry, so the
+        // window keeps saying «что мы тут делали» without a model call (owner, 2026-09-22). Rows
+        // kept verbatim in the tail are skipped — they are in the window as themselves.
+        const toc = buildTableOfContents(
+          visible.map((m) => ({ message: m, position: positions.get(m.info.id) ?? 0 })),
+          { skipIds: new Set(recent.map((m) => m.info.id)) },
+        ).lines
+
         // Prior m* decisions are NOT pulled forward — each m* owns its own decisions.
 
         // Compute 1-based global offset of the first recent message
@@ -1696,6 +1771,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           sessionID: input.sessionID,
           summaries,
           recent,
+          toc,
           recentStartOffset,
           between,
           priorMessageStarId: priorMsgStarId,

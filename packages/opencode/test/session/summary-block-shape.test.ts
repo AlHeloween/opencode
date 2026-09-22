@@ -14,7 +14,8 @@
 import { describe, expect, test } from "bun:test"
 import fs from "fs"
 import path from "path"
-import { buildMessageStar, diagnoseSummaryGaps, renderFileDiffLegend, renderSummaryBlock } from "../../src/session/compaction"
+import { buildMessageStar, buildTableOfContents, diagnoseSummaryGaps, renderFileDiffLegend, renderSummaryBlock } from "../../src/session/compaction"
+import type { MessageV2 } from "../../src/session/message-v2"
 
 describe("summary block shape", () => {
   test("the legend carries counts and addresses, and drops patch bodies", () => {
@@ -172,5 +173,45 @@ describe("summary block shape", () => {
     // Positive control: a body that CARRIES the plan must not be nagged about it.
     expect(planned.some((g) => g.startsWith("Plan "))).toBe(false)
     expect(unplanned.some((g) => g.startsWith("Plan "))).toBe(true)
+  })
+
+  test("FALSIFIER — the table of contents is READ from the rows, never generated", () => {
+    const asMessage = (id: string, role: "user" | "assistant", text: string) =>
+      ({
+        info: { id, role },
+        parts: [{ id: `${id}-p1`, type: "text", text }],
+      }) as unknown as MessageV2.WithParts
+    const entries = [
+      { message: asMessage("msg_a", "assistant", 'did the first thing\n\ndominant: "first thing"'), position: 1 },
+      { message: asMessage("msg_b", "user", "no dominant anywhere in this one"), position: 2 },
+      { message: asMessage("msg_c", "assistant", 'did the second thing\n\ndominant: "second thing"'), position: 3 },
+    ]
+
+    const toc = buildTableOfContents(entries)
+    const text = toc.lines.join("\n")
+
+    // One line per message THAT CARRIES a dominant — a row without one contributes nothing, which
+    // is a smaller error than an invented line.
+    expect(toc.lines).toHaveLength(2)
+    expect(text).toContain("first thing")
+    expect(text).toContain("second thing")
+    // The address travels with the line: the position, the message id and the part that carries it.
+    expect(toc.lines[0]).toContain("#1")
+    expect(toc.lines[0]).toContain("msg_a")
+    expect(toc.lines[0]).toContain("msg_a-p1")
+
+    // Rows kept verbatim in the tail are skipped — the window already holds them as themselves.
+    const skipped = buildTableOfContents(entries, { skipIds: new Set(["msg_a"]) })
+    expect(skipped.lines.join("\n")).not.toContain("first thing")
+
+    // The cap is a FLOOR with a name: a trimmed table says so, and the newest lines survive.
+    const many = Array.from({ length: 40 }, (_, i) => ({
+      message: asMessage(`msg_${i}`, "assistant", `work ${i}\n\ndominant: "epoch ${i} of a long session"`),
+      position: i + 1,
+    }))
+    const capped = buildTableOfContents(many, { maxChars: 400 })
+    expect(capped.trimmed).toBeGreaterThan(0)
+    expect(capped.lines[0]).toContain("trimmed")
+    expect(capped.lines.at(-1)).toContain("epoch 39")
   })
 })

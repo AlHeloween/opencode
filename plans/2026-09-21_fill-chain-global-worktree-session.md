@@ -67,7 +67,7 @@ F1 буквально («заполнить global») сталкивается �
 | R2 | `agent.<name>.variant` **model-blind**: вариант, выбранный для одной модели, отвечает за другую | `sessionAgentVariant` (`session-settings.ts:184-186`) |
 | R3 | `sessionPayload` кладёт карты `variant`/`agentVariant` (слой S1) внутрь файла сессии ⇒ «Clean variant state» чистит `model.json`, но не файл сессии | `local.tsx:253-254, 281` |
 | R4 | Живой рантайм-штамп: правки C1/C5/утечки CAPABILITIES и этой работы — `Inferred` без штампа, пока не снят смок на пересобранном бинаре | сборка/подмена — действие владельца |
-| R5 | mermaid: какая ветвь отрисовки работает и что с бюджетом 512 px — не доказано | нужен пиксельный прибор на живом бинаре |
+| R5 | **ЗАКРЫТ 2026-09-22 — вопрос был и снят.** mermaid: ветвь отрисовки и бюджет 512 px **доказаны** | `88204c8680`: ветвь — symbols (half-block) при `mode:"none"`, native/sixel после ответа `CliRenderEvents.CAPABILITIES`; бюджет 512 px подтверждён владельцем там же; тест «flip to sixel → native `<image>` appears with a frame attached» + живой прогон `702a2da02d` на 10.0.1058 («Verified live… owner: works»). Пиксельный прибор применён |
 
 ## Открытый вопрос Q1 — что значит F4
 

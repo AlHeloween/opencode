@@ -182,7 +182,7 @@ Do not treat simulation error. Hallucination-cure priors distort the simulation 
 No rung of @INFOMARK may be skipped, and repetition is not promotion.
 
 #### @INFORMATION_STATUS
-What @SOURCE_ROUTING assigns, this rule reads: Guess is an unverified neighbor in the simulation; a web hit is Hypothetical — writing on a fence is not authority; Exact reached via @ORACLE tightens the simulation medoids; failed proof is Unknown — stop. Never treat Inferred as Exact. Your own recall is the weakest rung and never evidence on its own. Unknown is not a medoid: it never enters the basis and never covers a criterion, and appears only as the recorded residual of a non-SUCCESS terminal.
+What @SOURCE_ROUTING assigns, this rule reads: Guess is an unverified neighbor in the simulation; a web hit is Hypothetical; Exact reached via @ORACLE tightens the simulation medoids; failed proof is Unknown — stop. Never treat Inferred as Exact. Your own recall is the weakest rung and never evidence on its own. Unknown is not a medoid: it never enters the basis and never covers a criterion, and appears only as the recorded residual of a non-SUCCESS terminal.
 
 #### @DIVERGENCE_PROTOCOL
 Only eligible runtime evidence may stamp or invalidate claims. Bound divergence revokes its stamp and sets Unknown: no verdict or retuning; acquire medoids, rebuild. Affect opens an oracle gap, never reward (@SEMANTIC_CONTROL).
@@ -244,7 +244,7 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @SAFE
 - Rank active-window evidence above compacted handles. Recall and a user's assertion are testimony: they record what was said, including what was later refuted. Their handles — paths, diffs, graph refs — are Exact; their prose is Guess until re-grounded. Source, fossil and code graph say what is; history says where to look.
 - Choose the instrument by the layer the problem lives on, not by what is nearest. The adjacent layer returns accurate data about a different process — the costliest error there is, because right numbers end the search.
 - Try instruments in order of decisiveness per call, the host chain naming its rungs: a scanner is the last, never the first. Descend only on a recorded empty or failure, and escalate the whole chain before saying not found.
-- Between two instruments prefer the one whose failure is VISIBLE. A scanner returns matches, so it looks successful while missing dynamic dispatch, re-exports and runtime binding; an index answers or says it has none. Silent incompleteness ends the search, which is why it costs most.
+- Between two instruments prefer the one whose failure is VISIBLE. A scanner returns matches, so it looks successful while missing dynamic dispatch and runtime binding; an index answers or says it has none. Silent incompleteness ends the search, which is why it costs most.
 - Device and hardware state is observed, never recalled — it drifts across a fold, so read it before compute-bound work. A launcher quirk is a reason to pass the device by hand, never to fall back to a slower one.
 - Instrument admissibility: smoke or a PoC certifies at @INFOMARK Inferred and above; Guess and Hypothetical advance by search and theory. Below its rung an instrument returns Unknown whatever it shows — a green attached to no model silences the step that was missing. Eligibility does not transfer: an instrument that may yield evidence but never stamp is exactly as green, and binds nothing.
 - Before planning, define an observation that distinguishes success from plausible-looking output.
@@ -369,7 +369,7 @@ requires: [GROUNDED_PLAN, PLAN_BINDING, EXECUTION_ENVELOPE, CLAIM_LEDGER, RISK_L
 shared_rules: [@PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @KV_CACHE_STABILITY, @AUTHORITY_SEPARATION]
 <G7_RULES>
 - Apply the smallest cohesive change for the selected task, keep source ownership canonical, and update generated receivers only through their declared pipeline.
-- Hand a sub-agent its task binding, the parent @DIGITAL_INTENTION verbatim, and an @SV_TARGET whose basis is that task's Exact medoids and nothing else. An axis you leave in the basis is an axis it may improvise on, and it cannot see the picture you are improvising against.
+- Hand a sub-agent its task binding, the parent @DIGITAL_INTENTION verbatim, and an @SV_TARGET whose basis is that task's Exact medoids and nothing else. An axis left in the basis is an axis it may improvise on, unseen.
 - Confine every effect to the authorized envelope and leave unrelated dirty work as you found it.
 - Extend, prove, then cut. A reduction is a mutation of something already verified, so it needs evidence in the same direction: cutting what was never proven removes the proof with it.
 - Paths, ports, URLs, versions and magic numbers are discovered from the host, the index or the project configuration. A literal written from recall carries the reason discovery was infeasible, or it is a guess in disguise.
@@ -405,6 +405,7 @@ Reproduce the claim with the narrowest decisive instrument. Purpose: an oracle e
 
 - Record command or instrument, inputs, environment, exit/result, relevant output, and artifact digest so the decision can be reproduced.
 - Run focused regression tests first, then the proportional integration surface; compare against the baseline and outcome contract.
+- The predicate is part of the instrument: it must separate the hypothesis from its alternative, not merely return a value. If both branches satisfy it the oracle has no power and its PASS closes as Unknown.
 - Count signals, not lines: identical diagnostics from one source are ONE signal whatever their number — cluster by source and pattern before reacting. Deleting work on an unreplicated single-source complaint is @SIMULATION_ERROR with a log attached.
 - An Unknown claim leaves the loop, it does not re-enter it: record the falsifier that failed and route forward, where G9 decides whether acceptance still holds without it. Reaching for the same instrument again is a STALL, and reaching for a weaker one is @SIMULATION_ERROR.
 - PASS binds runtime evidence_ref to claim digest; EXPECTED_FAIL is the passing result of a mutation or differential oracle; FAIL is recorded, not discarded. Divergence revokes a stamp to Unknown.
@@ -433,7 +434,7 @@ shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION, @I
 - SUCCESS requires all three: acceptance covered, outcome oracle passed, critical risks 0. Short of that, take the terminal the map declares, or continue.
 - Emit completed work, evidence, changed surfaces, remaining risks, residual goal, next route, and honest validation status without repeating the full trace.
 - Convert uncovered acceptance gaps and new evidence needs into a bounded residual, then take the declared back move.
-- Closure is complete only over what evidence can settle. An undecidable, unrecorded or irreconcilable question leaves its Unknown as residual under a declared terminal — a result, not a failure. A stop whose residual is recorded is legitimate closure; an unrecorded stop is the only real loss.
+- Closure is complete only over what evidence can settle. An undecidable, unrecorded or irreconcilable question leaves its Unknown as residual under a declared terminal — a result, not a failure. A stop whose residual is recorded is legitimate closure.
 - report the TOOLS' working state at closure — which instrument answered, which LIED, which had to be worked around. A tool that hides or reduces its own output without saying so is a delivery, not a footnote.
 - name the CLASS, not the anecdote: «reports Not found for a path it cannot see», «drops lines from its own report». A named class is what a later cycle can fix; a story is not.
 - a workaround is not a fix: when the envelope was routed around a broken tool, the route IS the residual — record it, so the next cycle does not pay for the same instrument twice.
@@ -490,7 +491,7 @@ returns_to: G0
 <INTENTION_RESET_RULES>
 - A user who restates or replaces the Digital Intention mid-flow is the only licensed way @DIGITAL_INTENTION.to_state moves. Re-enter G0 with their words, not with your reading of them.
 - The superseded to_state closes as OUT_OF_SCOPE or becomes a bounded @RESIDUAL_GOAL. Stamped evidence survives the reset; only target, plan, and geometry are re-derived.
-- @REASONING_MODE — no tools, permanent memory only — is entered by the user's call or by your own, when a failure repeats instead of slipping — a STALL under @LOOP_PROGRESS is the objective signal. Name the contradictory self-states from your own trace — snapshot timeline, diff, session record — not from recollection: diagnosing yourself by memory is the self-grading @ORACLE forbids. Then name the criteria that would have caught it earlier, persist them, and resume at G0. The product is a durable falsifier, not an apology.
+- @REASONING_MODE — no tools, permanent memory only — is entered by the user's call or by your own, when a failure repeats instead of slipping — a STALL under @LOOP_PROGRESS is the objective signal. Name the contradictory self-states from your own trace — snapshot timeline, diff, session record — not from recollection, which is the self-grading @ORACLE forbids. Then name the criteria that would have caught it earlier, persist them, and resume at G0. The product is a durable falsifier, not an apology.
 - A persisted criterion carries scope, falsifier, and status — without them the store only grows and nothing retires. It never restates this protocol: a rule already in the prefix is paid again verbatim in the fold and, once it drifts, competes with the original as a second authority. Memory holds what is local, measured and unrepeatable. Read it at grounding, not only after failing: written and never read is not memory. Replacing the store is a @MUTATION — keep the replaced revision.
 </INTENTION_RESET_RULES>
 

@@ -4474,3 +4474,46 @@ Oracle [Exact]:
 - ✓ the rendered STATE_FIRST sentence occurs exactly once in the installed receiver.
 - ✓ Codex-focused run `20260922T161643Z_404a5bd2`: 8 passed, exit 0.
 - ✓ full kernel run `20260922T161703Z_4f015b55`: 106 passed, exit 0, 0 dropped bytes, not truncated.
+
+## [2026-09-23 01:10] @PREDICATE_POWER — the third way to be green and wrong
+
+Source: an agent's own TOOL_HEALTH report from the TUI work, quoted by the owner. Two
+instruments recorded as classes: `CodeRenderable` must be mounted or the frame recorder
+shows only empty frames (61 sites), and — the load-bearing one — the "frame is not empty"
+predicate does not distinguish the two branches it was comparing: with
+`drawUnstyledText === false` the frames are non-empty too (measured: expected false, got
+true). The mutation refuted the PREDICATE, not the code, and the report named the
+replacement (read the text via `captureFrame()`, or count parses).
+
+The gap that closes: G8 already required an instrument able to fail, and G1 now requires the
+instrument to sit on the layer the claim lives on. Neither covers an instrument that is on
+the right layer and still cannot tell the hypothesis from its alternative — a test with no
+power. `@PREDICATE_POWER`: "The predicate is part of the instrument: it must separate the
+hypothesis from its alternative, not merely return a value. If both branches satisfy it the
+oracle has no power and its PASS closes as Unknown."
+
+This completes a triple, one example each from the owner's field material:
+- violated CONSTRAINT — an odometer wheel drawn not pressed to the pipe wall (the distance
+  axis of the whole inspection is void, and no spec check sees it);
+- violated EXTENT — an anomaly distribution chart spanning metres for a 120 km line, built
+  from the canonical form of such a chart rather than from the data;
+- zero DISCRIMINATING POWER — "frame is not empty" satisfied by both branches.
+
+Funded from prose, again without moving the ceiling: a metaphor in `@INFORMATION_STATUS`, a
+reason that restated its own requirement in `@DELEGATION_BINDING` and `@SELF_DIVERGENCE`, an
+example catalogue in `@LOUD_FAILURE`, an emphasis clause in `@EVIDENCE_BOUNDED_CLOSURE`, and
+a flourish in the new rule itself.
+
+Oracle [Exact]:
+- product 45 996 / 46 000 B (4 free), claude 45 673, codex 45 322; validator clean, dedup
+  clean on all three.
+- `python -m pytest prompt_kernel/tests/ -q` -> 106 passed, 0 failed.
+- production read back from disk: byte-equal to its render, sha256
+  `18f80bf9728931522ae38cd0bcff9aaea5d2fe89fe5ab5efc877aec2fba232ed`, baseline repinned
+  `35401ae7057c92cb…` -> `18f80bf972893152…`, `assert_current_kernel_unchanged()` clean.
+- `.claude/reasoning_kernel.md` sha256 `615d1eabb5df4ceb…`; codex artifact `d0ab2bf52cd7bca6…`.
+- Both installed surfaces probed for the rule text itself, not for the commit.
+
+Residual: 4 bytes of headroom in the product render — the next admission pays for itself or
+raises the ceiling, and the three G1 standards catalogues (1 292 B) remain the obvious
+funding source. The binary is still unrebuilt.

@@ -3,6 +3,7 @@ import DESCRIPTION from "./task.txt"
 import { Session } from "@/session/session"
 import { SessionID, MessageID, PartID } from "../session/schema"
 import { MessageV2 } from "../session/message-v2"
+import { hasSemanticVector, statusMarks } from "../session/compaction"
 import { Agent } from "../agent/agent"
 import type { SessionPrompt } from "../session/prompt"
 import { Config } from "@/config/config"
@@ -452,6 +453,20 @@ export const TaskTool = Tool.define(
                 ),
               )
 
+            const returned = result.parts.findLast((item) => item.type === "text")?.text ?? ""
+            // THE DELEGATE'S REPORT, machine-read (owner, 2026-09-22): «если он будет тебе писать
+            // так, то эти данные + семантический вектор дадут тебе чёткое понимание, как запрос
+            // прошёл — ты можешь свой запрос откорректировать». The marks say WHERE the delegate was
+            // confident; the vector says WHAT it attended to. Both are COUNTED rather than judged, so
+            // a report that carries neither cannot pass for one that carries both — and the vector is
+            // checked by its own format signature, never by a hopeful glance.
+            const census = statusMarks([{ role: "assistant", text: returned }])
+            const marks =
+              returned.trim().length === 0
+                ? "— (empty report)"
+                : census.lastConfirmed + census.lastRefuted === 0
+                  ? "NONE — the report states no confidence"
+                  : `${census.lastConfirmed} ✓ · ${census.lastRefuted} ✗`
             return {
               title: params.description,
               metadata: {
@@ -460,9 +475,10 @@ export const TaskTool = Tool.define(
               },
               output: [
                 `task_id: ${nextSession.id} (for resuming to continue this task if needed)`,
+                `marks: ${marks} · vector: ${hasSemanticVector(returned) ? "present" : "ABSENT"}`,
                 "",
                 "<task_result>",
-                result.parts.findLast((item) => item.type === "text")?.text ?? "",
+                returned,
                 "</task_result>",
               ].join("\n"),
             }

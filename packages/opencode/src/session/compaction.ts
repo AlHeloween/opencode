@@ -659,6 +659,15 @@ export function statusMarks(messages: readonly { role: string; text: string }[])
 }
 
 /**
+ * The @SV_FORMAT signature — the lines a semantic vector always carries. A delegate's report is read
+ * against the parent's @SV_TARGET, so a vector the machine cannot RECOGNISE is a vector it cannot
+ * check: `md5` is the link the coupling watcher follows, the two named lines are the content.
+ */
+export function hasSemanticVector(text: string): boolean {
+  return /^Keywords:/m.test(text) && /^Semantic dominant:/m.test(text) && /^md5:/m.test(text)
+}
+
+/**
  * The note pushed onto the newest user message after every user turn: which
  * summaries are still OPEN and what is deficient in them, plus the distance to
  * both boundaries.

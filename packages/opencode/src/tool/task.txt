@@ -12,6 +12,21 @@ types. Runtime ACL still decides who may spawn whom.
 - CORRECT explore prompt: "Find callers of X in src/foo/; return paths, lines, signatures."
 - WRONG: "Search for path-related things."
 
+## Reading a delegate's report (owner, 2026-09-22)
+
+- Ask for the FORM in the brief: every assertion in the report carries its status — `✓` with the
+  instrument that confirmed it, `✗` with what contradicts it — and the report ENDS with the
+  sub-agent's current semantic vector (`Keywords:` with weights summing to 1.0, `Semantic dominant:`,
+  `md5` / `prev-md5` / `parent-goal-md5`).
+- Read BOTH before acting: the marks say WHERE the delegate was confident and where it was not; the
+  vector says WHAT it was attending to. A vector whose axes are not the ones you asked for is the
+  delegate answering a different question — correct YOUR brief, then re-run, instead of arguing with
+  the report (owner: «ты можешь свой запрос откорректировать и получить то что тебе реально надо»).
+- The `marks:` line above `<task_result>` is written by the MACHINE, not by the delegate: it counts
+  the marks and checks the vector's format signature, so it cannot be talked up. `NONE` means the
+  report states no confidence at all; `vector: ABSENT` means it cannot be cross-checked against your
+  @SV_TARGET.
+
 ## Child Session Isolation
 
 - Sub-agents cannot use `todowrite` or `task` (no nested spawning) unless their ACL allows it.

@@ -565,6 +565,42 @@ describe("tool.task", () => {
     30_000,
   )
 
+  it.live("the delegate's report is machine-read — marks counted, vector checked by its signature", () =>
+    provideTmpdirInstance(() =>
+      Effect.gen(function* () {
+        const { chat, assistant } = yield* seed()
+        const tool = yield* TaskTool
+        const def = yield* tool.init()
+
+        // The two halves of the channel, in the form the task description asks for: assertions that
+        // carry their own status, and a vector the parent can read against its @SV_TARGET. The parent
+        // is meant to CORRECT ITS OWN BRIEF from these — which it cannot do if the report says
+        // "done, looks fine" and nothing else.
+        const marked = [
+          "Cache key is stale ✓ (read src/x.ts:12) · the sibling write never invalidates ✗ (runtime probe).",
+          "",
+          "Keywords: cache-key 0.5, staleness 0.3, invalidation 0.2",
+          "Semantic dominant: the key is computed once and never refreshed.",
+          "md5: 11111111 22222222 33333333 44444444",
+          "prev-md5: 00000000000000000000000000000000",
+          "parent-goal-md5: 00000000000000000000000000000000",
+        ].join("\n")
+        const result = yield* executeTask(def, chat, assistant, stubOps({ text: marked }))
+        expect(result.output).toContain("marks: 1 ✓ · 1 ✗ · vector: present")
+
+        // Falsifier: a report carrying neither must NOT read like one carrying both. The machine
+        // counts and checks format — it never guesses whether a sentence was a claim.
+        const bare = yield* executeTask(def, chat, assistant, stubOps({ text: "done, looks fine" }))
+        expect(bare.output).toContain("marks: NONE — the report states no confidence · vector: ABSENT")
+
+        // And an empty report is its own sentence: not "no confidence stated", simply nothing to read.
+        const empty = yield* executeTask(def, chat, assistant, stubOps({ text: "" }))
+        expect(empty.output).toContain("marks: — (empty report) · vector: ABSENT")
+      }),
+    ),
+    30_000,
+  )
+
   it.live("delegated explorer uses its session model and variant before the workspace model", () =>
     provideTmpdirInstance(() =>
       Effect.gen(function* () {

@@ -4371,3 +4371,10 @@ Residual (owner's calls, not closed):
   rationale prose inside the byte-stable prefix, against the kernel's own
   ARTIFACT_LANGUAGE economy ("canon prose -> the folder README, the rule alone -> the
   kernel").
+
+## 2026-09-22 — Codex kernel reinstalled after the critical fix
+
+- ✓ `python -m prompt_kernel --codex --install` completed through `cmd_runner` run `20260922T134701Z_724a83eb`: exit 0, 592 captured bytes, 0 dropped, not truncated. The fresh artifact is `prompt_kernel/dist_codex/2026-09-22_21-47-01_reasoning_prompt.txt`.
+- ✓ Renderer, stamped artifact, and `C:\Users\Alexander\.codex\AGENTS.md` are byte-identical: 43,957 bytes, SHA-256 `e43c45d5b48c5712b1ce48d5622bbdb4fe6514f4a91157dbd57aca8401e1fa95`.
+- ✓ Codex-focused oracle `20260922T134726Z_d1147fd0` passed: 8 tests, exit 0. ✓ Full kernel suite `20260922T134813Z_bb935af4` reached 105 passed; ✗ its only failure is the separate stale production receiver promotion gate.
+- ✓ `.claude/reasoning_kernel.md` changed concurrently after the pre-install status snapshot; the Codex installer remained bounded to `CODEX_HOME/AGENTS.md`.

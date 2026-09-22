@@ -909,10 +909,11 @@ export const layer = Layer.effect(
         // silently folding uncovered history.
         //
         // Wire parity with the working turn: resolve the SAME tool catalog
-        // (schemas + order). Execution is blocked by the sidecar summary flag
-        // (captureSidecar sets it before streaming); the stub processor is only
-        // consumed by execute callbacks, which answer with the summary-mode
-        // denial while the flag is active (see tools.ts summary guard).
+        // (schemas + order). The stub processor is only consumed by execute
+        // callbacks, which answer with the summary-mode denial while the flag is
+        // active (see tools.ts summary guard). That flag is now raised by the
+        // `summaryAttempt` path alone — the capture that also raised it was
+        // removed on 2026-09-22 (bff5f50f7a), so it has exactly one owner.
         const sessionInfo = yield* sessions.get(input.sessionID)
         const tools = yield* SessionTools.resolve({
           agent,
@@ -1533,9 +1534,10 @@ export const layer = Layer.effect(
         let titleRequested = false
         const session = yield* sessions.get(sessionID)
 
-        // captureSidecar moved to layer level so the /summarize HTTP route can
-        // run an emergency capture without a full turn; runLoop passes its
-        // cadence hook via onHeadroomCompact.
+        // The capture that used to leave this hook is gone (owner, 2026-09-22:
+        // «summary как sidecar не надо генерить вовсе. Совсем.», bff5f50f7a). What
+        // the cadence hook still drives is the CHECKPOINT — the model-ready frame
+        // the fold reads — which asks no model for anything.
 
         /**
          * Layer-2 fold: MECHANICAL, zero LLM tokens, fixed size —
@@ -2624,8 +2626,9 @@ export const layer = Layer.effect(
           }).pipe(
             Effect.ensuring(instruction.clear(handle.message.id)),
             // Clear the summary-mode flag set above — normal turns must not
-            // inherit the tool-execution block. Safe to clear unconditionally:
-            // the sidecar manages its own flag lifecycle inside captureSidecar.
+            // inherit the tool-execution block. Safe to clear unconditionally
+            // because this path is now the flag's ONLY owner: the sidecar capture
+            // that used to manage its own lifecycle was removed 2026-09-22.
             Effect.ensuring(
               Effect.sync(() => {
                 if (summaryAttempt) Constitution.setSummaryMode(sessionID, false)

@@ -169,6 +169,25 @@ its **application to this stream**, which is §2's oracle.
   viewport offset changes only when a line is actually appended.
   Falsifier: revert T1/T2 and the same capture must FAIL (frames must differ where the assertion says
   stable) — an oracle that cannot fail proves nothing.
+  **LIVE CAPTURE TAKEN 2026-09-23 — the missing instrument now has its first frames.** Until today no
+  frame of a live reasoning stream had ever been captured. Two are: `.opencode/data/frame-stream-1.png`
+  and `frame-stream-2.png`, from `dist\bin\opencode.exe` (**10.0.1091**, newer than T1/T2 and therefore
+  carrying them — the test binary is `dist/bin`, never the owner's `bin`), launched with
+  `cmd_runner start --terminal wt --direct-terminal` and driven by one prompt asking for a long
+  deliberation. Recipe that worked: `cua list_windows` → `bring_to_front` → `get_window_state {pid,
+  window_id, screenshot_out_file}` — `pid` is REQUIRED, and the window belongs to the `wt` HOST process,
+  which the owner's own tab shares: touch only your `window_id`.
+  What the frames show: BOTH are mid-stream (`working esc interrupt` visible) and BOTH display the
+  reasoning ALREADY FORMATTED — `###` headings, bullet lists, inline code — so the first acceptance line
+  («no frame where the visible reasoning is empty/plain») holds on a LIVE stream, not only in a unit
+  test. Structural measurement through `imagerender`: ink 13.3% → 14.7%, 25 → 22 ink rows, and the top
+  rows shift ONLY while the content grows — the viewport moves because lines are appended, which is the
+  second acceptance line.
+  NOT DONE, named so it is not read as covered: «stable lines above the live tail are byte-identical
+  between frames» was NOT measured — the frames were compared STRUCTURALLY (ink bands, row bands), not
+  byte-wise, and the top rows did shift with the growing text. And the FALSIFIER — revert T1/T2 and the
+  same capture must fail — was not attempted, because it needs a build of the pre-T1 code. Both stay
+  open, and T4 stays unticked.
 - [ ] **T5 — ScrollBox (P3), only if T1–T3 leave a residual.** Coalesce `recalculateBarProps()` to one
   call per frame; apply sticky-bottom once after a completed layout transaction; no per-size
   `process.nextTick(requestRender)`.

@@ -23,6 +23,7 @@ import {
   loadSessionSettings,
   effectiveSubagents,
   resolveAgentModel,
+  chosenVariant,
   resolveAgentVariant,
   readModelState,
 } from "../session/session-settings"
@@ -274,8 +275,9 @@ export const TaskTool = Tool.define(
           const state = modelState as any
           const modelKey = `${model.providerID}/${model.modelID}`
           const agentKey = `${next.name}/${modelKey}`
-          if (state?.agentVariant?.[agentKey]) return state.agentVariant[agentKey]
-          return state?.variant?.[modelKey]
+          const agentVar = chosenVariant(state?.agentVariant?.[agentKey])
+          if (agentVar) return agentVar
+          return chosenVariant(state?.variant?.[modelKey])
         })() ??
         // Agent's own configured variant applies only when its own model is used.
         (sameAsAgentModel ? next.variant : undefined)

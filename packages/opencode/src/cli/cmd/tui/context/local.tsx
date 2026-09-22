@@ -21,6 +21,7 @@ import {
   saveSessionSettings,
   effectiveSubagents,
   sessionAgentModel,
+  chosenVariant,
   sessionAgentVariant,
   sessionAgentRouting,
   sessionModelRouting,
@@ -471,7 +472,12 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         })
         if (workspace) {
           const key = `${workspace.providerID}/${workspace.modelID}`
-          return { model: key, variant: modelStore.agentVariant[`${name}/${key}`] ?? modelStore.variant[key] }
+          // The sentinel STOPS the chain instead of falling through: an explicitly cleared agent
+          // choice must not be re-filled from the model-level entry (resolveAgentVariant, :296).
+          return {
+            model: key,
+            variant: chosenVariant(modelStore.agentVariant[`${name}/${key}`] ?? modelStore.variant[key]),
+          }
         }
         const a = sync.data.agent.find((x) => x.name === name)
         if (a?.model) return { model: `${a.model.providerID}/${a.model.modelID}`, variant: a.variant }
@@ -1223,13 +1229,13 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             const agentKey = agentName ?? agent.current()?.name
             if (agentKey) {
               const key = `${agentKey}/${m.providerID}/${m.modelID}`
-              const agentVar = modelStore.agentVariant[key]
+              const agentVar = chosenVariant(modelStore.agentVariant[key])
               if (agentVar) return agentVar
-              const sessionVariant = sessionAgentVariant(agentKey, m, sessionSettings())
+              const sessionVariant = chosenVariant(sessionAgentVariant(agentKey, m, sessionSettings()))
               if (sessionVariant) return sessionVariant
             }
             const key = `${m.providerID}/${m.modelID}`
-            return modelStore.variant[key]
+            return chosenVariant(modelStore.variant[key])
           },
           /**
            * The variant a MODEL carries on its own, with no agent in the picture.
@@ -1241,10 +1247,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
            */
           selectedForModel(model: { providerID: string; modelID: string }, agentName?: string) {
             if (agentName) {
-              const agentVar = modelStore.agentVariant[`${agentName}/${model.providerID}/${model.modelID}`]
+              const agentVar = chosenVariant(modelStore.agentVariant[`${agentName}/${model.providerID}/${model.modelID}`])
               if (agentVar) return agentVar
             }
-            return modelStore.variant[`${model.providerID}/${model.modelID}`]
+            return chosenVariant(modelStore.variant[`${model.providerID}/${model.modelID}`])
           },
           /**
            * Write the model-level variant without going through an agent — the entry the recents

@@ -187,6 +187,21 @@ export function sessionAgentVariant(
   )
 }
 
+/**
+ * `"default"` is a WRITTEN SENTINEL — «the user explicitly picked model defaults» — never a variant
+ * a model declares: `resolveAgentVariant` reads it that way already (:290-:298). Two other readers
+ * did not — `local.tsx`'s own chain and `task.ts`'s fallback — and returned the sentinel verbatim, so
+ * a sentinel written by a model pick (`setSessionAgentModel:136`) won over the owner's real choice
+ * and every restart looked like a reset (owner, 2026-09-22: «выставляешь правильный через ctrl+t и
+ * все работает. Но это не сохраняется. Выход, загрузка сессии и все слетает»).
+ *
+ * One predicate, one axis: every reader asks THIS, so the sentinel can never be displayed as a value.
+ */
+export function chosenVariant(value: string | undefined): string | undefined {
+  if (value === undefined || value === "default") return undefined
+  return value
+}
+
 // ── Unified resolution ──
 
 /**

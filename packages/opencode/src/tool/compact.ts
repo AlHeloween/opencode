@@ -46,10 +46,11 @@ export const CompactTool = Tool.define<typeof Parameters, Metadata, never>(
                   `Boundary: ${params.reason}`,
                 ].join("\n")
               : [
-                  "Layer-2 fold armed. It runs when this turn ends, not now:",
-                  "a Layer-1 sidecar summary is captured first, then the visible window",
-                  "folds to m* (summaries + recent tail). Exact handles survive in message*;",
-                  "recover detail with sessionread.",
+                  "Layer-2 fold armed. It runs when this turn ends, not now.",
+                  "Nothing is asked of a model at the boundary: the head is READ — memory verbatim,",
+                  "the plan's intention and the opening request as the goal, the window's topics, the",
+                  "rows' own dominants and weighted terms as a table of contents, and the tail verbatim.",
+                  "Exact handles survive in message*; recover detail with sessionread.",
                   "",
                   `Boundary: ${params.reason}`,
                   "",

@@ -31,10 +31,23 @@ trace behind it. Mechanistic Layer-2 compaction — see @COMPACTION_CADENCE.
 
 ## What happens
 Nothing immediately. The request is armed and consumed at the end of this turn:
-a Layer-1 sidecar summary is captured first (so the fold cannot go tail-only and
-drop the head), then the window folds to `m*` = summaries + recent tail. The
-fold itself costs zero LLM tokens; the sidecar capture is one model call on a
-cached prefix.
+the window folds to `m*` = a head READ from what already exists + the recent
+tail. **No model is asked for anything at the boundary** — the fold costs zero
+LLM tokens, and it costs them because there is no request, not because one is
+cheap.
+
+The head is read, carrier by carrier:
+
+| block | read from |
+|---|---|
+| `<memory>` | `memory/reasoning.md`, verbatim |
+| `--- Goal ---` | the plan's `<!-- intention: … -->` + the request that opened the window, quoted |
+| `--- Window topics ---` | a COUNT of the vectors carrying each term |
+| `--- Table of contents ---` | one line per folded message: its own dominant, its top-3 weighted terms, its address |
+| `--- Recent ---` | the last 32k of messages, verbatim and unsummarised |
+
+A carrier that is absent is recorded as `Unknown` — never invented. Legacy
+`--- Summary N ---` blocks still render for sessions folded before the revision.
 
 Compaction is never lossy about handles — `message*` keeps the Exact references
 and nothing is deleted. Recover detail with `sessionread`.

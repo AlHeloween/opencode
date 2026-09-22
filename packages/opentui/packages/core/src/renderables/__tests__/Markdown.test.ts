@@ -148,6 +148,56 @@ async function renderMarkdownRenderable(md: MarkdownRenderable): Promise<void> {
   throw new Error("Timed out waiting for markdown paragraph highlights")
 }
 
+test("streaming markdown spends ONE parse per delta — the double invalidation must show up here", async () => {
+  // T3 of the flicker plan. `applyMarkdownCodeRenderable` used to run NINE setters AFTER the preview
+  // commit and re-assign `content`, which bumps `_highlightSnapshotId` a SECOND time per delta and
+  // discards the highlight the preview had just started — a re-parse, not a highlight. THIS pin counts
+  // what the reuse must not spend: parses through the Markdown path, which is where the double bump
+  // lives (`updateStreamingPreview` is already atomic; the caller is what repeats the invalidation).
+  // MEASUREMENT FIRST: the number is printed, so the bound below can be tightened into a fact instead
+  // of a guess once it is read.
+  const mock = new MockTreeSitterClient()
+  const parsed: string[] = []
+  const highlightOnce = mock.highlightOnce.bind(mock)
+  mock.highlightOnce = async (content, filetype) => {
+    parsed.push(content)
+    return highlightOnce(content, filetype)
+  }
+
+  const md = createMarkdownRenderable({
+    id: "markdown-streaming-one-invalidation",
+    content: "para 1",
+    syntaxStyle,
+    streaming: true,
+    internalBlockMode: "top-level",
+    treeSitterClient: mock,
+  })
+  renderer.root.add(md)
+  await renderOnce()
+  mock.resolveAllHighlightOnce()
+  await renderMarkdownRenderable(md)
+  const afterInitial = parsed.length
+
+  let accumulated = "para 1"
+  for (let i = 2; i <= 7; i++) {
+    accumulated += `\n\npara ${i}`
+    md.content = accumulated
+    await renderOnce()
+  }
+  mock.resolveAllHighlightOnce()
+  await renderMarkdownRenderable(md)
+
+  const duringStream = parsed.length - afterInitial
+  // MEASURED 2026-09-23 (run 20260922T175753Z_756dde2d): SIX deltas through the Markdown path cost
+  // SIX parses — exactly one per delta, so NO second invalidation is visible here. That REFUTES the
+  // reading that `applyMarkdownCodeRenderable`'s trailing `content =` doubles the bump for ordinary
+  // streaming: on this path the preview branch is not taken (`initialStyledText` is undefined), so only
+  // the setter runs. A double bump could therefore live only in the PREVIEW-ACTIVE path — an existing
+  // block re-applied while `isHighlighting` is true — which this pin does not drive yet.
+  // The law enforced here is the honest one: NEVER more than one parse per delta.
+  expect(duringStream).toBeLessThanOrEqual(6)
+})
+
 async function renderMarkdown(markdown: string, conceal: boolean = true): Promise<string> {
   const md = createMarkdownRenderable({
     id: "markdown",

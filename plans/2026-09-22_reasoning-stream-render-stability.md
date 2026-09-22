@@ -134,6 +134,21 @@ its **application to this stream**, which is §2's oracle.
   directly, not through the Markdown path where the double invalidation lives. The next pin must drive
   `Markdown.content` and count parses (`recordHighlightContents`) or count revision bumps; only then can
   the reorder be graded, and until then it stays reverted.
+  **T3 MEASURED — AND THE PREVIOUS READING REFUTED (2026-09-23).** That next pin exists now: «streaming
+  markdown spends ONE parse per delta» drives `Markdown.content` through the REAL Markdown path and
+  counts parses by wrapping `highlightOnce`. Measured: SIX deltas cost **SIX** parses (run
+  `20260922T175753Z_756dde2d`) — exactly one per delta, i.e. **NO second invalidation on this path**.
+  That REFUTES the reading the rollback above was based on: `applyMarkdownCodeRenderable` does NOT
+  double the bump for ordinary streaming, because on this path the preview branch is not taken
+  (`initialStyledText` is undefined) and only the setter runs. The reorder must therefore NOT come back
+  as written — the instrument saved the fix, which is the whole point of building it first.
+  Law now pinned: **≤ 1 parse per delta** (run `20260922T175908Z_a6e49d75`: 181 pass / 5 fail = the 5
+  baseline reds of this file with my pin green; `exit_code 1` belongs to the baseline, not to the pin).
+  STILL UNKNOWN, named so it is not mistaken for closed: the PREVIEW-ACTIVE path — an existing block
+  re-applied while `isHighlighting` is true, where `updateStreamingPreview` runs AND the trailing
+  `content =` may still bump a second time. No pin drives that path yet, and until one does, the T3
+  wording («One method `setStreamingContent(content, preview, revision)`») describes a fix whose defect
+  is not demonstrated. Measure before writing it.
 - [ ] **T4 — pixel oracle for exactly this flow (the missing instrument).** `cmd_runner start --
   dist\bin\opencode.exe` + a prompt forcing a long reasoning stream; capture frames at fixed intervals
   (`cua get_window_state` with `screenshot_out_file`); a reader script asserts: stable lines above the

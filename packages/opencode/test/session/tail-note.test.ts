@@ -201,6 +201,44 @@ describe("the pushed compaction note", () => {
     expect(tailNote({ open: [], window: null, vector: statusVector([{ role: "user", text: "hi" }]) })).toContain(
       "sv: no assistant reply in the window yet",
     )
+    // PRESENTATION IS NOT SIGNATURE. The same block is written plainly, in `backticks`, or inside a
+    // fence — and a reader that knows ONE form declares the others ABSENT. That is the coupling
+    // watcher's own shipped defect (`8×4` labels vs `16+16` vectors, a reader accepting neither), and
+    // it fired live the minute this line went into the binary: the reply that CARRIED a vector was
+    // read as ABSENT because its block sat in backticks (assembled message, 2026-09-22T21:05:29Z).
+    const dressed = [
+      { role: "user", text: "do it" },
+      {
+        role: "assistant",
+        text: "Done.\n\n`Keywords: a 0.6, b 0.4`\n`Semantic dominant: one line.`\n`md5: 11111111111111111111111111111111`",
+      },
+    ]
+    expect(statusVector(dressed).present).toBe(true)
+
+    // The tail is what makes this a signature rather than a search: a QUOTED vector is not a carried
+    // one, so a citation in the middle must not silence the alert.
+    const quoting = [
+      { role: "user", text: "do it" },
+      {
+        role: "assistant",
+        text: [
+          "The other agent wrote:",
+          "",
+          "Keywords: x 1.0",
+          "Semantic dominant: quoted, not mine.",
+          "md5: 00000000000000000000000000000000",
+          "",
+          "but I carry none of my own. Filler line one.",
+          "Filler line two.",
+          "Filler line three.",
+          "Filler line four.",
+          "Filler line five.",
+          "Filler line six.",
+        ].join("\n"),
+      },
+    ]
+    expect(statusVector(quoting).present).toBe(false)
+
     // No census handed in ⇒ no line: a caller without window context keeps the old contract.
     expect(tailNote({ open: [], window: null })).toBe("")
   })

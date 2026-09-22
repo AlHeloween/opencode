@@ -31,7 +31,9 @@ import { Jobs } from "../jobs"
 import { RequestDiff } from "./request-diff"
 import { Checkpoint, type CheckpointData } from "./checkpoint"
 import { IncrementalCheckpoint } from "./incremental-checkpoint"
-import { collectPlanState } from "@/util/plan-status"
+import { collectPlanState, planFiles } from "@/util/plan-status"
+import { couplingFindings, parsePlanMap } from "@/memory/spine"
+import { readMemory } from "@/tool/memory"
 import { Bus } from "../bus"
 import { ProviderTransform } from "@/provider/transform"
 import { SystemPrompt } from "./system"
@@ -1959,6 +1961,7 @@ export const layer = Layer.effect(
             if (wantsStatusNote && freshUserMsg) {
               const statusNote = yield* Effect.gen(function* () {
                 try {
+                  const worktree = (yield* InstanceState.context).worktree
                   const open = IncrementalCheckpoint.listOpen(sessionID)
                   const cfg = yield* config.get()
                   const window = SessionCompaction.windowState({
@@ -1967,12 +1970,28 @@ export const layer = Layer.effect(
                     cfg,
                     boundary: open.at(-1)?.toMessageID,
                   })
+                  // THE COUPLING WATCHER (owner, 2026-09-22). Every vector in the window that names a
+                  // parent plan must name one the memory MAP declares, and every map label must name a
+                  // plan that exists on disk. Nothing generates that linkage any more, so it is CHECKED
+                  // — and the count is printed even at zero, because a silent check is not a check.
+                  const coupling = couplingFindings({
+                    messages: msgs.map((message) => ({
+                      id: message.info.id,
+                      text: message.parts
+                        .filter((part) => part.type === "text")
+                        .map((part) => (part as { text: string }).text)
+                        .join("\n"),
+                    })),
+                    map: parsePlanMap(yield* readMemory()),
+                    plans: new Set(planFiles(worktree)),
+                  })
                   return SessionCompaction.tailNote({
                     open,
                     window,
                     // THE CALL TO ACTION: what the protocol still OWES, read from the plan files. The
                     // user is not allowed to be the only thing that ever asks for an account of the work.
-                    debt: collectPlanState((yield* InstanceState.context).worktree),
+                    debt: collectPlanState(worktree),
+                    coupling,
                   })
                 } catch (e) {
                   Log.Default.warn("bug: failed to build the compaction status note", {

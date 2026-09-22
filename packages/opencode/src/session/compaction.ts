@@ -648,6 +648,9 @@ export function tailNote(input: {
   /** The plan mirror — the protocol's OWED work. Absent ⇒ no debt line (the note keeps its old
     * contract with callers that have no plan context). */
   debt?: PlanStatePayload | null
+  /** The coupling watcher's result: how many vectors were actually looked at, and what floated free.
+    * A silent check is indistinguishable from no check, so the count is printed even at zero. */
+  coupling?: { checked: number; findings: readonly string[] } | null
 }): string {
   const lines: string[] = []
   for (const summary of input.open) {
@@ -676,6 +679,15 @@ export function tailNote(input: {
         : `owed: ${owed.length} open plan task(s) · next: ${next!.plan} ${next!.task.id} [${next!.task.status}]${
             next!.task.attempts > 0 ? ` · attempts ${next!.task.attempts}` : ""
           }`,
+    )
+  }
+  // THE COUPLING WATCHER's line (owner, 2026-09-22). The count is printed even when it is zero and
+  // even when nothing was found: a check whose silence cannot be told from its absence is not a check.
+  if (input.coupling) {
+    lines.push(
+      input.coupling.findings.length === 0
+        ? `coupling: ${input.coupling.checked} vector(s) with a plan link · 0 findings`
+        : `coupling: ${input.coupling.checked} linked · ${input.coupling.findings.length} finding(s) — ${input.coupling.findings.join(" · ")}`,
     )
   }
   if (input.window) {

@@ -72,7 +72,7 @@ export function extractKeywords(text: string): WeightedTerm[] | undefined {
  * broken chain that was pure instrument error. The LAST occurrence per field wins, for the same
  * reason `extractKeywords` documents: an answer may quote a vector before writing its own.
  */
-export function extractVectorChain(text: string): { md5?: string; prevMd5?: string } {
+export function extractVectorChain(text: string): { md5?: string; prevMd5?: string; parentGoalMd5?: string } {
   // The canonical form is 32 hex with NO other character (@SV_FORMAT). This project's own rows ALSO
   // carry a spaced form — `16hex 16hex` — and that is not a curiosity: measured on this session,
   // the last ten vectors all have it, so their own md5 was unreadable and the chain marker built on
@@ -80,19 +80,110 @@ export function extractVectorChain(text: string): { md5?: string; prevMd5?: stri
   // missing field is not a break»). The reader therefore accepts both and normalises to the
   // canonical form; the WRITER's form stays the canonical one.
   const hex32 = (field: string) => {
-    const pattern = new RegExp(
-      `^${field}:\\s*([0-9a-f]{16}\\s+[0-9a-f]{16}|[0-9a-f]{32})`,
-      "gm",
-    )
+    const pattern = new RegExp(`^${field}:\\s*${HEX32_SOURCE}`, "gm")
     return [...text.matchAll(pattern)].at(-1)?.[1]?.replace(/\s+/g, "")
   }
   const own = hex32("md5")
   const previous = hex32("prev-md5")
-  return { ...(own ? { md5: own } : {}), ...(previous ? { prevMd5: previous } : {}) }
+  // The third field of @SV_FORMAT: the vector's link to the PLAN it works under. Read here, with the
+  // same anchoring, because the anchoring is what keeps `md5:` from being read out of
+  // `parent-goal-md5:` — the instrument error that once produced an 86% broken chain.
+  const parentGoal = hex32("parent-goal-md5")
+  return {
+    ...(own ? { md5: own } : {}),
+    ...(previous ? { prevMd5: previous } : {}),
+    ...(parentGoal ? { parentGoalMd5: parentGoal } : {}),
+  }
+}
+
+/** One entry of the plan map in `memory/reasoning.md`: a plan, and the md5 label its vector carries. */
+export interface PlanMapEntry {
+  plan: string
+  label: string
+}
+
+/**
+ * Read the PLAN MAP as it is written in memory: a plan path in backticks, then that block's `md5:`.
+ *
+ * The map is written BY HAND on every fold (owner, 2026-09-22: «Раз мы убрали summary — мы обязаны
+ * заполнять и сопровождать эту форму в memory»), so nothing but a read can check it. A block with no
+ * `md5:` line — the ratchet list — contributes no entry: an unlabelled plan is not a link, and this
+ * reader must not invent one for it.
+ */
+export function parsePlanMap(memory: string): PlanMapEntry[] {
+  const entries: PlanMapEntry[] = []
+  let named: string | undefined
+  for (const line of memory.split("\n")) {
+    const plan = line.match(/`(plans\/[^`]+\.md)`/)
+    if (plan) {
+      named = plan[1]!
+      continue
+    }
+    const label = line.match(new RegExp(`^md5:\\s*${HEX32_SOURCE}`))
+    if (label && named) {
+      entries.push({ plan: named, label: label[1]!.replace(/\s+/g, "") })
+      named = undefined
+    }
+  }
+  return entries
+}
+
+/**
+ * THE COUPLING WATCHER (owner, 2026-09-22): «alerter … will follow messages in compact — their md5
+ * actually… сцепление memory и всего остального контента». With generation removed nothing produces
+ * that linkage, so it has to be CHECKED rather than hoped for: a vector that names a parent plan
+ * nobody declared is floating free, and a map entry that names a plan file which does not exist is a
+ * link into nothing. Both are reported with the address that opens them.
+ *
+ * `checked` is returned as well as the findings, because a silent check is indistinguishable from no
+ * check — the same rule this project applies to every instrument that shortens its own output.
+ */
+export function couplingFindings(input: {
+  /** The window's messages, in order, with the text that carries their vectors. */
+  messages: readonly { id: string; text: string }[]
+  /** The map as written in memory (`parsePlanMap`). */
+  map: readonly PlanMapEntry[]
+  /** Plan paths that exist on disk, worktree-relative, exactly as the map writes them. */
+  plans: ReadonlySet<string>
+}): { checked: number; findings: string[] } {
+  const labels = new Set(input.map.map((entry) => entry.label))
+  const findings: string[] = []
+  let checked = 0
+  for (const message of input.messages) {
+    const parent = extractVectorChain(message.text).parentGoalMd5
+    // No link declared, or the all-zero hash that opens a chain: nothing to couple, nothing to say.
+    if (!parent || parent === EMPTY_HASH) continue
+    checked++
+    if (!labels.has(parent)) {
+      findings.push(
+        `vector-off-plan ${message.id} → parent-goal-md5 ${parent} is not a label in the plan map`,
+      )
+    }
+  }
+  for (const entry of input.map) {
+    if (!input.plans.has(entry.plan)) {
+      findings.push(`map-names-missing-plan ${entry.plan} (label ${entry.label}) has no file on disk`)
+    }
+  }
+  return { checked, findings }
 }
 
 /** The all-zero hash a vector uses to say «I open a chain» — absence of a predecessor, not a break. */
 export const EMPTY_HASH = "00000000000000000000000000000000"
+
+/**
+ * Every written form of a 32-hex label this project has produced, as ONE source: contiguous,
+ * `16+16`, and `8×4`.
+ *
+ * The third form is not hypothetical — it is how the plan MAP is written in memory, and the reader
+ * that only knew the first two would have called every vector in it off-plan: an alerter that alarms
+ * on everything is an alerter nobody reads. Measured while wiring the watcher, 2026-09-22: the map's
+ * labels are `a7f3c1e0 d95b4826 f1a0c3e7 8b2d6405`, the turn vectors' are `7a2c95e1b0d34f68
+ * 4e18b0c7a9d3265f`, and both are the same kind of label. The reader accepts what the writers write;
+ * the CANONICAL form stays the contiguous one.
+ */
+const HEX32_SOURCE =
+  "([0-9a-f]{32}|[0-9a-f]{16}\\s+[0-9a-f]{16}|[0-9a-f]{8}\\s+[0-9a-f]{8}\\s+[0-9a-f]{8}\\s+[0-9a-f]{8})"
 
 function unquote(text: string): string {
   const trimmed = text.trim()

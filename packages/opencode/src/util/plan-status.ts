@@ -296,6 +296,13 @@ function collectPlans(dir: string): string[] {
   }
 }
 
+/** The plan files that exist on disk, worktree-relative — what the plan map's paths are checked
+ *  against by the coupling watcher. Deliberately NOT the relevance-filtered set `collectPlanState`
+ *  returns: a map entry that names a plan the filter drops is still a path that must exist. */
+export function planFiles(worktree: string): string[] {
+  return collectPlans(path.join(worktree, "plans")).map((file) => `plans/${file}`)
+}
+
 /** Get plan completion status for a worktree. */
 export function getPlanStatus(worktree: string): PlanStatus {
   const plansDir = path.join(worktree, "plans")

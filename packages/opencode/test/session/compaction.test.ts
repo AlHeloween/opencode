@@ -1,5 +1,6 @@
 import { NodeFileSystem } from "@effect/platform-node"
 import nodePath from "path"
+import fs from "node:fs"
 import { afterEach, describe, expect, mock, setDefaultTimeout, test } from "bun:test"
 import { Cause, Effect, Exit, Fiber, Layer, ManagedRuntime } from "effect"
 import * as Stream from "effect/Stream"
@@ -3226,3 +3227,105 @@ test("the closing continuity line names what the selector omits instead of calli
   // No positions to compare: SAY so rather than print a guess.
   expect(line({ tailFirst: 3000 })).toContain("not verifiable here")
 })
+
+/**
+ * The fold's HEAD, on a real fold instead of on the renderers in isolation.
+ *
+ * The 64k mechanism itself was never in question; what changed (owner, 2026-09-22: «сам механизм
+ * summary каждые 64к — нужен, только теперь он уже стал чисто механистический») is that the head is
+ * READ: memory verbatim, the plan's intention as the goal, each message's own dominant and weighted
+ * terms as a table of contents carrying addresses, and the untouched tail. Nothing is asked of a
+ * model.
+ *
+ * NOTE ON THE HARNESS: this test lives here rather than in a file of its own because `it.live` is
+ * what RUNS an Effect body — a bare `test(name, effect)` hands bun a plain object, which is not a
+ * promise, and the body silently never executes (measured: a test whose first statement was
+ * `expect(1).toBe(2)` passed). A green from that shape is worth nothing.
+ */
+it.live(
+  "the fold's head carries memory, the plan's goal, the rows' own terms and the tail — all read",
+  provideTmpdirInstance((dir) =>
+    Effect.gen(function* () {
+      const compact = yield* SessionCompaction.Service
+      const ssn = yield* SessionNs.Service
+      const info = yield* ssn.create({})
+      const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }
+
+      const say = (text: string) =>
+        Effect.gen(function* () {
+          const message = yield* ssn.updateMessage({
+            id: MessageID.ascending(),
+            role: "user",
+            sessionID: info.id,
+            agent: "build",
+            model: ref,
+            time: { created: Date.now() },
+          })
+          yield* ssn.updatePart({
+            id: PartID.ascending(),
+            messageID: message.id,
+            sessionID: info.id,
+            type: "text",
+            text,
+          })
+        })
+
+      // The two carriers the fold READS before it folds anything: the plan's intention and the
+      // permanent memory. Both live in the worktree, so both are written there.
+      fs.mkdirSync(nodePath.join(dir, "plans"), { recursive: true })
+      fs.writeFileSync(
+        nodePath.join(dir, "plans", "2026-09-22_head.md"),
+        // `**Status:** ACTIVE` in the BOLD form, and that is not decoration: `parseLifecycle` reads
+        // `\*\*Status:\*\*\s*(\w+)`, and the relevance filter drops any plan with no open items
+        // whose lifecycle is not ACTIVE/EXECUTING — so a plan written without it is invisible to the
+        // fold and the goal silently loses its first carrier (measured while writing this test: the
+        // head came back with the window's goal and no plan goal at all).
+        "# Head\n\n**Status:** ACTIVE\n\n<!-- intention: the fold loses the why -> the fold reads it -->\n",
+        "utf8",
+      )
+      fs.mkdirSync(nodePath.join(dir, ".opencode", "data", "memory"), { recursive: true })
+      fs.writeFileSync(
+        nodePath.join(dir, ".opencode", "data", "memory", "reasoning.md"),
+        "CRITERION: read, never generate.",
+        "utf8",
+      )
+
+      yield* say("Fix the fold — it loses the why.")
+      yield* say('did one thing\n\ndominant: "first epoch"\n\nKeywords: fold 0.60, memory 0.40')
+      yield* say('did another\n\ndominant: "second epoch"\n\nKeywords: tail 0.70, memory 0.30')
+      yield* say("tail " + "y".repeat(140_000))
+
+      yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
+
+      const messages = yield* MessageV2.filterCompactedEffect(info.id)
+      const star = messages.find((message) =>
+        message.parts.some((part) => part.type === "text" && part.text.startsWith("=== COMPACTED ===")),
+      )
+      expect(star).toBeTruthy()
+      const head = star!.parts
+        .filter((part) => part.type === "text")
+        .map((part) => (part as { text: string }).text)
+        .join("\n")
+
+      // 1. MEMORY, verbatim — the durable block leads.
+      expect(head).toContain("<memory>")
+      expect(head).toContain("CRITERION: read, never generate.")
+      // 2. GOAL — the plan's intention (with its file) AND the owner's own opening words.
+      expect(head).toContain("--- Goal ---")
+      expect(head).toContain("the fold loses the why -> the fold reads it")
+      expect(head).toContain("Fix the fold — it loses the why.")
+      // 3. TOPICS — the window's axis as a COUNT of carriers, never a summed weight.
+      expect(head).toContain("--- Window topics")
+      expect(head).toContain("memory×2")
+      expect(head).toContain("fold×1")
+      // 4. TABLE OF CONTENTS — one line per epoch, the dominant it wrote, the top terms WITH their
+      // weights, and the address that opens it.
+      expect(head).toContain("--- Table of contents")
+      expect(head).toContain('"first epoch"')
+      expect(head).toContain("kw: fold 0.6, memory 0.4")
+      expect(head).toMatch(/#\d+ "first epoch".*msg_/)
+      // 5. THE TAIL is still there, verbatim.
+      expect(head).toContain("tail yyyy")
+    }),
+  ),
+)

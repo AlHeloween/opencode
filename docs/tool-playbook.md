@@ -25,6 +25,7 @@ is the concrete routing table for it.
 | What is the runtime saying | `logsearch`, `dbread` | hand-grepping log files |
 | My own identity, permissions, context fill | `checkstate` | inferring them, or trusting a stale tail notice |
 | What was said earlier | `messagesearch` → `sessionread` | re-reading the archive; summaries are Inferred handles, not Exact |
+| **How much is owed, and which plans sit in the wrong terminal** | **`planstatus`** (pass `reconcile:true` to move the misplaced ones) | re-deriving the tick counts by hand. The `owed:` line in `<compaction-status>` says HOW MUCH is owed; this says WHERE it sits, what is misplaced, and the full debt. It reads `plans/` and `plans_completed/` only — the other three terminals are invisible BY DESIGN, so deferred/future/paused work counts as neither debt nor completion |
 | A tool result that was released | `recall(id, range, pattern)` | re-running the tool (re-applies side effects; a `task` result cannot be reproduced) |
 | A heavy result I still need | `tempenable(id, turns)` | re-fetching it every turn |
 | A bounded sub-task with a checkable output | `task` (explorer for G1/G6, coder for G7/G8, general for G2/G3) | doing it in the main window and paying for its discovery |

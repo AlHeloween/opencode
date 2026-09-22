@@ -34,6 +34,7 @@ import { LogSearchTool } from "./logsearch"
 import { RecallTool } from "./recall"
 import { ImageRenderTool } from "./imagerender"
 import { TempDisableTool, TempEnableTool } from "./temp-lifetime"
+import { PlanStatusTool } from "./plan-status"
 import { CapabilityTool } from "./capability"
 import { PipelineTool } from "./pipeline"
 import { Capability } from "@/capability"
@@ -222,6 +223,7 @@ export const layer: Layer.Layer<
     const imagerender = yield* ImageRenderTool
     const tempEnable = yield* TempEnableTool
     const tempDisable = yield* TempDisableTool
+    const planStatus = yield* PlanStatusTool
     const sessionread = yield* SessionReadTool
     const joboutput = yield* JobOutputTool
     const jobwait = yield* JobWaitTool
@@ -354,6 +356,7 @@ export const layer: Layer.Layer<
           imagerender: Tool.init(imagerender),
           tempenable: Tool.init(tempEnable),
           tempdisable: Tool.init(tempDisable),
+          planstatus: Tool.init(planStatus),
           sessionread: Tool.init(sessionread),
           joboutput: Tool.init(joboutput),
           jobwait: Tool.init(jobwait),
@@ -397,6 +400,7 @@ export const layer: Layer.Layer<
             tool.logsearch,
             tool.recall,
             tool.imagerender,
+            tool.planstatus,
             tool.tempenable,
             tool.tempdisable,
             tool.sessionread,

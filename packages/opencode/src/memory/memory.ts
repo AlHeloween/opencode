@@ -263,11 +263,19 @@ export function search(params: {
         p.text,
         p.part_type,
         p.role,
-        COALESCE(bm25(part_fts, 0.0, 0.0), 0.0) * 0.7 +
+        -- THE WEIGHTS ARE NOT DECORATION, AND THE SIGN MATTERS. 'bm25(part_fts, 0.0, 0.0)' stood here
+        -- until 2026-09-22: it weights the indexed column by ZERO and returns 0 for every row, so the
+        -- hybrid rank silently collapsed to the epistemic term alone and the result set was ordered by
+        -- how Exact a row LOOKED rather than by what it MATCHED (measured on the same rows: -8.296 /
+        -- -10.796 / -12.107 with a real weight versus 0.000 / 0.000 / 0.000 with the zeroed one — that
+        -- is why every hit printed 'BM25: 0' and identical ranks, and why the huge Exact-heavy m* rows
+        -- topped every query). bm25() returns a NEGATIVE number with smaller = more relevant, so the
+        -- rank uses its negation: ORDER BY combined_rank DESC must keep meaning 'best first'.
+        COALESCE(-bm25(part_fts, 1.0, 0.0), 0.0) * 0.7 +
         (p.exact_coef * 4.0 + p.inferred_coef * 3.0 +
          p.hypothetical_coef * 2.0 + p.guess_coef * 1.0) / 10.0 * 10.0 * 0.3
         AS combined_rank,
-        COALESCE(bm25(part_fts, 0.0, 0.0), 0.0) AS bm25_score,
+        COALESCE(-bm25(part_fts, 1.0, 0.0), 0.0) AS bm25_score,
         (p.exact_coef * 4.0 + p.inferred_coef * 3.0 +
          p.hypothetical_coef * 2.0 + p.guess_coef * 1.0) / 10.0 * 10.0 AS epistemic_score
       FROM part_fts

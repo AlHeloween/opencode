@@ -115,6 +115,25 @@ its **application to this stream**, which is §2's oracle.
       non-empty (measured `20260922T171745Z_895fe16d`: expected `false`, received `true`), so "no blank
       frame" does NOT separate the setter path from the preview path. The next pin must observe what
       does — the rendered TEXT (`captureFrame()`) or the parse count via `recordHighlightContents`.
+  **T3 GROUNDWORK DONE (2026-09-23) — the instrument exists; the fix does not.** `Code.test.ts` carries
+  «a streaming preview shows the CURRENT text in the frame, and the setter path is the control»: two
+  streams of six deltas, a frame captured after each, and the predicate is the frame TEXT —
+  `toContain("line N")` per frame — because frame EMPTINESS does not discriminate (fact (c) above). The
+  preview stream must show every line as it lands; the control stream (`content =` with
+  `drawUnstyledText === false`) must NOT, and that failure is what gives the predicate power.
+  Oracle, RUN: `Code.test.ts` = **69 pass / 1 skip / 0 fail** (285 expect, run `20260922T175337Z_e641bfb8`,
+  `exit_code 0`) — 68 pre-existing plus this pin.
+  TWO INSTRUMENT FACTS the pin cost, both now inside it: (i) a renderable still MOUNTED keeps painting
+  its text into every later `captureFrame()`, so a stream must `destroy()` its renderable or the control
+  reads the other stream's output — this is exactly how the first version failed, receiving `true`
+  (`20260922T175232Z_00a760a7`); (ii) `captureFrame()` is `captureCharFrame` over the WHOLE renderer,
+  never over one renderable, so "isolate the subject" means "leave only the subject mounted".
+  STILL OPEN, and named so it is not mistaken for done: the `applyMarkdownCodeRenderable` reorder
+  (configuration first, ONE commit last, `content` only on the non-preview path). Its effect is a SECOND
+  invalidation per delta, and THIS pin does not observe it — it streams through `updateStreamingPreview`
+  directly, not through the Markdown path where the double invalidation lives. The next pin must drive
+  `Markdown.content` and count parses (`recordHighlightContents`) or count revision bumps; only then can
+  the reorder be graded, and until then it stays reverted.
 - [ ] **T4 — pixel oracle for exactly this flow (the missing instrument).** `cmd_runner start --
   dist\bin\opencode.exe` + a prompt forcing a long reasoning stream; capture frames at fixed intervals
   (`cua get_window_state` with `screenshot_out_file`); a reader script asserts: stable lines above the

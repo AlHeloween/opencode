@@ -2659,6 +2659,63 @@ test("CodeRenderable - streaming with conceal and drawUnstyledText=false should 
   expect(finalFrameText).not.toContain("```")
 })
 
+test("CodeRenderable - a streaming preview shows the CURRENT text in the frame, and the setter path is the control", async () => {
+  // T3 GROUNDWORK — the instrument first, the fix second. The plan's acceptance is "no intermediate
+  // plain/blank frame"; measured 2026-09-23, frame EMPTINESS does not discriminate (a
+  // `drawUnstyledText === false` renderable still produced non-empty frames), so that predicate has no
+  // power. This pin observes what DOES discriminate — the frame TEXT — and it is the instrument a T3
+  // fix must move, not be graded by.
+  const syntaxStyle = SyntaxStyle.fromStyles({ default: { fg: RGBA.fromValues(1, 1, 1, 1) } })
+
+  const streamFrames = async (
+    commit: (renderable: CodeRenderable, text: string) => void,
+    drawUnstyledText: boolean,
+  ) => {
+    const renderable = new CodeRenderable(currentRenderer, {
+      id: `stream-frame-${drawUnstyledText}`,
+      content: "",
+      filetype: "markdown",
+      syntaxStyle,
+      drawUnstyledText,
+      streaming: true,
+      quietHighlightMs: 60,
+      treeSitterClient: new MockTreeSitterClient({ autoResolveTimeout: 10, clock }),
+      width: "100%",
+    })
+    currentRenderer.root.add(renderable)
+    const frames: string[] = []
+    let accumulated = ""
+    for (let i = 1; i <= 6; i++) {
+      accumulated = accumulated.length === 0 ? `line ${i}` : `${accumulated}\nline ${i}`
+      commit(renderable, accumulated)
+      await renderOnce()
+      frames.push(captureFrame())
+    }
+    // Leave the tree as the next stream expects to find it: a renderable still mounted keeps painting
+    // its own text into every later `captureFrame()`, which is exactly how the control read the FIRST
+    // stream's output and reported `true` (run 20260922T175232Z_00a760a7).
+    renderable.destroy()
+    return frames
+  }
+
+  const previewFrames = await streamFrames(
+    (renderable, text) => renderable.updateStreamingPreview(text, new StyledText([{ __isChunk: true, text }])),
+    true,
+  )
+  // The preview path commits the content into the buffer, so EVERY frame shows the line just written —
+  // no frame lags behind the stream, and none is blank.
+  for (let i = 0; i < previewFrames.length; i++) {
+    expect(previewFrames[i]).toContain(`line ${i + 1}`)
+  }
+
+  // POSITIVE CONTROL: the same stream through the plain setter with `drawUnstyledText === false` never
+  // fills the buffer, so the SAME predicate must fail there. That failure is what gives it power.
+  const controlFrames = await streamFrames((renderable, text) => {
+    renderable.content = text
+  }, false)
+  expect(controlFrames.some((frame) => frame.includes("line 6"))).toBe(false)
+})
+
 test("CodeRenderable - streaming with drawUnstyledText=false falls back to unstyled text when highlights fail", async () => {
   const syntaxStyle = SyntaxStyle.fromStyles({
     default: { fg: RGBA.fromValues(1, 1, 1, 1) },

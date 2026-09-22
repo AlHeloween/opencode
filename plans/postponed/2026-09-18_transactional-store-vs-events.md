@@ -2,10 +2,8 @@
 
 # Transactional store instead of the event bus — parked direction
 
-```yaml
-status: parked, raised twice by Alexander (2026-09-17, 2026-09-18)
-smoke: N/A — nothing is being changed; this records the argument
-```
+**Status:** POSTPONED (2026-09-22) — parked direction, raised twice by Alexander (2026-09-17, 2026-09-18); no work is in flight and no falsifier exists yet (`smoke: N/A` — this records the argument).
+**Lift signal:** (1) the ordering-versus-notification split is MEASURED — how much of the current cross-process pain a transactional store removes, against how much is notification it does not remove; (2) the three questions under «What would have to be answered before acting» are answered.
 
 ## The objection, in Alexander's terms
 

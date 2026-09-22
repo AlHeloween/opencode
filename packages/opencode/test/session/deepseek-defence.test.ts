@@ -1,5 +1,5 @@
 import { NodeFileSystem } from "@effect/platform-node"
-import { describe, expect } from "bun:test"
+import { describe, expect, setDefaultTimeout } from "bun:test"
 import { Effect, Layer } from "effect"
 import path from "path"
 import type { Agent } from "../../src/agent/agent"
@@ -25,6 +25,14 @@ import { testEffect } from "../lib/effect"
 import { reply, TestLLMServer } from "../lib/llm-server"
 
 Log.init()
+
+// FILE-level timeout, not per-test: this file boots a fake LLM server, a processor, a snapshot layer
+// and a tmpdir instance per case, and bun's 5 s default turned that into two reds that said nothing
+// about the code — measured 2026-09-22, both failures read `timed out after 5000ms` while the suite
+// ran under load (a parallel cmd_runner suite, the TUI and the agent itself). AGENTS.md names the
+// rule: a heavy file carries `setDefaultTimeout`, and per-test whack-a-mole is how the real signal
+// gets lost.
+setDefaultTimeout(20_000)
 
 // ── Test Setup (from processor-effect.test.ts) ─────────────────────────
 

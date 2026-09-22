@@ -301,12 +301,23 @@ function countTasks(filePath: string): { total: number; done: number } {
   }
 }
 
+/** Canon files that live beside the plans and are NOT plans. Their prose carries FORMAT EXAMPLES
+ *  (`- [ ] Smoke requirements written`), so a parser that reads them reports debt that does not exist —
+ *  measured 2026-09-22, when `plans/README.md` showed up as an ACTIVE plan in the tick report and
+ *  `reconcilePlans` would one day have moved the canon file itself into `plans_completed/` the moment
+ *  its example boxes were ticked. Filtered by NAME, linearly: a plan is a dated record, canon is
+ *  documentation — and one filter here covers the status, the debt, the plan map and the reconciler. */
+const NON_PLAN_FILES = new Set(["readme.md", "agents.md"])
+
 /** Collect .md filenames directly in a directory (flat, non-recursive). */
 function collectPlans(dir: string): string[] {
   if (!existsSync(dir)) return []
   try {
     return readdirSync(dir, { withFileTypes: true })
-      .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
+      .filter(
+        (entry) =>
+          entry.isFile() && entry.name.endsWith(".md") && !NON_PLAN_FILES.has(entry.name.toLowerCase()),
+      )
       .map((entry) => entry.name)
   } catch {
     return []
@@ -523,10 +534,19 @@ export function formatPlanHygiene(status: PlanStatus, reconcile?: ReconcileResul
       lines.push(`Hygiene errors: ${reconcile.errors.join("; ")}`)
     }
   }
-  if (!isPlanHygieneClean(status)) {
+  // TWO AXES, NEVER ONE GATE (owner, 2026-09-22: «сейчас невозможно использовать оркестратор из-за
+  // этого»). This line used to fire on `!isPlanHygieneClean`, whose conjunction includes `active`, so ANY
+  // live plan printed "next work MUST fix checkboxes / file locations before new features" — a backlog
+  // read as a hygiene defect, which is exactly why no feature directive could be dispatched. Placement
+  // and backlog are different facts and are printed as different lines; `isPlanHygieneClean` stays where
+  // its conjunction is the right question (the evolving gate: "all plans complete AND placed").
+  if (!isPlanPlacementClean(status)) {
     lines.push(
-      "HYGIENE DEBT: next work MUST fix checkboxes / file locations before new features.",
+      `PLACEMENT DEBT: ${status.misplaced.length} file(s) in the WRONG terminal — fix locations before new features.`,
     )
+  }
+  if (status.active.length > 0) {
+    lines.push(`Backlog: ${status.active.length} plan(s) with open boxes — that is work, not debt.`)
   }
   return lines.join("\n")
 }

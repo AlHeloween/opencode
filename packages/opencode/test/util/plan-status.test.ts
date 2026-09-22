@@ -2,7 +2,15 @@ import { describe, expect, test } from "bun:test"
 import { mkdirSync, mkdtempSync, writeFileSync } from "fs"
 import { tmpdir } from "os"
 import path from "path"
-import { collectPlanState, formatPlanStateText, getPlanStatus, isPlanHygieneClean, isPlanPlacementClean } from "../../src/util/plan-status"
+import {
+  collectPlanState,
+  formatPlanHygiene,
+  formatPlanStateText,
+  getPlanStatus,
+  isPlanHygieneClean,
+  isPlanPlacementClean,
+  planDebt,
+} from "../../src/util/plan-status"
 
 function worktreeWith(plan: string) {
   const dir = mkdtempSync(path.join(tmpdir(), "plan-state-"))
@@ -72,5 +80,38 @@ describe("util.plan-status hygiene axes", () => {
     expect(status.active).toEqual([])
     expect(isPlanPlacementClean(status)).toBe(false)
     expect(status.misplaced.some((f) => f.includes("2026-01-02_done.md"))).toBe(true)
+  })
+
+  test("canon files beside the plans are not plans — their FORMAT EXAMPLES are not state", () => {
+    // Measured 2026-09-22: `plans/README.md` printed as an ACTIVE plan because its prose shows the
+    // checkbox format (`- [ ] Smoke requirements written`), and the reconciler would have moved the
+    // canon file itself into plans_completed/ once those examples were ticked. Examples are data for a
+    // parser only if the parser is told they are not.
+    const dir = fixture({
+      "2026-01-03_live.md": "# Live\n\n- [ ] real work\n",
+      "README.md": "# Canon\n\n- [ ] Smoke requirements written\n- [ ] Baseline recorded [Exact]\n",
+    })
+    const status = getPlanStatus(dir)
+    expect(status.active).toEqual(["2026-01-03_live.md"])
+    // And the debt count follows the same filter: one open box, not three.
+    expect(planDebt(dir)).toEqual({ plans: 1, open: 1 })
+  })
+
+  test("the hygiene line reports PLACEMENT and BACKLOG as two facts, not one gate", () => {
+    // The line used to fire on `!isPlanHygieneClean`, so a live backlog printed «next work MUST fix
+    // checkboxes / file locations before new features» — the defect that made the orchestrator
+    // unusable. Falsifier: a placement-clean worktree with open work must NOT read as placement debt,
+    // and must still name the backlog.
+    const live = getPlanStatus(fixture({ "2026-01-04_live.md": "# Live\n\n- [ ] real work\n" }))
+    const liveLine = formatPlanHygiene(live)
+    expect(liveLine).not.toContain("PLACEMENT DEBT")
+    expect(liveLine).toContain("Backlog: 1 plan(s) with open boxes")
+
+    const misplaced = getPlanStatus(
+      fixture({ "2026-01-05_done.md": "# Done\n\n- [x] one\n" }),
+    )
+    const misplacedLine = formatPlanHygiene(misplaced)
+    expect(misplacedLine).toContain("PLACEMENT DEBT")
+    expect(misplacedLine).not.toContain("Backlog:")
   })
 })

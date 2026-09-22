@@ -4438,3 +4438,26 @@ codex aligned 44 000 -> 46 000) — the variants carry the same norms with less 
 back. The three G1 standards catalogues (GUI/TUI/ergonomics, 1 292 B) remain the largest
 block of canon prose inside the prefix and are the next funding source if one is needed;
 that is the owner's call, not a cleanup.
+
+## [2026-09-23 00:05] Production install and repin — all three variants now carry the imports
+
+Promotion step for the twelve July-ABI norms (landed in `c8ec6c339a`): `--install` wrote the
+production prefix, and `baseline.json` was repinned, which `--install` deliberately does not
+do on its own — PROMOTE_STABLE and the version stamp are separate acts.
+
+Oracle [Exact]:
+- `packages/opencode/src/session/prompt/reasoning_prompt.txt` read back from disk: 45 962 B,
+  byte-equal to `render_kernel(KERNEL, GATE_ADDONS)`, sha256
+  `35401ae7057c92cb4be31322afbb3cd8bfb5c5cbcd176cdaf3c02a5cd5fca86f`, and all twelve norms
+  probed present in the installed text.
+- `baseline.json` repinned `d9ccb590a16ad48f…` -> `35401ae7057c92cb…`;
+  `assert_current_kernel_unchanged()` returns [].
+- `python -m pytest prompt_kernel/tests/ -q` -> **106 passed, 0 failed** (the three reds that
+  were the promotion gate are closed: production, the Claude install, the Codex artifact).
+- Claude variant installed earlier in the same arc: 45 639 B, sha256 `5e8ad4b7f398b1a5…`.
+- Codex artifact rendered at sha256 `4c66babc2d66a39c…`; its `$CODEX_HOME/AGENTS.md` receiver
+  is installed by that host itself, which owns its own toolset.
+
+Residual: the running `bin/opencode.exe` still carries the previous prefix — the installed
+`.txt` reaches sessions only after a rebuild, and old checkpoints keep the previous prefix
+until they compact. Nothing here rebuilt the binary.

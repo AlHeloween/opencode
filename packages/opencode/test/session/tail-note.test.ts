@@ -30,13 +30,18 @@ const WINDOW: WindowState = {
   perTurn: 7_500,
 }
 
-/** Over 200 chars, missing Next Steps / Critical Context / Relevant Files. */
+/** Over 200 chars, missing Next Steps / Critical Context / Relevant Files. The Plan section IS
+ * present: this fixture is about the nag naming the sections that are absent, and a fixture that
+ * silently lacked a required heading would only prove the nag can list the wrong one. */
 const BODY_WITH_GAPS = [
   "## Semantic Vector",
   'dominant: "gaps are named while the summary is still open"',
   "",
   "## Goal",
   "Prove the nag names the deficient sections of an open summary instead of letting the fold carry a stub forward.",
+  "",
+  "## Plan",
+  "Step 1: render the note. Step 2: name every heading whose body is short.",
   "",
   "## Constraints & Preferences",
   "The note rides the newest user message and never the stable system prefix.",
@@ -60,6 +65,9 @@ const BODY_COMPLETE = [
   "",
   "## Goal",
   "Carry the account of the work across a fold so the next window can rely on it without re-deriving.",
+  "",
+  "## Plan",
+  "Step 1: keep the template a union. Step 2: name every deficient heading.",
   "",
   "## Constraints & Preferences",
   "Diffs are attached by the system and must not be written into the prose.",

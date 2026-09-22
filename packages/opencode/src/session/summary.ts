@@ -188,13 +188,22 @@ export function summaryRangeStartHash(
  * end, so a summary of an older range reported everything changed since as part of itself
  * (measured 2026-09-21 — the block became a dump of unrelated file bodies and the intention was
  * displaced). The LAST anchor inside the range is the state the range ended in.
+ *
+ * The anchor the range STARTED at is NOT its end. With a single anchor in the range the end was
+ * never recorded, and reading the start as the end made the diff EMPTY — the range's own changes
+ * vanished instead of the unrelated ones (measured: a file created inside the range by a shell
+ * write disappeared from the block). That case falls back to the working copy, which the caller
+ * names in its own log line.
  */
-export function summaryRangeEndHash(rangeMessages: readonly MessageV2.WithParts[]): string | undefined {
-  for (let i = rangeMessages.length - 1; i >= 0; i--) {
-    const hashes = snapshotHashesOnMessage(rangeMessages[i]!)
-    if (hashes.length > 0) return hashes[hashes.length - 1]
-  }
-  return undefined
+export function summaryRangeEndHash(
+  rangeMessages: readonly MessageV2.WithParts[],
+  startHash?: string,
+): string | undefined {
+  const anchors = rangeMessages.flatMap((msg) => snapshotHashesOnMessage(msg))
+  if (anchors.length === 0) return undefined
+  const end = anchors[anchors.length - 1]
+  if (anchors.length === 1 && end === startHash) return undefined
+  return end
 }
 
 /**
@@ -605,7 +614,7 @@ export const layer = Layer.effect(
       // The range END, not the working copy: `diffFull(from, undefined)` means «anchor → tree right
       // now», which is only correct when the summary genuinely ends at HEAD. A range with no end
       // anchor keeps the old behaviour — and says so, so it is never mistaken for an exact range.
-      const to = summaryRangeEndHash(input.messages)
+      const to = summaryRangeEndHash(input.messages, from)
       if (!to)
         log.debug("summary range diff: no end anchor in the range — diffing to the working copy", {
           from: from.slice(0, 12),

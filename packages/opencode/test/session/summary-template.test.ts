@@ -4,11 +4,11 @@ import { diagnoseSummaryGaps, isValidSummaryBody, summaryRequestProse } from "..
 /**
  * The anchored Layer-1 template (owner ruling 2026-09-18): the compaction
  * skill's sections joined with the sidecar's Semantic Vector. This file pins the
- * template as a CONTRACT, not a suggestion — a body missing any of the eight
- * headings must be NAMED, and the four added headings must be reachable at their
+ * template as a CONTRACT, not a suggestion — a body missing any of the nine
+ * headings must be NAMED, and the five added headings must be reachable at their
  * lower floor (24 chars) without dragging the core four down.
  *
- * Why a lower floor for the additions: a 40-char floor on all eight made every
+ * Why a lower floor for the additions: a 40-char floor on every heading made every
  * capture a gap-fill candidate, and before this change a gap-fill candidate
  * could lose the whole checkpoint. Continuity outranks completeness.
  */
@@ -18,6 +18,9 @@ const FULL_BODY = [
   "",
   "## Goal",
   "Carry the account of the work across a fold so the next window can rely on it without re-deriving.",
+  "",
+  "## Plan",
+  "Step 1: keep the template a union. Step 2: name every deficient heading.",
   "",
   "## Constraints & Preferences",
   "Diffs are attached by the system and must not be written into the prose.",
@@ -46,6 +49,7 @@ const FULL_BODY = [
 const HEADINGS = [
   "## Semantic Vector",
   "## Goal",
+  "## Plan",
   "## Constraints & Preferences",
   "## Current state",
   "## Key decisions",

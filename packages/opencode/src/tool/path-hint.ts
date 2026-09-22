@@ -36,6 +36,25 @@ export function filePathDescription(what = "Path to the file"): string {
   return pathFieldDescription(what)
 }
 
+/**
+ * True when a tool's `filePath` is a CODE FRAGMENT rather than a path.
+ *
+ * A malformed tool call hands over the tail of an expression: the measured shape is
+ * `i+1).join(String.fromCharCode(10)))`, which produced a 0-byte file in `packages/opencode` on
+ * 2026-09-21 — and it is not the first time it appeared there (owner: «этот артефакт появляется там
+ * регулярно — это БАГ»).
+ *
+ * The predicate that stood in `write.ts`/`edit.ts` was «has parens AND has no dot», which every such
+ * fragment PASSES, because `.join(` carries the dot — so the guard never fired and the file was
+ * created anyway. Recognition is by SHAPE instead: a BARE name (no path separator) that carries
+ * punctuation no filename uses. A value WITH a separator is left alone — `src/foo(i).ts` and
+ * `./Report (final).md` are real paths, and rejecting them would cost a retry for nothing.
+ */
+export function looksLikeCodeFragment(value: string): boolean {
+  if (/[/\\]/.test(value)) return false
+  return /[(){}[\]<>;=+`"']/.test(value)
+}
+
 export function directoryPathDescription(what = "Path to the directory"): string {
   return pathFieldDescription(what)
 }

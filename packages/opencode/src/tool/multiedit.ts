@@ -64,13 +64,16 @@ export const MultiEditTool = Tool.define(
               const fd = r.metadata.filediff as { additions?: number; deletions?: number } | undefined
               const stats = fd ? ` (+${fd.additions ?? 0} -${fd.deletions ?? 0})` : ""
               if (!r.metadata.diff) return `Edit ${i + 1}: no change`
-              // Strip verbose patch headers, keep only the hunk showing +/- lines
-              const hunk = r.metadata.diff.split("\n")
-                .filter((l: string) =>
-                  (l.startsWith("+") || l.startsWith("-")) && !l.startsWith("---") && !l.startsWith("+++")
-                  || (l.startsWith(" ") && !l.startsWith("  ")))
-                .join("\n")
-              return `Edit ${i + 1}${stats}:\n${hunk}`
+              // The diff IS the report — verbatim, exactly what `edit` produced for this hunk.
+              //
+              // A filter used to sit here that kept only `+`/`-` lines and context lines with a SINGLE
+              // leading space, which DROPPED every indented source line from the report. The change was
+              // applied correctly, but the report showed an incomplete diff — so the agent could not
+              // verify its own edit from its own tool result, and the missing line looked like a lost
+              // change (owner, 2026-09-21: «а мы че tail там сами не задаем?» — we did, and it was the
+              // defect). Filtering a diff is not this tool's job; `edit.ts` already emits a real unified
+              // diff with its context and hunk headers.
+              return `Edit ${i + 1}${stats}:\n${r.metadata.diff}`
             })
             .join("\n")
 

@@ -44,8 +44,9 @@ export const Parameters = Schema.Struct({
   include: Schema.optional(Schema.String).annotate({
     description: 'File glob filter, e.g. "*.ts", "*.{js,jsx}".',
   }),
-  noIgnore: Schema.optional(Schema.Boolean).annotate({
-    description: "Include .gitignore'd paths (node_modules, .opencode/data, logs). Default: false.",
+  gitignore: Schema.optional(Schema.Boolean).annotate({
+    description:
+      "Respect .gitignore. Default: false — every path is searched, including node_modules, .opencode/data and logs, so an absence can never be an artefact of an ignore rule.",
   }),
 })
 
@@ -58,7 +59,7 @@ export const GrepTool = Tool.define(
     return {
       description: DESCRIPTION,
       parameters: Parameters,
-      execute: (params: { pattern: string; path?: string; include?: string; noIgnore?: boolean }, ctx: Tool.Context) =>
+      execute: (params: { pattern: string; path?: string; include?: string; gitignore?: boolean }, ctx: Tool.Context) =>
         Effect.gen(function* () {
           if (!params.pattern) {
             throw new Error("pattern is required")
@@ -103,40 +104,11 @@ export const GrepTool = Tool.define(
             glob: params.include ? [params.include] : undefined,
             file,
             signal: ctx.abort,
-            noIgnore: params.noIgnore,
+            gitignore: params.gitignore,
           })
-          if (result.items.length === 0 && params.noIgnore !== true) {
-            // Transparency probe (mirror of glob.ts, 2026-08-31): gitignored files
-            // (dist/, build output) hide matches under default filtering — say so
-            // instead of a bare "No matches found".
-            const probe = yield* rg
-              .search({
-                cwd,
-                pattern,
-                glob: params.include ? [params.include] : undefined,
-                file,
-                signal: ctx.abort,
-                noIgnore: true,
-              })
-              .pipe(Effect.orElseSucceed(() => ({ items: [], partial: false } as typeof result)))
-            if (probe.items.length > 0) {
-              const sample = probe.items.slice(0, 5).map((item) => {
-                const full = AppFileSystem.resolve(
-                  path.isAbsolute(item.path.text) ? item.path.text : path.join(cwd, item.path.text),
-                )
-                return `  ${full}:${item.line_number}`
-              })
-              return {
-                title: pattern,
-                metadata: { matches: 0, truncated: false, hidden_by_ignore: probe.items.length },
-                output: [
-                  `No matches under .gitignore rules, BUT ${probe.items.length} match(es) with noIgnore — target likely gitignored (dist/, build output, logs). Sample:`,
-                  ...sample,
-                  "Re-run with noIgnore: true for the full result.",
-                ].join("\n"),
-              }
-            }
-          }
+          // The transparency probe that used to stand here is GONE, for the same reason as in
+          // glob.ts: it existed to explain a «No matches found» produced by the DEFAULT hide. The
+          // default now searches everything, so an empty result is simply an empty result.
           if (result.items.length === 0) return empty
 
           const rows = result.items.map((item) => ({

@@ -61,37 +61,35 @@ export const LogSearchTool = Tool.define(
           const limit = Math.min(params.limit ?? DEFAULT_LIMIT, MAX_RESULTS)
           const ctxLines = params.context ?? DEFAULT_CONTEXT
 
-          // Build rg arguments
+          // `level` is a FILTER, not a second pattern. The argv used to carry `-e ERROR -e pattern`,
+          // which ripgrep reads as an ALTERNATION: every ERROR line came back whether or not the
+          // pattern was in it, so a level-filtered search answered a different question than the one
+          // asked, and its count was wrong. Both conditions now live in ONE expression — a JSON log
+          // line carries its `level` before `message`, so the pattern must follow the level token on
+          // the same line.
+          const pattern = params.level ? `${levelToken(params.level)}.*${params.pattern}` : params.pattern
+
+          // The window selects FILES, by comparing each name's own timestamp — never by matching a name.
+          const files = filesInWindow(logDir, params.since)
+          if (files && files.length === 0) {
+            // Nothing was searched, so nothing may be reported as absent — say what was looked at.
+            return {
+              title: "LogSearch",
+              metadata: { pattern: params.pattern, results: 0, error: 0 },
+              output: `No log file inside the 'since: ${params.since}' window in ${logDir}. Nothing was searched, so this is not a statement about the logs.`,
+            }
+          }
+
           const rgArgs: string[] = [
             "--no-heading",
             "--line-number",
             "--context", String(ctxLines),
             "--max-count", String(limit),
+            "-e", pattern,
           ]
-
-          // Level filter
-          if (params.level) {
-            const levelWord = params.level.toUpperCase()
-            if (levelWord === "BUG") {
-              rgArgs.push("-e", "bug:")
-            } else if (levelWord === "ERROR" || levelWord === "WARN" || levelWord === "INFO") {
-              rgArgs.push("-e", levelWord)
-            }
-          }
-
-          // Time window filter via filename prefix glob
-          if (params.since) {
-            const msAgo = parseTimeWindow(params.since)
-            if (msAgo !== null) {
-              const glob = filenameGlobAfter(msAgo)
-              if (glob) {
-                rgArgs.push("--glob", glob)
-              }
-            }
-          }
-
-          rgArgs.push("-e", params.pattern)
-          rgArgs.push(logDir)
+          // Explicit files inside the window, or the whole directory when there is no window.
+          if (files) rgArgs.push(...files.map((name) => `${logDir}/${name}`))
+          else rgArgs.push(logDir)
 
           const result = yield* Effect.promise<{ stdout: string; stderr: string; exitCode: number }>(async (signal) => {
             // Pre-flight: check rg is available before spawning.
@@ -129,11 +127,17 @@ export const LogSearchTool = Tool.define(
             }
           }
 
-          if (result.exitCode !== 0 && result.exitCode !== 1 && result.exitCode !== 2) {
+          // rg exit 2 IS an error — a bad pattern, an unreadable path. The predicate used to EXEMPT it,
+          // so the tool's own failure fell through to the branch below and printed as «No matches
+          // found»: a broken instrument reporting absence. An error is reported as an error, with rg's
+          // own words, and any matches it did print are a FLOOR (the earlier the failure, the less it
+          // saw) — never a total.
+          if (result.exitCode >= 2) {
+            const seen = result.stdout.trim() ? result.stdout.split("\n").filter((l: string) => l.trim()).length : 0
             return {
               title: "LogSearch",
-              metadata: { pattern: params.pattern, results: 0, error: result.exitCode },
-              output: `rg failed (exit ${result.exitCode}): ${result.stderr.slice(0, 500) || "unknown error"}`,
+              metadata: { pattern: params.pattern, results: seen, error: result.exitCode },
+              output: `rg failed (exit ${result.exitCode}): ${result.stderr.slice(0, 500) || "unknown error"}${seen > 0 ? `\n\n${seen} line(s) it managed to print before failing — a FLOOR, not a total.` : ""}`,
             }
           }
 
@@ -141,7 +145,9 @@ export const LogSearchTool = Tool.define(
             return {
               title: "LogSearch",
               metadata: { pattern: params.pattern, results: 0, error: 0 },
-              output: `No matches found in ${logDir}`,
+              output: `No matches found in ${logDir}${
+                files ? ` (searched ${files.length} file(s) inside the '${params.since}' window)` : ""
+              }`,
             }
           }
 
@@ -150,12 +156,14 @@ export const LogSearchTool = Tool.define(
           let output = `Log directory: ${logDir}\nPattern: ${params.pattern}${params.level ? ` (level: ${params.level})` : ""}\n\n`
           let totalSize = output.length
 
-          for (const line of lines) {
+          for (const [index, line] of lines.entries()) {
             const lineOutput = line + "\n"
             output += lineOutput
             totalSize += lineOutput.length
             if (totalSize > 50 * 1024) {
-              output += "... (output truncated)\n"
+              // Print the ADDRESS of what was cut, and call the result a FLOOR. A truncated answer that
+              // does not say how much it dropped reads as the whole answer.
+              output += `... (truncated after ${index} of ${lines.length} lines rg returned — this is a FLOOR, not a total)\n`
               break
             }
           }
@@ -187,9 +195,36 @@ function parseTimeWindow(since: string): number | null {
   return null
 }
 
-/** Generate a glob pattern to match filenames after a given ms cutoff. */
-function filenameGlobAfter(msAgo: number): string | null {
+/** The token a log LINE carries for a level — the JSON field for ERROR/WARN/INFO, the marker for `bug`. */
+export function levelToken(level: string): string {
+  const word = level.toUpperCase()
+  if (word === "BUG") return "bug:"
+  if (word === "ERROR" || word === "WARN" || word === "INFO") return `"level":"${word}"`
+  // An unknown level is passed through as WRITTEN rather than dropped: a filter that cannot be applied
+  // must widen the search, never narrow it.
+  return level
+}
+
+/**
+ * The files inside a time window — selected by COMPARING each name's own timestamp.
+ *
+ * This replaces `filenameGlobAfter`, which built a glob from the cutoff's first SEVEN DIGITS
+ * (`String(cutoff).slice(0, 7) + "*"`). Seven digits of a millisecond epoch pin a ~16-minute BAND, so
+ * `since: 60m` matched only files whose name began inside that one band and returned «No matches»
+ * while 79 matching lines sat in the directory (measured 2026-09-21). A window is a comparison, not a
+ * name pattern.
+ *
+ * `null` means "no window — search everything". A name whose time cannot be read is KEPT, for the same
+ * reason: only what can be PROVEN out of the window may be left out.
+ */
+export function filesInWindow(dir: string, since?: string): string[] | null {
+  if (!since) return null
+  const msAgo = parseTimeWindow(since)
+  if (msAgo === null) return null
   const cutoff = Date.now() - msAgo
-  const prefix = String(cutoff).slice(0, 7)
-  return `${prefix}*`
+  return [...new Bun.Glob("**/*").scanSync({ cwd: dir, onlyFiles: true })].filter((name) => {
+    const head = String(name).split("_")[0]
+    if (!/^\d+$/.test(head)) return true
+    return Number(head) >= cutoff
+  })
 }

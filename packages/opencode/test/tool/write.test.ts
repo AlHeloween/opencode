@@ -1,4 +1,5 @@
-import { afterEach, describe, expect } from "bun:test"
+import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test"
+import { looksLikeCodeFragment } from "../../src/tool/path-hint"
 import { Effect, Layer } from "effect"
 import path from "path"
 import fs from "fs/promises"
@@ -15,6 +16,16 @@ import { SessionID, MessageID } from "../../src/session/schema"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { provideTmpdirInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
+
+/**
+ * File-level budget, never per-test whack-a-mole: every case here boots the LSP/format path that the
+ * write tool drives, so a loaded machine pushes a single case past bun's 5 s default and reports a
+ * TIMEOUT as a red. Measured 2026-09-21 in isolation: «preserves BOM when overwriting existing files»
+ * 5760 ms and «returns relative path as title» 5233 ms, with no assertion failure anywhere in the
+ * file — and in a 3-file run those timeouts cascaded into `ERR_STREAM_WRITE_AFTER_END` on tests that
+ * ran while a timed-out case still held the LSP stream.
+ */
+setDefaultTimeout(20_000)
 
 const ctx = {
   sessionID: SessionID.make("ses_test-write-session"),
@@ -309,6 +320,47 @@ describe("tool.write", () => {
           expect(result.output).toContain("Wrote file successfully")
           const onDisk = yield* Effect.promise(() => fs.readFile(filepath, "utf-8"))
           expect(onDisk).toBe(content)
+        }),
+      ),
+    )
+  })
+
+  describe("code fragments rejected as file paths", () => {
+    // Measured 2026-09-21: this exact value became a 0-byte file in `packages/opencode`, and the
+    // owner reports it appearing there REGULARLY. The guard that stood in write.ts/edit.ts asked for
+    // «parens AND no dot» — `.join(` supplies the dot, so it never fired on the shape it was written
+    // for. Keep this test failing on any predicate that a `.join(`-style fragment can pass.
+    test("the predicate is SHAPE-based: a bare fragment yes, a qualified real path no", () => {
+      expect(looksLikeCodeFragment("i+1).join(String.fromCharCode(10)))")).toBe(true)
+      expect(looksLikeCodeFragment("src/foo(i).ts")).toBe(false)
+      expect(looksLikeCodeFragment("relative.txt")).toBe(false)
+      expect(looksLikeCodeFragment("Makefile")).toBe(false)
+    })
+
+    it.live("rejects the measured fragment and creates nothing", () =>
+      provideTmpdirInstance((dir) =>
+        Effect.gen(function* () {
+          const fragment = "i+1).join(String.fromCharCode(10)))"
+          const exit = yield* run({ filePath: fragment, content: "" }).pipe(Effect.exit)
+          expect(exit._tag).toBe("Failure")
+          const landed = yield* Effect.promise(() =>
+            fs.access(path.join(dir, fragment)).then(
+              () => true,
+              () => false,
+            ),
+          )
+          expect(landed).toBe(false)
+        }),
+      ),
+    )
+
+    it.live("POSITIVE CONTROL — a real name with parentheses still writes when it carries a separator", () =>
+      provideTmpdirInstance((dir) =>
+        Effect.gen(function* () {
+          const filepath = path.join(dir, "docs", "Report (final).md")
+          yield* Effect.promise(() => fs.mkdir(path.dirname(filepath), { recursive: true }))
+          const result = yield* run({ filePath: filepath, content: "# ok" })
+          expect(result.output).toContain("Wrote file successfully")
         }),
       ),
     )

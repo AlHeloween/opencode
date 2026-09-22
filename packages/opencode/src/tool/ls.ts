@@ -45,6 +45,10 @@ export const Parameters = Schema.Struct({
   ignore: Schema.optional(Schema.Array(Schema.String)).annotate({
     description: "List of glob patterns to ignore",
   }),
+  gitignore: Schema.optional(Schema.Boolean).annotate({
+    description:
+      "Apply the usual ignore rules (.gitignore plus the built-in noise list: node_modules, dist, logs…). Default: false — the whole tree is listed, so an absence can never be an artefact of a rule nobody asked for.",
+  }),
   directoriesOnly: Schema.optional(Schema.Boolean).annotate({
     description: "When true, show only directories (no files). Like `tree -d`. Default: false.",
   }),
@@ -64,7 +68,7 @@ export const ListTool = Tool.define(
       description: DESCRIPTION,
       parameters: Parameters,
       execute: (
-        params: { path?: string; ignore?: string[]; directoriesOnly?: boolean; dates?: boolean },
+        params: { path?: string; ignore?: string[]; gitignore?: boolean; directoriesOnly?: boolean; dates?: boolean },
         ctx: Tool.Context,
       ) =>
         Effect.gen(function* () {
@@ -81,12 +85,16 @@ export const ListTool = Tool.define(
             },
           })
 
-          const ignoreGlobs = IGNORE_PATTERNS.map((p) => `!${p}*`).concat(
+          // The built-in noise list is NOT a default any more: it was the same defect as a default
+          // .gitignore — a listing that hides paths cannot support «absent», and it is exactly how
+          // `bin/` was declared empty while `bin/opencode.exe` sat in it. It applies only when the
+          // caller asks for the quiet shape (`gitignore: true`); explicit `ignore` globs always apply.
+          const ignoreGlobs = (params.gitignore === true ? IGNORE_PATTERNS.map((p) => `!${p}*`) : []).concat(
             (params.ignore ?? []).map((p) => `!${p}`),
           )
 
           const files = yield* rg
-            .files({ cwd: searchPath, glob: ignoreGlobs, signal: ctx.abort })
+            .files({ cwd: searchPath, glob: ignoreGlobs, signal: ctx.abort, gitignore: params.gitignore })
             .pipe(
               Stream.take(LIMIT + 1),
               Stream.runCollect,

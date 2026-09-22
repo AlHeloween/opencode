@@ -1,5 +1,5 @@
 Directory tree listing. Product `list` replaces shell ls/dir/tree.
 
-Hardcoded ignores (always applied): node_modules/, __pycache__/, .git/, dist/, build/, target/, vendor/, bin/, obj/, .idea/, .vscode/, .zig-cache/, zig-out, .coverage, coverage/, tmp/, temp/, .cache/, cache/, logs/, .venv/, venv/, env/. Gitignore rules are honored in addition. `ignore` adds extra glob patterns.
+Default: lists the WHOLE tree. The noise list (node_modules/, __pycache__/, .git/, dist/, build/, target/, vendor/, bin/, obj/, .idea/, .vscode/, .zig-cache/, zig-out, .coverage, coverage/, tmp/, temp/, .cache/, cache/, logs/, .venv/, venv/, env/) is NOT applied and .gitignore is NOT honoured — a listing that hides paths cannot support «absent», which is how `bin/` was once declared empty while `bin/opencode.exe` sat in it. Pass `gitignore: true` for the quiet shape; explicit `ignore` globs always apply.
 
 Output: hierarchical tree, directories suffixed `/`, absolute paths. Each entry shows local mtime `YYYY-MM-DD HH:mm:ss` (default on; `dates: false` for compact output) — freshly changed files are visible at a glance. `directoriesOnly: true` = structure only (tree -d). Cap: 100 entries (truncation notice on overflow).

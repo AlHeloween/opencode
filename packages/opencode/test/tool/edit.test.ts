@@ -69,6 +69,27 @@ async function onceBus<D extends BusEvent.Definition>(def: D) {
 }
 
 describe("tool.edit", () => {
+  describe("code fragments rejected as file paths", () => {
+    // The predicate is SHARED with write.ts (src/tool/path-hint.ts), and the measured fragment is the
+    // one that kept appearing as a 0-byte file. Pinned here as well, because a tool that only fails on
+    // one of its two call sites is how the class survives a fix.
+    test("rejects the measured fragment", async () => {
+      await using tmp = await tmpdir()
+
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const edit = await resolve()
+          await expect(
+            Effect.runPromise(
+              edit.execute({ filePath: "i+1).join(String.fromCharCode(10)))", oldString: "", newString: "x" }, ctx),
+            ),
+          ).rejects.toThrow("does not look like a valid path")
+        },
+      })
+    })
+  })
+
   describe("creating new files", () => {
     test("creates new file when oldString is empty", async () => {
       await using tmp = await tmpdir()

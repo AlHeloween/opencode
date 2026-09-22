@@ -97,12 +97,12 @@ exports[`tool parameters JSON Schema (wire shape) glob 1`] = `
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
-    "noIgnore": {
-      "description": "When true, ignores .gitignore and lists all matching files including those in node_modules, logs, and .opencode/data. Default: false.",
+    "gitignore": {
+      "description": "Respect .gitignore. Default: false — every path is searched, including node_modules, .opencode/data and logs, so an absence can never be an artefact of an ignore rule.",
       "type": "boolean",
     },
     "path": {
-      "description": "The directory to search in. If not specified, the current working directory will be used. IMPORTANT: Omit this field to use the default directory. DO NOT enter "undefined" or "null" - simply omit it for the default behavior. Must be a valid directory path if provided.",
+      "description": "Directory to search in. Omit for the working directory. Must be a directory if provided.",
       "type": "string",
     },
     "pattern": {
@@ -121,16 +121,16 @@ exports[`tool parameters JSON Schema (wire shape) grep 1`] = `
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
-    "include": {
-      "description": "File pattern to include in the search (e.g. "*.js", "*.{ts,tsx}")",
-      "type": "string",
-    },
-    "noIgnore": {
-      "description": "When true, ignores .gitignore and searches all files including node_modules, logs, and .opencode/data. Use this to search dependency code or runtime data. Default: false.",
+    "gitignore": {
+      "description": "Respect .gitignore. Default: false — every path is searched, including node_modules, .opencode/data and logs, so an absence can never be an artefact of an ignore rule.",
       "type": "boolean",
     },
+    "include": {
+      "description": "File glob filter, e.g. "*.ts", "*.{js,jsx}".",
+      "type": "string",
+    },
     "path": {
-      "description": "The directory to search in. Defaults to the current working directory.",
+      "description": "Directory to search in. Omit for the working directory.",
       "type": "string",
     },
     "pattern": {

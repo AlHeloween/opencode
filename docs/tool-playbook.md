@@ -15,7 +15,7 @@ is the concrete routing table for it.
 
 | The question | The instrument | The trap it replaces |
 |---|---|---|
-| Where is a file / what is in a directory | `glob`, `list` | shell `ls`/`dir` (blocked). `list` honours `.gitignore` — for ABSENCE use `glob` + `noIgnore: true` or `git ls-files` |
+| Where is a file / what is in a directory | `glob`, `list` | shell `ls`/`dir` (blocked). Both search EVERYTHING by default — no ignore rule is applied, so an absence is real; pass `gitignore: true` for the quiet shape, or use `git ls-files` |
 | Read a file | `read` (whole) | windowed peeks of a small file |
 | A file PLUS what depends on it | `codegraph_node` (file mode) | `read` then a separate grep for importers |
 | Who calls X / radius of changing X | `codegraph` (callers / impact / explore) | three `grep`s on one area, or a `grep` whose PATTERN is a symbol name — the pattern's shape does not decide the layer |

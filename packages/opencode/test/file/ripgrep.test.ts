@@ -10,12 +10,20 @@ const run = <A>(effect: Effect.Effect<A, unknown, Ripgrep.Service>) =>
   effect.pipe(Effect.provide(Ripgrep.defaultLayer), Effect.runPromise)
 
 describe("file.ripgrep", () => {
+  // The hidden fixture is a NON-IGNORED hidden path ON PURPOSE. It used to be
+  // `.opencode/thing.json`, which this repository's own `.gitignore:195` ignores — and the fixture
+  // temp dir is REPO-LOCAL (`test/preload.ts:17` OPENCODE_TEST_TEMP → `.temp/test` under the repo),
+  // so ripgrep walking up from it read that rule and excluded the file while the test's name
+  // claimed to measure HIDDEN-ness. That shape measured ignore-ness by accident and passed or failed
+  // by where the temp dir sat, so the fixture stays a path NO rule can hide, whatever the default
+  // does. (The default today is to search everything: `filesArgs` adds `--no-ignore` unless the
+  // caller asks for `gitignore: true` — `src/file/ripgrep.ts:199-204`.)
   test("defaults to include hidden", async () => {
     await using tmp = await tmpdir({
       init: async (dir) => {
         await Bun.write(path.join(dir, "visible.txt"), "hello")
-        await fs.mkdir(path.join(dir, ".opencode"), { recursive: true })
-        await Bun.write(path.join(dir, ".opencode", "thing.json"), "{}")
+        await fs.mkdir(path.join(dir, ".hidden"), { recursive: true })
+        await Bun.write(path.join(dir, ".hidden", "thing.json"), "{}")
       },
     })
 
@@ -28,15 +36,15 @@ describe("file.ripgrep", () => {
       ),
     )
     expect(files.includes("visible.txt")).toBe(true)
-    expect(files.includes(path.join(".opencode", "thing.json"))).toBe(true)
+    expect(files.includes(path.join(".hidden", "thing.json"))).toBe(true)
   })
 
   test("hidden false excludes hidden", async () => {
     await using tmp = await tmpdir({
       init: async (dir) => {
         await Bun.write(path.join(dir, "visible.txt"), "hello")
-        await fs.mkdir(path.join(dir, ".opencode"), { recursive: true })
-        await Bun.write(path.join(dir, ".opencode", "thing.json"), "{}")
+        await fs.mkdir(path.join(dir, ".hidden"), { recursive: true })
+        await Bun.write(path.join(dir, ".hidden", "thing.json"), "{}")
       },
     })
 
@@ -49,7 +57,7 @@ describe("file.ripgrep", () => {
       ),
     )
     expect(files.includes("visible.txt")).toBe(true)
-    expect(files.includes(path.join(".opencode", "thing.json"))).toBe(false)
+    expect(files.includes(path.join(".hidden", "thing.json"))).toBe(false)
   })
 
   test("search returns empty when nothing matches", async () => {

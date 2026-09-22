@@ -13,8 +13,9 @@ export const Parameters = Schema.Struct({
   path: Schema.optional(Schema.String).annotate({
     description: "Directory to search in. Omit for the working directory. Must be a directory if provided.",
   }),
-  noIgnore: Schema.optional(Schema.Boolean).annotate({
-    description: "Include .gitignore'd paths (node_modules, .opencode/data, logs). Default: false.",
+  gitignore: Schema.optional(Schema.Boolean).annotate({
+    description:
+      "Respect .gitignore. Default: false — every path is searched, including node_modules, .opencode/data and logs, so an absence can never be an artefact of an ignore rule.",
   }),
 })
 
@@ -27,7 +28,7 @@ export const GlobTool = Tool.define(
     return {
       description: DESCRIPTION,
       parameters: Parameters,
-      execute: (params: { pattern: string; path?: string; noIgnore?: boolean }, ctx: Tool.Context) =>
+      execute: (params: { pattern: string; path?: string; gitignore?: boolean }, ctx: Tool.Context) =>
         Effect.gen(function* () {
           const ins = yield* InstanceState.context
           yield* ctx.ask({
@@ -57,7 +58,7 @@ export const GlobTool = Tool.define(
 
           const limit = 100
           let truncated = false
-          const files = yield* rg.files({ cwd: search, glob: [params.pattern], signal: ctx.abort, noIgnore: params.noIgnore }).pipe(
+          const files = yield* rg.files({ cwd: search, glob: [params.pattern], signal: ctx.abort, gitignore: params.gitignore }).pipe(
             Stream.mapEffect((file) =>
               Effect.gen(function* () {
                 const full = path.resolve(search, file)
@@ -82,32 +83,11 @@ export const GlobTool = Tool.define(
           files.sort((a, b) => b.mtime - a.mtime)
 
           const output = []
-          if (files.length === 0 && params.noIgnore !== true) {
-            // Transparency probe (2026-08-31, Alexander: recurring failure mode —
-            // "No files found" for gitignored build output like dist/ sends the
-            // agent into useless archaeology). Probe once with noIgnore: if the
-            // files exist but are ignored, SAY SO and show them (capped).
-            const ignored = yield* rg
-              .files({ cwd: search, glob: [params.pattern], signal: ctx.abort, noIgnore: true })
-              .pipe(
-                Stream.take(11),
-                Stream.runCollect,
-                Effect.map((chunk) => [...chunk]),
-                Effect.orElseSucceed(() => [] as string[]),
-              )
-            if (ignored.length > 0) {
-              const shown = ignored.slice(0, 10).map((file) => path.resolve(search, file))
-              return {
-                title: path.relative(ins.worktree, search),
-                metadata: { count: 0, truncated: false, hidden_by_ignore: ignored.length },
-                output: [
-                  `No files found under .gitignore rules, BUT ${ignored.length} file(s) match with noIgnore — likely build output / gitignored paths. Matches:`,
-                  ...shown,
-                  ...(ignored.length > 10 ? [`… (+${ignored.length - 10} more — re-run with noIgnore: true for the full list)`] : []),
-                ].join("\n"),
-              }
-            }
-          }
+          // The transparency probe that used to stand here is GONE. It existed because the DEFAULT hid
+          // gitignored files, so «No files found» needed a second, unrestricted search to explain
+          // itself. The default now searches everything (`gitignore: true` is the only way to get
+          // ignore rules), so an empty result is simply an empty result — the compensation is the
+          // defect's shadow, and the defect is fixed.
           if (files.length === 0) output.push("No files found")
           if (files.length > 0) {
             output.push(...files.map((file) => file.path))

@@ -1,5 +1,5 @@
 Path/name file search. Use for finding files by name pattern; use Grep for content, CodeGraph for structure.
 
-Default: honors .gitignore — gitignored paths (node_modules, .opencode/data, logs) are NOT searched. Pass `noIgnore: true` to include them.
+Default: searches every path, gitignored included (node_modules, .opencode/data, logs) — an absence must never be an artefact of an ignore rule. Pass `gitignore: true` to respect .gitignore.
 
 Returns absolute paths, sorted by modification time. Cap: 100 results (truncation notice on overflow). Issue parallel calls for independent patterns.

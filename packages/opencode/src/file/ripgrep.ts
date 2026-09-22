@@ -116,7 +116,7 @@ export interface FilesInput {
   follow?: boolean
   maxDepth?: number
   signal?: AbortSignal
-  noIgnore?: boolean
+  gitignore?: boolean
 }
 
 export interface SearchInput {
@@ -127,7 +127,7 @@ export interface SearchInput {
   follow?: boolean
   file?: string[]
   signal?: AbortSignal
-  noIgnore?: boolean
+  gitignore?: boolean
 }
 
 export interface TreeInput {
@@ -198,7 +198,10 @@ function fail(queue: Queue.Queue<string, PlatformError | Error | Cause.Done>, er
 
 function filesArgs(input: FilesInput) {
   const args = ["--no-config", "--files", "--glob=!.git/*"]
-  if (input.noIgnore) args.push("--no-ignore")
+  // Ignore rules apply ONLY when a caller sets `gitignore: true`. The default searches everything:
+  // a file hidden by .gitignore must never be able to turn «absent» into a lie (owner, 2026-09-21:
+  // «умолчание без gitignore. Все и сразу»).
+  if (input.gitignore !== true) args.push("--no-ignore")
   if (input.follow) args.push("--follow")
   if (input.hidden !== false) args.push("--hidden")
   if (input.hidden === false) args.push("--glob=!.*")
@@ -212,7 +215,10 @@ function filesArgs(input: FilesInput) {
 
 function searchArgs(input: SearchInput) {
   const args = ["--no-config", "--json", "--hidden", "--glob=!.git/*", "--no-messages"]
-  if (input.noIgnore) args.push("--no-ignore")
+  // Ignore rules apply ONLY when a caller sets `gitignore: true`. The default searches everything:
+  // a file hidden by .gitignore must never be able to turn «absent» into a lie (owner, 2026-09-21:
+  // «умолчание без gitignore. Все и сразу»).
+  if (input.gitignore !== true) args.push("--no-ignore")
   if (input.follow) args.push("--follow")
   if (input.glob) {
     for (const glob of input.glob) args.push(`--glob=${glob}`)

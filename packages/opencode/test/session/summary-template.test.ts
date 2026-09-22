@@ -1,15 +1,18 @@
 import { describe, expect, test } from "bun:test"
-import { diagnoseSummaryGaps, isValidSummaryBody, summaryRequestProse } from "../../src/session/compaction"
+import { diagnoseSummaryGaps, isValidSummaryBody } from "../../src/session/compaction"
 
 /**
- * The anchored Layer-1 template (owner ruling 2026-09-18): the compaction
- * skill's sections joined with the sidecar's Semantic Vector. This file pins the
- * template as a CONTRACT, not a suggestion — a body missing any of the nine
- * headings must be NAMED, and the five added headings must be reachable at their
- * lower floor (24 chars) without dragging the core four down.
+ * The anchored Layer-1 validator — kept for the bodies that ALREADY exist.
+ *
+ * The template that produced them is gone (owner, 2026-09-22: summaries are no longer generated;
+ * the fold reads its head from memory, the plan's goal and the rows' own vectors), and this file no
+ * longer tests it. What still has a subject is the VALIDATOR: old sessions carry summary bodies,
+ * some are still open, and `tailNote` names their gaps. A body missing any of the nine headings
+ * must be NAMED, and the five added headings must be reachable at their lower floor (24 chars)
+ * without dragging the core four down.
  *
  * Why a lower floor for the additions: a 40-char floor on every heading made every
- * capture a gap-fill candidate, and before this change a gap-fill candidate
+ * capture a gap-fill candidate, and before that change a gap-fill candidate
  * could lose the whole checkpoint. Continuity outranks completeness.
  */
 const FULL_BODY = [
@@ -46,19 +49,7 @@ const FULL_BODY = [
   "packages/opencode/src/session/compaction.ts: the template and its validator live here.",
 ].join("\n")
 
-const HEADINGS = [
-  "## Semantic Vector",
-  "## Goal",
-  "## Plan",
-  "## Constraints & Preferences",
-  "## Current state",
-  "## Key decisions",
-  "## Next Steps",
-  "## Critical Context",
-  "## Relevant Files",
-] as const
-
-describe("anchored Layer-1 template", () => {
+describe("anchored Layer-1 validator (legacy bodies)", () => {
   test("a full anchored body is valid", () => {
     expect(diagnoseSummaryGaps(FULL_BODY)).toEqual([])
     expect(isValidSummaryBody(FULL_BODY)).toBe(true)
@@ -93,16 +84,5 @@ describe("anchored Layer-1 template", () => {
       "Carry the work forward.",
     )
     expect(diagnoseSummaryGaps(thinGoal).some((gap) => gap.includes("Goal"))).toBe(true)
-  })
-
-  test("the request carries the template AND the continuity rule", () => {
-    const request = summaryRequestProse()
-    for (const heading of HEADINGS) expect(request).toContain(heading)
-    expect(request).toContain("Continuity rule")
-    expect(request).toContain("SAME position")
-    expect(request).toContain("SAME wording")
-    // The old four-heading wording must be gone: it told the model that four
-    // sections were the whole contract.
-    expect(request).not.toContain("four headings")
   })
 })

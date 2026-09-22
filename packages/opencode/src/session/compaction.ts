@@ -853,58 +853,6 @@ export function diagnoseSummaryGaps(text: string): string[] {
   return gaps
 }
 
-/** Targeted gap-fill request — only asks model for the deficient sections. */
-export function gapFillRequest(originalBody: string, gaps: string[]): string {
-  const gapList = gaps.map((g) => `- ${g}`).join("\n")
-  return `Your Layer-1 summary body was received but these sections need more detail:
-
-${gapList}
-
-Reply with **only** the corrected sections using exactly these headings. Keep the content dense and specific — this is a memory handle, not a chat reply.
-
-${gaps.filter((g) => !g.startsWith("total_length")).map((g) => {
-    const heading = g.split(" (")[0]
-    return `## ${heading}\n...`
-  }).join("\n\n")}
-
-Do NOT repeat the full summary or add introductory text. Start with \`## \`.`;
-}
-
-/** Parse gap-fill response and merge corrected sections into the original body.
-  * Only sections present in the fill are replaced; everything else stays. */
-export function mergeSummarySections(original: string, fillResponse: string): string {
-  if (!fillResponse?.trim()) return original
-  let merged = original
-  for (const heading of [
-    "Semantic Vector",
-    "Goal",
-    "Plan",
-    "Constraints & Preferences",
-    "Current state",
-    "Key decisions",
-    "Next Steps",
-    "Critical Context",
-    "Relevant Files",
-  ] as const) {
-    const fillSection = fillResponse.match(
-      new RegExp(`## ${heading}[^\\n]*\\n([\\s\\S]*?)(?=\\n## |$)`, "i"),
-    )
-    if (!fillSection?.[1]?.trim()) continue
-    const fillBody = fillSection[1].trim()
-    // Replace the original section with the filled one.
-    const origSection = merged.match(
-      new RegExp(`## ${heading}[^\\n]*\\n([\\s\\S]*?)(?=\\n## |$)`, "i"),
-    )
-    if (origSection) {
-      merged = merged.replace(origSection[0], `## ${heading}\n${fillBody}`)
-    } else {
-      // Heading not present in original — append.
-      merged = merged.trimEnd() + `\n\n## ${heading}\n${fillBody}`
-    }
-  }
-  return merged
-}
-
 /**
  * True when an assistant turn is fully complete and safe for synthetic injects
  * (Layer-1 summary-range, resume, etc.).
@@ -945,66 +893,6 @@ export function extractSemanticVector(text: string): SemanticVector | undefined 
   const dominantMatch = match[1].match(/dominant:\s*["']([^"']+)["']/)
   if (!dominantMatch) return undefined
   return { dominant: dominantMatch[1] }
-}
-
-/**
- * Model-facing Layer-1 request: Inferred prose only (SVM, goal, decisions, state).
- * No digital facts — no IDs, diffs, hashes, codegraph. Those are system/fossil/CG.
- */
-export function summaryRequestProse(lastSv?: SemanticVector, planGoalSv?: string[]) {
-  const svHint = lastSv?.dominant
-    ? `\nPrior window dominant (chain continuity only): "${lastSv.dominant}". Prefer a related dominant for continuity.\n`
-    : ""
-  const planHint = planGoalSv?.length
-    ? `\nActive plan goal vocabulary: ${planGoalSv.join(", ")}. When this window serves that plan, align your dominant with it.\n`
-    : ""
-  return `You are writing a **Layer-1 memory summary** of the conversation window above (all prior messages in this request). This is the durable handle used after compaction — not a chat reply.
-
-Write **Inferred** narrative only under the headings below. Be specific and dense (names of systems, files, bugs, decisions). Thin stubs are **rejected**.
-Do **not** call tools — write the summary as plain text only.
-Do **not** invent or list message IDs, session IDs, database positions, file diffs, hashes, or codegraph data — the system attaches those Exact handles itself, next to this body.
-Do **not** open with "Sure" / "Here is a summary" — start with \`## Semantic Vector\`.
-${svHint}${planHint}
-## Semantic Vector
-(The single semantic anchor of this window — one dominant phrase, no lists.)
-Format:
-  dominant: "<3-5 word phrase capturing the core intent>"
-
-## Goal
-(What the user was trying to accomplish in this window — at least a few sentences, concrete.)
-
-## Plan
-(The plan this window serves — its ordered steps and their addresses (files, symbols, task ids).
-When a plan file is in play, quote its step wording. "(none)" when the window served no plan.)
-
-## Constraints & Preferences
-(User constraints, preferences, specs — or "(none)".)
-
-## Current state
-(Checklist-style prose, not one line. Use the three sub-headings:
-### Done
-### In Progress
-### Blocked)
-
-## Key decisions
-(Explicit decisions: approaches chosen, design tradeoffs.
-Each decision on a separate line starting with "-". Specific and actionable —
-this section is preserved verbatim across compaction cycles. At least one solid bullet.)
-
-## Next Steps
-(Ordered next actions — or "(none)".)
-
-## Critical Context
-(Important technical facts, errors, open questions — or "(none)".)
-
-## Relevant Files
-(Path: why it matters. Paths only — the system attaches the diffs itself, and a diff
-written here would compete with the Exact handle instead of pointing at it.)
-
-**Continuity rule — this is the point of the handle.** When a prior summary is in the
-window, keep every still-true fact at the SAME position and with the SAME wording, and add
-new or changed facts at the END of their section. The next fold inherits this text; a rewrite
-loses exactly what a positional diff would have carried forward.`
 }
 
 /** Extract ## Key decisions blocks from summary or messageStar text.

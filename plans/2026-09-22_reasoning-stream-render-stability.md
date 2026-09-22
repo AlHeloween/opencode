@@ -79,7 +79,8 @@ its **application to this stream**, which is §2's oracle.
   NOT done from the task's wording: «fenced code highlights after the fence closes» as a TRIGGER — the
   quiet window covers those renderables too, but nothing fires on fence-close itself.
   NOT evidenced: no pixel oracle for this path (T4) — no frame was ever captured.
-- [ ] **T3 — atomic CodeRenderable update (P2).** One method `setStreamingContent(content, preview,
+- [x] **T3 — atomic CodeRenderable update (P2). CLOSED 2026-09-23: MEASURED, THE DEFECT IS NOT
+  REPRODUCED.** One method `setStreamingContent(content, preview,
   revision)`: content + preview + invalidate + ONE `updateTextInfo` + ONE `requestRender`; a late
   highlight applies only when `revision` is current AND its visible text/line count matches the
   preview; otherwise defer to stabilisation/finalisation.
@@ -149,6 +150,18 @@ its **application to this stream**, which is §2's oracle.
   `content =` may still bump a second time. No pin drives that path yet, and until one does, the T3
   wording («One method `setStreamingContent(content, preview, revision)`») describes a fix whose defect
   is not demonstrated. Measure before writing it.
+  **CLOSED 2026-09-23 — the fix is NOT needed, and the two pins say why.** Ordinary streaming through
+  the REAL Markdown path costs exactly ONE parse per delta (6 deltas → 6 parses, run
+  `20260922T175753Z_756dde2d`), and the preview-active sequence — `updateStreamingPreview` followed by
+  the trailing `content =` with a parse IN FLIGHT — costs **ZERO** extra parses (run
+  `20260922T192112Z_69fae455`; `Code.test.ts` 70 pass / 0 fail, 71 tests). Zero is not an accident: the
+  trailing assignment is a no-op because the preview already assigned `_content`, and on the branch
+  where it is not a no-op the preview never ran — the two are mutually exclusive BY CONSTRUCTION. There
+  is no second revision bump to remove, so `setStreamingContent(content, preview, revision)` would have
+  been machinery for a defect that does not exist. Closed on runtime evidence, not on the absence of a
+  symptom — and the instrument that closed it is what saved the wasted fix.
+  NOT OBSERVED, named so it is not read as covered: «a single layout per commit», the second half of the
+  original acceptance. No instrument measures layout count yet, and no consumer has asked for it.
 - [ ] **T4 — pixel oracle for exactly this flow (the missing instrument).** `cmd_runner start --
   dist\bin\opencode.exe` + a prompt forcing a long reasoning stream; capture frames at fixed intervals
   (`cua get_window_state` with `screenshot_out_file`); a reader script asserts: stable lines above the

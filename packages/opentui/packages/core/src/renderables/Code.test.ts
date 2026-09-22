@@ -2716,6 +2716,52 @@ test("CodeRenderable - a streaming preview shows the CURRENT text in the frame, 
   expect(controlFrames.some((frame) => frame.includes("line 6"))).toBe(false)
 })
 
+test("CodeRenderable - a preview commit during an in-flight highlight spends no extra parse", async () => {
+  // The LAST place a second revision bump could hide (T3, preview-active path). `updateStreamingPreview`
+  // is the preview commit; `Markdown.ts:applyMarkdownCodeRenderable` returns immediately after it, and
+  // its trailing `content =` only ever runs on the branch where the preview did NOT run — so the two are
+  // mutually exclusive by construction. This pin drives the two-step sequence directly on a renderable
+  // whose parse is IN FLIGHT (`isHighlighting` true, the mock never resolved) and counts parses.
+  const syntaxStyle = SyntaxStyle.fromStyles({ default: { fg: RGBA.fromValues(1, 1, 1, 1) } })
+  const mock = new MockTreeSitterClient({ autoResolveTimeout: 10, clock })
+  const parsed: string[] = []
+  const highlightOnce = mock.highlightOnce.bind(mock)
+  mock.highlightOnce = async (content, filetype) => {
+    parsed.push(content)
+    return highlightOnce(content, filetype)
+  }
+  const renderable = new CodeRenderable(currentRenderer, {
+    id: "preview-in-flight",
+    content: "",
+    filetype: "markdown",
+    syntaxStyle,
+    drawUnstyledText: true,
+    streaming: true,
+    quietHighlightMs: 0,
+    treeSitterClient: mock,
+    width: "100%",
+  })
+  currentRenderer.root.add(renderable)
+
+  renderable.content = "para 1"
+  await renderOnce()
+  expect(renderable.isHighlighting).toBe(true)
+  const afterFirst = parsed.length
+
+  const body = "para 1\n\npara 2"
+  renderable.updateStreamingPreview(body, new StyledText([{ __isChunk: true, text: body }]))
+  renderable.content = body // the trailing assignment `applyMarkdownCodeRenderable` makes
+  await renderOnce()
+  await renderOnce()
+
+  const extra = parsed.length - afterFirst
+  console.log(`[T3 preview-active] extra parses after a preview commit plus the trailing assignment: ${extra}`)
+  // At most ONE extra parse — the re-run the changed content legitimately asks for. A second revision
+  // bump would show up here as more.
+  expect(extra).toBeLessThanOrEqual(1)
+  renderable.destroy()
+})
+
 test("CodeRenderable - streaming with drawUnstyledText=false falls back to unstyled text when highlights fail", async () => {
   const syntaxStyle = SyntaxStyle.fromStyles({
     default: { fg: RGBA.fromValues(1, 1, 1, 1) },

@@ -16,7 +16,7 @@ import fs from "fs"
 import path from "path"
 import { buildGoalLines, buildMessageStar, buildTableOfContents, diagnoseSummaryGaps, renderFileDiffLegend, renderSummaryBlock } from "../../src/session/compaction"
 import type { MessageV2 } from "../../src/session/message-v2"
-import { extractKeywords } from "../../src/memory/spine"
+import { extractKeywords, extractVectorChain } from "../../src/memory/spine"
 import type { PlanStatePayload } from "../../src/util/plan-status"
 
 describe("summary block shape", () => {
@@ -334,7 +334,6 @@ describe("summary block shape", () => {
     const zero = "0".repeat(32)
     const vector = (md5: string, prev: string) =>
       `work\n\ndominant: "an epoch"\n\nmd5: ${md5}\nprev-md5: ${prev}\nparent-goal-md5: ${zero}`
-
     // LINKED: the second message declares the first message's own hash. Nothing is marked, and the
     // chain START declares the empty hash — the absence of a predecessor is not a break.
     const linked = buildTableOfContents([
@@ -362,5 +361,37 @@ describe("summary block shape", () => {
     ])
     expect(silent.chainBreaks).toBe(0)
     expect(silent.lines.join("\n")).not.toContain("chain break")
+  })
+
+  test("FALSIFIER — the SPACED hash form is read too, and normalised to the canonical one", () => {
+    // Measured on this session: our own vectors write `md5: 16hex 16hex` (a space inside), while the
+    // canonical form is 32 hex with no other character. Because the reader only knew the canonical
+    // form, those rows' own md5 was unreadable and the chain marker did nothing on them — the defect
+    // was in the WRITER's habit, and it silently disabled a reader built the same day.
+    expect(extractVectorChain("md5: 4d8b1c07f39a256e 0c7e5a91b3f04d82").md5).toBe(
+      "4d8b1c07f39a256e0c7e5a91b3f04d82",
+    )
+    expect(extractVectorChain("md5: 4d8b1c07f39a256e0c7e5a91b3f04d82").md5).toBe(
+      "4d8b1c07f39a256e0c7e5a91b3f04d82",
+    )
+    // Both spellings of the SAME hash must compare equal, or a chain would look broken between a
+    // message written in one form and the next written in the other.
+    const asMessage = (id: string, text: string) =>
+      ({
+        info: { id, role: "assistant" },
+        parts: [{ id: `${id}-p1`, type: "text", text }],
+      }) as unknown as MessageV2.WithParts
+    const spaced = buildTableOfContents([
+      { message: asMessage("msg_1", "work\n\nmd5: aaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaa"), position: 1 },
+      {
+        message: asMessage(
+          "msg_2",
+          "work\n\nmd5: bbbbbbbbbbbbbbbb bbbbbbbbbbbbbbbb\nprev-md5: aaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaa",
+        ),
+        position: 2,
+      },
+    ])
+    expect(spaced.chainBreaks).toBe(0)
+    expect(spaced.lines.join("\n")).not.toContain("chain break")
   })
 })

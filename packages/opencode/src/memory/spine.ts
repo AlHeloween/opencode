@@ -73,8 +73,21 @@ export function extractKeywords(text: string): WeightedTerm[] | undefined {
  * reason `extractKeywords` documents: an answer may quote a vector before writing its own.
  */
 export function extractVectorChain(text: string): { md5?: string; prevMd5?: string } {
-  const own = [...text.matchAll(/^md5:\s*([0-9a-f]{32})/gm)].at(-1)?.[1]
-  const previous = [...text.matchAll(/^prev-md5:\s*([0-9a-f]{32})/gm)].at(-1)?.[1]
+  // The canonical form is 32 hex with NO other character (@SV_FORMAT). This project's own rows ALSO
+  // carry a spaced form — `16hex 16hex` — and that is not a curiosity: measured on this session,
+  // the last ten vectors all have it, so their own md5 was unreadable and the chain marker built on
+  // top of it silently did nothing (an unreadable side is UNKNOWN, and unknown is never marked: «a
+  // missing field is not a break»). The reader therefore accepts both and normalises to the
+  // canonical form; the WRITER's form stays the canonical one.
+  const hex32 = (field: string) => {
+    const pattern = new RegExp(
+      `^${field}:\\s*([0-9a-f]{16}\\s+[0-9a-f]{16}|[0-9a-f]{32})`,
+      "gm",
+    )
+    return [...text.matchAll(pattern)].at(-1)?.[1]?.replace(/\s+/g, "")
+  }
+  const own = hex32("md5")
+  const previous = hex32("prev-md5")
   return { ...(own ? { md5: own } : {}), ...(previous ? { prevMd5: previous } : {}) }
 }
 

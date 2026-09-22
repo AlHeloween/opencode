@@ -667,6 +667,20 @@ export function hasSemanticVector(text: string): boolean {
   return /^Keywords:/m.test(text) && /^Semantic dominant:/m.test(text) && /^md5:/m.test(text)
 }
 
+/** The `@CURRENT_SV` census — the same contract as `statusMarks`, one axis over: does the NEWEST reply
+ * carry a `@SV_FORMAT` block? `hasSemanticVector` is the predicate; this only counts replies.
+ * Empty-text messages are not replies (there is nothing in them to carry a vector), so — as with the
+ * marks — they are excluded rather than counted as failures. */
+export interface VectorCensus {
+  present: boolean
+  replies: number
+}
+export function statusVector(messages: readonly { role: string; text: string }[]): VectorCensus {
+  const replies = messages.filter((m) => m.role === "assistant" && m.text.trim().length > 0)
+  const last = replies.at(-1)
+  return { present: last ? hasSemanticVector(last.text) : false, replies: replies.length }
+}
+
 /**
  * The note pushed onto the newest user message after every user turn: which
  * summaries are still OPEN and what is deficient in them, plus the distance to
@@ -704,9 +718,16 @@ export function tailNote(input: {
     * second home: the plans already carry risks, and a measure and its source must agree. */
   risks?: { plans: string[]; count: number } | null
   /** The confidence census of the visible window: what the newest reply marked, and how many replies
-    * marked nothing. Printed even at zero — a check whose silence cannot be told from its absence is
-    * not a check. */
+   * marked nothing. Printed even at zero — a check whose silence cannot be told from its absence is
+   * not a check. */
   marks?: StatusMarks | null
+  /** The `@CURRENT_SV` census: does the newest reply carry a `@SV_FORMAT` block? It rides this note
+   * for a MEASURED reason (2026-09-22): the rule sits in the middle of the static prefix and goes
+   * quiet as the window grows — the gateway's assembled messages show it obeyed at prompt 352 776 and
+   * dropped at 389 893 and 498 315 (owner: «отвалилась трансляция … ты не написал семантический
+   * вектор … глянь логи»). An instruction's POSITION in the window is part of its strength, so the
+   * reminder rides where generation starts instead of where the rule was written. */
+  vector?: VectorCensus | null
 }): string {
   const lines: string[] = []
   for (const summary of input.open) {
@@ -788,6 +809,18 @@ export function tailNote(input: {
           : `${m.lastConfirmed} ✓ · ${m.lastRefuted} ✗ in the last reply`
       lines.push(`marks: ${last} · ${m.unmarked}/${m.replies} window replies with none`)
     }
+  }
+  // THE @CURRENT_SV CONTRACT, KEPT WHERE IT IS OBEYED. Same shape as the marks line, and for the same
+  // reason: the rule is in the static prefix, the reminder is here. ABSENT is an ALERT — the coupling
+  // watcher cannot link a reply that carries no `md5`, so a missing vector is not a cosmetic omission.
+  if (input.vector) {
+    lines.push(
+      input.vector.replies === 0
+        ? "sv: no assistant reply in the window yet — nothing to check"
+        : input.vector.present
+          ? "sv: @SV_FORMAT present in the last reply"
+          : "sv: ABSENT in the last reply — @CURRENT_SV requires the @SV_FORMAT block at the END of EVERY reply (Keywords with weights, Semantic dominant, md5/prev-md5/parent-goal-md5)",
+    )
   }
   if (input.window) {
     const w = input.window

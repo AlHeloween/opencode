@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test"
 import { Effect } from "effect"
-import { TAIL_NOTE_PREFIX, statusMarks, tailNote, type WindowState } from "../../src/session/compaction"
+import { TAIL_NOTE_PREFIX, statusMarks, statusVector, tailNote, type WindowState } from "../../src/session/compaction"
 import { formatWindow } from "../../src/tool/checkstate"
 import { IncrementalCheckpoint } from "../../src/session/incremental-checkpoint"
 import { Instance } from "../../src/project/instance"
@@ -168,6 +168,40 @@ describe("the pushed compaction note", () => {
     expect(note).not.toContain("T7")
     expect(tailNote({ open: [], window: null, debt: { plans: [] } })).toContain("owed: no open plan task")
     // No debt handed in ⇒ no line at all: a caller without plan context keeps the old contract.
+    expect(tailNote({ open: [], window: null })).toBe("")
+  })
+
+  test("the @CURRENT_SV census — the vector rides the TAIL, not the middle of the prefix", () => {
+    // Measured 2026-09-22 from the gateway's assembled messages (`per-response/*.md`): the rule sits in
+    // the middle of the static prefix and goes quiet as the window grows — obeyed at prompt 352 776
+    // tokens, dropped at 389 893 and 498 315. `owed` and `marks` are obeyed because they ride THIS
+    // note, next to generation; the vector gets the same seat. ABSENT is an ALERT, not a zero: the
+    // coupling watcher cannot link a reply that carries no `md5`.
+    const withVector = [
+      { role: "user", text: "do the thing" },
+      {
+        role: "assistant",
+        text: "Done.\n\nKeywords: a 0.6, b 0.4\nSemantic dominant: one line.\nmd5: 11111111111111111111111111111111",
+      },
+    ]
+    expect(tailNote({ open: [], window: null, vector: statusVector(withVector) })).toContain(
+      "sv: @SV_FORMAT present in the last reply",
+    )
+
+    const absent = [
+      { role: "user", text: "do the thing" },
+      { role: "assistant", text: "Done — and the vector never made it." },
+    ]
+    const note = tailNote({ open: [], window: null, vector: statusVector(absent) })
+    expect(note).toContain("sv: ABSENT in the last reply")
+    expect(note).toContain("@CURRENT_SV")
+
+    // A window with no reply yet states THAT, rather than reporting an absence that is not one — the
+    // same exclusion `statusMarks` makes: a message with no text is not a reply.
+    expect(tailNote({ open: [], window: null, vector: statusVector([{ role: "user", text: "hi" }]) })).toContain(
+      "sv: no assistant reply in the window yet",
+    )
+    // No census handed in ⇒ no line: a caller without window context keeps the old contract.
     expect(tailNote({ open: [], window: null })).toBe("")
   })
 

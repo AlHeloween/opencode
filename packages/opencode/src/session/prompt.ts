@@ -1990,6 +1990,15 @@ export const layer = Layer.effect(
                   // it (`allowUnreachableCode` is not an error here) and the pin did not either, because
                   // the pin calls `flushEpistemic` itself. Found by an outside review, 2026-09-22.
                   Constitution.flushEpistemic(sessionID)
+                  // Both censuses read the SAME projection of the window — computed once, so the marks
+                  // line and the vector line can never disagree about what a "reply" is.
+                  const replies = msgs.map((message) => ({
+                    role: message.info.role,
+                    text: message.parts
+                      .filter((part) => part.type === "text")
+                      .map((part) => (part as { text: string }).text)
+                      .join("\n"),
+                  }))
                   return SessionCompaction.tailNote({
                     open,
                     window,
@@ -2006,15 +2015,13 @@ export const layer = Layer.effect(
                     // THE CONFIDENCE CENSUS (owner, 2026-09-22): the marks are the model's, the count
                     // is the machine's — «ты сам будешь историю свою читать потом и видеть, где ты
                     // был уверен, а где нет». Counted from the same window the fold will take.
-                    marks: SessionCompaction.statusMarks(
-                      msgs.map((message) => ({
-                        role: message.info.role,
-                        text: message.parts
-                          .filter((part) => part.type === "text")
-                          .map((part) => (part as { text: string }).text)
-                          .join("\n"),
-                      })),
-                    ),
+                    marks: SessionCompaction.statusMarks(replies),
+                    // THE @CURRENT_SV CENSUS — one axis over, same window. The rule lives in the static
+                    // prefix and fades with window length (measured from the gateway's assembled messages,
+                    // 2026-09-22: present at prompt 352 776, gone at 389 893); the reminder has to ride
+                    // where generation starts, next to `owed` and `marks`, which are obeyed for the same
+                    // reason.
+                    vector: SessionCompaction.statusVector(replies),
                     // `@LOOP_MEASURE`'s other half: claims with no oracle stamp, counted from the row
                     // that now outlives the process.
                     claims: Constitution.claimDebt(sessionID),

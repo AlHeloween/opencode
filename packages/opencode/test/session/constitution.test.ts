@@ -127,13 +127,20 @@ describe("session.constitution", () => {
   test("guardCommand blocks shell directory and file enumeration in every supported shell form", () => {
     const isWin = process.platform === "win32"
 
-    // Cross-platform — blocked on any OS
-    const crossPlatform = ["tree /f", "find . -type f", "for f in **/*; do echo $f; done"]
+    // Blocked on any OS by a NATIVE enumerator, plus the `for` glob walk.
+    //
+    // `find` is deliberately NOT here. On Windows `find.exe` is System32's TEXT SEARCH; the guard
+    // admits it on purpose, and the narrowing in `constitution.ts:63-73` records the measurement that
+    // forced that (`find /c "??"`, grep-shaped, was refused as directory enumeration). Where a real
+    // unix build exists, `find` IS blocked — pinned where the platform contract is pinned, in
+    // constitution-enumeration-probe.test.ts.
+    const crossPlatform = ["tree /f", "for f in **/*; do echo $f; done"]
     for (const command of crossPlatform) {
       const guard = Constitution.guardCommand(command)
       expect(guard.blocked).toBe(true)
       expect(guard.message).toContain("list tool")
     }
+    if (!isWin) expect(Constitution.guardCommand("find . -type f").blocked).toBe(true)
     // echo / findstr are not enumerators — always allowed
     expect(Constitution.guardCommand("echo *").blocked).toBe(false)
     expect(Constitution.guardCommand("echo hello").blocked).toBe(false)
@@ -209,10 +216,11 @@ describe("session.constitution", () => {
     // Platform-aware: only block commands that actually exist on this OS
     // Uses legacy guardCommand (string-based, no TreeSitter needed for these checks)
 
-    // Cross-platform (exist on both Windows and Linux)
-    for (const command of ["find .", "tree"]) {
-      expect(Constitution.guardCommand(command).blocked).toBe(true)
-    }
+    // `tree` is a native enumerator on BOTH platforms, so it is asserted unconditionally. `find` is
+    // NOT asserted here: its guard is name-ambiguous and platform-dependent (see the note in the
+    // enumeration test above) — it is pinned in constitution-enumeration-probe.test.ts.
+    expect(Constitution.guardCommand("tree").blocked).toBe(true)
+    if (process.platform !== "win32") expect(Constitution.guardCommand("find .").blocked).toBe(true)
 
     // Platform-specific builtins
     if (process.platform === "win32") {
@@ -233,10 +241,13 @@ describe("session.constitution", () => {
       expect(Constitution.guardCommand("gci").blocked).toBe(false)
     }
 
-    // External tools — only blocked if present on PATH
+    // External tools — only blocked if the runtime can actually run them
     if (process.platform === "win32") {
-      // `find` is a cmd.exe builtin-analogue on Windows → always present
-      expect(Constitution.guardCommand("find .").blocked).toBe(true)
+      // `find` is NOT blocked on Windows: System32's `find.exe` is a TEXT SEARCH, not a directory
+      // walker, and `enumeration-tools.ts:54` lists it as a platform NAMESAKE whose PATH resolution is
+      // not evidence. Blocking it refused a working grep-shaped command (measured 2026-09-21:
+      // `find /c "??"`). It stays blocked only where a real unix build sits beside the binary or in tools/.
+      expect(Constitution.guardCommand("find .").blocked).toBe(false)
     }
     // rg TODO src is content search → allowed
     expect(Constitution.guardCommand("rg TODO src").blocked).toBe(false)

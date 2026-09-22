@@ -140,3 +140,21 @@ export function enumerationToolDecision(name: string, options: ResolveOptions = 
 export function resetEnumerationToolCache(): void {
   cache.clear()
 }
+
+/**
+ * The block message for a NATIVE enumerator — the platform's own browser (`dir`/`tree`/`ls`…).
+ *
+ * It cannot be the message above, on both counts. That one is empty when the tool resolves, and a
+ * native enumerator resolves BY CONSTRUCTION; and its sentence — "is not available to this runtime" —
+ * would be a LIE here, because `tree` and `dir` ARE available. The refusal is about the ROUTE: a shell
+ * walk returns text the agent must then re-parse, where the product tools answer the same question
+ * directly.
+ */
+export function nativeEnumerationBlockMessage(name: string): string {
+  const bare = name.replace(/\.exe$/i, "").toLowerCase()
+  return (
+    `constitution: BLOCKED directory/file enumeration — \`${bare}\` browses the filesystem from the shell. ` +
+    "Use the product tools instead: the list tool browses, glob finds paths, grep finds content, read reads files. " +
+    "VCS checks (e.g. git ls-files --error-unmatch <path>) and PATH lookup (where/which) stay allowed."
+  )
+}

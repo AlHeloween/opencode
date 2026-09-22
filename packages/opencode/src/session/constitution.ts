@@ -17,7 +17,7 @@ import { spawnSync } from "child_process"
 import { createHash } from "crypto"
 import type { Node, Parser } from "web-tree-sitter"
 import { getParser, commands as tsCommands, parts as tsParts, source as tsSource } from "@/shell/tree-sitter"
-import { enumerationToolDecision, resolveEnumerationTool } from "./enumeration-tools"
+import { enumerationToolDecision, nativeEnumerationBlockMessage, resolveEnumerationTool } from "./enumeration-tools"
 
 const log = Log.create({ service: "session.constitution" })
 
@@ -37,14 +37,30 @@ const log = Log.create({ service: "session.constitution" })
  */
 const _KNOWN_ENUM_FIRST_TOKENS = new Set<string>()
 
+/**
+ * The platform's OWN enumerators — always present, so "the tool resolves" says NOTHING about them.
+ *
+ * Kept apart from the scanned set because the two answer different questions. A name in THIS set is a
+ * real filesystem browser on this platform (`dir`/`type`/`tree`/`gci` on win32, `ls`/`cat`/`tree` on
+ * POSIX). The probed group below (`find`, `more`, `sed`…) is cross-platform NAMES whose meaning depends
+ * on whether a unix build is present — there, resolution really is the evidence.
+ *
+ * Using one predicate for both disarmed the guard on the first group: `tree` resolves on Windows by
+ * construction, so the escape below fired and it reported `blocked: false` while sitting in the
+ * always-present set (measured 2026-09-21 by test/session/constitution-enumeration-probe.test.ts).
+ */
+const _NATIVE_ENUM_FIRST_TOKENS = new Set<string>()
+
 // Shell builtins / cmdlets — always present on their native platform
 if (process.platform === "win32") {
   for (const t of ["dir", "type", "tree", "Get-ChildItem", "gci", "Get-Item", "Resolve-Path"]) {
     _KNOWN_ENUM_FIRST_TOKENS.add(t.toLowerCase())
+    _NATIVE_ENUM_FIRST_TOKENS.add(t.toLowerCase())
   }
 } else {
   for (const t of ["ls", "cat", "tree"]) {
     _KNOWN_ENUM_FIRST_TOKENS.add(t)
+    _NATIVE_ENUM_FIRST_TOKENS.add(t)
   }
 }
 
@@ -777,8 +793,13 @@ export function guardCommand(command: string, meta?: { sessionID?: string; agent
         if ((firstToken === "rg" || firstToken === "rg.exe") && !seg.includes("--files")) continue
         // A tool that RESOLVES is a tool that works: beside the binary, in tools/, or on PATH.
         // Blocking a command that would have run is its own kind of wrong decision.
+        //
+        // But this escape is about AMBIGUOUS cross-platform NAMES — `find` is System32's text search on
+        // Windows, so resolution is what proves the name means the unix tool. For this platform's OWN
+        // enumerators resolution is true BY CONSTRUCTION, so asking it disarmed the guard: `tree`
+        // reported `blocked: false` while sitting in the always-present set above.
         const decision = enumerationToolDecision(firstToken)
-        if (decision.allowed) {
+        if (decision.allowed && !_NATIVE_ENUM_FIRST_TOKENS.has(firstToken)) {
           log.info("constitution.enumeration_allowed_unix_tool", {
             command: seg.slice(0, 200),
             tool: decision.path,
@@ -798,7 +819,12 @@ export function guardCommand(command: string, meta?: { sessionID?: string; agent
           family: CommandFamily.FILE_ENUMERATOR,
           needsDestructivePermission: false,
           blocked: true,
-          message: decision.message,
+          // A native enumerator resolves by construction, so `decision.message` — empty when allowed —
+          // cannot describe this block, and the "not available" wording would be false. The refusal is
+          // about the route, and it says so.
+          message: _NATIVE_ENUM_FIRST_TOKENS.has(firstToken)
+            ? nativeEnumerationBlockMessage(firstToken)
+            : decision.message,
         }
       }
     }
@@ -822,7 +848,9 @@ export function guardCommand(command: string, meta?: { sessionID?: string; agent
   // one that is merely disbelieved.
   if (classification.family === CommandFamily.FILE_ENUMERATOR) {
     const decision = enumerationToolDecision(cmd)
-    if (decision.allowed) {
+    // Same distinction as above: the escape covers ambiguous NAMES, never this platform's own
+    // enumerators, whose resolution is guaranteed and therefore carries no information.
+    if (decision.allowed && !_NATIVE_ENUM_FIRST_TOKENS.has(cmd)) {
       log.info("constitution.enumeration_allowed_unix_tool", {
         command: command.slice(0, 200),
         tool: decision.path,
@@ -847,7 +875,7 @@ export function guardCommand(command: string, meta?: { sessionID?: string; agent
       family: CommandFamily.FILE_ENUMERATOR,
       needsDestructivePermission: false,
       blocked: true,
-      message: decision.message,
+      message: _NATIVE_ENUM_FIRST_TOKENS.has(cmd) ? nativeEnumerationBlockMessage(cmd) : decision.message,
     }
   }
 

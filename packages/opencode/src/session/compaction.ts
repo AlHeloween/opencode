@@ -788,6 +788,10 @@ export function hasPendingSummaryRequest(msgs: MessageV2.WithParts[]): boolean {
 const MIN_SUMMARY_SECTION_CHARS: Record<string, number> = {
   "Semantic Vector": 25,
   Goal: 60,
+  // «Чёткие намерения с планами» (owner, 2026-09-21) — a plan is not the same axis as `Goal`
+  // (why this window exists) or `Next Steps` (what to do next): it is the WORK being executed.
+  // Riding inside another section is how it went missing in the first place, so it gets its own.
+  Plan: 24,
   "Key decisions": 40,
   "Current state": 60,
   // The anchored template's four additions (owner ruling 2026-09-18). Lower
@@ -818,6 +822,7 @@ export function diagnoseSummaryGaps(text: string): string[] {
   for (const heading of [
     "Semantic Vector",
     "Goal",
+    "Plan",
     "Constraints & Preferences",
     "Current state",
     "Key decisions",
@@ -831,7 +836,7 @@ export function diagnoseSummaryGaps(text: string): string[] {
     // measures all three together. Enforcing the sub-headings needs a different
     // matcher and has no oracle yet — the prompt asks for them, the validator
     // does not grade them.
-    const section = text.match(new RegExp(`## ${heading}\\s*\\n([\\s\\S]*?)(?=\\n## |$)`, "i"))
+    const section = text.match(new RegExp(`## ${heading}[^\\n]*\\n([\\s\\S]*?)(?=\\n## |$)`, "i"))
     const body = section?.[1]?.trim() ?? ""
     const min = MIN_SUMMARY_SECTION_CHARS[heading] ?? 40
     if (body.length < min) {
@@ -871,6 +876,7 @@ export function mergeSummarySections(original: string, fillResponse: string): st
   for (const heading of [
     "Semantic Vector",
     "Goal",
+    "Plan",
     "Constraints & Preferences",
     "Current state",
     "Key decisions",
@@ -879,13 +885,13 @@ export function mergeSummarySections(original: string, fillResponse: string): st
     "Relevant Files",
   ] as const) {
     const fillSection = fillResponse.match(
-      new RegExp(`## ${heading}\\s*\\n([\\s\\S]*?)(?=\\n## |$)`, "i"),
+      new RegExp(`## ${heading}[^\\n]*\\n([\\s\\S]*?)(?=\\n## |$)`, "i"),
     )
     if (!fillSection?.[1]?.trim()) continue
     const fillBody = fillSection[1].trim()
     // Replace the original section with the filled one.
     const origSection = merged.match(
-      new RegExp(`## ${heading}\\s*\\n([\\s\\S]*?)(?=\\n## |$)`, "i"),
+      new RegExp(`## ${heading}[^\\n]*\\n([\\s\\S]*?)(?=\\n## |$)`, "i"),
     )
     if (origSection) {
       merged = merged.replace(origSection[0], `## ${heading}\n${fillBody}`)
@@ -928,7 +934,10 @@ interface SemanticVector {
 /** Extract ## Semantic Vector dominant from summary text (both quote styles).
   * Legacy bodies with key_phrases stay readable — phrases are ignored. */
 export function extractSemanticVector(text: string): SemanticVector | undefined {
-  const match = text.match(/## Semantic Vector\s*\n([\s\S]*?)(?=\n## |\n--- |$)/i)
+  // Heading line, then the body. A greedy whitespace run before the newline ate the blank line
+  // after an EMPTY heading and began the capture at the NEXT section (measured on an empty
+  // `## Plan`), so the vector of one section could be read out of another.
+  const match = text.match(/## Semantic Vector[^\n]*\n([\s\S]*?)(?=\n## |\n--- |$)/i)
   if (!match?.[1]) return undefined
   // dominant: "..." or dominant: '...'
   const dominantMatch = match[1].match(/dominant:\s*["']([^"']+)["']/)
@@ -961,6 +970,10 @@ Format:
 
 ## Goal
 (What the user was trying to accomplish in this window — at least a few sentences, concrete.)
+
+## Plan
+(The plan this window serves — its ordered steps and their addresses (files, symbols, task ids).
+When a plan file is in play, quote its step wording. "(none)" when the window served no plan.)
 
 ## Constraints & Preferences
 (User constraints, preferences, specs — or "(none)".)
@@ -996,8 +1009,10 @@ loses exactly what a positional diff would have carried forward.`
   * Returns each decision line (trimmed, non-empty, starting with "-").
   * Used to preserve decisions verbatim across compaction cycles. */
 function extractDecisions(text: string): string[] {
-  // Match ## Key decisions section — capture everything until the next ## heading or end
-  const match = text.match(/## Key decisions\s*\n([\s\S]*?)(?=\n## |\n--- |$)/i)
+  // Match ## Key decisions — heading line first, then the body. `\s*\n` here meant an EMPTY
+  // decisions heading captured the NEXT section and its bullets were preserved across folds as
+  // if they were decisions (measured on an empty `## Plan` in the gap validator, same matcher).
+  const match = text.match(/## Key decisions[^\n]*\n([\s\S]*?)(?=\n## |\n--- |$)/i)
   if (!match?.[1]) return []
   return match[1]
     .split("\n")
@@ -1048,7 +1063,7 @@ export function renderFileDiffLegend(
   ].join("\n")
 }
 
-function renderSummaryBlock(input: {
+export function renderSummaryBlock(input: {
   sessionID: string
   s: SummaryEntry
   index: number
@@ -1101,7 +1116,13 @@ function renderSummaryBlock(input: {
   ]
     .filter(Boolean)
     .join("\n")
-  return `--- Summary ${input.index + 1} ---\n${links}\n\n${s.text}`
+  // The INTENTION leads, the machinery follows (owner, 2026-09-21: «Summaries — там не проза
+  // была а чёткие намерения с планами»). The block used to open with sv_dominant, tool_diff and
+  // structural_impact and put the model's own Goal / decisions / next steps at the very bottom,
+  // so the handle the next cycle reads showed the churn first and the purpose last — the same
+  // displacement as the patch dump, one layer up. The Exact handles are still all here; they
+  // simply no longer sit in front of the reason the window existed.
+  return `--- Summary ${input.index + 1} ---\n\n${s.text}\n\n${links}`
 }
 
 // ── m* Recent-tail — the INVIOLATE copy (2026-09-19, owner ruling) ──
@@ -1251,7 +1272,7 @@ export function continuityLine(args: {
   return `continuity: GAP — summaries end at #${args.summaryLast}, tail starts at #${args.tailFirst} (${unrepresented} message(s) represented by neither)`
 }
 
-function buildMessageStar(input: {
+export function buildMessageStar(input: {
   sessionID: string
   summaries: SummaryEntry[]
   recent: MessageV2.WithParts[]
@@ -1300,9 +1321,6 @@ function buildMessageStar(input: {
   // Last SV in this window — continuity hint for the next summary cycle
   const lastSummary = input.summaries[input.summaries.length - 1]
   const lastSv = lastSummary ? extractSemanticVector(lastSummary.text) : undefined
-  const lastSvLine = lastSv?.dominant
-    ? `\nLast semantic vector: \`${lastSv.dominant}\` — link your next summary to this.`
-    : ""
 
   const recentIds = input.recent.map((m) => m.info.id)
   const recentBlocks: string[] = []
@@ -1374,17 +1392,31 @@ function buildMessageStar(input: {
       ].join("\n")
     : undefined
 
+  // §2 order (owner, 2026-09-21): long-term memory FIRST — it is stable between folds, so its
+  // head is what the prefix cache can hold — then the FADING LINKS AT ITS END, then summaries,
+  // then the verbatim tail. `Prior message*` and the last semantic vector used to sit in the head,
+  // ABOVE the memory: pointers to what the memory already covers, pushing the durable block down.
+  const fadingLines = [
+    ...(input.priorMessageStarId
+      ? [`- Prior message*: \`${input.priorMessageStarId}\` — sessionread that row for the older summaries it chains`]
+      : []),
+    ...(lastSv?.dominant
+      ? [`- Last semantic vector: \`${lastSv.dominant}\` — link your next summary to this`]
+      : []),
+  ]
+  const fadingBlock =
+    fadingLines.length > 0
+      ? ["--- Fading (links only — the durable blocks above carry the content) ---", ...fadingLines].join("\n")
+      : undefined
+
   return [
     "=== COMPACTED ===",
     "Active memory for this session. Older messages remain soft-hidden in the DB (not deleted).",
     "InfoMark: summary bodies = Inferred; system ID lines below = Exact handles; unaided recall = Guess.",
     "Continue the task from this memory. Re-read archive only when a specific fact is missing.",
-    ...(input.priorMessageStarId
-      ? [`Prior message*: \`${input.priorMessageStarId}\``]
-      : []),
-    lastSvLine,
     "",
     memoryBlock,
+    fadingBlock,
     ...summaryBlocks,
     decisionsBlock,
     recentHeader,

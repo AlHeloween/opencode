@@ -125,9 +125,7 @@ import { convertDocument, isSupportedDocumentFormat } from "@/util/markdownify"
 import { canonicalIdentity, isPrimaryModeIdentity } from "./mode-identity"
 import { resolveAgentModel, resolveAgentVariant } from "./session-settings"
 import {
-  SIDECAR_MAX_ATTEMPTS,
   isCoolingDown as isSidecarCoolingDown,
-  streamOptions as sidecarStreamOptions,
 } from "./sidecar-policy"
 
 /**

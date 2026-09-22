@@ -99,59 +99,6 @@ export function formatExactSystemStamp(input: {
   )
 }
 
-/** Full user-facing Layer-1 panel: inferred body + Exact stamp (+ optional tool stats). */
-export function formatLayer1SummaryDisplay(input: {
-  checkpointID: string
-  fromID: string
-  toID: string
-  sessionID: string
-  body: string
-  diffs?: Snapshot.FileDiff[]
-  impact?: Snapshot.ImpactSummary
-  planState?: PlanStatePayload
-}): string {
-  const exact = formatExactSystemStamp({
-    id: input.checkpointID,
-    fromId: input.fromID,
-    toId: input.toID,
-    sessionID: input.sessionID,
-    idKey: "checkpoint_id",
-  })
-  const diffLines =
-    input.diffs && input.diffs.length > 0
-      ? [
-          `tool_diff_files: ${input.diffs.length}`,
-          `additions: ${input.diffs.reduce((sum, d) => sum + d.additions, 0)}`,
-          `deletions: ${input.diffs.reduce((sum, d) => sum + d.deletions, 0)}`,
-          ...input.diffs.slice(0, 12).map(
-            (d) => `- ${d.file} (+${d.additions}/-${d.deletions} ${d.status ?? "modified"})`,
-          ),
-          ...(input.diffs.length > 12 ? [`- … +${input.diffs.length - 12} more`] : []),
-        ].join("\n")
-      : "tool_diff_files: 0"
-  const impactLine = input.impact
-    ? `codegraph: changed_files=${input.impact.changedFiles}; callers=${input.impact.callerCount}`
-    : "codegraph: none"
-  const planStateBlock = input.planState
-    ? [
-        "### Plan state (GATED WORKFLOW)",
-        ...(formatPlanStateText(input.planState) ?? "").split("\n"),
-      ].join("\n")
-    : undefined
-  return [
-    LAYER1_SUMMARY_MARKER,
-    "",
-    input.body.trim(),
-    "",
-    exact.trimEnd(),
-    "",
-    "### Exact handles (system)",
-    diffLines,
-    impactLine,
-    planStateBlock,
-  ].join("\n")
-}
-
 /** True only for the synthetic message* body produced by compact().
   * Must NOT match COMPACTION_REMINDER text that merely *mentions* the marker
   * (that reminder is injected onto every post-compact user message — matching

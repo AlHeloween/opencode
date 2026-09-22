@@ -22,49 +22,13 @@
 // (`ProviderTransform.maxOutputTokens`, owner ruling 2026-09-19 «для сайдкара тоже самое»), so the
 // sidecar inherits it and scales with the window above it instead of being pinned to it.
 
-/**
- * Contingency lever, dormant by default. If a live capture still shows
- * `reasoningTokens >= SIDECAR_OUTPUT_TOKEN_MAX` with `outputTokens: 0` and
- * `finish_reason: "length"`, set this to "off" to disable thinking for the
- * sidecar chain only — variant is part of DeepSeek's prompt-cache key, so that
- * trades one cold prefill per capture for a guaranteed body.
- *
- * Owner ruling 2026-09-14: last resort only — the lever breaks the cached
- * content window the moment it is set and lowers the summary's quality; it is
- * never a cost lever. It also has no caller yet (nothing passes
- * `variantOverride` to the stream), so setting it alone changes nothing.
- */
-export const SIDECAR_VARIANT_OVERRIDE: string | undefined = undefined
-
-/**
- * ONE request — no forced repair (owner ruling 2026-09-18; was 2).
- *
- * The repair iteration was load-bearing against the owner's intent and against
- * the budget: with the anchored template in place a four-section body is
- * invalid, so every capture took a second LLM call — caught as "3 calls,
- * expected 2" at `prompt.test.ts:866` the moment the template widened. It could
- * also come back invalid regardless (measured 2026-09-14: an 8_192 budget burned
- * 68 s and ~$0.04 to return `bodyLen: 0`, rejected). The draft is now stored as
- * written and its gaps are NAMED (`diagnoseSummaryGaps`), so a deficient summary
- * becomes something the agent fills while the checkpoint is still open, instead
- * of another request it may not be able to answer.
- */
-export const SIDECAR_MAX_ATTEMPTS = 1
+// SIDECAR_VARIANT_OVERRIDE and SIDECAR_MAX_ATTEMPTS were removed with the generation itself
+// (owner, 2026-09-22: «summary как sidecar не надо генерить вовсе. Совсем.»): an attempt counter and
+// a reasoning-variant lever have nothing to count or steer once no request is made. They are in git
+// and fossil if anyone needs to read them again — the working code does not carry a museum.
 
 /** Minimum delay after every capture cycle, including failed/invalid cycles. */
 export const SIDECAR_COOLDOWN_MS = 30_000
-
-/**
- * No `outputTokenMax`: the sidecar takes the SAME budget rule as a normal turn (owner ruling
- * 2026-09-19), whose floor is exactly the 32 768 that used to be pinned here. Passing an override
- * would pin it back to a constant and re-open the gap between what the gate reserves and what the
- * request asks for — the defect class this value was part of.
- */
-export function streamOptions() {
-  return {
-    checkpoint: true,
-  } as const
-}
 
 export function isCoolingDown(lastAttempt: number | undefined, now: number): boolean {
   return lastAttempt !== undefined && now - lastAttempt < SIDECAR_COOLDOWN_MS

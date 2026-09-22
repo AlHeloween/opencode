@@ -443,6 +443,23 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
        * row, 2026-09-21) and left the selected agent's model stale after an edit.
        */
       function forAgent(name: string) {
+        // NO session open — the first screen: the layer that GOVERNS is the worktree, because that is
+        // exactly what a session created from here would be filled from. Reading the session layer in
+        // this state returned nothing while /agents showed a model, so the footer read «No provider
+        // selected» AND choosing a model in /agents could not change it — the write lands in the
+        // worktree while the read looked at a session that does not exist yet (owner, 2026-09-21,
+        // screenshots 1-5: select Muse Spark for build_mode → footer unchanged → «Connect a provider
+        // to send prompts»).
+        //
+        // The LAYER is chosen ONCE, by ONE predicate, and then read. This is not the deleted per-link
+        // walk: nothing is re-checked per agent and no validity filter decides an upper layer; with a
+        // session open the session layer remains the only source, as before.
+        if (!getActiveSessionID()) {
+          const workspace = workspaceAgentModel(name, getActiveWorkspaceID(), {
+            workspaceAgent: modelStore.workspaceAgent,
+          })
+          return workspace ? { providerID: workspace.providerID, modelID: workspace.modelID } : undefined
+        }
         return sessionAgentModel(name, sessionSettings())
       }
 
@@ -465,12 +482,17 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         // and — until now — never in the TUI.
         const build = sync.data.agent.find((x) => x.name === canonicalIdentity("build"))
         if (build?.model) return { model: `${build.model.providerID}/${build.model.modelID}`, variant: build.variant }
-        // NOTHING anywhere — and this is where a hardcoded last-resort model id used to stand. It made
-        // an unfilled layer LOOK filled: a constant is indistinguishable downstream from a real
-        // choice, so the hole it hid could never be reported. The owner's two rules are «all values
-        // must be set» AND «missing model at any layer — ANY — all tests failed»; the constant
-        // satisfied the first by breaking the second. `undefined` flows into `fillWorkspaceAgents`'
-        // `unresolved` and out as a `bug:` (`:482`) — ONE mechanism, and the hole SHOUTS.
+        // The tail must be a model that can ANSWER. It first tried a hardcoded id (which made an
+        // unfilled layer look filled), then «the first model of the first connected provider» — and
+        // on this machine that was BAAI/BGE-M3, an EMBEDDING model, so every agent in /agents was
+        // offered something that cannot chat (owner, 2026-09-21: «очень хорошая шутка - это
+        // эмбеддинг модель только для aicall»). A model that cannot call tools is not a candidate
+        // for the agent loop, and the provider's own `capabilities.toolcall` is the signal already
+        // on hand — no new taxonomy invented.
+        for (const provider of sync.data.provider) {
+          const chat = Object.entries(provider.models ?? {}).find(([, info]) => info?.capabilities?.toolcall)
+          if (chat) return { model: `${provider.id}/${chat[0]}` }
+        }
         return undefined
       }
 

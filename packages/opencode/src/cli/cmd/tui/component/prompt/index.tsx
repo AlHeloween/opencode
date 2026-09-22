@@ -662,11 +662,40 @@ export function Prompt(props: PromptProps) {
       setStore("prompt", "input", input.plainText)
       syncExtmarksWithPromptParts()
     }
-    if (props.disabled) return false
-    if (autocomplete?.visible) return false
-    if (!store.prompt.input) return false
+    if (props.disabled) {
+      // A pending permission or question OWNS the screen: `routes/session/index.tsx:370` sets
+      // `disabled = permissions().length > 0 || questions().length > 0`, and the prompt then refuses
+      // EVERY submit and swallows every keystroke. Until now that refusal was SILENT — no log, no toast,
+      // nothing — so a wedged session looked like a dead keyboard and left no trace anywhere (owner,
+      // 2026-09-21: «Баг воспроизведен, промпт не пошел»). Name the gate so the next occurrence says
+      // which of the two is holding it.
+      Log.Default.warn("bug: prompt submit refused — disabled by a pending permission or question", {
+        sessionID: props.sessionID,
+        editorText: input?.plainText?.length ?? 0,
+      })
+      return false
+    }
+    if (autocomplete?.visible) {
+      Log.Default.debug("prompt submit refused — the autocomplete list is open", { sessionID: props.sessionID })
+      return false
+    }
+    if (!store.prompt.input) {
+      // An empty store is the ordinary Enter-on-empty-prompt case — EXCEPT when the editor itself holds
+      // text, which means the store never received it (the IME desync the comment above guards against).
+      // That one is a refusal the user cannot see: the box shows text and the submit does nothing.
+      if (input?.plainText?.trim()) {
+        Log.Default.warn("bug: prompt submit refused — the editor held text but the store was empty", {
+          sessionID: props.sessionID,
+          editorText: input.plainText.length,
+        })
+      }
+      return false
+    }
     const agent = local.agent.current()
-    if (!agent) return false
+    if (!agent) {
+      Log.Default.warn("bug: prompt submit refused — no agent is selected", { sessionID: props.sessionID })
+      return false
+    }
     const trimmed = store.prompt.input.trim()
     if (trimmed === "exit" || trimmed === "quit" || trimmed === ":q") {
       void exit()

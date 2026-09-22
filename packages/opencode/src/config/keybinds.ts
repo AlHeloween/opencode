@@ -16,7 +16,13 @@ const inputUndoDefault = process.platform === "win32" ? "ctrl+z,ctrl+-,super+z" 
 
 const KeybindsSchema = Schema.Struct({
   leader: keybind("ctrl+x", "Leader key for keybind combinations"),
-  app_exit: keybind("ctrl+c,ctrl+d,<leader>q", "Exit the application"),
+  // `ctrl+c` is deliberately NOT an exit binding. In this UI that key already means CANCEL: the
+  // question and permission prompts bind `app_exit` to «dismiss me», and during a turn the status
+  // line reads `esc interrupt`. Binding the same key to «kill the process» put a destructive,
+  // unconfirmed action on the reflex key of the FIRST screen — an empty prompt plus ctrl+c exited
+  // instantly (owner, 2026-09-21: «я тупо тыкаю и оно вылетает - ЭТО БАГ никаких отмазок и
+  // условий»). An explicit quit stays available: `ctrl+d` on an empty prompt, or `<leader>q`.
+  app_exit: keybind("ctrl+d,<leader>q", "Exit the application"),
   editor_open: keybind("<leader>e", "Open external editor"),
   theme_list: keybind("<leader>t", "List available themes"),
   sidebar_toggle: keybind("<leader>b", "Toggle sidebar"),

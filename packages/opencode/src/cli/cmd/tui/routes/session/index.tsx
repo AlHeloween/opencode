@@ -561,6 +561,12 @@ export function Session() {
 
   useKeyboard((evt) => {
     if (dialog.stack.length > 0) return
+    // An OPEN modal prompt owns its own keys, exactly as a dialog does. Only `dialog.stack` was
+    // shielded, so with a permission or question prompt open the exit key reached THIS handler and
+    // fell out to the shell instead of dismissing the prompt — the prompt's own `preventDefault()`
+    // was the only thing in the way, and that is order-dependent (owner, 2026-09-21: «Баг после
+    // опросника вываливатся потом пишет enter command number»).
+    if (permissions().length > 0 || questions().length > 0) return
     if (!session()?.parentID) return
     if (keybind.match("app_exit", evt)) {
       void exit()
@@ -2128,6 +2134,32 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
     if (text.length <= THINKING_DISPLAY_MAX) return `*Thinking:* ${text}`
     const omitted = text.length - THINKING_DISPLAY_MAX
     return `*Thinking:* … ${omitted} characters omitted — the latest ${THINKING_DISPLAY_MAX} shown\n\n${text.slice(-THINKING_DISPLAY_MAX)}`
+  })
+  // The gate's inputs are recorded on the ONE transition that leaves no trace afterwards: the block
+  // going away while its text was still there.
+  //
+  // `content()` is a pure function of `part.text` (minus the OpenRouter `[REDACTED]` filler) and
+  // `showThinking()`, and ingestion only APPENDS (`session/processor.ts:816-827`) — so a block that had
+  // text and lost it is an anomaly by construction, and until now nothing anywhere could say WHICH of
+  // the two inputs flipped (owner, 2026-09-21: «мерцал текст, потом вовсе пропал»). Ordinary
+  // empty→filled transitions are streaming and are deliberately NOT logged.
+  //
+  // The check is O(1) per delta: `text.length` is a property, not a scan of a 100k-character string.
+  // The expensive values are computed only when the transition actually fires.
+  let hadText = false
+  createEffect(() => {
+    const text = props.part.text ?? ""
+    const shown = ctx.showThinking()
+    if (hadText && (!text.length || !shown)) {
+      Log.Default.warn("bug: reasoning block hidden while it still had text", {
+        partID: props.part.id,
+        textLength: text.trim().length,
+        redactedOnly: text.replace("[REDACTED]", "").trim().length === 0,
+        showThinking: shown,
+        wasStreaming: !props.part.time?.end,
+      })
+    }
+    hadText = text.length > 0
   })
   return (
     <Show when={content() && ctx.showThinking()}>

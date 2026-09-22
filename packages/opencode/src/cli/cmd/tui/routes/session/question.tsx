@@ -61,20 +61,33 @@ export function QuestionPrompt(props: { request: QuestionRequest }) {
    * nothing on screen to answer (owner, 2026-09-21).
    */
   function settle(promise: Promise<{ error?: unknown }>, what: string) {
+    // The request's identity is read ONCE, here, SYNCHRONOUSLY — before any await.
+    //
+    // The continuation used to reach through `props.request`, and by the time a reply resolves the
+    // request is already gone: this very handler's `sync.question.clear` and the `question.replied`
+    // case in `sync.tsx:513` both remove it, the dialog unmounts, and `props.request` becomes
+    // `undefined`. So `.then` threw while reading `.sessionID`, control fell into `.catch`, which read
+    // the SAME dead object's `.id` and threw again — and a throw inside the `.catch` of a `void`-ed
+    // promise is an UNHANDLED REJECTION. That is the `ERROR rejection {"e":"undefined is not an object
+    // (evaluating 'L.request.id')"}` logged 19 ms after the 200 reply, with the TUI dying on it (owner,
+    // 2026-09-21, dist-plane log `1790005828925`). The `.catch` was a compensation built on the hole it
+    // was meant to cover; the hole is the reach-through, so it is gone.
+    const requestID = props.request.id
+    const sessionID = props.request.sessionID
     void promise
       .then((res) => {
         if (res.error) {
           Log.Default.warn(`bug: question ${what} refused — the request is left pending`, {
-            requestID: props.request.id,
+            requestID,
             error: JSON.stringify(res.error)?.slice(0, 300),
           })
           return
         }
-        sync.question.clear(props.request.sessionID, props.request.id)
+        sync.question.clear(sessionID, requestID)
       })
       .catch((e: unknown) => {
         Log.Default.warn(`bug: question ${what} threw — the request is left pending`, {
-          requestID: props.request.id,
+          requestID,
           error: e instanceof Error ? e.message : String(e),
         })
       })
@@ -153,6 +166,23 @@ export function QuestionPrompt(props: { request: QuestionRequest }) {
   useKeyboard((evt) => {
     // Skip processing if a dialog (e.g., command palette) is open
     if (dialog.stack.length > 0) return
+
+    // app_exit means «dismiss the question» in EVERY state, editing included — so this rule sits
+    // ONCE, before the state split, instead of being written again in each branch. It used to live
+    // only in the two non-editing branches, which the editing state never reaches (it returns
+    // early to "let the textarea handle other keys"): with the custom-answer textarea open the key
+    // fell through to the session route's `app_exit` handler and exited the APP instead of
+    // dismissing the question (owner, 2026-09-21: «Баг после опросника вываливатся»).
+    //
+    // `preventDefault()` is NOT enough to stop that handler — a sibling global handler still runs
+    // (framework contract, packages/opentui/.../KeyHandler.integration.test.ts:194-199, where
+    // `handler2-saw-a` is asserted). `stopPropagation()` is the instrument that does.
+    if (keybind.match("app_exit", evt)) {
+      evt.preventDefault()
+      evt.stopPropagation()
+      reject()
+      return
+    }
 
     // When editing custom answer textarea
     if (store.editing && !confirm()) {
@@ -238,7 +268,7 @@ export function QuestionPrompt(props: { request: QuestionRequest }) {
         evt.preventDefault()
         submit()
       }
-      if (evt.name === "escape" || keybind.match("app_exit", evt)) {
+      if (evt.name === "escape") {
         evt.preventDefault()
         reject()
       }
@@ -271,7 +301,7 @@ export function QuestionPrompt(props: { request: QuestionRequest }) {
         selectOption()
       }
 
-      if (evt.name === "escape" || keybind.match("app_exit", evt)) {
+      if (evt.name === "escape") {
         evt.preventDefault()
         reject()
       }

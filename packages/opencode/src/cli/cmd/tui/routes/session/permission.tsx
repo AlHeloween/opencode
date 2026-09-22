@@ -159,11 +159,21 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
    * cannot wedge the session; a failed one is recorded instead of swallowed.
    */
   function respond(reply: "once" | "always" | "reject", message?: string) {
+    // Identity read ONCE, synchronously — the same defect as the question prompt's `settle`, on the
+    // path that runs MOST often. The continuations used to reach through `props.request`, and a reply
+    // removes that request (the `permission.replied` case in `sync.tsx:476` and this handler's own
+    // `clear` below), so the dialog unmounts and `props.request` is `undefined` by the time the promise
+    // resolves: `.then` threw on `.sessionID`, `.catch` threw again on the same dead object's `.id`,
+    // and a throw inside a `.catch` is an unhandled rejection — the process-level
+    // `Log.Default.error("rejection")` in `index.ts` is the last line before the TUI dies (owner,
+    // 2026-09-21: «tui чисто вылетела»).
+    const requestID = props.request.id
+    const sessionID = props.request.sessionID
     void sdk.client.permission
       .reply({
         reply,
-        requestID: props.request.id,
-        sessionID: props.request.sessionID,
+        requestID,
+        sessionID,
         message,
         directory: project.instance.directory(),
         workspace: project.workspace.current(),
@@ -171,17 +181,17 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
       .then((res) => {
         if (res.error) {
           Log.Default.warn("bug: permission reply refused — the request is left pending", {
-            requestID: props.request.id,
+            requestID,
             reply,
             error: JSON.stringify(res.error)?.slice(0, 300),
           })
           return
         }
-        sync.permission.clear(props.request.sessionID, props.request.id)
+        sync.permission.clear(sessionID, requestID)
       })
       .catch((e: unknown) => {
         Log.Default.warn("bug: permission reply threw — the request is left pending", {
-          requestID: props.request.id,
+          requestID,
           reply,
           error: e instanceof Error ? e.message : String(e),
         })

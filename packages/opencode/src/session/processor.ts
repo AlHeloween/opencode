@@ -814,7 +814,20 @@ export const layer: Layer.Layer<
             return
 
           case "reasoning-delta":
-            if (!(value.id in ctx.reasoningMap)) return
+            if (!(value.id in ctx.reasoningMap)) {
+              // A delta whose id is not in the map is DROPPED — and it used to be dropped in TOTAL
+              // SILENCE. That is how a reasoning part can exist with an empty text and its block then
+              // disappear with nothing written anywhere: measured 2026-09-21, 295 of 10 973 stored
+              // reasoning parts are empty, and 3 of 6 two-part messages carry an empty one. A refusal
+              // that says nothing is a bug, not a policy — name the drop and its shape, so a reader can
+              // tell a provider mis-mapping the id from a lost `reasoning-start`.
+              log.warn("bug: reasoning delta dropped — its id is not in reasoningMap", {
+                deltaID: value.id,
+                deltaLength: value.text.length,
+                knownIDs: Object.keys(ctx.reasoningMap).length,
+              })
+              return
+            }
             if (ctx.reasoningBuilders[value.id]) ctx.reasoningBuilders[value.id].append(value.text)
             if (value.providerMetadata) ctx.reasoningMap[value.id].metadata = value.providerMetadata
             yield* session.updatePartDelta({

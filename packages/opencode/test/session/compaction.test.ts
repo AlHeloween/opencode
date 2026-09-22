@@ -1638,7 +1638,7 @@ describe("estimateContentTokens", () => {
 
 describe("session.compaction.compact", () => {
   it.live(
-    "keeps the WHOLE epoch since the last summary; the 32k floor only reaches further back",
+    "the tail is a CEILING — the newest message is always in, the budget decides the rest",
     provideTmpdirInstance((dir) =>
       Effect.gen(function* () {
         const compact = yield* SessionCompaction.Service
@@ -1678,12 +1678,14 @@ describe("session.compaction.compact", () => {
           type: "text", text: "## Goal\n- summary content here",
         })
 
-        // Create recent messages. recent-2 is padded past RECENT_MIN_TOKENS, and
-        // that must change NOTHING: the epoch after the previous summary is kept
-        // whole regardless of size (owner ruling 2026-09-19: «мы должны брать все
-        // токены с момента предыдущего summary но не меньше чем 32к»). Only the
-        // pre-summary history stays out, and only because this epoch already
-        // satisfies the floor.
+        // Create recent messages. recent-2 is padded past the WHOLE tail budget —
+        // and that now changes everything (owner, 2026-09-22: «32к токенов на хвост —
+        // этого достаточно», superseding the whole-epoch rule of 2026-09-19). The
+        // tail is a ceiling over whole messages: the newest is always in, and an
+        // older one is added only while it FITS — so a 140k-char message can no
+        // longer drag the epoch in behind it. Continuity survives by ADDRESS, not by
+        // bulk: the dropped rows stay in the DB and the closing accounting names
+        // their range whenever the summaries carry positions.
         for (const text of ["recent-1", "recent-2" + "y".repeat(140_000)]) {
           const u = yield* ssn.updateMessage({
             id: MessageID.ascending(), role: "user", sessionID: info.id,
@@ -1704,13 +1706,10 @@ describe("session.compaction.compact", () => {
         expect(combined).toContain("=== COMPACTED ===")
         expect(combined).toContain("## Goal")
         expect(combined).toContain("summary content here")
-        // EPOCH, not budget: recent-1 rides along even though recent-2 alone
-        // already crossed the floor — the tail is everything since the previous
-        // summary. The old rule stopped at ~32K wherever that landed and so
-        // dropped the OLDEST messages of the epoch, which is the defect the
-        // ruling names.
+        // The newest exchange rides in WHOLE — the minimum a window cannot do without
+        // — and the older message does not, because the budget is spent on the newer one.
         expect(combined).toContain("recent-2")
-        expect(combined).toContain("recent-1")
+        expect(combined).not.toContain("recent-1")
         // `old-1` is the request that OPENED this window, so it is quoted ONCE as the goal, with
         // its address (owner, 2026-09-22). What must not happen — and what this pin is about — is
         // an old message riding into the TAIL as a message.
@@ -3045,10 +3044,9 @@ describe("session.compaction.full-cycle", () => {
         yield* mkSummary("summary for segment 2", "decision-from-s2")
 
         // ============================================================
-        // Segment 3 (recent): m7, u3, m8, m9 — u3 is padded past
-        // RECENT_MIN_TOKENS, so the budget stops the tail walk right after
-        // u3: the tail is [u3, m8, m9]; m7 and earlier segments stay
-        // archive-only until the budget frees up.
+        // Segment 3 (recent): m7, u3, m8, m9 — u3 alone is bigger than the WHOLE
+        // tail budget, so it stays archive-only along with everything older: the
+        // tail is [m8, m9], and u3's address is one sessionread away.
         // ============================================================
         yield* mkAssistant([{ type: "text", text: "assistant-text-7" }])
         yield* mkUser("user-msg-3" + "z".repeat(140_000))
@@ -3098,9 +3096,14 @@ describe("session.compaction.full-cycle", () => {
         expect(combined).toContain("decision-from-s1")
         expect(combined).toContain("decision-from-s2")
 
-        // --- Recent section: messages after last summary (s2) ---
-        // User messages must be faithfully rendered (test of ignored guard fix)
-        expect(combined).toContain("user-msg-3")
+        // --- Recent section: the newest messages the tail budget can carry ---
+        // The tail is a CEILING (owner, 2026-09-22), so the 140k-char user message
+        // stays OUT: it does not fit beside the two newer messages, whole-message
+        // granularity never splits it, and its address is one sessionread away. The
+        // "user messages render faithfully" property is pinned next door on a user
+        // message that DOES fit — `recent-2` in the ceiling test — which is where it
+        // belongs now that fitting is what decides.
+        expect(combined).not.toContain("user-msg-3")
 
         // Assistant text is labeled; reasoning is KEPT in the tail. The 2026-08-30
         // rule ("facts, not process") predates the 2026-09-19 owner ruling: the 32k
@@ -3127,22 +3130,19 @@ describe("session.compaction.full-cycle", () => {
         // Running tool must also be visible (not just completed)
         expect(combined).toContain("(running)")
 
-        // Recent messages must be in chronological order. The EPOCH BOUNDARY —
-        // not the budget — decides where the tail starts: everything since the
-        // previous summary is kept whole, so m7 belongs even though u3 already
-        // satisfied the floor. Owner ruling 2026-09-19: «мы должны брать все
-        // токены с момента предыдущего summary но не меньше чем 32к» — the floor
-        // reaches further BACK, it never trims the epoch forward.
-        const u3Idx = combined.indexOf("user-msg-3")
+        // Recent messages keep their chronological order inside the tail, and the
+        // BUDGET decides where the tail starts (owner, 2026-09-22: «32к токенов на
+        // хвост — этого достаточно», which replaced the whole-epoch rule of
+        // 2026-09-19). u3 alone is 140k chars ≈ 35k tokens — more than the entire
+        // tail — so it and everything older stay archive-only: one oversized message
+        // does not get to drag its epoch in with it.
         const r8Idx = combined.indexOf("assistant-text-8")
         const r9Idx = combined.indexOf("assistant-text-9")
-        expect(u3Idx).toBeGreaterThan(-1)
         expect(r8Idx).toBeGreaterThan(-1)
         expect(r9Idx).toBeGreaterThan(-1)
-        expect(u3Idx).toBeLessThan(r8Idx)
         expect(r8Idx).toBeLessThan(r9Idx)
-        // In the epoch after s2: kept even though the 32k floor was already met.
-        expect(combined).toContain("assistant-text-7")
+        expect(combined).not.toContain("user-msg-3")
+        expect(combined).not.toContain("assistant-text-7")
         // Before the previous summary: still archive-only.
         expect(combined).not.toContain("assistant-text-1")
 
@@ -3191,15 +3191,22 @@ test("the tail is contiguous with the summaries — a late summary leaves no hol
     mk("msg_9", "after-the-row"),
   ]
 
-  // minTokens = 1: the floor is already satisfied, so only the boundary decides.
-  expect(SessionCompaction.selectRecentTail(msgs, 1, 2).map((m) => m.info.id as string)).toEqual([
+  // The tail is a CEILING over whole messages (owner, 2026-09-22: «32к токенов на
+  // хвост — этого достаточно»). A budget that fits everything real takes everything
+  // real — and the summary row is NOT real: it rides the summaries block, so the
+  // selector never conscripts it, whatever the budget.
+  expect(SessionCompaction.selectRecentTail(msgs, 10_000).map((m) => m.info.id as string)).toEqual([
+    "msg_1",
+    "msg_2",
+    "msg_3",
     "msg_4",
     "msg_5",
     "msg_6",
     "msg_7",
     "msg_9",
   ])
-  // …whereas the summary ROW as boundary drops the hole entirely — the defect.
+  // A budget that fits ONE message still returns the NEWEST — the last exchange is
+  // what a window cannot do without — and it is returned WHOLE, never split.
   expect(SessionCompaction.selectRecentTail(msgs, 1).map((m) => m.info.id as string)).toEqual(["msg_9"])
 })
 

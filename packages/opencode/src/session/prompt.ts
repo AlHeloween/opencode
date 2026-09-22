@@ -1538,7 +1538,7 @@ export const layer = Layer.effect(
         /**
          * Layer-2 fold: MECHANICAL, zero LLM tokens, fixed size —
          * m* = summaries (≤ MAX_SUMMARY_BODY_TOKENS, last-32K) + recent
-         * (≥ RECENT_MIN_TOKENS tail). With zero summaries the tail alone
+         * (≤ RECENT_TAIL_TOKENS tail). With zero summaries the tail alone
          * becomes m* (manual /compact on a fresh session).
          * Trigger = window fill: full visible content ≥ usable(model)
          * (limit − 32K response − 10K overhead), checked pre-send by the
@@ -1784,7 +1784,7 @@ export const layer = Layer.effect(
             if (!folded) {
               // Corner-case guard, normally unreachable. Post-fold m* is bounded
               // by design: ≤ MAX_SUMMARY_BODY_TOKENS (16K) of summary bodies +
-              // RECENT_MIN_TOKENS (32K) work tail, so on ≥256K windows the
+              // RECENT_TAIL_TOKENS (32K) work tail, so on ≥256K windows the
               // assembled request (~m* 48K + tools/schema ~50K + overhead)
               // stays far under the hasSpareOutput gate. Fires only on
               // small-window models or a single oversized input message.

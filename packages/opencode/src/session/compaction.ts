@@ -37,14 +37,23 @@ export const Event = {
 export const SUMMARY_INTERVAL_TOKENS = 65_536
 export const MAX_SUMMARY_ATTEMPTS = 2
 /**
- * Recent-tail budget for m* (content tokens, chars/4): the last ~32K tokens
+ * Recent-tail CEILING for m* (content tokens, chars/4): the newest ~32K tokens
  * of REAL messages, copied verbatim. Selection walks the FULL message list
  * (compacted rows included) and skips memory-machinery rows — a prior m*
  * never enters another m*, every real message stays eligible. The tail is
  * rebuilt from the DB on every compact, so repeated compacts are idempotent
  * (content fixed point) and undo restores the exact content window per m*.
+ *
+ * A CEILING, not a floor (owner, 2026-09-22: «32к токенов на хвост — этого
+ * достаточно»). It was a floor until then, and it stopped bounding anything: with
+ * the mandatory region growing by every message of every turn, the live fold of
+ * 2026-09-22 carried 159 messages / 563 000 chars ≈ 141K tokens against this 32K
+ * budget — the fold freed 410K and left 302K. What falls outside is not a hole:
+ * each dropped row keeps its table-of-contents line in the head and its body in
+ * the DB, one `sessionread` away — which is why the closing continuity line names
+ * the budget as the reason instead of counting a gap.
  */
-export const RECENT_MIN_TOKENS = 32_768
+export const RECENT_TAIL_TOKENS = 32_768
 /**
  * Summary cap (tokens) measured on the FULL RENDERED block — body + diff
  * snippets + impact + plan_state + Exact links, exactly the bytes
@@ -218,46 +227,35 @@ function isSummaryAssistant(msg: MessageV2.WithParts): boolean {
  * are re-eligible — the tail is rebuilt from the DB on every compact, which
  * makes repeated compacts idempotent: compact(m*) == m* (content fixed point).
  *
- * Whole-message granularity (2026-08-29 Alexander: "30k +-"): the message that
- * crosses the floor is kept WHOLE, so the tail may overshoot it — never split a
- * message. With no summary at all (a manual /compact on a fresh session) there is
- * no epoch boundary, and the floor alone decides, exactly as before.
+ * Whole-message granularity (2026-08-29 Alexander: "30k +-"): a message is kept
+ * WHOLE or not at all — the exchange is never split in half. The newest real
+ * message is ALWAYS in: a window whose last exchange is missing is not a window.
+ * Every older one is added only while it FITS the ceiling, which is what makes the
+ * tail bounded instead of "at least 32K and whatever it takes to reach it".
  *
- * `coveredThroughIndex` — the 0-based index of the newest message a summary
- * actually COVERS — is the boundary the tail must be CONTIGUOUS with, and it is
- * passed in by the caller that parsed the ranges rather than re-derived here (one
- * implementation of "which messages are represented"). Using the summary ROW as
- * the boundary instead leaves a hole whenever a summary fired late: that covered
- * range ends at #50, the row sits at #80, and #51..#79 are represented by NOTHING
- * — «s..s..s [xxxxx what happened there?] tail» (owner, 2026-09-19). Everything
- * after the covered end is therefore MANDATORY tail, whatever its size.
+ * The covered-end boundary this selection used to require contiguity with is gone
+ * WITH the cap, not around it: with no summaries being generated, "after the
+ * covered end" meant "everything", so the mandatory region grew by every message
+ * of every turn (measured 2026-09-22: 141K tokens against a 32K budget). Contiguity
+ * is now carried by the HEAD — the table of contents gives one line per folded
+ * row — so a row outside the tail is ADDRESSED, not lost (the hole this rule was
+ * built for, owner 2026-09-19: «s..s..s [xxxxx what happened there?] tail»).
  */
 export function selectRecentTail(
   msgs: MessageV2.WithParts[],
-  minTokens: number = RECENT_MIN_TOKENS,
-  coveredThroughIndex?: number,
+  maxTokens: number = RECENT_TAIL_TOKENS,
 ): MessageV2.WithParts[] {
   const summaryParents = collectSummaryParents(msgs)
-  let lastSummary = -1
-  for (let i = 0; i < msgs.length; i++) if (isSummaryAssistant(msgs[i]!)) lastSummary = i
-  const minChars = minTokens * CHARS_PER_TOKEN
+  const maxChars = maxTokens * CHARS_PER_TOKEN
   const selected: MessageV2.WithParts[] = []
   let chars = 0
-  // The covered end is authoritative when the caller could resolve it; the
-  // summary ROW is only the fallback (a fixture or a legacy summary with no
-  // from_id/to_id). `-1` = neither exists, so the floor is the only rule.
-  const boundary = coveredThroughIndex ?? lastSummary
   for (let i = msgs.length - 1; i >= 0; i--) {
     const m = msgs[i]!
     if (tailExclusion(m, summaryParents) !== undefined) continue
-    // Everything after the covered end is MANDATORY tail — a message the
-    // summaries do not cover is the hole, and no break may happen inside it,
-    // however large it is. Only once we are at the represented region may the
-    // floor stop the walk, which is why this check sits BEFORE the add: the
-    // message at the boundary must not be conscripted into the tail.
-    if ((boundary < 0 || i <= boundary) && chars >= minChars) break
+    const size = tailContentChars(m)
+    if (selected.length > 0 && chars + size > maxChars) break
     selected.unshift(m)
-    chars += tailContentChars(m)
+    chars += size
   }
   return selected
 }
@@ -1187,7 +1185,7 @@ function tailToolOutput(output: string): string {
 /** Render-aware char count for tail selection. It measures EXACTLY what
  * `tailMessageText` emits — a budget that measures something else is the
  * two-measures-one-name defect, and it is what let the tail carry a call whose
- * size was never counted. `selectRecentTail` walks back to RECENT_MIN_TOKENS and
+ * size was never counted. `selectRecentTail` adds whole messages only while they FIT the tail ceiling and
  * never splits a message, so the last collected message may overshoot. */
 function tailContentChars(msg: MessageV2.WithParts): number {
   let chars = 0
@@ -1807,7 +1805,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
 
         // T2 refusal removed (2026-08-25): with zero summaries (manual
         // /compact on a fresh session, or a window-fill fold before the
-        // first s) m* = header + Recent tail — the last RECENT_MIN_TOKENS
+        // first s) m* = header + Recent tail — the newest RECENT_TAIL_TOKENS
         // of real messages. The tail IS the memory: nothing is hidden
         // without representation, because the tail itself is kept.
         // (2026-08-16 incident invariant superseded by explicit design.)
@@ -1851,12 +1849,13 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           }
         }
 
-        // Recent = verbatim copy of the last ~RECENT_MIN_TOKENS of REAL
-        // messages. Selection walks the full message list (compacted rows
-        // included) and skips memory-machinery rows — prior m* rows never
-        // enter another m*; every real message (including ones folded into a
-        // prior m* tail) is re-eligible. Deterministic → idempotent compacts.
-        const recent = selectRecentTail(msgs, RECENT_MIN_TOKENS, coveredThroughIndex)
+        // Recent = verbatim copy of the newest ~RECENT_TAIL_TOKENS of REAL
+        // messages — a CEILING: the oldest rows fall out first, whole messages
+        // only, and the newest is always in. Selection walks the full message list
+        // (compacted rows included) and skips memory-machinery rows — prior m*
+        // rows never enter another m*; every real message (including ones folded
+        // into a prior m* tail) is re-eligible. Deterministic → idempotent compacts.
+        const recent = selectRecentTail(msgs, RECENT_TAIL_TOKENS)
 
         // The TABLE OF CONTENTS of this fold: the dominants the hidden rows already carry, so the
         // window keeps saying «что мы тут делали» without a model call (owner, 2026-09-22). Rows
@@ -1907,21 +1906,37 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         }
 
         // Rows strictly BETWEEN the covered end and the tail's first message, by
-        // the SAME predicate the selector uses. The selector omits machinery by
-        // design, so the closing reference must not call one a hole: it names them
-        // and counts only the genuinely unrepresented. Rows that are neither = the
-        // real hole, and only that number may reach the GAP branch.
+        // the SAME predicate the selector uses. Two kinds sit there and NEITHER is
+        // a hole: machinery the selector omits by design, and real rows the tail
+        // CEILING left out — those are represented too, by their table-of-contents
+        // line and their own row in the DB (owner, 2026-09-22: the tail is a
+        // budget, not a floor). Both are NAMED; `unrepresented` is zero by
+        // construction, and the GAP branch stays for callers that bring their own
+        // count — a line that cannot fail would retire the check.
         const betweenRows =
           coveredThroughIndex != null && recentStartOffset != null
             ? msgs.slice(coveredThroughIndex + 1, recentStartOffset - 1)
             : []
         const betweenParents = collectSummaryParents(msgs)
+        const realBeyondBudget = betweenRows.filter((m) => tailExclusion(m, betweenParents) == null)
+        const firstBeyond = realBeyondBudget[0]
+        const lastBeyond = realBeyondBudget.at(-1)
         const betweenExcluded = betweenRows
           .map((m) => tailExclusion(m, betweenParents))
           .filter((k): k is string => k != null)
         const between =
           betweenRows.length > 0
-            ? { excluded: betweenExcluded, unrepresented: betweenRows.length - betweenExcluded.length }
+            ? {
+                excluded: [
+                  ...betweenExcluded,
+                  ...(realBeyondBudget.length > 0
+                    ? [
+                        `${realBeyondBudget.length} real message(s) beyond the ${RECENT_TAIL_TOKENS / 1024}K tail budget — positions #${positions.get(firstBeyond!.info.id)}..#${positions.get(lastBeyond!.info.id)}, sessionread that range; each carries its table-of-contents line here`,
+                      ]
+                    : []),
+                ],
+                unrepresented: 0,
+              }
             : undefined
 
         const combined = buildMessageStar({
@@ -1987,7 +2002,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           summaries: summaries.length,
           recent: recent.length,
           recentTokens: Math.ceil(contentChars(recent) / CHARS_PER_TOKEN),
-          recentMinTokens: RECENT_MIN_TOKENS,
+          recentTailTokens: RECENT_TAIL_TOKENS,
           forced: input.force ?? false,
         })
         yield* bus.publish(Event.Compacted, { sessionID: input.sessionID })

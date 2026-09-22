@@ -355,16 +355,19 @@ describe("selectRecentTail (m* never enters m*; real messages re-eligible)", () 
     expect(ids).toContain("m1")
   })
 
-  test("floor semantics — walks back until the budget is reached (30k ±)", () => {
-    const m1 = textMsg("m1", 100_000) // ~25K tokens
+  test("ceiling semantics — a whole message is added only while it FITS", () => {
+    const m1 = textMsg("m1", 100_000) // ~25K tokens each
     const m2 = textMsg("m2", 100_000)
     const msgs = [m1, m2]
 
     const result = selectRecentTail(msgs, 32_768)
-    // Floor: m2 (~25K) is under budget → keep walking; m1 overshoots the
-    // budget to ~50K — whole-message granularity, never split a message.
+    // CEILING (owner, 2026-09-22: «32к токенов на хвост — этого достаточно»): the
+    // newest message is always in, and m1 does not fit beside it — 200 000 chars =
+    // ~50K tokens against a 128K-char budget — so it stays out. Whole messages only,
+    // never split. Under the floor rule this returned BOTH, which is exactly how the
+    // live tail grew to 141K tokens against a 32K budget (measured 2026-09-22).
     const ids = result.map((m) => m.info.id as string)
-    expect(ids).toEqual(["m1", "m2"])
+    expect(ids).toEqual(["m2"])
   })
 })
 

@@ -656,6 +656,10 @@ export function tailNote(input: {
   coupling?: { checked: number; findings: readonly string[] } | null
   /** The claim ledger's debt — `@LOOP_MEASURE`'s `unstamped_claims`, counted from the durable row. */
   claims?: { claims: number; unstamped: number } | null
+  /** `@LOOP_MEASURE`'s THIRD axis — `critical_risks`, read from the plan files themselves
+    * (`## Risks` items carrying `<!-- severity: critical -->`, open plans only). No new model and no
+    * second home: the plans already carry risks, and a measure and its source must agree. */
+  risks?: { plans: string[]; count: number } | null
 }): string {
   const lines: string[] = []
   for (const summary of input.open) {
@@ -710,6 +714,16 @@ export function tailNote(input: {
   // at zero, for the same reason as the coupling line.
   if (input.claims) {
     lines.push(`claims: ${input.claims.claims} recorded · ${input.claims.unstamped} unstamped`)
+  }
+  // @LOOP_MEASURE's THIRD axis, printed even at zero for the same reason as the coupling line: a
+  // measure whose silence cannot be told from its absence is not a measure. `CLOSURE_PROOF` turns on
+  // `critical_risks: 0`, so «none recorded in open plans» has to read as a FACT, not as a missing line.
+  if (input.risks) {
+    lines.push(
+      input.risks.count === 0
+        ? "critical risks: 0 in open plans"
+        : `critical risks: ${input.risks.count} in ${input.risks.plans.length} plan(s) — ${input.risks.plans.join(", ")}`,
+    )
   }
   if (input.window) {
     const w = input.window

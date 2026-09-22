@@ -31,7 +31,7 @@ import { Jobs } from "../jobs"
 import { RequestDiff } from "./request-diff"
 import { Checkpoint, type CheckpointData } from "./checkpoint"
 import { IncrementalCheckpoint } from "./incremental-checkpoint"
-import { collectPlanState, planDebt, planFiles } from "@/util/plan-status"
+import { collectPlanState, criticalRisks, planDebt, planFiles } from "@/util/plan-status"
 import { couplingFindings, parsePlanMap } from "@/memory/spine"
 import { readMemory } from "@/tool/memory"
 import { Bus } from "../bus"
@@ -1997,6 +1997,11 @@ export const layer = Layer.effect(
                     // user is not allowed to be the only thing that ever asks for an account of the work.
                     debt: collectPlanState(worktree),
                     debtTotal: planDebt(worktree),
+                    // @LOOP_MEASURE's third axis, from the SAME source as `owed`: the plan files. A
+                    // separate home for risks would have to be kept in step by hand — the failure
+                    // mode the storage canon names — and `## Risks` is already where containment and
+                    // rollback get written down.
+                    risks: criticalRisks(worktree),
                     coupling,
                     // `@LOOP_MEASURE`'s other half: claims with no oracle stamp, counted from the row
                     // that now outlives the process.

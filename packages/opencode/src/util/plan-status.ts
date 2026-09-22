@@ -17,6 +17,9 @@
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync } from "fs"
 import path from "path"
+import * as Log from "@opencode-ai/core/util/log"
+
+const log = Log.create({ service: "util.plan-status" })
 
 export interface PlanStatus {
   active: string[]
@@ -344,8 +347,59 @@ export function planDebt(worktree: string): { plans: number; open: number } {
   const plansDir = path.join(worktree, "plans")
   const files = collectPlans(plansDir)
   let open = 0
-  for (const file of files) open += countTasks(path.join(plansDir, file)).total - countTasks(path.join(plansDir, file)).done
+  for (const file of files) {
+    const counted = countTasks(path.join(plansDir, file))
+    open += counted.total - counted.done
+  }
   return { plans: files.length, open }
+}
+
+/**
+ * `@LOOP_MEASURE`'s THIRD axis — `critical_risks` — read from the PLAN FILES, not from a new model.
+ *
+ * The other two axes already have carriers: `owed` reads open boxes from these same files, and
+ * `unstamped_claims` reads its row in `session_epistemic`. This one had none, so the protocol's debt was
+ * visible on two thirds — and the missing third is the axis a closure decision turns on
+ * (`CLOSURE_PROOF` requires `critical_risks: 0`; a field that is never carried reads as a clear field).
+ *
+ * WHY THE PLANS AND NOT A SECOND STRUCTURE: `## Risks` is already where the model writes containment and
+ * rollback — six plans carry the section. A second home would have to be kept in step with the first by
+ * hand, which is the failure mode the storage canon names ("a new state surface gets a KEY NAMESPACE",
+ * never another structure to synchronise). The carrier is therefore the one `owed` already uses, in the
+ * same pass, with the same durability: a file on disk survives a restart — the falsifier this axis was
+ * written with (owner, 2026-09-22: «рестарт процесса это число не обнуляет»).
+ *
+ * FORM, one and machine-checkable: a list item inside the plan's `## Risks` section carrying
+ * `<!-- severity: critical -->` — the same tag-in-a-comment habit the task lines use
+ * (`<!-- sv: … | attempts: … -->`), so the prose stays readable and the marker stays unambiguous.
+ * Only plans with OPEN boxes count: a finished plan's risks are history, not debt.
+ */
+export function criticalRisks(worktree: string): { plans: string[]; count: number } {
+  const plansDir = path.join(worktree, "plans")
+  const plans: string[] = []
+  let count = 0
+  for (const file of collectPlans(plansDir)) {
+    const abs = path.join(plansDir, file)
+    if (!hasOpenItems(abs)) continue
+    let body: string
+    try {
+      body = readFileSync(abs, "utf-8")
+    } catch (e) {
+      log.debug("plan file unreadable while counting critical risks", {
+        file,
+        error: e instanceof Error ? e.message : String(e),
+      })
+      continue
+    }
+    // `(?![\s\S])` is the END OF TEXT: `$` under the `m` flag means end of LINE, so the section used
+    // to stop at the first newline and the marker scan found nothing (caught by the pin, 2026-09-22).
+    const section = body.match(/^##+\s*Risks[^\n]*\n([\s\S]*?)(?=\n##\s|(?![\s\S]))/m)?.[1] ?? ""
+    const hits = section.match(/^\s*-\s.*<!--\s*severity:\s*critical\s*-->/gim)?.length ?? 0
+    if (hits === 0) continue
+    count += hits
+    plans.push(`plans/${file}`)
+  }
+  return { plans, count }
 }
 
 /** Get plan completion status for a worktree. */

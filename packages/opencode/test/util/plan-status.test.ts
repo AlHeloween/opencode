@@ -4,6 +4,7 @@ import { tmpdir } from "os"
 import path from "path"
 import {
   collectPlanState,
+  criticalRisks,
   formatPlanHygiene,
   formatPlanStateText,
   getPlanStatus,
@@ -113,5 +114,24 @@ describe("util.plan-status hygiene axes", () => {
     const misplacedLine = formatPlanHygiene(misplaced)
     expect(misplacedLine).toContain("PLACEMENT DEBT")
     expect(misplacedLine).not.toContain("Backlog:")
+  })
+
+  test("criticalRisks — @LOOP_MEASURE's third axis, read from the plans, open ones only", () => {
+    // The axis that had NO carrier at all: `owed` reads open boxes and `unstamped_claims` reads its
+    // durable row, but `critical_risks` was carried nowhere — and `CLOSURE_PROOF` turns on
+    // `critical_risks: 0`, so a field that is never written reads as a clear field. The carrier is the
+    // plan file that already says where the risk sits (`## Risks`); the marker is a tag in a comment,
+    // the same habit the task lines use. A finished plan's risks are history, not debt — hence
+    // open-plans-only, which is the falsifier this test carries: the SAME risk in a closed plan
+    // must not be counted.
+    const risks = criticalRisks(
+      fixture({
+        "2026-01-06_open.md":
+          "# Open\n\n- [ ] work\n\n## Risks\n\n- prefix counter would miss every turn <!-- severity: critical -->\n- slow path, bounded <!-- severity: low -->\n",
+        "2026-01-07_done.md":
+          "# Done\n\n- [x] one\n\n## Risks\n\n- was critical, shipped <!-- severity: critical -->\n",
+      }),
+    )
+    expect(risks).toEqual({ plans: ["plans/2026-01-06_open.md"], count: 1 })
   })
 })

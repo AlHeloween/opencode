@@ -35,6 +35,30 @@ Every **implementable** plan must include:
 - Vague "test later" or missing Smoke Tests → plan is incomplete; **do not implement**.
 - Kernel rule: `SMOKE.BEFORE` (see `prompt_kernel/source.py`).
 
+## Plan state — FOUR forms, and every one is read (2026-09-22)
+
+A plan's state may be written in any of four ways, and `parseLifecycle` reads all four. A reader that
+knows one form declares the rest UNKNOWN: measured 2026-09-22, thirteen plans under `plans/` rendered
+as `lifecycle UNKNOWN` while several of them wrote their state outright.
+
+| form | example |
+|---|---|
+| workflow comment | `<!-- workflow: lifecycle EXECUTING \| gate G7 -->` |
+| bold English | `**Status:** ACTIVE` |
+| Russian, often mid-line after a date | `Дата: … Статус: **DRAFT**.` |
+| machine line | `state: DRAFT` / `status: parked` |
+
+Three rules the reader holds, each bought by a run: the **colon is required** (that is what keeps prose
+out of the match); the read is limited to the document **HEAD** (a `**Status:**` quoted deep inside a
+body is somebody else's state); `state:`/`status:` is **line-anchored** because it is always its own
+line.
+
+**A plan with no checklist is NEVER moved** — `noChecklist`, state unknown from outside — and
+`planstatus` splits that class in two: the files that WRITE their state versus the ones that state
+nothing. Reading a state is not earning a completion: only `hasChecklist && !hasOpenItems` moves a file,
+and every other terminal (`plans_deferred/`, `plans/futures/`, `plans/postponed/`) is chosen by a NAMED
+ground, by hand, in a `git mv` commit that names it.
+
 ## Testing Convention
 
 1. **TS source first** — tests run against TypeScript source (`bun test`), not the compiled binary.
@@ -56,10 +80,11 @@ Every **implementable** plan must include:
 
 ## Active Plans
 
-- `2026-09-12_anthropic-cache-breakpoints.md` — DRAFT: Anthropic cache-breakpoint placement (55.1% of the static prefix behind no breakpoint) + thinking-variant payloads (13/14 catalog models emit an invalid/removed thinking payload)
-- `2026-09-18_deepseek-image-delivery-and-webp.md` — FIXED + live-verified: images reach DeepSeek as `image_url` WebP (SDK 3.0.48, fork patch retired); WebP ingestion wired (`normalizeAttachment` at prompt + tool-media paths); whole `@ai-sdk` family bumped (provider 4.0.17 / utils 5.0.44 / ai 7.0.106)
-- `2026-09-12_deepseek-image-mode.md` — DRAFT: render large user-side text as WebP pages (measured 4.19× chars/token; images are user-side only, the kernel cannot be one)
-- `2026-09-13_reasoning-continuity-and-loop-guard.md` — DRAFT: CoT continuity upstream of the transform boundary (census + guard warn landed 2026-09-14 in `6e1df8b394`) + a mechanical loop guard for the degenerate-repeat corpus
+The live list is NOT written down here — it is READ FROM THE FILES. Run `planstatus` (or
+`getPlanStatus(worktree)`): the report prints placement, the backlog, the checklist-less class and
+`@LOOP_MEASURE`'s axes. A hand-maintained index beside the plans is a second source of truth and goes
+stale the moment a plan moves — measured 2026-09-22, three of the four entries that used to sit here
+had already moved on.
 
 (Completed work moves to `plans_completed/`; most recently `2026-09-13_tui-routing-interaction-repair.md` — landed `918f114db8`.)
 
@@ -76,6 +101,9 @@ Research-complete or parked directions, kept as reference rather than active wor
 See `abstract_futures/README.md`. Includes parked Zig 0.16 migration notes and superseded HTTP API v2 design.
 
 ## Recently completed → `plans_completed/`
+
+The list below is HISTORY and stops where it stops; the live count and the live placement come from
+`planstatus`. Kept as prose because a completed plan needs no live index — it needs its artifact.
 
 - `2026-09-18_jobs-db-pid-persistence-and-orphan-sweep.md` — jobs.db persists `pid`+`owner_pid`; boot recovery is instance-aware (a live neighbour runtime's rows are left alone, a dead runtime's orphan tree is killed) under a pid-reuse guard; `job_kill` on a `killed` job re-attempts a guarded tree kill. Found + fixed: `Process.StartTime.Ticks` is local → the guard would silently never fire (`.ToUniversalTime()`). jobs 27/27, workflow 4/4, agent 50/50, core 24/24, typecheck ×2 exit 0, negative control run
 - `2026-09-18_jobs-stall-reset-tree-kill.md` — background-job streaming into the job writer, one ⚠ stall notice with an agent-resettable deadline (`jobreset`), real tree kill (`taskkill /T /F` before `proc.kill`), read-offset fix; hard tests pin all of it

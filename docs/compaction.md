@@ -856,7 +856,14 @@ cadence fixture carried no provider usage and so took the fallback path.
 After every user message the runtime pushes a small `<compaction-status>` block onto its first step:
 one line per LEGACY open checkpoint (nothing creates new ones since 2026-09-22) with the gaps `diagnoseSummaryGaps` finds on read (filling a section
 retires its own nag), plus `ctx open/foldAt · headroom ~N more turns at the recent X/turn (estimate)
-· layer-1 sinceSummary/65 536`. Two properties make it safe:
+· layer-1 sinceSummary/65 536`, plus the **DEBT** line —
+`owed: N open plan task(s) · next: <plan> <id> [status]` — read from the plan files. The debt line is
+not decoration: the sidecar capture was the only event in this loop that came from the MACHINE rather
+than from the user, so removing generation left the protocol triggered by the user alone, i.e. an
+oracle it is not allowed to have (owner, 2026-09-22: «мы убили call to action вместе с sidecar
+summaries … протокол перестает работать, с единственным оракулом — пользователь, который оракулом по
+протоколу являться не может»). Clear boxes still print `owed: no open plan task`, so a missing line
+can never be read as "nothing owed". Two properties make the note safe:
 
 - it rides the REQUEST TAIL — a synthetic part on the newest user message, the freshest mutable
   surface — never the byte-stable prefix, so a counter cannot break the KV cache; it is idempotent

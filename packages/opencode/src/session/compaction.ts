@@ -645,6 +645,9 @@ export const TAIL_NOTE_PREFIX = "<compaction-status>"
 export function tailNote(input: {
   open: { id: string; body: string }[]
   window: WindowState | null
+  /** The plan mirror — the protocol's OWED work. Absent ⇒ no debt line (the note keeps its old
+    * contract with callers that have no plan context). */
+  debt?: PlanStatePayload | null
 }): string {
   const lines: string[] = []
   for (const summary of input.open) {
@@ -653,6 +656,26 @@ export function tailNote(input: {
       gaps.length > 0
         ? `summary ${summary.id} open · gaps: ${gaps.join(", ")} · fill with summaryedit before the fold`
         : `summary ${summary.id} open · no gaps — folds into the next m* as-is`,
+    )
+  }
+  // THE CALL TO ACTION (owner, 2026-09-22). The sidecar capture was the only event in this loop that
+  // came from the MACHINE rather than from the user: a cadence-driven demand for an account of the
+  // work. Killing it left the protocol triggered by the user alone — «Пользователь говорит и
+  // подтверждает, короче протокол перестает работать, с единственным оракулом — пользователь, который
+  // оракулом по протоколу являться не может. Это критическое противоречие.» So the push that already
+  // exists carries the DEBT: the open plan work, in the protocol's own terms (task ids, statuses,
+  // attempts — never prose), stated as an obligation rather than as a statistic.
+  if (input.debt) {
+    const owed = input.debt.plans.flatMap((plan) =>
+      plan.tasks.filter((task) => task.status !== "PASS").map((task) => ({ plan: plan.file, task })),
+    )
+    const next = owed[0]
+    lines.push(
+      owed.length === 0
+        ? "owed: no open plan task — the boxes are clear; memory's open list is the remainder (not machine-readable yet)"
+        : `owed: ${owed.length} open plan task(s) · next: ${next!.plan} ${next!.task.id} [${next!.task.status}]${
+            next!.task.attempts > 0 ? ` · attempts ${next!.task.attempts}` : ""
+          }`,
     )
   }
   if (input.window) {

@@ -1967,7 +1967,13 @@ export const layer = Layer.effect(
                     cfg,
                     boundary: open.at(-1)?.toMessageID,
                   })
-                  return SessionCompaction.tailNote({ open, window })
+                  return SessionCompaction.tailNote({
+                    open,
+                    window,
+                    // THE CALL TO ACTION: what the protocol still OWES, read from the plan files. The
+                    // user is not allowed to be the only thing that ever asks for an account of the work.
+                    debt: collectPlanState((yield* InstanceState.context).worktree),
+                  })
                 } catch (e) {
                   Log.Default.warn("bug: failed to build the compaction status note", {
                     error: String(e),

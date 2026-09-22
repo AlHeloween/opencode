@@ -138,6 +138,39 @@ describe("the pushed compaction note", () => {
     expect(tailNote({ open: [], window: null })).toBe("")
   })
 
+  test("the push names the DEBT — the protocol's call to action, not a statistic", () => {
+    // The sidecar capture was the only event in the loop that came from the MACHINE rather than from
+    // the user: a cadence-driven demand for an account of the work. With it gone, the protocol is
+    // triggered by the user alone — an oracle it is not allowed to have (owner, 2026-09-22: «мы убили
+    // call to action вместе с sidecar summaries … протокол перестает работать, с единственным
+    // оракулом — пользователь, который оракулом по протоколу являться не может»). This line is that
+    // demand, restored on the channel that already exists.
+    const debt = {
+      plans: [
+        {
+          file: "plans/2026-09-21_x.md",
+          lifecycle: "ACTIVE",
+          intention: { from_state: "a", to_state: "b" },
+          goal_sv: [],
+          invariants: [],
+          tasks: [
+            { id: "T7", title: "a finished task", sv: [], status: "PASS" as const, done_pct: 100, attempts: 0 },
+            { id: "T8", title: "an open task", sv: ["head"], status: "PENDING" as const, done_pct: null, attempts: 2 },
+          ],
+        },
+      ],
+    }
+    const note = tailNote({ open: [], window: WINDOW, debt })
+    expect(note).toContain("owed: 1 open plan task(s)")
+    expect(note).toContain("plans/2026-09-21_x.md T8 [PENDING] · attempts 2")
+    // A finished task is not debt, and clear boxes are still a STATEMENT rather than silence: the
+    // push always says where the debt stands, so "no line" can never be confused with "nothing owed".
+    expect(note).not.toContain("T7")
+    expect(tailNote({ open: [], window: null, debt: { plans: [] } })).toContain("owed: no open plan task")
+    // No debt handed in ⇒ no line at all: a caller without plan context keeps the old contract.
+    expect(tailNote({ open: [], window: null })).toBe("")
+  })
+
   test("the note is tagged, so its own idempotency check can see it", () => {
     const note = tailNote({ open: [], window: WINDOW })
     expect(note.startsWith(TAIL_NOTE_PREFIX)).toBe(true)

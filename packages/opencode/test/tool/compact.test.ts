@@ -97,12 +97,16 @@ test("the run loop consumes the request at the turn boundary, not mid-stream", (
   const prompt = fs.readFileSync(path.join(__dirname, "../../src/session/prompt.ts"), "utf8")
   const take = prompt.indexOf("const foldRequest = CompactionRequest.take(sessionID)")
   const captureDue = prompt.indexOf("const captureDue =")
-  const decision = prompt.indexOf("CompactionRequest.foldDecision({ requested: foldRequest.requested")
+  const decision = prompt.indexOf("CompactionRequest.foldDecision({")
   expect(take).toBeGreaterThan(-1)
   expect(captureDue).toBeGreaterThan(-1)
   expect(decision).toBeGreaterThan(-1)
   expect(take).toBeGreaterThan(captureDue)
   expect(take).toBeLessThan(decision)
+  // The decision is handed the request `take` consumed, not a second lookup — pinned by ARGUMENT,
+  // because the call is formatted across lines and a single-line string pin went stale silently
+  // (measured 2026-09-22: `indexOf` on the joined form returned -1 while the behaviour was fine).
+  expect(prompt.slice(decision, decision + 300)).toContain("requested: foldRequest.requested")
 })
 
 test("subagents cannot fold a window they were handed", async () => {

@@ -748,7 +748,7 @@ it.live("loop continues when finish is stop but assistant has tool parts", () =>
 )
 
 it.live(
-  "Layer-1 captures a hidden checkpoint after a completed answer",
+  "a completed answer issues NO sidecar request - the fold head is carried by the rows",
   () =>
     provideTmpdirServer(
       Effect.fnUntraced(function* ({ llm }) {
@@ -765,20 +765,13 @@ it.live(
           parts: [{ type: "text", text: "x".repeat(SessionCompaction.SUMMARY_INTERVAL_TOKENS * 4) }],
         })
         yield* llm.text("normal answer")
-        yield* llm.text(`## Semantic Vector
-dominant: "summary timing; preserve the completed answer and the active working context for the next turn."
-
-## Goal
-Preserve the completed answer while retaining enough context for a user follow-up to continue without rebuilding the session state.
-
-## Key decisions
-- Summarize only after completion so the completed answer stays in the model-ready checkpoint and is never replaced by a synthetic summary turn.
-
-## Current state
-The completed answer is available and the next user follow-up should reuse the hidden checkpoint without including the summary request.`)
+        // No queued summary body any more: nothing reads one. A queued reply no consumer can reach
+        // is a test lying about what it proves.
 
         const result = yield* prompt.loop({ sessionID: session.id })
-        expect(yield* llm.calls).toBe(2)
+        // ONE call — the working turn. The sidecar summary is NOT generated (owner, 2026-09-22:
+        // «summary как sidecar не надо генерить вовсе. Совсем. Ты и так пишешь memory»).
+        expect(yield* llm.calls).toBe(1)
         expect(result.parts.some((part) => part.type === "text" && part.text === "normal answer")).toBe(true)
 
         const messages = yield* MessageV2.filterCompactedEffect(session.id)
@@ -787,9 +780,9 @@ The completed answer is available and the next user follow-up should reuse the h
         )
         expect(normalIndex).toBeGreaterThanOrEqual(0)
         expect(messages.some((message) => message.info.role === "assistant" && message.info.summary)).toBe(false)
-        const checkpoint = IncrementalCheckpoint.listOpen(session.id)
-        expect(checkpoint).toHaveLength(1)
-        expect(checkpoint[0]?.toMessageID).toBe(messages[normalIndex]?.info.id)
+        // Nothing is left OPEN waiting for a body that will never come: the checkpoint store is a
+        // reader of already-created rows now, not a queue of pending captures.
+        expect(IncrementalCheckpoint.listOpen(session.id)).toHaveLength(0)
         const mainCheckpoint = yield* Checkpoint.load({
           sessionID: session.id,
           providerID: ref.providerID,
@@ -808,9 +801,10 @@ The completed answer is available and the next user follow-up should reuse the h
         yield* llm.text("follow-up answer")
         yield* prompt.loop({ sessionID: session.id })
         const inputs = yield* llm.inputs
-        expect(inputs).toHaveLength(3)
-        const followUpRequest = JSON.stringify(inputs[2]?.messages)
-        expect(inputs[1]?.tools).toEqual(inputs[2]?.tools)
+        // TWO now: the working turn and the follow-up. The middle request WAS the sidecar.
+        expect(inputs).toHaveLength(2)
+        const followUpRequest = JSON.stringify(inputs[1]?.messages)
+        expect(inputs[0]?.tools).toEqual(inputs[1]?.tools)
         expect(followUpRequest).toContain("normal answer")
         expect(followUpRequest).toContain("real follow-up")
         expect(followUpRequest).not.toContain("Create a structured summary")
@@ -849,19 +843,11 @@ it.live(
           noReply: true,
           parts: [{ type: "text", text: "x".repeat(SessionCompaction.SUMMARY_INTERVAL_TOKENS * 4) }],
         })
-        yield* llm.text(`## Semantic Vector
-dominant: "emergency capture keeps the full tool catalog on the wire for KV parity"
-
-## Goal
-Keep the full tool catalog on the wire for the emergency summary route so the provider cache prefix stays byte-stable across turn kinds.
-
-## Key decisions
-- Resolve the trunk catalog instead of stripping schemas for the emergency capture route.
-
-## Current state
-The emergency capture route carries the full tool catalog on the wire and tool execution is blocked while the summary request is in flight.`)
+        // No queued summary body: nothing reads one now.
         const captured = yield* prompt.captureSummary({ sessionID: session.id, model: ref, agent: "build" })
-        expect(captured).toBe(true)
+        // The capture half is GONE (owner, 2026-09-22): the route means «fold now», and the fold
+        // reads its head from memory, the plan's intention and the rows' own vectors.
+        expect(captured).toBe(false)
 
         const checkpoint = yield* Checkpoint.load({
           sessionID: session.id,
@@ -869,19 +855,12 @@ The emergency capture route carries the full tool catalog on the wire and tool e
           modelID: ref.modelID,
           projectID: session.projectID,
         })
+        // The CHECKPOINT half still lands — the fold reads it.
         expect(JSON.stringify(checkpoint?.messages)).toContain("x".repeat(128))
 
+        // And the wire is not touched: the route issues no request at all.
         const inputs = yield* llm.inputs
-        expect(inputs).toHaveLength(2)
-        const emergencyTools = (inputs[1]?.tools as unknown[] | undefined) ?? []
-        const workingTools = (inputs[0]?.tools as unknown[] | undefined) ?? []
-        const emergencyMessages = inputs[1]?.messages as Array<{ role: string }> | undefined
-        const workingMessages = inputs[0]?.messages as Array<{ role: string }> | undefined
-        expect(emergencyTools).not.toHaveLength(0)
-        expect(JSON.stringify(emergencyTools)).toEqual(JSON.stringify(workingTools))
-        expect(emergencyMessages?.filter((message) => message.role === "system")).toEqual(
-          workingMessages?.filter((message) => message.role === "system"),
-        )
+        expect(inputs).toHaveLength(1)
         expect(Constitution.isSummaryMode(session.id)).toBe(false)
       }),
       { git: true, config: bigCaptureProviderCfg },
@@ -891,7 +870,7 @@ The emergency capture route carries the full tool catalog on the wire and tool e
 
 
 it.live(
-  "Layer-1 sidecar fires when open window crosses fixed 65_536 threshold",
+  "crossing the Layer-1 threshold issues NO sidecar request - the fold reads the rows",
   () =>
     provideTmpdirServer(
       Effect.fnUntraced(function* ({ llm }) {
@@ -907,47 +886,22 @@ it.live(
           parts: [{ type: "text", text: "x".repeat(70_000 * 4) }],
         })
         yield* llm.text("completed reasoning answer")
-        // Deliberately short of two minimums (Goal 60, Current state 60).
-        //
-        // This used to EXERCISE the gap-fill retry. The owner retired forced
-        // repair on 2026-09-18 (SIDECAR_MAX_ATTEMPTS = 1), so the same deficient
-        // body now exercises the opposite contract: it is STORED with those gaps
-        // named, and the agent fills them while the checkpoint is still open
-        // (`summaryedit`). The second queued response that used to carry the
-        // repair is gone with the retry — nothing consumes it any more, and a
-        // queued reply nothing reads is a test lying about what it proves.
-        yield* llm.text(`## Semantic Vector
-dominant: "threshold crossing"
-
-## Goal
-Keep the summary handoff inside the provider context.
-
-## Key decisions
-- Reserve the reasoning response budget.
-
-## Current state
-The protected flow can resume.`)
+        // No queued summary body: the request that consumed one is gone (owner, 2026-09-22).
 
         const result = yield* prompt.loop({ sessionID: session.id })
         expect(result.parts.some((p) => p.type === "text" && p.text === "completed reasoning answer")).toBe(true)
 
+        // ONE request — the working turn. Crossing the Layer-1 threshold no longer starts a second
+        // model call: the fold header is READ from the rows (memory, the plan's goal, each
+        // message's own dominant and weighted terms), which is the whole point of the revision.
         const inputs = yield* llm.inputs
-        expect(JSON.stringify(inputs[1]?.messages)).toContain("completed reasoning answer")
-        expect(inputs[1]?.tools).toEqual(inputs[0]?.tools)
-        // TWO, not three: call1 the main turn, call2 the single sidecar request.
-        // The third was the targeted gap-fill repair, retired by owner ruling
-        // 2026-09-18 because it cost a full sidecar call on every
-        // template-deficient capture and could still come back invalid.
-        expect(inputs.length).toBe(2)
-        // The contract that replaced it: the deficient body is STORED, and its
-        // gaps are NAMED so they can be filled before the fold. Asserted through
-        // the shared validator, so this fails if either half drifts.
-        const open = IncrementalCheckpoint.listOpen(session.id)
-        expect(open).toHaveLength(1)
-        expect(open[0]?.body).toContain("## Semantic Vector")
-        const gaps = SessionCompaction.diagnoseSummaryGaps(open[0]?.body ?? "")
-        expect(gaps.some((gap) => gap.includes("Goal"))).toBe(true)
-        expect(gaps.some((gap) => gap.includes("Current state"))).toBe(true)
+        expect(inputs).toHaveLength(1)
+        // The single request is the working turn, and it does NOT carry a summary request: the
+        // template's opening line is the marker, so this pin fails the day generation comes back.
+        expect(JSON.stringify(inputs[0]?.messages)).not.toContain("Layer-1 memory summary")
+        // Nothing is captured, so nothing is left open waiting to be filled, and the gaps machinery
+        // (validator + gap-fill) is no longer on the path of a fold.
+        expect(IncrementalCheckpoint.listOpen(session.id)).toHaveLength(0)
       }),
       { git: true, config: reasoningBigProviderCfg },
     ),

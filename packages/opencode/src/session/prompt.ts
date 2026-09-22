@@ -1234,18 +1234,15 @@ export const layer = Layer.effect(
               .map(([name]) => canonicalName(name)),
           ),
         })
-        return yield* captureSidecar({
-          sessionID: input.sessionID,
-          visible,
-          model,
-          agent,
-          cacheIdentity: cacheAgent,
-          user,
-          checkpoint: checkpointData,
-          tools,
-          afterAssistant: undefined,
-          onHeadroomCompact: () => Effect.succeed(false),
-        })
+        // The CAPTURE half is gone (owner, 2026-09-22): `/summarize` now means «fold now», and the
+        // fold reads its head from memory, the plan's intention and the rows' own vectors. The
+        // checkpoint half above stays — the fold reads it.
+        yield* Effect.sync(() =>
+          elog.debug("sidecar summary not generated on request - the fold carries its own head", {
+            sessionID: input.sessionID,
+          }),
+        )
+        return false
       }).pipe(
         Effect.catchCause((cause) => {
           elog.warn("bug: emergency summary capture failed", {
@@ -2682,7 +2679,7 @@ export const layer = Layer.effect(
                     IncrementalCheckpoint.latestOpen(sessionID)?.toMessageID,
                     model,
                   ) >= SessionCompaction.layer1SummaryThreshold())
-              let sidecarCaptured = false
+              const sidecarCaptured = false
               // The `compact` tool armed a boundary fold during this turn. It
               // cannot fold inline — it runs inside the window it would fold —
               // so the request is consumed here, at the boundary the kernel
@@ -2719,19 +2716,13 @@ export const layer = Layer.effect(
                   projectID: ctx.project.id,
                   data: checkpointData,
                 })
-                // Then: s outside M (ephemeral summary + Exact tool diffs/CodeGraph on range).
-                sidecarCaptured = yield* captureSidecar({
-                  sessionID,
-                  visible: visibleAfter,
-                  model,
-                  agent,
-                  cacheIdentity: cacheAgent,
-                  user: lastUser,
-                  checkpoint: checkpointData,
-                  tools,
-                  afterAssistant: completedAsst,
-                  onHeadroomCompact: () => maybeCompactCadence({ model, agent: lastUser.agent, force: true }),
-                })
+                // The sidecar summary is NOT generated (owner, 2026-09-22: «summary как sidecar не
+                // надо генерить вовсе. Совсем. Ты и так пишешь memory»). The checkpoint above is
+                // still published because the FOLD reads it; what is gone is the extra model call
+                // that re-wrote — worse — what the rows already carry. The fold now reads its goal
+                // from the plan's intention and its table of contents from the dominants and
+                // weighted terms the messages themselves wrote. `sidecarCaptured` stays false, so
+                // the branch table folds directly instead of capturing first.
               }
               // Layer-2 boundary decision. The branch table lives in
               // compaction-request.ts so it can be proven without driving a
@@ -2792,11 +2783,9 @@ export const layer = Layer.effect(
                     sidecarCaptured: false,
                     reason: foldRequest.reason,
                   })
-                  yield* captureSummary({
-                    sessionID,
-                    model: { providerID: model.providerID, modelID: model.id },
-                    agent: lastUser.agent,
-                  })
+                  // No capture first: under the 2026-09-22 revision the fold carries its own head
+                  // (memory, the plan's goal, the rows' dominants and terms), so there is nothing to
+                  // generate before it.
                   yield* maybeCompactCadence({ model, agent: lastUser.agent, force: true })
                   break
                 case "cadence":

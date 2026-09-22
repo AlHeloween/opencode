@@ -65,11 +65,23 @@ Aligned with root `AGENTS.md` Plan Maintenance. The runtime **owns file location
 ### True completion gate
 
 ```
-isPlanHygieneClean(status) ⇔ active.length === 0 && misplaced.length === 0
+isPlanHygieneClean(status)   ⇔ active.length === 0 && misplaced.length === 0   // ALL plans complete AND placed
+isPlanPlacementClean(status) ⇔ misplaced.length === 0                          // the HYGIENE question alone
 ```
 
 AGI evolving / “all plans complete” runs **only** when hygiene is clean.  
 **Do not** treat `active.length === 0` alone as success (fully checked files still under `plans/` are debt).
+
+**The axis split (owner, 2026-09-22: «сейчас невозможно использовать оркестратор из-за этого»).** The
+loop used the CONJUNCTION where it meant placement only: with any live plan it told the orchestrator
+«next directive MUST fix plans/plans_completed before new features», so a backlog read as a hygiene
+defect and no directive could ever be dispatched. `isPlanPlacementClean` is the hygiene question;
+`active.length === 0` keeps its own place where it means “the backlog is empty” (evolving mode). One
+predicate, one axis — the kernel’s own rule.
+
+**The other three terminals are invisible here BY DESIGN.** `getPlanStatus` reads `plans/` and
+`plans_completed/`; `plans_deferred/`, `plans/futures/` and `plans/postponed/` count as neither debt
+nor completion, because each names a ground rather than a status (see their READMEs).
 
 ### When hygiene runs
 
@@ -100,7 +112,8 @@ If misplaced remain (or files were reopened), and orch output is not already hyg
 |--------|------|
 | `getPlanStatus` | Snapshot |
 | `reconcilePlans` | Mechanical moves |
-| `isPlanHygieneClean` | Terminal predicate |
+| `isPlanHygieneClean` | Terminal predicate (all complete AND placed) |
+| `isPlanPlacementClean` | Hygiene alone: is every file in its terminal |
 | `formatProgressBar` | TUI / prompts |
 | `formatPlanHygiene` | Orch context block |
 | `planHygieneWorkerFooter` | Worker directive suffix |

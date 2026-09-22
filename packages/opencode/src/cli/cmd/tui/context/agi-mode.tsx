@@ -29,6 +29,7 @@ import {
   formatProgressBar,
   reconcilePlans,
   isPlanHygieneClean,
+  isPlanPlacementClean,
   planHygieneWorkerFooter,
   formatPlanHygiene,
   type PlanStatus,
@@ -640,9 +641,9 @@ export function useAgiMode(currentSessionID: () => string | undefined) {
           workerData ? `Worker results:\n${workerData}` : "",
           "",
           "Analyze the results. What was accomplished?",
-          isPlanHygieneClean(hygiene.status)
-            ? "Plan hygiene is clean. What's the next feature task?"
-            : "Plan hygiene debt remains — next directive MUST fix plans/plans_completed before new features.",
+          isPlanPlacementClean(hygiene.status)
+            ? "Plan placement is clean — no file sits in the wrong terminal. The plans in plans/ are honest open work: dispatch the next directive from them."
+            : "Plan hygiene debt remains (files in the WRONG terminal) — the next directive MUST fix plans/ and plans_completed/ before new features.",
           "=== FORMAT OVERRIDE (autonomous mode) ===",
           "Wrap your ENTIRE response in worker XML tags on their own lines:",
           `<worker1_${mainSessionID()}>`,

@@ -393,6 +393,24 @@ export function isPlanHygieneClean(status: PlanStatus): boolean {
   return status.active.length === 0 && status.misplaced.length === 0
 }
 
+/**
+ * PLACEMENT, on its own axis — and the reason the orchestrator was unusable.
+ *
+ * `isPlanHygieneClean` answers two different questions at once: "is there open work" (`active`) and "are
+ * the files where they belong" (`misplaced`). The AGI loop used their CONJUNCTION where it meant only
+ * the second, so with any live plan it told the orchestrator «next directive MUST fix
+ * plans/plans_completed before new features» — a backlog read as a hygiene defect, and the loop could
+ * never dispatch one. Owner, 2026-09-22: «сейчас невозможно использовать оркестратор из-за этого»,
+ * and the rule it breaks is the kernel's own: one predicate, one axis
+ * («хранимое значение well-formed» ≠ «провайдер подключён сейчас»).
+ *
+ * THIS is the hygiene question. `active.length === 0` keeps its own place where it means "the backlog
+ * is empty" — evolving mode — and the two are never mixed into one gate again.
+ */
+export function isPlanPlacementClean(status: PlanStatus): boolean {
+  return status.misplaced.length === 0
+}
+
 function uniqueDest(dest: string): string {
   if (!existsSync(dest)) return dest
   const ext = path.extname(dest)

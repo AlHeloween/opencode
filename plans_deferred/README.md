@@ -1,31 +1,29 @@
-# plans_deferred/ — планы, которые противоречат архитектуре
+# plans_deferred/ — plans that contradict the architecture
 
-Сюда попадает план, который **не завершён и не отменён, а отложен**: его замысел противоречит
-архитектуре, которую проект принял. Это третий терминал рядом с `plans/` (в работе) и
-`plans_completed/` (сделано) — и он нужен ровно потому, что первые два врут: такой план нельзя ни
-закрыть галкой (работа не сделана), ни оставить в работе молча (он тянет проект назад, к отменённой
-архитектуре, и всплывает в каждом скане как открытый долг).
+A plan lands here when it is **neither finished nor cancelled, but deferred**: its design requires an
+architecture the project has REJECTED. This is the third terminal beside `plans/` (active) and
+`plans_completed/` (done), and it exists because both of those LIE about such a plan: a tick would
+claim work that was never done, and leaving it in `plans/` brings it back as open debt in every scan,
+pulling the project toward the architecture it rejected.
 
-Владелец, 2026-09-22: «если план противоречит архитектуре то надо перемещать в plans_deferred, туда
+Owner, 2026-09-22: «если план противоречит архитектуре то надо перемещать в plans_deferred, туда
 readme.md и прописать это в кернеле и пересобрать.»
 
-## Правила
+## Rules
 
-- **Что сюда.** План, чьё `intention` или чьи задачи требуют архитектуру, которую проект ОТВЕРГ —
-  например: вернуть сгенерированные сводки на границе окна, портировать upstream-архитектуру
-  opencode, вернуть состояние в отдельные JSON-файлы вместо плоскостей хранилищ. Основание — не
-  вкус, а записанное решение проекта: ссылка на `AGENTS.md`, `docs/` или план-предшественник
-  обязательна, иначе это не «противоречит архитектуре», а «мне разонравилось».
-- **Что НЕ сюда.** Забытая работа — это `plans/`; сделанная — `plans_completed/`; отброшенный мусор —
-  это git history. Отложенный план остаётся читаемым: он носитель решения «почему так НЕ делаем», и
-  стоит он ровно столько, сколько стоит это решение.
-- **Как переносить.** `git mv plans/<файл> plans_deferred/<файл>` — одним коммитом, в сообщении
-  которого названо, **какая именно архитектура** этим планом нарушается и где это записано. План без
-  такой ссылки в сообщении — это не перенос, а спрятанный файл.
-- **Возврат.** План возвращается в `plans/`, только если отвергнутое решение отменено владельцем — и
-  тогда это новый цикл с новой авторизацией, а не «ну я передумал»: возврат обязан назвать, что
-  изменилось в архитектуре с момента отложения.
-- **Сканеры.** `plan-status.ts` и `collectPlans` читают `plans/` и `plans_completed/`; папка
-  отложенных невидима для них **намеренно** — отложенное не должно попадать ни в счёт долга
-  (`owed`), ни в процент завершённости. Это то же разделение measure/scope, что и везде: видимость
-  для чтения ≠ видимость для решения.
+- **In:** a plan whose `intention` or tasks require a rejected architecture — restoring generated
+  boundary summaries, porting upstream opencode architecture, putting state back into loose JSON files.
+  The ground is a RECORDED decision (link to `AGENTS.md`, `docs/`, or the superseding plan), never taste:
+  without it this is "I changed my mind", not "it contradicts the architecture".
+- **Not in:** forgotten work (`plans/`), finished work (`plans_completed/`), debris (git history). A
+  deferred plan stays readable — it carries the decision "why we do NOT do this", and that is its worth.
+- **Move:** `git mv plans/<file> plans_deferred/<file>`, one commit, whose message names the architecture
+  the plan breaks and where that is recorded. A move without that name is a hidden file, not a deferral.
+- **Return:** only if the owner reverses the decision — a new cycle with fresh authorization, stating
+  what changed in the architecture since. "I reconsidered" is not a return ground.
+- **Scanners:** `plan-status.ts` / `collectPlans` read `plans/` and `plans_completed/` only; this folder is
+  invisible to them **by design** — deferred work counts as neither debt (`owed`) nor completion. Same
+  measure/scope split as everywhere else: visible to reading is not the same as visible to deciding.
+
+Terminal family: `plans/` (active) · `plans_completed/` (done) · `plans_deferred/` (contradicts the
+architecture, this folder) · `plans/futures/` (too far ahead) · `plans/postponed/` (paused).

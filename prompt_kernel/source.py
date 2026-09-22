@@ -423,7 +423,7 @@ KERNEL = Kernel(
     name="reasoning_kernel_next",
     version="2.0.0-alpha.3",
     precedence=("safety", "governance", "task", "domain", "style"),
-    utf8_budget=44_000,  # 43_000 -> 44_000 (2026-09-21) for the G9 TOOL_HEALTH binding — the tools' working state is reported at closure, because a glitchy instrument wastes tokens on every use. Measured 43_572 B — the smallest thousand above the measurement
+    utf8_budget=45_000,  # 44_000 -> 45_000 (2026-09-22) for the G9 plan-terminal canon (five terminals: plans/, plans_completed/, plans_deferred/, plans/futures/, plans/postponed/) — the prose lives in each folder's README and only the RULE rides the prompt. Measured 44_261 B after trimming the first draft by 430 B; the smallest thousand above the measurement
     # (owner: «эти стандарты экономят миллионы токенов» — a standard's NAME replaces both the paragraph that would
     # explain it and the experiments an agent would otherwise run to re-derive it). Measured after them: 39_395.
     # Previous step 37_000 -> 38_000 admitted the QA/QC bindings: @ACCEPTANCE_FRAME at G1

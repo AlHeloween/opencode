@@ -155,4 +155,7 @@ def test_compacted_runtime_budget() -> None:
         # this assert stepped with it.
         # 5_800 -> 6_000 (2026-09-21): the G9 TOOL_HEALTH binding moved the byte cap to 44_000; this
         # assert steps with it. Measured 5_834 — the next band above the measurement.
-    assert normalized_token_count(text) <= 6_000
+        # 6_000 -> 6_100 (2026-09-22): the G9 plan-terminal canon (five terminals) and the
+        # ARTIFACT_LANGUAGE binding moved the byte cap to 45_000; this assert steps with it.
+        # Measured 6_063 — the next band above the measurement.
+    assert normalized_token_count(text) <= 6_100

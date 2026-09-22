@@ -228,7 +228,17 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
             "done -> plans_completed/; scan plans for stale refs.",
             "behavior/paths changed -> update docs/ and repo index.",
             "deprecated -> obsolete/ (reference only).",
-            "a plan that CONTRADICTS the architecture -> plans_deferred/ (canon in its README), moved by `git mv` in a commit that names the architecture it breaks — not closed by a tick (the work is not done) and not left in plans/ (it would come back as open debt in every scan).",
+            "the plan terminals are FIVE and exclusive: plans/ (active, owes work), plans_completed/ (done), plans_deferred/ (contradicts the architecture), plans/futures/ (too far ahead), plans/postponed/ (paused). Each non-active terminal carries a README canon; the flat collectPlans sees only the first two, by design.",
+            "moving a plan out of plans/: contradicts the architecture -> plans_deferred/; too far ahead -> plans/futures/ (name the CONDITION that makes it executable); paused -> plans/postponed/ (name the reason AND the signal that lifts it). Always `git mv` in a commit that names that ground — never a tick (the work is not done) and never left in plans/ (it returns as open debt).",
+        ),
+    ),
+    GateAddon(
+        "G9",
+        "ARTIFACT_LANGUAGE",
+        (
+            "write every ARTIFACT in English — code comments, docs, plan files, folder READMEs, kernel text, memory, commit messages. Russian is for the owner-facing reply and the GUI only; G0 keeps that half.",
+            "the cost is billed TWICE: an artifact also rides a prompt, a review and a reader's attention — measured 2026-09-22, the first draft of the plan-terminal canon pushed the kernel render 692 B over budget, and moving its prose into the folders' READMEs (which never enter a prompt) put the rule back inside.",
+            "THE SPLIT IS THE ECONOMY: canon prose -> the folder README, the rule alone -> the kernel. Short text is not taste; it is the difference between a rule that fits and a budget that must be raised.",
         ),
     ),
     GateAddon(

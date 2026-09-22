@@ -160,6 +160,24 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         ),
     ),
     GateAddon(
+        "G1",
+        "SEARCH_OUTPUT_SHAPE",
+        (
+            "bound the ANSWER, not the search: a result that has to be truncated has not answered — return counts, or the top hits, or the ONE path:line that decides, never a wall of matched lines.",
+            "an `include`/path filter is part of the instrument: when it matches nothing, that is a claim about the FILTER until proven otherwise — re-run it with a control that MUST match, then report; without it the answer is a false absence.",
+            "`glob` is a locator, not an inventory: a capped listing is a sample, so never conclude «no more» or «absent» from one. Product tools only — shell `ls`/`dir`/`find` are not the fallback for a bad glob.",
+        ),
+    ),
+    GateAddon(
+        "G9",
+        "TOOL_HEALTH",
+        (
+            "report the TOOLS' working state at closure — which instrument answered, which LIED, and which had to be worked around. A tool that reduces or hides its own output without saying so costs more than it saves, and the waste compounds with every use: it is a delivery, not a footnote (owner, 2026-09-21: «нерабочие инструменты = большая бесполезная трата токенов, которая растёт по мере использования глючных тулов»).",
+            "name the CLASS, not the anecdote: «reports Not found for a path it cannot see», «drops lines from its own report», «exits on a key that means cancel everywhere else». A named class is what a later cycle can fix; a story is not.",
+            "a workaround is not a fix: when the envelope was routed around a broken tool, the route IS the residual — record it, so the next cycle does not pay for the same instrument twice.",
+        ),
+    ),
+    GateAddon(
         "G7",
         "DISAS",
         (

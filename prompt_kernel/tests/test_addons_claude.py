@@ -97,8 +97,9 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     assert len(text.encode("utf-8")) <= 44_000
     # 5_150 -> 5_400 (2026-09-20, same step): measured 5_202 after the GUI/TUI/ergonomics rule sets —
     # the token cap steps with the byte cap at this batch, 198 spare.
-    # 5_600 -> 5_800 (2026-09-21): steps with the byte cap for the G8 binding. Measured 5_630.
-    assert normalized_token_count(text) <= 5_800
+    # 5_800 -> 6_000 (2026-09-21): steps with the byte cap for the G9 TOOL_HEALTH binding.
+    # Measured 5_879 — the next band above the measurement.
+    assert normalized_token_count(text) <= 6_000
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

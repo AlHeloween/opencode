@@ -85,14 +85,14 @@ def test_codex_variant_stays_within_explicit_budget() -> None:
     # 39_000 / 5_150 (2026-09-20, later): mirrors the product raise to 38_000 for the QA/QC bindings
     # (@ACCEPTANCE_FRAME at G1, @ACCEPTANCE_PASS at G9). Measured after them: 38_067 B — the byte cap
     # steps, the token cap already had the room.
-    # 43_000 (2026-09-21): mirrors the product raise to 43_000 for the G8 RUN_ARTIFACT_FIRST binding.
-    # Measured after it: 42_398 B — the byte cap steps to the next thousand above the measurement.
-    assert len(text.encode("utf-8")) <= 43_000
+    # 44_000 (2026-09-21): mirrors the product raise for the G1 SEARCH_OUTPUT_SHAPE binding.
+    # Measured after it: 43_032 B — the byte cap steps to the next thousand above the measurement.
+    assert len(text.encode("utf-8")) <= 44_000
     # 5_150 -> 5_400 (2026-09-20, same step): measured 5_247 tokens after the GUI/TUI/ergonomics
     # rule sets — the token cap steps with the byte cap, 153 spare.
-    # 5_600 -> 5_800 (2026-09-21): steps with the byte cap for the G8 RUN_ARTIFACT_FIRST binding.
-    # Measured 5_664 — the next band above the measurement.
-    assert normalized_token_count(text) <= 5_800
+    # 5_800 -> 6_000 (2026-09-21): steps with the byte cap for the G9 TOOL_HEALTH binding.
+    # Measured 5_910 — the next band above the measurement.
+    assert normalized_token_count(text) <= 6_000
 
 
 def test_codex_addon_render_is_deterministic_lf() -> None:

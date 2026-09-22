@@ -24,6 +24,13 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
     ),
     GateAddon(
         "G1",
+        "INSTRUMENT_CHAIN",
+        (
+            "instrument chain, in order: where/which -> codegraph -> messagesearch -> universalsearch -> glob -> grep; device state via nvidia-smi. Name the rung that answered.",
+        ),
+    ),
+    GateAddon(
+        "G1",
         "TOOL_GROUNDING",
         (
             "ground via: codegraph, read, messagesearch, webfetch/universalsearch.",
@@ -52,7 +59,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "G1",
         "PROJECT_STRUCTURE",
         (
-            "project shape, grounded not assumed: root manifests (project.dpr/dpk, pyproject.toml, Cargo.toml, package.json, tsconfig.json) in the root; core = pure testable library, separate from UI (GUI/CLI) and I/O (SoC); src/ + include/ layout; README.md names the modules; ONE canonical dependency file; settings are strict validated models (formal configuration), the config utility lives in-repo.",
+            "project shape, grounded not assumed: the root manifests live in the root; core = pure testable library, separate from UI (GUI/CLI) and I/O (SoC); src/ + include/ layout; README.md names the modules; ONE canonical dependency file; settings are strict validated models (formal configuration), the config utility lives in-repo.",
         ),
     ),
     GateAddon(
@@ -172,8 +179,8 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "G9",
         "TOOL_HEALTH",
         (
-            "report the TOOLS' working state at closure — which instrument answered, which LIED, and which had to be worked around. A tool that reduces or hides its own output without saying so costs more than it saves, and the waste compounds with every use: it is a delivery, not a footnote (owner, 2026-09-21: «нерабочие инструменты = большая бесполезная трата токенов, которая растёт по мере использования глючных тулов»).",
-            "name the CLASS, not the anecdote: «reports Not found for a path it cannot see», «drops lines from its own report», «exits on a key that means cancel everywhere else». A named class is what a later cycle can fix; a story is not.",
+            "report the TOOLS' working state at closure — which instrument answered, which LIED, which had to be worked around. A tool that hides or reduces its own output without saying so is a delivery, not a footnote.",
+            "name the CLASS, not the anecdote: «reports Not found for a path it cannot see», «drops lines from its own report». A named class is what a later cycle can fix; a story is not.",
             "a workaround is not a fix: when the envelope was routed around a broken tool, the route IS the residual — record it, so the next cycle does not pay for the same instrument twice.",
         ),
     ),
@@ -181,9 +188,9 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "G7",
         "DISAS",
         (
-            "DISAS — do it simple and stupid: complexity here is the DEFECT, not the price. Ask of every change «can this be done dumber and more linear?»; if yes, do that — a clever shape must first prove the dumb one fails.",
+            "DISAS — do it simple and stupid: complexity is the DEFECT, not the price. Ask of every change «can this be dumber and more linear?»; a clever shape must first prove the dumb one fails.",
             "a chain is walked ONCE, LINEARLY, at ONE point (a fill); every later reader is a lookup of ONE source. A reader that decides how full the layer above it is has become a second, competing authority.",
-            "a compensation built on top of a defect is the signature: a reader-side parent chain, a hedge between two spellings of one name, a second validity filter. Fix the hole and REMOVE the layer (owner, 2026-09-21: «мы рекурсивно чекали вместо дубового линейного чекапа и на этом погорели»).",
+            "a compensation built on top of a defect is the signature: a reader-side parent chain, a hedge between two spellings of one name, a second validity filter. Fix the hole and REMOVE the layer.",
             "one predicate, one axis: «the stored value is well-formed» is not «the provider is connected now» — a gate that borrows its source from another question answers neither.",
         ),
     ),
@@ -192,8 +199,8 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "ASSERTION_STATUS",
         (
             "ASSERTION_STATUS: every assertion you write — code comments, docs, plans, commits, memory, reports, replies, working notes — carries its status: CONFIRMED (✓, naming the instrument) or REFUTED (✗, naming what contradicts it).",
-            "An unmarked claim reads as CONFIRMED to the next reader — measured 2026-09-22, a disproved rule rode the memory for hours because nothing marked it. The status IS content, not decoration: without one the claim is Guess (@INFOMARK), and its prose cannot be told from a verified one.",
-            "A confidence indicator, not epistemology (owner, 2026-09-22: «надо ввести стандартом в кернел… это не эписистемология, это индикатор уверенности за 3 копейки»): the machine counts it as `marks:` in `<compaction-status>`, so the history reads for confidence, not only for content.",
+            "An unmarked claim reads as CONFIRMED to the next reader: without a status it is Guess (@INFOMARK) and its prose cannot be told from a verified one.",
+            "The machine counts them as `marks:` in `<compaction-status>`, so the history reads for confidence and not only for content — a confidence indicator, not epistemology.",
         ),
     ),
     GateAddon(
@@ -201,7 +208,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "RUN_ARTIFACT_FIRST",
         (
             "a cmd_runner run REPORTS ITSELF: read `<run>/state.json` (status, exit_code, bytes_written, bytes_dropped, truncated) and the WHOLE `<run>/stdout_text.log`. Never `tail` — it shows the last lines, so a crash banner hides the entire failure inventory behind it.",
-            "measure `bytes_written` before choosing an instrument: the whole log is usually small, and one whole read costs less than the peeks it replaces. Where the same reading will recur, write the reader ONCE into `experiments/<ISO-date>_<name>/` and reason from its OUTPUT as a report.",
+            "measure `bytes_written` before choosing an instrument: one whole read usually costs less than the peeks it replaces, and a reading that will recur is written once into `experiments/` and read as its report.",
             "an oracle that cannot print its own verdict is not an oracle: a suite cut off by crash, kill or timeout yields UNKNOWN, and its failure inventory is a FLOOR, not a total.",
         ),
     ),
@@ -237,8 +244,8 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
             "done -> plans_completed/; scan plans for stale refs.",
             "behavior/paths changed -> update docs/ and repo index.",
             "deprecated -> obsolete/ (reference only).",
-            "the plan terminals are FIVE and exclusive: plans/ (active, owes work), plans_completed/ (done), plans_deferred/ (contradicts the architecture), plans/futures/ (too far ahead), plans/postponed/ (paused). Each non-active terminal carries a README canon; the flat collectPlans sees only the first two, by design.",
-            "moving a plan out of plans/: contradicts the architecture -> plans_deferred/; too far ahead -> plans/futures/ (name the CONDITION that makes it executable); paused -> plans/postponed/ (name the reason AND the signal that lifts it). Always `git mv` in a commit that names that ground — never a tick (the work is not done) and never left in plans/ (it returns as open debt).",
+            "the plan terminals are FIVE and exclusive: plans/ (active, owes work), plans_completed/ (done), plans_deferred/ (contradicts the architecture), plans/futures/ (too far ahead — name the CONDITION that makes it executable), plans/postponed/ (paused — name the reason AND the signal that lifts it).",
+            "move it with `git mv` in a commit that names the ground — never a tick (the work is not done), never left in plans/ (it returns as open debt).",
         ),
     ),
     GateAddon(
@@ -246,7 +253,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "ARTIFACT_LANGUAGE",
         (
             "write every ARTIFACT in English — code comments, docs, plan files, folder READMEs, kernel text, memory, commit messages. Russian is for the owner-facing reply and the GUI only; G0 keeps that half.",
-            "the cost is billed TWICE: an artifact also rides a prompt, a review and a reader's attention — measured 2026-09-22, the first draft of the plan-terminal canon pushed the kernel render 692 B over budget, and moving its prose into the folders' READMEs (which never enter a prompt) put the rule back inside.",
+            "the cost is billed TWICE: an artifact also rides a prompt, a review and a reader's attention.",
             "THE SPLIT IS THE ECONOMY: canon prose -> the folder README, the rule alone -> the kernel. Short text is not taste; it is the difference between a rule that fits and a budget that must be raised.",
         ),
     ),
@@ -254,9 +261,8 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "G9",
         "ACCEPTANCE_PASS",
         (
-            "ACCEPTANCE_PASS := ∀ criterion: covered(evidence_ref) — every criterion PROVEN. An unproven criterion is not a PASS-shaped exception, and PASS may never be declared over one; read over the artefact, never from memory.",
-            "an unproven criterion may escalate ONCE, and only where DELEGATION admits it — every local rung spent, the doubt about your own reasoning: aicall gets the whole packet (claim, target, falsifier, instrument tried, result) and may only FALSIFY.",
-            "· it contradicts the claim or the attempt -> persist the finding to memory, compact, re-enter G0. · it agrees -> nothing moved: agreement between two simulators is not evidence, so the criterion stays uncovered and closes as residual.",
+            "ACCEPTANCE_PASS := ∀ criterion: covered(evidence_ref) — every criterion PROVEN; PASS may never be declared over an unproven one, read over the artefact and never from memory.",
+            "an unproven criterion may escalate ONCE, and only where DELEGATION admits it: aicall gets the whole packet (claim, target, falsifier, instrument tried, result) and may only FALSIFY. It contradicts -> persist the finding, compact, re-enter G0; it agrees -> nothing moved, the criterion stays uncovered and closes as residual.",
             "an uncovered criterion is a residual, not a rounding error; report verification and validation apart; check @QUALITY_VECTOR axes only where the change could move one — acceptance is a measurement, not a ceremony.",
         ),
     ),

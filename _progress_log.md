@@ -4378,3 +4378,63 @@ Residual (owner's calls, not closed):
 - ✓ Renderer, stamped artifact, and `C:\Users\Alexander\.codex\AGENTS.md` are byte-identical: 43,957 bytes, SHA-256 `e43c45d5b48c5712b1ce48d5622bbdb4fe6514f4a91157dbd57aca8401e1fa95`.
 - ✓ Codex-focused oracle `20260922T134726Z_d1147fd0` passed: 8 tests, exit 0. ✓ Full kernel suite `20260922T134813Z_bb935af4` reached 105 passed; ✗ its only failure is the separate stale production receiver promotion gate.
 - ✓ `.claude/reasoning_kernel.md` changed concurrently after the pre-install status snapshot; the Codex installer remained bounded to `CODEX_HOME/AGENTS.md`.
+
+## [2026-09-22 22:40] July-ABI imports land, funded entirely by removed prose
+
+Task: pull what is still load-bearing from `opencode_prompts_kernel.txt` (the July BGE-era
+ABI), place it by gate, and find the excess prose to pay for it.
+
+Landed in `source.py` — twelve norms, none of them host-specific:
+- G1 `@INSTRUMENT_ORDER` — try instruments by decisiveness per call; descend only on a
+  recorded empty/failure; escalate the whole chain before saying "not found".
+- G1 `@LOUD_FAILURE` — between two instruments prefer the one whose failure is VISIBLE. A
+  scanner returns matches and so looks successful while missing dynamic dispatch,
+  re-exports and runtime binding. This is the grep-instead-of-codegraph defect stated as a
+  norm rather than as a tool preference.
+- G1 `@DEVICE_STATE` — device/hardware state is observed, never recalled; it drifts across
+  a fold. (The rule whose absence produced the CPU-pinned embedding run on 2026-09-22.)
+- G0 `@STATE_FIRST` — publish the state before reasoning from it.
+- G4 `@CONCRETE_BOUNDS` — every bound is an integer; a budget that cannot be exceeded
+  cannot detect a STALL.
+- G7 `@VERIFY_BEFORE_REDUCING`, `@NO_INVENTED_CONSTANTS`, `@ONE_TASK_OPEN`.
+- G8 `@SIGNAL_CARDINALITY` — identical diagnostics from one source are ONE signal.
+- `@INFORMATION_STATUS` — your own recall is the weakest rung and never evidence alone.
+- `INTENTION_RESET` — a persisted criterion never restates this protocol: a rule already in
+  the prefix is paid again verbatim in the fold and, once it drifts, competes with the
+  original as a second authority (owner, 2026-09-22).
+- G6 — the impact query runs for EVERY mutation binding: whether a surface has other
+  consumers is its answer, not its precondition. (The old rule was circular.)
+
+Per host: `INSTRUMENT_CHAIN` names the actual rungs, and the two hosts without a history
+search say so instead of skipping the rung silently.
+
+NOT imported, recorded so nobody pulls it "for completeness": that file's `SV_OUTPUT`
+contradicts the live kernel — it wants an 8-32 hex digest DERIVED from the vector, changed
+when keywords change, and OMITTED on trivial answers. Ours is 32 hex, never computed from
+the vector, and trivial turns carry the trivial instance.
+
+Prose removed to pay for it [Exact]: `@COMPACTION_CADENCE` 879 -> 537 B (it had grown by
+three separate additions); 2 696 B of owner quotes, dated measurements and restatements
+across 22 addon lines in the three registries; 137 B of restatement in `@SELF_DIVERGENCE`
+and `@MEDOID_SIMPLEX`; a manifest enumeration in `PROJECT_STRUCTURE`; and 249 B from
+tightening the new norms plus 76 B where the source rule enumerated rungs the host chain
+already names.
+
+Oracle [Exact]:
+- Product render 45 962 / 46 000 B — **the byte ceiling did not move**: twelve norms paid
+  for out of prose. 6 260 tokens. Claude 45 639, codex 45 288.
+- `python -m pytest prompt_kernel/tests/ -q` -> 105 passed, 1 failed
+  (`test_production_prompt_matches_next_kernel_renderer` — production not installed, owner's
+  scoping; `python -m prompt_kernel --install` clears it).
+- validator clean, dedup clean on all three renders (no unapproved overlap, no repeated
+  5-grams).
+- `.claude/reasoning_kernel.md` installed and read back: 45 639 B, sha256 `5e8ad4b7f398b1a5…`,
+  equal to its render, and all twelve norms probed present in the installed text.
+- Codex artifact re-rendered (sha256 `4c66babc2d66a39c…`); its `$CODEX_HOME` receiver is the
+  owner's to refresh.
+
+Residual: the variant token caps stepped 6 000 -> 6 400 (byte caps unmoved for product,
+codex aligned 44 000 -> 46 000) — the variants carry the same norms with less prose to give
+back. The three G1 standards catalogues (GUI/TUI/ergonomics, 1 292 B) remain the largest
+block of canon prose inside the prefix and are the next funding source if one is needed;
+that is the owner's call, not a cleanup.

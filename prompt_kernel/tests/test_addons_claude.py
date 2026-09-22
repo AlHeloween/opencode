@@ -104,7 +104,12 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # the token cap steps with the byte cap at this batch, 198 spare.
     # 5_800 -> 6_000 (2026-09-21): steps with the byte cap for the G9 TOOL_HEALTH binding.
     # Measured 5_879 — the next band above the measurement.
-    assert normalized_token_count(text) <= 6_000
+    # 6_400 (2026-09-22, later): the July-ABI imports land — @INSTRUMENT_ORDER + @LOUD_FAILURE at G1,
+    # @STATE_FIRST at G0, @VERIFY_BEFORE_REDUCING / @NO_INVENTED_CONSTANTS / @ONE_TASK_OPEN at G7,
+    # @SIGNAL_CARDINALITY at G8, @CONCRETE_BOUNDS at G4, and the host INSTRUMENT_CHAIN. The BYTE cap
+    # does not move: the product paid for all of it out of removed rationale prose. The token cap
+    # steps because this variant carries the same norms with less prose to give back.
+    assert normalized_token_count(text) <= 6_400
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

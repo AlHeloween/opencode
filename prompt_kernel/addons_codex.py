@@ -26,6 +26,13 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
     ),
     GateAddon(
         "G1",
+        "INSTRUMENT_CHAIN",
+        (
+            "instrument chain, in order: where/which -> codegraph_explore -> (no history search on this host) -> Read a URL or Browser through Eval -> Glob -> Grep; device state via the shell. Name the rung that answered.",
+        ),
+    ),
+    GateAddon(
+        "G1",
         "TOOL_GROUNDING",
         (
             "ground code via mounted codegraph_explore when .codegraph/ exists; otherwise Read, Glob, and Grep.",
@@ -183,8 +190,8 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G9",
         "TOOL_HEALTH",
         (
-            "report the TOOLS' working state at closure — which instrument answered, which LIED, and which had to be worked around. A tool that reduces or hides its own output without saying so costs more than it saves, and the waste compounds with every use: it is a delivery, not a footnote (owner, 2026-09-21: «нерабочие инструменты = большая бесполезная трата токенов, которая растёт по мере использования глючных тулов»).",
-            "name the CLASS, not the anecdote: «reports Not found for a path it cannot see», «drops lines from its own report», «exits on a key that means cancel everywhere else». A named class is what a later cycle can fix; a story is not.",
+            "report the TOOLS' working state at closure — which instrument answered, which LIED, which had to be worked around. A tool that hides or reduces its own output without saying so is a delivery, not a footnote.",
+            "name the CLASS, not the anecdote: «reports Not found for a path it cannot see», «drops lines from its own report». A named class is what a later cycle can fix; a story is not.",
             "a workaround is not a fix: when the envelope was routed around a broken tool, the route IS the residual — record it, so the next cycle does not pay for the same instrument twice.",
         ),
     ),
@@ -192,9 +199,9 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G7",
         "DISAS",
         (
-            "DISAS — do it simple and stupid: complexity here is the DEFECT, not the price. Ask of every change «can this be done dumber and more linear?»; if yes, do that — a clever shape must first prove the dumb one fails.",
+            "DISAS — do it simple and stupid: complexity is the DEFECT, not the price. Ask of every change «can this be dumber and more linear?»; a clever shape must first prove the dumb one fails.",
             "a chain is walked ONCE, LINEARLY, at ONE point (a fill); every later reader is a lookup of ONE source. A reader that decides how full the layer above it is has become a second, competing authority.",
-            "a compensation built on top of a defect is the signature: a reader-side parent chain, a hedge between two spellings of one name, a second validity filter. Fix the hole and REMOVE the layer (owner, 2026-09-21: «мы рекурсивно чекали вместо дубового линейного чекапа и на этом погорели»).",
+            "a compensation built on top of a defect is the signature: a reader-side parent chain, a hedge between two spellings of one name, a second validity filter. Fix the hole and REMOVE the layer.",
             "one predicate, one axis: «the stored value is well-formed» is not «the provider is connected now» — a gate that borrows its source from another question answers neither.",
         ),
     ),
@@ -203,7 +210,7 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "RUN_ARTIFACT_FIRST",
         (
             "a cmd_runner run REPORTS ITSELF: read `<run>/state.json` (status, exit_code, bytes_written, bytes_dropped, truncated) and the WHOLE `<run>/stdout_text.log`. Never `tail` — it shows the last lines, so a crash banner hides the entire failure inventory behind it.",
-            "measure `bytes_written` before choosing an instrument: the whole log is usually small, and one whole read costs less than the peeks it replaces. Where the same reading will recur, write the reader ONCE into `experiments/<ISO-date>_<name>/` and reason from its OUTPUT as a report.",
+            "measure `bytes_written` before choosing an instrument: one whole read usually costs less than the peeks it replaces, and a reading that will recur is written once into `experiments/` and read as its report.",
             "an oracle that cannot print its own verdict is not an oracle: a suite cut off by crash, kill or timeout yields UNKNOWN, and its failure inventory is a FLOOR, not a total.",
         ),
     ),
@@ -244,7 +251,7 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G9",
         "ACCEPTANCE_PASS",
         (
-            "ACCEPTANCE_PASS := ∀ criterion: covered(evidence_ref) — every criterion PROVEN. An unproven criterion is not a PASS-shaped exception, and PASS may never be declared over one; read over the artefact, never from memory.",
+            "ACCEPTANCE_PASS := ∀ criterion: covered(evidence_ref) — every criterion PROVEN; PASS may never be declared over an unproven one, read over the artefact and never from memory.",
             "an unproven criterion does not escalate on this host — no isolated call is bound: it closes as a named residual carrying the claim, the falsifier and the instrument that failed, so a host that has one can take it.",
             "an uncovered criterion is a residual, not a rounding error; report verification and validation apart; check @QUALITY_VECTOR axes only where the change could move one — acceptance is a measurement, not a ceremony.",
         ),

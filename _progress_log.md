@@ -4461,3 +4461,16 @@ Oracle [Exact]:
 Residual: the running `bin/opencode.exe` still carries the previous prefix — the installed
 `.txt` reaches sessions only after a rebuild, and old checkpoints keep the previous prefix
 until they compact. Nothing here rebuilt the binary.
+
+## [2026-09-23 00:17] Codex receiver install — STATE_FIRST is live
+
+✓ `python -m prompt_kernel --codex --install` completed through `cmd_runner` run
+`20260922T161611Z_ab17691b`: exit 0, 592 captured bytes, 0 dropped, not truncated. The stamped
+artifact is `prompt_kernel/dist_codex/2026-09-23_00-16-12_reasoning_prompt.txt`.
+
+Oracle [Exact]:
+- ✓ renderer == stamped artifact == `C:\Users\Alexander\.codex\AGENTS.md`: 45,288 B, sha256
+  `4c66babc2d66a39c3e172ba2ffc81d75fd486645fdf7a0bfc53b150acd5887b1`.
+- ✓ the rendered STATE_FIRST sentence occurs exactly once in the installed receiver.
+- ✓ Codex-focused run `20260922T161643Z_404a5bd2`: 8 passed, exit 0.
+- ✓ full kernel run `20260922T161703Z_4f015b55`: 106 passed, exit 0, 0 dropped bytes, not truncated.

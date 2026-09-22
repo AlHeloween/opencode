@@ -1,5 +1,15 @@
 <!-- intention: the agent's own memory is reachable only by word search over 9 676 indexed parts, so finding a past decision costs a sweep and reading m-star costs ~100k tokens -> the session's semantic dominants form a navigable spine (59 epochs at 4 248 chars) and two queries descend from the spine to the messages, with the excerpt held and the source released -->
 
+```yaml
+status: COMPLETED 2026-09-22 — S1–S4 landed 2026-09-20 and were re-verified against the TREE, not
+  against this text: `corpus: "summaries"` (src/tool/messagesearch.ts:137), `epoch` (:46),
+  `dominants` + `Memory.listDominants` (src/memory/memory.ts:450, call site messagesearch.ts:233),
+  `last` (:50), contract src/tool/messagesearch.txt. Unit oracle re-run 2026-09-22:
+  `bun test test/memory/spine.test.ts` → 17 pass / 0 fail, exit 0 (run 20260922T122917Z_7c937024).
+  S5 (hold/release of the excerpt) was OUT of this plan by construction — it is
+  `plans/2026-09-19_temporary-data-acquisition.md`'s task.
+```
+
 # Memory spine navigation — find the book by its spine, take the excerpt, put it back
 
 Owner, 2026-09-20 (verbatim):

@@ -6,7 +6,7 @@ import { createTextAttributes } from "../utils.js"
 import type { BorderStyle } from "../lib/border.js"
 import { RGBA, parseColor, type ColorInput } from "../lib/RGBA.js"
 import { Lexer, type MarkedToken, type Token, type Tokens } from "marked"
-import { CodeRenderable, type OnChunksCallback, type OnHighlightCallback } from "./Code.js"
+import { CodeRenderable, QUIET_HIGHLIGHT_MS, type OnChunksCallback, type OnHighlightCallback } from "./Code.js"
 import { BoxRenderable } from "./Box.js"
 import { StyledText } from "../lib/styled-text.js"
 import { TextRenderable } from "./Text.js"
@@ -811,6 +811,7 @@ export class MarkdownRenderable extends Renderable {
       conceal: this._conceal,
       drawUnstyledText: initialStyledText !== undefined,
       streaming: true,
+      quietHighlightMs: QUIET_HIGHLIGHT_MS,
       initialStyledText,
       baseHighlight,
       onHighlight: this._highlightMarkdownLinks,
@@ -1130,6 +1131,7 @@ export class MarkdownRenderable extends Renderable {
       conceal: this._concealCode,
       drawUnstyledText: !this._streaming,
       streaming: this._streaming,
+      quietHighlightMs: QUIET_HIGHLIGHT_MS,
       treeSitterClient: this._treeSitterClient,
       width: "100%",
       marginBottom,

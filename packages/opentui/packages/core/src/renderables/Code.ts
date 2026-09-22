@@ -37,6 +37,10 @@ export interface CodeOptions extends TextBufferOptions {
   conceal?: boolean
   drawUnstyledText?: boolean
   streaming?: boolean
+  /** Streaming quiet window (ms): while `streaming`, Tree-sitter runs only after this long without a
+   *  content change. A 25–50 delta/s stream otherwise re-parses content whose result arrives stale and
+   *  is dropped on `_highlightSnapshotId` — a re-parse, not a highlight. `0` = run immediately. */
+  quietHighlightMs?: number
   initialStyledText?: StyledText
   baseHighlight?: string
   onHighlight?: OnHighlightCallback
@@ -44,6 +48,12 @@ export interface CodeOptions extends TextBufferOptions {
 }
 
 type ConcealLineRange = [start: number, end: number]
+
+/** The streaming quiet window (ms) — what the flicker plan's T2 names (75–100 ms). It is OPT-IN:
+ *  the default is 0 (run immediately), because the existing pins assert the SYNCHRONOUS behaviour and
+ *  a renderer that silently starts deferring parses breaks every caller expecting one. `Markdown.ts` —
+ *  the streaming producer — turns it on for the surfaces the plan measured. */
+export const QUIET_HIGHLIGHT_MS = 75
 
 export class CodeRenderable extends TextBufferRenderable {
   private _content: string
@@ -60,6 +70,8 @@ export class CodeRenderable extends TextBufferRenderable {
   private _drawUnstyledText: boolean
   private _shouldRenderTextBuffer: boolean = true
   private _streaming: boolean
+  private _quietHighlightMs: number
+  private _lastContentChangeAt: number = 0
   private _initialStyledText?: StyledText
   private _hadInitialContent: boolean = false
   private _lastHighlights: SimpleHighlight[] = []
@@ -88,6 +100,7 @@ export class CodeRenderable extends TextBufferRenderable {
     this._conceal = options.conceal ?? this._contentDefaultOptions.conceal
     this._drawUnstyledText = options.drawUnstyledText ?? this._contentDefaultOptions.drawUnstyledText
     this._streaming = options.streaming ?? this._contentDefaultOptions.streaming
+    this._quietHighlightMs = options.quietHighlightMs ?? 0
     this._initialStyledText = options.initialStyledText
     this._baseHighlight = options.baseHighlight
     this._onHighlight = options.onHighlight
@@ -118,6 +131,7 @@ export class CodeRenderable extends TextBufferRenderable {
   set content(value: string) {
     if (this._content !== value) {
       this._content = value
+      this._lastContentChangeAt = Date.now()
       this.invalidateHighlights()
 
       if (this._streaming && this._filetype && !this._drawUnstyledText) {
@@ -138,10 +152,14 @@ export class CodeRenderable extends TextBufferRenderable {
   public updateStreamingPreview(content: string, initialStyledText: StyledText): void {
     this._content = content
     this._initialStyledText = initialStyledText
+    this._lastContentChangeAt = Date.now()
     this.invalidateHighlights()
     this.textBuffer.setStyledText(initialStyledText)
     this.setRenderedLineSources(undefined)
     this.updateTextInfo()
+    // The preview is a VISIBLE frame, so it must ask for one: without this the renderer can idle
+    // between deltas and the quiet-window check in `renderSelf` never runs — the missing half of P2.
+    this.requestRender()
   }
 
   public override get lineInfo(): LineInfo {
@@ -600,6 +618,12 @@ export class CodeRenderable extends TextBufferRenderable {
           this.setRenderedLineSources(undefined)
           this.updateTextInfo()
         }
+      } else if (this._streaming && Date.now() - this._lastContentChangeAt < this._quietHighlightMs) {
+        // T2: the window is still being written. The dirty flag stays SET — a parse started now would
+        // only be discarded when the next delta lands (`_highlightSnapshotId`), which is a re-parse and
+        // not a highlight — and one more frame is requested, which is the whole wakeup this needs: the
+        // check stops failing by itself once the stream goes quiet.
+        this.requestRender()
       } else {
         this.ensureVisibleTextBeforeHighlight()
         this._highlightsDirty = false

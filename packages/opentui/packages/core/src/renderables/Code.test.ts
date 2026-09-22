@@ -307,6 +307,55 @@ test("CodeRenderable - coalesces streaming updates while highlighting", async ()
   expect(codeRenderable.isHighlighting).toBe(false)
 })
 
+test("CodeRenderable - a streaming burst does not re-parse until the stream goes quiet", async () => {
+  // T2 of the flicker plan. The defect is not 'too many highlights' but ZERO: at 25-50 deltas/s the
+  // parse never finishes on the content it started with, so `startHighlight` drops it on
+  // `_highlightSnapshotId` — a re-parse, not a highlight. The quiet window is what turns the burst
+  // into ONE parse. `quietHighlightMs: 60` makes the window explicit instead of depending on machine
+  // speed; the real frame check is the same code path.
+  const syntaxStyle = SyntaxStyle.create()
+  const mockClient = new MockTreeSitterClient()
+  const highlightCalls = recordHighlightContents(mockClient)
+
+  const codeRenderable = new CodeRenderable(currentRenderer, {
+    id: "test-code",
+    content: "initial",
+    filetype: "typescript",
+    syntaxStyle,
+    treeSitterClient: mockClient,
+    streaming: true,
+    quietHighlightMs: 60,
+  })
+
+  currentRenderer.root.add(codeRenderable)
+  await renderOnce()
+
+  // Not a stream yet: the very first content is parsed immediately (no change has been recorded).
+  expect(highlightCalls).toEqual(["initial"])
+  mockClient.resolveHighlightOnce()
+  await waitForHighlight(codeRenderable)
+
+  // A burst of 25 deltas, each followed by a frame: the window is never quiet, so nothing may run.
+  for (let i = 0; i < 25; i++) {
+    codeRenderable.content = `delta ${i}`
+    await renderOnce()
+    expect(highlightCalls).toEqual(["initial"])
+  }
+
+  // The stream stops. After the quiet window exactly ONE parse runs — on the LATEST content.
+  await new Promise((resolve) => setTimeout(resolve, 80))
+  await renderOnce()
+  expect(highlightCalls).toEqual(["initial", "delta 24"])
+  mockClient.resolveHighlightOnce()
+  await waitForHighlight(codeRenderable)
+
+  // time.end is not a stream: the final parse is immediate, with no window to wait for.
+  codeRenderable.streaming = false
+  codeRenderable.content = "final"
+  await renderOnce()
+  expect(highlightCalls).toEqual(["initial", "delta 24", "final"])
+})
+
 test("CodeRenderable - removing filetype shows the latest unstyled streaming content", async () => {
   const syntaxStyle = SyntaxStyle.create()
   const mockClient = new MockTreeSitterClient()

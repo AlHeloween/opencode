@@ -2,7 +2,7 @@
 
 # /agents: ctrl+t шагает вариант в строке (включая recents)
 
-**Статус:** ACTIVE (2026-09-21)
+**Status:** ACTIVE (2026-09-21) — implementation + unit pins LANDED (`nextVariant` at agent-model-cell.ts:120, `setForModel` wired at local.tsx:1256, `variantStep` in dialog-agent.tsx; pin test/tui/agent-model-cell.test.ts:178); the live smoke (ctrl+t on an agent row steps the variant in the footer; on a recents row too; a model NOT in recents still opens the form) is NOT yet run.
 **Владелец:** сессия `ses_f3d5f006dffe0015eRg1pBuKA2`
 
 ## 1. Требование

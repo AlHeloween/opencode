@@ -55,6 +55,32 @@ export function extractKeywords(text: string): WeightedTerm[] | undefined {
   return terms.length > 0 ? terms : undefined
 }
 
+/**
+ * The chain a vector declares about itself: its own `md5` and the `prev-md5` it points back to.
+ *
+ * ADID 12.2 §I.14.3.1 asks for exactly this — «if the Content Window shifted then perform reverse
+ * search via #semantic_link» — and the link is not something a reader must compute: the model
+ * WRITES it next to the vector. What was missing was the read. Measured on this session's rows
+ * (`experiments/2026-09-22_sv-delta/calibrate.py`): 668 links intact, 133 broken, 68 chain-starts —
+ * so a break DISCRIMINATES, unlike ΔSV over the weighted terms, which saturates (median 2.8-style
+ * max out of a 0..2 range, because consecutive messages share no terms at all: the terms are a
+ * fingerprint of the moment, not a point in a shared space).
+ *
+ * Both fields are anchored to the START OF THEIR OWN LINE, and that anchoring is the whole
+ * difference between a measurement and an artefact: the first version of the probe used
+ * `rfind("md5:")`, whose last occurrence is inside `parent-goal-md5:`, and reported an 86%
+ * broken chain that was pure instrument error. The LAST occurrence per field wins, for the same
+ * reason `extractKeywords` documents: an answer may quote a vector before writing its own.
+ */
+export function extractVectorChain(text: string): { md5?: string; prevMd5?: string } {
+  const own = [...text.matchAll(/^md5:\s*([0-9a-f]{32})/gm)].at(-1)?.[1]
+  const previous = [...text.matchAll(/^prev-md5:\s*([0-9a-f]{32})/gm)].at(-1)?.[1]
+  return { ...(own ? { md5: own } : {}), ...(previous ? { prevMd5: previous } : {}) }
+}
+
+/** The all-zero hash a vector uses to say «I open a chain» — absence of a predecessor, not a break. */
+export const EMPTY_HASH = "00000000000000000000000000000000"
+
 function unquote(text: string): string {
   const trimmed = text.trim()
   const pairs: [string, string][] = [

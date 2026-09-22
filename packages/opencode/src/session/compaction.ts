@@ -11,7 +11,7 @@ import { NotFoundError } from "@/storage/storage"
 import { ModelID, ProviderID } from "@/provider/schema"
 import { Effect, Layer, Context, Schema, Option } from "effect"
 import { readMemory } from "@/tool/memory"
-import { KEYWORD_TOP_N, dominantLine, extractKeywords, extractMessageDominant } from "@/memory/spine"
+import { EMPTY_HASH, KEYWORD_TOP_N, dominantLine, extractKeywords, extractMessageDominant, extractVectorChain } from "@/memory/spine"
 import { estimateMediaTokens, estimateRequestTokens, isOverflow as overflow, usable } from "./overflow"
 import { countTokens } from "./token-count"
 import { promptTokensFromUsage } from "./processor"
@@ -1190,12 +1190,13 @@ export function continuityLine(args: {
 export function buildTableOfContents(
   entries: readonly { message: MessageV2.WithParts; position: number }[],
   input: { skipIds?: ReadonlySet<string>; maxChars?: number } = {},
-): { lines: string[]; trimmed: number; topics?: string } {
+): { lines: string[]; trimmed: number; topics?: string; chainBreaks: number } {
   const maxChars = input.maxChars ?? TOC_MAX_CHARS
   const kept: string[] = []
   const termCarriers = new Map<string, number>()
   let chars = 0
   let trimmed = 0
+  let chainBreaks = 0
   for (let i = entries.length - 1; i >= 0; i--) {
     const entry = entries[i]!
     if (input.skipIds?.has(entry.message.info.id)) continue
@@ -1207,20 +1208,39 @@ export function buildTableOfContents(
     const text = (carrier as { text: string }).text
     const dominant = extractMessageDominant(text)
     const keywords = extractKeywords(text)
+    // THE CHAIN BREAK — the marker ADID §I.14.3.1 describes, read instead of computed. A vector
+    // declares its predecessor's hash; when the declaration does not match the previous message's
+    // own md5, the thread was interrupted at a place the model itself named. Unknown cases (no
+    // predecessor hash on either side) are NOT marked: a missing field is not a break.
+    const chain = extractVectorChain(text)
+    const olderEntry = i > 0 ? entries[i - 1] : undefined
+    const olderCarrier = olderEntry?.message.parts.findLast((part) =>
+      part.type === "text" && extractMessageDominant((part as { text: string }).text) != null,
+    )
+    const olderChain = olderCarrier
+      ? extractVectorChain((olderCarrier as { text: string }).text)
+      : undefined
+    const brokenChain =
+      chain.prevMd5 != null &&
+      chain.prevMd5 !== EMPTY_HASH &&
+      olderChain?.md5 != null &&
+      chain.prevMd5 !== olderChain.md5
+    if (brokenChain) chainBreaks++
     // The window's topical axis: how many vectors carry the term in their own top-N. A COUNT, not
     // a summed weight — adding weights across vectors would invent a probability nobody wrote.
     for (const entryTerm of keywords?.slice(0, KEYWORD_TOP_N) ?? []) {
       termCarriers.set(entryTerm.term, (termCarriers.get(entryTerm.term) ?? 0) + 1)
     }
-    const line = dominantLine({
-      messageIndex: entry.position,
-      dominant,
-      keywords,
-      role: entry.message.info.role,
-      partType: carrier.type,
-      messageID: entry.message.info.id,
-      partID: carrier.id,
-    })
+    const line =
+      dominantLine({
+        messageIndex: entry.position,
+        dominant,
+        keywords,
+        role: entry.message.info.role,
+        partType: carrier.type,
+        messageID: entry.message.info.id,
+        partID: carrier.id,
+      }) + (brokenChain ? ` \u26a0 chain break — sessionread back from here` : "")
     if (kept.length > 0 && chars + line.length + 1 > maxChars) {
       trimmed = i + 1
       break
@@ -1239,7 +1259,7 @@ export function buildTableOfContents(
           .map(([term, count]) => `${term}×${count}`)
           .join(", ")}`
       : undefined
-  return { lines: kept, trimmed, topics }
+  return { lines: kept, trimmed, topics, chainBreaks }
 }
 
 /**
@@ -1440,6 +1460,7 @@ export function buildMessageStar(input: {
     input.toc && input.toc.length > 0
       ? [
           "--- Table of contents (one line per folded message — the dominant it already carried) ---",
+          "⚠ marks a DECLARED chain break: that message points back at a predecessor hash the previous message does not carry, so the thread was interrupted there.",
           ...input.toc,
         ].join("\n")
       : undefined

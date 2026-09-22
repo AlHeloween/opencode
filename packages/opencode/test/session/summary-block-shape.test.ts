@@ -322,4 +322,45 @@ describe("summary block shape", () => {
     // …and it says what the number MEANS, so a count is never read as a weight.
     expect(toc.topics).toContain("own top-3")
   })
+
+  test("FALSIFIER — a DECLARED chain break is marked; a linked pair is not", () => {
+    const asMessage = (id: string, text: string) =>
+      ({
+        info: { id, role: "assistant" },
+        parts: [{ id: `${id}-p1`, type: "text", text }],
+      }) as unknown as MessageV2.WithParts
+    const a = "a".repeat(32)
+    const b = "b".repeat(32)
+    const zero = "0".repeat(32)
+    const vector = (md5: string, prev: string) =>
+      `work\n\ndominant: "an epoch"\n\nmd5: ${md5}\nprev-md5: ${prev}\nparent-goal-md5: ${zero}`
+
+    // LINKED: the second message declares the first message's own hash. Nothing is marked, and the
+    // chain START declares the empty hash — the absence of a predecessor is not a break.
+    const linked = buildTableOfContents([
+      { message: asMessage("msg_1", vector(a, zero)), position: 1 },
+      { message: asMessage("msg_2", vector(b, a)), position: 2 },
+    ])
+    expect(linked.chainBreaks).toBe(0)
+    expect(linked.lines.join("\n")).not.toContain("chain break")
+
+    // BROKEN: the second message points at a predecessor hash the first one does not carry. The
+    // marker lands on the message that DECLARED it, with that message's address.
+    const broken = buildTableOfContents([
+      { message: asMessage("msg_1", vector(a, zero)), position: 1 },
+      { message: asMessage("msg_2", vector(b, b)), position: 2 },
+    ])
+    expect(broken.chainBreaks).toBe(1)
+    expect(broken.lines[1]).toContain("⚠ chain break")
+    expect(broken.lines[1]).toContain("msg_2")
+    expect(broken.lines[0]).not.toContain("chain break")
+
+    // SILENT: neither side declares a chain ⇒ UNKNOWN, and unknown is not a break.
+    const silent = buildTableOfContents([
+      { message: asMessage("msg_1", 'dominant: "no chain here"'), position: 1 },
+      { message: asMessage("msg_2", 'dominant: "still none"'), position: 2 },
+    ])
+    expect(silent.chainBreaks).toBe(0)
+    expect(silent.lines.join("\n")).not.toContain("chain break")
+  })
 })

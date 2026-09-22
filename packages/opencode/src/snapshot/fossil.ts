@@ -509,6 +509,8 @@ export const layer = Layer.effect(
               // Tool-driven snapshots provide the exact changed paths. Keep
               // that path bounded: a global Fossil scan here can traverse the
               // entire worktree while the model loop is waiting to continue.
+              /** The caller's own list, as worktree-relative paths — the gate below needs it. */
+              const named: string[] = []
               if (files !== undefined) {
                 // `fossil add` and `fossil rm` both take FILE1 ?FILE2 ...?, so a
                 // turn's whole manifest fits in a couple of invocations. Spawning
@@ -520,6 +522,7 @@ export const layer = Layer.effect(
                 const missing: string[] = []
                 for (const file of files) {
                   const rel = path.relative(worktree, file).replaceAll("\\", "/")
+                  named.push(rel)
                   ;((yield* fs.exists(file)) ? present : missing).push(rel)
                 }
                 for (const batch of commandBatches(present))
@@ -546,9 +549,47 @@ export const layer = Layer.effect(
               // tree (measured 2026-09-21) plus a false `bug: tracking commit failed`
               // (14 of them in one session of our own logs). `changes` reads the mtime
               // cache: 0.3 s here, 0.8 s there — the gate is what makes the commit rare.
-              const pending = yield* fossil(["changes"], { cwd: worktree }).pipe(
-                Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "" })),
-              )
+              //
+              // MEASURED 2026-09-22 — that cache is a statement about (size, mtime), NOT
+              // about content, and on this path it was answering a question the caller had
+              // already answered. Fossil trusts the pair and only examines content when the
+              // mtime differs (pinned source, `vfile.c:157-177`), so a write that keeps the
+              // size and lands in the same mtime second reads as UNCHANGED. The explicit path
+              // then returned the PREVIOUS commit hash for a file the caller had just named:
+              // `track([f])` after "v2" and after "v3" returned the same hash (probe on the
+              // crossing-undo fixture: 2 distinct of 3), and the redo that followed restored
+              // v2 where v3 was written — a snapshot that never existed.
+              //
+              // So the caller's list is verified by CONTENT — `changes --hash`, which the same
+              // help documents as "verify file status using hashing rather than [the cache]" —
+              // and only over the paths it named, which keeps the cost bounded (they are
+              // hashed during the commit anyway when the answer is "changed"). A failing
+              // batch falls through to the commit path: paying for a commit is the safe
+              // direction, returning a stale hash is not.
+              //
+              // The branch is "did the caller NAME paths?", the same axis the early exit above
+              // uses — NOT "was the argument undefined". They differ for `track([])`, which the
+              // redo path uses to record the pre-redo state: keyed on `undefined` this loop ran
+              // zero batches, reported "nothing pending" and skipped the commit, losing a user
+              // edit made between an undo and a redo (measured 2026-09-22 — SU-7 red, green
+              // again on this predicate; `named` holds a path only when one was named).
+              const pending =
+                named.length === 0
+                  ? yield* fossil(["changes"], { cwd: worktree }).pipe(
+                      Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "" })),
+                    )
+                  : yield* Effect.gen(function* () {
+                      let code = 0
+                      let text = ""
+                      for (const batch of commandBatches([...new Set(named)])) {
+                        const out = yield* fossil(["changes", "--hash", ...batch], { cwd: worktree }).pipe(
+                          Effect.catch(() => Effect.succeed({ code: -1, text: "", stderr: "" })),
+                        )
+                        if (out.code !== 0) code = out.code
+                        text += out.text
+                      }
+                      return { code, text }
+                    })
               if (pending.code === 0 && !pending.text.trim()) {
                 const probe = yield* fossil(["info"], { cwd: worktree })
                 const hash = currentHash(probe.text)

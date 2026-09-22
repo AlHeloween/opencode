@@ -107,6 +107,12 @@ describe("undo across visibility boundary", () => {
                 yield* Effect.promise(() => fs.writeFile(file, "v3", "utf-8"))
                 const h3 = yield* snap.track([file])
                 expect(h3).toBeTruthy()
+                // THE FALSIFIER for the stale-cache defect (measured 2026-09-22): three DIFFERENT
+                // contents on disk must yield three DISTINCT leaves. The gate used to ask fossil's
+                // (size, mtime) cache instead of the caller's own list, so "v3" — same length as
+                // "v2", same mtime second — read as unchanged and this returned h2 twice (probe:
+                // distinct 2). It went red here first, and the redo below is what showed it.
+                expect(new Set([h1, h2, h3]).size).toBe(3)
 
                 // Simulate the compaction mask: everything below user2 is hidden.
                 const before = yield* session.messages({ sessionID: sid, visibleOnly: false })

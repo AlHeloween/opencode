@@ -924,22 +924,130 @@ type SummaryEntry = {
  * (owner, 2026-09-21: «умник решил проза не нужна и оставил только диффы»). The bodies are not the
  * record: the Exact list is recoverable from the session, and the header says where.
  */
+/**
+ * The changed LINES a patch names, each with the number it has in the file — `12: const x = 1` — and,
+ * above each contiguous GROUP of changes, the comment that explains the block it sits in.
+ *
+ * WHY this shape (owner, 2026-09-22): «точный путь к файлу и номера строк … типа 10: хххх / 11: yyyy»,
+ * and then «если ты сможешь захватить коммент над группой линий, то будет вообще шедеврально». A count
+ * says how much churn happened and never where; a range says where but not what; numbered lines say
+ * where and what — and the comment above them says WHY the block exists, which is the difference
+ * between a list of addresses and something a reader can act on without opening five files.
+ *
+ * An addition carries its number in the NEW file, a removal only has its position in the OLD one, so
+ * the two are marked differently rather than silently conflated. Context lines are not emitted — they
+ * are the file, not the change — with one exception: the contiguous comment block immediately above a
+ * group, capped, and only when it IS a comment.
+ */
+export function changedLines(patch: string, maxLines = 12): { lines: string[]; more: number } {
+  const lines: string[] = []
+  let more = 0
+  let newLine = 0
+  let oldLine = 0
+  let inHunk = false
+  /** The last few context lines, newest last — the only place a group's comment can come from. */
+  let pending: { n: number; text: string }[] = []
+  /** A group has been opened (its comment emitted); context closes it, a change does not. */
+  let groupOpen = false
+  const isComment = (text: string) => {
+    const t = text.trimStart()
+    return (
+      t.startsWith("//") ||
+      t.startsWith("#") ||
+      t.startsWith("/*") ||
+      t.startsWith("*") ||
+      t.startsWith("--") ||
+      t.startsWith("<!--")
+    )
+  }
+  for (const raw of patch.split("\n")) {
+    const hunk = raw.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/)
+    if (hunk) {
+      oldLine = Number(hunk[1])
+      newLine = Number(hunk[2])
+      inHunk = true
+      pending = []
+      groupOpen = false
+      continue
+    }
+    if (!inHunk) continue // `Index:`, `---`, `+++` are decoration, not changes
+    // File headers are skipped WHEREVER they appear. A real patch puts them before the first hunk,
+    // but "the producer is well-behaved" is an assumption, not a fact — and these two prefixes cannot
+    // be content: a removed line whose text began with `--- ` is written `---- ` (the diff's own `-`
+    // plus the text), so three dashes and a space is a header every time.
+    if (/^(---|\+\+\+) /.test(raw)) continue
+    if (raw.startsWith("+") || raw.startsWith("-")) {
+      if (!groupOpen) {
+        // The comment lines among the few context lines above the group, oldest first. A doc comment
+        // usually sits ABOVE the function's first line, so "immediately contiguous" would miss exactly
+        // the case worth capturing; the cap is small (three context lines) and every emitted line
+        // carries its own file number, so a reader sees at once whether it is adjacent.
+        const comments = pending.filter((line) => isComment(line.text))
+        for (const comment of comments) {
+          if (lines.length < maxLines) lines.push(`${comment.n}: ${comment.text}`)
+          else more++
+        }
+        groupOpen = true
+      }
+      if (raw.startsWith("+")) {
+        if (lines.length < maxLines) lines.push(`${newLine}: ${raw.slice(1)}`)
+        else more++
+        newLine++
+        continue
+      }
+      if (lines.length < maxLines) lines.push(`${oldLine}: −${raw.slice(1)}`)
+      else more++
+      oldLine++
+      continue
+    }
+    if (raw.startsWith(" ")) {
+      pending.push({ n: newLine, text: raw.slice(1) })
+      if (pending.length > 3) pending.shift()
+      newLine++
+      oldLine++
+      groupOpen = false
+    }
+  }
+  return { lines, more }
+}
+
 export function renderFileDiffLegend(
-  diffs: readonly { file: string; additions: number; deletions: number; status?: string }[],
+  diffs: readonly {
+    file: string
+    additions: number
+    deletions: number
+    status?: string
+    /** The unified patch, when the producer kept it: the ONLY source of line numbers. */
+    patch?: string
+  }[],
   sidecar: boolean,
 ): string {
   const shown = diffs.slice(0, 20)
   const additions = diffs.reduce((sum, diff) => sum + diff.additions, 0)
   const deletions = diffs.reduce((sum, diff) => sum + diff.deletions, 0)
+  const perFile: string[] = []
+  for (const diff of shown) {
+    perFile.push(`  - ${diff.file} (${diff.status ?? "modified"} +${diff.additions}/-${diff.deletions})`)
+    // A file whose patch was not kept shows its size and says nothing about lines: an address is
+    // never invented to fill a gap.
+    if (!diff.patch) continue
+    const { lines, more } = changedLines(diff.patch)
+    perFile.push(...lines.map((line) => `      ${line}`))
+    if (more > 0) perFile.push(`      … +${more} more changed line(s) in this file`)
+  }
   return [
     sidecar
       ? `- tool_diff: system Exact (snapshot range diff — fossil anchors + tool metadata; file bodies via sessionread of this range)`
       : `- tool_diff: system Exact (write/edit/multiedit filediff from session DB; file bodies via sessionread of this range)`,
     `  files=${diffs.length}; additions=${additions}; deletions=${deletions}`,
-    ...shown.map((diff) => `  - ${diff.file} (+${diff.additions}/-${diff.deletions} ${diff.status ?? "modified"})`),
+    // `N: line` is an addition (its number is in the NEW file); `N: −line` is a removal (its number is
+    // the position it had in the OLD one) — the only address a deleted line can have.
+    ...perFile,
     ...(diffs.length > shown.length
       ? [`  - … +${diffs.length - shown.length} more; sessionread this summary range for the full Exact list`]
       : []),
+    // The reader's next move, named: the list says WHERE, and the graph says what depends on it.
+    `  Use codegraph for precise understanding of the task.`,
   ].join("\n")
 }
 

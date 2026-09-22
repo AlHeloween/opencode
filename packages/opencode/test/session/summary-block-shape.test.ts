@@ -14,7 +14,7 @@
 import { describe, expect, test } from "bun:test"
 import fs from "fs"
 import path from "path"
-import { buildGoalLines, buildMessageStar, buildTableOfContents, diagnoseSummaryGaps, renderFileDiffLegend, renderSummaryBlock } from "../../src/session/compaction"
+import { buildGoalLines, buildMessageStar, buildTableOfContents, changedLines, diagnoseSummaryGaps, renderFileDiffLegend, renderSummaryBlock } from "../../src/session/compaction"
 import type { MessageV2 } from "../../src/session/message-v2"
 import { extractKeywords, extractVectorChain } from "../../src/memory/spine"
 import type { PlanStatePayload } from "../../src/util/plan-status"
@@ -45,13 +45,80 @@ describe("summary block shape", () => {
     expect(legend).toContain("files=2")
     expect(legend).toContain("additions=148")
     expect(legend).toContain("deletions=10")
-    expect(legend).toContain("src/solver/forward.ts (+120/-8 modified)")
-    expect(legend).toContain("src/solver/inverse.ts (+28/-2 added)")
+    // THE CONTRACT (owner, 2026-09-22: «точный путь к файлу и номера строк … типа 10: хххх / 11: yyyy»):
+    // the exact path leads, then the CHANGED LINES each with its own number. An addition carries its
+    // number in the NEW file; a removal carries its position in the OLD one and is marked `−`.
+    expect(legend).toContain("src/solver/forward.ts (modified +120/-8)")
+    // The `--- `/`+++ ` headers in the fixture sit AFTER the hunk — non-canonical on purpose. They
+    // are skipped wherever they land, so they must NOT shift the numbering: the addition below is the
+    // change at new line 1, which is what the hunk declares.
+    expect(legend).toContain("1: const step = 1")
+    expect(legend).toContain("src/solver/inverse.ts (added +28/-2)")
+    expect(legend).toContain("1: export const solve = () => 0")
     expect(legend).toContain("sessionread")
+    // The reader's next move is named, in the block, once — not left to be remembered.
+    expect(legend).toContain("Use codegraph for precise understanding of the task.")
 
+    // The changed lines, never the hunks: no hunk header, no file header, no fence.
     expect(legend.includes("@@")).toBe(false)
     expect(legend.includes("+++")).toBe(false)
     expect(legend.includes("```diff")).toBe(false)
+  })
+
+  test("a file whose patch was not kept shows its size and NO lines — the renderer never invents an address", () => {
+    const legend = renderFileDiffLegend(
+      [
+        { file: "src/kept.ts", additions: 2, deletions: 0, patch: "@@ -5,0 +6,2 @@\n+two lines\n+more" },
+        { file: "src/dropped.ts", additions: 4, deletions: 1 },
+      ],
+      false,
+    )
+    expect(legend).toContain("src/kept.ts (modified +2/-0)")
+    expect(legend).toContain("6: two lines")
+    expect(legend).toContain("7: more")
+    // No patch ⇒ no lines anywhere for that file, and its size is still stated.
+    expect(legend).toContain("src/dropped.ts (modified +4/-1)")
+    expect(legend).not.toContain("dropped" + "\n" + "      ")
+  })
+
+  test("a removal is addressed by the position it HAD, and the cap is named", () => {
+    // A pure deletion: nothing exists in the new file, so an address in the new file would be a lie.
+    const legend = renderFileDiffLegend(
+      [{ file: "src/gone.ts", additions: 0, deletions: 1, patch: "@@ -9,1 +9,0 @@\n-only line" }],
+      false,
+    )
+    expect(legend).toContain("9: −only line")
+    // The per-file cap is a named trim, never a silent cut.
+    const long = Array.from({ length: 40 }, (_, i) => `+line ${i}`).join("\n")
+    expect(renderFileDiffLegend([{ file: "src/long.ts", additions: 40, deletions: 0, patch: `@@ -1,0 +1,40 @@\n${long}` }], false)).toContain(
+      "… +28 more changed line(s) in this file",
+    )
+  })
+
+  test("the comment above a group is captured — the owner's ask: numbered lines that are READABLE", () => {
+    // «если ты сможешь захватить коммент над группой линий, то будет вообще шедеврально» (2026-09-22).
+    // A numbered line without its comment is an address; with it, it is something the next window can
+    // act on without opening the file. Two groups, so the cap and the per-group boundary both show.
+    const patch = [
+      "@@ -10,7 +10,8 @@",
+      " // the ledger's debt, counted from the durable row",
+      " // (second line of the same comment)",
+      " const claims = []",
+      "+const more = 1",
+      " ",
+      " // a second group, miles away",
+      "+const other = 2",
+    ].join("\n")
+    const { lines } = changedLines(patch)
+    expect(lines).toEqual([
+      "10: // the ledger's debt, counted from the durable row",
+      "11: // (second line of the same comment)",
+      "13: const more = 1",
+      "15: // a second group, miles away",
+      "16: const other = 2",
+    ])
+    // A group with no comment above it gets no invented header: the numbers speak alone.
+    expect(changedLines("@@ -1,1 +1,2 @@\n+only line").lines).toEqual(["1: only line"])
   })
 
   test("the legend is capped by ADDRESSES, and the cap is named as a floor", () => {
@@ -66,6 +133,9 @@ describe("summary block shape", () => {
     expect(legend).toContain("files=23")
     expect(legend).toContain("+3 more")
     expect(legend.includes("@@")).toBe(false)
+    // No patches in this fixture ⇒ no ranges anywhere, and the hint still closes the block.
+    expect(legend).not.toContain(".ts:")
+    expect(legend).toContain("Use codegraph for precise understanding of the task.")
   })
 
   test("FALSIFIER — the range diff names its END anchor in the call", () => {

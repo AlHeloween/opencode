@@ -18,6 +18,7 @@ import { createHash } from "crypto"
 import type { Node, Parser } from "web-tree-sitter"
 import { getParser, commands as tsCommands, parts as tsParts, source as tsSource } from "@/shell/tree-sitter"
 import { enumerationToolDecision, nativeEnumerationBlockMessage, resolveEnumerationTool } from "./enumeration-tools"
+import { loadEpistemic, saveEpistemic } from "./epistemic-store"
 
 const log = Log.create({ service: "session.constitution" })
 
@@ -1103,6 +1104,9 @@ type SessionEpistemic = {
 
 const sessionEpistemic = new Map<string, SessionEpistemic>()
 
+/** Bumped when the blob's shape changes; a blob from another version is ignored, not guessed at. */
+const EPISTEMIC_STORE_VERSION = 1
+
 function emptyLedger(): ClaimLedger {
   return {
     claims: new Map(),
@@ -1113,13 +1117,95 @@ function emptyLedger(): ClaimLedger {
   }
 }
 
+/** The blob as stored: Maps become entry arrays, because JSON has no other way to carry them. */
+function encodeEpistemic(s: SessionEpistemic): string {
+  return JSON.stringify({
+    v: EPISTEMIC_STORE_VERSION,
+    claims: [...s.ledger.claims.entries()],
+    premises: s.ledger.premises,
+    openQuestions: s.ledger.openQuestions,
+    active: s.ledger.active,
+    updatedAt: s.ledger.updatedAt,
+    evidence: [...s.evidence.entries()],
+    stamps: [...s.stamps.entries()],
+    evidenceFloor: s.evidenceFloor,
+  })
+}
+
+/**
+ * Read the blob back, or return an empty state. A blob that cannot be parsed is an EMPTY state and
+ * nothing else: guessing at half a ledger would be worse than admitting the ledger is gone, and the
+ * caller will re-flush an empty one over it.
+ */
+function decodeEpistemic(raw: string | undefined): SessionEpistemic | undefined {
+  if (!raw) return undefined
+  try {
+    const parsed = JSON.parse(raw) as {
+      v?: number
+      claims?: [string, ClaimRecord][]
+      premises?: string[]
+      openQuestions?: string[]
+      active?: boolean
+      updatedAt?: number
+      evidence?: [string, RuntimeEvidence][]
+      stamps?: [string, ActiveClaimStamp][]
+      evidenceFloor?: InfoMark
+    }
+    if (parsed.v !== EPISTEMIC_STORE_VERSION) return undefined
+    return {
+      ledger: {
+        claims: new Map(parsed.claims ?? []),
+        premises: parsed.premises ?? [],
+        openQuestions: parsed.openQuestions ?? [],
+        active: parsed.active ?? false,
+        updatedAt: parsed.updatedAt ?? Date.now(),
+      },
+      evidence: new Map(parsed.evidence ?? []),
+      events: [],
+      stamps: new Map(parsed.stamps ?? []),
+      evidenceFloor: parsed.evidenceFloor ?? "Inferred",
+    }
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * The session's epistemics, HYDRATED from the durable row on first access.
+ *
+ * It used to be a Map and nothing else, so a restart emptied it: `@LOOP_MEASURE`'s
+ * `unstamped_claims` became uncountable and every fold opened with a debt the system could not see.
+ * The debt has to be READ from an artifact, not remembered (owner, 2026-09-22).
+ */
 function epistemic(sessionID: string): SessionEpistemic {
   let s = sessionEpistemic.get(sessionID)
   if (!s) {
-    s = { ledger: emptyLedger(), evidence: new Map(), events: [], stamps: new Map(), evidenceFloor: "Inferred" }
+    s = decodeEpistemic(loadEpistemic(sessionID)) ?? {
+      ledger: emptyLedger(),
+      evidence: new Map(),
+      events: [],
+      stamps: new Map(),
+      evidenceFloor: "Inferred",
+    }
     sessionEpistemic.set(sessionID, s)
   }
   return s
+}
+
+/** Write the session's epistemics back to its durable row. */
+export function flushEpistemic(sessionID: string): void {
+  const s = sessionEpistemic.get(sessionID)
+  if (!s) return
+  saveEpistemic(sessionID, encodeEpistemic(s))
+}
+
+/**
+ * The claim ledger's DEBT — what `@LOOP_MEASURE` needs and could not count before: how many claims
+ * are recorded at all, and how many of them carry no oracle stamp.
+ */
+export function claimDebt(sessionID: string): { claims: number; unstamped: number } {
+  const claims = [...epistemic(sessionID).ledger.claims.values()]
+  return { claims: claims.length, unstamped: claims.filter((claim) => !claim.stamped).length }
 }
 
 export function resetEpistemicState(sessionID?: string) {

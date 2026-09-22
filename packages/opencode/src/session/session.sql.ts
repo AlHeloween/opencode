@@ -245,3 +245,17 @@ export const CacheStatsTable = sqliteTable("cache_stats", {
   uniqueIndex("cache_stats_session_model_turn_idx").on(table.session_id, table.model_id, table.turn),
 ])
 
+/**
+ * The claim ledger's durable carrier — one row per session.
+ *
+ * The epistemics in `constitution.ts` (claims, stamps, evidence floor, events) were an in-memory Map,
+ * so a restart emptied them: `@LOOP_MEASURE`'s `unstamped_claims` could not be counted, and every
+ * fold began with a debt the system could not see. The blob is stored as written and read back
+ * whole, because the ledger is a graph of Maps that only its owner knows how to take apart.
+ */
+export const SessionEpistemicTable = sqliteTable("session_epistemic", {
+  session_id: text().primaryKey(),
+  data: text().notNull(),
+  time_updated: integer().notNull(),
+})
+

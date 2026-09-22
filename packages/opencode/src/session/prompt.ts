@@ -1992,7 +1992,13 @@ export const layer = Layer.effect(
                     // user is not allowed to be the only thing that ever asks for an account of the work.
                     debt: collectPlanState(worktree),
                     coupling,
+                    // `@LOOP_MEASURE`'s other half: claims with no oracle stamp, counted from the row
+                    // that now outlives the process.
+                    claims: Constitution.claimDebt(sessionID),
                   })
+                  // The read above is also the FLUSH POINT: the ledger is written back once per user
+                  // message, so a restart rehydrates what the last turn knew.
+                  Constitution.flushEpistemic(sessionID)
                 } catch (e) {
                   Log.Default.warn("bug: failed to build the compaction status note", {
                     error: String(e),

@@ -651,6 +651,8 @@ export function tailNote(input: {
   /** The coupling watcher's result: how many vectors were actually looked at, and what floated free.
     * A silent check is indistinguishable from no check, so the count is printed even at zero. */
   coupling?: { checked: number; findings: readonly string[] } | null
+  /** The claim ledger's debt — `@LOOP_MEASURE`'s `unstamped_claims`, counted from the durable row. */
+  claims?: { claims: number; unstamped: number } | null
 }): string {
   const lines: string[] = []
   for (const summary of input.open) {
@@ -689,6 +691,12 @@ export function tailNote(input: {
         ? `coupling: ${input.coupling.checked} vector(s) with a plan link · 0 findings`
         : `coupling: ${input.coupling.checked} linked · ${input.coupling.findings.length} finding(s) — ${input.coupling.findings.join(" · ")}`,
     )
+  }
+  // THE CLAIM LEDGER'S DEBT — `@LOOP_MEASURE`'s `unstamped_claims`, which had no durable carrier at
+  // all until the epistemics learned to hydrate from their own row. Counts, never prose; printed even
+  // at zero, for the same reason as the coupling line.
+  if (input.claims) {
+    lines.push(`claims: ${input.claims.claims} recorded · ${input.claims.unstamped} unstamped`)
   }
   if (input.window) {
     const w = input.window

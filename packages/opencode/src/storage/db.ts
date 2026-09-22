@@ -259,6 +259,12 @@ CREATE INDEX IF NOT EXISTS "part_embedding_session_idx" ON "part_embedding" ("se
 CREATE INDEX IF NOT EXISTS "part_embedding_type_idx" ON "part_embedding" ("embedding_type");
 CREATE INDEX IF NOT EXISTS "part_embedding_model_idx" ON "part_embedding" ("model_id");
 
+CREATE TABLE IF NOT EXISTS "session_epistemic" (
+  session_id text PRIMARY KEY NOT NULL,
+  data text NOT NULL,
+  time_updated integer NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS "balance_snapshot" (
   id text PRIMARY KEY NOT NULL,
   provider_id text NOT NULL,

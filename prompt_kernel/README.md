@@ -117,17 +117,24 @@ automatically yet.
 python -m prompt_kernel --codex
 ```
 
-Artifacts are stamped under `prompt_kernel/dist_codex/`. There is deliberately
-no `--codex --install`: this external harness has no repository-local prompt
-import contract. It rejects that flag rather than pretending the artifact is
-active.
+Artifacts are stamped under `prompt_kernel/dist_codex/`. Install the Codex host
+variant into the active global receiver with:
 
-Because it installs nowhere, nothing detects it going stale: the artifact only
-changes when someone runs `--codex`. Re-render it in the same motion as
-`--install` and `--claude --install`, and check `addons_codex.py` whenever a
-sibling registry gains a host binding — a shared mechanism with no instrument
-named on this host is the defect the reverse-reachability check catches inside
-the graph and nothing catches across variants.
+```powershell
+python -m prompt_kernel --codex --install
+```
+
+The receiver is `${CODEX_HOME}/AGENTS.md`, falling back to
+`~/.codex/AGENTS.md` when `CODEX_HOME` is unset. It is renderer-only generated
+content and is written atomically after kernel and migration validation plus a
+stamped-artifact equality check. A running Codex task keeps the prefix it
+started with; the installed variant becomes active for the next task.
+
+Re-render and install it in the same motion as product `--install` and Claude
+`--claude --install`, and check `addons_codex.py` whenever a sibling registry
+gains a host binding — a shared mechanism with no instrument named on this host
+is the defect the reverse-reachability check catches inside the graph and
+nothing catches across variants.
 
 Before wiring this in, note the size trade-off: the installed file is the
 full kernel render (~26 KB), so every session in this repo now spends that

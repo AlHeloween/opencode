@@ -4315,3 +4315,11 @@ Hypothetical until that harness reports its own prefix digest.
 - Points 2–4 answered in-session: user-friendly / no silent disappearance (the verified landscape: the
   note is invisible to the user; the fold stops paging the archive to the transcript; `/agents` now
   shows the effective model); the reserve question «разобраться»; the config stays where it is.
+
+## 2026-09-22 — Codex kernel: собственный install contract и host receiver
+
+- **S1 — installer API:** ✓ `prompt_kernel/cutover.py` получил `CODEX_KERNEL_PATH` (`CODEX_HOME`, fallback `~/.codex`) и `install_codex_kernel()`, использующий только `CODEX_GATE_ADDONS` + `DIST_CODEX`; временный-path oracle `20260922T133118Z_1a7e5928` прошёл (1 passed).
+- **S2 — CLI/docs/tests:** ✓ `python -m prompt_kernel --codex --install` теперь является штатным atomic install, CLI печатает artifact/receiver/digest; README и focused tests описывают тот же контракт. Oracle `20260922T134123Z_8c1cf810`: 8 passed, exit 0, 0 dropped bytes.
+- **S3 — suite oracle:** ✓ Codex-owned tests зелёные; ✗ общий suite `20260922T134142Z_d7b3afe1` завершился `104 passed, 2 failed` на отдельных promotion gates production и Claude. Лог прочитан целиком: 3 307 bytes, 0 dropped, not truncated.
+- **S4 — install/read-back:** ✓ run `20260922T133725Z_55e5a46c` установил `C:\Users\Alexander\.codex\AGENTS.md`; renderer == stamped artifact == receiver, 43 957 bytes, SHA-256 `e43c45d5b48c5712b1ce48d5622bbdb4fe6514f4a91157dbd57aca8401e1fa95`. ✓ Scoped git status/diff по `.claude/reasoning_kernel.md` пусты.
+- **S5 — clean boundary:** ✓ Codex install-contract surfaces закрыты отдельным plan; параллельные правки общего kernel не включаются в scoped commit. ✗ Инструментальный residual: `cmd_runner --raw` может зависнуть на pytest с `bytes_written=0` и проигнорировать stop request; финальные доказательства получены через `--no-raw` (ConPTY).

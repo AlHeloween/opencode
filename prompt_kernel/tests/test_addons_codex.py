@@ -111,8 +111,12 @@ def test_codex_cli_writes_artifacts_without_installing(tmp_path: Path, monkeypat
     assert {path.suffix for path in tmp_path.iterdir()} == {".json", ".mdc", ".txt"}
 
 
-def test_codex_cli_rejects_unsupported_install(monkeypatch) -> None:
+def test_codex_cli_installs_renderer_output(tmp_path: Path, monkeypatch) -> None:
     import prompt_kernel.__main__ as cli
 
+    target = tmp_path / ".codex" / "AGENTS.md"
+    monkeypatch.setattr(cli, "DIST_CODEX", tmp_path / "dist_codex")
+    monkeypatch.setattr(cli, "CODEX_KERNEL_PATH", target)
     monkeypatch.setattr(sys, "argv", ["prompt_kernel", "--codex", "--install"])
-    assert cli.main() == 2
+    assert cli.main() == 0
+    assert target.read_text(encoding="utf-8") == render_kernel(KERNEL, CODEX_GATE_ADDONS)

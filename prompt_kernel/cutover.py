@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from pathlib import Path
 
 from .artifacts import DIST, _atomic_write, write_artifacts
@@ -15,6 +16,7 @@ PRODUCTION_PROMPT = (
     REPO_ROOT / "packages" / "opencode" / "src" / "session" / "prompt" / "reasoning_prompt.txt"
 )
 CLAUDE_KERNEL_PATH = REPO_ROOT / ".claude" / "reasoning_kernel.md"
+CODEX_KERNEL_PATH = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")) / "AGENTS.md"
 
 
 def cutover(
@@ -91,6 +93,33 @@ def install_claude_kernel(*, kernel_path: Path | None = None, dist: Path | None 
     )
     runtime = runtime_path.read_text(encoding="utf-8")
     if runtime != render_kernel(KERNEL, CLAUDE_GATE_ADDONS):
+        raise RuntimeError(f"stamped artifact drifted from renderer: {runtime_path}")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    _atomic_write(dest, runtime)
+    return hashlib.sha256(runtime.encode("utf-8")).hexdigest()
+
+
+def install_codex_kernel(*, kernel_path: Path | None = None, dist: Path | None = None) -> str:
+    """Refresh the global Codex instruction receiver with the Codex host variant.
+
+    The target is generated content only. Its location follows ``CODEX_HOME``
+    when present and otherwise uses the standard ``~/.codex/AGENTS.md`` path.
+    """
+    from .addons_codex import CODEX_GATE_ADDONS
+    from .artifacts import DIST_CODEX
+
+    dest = kernel_path if kernel_path is not None else CODEX_KERNEL_PATH
+    errors = validate_kernel(KERNEL)
+    if errors:
+        raise RuntimeError("kernel validation failed: " + "; ".join(errors))
+    migration_errors = validate_migration(tuple(LEGACY_RULE_MIGRATION), KERNEL)
+    if migration_errors:
+        raise RuntimeError("migration ledger failed: " + "; ".join(migration_errors))
+    _, runtime_path = write_artifacts(
+        dist=dist if dist is not None else DIST_CODEX, addons=CODEX_GATE_ADDONS
+    )
+    runtime = runtime_path.read_text(encoding="utf-8")
+    if runtime != render_kernel(KERNEL, CODEX_GATE_ADDONS):
         raise RuntimeError(f"stamped artifact drifted from renderer: {runtime_path}")
     dest.parent.mkdir(parents=True, exist_ok=True)
     _atomic_write(dest, runtime)

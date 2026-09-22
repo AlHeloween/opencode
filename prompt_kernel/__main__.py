@@ -5,23 +5,32 @@ import sys
 from .addons_claude import CLAUDE_GATE_ADDONS
 from .addons_codex import CODEX_GATE_ADDONS
 from .artifacts import DIST, DIST_CLAUDE, DIST_CODEX, write_artifacts
-from .cutover import CLAUDE_KERNEL_PATH, PRODUCTION_PROMPT, install_claude_kernel, install_production
+from .cutover import (
+    CLAUDE_KERNEL_PATH,
+    CODEX_KERNEL_PATH,
+    PRODUCTION_PROMPT,
+    install_claude_kernel,
+    install_codex_kernel,
+    install_production,
+)
 from .render import kernel_digest, render_kernel
 from .source import KERNEL
 
 
 def main() -> int:
     if "--codex" in sys.argv:
-        if "--install" in sys.argv:
-            print("codex_kernel=not_installed; the external Codex harness has no repository-local import contract")
-            return 2
         review, runtime = write_artifacts(dist=DIST_CODEX, addons=CODEX_GATE_ADDONS)
         print(f"runtime={runtime}")
         print(f"review={review}")
         print(f"utf8_bytes={len(render_kernel(KERNEL, CODEX_GATE_ADDONS).encode('utf-8'))}")
         print(f"sha256={kernel_digest(KERNEL, CODEX_GATE_ADDONS)}")
         print(f"dist={DIST_CODEX}")
-        print("codex_kernel=artifact_only; inject through the external Codex harness")
+        if "--install" in sys.argv:
+            digest = install_codex_kernel(kernel_path=CODEX_KERNEL_PATH, dist=DIST_CODEX)
+            print(f"codex_kernel={CODEX_KERNEL_PATH}")
+            print(f"installed={digest}")
+            return 0
+        print(f"codex_kernel=not_updated; python -m prompt_kernel --codex --install to refresh {CODEX_KERNEL_PATH}")
         return 0
 
     if "--claude" in sys.argv:

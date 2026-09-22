@@ -16,6 +16,7 @@ import fs from "fs"
 import path from "path"
 import { buildGoalLines, buildMessageStar, buildTableOfContents, diagnoseSummaryGaps, renderFileDiffLegend, renderSummaryBlock } from "../../src/session/compaction"
 import type { MessageV2 } from "../../src/session/message-v2"
+import { extractKeywords } from "../../src/memory/spine"
 import type { PlanStatePayload } from "../../src/util/plan-status"
 
 describe("summary block shape", () => {
@@ -253,5 +254,72 @@ describe("summary block shape", () => {
 
     // No carrier ⇒ the goal is UNKNOWN and says so. It is a record, never an invented line.
     expect(buildGoalLines({}).join("\n")).toContain("goal: Unknown")
+  })
+
+  test("FALSIFIER — weighted terms are read literally: left to right, stop at prose, never repaired", () => {
+    // The shapes are real traffic from the probe (1134 carriers): a multi-word term, a trailing
+    // period, and the model continuing to THINK after its own vector.
+    expect(extractKeywords("Keywords: provider auth 0.30, API key 0.20, gateway 0.50")).toEqual([
+      { term: "provider auth", weight: 0.3 },
+      { term: "API key", weight: 0.2 },
+      { term: "gateway", weight: 0.5 },
+    ])
+    expect(extractKeywords("Keywords: fold 0.40, memory 0.30, undo 0.30.")?.map((t) => t.term)).toEqual([
+      "fold",
+      "memory",
+      "undo",
+    ])
+
+    // The STOP: what follows the vector is prose, not a term — and what was read is NOT repaired.
+    const stopped = extractKeywords("Keywords: fold 0.40, wait — weights must sum 1.0. Keep it simple")
+    expect(stopped).toEqual([{ term: "fold", weight: 0.4 }])
+    expect(stopped!.reduce((sum, entry) => sum + entry.weight, 0)).toBe(0.4)
+
+    // The LAST marker wins: an answer may quote the format before writing its own vector.
+    const quoted = extractKeywords(
+      "The format is `Keywords: topic1 0.35, topic2 0.65`.\n\nKeywords: real-axis 0.75, second 0.25",
+    )
+    expect(quoted?.map((t) => t.term)).toEqual(["real-axis", "second"])
+  })
+
+  test("FALSIFIER — the table of contents carries each epoch's topic axis and the window's", () => {
+    const asMessage = (id: string, text: string) =>
+      ({
+        info: { id, role: "assistant" },
+        parts: [{ id: `${id}-p1`, type: "text", text }],
+      }) as unknown as MessageV2.WithParts
+
+    const toc = buildTableOfContents(
+      [
+        {
+          message: asMessage(
+            "msg_1",
+            'one\n\ndominant: "first epoch"\n\nKeywords: fold 0.50, memory 0.30, keywords 0.20',
+          ),
+          position: 1,
+        },
+        {
+          message: asMessage(
+            "msg_2",
+            'two\n\ndominant: "second epoch"\n\nKeywords: memory 0.60, fold 0.40',
+          ),
+          position: 2,
+        },
+        { message: asMessage("msg_3", 'three\n\ndominant: "no vector beyond it"'), position: 3 },
+      ],
+      { maxChars: 4_000 },
+    )
+    const text = toc.lines.join("\n")
+
+    // The axis rides the line, three terms at most, WITH the weights as written.
+    expect(text).toContain("kw: fold 0.5, memory 0.3, keywords 0.2")
+    // A message whose vector carries no Keywords line renders no axis — not an empty `kw:`.
+    expect(text).toContain('no vector beyond it" · assistant/text')
+    // The window's axis is a COUNT of carriers: fold in 2 vectors, memory in 2, keywords in 1.
+    expect(toc.topics).toContain("fold×2")
+    expect(toc.topics).toContain("memory×2")
+    expect(toc.topics).toContain("keywords×1")
+    // …and it says what the number MEANS, so a count is never read as a weight.
+    expect(toc.topics).toContain("own top-3")
   })
 })

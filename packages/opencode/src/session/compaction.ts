@@ -11,7 +11,7 @@ import { NotFoundError } from "@/storage/storage"
 import { ModelID, ProviderID } from "@/provider/schema"
 import { Effect, Layer, Context, Schema, Option } from "effect"
 import { readMemory } from "@/tool/memory"
-import { dominantLine, extractMessageDominant } from "@/memory/spine"
+import { KEYWORD_TOP_N, dominantLine, extractKeywords, extractMessageDominant } from "@/memory/spine"
 import { estimateMediaTokens, estimateRequestTokens, isOverflow as overflow, usable } from "./overflow"
 import { countTokens } from "./token-count"
 import { promptTokensFromUsage } from "./processor"
@@ -1154,6 +1154,8 @@ const TAIL_TOOL_OUTPUT_MAX_CHARS = MessageV2.REPLAY_TOOL_OUTPUT_MAX_CHARS
 const DECISIONS_MAX_CHARS = 8_192
 /** Table-of-contents cap — same discipline as decisions: newest lines kept, the trim NAMED. */
 const TOC_MAX_CHARS = 8_192
+/** How many terms the window's topical axis names — a glance, not a vocabulary. */
+const TOC_TOPIC_COUNT = 8
 /** Goal head — the owner's opening words are quoted, not paraphrased: three lines, then a named cut. */
 const GOAL_HEAD_LINES = 3
 const GOAL_MAX_CHARS = 400
@@ -1292,13 +1294,18 @@ export function continuityLine(args: {
  * A message with no dominant contributes no line — a smaller error than an invented one. Newest
  * lines are kept when the cap bites, and the trim is NAMED, so a short table is never mistaken
  * for a quiet window.
+ *
+ * Each line also carries the TOPIC AXIS: the top weighted terms the same message wrote, read
+ * literally (left to right, stopping at the first chunk that is not `term weight`, never
+ * renormalised — `extractKeywords`). The window's own axis is `topics` below.
  */
 export function buildTableOfContents(
   entries: readonly { message: MessageV2.WithParts; position: number }[],
   input: { skipIds?: ReadonlySet<string>; maxChars?: number } = {},
-): { lines: string[]; trimmed: number } {
+): { lines: string[]; trimmed: number; topics?: string } {
   const maxChars = input.maxChars ?? TOC_MAX_CHARS
   const kept: string[] = []
+  const termCarriers = new Map<string, number>()
   let chars = 0
   let trimmed = 0
   for (let i = entries.length - 1; i >= 0; i--) {
@@ -1309,10 +1316,18 @@ export function buildTableOfContents(
       return extractMessageDominant((part as { text: string }).text) != null
     })
     if (!carrier) continue
-    const dominant = extractMessageDominant((carrier as { text: string }).text)
+    const text = (carrier as { text: string }).text
+    const dominant = extractMessageDominant(text)
+    const keywords = extractKeywords(text)
+    // The window's topical axis: how many vectors carry the term in their own top-N. A COUNT, not
+    // a summed weight — adding weights across vectors would invent a probability nobody wrote.
+    for (const entryTerm of keywords?.slice(0, KEYWORD_TOP_N) ?? []) {
+      termCarriers.set(entryTerm.term, (termCarriers.get(entryTerm.term) ?? 0) + 1)
+    }
     const line = dominantLine({
       messageIndex: entry.position,
       dominant,
+      keywords,
       role: entry.message.info.role,
       partType: carrier.type,
       messageID: entry.message.info.id,
@@ -1328,7 +1343,15 @@ export function buildTableOfContents(
   if (trimmed > 0) {
     kept.unshift(`… ${trimmed} older line(s) trimmed — sessionread the folded range for the full table`)
   }
-  return { lines: kept, trimmed }
+  const topics =
+    termCarriers.size > 0
+      ? `- topics (how many vectors carry the term in their own top-${KEYWORD_TOP_N}): ${[...termCarriers.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, TOC_TOPIC_COUNT)
+          .map(([term, count]) => `${term}×${count}`)
+          .join(", ")}`
+      : undefined
+  return { lines: kept, trimmed, topics }
 }
 
 /**
@@ -1385,6 +1408,8 @@ export function buildMessageStar(input: {
   /** The window's GOAL — pre-rendered lines from `buildGoalLines` (plan intention + the owner's
     * opening words), read at the fold rather than derived. */
   goal?: string[]
+  /** The window's TOPICAL AXIS — one pre-rendered line from `buildTableOfContents` (`topics`). */
+  topics?: string
   /** 1-based global offset of the first recent message in the session.
     * Used to render `#N` positions so the model can call session-read
     * with an exact offset directly, without messagesearch indirection. */
@@ -1520,6 +1545,9 @@ export function buildMessageStar(input: {
 
   const goalBlock =
     input.goal && input.goal.length > 0 ? ["--- Goal ---", ...input.goal].join("\n") : undefined
+  const topicsBlock = input.topics
+    ? ["--- Window topics (read from the vectors the rows carry) ---", input.topics].join("\n")
+    : undefined
   const tocBlock =
     input.toc && input.toc.length > 0
       ? [
@@ -1537,6 +1565,7 @@ export function buildMessageStar(input: {
     memoryBlock,
     goalBlock,
     fadingBlock,
+    topicsBlock,
     tocBlock,
     ...summaryBlocks,
     decisionsBlock,
@@ -1790,7 +1819,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         const toc = buildTableOfContents(
           visible.map((m) => ({ message: m, position: positions.get(m.info.id) ?? 0 })),
           { skipIds: new Set(recent.map((m) => m.info.id)) },
-        ).lines
+        )
 
         // The GOAL of this fold — the plan's intention (a read of the plan files) and the request
         // that opened the window, in the owner's own words. Neither carrier ⇒ Unknown, recorded.
@@ -1853,7 +1882,8 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           sessionID: input.sessionID,
           summaries,
           recent,
-          toc,
+          toc: toc.lines,
+          topics: toc.topics,
           goal,
           recentStartOffset,
           between,

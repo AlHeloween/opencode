@@ -16,7 +16,44 @@
  */
 
 export const DOMINANT_MARKER = "dominant:"
+export const KEYWORDS_MARKER = "Keywords:"
 export const GOAL_HEADING = "## Goal"
+/** How many weighted terms a navigation line carries — the axis, not the whole vector. */
+export const KEYWORD_TOP_N = 3
+
+export interface WeightedTerm {
+  term: string
+  weight: number
+}
+
+/**
+ * The weighted terms of the LAST `Keywords:` line in a message's own text, or undefined.
+ *
+ * Two rules, each bought by a sample rather than assumed (probe of 1134 carriers:
+ * `experiments/2026-09-22_sv-keyword-quality/probe.py`):
+ *   - read from the LEFT and STOP at the first chunk that is not `term weight`. 16 carriers keep
+ *     THINKING after the vector («… wait — weights must sum 1.0», «## Что выяснил по логам»); a
+ *     reader that scans on absorbs that prose as terms, which is how an invented vector enters
+ *     memory. Multi-word terms are real traffic («provider auth 0.30»), so the term is everything
+ *     before the last number — an earlier single-word matcher reported a false 36% failure rate.
+ *   - NO renormalisation. Weights are reported as written: 927/950 sum to 1.0, and the rest are
+ *     truncated vectors that must not be made to look complete.
+ *
+ * The LAST marker wins, for the same measured reason `extractMessageDominant` documents: an answer
+ * may QUOTE the format (a plan, a summary, the kernel text) before writing its own vector.
+ */
+export function extractKeywords(text: string): WeightedTerm[] | undefined {
+  const at = text.lastIndexOf(KEYWORDS_MARKER)
+  if (at < 0) return undefined
+  const line = text.slice(at + KEYWORDS_MARKER.length).split("\n")[0] ?? ""
+  const terms: WeightedTerm[] = []
+  for (const chunk of line.split(",")) {
+    const match = chunk.trim().match(/^(.+?)\s+([0-9]*\.?[0-9]+)[.;]?$/)
+    if (!match) break
+    terms.push({ term: match[1]!.trim(), weight: Number(match[2]) })
+  }
+  return terms.length > 0 ? terms : undefined
+}
 
 function unquote(text: string): string {
   const trimmed = text.trim()
@@ -107,14 +144,23 @@ export function parseRange(range: string): { from: string; to: string } | undefi
 export function dominantLine(input: {
   messageIndex: number
   dominant?: string
+  /** The message's own weighted terms, as written. Rendered as the TOPIC AXIS of the epoch. */
+  keywords?: readonly WeightedTerm[]
   role?: string
   partType?: string
   messageID: string
   partID: string
 }): string {
   const dominant = input.dominant ? `"${input.dominant}"` : "(no dominant)"
+  const keywords =
+    input.keywords && input.keywords.length > 0
+      ? ` \u00b7 kw: ${input.keywords
+          .slice(0, KEYWORD_TOP_N)
+          .map((entry) => `${entry.term} ${entry.weight}`)
+          .join(", ")}`
+      : ""
   const kind = [input.role, input.partType].filter((part) => part && part.length > 0).join("/")
-  return `#${input.messageIndex} ${dominant} \u00b7 ${kind || "?"} \u00b7 ${input.messageID} \u00b7 ${input.partID}`
+  return `#${input.messageIndex} ${dominant}${keywords} \u00b7 ${kind || "?"} \u00b7 ${input.messageID} \u00b7 ${input.partID}`
 }
 
 /**

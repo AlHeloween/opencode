@@ -345,6 +345,23 @@ After compact:
              + decisions from CURRENT summaries only (not from prior m*)
 ```
 
+**The `tool_diff` legend's format (owner, 2026-09-22 — `e2cccc7026`):** the Exact handles carry, per
+file, the **exact path** and its size, then **each changed line with the number it has** — `13: const
+more = 1` — and, above each contiguous group, the **comment lines from the context just above it**,
+each with its own number. The block closes with `Use codegraph for precise understanding of the task.`
+
+| fact | how it is rendered | why |
+|---|---|---|
+| an addition | `13: const more = 1` | the number is the line's in the NEW file |
+| a removal | `13: −const gone = 1` | a deleted line has no new number; this is the position it HAD |
+| the block's purpose | the comment above the group, up to three lines | a numbered line is an address; with its comment it is readable |
+| a file whose patch was not kept | its size, and NO lines | an address is never invented to fill a gap |
+| `--- ` / `+++ ` headers | skipped wherever they land | they cannot be content (a removed `--- x` is written `---- x`), and they must not shift the numbering |
+
+The point of the shape: a count says how much churn happened and never where; a range says where but
+not what; numbered lines say where and what, and the comment says why the block exists at all — which
+is what makes a `codegraph` call precise instead of exploratory.
+
 ### Forking a session takes the same window (2026-09-17)
 
 `Session.fork({ sessionID, messageID })` copies the conversation up to a chosen

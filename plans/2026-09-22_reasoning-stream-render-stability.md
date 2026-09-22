@@ -61,12 +61,24 @@ its **application to this stream**, which is §2's oracle.
   that exact value, which is what the markdown receives.
   NOT evidenced: the pixel oracle (T4) — no frame of a live stream has been captured, so the flicker
   itself is still unobserved; the box above is earned by the two RUNTIME oracles, not by that one.
-- [ ] **T2 — two modes instead of the race (P1).** While streaming: render `initialStyledText`
-  synchronously; run Tree-sitter for markdown prose only after a quiet window (75–100 ms without
-  deltas); fenced code highlights after the fence closes or at `time.end`. At `time.end`: one final
-  parse, one atomic commit. State machine: `LIVE_PREVIEW → QUIET_HIGHLIGHT → FINALIZED`.
-  Oracle: a recorder counts highlight runs — during a synthetic 25-delta burst with a slow highlighter
-  the count must be ≤ 2 (one quiet, one final), never per-delta.
+- [x] **T2 — two modes instead of the race (P1).** DONE, `1e97343dfb` — `CodeRenderable.quietHighlightMs`
+  (opt-in; default `0` = synchronous, unchanged), `renderSelf` keeps `_highlightsDirty` SET while the
+  stream is younger than the window and asks for one more frame, `updateStreamingPreview` now calls
+  `requestRender` (the missing half of P2 — a preview is a visible frame), and `Markdown.ts` turns the
+  window on at `createMarkdownCodeRenderable` — the ONE constructor behind all 11 prose call sites —
+  plus the fenced-code path.
+  Oracle, RUN: `Code.test.ts` = **68 pass / 1 skip / 0 fail** (278 expect, 1.1 s, run
+  `20260922T152725Z_30dfd341`, `exit_code 0`) and the package typecheck `exit_code 0`
+  (`20260922T152725Z_57b1f250`). The pin is STRICTER than the plan asked: a 25-delta burst with a frame
+  per delta runs NO parse at all (asserted after each delta), then exactly ONE parse on the LATEST
+  content once the window is quiet, and the `time.end` parse is immediate — 0 during, 1 quiet, 1 final.
+  THE FIRST RUN WAS RED (`20260922T152530Z_93e19005`, 60 pass / **8 fail**): the window defaulted to
+  75 ms and silently deferred EVERY parse, breaking 8 existing pins that assert synchronous
+  highlighting. The tests were right and the default was wrong — so the DEFAULT moved, not the tests.
+  Recorded because that is the regression class the 「move behaviour, move its tests」 rule exists for.
+  NOT done from the task's wording: «fenced code highlights after the fence closes» as a TRIGGER — the
+  quiet window covers those renderables too, but nothing fires on fence-close itself.
+  NOT evidenced: no pixel oracle for this path (T4) — no frame was ever captured.
 - [ ] **T3 — atomic CodeRenderable update (P2).** One method `setStreamingContent(content, preview,
   revision)`: content + preview + invalidate + ONE `updateTextInfo` + ONE `requestRender`; a late
   highlight applies only when `revision` is current AND its visible text/line count matches the

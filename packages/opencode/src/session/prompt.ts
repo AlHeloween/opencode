@@ -2003,6 +2003,18 @@ export const layer = Layer.effect(
                     // rollback get written down.
                     risks: criticalRisks(worktree),
                     coupling,
+                    // THE CONFIDENCE CENSUS (owner, 2026-09-22): the marks are the model's, the count
+                    // is the machine's — «ты сам будешь историю свою читать потом и видеть, где ты
+                    // был уверен, а где нет». Counted from the same window the fold will take.
+                    marks: SessionCompaction.statusMarks(
+                      msgs.map((message) => ({
+                        role: message.info.role,
+                        text: message.parts
+                          .filter((part) => part.type === "text")
+                          .map((part) => (part as { text: string }).text)
+                          .join("\n"),
+                      })),
+                    ),
                     // `@LOOP_MEASURE`'s other half: claims with no oracle stamp, counted from the row
                     // that now outlives the process.
                     claims: Constitution.claimDebt(sessionID),

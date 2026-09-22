@@ -624,6 +624,40 @@ export function windowState(input: {
 /** The tag the pushed note is recognised by — its own idempotency key. */
 export const TAIL_NOTE_PREFIX = "<compaction-status>"
 
+/** One window's confidence census — the status marks the assertion rule requires, counted. */
+export interface StatusMarks {
+  /** `✓` in the newest assistant reply that carries text. */
+  lastConfirmed: number
+  /** `✗` in that same reply. */
+  lastRefuted: number
+  /** Assistant replies in the window with not a single mark. */
+  unmarked: number
+  /** Assistant replies in the window that carry text at all. */
+  replies: number
+}
+
+/**
+ * The CONFIDENCE CENSUS (owner, 2026-09-22). «Сделай это системным алертом… ты сам будешь историю
+ * свою читать потом и видеть — где ты был уверен, а где нет… это не эписистемология, это индикатор
+ * уверенности за 3 копейки.»
+ *
+ * The marks are the model's; the COUNT is the machine's. The machine cannot know whether a sentence
+ * is a claim, so it does not guess at one: it counts the marks the rule requires and names the
+ * replies that carry none. Messages with no text are not replies — there is nothing in them to mark
+ * — so they are excluded rather than counted as failures.
+ */
+export function statusMarks(messages: readonly { role: string; text: string }[]): StatusMarks {
+  const replies = messages.filter((m) => m.role === "assistant" && m.text.trim().length > 0)
+  const count = (text: string, glyph: string) => text.split(glyph).length - 1
+  const last = replies.at(-1)
+  return {
+    lastConfirmed: last ? count(last.text, "✓") : 0,
+    lastRefuted: last ? count(last.text, "✗") : 0,
+    unmarked: replies.filter((m) => !m.text.includes("✓") && !m.text.includes("✗")).length,
+    replies: replies.length,
+  }
+}
+
 /**
  * The note pushed onto the newest user message after every user turn: which
  * summaries are still OPEN and what is deficient in them, plus the distance to
@@ -660,6 +694,10 @@ export function tailNote(input: {
     * (`## Risks` items carrying `<!-- severity: critical -->`, open plans only). No new model and no
     * second home: the plans already carry risks, and a measure and its source must agree. */
   risks?: { plans: string[]; count: number } | null
+  /** The confidence census of the visible window: what the newest reply marked, and how many replies
+    * marked nothing. Printed even at zero — a check whose silence cannot be told from its absence is
+    * not a check. */
+  marks?: StatusMarks | null
 }): string {
   const lines: string[] = []
   for (const summary of input.open) {
@@ -724,6 +762,23 @@ export function tailNote(input: {
         ? "critical risks: 0 in open plans"
         : `critical risks: ${input.risks.count} in ${input.risks.plans.length} plan(s) — ${input.risks.plans.join(", ")}`,
     )
+  }
+  // THE CONFIDENCE INDICATOR, SYSTEMATIC (owner, 2026-09-22): the marks are the model's, the census
+  // is the MACHINE's — so that reading the history later shows where the work was confident and
+  // where it was not, without trusting anyone's recollection of it. Same contract as the coupling
+  // line: the count is printed even at zero, and a last reply with no marks is stated as an ALERT
+  // rather than as a zero the reader has to interpret.
+  if (input.marks) {
+    const m = input.marks
+    if (m.replies === 0) {
+      lines.push("marks: no assistant reply in the window yet — nothing to count")
+    } else {
+      const last =
+        m.lastConfirmed + m.lastRefuted === 0
+          ? "NONE in the last reply — unmarked claims read as CONFIRMED"
+          : `${m.lastConfirmed} ✓ · ${m.lastRefuted} ✗ in the last reply`
+      lines.push(`marks: ${last} · ${m.unmarked}/${m.replies} window replies with none`)
+    }
   }
   if (input.window) {
     const w = input.window

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test"
 import { Effect } from "effect"
-import { TAIL_NOTE_PREFIX, tailNote, type WindowState } from "../../src/session/compaction"
+import { TAIL_NOTE_PREFIX, statusMarks, tailNote, type WindowState } from "../../src/session/compaction"
 import { formatWindow } from "../../src/tool/checkstate"
 import { IncrementalCheckpoint } from "../../src/session/incremental-checkpoint"
 import { Instance } from "../../src/project/instance"
@@ -169,6 +169,42 @@ describe("the pushed compaction note", () => {
     expect(tailNote({ open: [], window: null, debt: { plans: [] } })).toContain("owed: no open plan task")
     // No debt handed in ⇒ no line at all: a caller without plan context keeps the old contract.
     expect(tailNote({ open: [], window: null })).toBe("")
+  })
+
+  test("the confidence census — the marks are the model's, the count is the MACHINE's", () => {
+    // Owner, 2026-09-22: «Сделай это системным алертом… ты сам будешь историю свою читать потом и
+    // видеть — где ты был уверен, а где нет… это не эписистемология, это индикатор уверенности за 3
+    // копейки.» The marks are two characters and cost nothing; what makes them survive is that a
+    // machine COUNTS them, so the census cannot be talked up by a confident tone.
+    const census = statusMarks([
+      { role: "user", text: "do the thing" },
+      { role: "assistant", text: "first ✓✓ and a ✗" },
+      { role: "assistant", text: "no marks in this one" },
+      { role: "assistant", text: "   " },
+      { role: "user", text: "and now?" },
+      { role: "assistant", text: "second ✓ ✓✓ ✗" },
+    ])
+    expect(census).toEqual({ lastConfirmed: 3, lastRefuted: 1, unmarked: 1, replies: 3 })
+    // The marks of the LAST reply are what the model can still act on; the window count is what the
+    // history reads later to see where the work was confident. One line carries both.
+    expect(tailNote({ open: [], window: null, marks: census })).toContain(
+      "marks: 3 ✓ · 1 ✗ in the last reply · 1/3 window replies with none",
+    )
+    // The alert half: a reply with no marks is STATED, never left as a zero the reader interprets.
+    const silent = statusMarks([{ role: "assistant", text: "everything is fine, no marks here" }])
+    expect(tailNote({ open: [], window: null, marks: silent })).toContain(
+      "marks: NONE in the last reply — unmarked claims read as CONFIRMED",
+    )
+    // Nothing to count yet is its own sentence — NOT the same reading as "the model marked nothing".
+    expect(
+      tailNote({
+        open: [],
+        window: null,
+        marks: { lastConfirmed: 0, lastRefuted: 0, unmarked: 0, replies: 0 },
+      }),
+    ).toContain("marks: no assistant reply in the window yet")
+    // A message with no text is not a reply: there is nothing in it to mark, so it is no failure.
+    expect(statusMarks([{ role: "assistant", text: "   " }]).replies).toBe(0)
   })
 
   test("the note is tagged, so its own idempotency check can see it", () => {

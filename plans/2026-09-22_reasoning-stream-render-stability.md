@@ -171,7 +171,9 @@ its **application to this stream**, which is §2's oracle.
   stable) — an oracle that cannot fail proves nothing.
   **LIVE CAPTURE TAKEN 2026-09-23 — the missing instrument now has its first frames.** Until today no
   frame of a live reasoning stream had ever been captured. Two are: `.opencode/data/frame-stream-1.png`
-  and `frame-stream-2.png`, from `dist\bin\opencode.exe` (**10.0.1091**, newer than T1/T2 and therefore
+  and `frame-stream-2.png` (kept on disk in `experiments_history/2026-09-23_flicker-pixel-frames/` and
+  deliberately NOT tracked: `.gitignore:112` ignores `experiments_history/**/*.png` by design, so the
+  frames survive the session but not a clone — re-capture with the recipe below if they are gone), from `dist\bin\opencode.exe` (**10.0.1091**, newer than T1/T2 and therefore
   carrying them — the test binary is `dist/bin`, never the owner's `bin`), launched with
   `cmd_runner start --terminal wt --direct-terminal` and driven by one prompt asking for a long
   deliberation. Recipe that worked: `cua list_windows` → `bring_to_front` → `get_window_state {pid,

@@ -25,7 +25,7 @@ import { Spinner } from "@tui/component/spinner"
 import { selectedForeground, useTheme } from "@tui/context/theme"
 import { ScrollBoxRenderable, addDefaultParsers, getTreeSitterClient, TextAttributes, RGBA } from "@opentui/core"
 import { Prompt, type PromptRef } from "@tui/component/prompt"
-import { splitTextSegments, type TextSegment } from "./text-segments"
+import { reasoningWindow, splitTextSegments, type TextSegment } from "./text-segments"
 
 import type {
   AssistantMessage,
@@ -2119,21 +2119,29 @@ const THINKING_DISPLAY_MAX = 6_000
 function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: AssistantMessage }) {
   const ctx = use()
   const { theme } = useTheme()
-  const content = createMemo(() => {
-    // Filter out redacted reasoning chunks from OpenRouter
+  // The omitted-count and the window are ONE decision, taken by a pure function that carries its own
+  // pin (`text-segments.ts:reasoningWindow`).
+  //
+  // BEFORE (measured 2026-09-22 — the flicker plan's P0): the counter was the FIRST markdown token and
+  // the window was `text.slice(-THINKING_DISPLAY_MAX)`, so on EVERY delta the head of the rendered text
+  // changed twice: the number, then the window start. `parseMarkdownIncremental` matches tokens strictly
+  // from offset 0 (`markdown-parser.ts:35-43`), so `reuseCount` collapsed to 0 and the whole
+  // 6 000-character tail was re-lexed per delta: an append-only stream rendered as replace-head+append-tail.
+  //
+  // NOW: the counter renders as PLAIN TEXT above the markdown, and the markdown gets an append-only
+  // window that rotates in blocks at blank lines. Between rotations the prefix is byte-identical and the
+  // parser reuses it. A turn's reasoning runs to tens of thousands of characters (17k–117k per step this
+  // session); the full text stays on the part and in message*.
+  const view = createMemo(() => {
     // OpenRouter sends encrypted reasoning data that appears as [REDACTED]
     const text = props.part.text.replace("[REDACTED]", "").trim()
-    if (!text) return ""
-    // A turn's reasoning runs to tens of thousands of characters (17k-117k per
-    // step in this session). Rendering every character turned the transcript into
-    // walls of gray text that read as cut mid-thought, with very large blocks
-    // laying out unpainted regions (owner, 2026-09-20: «немножко странный
-    // рендеринг, почини форматирование»). Show the tail — the live edge while
-    // streaming, the conclusions afterwards — and name what is hidden; the full
-    // text stays on the part and in message*.
-    if (text.length <= THINKING_DISPLAY_MAX) return `*Thinking:* ${text}`
-    const omitted = text.length - THINKING_DISPLAY_MAX
-    return `*Thinking:* … ${omitted} characters omitted — the latest ${THINKING_DISPLAY_MAX} shown\n\n${text.slice(-THINKING_DISPLAY_MAX)}`
+    if (!text) return null
+    if (text.length <= THINKING_DISPLAY_MAX) return { body: `*Thinking:* ${text}`, omitted: "" }
+    const window = reasoningWindow(text, THINKING_DISPLAY_MAX, !!props.part.time?.end)
+    return {
+      body: `*Thinking:*\n\n${text.slice(window.start)}`,
+      omitted: `… ${window.omitted} characters omitted — the latest ${THINKING_DISPLAY_MAX} shown`,
+    }
   })
   // The gate's inputs are recorded on the ONE transition that leaves no trace afterwards: the block
   // going away while its text was still there.
@@ -2162,7 +2170,7 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
     hadText = text.length > 0
   })
   return (
-    <Show when={content() && ctx.showThinking()}>
+    <Show when={view() && ctx.showThinking()}>
       <box
         id={"text-" + props.part.id}
         paddingLeft={2}
@@ -2172,7 +2180,12 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
         customBorderChars={SplitBorder.customBorderChars}
         borderColor={theme.backgroundElement}
       >
-        <RichText content={content} id={props.part.id} muted subtle streaming={!props.part.time?.end} />
+        {/* The counter rides OUTSIDE the markdown on purpose: inside, it is the first token and every
+            delta rewrites the head — which is exactly what broke the parser's prefix-match. */}
+        <Show when={view()?.omitted}>
+          <text fg={theme.textMuted}>{view()?.omitted}</text>
+        </Show>
+        <RichText content={() => view()?.body ?? ""} id={props.part.id} muted subtle streaming={!props.part.time?.end} />
       </box>
     </Show>
   )

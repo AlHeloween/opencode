@@ -3329,12 +3329,18 @@ it.live(
       // 6. THE ASSEMBLY POINT — the gated protocol's state, which used to ride ONLY inside summary
       // blocks and therefore vanished from every fold made after generation was removed. The context
       // is lost either way; the state that says where the work stands has to ride the head itself.
-      // It names the plan, its lifecycle and its OPEN TASKS — the title is not rendered by design
-      // (the noise cap keeps ids, statuses, attempts and vectors, never prose).
+      // And it names the plan, its lifecycle and its OPEN TASKS — WITH THE TITLE, which is the record
+      // itself. The first version kept ids, statuses and attempts and dropped the prose as noise; the
+      // owner read that block and said what it was: «здесь нет явной записи. А просто номер — так не
+      // годится» (2026-09-22). A list of numbers is not a plan state, it is an index into a file the
+      // reader then has to open — which is what the block exists to save.
       expect(head).toContain("--- Plan state")
       expect(head).toContain("plan: plans/2026-09-22_head.md")
       expect(head).toContain("lifecycle ACTIVE")
-      expect(head).toContain("TASK-1 [PENDING]")
+      expect(head).toContain("TASK-1 [PENDING] · read the fold's head")
+      // An id is NAMED or POSITIONAL, never a truncated fragment of the title (the class the owner
+      // caught in the live block: `Карта «план [PENDING]`).
+      expect(head).not.toContain("TASK-1 [PENDING] · TASK-1")
     }),
   ),
 )

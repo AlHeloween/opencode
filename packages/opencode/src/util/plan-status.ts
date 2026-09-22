@@ -174,8 +174,13 @@ export function collectPlanState(worktree: string): PlanStatePayload {
       const structured = bold != null
       const header = bold?.[1] ?? rest
       const after = bold?.[2] ?? ""
+      // An id is either NAMED by the author (`**T7** — …`) or POSITIONAL. It used to fall back to a
+      // 12-character slice of the header, which is how the block came to read `Карта «план [PENDING]`
+      // and `` `@LOOP_MEASU [PENDING] `` — a truncated fragment wearing the shape of an identifier
+      // (seen by the owner, 2026-09-22). A fabricated id is worse than no id: the positional one is
+      // honest about being positional, and the TITLE carries the meaning in both cases.
       const id = structured
-        ? header.match(/^([A-Za-z0-9_]+)/)?.[1] ?? header.slice(0, 12)
+        ? header.match(/^([A-Za-z0-9_]+)/)?.[1] ?? `TASK-${tasks.length + 1}`
         : `TASK-${tasks.length + 1}`
       const title = structured
         ? header.replace(/^[A-Za-z0-9_]+\s*[—-]\s*/, "").trim()
@@ -240,7 +245,14 @@ export function collectPlanState(worktree: string): PlanStatePayload {
 export function formatPlanStateText(payload: PlanStatePayload): string {
   if (!payload.plans.length) return "plan state: none active"
   const MAX_TASK_LINES = 8
-  const MAX_CHARS = 1500
+  // 1_500 -> 3_000 (2026-09-22): the task TITLE joined every line (the owner's ruling: a number is not
+  // a record), so the same block measured 1_946 chars on the live plans — 1_500 truncated it, and a
+  // truncated plan list is the defect this block exists to remove, one layer down. The margin is
+  // deliberate: the block grows each time a plan gains a task, and it must not start cutting again on
+  // the next edit. Measured 1_946 — the next thousand with room above the measurement.
+  const MAX_CHARS = 3_000
+  /** A title is prose; the cap keeps one task from eating the block. The cut is MARKED, never silent. */
+  const MAX_TITLE_CHARS = 80
   const out: string[] = []
   for (const p of payload.plans) {
     const lines = [
@@ -251,8 +263,13 @@ export function formatPlanStateText(payload: PlanStatePayload): string {
     const open = p.tasks.filter((t) => t.status !== "PASS")
     const passCount = p.tasks.length - open.length
     for (const t of open.slice(0, MAX_TASK_LINES)) {
+      // THE TITLE IS THE RECORD (owner, 2026-09-22: «здесь нет явной записи. А просто номер — так не
+      // годится»). An id with a status says WHICH BOX is open and never WHAT THE WORK IS, so this block
+      // — the one the next window and the owner actually read — could name eight open tasks and still
+      // leave the reader opening the plan file to find out what any of them meant.
+      const title = t.title.length > MAX_TITLE_CHARS ? `${t.title.slice(0, MAX_TITLE_CHARS)}…` : t.title
       lines.push(
-        `  ${t.id} [${t.status}]${t.done_pct != null ? ` done ${t.done_pct}%` : ""} · attempts ${t.attempts}` +
+        `  ${t.id} [${t.status}] · ${title}${t.done_pct != null ? ` · done ${t.done_pct}%` : ""} · attempts ${t.attempts}` +
           (t.last_failure ? ` · last_failure: ${t.last_failure}` : "") +
           (t.sv.length ? ` · sv: ${t.sv.join(", ")}` : ""),
       )

@@ -100,6 +100,17 @@ def validate_kernel(kernel: Kernel) -> list[str]:
         gate = gates.get(gate_id)
         if gate is not None and not gate.outputs:
             errors.append(f"spine gate {gate_id} declares no output")
+    identity_gates = {identity.id: set(identity.gates) for identity in kernel.identities}
+    for gate in kernel.gates:
+        for identity_id in gate.identities:
+            allowed = identity_gates.get(identity_id)
+            if allowed is not None and gate.id not in allowed:
+                errors.append(f"gate {gate.id} admits {identity_id}, whose identity contract does not list it")
+    for identity in kernel.identities:
+        declared = {gate.id for gate in kernel.gates if identity.id in gate.identities}
+        for gate_id in identity.gates:
+            if gate_id not in declared and gate_id in {gate.id for gate in kernel.gates}:
+                errors.append(f"identity {identity.id} claims {gate_id}, which does not admit it")
     consumed = {field for gate in kernel.gates for field in gate.requires}
     for gate in kernel.gates:
         for field in gate.outputs:

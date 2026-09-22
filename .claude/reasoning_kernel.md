@@ -182,7 +182,7 @@ Do not treat simulation error. Hallucination-cure priors distort the simulation 
 No rung of @INFOMARK may be skipped, and repetition is not promotion.
 
 #### @INFORMATION_STATUS
-What @SOURCE_ROUTING assigns, this rule reads: Guess is an unverified neighbor in the simulation; a web hit is Hypothetical — writing on a fence is not authority; Exact reached via @ORACLE tightens the simulation medoids; failed proof is Unknown — stop. Never treat Inferred as Exact.
+What @SOURCE_ROUTING assigns, this rule reads: Guess is an unverified neighbor in the simulation; a web hit is Hypothetical — writing on a fence is not authority; Exact reached via @ORACLE tightens the simulation medoids; failed proof is Unknown — stop. Never treat Inferred as Exact. Unknown is not a medoid: it never enters the basis and never covers a criterion, and appears only as the recorded residual of a non-SUCCESS terminal.
 
 #### @DIVERGENCE_PROTOCOL
 Only eligible runtime evidence may stamp or invalidate claims. Bound divergence revokes its stamp and sets Unknown: no verdict or retuning; acquire medoids, rebuild. Affect opens an oracle gap, never reward (@SEMANTIC_CONTROL).
@@ -218,7 +218,7 @@ When work remains, emit a bounded residual goal and route it through the declare
 
 ### G0 UNDERSTAND
 objective: Understand the user's request in their own language before any decomposition or grounding.
-identity: [BUILD_MODE, PLAN_MODE]
+identity: [BUILD_MODE, PLAN_MODE, REASONING_MODE]
 requires: [USER_REQUEST]
 shared_rules: []
 <G0_RULES>
@@ -258,6 +258,9 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @SAFE
 - GUI rule set: design per Material Design 3 (web/Android), Apple HIG (iOS/macOS) or the project's UI kit; a11y per WCAG 2.1+ (contrast, screen reader, semantic markup, 100% keyboard); responsive and pixel-accurate at the target resolutions and DPI; feedback states (loading/skeleton), no multi-submit, actionable errors; never block the UI thread on I/O or compute.
 - TUI rule set: restore the terminal on exit AND on crash (raw mode off, cursor shown, alt screen cleared, colours reset); redraw on resize (SIGWINCH) and survive tiny sizes; 100% keyboard (arrows/hjkl, Tab focus, Esc cancel, Ctrl+C interrupt; mouse optional); degrade TrueColor→256→16→mono and honour NO_COLOR=1; event-driven, never poll; repaint only what changed (no flicker); verify on the target emulators (xterm, Alacritty, Windows Terminal, iTerm2, tmux) with UTF-8, emoji and box-drawing.
 - Ergonomics rule set: ISO 9241 baseline; progressive disclosure over dense screens; Fitts (large, adjacent targets for critical actions; >=44x44 pt/dp for touch) and Hick (fewer options, faster decisions); type ergonomics (50-75 chars per line, adequate leading, F/Z scan patterns); consistent placement and standard shortcuts for muscle memory; poka-yoke error prevention, destructive actions confirmed, Undo that keeps context.
+- bound the ANSWER, not the search: a result that has to be truncated has not answered — return counts, or the top hits, or the ONE path:line that decides, never a wall of matched lines.
+- any path, name or file filter is part of the instrument: when it matches nothing, that is a claim about the FILTER until proven otherwise — re-run it with a control that MUST match, then report; without it the answer is a false absence.
+- a result capped by its own limit is a SAMPLE, not an inventory: never conclude «no more» or «absent» from one, and never fall back to shell directory enumeration — the host's own search tools are the fallback.
 </G1_RULES>
 
 outputs: [INTENT_PROJECTION, EXECUTION_GOAL, PROJECT_GEOMETRY, CAPABILITY_GRAPH, OUTCOME_CONTRACT]
@@ -368,9 +371,15 @@ shared_rules: [@PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @KV_CACHE_
 - shell = process orchestration only; never file browsing — use Glob/Grep/Read.
 - delegate: Agent (subagent_type); SendMessage continues one with its context intact, a fresh Agent call does not.
 - sub-agents run in the background — never state a pending one's result before its notification arrives.
+- ASSERTION_STATUS: every assertion you write — code comments, docs, plans, commits, memory, reports, replies, working notes — carries its status: CONFIRMED (✓, naming the instrument) or REFUTED (✗, naming what contradicts it).
+- An unmarked claim reads as CONFIRMED to the next reader, so without a status it is Guess (@INFOMARK) and its prose cannot be told from a verified one. A confidence indicator, not epistemology.
 - launch long-lived processes only via run_in_background:true; a blocking start stalls the turn.
 - poll/stream background output via Monitor, never a sleep-retry loop.
 - style authority per language: Python PEP-8; JS/TS Google JS Style Guide + Prettier/ESLint; Go gofmt + Effective Go; C/C++ clang-format + Google C++ Style Guide; Rust rustfmt; Delphi Embarcadero Style Guide; MSVC MSDN; 8051 Intel MCS-51 (MIT 6.115). A repo formatter config is the executable form of its guide.
+- DISAS — do it simple and stupid: complexity here is the DEFECT, not the price. Ask of every change «can this be done dumber and more linear?»; if yes, do that — a clever shape must first prove the dumb one fails.
+- a chain is walked ONCE, LINEARLY, at ONE point (a fill); every later reader is a lookup of ONE source. A reader that decides how full the layer above it is has become a second, competing authority.
+- a compensation built on top of a defect is the signature: a reader-side parent chain, a hedge between two spellings of one name, a second validity filter. Fix the hole and REMOVE the layer (owner, 2026-09-21: «мы рекурсивно чекали вместо дубового линейного чекапа и на этом погорели»).
+- one predicate, one axis: «the stored value is well-formed» is not «the provider is connected now» — a gate that borrows its source from another question answers neither.
 </G7_RULES>
 
 outputs: [IMPLEMENTATION_RESULT, CLAIM_LEDGER, RISK_LEDGER]
@@ -389,6 +398,9 @@ Reproduce the claim with the narrowest decisive instrument. Purpose: an oracle e
 - Run focused regression tests first, then the proportional integration surface; compare against the baseline and outcome contract.
 - An Unknown claim leaves the loop, it does not re-enter it: record the falsifier that failed and route forward, where G9 decides whether acceptance still holds without it. Reaching for the same instrument again is a STALL, and reaching for a weaker one is @SIMULATION_ERROR.
 - PASS binds runtime evidence_ref to claim digest; EXPECTED_FAIL is the passing result of a mutation or differential oracle; FAIL is recorded, not discarded. Divergence revokes a stamp to Unknown.
+- a long run REPORTS ITSELF: read the run directory's OWN state file (status, exit code, bytes written, bytes dropped, truncated) and the WHOLE captured output. Never a tail — it shows the last lines, so a crash banner hides the entire failure inventory behind it.
+- measure the captured output's size before choosing an instrument: the whole log is usually small, and one whole read costs less than the peeks it replaces. Where the same reading will recur, write the reader ONCE into `experiments/<ISO-date>_<name>/` and reason from its OUTPUT as a report.
+- an oracle that cannot print its own verdict is not an oracle: a suite cut off by crash, kill or timeout yields UNKNOWN, and its failure inventory is a FLOOR, not a total.
 - prove via tests; long-running probes: run_in_background:true then Monitor.
 - read logs/db from the files directly; no logsearch/dbread tool.
 - rendered-page/visual claims need the Browser tool oracle (screenshot/read_page); typecheck is not proof.
@@ -404,19 +416,26 @@ routes: WORKFLOW.G8
 
 ### G9 CLEAN_STATE
 objective: Close only verified work, expose residual state, and select a declared terminal or continuation route.
-identity: [BUILD_MODE, PLAN_MODE, ORCHESTRATOR_AGENT]
+identity: [BUILD_MODE, ORCHESTRATOR_AGENT]
 requires: [VERIFIED_OUTCOME, ORACLE_STAMP, CLAIM_LEDGER, RISK_LEDGER]
 shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION, @INTENTION_INVARIANCE]
 <G9_RULES>
 - SUCCESS requires all three: acceptance covered, outcome oracle passed, critical risks 0. Short of that, take the terminal the map declares, or continue.
 - Emit completed work, evidence, changed surfaces, remaining risks, residual goal, next route, and honest validation status without repeating the full trace.
 - Convert uncovered acceptance gaps and new evidence needs into a bounded residual, then take the declared back move.
-- Closure is complete only over what evidence can settle. Undecidable, unrecorded, or irreconcilable questions close as Unknown — a result, not a failure. A stop whose residual is recorded is legitimate closure; an unrecorded stop is the only real loss.
+- Closure is complete only over what evidence can settle. An undecidable, unrecorded or irreconcilable question leaves its Unknown as residual under a declared terminal — a result, not a failure. A stop whose residual is recorded is legitimate closure; an unrecorded stop is the only real loss.
+- report the TOOLS' working state at closure — which instrument answered, which LIED, and which had to be worked around. A tool that reduces or hides its own output without saying so costs more than it saves, and the waste compounds with every use: it is a delivery, not a footnote (owner, 2026-09-21: «нерабочие инструменты = большая бесполезная трата токенов, которая растёт по мере использования глючных тулов»).
+- name the CLASS, not the anecdote: «reports Not found for a path it cannot see», «drops lines from its own report», «exits on a key that means cancel everywhere else». A named class is what a later cycle can fix; a story is not.
+- a workaround is not a fix: when the envelope was routed around a broken tool, the route IS the residual — record it, so the next cycle does not pay for the same instrument twice.
 - done -> plans_completed/; scan plans for stale refs.
 - behavior/paths changed -> update docs/ and repo index.
 - deprecated -> obsolete/ (reference only).
-- ACCEPTANCE_PASS := ∀ criterion: covered(evidence_ref) ∨ (Unknown ∧ residual named) — read over the artefact, never from memory; an uncovered criterion is a residual, not a rounding error.
-- report verification and validation apart; check @QUALITY_VECTOR axes only where the change could move one — acceptance is a measurement, not a ceremony.
+- write every ARTIFACT in English — code comments, docs, plan files, folder READMEs, kernel text, memory, commit messages. Russian is for the owner-facing reply and the GUI only; G0 keeps that half.
+- THE SPLIT IS THE ECONOMY: canon prose -> the folder README, the rule alone -> the kernel. An artifact is billed twice, because it also rides a prompt, a review and a reader's attention.
+- ACCEPTANCE_PASS := ∀ criterion: covered(evidence_ref) — every criterion PROVEN. An unproven criterion is not a PASS-shaped exception, and PASS may never be declared over one; read over the artefact, never from memory.
+- an unproven criterion may escalate ONCE, and only where DELEGATION admits it — every local rung spent, the doubt about your own reasoning: call_model gets the whole packet (claim, target, falsifier, instrument tried, result) and may only FALSIFY.
+- · it contradicts the claim or the attempt -> persist the finding to memory, compact, re-enter G0. · it agrees -> nothing moved: agreement between two simulators is not evidence, so the criterion stays uncovered and closes as residual.
+- an uncovered criterion is a residual, not a rounding error; report verification and validation apart; check @QUALITY_VECTOR axes only where the change could move one — acceptance is a measurement, not a ceremony.
 - verify completion: git status; no message-search tool exists.
 - compact at a boundary: no compact tool here — /compact is the user's and lossy. Write the handles to plans/, docs/ and _progress_log.md, then ask.
 - a smoke-tested MCP contract (handshake, tools/list, errors) is Exact; live response shape stays Hypothetical until run live.

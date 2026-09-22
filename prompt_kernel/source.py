@@ -43,7 +43,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "INFORMATION_STATUS",
-        "What @SOURCE_ROUTING assigns, this rule reads: Guess is an unverified neighbor in the simulation; a web hit is Hypothetical — writing on a fence is not authority; Exact reached via @ORACLE tightens the simulation medoids; failed proof is Unknown — stop. Never treat Inferred as Exact.",
+        "What @SOURCE_ROUTING assigns, this rule reads: Guess is an unverified neighbor in the simulation; a web hit is Hypothetical — writing on a fence is not authority; Exact reached via @ORACLE tightens the simulation medoids; failed proof is Unknown — stop. Never treat Inferred as Exact. Unknown is not a medoid: it never enters the basis and never covers a criterion, and appears only as the recorded residual of a non-SUCCESS terminal.",
     ),
     _rule(
         "KERNEL",
@@ -104,7 +104,7 @@ GATES = (
         anchor="GATE_0_UNDERSTAND",
         name="UNDERSTAND",
         objective="Understand the user's request in their own language before any decomposition or grounding.",
-        identities=("BUILD_MODE", "PLAN_MODE"),
+        identities=("BUILD_MODE", "PLAN_MODE", "REASONING_MODE"),
         requires=("USER_REQUEST",),
         outputs=("DIGITAL_INTENTION",),
         shared_rules=(),
@@ -263,7 +263,7 @@ GATES = (
         anchor="GATE_9_CLEAN_STATE",
         name="CLEAN_STATE",
         objective="Close only verified work, expose residual state, and select a declared terminal or continuation route.",
-        identities=("BUILD_MODE", "PLAN_MODE", "ORCHESTRATOR_AGENT"),
+        identities=("BUILD_MODE", "ORCHESTRATOR_AGENT"),
         requires=("VERIFIED_OUTCOME", "ORACLE_STAMP", "CLAIM_LEDGER", "RISK_LEDGER"),
         outputs=("CLOSURE_PROOF", "CLEAN_NEXT_STATE", "RESIDUAL_GOAL", "QUALITY_VECTOR"),
         shared_rules=("INFORMATION_STATUS", "RESIDUAL_ROUTING", "AUTHORITY_SEPARATION", "INTENTION_INVARIANCE"),
@@ -271,7 +271,7 @@ GATES = (
             _rule("G9", "CLOSURE_PROOF_RULE", "SUCCESS requires all three: acceptance covered, outcome oracle passed, critical risks 0. Short of that, take the terminal the map declares, or continue."),
             _rule("G9", "CLEAN_STATE_RULE", "Emit completed work, evidence, changed surfaces, remaining risks, residual goal, next route, and honest validation status without repeating the full trace."),
             _rule("G9", "RESIDUAL_GOAL_RULE", "Convert uncovered acceptance gaps and new evidence needs into a bounded residual, then take the declared back move."),
-            _rule("G9", "EVIDENCE_BOUNDED_CLOSURE", "Closure is complete only over what evidence can settle. Undecidable, unrecorded, or irreconcilable questions close as Unknown — a result, not a failure. A stop whose residual is recorded is legitimate closure; an unrecorded stop is the only real loss."),
+            _rule("G9", "EVIDENCE_BOUNDED_CLOSURE", "Closure is complete only over what evidence can settle. An undecidable, unrecorded or irreconcilable question leaves its Unknown as residual under a declared terminal — a result, not a failure. A stop whose residual is recorded is legitimate closure; an unrecorded stop is the only real loss."),
         ),
     ),
 )

@@ -255,10 +255,8 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "ACCEPTANCE_PASS",
         (
             "ACCEPTANCE_PASS := ∀ criterion: covered(evidence_ref) — every criterion PROVEN. An unproven criterion is not a PASS-shaped exception, and PASS may never be declared over one; read over the artefact, never from memory.",
-            "Unknown is a RECORD, never an argument: it may not be an input to any decision — no closure, no PASS, no acceptance, no risk acceptance may rest on it. An Inferred whose proof did not confirm is a CLEAN Unknown: it drops out of the basis entirely and the decision is made WITHOUT it.",
-            "an unproven criterion ESCALATES — it does not close. Call aicall on the cheapest available model with the complete packet: claim, target, falsifier, instrument tried, result. aicall may only falsify; it never stamps, and its agreement is never evidence.",
-            "· aicall judges the claim unsound or the attempt misconceived -> G0: write the finding to permanent memory, then compact — the same error must not be re-derived next cycle.",
-            "· aicall judges the claim sound -> G1: re-enter grounding and decompose the task into smaller, independently testable pieces.",
+            "an unproven criterion may escalate ONCE, and only where DELEGATION admits it — every local rung spent, the doubt about your own reasoning: aicall gets the whole packet (claim, target, falsifier, instrument tried, result) and may only FALSIFY.",
+            "· it contradicts the claim or the attempt -> persist the finding to memory, compact, re-enter G0. · it agrees -> nothing moved: agreement between two simulators is not evidence, so the criterion stays uncovered and closes as residual.",
             "an uncovered criterion is a residual, not a rounding error; report verification and validation apart; check @QUALITY_VECTOR axes only where the change could move one — acceptance is a measurement, not a ceremony.",
         ),
     ),

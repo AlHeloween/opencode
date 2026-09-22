@@ -4323,3 +4323,51 @@ Hypothetical until that harness reports its own prefix digest.
 - **S3 — suite oracle:** ✓ Codex-owned tests зелёные; ✗ общий suite `20260922T134142Z_d7b3afe1` завершился `104 passed, 2 failed` на отдельных promotion gates production и Claude. Лог прочитан целиком: 3 307 bytes, 0 dropped, not truncated.
 - **S4 — install/read-back:** ✓ run `20260922T133725Z_55e5a46c` установил `C:\Users\Alexander\.codex\AGENTS.md`; renderer == stamped artifact == receiver, 43 957 bytes, SHA-256 `e43c45d5b48c5712b1ce48d5622bbdb4fe6514f4a91157dbd57aca8401e1fa95`. ✓ Scoped git status/diff по `.claude/reasoning_kernel.md` пусты.
 - **S5 — clean boundary:** ✓ Codex install-contract surfaces закрыты отдельным plan; параллельные правки общего kernel не включаются в scoped commit. ✗ Инструментальный residual: `cmd_runner --raw` может зависнуть на pytest с `bytes_written=0` и проигнорировать stop request; финальные доказательства получены через `--no-raw` (ConPTY).
+
+## [2026-09-22 21:50] Kernel review — the Unknown collision, two identity/gate divergences, variant parity
+
+Review of the current kernel at the owner's request; these are the items that were
+fixed, not the full list (budget growth and the plan-terminal placement stay open).
+
+Findings [Exact]:
+- G9 carried two contradictory norms: `@EVIDENCE_BOUNDED_CLOSURE` ("questions close
+  as Unknown — a result") against the `ACCEPTANCE_PASS` addon ("Unknown ... may not
+  be an input to any decision — no closure ... may rest on it"). The first also names
+  a terminal the map does not have: the four are SUCCESS / BLOCKED / OUT_OF_SCOPE /
+  WAITING_APPROVAL.
+- Two declarations of the same fact disagreed: the G9 GATE admitted `PLAN_MODE` while
+  the PLAN_MODE identity (correctly, per the comment at `source.py:408`) does not list
+  G9. The validator then found the mirror case by itself — `REASONING_MODE` claims G0
+  and G0 did not admit it, though `INTENTION_RESET` routes it there.
+- `ACCEPTANCE_PASS` mandated an aicall on every unproven criterion and routed on its
+  AGREEMENT, which `DELEGATION` declares to be non-evidence, and widened a deliberately
+  rare instrument into the default escalation.
+- `ASSERTION_STATUS` (the one new rule with a real consumer) was product-only;
+  `ARTIFACT_LANGUAGE` was missing from the Claude variant that shares this repo.
+
+Change: the Unknown rule now exists once, in `@INFORMATION_STATUS` — "Unknown is not a
+medoid: it never enters the basis and never covers a criterion, and appears only as the
+recorded residual of a non-SUCCESS terminal." G9 no longer invents a terminal; the
+283-byte absolutist paragraph is gone from all three registries. Escalation is once,
+only where DELEGATION admits it, and only disagreement routes. `validate.py` gained a
+two-way identity↔gate agreement check. `test_variant_parity.py` (5 tests) guards slot
+parity across the three registries and the currency of the installed copies.
+
+Oracle [Exact]:
+- `python -m pytest prompt_kernel/tests/ -q` → 105 passed, 1 failed
+  (`test_production_prompt_matches_next_kernel_renderer` — production is NOT installed
+  by owner's scoping; `python -m prompt_kernel --install` clears it).
+- The validator found the REASONING_MODE/G0 divergence unaided — the guard fired on
+  first run, which is the mutation test it would otherwise need.
+- `.claude/reasoning_kernel.md` installed and read back: 44 410 B, sha256
+  `0126ceae8d304587ab626e4acda55d06f8c0ba7d08bffa528f4d915882c40d3f`, equal to the render.
+- Sizes: product 45 855 → 45 684 / 46 000 (a norm added, 171 B freed); claude 44 410;
+  codex 43 957. dedup clean on all three.
+
+Residual (owner's calls, not closed):
+- The five plan terminals live in G9, which PLAN_MODE cannot enter; plans are owned by
+  G3, so the routing line may belong there.
+- utf8_budget moved 35 000 → 46 000 in five days and ~2.3 KB of the newest blocks is
+  rationale prose inside the byte-stable prefix, against the kernel's own
+  ARTIFACT_LANGUAGE economy ("canon prose -> the folder README, the rule alone -> the
+  kernel").

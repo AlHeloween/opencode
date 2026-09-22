@@ -94,7 +94,12 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # Measured after them: 38_134 B — the byte cap steps, the token cap already had the room.
     # 44_000 (2026-09-21): the product went 42_000 -> 43_000 for the G8 RUN_ARTIFACT_FIRST binding; this
     # variant keeps its documented +1_000 for having no fixed slot.
-    assert len(text.encode("utf-8")) <= 44_000
+    # 47_000 (2026-09-22): NOT a fresh raise — the product ceiling has since moved to 46_000 while this
+    # cap stayed at 44_000, so the documented +1_000 relationship had silently inverted. Restored, and
+    # the two norms this variant had been missing (ASSERTION_STATUS, ARTIFACT_LANGUAGE) land inside it.
+    # Measured after them: 44_410 B / 5_974 tok. Whether the PRODUCT ceiling should be 46_000 at all is
+    # a separate question and the owner's — see the review of 2026-09-22.
+    assert len(text.encode("utf-8")) <= 47_000
     # 5_150 -> 5_400 (2026-09-20, same step): measured 5_202 after the GUI/TUI/ergonomics rule sets —
     # the token cap steps with the byte cap at this batch, 198 spare.
     # 5_800 -> 6_000 (2026-09-21): steps with the byte cap for the G9 TOOL_HEALTH binding.

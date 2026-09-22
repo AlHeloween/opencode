@@ -155,6 +155,14 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
     ),
     GateAddon(
         "G7",
+        "ASSERTION_STATUS",
+        (
+            "ASSERTION_STATUS: every assertion you write — code comments, docs, plans, commits, memory, reports, replies, working notes — carries its status: CONFIRMED (✓, naming the instrument) or REFUTED (✗, naming what contradicts it).",
+            "An unmarked claim reads as CONFIRMED to the next reader, so without a status it is Guess (@INFOMARK) and its prose cannot be told from a verified one. A confidence indicator, not epistemology.",
+        ),
+    ),
+    GateAddon(
+        "G7",
         "PROCESS_LAUNCH",
         (
             "launch long-lived processes only via run_in_background:true; a blocking start stalls the turn.",
@@ -242,13 +250,19 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
     ),
     GateAddon(
         "G9",
+        "ARTIFACT_LANGUAGE",
+        (
+            "write every ARTIFACT in English — code comments, docs, plan files, folder READMEs, kernel text, memory, commit messages. Russian is for the owner-facing reply and the GUI only; G0 keeps that half.",
+            "THE SPLIT IS THE ECONOMY: canon prose -> the folder README, the rule alone -> the kernel. An artifact is billed twice, because it also rides a prompt, a review and a reader's attention.",
+        ),
+    ),
+    GateAddon(
+        "G9",
         "ACCEPTANCE_PASS",
         (
             "ACCEPTANCE_PASS := ∀ criterion: covered(evidence_ref) — every criterion PROVEN. An unproven criterion is not a PASS-shaped exception, and PASS may never be declared over one; read over the artefact, never from memory.",
-            "Unknown is a RECORD, never an argument: it may not be an input to any decision — no closure, no PASS, no acceptance, no risk acceptance may rest on it. An Inferred whose proof did not confirm is a CLEAN Unknown: it drops out of the basis entirely and the decision is made WITHOUT it.",
-            "an unproven criterion ESCALATES — it does not close. Call aicall on the cheapest available model with the complete packet: claim, target, falsifier, instrument tried, result. aicall may only falsify; it never stamps, and its agreement is never evidence.",
-            "· aicall judges the claim unsound or the attempt misconceived -> G0: write the finding to permanent memory, then compact — the same error must not be re-derived next cycle.",
-            "· aicall judges the claim sound -> G1: re-enter grounding and decompose the task into smaller, independently testable pieces.",
+            "an unproven criterion may escalate ONCE, and only where DELEGATION admits it — every local rung spent, the doubt about your own reasoning: call_model gets the whole packet (claim, target, falsifier, instrument tried, result) and may only FALSIFY.",
+            "· it contradicts the claim or the attempt -> persist the finding to memory, compact, re-enter G0. · it agrees -> nothing moved: agreement between two simulators is not evidence, so the criterion stays uncovered and closes as residual.",
             "an uncovered criterion is a residual, not a rounding error; report verification and validation apart; check @QUALITY_VECTOR axes only where the change could move one — acceptance is a measurement, not a ceremony.",
         ),
     ),

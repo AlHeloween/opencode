@@ -478,6 +478,12 @@ its **application to this stream**, which is §2's oracle.
   REBUILT AGAIN with T11b steps 1–2 and the parser catch fix: `dist/bin/opencode.exe` **10.0.1097** (log
   `experiments/2026-09-23_render-load/build-20260923T143029Z.log`, exit 0); read back from the artifact:
   `closedAtBreak` ×2, `storedHighlightsFor` ×1, `canPaintFromStoredHighlights` ×2.
+  REBUILT with T11b step 3: **10.0.1099** (log `experiments/2026-09-23_render-load/build-20260923T151432Z.log`,
+  exit 0). MEASURED TRAP: the names `lexWhole` / `FULL_LEX_CACHE_*` are NOT in the binary — module-level
+  identifiers are minified and constants inlined — so a name-grep would have reported the cache absent. Read
+  back by SHAPE instead: `var su=512,iu=256,ou=2000000,Ve=new Map … function au(n){if(n.length<su)return
+  fe.lex(…)` and the first-parse path calls `au(n)` — the cache is in the build. Property names
+  (`closedAtBreak`) survive minification; function names do not.
 
 ### 2026-09-23 — pipeline audit below the content layer (owner: «глянь пайплайн отрисовки и как он влияет на общую скорость»)
 

@@ -4517,3 +4517,20 @@ Oracle [Exact]:
 Residual: 4 bytes of headroom in the product render — the next admission pays for itself or
 raises the ceiling, and the three G1 standards catalogues (1 292 B) remain the obvious
 funding source. The binary is still unrebuilt.
+
+## [2026-09-23 12:20] T9 — images in a scrolling ScrollBox, measured per frame
+
+Plan: `plans/2026-09-22_reasoning-stream-render-stability.md` T9 (T9–T12 added the same day from the
+pipeline audit). Diff: new `packages/opentui/packages/core/src/tests/image-scroll-cost.test.ts`; plan
+updated. No product source changed.
+
+Evidence: `bun test src/tests/image-scroll-cost.test.ts` from `packages/opentui/packages/core` = 1 pass /
+0 fail (7 expect); log `experiments/2026-09-23_image-scroll-cost/run-20260923T121841Z.log`, sha256
+`5cdda65dcccc5c17…`. Sixel, 80x120 px image: visible+moving re-sends the whole 13 187 B payload on 10/10
+steps (14 074 B/step vs 768 B with the image out of view, ~18x); clipped+moving re-encodes on 5/5 steps;
+both controls (static tick, out of view) emit 0 image bytes. An appended line costs 2 frames, an in-place
+change 1 — the `ScrollBox.ts:802` nextTick frame, measured.
+
+Residual: re-encode CPU cost unmeasured (the ms column is scheduling-bound wall time); real diagram sizes
+(up to 512 px) unmeasured; first paint emits the payload twice, unexplained. The test file sits outside the
+package typecheck gate (`tsconfig.build.json:16` excludes tests). Next: T10.

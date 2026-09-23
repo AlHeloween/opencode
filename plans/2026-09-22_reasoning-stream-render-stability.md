@@ -468,6 +468,106 @@ its **application to this stream**, which is §2's oracle.
   was exactly that race). Edit and run sequentially.
   Order: T7 → T8.
 
+### 2026-09-23 — pipeline audit below the content layer (owner: «глянь пайплайн отрисовки и как он влияет на общую скорость»)
+
+Read-only audit, code-read only (✓ = read in code, ? = inferred, nothing measured yet). The LOWER layers are
+sound ✓: the agent runs in a Worker (`cli/cmd/tui/thread.ts:172`), a frame is composed whole into the buffer
+and diffed once (`renderer.ts:4688-4847`), and every emitted frame is wrapped in `?2026h … ?2026l`
+(`native/src/renderer.zig:1745, 2819`) — the terminal never sees a torn frame. The defects sit above:
+
+- **Two style sources alternate per delta ✓ (mechanism), ? (visibility).** `applyMarkdownCodeRenderable`
+  ends in `content =` (`Markdown.ts:1172`), which paints marked's styling (`Code.ts:142-143`); the tree-sitter
+  result then overwrites it unconditionally (`Code.ts:463-464`) — the §5h guard in `docs/rendering.md` is NOT
+  in the code. The markdown query carries no inline scopes (§5h), so bold/italic/code appear and vanish per
+  delta. This is T8's class, now pinned to lines.
+- **The replay's `oneWay=0` is not yet evidence ?.** `settle()` waits one macrotask between passes; a
+  tree-sitter Worker round-trip almost certainly does not land in it, so the instrument may never have seen
+  source (c). Discriminator: count `highlightOnce` completions during the replay.
+- **Per-delta main-thread work is O(message) and per-frame work is O(history) ✓:** `splitTextSegments` over
+  the whole text (`index.tsx:2203`), the incremental lexer's `startsWith` walk (`markdown-parser.ts:35-43`),
+  the whole coalesced prose blob re-highlighted from scratch (`parser.worker.ts:837`), `memoryRuns` reading
+  every text part (`index.tsx:286-289`), `updateFromLayout` over every loaded message (`Renderable.ts:1447`).
+  2–3 frames per delta: `ScrollBox.ts:802` `nextTick(requestRender)` on every size change, and superseded
+  highlights still `requestRender` (`Code.ts:403, 424, 457`).
+- **Images (owner, same day: «картинки… лагает, потому что явно мы всё перерендерим пачку раз»):**
+  rasterisation runs once per mount ✓ (`RichText` `<Index>`/`<Switch>`, `index.tsx:2208-2225`), but there is
+  NO rasterisation cache ✓ (`util/mermaid.ts`), so every remount re-runs WASM→SVG→RGBA. On the sixel path a
+  placement is dirty whenever its POSITION changes (`renderer.zig:1871-1896`), so an image moving with a
+  sticky-bottom stream re-SENDS its whole cached payload every frame; a clipped image changes
+  `source_y/source_height`, which are IN the cache key (`renderer.zig:162-174`, `buffer.zig:2581-2603`), so it
+  is RE-ENCODED every frame. `setImage` builds a new `NativeImage` per call (`Image.ts:137-139`) and never
+  disposes the caller's reference — the skill's contract says the caller must
+  (`.opencode/skills/opentui/references/components/text-display.md:305-306`); `pushFrame` does it twice per
+  zoom step (`media-image.tsx:396-399` + the effect at `:590`).
+- **Small, real ✓:** `index.tsx:355` writes the collapse control into the OLD `collapseControlCache`, which
+  line 360 then replaces with the empty `nextControls` — the cache never holds, and the `[-]` row of an
+  expanded memory run remounts per delta.
+- **Skill vs our choice ✓:** the vendor recommends `internalBlockMode="top-level"` for LLM streaming
+  (`code-diff.md:274-287`); T7 reverted it on a cost measured WITHOUT any product cache, on one block. The
+  choice is to be re-measured after T11, not before.
+
+Owner direction (Guess, not a requirement): a dumb render cache keyed on our conditions, feeding the
+renderer finished products; Zig or Rust «как удобнее». Grounded answer: the caches EXIST (TextBuffer, the
+sixel LRU, render-list reuse) — their KEYS churn. The product cache is therefore content-keyed products on the
+documented API (`NativeImage.retain()`, `text-display.md:281-306`), in TS where the producers live, and the
+native change is confined to the sixel emission path. Rust would be a second native toolchain for no gain.
+
+- [x] **T9 — bytes-per-frame oracle for images in a scrolling ScrollBox (the instrument first).** A real
+  `createCliRenderer` over a capturing stdout (the idiom of `tests/image-renderable.test.ts:47-60, 360-391`),
+  `protocol = "sixel"`, a sticky-bottom `ScrollBox` holding text + one `ImageRenderable` + text, lines
+  appended one per frame. Per frame: total bytes, sixel DCS count (`\x1bP`), and whether the payload equals the
+  previous one (re-send) or differs (re-encode). Four cases, and the controls give the predicate its power:
+  (A) image scrolled out of view → 0 DCS; (D) nothing appended, render requested → 0 DCS; (B) image fully
+  visible and moving → predicted 1 DCS per frame, identical payload; (C) image straddling the top edge and
+  moving → predicted 1 DCS per frame, a NEW payload each frame. Falsifier of the audit: (B) or (C) at 0 DCS.
+  Acceptance: the file runs green on instrument-health assertions (A/D zero, B/C non-zero) and prints the
+  table; the numbers are recorded here.
+  **DONE 2026-09-23 — the audit's image claims are now MEASURED.** Instrument:
+  `packages/opentui/packages/core/src/tests/image-scroll-cost.test.ts` (40×20 terminal, 10×20 px cells, an
+  8×6-cell / 80×120 px gradient, sixel forced, one appended line per step). Run from
+  `packages/opentui/packages/core`: `bun test src/tests/image-scroll-cost.test.ts` = **1 pass / 0 fail**
+  (7 expect); log `experiments/2026-09-23_image-scroll-cost/run-20260923T121841Z.log`, sha256
+  `5cdda65dcccc5c173bb89c04d4cca45916b8b5acd61043171f4379115137adf1`. Two runs gave byte-identical volumes —
+  the instrument is deterministic.
+
+    phase            frames  with image  re-sent  re-encoded  avg bytes/step
+    static (tick)        4        0          0         0            73
+    visible + moving    10       10         10         0        14 074   (payload 13 187 B every step)
+    clipped + moving     5        5          0         5        10 981   (a NEW payload every step)
+    out of view         15        0          0         0           768
+
+  Read: a moving, fully visible image costs **~18×** the bytes of the same stream with the image out of view,
+  because its whole payload is re-sent on every step; a clipped moving image is re-encoded on every step
+  (5 of 5). Both controls read zero — a static image emits nothing while other cells change, and an image out
+  of view emits nothing — so the predicate CAN tell the cases apart. That is the audit's prediction, now at
+  Exact for this harness.
+  SECOND FINDING, same run: an appended line costs **2 frames**, an in-place change (the static tick) costs
+  **1** — the extra frame is `ScrollBox.ts:802`'s `nextTick(requestRender)`, measured, not inferred. The image
+  is sent once per step, not per frame (the second frame finds it unmoved).
+  NOT MEASURED, named: (1) CPU cost of the re-encode — the `ms` column is WALL time bounded by frame
+  scheduling (≥16.7 ms per frame: 17 ms for 1 frame, 34–36 ms for 2), so clipped (34.9) and visible (36.6)
+  cannot be told apart by it; a CPU oracle needs the native encode timed directly (`renderStats`) or the
+  bench `native/src/bench/terminal-image_bench.zig`. (2) Scale: 13 KB is an 80×120 px image; a diagram up to
+  512 px per side carries far more pixels, so the real per-step payload is larger — unmeasured. (3) The first
+  paint emits the payload TWICE (step 0: 2 DCS, 1 re-sent) — a second settle frame re-sends it; unexplained.
+  Gate note: `bun run typecheck` exit 0, but `tsconfig.build.json:16` EXCLUDES `**/*.test.ts`, so the
+  package's typecheck does not cover this file — bun transpiles and runs it, nothing more.
+- [ ] **T10 — image ownership and a rasterisation cache.** `setImage` releases the caller's reference after
+  the renderable retains it; `pushFrame` publishes ONCE (not signal + direct call); diagrams keep one
+  `NativeImage` per `(source, budget, theme)` so a remount reuses the handle and the sixel LRU hits.
+  Oracle: T9's case (B)/(C) across a remount shows no re-encode on remount, and a handle count (or
+  `NativeImagePool`-style accounting) returns to its baseline after N zoom steps.
+- [ ] **T11 — content-keyed text products; one style source per finished block.** Key `(block raw, width,
+  theme, conceal)` → styled lines, produced ONCE by our rules (marked for prose, tree-sitter for code); a
+  finished block is a lookup. Then re-measure `top-level` vs `coalesced` on the replay with the cache ON.
+  Oracle: the replay with tree-sitter completions COUNTED (the discriminator above) shows 0 style flips on
+  stable lines, and the cost table is re-run. Supersedes T8's open half.
+- [ ] **T12 — move pixels with the terminal, not with a repaint (Hypothetical).** Probe on Windows Terminal:
+  does a DECSTBM region + scroll-up (`CSI n S`) carry an on-screen sixel with it? The fork already drives a
+  bounded scroll region (`renderer.zig:1726`, split-footer). If yes: a sticky-bottom append becomes a
+  terminal scroll plus the new rows, and case (B) drops to ~0 image bytes. If no: the fallback is to show a
+  placeholder, not pixels, for a clipped image while the view is moving. Oracle: T9's bytes per frame.
+
 ## 3. Smoke Tests (PRE_FLIGHT — before any edit)
 
 Baseline [Exact], from `packages/opencode`:

@@ -190,6 +190,21 @@ its **application to this stream**, which is §2's oracle.
   byte-wise, and the top rows did shift with the growing text. And the FALSIFIER — revert T1/T2 and the
   same capture must fail — was not attempted, because it needs a build of the pre-T1 code. Both stay
   open, and T4 stays unticked.
+  **READER BUILT 2026-09-23 — `experiments/2026-09-23_flicker-frame-reader/reader.py`.** Eyes are not an
+  instrument, so the comparison is a script: it crops the content area, measures ink as DEVIATION FROM
+  THE BACKGROUND (the mode of the brightness histogram) and searches the vertical shift that best aligns
+  two frames, reporting the matched-row fraction at that shift. Its own first run is an argument for the
+  owner's predicate-power norm — counting DARK pixels as ink turned the dark theme's background INTO ink
+  and reported 94% for every frame, `ink_rose=NO` on two frames that plainly grew. Corrected, it agrees
+  with imagerender's independent measure: ink **10.7%** against 13.3–14.7%, `ink_rose=yes`.
+  **AND THE FIRST COMPARISON WAS DESIGNED WRONG — the reader is what showed it.** The two archived frames
+  are MINUTES apart, so most of their content differs; the best alignment is `shift=0 / matched=0.49`,
+  which is what an unalignable pair returns. T4's «stable lines above the live tail» can only be judged
+  on frames SECONDS apart, one or two appended lines between them. That fixes the next capture's
+  contract: a BURST during one stream (~6–8 frames at ~1 s), the reader over CONSECUTIVE pairs, and the
+  assertions `ink never falls` and `matched_after_shift ≥ 0.9` at the shift the burst implies. Until
+  that burst exists, the stable-lines criterion stays unmeasured — named, not claimed.
+  The falsifier still needs a build of the pre-T1 code; unchanged.
 - [ ] **T5 — ScrollBox (P3), only if T1–T3 leave a residual.** Coalesce `recalculateBarProps()` to one
   call per frame; apply sticky-bottom once after a completed layout transaction; no per-size
   `process.nextTick(requestRender)`.

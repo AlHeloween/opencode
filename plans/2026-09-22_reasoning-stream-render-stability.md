@@ -267,13 +267,34 @@ its **application to this stream**, which is §2's oracle.
   «the viewport offset changes only when a line is actually appended», does NOT follow from these frames:
   the view moved, and whether it moved only on an append — rather than jumping — is precisely what
   non-overlapping frames cannot show.
-  **NEXT, BOUNDED:** a tight capture — bound the UIA walk (`max_elements` / `max_depth`, named by the
-  driver's own `_note` in its answer) or capture with `get_desktop_state` and crop to the window bounds —
-  plus a per-frame timestamp so the cadence is a measurement and not a claim. The reader needs no further
-  change. `-ReadOnly` was added so the SAME frames can be re-read by a corrected reader: without it a fix
-  to the instrument could only be tested on a different stream, and the difference between the runs would
-  not be attributable to the instrument.
-  The falsifier still needs a build of the pre-T1 code; unchanged.
+  **BURST ATTEMPT 3 (2026-09-23) — THE INSTRUMENT NOW DISCRIMINATES; THE SAMPLE IS TOO SPARSE.** The
+  cadence became a measurement (a per-frame `t=+Nms` delta) and the UIA walk was bounded
+  (`max_elements: 1`, `max_depth: 1` — the very fields the driver's own `_note` names). Measured `dt`:
+  1101 / 1973 / 1930 / 1930 / 1929 / 1927 ms — the bound changed NOTHING (1.93 s against 2.0 s before),
+  so «the tree walk dominates» is REFUTED; the ~1.03 s beyond the 900 ms sleep sits somewhere else in
+  the driver call. The bounding fields stay in the payload (harmless) but they are NOT the fix, and the
+  hypothesis is corrected here rather than kept as a note.
+  **THE OVERLAP IS THE REAL CONSTRAINT.** Four of the five pairs returned `overlap=NO` (`matched_inked`
+  0.062 / 0.041 / 0.034 / 0.066 against a 0.3 floor): in 1.93 s the stream advances MORE than one crop,
+  so those frames share no line and the pair CANNOT judge stability — a verdict the reader now refuses
+  to give, instead of reporting ≈0.05 as «lines are unstable».
+  **AND THE ONE PAIR THAT DID OVERLAP GIVES THE FIRST REAL READING.** Pair 5→6: `best_shift=-276`,
+  `matched_inked=0.6321`, `stable_prefix=67 of 106` considered, frontier at row **371 of 450**. Read
+  correctly: A's rows below y=276 have a partner in B (everything above scrolled out of the top), 67 of
+  those inked rows are BYTE-IDENTICAL, and the divergence is CONTIGUOUS from row 371 to the bottom edge
+  — confined to the last ~3 lines, which is the live tail the stream is writing. That is the append-only
+  signature: stable above, divergent only at the bottom edge, nothing changing in the middle.
+  `matched_inked=0.63` is not a failure of the criterion — the denominator contains exactly the tail rows
+  that are SUPPOSED to differ. A global fraction could never have shown this; that is why the frontier
+  measure exists.
+  NOT MEASURED, named so it is not read as covered: whether a previously-stable line ever CHANGES — the
+  flicker itself. One overlapping pair cannot show a trend; the frontier must be tracked across several
+  overlapping pairs, and the burst has to produce them.
+  **NEXT, BOUNDED (one edit):** `Start-Sleep -Milliseconds 900` is now pure waste — it DOUBLES the
+  cadence on top of a call that already costs ~1.03 s — so it goes to 0 and the frame count rises
+  (6 → 12). That nearly doubles the frames per second of stream, and the reader already reports which
+  pairs may speak. The reader needs no further change. The falsifier still needs a build of the pre-T1
+  code; unchanged.
   T4 remains unticked.
 - [ ] **T5 — ScrollBox (P3), only if T1–T3 leave a residual.** Coalesce `recalculateBarProps()` to one
   call per frame; apply sticky-bottom once after a completed layout transaction; no per-size

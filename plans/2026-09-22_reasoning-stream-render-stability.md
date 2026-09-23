@@ -650,7 +650,7 @@ native change is confined to the sixel emission path. Rust would be a second nat
   Observed and NOT explained: that file reports `lines=350` when run in one `bun test` invocation with other
   files and `lines=33` alone — the instrument depends on what runs beside it.
   NOT DONE from the task's wording: the content-keyed cache itself → T11b.
-- [ ] **T11b — the render cache that takes the LOAD off (owner, 2026-09-23: «кэш нужен не только для
+- [x] **T11b — the render cache that takes the LOAD off (owner, 2026-09-23: «кэш нужен не только для
   устранения мерцания, кэш нужен чтобы снять нагрузку»).** The earlier gate («only if a profile shows the
   CPU») is withdrawn on the owner's word; the measurement stays, as the BASELINE the cache must move and as
   the map of WHERE it must sit.

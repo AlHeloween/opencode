@@ -4619,3 +4619,18 @@ Evidence: remount construct 40 × 12 000 139.3 → 30.5 ms (−78 %), 100 × 3 0
 parser 20 pass, Markdown 187, closed-runs 3, Code 70/1 skip, sources returns 0; typecheck exit 0.
 
 Residual: the first mount is unchanged (154 ms for 40 × 12 000) — step 4, lex only what becomes visible.
+
+## [2026-09-24 00:40] T11b step 4 — bottom-up session entry
+
+Plan: `plans/2026-09-22_reasoning-stream-render-stability.md` T11b step 4 (owner chose bottom-up). Diff: core
+`Markdown.ts` (`deferred` option/accessor, one guard in `updateBlocks`); opencode `routes/session/deferred-mount.ts`
+(pure policy) and `routes/session/index.tsx` (once-per-session plan on first read, timer-driven slices,
+scroll compensation when the reader leaves the bottom, `deferred` threaded through RichText/TextPart/
+ReasoningPart); oracles `markdown-deferred.test.ts` (RED before) and `test/tui/deferred-mount.test.ts`.
+
+Evidence: 40 × 12 000 chars — entry 32.6–34.4 ms + ~4 ms first frame (eager 154–188 ms); history done in 19
+slices, max 24–37 ms, total 298–405 ms (build 146 + frames 152, harness-forced frames = upper bound); final
+frame equals eager in 3 sizes; core suites green; opencode test/tui 160 pass; typecheck exit 0 both packages.
+
+Residual: ~2× CPU for the history build (per-slice O(history) layout walk); live check owed; no automated
+oracle for the scroll-up compensation.

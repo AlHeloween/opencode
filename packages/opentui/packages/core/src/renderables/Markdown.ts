@@ -117,6 +117,12 @@ export interface MarkdownOptions extends RenderableOptions<MarkdownRenderable> {
    */
   quietHighlightMs?: number
   /**
+   * While true the content is only STORED: no parse, no blocks (T11b step 4 of the flicker plan — entering
+   * a session lexed every loaded message at once, 154 ms for 40 × 12 000 chars). Clearing it builds once.
+   * The caller owns the order (the TUI builds bottom-up: newest now, the history above in slices).
+   */
+  deferred?: boolean
+  /**
    * Options for internally rendered markdown tables.
    */
   tableOptions?: MarkdownTableOptions
@@ -300,6 +306,9 @@ export class MarkdownRenderable extends Renderable {
   /** Sticky closed prefix of the content (see `buildRenderableTokens`); valid while content starts with it. */
   private _closedLength = 0
   private _closedPrefix = ""
+  /** See `MarkdownOptions.deferred`; `_deferredPending` records that a build was asked for meanwhile. */
+  private _deferred = false
+  private _deferredPending = false
   private _styleDirty: boolean = false
   private _highlightMarkdownLinks: OnHighlightCallback = (highlights, context) =>
     this.addMarkdownLinkHighlights(highlights, context.content)
@@ -390,6 +399,7 @@ export class MarkdownRenderable extends Renderable {
     this._streaming = options.streaming ?? this._contentDefaultOptions.streaming
     this._quietHighlightMs = options.quietHighlightMs ?? 0
     this._internalBlockMode = options.internalBlockMode ?? this._contentDefaultOptions.internalBlockMode
+    this._deferred = options.deferred ?? false
 
     this.updateBlocks()
 
@@ -413,6 +423,19 @@ export class MarkdownRenderable extends Renderable {
 
   get content(): string {
     return this._content
+  }
+
+  get deferred(): boolean {
+    return this._deferred
+  }
+
+  set deferred(value: boolean) {
+    if (this._deferred === value) return
+    this._deferred = value
+    if (value || !this._deferredPending) return
+    this._deferredPending = false
+    this.updateBlocks(true)
+    this.requestRender()
   }
 
   set content(value: string) {
@@ -2116,6 +2139,12 @@ export class MarkdownRenderable extends Renderable {
 
   private updateBlocks(forceTableRefresh: boolean = false): void {
     if (this.isDestroyed) return
+    // ONE guard for every path that builds (content, style, conceal, streaming, table setters, capabilities):
+    // a deferred renderable only remembers that a build was asked for.
+    if (this._deferred) {
+      this._deferredPending = true
+      return
+    }
     if (!this._content) {
       this.clearBlockStates()
       this._parseState = null

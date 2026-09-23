@@ -744,11 +744,43 @@ native change is confined to the sixel emission path. Rust would be a second nat
     markdown-closed-runs 3, Code 70 / 1 skip, stream-replay-sources 2 with returns 0; core typecheck exit 0.
     NOT helped, named: the FIRST mount (154 ms for 40 × 12 000, 122 ms for 100 × 3 000) — nothing is stored
     yet. → Step 4.
-  - [ ] **Step 4 — the first entry into a session: do not lex what nobody sees.** Every loaded message is
+  - [x] **Step 4 — the first entry into a session: do not lex what nobody sees.** Every loaded message is
     constructed (lexed) at mount, visible or not; culling then skips painting the off-screen ones, but their
     construction was already paid. Defer `updateBlocks` of a message until it first becomes visible (or the
     frame is idle). Oracle: `remount.ts` first-mount construct time, plus the closed-runs equivalence test and a
     scroll-into-view frame for a deferred message.
+    **DONE 2026-09-24 as BOTTOM-UP, the owner's choice** (asked with two alternatives: height estimates built
+    on visibility — cheaper, but a jump when an estimate is wrong — or leaving the ~150 ms as is). Deferral
+    «until visible» was dropped on the way for a measured-by-reasoning reason: a deferred message has ~0
+    height, so every deferred message would sit inside the viewport and count as visible — the trigger
+    defeats itself.
+    CORE: `MarkdownRenderable.deferred` — while set, the content is only stored; ONE guard at the top of
+    `updateBlocks` covers every build path; clearing it builds once. Oracle
+    `core/src/renderables/__tests__/markdown-deferred.test.ts`, RED before (1 block built while «deferred»),
+    GREEN after: nothing built and `_parseState` null while deferred, a content change while deferred is
+    stored, and after release the block count and the frame (text + spans) equal an eager render.
+    POLICY (pure, `opencode/src/cli/cmd/tui/routes/session/deferred-mount.ts`, 4 unit tests in
+    `test/tui/deferred-mount.test.ts`): walking from the newest, messages stay eager until 20 000 chars are
+    covered and at least 3 are eager; the older rest is released newest first in 24 000-char slices, always at
+    least one message per slice.
+    ROUTE (`routes/session/index.tsx`): the plan is computed once per session on the first READ that sees
+    messages — never in an effect, which would run after the children were built — and no signal is written
+    during render (`released` is written only by timers; the first slice waits 16 ms so the eager messages
+    paint first). If the reader leaves the bottom before the history is done, the rest is built at once and
+    the reading position is compensated by the height delta — the same technique as the older-page load.
+    MEASURED (`experiments/2026-09-23_render-load/bottom-up.jsonl`, the REAL policy functions; bottom-up run
+    FIRST on a cold lex cache — an eager mount before it would have warmed step 3's cache and measured a
+    remount): 40 × 12 000 chars — synchronous entry **32.6–34.4 ms construct + ~4 ms first frame, against
+    154–188 ms eager**; the history above completes in 19 slices, **max 24–37 ms each** (run-to-run noise),
+    total 298–405 ms; split: build 146 ms (the same lexing an eager mount pays) + frames 152 ms (~8 ms of
+    layout per slice — the O(history)-per-frame walk, `Renderable.ts:1447`, named in the audit). The final
+    frame equals the eager mount's in all three sizes (40 × 3 000, 40 × 12 000, 100 × 3 000). The harness
+    forces a frame per slice, so the frame share is an UPPER bound; the live renderer coalesces requests.
+    TRADE, named: the entry freeze is gone, but the history costs ~2× CPU spread over ~0.3–0.4 s.
+    Suites: core markdown-deferred 1, Markdown 187, markdown-closed-runs 3, markdown-parser 20; opencode
+    `bun test test/tui/` 160 pass; opencode `bun typecheck` exit 0 (it caught a missing `ctx` in `TextPart`).
+    NOT OBSERVED, owed: the live session entry by the owner's eye; the scroll-up-during-build compensation has
+    no automated oracle (the route is not mounted by any test).
 - [ ] **T12 — move pixels with the terminal, not with a repaint (Hypothetical).** Probe on Windows Terminal:
   does a DECSTBM region + scroll-up (`CSI n S`) carry an on-screen sixel with it? The fork already drives a
   bounded scroll region (`renderer.zig:1726`, split-footer). If yes: a sticky-bottom append becomes a

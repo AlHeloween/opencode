@@ -12,6 +12,7 @@ import {
   onMount,
   Show,
   Switch,
+  untrack,
   useContext,
 } from "solid-js"
 import { Dynamic } from "solid-js/web"
@@ -26,6 +27,7 @@ import { selectedForeground, useTheme } from "@tui/context/theme"
 import { ScrollBoxRenderable, addDefaultParsers, getTreeSitterClient, TextAttributes, RGBA } from "@opentui/core"
 import { Prompt, type PromptRef } from "@tui/component/prompt"
 import { reasoningView, splitTextSegments, type TextSegment } from "./text-segments"
+import { deferredOnEntry, nextSlice } from "./deferred-mount"
 
 import type {
   AssistantMessage,
@@ -192,6 +194,8 @@ const context = createContext<{
   providers: () => ReadonlyMap<string, Provider>
   sync: ReturnType<typeof useSync>
   tui: ReturnType<typeof useTuiConfig>
+  /** Bottom-up mount: true while a message's markdown is not built yet (see `isDeferred`). */
+  isDeferred: (messageID: string) => boolean
 }>()
 
 function use() {
@@ -1492,6 +1496,63 @@ export function Session() {
     })
   })
 
+  // Bottom-up mount (T11b step 4, plans/2026-09-22_reasoning-stream-render-stability.md; the owner's choice,
+  // 2026-09-24). Entering a session built every loaded message at once — 154 ms of main thread for
+  // 40 × 12 000 chars. Now the newest messages are built at once (the view is pinned to the bottom, so they
+  // are what is on screen) and the history above is released in slices, newest first; each message's
+  // markdown waits with `deferred` until then. The plan is made ONCE per session, on the first READ that
+  // sees messages — never in an effect, which would run after the children were already built — and no
+  // signal is written during render: `released` is written only by the timers below.
+  const MOUNT_EAGER_CHARS = 20_000
+  const MOUNT_MIN_EAGER = 3
+  // ~7 ms of lexing per slice at the measured ~0.29 ms per 1 000 chars.
+  const MOUNT_SLICE_CHARS = 24_000
+  const messageTextChars = (messageID: string) =>
+    (sync.data.part[messageID] ?? []).reduce(
+      (sum, part) => sum + (part.type === "text" || part.type === "reasoning" ? part.text.length : 0),
+      0,
+    )
+  const NO_DEFERRED: ReadonlySet<string> = new Set()
+  let mountPlan: { sessionID: string; deferred: ReadonlySet<string> } | undefined
+  const [released, setReleased] = createSignal<ReadonlySet<string>>(NO_DEFERRED)
+  const releaseInSlices = (sessionID: string, pending: string[]) => {
+    if (route.sessionID !== sessionID || pending.length === 0) return
+    if (!scrollPos().atLive && scroll && !scroll.isDestroyed) {
+      // The reader left the bottom before the history finished: build the rest now and keep the reading
+      // position — all of it sits ABOVE the viewport (the same compensation as the older-page load).
+      const beforeHeight = scroll.scrollHeight
+      setReleased((prev) => new Set([...prev, ...pending]))
+      setTimeout(() => {
+        if (!scroll || scroll.isDestroyed) return
+        const delta = scroll.scrollHeight - beforeHeight
+        if (delta > 0) scroll.scrollBy(delta)
+        refreshScrollPos()
+      }, 32)
+      return
+    }
+    const slice = nextSlice(pending, messageTextChars, MOUNT_SLICE_CHARS)
+    setReleased((prev) => new Set([...prev, ...slice.release]))
+    setTimeout(() => releaseInSlices(sessionID, slice.rest), 16)
+  }
+  const deferredPlan = (): ReadonlySet<string> => {
+    const sessionID = route.sessionID
+    if (mountPlan?.sessionID === sessionID) return mountPlan.deferred
+    const list = untrack(messagesList)
+    if (list.length === 0) return NO_DEFERRED
+    const order = untrack(() =>
+      deferredOnEntry(
+        list.map((message) => ({ id: message.id, chars: messageTextChars(message.id) })),
+        MOUNT_EAGER_CHARS,
+        MOUNT_MIN_EAGER,
+      ),
+    )
+    mountPlan = { sessionID, deferred: new Set(order) }
+    // After the first frame: the eager messages paint before any history is built.
+    if (order.length > 0) setTimeout(() => releaseInSlices(sessionID, order), 16)
+    return mountPlan.deferred
+  }
+  const isDeferred = (messageID: string) => deferredPlan().has(messageID) && !released().has(messageID)
+
   return (
     <context.Provider
       value={{
@@ -1508,6 +1569,7 @@ export function Session() {
         providers,
         sync,
         tui: tuiConfig,
+        isDeferred,
       }}
     >
       <box flexDirection="row">
@@ -2184,7 +2246,14 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
         <Show when={view()?.omitted}>
           <text fg={theme.textMuted}>{view()?.omitted}</text>
         </Show>
-        <RichText content={() => view()?.body ?? ""} id={props.part.id} muted subtle streaming={!props.part.time?.end} />
+        <RichText
+          content={() => view()?.body ?? ""}
+          id={props.part.id}
+          muted
+          subtle
+          streaming={!props.part.time?.end}
+          deferred={ctx.isDeferred(props.message.id)}
+        />
       </box>
     </Show>
   )
@@ -2197,6 +2266,8 @@ function RichText(props: {
   streaming: boolean
   subtle?: boolean
   surface?: "panel"
+  /** Bottom-up mount: the markdown stores its text and builds nothing while this is true. */
+  deferred?: boolean
 }) {
   const ctx = use()
   const { theme, syntax, subtleSyntax } = useTheme()
@@ -2212,6 +2283,7 @@ function RichText(props: {
             <markdown
               syntaxStyle={props.subtle ? subtleSyntax() : syntax()}
               streaming={props.streaming}
+              deferred={props.deferred ?? false}
               tableOptions={{ style: "grid" }}
               content={markdownSegmentText(segment())}
               conceal={ctx.conceal()}
@@ -2229,13 +2301,14 @@ function RichText(props: {
 }
 
 function TextPart(props: { last: boolean; part: TextPart; message: AssistantMessage }) {
+  const ctx = use()
   const content = () => props.part.text
   const streaming = createMemo(() => !props.part.time?.end)
 
   return (
     <Show when={content().trim()}>
       <box id={"text-" + props.part.id} paddingLeft={3} marginTop={1} flexShrink={0}>
-        <RichText content={content} id={props.part.id} streaming={streaming()} />
+        <RichText content={content} id={props.part.id} streaming={streaming()} deferred={ctx.isDeferred(props.message.id)} />
       </box>
     </Show>
   )

@@ -205,6 +205,21 @@ its **application to this stream**, which is §2's oracle.
   assertions `ink never falls` and `matched_after_shift ≥ 0.9` at the shift the burst implies. Until
   that burst exists, the stable-lines criterion stays unmeasured — named, not claimed.
   The falsifier still needs a build of the pre-T1 code; unchanged.
+  **BURST ATTEMPT 1 (2026-09-23) — script written, blocked by a tooling quirk, NOT yet a measurement.**
+  `experiments/2026-09-23_flicker-frame-reader/burst.ps1` implements the contract above (finds the
+  newest `cmd_runner:*` window by the ISO stamp in its title, shoots 6 frames at 900 ms, then runs the
+  reader over the 5 consecutive pairs) — but it failed twice on its own invocation line, and both
+  failures are worth keeping:
+  (i) PowerShell `-f` needs DOUBLED braces: `'{"pid": {0}}' -f …` dies with `FormatError`; the working
+      spelling is `'{{"pid": {0}}}'`. And never name the variable `$args` — PowerShell reserves it.
+  (ii) The deeper one: **PowerShell 5.1 strips the quotes around JSON field names**, so a positional
+      JSON argument reaches `cua-driver` as `{pid: 3884, …}` and is refused — the driver says it itself:
+      «key must be a string at line 1 column 2 … Pipe the JSON via stdin instead». That is exactly why
+      the `cua` TOOL pipes its arguments through stdin, and any script that shells out to the driver
+      must do the same or it silently loses the shape of its own payload.
+  Worth keeping from the attempt: the window-picking WORKED — it selected the new session's window
+  (`33032574`), not the stopped one — and frames 1–2 were written before the failure.
+  The burst is therefore still OWED, with stdin-piped payloads. T4 remains unticked.
 - [ ] **T5 — ScrollBox (P3), only if T1–T3 leave a residual.** Coalesce `recalculateBarProps()` to one
   call per frame; apply sticky-bottom once after a completed layout transaction; no per-size
   `process.nextTick(requestRender)`.

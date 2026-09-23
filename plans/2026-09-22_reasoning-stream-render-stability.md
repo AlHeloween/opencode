@@ -218,8 +218,17 @@ its **application to this stream**, which is §2's oracle.
       the `cua` TOOL pipes its arguments through stdin, and any script that shells out to the driver
       must do the same or it silently loses the shape of its own payload.
   Worth keeping from the attempt: the window-picking WORKED — it selected the new session's window
-  (`33032574`), not the stopped one — and frames 1–2 were written before the failure.
-  The burst is therefore still OWED, with stdin-piped payloads. T4 remains unticked.
+  (`33032574`), not the stopped one — but **no frame was written: all six are `MISSING`**, and the reader
+  then failed five times on `FileNotFoundError`. An earlier version of this note claimed «frames 1–2
+  were written»; that was WRONG — it came from reading the log's TAIL instead of the whole log, which is
+  exactly what the canon forbids. Corrected here, because a stale claim is a defect.
+  The second attempt (with stdin payloads) produced the same six `MISSING` and NO stated reason, because
+  the script piped the driver's output into `| Out-Null`: the failure was hidden by the very line that
+  ran the tool. And the run still exited `0` — a script that neither surfaces its instrument's answer nor
+  fails on a missing artifact reports success over six missing frames. That is the class: a harness whose
+  own report cannot be false is not a harness.
+  The burst is therefore still OWED, with stdin-piped payloads AND the driver's answer printed.
+  T4 remains unticked.
 - [ ] **T5 — ScrollBox (P3), only if T1–T3 leave a residual.** Coalesce `recalculateBarProps()` to one
   call per frame; apply sticky-bottom once after a completed layout transaction; no per-size
   `process.nextTick(requestRender)`.

@@ -4589,3 +4589,20 @@ Evidence: 30 000 chars 13.89 → 7.13 ms/delta (−49 %), 12 000 5.39 → 3.79; 
 
 Residual: `setStyledText` of the whole run per delta (25.8 %) — step 2 (closed runs); remount — step 3;
 three silent `catch` blocks in `markdown-parser.ts:26,72,75` noted, not yet fixed.
+
+## [2026-09-23 15:30] T11b step 2 — closed runs: the load no longer grows with the message
+
+Plan: `plans/2026-09-22_reasoning-stream-render-stability.md` T11b step 2. Diff: `Markdown.ts`
+(`buildRenderableTokens` closes a coalesced run at 2 000 chars, only after a paragraph + blank line, only
+inside max(parser stable end, previous closed prefix); cut runs carry no trailing newline and get the blank
+line as a margin; sticky `_closedLength/_closedPrefix`), `Code.ts` (`storedHighlightsFor` also serves a
+shorter prefix with clipped ranges). New oracle `__tests__/markdown-closed-runs.test.ts` with snapshots
+written by the pre-change code (the finished-message one with step 2 stashed).
+
+Evidence: 30 000 chars 13.89 → 2.01 ms/delta (−86 %), 12 000 5.39 → 1.69; equivalence 3/3 against the
+old-code snapshots; style returns 0; Code 70/1 skip, Markdown 187, replays green; typecheck exit 0; opencode
+test/tui 156 pass. Three wrong versions were each caught by an instrument (lost blank lines; a path-dependent
+trailing newline; a non-monotonic parser boundary that reopened closed runs).
+
+Residual: step 3 (remount cache) unmeasured; the three silent catches in markdown-parser.ts; T8/T12 owed to
+the owner.

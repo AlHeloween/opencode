@@ -199,25 +199,34 @@ export class CodeRenderable extends TextBufferRenderable {
    * which would only be discarded (T11b: measured at 38 % of main-thread time on a 30 000-char stream).
    */
   public canPaintFromStoredHighlights(content: string): boolean {
-    return (
-      this._streaming &&
-      this._drawUnstyledText &&
-      !!this._filetype &&
-      this._lastHighlights.length > 0 &&
-      content.startsWith(this._lastHighlightsContent)
-    )
+    return this._streaming && this._drawUnstyledText && this.storedHighlightsFor(content) !== undefined
+  }
+
+  /**
+   * The stored ranges that apply to `content`, or undefined. They apply when the content they were computed
+   * for is a prefix of `content` (append) or `content` is a prefix of it (a closed run cut off the end —
+   * T11b step 2; the ranges are clipped to the shorter text). Anything else would be colour at wrong offsets.
+   */
+  private storedHighlightsFor(content: string): SimpleHighlight[] | undefined {
+    if (!this._filetype || this._lastHighlights.length === 0) return undefined
+    if (content.startsWith(this._lastHighlightsContent)) return this._lastHighlights
+    if (!this._lastHighlightsContent.startsWith(content)) return undefined
+    const end = content.length
+    return this._lastHighlights
+      .filter((highlight) => highlight[0] < end)
+      .map((highlight): SimpleHighlight => (highlight[1] > end ? [highlight[0], end, highlight[2], highlight[3]] : highlight))
   }
 
   private paintFromStoredHighlights(): boolean {
-    if (!this._filetype || this._lastHighlights.length === 0) return false
-    if (!this._content.startsWith(this._lastHighlightsContent)) return false
-    const chunks = treeSitterToTextChunks(this._content, this._lastHighlights, this._syntaxStyle, {
+    const highlights = this.storedHighlightsFor(this._content)
+    if (!highlights) return false
+    const chunks = treeSitterToTextChunks(this._content, highlights, this._syntaxStyle, {
       enabled: this._conceal,
       baseHighlight: this._baseHighlight,
       ranges: undefined,
     })
     this.textBuffer.setStyledText(new StyledText(chunks))
-    this.setRenderedLineSources(this.getConcealLinesSourceMap(this._content, this._lastHighlights))
+    this.setRenderedLineSources(this.getConcealLinesSourceMap(this._content, highlights))
     this._shouldRenderTextBuffer = true
     return true
   }

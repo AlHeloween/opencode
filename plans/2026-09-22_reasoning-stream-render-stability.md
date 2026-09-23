@@ -676,13 +676,41 @@ native change is confined to the sixel emission path. Rust would be a second nat
     P = 0 1.45 → 1.15. Suites, each file separately: `src/renderables/Code.test.ts` 70 pass / 1 skip,
     `__tests__/Code.test.ts` 2, `__tests__/Markdown.test.ts` 187, `stream-replay` 2, `stream-replay-sources`
     2 with rich returns still 0; core typecheck exit 0.
-  - [ ] **Step 2 — finished blocks are products, the tail is the only thing rebuilt.** Cut the coalesced run
+  - [x] **Step 2 — finished blocks are products, the tail is the only thing rebuilt.** Cut the coalesced run
     at the parser's `stableTokenCount` and close stable runs at a size cap at token boundaries, so a closed
     run's raw never changes again: `updateBlocks` already reuses a block whose `tokenRaw` is unchanged, so a
     closed run costs NOTHING per delta (no `setStyledText`, no parse), and the per-delta work becomes O(tail).
     The remaining 25.8 % (`setStyledText` of the whole run per delta) is its target. Visual-equivalence oracle
     required first: the final frame with the cut must equal the frame without it (a trailing `\n` must still
     yield the blank line between paragraphs — `getInterBlockMargin` gives 0 between two synthetic paragraphs).
+    **DONE 2026-09-23.** ORACLE FIRST: `core/src/renderables/__tests__/markdown-closed-runs.test.ts` —
+    snapshots (text AND spans) WRITTEN BY THE PRE-CHANGE CODE for three renders: the real fixture streamed,
+    a synthetic 12 000-char document (headings, inline marks, lists, fences) streamed, and a 9 048-char
+    FINISHED message (`streaming: false`; its snapshot was written with step 2 stashed — `git stash push` of
+    `Markdown.ts` only — so the reference is the old code, not the new one grading itself). Streamed must also
+    equal a one-shot render of the same text.
+    THREE WRONG VERSIONS, each caught by an instrument, recorded because each is a trap:
+    (1) cut at the parser's boundary with the run's trailing `\n` kept → 2 blank lines LOST (one per cut)
+        against the reference; (2) a margin added, trailing `\n` still kept → a one-shot drew the trailing `\n`
+        as an empty line (block h = 31) while the streamed block had it concealed (h = 30): PATH-DEPENDENT —
+        fixed by storing a cut run with NO trailing newline and restoring the blank line by the margin alone
+        (`closedAtBreak`); (3) cut at the parser's `stableTokenCount` → `stream-replay-sources` went from 0 to
+        3 returns, and `experiments/2026-09-23_render-load/flip-trace.ts` showed why: block 0 was 327 chars at
+        delta 106, 10 at 107, 327 at 108 — the parser's count is `matched − 2` and moves BACKWARDS, and a token
+        it calls stable can still grow (a list absorbs an item after a blank line). A clipped-highlights path
+        for shrinking content (`Code.ts:storedHighlightsFor`) was added on the way; it is correct and kept, but
+        it was NOT the fix.
+    THE RULE THAT HOLDS: a run is closed only at `CLOSED_RUN_CAP = 2 000` chars, only right after a paragraph
+    and a blank line (the only boundary the text before cannot move across), only inside
+    max(parser stable end, previous closed prefix) — so closure is STICKY (`_closedLength` / `_closedPrefix`,
+    reset only when the content is rewritten rather than appended).
+    AFTER (`step2-final.jsonl`): P = 30 000 **13.89 → 2.01 ms/delta (−86 %)**; P = 12 000 5.39 → 1.69
+    (−69 %); P = 0 1.45 → 1.10; history 40 1.69 → 1.53. The load no longer grows with the message: 12 000 and
+    30 000 cost nearly the same, the per-delta work is bounded by the cap plus the live tail.
+    Suites, each file separately: `src/renderables/Code.test.ts` 70 pass / 1 skip; `__tests__/Code.test.ts` 2;
+    `__tests__/Markdown.test.ts` 187; `stream-replay` 2; `stream-replay-sources` 2 with rich **returns 0**;
+    `markdown-closed-runs` 3 pass against the old-code snapshots; flip trace 0 plain deltas; core typecheck
+    exit 0; opencode `bun test test/tui/` 156 pass.
   - [ ] **Step 3 — remount.** A finished message re-entering the view re-lexes and re-highlights from scratch;
     a product cache keyed by the closed run's raw (+ width, theme, conceal) serves it. Measured need first
     (the history scenario does not remount, so it cannot show this yet).

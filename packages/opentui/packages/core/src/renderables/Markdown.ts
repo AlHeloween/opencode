@@ -236,6 +236,8 @@ interface ResolvedTableRenderableOptions {
 
 const TRAILING_MARKDOWN_BLOCK_BREAKS_RE = /(?:\r?\n){2,}$/
 const TRAILING_MARKDOWN_BLOCK_NEWLINES_RE = /(?:\r?\n)+$/
+/** Size at which a stable coalesced run is closed for good (see `buildRenderableTokens`). */
+const CLOSED_RUN_CAP = 2_000
 const markdownLinkEncoder = new TextEncoder()
 
 function isSupportedLinkTarget(url: string): boolean {
@@ -295,6 +297,9 @@ export class MarkdownRenderable extends Renderable {
   private _quietHighlightMs: number = 0
   _blockStates: BlockState[] = []
   _stableBlockCount = 0
+  /** Sticky closed prefix of the content (see `buildRenderableTokens`); valid while content starts with it. */
+  private _closedLength = 0
+  private _closedPrefix = ""
   private _styleDirty: boolean = false
   private _highlightMarkdownLinks: OnHighlightCallback = (highlights, context) =>
     this.addMarkdownLinkHighlights(highlights, context.content)
@@ -1230,6 +1235,7 @@ export class MarkdownRenderable extends Renderable {
 
   private getInterBlockMargin(token: MarkedToken, nextToken: MarkedToken | undefined): number {
     if (!nextToken) return 0
+    if ((token as MarkedToken & { closedAtBreak?: boolean }).closedAtBreak) return 1
     if (this.shouldRenderSeparately(token)) return 1
     if (!this.shouldRenderSeparately(nextToken)) return 0
     return TRAILING_MARKDOWN_BLOCK_NEWLINES_RE.test(token.raw) ? 0 : 1
@@ -1261,27 +1267,55 @@ export class MarkdownRenderable extends Renderable {
     return (this._renderNode as MarkdownRenderNode | undefined)?.codeBlockOnly === true
   }
 
-  private buildRenderableTokens(tokens: MarkedToken[]): MarkedToken[] {
+  /**
+   * A coalesced run is CLOSED — cut into a block whose raw never changes again — once it reaches
+   * `CLOSED_RUN_CAP` chars, and only where the text before the cut is FINAL: right after a paragraph and a
+   * blank line (a blank line ends a paragraph for good, whereas a list or a quote can still absorb what
+   * follows), and only inside the stable prefix — the parser's `stableCount`, or the closed prefix of the
+   * previous call, whichever reaches further. The second half makes closure STICKY: the parser's count is
+   * `matched − 2` and can move BACKWARDS (measured: a run closed at delta 106, reopened at 107, closed at
+   * 108 — a colour flip each time). `updateBlocks` reuses a block whose `tokenRaw` is unchanged, so a closed
+   * run is free on every later delta and the per-delta work is bounded by the cap plus the live tail
+   * (T11b step 2: `setStyledText` of the whole run on every delta was 25.8 % of main-thread time).
+   */
+  private buildRenderableTokens(tokens: MarkedToken[], stableCount: number = tokens.length): MarkedToken[] {
     if (this._renderNode && !this.isCodeBlockOnlyRenderer()) {
       return tokens.filter((token) => token.type !== "space")
     }
 
     const renderTokens: MarkedToken[] = []
     let markdownRaw = ""
+    const stableEnd = tokens.slice(0, stableCount).reduce((sum, token) => sum + token.raw.length, 0)
+    const closedLimit = Math.max(stableEnd, this._closedLength)
+    let tokenStart = 0
+    let lastCutEnd = 0
+    let previousType: string | undefined
+    let blankSincePrevious = false
 
-    const flushMarkdownRaw = (): void => {
+    const flushMarkdownRaw = (cut: boolean = false): void => {
       if (markdownRaw.length === 0) return
-      const normalizedRaw = this.normalizeMarkdownBlockRaw(markdownRaw)
+      // A CUT run carries NO trailing newline: whether a trailing `\n` draws an empty last line depended on
+      // the paint path (a settled one-shot showed it, a streamed block had it concealed — measured one
+      // blank line apart per cut). The blank line the unsplit run drew from its inner `\n\n` is restored by
+      // the margin instead, which is the same on every path.
+      const normalizedRaw = cut
+        ? this.normalizeScrollbackMarkdownBlockRaw(markdownRaw)
+        : this.normalizeMarkdownBlockRaw(markdownRaw)
       if (normalizedRaw.length > 0) {
-        renderTokens.push(this.createMarkdownBlockToken(normalizedRaw))
+        const token = this.createMarkdownBlockToken(normalizedRaw)
+        if (cut && TRAILING_MARKDOWN_BLOCK_BREAKS_RE.test(markdownRaw)) {
+          ;(token as MarkedToken & { closedAtBreak?: boolean }).closedAtBreak = true
+        }
+        renderTokens.push(token)
       }
       markdownRaw = ""
     }
 
-    for (let i = 0; i < tokens.length; i += 1) {
+    for (let i = 0; i < tokens.length; tokenStart += tokens[i].raw.length, i += 1) {
       const token = tokens[i]
 
       if (token.type === "space") {
+        blankSincePrevious = true
         if (markdownRaw.length === 0) {
           continue
         }
@@ -1301,13 +1335,32 @@ export class MarkdownRenderable extends Renderable {
       if (this.shouldRenderSeparately(token)) {
         flushMarkdownRaw()
         renderTokens.push(token)
+        previousType = token.type
+        blankSincePrevious = false
         continue
       }
 
+      // The separating `space` has already been appended to the run, so the cut keeps its trailing break.
+      if (
+        markdownRaw.length >= CLOSED_RUN_CAP &&
+        previousType === "paragraph" &&
+        blankSincePrevious &&
+        tokenStart <= closedLimit
+      ) {
+        flushMarkdownRaw(true)
+        lastCutEnd = tokenStart
+      }
+
       markdownRaw += token.raw
+      previousType = token.type
+      blankSincePrevious = false
     }
 
     flushMarkdownRaw()
+    if (lastCutEnd > this._closedLength) {
+      this._closedLength = lastCutEnd
+      this._closedPrefix = this._content.slice(0, lastCutEnd)
+    }
 
     return renderTokens
   }
@@ -2099,7 +2152,12 @@ export class MarkdownRenderable extends Renderable {
     }
 
     this._stableBlockCount = 0
-    const blockTokens = this.buildRenderableTokens(tokens)
+    // A rewrite (not an append) invalidates the closed prefix; closure starts over from the new text.
+    if (!this._content.startsWith(this._closedPrefix)) {
+      this._closedLength = 0
+      this._closedPrefix = ""
+    }
+    const blockTokens = this.buildRenderableTokens(tokens, this._parseState.stableTokenCount ?? tokens.length)
     let blockIndex = 0
     for (let i = 0; i < blockTokens.length; i++) {
       const token = blockTokens[i]

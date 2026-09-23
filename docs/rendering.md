@@ -1,7 +1,7 @@
 # Rendering Pipeline — LLM Response → Terminal Display
 
 **Status:** production  
-**Last Updated:** 2026-09-11
+**Last Updated:** 2026-09-23
 
 > **3D terminal rendering note:** Three.js WebGPU via `@opentui/three` has known issues
 > on this platform (see §14). The working 3D pipeline uses GPU compute shaders + Sixel
@@ -23,6 +23,95 @@ The TUI path is the primary rendering pipeline for the interactive CLI. This doc
 ---
 
 ## 2. End-to-End Data Flow
+
+**Text paint graph — verified against the code 2026-09-23.** Every node names the owner of the step, so a
+change can be traced from the symptom back to one file. The two annotated numbers are MEASURED, not
+estimated (isolated replay of a real 843-delta SSE stream; see `plans/2026-09-22_reasoning-stream-render-stability.md`).
+
+```mermaid
+flowchart TD
+  SSE["SSE chat.completion.chunk<br/>reasoning_content · content"]
+
+  subgraph server["server · session"]
+    PROC["processor.ts:816-827<br/>a delta APPENDS to part.text"]
+    BUS["bus publish — typed PubSub"]
+  end
+
+  subgraph ingest["TUI · ingest"]
+    SDKS["sdk.tsx SSE stream → batch queue"]
+    SYNC["context/sync.tsx<br/>deltaBuffer → setStore<br/>DELTA_DEBOUNCE_MS = 25"]
+  end
+
+  subgraph route["TUI · routes/session/index.tsx"]
+    MEMO["createMemo → store.part[messageID]"]
+    AM["AssistantMessage → PART_MAPPING<br/>text · reasoning · tool · file"]
+    TP["TextPart"]
+    RP["ReasoningPart<br/>THINKING_DISPLAY_MAX = 6_000"]
+    RT["RichText — the ONE prose entry<br/>splitTextSegments → markdown · mermaid"]
+  end
+
+  subgraph core["@opentui/core · MarkdownRenderable"]
+    MD["markdown element<br/>internalBlockMode = coalesced (default)<br/>5.3 ms/frame — top-level costs 8.6"]
+    PARSE["markdown-parser.ts:parseMarkdownIncremental<br/>tokens matched from OFFSET 0"]
+    BLK["block dispatch"]
+    TXT["TextRenderable"]
+    TAB["TextTableRenderable"]
+    COD["CodeRenderable — fenced code"]
+  end
+
+  subgraph hl["@opentui/core · highlight"]
+    HL["TreeSitterClient.highlightOnce"]
+    LAST["_lastHighlights — the stored parse"]
+    PREV["updateStreamingPreview<br/>paints FROM _lastHighlights,<br/>else from the caller's text"]
+    QW["quietHighlightMs — per call,<br/>default 0 = synchronous"]
+    SNAP["_highlightSnapshotId<br/>a late result is discarded"]
+  end
+
+  subgraph paint["layout & paint"]
+    YOGA["yoga layout — Renderable.ts:1830"]
+    LOOP["renderer.ts:4740 frame loop<br/>frame admission + diff"]
+    BUF["OptimizedBuffer → ANSI / DEC 2026"]
+  end
+
+  subgraph rwin["reasoning window"]
+    RV["text-segments.ts:reasoningView<br/>window quantised to 1024, counter ABOVE the markdown"]
+  end
+
+  SSE --> PROC --> BUS --> SDKS --> SYNC --> MEMO --> AM
+  AM --> TP --> RT
+  AM --> RP --> RV --> RT
+  RT -->|"markdown segment"| MD
+  RT -->|"mermaid segment"| MER["MediaMermaid"]
+  MD --> PARSE --> BLK
+  BLK --> TXT
+  BLK --> TAB
+  BLK --> COD
+  COD --> HL --> LAST --> PREV
+  QW -.->|"defers the parse"| HL
+  SNAP -.->|"discards a stale result"| PREV
+  PREV -->|"styled chunks"| COD
+  TXT --> YOGA
+  TAB --> YOGA
+  COD --> YOGA
+  MER --> YOGA
+  YOGA --> LOOP --> BUF
+```
+
+Two properties this graph exists to make obvious, because both cost a defect:
+
+- **The counter lives OUTSIDE the markdown.** `reasoningView` keeps the markdown body append-only between
+  window rotations; with the counter as the first token, `parseMarkdownIncremental`'s offset-0 prefix match
+  failed on EVERY delta and the whole 6 000-character window was re-lexed.
+- **`coalesced` is the default block mode, and the prose path returns to it (2026-09-23).** `top-level`
+  renders each block as its own renderable — better structure, +63 % cost per frame on the replay — and
+  that cost multiplies by the number of blocks a session holds.
+
+---
+
+The ASCII sketch below was checked against the code on 2026-09-23 and is **STALE** in three places:
+`TextPart` no longer renders through `<code filetype="markdown">`, `ReasoningPart` is not a `<code>`
+element at all, and the highlight / block-mode half of the path is missing entirely. The graph above is the
+accurate one; this sketch is kept only until someone deletes it.
 
 ```
 LLM Provider Response

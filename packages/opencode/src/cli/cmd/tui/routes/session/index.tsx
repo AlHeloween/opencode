@@ -2212,7 +2212,6 @@ function RichText(props: {
             <markdown
               syntaxStyle={props.subtle ? subtleSyntax() : syntax()}
               streaming={props.streaming}
-              internalBlockMode="top-level"
               tableOptions={{ style: "grid" }}
               content={markdownSegmentText(segment())}
               conceal={ctx.conceal()}

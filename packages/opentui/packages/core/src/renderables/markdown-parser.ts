@@ -23,7 +23,8 @@ export function parseMarkdownIncremental(
         tokens,
         stableTokenCount: Math.max(0, tokens.length - trailingUnstable),
       }
-    } catch {
+    } catch (error) {
+      console.warn("bug: markdown lex failed, rendering as plain text:", error)
       return { content: newContent, tokens: [], stableTokenCount: 0 }
     }
   }
@@ -68,11 +69,13 @@ export function parseMarkdownIncremental(
       tokens: [...stableTokens, ...newTokens],
       stableTokenCount: trailingUnstable === 0 ? stableTokens.length + newTokens.length : stableTokens.length,
     }
-  } catch {
+  } catch (error) {
+    console.warn("bug: incremental markdown lex failed, re-lexing the whole content:", error)
     try {
       const fullTokens = Lexer.lex(newContent, { gfm: true }) as MarkedToken[]
       return { content: newContent, tokens: fullTokens, stableTokenCount: 0 }
-    } catch {
+    } catch (fullError) {
+      console.warn("bug: markdown lex failed, rendering as plain text:", fullError)
       return { content: newContent, tokens: [], stableTokenCount: 0 }
     }
   }

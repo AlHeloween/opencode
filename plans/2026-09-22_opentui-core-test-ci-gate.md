@@ -30,15 +30,38 @@ Their defects are RESOLVED (2026-09-22): `Markdown.test.ts` 185/0, `audio-stream
   (syntaxStyle change)`, `paragraph updates do not flash raw markdown markers`. The delta is a
   REGRESSION landed between 09-22 and 09-23, commit `1e97343dfb` (T2 of the flicker plan), not stale
   tests.
+  FULL-PACKAGE re-measure, same day (run `20260923T051455Z_24345f03`): **5677 pass / 36 skip / 1 fail**
+  (5714 tests, 195 files, 63 s). The single red was `src/benchmark/ffi-fast-path-cli.test.ts` —
+  «paired comparison rejects a baseline alias of the candidate worktree» — failing with
+  `SyntaxError: Export named 'isSupportedNode26Version' not found in module 'scripts/node26.mjs'`.
+  The 2026-09-17 note ("Code 7, Textarea 4, FFI 3, markdown ~3") is STALE — the package is one fix
+  away from green, not a dozen.
 - [x] **G2 — triaged: ONE cause, real defect, fixed.** All five reds came from `Markdown.ts`
   hardcoding `quietHighlightMs: QUIET_HIGHLIGHT_MS` into BOTH code-renderable constructors — the quiet
   window became engine policy and deferred every markdown parse, which is exactly what the tests
   observe. Fixed as a per-call option (T8c of the flicker plan); `Markdown.test.ts` is back to
   **187 pass / 0 fail** (run `20260923T051405Z_0871d8a9`). Nothing was skipped or rewritten.
-- [ ] **G3 — arm the gate.** `test:ci` in the package, wired so `bun turbo test:ci` reaches it; a green
-  run from a clean checkout is the acceptance.
-- [ ] **G4 — pin the wiring.** The same three-surface rule as `planstatus`: if the task is registered
-  anywhere (turbo pipeline, root scripts), a test holds the spelling.
+  The single full-package red was ALSO a real defect: three benchmark CLIs
+  (`render-runtime-benchmark.ts`, `ffi-fast-path-benchmark.ts`, `ffi-fast-path-paired-benchmark.ts`)
+  import `isSupportedNode26Version` from `scripts/node26.mjs`, which never exported it — the reference
+  implementation lived locally in `ffi-fast-path-stress.ts:250`. The export is now added (code kept
+  identical). Address-run: `ffi-fast-path-cli.test.ts` **8 pass / 0 fail** (run
+  `20260923T051815Z_3c25d420`); full suite after the fix: **5679 pass / 36 skip / 0 fail** (196 files,
+  63.7 s, run `20260923T051923Z_7f4cd03d`).
+- [ ] **G3 — armed; the clean-checkout acceptance is CI's own half (local half done).** `test:ci`
+  exists in the package and `@opentui/core#test:ci` is registered in `turbo.json`; the workflow's
+  report/artifact globs were widened to `packages/**/.artifacts/unit/junit.xml` so the new report is
+  actually published. Local evidence: the full suite is GREEN — **5679 pass / 36 skip / 0 fail**
+  (run `20260923T051923Z_7f4cd03d`); the junit reporter was probed on one test — 1 pass / 0 fail
+  (run `20260923T052106Z_7fe0168b`). NOT done locally: a full `bun run test:ci` — one attempt produced
+  no stdout and its `state.json` stayed `running` with `bytes_written: 0` while the process was
+  already gone (candidates: `mkdir -p` under the Windows shell, or the reporter under the full
+  5.7k-test load — unverified). The clean-checkout run (`test.yml` → `bun turbo test:ci`) fires on the
+  next push.
+- [x] **G4 — the spelling is pinned.** `src/tests/ci-gate.test.ts` holds all three surfaces (package
+  script + turbo task + workflow glob) in one test; green — 1 pass / 0 fail, 5 expect (run
+  `20260923T051543Z_96b1dc1e`). A renamed script or a dropped turbo entry now fails a test instead of
+  silently skipping the package.
 
 ## 3. Smoke Tests (PRE_FLIGHT)
 

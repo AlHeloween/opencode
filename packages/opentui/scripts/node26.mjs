@@ -3,6 +3,23 @@ import { delimiter, dirname } from "node:path"
 
 export const NODE26_VERSION = "v26.3.0"
 
+/**
+ * Whether a Node.js runtime version satisfies the benchmark support floor: newer majors pass,
+ * 26.x passes from 26.4.0 up. Kept identical to the local implementation in
+ * `ffi-fast-path-stress.ts` on purpose — three benchmark CLIs import this export.
+ */
+export function isSupportedNode26Version(version) {
+  const match = /^v?(\d+)\.(\d+)\.(\d+)/.exec(version)
+  if (match === null) return false
+
+  const major = Number(match[1])
+  const minor = Number(match[2])
+  const patch = Number(match[3])
+  if (major !== 26) return major > 26
+  if (minor !== 4) return minor > 4
+  return patch >= 0
+}
+
 export function requireNode26() {
   const nodeCommand = typeof process.versions?.bun === "string" ? "node" : process.execPath
   const result = spawnSync(

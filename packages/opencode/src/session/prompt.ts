@@ -888,6 +888,8 @@ export const layer = Layer.effect(
           identityFingerprint: Checkpoint.identityFingerprint(cleanIdentity),
           messages: converted.messages,
           messageIDs: visible.map((item) => item.info.id),
+          toolReplayStates: visible.map(Checkpoint.toolReplayState),
+          wireTurn: currentTurn(input.sessionID),
           modelMessageCounts: converted.counts,
           model: { providerID: model.providerID, modelID: model.id },
           agent: checkpointAgentName,
@@ -2153,7 +2155,9 @@ export const layer = Layer.effect(
             // Diff/checkpoint IDs are plain strings (CheckpointData.messageIDs); do not brand.
             let modelMessageIDs: string[]
             if (checkpointUsable) {
-              const prefixLen = Checkpoint.reusablePrefixLength(msgs, checkpointUsable)
+              // Checkpoint messages are stored with old tool results released.
+              // Reconvert this turn so its tool results are delivered in full.
+              const prefixLen = Checkpoint.reusablePrefixLength(msgs, checkpointUsable, lastUser?.id, currentTurn(sessionID))
               const prefixModel = Checkpoint.takeModelPrefix(checkpointUsable, prefixLen)
               if (prefixModel === null) {
                 // Legacy checkpoint without modelMessageCounts — full reconvert.
@@ -2443,7 +2447,7 @@ export const layer = Layer.effect(
                 const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                   visibleAfter,
                   model,
-                  toolReplayOptions(yield* config.get(), undefined, sessionID),
+                  toolReplayOptions(yield* config.get(), MessageV2.NO_DELIVERY_TURN, sessionID),
                 )
                 const checkpointData = {
                   kind: Checkpoint.CHECKPOINT_KIND,
@@ -2452,6 +2456,8 @@ export const layer = Layer.effect(
                   identityFingerprint: Checkpoint.identityFingerprint(cleanIdentity),
                   messages: converted.messages,
                   messageIDs: visibleAfter.map((item) => item.info.id),
+                  toolReplayStates: visibleAfter.map(Checkpoint.toolReplayState),
+                  wireTurn: currentTurn(sessionID),
                   modelMessageCounts: converted.counts,
                   model: { providerID: model.providerID, modelID: model.id },
                   agent: checkpointAgentName,
@@ -2598,7 +2604,7 @@ export const layer = Layer.effect(
                     ? [...cachedMsgs, ...MessageV2.messagesSince(sessionID, lastKnownId)]
                     : yield* MessageV2.filterCompactedEffect(sessionID)
                 const prefixLen = checkpointUsable
-                  ? Checkpoint.reusablePrefixLength(checkpointMsgs, checkpointUsable)
+                  ? Checkpoint.reusablePrefixLength(checkpointMsgs, checkpointUsable, undefined, currentTurn(sessionID))
                   : 0
                 // modelMessageCounts must stay parallel to messageIDs. Without
                 // counts (legacy slot), reconvert the full set so the new slot
@@ -2613,7 +2619,7 @@ export const layer = Layer.effect(
                   const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                     checkpointMsgs.slice(prefixLen),
                     model,
-                    toolReplayOptions(yield* config.get(), undefined, sessionID),
+                    toolReplayOptions(yield* config.get(), MessageV2.NO_DELIVERY_TURN, sessionID),
                   )
                   fullModel = [...prefixModel, ...converted.messages]
                   modelMessageCounts = [
@@ -2624,7 +2630,7 @@ export const layer = Layer.effect(
                   const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                     checkpointMsgs,
                     model,
-                    toolReplayOptions(yield* config.get(), undefined, sessionID),
+                    toolReplayOptions(yield* config.get(), MessageV2.NO_DELIVERY_TURN, sessionID),
                   )
                   fullModel = converted.messages
                   modelMessageCounts = converted.counts
@@ -2639,6 +2645,8 @@ export const layer = Layer.effect(
                     identityFingerprint: identityFp,
                     messages: fullModel,
                     messageIDs: checkpointMsgs.map((m) => m.info.id),
+                    toolReplayStates: checkpointMsgs.map(Checkpoint.toolReplayState),
+                    wireTurn: currentTurn(sessionID),
                     modelMessageCounts,
                     model: { providerID: model.providerID, modelID: model.id },
                 agent: checkpointAgentName,

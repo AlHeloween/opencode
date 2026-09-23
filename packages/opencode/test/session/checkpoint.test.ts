@@ -19,6 +19,8 @@ function makeCheckpointData(overrides: Partial<CheckpointData> = {}): Checkpoint
       { role: "assistant" as const, content: "hi there" },
     ],
     messageIDs: ["msg_001", "msg_002"],
+    toolReplayStates: (overrides.messageIDs ?? ["msg_001", "msg_002"]).map(() => "[]"),
+    wireTurn: 0,
     model: { providerID: "test-provider", modelID: "test-model" },
     agent: "test-agent",
     turn: 3,
@@ -32,7 +34,7 @@ const SID = `ses_ckpt_${Date.now().toString(36)}`
 
 // Clean up after all tests
 afterAll(async () => {
-  for (const s of [SID, `${SID}_b`, `${SID}_c`, `${SID}_d`, `${SID}_e`, `${SID}_f`, `${SID}_g`, `${SID}_h`, `${SID}_mem`, `${SID}_v3`]) {
+  for (const s of [SID, `${SID}_b`, `${SID}_c`, `${SID}_d`, `${SID}_e`, `${SID}_f`, `${SID}_g`, `${SID}_h`, `${SID}_mem`, `${SID}_v3`, `${SID}_clone_src`, `${SID}_clone_dst`]) {
     await Effect.runPromise(Checkpoint.remove(s))
   }
   RequestDiff.deleteBaselines(`${SID}_g`)
@@ -285,6 +287,71 @@ describe("Checkpoint", () => {
       { info: { id: "c" }, parts: [] },
     ] as any
     expect(Checkpoint.reusablePrefixLength(msgs, data)).toBe(3)
+  })
+
+  test("clone clears all message-parallel replay state", async () => {
+    const sourceSessionID = `${SID}_clone_src`
+    const destSessionID = `${SID}_clone_dst`
+    const providerID = "clone-provider"
+    const modelID = "clone-model"
+    const agentName = "test-agent"
+    const data = makeCheckpointData({
+      model: { providerID, modelID },
+      modelMessageCounts: [1, 1],
+      toolReplayStates: ["[]", "[]"],
+    })
+    await Effect.runPromise(Checkpoint.save({ sessionID: sourceSessionID, projectID: TEST_PROJECT, data }))
+    await Effect.runPromise(Checkpoint.clone({ sourceSessionID, destSessionID, providerID, modelID, agentName, projectID: TEST_PROJECT }))
+    Checkpoint.dropMemory(destSessionID)
+
+    const cloned = await Effect.runPromise(Checkpoint.load({
+      sessionID: destSessionID, providerID, modelID, projectID: TEST_PROJECT, agentName,
+    }))
+    expect(cloned).not.toBeNull()
+    expect(cloned!.messages).toEqual([])
+    expect(cloned!.messageIDs).toEqual([])
+    expect(cloned!.modelMessageCounts).toEqual([])
+    expect(cloned!.toolReplayStates).toEqual([])
+    expect(cloned!.wireTurn).toBe(0)
+  })
+
+  test("a request reconverts its current turn after a released checkpoint prefix", () => {
+    const data = makeCheckpointData({
+      messageIDs: ["user-old", "assistant-old", "user-current", "assistant-current"],
+      modelMessageCounts: [1, 2, 1, 2],
+    })
+    const msgs = data.messageIDs.map((id) => ({ info: { id }, parts: [] })) as any
+    expect(Checkpoint.reusablePrefixLength(msgs, data, "user-current")).toBe(2)
+    expect(Checkpoint.reusablePrefixLength(msgs, data)).toBe(4)
+  })
+
+  test("a kept selection invalidates the old tool message under the same ID", () => {
+    const data = makeCheckpointData({ messageIDs: ["user", "assistant"] })
+    const msgs = [
+      { info: { id: "user" }, parts: [] },
+      {
+        info: { id: "assistant" },
+        parts: [{ id: "part-1", type: "tool", state: { status: "completed", kept: { from: 2, to: 3 } } }],
+      },
+    ] as any
+    expect(Checkpoint.reusablePrefixLength(msgs, data)).toBe(1)
+  })
+
+  test("a span expiring on the next turn invalidates its cached wire message", () => {
+    const msgs = [
+      { info: { id: "user" }, parts: [] },
+      {
+        info: { id: "assistant" },
+        parts: [{ id: "part-ttl", type: "tool", ttlUntil: 3, state: { status: "completed" } }],
+      },
+    ] as any
+    const data = makeCheckpointData({
+      messageIDs: ["user", "assistant"],
+      toolReplayStates: msgs.map(Checkpoint.toolReplayState),
+      wireTurn: 3,
+    })
+    expect(Checkpoint.reusablePrefixLength(msgs, data, undefined, 3)).toBe(2)
+    expect(Checkpoint.reusablePrefixLength(msgs, data, undefined, 4)).toBe(1)
   })
 
   test("reusablePrefixLength stops at the first different message ID", () => {

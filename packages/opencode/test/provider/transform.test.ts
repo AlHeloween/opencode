@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test"
+import { createOpenAI } from "@ai-sdk/openai"
+import { createAzure } from "@ai-sdk/azure"
+import { generateText } from "ai"
 import type { Provider } from "@/provider/provider"
 import { ProviderTransform } from "@/provider/transform"
 import { ModelID, ProviderID } from "../../src/provider/schema"
@@ -212,7 +215,7 @@ describe("ProviderTransform.options - setCacheKey", () => {
     expect(result.prompt_cache_key).toBeUndefined()
   })
 
-  test("should set prompt_cache_key for openai provider regardless of setCacheKey", () => {
+  test("uses the OpenAI SDK option for its prompt cache key", () => {
     const openaiModel = {
       ...mockModel,
       providerID: "openai",
@@ -223,7 +226,8 @@ describe("ProviderTransform.options - setCacheKey", () => {
       },
     }
     const result = ProviderTransform.options({ model: openaiModel, sessionID, providerOptions: {} })
-    expect(result.prompt_cache_key).toBe(`${sessionID}:${openaiModel.id}`)
+    expect(result.promptCacheKey).toBe(`${sessionID}:${openaiModel.id}`)
+    expect(result.prompt_cache_key).toBeUndefined()
   })
 
   test("should set prompt_cache_key for openai-compatible providers (NVIDIA, DeepSeek, etc.)", () => {
@@ -254,7 +258,7 @@ describe("ProviderTransform.options - setCacheKey", () => {
     expect(result.prompt_cache_key).toBe(`${sessionID}:${dsModel.id}`)
   })
 
-  test("should set prompt_cache_key for azure provider", () => {
+  test("uses the Azure SDK option for its prompt cache key", () => {
     const azureModel = {
       ...mockModel,
       providerID: "azure",
@@ -265,7 +269,77 @@ describe("ProviderTransform.options - setCacheKey", () => {
       },
     }
     const result = ProviderTransform.options({ model: azureModel, sessionID, providerOptions: {} })
-    expect(result.prompt_cache_key).toBe(`${sessionID}:${azureModel.id}`)
+    expect(result.promptCacheKey).toBe(`${sessionID}:${azureModel.id}`)
+    expect(result.prompt_cache_key).toBeUndefined()
+  })
+
+  test("sends the stable cache key through the installed OpenAI Responses SDK", async () => {
+    const model = {
+      ...mockModel,
+      providerID: "openai",
+      api: { id: "gpt-5.4", url: "https://api.openai.com/v1", npm: "@ai-sdk/openai" },
+      capabilities: { ...mockModel.capabilities, reasoning: true },
+    }
+    const cacheKey = `${sessionID}:gpt-5.4`
+    let body: Record<string, unknown> | undefined
+    const sdk = createOpenAI({
+      apiKey: "local-probe",
+      fetch: Object.assign(async (_request: Parameters<typeof fetch>[0], init: Parameters<typeof fetch>[1]) => {
+        body = JSON.parse(String(init?.body)) as Record<string, unknown>
+        return Response.json({
+          id: "resp_local_probe",
+          object: "response",
+          created_at: 0,
+          status: "completed",
+          model: "gpt-5.4",
+          output: [],
+          usage: { input_tokens: 1, output_tokens: 0, total_tokens: 1 },
+        })
+      }, { preconnect: fetch.preconnect }),
+    })
+    await generateText({
+      model: sdk.responses("gpt-5.4"),
+      prompt: "Cache key probe",
+      providerOptions: ProviderTransform.providerOptions(
+        model,
+        ProviderTransform.options({ model, sessionID, cacheKey }),
+      ),
+    })
+    expect(body?.prompt_cache_key).toBe(cacheKey)
+    expect(body?.store).toBe(false)
+  })
+
+  test("sends the cache key through the installed Azure Responses SDK", async () => {
+    const model = {
+      ...mockModel,
+      providerID: "azure",
+      api: { id: "gpt-5.4", url: "https://example.openai.azure.com/openai/v1", npm: "@ai-sdk/azure" },
+      capabilities: { ...mockModel.capabilities, reasoning: true },
+    }
+    let body: Record<string, unknown> | undefined
+    const sdk = createAzure({
+      apiKey: "local-probe",
+      baseURL: model.api.url,
+      fetch: Object.assign(async (_request: Parameters<typeof fetch>[0], init: Parameters<typeof fetch>[1]) => {
+        body = JSON.parse(String(init?.body)) as Record<string, unknown>
+        return Response.json({
+          id: "resp_local_probe",
+          object: "response",
+          created_at: 0,
+          status: "completed",
+          model: "gpt-5.4",
+          output: [],
+          usage: { input_tokens: 1, output_tokens: 0, total_tokens: 1 },
+        })
+      }, { preconnect: fetch.preconnect }),
+    })
+    await generateText({
+      model: sdk.responses("gpt-5.4"),
+      prompt: "Azure cache key probe",
+      providerOptions: ProviderTransform.providerOptions(model, ProviderTransform.options({ model, sessionID })),
+    })
+    expect(body?.prompt_cache_key).toBe(`${sessionID}:${model.id}`)
+    expect(body?.store).toBe(true)
   })
 
   test("should set chat_template_kwargs for NVIDIA + DeepSeek V4", () => {

@@ -4634,3 +4634,23 @@ frame equals eager in 3 sizes; core suites green; opencode test/tui 160 pass; ty
 
 Residual: ~2× CPU for the history build (per-slice O(history) layout walk); live check owed; no automated
 oracle for the scroll-up compensation.
+
+## [2026-09-24 02:11] ChatGPT OAuth cache T1 — SDK key
+
+Plan: `plans/2026-09-24_chatgpt-oauth-cache-efficiency.md` T1. Changed `ProviderTransform.options` to use the OpenAI/Azure SDK's `promptCacheKey`, retaining the compatible-provider dialect. Actual local transport probes in `transform.test.ts` observe `prompt_cache_key` in both OpenAI and Azure Responses request bodies and `store:false` for OpenAI. RED snake-case probe: `20260923T173853Z_6e4075f8`; GREEN `20260923T180918Z_09531341` (247/247 in four focused files), typecheck `20260923T180855Z_0ee3716a` exit 0. Live ChatGPT cache hits remain unmeasured.
+
+## [2026-09-24 02:11] ChatGPT OAuth cache T2 — released checkpoint replay
+
+Plan: `plans/2026-09-24_chatgpt-oauth-cache-efficiency.md` T2. Checkpoint v5 stores released tool replay, reconverts the current user turn for full delivery, and checks tool status/`kept` state alongside message IDs. RED: `20260923T180459Z_0767f873` reused 4 messages instead of 2; `20260923T180745Z_4f244ac5` reused stale `kept` state. GREEN: `20260923T180918Z_09531341` (247/247), neighboring prompt-alignment/recall `20260923T180951Z_3314054d` (23/23), typecheck exit 0. Existing v4 checkpoints are rebuilt once. Monetary cache benefit remains Unknown without live `cached_tokens`.
+
+Follow-up within T2: the checkpoint also records `wireTurn` and declared lifetime. RED `20260923T181328Z_1994d62c` reused a short result past `ttlUntil`; GREEN `20260923T181454Z_48feb256` (271/271 across six focused files), typecheck `20260923T181509Z_128616f9` exit 0. The expiry note is now byte-stable on subsequent turns. This is a structural replay proof, not a live cache-billing measurement.
+
+Final T2 validation caught the subagent clone path: it cleared `messageIDs` but retained `toolReplayStates`, making disk load reject the clone. RED `20260923T181746Z_5abf457f` reproduced `load === null`; the clone now clears `modelMessageCounts`, `toolReplayStates`, and `wireTurn` with its messages. GREEN `20260923T181809Z_66cf0f9c` (297/297 across six related files); typecheck `20260923T181809Z_15380c6b` exit 0. Live cache billing remains Unknown.
+
+## [2026-09-24] TUI model selection: worktree pick reaches current session
+
+Plan: `plans/2026-09-24_tui-model-pick-current-session.md`. Live-state read: KV `config.scope=worktree`; worktree `build_mode=openai/gpt-5.6-sol`; a recent session retained `build_mode=deepseek/deepseek-flash`. `local.model.set` skipped the session write for worktree scope while `local.model.current()` read only the session. RED `20260923T231358Z_5231b550` (missing active-session pick contract). Fix: worktree picks for the active agent also use `setSessionAgentModel`; picks for another agent do not change the active session. First broad run had 5 structural probe failures because `bodyOf` assumed LF line endings; fixed its delimiter, then GREEN `20260923T231602Z_dd19e54f` (61/61 across four focused files), typecheck `20260923T231446Z_ccefe22d` exit 0. `Prompt.submit` forwards `local.model.current()` into the request. Candidate build `20260923T231954Z_f69ab6a9` exit 0, version 10.0.1103 and kernel asset smoke PASS. Installed `bin/opencode.exe` read-back SHA-256 equals candidate `507DA22EBCA58778D44709E7BD75DE5B588C68574440E151B395A133B9AA99FD`; previous exe backed up under `experiments/2026-09-24_tui-model-pick/`. A user TUI rerun and cache billing probe are still outstanding.
+
+## [2026-09-24 02:11] ChatGPT OAuth cache T3 — model catalog
+
+Plan: `plans/2026-09-24_chatgpt-oauth-cache-efficiency.md` T3. Replaced permissive/stale model regex with published Codex GPT-6, GPT-5.6 and GPT-5.5 IDs. RED `20260923T180102Z_fae7c6fd` hid GPT-6 and admitted retired GPT-5.4; GREEN `20260923T180918Z_09531341` in the focused 247/247, typecheck exit 0. Private account visibility remains Unknown pending T4.

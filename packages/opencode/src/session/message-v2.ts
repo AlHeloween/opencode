@@ -1223,7 +1223,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
     if (turn === undefined) return messages
     const expired = (part: Part) => isSpanExpired(part, turn)
     const note = (part: Part) =>
-      `[held] payload released: the declared span ended at turn ${declaredUntil(part)} (now ${turn}). ` +
+      `[held] payload released: the declared span ended at turn ${declaredUntil(part)}. ` +
       (part.type === "tool"
         ? `Call recall with id=${part.id} for the full result.`
         : "Read the file again if it is still needed.")

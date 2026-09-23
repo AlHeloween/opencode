@@ -881,6 +881,46 @@ describe("session.message-v2.toModelMessage", () => {
     expect(MessageV2.isReplayReduced("ordinary content carrying no marker")).toBe(false)
   })
 
+  test("a long tool result is delivered for its turn then released by ID", async () => {
+    const output = "tool-line\n".repeat(1_000)
+    const input: MessageV2.WithParts[] = [
+      {
+        info: userInfo("m1"),
+        parts: [{ ...basePart("m1", "u1"), type: "text", text: "run" }] as MessageV2.Part[],
+      },
+      {
+        info: assistantInfo("m2", "m1"),
+        parts: [{
+          ...basePart("m2", "a1"),
+          type: "tool",
+          callID: "call-1",
+          tool: "bash",
+          state: {
+            status: "completed",
+            input: { cmd: "run" },
+            output,
+            title: "Bash",
+            metadata: {},
+            time: { start: 0, end: 1 },
+          },
+        }] as MessageV2.Part[],
+      },
+    ]
+    const delivered = await MessageV2.toModelMessages(input, model, { afterMessageID: "m1" })
+    const released = await MessageV2.toModelMessages(input, model, { afterMessageID: "m3" })
+    expect(delivered.slice(0, -1)).toEqual(released.slice(0, -1))
+    expect(delivered.at(-1)).toMatchObject({ role: "tool", content: [{ output: { type: "text", value: output } }] })
+    expect(JSON.stringify(released.at(-1))).toContain("recall(id=a1")
+    expect(JSON.stringify(released.at(-1)).length).toBeLessThan(output.length / 2)
+
+    const expiring = structuredClone(input)
+    expiring[1]!.parts[0]!.ttlUntil = 1
+    const turn2 = await MessageV2.toModelMessages(expiring, model, { afterMessageID: "m1", turn: 2 })
+    const turn3 = await MessageV2.toModelMessages(expiring, model, { afterMessageID: "m1", turn: 3 })
+    expect(JSON.stringify(turn2.at(-1))).toContain("[held] payload released")
+    expect(turn3).toEqual(turn2)
+  })
+
   test("a kept selection replaces the whole result on the wire, and never blanks it", async () => {
     // The CONSUMER half of `recall(..., keep: true)` — the branch nothing exercised until now. `kept`
     // is what makes the narrowing pay: from then on the replay carries exactly these lines instead of

@@ -8,8 +8,8 @@ export function canActivateAgent(
 
 /** Selecting a model for ANOTHER agent (the /agents path passes an explicit
  * target) configures that agent — it must never move the active prompt
- * identity. Only the /model dialog, which carries no explicit target, may
- * activate (2026-09-11, Alexander: "она автоматом выбирается в основном окне"). */
+ * identity. A picker opened without an explicit target may activate its
+ * resolved primary agent (2026-09-11, Alexander: "она автоматом выбирается в основном окне"). */
 export function shouldActivateAgent(
   target: string | undefined,
   explicitTarget: string | undefined,
@@ -17,4 +17,15 @@ export function shouldActivateAgent(
 ) {
   if (explicitTarget !== undefined) return false
   return canActivateAgent(target, agents)
+}
+
+/** A worktree pick must also reach the open session when it selects the active prompt agent. */
+export function shouldUpdateSessionModelOnPick(
+  scope: "session" | "worktree" | "global" | undefined,
+  targetAgent: string,
+  activeAgent: string | undefined,
+  hasSession: boolean,
+): boolean {
+  if (!hasSession || scope === "global") return false
+  return scope !== "worktree" || targetAgent === activeAgent
 }

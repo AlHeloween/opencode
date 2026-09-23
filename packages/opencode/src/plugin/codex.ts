@@ -364,22 +364,19 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
         const auth = await getAuth()
         if (auth.type !== "oauth") return {}
 
-        // Filter models to only allowed Codex models for OAuth
+        // ChatGPT sign-in has a different model catalog from the OpenAI API.
+        // Keep this list aligned with the published Codex model availability.
         const allowedModels = new Set([
-          "gpt-5.1-codex",
-          "gpt-5.1-codex-max",
-          "gpt-5.1-codex-mini",
-          "gpt-5.2",
-          "gpt-5.2-codex",
-          "gpt-5.3-codex",
-          "gpt-5.4",
-          "gpt-5.4-mini",
+          "gpt-5.5",
+          "gpt-5.6-luna",
+          "gpt-5.6-sol",
+          "gpt-5.6-terra",
+          "gpt-6-astra",
+          "gpt-6-luna",
+          "gpt-6-sol",
         ])
         for (const [modelId, model] of Object.entries(provider.models)) {
-          if (modelId.includes("codex")) continue
           if (allowedModels.has(model.api.id)) continue
-          const match = model.api.id.match(/^gpt-(\d+\.\d+)/)
-          if (match && parseFloat(match[1]) > 5.4) continue
           delete provider.models[modelId]
         }
 

@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test"
+import type { PluginInput } from "@opencode-ai/plugin"
 import {
+  CodexAuthPlugin,
   parseJwtClaims,
   extractAccountIdFromClaims,
   extractAccountId,
@@ -13,6 +15,37 @@ function createTestJwt(payload: object): string {
 }
 
 describe("plugin.codex", () => {
+  test("OAuth exposes current Codex models and excludes retired or API-only models", async () => {
+    const current = [
+      "gpt-6-astra",
+      "gpt-6-sol",
+      "gpt-6-luna",
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-5.6-luna",
+      "gpt-5.5",
+    ]
+    const excluded = ["gpt-5.4", "gpt-5.4-mini", "gpt-5.2", "gpt-5.3-codex", "gpt-6-pro"]
+    const provider = {
+      models: Object.fromEntries([...current, ...excluded].map((id) => [id, {
+        id,
+        api: { id },
+        cost: { input: 1, output: 1, cache: { read: 1, write: 1 } },
+        limit: { context: 128_000, output: 16_000 },
+      }])),
+    }
+    const hooks = await CodexAuthPlugin({} as PluginInput)
+    await hooks.auth?.loader?.(async () => ({
+      type: "oauth" as const,
+      access: "test-access-token",
+      refresh: "test-refresh-token",
+      expires: Date.now() + 60_000,
+    }), provider as never)
+
+    expect(Object.keys(provider.models).sort()).toEqual(current.sort())
+    expect(Object.values(provider.models).every((model) => model.cost.input === 0)).toBe(true)
+  })
+
   describe("parseJwtClaims", () => {
     test("parses valid JWT with claims", () => {
       const payload = { email: "test@example.com", chatgpt_account_id: "acc-123" }

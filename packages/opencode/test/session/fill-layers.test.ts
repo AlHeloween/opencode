@@ -141,6 +141,7 @@ const SOURCE = fs.readFileSync(LOCAL_TSX, "utf8")
 
 /** Slice ONE function body out of a source file: its signature line to its own closing line. */
 function bodyOf(source: string, signature: string): string {
+  source = source.replace(/\r\n/g, "\n")
   const start = source.indexOf(signature)
   if (start < 0) throw new Error(`the probe is BLIND, not the code: ${signature} is not in the file`)
   const end = source.indexOf("\n      }\n", start)

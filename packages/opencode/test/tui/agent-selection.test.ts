@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test"
-import { canActivateAgent, shouldActivateAgent } from "../../src/cli/cmd/tui/util/agent"
+import { canActivateAgent, shouldActivateAgent, shouldUpdateSessionModelOnPick } from "../../src/cli/cmd/tui/util/agent"
 import { activeSessionID } from "../../src/cli/cmd/tui/context/local"
 import { availableScopes, coerceScope, readScope } from "../../src/cli/cmd/tui/component/config-scope"
-import { setWorkspaceAgentModel, workspaceAgentModel } from "../../src/session/session-settings"
+import { sessionAgentModel, setSessionAgentModel, setWorkspaceAgentModel, workspaceAgentModel } from "../../src/session/session-settings"
 import { fillSessionAgents } from "../../src/session/fill-layers"
 
 const agents = [
@@ -22,6 +22,16 @@ test("configuring another agent's model from /agents does not move the active ag
   // /model passes no target — the resolved current agent may still activate.
   expect(shouldActivateAgent("build_mode", undefined, agents)).toBe(true)
   expect(shouldActivateAgent("explorer_agent", undefined, agents)).toBe(false)
+})
+
+test("worktree model pick updates the open session for the active agent", () => {
+  const picked = { providerID: "openai", modelID: "gpt-5.6-sol" }
+  const before = { agent: { build_mode: { model: "deepseek/deepseek-flash" } } }
+  expect(shouldUpdateSessionModelOnPick("worktree", "build_mode", "build_mode", true)).toBe(true)
+  const after = setSessionAgentModel(before, "build_mode", `${picked.providerID}/${picked.modelID}`, undefined)
+  expect(sessionAgentModel("build_mode", after)).toEqual(picked)
+  expect(shouldUpdateSessionModelOnPick("worktree", "plan_mode", "build_mode", true)).toBe(false)
+  expect(shouldUpdateSessionModelOnPick("worktree", "build_mode", "build_mode", false)).toBe(false)
 })
 
 test("TUI session settings follow the open session instead of its newest child", () => {

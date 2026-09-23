@@ -1,5 +1,11 @@
 # Agent model resolution — the full graph, TUI to configs
 
+## 2026-09-24 — выбор модели в открытой TUI-сессии
+
+✓ По коду: список моделей, открытый из строки агента в `/agents`, сохраняет выбранную модель в worktree для новых сессий. При выбранном уровне `worktree` модель активного агента записывается также в открытую сессию, потому что строка состояния и `Prompt.submit` читают именно `local.model.current()` из настроек сессии. Настройка другого агента из `/agents` не переназначает активный запрос. Выбор снимает старый вариант модели через `setSessionAgentModel`. Отдельной команды `/models` в TUI нет.
+
+✓ Узкие тесты: `test/tui/agent-selection.test.ts` и `test/session/session-settings-persist.test.ts` проверяют решение о записи, разрешение модели и сохранение настроек. ? Живой TUI и следующий запрос уже собранного бинарника требуют отдельного запуска; историческая схема ниже датирована 2026-09-21 и не является снимком текущего кода.
+
 Owner request, 2026-09-21: «Строй полный граф выбора агентов от tui до конфигов и где они хранятся.»
 
 This is a **reference**, not a plan. Every node carries `path:line`. Claims are marked
@@ -23,7 +29,7 @@ the only places the flow can change or die. Store ids match §1.
 ```mermaid
 flowchart TB
     START["startup --model<br/>local.tsx:340-370<br/>GATE: agent.current() non-null"]
-    PICK["picker /models · /agents row Enter<br/>DialogModel.performSelect"]
+    PICK["/agents row → model picker<br/>DialogModel.performSelect"]
     SET["local.model.set(model, {agent, scope})<br/>GATE: isModelValid - toast<br/>GATE: !agentName - SILENT"]
     FILL["fill on load / session switch<br/>local.tsx:375-379, 328-332<br/>GATES: agents.length > 0 AND modelStore.ready"]
     FWT["fillWorktreeLayer<br/>local.tsx:449-466"]
@@ -291,7 +297,7 @@ model resolves to `deepseek/deepseek-flash` `[Exact]`.
 | Surface | Reads | Writes |
 |---|---|---|
 | startup `--model` | — | S1 + S2 (gated on agents being loaded) |
-| `/models` picker | S3 (scope), S2/S1/S4 (display) | S0 / S1 / S2 by scope |
+| model picker opened from `/agents` | S3 (scope), S2/S1/S4 (display) | S0 / S1 / S2 by scope |
 | `/agents` row | S2, S1, S4 — **fixed chain, ignores `scope`** | S0 / S1 / S2 by scope |
 | status line | S2 → S1 → S4 | — |
 | message footer | the message record (server's `prompt.ts:1289`) | — |

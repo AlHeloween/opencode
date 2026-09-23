@@ -1096,7 +1096,7 @@ export function options(input: {
 
   if (input.model.api.npm === "@ai-sdk/azure") {
     result["store"] = true
-    result["prompt_cache_key"] = promptCacheKey
+    result["promptCacheKey"] = promptCacheKey
   }
 
   if (input.model.api.npm === "@openrouter/ai-sdk-provider" || input.model.api.npm === "@llmgateway/ai-sdk-provider") {
@@ -1150,7 +1150,11 @@ export function options(input: {
       apiNpm: input.model.api.npm,
       promptCacheKey,
     })
-    result["prompt_cache_key"] = promptCacheKey
+    // The OpenAI/Azure SDK reads camelCase provider options and writes the
+    // snake_case wire field itself. Compatible providers own their wire dialect.
+    result[input.model.api.npm === "@ai-sdk/openai" || input.model.api.npm === "@ai-sdk/azure"
+      ? "promptCacheKey"
+      : "prompt_cache_key"] = promptCacheKey
   }
 
   if (input.model.api.npm === "@ai-sdk/google" || input.model.api.npm === "@ai-sdk/google-vertex") {

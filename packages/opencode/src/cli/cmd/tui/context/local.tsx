@@ -33,6 +33,7 @@ import {
 } from "@/session/session-settings"
 import { canonicalIdentity } from "@/session/mode-identity"
 import { fillSessionAgents, fillWorkspaceAgents, parseModelKey } from "@/session/fill-layers"
+import { shouldUpdateSessionModelOnPick } from "../util/agent"
 import { DEFAULT_MODEL_SAMPLING, modelSampling, modelSamplingKey, type ModelSampling } from "@/session/model-sampling"
 
 
@@ -1087,22 +1088,14 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
               // Session scope still means "this session's own value" (written just below); it
               // no longer means "the workspace forgets it".
               setModelStore("workspaceAgent", (agents) => setWorkspaceAgentModel(agents, workspace, agentName, model))
-              // Per-session: record the explicit override alongside the workspace memory.
-              // Global config remains the initial default only.
-              if (options.scope !== "worktree" && sid) {
-                const ss = sessionSettings()
-                const currentAgent = ss?.agent ?? {}
-                setSessionSettings({
-                  ...ss,
-                  agent: {
-                    ...currentAgent,
-                    [agentName]: {
-                      ...currentAgent[agentName],
-                      model: `${model.providerID}/${model.modelID}`,
-                    },
-                  },
-                } as SessionSettings)
-              }
+               // The current prompt reads the session layer. A worktree pick for
+               // the active agent must update that layer too; configuring another
+               // agent's worktree choice leaves this session's prompt untouched.
+               if (shouldUpdateSessionModelOnPick(options.scope, agentName, agent.current()?.name, Boolean(sid))) {
+                 setSessionSettings(setSessionAgentModel(
+                   sessionSettings(), agentName, `${model.providerID}/${model.modelID}`, undefined,
+                 ))
+               }
             }
             if (options?.recent) {
               const uniq = uniqueBy([model, ...modelStore.recent], (x) => `${x.providerID}/${x.modelID}`)
@@ -1112,8 +1105,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
                 uniq.map((x) => ({ providerID: x.providerID, modelID: x.modelID })),
               )
             }
-            // scope "session" → session file only; scope "worktree" → model.json only;
-            // no scope → legacy dual write (session + worktree)
+             // A model pick always records workspace memory for future sessions;
+             // active-agent picks also update the current session used by the wire.
             if (options?.scope === "session") {
               const sid = getActiveSessionID()
               if (sid) {
@@ -1123,10 +1116,14 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
               save()
               return
             }
-            if (options?.scope === "worktree") {
-              save()
-              return
-            }
+             if (options?.scope === "worktree") {
+               save()
+               const sid = getActiveSessionID()
+               if (sid && options.agent && shouldUpdateSessionModelOnPick("worktree", options.agent, agent.current()?.name, true)) {
+                 void saveSessionSettings(sid, sessionPayload())
+               }
+               return
+             }
             saveAll()
           })
         },

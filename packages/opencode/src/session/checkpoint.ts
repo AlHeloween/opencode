@@ -36,13 +36,12 @@ import {
   decryptBaseline,
 } from "./request-diff"
 import type { ModelMessage } from "ai"
-import type { MessageV2 } from "./message-v2"
+import { MessageV2 } from "./message-v2"
 
 const log = Log.create({ service: "checkpoint" })
 
-/** v4: require identityFingerprint so kernel/identity migrations cannot silently
- *  pair a new identity prefix with a checkpoint assembled under an old kernel. */
-export const CHECKPOINT_VERSION = 4
+/** v5: stored messages use released tool replay; current-turn content is reconverted. */
+export const CHECKPOINT_VERSION = 5
 export const CHECKPOINT_KIND = "checkpoint" as const
 const CHECKPOINT_DIR = ".checkpoints"
 const CHECKPOINT_SLOTS = 2
@@ -70,6 +69,10 @@ export interface CheckpointData {
    * full reconversion when missing/misaligned.
    */
   modelMessageCounts?: number[]
+  /** Tool and declared-lifetime state, parallel to messageIDs. */
+  toolReplayStates: string[]
+  /** User turn number used when rendering the stored ModelMessages. */
+  wireTurn: number
   model: { providerID: string; modelID: string }
   agent?: string
   turn: number
@@ -148,7 +151,10 @@ function isStructurallyValid(data: CheckpointData): boolean {
     data.kind === CHECKPOINT_KIND &&
     data.version === CHECKPOINT_VERSION &&
     typeof data.identityFingerprint === "string" &&
-    data.identityFingerprint.length > 0
+    data.identityFingerprint.length > 0 &&
+    typeof data.wireTurn === "number" &&
+    Array.isArray(data.toolReplayStates) &&
+    data.toolReplayStates.length === data.messageIDs.length
   )
 }
 
@@ -213,23 +219,44 @@ export function dropMemory(sessionID: string): void {
 }
 
 /**
- * Longest reusable prefix: same message IDs in order.
- * Message history is append-only; edits create a new ID or explicitly invalidate
- * the checkpoint, so IDs are sufficient and content fingerprints are unnecessary.
+ * Longest reusable prefix: same message IDs, tool state, and replay lifetime.
+ * Message history is append-only, but tool retention can change in place.
  *
  * NOTE: The returned length indexes messageIDs / modelMessageCounts
  * (DB messages), NOT data.messages. Use modelMessageEnd / takeModelPrefix to slice
  * ModelMessage[] — tool results expand so messages.length can exceed messageIDs.length.
  */
+export function toolReplayState(msg: MessageV2.WithParts): string {
+  return JSON.stringify(
+    msg.parts
+      .filter((part) => part.type === "tool" || MessageV2.declaredUntil(part) !== undefined)
+      .map((part) => [
+        part.id,
+        MessageV2.declaredUntil(part),
+        part.type === "tool" ? part.state.status : undefined,
+        part.type === "tool" && "kept" in part.state ? part.state.kept : undefined,
+      ]),
+  )
+}
+
 export function reusablePrefixLength(
   msgs: MessageV2.WithParts[],
   data: CheckpointData,
+  currentTurnUserID?: string,
+  wireTurn?: number,
 ): number {
   // Cap by messageIDs only — do not use data.messages.length (1:N tool expansion).
   const n = Math.min(msgs.length, data.messageIDs.length)
   let prefix = 0
   for (let i = 0; i < n; i++) {
+    if (msgs[i].info.id === currentTurnUserID) break
     if (msgs[i].info.id !== data.messageIDs[i]) break
+    if (data.toolReplayStates[i] !== toolReplayState(msgs[i])) break
+    if (
+      wireTurn !== undefined &&
+      data.wireTurn !== wireTurn &&
+      msgs[i].parts.some((part) => MessageV2.isSpanExpired(part, data.wireTurn) !== MessageV2.isSpanExpired(part, wireTurn))
+    ) break
     prefix++
   }
   return prefix
@@ -488,6 +515,9 @@ export function clone(input: {
           ...data,
           messages: [],
           messageIDs: [],
+          modelMessageCounts: [],
+          toolReplayStates: [],
+          wireTurn: 0,
           turn: 0,
           timestamp: Date.now(),
         },

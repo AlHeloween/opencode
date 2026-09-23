@@ -38,5 +38,6 @@
 
 - [Reasoning round-trip contract](reasoning-round-trip-contract.md) — cross-vendor reasoning field behaviour
 - [DeepSeek thinking cache](deepseek-thinking-cache.md) — measured thinking vs prompt cache
+- [ChatGPT OAuth cache](chatgpt-oauth-cache.md) — SDK cache key, tool-result replay, and what still needs live measurement
 - [StreamLake/KAT thinking cache](streamlake-kat-thinking-cache.md) — measured gateway cache semantics
 - [CoT research](cot-reasoning-research.md) — how chain-of-thought length affects task execution

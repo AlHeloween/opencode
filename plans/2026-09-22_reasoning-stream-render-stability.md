@@ -475,6 +475,9 @@ its **application to this stream**, which is §2's oracle.
   `dist/bin/opencode.exe` **10.0.1096**, 302 169 088 B; read back from the artifact: `paintFromStoredHighlights`,
   `_lastHighlightsContent` and the T10 mermaid-cache message are each present once in the binary. The owner's
   `bin/opencode.exe` is untouched. Owed: the owner's eye on a live stream with this build.
+  REBUILT AGAIN with T11b steps 1–2 and the parser catch fix: `dist/bin/opencode.exe` **10.0.1097** (log
+  `experiments/2026-09-23_render-load/build-20260923T143029Z.log`, exit 0); read back from the artifact:
+  `closedAtBreak` ×2, `storedHighlightsFor` ×1, `canPaintFromStoredHighlights` ×2.
 
 ### 2026-09-23 — pipeline audit below the content layer (owner: «глянь пайплайн отрисовки и как он влияет на общую скорость»)
 

@@ -198,6 +198,54 @@ test("streaming markdown spends ONE parse per delta — the double invalidation 
   expect(duringStream).toBeLessThanOrEqual(6)
 })
 
+/** Every prose block under a markdown renderable, whatever wrapper the mode puts around it. */
+function countMarkdownProse(md: MarkdownRenderable): number {
+  const children = [...md.getChildren()]
+  let count = 0
+  while (children.length > 0) {
+    const child = children.pop()!
+    if (child instanceof CodeRenderable && child.filetype === "markdown") count++
+    children.push(...child.getChildren())
+  }
+  return count
+}
+
+test("top-level keeps markdown block identity — N paragraphs are N prose renderables, not one coalesced blob", async () => {
+  // T7 of the flicker plan (owner, 2026-09-23: «форматирование не применяется, markdown рендерится
+  // убого»). `RichText` now passes `internalBlockMode="top-level"`; coalesced DESTROYS inline token
+  // structure before paint (docs/rendering.md §5c) and tree-sitter never restores inline formatting
+  // (§5h). This pin measures the structural difference the mode buys, on the renderable tree — pixels
+  // remain T4's job. The control half is the point: if the two modes stop differing, the pin FAILS,
+  // because a RichText regression to the coalesced default must be visible here.
+  const content = "para 1\n\npara 2\n\npara 3"
+
+  const topLevel = createMarkdownRenderable({
+    id: "markdown-top-level-identity",
+    content,
+    syntaxStyle,
+    streaming: true,
+    internalBlockMode: "top-level",
+    treeSitterClient: createMockTreeSitterClient(),
+  })
+  renderer.root.add(topLevel)
+  await renderOnce()
+  const topLevelProse = countMarkdownProse(topLevel)
+
+  const coalesced = createMarkdownRenderable({
+    id: "markdown-coalesced-identity",
+    content,
+    syntaxStyle,
+    streaming: true,
+    treeSitterClient: createMockTreeSitterClient(),
+  })
+  renderer.root.add(coalesced)
+  await renderOnce()
+  const coalescedProse = countMarkdownProse(coalesced)
+
+  expect(topLevelProse).toBe(3)
+  expect(coalescedProse).toBeLessThan(topLevelProse)
+})
+
 async function renderMarkdown(markdown: string, conceal: boolean = true): Promise<string> {
   const md = createMarkdownRenderable({
     id: "markdown",

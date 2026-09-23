@@ -6,7 +6,7 @@ import { createTextAttributes } from "../utils.js"
 import type { BorderStyle } from "../lib/border.js"
 import { RGBA, parseColor, type ColorInput } from "../lib/RGBA.js"
 import { Lexer, type MarkedToken, type Token, type Tokens } from "marked"
-import { CodeRenderable, QUIET_HIGHLIGHT_MS, type OnChunksCallback, type OnHighlightCallback } from "./Code.js"
+import { CodeRenderable, type OnChunksCallback, type OnHighlightCallback } from "./Code.js"
 import { BoxRenderable } from "./Box.js"
 import { StyledText } from "../lib/styled-text.js"
 import { TextRenderable } from "./Text.js"
@@ -108,6 +108,14 @@ export interface MarkdownOptions extends RenderableOptions<MarkdownRenderable> {
    * - Set this to false once streaming is complete to finalize trailing token parsing.
    */
   streaming?: boolean
+  /**
+   * Streaming quiet window (ms) for the code/markdown highlighters. 0 (default) starts the parse
+   * IMMEDIATELY on every content change; a positive value defers it until the content has been quiet
+   * for that long. It is a PER-CALL decision by design (T8c of the flicker plan): making it an engine
+   * policy deferred EVERY parse in markdown prose and broke five streaming pins — the window belongs
+   * to a caller that knows its deltas are coming, not to the renderable's default.
+   */
+  quietHighlightMs?: number
   /**
    * Options for internally rendered markdown tables.
    */
@@ -284,6 +292,7 @@ export class MarkdownRenderable extends Renderable {
 
   _parseState: ParseState | null = null
   private _streaming: boolean = false
+  private _quietHighlightMs: number = 0
   _blockStates: BlockState[] = []
   _stableBlockCount = 0
   private _styleDirty: boolean = false
@@ -374,6 +383,7 @@ export class MarkdownRenderable extends Renderable {
     this._tableOptions = options.tableOptions
     this._renderNode = options.renderNode
     this._streaming = options.streaming ?? this._contentDefaultOptions.streaming
+    this._quietHighlightMs = options.quietHighlightMs ?? 0
     this._internalBlockMode = options.internalBlockMode ?? this._contentDefaultOptions.internalBlockMode
 
     this.updateBlocks()
@@ -811,7 +821,7 @@ export class MarkdownRenderable extends Renderable {
       conceal: this._conceal,
       drawUnstyledText: initialStyledText !== undefined,
       streaming: true,
-      quietHighlightMs: QUIET_HIGHLIGHT_MS,
+      quietHighlightMs: this._quietHighlightMs,
       initialStyledText,
       baseHighlight,
       onHighlight: this._highlightMarkdownLinks,
@@ -1131,7 +1141,7 @@ export class MarkdownRenderable extends Renderable {
       conceal: this._concealCode,
       drawUnstyledText: !this._streaming,
       streaming: this._streaming,
-      quietHighlightMs: QUIET_HIGHLIGHT_MS,
+      quietHighlightMs: this._quietHighlightMs,
       treeSitterClient: this._treeSitterClient,
       width: "100%",
       marginBottom,

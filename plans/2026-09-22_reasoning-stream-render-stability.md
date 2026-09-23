@@ -252,6 +252,64 @@ its **application to this stream**, which is §2's oracle.
   that also settles: the ```yaml fence is NOT the defect (owner: «tree sitter должен рендерить yaml
   так») — the defect was repainting the unstyled text over the computed colour, and `@SV_FORMAT`'s
   fenced shape is CORRECT and stays. The frame-based verification of the flicker itself remains owed.
+- [ ] **T7 — prose is rendered through the engine's `coalesced` mode; inline structure is destroyed before it
+  can be drawn (P0).** Owner, 2026-09-23: «текст уже не дергается, но цвета мерцают, форматирование не
+  применяется, markdown рендерится убого» — this task is the «форматирование / markdown» half; T8 is the
+  colour half.
+  MEASURED ✓ 2026-09-23: upstream `@opencode-ai/tui` renders session text with
+  `internalBlockMode="top-level"` + `tableOptions={{ style: "grid" }}`
+  (`external/opencode-1.18.29/packages/tui/src/routes/session/index.tsx:1692-1701`), while our `RichText`
+  passes no `internalBlockMode` (`routes/session/index.tsx:2200-2207`) and inherits the engine default
+  `coalesced` (`packages/opentui/packages/core/src/renderables/Markdown.ts:357`). `docs/rendering.md` §5c
+  names the cost: inline tokens (`strong`, `em`, `codespan`, `link`) are destroyed, lists lose their
+  hierarchy, headings lose depth — and §5h records that tree-sitter's markdown query highlights only
+  STRUCTURAL nodes and never inline formatting, so the destroyed inline structure has no second source.
+  Scope: `RichText` (`routes/session/index.tsx:2181-2216`) — the ONE component behind every prose call
+  site. Change: add `internalBlockMode="top-level"` and `tableOptions={{ style: "grid" }}` to its
+  `<markdown>`. `top-level` already exists in our fork (`Markdown.ts:2075, 2208`) — this SELECTS the mode
+  we already ship; it does NOT change the engine default (the mode is per-call, because tool output and
+  code blocks share the same constructor).
+  STATUS 2026-09-23: code change DONE (`RichText` now passes `internalBlockMode="top-level"` +
+  `tableOptions={{ style: "grid" }}`, `routes/session/index.tsx:2208-2217`); unit regression green
+  (`bun test test/tui/` = 155 pass / 0 fail, run `20260923T043837Z_69d996db`). The structural pin (a) is
+  IN: `Markdown.test.ts` — «top-level keeps markdown block identity — N paragraphs are N prose
+  renderables, not one coalesced blob» — green in run `20260923T051143Z_d0c72565` (182 pass / 5 fail;
+  the five are EXACTLY the T3 baseline reds, now recorded: `streaming structured list updates keep
+  previous item text visible while highlighting`, `streaming nested structured list updates keep previous
+  nested text visible while highlighting`, `hyperlink capability changes preserve custom Markdown code
+  callbacks`, `theme switching (syntaxStyle change)`, `paragraph updates do not flash raw markdown
+  markers`). The pin fails by construction when the two modes stop differing (`coalesced < top-level`
+  control half). Still owed: (b) re-run of the two suites after any further change; (c) owner-eye on a
+  live stream after the rebuild; and the pixel oracle (T4) remains the named risk.
+  Risk (§4): `RichText` is shared by reasoning AND prose — a change that helps one and regresses the other
+  is a regression.
+- [ ] **T8 — colour must have ONE source per frame; the quiet window must not flip the palette (P1).**
+  Same owner report; T6 already removed one half of the class — the preview no longer repaints the buffer
+  from the UNSTYLED path, it reads `_lastHighlights` (`Code.ts:152-182`, oracle `Code.test.ts` 70 pass /
+  0 fail, run `20260923T011732Z_e268923b`; owner-validated on a live yaml fence). The OTHER half is
+  unmeasured: while `streaming` is true the visible style can come from two sources in alternation — the
+  marked-derived preview and the last tree-sitter snapshot — with the global quiet window deciding the
+  winner (`QUIET_HIGHLIGHT_MS = 75`, `Code.ts:56`, wired for ALL prose at `Markdown.ts:814, 1134`). Under
+  a 25–50 delta/s stream the window rarely fires during the burst (no parse while the stream is hot), one
+  parse lands on the first pause, and the next delta repaints from the other source — the alternation the
+  eye reads as «цвета мерцают».
+  STATUS 2026-09-23: (c) DONE BY MEASUREMENT — the global window was the ROOT CAUSE of five red
+  streaming pins: `Markdown.ts` hardcoded `quietHighlightMs: QUIET_HIGHLIGHT_MS` in BOTH constructors
+  (prose + fenced code), so every markdown parse was deferred past what the streaming pins observe
+  (`182 pass / 5 fail`, run `20260923T051143Z_d0c72565` — the exact five named in T7's STATUS below).
+  The window is now a PER-CALL option (`MarkdownOptions.quietHighlightMs`, default 0 — the engine is
+  synchronous unless a caller opts in), and `Markdown.test.ts` is back to **187 pass / 0 fail** (run
+  `20260923T051405Z_0871d8a9`). A caller that knows its deltas are coming (the opencode RichText
+  path) may opt in later — that decision belongs to a live-stream observation, not to this plan.
+  (a)/(b): with the window gone the style source is marked until the first tree-sitter pass and
+  tree-sitter after it — plausibly a single one-way switch per block rather than an alternation,
+  which is exactly the case the plan predicted could DELETE the «one source per frame» requirement.
+  NOT yet measured on a live stream (rebuild + owner-eye + T4 remain the named validators); no
+  machinery is added before that measurement. Note: the two runs above also disprove a process
+  assumption — a runner started in the same batch as a multi-step edit CAN read the file mid-write
+  (140 fail with `ReferenceError: QUIET_HIGHLIGHT_MS is not defined`, run `20260923T051323Z_c3a36f12`,
+  was exactly that race). Edit and run sequentially.
+  Order: T7 → T8.
 
 ## 3. Smoke Tests (PRE_FLIGHT — before any edit)
 
@@ -265,7 +323,7 @@ Baseline [Exact], from `packages/opencode`:
 3. Pixel baseline: one capture run of the flow in T4 with the CURRENT build — recorded as the
    reference the fix must move.
 
-Post-implementation: the same three, plus T1–T3 unit counters and the T4 capture PASS.
+Post-implementation: the same three, plus T1–T3 unit counters, the T7/T8 counters, and the T4 capture PASS.
 
 ## 4. Risks and rollback
 

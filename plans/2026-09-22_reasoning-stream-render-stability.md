@@ -484,6 +484,9 @@ its **application to this stream**, which is §2's oracle.
   back by SHAPE instead: `var su=512,iu=256,ou=2000000,Ve=new Map … function au(n){if(n.length<su)return
   fe.lex(…)` and the first-parse path calls `au(n)` — the cache is in the build. Property names
   (`closedAtBreak`) survive minification; function names do not.
+  REBUILT with T11b step 4: **10.0.1101** (log `experiments/2026-09-23_render-load/build-20260923T173828Z.log`,
+  exit 0); read back: `_deferredPending` ×2 (core), and the route wiring by shape in BOTH parts —
+  `get deferred(){return f.isDeferred(L.message.id)}` in the reasoning and the text part.
 
 ### 2026-09-23 — pipeline audit below the content layer (owner: «глянь пайплайн отрисовки и как он влияет на общую скорость»)
 

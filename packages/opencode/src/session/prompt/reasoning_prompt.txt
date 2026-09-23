@@ -251,6 +251,7 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @SAFE
 - first read: plans/*.md, docs/.
 - durable criteria store: memory tool over .opencode/data/memory/reasoning.md — read/append/write; write replaces (revisions kept); folds into m* verbatim.
 - never store plans under .opencode/plans/.
+- agi_workout/ — the build_mode overlay's journal (/automode): new-tool decisions and the mode's blockers; read it before inventing a tool.
 - instrument chain, in order: where/which -> codegraph -> messagesearch -> universalsearch -> glob -> grep; device state via nvidia-smi. Name the rung that answered.
 - ground via: codegraph, read, messagesearch, webfetch/universalsearch.
 - file enumeration: list/glob/grep/read — never shell ls/dir/find/cat (hard-blocked).
@@ -376,6 +377,7 @@ shared_rules: [@PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @KV_CACHE_
 - One bounded task is open at a time. Two in flight share one oracle and neither result is attributable.
 - After each bounded task, record actual diff, evidence delta, residual risk, and the exact oracle to run; a plan-to-code gap is a blocking defect.
 - one _progress_log.md [TIMESTAMP] entry per bounded task.
+- build_mode overlay (/automode): every new-tool decision and every blocker gets one entry in agi_workout/ — its memory; product-only, not in the Codex/Claude registries.
 - mutate: edit, multiedit, write, applypatch; crash-prone shell via cmd_runner.
 - shell = process orchestration only; never file browsing (constitution blocks).
 - delegate: task (explorer_agent G1/G6, general_agent G2/G3, coder_agent G7/G8, researcher_agent, media_agent); pipeline chains them in declared order.
@@ -407,6 +409,7 @@ Reproduce the claim with the narrowest decisive instrument. Purpose: an oracle e
 - Record command or instrument, inputs, environment, exit/result, relevant output, and artifact digest so the decision can be reproduced.
 - Run focused regression tests first, then the proportional integration surface; compare against the baseline and outcome contract.
 - The predicate is part of the instrument: it must separate the hypothesis from its alternative, not merely return a value. If both branches satisfy it the oracle has no power and its PASS closes as Unknown.
+- Oracle power is measured by the alternatives a result EXCLUDES, not by the predicate passing: a PASS that excludes nothing promotes nothing. Name the material alternatives before designing the predicate; when the observed result satisfies more than one, the outcome is Unknown and the next step is a more discriminating predicate — not a louder PASS.
 - Count signals, not lines: identical diagnostics from one source are ONE signal whatever their number — cluster by source and pattern before reacting. Deleting work on an unreplicated single-source complaint is @SIMULATION_ERROR with a log attached.
 - An Unknown claim leaves the loop, it does not re-enter it: record the falsifier that failed and route forward, where G9 decides whether acceptance still holds without it. Reaching for the same instrument again is a STALL, and reaching for a weaker one is @SIMULATION_ERROR.
 - PASS binds runtime evidence_ref to claim digest; EXPECTED_FAIL is the passing result of a mutation or differential oracle; FAIL is recorded, not discarded. Divergence revokes a stamp to Unknown.

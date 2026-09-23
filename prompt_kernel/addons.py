@@ -24,6 +24,13 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
     ),
     GateAddon(
         "G1",
+        "PATH_AGI_WORKOUT",
+        (
+            "agi_workout/ — the build_mode overlay's journal (/automode): new-tool decisions and the mode's blockers; read it before inventing a tool.",
+        ),
+    ),
+    GateAddon(
+        "G1",
         "INSTRUMENT_CHAIN",
         (
             "instrument chain, in order: where/which -> codegraph -> messagesearch -> universalsearch -> glob -> grep; device state via nvidia-smi. Name the rung that answered.",
@@ -133,6 +140,13 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "PATH_PROGRESS",
         (
             "one _progress_log.md [TIMESTAMP] entry per bounded task.",
+        ),
+    ),
+    GateAddon(
+        "G7",
+        "PATH_AGI_WORKOUT_LOG",
+        (
+            "build_mode overlay (/automode): every new-tool decision and every blocker gets one entry in agi_workout/ — its memory; product-only, not in the Codex/Claude registries.",
         ),
     ),
     GateAddon(

@@ -34,6 +34,8 @@ REGISTRIES = {
 DECLARED_DIFFERENCES = {
     ("product", "G9", "ARTIFACT_LANGUAGE"): "names the owner's language; the Claude variant shares this repo, the external Codex harness does not",
     ("claude", "G9", "ARTIFACT_LANGUAGE"): "same repo, same owner-facing split",
+    ("product", "G1", "PATH_AGI_WORKOUT"): "the build_mode overlay's journal is bound to THIS kernel only: /automode exists here, the Codex and Claude hosts have no such overlay",
+    ("product", "G7", "PATH_AGI_WORKOUT_LOG"): "same binding, write half — the overlay's memory is host-local by design",
 }
 
 

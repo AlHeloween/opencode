@@ -166,7 +166,16 @@ will reach for the nearest thing that answers, which is itself.
    symmetric and the owner states it from experience, not from arithmetic: a missing rule is
    paid for in whole runs (his own comparison, 2026-09-20 — a task this governed loop closed in
    five requests, which a stronger ungoverned model failed outright and reviewers called
-   commodity work), while a line is paid for in bytes.
+   commodity work),    while a line is paid for in bytes.
+
+   **What may be cut (owner-aligned, 2026-09-23, recorded from a Codex review that adopted the kernel
+   itself).** The cap must never push a reduction that shortens the kernel mechanically by bytes; a cut
+   is legitimate only where ONE of three is demonstrated: (a) the rule is duplicated by another
+   executing rule; (b) the rationale can be removed without changing behaviour; (c) the rule has no
+   observable consumer and prevents no known defect class. The reformulation is theirs and it is
+   better than the older phrasing: not «the kernel must shrink», but «the kernel must not swell with
+   UNPROVEN prose». A byte-stable prefix amortizes its size across the whole cache; dynamic noise
+   never amortizes — it is paid again at every step. Critical rules stay even when long.
 
 4. `python -m pytest prompt_kernel/tests/ -q` → all green.
 5. `python -m prompt_kernel --install` → note `installed=<sha256>`.

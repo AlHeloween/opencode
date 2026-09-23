@@ -467,6 +467,9 @@ its **application to this stream**, which is §2's oracle.
   (140 fail with `ReferenceError: QUIET_HIGHLIGHT_MS is not defined`, run `20260923T051323Z_c3a36f12`,
   was exactly that race). Edit and run sequentially.
   Order: T7 → T8.
+  **2026-09-23 — T8's mechanism is MEASURED and FIXED by T11** (the setter path repainting the caller's
+  source over the stored parse: 2 764 returns → 0 on the real stream). T8 stays unticked for its own named
+  validators — a rebuilt binary and the owner's eye on a live stream — which have not happened yet.
 
 ### 2026-09-23 — pipeline audit below the content layer (owner: «глянь пайплайн отрисовки и как он влияет на общую скорость»)
 
@@ -585,11 +588,59 @@ native change is confined to the sixel emission path. Rust would be a second nat
   native side when the frame is collected), handed over as `source` instead of `setImage`. Gate: T9's
   residual (1) — the CPU cost of a sixel encode — must be measured first; one encode per remount is not worth
   a disposal protocol until a number says so (DISAS).
-- [ ] **T11 — content-keyed text products; one style source per finished block.** Key `(block raw, width,
+- [x] **T11 — content-keyed text products; one style source per finished block.** Key `(block raw, width,
   theme, conceal)` → styled lines, produced ONCE by our rules (marked for prose, tree-sitter for code); a
   finished block is a lookup. Then re-measure `top-level` vs `coalesced` on the replay with the cache ON.
   Oracle: the replay with tree-sitter completions COUNTED (the discriminator above) shows 0 style flips on
   stable lines, and the cost table is re-run. Supersedes T8's open half.
+  **DONE 2026-09-23 for the flicker half; the cache half is split out as T11b, named below.**
+  THE INSTRUMENT FIRST (T11a): `core/src/renderables/__tests__/stream-replay-sources.test.ts`. The old
+  replay's zero had THREE independent reasons to be zero, all read in its code: a one-entry stylesheet (every
+  source resolves to the same colour), a classifier that folded A → B → A into [A, B], and no wait for or
+  count of tree-sitter results. The new file uses the TUI theme's scope names, records every change including
+  returns, captures a frame right after each delta AND one `DELTA_GAP_MS = 25` later, and counts
+  `highlightOnce` completions through a pass-through wrapper. Powers: POSITIVE control (the stylesheet swapped
+  under fixed text) = returns on 4 of 4 lines; NEGATIVE control (flat stylesheet) = 0; health = 843 of 843
+  parses delivered.
+  MEASURED BEFORE THE FIX (log `experiments/2026-09-23_stream-sources/run-20260923T124857Z.log`): 3 lines
+  returning, **2 764 returns**; the worst, a list line «1. "Сознай папку emergency…», changed signature on
+  **1 642 of 1 686 frames** — plain default colour (`#d9d9d9`) on all 820 frames right after a delta, the
+  list-marker colour (`#66ccff`) on all 820 frames one gap later. So every delta reset the parse's colour and
+  the parse painted it back ~25 ms later; lines holding `` `code` `` also alternated their CONCEAL (the
+  backticks shown, then hidden). ALSO REFUTED by the same data: `docs/rendering.md` §5h's «tree-sitter's
+  markdown query never highlights inline formatting» — the tree ships a `markdown_inline` injection
+  (`lib/tree-sitter/default-parsers.ts:39-58`); the observed difference was the list marker and conceal, not
+  bold/italic.
+  THE FIX — the owner's T6 rule, applied to the second path. T6 made `updateStreamingPreview` reuse the
+  stored parse; the `content` SETTER still painted the caller's styling (or plain text) on every delta. Both
+  now go through one helper, `Code.ts:paintFromStoredHighlights` (stored ranges reused only while the content
+  they were computed for is a PREFIX of the current one — a guard the T6 preview path did not have), and the
+  setter uses it only where the caller allows not-yet-parsed text on screen (`drawUnstyledText`).
+  THE FIRST VERSION OF THE FIX WAS WRONG, and a filter trap nearly hid it: running
+  `src/renderables/__tests__/Code.test.ts` looked like «the Code suite» and was green — the 70-test suite that
+  holds the T2/T3/T6 pins is `src/renderables/Code.test.ts`, a DIFFERENT file, and it was RED: «streaming with
+  conceal and drawUnstyledText=false should not jump when fenced code blocks are concealed», 5 frames of raw
+  ``` — the stored ranges cover only the old prefix, so the unparsed tail was painted raw on a block whose
+  caller had forbidden exactly that. The `drawUnstyledText` guard is the correction.
+  AFTER (each file run SEPARATELY, counts per file): `src/renderables/Code.test.ts` 70 pass / 1 skip / 0 fail
+  (back to its baseline); `__tests__/Code.test.ts` 2 pass; `__tests__/Markdown.test.ts` 187 pass;
+  `__tests__/stream-replay.test.ts` 2 pass; `__tests__/stream-replay-sources.test.ts` 2 pass with **rich:
+  returning 0, returns 0** (flat control still 0, 843 parses delivered); opencode `bun test test/tui/` 156
+  pass / 0 fail; core `bun run typecheck` exit 0.
+  COST, re-run: the fix removes flicker, NOT CPU — `coalesced+window0` 5.30 ms/frame (5.35 before),
+  `top-level+window0` 8.54 (8.60 before). A second run of the same table gave 6.65 / 7.97: the proxy's
+  run-to-run noise is ~25 %, so only the ratio (top-level ≈ 1.2–1.6× coalesced) is a finding. The vendor's
+  `top-level` recommendation therefore still does not pay here; `coalesced` stays.
+  THE OLD REPLAY'S CLASSIFIER is corrected in place (it now records a change back), and still reads 0 — as
+  it must under its one-entry stylesheet, which the new negative control shows cannot produce a return.
+  Observed and NOT explained: that file reports `lines=350` when run in one `bun test` invocation with other
+  files and `lines=33` alone — the instrument depends on what runs beside it.
+  NOT DONE from the task's wording: the content-keyed cache itself → T11b.
+- [ ] **T11b — content-keyed text products, ONLY where a measurement shows the CPU.** The flicker is gone
+  without a cache (one style source is a property of the paint path, not of storage). What a cache would still
+  buy is CPU on remount and on the O(message) per-delta work — and that is unmeasured. Gate: a profile of one
+  real long session (per-delta main-thread time split into `splitTextSegments`, lexing, chunk building,
+  layout) before any cache is built; DISAS.
 - [ ] **T12 — move pixels with the terminal, not with a repaint (Hypothetical).** Probe on Windows Terminal:
   does a DECSTBM region + scroll-up (`CSI n S`) carry an on-screen sixel with it? The fork already drives a
   bounded scroll region (`renderer.zig:1726`, split-footer). If yes: a sticky-bottom append becomes a

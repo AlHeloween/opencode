@@ -116,9 +116,10 @@ function signaturesByLine(frames: CapturedFrame[]): Map<string, string[]> {
     }
     for (const [text, signature] of seenThisFrame) {
       const order = perLine.get(text) ?? []
-      if (order.length === 0 || order[order.length - 1] !== signature) {
-        if (!order.includes(signature)) order.push(signature)
-      }
+      // Every CHANGE is recorded, including a change back: the previous `!order.includes(signature)`
+      // folded A -> B -> A into [A, B] and so could never report the return its header promises
+      // (found 2026-09-23 by `stream-replay-sources.test.ts`, which supersedes this measurement).
+      if (order[order.length - 1] !== signature) order.push(signature)
       perLine.set(text, order)
     }
   }

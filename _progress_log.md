@@ -4549,3 +4549,21 @@ opencode media-image suites 28 pass, mermaid 19 pass; typecheck exit 0 in both p
 
 Residual: a remount still builds a new NativeImage from the stored frame, so the sixel cache misses once per
 remount — T10b, gated on measuring the encode CPU cost first.
+
+## [2026-09-23 13:20] T11 — one style source per frame on the streaming paint path
+
+Plan: `plans/2026-09-22_reasoning-stream-render-stability.md` T11 (T11b split out). Diff:
+`opentui/core/src/renderables/Code.ts` (`paintFromStoredHighlights`, shared by the `content` setter and
+`updateStreamingPreview`, prefix-guarded, setter use gated on `drawUnstyledText`); new instrument
+`__tests__/stream-replay-sources.test.ts`; the old replay's classifier corrected; `docs/rendering.md` §5h
+marked stale.
+
+Evidence: before, on the real 843-delta stream with a theme-shaped stylesheet, 2 764 returns, the worst list
+line flipping on 1 642 of 1 686 frames (log run-20260923T124857Z.log, sha256 b37b643e4bd3d1f6…); after, 0 returns,
+positive control 4/4, negative control 0, 843/843 parses delivered. Per-file runs: Code.test.ts 70 pass /
+1 skip, __tests__/Code 2, Markdown 187, stream-replay 2, stream-replay-sources 2; opencode test/tui 156 pass;
+core typecheck exit 0. A first version of the fix broke the fenced-conceal pin in src/renderables/Code.test.ts,
+hidden for one run because a same-named file under __tests__ was run instead.
+
+Residual: CPU unchanged (coalesced ~5.3–6.7 ms/frame, top-level ~1.2–1.6x, noise ~25 %); the content-keyed
+cache is T11b, gated on a real-session profile; T8 awaits a rebuilt binary and the owner's eye.

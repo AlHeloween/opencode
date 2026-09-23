@@ -448,6 +448,15 @@ When `initialStyledText` is `undefined`:
 
 ### 5h. Tree-Sitter Overwrite Bug (Race Condition)
 
+> **STALE in two places — measured 2026-09-23** (`plans/2026-09-22_reasoning-stream-render-stability.md`
+> T11, instrument `packages/opentui/packages/core/src/renderables/__tests__/stream-replay-sources.test.ts`).
+> (1) The guard shown below is NOT in `Code.ts`: `startHighlight` overwrites the buffer unconditionally.
+> (2) «tree-sitter never highlights inline formatting» is refuted: the tree ships a `markdown_inline`
+> injection (`lib/tree-sitter/default-parsers.ts:39-58`). What actually alternated on the real stream was the
+> list-marker colour and the conceal of backticks, because the `content` setter repainted the caller's
+> styling over the stored parse on every delta. The fix is `Code.ts:paintFromStoredHighlights`, shared by the
+> setter and `updateStreamingPreview`: one style source per frame. The text below is kept as history.
+
 Even with `initialStyledText` correctly populated, a second issue occurs: **tree-sitter's async `startHighlight()` unconditionally overwrites the styled text buffer** when it completes, even when its highlights are less rich than `initialStyledText`.
 
 ```

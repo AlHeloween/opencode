@@ -75,6 +75,8 @@ export class CodeRenderable extends TextBufferRenderable {
   private _initialStyledText?: StyledText
   private _hadInitialContent: boolean = false
   private _lastHighlights: SimpleHighlight[] = []
+  /** The content `_lastHighlights` were computed for; their ranges apply only while it is a prefix. */
+  private _lastHighlightsContent: string = ""
   private _baseHighlight?: string
   private _onHighlight?: OnHighlightCallback
   private _onChunks?: OnChunksCallback
@@ -134,6 +136,19 @@ export class CodeRenderable extends TextBufferRenderable {
       this._lastContentChangeAt = Date.now()
       this.invalidateHighlights()
 
+      // T11: the SAME rule as the preview path — reuse the stored parse while it applies. Painting the
+      // caller's styling (or plain text) here instead reset every delta to a second source, and the parse
+      // painted the first one back ~25 ms later: measured on the real stream, a list line flipped on 1 642
+      // of 1 686 frames (`__tests__/stream-replay-sources.test.ts`).
+      // Only where the caller ALLOWS not-yet-parsed text on screen (`drawUnstyledText`): the stored ranges
+      // cover the old prefix only, so the appended tail is painted raw until its parse lands — a caller
+      // that set `drawUnstyledText: false` asked for exactly that never to happen (Code.test.ts «should
+      // not jump when fenced code blocks are concealed»: 5 frames of raw ``` without this guard).
+      if (this._streaming && this._drawUnstyledText && this.paintFromStoredHighlights()) {
+        this.updateTextInfo()
+        return
+      }
+
       if (this._streaming && this._filetype && !this._drawUnstyledText) {
         this.requestRender()
         return
@@ -162,16 +177,7 @@ export class CodeRenderable extends TextBufferRenderable {
     // exactly the case the stored ranges stay valid for, so paint from `_lastHighlights` when they
     // exist and fall back to the caller's styled text (which Markdown builds from its own tokens) only
     // when there is nothing computed yet.
-    if (this._lastHighlights.length > 0 && this._filetype) {
-      const chunks = treeSitterToTextChunks(this._content, this._lastHighlights, this._syntaxStyle, {
-        enabled: this._conceal,
-        baseHighlight: this._baseHighlight,
-        ranges: undefined,
-      })
-      this.textBuffer.setStyledText(new StyledText(chunks))
-      this.setRenderedLineSources(this.getConcealLinesSourceMap(this._content, this._lastHighlights))
-      this._shouldRenderTextBuffer = true
-    } else {
+    if (!this.paintFromStoredHighlights()) {
       this.textBuffer.setStyledText(initialStyledText)
       this.setRenderedLineSources(undefined)
     }
@@ -179,6 +185,26 @@ export class CodeRenderable extends TextBufferRenderable {
     // The preview is a VISIBLE frame, so it must ask for one: without this the renderer can idle
     // between deltas and the quiet-window check in `renderSelf` never runs — the missing half of P2.
     this.requestRender()
+  }
+
+  /**
+   * Paint `_content` from the stored parse, when its ranges still apply: the content they were computed
+   * for is a prefix of the current one (append-only streaming). Returns false when there is nothing valid
+   * to reuse, so the caller falls back to its own source — the owner's rule for T6, now shared by BOTH
+   * streaming paths (the preview and the `content` setter), so a block has one style source per frame.
+   */
+  private paintFromStoredHighlights(): boolean {
+    if (!this._filetype || this._lastHighlights.length === 0) return false
+    if (!this._content.startsWith(this._lastHighlightsContent)) return false
+    const chunks = treeSitterToTextChunks(this._content, this._lastHighlights, this._syntaxStyle, {
+      enabled: this._conceal,
+      baseHighlight: this._baseHighlight,
+      ranges: undefined,
+    })
+    this.textBuffer.setStyledText(new StyledText(chunks))
+    this.setRenderedLineSources(this.getConcealLinesSourceMap(this._content, this._lastHighlights))
+    this._shouldRenderTextBuffer = true
+    return true
   }
 
   public override get lineInfo(): LineInfo {
@@ -291,6 +317,7 @@ export class CodeRenderable extends TextBufferRenderable {
       this._streaming = value
       this._hadInitialContent = false
       this._lastHighlights = []
+      this._lastHighlightsContent = ""
       this.invalidateHighlights()
     }
   }
@@ -430,6 +457,7 @@ export class CodeRenderable extends TextBufferRenderable {
       if (highlights.length > 0) {
         if (this._streaming) {
           this._lastHighlights = highlights
+          this._lastHighlightsContent = content
         }
       }
 

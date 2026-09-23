@@ -470,6 +470,11 @@ its **application to this stream**, which is §2's oracle.
   **2026-09-23 — T8's mechanism is MEASURED and FIXED by T11** (the setter path repainting the caller's
   source over the stored parse: 2 764 returns → 0 on the real stream). T8 stays unticked for its own named
   validators — a rebuilt binary and the owner's eye on a live stream — which have not happened yet.
+  Binary REBUILT 2026-09-23: `pwsh _build.ps1 -Task build` exit 0 (log
+  `experiments/2026-09-23_stream-sources/build-20260923T125936Z.log`; OpenTUI lib rebuilt as stale),
+  `dist/bin/opencode.exe` **10.0.1096**, 302 169 088 B; read back from the artifact: `paintFromStoredHighlights`,
+  `_lastHighlightsContent` and the T10 mermaid-cache message are each present once in the binary. The owner's
+  `bin/opencode.exe` is untouched. Owed: the owner's eye on a live stream with this build.
 
 ### 2026-09-23 — pipeline audit below the content layer (owner: «глянь пайплайн отрисовки и как он влияет на общую скорость»)
 

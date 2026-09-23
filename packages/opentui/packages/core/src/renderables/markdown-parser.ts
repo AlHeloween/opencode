@@ -7,6 +7,38 @@ export interface ParseState {
 }
 
 /**
+ * Full lexes of the same content, stored (T11b step 3). A finished message is a pure function of its text,
+ * and remounting it — re-entering a session, loading an older page — re-lexed it from scratch: marked's
+ * block `lex` was ~85 % of mount time (40 × 12 000-char messages, ~140 ms per mount). Tokens are read-only
+ * downstream, so the stored array is returned as is. Insertion order is the LRU order; entries and total
+ * characters are both bounded; short content is not worth an entry.
+ */
+const FULL_LEX_CACHE_MIN_CHARS = 512
+const FULL_LEX_CACHE_MAX_ENTRIES = 256
+const FULL_LEX_CACHE_MAX_CHARS = 2_000_000
+const fullLexCache = new Map<string, MarkedToken[]>()
+let fullLexCacheChars = 0
+
+function lexWhole(content: string): MarkedToken[] {
+  if (content.length < FULL_LEX_CACHE_MIN_CHARS) return Lexer.lex(content, { gfm: true }) as MarkedToken[]
+  const stored = fullLexCache.get(content)
+  if (stored) {
+    fullLexCache.delete(content)
+    fullLexCache.set(content, stored)
+    return stored
+  }
+  const tokens = Lexer.lex(content, { gfm: true }) as MarkedToken[]
+  fullLexCache.set(content, tokens)
+  fullLexCacheChars += content.length
+  while (fullLexCache.size > FULL_LEX_CACHE_MAX_ENTRIES || fullLexCacheChars > FULL_LEX_CACHE_MAX_CHARS) {
+    const oldest = fullLexCache.keys().next().value!
+    fullLexCache.delete(oldest)
+    fullLexCacheChars -= oldest.length
+  }
+  return tokens
+}
+
+/**
  * Incrementally parse markdown, reusing unchanged tokens from previous parse.
  * Compares token.raw at each offset - matching tokens keep same object reference.
  */
@@ -17,7 +49,7 @@ export function parseMarkdownIncremental(
 ): ParseState {
   if (!prevState || prevState.tokens.length === 0) {
     try {
-      const tokens = Lexer.lex(newContent, { gfm: true }) as MarkedToken[]
+      const tokens = lexWhole(newContent)
       return {
         content: newContent,
         tokens,

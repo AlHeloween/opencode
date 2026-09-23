@@ -4606,3 +4606,16 @@ trailing newline; a non-monotonic parser boundary that reopened closed runs).
 
 Residual: step 3 (remount cache) unmeasured; the three silent catches in markdown-parser.ts; T8/T12 owed to
 the owner.
+
+## [2026-09-23 16:20] T11b step 3 — remount reuses the lexed tokens
+
+Plan: `plans/2026-09-22_reasoning-stream-render-stability.md` T11b step 3. Instrument
+`experiments/2026-09-23_render-load/remount.ts`: entering a session constructs every message; tree-sitter
+barely takes part (culling), marked's block lex is ~85 % of construction. Diff: `markdown-parser.ts`
+(`lexWhole`: stored full lexes, ≥ 512 chars, LRU ≤ 256 entries / ≤ 2 000 000 chars); oracle added to
+`markdown-parser.test.ts`, RED before, GREEN after.
+
+Evidence: remount construct 40 × 12 000 139.3 → 30.5 ms (−78 %), 100 × 3 000 117.0 → 17.0 (−85 %);
+parser 20 pass, Markdown 187, closed-runs 3, Code 70/1 skip, sources returns 0; typecheck exit 0.
+
+Residual: the first mount is unchanged (154 ms for 40 × 12 000) — step 4, lex only what becomes visible.

@@ -714,9 +714,35 @@ native change is confined to the sixel emission path. Rust would be a second nat
     `__tests__/Markdown.test.ts` 187; `stream-replay` 2; `stream-replay-sources` 2 with rich **returns 0**;
     `markdown-closed-runs` 3 pass against the old-code snapshots; flip trace 0 plain deltas; core typecheck
     exit 0; opencode `bun test test/tui/` 156 pass.
-  - [ ] **Step 3 — remount.** A finished message re-entering the view re-lexes and re-highlights from scratch;
+  - [x] **Step 3 — remount.** A finished message re-entering the view re-lexes and re-highlights from scratch;
     a product cache keyed by the closed run's raw (+ width, theme, conceal) serves it. Measured need first
     (the history scenario does not remount, so it cannot show this yet).
+    **DONE 2026-09-23 — and the measurement moved the cache to a different key than the one guessed above.**
+    Instrument `experiments/2026-09-23_render-load/remount.ts` (N finished messages mounted into a culling,
+    sticky-bottom ScrollBox, destroyed, mounted again; main-thread time for construction, first frame and
+    settle, parses counted). Before (`remount.jsonl`): 40 × 12 000 chars — construct 188 ms first / 139 ms
+    remount, first frame 38 / 9, settle 17 / 6, **6 parses** either way. Tree-sitter barely takes part
+    (culling: only visible blocks highlight); the whole cost is the synchronous construction of EVERY message,
+    and a CPU profile (`prof/remount40x12k.md`) puts marked's block `lex` at 278.9 ms of the two mounts —
+    ~85 % of construction — against 25 ms for `setText`. So the key is the MESSAGE TEXT → its tokens, not a
+    styled product per run: `markdown-parser.ts:lexWhole` stores full lexes (≥ 512 chars, LRU, ≤ 256 entries
+    and ≤ 2 000 000 chars) and returns the stored array; tokens were checked read-only downstream (a
+    control-checked grep over `renderables/` for writes to token fields: none but the synthetic
+    `closedAtBreak`; opencode passes no `renderNode`).
+    Oracle first, RED on the old code (`markdown-parser.test.ts` «a full lex of the same long content returns
+    the stored tokens; different content does not»: equal content, different array), GREEN after; its
+    controls: different content → a new array, short content → uncached, and a streaming call on stored
+    tokens still computes its own `stableTokenCount`.
+    AFTER (`remount-step3.jsonl`): remount construct 40 × 12 000 **139.3 → 30.5 ms (−78 %)**; 40 × 3 000
+    51.2 → 13.3 (−74 %); 100 × 3 000 117.0 → 17.0 (−85 %). Suites per file: parser 20 pass, Markdown 187,
+    markdown-closed-runs 3, Code 70 / 1 skip, stream-replay-sources 2 with returns 0; core typecheck exit 0.
+    NOT helped, named: the FIRST mount (154 ms for 40 × 12 000, 122 ms for 100 × 3 000) — nothing is stored
+    yet. → Step 4.
+  - [ ] **Step 4 — the first entry into a session: do not lex what nobody sees.** Every loaded message is
+    constructed (lexed) at mount, visible or not; culling then skips painting the off-screen ones, but their
+    construction was already paid. Defer `updateBlocks` of a message until it first becomes visible (or the
+    frame is idle). Oracle: `remount.ts` first-mount construct time, plus the closed-runs equivalence test and a
+    scroll-into-view frame for a deferred message.
 - [ ] **T12 — move pixels with the terminal, not with a repaint (Hypothetical).** Probe on Windows Terminal:
   does a DECSTBM region + scroll-up (`CSI n S`) carry an on-screen sixel with it? The fork already drives a
   bounded scroll region (`renderer.zig:1726`, split-footer). If yes: a sticky-bottom append becomes a

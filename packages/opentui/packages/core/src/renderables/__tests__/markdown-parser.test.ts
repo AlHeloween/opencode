@@ -239,3 +239,22 @@ test("returns empty token list when both incremental and full parse fail", () =>
     lexerRef.lex = originalLex
   }
 })
+
+// T11b step 3 (plans/2026-09-22_reasoning-stream-render-stability.md): remounting a finished message
+// re-lexed it from scratch — marked's block `lex` was ~85 % of mount time (40 × 12 000-char messages,
+// ~140 ms per mount). A full lex of the same content returns the STORED tokens; different content, and
+// content below the caching threshold, are lexed fresh — the controls that keep the cache honest.
+test("a full lex of the same long content returns the stored tokens; different content does not", () => {
+  const long = Array.from({ length: 40 }, (_, i) => `Paragraph ${i} with **bold** and \`code\`.`).join("\n\n")
+  expect(long.length).toBeGreaterThan(512)
+  const first = parseMarkdownIncremental(long, null, 0)
+  const again = parseMarkdownIncremental(long, null, 0)
+  const other = parseMarkdownIncremental(long + "\n\nOne more paragraph.", null, 0)
+  expect(again.tokens).toBe(first.tokens)
+  expect(again.stableTokenCount).toBe(first.tokens.length)
+  expect(other.tokens).not.toBe(first.tokens)
+  // The streaming call on the same content computes its own stable count from the stored tokens.
+  expect(parseMarkdownIncremental(long, null, 2).stableTokenCount).toBe(first.tokens.length - 2)
+  // Short content stays uncached: two lexes, two token arrays.
+  expect(parseMarkdownIncremental("# Hi\n\nshort", null).tokens).not.toBe(parseMarkdownIncremental("# Hi\n\nshort", null).tokens)
+})

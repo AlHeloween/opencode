@@ -114,6 +114,22 @@ describe("mermaid rendering", () => {
     expect(frame!.data.byteLength).toBe(frame!.width * frame!.height * 4)
   })
 
+  // T10 (plans/2026-09-22_reasoning-stream-render-stability.md): a remount must not re-run WASM → SVG → RGBA.
+  // The same (source, theme, background, budget) returns the SAME frame; any differing input is a
+  // different frame — the control that keeps a cache from answering every question with one value.
+  test("renderMermaidToRgba returns the stored frame for the same inputs, a new one for different inputs", async () => {
+    const options = { theme: "dark" as const, background: "#1a1b26", budget: { maxWidth: 320 } }
+    const first = await renderMermaidToRgba(flowchart, options)
+    const again = await renderMermaidToRgba(flowchart, { ...options, budget: { ...options.budget } })
+    const otherBudget = await renderMermaidToRgba(flowchart, { ...options, budget: { maxWidth: 240 } })
+    const otherSource = await renderMermaidToRgba(sequence, options)
+    expect(first).not.toBeNull()
+    expect(again).toBe(first)
+    expect(otherBudget).not.toBe(first)
+    expect(otherBudget!.width).toBe(240)
+    expect(otherSource).not.toBe(first)
+  })
+
   test("invalid mermaid returns null", async () => {
     const svg = await renderMermaidToSvg("not valid mermaid ???")
     // mermaid-wasm-renderer may return null or throw

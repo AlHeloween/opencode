@@ -393,9 +393,11 @@ export function MediaImage(props: {
     })
   }
 
+  // ONE publication per frame: `setFrame` re-runs the frame effect below, which hands the frame to the
+  // mounted image. A direct `setImage` here as well published every zoom/pan step twice — two native
+  // images and two sixel encodes per wheel tick (T10, test/tui/media-image-publish.test.tsx).
   const pushFrame = (next: RgbaFrame) => {
     setFrame(next)
-    if (imageRef) imageRef.setImage(next.data, next.width, next.height)
   }
 
   const rebuildView = (vp: ViewportState) => {

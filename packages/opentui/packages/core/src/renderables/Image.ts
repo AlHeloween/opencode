@@ -133,9 +133,13 @@ export class ImageRenderable extends Renderable {
    * Push a raw RGBA frame (opencode's contract: the media path decodes pixels and
    * feeds them here for zoom/pan and streaming frames; `w`/`h` are the frame size).
    * One entry point whatever the source was — the `source` setter retains it.
+   * This method is the CALLER of that setter, so it owns the wrapper it builds and releases it once the
+   * renderable holds its own retained reference; keeping it leaked one native image per call.
    */
   public setImage(data: Uint8Array, width: number, height: number): void {
-    this.source = NativeImage.fromRgba(data, width, height)
+    const image = NativeImage.fromRgba(data, width, height)
+    this.source = image
+    image.dispose()
   }
 
   public get cellAspectRatio(): number {

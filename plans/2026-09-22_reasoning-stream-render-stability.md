@@ -552,11 +552,39 @@ native change is confined to the sixel emission path. Rust would be a second nat
   paint emits the payload TWICE (step 0: 2 DCS, 1 re-sent) — a second settle frame re-sends it; unexplained.
   Gate note: `bun run typecheck` exit 0, but `tsconfig.build.json:16` EXCLUDES `**/*.test.ts`, so the
   package's typecheck does not cover this file — bun transpiles and runs it, nothing more.
-- [ ] **T10 — image ownership and a rasterisation cache.** `setImage` releases the caller's reference after
+- [x] **T10 — image ownership and a rasterisation cache.** `setImage` releases the caller's reference after
   the renderable retains it; `pushFrame` publishes ONCE (not signal + direct call); diagrams keep one
   `NativeImage` per `(source, budget, theme)` so a remount reuses the handle and the sixel LRU hits.
   Oracle: T9's case (B)/(C) across a remount shows no re-encode on remount, and a handle count (or
   `NativeImagePool`-style accounting) returns to its baseline after N zoom steps.
+  **DONE 2026-09-23 for three of its four parts; the fourth is split out as T10b, named below.** All three
+  oracles were written FIRST and ran RED on the unfixed code for the predicted reason, then GREEN after:
+  (1) `core/src/tests/image-set-image.test.ts` — every wrapper `setImage` builds is released (`handle` null
+      after `dispose()`, `image.ts:646-650`) while the renderable keeps a live 2×2 image. Baseline RED:
+      3 of 3 wrappers still held a handle. Fix `Image.ts:setImage`: build, assign, `dispose()` — the
+      skill's ownership contract (`text-display.md:305-306`).
+  (2) `opencode/test/tui/media-image-publish.test.tsx` — the REAL `MediaImage`, one wheel zoom step.
+      Baseline RED at the step assertion: **2** publications per step, while the mount control read 1.
+      Fix `media-image.tsx:pushFrame`: `setFrame` only; the frame effect publishes.
+  (3) `opencode/test/util/mermaid.test.ts` «returns the stored frame for the same inputs, a new one for
+      different inputs» — identity for the same `(source, theme, background, budget)`, a different frame for a
+      different budget (240 px wide) or source. Baseline RED (equal content, different object). Fix
+      `util/mermaid.ts:renderMermaidToRgba`: an 8-entry LRU of frame promises, failures not stored, cleared by
+      `resetRendererCache`.
+  Runs, all 0 fail: core `image-set-image` + `image-renderable` + `image-scroll-cost` = 29 pass;
+  opencode `media-image-publish` + `media-image-native-layout` + `-size` + `-fallback` + `-subscriptions`
+  = 28 pass; `mermaid.test.ts` = 19 pass. `bun run typecheck` (core) exit 0; `bun typecheck` (opencode)
+  exit 0. T9's table is unchanged after the fix, as it must be — T10 does not touch the scroll path.
+  ACCEPTANCE SUBSTITUTION, named: the plan's oracle asked for a native handle COUNT; there is no handle-count
+  API in `core/src/image.ts`, so ownership is read off the wrapper (`handle === null`) — the same fact from
+  the JS side. And «no re-encode on remount» is NOT met: a remount now skips WASM → SVG → RGBA (the frame is
+  the stored object), but the ref callback still builds a NEW `NativeImage` from it, so the sixel cache key
+  (which carries the handle) misses once per remount.
+- [ ] **T10b — reuse the native handle across a remount — ONLY if the encode is shown to cost.** One
+  `NativeImage` per stored frame (a `WeakMap<frame, NativeImage>` with a `FinalizationRegistry` disposing the
+  native side when the frame is collected), handed over as `source` instead of `setImage`. Gate: T9's
+  residual (1) — the CPU cost of a sixel encode — must be measured first; one encode per remount is not worth
+  a disposal protocol until a number says so (DISAS).
 - [ ] **T11 — content-keyed text products; one style source per finished block.** Key `(block raw, width,
   theme, conceal)` → styled lines, produced ONCE by our rules (marked for prose, tree-sitter for code); a
   finished block is a lookup. Then re-measure `top-level` vs `coalesced` on the replay with the cache ON.

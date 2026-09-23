@@ -190,6 +190,7 @@ export async function registerMermaidFont(fontPath: string): Promise<boolean> {
 export function resetRendererCache(): void {
   _renderer = null
   _rendererLoading = null
+  rgbaFrames.clear()
   resetMermaidWasmRenderer()
 }
 
@@ -410,14 +411,44 @@ export async function renderMermaidToPngDataUrl(
   return renderSvgToPngDataUrl(svg, options?.background)
 }
 
+/**
+ * Finished RGBA frames by their inputs. A diagram is a pure function of (source, theme, background,
+ * budget), so a remount — re-entering a session, loading an older page, expanding a group — must look
+ * the frame up instead of re-running WASM → SVG → RGBA (T10). Insertion order is the LRU order; a hit is
+ * re-inserted. Eight entries bound the worst case (an 80×40-cell box is a few MB of RGBA each). A failed
+ * render is not stored, so a later attempt can still succeed. Frames are shared read-only.
+ */
+const RGBA_FRAME_CACHE_MAX = 8
+const rgbaFrames = new Map<string, Promise<MermaidRgbaFrame | null>>()
+
 /** Mermaid source → SVG → direct RGBA. Native TUI graphics do not need a PNG hop. */
-export async function renderMermaidToRgba(
+export function renderMermaidToRgba(
   source: string,
   options?: MermaidRenderOptions & { background?: string; budget?: SvgFitBudget },
 ): Promise<MermaidRgbaFrame | null> {
-  const svg = await renderMermaidToSvg(source, options)
-  if (!svg) return null
-  return renderSvgToRgba(svg, options?.background, options?.budget)
+  const key = JSON.stringify([source, options?.theme, options?.background, options?.budget])
+  const stored = rgbaFrames.get(key)
+  if (stored) {
+    rgbaFrames.delete(key)
+    rgbaFrames.set(key, stored)
+    return stored
+  }
+  const pending = renderMermaidToSvg(source, options).then((svg) => {
+    if (svg) return renderSvgToRgba(svg, options?.background, options?.budget)
+    return null
+  })
+  rgbaFrames.set(key, pending)
+  pending.then(
+    (frame) => {
+      if (!frame && rgbaFrames.get(key) === pending) rgbaFrames.delete(key)
+    },
+    (error) => {
+      log.warn("bug: mermaid RGBA render rejected", { error: String(error) })
+      if (rgbaFrames.get(key) === pending) rgbaFrames.delete(key)
+    },
+  )
+  while (rgbaFrames.size > RGBA_FRAME_CACHE_MAX) rgbaFrames.delete(rgbaFrames.keys().next().value!)
+  return pending
 }
 
 // ── Backward compat: old name → new pipeline ─────────────────────

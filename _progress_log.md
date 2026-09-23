@@ -4534,3 +4534,18 @@ change 1 — the `ScrollBox.ts:802` nextTick frame, measured.
 Residual: re-encode CPU cost unmeasured (the ms column is scheduling-bound wall time); real diagram sizes
 (up to 512 px) unmeasured; first paint emits the payload twice, unexplained. The test file sits outside the
 package typecheck gate (`tsconfig.build.json:16` excludes tests). Next: T10.
+
+## [2026-09-23 12:45] T10 — image ownership, one publication per frame, a diagram raster cache
+
+Plan: `plans/2026-09-22_reasoning-stream-render-stability.md` T10 (T10b split out). Diff:
+`opentui/core/src/renderables/Image.ts` (`setImage` disposes the wrapper it builds),
+`opencode/src/cli/cmd/tui/component/media-image.tsx` (`pushFrame` publishes once),
+`opencode/src/util/mermaid.ts` (8-entry LRU of RGBA frame promises, cleared by `resetRendererCache`); three
+new oracles written first and seen RED on the unfixed code: 3/3 leaked wrappers, 2 publications per zoom
+step, a new frame object per identical call.
+
+Evidence after the fix, all 0 fail: core 29 pass (image-set-image + image-renderable + image-scroll-cost),
+opencode media-image suites 28 pass, mermaid 19 pass; typecheck exit 0 in both packages.
+
+Residual: a remount still builds a new NativeImage from the stored frame, so the sixel cache misses once per
+remount — T10b, gated on measuring the encode CPU cost first.

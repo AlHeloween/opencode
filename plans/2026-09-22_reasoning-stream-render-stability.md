@@ -423,6 +423,21 @@ its **application to this stream**, which is §2's oracle.
   markers`). The pin fails by construction when the two modes stop differing (`coalesced < top-level`
   control half). Still owed: (b) re-run of the two suites after any further change; (c) owner-eye on a
   live stream after the rebuild; and the pixel oracle (T4) remains the named risk.
+  **REVERTED 2026-09-23, ON THE OWNER'S CALL — the mode cost more than the structure was worth.** Owner,
+  verbatim: «1. Откатить top-level — одна строка, возвращает 5.28 мс/кадр; markdown снова «убогий».» The
+  measurement behind that choice is the replay cost table (5.28 → 8.60 ms/frame, +63 %, and it multiplies
+  by the number of markdown blocks a session holds). The revert is exactly ONE property:
+  `internalBlockMode="top-level"` is gone from `RichText` (`routes/session/index.tsx:2212-2220`).
+  `tableOptions={{ style: "grid" }}` STAYS and is not dead config — in `coalesced` mode `grid` IS the
+  engine default (`Markdown.ts:1502`), so tables render exactly as before. Verified: `bun test test/tui/`
+  = **155 pass / 0 fail** (20 files, 8.75 s). Commit `2463da715d`.
+  WHAT THIS RE-OPENS, named so it is not quietly closed: the owner's original complaint («форматирование
+  не применяется, markdown рендерится убого») is UNFIXED again, because coalesced destroys inline
+  structure. The `top-level` pin STAYS — it tests the engine, which still supports both modes — so the way
+  back is one line whenever the cost is affordable: per-block switching at `streaming: false` remains
+  UNVERIFIED engine behaviour and is therefore a candidate, not a plan.
+  The graph of this whole path now lives in `docs/rendering.md` §2 (mermaid, verified against the code,
+  with both defects annotated where they happened).
   Risk (§4): `RichText` is shared by reasoning AND prose — a change that helps one and regresses the other
   is a regression.
 - [ ] **T8 — colour must have ONE source per frame; the quiet window must not flip the palette (P1).**

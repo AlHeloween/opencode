@@ -49,14 +49,19 @@ Owner, 2026-09-23: «добавь опцию /automode чтобы всплыва
   `20260923T043752Z_e3189cb2`) + `bun typecheck` exit 0 (run `20260923T043802Z_d23b1a29`). The pins fail
   on the old rules by construction (a reached limit still returning `continue`; `plansNow` unchanged
   still stopping under `all`).
-- [ ] **T3 — command, indicator, hint (EDITORS DONE; live smoke OWED).** `automode.toggle` registered
-  with `slash: { name: "automode" }` next to AGI (`app.tsx:647-657`); the label
+- [ ] **T3 — command, indicator, hint (editors done; smoke PARTLY observed).** `automode.toggle`
+  registered with `slash: { name: "automode" }` next to AGI (`app.tsx:647-657`); the label
   `[AUTO ● plan | all | k/N]` renders next to `[AGI ○]` (`routes/session/index.tsx:1789-1798`); the
-  `COMMAND_HINTS` entry added. NOT observed: the live label and the two-continue smoke — the running
-  `dist/bin/opencode.exe` predates this change and needs a rebuild; the owner-eye acceptance (same
-  class as T6's «Все правильно отрисовалось») stays owed. Also owed: the continuation the agent
-  receives says just «continue» — whether that keeps an iteration productive is an OPEN question to be
-  judged on the first live run, not assumed.
+  `COMMAND_HINTS` entry added. Rebuild done (`dist/bin/opencode.exe`, 2026-09-23 13:23:47 local).
+  OBSERVED: the owner enabled the mode inside his own TUI (owner, 2026-09-23: «Ну что-же режим
+  включен») and the FIRST auto-continue arrived in the live session as a real `continue` turn — the
+  cycle works end-to-end. NOT observed: the exit paths (iteration limit / plan moved) on a live
+  session — the table is pinned in unit tests but the live exit is owed to the owner; and an automated
+  ConPTY smoke of our own: the TUI came up on the new build and accepted input, but the stripped
+  ConPTY log returns fragmentary frames — it is NOT a render oracle (class: a TUI's alt-screen diff
+  cannot be read back from `stdout_text.log`; the test session was stopped cleanly). Still open by
+  design: the continuation text is just «continue» — its productivity is judged on the first long
+  run, not assumed.
 
 - [x] **T4 — agi_workout journal + host-local kernel binding (DONE).** The folder `agi_workout/` now
   carries its canon (README: what goes in — new-tool decisions and the overlay's blockers; format —

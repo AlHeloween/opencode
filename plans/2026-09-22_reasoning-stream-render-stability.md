@@ -261,9 +261,12 @@ its **application to this stream**, which is §2's oracle.
   timestamp was ever recorded, so the declared cadence could not be checked against the real one. At 2 s
   the stream advances MORE than one viewport per frame, so consecutive frames cannot overlap and T4's
   «stable lines above the live tail are byte-identical between frames» is not merely unmeasured — it is
-  UNEXPRESSIBLE at this cadence. The two acceptance lines the frames DO settle hold again on a second,
-  independent live stream: both frames are mid-stream (`working esc interrupt`, `81.4K (8%)`) and both
-  show the reasoning ALREADY FORMATTED.
+  UNEXPRESSIBLE at this cadence. ONE acceptance line is settled again on a second, independent live
+  stream: both frames are mid-stream (`working esc interrupt`, `81.4K (8%)`) and both show the reasoning
+  ALREADY FORMATTED, so «no frame where the visible reasoning is empty/plain» holds. The OTHER line,
+  «the viewport offset changes only when a line is actually appended», does NOT follow from these frames:
+  the view moved, and whether it moved only on an append — rather than jumping — is precisely what
+  non-overlapping frames cannot show.
   **NEXT, BOUNDED:** a tight capture — bound the UIA walk (`max_elements` / `max_depth`, named by the
   driver's own `_note` in its answer) or capture with `get_desktop_state` and crop to the window bounds —
   plus a per-frame timestamp so the cadence is a measurement and not a claim. The reader needs no further

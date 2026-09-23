@@ -154,8 +154,27 @@ export class CodeRenderable extends TextBufferRenderable {
     this._initialStyledText = initialStyledText
     this._lastContentChangeAt = Date.now()
     this.invalidateHighlights()
-    this.textBuffer.setStyledText(initialStyledText)
-    this.setRenderedLineSources(undefined)
+    // REUSE WHAT THE PARSER ALREADY COMPUTED (owner, 2026-09-23: «когда триситер посчитал расцветку
+    // ты должен это запомнить, а не пересчитывать каждый раз, а если нет — брать данные из
+    // внутреннего markdown парсера»). This preview used to overwrite the styled buffer with an
+    // UNSTYLED one on EVERY delta, so the highlights the parser had already produced were thrown away
+    // and the visible colour came from whichever path ran last — "то одно, то другое". Appending is
+    // exactly the case the stored ranges stay valid for, so paint from `_lastHighlights` when they
+    // exist and fall back to the caller's styled text (which Markdown builds from its own tokens) only
+    // when there is nothing computed yet.
+    if (this._lastHighlights.length > 0 && this._filetype) {
+      const chunks = treeSitterToTextChunks(this._content, this._lastHighlights, this._syntaxStyle, {
+        enabled: this._conceal,
+        baseHighlight: this._baseHighlight,
+        ranges: undefined,
+      })
+      this.textBuffer.setStyledText(new StyledText(chunks))
+      this.setRenderedLineSources(this.getConcealLinesSourceMap(this._content, this._lastHighlights))
+      this._shouldRenderTextBuffer = true
+    } else {
+      this.textBuffer.setStyledText(initialStyledText)
+      this.setRenderedLineSources(undefined)
+    }
     this.updateTextInfo()
     // The preview is a VISIBLE frame, so it must ask for one: without this the renderer can idle
     // between deltas and the quiet-window check in `renderSelf` never runs — the missing half of P2.

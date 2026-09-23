@@ -232,6 +232,21 @@ its **application to this stream**, which is §2's oracle.
 - [ ] **T5 — ScrollBox (P3), only if T1–T3 leave a residual.** Coalesce `recalculateBarProps()` to one
   call per frame; apply sticky-bottom once after a completed layout transaction; no per-size
   `process.nextTick(requestRender)`.
+- [x] **T6 — the computed colour was thrown away and repainted from the unstyled path (owner, 2026-09-23:
+  «когда триситер посчитал расцветку ты должен это запомнить, а не пересчитывать каждый раз, а если нет
+  — брать данные из внутреннего markdown парсера»). FIXED `Code.ts:updateStreamingPreview`.** The tree
+  parser ALREADY stores its result — `_lastHighlights` — and the field was WRITTEN in exactly one place
+  (`startHighlight`) and READ NOWHERE: a cache with no reader. So the preview path (added by T2) painted
+  the caller's UNSTYLED `initialStyledText` into the buffer on EVERY delta and wiped out whatever the
+  parser had computed — the visible colour came from whichever path ran last («то одно, то другое»),
+  which is exactly what a fenced ```yaml vector rendered through two sources looks like.
+  Now: if `_lastHighlights` exist, the preview is painted FROM THEM (`treeSitterToTextChunks` over the
+  appended content — the case their ranges remain valid for) with the conceal line map restored; only
+  with nothing computed yet does it fall back to the caller's styled text, which Markdown builds from its
+  own tokens. That is the owner's rule verbatim: reuse the parse, else take the markdown parser's data.
+  Oracle, RUN: `Code.test.ts` = **70 pass / 1 skip / 0 fail** (287 expect, run
+  `20260923T011732Z_e268923b`). NOT yet observed: the live colour itself — this is a rendering claim, so
+  its final oracle is a frame, and the burst capture is still owed (see T4).
 
 ## 3. Smoke Tests (PRE_FLIGHT — before any edit)
 

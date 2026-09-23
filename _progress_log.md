@@ -1,5 +1,11 @@
 # Progress Log
 
+## [2026-09-23 14:05Z] Anthropic OAuth подключён к gateway
+
+CONFIRMED (✓ codegraph): `customFetch` Anthropic обходил `__gatewayFetch`; передача текущего `Uint8Array` в gateway потеряла бы тело, поскольку gateway отправляет строковые тела. План: `plans/2026-09-23_anthropic-oauth-gateway.md`.
+
+CONFIRMED (✓ cmd_runner `20260923T140124Z_6180a88b`): baseline 6/0. Изменения: OAuth-хук передаёт строку после CCH и выбирает gateway при его наличии; адресный тест проверяет запрос на входе gateway и резервный прямой маршрут. CONFIRMED (✓ cmd_runner `20260923T140309Z_4006e10e`): 7/0, полный журнал 1174 байта без потерь. CONFIRMED (✓ cmd_runner `20260923T140339Z_1d0b162c`): `bun typecheck` exit 0. Остаток: несколько учётных записей и их ротация из oh-my-pi здесь не переносились; живой Anthropic OAuth не запускался. Проверка транспорта Anthropic выше HTTP/1.1 остаётся отдельной задачей.
+
 ## [2026-09-21 21:05Z] Коммиты: восемь, дерево чистое; вместо двух красных — один открытый дефект
 
 Семь коммитов по правкам (инструменты и их описания; code-фрагмент; вопросник и выход; конституция; ядро G1/G9; файловые бюджеты + проба SU-3; доки), плюс отдельный — **три теста, которые утверждали НЕ тот контракт, что реализует код**: `capability` (`results` — число, не список), `runner` (конкурентные вызовы **присоединяются** к уже идущей работе, она исполняется ОДИН раз; замену делает `supersede`), `fill-layers` (пин на `return sessionAgentModel(...)` — без `return` вызов остаётся type-legal и тихо даёт `undefined`).
@@ -4567,3 +4573,19 @@ hidden for one run because a same-named file under __tests__ was run instead.
 
 Residual: CPU unchanged (coalesced ~5.3–6.7 ms/frame, top-level ~1.2–1.6x, noise ~25 %); the content-keyed
 cache is T11b, gated on a real-session profile; T8 awaits a rebuilt binary and the owner's eye.
+
+## [2026-09-23 14:10] T11b step 1 — the styling built on every delta and thrown away
+
+Plan: `plans/2026-09-22_reasoning-stream-render-stability.md` T11b (owner: the cache is for LOAD). Baseline
+instrument `experiments/2026-09-23_render-load/profile.ts`: load is linear in the length of the message
+being written (13.89 ms/delta at 30 000 chars, 11.60 of it in the content setter); history is nearly free.
+CPU profile: `createInitialStyledText` re-lexed the whole coalesced run inline (38 %) and its result was
+discarded whenever the stored parse painted. Diff: `Code.ts` (`initialStyledText` getter,
+`canPaintFromStoredHighlights`), `Markdown.ts` (`applyMarkdownCodeRenderable` takes a thunk; the hot call
+site passes one).
+
+Evidence: 30 000 chars 13.89 → 7.13 ms/delta (−49 %), 12 000 5.39 → 3.79; suites per file green
+(Code 70/1 skip, __tests__/Code 2, Markdown 187, replays 2+2 with 0 returns); core typecheck exit 0.
+
+Residual: `setStyledText` of the whole run per delta (25.8 %) — step 2 (closed runs); remount — step 3;
+three silent `catch` blocks in `markdown-parser.ts:26,72,75` noted, not yet fixed.

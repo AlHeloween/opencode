@@ -641,11 +641,51 @@ native change is confined to the sixel emission path. Rust would be a second nat
   Observed and NOT explained: that file reports `lines=350` when run in one `bun test` invocation with other
   files and `lines=33` alone — the instrument depends on what runs beside it.
   NOT DONE from the task's wording: the content-keyed cache itself → T11b.
-- [ ] **T11b — content-keyed text products, ONLY where a measurement shows the CPU.** The flicker is gone
-  without a cache (one style source is a property of the paint path, not of storage). What a cache would still
-  buy is CPU on remount and on the O(message) per-delta work — and that is unmeasured. Gate: a profile of one
-  real long session (per-delta main-thread time split into `splitTextSegments`, lexing, chunk building,
-  layout) before any cache is built; DISAS.
+- [ ] **T11b — the render cache that takes the LOAD off (owner, 2026-09-23: «кэш нужен не только для
+  устранения мерцания, кэш нужен чтобы снять нагрузку»).** The earlier gate («only if a profile shows the
+  CPU») is withdrawn on the owner's word; the measurement stays, as the BASELINE the cache must move and as
+  the map of WHERE it must sit.
+  BASELINE, instrument `experiments/2026-09-23_render-load/profile.ts` (real 843-delta stream through the
+  real MarkdownRenderable, production config: coalesced, no quiet window, real tree-sitter, theme-shaped
+  stylesheet, 25 ms delta gap; `stream <P>` streams on top of P chars already written, `history <N>` puts N
+  finished messages in a culling, sticky-bottom ScrollBox; raw rows in `baseline.jsonl`):
+
+    scenario            main ms/delta   of which content setter
+    stream, P = 0            1.45              0.78
+    stream, P = 12 000       5.39              3.95
+    stream, P = 30 000      13.89             11.60
+    history, N = 10          1.46              0.63
+    history, N = 40          1.69              0.66
+
+  Read: the load is LINEAR in the length of the message being written (~0.42 ms per 1 000 chars per delta,
+  almost all of it in the synchronous `content` setter); history is nearly free (+16 % for 40 messages —
+  culling works). At 25 deltas/s a 30 000-char message already takes ~35 % of the main thread, and a
+  100 000-char one no longer fits a frame. So the cache belongs on the message BEING WRITTEN, not on history.
+  CPU profile of P = 30 000 (`bun --cpu-prof-md`, `prof/stream30k.md`): marked's `inlineTokens` ≈ 38 % total,
+  called by `createInitialStyledText` (601 samples against 10 from the block `lex`); `setStyledText` 25.8 %
+  (all of it under `paintFromStoredHighlights`); `bufferDrawTextBufferView` 7.5 %; yoga 7.4 %;
+  `treeSitterToTextChunks` ≈ 4.5 %; `parseMarkdownIncremental` 0.2 % (the block lexer is incremental and
+  cheap). Cause of the first: the coalesced run is ONE synthetic token `{ tokens: [], text: raw }`
+  (`Markdown.ts:createMarkdownBlockToken`), so `createInitialStyledText` re-lexes the WHOLE run inline on
+  every delta — and since T11 that result is thrown away whenever the stored parse paints.
+  - [x] **Step 1 — do not build what is thrown away.** `applyMarkdownCodeRenderable` takes the styling as a
+    thunk and builds it only when `CodeRenderable.canPaintFromStoredHighlights(content)` (new, the same
+    conditions the setter and preview apply) is false; otherwise the renderable keeps the styling it holds as
+    its fallback. The hot call site (`updateBlockRenderable`) passes the thunk. MEASURED (`step1.jsonl`):
+    P = 30 000 **13.89 → 7.13 ms/delta (−49 %)**, setter 11.60 → 5.01; P = 12 000 5.39 → 3.79 (−30 %);
+    P = 0 1.45 → 1.15. Suites, each file separately: `src/renderables/Code.test.ts` 70 pass / 1 skip,
+    `__tests__/Code.test.ts` 2, `__tests__/Markdown.test.ts` 187, `stream-replay` 2, `stream-replay-sources`
+    2 with rich returns still 0; core typecheck exit 0.
+  - [ ] **Step 2 — finished blocks are products, the tail is the only thing rebuilt.** Cut the coalesced run
+    at the parser's `stableTokenCount` and close stable runs at a size cap at token boundaries, so a closed
+    run's raw never changes again: `updateBlocks` already reuses a block whose `tokenRaw` is unchanged, so a
+    closed run costs NOTHING per delta (no `setStyledText`, no parse), and the per-delta work becomes O(tail).
+    The remaining 25.8 % (`setStyledText` of the whole run per delta) is its target. Visual-equivalence oracle
+    required first: the final frame with the cut must equal the frame without it (a trailing `\n` must still
+    yield the blank line between paragraphs — `getInterBlockMargin` gives 0 between two synthetic paragraphs).
+  - [ ] **Step 3 — remount.** A finished message re-entering the view re-lexes and re-highlights from scratch;
+    a product cache keyed by the closed run's raw (+ width, theme, conceal) serves it. Measured need first
+    (the history scenario does not remount, so it cannot show this yet).
 - [ ] **T12 — move pixels with the terminal, not with a repaint (Hypothetical).** Probe on Windows Terminal:
   does a DECSTBM region + scroll-up (`CSI n S`) carry an on-screen sixel with it? The fork already drives a
   bounded scroll region (`renderer.zig:1726`, split-footer). If yes: a sticky-bottom append becomes a

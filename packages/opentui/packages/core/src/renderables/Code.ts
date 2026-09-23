@@ -193,6 +193,21 @@ export class CodeRenderable extends TextBufferRenderable {
    * to reuse, so the caller falls back to its own source — the owner's rule for T6, now shared by BOTH
    * streaming paths (the preview and the `content` setter), so a block has one style source per frame.
    */
+  /**
+   * True when a streaming update to `content` will be painted from the stored parse — the SAME conditions
+   * `paintFromStoredHighlights` and the setter apply. A caller can then skip building its own styling,
+   * which would only be discarded (T11b: measured at 38 % of main-thread time on a 30 000-char stream).
+   */
+  public canPaintFromStoredHighlights(content: string): boolean {
+    return (
+      this._streaming &&
+      this._drawUnstyledText &&
+      !!this._filetype &&
+      this._lastHighlights.length > 0 &&
+      content.startsWith(this._lastHighlightsContent)
+    )
+  }
+
   private paintFromStoredHighlights(): boolean {
     if (!this._filetype || this._lastHighlights.length === 0) return false
     if (!this._content.startsWith(this._lastHighlightsContent)) return false
@@ -298,6 +313,10 @@ export class CodeRenderable extends TextBufferRenderable {
 
   get streaming(): boolean {
     return this._streaming
+  }
+
+  get initialStyledText(): StyledText | undefined {
+    return this._initialStyledText
   }
 
   set initialStyledText(value: StyledText | undefined) {

@@ -1153,8 +1153,19 @@ export class MarkdownRenderable extends Renderable {
     content: string,
     marginBottom: number,
     baseHighlight?: string,
-    initialStyledText?: StyledText,
+    lazyInitialStyledText?: StyledText | (() => StyledText | undefined),
   ): void {
+    // A thunk is built ONLY when the renderable cannot paint from its stored parse: otherwise marked's
+    // inline lexing of the whole block ran on every delta and was thrown away (T11b, profile of a
+    // 30 000-char stream: `createInitialStyledText` = 38 % of main-thread time). When the stored parse
+    // applies, the renderable keeps the styling it already holds — defined, since `drawUnstyledText` is
+    // exactly «it was defined» — as its fallback.
+    const initialStyledText =
+      typeof lazyInitialStyledText === "function"
+        ? renderable.canPaintFromStoredHighlights(content)
+          ? renderable.initialStyledText
+          : lazyInitialStyledText()
+        : lazyInitialStyledText
     if (initialStyledText && renderable.streaming && renderable.drawUnstyledText && renderable.isHighlighting) {
       renderable.updateStreamingPreview(content, initialStyledText)
     } else {
@@ -1923,7 +1934,7 @@ export class MarkdownRenderable extends Renderable {
         this.getTopLevelBlockRaw(token) ?? token.raw,
         marginBottom,
         undefined,
-        this.createInitialStyledText(token),
+        () => this.createInitialStyledText(token),
       )
       return
     }

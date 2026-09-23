@@ -247,6 +247,11 @@ its **application to this stream**, which is §2's oracle.
   Oracle, RUN: `Code.test.ts` = **70 pass / 1 skip / 0 fail** (287 expect, run
   `20260923T011732Z_e268923b`). NOT yet observed: the live colour itself — this is a rendering claim, so
   its final oracle is a frame, and the burst capture is still owed (see T4).
+  OWNER-VALIDATED 2026-09-23: «Все правильно отрисовалось» on a live render of a fenced `yaml`
+  document — for this class his eye IS the validation half, and the colour claim now has it. Note what
+  that also settles: the ```yaml fence is NOT the defect (owner: «tree sitter должен рендерить yaml
+  так») — the defect was repainting the unstyled text over the computed colour, and `@SV_FORMAT`'s
+  fenced shape is CORRECT and stays. The frame-based verification of the flicker itself remains owed.
 
 ## 3. Smoke Tests (PRE_FLIGHT — before any edit)
 

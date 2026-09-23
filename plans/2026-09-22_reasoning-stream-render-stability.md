@@ -227,7 +227,50 @@ its **application to this stream**, which is §2's oracle.
   ran the tool. And the run still exited `0` — a script that neither surfaces its instrument's answer nor
   fails on a missing artifact reports success over six missing frames. That is the class: a harness whose
   own report cannot be false is not a harness.
-  The burst is therefore still OWED, with stdin-piped payloads AND the driver's answer printed.
+  **BURST ATTEMPT 2 (2026-09-23) — THE CAPTURE WORKS; THE CADENCE IS THE REMAINING DEFECT.** Every
+  invocation defect is now fixed and each fix is measured, not assumed: the stdin payload is written by
+  the SERIALIZER (`ConvertTo-Json`, so no hand-built escape can be wrong) and fed through
+  `Start-Process -RedirectStandardInput` — PS's pipe-to-native delivered NOTHING, and the driver said so
+  itself («Missing required integer field pid», which is exactly what it says when it parses the empty
+  default `{}`); `screenshot_out_file` is a CLI FLAG (`--screenshot-out-file`), never a body field — read
+  off the one working caller in this tree, `packages/opencode/src/tool/cua.ts:147`; the reader path
+  pointed at `experiments_history/`, where the file does not exist; and a UTF-8 em-dash inside a
+  PowerShell STRING LITERAL makes a BOM-less `.ps1` unparseable (PS 5.1 reads it as ANSI — comments
+  survive the mangling, literals do not). With those fixed: **SIX FRAMES WRITTEN** (146030 / 136524 /
+  217555 / 282805 / 277402 / 281004 bytes), the driver's own answer printed per frame, and the script now
+  FAILS on a missing frame instead of exiting 0 over five of them.
+  **WHAT THE READER FOUND.** `best_shift` had to be corrected twice, and both corrections came from the
+  frames rather than from theory: (a) it searched only `range(0, limit)` — NON-NEGATIVE shifts — while an
+  append-only view anchored at the bottom travels UP, so the hypothesis was inexpressible and it reported
+  `shift=0` with `matched≈0.55` on all five pairs, i.e. `matched` never leaving the chrome level;
+  (b) scoring ALL rows lets blank rows buy a high score at any shift, since they are byte-identical to
+  each other (`matched_all_rows=0.36` against `matched_inked=0.11` on the same pair). Corrected, the
+  verdict over the 5 consecutive pairs is `best_shift=0` on all five, `matched_inked` 0.1105 / 0.1099 /
+  0.0948 / 0.0752 / 0.0752, `stable_above_tail=no` throughout — while the content plainly GROWS
+  (`inked_rows_in_A` 181 → 182 → 211 → 266 → 266; ink 0.0482 → 0.0427 → 0.0824 → 0.1085 → 0.1075 →
+  0.1113). Frames 3 and 4 were then READ, not inferred: frame 3 ends at «…bursts are separated by
+  pauses» under `## 1. The problem is two clocks, not one`, frame 4 begins at «vsync signal to
+  synchronize to…» and is already under `## 2. What exactly is being scheduled`. The two frames share NO
+  line at all, so no shift can align them — `matched≈0.1` is coincidence plus chrome, and the reader is
+  RIGHT. The crop was also narrowed to the message area (`--bottom 250`): the input box and the
+  `81.4K (8%) · $0.01` status row repaint on their own and would cap `matched` for reasons unrelated to
+  the stream.
+  **THE CADENCE IS THE DEFECT, MEASURED.** Frame mtimes: 13:30:40 · :42 · :44 · :46 · :48 · :50 — a real
+  period of **2.0 s**, not the 900 ms the script declares: `Start-Sleep -Milliseconds 900` sits ON TOP of a
+  `get_window_state` call that walks the UIA tree and returns ~300 lines of JSON (~1.1 s), and no
+  timestamp was ever recorded, so the declared cadence could not be checked against the real one. At 2 s
+  the stream advances MORE than one viewport per frame, so consecutive frames cannot overlap and T4's
+  «stable lines above the live tail are byte-identical between frames» is not merely unmeasured — it is
+  UNEXPRESSIBLE at this cadence. The two acceptance lines the frames DO settle hold again on a second,
+  independent live stream: both frames are mid-stream (`working esc interrupt`, `81.4K (8%)`) and both
+  show the reasoning ALREADY FORMATTED.
+  **NEXT, BOUNDED:** a tight capture — bound the UIA walk (`max_elements` / `max_depth`, named by the
+  driver's own `_note` in its answer) or capture with `get_desktop_state` and crop to the window bounds —
+  plus a per-frame timestamp so the cadence is a measurement and not a claim. The reader needs no further
+  change. `-ReadOnly` was added so the SAME frames can be re-read by a corrected reader: without it a fix
+  to the instrument could only be tested on a different stream, and the difference between the runs would
+  not be attributable to the instrument.
+  The falsifier still needs a build of the pre-T1 code; unchanged.
   T4 remains unticked.
 - [ ] **T5 — ScrollBox (P3), only if T1–T3 leave a residual.** Coalesce `recalculateBarProps()` to one
   call per frame; apply sticky-bottom once after a completed layout transaction; no per-size

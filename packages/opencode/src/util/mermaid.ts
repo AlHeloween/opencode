@@ -66,7 +66,7 @@ export function resvgOptionsForSvg(
   svg: string,
   background: string,
   budget?: SvgFitBudget,
-): { background: string; fitTo?: { mode: "width"; value: number } } {
+): { background: string; fitTo?: { mode: "width" | "height"; value: number } } {
   const maxWidth = mermaidPixelBudget(budget).maxWidth
   // Prefer Resvg's parse of the SVG tree; fall back to attribute/viewBox parse.
   let srcW = 0
@@ -106,6 +106,25 @@ export function resvgOptionsForSvg(
       clamped,
       outW: width,
     })
+    // HONOUR maxHeight. The caller passes the cell box it can actually show (`media-image.tsx:452-455`:
+    // maxWidth from the column budget, maxHeight from the row budget, cellHeight from the measured
+    // cell), and until 2026-09-23 this function IGNORED the height and answered width-only. A tall
+    // diagram therefore came out ~1600 px, was then cut to 512 by `NATIVE_IMAGE_MAX_PIXELS`
+    // (`media-image.tsx:218`), and its text — which the anchor had just made exactly ONE terminal cell
+    // tall — arrived at about a third of a cell. That is the owner's «mermaid стал нечитаемый»: not a
+    // font, not the raster, but two rules in one subsystem disagreeing, with the legibility-destroying
+    // one winning.
+    // Fitting by height keeps the diagram readable at the largest size its box can hold; detail stays
+    // reachable because the MediaImage is interactive (wheel zoom · drag pan).
+    const anchoredHeight = srcH * (width / srcW)
+    if (budget.maxHeight && budget.maxHeight > 0 && anchoredHeight > budget.maxHeight) {
+      log.debug("mermaid raster re-fit by height to the cell box", {
+        anchoredWidth: width,
+        anchoredHeight: Math.round(anchoredHeight),
+        maxHeight: budget.maxHeight,
+      })
+      return { background, fitTo: { mode: "height", value: Math.round(budget.maxHeight) } }
+    }
     return { background, fitTo: { mode: "width", value: width } }
   }
 

@@ -591,6 +591,39 @@ This prevents pathological diagrams (Rust recursion, infinite loop) from hanging
 | Strict regex for fence detection (case-sensitive, 3 backticks) | Non-standard mermaid blocks don't match | Low priority — all LLM outputs use standard fencing |
 | Streaming gap — incomplete blocks show as raw code | Visual source-code flash on every mermaid block | Low priority — needs partial SVG rendering during stream |
 
+### 6f. Why every image looked wrong on 2026-09-23 — the raster was fine, the box was ignored
+
+Owner: «до миграции было четкое форматирование mermaid по размеру шрифта — он был читаемый, сейчас он не
+читаемый», and of the isolated raster: «в тесте норм». Both statements are correct, and together they
+localise the defect: the raster is good, the display is not.
+
+Measured, in this order:
+
+1. **The raster pipeline is CORRECT.** Rendering a five-node diagram through `renderMermaidToSvg` +
+   `renderSvgToPngDataUrl` produces a crisp diagram whose node frames fit their text exactly
+   (`experiments/2026-09-23_mermaid-font/baseline.png`).
+2. `registerMermaidFont` is DEFINED AND NEVER CALLED (`src/util/mermaid.ts:157` — its only other mention
+   is the WASM binding). A real gap, but NOT this defect: step 1 renders correctly without it, so the
+   «no font» row in §6e describes a risk, not the cause.
+3. **The cause is one IGNORED ARGUMENT.** The caller passes the box it can actually show — `maxWidth`
+   from the column budget, `maxHeight` from the row budget, `cellHeight` from the measured cell
+   (`media-image.tsx:452-455`) — and `resvgOptionsForSvg` answered **width-only** by design («Height is
+   never set here»). A five-node diagram therefore left the rasteriser ~735×1600 px, taller than any box
+   that would show it, and was cut down again by `NATIVE_IMAGE_PIXELS`/`NATIVE_IMAGE_MAX_PIXELS = 512`
+   (`media-image.tsx:218`). Text that the font anchor had just made exactly one terminal row tall arrived
+   at a fraction of a row — or the diagram was simply CUT at the frame edge, which is what the owner's
+   screenshot showed.
+4. **The font anchor itself is right.** Measured on a live capture, one terminal row on this host is
+   **23 px** (consecutive text ink bands 87–104 and 110–127), and `labelCells: 1` means one line of
+   diagram text per row — the «по размеру шрифта» behaviour to restore.
+
+**FIX (2026-09-23):** `resvgOptionsForSvg` now re-fits by HEIGHT when the font-anchored width would
+overflow the caller's row budget. Verified differentially, same source and same code: with no height
+budget the raster is 52 426 bytes (width-only behaviour), with the 38-row / 874 px budget it is 34 003
+bytes — every node still fits its frame, and one line of text is one row. The 512 ceiling stays where its
+justification lives: an image whose natural size we did NOT choose (a pasted screenshot). It is the right
+rule there and the wrong one for a raster generated to fit a box.
+
 ### Progressive Rendering (2026-07-12 improvement)
 
 **Before:** Mermaid diagrams only rendered after `part.time?.end` — entire LLM response had to finish. Users saw raw ` ```mermaid ` code as plain text fallback for the entire streaming duration.

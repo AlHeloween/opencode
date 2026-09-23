@@ -414,7 +414,7 @@ export function transformOAuthRequest(init: RequestInit | undefined): RequestIni
 
   const body = new TextEncoder().encode(JSON.stringify(payload))
   patchCch(body)
-  return { ...init, headers, body }
+  return { ...init, headers, body: new TextDecoder().decode(body) }
 }
 
 function withBetaQuery(input: RequestInfo | URL): URL {
@@ -461,7 +461,7 @@ export async function AnthropicAuthPlugin(input: PluginInput): Promise<Hooks> {
             const transformed = transformOAuthRequest(init)
             const headers = new Headers(transformed.headers)
             headers.set("Authorization", `Bearer ${access}`)
-            return fetch(withBetaQuery(requestInput), { ...transformed, headers })
+            return (globalThis.__gatewayFetch ?? fetch)(withBetaQuery(requestInput), { ...transformed, headers })
           },
         }
       },

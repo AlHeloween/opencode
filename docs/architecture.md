@@ -320,6 +320,15 @@ superseded). Only `adaptive-client` removes consumed OAuth inputs
 never duplicate into provider logs. Local diagnostics (`wireHeaders`,
 `sanitizeHeaders`) still redact auth from gateway log files.
 
+Anthropic subscription OAuth keeps its provider auth hook. The hook prepares the
+Messages request and passes it to `__gatewayFetch` when the gateway is active;
+without an active gateway it uses `fetch`. Its final body is a UTF-8 string so
+the gateway can classify streaming requests and send the complete body through
+the selected transport. The local wire test in
+`test/plugin/anthropic-auth.test.ts` covers HTTP/1.1 without credentials;
+Anthropic HTTP/2 and HTTP/3 still need separate transport probes. OAuth login
+and token refresh remain in the auth hook, outside the gateway transport.
+
 ## 8b. OpenRouter routing configuration (2026-09-12)
 
 `/agents` → `ctrl+o` opens a model-aware routing editor. It fetches the selected

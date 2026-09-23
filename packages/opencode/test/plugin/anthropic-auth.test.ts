@@ -10,11 +10,15 @@ import {
   transformOAuthRequest,
 } from "../../src/plugin/anthropic"
 import type { PluginInput } from "@opencode-ai/plugin"
+import { configureLogging, requestMetadata, wrapFetch } from "../../src/provider/gateway/adaptive-client"
+import * as GatewayStore from "../../src/provider/gateway/store"
 
 const originalFetch = globalThis.fetch
+const originalGatewayFetch = globalThis.__gatewayFetch
 
 afterEach(() => {
   globalThis.fetch = originalFetch
+  globalThis.__gatewayFetch = originalGatewayFetch
 })
 
 describe("plugin.anthropic-auth", () => {
@@ -112,6 +116,7 @@ describe("plugin.anthropic-auth", () => {
       },
       body: JSON.stringify({
         model: "claude-opus-4-8",
+        stream: true,
         max_tokens: 100_000,
         messages: [{ role: "user", content: [{ type: "text", text: "reply with pong" }] }],
         system: [{ type: "text", text: "user instruction" }],
@@ -127,8 +132,9 @@ describe("plugin.anthropic-auth", () => {
     expect(headers.get("anthropic-beta")).toContain("oauth-2025-04-20")
     expect(headers.get("anthropic-beta")).not.toContain("advanced-tool-use-2025-11-20")
 
-    if (!(transformed.body instanceof Uint8Array)) throw new Error("OAuth transform did not encode the request body")
-    const body = JSON.parse(new TextDecoder().decode(transformed.body))
+    if (typeof transformed.body !== "string") throw new Error("OAuth transform did not produce a gateway body")
+    expect(requestMetadata(transformed.body)).toEqual({ model: "claude-opus-4-8", streaming: true })
+    const body = JSON.parse(transformed.body)
     expect(body.max_tokens).toBe(64_000)
     expect(body.system).toHaveLength(3)
     expect(body.system[0].text).toStartWith("x-anthropic-billing-header:")
@@ -138,5 +144,108 @@ describe("plugin.anthropic-auth", () => {
       text: "You are Claude Code, Anthropic's official CLI for Claude.",
     })
     expect(body.system[2]).toEqual({ type: "text", text: "user instruction" })
+  })
+
+  test("sends the complete OAuth request through the gateway and falls back when unavailable", async () => {
+    const hooks = await AnthropicAuthPlugin({} as PluginInput)
+    const getAuth = async () => ({
+      type: "oauth" as const,
+      access: "test-access-token",
+      refresh: "test-refresh-token",
+      expires: Date.now() + 60_000,
+    })
+    const loaded = await hooks.auth?.loader?.(getAuth, {} as never)
+    const oauthFetch = loaded?.fetch as ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | undefined
+    if (!oauthFetch) throw new Error("Anthropic OAuth fetch is unavailable")
+
+    const calls: Array<{ path: "gateway" | "direct"; request: Request }> = []
+    globalThis.__gatewayFetch = async (input, init) => {
+      calls.push({ path: "gateway", request: new Request(input, init) })
+      return new Response("gateway")
+    }
+    globalThis.fetch = Object.assign(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        calls.push({ path: "direct", request: new Request(input, init) })
+        return new Response("direct")
+      },
+      { preconnect: originalFetch.preconnect },
+    )
+
+    const input = {
+      method: "POST",
+      headers: { "x-api-key": "sdk-placeholder" },
+      body: JSON.stringify({ model: "claude-opus-4-8", stream: true, max_tokens: 1024, messages: [] }),
+    }
+    expect((await oauthFetch("https://api.anthropic.com/v1/messages", input)).status).toBe(200)
+    expect(calls.map((call) => call.path)).toEqual(["gateway"])
+    expect(calls[0]?.request.url).toBe("https://api.anthropic.com/v1/messages?beta=true")
+    expect(calls[0]?.request.headers.get("authorization")).toBe("Bearer test-access-token")
+    expect(calls[0]?.request.headers.has("x-api-key")).toBe(false)
+    const gatewayBody = await calls[0]!.request.text()
+    expect(requestMetadata(gatewayBody)).toEqual({ model: "claude-opus-4-8", streaming: true })
+    expect(JSON.parse(gatewayBody).messages).toEqual([])
+
+    globalThis.__gatewayFetch = undefined
+    expect((await oauthFetch("https://api.anthropic.com/v1/messages", input)).status).toBe(200)
+    expect(calls.map((call) => call.path)).toEqual(["gateway", "direct"])
+    expect(await calls[1]!.request.text()).toBe(gatewayBody)
+  })
+
+  test("preserves the OAuth body bytes and headers through the gateway transport", async () => {
+    const hooks = await AnthropicAuthPlugin({} as PluginInput)
+    const getAuth = async () => ({
+      type: "oauth" as const,
+      access: "test-access-token",
+      refresh: "test-refresh-token",
+      expires: Date.now() + 60_000,
+    })
+    const loaded = await hooks.auth?.loader?.(getAuth, {} as never)
+    const oauthFetch = loaded?.fetch as ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | undefined
+    if (!oauthFetch) throw new Error("Anthropic OAuth fetch is unavailable")
+
+    let received: { url: string; headers: Headers; body: Uint8Array } | undefined
+    using server = Bun.serve({
+      port: 0,
+      async fetch(request) {
+        received = {
+          url: request.url,
+          headers: request.headers,
+          body: new Uint8Array(await request.arrayBuffer()),
+        }
+        return Response.json({ ok: true })
+      },
+    })
+    const input = {
+      method: "POST",
+      headers: { "x-api-key": "sdk-placeholder" },
+      body: JSON.stringify({
+        model: "claude-opus-4-8",
+        stream: true,
+        max_tokens: 1024,
+        messages: [{ role: "user", content: [{ type: "text", text: "Привет 🌍" }] }],
+      }),
+    }
+    const expected = transformOAuthRequest(input)
+    if (typeof expected.body !== "string") throw new Error("OAuth transform did not produce a gateway body")
+    const expectedHeaders = new Headers(expected.headers)
+    expectedHeaders.set("Authorization", "Bearer test-access-token")
+
+    configureLogging(false)
+    globalThis.__gatewayFetch = wrapFetch(originalFetch)
+    try {
+      const response = await oauthFetch(new URL("/v1/messages", server.url), input)
+      expect(response.status).toBe(200)
+      await response.text()
+      expect(received?.url).toBe(new URL("/v1/messages?beta=true", server.url).href)
+      expect(received?.body).toEqual(new TextEncoder().encode(expected.body))
+      for (const [key, value] of expectedHeaders) {
+        if (key === "x-client-request-id") continue
+        expect(received?.headers.get(key)).toBe(value)
+      }
+      expect(received?.headers.get("x-client-request-id")).toMatch(/^[0-9a-f-]{36}$/)
+      expect(received?.headers.has("x-api-key")).toBe(false)
+    } finally {
+      await GatewayStore.shutdown()
+    }
   })
 })

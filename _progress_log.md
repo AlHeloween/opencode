@@ -2,9 +2,9 @@
 
 ## [2026-09-23 14:05Z] Anthropic OAuth подключён к gateway
 
-CONFIRMED (✓ codegraph): `customFetch` Anthropic обходил `__gatewayFetch`; передача текущего `Uint8Array` в gateway потеряла бы тело, поскольку gateway отправляет строковые тела. План: `plans/2026-09-23_anthropic-oauth-gateway.md`.
+CONFIRMED (✓ codegraph): `customFetch` Anthropic обходил `__gatewayFetch`; передача исходного `Uint8Array` в gateway потеряла бы тело, поскольку gateway отправляет строковые тела. План: `plans_completed/2026-09-23_anthropic-oauth-gateway.md`.
 
-CONFIRMED (✓ cmd_runner `20260923T140124Z_6180a88b`): baseline 6/0. Изменения: OAuth-хук передаёт строку после CCH и выбирает gateway при его наличии; адресный тест проверяет запрос на входе gateway и резервный прямой маршрут. CONFIRMED (✓ cmd_runner `20260923T140309Z_4006e10e`): 7/0, полный журнал 1174 байта без потерь. CONFIRMED (✓ cmd_runner `20260923T140339Z_1d0b162c`): `bun typecheck` exit 0. Остаток: несколько учётных записей и их ротация из oh-my-pi здесь не переносились; живой Anthropic OAuth не запускался. Проверка транспорта Anthropic выше HTTP/1.1 остаётся отдельной задачей.
+CONFIRMED (✓ cmd_runner `20260923T140124Z_6180a88b`): baseline 6/0. Изменения: OAuth-хук передаёт строку после CCH и выбирает gateway при его наличии; тест проверяет выбор маршрута, а локальный HTTP-приёмник через настоящий `wrapFetch` сравнивает байты тела и исходящие заголовки. CONFIRMED (✓ cmd_runner `20260923T141157Z_712d8c26`): 8/0, 69 assertions, полный журнал 1285 байт без потерь. CONFIRMED (✓ cmd_runner `20260923T141157Z_0a7cb34e`): `bun typecheck` exit 0. Остаток: несколько учётных записей и их ротация из oh-my-pi здесь не переносились; живой Anthropic OAuth не запускался. Проверка транспорта Anthropic выше HTTP/1.1 остаётся отдельной задачей.
 
 ## [2026-09-21 21:05Z] Коммиты: восемь, дерево чистое; вместо двух красных — один открытый дефект
 

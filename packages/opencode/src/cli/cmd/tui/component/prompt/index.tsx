@@ -22,6 +22,7 @@ import { usePromptStash } from "./stash"
 import { DialogStash } from "../dialog-stash"
 import { type AutocompleteRef, Autocomplete } from "./autocomplete"
 import { useCommandDialog } from "../dialog-command"
+import { useAutoMode } from "@tui/context/automode"
 import { useRenderer, useTerminalDimensions, type JSX } from "@opentui/solid"
 import * as Editor from "@tui/util/editor"
 import { useExit } from "../../context/exit"
@@ -107,6 +108,7 @@ export function Prompt(props: PromptProps) {
   const history = usePromptHistory()
   const stash = usePromptStash()
   const command = useCommandDialog()
+  const automodeCtl = useAutoMode(() => props.sessionID)
   const renderer = useRenderer()
   const dimensions = useTerminalDimensions()
   const { theme, syntax } = useTheme()
@@ -853,7 +855,11 @@ export function Prompt(props: PromptProps) {
       const tuiSlash = command.slashes().find(
         (s) => s.display === "/" + cmdName || s.aliases?.includes("/" + cmdName),
       )
-      if (tuiSlash) {
+      if (cmdName === "automode") {
+        // /automode [N] — the argument rides HERE because TUI slashes take none; the handler and the
+        // exit rules live in one place (context/automode). Registered as a slash for autocomplete too.
+        automodeCtl.handleSlash(args)
+      } else if (tuiSlash) {
         tuiSlash.onSelect()
       } else if (sync.data.command.some((x) => x.name === cmdName)) {
         void sdk.client.session.command({

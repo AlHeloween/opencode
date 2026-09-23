@@ -38,6 +38,7 @@ import type {
 } from "@opencode-ai/sdk/v2"
 import { useLocal } from "@tui/context/local"
 import { useAgiMode } from "@tui/context/agi-mode"
+import { useAutoMode } from "@tui/context/automode"
 import { Locale } from "@/util/locale"
 import type { Tool } from "@/tool/tool"
 import type { ReadTool } from "@/tool/read"
@@ -211,6 +212,7 @@ export function Session() {
   const promptRef = usePromptRef()
   const local = useLocal()
   const agi = useAgiMode(() => route.sessionID)
+  const auto = useAutoMode(() => route.sessionID)
   const session = createMemo(() => sync.session.get(route.sessionID))
   const children = createMemo(() => {
     const parentID = session()?.parentID ?? session()?.id
@@ -1784,6 +1786,16 @@ export function Session() {
                   <Show when={!agi.agiMode()}>
                     <text fg={theme.textMuted}>[AGI ○] disabled</text>
                   </Show>
+                  <Show when={auto.autoMode()}>
+                    <text fg={theme.text}>
+                      [AUTO ●]{" "}
+                      {auto.autoKind() === "all"
+                        ? "all"
+                        : auto.autoKind() === "iterations"
+                          ? `${auto.autoIteration()}/${auto.autoLimit()}`
+                          : "plan"}
+                    </text>
+                  </Show>
                   <Prompt
                     visible={visible()}
                     ref={bind}
@@ -2200,6 +2212,8 @@ function RichText(props: {
             <markdown
               syntaxStyle={props.subtle ? subtleSyntax() : syntax()}
               streaming={props.streaming}
+              internalBlockMode="top-level"
+              tableOptions={{ style: "grid" }}
               content={markdownSegmentText(segment())}
               conceal={ctx.conceal()}
               fg={props.muted ? theme.textMuted : theme.markdownText}

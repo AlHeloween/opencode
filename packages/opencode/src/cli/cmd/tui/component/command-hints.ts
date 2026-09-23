@@ -52,6 +52,8 @@ export const COMMAND_HINTS: Record<string, string> = {
   "settings.dialog": "Open settings; every write goes to the layer (session / worktree / global) you pick.",
   "pipeline.run": "Run a named chain of agents — a pipeline — against the current prompt.",
   "agi.toggle": "Toggle autonomous (AGI) orchestration for this session.",
+  "automode.toggle":
+    "Auto-continue this session: /automode until a plan is moved out of plans/, /automode all until every plan is moved, /automode N for N iterations.",
   "variant.cycle": "Step to the next model variant — for example a different thinking effort.",
   "variant.list": "Pick a model variant from a list.",
   "provider.connect": "Add a provider, or sign in to one you have already configured.",

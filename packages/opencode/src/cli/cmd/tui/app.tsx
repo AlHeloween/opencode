@@ -32,6 +32,7 @@ import { StartupLoading } from "@tui/component/startup-loading"
 import { SyncProvider, useSync } from "@tui/context/sync"
 import { LocalProvider, useLocal } from "@tui/context/local"
 import { useAgiMode } from "@tui/context/agi-mode"
+import { useAutoMode } from "@tui/context/automode"
 import { DialogModel } from "@tui/component/dialog-model"
 import { DialogTaskSettings } from "@tui/component/dialog-task-settings"
 import { useConnected } from "@tui/component/use-connected"
@@ -274,6 +275,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
   const dialog = useDialog()
   const local = useLocal()
   const agi = useAgiMode(() => (route.data as any)?.sessionID as string | undefined)
+  const auto = useAutoMode(() => (route.data as any)?.sessionID as string | undefined)
   const kv = useKV()
   const command = useCommandDialog()
   const keybind = useKeybind()
@@ -640,6 +642,17 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       hidden: true,
       onSelect: () => {
         local.agent.move(1)
+      },
+    },
+    {
+      title: "Auto mode",
+      value: "automode.toggle",
+      category: "Agent",
+      slash: {
+        name: "automode",
+      },
+      onSelect: () => {
+        auto.handleSlash("")
       },
     },
     {

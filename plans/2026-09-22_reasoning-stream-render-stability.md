@@ -295,6 +295,81 @@ its **application to this stream**, which is §2's oracle.
   (6 → 12). That nearly doubles the frames per second of stream, and the reader already reports which
   pairs may speak. The reader needs no further change. The falsifier still needs a build of the pre-T1
   code; unchanged.
+  **OWNER DIRECTION 2026-09-23 — THE INSTRUMENT IS WRONG FOR THE TIMESCALE; THE FIX IS AN ISOLATED
+  REPLAY.** Owner, verbatim: «Бро - ты не сможешь поймать этот дефект так, возьми данные из логгера и
+  изолированно просимулируй их в экспериментах. На ране всю систему flick length 0.1 seconds как ты
+  можешь их поймать?» The arithmetic agrees: a defect that lives ~100 ms sampled every ~1.9 s is caught
+  in ~5 % of frames — a lottery, not an oracle — and the ~1.9 s is not a bug to fix but the instrument's
+  floor (the driver call alone is ~1.03 s; bounding the UIA walk did not move it).
+  THE DATA EXISTS, GROUNDED: `per-response/*.raw.txt` is the RAW SSE stream — one `chat.completion.chunk`
+  per line, so the REAL delta sequence is recoverable byte-exact. Measured on
+  `2026-09-22T04-01-53-078Z-2ab6d66e-015b-41b7-9f17-163c01cf7281.raw.txt`: 2258 lines, deltas of 1–5
+  characters (`"Two"`, `" tasks"`, `":\n"`, `"1"`, `"."`, `" \""`, `"С"`, `"озна"`, …) — the burst shape
+  is real data, not an invention. The DB complements it: 12 796 `reasoning` parts, the longest 268 796
+  characters, so a real long reasoning text is available for the replay.
+  THE DESIGN (isolated, deterministic, no live capture): replay a real delta stream through the REAL
+  renderable and drive the CLOCK BY HAND — deltas delivered at a real rate, a frame captured every ~10 ms
+  BETWEEN deltas. A 100 ms event is then not sampled, it is STEPPED THROUGH. Predicate: a frame that
+  differs from its neighbour while the delivered content is UNCHANGED is a flicker, and the frame pair
+  localises it in the text. Control that gives it power: a legacy drive path (the pre-T2 behaviour —
+  repaint from the unstyled source on every delta) must report a non-zero count on the SAME replay, or
+  the instrument proves nothing.
+  **ISOLATED REPLAY BUILT AND RUN 2026-09-23 — IT MEASURES, BUT IT IS NOT YET AN ORACLE.**
+  `packages/opentui/packages/core/src/renderables/__tests__/stream-replay.test.ts` plus
+  `…__tests__/fixtures/reasoning-stream.json` (843 real deltas, extracted byte-exact by
+  `experiments/2026-09-23_stream-replay/extract.py`). Reconciliation is EXACT: 1129 chunk lines = 843
+  reasoning deltas + 1 empty + 285 frames carrying NEITHER field + 0 answer chunks + 0 bad JSON — the
+  extractor prints it, because a fixture that silently drops a quarter of its input measures the wrong
+  stream. The replay drives the REAL `MarkdownRenderable` (real `TreeSitterClient`, `syntaxStyle`) with
+  a frame captured after EVERY delta, and classifies each line TEXT by the sequence of span signatures
+  it takes: two signatures is the designed one-way switch, THREE OR MORE distinct values — or a return
+  to an earlier one — is a repaint from a second style source while the stream wrote nothing there, i.e.
+  the flicker.
+  MEASURED (run `20260923T054400Z_cbb59a4a`, 10.6 s): burst run frames=843, `lines=33, oneWay=0,
+  flickered=0`, blank frames **126/843**; paused run frames=864, `lines=46, oneWay=0, flickered=0`,
+  blank **41/864**. On this REAL stream, through this path, NO line ever changed its span signature —
+  not even the designed one-way switch, which is what a prose path that styles SYNCHRONOUSLY produces
+  (there is no deferred code parse to land).
+  WHAT THIS IS NOT: the count has NO positive control. A metric that has only ever read 0 has not been
+  shown able to read anything else, so 0 here is a MEASUREMENT, not a PASS. The control is named: drive
+  the pre-T6 preview path (repaint the preview from the UNSTYLED source) on the SAME replay — it must
+  produce flips, or the instrument proves nothing.
+  TWO INSTRUMENT DEFECTS, one fixed: (a) a single `renderOnce()` was NOT a frame — 843 frames yielded 4
+  distinct line texts, i.e. nearly all blank, and the metric would have read 0 for the wrong reason;
+  `settle()` (two passes with a macrotask between) fixed it and the harness now prints its own
+  blank-frame census. (b) The one-shot equality check captured an EMPTY frame as soon as a third
+  renderable joined `renderer.root`; SUSPICION, not a diagnosis (root children lay out in sequence, so
+  the subject may sit below the 40-row viewport, or `destroy()` may not detach) — the check was REMOVED
+  rather than left red, and the file runs green on instrument-health assertions only.
+  NEXT, BOUNDED, in order: (1) the positive control; (2) the root-child suspicion; (3) only then the
+  flicker verdict — including a fenced-code fixture, since the prose path styles synchronously and the
+  deferred parse this plan fixed lives in `CodeRenderable`.
+  **THE LAG THE OWNER REPORTED, ATTRIBUTED BY THE SAME REPLAY (2026-09-23).** Owner: «Вот еще после
+  последних правок TUI стала безнадежно лагать.» The 2026-09-23 build changed exactly two things on
+  this path, and both were mine: `internalBlockMode="top-level"` (T7) and the quiet window's default
+  moving to 0 for every caller (T8c — and NOTHING in `packages/opencode` passes `quietHighlightMs`;
+  measured by grep: one hit, and it is `internalBlockMode`). The replay decided between them on the real
+  stream, one clock, four configurations (test «the cost of each rendering configuration», run
+  `20260923T054647Z_52cdcbbc`, 2 pass / 0 fail):
+
+    coalesced+window75  (the build before today)   5.28 ms/frame
+    coalesced+window0                              5.35 ms/frame    (+1.4 % — the window is FREE)
+    top-level+window75                             8.40 ms/frame
+    top-level+window0   (the build today)          8.60 ms/frame    (+63 % against the pre-today build)
+
+  So the lag is T7's `internalBlockMode="top-level"`, NOT the window: the window's cost sits inside the
+  noise, and refuting it cost one line of the table rather than an argument. **The number is a LOWER
+  BOUND for the owner's session**: the replay holds ONE markdown block while a real session holds
+  thousands, and `top-level` multiplies renderables PER BLOCK — so the cost scales with history, which is
+  what «безнадежно» describes.
+  WHAT THIS DOES NOT SETTLE, named: (1) whether HIS lag disappears when this is reverted — his runtime
+  sat at **1.87 GB** resident (measured, `tasklist`), a second and independent suspect this replay cannot
+  see; (2) whether `internalBlockMode` can be switched at `streaming: false` on a live renderable — the
+  fix that would keep BOTH the formatting and the speed. That is unverified engine behaviour, so it is
+  proposed, never assumed (@ORACLE: measure, do not extrapolate).
+  DECISION OWED TO THE OWNER, product-visible both ways: revert `top-level` (cheap markdown returns),
+  keep it (the lag stays), or switch it at `streaming: false` (structurally neat, unproven). The
+  measurement is the deliverable; the trade is his to make.
   T4 remains unticked.
 - [ ] **T5 — ScrollBox (P3), only if T1–T3 leave a residual.** Coalesce `recalculateBarProps()` to one
   call per frame; apply sticky-bottom once after a completed layout transaction; no per-size

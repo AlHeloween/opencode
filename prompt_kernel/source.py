@@ -498,7 +498,7 @@ KERNEL = Kernel(
         "SOURCE_STAMP": "{authority_class, url_provenance, content_hash}",
         "CLOSURE_PROOF": "{acceptance_coverage, oracle_result, critical_risks, residual}",
         "CLEAN_NEXT_STATE": "{terminal_mode, completed, risks, residual, route}",
-        "RESIDUAL_GOAL": "{gap, bound, route}",
+        "RESIDUAL_GOAL": "{gap, bound, route, form_holds}",
         "QUALITY_VECTOR": "{performance, stability, ux, automation, documentation, maintainability, organization}",
     }),
     action_classes=MappingProxyType({

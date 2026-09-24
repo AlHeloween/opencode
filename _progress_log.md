@@ -4954,3 +4954,25 @@ split adds, and nothing present lacks support. Record the remainder as residual 
 abandoned." It is 15 B SHORTER than the one-sided version it replaced.
 
 product 46957 B, sha acc73618..., free 43. 107 passed.
+
+## [2026-09-24 23:05] form_holds — the converse, encoded as a slot
+
+Owner: «Верно и обратное — любая не perfect form перечёркивает любую мудрость с точки зрения
+продукта.»
+
+Value does not ADD, it MULTIPLIES: wisdom × form = product, so a zero on the form side zeroes the
+product regardless of the thinking behind it. His own field case is the proof — what enraged the
+experts about Astra was not the specification errors but an odometer wheel drawn not pressed against
+the pipe wall.
+
+What this exposed in the kernel: today's `@EVIDENCE_BOUNDED_CLOSURE` says a partial REAL result
+outranks a complete simulated one, and that is right — but `RESIDUAL_GOAL` was `{gap, bound, route}`
+and said nothing about whether the DELIVERED part stands on its own. A residual can be small and
+still lethal to the form, and an autonomous run would report "partial real result" while shipping a
+fragment worth zero.
+
+Encoded as `{gap, bound, route, form_holds}` — a SLOT, 13 bytes, not a sentence. This is today's own
+finding applied to itself: a field has to be filled, so it forces the judgement, while an imperative
+only requests it and can be satisfied by tone.
+
+product 46969 B, sha dc981bc4..., free 31. 107 passed.

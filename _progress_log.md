@@ -1,5 +1,15 @@
 # Progress Log
 
+## [2026-09-24 16:58Z] to_be_confirmed shelf: the four owner-confirmed plans closed (T1 of the shelf triage)
+
+✓ Unit runs located on disk (`logs/cmd_runner/`): `20260921T052930Z_4277e824` 4 pass / 0 fail (`test/tui/agent-model-cell.test.ts`) + `20260921T065309Z_13c584d0` 16 pass / 0 fail + `tsgo --noEmit`; `20260923T043752Z_e3189cb2` 8 pass / 0 fail (`test/tui/automode.test.ts`). ✓ Owner confirmation of the live testing is recorded in the shelf readme (2026-09-24).
+
+✗ The machine records of the LIVE runs were NOT locatable: the worktree holds no session history for 2026-09-21…24 — `opencode.db` carries only the current session, the memory index holds 49 parts (all current), fossil's snapshot store starts 2026-09-24 16:39Z, and the other worktrees / `bin_tst` / `packages` hold nothing later than 09-20. Each entry therefore records the owner's confirmation AS its evidence, marked «machine record not located» — per the triage plan T1, not a silent tick.
+
+Dispositions: Ctrl+T — the stale «live smoke NOT yet run» mark replaced by the closure record; automode — T3 [x] (exit table pinned by unit test, live exit owner-confirmed); ChatGPT OAuth — T4 [x] per its own contract (no live `cached_tokens` → the Unknown is WRITTEN and the monetary effect is not presented as proven); TUI model pick — T5 [x] (owner-observed live pick; `refreshSessionSettings()` remains a separate Inferred-risk candidate). All four moved → `plans_completed/`; shelf readme rows updated with the new paths.
+
+Tool class: `fossilgrep` cannot spawn on this host (ENAMETOOLONG on every pattern) — the snapshot search was skipped; `git log` + `logs/cmd_runner` covered it instead.
+
 ## [2026-09-24 15:30Z] Gateway integrity counter: the marker that was never in the kernel (plan cycle closed, 1ba4666725)
 
 CONFIRMED (✓ `raw-diff.ts:732` + `grep prompt_kernel` → no matches; ✓ the live `.diff` `15-07-57-…` printing 0 against the same stem's body carrying the kernel): `KERNEL_MARKER = "Semantic Vector (SV)"` existed in NO kernel render, so the integrity report printed `kernel copies: 0 (EXPECTED 1 — identity accumulation)` on every request — a counter that could never pass. The unit tests fed a FABRICATED kernel (`"# Semantic Vector (SV) — kernel body"`), so they proved the counting logic and never the marker — a fixture that does not repeat production. Born dead at `5d433565df`.

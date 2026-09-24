@@ -2,6 +2,8 @@
 
 # /automode — bounded auto-continuation for the active session
 
+**Status:** CLOSED (2026-09-24, moved to `plans_completed/`) — T1–T4 done; T3's live remainder (exit paths) is owner-confirmed, the machine record of that live run is not located.
+
 Owner, 2026-09-23: «добавь опцию /automode чтобы всплывала метка авто из которой агент может выйти только
 завершив план если ничего не указано или чисто циклов итераций ... /automode [iterations]?»
 
@@ -49,14 +51,16 @@ Owner, 2026-09-23: «добавь опцию /automode чтобы всплыва
   `20260923T043752Z_e3189cb2`) + `bun typecheck` exit 0 (run `20260923T043802Z_d23b1a29`). The pins fail
   on the old rules by construction (a reached limit still returning `continue`; `plansNow` unchanged
   still stopping under `all`).
-- [ ] **T3 — command, indicator, hint (editors done; smoke PARTLY observed).** `automode.toggle`
+- [x] **T3 — command, indicator, hint (editors done; smoke observed; live-exit remainder owner-confirmed below).** `automode.toggle`
   registered with `slash: { name: "automode" }` next to AGI (`app.tsx:647-657`); the label
   `[AUTO ● plan | all | k/N]` renders next to `[AGI ○]` (`routes/session/index.tsx:1789-1798`); the
   `COMMAND_HINTS` entry added. Rebuild done (`dist/bin/opencode.exe`, 2026-09-23 13:23:47 local).
   OBSERVED: the owner enabled the mode inside his own TUI (owner, 2026-09-23: «Ну что-же режим
   включен») and the FIRST auto-continue arrived in the live session as a real `continue` turn — the
-  cycle works end-to-end. NOT observed: the exit paths (iteration limit / plan moved) on a live
-  session — the table is pinned in unit tests but the live exit is owed to the owner; and an automated
+  cycle works end-to-end. NOT observed then: the exit paths (iteration limit / plan moved) on a live
+  session — the table is pinned in unit tests (automode.test.ts, 8 pass / 0 fail, run
+  `20260923T043752Z_e3189cb2`) — later owner-confirmed: live testing on 2026-09-24 (shelf readme),
+  the machine record of that live run not located; and an automated
   ConPTY smoke of our own: the TUI came up on the new build and accepted input, but the stripped
   ConPTY log returns fragmentary frames — it is NOT a render oracle (class: a TUI's alt-screen diff
   cannot be read back from `stdout_text.log`; the test session was stopped cleanly). Still open by

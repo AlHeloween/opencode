@@ -2,7 +2,9 @@
 
 # /agents: ctrl+t шагает вариант в строке (включая recents)
 
-**Status:** ACTIVE (2026-09-21) — implementation + unit pins LANDED (`nextVariant` at agent-model-cell.ts:120, `setForModel` wired at local.tsx:1256, `variantStep` in dialog-agent.tsx; pin test/tui/agent-model-cell.test.ts:178); the live smoke (ctrl+t on an agent row steps the variant in the footer; on a recents row too; a model NOT in recents still opens the form) is NOT yet run.
+**Status:** CLOSED (2026-09-24, moved to `plans_completed/`) — implementation + unit pins LANDED (`nextVariant` at agent-model-cell.ts:120, `setForModel` wired at local.tsx:1256, `variantStep` in dialog-agent.tsx; pin test/tui/agent-model-cell.test.ts:178).
+Unit runs on disk: `20260921T052930Z_4277e824` (4 pass / 0 fail, agent-model-cell) and `20260921T065309Z_13c584d0` (16 pass / 0 fail across three TUI files + `tsgo --noEmit`).
+Live smoke (ctrl+t on an agent row steps the variant in the footer; on a recents row too; a model NOT in recents still opens the form): owner confirmed live testing on 2026-09-24 (shelf readme); a machine record of that run was not located — this worktree holds no session history for 2026-09-21…24 — so the entry cites the owner's confirmation as its source. Re-run waived per the shelf readme.
 **Владелец:** сессия `ses_f3d5f006dffe0015eRg1pBuKA2`
 
 ## 1. Требование

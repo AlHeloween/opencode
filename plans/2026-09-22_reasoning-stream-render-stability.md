@@ -162,7 +162,10 @@ its **application to this stream**, which is §2's oracle.
   symptom — and the instrument that closed it is what saved the wasted fix.
   NOT OBSERVED, named so it is not read as covered: «a single layout per commit», the second half of the
   original acceptance. No instrument measures layout count yet, and no consumer has asked for it.
-- [ ] **T4 — pixel oracle for exactly this flow (the missing instrument).** `cmd_runner start --
+- [ ] **T4 — pixel oracle for exactly this flow (the missing instrument).** **SUPERSEDED (2026-09-24), not done:**
+  its live-burst method was dropped on the owner's own finding below («ты не сможешь поймать этот дефект так»);
+  the flicker oracle is now the isolated replay (T11a) plus the live render trace (T13a). Its acceptance lines and
+  falsifier were never rewritten, so this box stays open until T13a's live trace closes the question. `cmd_runner start --
   dist\bin\opencode.exe` + a prompt forcing a long reasoning stream; capture frames at fixed intervals
   (`cua get_window_state` with `screenshot_out_file`); a reader script asserts: stable lines above the
   live tail are byte-identical between frames; no frame where the visible reasoning is empty/plain; the
@@ -371,7 +374,9 @@ its **application to this stream**, which is §2's oracle.
   keep it (the lag stays), or switch it at `streaming: false` (structurally neat, unproven). The
   measurement is the deliverable; the trade is his to make.
   T4 remains unticked.
-- [ ] **T5 — ScrollBox (P3), only if T1–T3 leave a residual.** Coalesce `recalculateBarProps()` to one
+- [ ] **T5 — ScrollBox (P3), only if T1–T3 leave a residual.** STILL LIVE (2026-09-24): T9 MEASURED the residual —
+  an appended line costs 2 frames against 1 for an in-place change, the extra one being `ScrollBox.ts:802`'s
+  `nextTick(requestRender)`, still in the code. Coalesce `recalculateBarProps()` to one
   call per frame; apply sticky-bottom once after a completed layout transaction; no per-size
   `process.nextTick(requestRender)`.
 - [x] **T6 — the computed colour was thrown away and repainted from the unstyled path (owner, 2026-09-23:
@@ -394,7 +399,10 @@ its **application to this stream**, which is §2's oracle.
   that also settles: the ```yaml fence is NOT the defect (owner: «tree sitter должен рендерить yaml
   так») — the defect was repainting the unstyled text over the computed colour, and `@SV_FORMAT`'s
   fenced shape is CORRECT and stays. The frame-based verification of the flicker itself remains owed.
-- [ ] **T7 — prose is rendered through the engine's `coalesced` mode; inline structure is destroyed before it
+- [ ] **T7 — SUPERSEDED by T13b (2026-09-24), not done.** Owner: «А top level вообще нах»; closed runs (T11b step 2)
+  give finished blocks their stability without `top-level`, and the formatting complaint this task carried is now
+  T13b's (prose styled by marked only). The box stays open as a record, never to be ticked on its own wording.
+  Original title: **prose is rendered through the engine's `coalesced` mode; inline structure is destroyed before it
   can be drawn (P0).** Owner, 2026-09-23: «текст уже не дергается, но цвета мерцают, форматирование не
   применяется, markdown рендерится убого» — this task is the «форматирование / markdown» half; T8 is the
   colour half.
@@ -490,6 +498,11 @@ its **application to this stream**, which is §2's oracle.
 
 ### 2026-09-23 — pipeline audit below the content layer (owner: «глянь пайплайн отрисовки и как он влияет на общую скорость»)
 
+LINE NUMBERS in this block are as of the audit (before T11/T11b) and are kept as the record; current anchors, checked
+2026-09-24 by an explore pass: `Markdown.ts` `content =` in `applyMarkdownCodeRenderable` → 1211; `Code.ts` setter
+paint → 169-173, the parse overwrite → 531, superseded-highlight `requestRender` → 470 / 491 / 525; `index.tsx`
+`splitTextSegments` → 2274, RichText `<Index>`/`<Switch>` → 2279-2299, `collapseControlCache` → 359/364;
+`markdown-parser.ts` `startsWith` walk → 68-76.
 Read-only audit, code-read only (✓ = read in code, ? = inferred, nothing measured yet). The LOWER layers are
 sound ✓: the agent runs in a Worker (`cli/cmd/tui/thread.ts:172`), a frame is composed whole into the buffer
 and diffed once (`renderer.ts:4688-4847`), and every emitted frame is wrapped in `?2026h … ?2026l`
@@ -861,9 +874,23 @@ native change is confined to the sixel emission path. Rust would be a second nat
     BLIND SPOTS, named: `TextRenderable` (list markers of separate lists), tables, images and every non-Code
     renderable are not traced; a JS-drawn frame the native side skips (backpressure) still counts; lines under
     8 chars and texts drawn twice with two styles in one frame are skipped as ambiguous; `y` is recorded but
-    scroll jitter is not analysed; a resize produces reflows that are not flicker.
+    scroll jitter is not analysed; a resize produces reflows that are not flicker; in a LIVE trace the last
+    frame record is never written (a frame record is emitted when the next frame draws, and
+    `closeRenderTraceFrame` is called only by the tests) — the final frame of a session is lost.
+    BUILT into `dist/bin/opencode.exe` **10.0.1110** (commit `a5d306c902`; log
+    `experiments/2026-09-24_render-trace/build-20260924T052413Z.log`, exit 0); read back from the artifact:
+    `OTUI_RENDER_TRACE`, `no-filetype` and the trace's `bug:` write-failure literal present. NOT yet observed:
+    that the compiled binary actually writes the file — the owner's first traced run is also that check.
+    Owner's command (PowerShell): `$env:OTUI_RENDER_TRACE = "D:\zPython\opencode\experiments\2026-09-24_render-trace\live.jsonl"; D:\zPython\opencode\dist\bin\opencode.exe`,
+    then `bun experiments/2026-09-24_render-trace/read-trace.ts <live.jsonl>` (cwd `packages/opentui/packages/core`).
   - [ ] **T13b — the cure above**, sized by what the trace shows, and confirmed by the same seam reading
     zero flickers live.
+
+- [ ] **T14 — the memory-run collapse control is recreated on every delta (small, real, found by the 2026-09-23
+  audit).** `routes/session/index.tsx:359` writes the control into the OLD `collapseControlCache`, and `:364` then
+  replaces the cache with the empty `nextControls` — the cache never holds, so the `[-]` row of an expanded memory
+  run remounts per delta. Fix: write into `nextControls`. Oracle first: the route is mounted by no test, so extract
+  `displayItems`' construction into a pure function and pin the control object's identity across two calls.
 
 - [ ] **T12 — move pixels with the terminal, not with a repaint (Hypothetical).** Probe on Windows Terminal:
   does a DECSTBM region + scroll-up (`CSI n S`) carry an on-screen sixel with it? The fork already drives a

@@ -120,6 +120,11 @@ carries the new sha, the previous one and the rollback artifact. 8–9. Freeze a
   zero, but so does the control (`DIGITAL_INTENTION`, `INFOMARK`), so the kernel is not plaintext in
   the executable and the predicate has no power. Promoting a build is the owner's act.
 - The prose compression pass is open; the worklist is `experiments/2026-09-24_kernel-prose-census/`.
+- **External review, 2026-09-24 (post-release): the six previously named objections no longer
+  reproduce and no new ones were raised.** Read it for what it is — a falsifier that did not
+  falsify. Under `DELEGATION` an isolated model call may only FALSIFY, never stamp, so agreement
+  moves nothing; and the reviewer reads the PREFIX, which says nothing about behaviour. It is a
+  regression check over a named list, not evidence of quality.
 
 ## The ceiling is now the binding constraint
 

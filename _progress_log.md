@@ -5023,3 +5023,7 @@ Owner's defect: tasks 4–5 dropped as unneeded stay `[ ]`, the plan reads as ow
 `CLOSURE_PROOF` + G9 `PATH_CLOSURE` "undone task -> [~] + reason" (product replaces a duplicate line,
 claude inserts, codex slot only). product 46984 B sha 90195dc3..., free 16. 107 passed. Codex home
 install not run (outside the repo).
+## [2026-09-24 15:45Z] TUI: фактический протокол gateway
+
+CONFIRMED (✓ codegraph `wrapFetch`/`View`/`protocolRow`, ✓ RED `20260924T153945Z_82c703ab`: 10 pass / 2 fail, ✓ GREEN `20260924T154430Z_8fe97841`: 17 pass / 0 fail / 104 expect, ✓ typecheck `20260924T154311Z_edb13bf9`: exit 0): `__gatewayLastProtocol` был записан в server worker и недоступен TUI; `auto` был лишь политикой. `wrapFetch` теперь публикует выбранный транспорт с ID запроса после успешной попытки, включая h3→h2 fallback; sidebar держит адресные факты в сигнале и показывает `unknown` без совпадения. Событие проходит через существующий `GlobalBus`/RPC; тест `useEvent` подтвердил global-envelope в workspace. Риск/остаток: отдельный изолированный TUI-кандидат ещё не показал фактическую строку; живой `bin/` не затрагивался. План на полке подтверждения.
+CONFIRMED (✓ repeat GREEN `20260924T155016Z_3677ee39`: 17 pass / 0 fail / 107 expect; ✓ typecheck `20260924T155036Z_1c85e609`: exit 0): уточнена адресация Novita — факт по sessionID допустим только для неё и только если получен после создания отображаемого assistant message. Предыдущий ход больше не даёт ложный протокол новому.

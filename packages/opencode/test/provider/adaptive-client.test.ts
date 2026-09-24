@@ -3,6 +3,7 @@ import fs from "fs"
 import os from "os"
 import path from "path"
 import { configureLogging, protocolChain, resolveGatewayProtocol, setDebugConfig, shouldDowngrade, wrapFetch } from "@/provider/gateway/adaptive-client"
+import { GlobalBus } from "@/bus/global"
 
 setDefaultTimeout(20_000)
 
@@ -97,9 +98,14 @@ describe("gateway wire capture", () => {
       },
     })
     const requestBody = '{"model":"capture-model","stream":true,"messages":[]}'
+    const protocolEvents: Array<{ directory?: string; payload: { type: string; properties: Record<string, string> } }> = []
+    const onProtocol = (event: any) => {
+      if (event.payload?.type === "gateway.protocol.selected") protocolEvents.push(event)
+    }
+    GlobalBus.on("event", onProtocol)
     const request = () => wrapFetch(globalThis.fetch)(server.url, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-request-id": "msg_current_turn" },
       body: requestBody,
       gatewayProvider: "capture-provider",
       gatewayModel: "capture-model",
@@ -107,16 +113,28 @@ describe("gateway wire capture", () => {
       gatewayStream: true,
     })
 
-    expect(await (await request()).text()).toContain("turn-1")
-    expect(await (await request()).text()).toContain("turn-2")
-    await Bun.sleep(25)
+    try {
+      expect(await (await request()).text()).toContain("turn-1")
+      expect(await (await request()).text()).toContain("turn-2")
+      await Bun.sleep(25)
+    } finally {
+      GlobalBus.off("event", onProtocol)
+    }
 
-    // T4: the transport publishes the factual protocol for the TUI sidebar.
-    const lastProtocol = (globalThis as any).__gatewayLastProtocol as
-      | { provider?: string; model?: string; protocol?: string }
-      | undefined
-    expect(lastProtocol?.provider).toBe("capture-provider")
-    expect(lastProtocol?.protocol).toBe("http/1.1")
+    // T4: the worker publishes the correlated fact through the TUI event bridge.
+    expect(protocolEvents).toHaveLength(2)
+    expect(protocolEvents[0]).toMatchObject({
+      directory: "global",
+      payload: {
+        type: "gateway.protocol.selected",
+        properties: {
+          requestID: "msg_current_turn",
+          providerID: "capture-provider",
+          modelID: "capture-model",
+          protocol: "http/1.1",
+        },
+      },
+    })
 
     // ── intent: per-request/<ISO-start>-<requestId>.json ──
     const intentFiles = captureFiles("per-request", ".json")
@@ -425,6 +443,11 @@ describe("gateway wire capture", () => {
     const address = h2server.address() as { port: number }
 
     const realFetch = globalThis.fetch
+    const selected: string[] = []
+    const onSelected = (event: any) => {
+      if (event.payload?.type === "gateway.protocol.selected") selected.push(event.payload.properties.protocol)
+    }
+    GlobalBus.on("event", onSelected)
     globalThis.fetch = ((input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
       if ((init as { protocol?: string } | undefined)?.protocol === "http3") {
         return Promise.reject(new Error("stub: QUIC handshake failed"))
@@ -434,7 +457,7 @@ describe("gateway wire capture", () => {
     try {
       const response = await wrapFetch(realFetch)(`http://127.0.0.1:${address.port}/chat/completions`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", "x-request-id": "msg_fallback_turn" },
         body: '{"model":"capture-model","stream":true,"messages":[]}',
         gatewayProvider: "capture-provider",
         gatewayModel: "capture-model",
@@ -443,6 +466,7 @@ describe("gateway wire capture", () => {
       })
       expect(await response.text()).toContain("h2-turn")
     } finally {
+      GlobalBus.off("event", onSelected)
       globalThis.fetch = realFetch
       h2server.close()
       const closer = h2server as unknown as { closeAllConnections?: () => void }
@@ -457,6 +481,7 @@ describe("gateway wire capture", () => {
         JSON.parse(fs.readFileSync(path.join(logDir, "raw-wire", name), "utf8")) as { attempt: number; protocol: string },
     )
     expect(wires.map((wire) => wire.protocol)).toEqual(["h3", "h2"])
+    expect(selected).toEqual(["h2"])
     expect(wires.map((wire) => wire.attempt)).toEqual([1, 2])
     const responses = captureFiles("per-response", ".json")
     expect(responses).toHaveLength(1)

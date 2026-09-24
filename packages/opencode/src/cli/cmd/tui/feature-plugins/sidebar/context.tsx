@@ -4,7 +4,7 @@ import { createMemo, createSignal, onCleanup, onMount, untrack } from "solid-js"
 import { getModelStatus } from "@/provider/balance"
 import { usable } from "@/session/overflow"
 import { useAgiMode } from "@tui/context/agi-mode"
-import { protocolRow } from "./protocol-row"
+import { protocolRow, type LastProtocol } from "./protocol-row"
 
 const id = "internal:sidebar-context"
 
@@ -144,6 +144,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
     return { total, sidecar, main: Math.max(0, total - sidecar) }
   })
   const [providerStatus, setProviderStatus] = createSignal<Record<string, ModelStatusDisplay>>({})
+  const [protocolFacts, setProtocolFacts] = createSignal<Record<string, LastProtocol>>({})
 
   // Calculate cache stats for all active sessions
   const allSessionStats = createMemo(() => {
@@ -293,6 +294,24 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
   })
   onCleanup(() => unsub?.())
 
+  const unsubProtocol = (props.api.event as any).on("gateway.protocol.selected", (evt: any) => {
+    const p = evt.properties ?? evt
+    if (
+      typeof p.requestID !== "string" || !p.requestID ||
+      typeof p.providerID !== "string" ||
+      typeof p.modelID !== "string" ||
+      typeof p.at !== "number" ||
+      !["h3", "h2", "http/1.1"].includes(p.protocol)
+    ) return
+    setProtocolFacts((prev) => {
+      const next: Record<string, LastProtocol> = { ...prev, [p.requestID]: p as LastProtocol }
+      const keys = Object.keys(next)
+      if (keys.length > 128) delete next[keys[0]!]
+      return next
+    })
+  })
+  onCleanup(() => unsubProtocol?.())
+
   // Fetch model status for all configured providers on mount so the
   // sidebar shows status immediately, not just after a message is sent.
   onMount(() => {
@@ -361,14 +380,13 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       | { activeStreams: number; h2Sessions: number; h2MaxConcurrentStreams: number; updatedAt: number }
       | undefined
 
-    // Last factual decision wins: the sidebar shows WHAT THE TRANSPORT USED,
-    // not what the config asked for. No key matching — the last request in the
-    // session IS the fact, and an id-variant mismatch must never blank the row
-    // (blank read as "everything is broken", 2026-09-24).
-    const lastProtocol = (globalThis as any).__gatewayLastProtocol as
-      | { provider: string; model: string; protocol: string; at: number }
-      | undefined
-    const liveProtocol = protocolRow(lastProtocol, model?.options?.protocol)
+    const liveProtocol = protocolRow(protocolFacts(), {
+      requestID: last.parentID,
+      sessionID: props.session_id,
+      providerID: last.providerID,
+      modelID: last.modelID,
+      assistantCreatedAt: last.time.created,
+    })
 
     const totalInput = last.tokens.input + last.tokens.cache.read
     const cacheHitRate =
@@ -388,7 +406,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       tokens,
       percent: budget > 0 ? Math.round((tokens / budget) * 100) : null,
       gatewayEnabled,
-      protocol: gatewayEnabled ? liveProtocol : undefined,
+      protocol: liveProtocol,
       streaming: gatewayEnabled ? (model?.options?.streaming ?? true) : undefined,
       activeStreams: liveStatus?.activeStreams ?? 0,
       h2Sessions: liveStatus?.h2Sessions ?? 0,

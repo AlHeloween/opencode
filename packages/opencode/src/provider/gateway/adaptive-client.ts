@@ -20,6 +20,7 @@ import { make as makeAsyncLogger, makePerRequest, readableResponseBody } from ".
 import type { ResolvedDebugConfig } from "./debug-config"
 import { applyTemporaryDataAcquisition, parseTdaHeader } from "./tda"
 import { exchangeStem, isoFileStamp, writeWireAttempt } from "./wire-capture"
+import { GlobalBus } from "@/bus/global"
 
 const log = Log.create({ service: "gateway.adaptive-client" })
 
@@ -940,14 +941,25 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
 
         if (attemptFailure) throw attemptFailure
 
-        // Last factual protocol, published for the TUI sidebar: the transport
-        // decision must be readable as state without replaying gateway.log
-        // (the sidebar used to fabricate "http/1.1" from options alone).
-        ;(
-          globalThis as {
-            __gatewayLastProtocol?: { provider: string; model: string; protocol: TransportProtocol; at: number }
-          }
-        ).__gatewayLastProtocol = { provider, model, protocol: usedProtocol, at: Date.now() }
+        // The gateway runs in the server worker. Publish the successful rung
+        // through the existing worker-to-TUI event bridge, correlated to the
+        // request that produced the visible assistant turn.
+        const clientRequestID = intentHeaders["x-request-id"]
+        if (clientRequestID) {
+          GlobalBus.emit("event", {
+            directory: "global",
+            payload: {
+              type: "gateway.protocol.selected",
+              properties: {
+                requestID: clientRequestID,
+                providerID: provider,
+                modelID: init?.gatewayModel || model,
+                protocol: usedProtocol,
+                at: Date.now(),
+              },
+            },
+          })
+        }
 
         sample.headersReceivedAt = Date.now()
         sample.status = response.status
@@ -1249,4 +1261,3 @@ export function logGatewayStatus(): void {
 }
 
 export { initLogger }
-

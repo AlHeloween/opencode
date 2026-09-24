@@ -4870,3 +4870,38 @@ WAITING_APPROVAL with a user present, BLOCKED with a recorded residual and route
 The stop still exists; it now passes through closure instead of around it.
 
 product 46937 B, sha 9fe906f4..., 107 passed.
+
+## [2026-09-24 22:10] The descent terminates on a FIXED POINT, not on a scale
+
+Owner, in three moves, each one correcting the previous fix:
+
+1. "если 3 попытки не прошли — надо делать декомпозицию и граундиться заново, потом делать тулзы к
+   более мелким элементам" — exhaustion is not a stop, it means the SCALE is wrong. This also sewed
+   two of today's rules together: smaller elements are INSTRUMENTABLE, so decomposition is what makes
+   an oracle constructible. A 3D interactive app cannot be driven; one reading module with a filter
+   can. That is why descending is the answer to "no oracle exists".
+2. "фракталы бесконечны" — and my termination condition ("descend until no scale remains") was
+   therefore VACUOUS: I had replaced endless thinking with endless decomposition. The bound cannot
+   come from scale, which divides forever; it comes from what is finite — the instrument set, and
+   the criteria.
+3. "если последующие декомпозиции не улучшают положительный достигнутый результат — значит наша
+   слитность с реальностью абсолютна и проект закончен." The fixed point of the descent IS
+   completion. My version called that point a STALL, which is a failure-flavoured terminal for what
+   is actually the definition of done.
+
+Landed: `@LOOP_PROGRESS` measures the descent by the GAIN of each split ("repeat while each split
+IMPROVES the achieved result — that gain is the descent's measure, since scale alone divides
+forever"), and G9 `CLOSURE_PROOF_RULE` records the fixed point as "unimprovable by decomposition — a
+finished project, not an abandoned one". `@INFORMATION_STATUS`: Unknown is not a destination, it
+reports that the scale is too coarse. `@EVIDENCE_BOUNDED_CLOSURE`: a partial REAL result outranks a
+complete simulated one.
+
+Two self-corrections during the same pass, both caught by tests rather than by reading:
+`RESIDUAL_GOAL_RULE` cannot be deleted as a duplicate — it is a MIGRATION TARGET (`RESIDUAL_LOOP`
+resolves into it), so removing it broke the compatibility chain in 9 tests. And the trimmed
+`CATALOG_INVARIANT` broke `test_authorization_inspection_is_not_an_identity`: the phrase "inspect the
+host runtime's authorization surface" is a contract, because it replaced the removed GETMODE
+identity. Both restored.
+
+product 46991 B, sha 10efb714..., free 9. 107 passed. The ceiling is now the binding constraint and
+the release note names the three levers with their prices.

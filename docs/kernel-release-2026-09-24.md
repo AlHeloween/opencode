@@ -5,9 +5,9 @@ owner on 2026-09-24. Rollback point: `prompt_kernel/dist/2026-09-17_23-16-37_rea
 
 | surface | path | bytes | sha256 |
 |---|---|---|---|
-| product | `packages/opencode/src/session/prompt/reasoning_prompt.txt` | 46 870 | `eefc79d6…74864227` |
-| claude | `.claude/reasoning_kernel.md` | 46 825 | rendered from the same source |
-| codex | `prompt_kernel/dist_codex/*_reasoning_prompt.txt` | 46 393 | rendered, host installs its own |
+| product | `packages/opencode/src/session/prompt/reasoning_prompt.txt` | 46 991 | `10efb714…4cc1d0ef` |
+| claude | `.claude/reasoning_kernel.md` | 46 946 | rendered from the same source |
+| codex | `prompt_kernel/dist_codex/*_reasoning_prompt.txt` | 46 514 | rendered, host installs its own |
 | previous production | — | 46 904 | `dabf50f3…` |
 | **battle-tested base** | `dist/2026-09-17_23-16-37_reasoning_prompt.txt` | 34 580 | `f98f0f11…` |
 
@@ -79,6 +79,18 @@ is satisfied literally. **Removed as duplicate**: the V&V line (carried by `@ORA
 - `@COMPACTION_CADENCE`: after a fold the first act is an instrument call that re-reads a handle —
   the plan comment, the progress log, a `path:line` — never a summary of the summary. The fold
   deletes the only part of the window that demonstrates instrument use, so it has to be re-made.
+- **Termination is a FIXED POINT, not a scale limit** (owner: «фракталы бесконечны»). `@LOOP_PROGRESS`:
+  exhaustion means the scale is wrong — descend, re-ground the leaves, build a leaf's instrument, and
+  repeat while each split IMPROVES the achieved result; that gain is the descent's measure, since
+  scale alone divides forever. G9 `CLOSURE_PROOF_RULE`: at the fixed point the remainder is
+  unimprovable by decomposition — a finished project, not an abandoned one.
+- `@INFORMATION_STATUS`: Unknown is not a destination — it reports that the SCALE is too coarse.
+- `@EVIDENCE_BOUNDED_CLOSURE`: everything delivered carries its oracle and the uncovered part of the
+  intent is named as residual; **a partial REAL result outranks a complete simulated one**.
+- `loop_budget` is derived, not hardcoded: the envelope's value, else the count of distinct declared
+  routes out of that gate (G8 three, G9 two, G2 and G5 one). It counts DISTINCT attempts — the same
+  instrument twice is already a STALL under `UNKNOWN_ROUTING`. An established absence does not burn
+  a retry, or the rule would reward acting without grounding.
 - `G9`: the plan moves by the OUTCOME — SUCCESS → `plans_completed/`, OUT_OF_SCOPE →
   `plans_deferred/`, BLOCKED and WAITING_APPROVAL → `plans/postponed/` with the reason and the
   signal that lifts it. `plans/` is legal only while the plan owes work.
@@ -102,3 +114,14 @@ carries the new sha, the previous one and the rollback artifact. 8–9. Freeze a
   zero, but so does the control (`DIGITAL_INTENTION`, `INFOMARK`), so the kernel is not plaintext in
   the executable and the predicate has no power. Promoting a build is the owner's act.
 - The prose compression pass is open; the worklist is `experiments/2026-09-24_kernel-prose-census/`.
+
+## The ceiling is now the binding constraint
+
+product 46 991 / 47 000 — **9 bytes free**. Everything in this release was funded from evicted
+catalogues and removed rationale prose; there is nothing left to give without a decision:
+
+| lever | worth | whose call |
+|---|---|---|
+| the prose compression pass | 58 unpinned rules, 4 543 B of tail — worklist in `experiments/2026-09-24_kernel-prose-census/` | owner |
+| `@SOURCE_ROUTING` secondary routes (33 entries) | 525 B; the norm says enter the PRIMARY of the class, so the secondaries have no caller | owner |
+| raise `KERNEL.utf8_budget` | any | owner, and against the standing rule |

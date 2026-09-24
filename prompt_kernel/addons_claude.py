@@ -40,6 +40,14 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
     ),
     GateAddon(
         "G1",
+        "NO_WINDOW_ORACLE",
+        (
+            "window fill, the fold threshold and the burn rate are NOT reported on this host, and the fold arrives as a notice AFTER it happened: treat it as unpredictable and persist the handles at every closed boundary, never at a threshold.",
+            "no chain reader runs here either: a prev-md5 break is found by reading, not announced, so recovery across one is Guess and the intention is re-read from the plan comment, the progress log and the ledgers — never from the prose in the window.",
+        ),
+    ),
+    GateAddon(
+        "G1",
         "TOOL_GROUNDING",
         (
             "ground via: codegraph_explore (if .codegraph/), Read, Grep/Glob, WebFetch/WebSearch.",

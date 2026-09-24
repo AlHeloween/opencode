@@ -4670,3 +4670,50 @@ trace on: line returns 0, blank flashes 0, reflows 0, redundant 1.4 %. Suites gr
 
 Residual: the live trace from the owner's session; blind spots named in the plan (non-Code renderables,
 native skips, short/ambiguous lines, scroll jitter).
+
+## [2026-09-24 02:15] Outside review triaged against the CODE, and two host notes land
+
+An external review of the kernel arrived with 8 defects. Triaged by reading the live render and
+the runtime, not the review's line numbers.
+
+Verified present and therefore NOT defects [Exact]:
+- **The vector chain IS read.** `memory/spine.ts:75` `extractVectorChain` — three fields,
+  line-anchored, last occurrence per field (an `rfind("md5:")` once matched inside
+  `parent-goal-md5:` and reported an 86 % broken chain that was instrument error), and it accepts
+  the spaced `16hex 16hex` form. `session/compaction.ts:1537` compares against the nearest OLDER
+  CARRIER — not the array neighbour, which in an assistant→user→assistant window is a message with
+  no vector at all — and emits `⚠ chain break — sessionread back from here`: a marker with its
+  recovery route. Calibrated 668 intact / 133 broken / 68 starts.
+- **The window IS accounted per turn.** `compaction.ts:839-846` prints
+  `ctx <open>/<foldAt> · headroom <N> ~ <T> more turns at the recent <R>/turn · layer-1 …` into the
+  mutable tail; `WindowState` = {open, foldAt, sinceSummary, perTurn}.
+
+So the review's items 2, 3 and 4 are one class, not three — "the machine already reports it, no
+norm listens" — and on this host two of the three are already wired on the machine side. The one
+genuine "recorded, never re-read" is the **artifact digest**: written at G8 PROVENANCE, never
+compared again. That stays open.
+
+Methodological finding worth keeping: reviewing the prefix as a standalone document produces
+FALSE ABSENCES — the same class the kernel names for a filter that matched nothing. Half the
+system lives in the runtime.
+
+Confirmed and unaddressed from the review: no weakest-link composition rule (Exact + Guess must
+not yield Exact); `ASSERTION_STATUS` is cross-cutting but sits inside G7; "Do not treat simulation
+error" reads as "do not handle it" — but that string is pinned in `test_constitution.py`
+CORE_SUBSTANCE, so rewording is an L2 with the owner's diff, not an edit; `md5` still claims
+"linking and ranking" where ranking by random hex is meaningless.
+
+Change: `NO_WINDOW_ORACLE` G1 addon for the Claude and Codex variants — neither host reports
+window fill, threshold, burn rate or chain breaks, and the Claude fold arrives as a notice after
+the fact, so the rule changes the CADENCE (persist at every closed boundary) rather than naming a
+missing rung. Declared in `test_variant_parity.py` with its reason. Codex byte cap 46 000 ->
+47 000, tracking the product ceiling that had moved.
+
+Oracle [Exact]: 106 passed. product 46 666 / 47 000, claude 46 507, codex 46 031; validator and
+dedup clean. Claude installed at sha256 `59622789aedfcdb8…` with the note probed present; codex
+artifact `e4713f56f3e770b0…`.
+
+Persisted before the fold (the window is ~600k and the owner called for a compact): three memory
+files — the runtime consumers with their file:line, this host's absence of a window oracle, and
+the build/install procedure including "`--install` does not repin" — plus the July-ABI mining
+record appended to the lineage memory, and three lines in MEMORY.md.

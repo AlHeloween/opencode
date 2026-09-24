@@ -252,6 +252,8 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @SAFE
 - durable criteria: .opencode/data/memory/reasoning.md — read before non-trivial work.
 - never store plans under .claude/plans/.
 - instrument chain, in order: where/which -> codegraph_explore -> (no history search on this host) -> WebSearch/WebFetch -> Glob -> Grep; device state via the shell. Name the rung that answered.
+- window fill, the fold threshold and the burn rate are NOT reported on this host, and the fold arrives as a notice AFTER it happened: treat it as unpredictable and persist the handles at every closed boundary, never at a threshold.
+- no chain reader runs here either: a prev-md5 break is found by reading, not announced, so recovery across one is Guess and the intention is re-read from the plan comment, the progress log and the ledgers — never from the prose in the window.
 - ground via: codegraph_explore (if .codegraph/), Read, Grep/Glob, WebFetch/WebSearch.
 - file enumeration: Glob/Grep/Read — never shell ls/dir/find/cat (hard-blocked).
 - platform: Windows = Bash or PowerShell tool; never mix syntaxes.

@@ -89,7 +89,9 @@ def test_codex_variant_stays_within_explicit_budget() -> None:
     # Measured after it: 43_032 B — the byte cap steps to the next thousand above the measurement.
     # 46_000 (2026-09-22): aligned to the product ceiling; this variant no longer needs its own
     # margin now that the host chain replaced the prose it used to carry.
-    assert len(text.encode("utf-8")) <= 46_000
+    # 47_000 (2026-09-24): tracks the product ceiling, which moved 46_000 -> 47_000; this variant
+    # also carries NO_WINDOW_ORACLE, the note that its host reports neither window nor chain.
+    assert len(text.encode("utf-8")) <= 47_000
     # 5_150 -> 5_400 (2026-09-20, same step): measured 5_247 tokens after the GUI/TUI/ergonomics
     # rule sets — the token cap steps with the byte cap, 153 spare.
     # 5_800 -> 6_000 (2026-09-21): steps with the byte cap for the G9 TOOL_HEALTH binding.

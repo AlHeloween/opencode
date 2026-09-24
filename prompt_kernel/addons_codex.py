@@ -33,6 +33,14 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
     ),
     GateAddon(
         "G1",
+        "NO_WINDOW_ORACLE",
+        (
+            "no window accounting and no chain reader are bound on this host: the fold is unpredictable, so persist the handles at every closed boundary rather than at a threshold.",
+            "a prev-md5 break is therefore found by reading, not announced — recovery across one is Guess, and the intention is re-read from the plan comment, the progress log and the ledgers.",
+        ),
+    ),
+    GateAddon(
+        "G1",
         "TOOL_GROUNDING",
         (
             "ground code via mounted codegraph_explore when .codegraph/ exists; otherwise Read, Glob, and Grep.",

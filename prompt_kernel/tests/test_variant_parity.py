@@ -36,6 +36,8 @@ DECLARED_DIFFERENCES = {
     ("claude", "G9", "ARTIFACT_LANGUAGE"): "same repo, same owner-facing split",
     ("product", "G1", "PATH_AGI_WORKOUT"): "the build_mode overlay's journal is bound to THIS kernel only: /automode exists here, the Codex and Claude hosts have no such overlay",
     ("product", "G7", "PATH_AGI_WORKOUT_LOG"): "same binding, write half — the overlay's memory is host-local by design",
+    ("claude", "G1", "NO_WINDOW_ORACLE"): "opencode computes the window and reads the vector chain back; this host reports neither, so the cadence rule replaces the threshold rule",
+    ("codex", "G1", "NO_WINDOW_ORACLE"): "same absence on the external harness — the note names the missing rung instead of skipping it",
 }
 
 

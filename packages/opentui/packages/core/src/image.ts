@@ -1,4 +1,5 @@
 import { open, stat } from "node:fs/promises"
+import { fileURLToPath } from "node:url"
 
 import { toArrayBuffer } from "./platform/ffi.js"
 import { resolveRenderLib, type ImageHandle, type RenderLib } from "./zig.js"
@@ -320,9 +321,12 @@ async function readResponseBytes(response: Response, signal?: AbortSignal): Prom
 
 async function readFileBytes(path: string | URL, signal?: AbortSignal): Promise<Uint8Array> {
   signal?.throwIfAborted()
-  if ((await stat(path)).size > MAX_ENCODED_BYTES) throw imageError(6)
+  // A consumer compiling with lib "dom" sees the DOM `URL`, which node's `PathLike` does not accept;
+  // going through `href` gives every lib the same plain string path.
+  const filePath = typeof path === "string" ? path : fileURLToPath(path.href)
+  if ((await stat(filePath)).size > MAX_ENCODED_BYTES) throw imageError(6)
 
-  const file = await open(path, "r")
+  const file = await open(filePath, "r")
   const chunks: Uint8Array[] = []
   let total = 0
   try {

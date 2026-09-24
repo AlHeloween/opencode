@@ -2499,7 +2499,9 @@ export class AudioRecorder extends EventEmitter<AudioRecorderEvents> {
         timer = setTimeout(poll, STREAM_POLL_INTERVAL_MS)
       }
       void reader.read().then(
-        (result) => finish(() => resolve(result)),
+        // Re-shaped instead of passed through: DOM's done-result types `value` as `T | undefined`,
+        // bun's as `undefined`, and consumers type-check this source under either lib.
+        (result) => finish(() => resolve(result.done ? { done: true } : { done: false, value: result.value })),
         (cause) => finish(() => reject(cause)),
       )
       timer = setTimeout(poll, STREAM_POLL_INTERVAL_MS)

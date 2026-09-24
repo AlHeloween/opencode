@@ -20,7 +20,9 @@
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": false,
-    "noImplicitOverride": true,
+    // Off: @opentui/core resolves to its .ts sources (skipLibCheck does not cover them), and the
+    // 0.5.11 core is written without `override` — this flag would police core, not the spinner.
+    "noImplicitOverride": false,
 
     // Some stricter flags (disabled by default)
     "noUnusedLocals": false,

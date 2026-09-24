@@ -4654,3 +4654,19 @@ Plan: `plans/2026-09-24_tui-model-pick-current-session.md`. Live-state read: KV 
 ## [2026-09-24 02:11] ChatGPT OAuth cache T3 — model catalog
 
 Plan: `plans/2026-09-24_chatgpt-oauth-cache-efficiency.md` T3. Replaced permissive/stale model regex with published Codex GPT-6, GPT-5.6 and GPT-5.5 IDs. RED `20260923T180102Z_fae7c6fd` hid GPT-6 and admitted retired GPT-5.4; GREEN `20260923T180918Z_09531341` in the focused 247/247, typecheck exit 0. Private account visibility remains Unknown pending T4.
+
+## [2026-09-24 02:10] T13a — the render-trace seam (built; the box waits for the live trace)
+
+Plan: `plans/2026-09-22_reasoning-stream-render-stability.md` T13a (owner: the buffer is the place to hang
+debug and catch flicker; the oracle must respect every rendering subtlety). Diff: `core/src/lib/render-trace.ts`
+(paint / drawn / frame records, `analyzeRenderTrace`), `Code.ts` (`paint(source, text)` for all 12 buffer
+writes, `recordDrawn` at the end of `renderSelf`), `__tests__/render-trace.test.ts` (5 controls), readers in
+`experiments/2026-09-24_render-trace/`.
+
+Evidence: the first positive control read 0 and the seam named why (a CodeRenderable without a filetype
+repaints plain on every dirty frame); corrected, 5/5 controls pass — the T11 bug caught per line and missed per
+block, coalescing not counted, culling/blank/reflow decided over drawn frames. Isolated real stream with the
+trace on: line returns 0, blank flashes 0, reflows 0, redundant 1.4 %. Suites green; typecheck exit 0 both.
+
+Residual: the live trace from the owner's session; blind spots named in the plan (non-Code renderables,
+native skips, short/ambiguous lines, scroll jitter).

@@ -784,6 +784,76 @@ native change is confined to the sixel emission path. Rust would be a second nat
     `bun test test/tui/` 160 pass; opencode `bun typecheck` exit 0 (it caught a missing `ctx` in `TextPart`).
     NOT OBSERVED, owed: the live session entry by the owner's eye; the scroll-up-during-build compensation has
     no automated oracle (the route is not mounted by any test).
+- [ ] **T13 — prose is styled by marked ONLY; tree-sitter only for fenced code (owner, 2026-09-24: «Блин, ну
+  вот почему нельзя сделать буфер, это раз ts применять только к кодовым блокам», «А top level вообще нах»).**
+  The owner still sees flicker live after T11/T11b. Grounded against the originals: upstream opencode 1.18.29
+  renders text parts with `<markdown internalBlockMode="top-level">`
+  (`external/opencode-1.18.29/packages/tui/src/routes/session/index.tsx:1692-1701`) and reasoning with
+  `<code filetype="markdown" drawUnstyledText={false}>` (`:1635-1643`); inside the engine every prose block is
+  a `CodeRenderable` with `filetype: "markdown"` (`external/opentui-0.5.11/…/Markdown.ts:796-807`) — i.e.
+  tree-sitter on ALL prose, a second, asynchronous style source over marked's, with a conceal that changes
+  line widths when the parse lands. The original has the same disease; T6/T11 patched it, this removes it.
+  `top-level` is not needed: closed runs (T11b step 2) already give finished blocks stability without one
+  renderable and one parse per paragraph.
+  Change: (1) `CodeRenderable` gets `highlight: false` — the caller's styled text is the ONLY paint, no parse is
+  ever started; (2) every prose renderable Markdown builds (runs, headings, list children, quote content,
+  fallback, top-level blocks) is styled synchronously by marked through ONE styler, with the block prefixes
+  tree-sitter used to colour — list markers (`markup.list`), quote bars (`markup.quote`), headings
+  (`markup.heading.N`, `## ` concealed like before) — so the SPANS of the reference can stay identical;
+  (3) fenced code keeps tree-sitter. The closed runs of T11b are then the buffer: a closed run's styled text is
+  built once and only drawn afterwards.
+  Oracles: tree-sitter parses on a prose-only document = **0** (a pass-through count on `highlightOnce`), > 0
+  on a document with a fence (the control); `markdown-closed-runs` TEXT snapshots unchanged (written by the
+  pre-change code), span snapshots reviewed where they differ; `stream-replay-sources` returns 0; the load
+  instrument before/after.
+  **ORDER CHANGED by the owner's point, 2026-09-24:** «у opentui есть своё кэширование, почему я говорил про
+  буфер — потому что на него всегда можно повесить дебаг и спокойно отлавливать флики». The buffer is the
+  OBSERVATION SEAM first and a store second. Today a text block is painted from SIX places inside `Code.ts`
+  (constructor, content setter, preview, stored parse, parse result, plain fallback) and none of them is
+  observable live — which is why the replay showed 0 returns while the owner sees flicker.
+  - [ ] **T13a — the seam.** Every paint of a text block goes through ONE function that keeps, per block, the
+    content hash, the style signature and the SOURCE of the last paint; under an env flag it writes a trace
+    and flags a flicker itself (style changed while the text did not, or returned to an earlier style). Off,
+    it costs one boolean check. Oracle: a unit test that drives a known alternation and must see it flagged,
+    and a control that must not. Then a `dist` build; the owner runs with the flag; the trace names the
+    block, the moment and the source.
+    **BUILT 2026-09-24; the box waits for the live trace.** `core/src/lib/render-trace.ts` +
+    `CodeRenderable.paint(source, text)` — all 12 buffer writes of `Code.ts` go through it (control-checked: 12
+    `paint(` calls, the only direct writes left are the two inside `paint`). Enabled by `OTUI_RENDER_TRACE=<path>`
+    (JSONL, buffered 250 ms) or an in-memory sink.
+    THE OWNER ASKED WHETHER THE ORACLE IS RIGHT («Ты бы вообще проверил что оракул написан правильно и учитывает
+    все тонкости рендеринга»). The first version was NOT: it judged per WRITE and per BLOCK. Corrected, each
+    subtlety with its own control in `__tests__/render-trace.test.ts` (5 pass):
+    (1) PER LINE, not per block — a streaming block changes its text on every delta, so «same text, other
+        style» only exists per line; the POSITIVE control reproduces the T11 bug (a stable line flipping
+        inside a growing block) and asserts it is CAUGHT per line and MISSED per block;
+    (2) DRAWN, not written — the verdict comes from `drawn` records written at the end of `renderSelf`
+        (frame-correct: `frameId` is bumped at the start of `loop()`, so a write between frames shows in the
+        NEXT frame; culling-correct: an undrawn block cannot flicker), with a `frame` record listing what each
+        frame drew; the coalescing control (A → B → A inside one frame) is written but NOT counted;
+    (3) blank flashes (`_shouldRenderTextBuffer` false → the block draws nothing) and reflows (same text,
+        another height — conceal changing the line count) are their own classes;
+    (4) blocks are keyed by an instance SERIAL: Markdown reuses `…-block-N` ids when it recreates a block — the
+        one `text-return` the first version reported on the replay was that artifact.
+    `redundant` (a write identical to the previous one — every OpenTUI cache reset for nothing, the owner's
+    «мы просто палим проц») is counted per source transition.
+    The first run of the positive control read 0, and the SEAM said why before any guess: every `preview`
+    paint was followed by a `no-filetype` repaint — a CodeRenderable WITHOUT a filetype repaints its buffer
+    PLAIN on every dirty frame, discarding the caller's styled text. Not hit in production (prose carries
+    `filetype: "markdown"`), but it decides T13b: prose must not lose tree-sitter by losing its filetype.
+    ISOLATED REPLAY with the trace ON (`experiments/2026-09-24_render-trace/replay-trace.jsonl`, the real
+    843-delta stream on a 12 000-char prefix; reader `read-trace.ts` calls the same `analyzeRenderTrace`):
+    2 528 frames, 1 698 paints (845 `parse`, 839 `stored-parse`), **line returns 0, blank flashes 0, reflows
+    0**, redundant 23 (1.4 %: 16 `stored-parse -> parse`, 7 `construct -> ensure-visible`). Trace cost: 1.80 vs
+    1.69 ms/delta. So the harness is clean while the owner sees flicker live — the live TUI differs from the
+    harness, and only a live trace can say where.
+    BLIND SPOTS, named: `TextRenderable` (list markers of separate lists), tables, images and every non-Code
+    renderable are not traced; a JS-drawn frame the native side skips (backpressure) still counts; lines under
+    8 chars and texts drawn twice with two styles in one frame are skipped as ambiguous; `y` is recorded but
+    scroll jitter is not analysed; a resize produces reflows that are not flicker.
+  - [ ] **T13b — the cure above**, sized by what the trace shows, and confirmed by the same seam reading
+    zero flickers live.
+
 - [ ] **T12 — move pixels with the terminal, not with a repaint (Hypothetical).** Probe on Windows Terminal:
   does a DECSTBM region + scroll-up (`CSI n S`) carry an on-screen sixel with it? The fork already drives a
   bounded scroll region (`renderer.zig:1726`, split-footer). If yes: a sticky-bottom append becomes a

@@ -7,6 +7,7 @@ import type { OptimizedBuffer } from "../buffer.js"
 import type { SimpleHighlight } from "../lib/tree-sitter/types.js"
 import type { TextChunk } from "../text-buffer.js"
 import { treeSitterToTextChunks } from "../lib/tree-sitter-styled-text.js"
+import { isRenderTraceEnabled, recordDrawn, recordPaint, type PaintSource } from "../lib/render-trace.js"
 
 export interface HighlightContext {
   content: string
@@ -110,9 +111,9 @@ export class CodeRenderable extends TextBufferRenderable {
 
     if (this._content.length > 0) {
       if (this._initialStyledText && this._drawUnstyledText) {
-        this.textBuffer.setStyledText(this._initialStyledText)
+        this.paint("construct", this._initialStyledText)
       } else {
-        this.textBuffer.setText(this._content)
+        this.paint("construct", this._content)
       }
       this.updateTextInfo()
       this._shouldRenderTextBuffer = this._drawUnstyledText || !this._filetype
@@ -123,6 +124,17 @@ export class CodeRenderable extends TextBufferRenderable {
 
   get content(): string {
     return this._content
+  }
+
+  /**
+   * THE one way text reaches this renderable's buffer (T13a): every paint names its source, so the render
+   * trace (`lib/render-trace.ts`) can say which of them repainted a block — the seam the owner asked for to
+   * catch flicker live. Off, it costs one boolean check.
+   */
+  private paint(source: PaintSource, text: StyledText | string): void {
+    if (typeof text === "string") this.textBuffer.setText(text)
+    else this.textBuffer.setStyledText(text)
+    if (isRenderTraceEnabled()) recordPaint(this, this.id, this.ctx.frameId, source, text)
   }
 
   private invalidateHighlights(): void {
@@ -155,9 +167,9 @@ export class CodeRenderable extends TextBufferRenderable {
       }
 
       if (value && this._initialStyledText && this._drawUnstyledText) {
-        this.textBuffer.setStyledText(this._initialStyledText)
+        this.paint("setter", this._initialStyledText)
       } else {
-        this.textBuffer.setText(value)
+        this.paint("setter", value)
       }
       this.setRenderedLineSources(undefined)
       this.updateTextInfo()
@@ -178,7 +190,7 @@ export class CodeRenderable extends TextBufferRenderable {
     // exist and fall back to the caller's styled text (which Markdown builds from its own tokens) only
     // when there is nothing computed yet.
     if (!this.paintFromStoredHighlights()) {
-      this.textBuffer.setStyledText(initialStyledText)
+      this.paint("preview", initialStyledText)
       this.setRenderedLineSources(undefined)
     }
     this.updateTextInfo()
@@ -225,7 +237,7 @@ export class CodeRenderable extends TextBufferRenderable {
       baseHighlight: this._baseHighlight,
       ranges: undefined,
     })
-    this.textBuffer.setStyledText(new StyledText(chunks))
+    this.paint("stored-parse", new StyledText(chunks))
     this.setRenderedLineSources(this.getConcealLinesSourceMap(this._content, highlights))
     this._shouldRenderTextBuffer = true
     return true
@@ -426,9 +438,9 @@ export class CodeRenderable extends TextBufferRenderable {
       this._shouldRenderTextBuffer = true
     } else if (shouldDrawUnstyledNow) {
       if (this._initialStyledText) {
-        this.textBuffer.setStyledText(this._initialStyledText)
+        this.paint("ensure-visible", this._initialStyledText)
       } else {
-        this.textBuffer.setText(content)
+        this.paint("ensure-visible", content)
       }
       this.setRenderedLineSources(undefined)
       this._shouldRenderTextBuffer = true
@@ -516,11 +528,10 @@ export class CodeRenderable extends TextBufferRenderable {
 
         if (this.isDestroyed) return
 
-        const styledText = new StyledText(chunks)
-        this.textBuffer.setStyledText(styledText)
+        this.paint("parse", new StyledText(chunks))
         this.setRenderedLineSources(renderedLineSources)
       } else {
-        this.textBuffer.setText(content)
+        this.paint("parse", content)
         this.setRenderedLineSources(undefined)
       }
 
@@ -537,7 +548,7 @@ export class CodeRenderable extends TextBufferRenderable {
 
       console.warn("Code highlighting failed, falling back to plain text:", error)
       if (this.isDestroyed) return
-      this.textBuffer.setText(content)
+      this.paint("parse-failed", content)
       this.setRenderedLineSources(undefined)
       this._shouldRenderTextBuffer = true
       this._isHighlighting = false
@@ -689,7 +700,7 @@ export class CodeRenderable extends TextBufferRenderable {
         this.clearPendingHighlight()
 
         if (hasContent) {
-          this.textBuffer.setText(this._content)
+          this.paint("no-filetype", this._content)
           this.setRenderedLineSources(undefined)
           this.updateTextInfo()
         }
@@ -730,8 +741,12 @@ export class CodeRenderable extends TextBufferRenderable {
       }
     }
 
-    if (!this._shouldRenderTextBuffer) return
-    super.renderSelf(buffer)
+    // What is DRAWN — not what was painted — is what the eye sees: several paints between two frames coalesce,
+    // a culled block is never drawn, and a block that skips its buffer is drawn BLANK. The trace records the
+    // drawn state here, once per frame this block is actually rendered (T13a).
+    const drawText = this._shouldRenderTextBuffer
+    if (drawText) super.renderSelf(buffer)
+    if (isRenderTraceEnabled()) recordDrawn(this, this.id, this.ctx.frameId, !drawText, this.y, this.height)
   }
 
   public override destroy(): void {

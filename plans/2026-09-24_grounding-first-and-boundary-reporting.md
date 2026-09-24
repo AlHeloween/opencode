@@ -197,3 +197,16 @@ medoids, ~500 B total, none of which fits in the 31 B of headroom left after the
 
 Levers, priced: prose compression (58 unpinned rules, 4 543 B of tail — `experiments/2026-09-24_kernel-prose-census/`);
 `@SOURCE_ROUTING` secondaries (525 B, still no caller — only the primaries got one); or the ceiling.
+
+- **M7 — the fixed point is INDEXED BY THE INSTRUMENT.** Owner, 2026-09-24: once the agent reaches
+  that quality at commodity cost, «можно и приёмку доработать, вроде x-ray высокого разрешения, и
+  звук померять». Today's `@LOOP_PROGRESS` knows one move at the fixed point — stop. There are two:
+  stop (done AT THIS RESOLUTION) or RAISE THE INSTRUMENT and see whether gain reappears. A sharper
+  oracle does not improve the product; it improves the measurement, and that is what creates new
+  acceptance cells. Belongs in `EVOLUTION_LOOP` as a first-class candidate class beside product
+  improvements, guarded by the same admissibility the kernel already demands: the new instrument
+  must sit on the claim's layer, exclude alternatives, return an ADDRESS and be drivable here.
+  **Second half, without which it gets adopted once and reverted:** the first effect of a sharper
+  instrument is that everything looks WORSE — the new reds are previously invisible residual made
+  visible, never a regression. AGENTS.md already forbids excusing errors as "pre-existing"; blaming
+  the instrument is the same refusal to look, and nothing forbids it yet.

@@ -657,7 +657,7 @@ native change is confined to the sixel emission path. Rust would be a second nat
   устранения мерцания, кэш нужен чтобы снять нагрузку»).** The earlier gate («only if a profile shows the
   CPU») is withdrawn on the owner's word; the measurement stays, as the BASELINE the cache must move and as
   the map of WHERE it must sit.
-  BASELINE, instrument `experiments/2026-09-23_render-load/profile.ts` (real 843-delta stream through the
+  BASELINE, instrument `experiments_history/2026-09-23_render-load/profile.ts` (real 843-delta stream through the
   real MarkdownRenderable, production config: coalesced, no quiet window, real tree-sitter, theme-shaped
   stylesheet, 25 ms delta gap; `stream <P>` streams on top of P chars already written, `history <N>` puts N
   finished messages in a culling, sticky-bottom ScrollBox; raw rows in `baseline.jsonl`):
@@ -707,7 +707,7 @@ native change is confined to the sixel emission path. Rust would be a second nat
         as an empty line (block h = 31) while the streamed block had it concealed (h = 30): PATH-DEPENDENT —
         fixed by storing a cut run with NO trailing newline and restoring the blank line by the margin alone
         (`closedAtBreak`); (3) cut at the parser's `stableTokenCount` → `stream-replay-sources` went from 0 to
-        3 returns, and `experiments/2026-09-23_render-load/flip-trace.ts` showed why: block 0 was 327 chars at
+        3 returns, and `experiments_history/2026-09-23_render-load/flip-trace.ts` showed why: block 0 was 327 chars at
         delta 106, 10 at 107, 327 at 108 — the parser's count is `matched − 2` and moves BACKWARDS, and a token
         it calls stable can still grow (a list absorbs an item after a blank line). A clipped-highlights path
         for shrinking content (`Code.ts:storedHighlightsFor`) was added on the way; it is correct and kept, but
@@ -727,7 +727,7 @@ native change is confined to the sixel emission path. Rust would be a second nat
     a product cache keyed by the closed run's raw (+ width, theme, conceal) serves it. Measured need first
     (the history scenario does not remount, so it cannot show this yet).
     **DONE 2026-09-23 — and the measurement moved the cache to a different key than the one guessed above.**
-    Instrument `experiments/2026-09-23_render-load/remount.ts` (N finished messages mounted into a culling,
+    Instrument `experiments_history/2026-09-23_render-load/remount.ts` (N finished messages mounted into a culling,
     sticky-bottom ScrollBox, destroyed, mounted again; main-thread time for construction, first frame and
     settle, parses counted). Before (`remount.jsonl`): 40 × 12 000 chars — construct 188 ms first / 139 ms
     remount, first frame 38 / 9, settle 17 / 6, **6 parses** either way. Tree-sitter barely takes part
@@ -771,7 +771,7 @@ native change is confined to the sixel emission path. Rust would be a second nat
     during render (`released` is written only by timers; the first slice waits 16 ms so the eager messages
     paint first). If the reader leaves the bottom before the history is done, the rest is built at once and
     the reading position is compensated by the height delta — the same technique as the older-page load.
-    MEASURED (`experiments/2026-09-23_render-load/bottom-up.jsonl`, the REAL policy functions; bottom-up run
+    MEASURED (`experiments_history/2026-09-23_render-load/bottom-up.jsonl`, the REAL policy functions; bottom-up run
     FIRST on a cold lex cache — an eager mount before it would have warmed step 3's cache and measured a
     remount): 40 × 12 000 chars — synchronous entry **32.6–34.4 ms construct + ~4 ms first frame, against
     154–188 ms eager**; the history above completes in 19 slices, **max 24–37 ms each** (run-to-run noise),
@@ -784,6 +784,17 @@ native change is confined to the sixel emission path. Rust would be a second nat
     `bun test test/tui/` 160 pass; opencode `bun typecheck` exit 0 (it caught a missing `ctx` in `TextPart`).
     NOT OBSERVED, owed: the live session entry by the owner's eye; the scroll-up-during-build compensation has
     no automated oracle (the route is not mounted by any test).
+  ARCHIVED 2026-09-24 (T11b's findings are recorded, so its instruments leave the scratch tree): `profile.ts`,
+  `remount.ts`, `flip-trace.ts`, `blocks-debug.ts` and the result rows (`baseline.jsonl`, `step1.jsonl`,
+  `step2.jsonl`, `step2-final.jsonl`, `remount.jsonl`, `remount-step3.jsonl`, `bottom-up.jsonl`) are TRACKED in
+  `experiments_history/2026-09-23_render-load/` (content checked: code with repo-relative imports and numbers only;
+  `remount.ts` re-run from there). Run logs, build logs and CPU profiles (`prof/*.md`) STAY in the gitignored
+  `experiments/2026-09-23_render-load/` — a clone will not have them; their sha256/figures are quoted here.
+  TOOL STATE, reported rather than smoothed over: the canon harness `experiments/2026-09-13_experiments-canon/archive.cjs`
+  has NO scope filter and MOVES (`renameSync`) — its dry run would have moved 1 466 files / 22.5 MB across ALL
+  sessions' experiments (incl. `2026-09-20_rebase-stage`), so it was not applied; the workaround was a manual move
+  of this plan's own vetted files. The T13a readers (`experiments/2026-09-24_render-trace/`) stay in the scratch tree
+  while the live trace is pending.
 - [ ] **T13 — prose is styled by marked ONLY; tree-sitter only for fenced code (owner, 2026-09-24: «Блин, ну
   вот почему нельзя сделать буфер, это раз ts применять только к кодовым блокам», «А top level вообще нах»).**
   The owner still sees flicker live after T11/T11b. Grounded against the originals: upstream opencode 1.18.29

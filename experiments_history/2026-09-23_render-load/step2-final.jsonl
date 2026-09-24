@@ -1,0 +1,4 @@
+{"mode":"stream","historyCount":0,"prefixChars":0,"deltas":843,"finalChars":3014,"wallMs":22791,"mainMsTotal":931,"mainMsPerDelta":1.104,"p50":0.986,"p95":1.767,"setContentMsPerDelta":0.501,"firstQuarterMs":0.979,"lastQuarterMs":1.19}
+{"mode":"stream","historyCount":0,"prefixChars":12002,"deltas":843,"finalChars":3014,"wallMs":23265,"mainMsTotal":1426,"mainMsPerDelta":1.691,"p50":1.523,"p95":2.998,"setContentMsPerDelta":0.88,"firstQuarterMs":2.025,"lastQuarterMs":1.35}
+{"mode":"stream","historyCount":0,"prefixChars":30002,"deltas":843,"finalChars":3014,"wallMs":23502,"mainMsTotal":1693,"mainMsPerDelta":2.009,"p50":1.882,"p95":3.123,"setContentMsPerDelta":1.192,"firstQuarterMs":2.013,"lastQuarterMs":1.793}
+{"mode":"history","historyCount":40,"prefixChars":0,"deltas":843,"finalChars":3014,"wallMs":23129,"mainMsTotal":1291,"mainMsPerDelta":1.531,"p50":1.237,"p95":3.193,"setContentMsPerDelta":0.498,"firstQuarterMs":1.402,"lastQuarterMs":1.436}

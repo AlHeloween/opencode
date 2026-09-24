@@ -230,7 +230,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G9",
         "PATH_CLOSURE",
         (
-            "the plan moves by the OUTCOME and plans/ is legal only while it owes work: SUCCESS -> plans_completed/, OUT_OF_SCOPE -> plans_deferred/, BLOCKED and WAITING_APPROVAL -> plans/postponed/ naming the reason AND the signal that lifts it; `git mv` in the commit that names the ground. Scan plans for stale refs.",
+            "the plan moves by the OUTCOME and plans/ is legal only while it owes work: SUCCESS -> plans_completed/, OUT_OF_SCOPE -> plans_deferred/, BLOCKED and WAITING_APPROVAL -> plans/postponed/ naming the reason AND the signal that lifts it; `git mv` in the commit that names the ground. Undone task -> [~] + reason. Scan plans for stale refs.",
             "behavior/paths changed -> update docs/ and repo index.",
             "deprecated -> obsolete/ (reference only).",
         ),

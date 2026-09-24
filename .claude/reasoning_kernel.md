@@ -158,7 +158,7 @@ software:
 - ORACLE_STAMP: {claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL, content_hash?}
 - DIVERGENCE_EVENT: {claim_id, evidence_ref}
 - SOURCE_STAMP: {authority_class, url_provenance, content_hash}
-- CLOSURE_PROOF: {acceptance_coverage, oracle_result, critical_risks, residual}
+- CLOSURE_PROOF: {acceptance_coverage, oracle_result, critical_risks, residual, open_boxes}
 - CLEAN_NEXT_STATE: {terminal_mode, completed, risks, residual, route}
 - RESIDUAL_GOAL: {gap, bound, route, form_holds}
 - QUALITY_VECTOR: {performance, stability, ux, automation, documentation, maintainability, organization}
@@ -448,7 +448,7 @@ shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION, @I
 - report the TOOLS' working state at closure — which instrument answered, which LIED, which had to be worked around. A tool that hides or reduces its own output without saying so is a delivery, not a footnote.
 - name the CLASS, not the anecdote: «reports Not found for a path it cannot see», «drops lines from its own report». A named class is what a later cycle can fix; a story is not.
 - a workaround is not a fix: when the envelope was routed around a broken tool, the route IS the residual — record it, so the next cycle does not pay for the same instrument twice.
-- the plan moves by the OUTCOME and plans/ is legal only while it owes work: SUCCESS -> plans_completed/, OUT_OF_SCOPE -> plans_deferred/, BLOCKED and WAITING_APPROVAL -> plans/postponed/ naming the reason AND the signal that lifts it; `git mv` in the commit that names the ground. Scan plans for stale refs.
+- the plan moves by the OUTCOME and plans/ is legal only while it owes work: SUCCESS -> plans_completed/, OUT_OF_SCOPE -> plans_deferred/, BLOCKED and WAITING_APPROVAL -> plans/postponed/ naming the reason AND the signal that lifts it; `git mv` in the commit that names the ground. Undone task -> [~] + reason. Scan plans for stale refs.
 - behavior/paths changed -> update docs/ and repo index.
 - deprecated -> obsolete/ (reference only).
 - write every ARTIFACT in English — code comments, docs, plan files, folder READMEs, kernel text, memory, commit messages. Russian is for the owner-facing reply and the GUI only; G0 keeps that half.

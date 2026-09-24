@@ -136,3 +136,15 @@ catalogues and removed rationale prose; there is nothing left to give without a 
 | the prose compression pass | 58 unpinned rules, 4 543 B of tail — worklist in `experiments/2026-09-24_kernel-prose-census/` | owner |
 | `@SOURCE_ROUTING` secondary routes (33 entries) | 525 B; the norm says enter the PRIMARY of the class, so the secondaries have no caller | owner |
 | raise `KERNEL.utf8_budget` | any | owner, and against the standing rule |
+
+## Amendment, same day — `open_boxes`
+
+Owner: a plan whose tasks 4–5 were dropped as unneeded stayed `- [ ]` and lingered in `plans/` «как
+бомба с часовым механизмом». The product already treats `[~]` as closed
+(`packages/opencode/src/util/plan-status.ts:9`); the kernel never named it. Landed as a SLOT, not a
+sentence: `CLOSURE_PROOF` gains `open_boxes`, and G9 `PATH_CLOSURE` names the one action for an
+undone task — `[~]` + reason (product: replaces the duplicate "done -> plans_completed/"; claude:
+inserted; codex: slot only, its addon is repo-agnostic). Plan:
+`plans_completed/2026-09-24_open-boxes-slot.md`.
+
+product 46 984 B, sha `90195dc3…9a9e4f7a` (prev `dc981bc4…`), **16 bytes free**; 107 passed.

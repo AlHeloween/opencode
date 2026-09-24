@@ -496,7 +496,7 @@ KERNEL = Kernel(
         "ORACLE_STAMP": "{claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL, content_hash?}",
         "DIVERGENCE_EVENT": "{claim_id, evidence_ref}",
         "SOURCE_STAMP": "{authority_class, url_provenance, content_hash}",
-        "CLOSURE_PROOF": "{acceptance_coverage, oracle_result, critical_risks, residual}",
+        "CLOSURE_PROOF": "{acceptance_coverage, oracle_result, critical_risks, residual, open_boxes}",
         "CLEAN_NEXT_STATE": "{terminal_mode, completed, risks, residual, route}",
         "RESIDUAL_GOAL": "{gap, bound, route, form_holds}",
         "QUALITY_VECTOR": "{performance, stability, ux, automation, documentation, maintainability, organization}",

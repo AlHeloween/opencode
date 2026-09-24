@@ -5015,3 +5015,11 @@ definition instead of a new rule, T7's test is `test_pre_action_section_stays_sm
 ## [2026-09-24 15:06 UTC] Plan placement audit after the gated release
 
 ✓ `d05c15549f` already closed and moved `grounding-first-and-boundary-reporting` before this audit; no duplicate edit. ✓ `2026-09-20_kernel-review-triage` now has a checked, evidence-bound closure summary and is in `plans_completed/`. Its dated findings remain historical; the current `session_epistemic` writer supersedes H3's old volatility claim. ✓ Three plans whose architecture was replaced (image store, generated sidecar summary, old Zig 0.15 native port) are in `plans_deferred/`, with the decision and return signal at the top. Open implementation boxes remain open, not falsely checked. ✓ Active-plan references to their old paths were removed (`rg`, zero hits); the unrelated OpenTUI `.artifacts/` work was untouched. ✓ Plan-status parser oracle: `cmd_runner` run `20260924T150501Z_61fb35a0`, `10 pass / 0 fail`, state `finished`, exit 0, 1665 bytes captured, 0 dropped. Residual: 18 root plans remain active because work or acceptance is open; this pass did not claim their completion.
+
+## [2026-09-24 23:55] open_boxes — a dropped task closes [~], it does not linger
+
+Owner's defect: tasks 4–5 dropped as unneeded stay `[ ]`, the plan reads as owed work and lingers.
+`plan-status.ts:9` already counts `[~]` as closed; the kernel never named it. Slot `open_boxes` on
+`CLOSURE_PROOF` + G9 `PATH_CLOSURE` "undone task -> [~] + reason" (product replaces a duplicate line,
+claude inserts, codex slot only). product 46984 B sha 90195dc3..., free 16. 107 passed. Codex home
+install not run (outside the repo).

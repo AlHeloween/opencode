@@ -1,8 +1,8 @@
 {
   "production": {
     "path": "packages/opencode/src/session/prompt/reasoning_prompt.txt",
-    "sha256": "dc981bc4da82e2ba5fcdf1d8d1627fa442186aeabf9fc9196c2a04048a018333",
-    "prev_sha256": "acc73618d4fbdb283bb8bde32896ae75752124921b2882a557091da2d993a73b",
+    "sha256": "90195dc3937dc2525b526a885729acacdc2b73874f8835a82e2d5ea49a9e4f7a",
+    "prev_sha256": "dc981bc4da82e2ba5fcdf1d8d1627fa442186aeabf9fc9196c2a04048a018333",
     "rollback": "prompt_kernel/dist/2026-09-17_23-16-37_reasoning_prompt.txt"
   }
 }

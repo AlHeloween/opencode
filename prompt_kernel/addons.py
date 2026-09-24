@@ -228,7 +228,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "G9",
         "PATH_CLOSURE",
         (
-            "done -> plans_completed/; scan plans for stale refs.",
+            "undone task -> [~] + reason; scan plans for stale refs.",
             "behavior/paths changed -> update docs/ and repo index.",
             "deprecated -> obsolete/ (reference only).",
             "the plan moves by the OUTCOME, and plans/ is legal only while the plan owes work: SUCCESS -> plans_completed/, OUT_OF_SCOPE -> plans_deferred/ (contradicts the architecture), BLOCKED and WAITING_APPROVAL -> plans/postponed/ naming the reason AND the signal that lifts it. plans/futures/ takes evolution candidates only, naming the CONDITION that makes one executable — never a terminated run.",

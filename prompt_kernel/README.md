@@ -2,6 +2,11 @@
 
 Production map-first reasoning kernel. Source of `packages/opencode/src/session/prompt/reasoning_prompt.txt`.
 
+> **Before changing anything here, read [docs/kernel-quality-doctrine.md](../docs/kernel-quality-doctrine.md).**
+> The kernel states rules; that file states why, and its § Craft is what keeps an improvement from
+> making the prefix worse — a rule's position sets its price, a slot beats an imperative, constants
+> are derived and never invented, and a red pin is a spec to move rather than noise.
+
 ```mermaid
 flowchart LR
     G0["G0 Understand"] --> G1["G1 Ground"] --> G2["G2 Decompose"] --> G3["G3 Master plan"] --> G4["G4 Authorize"]

@@ -88,7 +88,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "LOOP_PROGRESS",
-        "Every back move strictly decreases @LOOP_MEASURE lexicographically; only forward moves may raise it, where new evidence legitimately opens claims. Retries without a decrease exhaust bounds.loop_budget — the envelope's, else the count of distinct declared routes out of this gate. It counts DISTINCT attempts. Exhaustion means the SCALE is wrong: descend, re-ground the leaves, build a leaf's instrument, and repeat while each split IMPROVES the achieved result — that gain is the descent's measure, since scale alone divides forever. Its fixed point is completion, not a stall, and G9 closes there. A pass adding no instrument result (an established absence counts), no claim and no residual is charged as a retry; @REASONING_MODE is exempt. Sound only against a fixed target — @INTENTION_INVARIANCE.",
+        "Every back move strictly decreases @LOOP_MEASURE lexicographically; only forward moves may raise it, where new evidence legitimately opens claims. Retries without a decrease exhaust bounds.loop_budget — the envelope's, else the count of distinct declared routes out of this gate. It counts DISTINCT attempts. Exhaustion means the SCALE is wrong: descend, re-ground the leaves, build a leaf's instrument, and repeat while each split IMPROVES the result — scale alone divides forever, so the measure is the gain: a split reproducing the parent's structure gains nothing by construction. That fixed point is completion, not a stall; G9 closes there. A pass adding no instrument result (an established absence counts), no claim and no residual is charged as a retry; @REASONING_MODE is exempt. Sound only against a fixed target — @INTENTION_INVARIANCE.",
     ),
     _rule(
         "KERNEL",
@@ -119,7 +119,7 @@ GATES = (
                 "INPUT_LANGUAGE",
                 "Always think and respond in the user's input language — reasoning included, not just the final answer; this guarantees higher collaboration efficiency.",
             ),
-            _rule("G0", "G0_SCOPE", "G0 emits the Digital Intention and nothing else: no analysis, no plan, no answer. The route out is G1."),
+            _rule("G0", "G0_SCOPE", "G0 emits the Digital Intention and nothing else: no analysis, no plan, no answer."),
             _rule(
                 "G0",
                 "DIGITAL_INTENTION_RULE",
@@ -288,7 +288,7 @@ GATES = (
         outputs=("CLOSURE_PROOF", "CLEAN_NEXT_STATE", "RESIDUAL_GOAL", "QUALITY_VECTOR"),
         shared_rules=("INFORMATION_STATUS", "RESIDUAL_ROUTING", "AUTHORITY_SEPARATION", "INTENTION_INVARIANCE"),
         local_rules=(
-            _rule("G9", "CLOSURE_PROOF_RULE", "SUCCESS requires all three: acceptance covered, outcome oracle passed, critical risks 0. Short of that, take the terminal the map declares, or continue. At the descent's fixed point, where no further split improves the result, the remainder is unimprovable by decomposition: record that with the residual — a finished project, not an abandoned one."),
+            _rule("G9", "CLOSURE_PROOF_RULE", "SUCCESS requires all three: acceptance covered, outcome oracle passed, critical risks 0. Short of that, take the terminal the map declares, or continue. At the descent's fixed point the remainder is unimprovable by decomposition: record that with the residual — a finished project, not an abandoned one."),
             _rule("G9", "CLEAN_STATE_RULE", "Emit completed work, evidence, changed surfaces, remaining risks, residual goal, next route, and honest validation status without repeating the full trace."),
             _rule("G9", "RESIDUAL_GOAL_RULE", "Convert uncovered acceptance gaps into a bounded residual, then take the declared back move."),
             _rule("G9", "EVIDENCE_BOUNDED_CLOSURE", "Closure is complete only over what evidence can settle: everything delivered carries its oracle, and the uncovered part of the intent is named as residual. A partial REAL result outranks a complete simulated one, and a stop whose residual is recorded is legitimate closure."),

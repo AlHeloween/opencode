@@ -5,7 +5,7 @@ owner on 2026-09-24. Rollback point: `prompt_kernel/dist/2026-09-17_23-16-37_rea
 
 | surface | path | bytes | sha256 |
 |---|---|---|---|
-| product | `packages/opencode/src/session/prompt/reasoning_prompt.txt` | 46 991 | `10efb714…4cc1d0ef` |
+| product | `packages/opencode/src/session/prompt/reasoning_prompt.txt` | 46 973 | `3be0cc3e…7a4c265c` |
 | claude | `.claude/reasoning_kernel.md` | 46 946 | rendered from the same source |
 | codex | `prompt_kernel/dist_codex/*_reasoning_prompt.txt` | 46 514 | rendered, host installs its own |
 | previous production | — | 46 904 | `dabf50f3…` |
@@ -21,7 +21,7 @@ is taken against the same text.
 |---|---|---|---|
 | G0+G1, read and satisfied BEFORE the first call | 2 840 B | 7 309 B (×2.6) | **5 365 B** |
 | G1 alone | 2 125 B / 15 bullets | 6 396 B / 32 | 4 644 B |
-| total | 34 580 B | 46 904 B | 46 939 B |
+| total | 34 580 B | 46 904 B | 46 973 B |
 
 1. **The pre-action section tripled.** An imperative that is not a call can only be satisfied by
    PROSE, so mass moved forward in the pass buys narration instead of grounding. A third of G1 was
@@ -63,15 +63,13 @@ is satisfied literally. **Removed as duplicate**: the V&V line (carried by `@ORA
 - `@GUESS_DECIDES_NOTHING` (new shared): an ungrounded passage is error ADDED; promote each Guess a
   decision rests on through the primary authority of its class, then code, then smoke — or close it
   Unknown. This is the first caller `@SOURCE_ROUTING`'s 67 authorities have ever had.
-- `@LOOP_PROGRESS`: `loop_budget` defaults to 3; a pass adding no instrument result, no claim and no
-  residual is charged as a retry (`@REASONING_MODE` exempt); the G1↔G2 descent is measured by
-  `FRACTAL_GEOMETRY.scale`, not by the claim tuple, which rises when a surface is split.
+- `@LOOP_PROGRESS`: a pass adding no instrument result, no claim and no residual is charged as a
+  retry (`@REASONING_MODE` exempt, and an established absence does not burn one).
 - `G1 INSTRUMENT_ORDER`: the chain is a ladder, not a fence — when no rung answers, BUILD the
   instrument from the project's own parts.
 - `G1 INSTRUMENT_LAYER`: your own context is the nearest instrument and the least decisive.
 - `G0` emits the Digital Intention and nothing else; `STATE_FIRST` moved to G1.
-- `G2 CUT_UNSUPPORTED`: cut before planning — medoids cut tasks, `@INFOMARK` marks claims, neither
-  cuts prose.
+- `G2 CUT_UNSUPPORTED`: cut before planning — what evidence does not support leaves the answer.
 - `G4 APPROVAL_EXTENT`: an ALLOW binds to the GOAL, not to a task or a revision.
 - `G6 HANDOVER_OR_SWITCH`: switch or hand over where the host allows it and continue at G7; the
   terminal is only for a host where neither is possible.
@@ -82,8 +80,11 @@ is satisfied literally. **Removed as duplicate**: the V&V line (carried by `@ORA
 - **Termination is a FIXED POINT, not a scale limit** (owner: «фракталы бесконечны»). `@LOOP_PROGRESS`:
   exhaustion means the scale is wrong — descend, re-ground the leaves, build a leaf's instrument, and
   repeat while each split IMPROVES the achieved result; that gain is the descent's measure, since
-  scale alone divides forever. G9 `CLOSURE_PROOF_RULE`: at the fixed point the remainder is
-  unimprovable by decomposition — a finished project, not an abandoned one.
+  scale alone divides forever. **A split that reproduces the parent's structure gains nothing BY
+  CONSTRUCTION** — the Sierpiński test, which proves the stop instead of measuring it once
+  (owner: «сколько ты этот круг не раскладывай — он кругом и будет»). G9 `CLOSURE_PROOF_RULE`: at the
+  fixed point the remainder is unimprovable by decomposition — a finished project, not an abandoned
+  one.
 - `@INFORMATION_STATUS`: Unknown is not a destination — it reports that the SCALE is too coarse.
 - `@EVIDENCE_BOUNDED_CLOSURE`: everything delivered carries its oracle and the uncovered part of the
   intent is named as residual; **a partial REAL result outranks a complete simulated one**.
@@ -117,7 +118,7 @@ carries the new sha, the previous one and the rollback artifact. 8–9. Freeze a
 
 ## The ceiling is now the binding constraint
 
-product 46 991 / 47 000 — **9 bytes free**. Everything in this release was funded from evicted
+product 46 973 / 47 000 — **27 bytes free**. Everything in this release was funded from evicted
 catalogues and removed rationale prose; there is nothing left to give without a decision:
 
 | lever | worth | whose call |

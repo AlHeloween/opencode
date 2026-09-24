@@ -4905,3 +4905,30 @@ identity. Both restored.
 
 product 46991 B, sha 10efb714..., free 9. 107 passed. The ceiling is now the binding constraint and
 the release note names the three levers with their prices.
+
+## [2026-09-24 22:35] The Sierpiński test — proving the stop instead of measuring it
+
+Owner: «взяли квадрат — дополнили равноудалённых точек по радиусу — … иии Круг. И вот сколько ты этот
+круг не раскладывай — он кругом и будет. У ковра Серпинского вообще это красиво выглядит.»
+
+Two distinct ideas, and the second is the one the rule was missing:
+
+- **The circle** is the LIMIT of refinement: past convergence the shape no longer changes, so further
+  splitting cannot add anything. That is the fixed point already landed.
+- **The carpet** is the RECOGNITION test: when a split returns the parent's own structure, the gain is
+  zero *by construction*, not merely zero *in this one measurement*. That is a proof of the stop
+  rather than an observation of it — the difference between "I split once and gained nothing" and
+  "no split can gain".
+
+Landed in `@LOOP_PROGRESS`: "scale alone divides forever, so the measure is the gain: a split
+reproducing the parent's structure gains nothing by construction."
+
+Funded by removing "The route out is G1" from G0_SCOPE — the graph already declares G0 -> G1 as the
+only forward edge, so the sentence was a second statement of the map — and by dropping the condition
+restatement from G9 (it now lives once, in @LOOP_PROGRESS).
+
+Also repaired a self-contradiction I had just committed into the release note: one bullet still said
+`loop_budget` "defaults to 3" while another said "derived, not hardcoded", and the totals row was
+stale. A self-contradicting artifact is worse than a missing one — it makes the reader arbitrate.
+
+product 46973 B, sha 3be0cc3e..., free 27. 107 passed.

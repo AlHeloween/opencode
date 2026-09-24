@@ -50,28 +50,49 @@ export function configureLogging(enabled: boolean, _format: "json" | "text" = "j
   loggingEnabled = enabled
 }
 
-type GatewayProtocol = "h3" | "h2" | "http/1.1"
+export type GatewayProtocol = "auto" | "h3" | "h2" | "http/1.1"
 
-export function resolveGatewayProtocol(provider: string, configured?: GatewayProtocol): GatewayProtocol {
-  // Per-family transport defaults (user directive 2026-09-08, "дефолтные
-  // настройки по протоколам per provider"):
-  //   openai   -> h2  (long-standing default)
-  //   opencode -> h2  (zen, provider id "opencode"/"opencode-go"; zone h2
-  //                     verified live 2026-09-11 — pinned http2 200 + h2 SSE
-  //                     stream smoke cmd_runner 20260911T051635Z_4eefe556;
-  //                     h3 disabled server-side in the zone, h3 pin
-  //                     HTTP3HandshakeFailed, probe 20260911T051102Z_9d5a214c)
-  //   deepseek -> h2  (2026-09-17: ALPN probe on api.deepseek.com returns h2,
-  //                     and offered "h2,http/1.1" the server PICKS h2 — it
-  //                     prefers it. No alt-svc, so h2 is the top rung there.
-  //                     Was falling through to http/1.1, i.e. we were asking
-  //                     for the legacy path on a server that prefers h2.)
-  //   other    -> http/1.1
-  // Config override (provider.<id>.models.<id>.options.protocol) always wins.
+export type TransportProtocol = "h3" | "h2" | "http/1.1"
+
+// Transport policy (owner directive 2026-09-24): attempt h3 first, downgrade
+// to h2, keep http/1.1 strictly as the last resort — h1 is not a recommended
+// rung. `auto` is the default for every provider: the first request probes h3
+// and the outcome is cached per origin (h3UnavailableUntil), so an origin
+// without QUIC pays for one failed probe per TTL, not per request.
+// Verified per-provider rungs still ride `options.protocol` from the catalog
+// (e.g. novita-ai h3), and an explicit user choice always wins over `auto`.
+export function resolveGatewayProtocol(_provider: string, configured?: GatewayProtocol): GatewayProtocol {
   if (configured) return configured
-  if (provider === "openai" || provider === "deepseek" || provider.startsWith("opencode")) return "h2"
-  return "http/1.1"
+  return "auto"
 }
+
+/** Ordered downgrade chain; an explicit h3 choice ignores the probe cache. */
+export function protocolChain(configured: GatewayProtocol, h3CachedDead: boolean): TransportProtocol[] {
+  if (configured === "http/1.1") return ["http/1.1"]
+  if (configured === "h2") return ["h2", "http/1.1"]
+  if (configured === "h3") return ["h3", "h2", "http/1.1"]
+  return h3CachedDead ? ["h2", "http/1.1"] : ["h3", "h2", "http/1.1"]
+}
+
+/**
+ * Downgrade decision per rung. h3 leaves on ANY transport failure: a QUIC
+ * handshake failure normalizes to tls_error (`/handshake/` matches it) and
+ * shouldFallbackToH1 refuses that category — reusing that rule here would
+ * abort the request instead of trying h2. h2 keeps its established rule.
+ */
+export function shouldDowngrade(from: TransportProtocol, error: Errors.NormalizedError): boolean {
+  if (error.category === "client_abort") return false
+  if (from === "h3") return true
+  if (from === "h2") return Errors.shouldFallbackToH1(error)
+  return false
+}
+
+// Failed h3 probes are cached per origin: the next `auto` request skips QUIC
+// for this long instead of paying for another fast-fail handshake.
+const H3_PROBE_TTL_MS = 30 * 60 * 1000
+// A probe must not stall a request if QUIC neither connects nor refuses.
+const H3_PROBE_TIMEOUT_MS = 5000
+const h3UnavailableUntil = new Map<string, number>()
 
 interface AdaptiveFetchOptions extends RequestInit {
   gatewayRouteKey?: RouteKey
@@ -643,8 +664,8 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
       }
 
       sample.socketAcquiredAt = Date.now()
-      let response: Response
-      let usedProtocol: "h3" | "h2" | "http/1.1" = "http/1.1"
+      let response!: Response
+      let usedProtocol: TransportProtocol = "http/1.1"
 
       // ── Raw wire dump (debug) ──
       // Requires the master switch too — enabled=false must stop the .diff
@@ -695,21 +716,19 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
       // ── End raw wire dump ──
 
       try {
-        const useH2 = modelProtocol === "h2"
-        const useH3 = modelProtocol === "h3"
+        // Downgrade chain (owner directive 2026-09-24): h3 -> h2 -> http/1.1.
+        // `auto` probes h3 first; an origin whose h3 probe failed is skipped
+        // for H3_PROBE_TTL_MS — the failure was transport-level, so h2 is
+        // attempted next and h1 remains the last resort.
+        const h3CachedDead = modelProtocol === "auto" && (h3UnavailableUntil.get(baseUrl) ?? 0) > Date.now()
+        const chain = protocolChain(modelProtocol, h3CachedDead)
 
-        // h3 branch (2026-09-08): Bun 1.3.14+ experimental fetch client with
-        // pinned protocol. Proven live on api.novita.ai from MY (transit-loss
-        // route): median 2188ms vs h2 3294ms, 2x shorter tail, 0 give-ups.
-        // Fallback chain h3 -> http/1.1 rides the same shouldFallbackToH1
-        // categories (connection/TLS/protocol errors); a plain h2 hop is NOT
-        // inserted — Bun's own h3 failure modes are connection-class and h1 is
-        // the safe landing after any of them.
         log.info("gateway.protocol.decision", {
           provider,
           model,
           configured: modelProtocol,
-          using: useH3 ? "h3" : useH2 ? "h2" : "http/1.1",
+          using: chain[0],
+          chain: chain.join(">"),
           streaming: routeKey.stream,
         })
 
@@ -720,149 +739,72 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
             provider,
             model,
             configured: modelProtocol,
-            using: useH3 ? "h3" : useH2 ? "h2" : "http/1.1",
-            streaming: routeKey.stream,
+            using: chain[0],
+            chain: chain.join(">"),
           })
         }
 
-        if (useH3) {
+        let attemptFailure: unknown = null
+
+        for (let i = 0; i < chain.length; i++) {
+          const protocol = chain[i]
           try {
-            // Bun pinned-protocol fetch ({ protocol: "http3" }); streaming and
-            // non-streaming share the same Response pipeline. AbortSignal and
-            // headers flow through standard RequestInit.
-            const h3Res = await fetch(url, {
-              method: init?.method ?? "POST",
-              headers,
-              body: typeof init?.body === "string" ? init.body : undefined,
-              signal: init?.signal ?? undefined,
-              // @ts-expect-error Bun-specific RequestInit extension (blog 1.3.14)
-              protocol: "http3",
-            })
-            if (!h3Res.ok && h3Res.status >= 500) {
-              // treat hard 5xx as transport-class for fallback parity with h2 path
-              const normalized = Errors.normalizeError(new Error(`h3 upstream ${h3Res.status}`))
-              if (Errors.shouldFallbackToH1(normalized)) throw new Error(`h3 upstream ${h3Res.status}`)
-            }
-            usedProtocol = "h3"
-            response = h3Res
-          } catch (h3Err) {
-            const normalized = Errors.normalizeError(h3Err)
-            if (Errors.shouldFallbackToH1(normalized)) {
-              writeLog({
-                level: "WARN",
-                event: "gateway.protocol.fallback",
-                timestamp: Date.now(),
-                requestId,
-                provider,
-                model,
-                fromProtocol: "h3",
-                toProtocol: "http/1.1",
-                reason: normalized.category,
-                message: normalized.message,
-              })
-              usedProtocol = "http/1.1"
-              const h1Result = await H1.request({
-                url,
+            if (protocol === "h3") {
+              // Bun pinned-protocol fetch ({ protocol: "http3" }), experimental
+              // client (1.3.14+); proven live on api.novita.ai and api.openai.com.
+              // Under `auto` the probe is bounded so a hanging QUIC attempt
+              // cannot stall the request; an explicit h3 rides the caller signal.
+              const timeout = modelProtocol === "auto" ? AbortSignal.timeout(H3_PROBE_TIMEOUT_MS) : undefined
+              const probeSignals: AbortSignal[] = []
+              if (init?.signal) probeSignals.push(init.signal)
+              if (timeout) probeSignals.push(timeout)
+              const signal =
+                probeSignals.length === 0 ? undefined : probeSignals.length === 1 ? probeSignals[0] : AbortSignal.any(probeSignals)
+              const h3Res = await fetch(url, {
                 method: init?.method ?? "POST",
                 headers,
                 body: typeof init?.body === "string" ? init.body : undefined,
-                signal: init?.signal ?? undefined,
+                signal,
+                // @ts-expect-error Bun-specific RequestInit extension (blog 1.3.14)
+                protocol: "http3",
               })
-              response = new Response(h1Result.body, {
-                status: h1Result.status,
-                headers: h1Result.headers,
-              })
-            } else {
-              if (normalized.category !== "client_abort") {
-                Store.recordError(routeKey, normalized.category, Date.now() - startTime)
-                Store.recordCircuitBreakerFailure(routeKey)
-              }
-              throw h3Err
-            }
-          }
-        } else if (useH2) {
-          try {
-            if (routeKey.stream) {
-              const h2Result = await H2.requestStream({
-                baseUrl,
-                url,
-                method: init?.method ?? "POST",
-                headers: headers,
-                body: typeof init?.body === "string" ? init.body : undefined,
-              })
-              usedProtocol = "h2"
-              response = h2Result.response
-            } else {
-              const h2Result = await H2.request({
-                baseUrl,
-                url,
-                method: init?.method ?? "POST",
-                headers: headers,
-                body: typeof init?.body === "string" ? init.body : undefined,
-              })
-
-              if (h2Result.error) {
-                if (Errors.shouldFallbackToH1(h2Result.error)) {
-                  writeLog({
-                    level: "WARN",
-                    event: "gateway.protocol.fallback",
-                    timestamp: Date.now(),
-                    requestId,
-                    provider,
-                    model,
-                    fromProtocol: "h2",
-                    toProtocol: "http/1.1",
-                    reason: h2Result.error.category,
-                    message: h2Result.error.message,
-                  })
-
-                  H2.closeSession(baseUrl)
-
-                  usedProtocol = "http/1.1"
-                  const h1Result = await H1.request({
-                    url,
-                    method: init?.method ?? "POST",
-                    headers,
-                    body: typeof init?.body === "string" ? init.body : undefined,
-                    signal: init?.signal ?? undefined,
-                  })
-                  response = new Response(h1Result.body, {
-                    status: h1Result.status,
-                    headers: h1Result.headers,
-                  })
-                } else {
-                  Store.recordError(routeKey, h2Result.error.category, Date.now() - startTime)
-                  Store.recordCircuitBreakerFailure(routeKey)
-                  throw new Error(h2Result.error.message)
-                }
+              // Hard 5xx is transport-class; 4xx is a real client-side answer.
+              if (h3Res.status >= 500) throw new Error(`h3 upstream ${h3Res.status}`)
+              response = h3Res
+            } else if (protocol === "h2") {
+              if (routeKey.stream) {
+                const h2Result = await H2.requestStream({
+                  baseUrl,
+                  url,
+                  method: init?.method ?? "POST",
+                  headers: headers,
+                  body: typeof init?.body === "string" ? init.body : undefined,
+                })
+                response = h2Result.response
               } else {
-                usedProtocol = "h2"
+                const h2Result = await H2.request({
+                  baseUrl,
+                  url,
+                  method: init?.method ?? "POST",
+                  headers: headers,
+                  body: typeof init?.body === "string" ? init.body : undefined,
+                })
+                if (h2Result.error) {
+                  throw new Errors.TransportError({
+                    status: h2Result.status,
+                    headers: h2Result.headers,
+                    body: h2Result.body,
+                    metrics: h2Result.metrics,
+                    error: h2Result.error,
+                    requestId: h2Result.requestId,
+                  })
+                }
                 response = new Response(h2Result.body, {
                   status: h2Result.status,
                   headers: h2Result.headers,
                 })
               }
-            }
-          } catch (h2Err) {
-            const normalized = Errors.normalizeError(h2Err)
-
-            if (Errors.shouldFallbackToH1(normalized)) {
-              writeLog({
-                level: "WARN",
-                event: "gateway.protocol.fallback",
-                timestamp: Date.now(),
-                requestId,
-                provider,
-                model,
-                fromProtocol: "h2",
-                toProtocol: "http/1.1",
-                reason: normalized.category,
-                message: normalized.message,
-              })
-
-              H2.closeSession(baseUrl)
-
-              usedProtocol = "http/1.1"
+            } else {
               const h1Result = await H1.request({
                 url,
                 method: init?.method ?? "POST",
@@ -874,28 +816,47 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                 status: h1Result.status,
                 headers: h1Result.headers,
               })
-            } else {
-              if (normalized.category !== "client_abort") {
-                Store.recordError(routeKey, normalized.category, Date.now() - startTime)
-                Store.recordCircuitBreakerFailure(routeKey)
-              }
-              throw h2Err
             }
+            usedProtocol = protocol
+            if (protocol === "h3") h3UnavailableUntil.delete(baseUrl)
+            break
+          } catch (err) {
+            const normalized = err instanceof Errors.TransportError ? err.error : Errors.normalizeError(err)
+            if (normalized.category === "client_abort") throw err
+            if (protocol === "h3" && modelProtocol === "auto") {
+              h3UnavailableUntil.set(baseUrl, Date.now() + H3_PROBE_TTL_MS)
+            }
+            const next = chain[i + 1]
+            if (!next || !shouldDowngrade(protocol, normalized)) {
+              attemptFailure = err
+              break
+            }
+            writeLog({
+              level: "WARN",
+              event: "gateway.protocol.fallback",
+              timestamp: Date.now(),
+              requestId,
+              provider,
+              model,
+              fromProtocol: protocol,
+              toProtocol: next,
+              reason: normalized.category,
+              message: normalized.message,
+            })
+            if (protocol === "h2") H2.closeSession(baseUrl)
           }
-        } else {
-          usedProtocol = "http/1.1"
-          const h1Result = await H1.request({
-            url,
-            method: init?.method ?? "POST",
-            headers,
-            body: typeof init?.body === "string" ? init.body : undefined,
-            signal: init?.signal ?? undefined,
-          })
-          response = new Response(h1Result.body, {
-            status: h1Result.status,
-            headers: h1Result.headers,
-          })
         }
+
+        if (attemptFailure) throw attemptFailure
+
+        // Last factual protocol, published for the TUI sidebar: the transport
+        // decision must be readable as state without replaying gateway.log
+        // (the sidebar used to fabricate "http/1.1" from options alone).
+        ;(
+          globalThis as {
+            __gatewayLastProtocol?: { provider: string; model: string; protocol: TransportProtocol; at: number }
+          }
+        ).__gatewayLastProtocol = { provider, model, protocol: usedProtocol, at: Date.now() }
 
         sample.headersReceivedAt = Date.now()
         sample.status = response.status

@@ -12,7 +12,11 @@
 import { Resvg } from "@resvg/resvg-js"
 import { RGBA } from "@opentui/core"
 import * as Log from "@opencode-ai/core/util/log"
+import { Global } from "@opencode-ai/core/global"
+import fs from "fs"
+import path from "path"
 import { fitFontAnchoredSize, fitToWidthSize, parseSvgFontSize, parseSvgNaturalSize } from "./fit-image"
+import { readEmbeddedWasmAsset } from "./wasm-embedded"
 import { getMermaidWasmRenderer, resetMermaidWasmRenderer, type MermaidWasmRenderer } from "./mermaid-wasm"
 import type { AnsiChunk } from "./image-to-ansi"
 
@@ -62,29 +66,26 @@ export function mermaidPixelBudget(opts?: SvgFitBudget): { maxWidth: number } {
  * Large diagrams always match the given width; tall diagrams stay tall (scroll)
  * instead of being re-shrunk by a maxHeight contain box.
  */
-export function resvgOptionsForSvg(
-  svg: string,
-  background: string,
-  budget?: SvgFitBudget,
-): { background: string; fitTo?: { mode: "width" | "height"; value: number } } {
+type MermaidResvgFont = { loadSystemFonts: boolean; fontFiles: string[]; defaultFontFamily: string }
+type MermaidResvgOptions = { background: string; font?: MermaidResvgFont; fitTo?: { mode: "width" | "height"; value: number } }
+
+/** Embedded font options — the font travels WITH the binary (BunFS → materialized path). */
+function resvgFont(): { font?: MermaidResvgFont } {
+  if (!mermaidFontFilePath) return {}
+  return { font: { loadSystemFonts: false, fontFiles: [mermaidFontFilePath], defaultFontFamily: mermaidFontFamily } }
+}
+
+export function resvgOptionsForSvg(svg: string, background: string, budget?: SvgFitBudget): MermaidResvgOptions {
   const maxWidth = mermaidPixelBudget(budget).maxWidth
-  // Prefer Resvg's parse of the SVG tree; fall back to attribute/viewBox parse.
-  let srcW = 0
-  let srcH = 0
-  try {
-    const probe = new Resvg(svg, { background })
-    srcW = probe.width
-    srcH = probe.height
-  } catch {
-    const parsed = parseSvgNaturalSize(svg)
-    if (parsed) {
-      srcW = parsed.width
-      srcH = parsed.height
-    }
-  }
+  // Attribute/viewBox parse. A probe `new Resvg(svg, {background})` used to sit here to read
+  // width/height — it re-ran the system-font scan (~230 ms) and the SAME SVG tree was then
+  // parsed again for the real render, i.e. the scan was paid twice per diagram (2026-09-24).
+  const parsed = parseSvgNaturalSize(svg)
+  const srcW = parsed?.width ?? 0
+  const srcH = parsed?.height ?? 0
   if (srcW <= 0 || srcH <= 0) {
     // Unparseable SVG — still force width so large unknown trees fit horizontally.
-    return { background, fitTo: { mode: "width", value: maxWidth } }
+    return { background, ...resvgFont(), fitTo: { mode: "width", value: maxWidth } }
   }
 
   // Preferred path: anchor the scale to the terminal cell so label text is the
@@ -123,9 +124,9 @@ export function resvgOptionsForSvg(
         anchoredHeight: Math.round(anchoredHeight),
         maxHeight: budget.maxHeight,
       })
-      return { background, fitTo: { mode: "height", value: Math.round(budget.maxHeight) } }
+      return { background, ...resvgFont(), fitTo: { mode: "height", value: Math.round(budget.maxHeight) } }
     }
-    return { background, fitTo: { mode: "width", value: width } }
+    return { background, ...resvgFont(), fitTo: { mode: "width", value: width } }
   }
 
   // No measured cell (PNG symbol fallback): nothing to anchor to, so keep the
@@ -136,7 +137,7 @@ export function resvgOptionsForSvg(
     width: maxWidth,
     allowUpscale: true,
   })
-  return { background, fitTo: { mode: "width", value: width } }
+  return { background, ...resvgFont(), fitTo: { mode: "width", value: width } }
 }
 
 export interface MermaidRenderOptions {
@@ -194,6 +195,78 @@ export function resetRendererCache(): void {
   resetMermaidWasmRenderer()
 }
 
+// The diagram must look like the app's own text, so the terminal face wins: Consolas is the
+// "вбитый" system font on this host (owner directive 2026-09-24: «мы вбили consolas пусть и
+// будет»). The embedded OFL font stays as the deterministic fallback for machines without it.
+const MERMAID_TERMINAL_FONTS: Array<{ file: string; family: string }> = [
+  { file: "C:/Windows/Fonts/consola.ttf", family: "Consolas" },
+]
+const MERMAID_FONT_ASSET = "fonts/CascadiaMono.ttf"
+const MERMAID_EMBEDDED_FAMILY = "Cascadia Mono"
+let mermaidFontFamily = MERMAID_EMBEDDED_FAMILY
+// The theme must ASK for the active face. WASM measures label text by the registered font and
+// resvg rasterizes by fontFiles; while the SVG asked for "Inter,…" the layout measured the
+// engine's calibrated fallback while the raster drew another face — labels were sized wrong
+// (owner: «размер шрифтов не учитывается», 2026-09-24). With the family in the theme, both
+// engines resolve the SAME face.
+const mermaidFontConfig = () =>
+  JSON.stringify({
+    themeVariables: { fontFamily: `${mermaidFontFamily}, ui-sans-serif, system-ui, sans-serif` },
+  })
+
+// Embedded font: materialized once to a real file (resvg accepts only paths, not
+// buffers) and registered with the WASM engine, so layout metrics and the raster
+// share ONE font. Like a font embedded in a PDF — the binary carries it, the system
+// is never consulted, and the render is identical on every machine.
+let mermaidFontFilePath: string | null = null
+let mermaidFontSetup: Promise<void> | null = null
+
+async function ensureMermaidFont(mod: MermaidWasmRenderer): Promise<void> {
+  if (mermaidFontFilePath) return
+  if (mermaidFontSetup) return mermaidFontSetup
+  mermaidFontSetup = (async () => {
+    try {
+      // 1) Terminal face first — the diagram must match the app's own text (owner, 2026-09-24).
+      for (const candidate of MERMAID_TERMINAL_FONTS) {
+        const stat = await fs.promises.stat(candidate.file).catch(() => null)
+        if (!stat || !stat.isFile()) continue
+        const bytes = await fs.promises.readFile(candidate.file)
+        mod.registerFont(new Uint8Array(bytes))
+        mermaidFontFilePath = candidate.file
+        mermaidFontFamily = candidate.family
+        log.info("mermaid font ready (terminal face)", {
+          file: candidate.file,
+          family: candidate.family,
+          bytes: bytes.byteLength,
+        })
+        return
+      }
+      // 2) Embedded OFL fallback (PDF-style: the binary carries it).
+      const asset = await readEmbeddedWasmAsset(MERMAID_FONT_ASSET)
+      if (!asset.bytes) {
+        log.warn("bug: mermaid font asset missing", { tried: asset.tried })
+        return
+      }
+      const dir = path.join(Global.Path.cache, "fonts")
+      await fs.promises.mkdir(dir, { recursive: true })
+      const file = path.join(dir, "CascadiaMono.ttf")
+      const known = await fs.promises.stat(file).catch(() => null)
+      if (!known || known.size !== asset.bytes.byteLength) {
+        await fs.promises.writeFile(file, Buffer.from(asset.bytes))
+      }
+      mod.registerFont(new Uint8Array(asset.bytes))
+      mermaidFontFilePath = file
+      mermaidFontFamily = MERMAID_EMBEDDED_FAMILY
+      log.info("mermaid font ready (embedded)", { file, bytes: asset.bytes.byteLength })
+    } catch (error) {
+      log.warn("bug: mermaid font setup failed", { error: String(error) })
+    } finally {
+      mermaidFontSetup = null
+    }
+  })()
+  return mermaidFontSetup
+}
+
 // ── Timeout wrapper ─────────────────────────────────────────────────────────
 
 function withTimeout<T>(
@@ -220,7 +293,8 @@ export async function renderMermaidToSvg(
   const started = performance.now()
   try {
     const mod = await withTimeout(getRenderer(), source)
-    const svg = options?.theme ? mod.renderSvgWithConfig(source, undefined, options.theme) : mod.renderSvg(source)
+    await ensureMermaidFont(mod)
+    const svg = mod.renderSvgWithConfig(source, mermaidFontConfig(), options?.theme ?? "modern")
     log.info("mermaid SVG rendered", {
       sourceChars: source.length,
       svgChars: svg.length,

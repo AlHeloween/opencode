@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test"
 import fs from "fs"
 import os from "os"
 import path from "path"
-import { configureLogging, resolveGatewayProtocol, setDebugConfig, wrapFetch } from "@/provider/gateway/adaptive-client"
+import { configureLogging, protocolChain, resolveGatewayProtocol, setDebugConfig, shouldDowngrade, wrapFetch } from "@/provider/gateway/adaptive-client"
 
 const logDir = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-gateway-capture-"))
 const originalLogDir = process.env.OPENCODE_GATEWAY_LOG_DIR
@@ -23,25 +23,45 @@ afterAll(() => {
 })
 
 describe("resolveGatewayProtocol", () => {
-  test("family defaults: openai, opencode (zen) and deepseek -> h2, others -> http/1.1", () => {
-    expect(resolveGatewayProtocol("openai")).toBe("h2")
-    expect(resolveGatewayProtocol("opencode")).toBe("h2")
-    expect(resolveGatewayProtocol("opencode-go")).toBe("h2")
-    // 2026-09-17: api.deepseek.com negotiates h2 by ALPN and PICKS h2 when
-    // offered "h2,http/1.1". It was falling through to the legacy rung — the
-    // exact failure the provider-reach postulate exists to prevent, so the
-    // default is pinned here rather than left to a comment.
-    expect(resolveGatewayProtocol("deepseek")).toBe("h2")
-    // Novita's rung is h3 and rides `options.protocol` from the catalog, not
-    // this family default — so the default for it stays the floor.
-    expect(resolveGatewayProtocol("novita-ai")).toBe("http/1.1")
-    expect(resolveGatewayProtocol("openrouter")).toBe("http/1.1")
+  test("default policy: auto (h3-first) for every provider", () => {
+    // Owner directive 2026-09-24: attempt h3 first, downgrade to h2, h1 only
+    // as the last resort. The probe outcome is cached per origin, so a
+    // no-QUIC provider pays one fast-fail probe per TTL, not per request.
+    expect(resolveGatewayProtocol("openai")).toBe("auto")
+    expect(resolveGatewayProtocol("opencode")).toBe("auto")
+    expect(resolveGatewayProtocol("opencode-go")).toBe("auto")
+    expect(resolveGatewayProtocol("deepseek")).toBe("auto")
+    expect(resolveGatewayProtocol("novita-ai")).toBe("auto")
+    expect(resolveGatewayProtocol("openrouter")).toBe("auto")
   })
 
   test("configured override always wins", () => {
     expect(resolveGatewayProtocol("opencode", "h3")).toBe("h3")
     expect(resolveGatewayProtocol("novita-ai", "h2")).toBe("h2")
     expect(resolveGatewayProtocol("openai", "http/1.1")).toBe("http/1.1")
+    expect(resolveGatewayProtocol("openai", "auto")).toBe("auto")
+  })
+})
+
+describe("h3-first transport policy", () => {
+  test("downgrade chain: auto probes h3, a dead h3 probe is cached, explicit choice is honored", () => {
+    expect(protocolChain("auto", false)).toEqual(["h3", "h2", "http/1.1"])
+    expect(protocolChain("auto", true)).toEqual(["h2", "http/1.1"])
+    // An explicit h3 choice ignores the cached probe — the user asked for it.
+    expect(protocolChain("h3", true)).toEqual(["h3", "h2", "http/1.1"])
+    expect(protocolChain("h2", false)).toEqual(["h2", "http/1.1"])
+    // h1 is never a recommended rung: it exists only as the last resort.
+    expect(protocolChain("http/1.1", false)).toEqual(["http/1.1"])
+  })
+
+  test("downgrade decision: h3 leaves on any transport error, h2 keeps its established rule", () => {
+    const handshake = { category: "tls_error" as const, retryable: false, message: "HTTP3HandshakeFailed fetching ..." }
+    expect(shouldDowngrade("h3", handshake)).toBe(true)
+    expect(shouldDowngrade("h3", { category: "client_abort" as const, retryable: false, message: "request aborted" })).toBe(false)
+    // h2 keeps the old rule: tls_error does NOT downgrade, conn_reset does.
+    expect(shouldDowngrade("h2", handshake)).toBe(false)
+    expect(shouldDowngrade("h2", { category: "conn_reset" as const, retryable: true, message: "ECONNRESET" })).toBe(true)
+    expect(shouldDowngrade("http/1.1", { category: "conn_reset" as const, retryable: true, message: "ECONNRESET" })).toBe(false)
   })
 })
 
@@ -79,6 +99,13 @@ describe("gateway wire capture", () => {
     expect(await (await request()).text()).toContain("turn-1")
     expect(await (await request()).text()).toContain("turn-2")
     await Bun.sleep(25)
+
+    // T4: the transport publishes the factual protocol for the TUI sidebar.
+    const lastProtocol = (globalThis as any).__gatewayLastProtocol as
+      | { provider?: string; model?: string; protocol?: string }
+      | undefined
+    expect(lastProtocol?.provider).toBe("capture-provider")
+    expect(lastProtocol?.protocol).toBe("http/1.1")
 
     const requests = fs.readdirSync(path.join(logDir, "per-request"))
     expect(requests.filter((name) => name.endsWith(".json"))).toHaveLength(2)

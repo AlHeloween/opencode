@@ -925,6 +925,52 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
 
       }
 
+      /** Write the transport protocol for one model into the SELECTED layer
+       * (owner directive 2026-09-24): worktree → provider.<id>.models.<m>.options.protocol
+       * via merge-patch; global → the same shape through the global config route.
+       * Session scope is not honored by the server yet — the provider SDK is
+       * cached by options, so a per-session override needs server work and is
+       * reported instead of silently dropped. */
+      async function setModelProtocol(
+        providerID: string,
+        modelID: string,
+        protocol: string,
+        scope: ModelScope,
+      ) {
+        const baseID = modelID.split(":")[0]
+        if (scope === "global") {
+          const response = (await sdk.client.global.config.get({ throwOnError: true })) as unknown as {
+            data?: Record<string, unknown>
+          }
+          const config = { ...(response.data ?? {}) }
+          const providers = { ...((config.provider as Record<string, unknown> | undefined) ?? {}) }
+          const provider = { ...((providers[providerID] as Record<string, unknown> | undefined) ?? {}) }
+          const models = { ...((provider.models as Record<string, unknown> | undefined) ?? {}) }
+          const model = { ...((models[baseID] as Record<string, unknown> | undefined) ?? {}) }
+          const options = { ...((model.options as Record<string, unknown> | undefined) ?? {}) }
+          options.protocol = protocol
+          model.options = options
+          models[baseID] = model
+          provider.models = models
+          providers[providerID] = provider
+          config.provider = providers
+          await sdk.client.global.config.update({ config: config as never }, { throwOnError: true })
+          return
+        }
+        if (scope === "worktree") {
+          await patchProjectConfig({
+            provider: { [providerID]: { models: { [baseID]: { options: { protocol } } } } },
+          })
+          return
+        }
+        toast.show({
+          title: "Session scope not available",
+          message: "Protocol applies from global/worktree config for now — per-session override needs server work",
+          variant: "warning",
+          duration: 4000,
+        })
+      }
+
       /** Session-layer routing reads for the dialog's initial state (rev 4). */
       function sessionAgentRoutingView(name: string) {
         return sessionAgentRouting(name, sessionSettings())
@@ -941,6 +987,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         setProviderRouting,
         setAgentRouting,
         setModelRouting,
+        setModelProtocol,
         samplingFor,
         samplingLayerView,
         setModelSampling,

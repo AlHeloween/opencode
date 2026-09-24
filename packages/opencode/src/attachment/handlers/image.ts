@@ -19,29 +19,38 @@ async function extractImageMeta(buffer: Buffer): Promise<{
 }
 
 /**
- * Every image attachment is normalised to WebP — quality 80 at compression
- * effort 6 (the maximum) after the resize (2026-09-18, Alexander). The
- * provider SDKs that accept images take `image/webp` natively (DeepSeek's
- * `image_url` part lists gif/jpeg/png/webp), and the text-only fallback reads
- * the same bytes through sharp — a smaller payload is a smaller wire.
+ * Image attachments are normalised with TWO policies (2026-09-24):
+ *  - overflow (larger than max_width/max_height): resize to fit, then WebP q80 —
+ *    the quality loss is paid only where scaling already changes the pixels;
+ *  - fits: LOSSLESS WebP, and only when it actually shrinks the payload; otherwise
+ *    the original bytes pass through untouched. A lossy re-encode of an already-fitting
+ *    image was pure blur (owner: «ресайз делать только если не влазит — размытое все»,
+ *    2026-09-24).
  * `animated: true` keeps GIF/WebP animation instead of collapsing it.
  */
 async function toWebp(
   buffer: Buffer,
   maxWidth: number,
   maxHeight: number,
-): Promise<{ data: Buffer; width: number; height: number }> {
+): Promise<{ data: Buffer; width: number; height: number } | null> {
   const image = sharp(buffer, { animated: true })
   const meta = await image.metadata()
-  const resized =
-    meta.width && meta.height && (meta.width > maxWidth || meta.height > maxHeight)
-      ? image.resize(maxWidth, maxHeight, { fit: "inside", withoutEnlargement: true })
-      : image
+  const needsResize = !!(meta.width && meta.height && (meta.width > maxWidth || meta.height > maxHeight))
+  if (!needsResize) {
+    // Nothing overflows — do NOT buy weight with sharpness. Try a lossless pass and
+    // keep it only if it actually shrinks the payload; else keep the original bytes.
+    const lossless = await image.webp({ lossless: true, effort: 4 }).toBuffer({ resolveWithObject: true })
+    if (lossless.data.length >= buffer.length) return null
+    return { data: lossless.data, width: lossless.info.width, height: lossless.info.height }
+  }
   // `resolveWithObject` returns the OUTPUT dimensions — what actually goes on
   // the wire AFTER the cap — in the same pass that already encodes the WebP.
   // Asking sharp for them separately would decode the image a second time, and
   // the window budget needs them on every turn (2026-09-18).
-  const out = await resized.webp({ quality: 80, effort: 6 }).toBuffer({ resolveWithObject: true })
+  const out = await image
+    .resize(maxWidth, maxHeight, { fit: "inside", withoutEnlargement: true })
+    .webp({ quality: 80, effort: 6 })
+    .toBuffer({ resolveWithObject: true })
   return { data: out.data, width: out.info.width, height: out.info.height }
 }
 

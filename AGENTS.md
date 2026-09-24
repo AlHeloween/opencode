@@ -73,6 +73,7 @@ constraints:
 - Tool names ARE wire ids: lowercase ASCII alphanumerics only — `_` and `-` are refused and the tool fails to load at `Tool.define`; the same spelling must appear in the registry, its `builtin` list and `util/dsml-normalizer`, or a DeepSeek-emitted call is never recognised (2026-09-19, restating 2026-08-26: `canonicalName` strips non-alphanumerics — `multi_edit`→`multiedit`, `session-read`→`sessionread`). WHY it is a prohibition and not a taste: a second spelling of a TOOL NAME is a generation bug, not a validation one — the model emits whichever variant association hands it (`-` and `_` are its standard separator habits) and the mismatch is silent, because a validator can see a typo and cannot see an association. SCOPE: tool names ONLY. This is not a naming rule for fields, keys or internal identifiers — a tool name is the one identifier the model must reproduce itself for the call to be routed (2026-09-19).
 
 forbidden_actions:
+- **Never touch `bin/` without explicit owner permission** — no edits, no replace/rename/move/copy into it, and no launching executables from it (including a version check like `bin\opencode.exe --version`). WHY: `bin/` is the owner's LIVE runtime — the running TUI executes from that folder, and in-session "bin surgery" (move-aside + copy to dodge a locked exe) on 2026-09-24 mixed 10.0.1106/10.0.1107 and broke the owner's session. Build candidates belong in `packages/opencode/dist/**`; promoting a candidate into `bin/` happens ONLY on an explicit owner request, by the owner's own procedure. Owner, 2026-09-24, verbatim: «любые правки в bin папке и запуски оттуда без конкретного разрешения - запрещены».
 - Exposing secrets (API keys, tokens, passwords, private keys) to git
 - Using git push --no-verify (or any --no-verify variant)
 - Using silent catch {} blocks
@@ -101,6 +102,7 @@ invariants:
 - .opencode/plans/ is prohibited for plan storage
 - git push --no-verify is never permitted for developer pushes
 - Every provider's recorded version rung and transport rung name the probe that established them
+- **Absence of an oracle reads as FALSE** — for the user a missing indicator means "it does not work": a status surface must always render a value (the policy value, e.g. `auto`, or an explicit `unknown`), never nothing. Measured 2026-09-24: the sidebar protocol row went blank for one restart and was read as «все не работает». Owner, 2026-09-24, verbatim: «для пользователя отсутствие оракула означает - false».
 
 acceptance_tests:
 - git status confirms Local_Development branch

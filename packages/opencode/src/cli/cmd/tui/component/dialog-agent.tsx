@@ -320,7 +320,7 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
           },
         },
         {
-          title: "Sampling parameters",
+          title: "Model parameters",
           keybind: Keybind.parse("ctrl+g")[0],
           onTrigger: (option: { value: string }) => {
             dialog.replace(() => (

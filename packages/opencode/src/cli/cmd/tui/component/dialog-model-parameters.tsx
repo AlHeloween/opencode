@@ -1,8 +1,9 @@
-import { createMemo } from "solid-js"
+import { createMemo, createSignal } from "solid-js"
 import { useLocal, type ModelScope } from "@tui/context/local"
 import { useDialog } from "@tui/ui/dialog"
 import { DialogSelect } from "@tui/ui/dialog-select"
 import { DialogPrompt } from "@tui/ui/dialog-prompt"
+import { protocolChoices } from "./protocol-options"
 import type { ModelSampling } from "@/session/model-sampling"
 import * as Log from "@opencode-ai/core/util/log"
 
@@ -13,10 +14,16 @@ const FIELDS: Array<{ key: keyof ModelSampling; title: string; description: stri
   { key: "presence_penalty", title: "Presence penalty", description: "Penalty for already-used tokens" },
 ]
 
+// Transport rungs, best first (owner directive 2026-09-24): h1 exists only as
+// the last-resort fallback and is not recommended for selection.
+// Protocol choices live in ./protocol-options (pure module) so the menu
+// contract is unit-tested in isolation (test/tui/protocol-options.test.ts).
+
 export function DialogModelParameters(props: {
   targetAgent: string
   scope: ModelScope
   initial?: ModelSampling
+  initialProtocol?: string | null
   onDone?: () => void
 }) {
   const local = useLocal()
@@ -26,13 +33,19 @@ export function DialogModelParameters(props: {
     const model = target()
     return props.initial ?? (model ? local.model.samplingLayerView(model, props.scope) : undefined)
   })
+  // Draft protocol; `null` means "not touched in this dialog" — the configured
+  // rung then stays as it is.
+  const [protocol, setProtocol] = createSignal<string | null>(props.initialProtocol ?? null)
+  const configuredProtocol = createMemo(() => (target() as any)?.options?.protocol ?? "auto")
+  const shownProtocol = createMemo(() => protocol() ?? configuredProtocol())
+
   function finish() {
     if (props.onDone) props.onDone()
     else dialog.clear()
   }
 
-  function reopen(next: ModelSampling) {
-    dialog.replace(() => <DialogModelParameters {...props} initial={next} />)
+  function reopen(next: ModelSampling, nextProtocol: string | null = protocol()) {
+    dialog.replace(() => <DialogModelParameters {...props} initial={next} initialProtocol={nextProtocol} />)
   }
 
   async function edit(key: keyof ModelSampling) {
@@ -54,15 +67,36 @@ export function DialogModelParameters(props: {
     reopen({ ...current, [key]: next })
   }
 
+  function chooseProtocol() {
+    const current = sampling()
+    if (!current) return
+    dialog.replace(() => (
+      <DialogSelect
+        title={`Protocol — ${target()?.providerID ?? "?"}/${target()?.modelID ?? "?"}`}
+        options={protocolChoices(configuredProtocol()).map((item) => ({
+          ...item,
+          onSelect: () => {
+            setProtocol(item.value)
+            reopen(current, item.value)
+          },
+        }))}
+        flat={true}
+      />
+    ))
+  }
+
   function save() {
     const model = target()
     const value = sampling()
     if (!model || !value) return
-    void local.model
-      .setModelSampling(model, value, props.scope)
+    void (async () => {
+      await local.model.setModelSampling(model, value, props.scope)
+      const draft = protocol()
+      if (draft !== null) await local.model.setModelProtocol(model.providerID, model.modelID, draft, props.scope)
+    })()
       .then(finish)
       .catch((error: unknown) => {
-        Log.Default.warn("bug: model sampling save failed", {
+        Log.Default.warn("bug: model parameters save failed", {
           agent: props.targetAgent,
           scope: props.scope,
           error: error instanceof Error ? error.message : String(error),
@@ -82,6 +116,13 @@ export function DialogModelParameters(props: {
         onSelect: () => void edit(field.key),
       })),
       {
+        value: "protocol",
+        title: "Protocol",
+        description: "Transport for this model (auto = h3 → h2 → h1)",
+        footer: shownProtocol(),
+        onSelect: chooseProtocol,
+      },
+      {
         value: "save",
         title: `Save to ${props.scope}`,
         description: "Persist these values for the selected model",
@@ -93,7 +134,7 @@ export function DialogModelParameters(props: {
 
   return (
     <DialogSelect
-      title={`Model sampling — ${target()?.providerID ?? "?"}/${target()?.modelID ?? "?"} · ${props.scope}`}
+      title={`Model parameters — ${target()?.providerID ?? "?"}/${target()?.modelID ?? "?"} · ${props.scope}`}
       options={options()}
       flat={true}
     />

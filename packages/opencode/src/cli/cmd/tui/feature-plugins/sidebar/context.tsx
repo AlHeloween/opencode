@@ -4,6 +4,7 @@ import { createMemo, createSignal, onCleanup, onMount, untrack } from "solid-js"
 import { getModelStatus } from "@/provider/balance"
 import { usable } from "@/session/overflow"
 import { useAgiMode } from "@tui/context/agi-mode"
+import { protocolRow } from "./protocol-row"
 
 const id = "internal:sidebar-context"
 
@@ -360,6 +361,15 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       | { activeStreams: number; h2Sessions: number; h2MaxConcurrentStreams: number; updatedAt: number }
       | undefined
 
+    // Last factual decision wins: the sidebar shows WHAT THE TRANSPORT USED,
+    // not what the config asked for. No key matching — the last request in the
+    // session IS the fact, and an id-variant mismatch must never blank the row
+    // (blank read as "everything is broken", 2026-09-24).
+    const lastProtocol = (globalThis as any).__gatewayLastProtocol as
+      | { provider: string; model: string; protocol: string; at: number }
+      | undefined
+    const liveProtocol = protocolRow(lastProtocol, model?.options?.protocol)
+
     const totalInput = last.tokens.input + last.tokens.cache.read
     const cacheHitRate =
       totalInput > 0 && last.tokens.cache.read > 0 ? Math.round((last.tokens.cache.read / totalInput) * 100) : null
@@ -378,7 +388,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       tokens,
       percent: budget > 0 ? Math.round((tokens / budget) * 100) : null,
       gatewayEnabled,
-      protocol: gatewayEnabled ? model?.options?.protocol || "http/1.1" : undefined,
+      protocol: gatewayEnabled ? liveProtocol : undefined,
       streaming: gatewayEnabled ? (model?.options?.streaming ?? true) : undefined,
       activeStreams: liveStatus?.activeStreams ?? 0,
       h2Sessions: liveStatus?.h2Sessions ?? 0,
@@ -420,7 +430,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       {state().providerID ? (
         <text fg={theme().textMuted}>
           {state().providerID} · {state().apiProtocol}
-          {state().protocol ? ` · ${state().protocol}` : ""}
+          {state().protocol ? ` · ${state().protocol} (protocol)` : ""}
         </text>
       ) : null}
       {state().streaming !== undefined ? (

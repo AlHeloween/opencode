@@ -184,8 +184,29 @@ than by function, by data provenance rather than by capability — finds cells y
 concept. The guard is `MEDOID_SIMPLEX` one scale up: independent EXPLANATIONS, not merely independent
 sources. Two independent decomposition schemes over one surface; their union has no seam to attack.
 
-Scope note, because conflating these is the "one predicate, one axis" error: this defends against
-COVERAGE attacks. It is not a defence against prompt injection.
+Scope note, because conflating these is the "one predicate, one axis" error: the seamless lattice
+defends against COVERAGE attacks. Injection is a different axis, and it splits into two classes that
+are cured by different things.
+
+**Tampering and substitution — cured by hashes.** The instruction supply chain (kernel, AGENTS,
+skills, memory, plan files) is checkable by digest, and the precedent is already in the repo:
+`baseline.json` pins the installed prefix's sha256 and `compatibility.assert_current_kernel_unchanged`
+verifies it; `ORACLE_STAMP.content_hash` extends the same idea to evidence. Extending it to the
+remaining instruction surfaces is cheap and right.
+
+**Authority confusion — not cured by hashes, because integrity is not authority.** An authentic,
+unmodified page saying "ignore previous instructions" has a perfectly valid digest. Here the kernel
+is structurally resistant, through four rules none of which was written for security:
+`@AUTHORITY_SEPARATION` + G4 (an envelope is issued by a plan, so a string in a tool result has no
+edge to G7 at all), `@GUESS_DECIDES_NOTHING` (injected text is an unverified neighbour by
+construction, and cannot testify about itself), `generic_web` (a web hit is Hypothetical forever and
+never becomes Inferred), and `@INTENTION_INVARIANCE` + `INTENTION_RESET` (only the user moves the
+target, which is what injection almost always attempts). The epistemology turned out to be the
+defence, because injection IS the attempt to give unverified text authority.
+
+**The weak link is not a missing hash — it is a vague envelope.** Injection does not need to move the
+goal if one action inside an already-approved envelope will do. What refuses it is concrete `paths`
+and `tools`: `CONCRETE_BOUNDS` exists because "reasonable" and "as needed" cannot refuse anything.
 
 **And one boundary on the whole thesis:** this loop does not touch weights. It brings the SYSTEM
 around a model to perfection — which is the project's founding postulate, priors installed as process

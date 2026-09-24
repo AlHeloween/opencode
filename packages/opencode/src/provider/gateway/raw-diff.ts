@@ -728,8 +728,14 @@ function renderHunks(ops: LineOp[], prefixOffset: number, context: number): stri
   return out.join("\n") + "\n"
 }
 
-/** Marker that identifies one reasoning-kernel copy inside a system message. */
-const KERNEL_MARKER = "Semantic Vector (SV)"
+/**
+ * Marker that identifies one reasoning-kernel copy inside a system message —
+ * the production prompt's first line. Pinned by test against that file: the
+ * previous value ("Semantic Vector (SV)") was a string no render ever
+ * contained, so every request reported "kernel copies: 0" with the kernel
+ * sitting right there in the body — a counter that could never pass.
+ */
+export const KERNEL_MARKER = "## 0. WORKFLOW — gated execution protocol"
 
 function messageText(message: Record<string, unknown>): string {
   const content = message.content

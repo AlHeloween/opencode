@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
+import { readFileSync } from "node:fs"
 
-import { analyzeRawDiff, assembleMessage, collectReasoning, messageSpans, renderIntegrityReport, renderLineDiff, renderRawDiff, renderRawWirePseudoDiff, renderResponseMarkdown, renderWireMessageMd } from "@/provider/gateway/raw-diff"
+import { analyzeRawDiff, assembleMessage, collectReasoning, KERNEL_MARKER, messageSpans, renderIntegrityReport, renderLineDiff, renderRawDiff, renderRawWirePseudoDiff, renderResponseMarkdown, renderWireMessageMd } from "@/provider/gateway/raw-diff"
 
 function body(messages: string[], maxTokens = 100) {
   return JSON.stringify({
@@ -187,7 +188,7 @@ describe("renderLineDiff", () => {
           model: "m",
           messages: Array.from({ length: copies }, () => ({
             role: "system",
-            content: [{ type: "text", text: "# Semantic Vector (SV) — kernel body" }],
+            content: [{ type: "text", text: `${KERNEL_MARKER} — kernel body` }],
           })),
         },
         null,
@@ -199,7 +200,7 @@ describe("renderLineDiff", () => {
     const text = renderLineDiff({ prevId: "p", prevRaw: make(2), currId: "c", currRaw: make(3) })
     const added = text.split("\n").filter((line) => line.startsWith("+"))
     expect(added.length).toBeGreaterThan(0)
-    expect(added.some((line) => line.includes("Semantic Vector (SV)"))).toBe(true)
+    expect(added.some((line) => line.includes(KERNEL_MARKER))).toBe(true)
   })
 
   test("patience fallback: giant middles produce a REAL diff, not del-all/add-all (бредодиф regression)", () => {
@@ -250,7 +251,7 @@ describe("renderLineDiff", () => {
 })
 
 describe("renderIntegrityReport", () => {
-  const kernel = "# Semantic Vector (SV)\nkernel body"
+  const kernel = `${KERNEL_MARKER}\nkernel body`
   const conforms = {
     model: "m",
     messages: [
@@ -286,6 +287,22 @@ describe("renderIntegrityReport", () => {
     }
     const text = renderIntegrityReport({ body })
     expect(text).toContain("kernel copies: 3 (EXPECTED 1 — identity accumulation)")
+  })
+
+  test("a real capture is not needed to pin the marker: the PRODUCTION prompt must contain it", () => {
+    // The counter was born dead: KERNEL_MARKER was a string no kernel render
+    // ever contained, so every live request read "kernel copies: 0" while the
+    // kernel sat right there in the body — the fixtures above prove the
+    // counting logic, never the marker. This pin ties the marker to the file
+    // that actually ships; a kernel edit that renames the heading fails here,
+    // at the same commit, instead of silently blinding the counter.
+    const prompt = readFileSync(new URL("../../src/session/prompt/reasoning_prompt.txt", import.meta.url), "utf8")
+    const hit = renderIntegrityReport({ body: { messages: [{ role: "system", content: prompt }] } })
+    expect(hit).toContain("kernel copies: 1")
+    // Control: the same predicate must come out differently when the kernel is
+    // genuinely absent — otherwise it has no power.
+    const miss = renderIntegrityReport({ body: { messages: [{ role: "system", content: "You are Smit." }] } })
+    expect(miss).toContain("kernel copies: 0")
   })
 
   test("dual dialect violation", () => {

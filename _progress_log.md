@@ -1,5 +1,19 @@
 # Progress Log
 
+## [2026-09-24 15:14Z] Post-rebuild check: the kernel is on the wire, S2 did NOT move, the fold boundary carries no tool demo
+
+CONFIRMED (✓ `certutil -hashfile`; ✓ `prompt_kernel/baseline.json`): production prompt sha256 = `dc981bc4da82e2ba…` — the 2026-09-24 render. CONFIRMED (✓ mtime): `bin/opencode.exe` 23:00:25 local is 52 min newer than `reasoning_prompt.txt` 22:08:32 — the owner promoted a build.
+
+CONFIRMED (✓ `experiments/2026-09-24_prefix-probe/probe.mjs`, report beside it): the gateway system block on the wire equals the production file BYTE-FOR-BYTE (sha256, len 46 797) in every request of `ses_f2d350cd9ffe…` from 15:02:17Z; requests 10:33–11:51Z carried the previous block (`39516d3eb691…`, 46 642). The rebuild+restart delivered the new prefix BY ITSELF — the fold (consumed 15:07:57Z; window now 0/865k) moved the WINDOW, not the kernel. This closes the gap memory carried as «byte-equality of the system block NOT measured».
+
+CONFIRMED (✓ own run, 1.54 s): `python -m pytest prompt_kernel/tests -q` → 107 passed ⇒ production == renderer.
+
+S2 (first-act census, defined in `plans_completed/2026-09-24_grounding-first-and-boundary-reporting.md` §Smoke): user turns today, first assistant part of type text|tool — BEFORE 15:00Z: text 92, tool 5, NULL 14; AFTER (new prefix): text 2, tool 0. The tool-first share did NOT move (~5% → 0%); my own first post-fold act was text (203 ch, after 16 055 ch of reasoning, then dbread/glob/list/read), although T5's rule sat in the prefix. Per the plan's own falsifier the pre-action section was not the cause ⇒ the next suspect is the POST-FOLD TAIL ASSEMBLY — now MEASURED (✓ `tail-probe.mjs` + the `.diff` LEVEL 1 rows): the fold-boundary request (15:07:57Z) carried **6 system + 1 user and nothing else** — 0 assistant, 0 tool calls, 0 tool results; the diff lists 223 → 7 messages with every assistant/tool row REMOVED. The first post-fold window demonstrates no tool use at all. n=2 after the change; NULL = an instrument that cannot see, never FAIL.
+
+DEFECT found, NOT touched (✓ read `provider/gateway/raw-diff.ts:732`; ✓ `grep prompt_kernel` → no matches): the integrity report's kernel-copy counter uses `KERNEL_MARKER = "Semantic Vector (SV)"`, a string that appears in NO kernel render — so it prints `kernel copies: 0 (EXPECTED 1 — identity accumulation)` on EVERY request while exactly one copy is present (the system block = production sha). Born dead at `5d433565df`: a counter that can never pass, and noise that would mask a real triplication. Fix = a marker the kernel actually contains (e.g. `## 0. WORKFLOW — gated execution protocol`).
+
+S3 NOT measurable yet: no plan approval→closure window has run under the new prefix.
+
 ## [2026-09-24 10:45Z] Размазанное thinking: образцы и механизм (plans/advanced_reasoning)
 
 CONFIRMED (✓ dbread): из `ses_f3a670226ffeE4GR2ohMg1IfSJ` (deepseek-flash — тот же, что везде) выкачаны и сохранены два reasoning-трейса: `plans/advanced_reasoning/2026-09-24_fragmented-thinking-specimen.md` — A («Забавно.», 8 208 знаков, 146 «Хм»/108✓/232✗ — целиком) и B («галки пропали», 75 610 знаков, 172/120/58 — голова+хвост+адрес). Оба оборваны без ответа; первое reasoning сессии (21.09) — чистый английский, 0 марок.

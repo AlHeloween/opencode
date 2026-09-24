@@ -103,7 +103,7 @@ is satisfied literally. **Removed as duplicate**: the V&V line (carried by `@ORA
 
 ## Procedure (docs/kernel-amendment.md)
 
-1–2. Proposal and NO_DUPLICATE_NORM — `plans/2026-09-24_grounding-first-and-boundary-reporting.md`;
+1–2. Proposal and NO_DUPLICATE_NORM — `plans_completed/2026-09-24_grounding-first-and-boundary-reporting.md`;
 every addition either replaced a norm or merged into one. 3. Constitutional check — **the core is
 identical to 09-17**: same 8 rules, same 8 pinned clauses, verified by diff. 4. Impact — G0–G9 rules,
 5 edges, 1 shared rule, 3 addon registries, `validate.py`. 5. Constitutional tests — green before and

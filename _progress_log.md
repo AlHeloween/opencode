@@ -4976,3 +4976,12 @@ finding applied to itself: a field has to be filled, so it forces the judgement,
 only requests it and can be satisfied by tone.
 
 product 46969 B, sha dc981bc4..., free 31. 107 passed.
+
+## [2026-09-24 23:40] Plan closed as built: grounding-first-and-boundary-reporting
+
+Rewritten against the installed source, every box citing its `source.py` line. Divergences from
+the proposal recorded, not hidden: four catalogues evicted (not three), the V&V line removed as a
+duplicate (not moved), T6's extent landed at G4 as `APPROVAL_EXTENT`, T9 folded into the `@ORACLE`
+definition instead of a new rule, T7's test is `test_pre_action_section_stays_small`, T8 shipped
+(the plan still said "parked"). Residual: S2/S3 (need a promoted build — owner's act) and M1–M7
+(unfunded under the 31 B ceiling). Moved to plans_completed/. 107 passed.

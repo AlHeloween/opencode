@@ -2,9 +2,12 @@
 
 # Grounding first, and reporting at the boundary
 
-state: ACTIVE — released 2026-09-24, see docs/kernel-release-2026-09-24.md; S2/S3 open
+state: COMPLETED 2026-09-24 — as built, released in `5a06a07f40`, record in
+docs/kernel-release-2026-09-24.md. Closed with a recorded residual (behavioural smokes S2/S3, the
+maturity queue M1–M7): per the kernel's own G9, a stop whose residual is recorded is legitimate
+closure — finished, not abandoned.
 owner: Alexander
-surface: `prompt_kernel/` (source + the three addon registries), no product code
+surface: `prompt_kernel/` (source + the three addon registries + `validate.py`), no product code
 
 ## Why
 
@@ -55,84 +58,97 @@ G4 already granted for the whole envelope, and each feeds Defect 1's loop throug
 Nothing in the kernel states that an ALLOW covers every task bound to the approved plan. G4 grants
 an envelope for a CLASS of effects with bounds; it is not consumed by one task.
 
-## Tasks
+## Tasks — as built
 
-- [x] **T1 — evict the standards catalogues from G1.** Remove the `GUI_STANDARDS`,
-      `TUI_STANDARDS`, `ERGONOMICS_STANDARDS` addons (1 298 B) from `addons.py`,
-      `addons_claude.py`, `addons_codex.py`. Receiver: `docs/ui-standards.md` (new), carrying the
-      three catalogues verbatim. Leave ONE pointer line at **G7**, where they are actually used:
-      "GUI/TUI/ergonomics standards: docs/ui-standards.md — read before building a surface."
-      Parity holds: removed from all three registries, so `DECLARED_DIFFERENCES` is untouched.
-- [x] **T2 — move `ACCEPTANCE_FRAME` (both lines, frame + V&V, 518 B) from G1 to G3.** "Named
-      BEFORE planning" is satisfied literally at G3, which is where the plan, its claims and its
-      oracles are compiled. Nothing leaves the kernel; it stops standing in front of the first
-      observation.
-- [x] **T3 — change the CONDITION, not the prose.** Edge `G1 -> G2` becomes
-      `grounded execution goal exists, carrying at least one instrument result`. A condition is a
-      slot: unlike a bullet it cannot be satisfied by tone. Own recall does not count — it is
-      already the weakest rung in `@INFORMATION_STATUS`.
-- [x] **T4 — charge the no-op pass.** `@LOOP_PROGRESS` gains: a pass that ends in the same gate
-      adding no instrument result, no claim and no residual is charged to `bounds.loop_budget`
-      like a fruitless retry. Today `@LOOP_MEASURE` moves only on claims/acceptance/risks/residual,
-      so pure thought is DIMENSIONLESS to our own detector and STALL is unreachable for it.
-      Carve-out: `@REASONING_MODE` is the declared exception (no tools by design, may not mutate).
-- [x] **T5 — the first act after a fold is a call.** One line where compaction is handled
-      (`SEMANTIC_ATTENTION` / `@COMPACTION_CADENCE`), not in G1: after a fold the first act
-      re-reads a handle with an instrument (plan comment, `_progress_log.md`, a `path:line`) —
-      never a summary of the summary. The fold deleted the only demonstration of instrument use;
-      it has to be re-created by doing it.
-- [x] **T6 — name the record's destination and the envelope's extent (Defect 2).**
-      `PLAN_EXECUTION` gains "…the record lands in the progress log and in the plan box, not in
-      the reply"; a short rule next to `ONE_TASK_OPEN` states that an ALLOW covers every task bound
-      to the approved plan until a bound is exceeded, so a per-item report is not a checkpoint but
-      a re-approval the user did not ask for. The user-facing report happens at the declared
-      boundary, or when a bound is exceeded, or when a decision is needed.
-- [x] **T9 — an oracle must return an ADDRESS (owner's defect 3).** New G8 rule
-      `INSTRUMENT_RESOLUTION`: *"An oracle returns an address, not a verdict. A build or a
-      whole-app run is one bit with no location: localize per unit with an isolated test, then
-      let the integration surface confirm composition only. A build proves that it built."*
-      Owner, 2026-09-24: «Попытка использовать собранный экзешник как доказательство не проведя
-      индивидуальных тестов… В смысле изолированных тестов для локализации проблемы.»
-      This is a fourth property of an instrument, next to layer (`@ORACLE`), power
-      (`@PREDICATE_POWER`) and admissibility (`INSTRUMENT_RUNG`); resolution is currently unnamed.
-      Cheaper alternative if a new rule is refused: two clauses, one on `PREDICATE_POWER` (a
-      build's PASS excludes almost nothing) and one on `SMOKE_VERIFY` (the focused test comes
-      first BECAUSE it localizes) — costs ~90 B instead of ~245 B but leaves "address" unnameable.
-- [x] **T10 — G0 is the intention and nothing else (owner's defect 4a).** New G0 rule:
-      *"G0 emits the Digital Intention and nothing else: no analysis, no plan, no answer. The
-      route out is G1."* Owner: «по сути G0 это просто определить намерение пользователя И ВСЕ —
-      дальше только через заземление». Consequence: `STATE_FIRST` moves out of G0 — the state
-      worth publishing is the grounded one, so it belongs at G1 (or is dropped; 45 B either way).
-- [x] **T11 — Guess decides nothing (owner's defect 4b).** New shared rule
-      `@GUESS_DECIDES_NOTHING`: *"Guess decides nothing. Each Guess a decision rests on is promoted
-      before use — authority search, then code, then smoke where possible — or it closes Unknown.
-      Prose about a Guess is not a promotion."* Owner, verbatim: «по постулату кернела и моя и
-      симуляция агента — guess, GUESS НЕ МОЖЕТ БЫТЬ ПОВОДОМ ПРИНЯТИЯ РЕШЕНИЙ… на каждый guess
-      сегмент полотна текста надо сделать интернет-поиск в авторитетных источниках, потом по коду,
-      потом смоук если возможно». Second clause, from «может пользователь вообще ошибается»: the
-      TARGET is the user's (`@INTENTION_INVARIANCE` keeps it), the observation and the suggested
-      solution are testimony — `USER_REQUEST.observation` is Guess until grounded.
-      This is the rule that makes defect 1 impossible: with nothing decidable at G0 and no decision
-      resting on Guess, the only move left at the start is an instrument call.
-- [x] **T7 — guard the class: `test_pre_action_budget`.** A separate, smaller cap on
-      `G0 + G1` rendered bytes, pinned to the post-change measurement plus small headroom, with the
-      reason in the test. A flat total ceiling cannot detect mass moving forward in the pass; this
-      one fails the day it does.
-- [x] **T8 — (parked, owner's ruling pending) STALL routes through G9.** Variant B from
-      2026-09-24: keep the `G8 -> G9` PASS edge verbatim, add a second forward `G8 -> G9`
-      ("STALL — loop budget exhausted, closure decides"), add `G9 -> WAITING_APPROVAL`, drop the
-      `G8 -> WAITING_APPROVAL` terminal. Probed in memory: `validate_kernel` returns no errors,
-      +55 B. Plus the validator invariant: **no terminal edge may originate at G7 or G8** — after
-      mutation begins, the only exit is through G9.
+Each box is confirmed against the installed source (`prompt_kernel/source.py`, line cited) and the
+release render; where the build diverged from the proposal, the proposal is kept only as the reason.
+
+- [x] **T1 — evict the standards catalogues from G1.** As built: FOUR catalogues left all three
+      registries — GUI, TUI, ergonomics and project shape, 1 624 B (the proposal named three,
+      1 298 B). Receiver `docs/ui-standards.md`; one pointer at **G7**: "surface standards (GUI, TUI,
+      ergonomics, project shape): docs/ui-standards.md — read before building or reviewing one."
+      Parity holds, `DECLARED_DIFFERENCES` untouched.
+- [x] **T2 — `ACCEPTANCE_FRAME` G1 → G3.** As built: the frame line moved; the V&V line was
+      REMOVED as a duplicate instead of moved — it is carried by `@ORACLE` + `@INTENTION_INVARIANCE`
+      + G9 `ACCEPTANCE_PASS`.
+- [x] **T3 — change the CONDITION, not the prose.** As built, `G1 -> G2` carries two senses apart
+      (`source.py:523`): "execution goal grounded on instrument results, or on an established
+      absence", and "not groundable at this scale: split until a leaf is observable", returning
+      through the new back edge `G2 -> G1`. An established absence counts as a result — otherwise
+      the edge would reward acting without grounding.
+- [x] **T4 — charge the no-op pass.** As built in `@LOOP_PROGRESS` (`source.py:91`): a pass adding
+      no instrument result (an established absence counts), no claim and no residual is charged as
+      a retry; `@REASONING_MODE` exempt. `loop_budget` is DERIVED, not hardcoded: the envelope's
+      value, else the count of distinct declared routes out of the gate (G8 three, G9 two, G2 and
+      G5 one), counting DISTINCT attempts.
+- [x] **T5 — the first act after a fold is a call.** As built in `@COMPACTION_CADENCE`
+      (`source.py:311`): after a fold the first act is an instrument call that re-reads a handle —
+      the plan comment, the progress log, a `path:line` — never a summary of the summary.
+- [x] **T6 — the record's destination and the envelope's extent (Defect 2).** As built in two
+      places, not one: G7 `PLAN_EXECUTION` (`source.py:259`) "the record lands in the log and the
+      plan box, never in the reply; the report waits for the boundary, an exceeded bound, or a
+      decision only the user can take"; and the extent went to **G4** as `APPROVAL_EXTENT`
+      (`source.py:210`) "An ALLOW binds to the goal: every task of the approved plan runs under it
+      until a bound is exceeded" — G4 owns the envelope, so the rule lives beside it, not beside
+      `ONE_TASK_OPEN`.
+- [x] **T9 — an oracle must return an ADDRESS (owner's defect 3).** As built: NOT a separate
+      `INSTRUMENT_RESOLUTION` rule. `@ORACLE` became a definition with five required properties —
+      it can fail (core clause kept verbatim), it sits on the claim's LAYER, its predicate EXCLUDES
+      the alternatives, it returns an ADDRESS, and this identity can DRIVE it; "a build fails the
+      last three: running an application proves that it runs". Resolution got its name inside the
+      definition instead of a fourth parallel rule. Owner, 2026-09-24: «Попытка использовать
+      собранный экзешник как доказательство не проведя индивидуальных тестов… В смысле
+      изолированных тестов для локализации проблемы.»
+- [x] **T10 — G0 is the intention and nothing else (owner's defect 4a).** As built, G0
+      `G0_SCOPE` (`source.py:122`): "G0 emits the Digital Intention and nothing else: no analysis,
+      no plan, no answer." `STATE_FIRST` moved to G1 (`source.py:152`). Owner: «по сути G0 это просто
+      определить намерение пользователя И ВСЕ — дальше только через заземление».
+- [x] **T11 — Guess decides nothing (owner's defect 4b).** As built, shared rule
+      `@GUESS_DECIDES_NOTHING` (`source.py:50`), bound to G1 and G8: an ungrounded passage is error
+      ADDED, not neutral; promote each Guess a decision rests on — the primary authority of its
+      class in `@SOURCE_ROUTING`, then the code, then smoke — or close it Unknown; prose about a
+      Guess is not a promotion. First caller `@SOURCE_ROUTING`'s authorities ever had. Owner,
+      verbatim: «GUESS НЕ МОЖЕТ БЫТЬ ПОВОДОМ ПРИНЯТИЯ РЕШЕНИЙ… на каждый guess сегмент полотна текста
+      надо сделать интернет-поиск в авторитетных источниках, потом по коду, потом смоук если
+      возможно».
+- [x] **T7 — guard the class.** As built under the name `test_pre_action_section_stays_small`
+      (`prompt_kernel/tests/test_render.py:206`), not `test_pre_action_budget`: G0+G1 rendered bytes
+      ≤ 5 600, pinned over the post-change measurement 5 365 B, reason in the docstring.
+- [x] **T8 — STALL routes through G9.** Shipped, not parked — the owner ruled for variant B. The
+      second forward `G8 -> G9` "a recorded non-PASS whose loop budget is exhausted; closure
+      decides" (`source.py:534`), `G9 -> WAITING_APPROVAL` for STALL, the `G8 -> WAITING_APPROVAL`
+      terminal dropped, and `validate.py` refuses any terminal edge from G7 or G8.
+
+### Built beyond the proposal (same release, same session)
+
+Recorded so the plan and the diff read together — each item is in the release record:
+
+- `G8 -> G1`: an unrealistic oracle is a grounding defect, not a plan defect. `G1 -> BLOCKED`
+  widened to "unobservable at every scale".
+- G1 `INSTRUMENT_ORDER` — the chain is a ladder, not a fence: when no rung answers, BUILD the
+  instrument from the project's own parts. G1 `INSTRUMENT_LAYER` — your own context is the nearest
+  instrument and the least decisive.
+- G2 `CUT_UNSUPPORTED`; G6 `HANDOVER_OR_SWITCH`.
+- Termination is a FIXED POINT, not a scale limit (the Sierpiński test); G9 closure is two-sided —
+  no split adds, nothing present lacks support. `RESIDUAL_GOAL` gains the slot `form_holds`.
+- `@INFORMATION_STATUS`: Unknown is not a destination; `@EVIDENCE_BOUNDED_CLOSURE`: a partial REAL
+  result outranks a complete simulated one.
+- G9: the plan moves by the OUTCOME (SUCCESS → `plans_completed/`, OUT_OF_SCOPE →
+  `plans_deferred/`, BLOCKED / WAITING_APPROVAL → `plans/postponed/`).
 
 ## Smoke Tests
 
-**S1 — structural, runs now (baseline captured before any edit).**
+**S1 — structural. PASS ✓.**
 Baseline: G0+G1 = 7 309 B, G1 = 6 396 B / 32 bullets, product render 46 904 B, suite 106 passed.
-Post-change oracle: the same census re-run; expected delta −1 816 B from the pre-action section
-(1 298 evicted + 518 relocated), `python -m pytest prompt_kernel/tests/ -q` green including the
-new `test_pre_action_budget`, and `render_kernel` under the 47 000 B ceiling for all three
-variants.
+Result (release record + re-run 2026-09-24 at closure): G0+G1 = **5 365 B** (−1 944 B, more than
+the expected −1 816 because a fourth catalogue and two duplicate lines left too), G1 = 4 644 B;
+product render 46 969 B / 47 000, sha `dc981bc4…da82e2ba`; `python -m pytest prompt_kernel/tests/
+-q` → **107 passed**, including `test_pre_action_section_stays_small`.
+
+**S2 and S3 were NOT run — they are the residual of this plan, not open tasks.** Both need a
+`bin/opencode.exe` rebuilt with this kernel, and promoting a build is the owner's act. The lifting
+signal: a promoted build whose prefix is the 2026-09-24 render; the first run of S2 then either
+confirms the claim below or moves the suspicion to the post-fold tail assembly.
 
 **S2 — behavioural, first-act census (the claim's real layer).**
 Over the session store in `.opencode/data/`, count user-task turns whose FIRST assistant part is a
@@ -151,12 +167,13 @@ report per item. Same blocker as S2.
 
 ## Claims
 
-| claim | falsifier | rung |
+| claim | falsifier | rung at closure |
 |---|---|---|
-| The pre-action section is the cause of the narration | S2 ratio does not move after the change | Inferred |
+| The pre-action section is the cause of the narration | S2 ratio does not move after the change | Inferred — S2 not run (residual) |
 | 33 % of G1 does not help find anything | a case where a standards catalogue changed which instrument was called first | Inferred |
-| An approved envelope is not consumed per task | a bound whose extent is genuinely per-task | Exact (G4 contract) |
+| An approved envelope is not consumed per task | a bound whose extent is genuinely per-task | Exact (G4 contract, now `APPROVAL_EXTENT`) |
 | The fold removes the only demonstration of tool use | a post-fold window that still carries tool parts | Inferred |
+| The shipped text is what this plan says | a rule named here absent from `source.py` | Exact — each box cites its `source.py` line; suite 107 passed |
 
 ## Risks
 
@@ -173,7 +190,11 @@ One commit per task group; `python -m prompt_kernel --install` + `--claude --ins
 re-render every surface from source, so reverting the commit and re-running the pipeline restores
 the previous prefix exactly. `baseline.json` is repinned as its own act.
 
-## Queued — the maturity gap, blocked on the byte lever
+## Residual — the maturity gap, not built (blocked on the byte lever)
+
+Recorded as residual, not as tasks of this plan: none of it was authorized, and none fits the
+31 B left under the ceiling. Whoever picks it up opens a NEW plan and first funds it — the levers
+are priced below.
 
 Coverage is currently measured against the REQUEST (`ACCEPTANCE_PASS` = ∀ criterion, and a criterion
 comes from `ACCEPTANCE_FRAME` = one per requested outcome). Project maturity lives in the cells

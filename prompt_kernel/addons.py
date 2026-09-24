@@ -44,6 +44,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
             "file enumeration: list/glob/grep/read — never shell ls/dir/find/cat (hard-blocked).",
             "platform: Windows = cmd/powershell tools; bash unavailable.",
             "cmd.exe: never dir/type/tree; quote spaced paths; chain &&; pipe 2>&1.",
+            "findstr: host-allowed, but non-ASCII paths fail to open — the fallback is grep.",
             "Chrome 127.0.0.1:9222 is universal-search's debug target: bind it only for user-requested visible web debugging or screenshots (CUA/CDP + bring_to_front); never launch, restart or alter its flags.",
         ),
     ),

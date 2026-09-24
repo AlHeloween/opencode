@@ -28,6 +28,9 @@ def test_addons_render_inside_gate_rule_blocks() -> None:
         "- cmd.exe: never dir/type/tree; quote spaced paths; chain &&; pipe 2>&1." in g1
     )
     assert (
+        "- findstr: host-allowed, but non-ASCII paths fail to open — the fallback is grep." in g1
+    )
+    assert (
         "- Chrome 127.0.0.1:9222 is universal-search's debug target: bind it only for user-requested"
         " visible web debugging or screenshots (CUA/CDP + bring_to_front); never launch, restart or alter its flags." in g1
     )

@@ -257,6 +257,7 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @SAFE
 - file enumeration: list/glob/grep/read — never shell ls/dir/find/cat (hard-blocked).
 - platform: Windows = cmd/powershell tools; bash unavailable.
 - cmd.exe: never dir/type/tree; quote spaced paths; chain &&; pipe 2>&1.
+- findstr: host-allowed, but non-ASCII paths fail to open — the fallback is grep.
 - Chrome 127.0.0.1:9222 is universal-search's debug target: bind it only for user-requested visible web debugging or screenshots (CUA/CDP + bring_to_front); never launch, restart or alter its flags.
 - framework surface (TUI/renderables, kernel, storage, provider): read the owning skill first — .opencode/skills/<surface>/references/**, and cite file:line for the layout or API you build on.
 - ACCEPTANCE_FRAME := {(criterionᵢ, surfaceᵢ, instrumentᵢ@rung, falsifierᵢ)} — one per requested outcome, named BEFORE planning; a criterion first named at G8 was improvised, not defined (ISO/IEC 25010: QC criteria and acceptance criteria are requirements-time artefacts; ISO/IEC/IEEE 29119-1 for testing concepts).

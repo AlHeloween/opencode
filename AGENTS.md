@@ -674,7 +674,7 @@ Runtime constitution hard-blocks shell **directory/file enumeration** and routes
 | `Get-ChildItem`, `gci` | ❌ BLOCK | `list` / `glob` |
 | `type`, `cat`, `more` | ❌ BLOCK | `read` |
 | `for … *` globs | ❌ BLOCK | `glob` / `list` |
-| `findstr` | ✅ ALLOWED | Windows content search |
+| `findstr` | ⚠️ ALLOWED — non-ASCII paths fail to open | `grep` (preferred fallback) |
 | `echo`, `printf` | ✅ ALLOWED | stdout, not enumeration |
 | `git ls-files` | ✅ ALLOWED | VCS oracle |
 | `where`, `which` | ✅ ALLOWED | PATH lookup |

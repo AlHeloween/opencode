@@ -200,7 +200,7 @@ want. OpenTUI is the opposite case — and since 2026-09-20 it is no longer "rea
 Owner: «Может нам вообще зиг обновить выдрать наши модули из нашей версии и впихнуть в их, 0.16 это
 серьёзный архитектурный сдвиг», then «Делаем как ты говоришь». Their 0.5.11 tree (Zig **0.16.0**) is now the
 base of `packages/opentui/**` in the working tree; our modules are the patches. Full record:
-`plans/2026-09-20_rebase-on-opentui-0.5.11.md` (S0–S4, evidence per step).
+`plans_completed/2026-09-20_rebase-on-opentui-0.5.11.md` (S0–S4, evidence per step).
 
 The old warning named a real hazard, so it survives as the RESIDUAL LIST — parked, never silently dropped,
 each entry naming where the thing went:

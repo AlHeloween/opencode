@@ -1,8 +1,13 @@
 <!-- intention: the fold arrives carrying an unfilled summary template and no warning -> the template is filled before the boundary, with gaps surfaced while the summary is still open -->
 # Layer-1 summary: shared template, gap nag, and a fold countdown
 
+> **HISTORICAL / DEFERRED 2026-09-24.** T1–T4 landed with the oracles below, but model-generated
+> sidecar summaries were subsequently removed (`bff5f50f7a`, `51afd6c2e6`, `73d78e4138`).
+> The pushed tail note survives. T5's body-size target has no active producer to tune; return only
+> if the owner reinstates generated summaries, then measure rendered block sizes before choosing a cap.
+
 ```yaml
-status: 2026-09-20 — T1–T4 LANDED (oracles green); T5 deferred (measurement first)
+status: DEFERRED 2026-09-24 — T1–T4 historically landed; summary generation later removed; T5 inapplicable until architecture changes
 raised: 2026-09-18, from the ClientSoft incident (worker died mid-compaction) and the owner's design call
 scope: packages/opencode/src/session/compaction.ts, packages/opencode/src/session/prompt.ts, packages/opencode/src/tool/summaryedit.ts
 owner_ruling:

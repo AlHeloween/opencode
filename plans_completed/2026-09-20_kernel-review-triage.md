@@ -2,6 +2,17 @@
 
 # Kernel review triage — seven hypotheses settled against the running system
 
+state: COMPLETED 2026-09-24 — the bounded review, contract patch-sets, install, and memory-budget measurement landed. Open product questions remain in §7; they are residuals, not instructions to replay this review or reinstall its historical kernel.
+
+## Closure checklist
+
+- [x] H1–H7 triaged against code/runtime carriers; false premises rejected and remaining gaps recorded in §2 and §7.
+- [x] Contract patch-sets H1, H2, H4 and T0 landed (`21469aeb4e`); Phase 2 install passed the red-to-green compatibility gate (100 passed, §4).
+- [x] Memory-carrier cost measured with the fold's tokenizer; the budget flag landed (`70b4281eba`), with a live flag probe (§5).
+- [x] Superseded automation T-M3–T-M5 and the unperformable merge-on-append discipline T-M6 are recorded as residuals in §5; no automatic memory deletion is authorized by this plan.
+
+Historical evidence below is dated 2026-09-20. In particular, H3's volatile-ledger finding was later superseded by the `session_epistemic` store and `flushEpistemic` path (`7967db1b5e`, `67aecfaeca`). Re-ground any residual against current code before opening a new task.
+
 Two external reviews are inputs to this plan, not verdicts.
 
 - **GPT6AstraPro** audited the **kernel text** and produced H1–H7.

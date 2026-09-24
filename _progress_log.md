@@ -4985,3 +4985,7 @@ duplicate (not moved), T6's extent landed at G4 as `APPROVAL_EXTENT`, T9 folded 
 definition instead of a new rule, T7's test is `test_pre_action_section_stays_small`, T8 shipped
 (the plan still said "parked"). Residual: S2/S3 (need a promoted build — owner's act) and M1–M7
 (unfunded under the 31 B ceiling). Moved to plans_completed/. 107 passed.
+
+## [2026-09-24 15:06 UTC] Plan placement audit after the gated release
+
+✓ `d05c15549f` already closed and moved `grounding-first-and-boundary-reporting` before this audit; no duplicate edit. ✓ `2026-09-20_kernel-review-triage` now has a checked, evidence-bound closure summary and is in `plans_completed/`. Its dated findings remain historical; the current `session_epistemic` writer supersedes H3's old volatility claim. ✓ Three plans whose architecture was replaced (image store, generated sidecar summary, old Zig 0.15 native port) are in `plans_deferred/`, with the decision and return signal at the top. Open implementation boxes remain open, not falsely checked. ✓ Active-plan references to their old paths were removed (`rg`, zero hits); the unrelated OpenTUI `.artifacts/` work was untouched. ✓ Plan-status parser oracle: `cmd_runner` run `20260924T150501Z_61fb35a0`, `10 pass / 0 fail`, state `finished`, exit 0, 1665 bytes captured, 0 dropped. Residual: 18 root plans remain active because work or acceptance is open; this pass did not claim their completion.

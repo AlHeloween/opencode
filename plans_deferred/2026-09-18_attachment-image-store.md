@@ -4,15 +4,16 @@
 > **SUPERSEDED — DO NOT IMPLEMENT I1–I4.**
 > Owner ruling, 2026-09-19: «Идея с links для изображений провалилась. Короче надо в контент кидать
 > webp, без вариантов.» The store + reference design is dead; the replacement is
-> [2026-09-19_temporary-data-acquisition.md](./2026-09-19_temporary-data-acquisition.md) — images ride inline as WebP, and
+> [2026-09-19_temporary-data-acquisition.md](../plans/2026-09-19_temporary-data-acquisition.md) — images ride inline as WebP, and
 > a tool re-attaches named images to the mutable tail on demand.
 > Kept for the record only: I0 (the media price, `bd68b677c6`) landed and stays valid — media must
-> still be priced by dimensions/duration, never by payload bytes. The stale-PNG test this plan was
+> still be priced by dimensions/duration, never by payload bytes. Return only if the owner reverses
+> the inline-WebP/actualizer ruling; re-ground the storage design before implementation. The stale-PNG test this plan was
 > written to avoid is now settled in the opposite direction: the ingestion path is correct and
 > `prompt.test.ts:2228` must assert WebP.
 
 ```yaml
-status: IN PROGRESS (2026-09-18) — I0 LANDED (`bd68b677c6`); I1–I4 open
+status: DEFERRED (2026-09-24) — I0 LANDED (`bd68b677c6`); I1–I4 rejected by the inline-WebP ruling
 raised: 2026-09-18, from the failing `keeps clipboard image parts for vision-capable models` red
 owner_ruling:
   - `{worktree}/.opencode/data/images/` holds BOTH the original and the derived WebP

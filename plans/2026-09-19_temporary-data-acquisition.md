@@ -8,7 +8,7 @@ Owner ruling, 2026-09-19 (verbatim): «Идея с links для изображе
 даешь — дай мне, 1,2,3 скриншоты и они будут всегда добавляться в хвост. Кешировать не надо. Линки
 у тебя в списке есть, но ты их не видишь, ловишь идею?»
 
-This SUPERSEDES `plans/2026-09-18_attachment-image-store.md` (content-addressed store + messages
+This SUPERSEDES `plans_deferred/2026-09-18_attachment-image-store.md` (content-addressed store + messages
 carrying references + derived-copy fallback). That plan is dead — see §5.
 
 ## 0. Implementation plan (2026-09-19) — one gateway transform, behind a flag, proven in a sandbox
@@ -834,8 +834,8 @@ irrelevant image is not merely expensive, it is noise in the attended window.
 
 ## 5. Cleanup this ruling requires
 
-- `plans/2026-09-18_attachment-image-store.md` → superseded; move to `obsolete/` (reference only) or
-  annotate as dead at the top. I1–I4 are not to be implemented.
+- `plans_deferred/2026-09-18_attachment-image-store.md` → superseded and archived as deferred;
+  its header names the replacement. I1–I4 are not to be implemented.
 - `packages/opencode/test/session/prompt.test.ts:2228`
   (`keeps clipboard image parts for vision-capable models`) must assert **WebP**, not PNG. This is the
   red that blocks push, and the ruling settles it: the ingestion path is correct, the test is stale.
@@ -1026,4 +1026,3 @@ attachment half.
 - **Whether a release is ever automatic.** A span can expire by itself, or only the model may release
   and a forgotten set keeps costing. The falsifiers differ: a model-released set can be forgotten, an
   expiring one can drop what is still needed mid-task.
-

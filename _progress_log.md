@@ -1,5 +1,16 @@
 # Progress Log
 
+## [2026-09-24 17:06Z] TUI gateway-row live attempt (T2 of the shelf triage): the fact is published, the row could not be captured
+
+✓ The isolated candidate ran WITHOUT touching `bin/`: `dist/bin/opencode.exe` (version `10.0.1117`), cwd `experiments/2026-09-24_tui-protocol-smoke/wc/`, config read from `bin/` via `OPENCODE_TEST_CONFIG` (read-only), four runs (`…165814Z_45745210`, `…170008Z_2135685f`, `…170216Z_e2125880`, `…170348Z_a5e97719`), screenshots `shot-01…shot-05` kept in the experiment dir.
+
+✓ The gateway FACT is real and matches the plan's expectation — candidate log (`wc/.opencode/data/log/*_log_zai-org-GLM-5.3-Flash-BF16_internal.jsonl`): `gateway.protocol.decision {provider:"huggingface", configured:"auto", using:"h3", chain:"h3>h2>http/1.1"}` at 16:59/17:00/17:02/17:04Z, AND `using:"h2"` at 17:04:11Z — the h3→h2 fallback publishes the rung that landed.
+
+✗ The sidebar ROW was not captured. Class: `cmd_runner screenshot` under `--direct-terminal` returns a frame that CUTS the window's right edge — the sidebar is clipped at every width tried (110 / 160 / 200 cols; shot-04 with 110 shows no sidebar at all, shot-02/03/05 show ~14 of its columns). The instrument, not the fix, is what failed here.
+✗ The successful-provider leg failed too: HF answers «You have depleted your monthly included credits»; the DeepSeek switch did not take — the project `opencode.jsonc` `model` key had no effect in this worktree (state/model.json stayed `huggingface/zai-org/GLM-5.3-Flash-BF16`).
+
+Disposition: `2026-09-24_tui-effective-gateway-protocol.md` stays on the shelf (A2 open), its A2 row and «Остаток» now carry this attempt, and the shelf readme row was updated. Next instrument: a capture that keeps the full window (cua window capture, or the owner's own sidebar) + a provider with credits.
+
 ## [2026-09-24 16:58Z] to_be_confirmed shelf: the four owner-confirmed plans closed (T1 of the shelf triage)
 
 ✓ Unit runs located on disk (`logs/cmd_runner/`): `20260921T052930Z_4277e824` 4 pass / 0 fail (`test/tui/agent-model-cell.test.ts`) + `20260921T065309Z_13c584d0` 16 pass / 0 fail + `tsgo --noEmit`; `20260923T043752Z_e3189cb2` 8 pass / 0 fail (`test/tui/automode.test.ts`). ✓ Owner confirmation of the live testing is recorded in the shelf readme (2026-09-24).

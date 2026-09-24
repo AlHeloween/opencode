@@ -1,5 +1,19 @@
 # Progress Log
 
+## [2026-09-24 10:16Z] Кернел: оговорка про findstr в G1 + перепин baseline (13ff2933b0)
+
+CONFIRMED (✓ чтение `addons.py` + `tests/test_addons.py`): «list/glob/grep/read — never shell ls/dir/find/cat» УЖЕ стояло в G1 TOOL_GROUNDING, цепочке рунгов и G7/G8, закреплено тестом — пробел был не в правиле, а в выборе инструмента: `findstr` не открыл план с кириллическим именем («FINDSTR: Cannot open»), продуктовый `grep` на том же запросе ответил. Добавлена строка «findstr: host-allowed, but non-ASCII paths fail to open — the fallback is grep» + ассерт в тест; AGENTS.md — строка `findstr` (⚠️ ALLOWED, non-ASCII fails, grep preferred).
+
+CONFIRMED (✓ pytest `106 passed`; ✓ install `dabf50f3600bc8c8782998044c15e4134b5b7bdac2106a304094599d9066f9f7`): порядок по docs/gate-addons.md шаги 4–6. Два промежуточных «красных» — стражи пайплайна, не дефекты: первый ловит «install не сделан», второй — «baseline не перепинен» (pin production-sha; обновляется РУКАМИ, шаг 6 — автообновления нет by design). Claude/Codex-носители не трогались (решение владельца: «Клауду и Чату гпт не надо» — их IDE). Остаток: шаг 7 — rebuild бинаря (зона владельца, `bin/` не трогали).
+
+## [2026-09-24 10:05Z] Шлюз: трёхточечный захват — реализован и закрыт (36deda3db1)
+
+CONFIRMED (✓ compare.py `experiments_history/2026-09-24_gateway-capture-verify/`, 21/21, exit 0): независимая перепроверка Findings плана: `per-request` и `raw-wire` несли ОДНУ копию (пост-rewrite) тела — 21/21 совпадение body+headers, отличались только обёртки {type,timestamp,id}; тела на диске распарсены, не байты; транспортные заголовки (host/content-length/accept-encoding/connection) в raw-wire невидимы; 4 обмена без per-response (подпись в journal: start→limiter→stream.acquire→first_chunk, без request.end). Оригинал плана заморожен в git (`737be793f3`) до ревизии.
+
+CONFIRMED (✓ tests `20260924T100232Z_54e1d35f`: 25 pass / 0 fail / 116 expect; ✓ typecheck `20260924T100232Z_14a93368` exit 0): T1–T6 — intent verbatim на входе `wrapFetch` (до rewrite и до потребления креденшелов), raw-wire из швов транспортов (h3 fetch; h2 `session.request` ×2; h1 fetch) — одна запись на попытку, per-response с pre-coalesce байтами и терминалами `complete|aborted|error` (+ тела h3-5xx и h2 `TransportError`), один ключ `<ISO-start>-<requestId>[-attemptN]`, маска `***` с сохранением имён (`token` → `\btoken\b` — rate-limit заголовки выживают). Доки: docs/gateway-capture.md + индекс; план → plans_completed/. Остаток: живой смоук после rebuild (bin/ не трогали) — S1'–S5 доказаны in-process сюитой.
+
+Приборы: edit-LSP отдавал диагностику ПРЕДЫДУЩЕЙ ревизии после исправления (истина — tsgo); `bun test` под ConPTY печатает только сводку — по-тестовых имён в логе нет; `recall` адресует строки РЕЗУЛЬТАТА, не файла.
+
 ## [2026-09-23 14:05Z] Anthropic OAuth подключён к gateway
 
 CONFIRMED (✓ codegraph): `customFetch` Anthropic обходил `__gatewayFetch`; передача исходного `Uint8Array` в gateway потеряла бы тело, поскольку gateway отправляет строковые тела. План: `plans_completed/2026-09-23_anthropic-oauth-gateway.md`.

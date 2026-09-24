@@ -442,7 +442,7 @@ identity: [BUILD_MODE, ORCHESTRATOR_AGENT]
 requires: [VERIFIED_OUTCOME, ORACLE_STAMP, CLAIM_LEDGER, RISK_LEDGER]
 shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION, @INTENTION_INVARIANCE]
 <G9_RULES>
-- SUCCESS requires all three: acceptance covered, outcome oracle passed, critical risks 0. Short of that, take the terminal the map declares, or continue. At the descent's fixed point the remainder is unimprovable by decomposition: record that with the residual — a finished project, not an abandoned one.
+- SUCCESS requires all three: acceptance covered, outcome oracle passed, critical risks 0. Short of that, take the terminal the map declares, or continue. Completion is two-sided: no split adds, and nothing present lacks support. Record the remainder as residual — finished, not abandoned.
 - Emit completed work, evidence, changed surfaces, remaining risks, residual goal, next route, and honest validation status without repeating the full trace.
 - Convert uncovered acceptance gaps into a bounded residual, then take the declared back move.
 - Closure is complete only over what evidence can settle: everything delivered carries its oracle, and the uncovered part of the intent is named as residual. A partial REAL result outranks a complete simulated one, and a stop whose residual is recorded is legitimate closure.

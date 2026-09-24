@@ -4932,3 +4932,25 @@ Also repaired a self-contradiction I had just committed into the release note: o
 stale. A self-contradicting artifact is worse than a missing one — it makes the reader arbitrate.
 
 product 46973 B, sha 3be0cc3e..., free 27. 107 passed.
+
+## [2026-09-24 22:55] Perfect form — completion is two-sided
+
+Owner: «Мудрость надо проявлять на этапе постановки задачи. А потом надо просто её доделать так,
+чтобы было нечего добавить, нечего убавить — perfect form.»
+
+Two things came out of that.
+
+**The division of labour maps onto the gates.** Judgment is irreplaceable at G0/G1 — choosing what
+the task IS, and seeing that the user's own diagnosis may be wrong. From G2 to G9 the character is
+mechanical: decompose, fill, verify, close. Which is why the pre-action bloat measured earlier today
+was harmful twice over: it cluttered the one section where thinking is the work, and pushed prose
+into the gates where action is the work.
+
+**The fixed point had only one side.** I had encoded "no split improves the result" — nothing to ADD.
+The other derivative is "nothing present lacks support" — nothing to REMOVE, which is `CUT_UNSUPPORTED`
+at G2, but it was never tied to completion. Perfect form is both at once, and both operations already
+existed; the conjunction was missing. G9 `CLOSURE_PROOF_RULE` now reads: "Completion is two-sided: no
+split adds, and nothing present lacks support. Record the remainder as residual — finished, not
+abandoned." It is 15 B SHORTER than the one-sided version it replaced.
+
+product 46957 B, sha acc73618..., free 43. 107 passed.

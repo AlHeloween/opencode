@@ -288,7 +288,7 @@ GATES = (
         outputs=("CLOSURE_PROOF", "CLEAN_NEXT_STATE", "RESIDUAL_GOAL", "QUALITY_VECTOR"),
         shared_rules=("INFORMATION_STATUS", "RESIDUAL_ROUTING", "AUTHORITY_SEPARATION", "INTENTION_INVARIANCE"),
         local_rules=(
-            _rule("G9", "CLOSURE_PROOF_RULE", "SUCCESS requires all three: acceptance covered, outcome oracle passed, critical risks 0. Short of that, take the terminal the map declares, or continue. At the descent's fixed point the remainder is unimprovable by decomposition: record that with the residual — a finished project, not an abandoned one."),
+            _rule("G9", "CLOSURE_PROOF_RULE", "SUCCESS requires all three: acceptance covered, outcome oracle passed, critical risks 0. Short of that, take the terminal the map declares, or continue. Completion is two-sided: no split adds, and nothing present lacks support. Record the remainder as residual — finished, not abandoned."),
             _rule("G9", "CLEAN_STATE_RULE", "Emit completed work, evidence, changed surfaces, remaining risks, residual goal, next route, and honest validation status without repeating the full trace."),
             _rule("G9", "RESIDUAL_GOAL_RULE", "Convert uncovered acceptance gaps into a bounded residual, then take the declared back move."),
             _rule("G9", "EVIDENCE_BOUNDED_CLOSURE", "Closure is complete only over what evidence can settle: everything delivered carries its oracle, and the uncovered part of the intent is named as residual. A partial REAL result outranks a complete simulated one, and a stop whose residual is recorded is legitimate closure."),

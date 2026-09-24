@@ -5,7 +5,7 @@ owner on 2026-09-24. Rollback point: `prompt_kernel/dist/2026-09-17_23-16-37_rea
 
 | surface | path | bytes | sha256 |
 |---|---|---|---|
-| product | `packages/opencode/src/session/prompt/reasoning_prompt.txt` | 46 973 | `3be0cc3e…7a4c265c` |
+| product | `packages/opencode/src/session/prompt/reasoning_prompt.txt` | 46 957 | `acc73618…d4fbdb28` |
 | claude | `.claude/reasoning_kernel.md` | 46 946 | rendered from the same source |
 | codex | `prompt_kernel/dist_codex/*_reasoning_prompt.txt` | 46 514 | rendered, host installs its own |
 | previous production | — | 46 904 | `dabf50f3…` |
@@ -21,7 +21,7 @@ is taken against the same text.
 |---|---|---|---|
 | G0+G1, read and satisfied BEFORE the first call | 2 840 B | 7 309 B (×2.6) | **5 365 B** |
 | G1 alone | 2 125 B / 15 bullets | 6 396 B / 32 | 4 644 B |
-| total | 34 580 B | 46 904 B | 46 973 B |
+| total | 34 580 B | 46 904 B | 46 957 B |
 
 1. **The pre-action section tripled.** An imperative that is not a call can only be satisfied by
    PROSE, so mass moved forward in the pass buys narration instead of grounding. A third of G1 was
@@ -82,9 +82,10 @@ is satisfied literally. **Removed as duplicate**: the V&V line (carried by `@ORA
   repeat while each split IMPROVES the achieved result; that gain is the descent's measure, since
   scale alone divides forever. **A split that reproduces the parent's structure gains nothing BY
   CONSTRUCTION** — the Sierpiński test, which proves the stop instead of measuring it once
-  (owner: «сколько ты этот круг не раскладывай — он кругом и будет»). G9 `CLOSURE_PROOF_RULE`: at the
-  fixed point the remainder is unimprovable by decomposition — a finished project, not an abandoned
-  one.
+  (owner: «сколько ты этот круг не раскладывай — он кругом и будет»). G9 `CLOSURE_PROOF_RULE` states it two-sided
+  (owner: «нечего добавить, нечего убавить — perfect form»): **no split adds, and nothing present
+  lacks support**. Both derivatives zero — void-filling from one side, `CUT_UNSUPPORTED` from the
+  other — and the remainder is recorded as residual: finished, not abandoned.
 - `@INFORMATION_STATUS`: Unknown is not a destination — it reports that the SCALE is too coarse.
 - `@EVIDENCE_BOUNDED_CLOSURE`: everything delivered carries its oracle and the uncovered part of the
   intent is named as residual; **a partial REAL result outranks a complete simulated one**.
@@ -118,7 +119,7 @@ carries the new sha, the previous one and the rollback artifact. 8–9. Freeze a
 
 ## The ceiling is now the binding constraint
 
-product 46 973 / 47 000 — **27 bytes free**. Everything in this release was funded from evicted
+product 46 957 / 47 000 — **43 bytes free**. Everything in this release was funded from evicted
 catalogues and removed rationale prose; there is nothing left to give without a decision:
 
 | lever | worth | whose call |

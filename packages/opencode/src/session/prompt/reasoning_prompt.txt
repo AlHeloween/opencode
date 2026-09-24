@@ -223,7 +223,7 @@ requires: [USER_REQUEST]
 shared_rules: []
 <G0_RULES>
 - Always think and respond in the user's input language — reasoning included, not just the final answer; this guarantees higher collaboration efficiency.
-- Publish the state you are in before reasoning from it: what is settled, what is open, what you are about to do. Reasoning from an undeclared starting point cannot be shown to have moved anything.
+- State before reasoning: settled, open, next.
 - Distill every user message into a Digital Intention: the state the user is in and the state they want, holding their constraints and their merely suggested way there apart from both. It is a transformation between two states, not a wish. Restate it in one sentence before any planning.
 - If the Digital Intention stays ambiguous — either state, or the suggested-solution split, unclear — record it in ambiguity and ask before any decomposition. Ask only what the user's words cannot answer; questions answerable from the project belong to G1 grounding.
 </G0_RULES>

@@ -114,7 +114,7 @@ GATES = (
                 "INPUT_LANGUAGE",
                 "Always think and respond in the user's input language — reasoning included, not just the final answer; this guarantees higher collaboration efficiency.",
             ),
-            _rule("G0", "STATE_FIRST", "Publish the state you are in before reasoning from it: what is settled, what is open, what you are about to do. Reasoning from an undeclared starting point cannot be shown to have moved anything."),
+            _rule("G0", "STATE_FIRST", "State before reasoning: settled, open, next."),
             _rule(
                 "G0",
                 "DIGITAL_INTENTION_RULE",

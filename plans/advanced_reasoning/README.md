@@ -36,3 +36,8 @@ until it lands, this invisibility is the price of the section — and the reason
 
 - `2026-09-24_assertion-marking-reproducible.md` — turning the ✓/✗ marking from one session's habit into a
   reproducible behaviour, with a measured share of marks that carry an instrument.
+- `2026-09-24_marks-counter-log.md` — the raw `marks:` readings from the session that raised this section:
+  `NONE` for 84 of 117 window replies while the rule sat on disk, then counted pairs. The evidence that
+  «the norm exists» and «the norm runs» are different facts.
+- `2026-09-24_marked-reply-example.md` — a reference specimen of a reply that IS executing the norm:
+  claims with instruments, ✗ naming what contradicts. The shape a prompt paragraph cannot convey.

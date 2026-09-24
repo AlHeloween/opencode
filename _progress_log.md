@@ -1,5 +1,17 @@
 # Progress Log
 
+## [2026-09-24 15:30Z] Gateway integrity counter: the marker that was never in the kernel (plan cycle closed, 1ba4666725)
+
+CONFIRMED (✓ `raw-diff.ts:732` + `grep prompt_kernel` → no matches; ✓ the live `.diff` `15-07-57-…` printing 0 against the same stem's body carrying the kernel): `KERNEL_MARKER = "Semantic Vector (SV)"` existed in NO kernel render, so the integrity report printed `kernel copies: 0 (EXPECTED 1 — identity accumulation)` on every request — a counter that could never pass. The unit tests fed a FABRICATED kernel (`"# Semantic Vector (SV) — kernel body"`), so they proved the counting logic and never the marker — a fixture that does not repeat production. Born dead at `5d433565df`.
+
+CONFIRMED (✓ RED `20260924T152119Z_62c1a758` 41 pass / 1 fail; ✓ GREEN `20260924T152152Z_51865148` 42 pass / 0 fail; ✓ typecheck `20260924T152226Z_ddac0f38` exit 0): pin test FIRST (reads the PRODUCTION prompt, asserts `kernel copies: 1`; control asserts 0), then the marker = the prompt's first line, exported, fixtures re-seeded from the constant. Oracle over REAL captures (`experiments_history/2026-09-24_integrity-marker/check.ts`): `20260924T152203Z_0beb948f` — the fold-boundary body now reads `kernel copies: 1` where its live `.diff` printed 0; `20260924T152209Z_a81a6c29` — 64 messages, `1`, `canonical 19/19`. Plan moved to `plans_completed/2026-09-24_gateway-integrity-kernel-marker.md` in the same commit. Residual: the live `.diff` line flips only after the owner rebuilds `bin/opencode.exe`.
+
+## [2026-09-24 15:30Z] The bug's window is measured: a staircase, not a step (T1 of the pre-fix sweep)
+
+CONFIRMED (✓ `experiments/2026-09-24_prefix-window/measure.mjs`, report beside it; the SAME definition as `prompt_kernel/tests/test_render.py:206`): over the 166 dated renders in `prompt_kernel/dist/`, the pre-action section (`<G0_RULES>` + `<G1_RULES>`) ran 2 862 B at the battle-tested 09-17 render → 3 177 / 4 126 → **5 458 B at 09-20 18:38 (+1 302 in one render)** → 6 092 B (09-21 22:53) → **7 117 B at 09-23 00:11 (+1 025)** → peak 7 331 B (09-24 18:14) → 5 301 B after the 21:23 fix; G1 bullets 9 → 32. ⇒ the sweep's window: artifacts authored 2026-09-20 → 2026-09-24 22:08; plan `plans/2026-09-24_pre-fix-artifact-verification.md` (T2 = the inventory, next).
+
+REFUTED on the way: the first pass measured `## 0. WORKFLOW … ## 2. SHARED_RULES` (~10 KB) and contradicted the release's numbers — the project already owned this measure; a private second definition was the defect, not the number.
+
 ## [2026-09-24 15:14Z] Post-rebuild check: the kernel is on the wire, S2 did NOT move, the fold boundary carries no tool demo
 
 CONFIRMED (✓ `certutil -hashfile`; ✓ `prompt_kernel/baseline.json`): production prompt sha256 = `dc981bc4da82e2ba…` — the 2026-09-24 render. CONFIRMED (✓ mtime): `bin/opencode.exe` 23:00:25 local is 52 min newer than `reasoning_prompt.txt` 22:08:32 — the owner promoted a build.

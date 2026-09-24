@@ -1,5 +1,5 @@
 /**
- * T4 of plans/2026-09-22_reasoning-stream-render-stability.md — THE ISOLATED REPLAY.
+ * T4 of plans/to_be_confirmed/2026-09-22_reasoning-stream-render-stability.md — THE ISOLATED REPLAY.
  *
  * Owner, 2026-09-23: «возьми данные из логгера и изолированно просимулируй их в экспериментах. На ране
  * всю систему flick length 0.1 seconds как ты можешь их поймать?» He is right and the live-pixel path

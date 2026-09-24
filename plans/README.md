@@ -1,6 +1,8 @@
 # Plans
 
-Active plans. Completed plans move to `plans_completed/`.
+Active plans live directly in `plans/`. Completed plans move to `plans_completed/`.
+Plans awaiting an owner decision after the 2026-09-24 code audit live in
+[`to_be_confirmed/readme.md`](to_be_confirmed/readme.md). This is a holding shelf, not completion.
 
 ## Plan structure (required)
 
@@ -85,6 +87,10 @@ The live list is NOT written down here — it is READ FROM THE FILES. Run `plans
 `@LOOP_MEASURE`'s axes. A hand-maintained index beside the plans is a second source of truth and goes
 stale the moment a plan moves — measured 2026-09-22, three of the four entries that used to sit here
 had already moved on.
+
+The 18 plans from the 2026-09-24 audit were moved to `to_be_confirmed/` by owner request.
+`planstatus` does not scan that subdirectory. Its [readme](to_be_confirmed/readme.md)
+records what must be checked before any plan is resumed or closed.
 
 (Completed work moves to `plans_completed/`; most recently `2026-09-13_tui-routing-interaction-repair.md` — landed `918f114db8`.)
 

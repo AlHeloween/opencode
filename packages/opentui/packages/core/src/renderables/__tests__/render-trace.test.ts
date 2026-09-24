@@ -1,5 +1,5 @@
 /**
- * T13a of plans/2026-09-22_reasoning-stream-render-stability.md — the render-trace seam must SEE a flicker,
+ * T13a of plans/to_be_confirmed/2026-09-22_reasoning-stream-render-stability.md — the render-trace seam must SEE a flicker,
  * and must decide it over what was DRAWN, not over what was written.
  *
  * Owner, 2026-09-24: «Ты бы вообще проверил что оракул написан правильно и учитывает все тонкости рендеринга».

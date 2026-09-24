@@ -1,5 +1,5 @@
 /**
- * Render trace — the OBSERVATION SEAM for text blocks (T13a of plans/2026-09-22_reasoning-stream-render-stability.md).
+ * Render trace — the OBSERVATION SEAM for text blocks (T13a of plans/to_be_confirmed/2026-09-22_reasoning-stream-render-stability.md).
  *
  * Owner, 2026-09-24: «у opentui есть своё кэширование, почему я говорил про буфер — потому что на него всегда
  * можно повесить дебаг и спокойно отлавливать флики», and «каждый раз если что-то меняется оно сбрасывается,

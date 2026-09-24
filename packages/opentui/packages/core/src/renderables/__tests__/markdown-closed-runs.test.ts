@@ -1,5 +1,5 @@
 /**
- * T11b step 2 of plans/2026-09-22_reasoning-stream-render-stability.md — the VISUAL-EQUIVALENCE oracle.
+ * T11b step 2 of plans/to_be_confirmed/2026-09-22_reasoning-stream-render-stability.md — the VISUAL-EQUIVALENCE oracle.
  *
  * Step 2 cuts the coalesced prose run into closed (never-changing) runs plus a live tail, so a finished
  * paragraph stops being re-styled on every delta. That is only a cache if the picture does not change:

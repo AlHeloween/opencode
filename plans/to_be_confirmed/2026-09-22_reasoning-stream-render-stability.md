@@ -108,7 +108,7 @@ its **application to this stream**, which is §2's oracle.
       changes preserve custom Markdown code callbacks`, `theme switching (syntaxStyle change)`,
       `paragraph updates do not flash raw markdown markers`). They reproduce with AND without the edit,
       so they are NOT a T3 regression: they are part of the `88 failures accumulated unseen` owned by
-      `plans/2026-09-22_opentui-core-test-ci-gate.md` G1. T3's baseline is these 5, never zero.
+      `plans/to_be_confirmed/2026-09-22_opentui-core-test-ci-gate.md` G1. T3's baseline is these 5, never zero.
       MEASURED TRAP, recorded because it cost this cycle: I first read the 5 reds as MY regression and
       reverted a neutral edit — a correlated signal taken for a causal one. The counter that settles it
       is the pass COUNT across a controlled revert (`254` either way), never the presence of reds.

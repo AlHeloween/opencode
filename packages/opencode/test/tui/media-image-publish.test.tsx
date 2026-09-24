@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/solid */
 /**
- * T10 of plans/2026-09-22_reasoning-stream-render-stability.md — one zoom step publishes ONE frame.
+ * T10 of plans/to_be_confirmed/2026-09-22_reasoning-stream-render-stability.md — one zoom step publishes ONE frame.
  *
  * `pushFrame` used to hand the same frame over twice: `setFrame` re-runs the frame effect, which calls
  * `setImage`, and the function then called `setImage` directly as well. Each call builds a new

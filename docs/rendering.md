@@ -26,7 +26,7 @@ The TUI path is the primary rendering pipeline for the interactive CLI. This doc
 
 **Text paint graph — verified against the code 2026-09-23.** Every node names the owner of the step, so a
 change can be traced from the symptom back to one file. The two annotated numbers are MEASURED, not
-estimated (isolated replay of a real 843-delta SSE stream; see `plans/2026-09-22_reasoning-stream-render-stability.md`).
+estimated (isolated replay of a real 843-delta SSE stream; see `plans/to_be_confirmed/2026-09-22_reasoning-stream-render-stability.md`).
 
 ```mermaid
 flowchart TD
@@ -448,7 +448,7 @@ When `initialStyledText` is `undefined`:
 
 ### 5h. Tree-Sitter Overwrite Bug (Race Condition)
 
-> **STALE in two places — measured 2026-09-23** (`plans/2026-09-22_reasoning-stream-render-stability.md`
+> **STALE in two places — measured 2026-09-23** (`plans/to_be_confirmed/2026-09-22_reasoning-stream-render-stability.md`
 > T11, instrument `packages/opentui/packages/core/src/renderables/__tests__/stream-replay-sources.test.ts`).
 > (1) The guard shown below is NOT in `Code.ts`: `startHighlight` overwrites the buffer unconditionally.
 > (2) «tree-sitter never highlights inline formatting» is refuted: the tree ships a `markdown_inline`

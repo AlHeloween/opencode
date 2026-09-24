@@ -285,13 +285,13 @@ in" must never again be answered by adding a file.
 4. **Fill, do not resolve.** A layer that lacks a value is FILLED from its source once, at the
    moment the layer is created; reads are then a plain lookup. `global -> new worktree ->
    session`, materialised, no inheritance at read time — see
-   [plans/2026-09-19_fill-every-settings-layer.md](plans/2026-09-19_fill-every-settings-layer.md).
+   [plans/to_be_confirmed/2026-09-19_fill-every-settings-layer.md](plans/to_be_confirmed/2026-09-19_fill-every-settings-layer.md).
 
 **Scope: ALL runtime state, not just settings.** Owner, 2026-09-19: «Я не про только agents — у нас
 соплей море, вылезло — туда, ещё вылезло — опять туда.» Every "where does this live" answered by
 creating a file is the growth this rule exists to stop. The measured inventory — including
 `{state}/model.json`, which three modules already write — is in
-[plans/2026-09-19_fill-every-settings-layer.md](plans/2026-09-19_fill-every-settings-layer.md) §7.
+[plans/to_be_confirmed/2026-09-19_fill-every-settings-layer.md](plans/to_be_confirmed/2026-09-19_fill-every-settings-layer.md) §7.
 
 **The wrong turn, recorded so it is not repeated.** Owner, 2026-09-19: the storage split was NOT
 done, and the effort went into adopting the effect runtime instead — «это принесло много
@@ -416,7 +416,7 @@ the wrong query.
 
 **Planned, not shipped:** attachments have no release and no re-acquire (a part that entered the
 conversation is immutable until the fold), and nothing counts a lifetime. The generalisation to
-*temporary data acquisition* is in [plans/2026-09-19_temporary-data-acquisition.md](plans/2026-09-19_temporary-data-acquisition.md):
+*temporary data acquisition* is in [plans/to_be_confirmed/2026-09-19_temporary-data-acquisition.md](plans/to_be_confirmed/2026-09-19_temporary-data-acquisition.md):
 a document, a set of sources, a screenshot — acquire, hold for a declared span, release, and let the
 recorded diffs be the report's evidence.
 

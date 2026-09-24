@@ -20,7 +20,7 @@ to every other reasoning norm that turns out to be text-only.
 
 ## What does not
 
-- Rendering, pixels and stream stability — that is `plans/2026-09-22_reasoning-stream-render-stability.md`.
+- Rendering, pixels and stream stability — that is `plans/to_be_confirmed/2026-09-22_reasoning-stream-render-stability.md`.
 - Model routing, catalog and transport rungs.
 - Plan-hygiene mechanics themselves.
 
@@ -28,7 +28,7 @@ to every other reasoning norm that turns out to be text-only.
 
 `collectPlans` is **flat**: a plan inside this subdirectory is **invisible** to `reconcilePlans`, to the
 `owed:` line and to a fold's plan-state block. A plan moved here must be tracked by hand and moved out by
-hand when it closes. The recursive scan is task §8 of `plans/2026-09-21_mstar-order-and-summary-restore.md`;
+hand when it closes. The recursive scan is task §8 of `plans/to_be_confirmed/2026-09-21_mstar-order-and-summary-restore.md`;
 until it lands, this invisibility is the price of the section — and the reason the count of open tasks in
 `<compaction-status>` will not see what lives here.
 

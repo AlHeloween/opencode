@@ -2,7 +2,7 @@
  * The summary block is the handle the NEXT cycle reads. It must carry the LEGEND, never the patch
  * bodies: a block that inlines diffs replaces the intention with code churn — the measured way a
  * window's goals are lost (owner, 2026-09-21: «умник решил проза не нужна и оставил только диффы»;
- * the incident is recorded in `plans/2026-09-21_mstar-order-and-summary-restore.md`).
+ * the incident is recorded in `plans/to_be_confirmed/2026-09-21_mstar-order-and-summary-restore.md`).
  *
  * Two pins, and both must be able to FAIL:
  *   1. the legend renders counts + addresses and NO `@@` / `+++` / ```diff fence — a fixture WITH
@@ -291,7 +291,7 @@ describe("summary block shape", () => {
     const planState: PlanStatePayload = {
       plans: [
         {
-          file: "plans/2026-09-21_mstar-order-and-summary-restore.md",
+          file: "plans/to_be_confirmed/2026-09-21_mstar-order-and-summary-restore.md",
           intention: { from_state: "the fold loses the why", to_state: "the fold reads it" },
           goal_sv: ["fold", "intention", "goal"],
           invariants: [],
@@ -311,7 +311,7 @@ describe("summary block shape", () => {
     const text = lines.join("\n")
 
     // The plan's intention, with the file it came from — an address, not a paraphrase.
-    expect(text).toContain("plans/2026-09-21_mstar-order-and-summary-restore.md")
+    expect(text).toContain("plans/to_be_confirmed/2026-09-21_mstar-order-and-summary-restore.md")
     expect(text).toContain("the fold loses the why -> the fold reads it")
     expect(text).toContain("fold, intention, goal")
     // The owner's words, quoted verbatim, with the message they came from.

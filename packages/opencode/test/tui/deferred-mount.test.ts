@@ -1,4 +1,4 @@
-// T11b step 4 of plans/2026-09-22_reasoning-stream-render-stability.md — the bottom-up mount policy.
+// T11b step 4 of plans/to_be_confirmed/2026-09-22_reasoning-stream-render-stability.md — the bottom-up mount policy.
 import { expect, test } from "bun:test"
 import { deferredOnEntry, nextSlice } from "../../src/cli/cmd/tui/routes/session/deferred-mount"
 

@@ -244,7 +244,7 @@ fires first and the ttl adds nothing.
 retire when nothing calls them («мы ничего выкорчевывать не будем»). The `held_media` TABLE goes: zero
 consumers, and a table was the wrong shape from the start.
 
-**Moved out to `plans/2026-09-19_database-truth.md`:** the dead turn source (`session_entry`, 0 rows), the
+**Moved out to `plans/to_be_confirmed/2026-09-19_database-truth.md`:** the dead turn source (`session_entry`, 0 rows), the
 table inventory, and the fixture rule — a property of the storage plane, not of TDA.
 
 ### Why a TTL at all — the owner's two cases, and the AGI frame (2026-09-19)

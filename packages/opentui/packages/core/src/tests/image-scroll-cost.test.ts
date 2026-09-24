@@ -1,4 +1,4 @@
-// T9 of plans/2026-09-22_reasoning-stream-render-stability.md — what an on-screen sixel image costs per
+// T9 of plans/to_be_confirmed/2026-09-22_reasoning-stream-render-stability.md — what an on-screen sixel image costs per
 // frame while a sticky-bottom ScrollBox streams lines past it.
 //
 // The audit (code-read only) predicts, from renderer.zig:1871-1896 and renderer.zig:162-174 +

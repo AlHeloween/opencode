@@ -1,4 +1,4 @@
-// T10 of plans/2026-09-22_reasoning-stream-render-stability.md — `setImage` must not leak the caller's
+// T10 of plans/to_be_confirmed/2026-09-22_reasoning-stream-render-stability.md — `setImage` must not leak the caller's
 // NativeImage reference.
 //
 // The renderable RETAINS a supplied NativeImage, so "the caller still owns and must dispose its source

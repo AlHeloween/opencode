@@ -240,7 +240,7 @@ test("returns empty token list when both incremental and full parse fail", () =>
   }
 })
 
-// T11b step 3 (plans/2026-09-22_reasoning-stream-render-stability.md): remounting a finished message
+// T11b step 3 (plans/to_be_confirmed/2026-09-22_reasoning-stream-render-stability.md): remounting a finished message
 // re-lexed it from scratch — marked's block `lex` was ~85 % of mount time (40 × 12 000-char messages,
 // ~140 ms per mount). A full lex of the same content returns the STORED tokens; different content, and
 // content below the caching threshold, are lexed fresh — the controls that keep the cache honest.

@@ -1,5 +1,5 @@
 /**
- * T11a of plans/2026-09-22_reasoning-stream-render-stability.md — can the replay SEE two style sources?
+ * T11a of plans/to_be_confirmed/2026-09-22_reasoning-stream-render-stability.md — can the replay SEE two style sources?
  *
  * `stream-replay.test.ts` reported `flickered=0` and even `oneWay=0`. Read against its own code, that zero
  * had three independent reasons to be zero whatever the renderer did:

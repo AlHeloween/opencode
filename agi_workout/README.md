@@ -1,7 +1,7 @@
 # agi_workout — the build_mode overlay's journal
 
 Host-local canon for `/automode` — an OVERLAY on build_mode (same agent identity and rules; it adds
-only the continuation loop — not a separate mode). Plan: `plans/2026-09-23_automode-slash-command.md`;
+only the continuation loop — not a separate mode). Plan: `plans/to_be_confirmed/2026-09-23_automode-slash-command.md`;
 code: `packages/opencode/src/cli/cmd/tui/context/automode.tsx`). The folder is bound in THIS kernel's
 addons only — `prompt_kernel/addons.py`, G1 `PATH_AGI_WORKOUT` (read) and G7 `PATH_AGI_WORKOUT_LOG`
 (write). It is deliberately absent from the Codex and Claude registries: it is this kernel's own

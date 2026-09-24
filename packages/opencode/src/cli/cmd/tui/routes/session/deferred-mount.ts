@@ -1,5 +1,5 @@
 /**
- * Bottom-up mount of a session — T11b step 4 of plans/2026-09-22_reasoning-stream-render-stability.md.
+ * Bottom-up mount of a session — T11b step 4 of plans/to_be_confirmed/2026-09-22_reasoning-stream-render-stability.md.
  *
  * Entering a session built every loaded message at once: 154 ms of main thread for 40 × 12 000-char messages,
  * ~85 % of it marked's block lex (measured, `experiments/2026-09-23_render-load/remount.ts`). The owner chose

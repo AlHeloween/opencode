@@ -1496,7 +1496,7 @@ export function Session() {
     })
   })
 
-  // Bottom-up mount (T11b step 4, plans/2026-09-22_reasoning-stream-render-stability.md; the owner's choice,
+  // Bottom-up mount (T11b step 4, plans/to_be_confirmed/2026-09-22_reasoning-stream-render-stability.md; the owner's choice,
   // 2026-09-24). Entering a session built every loaded message at once — 154 ms of main thread for
   // 40 × 12 000 chars. Now the newest messages are built at once (the view is pinned to the bottom, so they
   // are what is on screen) and the history above is released in slices, newest first; each message's
@@ -3435,4 +3435,3 @@ function filetype(input?: string) {
   if (["typescriptreact", "javascriptreact", "javascript"].includes(language)) return "typescript"
   return language
 }
-

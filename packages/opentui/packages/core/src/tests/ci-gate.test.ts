@@ -1,7 +1,7 @@
 /**
  * The CI gate holds its own spelling: three surfaces must agree, or `bun turbo test:ci`
  * silently skips `@opentui/core` again — the way 88 failures accumulated unseen.
- * Plan: `plans/2026-09-22_opentui-core-test-ci-gate.md` (G4, the planstatus three-surface rule).
+ * Plan: `plans/to_be_confirmed/2026-09-22_opentui-core-test-ci-gate.md` (G4, the planstatus three-surface rule).
  */
 import { expect, test } from "bun:test"
 import { readFileSync } from "node:fs"

@@ -1,5 +1,5 @@
 /**
- * T11b step 4 of plans/2026-09-22_reasoning-stream-render-stability.md — `deferred` postpones the build.
+ * T11b step 4 of plans/to_be_confirmed/2026-09-22_reasoning-stream-render-stability.md — `deferred` postpones the build.
  *
  * Entering a session constructs (lexes) every loaded message at once — 154 ms for 40 × 12 000 chars on the
  * first mount, ~85 % of it marked's block lex. The owner chose to build bottom-up: the newest messages at

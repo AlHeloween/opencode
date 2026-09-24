@@ -48,7 +48,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "DIVERGENCE_PROTOCOL",
-        "Only eligible runtime evidence may stamp or invalidate claims. Bound divergence revokes its stamp and sets Unknown: no verdict or retuning; acquire medoids, rebuild. Affect opens an oracle gap, never reward (@SEMANTIC_CONTROL).",
+        "Only eligible runtime evidence may stamp or invalidate claims. Bound divergence revokes its stamp and sets Unknown: no verdict or retuning; acquire medoids, rebuild. Affect opens an oracle gap, never reward (@SEMANTIC_CONTROL). A stamp holds only while the artifact it names is unchanged, so re-digest before relying on one read back from a ledger, a plan or memory: an unequal or unobtainable content_hash is divergence pulled instead of waited for, and the claim reverts to Unknown. That digest, unlike @SV_FORMAT.md5, is computed and compared.",
     ),
     _rule(
         "KERNEL",
@@ -260,13 +260,12 @@ GATES = (
         shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "DIVERGENCE_PROTOCOL", "AUTHORITY_SEPARATION"),
         local_rules=(
             _rule("G8", "ORACLE", "Reproduce the claim with the narrowest decisive instrument. Purpose: an oracle ends the guess-invent-fail loop by freezing one claim as Exact, so it must be able to fail — an instrument that cannot fail proves nothing, and a claim with no falsifier is not a claim. Aim it at the layer the claim lives on: a persistent-write claim is proven by reading the written artifact back, never by typecheck or a resolver test alone. No self-grading — Exact needs runtime-issued evidence bound to the claim digest; planner confidence, user certainty, and implementation appearance are not evidence. Pass pins Exact medoids; fail is Unknown."),
-            _rule("G8", "PROVENANCE", "Record command or instrument, inputs, environment, exit/result, relevant output, and artifact digest so the decision can be reproduced."),
+            _rule("G8", "PROVENANCE", "Record command or instrument, inputs, environment, exit/result, relevant output, and artifact digest so the decision can be reproduced and the stamp revalidated."),
             _rule("G8", "SMOKE_VERIFY", "Run focused regression tests first, then the proportional integration surface; compare against the baseline and outcome contract."),
-            _rule("G8", "PREDICATE_POWER", "The predicate is part of the instrument: it must separate the hypothesis from its alternative, not merely return a value. If both branches satisfy it the oracle has no power and its PASS closes as Unknown."),
-            _rule("G8", "ORACLE_DISCRIMINATION", "Oracle power is measured by the alternatives a result EXCLUDES, not by the predicate passing: a PASS that excludes nothing promotes nothing. Name the material alternatives before designing the predicate; when the observed result satisfies more than one, the outcome is Unknown and the next step is a more discriminating predicate — not a louder PASS."),
+            _rule("G8", "PREDICATE_POWER", "The predicate is part of the instrument: it must separate the hypothesis from its alternative, so its power is what a result EXCLUDES, never that it returned a value. Name the material alternatives before designing it; when more than one survives the observed result the oracle has no power and its PASS closes as Unknown — the next step is a more discriminating predicate, not a louder one."),
             _rule("G8", "SIGNAL_CARDINALITY", "Count signals, not lines: identical diagnostics from one source are ONE signal whatever their number — cluster by source and pattern before reacting. Deleting work on an unreplicated single-source complaint is @SIMULATION_ERROR with a log attached."),
             _rule("G8", "UNKNOWN_ROUTING", "An Unknown claim leaves the loop, it does not re-enter it: record the falsifier that failed and route forward, where G9 decides whether acceptance still holds without it. Reaching for the same instrument again is a STALL, and reaching for a weaker one is @SIMULATION_ERROR."),
-            _rule("G8", "ORACLE_STAMP_RULE", "PASS binds runtime evidence_ref to claim digest; EXPECTED_FAIL is the passing result of a mutation or differential oracle; FAIL is recorded, not discarded. Divergence revokes a stamp to Unknown."),
+            _rule("G8", "ORACLE_STAMP_RULE", "PASS binds runtime evidence_ref to claim digest; EXPECTED_FAIL is the passing result of a mutation or differential oracle; FAIL is recorded, not discarded."),
         ),
     ),
     Gate(
@@ -484,7 +483,7 @@ KERNEL = Kernel(
         "PLAN_BINDING": "{task_id: [paths, symbols, dependencies, expected_diff, oracle]}",
         "IMPLEMENTATION_RESULT": "{task_id, actual_diff, execution_evidence}",
         "VERIFIED_OUTCOME": "{acceptance_id: pass|fail, evidence_ref}",
-        "ORACLE_STAMP": "{claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL}",
+        "ORACLE_STAMP": "{claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL, content_hash?}",
         "DIVERGENCE_EVENT": "{claim_id, evidence_ref}",
         "SOURCE_STAMP": "{authority_class, url_provenance, content_hash}",
         "CLOSURE_PROOF": "{acceptance_coverage, oracle_result, critical_risks, residual}",

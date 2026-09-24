@@ -103,12 +103,23 @@ def test_kernel_does_not_restate_entities_under_three_spellings() -> None:
     assert "Only eligible runtime evidence" in text
     assert "revokes its stamp" in text
     assert "sets Unknown" in text
+    # 2026-09-24: the PULL half. Divergence only ever arrived as new evidence, so a stamp
+    # read back after a fold was trusted however far its artifact had moved — the one
+    # "recorded, never re-read" the outside review found. The digest is compared, unlike
+    # @SV_FORMAT.md5, which the same kernel forbids computing.
+    assert "re-digest before relying on one read back" in text
+    assert "unobtainable content_hash" in text
+    assert "unlike @SV_FORMAT.md5, is computed and compared" in text
     assert "runtime evidence_ref" in text
     assert "claim digest" in text
     # K-3 (2026-09-12): a negative oracle result had nowhere to live, which made
     # mutation and differential oracles inexpressible — killed mutant is an
     # EXPECTED_FAIL, not a divergence.
-    assert "ORACLE_STAMP: {claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL}" in text
+    # 2026-09-24: `content_hash?` added. The pin is the three RESULTS, not a frozen field
+    # list — a stamp with no digest cannot be revalidated later, so @DIVERGENCE_PROTOCOL's
+    # read-back check had nothing to compare against. Optional because evidence that is not
+    # an artifact (a live probe) has no stable digest to record.
+    assert "ORACLE_STAMP: {claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL, content_hash?}" in text
     assert "DIVERGENCE_EVENT: {claim_id, evidence_ref}" in text
     assert "acquire medoids" in text
     assert "opens an oracle gap" in text

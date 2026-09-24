@@ -4717,3 +4717,56 @@ Persisted before the fold (the window is ~600k and the owner called for a compac
 files — the runtime consumers with their file:line, this host's absence of a window oracle, and
 the build/install procedure including "`--install` does not repin" — plus the July-ABI mining
 record appended to the lineage memory, and three lines in MEMORY.md.
+
+## [2026-09-24 15:05] Artifact digest — the pull half of divergence
+
+The outside review's one surviving item. `@DIVERGENCE_PROTOCOL` only ever revoked a stamp when NEW
+evidence arrived — a push. Nothing re-checked a stamp at the moment it was USED, so a stamp read
+back after a fold, or reused from a ledger, was trusted however far its artifact had moved since.
+G8 `PROVENANCE` wrote the digest "so the decision can be reproduced" and no rule ever compared it
+again.
+
+Three changes, one norm:
+
+- `@DIVERGENCE_PROTOCOL` gained the read-back clause: a stamp holds only while the artifact it
+  names is unchanged; re-digest before relying on one read back from a ledger, a plan or memory;
+  an unequal **or unobtainable** `content_hash` is divergence pulled instead of waited for, and
+  the claim reverts to Unknown. "Unobtainable" is what covers a stamp that never recorded a digest
+  — no separate clause needed.
+- `ORACLE_STAMP` gained `content_hash?`. Without the SLOT the rule is prose: there was nowhere to
+  put the digest and therefore nothing to compare against. Optional because evidence that is not an
+  artifact (a live probe) has no stable digest.
+- G8 `PROVENANCE` now says why it is written: "so the decision can be reproduced **and the stamp
+  revalidated**" — the write site names its reader.
+
+Collision guarded explicitly: the same kernel forbids computing `@SV_FORMAT.md5` ("a label, not a
+checksum"), so the clause states that THIS digest is computed and compared. Same class as the
+Unknown/medoid collision fixed on 09-22 — a new term must be told apart from the one it rhymes with.
+
+**Funded at zero net cost**, per the standing rule (budget comes from prose, not from the ceiling):
+`PREDICATE_POWER` and `ORACLE_DISCRIMINATION` were one norm at two granularities — merged into one
+rule keeping all five operative parts (predicate is part of the instrument; separate the hypothesis
+from its alternative; power is what a result EXCLUDES; name the alternatives BEFORE designing the
+predicate; more than one survivor → Unknown → a more discriminating predicate, not a louder one).
+`ORACLE_STAMP_RULE` lost "Divergence revokes a stamp to Unknown", a verbatim restatement of the
+shared rule already listed one line above it in the same gate.
+
+Note on the instrument: `dedup.semantic_similarity` did NOT flag that pair (below 0.40) because it
+is lexical — it compares words, not claims. Its silence is not evidence of independence, and the
+top of its ranking (`PLAN_CONTRACT_ENFORCEMENT`/`PLAN_BINDING_ENFORCEMENT` 0.504,
+`ACTION_CLASS_RULE`/`WRITE_SCOPE` 0.486) is shared VOCABULARY between rules that say different
+things. Read the pairs, do not act on the score.
+
+Test moved in the same change, not after it: `test_render.py` pinned the literal
+`ORACLE_STAMP: {...EXPECTED_FAIL}` under the K-3 comment. The pin's intent is the three RESULTS,
+not a frozen field list — updated with that reason dated, plus three new pins for the read-back
+clause so the norm cannot vanish silently.
+
+106 passed. product 46 820 / 47 000 (sha256 `39516d3eb691d7312f3b8948cd096ff788b761c3f151c3d7afb70e894284dc73`),
+claude 46 661 (`644241efa7aeafae370d4d308060e1b209ef13ffe530a28955d254f4d92b077b`), codex artifact
+46 185 (`41e979676df35511d2d6ff4e4e3667c7c6c3370314db031bf441b93464752754`). `baseline.json` repinned
+as the separate act it is.
+
+Corroboration worth keeping: `compatibility.assert_current_kernel_unchanged` — `baseline.json`
+pinning the installed prompt's sha256 — is this exact mechanism, already in the repo, for exactly
+one artifact. The kernel rule generalises a consumer that already exists rather than inventing one.

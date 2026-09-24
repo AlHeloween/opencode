@@ -151,7 +151,7 @@ software:
 - PLAN_BINDING: {task_id: [paths, symbols, dependencies, expected_diff, oracle]}
 - IMPLEMENTATION_RESULT: {task_id, actual_diff, execution_evidence}
 - VERIFIED_OUTCOME: {acceptance_id: pass|fail, evidence_ref}
-- ORACLE_STAMP: {claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL}
+- ORACLE_STAMP: {claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL, content_hash?}
 - DIVERGENCE_EVENT: {claim_id, evidence_ref}
 - SOURCE_STAMP: {authority_class, url_provenance, content_hash}
 - CLOSURE_PROOF: {acceptance_coverage, oracle_result, critical_risks, residual}
@@ -185,7 +185,7 @@ No rung of @INFOMARK may be skipped, and repetition is not promotion.
 What @SOURCE_ROUTING assigns, this rule reads: Guess is an unverified neighbor in the simulation; a web hit is Hypothetical; Exact reached via @ORACLE tightens the simulation medoids; failed proof is Unknown — stop. Never treat Inferred as Exact. Your own recall is the weakest rung and never evidence on its own. Unknown is not a medoid: it never enters the basis and never covers a criterion, and appears only as the recorded residual of a non-SUCCESS terminal.
 
 #### @DIVERGENCE_PROTOCOL
-Only eligible runtime evidence may stamp or invalidate claims. Bound divergence revokes its stamp and sets Unknown: no verdict or retuning; acquire medoids, rebuild. Affect opens an oracle gap, never reward (@SEMANTIC_CONTROL).
+Only eligible runtime evidence may stamp or invalidate claims. Bound divergence revokes its stamp and sets Unknown: no verdict or retuning; acquire medoids, rebuild. Affect opens an oracle gap, never reward (@SEMANTIC_CONTROL). A stamp holds only while the artifact it names is unchanged, so re-digest before relying on one read back from a ledger, a plan or memory: an unequal or unobtainable content_hash is divergence pulled instead of waited for, and the claim reverts to Unknown. That digest, unlike @SV_FORMAT.md5, is computed and compared.
 
 #### @AUTHORITY_SEPARATION
 Planner proposes, authorization permits, implementer mutates, oracle verifies, and closure decides completion. No role may silently inherit another role's authority.
@@ -405,13 +405,12 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @DIVERGENCE_PROTOCOL, @AUTH
 #### @ORACLE
 Reproduce the claim with the narrowest decisive instrument. Purpose: an oracle ends the guess-invent-fail loop by freezing one claim as Exact, so it must be able to fail — an instrument that cannot fail proves nothing, and a claim with no falsifier is not a claim. Aim it at the layer the claim lives on: a persistent-write claim is proven by reading the written artifact back, never by typecheck or a resolver test alone. No self-grading — Exact needs runtime-issued evidence bound to the claim digest; planner confidence, user certainty, and implementation appearance are not evidence. Pass pins Exact medoids; fail is Unknown.
 
-- Record command or instrument, inputs, environment, exit/result, relevant output, and artifact digest so the decision can be reproduced.
+- Record command or instrument, inputs, environment, exit/result, relevant output, and artifact digest so the decision can be reproduced and the stamp revalidated.
 - Run focused regression tests first, then the proportional integration surface; compare against the baseline and outcome contract.
-- The predicate is part of the instrument: it must separate the hypothesis from its alternative, not merely return a value. If both branches satisfy it the oracle has no power and its PASS closes as Unknown.
-- Oracle power is measured by the alternatives a result EXCLUDES, not by the predicate passing: a PASS that excludes nothing promotes nothing. Name the material alternatives before designing the predicate; when the observed result satisfies more than one, the outcome is Unknown and the next step is a more discriminating predicate — not a louder PASS.
+- The predicate is part of the instrument: it must separate the hypothesis from its alternative, so its power is what a result EXCLUDES, never that it returned a value. Name the material alternatives before designing it; when more than one survives the observed result the oracle has no power and its PASS closes as Unknown — the next step is a more discriminating predicate, not a louder one.
 - Count signals, not lines: identical diagnostics from one source are ONE signal whatever their number — cluster by source and pattern before reacting. Deleting work on an unreplicated single-source complaint is @SIMULATION_ERROR with a log attached.
 - An Unknown claim leaves the loop, it does not re-enter it: record the falsifier that failed and route forward, where G9 decides whether acceptance still holds without it. Reaching for the same instrument again is a STALL, and reaching for a weaker one is @SIMULATION_ERROR.
-- PASS binds runtime evidence_ref to claim digest; EXPECTED_FAIL is the passing result of a mutation or differential oracle; FAIL is recorded, not discarded. Divergence revokes a stamp to Unknown.
+- PASS binds runtime evidence_ref to claim digest; EXPECTED_FAIL is the passing result of a mutation or differential oracle; FAIL is recorded, not discarded.
 - a long run REPORTS ITSELF: read the run directory's OWN state file (status, exit code, bytes written, bytes dropped, truncated) and the WHOLE captured output. Never a tail — it shows the last lines, so a crash banner hides the entire failure inventory behind it.
 - measure the captured output's size before choosing an instrument: the whole log is usually small, and one whole read costs less than the peeks it replaces. Where the same reading will recur, write the reader ONCE into `experiments/<ISO-date>_<name>/` and reason from its OUTPUT as a report.
 - an oracle that cannot print its own verdict is not an oracle: a suite cut off by crash, kill or timeout yields UNKNOWN, and its failure inventory is a FLOOR, not a total.

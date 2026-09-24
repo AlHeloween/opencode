@@ -41,3 +41,7 @@ until it lands, this invisibility is the price of the section — and the reason
   «the norm exists» and «the norm runs» are different facts.
 - `2026-09-24_marked-reply-example.md` — a reference specimen of a reply that IS executing the norm:
   claims with instruments, ✗ naming what contradicts. The shape a prompt paragraph cannot convey.
+- `2026-09-24_fragmented-thinking-specimen.md` — raw reasoning specimens from the session where thinking
+  degraded into ✓/✗-spam and «Хм.» loops (deepseek-flash — the same model everywhere else): full verbatim
+  trace, machine counts, the fold-crossing natural experiment (the form is window-borne, not rule-borne),
+  the reasoning-echo pin, and the orphan-parts anomaly (11 parts without `message` rows).

@@ -172,3 +172,28 @@ report per item. Same blocker as S2.
 One commit per task group; `python -m prompt_kernel --install` + `--claude --install` + `--codex`
 re-render every surface from source, so reverting the commit and re-running the pipeline restores
 the previous prefix exactly. `baseline.json` is repinned as its own act.
+
+## Queued — the maturity gap, blocked on the byte lever
+
+Coverage is currently measured against the REQUEST (`ACCEPTANCE_PASS` = ∀ criterion, and a criterion
+comes from `ACCEPTANCE_FRAME` = one per requested outcome). Project maturity lives in the cells
+nobody requested — the difference between "did what was asked" and "the lattice is full". Five
+medoids, ~500 B total, none of which fits in the 31 B of headroom left after the release:
+
+- **M1 — two cadences, told apart.** G9 keeps "check @QUALITY_VECTOR axes only where the change could
+  move one" (right for a bounded task); `EVOLUTION_LOOP` gets the sweep AS THE WORK (right at project
+  closure). Unseparated, the anti-ceremony rule eats the sweep that produces «нечего прицепиться».
+- **M2 — lattice coverage.** A maturity predicate beside the request predicate: every CELL has an
+  oracle or a recorded void. Bounded by the same fixed point — fill while filling improves.
+- **M4 — void inventory.** The unfilled cells listed, not described. "Nothing to pick at" becomes
+  checkable: the list is empty.
+- **M5 — the weight comes from outside.** The sweep is UNIFORM; priority arrives only from usage,
+  incidents or the owner. Without this, uniform gets reported as prioritised.
+- **M6 — the deliverable is the audience's oracle.** Owner, 2026-09-24: Astra's good ideas went
+  unnoticed because they stayed abstractions; the interactive river-bottom profile drew «АХ». The
+  judge cannot evaluate reasoning, only an artifact they can DRIVE — the same fifth property @ORACLE
+  requires of an instrument. Corollary: an error in a checkable form is closer to value than
+  correctness in an uncheckable one, because only the first can be corrected.
+
+Levers, priced: prose compression (58 unpinned rules, 4 543 B of tail — `experiments/2026-09-24_kernel-prose-census/`);
+`@SOURCE_ROUTING` secondaries (525 B, still no caller — only the primaries got one); or the ceiling.

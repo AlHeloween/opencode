@@ -88,7 +88,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "LOOP_PROGRESS",
-        "Every back move strictly decreases @LOOP_MEASURE lexicographically; only forward moves may raise it, where new evidence legitimately opens claims. Retries without a decrease exhaust bounds.loop_budget, 3 unless the envelope names it → STALL, closed through G9. A pass adding no instrument result, no claim and no residual is charged as a retry; @REASONING_MODE is exempt. The G1↔G2 descent is measured by FRACTAL_GEOMETRY.scale instead, strictly decreasing. Sound only against a fixed target — @INTENTION_INVARIANCE.",
+        "Every back move strictly decreases @LOOP_MEASURE lexicographically; only forward moves may raise it, where new evidence legitimately opens claims. Retries without a decrease exhaust bounds.loop_budget — the envelope's, else the count of distinct declared routes out of this gate → STALL, closed through G9. It counts DISTINCT attempts. A pass adding no instrument result (an established absence counts), no claim and no residual is charged as a retry; @REASONING_MODE is exempt. The G1↔G2 descent is measured by FRACTAL_GEOMETRY.scale instead, strictly decreasing. Sound only against a fixed target — @INTENTION_INVARIANCE.",
     ),
     _rule(
         "KERNEL",
@@ -167,7 +167,7 @@ GATES = (
         shared_rules=("SAFETY_PRECEDENCE", "RESIDUAL_ROUTING", "INTENTION_INVARIANCE"),
         local_rules=(
             _rule("G2", "DECOMPOSE", "Generate candidates recursively until every leaf is searchable, independently executable, and has a bounded smoke oracle."),
-            _rule("G2", "CUT_UNSUPPORTED", "Cut before planning: what evidence does not support leaves the answer — as Unknown or as a residual. Medoid selection cuts tasks and @INFOMARK marks claims; neither cuts prose."),
+            _rule("G2", "CUT_UNSUPPORTED", "Cut before planning: what evidence does not support leaves the answer, as Unknown or as a residual. Medoids cut tasks, @INFOMARK marks claims; neither cuts prose."),
             _rule("G2", "FRACTAL_CANDIDATES", "Preserve the parent goal and constraints at every scale; reject leaves whose verification blast radius remains monolithic."),
             _rule("G2", "MANHATTAN_L1", "Cluster candidate vectors with @L1_DISTANCE, select at least five candidates when the search space permits, and keep medoids only as CENTRAL_TASKS."),
             _rule("G2", "ONE_STEP_AHEAD", "Estimate the immediate downstream state and verification consequence of each medoid before selection."),
@@ -234,7 +234,7 @@ GATES = (
         shared_rules=("EVIDENCE_ORDER", "PLAN_CONTRACT_ENFORCEMENT", "PLAN_BINDING_ENFORCEMENT"),
         local_rules=(
             _rule("G6", "GROUND_PLAN_RULE", "Map symbols and ownership first, inspect the bounded implementation surface second, and fill only evidence gaps third. The impact query runs for every mutation binding: whether a surface has other consumers is its answer, not its precondition."),
-            _rule("G6", "HANDOVER_OR_SWITCH", "When the plan is bound and implementing it needs an identity this one lacks, switch or hand over if the host allows it and continue at G7. The terminal is only for a host where neither is possible."),
+            _rule("G6", "HANDOVER_OR_SWITCH", "Plan bound but the implementing identity is missing: switch or hand over where the host allows it and continue at G7; the terminal is for a host where neither is possible."),
             _rule("G6", "REUSE_BINDING", "For each task, record the reused implementation or authoritative pattern and explain any necessary invention."),
             _rule("G6", "DEPENDENCY_BINDING", "Resolve task inputs, outputs, affected consumers, generated files, tests, and rollback points to concrete paths and symbols."),
         ),

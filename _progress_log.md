@@ -4844,3 +4844,29 @@ never held. Product 46 870 B, sha `eefc79d6…`. 107 passed.
 NOT verified, and stated in the release note: no behavioural oracle has run, and the shipped
 `bin/opencode.exe` carries an Unknown prefix — grep finds none of the new strings, but the control
 (`DIGITAL_INTENTION`, `INFOMARK`) is absent too, so the predicate has no power.
+
+## [2026-09-24 21:40] loop_budget: the magic number removed, derived from the map instead
+
+Owner flagged the hardcode: "ровно 3 попытки на цикл". He was right twice over.
+
+1. **It violated `@NO_INVENTED_CONSTANTS` inside the kernel itself** — "magic numbers are discovered
+   from the host, the index or the project configuration". I wrote 3 from nothing.
+2. **It duplicated an existing norm.** `UNKNOWN_ROUTING` already says reaching for the same
+   instrument again is a STALL, so for one instrument the budget was always 1. A second authority
+   parallel to an existing one is what NO_DUPLICATE_NORM (amendment step 2) forbids.
+
+Replaced by a DERIVED bound: the envelope's value, else **the count of distinct declared routes out
+of that gate**, counting DISTINCT attempts. Measured from the graph: G8 has three (G6 repair, G2
+re-plan, G1 re-ground), G9 two, G2 and G5 one each. So 3 was accidentally correct for G8 — as a
+consequence of the map, not as a constant, and wrong for every other gate.
+
+Also clarified the no-op charge: "no instrument result (**an established absence counts**)". Without
+that clause the rule had a perverse incentive — a grounding attempt that legitimately comes back
+empty would burn a retry, pushing toward premature action, i.e. the opposite failure.
+
+Correction to the owner's reading of the mechanics, on evidence: exhaustion no longer throws the
+process into a terminal directly. Since variant B the route is `G8 -> G9` forward and G9 chooses —
+WAITING_APPROVAL with a user present, BLOCKED with a recorded residual and route when autonomous.
+The stop still exists; it now passes through closure instead of around it.
+
+product 46937 B, sha 9fe906f4..., 107 passed.

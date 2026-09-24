@@ -87,6 +87,33 @@ an envelope for a CLASS of effects with bounds; it is not consumed by one task.
       to the approved plan until a bound is exceeded, so a per-item report is not a checkpoint but
       a re-approval the user did not ask for. The user-facing report happens at the declared
       boundary, or when a bound is exceeded, or when a decision is needed.
+- [ ] **T9 — an oracle must return an ADDRESS (owner's defect 3).** New G8 rule
+      `INSTRUMENT_RESOLUTION`: *"An oracle returns an address, not a verdict. A build or a
+      whole-app run is one bit with no location: localize per unit with an isolated test, then
+      let the integration surface confirm composition only. A build proves that it built."*
+      Owner, 2026-09-24: «Попытка использовать собранный экзешник как доказательство не проведя
+      индивидуальных тестов… В смысле изолированных тестов для локализации проблемы.»
+      This is a fourth property of an instrument, next to layer (`@ORACLE`), power
+      (`@PREDICATE_POWER`) and admissibility (`INSTRUMENT_RUNG`); resolution is currently unnamed.
+      Cheaper alternative if a new rule is refused: two clauses, one on `PREDICATE_POWER` (a
+      build's PASS excludes almost nothing) and one on `SMOKE_VERIFY` (the focused test comes
+      first BECAUSE it localizes) — costs ~90 B instead of ~245 B but leaves "address" unnameable.
+- [ ] **T10 — G0 is the intention and nothing else (owner's defect 4a).** New G0 rule:
+      *"G0 emits the Digital Intention and nothing else: no analysis, no plan, no answer. The
+      route out is G1."* Owner: «по сути G0 это просто определить намерение пользователя И ВСЕ —
+      дальше только через заземление». Consequence: `STATE_FIRST` moves out of G0 — the state
+      worth publishing is the grounded one, so it belongs at G1 (or is dropped; 45 B either way).
+- [ ] **T11 — Guess decides nothing (owner's defect 4b).** New shared rule
+      `@GUESS_DECIDES_NOTHING`: *"Guess decides nothing. Each Guess a decision rests on is promoted
+      before use — authority search, then code, then smoke where possible — or it closes Unknown.
+      Prose about a Guess is not a promotion."* Owner, verbatim: «по постулату кернела и моя и
+      симуляция агента — guess, GUESS НЕ МОЖЕТ БЫТЬ ПОВОДОМ ПРИНЯТИЯ РЕШЕНИЙ… на каждый guess
+      сегмент полотна текста надо сделать интернет-поиск в авторитетных источниках, потом по коду,
+      потом смоук если возможно». Second clause, from «может пользователь вообще ошибается»: the
+      TARGET is the user's (`@INTENTION_INVARIANCE` keeps it), the observation and the suggested
+      solution are testimony — `USER_REQUEST.observation` is Guess until grounded.
+      This is the rule that makes defect 1 impossible: with nothing decidable at G0 and no decision
+      resting on Guess, the only move left at the start is an instrument call.
 - [ ] **T7 — guard the class: `test_pre_action_budget`.** A separate, smaller cap on
       `G0 + G1` rendered bytes, pinned to the post-change measurement plus small headroom, with the
       reason in the test. A flat total ceiling cannot detect mass moving forward in the pass; this

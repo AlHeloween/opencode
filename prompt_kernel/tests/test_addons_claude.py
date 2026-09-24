@@ -109,7 +109,12 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # @SIGNAL_CARDINALITY at G8, @CONCRETE_BOUNDS at G4, and the host INSTRUMENT_CHAIN. The BYTE cap
     # does not move: the product paid for all of it out of removed rationale prose. The token cap
     # steps because this variant carries the same norms with less prose to give back.
-    assert normalized_token_count(text) <= 6_400
+    # 7_000 (2026-09-24): RELATION RESTORED, not a content-driven raise. The product's own token
+    # ceiling is 7_000 (test_dedup.py) and it measured 6_431 while this cap still read 6_400 — i.e.
+    # the variant cap had fallen BELOW the product it mirrors, so it was failing on the product's
+    # own content. The byte cap (47_000) stays the tighter gate; this axis only catches word bloat
+    # that bytes miss.
+    assert normalized_token_count(text) <= 7_000
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

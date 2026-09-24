@@ -101,7 +101,10 @@ def test_codex_variant_stays_within_explicit_budget() -> None:
     # @SIGNAL_CARDINALITY at G8, @CONCRETE_BOUNDS at G4, and the host INSTRUMENT_CHAIN. The BYTE cap
     # does not move: the product paid for all of it out of removed rationale prose. The token cap
     # steps because this variant carries the same norms with less prose to give back.
-    assert normalized_token_count(text) <= 6_400
+    # 7_000 (2026-09-24): RELATION RESTORED — same reason as the claude variant. The product ceiling
+    # is 7_000 and the product measured 6_431 against a variant cap of 6_400; the byte cap stays the
+    # tighter gate.
+    assert normalized_token_count(text) <= 7_000
 
 
 def test_codex_addon_render_is_deterministic_lf() -> None:

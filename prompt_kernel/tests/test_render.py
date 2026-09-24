@@ -201,3 +201,24 @@ def test_next_package_has_no_runtime_import_from_legacy_precompiled_kernel() -> 
     sources = "\n".join(path.read_text(encoding="utf-8") for path in sorted(package.glob("*.py")))
     assert "prompts_kernel._kernel_precompiled" not in sources
     assert "prompt_research_candidate" not in sources
+
+
+def test_pre_action_section_stays_small() -> None:
+    """G0+G1 is what an agent must read and SATISFY before its first instrument call.
+
+    2026-09-24: it had grown 2_840 -> 7_309 B (x2.6) against the battle-tested 09-17 build, and a
+    third of G1 was catalogues that help build a surface but never help find one. An imperative
+    that is not a call can only be satisfied by PROSE, so mass moved forward in the pass buys
+    narration instead of grounding — and one flat total ceiling cannot see that, because the total
+    barely moved. This cap is the axis that can.
+
+    Measured after the eviction: 5_365 B. The band is the next one above it.
+    """
+    from prompt_kernel.addons import GATE_ADDONS
+
+    text = render_kernel(KERNEL, GATE_ADDONS)
+    section = 0
+    for gate in ("G0", "G1"):
+        block = text[text.index(f"<{gate}_RULES>") : text.index(f"</{gate}_RULES>")]
+        section += len(block.encode("utf-8"))
+    assert section <= 5_600, section

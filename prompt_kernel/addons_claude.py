@@ -64,39 +64,10 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         ),
     ),
     GateAddon(
-        "G1",
+        "G3",
         "ACCEPTANCE_FRAME",
         (
             "ACCEPTANCE_FRAME := {(criterionᵢ, surfaceᵢ, instrumentᵢ@rung, falsifierᵢ)} — one per requested outcome, named BEFORE planning; a criterion first named at G8 was improvised, not defined (ISO/IEC 25010: QC criteria and acceptance criteria are requirements-time artefacts; ISO/IEC/IEEE 29119-1 for testing concepts).",
-            "V&V: verification = impl ⊨ claim (@ORACLE); validation = impl ⊨ to_state (@INTENTION_INVARIANCE owns the target) — a green oracle on verification alone is a PASS about the wrong object.",
-        ),
-    ),
-    GateAddon(
-        "G1",
-        "PROJECT_STRUCTURE",
-        (
-            "project shape, grounded not assumed: root manifests (project.dpr/dpk, pyproject.toml, Cargo.toml, package.json, tsconfig.json) in the root; core = pure testable library, separate from UI (GUI/CLI) and I/O (SoC); src/ + include/ layout; README.md names the modules; ONE canonical dependency file; settings are strict validated models (formal configuration), the config utility lives in-repo.",
-        ),
-    ),
-    GateAddon(
-        "G1",
-        "GUI_STANDARDS",
-        (
-            "GUI rule set: design per Material Design 3 (web/Android), Apple HIG (iOS/macOS) or the project's UI kit; a11y per WCAG 2.1+ (contrast, screen reader, semantic markup, 100% keyboard); responsive and pixel-accurate at the target resolutions and DPI; feedback states (loading/skeleton), no multi-submit, actionable errors; never block the UI thread on I/O or compute.",
-        ),
-    ),
-    GateAddon(
-        "G1",
-        "TUI_STANDARDS",
-        (
-            "TUI rule set: restore the terminal on exit AND on crash (raw mode off, cursor shown, alt screen cleared, colours reset); redraw on resize (SIGWINCH) and survive tiny sizes; 100% keyboard (arrows/hjkl, Tab focus, Esc cancel, Ctrl+C interrupt; mouse optional); degrade TrueColor→256→16→mono and honour NO_COLOR=1; event-driven, never poll; repaint only what changed (no flicker); verify on the target emulators (xterm, Alacritty, Windows Terminal, iTerm2, tmux) with UTF-8, emoji and box-drawing.",
-        ),
-    ),
-    GateAddon(
-        "G1",
-        "ERGONOMICS_STANDARDS",
-        (
-            "Ergonomics rule set: ISO 9241 baseline; progressive disclosure over dense screens; Fitts (large, adjacent targets for critical actions; >=44x44 pt/dp for touch) and Hick (fewer options, faster decisions); type ergonomics (50-75 chars per line, adequate leading, F/Z scan patterns); consistent placement and standard shortcuts for muscle memory; poka-yoke error prevention, destructive actions confirmed, Undo that keeps context.",
         ),
     ),
     GateAddon(
@@ -189,6 +160,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "STYLE_AUTHORITY",
         (
             "style authority per language: Python PEP-8; JS/TS Google JS Style Guide + Prettier/ESLint; Go gofmt + Effective Go; C/C++ clang-format + Google C++ Style Guide; Rust rustfmt; Delphi Embarcadero Style Guide; MSVC MSDN; 8051 Intel MCS-51 (MIT 6.115). A repo formatter config is the executable form of its guide.",
+            "surface standards (GUI, TUI, ergonomics, project shape): docs/ui-standards.md — read before building or reviewing one.",
         ),
     ),
     GateAddon(
@@ -258,7 +230,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G9",
         "PATH_CLOSURE",
         (
-            "done -> plans_completed/; scan plans for stale refs.",
+            "the plan moves by the OUTCOME and plans/ is legal only while it owes work: SUCCESS -> plans_completed/, OUT_OF_SCOPE -> plans_deferred/, BLOCKED and WAITING_APPROVAL -> plans/postponed/ naming the reason AND the signal that lifts it; `git mv` in the commit that names the ground. Scan plans for stale refs.",
             "behavior/paths changed -> update docs/ and repo index.",
             "deprecated -> obsolete/ (reference only).",
         ),
@@ -268,7 +240,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "ARTIFACT_LANGUAGE",
         (
             "write every ARTIFACT in English — code comments, docs, plan files, folder READMEs, kernel text, memory, commit messages. Russian is for the owner-facing reply and the GUI only; G0 keeps that half.",
-            "THE SPLIT IS THE ECONOMY: canon prose -> the folder README, the rule alone -> the kernel. An artifact is billed twice, because it also rides a prompt, a review and a reader's attention.",
+            "THE SPLIT IS THE ECONOMY: canon prose -> the folder README, the rule alone -> the kernel.",
         ),
     ),
     GateAddon(

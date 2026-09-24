@@ -47,6 +47,11 @@ SHARED_RULES = (
     ),
     _rule(
         "KERNEL",
+        "GUESS_DECIDES_NOTHING",
+        "Guess decides nothing, and an ungrounded passage is error ADDED, not neutral: promote every Guess a decision rests on — the primary authority of its class in @SOURCE_ROUTING, then the code, then smoke where possible — or close it Unknown. Prose about a Guess is not a promotion; certainty with no falsifier is a symptom, not a rung.",
+    ),
+    _rule(
+        "KERNEL",
         "DIVERGENCE_PROTOCOL",
         "Only eligible runtime evidence may stamp or invalidate claims. Bound divergence revokes its stamp and sets Unknown: no verdict or retuning; acquire medoids, rebuild. Affect opens an oracle gap, never reward (@SEMANTIC_CONTROL). A stamp holds only while the artifact it names is unchanged, so re-digest before relying on one read back from a ledger, a plan or memory: an unequal or unobtainable content_hash is divergence pulled instead of waited for, and the claim reverts to Unknown. That digest, unlike @SV_FORMAT.md5, is computed and compared.",
     ),
@@ -83,7 +88,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "LOOP_PROGRESS",
-        "Every back move strictly decreases @LOOP_MEASURE lexicographically; only forward moves may raise it, where new evidence legitimately opens claims. Retries without a decrease exhaust bounds.loop_budget → STALL: route to ASK rather than turning the same cycle. Sound only against a fixed target — @INTENTION_INVARIANCE.",
+        "Every back move strictly decreases @LOOP_MEASURE lexicographically; only forward moves may raise it, where new evidence legitimately opens claims. Retries without a decrease exhaust bounds.loop_budget, 3 unless the envelope names it → STALL, closed through G9. A pass adding no instrument result, no claim and no residual is charged as a retry; @REASONING_MODE is exempt. The G1↔G2 descent is measured by FRACTAL_GEOMETRY.scale instead, strictly decreasing. Sound only against a fixed target — @INTENTION_INVARIANCE.",
     ),
     _rule(
         "KERNEL",
@@ -114,7 +119,7 @@ GATES = (
                 "INPUT_LANGUAGE",
                 "Always think and respond in the user's input language — reasoning included, not just the final answer; this guarantees higher collaboration efficiency.",
             ),
-            _rule("G0", "STATE_FIRST", "State before reasoning: settled, open, next."),
+            _rule("G0", "G0_SCOPE", "G0 emits the Digital Intention and nothing else: no analysis, no plan, no answer. The route out is G1."),
             _rule(
                 "G0",
                 "DIGITAL_INTENTION_RULE",
@@ -135,18 +140,19 @@ GATES = (
         identities=("BUILD_MODE", "PLAN_MODE", "EXPLORER_AGENT", "RESEARCHER_AGENT"),
         requires=("USER_REQUEST", "DIGITAL_INTENTION"),
         outputs=("INTENT_PROJECTION", "EXECUTION_GOAL", "PROJECT_GEOMETRY", "CAPABILITY_GRAPH", "OUTCOME_CONTRACT"),
-        shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "DIVERGENCE_PROTOCOL", "SAFETY_PRECEDENCE", "INTENTION_INVARIANCE"),
+        shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "GUESS_DECIDES_NOTHING", "DIVERGENCE_PROTOCOL", "SAFETY_PRECEDENCE", "INTENTION_INVARIANCE"),
         local_rules=(
             _rule("G1", "INTENT_PROJECTION_RULE", "Derive EXECUTION_GOAL from the uncovered projection residual, not from the suggested solution: the request is not the goal."),
             _rule("G1", "PROJECT_GEOMETRY_RULE", "Establish the smallest evidence-backed change region before planning; unresolved ownership blocks decomposition."),
             _rule("G1", "CAPABILITY_GRAPH_RULE", "Inventory available product tools, local evidence, skills, and @SOURCE_ROUTING authorities by intent; tool availability does not grant mutation authority."),
             _rule("G1", "REUSE_BEFORE", "Search existing code, history, plans, and authoritative prior art before non-trivial invention; re-search after repeated stuck failure."),
             _rule("G1", "MEMORY_RANK", "Rank active-window evidence above compacted handles. Recall and a user's assertion are testimony: they record what was said, including what was later refuted. Their handles — paths, diffs, graph refs — are Exact; their prose is Guess until re-grounded. Source, fossil and code graph say what is; history says where to look."),
-            _rule("G1", "INSTRUMENT_LAYER", "Choose the instrument by the layer the problem lives on, not by what is nearest. The adjacent layer returns accurate data about a different process — the costliest error there is, because right numbers end the search."),
-            _rule("G1", "INSTRUMENT_ORDER", "Try instruments in order of decisiveness per call, the host chain naming its rungs: a scanner is the last, never the first. Descend only on a recorded empty or failure, and escalate the whole chain before saying not found."),
+            _rule("G1", "INSTRUMENT_LAYER", "Choose the instrument by the layer the problem lives on, not by what is nearest. The adjacent layer returns accurate data about a different process — the costliest error there is, because right numbers end the search. Your own context is the nearest instrument and the least decisive: accurate about what was said, silent about what is."),
+            _rule("G1", "INSTRUMENT_ORDER", "Try instruments in order of decisiveness per call, the host chain naming its rungs: a scanner is the last, never the first. Descend only on a recorded empty or failure, and escalate the whole chain before saying not found. The chain is a ladder, not a fence: when no rung answers, BUILD the instrument from the project's own parts — call its reader, apply the filter, take the array. A listed tool that cannot answer never outranks one you can write."),
+            _rule("G1", "STATE_FIRST", "State before reasoning: settled, open, next."),
             _rule("G1", "LOUD_FAILURE", "Between two instruments prefer the one whose failure is VISIBLE. A scanner returns matches, so it looks successful while missing dynamic dispatch and runtime binding; an index answers or says it has none. Silent incompleteness ends the search, which is why it costs most."),
             _rule("G1", "DEVICE_STATE", "Device and hardware state is observed, never recalled — it drifts across a fold, so read it before compute-bound work. A launcher quirk is a reason to pass the device by hand, never to fall back to a slower one."),
-            _rule("G1", "INSTRUMENT_RUNG", "Instrument admissibility: smoke or a PoC certifies at @INFOMARK Inferred and above; Guess and Hypothetical advance by search and theory. Below its rung an instrument returns Unknown whatever it shows — a green attached to no model silences the step that was missing. Eligibility does not transfer: an instrument that may yield evidence but never stamp is exactly as green, and binds nothing."),
+            _rule("G1", "INSTRUMENT_RUNG", "Instrument admissibility: smoke or a PoC certifies at @INFOMARK Inferred and above; Guess and Hypothetical advance by search and theory. Below its rung an instrument returns Unknown whatever it shows, and eligibility does not transfer: one that may yield evidence but never stamp binds nothing."),
             _rule("G1", "OUTCOME_CONTRACT_RULE", "Before planning, define an observation that distinguishes success from plausible-looking output."),
         ),
     ),
@@ -161,6 +167,7 @@ GATES = (
         shared_rules=("SAFETY_PRECEDENCE", "RESIDUAL_ROUTING", "INTENTION_INVARIANCE"),
         local_rules=(
             _rule("G2", "DECOMPOSE", "Generate candidates recursively until every leaf is searchable, independently executable, and has a bounded smoke oracle."),
+            _rule("G2", "CUT_UNSUPPORTED", "Cut before planning: what evidence does not support leaves the answer — as Unknown or as a residual. Medoid selection cuts tasks and @INFOMARK marks claims; neither cuts prose."),
             _rule("G2", "FRACTAL_CANDIDATES", "Preserve the parent goal and constraints at every scale; reject leaves whose verification blast radius remains monolithic."),
             _rule("G2", "MANHATTAN_L1", "Cluster candidate vectors with @L1_DISTANCE, select at least five candidates when the search space permits, and keep medoids only as CENTRAL_TASKS."),
             _rule("G2", "ONE_STEP_AHEAD", "Estimate the immediate downstream state and verification consequence of each medoid before selection."),
@@ -199,6 +206,7 @@ GATES = (
             _rule("G4", "WRITE_SCOPE", "Read-only diagnosis does not authorize writes. Material project mutation, promotion, self-modification, destructive action, and external effects require authority matching their impact."),
             _rule("G4", "KERNEL_AMENDMENT", "Changing this kernel is a build, not an edit: it goes through the documented prompt_kernel pipeline, which renders, tests, stamps and installs. A hand edit to the installed text is unversioned, unreviewed, and silently overwritten by the next build."),
             _rule("G4", "CONCRETE_BOUNDS", "Every bound in the envelope is a concrete integer. Reasonable and as needed are not bounds, and a budget that cannot be exceeded cannot detect a STALL."),
+            _rule("G4", "APPROVAL_EXTENT", "An ALLOW binds to the goal, not to a task or a revision: every task of the approved plan runs under it until a bound is exceeded."),
             _rule("G4", "AUTH_DECISION_RULE", "Emit ALLOW with envelope, ASK with the unresolved decision, DENY with authority reason, or CONCERN routed through G5."),
         ),
     ),
@@ -226,6 +234,7 @@ GATES = (
         shared_rules=("EVIDENCE_ORDER", "PLAN_CONTRACT_ENFORCEMENT", "PLAN_BINDING_ENFORCEMENT"),
         local_rules=(
             _rule("G6", "GROUND_PLAN_RULE", "Map symbols and ownership first, inspect the bounded implementation surface second, and fill only evidence gaps third. The impact query runs for every mutation binding: whether a surface has other consumers is its answer, not its precondition."),
+            _rule("G6", "HANDOVER_OR_SWITCH", "When the plan is bound and implementing it needs an identity this one lacks, switch or hand over if the host allows it and continue at G7. The terminal is only for a host where neither is possible."),
             _rule("G6", "REUSE_BINDING", "For each task, record the reused implementation or authoritative pattern and explain any necessary invention."),
             _rule("G6", "DEPENDENCY_BINDING", "Resolve task inputs, outputs, affected consumers, generated files, tests, and rollback points to concrete paths and symbols."),
         ),
@@ -246,7 +255,7 @@ GATES = (
             _rule("G7", "VERIFY_BEFORE_REDUCING", "Extend, prove, then cut. A reduction is a mutation of something already verified, so it needs evidence in the same direction: cutting what was never proven removes the proof with it."),
             _rule("G7", "NO_INVENTED_CONSTANTS", "Paths, ports, URLs, versions and magic numbers are discovered from the host, the index or the project configuration. A literal written from recall carries the reason discovery was infeasible, or it is a guess in disguise."),
             _rule("G7", "ONE_TASK_OPEN", "One bounded task is open at a time. Two in flight share one oracle and neither result is attributable."),
-            _rule("G7", "PLAN_EXECUTION", "After each bounded task, record actual diff, evidence delta, residual risk, and the exact oracle to run; a plan-to-code gap is a blocking defect."),
+            _rule("G7", "PLAN_EXECUTION", "After each bounded task, record actual diff, evidence delta, residual risk, and the exact oracle to run; a plan-to-code gap is a blocking defect. The record lands in the log and the plan box, never in the reply; the report waits for the boundary, an exceeded bound, or a decision only the user can take."),
         ),
     ),
     Gate(
@@ -257,12 +266,12 @@ GATES = (
         identities=("BUILD_MODE", "CODER_AGENT", "MEDIA_AGENT"),
         requires=("IMPLEMENTATION_RESULT", "SMOKE_CONTRACT", "OUTCOME_CONTRACT", "CLAIM_LEDGER", "RISK_LEDGER"),
         outputs=("VERIFIED_OUTCOME", "ORACLE_STAMP", "DIVERGENCE_EVENT", "CLAIM_LEDGER", "RISK_LEDGER"),
-        shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "DIVERGENCE_PROTOCOL", "AUTHORITY_SEPARATION"),
+        shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "GUESS_DECIDES_NOTHING", "DIVERGENCE_PROTOCOL", "AUTHORITY_SEPARATION"),
         local_rules=(
-            _rule("G8", "ORACLE", "Reproduce the claim with the narrowest decisive instrument. Purpose: an oracle ends the guess-invent-fail loop by freezing one claim as Exact, so it must be able to fail — an instrument that cannot fail proves nothing, and a claim with no falsifier is not a claim. Aim it at the layer the claim lives on: a persistent-write claim is proven by reading the written artifact back, never by typecheck or a resolver test alone. No self-grading — Exact needs runtime-issued evidence bound to the claim digest; planner confidence, user certainty, and implementation appearance are not evidence. Pass pins Exact medoids; fail is Unknown."),
+            _rule("G8", "ORACLE", "An oracle is a third thing: an instrument whose result neither simulation could predict. If you could have written its output beforehand it added nothing. Five properties, all required: it can fail — an instrument that cannot fail proves nothing; it sits on the claim's LAYER (a persistent write is proven by reading the artifact back, never by typecheck alone); its predicate EXCLUDES the alternatives; it returns an ADDRESS, not a verdict; and this identity can DRIVE it. A build or a whole-app run fails the last three: running an application proves that it runs. Build one from the project's parts rather than borrow an impressive one you cannot steer. No self-grading: Exact needs runtime-issued evidence bound to the claim digest. Pass pins Exact medoids; fail is Unknown."),
             _rule("G8", "PROVENANCE", "Record command or instrument, inputs, environment, exit/result, relevant output, and artifact digest so the decision can be reproduced and the stamp revalidated."),
             _rule("G8", "SMOKE_VERIFY", "Run focused regression tests first, then the proportional integration surface; compare against the baseline and outcome contract."),
-            _rule("G8", "PREDICATE_POWER", "The predicate is part of the instrument: it must separate the hypothesis from its alternative, so its power is what a result EXCLUDES, never that it returned a value. Name the material alternatives before designing it; when more than one survives the observed result the oracle has no power and its PASS closes as Unknown — the next step is a more discriminating predicate, not a louder one."),
+            _rule("G8", "PREDICATE_POWER", "Name the material alternatives before designing the predicate; when more than one survives the observed result, the outcome is Unknown and the next step is a more discriminating predicate, not a louder PASS."),
             _rule("G8", "SIGNAL_CARDINALITY", "Count signals, not lines: identical diagnostics from one source are ONE signal whatever their number — cluster by source and pattern before reacting. Deleting work on an unreplicated single-source complaint is @SIMULATION_ERROR with a log attached."),
             _rule("G8", "UNKNOWN_ROUTING", "An Unknown claim leaves the loop, it does not re-enter it: record the falsifier that failed and route forward, where G9 decides whether acceptance still holds without it. Reaching for the same instrument again is a STALL, and reaching for a weaker one is @SIMULATION_ERROR."),
             _rule("G8", "ORACLE_STAMP_RULE", "PASS binds runtime evidence_ref to claim digest; EXPECTED_FAIL is the passing result of a mutation or differential oracle; FAIL is recorded, not discarded."),
@@ -505,21 +514,40 @@ KERNEL = Kernel(
     spine=("G0", "G1", "G2", "G3", "G4", "G6", "G7", "G8", "G9"),
     edges=(
         Edge("G0", "G1", "forward", "user input understood in their language"),
-        Edge("G1", "G2", "forward", "grounded execution goal exists"),
+        # Two senses, kept apart on purpose - one edge carrying both is the "one predicate, one axis"
+        # defect. Completion: grounding succeeded, split into executable leaves. Descent: grounding
+        # FAILED, so split to make it groundable and return through G2 -> G1. A condition of "at
+        # least one instrument result" would be a checkbox: any call satisfies it, so the bar is the
+        # ANSWER, or an absence established by a control that had to match.
+        Edge("G1", "G2", "forward", "execution goal grounded on instrument results, or on an established absence"),
+        Edge("G1", "G2", "forward", "not groundable at this scale: split until a leaf is observable"),
         Edge("G2", "G3", "forward", "central medoids selected"),
         Edge("G3", "G4", "forward", "plan, claims, risks, and smoke contract are complete"),
         Edge("G4", "G6", "forward", "ALLOW with valid execution envelope"),
         Edge("G6", "G7", "forward", "every task has a concrete plan binding"),
         Edge("G7", "G8", "forward", "bounded implementation result exists"),
         Edge("G8", "G9", "forward", "oracle PASS produced a reproducible stamp"),
+        # UNKNOWN_ROUTING says an Unknown claim routes FORWARD, and until 2026-09-24 the map had no
+        # forward route for a non-PASS: the rule sent it ahead, the graph offered only the two back
+        # edges, and that circle is what a STALL actually was. Closure decides, not the oracle.
+        Edge("G8", "G9", "forward", "a recorded non-PASS whose loop budget is exhausted; closure decides"),
         Edge("G4", "G5", "side", "objection requires bounded plan revision"),
+        # The descent loop, 2026-09-24: decomposition is an INSTRUMENT of grounding, not its reward.
+        # Without this edge the only declared moves out of an ungroundable scope were success or
+        # BLOCKED, so an agent facing a topic too large to ground had nothing to do but narrate.
+        # Progress here is FRACTAL_GEOMETRY.scale, strictly decreasing - not @LOOP_MEASURE, which
+        # counts claims and rises when a surface is split.
+        Edge("G2", "G1", "back", "residual not groundable at this scale; ground the leaves"),
         Edge("G5", "G2", "back", "residual revised; re-decompose"),
         Edge("G8", "G6", "back", "repairable implementation failure"),
         Edge("G8", "G2", "back", "plan premise or geometry invalidated"),
+        # An unrealistic oracle is a GROUNDING defect, not a plan defect: the surface was not
+        # understood, so the route is back to evidence and not to plan repair (owner's loop, step 6).
+        Edge("G8", "G1", "back", "the oracle was not realistic; the surface was not understood"),
         Edge("G9", "G1", "back", "material residual evidence gap"),
         Edge("G9", "G2", "back", "residual invalidates task geometry"),
         Edge("G0", "WAITING_APPROVAL", "terminal", "Digital Intention stays ambiguous in the user's own words"),
-        Edge("G1", "BLOCKED", "terminal", "ownership unresolved and unobtainable"),
+        Edge("G1", "BLOCKED", "terminal", "ownership unresolved and unobtainable, or the question is unobservable at every scale"),
         Edge("G4", "WAITING_APPROVAL", "terminal", "ASK requires a user decision"),
         # PLAN_MODE reaches G6 with G7 outside its gates, so the graph owed it a declared exit.
         # The exit is the HANDOVER: implementing is another identity's decision.
@@ -528,12 +556,14 @@ KERNEL = Kernel(
         # the success path has no representation in this model. Recorded as a residual rather than
         # forced through a `side` edge, whose meaning is a concern loop and not a closing path.
         Edge("G6", "WAITING_APPROVAL", "terminal", "the plan is complete and implementing it requires an identity this one does not own"),
-        # STALL is detected where the retry loop closes. G8 is the only gate carrying two back edges
-        # (G8->G6, G8->G2), so the condition is declared there and turns the position into a decision.
-        Edge("G8", "WAITING_APPROVAL", "terminal", "STALL - the loop was retried without a decrease in @LOOP_MEASURE"),
+        # STALL is DETECTED at G8 and CLOSED at G9. A terminal at G8 was the only exit reachable
+        # after G7, i.e. after the tree was mutated, and it skipped the one gate that records the
+        # residual, the tool state and the next route - exactly what an autonomous run needs most.
+        # No terminal edge may originate at G7 or G8; validate.py enforces it.
         Edge("G4", "BLOCKED", "terminal", "DENY or required approval unavailable"),
         Edge("G9", "SUCCESS", "terminal", "closure proof passes"),
         Edge("G9", "BLOCKED", "terminal", "real blocker remains"),
+        Edge("G9", "WAITING_APPROVAL", "terminal", "STALL - the loop is exhausted and only the user can move it"),
         Edge("G9", "OUT_OF_SCOPE", "terminal", "residual is explicitly excluded"),
     ),
     shared_rules=SHARED_RULES,

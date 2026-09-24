@@ -38,6 +38,13 @@ def validate_kernel(kernel: Kernel) -> list[str]:
         if edge.kind != "terminal" and edge.target in set(kernel.terminals):
             errors.append(f"non-terminal edge cannot target a terminal: {edge.source} -> {edge.target}")
 
+    # 2026-09-24: mutation starts at G7, so a terminal reached from G7 or G8 leaves a changed tree
+    # with no CLOSURE_PROOF, no residual, no tool-state report and no next route. G9 is the only
+    # lawful exit after the tree moves; a STALL is DETECTED at G8 and CLOSED at G9.
+    for edge in kernel.edges:
+        if edge.kind == "terminal" and edge.source in {"G7", "G8"}:
+            errors.append(f"terminal edge may not originate after mutation begins: {edge.source} -> {edge.target}")
+
     expected_forward = set(zip(kernel.spine, kernel.spine[1:]))
     actual_forward = {(edge.source, edge.target) for edge in kernel.edges if edge.kind == "forward"}
     if actual_forward != expected_forward:

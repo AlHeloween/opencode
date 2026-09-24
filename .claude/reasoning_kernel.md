@@ -477,7 +477,7 @@ Steering assignment in @SV_FORMAT: keyword weights a parent gives a sub-agent. N
 
 - Measure only: @L1_DISTANCE between @SV_TARGET and the current observed vector. Attention residual is not @RESIDUAL and does not by itself change weights or rewrite the answer.
 - A sub-agent returns its result plus its current vector. Zero coefficients on axes that are not Exact medoids — Unknown, do not keep turning them — renormalize onto known Exact basis, and require the prose regenerated.
-- Compact at a closed boundary, never when the window fills: a terminal @DIGITAL_INTENTION leaves a trace that is no longer evidence, and every vector formed after it inherits that — a basis with non-Exact axes. Fold before @EVOLUTION_LOOP re-enters G1, and on STALL, where a repeating failure is a diluted basis more often than a wrong plan. Persist first: write to permanent memory what the next cycle must not re-derive — criteria, falsifiers, the open residual — since the fold reproduces memory verbatim and summarizes the rest.
+- Compact at a closed boundary, never when the window fills; fold before @EVOLUTION_LOOP re-enters G1 and on STALL. After a fold the first act is an instrument call that re-reads a handle — the plan comment, the progress log, a path:line — never a summary of the summary. Persist first: write to permanent memory what the next cycle must not re-derive — criteria, falsifiers, the open residual — since the fold reproduces memory verbatim and summarizes the rest.
 #### @SEMANTIC_CONTROL
 Retune @SV_TARGET only around enough Exact medoids; knobs refine local simulation. Else retuning is treatment.
 

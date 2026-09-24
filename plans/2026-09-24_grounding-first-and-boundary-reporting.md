@@ -2,7 +2,7 @@
 
 # Grounding first, and reporting at the boundary
 
-state: DRAFT — awaiting G4
+state: ACTIVE — released 2026-09-24, see docs/kernel-release-2026-09-24.md; S2/S3 open
 owner: Alexander
 surface: `prompt_kernel/` (source + the three addon registries), no product code
 
@@ -57,37 +57,37 @@ an envelope for a CLASS of effects with bounds; it is not consumed by one task.
 
 ## Tasks
 
-- [ ] **T1 — evict the standards catalogues from G1.** Remove the `GUI_STANDARDS`,
+- [x] **T1 — evict the standards catalogues from G1.** Remove the `GUI_STANDARDS`,
       `TUI_STANDARDS`, `ERGONOMICS_STANDARDS` addons (1 298 B) from `addons.py`,
       `addons_claude.py`, `addons_codex.py`. Receiver: `docs/ui-standards.md` (new), carrying the
       three catalogues verbatim. Leave ONE pointer line at **G7**, where they are actually used:
       "GUI/TUI/ergonomics standards: docs/ui-standards.md — read before building a surface."
       Parity holds: removed from all three registries, so `DECLARED_DIFFERENCES` is untouched.
-- [ ] **T2 — move `ACCEPTANCE_FRAME` (both lines, frame + V&V, 518 B) from G1 to G3.** "Named
+- [x] **T2 — move `ACCEPTANCE_FRAME` (both lines, frame + V&V, 518 B) from G1 to G3.** "Named
       BEFORE planning" is satisfied literally at G3, which is where the plan, its claims and its
       oracles are compiled. Nothing leaves the kernel; it stops standing in front of the first
       observation.
-- [ ] **T3 — change the CONDITION, not the prose.** Edge `G1 -> G2` becomes
+- [x] **T3 — change the CONDITION, not the prose.** Edge `G1 -> G2` becomes
       `grounded execution goal exists, carrying at least one instrument result`. A condition is a
       slot: unlike a bullet it cannot be satisfied by tone. Own recall does not count — it is
       already the weakest rung in `@INFORMATION_STATUS`.
-- [ ] **T4 — charge the no-op pass.** `@LOOP_PROGRESS` gains: a pass that ends in the same gate
+- [x] **T4 — charge the no-op pass.** `@LOOP_PROGRESS` gains: a pass that ends in the same gate
       adding no instrument result, no claim and no residual is charged to `bounds.loop_budget`
       like a fruitless retry. Today `@LOOP_MEASURE` moves only on claims/acceptance/risks/residual,
       so pure thought is DIMENSIONLESS to our own detector and STALL is unreachable for it.
       Carve-out: `@REASONING_MODE` is the declared exception (no tools by design, may not mutate).
-- [ ] **T5 — the first act after a fold is a call.** One line where compaction is handled
+- [x] **T5 — the first act after a fold is a call.** One line where compaction is handled
       (`SEMANTIC_ATTENTION` / `@COMPACTION_CADENCE`), not in G1: after a fold the first act
       re-reads a handle with an instrument (plan comment, `_progress_log.md`, a `path:line`) —
       never a summary of the summary. The fold deleted the only demonstration of instrument use;
       it has to be re-created by doing it.
-- [ ] **T6 — name the record's destination and the envelope's extent (Defect 2).**
+- [x] **T6 — name the record's destination and the envelope's extent (Defect 2).**
       `PLAN_EXECUTION` gains "…the record lands in the progress log and in the plan box, not in
       the reply"; a short rule next to `ONE_TASK_OPEN` states that an ALLOW covers every task bound
       to the approved plan until a bound is exceeded, so a per-item report is not a checkpoint but
       a re-approval the user did not ask for. The user-facing report happens at the declared
       boundary, or when a bound is exceeded, or when a decision is needed.
-- [ ] **T9 — an oracle must return an ADDRESS (owner's defect 3).** New G8 rule
+- [x] **T9 — an oracle must return an ADDRESS (owner's defect 3).** New G8 rule
       `INSTRUMENT_RESOLUTION`: *"An oracle returns an address, not a verdict. A build or a
       whole-app run is one bit with no location: localize per unit with an isolated test, then
       let the integration surface confirm composition only. A build proves that it built."*
@@ -98,12 +98,12 @@ an envelope for a CLASS of effects with bounds; it is not consumed by one task.
       Cheaper alternative if a new rule is refused: two clauses, one on `PREDICATE_POWER` (a
       build's PASS excludes almost nothing) and one on `SMOKE_VERIFY` (the focused test comes
       first BECAUSE it localizes) — costs ~90 B instead of ~245 B but leaves "address" unnameable.
-- [ ] **T10 — G0 is the intention and nothing else (owner's defect 4a).** New G0 rule:
+- [x] **T10 — G0 is the intention and nothing else (owner's defect 4a).** New G0 rule:
       *"G0 emits the Digital Intention and nothing else: no analysis, no plan, no answer. The
       route out is G1."* Owner: «по сути G0 это просто определить намерение пользователя И ВСЕ —
       дальше только через заземление». Consequence: `STATE_FIRST` moves out of G0 — the state
       worth publishing is the grounded one, so it belongs at G1 (or is dropped; 45 B either way).
-- [ ] **T11 — Guess decides nothing (owner's defect 4b).** New shared rule
+- [x] **T11 — Guess decides nothing (owner's defect 4b).** New shared rule
       `@GUESS_DECIDES_NOTHING`: *"Guess decides nothing. Each Guess a decision rests on is promoted
       before use — authority search, then code, then smoke where possible — or it closes Unknown.
       Prose about a Guess is not a promotion."* Owner, verbatim: «по постулату кернела и моя и
@@ -114,11 +114,11 @@ an envelope for a CLASS of effects with bounds; it is not consumed by one task.
       solution are testimony — `USER_REQUEST.observation` is Guess until grounded.
       This is the rule that makes defect 1 impossible: with nothing decidable at G0 and no decision
       resting on Guess, the only move left at the start is an instrument call.
-- [ ] **T7 — guard the class: `test_pre_action_budget`.** A separate, smaller cap on
+- [x] **T7 — guard the class: `test_pre_action_budget`.** A separate, smaller cap on
       `G0 + G1` rendered bytes, pinned to the post-change measurement plus small headroom, with the
       reason in the test. A flat total ceiling cannot detect mass moving forward in the pass; this
       one fails the day it does.
-- [ ] **T8 — (parked, owner's ruling pending) STALL routes through G9.** Variant B from
+- [x] **T8 — (parked, owner's ruling pending) STALL routes through G9.** Variant B from
       2026-09-24: keep the `G8 -> G9` PASS edge verbatim, add a second forward `G8 -> G9`
       ("STALL — loop budget exhausted, closure decides"), add `G9 -> WAITING_APPROVAL`, drop the
       `G8 -> WAITING_APPROVAL` terminal. Probed in memory: `validate_kernel` returns no errors,

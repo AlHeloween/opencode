@@ -4792,3 +4792,55 @@ as the separate act it is.
 Corroboration worth keeping: `compatibility.assert_current_kernel_unchanged` — `baseline.json`
 pinning the installed prompt's sha256 — is this exact mechanism, already in the repo, for exactly
 one artifact. The kernel rule generalises a consumer that already exists rather than inventing one.
+
+## [2026-09-24 21:05] Kernel release — rebuilt on the battle-tested base
+
+The owner named `dist/2026-09-17_23-16-37_reasoning_prompt.txt` as the artifact with a real project
+run behind it. It is byte-identical to `2026-09-16_13-21-05` (sha `f98f0f11…`), so the whole earlier
+census holds and now rests on the right reference. Everything evicted in this release landed AFTER
+that build and carries no run.
+
+Three mechanisms, all measured against it:
+
+1. **Pre-action bloat.** G0+G1 — the section an agent must read and SATISFY before its first call —
+   went 2 840 → 7 309 B (×2.6), a third of G1 being catalogues that help build a surface and never
+   help find one. An imperative that is not a call is satisfiable only by prose. Evicted to
+   `docs/ui-standards.md`, `ACCEPTANCE_FRAME` moved to G3, G0 reduced to the intention. Now 5 365 B,
+   guarded by `test_pre_action_section_stays_small` — a flat total ceiling cannot see mass moving
+   forward in the pass, which is why the regression ran nine days unnoticed.
+2. **The chain was a fence.** A closed enumeration of host tools made "instrument" mean "one of
+   these", so an agent with no listed tool reached for the most impressive one it could not steer —
+   a 3D interactive environment, or the built application. Owner's field case: he finally told GPT
+   "here is the reading module, apply filters, get the array" — which is exactly what the 09-17
+   kernel did unaided. Now: the chain is a ladder, and when no rung answers you BUILD the instrument
+   from the project's own parts.
+3. **A non-PASS had no forward edge.** `UNKNOWN_ROUTING` sends an Unknown claim forward to G9; the
+   map offered only the two back edges. That circle IS the STALL — the external review called it
+   "walking in circles" and was right, though it named the wrong cause. Compounding it,
+   `loop_budget` had no value anywhere in the kernel, so the STALL terminal's earliest legal firing
+   was the first retry. Fixed: second forward `G8 → G9`, `G9 → WAITING_APPROVAL`, the G8 terminal
+   removed, `validate.py` refuses terminals from G7/G8, and the budget defaults to 3.
+
+The owner's loop landed as edges, not prose: `G1 → G2` split into its two senses (grounded on
+instrument results OR an established absence / not groundable at this scale — split until a leaf is
+observable) with the return `G2 → G1`; `G8 → G1` for an unrealistic oracle; `G1 → BLOCKED` widened
+to "unobservable at every scale". The descent is measured by `FRACTAL_GEOMETRY.scale`, not by the
+claim tuple, which RISES when a surface is split — the slot already existed.
+
+`@ORACLE` is now a definition with five required properties (can fail, right layer, excludes the
+alternatives, returns an ADDRESS, and this identity can DRIVE it). The last two are new axes: the
+3D-environment case is a failure of DRIVE, the built-exe case a failure of ADDRESS. Core clause kept
+verbatim — the constitution is identical to 09-17, same 8 rules and 8 pinned clauses, verified by
+diff. The core held; the periphery bloated, which is what a constitution is for.
+
+`@GUESS_DECIDES_NOTHING` is the first caller `@SOURCE_ROUTING`'s 67 authorities have ever had: the
+table was mentioned three times in the whole kernel, twice to CLASSIFY and once to INVENTORY, never
+to ENTER.
+
+Release procedure (docs/kernel-amendment.md) closed end to end; `baseline.json` now carries
+`prev_sha256` and the rollback artifact, which the documented stamp always described and the file
+never held. Product 46 870 B, sha `eefc79d6…`. 107 passed.
+
+NOT verified, and stated in the release note: no behavioural oracle has run, and the shipped
+`bin/opencode.exe` carries an Unknown prefix — grep finds none of the new strings, but the control
+(`DIGITAL_INTENTION`, `INFOMARK`) is absent too, so the predicate has no power.

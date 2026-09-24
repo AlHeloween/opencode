@@ -20,6 +20,8 @@ export interface H1RequestOptions {
   headers: Record<string, string>
   body?: string | ArrayBuffer | Uint8Array
   signal?: AbortSignal
+  /** Raw-wire capture seam (T2): the exact header set + body handed to the transport. */
+  onWire?: (headers: Record<string, string>, body?: string | ArrayBuffer | Uint8Array) => void
 }
 
 export async function request(options: H1RequestOptions): Promise<H1Response> {
@@ -29,6 +31,10 @@ export async function request(options: H1RequestOptions): Promise<H1Response> {
     const mergedSignal = options.signal
 
     sample.queuedAt = Date.now()
+
+    // Wire capture seam (T2): the exact set handed to fetch — transports add
+    // nothing. Captured BEFORE the call, so a failed attempt still has its record.
+    options.onWire?.(options.headers, options.body)
 
     const response = await fetch(options.url, {
       method: options.method,

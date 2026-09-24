@@ -196,6 +196,8 @@ export interface H2RequestOptions {
   body?: string
   signal?: AbortSignal
   timeoutMs?: number
+  /** Raw-wire capture seam (T2): the pseudo-header set + body handed to node's http2. */
+  onWire?: (headers: Record<string, string>, body?: string) => void
 }
 
 export interface H2Response {
@@ -265,6 +267,10 @@ export async function request(options: H2RequestOptions): Promise<H2Response> {
   return new Promise<H2Response>((resolve, rejectPromise) => {
     const url = new URL(options.url)
     const path = url.pathname + url.search
+
+    // Wire capture seam (T2): the pseudo-header set + headers exactly as
+    // handed to the http2 stream. Captured before session.request.
+    options.onWire?.({ ":method": options.method, ":path": path, ...options.headers }, options.body)
 
     const req = session.session.request({
       ":method": options.method,
@@ -430,6 +436,10 @@ export async function requestStream(
   return new Promise<{ response: Response; metrics: MetricsResult }>((resolve, reject) => {
     const url = new URL(options.url)
     const path = url.pathname + url.search
+
+    // Wire capture seam (T2): the pseudo-header set + headers exactly as
+    // handed to the http2 stream. Captured before session.request.
+    options.onWire?.({ ":method": options.method, ":path": path, ...options.headers }, options.body)
 
     const req = session.session.request({
       ":method": options.method,

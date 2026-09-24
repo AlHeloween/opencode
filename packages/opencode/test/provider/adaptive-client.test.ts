@@ -1,8 +1,10 @@
-import { afterAll, describe, expect, test } from "bun:test"
+import { afterAll, describe, expect, setDefaultTimeout, test } from "bun:test"
 import fs from "fs"
 import os from "os"
 import path from "path"
 import { configureLogging, protocolChain, resolveGatewayProtocol, setDebugConfig, shouldDowngrade, wrapFetch } from "@/provider/gateway/adaptive-client"
+
+setDefaultTimeout(20_000)
 
 const logDir = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-gateway-capture-"))
 const originalLogDir = process.env.OPENCODE_GATEWAY_LOG_DIR
@@ -11,9 +13,15 @@ const originalLogDir = process.env.OPENCODE_GATEWAY_LOG_DIR
 // break exact-count assertions (per-request logger is a module singleton and
 // writes are async).
 function resetCaptureDirs() {
-  for (const sub of ["per-request", "per-response"]) {
+  for (const sub of ["per-request", "raw-wire", "per-response"]) {
     fs.rmSync(path.join(logDir, sub), { recursive: true, force: true })
   }
+}
+
+function captureFiles(sub: string, ext: string): string[] {
+  const dir = path.join(logDir, sub)
+  if (!fs.existsSync(dir)) return []
+  return fs.readdirSync(dir).filter((name) => name.endsWith(ext)).sort()
 }
 
 afterAll(() => {
@@ -66,17 +74,19 @@ describe("h3-first transport policy", () => {
 })
 
 describe("gateway wire capture", () => {
-  test("perRequest captures formatted request and complete streaming responses with diffs", async () => {
+  test("three points of one exchange: verbatim intent, verbatim wire, complete response under one key", async () => {
     process.env.OPENCODE_GATEWAY_LOG_DIR = logDir
     resetCaptureDirs()
     configureLogging(true)
     setDebugConfig({ debug: false, logBodies: false, logResponseBodies: false, perRequest: true })
 
     let sequence = 0
+    const received: string[] = []
     using server = Bun.serve({
       port: 0,
-      fetch() {
+      async fetch(request) {
         sequence++
+        received.push(await request.text())
         // OpenAI-shaped SSE chunk: assembleMessage() (per-response capture)
         // folds choices[].delta.content — the fixture must speak the real wire
         // dialect for the assembled message to carry the turn payload.
@@ -86,10 +96,11 @@ describe("gateway wire capture", () => {
         )
       },
     })
+    const requestBody = '{"model":"capture-model","stream":true,"messages":[]}'
     const request = () => wrapFetch(globalThis.fetch)(server.url, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: '{"model":"capture-model","stream":true,"messages":[]}',
+      body: requestBody,
       gatewayProvider: "capture-provider",
       gatewayModel: "capture-model",
       gatewayProtocol: "http/1.1",
@@ -107,40 +118,72 @@ describe("gateway wire capture", () => {
     expect(lastProtocol?.provider).toBe("capture-provider")
     expect(lastProtocol?.protocol).toBe("http/1.1")
 
-    const requests = fs.readdirSync(path.join(logDir, "per-request"))
-    expect(requests.filter((name) => name.endsWith(".json"))).toHaveLength(2)
-    expect(requests.some((name) => name.includes("unknown"))).toBe(false)
-    expect(requests.filter((name) => name.endsWith(".diff"))).toHaveLength(1)
-
+    // ── intent: per-request/<ISO-start>-<requestId>.json ──
+    const intentFiles = captureFiles("per-request", ".json")
+    expect(intentFiles).toHaveLength(2)
+    expect(intentFiles.some((name) => name.includes("unknown"))).toBe(false)
+    expect(captureFiles("per-request", ".diff")).toHaveLength(1)
+    const stem1 = intentFiles[0]!.replace(/\.json$/, "")
+    expect(stem1).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f-]{36}$/)
     const requestEntry = JSON.parse(
-      fs.readFileSync(path.join(logDir, "per-request", requests.find((name) => name.endsWith(".json"))!), "utf8"),
-    ) as { body: { model: string; stream: boolean } }
-    expect(requestEntry.body.model).toBe("capture-model")
-    // 2026-09-08: formatPerRequestEntry writes the parsed body only (raw
-    // one-liner duplicate removed in 5d433565df as a lossless round-trip);
-    // the old body_raw assertions predate that refactor and broke on it.
-    expect(requestEntry.body.stream).toBe(true)
+      fs.readFileSync(path.join(logDir, "per-request", intentFiles[0]!), "utf8"),
+    ) as { body: string; headers: Record<string, string> }
+    // T1: the intent body is stored VERBATIM — the string is the record.
+    expect(requestEntry.body).toBe(requestBody)
+    expect(Object.keys(requestEntry.headers)).toContain("content-type")
 
-    const responses = fs.readdirSync(path.join(logDir, "per-response"))
-    // 2026-09-08 surface: per-response captures are .json (assembled message)
-    // + .raw.txt (literal wire) + .md (human report). The old .diff assertion
-    // predates the readable-wire refactor (5d433565df) — diffs became
-    // line-based per-request reports; responses carry the literal sidecar.
-    expect(responses.filter((name) => name.endsWith(".json"))).toHaveLength(2)
-    expect(responses.filter((name) => name.endsWith(".raw.txt"))).toHaveLength(2)
-    expect(responses.filter((name) => name.endsWith(".md"))).toHaveLength(2)
+    // ── sent: raw-wire/<stem>-attempt<N>.json ──
+    const wireFiles = captureFiles("raw-wire", ".json")
+    expect(wireFiles).toHaveLength(2)
+    expect(captureFiles("raw-wire", ".diff")).toHaveLength(2)
+    const wireEntries = wireFiles.map(
+      (name) =>
+        JSON.parse(fs.readFileSync(path.join(logDir, "raw-wire", name), "utf8")) as {
+          id: string
+          attempt: number
+          protocol: string
+          body: string
+          headers: Record<string, string>
+        },
+    )
+    for (const wireEntry of wireEntries) {
+      expect(wireEntry.attempt).toBe(1)
+      expect(wireEntry.protocol).toBe("http/1.1")
+      // T2: the exact string handed to the transport, one record per attempt.
+      expect(wireEntry.body).toBe(requestBody)
+    }
+    const wireStems = wireFiles.map((name) => name.replace(/-attempt\d+\.json$/, ""))
+    expect(wireStems).toContain(stem1)
+    expect(Object.keys(wireEntries[0]!.headers)).not.toContain("authorization")
+
+    // ── received: per-response/<stem>-attempt<N>.json|.md|.raw.txt ──
+    const responseFiles = captureFiles("per-response", ".json")
+    expect(responseFiles).toHaveLength(2)
+    expect(captureFiles("per-response", ".raw.txt")).toHaveLength(2)
+    expect(captureFiles("per-response", ".md")).toHaveLength(2)
+    expect(fs.readdirSync(path.join(logDir, "per-response")).filter((name) => name.includes("-attempt1."))).toHaveLength(6)
     const responseEntry = JSON.parse(
-      fs.readFileSync(path.join(logDir, "per-response", responses.find((name) => name.endsWith(".json"))!), "utf8"),
-    ) as { message: { content: string } }
+      fs.readFileSync(path.join(logDir, "per-response", responseFiles[0]!), "utf8"),
+    ) as { message: { content: string }; state: string; status: number }
+    expect(responseEntry.state).toBe("complete")
+    expect(responseEntry.status).toBe(200)
     expect(JSON.stringify(responseEntry.message)).toContain("turn-1")
     const rawSidecar = fs.readFileSync(
-      path.join(logDir, "per-response", responses.find((name) => name.endsWith(".raw.txt"))!),
+      path.join(logDir, "per-response", captureFiles("per-response", ".raw.txt")[0]!),
       "utf8",
     )
     expect(rawSidecar).toContain("data: [DONE]")
+
+    // S5: capture is read-only — the bytes ON the wire do not depend on the
+    // logging switch.
+    configureLogging(false)
+    expect(await (await request()).text()).toContain("turn-3")
+    expect(received[0]).toBe(requestBody)
+    expect(received[2]).toBe(requestBody)
+    configureLogging(true)
   })
 
-  test("glm/deepseek bodies: dual reasoning dialect rewritten to single native reasoning_content", async () => {
+  test("glm/deepseek: per-request holds the INTENT, raw-wire holds the REWRITTEN body", async () => {
     process.env.OPENCODE_GATEWAY_LOG_DIR = logDir
     resetCaptureDirs()
     configureLogging(true)
@@ -212,30 +255,47 @@ describe("gateway wire capture", () => {
     })
     await Bun.sleep(25)
 
-    const requests = fs
-      .readdirSync(path.join(logDir, "per-request"))
-      .filter((name) => name.endsWith(".json"))
-      .sort()
-    const entry = JSON.parse(
-      fs.readFileSync(path.join(logDir, "per-request", requests.at(-3)!), "utf8"),
-    ) as { body: { messages: Array<Record<string, unknown>> } }
-    const assistant = entry.body.messages.find((message) => message.role === "assistant")!
-    expect(assistant.reasoning_content).toBe("thought")
-    expect(assistant.reasoning).toBeUndefined()
-    expect(assistant.reasoning_details).toBeUndefined()
-    // Parsed-body form of the same wire facts (body_raw removed 5d433565df).
-    expect(JSON.stringify(entry.body)).toContain('"reasoning_content":"thought"')
-    expect(JSON.stringify(entry.body)).not.toContain('"reasoning_details"')
+    // T1: per-request is the INTENT — the SDK's dual dialect, BEFORE the
+    // rewrite. This is exactly what the three-point split exists to show.
+    const intents = captureFiles("per-request", ".json").map(
+      (name) =>
+        JSON.parse(fs.readFileSync(path.join(logDir, "per-request", name), "utf8")) as { body: string },
+    )
+    expect(intents).toHaveLength(3)
+    const intentGlm = JSON.parse(intents.at(-3)!.body) as { messages: Array<Record<string, unknown>> }
+    const intentAssistant = intentGlm.messages.find((message) => message.role === "assistant")!
+    expect(intentAssistant.reasoning).toBe("thought")
+    expect(intentAssistant.reasoning_details).toBeDefined()
+    expect(intentAssistant.reasoning_content).toBeUndefined()
+    expect(intents.at(-3)!.body).toContain('"reasoning_details"')
+    // Passthrough providers keep their intent verbatim too.
+    expect(intents.at(-2)!.body).toContain("some-anthropic-model")
+    expect(intents.at(-2)!.body).toContain('"reasoning_details"')
+
+    // T2: raw-wire is what was SENT — the single native reasoning_content.
+    const wires = captureFiles("raw-wire", ".json").map(
+      (name) =>
+        JSON.parse(fs.readFileSync(path.join(logDir, "raw-wire", name), "utf8")) as { body: string; attempt: number },
+    )
+    expect(wires).toHaveLength(3)
+    expect(wires.every((wire) => wire.attempt === 1)).toBe(true)
+    const wireGlm = JSON.parse(wires.at(-3)!.body) as { messages: Array<Record<string, unknown>> }
+    const wireAssistant = wireGlm.messages.find((message) => message.role === "assistant")!
+    expect(wireAssistant.reasoning_content).toBe("thought")
+    expect(wireAssistant.reasoning).toBeUndefined()
+    expect(wireAssistant.reasoning_details).toBeUndefined()
+    expect(JSON.stringify(wireGlm)).toContain('"reasoning_content":"thought"')
+    expect(JSON.stringify(wireGlm)).not.toContain('"reasoning_details"')
     // DeepSeek contract: tool-call turn with empty CoT still carries the field.
-    const toolTurn = entry.body.messages.find(
+    const toolTurn = wireGlm.messages.find(
       (message) => message.role === "assistant" && Array.isArray(message.tool_calls),
     )!
     expect(toolTurn.reasoning_content).toBe("")
-    expect(JSON.stringify(entry.body)).toContain('"reasoning_content":""')
+    expect(JSON.stringify(wireGlm)).toContain('"reasoning_content":""')
     // Canonical vendor shape: reasoning_content precedes tool_calls.
     expect(Object.keys(toolTurn)).toEqual(["role", "content", "reasoning_content", "tool_calls"])
     // Tool-call turn with NO reasoning fields at all still gets the empty field.
-    const bareTurn = entry.body.messages.find(
+    const bareTurn = wireGlm.messages.find(
       (message) =>
         message.role === "assistant" &&
         Array.isArray(message.tool_calls) &&
@@ -244,23 +304,167 @@ describe("gateway wire capture", () => {
     expect(bareTurn.reasoning_content).toBe("")
     expect(Object.keys(bareTurn)).toEqual(["role", "content", "reasoning_content", "tool_calls"])
 
-    const untouched = JSON.parse(
-      fs.readFileSync(path.join(logDir, "per-request", requests.at(-2)!), "utf8"),
-    ) as { body: { messages: Array<Record<string, unknown>> } }
-    const untouchedAssistant = untouched.body.messages.find((message) => message.role === "assistant")!
+    const wireUntouched = JSON.parse(wires.at(-2)!.body) as { messages: Array<Record<string, unknown>> }
+    const untouchedAssistant = wireUntouched.messages.find((message) => message.role === "assistant")!
     expect(untouchedAssistant.reasoning).toBe("thought")
     expect(untouchedAssistant.reasoning_content).toBeUndefined()
 
-    // requests.at(-1) is the third captured request (sort order is by
-    // timestamp prefix); identify the future-zai capture by its model field
-    // instead of positional index — order-stable against async write timing.
-    const entries = requests.map((name) =>
-      JSON.parse(fs.readFileSync(path.join(logDir, "per-request", name), "utf8")) as {
-        body: { model?: string; messages?: Array<Record<string, unknown>> }
+    const wireFuture = JSON.parse(wires.at(-1)!.body) as { messages: Array<Record<string, unknown>> }
+    expect(JSON.stringify(wireFuture)).toContain('"reasoning_content":"thought"')
+    expect(JSON.stringify(wireFuture)).not.toContain('"reasoning_details"')
+  })
+
+  test("aborted and error terminals still leave a per-response record (T3)", async () => {
+    process.env.OPENCODE_GATEWAY_LOG_DIR = logDir
+    resetCaptureDirs()
+    configureLogging(true)
+    setDebugConfig({ debug: false, logBodies: false, logResponseBodies: false, perRequest: true })
+
+    // Streaming server whose stream never ends on its own: the consumer aborts.
+    using server = Bun.serve({
+      port: 0,
+      fetch() {
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode('data: {"choices":[{"delta":{"content":"partial"}}]}\n\n'))
+            },
+          }),
+          { headers: { "content-type": "text/event-stream" } },
+        )
       },
+    })
+
+    const aborted = await wrapFetch(globalThis.fetch)(server.url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: '{"model":"capture-model","stream":true,"messages":[]}',
+      gatewayProvider: "capture-provider",
+      gatewayModel: "capture-model",
+      gatewayProtocol: "http/1.1",
+      gatewayStream: true,
+    })
+    const reader = aborted.body!.getReader()
+    await reader.read()
+    await reader.cancel("user stop")
+    await Bun.sleep(50)
+
+    const abortedFiles = captureFiles("per-response", ".json")
+    expect(abortedFiles).toHaveLength(1)
+    const abortedEntry = JSON.parse(
+      fs.readFileSync(path.join(logDir, "per-response", abortedFiles[0]!), "utf8"),
+    ) as { state: string; status: number }
+    expect(abortedEntry.state).toBe("aborted")
+    expect(abortedEntry.status).toBe(200)
+    const abortedRaw = fs.readFileSync(
+      path.join(logDir, "per-response", abortedFiles[0]!.replace(/\.json$/, ".raw.txt")),
+      "utf8",
     )
-    const zaiFuture = entries.at(-1)
-    expect(JSON.stringify(zaiFuture!.body)).toContain('"reasoning_content":"thought"')
-    expect(JSON.stringify(zaiFuture!.body)).not.toContain('"reasoning_details"')
+    expect(abortedRaw).toContain("partial")
+
+    // S3: h3 5xx — the error body must be on disk even though the rung is
+    // abandoned. Only the h3 attempt is stubbed; whatever the h2/h1 rungs do
+    // against an h1-only server afterwards, the record is the assertion.
+    resetCaptureDirs()
+    const realFetch = globalThis.fetch
+    const errorBody = '{"error":{"message":"stub upstream failure"}}'
+    globalThis.fetch = ((input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+      if ((init as { protocol?: string } | undefined)?.protocol === "http3") {
+        return Promise.resolve(new Response(errorBody, { status: 503, headers: { "content-type": "application/json" } }))
+      }
+      return realFetch(input, init)
+    }) as typeof fetch
+    try {
+      await wrapFetch(realFetch)(server.url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: '{"model":"capture-model","stream":true,"messages":[]}',
+        gatewayProvider: "capture-provider",
+        gatewayModel: "capture-model",
+        gatewayProtocol: "h3",
+        gatewayStream: true,
+      }).then(
+        () => undefined,
+        () => undefined,
+      )
+    } finally {
+      globalThis.fetch = realFetch
+    }
+    await Bun.sleep(50)
+
+    const errorFiles = captureFiles("per-response", ".json")
+    expect(errorFiles.length).toBeGreaterThanOrEqual(1)
+    const errorEntry = JSON.parse(
+      fs.readFileSync(path.join(logDir, "per-response", errorFiles[0]!), "utf8"),
+    ) as { state: string; status: number; protocol: string }
+    expect(errorEntry.state).toBe("error")
+    expect(errorEntry.status).toBe(503)
+    expect(errorEntry.protocol).toBe("h3")
+    const errorRaw = fs.readFileSync(
+      path.join(logDir, "per-response", errorFiles[0]!.replace(/\.json$/, ".raw.txt")),
+      "utf8",
+    )
+    expect(errorRaw).toBe(errorBody)
+  })
+
+  test("S4: an h3→h2 fallback leaves one raw-wire record per attempt that reached its seam", async () => {
+    process.env.OPENCODE_GATEWAY_LOG_DIR = logDir
+    resetCaptureDirs()
+    configureLogging(true)
+    setDebugConfig({ debug: false, logBodies: false, logResponseBodies: false, perRequest: true })
+
+    // Real HTTP/2 (h2c) server: the fallback rung must actually SEND, so the
+    // second seam record exists for a reason.
+    const http2 = await import("node:http2")
+    const h2server = http2.createServer()
+    h2server.on("stream", (stream) => {
+      stream.respond({ ":status": 200, "content-type": "text/event-stream" })
+      stream.end('data: {"choices":[{"delta":{"content":"h2-turn"}}]}\n\ndata: [DONE]\n\n')
+    })
+    await new Promise<void>((resolve) => h2server.listen(0, "127.0.0.1", resolve))
+    const address = h2server.address() as { port: number }
+
+    const realFetch = globalThis.fetch
+    globalThis.fetch = ((input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+      if ((init as { protocol?: string } | undefined)?.protocol === "http3") {
+        return Promise.reject(new Error("stub: QUIC handshake failed"))
+      }
+      return realFetch(input, init)
+    }) as typeof fetch
+    try {
+      const response = await wrapFetch(realFetch)(`http://127.0.0.1:${address.port}/chat/completions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: '{"model":"capture-model","stream":true,"messages":[]}',
+        gatewayProvider: "capture-provider",
+        gatewayModel: "capture-model",
+        gatewayProtocol: "h3",
+        gatewayStream: true,
+      })
+      expect(await response.text()).toContain("h2-turn")
+    } finally {
+      globalThis.fetch = realFetch
+      h2server.close()
+      const closer = h2server as unknown as { closeAllConnections?: () => void }
+      closer.closeAllConnections?.()
+    }
+    await Bun.sleep(50)
+
+    // Two attempts reached a seam: the h3 hand-off (recorded before the call,
+    // so a failed rung still has its record) and the h2 send that answered.
+    const wires = captureFiles("raw-wire", ".json").map(
+      (name) =>
+        JSON.parse(fs.readFileSync(path.join(logDir, "raw-wire", name), "utf8")) as { attempt: number; protocol: string },
+    )
+    expect(wires.map((wire) => wire.protocol)).toEqual(["h3", "h2"])
+    expect(wires.map((wire) => wire.attempt)).toEqual([1, 2])
+    const responses = captureFiles("per-response", ".json")
+    expect(responses).toHaveLength(1)
+    expect(responses[0]).toContain("-attempt2.json")
+    const responseEntry = JSON.parse(
+      fs.readFileSync(path.join(logDir, "per-response", responses[0]!), "utf8"),
+    ) as { state: string; status: number }
+    expect(responseEntry.state).toBe("complete")
+    expect(responseEntry.status).toBe(200)
   })
 })

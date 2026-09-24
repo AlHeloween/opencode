@@ -50,19 +50,12 @@ export function readableResponseBody(body: unknown, isStream: boolean): unknown 
 }
 
 export function formatPerRequestEntry(entry: Record<string, unknown>) {
-  const result = { ...entry }
-  // Parse the JSON body for readability. No raw duplicate: the parsed form is
-  // a lossless JSON round-trip and the escaped one-liner doubled every file.
-  if (typeof result.body === "string" && (result.body as string).trimStart().startsWith("{")) {
-    try {
-      result.body = JSON.parse(result.body as string) as unknown
-    } catch (error) {
-      log.debug("gateway request body parse failed; keeping raw string", {
-        error: error instanceof Error ? error.message : String(error),
-      })
-    }
-  }
-  return JSON.stringify(result, null, 2).replace(/\n/g, EOL)
+  // Verbatim storage (T1): the intent body IS the byte record — parse and
+  // pretty are DERIVED views (the .diff sidecar), never applied to the stored
+  // string. The parsed form this used to write was a lossless round-trip of
+  // the same bytes, but a round-trip is not the bytes: a byte-compare against
+  // the wire (S1') needs the string as it was handed over.
+  return JSON.stringify(entry, null, 2).replace(/\n/g, EOL)
 }
 
 export function make(input: {
@@ -149,7 +142,8 @@ export function make(input: {
 
 /**
  * Per-request logger that writes each gateway request to its own file.
- * Files are named `{time_ms}_req_{id}.json` under the configured directory.
+ * The CALLER supplies the exchange fileName (`<ISO-start>-<requestId>.json`,
+ * T4) so all three points of one exchange share a stem.
  * Best-effort: write failures are logged to debug and silently ignored.
  */
 export function makePerRequest(input: { dir: string }): PerRequestLogger {
@@ -171,10 +165,11 @@ export function makePerRequest(input: { dir: string }): PerRequestLogger {
   return {
     log: (entry) => {
       if (disposed) return
-      const ts = (entry.timestamp as number) ?? Date.now()
-      const reqId = (entry.id as string) ?? (entry.requestId as string) ?? "unknown"
-      const sanitized = String(reqId).replace(/[^a-zA-Z0-9_-]/g, "-")
-      const fileName = `${ts}_req_${sanitized}.json`
+      const fileName = entry.fileName
+      if (typeof fileName !== "string" || fileName.length === 0) {
+        log.warn("bug: per-request entry without fileName", { id: entry.id })
+        return
+      }
       const filePath = path.join(dir, fileName)
 
       const write = ensureDir.then(() =>

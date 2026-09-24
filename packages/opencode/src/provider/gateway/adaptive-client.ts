@@ -19,6 +19,7 @@ import type { AsyncLogger, PerRequestLogger } from "./async-logger"
 import { make as makeAsyncLogger, makePerRequest, readableResponseBody } from "./async-logger"
 import type { ResolvedDebugConfig } from "./debug-config"
 import { applyTemporaryDataAcquisition, parseTdaHeader } from "./tda"
+import { exchangeStem, isoFileStamp, writeWireAttempt } from "./wire-capture"
 
 const log = Log.create({ service: "gateway.adaptive-client" })
 
@@ -105,13 +106,17 @@ interface AdaptiveFetchOptions extends RequestInit {
 }
 
 /**
- * Sensitive header patterns to completely remove from logs.
- * These are opencode internal OAuth-related headers that must not be exposed.
+ * Sensitive header NAME patterns whose VALUES are masked in captured logs.
+ * The name is kept (owner decision 2026-09-24): a reader must see THAT a header
+ * was present — `authorization: "***"` answers "was there auth?" where removal
+ * cannot — and the redaction stays honest. `\btoken\b` matches a whole word, so
+ * provider rate-limit headers like `x-ratelimit-remaining-tokens` survive
+ * (substring matching used to drop them from every capture point).
  */
 const SENSITIVE_HEADER_PATTERNS = [
   "auth",
   "authorization",
-  "token",
+  "\\btoken\\b",
   "access_token",
   "refresh_token",
   "client_secret",
@@ -125,26 +130,27 @@ const SENSITIVE_HEADER_PATTERNS = [
   "x-opencode-auth",
 ]
 
+const MASKED_HEADER_VALUE = "***"
+
 /**
- * Remove sensitive headers from the headers object entirely.
- * This prevents any OAuth/internal authentication data from appearing in logs.
+ * Mask sensitive header VALUES in a copy of the set; names stay visible.
+ * This prevents any OAuth/internal authentication data from reaching disk.
  */
 const sensitiveRegex = new RegExp(SENSITIVE_HEADER_PATTERNS.map((p) => p.replace(/[-_]/g, "[-_]?")).join("|"), "i")
 
 function sanitizeHeaders(headers: Record<string, string>): Record<string, string> {
   const sanitized: Record<string, string> = {}
   for (const [key, value] of Object.entries(headers)) {
-    if (!sensitiveRegex.test(key)) {
-      sanitized[key] = value
-    }
+    sanitized[key] = sensitiveRegex.test(key) ? MASKED_HEADER_VALUE : value
   }
   return sanitized
 }
 
 /**
- * Produce wire-format headers for LOGGING only: no auth, no internal
- * x-opencode-*. Transports send the real headers VERBATIM (no filtering,
- * user directive 2026-09-07); this view exists solely for diagnostics.
+ * Produce wire-format headers for LOGGING only: internal x-opencode-* names
+ * are dropped, sensitive VALUES masked (names kept). Transports send the real
+ * headers VERBATIM (no filtering, user directive 2026-09-07); this view exists
+ * solely for diagnostics.
  */
 function wireHeaders(headers: Record<string, string>): Record<string, string> {
   const withoutInternal = Object.fromEntries(
@@ -358,6 +364,20 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
 
     const startTime = Date.now()
     const requestId = crypto.randomUUID()
+    // Three-point capture key (T4): every point of one exchange writes under a
+    // single stem so intent / sent / received sort and match together.
+    const startIso = isoFileStamp(startTime)
+    const stem = exchangeStem(startIso, requestId)
+    // Intent snapshot (T1): taken HERE — before the reasoning rewrite below and
+    // before credential/TDA consumption — the verbatim record of what we were
+    // asked to send. Masking happens at write time only; the wire is untouched.
+    const intentHeaders: Record<string, string> = Object.fromEntries(new Headers(init?.headers ?? {}).entries())
+    const intentBody =
+      typeof init?.body === "string"
+        ? init.body
+        : init?.body !== undefined && init?.body !== null
+          ? JSON.stringify(init.body)
+          : undefined
     const timeoutMs = init?.gatewayTimeoutMs || 600000
     // Vendor-native reasoning round-trip: the OpenRouter SDK dialect (v2 and v3
     // alike) emits `reasoning` + `reasoning_details` — two copies of the same
@@ -372,7 +392,7 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
       const metadata = requestMetadata(init?.body)
       const isStream = init?.gatewayStream ?? metadata.streaming
 
-    const headers = Object.fromEntries(new Headers(init?.headers ?? {}).entries())
+    const headers: Record<string, string> = { ...intentHeaders }
 
     // Handle OAuth token passthrough: if x-opencode-oauth-token is present, use it as Authorization
     const oauthToken = headers["x-opencode-oauth-token"] || headers["X-Opencode-Oauth-Token"]
@@ -470,14 +490,7 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
     // "пожизненная отладка" (2026-09-02, Alexander). The per-request diff
     // chain was already doubly gated (perRequestLogger needs enabled); these
     // two were not.
-    const captureRequestBody = loggingEnabled && (debugCfg.logBodies || debugCfg.perRequest)
     const captureResponseBody = loggingEnabled && (debugCfg.logResponseBodies || debugCfg.perRequest)
-    const rawBody =
-      captureRequestBody && init?.body
-        ? typeof init.body === "string"
-          ? init.body
-          : JSON.stringify(init.body)
-        : undefined
 
     const sanitizedLogHeaders = sanitizeHeaders(headers)
 
@@ -511,42 +524,38 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
         type: "request",
         timestamp: startTime,
         id: requestId,
+        fileName: `${stem}.json`,
         method: (init?.method || "GET").toUpperCase(),
         url,
-        headers: wireHeaders(headers),
-        ...(rawBody && { body: rawBody }),
+        // The INTENT record: incoming headers BEFORE credential consumption —
+        // names kept (incl. x-opencode-*), secret values masked (T5); the body
+        // is the VERBATIM incoming string. Parse/pretty are derived views
+        // (the .diff sidecar), never the stored record.
+        headers: sanitizeHeaders(intentHeaders),
+        ...(intentBody !== undefined && { body: intentBody }),
       })
 
-      // Request-to-request diff: line-based over the PRETTY bodies (real
-      // newlines, zero content filtering — special chars stay visible) plus a
-      // short integrity report against the recommended wire flow. The old
-      // byte-true report over one-line JSON was unreadable by eye — the
-      // kernel triplication was found manually, not by it.
-      if (rawBody && prevRequestBody) {
+      // Request-to-request diff: line-based over the PRETTY forms derived from
+      // the verbatim intent strings (real newlines, zero content filtering —
+      // special chars stay visible). The wire-shape integrity report lives on
+      // the raw-wire side, where the ACTUAL outgoing body is the subject.
+      if (prevRequestBody && intentBody !== undefined) {
         const logDir = process.env.OPENCODE_GATEWAY_LOG_DIR || path.join(Global.Path.data, "gateway")
         const diffDir = path.join(logDir, "per-request")
         fs.mkdirSync(diffDir, { recursive: true })
-        const d = new Date(startTime)
-        const pad = (n: number, len = 2) => String(n).padStart(len, "0")
-        const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T` +
-          `${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}-${pad(d.getMilliseconds(), 3)}Z`
-        const sanitizedId = String(requestId).replace(/[^a-zA-Z0-9_-]/g, "_")
-        const diffPath = path.join(diffDir, `${iso}-${sanitizedId}.diff`)
         const pretty = (raw: string): string => {
           const parsed = tryParseJSON(raw)
           return typeof parsed === "string" ? raw : JSON.stringify(parsed, null, 2)
         }
-        const report =
-          renderIntegrityReport({ body: tryParseJSON(rawBody) }) +
-          renderLineDiff({
-            prevId: prevRequestBody.requestId,
-            prevRaw: pretty(prevRequestBody.body),
-            currId: requestId,
-            currRaw: pretty(rawBody),
-          })
-        fs.writeFileSync(diffPath, report + EOL)
+        const report = renderLineDiff({
+          prevId: prevRequestBody.requestId,
+          prevRaw: pretty(prevRequestBody.body),
+          currId: requestId,
+          currRaw: pretty(intentBody),
+        })
+        fs.writeFileSync(path.join(diffDir, `${stem}.diff`), report + EOL)
       }
-      prevRequestBody = { requestId, timestamp: startTime, body: rawBody ?? "" }
+      if (intentBody !== undefined) prevRequestBody = { requestId, timestamp: startTime, body: intentBody }
     }
 
     if (Store.isCircuitBreakerOpen(routeKey)) {
@@ -666,54 +675,108 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
       sample.socketAcquiredAt = Date.now()
       let response!: Response
       let usedProtocol: TransportProtocol = "http/1.1"
+      let servedAttempt = 0
 
-      // ── Raw wire dump (debug) ──
-      // Requires the master switch too — enabled=false must stop the .diff
-      // computation, not just the event logs (2026-09-02, Alexander).
-      if (debugCfg.perRequest && loggingEnabled && init?.body) {
+      // ── Wire capture (one record per ATTEMPT) ──
+      // Written from INSIDE the transport seam — h3 at its fetch call below;
+      // h2 inside the transport with the pseudo-header set it hands to node;
+      // h1 inside the transport (its options carry `onWire`). Requires the
+      // master switch too — enabled=false must stop capture, not just the
+      // event logs (2026-09-02, Alexander).
+      const captureWire = debugCfg.perRequest && loggingEnabled
+      const wireDir = path.join(
+        process.env.OPENCODE_GATEWAY_LOG_DIR || path.join(Global.Path.data, "gateway"),
+        "raw-wire",
+      )
+      let wireAttempt = 0
+      const captureWireAttempt = (
+        protocol: TransportProtocol,
+        wireHeaderSet: Record<string, string>,
+        wireBody: string | ArrayBuffer | Uint8Array | undefined,
+      ): void => {
+        if (!captureWire || wireBody === undefined) return
+        wireAttempt++
+        const bodyStr = typeof wireBody === "string" ? wireBody : JSON.stringify(wireBody)
+        writeWireAttempt({
+          dir: wireDir,
+          stem,
+          requestId,
+          attempt: wireAttempt,
+          protocol,
+          url,
+          method: (init?.method || "POST").toUpperCase(),
+          headers: sanitizeHeaders(wireHeaderSet),
+          body: bodyStr,
+        })
+        // Derived views (never stored instead of the verbatim record): the
+        // wire-shape integrity report plus the two-level pseudo-diff vs the
+        // previous wire body. LEVEL 1 — JSON structure; LEVEL 2 — messages
+        // rendered as MD; unchanged messages collapse to one line.
         try {
-          const wireDir = path.join(
-            process.env.OPENCODE_GATEWAY_LOG_DIR || path.join(Global.Path.data, "gateway"),
-            "raw-wire",
-          )
-          fs.mkdirSync(wireDir, { recursive: true })
-          const d = new Date()
-          const pad = (n: number, len = 2) => String(n).padStart(len, "0")
-          const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T` +
-            `${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}-${pad(d.getMilliseconds(), 3)}Z`
-          const sanitizedId = String(requestId).replace(/[^a-zA-Z0-9_-]/g, "_")
-          const bodyStr = typeof init.body === "string" ? init.body : JSON.stringify(init.body)
-          const wireBody = tryParseJSON(bodyStr)
-          fs.writeFileSync(
-            path.join(wireDir, `${iso}-${sanitizedId}.json`),
-            JSON.stringify({
-              url,
-              method: (init?.method || "POST").toUpperCase(),
-              headers: wireHeaders(headers),
-              body: wireBody,
-            }, null, 2).replace(/\n/g, EOL),
-          )
-          // Two-level pseudo-diff vs the previous wire body (capture contract):
-          // LEVEL 1 — JSON structure; LEVEL 2 — messages rendered as MD and
-          // compared. Unchanged messages collapse to one line; added/changed
-          // carry full readable content.
+          const parsed = tryParseJSON(bodyStr)
+          const parts: string[] = [renderIntegrityReport({ body: parsed })]
           if (prevWireBody) {
-            fs.writeFileSync(
-              path.join(wireDir, `${iso}-${sanitizedId}.diff`),
+            parts.push(
               renderRawWirePseudoDiff({
                 prevId: prevWireBody.requestId,
                 currId: String(requestId),
                 prev: prevWireBody.body,
-                curr: wireBody,
+                curr: parsed,
               }),
             )
           }
-          prevWireBody = { requestId, body: wireBody }
+          fs.mkdirSync(wireDir, { recursive: true })
+          fs.writeFileSync(path.join(wireDir, `${stem}-attempt${wireAttempt}.diff`), parts.join(""))
         } catch (e) {
-          log.warn("bug: raw-wire dump failed", { error: String(e), requestId })
+          log.warn("bug: raw-wire derived view failed", {
+            error: e instanceof Error ? e.message : String(e),
+            requestId,
+          })
+        }
+        prevWireBody = { requestId, body: tryParseJSON(bodyStr) }
+      }
+      // Error responses that never reach the body pipeline (h3 5xx, h2
+      // non-stream TransportError) still get a per-response record (T3): the
+      // body a provider returned to explain a failure is diagnostic gold.
+      const captureErrorResponse = (input: {
+        attempt: number
+        protocol: TransportProtocol
+        status: number
+        headers: Record<string, string>
+        body: string
+      }): void => {
+        if (!debugCfg.perRequest || !loggingEnabled) return
+        try {
+          const errorDir = path.join(
+            process.env.OPENCODE_GATEWAY_LOG_DIR || path.join(Global.Path.data, "gateway"),
+            "per-response",
+          )
+          fs.mkdirSync(errorDir, { recursive: true })
+          const errorStem = `${stem}-attempt${input.attempt}`
+          fs.writeFileSync(
+            path.join(errorDir, `${errorStem}.json`),
+            JSON.stringify({
+              type: "response",
+              timestamp: Date.now(),
+              id: requestId,
+              status: input.status,
+              state: "error",
+              protocol: input.protocol,
+              headers: sanitizeHeaders(input.headers),
+              message: null,
+            }, null, 2).replace(/\n/g, EOL),
+          )
+          // Literal error body: the exact bytes the provider returned — no
+          // parse, no assembly (there is no assistant message in it).
+          fs.writeFileSync(path.join(errorDir, `${errorStem}.raw.txt`), input.body)
+        } catch (e) {
+          log.warn("bug: per-response error capture failed", {
+            error: e instanceof Error ? e.message : String(e),
+            requestId,
+          })
         }
       }
-      // ── End raw wire dump ──
+      // ── End wire capture ──
 
       try {
         // Downgrade chain (owner directive 2026-09-24): h3 -> h2 -> http/1.1.
@@ -760,16 +823,33 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
               if (timeout) probeSignals.push(timeout)
               const signal =
                 probeSignals.length === 0 ? undefined : probeSignals.length === 1 ? probeSignals[0] : AbortSignal.any(probeSignals)
+              const h3Body = typeof init?.body === "string" ? init.body : undefined
+              captureWireAttempt("h3", headers, h3Body)
               const h3Res = await fetch(url, {
                 method: init?.method ?? "POST",
                 headers,
-                body: typeof init?.body === "string" ? init.body : undefined,
+                body: h3Body,
                 signal,
                 // @ts-expect-error Bun-specific RequestInit extension (blog 1.3.14)
                 protocol: "http3",
               })
               // Hard 5xx is transport-class; 4xx is a real client-side answer.
-              if (h3Res.status >= 500) throw new Error(`h3 upstream ${h3Res.status}`)
+              // The 5xx body is read BEFORE the throw — otherwise the one
+              // response that explains the downgrade is discarded (T3).
+              if (h3Res.status >= 500) {
+                const errorBody = await h3Res.text().catch((e) => {
+                  log.debug("gateway.h3_error_body_read_failed", { error: String(e), requestId })
+                  return ""
+                })
+                captureErrorResponse({
+                  attempt: wireAttempt || i + 1,
+                  protocol: "h3",
+                  status: h3Res.status,
+                  headers: Object.fromEntries(h3Res.headers.entries()),
+                  body: errorBody,
+                })
+                throw new Error(`h3 upstream ${h3Res.status}`)
+              }
               response = h3Res
             } else if (protocol === "h2") {
               if (routeKey.stream) {
@@ -779,6 +859,7 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                   method: init?.method ?? "POST",
                   headers: headers,
                   body: typeof init?.body === "string" ? init.body : undefined,
+                  onWire: (wireHeaderSet, wireBody) => captureWireAttempt("h2", wireHeaderSet, wireBody),
                 })
                 response = h2Result.response
               } else {
@@ -788,8 +869,16 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                   method: init?.method ?? "POST",
                   headers: headers,
                   body: typeof init?.body === "string" ? init.body : undefined,
+                  onWire: (wireHeaderSet, wireBody) => captureWireAttempt("h2", wireHeaderSet, wireBody),
                 })
                 if (h2Result.error) {
+                  captureErrorResponse({
+                    attempt: wireAttempt || i + 1,
+                    protocol: "h2",
+                    status: h2Result.status,
+                    headers: h2Result.headers,
+                    body: typeof h2Result.body === "string" ? h2Result.body : "",
+                  })
                   throw new Errors.TransportError({
                     status: h2Result.status,
                     headers: h2Result.headers,
@@ -811,6 +900,7 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                 headers,
                 body: typeof init?.body === "string" ? init.body : undefined,
                 signal: init?.signal ?? undefined,
+                onWire: (wireHeaderSet, wireBody) => captureWireAttempt("http/1.1", wireHeaderSet, wireBody),
               })
               response = new Response(h1Result.body, {
                 status: h1Result.status,
@@ -818,6 +908,7 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
               })
             }
             usedProtocol = protocol
+            servedAttempt = wireAttempt > 0 ? wireAttempt : i + 1
             if (protocol === "h3") h3UnavailableUntil.delete(baseUrl)
             break
           } catch (err) {
@@ -893,11 +984,116 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
       const responseBodyChunks: Uint8Array[] = []
       if (response.body) {
         let firstChunk = true
+        let ended = false
         const coalescer = new CoalescingTransform()
-        const trackedBody = response.body
+        const finalizeResponse = (state: "complete" | "aborted" | "error") => {
+          if (ended) return
+          ended = true
+          sample.endedAt = Date.now()
+          const metrics = Metrics.computeMetrics(sample)
+          const endEntry: Record<string, unknown> = {
+            level: "INFO",
+            event: "gateway.request.end",
+            timestamp: Date.now(),
+            requestId,
+            status: response.status,
+            state,
+            fetchMs: sample.headersReceivedAt - sample.socketAcquiredAt,
+            metrics: {
+              totalMs: metrics.totalMs,
+              ttftMs: metrics.ttftMs,
+              ttfbMs: metrics.ttfbMs,
+              queuedMs: metrics.queuedMs,
+              chunks: metrics.chunks,
+              avgChunkGapMs: metrics.avgChunkGapMs,
+            },
+            healthScore: Math.round(healthScore(Store.getRoute(routeKey).health) * 100) / 100,
+          }
+          if (captureResponseBody && responseBodyChunks.length > 0) {
+            const decoder = new TextDecoder()
+            const fullRaw = responseBodyChunks.map((chunk) => decoder.decode(chunk, { stream: true })).join("") + decoder.decode()
+            const raw = debugCfg.perRequest
+              ? fullRaw
+              : fullRaw.length > 65536
+                ? `${fullRaw.slice(0, 65536)}\n... (response body truncated at 64KB, total ${fullRaw.length} bytes)`
+                : fullRaw
+            if (raw !== fullRaw) {
+              endEntry.bodyTruncated = true
+            }
+            // Under perRequest the body lands in per-response files
+            // (.json metadata + .raw.txt literal) — no inline copy in
+            // the JSONL log (disk hygiene).
+            if (!debugCfg.perRequest) {
+              endEntry.body = raw
+            }
+            endEntry.bodySize = raw.length
+            // Per-response capture (T3): one file set per ATTEMPT that produced
+            // a response; `state` records HOW the stream ended — an abort or a
+            // mid-stream source error still leaves everything that arrived.
+            if (debugCfg.perRequest) {
+              try {
+                const responseLogDir = process.env.OPENCODE_GATEWAY_LOG_DIR || path.join(Global.Path.data, "gateway")
+                const responseDir = path.join(responseLogDir, "per-response")
+                fs.mkdirSync(responseDir, { recursive: true })
+                const responseStem = `${stem}-attempt${servedAttempt || 1}`
+                const resHeaders: Record<string, string> = {}
+                response.headers.forEach((v, k) => { resHeaders[k] = v })
+                // Metadata + FULL assembled message in the JSON, literal raw
+                // stream sidecar, and the human-readable assembled report. No
+                // delta noise, no escaped duplicates.
+                const assembled = assembleMessage(readableResponseBody(raw, isStream))
+                fs.writeFileSync(path.join(responseDir, `${responseStem}.json`), JSON.stringify({
+                  type: "response",
+                  timestamp: Date.now(),
+                  id: requestId,
+                  status: response.status,
+                  state,
+                  headers: wireHeaders(resHeaders),
+                  message: {
+                    content: assembled.content,
+                    reasoning_content: assembled.reasoning,
+                    tool_calls: assembled.toolCalls,
+                    finish_reason: assembled.finishReason,
+                    usage: assembled.usage,
+                  },
+                }, null, 2).replace(/\n/g, EOL))
+                // Literal raw stream: the exact bytes as they arrived (captured
+                // pre-coalesce), with their own real newlines — no filtering,
+                // no re-serialization.
+                fs.writeFileSync(path.join(responseDir, `${responseStem}.raw.txt`), fullRaw)
+                fs.writeFileSync(
+                  path.join(responseDir, `${responseStem}.md`),
+                  renderResponseMarkdown({
+                    id: requestId,
+                    captured: responseStem,
+                    status: response.status,
+                    message: assembled,
+                  }) + EOL,
+                )
+              } catch (e) {
+                log.warn("bug: per-response capture failed", {
+                  error: e instanceof Error ? e.message : String(e),
+                  requestId,
+                  state,
+                })
+              }
+            }
+          }
+          writeLog(endEntry)
+          if (state === "complete") {
+            Store.recordSuccess(routeKey, metrics.totalMs, metrics.ttftMs)
+            Store.recordCircuitBreakerSuccess(routeKey)
+            Store.adaptRoutePolicy(routeKey, true, healthScore(Store.getRoute(routeKey).health))
+          }
+        }
+        const source = response.body
           .pipeThrough(
             new TransformStream({
               transform(chunk, controller) {
+                // Pre-coalesce capture (T3): bytes land here as they arrive, so
+                // an aborted stream still has everything that reached us — the
+                // coalescer's pending buffer is not needed to flush first.
+                if (captureResponseBody) responseBodyChunks.push(chunk)
                 coalescer.push(chunk, controller)
               },
               flush(controller) {
@@ -921,102 +1117,42 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                 }
                 sample.lastChunkAt = Date.now()
                 sample.chunks++
-                if (captureResponseBody) {
-                  responseBodyChunks.push(chunk)
-                }
                 controller.enqueue(chunk)
               },
-              async flush() {
-                sample.endedAt = Date.now()
-                const metrics = Metrics.computeMetrics(sample)
-                const endEntry: Record<string, unknown> = {
-                  level: "INFO",
-                  event: "gateway.request.end",
-                  timestamp: Date.now(),
-                  requestId,
-                  status: response.status,
-                  fetchMs: sample.headersReceivedAt - sample.socketAcquiredAt,
-                  metrics: {
-                    totalMs: metrics.totalMs,
-                    ttftMs: metrics.ttftMs,
-                    ttfbMs: metrics.ttfbMs,
-                    queuedMs: metrics.queuedMs,
-                    chunks: metrics.chunks,
-                    avgChunkGapMs: metrics.avgChunkGapMs,
-                  },
-                  healthScore: Math.round(healthScore(Store.getRoute(routeKey).health) * 100) / 100,
-                }
-                if (captureResponseBody && responseBodyChunks.length > 0) {
-                  const decoder = new TextDecoder()
-                  const fullRaw = responseBodyChunks.map((chunk) => decoder.decode(chunk, { stream: true })).join("") + decoder.decode()
-                  const raw = debugCfg.perRequest
-                    ? fullRaw
-                    : fullRaw.length > 65536
-                      ? `${fullRaw.slice(0, 65536)}\n... (response body truncated at 64KB, total ${fullRaw.length} bytes)`
-                      : fullRaw
-                  if (raw !== fullRaw) {
-                    endEntry.bodyTruncated = true
-                  }
-                  // Under perRequest the body lands in per-response files
-                  // (.json metadata + .raw.txt literal) — no inline copy in
-                  // the JSONL log (disk hygiene).
-                  if (!debugCfg.perRequest) {
-                    endEntry.body = raw
-                  }
-                  endEntry.bodySize = raw.length
-                  // Write per-response JSON file (mirrors per-request)
-                  if (debugCfg.perRequest) {
-                    const responseLogDir = process.env.OPENCODE_GATEWAY_LOG_DIR || path.join(Global.Path.data, "gateway")
-                    const d = new Date()
-                    const pad = (n: number, len = 2) => String(n).padStart(len, "0")
-                    const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T` +
-                      `${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}-${pad(d.getMilliseconds(), 3)}Z`
-                    const sanitizedId = String(requestId).replace(/[^a-zA-Z0-9_-]/g, "_")
-                    const responseDir = path.join(responseLogDir, "per-response")
-                    fs.mkdirSync(responseDir, { recursive: true })
-                    const responsePath = path.join(responseDir, `${iso}-${sanitizedId}.json`)
-                    const resHeaders: Record<string, string> = {}
-                    response.headers.forEach((v, k) => { resHeaders[k] = v })
-                    // Write per-response capture: metadata + FULL assembled
-                    // message in the JSON, literal raw stream sidecar, and the
-                    // human-readable assembled report. No delta noise, no
-                    // escaped duplicates.
-                    const assembled = assembleMessage(readableResponseBody(raw, isStream))
-                    fs.writeFileSync(responsePath, JSON.stringify({
-                      type: "response",
-                      timestamp: d.getTime(),
-                      id: requestId,
-                      status: response.status,
-                      headers: wireHeaders(resHeaders),
-                      message: {
-                        content: assembled.content,
-                        reasoning_content: assembled.reasoning,
-                        tool_calls: assembled.toolCalls,
-                        finish_reason: assembled.finishReason,
-                        usage: assembled.usage,
-                      },
-                    }, null, 2).replace(/\n/g, EOL))
-                    // Literal raw stream: the exact wire body with its own real
-                    // newlines — no filtering, no re-serialization.
-                    fs.writeFileSync(path.join(responseDir, `${iso}-${sanitizedId}.raw.txt`), fullRaw)
-                    fs.writeFileSync(
-                      path.join(responseDir, `${iso}-${sanitizedId}.md`),
-                      renderResponseMarkdown({
-                        id: requestId,
-                        captured: iso,
-                        status: response.status,
-                        message: assembled,
-                      }) + EOL,
-                    )
-                  }
-                }
-                writeLog(endEntry)
-                Store.recordSuccess(routeKey, metrics.totalMs, metrics.ttftMs)
-                Store.recordCircuitBreakerSuccess(routeKey)
-                Store.adaptRoutePolicy(routeKey, true, healthScore(Store.getRoute(routeKey).health))
+              flush() {
+                finalizeResponse("complete")
               },
             }),
           )
+        // Terminal observer (T3): a consumer cancel (user stop, session
+        // interrupt) or a source error ends the exchange without `flush()`
+        // running — each records its terminal state instead of losing the
+        // capture. Backpressure is preserved: one upstream read per pull.
+        const reader = source.getReader()
+        const trackedBody = new ReadableStream<Uint8Array>({
+          async pull(controller) {
+            try {
+              const { done, value } = await reader.read()
+              if (done) {
+                controller.close()
+                return
+              }
+              controller.enqueue(value)
+            } catch (error) {
+              finalizeResponse("error")
+              controller.error(error)
+            }
+          },
+          async cancel(reason) {
+            finalizeResponse("aborted")
+            await reader.cancel(reason).catch((e) => {
+              log.debug("gateway.stream.cancel_failed", {
+                error: e instanceof Error ? e.message : String(e),
+                requestId,
+              })
+            })
+          },
+        })
 
         return new Response(trackedBody, {
           status: response.status,

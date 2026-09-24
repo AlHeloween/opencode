@@ -5,37 +5,48 @@ import os from "os"
 import path from "path"
 
 describe("gateway per-request logger", () => {
-  test("uses the wire request id in the filename and formats the stored body", async () => {
+  test("writes under the caller-supplied exchange fileName with the verbatim body", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-gateway-request-"))
     const logger = makePerRequest({ dir })
+    const fileName = "2026-09-24T09-00-00-000Z-req_live_123.json"
     logger.log({
       id: "req_live_123",
       timestamp: 123,
+      fileName,
       body: '{"model":"deepseek-v4-pro","messages":[]}',
     })
     await logger.dispose()
 
-    const file = path.join(dir, "123_req_req_live_123.json")
-    const entry = JSON.parse(fs.readFileSync(file, "utf8")) as { body: { model: string } }
-    expect(entry.body.model).toBe("deepseek-v4-pro")
+    const file = path.join(dir, fileName)
+    const entry = JSON.parse(fs.readFileSync(file, "utf8")) as { body: string }
+    // Verbatim (T1): the stored string IS the record.
+    expect(entry.body).toBe('{"model":"deepseek-v4-pro","messages":[]}')
+    expect(JSON.parse(entry.body).model).toBe("deepseek-v4-pro")
     fs.rmSync(dir, { recursive: true, force: true })
   })
 
-  test("formats JSON body as readable object (no raw duplicate — lossless round-trip)", () => {
+  test("an entry without fileName is refused without throwing", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-gateway-request-"))
+    const logger = makePerRequest({ dir })
+    logger.log({ id: "req_no_file", timestamp: 1, body: "{}" })
+    await logger.dispose()
+    expect(fs.readdirSync(dir)).toEqual([])
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  test("stores the body verbatim — the string IS the record (T1)", () => {
+    const body = '{"model":"deepseek-v4-pro","text":"hello\\u041fworld"}'
     const output = formatPerRequestEntry({
       type: "request",
       method: "POST",
-      body: '{"model":"deepseek-v4-pro","text":"hello\\u041fworld"}',
+      body,
     })
 
-    // body is parsed → readable multiline JSON
-    expect(output).toContain('\n  "body": {')
-    expect(output).toContain('\n    "model": "deepseek-v4-pro"')
-
-    // No body_raw duplicate (the escaped one-liner doubled every file); the
-    // parsed form is lossless, so \uXXXX decodes to the real character.
+    // The stored value round-trips byte-for-byte: parse → the same string.
+    const parsed = JSON.parse(output) as { body: string }
+    expect(parsed.body).toBe(body)
+    // No body_raw duplicate; parse/pretty are DERIVED views (the .diff sidecar).
     expect(output).not.toContain("body_raw")
-    expect(output).toContain("П")
   })
 
   test("non-JSON body stored as-is without body_raw", () => {

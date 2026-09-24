@@ -28,6 +28,7 @@
 - [External File Locations](external-file-locations.md) — where opencode reads/writes files
 - [Linux deploy](linux-deploy.md) — Linux build and portable install
 - [Tools and sidecars](tools-and-sidecars.md) — `tools/` binaries, Fossil/rg/markdownify
+- [Gateway three-point capture](gateway-capture.md) — intent / wire / response under one exchange key; masking, terminal states, derived views
 - [Background Jobs](background-jobs.md) — non-blocking shell jobs, `joboutput` / `pattern`, TUI
 - [ADID Framework 15.3](ADID_Framework_15_3.md) — safe-update manager contract. Frozen, untracked,
   package-rendered; still the reference standard for kernel design, but only realizable on MHA-class

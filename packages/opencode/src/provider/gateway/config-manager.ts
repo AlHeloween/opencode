@@ -172,9 +172,11 @@ export async function writeConfigFile(filePath: string, config: GatewayConfig): 
 // gateway.logging.enabled: Enable gateway request logging. Default: false.
 // gateway.logging.format: Log format - "json" or "text". Default: "json".
 // gateway.logging.logBodies: Include request/response bodies in logs. Default: false.
-// gateway.logging.perRequest: Write each request to a separate JSON file under
-//   the per-request/ log subdirectory. Filename: {datetime-ms}-{requestId}.json.
-//   Full body included when logBodies is also enabled. Default: false.
+// gateway.logging.perRequest: Three-point wire capture: intent (per-request/),
+//   wire bytes per attempt (raw-wire/), responses (per-response/), all under
+//   one ISO-start + requestId key; bodies stored verbatim, secret header
+//   values masked as *** (names kept). See docs/gateway-capture.md.
+//   Default: false.
 //
 // PROVIDER SETTINGS
 // -----------------

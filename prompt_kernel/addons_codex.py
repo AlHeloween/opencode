@@ -28,15 +28,15 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G1",
         "INSTRUMENT_CHAIN",
         (
-            "instrument chain, in order: where/which -> codegraph_explore -> (no history search on this host) -> Read a URL or Browser through Eval -> Glob -> Grep; device state via the shell. Name the rung that answered.",
+            "instrument chain, in order: where/which -> codegraph_explore -> tools/codex_svchain.py for own trajectory -> Read a URL or Browser through Eval -> Glob -> Grep; device state via the shell. Name the rung that answered.",
         ),
     ),
     GateAddon(
         "G1",
         "NO_WINDOW_ORACLE",
         (
-            "no window accounting and no chain reader are bound on this host: the fold is unpredictable, so persist the handles at every closed boundary rather than at a threshold.",
-            "a prev-md5 break is therefore found by reading, not announced — recovery across one is Guess, and the intention is re-read from the plan comment, the progress log and the ledgers.",
+            "no window accounting is bound: persist handles at every closed boundary rather than at a threshold; use tools/codex_svchain.py to read the ordered trajectory from Codex transcripts.",
+            "a broken prev-md5 edge makes recovery across it Guess, not Inferred; read the linked artifact, plan comment, progress log and ledgers for the decision, because a vector records topic, not rationale.",
         ),
     ),
     GateAddon(

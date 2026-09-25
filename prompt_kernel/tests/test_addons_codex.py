@@ -29,6 +29,8 @@ def test_codex_addons_render_host_tool_bindings() -> None:
     assert "Glob/Grep/Read" in g1
     assert "Browser through Eval" in g1
     assert "durable criteria" in g1
+    assert "tools/codex_svchain.py" in g1
+    assert "broken prev-md5 edge" in g1
     g4 = _gate_block(text, "G4")
     assert "unresolved user decision -> Ask" in g4
     g6 = _gate_block(text, "G6")

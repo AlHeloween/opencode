@@ -28,6 +28,7 @@
 - [External File Locations](external-file-locations.md) — where opencode reads/writes files
 - [Linux deploy](linux-deploy.md) — Linux build and portable install
 - [Tools and sidecars](tools-and-sidecars.md) — `tools/` binaries, Fossil/rg/markdownify
+- [Codex semantic-vector chain](codex-svchain.md) — ordered transcript topics and broken links
 - [Gateway three-point capture](gateway-capture.md) — intent / wire / response under one exchange key; masking, terminal states, derived views
 - [Протокол gateway в TUI](gateway-protocol-status.md) — фактический транспорт, адресация события и значение `unknown`
 - [Background Jobs](background-jobs.md) — non-blocking shell jobs, `joboutput` / `pattern`, TUI

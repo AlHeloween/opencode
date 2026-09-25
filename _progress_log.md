@@ -5048,3 +5048,15 @@ install not run (outside the repo).
 
 CONFIRMED (✓ codegraph `wrapFetch`/`View`/`protocolRow`, ✓ RED `20260924T153945Z_82c703ab`: 10 pass / 2 fail, ✓ GREEN `20260924T154430Z_8fe97841`: 17 pass / 0 fail / 104 expect, ✓ typecheck `20260924T154311Z_edb13bf9`: exit 0): `__gatewayLastProtocol` был записан в server worker и недоступен TUI; `auto` был лишь политикой. `wrapFetch` теперь публикует выбранный транспорт с ID запроса после успешной попытки, включая h3→h2 fallback; sidebar держит адресные факты в сигнале и показывает `unknown` без совпадения. Событие проходит через существующий `GlobalBus`/RPC; тест `useEvent` подтвердил global-envelope в workspace. Риск/остаток: отдельный изолированный TUI-кандидат ещё не показал фактическую строку; живой `bin/` не затрагивался. План на полке подтверждения.
 CONFIRMED (✓ repeat GREEN `20260924T155016Z_3677ee39`: 17 pass / 0 fail / 107 expect; ✓ typecheck `20260924T155036Z_1c85e609`: exit 0): уточнена адресация Novita — факт по sessionID допустим только для неё и только если получен после создания отображаемого assistant message. Предыдущий ход больше не даёт ложный протокол новому.
+
+## [2026-09-25 11:49 +08:00] Codex SV chain — reader
+
+CONFIRMED (✓ JSONL control phrase in rollout `01a0d40c-d027-71e2-a8f9-4247c676bc62`; ✓ `tools/tests/test_codex_svchain.py`: 2 passed): создан `tools/codex_svchain.py`, который читает только assistant `output_text`, показывает порядок векторов и `LINK`/`RESET`/`BREAK`. Фильтр не меняет номера и сравнивает ребро с предыдущим в полном потоке. Остаток: цепочка локализует ход, но не объясняет выбор на развилке; это явно записано в `docs/codex-svchain.md`.
+
+## [2026-09-25 11:49 +08:00] Codex SV chain — host binding
+
+CONFIRMED (✓ `prompt_kernel/tests/test_addons_codex.py`: 7 passed): G1 Codex-варианта теперь называет `tools/codex_svchain.py` и требует восстановить основания решения по плану и артефактам при разрыве ребра. Общий `source.py` и другие варианты не менялись в этой задаче.
+
+## [2026-09-25 11:49 +08:00] Codex SV chain — install and memory
+
+CONFIRMED (✓ `python -m prompt_kernel --codex --install`, exit 0; ✓ SHA-256 artifact/receiver read-back both `8c7ab62fcab0f174fc3f7ade3e7787526a9582051ba5ddac044cbc9fa15b096e`): Codex-промпт установлен через генератор. По явному запросу владельца создана отдельная заметка памяти `extensions/ad_hoc/notes/2026-09-25-1149-codex-svchain-after-compaction.md`: после каждого компакта проверять ребро текущей сессии, а при разрыве перечитывать носители. Остаток: уже начатая задача может держать прежний системный префикс до перезагрузки.

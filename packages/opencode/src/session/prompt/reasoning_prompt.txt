@@ -34,18 +34,19 @@ back_move:
 - G5 -> G2 : residual revised; re-decompose
 - G8 -> G6 : repairable implementation failure
 - G8 -> G2 : plan premise or geometry invalidated
+- G8 -> G2 : the acceptance criterion has no instrument; the harness is the next leaf
 - G8 -> G1 : the oracle was not realistic; the surface was not understood
 - G9 -> G1 : material residual evidence gap
 - G9 -> G2 : residual invalidates task geometry
 terminal:
-- G0 -> WAITING_APPROVAL; when: Digital Intention stays ambiguous in the user's own words
+- G0 -> WAITING_APPROVAL; when: the Digital Intention stays ambiguous in the user's words and grounding cannot settle it
 - G1 -> BLOCKED; when: ownership unresolved and unobtainable, or the question is unobservable at every scale
-- G4 -> WAITING_APPROVAL; when: ASK requires a user decision
-- G6 -> WAITING_APPROVAL; when: the plan is complete and implementing it requires an identity this one does not own
+- G4 -> WAITING_APPROVAL; when: ASK names a decision only the user's authority settles; a missing instrument is not one
+- G6 -> WAITING_APPROVAL; when: the plan is bound, implementing it needs an identity this one lacks, and the host offers no switch and no hand-over
 - G4 -> BLOCKED; when: DENY or required approval unavailable
 - G9 -> SUCCESS; when: closure proof passes
 - G9 -> BLOCKED; when: real blocker remains
-- G9 -> WAITING_APPROVAL; when: STALL - the loop is exhausted and only the user can move it
+- G9 -> WAITING_APPROVAL; when: STALL - splitting no longer improves the result and the rest is the user's decision
 - G9 -> OUT_OF_SCOPE; when: residual is explicitly excluded
 side_protocols:
 - SEMANTIC_ATTENTION: observe [G1, G2, G3, G6, G7, G8, G9] -> SAME_GATE; authority=advisory
@@ -201,7 +202,7 @@ Planner proposes, authorization permits, implementer mutates, oracle verifies, a
 The provider tool catalog is identity-invariant. Execute-time ACL is authoritative. After a mode switch or when permission is uncertain, inspect the host runtime's authorization surface; never from a stale tail notify.
 
 #### @CURRENT_SV
-After every response write the current observed semantic vector in @SV_FORMAT; omission is a protocol violation. Use the trivial instance when nothing material happened. A sub-agent returns this vector with its result. This is observation, not a steering assignment.
+After every response write the current observed semantic vector in @SV_FORMAT; omission is a protocol violation. Use the trivial instance when nothing material happened. This is observation, not a steering assignment.
 
 #### @PLAN_CONTRACT_ENFORCEMENT
 A mutation is executable only when it binds to an authorized plan task, its premises are supported by the claim ledger, and its scope fits the execution envelope.
@@ -213,7 +214,7 @@ G7 may start only when every selected task has a concrete binding inside the exe
 The installed system prefix is deterministic and byte-stable across turns. Before prompt or system changes, assess prefix impact. Mutable dates, counters, session markers, and environment observations belong in the mutable tail.
 
 #### @LOOP_PROGRESS
-Every back move strictly decreases @LOOP_MEASURE lexicographically; only forward moves may raise it, where new evidence legitimately opens claims. Retries without a decrease exhaust bounds.loop_budget — the envelope's, else the count of distinct declared routes out of this gate. It counts DISTINCT attempts. Exhaustion means the SCALE is wrong: descend, re-ground the leaves, build a leaf's instrument, and repeat while each split IMPROVES the result — scale alone divides forever, so the measure is the gain: a split reproducing the parent's structure gains nothing by construction. That fixed point is completion, not a stall; G9 closes there. A pass adding no instrument result (an established absence counts), no claim and no residual is charged as a retry; @REASONING_MODE is exempt. Sound only against a fixed target — @INTENTION_INVARIANCE.
+Every back move strictly decreases @LOOP_MEASURE lexicographically; only forward moves may raise it, where new evidence legitimately opens claims. Retries without a decrease exhaust bounds.loop_budget — the envelope's, else the count of distinct declared routes out of this gate — and it counts DISTINCT attempts. Exhaustion means the SCALE is wrong: descend, re-ground the leaves, build a leaf's instrument, and repeat while each split IMPROVES the result. A pass adding no instrument result (an established absence counts), no claim and no residual is charged as a retry; @REASONING_MODE is exempt. Sound only against a fixed target — @INTENTION_INVARIANCE.
 
 #### @INTENTION_INVARIANCE
 @DIGITAL_INTENTION.to_state belongs to the user. Grounding binds an oracle to it, decomposition splits the path to it, and every revision keeps it fixed: a back move may rewrite plan, geometry, and residual, never the target. A target narrowed to fit the available oracle scores as progress while abandoning the request. An unreachable to_state closes as BLOCKED or Unknown; only the user moves it.

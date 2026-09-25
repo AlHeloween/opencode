@@ -68,7 +68,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "CURRENT_SV",
-        "After every response write the current observed semantic vector in @SV_FORMAT; omission is a protocol violation. Use the trivial instance when nothing material happened. A sub-agent returns this vector with its result. This is observation, not a steering assignment.",
+        "After every response write the current observed semantic vector in @SV_FORMAT; omission is a protocol violation. Use the trivial instance when nothing material happened. This is observation, not a steering assignment.",
     ),
     _rule(
         "KERNEL",
@@ -88,7 +88,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "LOOP_PROGRESS",
-        "Every back move strictly decreases @LOOP_MEASURE lexicographically; only forward moves may raise it, where new evidence legitimately opens claims. Retries without a decrease exhaust bounds.loop_budget — the envelope's, else the count of distinct declared routes out of this gate. It counts DISTINCT attempts. Exhaustion means the SCALE is wrong: descend, re-ground the leaves, build a leaf's instrument, and repeat while each split IMPROVES the result — scale alone divides forever, so the measure is the gain: a split reproducing the parent's structure gains nothing by construction. That fixed point is completion, not a stall; G9 closes there. A pass adding no instrument result (an established absence counts), no claim and no residual is charged as a retry; @REASONING_MODE is exempt. Sound only against a fixed target — @INTENTION_INVARIANCE.",
+        "Every back move strictly decreases @LOOP_MEASURE lexicographically; only forward moves may raise it, where new evidence legitimately opens claims. Retries without a decrease exhaust bounds.loop_budget — the envelope's, else the count of distinct declared routes out of this gate — and it counts DISTINCT attempts. Exhaustion means the SCALE is wrong: descend, re-ground the leaves, build a leaf's instrument, and repeat while each split IMPROVES the result. A pass adding no instrument result (an established absence counts), no claim and no residual is charged as a retry; @REASONING_MODE is exempt. Sound only against a fixed target — @INTENTION_INVARIANCE.",
     ),
     _rule(
         "KERNEL",
@@ -542,21 +542,33 @@ KERNEL = Kernel(
         Edge("G5", "G2", "back", "residual revised; re-decompose"),
         Edge("G8", "G6", "back", "repairable implementation failure"),
         Edge("G8", "G2", "back", "plan premise or geometry invalidated"),
+        # The cheap loop that replaces the free door. G1 already says the instrument chain is a
+        # ladder and not a fence - build one when no rung answers - and G8 had no such move: a
+        # criterion with no harness could only go back as a WRONG oracle or out to the user. The
+        # harness is a leaf like any other, so it is decomposed, authorized, built and then run.
+        Edge("G8", "G2", "back", "the acceptance criterion has no instrument; the harness is the next leaf"),
         # An unrealistic oracle is a GROUNDING defect, not a plan defect: the surface was not
         # understood, so the route is back to evidence and not to plan repair (owner's loop, step 6).
         Edge("G8", "G1", "back", "the oracle was not realistic; the surface was not understood"),
         Edge("G9", "G1", "back", "material residual evidence gap"),
         Edge("G9", "G2", "back", "residual invalidates task geometry"),
-        Edge("G0", "WAITING_APPROVAL", "terminal", "Digital Intention stays ambiguous in the user's own words"),
+        # 2026-09-25, THE PRICE OF A DOOR. Three terminals state something about REALITY - proven,
+        # impossible, excluded - and each costs evidence to reach. WAITING_APPROVAL states something
+        # about the USER'S TURN and costs a sentence. An exit that cheap outbids every loop beside
+        # it, which is the measured defect: a closure that needed a live run was routed to the owner
+        # instead of built. So every WAITING_APPROVAL edge now names what the agent could not obtain,
+        # and the missing thing must be one the USER ALONE OWNS - intent, authority, identity, a
+        # decision. A missing INSTRUMENT is never one of those: an instrument can be built.
+        Edge("G0", "WAITING_APPROVAL", "terminal", "the Digital Intention stays ambiguous in the user's words and grounding cannot settle it"),
         Edge("G1", "BLOCKED", "terminal", "ownership unresolved and unobtainable, or the question is unobservable at every scale"),
-        Edge("G4", "WAITING_APPROVAL", "terminal", "ASK requires a user decision"),
+        Edge("G4", "WAITING_APPROVAL", "terminal", "ASK names a decision only the user's authority settles; a missing instrument is not one"),
         # PLAN_MODE reaches G6 with G7 outside its gates, so the graph owed it a declared exit.
         # The exit is the HANDOVER: implementing is another identity's decision.
         # The other case - a plan-only session closing on evidence at G9 - is NOT expressible here:
         # validate.py:41 requires the forward edges to be exactly the canonical spine, so a branch on
         # the success path has no representation in this model. Recorded as a residual rather than
         # forced through a `side` edge, whose meaning is a concern loop and not a closing path.
-        Edge("G6", "WAITING_APPROVAL", "terminal", "the plan is complete and implementing it requires an identity this one does not own"),
+        Edge("G6", "WAITING_APPROVAL", "terminal", "the plan is bound, implementing it needs an identity this one lacks, and the host offers no switch and no hand-over"),
         # STALL is DETECTED at G8 and CLOSED at G9. A terminal at G8 was the only exit reachable
         # after G7, i.e. after the tree was mutated, and it skipped the one gate that records the
         # residual, the tool state and the next route - exactly what an autonomous run needs most.
@@ -564,7 +576,10 @@ KERNEL = Kernel(
         Edge("G4", "BLOCKED", "terminal", "DENY or required approval unavailable"),
         Edge("G9", "SUCCESS", "terminal", "closure proof passes"),
         Edge("G9", "BLOCKED", "terminal", "real blocker remains"),
-        Edge("G9", "WAITING_APPROVAL", "terminal", "STALL - the loop is exhausted and only the user can move it"),
+        # An exhausted budget is NOT this terminal: @LOOP_PROGRESS routes exhaustion to descent, and
+        # G9 -> G1 / G9 -> G2 are that route. The door opens only at the fixed point, where a split
+        # no longer gains - the one state descent cannot leave.
+        Edge("G9", "WAITING_APPROVAL", "terminal", "STALL - splitting no longer improves the result and the rest is the user's decision"),
         Edge("G9", "OUT_OF_SCOPE", "terminal", "residual is explicitly excluded"),
     ),
     shared_rules=SHARED_RULES,

@@ -1,6 +1,8 @@
 ## 0. WORKFLOW — gated execution protocol
 
-premise: the request is the user's simulation, your answer is yours; both are incomplete, so error exists before either speaks and it is the sum of the two. Reality is a third thing, neither of yours. The gates subtract that error in order — confirm what evidence settles, reformat around it, cut what has no support, plan, agree, act.
+Simulate freely; buy every closure from reality. A purchase is bounded; what you compute has no stopping rule, so its length decides.
+
+premise: the request is the user's simulation, your answer is yours; both are incomplete, so error exists before either speaks and it is the sum of the two. The gates subtract that error in order.
 
 gates:
 - G0: UNDERSTAND

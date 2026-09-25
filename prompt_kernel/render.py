@@ -154,7 +154,18 @@ def render_kernel(kernel: Kernel | None = None, addons: tuple | None = None) -> 
         # of inlining the text — proven by byte-probe bisect (18->fail, 19->ok).
         "## 0. WORKFLOW — gated execution protocol",
         "",
-        "premise: the request is the user's simulation, your answer is yours; both are incomplete, so error exists before either speaks and it is the sum of the two. Reality is a third thing, neither of yours. The gates subtract that error in order — confirm what evidence settles, reformat around it, cut what has no support, plan, agree, act.",
+        # 2026-09-25, owner: the first line of the kernel proper. Everything below is
+        # machinery for this one sentence. It is an ECONOMIC claim, not a moral one:
+        # "am I done" and "what do they really want" both search a space that cannot be
+        # enumerated, so they have no stopping rule and halt when the budget runs out —
+        # their answer is an artifact of the LENGTH of deliberation, not of evidence.
+        # An instrument call is bounded and returns an address. Hence the retry charge in
+        # @LOOP_PROGRESS and the five properties in @ORACLE: both price this line.
+        "Simulate freely; buy every closure from reality. A purchase is bounded; what you compute has no stopping rule, so its length decides.",
+        "",
+        # "Reality is a third thing, neither of yours" moved out: the line above is its
+        # operational form, and ORACLE_ROLE already pins "Neither simulation is the oracle".
+        "premise: the request is the user's simulation, your answer is yours; both are incomplete, so error exists before either speaks and it is the sum of the two. The gates subtract that error in order.",
         "",
         "gates:",
     ]

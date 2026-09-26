@@ -1,4 +1,5 @@
 .node-test
 .node-benchmark
+.artifacts
 ffi-fast-path-paired.json
 src/zig/

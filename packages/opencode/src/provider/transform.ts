@@ -541,6 +541,13 @@ export function systemPromptPrefix(model: Provider.Model) {
 
 const WIDELY_SUPPORTED_EFFORTS = ["low", "medium", "high"]
 const OPENAI_EFFORTS = ["none", "minimal", ...WIDELY_SUPPORTED_EFFORTS, "xhigh"]
+/** The effort vocabulary OpenRouter ITSELF names when it rejects an unknown value — wire-probed
+ *  2026-09-26 on `stealth/space-bunny-alpha`: `reasoning.effort: Invalid option: expected one of
+ *  "max"|"xhigh"|"high"|"medium"|"low"|"minimal"|"none"`, and `ultra` answered 400. So this is a
+ *  FILTER, not a menu: a value outside it is a hard 400 on the next request, never a field the
+ *  gateway drops quietly. (`reasoning_tokens` came back 0 for every accepted arm on that model, so
+ *  the 400 is the only trustworthy signal about what the gateway validates.) */
+const OPENROUTER_EFFORTS = [...OPENAI_EFFORTS, "max"]
 
 /** Retired DeepSeek aliases: not thinking-toggle models — excluded from every path below. */
 const DEEPSEEK_RETIRED_ALIASES = ["deepseek-chat", "deepseek-reasoner", "deepseek-r1", "deepseek-v3"]
@@ -696,9 +703,28 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
       if (!isDeepSeekThinkingId(model.api.id)) return {}
       return deepSeekThinkingVariants(model, (effort) => ({ thinking: { type: "enabled" }, reasoningEffort: effort }))
 
-    case "@openrouter/ai-sdk-provider":
-      if (!model.id.includes("gpt") && !model.id.includes("gemini-3") && !model.id.includes("claude")) return {}
-      return Object.fromEntries(OPENAI_EFFORTS.map((effort) => [effort, { reasoning: { effort } }]))
+    case "@openrouter/ai-sdk-provider": {
+      // Read the effort set the GATEWAY DECLARED for this model — never the model's name.
+      //
+      // The old predicate was a whitelist of substrings (`gpt` | `gemini-3` | `claude`), so every
+      // other reasoning model got `{}` and therefore no variant control at all: 204 of the 326
+      // OpenRouter models that declare reasoning. Measured 2026-09-26
+      // (experiments/2026-09-26_openrouter-reasoning-probe/): `stealth/space-bunny-alpha`
+      // declares `max|xhigh|high|medium|low` and rendered no `±` and no ctrl+t.
+      //
+      // The declaration is not taken on trust, and the two are independent ends:
+      //   - `mapOpenRouterModel` (provider-sync.ts:222) COPIES `reasoning.supported_efforts`
+      //     from the API; probe-catalog-source.mjs measured `agree: YES` against the committed
+      //     catalog on five models, so the stored list is the gateway's own, per model;
+      //   - the list is then intersected with the vocabulary the gateway demonstrably accepts
+      //     (OPENROUTER_EFFORTS), because a value it does not know is a 400 mid-session.
+      // A model that declares nothing keeps the previous full set rather than an empty menu:
+      // silence reads as «this model has no reasoning knob», which was the reported symptom.
+      const declared = model.reasoning_options?.find((option) => option.type === "effort")?.values ?? []
+      const known = declared.filter((effort): effort is string => OPENROUTER_EFFORTS.includes(effort))
+      const efforts = known.length > 0 ? known : OPENAI_EFFORTS
+      return Object.fromEntries(efforts.map((effort) => [effort, { reasoning: { effort } }]))
+    }
 
     case "@ai-sdk/gateway":
       if (model.id.includes("anthropic")) {

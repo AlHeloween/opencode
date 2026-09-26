@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test"
+import fs from "fs"
+import path from "path"
 import { createOpenAI } from "@ai-sdk/openai"
 import { createAzure } from "@ai-sdk/azure"
 import { generateText } from "ai"
@@ -2789,8 +2791,8 @@ describe("ProviderTransform.variants", () => {
   })
 
   describe("@openrouter/ai-sdk-provider", () => {
-    test("returns empty object for non-qualifying models", () => {
-      const model = createMockModel({
+    const openrouterModel = (overrides: Record<string, unknown> = {}) =>
+      createMockModel({
         id: "openrouter/test-model",
         providerID: "openrouter",
         api: {
@@ -2798,9 +2800,88 @@ describe("ProviderTransform.variants", () => {
           url: "https://openrouter.ai",
           npm: "@openrouter/ai-sdk-provider",
         },
+        ...overrides,
+      })
+
+    test("a model that declares NO efforts keeps the full set — silence is not an empty menu", () => {
+      // Was «returns empty object for non-qualifying models», and it encoded the defect itself:
+      // the predicate was a whitelist of NAME substrings, so 204 of the 326 reasoning models
+      // OpenRouter publishes (measured 2026-09-26) had no control at all. A model that says
+      // nothing about efforts is still served by a gateway that normalises them, so the menu is
+      // the full set — the previous behaviour for the models that DID get one.
+      const result = ProviderTransform.variants(openrouterModel())
+      expect(Object.keys(result)).toEqual(["none", "minimal", "low", "medium", "high", "xhigh"])
+    })
+
+    test("the DECLARED effort set is used — the model's name is not a criterion", () => {
+      // Verbatim from GET /api/v1/models for this model (probe-catalog-source.mjs, 2026-09-26);
+      // `mandatory: true` is why `none` is absent — the gateway answers 400 for it here.
+      const model = openrouterModel({
+        id: "openrouter/stealth/space-bunny-alpha",
+        api: {
+          id: "stealth/space-bunny-alpha",
+          url: "https://openrouter.ai",
+          npm: "@openrouter/ai-sdk-provider",
+        },
+        reasoning_options: [{ type: "effort", values: ["max", "xhigh", "high", "medium", "low"] }],
       })
       const result = ProviderTransform.variants(model)
-      expect(result).toEqual({})
+      expect(Object.keys(result)).toEqual(["max", "xhigh", "high", "medium", "low"])
+      expect(result.max).toEqual({ reasoning: { effort: "max" } })
+      // `max` is the reason this model was invisible: OPENAI_EFFORTS has no `max` at all.
+      expect(result).not.toHaveProperty("none")
+    })
+
+    test("a declared effort the gateway would reject is DROPPED, not offered", () => {
+      // The gateway names its vocabulary when it 400s (wire-probed: `expected one of
+      // "max"|"xhigh"|"high"|"medium"|"low"|"minimal"|"none"`). Offering `ultra` would fail the
+      // NEXT request, at the user's expense and with no link to this menu.
+      const model = openrouterModel({
+        id: "openrouter/some-new-model",
+        reasoning_options: [{ type: "effort", values: ["ultra", "low", "high"] }],
+      })
+      const result = ProviderTransform.variants(model)
+      expect(Object.keys(result)).toEqual(["low", "high"])
+    })
+
+    test("a declared set that filters down to nothing falls back rather than muting the model", () => {
+      const model = openrouterModel({
+        id: "openrouter/unknown-effort-model",
+        reasoning_options: [{ type: "effort", values: ["ultra", "turbo"] }],
+      })
+      expect(Object.keys(ProviderTransform.variants(model))).toEqual([
+        "none",
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+      ])
+    })
+
+    test("the COMMITTED CATALOG drives the menu — a real entry, not a fixture", () => {
+      // The fixture above can agree with the code while the shipped data disagrees with both.
+      // This reads `src/provider/models/openrouter.json` — the file the build actually wrote from
+      // `reasoning.supported_efforts` (provider-sync.ts:222) — so a break on EITHER end is visible:
+      // revert the name whitelist and this fails on the code end; a bad sync fails on the data end.
+      const catalog = JSON.parse(
+        fs.readFileSync(path.join(import.meta.dir, "../../src/provider/models/openrouter.json"), "utf8"),
+      )
+      const entry = catalog.models["stealth/space-bunny-alpha"]
+      expect(entry).toBeDefined()
+      expect(entry.reasoning).toBe(true)
+      // Verbatim from GET /api/v1/models on 2026-09-26, including the absence of `none`
+      // (this model is `mandatory: true`, and the gateway answers 400 for `none`).
+      expect(entry.reasoning_options[0].values).toEqual(["max", "xhigh", "high", "medium", "low"])
+
+      const model = openrouterModel({
+        id: `openrouter/${entry.id}`,
+        capabilities: { reasoning: entry.reasoning },
+        reasoning_options: entry.reasoning_options,
+      })
+      // The menu IS the declared list — written as a relation, so a future sync that changes the
+      // model does not turn this into a stale constant.
+      expect(Object.keys(ProviderTransform.variants(model))).toEqual(entry.reasoning_options[0].values)
     })
 
     test("gpt models return OPENAI_EFFORTS with reasoning", () => {

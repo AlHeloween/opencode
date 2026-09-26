@@ -367,6 +367,24 @@ export function getSessionSettingsPath(sessionID: string): string {
 export async function loadSessionSettings(sessionID: string): Promise<SessionSettings | null> {
   const filePath = getSessionSettingsPath(sessionID)
   try {
+    // A READ must never overtake a local WRITE for the same file. The write is queued
+    // (`pendingWrites`, :477-486) and fire-and-forget at its call site, so a refresh triggered
+    // right after a pick used to read the PREVIOUS contents — the fresh in-memory state was then
+    // clobbered back to the old model (`refreshSessionSettings`, local.tsx:233) and the stale
+    // state was persisted over the pick. Measured live 2026-09-26 on 10.0.1123: a `/agents`
+    // session-tab pick left `build_mode: opencode/big-pickle` in `sessions/ses_….jsonc` while the
+    // worktree layer moved to the picked model — «выбрал модель, а она не применилась».
+    // Awaiting the queue restores read-after-write order; a failed write is already logged at the
+    // save site, so it is logged here too and the load still tries the file.
+    const pending = pendingWrites.get(filePath)
+    if (pending) {
+      await pending.catch((error) =>
+        Log.Default.warn("bug: session settings save failed before a load", {
+          sessionID,
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      )
+    }
     const exists = await Filesystem.exists(filePath)
     if (!exists) return null
 

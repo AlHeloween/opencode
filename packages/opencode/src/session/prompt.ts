@@ -981,7 +981,19 @@ export const layer = Layer.effect(
       const sessionWorkspaceModel = resolvedFromSettings
         ? { providerID: ProviderID.make(resolvedFromSettings.providerID), modelID: ModelID.make(resolvedFromSettings.modelID) }
         : undefined
-      const model = input.model ?? sessionWorkspaceModel ?? ag.model ?? (yield* lastModel(input.sessionID))
+      // The session layer is the ONLY source a prompt should need (owner spec, 2026-09-26:
+      // «Все параметры для работы берутся только из session и она должна обязательно быть») —
+      // the TUI always sends it. Falling through to the agent declaration or the last message
+      // means the session file was never filled: record it instead of guessing silently.
+      const fromSession = input.model ?? sessionWorkspaceModel
+      if (!fromSession) {
+        log.warn("bug: prompt model fell through the session layer", {
+          sessionID: input.sessionID,
+          agent: ag.name,
+          used: ag.model ? "agent-declaration" : "last-message/default",
+        })
+      }
+      const model = fromSession ?? ag.model ?? (yield* lastModel(input.sessionID))
       const same = ag.model && model.providerID === ag.model.providerID && model.modelID === ag.model.modelID
       const full =
         !input.variant && ag.variant && same

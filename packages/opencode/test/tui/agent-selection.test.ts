@@ -1,7 +1,7 @@
-import { expect, test } from "bun:test"
-import { canActivateAgent, shouldActivateAgent, shouldUpdateSessionModelOnPick } from "../../src/cli/cmd/tui/util/agent"
+import { describe, expect, test } from "bun:test"
+import { canActivateAgent, readLayer, shouldActivateAgent, shouldUpdateSessionModelOnPick } from "../../src/cli/cmd/tui/util/agent"
 import { activeSessionID } from "../../src/cli/cmd/tui/context/local"
-import { availableScopes, coerceScope, readScope } from "../../src/cli/cmd/tui/component/config-scope"
+import { availableScopes, coerceScope, phaseScope, readScope } from "../../src/cli/cmd/tui/component/config-scope"
 import { sessionAgentModel, setSessionAgentModel, setWorkspaceAgentModel, workspaceAgentModel } from "../../src/session/session-settings"
 import { fillSessionAgents } from "../../src/session/fill-layers"
 
@@ -24,14 +24,17 @@ test("configuring another agent's model from /agents does not move the active ag
   expect(shouldActivateAgent("explorer_agent", undefined, agents)).toBe(false)
 })
 
-test("worktree model pick updates the open session for the active agent", () => {
-  const picked = { providerID: "openai", modelID: "gpt-5.6-sol" }
-  const before = { agent: { build_mode: { model: "deepseek/deepseek-flash" } } }
-  expect(shouldUpdateSessionModelOnPick("worktree", "build_mode", "build_mode", true)).toBe(true)
-  const after = setSessionAgentModel(before, "build_mode", `${picked.providerID}/${picked.modelID}`, undefined)
-  expect(sessionAgentModel("build_mode", after)).toEqual(picked)
-  expect(shouldUpdateSessionModelOnPick("worktree", "plan_mode", "build_mode", true)).toBe(false)
-  expect(shouldUpdateSessionModelOnPick("worktree", "build_mode", "build_mode", false)).toBe(false)
+test("a worktree pick updates the open session for ANY agent — the session never stays stale", () => {
+  const picked = { providerID: "deepseek", modelID: "deepseek-v4-pro" }
+  const before = { agent: { general_agent: { model: "opencode/big-pickle" } } }
+  // Owner, 2026-09-26: «я выбрал deepseek в worktree — а стоит бигпикл».
+  expect(shouldUpdateSessionModelOnPick("worktree", true)).toBe(true)
+  const after = setSessionAgentModel(before, "general_agent", `${picked.providerID}/${picked.modelID}`, undefined)
+  expect(sessionAgentModel("general_agent", after)).toEqual(picked)
+  // Session scope also lands in the layer; global stays a config write; no session → no write.
+  expect(shouldUpdateSessionModelOnPick("session", true)).toBe(true)
+  expect(shouldUpdateSessionModelOnPick("global", true)).toBe(false)
+  expect(shouldUpdateSessionModelOnPick("worktree", false)).toBe(false)
 })
 
 test("TUI session settings follow the open session instead of its newest child", () => {
@@ -39,6 +42,19 @@ test("TUI session settings follow the open session instead of its newest child",
 
   expect(activeSessionID({ type: "session", sessionID: "parent" }, sessions)).toBe("parent")
   expect(activeSessionID({ type: "home" }, sessions)).toBe("child")
+})
+
+/**
+ * Owner, 2026-09-26, live on 10.0.1124: the prompt read «Build · DeepSeek V4.1 Flash · max»
+ * while `/agents` (phase = worktree) showed «Big Pickle» — the first screen was answering with a
+ * NEIGHBOUR session's layer because `forAgent` used `getActiveSessionID()`, and on `home` that
+ * resolver returns the newest session (`:54-57`) for WRITE bookkeeping. The read predicate is the
+ * route alone: with no session OPEN the worktree governs — exactly what a session created from
+ * here is filled from — so the first screen and the dialog name the same layer.
+ */
+test("the first screen reads the WORKTREE layer — a neighbour session must not answer for it", () => {
+  expect(readLayer("home")).toBe("worktree")
+  expect(readLayer("session")).toBe("session")
 })
 
 /**
@@ -84,5 +100,31 @@ test("a pick reaches the worktree, and a NEW session is filled from it — per a
   expect(next.unresolved).toEqual([])
   expect(next.settings.agent?.build_mode?.model).toBe("openai/gpt-5.6-sol")
   expect(next.settings.agent?.plan_mode?.model).toBe("deepseek/deepseek-flash")
+})
+
+describe("phase scope — the layer /agents opens on", () => {
+  test("global until the worktree layer is materialised", () => {
+    expect(phaseScope({ globalFilled: false, worktreeFilled: false, hasSession: false, sessionFilled: false })).toBe(
+      "global",
+    )
+    expect(phaseScope({ globalFilled: true, worktreeFilled: false, hasSession: true, sessionFilled: true })).toBe(
+      "global",
+    )
+  })
+
+  test("worktree for a new session whose session layer is still empty", () => {
+    expect(phaseScope({ globalFilled: true, worktreeFilled: true, hasSession: false, sessionFilled: false })).toBe(
+      "worktree",
+    )
+    expect(phaseScope({ globalFilled: true, worktreeFilled: true, hasSession: true, sessionFilled: false })).toBe(
+      "worktree",
+    )
+  })
+
+  test("session when every layer is populated", () => {
+    expect(phaseScope({ globalFilled: true, worktreeFilled: true, hasSession: true, sessionFilled: true })).toBe(
+      "session",
+    )
+  })
 })
 

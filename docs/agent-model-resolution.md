@@ -19,7 +19,117 @@ The one invariant the whole graph exists to serve (owner, 2026-09-19/20, restate
 
 ---
 
-## 0. The selection graph as it stands — 2026-09-21, after the C1/C5 fixes
+## 0. The graph as it stands — 2026-09-26: scope tabs, and the worktree→session rule
+
+Snapshot of the current tree. Diff-source vs §0-historical: `d73d87df34` (2026-09-24, «a worktree
+model pick must update the open session for the active agent») + `cb547ae6be` (fill, never resolve
+on read). The scope a user is on is a **`/agents` tab**: `Global | Worktree | Session`
+(`SCOPE_ORDER`, `config-scope.ts:19`), remembered in S3 (`kv.json: config.scope`,
+`dialog-agent.tsx:84`) and read back by every settings dialog.
+
+### 0.1 WRITE — what a model pick writes, per tab
+
+```mermaid
+flowchart TB
+    subgraph ENTRY["picks (model)"]
+        ROW["agent row → DialogModel(targetAgent=X, scope)<br/>dialog-agent.tsx:231-236"]
+        REC["recents row — agent = ACTIVE<br/>dialog-agent.tsx:141-144"]
+        MOD["/models, no targetAgent → agent = ACTIVE<br/>dialog-model.tsx:256-257"]
+        REST["session restore: local.model.set(msg.model)<br/>WITHOUT options — prompt/index.tsx:250-253"]
+    end
+    SET["local.model.set(model, {recent, agent, scope})<br/>local.tsx:1070-1176"]
+    GATE{{"isModelValid — local.tsx:1111-1118<br/>absent from S5a → toast, NOTHING written"}}
+    UPD{{"shouldUpdateSessionModelOnPick — util/agent.ts:23-31<br/>!sid / global → no · session → yes · worktree → X == ACTIVE"}}
+    S0[("S0 bin/opencode.jsonc<br/>agent.X.model")]
+    S1[("S1 state/model.json<br/>workspaceAgent.default.X")]
+    S2[("S2 sessions/SID.jsonc<br/>agent.X.model")]
+    S3[("S3 kv.json — config.scope")]
+
+    S3 -. "current tab names the scope" .-> SET
+    ROW --> SET
+    REC --> SET
+    MOD --> SET
+    REST -. "non-write: validates + saveAll() only" .-> GATE
+    SET --> GATE
+    GATE -->|"scope=global → writeGlobalAgentField"| S0
+    GATE -->|"options.agent set → ALWAYS (:1121-1137)"| S1
+    GATE --> UPD
+    UPD -->|"yes (:1141-1145)"| S2
+```
+
+### 0.2 The write matrix, per tab
+
+| tab (scope) | target | session open | S1 worktree | S2 session | S0 global |
+|---|---|---|---|---|---|
+| **Worktree** | active | yes | ✓ | ✓ (persisted) | — |
+| **Worktree** | other agent | yes | ✓ | **✗** (by design — `:1141`) | — |
+| **Worktree** | any | no | ✓ | ✗ (no sid) | — |
+| **Session** | any | yes | ✓ | ✓ | — |
+| **Session** | — | no | tab unavailable — `availableScopes(false)` drops it, `coerceScope` → worktree | | |
+| **Global** | any | — | ✗ | ✗ | ✓ (server writer + confirm dialog, `:1074-1108`, `dialog-model.tsx:237-252`) |
+
+Persistence per branch: `scope=session` → `saveSessionSettings + save` (`:1157-1165`);
+`scope=worktree` → `save()` + conditional `saveSessionSettings` (`:1166-1173`); `global` → server.
+
+### 0.3 READ — what each surface answers with
+
+```mermaid
+flowchart TB
+    STATUS["status line — prompt/index.tsx:1417"] --> CUR["local.model.parsed() → currentModel<br/>local.tsx:425-428"] --> FA["forAgent(active) — local.tsx:447-466"]
+    FA -->|"session open (:465) — S2 ONLY, raw, no validity gate"| S2[("S2 agent.ACTIVE.model")]
+    FA -->|"no session (:459-463)"| S1[("S1 workspaceAgent.default.ACTIVE")]
+    ROW["/agents row — dialog-agent.tsx:165-166"] --> LV["layerView(name, tab-scope) — local.tsx:690<br/>raw; renders the layer the tab names"] --> S2
+    LV --> S1
+    LV --> S4[("S4 agent registry ← S0")]
+    FOOT["message footer — routes/session/index.tsx:2018"] --> MSG["the message record (server prompt.ts:1289)"]
+    SRV["server: input.model ?? resolveAgentModel(S2→S1) ?? ag.model(S4/S0) ?? lastModel<br/>GATE: syntax only"]
+```
+
+### 0.4 Session restore — what decides the model a restored session shows
+
+`prompt/index.tsx:235-257`, on every session switch (and restore):
+
+- `local.agent.set(msg.agent)` (`:250`) — the ACTIVE agent becomes the agent of the LAST USER message;
+- `local.model.set(msg.model)` (`:252`) — the same `set` WITHOUT `options`: it validates and
+  `saveAll()`s, but writes NO layer (`options.agent` is absent → the `:1121` block is skipped).
+  It does not re-select the model;
+- `local.model.variant.set(msg.model.variant)` (`:253`) — variant maps only.
+
+So a restored session shows **S2[last-message-agent]** — nothing else. «Restore always lands on
+model M» means: that session's file holds M for the agent that last spoke there.
+
+### 0.5 Case «в worktree выбрался, а в session нет» — line by line
+
+1. A pick on the **Worktree** tab writes S1 ALWAYS (`:1121-1137`) — that is why worktree "took" it.
+2. It writes S2 only when `shouldUpdateSessionModelOnPick` says yes: for `worktree` that means
+   **X == the ACTIVE agent** (`util/agent.ts:30`). A pick for another agent, or with no session
+   open, leaves S2 alone (`:1141-1145`).
+3. Restore reads S2 only (`:465`). A session whose file was not updated keeps its old model — the
+   DeepSeek v4 Pro observed in this install comes from those session files, not from a global
+   default.
+4. The tab that DOES write S2 for any agent is **Session** (`scope !== "worktree"` → yes).
+   Worktree is "memory for the NEXT session"; the open session is reached only through the
+   active-agent rule.
+
+Consequence (revised 2026-09-26, T3): a worktree pick reaches the OPEN session for ANY agent —
+`shouldUpdateSessionModelOnPick` is `hasSession && scope !== "global"` — so the session layer never
+stays stale after a pick; the ACTIVE agent is still not moved by the write. Sessions that were never
+open while the pick happened keep their own values (they are filled at creation); a pick with no OPEN
+session lands in the worktree only.
+
+### 0.6 Phase rule and the open-session predicate — 2026-09-26
+
+`phaseScope` (`config-scope.ts`) names the layer a settings dialog opens on: `global` until the
+worktree layer is materialised, `worktree` until the session layer is populated, `session` after.
+«Session open» means `route.data.type === "session"` — `home` is NOT one, although
+`activeSessionID()` resolves the newest session for the settings surfaces; that resolution is what
+let `/agents` offer a NEIGHBOUR session's values as editable (removed from every dialog 2026-09-26).
+With no open session the dialog says «No session yet — edits land in the <layer> layer; the next
+session is filled from it».
+
+---
+
+## 0-historical. The selection graph as it stands — 2026-09-21, after the C1/C5 fixes (not a snapshot of the current code)
 
 Two diagrams, split by direction. Boxes are surfaces and files; labels on edges are the **gates** —
 the only places the flow can change or die. Store ids match §1.

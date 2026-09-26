@@ -1,7 +1,7 @@
 import { createMemo, createSignal, For, onMount, Show } from "solid-js"
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import type { ScrollBoxRenderable } from "@opentui/core"
-import { activeSessionID, useLocal, type ModelScope } from "@tui/context/local"
+import { useLocal, type ModelScope } from "@tui/context/local"
 import { useKV } from "@tui/context/kv"
 import { useRoute } from "@tui/context/route"
 import { availableScopes, coerceScope, readScope, SCOPE_KV_KEY } from "./config-scope"
@@ -296,7 +296,7 @@ export function DialogRouting(props: {
   // than the layer the user last selected.
   const scope = props.scope ?? coerceScope(
     readScope(useKV().get(SCOPE_KV_KEY)),
-    availableScopes(Boolean(activeSessionID(useRoute().data, useSync().data.session))),
+    availableScopes(useRoute().data.type === "session"),
   )
   const layerLabel = scope === "global" ? "GLOBAL" : scope === "worktree" ? "WORKTREE" : "SESSION"
   const saveLabel = createMemo(() => `Save to ${layerLabel} config`)

@@ -1,5 +1,5 @@
 import { createMemo, createSignal } from "solid-js"
-import { activeSessionID, useLocal, type ModelScope } from "@tui/context/local"
+import { useLocal, type ModelScope } from "@tui/context/local"
 import { useRoute } from "@tui/context/route"
 import { useSync } from "@tui/context/sync"
 import { DialogSelect } from "@tui/ui/dialog-select"
@@ -34,7 +34,9 @@ export function DialogVariant(props: {
   const kv = useKV()
   // Coerced, not raw — same rule as dialog-model.tsx and dialog-agent.tsx:46-48. A bare open
   // (app.tsx) must not fall into a layer that cannot hold the value.
-  const scopes = createMemo(() => availableScopes(Boolean(activeSessionID(route.data, sync.data.session))))
+  // The session layer needs an OPEN session — `home` is not one (owner, 2026-09-26: the newest
+  // neighbour session must not surface here as editable).
+  const scopes = createMemo(() => availableScopes(route.data.type === "session"))
   const scope = createMemo(() => props.scope ?? coerceScope(readScope(kv.get(SCOPE_KV_KEY)), scopes()))
   const staged = createMemo(() => scope() === "global" && props.targetAgent !== undefined)
   const [selected, setSelected] = createSignal<string | undefined>(

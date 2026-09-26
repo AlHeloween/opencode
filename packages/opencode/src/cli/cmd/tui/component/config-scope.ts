@@ -87,6 +87,31 @@ export function availableScopes(sessionAvailable: boolean): readonly ConfigScope
 }
 
 /**
+ * The layer `/agents` opens on, chosen by PHASE (owner spec, 2026-09-26): every layer is filled
+ * at creation time, so the phase names the layer the user should be editing:
+ *
+ *   1. global — no declarations yet, or the worktree layer is not materialised; the worktree is
+ *      copied FROM global, so global is the source to edit.
+ *   2. worktree — the worktree holds values, but the session layer is not populated (new session);
+ *      the session is filled FROM the worktree.
+ *   3. session — everything is filled; an existing session edits its own layer.
+ *
+ * A manual switch inside the dialog still wins for that dialog (props.scope); this only decides
+ * where a freshly opened /agents starts.
+ */
+export function phaseScope(input: {
+  globalFilled: boolean
+  worktreeFilled: boolean
+  hasSession: boolean
+  sessionFilled: boolean
+}): ConfigScope {
+  if (!input.globalFilled) return "global"
+  if (!input.worktreeFilled) return "global"
+  if (!input.hasSession || !input.sessionFilled) return "worktree"
+  return "session"
+}
+
+/**
  * Footer text for a layer that holds no value of its own. Names the layer the
  * value actually comes from instead of the previous bare "not set in session",
  * which left the inheritance invisible.

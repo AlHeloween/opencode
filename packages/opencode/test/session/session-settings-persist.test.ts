@@ -398,6 +398,30 @@ describe("saveSessionSettings: concurrency", () => {
     })
   })
 
+  /**
+   * Owner, 2026-09-26, live on 10.0.1123: a `/agents` session-tab pick left
+   * `build_mode: opencode/big-pickle` in the session file while the worktree layer moved to the
+   * picked model — the pick saved fire-and-forget, the fill effect fired a refresh in the same
+   * tick, and that refresh READ THE PREVIOUS FILE, clobbering the fresh in-memory state back to
+   * the old model (which a later write then persisted). A queued save must be observable to the
+   * very next load — the read may never overtake the write queue.
+   */
+  test("a load cannot overtake a queued save — a refresh reads the pick, not the previous contents", async () => {
+    await using tmp = await tmpdir()
+    await withDataDir(tmp, async () => {
+      await saveSessionSettings("ses_race", { agent: { build_mode: { model: "opencode/big-pickle" } } })
+      // Queue the pick's writes WITHOUT awaiting them, mirroring `local.model.set` (fire-and-forget).
+      const pending: Promise<void>[] = []
+      for (let i = 1; i <= 30; i++) {
+        pending.push(saveSessionSettings("ses_race", { agent: { build_mode: { model: `opencode/pick-${i}` } } }))
+      }
+      // The load must observe the LAST queued write, never an earlier state of the file.
+      const loaded = await loadSessionSettings("ses_race")
+      expect(loaded!.agent!["build_mode"]!.model).toBe("opencode/pick-30")
+      await Promise.all(pending)
+    })
+  })
+
   test("save failure in previous write does not block next save", async () => {
     await using tmp = await tmpdir()
     await withDataDir(tmp, async () => {

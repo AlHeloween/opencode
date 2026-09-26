@@ -1,5 +1,5 @@
 import { createMemo, createSignal, onMount } from "solid-js"
-import { activeSessionID, useLocal, type ModelScope } from "@tui/context/local"
+import { useLocal, type ModelScope } from "@tui/context/local"
 import { useKV } from "@tui/context/kv"
 import { useRoute } from "@tui/context/route"
 import { availableScopes, coerceScope, cycleScope as nextScope, inheritLabel, parentScope, readScope, SCOPE_KV_KEY } from "./config-scope"
@@ -38,14 +38,18 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
   // app.tsx opens <DialogAgent /> bare, so a hardcoded default reset the choice
   // on every open (2026-09-16, Alexander: "постоянно приходится выбирать").
   const kv = useKV()
-  // Which layers this form may write to. The session layer needs an open session; without one the
-  // pick landed nowhere while the title still said "session" (owner, 2026-09-21: «в session
-  // настройках модель больше не выбирается … потому что сессии нету … раз worktree значит она
-  // должна быть активной чтобы не было путаницы»). The coerced layer is written back to the
-  // shared KV below, so /agents and the settings surfaces name the SAME place.
-  const scopes = createMemo(() => availableScopes(Boolean(activeSessionID(route.data, sync.data.session))))
+  // Which layers this form may write to. The session layer needs an OPEN session — `home` is not
+  // one (the settings surfaces resolve the newest session there, but its values are not editable
+  // from here and would silently hold a neighbour's session; owner, 2026-09-26: «подхватывает
+  // соседнюю сессию, параметры которой нельзя менять… конфликт»).
+  const scopes = createMemo(() => availableScopes(route.data.type === "session"))
   const stored = readScope(kv.get(SCOPE_KV_KEY))
-  const scope = props.scope ?? coerceScope(stored, scopes())
+  // Opened layer follows the PHASE (owner spec, 2026-09-26): global → worktree → session.
+  const scope = props.scope ?? coerceScope(local.model.phaseScope(), scopes())
+  // No OPEN session: this dialog edits the layer a NEW session will be filled from, and says so —
+  // the old behaviour resolved the newest neighbour session and offered its values as editable
+  // (owner, 2026-09-26: «подхватывает соседнюю сессию… конфликт», «хотя бы какая-то пометка»).
+  const noSession = route.data.type !== "session"
 
   // Track the HIGHLIGHTED row so scope switches preserve the cursor even on a
   // fresh /agents open (restoreValue is undefined until the user clicks a row).
@@ -257,7 +261,11 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
       // идёт наложение»). The earlier round moved the details INTO the rows because the hint then
       // said «Enter — choose this agent's model · edits target the session layer» — a keybind the
       // keybind footer already lists and a scope the title already prints, i.e. nothing.
-      hint={(option: any) => option?.hint}
+      hint={(option: any) =>
+        noSession
+          ? `No session yet — edits land in the ${scope} layer; the next session is filled from it${option?.hint ? ` · ${option.hint}` : ""}`
+          : option?.hint
+      }
       onMove={(opt: any) => setLastCursor(opt?.value)}
       keybind={[
         {

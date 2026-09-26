@@ -1,5 +1,5 @@
 import { createMemo, createSignal, onMount } from "solid-js"
-import { activeSessionID, useLocal, type ModelScope } from "@tui/context/local"
+import { useLocal, type ModelScope } from "@tui/context/local"
 import { useRoute } from "@tui/context/route"
 import { capabilityGlyphs, compactCostLabel, isFreeModel } from "./model-cost"
 import { useSync } from "@tui/context/sync"
@@ -15,8 +15,7 @@ import { Keybind } from "@/util/keybind"
 import * as fuzzysort from "fuzzysort"
 import { useConnected } from "./use-connected"
 import { shouldActivateAgent } from "../util/agent"
-import { useKV } from "@tui/context/kv"
-import { availableScopes, coerceScope, readScope, SCOPE_KV_KEY } from "./config-scope"
+import { availableScopes, coerceScope } from "./config-scope"
 
 export function DialogModel(props: {
   providerID?: string
@@ -30,21 +29,15 @@ export function DialogModel(props: {
   const keybind = useKeybind()
   const route = useRoute()
   const [query, setQuery] = createSignal("")
-  // Openers that pass no scope (the /models path through DialogProvider) used
-  // to reach local.model.set with scope undefined, which is the legacy
-  // dual-write branch: session AND worktree, ignoring the layer the user
-  // selected in /agents. Fall back to the shared scope instead.
-  const kv = useKV()
-  // COERCE, do not read raw: the persisted scope is shared with /agents, and a pick is
-  // only meaningful if the layer it names can actually hold the value. Reading it raw let
-  // a stale "session" (kv.json) send a `/models` pick into the session file alone, leaving
-  // the worktree layer — the one a NEW session is filled from — holding the previous model.
-  // The user picked one model and the next session started on another; this is that bug
-  // (owner, 2026-09-21). Resolution mirrors dialog-agent.tsx:46-48 exactly, so both screens
-  // name the same layer.
-  const scopes = createMemo(() => availableScopes(Boolean(activeSessionID(route.data, sync.data.session))))
-  const stored = readScope(kv.get(SCOPE_KV_KEY))
-  const scope = createMemo(() => props.scope ?? coerceScope(stored, scopes()))
+  // Openers that pass no scope (the /models path through DialogProvider) fall back to the
+  // layer PHASE (owner spec, 2026-09-26): global → worktree → session. A manual switch in
+  // an open dialog still wins via props.scope. COERCION stays: a phase naming a layer this
+  // dialog cannot write falls to its nearest parent, so /models and /agents name the same
+  // layer (the 2026-09-21 stale-kv bug this replaces).
+  // The session layer needs an OPEN session — `home` is not one (owner, 2026-09-26: /agents and
+  // /models used to resolve the newest neighbour session and offer its values as editable).
+  const scopes = createMemo(() => availableScopes(route.data.type === "session"))
+  const scope = createMemo(() => props.scope ?? coerceScope(local.model.phaseScope(), scopes()))
 
   const connected = useConnected()
   const providers = createDialogProviderOptions()

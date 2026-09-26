@@ -1,6 +1,7 @@
 import { createStore } from "solid-js/store"
 import { withoutKeys, type PruneTarget } from "@tui/component/model-state-prune"
 import { planCopyFromParent, type LayerValue, type Layers } from "@tui/component/layer-inherit"
+import { phaseScope as phaseScopeFor } from "@tui/component/config-scope"
 import { createSimpleContext } from "./helper"
 import { batch, createEffect, createMemo, createSignal } from "solid-js"
 import { useSync } from "@tui/context/sync"
@@ -33,7 +34,8 @@ import {
 } from "@/session/session-settings"
 import { canonicalIdentity } from "@/session/mode-identity"
 import { fillSessionAgents, fillWorkspaceAgents, parseModelKey } from "@/session/fill-layers"
-import { shouldUpdateSessionModelOnPick } from "../util/agent"
+import { readLayer, shouldUpdateSessionModelOnPick } from "../util/agent"
+import { pickFreeVisionModel, FAIL_PROTECTION_MODEL_ID } from "@/provider/free-default"
 import { DEFAULT_MODEL_SAMPLING, modelSampling, modelSamplingKey, type ModelSampling } from "@/session/model-sampling"
 
 
@@ -411,6 +413,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       createEffect(() => {
         if (sync.data.agent.length === 0) return
         if (!modelStore.ready) return
+        void seedGlobalLayer()
         fillWorktreeLayer()
         void refreshSessionSettings()
       })
@@ -456,7 +459,14 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         // The LAYER is chosen ONCE, by ONE predicate, and then read. This is not the deleted per-link
         // walk: nothing is re-checked per agent and no validity filter decides an upper layer; with a
         // session open the session layer remains the only source, as before.
-        if (!getActiveSessionID()) {
+        //
+        // The predicate is the ROUTE, not the resolved session id: `activeSessionID` returns the
+        // newest session on `home` for WRITE bookkeeping (`saveAll`, settings persistence), and
+        // reusing that resolution here made the first screen read a NEIGHBOUR session's layer —
+        // measured live 2026-09-26 on 10.0.1124: the prompt read «Build · DeepSeek V4.1 Flash ·
+        // max» while /agents (phase = worktree) showed «Big Pickle» on the same screen. One
+        // predicate, shared with the dialogs' scopes (`readLayer`, util/agent.ts).
+        if (readLayer(route.data.type) === "worktree") {
           const workspace = workspaceAgentModel(name, getActiveWorkspaceID(), {
             workspaceAgent: modelStore.workspaceAgent,
           })
@@ -496,6 +506,11 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         // эмбеддинг модель только для aicall»). A model that cannot call tools is not a candidate
         // for the agent loop, and the provider's own `capabilities.toolcall` is the signal already
         // on hand — no new taxonomy invented.
+        // The recommended seed FIRST (owner spec, 2026-09-26): a FREE zen model with VISION and
+        // the largest context — before an arbitrary tool-calling model. big-pickle stays
+        // fail-protection only (the chooser returns it when nothing else qualifies).
+        const seed = pickFreeVisionModel(sync.data.provider)
+        if (seed) return { model: `${seed.providerID}/${seed.modelID}` }
         for (const provider of sync.data.provider) {
           const chat = Object.entries(provider.models ?? {}).find(([, info]) => info?.capabilities?.toolcall)
           if (chat) return { model: `${provider.id}/${chat[0]}` }
@@ -646,6 +661,45 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         })
       }
 
+      /** Seed the GLOBAL layer when it declares no agent models (owner spec, 2026-09-26): one
+       * config write puts the recommended free zen model (vision + largest context) on every
+       * agent. User-authored globals are never touched; big-pickle is fail-protection only. */
+      async function seedGlobalLayer(): Promise<boolean> {
+        const agents = agentNames()
+        if (agents.length === 0) return false
+        if (sync.data.agent.some((a) => a.model)) return false
+        const pick = pickFreeVisionModel(sync.data.provider)
+        if (!pick) {
+          Log.Default.warn("bug: no free vision model available to seed the global layer")
+          return false
+        }
+        const key = `${pick.providerID}/${pick.modelID}`
+        const failProtection = pick.modelID === FAIL_PROTECTION_MODEL_ID
+        try {
+          const response = (await sdk.client.global.config.get({ throwOnError: true })) as any
+          const config = { ...((response?.data ?? response) as Record<string, unknown>) }
+          const agentConfig = { ...((config.agent as Record<string, unknown> | undefined) ?? {}) }
+          for (const name of agents) {
+            agentConfig[name] = {
+              ...((agentConfig[name] as Record<string, unknown> | undefined) ?? {}),
+              model: key,
+            }
+          }
+          config.agent = agentConfig
+          await sdk.client.global.config.update({ config: config as never }, { throwOnError: true })
+          toast.show({
+            title: "Global config seeded",
+            message: `${key}${failProtection ? " (fail protection)" : ""} — ${agents.length} agents`,
+            variant: "info",
+            duration: 5000,
+          })
+          return true
+        } catch (e: unknown) {
+          Log.Default.warn("bug: global config seed failed", { error: e instanceof Error ? e.message : String(e) })
+          return false
+        }
+      }
+
       /** Commit the staged GLOBAL /agents model editor in one config write. */
       async function setGlobalAgentSelection(
         agentName: string,
@@ -700,6 +754,20 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         }
         const a = sync.data.agent.find((x) => x.name === name)
         return { model: a?.model ? `${a.model.providerID}/${a.model.modelID}` : undefined }
+      }
+
+      /** The layer /agents opens on, by PHASE (owner spec, 2026-09-26): global until the worktree
+       * layer is materialised, worktree until the session layer is populated, session after. */
+      function phaseScope() {
+        const globalFilled = sync.data.agent.some((a) => a.model)
+        const workspace = workspaceModelScope(getActiveWorkspaceID())
+        const worktreeFilled = Object.keys(modelStore.workspaceAgent[workspace] ?? {}).length > 0
+        // «Сессии ещё нет» — home is NOT an open session, even though `getActiveSessionID()`
+        // resolves the newest one for the settings surfaces: /agents must phase to the layer a
+        // NEW session will be filled from (owner, 2026-09-26).
+        const hasSession = route.data.type === "session"
+        const sessionFilled = Object.keys(sessionSettings()?.agent ?? {}).length > 0
+        return phaseScopeFor({ globalFilled, worktreeFilled, hasSession, sessionFilled })
       }
 
       function configuredSampling(model: { providerID: string; modelID: string }): unknown {
@@ -982,6 +1050,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       return {
         forAgent,
         layerView,
+        phaseScope,
         writeGlobalAgentField,
         setGlobalAgentSelection,
         setProviderRouting,
@@ -1119,7 +1188,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             const agentName = options?.agent ?? agent.current()?.name
             if (!agentName) return
             if (options?.agent) {
-              const sid = getActiveSessionID()
+              // Only an OPEN session owns a session layer — `home` resolves the newest neighbour,
+              // and writing its file would repeat the captured-neighbour defect (owner, 2026-09-26).
+              const hasOpenSession = route.data.type === "session"
               const workspace = workspaceModelScope(getActiveWorkspaceID())
               // The worktree ALWAYS learns the pick — session scope included.
               //
@@ -1135,10 +1206,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
               // Session scope still means "this session's own value" (written just below); it
               // no longer means "the workspace forgets it".
               setModelStore("workspaceAgent", (agents) => setWorkspaceAgentModel(agents, workspace, agentName, model))
-               // The current prompt reads the session layer. A worktree pick for
-               // the active agent must update that layer too; configuring another
-               // agent's worktree choice leaves this session's prompt untouched.
-               if (shouldUpdateSessionModelOnPick(options.scope, agentName, agent.current()?.name, Boolean(sid))) {
+               // The current prompt reads the session layer, and the worktree pick that must
+               // reach it is ANY agent's — the layer may no longer stay stale (owner, 2026-09-26).
+               if (shouldUpdateSessionModelOnPick(options.scope, hasOpenSession)) {
                  setSessionSettings(setSessionAgentModel(
                    sessionSettings(), agentName, `${model.providerID}/${model.modelID}`, undefined,
                  ))
@@ -1166,7 +1236,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
              if (options?.scope === "worktree") {
                save()
                const sid = getActiveSessionID()
-               if (sid && options.agent && shouldUpdateSessionModelOnPick("worktree", options.agent, agent.current()?.name, true)) {
+               const hasOpenSession = route.data.type === "session"
+               if (sid && hasOpenSession && options.agent && shouldUpdateSessionModelOnPick("worktree", true)) {
                  void saveSessionSettings(sid, sessionPayload())
                }
                return

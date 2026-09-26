@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { protocolRow, type LastProtocol } from "@/cli/cmd/tui/feature-plugins/sidebar/protocol-row"
+import { protocolLabel, protocolRow, type LastProtocol } from "@/cli/cmd/tui/feature-plugins/sidebar/protocol-row"
 
 const deepseek = { requestID: "msg_turn_2", sessionID: "ses_current", providerID: "deepseek", modelID: "deepseek-flash", assistantCreatedAt: 100 }
 const fact: LastProtocol = { ...deepseek, protocol: "h2", at: 200 }
@@ -28,5 +28,19 @@ describe("sidebar protocol row", () => {
   test("does not call the auto policy a measured transport", () => {
     expect(protocolRow({}, deepseek)).toBe("unknown")
     expect(protocolRow({ msg_turn_2: { ...fact, protocol: "auto" } }, deepseek)).toBe("unknown")
+  })
+})
+
+describe("protocol cell label", () => {
+  test("auto wraps the measured transport", () => {
+    expect(protocolLabel("auto", "h2")).toBe("auto(h2)")
+    expect(protocolLabel(undefined, "h3")).toBe("auto(h3)")
+    expect(protocolLabel("auto", "unknown")).toBe("auto(unknown)")
+    expect(protocolLabel("auto", undefined)).toBe("auto(unknown)")
+  })
+
+  test("a fixed protocol is shown as itself", () => {
+    expect(protocolLabel("h2", "h3")).toBe("h2")
+    expect(protocolLabel("http/1.1", "unknown")).toBe("http/1.1")
   })
 })

@@ -385,12 +385,14 @@ Source: `external/cua` (trycua/cua, MIT, cloned shallow). Built binary is vendor
 
 | Piece | Path | Role |
 |-------|------|------|
-| Binary | `bin/cua/cua-driver.exe` | Self-built release (`cargo build -p cua-driver --release` in `external/cua/libs/cua-driver/rust`, toolchain pinned 1.97.1 via `rust-toolchain.toml`) |
+| Binary | `bin/cua/cua-driver.exe` | Vendored copy of the canonical release (currently 0.29.1). A source rebuild (`cargo build -p cua-driver --release` in `external/cua/libs/cua-driver/rust`, toolchain pinned 1.97.1 via `rust-toolchain.toml`) is a deliberate pin — keep it on the same version as the install |
 | CLI shim | `bin/cua.cmd` | `@"%~dp0\cua\cua-driver.exe" %*` — same pattern as `bin/codegraph.cmd` |
 | Builtin tool | `packages/opencode/src/tool/cua.ts` + `cua.txt` | `cua` tool: `list-tools` / `describe` / `call <tool> <json>` / `skill-index`; JSON piped via stdin (PS 5.1 quote-stripping workaround, upstream #1637) |
 | Kernel binding | G8 `TOOL_ORACLE` add-on | Visual claims (TUI render, dialog scroll, web page) require cua oracle — screenshot or `verify_state`; typecheck alone is not a visual oracle |
 
-Rebuild recipe:
+Update path (2026-09-26): the driver updates itself — `cua-driver update --apply` on the saved stable/nightly channel (`cua-driver channel`). The canonical install lives at `%LOCALAPPDATA%\Programs\Cua\cua-driver\bin` (a junction to `%USERPROFILE%\.cua-driver\packages\current`); `bin/cua` is a vendored copy of the SAME release. `packages/opencode/src/tool/cua.ts:21-24` resolves `which("cua-driver.exe")` (PATH) BEFORE `bin/cua`, so both surfaces must stay on one version: a skew fails with `incompatible daemon: contract version X does not match SDK Y`. Measured: 0.24.0 → 0.29.1 via `update --apply`, after which `check_for_update` reports `update_available: false`.
+
+Rebuild recipe (source build; align `bin/cua` with the canonical install afterwards):
 
 ```powershell
 cd external\cua\libs\cua-driver\rust

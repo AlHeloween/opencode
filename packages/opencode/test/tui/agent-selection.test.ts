@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test"
-import { canActivateAgent, readLayer, shouldActivateAgent, shouldUpdateSessionModelOnPick } from "../../src/cli/cmd/tui/util/agent"
+import fs from "fs"
+import path from "path"
+import { canActivateAgent, readLayer, shouldActivateAgent, shouldUpdateSessionModelOnPick, writesWorktreeOnPick } from "../../src/cli/cmd/tui/util/agent"
 import { activeSessionID } from "../../src/cli/cmd/tui/context/local"
 import { availableScopes, coerceScope, phaseScope, readScope } from "../../src/cli/cmd/tui/component/config-scope"
 import { sessionAgentModel, setSessionAgentModel, setWorkspaceAgentModel, workspaceAgentModel } from "../../src/session/session-settings"
@@ -35,6 +37,105 @@ test("a worktree pick updates the open session for ANY agent — the session nev
   expect(shouldUpdateSessionModelOnPick("session", true)).toBe(true)
   expect(shouldUpdateSessionModelOnPick("global", true)).toBe(false)
   expect(shouldUpdateSessionModelOnPick("worktree", false)).toBe(false)
+})
+
+/**
+ * Owner, 2026-09-26 (verbatim): «после последнего фикса /agents worktree и /agents/ session стали
+ * связанными. Меняешь session меняется worktree».
+ *
+ * The chain global → worktree → session is FILLED, not resolved, so a layer holds one fact about
+ * one agent's model and a pick writes the layer it edits. The two directions are NOT symmetric and
+ * both halves are pinned here, because either half alone is a different defect: a pick that stops
+ * reaching the open session leaves the wire on the old model (owner, 2026-09-26: «я выбрал deepseek
+ * в worktree — а стоит бигпикл»), and a pick that also writes the worktree is the fusion reported.
+ */
+test("a session pick writes the session and nothing else — the carry DOWN stays one-way", () => {
+  // The reported defect: a session-scoped pick must NOT reach the worktree layer.
+  expect(writesWorktreeOnPick("session")).toBe(false)
+  // A worktree pick writes its own layer, and a scopeless one (hotkey, /model, startup --model)
+  // is «a choice for THIS request» — it legitimately writes both.
+  expect(writesWorktreeOnPick("worktree")).toBe(true)
+  expect(writesWorktreeOnPick(undefined)).toBe(true)
+  // Global is a config write and touches neither local layer.
+  expect(writesWorktreeOnPick("global")).toBe(false)
+
+  // session pick → the session layer.
+  expect(shouldUpdateSessionModelOnPick("session", true)).toBe(true)
+  // worktree pick → its own layer + the carry DOWN into an open session.
+  expect(shouldUpdateSessionModelOnPick("worktree", true)).toBe(true)
+  // global writes no local layer at all; with no session open there is nothing to carry into.
+  expect(shouldUpdateSessionModelOnPick("global", true)).toBe(false)
+  expect(shouldUpdateSessionModelOnPick("worktree", false)).toBe(false)
+})
+
+test("a session pick never mutates the worktree map it is supposed to be independent of", () => {
+  const picked = { providerID: "deepseek", modelID: "deepseek-v4-pro" }
+  const worktree = setWorkspaceAgentModel({}, undefined, "build_mode", {
+    providerID: "opencode",
+    modelID: "big-pickle",
+  })
+  // The session layer is a plain record — writing it leaves the worktree record identical.
+  const session = setSessionAgentModel(null, "build_mode", `${picked.providerID}/${picked.modelID}`, undefined)
+
+  expect(sessionAgentModel("build_mode", session)).toEqual(picked)
+  expect(workspaceAgentModel("build_mode", undefined, { workspaceAgent: worktree })).toEqual({
+    providerID: "opencode",
+    modelID: "big-pickle",
+  })
+})
+
+/**
+ * The behavioural half of the same rule, pinned at the WRITE site.
+ *
+ * The table above proves what the predicate ANSWERS; it cannot prove that the write path ASKS it.
+ * The fusion was one unconditional line, and a green suite is exactly what shipped it — so this
+ * reads the source, in the same shape as `fill-layers.test.ts` (`bodyOf` + a positive control),
+ * because a slice that stops matching would otherwise pass every assertion for the wrong reason.
+ */
+describe("the write path asks the predicate", () => {
+  const SOURCE = fs
+    .readFileSync(path.join(import.meta.dir, "../../src/cli/cmd/tui/context/local.tsx"), "utf8")
+    .replace(/\r\n/g, "\n")
+
+  /** Slice one region out of a source file. Throws when a marker is missing — a broken probe
+   *  must be loud, never silently permissive. */
+  function between(from: string, to: string): string {
+    const start = SOURCE.indexOf(from)
+    if (start < 0) throw new Error(`the probe is BLIND, not the code: ${from} is not in the file`)
+    const end = SOURCE.indexOf(to, start)
+    if (end < 0) throw new Error(`the probe cannot delimit ${from} — fix the instrument, not the code`)
+    return SOURCE.slice(start, end)
+  }
+
+  // `set()` runs from its parameter line to the next method of the same object.
+  const SET = between(
+    "options?: { recent?: boolean; agent?: string; scope?: ModelScope },",
+    "toggleFavorite(model: { providerID: string; modelID: string }) {",
+  )
+
+  test("the slice is not blind — it finds a body that IS there", () => {
+    expect(SET).toContain("isModelValid(model)")
+  })
+
+  test("the worktree write sits BEHIND the predicate, and there is exactly one such write", () => {
+    const guard = SET.indexOf("writesWorktreeOnPick(options.scope)")
+    const write = SET.indexOf('setModelStore("workspaceAgent"')
+    expect(guard).toBeGreaterThan(-1)
+    expect(write).toBeGreaterThan(-1)
+    // The guard is read BEFORE the write, so the session scope is filtered out of the worktree.
+    expect(guard).toBeLessThan(write)
+    // One write, not a second one added beside the guarded one.
+    expect(SET.split('setModelStore("workspaceAgent"').length - 1).toBe(1)
+  })
+
+  test("no session layer is FILLED or written from the home route", () => {
+    // The read side of the neighbour-session defect was T7; the write side is this gate, one
+    // function earlier. `getActiveSessionID()` resolves the NEWEST session on `home`, so using it
+    // here persisted a fill into a session that was never open.
+    const refresh = between("async function refreshSessionSettings(", "\n      }\n")
+    expect(refresh).toContain('route.data.type === "session" ? getActiveSessionID() : undefined')
+    expect(refresh).toContain("fillSessionAgents(")
+  })
 })
 
 test("TUI session settings follow the open session instead of its newest child", () => {

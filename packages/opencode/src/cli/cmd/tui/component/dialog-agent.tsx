@@ -261,11 +261,18 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
       // идёт наложение»). The earlier round moved the details INTO the rows because the hint then
       // said «Enter — choose this agent's model · edits target the session layer» — a keybind the
       // keybind footer already lists and a scope the title already prints, i.e. nothing.
-      hint={(option: any) =>
-        noSession
-          ? `No session yet — edits land in the ${scope} layer; the next session is filled from it${option?.hint ? ` · ${option.hint}` : ""}`
-          : option?.hint
-      }
+      hint={(option: any) => {
+        const tail = option?.hint ? ` · ${option.hint}` : ""
+        if (route.data.type !== "session")
+          return `No session yet — edits land in the ${scope} layer; the next session is filled from it${tail}`
+        // Name the carry, because an unnamed one reads as a link in BOTH directions — the fusion
+        // owner, 2026-09-26: «/agents worktree и /agents/ session стали связанными». The chain
+        // moves DOWN only: the worktree pick reaches the session, the session pick never reaches
+        // the worktree (`writesWorktreeOnPick`, util/agent.ts).
+        if (scope === "session") return `This session only — the ${parentScope(scope)} layer keeps its own value${tail}`
+        if (scope === "worktree") return `Also lands in this open session — every request reads the session layer${tail}`
+        return option?.hint
+      }}
       onMove={(opt: any) => setLastCursor(opt?.value)}
       keybind={[
         {

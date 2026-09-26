@@ -34,7 +34,7 @@ import {
 } from "@/session/session-settings"
 import { canonicalIdentity } from "@/session/mode-identity"
 import { fillSessionAgents, fillWorkspaceAgents, parseModelKey } from "@/session/fill-layers"
-import { readLayer, shouldUpdateSessionModelOnPick } from "../util/agent"
+import { readLayer, shouldUpdateSessionModelOnPick, writesWorktreeOnPick } from "../util/agent"
 import { pickFreeVisionModel, FAIL_PROTECTION_MODEL_ID } from "@/provider/free-default"
 import { DEFAULT_MODEL_SAMPLING, modelSampling, modelSamplingKey, type ModelSampling } from "@/session/model-sampling"
 
@@ -215,7 +215,11 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
 
       /** Load session settings from disk and merge into the store. */
       async function refreshSessionSettings() {
-        const sid = getActiveSessionID()
+        // Only an OPEN session owns a session layer. `getActiveSessionID()` resolves the NEWEST
+        // session on `home` — it exists for write bookkeeping, and reusing it here made the first
+        // screen FILL a neighbour's file and persist the fill (`:229`). Same defect the read side
+        // had on the T7 side of the same day (owner, 2026-09-26), one gate earlier.
+        const sid = route.data.type === "session" ? getActiveSessionID() : undefined
         if (!sid) return
         lastSettingsSessionID = sid
         const settings = await loadSessionSettings(sid)
@@ -343,6 +347,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         const sid = getActiveSessionID()
         if (!sid || sid === lastSettingsSessionID) return
         if (!modelStore.ready) return
+        // Nothing to load with no session OPEN — `refreshSessionSettings` returns on it, and
+        // this effect must not re-run its bookkeeping on every unrelated store write.
+        if (route.data.type !== "session") return
         refreshSessionSettings()
       })
 
@@ -1192,20 +1199,22 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
               // and writing its file would repeat the captured-neighbour defect (owner, 2026-09-26).
               const hasOpenSession = route.data.type === "session"
               const workspace = workspaceModelScope(getActiveWorkspaceID())
-              // The worktree ALWAYS learns the pick — session scope included.
+              // The worktree layer learns a pick ONLY when the pick is not scoped to a session.
               //
-              // The worktree layer is "the last model selected in that workspace"
-              // (session-settings.ts:18) and it is the layer a NEW session is FILLED from
-              // (`fillSessionAgents(..., fillSourceFor)`, fillSourceFor reads workspaceAgentModel).
-              // The old `scope !== "session"` guard kept it stale, so a pick made in one session
-              // never reached the layer the next session copies — the next session started on the
-              // PREVIOUS model while every surface claimed the new one (owner, 2026-09-21:
-              // «настройки новой сессии должны копироваться из настроек worktree, а сейчас они
-              // копируются непонятно откуда»).
+              // It used to be written unconditionally, and that fused the worktree and session
+              // tabs of /agents into one control — owner, 2026-09-26: «после последнего фикса
+              // /agents worktree и /agents/ session стали связанными. Меняешь session меняется
+              // worktree». A layer holds one fact: the worktree is «the model this workspace
+              // defaults to» and the session is «the model THIS session runs on», and the next
+              // session is FILLED from the worktree tab (owner spec 2026-09-26 п.3) — not from
+              // whatever a past session last picked.
               //
-              // Session scope still means "this session's own value" (written just below); it
-              // no longer means "the workspace forgets it".
-              setModelStore("workspaceAgent", (agents) => setWorkspaceAgentModel(agents, workspace, agentName, model))
+              // The reverse carry is unchanged and is the other half of the rule: a WORKTREE pick
+              // still lands in an open session, because every read the wire makes goes there —
+              // owner, 2026-09-26: «я выбрал deepseek в worktree — а стоит бигпикл».
+              if (writesWorktreeOnPick(options.scope)) {
+                setModelStore("workspaceAgent", (agents) => setWorkspaceAgentModel(agents, workspace, agentName, model))
+              }
                // The current prompt reads the session layer, and the worktree pick that must
                // reach it is ANY agent's — the layer may no longer stay stale (owner, 2026-09-26).
                if (shouldUpdateSessionModelOnPick(options.scope, hasOpenSession)) {
@@ -1222,8 +1231,14 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
                 uniq.map((x) => ({ providerID: x.providerID, modelID: x.modelID })),
               )
             }
-             // A model pick always records workspace memory for future sessions;
-             // active-agent picks also update the current session used by the wire.
+             // A session-scoped pick writes the SESSION file and nothing else.
+             //
+             // `save()` stays, and it is NOT a worktree write of the picked model: the worktree half
+             // was removed above, and `modelStore.workspaceAgent` still holds the value the
+             // worktree tab shows, so the snapshot is byte-identical there. What does reach
+             // `state/model.json` is `recent`/`favorite` — the "recently used" list, which is a
+             // workspace-level list BY NATURE (the model picker itself reads it from there), not a
+             // per-agent layer value. A worktree pick below writes its own layer the same way.
             if (options?.scope === "session") {
               const sid = getActiveSessionID()
               if (sid) {

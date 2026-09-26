@@ -37,8 +37,10 @@ export type SvgFitBudget = {
    */
   maxWidth?: number
   /**
-   * @deprecated Ignored for mermaid SVG sizing. Height is automatic from width.
-   * Kept optional so MediaImage can still pass a terminal box without effect.
+   * Accepted for compatibility — NOT a sizing input. Width clamps; height flows at the
+   * anchored scale and the raster is inserted as-is (owner ruling, 2026-09-26:
+   * «клампить ширину, высоту отпускать и вставлять как есть»). Kept optional so
+   * MediaImage can still pass a terminal box without effect.
    */
   maxHeight?: number
   /**
@@ -107,25 +109,13 @@ export function resvgOptionsForSvg(svg: string, background: string, budget?: Svg
       clamped,
       outW: width,
     })
-    // HONOUR maxHeight. The caller passes the cell box it can actually show (`media-image.tsx:452-455`:
-    // maxWidth from the column budget, maxHeight from the row budget, cellHeight from the measured
-    // cell), and until 2026-09-23 this function IGNORED the height and answered width-only. A tall
-    // diagram therefore came out ~1600 px, was then cut to 512 by `NATIVE_IMAGE_MAX_PIXELS`
-    // (`media-image.tsx:218`), and its text — which the anchor had just made exactly ONE terminal cell
-    // tall — arrived at about a third of a cell. That is the owner's «mermaid стал нечитаемый»: not a
-    // font, not the raster, but two rules in one subsystem disagreeing, with the legibility-destroying
-    // one winning.
-    // Fitting by height keeps the diagram readable at the largest size its box can hold; detail stays
-    // reachable because the MediaImage is interactive (wheel zoom · drag pan).
-    const anchoredHeight = srcH * (width / srcW)
-    if (budget.maxHeight && budget.maxHeight > 0 && anchoredHeight > budget.maxHeight) {
-      log.debug("mermaid raster re-fit by height to the cell box", {
-        anchoredWidth: width,
-        anchoredHeight: Math.round(anchoredHeight),
-        maxHeight: budget.maxHeight,
-      })
-      return { background, ...resvgFont(), fitTo: { mode: "height", value: Math.round(budget.maxHeight) } }
-    }
+    // HEIGHT FLOWS; only width clamps (owner ruling, 2026-09-26: «клампить ширину, высоту
+    // отпускать и вставлять как есть»). The 2026-09-23 height re-fit lived here and divided the
+    // font-anchored scale on tall diagrams — text that was exactly ONE terminal row tall arrived
+    // smaller than a row, which is the «нечитаемо» it had meant to fix. The anchor is the floor:
+    // the only smaller scale comes from the width clamp inside fitFontAnchoredSize, and only when
+    // the diagram genuinely does not fit horizontally. A raster taller than the row budget is
+    // inserted as-is — the MediaImage is interactive (wheel zoom · drag pan).
     return { background, ...resvgFont(), fitTo: { mode: "width", value: width } }
   }
 

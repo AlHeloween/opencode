@@ -595,8 +595,8 @@ This prevents pathological diagrams (Rust recursion, infinite loop) from hanging
 |-------|--------|--------|
 | No progressive preview during streaming | Users see raw source code until closing ``` fence | Unresolved — needs mermaid partial-render support in WASM |
 | `__dirname` in bundled binary | `bun build --compile` fails if `__dirname` is undefined at runtime | Mitigated by lazy `import()` — at least error is caught gracefully |
-| MediaMermaid component (`media-mermaid.tsx`) dead code | Never imported — all mermaid goes through TextPart | Unresolved — needs import integration or removal |
-| No font registered with WASM renderer | Text metrics are approximate, non-Latin text may misalign | Unresolved — needs `registerFont(fontBytes)` call from host |
+| ~~MediaMermaid component (`media-mermaid.tsx`) dead code~~ | **CORRECTED 2026-09-26** — it is live: `routes/session/index.tsx:69,2295` renders `<MediaMermaid>` | Resolved |
+| ~~No font registered with WASM renderer~~ | **RESOLVED 2026-09-24** — `ensureMermaidFont` registers Consolas (terminal face) with embedded Cascadia Mono fallback (`mermaid.ts:224-268`) | Resolved |
 | Strict regex for fence detection (case-sensitive, 3 backticks) | Non-standard mermaid blocks don't match | Low priority — all LLM outputs use standard fencing |
 | Streaming gap — incomplete blocks show as raw code | Visual source-code flash on every mermaid block | Low priority — needs partial SVG rendering during stream |
 
@@ -632,6 +632,15 @@ budget the raster is 52 426 bytes (width-only behaviour), with the 38-row / 874 
 bytes — every node still fits its frame, and one line of text is one row. The 512 ceiling stays where its
 justification lives: an image whose natural size we did NOT choose (a pasted screenshot). It is the right
 rule there and the wrong one for a raster generated to fit a box.
+
+**CORRECTION (2026-09-26): the height re-fit was itself the regression.** On tall diagrams it divided
+the font-anchored scale — text that was exactly one terminal row arrived smaller than a row, the
+«нечитаемо» it had meant to fix. Owner ruling, verbatim: «клампить ширину, высоту отпускать и вставлять
+как есть». `resvgOptionsForSvg` no longer re-fits by height; `maxHeight` is accepted for compatibility
+and has NO effect. Only the width clamp inside `fitFontAnchoredSize` may reduce the scale, and only when
+the diagram genuinely does not fit horizontally. A raster taller than the row budget is inserted as-is
+(the MediaImage stays interactive: wheel zoom · drag pan). Line anchors above are from the 09-21
+snapshot; current ones: `media-image.tsx:453-457` passes the box, `mermaid.ts:78-141` builds the options.
 
 ### Progressive Rendering (2026-07-12 improvement)
 

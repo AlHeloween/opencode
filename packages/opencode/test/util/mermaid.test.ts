@@ -203,6 +203,19 @@ describe("mermaid raster scale is anchored to the terminal font", () => {
     expect(opts.fitTo!.value).toBeLessThanOrEqual(1200)
   })
 
+  test("a tall diagram is never re-fit by height — height flows, only width clamps", async () => {
+    // Owner ruling, 2026-09-26: «клампить ширину, высоту отпускать и вставлять как есть».
+    // The 2026-09-23 height re-fit used to divide the anchor here; it must not come back.
+    const svg = await renderMermaidToSvg(sixNodes)
+    const natural = parseSvgNaturalSize(svg!)!
+    const budget = { maxWidth: 2000, cellHeight: CELL_H, maxHeight: 40 }
+    const opts = resvgOptionsForSvg(svg!, "#ffffff", budget)
+    // The anchor decided the scale; the passed row budget must NOT shrink it.
+    expect(opts.fitTo!.mode).toBe("width")
+    const outHeight = (natural.height * opts.fitTo!.value) / natural.width
+    expect(outHeight).toBeGreaterThan(budget.maxHeight)
+  })
+
   test("doubling the terminal font doubles the rendered label", async () => {
     const svg = await renderMermaidToSvg(twoNodes)
     const at10 = resvgOptionsForSvg(svg!, "#ffffff", { maxWidth: 100000, cellHeight: 10 }).fitTo!.value

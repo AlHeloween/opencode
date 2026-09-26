@@ -218,6 +218,18 @@ rather than by re-initialising weights.
 
 Each of these was measured on 2026-09-24, and several of them were learned by breaking something.
 
+- **Courage does not scale; format does.** Owner, 2026-09-26. Wherever a rule needs the agent to do
+  something socially expensive — contradict the user, call its own work unproven, declare an
+  instrument insufficient — do not exhort. Give it a FORM that discharges the act with no effort:
+  `ASSERTION_STATUS`'s `✗` naming what contradicts; an ASK that must name the instrument it lacked;
+  a terminal condition that states what could not be obtained. A rule demanding resolve is obeyed
+  when the pass is easy and skipped exactly when it matters. This is the generalisation of "a slot
+  beats an imperative", one level up: the slot removes the effort, so the behaviour stops depending
+  on the model's disposition. Measured the same day, both directions: an agent re-checked the
+  OWNER's own assertion about window stability — the highest-status and therefore least-checked
+  input in the system — and reported the delta without friction; and a `stash@{6}` the owner said
+  was worth keeping turned out to hold `.gitignore` entries already present in HEAD in better form.
+  Neither exchange needed anyone to be brave.
 - **The position of a rule sets its price.** Before the first action a rule competes with the ACTION;
   after it, only with other rules. G0+G1 grew 2 840 → 7 309 B (×2.6) against the battle-tested 09-17
   build, and the agent stopped grounding — because an imperative that is not a call can only be

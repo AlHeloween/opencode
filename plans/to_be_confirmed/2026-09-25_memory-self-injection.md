@@ -106,8 +106,26 @@ Why nothing caught it:
   `part_index` offers no axis to break it correctly: its columns are rowid, part_id, message_id,
   session_id, message_index, time_created, text, part_type, role and the five coefficients.
   **There is no way to express "this is no longer true", and no way to tell a record from a
-  retelling.** That is why deleting the whole database was not the crude option — it was the only
-  EXPRESSIBLE one.
+  retelling** — at the SCHEMA level.
+
+  ✗ **REFUTED 2026-09-26, by observation.** An earlier revision of this file concluded that
+  deleting the database was therefore "the only expressible operation". That is too strong, and a
+  working instance disproves it: in the owner's main project the agent MIGRATED instead — it
+  exported the accumulated summaries into a separate folder, ordered them, and resumed from the
+  same point on the new rules. Supersession is expressible by CONVENTION at the application level
+  even where the schema cannot hold it. What the schema gap actually costs is that supersession is
+  unenforced and unauditable, not that it is impossible.
+
+  Two further corrections to the account above, from the owner (2026-09-26):
+
+  - The wipe here was NOT a treatment for irreparable poisoning. Critical problems in the prompt
+    itself had just been corrected, so the basis built under the superseded spec was obsolete by
+    definition. The base rebuilt since is reported as growing steadily more stable.
+  - The contrast between the two projects is the useful measurement, and it supports the
+    amplifier reading rather than this file's original framing: the main project was running the
+    OLD kernel and accumulated only mild clutter under the same storage machinery, while this one
+    ran the new kernel carrying the defect and accumulated the poisoning. n=2, uncontrolled, but
+    it points at the kernel as the driver — which is why the cure is upstream, as the header says.
 
 ## Medoids
 

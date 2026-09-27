@@ -218,6 +218,15 @@ rather than by re-initialising weights.
 
 Each of these was measured on 2026-09-24, and several of them were learned by breaking something.
 
+- **The connector is a claim, and nobody reviews it.** Owner, 2026-09-27, on `ASSERTION_STATUS`:
+  «An unmarked claim reads as CONFIRMED to the next reader, **so** without a status it is Guess» —
+  two true halves welded by a `so` that asserts a derivation running backwards (top rung therefore
+  bottom rung). Each half was reviewed on its own and each passed; the word between them was
+  reviewed by no one, because a conjunction looks like grammar rather than content. The relation
+  here is adversative, not causal — the rule exists precisely BECAUSE the two disagree, and the gap
+  is the defect the rule names. When compression joins two findings into one sentence, the joint is
+  the part to re-read: `so`/`therefore`/`:` are assertions about structure, and the kernel's own
+  rule applies to them — structure is written, not computed. Fixed the same day, −12 B net.
 - **Courage does not scale; format does.** Owner, 2026-09-26. Wherever a rule needs the agent to do
   something socially expensive — contradict the user, call its own work unproven, declare an
   instrument insufficient — do not exhort. Give it a FORM that discharges the act with no effort:

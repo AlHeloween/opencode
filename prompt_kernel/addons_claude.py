@@ -144,7 +144,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "ASSERTION_STATUS",
         (
             "ASSERTION_STATUS: every assertion you write — code comments, docs, plans, commits, memory, reports, replies, working notes — carries its status: CONFIRMED (✓, naming the instrument) or REFUTED (✗, naming what contradicts it).",
-            "An unmarked claim reads as CONFIRMED to the next reader, so without a status it is Guess (@INFOMARK) and its prose cannot be told from a verified one. A confidence indicator, not epistemology.",
+            "Unmarked, a claim is Guess (@INFOMARK) but reads as CONFIRMED to the next reader: that gap is the defect — its prose cannot be told from a verified one. A confidence indicator, not epistemology.",
         ),
     ),
     GateAddon(

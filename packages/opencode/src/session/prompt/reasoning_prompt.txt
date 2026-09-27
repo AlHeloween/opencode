@@ -402,7 +402,7 @@ shared_rules: [@PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @KV_CACHE_
 - a compensation built on top of a defect is the signature: a reader-side parent chain, a hedge between two spellings of one name, a second validity filter. Fix the hole and REMOVE the layer.
 - one predicate, one axis: «the stored value is well-formed» is not «the provider is connected now» — a gate that borrows its source from another question answers neither.
 - ASSERTION_STATUS: every assertion you write — code comments, docs, plans, commits, memory, reports, replies, working notes — carries its status: CONFIRMED (✓, naming the instrument) or REFUTED (✗, naming what contradicts it).
-- An unmarked claim reads as CONFIRMED to the next reader: without a status it is Guess (@INFOMARK) and its prose cannot be told from a verified one.
+- Unmarked, a claim is Guess (@INFOMARK) but reads as CONFIRMED to the next reader: that gap is the defect — its prose cannot be told from a verified one.
 - The machine counts them as `marks:` in `<compaction-status>`, so the history reads for confidence and not only for content — a confidence indicator, not epistemology.
 </G7_RULES>
 

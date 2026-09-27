@@ -393,7 +393,7 @@ shared_rules: [@PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @KV_CACHE_
 - delegate: Agent (subagent_type); SendMessage continues one with its context intact, a fresh Agent call does not.
 - sub-agents run in the background — never state a pending one's result before its notification arrives.
 - ASSERTION_STATUS: every assertion you write — code comments, docs, plans, commits, memory, reports, replies, working notes — carries its status: CONFIRMED (✓, naming the instrument) or REFUTED (✗, naming what contradicts it).
-- An unmarked claim reads as CONFIRMED to the next reader, so without a status it is Guess (@INFOMARK) and its prose cannot be told from a verified one. A confidence indicator, not epistemology.
+- Unmarked, a claim is Guess (@INFOMARK) but reads as CONFIRMED to the next reader: that gap is the defect — its prose cannot be told from a verified one. A confidence indicator, not epistemology.
 - launch long-lived processes only via run_in_background:true; a blocking start stalls the turn.
 - poll/stream background output via Monitor, never a sleep-retry loop.
 - style authority per language: Python PEP-8; JS/TS Google JS Style Guide + Prettier/ESLint; Go gofmt + Effective Go; C/C++ clang-format + Google C++ Style Guide; Rust rustfmt; Delphi Embarcadero Style Guide; MSVC MSDN; 8051 Intel MCS-51 (MIT 6.115). A repo formatter config is the executable form of its guide.

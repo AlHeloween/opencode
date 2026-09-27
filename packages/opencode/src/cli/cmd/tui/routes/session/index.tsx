@@ -108,6 +108,8 @@ import { DialogGoUpsell } from "../../component/dialog-go-upsell"
 import { SessionRetry } from "@/session/retry"
 import { getRevertDiffFiles } from "../../util/revert-diff"
 import { revertSteps } from "../../util/revert-steps"
+import { revertedRun } from "../../util/reverted-run"
+
 import * as Log from "@opencode-ai/core/util/log"
 import { embeddedWasmAssetPath } from "@/util/wasm-embedded"
 import { embeddedQueryPath } from "@/util/wasm-embedded-queries"
@@ -259,19 +261,41 @@ export function Session() {
     return all
   })
 
+  // A SYNTHETIC row is not a turn. The restored Layer-1 panel and the `message*`
+  // compaction carrier are both synthetic USER messages, and a transcript walk that
+  // cannot tell them apart ends a run at the wrong place. The sibling computation
+  // below (`revertRevertedMessages`) already carried this predicate inline; it is
+  // shared so the two cannot drift. It reads `sync`, so it lives INSIDE the
+  // component — a module-level copy does not compile, which is what tsgo said
+  // (run 20260927T070151Z_98c0cde4, exit 2) before this comment existed.
+  const isSyntheticTextMessage = (m: { id: string }): boolean =>
+    (sync.data.part[m.id] ?? []).some((p) => p.type === "text" && p.synthetic)
+
   // Display messages: composite (all sessions) or main session only.
   // Undo is provisional: while session.revert is active the reverted tail is
   // hidden from the transcript (server keeps rows until the next prompt folds
   // them away). Redo clears revert.state → tail reappears. Partial reverts
   // (partID) stay visible — hiding a half-reverted message misrepresents it.
+  //
+  // THE RUN, NOT THE CURSOR. This used to be `m.id < revertID`, which asks "was
+  // this created at or after the undo" and answers yes for every message the
+  // owner sent AFTER it too. Measured live 2026-09-27: one `/undo`, then a
+  // request — the agent ran (`loop` steps 0→9, zero errors, every row in the
+  // database) and the transcript stayed EMPTY until the TUI was restarted or the
+  // session re-entered, because both drop the in-memory `revert` and the filter
+  // stops applying. A working agent with an empty screen is the failure this
+  // predicate caused, and it hid the new work silently. `revertedRun` bounds the
+  // run at the next real turn and returns NOTHING when the anchor is missing.
   const messagesList = createMemo(() => {
     const all = compositeMessages()
     const rev = session()?.revert
     const revertID = rev?.messageID
     if (!revertID || rev.partID) return all
+    const hidden = revertedRun(all, revertID, (m) => isSyntheticTextMessage(m))
+    if (hidden.size === 0) return all
     return all.filter((m) => {
       if ("_source" in m && m._source !== route.sessionID) return true
-      return m.id < revertID
+      return !hidden.has(m.id)
     })
   })
 
@@ -1230,9 +1254,15 @@ export function Session() {
       keybind: "messages_copy",
       category: "Session",
       onSelect: (dialog) => {
-        const revertID = session()?.revert?.messageID
+        // The reverted RUN, not the cursor: after an undo the newest assistant
+        // message may belong to a turn the owner started LATER, and `id <
+        // revertID` would hand back the pre-undo text as «the last assistant
+        // message». Same defect class as the transcript filter above.
+        const hiddenRun = revertedRun(messages(), session()?.revert?.messageID, (m) =>
+          isSyntheticTextMessage(m),
+        )
         const lastAssistantMessage = messages().findLast(
-          (msg) => msg.role === "assistant" && (!revertID || msg.id < revertID),
+          (msg) => msg.role === "assistant" && !hiddenRun.has(msg.id),
         )
         if (!lastAssistantMessage) {
           toast.show({ message: "No assistant messages found", variant: "error" })

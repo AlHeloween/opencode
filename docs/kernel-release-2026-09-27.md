@@ -12,7 +12,8 @@ Depth: L3 (terminal edges, a side-protocol's trigger set, the premise). Authoriz
 | last blessed (baseline) | — | — | `26d3483d…` (2026-09-25) |
 
 **Baseline is NOT repinned by this release.** Owner, 2026-09-25: «Baseline — только руками». Step 7 of the
-procedure is the owner's act: `baseline.json` → `sha256: 33e22a677fa6195c1d450fe770016dbfb29e94cf078bd8fa928fe2f4148a78cd`,
+procedure is the owner's act — against the AMENDED render (see § Amendment, same day):
+`baseline.json` → `sha256: ca6ae5433afd195355ff7207c6bc812d89d70d096cb6697dcbee6988901b7628`,
 `prev_sha256: 26d3483dfb3866486ab3cf557f1df0dffedfba11043a863808c09bcb0298d05a`. Until then
 `test_normal_build_preserves_current_kernel_hash_boundary` is red, and that red is correct.
 
@@ -85,3 +86,36 @@ registries. 5. Constitutional tests — 12/12; full suite 106 passed, one expect
 
 product 46 976 / 47 000 — **24 bytes free**. The next addition needs an eviction or the owner's decision
 on the levers listed in `docs/kernel-release-2026-09-24.md` § "The ceiling is now the binding constraint".
+
+## Amendment, same day — the reward pays for movement, not for confirmation
+
+A second outside falsifier — bare `claude -p` (sonnet, `--system-prompt` replaced, `--tools ""`, no MCP, run
+from an empty directory; route recorded in the `aicall` skill) — returned a complete review of the released
+reward line. Each finding below was re-checked against the text before acting on it:
+
+- "evidence **shrinking** it is the only reward" paid nothing for a refutation or a newly found error — the
+  most valuable measurements, and the second LOOKS like the error growing. A stated incentive to avoid
+  risky measurement.
+- "accumulated, it" had three live antecedents (the error, the evidence, the reward).
+- "the simulation" named neither of the two simulations the premise introduces.
+
+Now: *"the only reward is both simulations moving toward reality under evidence — a refutation or a found
+error pays like a confirmation, and what stays moved is the project's maturity."* Unknown is deliberately
+NOT listed as paying: `@INFORMATION_STATUS` calls it "not a destination", and paying for it would invite
+farming it; moving a false certainty to Unknown is still movement toward reality.
+
+Funded by one more evicted restatement: `generic_web`'s "a web hit is Hypothetical." (stated in 1.1, in the
+1.3 ladder one line above, and in `@INFORMATION_STATUS`).
+
+| surface | bytes | sha256 |
+|---|---|---|
+| product | 46 998 | `ca6ae543…901b7628` |
+| claude | 46 976 | `d81c5124…13c3b605` |
+| codex | 46 555 | `d8bf7b67…39fddc19ad` |
+
+Render: `prompt_kernel/dist/2026-09-27_18-20-16_reasoning_prompt.txt`. Tests 106 passed, constitution 12/12,
+baseline guard red until the owner repins. **2 bytes free.**
+
+Still open after the second pass: the line does not pay for CLOSING (a finished unit earns nothing beyond
+the movement it already made); narrowing the target is refused by `@INTENTION_INVARIANCE`, which the
+reviewer had not been shown. Any further precision needs an eviction decision (levers in the 09-24 doc).

@@ -43,6 +43,23 @@ error · `4` empty message · `5` cut at `max_tokens` — the findings are a FLO
 - Hypothetical: a 33-character prompt billed `prompt_tokens: 164`, so ~150 tokens are added upstream —
   `system: none` holds for our side of the wire only.
 
+## Second route — bare `claude -p` (measured 2026-09-27)
+
+Claude Code itself runs frameless from an empty directory outside any git repo (no CLAUDE.md, no memory):
+
+```bash
+cd <empty dir outside the repo>
+claude -p --model sonnet --system-prompt "You are a reviewer." --tools "" --strict-mcp-config --setting-sources "" < brief.txt
+```
+
+`--system-prompt` REPLACES the prompt (the SDK still prepends one identity sentence), `--tools ""` removes
+every built-in tool, `--strict-mcp-config` with no config removes MCP. Leak-checked: the model reported no
+tools, quoted only that two-sentence prompt, and saw no project content. Streams, so no read timeout; runs
+on the owner's subscription (resource order #2). The standalone CLI needed `claude /login` once — the
+owner's act. **Caveat:** zero frame, but the author's own model family, so blind spots are partly shared —
+it complements the three-architecture panel, it does not replace it. First run: a complete 3.8 KB review
+that found the reward line's measurement-avoidance and ambiguous antecedents (released text amended).
+
 ## The ideal panel — three architectures (owner, 2026-09-27)
 
 Nemotron (Mamba, state-space), LongCat (natively multimodal, no experts) and Space Bunny (latest MiniMax,

@@ -172,7 +172,12 @@ def render_kernel(kernel: Kernel | None = None, addons: tuple | None = None) -> 
         # treatment @SIMULATION_ERROR forbids, and affect still opens a gap rather than paying (@DIVERGENCE_PROTOCOL).
         # Maturity is the SAME reward accumulated, not a second one (owner: «чем меньше расхождение тем выше
         # project maturity»): a divergence evidence has closed stays closed. Phrased so "the only reward" holds.
-        "premise: the request is the user's simulation, your answer is yours; both are incomplete, so error exists before either speaks and it is the sum of the two. The gates subtract that error in order; the oracle measures it against reality, and evidence shrinking it is the only reward — accumulated, it is the project's maturity.",
+        # Amended the same day after a bare `claude -p` falsifier (sonnet, no prompt/tools/MCP): "evidence
+        # SHRINKING it" paid nothing for a refutation or a newly found error — the most valuable measurements,
+        # the second of which LOOKS like growth — so it invited measurement-avoidance; "accumulated, it" had
+        # three live antecedents; "the simulation" named neither of the two. Unknown is deliberately NOT listed
+        # as paying: @INFORMATION_STATUS says it is "not a destination", and paying for it invites farming it.
+        "premise: the request is the user's simulation, your answer is yours; both are incomplete, so error exists before either speaks and it is the sum of the two. The gates subtract that error in order; the only reward is both simulations moving toward reality under evidence — a refutation or a found error pays like a confirmation, and what stays moved is the project's maturity.",
         "",
         "gates:",
     ]

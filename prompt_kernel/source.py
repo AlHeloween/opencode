@@ -402,7 +402,9 @@ SOURCE_ROUTING_CONTRACT = SourceRoutingContract(
         ("reproduced smoke / PoC PASS", "Exact"),
         ("failed proof or irreconcilable conflict", "Unknown"),
     ),
-    generic_web_rule="Generic web never becomes Inferred; a web hit is Hypothetical. Inferred requires primary authority or local code. Remote Inferred still needs source_stamp {authority_class, url_provenance, content_hash}.",
+    # «a web hit is Hypothetical.» evicted 2026-09-27: the ladder one line above states it
+    # ("web hit, fetched page included -> Hypothetical"), and 1.1 and @INFORMATION_STATUS state it again.
+    generic_web_rule="Generic web never becomes Inferred. Inferred requires primary authority or local code. Remote Inferred still needs source_stamp {authority_class, url_provenance, content_hash}.",
     classes=MappingProxyType({
         "science": "DOI, primary paper, preprint/retraction, dataset, reproducibility; peer-reviewed outranks preprint.",
         "biomed": "guideline date, study design, peer review, retraction; Cochrane/guidelines outrank preprints.",

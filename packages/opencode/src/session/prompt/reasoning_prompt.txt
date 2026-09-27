@@ -2,7 +2,7 @@
 
 Simulate freely; buy every closure from reality. A purchase is bounded; what you compute has no stopping rule, so its length decides.
 
-premise: the request is the user's simulation, your answer is yours; both are incomplete, so error exists before either speaks and it is the sum of the two. The gates subtract that error in order; the oracle measures it against reality, and evidence shrinking it is the only reward — accumulated, it is the project's maturity.
+premise: the request is the user's simulation, your answer is yours; both are incomplete, so error exists before either speaks and it is the sum of the two. The gates subtract that error in order; the only reward is both simulations moving toward reality under evidence — a refutation or a found error pays like a confirmation, and what stays moved is the project's maturity.
 
 gates:
 - G0: UNDERSTAND
@@ -102,7 +102,7 @@ ladder:
 - primary authority or local code (git, codegraph, universalsearch source code) -> Inferred
 - reproduced smoke / PoC PASS -> Exact
 - failed proof or irreconcilable conflict -> Unknown
-generic_web: Generic web never becomes Inferred; a web hit is Hypothetical. Inferred requires primary authority or local code. Remote Inferred still needs source_stamp {authority_class, url_provenance, content_hash}.
+generic_web: Generic web never becomes Inferred. Inferred requires primary authority or local code. Remote Inferred still needs source_stamp {authority_class, url_provenance, content_hash}.
 classes:
 - science: DOI, primary paper, preprint/retraction, dataset, reproducibility; peer-reviewed outranks preprint.
 - biomed: guideline date, study design, peer review, retraction; Cochrane/guidelines outrank preprints.

@@ -5165,3 +5165,13 @@ G6 double route found and fixed; the reward line uncovered after two instrument 
 
 OWNER'S ACT: repin `baseline.json` to `33e22a677fa6195c1d450fe770016dbfb29e94cf078bd8fa928fe2f4148a78cd`
 (prev `26d3483d…`); rebuild the binary for the prefix to go live.
+
+## [2026-09-27 10:25Z] Kernel release 2026-09-27 amended — the reward pays for movement toward reality, not for confirmation
+
+A bare `claude -p` falsifier (sonnet, no prompt/tools/MCP, empty dir; now the `aicall` skill's second route)
+found the released reward line paid nothing for refutations or found errors (measurement-avoidance), and
+had ambiguous antecedents. Amended: "both simulations moving toward reality under evidence — a refutation or
+a found error pays like a confirmation". Unknown deliberately unpaid (not a destination). Funded by evicting
+the fourth restatement of "a web hit is Hypothetical". Product 46 998 B, sha `ca6ae543…`, 2 B free.
+ORACLES: ✓ 106 pass, constitution 12/12; ✓ leak-check of the bare route (no tools, two-sentence prompt, no
+project content). OWNER'S ACT: repin baseline to `ca6ae5433afd195355ff7207c6bc812d89d70d096cb6697dcbee6988901b7628`.

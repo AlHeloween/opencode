@@ -1415,7 +1415,11 @@ export function mechanicalSummaryBody(input: {
     `Range: ${rows.length} messages · ${input.messages.reduce((s, m) => s + text(m).length, 0)} chars of text · ${input.diffs.length} files changed (+${additions} −${deletions})`,
     "",
     "## Semantic Vector",
-    `Chain: ${carriers}/${speakable.length} assistant replies carry a vector · ${plural(breaks.length, "declared break")}${breaks.length ? ` at ${positions(breaks.map((b) => `#${b}`))}` : ""} · ${plural(missingEdge.length, "vector", "without a label")}${missingEdge.length ? ` at ${positions(missingEdge)}` : ""}${noVector.length ? ` · ${plural(noVector.length, "assistant reply", "without a vector")} at ${positions(noVector.map((n) => `#${n}`))}` : ""}.`,
+    // "assistant turn", not "assistant reply": `plural` appends a plain "s", so "reply" would come
+    // out as "replys", which is not a word — measured 2026-09-27 in the live status line. The defect
+    // it replaces was the plural landing on the TAIL ("reply without a vectors"): same class, other
+    // end. A counting line that reads wrong gets skipped, and this one is read as an instrument.
+    `Chain: ${carriers}/${speakable.length} assistant replies carry a vector · ${plural(breaks.length, "declared break")}${breaks.length ? ` at ${positions(breaks.map((b) => `#${b}`))}` : ""} · ${plural(missingEdge.length, "vector", "without a label")}${missingEdge.length ? ` at ${positions(missingEdge)}` : ""}${noVector.length ? ` · ${plural(noVector.length, "assistant turn", "without a vector")} at ${positions(noVector.map((n) => `#${n}`))}` : ""}.`,
     // Capped by the same constant as the positions: a list that scales with the range becomes a
     // wall, and the two lists live on ONE line — fixing the positions and leaving the dominants
     // unbounded would move the wall, not remove it.
@@ -2045,15 +2049,26 @@ export function buildMessageStar(input: {
     .filter((n): n is number => n != null)
   const summaryFirst = summaryStarts.length > 0 ? Math.min(...summaryStarts) : undefined
   const summaryLast = summaryEnds.length > 0 ? Math.max(...summaryEnds) : undefined
+  // TWO causes, and this line used to name ONE of them. `positionOf` returns undefined for an id it
+  // cannot find — the message now lives inside an older summary, or in another epoch — which is a gap
+  // in the WALK; a row that never carried ids is a gap in the ROW. Both land on the same undefined
+  // here, and the old text reported the second while the first was the live cause. An instrument that
+  // cannot tell two explanations apart reads as a confident diagnosis, which is the class this whole
+  // line exists to avoid: the `LIKE` traps, the "positions unavailable" that named a cause nobody had.
+  const rowsWithIds = input.summaries.filter((s) => s.fromId && s.toId).length
+  const summariesLine =
+    summaryFirst != null && summaryLast != null
+      ? `summaries: #${summaryFirst}..#${summaryLast} (each Summary block above lists its own from#/to#)`
+      : rowsWithIds === 0
+        ? "summaries: positions unavailable — the summary rows carry no from_id/to_id to place"
+        : `summaries: positions unavailable — ${rowsWithIds} row(s) DO carry from_id/to_id and the walk did not resolve them (inside an older summary, or another epoch). The ids under each block are the localizers that survive a shift.`
   const tailFirst = input.recentStartOffset
   const tailLast = tailFirst != null && input.recent.length > 0 ? tailFirst + input.recent.length - 1 : undefined
   const rangeAccounting =
     tailFirst != null && tailLast != null
       ? [
           "--- Range accounting (system Exact — `#N` are the positions the Recent messages print) ---",
-          summaryFirst != null && summaryLast != null
-            ? `summaries: #${summaryFirst}..#${summaryLast} (each Summary block above lists its own from#/to#)`
-            : "summaries: positions unavailable in this render (no from_id/to_id on the summaries)",
+            summariesLine,
           `tail: #${tailFirst}..#${tailLast} (${input.recent.length} messages, verbatim — nothing in it is compressed)`,
           continuityLine({ tailFirst, summaryLast, between: input.between }),
         ].join("\n")

@@ -5134,3 +5134,17 @@ ORACLES (all on the rebuilt candidate `10.0.1126`): ✓ `bun test test/session/s
 RESIDUAL (same class): `activeSessionID` still resolves the newest session on `home` for WRITE paths — `saveAll()` (`local.tsx:268-275`) and the startup `--model` effect (`:359-389`) can write a neighbour session's file. Not what the owner reported; next candidate.
 
 TOOL NOTES: `bun build.py --only opencode` wipes `dist/…/bin` — `opentui.dll` must be copied in again (or the `stage` step run) before any live candidate run. `bun run` scripts resolve `solid-js` to the SERVER build (`createStore` missing) — import `solid-js/store` or use the client entry when probing reactive semantics.
+
+## [2026-09-27 08:30Z] Runtime evidence labelled every started background job FAILED — the agent stopped building and handed builds to the owner
+
+SYMPTOM (owner): the agent keeps asking the owner to rebuild the binary and run the tests; «раньше не было».
+
+GROUNDED (opencode.db / jobs.db / cmd_runner state, read-only): onset tracks the MODEL, not the kernel — `rUFqtoqX` (deepseek-flash, 09-26) ran 18 builds itself; `5lDMi1qo` (stealth/space-bunny-alpha, 09-27) made 809 tool calls, 100 edits, 0 builds and 12 asks, and the owner rebuilt ~12 times. No production-prompt commit between 09-25 12:49 and 09-27 13:29 (Inferred from git; 09-26 payloads rotated away). The fork: 09-27 00:44 bunny launched `_build.ps1` through `cmd_runner` itself; the tool header said `execution=FAILED`; the build finished `exit_code: 0` in 3.5 min (`logs/cmd_runner/20260926T164417Z_80b66c18/state.json`, 187 246 B, not truncated). It never built again.
+
+CAUSE ✓: `tool/run.ts:363` writes `exit: null` for a background start (exit not known yet); `session/constitution.ts:1353` computed `successful: exit === undefined || exit === 0`, so `null` became FAILED. 28/28 `exit: null` rows ⇔ «Started background job»; all 28 labelled FAILED. Lying since 2026-09-03 (`941c6e361d`) — deepseek ignored the header, bunny trusted it (it reads `[system evidence_ref=…]`, the highest-authority frame the model sees).
+
+FIX: `RuntimeEvidence.pending?` (optional — persisted blobs decode unchanged, no store-version bump); `pending: exit === null`; header prints `execution=STARTED`; `bindOracleEvidence` rejects a pending ref as `pending_evidence` (still cannot stamp — started is not proof). Consumers checked: `successful` read at the label and at the stamp gate only; nothing parses the label text.
+
+ORACLES: ✓ red first — new test «a started background job is labelled STARTED and cannot stamp» failed on the old code with `execution=FAILED`. ✓ `bun test test/session/constitution.test.ts` 50 pass / 0 fail / 365 expect. ✓ `bun typecheck` exit 0. Not live until a rebuild.
+
+RESIDUAL: (1) the `job` row for `run-1` says `done` after 5 s while the build ran 3.5 min — the row reflects `cmd_runner start` returning, not the build; same class (a wrapper's outcome reported as the work's). (2) Inferred amplifier, not changed: G8 «reaching for the same instrument again is a STALL» — right rule, but fed a false FAILED it forbids the retry that would have exposed the lie; and each owner rebuild reinforced the in-context pattern.

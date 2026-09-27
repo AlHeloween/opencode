@@ -793,6 +793,41 @@ claim_ledger:
     expect(Constitution.hasStamp("ses_claim_failed_evidence", "C1")).toBe(false)
   })
 
+  // A background start (`run.ts` writes `exit: null`) was labelled `execution=FAILED` while the job ran
+  // to exit 0 (2026-09-27: `cmd_runner` build 20260926T164417Z_80b66c18, 28/28 started jobs mislabelled).
+  // A model that trusts the header stops building and hands the build to the owner. Started is not failed —
+  // and it is not proof either, so it still cannot stamp.
+  test("a started background job is labelled STARTED and cannot stamp", () => {
+    Constitution.resetEpistemicState("ses_claim_pending_evidence")
+    Constitution.ingestAssistantText(
+      "ses_claim_pending_evidence",
+      `
+claim_ledger:
+  claims:
+    - id: C1
+      text: "candidate builds"
+      status: Hypothetical
+      falsifier: "build exits non-zero"
+  premises_for_plan: [C1]
+`,
+    )
+    const started = Constitution.registerToolEvidence({
+      sessionID: "ses_claim_pending_evidence",
+      toolCallID: "call_started",
+      tool: "run",
+      title: "Build candidate",
+      output: "Started background job run-1. Use job_output to read.",
+      metadata: { jobID: "run-1", exit: null },
+    })!
+    expect(Constitution.formatRuntimeEvidence(started)).toContain("execution=STARTED oracle=eligible")
+    const result = Constitution.ingestAssistantText(
+      "ses_claim_pending_evidence",
+      `oracle_stamp: claim_id=C1 evidence_ref=${started.id} result=PASS`,
+    )
+    expect(result.stampsRejected).toEqual(["C1:pending_evidence"])
+    expect(Constitution.hasStamp("ses_claim_pending_evidence", "C1")).toBe(false)
+  })
+
   test("generic web evidence cannot bypass source routing into Exact", () => {
     Constitution.resetEpistemicState("ses_claim_web_evidence")
     Constitution.ingestAssistantText(

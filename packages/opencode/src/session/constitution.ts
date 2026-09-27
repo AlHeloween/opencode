@@ -1065,6 +1065,8 @@ export type RuntimeEvidence = {
   inputDigest: string
   digest: string
   successful: boolean
+  /** The tool STARTED work whose exit is not known yet (`exit: null` — a background job). Not a failure, not proof. */
+  pending?: boolean
   oracleEligible: boolean
   at: number
 }
@@ -1351,6 +1353,7 @@ export function registerToolEvidence(input: {
     inputDigest,
     digest,
     successful: exit === undefined || exit === 0,
+    pending: exit === null,
     oracleEligible: EXACT_ORACLE_TOOLS.has(tool),
     at: Date.now(),
   }
@@ -1368,7 +1371,7 @@ export function registerToolEvidence(input: {
 }
 
 export function formatRuntimeEvidence(evidence: RuntimeEvidence) {
-  return `[system evidence_ref=${evidence.id} tool=${evidence.tool} execution=${evidence.successful ? "OK" : "FAILED"} oracle=${evidence.oracleEligible ? "eligible" : "ineligible"}]`
+  return `[system evidence_ref=${evidence.id} tool=${evidence.tool} execution=${evidence.pending ? "STARTED" : evidence.successful ? "OK" : "FAILED"} oracle=${evidence.oracleEligible ? "eligible" : "ineligible"}]`
 }
 
 export function getClaimEvidenceEvents(sessionID: string): readonly ClaimEvidenceEvent[] {
@@ -1382,6 +1385,7 @@ function bindOracleEvidence(sessionID: string, claimID: string, evidenceRef: str
   const prev = s.ledger.claims.get(id)
   if (!id || !evidence) return "unknown_evidence"
   if (!evidence.oracleEligible) return "ineligible_evidence"
+  if (evidence.pending) return "pending_evidence"
   if (!evidence.successful) return "failed_evidence"
   if (!prev?.text.trim()) return "unknown_claim"
   if (!prev.falsifier?.trim()) return "missing_falsifier"

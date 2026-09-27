@@ -235,7 +235,6 @@ GATES = (
         shared_rules=("EVIDENCE_ORDER", "PLAN_CONTRACT_ENFORCEMENT", "PLAN_BINDING_ENFORCEMENT"),
         local_rules=(
             _rule("G6", "GROUND_PLAN_RULE", "Map symbols and ownership first, inspect the bounded implementation surface second, and fill only evidence gaps third. The impact query runs for every mutation binding: whether a surface has other consumers is its answer, not its precondition."),
-            _rule("G6", "HANDOVER_OR_SWITCH", "Plan bound but the implementing identity is missing: switch or hand over where the host allows it and continue at G7; the terminal is for a host where neither is possible."),
             _rule("G6", "REUSE_BINDING", "For each task, record the reused implementation or authoritative pattern and explain any necessary invention."),
             _rule("G6", "DEPENDENCY_BINDING", "Resolve task inputs, outputs, affected consumers, generated files, tests, and rollback points to concrete paths and symbols."),
         ),
@@ -339,12 +338,19 @@ PROTOCOLS = (
     ),
     Protocol(
         id="EVOLUTION_LOOP",
-        objective="Propose measurable project improvements after closure without bypassing a new authorization cycle.",
-        observed_at=("G9",),
+        # 2026-09-27: ADID 15.3 Mode 2 (docs/ADID_Framework_15_3.md:212-214) self-triggers on TWO observed
+        # conditions — after the primary tasks complete, and in an undirected conversation with history.
+        # Only the first survived the port, so closure became the single place an agent may start on its
+        # own; an agent whose every task was blocked could never reach it and turned each move into a
+        # question to the owner (12 asks, 0 builds in one session). Restored, and the first trigger is
+        # read as "the list stopped moving": closed OR stalled on anything but a user decision.
+        objective="Propose measurable improvements when work closes, stalls, or has no straight goal, without bypassing a new authorization cycle.",
+        observed_at=("G0", "G4", "G6", "G8", "G9"),
         returns_to="G1",
         authority="advisory",
         local_rules=(
-            _rule("EVOLUTION_LOOP", "PROJECT_SNAPSHOT", "Capture the verified post-closure project state and provenance, then residual quality against @QUALITY_VECTOR."),
+            _rule("EVOLUTION_LOOP", "SELF_TRIGGER", "Self-triggered, never requested: a stall is every open task blocked by anything but a user decision; an undirected conversation needs history. Its medoids serve the same to_state — a proposal, not a question."),
+            _rule("EVOLUTION_LOOP", "PROJECT_SNAPSHOT", "Capture the verified current project state and provenance, then residual quality against @QUALITY_VECTOR."),
             _rule("EVOLUTION_LOOP", "QUALITY_VECTOR_RULE", "Evaluate declared dimensions against their baselines, each within its own metric family."),
             _rule("EVOLUTION_LOOP", "EVOLUTION_CANDIDATES", "Generate at least five bounded candidates when feasible, cluster with @L1_DISTANCE, preserve Pareto alternatives, and apply @ONE_STEP_AHEAD to survivors."),
             _rule("EVOLUTION_LOOP", "QUALITY_GUARDRAILS", "Reject candidates that weaken safety, architecture, oracle coverage, portability, cache stability, or rollback."),
@@ -559,16 +565,25 @@ KERNEL = Kernel(
         # instead of built. So every WAITING_APPROVAL edge now names what the agent could not obtain,
         # and the missing thing must be one the USER ALONE OWNS - intent, authority, identity, a
         # decision. A missing INSTRUMENT is never one of those: an instrument can be built.
+        # REVERTED 2026-09-27 for G4 and G6 (owner: «баг тут»): the pricing clauses became a TEMPLATE
+        # for the exit. «a missing instrument» sat ON the edge to the user and primed the very route it
+        # negated; «hand-over» named no target, and the user is always reachable, so a BUILD_MODE agent
+        # handed its own rebuild and test drive to the owner and continued (12 asks in one session,
+        # 0 builds). Both edges and the 09-24 HANDOVER_OR_SWITCH rule are back to the 09-17 text, the one
+        # with field use. A missing instrument routes G8 -> G2 (the harness is the next leaf), not here.
         Edge("G0", "WAITING_APPROVAL", "terminal", "the Digital Intention stays ambiguous in the user's words and grounding cannot settle it"),
         Edge("G1", "BLOCKED", "terminal", "ownership unresolved and unobtainable, or the question is unobservable at every scale"),
-        Edge("G4", "WAITING_APPROVAL", "terminal", "ASK names a decision only the user's authority settles; a missing instrument is not one"),
+        Edge("G4", "WAITING_APPROVAL", "terminal", "ASK requires a user decision"),
         # PLAN_MODE reaches G6 with G7 outside its gates, so the graph owed it a declared exit.
-        # The exit is the HANDOVER: implementing is another identity's decision.
         # The other case - a plan-only session closing on evidence at G9 - is NOT expressible here:
         # validate.py:41 requires the forward edges to be exactly the canonical spine, so a branch on
         # the success path has no representation in this model. Recorded as a residual rather than
         # forced through a `side` edge, whose meaning is a concern loop and not a closing path.
-        Edge("G6", "WAITING_APPROVAL", "terminal", "the plan is bound, implementing it needs an identity this one lacks, and the host offers no switch and no hand-over"),
+        # 2026-09-27, outside falsifier (space-bunny-free via tools/aicall.py): «an identity this one does not
+        # own» is ALSO «blocked by anything but a user decision», so this terminal and the EVOLUTION_LOOP
+        # stall trigger fired on one condition with no precedence. Bound to the identity contract instead:
+        # only an identity whose gates exclude G7 (PLAN_MODE) can take it, and the user is not an identity.
+        Edge("G6", "WAITING_APPROVAL", "terminal", "the plan is complete and this identity's gates exclude G7"),
         # STALL is DETECTED at G8 and CLOSED at G9. A terminal at G8 was the only exit reachable
         # after G7, i.e. after the tree was mutated, and it skipped the one gate that records the
         # residual, the tool state and the next route - exactly what an autonomous run needs most.

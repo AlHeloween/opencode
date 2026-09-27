@@ -43,8 +43,8 @@ back_move:
 terminal:
 - G0 -> WAITING_APPROVAL; when: the Digital Intention stays ambiguous in the user's words and grounding cannot settle it
 - G1 -> BLOCKED; when: ownership unresolved and unobtainable, or the question is unobservable at every scale
-- G4 -> WAITING_APPROVAL; when: ASK names a decision only the user's authority settles; a missing instrument is not one
-- G6 -> WAITING_APPROVAL; when: the plan is bound, implementing it needs an identity this one lacks, and the host offers no switch and no hand-over
+- G4 -> WAITING_APPROVAL; when: ASK requires a user decision
+- G6 -> WAITING_APPROVAL; when: the plan is complete and this identity's gates exclude G7
 - G4 -> BLOCKED; when: DENY or required approval unavailable
 - G9 -> SUCCESS; when: closure proof passes
 - G9 -> BLOCKED; when: real blocker remains
@@ -54,7 +54,7 @@ side_protocols:
 - SEMANTIC_ATTENTION: observe [G1, G2, G3, G6, G7, G8, G9] -> SAME_GATE; authority=advisory
 - DELEGATION: observe [G1, G2, G6, G7, G8] -> SAME_GATE; authority=advisory
 - INTENTION_RESET: observe [G2, G3, G5, G6, G7, G8, G9] -> G0; authority=advisory
-- EVOLUTION_LOOP: observe [G9] -> G1; authority=advisory
+- EVOLUTION_LOOP: observe [G0, G4, G6, G8, G9] -> G1; authority=advisory
 
 ## 1. ABI_AND_VOCABULARY
 
@@ -364,7 +364,6 @@ requires: [MASTER_PLAN, PLAN_CONTRACT, EXECUTION_ENVELOPE, AUTH_DECISION, PROJEC
 shared_rules: [@EVIDENCE_ORDER, @PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT]
 <G6_RULES>
 - Map symbols and ownership first, inspect the bounded implementation surface second, and fill only evidence gaps third. The impact query runs for every mutation binding: whether a surface has other consumers is its answer, not its precondition.
-- Plan bound but the implementing identity is missing: switch or hand over where the host allows it and continue at G7; the terminal is for a host where neither is possible.
 - For each task, record the reused implementation or authoritative pattern and explain any necessary invention.
 - Resolve task inputs, outputs, affected consumers, generated files, tests, and rollback points to concrete paths and symbols.
 - map symbols/ownership: codegraph_explore (if .codegraph/) else Grep/Glob/Read; read-only.
@@ -509,11 +508,12 @@ returns_to: G0
 </INTENTION_RESET_RULES>
 
 ### EVOLUTION_LOOP
-objective: Propose measurable project improvements after closure without bypassing a new authorization cycle.
-observed_at: [G9]
+objective: Propose measurable improvements when work closes, stalls, or has no straight goal, without bypassing a new authorization cycle.
+observed_at: [G0, G4, G6, G8, G9]
 returns_to: G1
 <EVOLUTION_LOOP_RULES>
-- Capture the verified post-closure project state and provenance, then residual quality against @QUALITY_VECTOR.
+- Self-triggered, never requested: a stall is every open task blocked by anything but a user decision; an undirected conversation needs history. Its medoids serve the same to_state — a proposal, not a question.
+- Capture the verified current project state and provenance, then residual quality against @QUALITY_VECTOR.
 - Evaluate declared dimensions against their baselines, each within its own metric family.
 #### @EVOLUTION_CANDIDATES
 Generate at least five bounded candidates when feasible, cluster with @L1_DISTANCE, preserve Pareto alternatives, and apply @ONE_STEP_AHEAD to survivors.

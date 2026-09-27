@@ -49,6 +49,14 @@ import { emptyConsoleState, type ConsoleState } from "@/config/console-state"
  */
 const STARTUP_DEADLINE_MS = 15_000
 
+/**
+ * How many live message ids are remembered per session. Enough to cover a long
+ * turn and its undo — the window in which a render divergence is observed — and
+ * bounded, because an unbounded arrival list on a session that runs for days is
+ * a memory leak wearing a diagnostic's clothes.
+ */
+const ARRIVED_MAX = 400
+
 export const { use: useSync, provider: SyncProvider } = createSimpleContext({
   name: "Sync",
   init: () => {
@@ -84,6 +92,19 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       message: {
         [sessionID: string]: Message[]
       }
+      /**
+       * Message ids a LIVE EVENT named, per session. This is the ONLY set that is
+       * not derived from the render, which is what makes the divergence check
+       * non-circular: `message` says what the store holds, this says what the
+       * server actually published, and `messagesList` says what the screen draws.
+       *
+       * Bounded like the rest of the store, and it drops on a session clear for
+       * the same reason `message` does — a stale id would otherwise keep firing
+       * the oracle forever after the session is closed.
+       */
+      arrived: {
+        [sessionID: string]: string[]
+      }
       part: {
         [messageID: string]: Part[]
       }
@@ -118,6 +139,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       session_jobs: {},
       todo: {},
       message: {},
+      arrived: {},
       part: {},
       lsp: [],
       mcp: {},
@@ -283,6 +305,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
     function cleanupSessionStores(sessionID: string) {
       const messageIDs = store.message[sessionID]?.map((m) => m.id) ?? []
       setStore("message", produce((draft) => { delete draft[sessionID] }))
+      setStore("arrived", produce((draft) => { delete draft[sessionID] }))
       setStore("session_status", produce((draft) => { delete draft[sessionID] }))
       setStore("session_diff", produce((draft) => { delete draft[sessionID] }))
       setStore("todo", produce((draft) => { delete draft[sessionID] }))
@@ -610,6 +633,25 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         }
 
         case "message.updated": {
+          // THE ARRIVAL MARK, recorded BEFORE the reconcile below can early-out.
+          // The order matters: this is a fact about the transport, and a fact
+          // about the transport must not depend on whether the store happened to
+          // need the row. Three wrong diagnoses came from reading only the render
+          // side; this is the one line that says the event arrived.
+          const arrivedSID = event.properties.info.sessionID
+          const arrivedID = event.properties.info.id
+          setStore(
+            "arrived",
+            arrivedSID,
+            produce((draft) => {
+              // `draft` is a string[], not a map — I wrote `draft[arrivedID]` first
+              // and it type-checked as an index into an array, which is how a
+              // membership test becomes a value read. `includes` is the predicate.
+              if (draft.includes(arrivedID)) return
+              draft.unshift(arrivedID)
+              if (draft.length > ARRIVED_MAX) draft.length = ARRIVED_MAX
+            }),
+          )
           const messages = store.message[event.properties.info.sessionID]
           if (!messages) {
             setStore("message", event.properties.info.sessionID, [event.properties.info])

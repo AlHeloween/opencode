@@ -138,6 +138,19 @@ to_state: crossing 64k of content writes one `s` whose body is assembled entirel
   - `layer1SummaryThreshold()` is the constant `SUMMARY_INTERVAL_TOKENS = 65_536` (`compaction.ts:38,439`), and the test's content is `70_000 * 4` chars, so the comment's arithmetic says it crosses.
   - **UNRESOLVED, two candidates and not measured:** either `computeOpenWindowTokens` counts REAL tokens and `"x".repeat(280_000)` BPE-compresses to well under 65 536 (the comment assumes chars/4; the gate does not), or `visibleAfter` does not carry that message into the measure. The test's own title therefore overstates what it proves, and its comment («Nothing is captured») names a reason that is not the reason.
   - What is NOT wrong: the capture fires in the product. 11 rows, the gate holding between occasions, one panel — live, with addresses. T4b is about having the gate under a test, not about the gate being broken.
+- [x] **T6 — a diff remembers the TURN that produced it.** Owner's question, 2026-09-27: «есть ход — что мы правили тогда». The retrieval half already existed (a `project_checkpoint` row carries `file, patch, additions, deletions` per entry, plus a CodeGraph `impact` computed FROM those paths — measured `impact.from="tools"`, `impact.to="summary-range"`, 7–40 impacted files per row). What did not exist is ADDRESSING BY TURN: the rows are per 64K RANGE, and `enrichRange` merged a turn's diffs into the range's, so the turn attribution was destroyed at write time.
+  - **The turn id is `parentID`, in one hop, with no walk and no join** (`turnRootId`). Measured across the WHOLE database: 1159 assistant messages, every one parented to a `user` — zero assistant→assistant, zero orphans. A turn is a flat fan-out from one user message. `Turn` in `session/turn.ts` is a NUMBER (a user-message count) and is the wrong thing to address by: it renumbers when a user message is inserted above, which is the shift problem one level up.
+  - The key rides INSIDE the stored diff object, not a new column: `incremental-checkpoint.ts` reads `diffs` with no parse and no schema decode (`diffs: row.diffs ?? undefined`), so an extra key survives the round trip and no migration is involved.
+  - **The one real trap, and it is the reason a naive version would have shipped a silent defect:** `mergeAnchorDiffs` keeps the ANCHOR entry for any file fossil also sees, and took only the patch from the tool metadata. Tagging tool diffs alone would therefore have dropped the turn from exactly the files an `edit` touched — the more reliable the diff, the more silently it would have erased the question it was collected to answer. The merge now carries `turn` across (one statement, both keys, because `FileDiff` is readonly).
+  - `turn` is OPTIONAL and its absence is meaningful: an anchor-only diff describes the whole RANGE, so absent means «not attributable to one turn», never «belongs to no turn». Pinned by a test.
+  - Tests: 4 new in `mechanical-writer.test.ts` — `turnRootId` for both roles, `collectToolFileDiffs` tags, the merge carry, and the absent case. 28 pass / 0 fail with `summary-anchors` + `mechanical-summary-body` (run `20260927T042056Z_69193967`); typecheck exit 0 (`20260927T042128Z_d419c2eb`).
+  - **The durable half is the commit message, not a source comment.** `.opencode/data` is gitignored, so a row can vanish; a `turn: msg_…` line in the commit body survives and is greppable with `git log --grep`, and it carries the COMMIT, which a comment in the source cannot. A marker per edited line was considered and declined: it adds a diff to maintain the marker, and the grain it would carry is already carried by the id.
+  - Recipe, once rows exist with `turn`:
+    ```sql
+    SELECT pc.id, json_extract(j.value,'$.file'), json_extract(j.value,'$.patch')
+      FROM project_checkpoint pc, json_each(pc.diffs) j
+     WHERE pc.session_id = ? AND json_extract(j.value,'$.turn') = ?;
+    ```
 
 ## Run log
 

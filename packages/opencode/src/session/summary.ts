@@ -102,14 +102,38 @@ export function sliceMessagesForSummaryRange(
 }
 
 /**
+ * A file diff that remembers WHICH TURN produced it.
+ *
+ * The turn is the id of the USER message that roots it. Measured 2026-09-27 across the whole
+ * database: 1159 assistant messages, and every one of them has a `user` parent — zero
+ * assistant→assistant links, zero orphans. A turn is therefore a flat fan-out from one user message,
+ * and `parentID` IS the turn id in ONE hop, with no walk and no join.
+ *
+ * The key rides INSIDE the stored diff object rather than in a new column, and that is deliberate:
+ * `incremental-checkpoint.ts` reads `diffs` with no parse and no schema decode, so an extra key
+ * survives the round trip untouched, and no migration is involved.
+ *
+ * `turn` is OPTIONAL and its absence is meaningful: a diff the fossil anchor produced describes the
+ * whole RANGE, and no tool metadata ever claimed it, so there is no turn to record. Absent means
+ * «not attributable to one turn» — never «belongs to no turn».
+ */
+export type TurnedFileDiff = Snapshot.FileDiff & { turn?: string }
+
+/** The turn a message belongs to: the user message that roots it, else its parent. */
+export function turnRootId(msg: MessageV2.WithParts): string | undefined {
+  if (msg.info.role === "user") return msg.info.id
+  return msg.info.parentID
+}
+
+/**
  * Exact WC edits for a message range: completed write / edit / multiedit tool
  * parts already stored in session DB (input + metadata.filediff / results).
  * Last write wins per path. No Fossil.
  */
-export function collectToolFileDiffs(messages: MessageV2.WithParts[]): Snapshot.FileDiff[] {
-  const filediffs = new Map<string, Snapshot.FileDiff>()
+export function collectToolFileDiffs(messages: MessageV2.WithParts[]): TurnedFileDiff[] {
+  const filediffs = new Map<string, TurnedFileDiff>()
 
-  const take = (fd: Snapshot.FileDiff | undefined) => {
+  const take = (fd: Snapshot.FileDiff | undefined, turn?: string) => {
     if (!fd?.file) return
     if ((fd.additions ?? 0) === 0 && (fd.deletions ?? 0) === 0 && !fd.patch?.trim()) return
     const key = fd.file.replaceAll("\\", "/")
@@ -119,17 +143,21 @@ export function collectToolFileDiffs(messages: MessageV2.WithParts[]): Snapshot.
       additions: fd.additions ?? 0,
       deletions: fd.deletions ?? 0,
       status: fd.status,
+      // The turn travels with the diff. `edit` is the overwhelming majority of the edits an agent
+      // makes, so this is what turns a file list into «what did THIS turn touch».
+      turn,
     })
   }
 
   for (const item of messages) {
+    const turn = turnRootId(item)
     for (const part of item.parts) {
       if (part.type !== "tool") continue
       if (!MUTATION_TOOLS.has(part.tool)) continue
       const state = part.state
       if (state.status !== "completed") continue
       const meta = state.metadata as Record<string, unknown>
-      take(meta.filediff as Snapshot.FileDiff | undefined)
+      take(meta.filediff as Snapshot.FileDiff | undefined, turn)
       // multiedit nests per-edit filediff under results[]
       if (Array.isArray(meta.results)) {
         for (const row of meta.results) {
@@ -221,17 +249,27 @@ export function summaryRangeEndHash(
  */
 export function mergeAnchorDiffs(
   anchored: readonly Snapshot.FileDiff[],
-  tools: readonly Snapshot.FileDiff[],
-): Snapshot.FileDiff[] {
+  tools: readonly TurnedFileDiff[],
+): TurnedFileDiff[] {
   const key = (file: string) => file.replaceAll("\\", "/")
-  const merged = new Map<string, Snapshot.FileDiff>(anchored.map((item) => [key(item.file), { ...item }]))
+  const merged = new Map<string, TurnedFileDiff>(anchored.map((item) => [key(item.file), { ...item }]))
   for (const tool of tools) {
     const existing = merged.get(key(tool.file))
     if (!existing) {
       merged.set(key(tool.file), tool)
       continue
     }
-    if (!existing.patch?.trim() && tool.patch?.trim()) merged.set(key(tool.file), { ...existing, patch: tool.patch })
+    // The anchor's entry is the authoritative diff — whole range, real patch, real stats — but it is
+    // RANGE-level and carries no turn. The tool metadata is the ONLY place a turn is ever known, so
+    // it crosses here. Without this the merge would drop the attribution from exactly the files an
+    // `edit` touched, because fossil sees those too: the more reliable the diff, the more silently it
+    // would have erased the question it was collected to answer. `FileDiff` is readonly, so the entry
+    // is rebuilt rather than assigned — one statement, both keys, no branch.
+    merged.set(key(tool.file), {
+      ...existing,
+      patch: !existing.patch?.trim() && tool.patch?.trim() ? tool.patch : existing.patch,
+      turn: existing.turn ?? tool.turn,
+    })
   }
   return [...merged.values()]
 }
@@ -320,7 +358,7 @@ export interface Interface {
     /** Messages before the range — the anchor fallback when the range itself carries none. */
     beforeMessages?: MessageV2.WithParts[]
   }) => Effect.Effect<{
-    diffs: Snapshot.FileDiff[]
+    diffs: TurnedFileDiff[]
     impact?: Snapshot.ImpactSummary
   }>
   /**
@@ -673,7 +711,7 @@ export const layer = Layer.effect(
           sessionID: input.sessionID,
           rangeMessages: input.messages.length,
         })
-        return { diffs: [] as Snapshot.FileDiff[] }
+        return { diffs: [] as TurnedFileDiff[], impact: undefined }
       }
       const impact = yield* impactForToolFiles(diffs.map((d) => d.file))
       log.info("enrichRange: range diffs + CodeGraph", {

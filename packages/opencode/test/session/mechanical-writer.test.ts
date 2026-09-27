@@ -34,7 +34,7 @@ import { Effect, Layer } from "effect"
 import { Bus } from "../../src/bus"
 import { Instance } from "../../src/project/instance"
 import { Session as SessionNs } from "../../src/session/session"
-import { SessionSummary } from "../../src/session/summary"
+import { SessionSummary, collectToolFileDiffs, mergeAnchorDiffs, turnRootId } from "../../src/session/summary"
 import { IncrementalCheckpoint } from "../../src/session/incremental-checkpoint"
 import { MessageV2 } from "../../src/session/message-v2"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
@@ -243,5 +243,56 @@ describe("the no-model-call constraint has an instrument, not a promise", () => 
     // The BODY is checked, not the comment above it: the comment claims «No provider is contacted»,
     // and a claim in prose is exactly what this session keeps refuting.
     expect(text.slice(start, end)).not.toMatch(/\b(streamText|streamObject|LLM\.|SessionPrompt\.|SessionProcessor\.)/)
+  })
+})
+
+/**
+ * A diff must remember WHICH TURN produced it, or «read the code, find the id, ask the database»
+ * has no join to make: a file list answers «what changed», never «what did THIS turn change».
+ *
+ * The turn is the id of the user message that roots it — measured 2026-09-27 across the whole
+ * database, 1159 assistant messages and every one of them parented to a `user`. One hop, no walk.
+ */
+describe("a diff remembers the TURN that produced it", () => {
+  test("turnRootId is the user message for both roles", () => {
+    const sid = SessionID.make("turn-root")
+    const from = MessageID.make("msg_turn_root")
+    const to = MessageID.make("msg_turn_leaf")
+    const [user, assistant] = turn(sid, from, to, true)
+    expect(turnRootId(user)).toBe(from)
+    expect(turnRootId(assistant)).toBe(from)
+  })
+
+  test("collectToolFileDiffs tags each diff with the turn that made it", () => {
+    const sid = SessionID.make("turn-tag")
+    const from = MessageID.make("msg_turn_tag_root")
+    const to = MessageID.make("msg_turn_tag_leaf")
+    const diffs = collectToolFileDiffs(turn(sid, from, to, true))
+    expect(diffs).toHaveLength(1)
+    expect(diffs[0]!.turn).toBe(from)
+  })
+
+  test("mergeAnchorDiffs CARRIES the turn onto the anchor's entry", () => {
+    // THE regression this guards. Fossil's entry is authoritative — whole range, real patch — and it
+    // is range-level, so before the carry the turn was dropped from exactly the files an `edit`
+    // touched, because fossil sees those too. The more reliable the diff, the more silently it would
+    // have erased the question it was collected to answer.
+    const anchored = [
+      { file: EDIT_FILE, patch: "@@ -1 +1 @@\n-a\n+b", additions: 1, deletions: 1, status: "modified" as const },
+    ]
+    const tools = [{ file: EDIT_FILE, patch: "", additions: 1, deletions: 0, status: "modified" as const, turn: "msg_turn_x" }]
+    const merged = mergeAnchorDiffs(anchored, tools)
+    expect(merged).toHaveLength(1)
+    expect(merged[0]!.turn).toBe("msg_turn_x")
+    // And the anchor stays authoritative for the patch — the carry adds a key, it does not replace.
+    expect(merged[0]!.patch).toContain("+b")
+  })
+
+  test("a diff only the anchor saw keeps NO turn — absent means 'not attributable to a turn'", () => {
+    const merged = mergeAnchorDiffs(
+      [{ file: "shell-made.ts", patch: "@@ -1 +1 @@\n-a\n+b", additions: 1, deletions: 0, status: "modified" as const }],
+      [],
+    )
+    expect(merged[0]!.turn).toBeUndefined()
   })
 })

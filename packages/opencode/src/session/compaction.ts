@@ -832,8 +832,21 @@ export function tailNote(input: {
   // that is a whole number is what lets a stall be detected at all.
   const unpaid = input.open.map((s) => ({ id: s.id, gaps: diagnoseSummaryGaps(s.body) })).filter((s) => s.gaps.length > 0)
   if (unpaid.length > 0) {
+    // A COUNT WITH NO NAMES IS THE SAME DEFECT AS A SILENT ZERO, one layer up. Measured 2026-09-27 on
+    // the render that replaced the per-row gap list: the debt line read `sections missing per row: 3`
+    // and NO section was named anywhere — because the row render below walks the `## ` headings the
+    // body HAS, and a section that is absent as a heading (`Next Steps`, `Critical Context`,
+    // `Relevant Files` in the pinned fixture) is therefore never printed at all. The reader is told
+    // three sections are missing and cannot learn which, which is the whole reason the tool exists.
+    //
+    // The names come back ONCE, on this line, from the FIRST unpaid row. Once, because the measured
+    // reason the list was removed is still true and still binding: six open rows repeated the
+    // identical string six times and the note grew with the POOL. So the bound belongs on the pool,
+    // never on the reader — one name list, one row, and the id list beside it says which row it is.
+    // Another row's gaps differ; its own address is in that list and its body is one `sessionread` away.
+    const named = unpaid[0]!.gaps.join(" · ")
     lines.push(
-      `summaries open: ${input.open.length} · unpaid: ${unpaid.length} · sections missing per row: ${unpaid[0]!.gaps.length} · ${unpaid.length <= SUMMARY_DEBT_ROWS_SHOWN ? unpaid.map((s) => s.id).join(", ") : `${unpaid.slice(0, SUMMARY_DEBT_ROWS_SHOWN).map((s) => s.id).join(", ")} (+${unpaid.length - SUMMARY_DEBT_ROWS_SHOWN} more)`} · fill with summaryedit before the fold`,
+      `summaries open: ${input.open.length} · unpaid: ${unpaid.length} · sections missing in ${unpaid[0]!.id} (${unpaid[0]!.gaps.length}): ${named} · ${unpaid.length <= SUMMARY_DEBT_ROWS_SHOWN ? unpaid.map((s) => s.id).join(", ") : `${unpaid.slice(0, SUMMARY_DEBT_ROWS_SHOWN).map((s) => s.id).join(", ")} (+${unpaid.length - SUMMARY_DEBT_ROWS_SHOWN} more)`} · fill with summaryedit before the fold`,
     )
   } else if (input.open.length > 0) {
     lines.push(`summaries open: ${input.open.length} · no gaps — fold into the next m* as-is`)

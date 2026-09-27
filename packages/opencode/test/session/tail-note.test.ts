@@ -94,18 +94,38 @@ const BODY_COMPLETE = [
 ].join("\n")
 
 describe("the pushed compaction note", () => {
-  test("an open summary's gaps are named, with the tool that can fill them", () => {
+  // The gap list was REPLACED by a count, on a measured reason (compaction.ts:828-832): a summary's gap
+  // list names NINE sections, so one unpaid row is already ~340 chars, and six open rows printed the
+  // identical gap string six times — the note grew with the pool instead of reporting it. These three
+  // assertions were left pointing at the old `summary <id> open · gaps: …` shape by 9e6f6d06 and went
+  // red with it; behaviour moved, the suite did not. They are rewritten against the CURRENT render,
+  // and the count is asserted with the ADDRESS of the row so a debt line that names no row still fails.
+  test("an open summary's debt is COUNTED, ADDRESSED, NAMED, and paired with the tool that can fill it", () => {
     const note = tailNote({ open: [{ id: "ckpt_01", body: BODY_WITH_GAPS }], window: null })
-    expect(note).toContain("summary ckpt_01 open")
-    expect(note).toContain("gaps: Next Steps (0/24 chars)")
-    expect(note).toContain("Relevant Files (0/24 chars)")
+    expect(note).toContain("summaries open: 1 · unpaid: 1 · sections missing in ckpt_01 (3):")
     expect(note).toContain("fill with summaryedit before the fold")
+    // THE NAMED PART IS THE POINT, and it is the regression this file now exists to catch. The count
+    // alone reads `sections missing per row: 3` and no reader can learn WHICH three: the row render
+    // walks the `## ` headings the body HAS, and these three are absent as headings, so they are
+    // printed nowhere. A debt line that counts without naming is a silent zero one layer up.
+    expect(note).toContain("Next Steps (0/24 chars)")
+    expect(note).toContain("Critical Context (0/24 chars)")
+    expect(note).toContain("Relevant Files (0/24 chars)")
+    // The name list is reported ONCE, not per row: six open rows repeating the identical string six
+    // times is what made the note grow with the pool. The bound belongs on the pool, not the reader.
+    expect(note.split("fill with summaryedit before the fold").length - 1).toBe(1)
+    // A filled section still reads as READ, through the row's own render.
+    expect(note).toContain("ckpt_01 165t · Goal: Prove the nag names the deficient sections")
   })
 
   test("a complete open summary gets a quiet line, without a gap list", () => {
     const note = tailNote({ open: [{ id: "ckpt_02", body: BODY_COMPLETE }], window: null })
-    expect(note).toContain("summary ckpt_02 open · no gaps")
-    expect(note).not.toContain("gaps:")
+    expect(note).toContain("summaries open: 1 · no gaps — fold into the next m* as-is")
+    // Not `not.toContain("gaps")` any more: the word is legitimately present in the quiet line's own
+    // text, so that assertion would pass for the wrong reason. What must be absent is the NAME LIST
+    // and the fill instruction — a complete row earns neither.
+    expect(note).not.toContain("chars)")
+    expect(note).not.toContain("fill with summaryedit before the fold")
   })
 
   test("the countdown carries the same numbers as checkstate's window block", () => {
@@ -263,10 +283,15 @@ describe("the pushed compaction note", () => {
       "marks: 3 ✓ · 1 ✗ in the last reply · 1/3 window replies with none",
     )
     // The alert half: a reply with no marks is STATED, never left as a zero the reader interprets.
+    // The zero branch names the REQUIRED FORM and not the consequence: 2d3e48dc4c changed the string
+    // and this assertion with it — the previous one still read `unmarked claims read as CONFIRMED`,
+    // and this file was not in the run, so the change shipped red.
     const silent = statusMarks([{ role: "assistant", text: "everything is fine, no marks here" }])
     expect(tailNote({ open: [], window: null, marks: silent })).toContain(
-      "marks: NONE in the last reply — unmarked claims read as CONFIRMED",
+      "marks: NONE in the last reply — REQUIRED FORM:",
     )
+    // The census stays on the same line, so the alert and the count cannot drift apart.
+    expect(tailNote({ open: [], window: null, marks: silent })).toContain("1/1 window replies with none")
     // Nothing to count yet is its own sentence — NOT the same reading as "the model marked nothing".
     expect(
       tailNote({
@@ -310,7 +335,11 @@ describe("the pushed compaction note", () => {
               // Open ⇒ the nag names it.
               const openBefore = IncrementalCheckpoint.listOpen(info.id)
               expect(openBefore.map((s) => s.id)).toEqual([saved.id])
-              expect(tailNote({ open: openBefore, window: null })).toContain("summary ckpt-nag-control open")
+              // Open ⇒ the debt line names it, by address. The old assertion read
+              // `summary ckpt-nag-control open`, a shape 9e6f6d06 replaced; what survives is the row's
+              // id inside the debt line, so that is what is pinned.
+              expect(tailNote({ open: openBefore, window: null })).toContain("unpaid: 1 · sections missing in ckpt-nag-control (3):")
+              expect(tailNote({ open: openBefore, window: null })).toContain("ckpt-nag-control")
 
               // Folded ⇒ the same query drops it, so nothing is nagged about:
               // a line surviving the fold would instruct an action `summaryedit`

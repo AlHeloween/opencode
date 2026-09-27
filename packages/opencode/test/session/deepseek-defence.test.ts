@@ -42,7 +42,8 @@ const summary = Layer.succeed(SessionSummary.Service, SessionSummary.Service.of(
   updateFallback: () => Effect.void,
   diff: () => Effect.succeed([]),
   computeDiff: () => Effect.succeed([]),
-  enrichRange: () => Effect.succeed({ diffs: [] }),
+    enrichRange: () => Effect.succeed({ diffs: [] }),
+    captureMechanical: () => Effect.succeed(undefined),
 }))
 
 const ref = { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") }

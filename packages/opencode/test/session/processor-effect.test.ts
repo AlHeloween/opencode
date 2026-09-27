@@ -36,6 +36,7 @@ const summary = Layer.succeed(
     diff: () => Effect.succeed([]),
     computeDiff: () => Effect.succeed([]),
     enrichRange: () => Effect.succeed({ diffs: [] }),
+    captureMechanical: () => Effect.succeed(undefined),
   }),
 )
 

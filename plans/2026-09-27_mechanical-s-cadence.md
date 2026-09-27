@@ -1,0 +1,170 @@
+# Mechanical `s` cadence — restore the Layer-1 summary without a model call
+
+<!-- intention: the 2026-09-22 removal took the model call AND the mechanical half with it — `enrichRange` has zero call sites, `project_checkpoint` holds 0 rows over 870 messages, so the fold carries memory + a tail and the code-thread past ~32K is unreachable -> every 64k of work writes a mechanical summary (semantic-vector list + the range's messages + fossil/tool diffs + CodeGraph impact) with no model call, the owner can READ it as a panel, and the fold carries its three layers again -->
+
+## HANDOFF 2026-09-27 03:30 — the panel APPEARS. Residual: it duplicates (19 panels / 11 rows).
+
+**Superseded in one respect:** this section was written at 03:25 saying the panel does not appear. It
+does — the owner saw it at 03:25:54, the first time ever. What was true then and is false now is
+only the "NOT working" claim; everything below about the three refuted diagnoses still stands, and
+the new row proves the three body fixes landed.
+
+**The new row is clean** (`ckpt_0e0e4ca44001XZrdFuNGM50fyA`, 894t, 84 messages, 5 files):
+`10/74 assistant replies carry a vector` — the denominator is the replies, not the range; and
+`1 vector without a label at #4 (absent)` — no false `leaked`. So the three measured body defects
+(assistant-only denominator, the reader that ran past the field, the uncapped position list) are
+fixed and confirmed on a real row, not only by tests.
+
+**Residual, stated as a measurement:** `rows 11 · panels 19` (was `10 · 16`). The panel is written on
+occasions where NO new row is created, so `row.toMessageID !== previousBoundary` is true while `save`
+conflicts. Three gate patches have each looked right and each was wrong; per the owner's standing
+agreement the gate is NOT patched again. Read `IncrementalCheckpoint.save` (`:75-109`) and its
+`UNIQUE (session_id, from_message_id, to_message_id, predecessor_id)` against the range the mount
+computes — the conflict key and the range are the thing to compare, and nobody has done that yet.
+
+**Two cosmetic defects remain in the body, both mine, both visible in the live row:**
+- `64 assistant reply without a vectors` — `plural()` was called with a COMPOUND string, so the
+  plural lands on the tail. The other three call sites pass `head` + `tail` separately and are right.
+- `## Constraints & Preferences` still bleeds into `## Key decisions`: the body is assembled through
+  `.filter(l => l !== "")`, which drops the two empty placeholder headings and so merges them. The
+  debt line then stops naming `Key decisions` as a section to fill — a requirement that reads as
+  satisfied because the heading was eaten.
+
+**Built and PROVEN live** (the mechanical summary cadence, candidate 10.0.1130+):
+
+| step | evidence |
+|---|---|
+| `captureMechanical` writes a row on the 64K occasion | `project_checkpoint` went 0 → 10 rows; the gate holds between occasions (measured: 0 new rows in 53 min while `layer-1` climbed 3 364 → 63 351) |
+| the body is 9 sections, 7 filled from system-Exact sources | row `ckpt_0e0c58d2a001xmCeYapR3l0D63`: 7 458 chars, `diffs` present, `impact` present, `plan_state` **present** (the earlier rows have `plan_state` NULL — the differential that proves the change landed) |
+| the range is 64K-plus, as specified | that row: 108 messages, 70 035 chars, 6 files `+47 −22` |
+| `summaryedit` fills a row and the debt retires | `ckpt_0e0838b7a001tFGjE3zN4vJ3NQ` 586 → 2 819 chars, `no gaps — folds into the next m* as-is`; replaced body kept in `.opencode/data/summary-revisions/` |
+| the TUI renderer was never removed | `LAYER1_SUMMARY_MARKER` + `isLayer1SummaryMessage` alive; `cli/cmd/tui/routes/session/index.tsx:1938-2023` renders `<Show when={isLayer1Summary()}>`. Only the PRODUCER was cut, in `51afd6c2e6`, with the model call. |
+| tests | `test/session/mechanical-summary-body.test.ts` — 13 pass; with `summary-cadence` — 42 pass / 0 fail; `bun typecheck` exit 0 |
+
+**NOT working: the panel never appears in the TUI, and the owner sees nothing.**
+
+Latest measurement, and it REFUTES my third diagnosis:
+
+```
+rows 10 · panels 16 · newest row 02:50:38 · open_rows 10
+```
+
+`open_rows = 10` — **no row is materialized**, so `latestOpen` was NOT `undefined`, the boundary did NOT vanish, and the "vanishing boundary" theory is wrong. Panels still grow one per turn with no new row.
+
+**Three diagnoses attempted and all three refuted.** Do not repeat them:
+
+1. *"The gate sat beside the write instead of on it."* — it was on the write; the flood was real but this was not the mechanism.
+2. *"`save` conflicts and RETURNS the existing row, so `if (row)` passes forever."* — true in isolation, and the guard `row.toMessageID !== previousBoundary` was added for it. The guard is in the running build and the panel still grew.
+3. *"The boundary vanishes because `latestOpen` filters `time_materialized IS NULL`."* — **refuted by `open_rows = 10`.** The `listAll(...).at(-1)` change is harmless and arguably more correct, but it is not the cause.
+
+**The open question, stated as a question:** with `open_rows = 10` and `latestOpen` returning the newest row, why is `row.toMessageID !== previousBoundary` TRUE on a turn where no new row is created? Either the range's `to` is advancing and `save` is conflicting on something other than `(session, from, to, predecessor)` — read `IncrementalCheckpoint.save` (`:75-109`) and its `UNIQUE` key again — or the panel is being written by a SECOND call site. **`formatLayer1SummaryDisplay` has exactly one caller in `src`; verify that against the running binary, not against the source, because the running binary is what wrote the 16 panels.**
+
+**Instrument traps paid for three times today, all the same shape** — a `LIKE` over a whole `part` is a claim about the FIELD, not the field:
+- `LIKE '%md5: 0%'` matched the tail of `parent-goal-md5:` → reported 81 broken hashes that did not exist.
+- `LIKE '%b7e93f0a…%'` matched my own PROSE quoting the fragment.
+- `LIKE '%=== LAYER-1 SUMMARY ===%'` matched my own replies → 9 "panels" of which 13 were prose. Add `AND data LIKE '%synthetic%'` to count real ones.
+
+**Also open, unrelated to the panel:** `plan_state` NULL on rows written before 03:00; `Next Steps` in those rows lists tasks already done because the plan boxes are not marked `[x]`; `processor-effect.test.ts` is UNKNOWN (no baseline, hangs with 0 bytes — 868 lines, no file-level `setDefaultTimeout`); `docs/compaction.md:762` and `:765` still carry two `Match` rows that describe code with no call site.
+
+
+from_state: `compact` produces `<memory>` + a table of contents + a ~32K tail. No `s`, no diffs, no CodeGraph reachability. Work older than the tail is unreachable except through VCS, which does not carry decisions.
+
+to_state: crossing 64k of content writes one `s` whose body is assembled entirely by the machine; `summaryedit` remains the only model entry and is reachable only from the `tailNote` demand line; `m* = memory + s (≤32K) + recent (≤32K)`.
+
+## Evidence (measured, this session)
+
+| Fact | Instrument |
+|---|---|
+| `project_checkpoint` = 0 rows; DB holds 4 sessions / 870 messages / 4098 parts | `dbread` |
+| `IncrementalCheckpoint.save` has no call site | `grep` over `src` |
+| `enrichRange` exported (`summary.ts:640`, `:662`) with no call site | `grep` over `src` |
+| the only surviving diff path is `collectToolFileDiffs` → `user.info.summary` (`summary.ts:555,560`) | read |
+| call sites dropped in `bff5f50f7a`, code deleted in `51afd6c2e6`, remainder in `73d78e4138` (all 2026-09-22) | `git show --stat` |
+| `sinceSummary` counts the whole window when `boundary` is undefined (`compaction.ts:609-616`, printed at `:846`) | read |
+| `m*` is ~64K by design; the fold must stay window-fill, the 64K is the SUMMARY cadence (`compaction.md:709-710`) | read |
+| `docs/compaction.md:762` and `:765` mark as **Match** two behaviours that no longer hold | read |
+
+## Tasks
+
+- [x] **T1 — mechanical writer.** `session/summary.ts` gains `captureMechanical`: `enrichRange` (fossil anchor → working copy, merged with tool filediffs) + CodeGraph impact, the body from `mechanicalSummaryBody` (`session/compaction.ts`), persisted through `IncrementalCheckpoint.save`. `id/id.ts` gains the `checkpoint: "ckpt"` prefix — `tool/summaryedit.txt` and `tool/messagesearch.ts` both document `ckpt_…`, and nothing minted it. **Proven live:** 11 rows, the newest `ckpt_0e0e4ca44001XZrdFuNGM50fyA` at 894t with `diffs`, `impact` and `plan_state` all present; 13 tests in `test/session/mechanical-summary-body.test.ts`.
+- [x] **T2 — mount on the 64K cadence.** `session/prompt.ts`, beside `checkpointDue` (`:2441`): the same content measure against the newest `s` decides, the range is sliced from that boundary, and `captureMechanical` writes the row. No request, no provider, no retry counter. `agent` uses `checkpointAgentName ?? cacheAgent.name` — `undefined` there means "primary-mode identity", and the column is NOT NULL. **Proven live:** the gate holds between occasions (0 new rows in 53 min while `layer-1` climbed 3 364 → 63 351) and fires at the threshold.
+- [x] **T5 — the panel the owner can read.** `formatLayer1SummaryDisplay` restored (`session/compaction.ts`) and called from the mount: a `synthetic + ignored` message carrying `=== LAYER-1 SUMMARY ===`, which the TUI has always rendered via `<Show when={isLayer1Summary()}>`. Only the producer was cut in `51afd6c2e6`, with the model call. **Proven live:** the owner saw the panel at 03:25:54. **Residual:** it duplicates — 19 panels for 11 rows — and the gate is not patched again (see HANDOFF).
+- [ ] **T3 — close the two false `Match` rows.** `docs/compaction.md:762` and `:765` describe code that has no call site. Rewrite them to state what the tree does, with this plan named.
+- [ ] **T4 — regression.** A test that crosses the threshold and asserts one new `project_checkpoint` row, diffs present, and **zero** model requests on the wire.
+
+## Run log
+
+### Why this exists, in the owner's terms (2026-09-27)
+
+- **Points vs edges.** `memory` holds POINTS — facts, decisions, addresses. A summary holds
+  **EDGES** — what followed what, which diff, which plan task closed, where the chain broke. Losing
+  an edge is not a rounding error: it forces `project exploration` from scratch, and project
+  exploration is what the whole apparatus exists to avoid.
+- **Why a model call cannot replace it.** A model told to retell 500K tokens compresses with
+  losses, and the losses are the long-tail edges. A mechanical summary does not retell — it
+  ADDRESSES: `md5 → prev-md5` restores order, the diffs say what changed, the messages stay
+  reachable by id. Edges are not compressed, they stay addresses.
+- **Why RAG was left.** RAG retrieves by similarity, which yields points. Once the semantic vectors
+  carry `md5`/`prev-md5`, the transformer inherits the state graph from the chain itself at minimal
+  load, so a vector store would be paying for what the chain gives free. RAG earns its cost only on
+  raw code with no vectors.
+- **Why the fill is mostly MACHINE.** A summary exists so the SYSTEM writes most of it; otherwise
+  every row becomes handwriting and the token bill follows. Measured 2026-09-27: the mechanical
+  body filled 0 of the 9 sections the validator wants, so filling one row by hand cost 2 819 chars
+  against 586 machine-written. Eight of the nine are derivable; only `Key decisions` needs a judge.
+- **Why the fold stays mechanical.** You are already oriented when it happens — the chain and the
+  vectors are already in the window. Asking a model to summarise at the boundary is the slowest
+  possible way to do what a format can do exactly.
+
+### Decisions taken
+
+| # | Decision | Owner |
+|---|---|---|
+| D1 | TRIGGER and BOUNDARY are different: 64K is the OCCASION, the end of the reply is the BOUNDARY. A crossing mid-turn waits for the turn to end, and the row then covers slightly MORE than 64K. | «64к это просто повод для вызова summary… там будет больше чем 64к» |
+| D2 | The write is GATED on the occasion. Ungated it produced one row per turn — 8 rows in 15 minutes — because the boundary advances every turn and the counter resets with it. | measured, agreed |
+| D3 | The debt line is ONE line with a count and at most `SUMMARY_DEBT_ROWS_SHOWN` addresses. Six unpaid rows once printed the same 340-char gap string six times. | measured |
+| D4 | The agent initiates the fill when `tailNote` demands it. Machine demand + agent action closes the loop; machine demand alone left the debt unpaid forever. | «сам ты его инициировать не можешь — это неправильно» |
+| D5 | Local trivia goes into a summary; `memory` gets a LINK and a short note, not the detail. | «если ты не хочешь забивать свою memory локальными приколами, то делаешь summary и в память ссылку на него» |
+
+
+| Run | Command | Result |
+|---|---|---|
+| `20260927T005547Z_bd2d58ac` | baseline: `bun test summary-cadence summary-anchors` | **35 pass / 0 fail**, 5.32s |
+| `20260927T005853Z_9d13ea47` | `bun typecheck` after T1/T2 | **exit 2** — 6 errors, all mine (1 agent type, 5 service mocks) |
+| `20260927T010004Z_acecb614` | `bun typecheck` after the fixes | **exit 0** |
+| `20260927T010118Z_d0208425` | `bun test summary-cadence summary-anchors` | **35 pass / 0 fail**, 9.39s — matches baseline |
+| `20260927T010158Z_e710c494` | `bun test processor-effect` alone | **UNKNOWN** — 0 bytes written, no exit. 868 lines, `TestLLMServer` + `CrossSpawnSpawner`, and NO file-level `setDefaultTimeout`. No baseline exists for this file, so it is not attributable to this change in either direction. |
+
+**Instrument class recorded here:** `stdout_text.log` shows only the banner while `state.json`
+reports `exit_code: 2` — tsgo's diagnostics land in `stdout.log` (raw ANSI), not in the text
+render. A `stdout_text.log` that looks clean is NOT evidence that a run passed; read
+`state.json` for the exit code and `stdout.log` for the diagnostics.
+
+## Open decision (owner) — carries into T1
+
+`isValidSummaryBody` / `diagnoseSummaryGaps` require body ≥200 chars, per-section minima and ≥1 decision bullet. A purely mechanical body will not satisfy them by construction, so every summary arrives with `gaps` and `tailNote:749` demands a fill. Either that is the intent — the machine drafts, the model fills on demand — or the validator must learn a mechanical shape. Not decided here.
+
+## Risks
+
+| Risk | Containment |
+|---|---|
+| the writer fires mid-turn and disturbs the boundary | mount it on the same stop path as `checkpointDue`, after the checkpoint is durable |
+| `materialize()` (`compaction.ts:2211`) consumes rows in a way the fold did not expect | read before writing; the fold is the one consumer |
+| the counter's name and space disagree with its new meaning | rename only if the row is confirmed dead; a rename is not a fix |
+
+## Smoke Tests
+
+Baseline, before any edit (record the result):
+
+```
+cd packages/opencode && bun test test/session/summary-cadence.test.ts test/session/summary-anchors.test.ts
+```
+
+Post-change oracle, per the canon's own reproduce block (`docs/summary-exact-handles.md:5-13`):
+
+```
+cd packages/opencode && bun test test/session/summary-cadence.test.ts test/session/summary-anchors.test.ts test/session/summary-exact-live.test.ts
+cd packages/opencode && bun typecheck
+```
+
+Decisive predicate, not a typecheck: `SELECT COUNT(*) FROM project_checkpoint` for the session rises from 0 after crossing 64k, AND the provider request count for that turn is unchanged.

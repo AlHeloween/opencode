@@ -14,6 +14,10 @@ import { Config } from "@/config/config"
 import * as Session from "./session"
 import { MessageV2 } from "./message-v2"
 import { SessionID, MessageID } from "./schema"
+import { IncrementalCheckpoint } from "./incremental-checkpoint"
+import { mechanicalSummaryBody } from "./compaction"
+import { Identifier } from "@/id/id"
+import type { PlanStatePayload } from "@/util/plan-status"
 
 const log = Log.create({ service: "session.summary" })
 
@@ -319,6 +323,27 @@ export interface Interface {
     diffs: Snapshot.FileDiff[]
     impact?: Snapshot.ImpactSummary
   }>
+  /**
+   * Write one Layer-1 `s` for a range, with no model call and no request built.
+   *
+   * The 2026-09-22 removal of the sidecar took this producer with it: `enrichRange` survived
+   * with no call site and `project_checkpoint` held 0 rows over 870 messages, so the fold
+   * carried a tail and nothing else, and the code-thread past ~32K was gone. This is the
+   * producer the canon already assumes — `renderSummaryBlock` renders such a row, the fold
+   * collects it from `listAll`, and `latestOpen()` needs it to be a live boundary.
+   *
+   * Idempotent by range: `save` conflicts on (session, from, to, predecessor), so a cadence
+   * that re-fires on the same window does not duplicate the row.
+   */
+  readonly captureMechanical: (input: {
+    sessionID: SessionID
+    messages: MessageV2.WithParts[]
+    beforeMessages?: MessageV2.WithParts[]
+    providerID: string
+    modelID: string
+    agent: string
+    planState?: PlanStatePayload
+  }) => Effect.Effect<IncrementalCheckpoint.Record | undefined>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/SessionSummary") {}
@@ -659,7 +684,74 @@ export const layer = Layer.effect(
       return { diffs, ...(impact ? { impact } : {}) }
     })
 
-    return Service.of({ summarize, update, updateFallback, diff, computeDiff, enrichRange })
+    /**
+     * The producer `enrichRange` was waiting for. Everything here is system-computed: the
+     * range comes from the caller's window, the diffs from the snapshot anchors the undo/redo
+     * chain already stores, the impact from the code graph, and the body from the messages'
+     * own semantic vectors. No provider is contacted, so a 64K crossing costs one fossil diff
+     * and one local pack — not a model call.
+     */
+    const captureMechanical = Effect.fn("SessionSummary.captureMechanical")(function* (input: {
+      sessionID: SessionID
+      messages: MessageV2.WithParts[]
+      beforeMessages?: MessageV2.WithParts[]
+      providerID: string
+      modelID: string
+      agent: string
+      planState?: PlanStatePayload
+    }) {
+      const from = input.messages[0]?.info.id
+      const to = input.messages[input.messages.length - 1]?.info.id
+      if (!from || !to || from === to) {
+        log.info("captureMechanical: range too small", {
+          sessionID: input.sessionID,
+          messages: input.messages.length,
+        })
+        return undefined
+      }
+      const { diffs, impact } = yield* enrichRange({
+        sessionID: input.sessionID,
+        messages: input.messages,
+        beforeMessages: input.beforeMessages,
+      })
+      const body = mechanicalSummaryBody({
+        messages: input.messages,
+        diffs,
+        impact,
+        planState: input.planState,
+      })
+      const row = IncrementalCheckpoint.save({
+        id: Identifier.ascending("checkpoint"),
+        sessionID: input.sessionID,
+        fromMessageID: from,
+        toMessageID: to,
+        providerID: input.providerID,
+        modelID: input.modelID,
+        agent: input.agent,
+        body,
+        diffs,
+        impact,
+        planState: input.planState,
+      })
+      log.info("captureMechanical: s row written", {
+        sessionID: input.sessionID,
+        id: row.id,
+        messages: input.messages.length,
+        files: diffs.length,
+        hasImpact: !!impact,
+      })
+      return row
+    })
+
+    return Service.of({
+      summarize,
+      update,
+      updateFallback,
+      diff,
+      computeDiff,
+      enrichRange,
+      captureMechanical,
+    })
   }),
 )
 

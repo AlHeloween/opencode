@@ -13,6 +13,10 @@ const prefixes = {
   tool: "tool",
   workspace: "wrk",
   entry: "ent",
+  // The Layer-1 `s` row. `tool/summaryedit.txt` and `tool/messagesearch.ts` both document
+  // `ckpt_…` as the id a summary answers to, and no prefix minted it — the id space was
+  // documented before it existed.
+  checkpoint: "ckpt",
 } as const
 
 export function schema(prefix: keyof typeof prefixes) {

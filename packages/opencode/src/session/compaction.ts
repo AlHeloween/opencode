@@ -11,7 +11,7 @@ import { NotFoundError } from "@/storage/storage"
 import { ModelID, ProviderID } from "@/provider/schema"
 import { Effect, Layer, Context, Schema, Option } from "effect"
 import { readMemory } from "@/tool/memory"
-import { EMPTY_HASH, KEYWORD_TOP_N, dominantLine, extractKeywords, extractMessageDominant, extractVectorChain } from "@/memory/spine"
+import { EMPTY_HASH, KEYWORD_TOP_N, dominantLine, extractKeywords, extractMessageDominant, extractSvTarget, extractVectorChain, malformedFragment, readRawVectorField } from "@/memory/spine"
 import { estimateMediaTokens, estimateRequestTokens, isOverflow as overflow, usable } from "./overflow"
 import { countTokens } from "./token-count"
 import { promptTokensFromUsage } from "./processor"
@@ -64,6 +64,26 @@ export const RECENT_TAIL_TOKENS = 32_768
  */
 export const MAX_SUMMARY_BODY_TOKENS = 16_384
 
+/**
+ * How many unpaid summary ids the `tailNote` debt line NAMES before it switches to a count.
+ *
+ * The line is a demand, and a demand that grows with the debt stops being read — each row carries
+ * nine missing sections, so six unpaid rows printed the same 340-character string six times
+ * (measured 2026-09-27). The COUNT always prints; the ids are the address, and past this many the
+ * count is the address. A whole number, so a stalled fill is visible as a number that does not move.
+ */
+const SUMMARY_DEBT_ROWS_SHOWN = 3
+
+/**
+ * How many message positions the `Vector chain` line names before it switches to a count.
+ *
+ * Measured 2026-09-27: a 108-message range produced 91 positions in one line, and the line was
+ * unreadable for the same reason the debt line was. A position is an address; an address that
+ * scales with the debt stops being one. The count always prints, and the first few name where to
+ * look. A whole number, so a stalled chain is visible as a number that does not move.
+ */
+const SUMMARY_POSITION_ROWS_SHOWN = 6
+
 const CHARS_PER_TOKEN = 4
 const SUMMARY_TERMINAL_MARKER = "<!-- summary-terminal -->"
 
@@ -72,6 +92,69 @@ const SUMMARY_TERMINAL_MARKER = "<!-- summary-terminal -->"
  * stamp, but synthetic+ignored so it never enters agent/provider M.
  */
 export const LAYER1_SUMMARY_MARKER = "=== LAYER-1 SUMMARY ==="
+
+/**
+ * A Layer-1 summary rendered as the PANEL the TUI already knows how to draw.
+ *
+ * `LAYER1_SUMMARY_MARKER` and `isLayer1SummaryMessage` were never removed, and
+ * `cli/cmd/tui/routes/session/index.tsx` still renders `<Show when={isLayer1Summary()}>`. Only the
+ * PRODUCER went: `51afd6c2e6` cut it with the model call, on the reasoning that a request is never
+ * made, so the panel that would have shown its result has been an empty surface ever since — a norm
+ * in text with no behaviour, which is the whole subject of `plans/advanced_reasoning`.
+ *
+ * `synthetic + ignored` is what makes this a VIEW and not content: the fold's own classifier skips
+ * such parts (`isLayer1SummaryMessage` at `:102`, and the fold's own row check at `:1973`), so the
+ * panel costs the agent's `M` nothing while the owner can read the row. The `### Exact handles`
+ * block is system-authored, never model prose — the ids, the diffs and the code graph.
+ */
+export function formatLayer1SummaryDisplay(input: {
+  checkpointID: string
+  fromID: string
+  toID: string
+  sessionID: string
+  body: string
+  diffs?: Snapshot.FileDiff[]
+  impact?: Snapshot.ImpactSummary
+  planState?: PlanStatePayload
+}): string {
+  const exact = formatExactSystemStamp({
+    id: input.checkpointID,
+    fromId: input.fromID,
+    toId: input.toID,
+    sessionID: input.sessionID,
+    idKey: "checkpoint_id",
+  })
+  const diffLines =
+    input.diffs && input.diffs.length > 0
+      ? [
+          `tool_diff_files: ${input.diffs.length}`,
+          `additions: ${input.diffs.reduce((sum, d) => sum + d.additions, 0)}`,
+          `deletions: ${input.diffs.reduce((sum, d) => sum + d.deletions, 0)}`,
+          ...input.diffs.slice(0, 12).map((d) => `- ${d.file} (+${d.additions}/-${d.deletions})`),
+          ...(input.diffs.length > 12 ? [`- … +${input.diffs.length - 12} more`] : []),
+        ].join("\n")
+      : "tool_diff_files: 0"
+  const impactLine = input.impact
+    ? `codegraph: changed_files=${input.impact.changedFiles}; callers=${input.impact.callerCount}`
+    : "codegraph: none"
+  const planStateBlock = input.planState
+    ? ["### Plan state (GATED WORKFLOW)", ...(formatPlanStateText(input.planState) ?? "").split("\n")].join("\n")
+    : undefined
+  return [
+    LAYER1_SUMMARY_MARKER,
+    "",
+    input.body.trim(),
+    "",
+    exact.trimEnd(),
+    "",
+    "### Exact handles (system)",
+    diffLines,
+    impactLine,
+    planStateBlock,
+  ]
+    .filter((l) => l !== undefined)
+    .join("\n")
+}
 export const EXACT_SYSTEM_MARKER = "--- Exact (system) ---"
 
 export function isLayer1SummaryText(text: string | undefined): boolean {
@@ -742,13 +825,37 @@ export function tailNote(input: {
   vector?: VectorCensus | null
 }): string {
   const lines: string[] = []
-  for (const summary of input.open) {
-    const gaps = diagnoseSummaryGaps(summary.body)
+  // A summary's gap list names NINE sections, so one unpaid row is already ~340 characters. The
+  // debt is therefore reported ONCE with a count and the addresses, not repeated per row: measured
+  // 2026-09-27, six open rows printed the identical gap string six times and the note grew with the
+  // pool instead of reporting it. A line that scales with the debt stops being read; and a bound
+  // that is a whole number is what lets a stall be detected at all.
+  const unpaid = input.open.map((s) => ({ id: s.id, gaps: diagnoseSummaryGaps(s.body) })).filter((s) => s.gaps.length > 0)
+  if (unpaid.length > 0) {
     lines.push(
-      gaps.length > 0
-        ? `summary ${summary.id} open · gaps: ${gaps.join(", ")} · fill with summaryedit before the fold`
-        : `summary ${summary.id} open · no gaps — folds into the next m* as-is`,
+      `summaries open: ${input.open.length} · unpaid: ${unpaid.length} · sections missing per row: ${unpaid[0]!.gaps.length} · ${unpaid.length <= SUMMARY_DEBT_ROWS_SHOWN ? unpaid.map((s) => s.id).join(", ") : `${unpaid.slice(0, SUMMARY_DEBT_ROWS_SHOWN).map((s) => s.id).join(", ")} (+${unpaid.length - SUMMARY_DEBT_ROWS_SHOWN} more)`} · fill with summaryedit before the fold`,
     )
+  } else if (input.open.length > 0) {
+    lines.push(`summaries open: ${input.open.length} · no gaps — fold into the next m* as-is`)
+  }
+  // The CONTENT of the newest row, so the note is a place the work can be READ and not only
+  // counted (owner, 2026-09-27: «мне тоже хочется посмотреть содержание этого summary»). One line
+  // per section, bounded by the same constant as the debt addresses, because the point is a window
+  // onto the row and a wall is not a window. `##` is the section marker the body itself uses, so
+  // what prints here is the row's own shape, read back — not a second rendering of it.
+  for (const summary of input.open.slice(-SUMMARY_DEBT_ROWS_SHOWN).reverse()) {
+    const size = Math.round(summary.body.length / CHARS_PER_TOKEN)
+    for (const section of summary.body.split("\n")) {
+      if (!section.startsWith("## ")) continue
+      const heading = section.slice(3).trim()
+      const after = summary.body.slice(summary.body.indexOf(section) + section.length)
+      // The first non-empty line after a heading is not necessarily its content: the body keeps
+      // `## Constraints & Preferences` and `## Key decisions` deliberately EMPTY (they are the two
+      // only a judge can fill), so skipping empties lands on the next HEADING and prints it as the
+      // first section's content. Measured 2026-09-27: `Constraints & Preferences: ## Key decisions`.
+      const first = after.split("\n").find((l) => l.trim().length > 0 && !l.startsWith("## "))?.trim() ?? ""
+      lines.push(`  ${summary.id} ${size}t · ${heading}: ${first ? first.slice(0, 160) : "(empty — the model fills this)"}`)
+    }
   }
   // THE CALL TO ACTION (owner, 2026-09-22). The sidecar capture was the only event in this loop that
   // came from the MACHINE rather than from the user: a cadence-driven demand for an account of the
@@ -1187,6 +1294,193 @@ export function renderFileDiffLegend(
   ].join("\n")
 }
 
+/**
+ * The mechanical body of a Layer-1 summary — assembled with no model and no request.
+ *
+ * What the machine can state without asking anyone: which messages the range covers, what
+ * each of them was ABOUT (the `@SV_FORMAT` dominant the message itself wrote), and how far
+ * the worktree moved. The half only a model can supply — WHY — is deliberately left as gaps
+ * for `summaryedit`, which is the single model entry on this path and is reachable only from
+ * the `tailNote` demand line.
+ *
+ * Addresses, not positions: the message id is Exact and survives any re-render, while `#N` is
+ * a property of one particular walk. The fold prints `#N` from its own `positionOf` map
+ * (`renderSummaryBlock`), so the two never have to agree here.
+ *
+ * Diffs and impact are NOT repeated into the body — they ride their own columns and the fold
+ * renders them once, from system-Exact data. The single count line below is the only summary,
+ * and it exists so a body read raw (`summaryedit`) is not context-free.
+ */
+export function mechanicalSummaryBody(input: {
+  messages: MessageV2.WithParts[]
+  diffs: readonly { file: string; additions: number; deletions: number }[]
+  impact?: { changedFiles?: number; callerCount?: number; topSymbols?: string[]; impactedFiles?: string[] }
+  planState?: PlanStatePayload | null
+}): string {
+  const text = (m: MessageV2.WithParts) =>
+    m.parts
+      .filter((p) => p.type === "text")
+      .map((p) => (p as { text?: string }).text ?? "")
+      .join("\n")
+  const rows = input.messages.map((m) => {
+    const body = text(m)
+    return {
+      id: m.info.id,
+      role: m.info.role,
+      dominant: extractMessageDominant(body),
+      keywords: extractKeywords(body),
+      chain: extractVectorChain(body),
+      // The raw `md5:` line, unvalidated — a malformed hash and an absent field are DIFFERENT
+      // conditions, and the malformed one names the state the model was in (`spine.ts`).
+      rawMd5: readRawVectorField(body, "md5"),
+      // The opening line of the message's own text — the request, for a user turn. It is the Goal
+      // section's only honest source, and it is mechanical: it is what the user actually wrote.
+      head: body.split("\n").find((l) => l.trim().length > 0)?.trim() ?? "",
+      // The steering a user turn asked for, if it carried an `@SV_TARGET`. Read here so the row
+      // pairs the ASK with the ANSWER: @L1_DISTANCE between them is then arithmetic on this row
+      // rather than a recollection across two messages, and no model call is needed to check it.
+      target: extractSvTarget(body),
+    }
+  })
+
+  // A break is a DECLARED one: a vector whose `prev-md5` names a hash no preceding vector in this
+  // range wrote. A message with no vector is NOT a break — an unreadable side is Unknown, and
+  // Unknown is never marked (`memory/spine.ts`). The first vector of a range is a chain start.
+  //
+  // A vector that carries NO `md5` is a different condition and is counted separately. It is not
+  // a break (nothing contradicts anything — the edge is simply absent), and marking it as one
+  // would train the reader to ignore the marker. But it is a HOLE: the state graph has a node with
+  // no edge, and recovery across it is Guess rather than Inferred. Measured on this session's own
+  // rows (2026-09-27): 123 vectors, 83 carrying `md5`, 40 carrying none — a third of the graph.
+  // Reporting it costs one integer and makes the indicator the owner described visible instead of
+  // normalised away: a degenerate or truncated hash is the cheapest bug report a model can leave.
+  const breaks: number[] = []
+  const missingEdge: string[] = []
+  const noVector: number[] = []
+  let previousMd5: string | undefined
+  // ONLY assistant replies carry a vector — @SV_FORMAT rides a model answer, and the report in
+  // which the session's own messages quote one counts, but a user turn and a tool result never
+  // will. Measured 2026-09-27: a 108-message range held 17 assistant replies and 91 others, and
+  // counting all 108 published 91 correct messages as 91 defects. The denominator is the
+  // population the norm applies to, not the range.
+  const speakable = rows.filter((r) => r.role === "assistant")
+  speakable.forEach((r) => {
+    const i = rows.indexOf(r)
+    if (!r.dominant) {
+      noVector.push(i + 1)
+      return
+    }
+    if (!r.chain.md5) {
+      const fragment = malformedFragment(r.rawMd5)
+      // An absent `md5:` line is a hole. A line that is there and is not 32 hex is a REPORT — a
+      // generation artifact that is situational, so the fragment is the state the model was in.
+      missingEdge.push(fragment === undefined ? `#${i + 1} (absent)` : `#${i + 1} (leaked "${fragment}")`)
+      return
+    }
+    const declared = r.chain.prevMd5
+    if (declared && declared !== EMPTY_HASH && previousMd5 && declared !== previousMd5) breaks.push(i + 1)
+    previousMd5 = r.chain.md5
+  })
+
+  const carriers = speakable.filter((r) => r.dominant).length
+  // Only the HEAD noun takes the plural: "0 vectors without a label", not "0 vector without a
+  // labels". A count line that reads wrong gets skimmed, and a skimmed count line is a silent one.
+  const plural = (n: number, head: string, tail = "") =>
+    `${n} ${head}${n === 1 ? "" : "s"}${tail ? ` ${tail}` : ""}`
+  // A position list is an ADDRESS only while it stays an address. 91 numbers in one line is a wall,
+  // and this is the same defect the debt line had: the report grows with the thing it reports.
+  // A whole number, so a stall is visible as a number that does not move.
+  const positions = (list: (string | number)[]) =>
+    list.length <= SUMMARY_POSITION_ROWS_SHOWN
+      ? list.join(", ")
+      : `${list.slice(0, SUMMARY_POSITION_ROWS_SHOWN).join(", ")} (+${list.length - SUMMARY_POSITION_ROWS_SHOWN} more)`
+  const additions = input.diffs.reduce((s, d) => s + d.additions, 0)
+  const deletions = input.diffs.reduce((s, d) => s + d.deletions, 0)
+  const firstUser = rows.find((r) => r.role === "user")
+  const targetTerms = rows.find((r) => r.target?.length)?.target
+  const lastMd5 = [...rows].reverse().find((r) => r.chain.md5)?.chain.md5
+  const plans = input.planState?.plans ?? []
+  const owed = plans.flatMap((p) =>
+    p.tasks.filter((t) => t.status !== "PASS").map((t) => ({ plan: p.file, task: t })),
+  )
+  const passed = plans.flatMap((p) => p.tasks.filter((t) => t.status === "PASS").map((t) => ({ plan: p.file, task: t })))
+
+  // SEVEN of the nine sections are written here, from system-Exact sources. The remaining TWO —
+  // `Constraints & Preferences` and `Key decisions` — are deliberately left OUT, and that is the
+  // design, not an omission: a placeholder would satisfy `diagnoseSummaryGaps` and the machine would
+  // stop asking, and an empty section that reads as filled is exactly the silence this project
+  // forbids («отсутствие оракула читается как false»). Leaving them out keeps the debt naming
+  // precisely the two things only a judge can supply, and `summaryedit` closes them.
+  return [
+    `Range: ${rows.length} messages · ${input.messages.reduce((s, m) => s + text(m).length, 0)} chars of text · ${input.diffs.length} files changed (+${additions} −${deletions})`,
+    "",
+    "## Semantic Vector",
+    `Chain: ${carriers}/${speakable.length} assistant replies carry a vector · ${plural(breaks.length, "declared break")}${breaks.length ? ` at ${positions(breaks.map((b) => `#${b}`))}` : ""} · ${plural(missingEdge.length, "vector", "without a label")}${missingEdge.length ? ` at ${positions(missingEdge)}` : ""}${noVector.length ? ` · ${plural(noVector.length, "assistant reply", "without a vector")} at ${positions(noVector.map((n) => `#${n}`))}` : ""}.`,
+    // Capped by the same constant as the positions: a list that scales with the range becomes a
+    // wall, and the two lists live on ONE line — fixing the positions and leaving the dominants
+    // unbounded would move the wall, not remove it.
+    `Last label: ${lastMd5 ?? "none in range"} · ${plural(speakable.length, "dominant")}: ${speakable.filter((r) => r.dominant).slice(0, SUMMARY_POSITION_ROWS_SHOWN).map((r) => `"${r.dominant!.slice(0, 90)}"`).join(" · ") || "none"}${speakable.filter((r) => r.dominant).length > SUMMARY_POSITION_ROWS_SHOWN ? ` (+${speakable.filter((r) => r.dominant).length - SUMMARY_POSITION_ROWS_SHOWN} more)` : ""}.`,
+    // The range's own weights, aggregated. These are the numbers an `@SV_TARGET` is written
+    // against, so the row has to carry them or the steering is checked against a recollection.
+    (() => {
+      const agg = new Map<string, number>()
+      for (const r of rows)
+        for (const k of r.keywords ?? []) agg.set(k.term, Math.max(agg.get(k.term) ?? 0, k.weight))
+      const top = [...agg.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12)
+      return top.length ? `Weights: ${top.map(([t, w]) => `${t} ${w}`).join(", ")}.` : ""
+    })(),
+    // The steering the range was GIVEN, next to what came back. A delegate's task binding carries an
+    // `@SV_TARGET`; the reply carries its own vector. Both live in this row, so the distance the
+    // kernel names is computable by subtraction and an unchanged `md5` is the proof that the work
+    // is the same work read under a different key.
+    targetTerms
+      ? `Target asked: ${targetTerms.map((t) => `${t.term} ${t.weight}`).join(", ")}. Returned: ${rows.filter((r) => r.dominant).map((r) => r.dominant!).join(" · ") || "no dominant"}.`
+      : "No @SV_TARGET in this range — nothing was steered, so there is no distance to measure.",
+    "",
+    "## Goal",
+    // The plan's own DIGITAL_INTENTION is the system-Exact goal (plan-status.ts:141: «rides
+    // planState into every summary … so the target survives as a system-Exact anchor instead of
+    // being re-derived from the model's recollection»). The request that opened the range is the
+    // concrete instance of it, and it is quoted because it is what the user actually wrote.
+    plans.find((p) => p.intention)?.intention
+      ? `${plans.find((p) => p.intention)!.file} intention: ${plans.find((p) => p.intention)!.intention!.from_state} -> ${plans.find((p) => p.intention)!.intention!.to_state}.${firstUser ? ` In this range the user asked: ${firstUser.head.slice(0, 300)}` : ""}`
+      : firstUser
+        ? `The range opens on the request: ${firstUser.head.slice(0, 400)}`
+        : "The range opens mid-thread; the goal is carried by the plan's `intention`, read from the plan file.",
+    "",
+    "## Plan",
+    plans.length === 0
+      ? "No plan on disk at capture time."
+      : plans.map((p) => `${p.file} — ${p.tasks.length} tasks, ${p.tasks.filter((t) => t.status === "PASS").length} PASS`).join("; "),
+    "",
+    "## Current state",
+    `${passed.length} tasks PASS · ${owed.length} open${plans.length ? ` across ${plans.length} plan(s)` : ""}. Window: ${rows.length} messages, ${input.diffs.length} files touched.`,
+    "",
+    "## Next Steps",
+    owed.length === 0
+      ? "No owed task in the plan mirror at capture time."
+      : owed.slice(0, 5).map((o) => `${o.plan} → ${o.task.title ?? o.task.id}`).join("; "),
+    "",
+    "## Critical Context",
+    `Read the range with session-read(${rows[0]?.id ?? "<from>"}..${rows[rows.length - 1]?.id ?? "<to>"}); the worktree diff lives in the row's diffs column, the code graph in the impact column. Answers older than this row are in earlier rows, and each one names its own message ids.`,
+    "",
+    "## Relevant Files",
+    input.diffs.length === 0
+      ? "No file changes in this range — the work was reading and reasoning."
+      : input.diffs.slice(0, 30).map((d) => `${d.file} +${d.additions} −${d.deletions}`).join(" · "),
+    input.impact
+      ? `Impact: ${input.impact.changedFiles ?? "?"} changed files, ${input.impact.callerCount ?? "?"} callers; top symbols ${(input.impact.topSymbols ?? []).slice(0, 8).join(", ") || "none"}.`
+      : "",
+    "",
+    "## Constraints & Preferences",
+    "",
+    "## Key decisions",
+    "",
+  ]
+    .filter((l) => l !== "")
+    .join("\n")
+}
+
 export function renderSummaryBlock(input: {
   sessionID: string
   s: SummaryEntry
@@ -1281,6 +1575,11 @@ const TOC_TOPIC_COUNT = 8
 /** Goal head — the owner's opening words are quoted, not paraphrased: three lines, then a named cut. */
 const GOAL_HEAD_LINES = 3
 const GOAL_MAX_CHARS = 400
+/** How many candidate plans a DECLINED goal may name. Measured 2026-09-26: 23 files under
+ *  `plans/` carry an intention and several are ACTIVE at once, so the full list is a haystack —
+ *  the same reason `TOC_TOPIC_COUNT` exists. A glance that can be acted on, with the remainder
+ *  NAMED as a count rather than silently dropped (never reduce without saying so). */
+const GOAL_PLAN_NAMES = 5
 
 function stripReminderBlocks(text: string): string {
   return text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "").replace(/\n{3,}/g, "\n\n")
@@ -1595,10 +1894,32 @@ export function buildGoalLines(input: {
   window?: { messageID: string; position: number; text: string }
 }): string[] {
   const lines: string[] = []
-  const plan = input.planState?.plans.find((candidate) => candidate.intention)
+  const candidates = (input.planState?.plans ?? []).filter((candidate) => candidate.intention)
+  // 23 plans under `plans/` state an intention and SEVERAL of them are ACTIVE at once, so a bare
+  // `find()` names the goal by ARRAY ORDER — measured 2026-09-26: a token-measurement session was
+  // handed `to-be-confirmed-shelf-triage` as its goal, the `next:` line naming a third plan, and
+  // only the window itself saying what the session was. `plans.find(...)` is an ARGUMENT dressed
+  // as a record, and a next cycle inherits it verbatim. READ, never derived: the choice below is
+  // made only from fields the plan file STATES (its own `intention`, its own `lifecycle`), and when
+  // those do not single one out, the block declines to choose and the owner's own words win.
+  const running = candidates.filter(
+    (candidate) => candidate.lifecycle === "ACTIVE" || candidate.lifecycle === "EXECUTING",
+  )
+  const plan =
+    running.length === 1 ? running[0] : candidates.length === 1 ? candidates[0] : undefined
   if (plan?.intention) {
     lines.push(`- goal (plan \`${plan.file}\`): ${plan.intention.from_state} -> ${plan.intention.to_state}`)
     if (plan.goal_sv.length > 0) lines.push(`- goal_sv: ${plan.goal_sv.join(", ")}`)
+  } else if (candidates.length > 1) {
+    // Absence must still render a value (AGENTS.md: a missing oracle reads as FALSE), so the
+    // decline names the candidates and says why it did not pick one.
+    const named = candidates.slice(0, GOAL_PLAN_NAMES).map((candidate) => candidate.file)
+    const rest = candidates.length - named.length
+    lines.push(
+      `- goal (plan): UNKNOWN — ${candidates.length} plans state an intention and this window is ` +
+        `coupled to none of them; nothing here may name one by position. Candidate plans: ` +
+        `${named.join(", ")}${rest > 0 ? ` …(+${rest} more)` : ""}. The window's own words below are the goal.`,
+    )
   }
   if (input.window) {
     const source = input.window.text

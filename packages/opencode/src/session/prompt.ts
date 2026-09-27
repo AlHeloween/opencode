@@ -2491,6 +2491,117 @@ export const layer = Layer.effect(
                 // weighted terms the messages themselves wrote. `sidecarCaptured` stays false, so
                 // the branch table folds directly instead of capturing first.
               }
+              // The Layer-1 summary, written at the END of a turn (owner, 2026-09-27).
+              // The 2026-09-22 sidecar removal took the producer with the request: `enrichRange`
+              // kept no call site and `project_checkpoint` held 0 rows, so the fold carried a
+              // tail and nothing else, and the code-thread past ~32K was unreachable.
+              //
+              // TRIGGER vs BOUNDARY, which are two different things and were once conflated here
+              // (owner, 2026-09-27: «64к это просто повод для вызова summary», «там будет больше
+              // чем 64к»). The 64K threshold is the OCCASION; the boundary is the end of this
+              // reply. So a crossing that lands mid-turn waits for the turn to finish, and the row
+              // then covers everything since the previous `s` — slightly MORE than 64K, which is
+              // the point. Gating the WRITE on the occasion is what stops one row per turn: with
+              // the boundary advancing every turn the counter resets every turn, so an ungated
+              // write floods the pool and the debt line with it (measured: 6 rows in 9 minutes,
+              // five of them unpaid).
+              //
+              // PER TURN, not per 64K, and the order is what makes the diff exact: fossil tracks at
+              // the START of a turn, this writes at its END, so `diffFull(turnStartAnchor,
+              // undefined)` is precisely that turn's work — including shell-made edits, deletions
+              // and renames a tool-metadata harvest cannot see. `summary.ts:614-621` documents the
+              // fallback: with no end anchor the diff runs to the working copy, which at the end of
+              // a turn IS the end of that turn.
+              //
+              // `save` conflicts on the range, so a re-fire is a no-op rather than a duplicate row.
+              // No provider call: the body is built from the messages' own vectors.
+              const layer1Due =
+                SessionCompaction.computeOpenWindowTokens(
+                  visibleAfter,
+                  // The boundary is the newest row of ANY state, not the newest OPEN one. The SAME
+                  // rule the panel guard below uses, and for the same reason: `latestOpen` filters
+                  // `time_materialized IS NULL`, so a materialized row leaves it and the boundary
+                  // becomes `undefined` — at which point the counter falls back to measuring the
+                  // WHOLE window, the 64K occasion is true every turn, and the panel re-displays
+                  // the row `save` just conflicted on. Measured 2026-09-27: 15 panels against 10
+                  // rows, none written since 02:50. A countdown whose boundary disappears is not a
+                  // countdown, and this is the same defect as the 40-vs-120K reading.
+                  IncrementalCheckpoint.listAll(sessionID).at(-1)?.toMessageID,
+                  model,
+                ) >= SessionCompaction.layer1SummaryThreshold()
+              if (layer1Due) {
+                // The boundary is the newest row of ANY state, not the newest OPEN one.
+                // `latestOpen` filters `time_materialized IS NULL`, so a materialized row leaves it
+                // and the boundary becomes `undefined` — at which point the counter falls back to
+                // measuring the WHOLE window, the 64K occasion is true every turn, and the panel
+                // re-displays the row `save` just conflicted on. Measured 2026-09-27: 15 panels
+                // against 10 rows, none written since 02:50. A countdown whose boundary disappears
+                // is not a countdown, and this is the same defect as the 40-vs-120K reading.
+                const previousBoundary = IncrementalCheckpoint.listAll(sessionID).at(-1)?.toMessageID
+                const planMirror = collectPlanState((yield* InstanceState.context).worktree)
+                const boundaryID = previousBoundary
+                const boundaryIndex = boundaryID
+                  ? visibleAfter.findIndex((m) => m.info.id === boundaryID)
+                  : -1
+                const row = yield* summary.captureMechanical({
+                  sessionID,
+                  messages: boundaryIndex >= 0 ? visibleAfter.slice(boundaryIndex + 1) : visibleAfter,
+                  beforeMessages:
+                    boundaryIndex >= 0 ? visibleAfter.slice(0, boundaryIndex + 1) : undefined,
+                  providerID: model.providerID,
+                  modelID: model.id,
+                  // `checkpointAgentName` is undefined ON PURPOSE for a primary-mode identity
+                  // ("this is the default agent"), and the row's column is NOT NULL. The name
+                  // that `undefined` stands for is the cache agent's own — recording it keeps the
+                  // row truthful instead of inventing a placeholder token.
+                  agent: checkpointAgentName ?? cacheAgent.name,
+                  // The plan mirror is already read on this path for the `tailNote` debt line, so
+                  // the row's `plan_state` costs nothing extra and the body can fill `## Plan`,
+                  // `## Current state` and `## Next Steps` from it instead of from prose.
+                  planState: planMirror,
+                })
+                // The PANEL, restored 2026-09-27. `LAYER1_SUMMARY_MARKER` and the TUI's
+                // `<Show when={isLayer1Summary()}>` were never removed — only the producer was, cut
+                // with the model call in `51afd6c2e6` on the reasoning that no request is made, so
+                // the surface that would show its result has been empty ever since. One synthetic
+                // message per OCCASION, not per turn, so this costs the agent's `M` nothing: it is
+                // `ignored`, and both the fold's row check and its classifier skip such a part.
+                if (row && row.toMessageID !== previousBoundary) {
+                  const displayMsg = yield* sessions.updateMessage({
+                    id: MessageID.ascending(),
+                    role: "user",
+                    sessionID,
+                    agent: cacheAgent.name,
+                    model: { providerID: model.providerID, modelID: model.id },
+                    time: { created: Date.now() },
+                  })
+                  yield* sessions.updatePart({
+                    id: PartID.ascending(),
+                    messageID: displayMsg.id,
+                    sessionID,
+                    type: "text",
+                    text: SessionCompaction.formatLayer1SummaryDisplay({
+                      checkpointID: row.id,
+                      fromID: row.fromMessageID,
+                      toID: row.toMessageID,
+                      sessionID,
+                      body: row.body,
+                      diffs: row.diffs,
+                      impact: row.impact,
+                      planState: planMirror,
+                    }),
+                    synthetic: true,
+                    ignored: true,
+                  })
+                  yield* slog.info("layer1 summary panel written", {
+                    sessionID,
+                    checkpointID: row.id,
+                    displayMessageID: displayMsg.id,
+                    bodyChars: row.body.length,
+                    diffFiles: row.diffs?.length ?? 0,
+                  })
+                }
+              }
               // Layer-2 boundary decision. The branch table lives in
               // compaction-request.ts so it can be proven without driving a turn:
               // a forced fold when the `compact` tool armed this turn, plain

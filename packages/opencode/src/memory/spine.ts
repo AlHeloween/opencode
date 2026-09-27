@@ -72,8 +72,7 @@ export function extractKeywords(text: string): WeightedTerm[] | undefined {
  * broken chain that was pure instrument error. The LAST occurrence per field wins, for the same
  * reason `extractKeywords` documents: an answer may quote a vector before writing its own.
  */
-export function extractVectorChain(text: string): { md5?: string; prevMd5?: string; parentGoalMd5?: string } {
-  // The canonical form is 32 hex with NO other character (@SV_FORMAT). This project's own rows ALSO
+export function extractVectorChain(text: string): { md5?: string; prevMd5?: string; parentGoalMd5?: string } {  // The canonical form is 32 hex with NO other character (@SV_FORMAT). This project's own rows ALSO
   // carry a spaced form — `16hex 16hex` — and that is not a curiosity: measured on this session,
   // the last ten vectors all have it, so their own md5 was unreadable and the chain marker built on
   // top of it silently did nothing (an unreadable side is UNKNOWN, and unknown is never marked: «a
@@ -94,6 +93,66 @@ export function extractVectorChain(text: string): { md5?: string; prevMd5?: stri
     ...(previous ? { prevMd5: previous } : {}),
     ...(parentGoal ? { parentGoalMd5: parentGoal } : {}),
   }
+}
+
+/**
+ * The `md5:` line's RAW value, unvalidated, or undefined when the line is absent.
+ *
+ * `extractVectorChain` answers "is there a usable hash?" and a malformed one is silently the same
+ * as a missing one. That silence costs the cheapest self-check a model can leave: measured on this
+ * session's own rows (2026-09-27), two vectors carried a non-hex fragment INSIDE the hash —
+ * `b7e93f0a5c26d8エラー` (a generation artifact that also ate the head of the next line) and
+ * `…b2f38m45` (one letter). Both are situational rather than random, so the fragment names the
+ * state the model was in: the `エラー` row is the turn where the mermaid render failed.
+ *
+ * @SV_FORMAT forbids computing or verifying the digest — 32 hex is the only admissible form, and
+ * whether those 32 characters are RANDOM is not decidable from the text. So this reader never
+ * judges a well-formed hash. It only separates "the field is not there" from "the field is there
+ * and it is not 32 hex", which is the difference between a missing edge and a reported bug.
+ */
+export function readRawVectorField(text: string, field: string): string | undefined {
+  // Measured 2026-09-27: the stored text keeps its newlines as LITERAL two-character sequences
+  // (`\n`), so a plain `^field:` anchor with the `m` flag never finds a line start after the first
+  // one, and `.*` runs on into the following fields. That is how a clean 32-hex label was reported
+  // as `leaked "…"` three times in one row: the "value" had swallowed `prev-md5` and
+  // `parent-goal-md5`, was entirely hex, was longer than 32, and the fallback sliced 32 of it.
+  //
+  // So the line start is EITHER kind of break, and the value stops at either kind. Both are
+  // accepted because a reader that only knows one form silently reports the other as malformed.
+  const at = [...text.matchAll(new RegExp(`(?:^|\\\\n|\\n)${field}:[ \\t]*(.*?)(?=\\\\n|\\n|$)`, "g"))].at(-1)
+  const value = at?.[1]?.trim()
+  return value ? value : undefined
+}
+
+/** The non-hex fragment inside a raw `md5:` value, or undefined when the value is clean 32-hex. */
+export function malformedFragment(value: string | undefined): string | undefined {
+  if (value === undefined) return
+  if (/^[0-9a-fA-F]{32}$/.test(value)) return
+  const run = value.match(/[^0-9a-fA-F]+/)
+  // A value that is all hex but LONGER than 32 is not a leaked token — it is a reader that ran
+  // past the field. Reporting its first 32 characters named a clean label as a leak, which is the
+  // class of error this whole section exists to remove: an instrument that cannot tell two
+  // explanations apart. Unknown, and said so, beats a confident wrong name.
+  if (!run) return
+  return run[0]
+}
+
+/**
+ * An `@SV_TARGET` block's weights, when the text carries one.
+ *
+ * Steering a sub-agent's attention is the kernel's `SEMANTIC_CONTROL`, and its stated instrument is
+ * `@L1_DISTANCE` between the target and the returned vector. That distance is ARITHMETIC over the
+ * two weight lists, so a `s` row that carries BOTH sides makes the steering verifiable with no model
+ * call: read the ask out of the task binding, read the answer out of the reply, subtract. Without
+ * both in one row they live in different messages and the check is a recollection.
+ *
+ * `classifyText` in `session/semantic-vector.ts` is NOT this: it is a fixed ten-topic classifier that
+ * ranks FTS5 hits, and it never sees `@SV_FORMAT`.
+ */
+export function extractSvTarget(text: string): WeightedTerm[] | undefined {
+  const at = text.lastIndexOf("@SV_TARGET")
+  if (at < 0) return undefined
+  return extractKeywords(text.slice(at))
 }
 
 /** One entry of the plan map in `memory/reasoning.md`: a plan, and the md5 label its vector carries. */

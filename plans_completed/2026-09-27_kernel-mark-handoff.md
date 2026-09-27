@@ -5,12 +5,43 @@
      over the MEASUREMENT and the one-line defect, and names the collision a concurrent session must
      resolve rather than discover. -->
 
+## State: DISCHARGED 2026-09-27 06:15Z — both items closed, one of them found a real defect
+
+- [x] **The kernel-side fix.** The dedicated session changed the polarity instead of deleting the
+      clause: `reasoning_prompt.txt:405` now reads «Unmarked, a claim is **Guess** (@INFOMARK) **but**
+      reads as CONFIRMED to the next reader: **that gap is the defect**». Both facts survive and the
+      ORDER decides, so silence is the bottom rung and the misreading is named as the thing to
+      remove. Owner installed it: «все — исправили», then rebuilt. **Verified here by reading the
+      installed file AND this window's own prefix — both sides carry the new text.**
+- [x] **The collision this file predicted, and it was worse than predicted.** Not «both carriers hold
+      the phrase» — the runtime line held a phrase whose MEANING had changed underneath it, so the
+      same words read as an instruction on one side and a diagnosis on the other. The resolution was
+      not a wording: the runtime line no longer restates the prefix at all
+      (`packages/opencode/src/session/compaction.ts`, commit `66511c3965`'s successor), and a NEGATIVE
+      assertion in `test/session/tail-note.test.ts` pins that it cannot come back. One carrier per fact.
+
+**While resolving it, a defect this handoff did not predict — see the plan's own log.** Fixing the
+suite for this collision exposed that `9e6f6d06` had replaced the summary gap LIST with a COUNT while
+the row render walks only the `## ` headings the body HAS, so a section absent as a heading was named
+nowhere: the note read `sections missing per row: 3` and no reader could learn which three. Counted
+without naming is a silent zero one layer up. Fixed in the product, `66511c3965`.
+
+**Not part of this handoff, still open, named so it is not lost with the file:** T4b in
+`plans/2026-09-27_mechanical-s-cadence.md`, and the three boxes in
+`plans/2026-09-26_fold-carrier-integrity.md`.
+
+---
+
 **A concurrent session is editing the kernel RIGHT NOW.** `git status` at 05:26 showed six files
 modified that are NOT mine: `prompt_kernel/addons.py`, `addons_claude.py`, `addons_codex.py`,
 `packages/opencode/src/session/prompt/reasoning_prompt.txt` (the INSTALLED artifact),
 `.claude/reasoning_kernel.md`, `docs/kernel-quality-doctrine.md`. **I did not touch any of them and
 they must not be reverted.** Also untracked: `file-7d23c4f2588f3dde` in the repo root — not mine,
 not deleted, reported not cleaned.
+
+**RESOLVED 06:15Z:** that session committed its six files and they are no longer modified. The stray
+`file-7d23c4f2588f3dde` is gone from `git status` as well — deleted or committed by its owner, not by
+me.
 
 ## The kernel is NOT broken. The defect is one sentence that says two things.
 

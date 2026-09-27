@@ -944,7 +944,18 @@ export function tailNote(input: {
             // the consequence and sat at NONE for 121 of 125 replies while three marks DID appear and
             // each changed a conclusion. n=1 each, no control: a HYPOTHESIS, not a result. But it is
             // free, and the lever already proved itself on the neighbouring rule.
-            "NONE in the last reply — REQUIRED FORM: `✓` or `✗` at the end of each assertion, one per claim: ✓ CONFIRMED (naming the instrument that confirms it) · ✗ REFUTED (naming what contradicts it). Unmarked claims read as CONFIRMED."
+            //
+            // AND THE DOCTRINE CLAUSE IS GONE, which is the second half of that lever. This line used
+            // to end `Unmarked claims read as CONFIRMED.` — a restatement of what an unmarked claim
+            // MEANS, which is the prefix's job and only the prefix's. Under the installed kernel
+            // (2026-09-27) that sentence had changed meaning: `reasoning_prompt.txt:405` now reads
+            // «Unmarked, a claim is Guess (@INFOMARK) but reads as CONFIRMED to the next reader: THAT
+            // GAP IS THE DEFECT» — so the same words here stopped being an instruction and became a
+            // diagnosis, while a status line is read as an instruction. Two carriers of one fact, and
+            // they drifted. The fix is not to pick a wording, it is to have ONE carrier: the prefix
+            // says what silence means, this line says the FORM and the COUNT, and the fact that a
+            // line cannot restate the prefix is pinned by a test (`tail-note.test.ts`).
+            "NONE in the last reply — REQUIRED FORM: `✓` or `✗` at the end of each assertion, one per claim: ✓ CONFIRMED (naming the instrument that confirms it) · ✗ REFUTED (naming what contradicts it)."
           : `${m.lastConfirmed} ✓ · ${m.lastRefuted} ✗ in the last reply`
       lines.push(`marks: ${last} · ${m.unmarked}/${m.replies} window replies with none`)
     }

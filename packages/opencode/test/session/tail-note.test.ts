@@ -292,6 +292,14 @@ describe("the pushed compaction note", () => {
     )
     // The census stays on the same line, so the alert and the count cannot drift apart.
     expect(tailNote({ open: [], window: null, marks: silent })).toContain("1/1 window replies with none")
+    // ONE CARRIER PER FACT, pinned. This line used to end `Unmarked claims read as CONFIRMED.` — a
+    // restatement of what silence MEANS, which belongs to the prefix and nowhere else. Under the
+    // installed kernel (2026-09-27) those same words changed meaning: `reasoning_prompt.txt:405` now
+    // reads «…that gap is the DEFECT», so a line that once carried an instruction began carrying a
+    // diagnosis, and a status line is read as an instruction. The fix was never a wording; it was to
+    // delete the second carrier. This assertion is what stops it coming back, and it is written as a
+    // NEGATIVE because the failure mode is a re-added sentence nobody notices.
+    expect(tailNote({ open: [], window: null, marks: silent })).not.toContain("Unmarked claims read as CONFIRMED")
     // Nothing to count yet is its own sentence — NOT the same reading as "the model marked nothing".
     expect(
       tailNote({

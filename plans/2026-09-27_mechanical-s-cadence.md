@@ -2,33 +2,65 @@
 
 <!-- intention: the 2026-09-22 removal took the model call AND the mechanical half with it — `enrichRange` has zero call sites, `project_checkpoint` holds 0 rows over 870 messages, so the fold carries memory + a tail and the code-thread past ~32K is unreachable -> every 64k of work writes a mechanical summary (semantic-vector list + the range's messages + fossil/tool diffs + CodeGraph impact) with no model call, the owner can READ it as a panel, and the fold carries its three layers again -->
 
-## HANDOFF 2026-09-27 03:30 — the panel APPEARS. Residual: it duplicates (19 panels / 11 rows).
+## HANDOFF 2026-09-27 03:35 — everything works. The duplication was MY MEASUREMENT, not a defect.
 
-**Superseded in one respect:** this section was written at 03:25 saying the panel does not appear. It
-does — the owner saw it at 03:25:54, the first time ever. What was true then and is false now is
-only the "NOT working" claim; everything below about the three refuted diagnoses still stands, and
-the new row proves the three body fixes landed.
+**There is no gate defect. Do not go looking for one.**
 
-**The new row is clean** (`ckpt_0e0e4ca44001XZrdFuNGM50fyA`, 894t, 84 messages, 5 files):
-`10/74 assistant replies carry a vector` — the denominator is the replies, not the range; and
-`1 vector without a label at #4 (absent)` — no false `leaked`. So the three measured body defects
-(assistant-only denominator, the reader that ran past the field, the uncapped position list) are
-fixed and confirmed on a real row, not only by tests.
+```sql
+-- the count that counts panels, and only panels
+SELECT COUNT(*) FROM part
+ WHERE data LIKE '%"type":"text"%' AND data LIKE '%"text":"=== LAYER-1 SUMMARY ===%';
+-- real_panels = 1 · first 03:24:45 · last 03:24:45
+```
 
-**Residual, stated as a measurement:** `rows 11 · panels 19` (was `10 · 16`). The panel is written on
-occasions where NO new row is created, so `row.toMessageID !== previousBoundary` is true while `save`
-conflicts. Three gate patches have each looked right and each was wrong; per the owner's standing
-agreement the gate is NOT patched again. Read `IncrementalCheckpoint.save` (`:75-109`) and its
-`UNIQUE (session_id, from_message_id, to_message_id, predecessor_id)` against the range the mount
-computes — the conflict key and the range are the thing to compare, and nobody has done that yet.
+## VERIFIED BY THE FOLD, 2026-09-27 03:38 — the three layers are back, by address
 
-**Two cosmetic defects remain in the body, both mine, both visible in the live row:**
-- `64 assistant reply without a vectors` — `plural()` was called with a COMPOUND string, so the
-  plural lands on the tail. The other three call sites pass `head` + `tail` separately and are right.
-- `## Constraints & Preferences` still bleeds into `## Key decisions`: the body is assembled through
-  `.filter(l => l !== "")`, which drops the two empty placeholder headings and so merges them. The
-  debt line then stops naming `Key decisions` as a section to fill — a requirement that reads as
-  satisfied because the heading was eaten.
+The fold was the only oracle left for "the third layer is back", because the layer only becomes
+visible when `m*` is rendered. It was, and the evidence is addresses rather than impression:
+
+| claim | evidence | differential |
+|---|---|---|
+| `m*` carries the summaries | **10 `--- Summary N ---` blocks**, #329..#561, each carrying its own row's `checkpoint_id` — block 9 = `ckpt_0e0c58d2a001xmCeYapR3l0D63` (from# 370, to# 477), block 10 = `ckpt_0e0e4ca44001XZrdFuNGM50fyA` (from# 478, to# 561), both matching the DB rows exactly | the earlier live fold printed **no** summary blocks at all, because `project_checkpoint` held 0 rows |
+| the `summaryedit` fill survives | block 9's `Constraints & Preferences` and `Key decisions` print my filled text | the fill is not decoration for the panel; it is what the fold itself carries |
+| the fold materializes | all 11 rows now have `time_materialized` set (`is_open = 0`) | the debt closed itself at the fold, not by hand |
+| one row is not in the head | row 1 (`ckpt_0e079be0f001M55eySXco0B8tT`, from `msg_0e02dab0…`) predates the retained head and survives as the fading link only | 10 of 11 render; the oldest is outside the head's range, which the range accounting states (`summaries: #329..#561`) |
+| the Goal gate fires on COUPLING, not position | the head reads `goal (plan): UNKNOWN — 2 plans state an intention and this window is coupled to none of them; nothing here may name one by position`, and `coupling: 0` | before the fix the same fold named `2026-09-24_to-be-confirmed-shelf-triage`, a plan the owner never set |
+
+**The last row is live evidence for `plans/2026-09-26_fold-carrier-integrity.md` T1**, and it is
+behaviour, not a closing artifact: whether that box can close is a code read against its acceptance,
+not this head. Recorded here so the next cycle does not re-derive it.
+
+**`--- Window topics ---` is still degenerate in a milder form:** `current-sv×30` against six terms at
+1-2. The carrier counts how many vectors carry a term in their own top-3, and I write `current-sv`
+into every reply, so the histogram ranks my habit rather than the window. Not fixed here; it belongs
+to whatever owns the topics carrier.
+
+**What I reported as a residual does not exist.** I counted "19 panels for 11 rows" with
+`data LIKE '%LAYER-1 SUMMARY%' AND data LIKE '%synthetic%'` — and that filter matches **my own dbread
+calls, whose SQL quotes the very pattern**. Reading back what it matched showed `"tool":"bash"`,
+`"tool":"edit"`, `"tool":"dbread"` where the checkpoint id should be. The gate fired ONCE, on the one
+occasion a row was created. `latestOpen` vs `listAll` is immaterial; that change is harmless and
+arguably more correct, but it fixed nothing.
+
+Three diagnoses were built on that number and all three are void. The panel works, the cadence works,
+the debt line works. Nothing is outstanding on the gate.
+
+**The instrument trap, fourth instance today, and the most expensive one:**
+
+| trap | result |
+|---|---|
+| `LIKE '%md5: 0%'` | matched `parent-goal-md5:` → 81 "broken hashes" that did not exist |
+| `LIKE '%b7e93f0a…%'` | matched my own prose quoting the fragment |
+| `LIKE '%=== LAYER-1 SUMMARY ===%'` | matched my own tool calls → a phantom defect, a handoff, and a refusal to fix a gate that was never broken |
+| **rule** | **a filter must be checked against what it MATCHED, not against how many rows it returned.** `substr` on the first hit costs one query and settles it. |
+
+**Still open, and real:** the two cosmetic defects fixed in code but not yet in a build (the
+`plural()` compound argument, and the status renderer reading the next `## ` as a section's content —
+the BODY was correct, the reader was not); `plan_state` NULL on rows written before 03:00;
+`Next Steps` listing tasks already done until the plan boxes were marked `[x]` (done, committed);
+`processor-effect.test.ts` UNKNOWN, no baseline, hangs with 0 bytes, 868 lines, no file-level
+`setDefaultTimeout`; `docs/compaction.md:762` and `:765` still carry two `Match` rows describing code
+that has no call site.
 
 **Built and PROVEN live** (the mechanical summary cadence, candidate 10.0.1130+):
 
@@ -88,8 +120,14 @@ to_state: crossing 64k of content writes one `s` whose body is assembled entirel
 
 - [x] **T1 — mechanical writer.** `session/summary.ts` gains `captureMechanical`: `enrichRange` (fossil anchor → working copy, merged with tool filediffs) + CodeGraph impact, the body from `mechanicalSummaryBody` (`session/compaction.ts`), persisted through `IncrementalCheckpoint.save`. `id/id.ts` gains the `checkpoint: "ckpt"` prefix — `tool/summaryedit.txt` and `tool/messagesearch.ts` both document `ckpt_…`, and nothing minted it. **Proven live:** 11 rows, the newest `ckpt_0e0e4ca44001XZrdFuNGM50fyA` at 894t with `diffs`, `impact` and `plan_state` all present; 13 tests in `test/session/mechanical-summary-body.test.ts`.
 - [x] **T2 — mount on the 64K cadence.** `session/prompt.ts`, beside `checkpointDue` (`:2441`): the same content measure against the newest `s` decides, the range is sliced from that boundary, and `captureMechanical` writes the row. No request, no provider, no retry counter. `agent` uses `checkpointAgentName ?? cacheAgent.name` — `undefined` there means "primary-mode identity", and the column is NOT NULL. **Proven live:** the gate holds between occasions (0 new rows in 53 min while `layer-1` climbed 3 364 → 63 351) and fires at the threshold.
-- [x] **T5 — the panel the owner can read.** `formatLayer1SummaryDisplay` restored (`session/compaction.ts`) and called from the mount: a `synthetic + ignored` message carrying `=== LAYER-1 SUMMARY ===`, which the TUI has always rendered via `<Show when={isLayer1Summary()}>`. Only the producer was cut in `51afd6c2e6`, with the model call. **Proven live:** the owner saw the panel at 03:25:54. **Residual:** it duplicates — 19 panels for 11 rows — and the gate is not patched again (see HANDOFF).
-- [ ] **T3 — close the two false `Match` rows.** `docs/compaction.md:762` and `:765` describe code that has no call site. Rewrite them to state what the tree does, with this plan named.
+- [x] **T5 — the panel the owner can read.** `formatLayer1SummaryDisplay` restored (`session/compaction.ts`) and called from the mount: a `synthetic + ignored` message carrying `=== LAYER-1 SUMMARY ===`, which the TUI has always rendered via `<Show when={isLayer1Summary()}>`. Only the producer was cut in `51afd6c2e6`, with the model call. **Proven live:** the owner saw the panel at 03:25:54, and `real_panels = 1` — one panel, on the one occasion a row was created. The "19 panels for 11 rows" in an earlier revision of this line was my own bad `LIKE`, retired in the HANDOFF above.
+- [x] **T3 — close the false `Match` rows.** The task said "two rows, `:762` and `:765`". **Both the count and the line numbers were wrong, and the plan understated the job by three rows.** Measured against the code, FIVE rows of the gap table described the world between 2026-09-22 and 2026-09-27 — the interval in which the producer was gone:
+  - `:755` `s` not in content window — claimed no panel is built; `prompt.ts:2583` builds one.
+  - `:757` After checkpoint — claimed "no capture runs on any path"; `prompt.ts:2546` calls `captureMechanical`.
+  - `:758` Range diffs — `enrichRange` had zero call sites; `summary.ts:712` is now its only caller.
+  - `:761` Checker after summary — claimed nothing calls the checkers on a new row; `compaction.ts:833` calls `diagnoseSummaryGaps` per open row.
+  - `:765` `m* = [s,s,recent m]` — claimed "zero summaries -> tail-only m*"; the 2026-09-27 03:38 fold printed **10 summary blocks**.
+  `:762` (Summary generation/accounting) is still accurate and was left alone. All five now state the code, cite the file:line, name this plan, and mark the interval they were wrong for rather than silently flipping the status.
 - [ ] **T4 — regression.** A test that crosses the threshold and asserts one new `project_checkpoint` row, diffs present, and **zero** model requests on the wire.
 
 ## Run log

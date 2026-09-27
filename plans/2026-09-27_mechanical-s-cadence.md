@@ -160,6 +160,12 @@ to_state: crossing 64k of content writes one `s` whose body is assembled entirel
     - **Convention from here on: a commit body leads with the last `sv` label**, because that is the anchor that survives. `.opencode/data` is gitignored; the commit is not. `git log --grep <md5>` → the commit → the exact change.
     - 18 pass / 0 fail across `mechanical-writer` + `summary-anchors` (run `20260927T042440Z_6e92091a`); typecheck exit 0 (`20260927T042435Z_fb6a29bf`).
     - **NOT yet live**: no row carries `turn`/`sv` until the owner rebuilds, and the rows already written cannot gain them — the attribution was lost at merge time and is unrecoverable except by re-reading the messages.
+  - **T6c — a row's sv identity is the PAIR, not the last label** (owner, 2026-09-27: «sv и его md5 — это главное мерило, отражение цифрового намерения, всё что в промежутках — локальная активность. Потому что могут быть брейки, могут быть уточнения»).
+    - **This corrects my ordering, not just my code.** `turn` was built FIRST and is, by the doctrine, exactly the «local activity» the doctrine excludes: a clarification or a break inside one user message splits that bucket. `sv` therefore sits BESIDE `turn` and outranks it — `turn` is the convenience bucket, the label is the address.
+    - The body carried only `Last label:`, so a range said where it ENDED and never where it BEGAN. A range could not be found by the label it starts on, and two ranges could not be chained label-to-label — which is the only chaining that survives a break or a clarification. Now `Labels: first <md5> · last <md5>`.
+    - `from_id`/`to_id` remain the LOCAL coordinates (they shift if messages are inserted above); the label pair is the GLOBAL one (it does not).
+    - Two test assertions moved with the line, because when behaviour moves its suite moves in the same change: `Last label: ${A}` -> `Labels: first ${A} · last ${A}`.
+    - 25 pass / 0 fail across `mechanical-summary-body` + `mechanical-writer` (run `20260927T042714Z_630b6bda`); typecheck exit 0 (`20260927T042709Z_a67ed219`).
 
 ## Run log
 

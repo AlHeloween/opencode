@@ -34,7 +34,10 @@ test("reads the CURRENT @SV_FORMAT, not the legacy `## Semantic Vector` heading"
   // of the text. This asserts the dominant came from the @SV_FORMAT block.
   expect(out).toContain('"Цепочка md5 даёт непрерывность"')
   expect(out).toContain("1/1 assistant replies carry a vector")
-  expect(out).toContain(`Last label: ${A}`)
+  // The row's sv identity is the PAIR, not the last one alone (owner, 2026-09-27). With one vector
+  // both ends are the same label, which is exactly the degenerate case worth pinning: a reader must
+  // be able to find a range by the label it BEGINS on, and `first` is what makes that possible.
+  expect(out).toContain(`Labels: first ${A} · last ${A}`)
   expect(out).toContain("Weights: sv-chain 0.29")
 })
 
@@ -148,7 +151,7 @@ test("a long-but-all-hex value is a reader that ran past the field, not a leaked
   // The false positive is gone because the READER became correct, not because it stopped reporting:
   // the value now stops at the escaped newline, the label is read whole, and there is nothing to
   // report. A test that expected a defect here would have locked the old wrong behaviour in.
-  expect(out).toContain(`Last label: ${A}`)
+  expect(out).toContain(`Labels: first ${A} · last ${A}`)
   expect(out).toContain("0 vectors without a label")
   expect(out).not.toContain("leaked")
 })

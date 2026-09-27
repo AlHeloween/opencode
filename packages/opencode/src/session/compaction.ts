@@ -1399,6 +1399,13 @@ export function mechanicalSummaryBody(input: {
   const firstUser = rows.find((r) => r.role === "user")
   const targetTerms = rows.find((r) => r.target?.length)?.target
   const lastMd5 = [...rows].reverse().find((r) => r.chain.md5)?.chain.md5
+  // The FIRST label too, and the pair is the row's sv identity (owner, 2026-09-27: «sv и его md5 —
+  // это главное мерило, отражение цифрового намерения, всё что в промежутках — локальная активность»).
+  // With only the last one the row says where the range ENDS and not where it BEGINS, so a range
+  // cannot be found by the label it starts on, and two ranges cannot be chained label-to-label —
+  // which is the only chaining that survives a break or a clarification inside a turn. `from_id`/
+  // `to_id` remain the LOCAL coordinates; the label pair is the global one.
+  const firstMd5 = rows.find((r) => r.chain.md5)?.chain.md5
   const plans = input.planState?.plans ?? []
   const owed = plans.flatMap((p) =>
     p.tasks.filter((t) => t.status !== "PASS").map((t) => ({ plan: p.file, task: t })),
@@ -1423,7 +1430,7 @@ export function mechanicalSummaryBody(input: {
     // Capped by the same constant as the positions: a list that scales with the range becomes a
     // wall, and the two lists live on ONE line — fixing the positions and leaving the dominants
     // unbounded would move the wall, not remove it.
-    `Last label: ${lastMd5 ?? "none in range"} · ${plural(speakable.length, "dominant")}: ${speakable.filter((r) => r.dominant).slice(0, SUMMARY_POSITION_ROWS_SHOWN).map((r) => `"${r.dominant!.slice(0, 90)}"`).join(" · ") || "none"}${speakable.filter((r) => r.dominant).length > SUMMARY_POSITION_ROWS_SHOWN ? ` (+${speakable.filter((r) => r.dominant).length - SUMMARY_POSITION_ROWS_SHOWN} more)` : ""}.`,
+    `Labels: first ${firstMd5 ?? "none in range"} · last ${lastMd5 ?? "none in range"} (the row's sv identity — grep either to find the range, and the pair chains ranges across a break) · ${plural(speakable.length, "dominant")}: ${speakable.filter((r) => r.dominant).slice(0, SUMMARY_POSITION_ROWS_SHOWN).map((r) => `"${r.dominant!.slice(0, 90)}"`).join(" · ") || "none"}${speakable.filter((r) => r.dominant).length > SUMMARY_POSITION_ROWS_SHOWN ? ` (+${speakable.filter((r) => r.dominant).length - SUMMARY_POSITION_ROWS_SHOWN} more)` : ""}.`,
     // The range's own weights, aggregated. These are the numbers an `@SV_TARGET` is written
     // against, so the row has to carry them or the steering is checked against a recollection.
     (() => {

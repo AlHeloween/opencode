@@ -924,7 +924,14 @@ export function tailNote(input: {
     } else {
       const last =
         m.lastConfirmed + m.lastRefuted === 0
-          ? "NONE in the last reply — unmarked claims read as CONFIRMED"
+          ? // THE REQUIRED FORM, not the consequence. This line is the twin of the `sv:` line below, and
+            // the difference between them is the whole experiment. `sv:` names the FORM in its failure
+            // branch — «@SV_FORMAT block at the END of EVERY reply (Keywords with weights, Semantic
+            // dominant, md5/prev-md5/parent-goal-md5)» — and its misses went 2 → 0. This one named only
+            // the consequence and sat at NONE for 121 of 125 replies while three marks DID appear and
+            // each changed a conclusion. n=1 each, no control: a HYPOTHESIS, not a result. But it is
+            // free, and the lever already proved itself on the neighbouring rule.
+            "NONE in the last reply — REQUIRED FORM: `✓` or `✗` at the end of each assertion, one per claim: ✓ CONFIRMED (naming the instrument that confirms it) · ✗ REFUTED (naming what contradicts it). Unmarked claims read as CONFIRMED."
           : `${m.lastConfirmed} ✓ · ${m.lastRefuted} ✗ in the last reply`
       lines.push(`marks: ${last} · ${m.unmarked}/${m.replies} window replies with none`)
     }

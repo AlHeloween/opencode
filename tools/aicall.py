@@ -419,6 +419,10 @@ def main() -> int:
         die(f"HTTP {e.code} from {base}/chat/completions\n{detail}", code=3)
     except urllib.error.URLError as e:
         die(f"cannot reach {base}: {e.reason}", code=3)
+    except TimeoutError:
+        # A read timeout is not a URLError: it escaped as a traceback with exit 1 (2026-09-27, space-bunny-free
+        # at --max-tokens 20000 — a non-streamed reply that thinks that long cannot arrive inside the window).
+        die(f"no reply from {base} within {TIMEOUT_S}s — lower --max-tokens or narrow the prompt", code=3)
 
     try:
         data = json.loads(raw)
@@ -463,7 +467,9 @@ def main() -> int:
     }
 
     if args.json:
-        print(json.dumps({**envelope, "answer": content}, indent=2, ensure_ascii=False))
+        # The reasoning rides along: a reply cut at max_tokens keeps its findings THERE (2026-09-27: 20000/20000
+        # spent on reasoning, `answer: ""`, and --json dropped every finding).
+        print(json.dumps({**envelope, "answer": content, "reasoning": reasoning}, indent=2, ensure_ascii=False))
     else:
         print("─" * 72)
         for k, v in envelope.items():

@@ -959,6 +959,7 @@ All detailed docs live in `docs/`. Here's the quick map:
 - [Kernel amendment](docs/kernel-amendment.md) — SELF_MODIFY depths, constitution core, the build procedure that replaces hand editing
 - [**Quality doctrine**](docs/kernel-quality-doctrine.md) — **read before changing the kernel**: why an oracle is a third thing, why completion is a two-sided fixed point, where maturity lives, and the craft rules (a rule's position sets its price; a slot beats an imperative; no invented constants)
 - [Kernel release 2026-09-24](docs/kernel-release-2026-09-24.md) — the rebuild on the battle-tested 09-17 base, with the three measured regression mechanisms
+- [Kernel release 2026-09-27](docs/kernel-release-2026-09-27.md) — closure is no longer the only self-start (ADID 15.3 Mode 2 triggers restored), the priced exits reverted, and the premise declares the reward: divergence shrunk by evidence, accumulated as maturity
 - [Gate add-ons](docs/gate-addons.md) — advisory path bindings per kernel gate, addon registry, budget guardrails
 - [Agentic reasoning runtime](docs/agentic-reasoning-runtime.md) — gates, REUSE ladder, claim ledger
 - [AGI Workflow](docs/agi-workflow.md) — orchestrator/worker loop, plan hygiene

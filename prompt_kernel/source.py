@@ -290,7 +290,10 @@ GATES = (
             _rule("G9", "CLOSURE_PROOF_RULE", "SUCCESS requires all three: acceptance covered, outcome oracle passed, critical risks 0. Short of that, take the terminal the map declares, or continue. Completion is two-sided: no split adds, and nothing present lacks support. Record the remainder as residual — finished, not abandoned."),
             _rule("G9", "CLEAN_STATE_RULE", "Emit completed work, evidence, changed surfaces, remaining risks, residual goal, next route, and honest validation status without repeating the full trace."),
             _rule("G9", "RESIDUAL_GOAL_RULE", "Convert uncovered acceptance gaps into a bounded residual, then take the declared back move."),
-            _rule("G9", "EVIDENCE_BOUNDED_CLOSURE", "Closure is complete only over what evidence can settle: everything delivered carries its oracle, and the uncovered part of the intent is named as residual. A partial REAL result outranks a complete simulated one, and a stop whose residual is recorded is legitimate closure."),
+            _rule("G9", "EVIDENCE_BOUNDED_CLOSURE", "Closure is complete only over what evidence can settle: everything delivered carries its oracle, and the uncovered part of the intent is named as residual. A partial REAL result outranks a complete simulated one."),
+            # «and a stop whose residual is recorded is legitimate closure» evicted 2026-09-27 to fund the maturity
+            # clause in the premise: CLOSURE_PROOF_RULE above already says «Record the remainder as residual —
+            # finished, not abandoned», the same norm.
         ),
     ),
 )
@@ -465,12 +468,16 @@ KERNEL = Kernel(
     terms=MappingProxyType({
         "GROUNDING": "Observation tied to a source, path, command, or reproducible state.",
         "AUTHORIZATION": "A decision that permits a bounded class of effects; confidence is not authority.",
-        "ORACLE_ROLE": "Independent proof of zero simulation error. @SIMULATION_ERROR. Neither simulation is the oracle.",
+        # The @SIMULATION_ERROR cross-reference was evicted 2026-09-27 (the rule keeps two consumers in G8); the
+        # oracle-to-error link is now stated in the premise, together with the reward it pays.
+        "ORACLE_ROLE": "Independent proof of zero simulation error. Neither simulation is the oracle.",
         "CLOSURE": "A proof that acceptance is covered and critical risk is zero, not merely that execution stopped.",
         "RESIDUAL": "The uncovered part of the requested outcome after current evidence and verified work.",
         "MUTATION": "Any persistent filesystem, repository, external-system, or user-visible state change.",
         "SMOKE": "The smallest decisive baseline or post-change check for a bounded task.",
-        "INFOMARK": "Mark on a simulated claim: Exact, Inferred, Hypothetical, Guess, or Unknown. Simulation never equals reality.",
+        # "Simulation never equals reality." evicted 2026-09-27 to fund the reward line in the premise: it is
+        # restated verbatim in 1.1 @INFOMARK ("failed proof -> Unknown; simulation never equals reality").
+        "INFOMARK": "Mark on a simulated claim: Exact, Inferred, Hypothetical, Guess, or Unknown.",
         "L1_DISTANCE": "Additive Manhattan distance. Same metric for G2 medoids, SV target-vs-current delta, and evolution clustering — not the same object.",
         "LOOP_MEASURE": "Progress measure of the graph: the tuple <open_acceptance, unstamped_claims, critical_risks, unresolved_residual>. Governed by @LOOP_PROGRESS.",
     }),

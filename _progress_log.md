@@ -5148,3 +5148,20 @@ FIX: `RuntimeEvidence.pending?` (optional — persisted blobs decode unchanged, 
 ORACLES: ✓ red first — new test «a started background job is labelled STARTED and cannot stamp» failed on the old code with `execution=FAILED`. ✓ `bun test test/session/constitution.test.ts` 50 pass / 0 fail / 365 expect. ✓ `bun typecheck` exit 0. Not live until a rebuild.
 
 RESIDUAL: (1) the `job` row for `run-1` says `done` after 5 s while the build ran 3.5 min — the row reflects `cmd_runner start` returning, not the build; same class (a wrapper's outcome reported as the work's). (2) Inferred amplifier, not changed: G8 «reaching for the same instrument again is a STALL» — right rule, but fed a false FAILED it forbids the retry that would have exposed the lie; and each owner rebuild reinforced the in-context pattern.
+
+## [2026-09-27 10:00Z] Kernel release 2026-09-27 — self-start restored, priced exits reverted, the reward declared
+
+Release artifact: `docs/kernel-release-2026-09-27.md`. Product 46 976 B, sha `33e22a67…4148a78cd`; claude
+`2825a25a…`; codex `0d38e391…` (installed to `~/.codex/AGENTS.md`). Render: `prompt_kernel/dist/2026-09-27_17-57-42_reasoning_prompt.txt`.
+
+CHANGES since the 2026-09-25 baseline (`26d3483d…`): ASSERTION_STATUS connector (`2528eca402`); EVOLUTION_LOOP
+self-triggers from ADID 15.3 Mode 2, G4 back to 09-17, HANDOVER_OR_SWITCH removed, G6 bound to identity gates
+(`0e2d752ce8`); premise declares the reward (divergence shrunk by evidence; accumulated = maturity), funded by
+three evicted restatements.
+
+ORACLES: ✓ `pytest prompt_kernel/tests/` 106 pass, 1 expected red (baseline guard); ✓ `test_constitution.py`
+12/12. ✗ no behavioural oracle yet (falsifier and confound named in the release doc). Outside falsifier:
+G6 double route found and fixed; the reward line uncovered after two instrument failures.
+
+OWNER'S ACT: repin `baseline.json` to `33e22a677fa6195c1d450fe770016dbfb29e94cf078bd8fa928fe2f4148a78cd`
+(prev `26d3483d…`); rebuild the binary for the prefix to go live.

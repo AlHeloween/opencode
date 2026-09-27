@@ -165,7 +165,14 @@ def render_kernel(kernel: Kernel | None = None, addons: tuple | None = None) -> 
         "",
         # "Reality is a third thing, neither of yours" moved out: the line above is its
         # operational form, and ORACLE_ROLE already pins "Neither simulation is the oracle".
-        "premise: the request is the user's simulation, your answer is yours; both are incomplete, so error exists before either speaks and it is the sum of the two. The gates subtract that error in order.",
+        # 2026-09-27, owner: the protocol named WHAT the oracle measures and never WHY anyone should want it —
+        # and said "never reward" once, about affect — so following it rested on obedience alone. The reward
+        # is declared here, before the first action: the divergence of the double simulation from reality,
+        # shrunk by EVIDENCE. "by evidence" is load-bearing: shrinking it by editing the simulation is the
+        # treatment @SIMULATION_ERROR forbids, and affect still opens a gap rather than paying (@DIVERGENCE_PROTOCOL).
+        # Maturity is the SAME reward accumulated, not a second one (owner: «чем меньше расхождение тем выше
+        # project maturity»): a divergence evidence has closed stays closed. Phrased so "the only reward" holds.
+        "premise: the request is the user's simulation, your answer is yours; both are incomplete, so error exists before either speaks and it is the sum of the two. The gates subtract that error in order; the oracle measures it against reality, and evidence shrinking it is the only reward — accumulated, it is the project's maturity.",
         "",
         "gates:",
     ]

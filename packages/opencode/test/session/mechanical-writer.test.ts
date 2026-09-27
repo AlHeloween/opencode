@@ -294,5 +294,63 @@ describe("a diff remembers the TURN that produced it", () => {
       [],
     )
     expect(merged[0]!.turn).toBeUndefined()
+    expect(merged[0]!.sv).toBeUndefined()
+  })
+})
+
+/**
+ * «Весь реальный ход — от sv до sv» (owner, 2026-09-27). The `sv` label is SPARSE on purpose: measured
+ * on this session, 90 of 594 assistant messages carry one, the rest being tool-call carriers with no
+ * text. So the rule is «a labelled reply CLOSES the exchange; an unlabelled message's edits belong to
+ * the last label seen» — and that is a claim a test has to pin, because the naive reading («each diff
+ * takes its own message's label») would make every tool-call edit unattributed.
+ */
+describe("the sv anchor runs from one label to the next", () => {
+  const LABEL_A = "a".repeat(32)
+  const LABEL_B = "b".repeat(32)
+
+  const vector = (md5: string) =>
+    ["## Semantic Vector", "Semantic dominant: did the thing", `md5: ${md5}`, "prev-md5: " + "0".repeat(32)].join("\n")
+
+  test("an edit in a LABELLED reply takes that reply's own label", () => {
+    const sid = SessionID.make("sv-own")
+    const from = MessageID.make("msg_sv_a")
+    const to = MessageID.make("msg_sv_b")
+    const [user, assistant] = turn(sid, from, to, true)
+    ;(assistant.parts as MessageV2.Part[]).push({
+      id: PartID.make("p_label"),
+      sessionID: sid,
+      messageID: to,
+      type: "text",
+      text: vector(LABEL_A),
+    } as MessageV2.TextPart)
+    const diffs = collectToolFileDiffs([user, assistant])
+    expect(diffs[0]!.sv).toBe(LABEL_A)
+  })
+
+  test("an edit in an UNLABELLED message falls back to the last label seen", () => {
+    const sid = SessionID.make("sv-fallback")
+    const from = MessageID.make("msg_sv_c")
+    const to = MessageID.make("msg_sv_d")
+    const [user, assistant] = turn(sid, from, to, true)
+    ;(user.parts as MessageV2.Part[]).push({
+      id: PartID.make("p_label2"),
+      sessionID: sid,
+      messageID: from,
+      type: "text",
+      text: vector(LABEL_A),
+    } as MessageV2.TextPart)
+    // The assistant message carries NO label — the common case, a tool-call carrier.
+    const diffs = collectToolFileDiffs([user, assistant])
+    expect(diffs[0]!.sv).toBe(LABEL_A)
+  })
+
+  test("the merge carries sv across, exactly as it carries turn", () => {
+    const merged = mergeAnchorDiffs(
+      [{ file: EDIT_FILE, patch: "@@ -1 +1 @@\n-a\n+b", additions: 1, deletions: 1, status: "modified" as const }],
+      [{ file: EDIT_FILE, patch: "", additions: 1, deletions: 0, status: "modified" as const, sv: LABEL_B }],
+    )
+    expect(merged[0]!.sv).toBe(LABEL_B)
+    expect(merged[0]!.patch).toContain("+b")
   })
 })

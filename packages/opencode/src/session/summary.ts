@@ -16,6 +16,7 @@ import { MessageV2 } from "./message-v2"
 import { SessionID, MessageID } from "./schema"
 import { IncrementalCheckpoint } from "./incremental-checkpoint"
 import { mechanicalSummaryBody } from "./compaction"
+import { extractVectorChain } from "../memory/spine"
 import { Identifier } from "@/id/id"
 import type { PlanStatePayload } from "@/util/plan-status"
 
@@ -117,12 +118,36 @@ export function sliceMessagesForSummaryRange(
  * whole RANGE, and no tool metadata ever claimed it, so there is no turn to record. Absent means
  * «not attributable to one turn» — never «belongs to no turn».
  */
-export type TurnedFileDiff = Snapshot.FileDiff & { turn?: string }
+export type TurnedFileDiff = Snapshot.FileDiff & { turn?: string; sv?: string }
 
 /** The turn a message belongs to: the user message that roots it, else its parent. */
 export function turnRootId(msg: MessageV2.WithParts): string | undefined {
   if (msg.info.role === "user") return msg.info.id
   return msg.info.parentID
+}
+
+/**
+ * The `@SV_FORMAT` label a reply carries, if it carries one.
+ *
+ * `sv` is NOT a key and is not stored as one. It is a SPARSE, greppable anchor, and the sparsity is
+ * the design rather than a defect: measured 2026-09-27 on this session, 90 of 594 assistant messages
+ * carry a label — the other 504 are tool-call carriers with no text, and the owner named exactly
+ * this («сообщений в промежутке может быть пачка»). A field present on every message would be a
+ * message id in costume; present on the text reply, it marks the END of an exchange, and the bundle
+ * of messages in between is the payload.
+ *
+ * So the division is: `msg`-grade identity stays with system-minted ids, and `sv` is the handle you
+ * grep. Two labels colliding costs an ambiguous lookup, never a corrupted record — which is why a
+ * never-computed label (which CAN carry a leaked token, two measured) is safe here and would not be
+ * safe as a primary key.
+ */
+function svLabelOf(msg: MessageV2.WithParts): string | undefined {
+  for (const part of msg.parts) {
+    if (part.type !== "text") continue
+    const md5 = extractVectorChain(part.text).md5
+    if (md5) return md5
+  }
+  return undefined
 }
 
 /**
@@ -133,7 +158,7 @@ export function turnRootId(msg: MessageV2.WithParts): string | undefined {
 export function collectToolFileDiffs(messages: MessageV2.WithParts[]): TurnedFileDiff[] {
   const filediffs = new Map<string, TurnedFileDiff>()
 
-  const take = (fd: Snapshot.FileDiff | undefined, turn?: string) => {
+  const take = (fd: Snapshot.FileDiff | undefined, turn?: string, sv?: string) => {
     if (!fd?.file) return
     if ((fd.additions ?? 0) === 0 && (fd.deletions ?? 0) === 0 && !fd.patch?.trim()) return
     const key = fd.file.replaceAll("\\", "/")
@@ -146,23 +171,32 @@ export function collectToolFileDiffs(messages: MessageV2.WithParts[]): TurnedFil
       // The turn travels with the diff. `edit` is the overwhelming majority of the edits an agent
       // makes, so this is what turns a file list into «what did THIS turn touch».
       turn,
+      sv,
     })
   }
 
+  // «Весь реальный ход — от sv до sv» (owner, 2026-09-27). A reply that ends with a label CLOSES the
+  // exchange, so the edits it made belong to that label; a tool-call message carries none, so its
+  // edits belong to the last label seen — one running variable, linear, no second pass.
+  let lastSv: string | undefined
   for (const item of messages) {
     const turn = turnRootId(item)
+    const sv = svLabelOf(item) ?? lastSv
+    if (sv) lastSv = sv
     for (const part of item.parts) {
       if (part.type !== "tool") continue
       if (!MUTATION_TOOLS.has(part.tool)) continue
       const state = part.state
       if (state.status !== "completed") continue
       const meta = state.metadata as Record<string, unknown>
-      take(meta.filediff as Snapshot.FileDiff | undefined, turn)
+      take(meta.filediff as Snapshot.FileDiff | undefined, turn, sv)
       // multiedit nests per-edit filediff under results[]
       if (Array.isArray(meta.results)) {
         for (const row of meta.results) {
           if (!row || typeof row !== "object") continue
-          take((row as { filediff?: Snapshot.FileDiff }).filediff)
+          // `multiedit` is one of the most-used tools in this project, so an unattributed branch here
+          // would have been the COMMON case carrying no anchor at all — a silent partial, not an edge.
+          take((row as { filediff?: Snapshot.FileDiff }).filediff, turn, sv)
         }
       }
     }
@@ -269,6 +303,7 @@ export function mergeAnchorDiffs(
       ...existing,
       patch: !existing.patch?.trim() && tool.patch?.trim() ? tool.patch : existing.patch,
       turn: existing.turn ?? tool.turn,
+      sv: existing.sv ?? tool.sv,
     })
   }
   return [...merged.values()]

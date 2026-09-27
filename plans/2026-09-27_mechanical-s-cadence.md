@@ -151,6 +151,15 @@ to_state: crossing 64k of content writes one `s` whose body is assembled entirel
       FROM project_checkpoint pc, json_each(pc.diffs) j
      WHERE pc.session_id = ? AND json_extract(j.value,'$.turn') = ?;
     ```
+  - **T6b — `sv`: the anchor is the last `@SV_FORMAT` label, not a message id** (owner, 2026-09-27: «надо не id кидать а последний md5 из sv — вот это anchor… ведь реальный ход это от sv до sv, сообщений в промежутке может быть пачка»).
+    - **The unit is right and the measurement proves it is sparse on purpose**: 90 of 594 assistant messages in this session carry a label; the other 504 are tool-call carriers with no text. A field on every message would be a message id in costume — the label marks the END of an exchange and the bundle between labels is the payload.
+    - **Rule**: a labelled reply CLOSES the exchange, so the edits it made take that label; an unlabelled message's edits take the LAST label seen. One running variable in `collectToolFileDiffs`, linear, no second pass. Pinned by 3 tests, including the fallback — the naive «each diff takes its own message's label» would leave every tool-call edit unattributed.
+    - **`sv` is a handle, not a key.** It is never computed, so it can carry a leaked token (two measured this session) and two labels can collide. Stored next to the system-minted ids, that costs an ambiguous lookup, never a corrupted record. As a PRIMARY key it would be unsafe — which is why `turn` stays.
+    - `mergeAnchorDiffs` carries `sv` across exactly as it carries `turn`.
+    - **A gap found while writing it**: the `multiedit` branch called `take()` with no anchor at all. `multiedit` is one of the most-used tools here, so that would have been the COMMON case carrying nothing — a silent partial, not an edge. Fixed.
+    - **Convention from here on: a commit body leads with the last `sv` label**, because that is the anchor that survives. `.opencode/data` is gitignored; the commit is not. `git log --grep <md5>` → the commit → the exact change.
+    - 18 pass / 0 fail across `mechanical-writer` + `summary-anchors` (run `20260927T042440Z_6e92091a`); typecheck exit 0 (`20260927T042435Z_fb6a29bf`).
+    - **NOT yet live**: no row carries `turn`/`sv` until the owner rebuilds, and the rows already written cannot gain them — the attribution was lost at merge time and is unrecoverable except by re-reading the messages.
 
 ## Run log
 

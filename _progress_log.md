@@ -5175,3 +5175,19 @@ a found error pays like a confirmation". Unknown deliberately unpaid (not a dest
 the fourth restatement of "a web hit is Hypothetical". Product 46 998 B, sha `ca6ae543…`, 2 B free.
 ORACLES: ✓ 106 pass, constitution 12/12; ✓ leak-check of the bare route (no tools, two-sentence prompt, no
 project content). OWNER'S ACT: repin baseline to `ca6ae5433afd195355ff7207c6bc812d89d70d096cb6697dcbee6988901b7628`.
+
+## [2026-09-27 12:30Z] The reward has a denominator — baseline taken; two of my own numbers corrected by it
+
+Reader: `experiments_history/2026-09-27_reward-denominator/denominator.py` (read-only over opencode.db, one row
+per session × model). Metrics declared before the first reading; M3 calibrated by hand against every prose
+mention of a rebuild (first cut read 4 asks where there were 10 — it missed «Пересобирай»).
+
+BASELINE ✓: `…5lDMi1qo` space-bunny, 141 turns — M2 75.2% under an instrument, M4 27.0% marked, 10 asks,
+0 self builds, 10 owner rebuilds. deepseek-flash `rUFqtoqX`, 40 turns — 97.5%, 35.0%, 1, 18, 1.
+
+CORRECTIONS ✗: "12 asks / ~12 owner rebuilds" in `0e2d752ce8`, `eb32e14cf7` and the release doc came from a grep
+that counted SV keywords; measured 10 / 10. The release doc is fixed; commit messages stay as history.
+The 2026-09-24 grounding-first metric (M1) is mis-specified — it penalises G1's «state before reasoning»; M1'
+(no LONG text before the first tool call) is declared for the next reading, uncomputed so it cannot be fitted.
+
+NEXT: the after-reading on a session on the rebuilt binary; confound with `1a12d99bd6` named in advance.

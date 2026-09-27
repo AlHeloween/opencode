@@ -20,7 +20,8 @@ procedure is the owner's act — against the AMENDED render (see § Amendment, s
 ## Why — one incident, three layers
 
 An agent (space-bunny-alpha, session `…5lDMi1qo`) made 809 tool calls, 100 edits, **0 builds** and asked
-the owner to rebuild and run tests 12 times; the owner rebuilt ~12 times. The day before, deepseek-flash
+the owner to rebuild or re-run 10 times; the owner rebuilt 10 times (measured by the calibrated reader
+below — an earlier grep said 12 and ~12, inflated by keywords in the SV blocks). The day before, deepseek-flash
 on the same kernel ran 18 builds itself. Three layers, each measured:
 
 1. **A lying instrument created the blocker** — product code, not kernel, fixed in `1a12d99bd6`. Every
@@ -70,9 +71,13 @@ registries. 5. Constitutional tests — 12/12; full suite 106 passed, one expect
 
 ## Not verified — read this before trusting the release
 
-- **No behavioural oracle has run.** "The agent no longer hands its own build and test to the owner" is
-  Inferred. Falsifier, per session over the store: asks-to-owner to rebuild/run tests vs self-launched
-  builds. Baseline: `…5lDMi1qo` 12 asks / 0 builds. Attribution will be confounded — `1a12d99bd6` removed
+- **The behavioural oracle has a baseline, not yet an after-reading.** "The agent no longer hands its own
+  build and test to the owner" is Inferred until a session runs on the rebuilt binary. The reader is
+  `experiments_history/2026-09-27_reward-denominator/denominator.py` (read-only over the store, calibrated by
+  hand). ✓ Baseline, `…5lDMi1qo` · space-bunny, 141 turns: 75.2% of turns under an instrument, 10 asks to the
+  owner, **0** self-launched builds, 10 owner rebuilds; deepseek-flash reference the day before: 97.5%, 1 ask,
+  18 builds. The 2026-09-24 grounding-first metric turned out mis-specified (it penalises G1's state line) and
+  is replaced for the next reading — see that README. Attribution will be confounded — `1a12d99bd6` removed
   the lying FAILED in the same window, so a drop cannot be credited to the kernel alone.
 - **Outside falsifier** (`tools/aicall.py`, space-bunny-free — the only Zen model admitted from outside
   OpenCode): found the G6 double route (fixed). The reward line is an **uncovered criterion**: two runs

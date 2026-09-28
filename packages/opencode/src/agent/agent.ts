@@ -172,7 +172,7 @@ export const layer = Layer.effect(
                 "multiedit",
                 "restore",
                 "pipeline",
-                "jobkill",
+                "job_kill",
               ),
               Permission.fromConfig({
                 // Read and diagnostics inherit the default allow. Keep only
@@ -244,7 +244,7 @@ export const layer = Layer.effect(
                 "multiedit",
                 "restore",
                 "pipeline",
-                "jobkill",
+                "job_kill",
               ),
               Permission.fromConfig({
                 edit: {
@@ -298,7 +298,7 @@ export const layer = Layer.effect(
                 "run",
                 "task",
                 "pipeline",
-                "jobkill",
+                "job_kill",
                 "compact",
                 "summaryedit",
                 "apply_patch",
@@ -306,14 +306,13 @@ export const layer = Layer.effect(
                 "restore",
               ),
               Permission.fromConfig({
-                // The kernel declares GENERAL_AGENT `may_mutate: false`, and
-                // nothing was enforcing it: unlike explorer_agent this agent
-                // never denied the mutation tools, and unlike coder_agent it
-                // carried no path rule either, so it could edit any file in the
-                // project while its contract told the delegating parent it
-                // could not. Its gates are [G2, G3], which produce plan
-                // artifacts — the PLAN_WRITE action class, not MODIFY_PROJECT.
-                // Same shape plan_mode already uses for exactly this reason.
+                // GENERAL_AGENT is plan-artifacts-only (the PLAN_WRITE action
+                // class, not MODIFY_PROJECT), and nothing was enforcing it:
+                // unlike explorer_agent this agent never denied the mutation
+                // tools, and unlike coder_agent it carried no path rule either,
+                // so it could edit any file in the project while its scope told
+                // the delegating parent it could not. Same shape plan_mode
+                // already uses for exactly this reason.
                 edit: {
                   "*": "deny",
                   [path.join("plans", "*")]: "allow",
@@ -353,7 +352,7 @@ export const layer = Layer.effect(
                 "restore",
                 "task",
                 "pipeline",
-                "jobkill",
+                "job_kill",
                 "compact",
                 "summaryedit",
               ),
@@ -381,7 +380,7 @@ export const layer = Layer.effect(
                 "reasoning_exit",
                 "task",
                 "pipeline",
-                "jobkill",
+                "job_kill",
                 "compact",
                 "summaryedit",
               ),
@@ -425,7 +424,7 @@ export const layer = Layer.effect(
                 "restore",
                 "task",
                 "pipeline",
-                "jobkill",
+                "job_kill",
                 "compact",
                 "summaryedit",
                 // Researcher is web-only. Keep checkstate/todowrite as universal
@@ -474,7 +473,7 @@ export const layer = Layer.effect(
                 "reasoning_exit",
                 "task",
                 "pipeline",
-                "jobkill",
+                "job_kill",
                 "compact",
                 "summaryedit",
               ),

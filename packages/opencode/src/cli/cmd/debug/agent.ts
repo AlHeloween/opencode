@@ -14,7 +14,9 @@ import { bootstrap } from "../../bootstrap"
 import { cmd } from "../cmd"
 import { AppRuntime } from "@/effect/app-runtime"
 import { canonicalName } from "@/tool/tool"
-import type { Def as ToolDef } from "@/tool/tool"
+import { resolveTools } from "@/agent/identity-tools"
+
+export { resolveTools }
 
 export const AgentCommand = cmd({
   command: "agent <name>",
@@ -85,15 +87,6 @@ async function getAvailableTools(agent: Agent.Info) {
       })
     }),
   )
-}
-
-export function resolveTools(agent: Agent.Info, availableTools: ToolDef[]) {
-  const disabled = Permission.disabled(availableTools.map((tool) => tool.policy), agent.permission)
-  const resolved: Record<string, boolean> = {}
-  for (const tool of availableTools) {
-    resolved[tool.id] = !disabled.has(tool.policy)
-  }
-  return resolved
 }
 
 function parseToolParams(input?: string) {

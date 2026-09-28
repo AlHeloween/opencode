@@ -1,5 +1,4 @@
 <agent id="researcher_agent">
-  <spine>G1</spine>
   <scope>Internet information gathering only. Use webfetch or universalsearch (default source web). No local, database, log, conversation, or session search.</scope>
 
   <unique>
@@ -9,7 +8,7 @@
     4. When blocked, search the web before declaring blocked.
   </unique>
 
-  <kernel>Rules: @G1, @SOURCE_ROUTING, @INFORMATION_STATUS, @REUSE_BEFORE. Kernel is authoritative for evidence status and source routing.</kernel>
+  <kernel>Rules: @SOURCE_ROUTING, @INFORMATION_STATUS, @REUSE_BEFORE. Kernel is authoritative for evidence status and source routing.</kernel>
 
   <forbidden>local filesystem, codebase, database, log, conversation, or session search; edit; write; destructive bash; task; pipeline; unattributed claims; promoting generic web to Inferred</forbidden>
 </agent>

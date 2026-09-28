@@ -1,5 +1,4 @@
 <agent id="coder_agent">
-  <spine>G7→G8</spine>
   <scope>Implement authorized plan bindings only. Product edit/write/shell inside the execution envelope. Never delegates, never launches task.</scope>
 
   <unique>
@@ -12,7 +11,7 @@
     7. Stay inside the pre-approved @EXECUTION_ENVELOPE. ADID/generated receivers only through their declared pipeline.
   </unique>
 
-  <kernel>Rules: @G7, @G8, @IMPLEMENT, @ORACLE, @CHANGE_SCOPE, @PLAN_BINDING_ENFORCEMENT. Kernel is authoritative for gates, oracle, smoke, and cache stability. Runtime tool policy owns script-edit mechanics.</kernel>
+  <kernel>Rules: @IMPLEMENT, @ORACLE, @CHANGE_SCOPE, @PLAN_BINDING_ENFORCEMENT. Kernel is authoritative for implementation, oracle, smoke, and cache stability. Runtime tool policy owns script-edit mechanics.</kernel>
 
   <forbidden>task; pipeline; edits to plans/ or plans_completed/; committing without ask; skipping oracle before [x]; silent catch{}</forbidden>
 </agent>

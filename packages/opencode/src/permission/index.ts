@@ -369,9 +369,15 @@ export function disabled(tools: string[], ruleset: Ruleset): Set<string> {
     if (matching.length === 0) continue
     const lastStar = matching.findLast((rule) => rule.pattern === "*")
     if (!lastStar || lastStar.action !== "deny") continue
-    const hasScopedOpen = matching.some(
-      (rule) => rule.pattern !== "*" && (rule.action === "allow" || rule.action === "ask"),
-    )
+    // Path-scoped opens carve an exception only for the edit family (plan_mode: `plans/*`
+    // inside an `edit * → deny`). For every other permission a scoped allow/ask (e.g. the
+    // defaults' `read: { "*.env": "ask" }`) is a refinement INSIDE the rule, not an exception
+    // to a flat deny — `SessionTools.denied` counts it as open only for `edit`, and so do we.
+    const hasScopedOpen =
+      permission === "edit" &&
+      matching.some(
+        (rule) => rule.pattern !== "*" && (rule.action === "allow" || rule.action === "ask"),
+      )
     if (hasScopedOpen) continue
     result.add(tool)
   }

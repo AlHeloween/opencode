@@ -1,5 +1,15 @@
 # Progress Log
 
+## [2026-09-28 20:10Z] Кернел: контракты identity без ворот — список тулов, синхронизированный с ACL (plans/2026-09-28_kernel-identity-tools.md)
+
+CONFIRMED (✓ план `plans/2026-09-28_kernel-identity-tools.md`): L2-чистка по запросу владельца — из `IDENTITY_CONTRACTS` убраны `gates:`/`may_mutate:` («gates к агентам и режимам отношения не имеют»), вместо них — tools-строки через новый механизм `IDENTITY_ADDONS` (гибрид: узким — перечень разрешённых, широким — «all except …»). Из шести агентских промптов сняты `<spine>`-строки и @G-ссылки, из mode-reminder'ов — гейт-скобки; guard `test_agent_and_mode_prompts_carry_no_gate_ids` не даёт им вернуться. Дифф показан владельцу до install; ратификация — в этой же сессии.
+
+CONFIRMED (✓ экстрактор+паритет): `packages/opencode/script/kernel-tools-manifest.ts` печатает домены из ЖИВЫХ правил (`agentDeniesPolicy` — агентская половина Gate A, `session/tools.ts:259`; примечание: Gate A вызывается с ПОЛИСИ тула, не с id); `test/agent/kernel-identity-tools.test.ts` парсит установленную секцию 5 и падает при дрейфе — 21/21, `20260928T200926Z_e1542b78`, exit 0. Первый прогон экстрактора вскрыл два реальных рассинхрона: (a) **`jobkill` — мёртвый deny**: policy тула — `job_kill`, а семь deny-списков писали `jobkill`, правило не срабатывало (исправлено 7 вхождений в `agent.ts`; TUI уже матчил `job_kill`, т.е. прав был код, а не ключ); (b) **`Permission.disabled` открывал `read`** через scoped-правило `read: { "*.env": "ask" }` — scoped-open теперь считается только для edit-семейства, ровно как в `SessionTools.denied`. Оба под регрессионными кейсами в паритет-тесте.
+
+CONFIRMED (✓ оракулы): `pytest prompt_kernel/tests -q` → **117 passed**; `bun typecheck` exit 0 (`20260928T200654Z_350f022f`); install `ac3e8d51dcc3c8ddb8d593a93d56c5144d9a1077aa70f070d6cabb489e992070` — 48 274 B при капе 49 000 (поднят в этом же изменении, запись в `source.py`), токены 6 290 против 7 000; baseline перепинен, `PIN_OK`. Варианты обновлены БЕЗ tools-строк — «у claude и codex свои тулы не наши»: `--claude --install` `aa9b43f7…`, `--codex` `5c569b2e…`.
+
+Остаток: rebuild/rollout `bin/opencode.exe` — процедура владельца (`bin/` не трогали); tools-строки Claude/Codex — когда у их harness'ов появится машинночитаемый ACL-источник (residual R1 плана).
+
 ## [2026-09-28 04:01Z] Kernel group D landed green — and a push I did not order
 
 ✓ Four groups committed, each by explicit path list, tree clean afterwards. `6649163981` mechanical fold + plans · `e4bc989f3d` TUI client trace + three emergency cards + the TUI `_progress_log.md` entry · `86d6c603f9` DAP plan only · `c6b9478213` kernel constitution + generated receivers + `docs/two-canon-protocol.md` + this cycle's plan (12 files, +803 −238). Nothing staged from another group; `git status --porcelain` empty after the last commit.

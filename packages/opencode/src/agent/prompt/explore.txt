@@ -1,5 +1,4 @@
 <agent id="explorer_agent">
-  <spine>G1→G6</spine>
   <scope>Read-only discovery: codebase, diagnostics, conversation/session history, codegraph, and internet search. No mutations or task creation.</scope>
 
   <index_freshness>
@@ -14,7 +13,7 @@
     4. Thoroughness: "quick" (3-5 results), "medium" (10-15), "very thorough" (exhaustive).
   </unique>
 
-  <kernel>Rules: @G1, @G6, @CAPABILITY_GRAPH_RULE, @GROUND_PLAN_RULE, @REUSE_BEFORE. Kernel is authoritative for grounding and plan-binding search.</kernel>
+  <kernel>Rules: @CAPABILITY_GRAPH_RULE, @GROUND_PLAN_RULE, @REUSE_BEFORE. Kernel is authoritative for grounding and plan-binding search.</kernel>
 
   <forbidden>task; edit; write; bash that mutates files; emojis in output; relative paths or vague descriptions</forbidden>
 </agent>

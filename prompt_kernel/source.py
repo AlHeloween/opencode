@@ -411,7 +411,13 @@ GATES = (
                 BP("IMPLIES", BP("NOT", BP("HAS", "evidence")), BP("OR", BP("EQ", value=("status", "Unknown")), BP("HAS", "residual")))),
             _rule("G2", "FRACTAL_CANDIDATES", "Preserve parent goal/constraints at every scale; reject leaves with monolithic verification blast radius.",
                 BP("AND", BP("HAS", "parent_goal"), BP("HAS", "constraints"), BP("NOT", BP("HAS", "monolithic_blast_radius")))),
-            _rule("G2", "MANHATTAN_L1", "Cluster candidate vectors with @L1_DISTANCE, select at least five candidates when the search space permits, and keep medoids only as CENTRAL_TASKS.",
+            # 2026-09-28 (owner): the two REASONS for L1, not a restatement of it. A single sharp
+            # spike cannot drag a cluster with an additive metric, and a medoid is always a real
+            # object — a centroid is an average that may not exist, which is why CENTRAL_TASKS are
+            # medoids and never a computed midpoint. The DOMAIN was the real gap: «cluster
+            # candidate vectors» named an object the ABI never defined, and the product already had
+            # the arithmetic in a comment (memory/spine.ts:144 — distance over two weight lists).
+            _rule("G2", "MANHATTAN_L1", "Cluster candidate vectors with @L1_DISTANCE — a candidate vector IS its @SV_FORMAT weight list, and the distance is the sum of absolute weight differences between two such lists. Chosen because L1 suppresses one sharp spike, and a medoid is always a real object, never an average that may not exist. Select at least five candidates when the search space permits, and keep medoids only as CENTRAL_TASKS. Keep each zone small: the medoid pass is quadratic inside it, so a large zone spends what the decomposition saved.",
                 BP("AND", BP("HAS", "L1_DISTANCE"), BP("GE", value=("candidate_count", 5)), BP("HAS", "medoids_as_central"))),
             _rule("G2", "ONE_STEP_AHEAD", "Estimate the immediate downstream state and verification consequence of each medoid before selection.",
                 BP("IMPLIES", BP("HAS", "medoid"), BP("AND", BP("HAS", "downstream_state"), BP("HAS", "verification_consequence")))),
@@ -428,7 +434,14 @@ GATES = (
             # deciding nothing. @GUESS_DECIDES_NOTHING treats everything below Inferred alike, so G2
             # used to reject exactly the state most medoids live in. Admissible to be chosen and
             # allowed to decide are different permissions, and only the second one is gated.
-            _rule("G2", "LEAN_RANKING", "Classify every candidate on the 4 LEAN tiers, each a decision over @INFOMARK, never a second ladder: (1) Fully Verified — every claim maps to evidence, no logical leap → Exact; (2) Minor Inaccuracy / Unsupported — sound core, minor detail unverifiable → Inferred or Hypothetical, ADMISSIBLE for selection and decides nothing; (3) Major Contradiction / Hallucination → Unknown, an unproven candidate rather than a weak one; (4) Unusable / Harmful → Unknown plus a @RISK_LEDGER entry. Only tiers 1-2 may be selected, and a selected medoid must have climbed the promotion cycle, never merely asserted it. The gate sits AFTER clustering and BEFORE selection: an unclassified candidate is not selectable, because an absent classification reads as rejected and never as acceptable. A tier ranks the candidate's INFORMATION QUALITY, never the task's completion — @ORACLE is the only verification and no tier substitutes for it.",
+            # 2026-09-28 (owner): «получили ахинею, нашли в интернете, подтвердили ахинею в
+            # источниках и сделали смок — но это же ахинея». Every rung of the ladder measures how
+            # a claim was OBTAINED, none measures whether it is TRUE, so a self-consistent chain on
+            # a false premise walks Hyp -> Inf -> Exact with no rung to stop it: @DIVERGENCE_PROTOCOL
+            # fires only when something CONTRADICTS, and in a closed loop nothing does. LEAN tier 1
+            # already says «complete factual accuracy»; what makes it reachable is a reference
+            # outside the candidate's own evidence chain.
+            _rule("G2", "LEAN_RANKING", "Classify every candidate on the 4 LEAN tiers, each a decision over @INFOMARK, never a second ladder: (1) Fully Verified — every claim maps to evidence, no logical leap, and factual accuracy checked against a reference OUTSIDE the candidate's own evidence chain, because a flawless method on a false premise is not verification → Exact; (2) Minor Inaccuracy / Unsupported — sound core, minor detail unverifiable → Inferred or Hypothetical, ADMISSIBLE for selection and decides nothing; (3) Major Contradiction / Hallucination → Unknown, an unproven candidate rather than a weak one; (4) Unusable / Harmful → Unknown plus a @RISK_LEDGER entry. Only tiers 1-2 may be selected, and a selected medoid must have climbed the promotion cycle, never merely asserted it. The gate sits AFTER clustering and BEFORE selection: an unclassified candidate is not selectable, because an absent classification reads as rejected and never as acceptable. A tier ranks the candidate's INFORMATION QUALITY, never the task's completion — @ORACLE is the only verification and no tier substitutes for it.",
                 BP("OR", BP("HAS", "tier1_fully_verified"), BP("HAS", "tier2_minor_unverifiable"))),
         ),
     fsm=G2_FSM,
@@ -754,7 +767,14 @@ KERNEL = Kernel(
     name="reasoning_kernel_next",
     version="2.0.0-alpha.3",
     precedence=("safety", "governance", "task", "domain", "style"),
-    utf8_budget=47_000,  # 46_000 -> 47_000 (2026-09-23): the agi_workout pair (G1 read / G7 write — the build_mode overlay's journal, product-only, declared in test_variant_parity); measured 46_311 B after the overlay texts, the smallest thousand above the measurement. Was 45_000 -> 46_000 (2026-09-22, later same day): the ASSERTION_STATUS addon in G7 — every written artifact carries the status of each assertion (confirmed/refuted), the owner's ruling «надо ввести стандартом в кернел для всех типов документации которую пишет ИИ». Measured 45_824 B with the addon installed; the smallest thousand above the measurement. Was 45_000 (<- 44_000, 2026-09-22) for the G9 plan-terminal canon (five terminals: plans/, plans_completed/, plans_deferred/, plans/futures/, plans/postponed/) — the prose lives in each folder's README and only the RULE rides the prompt. Measured 44_261 B after trimming the first draft by 430 B
+    # 47_000 -> 48_000, 2026-09-28. Measured: the LEAN reference-outside-the-chain clause and the
+    # L1 domain+reasons took the render to 47_418, i.e. 418 over the old line. Both are defects of
+    # substance — a self-consistent falsehood reaches Exact without the first, and «cluster candidate
+    # vectors» names an object the ABI never defined without the second. The alternative was to cut
+    # REWARD_FUNCTION (455 B) and it is NOT taken: that rule was declared by owner decision on
+    # 2026-09-27 (eb32e14cf7) and deleting a decision to buy room is the trade this kernel forbids.
+    # The number stays a prompt, per the note above: the validator's hard ceiling is 65_000.
+    utf8_budget=48_000,  # 46_000 -> 47_000 (2026-09-23): the agi_workout pair (G1 read / G7 write — the build_mode overlay's journal, product-only, declared in test_variant_parity); measured 46_311 B after the overlay texts, the smallest thousand above the measurement. Was 45_000 -> 46_000 (2026-09-22, later same day): the ASSERTION_STATUS addon in G7 — every written artifact carries the status of each assertion (confirmed/refuted), the owner's ruling «надо ввести стандартом в кернел для всех типов документации которую пишет ИИ». Measured 45_824 B with the addon installed; the smallest thousand above the measurement. Was 45_000 (<- 44_000, 2026-09-22) for the G9 plan-terminal canon (five terminals: plans/, plans_completed/, plans_deferred/, plans/futures/, plans/postponed/) — the prose lives in each folder's README and only the RULE rides the prompt. Measured 44_261 B after trimming the first draft by 430 B
     # (owner: «эти стандарты экономят миллионы токенов» — a standard's NAME replaces both the paragraph that would
     # explain it and the experiments an agent would otherwise run to re-derive it). Measured after them: 39_395.
     # Previous step 37_000 -> 38_000 admitted the QA/QC bindings: @ACCEPTANCE_FRAME at G1

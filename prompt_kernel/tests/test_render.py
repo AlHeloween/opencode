@@ -189,6 +189,24 @@ def test_runtime_is_followable_without_opening_the_adid_document() -> None:
     for tier in ("(1) Fully Verified", "(2) Minor Inaccuracy", "(3) Major Contradiction", "(4) Unusable"):
         assert tier in lean, tier
 
+    # The L1 reasons are the POINT of choosing an additive metric over a medoid one, and they
+    # were the part the kernel never said. Pinned with the domain clause, because «cluster
+    # candidate vectors» named an object the ABI does not define — the rule was unexecutable
+    # prose until the vector was declared to BE its @SV_FORMAT weight list.
+    manhattan = next(rule.text for gate in KERNEL.gates for rule in gate.local_rules if rule.id == "MANHATTAN_L1")
+    assert "a candidate vector IS its @SV_FORMAT weight list" in manhattan
+    assert "sum of absolute weight differences" in manhattan
+    assert "L1 suppresses one sharp spike" in manhattan
+    assert "a medoid is always a real object, never an average that may not exist" in manhattan
+    assert "Keep each zone small" in manhattan, "a large zone spends what the decomposition saved"
+
+    # A self-consistent chain on a false premise walks the whole ladder (owner, 2026-09-28: found
+    # nonsense on the web, confirmed it in sources, ran a smoke — still nonsense). Every rung
+    # measures how the claim was obtained, so tier 1 is only reachable with a reference outside
+    # the candidate's own evidence chain.
+    assert "factual accuracy checked against a reference OUTSIDE the candidate's own evidence chain" in lean
+    assert "a flawless method on a false premise is not verification" in lean
+
     # Independence is per nesting level. Under fractal nesting a parent and its child can share
     # one source, which would satisfy "≥3 medoids with independent sources" with three names for
     # one explanation — the exact degeneracy the rule exists to reject, reachable one level down.

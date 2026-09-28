@@ -1,6 +1,14 @@
 # Progress Log
 
-## [2026-09-28 20:42Z] CUA observation-to-click binding (plans/postponed/2026-09-28_cua-observation-binding.md)
+## [2026-09-28 23:28Z] Isolated WebView2 CUA capture-bound click (plans_completed/2026-09-28_cua-observation-binding.md)
+
+✓ Owner explicitly approved a disposable live WebView2 window and isolated CUA daemon, excluding `bin/` and the working service. `dotnet publish` produced the WPF+WebView2 fixture only under `experiments/2026-09-28_cua-live/` (run `20260928T232019Z_9934ed7c`, exit 0). Source-built `cua-driver.exe` 0.29.1 ran on `\\.\pipe\cua-observation-20260928-f166`; explicit `status --socket` named PID 17788, not the default daemon.
+
+✓ Actual app-state oracle: `get_window_state` `20260928T232456Z_65ec4437` returned `capture_f8f53e4fcf294d37894d8000c366703c_0000000000000000` and `before.png` 1107×790 (`counter=0`, read as image). Named-session `click` at attached-image point (70,216), run `20260928T232527Z_de4fd52f`, returned an accessibility route and the target app changed. Fresh capture `20260928T232543Z_32a9a7c6` produced `after.png` with `counter=1`, read as image. Reusing the old capture ID yielded `capture_not_found` before dispatch (`20260928T232608Z_da93a298`, expected fail). SHA-256 before `a96e7b30d5ca31dd0e9e963aae0efe93ed1a48c6bd87dfe7f1d10335f63bc395`, after `9070c7a9936eb7f119e2b4457ef13fe351e135f91e6180e03bbc8d11731719e1`; images stay gitignored under `experiments/`, per the archive guard's binary-image exclusion.
+
+✗ Source-driver `page execute_javascript` was refused in standard mode (`unbounded_operation_requires_unrestricted`, `20260928T232424Z_342ce071`); no policy bypass. Screenshots, not CDP or exit 0, proved the counter delta. The fixture UIA tree returned 6 elements before the click and 96 after; this refutes a blanket 'WebView2 always has empty UIA', but says nothing about production pipeview. `cmd_runner stop` acknowledged the fixture stop without terminating it; only fixture PID 23408's process tree was then killed. The private daemon was stopped by explicit socket, exit 0. The installed OpenCode executable, production pipeview, provider-specific vision scaling, and drag/mouse-move capture binding remain untested; no `bin/` access occurred.
+
+## [2026-09-28 20:42Z] CUA observation-to-click binding (plans_completed/2026-09-28_cua-observation-binding.md)
 
 ✓ `packages/opencode/src/tool/cua.ts` now uses a named CLI session scoped to the OpenCode conversation for `get_window_state`, `get_desktop_state` and `click`; a pixel click without `capture_id` is refused. Baseline `20260928T200936Z_8a393723`: 3 pass; new error-case `20260928T201307Z_641efe0c`: 3 pass / 2 fail on missing named session and missing capture binding; trial fix `20260928T201451Z_1a9d0970`: 5 pass. The CLI named-session contract is pinned at `external/cua/libs/cua-driver/rust/Skills/cua-driver/RUNTIME.md:18-38`.
 

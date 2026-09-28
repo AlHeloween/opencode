@@ -2,7 +2,7 @@
 
 # Fold carrier integrity — Goal linkage and the sv meter's blind spot
 
-Status: DRAFT (lifecycle ACTIVE). Two tasks, both small, both grounded at path:line.
+Status: DRAFT (lifecycle ACTIVE). Four tasks, all small, all grounded at path:line.
 
 ## Why this plan exists
 
@@ -80,6 +80,32 @@ C2. Adding `${n}/${m} window replies without a vector` to the sv line catches a 
       much (`: omp-debug-elided chars=…`, `: omp-debug-truncated originalChars=…` in
       `packages/tui/src/apps/debug/raw-sse-buffer.ts`).
 
+- [x] **T4 — The Goal carrier must not quote a machine artifact as the owner's request.** ADDED
+      2026-09-27, from a measurement rather than a reading.
+      **Measured (`dbread` on the live session, range #780..#875):** the first `user`-role row is
+      `msg_0e15e0798001SM4jw3ldjz7W9d` with `synthetic = 1` and text `=== LAYER-1 SUMMARY === …` —
+      the panel this system writes. `compaction.ts:1430` was
+      `rows.find((r) => r.role === "user")` with **no filter**, so the row printed
+      `In this range the user asked: === LAYER-1 SUMMARY ===`, asserting the owner asked for a
+      summary marker. It reached two rows and I repaired both **by hand** — the tell that a carrier
+      is wrong: a reader can fix it, and the next reader will not know to. Meanwhile `--- Goal ---`
+      in the fold head names the real request (`#781 «Что у нас на повестке?»`), so two carriers of
+      one fact disagreed and only one was correct.
+      **This is a MISSED APPLICATION, not a missing concept:** `isLayer1SummaryText` is already
+      applied in five other walks (`compaction.ts:275`, `:528`; `prompt.ts:842`, `:1698`, `:1965`).
+      The sixth walk was the only one that writes what the next cycle inherits.
+      **Claim C3.** Filtering the machine artifact out of the `firstUser` selection makes the Goal
+      name the owner's actual request. **Falsifier:** a range whose only `user` message is the panel
+      then has NO request, and the old fallback («the goal is carried by the plan's `intention`») is
+      reached only when no plan intention exists — so it credited a carrier that is not there. Both
+      halves are asserted: the request is taken when one exists, and the absence is stated when it
+      does not (Acceptance #5's second clause).
+      **Artifact** — baseline RED `20260927T130231Z_4328078e` (13 pass / **2 fail**, the two new
+      tests); GREEN `20260927T130301Z_e507dd6e` (**15 pass / 0 fail**); `bun typecheck`
+      `20260927T130301Z_01c6c72b` (`state.json` exit 0, `bytes_written: 304`, 0 dropped); fold
+      suite `20260927T130331Z_256c52c7` (**75 pass / 0 fail** across the five files
+      `docs/compaction.md` names).
+
 ## Acceptance
 
 1. A window with a plan file present but `coupling.checked === 0` emits a goal naming the
@@ -92,6 +118,10 @@ C2. Adding `${n}/${m} window replies without a vector` to the sv line catches a 
    the messages it claims.
 5. The `Goal` block never names a plan the window is not coupled to, AND never becomes
    silent when it declines to name one — the fallback states the reason.
+6. **T4.** A range whose first `user` message is the Layer-1 panel names the owner's NEXT
+   request; a range with no owner request states that none exists and does not credit a
+   plan intention no plan declares. Falsifier for the fix: the machine marker appears
+   anywhere in the row.
 
 ## Smoke Tests
 

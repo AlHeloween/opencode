@@ -1427,7 +1427,18 @@ export function mechanicalSummaryBody(input: {
       : `${list.slice(0, SUMMARY_POSITION_ROWS_SHOWN).join(", ")} (+${list.length - SUMMARY_POSITION_ROWS_SHOWN} more)`
   const additions = input.diffs.reduce((s, d) => s + d.additions, 0)
   const deletions = input.diffs.reduce((s, d) => s + d.deletions, 0)
-  const firstUser = rows.find((r) => r.role === "user")
+  // The OWNER'S REQUEST — not the first row that happens to carry the `user` role. The Layer-1 panel
+  // is a SYNTHETIC user message, so a range opening on one was quoted as
+  // `In this range the user asked: === LAYER-1 SUMMARY ===`: the row asserting the owner asked for a
+  // summary marker. Measured 2026-09-27 by `dbread` on the live session — the first user row of the
+  // range #780..#875 is `msg_0e15e0798001SM4jw3ldjz7W9d`, `synthetic = 1`, and the real request is
+  // the NEXT message. It reached two rows and I repaired both BY HAND, which is what a wrong carrier
+  // looks like from outside: a reader can fix it, and the next reader will not know to.
+  //
+  // This is `isLayer1SummaryText` — the predicate this module already applies in FIVE other walks
+  // (`:275`, `:528`, and `prompt.ts:842`, `:1698`, `:1965`). This was the sixth walk and the only one
+  // that writes what the next cycle inherits. A MISSED APPLICATION, not a missing concept.
+  const firstUser = rows.find((r) => r.role === "user" && !isLayer1SummaryText(r.head))
   const targetTerms = rows.find((r) => r.target?.length)?.target
   const lastMd5 = [...rows].reverse().find((r) => r.chain.md5)?.chain.md5
   // The FIRST label too, and the pair is the row's sv identity (owner, 2026-09-27: «sv и его md5 —
@@ -1488,7 +1499,11 @@ export function mechanicalSummaryBody(input: {
       ? `${plans.find((p) => p.intention)!.file} intention: ${plans.find((p) => p.intention)!.intention!.from_state} -> ${plans.find((p) => p.intention)!.intention!.to_state}.${firstUser ? ` In this range the user asked: ${firstUser.head.slice(0, 300)}` : ""}`
       : firstUser
         ? `The range opens on the request: ${firstUser.head.slice(0, 400)}`
-        : "The range opens mid-thread; the goal is carried by the plan's `intention`, read from the plan file.",
+        : // Reached only when no plan intention exists, so crediting one named a carrier that is not
+          // there — and filtering the panel opens this path in a new way (a range whose only user
+          // message WAS the panel used to be "answered" by quoting that panel). Acceptance #5's
+          // second clause: the Goal never becomes silent, and the reason is stated, not invented.
+          "No owner request in this range and no plan states an intention — nothing here carries a goal; read the range's own messages.",
     "",
     "## Plan",
     plans.length === 0

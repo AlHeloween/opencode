@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import type { MessageV2 } from "../../src/session/message-v2"
-import { mechanicalSummaryBody } from "../../src/session/compaction"
+import { LAYER1_SUMMARY_MARKER, mechanicalSummaryBody } from "../../src/session/compaction"
 
 /**
  * A reply as the TUI stores it: one text part. Cast, because the function under test reads only
@@ -181,4 +181,38 @@ test("a range with no @SV_TARGET says so instead of implying a measurement", () 
   const out = body([msg("msg_1", "assistant", vector({ dominant: "просто", md5: A, prevMd5: ZERO }))])
   expect(out).toContain("No @SV_TARGET in this range")
   expect(out).not.toContain("Target asked")
+})
+
+test("the Goal carrier never quotes the machine's own panel as the owner's request", () => {
+  // Measured 2026-09-27 by `dbread` over the live session, not inferred: the first user row of the
+  // range #780..#875 is `msg_0e15e0798001SM4jw3ldjz7W9d`, `synthetic = 1`, its text
+  // `=== LAYER-1 SUMMARY === …` — the panel this system writes. `rows.find(r => r.role === "user")`
+  // took it, and the row printed `In this range the user asked: === LAYER-1 SUMMARY ===`, so a row
+  // asserted the owner asked for a summary marker. It reached TWO rows and I repaired both BY HAND,
+  // which is the tell that a carrier is wrong: a reader can fix it, and the next one will not know
+  // to. The real request is the NEXT user message.
+  const out = body([
+    msg("msg_1", "user", `${LAYER1_SUMMARY_MARKER}\nRange: 6 messages · 257520 chars\n## Semantic Vector`),
+    msg("msg_2", "user", "Что у нас на повестке?"),
+    msg("msg_3", "assistant", vector({ dominant: "повестка из одиннадцати галок", md5: A, prevMd5: ZERO })),
+  ])
+  expect(out).toContain("The range opens on the request: Что у нас на повестке?")
+  // The whole marker, not just the Goal line: a machine artifact quoted anywhere in this row would
+  // be the same lie wearing a different hat.
+  expect(out).not.toContain(LAYER1_SUMMARY_MARKER)
+})
+
+test("a range with no owner request says so — it never credits a plan that states no intention", () => {
+  // The panel IS a machine artifact, so filtering it can leave a range with no request at all. The
+  // old fallback answered exactly that case with «the goal is carried by the plan's `intention`,
+  // read from the plan file» — and it is reached ONLY when no plan intention exists, so it named a
+  // carrier that is not there. Acceptance #5: the Goal never becomes silent, and the reason is
+  // stated rather than invented.
+  const out = body([
+    msg("msg_1", "user", `${LAYER1_SUMMARY_MARKER}\nRange: 6 messages`),
+    msg("msg_2", "assistant", vector({ dominant: "только панель", md5: A, prevMd5: ZERO })),
+  ])
+  expect(out).not.toContain(LAYER1_SUMMARY_MARKER)
+  expect(out).toContain("no plan states an intention")
+  expect(out).not.toContain("opens mid-thread")
 })

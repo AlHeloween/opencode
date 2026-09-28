@@ -872,7 +872,7 @@ it.live(
 
 
 it.live(
-  "crossing the Layer-1 threshold issues NO sidecar request - the fold reads the rows",
+  "a 70_000-token turn issues NO sidecar model request - the fold reads the rows",
   () =>
     provideTmpdirServer(
       Effect.fnUntraced(function* ({ llm }) {
@@ -904,6 +904,20 @@ it.live(
         // Nothing is captured, so nothing is left open waiting to be filled, and the gaps machinery
         // (validator + gap-fill) is no longer on the path of a fold.
         expect(IncrementalCheckpoint.listOpen(session.id)).toHaveLength(0)
+        // T4b, MEASURED 2026-09-27 — THIS TEST DOES NOT CROSS, and the title used to claim it did.
+        // The obvious way to pin the crossing is `listAll === 1`, and it is UNUSABLE here: `save`
+        // inserts the row with `time_materialized` NULL (its input type is
+        // `Omit<Record, … "timeMaterialized">`, `incremental-checkpoint.ts:75`), so a written row is
+        // OPEN and a row never written is trivially open-free — the `listOpen` assertion above holds
+        // in both worlds. `listAll` does separate them, and it reports ZERO: measured in this very
+        // scenario the window holds 280 840 chars → `computeOpenWindowTokens` = 70 210 against a
+        // 65 536 threshold, i.e. the occasion is TRUE, and no row is written.
+        // Production is not broken, so this is a TEST defect: the live log records
+        // `layer1 summary panel written` for `ckpt_0e222b777001wiAa28aie4XUg9` at 09:12:01Z. The
+        // unproved link is whether this scenario reaches `prompt.ts:2429`
+        // (`result === "stop" || completedCleanly`), which encloses the whole Layer-1 block. The
+        // crossing regression stays OPEN and specified in plans/2026-09-27_mechanical-s-cadence.md
+        // T4b; what is fixed here is the claim this test made about itself.
       }),
       { git: true, config: reasoningBigProviderCfg },
     ),

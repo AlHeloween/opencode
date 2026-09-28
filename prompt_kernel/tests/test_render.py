@@ -177,9 +177,24 @@ def test_runtime_is_followable_without_opening_the_adid_document() -> None:
     ):
         assert case in stop, case
     assert "NOT SUCCESS" in stop, "a bounded stop must not read as closure"
+    # Independence is per nesting level. Under fractal nesting a parent and its child can share
+    # one source, which would satisfy "≥3 medoids with independent sources" with three names for
+    # one explanation — the exact degeneracy the rule exists to reject, reachable one level down.
+    simplex = next(rule.text for gate in KERNEL.gates for rule in gate.local_rules if rule.id == "MEDOID_SIMPLEX")
+    assert "independence is measured WITHIN one nesting level" in simplex
+    assert "a parent and its child never count as two sources" in simplex
+
     triggers = {rule.id: rule.text for protocol in KERNEL.protocols if protocol.id == "EVOLUTION_LOOP" for rule in protocol.local_rules}
-    assert "closed or stalled" in triggers["MODE2_TRIGGER_A"]
-    assert "≥10 message history" in triggers["MODE2_TRIGGER_B"]
+    assert "closed or stalled" in triggers["SELF_TRIGGER_A"]
+    assert "≥10 message history" in triggers["SELF_TRIGGER_B"]
+    # The mechanism is named once. G2's fractal decomposition is the only generator, so a
+    # trigger that also says «propose … candidates» is a third statement of it — and that is
+    # what made the ADID «Mode 2» layer read as a second, competing mode. Pinned so the
+    # duplication cannot grow back with a well-meaning edit.
+    candidates = triggers["EVOLUTION_CANDIDATES"]
+    assert "cluster @L1_DISTANCE" in candidates
+    for rule_id in ("SELF_TRIGGER_A", "SELF_TRIGGER_B", "SELF_TRIGGER"):
+        assert "propose" not in triggers[rule_id].lower(), rule_id
 
 
 def test_structured_predicates_do_not_shorten_rendered_rule_meaning() -> None:

@@ -300,7 +300,7 @@ Cluster candidate vectors with @L1_DISTANCE, select at least five candidates whe
 #### @ONE_STEP_AHEAD
 Estimate the immediate downstream state and verification consequence of each medoid before selection.
 
-- Surface needs ≥3 medoids with independent sources, each carrying @INFOMARK rung. Coverage over lattice, not asserted from one point. Three sources on ONE explanation = degenerate simplex — explanations must be independent.
+- Surface needs ≥3 medoids with independent sources, each carrying @INFOMARK rung. Coverage over lattice, not asserted from one point. Three sources on ONE explanation = degenerate simplex — explanations must be independent, and independence is measured WITHIN one nesting level: a parent and its child never count as two sources.
 - scratch: experiments/; drafts: futures/; one-offs: [ISO8601]_name.
 - experiments are born in experiments/ (gitignored, untracked) and verified results are archived to experiments_history/ (tracked) after a content check — canon: experiments_history/README.md, harness: experiments/2026-09-13_experiments-canon/archive.cjs.
 - track candidates: TodoWrite if available, else inline in the plan file.
@@ -521,9 +521,9 @@ objective: Propose measurable improvements when work closes, stalls, or has no s
 observed_at: [G0, G4, G6, G8, G9]
 returns_to: G1
 <EVOLUTION_LOOP_RULES>
-- SELF-TRIGGER A (ADID 15.3 §15.2.i): @CENTRAL_TASKS exhausted — primary tasks closed or stalled on anything but a user decision → propose refine/enhance candidates.
-- SELF-TRIGGER B (ADID 15.3 §15.2.ii): undirected conversation (no actionable goal) + ≥10 message history → propose discovery candidates. Requires history depth, not just a stall.
-- Self-triggered, never requested: stall = open task blocked by anything but user decision; undirected convo needs history. Medoids serve same to_state — proposal, not question.
+- Self-trigger A (ADID 15.3 §15.2.i): @CENTRAL_TASKS exhausted — the task list stopped moving, closed or stalled on anything but a user decision.
+- Self-trigger B (ADID 15.3 §15.2.ii): undirected conversation (no actionable goal) + ≥10 message history — history depth, not a stall.
+- Self-triggered, never requested; a proposal, never a question to the owner, and the medoids serve the same to_state.
 - Capture verified project state + provenance, then residual quality vs @QUALITY_VECTOR.
 - Evaluate declared dimensions vs baselines, each in own metric family.
 #### @EVOLUTION_CANDIDATES

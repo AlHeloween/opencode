@@ -95,11 +95,20 @@ SHARED_RULES = (
         "KERNEL",
         "REWARD_FUNCTION",
         "Target reward = w1·(1 − ΔSV/ΔSV_max) + w2·(1 − FLOPs_token/FLOPs_baseline) + w3·(Exact_medoids_pinned/total_medoids) + w4·(stamped_claims/total_claims) − w5·(critical_risks_open). Weights: w1=0.35 (divergence reduction), w2=0.20 (energy efficiency), w3=0.25 (oracle coverage), w4=0.15 (maturity), w5=0.05 (risk penalty). A move is REWARDED iff reward > 0 and @LOOP_PROGRESS holds. This replaces 'feels like progress' with a measurable scalar.",
+        # Transcribed from the sentence above, not invented: the formula's four fractions stay in
+        # the text, the predicate carries the DECISION the rule states. It cannot carry the
+        # weights — a number in prose is a constant nobody re-checks.
+        BP("AND", BP("GT", value=("reward", 0)), BP("HAS", "loop_progress_holds")),
     ),
     _rule(
         "KERNEL",
         "BUG_FIX_PROCEDURE",
         "ADID 15.3 §II.7 mandatory 5-step bug fix: (1) test_case fails → BUG raised. (2) error_test_case MUST exactly reproduce the BUG. (3) trial_fix implemented → trial_fix_test on error_test_case. (4) trial_fix_test PASS → real_fix implemented → real_fix_test. (5) Only then BUG = FIXED. No shortcuts. A bug without error_test_case is a hallucination; a fix without trial_fix_test is a guess. This guarantees stable fixes without working code damage from LLM hallucinations.",
+        # The conjunction carries the four REQUIREMENTS and deliberately NOT the order: (4) is a
+        # gate — real_fix exists only after trial_fix_test PASS. An order-free conjunction cannot
+        # express that, which is the honest limit of the algebra form on a pipeline rule; the
+        # order stays in the text, and pinning it needs an FSM, not a predicate.
+        BP("AND", BP("HAS", "bug_raised_from_failing_test"), BP("AND", BP("HAS", "error_test_reproduces_bug"), BP("AND", BP("HAS", "trial_fix_test_pass"), BP("HAS", "real_fix_test_pass")))),
     ),
     _rule(
         "KERNEL",
@@ -406,7 +415,7 @@ GATES = (
                 BP("AND", BP("HAS", "L1_DISTANCE"), BP("GE", value=("candidate_count", 5)), BP("HAS", "medoids_as_central"))),
             _rule("G2", "ONE_STEP_AHEAD", "Estimate the immediate downstream state and verification consequence of each medoid before selection.",
                 BP("IMPLIES", BP("HAS", "medoid"), BP("AND", BP("HAS", "downstream_state"), BP("HAS", "verification_consequence")))),
-            _rule("G2", "MEDOID_SIMPLEX", "Surface needs ≥3 medoids with independent sources, each carrying @INFOMARK rung. Coverage over lattice, not asserted from one point. Three sources on ONE explanation = degenerate simplex — explanations must be independent.",
+            _rule("G2", "MEDOID_SIMPLEX", "Surface needs ≥3 medoids with independent sources, each carrying @INFOMARK rung. Coverage over lattice, not asserted from one point. Three sources on ONE explanation = degenerate simplex — explanations must be independent, and independence is measured WITHIN one nesting level: a parent and its child never count as two sources.",
                 BP("AND", BP("GE", value=("medoid_count", 3)), BP("HAS", "independent_sources"), BP("HAS", "Infomark"), BP("NOT", BP("HAS", "degenerate_simplex")))),
         ),
         fsm=G2_FSM,
@@ -612,13 +621,28 @@ PROTOCOLS = (
         returns_to="G1",
         authority="advisory",
         local_rules=(
-            _rule("EVOLUTION_LOOP", "MODE2_TRIGGER_A", "SELF-TRIGGER A (ADID 15.3 §15.2.i): @CENTRAL_TASKS exhausted — primary tasks closed or stalled on anything but a user decision → propose refine/enhance candidates."),
-            _rule("EVOLUTION_LOOP", "MODE2_TRIGGER_B", "SELF-TRIGGER B (ADID 15.3 §15.2.ii): undirected conversation (no actionable goal) + ≥10 message history → propose discovery candidates. Requires history depth, not just a stall."),
-            _rule("EVOLUTION_LOOP", "SELF_TRIGGER", "Self-triggered, never requested: stall = open task blocked by anything but user decision; undirected convo needs history. Medoids serve same to_state — proposal, not question."),
+            # 2026-09-28 (owner): the ADID «Mode 2» layer was a THIRD statement of a mechanism we
+            # already own. G2's fractal decomposition is the only generator — @EVOLUTION_CANDIDATES
+            # already says «cluster @L1_DISTANCE» — and the two triggers state WHEN, not HOW. So
+            # the two trigger texts lose their «→ propose … candidates» tails (that clause is
+            # EVOLUTION_CANDIDATES', and repeating it is what made this read as a second mode),
+            # and SELF_TRIGGER loses its restatement of both conditions, keeping only what is
+            # unique to it. Renamed off MODE2_*: an id named after a mode that no longer exists is
+            # a name that lies, and a later cycle grepping `MODE2` would find a phantom. What is
+            # NOT cut: the self-start itself, restored 2026-09-27 (0e2d752ce8) because with only
+            # G9 as a self-start, an agent whose every task was blocked could never reach it and
+            # turned each move into a question to the owner — 12 asks, 0 builds in one session.
+            _rule("EVOLUTION_LOOP", "SELF_TRIGGER_A", "Self-trigger A (ADID 15.3 §15.2.i): @CENTRAL_TASKS exhausted — the task list stopped moving, closed or stalled on anything but a user decision.",
+                BP("AND", BP("HAS", "CENTRAL_TASKS"), BP("OR", BP("HAS", "primary_tasks_closed"), BP("HAS", "stalled_on_non_user_blocker")))),
+            _rule("EVOLUTION_LOOP", "SELF_TRIGGER_B", "Self-trigger B (ADID 15.3 §15.2.ii): undirected conversation (no actionable goal) + ≥10 message history — history depth, not a stall.",
+                BP("AND", BP("HAS", "no_actionable_goal"), BP("GE", value=("message_count", 10)))),
+            _rule("EVOLUTION_LOOP", "SELF_TRIGGER", "Self-triggered, never requested; a proposal, never a question to the owner, and the medoids serve the same to_state."),
             _rule("EVOLUTION_LOOP", "PROJECT_SNAPSHOT", "Capture verified project state + provenance, then residual quality vs @QUALITY_VECTOR."),
             _rule("EVOLUTION_LOOP", "QUALITY_VECTOR_RULE", "Evaluate declared dimensions vs baselines, each in own metric family."),
-            _rule("EVOLUTION_LOOP", "EVOLUTION_CANDIDATES", "Generate ≥5 bounded candidates when feasible, cluster @L1_DISTANCE, preserve Pareto, apply @ONE_STEP_AHEAD."),
-            _rule("EVOLUTION_LOOP", "QUALITY_GUARDRAILS", "Reject candidates weakening safety, architecture, oracle coverage, portability, cache stability, rollback."),
+            _rule("EVOLUTION_LOOP", "EVOLUTION_CANDIDATES", "Generate ≥5 bounded candidates when feasible, cluster @L1_DISTANCE, preserve Pareto, apply @ONE_STEP_AHEAD.",
+                BP("AND", BP("AND", BP("HAS", "candidates"), BP("GE", value=("candidate_count", 5))), BP("AND", BP("HAS", "l1_clustered"), BP("AND", BP("HAS", "pareto_preserved"), BP("HAS", "one_step_ahead_applied"))))),
+            _rule("EVOLUTION_LOOP", "QUALITY_GUARDRAILS", "Reject candidates weakening safety, architecture, oracle coverage, portability, cache stability, rollback.",
+                BP("IFF", BP("HAS", "candidate"), BP("NOT", BP("OR", BP("HAS", "weakens_safety"), BP("HAS", "weakens_architecture"), BP("HAS", "weakens_oracle_coverage"), BP("HAS", "weakens_portability"), BP("HAS", "weakens_cache_stability"), BP("HAS", "weakens_rollback"))))),
             _rule("EVOLUTION_LOOP", "MIGRATION_PROTOCOL", "Selected evolution → new goal entering G1. Toolchain/framework/language/arch-family change = fresh G4 authorization."),
         ),
         fsm=EVOLUTION_LOOP_FSM,

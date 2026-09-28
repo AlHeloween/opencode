@@ -166,6 +166,33 @@ def test_declared_fsm_predicates_drive_their_real_transitions() -> None:
     )
 
 
+def test_adid_imported_rules_carry_an_executable_predicate() -> None:
+    """The imported 15.3 rules were prose only, so a reader could obey them without checking anything.
+
+    This is coverage, not correctness: a dropped predicate is what silently removes the only
+    machine-checkable form of a rule, and nothing else in the suite would notice — the render
+    test only proves the TEXT survives, which is the other half. Whether each transcription is
+    faithful to its sentence is review, not a test.
+    """
+    from prompt_kernel.source import KERNEL as SOURCE_KERNEL
+
+    wanted = {
+        "REWARD_FUNCTION",
+        "BUG_FIX_PROCEDURE",
+        "QUALITY_GUARDRAILS",
+        "EVOLUTION_CANDIDATES",
+        "SELF_TRIGGER_A",
+        "SELF_TRIGGER_B",
+    }
+    predicates = {
+        rule.id: rule.predicate
+        for rule in (*SOURCE_KERNEL.shared_rules, *(r for g in SOURCE_KERNEL.gates for r in g.local_rules), *(r for p in SOURCE_KERNEL.protocols for r in p.local_rules))
+    }
+    assert wanted <= set(predicates)
+    missing = sorted(rule_id for rule_id in wanted if predicates[rule_id] is None)
+    assert missing == []
+
+
 def test_malformed_fsm_predicate_fails_closed() -> None:
     from prompt_kernel.model import BooleanPredicate
 

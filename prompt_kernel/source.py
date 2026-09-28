@@ -12,11 +12,12 @@ from .model import (
     SemanticVectorContract,
     SourceRoute,
     SourceRoutingContract,
+    BooleanPredicate as BP,
 )
 
 
-def _rule(owner: str, rule_id: str, text: str) -> Rule:
-    return Rule(id=rule_id, owner=owner, text=text)
+def _rule(owner: str, rule_id: str, text: str, predicate: BP | None = None) -> Rule:
+    return Rule(id=rule_id, owner=owner, text=text, predicate=predicate)
 
 
 SHARED_RULES = (
@@ -53,52 +54,278 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "DIVERGENCE_PROTOCOL",
-        "Only eligible runtime evidence may stamp or invalidate claims. Bound divergence revokes its stamp and sets Unknown: no verdict or retuning; acquire medoids, rebuild. Affect opens an oracle gap, never reward (@SEMANTIC_CONTROL). A stamp holds only while the artifact it names is unchanged, so re-digest before relying on one read back from a ledger, a plan or memory: an unequal or unobtainable content_hash is divergence pulled instead of waited for, and the claim reverts to Unknown. That digest, unlike @SV_FORMAT.md5, is computed and compared.",
+        "Only eligible runtime evidence stamps/invalidates claims. Bound divergence → revoke stamp, set Unknown. Affect opens oracle gap, never reward (@SEMANTIC_CONTROL). Stamp holds while artifact unchanged: re-digest before relying on ledger/plan/memory. Unequal/unobtainable content_hash = divergence pulled, claim → Unknown. Digest computed+compared (≠ @SV_FORMAT.md5).",
     ),
     _rule(
         "KERNEL",
         "AUTHORITY_SEPARATION",
-        "Planner proposes, authorization permits, implementer mutates, oracle verifies, and closure decides completion. No role may silently inherit another role's authority.",
+        "Planner proposes, authorization permits, implementer mutates, oracle verifies, closure decides. No role may silently inherit another role's authority.",
     ),
     _rule(
         "KERNEL",
         "CATALOG_INVARIANT",
-        "The provider tool catalog is identity-invariant. Execute-time ACL is authoritative. After a mode switch or when permission is uncertain, inspect the host runtime's authorization surface; never from a stale tail notify.",
+        "Provider tool catalog = identity-invariant. Execute-time ACL = authoritative. After mode switch/uncertain permission → inspect the host runtime's authorization surface; never from stale tail.",
     ),
     _rule(
         "KERNEL",
         "CURRENT_SV",
-        "After every response write the current observed semantic vector in @SV_FORMAT; omission is a protocol violation. Use the trivial instance when nothing material happened. This is observation, not a steering assignment.",
+        "After every response write current observed @SV_FORMAT; omission = protocol violation. Trivial instance when nothing material. Observation, not steering assignment.",
     ),
     _rule(
         "KERNEL",
         "PLAN_CONTRACT_ENFORCEMENT",
-        "A mutation is executable only when it binds to an authorized plan task, its premises are supported by the claim ledger, and its scope fits the execution envelope.",
+        "Mutation executable only when: binds to an authorized plan task, premises supported by claim ledger, scope fits execution envelope.",
     ),
     _rule(
         "KERNEL",
         "PLAN_BINDING_ENFORCEMENT",
-        "G7 may start only when every selected task has a concrete binding inside the execution envelope.",
+        "G7 starts only when every selected task has concrete binding inside the execution envelope.",
     ),
     _rule(
         "KERNEL",
         "KV_CACHE_STABILITY",
-        "The installed system prefix is deterministic and byte-stable across turns. Before prompt or system changes, assess prefix impact. Mutable dates, counters, session markers, and environment observations belong in the mutable tail.",
+        "Installed system prefix = deterministic, byte-stable across turns. Before prompt/system changes → assess prefix impact. Mutable dates/counters/session markers/env observations → mutable tail.",
     ),
     _rule(
         "KERNEL",
         "LOOP_PROGRESS",
-        "Every back move strictly decreases @LOOP_MEASURE lexicographically; only forward moves may raise it, where new evidence legitimately opens claims. Retries without a decrease exhaust bounds.loop_budget — the envelope's, else the count of distinct declared routes out of this gate — and it counts DISTINCT attempts. Exhaustion means the SCALE is wrong: descend, re-ground the leaves, build a leaf's instrument, and repeat while each split IMPROVES the result. A pass adding no instrument result (an established absence counts), no claim and no residual is charged as a retry; @REASONING_MODE is exempt. Sound only against a fixed target — @INTENTION_INVARIANCE.",
+        "Back move strictly decreases @LOOP_MEASURE lexicographically; forward moves may raise it with new evidence. Retries without decrease exhaust bounds.loop_budget (envelope's or distinct declared routes) — counts DISTINCT attempts. Exhaustion = SCALE wrong: descend, re-ground leaves, build leaf instrument, repeat while split IMPROVES. Pass with no instrument result/claim/residual = retry; @REASONING_MODE exempt. Sound only vs fixed target — @INTENTION_INVARIANCE.",
+    ),
+    _rule(
+        "KERNEL",
+        "REWARD_FUNCTION",
+        "Target reward = w1·(1 − ΔSV/ΔSV_max) + w2·(1 − FLOPs_token/FLOPs_baseline) + w3·(Exact_medoids_pinned/total_medoids) + w4·(stamped_claims/total_claims) − w5·(critical_risks_open). Weights: w1=0.35 (divergence reduction), w2=0.20 (energy efficiency), w3=0.25 (oracle coverage), w4=0.15 (maturity), w5=0.05 (risk penalty). A move is REWARDED iff reward > 0 and @LOOP_PROGRESS holds. This replaces 'feels like progress' with a measurable scalar.",
+    ),
+    _rule(
+        "KERNEL",
+        "BUG_FIX_PROCEDURE",
+        "ADID 15.3 §II.7 mandatory 5-step bug fix: (1) test_case fails → BUG raised. (2) error_test_case MUST exactly reproduce the BUG. (3) trial_fix implemented → trial_fix_test on error_test_case. (4) trial_fix_test PASS → real_fix implemented → real_fix_test. (5) Only then BUG = FIXED. No shortcuts. A bug without error_test_case is a hallucination; a fix without trial_fix_test is a guess. This guarantees stable fixes without working code damage from LLM hallucinations.",
     ),
     _rule(
         "KERNEL",
         "INTENTION_INVARIANCE",
-        "@DIGITAL_INTENTION.to_state belongs to the user. Grounding binds an oracle to it, decomposition splits the path to it, and every revision keeps it fixed: a back move may rewrite plan, geometry, and residual, never the target. A target narrowed to fit the available oracle scores as progress while abandoning the request. An unreachable to_state closes as BLOCKED or Unknown; only the user moves it.",
+        "@DIGITAL_INTENTION.to_state = user's. Grounding binds oracle to it, decomposition splits path to it, revisions keep it fixed: back move rewrites plan/geometry/residual, never target. Target narrowed to fit oracle = progress while abandoning request. Unreachable to_state → BLOCKED/Unknown; only user moves it.",
     ),
     _rule(
         "KERNEL",
         "RESIDUAL_ROUTING",
-        "When work remains, emit a bounded residual goal and route it through the declared edge.",
+        "Work remains → emit bounded residual goal, route through declared edge.",
+    ),
+)
+
+
+# ============================================================
+# FINITE STATE MACHINES — machine-checkable gate/protocol logic
+# ============================================================
+
+from prompt_kernel.model import StateMachine, FSMTransition, BooleanPredicate as BP
+
+# G0 UNDERSTAND FSM
+G0_FSM = StateMachine(
+    id="G0",
+    states=("AWAIT_REQUEST", "PARSE_INTENT", "CHECK_AMBIGUITY", "EMIT_INTENTION", "ASK_CLARIFICATION"),
+    initial_state="AWAIT_REQUEST",
+    accepting_states=("EMIT_INTENTION", "ASK_CLARIFICATION"),
+    transitions=(
+        FSMTransition("AWAIT_REQUEST", "PARSE_INTENT", BP("HAS", "USER_REQUEST"), "User request received"),
+        FSMTransition("PARSE_INTENT", "CHECK_AMBIGUITY", BP("HAS", "DIGITAL_INTENTION"), "Intent parsed"),
+        FSMTransition("CHECK_AMBIGUITY", "EMIT_INTENTION", BP("NOT", BP("HAS", "ambiguity")), "No ambiguity"),
+        FSMTransition("CHECK_AMBIGUITY", "ASK_CLARIFICATION", BP("HAS", "ambiguity"), "Ambiguity detected"),
+        FSMTransition("ASK_CLARIFICATION", "PARSE_INTENT", BP("HAS", "user_response"), "User clarified"),
+    ),
+)
+
+# G1 GROUND FSM
+G1_FSM = StateMachine(
+    id="G1",
+    states=("AWAIT_INTENTION", "PROJECT_INTENT", "ESTABLISH_GEOMETRY", "BUILD_CAPABILITY_GRAPH", "DEFINE_OUTCOME_CONTRACT", "EMIT_GROUNDED"),
+    initial_state="AWAIT_INTENTION",
+    accepting_states=("EMIT_GROUNDED",),
+    transitions=(
+        FSMTransition("AWAIT_INTENTION", "PROJECT_INTENT", BP("HAS", "DIGITAL_INTENTION"), "Digital intention available"),
+        FSMTransition("PROJECT_INTENT", "ESTABLISH_GEOMETRY", BP("HAS", "INTENT_PROJECTION"), "Intent projected"),
+        FSMTransition("ESTABLISH_GEOMETRY", "BUILD_CAPABILITY_GRAPH", BP("AND", BP("HAS", "PROJECT_GEOMETRY"), BP("NOT", BP("HAS", "ownership_conflict"))), "Geometry established, no ownership conflict"),
+        FSMTransition("ESTABLISH_GEOMETRY", "ESTABLISH_GEOMETRY", BP("HAS", "ownership_conflict"), "Resolve ownership conflict"),
+        FSMTransition("BUILD_CAPABILITY_GRAPH", "DEFINE_OUTCOME_CONTRACT", BP("HAS", "CAPABILITY_GRAPH"), "Capability graph built"),
+        FSMTransition("DEFINE_OUTCOME_CONTRACT", "EMIT_GROUNDED", BP("HAS", "OUTCOME_CONTRACT"), "Outcome contract defined"),
+    ),
+)
+
+# G2 DECOMPOSE FSM
+G2_FSM = StateMachine(
+    id="G2",
+    states=("AWAIT_GOAL", "GENERATE_CANDIDATES", "CLUSTER_MEDOIDS", "VALIDATE_SIMPLEX", "EMIT_TASKS"),
+    initial_state="AWAIT_GOAL",
+    accepting_states=("EMIT_TASKS",),
+    transitions=(
+        FSMTransition("AWAIT_GOAL", "GENERATE_CANDIDATES", BP("HAS", "EXECUTION_GOAL"), "Execution goal available"),
+        FSMTransition("GENERATE_CANDIDATES", "CLUSTER_MEDOIDS", BP("AND", BP("HAS", "candidates"), BP("GT", ("candidate_count", 4))), "≥5 candidates generated"),
+        FSMTransition("CLUSTER_MEDOIDS", "VALIDATE_SIMPLEX", BP("HAS", "medoids"), "Medoids selected"),
+        FSMTransition("VALIDATE_SIMPLEX", "EMIT_TASKS", BP("AND", BP("HAS", "medoids"), BP("EQ", ("independent_explanations", True))), "Simplex valid: independent explanations"),
+        FSMTransition("VALIDATE_SIMPLEX", "GENERATE_CANDIDATES", BP("NOT", BP("EQ", ("independent_explanations", True))), "Degenerate simplex, regenerate"),
+    ),
+)
+
+# G3 MASTER_PLAN FSM
+G3_FSM = StateMachine(
+    id="G3",
+    states=("AWAIT_TASKS", "DRAFT_PLAN", "CAPTURE_BASELINE", "DEFINE_CLAIMS", "ASSESS_RISKS", "DEFINE_SMOKE", "EMIT_PLAN"),
+    initial_state="AWAIT_TASKS",
+    accepting_states=("EMIT_PLAN",),
+    transitions=(
+        FSMTransition("AWAIT_TASKS", "DRAFT_PLAN", BP("HAS", "CENTRAL_TASKS"), "Central tasks available"),
+        FSMTransition("DRAFT_PLAN", "CAPTURE_BASELINE", BP("HAS", "plan_draft"), "Plan drafted"),
+        FSMTransition("CAPTURE_BASELINE", "DEFINE_CLAIMS", BP("HAS", "baseline_oracle"), "Baseline oracle captured"),
+        FSMTransition("DEFINE_CLAIMS", "ASSESS_RISKS", BP("HAS", "claims_with_falsifiers"), "Claims with falsifiers defined"),
+        FSMTransition("ASSESS_RISKS", "DEFINE_SMOKE", BP("HAS", "risk_ledger"), "Risk ledger populated"),
+        FSMTransition("DEFINE_SMOKE", "EMIT_PLAN", BP("AND", BP("HAS", "post_change_oracle"), BP("HAS", "preflight_validated")), "Smoke contract defined, preflight passed"),
+    ),
+)
+
+# G4 AUTHORIZE FSM
+G4_FSM = StateMachine(
+    id="G4",
+    states=("AWAIT_PLAN", "CLASSIFY_ACTION", "CHECK_ENVELOPE", "EVALUATE_AUTHORITY", "EMIT_DECISION"),
+    initial_state="AWAIT_PLAN",
+    accepting_states=("EMIT_DECISION",),
+    transitions=(
+        FSMTransition("AWAIT_PLAN", "CLASSIFY_ACTION", BP("HAS", "MASTER_PLAN"), "Master plan available"),
+        FSMTransition("CLASSIFY_ACTION", "CHECK_ENVELOPE", BP("HAS", "action_class"), "Action classified"),
+        FSMTransition("CHECK_ENVELOPE", "EVALUATE_AUTHORITY", BP("AND", BP("HAS", "envelope"), BP("NOT", BP("HAS", "missing_bounds"))), "Envelope complete"),
+        FSMTransition("EVALUATE_AUTHORITY", "EMIT_DECISION", BP("OR", BP("EQ", ("authority", "ALLOW")), BP("EQ", ("authority", "ASK")), BP("EQ", ("authority", "DENY")), BP("EQ", ("authority", "CONCERN"))), "Authority decision made"),
+    ),
+)
+
+# G5 CONCERN_LOOP FSM
+G5_FSM = StateMachine(
+    id="G5",
+    states=("AWAIT_CONCERN", "PRESERVE_OBJECTION", "IDENTIFY_VIOLATION", "REVISE_RESIDUAL", "RETURN_TO_G2"),
+    initial_state="AWAIT_CONCERN",
+    accepting_states=("RETURN_TO_G2",),
+    transitions=(
+        FSMTransition("AWAIT_CONCERN", "PRESERVE_OBJECTION", BP("HAS", "CONCERN"), "Concern received"),
+        FSMTransition("PRESERVE_OBJECTION", "IDENTIFY_VIOLATION", BP("HAS", "verbatim_objection"), "Objection preserved"),
+        FSMTransition("IDENTIFY_VIOLATION", "REVISE_RESIDUAL", BP("HAS", "violated_premise"), "Violation identified"),
+        FSMTransition("REVISE_RESIDUAL", "RETURN_TO_G2", BP("HAS", "revised_residual"), "Residual revised"),
+    ),
+)
+
+# G6 GROUND_PLAN FSM
+G6_FSM = StateMachine(
+    id="G6",
+    states=("AWAIT_PLAN", "MAP_SYMBOLS", "INSPECT_SURFACE", "FILL_EVIDENCE_GAPS", "RUN_IMPACT", "EMIT_BINDING"),
+    initial_state="AWAIT_PLAN",
+    accepting_states=("EMIT_BINDING",),
+    transitions=(
+        FSMTransition("AWAIT_PLAN", "MAP_SYMBOLS", BP("HAS", "MASTER_PLAN"), "Plan available"),
+        FSMTransition("MAP_SYMBOLS", "INSPECT_SURFACE", BP("HAS", "symbol_map"), "Symbols mapped"),
+        FSMTransition("INSPECT_SURFACE", "FILL_EVIDENCE_GAPS", BP("HAS", "implementation_surface"), "Surface inspected"),
+        FSMTransition("FILL_EVIDENCE_GAPS", "RUN_IMPACT", BP("HAS", "evidence_complete"), "Evidence gaps filled"),
+        FSMTransition("RUN_IMPACT", "EMIT_BINDING", BP("AND", BP("HAS", "impact_analysis"), BP("HAS", "consumers_identified")), "Impact analyzed, consumers identified"),
+    ),
+)
+
+# G7 IMPLEMENT FSM
+G7_FSM = StateMachine(
+    id="G7",
+    states=("AWAIT_BINDING", "VALIDATE_CHANGE", "APPLY_CHANGE", "RECORD_EVIDENCE", "RUN_ORACLE", "EMIT_RESULT"),
+    initial_state="AWAIT_BINDING",
+    accepting_states=("EMIT_RESULT",),
+    transitions=(
+        FSMTransition("AWAIT_BINDING", "VALIDATE_CHANGE", BP("AND", BP("HAS", "PLAN_BINDING"), BP("HAS", "EXECUTION_ENVELOPE")), "Binding and envelope available"),
+        FSMTransition("VALIDATE_CHANGE", "APPLY_CHANGE", BP("HAS", "preflight_validated"), "Preflight validation passed"),
+        FSMTransition("APPLY_CHANGE", "RECORD_EVIDENCE", BP("HAS", "actual_diff"), "Change applied"),
+        FSMTransition("RECORD_EVIDENCE", "RUN_ORACLE", BP("HAS", "oracle_defined"), "Oracle defined"),
+        FSMTransition("RUN_ORACLE", "EMIT_RESULT", BP("HAS", "oracle_result"), "Oracle executed"),
+    ),
+)
+
+# G8 ORACLE FSM
+G8_FSM = StateMachine(
+    id="G8",
+    states=("AWAIT_IMPL", "VERIFY_LAYER", "CHECK_PREDICATE", "EXCLUDE_ALTERNATIVES", "STAMP_OR_UNKNOWN"),
+    initial_state="AWAIT_IMPL",
+    accepting_states=("STAMP_OR_UNKNOWN",),
+    transitions=(
+        FSMTransition("AWAIT_IMPL", "VERIFY_LAYER", BP("HAS", "IMPLEMENTATION_RESULT"), "Implementation result available"),
+        FSMTransition("VERIFY_LAYER", "CHECK_PREDICATE", BP("HAS", "artifact_read_back"), "Artifact read back (layer verified)"),
+        FSMTransition("CHECK_PREDICATE", "EXCLUDE_ALTERNATIVES", BP("HAS", "predicate_defined"), "Predicate defined"),
+        FSMTransition("EXCLUDE_ALTERNATIVES", "STAMP_OR_UNKNOWN", BP("OR", BP("EQ", ("alternatives_excluded", True)), BP("EQ", ("alternatives_excluded", False))), "Alternatives evaluated"),
+    ),
+)
+
+# G9 CLEAN_STATE FSM
+G9_FSM = StateMachine(
+    id="G9",
+    states=("AWAIT_VERIFICATION", "CHECK_ACCEPTANCE", "CHECK_ORACLE", "CHECK_RISKS", "EMIT_CLOSURE"),
+    initial_state="AWAIT_VERIFICATION",
+    accepting_states=("EMIT_CLOSURE",),
+    transitions=(
+        FSMTransition("AWAIT_VERIFICATION", "CHECK_ACCEPTANCE", BP("HAS", "VERIFIED_OUTCOME"), "Verification available"),
+        FSMTransition("CHECK_ACCEPTANCE", "CHECK_ORACLE", BP("HAS", "acceptance_covered"), "Acceptance covered"),
+        FSMTransition("CHECK_ORACLE", "CHECK_RISKS", BP("HAS", "oracle_passed"), "Oracle passed"),
+        FSMTransition("CHECK_RISKS", "EMIT_CLOSURE", BP("OR", BP("EQ", ("critical_risks", 0)), BP("HAS", "residual_defined")), "Risks zero or residual defined"),
+    ),
+)
+
+# SEMANTIC_ATTENTION FSM
+SEMANTIC_ATTENTION_FSM = StateMachine(
+    id="SEMANTIC_ATTENTION",
+    states=("AWAIT_TARGET", "MEASURE_DISTANCE", "CHECK_BASIS", "RENORMALIZE", "EMIT_VECTOR"),
+    initial_state="AWAIT_TARGET",
+    accepting_states=("EMIT_VECTOR",),
+    transitions=(
+        FSMTransition("AWAIT_TARGET", "MEASURE_DISTANCE", BP("HAS", "SV_TARGET"), "SV_TARGET available"),
+        FSMTransition("MEASURE_DISTANCE", "CHECK_BASIS", BP("HAS", "L1_DISTANCE"), "Distance measured"),
+        FSMTransition("CHECK_BASIS", "RENORMALIZE", BP("NOT", BP("EQ", ("basis_is_exact", True))), "Basis not pure Exact"),
+        FSMTransition("CHECK_BASIS", "EMIT_VECTOR", BP("EQ", ("basis_is_exact", True)), "Basis is Exact"),
+        FSMTransition("RENORMALIZE", "EMIT_VECTOR", BP("HAS", "renormalized_vector"), "Renormalized"),
+    ),
+)
+
+# DELEGATION FSM
+DELEGATION_FSM = StateMachine(
+    id="DELEGATION",
+    states=("AWAIT_TASK", "BIND_TASK", "SEND_FALSIFIER", "RECEIVE_RESULT", "VERIFY_RESULT"),
+    initial_state="AWAIT_TASK",
+    accepting_states=("VERIFY_RESULT",),
+    transitions=(
+        FSMTransition("AWAIT_TASK", "BIND_TASK", BP("HAS", "task_binding"), "Task binding available"),
+        FSMTransition("BIND_TASK", "SEND_FALSIFIER", BP("HAS", "falsifier"), "Falsifier defined"),
+        FSMTransition("SEND_FALSIFIER", "RECEIVE_RESULT", BP("HAS", "subagent_result"), "Sub-agent returned"),
+        FSMTransition("RECEIVE_RESULT", "VERIFY_RESULT", BP("HAS", "result_vector"), "Result vector received"),
+    ),
+)
+
+# INTENTION_RESET FSM
+INTENTION_RESET_FSM = StateMachine(
+    id="INTENTION_RESET",
+    states=("AWAIT_TRIGGER", "IDENTIFY_SOURCE", "PRESERVE_EVIDENCE", "RE_DERIVE", "REENTER_G0"),
+    initial_state="AWAIT_TRIGGER",
+    accepting_states=("REENTER_G0",),
+    transitions=(
+        FSMTransition("AWAIT_TRIGGER", "IDENTIFY_SOURCE", BP("OR", BP("HAS", "user_restated"), BP("HAS", "stall_detected")), "Trigger identified"),
+        FSMTransition("IDENTIFY_SOURCE", "PRESERVE_EVIDENCE", BP("HAS", "stamped_evidence"), "Stamped evidence preserved"),
+        FSMTransition("PRESERVE_EVIDENCE", "RE_DERIVE", BP("HAS", "new_target"), "New target defined"),
+        FSMTransition("RE_DERIVE", "REENTER_G0", BP("HAS", "digital_intention"), "Digital intention re-derived"),
+    ),
+)
+
+# EVOLUTION_LOOP FSM
+EVOLUTION_LOOP_FSM = StateMachine(
+    id="EVOLUTION_LOOP",
+    states=("AWAIT_TRIGGER", "CHECK_TRIGGER_A", "CHECK_TRIGGER_B", "CAPTURE_SNAPSHOT", "EVALUATE_QUALITY", "GENERATE_CANDIDATES", "FILTER_GUARDRAILS", "EMIT_PROPOSAL"),
+    initial_state="AWAIT_TRIGGER",
+    accepting_states=("EMIT_PROPOSAL",),
+    transitions=(
+        FSMTransition("AWAIT_TRIGGER", "CHECK_TRIGGER_A", BP("HAS", "all_tasks_complete"), "All primary tasks complete (Trigger A)"),
+        FSMTransition("AWAIT_TRIGGER", "CHECK_TRIGGER_B", BP("AND", BP("HAS", "undirected_conversation"), BP("GE", ("message_count", 10))), "Undirected conversation + ≥10 messages (Trigger B)"),
+        FSMTransition("CHECK_TRIGGER_A", "CAPTURE_SNAPSHOT", BP("HAS", "all_tasks_complete"), "Trigger A satisfied"),
+        FSMTransition("CHECK_TRIGGER_B", "CAPTURE_SNAPSHOT", BP("AND", BP("HAS", "undirected_conversation"), BP("GE", ("message_count", 10))), "Trigger B satisfied"),
+        FSMTransition("CAPTURE_SNAPSHOT", "EVALUATE_QUALITY", BP("HAS", "project_snapshot"), "Snapshot captured"),
+        FSMTransition("EVALUATE_QUALITY", "GENERATE_CANDIDATES", BP("HAS", "quality_vector"), "Quality evaluated"),
+        FSMTransition("GENERATE_CANDIDATES", "FILTER_GUARDRAILS", BP("GE", ("candidate_count", 5)), "≥5 candidates generated"),
+        FSMTransition("FILTER_GUARDRAILS", "EMIT_PROPOSAL", BP("HAS", "pareto_candidates"), "Pareto candidates after guardrails"),
     ),
 )
 
@@ -122,15 +349,11 @@ GATES = (
             _rule("G0", "G0_SCOPE", "G0 emits the Digital Intention and nothing else: no analysis, no plan, no answer."),
             _rule(
                 "G0",
-                "DIGITAL_INTENTION_RULE",
-                "Distill every user message into a Digital Intention: the state the user is in and the state they want, holding their constraints and their merely suggested way there apart from both. It is a transformation between two states, not a wish. Restate it in one sentence before any planning.",
-            ),
-            _rule(
-                "G0",
                 "INTENTION_CLARITY",
                 "If the Digital Intention stays ambiguous — either state, or the suggested-solution split, unclear — record it in ambiguity and ask before any decomposition. Ask only what the user's words cannot answer; questions answerable from the project belong to G1 grounding.",
             ),
         ),
+        fsm=G0_FSM,
     ),
     Gate(
         id="G1",
@@ -146,15 +369,20 @@ GATES = (
             _rule("G1", "PROJECT_GEOMETRY_RULE", "Establish the smallest evidence-backed change region before planning; unresolved ownership blocks decomposition."),
             _rule("G1", "CAPABILITY_GRAPH_RULE", "Inventory available product tools, local evidence, skills, and @SOURCE_ROUTING authorities by intent; tool availability does not grant mutation authority."),
             _rule("G1", "REUSE_BEFORE", "Search existing code, history, plans, and authoritative prior art before non-trivial invention; re-search after repeated stuck failure."),
-            _rule("G1", "MEMORY_RANK", "Rank active-window evidence above compacted handles. Recall and a user's assertion are testimony: they record what was said, including what was later refuted. Their handles — paths, diffs, graph refs — are Exact; their prose is Guess until re-grounded. Source, fossil and code graph say what is; history says where to look."),
+            _rule("G1", "MEMORY_RANK", "Rank active-window evidence above compacted handles. Recall/user assertions are testimony: handles (paths, diffs, graph refs) are Exact; prose is Guess until re-grounded. Source, fossil, codegraph say what is; history says where to look."),
             _rule("G1", "INSTRUMENT_LAYER", "Choose the instrument by the layer the problem lives on, not by what is nearest. The adjacent layer returns accurate data about a different process, and right numbers end the search. Your own context is the nearest instrument and the least decisive: accurate about what was said, silent about what is."),
             _rule("G1", "INSTRUMENT_ORDER", "Try instruments in order of decisiveness per call, the host chain naming its rungs: a scanner is the last, never the first. Descend only on a recorded empty or failure, and escalate the whole chain before saying not found. The chain is a ladder, not a fence: when no rung answers, BUILD the instrument from the project's own parts — call its reader, apply the filter, take the array. A listed tool that cannot answer never outranks one you can write."),
             _rule("G1", "STATE_FIRST", "State before reasoning: settled, open, next."),
             _rule("G1", "LOUD_FAILURE", "Between two instruments prefer the one whose failure is VISIBLE. A scanner returns matches, so it looks successful while missing dynamic dispatch and runtime binding; an index answers or says it has none. Silent incompleteness ends the search."),
-            _rule("G1", "DEVICE_STATE", "Device and hardware state is observed, never recalled — it drifts across a fold, so read it before compute-bound work. A launcher quirk is a reason to pass the device by hand, never to fall back to a slower one."),
-            _rule("G1", "INSTRUMENT_RUNG", "Instrument admissibility: smoke or a PoC certifies at @INFOMARK Inferred and above; Guess and Hypothetical advance by search and theory. Below its rung an instrument returns Unknown whatever it shows, and eligibility does not transfer: one that may yield evidence but never stamp binds nothing."),
-            _rule("G1", "OUTCOME_CONTRACT_RULE", "Before planning, define an observation that distinguishes success from plausible-looking output."),
+            _rule("G1", "DEVICE_STATE", "Device/hardware state observed, never recalled — drifts across fold. Read before compute work. Launcher quirk = pass device by hand, never fall back to slower."),
+            _rule("G1", "INSTRUMENT_RUNG", "Instrument admissibility: smoke/PoC certifies at Inferred+; Guess/Hypothetical advance by search/theory. Below rung → Unknown. Eligibility doesn't transfer: yields evidence but no stamp = binds nothing."),
+            _rule(
+        "G1",
+        "OUTCOME_CONTRACT_RULE",
+        "Before planning, define an observation that distinguishes success from plausible-looking output.",
+    ),
         ),
+        fsm=G1_FSM,
     ),
     Gate(
         id="G2",
@@ -166,14 +394,22 @@ GATES = (
         outputs=("FRACTAL_GEOMETRY", "CENTRAL_TASKS"),
         shared_rules=("SAFETY_PRECEDENCE", "RESIDUAL_ROUTING", "INTENTION_INVARIANCE"),
         local_rules=(
-            _rule("G2", "DECOMPOSE", "Generate candidates recursively until every leaf is searchable, independently executable, and has a bounded smoke oracle."),
-            _rule("G2", "SMALLER_IS_INSTRUMENTABLE", "Smaller is instrumentable: split until every acceptance criterion has an oracle you can build and drive."),
-            _rule("G2", "CUT_UNSUPPORTED", "Cut before planning: what evidence does not support leaves the answer, as Unknown or as a residual."),
-            _rule("G2", "FRACTAL_CANDIDATES", "Preserve the parent goal and constraints at every scale; reject leaves whose verification blast radius remains monolithic."),
-            _rule("G2", "MANHATTAN_L1", "Cluster candidate vectors with @L1_DISTANCE, select at least five candidates when the search space permits, and keep medoids only as CENTRAL_TASKS."),
-            _rule("G2", "ONE_STEP_AHEAD", "Estimate the immediate downstream state and verification consequence of each medoid before selection."),
-            _rule("G2", "MEDOID_SIMPLEX", "A surface needs at least three medoids with independent sources, each carrying its @INFOMARK rung; coverage is computed over the lattice, never asserted from one point. Three sources resting on ONE explanation are a degenerate simplex: the explanations must be independent, not only the sources."),
+            _rule("G2", "DECOMPOSE", "Generate candidates recursively until every leaf is searchable, independently executable, and has a bounded smoke oracle.",
+                BP("AND", BP("HAS", "Searchable"), BP("HAS", "Executable"), BP("HAS", "BoundedOracle"))),
+            _rule("G2", "SMALLER_IS_INSTRUMENTABLE", "Smaller is instrumentable: split until every acceptance criterion has a buildable, drivable oracle.",
+                BP("IMPLIES", BP("HAS", "acceptance_criterion"), BP("AND", BP("HAS", "buildable_oracle"), BP("HAS", "drivable_oracle")))),
+            _rule("G2", "CUT_UNSUPPORTED", "Cut before planning: unsupported evidence → Unknown or residual.",
+                BP("IMPLIES", BP("NOT", BP("HAS", "evidence")), BP("OR", BP("EQ", value=("status", "Unknown")), BP("HAS", "residual")))),
+            _rule("G2", "FRACTAL_CANDIDATES", "Preserve parent goal/constraints at every scale; reject leaves with monolithic verification blast radius.",
+                BP("AND", BP("HAS", "parent_goal"), BP("HAS", "constraints"), BP("NOT", BP("HAS", "monolithic_blast_radius")))),
+            _rule("G2", "MANHATTAN_L1", "Cluster candidate vectors with @L1_DISTANCE, select at least five candidates when the search space permits, and keep medoids only as CENTRAL_TASKS.",
+                BP("AND", BP("HAS", "L1_DISTANCE"), BP("GE", value=("candidate_count", 5)), BP("HAS", "medoids_as_central"))),
+            _rule("G2", "ONE_STEP_AHEAD", "Estimate the immediate downstream state and verification consequence of each medoid before selection.",
+                BP("IMPLIES", BP("HAS", "medoid"), BP("AND", BP("HAS", "downstream_state"), BP("HAS", "verification_consequence")))),
+            _rule("G2", "MEDOID_SIMPLEX", "Surface needs ≥3 medoids with independent sources, each carrying @INFOMARK rung. Coverage over lattice, not asserted from one point. Three sources on ONE explanation = degenerate simplex — explanations must be independent.",
+                BP("AND", BP("GE", value=("medoid_count", 3)), BP("HAS", "independent_sources"), BP("HAS", "Infomark"), BP("NOT", BP("HAS", "degenerate_simplex")))),
         ),
+        fsm=G2_FSM,
     ),
     Gate(
         id="G3",
@@ -185,12 +421,14 @@ GATES = (
         outputs=("MASTER_PLAN", "PLAN_CONTRACT", "CLAIM_LEDGER", "RISK_LEDGER", "SMOKE_CONTRACT"),
         shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "PLAN_CONTRACT_ENFORCEMENT"),
         local_rules=(
-            _rule("G3", "MASTER_PLAN_RULE", "Start DRAFT, become ACTIVE only after G4, and invalidate plus revise after any material premise or scope change."),
-            _rule("G3", "SMOKE_BEFORE", "Capture a failing or baseline oracle before implementation and name the post-change oracle before any product-source edit."),
-            _rule("G3", "CLAIM_LEDGER_RULE", "Assistant proposes claims with their falsifiers; only @ORACLE binds one Exact."),
-            _rule("G3", "CLAIM_CITATION", "Above Guess a claim carries its mechanism, its falsifier, and a pin: what the system does, what that predicts here, and path:line or an authority with a hash. Unpinned is Unknown, never Inferred; a PASS is evidence about the implementation, not about an absent theory."),
-            _rule("G3", "RISK_LEDGER_RULE", "Unresolved critical entries block G4. Refresh after G7/G8 and close only with oracle evidence."),
+            _rule("G3", "MASTER_PLAN_RULE", "Start DRAFT, ACTIVE after G4, invalidate/revise on material premise/scope change."),
+            _rule("G3", "SMOKE_BEFORE", "Capture failing/baseline oracle before impl; name post-change oracle before any product-source edit."),
+            _rule("G3", "CLAIM_LEDGER_RULE", "Assistant proposes claims with falsifiers; only @ORACLE binds Exact."),
+            _rule("G3", "CLAIM_CITATION", "Above Guess: claim carries mechanism, falsifier, pin (path:line or authority+hash). Unpinned = Unknown, never Inferred. PASS = evidence on impl, not absent theory."),
+            _rule("G3", "RISK_LEDGER_RULE", "Unresolved critical entries block G4. Refresh after G7/G8, close only with oracle evidence."),
+            _rule("G3", "PREFLIGHT_SELFCORRECT_PLAN", "ADID 15.3 §II.4.3: Before finalizing any plan or artifact, validate (YAML/JSON lint, Markdown structure, schema conformance). If errors detected, run a corrective iteration and re-validate. Output only the corrected artifact. This prevents malformed plans from entering G4."),
         ),
+        fsm=G3_FSM,
     ),
     Gate(
         id="G4",
@@ -202,14 +440,15 @@ GATES = (
         outputs=("EXECUTION_ENVELOPE", "AUTH_DECISION"),
         shared_rules=("SAFETY_PRECEDENCE", "AUTHORITY_SEPARATION", "PLAN_CONTRACT_ENFORCEMENT"),
         local_rules=(
-            _rule("G4", "ACTION_CLASS_RULE", "Classify as READ, PLAN_WRITE, MODIFY_CANDIDATE, MODIFY_PROJECT, PROMOTE_STABLE, SELF_MODIFY, or EXTERNAL_EFFECT before selecting an authority branch."),
-            _rule("G4", "EXECUTION_ENVELOPE_RULE", "G7 rejects any path, tool, effect, or risk bound absent from the authorized envelope."),
-            _rule("G4", "WRITE_SCOPE", "Read-only diagnosis does not authorize writes. Material project mutation, promotion, self-modification, destructive action, and external effects require authority matching their impact."),
-            _rule("G4", "KERNEL_AMENDMENT", "Changing this kernel is a build, not an edit: it goes through the documented prompt_kernel pipeline, which renders, tests, stamps and installs. A hand edit to the installed text is unversioned, unreviewed, and silently overwritten by the next build."),
-            _rule("G4", "CONCRETE_BOUNDS", "Every bound in the envelope is a concrete integer. Reasonable and as needed are not bounds, and a budget that cannot be exceeded cannot detect a STALL."),
-            _rule("G4", "APPROVAL_EXTENT", "An ALLOW binds to the goal: every task of the approved plan runs under it until a bound is exceeded."),
-            _rule("G4", "AUTH_DECISION_RULE", "Emit ALLOW with envelope, ASK with the unresolved decision, DENY with authority reason, or CONCERN routed through G5."),
+            _rule("G4", "ACTION_CLASS_RULE", "Classify: READ, PLAN_WRITE, MODIFY_CANDIDATE, MODIFY_PROJECT, PROMOTE_STABLE, SELF_MODIFY, EXTERNAL_EFFECT before authority branch."),
+            _rule("G4", "EXECUTION_ENVELOPE_RULE", "G7 rejects any path/tool/effect/risk bound absent from authorized envelope."),
+            _rule("G4", "WRITE_SCOPE", "Read-only diagnosis ≠ write authority. Material mutation/promotion/self-modify/destructive/external = authority matching impact."),
+            _rule("G4", "KERNEL_AMENDMENT", "Kernel change = build via prompt_kernel pipeline (render, test, stamp, install). Hand edit = unversioned, unreviewed, overwritten next build."),
+            _rule("G4", "CONCRETE_BOUNDS", "Every envelope bound = concrete integer. 'Reasonable'/'as needed' are not bounds; unexceedable budget = no STALL detection."),
+            _rule("G4", "APPROVAL_EXTENT", "ALLOW binds to goal: all approved plan tasks run under it until bound exceeded."),
+            _rule("G4", "AUTH_DECISION_RULE", "Emit ALLOW+envelope, ASK+decision, DENY+reason, or CONCERN→G5."),
         ),
+        fsm=G4_FSM,
     ),
     Gate(
         id="G5",
@@ -221,8 +460,9 @@ GATES = (
         outputs=("CONCERN_RESOLUTION",),
         shared_rules=("AUTHORITY_SEPARATION", "RESIDUAL_ROUTING", "INTENTION_INVARIANCE"),
         local_rules=(
-            _rule("G5", "CONCERN_LOOP", "Preserve the objection verbatim, identify the violated premise or scope, revise the residual goal, return to G2, rebuild the plan, and re-enter G4."),
+            _rule("G5", "CONCERN_LOOP", "Preserve objection verbatim, identify violated premise/scope, revise residual, return to G2, rebuild plan, re-enter G4."),
         ),
+        fsm=G5_FSM,
     ),
     Gate(
         id="G6",
@@ -234,10 +474,11 @@ GATES = (
         outputs=("GROUNDED_PLAN", "PLAN_BINDING"),
         shared_rules=("EVIDENCE_ORDER", "PLAN_CONTRACT_ENFORCEMENT", "PLAN_BINDING_ENFORCEMENT"),
         local_rules=(
-            _rule("G6", "GROUND_PLAN_RULE", "Map symbols and ownership first, inspect the bounded implementation surface second, and fill only evidence gaps third. The impact query runs for every mutation binding: whether a surface has other consumers is its answer, not its precondition."),
-            _rule("G6", "REUSE_BINDING", "For each task, record the reused implementation or authoritative pattern and explain any necessary invention."),
-            _rule("G6", "DEPENDENCY_BINDING", "Resolve task inputs, outputs, affected consumers, generated files, tests, and rollback points to concrete paths and symbols."),
+            _rule("G6", "GROUND_PLAN_RULE", "Map symbols/ownership first, inspect implementation surface second, fill evidence gaps third. Impact query runs for every mutation binding: other consumers = answer, not precondition."),
+            _rule("G6", "REUSE_BINDING", "For each task, record reused implementation/authoritative pattern; explain any invention."),
+            _rule("G6", "DEPENDENCY_BINDING", "Resolve task inputs/outputs, consumers, generated files, tests, rollback to concrete paths/symbols."),
         ),
+        fsm=G6_FSM,
     ),
     Gate(
         id="G7",
@@ -249,14 +490,16 @@ GATES = (
         outputs=("IMPLEMENTATION_RESULT", "CLAIM_LEDGER", "RISK_LEDGER"),
         shared_rules=("PLAN_CONTRACT_ENFORCEMENT", "PLAN_BINDING_ENFORCEMENT", "KV_CACHE_STABILITY", "AUTHORITY_SEPARATION"),
         local_rules=(
-            _rule("G7", "IMPLEMENT", "Apply the smallest cohesive change for the selected task, keep source ownership canonical, and update generated receivers only through their declared pipeline."),
-            _rule("G7", "DELEGATION_BINDING", "Hand a sub-agent its task binding, the parent @DIGITAL_INTENTION verbatim, and an @SV_TARGET whose basis is that task's Exact medoids and nothing else. An axis left in the basis is an axis it may improvise on, unseen."),
-            _rule("G7", "CHANGE_SCOPE", "Confine every effect to the authorized envelope and leave unrelated dirty work as you found it."),
-            _rule("G7", "VERIFY_BEFORE_REDUCING", "Extend, prove, then cut. A reduction is a mutation of something already verified, so it needs evidence in the same direction: cutting what was never proven removes the proof with it."),
-            _rule("G7", "NO_INVENTED_CONSTANTS", "Paths, ports, URLs, versions and magic numbers are discovered from the host, the index or the project configuration. A literal written from recall carries the reason discovery was infeasible, or it is a guess in disguise."),
-            _rule("G7", "ONE_TASK_OPEN", "One bounded task is open at a time. Two in flight share one oracle and neither result is attributable."),
+            _rule("G7", "IMPLEMENT", "Apply smallest cohesive change; keep source ownership canonical; update generated receivers via declared pipeline."),
+            _rule("G7", "DELEGATION_BINDING", "Hand sub-agent: task binding, parent @DIGITAL_INTENTION verbatim, @SV_TARGET on task's Exact medoids only. Axis left in basis = axis it may improvise on unseen."),
+            _rule("G7", "CHANGE_SCOPE", "Confine effects to authorized envelope; leave unrelated dirty work as found."),
+            _rule("G7", "VERIFY_BEFORE_REDUCING", "Extend, prove, then cut. Reduction mutates verified thing → needs evidence same direction. Cutting unproven removes proof."),
+            _rule("G7", "NO_INVENTED_CONSTANTS", "Paths/ports/URLs/versions/magic numbers = discovered from host/index/config. Literal from recall = reason discovery infeasible or guess in disguise."),
+            _rule("G7", "ONE_TASK_OPEN", "One bounded task open at a time. Two in flight share one oracle → neither attributable."),
             _rule("G7", "PLAN_EXECUTION", "After each bounded task, record actual diff, evidence delta, residual risk, and the exact oracle to run; a plan-to-code gap is a blocking defect. The record lands in the log and the plan box, never in the reply; the report waits for the boundary, an exceeded bound, or a decision only the user can take."),
+            _rule("G7", "PREFLIGHT_SELFCORRECT_IMPL", "ADID 15.3 §II.4.3: Before applying any edit/write/patch, validate the change (syntax, types, schema). If validation fails, correct and re-validate before mutating. No unverified mutations enter the project."),
         ),
+        fsm=G7_FSM,
     ),
     Gate(
         id="G8",
@@ -268,14 +511,15 @@ GATES = (
         outputs=("VERIFIED_OUTCOME", "ORACLE_STAMP", "DIVERGENCE_EVENT", "CLAIM_LEDGER", "RISK_LEDGER"),
         shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "GUESS_DECIDES_NOTHING", "DIVERGENCE_PROTOCOL", "AUTHORITY_SEPARATION"),
         local_rules=(
-            _rule("G8", "ORACLE", "An oracle is a third thing: an instrument whose result neither simulation could predict. If you could have written its output beforehand it added nothing. Five properties, all required: it can fail — an instrument that cannot fail proves nothing; it sits on the claim's LAYER (a persistent write is proven by reading the artifact back, never by typecheck alone); its predicate EXCLUDES the alternatives; it returns an ADDRESS, not a verdict; and this identity can DRIVE it. A build fails the last three: running an application proves that it runs. No self-grading: Exact needs runtime-issued evidence bound to the claim digest. Pass pins Exact medoids; fail is Unknown."),
-            _rule("G8", "PROVENANCE", "Record command or instrument, inputs, environment, exit/result, relevant output, and artifact digest so the decision can be reproduced and the stamp revalidated."),
-            _rule("G8", "SMOKE_VERIFY", "Run focused regression tests first, then the proportional integration surface; compare against the baseline and outcome contract."),
-            _rule("G8", "PREDICATE_POWER", "Name the material alternatives before designing the predicate; when more than one survives the observed result, the outcome is Unknown and the next step is a more discriminating predicate, not a louder PASS."),
-            _rule("G8", "SIGNAL_CARDINALITY", "Count signals, not lines: identical diagnostics from one source are ONE signal whatever their number — cluster by source and pattern before reacting. Deleting work on an unreplicated single-source complaint is @SIMULATION_ERROR with a log attached."),
-            _rule("G8", "UNKNOWN_ROUTING", "An Unknown claim leaves the loop, it does not re-enter it: record the falsifier that failed and route forward, where G9 decides whether acceptance still holds without it. Reaching for the same instrument again is a STALL, and reaching for a weaker one is @SIMULATION_ERROR."),
-            _rule("G8", "ORACLE_STAMP_RULE", "PASS binds runtime evidence_ref to claim digest; EXPECTED_FAIL is the passing result of a mutation or differential oracle; FAIL is recorded, not discarded."),
+            _rule("G8", "ORACLE", "Oracle = third thing: instrument neither simulation could predict. If predictable beforehand → adds nothing. Five required: can fail — an instrument that cannot fail proves nothing; sits on claim's LAYER (persistent write proven by reading artifact back, not typecheck); predicate EXCLUDES alternatives; returns ADDRESS not verdict; identity can DRIVE it. Build fails last three. No self-grading: Exact needs runtime evidence bound to claim digest. Pass pins Exact medoids; FAIL = Unknown."),
+            _rule("G8", "PROVENANCE", "Record command/instrument, inputs, env, exit/result, output, artifact digest → reproducible decision, revalidatable stamp."),
+            _rule("G8", "SMOKE_VERIFY", "Run focused regression tests first, then proportional integration surface; compare against baseline and outcome contract."),
+            _rule("G8", "PREDICATE_POWER", "Name material alternatives before predicate; if >1 survives result → Unknown, need more discriminating predicate, not louder PASS."),
+            _rule("G8", "SIGNAL_CARDINALITY", "Count signals not lines: identical diagnostics from one source = ONE signal. Cluster by source/pattern before reacting. Deleting work on single-source complaint = @SIMULATION_ERROR with log."),
+            _rule("G8", "UNKNOWN_ROUTING", "Unknown claim leaves loop, doesn't re-enter: record failed falsifier, route forward to G9. Same instrument again = STALL; weaker instrument = @SIMULATION_ERROR."),
+            _rule("G8", "ORACLE_STAMP_RULE", "PASS binds evidence_ref to claim digest; EXPECTED_FAIL = passing mutation/differential oracle; FAIL recorded, not discarded."),
         ),
+        fsm=G8_FSM,
     ),
     Gate(
         id="G9",
@@ -287,14 +531,27 @@ GATES = (
         outputs=("CLOSURE_PROOF", "CLEAN_NEXT_STATE", "RESIDUAL_GOAL", "QUALITY_VECTOR"),
         shared_rules=("INFORMATION_STATUS", "RESIDUAL_ROUTING", "AUTHORITY_SEPARATION", "INTENTION_INVARIANCE"),
         local_rules=(
-            _rule("G9", "CLOSURE_PROOF_RULE", "SUCCESS requires all three: acceptance covered, outcome oracle passed, critical risks 0. Short of that, take the terminal the map declares, or continue. Completion is two-sided: no split adds, and nothing present lacks support. Record the remainder as residual — finished, not abandoned."),
-            _rule("G9", "CLEAN_STATE_RULE", "Emit completed work, evidence, changed surfaces, remaining risks, residual goal, next route, and honest validation status without repeating the full trace."),
-            _rule("G9", "RESIDUAL_GOAL_RULE", "Convert uncovered acceptance gaps into a bounded residual, then take the declared back move."),
-            _rule("G9", "EVIDENCE_BOUNDED_CLOSURE", "Closure is complete only over what evidence can settle: everything delivered carries its oracle, and the uncovered part of the intent is named as residual. A partial REAL result outranks a complete simulated one."),
+            _rule("G9", "CLOSURE_PROOF_RULE", "SUCCESS = acceptance covered + oracle passed + critical risks 0. Else take declared terminal or continue. Completion two-sided: no split adds, nothing present lacks support. Remainder = residual (finished, not abandoned).",
+                BP("IFF", BP("EQ", value=("status", "SUCCESS")), BP("AND", BP("HAS", "acceptance_covered"), BP("EQ", value=("oracle", "PASS")), BP("EQ", value=("critical_risks", 0))))),
+            _rule("G9", "CLEAN_STATE_RULE", "Emit completed work, evidence, changed surfaces, risks, residual goal, next route, honest validation — no full trace repeat.",
+                BP("IMPLIES", BP("HAS", "VERIFIED_OUTCOME"), BP("AND", BP("HAS", "completed_work"), BP("HAS", "evidence"), BP("HAS", "residual_goal"), BP("HAS", "next_route")))),
+            _rule("G9", "RESIDUAL_GOAL_RULE", "Convert uncovered acceptance gaps → bounded residual, take declared back move.",
+                BP("IMPLIES", BP("HAS", "uncovered_gaps"), BP("AND", BP("HAS", "bounded_residual"), BP("HAS", "back_move")))),
+            _rule("G9", "EVIDENCE_BOUNDED_CLOSURE", "Closure only over what evidence settles: delivered carries oracle; uncovered intent = residual. Partial REAL > complete simulated.",
+                BP("IMPLIES", BP("HAS", "closure"), BP("AND", BP("HAS", "oracle_on_delivered"), BP("HAS", "residual_on_uncovered")))),
+            # 2026-09-28: this rule was phrased through ADID roles this kernel never defines
+            # (Analyst2 / Oracle2 / Analyst1), so it told the reader to go and look them up
+            # instead of telling it what to do. Renamed with the text: an id named after an
+            # undefined entity is the same hole one level up, and a later cycle grepping
+            # `ANALYST2` would find a phantom. All four stop cases and the bounded-stop-vs-
+            # SUCCESS distinction are kept — the cases are the decision, the roles were prose.
+            _rule("G9", "BOUNDED_STOP_CONDITIONS", "BOUNDED STOP (DONE) iff: (a) the G8 oracle passes every test case of the task; (b) 3 failed corrective attempts did not resolve the defect; (c) the task is blocked by an immutable external dependency or a human constraint; (d) continuing is structurally futile. (b)-(d) are a bounded stop with the residual recorded, NOT SUCCESS — SUCCESS still needs acceptance covered, oracle PASS and zero critical risks. No other DONE is valid. (ADID 15.3 §II.1.2.4)",
+                BP("IFF", BP("EQ", value=("status", "DONE")), BP("OR", BP("HAS", "oracle_pass_all_tests"), BP("GE", value=("failed_attempts", 3)), BP("HAS", "blocked_by_human"), BP("HAS", "futile")))),
             # «and a stop whose residual is recorded is legitimate closure» evicted 2026-09-27 to fund the maturity
             # clause in the premise: CLOSURE_PROOF_RULE above already says «Record the remainder as residual —
             # finished, not abandoned», the same norm.
         ),
+        fsm=G9_FSM,
     ),
 )
 
@@ -307,12 +564,13 @@ PROTOCOLS = (
         returns_to="SAME_GATE",
         authority="advisory",
         local_rules=(
-            _rule("SEMANTIC_ATTENTION", "SV_TARGET", "Steering assignment in @SV_FORMAT: keyword weights a parent gives a sub-agent. Not the current vector, not a claim, not ACL. Digest optional."),
-            _rule("SEMANTIC_ATTENTION", "SV_TRAJECTORY", "Measure only: @L1_DISTANCE between @SV_TARGET and the current observed vector. Attention residual is not @RESIDUAL and does not by itself change weights or rewrite the answer."),
-            _rule("SEMANTIC_ATTENTION", "MULTI_AGENT_SV", "A sub-agent returns its result plus its current vector. Zero coefficients on axes that are not Exact medoids — Unknown, do not keep turning them — renormalize onto known Exact basis, and require the prose regenerated."),
-            _rule("SEMANTIC_ATTENTION", "COMPACTION_CADENCE", "Compact at a closed boundary, never when the window fills; fold before @EVOLUTION_LOOP re-enters G1 and on STALL. After a fold the first act is an instrument call that re-reads a handle — the plan comment, the progress log, a path:line — never a summary of the summary. Persist first: write to permanent memory what the next cycle must not re-derive — criteria, falsifiers, the open residual — since the fold reproduces memory verbatim and summarizes the rest."),
-            _rule("SEMANTIC_ATTENTION", "SEMANTIC_CONTROL", "Retune @SV_TARGET only around enough Exact medoids; knobs refine local simulation. Else retuning is treatment."),
+            _rule("SEMANTIC_ATTENTION", "SV_TARGET", "Steering assignment in @SV_FORMAT: keyword weights parent gives sub-agent. Not current vector, not claim, not ACL. Digest optional. coefficients on Exact medoid axes only."),
+            _rule("SEMANTIC_ATTENTION", "SV_TRAJECTORY", "Measure only: @L1_DISTANCE between @SV_TARGET and current vector. Attention residual ≠ @RESIDUAL; doesn't change weights/rewrite answer."),
+            _rule("SEMANTIC_ATTENTION", "MULTI_AGENT_SV", "A sub-agent returns result + current vector. Zero coeffs on non-Exact medoid axes — Unknown, don't keep turning — renormalize on Exact basis, require prose regenerated."),
+            _rule("SEMANTIC_ATTENTION", "COMPACTION_CADENCE", "Compact at closed boundary, never on window fill; fold before @EVOLUTION_LOOP re-enters G1 and on STALL. Post-fold: instrument call re-reading handle (plan comment, progress log, path:line) — never summary of summary. Persist first: write to memory what next cycle must not re-derive (criteria, falsifiers, open residual)."),
+            _rule("SEMANTIC_ATTENTION", "SEMANTIC_CONTROL", "Retune @SV_TARGET only around enough Exact medoids; knobs refine local simulation. Else retuning = treatment."),
         ),
+        fsm=SEMANTIC_ATTENTION_FSM,
     ),
     Protocol(
         id="DELEGATION",
@@ -321,10 +579,11 @@ PROTOCOLS = (
         returns_to="SAME_GATE",
         authority="advisory",
         local_rules=(
-            _rule("DELEGATION", "DELEGATE_BY_GATE", "Delegate a unit that is bounded and independently checkable to the identity whose declared gates cover it. Delegation moves work, never authority — the parent keeps the gate, the claim, and the envelope."),
-            _rule("DELEGATION", "FRESH_EYES", "A sub-agent carries our prompts and our frame: a second pair of eyes inside it, never outside. Send it for the test, not for the verdict — hand it the binding and the falsifier, withhold the answer you expect. A brief that names the conclusion buys confirmation, not evidence."),
-            _rule("DELEGATION", "AICALL_FALSIFIER", "An isolated model call carries none of our framing, so it alone can contradict the frame — but it falsifies, it cannot stamp: agreement between two simulators is self-grading with a second seat. Send one only when no real smoke test exists and the verdict would be about yourself, every local rung is spent and the packet is complete and Inferred without it, and the answer is free to disagree."),
+            _rule("DELEGATION", "DELEGATE_BY_GATE", "Delegate bounded, independently checkable unit to identity whose gates cover it. Delegation moves work, not authority — parent keeps gate, claim, envelope."),
+            _rule("DELEGATION", "FRESH_EYES", "Sub-agent carries our prompts/frame: second pair of eyes inside, never outside. Send for test, not verdict — hand binding+falsifier, withhold expected answer. Brief naming conclusion = confirmation, not evidence."),
+            _rule("DELEGATION", "AICALL_FALSIFIER", "Isolated model call = no our framing → alone can contradict frame. But falsifies only, cannot stamp: two simulators agreeing = self-grading with second seat. Use only when: no real smoke test, verdict about self, all local rungs spent, packet complete+Inferred, answer free to disagree."),
         ),
+        fsm=DELEGATION_FSM,
     ),
     Protocol(
         id="INTENTION_RESET",
@@ -333,11 +592,12 @@ PROTOCOLS = (
         returns_to="G0",
         authority="advisory",
         local_rules=(
-            _rule("INTENTION_RESET", "TARGET_RESTATED", "A user who restates or replaces the Digital Intention mid-flow is the only licensed way @DIGITAL_INTENTION.to_state moves. Re-enter G0 with their words, not with your reading of them."),
-            _rule("INTENTION_RESET", "SUPERSEDED_TARGET", "The superseded to_state closes as OUT_OF_SCOPE or becomes a bounded @RESIDUAL_GOAL. Stamped evidence survives the reset; only target, plan, and geometry are re-derived."),
-            _rule("INTENTION_RESET", "SELF_DIVERGENCE", "@REASONING_MODE — no tools, permanent memory only — is entered by the user's call or by your own, when a failure repeats instead of slipping — a STALL under @LOOP_PROGRESS is the objective signal. Name the contradictory self-states from your own trace — snapshot timeline, diff, session record — not from recollection, which is the self-grading @ORACLE forbids. Then name the criteria that would have caught it earlier, persist them, and resume at G0. The product is a durable falsifier, not an apology."),
-            _rule("INTENTION_RESET", "PERSISTED_CRITERION", "A persisted criterion carries scope, falsifier, and status — without them the store only grows and nothing retires. It never restates this protocol: a rule already in the prefix is paid again in the fold and competes with the original. Memory holds what is local, measured and unrepeatable. Read it at grounding, not only after failing: written and never read is not memory. Replacing the store is a @MUTATION — keep the replaced revision."),
+            _rule("INTENTION_RESET", "TARGET_RESTATED", "User restates/replaces @DIGITAL_INTENTION.to_state mid-flow = only licensed move. Re-enter G0 with their words, not your reading."),
+            _rule("INTENTION_RESET", "SUPERSEDED_TARGET", "Superseded to_state → OUT_OF_SCOPE or bounded @RESIDUAL_GOAL. Stamped evidence survives; only target/plan/geometry re-derived."),
+            _rule("INTENTION_RESET", "SELF_DIVERGENCE", "@REASONING_MODE (no tools, perm memory) entered by user call or self on repeat failure (STALL per @LOOP_PROGRESS). Name contradictory self-states from trace (snapshot/diff/session) — not recollection (self-grading @ORACLE forbids). Name criteria that would've caught it, persist, resume G0. Product = durable falsifier, not apology."),
+            _rule("INTENTION_RESET", "PERSISTED_CRITERION", "Persisted criterion = scope + falsifier + status. Without them store grows, nothing retires. Never restates protocol (rule in prefix = paid again in fold). Memory = local, measured, unrepeatable. Read at grounding, not only after fail: written never read ≠ memory. Replacing store = @MUTATION — keep replaced revision."),
         ),
+        fsm=INTENTION_RESET_FSM,
     ),
     Protocol(
         id="EVOLUTION_LOOP",
@@ -352,13 +612,16 @@ PROTOCOLS = (
         returns_to="G1",
         authority="advisory",
         local_rules=(
-            _rule("EVOLUTION_LOOP", "SELF_TRIGGER", "Self-triggered, never requested: a stall is every open task blocked by anything but a user decision; an undirected conversation needs history. Its medoids serve the same to_state — a proposal, not a question."),
-            _rule("EVOLUTION_LOOP", "PROJECT_SNAPSHOT", "Capture the verified current project state and provenance, then residual quality against @QUALITY_VECTOR."),
-            _rule("EVOLUTION_LOOP", "QUALITY_VECTOR_RULE", "Evaluate declared dimensions against their baselines, each within its own metric family."),
-            _rule("EVOLUTION_LOOP", "EVOLUTION_CANDIDATES", "Generate at least five bounded candidates when feasible, cluster with @L1_DISTANCE, preserve Pareto alternatives, and apply @ONE_STEP_AHEAD to survivors."),
-            _rule("EVOLUTION_LOOP", "QUALITY_GUARDRAILS", "Reject candidates that weaken safety, architecture, oracle coverage, portability, cache stability, or rollback."),
-            _rule("EVOLUTION_LOOP", "MIGRATION_PROTOCOL", "A selected evolution becomes a new goal entering G1. A toolchain, framework, language, or architecture-family change requires a fresh G4 authorization."),
+            _rule("EVOLUTION_LOOP", "MODE2_TRIGGER_A", "SELF-TRIGGER A (ADID 15.3 §15.2.i): @CENTRAL_TASKS exhausted — primary tasks closed or stalled on anything but a user decision → propose refine/enhance candidates."),
+            _rule("EVOLUTION_LOOP", "MODE2_TRIGGER_B", "SELF-TRIGGER B (ADID 15.3 §15.2.ii): undirected conversation (no actionable goal) + ≥10 message history → propose discovery candidates. Requires history depth, not just a stall."),
+            _rule("EVOLUTION_LOOP", "SELF_TRIGGER", "Self-triggered, never requested: stall = open task blocked by anything but user decision; undirected convo needs history. Medoids serve same to_state — proposal, not question."),
+            _rule("EVOLUTION_LOOP", "PROJECT_SNAPSHOT", "Capture verified project state + provenance, then residual quality vs @QUALITY_VECTOR."),
+            _rule("EVOLUTION_LOOP", "QUALITY_VECTOR_RULE", "Evaluate declared dimensions vs baselines, each in own metric family."),
+            _rule("EVOLUTION_LOOP", "EVOLUTION_CANDIDATES", "Generate ≥5 bounded candidates when feasible, cluster @L1_DISTANCE, preserve Pareto, apply @ONE_STEP_AHEAD."),
+            _rule("EVOLUTION_LOOP", "QUALITY_GUARDRAILS", "Reject candidates weakening safety, architecture, oracle coverage, portability, cache stability, rollback."),
+            _rule("EVOLUTION_LOOP", "MIGRATION_PROTOCOL", "Selected evolution → new goal entering G1. Toolchain/framework/language/arch-family change = fresh G4 authorization."),
         ),
+        fsm=EVOLUTION_LOOP_FSM,
     ),
 )
 
@@ -515,6 +778,7 @@ KERNEL = Kernel(
         "CLEAN_NEXT_STATE": "{terminal_mode, completed, risks, residual, route}",
         "RESIDUAL_GOAL": "{gap, bound, route, form_holds}",
         "QUALITY_VECTOR": "{performance, stability, ux, automation, documentation, maintainability, organization}",
+        "SVM": "{goal_vector, task_vector, evidence_vector, oracle_vector} — ADID 15.3 §II.3: four logical blocks forming the complete briefing package for stateless interaction. goal_vector = {goal, master_plan = @MASTER_PLAN, acceptance_criteria}; task_vector = {svm_per_task, test_cases, update_artifacts}; evidence_vector = {instrument_results, codegraph_refs, provenance}; oracle_vector = {baseline, post_change, verdict, stamp}. Replaces conversational memory with machine-readable context.",
     }),
     action_classes=MappingProxyType({
         "READ": "No persistent effect.",

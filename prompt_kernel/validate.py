@@ -179,6 +179,7 @@ def validate_kernel(kernel: Kernel) -> list[str]:
     symbols = set(owners)
     texts = [rule.text for rule in all_rules]
     texts.extend(kernel.terms.values())
+    texts.extend(kernel.state_fields.values())
     texts.extend(gate.objective for gate in kernel.gates)
     texts.extend(protocol.objective for protocol in kernel.protocols)
     for reference in sorted({match for text in texts for match in REFERENCE.findall(text)}):

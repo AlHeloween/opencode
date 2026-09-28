@@ -93,24 +93,23 @@ def test_kernel_does_not_restate_entities_under_three_spellings() -> None:
     assert "still a result" in text
     assert "Pass pins Exact medoids" in text
     assert "enough Exact medoids" in text
-    assert "refine local simulation" in text
-    assert "not Exact medoids" in text
-    assert "known Exact basis" in text
-    assert "Unknown, do not keep turning them" in text
+    assert "renormalize on Exact basis" in text
+    assert "non-Exact medoid axes" in text
+    assert "don't keep turning" in text
     # Divergence protocol (2026-09-02, Alexander): runtime evidence owns
     # reversible stamps; contradiction demotes, while affect only opens a gap.
     assert "#### @DIVERGENCE_PROTOCOL" in text
     assert "Only eligible runtime evidence" in text
-    assert "revokes its stamp" in text
-    assert "sets Unknown" in text
+    assert "revoke stamp" in text
+    assert "set Unknown" in text
     # 2026-09-24: the PULL half. Divergence only ever arrived as new evidence, so a stamp
     # read back after a fold was trusted however far its artifact had moved — the one
     # "recorded, never re-read" the outside review found. The digest is compared, unlike
     # @SV_FORMAT.md5, which the same kernel forbids computing.
-    assert "re-digest before relying on one read back" in text
+    assert "re-digest before relying on ledger/plan/memory" in text
     assert "unobtainable content_hash" in text
-    assert "unlike @SV_FORMAT.md5, is computed and compared" in text
-    assert "runtime evidence_ref" in text
+    assert "Digest computed+compared (≠ @SV_FORMAT.md5)" in text
+    assert "evidence_ref" in text
     assert "claim digest" in text
     # K-3 (2026-09-12): a negative oracle result had nowhere to live, which made
     # mutation and differential oracles inexpressible — killed mutant is an
@@ -121,8 +120,8 @@ def test_kernel_does_not_restate_entities_under_three_spellings() -> None:
     # an artifact (a live probe) has no stable digest to record.
     assert "ORACLE_STAMP: {claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL, content_hash?}" in text
     assert "DIVERGENCE_EVENT: {claim_id, evidence_ref}" in text
-    assert "acquire medoids" in text
-    assert "opens an oracle gap" in text
+    assert "Locate Exact medoids" in text
+    assert "Affect opens oracle gap" in text
     assert "never reward" in text
 
 
@@ -155,6 +154,41 @@ def test_rule_definitions_follow_reference_naming() -> None:
     for rule_id in rule_ids:
         expected_headers = 1 if rule_id in named else 0
         assert text.count(f"#### @{rule_id}\n") == expected_headers, rule_id
+
+
+def test_runtime_is_followable_without_opening_the_adid_document() -> None:
+    """Owner decision 2026-09-28 03:08: ADID citations are provenance, never required reading.
+
+    A role the runtime never defines is not a shortcut, it is a hole — `Analyst2` and `Oracle2`
+    name entities with no contract in this kernel, so a rule phrased through them tells the
+    reader to go and look them up instead of telling it what to do. The four stop cases and
+    both self-trigger conditions must therefore survive as kernel vocabulary, or the cleanup
+    would have deleted a decision to buy a shorter line.
+    """
+    text = render_kernel(KERNEL)
+    for undefined in ("Analyst1", "Analyst2", "Oracle2", "Mode 2 Fractal Generation", "Mode 2 for"):
+        assert undefined not in text, undefined
+    stop = next(rule.text for gate in KERNEL.gates for rule in gate.local_rules if rule.id == "BOUNDED_STOP_CONDITIONS")
+    for case in (
+        "passes every test case",
+        "3 failed corrective attempts",
+        "immutable external dependency",
+        "structurally futile",
+    ):
+        assert case in stop, case
+    assert "NOT SUCCESS" in stop, "a bounded stop must not read as closure"
+    triggers = {rule.id: rule.text for protocol in KERNEL.protocols if protocol.id == "EVOLUTION_LOOP" for rule in protocol.local_rules}
+    assert "closed or stalled" in triggers["MODE2_TRIGGER_A"]
+    assert "≥10 message history" in triggers["MODE2_TRIGGER_B"]
+
+
+def test_structured_predicates_do_not_shorten_rendered_rule_meaning() -> None:
+    """A machine-readable predicate is not a replacement for the owner's rule text."""
+    text = render_kernel(KERNEL)
+    for gate in KERNEL.gates:
+        for rule in gate.local_rules:
+            if rule.predicate is not None:
+                assert rule.text in text, f"{gate.id}.{rule.id} lost its source clause"
 
 
 def test_runtime_is_deterministic_lf_and_within_utf8_budget() -> None:

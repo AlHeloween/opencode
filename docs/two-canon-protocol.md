@@ -94,6 +94,34 @@ risk genuinely is lower, and the models are reading that correctly.
 - Frozen by design: the kernel is the successor; 15.3.1 / 15.4.3 were already retired to git history (per the doc header's installer-asset policy decision D1).
 - Fresh clone: the file — and links to it in `DOCINDEX.md`, `docs/README.md`, `docs/agentic-reasoning-runtime.md` — resolve only after the ADID package regenerates the doc. Same receiver model as `.cursor/` / `.opencode/` assets and `docs/examples/`.
 
+## 6. Alignment decision (owner, 2026-09-28)
+
+**Aligned, not merged — and the kernel must stand alone.** Three findings changed this note's
+practical reading, so they are recorded here rather than left to the next cycle to re-derive:
+
+1. **ADID 15.3 now informs the kernel's protocol directly.** The medoid/cluster selection
+   (`@MANHATTAN_L1`, `@ONE_STEP_AHEAD`, the degenerate-simplex clause), the bounded-stop
+   conditions at G9 and the five-step bug-fix discipline came from 15.3 and were **retained**,
+   not reverted. This supersedes the older reading that a 15.3 mechanism present in the kernel
+   is a defect.
+2. **The single ADM/XML canvas is still not transplanted.** 15.3 executes by generating the whole
+   state document once; the transformer kernel reaches the same state iteratively over small
+   handles (§3, §4). Alignment means shared *protocol decisions*, not one runtime replacing the
+   other, and **authority and rollout stay separate**: 15.3 is rendered by the external ADID
+   package, the kernel by `prompt_kernel` (`source.py` → `--install`).
+3. **The kernel is followable without opening 15.3.** ADID citations in `source.py` are
+   **provenance, never required reading**. A rule must not be phrased through a role the kernel
+   does not define — `Analyst1`/`Analyst2`/`Oracle2`/`Mode 2 Fractal Generation` were all removed
+   from the runtime text for exactly that reason, with every stop case and both self-trigger
+   conditions preserved. The invariant is pinned by
+   `test_runtime_is_followable_without_opening_the_adid_document` in
+   `prompt_kernel/tests/test_render.py`; a rule that reintroduces an undefined role turns it red.
+
+**Why the third point is a rule and not a preference:** an undefined role is a hole, not a
+shortcut. It costs the reader a lookup outside the prefix it was given, and the kernel's whole
+argument is that a transformer attends over what it carries — so anything it does not carry has
+to be gone, not cited.
+
 ## Provenance
 
 - **Exact** (from the 15.3 doc header and §V): canon separation, succession direction, ADM CLI mechanics, SV-hashing lineage.

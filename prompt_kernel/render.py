@@ -13,7 +13,7 @@ def _list(values: tuple[str, ...], refs: bool = False) -> str:
 
 
 def _render_named_rule(rule: Rule) -> list[str]:
-    return [f"#### @{rule.id}", rule.text, ""]
+    return [f"#### @{rule.id}", rule.render(), ""]
 
 
 def _named_rule_ids(kernel: Kernel) -> set[str]:
@@ -21,11 +21,11 @@ def _named_rule_ids(kernel: Kernel) -> set[str]:
     named = {rule.id for rule in kernel.shared_rules}
     named.update(rule_id for gate in kernel.gates for rule_id in gate.shared_rules)
     named.update(CONTRACT_PINNED_RULES)
-    texts = [rule.text for rule in kernel.shared_rules]
+    texts = [rule.render() for rule in kernel.shared_rules]
     for gate in kernel.gates:
-        texts.extend(rule.text for rule in gate.local_rules)
+        texts.extend(rule.render() for rule in gate.local_rules)
     for protocol in kernel.protocols:
-        texts.extend(rule.text for rule in protocol.local_rules)
+        texts.extend(rule.render() for rule in protocol.local_rules)
     texts.extend(kernel.terms.values())
     for text in texts:
         named.update(REFERENCE.findall(text))
@@ -46,7 +46,7 @@ def _render_rules_block(
         if rule.id in named:
             lines.extend(_render_named_rule(rule))
         else:
-            lines.append(f"- {rule.text}")
+            lines.append(f"- {rule.render()}")
     lines.extend(f"- {line}" for line in addon_lines)
     lines.append(f"</{owner_id}_RULES>")
     lines.append("")

@@ -14,6 +14,8 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+import pytest
+
 from prompt_kernel import KERNEL, render_kernel
 from prompt_kernel.validate import validate_kernel
 
@@ -137,6 +139,40 @@ def test_removing_the_envelope_breaks_the_dataflow() -> None:
     )
     errors = validate_kernel(replace(KERNEL, gates=without))
     assert any("EXECUTION_ENVELOPE" in error for error in errors)
+
+
+def test_declared_fsm_predicates_drive_their_real_transitions() -> None:
+    from prompt_kernel.source import EVOLUTION_LOOP_FSM, G0_FSM, G2_FSM
+
+    assert G0_FSM.is_valid_transition("AWAIT_REQUEST", "PARSE_INTENT", {"USER_REQUEST": "hello"})
+    assert not G0_FSM.is_valid_transition("AWAIT_REQUEST", "PARSE_INTENT", {})
+    assert G2_FSM.is_valid_transition(
+        "GENERATE_CANDIDATES", "CLUSTER_MEDOIDS", {"candidates": ["a"], "candidate_count": 5}
+    )
+    assert not G2_FSM.is_valid_transition(
+        "GENERATE_CANDIDATES", "CLUSTER_MEDOIDS", {"candidates": ["a"], "candidate_count": 4}
+    )
+    assert G2_FSM.is_valid_transition(
+        "VALIDATE_SIMPLEX", "EMIT_TASKS", {"medoids": ["a"], "independent_explanations": True}
+    )
+    assert not G2_FSM.is_valid_transition(
+        "VALIDATE_SIMPLEX", "EMIT_TASKS", {"medoids": ["a"], "independent_explanations": False}
+    )
+    assert EVOLUTION_LOOP_FSM.is_valid_transition(
+        "AWAIT_TRIGGER", "CHECK_TRIGGER_B", {"undirected_conversation": True, "message_count": 10}
+    )
+    assert not EVOLUTION_LOOP_FSM.is_valid_transition(
+        "AWAIT_TRIGGER", "CHECK_TRIGGER_B", {"undirected_conversation": True, "message_count": 9}
+    )
+
+
+def test_malformed_fsm_predicate_fails_closed() -> None:
+    from prompt_kernel.model import BooleanPredicate
+
+    with pytest.raises(ValueError, match="operand"):
+        BooleanPredicate("HAS")
+    with pytest.raises(ValueError, match="operator"):
+        BooleanPredicate("UNKNOWN")  # type: ignore[arg-type]
 
 
 def test_evidence_ladder_still_ends_at_exact_through_an_oracle() -> None:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from types import MappingProxyType
 
 from prompt_kernel import (
     KERNEL,
@@ -24,6 +25,18 @@ def test_sv_contract_is_serializable_and_normalized() -> None:
     assert contract.first_prev_md5 == "0" * 32
     assert len(contract.first_prev_md5) == 32
     assert all(char in "0123456789abcdef" for char in contract.first_prev_md5)
+
+
+def test_svm_master_plan_is_the_declared_contract_not_an_alias() -> None:
+    assert "master_plan = @MASTER_PLAN" in KERNEL.state_fields["SVM"]
+
+
+def test_state_field_references_are_validated() -> None:
+    broken = replace(
+        KERNEL,
+        state_fields=MappingProxyType({**KERNEL.state_fields, "SVM": "master_plan = @NO_SUCH_PLAN"}),
+    )
+    assert "unresolved reference: @NO_SUCH_PLAN" in validate_kernel(broken)
 
 
 def test_source_routing_covers_legacy_disciplines_with_primary_routes() -> None:

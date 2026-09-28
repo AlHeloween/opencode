@@ -1,6 +1,7 @@
 import { Effect, Schema } from "effect"
 import path from "path"
 import { spawn } from "node:child_process"
+import { normalizeAttachment } from "../attachment/normalize"
 import * as Tool from "./tool"
 import DESCRIPTION from "./cua.txt"
 import { Instance } from "../project/instance"
@@ -77,19 +78,141 @@ function runCli(args: string[], stdin?: string): Effect.Effect<{ code: number; o
  * background delivery. This is intentionally enforced even if a caller sends
  * false: foreground restoration is a separately authorized action.
  */
-export function cuaCallArgs(tool: string, args?: string): string {
-  if (tool !== "launch_app") return args ?? "{}"
+export function cuaCallArgs(tool: string, args?: string, sessionID?: string): string {
+  if (tool !== "launch_app" && (!sessionID || !["get_window_state", "get_desktop_state", "click"].includes(tool))) {
+    return args ?? "{}"
+  }
 
   const parsed: unknown = JSON.parse(args ?? "{}")
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("launch_app arguments must be a JSON object")
+    throw new Error(`${tool} arguments must be a JSON object`)
   }
-  return JSON.stringify({ ...parsed, start_minimized: true })
+  if (tool === "launch_app") return JSON.stringify({ ...parsed, start_minimized: true })
+
+  const input = parsed as Record<string, unknown>
+  if (
+    tool === "click" &&
+    ("x" in input || "y" in input) &&
+    input.from_zoom !== true &&
+    (typeof input.capture_id !== "string" || !input.capture_id)
+  ) {
+    throw new Error("Coordinate click requires capture_id from a fresh CUA observation")
+  }
+  return JSON.stringify({ ...input, session: `oc-${sessionID}` })
+}
+
+type Observation = {
+  capture_id?: string
+  session: string
+  scope: "window" | "desktop"
+  pid?: number
+  window_id?: number
+  capture_width: number
+  capture_height: number
+  image_width: number
+  image_height: number
+}
+
+/** Check the saved PNG header geometry against the CLI reply; neither path alone is a coordinate oracle. */
+export function cuaObservation(
+  tool: string,
+  output: string,
+  bytes: Uint8Array,
+  sessionID: string,
+): Observation | undefined {
+  if (tool !== "get_window_state" && tool !== "get_desktop_state") return
+  const png = Buffer.from(bytes)
+  if (
+    png.length < 45 ||
+    !png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) ||
+    png.readUInt32BE(8) !== 13 ||
+    png.toString("ascii", 12, 16) !== "IHDR" ||
+    png.readUInt32BE(png.length - 12) !== 0 ||
+    png.toString("ascii", png.length - 8, png.length - 4) !== "IEND"
+  )
+    return
+  const width = png.readUInt32BE(16)
+  const height = png.readUInt32BE(20)
+  if (!width || !height) return
+  let value: unknown
+  try {
+    value = JSON.parse(output)
+  } catch (error) {
+    log.debug("CUA screenshot has no structured response", { error: String(error) })
+    return
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) return
+  const result = value as Record<string, unknown>
+  if (result.screenshot_width !== width || result.screenshot_height !== height) return
+  const window = tool === "get_window_state"
+  if (window && (!Number.isSafeInteger(result.pid) || !Number.isSafeInteger(result.window_id))) return
+  return {
+    ...(typeof result.capture_id === "string" && result.capture_id ? { capture_id: result.capture_id } : {}),
+    session: `oc-${sessionID}`,
+    scope: window ? "window" : "desktop",
+    ...(window ? { pid: result.pid as number, window_id: result.window_id as number } : {}),
+    capture_width: width,
+    capture_height: height,
+    image_width: width,
+    image_height: height,
+  }
+}
+
+/** History is the authority for the geometry supplied to the model; the caller cannot declare it. */
+export function cuaBoundClickArgs(args: string, sessionID: string, messages: Tool.Context["messages"]): string {
+  const input = JSON.parse(cuaCallArgs("click", args, sessionID)) as Record<string, unknown>
+  if (!("x" in input || "y" in input) || input.from_zoom === true) return JSON.stringify(input)
+  if (
+    typeof input.x !== "number" ||
+    typeof input.y !== "number" ||
+    !Number.isFinite(input.x) ||
+    !Number.isFinite(input.y)
+  ) {
+    throw new Error("Coordinate click requires finite x and y in attached-image pixels")
+  }
+  const parts = messages.flatMap((message) => message.parts).filter((part) => part.type === "tool")
+  const completed = parts.filter((part) => part.tool === "cua" && part.state.status === "completed")
+  if (
+    completed.some(
+      (part) => part.state.status === "completed" && part.state.metadata.captureAttempt === input.capture_id,
+    )
+  ) {
+    throw new Error("capture_id was already used for a click attempt; take a fresh screenshot")
+  }
+  const observation = completed
+    .map((part) =>
+      part.state.status === "completed" ? (part.state.metadata.observation as Observation | undefined) : undefined,
+    )
+    .find((item) => item?.capture_id === input.capture_id && item?.session === `oc-${sessionID}`)
+  if (!observation) throw new Error("capture_id has no image observation in this session; take a fresh screenshot")
+  if (
+    observation.scope === "window" &&
+    (input.pid !== observation.pid ||
+      input.window_id !== observation.window_id ||
+      (input.scope !== undefined && input.scope !== "window"))
+  ) {
+    throw new Error("Coordinate click target differs from the captured window")
+  }
+  if (
+    observation.scope === "desktop" &&
+    (input.pid !== undefined || input.window_id !== undefined || input.scope !== "desktop")
+  ) {
+    throw new Error("Coordinate click target differs from the captured desktop")
+  }
+  if (input.x < 0 || input.y < 0 || input.x >= observation.image_width || input.y >= observation.image_height) {
+    throw new Error("Coordinate click is outside the attached image")
+  }
+  return JSON.stringify({
+    ...input,
+    x: (input.x * observation.capture_width) / observation.image_width,
+    y: (input.y * observation.capture_height) / observation.image_height,
+  })
 }
 
 const Parameters = Schema.Struct({
   action: Schema.Literals(["list-tools", "describe", "call", "skill-index"]).annotate({
-    description: "list-tools: enumerate daemon tools. describe: schema of one tool. call: invoke a tool. skill-index: reading map for skill guides.",
+    description:
+      "list-tools: enumerate daemon tools. describe: schema of one tool. call: invoke a tool. skill-index: reading map for skill guides.",
   }),
   tool: Schema.optional(Schema.String).annotate({
     description: "Tool name for describe/call (e.g. get_desktop_state, verify_state, browser_navigate).",
@@ -108,6 +231,78 @@ type Metadata = {
   exit: number
   stdoutBytes: number
   stderrPreview?: string
+  observation?: Observation
+  captureAttempt?: string
+}
+
+/** A screenshot is actionable only after the bytes have been read back and matched to the CLI reply. */
+export function cuaScreenshotResult(input: {
+  tool: string
+  output: string
+  code: number
+  file: string
+  sessionID: string
+  metadata: Metadata
+  imageInput: boolean
+}) {
+  return Effect.gen(function* () {
+    const title = `cua ${input.tool} → ${input.file}`
+    const bytes =
+      input.code === 0
+        ? yield* Effect.promise(async () => {
+            try {
+              return Buffer.from(await Bun.file(input.file).arrayBuffer())
+            } catch (error) {
+              log.warn("CUA screenshot could not be read back", { path: input.file, error: String(error) })
+              return undefined
+            }
+          })
+        : undefined
+    const observation = bytes ? cuaObservation(input.tool, input.output, bytes, input.sessionID) : undefined
+    if (!observation || !bytes) {
+      return {
+        title,
+        metadata: input.metadata,
+        output: `Exit ${input.code}. No verified image observation from ${input.file}; do not use this file for coordinate input.\n\n${input.output}`,
+      }
+    }
+    if (!input.imageInput) {
+      return {
+        title,
+        metadata: input.metadata,
+        output: `Screenshot geometry was read back, but this model has no declared image input. No image or actionable observation was delivered; use a vision-capable model or semantic controls.\n\n${input.output}`,
+      }
+    }
+    const image = yield* normalizeAttachment({
+      mime: "image/png",
+      url: `data:image/png;base64,${bytes.toString("base64")}`,
+      filename: path.basename(input.file),
+      dimensions: { width: observation.capture_width, height: observation.capture_height },
+    })
+    observation.image_width = image.dimensions.width
+    observation.image_height = image.dimensions.height
+    return {
+      title,
+      metadata: { ...input.metadata, observation },
+      output:
+        `Attached image ${observation.image_width}x${observation.image_height} px from capture ${observation.capture_width}x${observation.capture_height} px; ` +
+        `scope=${observation.scope}, pid=${observation.pid ?? "none"}, window_id=${observation.window_id ?? "none"}, ` +
+        `session=${observation.session}, capture_id=${observation.capture_id ?? "unavailable"}. ` +
+        (observation.capture_id
+          ? `For a coordinate click use x,y in ATTACHED-IMAGE pixels with this capture_id and exact target; the wrapper maps to capture pixels. `
+          : `No capture_id was published: this image is for observation only, not coordinate input. `) +
+        `An independently resized provider preview is not a coordinate source. Verify the outcome with a fresh observation.\n\n${input.output}`,
+      attachments: [
+        {
+          type: "file" as const,
+          mime: image.mime,
+          url: image.url,
+          filename: image.filename,
+          dimensions: { width: observation.image_width, height: observation.image_height },
+        },
+      ],
+    }
+  })
 }
 
 export const CuaTool = Tool.define(
@@ -143,26 +338,49 @@ export const CuaTool = Tool.define(
           cliArgs.push(params.tool)
           // JSON goes via stdin — argv JSON breaks under PS 5.1 quote stripping
           // (documented upstream in cli.rs #1637).
-          stdin = cuaCallArgs(params.tool, params.args)
-          if (params.screenshot_out_file) cliArgs.push("--screenshot-out-file", params.screenshot_out_file)
+          stdin =
+            params.tool === "click"
+              ? cuaBoundClickArgs(params.args ?? "{}", ctx.sessionID, ctx.messages)
+              : cuaCallArgs(params.tool, params.args, ctx.sessionID)
+          if (params.screenshot_out_file) {
+            if (existsSync(params.screenshot_out_file)) {
+              throw new Error(
+                "Screenshot path already exists; choose a fresh file so a stale image cannot pass as this capture",
+              )
+            }
+            cliArgs.push("--screenshot-out-file", params.screenshot_out_file)
+          }
         }
 
         const result = yield* runCli(cliArgs, stdin)
         const out = result.out.trim() || result.err.trim() || "(no output)"
+        const call = stdin ? (JSON.parse(stdin) as Record<string, unknown>) : undefined
         const meta: Metadata = {
           action: params.action,
           ...(params.tool ? { tool: params.tool } : {}),
           exit: result.code,
           stdoutBytes: result.out.length,
           ...(result.err.trim() ? { stderrPreview: result.err.trim().slice(0, 300) } : {}),
+          ...(params.tool === "click" &&
+          typeof call?.capture_id === "string" &&
+          typeof call.x === "number" &&
+          typeof call.y === "number"
+            ? { captureAttempt: call.capture_id }
+            : {}),
         }
 
-        if (params.action === "call" && params.screenshot_out_file) {
-          return {
-            title: `cua ${params.tool} → ${params.screenshot_out_file}`,
+        if (params.action === "call" && params.screenshot_out_file && params.tool) {
+          return yield* cuaScreenshotResult({
+            tool: params.tool,
+            output: out,
+            code: result.code,
+            file: params.screenshot_out_file,
+            sessionID: ctx.sessionID,
             metadata: meta,
-            output: `Exit ${result.code}. Screenshot written to ${params.screenshot_out_file} — READ THE FILE BACK to verify (write-path oracle rule).\n\n${out}`,
-          }
+            imageInput:
+              (ctx.extra?.model as { capabilities?: { input?: { image?: boolean } } } | undefined)?.capabilities?.input
+                ?.image === true,
+          })
         }
 
         return {

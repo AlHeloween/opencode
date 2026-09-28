@@ -405,6 +405,22 @@ with `cmd_runner start -- bin\cua.cmd serve` (TUI-hang protection; never bare
 `start`), stop with `jobkill` or `bin\cua.cmd stop`. One-shot `call` without a
 daemon exits 1 with a "daemon is not running" hint.
 
+The CUA adapter's `get_window_state` / `get_desktop_state` calls with a fresh
+`screenshot_out_file` read back the PNG, compare its dimensions with the driver's
+structured reply, and attach the image with an observation record when the model
+declares image input. Text-only models receive no actionable image packet. The record
+includes driver capture dimensions and delivered attachment dimensions (the
+attachment normalizer may shrink to 2000 px). Pixel `click` uses a non-default
+CLI session derived from the OpenCode conversation, requires the matching
+`capture_id` and target in tool-result history, and maps coordinates from the
+attached image back to the capture. The driver still performs final target and
+frame admission (`external/cua/libs/cua-driver/rust/crates/cua-driver-core/src/capture_registry.rs`).
+This is a click contract only: the driver's `drag` schema has no `capture_id`
+(`platform-windows/src/tools/impl_.rs:7315-7337`). A provider-resized preview
+is not an exact pixel address. Focused contract checks live in
+`packages/opencode/test/tool/cua.test.ts`; they do not substitute for a live
+WebView2 observation/action smoke. No runtime installation in `bin/` is implied.
+
 OpenCode enforces `start_minimized: true` for every CUA `launch_app` call.
 On Windows the driver uses `SW_SHOWMINNOACTIVE` and a foreground lock: the new
 app stays minimized while the user's active window keeps keyboard focus. If

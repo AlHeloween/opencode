@@ -21,7 +21,7 @@ PowerShell 5.1 quote stripping.
 **Key tools (subset):**
 - `get_desktop_state` — full-screen capture (true pixels, no downscale).
 - `get_accessibility_tree` — processes + visible windows + bounds (cheap).
-- `get_window_state` — UIA tree of one app (structured elements).
+- `get_window_state` — UIA tree and screenshot of one app (structured elements).
 - `verify_state` — deterministic predicate check against one window (best
   for SMOKE assertions).
 - `click` / `type_text` / `scroll` / `press_key` / `hotkey` — input
@@ -33,8 +33,25 @@ PowerShell 5.1 quote stripping.
 **Hard rules:**
 - Daemon must run: start via `cmd_runner start -- cua serve`; kill via
   jobkill. Never `start` the daemon bare-shell (TUI-hang protection).
-- Screenshots: always pass `screenshot_out_file` — base64 inline output is
-  truncated by output caps; read the written artifact back instead.
+- For `get_window_state` and `get_desktop_state`, use a **fresh**, non-existing
+  `screenshot_out_file`: the tool reads back the PNG, checks its header dimensions
+  against the driver's reply, and attaches the normalized image to the model.
+  The output names both the source PNG and attached-image pixel dimensions,
+  target, stable session and `capture_id` (if available). A path alone is NOT
+  a model-visible image. On a model with no declared image input, no actionable
+  packet is issued; use a vision-capable model or a semantic route. Non-screenshot
+  tools do not create an image packet.
+- For a pixel `click`, pass `capture_id` from that packet, the exact `pid` and
+  `window_id` for a window (or `scope:"desktop"` for a desktop capture), and
+  `x,y` in **attached-image** pixels, not the original PNG or a UI preview.
+  The tool finds the observation in its own session history, maps x/y back to
+  the driver's capture space, and refuses unknown/reused IDs or wrong targets.
+  Element and zoom-addressed clicks keep their own addressing rules. The
+  external provider may independently rescale its preview: never guess tiny
+  targets from a preview; use UIA, DOM or keyboard controls when available.
+- Driver `drag` and other coordinate gestures do not share `click`'s capture-id
+  admission contract; this packet does not certify those actions. Re-observe
+  and verify the outcome separately rather than treating a gesture as proof.
 - Writes to disk count as PERSISTENT_WRITE — verify the artifact by reading
   it back, not by exit code alone.
 

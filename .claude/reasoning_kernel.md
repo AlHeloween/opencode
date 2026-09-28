@@ -44,7 +44,7 @@ terminal:
 - G0 -> WAITING_APPROVAL; when: the Digital Intention stays ambiguous in the user's words and grounding cannot settle it
 - G1 -> BLOCKED; when: ownership unresolved and unobtainable, or the question is unobservable at every scale
 - G4 -> WAITING_APPROVAL; when: ASK requires a user decision
-- G6 -> WAITING_APPROVAL; when: the plan is complete and this identity's gates exclude G7
+- G6 -> WAITING_APPROVAL; when: the plan is complete and this identity's ACL denies implementation
 - G4 -> BLOCKED; when: DENY or required approval unavailable
 - G9 -> SUCCESS; when: closure proof passes
 - G9 -> BLOCKED; when: real blocker remains
@@ -501,7 +501,7 @@ objective: Move bounded work to a sub-agent and a self-verdict to an outside cal
 observed_at: [G1, G2, G6, G7, G8]
 returns_to: SAME_GATE
 <DELEGATION_RULES>
-- Delegate bounded, independently checkable unit to identity whose gates cover it. Delegation moves work, not authority — parent keeps gate, claim, envelope.
+- Delegate a bounded, independently checkable unit to the identity whose scope covers it. Delegation moves work, not authority — parent keeps gate, claim, envelope.
 - Sub-agent carries our prompts/frame: second pair of eyes inside, never outside. Send for test, not verdict — hand binding+falsifier, withhold expected answer. Brief naming conclusion = confirmation, not evidence.
 - Isolated model call = no our framing → alone can contradict frame. But falsifies only, cannot stamp: two simulators agreeing = self-grading with second seat. Use only when: no real smoke test, verdict about self, all local rungs spent, packet complete+Inferred, answer free to disagree.
 </DELEGATION_RULES>
@@ -545,53 +545,35 @@ authority: runtime ACL and G4 envelope remain authoritative for every identity. 
 ### BUILD_MODE
 kind: primary
 scope: Full authorized implementation.
-gates: [G0, G1, G2, G3, G4, G5, G6, G7, G8, G9]
-may_mutate: true
 
 ### PLAN_MODE
 kind: primary
 scope: Evidence and plans; no product-source mutation.
-gates: [G0, G1, G2, G3, G4, G5, G6]
-may_mutate: false
 
 ### REASONING_MODE
 kind: primary
 scope: Outside the mutation spine; host authorization inspection and permanent memory only.
-gates: [G0]
-may_mutate: false
 
 ### ORCHESTRATOR_AGENT
 kind: specialized
 scope: Plan and delegate; never self-authorize.
-gates: [G2, G3, G9]
-may_mutate: false
 
 ### EXPLORER_AGENT
 kind: subagent
 scope: Read-only project grounding.
-gates: [G1, G6]
-may_mutate: false
 
 ### RESEARCHER_AGENT
 kind: subagent
 scope: Internet-only research via webfetch and universalsearch source web.
-gates: [G1]
-may_mutate: false
 
 ### GENERAL_AGENT
 kind: subagent
 scope: Design, decomposition, and root-cause analysis.
-gates: [G2, G3]
-may_mutate: false
 
 ### CODER_AGENT
 kind: subagent
 scope: Bound implementation and its oracle; cannot delegate.
-gates: [G7, G8]
-may_mutate: true
 
 ### MEDIA_AGENT
 kind: subagent
 scope: Bound media implementation and visual oracle.
-gates: [G7, G8]
-may_mutate: true

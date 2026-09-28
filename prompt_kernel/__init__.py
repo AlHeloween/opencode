@@ -1,4 +1,11 @@
-from .addons import GATE_ADDONS, GateAddon, validate_addons
+from .addons import (
+    GATE_ADDONS,
+    IDENTITY_ADDONS,
+    GateAddon,
+    IdentityAddon,
+    validate_addons,
+    validate_identity_addons,
+)
 from .addons_claude import CLAUDE_GATE_ADDONS
 from .artifacts import DIST_CLAUDE, build_stamp, write_artifacts
 from .cutover import PRODUCTION_PROMPT, cutover, install_production
@@ -17,7 +24,9 @@ from .validate import validate_kernel
 
 __all__ = [
     "GATE_ADDONS",
+    "IDENTITY_ADDONS",
     "GateAddon",
+    "IdentityAddon",
     "CLAUDE_GATE_ADDONS",
     "DIST_CLAUDE",
     "KERNEL",
@@ -34,6 +43,7 @@ __all__ = [
     "render_review",
     "validate_kernel",
     "validate_addons",
+    "validate_identity_addons",
     "validate_migration",
     "build_stamp",
     "write_artifacts",

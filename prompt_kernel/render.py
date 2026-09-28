@@ -2,9 +2,16 @@ from __future__ import annotations
 
 import hashlib
 
-from .addons import GATE_ADDONS, addon_lines_by_gate, validate_addons
+from .addons import (
+    GATE_ADDONS,
+    IDENTITY_ADDONS,
+    addon_lines_by_gate,
+    identity_addon_lines_by_identity,
+    validate_addons,
+    validate_identity_addons,
+)
 from .compatibility import CONTRACT_PINNED_RULES
-from .model import Gate, Kernel, Protocol, Rule, SemanticVectorContract, SourceRoutingContract
+from .model import Gate, Identity, Kernel, Protocol, Rule, SemanticVectorContract, SourceRoutingContract
 from .validate import REFERENCE, validate_kernel
 
 
@@ -64,6 +71,17 @@ def _render_gate(kernel: Kernel, gate: Gate, addon_lines: tuple[str, ...], named
     lines.extend(_render_rules_block(gate.id, gate.local_rules, addon_lines, named))
     lines.append(f"outputs: {_list(gate.outputs)}")
     lines.append(f"routes: WORKFLOW.{gate.id}")
+    lines.append("")
+    return lines
+
+
+def _render_identity(identity: Identity, addon_lines: tuple[str, ...]) -> list[str]:
+    lines = [
+        f"### {identity.id}",
+        f"kind: {identity.kind}",
+        f"scope: {identity.scope}",
+    ]
+    lines.extend(addon_lines)
     lines.append("")
     return lines
 
@@ -132,20 +150,28 @@ def _render_protocol(protocol: Protocol, named: set[str]) -> list[str]:
     return lines
 
 
-def render_kernel(kernel: Kernel | None = None, addons: tuple | None = None) -> str:
+def render_kernel(
+    kernel: Kernel | None = None,
+    addons: tuple | None = None,
+    identity_addons: tuple | None = None,
+) -> str:
     if kernel is None:
         from .source import KERNEL
 
         kernel = KERNEL
     if addons is None:
         addons = GATE_ADDONS
+    if identity_addons is None:
+        identity_addons = IDENTITY_ADDONS
     errors = validate_kernel(kernel)
     if errors:
         raise ValueError("invalid kernel:\n- " + "\n- ".join(errors))
-    addon_errors = validate_addons(addons)
+    identity_ids = {identity.id for identity in kernel.identities}
+    addon_errors = validate_addons(addons) + validate_identity_addons(identity_addons, identity_ids)
     if addon_errors:
-        raise ValueError("invalid gate addons:\n- " + "\n- ".join(addon_errors))
+        raise ValueError("invalid addons:\n- " + "\n- ".join(addon_errors))
     addon_map = addon_lines_by_gate(addons)
+    identity_addon_map = identity_addon_lines_by_identity(identity_addons)
     named = _named_rule_ids(kernel)
 
     lines = [
@@ -261,28 +287,29 @@ def render_kernel(kernel: Kernel | None = None, addons: tuple | None = None) -> 
         "",
     ])
     for identity in kernel.identities:
-        lines.extend([
-            f"### {identity.id}",
-            f"kind: {identity.kind}",
-            f"scope: {identity.scope}",
-            f"gates: {_list(identity.gates)}",
-            f"may_mutate: {'true' if identity.may_mutate else 'false'}",
-            "",
-        ])
+        lines.extend(_render_identity(identity, identity_addon_map.get(identity.id, ())))
     return "\n".join(lines).rstrip() + "\n"
 
 
-def render_review(kernel: Kernel | None = None, addons: tuple | None = None) -> str:
+def render_review(
+    kernel: Kernel | None = None,
+    addons: tuple | None = None,
+    identity_addons: tuple | None = None,
+) -> str:
     if kernel is None:
         from .source import KERNEL
 
         kernel = KERNEL
-    return "---\ndescription: map-first reasoning kernel candidate\nalwaysApply: true\n---\n\n" + render_kernel(kernel, addons)
+    return "---\ndescription: map-first reasoning kernel candidate\nalwaysApply: true\n---\n\n" + render_kernel(kernel, addons, identity_addons)
 
 
-def kernel_digest(kernel: Kernel | None = None, addons: tuple | None = None) -> str:
+def kernel_digest(
+    kernel: Kernel | None = None,
+    addons: tuple | None = None,
+    identity_addons: tuple | None = None,
+) -> str:
     if kernel is None:
         from .source import KERNEL
 
         kernel = KERNEL
-    return hashlib.sha256(render_kernel(kernel, addons).encode("utf-8")).hexdigest()
+    return hashlib.sha256(render_kernel(kernel, addons, identity_addons).encode("utf-8")).hexdigest()

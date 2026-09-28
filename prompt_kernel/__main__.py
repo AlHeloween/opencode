@@ -19,11 +19,11 @@ from .source import KERNEL
 
 def main() -> int:
     if "--codex" in sys.argv:
-        review, runtime = write_artifacts(dist=DIST_CODEX, addons=CODEX_GATE_ADDONS)
+        review, runtime = write_artifacts(dist=DIST_CODEX, addons=CODEX_GATE_ADDONS, identity_addons=())
         print(f"runtime={runtime}")
         print(f"review={review}")
-        print(f"utf8_bytes={len(render_kernel(KERNEL, CODEX_GATE_ADDONS).encode('utf-8'))}")
-        print(f"sha256={kernel_digest(KERNEL, CODEX_GATE_ADDONS)}")
+        print(f"utf8_bytes={len(render_kernel(KERNEL, CODEX_GATE_ADDONS, ()).encode('utf-8'))}")
+        print(f"sha256={kernel_digest(KERNEL, CODEX_GATE_ADDONS, ())}")
         print(f"dist={DIST_CODEX}")
         if "--install" in sys.argv:
             digest = install_codex_kernel(kernel_path=CODEX_KERNEL_PATH, dist=DIST_CODEX)
@@ -34,11 +34,11 @@ def main() -> int:
         return 0
 
     if "--claude" in sys.argv:
-        review, runtime = write_artifacts(dist=DIST_CLAUDE, addons=CLAUDE_GATE_ADDONS)
+        review, runtime = write_artifacts(dist=DIST_CLAUDE, addons=CLAUDE_GATE_ADDONS, identity_addons=())
         print(f"runtime={runtime}")
         print(f"review={review}")
-        print(f"utf8_bytes={len(render_kernel(KERNEL, CLAUDE_GATE_ADDONS).encode('utf-8'))}")
-        print(f"sha256={kernel_digest(KERNEL, CLAUDE_GATE_ADDONS)}")
+        print(f"utf8_bytes={len(render_kernel(KERNEL, CLAUDE_GATE_ADDONS, ()).encode('utf-8'))}")
+        print(f"sha256={kernel_digest(KERNEL, CLAUDE_GATE_ADDONS, ())}")
         print(f"dist={DIST_CLAUDE}")
         if "--install" in sys.argv:
             digest = install_claude_kernel()

@@ -89,10 +89,10 @@ def install_claude_kernel(*, kernel_path: Path | None = None, dist: Path | None 
     if migration_errors:
         raise RuntimeError("migration ledger failed: " + "; ".join(migration_errors))
     _, runtime_path = write_artifacts(
-        dist=dist if dist is not None else DIST_CLAUDE, addons=CLAUDE_GATE_ADDONS
+        dist=dist if dist is not None else DIST_CLAUDE, addons=CLAUDE_GATE_ADDONS, identity_addons=()
     )
     runtime = runtime_path.read_text(encoding="utf-8")
-    if runtime != render_kernel(KERNEL, CLAUDE_GATE_ADDONS):
+    if runtime != render_kernel(KERNEL, CLAUDE_GATE_ADDONS, ()):
         raise RuntimeError(f"stamped artifact drifted from renderer: {runtime_path}")
     dest.parent.mkdir(parents=True, exist_ok=True)
     _atomic_write(dest, runtime)
@@ -116,10 +116,10 @@ def install_codex_kernel(*, kernel_path: Path | None = None, dist: Path | None =
     if migration_errors:
         raise RuntimeError("migration ledger failed: " + "; ".join(migration_errors))
     _, runtime_path = write_artifacts(
-        dist=dist if dist is not None else DIST_CODEX, addons=CODEX_GATE_ADDONS
+        dist=dist if dist is not None else DIST_CODEX, addons=CODEX_GATE_ADDONS, identity_addons=()
     )
     runtime = runtime_path.read_text(encoding="utf-8")
-    if runtime != render_kernel(KERNEL, CODEX_GATE_ADDONS):
+    if runtime != render_kernel(KERNEL, CODEX_GATE_ADDONS, ()):
         raise RuntimeError(f"stamped artifact drifted from renderer: {runtime_path}")
     dest.parent.mkdir(parents=True, exist_ok=True)
     _atomic_write(dest, runtime)

@@ -23,7 +23,7 @@ def test_codex_addons_are_internally_valid() -> None:
 
 
 def test_codex_addons_render_host_tool_bindings() -> None:
-    text = render_kernel(KERNEL, CODEX_GATE_ADDONS)
+    text = render_kernel(KERNEL, CODEX_GATE_ADDONS, ())
     g1 = _gate_block(text, "G1")
     assert "codegraph_explore" in g1
     assert "Glob/Grep/Read" in g1
@@ -49,7 +49,7 @@ def test_codex_addons_render_host_tool_bindings() -> None:
 
 
 def test_codex_variant_avoids_unavailable_tool_instructions() -> None:
-    text = render_kernel(KERNEL, CODEX_GATE_ADDONS)
+    text = render_kernel(KERNEL, CODEX_GATE_ADDONS, ())
     for unavailable in (
         "AskUserQuestion",
         "Monitor",
@@ -65,7 +65,7 @@ def test_codex_variant_avoids_unavailable_tool_instructions() -> None:
 
 
 def test_codex_variant_stays_within_explicit_budget() -> None:
-    text = render_kernel(KERNEL, CODEX_GATE_ADDONS)
+    text = render_kernel(KERNEL, CODEX_GATE_ADDONS, ())
     # 34_000 / 4_250 (2026-09-16): mirrors the product raise admitting the
     # DELEGATION protocol — when to send a sub-agent, and the AICall falsifier for
     # the verdict a sub-agent cannot give because it shares our frame.
@@ -110,8 +110,8 @@ def test_codex_variant_stays_within_explicit_budget() -> None:
 
 
 def test_codex_addon_render_is_deterministic_lf() -> None:
-    text = render_kernel(KERNEL, CODEX_GATE_ADDONS)
-    assert render_kernel(KERNEL, CODEX_GATE_ADDONS) == text
+    text = render_kernel(KERNEL, CODEX_GATE_ADDONS, ())
+    assert render_kernel(KERNEL, CODEX_GATE_ADDONS, ()) == text
     assert "\r" not in text
     assert text.endswith("\n")
 
@@ -133,4 +133,4 @@ def test_codex_cli_installs_renderer_output(tmp_path: Path, monkeypatch) -> None
     monkeypatch.setattr(cli, "CODEX_KERNEL_PATH", target)
     monkeypatch.setattr(sys, "argv", ["prompt_kernel", "--codex", "--install"])
     assert cli.main() == 0
-    assert target.read_text(encoding="utf-8") == render_kernel(KERNEL, CODEX_GATE_ADDONS)
+    assert target.read_text(encoding="utf-8") == render_kernel(KERNEL, CODEX_GATE_ADDONS, ())

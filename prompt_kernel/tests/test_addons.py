@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from prompt_kernel import KERNEL, render_kernel
-from prompt_kernel.addons import GATE_ADDONS, GateAddon, validate_addons
+from prompt_kernel.addons import GATE_ADDONS, GateAddon, IdentityAddon, validate_addons, validate_identity_addons
 
 
 def _gate_block(text: str, gate_id: str) -> str:
@@ -113,6 +113,13 @@ def test_validator_rejects_empty_lines() -> None:
     assert any("non-empty lines" in error for error in errors)
 
 
+def test_validator_rejects_unknown_identity() -> None:
+    errors = validate_identity_addons(
+        (IdentityAddon("NO_SUCH_IDENTITY", "TOOLS_BROKEN", ("line.",)),), {"BUILD_MODE"}
+    )
+    assert any("unknown identity" in error for error in errors)
+
+
 def test_render_rejects_invalid_addon_registry(monkeypatch: pytest.MonkeyPatch) -> None:
     import prompt_kernel.render as render_module
 
@@ -121,5 +128,17 @@ def test_render_rejects_invalid_addon_registry(monkeypatch: pytest.MonkeyPatch) 
         "GATE_ADDONS",
         (GateAddon("GX", "PATH_BROKEN", ("line.",)),),
     )
-    with pytest.raises(ValueError, match="invalid gate addons"):
+    with pytest.raises(ValueError, match="invalid addons"):
+        render_kernel(KERNEL)
+
+
+def test_render_rejects_invalid_identity_addon_registry(monkeypatch: pytest.MonkeyPatch) -> None:
+    import prompt_kernel.render as render_module
+
+    monkeypatch.setattr(
+        render_module,
+        "IDENTITY_ADDONS",
+        (IdentityAddon("NO_SUCH_IDENTITY", "TOOLS_BROKEN", ("line.",)),),
+    )
+    with pytest.raises(ValueError, match="invalid addons"):
         render_kernel(KERNEL)

@@ -616,7 +616,7 @@ PROTOCOLS = (
         returns_to="SAME_GATE",
         authority="advisory",
         local_rules=(
-            _rule("DELEGATION", "DELEGATE_BY_GATE", "Delegate bounded, independently checkable unit to identity whose gates cover it. Delegation moves work, not authority — parent keeps gate, claim, envelope."),
+            _rule("DELEGATION", "DELEGATE_BY_SCOPE", "Delegate a bounded, independently checkable unit to the identity whose scope covers it. Delegation moves work, not authority — parent keeps gate, claim, envelope."),
             _rule("DELEGATION", "FRESH_EYES", "Sub-agent carries our prompts/frame: second pair of eyes inside, never outside. Send for test, not verdict — hand binding+falsifier, withhold expected answer. Brief naming conclusion = confirmation, not evidence."),
             _rule("DELEGATION", "AICALL_FALSIFIER", "Isolated model call = no our framing → alone can contradict frame. But falsifies only, cannot stamp: two simulators agreeing = self-grading with second seat. Use only when: no real smoke test, verdict about self, all local rungs spent, packet complete+Inferred, answer free to disagree."),
         ),
@@ -749,19 +749,19 @@ SOURCE_ROUTING_CONTRACT = SourceRoutingContract(
     ),
 )
 
+# Gates are a workflow property, not an identity property: the contracts below carry no gate
+# lists. What an identity may do lives in the runtime ACL (packages/opencode/src/agent/agent.ts);
+# section 5 renders allowed-tool rows from the identity add-ons registry (IDENTITY_ADDONS).
 IDENTITIES = (
-    Identity("BUILD_MODE", "build_mode", "primary", "Full authorized implementation.", tuple(f"G{i}" for i in range(0, 10)), True),
-    # PLAN_MODE cannot lawfully hold G9: G9 requires VERIFIED_OUTCOME and ORACLE_STAMP (G8's outputs),
-    # and the runtime ACL denies plan_mode bash, cmd, run and pipeline, so it can obtain them neither
-    # by running an oracle nor by delegation. Its completion is the handover terminal from G6.
-    Identity("PLAN_MODE", "plan_mode", "primary", "Evidence and plans; no product-source mutation.", ("G0", "G1", "G2", "G3", "G4", "G5", "G6"), False),
-    Identity("REASONING_MODE", "reasoning_mode", "primary", "Outside the mutation spine; host authorization inspection and permanent memory only.", ("G0",), False),
-    Identity("ORCHESTRATOR_AGENT", "orchestrator_agent", "specialized", "Plan and delegate; never self-authorize.", ("G2", "G3", "G9"), False),
-    Identity("EXPLORER_AGENT", "explorer_agent", "subagent", "Read-only project grounding.", ("G1", "G6"), False),
-    Identity("RESEARCHER_AGENT", "researcher_agent", "subagent", "Internet-only research via webfetch and universalsearch source web.", ("G1",), False),
-    Identity("GENERAL_AGENT", "general_agent", "subagent", "Design, decomposition, and root-cause analysis.", ("G2", "G3"), False),
-    Identity("CODER_AGENT", "coder_agent", "subagent", "Bound implementation and its oracle; cannot delegate.", ("G7", "G8"), True),
-    Identity("MEDIA_AGENT", "media_agent", "subagent", "Bound media implementation and visual oracle.", ("G7", "G8"), True),
+    Identity("BUILD_MODE", "build_mode", "primary", "Full authorized implementation."),
+    Identity("PLAN_MODE", "plan_mode", "primary", "Evidence and plans; no product-source mutation."),
+    Identity("REASONING_MODE", "reasoning_mode", "primary", "Outside the mutation spine; host authorization inspection and permanent memory only."),
+    Identity("ORCHESTRATOR_AGENT", "orchestrator_agent", "specialized", "Plan and delegate; never self-authorize."),
+    Identity("EXPLORER_AGENT", "explorer_agent", "subagent", "Read-only project grounding."),
+    Identity("RESEARCHER_AGENT", "researcher_agent", "subagent", "Internet-only research via webfetch and universalsearch source web."),
+    Identity("GENERAL_AGENT", "general_agent", "subagent", "Design, decomposition, and root-cause analysis."),
+    Identity("CODER_AGENT", "coder_agent", "subagent", "Bound implementation and its oracle; cannot delegate."),
+    Identity("MEDIA_AGENT", "media_agent", "subagent", "Bound media implementation and visual oracle."),
 )
 
 
@@ -776,7 +776,11 @@ KERNEL = Kernel(
     # REWARD_FUNCTION (455 B) and it is NOT taken: that rule was declared by owner decision on
     # 2026-09-27 (eb32e14cf7) and deleting a decision to buy room is the trade this kernel forbids.
     # The number stays a prompt, per the note above: the validator's hard ceiling is 65_000.
-    utf8_budget=48_000,  # 46_000 -> 47_000 (2026-09-23): the agi_workout pair (G1 read / G7 write — the build_mode overlay's journal, product-only, declared in test_variant_parity); measured 46_311 B after the overlay texts, the smallest thousand above the measurement. Was 45_000 -> 46_000 (2026-09-22, later same day): the ASSERTION_STATUS addon in G7 — every written artifact carries the status of each assertion (confirmed/refuted), the owner's ruling «надо ввести стандартом в кернел для всех типов документации которую пишет ИИ». Measured 45_824 B with the addon installed; the smallest thousand above the measurement. Was 45_000 (<- 44_000, 2026-09-22) for the G9 plan-terminal canon (five terminals: plans/, plans_completed/, plans_deferred/, plans/futures/, plans/postponed/) — the prose lives in each folder's README and only the RULE rides the prompt. Measured 44_261 B after trimming the first draft by 430 B
+    # 48_000 -> 49_000, 2026-09-28 (later): the identity tool rows — the owner's request to
+    # replace `gates`/`may_mutate` with the real ACL view, kept honest by the manifest extractor
+    # (packages/opencode/script/kernel-tools-manifest.ts) and the TS parity test. Nine rows add
+    # ~1.3 KB against ~0.6 KB of removed contract lines; measured 48_304 B with them in.
+    utf8_budget=49_000,  # 46_000 -> 47_000 (2026-09-23): the agi_workout pair (G1 read / G7 write — the build_mode overlay's journal, product-only, declared in test_variant_parity); measured 46_311 B after the overlay texts, the smallest thousand above the measurement. Was 45_000 -> 46_000 (2026-09-22, later same day): the ASSERTION_STATUS addon in G7 — every written artifact carries the status of each assertion (confirmed/refuted), the owner's ruling «надо ввести стандартом в кернел для всех типов документации которую пишет ИИ». Measured 45_824 B with the addon installed; the smallest thousand above the measurement. Was 45_000 (<- 44_000, 2026-09-22) for the G9 plan-terminal canon (five terminals: plans/, plans_completed/, plans_deferred/, plans/futures/, plans/postponed/) — the prose lives in each folder's README and only the RULE rides the prompt. Measured 44_261 B after trimming the first draft by 430 B
     # (owner: «эти стандарты экономят миллионы токенов» — a standard's NAME replaces both the paragraph that would
     # explain it and the experiments an agent would otherwise run to re-derive it). Measured after them: 39_395.
     # Previous step 37_000 -> 38_000 admitted the QA/QC bindings: @ACCEPTANCE_FRAME at G1
@@ -906,16 +910,17 @@ KERNEL = Kernel(
         Edge("G0", "WAITING_APPROVAL", "terminal", "the Digital Intention stays ambiguous in the user's words and grounding cannot settle it"),
         Edge("G1", "BLOCKED", "terminal", "ownership unresolved and unobtainable, or the question is unobservable at every scale"),
         Edge("G4", "WAITING_APPROVAL", "terminal", "ASK requires a user decision"),
-        # PLAN_MODE reaches G6 with G7 outside its gates, so the graph owed it a declared exit.
-        # The other case - a plan-only session closing on evidence at G9 - is NOT expressible here:
-        # validate.py:41 requires the forward edges to be exactly the canonical spine, so a branch on
-        # the success path has no representation in this model. Recorded as a residual rather than
-        # forced through a `side` edge, whose meaning is a concern loop and not a closing path.
+        # PLAN_MODE reaches G6 and cannot implement (its ACL denies bash and restricts edit to
+        # plans/), so the graph owed it a declared exit. The other case - a plan-only session
+        # closing on evidence at G9 - is NOT expressible here: validate.py:41 requires the forward
+        # edges to be exactly the canonical spine, so a branch on the success path has no
+        # representation in this model. Recorded as a residual rather than forced through a `side`
+        # edge, whose meaning is a concern loop and not a closing path.
         # 2026-09-27, outside falsifier (space-bunny-free via tools/aicall.py): «an identity this one does not
         # own» is ALSO «blocked by anything but a user decision», so this terminal and the EVOLUTION_LOOP
-        # stall trigger fired on one condition with no precedence. Bound to the identity contract instead:
-        # only an identity whose gates exclude G7 (PLAN_MODE) can take it, and the user is not an identity.
-        Edge("G6", "WAITING_APPROVAL", "terminal", "the plan is complete and this identity's gates exclude G7"),
+        # stall trigger fired on one condition with no precedence. Bound to the runtime ACL instead:
+        # only an identity that cannot implement (PLAN_MODE) can take it, and the user is not an identity.
+        Edge("G6", "WAITING_APPROVAL", "terminal", "the plan is complete and this identity's ACL denies implementation"),
         # STALL is DETECTED at G8 and CLOSED at G9. A terminal at G8 was the only exit reachable
         # after G7, i.e. after the tree was mutated, and it skipped the one gate that records the
         # residual, the tool state and the next route - exactly what an autonomous run needs most.

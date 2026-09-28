@@ -20,7 +20,7 @@ def test_claude_addons_are_internally_valid() -> None:
 
 
 def test_claude_addons_render_inside_gate_rule_blocks() -> None:
-    text = render_kernel(KERNEL, CLAUDE_GATE_ADDONS)
+    text = render_kernel(KERNEL, CLAUDE_GATE_ADDONS, ())
     g1 = _gate_block(text, "G1")
     assert "- never store plans under .claude/plans/." in g1
     assert "codegraph_explore" in g1
@@ -44,7 +44,7 @@ def test_claude_addons_render_inside_gate_rule_blocks() -> None:
 def test_claude_addons_do_not_instruct_using_opencode_only_tools() -> None:
     # Some lines name an opencode-only tool to say it is absent here (e.g.
     # "no logsearch/dbread tool"); none may tell the model to reach for one.
-    text = render_kernel(KERNEL, CLAUDE_GATE_ADDONS)
+    text = render_kernel(KERNEL, CLAUDE_GATE_ADDONS, ())
     for opencode_only in ("cmd_runner", "messagesearch", "multiedit", "nssm"):
         assert opencode_only not in text, opencode_only
     for used_as_instruction in ("via applypatch", "via logsearch", "via dbread", "via multiedit"):
@@ -52,7 +52,7 @@ def test_claude_addons_do_not_instruct_using_opencode_only_tools() -> None:
 
 
 def test_claude_variant_stays_within_its_own_budget() -> None:
-    text = render_kernel(KERNEL, CLAUDE_GATE_ADDONS)
+    text = render_kernel(KERNEL, CLAUDE_GATE_ADDONS, ())
     # KERNEL.utf8_budget (26_000) was calibrated for opencode's production
     # prompt insertion point (packages/opencode/.../reasoning_prompt.txt);
     # the Claude variant has no such fixed slot (--claude --install writes
@@ -118,7 +118,7 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:
-    text = render_kernel(KERNEL, CLAUDE_GATE_ADDONS)
-    assert render_kernel(KERNEL, CLAUDE_GATE_ADDONS) == text
+    text = render_kernel(KERNEL, CLAUDE_GATE_ADDONS, ())
+    assert render_kernel(KERNEL, CLAUDE_GATE_ADDONS, ()) == text
     assert "\r" not in text
     assert text.endswith("\n")

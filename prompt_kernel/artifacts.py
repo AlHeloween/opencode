@@ -9,7 +9,7 @@ from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 
-from .addons import GATE_ADDONS
+from .addons import GATE_ADDONS, IDENTITY_ADDONS
 from .render import kernel_digest, render_kernel, render_review
 from .migration import LEGACY_RULE_MIGRATION, validate_migration
 from .source import KERNEL
@@ -43,15 +43,20 @@ def _atomic_write(path: Path, content: str) -> None:
 
 
 def write_artifacts(
-    *, dist: Path | None = None, stamp: str | None = None, addons: tuple | None = None
+    *,
+    dist: Path | None = None,
+    stamp: str | None = None,
+    addons: tuple | None = None,
+    identity_addons: tuple | None = None,
 ) -> tuple[Path, Path]:
     dest = dist if dist is not None else DIST
     prefix = stamp if stamp is not None else build_stamp()
     if not STAMP_RE.fullmatch(prefix):
         raise ValueError(f"build stamp must be {STAMP_FORMAT}, got {prefix!r}")
     active_addons = addons if addons is not None else GATE_ADDONS
-    runtime = render_kernel(KERNEL, active_addons)
-    review = render_review(KERNEL, active_addons)
+    active_identity_addons = identity_addons if identity_addons is not None else IDENTITY_ADDONS
+    runtime = render_kernel(KERNEL, active_addons, active_identity_addons)
+    review = render_review(KERNEL, active_addons, active_identity_addons)
     review_path = dest / f"{prefix}_reasoning_prompt.mdc"
     runtime_path = dest / f"{prefix}_reasoning_prompt.txt"
     _atomic_write(runtime_path, runtime)
@@ -59,18 +64,25 @@ def write_artifacts(
     addon_payload = "\n".join(
         "\n".join((addon.gate_id, addon.addon_id, *addon.lines)) for addon in active_addons
     )
+    identity_payload = "\n".join(
+        "\n".join((addon.identity_id, addon.addon_id, *addon.lines)) for addon in active_identity_addons
+    )
     _atomic_write(
         dest / f"{prefix}_manifest.json",
         json.dumps(
             {
                 "kernel": KERNEL.name,
                 "version": KERNEL.version,
-                "sha256": kernel_digest(KERNEL, active_addons),
+                "sha256": kernel_digest(KERNEL, active_addons, active_identity_addons),
                 "utf8_bytes": len(runtime.encode("utf-8")),
                 "stamp": prefix,
                 "addons": {
                     "count": len(active_addons),
                     "sha256": hashlib.sha256(addon_payload.encode("utf-8")).hexdigest(),
+                },
+                "identity_addons": {
+                    "count": len(active_identity_addons),
+                    "sha256": hashlib.sha256(identity_payload.encode("utf-8")).hexdigest(),
                 },
             },
             ensure_ascii=False,

@@ -197,8 +197,6 @@ class Identity:
     runtime: str
     kind: str
     scope: str
-    gates: tuple[str, ...]
-    may_mutate: bool
 
 
 @dataclass(frozen=True, slots=True)

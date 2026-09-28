@@ -11,7 +11,12 @@ from .model import Kernel
 
 SEMANTIC_OVERLAP_THRESHOLD = 0.58
 SEMANTIC_OVERLAP_ALLOWLIST: Mapping[tuple[str, str], str] = {}
-REPEATED_NGRAM_ALLOWLIST: frozenset[str] = frozenset()
+# Identity tool rows repeat ACL fragments by design (approved 2026-09-28): several native
+# identities genuinely deny the same transition tools, so "all except …" rows share the phrase
+# once per identity. A repeated fragment here is data, not prose bloat.
+REPEATED_NGRAM_ALLOWLIST: frozenset[str] = frozenset({
+    "pipeline planenter planexit reasoningenter reasoningexit",
+})
 
 
 def _tokens(text: str) -> tuple[str, ...]:

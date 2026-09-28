@@ -78,6 +78,39 @@ belongs in `source.py` (requires a full kernel change cycle). If it only says
 | G9 | PATH_CLOSURE | undone task → `[~]` + reason, plan moves by outcome + stale-ref scan; docs/index update; `obsolete/` |
 | G9 | TOOL_CLOSURE | `messagesearch` verify; git status |
 
+## Identity add-ons (2026-09-28)
+
+Section 5 (`IDENTITY_CONTRACTS`) stopped advertising `gates:`/`may_mutate:` — gates are a
+workflow property, not an identity property — and gained **tool rows** instead: one `tools:`
+line per identity, rendered from `IDENTITY_ADDONS` (`IdentityAddon(identity_id, addon_id, lines)`,
+validated by `validate_identity_addons`, injected into the `### IDENTITY` block by
+`_render_identity`). They exist because the provider tool catalogue is deliberately IDENTICAL
+for every identity (`session/llm.ts` — «Wire filtering is FORBIDDEN here… breaks the KV
+prefix»), so the rows are the only place an identity can read its real ACL.
+
+The rows are kept honest by a pair, not by discipline:
+
+| Half | Where | What it does |
+|------|-------|--------------|
+| Extractor | `packages/opencode/script/kernel-tools-manifest.ts` | prints `identity → { allowed, denied }` from the LIVE rulesets (`agent.ts`) via `agentDeniesPolicy` — the agent-scoped half of `SessionTools.denied` (Gate A), evaluated on the tool POLICY (`session/tools.ts:259` calls `denied(item.policy)`, not the id) |
+| Parity test | `packages/opencode/test/agent/kernel-identity-tools.test.ts` | parses section 5 of the installed `reasoning_prompt.txt` and fails when a row drifts from the live ACL; also pins «only build_mode/coder_agent/media_agent mutate without a path scope» and the two 2026-09-28 consistency fixes (`job_kill` dead deny, scoped-open outside the edit family) |
+
+Format: narrow identities list what they may use (`tools: checkstate, memory, reasoningexit.`);
+wide identities list exclusions (`tools: all except planenter, planexit.`). Prose after `;` carries
+path-scoped edit boundaries (`write/edit: plans/ only.`) that `ctx.ask` enforces at execution —
+the parity test compares only the id sets, so a note cannot fail it, and only the ACL keeps a
+note true. **MCP tools are host-configured and not enumerated**: the rows describe the builtin
+catalogue.
+
+Product-only by decision (owner, 2026-09-28: «У claude и codex свои тулы не наши»): the Claude
+and Codex registries render section 5 WITHOUT tool rows; when those harnesses expose a
+machine-readable ACL source, add per-registry rows.
+
+Render measured 2026-09-28: product **48 274 B / 6 290 tokens** against caps **49 000 B**
+(`KERNEL.utf8_budget`) and **7 000 tokens** (`test_dedup.py`) — the step that admits the rows
+(~1.3 KB of rows against ~0.6 KB of removed `gates:`/`may_mutate:` lines) is recorded in
+`source.py` beside the cap.
+
 ## Codex harness variant
 
 `addons_codex.py` is a third registry, alongside the product default and
@@ -119,9 +152,11 @@ will reach for the nearest thing that answers, which is itself.
 
 ## How to add an addon
 
-1. Append `GateAddon(gate_id, addon_id, lines)` to `GATE_ADDONS` in `prompt_kernel/addons.py`.
-2. Constraints (enforced by `validate_addons()`): `gate_id` ∈ G1–G9, unique
-   `addon_id`, non-empty lines. No `@`-references in lines.
+1. Append `GateAddon(gate_id, addon_id, lines)` to `GATE_ADDONS` in `prompt_kernel/addons.py`
+   (or `IdentityAddon(identity_id, addon_id, lines)` to `IDENTITY_ADDONS` for a section-5 tool
+   row — see *Identity add-ons*).
+2. Constraints (enforced by `validate_addons()` / `validate_identity_addons()`): `gate_id` ∈ G1–G9
+   / `identity_id` ∈ `KERNEL.identities`, unique `addon_id`, non-empty lines. No `@`-references in lines.
 3. **Budgets are shared** — byte cap `KERNEL.utf8_budget` (**36 000**, raised from 35 000 on
    2026-09-20) and token cap in `tests/test_dedup.py::test_compacted_runtime_budget` (**4 750**,
    raised from 4 500 there). The Claude and Codex variants carry their own ceilings in

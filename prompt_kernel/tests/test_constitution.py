@@ -46,8 +46,6 @@ CORE_SUBSTANCE = {
     "PLAN_BINDING_ENFORCEMENT": "concrete binding inside the execution envelope",
 }
 
-MAY_MUTATE = frozenset({"BUILD_MODE", "CODER_AGENT", "MEDIA_AGENT"})
-
 
 def _all_rules(kernel=KERNEL):
     rules = list(kernel.shared_rules)
@@ -111,8 +109,15 @@ def test_core_rules_render_as_named_declarations() -> None:
         assert f"#### @{rule_id}" in text, rule_id
 
 
-def test_only_three_identities_may_mutate() -> None:
-    assert {i.id for i in KERNEL.identities if i.may_mutate} == MAY_MUTATE
+def test_every_identity_declares_a_tools_row() -> None:
+    """`may_mutate` left the identity contract on 2026-09-28: what an identity may do is its
+    tools row, and the runtime ACL (agent.ts) is the source it is held to — the TS parity test
+    in packages/opencode fails on drift. The constitutional floor here is coverage: no identity
+    renders without a declared tools row."""
+    from prompt_kernel.addons import IDENTITY_ADDONS
+
+    declared = {addon.identity_id for addon in IDENTITY_ADDONS}
+    assert declared == {identity.id for identity in KERNEL.identities}
 
 
 def test_self_modify_and_promote_stable_stay_distinct_classes() -> None:

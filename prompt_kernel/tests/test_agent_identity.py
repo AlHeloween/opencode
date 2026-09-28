@@ -11,7 +11,6 @@ AGENT_PROMPT_DIR = ROOT / "packages" / "opencode" / "src" / "agent" / "prompt"
 SESSION_PROMPT_DIR = ROOT / "packages" / "opencode" / "src" / "session" / "prompt"
 
 ID_RE = re.compile(r'<agent id="([^"]+)"')
-SPINE_RE = re.compile(r"<spine>(.*?)</spine>", re.DOTALL)
 REF_RE = re.compile(r"@([A-Z][A-Z0-9_]*)")
 
 PROMPT_IDENTITY = {
@@ -24,33 +23,22 @@ PROMPT_IDENTITY = {
 }
 
 
-def _gates(text: str) -> tuple[str, ...]:
-    return tuple(part.strip() for part in text.split("→") if part.strip())
-
-
 def test_next_kernel_still_valid_after_identity_scope_fix() -> None:
     assert validate_kernel(KERNEL) == []
 
 
 def test_primary_modes_match_runtime_acl_shape() -> None:
+    # Gates are not an identity property (2026-09-28): what an identity may do lives in the
+    # runtime ACL (agent.ts) and renders as its tools row; the TS parity test in packages/opencode
+    # fails when the two drift. This test pins the runtime slugs and kinds that pair the kernel
+    # symbols with the host identities.
     identities = {item.id: item for item in KERNEL.identities}
     assert identities["BUILD_MODE"].runtime == "build_mode"
     assert identities["BUILD_MODE"].kind == "primary"
-    assert identities["BUILD_MODE"].gates == tuple(f"G{i}" for i in range(0, 10))
-    assert identities["BUILD_MODE"].may_mutate is True
     assert identities["PLAN_MODE"].runtime == "plan_mode"
     assert identities["PLAN_MODE"].kind == "primary"
-    # G9 used to be listed here while G8 was not. G9's requires include VERIFIED_OUTCOME and
-    # ORACLE_STAMP, which G8 produces, and the runtime ACL denies plan_mode bash, cmd, run and
-    # pipeline (agent.ts), so this identity can obtain them neither by running an oracle nor by
-    # delegation. The list now holds only gates whose inputs the ACL actually permits, and the
-    # lawful completion is the handover terminal edge from G6.
-    assert identities["PLAN_MODE"].gates == ("G0", "G1", "G2", "G3", "G4", "G5", "G6")
-    assert identities["PLAN_MODE"].may_mutate is False
     assert identities["REASONING_MODE"].runtime == "reasoning_mode"
     assert identities["REASONING_MODE"].kind == "primary"
-    assert identities["REASONING_MODE"].gates == ("G0",)
-    assert identities["REASONING_MODE"].may_mutate is False
 
 
 def test_authorization_inspection_is_not_an_identity() -> None:
@@ -99,14 +87,26 @@ def test_mode_transition_notices_name_canonical_identities() -> None:
         assert "does not" in text.lower() or "not available" in text.lower() or "outside the mutation spine" in text
 
 
-def test_agent_prompt_spines_match_kernel_identities() -> None:
-    identities = {item.runtime: item for item in KERNEL.identities}
+def test_agent_prompts_name_their_runtime_identity() -> None:
     for filename, runtime in PROMPT_IDENTITY.items():
         text = (AGENT_PROMPT_DIR / filename).read_text(encoding="utf-8")
         assert ID_RE.search(text).group(1) == runtime
-        spine = SPINE_RE.search(text)
-        assert spine, f"{filename} missing <spine>"
-        assert _gates(spine.group(1)) == identities[runtime].gates
+
+
+def test_agent_and_mode_prompts_carry_no_gate_ids() -> None:
+    """Gates are not an identity property (2026-09-28): a contract declares what its identity may
+    do, never which workflow stages it owns. The `<spine>` lists and the mode-reminder parentheses
+    were removed; this guard keeps them from being reintroduced silently."""
+    gate_id = re.compile(r"\bG[0-9]\b")
+    surfaces: list[tuple[str, str]] = [
+        (path.name, path.read_text(encoding="utf-8")) for path in sorted(AGENT_PROMPT_DIR.glob("*.txt"))
+    ]
+    surfaces.extend(
+        (name, (SESSION_PROMPT_DIR / name).read_text(encoding="utf-8"))
+        for name in ("build.txt", "plan.txt", "reasoning-mode.txt")
+    )
+    offenders = sorted(f"{name}: {gate_id.search(text).group(0)}" for name, text in surfaces if gate_id.search(text))
+    assert offenders == []
 
 
 def test_agent_prompt_refs_resolve_in_next_kernel() -> None:

@@ -73,7 +73,7 @@ def test_claude_kernel_is_installed_current() -> None:
     Fix: `python -m prompt_kernel --claude --install`.
     """
     installed = Path(CLAUDE_KERNEL_PATH).read_text(encoding="utf-8")
-    assert installed == render_kernel(KERNEL, CLAUDE_GATE_ADDONS)
+    assert installed == render_kernel(KERNEL, CLAUDE_GATE_ADDONS, ())
 
 
 def test_codex_artifact_is_current() -> None:
@@ -89,4 +89,4 @@ def test_codex_artifact_is_current() -> None:
         # this guard has nothing to compare. It is a staleness check for a working host, not a
         # claim the repo can make about itself.
         pytest.skip("no Codex artifact on this host; run `python -m prompt_kernel --codex`")
-    assert artifacts[-1].read_text(encoding="utf-8") == render_kernel(KERNEL, CODEX_GATE_ADDONS)
+    assert artifacts[-1].read_text(encoding="utf-8") == render_kernel(KERNEL, CODEX_GATE_ADDONS, ())

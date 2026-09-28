@@ -12,6 +12,13 @@ class GateAddon:
     lines: tuple[str, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class IdentityAddon:
+    identity_id: str
+    addon_id: str
+    lines: tuple[str, ...]
+
+
 GATE_ADDONS: tuple[GateAddon, ...] = (
     GateAddon(
         "G1",
@@ -263,6 +270,85 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
 )
 
 
+# Allowed-tool rows for identity contracts (section 5). Product-only by design: the Claude and
+# Codex harnesses carry their own tool sets, not ours (owner, 2026-09-28). Filled from the live
+# ACL manifest (packages/opencode/script/kernel-tools-manifest.ts, run 2026-09-28 after the
+# job_kill / disabled-scoped-open fixes); drift is caught by the TS parity test
+# packages/opencode/test/agent/kernel-identity-tools.test.ts. Narrow identities list what they
+# may use; wide identities list exclusions ("all except …"). Notes after ";" carry path-scoped
+# edit boundaries the ACL enforces at execution; the parity test compares only the id sets.
+# MCP tools are host-configured and not enumerated — the rows describe the builtin catalogue.
+IDENTITY_ADDONS: tuple[IdentityAddon, ...] = (
+    IdentityAddon(
+        "BUILD_MODE",
+        "BUILD_MODE_TOOLS",
+        ("tools: all except planexit, reasoningexit.",),
+    ),
+    IdentityAddon(
+        "PLAN_MODE",
+        "PLAN_MODE_TOOLS",
+        (
+            "tools: all except bash, cmd, jobkill, multiedit, pipeline, planenter, reasoningenter, reasoningexit, restore, run;"
+            " write/edit: plans/ only.",
+        ),
+    ),
+    IdentityAddon(
+        "REASONING_MODE",
+        "REASONING_MODE_TOOLS",
+        ("tools: checkstate, memory, reasoningexit.",),
+    ),
+    IdentityAddon(
+        "ORCHESTRATOR_AGENT",
+        "ORCHESTRATOR_AGENT_TOOLS",
+        (
+            "tools: all except bash, cmd, jobkill, multiedit, pipeline, planenter, planexit, reasoningenter, reasoningexit, restore, run;"
+            " write/edit: plans/, plans_completed/, orchestrator memory only.",
+        ),
+    ),
+    IdentityAddon(
+        "EXPLORER_AGENT",
+        "EXPLORER_AGENT_TOOLS",
+        (
+            "tools: all except applypatch, bash, cmd, compact, edit, jobkill, multiedit, pipeline,"
+            " planenter, planexit, reasoningenter, reasoningexit, restore, run, summaryedit, task, write.",
+        ),
+    ),
+    IdentityAddon(
+        "RESEARCHER_AGENT",
+        "RESEARCHER_AGENT_TOOLS",
+        (
+            "tools: aicall, checkstate, cua, fossilgrep, imagerender, joboutput, jobreset, jobwait,"
+            " memory, planstatus, recall, sessionread, tempdisable, tempenable, todowrite,"
+            " universalsearch, webfetch.",
+        ),
+    ),
+    IdentityAddon(
+        "GENERAL_AGENT",
+        "GENERAL_AGENT_TOOLS",
+        (
+            "tools: all except bash, cmd, compact, jobkill, multiedit, pipeline, planenter, planexit,"
+            " reasoningenter, reasoningexit, restore, run, summaryedit, task; write/edit: plans/ only.",
+        ),
+    ),
+    IdentityAddon(
+        "CODER_AGENT",
+        "CODER_AGENT_TOOLS",
+        (
+            "tools: all except compact, jobkill, pipeline, planenter, planexit, reasoningenter,"
+            " reasoningexit, summaryedit, task; write/edit: not plans/, not plans_completed/.",
+        ),
+    ),
+    IdentityAddon(
+        "MEDIA_AGENT",
+        "MEDIA_AGENT_TOOLS",
+        (
+            "tools: all except compact, jobkill, pipeline, planenter, planexit, reasoningenter,"
+            " reasoningexit, summaryedit, task.",
+        ),
+    ),
+)
+
+
 def validate_addons(addons: tuple[GateAddon, ...] = GATE_ADDONS) -> list[str]:
     errors: list[str] = []
     addon_ids = [addon.addon_id for addon in addons]
@@ -278,8 +364,35 @@ def validate_addons(addons: tuple[GateAddon, ...] = GATE_ADDONS) -> list[str]:
     return errors
 
 
+def validate_identity_addons(
+    addons: tuple[IdentityAddon, ...] = IDENTITY_ADDONS,
+    identity_ids: set[str] | None = None,
+) -> list[str]:
+    errors: list[str] = []
+    addon_ids = [addon.addon_id for addon in addons]
+    for addon in addons:
+        if identity_ids is not None and addon.identity_id not in identity_ids:
+            errors.append(f"identity addon {addon.addon_id} binds to unknown identity {addon.identity_id}")
+        if not addon.addon_id or addon.addon_id != addon.addon_id.strip():
+            errors.append(f"addon id must be a non-blank symbol: {addon.addon_id!r}")
+        if not addon.lines or any(not line.strip() for line in addon.lines):
+            errors.append(f"identity addon {addon.addon_id} must declare only non-empty lines")
+    for duplicate in sorted({value for value in addon_ids if addon_ids.count(value) > 1}):
+        errors.append(f"duplicate identity addon definition: {duplicate}")
+    return errors
+
+
 def addon_lines_by_gate(addons: tuple[GateAddon, ...]) -> dict[str, tuple[str, ...]]:
     grouped: dict[str, list[str]] = {}
     for addon in addons:
         grouped.setdefault(addon.gate_id, []).extend(addon.lines)
     return {gate_id: tuple(lines) for gate_id, lines in grouped.items()}
+
+
+def identity_addon_lines_by_identity(
+    addons: tuple[IdentityAddon, ...],
+) -> dict[str, tuple[str, ...]]:
+    grouped: dict[str, list[str]] = {}
+    for addon in addons:
+        grouped.setdefault(addon.identity_id, []).extend(addon.lines)
+    return {identity_id: tuple(lines) for identity_id, lines in grouped.items()}

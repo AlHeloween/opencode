@@ -1,5 +1,13 @@
 # Progress Log
 
+## [2026-09-27 15:44Z] TUI client trace replacement (emergency card 02, partial live oracle)
+
+✓ CodeGraph: `Session` is the owning render-list reader (`routes/session/index.tsx:310-364`), while `sync.tsx:635-670` captures live arrivals before reconciliation. The old caller skipped healthy ids before `report`; reporter-only tests could not expose that. The replacement observes the initial empty store and every changed client state, appending bounded id-only `snapshot` records (arrived/held/listed/status/revert, hidden/missing-store/exempt). It neither logs prompt text nor claims that listed IDs are painted pixels. Write failures call the existing logger once instead of being swallowed. `docs/ui-standards.md:23-29` requires event-driven TUI behaviour; this has no polling.
+
+✓ Baseline `20260927T153247Z_241ffd82`: 11/0 even while the caller was blind. New-contract RED `20260927T153416Z_a49e30f1` (`inspectTranscript` missing); GREEN `20260927T153853Z_dc6fa802`: 15/0; typecheck `20260927T153759Z_948e8442`: exit 0. A parallel green print (`20260927T153759Z_1eaf93b8`) exited -1 and was not counted. Candidate build/stage `20260927T153946Z_138f87fa`: exit 0, version 10.0.1145, `opentui.dll` staged under `dist/`; owner `bin/` untouched.
+
+✓ Live candidate `20260927T154251Z_7ef28765` (PID 7276) in isolated `experiments/2026-09-27_empty-transcript`: read-back `.../.opencode/data/tui-divergence/7276.jsonl:1-4` records initial zero, 2 hydrated listed messages, idle transition, and a REAL `/undo` transition with `revertID` and `listedCount:0`. The command palette was visible before ENTER. ✗ No new message arrived in that run (`arrivedCount:0`); this is NOT a live healthy-arrival oracle nor a pixel oracle. Root cause of the reported post-undo blank screen remains Unknown; card 02 keeps two boxes open, card 01 remains open. A paired terminal frame plus a new-arrival trace is still needed, without requiring promotion to `bin/`.
+
 ## [2026-09-24 17:06Z] TUI gateway-row live attempt (T2 of the shelf triage): the fact is published, the row could not be captured
 
 ✓ The isolated candidate ran WITHOUT touching `bin/`: `dist/bin/opencode.exe` (version `10.0.1117`), cwd `experiments/2026-09-24_tui-protocol-smoke/wc/`, config read from `bin/` via `OPENCODE_TEST_CONFIG` (read-only), four runs (`…165814Z_45745210`, `…170008Z_2135685f`, `…170216Z_e2125880`, `…170348Z_a5e97719`), screenshots `shot-01…shot-05` kept in the experiment dir.

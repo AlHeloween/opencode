@@ -131,6 +131,7 @@ import * as Log from "@opencode-ai/core/util/log"
  */
 const divergenceReporter = createDivergenceReporter(
   Global.Path.data + "/tui-divergence/" + process.pid + ".jsonl",
+  (error) => Log.Default.warn("bug: TUI diagnostic trace write failed", { error: String(error) }),
 )
 import { embeddedWasmAssetPath } from "@/util/wasm-embedded"
 import { embeddedQueryPath } from "@/util/wasm-embedded-queries"
@@ -320,47 +321,25 @@ export function Session() {
     })
   })
 
-  // THE ORACLE, ON THE OUTPUT SIDE. Three attempts at the empty-transcript bug
-  // produced three wrong causes (2026-09-27) because nothing observed the moment
-  // of failure — and what would have settled attempt #1 in one glance was a
-  // screenshot the owner happened to take. So the comparison is made HERE, where
-  // the filtered list becomes what the screen draws.
-  //
-  // THREE SETS, AND THE THIRD IS THE ONE THAT EARNS THE WHOLE THING:
-  //
-  //   arrived — ids a LIVE EVENT named. Maintained by the sync store, not by
-  //             this component, because only the event subscription knows what
-  //             the server actually published. Without it the comparison is
-  //             circular: both other sets come from the same store.
-  //   held    — ids the store holds for this session (`message[sid]`, the array).
-  //   drawn   — what the filter above lets the screen contain.
-  //
-  // arrived ⊆ held but drawn ⊋ arrived is the bug: the client was told, the store
-  // has it, and the screen does not. The inverse (arrived ⊄ held) is a transport
-  // loss and is reported as its own kind, because it is a different bug and a
-  // different owner.
+  // Observe the client on EVERY state transition, including the empty initial
+  // store and healthy ids. `listed` is the computed transcript list, not a claim
+  // about terminal pixels; cmd_runner supplies the independent frame oracle.
+  // This runs after the event store has updated and writes only changed ID sets,
+  // status or revert state, never high-frequency part text or a timer tick.
   createEffect(() => {
-    const held = (sync.data.message[route.sessionID] ?? []).map((m) => m.id)
-    if (held.length === 0) return
-    const heldSet = new Set(held)
-    const drawn = new Set(messagesList().map((m) => m.id))
     const rev = session()?.revert
-    const exempt = (id: string): string | undefined => {
-      if (!rev?.messageID || rev.partID) return undefined
-      const run = revertedRun(messages(), rev.messageID, (m) => isSyntheticTextMessage(m))
-      return run.has(id) ? "reverted run" : undefined
-    }
-    for (const id of sync.data.arrived[route.sessionID] ?? []) {
-      if (drawn.has(id)) continue
-      const record = divergenceReporter.report({
-        drawn,
-        arrived: new Set(sync.data.arrived[route.sessionID] ?? []),
-        exempt,
-        event: { messageID: id, type: heldSet.has(id) ? "render-probe" : "transport-probe" },
-      })
-      if (record?.kind === "hidden")
-        Log.Default.warn("tui render divergence", { sessionID: route.sessionID, record })
-    }
+    const reverted = rev?.messageID && !rev.partID
+      ? revertedRun(messages(), rev.messageID, (m) => isSyntheticTextMessage(m))
+      : undefined
+    divergenceReporter.observe({
+      sessionID: route.sessionID,
+      status: sync.data.session_status[route.sessionID]?.type ?? "unknown",
+      arrived: sync.data.arrived[route.sessionID] ?? [],
+      held: (sync.data.message[route.sessionID] ?? []).map((m) => m.id),
+      listed: messagesList().filter((m) => !("_source" in m) || m._source === route.sessionID).map((m) => m.id),
+      revertID: rev?.messageID,
+      exempt: (id) => reverted?.has(id) ? "reverted run" : undefined,
+    })
   })
 
   // Consecutive memory rows (message* + L1 summary panels) collapse into one

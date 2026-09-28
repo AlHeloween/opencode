@@ -411,13 +411,15 @@ GATES = (
                 BP("IMPLIES", BP("NOT", BP("HAS", "evidence")), BP("OR", BP("EQ", value=("status", "Unknown")), BP("HAS", "residual")))),
             _rule("G2", "FRACTAL_CANDIDATES", "Preserve parent goal/constraints at every scale; reject leaves with monolithic verification blast radius.",
                 BP("AND", BP("HAS", "parent_goal"), BP("HAS", "constraints"), BP("NOT", BP("HAS", "monolithic_blast_radius")))),
-            # 2026-09-28 (owner): the two REASONS for L1, not a restatement of it. A single sharp
-            # spike cannot drag a cluster with an additive metric, and a medoid is always a real
-            # object — a centroid is an average that may not exist, which is why CENTRAL_TASKS are
-            # medoids and never a computed midpoint. The DOMAIN was the real gap: «cluster
-            # candidate vectors» named an object the ABI never defined, and the product already had
-            # the arithmetic in a comment (memory/spine.ts:144 — distance over two weight lists).
-            _rule("G2", "MANHATTAN_L1", "Cluster candidate vectors with @L1_DISTANCE — a candidate vector IS its @SV_FORMAT weight list, and the distance is the sum of absolute weight differences between two such lists. Chosen because L1 suppresses one sharp spike, and a medoid is always a real object, never an average that may not exist. Select at least five candidates when the search space permits, and keep medoids only as CENTRAL_TASKS. Keep each zone small: the medoid pass is quadratic inside it, so a large zone spends what the decomposition saved.",
+            # 2026-09-28 (owner): the three reasons are ONE property — nothing here averages — and a
+            # reason belongs NEXT TO the decision it justifies, not in a separate paragraph: L1
+            # because one spike cannot drag a cluster, medoids because a real object is not a
+            # midpoint that may not exist, and a small zone because cost is counted in points, not
+            # judged. The DOMAIN was the real gap: «cluster candidate vectors» named an object the
+            # ABI never defined, and the product already had the arithmetic in a comment
+            # (memory/spine.ts:144 — distance over two weight lists). 620 B -> 400 B measured, and
+            # the 220 B are spent on the G2 surface-coverage clause rather than on repetition.
+            _rule("G2", "MANHATTAN_L1", "Cluster candidate vectors with @L1_DISTANCE: a candidate vector IS its @SV_FORMAT weight list, and L1 = the sum of absolute weight differences. Nothing here averages — that is why L1 (one spike cannot drag a cluster) and medoids (a real object, not a midpoint that may not exist) rather than centroids. Select at least five candidates when the search space permits, keep medoids only as CENTRAL_TASKS, and keep each zone small: the medoid pass is quadratic inside it.",
                 BP("AND", BP("HAS", "L1_DISTANCE"), BP("GE", value=("candidate_count", 5)), BP("HAS", "medoids_as_central"))),
             _rule("G2", "ONE_STEP_AHEAD", "Estimate the immediate downstream state and verification consequence of each medoid before selection.",
                 BP("IMPLIES", BP("HAS", "medoid"), BP("AND", BP("HAS", "downstream_state"), BP("HAS", "verification_consequence")))),

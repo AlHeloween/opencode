@@ -295,7 +295,7 @@ shared_rules: [@SAFETY_PRECEDENCE, @RESIDUAL_ROUTING, @INTENTION_INVARIANCE]
 - Cut before planning: unsupported evidence → Unknown or residual.
 - Preserve parent goal/constraints at every scale; reject leaves with monolithic verification blast radius.
 #### @MANHATTAN_L1
-Cluster candidate vectors with @L1_DISTANCE — a candidate vector IS its @SV_FORMAT weight list, and the distance is the sum of absolute weight differences between two such lists. Chosen because L1 suppresses one sharp spike, and a medoid is always a real object, never an average that may not exist. Select at least five candidates when the search space permits, and keep medoids only as CENTRAL_TASKS. Keep each zone small: the medoid pass is quadratic inside it, so a large zone spends what the decomposition saved.
+Cluster candidate vectors with @L1_DISTANCE: a candidate vector IS its @SV_FORMAT weight list, and L1 = the sum of absolute weight differences. Nothing here averages — that is why L1 (one spike cannot drag a cluster) and medoids (a real object, not a midpoint that may not exist) rather than centroids. Select at least five candidates when the search space permits, keep medoids only as CENTRAL_TASKS, and keep each zone small: the medoid pass is quadratic inside it.
 
 #### @ONE_STEP_AHEAD
 Estimate the immediate downstream state and verification consequence of each medoid before selection.

@@ -196,9 +196,12 @@ def test_runtime_is_followable_without_opening_the_adid_document() -> None:
     manhattan = next(rule.text for gate in KERNEL.gates for rule in gate.local_rules if rule.id == "MANHATTAN_L1")
     assert "a candidate vector IS its @SV_FORMAT weight list" in manhattan
     assert "sum of absolute weight differences" in manhattan
-    assert "L1 suppresses one sharp spike" in manhattan
-    assert "a medoid is always a real object, never an average that may not exist" in manhattan
-    assert "Keep each zone small" in manhattan, "a large zone spends what the decomposition saved"
+    # One property, three consequences: the test names the FORM so the reasons cannot be re-scattered
+    # into a paragraph that answers nothing, and so a reason that loses its decision beside it fails.
+    assert "Nothing here averages" in manhattan
+    assert "one spike cannot drag a cluster" in manhattan
+    assert "a real object, not a midpoint that may not exist" in manhattan
+    assert "keep each zone small" in manhattan, "the medoid pass is quadratic inside it"
 
     # A self-consistent chain on a false premise walks the whole ladder (owner, 2026-09-28: found
     # nonsense on the web, confirmed it in sources, ran a smoke — still nonsense). Every rung

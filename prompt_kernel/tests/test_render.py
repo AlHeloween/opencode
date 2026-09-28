@@ -177,6 +177,18 @@ def test_runtime_is_followable_without_opening_the_adid_document() -> None:
     ):
         assert case in stop, case
     assert "NOT SUCCESS" in stop, "a bounded stop must not read as closure"
+    # The classification is a GATE between clustering and selection, and an absent classification
+    # reads as REJECTED — the project's own rule that a missing indicator means "not working", not
+    # "probably fine". The second clause exists because tier 1 says "fully verified", which reads
+    # like a finished task; only @ORACLE verifies a task, and no tier may stand in for it.
+    lean = next(rule.text for gate in KERNEL.gates for rule in gate.local_rules if rule.id == "LEAN_RANKING")
+    assert "AFTER clustering and BEFORE selection" in lean
+    assert "an unclassified candidate is not selectable" in lean
+    assert "reads as rejected and never as acceptable" in lean
+    assert "ranks the candidate's INFORMATION QUALITY, never the task's completion" in lean
+    for tier in ("(1) Fully Verified", "(2) Minor Inaccuracy", "(3) Major Contradiction", "(4) Unusable"):
+        assert tier in lean, tier
+
     # Independence is per nesting level. Under fractal nesting a parent and its child can share
     # one source, which would satisfy "≥3 medoids with independent sources" with three names for
     # one explanation — the exact degeneracy the rule exists to reject, reachable one level down.

@@ -417,8 +417,21 @@ GATES = (
                 BP("IMPLIES", BP("HAS", "medoid"), BP("AND", BP("HAS", "downstream_state"), BP("HAS", "verification_consequence")))),
             _rule("G2", "MEDOID_SIMPLEX", "Surface needs ≥3 medoids with independent sources, each carrying @INFOMARK rung. Coverage over lattice, not asserted from one point. Three sources on ONE explanation = degenerate simplex — explanations must be independent, and independence is measured WITHIN one nesting level: a parent and its child never count as two sources.",
                 BP("AND", BP("GE", value=("medoid_count", 3)), BP("HAS", "independent_sources"), BP("HAS", "Infomark"), BP("NOT", BP("HAS", "degenerate_simplex")))),
+            # 2026-09-28 (owner): the candidate pipeline gained a classification step — «classify using
+            # lean-4» — and the four LEAN tiers are written here as a DECISION over @INFOMARK, never
+            # as a second ladder. Tiers 3 and 4 collapse to Unknown on purpose: per 1.1 @INFOMARK a
+            # failed proof IS Unknown, and a 4-point scale whose bottom two rungs carry the same
+            # epistemic event would make severity look like status — the defect the 2026-09-27 mark
+            # discussion closed. Severity is a @RISK_LEDGER entry, not a rung.
+            # What the tiers actually ADD is tier 2, which the kernel did not have: a candidate whose
+            # core is sound and whose minor detail is unverifiable is ADMISSIBLE for selection while
+            # deciding nothing. @GUESS_DECIDES_NOTHING treats everything below Inferred alike, so G2
+            # used to reject exactly the state most medoids live in. Admissible to be chosen and
+            # allowed to decide are different permissions, and only the second one is gated.
+            _rule("G2", "LEAN_RANKING", "Classify every candidate on the 4 LEAN tiers, each a decision over @INFOMARK, never a second ladder: (1) Fully Verified — every claim maps to evidence, no logical leap → Exact; (2) Minor Inaccuracy / Unsupported — sound core, minor detail unverifiable → Inferred or Hypothetical, ADMISSIBLE for selection and decides nothing; (3) Major Contradiction / Hallucination → Unknown, an unproven candidate rather than a weak one; (4) Unusable / Harmful → Unknown plus a @RISK_LEDGER entry. Only tiers 1-2 may be selected, and a selected medoid must have climbed the promotion cycle, never merely asserted it. The gate sits AFTER clustering and BEFORE selection: an unclassified candidate is not selectable, because an absent classification reads as rejected and never as acceptable. A tier ranks the candidate's INFORMATION QUALITY, never the task's completion — @ORACLE is the only verification and no tier substitutes for it.",
+                BP("OR", BP("HAS", "tier1_fully_verified"), BP("HAS", "tier2_minor_unverifiable"))),
         ),
-        fsm=G2_FSM,
+    fsm=G2_FSM,
     ),
     Gate(
         id="G3",

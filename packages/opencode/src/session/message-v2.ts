@@ -1499,13 +1499,19 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             })
         }
         if (part.type === "reasoning") {
-          // Owner directive 2026-09-29: ALL reasoning is returned (the 2026-08-30
-          // tool-turn-only strip is retired) and every block is closed with
-          // `time: …` + `md5: …` (doctrine §8 seal), so a replayed thinking chain
-          // damps self-correlation instead of feeding it.
+          // ALL reasoning is returned (the 2026-08-30 tool-turn-only strip stays retired).
+          // NEGATIVE RESULT 2026-09-29 — the T3 replay seal is REVERTED: closing every block
+          // with `time: …` + `md5: …` FED a repetition attractor instead of damping one.
+          // Measured on deepseek-flash: the model reproduced the stamp shape at the
+          // reasoning-to-tool-call boundary — one block carrying 85 `time:` / 84 `md5:` pairs
+          // and 1826 slash-close-tag escapes, 64 763 reasoning tokens in ONE step, and it
+          // stopped emitting tool calls (09:49:58Z). Before the seal reached the context the
+          // same session showed 0-1 stamp tokens per block. Instrument:
+          // experiments/2026-09-29_seal-loop-forensics/loop_census.py. The section-8 seal
+          // stays on user messages only — a replayed chain is not a message.
           assistantMessage.parts.push({
             type: "reasoning",
-            text: sealUserText(part.text, part.time.start),
+            text: part.text,
             ...(differentModel ? {} : { providerMetadata: part.metadata }),
           })
         }

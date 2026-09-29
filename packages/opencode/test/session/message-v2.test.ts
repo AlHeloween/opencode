@@ -1332,7 +1332,7 @@ describe("session.message-v2.toModelMessage", () => {
       ? assistant.content.find((p) => (p as { type?: string }).type === "reasoning")
       : undefined
     expect(reasoning).toMatchObject({
-      text: sealUserText("thinking", 0),
+      text: "thinking",
       providerOptions: {
         openrouter: {
           reasoning_details: reasoningDetails,
@@ -1341,7 +1341,7 @@ describe("session.message-v2.toModelMessage", () => {
     })
   })
 
-  test("returns reasoning from non-tool assistant messages, sealed (2026-09-29 directive)", async () => {
+  test("returns reasoning from non-tool assistant messages, unsealed (T3 reverted 2026-09-29)", async () => {
     const assistantID = "m-assistant"
     const input: MessageV2.WithParts[] = [
       {
@@ -1362,7 +1362,7 @@ describe("session.message-v2.toModelMessage", () => {
     const content = Array.isArray(assistant?.content)
       ? (assistant.content as Array<{ type?: string; text?: string }>)
       : []
-    expect(content.some((p) => p.type === "reasoning" && p.text === sealUserText("process replay", 0))).toBe(true)
+    expect(content.some((p) => p.type === "reasoning" && p.text === "process replay")).toBe(true)
     expect(content.some((p) => p.type === "text" && p.text === "answer")).toBe(true)
   })
 
@@ -1396,7 +1396,7 @@ describe("session.message-v2.toModelMessage", () => {
     const content = Array.isArray(assistant?.content)
       ? (assistant.content as Array<{ type?: string; text?: string }>)
       : []
-    expect(content.some((p) => p.type === "reasoning" && p.text === sealUserText("plan before call", 0))).toBe(true)
+    expect(content.some((p) => p.type === "reasoning" && p.text === "plan before call")).toBe(true)
   })
 
   test("keeps a reasoning-only assistant message instead of dropping it (2026-09-29 directive)", async () => {
@@ -1416,7 +1416,7 @@ describe("session.message-v2.toModelMessage", () => {
     const content = Array.isArray(assistant?.content)
       ? (assistant.content as Array<{ type?: string; text?: string }>)
       : []
-    expect(content.some((p) => p.type === "reasoning" && p.text === sealUserText("only process", 0))).toBe(true)
+    expect(content.some((p) => p.type === "reasoning" && p.text === "only process")).toBe(true)
   })
 
   test("strips flood reminder blocks from replayed tool outputs, keeps gated-workflow brief", async () => {

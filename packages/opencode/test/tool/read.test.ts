@@ -465,6 +465,11 @@ describe("tool.read loaded instructions", () => {
       expect(again.output).toContain("test content")
       expect(again.output).not.toContain("Test Instructions")
       expect(again.output).toContain("Gated workflow")
+      // 2026-09-29: this reminder used to be emitted TWICE, each copy closed with a
+      // `time:` + `md5:` stamp over `Date.now()` — a repeating message carrying a moving
+      // key. The model imitated exactly that shape and jammed its tool calls.
+      expect(again.output.match(/Gated workflow/g)?.length).toBe(1)
+      expect(again.output).not.toContain("md5:")
     }), 30_000,
   )
 })

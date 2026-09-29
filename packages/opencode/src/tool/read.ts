@@ -4,7 +4,6 @@ import * as path from "path"
 import * as Tool from "./tool"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { LSP } from "@/lsp/lsp"
-import { sealUserText } from "@/session/user-seal"
 import DESCRIPTION from "./read.txt"
 import { Instance } from "../project/instance"
 import { assertExternalDirectoryEffect } from "./external-directory"
@@ -445,7 +444,15 @@ export const ReadTool = Tool.define(
           `Gated workflow: State→SV→Plan→Implement→Oracle→Clean. ` +
           `Continue from your last gate. Project instructions already delivered this session — ` +
           `sessionread the file if a rule is needed.`
-        output += `\n\n<system-reminder>${sealUserText(reminder, Date.now())}</system-reminder>\x3csystem-reminder>${sealUserText(reminder, Date.now())}</system-reminder>`
+        // NEGATIVE RESULT 2026-09-29 — de-duplicated, and the seal is REMOVED from this
+        // repeat: the line emitted the SAME one-line reminder TWICE, each copy closed with
+        // `time: …` + `md5: …` computed over `Date.now()`. That is a repeating message with a
+        // fresh, meaningless key, handed to a model that continues what it reads. From
+        // 09:45:16Z every read carried the doubled block; by 09:49:58Z the model was closing
+        // its own sections with slash-close tags x1826 inside ONE reasoning block
+        // (experiments/2026-09-29_seal-loop-forensics/loop_census.py). The section-8 seal
+        // belongs to a user message, not to a message the tool repeats.
+        output += `\n\n<system-reminder>${reminder}</system-reminder>`
       }
 
       return {

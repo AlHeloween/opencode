@@ -294,6 +294,11 @@ Owner relay (head DeepSeek), verbatim:
   continue past the next md5 field.
 - Non-md5/sha256 phrases continue normally.
 - Cost: zero. No penalty, no sampler knobs, no per-token tax.
+- **LIVE (2026-09-29, Muse Spark on Zen, candidate 10.0.1152):** on first contact the model answered
+  with a question-tool questionnaire («Hello — I need a little direction before I can dig in» +
+  options 1–4); the owner rates this reaction highly («такая реакция модели что она выдала опросник
+  прямо сходу — стоит очень много»). The seal's `md5` was echoed verbatim into the model's own SV
+  field — copy-through, not a loop. Fixation decision: keep the binding as shipped.
 
 **three candidate mechanisms (mutually compatible, not yet separated)**
 1. TOKENIZATION — 32/64 hex splits into junk-token chunks that do not continue the linguistic phrase.

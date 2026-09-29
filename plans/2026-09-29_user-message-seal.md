@@ -22,7 +22,9 @@
 - [x] ✓ T3 ALL reasoning is returned, each block sealed with `time: …` + `md5: …` (owner directive 2026-09-29, same evening: «весь reasoning — возвращать, но завершать временем и хешем»); the 2026-08-30 tool-turn-only strip is retired and its tests rewritten (strip → return).
 - [x] ✓ T4 system alerts sealed: `tool/read.ts` gated-workflow reminder (stamp lands in the persisted tool output — stable across replays) and `tool/plan.ts` identity-switch alert.
 - [x] ✓ T5 oracles: `bun test test/session/user-seal.test.ts test/session/message-v2.test.ts test/tool/read.test.ts` → **84 pass / 0 fail** (run `20260929T085611Z_f3b16614`); `bun typecheck` exit 0 (`20260929T085653Z_e791298b`).
-- [ ] Residual: live raw-wire check (sealed user message / reasoning / alert on the wire) — needs a rebuilt candidate. Also audit whether `hasToolParts` is now dead (typecheck stays green either way).
+- [x] ✓ **Live raw-wire check** (candidate 10.0.1152, stand run `20260929T090332Z_612b53b3`): the seal is present on the wire and byte-stable across requests — `time: 2026-09-29T09:03:43.446Z` + `md5: f91cf28252a8129ec4cc5a9be1d8e1bd` in both the 09:03:44 and 09:05:18 requests. Zen returns reasoning as `encrypted_content` (platform property — plaintext reasoning seal is not visible there).
+- [x] ✓ **Owner decision 2026-09-29T09:07Z, verbatim: «Оставляй как есть — такая реакция модели что она выдала опросник прямо сходу — стоит очень много.»** Keep the binding exactly as shipped: no relabeling, no assistant-side seal. Observed reaction: on first contact the model answered with a question-tool questionnaire (options 1–4) — the owner rates this behaviour highly; the sent md5 was echoed into the model's own SV field (copy-through, not a loop).
+- [ ] Residual: `hasToolParts` audit (unused now? typecheck green either way).
 
 ## Tooling note (cost two repair rounds)
 

@@ -1,6 +1,8 @@
 import { Effect, Schema } from "effect"
 import path from "path"
 import { spawn } from "node:child_process"
+import { mkdir } from "node:fs/promises"
+import { Global } from "@opencode-ai/core/global"
 import { normalizeAttachment } from "../attachment/normalize"
 import * as Tool from "./tool"
 import DESCRIPTION from "./cua.txt"
@@ -101,6 +103,17 @@ export function cuaCallArgs(tool: string, args?: string, sessionID?: string): st
   return JSON.stringify({ ...input, session: `oc-${sessionID}` })
 }
 
+export function cuaScreenshotFile(
+  tool: string,
+  requested: string | undefined,
+  sessionID: string,
+  cache: string,
+  id: string,
+) {
+  if (requested || (tool !== "get_window_state" && tool !== "get_desktop_state")) return requested
+  return path.join(cache, "cua", sessionID, `${id}.png`)
+}
+
 type Observation = {
   capture_id?: string
   session: string
@@ -160,8 +173,14 @@ export function cuaObservation(
 
 /** History is the authority for the geometry supplied to the model; the caller cannot declare it. */
 export function cuaBoundClickArgs(args: string, sessionID: string, messages: Tool.Context["messages"]): string {
-  const input = JSON.parse(cuaCallArgs("click", args, sessionID)) as Record<string, unknown>
-  if (!("x" in input || "y" in input) || input.from_zoom === true) return JSON.stringify(input)
+  const parsed: unknown = JSON.parse(args)
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("click arguments must be a JSON object")
+  }
+  const input = parsed as Record<string, unknown>
+  if (!("x" in input || "y" in input) || input.from_zoom === true) {
+    return cuaCallArgs("click", args, sessionID)
+  }
   if (
     typeof input.x !== "number" ||
     typeof input.y !== "number" ||
@@ -170,32 +189,59 @@ export function cuaBoundClickArgs(args: string, sessionID: string, messages: Too
   ) {
     throw new Error("Coordinate click requires finite x and y in attached-image pixels")
   }
+  if (input.capture_id !== undefined && (typeof input.capture_id !== "string" || !input.capture_id)) {
+    throw new Error("capture_id must be a nonempty ID from a CUA observation")
+  }
   const parts = messages.flatMap((message) => message.parts).filter((part) => part.type === "tool")
   const completed = parts.filter((part) => part.tool === "cua" && part.state.status === "completed")
-  if (
-    completed.some(
-      (part) => part.state.status === "completed" && part.state.metadata.captureAttempt === input.capture_id,
-    )
-  ) {
-    throw new Error("capture_id was already used for a click attempt; take a fresh screenshot")
-  }
-  const observation = completed
+  const used = new Set(completed.map((part) => part.state.status === "completed" && part.state.metadata.captureAttempt))
+  const observations = completed
     .map((part) =>
       part.state.status === "completed" ? (part.state.metadata.observation as Observation | undefined) : undefined,
     )
-    .find((item) => item?.capture_id === input.capture_id && item?.session === `oc-${sessionID}`)
-  if (!observation) throw new Error("capture_id has no image observation in this session; take a fresh screenshot")
+    .filter((item): item is Observation => !!item?.capture_id && item.session === `oc-${sessionID}`)
+  const matching = observations.filter((item) =>
+    input.capture_id
+      ? item.capture_id === input.capture_id
+      : input.scope === "desktop"
+        ? item.scope === "desktop" && input.pid === undefined && input.window_id === undefined
+        : item.scope === "window" &&
+          item.pid === input.pid &&
+          (input.window_id === undefined || item.window_id === input.window_id),
+  )
+  if (!input.capture_id && input.window_id === undefined && new Set(matching.map((item) => item.window_id)).size > 1) {
+    throw new Error("Several windows match this pid; supply window_id before a coordinate click")
+  }
+  const observation = matching.at(-1)
+  if (!observation)
+    throw new Error("There is no image observation for this target in this session; take a fresh screenshot")
+  if (used.has(observation.capture_id)) {
+    throw new Error("capture_id was already used for a click attempt; take a fresh screenshot")
+  }
+  const call = JSON.parse(
+    cuaCallArgs(
+      "click",
+      JSON.stringify({
+        ...input,
+        capture_id: observation.capture_id,
+        ...(observation.scope === "window" && input.window_id === undefined
+          ? { window_id: observation.window_id }
+          : {}),
+      }),
+      sessionID,
+    ),
+  ) as Record<string, unknown>
   if (
     observation.scope === "window" &&
-    (input.pid !== observation.pid ||
-      input.window_id !== observation.window_id ||
-      (input.scope !== undefined && input.scope !== "window"))
+    (call.pid !== observation.pid ||
+      call.window_id !== observation.window_id ||
+      (call.scope !== undefined && call.scope !== "window"))
   ) {
     throw new Error("Coordinate click target differs from the captured window")
   }
   if (
     observation.scope === "desktop" &&
-    (input.pid !== undefined || input.window_id !== undefined || input.scope !== "desktop")
+    (call.pid !== undefined || call.window_id !== undefined || call.scope !== "desktop")
   ) {
     throw new Error("Coordinate click target differs from the captured desktop")
   }
@@ -203,7 +249,7 @@ export function cuaBoundClickArgs(args: string, sessionID: string, messages: Too
     throw new Error("Coordinate click is outside the attached image")
   }
   return JSON.stringify({
-    ...input,
+    ...call,
     x: (input.x * observation.capture_width) / observation.image_width,
     y: (input.y * observation.capture_height) / observation.image_height,
   })
@@ -305,91 +351,106 @@ export function cuaScreenshotResult(input: {
   })
 }
 
+export function cuaExecute(
+  params: Schema.Schema.Type<typeof Parameters>,
+  ctx: Tool.Context,
+  cli: typeof runCli = runCli,
+) {
+  return Effect.gen(function* () {
+    yield* ctx.ask({
+      permission: "cua",
+      patterns: [params.action, ...(params.tool ? [`${params.action} ${params.tool}`] : [])],
+      always: ["*"],
+      metadata: { action: params.action, tool: params.tool },
+    })
+
+    if (params.action === "skill-index") {
+      return {
+        title: "cua-driver skill guides",
+        metadata: { action: params.action, exit: 0, stdoutBytes: 0 } satisfies Metadata,
+        output: skillIndex(),
+      }
+    }
+
+    const cliArgs: string[] = [params.action]
+    let stdin: string | undefined
+    if (params.action === "describe") {
+      if (!params.tool) throw new Error("describe requires tool name")
+      cliArgs.push(params.tool)
+    }
+    if (params.action === "call") {
+      if (!params.tool) throw new Error("call requires tool name")
+      cliArgs.push(params.tool)
+      // JSON goes via stdin — argv JSON breaks under PS 5.1 quote stripping
+      // (documented upstream in cli.rs #1637).
+      stdin =
+        params.tool === "click"
+          ? cuaBoundClickArgs(params.args ?? "{}", ctx.sessionID, ctx.messages)
+          : cuaCallArgs(params.tool, params.args, ctx.sessionID)
+    }
+    const screenshotFile =
+      params.action === "call" && params.tool
+        ? cuaScreenshotFile(
+            params.tool,
+            params.screenshot_out_file,
+            ctx.sessionID,
+            Global.Path.cache,
+            crypto.randomUUID(),
+          )
+        : undefined
+    if (screenshotFile) {
+      if (existsSync(screenshotFile)) {
+        throw new Error(
+          "Screenshot path already exists; choose a fresh file so a stale image cannot pass as this capture",
+        )
+      }
+      if (!params.screenshot_out_file)
+        yield* Effect.promise(() => mkdir(path.dirname(screenshotFile), { recursive: true }))
+      cliArgs.push("--screenshot-out-file", screenshotFile)
+    }
+
+    const result = yield* cli(cliArgs, stdin)
+    const out = result.out.trim() || result.err.trim() || "(no output)"
+    const call = stdin ? (JSON.parse(stdin) as Record<string, unknown>) : undefined
+    const meta: Metadata = {
+      action: params.action,
+      ...(params.tool ? { tool: params.tool } : {}),
+      exit: result.code,
+      stdoutBytes: result.out.length,
+      ...(result.err.trim() ? { stderrPreview: result.err.trim().slice(0, 300) } : {}),
+      ...(params.tool === "click" &&
+      typeof call?.capture_id === "string" &&
+      typeof call.x === "number" &&
+      typeof call.y === "number"
+        ? { captureAttempt: call.capture_id }
+        : {}),
+    }
+
+    if (params.action === "call" && screenshotFile && params.tool) {
+      return yield* cuaScreenshotResult({
+        tool: params.tool,
+        output: out,
+        code: result.code,
+        file: screenshotFile,
+        sessionID: ctx.sessionID,
+        metadata: meta,
+        imageInput:
+          (ctx.extra?.model as { capabilities?: { input?: { image?: boolean } } } | undefined)?.capabilities?.input
+            ?.image === true,
+      })
+    }
+
+    return {
+      title: `cua ${params.action}${params.tool ? ` ${params.tool}` : ""}`,
+      metadata: meta,
+      output: out,
+    }
+  }).pipe(Effect.orDie)
+}
+
 export const CuaTool = Tool.define(
   "cua",
-  Effect.succeed({
-    description: DESCRIPTION,
-    parameters: Parameters,
-    execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
-      Effect.gen(function* () {
-        yield* ctx.ask({
-          permission: "cua",
-          patterns: [params.action, ...(params.tool ? [`${params.action} ${params.tool}`] : [])],
-          always: ["*"],
-          metadata: { action: params.action, tool: params.tool },
-        })
-
-        if (params.action === "skill-index") {
-          return {
-            title: "cua-driver skill guides",
-            metadata: { action: params.action, exit: 0, stdoutBytes: 0 } satisfies Metadata,
-            output: skillIndex(),
-          }
-        }
-
-        const cliArgs: string[] = [params.action]
-        let stdin: string | undefined
-        if (params.action === "describe") {
-          if (!params.tool) throw new Error("describe requires tool name")
-          cliArgs.push(params.tool)
-        }
-        if (params.action === "call") {
-          if (!params.tool) throw new Error("call requires tool name")
-          cliArgs.push(params.tool)
-          // JSON goes via stdin — argv JSON breaks under PS 5.1 quote stripping
-          // (documented upstream in cli.rs #1637).
-          stdin =
-            params.tool === "click"
-              ? cuaBoundClickArgs(params.args ?? "{}", ctx.sessionID, ctx.messages)
-              : cuaCallArgs(params.tool, params.args, ctx.sessionID)
-          if (params.screenshot_out_file) {
-            if (existsSync(params.screenshot_out_file)) {
-              throw new Error(
-                "Screenshot path already exists; choose a fresh file so a stale image cannot pass as this capture",
-              )
-            }
-            cliArgs.push("--screenshot-out-file", params.screenshot_out_file)
-          }
-        }
-
-        const result = yield* runCli(cliArgs, stdin)
-        const out = result.out.trim() || result.err.trim() || "(no output)"
-        const call = stdin ? (JSON.parse(stdin) as Record<string, unknown>) : undefined
-        const meta: Metadata = {
-          action: params.action,
-          ...(params.tool ? { tool: params.tool } : {}),
-          exit: result.code,
-          stdoutBytes: result.out.length,
-          ...(result.err.trim() ? { stderrPreview: result.err.trim().slice(0, 300) } : {}),
-          ...(params.tool === "click" &&
-          typeof call?.capture_id === "string" &&
-          typeof call.x === "number" &&
-          typeof call.y === "number"
-            ? { captureAttempt: call.capture_id }
-            : {}),
-        }
-
-        if (params.action === "call" && params.screenshot_out_file && params.tool) {
-          return yield* cuaScreenshotResult({
-            tool: params.tool,
-            output: out,
-            code: result.code,
-            file: params.screenshot_out_file,
-            sessionID: ctx.sessionID,
-            metadata: meta,
-            imageInput:
-              (ctx.extra?.model as { capabilities?: { input?: { image?: boolean } } } | undefined)?.capabilities?.input
-                ?.image === true,
-          })
-        }
-
-        return {
-          title: `cua ${params.action}${params.tool ? ` ${params.tool}` : ""}`,
-          metadata: meta,
-          output: out,
-        }
-      }).pipe(Effect.orDie),
-  }),
+  Effect.succeed({ description: DESCRIPTION, parameters: Parameters, execute: cuaExecute }),
 )
 
 export * as Cua from "./cua"

@@ -29,26 +29,31 @@ PowerShell 5.1 quote stripping.
 - `launch_app` — wrapper-enforced minimized, inactive start (`start_minimized:true`); background UIA/PostMessage actions remain available.
 - Browser suite: `browser_prepare`, `browser_navigate`, `browser_click`,
   `browser_type`, `get_browser_state` — CDP over an exactly-bound tab.
+- Page reads: `page` with `action:"get_text"` or `action:"query_dom"` when
+  supported by the target's accessibility provider. Do NOT use
+  `execute_javascript` for a read: arbitrary scripts are deliberately refused
+  outside trusted unrestricted mode, even when the expression looks read-only.
 
 **Hard rules:**
 - Daemon must run: start via `cmd_runner start -- cua serve`; kill via
   jobkill. Never `start` the daemon bare-shell (TUI-hang protection).
-- For `get_window_state` and `get_desktop_state`, use a **fresh**, non-existing
-  `screenshot_out_file`: the tool reads back the PNG, checks its header dimensions
-  against the driver's reply, and attaches the normalized image to the model.
-  The output names both the source PNG and attached-image pixel dimensions,
-  target, stable session and `capture_id` (if available). A path alone is NOT
-  a model-visible image. On a model with no declared image input, no actionable
-  packet is issued; use a vision-capable model or a semantic route. Non-screenshot
-  tools do not create an image packet.
-- For a pixel `click`, pass `capture_id` from that packet, the exact `pid` and
-  `window_id` for a window (or `scope:"desktop"` for a desktop capture), and
-  `x,y` in **attached-image** pixels, not the original PNG or a UI preview.
-  The tool finds the observation in its own session history, maps x/y back to
-  the driver's capture space, and refuses unknown/reused IDs or wrong targets.
-  Element and zoom-addressed clicks keep their own addressing rules. The
-  external provider may independently rescale its preview: never guess tiny
-  targets from a preview; use UIA, DOM or keyboard controls when available.
+- For `get_window_state` and `get_desktop_state`, call the tool directly with
+  the exact window (or desktop). If no `screenshot_out_file` is supplied, the
+  wrapper creates a fresh cache path automatically, reads back the PNG, compares
+  its header dimensions with the driver's reply, and attaches the image.
+  Supply an explicit NEW path only when a named artifact must remain inspectable.
+  The reply states source and attached-image pixel dimensions, target, named
+  session, and `capture_id`. A path alone is NOT a model-visible image; a
+  text-only model gets no actionable observation. Other tools do not create one.
+- For a pixel `click` after a model-visible image, pass `pid` and `x,y` in
+  **attached-image** pixels; use `scope:"desktop"` for a desktop image. The
+  wrapper fills `capture_id` and (when unambiguous) `window_id` from the latest
+  matching image in THIS conversation and validates the target and one-shot ID.
+  You may pass both IDs explicitly for reproducibility. Multiple windows for a
+  PID or missing/used images require a fresh observation or explicit target;
+  NEVER fall back to an unbound pixel click. Element and zoom-addressed clicks
+  retain their own rules. A provider-resized preview is NOT an exact coordinate
+  source: prefer UIA, DOM or keyboard for tiny targets.
 - Driver `drag` and other coordinate gestures do not share `click`'s capture-id
   admission contract; this packet does not certify those actions. Re-observe
   and verify the outcome separately rather than treating a gesture as proof.

@@ -4,7 +4,16 @@ import path from "node:path"
 import os from "node:os"
 import { Effect } from "effect"
 import sharp from "sharp"
-import { cuaBoundClickArgs, cuaCallArgs, cuaObservation, cuaScreenshotResult } from "../../src/tool/cua"
+import {
+  cuaBoundClickArgs,
+  cuaCallArgs,
+  cuaExecute,
+  cuaObservation,
+  cuaScreenshotFile,
+  cuaScreenshotResult,
+} from "../../src/tool/cua"
+import { Instance } from "../../src/project/instance"
+import { MessageID, SessionID } from "../../src/session/schema"
 import type * as Tool from "../../src/tool/tool"
 
 describe("CUA launch arguments", () => {
@@ -26,6 +35,79 @@ describe("CUA launch arguments", () => {
   test("preserves unrelated CUA call payloads without parsing them", () => {
     const payload = '{"pid":42,"window_id":99}'
     expect(cuaCallArgs("get_window_state", payload)).toBe(payload)
+  })
+
+  test("creates a fresh image artifact path without asking the agent for one", () => {
+    const cache = path.join("data", "cache")
+    expect(cuaScreenshotFile("get_window_state", undefined, "ses_one", cache, "one")).toBe(
+      path.join(cache, "cua", "ses_one", "one.png"),
+    )
+    expect(cuaScreenshotFile("get_desktop_state", undefined, "ses_one", cache, "two")).toBe(
+      path.join(cache, "cua", "ses_one", "two.png"),
+    )
+    expect(cuaScreenshotFile("get_window_state", "my.png", "ses_one", cache, "three")).toBe("my.png")
+    expect(cuaScreenshotFile("click", undefined, "ses_one", cache, "four")).toBeUndefined()
+  })
+
+  test("an observation without a file argument delivers a verified image and reusable binding", async () => {
+    const bytes = await sharp({ create: { width: 4, height: 2, channels: 4, background: "#eaeaff" } })
+      .png()
+      .toBuffer()
+    let artifact: string | undefined
+    try {
+      await Instance.provide({
+        directory: path.join(import.meta.dir, "../.."),
+        fn: async () => {
+          const ctx: Tool.Context = {
+            sessionID: SessionID.make("ses_cua_image_test"),
+            messageID: MessageID.make("msg_cua_image_test"),
+            agent: "build",
+            abort: new AbortController().signal,
+            messages: [],
+            metadata: () => Effect.void,
+            ask: () => Effect.void,
+            extra: { model: { capabilities: { input: { image: true } } } },
+          }
+          const result = await Effect.runPromise(
+            cuaExecute(
+              { action: "call", tool: "get_window_state", args: '{"pid":42,"window_id":99}' },
+              ctx,
+              (argv, stdin) =>
+                Effect.promise(async () => {
+                  expect(argv.slice(0, 2)).toEqual(["call", "get_window_state"])
+                  expect(JSON.parse(stdin ?? "{}")).toMatchObject({
+                    pid: 42,
+                    window_id: 99,
+                    session: "oc-ses_cua_image_test",
+                  })
+                  const index = argv.indexOf("--screenshot-out-file")
+                  expect(index).toBeGreaterThan(1)
+                  artifact = argv[index + 1]
+                  expect(artifact).toContain("cua")
+                  await Bun.write(artifact!, bytes)
+                  return {
+                    code: 0,
+                    out: JSON.stringify({
+                      pid: 42,
+                      window_id: 99,
+                      screenshot_width: 4,
+                      screenshot_height: 2,
+                      capture_id: "capture_auto",
+                    }),
+                    err: "",
+                  }
+                }),
+            ),
+          )
+          expect(result.attachments).toHaveLength(1)
+          expect(result.attachments?.[0].dimensions).toEqual({ width: 4, height: 2 })
+          expect(result.metadata.observation).toMatchObject({ capture_id: "capture_auto", window_id: 99 })
+          expect(result.output).toContain("Attached image 4x2 px")
+        },
+      })
+    } finally {
+      if (artifact) await rm(artifact, { force: true })
+    }
   })
 
   test("rejects non-object launch arguments", () => {
@@ -166,6 +248,16 @@ describe("CUA launch arguments", () => {
           cuaBoundClickArgs('{"pid":42,"window_id":99,"capture_id":"capture_1","x":1000,"y":0.5}', "ses_one", history),
         ),
       ).toMatchObject({ x: 2000, y: 1, session: "oc-ses_one", capture_id: "capture_1" })
+      // The 2026-09-12 Go workflow sent only pid + x/y. Fill the current capture
+      // from an image already shown to the model, not from a parent/implicit CLI session.
+      expect(JSON.parse(cuaBoundClickArgs('{"pid":42,"x":1000,"y":0.5}', "ses_one", history))).toMatchObject({
+        x: 2000,
+        y: 1,
+        pid: 42,
+        window_id: 99,
+        capture_id: "capture_1",
+        session: "oc-ses_one",
+      })
       expect(() =>
         cuaBoundClickArgs('{"pid":42,"window_id":100,"capture_id":"capture_1","x":1,"y":0}', "ses_one", history),
       ).toThrow("target differs")
@@ -186,6 +278,25 @@ describe("CUA launch arguments", () => {
       expect(() =>
         cuaBoundClickArgs('{"pid":42,"window_id":99,"capture_id":"capture_1","x":1,"y":0}', "ses_one", consumed),
       ).toThrow("already used")
+      expect(() => cuaBoundClickArgs('{"pid":42,"x":1,"y":0}', "ses_one", consumed)).toThrow("already used")
+      const ambiguous = [
+        {
+          parts: [
+            ...history[0].parts,
+            {
+              type: "tool",
+              tool: "cua",
+              state: {
+                status: "completed",
+                metadata: {
+                  observation: { ...result.metadata.observation, capture_id: "capture_other", window_id: 100 },
+                },
+              },
+            },
+          ],
+        },
+      ] as unknown as Tool.Context["messages"]
+      expect(() => cuaBoundClickArgs('{"pid":42,"x":1,"y":0}', "ses_one", ambiguous)).toThrow("Several windows match")
     } finally {
       await rm(directory, { recursive: true, force: true })
     }

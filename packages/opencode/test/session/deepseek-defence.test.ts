@@ -151,6 +151,45 @@ describe("DeepSeek bug defences — retry flow", () => {
     }), { git: true, config: (url) => providerCfg(url) }),
   )
 
+  it.live("Bug #4: stop with reasoning only — no text, no tool call, no file — is an empty delivery", () =>
+    provideTmpdirServer(({ dir, llm }) => Effect.gen(function* () {
+      const proc = yield* SessionProcessor.Service
+      const session = yield* Session.Service
+      const pvdr = yield* Provider.Service
+
+      // The wire shape measured 2026-09-29T10:56:25Z: 24 905 chars of reasoning,
+      // `content: ""`, zero tool_calls, finish_reason "stop", 54 649 completion tokens.
+      // It used to be recorded as a COMPLETED turn whose reasoning was then replayed
+      // verbatim, so the next attempt continued its own unfinished sentence and stopped
+      // again — the answering machine. Neither earlier guard saw it: `stop` is not
+      // `other`, and reasoning tokens keep the output count non-zero.
+      // The processor retries an empty delivery itself (`Effect.retry(SessionRetry.policy)`
+      // inside process), so queue enough identical replies to exhaust
+      // EMPTY_RESPONSE_MAX_ATTEMPTS — after that the failure surfaces.
+      yield* llm.push(...Array.from({ length: 8 }, () => reply().reason("OK. Emitting the two tool calls now.").stop()))
+
+      const chat = yield* session.create({})
+      const parent = yield* user(chat.id, "Read the file")
+      const msg = yield* assistant(chat.id, parent.id, path.resolve(dir))
+      const mdl = yield* pvdr.getModel(ref.providerID, ref.modelID)
+      const h = yield* proc.create({ assistantMessage: msg, sessionID: chat.id, model: mdl, agentName: "build" })
+
+      // The processor retries an empty delivery itself (`Effect.retry(SessionRetry.policy)`
+      // inside process), with a 2s+4s+8s… backoff — so the OBSERVABLE here is the retry
+      // itself, not the final error: ≥2 provider requests. Without the guard the turn is
+      // accepted after ONE request and ends quietly (that was the answering machine).
+      yield* Effect.exit(
+        h.process({
+          user: { id: parent.id, sessionID: chat.id, role: "user", time: parent.time, agent: parent.agent, model: { providerID: ref.providerID, modelID: ref.modelID } } satisfies MessageV2.User,
+          sessionID: chat.id, model: mdl, agent: agent(), system: [], messages: [{ role: "user", content: "Read the file" }],
+          tools: {},
+        }).pipe(Effect.timeout("6 seconds")),
+      )
+
+      expect(yield* llm.calls).toBeGreaterThan(1)
+    }), { git: true, config: (url) => providerCfg(url) }),
+  )
+
   it.live("Bug #1: unparseable inline content — no false positive", () =>
     provideTmpdirServer(({ dir, llm }) => Effect.gen(function* () {
       const proc = yield* SessionProcessor.Service

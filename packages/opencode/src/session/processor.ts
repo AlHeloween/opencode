@@ -124,6 +124,11 @@ interface ProcessorContext extends Input {
   snapshot: string | undefined
   blocked: boolean
   toolCallEmitted: boolean
+  /** A text PART started this turn. `textBuilder` is reset at `text-end`, so the builder
+   *  alone cannot answer "did this turn deliver anything" at finish-step. */
+  textEmitted: boolean
+  /** A stream-emitted file part (provider image) landed on the assistant message. */
+  fileEmitted: boolean
   needsCompaction: boolean
   currentText: MessageV2.TextPart | undefined
   textBuilder: StringBuilder
@@ -523,6 +528,8 @@ export const layer: Layer.Layer<
         snapshot: initialSnapshot,
         blocked: false,
         toolCallEmitted: false,
+        textEmitted: false,
+        fileEmitted: false,
         needsCompaction: false,
         currentText: undefined,
         textBuilder: new StringBuilder(),
@@ -928,6 +935,7 @@ export const layer: Layer.Layer<
           }
 
           case "file": {
+            ctx.fileEmitted = true
             const fileValue = value as { mediaType?: string; mime?: string; url?: string; filename?: string }
             // Stream-emitted files (provider-generated images) normalise the
             // same way as ingested ones (2026-09-18) — and through the same
@@ -1022,6 +1030,32 @@ export const layer: Layer.Layer<
                   message:
                     `Provider ${ctx.model.providerID}/${ctx.model.id} returned finishReason="other" with 0 output tokens. ` +
                     `This indicates a silent stream disconnect. Retrying automatically.`,
+                }),
+              )
+            }
+            // Level 4: the model thought, announced the calls, and the stream closed with
+            // `stop` — no text, no tool call, no file. Measured on the wire 2026-09-29
+            // (three turns: 17 898 / 34 815 / 24 905 chars of reasoning, content "",
+            // tool_calls 0, finish "stop", 54 649 completion tokens on the last one): the
+            // turn delivered NOTHING, yet it was recorded as complete and its reasoning
+            // replayed verbatim, so the next attempt continued its own unfinished
+            // sentence and stopped again — two answering machines, shorted through our
+            // own transcript. `stop` is not `other`, and the reasoning tokens keep
+            // `usage.tokens.output` non-zero, which is why neither guard above saw it.
+            if (value.finishReason === "stop" && !ctx.textEmitted && !ctx.toolCallEmitted && !ctx.fileEmitted) {
+              log.warn("empty response: finishReason=stop with no text, no tool call and no file — triggering retry", {
+                sessionID: ctx.sessionID,
+                modelID: ctx.model.id,
+                providerID: ctx.model.providerID,
+                inputTokens: usage.tokens.input,
+                reasoningTokens: usage.tokens.reasoning,
+              })
+              return yield* Effect.fail(
+                new MessageV2.EmptyResponseError({
+                  message:
+                    `Provider ${ctx.model.providerID}/${ctx.model.id} ended the step with finishReason="stop" ` +
+                    `without any text, tool call or file (${usage.tokens.reasoning} reasoning tokens). ` +
+                    `The turn delivered nothing. Retrying automatically.`,
                 }),
               )
             }
@@ -1240,6 +1274,7 @@ export const layer: Layer.Layer<
           }
 
           case "text-start":
+            ctx.textEmitted = true
             if (!ctx.firstTokenLogged && ctx.streamStartTime) {
               ctx.firstTokenLogged = true
               log.info("ttfb", {

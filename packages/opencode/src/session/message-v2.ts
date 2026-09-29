@@ -1360,18 +1360,29 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
         role: "assistant",
         parts: [],
       }
+      // Delivered = anything the wire actually carries for this turn: text, a tool call, a
+      // file. A message whose only part is reasoning delivered NOTHING — the vendor ignores
+      // historical reasoning without tool calls — and returning it turns the transcript into
+      // an answering machine: the model reads its own "I announced the calls" as history and
+      // continues that sentence (owner, 2026-09-29: «мы возвращаем эти пустые сообщения
+      // вместо того чтобы их выкидывать»; wire: three turns with content "", tool_calls 0,
+      // finish "stop"). An empty delivery is dropped from the replay.
+      let delivered = false
       for (const part of msg.parts) {
-        if (part.type === "text")
+        if (part.type === "text") {
+          if (part.text.trim().length > 0) delivered = true
           assistantMessage.parts.push({
             type: "text",
             text: part.text,
             ...(differentModel ? {} : { providerMetadata: part.metadata }),
           })
+        }
         if (part.type === "step-start")
           assistantMessage.parts.push({
             type: "step-start",
           })
         if (part.type === "tool") {
+          delivered = true
           const toolName = canonicalName(part.tool)
           toolNames.add(toolName)
           if (part.state.status === "completed") {
@@ -1516,6 +1527,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
           })
         }
         if (part.type === "file") {
+          delivered = true
           assistantMessage.parts.push({
             type: "file",
             url: part.url,
@@ -1524,7 +1536,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
           })
         }
       }
-      if (assistantMessage.parts.length > 0) {
+      if (assistantMessage.parts.length > 0 && delivered) {
         result.push(assistantMessage)
         cache.set(cacheKey, assistantMessage)
         evictIfFull()

@@ -1399,7 +1399,13 @@ describe("session.message-v2.toModelMessage", () => {
     expect(content.some((p) => p.type === "reasoning" && p.text === "plan before call")).toBe(true)
   })
 
-  test("keeps a reasoning-only assistant message instead of dropping it (2026-09-29 directive)", async () => {
+  test("DROPS a reasoning-only assistant message — an empty delivery is not history (2026-09-29)", async () => {
+    // Owner 2026-09-29: «мы возвращаем эти пустые сообщения вместо того чтобы их выкидывать».
+    // Wire evidence that day: three turns ended with content "", tool_calls 0,
+    // finish_reason "stop" (17 898 / 34 815 / 24 905 chars of reasoning). They delivered
+    // nothing, and returning them taught the model that announcing the calls WAS finishing —
+    // the next attempt continued its own unfinished sentence and stopped again. The vendor
+    // ignores historical reasoning without tool calls, so the drop costs nothing.
     const assistantID = "m-assistant"
     const input: MessageV2.WithParts[] = [
       {
@@ -1412,11 +1418,7 @@ describe("session.message-v2.toModelMessage", () => {
     ]
 
     const result = await MessageV2.toModelMessages(input, model)
-    const assistant = result.find((m) => m.role === "assistant")
-    const content = Array.isArray(assistant?.content)
-      ? (assistant.content as Array<{ type?: string; text?: string }>)
-      : []
-    expect(content.some((p) => p.type === "reasoning" && p.text === "only process")).toBe(true)
+    expect(result.some((m) => m.role === "assistant")).toBe(false)
   })
 
   test("strips flood reminder blocks from replayed tool outputs, keeps gated-workflow brief", async () => {

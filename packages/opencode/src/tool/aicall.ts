@@ -158,8 +158,23 @@ export const AiCallTool = Tool.define(
 
           // Direct LLM call — no session, no system prompt, no tools.
           // This is a prose-only, isolated cognition accelerator.
-          const language = yield* provider.getLanguage(model)
           const envelope = requestEnvelope(model, userText)
+          // 2026-09-29: resolution failure surfaces the same way a request failure does. `getModel`
+          // above throws ProviderModelNotFoundError on its own, but `getLanguage` can fail for a model
+          // the registry lists with a status the provider layer rejects — the catalog shows
+          // nemotron-3-ultra-free as "pending" — and that path had the same opaque shape. The cause is
+          // not carried here (orElseSucceed drops it), so the output names the SITE and the log is the
+          // next instrument; a message that says where is worth more than one that says "error".
+          const language = yield* provider.getLanguage(model).pipe(Effect.orElseSucceed(() => undefined))
+          if (!language) {
+            return {
+              title: `aicall FAILED (language model): ${model.providerID}/${model.id}`,
+              metadata: {
+                model: { providerID: model.providerID, modelID: model.id },
+              },
+              output: `${envelope}\n\nAICALL FAILED (language model): provider.getLanguage returned no model for ${model.providerID}/${model.id}; the cause was not carried by this path — read the provider log and the registry entry.`,
+            }
+          }
           // 2026-09-29: the call reports ITS OWN failure. A rejected provider request used to fall
           // into the enclosing Effect and surface as the generic "An error occurred in
           // Effect.tryPromise" — which is how a model that WORKS (nemotron-3-ultra-free, verified

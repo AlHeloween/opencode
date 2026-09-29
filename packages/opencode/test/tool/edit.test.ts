@@ -535,6 +535,48 @@ describe("tool.edit", () => {
   })
 
   describe("fuzzy matching", () => {
+    test("a whitespace-erased match replaces WHOLE lines, never a mid-line span", async () => {
+      // Measured 2026-09-29 on read.ts:448. The find's last line was a phantom
+      // (`output += \`\n\n\`` — the model's guess at the text, not the text), so every
+      // exact and line-based replacer failed and the whitespace-erased Hamming fallback
+      // took it. That fallback yielded a span cut to the first and last NON-SPACE
+      // characters, the rest of the line survived the replacement and was spliced after
+      // the new text: the file lost the opening `<` of the reminder tag and gained a
+      // duplicated tail, while the edit reported success. The fixture is that edit.
+      await using tmp = await tmpdir()
+      const filepath = path.join(tmp.path, "file.txt")
+      const block = [
+        "        const reminder =",
+        "          `Gated workflow: State→SV→Plan→Implement→Oracle→Clean. ` +",
+        "          `Continue from your last gate. ` +",
+        "          `sessionread the file if a rule is needed.`",
+      ]
+      const sealed = "        output += `\\n\\n<system-reminder>${sealUserText(reminder, Date.now())}</system-reminder>`"
+      const original = [...block, sealed, "      }", ""].join("\r\n")
+      await fs.writeFile(filepath, original, "utf-8")
+
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const edit = await resolve()
+          await Effect.runPromise(
+            edit.execute(
+              {
+                filePath: filepath,
+                oldString: [...block, "        output += `\\n\\n`"].join("\n"),
+                newString: [...block, sealed].join("\n"),
+              },
+              ctx,
+            ),
+          )
+
+          // Correct outcome for this fixture is the file unchanged: the block the edit
+          // names is the block the file already holds.
+          expect(await fs.readFile(filepath, "utf-8")).toBe(original)
+        },
+      })
+    })
+
     test("matches curly quotes as straight quotes via unicode normalization", async () => {
       await using tmp = await tmpdir()
       const filepath = path.join(tmp.path, "file.txt")

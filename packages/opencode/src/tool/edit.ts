@@ -523,11 +523,25 @@ export const BlockAnchorReplacer: Replacer = function* (content, find) {
     const { stripped: strippedSearch } = mapAndStripWhitespace(find)
     const hamming = slidingHammingBest(strippedContent, strippedSearch, 1)
     if (hamming && hamming.dist === 1) {
-      const contentIdx = mapAndStripWhitespace(content)
-      const searchIdx = mapAndStripWhitespace(find)
-      const start = contentIdx.indexMap[hamming.pos]
-      const end = contentIdx.indexMap[hamming.pos + strippedSearch.length - 1] + 1
-      if (start !== undefined && end !== undefined) yield content.substring(start, end)
+      const { indexMap } = mapAndStripWhitespace(content)
+      const first = indexMap[hamming.pos]
+      const last = indexMap[hamming.pos + strippedSearch.length - 1]
+      // The comparison ran with ALL whitespace removed, so it can say which CHARACTERS
+      // matched — never where their lines begin or end. A span cut to the first and last
+      // non-space character therefore lands mid-line, and the rest of that line survives
+      // the replacement, spliced after the new text (measured 2026-09-29: read.ts:448 lost
+      // the opening `<` of a reminder tag and gained a duplicated tail, while the edit
+      // reported success). What the match justifies is WHOLE LINES, nothing narrower.
+      if (first !== undefined && last !== undefined) {
+        const start = content.lastIndexOf("\n", first - 1) + 1
+        const lineBreak = content.indexOf("\n", last + 1)
+        // The terminator stays OUTSIDE the span: a whole-lines span owns the text of the
+        // lines, while the carriage return and newline still belong to the file — keep them
+        // and a CRLF file loses the `\r` of its last replaced line.
+        const lineEnd =
+          lineBreak === -1 ? content.length : content[lineBreak - 1] === "\r" ? lineBreak - 1 : lineBreak
+        yield content.substring(start, lineEnd)
+      }
     }
     return
   }

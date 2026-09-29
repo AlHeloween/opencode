@@ -1,4 +1,4 @@
-import { afterAll, afterEach, describe, test, expect } from "bun:test"
+import { afterAll, afterEach, describe, setDefaultTimeout, test, expect } from "bun:test"
 import path from "path"
 import fs from "fs/promises"
 import { Effect, Layer, ManagedRuntime } from "effect"
@@ -14,6 +14,10 @@ import { BusEvent } from "../../src/bus/bus-event"
 import { Truncate } from "@/tool/truncate"
 import { SessionID, MessageID } from "../../src/session/schema"
 import { Global } from "@opencode-ai/core/global"
+
+// Loaded-machine budget — each case boots the LSP/format stack. Measured 2026-09-29:
+// «creates backup on successful edit» past the 5 s default in a 10-file run, green alone.
+setDefaultTimeout(30_000)
 
 const ctx = {
   sessionID: SessionID.make("ses_test-edit-session"),

@@ -23,7 +23,7 @@ Also do not confuse with:
 
 | Concept | Not the same as sidecars |
 |---------|---------------------------|
-| Built-in agent tools (`read`, `write`, `edit`, `apply_patch`, `bash`, `universalsearch`, …) | Implemented in `packages/opencode/src/tool/` — no `tools/*.exe`. Descriptions: `src/tool/*.txt` (aligned with reasoning gates / REUSE / InfoMark). |
+| Built-in agent tools (`read`, `write`, `edit`, `applypatch`, `bash`, `universalsearch`, …) | Implemented in `packages/opencode/src/tool/` — no `tools/*.exe`. Descriptions: `src/tool/*.txt` (aligned with reasoning gates / REUSE / InfoMark). |
 | Skills (host skill trees, often from ADID install) | Markdown workflows runtime-loaded per worktree — **not** kernel SPECS; update with ADID/host package |
 | Formatters / LSPs | Resolved via `which` or download into `cache/bin` |
 
@@ -72,11 +72,11 @@ Typical contents of repo-root `tools/` and stable portable copies (`bin_tst/…-
 
 | File | Purpose | Runtime coupling | Linux / cross-OS |
 |------|---------|------------------|------------------|
-| **`fossil.exe`** | Fossil SCM for agent undo / “Modified Files” | **Hard** — snapshot + `fossil_grep` | Required equivalent; see §4.1 |
+| **`fossil.exe`** | Fossil SCM for agent undo / “Modified Files” | **Hard** — snapshot + `fossilgrep` | Required equivalent; see §4.1 |
 | **`rg.exe`** | Ripgrep | Soft — PATH / tools / auto-download | Optional offline; §4.2 |
 | **`fd.exe`** | Fast file finder | Soft — agent/skills may invoke `fd` | Optional on PATH |
 | **`grep.exe`**, **`sed.exe`** | Windows ports of Unix utils | Soft — shell only | Skip on Linux |
-| **`apply_patch.exe`** | Legacy external patch CLI | **None** for model tool | Skip — in-process `apply_patch` tool |
+| **`applypatch.exe`** | Legacy external patch CLI | **None** for model tool | Skip — in-process `applypatch` tool |
 | **`opencode-markdownify.exe`** | Doc→markdown native fallback | Soft — WASM preferred | Ship OS-native binary or rely on WASM |
 | **`cmd_runner.exe`** | Interactive terminal automation | Skills / bash notes on Windows | Skip on Linux (real `bash` tool) |
 | **`adm.exe`**, **`adm-rag.exe`** | ADID update manager / RAG | Skills (`adm-exe`, `rag`, `patch-tool`) | Linux ADM or `python -m adm` |
@@ -230,11 +230,11 @@ Built by Zig via `packages/opentui/packages/core` (`bun run build`). Embedded in
 
 ---
 
-### 4.6 apply_patch (model tool)
+### 4.6 applypatch (model tool)
 
 **Code:** `packages/opencode/src/tool/applypatch.ts` + `packages/opencode/src/patch/`
 
-Does **not** execute `tools/apply_patch.exe`. The Windows `apply_patch.exe` in `tools/` is legacy/extra and must not be treated as a deploy dependency.
+Does **not** execute `tools/applypatch.exe`. The Windows `applypatch.exe` in `tools/` is legacy/extra and must not be treated as a deploy dependency.
 
 ---
 
@@ -361,7 +361,7 @@ ls -la "$OUT/tools"
 |------|-----|
 | Entire `tools/*.exe` tree as-is | Wrong architecture / PE format |
 | `cmd_runner.exe` | Windows interactive automation |
-| `apply_patch.exe` | Unused by model tool |
+| `applypatch.exe` | Unused by model tool |
 | `grep.exe`, `sed.exe` | System packages on Unix |
 | `init_msvc*`, `init_delphi*`, `build_delphi*` | Windows toolchains |
 | `dxcompiler.dll`, `dxil.dll` | Windows DXC |
@@ -491,7 +491,7 @@ fossil version || /opt/opencode/tools/fossil.exe version
 | Ripgrep | `packages/opencode/src/file/ripgrep.ts` |
 | Markdownify | `packages/opencode/src/util/markdownify.ts` |
 | CodeGraph init | `packages/opencode/src/project/bootstrap.ts` |
-| apply_patch tool | `packages/opencode/src/tool/applypatch.ts` |
+| applypatch tool | `packages/opencode/src/tool/applypatch.ts` |
 | OpenTUI native select | `packages/opentui/packages/core/src/zig.ts` |
 | Compile targets | `packages/opencode/script/build.ts` |
 | Windows package stage | `_build.ps1`, `build.py` |
@@ -505,5 +505,5 @@ fossil version || /opt/opencode/tools/fossil.exe version
 1. **Ship OS-native sidecars** under `{exeDir}/tools/` (and a few siblings of `opencode`).  
 2. **Fossil is the one hard sidecar** for this fork’s snapshot UX; on Linux use PATH or `tools/fossil.exe` symlink.  
 3. **Ripgrep self-heals** with network; pre-ship for offline.  
-4. **Do not ship** Windows PE tools, cmd_runner, apply_patch.exe, DXC, or Delphi scripts to Linux.  
+4. **Do not ship** Windows PE tools, cmd_runner, applypatch.exe, DXC, or Delphi scripts to Linux.  
 5. **LLM tools** (`.opencode/tool/*.ts`) and **in-process** agent tools are separate from the `tools/` binary directory.

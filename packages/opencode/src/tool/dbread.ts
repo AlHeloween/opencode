@@ -171,5 +171,4 @@ export const DbReadTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
-  "dbread",
 )

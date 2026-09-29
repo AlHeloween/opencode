@@ -1539,7 +1539,7 @@ export const layer = Layer.effect(
         let pendingSummaryResponse = false
         /** Epistemic floor of the current turn's evidence chain.
           * Starts at Inferred (model memory), upgraded to Exact
-          * only after session-read.  Resets each turn. */
+          * only after sessionread.  Resets each turn. */
         let evidenceFloor: import("../session/constitution").InfoMark = "Inferred"
         let titleRequested = false
         const session = yield* sessions.get(sessionID)

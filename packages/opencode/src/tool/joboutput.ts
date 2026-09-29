@@ -45,7 +45,6 @@ export const JobOutputTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
-  "job_output",
 )
 
 export const JobWaitParameters = Schema.Struct({
@@ -132,5 +131,4 @@ export const JobWaitTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
-  "job_wait",
 )

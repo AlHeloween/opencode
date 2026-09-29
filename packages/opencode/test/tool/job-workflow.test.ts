@@ -1,11 +1,11 @@
 /**
  * End-to-end tests for the full background job workflow:
- *   bash (background) → job_output → job_wait → stalled detection → jobkill / jobreset
+ *   bash (background) → joboutput → jobwait → stalled detection → jobkill / jobreset
  *
  * Validates:
  *   - Commands run non-blocking by default
- *   - job_output returns incremental output + status WHILE the job runs (streaming)
- *   - job_wait polls until terminal state
+ *   - joboutput returns incremental output + status WHILE the job runs (streaming)
+ *   - jobwait polls until terminal state
  *   - Stalled detection fires after 15s no output
  *   - jobreset re-arms a running job's stall deadline; no-op on terminal jobs
  *   - jobkill transitions running/stalled → killed

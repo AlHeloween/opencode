@@ -88,7 +88,7 @@ G1 GROUND → G2 DECOMPOSE → G3 MASTER_PLAN + claim_ledger
 ```
 
 - **Gate 4:** literal approval; zero mutators in that turn.  
-- **Gate 7:** edit/write/apply_patch may be **blocked** if active `premises_for_plan` ⊈ G.  
+- **Gate 7:** edit/write/applypatch may be **blocked** if active `premises_for_plan` ⊈ G.  
 - **Gate 8:** only declared oracles; PASS → Exact (scoped) with system stamp.  
 - Fractal lattice → k-medoids only (no Mode-1 linear shortcut) for multi-step work.
 
@@ -150,9 +150,9 @@ Ingest on assistant text-end (`processor.ts`); gate on tool execute (`tools.ts`)
 |------|----------|--------------|
 | Structure | `codegraph` | SEARCH.ORDER first |
 | Prior art | `universalsearch` web/code | REUSE.BEFORE |
-| Memory | `messagesearch` / `session-read` | Inferred snippets / Exact archive |
+| Memory | `messagesearch` / `sessionread` | Inferred snippets / Exact archive |
 | Cognition assist | `aicall` | Inferred draft only; attach files; then edit + oracle |
-| Mutation | `edit` / `write` / `apply_patch` / `multiedit` | Grounding gate + Gate 8 before Done |
+| Mutation | `edit` / `write` / `applypatch` / `multiedit` | Grounding gate + Gate 8 before Done |
 | Jobs / oracles | `bash` (+ joboutput) | EXECUTE_TEST vs MODIFY; PASS scoped |
 
 Descriptions live next to tools (`src/tool/*.txt`) — same pattern as host skills:

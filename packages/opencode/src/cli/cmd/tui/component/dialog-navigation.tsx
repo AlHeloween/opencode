@@ -95,7 +95,7 @@ const TOOL_DEFAULTS: Record<string, PolicyAction> = {
   doom_loop: "ask",
   webfetch: "allow",
   messagesearch: "allow",
-  "session-read": "allow",
+  sessionread: "allow",
 }
 
 /** Tool policies shown in /permissions — persisted via config.permission. */
@@ -162,7 +162,7 @@ const TOOL_POLICIES: {
   { key: "doom_loop", label: "Doom loop", hint: "Continue after repeated tool failures", section: "Tools" },
   { key: "webfetch", label: "Web fetch", hint: "Outbound HTTP", section: "Tools" },
   { key: "messagesearch", label: "Message search", hint: "Inferred history search", section: "Tools" },
-  { key: "session-read", label: "Session read", hint: "Exact archive by message ID", section: "Tools" },
+  { key: "sessionread", label: "Session read", hint: "Exact archive by message ID", section: "Tools" },
 ]
 
 type NavRow =

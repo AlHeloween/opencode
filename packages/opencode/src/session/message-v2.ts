@@ -1855,7 +1855,7 @@ export function filterCompacted(msgs: Iterable<WithParts>) {
 
 /**
  * Model-visible messages only (soft-hidden archive excluded at SQL level).
- * Does NOT load compacted lifetime rows — use get() / session-read for Exact recovery.
+ * Does NOT load compacted lifetime rows — use get() / sessionread for Exact recovery.
  */
 export const filterCompactedEffect = Effect.fnUntraced(function* (sessionID: SessionID) {
   const t0 = typeof performance !== "undefined" ? performance.now() : 0

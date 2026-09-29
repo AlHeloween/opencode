@@ -129,5 +129,4 @@ export const ImageRenderTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
-  "imagerender",
 )

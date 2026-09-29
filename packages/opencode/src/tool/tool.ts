@@ -166,6 +166,11 @@ export function define<
   if (!id || id !== canonicalName(id)) {
     throw new Error(`Tool runtime ID "${id}" must use lowercase ASCII alphanumerics`)
   }
+  // One identity per tool: a policy that is not the canonical form is a second name for the
+  // same thing — the deny key the model cannot tell apart dies silently (2026-09-28 finding).
+  if (!policy || policy !== canonicalName(policy)) {
+    throw new Error(`Tool policy "${policy}" must use lowercase ASCII alphanumerics (or default to the id)`)
+  }
   return Object.assign(
     Effect.gen(function* () {
       const resolved = yield* init

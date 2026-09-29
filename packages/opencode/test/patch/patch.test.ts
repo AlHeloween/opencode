@@ -88,18 +88,14 @@ describe("Patch namespace", () => {
   })
 
   describe("maybeParseApplyPatch", () => {
-    test("should parse direct apply_patch command", () => {
+    test("should reject the legacy apply_patch spelling", () => {
       const patchText = `*** Begin Patch
 *** Add File: test.txt
 +Content
 *** End Patch`
 
       const result = Patch.maybeParseApplyPatch(["apply_patch", patchText])
-      expect(result.type).toBe(Patch.MaybeApplyPatch.Body)
-      if (result.type === Patch.MaybeApplyPatch.Body) {
-        expect(result.args.patch).toBe(patchText)
-        expect(result.args.hunks).toHaveLength(1)
-      }
+      expect(result.type).toBe(Patch.MaybeApplyPatch.NotApplyPatch)
     })
 
     test("should parse applypatch command", () => {
@@ -110,10 +106,14 @@ describe("Patch namespace", () => {
 
       const result = Patch.maybeParseApplyPatch(["applypatch", patchText])
       expect(result.type).toBe(Patch.MaybeApplyPatch.Body)
+      if (result.type === Patch.MaybeApplyPatch.Body) {
+        expect(result.args.patch).toBe(patchText)
+        expect(result.args.hunks).toHaveLength(1)
+      }
     })
 
     test("should handle bash heredoc format", () => {
-      const script = `apply_patch <<'PATCH'
+      const script = `applypatch <<'PATCH'
 *** Begin Patch
 *** Add File: test.txt
 +Content

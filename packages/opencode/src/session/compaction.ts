@@ -60,7 +60,7 @@ export const RECENT_TAIL_TOKENS = 32_768
  * snippets + impact + plan_state + Exact links, exactly the bytes
  * buildMessageStar injects. Body-only counting was a budget cheat: 76K of
  * bodies rendered into 237K of m* (2026-08-29, Alexander: "32k имелось ввиду
- * с дифами... сделай кэп на 16к"). Older summaries are session-read only.
+ * с дифами... сделай кэп на 16к"). Older summaries are sessionread only.
  */
 export const MAX_SUMMARY_BODY_TOKENS = 16_384
 
@@ -1519,7 +1519,7 @@ export function mechanicalSummaryBody(input: {
       : owed.slice(0, 5).map((o) => `${o.plan} → ${o.task.title ?? o.task.id}`).join("; "),
     "",
     "## Critical Context",
-    `Read the range with session-read(${rows[0]?.id ?? "<from>"}..${rows[rows.length - 1]?.id ?? "<to>"}); the worktree diff lives in the row's diffs column, the code graph in the impact column. Answers older than this row are in earlier rows, and each one names its own message ids.`,
+    `Read the range with sessionread(${rows[0]?.id ?? "<from>"}..${rows[rows.length - 1]?.id ?? "<to>"}); the worktree diff lives in the row's diffs column, the code graph in the impact column. Answers older than this row are in earlier rows, and each one names its own message ids.`,
     "",
     "## Relevant Files",
     input.diffs.length === 0
@@ -2016,11 +2016,11 @@ export function buildMessageStar(input: {
     * сборки»), so the state that says where the work stands has to ride the head itself. */
   planState?: PlanStatePayload
   /** 1-based global offset of the first recent message in the session.
-    * Used to render `#N` positions so the model can call session-read
+    * Used to render `#N` positions so the model can call sessionread
     * with an exact offset directly, without messagesearch indirection. */
   recentStartOffset?: number
   between?: { excluded: string[]; unrepresented: number }
-  /** Prior message* ID — chain link for recovering older summaries via session-read. */
+  /** Prior message* ID — chain link for recovering older summaries via sessionread. */
   priorMessageStarId?: string
   /** 1-based position of a message id — the same walk the tail's `#N` uses. */
   positionOf?: (id: string) => number | undefined
@@ -2082,7 +2082,7 @@ export function buildMessageStar(input: {
 
   // Passive links + ranks; ONE recovery pointer at the very end (2026-08-25,
   // Alexander): earlier "Fast recovery / use these tools" recipes sat at the
-  // TOP and pushed models into session-read/dbread spirals instead of work.
+  // TOP and pushed models into sessionread/dbread spirals instead of work.
   // A single closing line keeps the archive reachable without framing m* as
   // a recovery manual.
   const recoveryLine =
@@ -2250,7 +2250,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
      * - Never deletes messages (soft-hide via info.compacted).
      * - message* is the only visible memory afterward; growth continues as
      *   (m*, s, m, m, …) and compact runs again when overflowed.
-     * - Summaries always carry session-read message ID links.
+     * - Summaries always carry sessionread message ID links.
      */
     const compact = (input: {
       sessionID: SessionID
@@ -2311,7 +2311,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         }
 
         // Find the prior message* (if any) — it becomes the "Prior message*"
-        // chain-link pointer of the new star (older stars stay session-read
+        // chain-link pointer of the new star (older stars stay sessionread
         // addressable; the pointer is metadata, never folded content).
         const priorMsgStarIdx = (() => {
           for (let i = msgs.length - 1; i >= 0; i--) {
@@ -2404,7 +2404,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         // FULL RENDERED block — body + diff snippets + plan_state + links,
         // the exact bytes buildMessageStar injects. Body-only counting was a
         // budget cheat (76K bodies → 237K render, 2026-08-29). Oldest
-        // summaries drop first — session-read only.
+        // summaries drop first — sessionread only.
         // 1-based positions of our OWN messages: one walk, shared by the
         // summary blocks' from#/to# and by the tail's `#N`, so the two halves of
         // m* can be compared. The cap below renders through the SAME lookup, so
@@ -2480,7 +2480,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         // Prior m* decisions are NOT pulled forward — each m* owns its own decisions.
 
         // Compute 1-based global offset of the first recent message
-        // so the messageStar can render #N positions for session-read.
+        // so the messageStar can render #N positions for sessionread.
         let recentStartOffset: number | undefined
         if (recent.length > 0) {
           const firstRecentId = recent[0].info.id
@@ -2538,11 +2538,11 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         })
 
         // Soft-hide every currently visible message (DB retained for
-        // session-read). The new m* carries [summaries ≤32K tokens, last ≤32K
+        // sessionread). The new m* carries [summaries ≤32K tokens, last ≤32K
         // tokens of real messages]; older real messages stay in the archive —
         // they re-enter the tail on a future compact once the budget frees,
         // and the Prior message* chain link keeps every prior star
-        // session-read addressable (undo restores the exact window per m*).
+        // sessionread addressable (undo restores the exact window per m*).
         let compacted = 0
         for (const m of visible) {
           m.info.compacted = true

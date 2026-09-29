@@ -1821,7 +1821,7 @@ describe("session.compaction.compact", () => {
         // the prior star position).
         expect(combined).toContain("covers pre-star history")
         expect(combined).toContain("covers post-star work")
-        // Chain link present (session-read hook).
+        // Chain link present (sessionread hook).
         expect(combined).toContain("Prior message*")
         // Exactly one COMPACTED header — prior star is NOT embedded as a block.
         expect(combined.split("=== COMPACTED ===").length - 1).toBe(1)
@@ -2729,7 +2729,7 @@ describe("session.compaction.edge-cases", () => {
         yield* ssn.updatePart({ id: PartID.ascending(), messageID: normal.id, sessionID: info.id, type: "text", text: "post-star-work" })
 
         // No new summary in this window → tail-only fold: the growth message
-        // becomes m*2; star1 goes session-read only (recoverable via the
+        // becomes m*2; star1 goes sessionread only (recoverable via the
         // m* chain link).
         const second = yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })
         expect(second.folded).toBe(true)
@@ -2782,7 +2782,7 @@ describe("session.compaction.key-decisions", () => {
             "",
             "## Key decisions",
             "- Use Fossil for snapshot backend only",
-            "- Keep session-read as Exact ground truth",
+            "- Keep sessionread as Exact ground truth",
             "",
             "## Current state",
             "Implementation in progress",
@@ -2810,7 +2810,7 @@ describe("session.compaction.key-decisions", () => {
         expect(combined).toContain("Decisions (preserved verbatim across compaction cycles)")
         expect(combined).toContain("info_mark: Inferred — not re-summarized")
         expect(combined).toContain("Use Fossil for snapshot backend only")
-        expect(combined).toContain("Keep session-read as Exact ground truth")
+        expect(combined).toContain("Keep sessionread as Exact ground truth")
         // Original section still present inside the summary block as well
         expect(combined).toContain("## Key decisions")
       }),

@@ -136,5 +136,4 @@ export const FossilGrepTool = Tool.define(
         }),
     }
   }),
-  "fossil_grep",
 )

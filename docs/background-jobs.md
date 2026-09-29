@@ -29,7 +29,7 @@ Synchronous execution is opt-in: `run_in_background: false` for quick commands l
 │       │  └─ complete → status: "done" / "failed"            │
 │       │                                                     │
 │  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐    │
-│  │ job_output│ │ job_wait  │ │ job_kill  │ │ job_reset │    │
+│  │ joboutput │ │ jobwait   │ │ jobkill   │ │ jobreset  │    │
 │  │ output +  │ │ poll until│ │ kill the  │ │ re-arm    │    │
 │  │ status    │ │ terminal  │ │ job tree  │ │ deadline  │    │
 │  └───────────┘ └───────────┘ └───────────┘ └───────────┘    │
@@ -71,7 +71,7 @@ Synchronous execution is opt-in: `run_in_background: false` for quick commands l
                    │  stalled   │  remaining seconds, `jobreset` hint.
                    └────┬──────┘  jobreset → running (fresh window);
                         │         no reset → auto-kill at stall deadline.
-              Agent calls job_kill
+              Agent calls jobkill
                         │
         ┌───────────────┼───────────────┐
         │               │               │
@@ -105,7 +105,7 @@ Two supporting fixes this depends on:
   (measured 2026-09-18: bash-6/8/9 killed at +2m01–2m04s with `[started]`-only
   output). Durable writes + TUI publishes are throttled to ≥500ms. The first
   chunk strips the `[started]` banner and resets the read offset, so incremental
-  `job_output` reads see the stream even if the agent already read the banner.
+  `joboutput` reads see the stream even if the agent already read the banner.
 - **Tree kill:** the job's root pid is attached at spawn (`self.setPid`) and the
   kill path runs `taskkill /T /F` **before** `proc.kill()` — a dead root has no
   tree left to walk, which is how a "killed" build kept running as an orphan
@@ -149,8 +149,8 @@ window would never match (measured 2026-09-18: raw ticks → delta −28 799 352
 exactly −8 h; converted → 520 ms). A guard that silently never fires is the failure
 mode this pins. The probe is **fail-safe**: unreadable ⇒ do not kill.
 
-**Zombie sweep (`job_kill` on a `killed` job).** A kill that failed to reap its tree
-leaves status `killed` with the process alive (the `bash-9` incident). Calling `job_kill`
+**Zombie sweep (`jobkill` on a `killed` job).** A kill that failed to reap its tree
+leaves status `killed` with the process alive (the `bash-9` incident). Calling `jobkill`
 again on a `killed` job re-attempts the tree kill — but only when the recorded pid still
 passes the guard; otherwise `killed: false` + a warn, and the terminal status is
 preserved. `done`/`failed` stay a plain no-op.
@@ -167,20 +167,20 @@ not merely to "some kill happened".
 | Tool | Purpose | Parameters |
 |------|---------|------------|
 | `bash` / `cmd` | Execute command (background by default) | `command`, `description`, `timeout`, `workdir`, `run_in_background` |
-| `job_output` | Read incremental output + status of a job. Optional `pattern` (regex) filters the **full** accumulated output and does **not** advance the read offset (multi-grep). | `job_id`, optional `pattern` |
-| `job_wait` | Poll until job(s) reach terminal state | `job_ids?`, `timeout?` (default 30s) |
-| `job_kill` | Kill a running or stalled job; on a `killed` job re-attempts a **guarded** tree kill (zombie sweep) | `job_id` |
-| `job_reset` | Re-arm the stall deadline of a running/stalled job (keeps it running; does not touch output/result) | `job_id` |
+| `joboutput` | Read incremental output + status of a job. Optional `pattern` (regex) filters the **full** accumulated output and does **not** advance the read offset (multi-grep). | `job_id`, optional `pattern` |
+| `jobwait` | Poll until job(s) reach terminal state | `job_ids?`, `timeout?` (default 30s) |
+| `jobkill` | Kill a running or stalled job; on a `killed` job re-attempts a **guarded** tree kill (zombie sweep) | `job_id` |
+| `jobreset` | Re-arm the stall deadline of a running/stalled job (keeps it running; does not touch output/result) | `job_id` |
 
 ## Status Values
 
 | Status | Meaning | Agent action |
 |--------|---------|-------------|
-| `running` | Job is executing, producing output | Poll `job_output`, check output |
-| `stalled` | No output for 15s — may be hung, may be a silent long job | ⚠ notice names cpu + deadline; `job_reset` to extend, `job_kill` to abort. Auto-killed if neither |
-| `done` | Completed successfully | Read final output with `job_output` |
+| `running` | Job is executing, producing output | Poll `joboutput`, check output |
+| `stalled` | No output for 15s — may be hung, may be a silent long job | ⚠ notice names cpu + deadline; `jobreset` to extend, `jobkill` to abort. Auto-killed if neither |
+| `done` | Completed successfully | Read final output with `joboutput` |
 | `failed` | Threw an error | Check error in output, decide next step |
-| `killed` | Aborted by agent or crash recovery. Calling `job_kill` again re-attempts a **guarded** tree kill (zombie sweep) | Output up to kill point is preserved |
+| `killed` | Aborted by agent or crash recovery. Calling `jobkill` again re-attempts a **guarded** tree kill (zombie sweep) | Output up to kill point is preserved |
 
 ## Timeout & Safety Nets
 
@@ -190,7 +190,7 @@ not merely to "some kill happened".
 | Drain timeout | 10s per pipe (stdout, stderr) | Pipe drain times out instead of hanging forever |
 | Safety net | `timeout + 5s` | Last-resort scope timeout prevents Effect fiber leak |
 | Stalled detection | 15s no output, checked every 5s | Status → `stalled` + one ⚠ notice (cpu, remaining seconds, `jobreset` hint) |
-| Stall auto-kill | 120s of stall; deadline = `max(lastOutputAt, stallResetAt)` + 120s | Job killed by pid tree (`taskkill /T /F` / `kill(-pid)`); `job_reset` re-arms before the deadline |
+| Stall auto-kill | 120s of stall; deadline = `max(lastOutputAt, stallResetAt)` + 120s | Job killed by pid tree (`taskkill /T /F` / `kill(-pid)`); `jobreset` re-arms before the deadline |
 | Boot recovery | on DB open | A **dead** runtime's rows → `killed` + guarded tree kill; a live runtime's rows are left alone; a reused pid is never killed |
 | Cleanup grace | 10s (was 250ms) | Pending tool calls get time to finish when stream ends |
 
@@ -216,14 +216,14 @@ bash "long-command" --timeout 30000
 
 **Agent** sees:
 - Job ID immediately after starting a command
-- Status + output via `job_output`
-- Completed job summaries via `job_wait` or `<background-jobs>` in prompt
+- Status + output via `joboutput`
+- Completed job summaries via `jobwait` or `<background-jobs>` in prompt
 - Stalled jobs via status change
 - ⚠ stall notices (cpu, deadline, reset hint) in the next turn's `<background-jobs>` block
 
 **User** sees (TUI):
 - Sidebar: live job list with status badges, elapsed time, output preview
-- Chat: JobTool components render `job_output`/`job_kill`/`job_wait` inline with expandable output
+- Chat: JobTool components render `joboutput`/`jobkill`/`jobwait` inline with expandable output
 - Click to expand/collapse job output (last 5 lines shown by default)
 
 ## Permission Flow
@@ -317,9 +317,9 @@ the real result living in the cmd_runner session log:
 | Package | Role |
 |---------|------|
 | `packages/opencode/src/jobs/` | Job state machine, SQLite persistence, Bus events |
-| `packages/opencode/src/tool/jobkill.ts` | LLM-callable kill tool (`job_kill`) |
-| `packages/opencode/src/tool/jobreset.ts` | LLM-callable stall-deadline reset tool (`job_reset`) |
-| `packages/opencode/src/tool/joboutput.ts` | LLM-callable output tool (`job_output`); optional `pattern` regex filters full buffer without advancing read offset |
+| `packages/opencode/src/tool/jobkill.ts` | LLM-callable kill tool (`jobkill`) |
+| `packages/opencode/src/tool/jobreset.ts` | LLM-callable stall-deadline reset tool (`jobreset`) |
+| `packages/opencode/src/tool/joboutput.ts` | LLM-callable output tool (`joboutput`); optional `pattern` regex filters full buffer without advancing read offset |
 | `packages/opencode/src/tool/bash.ts` | Background execution via `Jobs.startEffect` |
 | `packages/opencode/src/tool/cmd.ts` | Same for cmd.exe |
 | `packages/opencode/src/tool/external-directory.ts` | Shared external_directory permission check |

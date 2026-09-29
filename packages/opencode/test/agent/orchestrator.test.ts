@@ -93,7 +93,7 @@ test("orchestrator is coordinator: no shell; plan dirs only; task + explore only
   })
 })
 
-test("orchestrator allows read, glob, grep, list, webfetch, universalsearch, messagesearch, session-read", async () => {
+test("orchestrator allows read, glob, grep, list, webfetch, universalsearch, messagesearch, sessionread", async () => {
   await using tmp = await tmpdir()
   await Instance.provide({
     directory: tmp.path,
@@ -106,7 +106,7 @@ test("orchestrator allows read, glob, grep, list, webfetch, universalsearch, mes
       expect(evalPerm(orch, "webfetch")).toBe("allow")
       expect(evalPerm(orch, "universalsearch")).toBe("allow")
       expect(evalPerm(orch, "messagesearch")).toBe("allow")
-      expect(evalPerm(orch, "session-read")).toBe("allow")
+      expect(evalPerm(orch, "sessionread")).toBe("allow")
     },
   })
 })

@@ -55,7 +55,7 @@ const InputObject = Schema.StructWithRest(
     webfetch: Schema.optional(Action),
     universalsearch: Schema.optional(Action),
     messagesearch: Schema.optional(Action),
-    "session-read": Schema.optional(Action),
+    sessionread: Schema.optional(Action),
     lsp: Schema.optional(Rule),
     doom_loop: Schema.optional(Action),
     skill: Schema.optional(Rule),

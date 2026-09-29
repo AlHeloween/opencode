@@ -89,7 +89,7 @@ Every mechanism here follows from that one choice:
 
 `AGENTS.md` states the invariant this buys in one line:
 
-> Treat summaries as **Inferred handles, not Exact** — recover via session-read /
+> Treat summaries as **Inferred handles, not Exact** — recover via sessionread /
 > fossil / codegraph.
 
 The operative word is *recover*. It is only available because the fold kept the
@@ -268,7 +268,7 @@ top-placed recovery recipes caused tool spirals). Zero summaries (manual
 messages. `m*` is the memory; the visible list after a compact is
 `[m*, m, m, …]`. Rollback reconstructs the content window as `m*` + the
 messages that followed it — the DB keeps every soft-hidden row
-(`compacted=true`, never deleted), reachable via `session-read`.
+(`compacted=true`, never deleted), reachable via `sessionread`.
 ---
 
 ## Continuity is the invariant this file exists to serve (2026-09-19)
@@ -340,7 +340,7 @@ After compact:
 
   content window:
     m* = [ s1, s2, recent m, m, m ]    ← s capped at 32K tokens total
-         └── AI body + system Exact handles (range / session-read locus)
+         └── AI body + system Exact handles (range / sessionread locus)
              + tool filediffs + CodeGraph for that range
              + decisions from CURRENT summaries only (not from prior m*)
 ```
@@ -415,7 +415,7 @@ rows are consumed **only at compact** into `m*`.
 | Piece | Owner | Role |
 |-------|--------|------|
 | AI body | **Inferred** | `## Semantic Vector`, `## Goal`, `## Key decisions`, `## Current state` |
-| System data | **Exact** | range `from_id`/`to_id`, locus for `session-read`, checkpoint id |
+| System data | **Exact** | range `from_id`/`to_id`, locus for `sessionread`, checkpoint id |
 | Tool diffs | **Exact** | snapshot anchor range diff (fossil, revision → working copy) merged with write/edit/multiedit `filediff` — see `summary-exact-handles.md` |
 | CodeGraph | **Exact** | structural impact over those file paths (system, not model) |
 | Plan state | **Exact** | GATED WORKFLOW mirror of active `plans/*.md`: lifecycle, gate, intention, per-task `sv`/status/attempts/last_failure, invariants — kernel-native anchors (see below) |
@@ -648,7 +648,7 @@ so the tail reads in the order it happened. Right flags with a wrong window is
 the one-layer-off oracle the bug policy names; the flags were in fact correct,
 so this converted an Inferred claim to Exact rather than finding a defect.
 
-**Summary cap:** total summary body text in m* is capped at `MAX_SUMMARY_BODY_TOKENS` (16 384 tokens). Older summaries are dropped from m* but remain accessible via `session-read`.
+**Summary cap:** total summary body text in m* is capped at `MAX_SUMMARY_BODY_TOKENS` (16 384 tokens). Older summaries are dropped from m* but remain accessible via `sessionread`.
 
 **Prior m\* decisions:** decisions ride the carried-forward summaries —
 the Decisions block is rebuilt from ALL collected summaries each compact,
@@ -665,7 +665,7 @@ post-star work only, and the session's original task fell out of memory
 entirely (observed live 2026-08-29: archaeology spirals after every
 compact). The star stays bounded (≤32K summaries + ≤32K tail) and remains
 one synthetic row = one atomic undo unit; the `Prior message*: \`id\``
-chain-link pointer keeps every prior star session-read addressable.
+chain-link pointer keeps every prior star sessionread addressable.
 
 **Post-summary checker:** required sections non-empty (`isValidSummaryBody`).
 
@@ -713,7 +713,7 @@ filling. A degenerate window (`usable ≤ 0`) folds only via the pre-send
 force gate — never a silent never-fold.
 
 - Soft-hide prior visible rows (never hard-delete).  
-- Archive remains for `session-read` / `messagesearch`.  
+- Archive remains for `sessionread` / `messagesearch`.  
 - Next growth: `(m*, m, m, …)` then new out-of-band `s` again.
 
 ---

@@ -165,8 +165,8 @@ Oracle: `bun test test/tui/dialog-streamlake-vanchin-state.test.ts` and `bun tes
 │                                                              │
 │  Tools (23 built-in):                                        │
 │    capability, pipeline, task, bash, edit, write, read,      │
-│    glob, grep, list, multiedit, apply_patch, webfetch,       │
-│    universalsearch, messagesearch, session-read,             │
+│    glob, grep, list, multiedit, applypatch, webfetch,       │
+│    universalsearch, messagesearch, sessionread,             │
 │    joboutput, jobwait, jobkill, todowrite, question, skill,  │
 │    lsp, planexit, fossilgrep, codegraph, invalid             │
 └─────────────────────────────────────────────────────────────┘

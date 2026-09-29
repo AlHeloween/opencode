@@ -1504,7 +1504,7 @@ export function guardMutationGrounding(input: { sessionID: string; tool: string 
   const detail = check.ungrounded.map((u) => `${u.id}=${u.status}`).join(", ")
   const message =
     `[grounding gate: BLOCKED ${input.tool}] premises not in G (Exact|Inferred): ${detail}. ` +
-    `Move ungrounded ids to open_questions, or promote via oracle_stamp / session-read / direct evidence ` +
+    `Move ungrounded ids to open_questions, or promote via oracle_stamp / sessionread / direct evidence ` +
     `(system stamp required — model self-[Exact] is rejected).`
   log.warn("constitution.grounding_block", {
     sessionID: input.sessionID,
@@ -1897,7 +1897,7 @@ export function epistemicNudge(input: {
   return (
     `[epistemic nudge: decision based on ${floor} data.${extra} ` +
     `Only Exact|Inferred (system-stamped) may anchor MODIFY. ` +
-    `session-read / oracle_stamp / direct read for Exact verification.]`
+    `sessionread / oracle_stamp / direct read for Exact verification.]`
   )
 }
 

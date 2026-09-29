@@ -27,7 +27,7 @@ software guardrail → re-observe. This keeps prompt changes evidence-led.
 | Entry | User UI selection, or a transition requested by the native Orchestrator for its controlled model. |
 | Available tool | `memory` only: read, write, or append the project's reasoning notes. |
 | Denied capabilities | File inspection, search, shell, edits, subagents, and all execution tools. |
-| Exit | User UI selection, or the native Orchestrator's controlled `reasoning_exit` transition. Ordinary models never receive either transition schema. |
+| Exit | User UI selection, or the native Orchestrator's controlled `reasoningexit` transition. Ordinary models never receive either transition schema. |
 | Steady state | No repeated mode-tail or task-continuation prompt injection. Software permissions enforce the boundary. |
 
 Reasoning memory is stored per project at

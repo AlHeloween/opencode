@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test"
+import { describe, expect, setDefaultTimeout, test } from "bun:test"
 import path from "path"
 import * as fs from "fs/promises"
 import { Effect, ManagedRuntime, Layer } from "effect"
@@ -12,6 +12,10 @@ import { Bus } from "../../src/bus"
 import { Truncate } from "@/tool/truncate"
 import { tmpdir } from "../fixture/fixture"
 import { SessionID, MessageID } from "../../src/session/schema"
+
+// Loaded-machine budget — the whole file boots the LSP/format stack per case. Measured
+// 2026-09-29: five cases past bun's 5 s default in a 10-file run, all green in isolation.
+setDefaultTimeout(30_000)
 
 const runtime = ManagedRuntime.make(
   Layer.mergeAll(

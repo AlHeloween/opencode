@@ -73,7 +73,7 @@ export const SessionReadTool = Tool.define(
       ) =>
         Effect.gen(function* () {
           yield* ctx.ask({
-            permission: "session-read",
+            permission: "sessionread",
             patterns: [params.sessionId],
             always: ["*"],
             metadata: {
@@ -177,5 +177,4 @@ export const SessionReadTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
-  "session-read",
 )

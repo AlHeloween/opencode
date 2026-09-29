@@ -252,9 +252,9 @@ export function maybeParseApplyPatch(
   | { type: MaybeApplyPatch.Body; args: ApplyPatchArgs }
   | { type: MaybeApplyPatch.PatchParseError; error: Error }
   | { type: MaybeApplyPatch.NotApplyPatch } {
-  const APPLY_PATCH_COMMANDS = ["apply_patch", "applypatch"]
+  const APPLY_PATCH_COMMANDS = ["applypatch"]
 
-  // Direct invocation: apply_patch <patch>
+  // Direct invocation: applypatch <patch>
   if (argv.length === 2 && APPLY_PATCH_COMMANDS.includes(argv[0])) {
     try {
       const { hunks } = parsePatch(argv[1])
@@ -273,11 +273,11 @@ export function maybeParseApplyPatch(
     }
   }
 
-  // Bash heredoc form: bash -lc 'apply_patch <<"EOF" ...'
+  // Bash heredoc form: bash -lc 'applypatch <<"EOF" ...'
   if (argv.length === 3 && argv[0] === "bash" && argv[1] === "-lc") {
     // Simple extraction - in real implementation would need proper bash parsing
     const script = argv[2]
-    const heredocMatch = script.match(/apply_patch\s*<<['"](\w+)['"]\s*\n([\s\S]*?)\n\1/)
+    const heredocMatch = script.match(/applypatch\s*<<['"](\w+)['"]\s*\n([\s\S]*?)\n\1/)
 
     if (heredocMatch) {
       const patchContent = heredocMatch[2]
@@ -589,7 +589,7 @@ export async function maybeParseApplyPatchVerified(
   | { type: MaybeApplyPatchVerified.CorrectnessError; error: Error }
   | { type: MaybeApplyPatchVerified.NotApplyPatch }
 > {
-  // Detect implicit patch invocation (raw patch without apply_patch command)
+  // Detect implicit patch invocation (raw patch without applypatch command)
   if (argv.length === 1) {
     try {
       parsePatch(argv[0])

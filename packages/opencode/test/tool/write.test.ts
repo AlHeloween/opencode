@@ -25,7 +25,7 @@ import { testEffect } from "../lib/effect"
  * file — and in a 3-file run those timeouts cascaded into `ERR_STREAM_WRITE_AFTER_END` on tests that
  * ran while a timed-out case still held the LSP stream.
  */
-setDefaultTimeout(20_000)
+setDefaultTimeout(30_000)
 
 const ctx = {
   sessionID: SessionID.make("ses_test-write-session"),

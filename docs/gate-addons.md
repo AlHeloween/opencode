@@ -88,18 +88,18 @@ validated by `validate_identity_addons`, injected into the `### IDENTITY` block 
 for every identity (`session/llm.ts` — «Wire filtering is FORBIDDEN here… breaks the KV
 prefix»), so the rows are the only place an identity can read its real ACL.
 
-The rows are kept honest by a pair, not by discipline:
+The rows are kept honest by the extractor, not by discipline:
 
 | Half | Where | What it does |
 |------|-------|--------------|
 | Extractor | `packages/opencode/script/kernel-tools-manifest.ts` | prints `identity → { allowed, denied }` from the LIVE rulesets (`agent.ts`) via `agentDeniesPolicy` — the agent-scoped half of `SessionTools.denied` (Gate A), evaluated on the tool POLICY (`session/tools.ts:259` calls `denied(item.policy)`, not the id) |
-| Parity test | `packages/opencode/test/agent/kernel-identity-tools.test.ts` | parses section 5 of the installed `reasoning_prompt.txt` and fails when a row drifts from the live ACL; also pins «only build_mode/coder_agent/media_agent mutate without a path scope» and the two 2026-09-28 consistency fixes (`job_kill` dead deny, scoped-open outside the edit family) |
+| Parity test | — removed 2026-09-29 | the runtime is decoupled from the kernel build, so no TS test reads `reasoning_prompt.txt` any more (the old `kernel-identity-tools.test.ts` and `kernel-may-mutate.test.ts` are gone). Rows are regenerated from this extractor; ACL behaviour is proven by `test/agent/agent.test.ts` |
 
 Format: narrow identities list what they may use (`tools: checkstate, memory, reasoningexit.`);
 wide identities list exclusions (`tools: all except planenter, planexit.`). Prose after `;` carries
 path-scoped edit boundaries (`write/edit: plans/ only.`) that `ctx.ask` enforces at execution —
-the parity test compares only the id sets, so a note cannot fail it, and only the ACL keeps a
-note true. **MCP tools are host-configured and not enumerated**: the rows describe the builtin
+the extractor prints only the id sets, so a prose note never appears in its output, and only the
+ACL keeps a note true. **MCP tools are host-configured and not enumerated**: the rows describe the builtin
 catalogue.
 
 Product-only by decision (owner, 2026-09-28: «У claude и codex свои тулы не наши»): the Claude

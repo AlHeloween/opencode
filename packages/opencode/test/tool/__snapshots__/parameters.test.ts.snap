@@ -43,7 +43,7 @@ Output: Creates directory 'foo'"
     },
     "run_in_background": {
       "default": true,
-      "description": "Run the command in the background as a tracked job. Returns immediately with a job ID. Use job_output to read output, job_wait to wait for completion, or jobkill to stop. Default: true (non-blocking). Set to false for quick synchronous commands.",
+      "description": "Run the command in the background as a tracked job. Returns immediately with a job ID. Use joboutput to read output, jobwait to wait for completion, or jobkill to stop. Default: true (non-blocking). Set to false for quick synchronous commands.",
       "type": "boolean",
     },
     "timeout": {

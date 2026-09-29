@@ -99,7 +99,7 @@ type Input = {
    * that accounts for full session context, not just per-turn tokens. */
   contentTokenEstimate?: number
   /** Epistemic floor of the current turn's evidence chain.
-   * Inferred by default; upgraded to Exact after session-read.
+   * Inferred by default; upgraded to Exact after sessionread.
    * Used to inject epistemic nudges before destructive tool calls. */
   evidenceFloor?: import("../session/constitution").InfoMark
   /** Wire messages of the current request (set in process()) — used by

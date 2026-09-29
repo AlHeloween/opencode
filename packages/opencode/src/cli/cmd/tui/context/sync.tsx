@@ -430,7 +430,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       /**
        * Fetch one older page (before the oldest loaded message) into the store.
        * Tracker scroll-up calls this near the top of the transcript; the server
-       * pages model-visible rows only (compacted archive stays session-read).
+       * pages model-visible rows only (compacted archive stays sessionread).
        * Returns true when new rows were prepended.
        */
       async function loadOlderMessages(sessionID: string): Promise<boolean> {

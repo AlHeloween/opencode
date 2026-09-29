@@ -334,7 +334,7 @@ describe("session.constitution", () => {
       expect(n).toBeDefined()
       expect(n).toContain("epistemic nudge")
       expect(n).toContain("Inferred")
-      expect(n).toContain("session-read")
+      expect(n).toContain("sessionread")
     }
   })
 
@@ -369,7 +369,7 @@ describe("session.constitution", () => {
     })
     expect(n).toBeDefined()
     expect(n).toContain("Guess")
-    expect(n).toContain("session-read")
+    expect(n).toContain("sessionread")
   })
 
   test("epistemicNudge: elevated but non-destructive shell skips nudge", () => {
@@ -457,7 +457,7 @@ claim_ledger:
   })
 
   test("evidenceUpgradeForTool maps inspection tools", () => {
-    expect(Constitution.evidenceUpgradeForTool("session-read")).toBe("Exact")
+    expect(Constitution.evidenceUpgradeForTool("sessionread")).toBe("Exact")
     expect(Constitution.evidenceUpgradeForTool("read")).toBe("Exact")
     expect(Constitution.evidenceUpgradeForTool("grep")).toBe("Inferred")
     expect(Constitution.evidenceUpgradeForTool("edit")).toBeUndefined()

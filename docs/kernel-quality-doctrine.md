@@ -299,6 +299,10 @@ Owner relay (head DeepSeek), verbatim:
   options 1–4); the owner rates this reaction highly («такая реакция модели что она выдала опросник
   прямо сходу — стоит очень много»). The seal's `md5` was echoed verbatim into the model's own SV
   field — copy-through, not a loop. Fixation decision: keep the binding as shipped.
+- **LIVE (2026-09-29, build 10.0.1152):** owner observed the sidebar cache line at **100% hit**
+  (`in: 100%(170.3M(790.5k)hit 799k(215)miss)`) — the deterministic seals (message `time.created` /
+  part `time.start`, never wall-clock) preserve the provider prefix cache: the containment field
+  costs zero cache misses, and the earlier two live observations stand together.
 
 **three candidate mechanisms (mutually compatible, not yet separated)**
 1. TOKENIZATION — 32/64 hex splits into junk-token chunks that do not continue the linguistic phrase.

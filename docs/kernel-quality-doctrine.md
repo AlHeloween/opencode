@@ -275,3 +275,49 @@ Each of these was measured on 2026-09-24, and several of them were learned by br
   the project's decisions are not in the text: an outside review called English artifacts and the
   five plan folders "cognitive overload", both of which are the owner's own economy rulings. Hand a
   reviewer the decisions along with the prefix, or expect to triage phantoms.
+
+---
+
+## 8. Hypothesis, not a rule: `md5`/`sha256` as a loop-containment barrier (2026-09-29)
+
+**Status: Hypothetical (no ablation run).** Kept OUT of the kernel on purpose: it is a mechanism
+hypothesis about model behaviour, not a norm, and the kernel takes it only once the ablation below
+separates the three candidate mechanisms. Kernel neighbours it touches, unchanged by this note:
+`@SV_FORMAT.md5` is generated, not computed (the label is not a checksum — this note does not change
+that); `@SIMULATION_ERROR` says to CONTAIN simulation error rather than cure it; `@DISAS` prefers the
+dumb shape — a sampler penalty is the clever one.
+
+Owner relay (head DeepSeek), verbatim:
+
+**observed**
+- Repeated tokens (2-3 words) leak PARTIALLY into the field (e.g. `1f8b3e6xxx1f8b3e6`) but do NOT
+  continue past the next md5 field.
+- Non-md5/sha256 phrases continue normally.
+- Cost: zero. No penalty, no sampler knobs, no per-token tax.
+
+**three candidate mechanisms (mutually compatible, not yet separated)**
+1. TOKENIZATION — 32/64 hex splits into junk-token chunks that do not continue the linguistic phrase.
+   test: bare hex without label → same effect?
+2. ENTROPY — uniform hex → no dominant next-token → no loop peak.
+   test: random base64/UUID same length → same effect?
+3. TRAINING_CONTEXT — `md5:`/`sha256:` appear at section END in corpus; model learned "new section follows".
+   test: same label + different closed format → same effect?
+   test: different label (e.g. `uuid:`) + hex → effect persists?
+
+**falsifier per mechanism**
+1. bare hex WITHOUT label fails to stop loop → mechanism 1 refuted
+2. non-hex random string fails → mechanism 2 refuted
+3. label removed, hex kept, loop resumes → mechanism 3 confirmed
+
+**ablation (cheap smoke, 3 runs, same looped prompt)**
+a) `xxx xxx xxx md5 1f8b3e6...`      baseline (works)
+b) `xxx xxx xxx 1f8b3e6...`          no label
+c) `xxx xxx xxx uuid 1f8b3e6...`     wrong label
+d) `xxx xxx xxx md5 <base64>`        wrong format
+e) `xxx xxx xxx sha256 <64hex>`      alt label
+
+**known unknowns**
+- Which mechanism dominates is UNKNOWN. All three predict the same observable.
+- Generalization beyond md5/sha256 NOT validated — do not apply elsewhere until the ablation
+  separates mechanisms.
+- `md5` here is a CONTAINMENT barrier, not an oracle. It stops propagation, it does not verify anything.

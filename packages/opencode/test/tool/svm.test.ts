@@ -11,6 +11,12 @@
  *     SAME instance, because a refusal that still wrote would look identical from the outside.
  *  4. the tool's name resolves in the registry: it is registered under its canonical id, which is the
  *     `Tool.define` contract (lowercase alphanumerics, one identity, no second spelling).
+ *
+ * The plan key below is this file's OWN, and that is a defect fix rather than tidiness (2026-09-30).
+ * The store under the fixture is not throwaway: `Storage` roots it at `Global.Path.data`, which the
+ * fixture leaves at `TEST_TEMP`, so this file's `set` of task `S2` under the REAL plan id survived into
+ * the next run and turned `test/session/svm.test.ts`'s `missing()` assertion red — green or red
+ * depending on which file ran first. A test that WRITES needs a key space nothing else can write.
  */
 import { describe, expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
@@ -22,7 +28,7 @@ import { SessionID, MessageID } from "@/session/schema"
 import { provideTmpdirInstance } from "../fixture/fixture"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 
-const PLAN = "plans/2026-09-29_svm-tool-and-master-plan.md"
+const PLAN = "plans/TEST-svm-tool.md"
 
 const ctx = {
   sessionID: SessionID.make("ses_svm-tool"),
@@ -41,7 +47,7 @@ const layer = Layer.mergeAll(
   CrossSpawnSpawner.defaultLayer,
 )
 
-/** Everything runs inside a throwaway instance, so the real store is never touched. */
+/** A throwaway INSTANCE — but not a throwaway STORE: see the header for what that cost. */
 function inTmpdir<A, E, R>(body: (dir: string) => Effect.Effect<A, E, R>) {
   return Effect.runPromise(
     Effect.scoped(provideTmpdirInstance(body).pipe(Effect.provide(layer))) as Effect.Effect<A, E>,

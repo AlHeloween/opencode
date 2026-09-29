@@ -7,6 +7,15 @@
  * rather than guessed: `provideTmpdirInstance` runs inside `Effect.scoped` (it yields a `Scope`) and
  * needs `ChildProcessSpawner` — supplied by `CrossSpawnSpawner.defaultLayer`, the same merge the
  * sibling Storage tests (`summary.test.ts`, `mechanical-writer.test.ts`) use.
+ *
+ * THE STORE IS NOT THROWAWAY, and this file says so because it was measured the hard way
+ * (2026-09-30): `Storage` resolves its root from `Global.Path.data`, which the fixture leaves at
+ * `TEST_TEMP` — the scope finalizer re-points the process there on purpose, so Effect's reporter never
+ * writes into a removed worktree. A record therefore SURVIVES into the next run. Measured: this file's
+ * `missing()` case read `S2` as present because `test/tool/svm.test.ts` had written exactly that key
+ * into `…/svm/task/2026-09-29_svm-tool-and-master-plan/S2.json` — green when it ran first, red when it
+ * ran second, and red on the next run of this file ALONE. An assertion over an exact SET is only a
+ * statement about the code when nothing else can write into its key space.
  */
 import { describe, expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
@@ -17,16 +26,24 @@ import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 
 const layer = Storage.defaultLayer.pipe(Layer.provideMerge(CrossSpawnSpawner.defaultLayer))
 
+/**
+ * The key space this file OWNS. No other test writes it and no production writer can, so a leftover
+ * from any previous run is this file's own and identical to what this run writes — which is what makes
+ * the exact-set assertion below an oracle instead of a history check.
+ */
+const PLAN = "plans/TEST-svm-store.md"
+
 const record: SVM.SVMRecord = {
   task: "S1b",
-  plan: "plans/2026-09-29_svm-tool-and-master-plan.md",
+  plan: PLAN,
   sv: "Keywords: store 0.6, manifest 0.4\nSemantic dominant: the manifest round-trips.",
   etaTurns: 1,
   state: "doing",
   oracle: "bun test test/session/svm.test.ts",
 }
 
-/** Everything runs inside a throwaway instance, so the real store is never touched. */
+/** A throwaway INSTANCE — but not a throwaway STORE. See the header: the store is shared and
+ *  persists, so this file owns its own key space instead of pretending the fixture isolates it. */
 function inTmpdir<A, E, R>(body: (dir: string) => Effect.Effect<A, E, R>) {
   return Effect.runPromise(
     Effect.scoped(provideTmpdirInstance(body).pipe(Effect.provide(layer))) as Effect.Effect<A, E>,

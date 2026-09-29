@@ -3,7 +3,7 @@ import { createMemo, createResource, Match, Show, Switch } from "solid-js"
 import { Global } from "@opencode-ai/core/global"
 import { formatProjectDirectory } from "../../util/directory-display"
 import { detectIndicatorBackend, indicatorColor } from "../../util/vcs-indicator"
-import { readSymTag, type SymTagInfo } from "../../util/snapshot-symtag"
+import { readSnapshotImpact } from "../../util/snapshot-symtag"
 
 const id = "internal:home-footer"
 
@@ -88,23 +88,36 @@ function SnapshotBackend() {
   const color = createMemo(() => indicatorColor(backend()))
   const vcs = createMemo(() => (backend() ? backend()! : "no vcs"))
 
-  // Structural metadata from the last snapshot's sym tag (lazy, ~20ms fossil subprocess).
+  // The LAST snapshot, two halves (lazy: ~20ms fossil + ~200ms readonly SQLite pack):
+  // the BRIEF (which files changed — fossil) and the IMPACT (symbols — the graph).
+  // Replaces the retired `sym` tag, which measured EMPTY on the live repo
+  // (`sym=KINDS:none`) and therefore rendered nothing at all (owner, 2026-09-29:
+  // «fossil нам нужен только чтобы показать краткий бриф изменений, а codegraph
+  // покажет реальные»).
   const worktree = Global.Path.worktree || Global.Path.home
-  const [symTag] = createResource(
+  const [snapshotImpact] = createResource(
     () => backend() === "fossil" ? worktree : null,
-    async (wt) => readSymTag(wt),
+    async (wt) => readSnapshotImpact(wt),
   )
 
   const symSummary = createMemo(() => {
-    const tag = symTag()
-    if (!tag?.totalSymbols) return null
+    const snap = snapshotImpact()
+    if (!snap) return null
+    const files = snap.changedFiles.length === 0 ? null : `${snap.changedFiles.length} file${snap.changedFiles.length === 1 ? "" : "s"}`
+    if (!snap.totalSymbols) {
+      // Never blank while a snapshot exists: the brief is a true statement even when
+      // the graph holds none of the files (an edit to plans/ or experiments/), and a
+      // blank reads as "it does not work" (AGENTS.md: absence of an oracle is FALSE).
+      if (!files) return null
+      return snap.impactUnavailable ? `${files} · impact n/a` : files
+    }
     // Compact: top 3 kinds + total, e.g. "fn=5,class=3,method=224 (410)"
-    const topKinds = Object.entries(tag.symbolCountByKind)
+    const topKinds = Object.entries(snap.symbolCountByKind)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 3)
       .map(([k, v]) => `${k}=${v}`)
       .join(",")
-    return `${topKinds} (${tag.totalSymbols})`
+    return files ? `${files} · ${topKinds} (${snap.totalSymbols})` : `${topKinds} (${snap.totalSymbols})`
   })
 
   return (

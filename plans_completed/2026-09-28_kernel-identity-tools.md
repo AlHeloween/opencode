@@ -2,7 +2,7 @@
 
 <!-- intention: identity contracts in the kernel stop advertising workflow gates and mutation flags, and gain per-identity allowed-tool lists kept honest by a parity test against the live ACL in agent.ts -->
 
-- status: ACTIVE
+- status: COMPLETE (2026-09-28)
 - depth: L2 (SELF_MODIFY — normative: identity contract shape changes; per docs/kernel-amendment.md, L2 requires user + runtime ACL and the diff shown before install)
 
 Owner request (2026-09-28, verbatim): «Давай подчистим кернел» · «Надо убрать ворота
@@ -114,8 +114,8 @@ Owner request (2026-09-28, verbatim): «Давай подчистим керне
 ### F9 — Package tests, docs, commit, close
 - [x] `bun typecheck` exit 0; `bun test test/agent/kernel-identity-tools.test.ts test/tool/registry.test.ts test/tool/kernel-alignment.test.ts test/cli/cmd/debug/agent.test.ts` — **21/21** (`20260928T200926Z_e1542b78`).
 - [x] `docs/gate-addons.md` — identity add-ons section + how-to updated; `docs/kernel-release-2026-09-28.md` written; `AGENTS.md`/docs checked (no stale `may_mutate`).
-- [ ] Commits naming this plan; move to `plans_completed/` when the last box closes
-      (`reconcilePlans`), scan for stale refs.
+- [x] Commits naming this plan: `10fb48c` (kernel side + receivers) and `4eee2b8a1d`
+      (runtime ACL + extractor + parity test); moved to `plans_completed/` in the same cycle.
 
 ## Smoke Tests
 

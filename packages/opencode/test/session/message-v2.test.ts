@@ -2,6 +2,7 @@ import { describe, expect, test, beforeEach } from "bun:test"
 import { APICallError, generateText } from "ai"
 import { MockLanguageModelV3 } from "ai/test"
 import { MessageV2 } from "../../src/session/message-v2"
+import { sealUserText } from "../../src/session/user-seal"
 import { ProviderTransform } from "@/provider/transform"
 import type { Provider } from "@/provider/provider"
 import { ModelID, ProviderID } from "../../src/provider/schema"
@@ -137,7 +138,7 @@ describe("session.message-v2.toModelMessage", () => {
     expect(await MessageV2.toModelMessages(input, model)).toStrictEqual([
       {
         role: "user",
-        content: [{ type: "text", text: "hello" }],
+        content: [{ type: "text", text: sealUserText("hello", 0) }],
       },
     ])
   })
@@ -193,7 +194,7 @@ describe("session.message-v2.toModelMessage", () => {
     expect(await MessageV2.toModelMessages(input, model)).toStrictEqual([
       {
         role: "user",
-        content: [{ type: "text", text: "hello" }],
+        content: [{ type: "text", text: sealUserText("hello", 0) }],
       },
       {
         role: "assistant",
@@ -261,7 +262,7 @@ describe("session.message-v2.toModelMessage", () => {
       {
         role: "user",
         content: [
-          { type: "text", text: "hello" },
+          { type: "text", text: sealUserText("hello", 0) },
           {
             type: "file",
             mediaType: "image/png",
@@ -329,7 +330,7 @@ describe("session.message-v2.toModelMessage", () => {
     expect<unknown>(await MessageV2.toModelMessages(input, model)).toStrictEqual([
       {
         role: "user",
-        content: [{ type: "text", text: "run tool" }],
+        content: [{ type: "text", text: sealUserText("run tool", 0) }],
       },
       {
         role: "assistant",
@@ -624,7 +625,7 @@ describe("session.message-v2.toModelMessage", () => {
     expect(await MessageV2.toModelMessages(input, visionModel)).toStrictEqual([
       {
         role: "user",
-        content: [{ type: "text", text: "describe this image" }],
+        content: [{ type: "text", text: sealUserText("describe this image", 0) }],
       },
       {
         role: "assistant",
@@ -704,7 +705,7 @@ describe("session.message-v2.toModelMessage", () => {
     expect(await MessageV2.toModelMessages(input, model)).toStrictEqual([
       {
         role: "user",
-        content: [{ type: "text", text: "run tool" }],
+        content: [{ type: "text", text: sealUserText("run tool", 0) }],
       },
       {
         role: "assistant",
@@ -772,7 +773,7 @@ describe("session.message-v2.toModelMessage", () => {
     expect(await MessageV2.toModelMessages(input, model)).toStrictEqual([
       {
         role: "user",
-        content: [{ type: "text", text: "run tool" }],
+        content: [{ type: "text", text: sealUserText("run tool", 0) }],
       },
       {
         role: "assistant",
@@ -839,7 +840,7 @@ describe("session.message-v2.toModelMessage", () => {
     expect(await MessageV2.toModelMessages(input, model, { toolOutputMaxChars: 4 })).toStrictEqual([
       {
         role: "user",
-        content: [{ type: "text", text: "run tool" }],
+        content: [{ type: "text", text: sealUserText("run tool", 0) }],
       },
       {
         role: "assistant",
@@ -1082,7 +1083,7 @@ describe("session.message-v2.toModelMessage", () => {
     expect(await MessageV2.toModelMessages(input, model)).toStrictEqual([
       {
         role: "user",
-        content: [{ type: "text", text: "run tool" }],
+        content: [{ type: "text", text: sealUserText("run tool", 0) }],
       },
       {
         role: "assistant",
@@ -1159,7 +1160,7 @@ describe("session.message-v2.toModelMessage", () => {
     expect(await MessageV2.toModelMessages(input, model)).toStrictEqual([
       {
         role: "user",
-        content: [{ type: "text", text: "run tool" }],
+        content: [{ type: "text", text: sealUserText("run tool", 0) }],
       },
       {
         role: "assistant",
@@ -1331,7 +1332,7 @@ describe("session.message-v2.toModelMessage", () => {
       ? assistant.content.find((p) => (p as { type?: string }).type === "reasoning")
       : undefined
     expect(reasoning).toMatchObject({
-      text: "thinking",
+      text: sealUserText("thinking", 0),
       providerOptions: {
         openrouter: {
           reasoning_details: reasoningDetails,
@@ -1340,7 +1341,7 @@ describe("session.message-v2.toModelMessage", () => {
     })
   })
 
-  test("strips reasoning from non-tool assistant messages (thinking doctrine)", async () => {
+  test("returns reasoning from non-tool assistant messages, sealed (2026-09-29 directive)", async () => {
     const assistantID = "m-assistant"
     const input: MessageV2.WithParts[] = [
       {
@@ -1356,16 +1357,13 @@ describe("session.message-v2.toModelMessage", () => {
       },
     ]
 
-    expect(await MessageV2.toModelMessages(input, model)).toStrictEqual([
-      {
-        role: "user",
-        content: [{ type: "text", text: "question" }],
-      },
-      {
-        role: "assistant",
-        content: [{ type: "text", text: "answer" }],
-      },
-    ])
+    const result = await MessageV2.toModelMessages(input, model)
+    const assistant = result.find((m) => m.role === "assistant")
+    const content = Array.isArray(assistant?.content)
+      ? (assistant.content as Array<{ type?: string; text?: string }>)
+      : []
+    expect(content.some((p) => p.type === "reasoning" && p.text === sealUserText("process replay", 0))).toBe(true)
+    expect(content.some((p) => p.type === "text" && p.text === "answer")).toBe(true)
   })
 
   test("keeps reasoning on tool-call assistant messages (vendor 400-guards)", async () => {
@@ -1398,10 +1396,10 @@ describe("session.message-v2.toModelMessage", () => {
     const content = Array.isArray(assistant?.content)
       ? (assistant.content as Array<{ type?: string; text?: string }>)
       : []
-    expect(content.some((p) => p.type === "reasoning" && p.text === "plan before call")).toBe(true)
+    expect(content.some((p) => p.type === "reasoning" && p.text === sealUserText("plan before call", 0))).toBe(true)
   })
 
-  test("drops assistant messages left empty by the reasoning strip (no dangling empties)", async () => {
+  test("keeps a reasoning-only assistant message instead of dropping it (2026-09-29 directive)", async () => {
     const assistantID = "m-assistant"
     const input: MessageV2.WithParts[] = [
       {
@@ -1413,7 +1411,12 @@ describe("session.message-v2.toModelMessage", () => {
       },
     ]
 
-    expect(await MessageV2.toModelMessages(input, model)).toStrictEqual([])
+    const result = await MessageV2.toModelMessages(input, model)
+    const assistant = result.find((m) => m.role === "assistant")
+    const content = Array.isArray(assistant?.content)
+      ? (assistant.content as Array<{ type?: string; text?: string }>)
+      : []
+    expect(content.some((p) => p.type === "reasoning" && p.text === sealUserText("only process", 0))).toBe(true)
   })
 
   test("strips flood reminder blocks from replayed tool outputs, keeps gated-workflow brief", async () => {
@@ -1564,7 +1567,7 @@ describe("session.message-v2.toModelMessage", () => {
     expect(result).toStrictEqual([
       {
         role: "user",
-        content: [{ type: "text", text: "run tool" }],
+        content: [{ type: "text", text: sealUserText("run tool", 0) }],
       },
       {
         role: "assistant",

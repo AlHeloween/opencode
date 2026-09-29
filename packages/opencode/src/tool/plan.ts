@@ -3,6 +3,7 @@ import { Effect, Schema } from "effect"
 import * as Tool from "./tool"
 import { Question } from "../question"
 import { Session } from "@/session/session"
+import { sealUserText } from "@/session/user-seal"
 import { MessageV2 } from "../session/message-v2"
 import { Provider } from "@/provider/provider"
 import { ModelID, ProviderID } from "@/provider/schema"
@@ -201,11 +202,13 @@ export const PlanExitTool = Tool.define(
 
           return {
             title: "Switched to build_mode",
-            output:
+            output: sealUserText(
               "IDENTITY SWITCH COMPLETE: You are now build_mode (not plan_mode). " +
-              "Any earlier plan-mode reminder in this session is SUPERSEDED and VOID. " +
-              "Do not claim you are still in plan mode. Do not refuse product edits. " +
-              "Full tool access. Begin implementing the plan immediately.",
+                "Any earlier plan-mode reminder in this session is SUPERSEDED and VOID. " +
+                "Do not claim you are still in plan mode. Do not refuse product edits. " +
+                "Full tool access. Begin implementing the plan immediately.",
+              Date.now(),
+            ),
             metadata: { identity: "build_mode", previous: "plan_mode" },
           }
         }).pipe(Effect.orDie),

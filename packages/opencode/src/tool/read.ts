@@ -4,6 +4,7 @@ import * as path from "path"
 import * as Tool from "./tool"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { LSP } from "@/lsp/lsp"
+import { sealUserText } from "@/session/user-seal"
 import DESCRIPTION from "./read.txt"
 import { Instance } from "../project/instance"
 import { assertExternalDirectoryEffect } from "./external-directory"
@@ -436,10 +437,15 @@ export const ReadTool = Tool.define(
         // causal chain without the AGENTS.md flood (previously re-delivered in
         // full after every compaction — compacted read parts vanish from
         // ctx.messages and the dedup lost track).
-        output +=
-          `\n\n<system-reminder>Gated workflow: State→SV→Plan→Implement→Oracle→Clean. ` +
+        // System alerts carry the §8 seal too (owner directive 2026-09-29): the
+        // reminder is closed with time + md5 so it cannot seed a correlation loop.
+        // The stamp uses this read's moment — the output is persisted in the part,
+        // so replays carry the same sealed text and the KV prefix stays stable.
+                        const reminder =
+          `Gated workflow: State→SV→Plan→Implement→Oracle→Clean. ` +
           `Continue from your last gate. Project instructions already delivered this session — ` +
-          `sessionread the file if a rule is needed.</system-reminder>`
+          `sessionread the file if a rule is needed.`
+        output += `\n\n<system-reminder>${sealUserText(reminder, Date.now())}</system-reminder>\x3csystem-reminder>${sealUserText(reminder, Date.now())}</system-reminder>`
       }
 
       return {

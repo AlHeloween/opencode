@@ -4,6 +4,7 @@ import { ProjectID } from "../project/schema"
 import z from "zod"
 import { NamedError } from "@opencode-ai/core/util/error"
 import * as Log from "@opencode-ai/core/util/log"
+import { sealUserText } from "./user-seal"
 import { APICallError, convertToModelMessages, LoadAPIKeyError, StreamProviderError, type ModelMessage, type UIMessage } from "ai"
 import { LSP } from "@/lsp/lsp"
 import { Snapshot } from "@/snapshot"
@@ -1301,11 +1302,16 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
       result.push(userMessage)
       cache.set(cacheKey, userMessage)
       evictIfFull()
+      // User-message seal (doctrine §8, owner directive 2026-09-29): the LAST real
+      // text part carries `time: …` + `md5: …` so the model reads the message as a
+      // closed section (loop-containment barrier). Message time, never wall-clock —
+      // the seal must not move between turns or the provider KV prefix breaks.
+      const sealTarget = [...msg.parts].reverse().find((part) => part.type === "text" && !part.ignored)
       for (const part of msg.parts) {
         if (part.type === "text" && !part.ignored)
           userMessage.parts.push({
             type: "text",
-            text: part.text,
+            text: part === sealTarget ? sealUserText(part.text, msg.info.time.created) : part.text,
           })
         // text/plain and directory files are converted into text parts, ignore them
         if (part.type === "file" && part.mime !== "text/plain" && part.mime !== "application/x-directory") {
@@ -1493,10 +1499,13 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             })
         }
         if (part.type === "reasoning") {
-          if (!hasToolParts) continue
+          // Owner directive 2026-09-29: ALL reasoning is returned (the 2026-08-30
+          // tool-turn-only strip is retired) and every block is closed with
+          // `time: …` + `md5: …` (doctrine §8 seal), so a replayed thinking chain
+          // damps self-correlation instead of feeding it.
           assistantMessage.parts.push({
             type: "reasoning",
-            text: part.text,
+            text: sealUserText(part.text, part.time.start),
             ...(differentModel ? {} : { providerMetadata: part.metadata }),
           })
         }

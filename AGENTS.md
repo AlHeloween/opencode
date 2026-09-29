@@ -418,6 +418,31 @@ of 0.94 MB = 5.8 ms, `JSON.parse` of 950 117 chars = 11.3 ms, `reusablePrefixLen
 messages = 0.1 ms); the provider itself (`ttftMs` 51 ms). Full numbers and probes in
 `experiments/2026-09-29_fossil-boundary-cost/`.
 
+## Granularity — every mechanism gets the scale it serves, and nothing finer (2026-09-29)
+
+Owner, 2026-09-29, verbatim: «Fossil кстати тоже, мы его четко вызываем только для снапшота и он
+гранулирован началом хода, и все ну и перед undo чтобы можно было сделать redo. Тулы должны работать
+сами. Как говорится можно успеть секунда в секунду - только вопрос - ради чего, средний ход 10 минут,
+64к токенов это 20 минут. Вот тут опять вспоминается Lean and DISAS.»
+
+**The scale: a turn ≈ 10 minutes; a 64k-token summary window ≈ 20 minutes.** Every mechanism is granted
+the granularity of the scale it serves, and nothing finer. The rules that follow are binding:
+
+1. **A tool runs at its own cadence and is asked only when its ANSWER is needed.** «Тулы должны работать
+   сами» — a call placed on the turn's critical path "to keep the tool fresh" is hand-holding, and
+   hand-holding is the defect. Measured case: the codegraph MCP touch costs **2.4 s** and sat on every
+   commit, while the value it produced is consumed by the **summary**, twenty minutes later.
+2. **Granulate by the thing you serve.** **fossil is the worked example and the standard**: called
+   deliberately for the snapshot, granulated by the **START OF THE TURN**, plus before undo so redo has a
+   base — not per command, not per message. A mechanism serving the summary syncs on the summary cadence;
+   **nothing syncs per commit merely because a commit happened.**
+3. **±10 s against a 20-minute window is noise.** Precision below the scale is not a feature to build, not
+   a property to verify, and never a reason to act. «Можно успеть секунда в секунду — только вопрос — ради
+   чего.»
+4. **What IS worth hunting is the scale of the work.** A 20–36 s stall is a visible fraction of a
+   10-minute turn and is hunted with the phase timer (`turn.prepare`) and counters. 0.144 s, 7 ms and
+   332 MB/s are not hunted — measuring them is the churn this section exists to stop.
+
 ## Content Lifecycle — self-cleaning content (2026-09-19)
 
 Owner, 2026-09-19: «здесь не просто экономия токенов здесь самоподчистка контента, то что человек

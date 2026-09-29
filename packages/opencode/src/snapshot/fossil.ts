@@ -8,6 +8,9 @@ import { Config } from "@/config/config"
 import { Global } from "@opencode-ai/core/global"
 import * as Log from "@opencode-ai/core/util/log"
 import { Service as SnapshotService, type Interface, type Patch, type FileDiff, type ImpactSummary } from "."
+// `mcpTouchThenSqlitePack` is still imported for `impact(from, to)` — the ON-DEMAND tool that
+// asks the graph a question when the answer is needed. It is deliberately NOT called from `track`
+// (the turn path): see the note above `return afterHash`.
 import { hasCodegraphIndex, mcpTouchThenSqlitePack } from "@/codegraph/mcp-client"
 import { packToImpactFields } from "@/codegraph/sqlite-pack"
 import { composeIgnoreGlob } from "./ignore-glob"
@@ -657,75 +660,14 @@ export const layer = Layer.effect(
 
               log.info("tracking", { hash: afterHash, before: beforeHash })
 
-              // Structural tagging via CodeGraph MCP only (SQLite/CLI blocked when MCP owns graph).
-              // `mcpTouchThenSqlitePack` keeps its own contract — it hard-fails rather than
-              // fabricate an empty pack — and that contract is pinned by the codegraph smokes.
-              // What is contained HERE is the blast radius: a structural tag is a property of
-              // THIS SNAPSHOT, so losing it must not fail the snapshot, the compaction, or the
-              // turn. It did exactly that on 2026-09-18 (XEComponents, session ClientSoft): the
-              // codegraph MCP connection closed, the hard-fail propagated out of the summarize
-              // request after 180 s, and the worker shut down with the session still marked
-              // compacting. The tag is now skipped and the snapshot is MARKED instead, so an
-              // agent still never reads it as impact-verified.
-              if (beforeHash && hasCodegraphIndex(worktree)) {
-                // The changed-file set is ALREADY known when the caller passed an explicit
-                // list (the tool path) — re-diffing the repo for it was a redundant spawn.
-                let changedFiles: string[]
-                if (files !== undefined && files.length > 0) {
-                  changedFiles = files
-                    .map((f) => path.relative(worktree, f).replaceAll("\\", "/"))
-                    .filter((f) => f.length > 0)
-                } else {
-                  const diff = yield* fossil(["diff", "--from", beforeHash, "--to", afterHash, "--brief"], {
-                    cwd: worktree,
-                  })
-                  changedFiles =
-                    diff.code === 0 && diff.text.trim()
-                      ? diff.text
-                          .trim()
-                          .split("\n")
-                          .map((l: string) => l.replace(/^[A-Z]+\s+/, "").trim())
-                          .filter((f: string) => f.length > 0)
-                          .map((f: string) => f.replace(/\\/g, "/"))
-                      : []
-                }
-                  if (changedFiles.length > 0) {
-                    // Hybrid: MCP touch (refresh) → SQLite pack → compact tag (not MCP prose)
-                    const hybrid = yield* mcpTouchThenSqlitePack(worktree, changedFiles).pipe(
-                      Effect.catch((err) => {
-                        const msg = err instanceof Error ? err.message : String(err)
-                        log.warn("bug: codegraph unavailable — structural sym tag SKIPPED (impact unverified)", {
-                          err: msg,
-                          hash: afterHash,
-                          files: changedFiles.length,
-                        })
-                        return Effect.succeed(undefined)
-                      }),
-                    )
-                    if (hybrid === undefined) {
-                      // Best-effort marker: the check-in is real, its impact is not verified.
-                      yield* fossil(["tag", "add", "--propagate", "sym-missing", afterHash, "1"], {
-                        cwd: worktree,
-                      })
-                    } else {
-                      // fossil tag add OPTIONS TAGNAME ARTIFACT-ID ?VALUE?
-                      // VALUE must come after the check-in hash — otherwise fossil
-                      // treats the KINDS:… string as an artifact ID (hard fail).
-                      const tagValue = hybrid.symTag
-                      const tagResult = yield* fossil(
-                        ["tag", "add", "--propagate", "sym", afterHash, tagValue],
-                        { cwd: worktree },
-                      )
-                      if (tagResult.code !== 0) {
-                        return yield* Effect.fail(
-                          new Error(
-                            `fossil tag add sym failed: ${tagResult.stderr || tagResult.text}`.trim(),
-                          ),
-                        )
-                      }
-                    }
-                  }
-              }
+              // CodeGraph tagging is GONE from this path (owner, 2026-09-29: «Тулы должны работать
+              // сами», and AGENTS.md § Granularity). The structural sym tag is consumed by the
+              // SUMMARY, whose window is ~20 minutes, so a sync placed HERE — on every commit, on the
+              // turn's critical path — was hand-holding: measured 2.4 s per call, and on 2026-09-18 its
+              // failure propagated out of the summarize request after 180 s and shut the worker down
+              // with the session still marked compacting. The impact now belongs to the summary
+              // cadence; this path waits on nothing but fossil. The check-in keeps its hash, and the
+              // changed-file list stays available from `fossil diff --brief` wherever it is needed.
 
               return afterHash
             }).pipe(Effect.orDie),

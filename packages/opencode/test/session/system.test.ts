@@ -84,17 +84,17 @@ describe("session.system", () => {
     expect(PROMPT_REASONING).toContain("### BUILD_MODE")
     expect(PROMPT_REASONING).toContain("### PLAN_MODE")
     expect(PROMPT_REASONING).toContain("### REASONING_MODE")
-    // Identity resolution is load-bearing, not a tool path. §5 gives ten
-    // identities with different `may_mutate`, and @CATALOG_INVARIANT makes the
-    // tool catalog identity-INVARIANT on purpose — so an agent cannot read its
-    // own rights off the tools it can see. `checkstate` is the only thing that
-    // answers "which contract governs me": it returns the identity AND its
-    // complete ordered execute-time permission rules. Assert all three layers,
-    // since dropping any one leaves the question unanswerable.
-    expect(PROMPT_REASONING).toContain("The provider tool catalog is identity-invariant")
+    // Identity resolution is load-bearing, not a tool path. §5 gives ten identities, and
+    // @CATALOG_INVARIANT makes the tool catalog identity-INVARIANT on purpose — so an agent
+    // cannot read its own rights off the tools it can see. `checkstate` is the only thing
+    // that answers "which contract governs me". Two expectations moved on 2026-09-28 (owner:
+    // the identity rows replace `gates`/`may_mutate` with the real ACL view, source.py:783):
+    // the invariant is written as a formula and per-identity `tools:` rows carry the rights,
+    // kept honest by script/kernel-tools-manifest.ts.
+    expect(PROMPT_REASONING).toContain("Provider tool catalog = identity-invariant")
     expect(PROMPT_REASONING).toContain("Uncertain identity or permission → inspect the host runtime's authorization surface")
     expect(PROMPT_REASONING).toContain("identity or permission uncertain -> checkstate")
-    expect(PROMPT_REASONING).toContain("may_mutate")
+    expect(PROMPT_REASONING).toContain("tools: checkstate")
     expect(PROMPT_REASONING).not.toContain("### build_mode")
     expect(PROMPT_REASONING).not.toContain("#### @GETMODE")
     expect(PROMPT_REASONING).not.toContain("### GETMODE")

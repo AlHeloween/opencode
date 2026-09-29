@@ -14,6 +14,7 @@ import { Filesystem } from "@/util/filesystem"
 import { tmpdir } from "../fixture/fixture"
 import type { Agent } from "../../src/agent/agent"
 import { MessageV2 } from "../../src/session/message-v2"
+import { sealUserText } from "../../src/session/user-seal"
 import { SessionID, MessageID } from "../../src/session/schema"
 import { AppRuntime } from "../../src/effect/app-runtime"
 
@@ -1418,7 +1419,16 @@ describe("session.llm.stream", () => {
         expect(body.messages).toStrictEqual([
           {
             role: "user",
-            content: [{ type: "text", text: "Can you check whether there are any PDF files in my home directory?" }],
+            // The user-message seal appends `time:` + `md5:` (doctrine §8, owner directive
+            // 2026-09-29) and uses the message's OWN time — this payload assertion predates
+            // the seal and was red from 793de6c07f, where the converter tests were updated
+            // and this one was missed.
+            content: [
+              {
+                type: "text",
+                text: sealUserText("Can you check whether there are any PDF files in my home directory?", 1),
+              },
+            ],
           },
           {
             role: "assistant",

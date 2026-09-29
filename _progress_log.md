@@ -5393,3 +5393,18 @@ ADDENDUM ✓ (measured during that very run): the 0-byte artefact reappeared (`p
 the run — builds `bun -e "…(_,i)=>i+1…"` and the tool runs it through `cmd /c "…"`; cmd's `/s /c` wrapper re-parses the
 line and exposes `>`, so cmd opens `i+1).join(String.fromCharCode(10)))` as a redirect target in the CWD. That is the
 first stop for the handoff.
+
+
+## [2026-09-29 19:40Z] kernel F6+F7 staged, NOT installed — procedure layer, falsifier fixes, KAIZEN, BGE dedup/order
+
+Plan: `plans/2026-09-28_kernel-candidate-incorporation.md` (F6, F7). Render 52 970 B / cap 53 000 (raised 51 000 -> 53 000,
+owner «Поднять лимит»); installed is still 49 032 B `1d74933b`. pytest 117 passed + 3 install-staleness reds (clear on --install).
+✓ Five procedures from `candidate/reasoning_prompt.final.txt` (TEST_INVARIANT, SURFACE_PREPARATION, CAUSAL_ATTRIBUTION,
+TOOLCHAIN_QUALIFICATION, ANTI_CHURN) + KAIZEN + VALIDATE_BEFORE; WORK_KIND term; edge G6 -> G2 (tool unqualified).
+✓ Outside falsifiers: frameless Sonnet 7 findings, space-bunny 3 more from its truncated reasoning; all 10 closed in text.
+✓ BGE-M3 (CUDA): D1-D3 + L1 dedup; L2 rejected by measurement (8 B); G4/G8 core reorder p12/p27 -> p100, re-measured.
+✓ tools/aicall.py: --timeout, --out (smoke exit 0, JSON parses under 2>&1). Runtime half -> plans/futures/2026-09-29_mission-runtime-for-kernel-procedures.md.
+TOOLS: aicall space-bunny-free exit 3 then 5 (instrument, now fixed); BGE pairs run 1 ranked schema lines by FORM (filter
+defect, fixed); Glob timed out 3x at repo root this session (ripgrep 20 s) — worked around via git ls-files, class: «search
+tool times out on the repo root», second+ occurrence -> KAIZEN countermeasure owed.
+NEXT: owner reads diff.txt -> --install + repin -> commit naming the plan.

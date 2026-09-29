@@ -117,18 +117,81 @@ PASS 5 (2026-09-29) — WATER HUNT, owner-directed («мы раздуваем ф
   the report (the 9th instance of the filter class, and the second one inside `multiedit` itself).
 
 ### F3 — Knowledge statuses (§2)
-- [ ] `@INFORMATION_STATUS`: verified source wording ≠ verified reported proposition; decisive FAIL → REFUTED, inconclusive → UNRESOLVED; changed evidence/scope/artifact requires fresh verification.
-- [ ] `@EVIDENCE_ORDER`: requirements cannot be skipped; redundant intermediate searches can.
-- [ ] `@BUG_FIX_PROCEDURE`: no reproducer = unconfirmed (not hallucination); flaky criteria; trial may be a patch/worktree; verify the applied artifact.
-- [ ] Tests.
+- [~] `@INFORMATION_STATUS`: verified source wording ≠ verified reported proposition; decisive FAIL → REFUTED, inconclusive → UNRESOLVED; changed evidence/scope/artifact requires fresh verification.
+      PARTIAL (2026-09-29): «Verified source wording is not a verified proposition» landed in F2 pass 3 (`source.py:47`, installed render); REFUTED/UNRESOLVED split and fresh-verification clause NOT landed.
+- [x] `@EVIDENCE_ORDER`: requirements cannot be skipped; redundant intermediate searches can.
+      Landed in F2 cut pass (`0e3853c2c2`); artifact: `source.py:42` + installed `.claude/reasoning_kernel.md`; pytest 119 passed 2026-09-29.
+- [x] `@BUG_FIX_PROCEDURE`: no reproducer = unconfirmed (not hallucination); flaky criteria; trial may be a patch/worktree; verify the applied artifact.
+      Landed in F2 cut pass (`0e3853c2c2`); artifact: `source.py:110` + installed render; pytest 119 passed 2026-09-29. F6 supersedes it with the STABILIZE sequence.
+- [ ] Tests. OPEN: none of the F3 phrases is pinned by a test (grep over `prompt_kernel/**/*.py` finds them only in `source.py`) — pins land with F6.
 
 ### F4 — Composition & precision (§0/§1/§4)
 - [ ] G0: DIGITAL_INTENTION is internal state, not a compulsory separate reply.
-- [ ] `@CURRENT_SV`: once per completed assistant turn (not per tool call); never inside generated artifacts; host-schema omission clause.
+- [~] `@CURRENT_SV`: once per completed assistant turn (not per tool call); never inside generated artifacts; host-schema omission clause.
+      PARTIAL (2026-09-29): first two landed (`source.py:72`, F2 cut pass); the host-schema omission clause («strict schemas: permitted metadata channel or higher-priority omission») NOT landed.
 - [ ] `@INTENTION_RESET`: `observed_at` adds G1/G3/G4/G5.
 - [ ] Notation header (§1) only if it pays for itself (formulas are defined in-place today).
 - [ ] Recorded rejections: candidate `gates:`/`may_mutate:` and `action_classes` rows in §5 — our identity tool rows win (owner, 2026-09-28); candidate `host_bindings` content — host layer stays in add-ons (only a host-agnostic “no listed name asserts availability” principle may land in §1).
 - [ ] Compression pass only if the cap needs it (three gates from docs/gate-addons.md; never cut a decision).
+
+### F6 — Procedure layer from `reasoning_prompt.final.txt` (testing, memory cut-off, tool readiness)
+Owner, 2026-09-29: «самое главное грамотно дернуть процедуры… кратко и лаконично, там по поводу
+тестирования, отсечения механизма рекурентной памяти (digital soul), и порядок подготовки тулов к работе».
+Source: `prompt_kernel/candidate/reasoning_prompt.final.txt` (85 606 B) — the procedure layer (3) lacks.
+The runtime half (MISSION_CONTROL, RECOVERY_CHECKPOINT, OPERATOR_CHANNEL, leases/receipts, ~15 records)
+is NOT ported — owner: «по рантайму просто напиши свои соображения в futures»; done:
+`plans/futures/2026-09-29_mission-runtime-for-kernel-procedures.md`.
+Artifact for the boxes below (source-level, pre-install): `python -m pytest prompt_kernel/tests/ -q` →
+117 passed + 3 install-staleness reds (compatibility, claude installed, codex artifact — they clear on
+`--install`); pin test `test_render.py::test_procedure_layer_keeps_its_decisions` PASS; rendered diff
+`experiments/2026-09-29_kernel-f6-procedures/diff.txt` (+23 −8 lines), render 52 096 B, sha256 `299b8c1e…`.
+- [x] `@TEST_INVARIANT` — assertion = fallible encoding of the predicate; IMPLEMENTATION|TEST|SPEC_GAP|HARNESS; no weakening to green; tests before code.
+- [x] `@SURFACE_PREPARATION` — READY before CHANGE; red baseline = STABILIZE with its own commit; no stabilize-the-stabilizer; expected-before recheck.
+- [x] `@CAUSAL_ATTRIBUTION` — «pre-existing» is a claim proven by the same predicate on the before revision (executes AGENTS.md «no pre-existing errors»).
+- [x] `@TOOLCHAIN_QUALIFICATION` — primitives from the oracle → deterministic fixture → bridge probe → READY; missing tool = in-scope task, not an owner question; held-out ≠ calibration; handoff last.
+- [x] `@ANTI_CHURN` — memory is not a vote; ISSUE_KEY counters survive restarts/A→B→A; reopen only on stored `reopen_when`; `PERSISTED_CRITERION` keeps its three unique decisions and points to the closure record. PLUS the owner's self-winding objection (2026-09-29, «артефакты будут нести ложную тревогу»): our own artifact adds no provenance root; a self-written alarm acts only after its reproducer fails NOW, else retired.
+- [x] Gate hooks: G1 (@ANTI_CHURN), G3/G7 (@TEST_INVARIANT), G6 (@SURFACE_PREPARATION, @TOOLCHAIN_QUALIFICATION), G8 (all four + @ANTI_CHURN); edge G6→G7 «CHANGE only from @SURFACE_PREPARATION READY»; edge G8→G2 names @TOOLCHAIN_QUALIFICATION.
+- [x] Pins in `test_render` for every new rule + the three F3 phrases (`test_procedure_layer_keeps_its_decisions`).
+- [x] Budget: owner chose «Поднять лимит» (2026-09-29) — `utf8_budget` 51 000 → 52 000 (measured 51 926) → 53 000 after the self-winding clause (measured 52 096); reasons in `source.py`. NOTE: the plan's earlier «50 000 cap» lines are stale — pass 4 had already raised it to 51 000.
+- [x] Outside falsifier on the rendered diff. space-bunny-free: exit 3 (300 s timeout at 32 000), then
+      exit 5 (all 16 000 tokens on reasoning; findings read from `reasoning`, a FLOOR). Frameless Sonnet
+      (`claude -p`, owner: «прогони через sonnet»): 7 addressed findings. Artifacts:
+      `experiments/2026-09-29_kernel-f6-procedures/falsifier-sonnet.md`, `falsifier2.reasoning.md`.
+- [x] Falsifier findings F1–F10 closed (owner: «Да, давай»): `WORK_KIND` term; READY for a new surface;
+      recheck mismatch → stop; causal «and» + INDETERMINATE action; `ISSUE_KEY = (acceptance, surface,
+      reproducer)` — reclassification no longer resets the counter; passing regression test stays protected;
+      refs G6 (@TEST_INVARIANT), G7 (@SURFACE_PREPARATION, @TOOLCHAIN_QUALIFICATION); NEW EDGE `G6 → G2`
+      «a required tool is unqualified; the harness is the next leaf». Pinned in `test_procedure_layer_keeps_its_decisions`.
+- [x] `@KAIZEN` (owner: «правил по подготовке тулов нам критически не хватает… Kai Zen»): a tool defect
+      stops the line; second occurrence of a class forbids another workaround; standard updated in the same
+      change; cheapest primitive check before first dependent use. Cited at G8, G9. Pinned.
+- [x] Half-working tool clause in `@TOOLCHAIN_QUALIFICATION` (owner: «никогда не соглашаться… полуработающая
+      дрель… половину дырок»): qualify over the job's whole input domain; partial = BROKEN, not scoped. Pinned.
+- [x] `tools/aicall.py` Kaizen countermeasures: `--timeout`, `--out FILE`. Smoke: `--out` + `2>&1` →
+      JSON parses, `answer='ok'`, exit 0. Skill doc updated in the same change. (The stderr splice was the
+      CALLER's `2>&1`, not the script.)
+- [x] Owner's tool-readiness point (2026-09-29, a Codex run: app launched for debugging, the mouse could not
+      click, the agent fitted first the tools then the results — «!!! Точно!»): `@TOOLCHAIN_QUALIFICATION` gains
+      «A tool failing mid-test voids the run: requalify, rerun from the start — never patch the tool in flight or
+      fit results to it», and G3 cites it (readiness is planned BEFORE testing). Pinned. Cap 53 000 → 54 000
+      (measured 53 124).
+- [x] Installed after the owner read the diff («Да»): production `11add404…` (53 124 B), claude `9574738c…`
+      (52 951 B), codex `b1c963e2…` (52 530 B); `baseline.json` repinned by hand (`prev_sha256` = `1d74933b…`);
+      `python -m pytest prompt_kernel/tests/ -q` → **120 passed** after repin.
+
+### F7 — BGE semantic dedup + ordering (owner, 2026-09-29: «прогоним фразы через BGE… уберем лишнее»; «граф есть граф — его двигать не надо. Но вот элементы графа и аддоны — спокойно»)
+Instruments: `experiments/2026-09-29_kernel-semantic-dedup/{pairs,order,order_sub,tool_rows}.py` (BGE-M3, CUDA, GTX 1050 Ti).
+Run 1 was an instrument defect: schema lines (`identity:`, `tools:`, `shared_rules:`) ranked 1..20 by FORM; filtered.
+Prose-only: 375 sentences, knee at cos ≈ 0.80 (p99.9 = 0.723), 10 pairs above it. Owner: «Да, все верно» to the list.
+- [x] D1 G9 SUCCESS restated in BOUNDED_STOP → «SUCCESS still needs @CLOSURE_PROOF». Pinned.
+- [x] D2 two `ADID §II.4.3` rules (G3 plan, G7 edit; cos 0.797) → one shared `@VALIDATE_BEFORE`, every decision kept. Pinned.
+- [x] D3 `generic_web` sentence restating the ladder row removed.
+- [x] L1 `@SOURCE_ROUTING` routes: field names once in the header (`routes: discipline: primary | secondary`); all 67 authorities kept.
+- [x] L2 tool rows MEASURED and REJECTED: common exclusion set across the 7 rows = 1 name, saving 8 B.
+- [x] Ordering G4 core (p12 → p100 vs 500 random permutations) and G8 core (p27 → p100); re-measured after the edit: current = seriated.
+- [~] G8 add-ons (p43 → p100 possible) NOT reordered: the optimum interleaves lines of different add-on
+      entries, i.e. a registry restructure across three variants under `test_variant_parity`, not a reorder.
+- Budget: render 52 970 B against the 53 000 cap — 30 B headroom; the next addition needs a cut or a raise.
 
 ### F5 — Release
 - [ ] Final pytest + parity suite + typecheck; render vs caps; **diff to the owner**; `--install` + repin; claude/codex receivers refreshed (no identity rows).

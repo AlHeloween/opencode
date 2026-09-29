@@ -120,7 +120,9 @@ def _render_source_routing(contract: SourceRoutingContract) -> list[str]:
     lines.append("classes:")
     for name, text in contract.classes.items():
         lines.append(f"- {name}: {text}")
-    lines.append("routes:")
+    # 2026-09-29 (BGE dedup L1, owner-approved): the field names were repeated on all 17 rows
+    # (`primary=…; secondary=…`); the header names them once. Lossless — every authority stays.
+    lines.append("routes: discipline: primary | secondary")
     grouped: dict[str, list] = {name: [] for name in contract.classes}
     for route in contract.routes:
         grouped.setdefault(route.constraint_class, []).append(route)
@@ -130,7 +132,7 @@ def _render_source_routing(contract: SourceRoutingContract) -> list[str]:
         lines.append(f"{class_name}:")
         for route in routes:
             lines.append(
-                f"- {route.discipline}: primary={','.join(route.primary)}; secondary={','.join(route.secondary)}"
+                f"- {route.discipline}: {','.join(route.primary)} | {','.join(route.secondary)}"
             )
     lines.append("")
     return lines

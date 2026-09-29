@@ -261,6 +261,12 @@ def main() -> int:
     ap.add_argument("--top-p", type=float)
     ap.add_argument("--seed", type=int)
     ap.add_argument("--json", action="store_true", help="emit the envelope as JSON")
+    # 2026-09-29, Kaizen countermeasures (second occurrence of each class in three days):
+    # a reasoning model at --max-tokens 32000 outlived the fixed 300 s window (exit 3), and a caller's `2>&1`
+    # spliced the stderr notice into the JSON body. --timeout makes the window the caller's decision;
+    # --out writes the reply to a file directly, so no shell redirection can corrupt it.
+    ap.add_argument("--timeout", type=int, default=TIMEOUT_S, help=f"read timeout in seconds (default {TIMEOUT_S})")
+    ap.add_argument("--out", help="write the reply (JSON with --json) to this file instead of stdout")
     ap.add_argument("--list", action="store_true", help="print reachable models and exit")
     ap.add_argument("--catalog", help="explicit path to the model catalog json")
     args = ap.parse_args()
@@ -412,7 +418,7 @@ def main() -> int:
     )
 
     try:
-        with urllib.request.urlopen(request, timeout=TIMEOUT_S) as resp:
+        with urllib.request.urlopen(request, timeout=args.timeout) as resp:
             raw = resp.read()
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", errors="replace")[:2000]
@@ -422,7 +428,7 @@ def main() -> int:
     except TimeoutError:
         # A read timeout is not a URLError: it escaped as a traceback with exit 1 (2026-09-27, space-bunny-free
         # at --max-tokens 20000 — a non-streamed reply that thinks that long cannot arrive inside the window).
-        die(f"no reply from {base} within {TIMEOUT_S}s — lower --max-tokens or narrow the prompt", code=3)
+        die(f"no reply from {base} within {args.timeout}s — raise --timeout, lower --max-tokens or narrow the prompt", code=3)
 
     try:
         data = json.loads(raw)
@@ -469,17 +475,15 @@ def main() -> int:
     if args.json:
         # The reasoning rides along: a reply cut at max_tokens keeps its findings THERE (2026-09-27: 20000/20000
         # spent on reasoning, `answer: ""`, and --json dropped every finding).
-        print(json.dumps({**envelope, "answer": content, "reasoning": reasoning}, indent=2, ensure_ascii=False))
+        body = json.dumps({**envelope, "answer": content, "reasoning": reasoning}, indent=2, ensure_ascii=False)
     else:
-        print("─" * 72)
-        for k, v in envelope.items():
-            if k == "files_missing" and not v:
-                continue
-            print(f"{k:<16} {v}")
-        print("─" * 72)
-        if reasoning:
-            print(f"[reasoning]\n{reasoning}\n")
-        print(content)
+        rows = [f"{k:<16} {v}" for k, v in envelope.items() if not (k == "files_missing" and not v)]
+        body = "\n".join(["─" * 72, *rows, "─" * 72, *([f"[reasoning]\n{reasoning}\n"] if reasoning else []), content or ""])
+    if args.out:
+        Path(args.out).write_text(body + "\n", encoding="utf-8")
+        print(f"aicall: reply written to {args.out}", file=sys.stderr)
+    else:
+        print(body)
     # A reply cut at the token ceiling is not a verdict: its findings are a FLOOR, and exit 0 would read as
     # "the model answered". Measured 2026-09-27: space-bunny-free spent 8000/8000 on reasoning and never wrote
     # its answer, and the call still exited 0.

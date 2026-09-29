@@ -230,6 +230,93 @@ def test_runtime_is_followable_without_opening_the_adid_document() -> None:
         assert "propose" not in triggers[rule_id].lower(), rule_id
 
 
+def test_procedure_layer_keeps_its_decisions() -> None:
+    """F6, 2026-09-29: the procedure layer ported from reasoning_prompt.final.txt, compressed ~6x.
+
+    Compression is exactly where a decision dies unseen, so each rule pins the clause that IS its
+    decision — the one whose loss would turn the rule into advice. The F3 phrases landed earlier
+    with no pin at all; they are pinned here with the layer that supersedes or relies on them.
+    """
+    shared = {rule.id: rule.text for rule in KERNEL.shared_rules}
+    test = shared["TEST_INVARIANT"]
+    assert "fallible ENCODING of the predicate" in test
+    assert "ground both against the requirement, never each other" in test
+    assert "IMPLEMENTATION | TEST | SPEC_GAP | HARNESS" in test
+    assert "No weakening, deletion or skip to get green" in test
+    assert "never by age or pass history" in test
+    surface = shared["SURFACE_PREPARATION"]
+    assert "CHANGE starts from READY" in surface
+    assert "not a stub or stale artifact" in surface
+    assert "A red baseline is STABILIZE" in surface
+    assert "never a stabilize-the-stabilizer tree" in surface
+    causal = shared["CAUSAL_ATTRIBUTION"]
+    assert "is a claim, not an exemption" in causal
+    assert "no comparable run → INDETERMINATE" in causal
+    # Sonnet + space-bunny, independently: «before PASS / after FAIL» parsed as an OR tagged an unchanged
+    # failure as «this change»; and INDETERMINATE had no action, so it could close as inherited.
+    assert "before PASS and after FAIL → this change" in causal
+    assert "never closed as inherited" in causal
+    assert "mismatch → stop and re-ground, never overwrite" in surface
+    assert "A new surface is READY from its enclosing surface's baseline PASS" in surface
+    assert "STABILIZE repairs a classified defect" in dict(KERNEL.terms)["WORK_KIND"]
+    kaizen = shared["KAIZEN"]
+    assert "A tool defect stops the line; it is never weather" in kaizen
+    assert "Its second occurrence forbids another workaround" in kaizen
+    assert "updated in the same change" in kaizen
+    assert "cheapest primitive check" in kaizen
+    tools = shared["TOOLCHAIN_QUALIFICATION"]
+    assert "A general test is never the first experiment on its instruments" in tools
+    assert "verify the fixture's state, not the tool's return" in tools
+    assert "not an owner question" in tools
+    assert "the tool under test is never its own oracle" in tools
+    # Owner, 2026-09-29: never accept a half-working drill that drilled half the holes, or a half-working
+    # microscope that inspected half the board. Partial coverage by a degraded tool reads as complete.
+    assert "a tool that works on part of it is BROKEN, not scoped" in tools
+    assert "nothing is delivered on its covered half" in tools
+    # Owner, 2026-09-29 (a Codex run): the app launched for debugging, the mouse could not click, and the
+    # agent fitted first the tools and then the results. Readiness is checked BEFORE testing (G3), and a
+    # mid-test tool failure voids the run instead of being repaired inside it.
+    assert "A tool failing mid-test voids the run" in tools
+    assert "never patch the tool in flight or fit results to it" in tools
+    g3 = next(gate for gate in KERNEL.gates if gate.id == "G3")
+    assert "TOOLCHAIN_QUALIFICATION" in g3.shared_rules, "readiness is planned before testing"
+    assert "Calibration examples ≠ held-out cases" in tools
+    churn = shared["ANTI_CHURN"]
+    assert "Memory is not a vote" in churn
+    # Owner, 2026-09-29: memory rebuilt from artifacts still self-winds — our own artifacts carry
+    # a false alarm into the next cycle and sooner or later provoke a wrong assessment.
+    assert "our own artifact adds no provenance root" in churn
+    assert "act only after its reproducer fails NOW" in churn
+    assert "retired, not inherited" in churn
+    assert "copies of one source count once" in churn
+    assert "counters survive retitling, reclassification, restarts and A→B→A revisits" in churn
+    # space-bunny (outside falsifier): a self-assigned failure_class in the key let a relabel reset the
+    # counter — anti-churn defeated by the very self-winding it exists to stop.
+    assert "ISSUE_KEY = (acceptance, surface, reproducer)" in churn
+    assert "a passing regression test stays protected" in churn
+    assert "reopens only on its stored reopen_when" in churn
+    assert "without them the store grows and nothing retires" in churn
+    # BGE dedup D2: one validation procedure, two layers, every decision of both halves kept.
+    validate = shared["VALIDATE_BEFORE"]
+    for clause in ("YAML/JSON lint, Markdown structure, schema", "syntax, types, schema", "emit only the corrected artifact", "No malformed plan enters G4", "no unverified mutation enters the project"):
+        assert clause in validate, clause
+    # BGE dedup D1: SUCCESS is defined once; the stop rule points to it instead of restating it.
+    stop = next(rule.text for gate in KERNEL.gates for rule in gate.local_rules if rule.id == "BOUNDED_STOP_CONDITIONS")
+    assert "SUCCESS still needs @CLOSURE_PROOF" in stop
+    # F3 phrases, landed in F2 without a pin.
+    assert "a redundant intermediate search may be skipped" in shared["EVIDENCE_ORDER"]
+    assert "No reproducer = unconfirmed, not hallucination" in shared["BUG_FIX_PROCEDURE"]
+    assert "Verified source wording is not a verified proposition" in shared["INFORMATION_STATUS"]
+    # The hooks that make the layer bind: a rule no gate cites and no edge names is advice.
+    cites = {rule_id for gate in KERNEL.gates for rule_id in gate.shared_rules}
+    for rule_id in ("TEST_INVARIANT", "SURFACE_PREPARATION", "CAUSAL_ATTRIBUTION", "TOOLCHAIN_QUALIFICATION", "ANTI_CHURN"):
+        assert rule_id in cites, rule_id
+    edges = {(edge.source, edge.target, edge.condition) for edge in KERNEL.edges}
+    assert any(s == "G6" and t == "G7" and "@SURFACE_PREPARATION READY" in c for s, t, c in edges)
+    assert any(s == "G8" and t == "G2" and "@TOOLCHAIN_QUALIFICATION" in c for s, t, c in edges)
+    assert any(s == "G6" and t == "G2" and "@TOOLCHAIN_QUALIFICATION" in c for s, t, c in edges), "F10: G6 sees the tool gap first"
+
+
 def test_structured_predicates_do_not_shorten_rendered_rule_meaning() -> None:
     """A machine-readable predicate is not a replacement for the owner's rule text."""
     text = render_kernel(KERNEL)

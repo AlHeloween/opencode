@@ -22,9 +22,13 @@ day, a double route at G6 (terminal and self-trigger enabled by one condition) t
 
 ```bash
 python tools/aicall.py --list                                  # catalog, auth, reachable models
-python tools/aicall.py --json --model space-bunny-free --max-tokens 8000 \
-  --file brief.txt "Follow the instructions in the attached file exactly."
+python tools/aicall.py --json --model space-bunny-free --max-tokens 32000 --timeout 900 \
+  --out reply.json --file brief.txt "Follow the instructions in the attached file exactly."
 ```
+
+Always pass `--out` for `--json`: never capture the envelope with a shell redirect. Measured 2026-09-29: a
+caller's `2>&1` spliced the stderr notice («finish_reason=length …») INTO the JSON body and broke parsing.
+`--timeout` (default 300 s) exists because a reasoning model at 32 000 tokens outlived the fixed window.
 
 Exit codes: `0` answered · `2` usage / refusal (unknown model, unreadable file) · `3` HTTP or network
 error · `4` empty message · `5` cut at `max_tokens` — the findings are a FLOOR, not a verdict.

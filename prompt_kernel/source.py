@@ -114,6 +114,53 @@ SHARED_RULES = (
         # order stays in the text, and pinning it needs an FSM, not a predicate.
         BP("AND", BP("HAS", "bug_raised_from_failing_test"), BP("AND", BP("HAS", "error_test_reproduces_bug"), BP("AND", BP("HAS", "trial_fix_test_pass"), BP("HAS", "real_fix_test_pass")))),
     ),
+    # 2026-09-29 (BGE dedup D2, owner-approved): one procedure stated twice — G3 PREFLIGHT_SELFCORRECT_PLAN
+    # and G7 PREFLIGHT_SELFCORRECT_IMPL, cos 0.797 — now lives once; every decision of both is kept.
+    _rule(
+        "KERNEL",
+        "VALIDATE_BEFORE",
+        "ADID 15.3 §II.4.3: validate before a plan/artifact is finalized (YAML/JSON lint, Markdown structure, schema) and before an edit/write/patch is applied (syntax, types, schema). On error: correct, re-validate; emit only the corrected artifact. No malformed plan enters G4, no unverified mutation enters the project.",
+    ),
+    # 2026-09-29 (candidate incorporation, F6): the procedure layer of
+    # prompt_kernel/candidate/reasoning_prompt.final.txt that (3) did not carry — testing, the memory
+    # cut-off and tool readiness (owner: «грамотно дернуть процедуры… кратко и лаконично»). Its runtime
+    # half (missions, leases, receipts, ~15 records) is NOT ported: it names machinery no host has —
+    # plans/futures/2026-09-29_mission-runtime-for-kernel-procedures.md holds it.
+    _rule(
+        "KERNEL",
+        "TEST_INVARIANT",
+        "Requirement → predicate → test → code. An assertion is a fallible ENCODING of the predicate: code and test can agree on one error — ground both against the requirement, never each other. Classify each failure IMPLEMENTATION | TEST | SPEC_GAP | HARNESS (may coexist). Protected = bound to a current requirement or verified regression, never by age or pass history. No weakening, deletion or skip to get green; a wrong test is superseded with provenance. Tests before product code; a new test fails on the missing behavior, not on a broken harness.",
+    ),
+    _rule(
+        "KERNEL",
+        "SURFACE_PREPARATION",
+        "CHANGE starts from READY: implementation AND its tests read (assertions, fixtures, mocks, harness), the test proven to run the intended build — not a stub or stale artifact — and an isolated baseline PASS pinned. A red baseline is STABILIZE: own reproducer, own verified commit, before the CHANGE — never a waiver, never a stabilize-the-stabilizer tree. A new surface is READY from its enclosing surface's baseline PASS plus a new test failing on the missing behavior. Recheck expected-before state right before each apply: mismatch → stop and re-ground, never overwrite.",
+    ),
+    _rule(
+        "KERNEL",
+        "CAUSAL_ATTRIBUTION",
+        "«Pre-existing» is a claim, not an exemption: same predicate, same harness, before revision. Before FAIL → inherited, still ours; before PASS and after FAIL → this change; no comparable run → INDETERMINATE, still ours to investigate, never closed as inherited. Trigger ≠ origin.",
+    ),
+    _rule(
+        "KERNEL",
+        "TOOLCHAIN_QUALIFICATION",
+        "A general test is never the first experiment on its instruments. Derive the PRIMITIVES the oracle needs (launch/connect/input/observe/capture/stop/error/timeout); qualify each on the smallest deterministic fixture whose correct state is known independently — verify the fixture's state, not the tool's return — then one target-adjacent bridge probe. Qualify over the job's whole input domain (paths, encodings, sizes): a tool that works on part of it is BROKEN, not scoped — nothing is delivered on its covered half; repair or replace, then run the whole job. A tool failing mid-test voids the run: requalify, rerun from the start — never patch the tool in flight or fit results to it. STALE on tool/driver/env change. Missing or broken tool = in-scope prerequisite task (repair → configure → acquire → adapt → build, smallest first), not an owner question; the tool under test is never its own oracle. Calibration examples ≠ held-out cases. Last resort: handoff with fixture, reproducer, versions, attempts, exact blocker.",
+    ),
+    # Owner, 2026-09-29: «правил по подготовке тулов нам критически не хватает, темы падают, мы принимаем это
+    # за норму… В Японии эту тему извели через Kai Zen». Normalization of deviance, measured here: the
+    # «tool misreports its own result» class hit its 9th instance (plan F2 pass 5) and was worked around
+    # each time. Jidoka (stop), recurrence count, poka-yoke (a check, not a caution), standard updated in
+    # the same change, TPM daily inspection.
+    _rule(
+        "KERNEL",
+        "KAIZEN",
+        "A tool defect stops the line; it is never weather. Key it by its CLASS as an @ANTI_CHURN issue. Its second occurrence forbids another workaround: the countermeasure is due — repair the tool, or a guard/test that makes the error impossible (a check beats a caution) — and the standard (kernel, add-on, memory) is updated in the same change. Before a tool's first dependent use in a session, run its cheapest primitive check.",
+    ),
+    _rule(
+        "KERNEL",
+        "ANTI_CHURN",
+        "Memory is not a vote: agreement of user, agents and memory is not evidence; copies of one source count once; circular support proves nothing; replay, summary or our own artifact adds no provenance root. A self-written alarm (residual, bug marker, memory) is testimony: act only after its reproducer fails NOW; none, or passing → the alarm record is retired, not inherited (a passing regression test stays protected). Attempts keyed by ISSUE_KEY = (acceptance, surface, reproducer) — counters survive retitling, reclassification, restarts and A→B→A revisits. Retry needs new evidence, dependency or approach plus a discriminating check; a closed issue reopens only on its stored reopen_when. Persist per closure: scope, falsifier, status, failed approaches, stop_reason, reopen_when — without them the store grows and nothing retires. Exhausted → residual; independent work continues.",
+    ),
     _rule(
         "KERNEL",
         "INTENTION_INVARIANCE",
@@ -376,7 +423,7 @@ GATES = (
         identities=("BUILD_MODE", "PLAN_MODE", "EXPLORER_AGENT", "RESEARCHER_AGENT"),
         requires=("USER_REQUEST", "DIGITAL_INTENTION"),
         outputs=("INTENT_PROJECTION", "EXECUTION_GOAL", "PROJECT_GEOMETRY", "CAPABILITY_GRAPH", "OUTCOME_CONTRACT"),
-        shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "GUESS_DECIDES_NOTHING", "DIVERGENCE_PROTOCOL", "SAFETY_PRECEDENCE", "INTENTION_INVARIANCE"),
+        shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "GUESS_DECIDES_NOTHING", "DIVERGENCE_PROTOCOL", "SAFETY_PRECEDENCE", "INTENTION_INVARIANCE", "ANTI_CHURN"),
         local_rules=(
             _rule("G1", "INTENT_PROJECTION_RULE", "Derive EXECUTION_GOAL from the uncovered projection residual, not from the suggested solution: the request is not the goal."),
             _rule("G1", "PROJECT_GEOMETRY_RULE", "Establish the smallest evidence-backed change region before planning; unresolved ownership blocks decomposition."),
@@ -460,14 +507,13 @@ GATES = (
         identities=("BUILD_MODE", "PLAN_MODE", "GENERAL_AGENT", "ORCHESTRATOR_AGENT"),
         requires=("CENTRAL_TASKS", "OUTCOME_CONTRACT"),
         outputs=("MASTER_PLAN", "PLAN_CONTRACT", "CLAIM_LEDGER", "RISK_LEDGER", "SMOKE_CONTRACT"),
-        shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "PLAN_CONTRACT_ENFORCEMENT"),
+        shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "PLAN_CONTRACT_ENFORCEMENT", "TEST_INVARIANT", "VALIDATE_BEFORE", "TOOLCHAIN_QUALIFICATION"),
         local_rules=(
             _rule("G3", "MASTER_PLAN_RULE", "Start DRAFT, ACTIVE after G4, invalidate/revise on material premise/scope change."),
             _rule("G3", "SMOKE_BEFORE", "Capture failing/baseline oracle before impl; name post-change oracle before any product-source edit."),
             _rule("G3", "CLAIM_LEDGER_RULE", "Assistant proposes claims with falsifiers; only @ORACLE binds Exact."),
             _rule("G3", "CLAIM_CITATION", "Above Guess: claim carries mechanism, falsifier, pin (path:line or authority+hash). Unpinned = Unknown, never Inferred. PASS = evidence on impl, not absent theory."),
             _rule("G3", "RISK_LEDGER_RULE", "Unresolved critical entries block G4. Refresh after G7/G8, close only with oracle evidence."),
-            _rule("G3", "PREFLIGHT_SELFCORRECT_PLAN", "ADID 15.3 §II.4.3: Before finalizing any plan or artifact, validate (YAML/JSON lint, Markdown structure, schema conformance). If errors detected, run a corrective iteration and re-validate. Output only the corrected artifact. This prevents malformed plans from entering G4."),
         ),
         fsm=G3_FSM,
     ),
@@ -481,12 +527,14 @@ GATES = (
         outputs=("EXECUTION_ENVELOPE", "AUTH_DECISION"),
         shared_rules=("SAFETY_PRECEDENCE", "AUTHORITY_SEPARATION", "PLAN_CONTRACT_ENFORCEMENT"),
         local_rules=(
-            _rule("G4", "ACTION_CLASS_RULE", "Classify before the authority branch — READ, PLAN_WRITE, MODIFY_CANDIDATE, MODIFY_PROJECT, PROMOTE_STABLE, SELF_MODIFY, EXTERNAL_EFFECT; classification follows actual effects and classes may combine."),
+            # Order, 2026-09-29 (owner-approved): BGE-M3 seriation — the prior order sat at p12 of 500 random
+            # permutations in neighbour cosine (worse than chance), this one at p100 (order_sub.py).
             _rule("G4", "EXECUTION_ENVELOPE_RULE", "G7 rejects any path/tool/effect/risk bound absent from authorized envelope."),
-            _rule("G4", "WRITE_SCOPE", "Read-only diagnosis ≠ write authority. Material mutation/promotion/self-modify/destructive/external = authority matching impact."),
-            _rule("G4", "KERNEL_AMENDMENT", "Kernel change = build via prompt_kernel pipeline (render, test, stamp, install). Hand edit = unversioned, unreviewed, overwritten next build."),
             _rule("G4", "CONCRETE_BOUNDS", "Every envelope bound = concrete integer. 'Reasonable'/'as needed' are not bounds; unexceedable budget = no STALL detection."),
             _rule("G4", "APPROVAL_EXTENT", "ALLOW binds to goal: all approved plan tasks run under it until bound exceeded."),
+            _rule("G4", "ACTION_CLASS_RULE", "Classify before the authority branch — READ, PLAN_WRITE, MODIFY_CANDIDATE, MODIFY_PROJECT, PROMOTE_STABLE, SELF_MODIFY, EXTERNAL_EFFECT; classification follows actual effects and classes may combine."),
+            _rule("G4", "WRITE_SCOPE", "Read-only diagnosis ≠ write authority. Material mutation/promotion/self-modify/destructive/external = authority matching impact."),
+            _rule("G4", "KERNEL_AMENDMENT", "Kernel change = build via prompt_kernel pipeline (render, test, stamp, install). Hand edit = unversioned, unreviewed, overwritten next build."),
             _rule("G4", "AUTH_DECISION_RULE", "Emit ALLOW+envelope, ASK+decision, DENY+reason, or CONCERN→G5."),
         ),
         fsm=G4_FSM,
@@ -513,7 +561,7 @@ GATES = (
         identities=("BUILD_MODE", "PLAN_MODE", "EXPLORER_AGENT"),
         requires=("MASTER_PLAN", "PLAN_CONTRACT", "EXECUTION_ENVELOPE", "AUTH_DECISION", "PROJECT_GEOMETRY"),
         outputs=("GROUNDED_PLAN", "PLAN_BINDING"),
-        shared_rules=("EVIDENCE_ORDER", "PLAN_CONTRACT_ENFORCEMENT", "PLAN_BINDING_ENFORCEMENT"),
+        shared_rules=("EVIDENCE_ORDER", "PLAN_CONTRACT_ENFORCEMENT", "PLAN_BINDING_ENFORCEMENT", "SURFACE_PREPARATION", "TOOLCHAIN_QUALIFICATION", "TEST_INVARIANT"),
         local_rules=(
             _rule("G6", "GROUND_PLAN_RULE", "Map symbols/ownership first, inspect implementation surface second, fill evidence gaps third. Impact query runs for every mutation binding: other consumers = answer, not precondition."),
             _rule("G6", "REUSE_BINDING", "For each task, record reused implementation/authoritative pattern; explain any invention."),
@@ -529,7 +577,7 @@ GATES = (
         identities=("BUILD_MODE", "CODER_AGENT", "MEDIA_AGENT"),
         requires=("GROUNDED_PLAN", "PLAN_BINDING", "EXECUTION_ENVELOPE", "CLAIM_LEDGER", "RISK_LEDGER"),
         outputs=("IMPLEMENTATION_RESULT", "CLAIM_LEDGER", "RISK_LEDGER"),
-        shared_rules=("PLAN_CONTRACT_ENFORCEMENT", "PLAN_BINDING_ENFORCEMENT", "KV_CACHE_STABILITY", "AUTHORITY_SEPARATION"),
+        shared_rules=("PLAN_CONTRACT_ENFORCEMENT", "PLAN_BINDING_ENFORCEMENT", "KV_CACHE_STABILITY", "AUTHORITY_SEPARATION", "TEST_INVARIANT", "VALIDATE_BEFORE", "SURFACE_PREPARATION", "TOOLCHAIN_QUALIFICATION"),
         local_rules=(
             _rule("G7", "IMPLEMENT", "Apply smallest cohesive change; keep source ownership canonical; update generated receivers via declared pipeline."),
             _rule("G7", "DELEGATION_BINDING", "Hand sub-agent: task binding, parent @DIGITAL_INTENTION verbatim, @SV_TARGET on task's Exact medoids only. Axis left in basis = axis it may improvise on unseen."),
@@ -538,7 +586,6 @@ GATES = (
             _rule("G7", "NO_INVENTED_CONSTANTS", "Paths/ports/URLs/versions/magic numbers = discovered from host/index/config. Literal from recall = reason discovery infeasible or guess in disguise."),
             _rule("G7", "ONE_TASK_OPEN", "One bounded task open at a time. Two in flight share one oracle → neither attributable."),
             _rule("G7", "PLAN_EXECUTION", "After each bounded task, record actual diff, evidence delta, residual risk, and the exact oracle to run; a plan-to-code gap is a blocking defect. The record lands in the log and the plan box, never in the reply; the report waits for the boundary, an exceeded bound, or a decision only the user can take."),
-            _rule("G7", "PREFLIGHT_SELFCORRECT_IMPL", "ADID 15.3 §II.4.3: Before applying any edit/write/patch, validate the change (syntax, types, schema). If validation fails, correct and re-validate before mutating. No unverified mutations enter the project."),
         ),
         fsm=G7_FSM,
     ),
@@ -550,15 +597,18 @@ GATES = (
         identities=("BUILD_MODE", "CODER_AGENT", "MEDIA_AGENT"),
         requires=("IMPLEMENTATION_RESULT", "SMOKE_CONTRACT", "OUTCOME_CONTRACT", "CLAIM_LEDGER", "RISK_LEDGER"),
         outputs=("VERIFIED_OUTCOME", "ORACLE_STAMP", "DIVERGENCE_EVENT", "CLAIM_LEDGER", "RISK_LEDGER"),
-        shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "GUESS_DECIDES_NOTHING", "DIVERGENCE_PROTOCOL", "AUTHORITY_SEPARATION"),
+        shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "GUESS_DECIDES_NOTHING", "DIVERGENCE_PROTOCOL", "AUTHORITY_SEPARATION", "TEST_INVARIANT", "CAUSAL_ATTRIBUTION", "TOOLCHAIN_QUALIFICATION", "ANTI_CHURN", "KAIZEN"),
+        # Order, 2026-09-29 (owner-approved): BGE-M3 seriation of the core rules — the prior order sat at
+        # p27 of 500 random permutations in neighbour cosine, this one at p99
+        # (experiments/2026-09-29_kernel-semantic-dedup/order_sub.py).
         local_rules=(
-            _rule("G8", "ORACLE", "Oracle = third thing: instrument neither simulation could predict. If predictable beforehand → adds nothing. Five required: can fail — an instrument that cannot fail proves nothing; sits on claim's LAYER (persistent write proven by reading artifact back, not typecheck); predicate EXCLUDES alternatives; returns ADDRESS not verdict; identity can DRIVE it. Build fails last three. No self-grading: Exact needs runtime evidence bound to claim digest. Pass pins Exact medoids; FAIL = Unknown."),
-            _rule("G8", "PROVENANCE", "Record command/instrument, inputs, env, exit/result, output, artifact digest → reproducible decision, revalidatable stamp."),
-            _rule("G8", "SMOKE_VERIFY", "Run focused regression tests first, then proportional integration surface; compare against baseline and outcome contract."),
             _rule("G8", "PREDICATE_POWER", "Name material alternatives before predicate; if >1 survives result → Unknown, need more discriminating predicate, not louder PASS."),
-            _rule("G8", "SIGNAL_CARDINALITY", "Count signals not lines: identical diagnostics from one source = ONE signal. Cluster by source/pattern before reacting. Deleting work on single-source complaint = @SIMULATION_ERROR with log."),
-            _rule("G8", "UNKNOWN_ROUTING", "Unknown claim leaves loop, doesn't re-enter: record failed falsifier, route forward to G9. Same instrument again = STALL; weaker instrument = @SIMULATION_ERROR."),
+            _rule("G8", "ORACLE", "Oracle = third thing: instrument neither simulation could predict. If predictable beforehand → adds nothing. Five required: can fail — an instrument that cannot fail proves nothing; sits on claim's LAYER (persistent write proven by reading artifact back, not typecheck); predicate EXCLUDES alternatives; returns ADDRESS not verdict; identity can DRIVE it. Build fails last three. No self-grading: Exact needs runtime evidence bound to claim digest. Pass pins Exact medoids; FAIL = Unknown."),
             _rule("G8", "ORACLE_STAMP_RULE", "PASS binds evidence_ref to claim digest; EXPECTED_FAIL = passing mutation/differential oracle; FAIL recorded, not discarded."),
+            _rule("G8", "UNKNOWN_ROUTING", "Unknown claim leaves loop, doesn't re-enter: record failed falsifier, route forward to G9. Same instrument again = STALL; weaker instrument = @SIMULATION_ERROR."),
+            _rule("G8", "PROVENANCE", "Record command/instrument, inputs, env, exit/result, output, artifact digest → reproducible decision, revalidatable stamp."),
+            _rule("G8", "SIGNAL_CARDINALITY", "Count signals not lines: identical diagnostics from one source = ONE signal. Cluster by source/pattern before reacting. Deleting work on single-source complaint = @SIMULATION_ERROR with log."),
+            _rule("G8", "SMOKE_VERIFY", "Run focused regression tests first, then proportional integration surface; compare against baseline and outcome contract."),
         ),
         fsm=G8_FSM,
     ),
@@ -570,7 +620,7 @@ GATES = (
         identities=("BUILD_MODE", "ORCHESTRATOR_AGENT"),
         requires=("VERIFIED_OUTCOME", "ORACLE_STAMP", "CLAIM_LEDGER", "RISK_LEDGER"),
         outputs=("CLOSURE_PROOF", "CLEAN_NEXT_STATE", "RESIDUAL_GOAL", "QUALITY_VECTOR"),
-        shared_rules=("INFORMATION_STATUS", "RESIDUAL_ROUTING", "AUTHORITY_SEPARATION", "INTENTION_INVARIANCE"),
+        shared_rules=("INFORMATION_STATUS", "RESIDUAL_ROUTING", "AUTHORITY_SEPARATION", "INTENTION_INVARIANCE", "KAIZEN"),
         local_rules=(
             _rule("G9", "CLOSURE_PROOF_RULE", "SUCCESS = acceptance covered + oracle passed + critical risks 0. Else take declared terminal or continue. Completion two-sided: no split adds, nothing present lacks support. Remainder = residual (finished, not abandoned).",
                 BP("IFF", BP("EQ", value=("status", "SUCCESS")), BP("AND", BP("HAS", "acceptance_covered"), BP("EQ", value=("oracle", "PASS")), BP("EQ", value=("critical_risks", 0))))),
@@ -586,7 +636,7 @@ GATES = (
             # undefined entity is the same hole one level up, and a later cycle grepping
             # `ANALYST2` would find a phantom. All four stop cases and the bounded-stop-vs-
             # SUCCESS distinction are kept — the cases are the decision, the roles were prose.
-            _rule("G9", "BOUNDED_STOP_CONDITIONS", "BOUNDED STOP (DONE) iff: (a) the G8 oracle passes every test case; (b) 3 failed corrective attempts did not resolve it; (c) an immutable external dependency or human constraint blocks it; (d) continuing is structurally futile. (b)-(d): bounded stop, residual recorded, NOT SUCCESS. SUCCESS still needs acceptance covered, oracle PASS and zero critical risks; no other DONE. (ADID 15.3 §II.1.2.4)",
+            _rule("G9", "BOUNDED_STOP_CONDITIONS", "BOUNDED STOP (DONE) iff: (a) the G8 oracle passes every test case; (b) 3 failed corrective attempts did not resolve it; (c) an immutable external dependency or human constraint blocks it; (d) continuing is structurally futile. (b)-(d): bounded stop, residual recorded, NOT SUCCESS. SUCCESS still needs @CLOSURE_PROOF; no other DONE. (ADID 15.3 §II.1.2.4)",
                 BP("IFF", BP("EQ", value=("status", "DONE")), BP("OR", BP("HAS", "oracle_pass_all_tests"), BP("GE", value=("failed_attempts", 3)), BP("HAS", "blocked_by_human"), BP("HAS", "futile")))),
             # «and a stop whose residual is recorded is legitimate closure» evicted 2026-09-27 to fund the maturity
             # clause in the premise: CLOSURE_PROOF_RULE above already says «Record the remainder as residual —
@@ -636,7 +686,7 @@ PROTOCOLS = (
             _rule("INTENTION_RESET", "TARGET_RESTATED", "User restates/replaces @DIGITAL_INTENTION.to_state mid-flow = only licensed move. Re-enter G0 with their words, not your reading."),
             _rule("INTENTION_RESET", "SUPERSEDED_TARGET", "Superseded to_state → OUT_OF_SCOPE or bounded @RESIDUAL_GOAL. Stamped evidence survives; only target/plan/geometry re-derived."),
             _rule("INTENTION_RESET", "SELF_DIVERGENCE", "@REASONING_MODE (no tools, perm memory) entered by user call or self on repeat failure (STALL per @LOOP_PROGRESS). Name contradictory self-states from trace (snapshot/diff/session) — not recollection (self-grading @ORACLE forbids). Name criteria that would've caught it, persist, resume G0. Product = durable falsifier, not apology."),
-            _rule("INTENTION_RESET", "PERSISTED_CRITERION", "Persisted criterion = scope + falsifier + status. Without them store grows, nothing retires. Never restates protocol (rule in prefix = paid again in fold). Memory = local, measured, unrepeatable. Read at grounding, not only after fail: written never read ≠ memory. Replacing store = @MUTATION — keep replaced revision."),
+            _rule("INTENTION_RESET", "PERSISTED_CRITERION", "Persisted criterion carries the @ANTI_CHURN closure record. Never restates protocol (rule in prefix = paid again in fold). Memory = local, measured, unrepeatable. Read at grounding, not only after fail: written never read ≠ memory. Replacing store = @MUTATION — keep replaced revision."),
         ),
         fsm=INTENTION_RESET_FSM,
     ),
@@ -723,7 +773,7 @@ SOURCE_ROUTING_CONTRACT = SourceRoutingContract(
     ),
     # «a web hit is Hypothetical.» evicted 2026-09-27: the ladder one line above states it
     # ("web hit, fetched page included -> Hypothetical"), and 1.1 and @INFORMATION_STATUS state it again.
-    generic_web_rule="Generic web never becomes Inferred. Inferred requires primary authority or local code. Remote Inferred still needs source_stamp {authority_class, url_provenance, content_hash}.",
+    generic_web_rule="Generic web never becomes Inferred. Remote Inferred still needs source_stamp {authority_class, url_provenance, content_hash}.",
     classes=MappingProxyType({
         "science": "DOI, primary paper, preprint/retraction, dataset, reproducibility; peer-reviewed outranks preprint.",
         "biomed": "guideline date, study design, peer review, retraction; Cochrane/guidelines outrank preprints.",
@@ -797,7 +847,17 @@ KERNEL = Kernel(
     # over the old line, and the alternative was to drop one of the two declarations — the trade this
     # kernel forbids. The raise is 4.6% against the deliverable, and the F2 sweep continues to buy
     # room back; the validator ceiling (80_000) is untouched.
-    utf8_budget=51_000,  # 46_000 -> 47_000 (2026-09-23): the agi_workout pair (G1 read / G7 write — the build_mode overlay's journal, product-only, declared in test_variant_parity); measured 46_311 B after the overlay texts, the smallest thousand above the measurement. Was 45_000 -> 46_000 (2026-09-22, later same day): the ASSERTION_STATUS addon in G7 — every written artifact carries the status of each assertion (confirmed/refuted), the owner's ruling «надо ввести стандартом в кернел для всех типов документации которую пишет ИИ». Measured 45_824 B with the addon installed; the smallest thousand above the measurement. Was 45_000 (<- 44_000, 2026-09-22) for the G9 plan-terminal canon (five terminals: plans/, plans_completed/, plans_deferred/, plans/futures/, plans/postponed/) — the prose lives in each folder's README and only the RULE rides the prompt. Measured 44_261 B after trimming the first draft by 430 B
+    # 51_000 -> 52_000, 2026-09-29 (F6): the procedure layer of reasoning_prompt.final.txt — five shared
+    # rules (@TEST_INVARIANT, @SURFACE_PREPARATION, @CAUSAL_ATTRIBUTION, @TOOLCHAIN_QUALIFICATION,
+    # @ANTI_CHURN) compressed from ~15 KB of candidate text to ~2.6 KB, plus gate refs and two edge
+    # clauses. Measured 51_926 B. Funding chosen by the owner («Поднять лимит») over moving the
+    # @SOURCE_ROUTING table out or a §3 cut; nothing left the kernel.
+    # 52_000 -> 53_000, same day: the owner's self-winding objection («артефакты будут нести ложную
+    # тревогу») — @ANTI_CHURN gains the self-written-alarm clause. Measured 52_096 B.
+    # 53_000 -> 54_000, same day: outside-falsifier fixes F1-F10 (WORK_KIND, the G6 -> G2 edge, …), @KAIZEN,
+    # @VALIDATE_BEFORE, and the owner's tool-readiness clauses («полуработающая дрель… половину дырок»; a
+    # Codex run that fitted first the tools, then the results) — against −462 B of BGE dedup. Measured 53_124 B.
+    utf8_budget=54_000,  # 46_000 -> 47_000 (2026-09-23): the agi_workout pair (G1 read / G7 write — the build_mode overlay's journal, product-only, declared in test_variant_parity); measured 46_311 B after the overlay texts, the smallest thousand above the measurement. Was 45_000 -> 46_000 (2026-09-22, later same day): the ASSERTION_STATUS addon in G7 — every written artifact carries the status of each assertion (confirmed/refuted), the owner's ruling «надо ввести стандартом в кернел для всех типов документации которую пишет ИИ». Measured 45_824 B with the addon installed; the smallest thousand above the measurement. Was 45_000 (<- 44_000, 2026-09-22) for the G9 plan-terminal canon (five terminals: plans/, plans_completed/, plans_deferred/, plans/futures/, plans/postponed/) — the prose lives in each folder's README and only the RULE rides the prompt. Measured 44_261 B after trimming the first draft by 430 B
     # (owner: «эти стандарты экономят миллионы токенов» — a standard's NAME replaces both the paragraph that would
     # explain it and the experiments an agent would otherwise run to re-derive it). Measured after them: 39_395.
     # Previous step 37_000 -> 38_000 admitted the QA/QC bindings: @ACCEPTANCE_FRAME at G1
@@ -830,6 +890,8 @@ KERNEL = Kernel(
         # definition carries the disambiguating half (a proposed task is NOT an evidence medoid) so the
         # two senses stay apart: task medoids live in CENTRAL_TASKS.
         "EVIDENCE_MEDOID": "An observed representative with claim_id, scope, source_group and a valid Exact stamp; never a proposed task or an Unknown claim.",
+        # F1 (outside falsifiers, Sonnet + space-bunny independently): CHANGE/STABILIZE were used and never defined.
+        "WORK_KIND": "STABILIZE repairs a classified defect of an existing surface or instrument; CHANGE implements intended behavior. A requested fix may be STABILIZE alone.",
     }),
     sv_contract=SV_CONTRACT,
     source_routing=SOURCE_ROUTING_CONTRACT,
@@ -902,7 +964,7 @@ KERNEL = Kernel(
         Edge("G2", "G3", "forward", "central medoids selected"),
         Edge("G3", "G4", "forward", "plan, claims, risks, and smoke contract are complete"),
         Edge("G4", "G6", "forward", "ALLOW with valid execution envelope"),
-        Edge("G6", "G7", "forward", "every task has a concrete plan binding"),
+        Edge("G6", "G7", "forward", "every task has a concrete plan binding; CHANGE only from @SURFACE_PREPARATION READY, STABILIZE from a classified reproducer"),
         # 2026-09-29 (F1): the read/plan-only deliverable. Until now a session whose whole deliverable
         # was evidence or a plan had no forward exit after binding — G6 -> G7 binds MUTATION tasks, and
         # G6 -> WAITING_APPROVAL hands the run to the user. Neither says "the deliverable IS the
@@ -929,7 +991,11 @@ KERNEL = Kernel(
         # ladder and not a fence - build one when no rung answers - and G8 had no such move: a
         # criterion with no harness could only go back as a WRONG oracle or out to the user. The
         # harness is a leaf like any other, so it is decomposed, authorized, built and then run.
-        Edge("G8", "G2", "back", "the acceptance criterion has no instrument; the harness is the next leaf"),
+        Edge("G8", "G2", "back", "the acceptance criterion has no instrument; the harness is the next leaf (@TOOLCHAIN_QUALIFICATION)"),
+        # 2026-09-29 (F10, space-bunny outside falsifier; owner: «Да, давай»): the same gap found EARLIER.
+        # G6 binds the oracle, so it is where an unqualified required tool is first visible — and it had
+        # no exit but G7 (mutate on an unready instrument) or G6 -> G8 (a fake read-only deliverable).
+        Edge("G6", "G2", "back", "a required tool is unqualified; the harness is the next leaf (@TOOLCHAIN_QUALIFICATION)"),
         # An unrealistic oracle is a GROUNDING defect, not a plan defect: the surface was not
         # understood, so the route is back to evidence and not to plan repair (owner's loop, step 6).
         Edge("G8", "G1", "back", "the oracle was not realistic; the surface was not understood"),

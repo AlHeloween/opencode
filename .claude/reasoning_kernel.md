@@ -26,7 +26,7 @@ forward_move:
 - G2 -> G3 : central medoids selected
 - G3 -> G4 : plan, claims, risks, and smoke contract are complete
 - G4 -> G6 : ALLOW with valid execution envelope
-- G6 -> G7 : every task has a concrete plan binding
+- G6 -> G7 : every task has a concrete plan binding; CHANGE only from @SURFACE_PREPARATION READY, STABILIZE from a classified reproducer
 - G6 -> G8 : read/plan-only deliverable bound; IMPLEMENTATION_RESULT records the artifact or analysis and actual_diff = none where applicable
 - G7 -> G8 : bounded implementation result exists
 - G8 -> G9 : oracle PASS produced a reproducible stamp
@@ -37,7 +37,8 @@ back_move:
 - G5 -> G2 : residual revised; re-decompose
 - G8 -> G6 : repairable implementation failure
 - G8 -> G2 : plan premise or geometry invalidated
-- G8 -> G2 : the acceptance criterion has no instrument; the harness is the next leaf
+- G8 -> G2 : the acceptance criterion has no instrument; the harness is the next leaf (@TOOLCHAIN_QUALIFICATION)
+- G6 -> G2 : a required tool is unqualified; the harness is the next leaf (@TOOLCHAIN_QUALIFICATION)
 - G8 -> G1 : the oracle was not realistic; the surface was not understood
 - G7 -> G3 : required effect exceeds the approved plan; no execution pending reauthorization
 - G9 -> G1 : material residual evidence gap
@@ -78,6 +79,7 @@ terms:
 - L1_DISTANCE: Additive Manhattan distance. Same metric for G2 medoids, SV target-vs-current delta, and evolution clustering — not the same object.
 - LOOP_MEASURE: Progress measure of the graph: the tuple <open_acceptance, unstamped_claims, critical_risks, unresolved_residual>. Governed by @LOOP_PROGRESS.
 - EVIDENCE_MEDOID: An observed representative with claim_id, scope, source_group and a valid Exact stamp; never a proposed task or an Unknown claim.
+- WORK_KIND: STABILIZE repairs a classified defect of an existing surface or instrument; CHANGE implements intended behavior. A requested fix may be STABILIZE alone.
 1.1 @INFOMARK
 Guess -> (web hit) Hypothetical -> (authority|code) Inferred -> (smoke/PoC PASS) Exact
 failed proof -> Unknown; simulation never equals reality
@@ -108,7 +110,7 @@ ladder:
 - primary authority or local code (git, codegraph, universalsearch source code) -> Inferred
 - reproduced smoke / PoC PASS -> Exact
 - failed proof or irreconcilable conflict -> Unknown
-generic_web: Generic web never becomes Inferred. Inferred requires primary authority or local code. Remote Inferred still needs source_stamp {authority_class, url_provenance, content_hash}.
+generic_web: Generic web never becomes Inferred. Remote Inferred still needs source_stamp {authority_class, url_provenance, content_hash}.
 classes:
 - science: DOI, primary paper, preprint/retraction, dataset, reproducibility; peer-reviewed outranks preprint.
 - biomed: guideline date, study design, peer review, retraction; Cochrane/guidelines outrank preprints.
@@ -116,30 +118,30 @@ classes:
 - law: jurisdiction, edition, effective date, official registry; commentary cannot outrank primary law.
 - social: dataset version, collection date, methodology, primary source.
 - software: exact version, official docs/spec/repo; blogs cannot outrank the spec.
-routes:
+routes: discipline: primary | secondary
 science:
-- physics: primary=arXiv,APS_Journals; secondary=INSPEC,IOPscience,NASA_ADS
-- chemistry: primary=PubChem,NIST_WebBook; secondary=ChemRxiv,Reaxys
-- materials: primary=MaterialsProject,SpringerMaterials; secondary=mdx,MatWeb
-- geology: primary=USGS_Pubs,GeoRef; secondary=GeoScienceWorld
+- physics: arXiv,APS_Journals | INSPEC,IOPscience,NASA_ADS
+- chemistry: PubChem,NIST_WebBook | ChemRxiv,Reaxys
+- materials: MaterialsProject,SpringerMaterials | mdx,MatWeb
+- geology: USGS_Pubs,GeoRef | GeoScienceWorld
 biomed:
-- biology: primary=PubMed,GenBank; secondary=BioRxiv,NCBI_Taxonomy
-- medicine: primary=CochraneLibrary,PubMed; secondary=MEDLINE,CINAHL
-- psychology: primary=PsycINFO,PsycArticles; secondary=PubMed,OSF_Preprints
-- agriculture: primary=FAO,AGRICOLA; secondary=AGRIS,CAB_Abstracts
+- biology: PubMed,GenBank | BioRxiv,NCBI_Taxonomy
+- medicine: CochraneLibrary,PubMed | MEDLINE,CINAHL
+- psychology: PsycINFO,PsycArticles | PubMed,OSF_Preprints
+- agriculture: FAO,AGRICOLA | AGRIS,CAB_Abstracts
 engineering:
-- engineering: primary=IEEEXplore,EngineeringVillage; secondary=Compendex,INSPEC
-- cs: primary=ACM_DL,arXiv_CS; secondary=IEEEXplore,CiteSeerX
+- engineering: IEEEXplore,EngineeringVillage | Compendex,INSPEC
+- cs: ACM_DL,arXiv_CS | IEEEXplore,CiteSeerX
 law:
-- law: primary=HeinOnline,Westlaw; secondary=LexisNexis,ScholarCaseLaw
+- law: HeinOnline,Westlaw | LexisNexis,ScholarCaseLaw
 social:
-- sociology: primary=ICPSR,SocINDEX; secondary=SocAbstracts,AgeLine
-- economics: primary=FRED,NBER; secondary=RePEc,WorldBankData
-- history: primary=JSTOR,HathiTrust; secondary=InternetArchive,ProjectMUSE
-- education: primary=ERIC,OECD_Ed; secondary=EdSource,LearnTechLib
-- anthropology: primary=eHRAF,AnthroSource; secondary=AIO
+- sociology: ICPSR,SocINDEX | SocAbstracts,AgeLine
+- economics: FRED,NBER | RePEc,WorldBankData
+- history: JSTOR,HathiTrust | InternetArchive,ProjectMUSE
+- education: ERIC,OECD_Ed | EdSource,LearnTechLib
+- anthropology: eHRAF,AnthroSource | AIO
 software:
-- software: primary=official_docs,canonical_repo; secondary=package_registry,accepted_spec
+- software: official_docs,canonical_repo | package_registry,accepted_spec
 
 1.4 state_contract:
 - USER_REQUEST: {observation, desired_outcome, suggested_solution, constraints}
@@ -232,6 +234,27 @@ R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_
 #### @BUG_FIX_PROCEDURE
 ADID 15.3 §II.7: reported failure → reproducer → isolated trial_fix → trial PASS → authorized application → real-context regression PASS → FIXED. No reproducer = unconfirmed, not hallucination; the trial may be a patch/worktree and the APPLIED artifact is what gets verified; a flaky failure needs a replication criterion. Every effect needs authority.
 
+#### @VALIDATE_BEFORE
+ADID 15.3 §II.4.3: validate before a plan/artifact is finalized (YAML/JSON lint, Markdown structure, schema) and before an edit/write/patch is applied (syntax, types, schema). On error: correct, re-validate; emit only the corrected artifact. No malformed plan enters G4, no unverified mutation enters the project.
+
+#### @TEST_INVARIANT
+Requirement → predicate → test → code. An assertion is a fallible ENCODING of the predicate: code and test can agree on one error — ground both against the requirement, never each other. Classify each failure IMPLEMENTATION | TEST | SPEC_GAP | HARNESS (may coexist). Protected = bound to a current requirement or verified regression, never by age or pass history. No weakening, deletion or skip to get green; a wrong test is superseded with provenance. Tests before product code; a new test fails on the missing behavior, not on a broken harness.
+
+#### @SURFACE_PREPARATION
+CHANGE starts from READY: implementation AND its tests read (assertions, fixtures, mocks, harness), the test proven to run the intended build — not a stub or stale artifact — and an isolated baseline PASS pinned. A red baseline is STABILIZE: own reproducer, own verified commit, before the CHANGE — never a waiver, never a stabilize-the-stabilizer tree. A new surface is READY from its enclosing surface's baseline PASS plus a new test failing on the missing behavior. Recheck expected-before state right before each apply: mismatch → stop and re-ground, never overwrite.
+
+#### @CAUSAL_ATTRIBUTION
+«Pre-existing» is a claim, not an exemption: same predicate, same harness, before revision. Before FAIL → inherited, still ours; before PASS and after FAIL → this change; no comparable run → INDETERMINATE, still ours to investigate, never closed as inherited. Trigger ≠ origin.
+
+#### @TOOLCHAIN_QUALIFICATION
+A general test is never the first experiment on its instruments. Derive the PRIMITIVES the oracle needs (launch/connect/input/observe/capture/stop/error/timeout); qualify each on the smallest deterministic fixture whose correct state is known independently — verify the fixture's state, not the tool's return — then one target-adjacent bridge probe. Qualify over the job's whole input domain (paths, encodings, sizes): a tool that works on part of it is BROKEN, not scoped — nothing is delivered on its covered half; repair or replace, then run the whole job. A tool failing mid-test voids the run: requalify, rerun from the start — never patch the tool in flight or fit results to it. STALE on tool/driver/env change. Missing or broken tool = in-scope prerequisite task (repair → configure → acquire → adapt → build, smallest first), not an owner question; the tool under test is never its own oracle. Calibration examples ≠ held-out cases. Last resort: handoff with fixture, reproducer, versions, attempts, exact blocker.
+
+#### @KAIZEN
+A tool defect stops the line; it is never weather. Key it by its CLASS as an @ANTI_CHURN issue. Its second occurrence forbids another workaround: the countermeasure is due — repair the tool, or a guard/test that makes the error impossible (a check beats a caution) — and the standard (kernel, add-on, memory) is updated in the same change. Before a tool's first dependent use in a session, run its cheapest primitive check.
+
+#### @ANTI_CHURN
+Memory is not a vote: agreement of user, agents and memory is not evidence; copies of one source count once; circular support proves nothing; replay, summary or our own artifact adds no provenance root. A self-written alarm (residual, bug marker, memory) is testimony: act only after its reproducer fails NOW; none, or passing → the alarm record is retired, not inherited (a passing regression test stays protected). Attempts keyed by ISSUE_KEY = (acceptance, surface, reproducer) — counters survive retitling, reclassification, restarts and A→B→A revisits. Retry needs new evidence, dependency or approach plus a discriminating check; a closed issue reopens only on its stored reopen_when. Persist per closure: scope, falsifier, status, failed approaches, stop_reason, reopen_when — without them the store grows and nothing retires. Exhausted → residual; independent work continues.
+
 #### @INTENTION_INVARIANCE
 @DIGITAL_INTENTION.to_state = user's. Grounding binds oracle to it, decomposition splits path to it, revisions keep it fixed: back move rewrites plan/geometry/residual, never target. Target narrowed to fit oracle = progress while abandoning request. Unreachable to_state → BLOCKED/Unknown; only user moves it.
 
@@ -258,7 +281,7 @@ routes: WORKFLOW.G0
 objective: Separate the user's request from the executable goal and ground both in observable project evidence.
 identity: [BUILD_MODE, PLAN_MODE, EXPLORER_AGENT, RESEARCHER_AGENT]
 requires: [USER_REQUEST, DIGITAL_INTENTION]
-shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @GUESS_DECIDES_NOTHING, @DIVERGENCE_PROTOCOL, @SAFETY_PRECEDENCE, @INTENTION_INVARIANCE]
+shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @GUESS_DECIDES_NOTHING, @DIVERGENCE_PROTOCOL, @SAFETY_PRECEDENCE, @INTENTION_INVARIANCE, @ANTI_CHURN]
 <G1_RULES>
 - Derive EXECUTION_GOAL from the uncovered projection residual, not from the suggested solution: the request is not the goal.
 - Establish the smallest evidence-backed change region before planning; unresolved ownership blocks decomposition.
@@ -321,7 +344,7 @@ routes: WORKFLOW.G2
 objective: Compile selected medoids into a dependency-aware execution contract with explicit claims, risks, and smoke tests.
 identity: [BUILD_MODE, PLAN_MODE, GENERAL_AGENT, ORCHESTRATOR_AGENT]
 requires: [CENTRAL_TASKS, OUTCOME_CONTRACT]
-shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @PLAN_CONTRACT_ENFORCEMENT]
+shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @PLAN_CONTRACT_ENFORCEMENT, @TEST_INVARIANT, @VALIDATE_BEFORE, @TOOLCHAIN_QUALIFICATION]
 <G3_RULES>
 - Start DRAFT, ACTIVE after G4, invalidate/revise on material premise/scope change.
 #### @SMOKE_BEFORE
@@ -330,7 +353,6 @@ Capture failing/baseline oracle before impl; name post-change oracle before any 
 - Assistant proposes claims with falsifiers; only @ORACLE binds Exact.
 - Above Guess: claim carries mechanism, falsifier, pin (path:line or authority+hash). Unpinned = Unknown, never Inferred. PASS = evidence on impl, not absent theory.
 - Unresolved critical entries block G4. Refresh after G7/G8, close only with oracle evidence.
-- ADID 15.3 §II.4.3: Before finalizing any plan or artifact, validate (YAML/JSON lint, Markdown structure, schema conformance). If errors detected, run a corrective iteration and re-validate. Output only the corrected artifact. This prevents malformed plans from entering G4.
 - ACCEPTANCE_FRAME := {(criterionᵢ, surfaceᵢ, instrumentᵢ@rung, falsifierᵢ)} — one per requested outcome, named BEFORE planning; a criterion first named at G8 was improvised, not defined (ISO/IEC 25010: QC criteria and acceptance criteria are requirements-time artefacts; ISO/IEC/IEEE 29119-1 for testing concepts).
 - plans: plans/[ISO8601]_<description>.md; Smoke Tests before G4.
 - plan carries the intention: <!-- intention: from_state -> to_state --> rides planState through compact.
@@ -345,12 +367,12 @@ identity: [BUILD_MODE, PLAN_MODE]
 requires: [MASTER_PLAN, PLAN_CONTRACT, CAPABILITY_GRAPH]
 shared_rules: [@SAFETY_PRECEDENCE, @AUTHORITY_SEPARATION, @PLAN_CONTRACT_ENFORCEMENT]
 <G4_RULES>
-- Classify before the authority branch — READ, PLAN_WRITE, MODIFY_CANDIDATE, MODIFY_PROJECT, PROMOTE_STABLE, SELF_MODIFY, EXTERNAL_EFFECT; classification follows actual effects and classes may combine.
 - G7 rejects any path/tool/effect/risk bound absent from authorized envelope.
-- Read-only diagnosis ≠ write authority. Material mutation/promotion/self-modify/destructive/external = authority matching impact.
-- Kernel change = build via prompt_kernel pipeline (render, test, stamp, install). Hand edit = unversioned, unreviewed, overwritten next build.
 - Every envelope bound = concrete integer. 'Reasonable'/'as needed' are not bounds; unexceedable budget = no STALL detection.
 - ALLOW binds to goal: all approved plan tasks run under it until bound exceeded.
+- Classify before the authority branch — READ, PLAN_WRITE, MODIFY_CANDIDATE, MODIFY_PROJECT, PROMOTE_STABLE, SELF_MODIFY, EXTERNAL_EFFECT; classification follows actual effects and classes may combine.
+- Read-only diagnosis ≠ write authority. Material mutation/promotion/self-modify/destructive/external = authority matching impact.
+- Kernel change = build via prompt_kernel pipeline (render, test, stamp, install). Hand edit = unversioned, unreviewed, overwritten next build.
 - Emit ALLOW+envelope, ASK+decision, DENY+reason, or CONCERN→G5.
 - permission/identity uncertain -> defer to the harness's prompt; unresolved decision -> AskUserQuestion.
 - network-calling MCP tools (e.g. call_model) are EXTERNAL_EFFECT; stay free-tier unless allow_paid:true is explicit.
@@ -376,7 +398,7 @@ routes: WORKFLOW.G5
 objective: Bind every authorized task to the real implementation path and eliminate plan-to-code gaps before mutation.
 identity: [BUILD_MODE, PLAN_MODE, EXPLORER_AGENT]
 requires: [MASTER_PLAN, PLAN_CONTRACT, EXECUTION_ENVELOPE, AUTH_DECISION, PROJECT_GEOMETRY]
-shared_rules: [@EVIDENCE_ORDER, @PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT]
+shared_rules: [@EVIDENCE_ORDER, @PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @SURFACE_PREPARATION, @TOOLCHAIN_QUALIFICATION, @TEST_INVARIANT]
 <G6_RULES>
 - Map symbols/ownership first, inspect implementation surface second, fill evidence gaps third. Impact query runs for every mutation binding: other consumers = answer, not precondition.
 - For each task, record reused implementation/authoritative pattern; explain any invention.
@@ -392,7 +414,7 @@ routes: WORKFLOW.G6
 objective: Execute only the grounded, authorized plan binding while preserving unrelated user work and runtime invariants.
 identity: [BUILD_MODE, CODER_AGENT, MEDIA_AGENT]
 requires: [GROUNDED_PLAN, PLAN_BINDING, EXECUTION_ENVELOPE, CLAIM_LEDGER, RISK_LEDGER]
-shared_rules: [@PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @KV_CACHE_STABILITY, @AUTHORITY_SEPARATION]
+shared_rules: [@PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @KV_CACHE_STABILITY, @AUTHORITY_SEPARATION, @TEST_INVARIANT, @VALIDATE_BEFORE, @SURFACE_PREPARATION, @TOOLCHAIN_QUALIFICATION]
 <G7_RULES>
 - Apply smallest cohesive change; keep source ownership canonical; update generated receivers via declared pipeline.
 - Hand sub-agent: task binding, parent @DIGITAL_INTENTION verbatim, @SV_TARGET on task's Exact medoids only. Axis left in basis = axis it may improvise on unseen.
@@ -401,7 +423,6 @@ shared_rules: [@PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @KV_CACHE_
 - Paths/ports/URLs/versions/magic numbers = discovered from host/index/config. Literal from recall = reason discovery infeasible or guess in disguise.
 - One bounded task open at a time. Two in flight share one oracle → neither attributable.
 - After each bounded task, record actual diff, evidence delta, residual risk, and the exact oracle to run; a plan-to-code gap is a blocking defect. The record lands in the log and the plan box, never in the reply; the report waits for the boundary, an exceeded bound, or a decision only the user can take.
-- ADID 15.3 §II.4.3: Before applying any edit/write/patch, validate the change (syntax, types, schema). If validation fails, correct and re-validate before mutating. No unverified mutations enter the project.
 - one _progress_log.md [TIMESTAMP] entry per bounded task.
 - mutate: Edit, Write, one hunk at a time; no bulk patch tool.
 - shell = process orchestration only; never file browsing — use Glob/Grep/Read.
@@ -426,17 +447,17 @@ routes: WORKFLOW.G7
 objective: Independently prove the outcome. Pin Exact medoids or mark Unknown.
 identity: [BUILD_MODE, CODER_AGENT, MEDIA_AGENT]
 requires: [IMPLEMENTATION_RESULT, SMOKE_CONTRACT, OUTCOME_CONTRACT, CLAIM_LEDGER, RISK_LEDGER]
-shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @GUESS_DECIDES_NOTHING, @DIVERGENCE_PROTOCOL, @AUTHORITY_SEPARATION]
+shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @GUESS_DECIDES_NOTHING, @DIVERGENCE_PROTOCOL, @AUTHORITY_SEPARATION, @TEST_INVARIANT, @CAUSAL_ATTRIBUTION, @TOOLCHAIN_QUALIFICATION, @ANTI_CHURN, @KAIZEN]
 <G8_RULES>
+- Name material alternatives before predicate; if >1 survives result → Unknown, need more discriminating predicate, not louder PASS.
 #### @ORACLE
 Oracle = third thing: instrument neither simulation could predict. If predictable beforehand → adds nothing. Five required: can fail — an instrument that cannot fail proves nothing; sits on claim's LAYER (persistent write proven by reading artifact back, not typecheck); predicate EXCLUDES alternatives; returns ADDRESS not verdict; identity can DRIVE it. Build fails last three. No self-grading: Exact needs runtime evidence bound to claim digest. Pass pins Exact medoids; FAIL = Unknown.
 
-- Record command/instrument, inputs, env, exit/result, output, artifact digest → reproducible decision, revalidatable stamp.
-- Run focused regression tests first, then proportional integration surface; compare against baseline and outcome contract.
-- Name material alternatives before predicate; if >1 survives result → Unknown, need more discriminating predicate, not louder PASS.
-- Count signals not lines: identical diagnostics from one source = ONE signal. Cluster by source/pattern before reacting. Deleting work on single-source complaint = @SIMULATION_ERROR with log.
-- Unknown claim leaves loop, doesn't re-enter: record failed falsifier, route forward to G9. Same instrument again = STALL; weaker instrument = @SIMULATION_ERROR.
 - PASS binds evidence_ref to claim digest; EXPECTED_FAIL = passing mutation/differential oracle; FAIL recorded, not discarded.
+- Unknown claim leaves loop, doesn't re-enter: record failed falsifier, route forward to G9. Same instrument again = STALL; weaker instrument = @SIMULATION_ERROR.
+- Record command/instrument, inputs, env, exit/result, output, artifact digest → reproducible decision, revalidatable stamp.
+- Count signals not lines: identical diagnostics from one source = ONE signal. Cluster by source/pattern before reacting. Deleting work on single-source complaint = @SIMULATION_ERROR with log.
+- Run focused regression tests first, then proportional integration surface; compare against baseline and outcome contract.
 - a long run REPORTS ITSELF: read the run directory's OWN state file (status, exit code, bytes written, bytes dropped, truncated) and the WHOLE captured output. Never a tail — it shows the last lines, so a crash banner hides the entire failure inventory behind it.
 - measure the captured output's size before choosing an instrument: the whole log is usually small, and one whole read costs less than the peeks it replaces. Where the same reading will recur, write the reader ONCE into `experiments/<ISO-date>_<name>/` and reason from its OUTPUT as a report.
 - an oracle that cannot print its own verdict is not an oracle: a suite cut off by crash, kill or timeout yields UNKNOWN, and its failure inventory is a FLOOR, not a total.
@@ -457,13 +478,13 @@ routes: WORKFLOW.G8
 objective: Close only verified work, expose residual state, and select a declared terminal or continuation route.
 identity: [BUILD_MODE, ORCHESTRATOR_AGENT]
 requires: [VERIFIED_OUTCOME, ORACLE_STAMP, CLAIM_LEDGER, RISK_LEDGER]
-shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION, @INTENTION_INVARIANCE]
+shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION, @INTENTION_INVARIANCE, @KAIZEN]
 <G9_RULES>
 - SUCCESS = acceptance covered + oracle passed + critical risks 0. Else take declared terminal or continue. Completion two-sided: no split adds, nothing present lacks support. Remainder = residual (finished, not abandoned).
 - Emit completed work, evidence, changed surfaces, risks, residual goal, next route, honest validation — no full trace repeat.
 - Convert uncovered acceptance gaps → bounded residual, take declared back move.
 - Closure only over what evidence settles: delivered carries oracle; uncovered intent = residual. Partial REAL > complete simulated.
-- BOUNDED STOP (DONE) iff: (a) the G8 oracle passes every test case; (b) 3 failed corrective attempts did not resolve it; (c) an immutable external dependency or human constraint blocks it; (d) continuing is structurally futile. (b)-(d): bounded stop, residual recorded, NOT SUCCESS. SUCCESS still needs acceptance covered, oracle PASS and zero critical risks; no other DONE. (ADID 15.3 §II.1.2.4)
+- BOUNDED STOP (DONE) iff: (a) the G8 oracle passes every test case; (b) 3 failed corrective attempts did not resolve it; (c) an immutable external dependency or human constraint blocks it; (d) continuing is structurally futile. (b)-(d): bounded stop, residual recorded, NOT SUCCESS. SUCCESS still needs @CLOSURE_PROOF; no other DONE. (ADID 15.3 §II.1.2.4)
 - report the TOOLS' working state at closure — which instrument answered, which LIED, which had to be worked around. A tool that hides or reduces its own output without saying so is a delivery, not a footnote.
 - name the CLASS, not the anecdote: «reports Not found for a path it cannot see», «drops lines from its own report». A named class is what a later cycle can fix; a story is not.
 - a workaround is not a fix: when the envelope was routed around a broken tool, the route IS the residual — record it, so the next cycle does not pay for the same instrument twice.
@@ -521,7 +542,7 @@ returns_to: G0
 - User restates/replaces @DIGITAL_INTENTION.to_state mid-flow = only licensed move. Re-enter G0 with their words, not your reading.
 - Superseded to_state → OUT_OF_SCOPE or bounded @RESIDUAL_GOAL. Stamped evidence survives; only target/plan/geometry re-derived.
 - @REASONING_MODE (no tools, perm memory) entered by user call or self on repeat failure (STALL per @LOOP_PROGRESS). Name contradictory self-states from trace (snapshot/diff/session) — not recollection (self-grading @ORACLE forbids). Name criteria that would've caught it, persist, resume G0. Product = durable falsifier, not apology.
-- Persisted criterion = scope + falsifier + status. Without them store grows, nothing retires. Never restates protocol (rule in prefix = paid again in fold). Memory = local, measured, unrepeatable. Read at grounding, not only after fail: written never read ≠ memory. Replacing store = @MUTATION — keep replaced revision.
+- Persisted criterion carries the @ANTI_CHURN closure record. Never restates protocol (rule in prefix = paid again in fold). Memory = local, measured, unrepeatable. Read at grounding, not only after fail: written never read ≠ memory. Replacing store = @MUTATION — keep replaced revision.
 </INTENTION_RESET_RULES>
 
 ### EVOLUTION_LOOP

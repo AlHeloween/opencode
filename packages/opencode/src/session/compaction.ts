@@ -4,6 +4,7 @@ import * as Session from "./session"
 import { SessionID, MessageID, PartID } from "./schema"
 import { Provider } from "@/provider/provider"
 import { MessageV2 } from "./message-v2"
+import { reportCut } from "./conservation"
 import z from "zod"
 import * as Log from "@opencode-ai/core/util/log"
 import { Config } from "@/config/config"
@@ -1638,8 +1639,15 @@ const GOAL_MAX_CHARS = 400
  *  NAMED as a count rather than silently dropped (never reduce without saying so). */
 const GOAL_PLAN_NAMES = 5
 
-function stripReminderBlocks(text: string): string {
-  return text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "").replace(/\n{3,}/g, "\n\n")
+/** Counted variant (conservation.ts — every cut is reported): the m* render drops reminder
+ *  floods and the wire gate does the same, so both say how much disappeared. */
+function stripReminderBlocks(text: string): { text: string; dropped: number; bytes: number } {
+  let dropped = 0
+  let bytes = 0
+  const out = text
+    .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, (match) => ((dropped++, (bytes += match.length)), ""))
+    .replace(/\n{3,}/g, "\n\n")
+  return { text: out, dropped, bytes }
 }
 
 /** The CALL half of an exchange, in the shape the runtime already prints beside
@@ -1733,12 +1741,12 @@ function tailContentChars(msg: MessageV2.WithParts): number {
       chars += tempStub(p, msg).length
       continue
     }
-    if (p.type === "text") chars += stripReminderBlocks((p as any).text ?? "").length
+    if (p.type === "text") chars += stripReminderBlocks((p as any).text ?? "").text.length
     else if (p.type === "reasoning") chars += ((p as any).text ?? "").length
     else if (p.type === "tool")
       chars +=
         toolCallText(p as never).length +
-        tailToolOutput(stripReminderBlocks((p as any).state?.output ?? "")).length
+        tailToolOutput(stripReminderBlocks((p as any).state?.output ?? "").text).length
     else if (p.type === "subtask") chars += ((p as any).prompt?.length ?? 0) + ((p as any).description?.length ?? 0)
     else if (p.type === "patch") chars += ((p as any).content?.length ?? 0)
     // step markers, snapshot/agent/retry — not rendered
@@ -1762,18 +1770,42 @@ export function tailMessageText(msg: MessageV2.WithParts): string {
       continue
     }
     switch (p.type) {
-      case "text":
+      case "text": {
         // Render ALL text parts regardless of `ignored` flag — dropping them
         // loses the user's actual words (see messageText).
-        parts.push(`[text]\n${stripReminderBlocks((p as any).text ?? "")}`)
+        const stripped = stripReminderBlocks((p as any).text ?? "")
+        if (stripped.dropped > 0)
+          reportCut({
+            site: "compaction.render",
+            kind: "system-reminder blocks",
+            dropped: stripped.dropped,
+            bytes: stripped.bytes,
+            reason: "m* render drops reminder floods — the wire gate does the same",
+            sessionID: msg.info.sessionID,
+            messageID: msg.info.id,
+          })
+        parts.push(`[text]\n${stripped.text}`)
         break
+      }
       case "reasoning":
         parts.push(`[reasoning]\n${(p as any).text ?? ""}`)
         break
       case "tool": {
         const label = `[tool:${(p as any).tool}]`
         const status = (p as any).state?.status ?? "unknown"
-        const raw = tailToolOutput(stripReminderBlocks((p as any).state?.output ?? ""))
+        const strippedOutput = stripReminderBlocks((p as any).state?.output ?? "")
+        if (strippedOutput.dropped > 0)
+          reportCut({
+            site: "compaction.render",
+            kind: "system-reminder blocks",
+            dropped: strippedOutput.dropped,
+            bytes: strippedOutput.bytes,
+            reason: "m* render drops reminder floods — the wire gate does the same",
+            sessionID: msg.info.sessionID,
+            messageID: msg.info.id,
+            detail: { tool: (p as any).tool },
+          })
+        const raw = tailToolOutput(strippedOutput.text)
         parts.push(`${label} (${status})\n${toolCallText(p as never)}${raw}`)
         break
       }

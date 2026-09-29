@@ -4,6 +4,7 @@ import { ProjectID } from "../project/schema"
 import z from "zod"
 import { NamedError } from "@opencode-ai/core/util/error"
 import * as Log from "@opencode-ai/core/util/log"
+import { reportCut } from "./conservation"
 import { sealUserText } from "./user-seal"
 import { APICallError, convertToModelMessages, LoadAPIKeyError, StreamProviderError, type ModelMessage, type UIMessage } from "ai"
 import { LSP } from "@/lsp/lsp"
@@ -450,13 +451,19 @@ function truncateToolOutput(text: string, maxChars?: number, partID?: string) {
  * NOT touched here: mode-transition records (plan.txt/build.txt) are
  * <system-reminder>-wrapped and must reach the model. Mirrors
  * stripReminderBlocks() in compaction.ts (memory-side m* render).
+ *
+ * Returns the counts with the text: a gate that removes content must say how much
+ * (conservation.ts — owner directive 2026-09-29), and the caller reports them.
  */
-function stripFloodReminderBlocks(text: string): string {
-  return text
+export function stripFloodReminderBlocks(text: string): { text: string; dropped: number; bytes: number } {
+  let dropped = 0
+  let bytes = 0
+  const out = text
     .replace(/<system-reminder>([\s\S]*?)<\/system-reminder>/g, (match, inner: string) =>
-      inner.includes("Gated workflow:") ? match : "",
+      inner.includes("Gated workflow:") ? match : ((dropped++, (bytes += match.length)), ""),
     )
     .replace(/\n{3,}/g, "\n\n")
+  return { text: out, dropped, bytes }
 }
 
 /**
@@ -1396,7 +1403,33 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             // message ids are ascending ULIDs — so "after the last user message" is a comparison.
             const isCurrentTurn =
               options?.afterMessageID === undefined || msg.info.id > options.afterMessageID
-            const rawOutput = part.state.time.compacted ? "" : stripFloodReminderBlocks(part.state.output)
+            const compactedOutput = part.state.time.compacted
+            const stripped = stripFloodReminderBlocks(part.state.output)
+            // Every removal the replay performs is reported (conservation.ts): the body stays in
+            // the DB, but a reader must be able to total what the wire did NOT carry.
+            if (compactedOutput && part.state.output.length > 0)
+              reportCut({
+                site: "message-v2.replay",
+                kind: "compacted tool output",
+                dropped: 1,
+                bytes: part.state.output.length,
+                reason: "replay budget — body stays in the DB, recall restores it",
+                sessionID: msg.info.sessionID,
+                messageID: msg.info.id,
+                detail: { tool: part.tool, partID: part.id },
+              })
+            if (stripped.dropped > 0)
+              reportCut({
+                site: "message-v2.replay",
+                kind: "system-reminder blocks",
+                dropped: stripped.dropped,
+                bytes: stripped.bytes,
+                reason: "flood gate (read.ts re-delivery)",
+                sessionID: msg.info.sessionID,
+                messageID: msg.info.id,
+                detail: { tool: part.tool, partID: part.id },
+              })
+            const rawOutput = compactedOutput ? "" : stripped.text
             // A kept selection REPLACES the whole result on the wire — that is what turns recall from
             // a cost into an optimisation: one round trip paid once to stop paying for the rest. It
             // must select at least one line, or the model would receive an EMPTY tool result carrying
@@ -1561,12 +1594,16 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
         }
       } else if (assistantMessage.parts.length > 0) {
         // Zero-payload tracking (owner directive 2026-09-29): a turn that carries parts but
-        // delivers nothing is NOT forwarded — and the drop is named, so the class is visible
-        // instead of inferred. Nothing is trimmed from the transcript: the parts stay in the DB.
-        Log.Default.info("empty delivery dropped from replay", {
+        // delivers nothing is NOT forwarded — and the drop is named through the one cut vocabulary,
+        // so the class is visible instead of inferred. Nothing is trimmed from the transcript:
+        // the parts stay in the DB.
+        reportCut({
+          site: "message-v2.replay",
+          kind: "empty delivery",
+          dropped: assistantMessage.parts.length,
+          reason: "delivered nothing (reasoning only) — not forwarded",
           sessionID: msg.info.sessionID,
           messageID: msg.info.id,
-          parts: assistantMessage.parts.length,
         })
       }
     }

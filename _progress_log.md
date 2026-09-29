@@ -5414,6 +5414,23 @@ invoked», result empty) when a LiteLLM-proxy/Copilot request carries tool calls
 case of a provider-emitted zero payload exists (cotEmpty: 0 in every census), the vendor 400-guard is a FIELD
 requirement a noop call does not remove, and the new census measures the class — decide by its data.
 
+## [2026-09-29 14:20Z] Cut protection installed — every removal is named, whoever does it
+
+Owner: «нам надо поставить защиту от любого резания, как минимум в логах, и пофигу это провайдер, SDK или нет.
+Все могут ошибаться.» CONFIRMED ✓: `src/session/conservation.ts` is now the single vocabulary — `reportCut({site,
+kind, dropped, bytes?, reason, …})` (silent at zero, so an unfired report stays honest) + `partCount` for before/after
+accounting — and it is wired at the sites that used to cut SILENTLY: `message-v2.replay` (the flood gate now returns
+`{text,dropped,bytes}` and reports; the replacement of a compacted tool output by "" names its bytes; the empty
+delivery drop joined the same vocabulary), `provider.transform` (Anthropic + Bedrock empty-content filters and the
+openai-compatible historical-reasoning strip report dropped parts/messages), and `compaction.render` (the m* reminder
+strip reports per part). Sites that already named their loss inside the content — `truncateToolOutput` («omitted N
+chars» + recall address), `toolPlaceholder` («first N of M»), the truncate service's saved-file path — were already
+honest and stay as they are. What cannot be covered from inside (an SDK- or provider-internal cut) stays with the
+boundary instruments already in place: the reasoning census (in/out at the transform), the tool/message stability
+drift detectors and the gateway's raw-wire captures.
+Oracles: `conservation + transform + compaction` → 262 pass / 0 fail (3 new pins: the gate keeps the gated-workflow
+reminder and counts the rest, zero reports nothing, `partCount` totals parts); typecheck clean for the touched files.
+
 
 ## [2026-09-29 19:40Z] kernel F6+F7 staged, NOT installed — procedure layer, falsifier fixes, KAIZEN, BGE dedup/order
 

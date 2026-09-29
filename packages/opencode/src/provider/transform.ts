@@ -5,6 +5,7 @@ import type { JSONSchema7 } from "@ai-sdk/provider"
 import type { JSONSchema } from "zod/v4/core"
 import type * as Provider from "./provider"
 import { iife } from "@/util/iife"
+import { partCount, reportCut } from "@/session/conservation"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import PROMPT_REASONING from "@/session/prompt/reasoning_prompt.txt"
 
@@ -62,6 +63,11 @@ function reasoningCensus(msgs: ModelMessage[]) {
   }
 }
 
+/** Before/after accounting for a filtering branch (conservation.ts — every cut is reported). */
+function shape(msgs: ModelMessage[]) {
+  return { messages: msgs.length, parts: partCount(msgs) }
+}
+
 function normalizeMessages(
   msgs: ModelMessage[],
   model: Provider.Model,
@@ -70,6 +76,7 @@ function normalizeMessages(
   // Anthropic rejects messages with empty content - filter out empty string messages
   // and remove empty text/reasoning parts from array content
   if (model.api.npm === "@ai-sdk/anthropic") {
+    const before = shape(msgs)
     msgs = msgs
       .map((msg) => {
         if (typeof msg.content === "string") {
@@ -87,10 +94,18 @@ function normalizeMessages(
         return { ...msg, content: filtered }
       })
       .filter((msg): msg is ModelMessage => msg !== undefined && msg.content !== "")
+    reportCut({
+      site: "provider.transform",
+      kind: "empty text/reasoning parts (and messages emptied by them)",
+      dropped: before.parts - partCount(msgs),
+      reason: "anthropic rejects empty content",
+      detail: { providerID: model.providerID, modelID: model.id, messages: before.messages - msgs.length },
+    })
   }
 
   // Bedrock specific transforms
   if (model.api.npm === "@ai-sdk/amazon-bedrock") {
+    const before = shape(msgs)
     msgs = msgs
       .map((msg) => {
         if (typeof msg.content === "string") {
@@ -108,6 +123,13 @@ function normalizeMessages(
         return { ...msg, content: filtered }
       })
       .filter((msg): msg is ModelMessage => msg !== undefined && msg.content !== "")
+    reportCut({
+      site: "provider.transform",
+      kind: "empty text/reasoning parts (and messages emptied by them)",
+      dropped: before.parts - partCount(msgs),
+      reason: "bedrock rejects empty content",
+      detail: { providerID: model.providerID, modelID: model.id, messages: before.messages - msgs.length },
+    })
   }
 
   if (model.api.id.includes("claude")) {
@@ -323,6 +345,7 @@ function normalizeMessages(
   const echoRequiredId =
     model.api.id.toLowerCase().includes("deepseek") || model.api.id.toLowerCase().includes("mimo")
   if (isOpenAICompatRoute && !isCopilotOpaqueRoute && !echoRequiredId) {
+    const before = shape(msgs)
     msgs = msgs.map((msg) => {
       if (msg.role !== "assistant") return msg
       const providerOptions = (msg as ModelMessage & { providerOptions?: any }).providerOptions
@@ -344,6 +367,13 @@ function normalizeMessages(
       return cleanedOptions
         ? { ...msg, content: filtered, providerOptions: cleanedOptions }
         : { ...msg, content: filtered }
+    })
+    reportCut({
+      site: "provider.transform",
+      kind: "historical reasoning parts",
+      dropped: before.parts - partCount(msgs),
+      reason: "route policy — this vendor's no-echo replay is the documented default",
+      detail: { providerID: model.providerID, modelID: model.id },
     })
   }
 

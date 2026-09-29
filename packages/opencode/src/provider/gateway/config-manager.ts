@@ -215,7 +215,7 @@ ${JSON.stringify(config, null, 2)}
   log.debug("wrote gateway config", { path: filePath })
 }
 
-async function mergeConfigs(
+export async function mergeConfigs(
   globalConfig: GatewayConfig | null,
   localConfig: GatewayConfig | null,
 ): Promise<GatewayConfig> {
@@ -240,7 +240,7 @@ async function mergeConfigs(
   // Merge local config (local overrides global)
   if (localConfig) {
     result.gateway = { ...result.gateway, ...localConfig.gateway }
-    for (const [providerId, provider] of Object.entries(localConfig.providers)) {
+    for (const [providerId, provider] of Object.entries(localConfig.providers ?? {})) {
       const existing = result.providers[providerId]
       if (existing) {
         // Deep merge provider - preserve global settings not explicitly overridden locally

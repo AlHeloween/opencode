@@ -5431,6 +5431,26 @@ drift detectors and the gateway's raw-wire captures.
 Oracles: `conservation + transform + compaction` → 262 pass / 0 fail (3 new pins: the gate keeps the gated-workflow
 reminder and counts the rest, zero reports nothing, `partCount` totals parts); typecheck clean for the touched files.
 
+## [2026-09-29 14:40Z] Plans moved by outcome; the live smoke's boot bug fixed
+
+CONFIRMED ✓ (canon G9 — the plan moves by the OUTCOME, the ground is named in the commit): two 2026-09-29 plans are
+now in the new `plans_completed/2026-09/` lane.
+- `2026-09-29_agents-protocol-and-cursor.md` — T1–T7 shipped, the selection-time live smoke passed (candidate
+  10.0.1150). Its **Residual B was a real boot bug** the smoke itself found: `mergeConfigs`
+  (`provider/gateway/config-manager.ts`) threw `Object.entries requires that input parameter not be null or undefined`
+  when a hand-made local `.opencode/gateway.jsonc` has no `providers` key → `instance boot failed` → TUI bootstrap
+  timeout. FIXED (`?? {}`, the function exported) and pinned by `test/provider/gateway-config-manager.test.ts`
+  (2 pass / 0 fail — the absent key no longer throws AND local-over-global merging still works). **Residual A**
+  (session-scope wire on the promoted binary) stays `[~]` with its lifting signal: the next promotion + one live
+  session-scope request.
+- `2026-09-29_user-message-seal.md` — shipped exactly as the owner decided («Оставляй как есть…»), the two reverts
+  recorded in T3/T4, the raw-wire check green; its last residual (`hasToolParts` audit) closed: the variable in
+  `message-v2.ts` was declared and never read — removed.
+Oracles: user-seal + message-v2 + gateway-config-manager → 49 pass / 0 fail; `bun typecheck` clean (mine).
+Still owing work in `plans/`: h2 badges (T4 `[ ]`, T5 `[~]` — the gateway unit suite), kernel-candidate-incorporation
+(16), dap-debugger (5), shelf-triage / fold-carrier-integrity / pre-fix-artifact-verification (3 each),
+constitution-parity (2), and the two live lanes of other owners (bash — Claude; cua — the owner).
+
 
 ## [2026-09-29 19:40Z] kernel F6+F7 staged, NOT installed — procedure layer, falsifier fixes, KAIZEN, BGE dedup/order
 

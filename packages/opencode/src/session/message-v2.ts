@@ -1357,8 +1357,6 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
       // (OpenRouter dual dialect). Keep reasoning only on tool-call turns where
       // the vendor contract requires it (Anthropic thinking-before-tool_use,
       // DeepSeek/z-ai 400-guards).
-      const hasToolParts = msg.parts.some((p) => p.type === "tool")
-
       if (msg.info.error) {
         continue
       }

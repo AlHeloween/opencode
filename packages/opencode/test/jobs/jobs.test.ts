@@ -699,7 +699,7 @@ describe("JobManager stall deadline + tree kill (hard invariants)", () => {
 //   * a second runtime booting in the SAME worktree must leave a live
 //     runtime's rows alone (the old recovery flipped every `running` row),
 //   * a DEAD runtime's orphan tree must be killed, under the pid-reuse guard,
-//   * `job_kill` on a `killed` job must re-attempt a kill for a survivor.
+//   * `jobkill` on a `killed` job must re-attempt a kill for a survivor.
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("JobManager pid persistence + orphan recovery (hard invariants)", () => {
@@ -878,7 +878,7 @@ describe("JobManager pid persistence + orphan recovery (hard invariants)", () =>
     expect(readRow(dbPath, "bash-98")!.status).toBe("killed")
   }, { timeout: 30_000 })
 
-  test("job_kill on a killed job re-attempts a guarded re-kill for a survivor", async () => {
+  test("jobkill on a killed job re-attempts a guarded re-kill for a survivor", async () => {
     const sessionID = `zombie-${Date.now()}` as any
     const survivor = longLivedChild()
 

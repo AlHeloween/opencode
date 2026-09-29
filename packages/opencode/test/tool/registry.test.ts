@@ -203,7 +203,7 @@ describe("tool.registry", () => {
 
         for (const [id, buildTool] of buildById) {
           const planTool = planById.get(id)
-          if (!planTool) continue // tool only in build (e.g. edit/write vs apply_patch)
+          if (!planTool) continue // tool only in build (e.g. edit/write vs applypatch)
           expect(planTool.description).toBe(buildTool.description)
           expect(JSON.stringify(planTool.parameters)).toBe(JSON.stringify(buildTool.parameters))
         }

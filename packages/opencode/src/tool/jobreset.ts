@@ -42,5 +42,4 @@ export const JobResetTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
-  "job_reset",
 )

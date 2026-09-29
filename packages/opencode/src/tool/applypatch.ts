@@ -308,5 +308,4 @@ new Error(
         run(params, ctx).pipe(Effect.orDie),
     }
   }),
-  "apply_patch",
 )

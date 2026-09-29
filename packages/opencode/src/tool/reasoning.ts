@@ -114,7 +114,6 @@ export const ReasoningEnterTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
-  "reasoning_enter",
 )
 
 export const ReasoningExitTool = Tool.define(
@@ -173,5 +172,4 @@ export const ReasoningExitTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
-  "reasoning_exit",
 )

@@ -220,7 +220,7 @@ export const RunTool = Tool.define(
           }
           const awaitDrain = yield* forkDrainStdoutStderr(handle, onChunk)
           // Process exit only — NO hard timeout, NO abort race.
-          // Fiber interruption (user cancel, job_kill) kills the process
+          // Fiber interruption (user cancel, jobkill) kills the process
           // via Effect.scoped acquireRelease finalizer.
           const code = yield* handle.exitCode
           yield* awaitDrain

@@ -6,16 +6,12 @@ import type { Def } from "@/tool/tool"
 export type ToolLike = Pick<Def, "id" | "policy">
 
 /** Tool policies that reach `ctx.ask({ permission: "edit" })` as the edit family. */
-const EDIT_FAMILY = ["edit", "write", "apply_patch"] as const
+const EDIT_FAMILY = ["edit", "write", "applypatch"] as const
 
 /** The permission keys a tool policy is evaluated under — mirrors `SessionTools.denied`. */
 export function policyPermissionKeys(policy: string): string[] {
   const keys = new Set<string>([policy])
   if ((EDIT_FAMILY as readonly string[]).includes(policy)) keys.add("edit")
-  if (policy === "dbread" || policy === "db-read") {
-    keys.add("dbread")
-    keys.add("db-read")
-  }
   return [...keys]
 }
 
@@ -46,7 +42,8 @@ function hasScopedEditAllow(agent: Agent.Info, perm: string): boolean {
  * Semantics: a policy is denied when `Permission.evaluate(perm, "*")` says deny and no
  * path-scoped edit allow (`plans/*: allow`) carves it back — the same rule the runtime uses.
  * A boundary that exists only as a `deny(...)` key which does not match the tool's policy
- * is dead: see the 2026-09-28 `jobkill`/`job_kill` finding in the plan.
+ * is dead: see the 2026-09-28 `jobkill`/`job_kill` finding in the plan — the two-spelling
+ * layer is gone (2026-09-29): a tool has ONE identity and its policy IS that identity.
  */
 export function agentDeniesPolicy(agent: Agent.Info, policy: string): boolean {
   for (const key of policyPermissionKeys(policy)) {

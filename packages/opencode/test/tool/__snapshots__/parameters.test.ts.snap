@@ -1,6 +1,6 @@
 // Bun Snapshot v1, https://bun.sh/docs/test/snapshots
 
-exports[`tool parameters JSON Schema (wire shape) apply_patch 1`] = `
+exports[`tool parameters JSON Schema (wire shape) applypatch 1`] = `
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
@@ -43,7 +43,7 @@ Output: Creates directory 'foo'"
     },
     "run_in_background": {
       "default": true,
-      "description": "Run the command in the background as a tracked job. Returns immediately with a job ID. Use job_output to read output, job_wait to wait for completion, or job_kill to stop. Default: true (non-blocking). Set to false for quick synchronous commands.",
+      "description": "Run the command in the background as a tracked job. Returns immediately with a job ID. Use job_output to read output, job_wait to wait for completion, or jobkill to stop. Default: true (non-blocking). Set to false for quick synchronous commands.",
       "type": "boolean",
     },
     "timeout": {

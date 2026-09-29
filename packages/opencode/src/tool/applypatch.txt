@@ -1,6 +1,6 @@
 ## Mutation class
 
-`apply_patch` is **MODIFY / PERSISTENT_WRITE / ELEVATED** (multi-file atomic).
+`applypatch` is **MODIFY / PERSISTENT_WRITE / ELEVATED** (multi-file atomic).
 Same grounding as edit/write: follow kernel G7 IMPLEMENT rules; premises ⊆ G when a
 claim ledger is active. After apply: run declared oracles before Done.
 Prefer when coordinated multi-file changes must succeed or fail together.

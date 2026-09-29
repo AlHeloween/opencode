@@ -12,7 +12,6 @@ import * as Log from "@opencode-ai/core/util/log"
 const log = Log.create({ service: "tool.aicall" })
 
 const id = "aicall"
-const policy = "ai-call"
 
 export function requestEnvelope(
   model: Pick<Provider.Model, "providerID" | "id" | "api" | "parameters" | "model_type" | "cost" | "limit">,
@@ -87,7 +86,7 @@ export const AiCallTool = Tool.define(
 
           // Permission check
           yield* ctx.ask({
-            permission: policy,
+            permission: id,
             patterns: [params.prompt],
             always: ["*"],
             metadata: {
@@ -276,5 +275,4 @@ export const AiCallTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
-  policy,
 )

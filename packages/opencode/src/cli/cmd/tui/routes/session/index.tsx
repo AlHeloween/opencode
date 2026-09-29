@@ -2472,7 +2472,7 @@ function ToolPart(props: { last: boolean; part: ToolPart; message: AssistantMess
         <Match when={props.part.tool === "task"}>
           <Task {...toolprops} />
         </Match>
-        <Match when={props.part.tool === "apply_patch"}>
+        <Match when={props.part.tool === "applypatch"}>
           <ApplyPatch {...toolprops} />
         </Match>
         <Match when={props.part.tool === "todowrite"}>
@@ -2487,7 +2487,7 @@ function ToolPart(props: { last: boolean; part: ToolPart; message: AssistantMess
         <Match when={props.part.tool === "job_output"}>
           <JobTool kind="output" {...toolprops} />
         </Match>
-        <Match when={props.part.tool === "job_kill"}>
+        <Match when={props.part.tool === "jobkill"}>
           <JobTool kind="kill" {...toolprops} />
         </Match>
         <Match when={props.part.tool === "job_wait"}>
@@ -2817,7 +2817,7 @@ function ShellTool(props: ToolProps<any> & { kind: "bash" | "cmd" | "run" }) {
   )
 }
 
-/** Shared renderer for job_output / job_kill / job_wait — shows background job output with status. */
+/** Shared renderer for job_output / jobkill / job_wait — shows background job output with status. */
 function JobTool(props: ToolProps<any> & { kind: "output" | "kill" | "wait" }) {
   const { theme } = useTheme()
   const meta = () => props.metadata as Record<string, any>

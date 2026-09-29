@@ -93,7 +93,7 @@ describe("session.tools", () => {
           },
         })
         expect(Object.keys(resolved)).toSatisfy((names) => names.every((name) => /^[a-z0-9]+$/.test(name)))
-        expect(SessionTools.policyName(resolved, "applypatch")).toBe("apply_patch")
+        expect(SessionTools.policyName(resolved, "applypatch")).toBe("applypatch")
         // Provider tool list stays full for KV stability; ACL is enforce-at-execute.
         const visible = LLM.resolveTools({
           tools: resolved,

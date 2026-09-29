@@ -77,14 +77,14 @@ test("plan agent is read-only except for plans/*", async () => {
       expect(evalPerm(plan, "cmd")).toBe("deny")
       expect(evalPerm(plan, "powershell")).toBe("deny")
       expect(evalPerm(plan, "run")).toBe("deny")
-      expect(evalPerm(plan, "apply_patch")).toBe("deny")
+      expect(evalPerm(plan, "applypatch")).toBe("deny")
       expect(evalPerm(plan, "multiedit")).toBe("deny")
       expect(evalPerm(plan, "restore")).toBe("deny")
       expect(evalPerm(plan, "pipeline")).toBe("deny")
       expect(evalPerm(plan, "jobkill")).toBe("deny")
       expect(evalPerm(plan, "dbread")).toBe("allow")
       expect(evalPerm(plan, "logsearch")).toBe("allow")
-      expect(evalPerm(plan, "session-read")).toBe("allow")
+      expect(evalPerm(plan, "sessionread")).toBe("allow")
       expect(evalPerm(plan, "task")).toBe("allow")
       expect(plan?.subagents).toEqual(["explorer_agent"])
     },
@@ -125,9 +125,9 @@ test("reasoning agent permits only status, permanent memory, and its own exit", 
       const reasoning = await load(tmp.path, (svc) => svc.get("reasoning_mode"))
       expect(reasoning).toBeDefined()
       expect(reasoning?.mode).toBe("primary")
-      expect(evalPerm(reasoning, "check_state")).toBe("allow")
+      expect(evalPerm(reasoning, "checkstate")).toBe("allow")
       expect(evalPerm(reasoning, "memory")).toBe("allow")
-      expect(evalPerm(reasoning, "reasoning_exit")).toBe("allow")
+      expect(evalPerm(reasoning, "reasoningexit")).toBe("allow")
       expect(evalPerm(reasoning, "todowrite")).toBe("deny")
       expect(evalPerm(reasoning, "read")).toBe("deny")
       expect(evalPerm(reasoning, "edit")).toBe("deny")
@@ -173,15 +173,15 @@ test("only native modes own reasoning transitions", async () => {
       const explorer = identities.get("explorer_agent")
       const researcher = identities.get("researcher_agent")
       const media = identities.get("media_agent")
-      expect(evalPerm(build, "reasoning_enter")).toBe("allow")
-      expect(evalPerm(build, "reasoning_exit")).toBe("deny")
-      expect(evalPerm(plan, "reasoning_enter")).toBe("deny")
-      expect(evalPerm(plan, "reasoning_exit")).toBe("deny")
-      expect(evalPerm(reasoning, "reasoning_enter")).toBe("deny")
-      expect(evalPerm(reasoning, "reasoning_exit")).toBe("allow")
+      expect(evalPerm(build, "reasoningenter")).toBe("allow")
+      expect(evalPerm(build, "reasoningexit")).toBe("deny")
+      expect(evalPerm(plan, "reasoningenter")).toBe("deny")
+      expect(evalPerm(plan, "reasoningexit")).toBe("deny")
+      expect(evalPerm(reasoning, "reasoningenter")).toBe("deny")
+      expect(evalPerm(reasoning, "reasoningexit")).toBe("allow")
       for (const agent of [orchestrator, general, coder, explorer, researcher, media]) {
-        expect(evalPerm(agent, "reasoning_enter")).toBe("deny")
-        expect(evalPerm(agent, "reasoning_exit")).toBe("deny")
+        expect(evalPerm(agent, "reasoningenter")).toBe("deny")
+        expect(evalPerm(agent, "reasoningexit")).toBe("deny")
       }
     },
   })
@@ -201,7 +201,7 @@ test("explore agent denies edit and write", async () => {
       expect(evalPerm(explore, "cmd")).toBe("deny")
       expect(evalPerm(explore, "powershell")).toBe("deny")
       expect(evalPerm(explore, "run")).toBe("deny")
-      expect(evalPerm(explore, "apply_patch")).toBe("deny")
+      expect(evalPerm(explore, "applypatch")).toBe("deny")
       expect(evalPerm(explore, "multiedit")).toBe("deny")
       expect(evalPerm(explore, "restore")).toBe("deny")
       expect(evalPerm(explore, "task")).toBe("deny")
@@ -209,7 +209,7 @@ test("explore agent denies edit and write", async () => {
       expect(evalPerm(explore, "jobkill")).toBe("deny")
       expect(evalPerm(explore, "dbread")).toBe("allow")
       expect(evalPerm(explore, "logsearch")).toBe("allow")
-      expect(evalPerm(explore, "session-read")).toBe("allow")
+      expect(evalPerm(explore, "sessionread")).toBe("allow")
       expect(evalPerm(explore, "glob")).toBe("allow")
       expect(evalPerm(explore, "grep")).toBe("allow")
       expect(evalPerm(explore, "fossilgrep")).toBe("allow")
@@ -267,8 +267,8 @@ test("native agent configuration can narrow but cannot reopen role boundaries", 
   await using tmp = await tmpdir({
     config: {
       agent: {
-        build: { permission: { reasoning_exit: "allow", bash: "deny" } },
-        plan: { permission: { plan_enter: "allow", bash: "allow" } },
+        build: { permission: { reasoningexit: "allow", bash: "deny" } },
+        plan: { permission: { planenter: "allow", bash: "allow" } },
       },
     },
   })
@@ -277,9 +277,9 @@ test("native agent configuration can narrow but cannot reopen role boundaries", 
     fn: async () => {
       const build = await load(tmp.path, (svc) => svc.get("build_mode"))
       const plan = await load(tmp.path, (svc) => svc.get("plan_mode"))
-      expect(evalPerm(build, "reasoning_exit")).toBe("deny")
+      expect(evalPerm(build, "reasoningexit")).toBe("deny")
       expect(evalPerm(build, "bash")).toBe("deny")
-      expect(evalPerm(plan, "plan_enter")).toBe("deny")
+      expect(evalPerm(plan, "planenter")).toBe("deny")
       expect(evalPerm(plan, "bash")).toBe("deny")
     },
   })
@@ -294,14 +294,14 @@ test("plan transitions have explicit ACL owners", async () => {
       const plan = await load(tmp.path, (svc) => svc.get("plan_mode"))
       const orchestrator = await load(tmp.path, (svc) => svc.get("orchestrator_agent"))
       const explorer = await load(tmp.path, (svc) => svc.get("explorer_agent"))
-      expect(evalPerm(build, "plan_enter")).toBe("allow")
-      expect(evalPerm(build, "plan_exit")).toBe("deny")
-      expect(evalPerm(plan, "plan_enter")).toBe("deny")
-      expect(evalPerm(plan, "plan_exit")).toBe("allow")
-      expect(evalPerm(orchestrator, "plan_enter")).toBe("deny")
-      expect(evalPerm(orchestrator, "plan_exit")).toBe("deny")
-      expect(evalPerm(explorer, "plan_enter")).toBe("deny")
-      expect(evalPerm(explorer, "plan_exit")).toBe("deny")
+      expect(evalPerm(build, "planenter")).toBe("allow")
+      expect(evalPerm(build, "planexit")).toBe("deny")
+      expect(evalPerm(plan, "planenter")).toBe("deny")
+      expect(evalPerm(plan, "planexit")).toBe("allow")
+      expect(evalPerm(orchestrator, "planenter")).toBe("deny")
+      expect(evalPerm(orchestrator, "planexit")).toBe("deny")
+      expect(evalPerm(explorer, "planenter")).toBe("deny")
+      expect(evalPerm(explorer, "planexit")).toBe("deny")
     },
   })
 })
@@ -319,7 +319,7 @@ test("researcher agent permits only Internet search plus universal session tools
       expect(evalPerm(researcher, "cmd")).toBe("deny")
       expect(evalPerm(researcher, "powershell")).toBe("deny")
       expect(evalPerm(researcher, "run")).toBe("deny")
-      expect(evalPerm(researcher, "apply_patch")).toBe("deny")
+      expect(evalPerm(researcher, "applypatch")).toBe("deny")
       expect(evalPerm(researcher, "multiedit")).toBe("deny")
       expect(evalPerm(researcher, "restore")).toBe("deny")
       expect(evalPerm(researcher, "task")).toBe("deny")
@@ -335,7 +335,7 @@ test("researcher agent permits only Internet search plus universal session tools
       expect(evalPerm(researcher, "messagesearch")).toBe("deny")
       expect(evalPerm(researcher, "webfetch")).toBe("allow")
       expect(evalPerm(researcher, "universalsearch")).toBe("allow")
-      expect(evalPerm(researcher, "check_state")).toBe("allow")
+      expect(evalPerm(researcher, "checkstate")).toBe("allow")
       expect(evalPerm(researcher, "todowrite")).toBe("allow")
     },
   })
@@ -386,14 +386,15 @@ test("general agent allows todo tools (per-session list)", async () => {
       expect(general?.mode).toBe("subagent")
       expect(general?.hidden).toBeUndefined()
       expect(general?.description).toContain("planning")
-      // GENERAL_AGENT is `may_mutate: false` in the kernel and its gates are
-      // [G2, G3] — PLAN_WRITE, not MODIFY_PROJECT. It writes plans, not source.
+      // A plan-consuming subagent writes PLANS, not product source (PLAN_WRITE, not
+      // MODIFY_PROJECT) — and the runtime ACL is the layer that decides, so it is the
+      // layer this asserts.
       expect(evalPerm(general, "edit")).toBe("deny")
       expect(evalPerm(general, "write")).toBe("deny")
       expect(Permission.evaluate("edit", path.join("plans", "x.md"), general!.permission).action).not.toBe("deny")
       expect(Permission.evaluate("write", path.join("plans", "x.md"), general!.permission).action).not.toBe("deny")
       expect(evalPerm(general, "pipeline")).toBe("deny")
-      expect(evalPerm(general, "check_state")).toBe("allow")
+      expect(evalPerm(general, "checkstate")).toBe("allow")
       expect(evalPerm(general, "todowrite")).toBe("allow")
     },
   })

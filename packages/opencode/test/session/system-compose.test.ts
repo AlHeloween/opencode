@@ -1,4 +1,3 @@
-import { createHash } from "crypto"
 import { describe, expect, test } from "bun:test"
 import {
   assemblePathSystem,
@@ -12,8 +11,6 @@ import PROMPT_REASONING from "../../src/session/prompt/reasoning_prompt.txt"
 import { ProviderTransform } from "../../src/provider/transform"
 import { ModelID, ProviderID } from "../../src/provider/schema"
 import type { Provider } from "../../src/provider/provider"
-
-const EXPECTED_REASONING_DIGEST = createHash("sha256").update(PROMPT_REASONING, "utf8").digest("hex")
 
 function mockModel(id: string): Provider.Model {
   return {
@@ -143,38 +140,25 @@ describe("system-compose provider assembly", () => {
   })
 })
 
-describe("system prefix digest (reasoning_prompt.txt)", () => {
-  test("reasoning_prompt.txt artifact has stable documented digest", () => {
-    const digest = createHash("sha256").update(PROMPT_REASONING, "utf8").digest("hex")
-    expect(digest).toBe(EXPECTED_REASONING_DIGEST)
-    expect(PROMPT_REASONING).toContain("ABI_AND_VOCABULARY")
-    // Section 0 is `WORKFLOW`, renamed from `KERNEL_MAP` in 75da19cbbc. Assert the
-    // header, not the bare word: `WORKFLOW` also appears in every `routes:` line.
-    expect(PROMPT_REASONING).toContain("## 0. WORKFLOW")
-    expect(PROMPT_REASONING).not.toContain("_ALL_SPECS")
-  })
-
+describe("system prefix assembly (reasoning_prompt.txt)", () => {
+  // The kernel file's own wording and digest are pinned by the Python suite
+  // (`prompt_kernel/tests`); the TS side asserts only how the assembly USES the file,
+  // so a kernel re-render cannot turn this suite red for prose it does not own.
   test("systemPromptPrefix is unified reasoning_prompt.txt, byte-stable", () => {
     const model = mockModel("anthropic/claude-sonnet-4")
     const a = ProviderTransform.systemPromptPrefix(model)
     const b = ProviderTransform.systemPromptPrefix(model)
     expect(a).toBe(b)
-    expect(a).toContain("## 0. WORKFLOW")
-    expect(a).toContain("ABI_AND_VOCABULARY")
-    expect(a.indexOf("## 0. WORKFLOW")).toBeLessThan(a.indexOf("ABI_AND_VOCABULARY"))
     expect(a).toContain(PROMPT_REASONING.slice(0, 40))
+    expect(a.length).toBe(PROMPT_REASONING.length)
   })
 
   test("systemPromptParts loads full txt as reasoning; kernel slot empty", () => {
     const parts = ProviderTransform.systemPromptParts(mockModel("anthropic/claude-sonnet-4"))
     expect(parts.reasoning.length).toBeGreaterThan(10_000)
     expect(parts.reasoning.length).toBeLessThan(80_000)
-    expect(parts.reasoning).toContain("## 0. WORKFLOW")
-    // The reuse-before-invent rule is prose in G1 now, not a named @REUSE_BEFORE
-    // node — assert the rule, which is what this test is actually about.
-    expect(parts.reasoning).toContain("before non-trivial invention")
-    expect(parts.reasoning).toContain("ABI_AND_VOCABULARY")
-    expect(parts.reasoning).toContain("SHARED_RULES")
+    // Identity by content, not by wording: the slot IS the installed file.
+    expect(parts.reasoning).toBe(PROMPT_REASONING)
     expect(parts.kernel).toBe("")
   })
 

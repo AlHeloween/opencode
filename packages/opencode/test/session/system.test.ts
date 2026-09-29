@@ -13,7 +13,6 @@ import PROMPT_GPT from "../../src/session/prompt/gpt.txt"
 import PROMPT_BUILD from "../../src/session/prompt/build.txt"
 import PROMPT_PLAN from "../../src/session/prompt/plan.txt"
 import PROMPT_REASONING_MODE from "../../src/session/prompt/reasoning-mode.txt"
-import PROMPT_REASONING from "../../src/session/prompt/reasoning_prompt.txt"
 import TASK_DESCRIPTION from "../../src/tool/task.txt"
 
 function mockModel(apiId: string, providerId = "test"): Provider.Model {
@@ -42,24 +41,6 @@ describe("session.system", () => {
       expect(prompt).toContain("explore")
       expect(prompt).toContain("general")
     }
-    // Section 0 is `WORKFLOW`, renamed from `KERNEL_MAP` in 75da19cbbc.
-    expect(PROMPT_REASONING).toContain("## 0. WORKFLOW")
-    expect(PROMPT_REASONING).toContain("ABI_AND_VOCABULARY")
-  })
-
-  test("reasoning_prompt.txt contains compact runtime dictionary roots", () => {
-    const prompt = PROMPT_REASONING
-
-    // `WORKFLOW` is section 0's root; the header is asserted separately below
-    // because the bare word also appears in every `routes:` line.
-    for (const root of ["ABI_AND_VOCABULARY", "SHARED_RULES", "WORKFLOW"]) {
-      expect(prompt).toContain(root)
-    }
-    expect(prompt).toContain("## 0. WORKFLOW")
-    expect(prompt).toMatch(/EVIDENCE_ORDER|EVIDENCE\.ORDER/)
-    expect(prompt).toContain("CLAIM_LEDGER")
-    expect(prompt).not.toContain("_ALL_SPECS")
-    expect(prompt).not.toContain("run_conformance")
   })
 
   test("plan reminder is a compact reference to the stable kernel contract", async () => {
@@ -78,26 +59,6 @@ describe("session.system", () => {
     expect(PROMPT_REASONING_MODE).toContain("@REASONING_MODE")
     expect(PROMPT_REASONING_MODE).toContain("checkstate")
     expect(PROMPT_PLAN).toContain("@PLAN_MODE")
-  })
-
-  test("reasoning_prompt identity contracts use entity names, not host slugs", () => {
-    expect(PROMPT_REASONING).toContain("### BUILD_MODE")
-    expect(PROMPT_REASONING).toContain("### PLAN_MODE")
-    expect(PROMPT_REASONING).toContain("### REASONING_MODE")
-    // Identity resolution is load-bearing, not a tool path. §5 gives ten identities, and
-    // @CATALOG_INVARIANT makes the tool catalog identity-INVARIANT on purpose — so an agent
-    // cannot read its own rights off the tools it can see. `checkstate` is the only thing
-    // that answers "which contract governs me". Two expectations moved on 2026-09-28 (owner:
-    // the identity rows replace `gates`/`may_mutate` with the real ACL view, source.py:783):
-    // the invariant is written as a formula and per-identity `tools:` rows carry the rights,
-    // kept honest by script/kernel-tools-manifest.ts.
-    expect(PROMPT_REASONING).toContain("Provider tool catalog = identity-invariant")
-    expect(PROMPT_REASONING).toContain("Uncertain identity or permission → inspect the host runtime's authorization surface")
-    expect(PROMPT_REASONING).toContain("identity or permission uncertain -> checkstate")
-    expect(PROMPT_REASONING).toContain("tools: checkstate")
-    expect(PROMPT_REASONING).not.toContain("### build_mode")
-    expect(PROMPT_REASONING).not.toContain("#### @GETMODE")
-    expect(PROMPT_REASONING).not.toContain("### GETMODE")
   })
 
   test("session plan path uses repo root plans directory", async () => {

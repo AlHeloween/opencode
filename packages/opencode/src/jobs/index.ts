@@ -747,20 +747,20 @@ export const layer = Layer.effect(
         // (2026-09-18: the old code flipped the status and returned true for
         // done jobs, contradicting the tool contract and the workflow test).
         if (j.status !== "killed") {
-          log.debug("job_kill on terminal job — no-op", { id: j.id, kind: j.kind, status: j.status })
+          log.debug("jobkill on terminal job — no-op", { id: j.id, kind: j.kind, status: j.status })
           return false
         }
         const pid = j.pid
         if (!pid) {
-          log.warn("job_kill on killed job — no pid recorded, nothing to sweep", { id: j.id, kind: j.kind })
+          log.warn("jobkill on killed job — no pid recorded, nothing to sweep", { id: j.id, kind: j.kind })
           return false
         }
         const starts = yield* Effect.promise(() => processStartTimes([pid]))
         if (!isPidOurs(pid, j.startedAt, starts)) {
-          log.warn("job_kill on killed job — pid gone or reused, nothing to sweep", { id: j.id, pid })
+          log.warn("jobkill on killed job — pid gone or reused, nothing to sweep", { id: j.id, pid })
           return false
         }
-        log.warn("job_kill re-killing a surviving process tree", { id: j.id, kind: j.kind, pid })
+        log.warn("jobkill re-killing a surviving process tree", { id: j.id, kind: j.kind, pid })
         killTree(j)
         return true
       }

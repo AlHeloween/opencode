@@ -221,7 +221,7 @@ export const Parameters = Schema.Struct({
     Schema.withDecodingDefault(Effect.succeed(true)),
   ).annotate({
     description:
-      "Run the command in the background as a tracked job. Returns immediately with a job ID. Use job_output to read output, job_wait to wait for completion, or job_kill to stop. Default: true (non-blocking). Set to false for quick synchronous commands.",
+      "Run the command in the background as a tracked job. Returns immediately with a job ID. Use job_output to read output, job_wait to wait for completion, or jobkill to stop. Default: true (non-blocking). Set to false for quick synchronous commands.",
   }),
 })
 
@@ -456,8 +456,8 @@ export const CmdTool = Tool.define(
 
           // Process exit only — NO hard timeout, NO abort race.
           // Long builds must not be killed by a fixed deadline. The agent
-          // sees stall detection hints and decides whether to job_kill.
-          // Fiber interruption (user cancel, job_kill) kills the process
+          // sees stall detection hints and decides whether to jobkill.
+          // Fiber interruption (user cancel, jobkill) kills the process
           // via Effect.scoped acquireRelease finalizer (taskkill /T /F).
           const code = yield* handle.exitCode
           yield* awaitDrain
@@ -557,7 +557,7 @@ export const CmdTool = Tool.define(
 
           // Background mode: fork into JobManager, return immediately.
           // Commands run non-blocking by default — the agent sees the job ID
-          // and can poll job_output / job_wait / job_kill. Synchronous
+          // and can poll job_output / job_wait / jobkill. Synchronous
           // execution is opt-in via run_in_background: false.
           if (params.run_in_background !== false) {
             const jobSvc = yield* Effect.serviceOption(Jobs.Service)

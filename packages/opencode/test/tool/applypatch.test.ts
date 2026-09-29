@@ -76,7 +76,7 @@ const makeCtx = () => {
   return { ctx, calls }
 }
 
-describe("tool.apply_patch freeform", () => {
+describe("tool.applypatch freeform", () => {
   test("requires patchText", async () => {
     const { ctx } = makeCtx()
     await expect(execute({ patchText: "" }, ctx)).rejects.toThrow("patchText is required")

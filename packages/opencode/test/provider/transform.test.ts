@@ -7,6 +7,7 @@ import { generateText } from "ai"
 import type { Provider } from "@/provider/provider"
 import { ProviderTransform } from "@/provider/transform"
 import { ModelID, ProviderID } from "../../src/provider/schema"
+import PROMPT_REASONING from "../../src/session/prompt/reasoning_prompt.txt"
 
 const createModel = (limit: Provider.Model["limit"]): Provider.Model => ({
   id: ModelID.zod.parse("test/model"),
@@ -128,14 +129,11 @@ describe("ProviderTransform.systemPromptPrefix", () => {
     ]) {
       const prefix = ProviderTransform.systemPromptPrefix(createModel(modelId))
       expect(prefix).toBeString()
-      // The kernel's section 0 is `WORKFLOW` (renamed from `KERNEL_MAP` in
-      // 84fd876f13); assert the live heading, not the retired token.
-      expect(prefix).toContain("WORKFLOW")
-      expect(prefix).toContain("CLAIM_LEDGER")
-      expect(prefix).toContain("ABI_AND_VOCABULARY")
-      expect(prefix).toContain("SHARED_RULES")
-      expect(prefix.indexOf("WORKFLOW")).toBeLessThan(prefix.indexOf("ABI_AND_VOCABULARY"))
-      expect(prefix).not.toContain("_ALL_SPECS")
+      // The kernel's own wording is pinned by the Python suite (`prompt_kernel/tests`);
+      // here the property is that the ASSEMBLY carries the installed file for every
+      // model — assert its bytes, not its prose.
+      expect(prefix).toContain(PROMPT_REASONING.slice(0, 40))
+      expect(prefix.length).toBeGreaterThanOrEqual(PROMPT_REASONING.length)
     }
   })
 })

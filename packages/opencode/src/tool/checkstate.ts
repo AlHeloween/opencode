@@ -218,5 +218,4 @@ export const CheckStateTool = Tool.define<
         }).pipe(Effect.orDie),
     }
   }),
-  "check_state",
 )

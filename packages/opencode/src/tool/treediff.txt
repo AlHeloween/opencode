@@ -16,7 +16,7 @@ snapshots, ports, or recovery candidates.
 
 1. `treediff` in `names` mode answers what differs without loading each file.
 2. Use `numstat` to identify the meaningful changes.
-3. Read only the relevant files, or send the bounded set to `ai-call` for one
+3. Read only the relevant files, or send the bounded set to `aicall` for one
    coherent large-context analysis/refactor.
 4. Apply changes with normal edit/patch tools and prove them with focused tests.
 

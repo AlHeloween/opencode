@@ -182,7 +182,7 @@ export function normalizeError(error: unknown): NormalizedError {
   }
 
   // Client-initiated abort: we cancelled our own request (user stop, session
-  // interrupt, job_kill). NOT a provider fault — must not poison health
+  // interrupt, jobkill). NOT a provider fault — must not poison health
   // stats, must not trigger h1 fallback (user directive 2026-09-09).
   if (/^request aborted$/i.test(message) || /abort(ed)? signal|signal is aborted|operation was aborted/i.test(message)) {
     return { category: "client_abort", retryable: false, message }

@@ -39,5 +39,4 @@ export const JobKillTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
-  "job_kill",
 )

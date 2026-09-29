@@ -1021,7 +1021,7 @@ export function guardBrutalDestructive(
 // ============================================================================
 
 /** Tools that mutate filesystem — hard-gated when premises ungrounded. */
-export const MUTATION_TOOLS = new Set(["write", "edit", "multiedit", "apply_patch", "applypatch", "restore"])
+export const MUTATION_TOOLS = new Set(["write", "edit", "multiedit", "applypatch", "restore"])
 
 export function isMutationTool(tool: string): boolean {
   const t = tool.toLowerCase().replace(/[^a-z0-9]/g, "")
@@ -1031,7 +1031,7 @@ export function isMutationTool(tool: string): boolean {
 
 /** File mutation is always at least ELEVATED (persistent write). */
 export function noteMutationRisk(input: {
-  tool: "edit" | "write" | "multiedit" | "apply_patch" | "applypatch" | "restore"
+  tool: "edit" | "write" | "multiedit" | "applypatch" | "restore"
   path: string
   sessionID?: string
 }): Risk {

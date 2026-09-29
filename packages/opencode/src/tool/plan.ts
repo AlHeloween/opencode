@@ -137,7 +137,6 @@ export const PlanEnterTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
-  "plan_enter",
 )
 
 /** plan_mode → build_mode (user approval). */
@@ -214,5 +213,5 @@ export const PlanExitTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
-  "plan_exit",
+  "planexit",
 )

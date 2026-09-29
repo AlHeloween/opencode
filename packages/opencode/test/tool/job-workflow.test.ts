@@ -1,15 +1,15 @@
 /**
  * End-to-end tests for the full background job workflow:
- *   bash (background) → job_output → job_wait → stalled detection → job_kill / job_reset
+ *   bash (background) → job_output → job_wait → stalled detection → jobkill / jobreset
  *
  * Validates:
  *   - Commands run non-blocking by default
  *   - job_output returns incremental output + status WHILE the job runs (streaming)
  *   - job_wait polls until terminal state
  *   - Stalled detection fires after 15s no output
- *   - job_reset re-arms a running job's stall deadline; no-op on terminal jobs
- *   - job_kill transitions running/stalled → killed
- *   - job_kill is a no-op on already-terminal jobs
+ *   - jobreset re-arms a running job's stall deadline; no-op on terminal jobs
+ *   - jobkill transitions running/stalled → killed
+ *   - jobkill is a no-op on already-terminal jobs
  */
 import { describe, expect, test } from "bun:test"
 import { Effect, Layer, ManagedRuntime } from "effect"
@@ -145,7 +145,7 @@ describe("tool.job-workflow", () => {
     })
   }, { timeout: 20_000 })
 
-  test("stalled → job_kill flow", async () => {
+  test("stalled → jobkill flow", async () => {
     await Instance.provide({
       directory: projectRoot,
       fn: async () => {
@@ -191,7 +191,7 @@ describe("tool.job-workflow", () => {
     })
   }, { timeout: 35_000 })
 
-  test("job_kill no-op on already-done job", async () => {
+  test("jobkill no-op on already-done job", async () => {
     await Instance.provide({
       directory: projectRoot,
       fn: async () => {
@@ -229,7 +229,7 @@ describe("tool.job-workflow", () => {
     })
   }, { timeout: 15_000 })
 
-  test("job_reset re-arms a running job; no-op on a killed job", async () => {
+  test("jobreset re-arms a running job; no-op on a killed job", async () => {
     await Instance.provide({
       directory: projectRoot,
       fn: async () => {

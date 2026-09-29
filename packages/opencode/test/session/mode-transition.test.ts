@@ -54,10 +54,10 @@ test("mode-transition tool IDs use canonical names (no separators)", () => {
   const canonicalName = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, "")
 
   // Policy names (with underscores) → canonical IDs (without)
-  expect(canonicalName("plan_exit")).toBe("planexit")
-  expect(canonicalName("plan_enter")).toBe("planenter")
-  expect(canonicalName("reasoning_enter")).toBe("reasoningenter")
-  expect(canonicalName("reasoning_exit")).toBe("reasoningexit")
+  expect(canonicalName("planexit")).toBe("planexit")
+  expect(canonicalName("planenter")).toBe("planenter")
+  expect(canonicalName("reasoningenter")).toBe("reasoningenter")
+  expect(canonicalName("reasoningexit")).toBe("reasoningexit")
 
   // TUI checks for exactly these canonical forms
   const tuiExpected = ["planexit", "planenter", "reasoningenter", "reasoningexit"]

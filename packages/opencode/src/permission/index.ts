@@ -348,7 +348,7 @@ export function merge(...rulesets: Ruleset[]): Ruleset {
   return rulesets.flat()
 }
 
-const EDIT_TOOLS = ["edit", "write", "apply_patch"]
+const EDIT_TOOLS = ["edit", "write", "applypatch"]
 
 /**
  * Tools to hide entirely from the model tool list.
@@ -359,7 +359,7 @@ const EDIT_TOOLS = ["edit", "write", "apply_patch"]
  * keep write/edit available — {@link evaluate} gates each path at runtime.
  *
  * A bare `permission: edit, pattern: *, action: deny` (with no path allow)
- * still removes edit/write/apply_patch from the tool list.
+ * still removes edit/write/applypatch from the tool list.
  */
 export function disabled(tools: string[], ruleset: Ruleset): Set<string> {
   const result = new Set<string>()

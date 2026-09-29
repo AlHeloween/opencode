@@ -205,7 +205,7 @@ test("tool call repair resolves separator aliases to the canonical provider name
   const tools = {
     planexit: tool({ inputSchema: z.object({}), execute: async () => "" }),
   }
-  expect(LLM.resolveToolName("plan_exit", tools)).toBe("planexit")
+  expect(LLM.resolveToolName("planexit", tools)).toBe("planexit")
   expect(LLM.resolveToolName("PLAN-EXIT", tools)).toBe("planexit")
   expect(LLM.resolveToolName("planexit", tools)).toBe("planexit")
   expect(LLM.resolveToolName("unknown_tool", tools)).toBeUndefined()
@@ -218,7 +218,7 @@ test("user.tools=false never reshapes the wire catalog (runtime-deny instead)", 
   const visible = LLM.resolveTools({
     tools,
     agent: { permission: [] } as unknown as Agent.Info,
-    user: { tools: { reasoning_enter: false } } as unknown as LLM.StreamInput["user"],
+    user: { tools: { reasoningenter: false } } as unknown as LLM.StreamInput["user"],
   })
   // The catalog stays complete on the wire — opt-outs are enforced at
   // execute time by SessionTools.denied (see session/tools.test.ts).

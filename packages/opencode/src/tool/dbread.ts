@@ -46,7 +46,7 @@ export const DbReadTool = Tool.define(
       execute: (params: { database: string; sql: string; limit?: number }, ctx: Tool.Context) =>
         Effect.gen(function* () {
           yield* ctx.ask({
-            permission: "db-read",
+            permission: "dbread",
             patterns: [params.database],
             always: ["*"],
             metadata: { database: params.database, sql: params.sql },
@@ -171,5 +171,5 @@ export const DbReadTool = Tool.define(
         }).pipe(Effect.orDie),
     }
   }),
-  "db-read",
+  "dbread",
 )

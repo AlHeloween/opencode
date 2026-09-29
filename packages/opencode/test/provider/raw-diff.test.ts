@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test"
-import { readFileSync } from "node:fs"
 
 import { analyzeRawDiff, assembleMessage, collectReasoning, KERNEL_MARKER, messageSpans, renderIntegrityReport, renderLineDiff, renderRawDiff, renderRawWirePseudoDiff, renderResponseMarkdown, renderWireMessageMd } from "@/provider/gateway/raw-diff"
 
@@ -289,21 +288,12 @@ describe("renderIntegrityReport", () => {
     expect(text).toContain("kernel copies: 3 (EXPECTED 1 — identity accumulation)")
   })
 
-  test("a real capture is not needed to pin the marker: the PRODUCTION prompt must contain it", () => {
-    // The counter was born dead: KERNEL_MARKER was a string no kernel render
-    // ever contained, so every live request read "kernel copies: 0" while the
-    // kernel sat right there in the body — the fixtures above prove the
-    // counting logic, never the marker. This pin ties the marker to the file
-    // that actually ships; a kernel edit that renames the heading fails here,
-    // at the same commit, instead of silently blinding the counter.
-    const prompt = readFileSync(new URL("../../src/session/prompt/reasoning_prompt.txt", import.meta.url), "utf8")
-    const hit = renderIntegrityReport({ body: { messages: [{ role: "system", content: prompt }] } })
-    expect(hit).toContain("kernel copies: 1")
-    // Control: the same predicate must come out differently when the kernel is
-    // genuinely absent — otherwise it has no power.
-    const miss = renderIntegrityReport({ body: { messages: [{ role: "system", content: "You are Smit." }] } })
-    expect(miss).toContain("kernel copies: 0")
-  })
+  // The pin that tied `KERNEL_MARKER` to the SHIPPED kernel file was removed with the
+  // kernel decoupling (owner, 2026-09-29: the runtime is decoupled from the kernel build,
+  // and a TS test reading `reasoning_prompt.txt` is the rudiment). RESIDUAL: nothing in TS
+  // now notices if a kernel re-render renames the heading the marker keys on, and the
+  // counter would go blind again — the Python suite (`prompt_kernel/tests`) is where that
+  // tie belongs.
 
   test("dual dialect violation", () => {
     const body = {

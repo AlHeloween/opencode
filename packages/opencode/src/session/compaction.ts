@@ -2082,7 +2082,7 @@ export function buildMessageStar(input: {
 
   // Passive links + ranks; ONE recovery pointer at the very end (2026-08-25,
   // Alexander): earlier "Fast recovery / use these tools" recipes sat at the
-  // TOP and pushed models into session-read/db-read spirals instead of work.
+  // TOP and pushed models into session-read/dbread spirals instead of work.
   // A single closing line keeps the archive reachable without framing m* as
   // a recovery manual.
   const recoveryLine =

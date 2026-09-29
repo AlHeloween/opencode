@@ -69,7 +69,11 @@ export function resolveGatewayProtocol(_provider: string, configured?: GatewayPr
   return "auto"
 }
 
-/** Ordered downgrade chain; an explicit h3 choice ignores the probe cache. */
+/** Ordered downgrade chain; an explicit h3 choice ignores the probe cache.
+ *  `auto` keeps h3 FIRST — a whole family of providers supports it, and h3 is never
+ *  removed from the chain (owner correction 2026-09-29: «зачем убрал h3»). The probe
+ *  outcome is cached per origin; selection-time diagnostics pin the rung into settings
+ *  so the runtime increasingly reads a ready value instead of trialling. */
 export function protocolChain(configured: GatewayProtocol, h3CachedDead: boolean): TransportProtocol[] {
   if (configured === "http/1.1") return ["http/1.1"]
   if (configured === "h2") return ["h2", "http/1.1"]

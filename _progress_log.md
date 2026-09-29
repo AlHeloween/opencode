@@ -5365,3 +5365,25 @@ literal lands on exactly the seven known chunks — the data was always there; o
 entrypoint) — `scripts/internal/build_artefacts.py` and `sync_skills_from_artefacts.py` were run before that file was
 read. No version bump, no release cut; recorded in adm's own `_progress_log.md`.
 Probes: `experiments/2026-09-29_rag-literal-probe/probe{,2,3,4,5}.ts`.
+
+## [2026-09-29 13:52Z] #1 CoT-loss VERIFIED NOT LIVE — residue from builds before 09:26, the fence holds
+
+CONFIRMED ✓ (probes `experiments/2026-09-29_cot-loss/probe{,2,3}.ts`): the current session's 26 tool-turns without a
+reasoning part are ALL `deepseek-flash`, ALL created 06:22–09:26 today, and ALL `compacted=1` (folded out of the wire);
+the session's last 90 minutes added none. The `provider.transform` census shows `cotAbsent: 33` in only the first 7 of 51
+requests — after compaction folded those turns it is 0, with `cotEmpty: 0` throughout. The other silent-loss route
+(`processor.ts` reasoning-delta with an unknown id) never fired: 0 warns in every log. So the CoT loss did NOT drive the
+loop window (10:15–10:18) and no live leak exists in the current build; the 26 rows are historical, their content
+unrecoverable, and the DeepSeek 400-fence injects "" for them.
+
+## [2026-09-29 13:52Z] #2 shell "desync" is POLICY, not a bug — the suite enumerated a shell the runtime refuses (handed over)
+
+CORRECTED ✗: "the tool resolves cmd while the test sets SHELL=bash" was the symptom. `ok()` in `src/shell/shell.ts`
+REFUSES bash on win32 by design («deny bash shell — only cmd.exe and PowerShell are supported»), `win()` omits Git Bash
+from the picker for the same reason, and `select()` falls back to `win()[0]` (cmd). The suite's `shells` list included
+`Shell.gitbash()` anyway — so every `[bash]` variant asserted a permission key that cannot occur (Expected "bash",
+Received "cmd") and its command ran under cmd with bash-style quoting: the path that left the 0-byte
+`i+1).join(String.fromCharCode(10)))`. Patch: the Windows list now enumerates `[COMSPEC, pwsh, powershell]` only →
+the `[bash]`-variant class is gone; the remaining reds are a DIFFERENT mix (pwsh/powershell/cmd external_directory,
+PowerShell-conditional parsing, abort/truncation) and are the substance of the handoff. Owner assigned #2 to another
+agent; this entry is the handoff note.

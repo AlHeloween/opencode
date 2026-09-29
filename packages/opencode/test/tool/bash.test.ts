@@ -61,7 +61,14 @@ const shells = (() => {
     return [{ label: Shell.name(shell), shell }]
   }
 
-  const list = [bash, Bun.which("pwsh"), Bun.which("powershell"), process.env.COMSPEC || Bun.which("cmd.exe")]
+  // Git Bash is deliberately ABSENT here: `ok()` (src/shell/shell.ts) refuses bash on
+  // win32 — quoting through cmd's `/s /c` wrapper and an unpredictable environment — and
+  // `win()` omits it from the picker for the same reason. A suite that enumerates a shell
+  // the runtime never selects asserts a state the product refuses to enter: every [bash]
+  // variant asked for a `bash` permission key that cannot occur, and the generated command
+  // was still executed by cmd with bash-style quoting — which is how `=>` reached a
+  // redirect and left the 0-byte artefact `i+1).join(String.fromCharCode(10)))` behind.
+  const list = [Bun.which("pwsh"), Bun.which("powershell"), process.env.COMSPEC || Bun.which("cmd.exe")]
     .filter((shell): shell is string => Boolean(shell))
     .map((shell) => ({ label: Shell.name(shell), shell }))
 

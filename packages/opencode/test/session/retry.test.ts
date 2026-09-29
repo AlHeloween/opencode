@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { NamedError } from "@opencode-ai/core/util/error"
-import { APICallError } from "ai"
+import { APICallError, StreamProviderError } from "ai"
 import { setTimeout as sleep } from "node:timers/promises"
 import { Effect, Schedule } from "effect"
 import { SessionRetry } from "../../src/session/retry"
@@ -315,5 +315,47 @@ describe("session.message-v2.fromError", () => {
     expect(MessageV2.APIError.isInstance(result)).toBe(true)
     expect((result as MessageV2.APIError).data.isRetryable).toBe(true)
     expect(SessionRetry.retryable(result)).toBe("An error occurred while processing your request.")
+  })
+
+  test("classifies OpenRouter 502 StreamProviderError as retryable APIError", () => {
+    // Exact shape observed 2026-09-29 for openrouter/stealth/space-bunny-alpha:
+    // SSE chunk {"provider":"Stealth","choices":[],"error":{"code":502,
+    // "message":"Provider returned an empty response","metadata":{"error_type":"provider_unavailable"}}}
+    const error = new StreamProviderError({
+      message: "Provider returned an empty response",
+      code: 502,
+      statusCode: 502,
+      isRetryable: true,
+      data: {
+        code: 502,
+        message: "Provider returned an empty response",
+        metadata: { error_type: "provider_unavailable" },
+      },
+    })
+
+    const result = MessageV2.fromError(error, { providerID: ProviderID.make("openrouter") })
+
+    expect(MessageV2.APIError.isInstance(result)).toBe(true)
+    expect((result as MessageV2.APIError).data.statusCode).toBe(502)
+    expect((result as MessageV2.APIError).data.isRetryable).toBe(true)
+    const retryable = SessionRetry.retryable(result)
+    expect(retryable).toBeDefined()
+    expect(retryable).toBe("Provider returned an empty response")
+  })
+
+  test("classifies OpenRouter 504 upstream idle timeout as retryable", () => {
+    const error = new StreamProviderError({
+      message: "Upstream idle timeout exceeded",
+      code: 504,
+      statusCode: 504,
+      isRetryable: true,
+      data: { code: 504, message: "Upstream idle timeout exceeded", metadata: { error_type: "timeout" } },
+    })
+
+    const result = MessageV2.fromError(error, { providerID: ProviderID.make("openrouter") })
+
+    expect(MessageV2.APIError.isInstance(result)).toBe(true)
+    expect((result as MessageV2.APIError).data.statusCode).toBe(504)
+    expect(SessionRetry.retryable(result)).toBe("Upstream idle timeout exceeded")
   })
 })

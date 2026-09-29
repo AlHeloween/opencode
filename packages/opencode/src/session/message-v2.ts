@@ -4,7 +4,7 @@ import { ProjectID } from "../project/schema"
 import z from "zod"
 import { NamedError } from "@opencode-ai/core/util/error"
 import * as Log from "@opencode-ai/core/util/log"
-import { APICallError, convertToModelMessages, LoadAPIKeyError, type ModelMessage, type UIMessage } from "ai"
+import { APICallError, convertToModelMessages, LoadAPIKeyError, StreamProviderError, type ModelMessage, type UIMessage } from "ai"
 import { LSP } from "@/lsp/lsp"
 import { Snapshot } from "@/snapshot"
 import { SyncEvent } from "../sync"
@@ -1977,6 +1977,27 @@ export function fromError(
           responseHeaders: parsed.responseHeaders,
           responseBody: parsed.responseBody,
           metadata: parsed.metadata,
+        },
+        { cause: e },
+      ).toObject()
+    // StreamProviderError is thrown by the AI SDK when a provider reports an
+    // error AFTER the stream started (e.g. OpenRouter's SSE chunk
+    // {"error":{"code":502,"message":"Provider returned an empty response",
+    // "metadata":{"error_type":"provider_unavailable"}}}). Without this case it
+    // fell through to `e instanceof Error` → UnknownError, losing statusCode and
+    // isRetryable, so `SessionRetry.retryable` could not classify it and the
+    // turn died on a transient upstream outage (measured 2026-09-29).
+    case StreamProviderError.isInstance(e):
+      return new APIError(
+        {
+          message: e.message,
+          statusCode: e.statusCode,
+          isRetryable: e.isRetryable,
+          responseBody: e.data === undefined ? undefined : JSON.stringify(e.data),
+          metadata: {
+            code: String(e.code ?? ""),
+            type: e.type ?? "",
+          },
         },
         { cause: e },
       ).toObject()

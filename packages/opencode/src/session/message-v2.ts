@@ -1559,6 +1559,15 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             ],
           })
         }
+      } else if (assistantMessage.parts.length > 0) {
+        // Zero-payload tracking (owner directive 2026-09-29): a turn that carries parts but
+        // delivers nothing is NOT forwarded — and the drop is named, so the class is visible
+        // instead of inferred. Nothing is trimmed from the transcript: the parts stay in the DB.
+        Log.Default.info("empty delivery dropped from replay", {
+          sessionID: msg.info.sessionID,
+          messageID: msg.info.id,
+          parts: assistantMessage.parts.length,
+        })
       }
     }
   }

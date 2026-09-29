@@ -135,6 +135,11 @@ interface ProcessorContext extends Input {
   reasoningMap: Record<string, MessageV2.ReasoningPart>
   reasoningBuilders: Record<string, StringBuilder>
   recentToolCalls: { toolName: string; input: unknown }[]
+  /** Zero-payload census for this turn: finalized parts that carried NOTHING (trim-empty text,
+   *  empty reasoning). Owner directive 2026-09-29 — track every zero payload; never trim it
+   *  (the transcript keeps what arrived) and never forward it (an empty delivery is dropped
+   *  from the replay in `message-v2`). Printed at message completion even at zero. */
+  zeroPayloads: { text: number; reasoning: number }
   streamStartTime: number | undefined
   firstTokenLogged: boolean
   hasWriteToolCall: boolean
@@ -531,6 +536,7 @@ export const layer: Layer.Layer<
         textEmitted: false,
         fileEmitted: false,
         needsCompaction: false,
+        zeroPayloads: { text: 0, reasoning: 0 },
         currentText: undefined,
         textBuilder: new StringBuilder(),
         reasoningMap: {},
@@ -765,6 +771,7 @@ export const layer: Layer.Layer<
       }) {
         if (!(value.id in ctx.reasoningMap)) return
         ctx.reasoningMap[value.id].text = ctx.reasoningBuilders[value.id]?.toString() ?? ctx.reasoningMap[value.id].text
+        if (ctx.reasoningMap[value.id].text.trim().length === 0) ctx.zeroPayloads.reasoning++
         delete ctx.reasoningBuilders[value.id]
         ctx.reasoningMap[value.id].time = { ...ctx.reasoningMap[value.id].time, end: Date.now() }
         if (value.providerMetadata) ctx.reasoningMap[value.id].metadata = value.providerMetadata
@@ -1321,6 +1328,7 @@ export const layer: Layer.Layer<
               },
               { text: ctx.currentText.text },
             )).text
+            if (ctx.currentText.text.trim().length === 0) ctx.zeroPayloads.text++
             // Markdown repair is intentionally skipped for model-generated text.
             // The model's text is preserved verbatim.
             {
@@ -1406,12 +1414,15 @@ export const layer: Layer.Layer<
         if (ctx.currentText) {
           const end = Date.now()
           ctx.currentText.text = ctx.textBuilder.toString()
+          if (ctx.currentText.text.trim().length === 0) ctx.zeroPayloads.text++
           ctx.currentText.time = { start: ctx.currentText.time?.start ?? end, end }
           yield* session.updatePart(ctx.currentText)
           ctx.currentText = undefined
         }
 
-        for (const part of finalizeReasoning(ctx.reasoningMap, ctx.reasoningBuilders, Date.now())) {
+        const salvaged = finalizeReasoning(ctx.reasoningMap, ctx.reasoningBuilders, Date.now())
+        ctx.zeroPayloads.reasoning += salvaged.filter((part) => part.text.trim().length === 0).length
+        for (const part of salvaged) {
           yield* session.updatePart(part)
         }
         ctx.reasoningMap = {}
@@ -1452,6 +1463,15 @@ export const layer: Layer.Layer<
               ctx.assistantMessage.finish = "error"
             }
             ctx.assistantMessage.time.completed = Date.now()
+            // The census is printed EVEN AT ZERO — a check whose silence cannot be told from
+            // its absence is not a check (house rule; same shape as the compaction censuses).
+            // It counts what the provider SENT, so a leak is named the turn it appears.
+            log.info("zero-payload census", {
+              sessionID: ctx.sessionID,
+              messageID: ctx.assistantMessage.id,
+              text: ctx.zeroPayloads.text,
+              reasoning: ctx.zeroPayloads.reasoning,
+            })
             yield* session.updateMessage(ctx.assistantMessage)
           }),
         )

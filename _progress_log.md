@@ -5394,6 +5394,26 @@ the run — builds `bun -e "…(_,i)=>i+1…"` and the tool runs it through `cmd
 line and exposes `>`, so cmd opens `i+1).join(String.fromCharCode(10)))` as a redirect target in the CWD. That is the
 first stop for the handoff.
 
+## [2026-09-29 14:05Z] Zero-payload tracking (owner directive) — counted, never trimmed, never forwarded
+
+Owner: «резать вообще ничего не надо… надо отследить любые нулевые посылки… если пришло — его не надо никуда совать».
+Implemented: `processor.ts` counters `zeroPayloads.text|reasoning` (trim-empty text parts at `text-end`, at the
+stream-end flush, in `finishReasoning` and over the salvaged reasoning parts) plus a `zero-payload census` INFO line
+at message completion, printed EVEN AT ZERO (house rule). `message-v2.ts` names the drop
+(`empty delivery dropped from replay`) instead of dropping it silently — the drop itself stays: an empty delivery is
+not forwarded, while the parts stay in the transcript (nothing trimmed).
+Oracles: processor-effect + processor-tool-identity + llm → 40 pass / 1 fail, and that one («preserve text start
+time») passes in isolation (5.7 s under a 3-file load vs 8.0 s alone — a load timeout, not this change);
+`bun typecheck` clean for the touched files (the two reported errors sit in `test/tool/shell-exec-contract.test.ts`,
+an untracked file from the parallel shell task).
+
+FENG-SHUI FINDING ✓ (owner: «do nothing tool and do nothing result — это если тула нет»): the pattern ALREADY exists
+twice and neither is callable — `llm.ts:722` injects `_noop` (description «Do not call this tool… must never be
+invoked», result empty) when a LiteLLM-proxy/Copilot request carries tool calls in history but no tools param;
+`tool/invalid.ts` keeps a catalog slot excluded from `activeTools`. A callable noop tool is NOT added: no measured
+case of a provider-emitted zero payload exists (cotEmpty: 0 in every census), the vendor 400-guard is a FIELD
+requirement a noop call does not remove, and the new census measures the class — decide by its data.
+
 
 ## [2026-09-29 19:40Z] kernel F6+F7 staged, NOT installed — procedure layer, falsifier fixes, KAIZEN, BGE dedup/order
 

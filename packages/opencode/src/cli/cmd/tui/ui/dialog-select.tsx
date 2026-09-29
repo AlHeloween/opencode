@@ -361,19 +361,31 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   const keybinds = createMemo(() => props.keybind?.filter((x) => !x.disabled && x.keybind) ?? [])
   const left = createMemo(() => keybinds().filter((item) => item.side !== "right"))
   const right = createMemo(() => keybinds().filter((item) => item.side === "right"))
-  /** Hotkeys in COLUMNS, not a wrapped run: BOTH the cell and the name slot inside it are
+  const keybindAll = createMemo(() => [...left(), ...right()])
+  /** Hotkeys in COLUMNS, not a wrapped run: BOTH the cell and the slots inside it are
    * fixed, so the keys sit at the same x down a column (Alexander, 2026-09-20: «hotkeys - четко
    * столбиками»). Three per line at the dialog's width. */
   const KEYBIND_COLUMNS = 3
-  const keybindCellWidth = createMemo(() => Math.max(20, Math.floor((rowWidth() - 8) / KEYBIND_COLUMNS)))
-  const keybindAll = createMemo(() => [...left(), ...right()])
-  // A key aligns only if the name before it does: without a fixed name slot the keybind starts
-  // wherever its label happens to end, which is a gap, not a column.
+  /** The KEY comes FIRST, the ACTION after it (owner, 2026-09-29: «поменяй местами — на
+   * shortcut действие — неудобно читать»). The fixed slot therefore belongs to the KEY: a
+   * column of keys reads as a column, while a column of names does not — every name has a
+   * different length, so the key would start wherever the name happened to end, and a short
+   * name («Scope ←») leaves the gap that made this footer hard to read. */
+  const keybindSlotWidth = createMemo(() => {
+    const all = keybindAll()
+    if (all.length === 0) return 0
+    return Math.min(14, Math.max(...all.map((item) => Keybind.toString(item.keybind).length)) + 1)
+  })
   const keybindLabelWidth = createMemo(() => {
     const all = keybindAll()
     if (all.length === 0) return 0
     return Math.min(20, Math.max(...all.map((item) => item.title.length)) + 1)
   })
+  // The cell must fit BOTH slots, or its content overflows its own width and the NEXT cell
+  // starts wherever the overflow ended — which is the drift this footer showed.
+  const keybindCellWidth = createMemo(() =>
+    Math.max(20, Math.floor((rowWidth() - 8) / KEYBIND_COLUMNS), keybindSlotWidth() + keybindLabelWidth()),
+  )
   const keybindRows = createMemo(() => {
     const all = keybindAll()
     const out: (typeof all)[] = []
@@ -548,11 +560,11 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                 <For each={row}>
                   {(item) => (
                     <box width={keybindCellWidth()} flexShrink={0} flexDirection="row">
-                      <text width={keybindLabelWidth()} wrapMode="none" fg={theme.text}>
-                        <b>{item.title}</b>
-                      </text>
-                      <text wrapMode="none" fg={theme.textMuted}>
+                      <text width={keybindSlotWidth()} wrapMode="none" fg={theme.textMuted}>
                         {Keybind.toString(item.keybind)}
+                      </text>
+                      <text wrapMode="none" fg={theme.text}>
+                        <b>{item.title}</b>
                       </text>
                     </box>
                   )}

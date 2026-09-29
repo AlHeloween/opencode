@@ -6,6 +6,8 @@ import { useSync } from "@tui/context/sync"
 import { map, pipe, flatMap, entries, filter, sortBy, take } from "remeda"
 import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
+import { useToast } from "../ui/toast"
+import { probeProtocol } from "./protocol-probe"
 import { createDialogProviderOptions, DialogProvider } from "./dialog-provider"
 import { DialogVariant } from "./dialog-variant"
 import { DialogConfirm } from "./dialog-confirm"
@@ -26,6 +28,7 @@ export function DialogModel(props: {
   const local = useLocal()
   const sync = useSync()
   const dialog = useDialog()
+  const toast = useToast()
   const keybind = useKeybind()
   const route = useRoute()
   const [query, setQuery] = createSignal("")
@@ -246,9 +249,42 @@ export function DialogModel(props: {
     performSelect(providerID, modelID)
   }
 
+  /** Selection-time diagnostics (owner directive 2026-09-29): a model chosen in /agents is
+   *  probed ONCE here — the rung is pinned into the layer so the RUNTIME never trials
+   *  (no later h3 probe), and a dead origin is reported on the spot («выбери другую точку»). */
+  async function diagnoseSelected(providerID: string, modelID: string) {
+    const base = modelID.split(":")[0]
+    const entry = sync.data.provider.find((x) => x.id === providerID)
+    const info = entry?.models[base] as unknown as
+      | { options?: { protocol?: string }; api?: { url?: string } }
+      | undefined
+    const configured = info?.options?.protocol
+    if (configured && configured !== "auto") return // explicitly pinned — nothing to trial
+    const origin = info?.api?.url
+    if (!origin) return
+    const resolved = await probeProtocol({ fetchImpl: (input, init) => fetch(input, init), url: origin })
+    if (!resolved) {
+      toast.show({
+        title: "Provider not reachable",
+        message: `${providerID}/${base}: no transport answered the probe — pick another endpoint`,
+        variant: "warning",
+        duration: 6000,
+      })
+      return
+    }
+    await local.model.setModelProtocol(providerID, modelID, resolved, scope())
+    toast.show({
+      title: "Protocol pinned",
+      message: `${providerID}/${base}: ${resolved} — resolved at selection, no runtime trial`,
+      variant: "info",
+      duration: 4000,
+    })
+  }
+
   function performSelect(providerID: string, modelID: string) {
     const agent = props.targetAgent ?? local.agent.current()?.name
     local.model.set({ providerID, modelID }, { recent: true, agent, scope: scope() })
+    void diagnoseSelected(providerID, modelID)
     // An explicit targetAgent means /agents is CONFIGURING another agent — the
     // active prompt agent must stay where the user left it (2026-09-11,
     // Alexander). The variant step below therefore resolves against `agent`

@@ -54,9 +54,24 @@ oracle:   <what will prove it — the instrument, not the hope>
 
 ## Tasks
 
-- [ ] **S1 — the store.** `SVMTask` record + `SVM.Store` over the existing LMDB/SQLite plane, keyed
-      `svm:task:<planFile>#<taskId>`; `listMissing(plans)` returns tasks with no record. Acceptance:
-      a record survives a process restart and `listMissing` names exactly the tasks without one.
+- [x] ✓ **S1 — the store.** Shipped `8162b91e54` (`src/session/svm.ts`); `bun typecheck` exit 0
+      (`20260929T233140Z_f504484f`). `SVMRecord` + `read`/`write`/`missing` over the plane that
+      ACTUALLY exists — the `Storage` service (keyed, single-writer via `TxReentrantLock`, files under
+      `{data}/storage/`) — **not** "LMDB/SQLite": that wording was written before the plane was
+      checked, and no LMDB runs at runtime (its import shim is not written). Key is the array form
+      `["svm","task",<planId>,<taskId>]`, `<planId>` = the plan's BASENAME without extension, because
+      a `Storage` key becomes a file path and a plan path contains separators. `read` returns
+      `undefined` for an unwritten task (never an invented record); `missing(planFile, taskIds)` names
+      exactly the tasks without one, zero included.
+- [x] ✓ **S1b — the store's round-trip test.** `test/session/svm.test.ts`. Oracles: `bun test
+      test/session/svm.test.ts` → **4 pass / 0 fail** (`20260929T233743Z_744dc662`); `bun typecheck`
+      exit 0 (`20260929T233752Z_132fcaa4`). The blocker S1 hit is now NAMED, not worked around:
+      `provideTmpdirInstance(body)` must run inside `Effect.scoped` (it yields a `Scope`) with
+      `CrossSpawnSpawner.defaultLayer` merged in, because `tmpdirScoped` yields `ChildProcessSpawner`.
+      Both were named by the compiler, and the fix is the sibling Storage tests' own merge
+      (`summary.test.ts`, `mechanical-writer.test.ts`) — reused, not invented. Covers `planKey`
+      (both separators, missing extension), the round-trip, `undefined` for an unwritten task, and
+      `missing()` naming exactly the absent ids.
 - [ ] **S2 — the tool.** `svm read|set|render` as a native tool (`src/tool/svm.ts`), with the same
       `Tool.define` registry/`builtin`/`dsml-normalizer` spelling discipline as every other tool name.
       Acceptance: `set` → `read` round-trips every field; a task with no SVM is reported as missing,

@@ -32,7 +32,7 @@ loop itself (stall, snapshot, automode) before any new surface.
 
 | plan | open | what it is for |
 |---|---|---|
-| `2026-09-29_svm-tool-and-master-plan.md` | 6 | the manifest store, the tool, the reminder, this file |
+| `2026-09-29_svm-tool-and-master-plan.md` | 5 | the manifest store ✓, the tool, the reminder, this file |
 | `2026-09-29_stall-reproducer.md` | 4 | reproduce the 20–36 s post-input stall, name the phase |
 | `2026-09-29_codegraph-impact-decoupling.md` | 3 | codegraph off the turn path; C3 refuted by measurement |
 | `2026-09-29_cua-windows-debug-input.md` | 9 | addressable visual observation + bounded mouse input |
@@ -52,15 +52,6 @@ Per-task manifests, YAML. `eta_turns` is the approximate number of turns until t
 `plans_completed/`. `state`: doing | blocked | verified | waiting-on-user.
 
 ```yaml
-- task: S1b
-  plan: plans/2026-09-29_svm-tool-and-master-plan.md
-  sv:
-    keywords: { svm-store: 0.6, fixture-layers: 0.4 }
-    dominant: round-trip test for the manifest store against a throwaway instance
-  eta_turns: 1
-  state: doing
-  oracle: bun test test/session/svm.test.ts (S1 shipped without it; red tree was not left behind)
-
 - task: S2
   plan: plans/2026-09-29_svm-tool-and-master-plan.md
   sv:

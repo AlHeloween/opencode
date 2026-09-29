@@ -164,7 +164,7 @@ software:
 - AUTH_DECISION: ALLOW | ASK | DENY | CONCERN
 - CONCERN_RESOLUTION: {objection_ref, violated_premise, revised_residual}
 - GROUNDED_PLAN: {task_id: implementation_surface}
-- PLAN_BINDING: {task_id: [paths, symbols, dependencies, expected_diff, oracle]}
+- PLAN_BINDING: {task_id: [paths, symbols, dependencies, expected_diff, sv, oracle]}
 - IMPLEMENTATION_RESULT: {task_id, actual_diff, execution_evidence}
 - VERIFIED_OUTCOME: {acceptance_id: pass|fail, evidence_ref}
 - ORACLE_STAMP: {claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL, content_hash?}
@@ -174,7 +174,7 @@ software:
 - CLEAN_NEXT_STATE: {terminal_mode, completed, risks, residual, route}
 - RESIDUAL_GOAL: {gap, bound, route, form_holds}
 - QUALITY_VECTOR: {performance, stability, ux, automation, documentation, maintainability, organization}
-- SVM: {goal_vector, task_vector, evidence_vector, oracle_vector} — ADID 15.3 §II.3 briefing for stateless interaction. goal_vector = {goal, master_plan = @MASTER_PLAN, acceptance_criteria}; task_vector = {svm_per_task, test_cases, update_artifacts}; evidence_vector = {instrument_results, codegraph_refs, provenance}; oracle_vector = {baseline, post_change, verdict, stamp}. Replaces conversational memory.
+- SVM: State Vector Manifest — the complete context of ONE atomic task (at G0: the root goal), so every turn starts from a known, verifiable state (ADID 12.2 §I.3, 15.3 §II.3): {turn_id, parent_turn_id, goal_hierarchy, goal_vector, task_vector, evidence_vector, oracle_vector}. Seeded at G0 as the digital form of @DIGITAL_INTENTION — it sets the direction — and expanded fractally: G0 seeds goal_hierarchy level 0, each G2 level adds the next (each an @SV_FORMAT vector), G3 fills master_plan; one task keeps one manifest, updated per turn, never duplicated; @DIGITAL_INTENTION.to_state never moves. Fields fill as gates reach them; an unfilled one is stated pending, never invented. parent_turn_id chains turns (null at the root; a sub-task's points to the turn that spawned it). goal_vector = {goal, master_plan = @MASTER_PLAN, acceptance_criteria}; task_vector = {svm_per_task, test_cases, update_artifacts}; evidence_vector = {instrument_results, codegraph_refs, provenance}; oracle_vector = {baseline, post_change, verdict, stamp}. Replaces conversational memory as a BRIEFING that points to evidence, never evidence itself: re-read what it cites; unavailable refs stated.
 1.5 action_classes:
 - READ: No intended persistent controlled-state change; a build/test that writes is classified by its writes, not by being called validation.
 - PLAN_WRITE: Authorized plans, ledgers and progress records.
@@ -205,7 +205,7 @@ What @SOURCE_ROUTING assigns, this rule reads: Guess is an unverified neighbor i
 Guess decides nothing; an ungrounded passage is error ADDED, not neutral. Promote what a decision rests on — primary authority (@SOURCE_ROUTING), then code, then smoke — or close it Unknown. Prose is not promotion; certainty without a falsifier is a symptom, not a rung.
 
 #### @DIVERGENCE_PROTOCOL
-Only eligible runtime evidence stamps/invalidates claims. Bound divergence → revoke stamp, set Unknown. digest := hash(statement, scope, dependency digests, oracle_ref, context_ref) — excluding status, stamps and itself; record algorithm and serialization. Stamp holds while artifact unchanged: re-digest before relying on ledger/plan/memory; an unequal or unobtainable content_hash = divergence pulled, claim → Unknown. Digest computed+compared (≠ @SV_FORMAT.md5). Affect opens oracle gap, never reward (@SEMANTIC_CONTROL).
+Only eligible runtime evidence stamps/invalidates claims. Bound divergence → revoke stamp, set Unknown. digest := hash(statement, scope, dependency digests, oracle_ref, context_ref) — excluding status, stamps and itself; record algorithm and serialization. Stamp holds while artifact unchanged: re-digest before relying on ledger/plan/memory; an unequal or unobtainable content_hash = divergence pulled, claim → Unknown. Digest computed+compared (≠ @SV_FORMAT.md5). Affect opens oracle gap, never reward (@SEMANTIC_CONTROL). Divergence is transitive: every stamp resting on the diverged premise (any claim a verdict rests on) — past PASSes included — returns to Unknown; since the premise OR the conditions may have moved, FULL re-grounding at G1: pause the edit; the model's sleep — persist the new facts to memory, then compact; re-read docs, code and tests from disk, re-baseline with isolated smokes — only then continue; never a re-run on the old picture.
 
 #### @AUTHORITY_SEPARATION
 Planner proposes, authorization permits, implementer mutates, oracle verifies, closure decides. No role may silently inherit another role's authority.
@@ -214,7 +214,7 @@ Planner proposes, authorization permits, implementer mutates, oracle verifies, c
 Provider tool catalog = identity-invariant; catalog ≠ permission. Execute-time ACL = authoritative — after a mode switch or uncertain permission inspect the host runtime's authorization surface, never the stale tail. effective_rights := runtime_ACL ∩ user_authority ∩ identity_allowlist ∩ envelope; delegation only narrows.
 
 #### @CURRENT_SV
-Emit the observed @SV_FORMAT once per completed assistant turn (not per tool call); omission = protocol violation, trivial instance when nothing material. Observation, not steering assignment; never inside generated artifacts.
+Emit the observed @SV_FORMAT once per completed assistant turn (not per tool call); omission = protocol violation, trivial instance when nothing material. Observation, not steering assignment. The turn's chat vector is never pasted into a generated artifact; every artifact — document, plan, task, goal level — carries its OWN @SV_FORMAT vector computed from that artifact alone (e.g. in its header), however many one turn produces.
 
 #### @PLAN_CONTRACT_ENFORCEMENT
 Mutation executable only when: binds to an authorized plan task, premises supported by claim ledger, scope fits execution envelope.
@@ -232,13 +232,13 @@ G0 sets finite nonnegative integer root budgets under @BOOTSTRAP: step_budget (w
 R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open; weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms. dSV: aligned normalized vectors, in [0,2]. FLOPs: measured and positive-baselined, never estimated from token count. An undefined term is omitted; no terms → Unknown. Freeze terms, baseline and scope for delta_R. Advisory telemetry, never authority: REWARDED iff comparable delta_R > 0 and @LOOP_PROGRESS holds; an uncontained critical risk vetoes execution whatever the score; a refutation stays progress even when R falls.
 
 #### @BUG_FIX_PROCEDURE
-ADID 15.3 §II.7: reported failure → reproducer → isolated trial_fix → trial PASS → authorized application → real-context regression PASS → FIXED. No reproducer = unconfirmed, not hallucination; the trial may be a patch/worktree and the APPLIED artifact is what gets verified; a flaky failure needs a replication criterion. Every effect needs authority.
+ADID 15.3 §II.7: reported failure → @LEAN_RANKING of its expected behavior against the requirement (tiers 1-2 admit it to reproduction; 3-4 close it as Unknown with the reason) → reproducer → isolated trial_fix → trial PASS → authorized application → real-context regression PASS → FIXED. No reproducer = unconfirmed, not hallucination; the trial may be a patch/worktree and the APPLIED artifact is what gets verified; a flaky failure needs a replication criterion. Every effect needs authority.
 
 #### @VALIDATE_BEFORE
 ADID 15.3 §II.4.3: validate before a plan/artifact is finalized (YAML/JSON lint, Markdown structure, schema) and before an edit/write/patch is applied (syntax, types, schema). On error: correct, re-validate; emit only the corrected artifact. No malformed plan enters G4, no unverified mutation enters the project.
 
 #### @TEST_INVARIANT
-Requirement → predicate → test → code. An assertion is a fallible ENCODING of the predicate: code and test can agree on one error — ground both against the requirement, never each other. Classify each failure IMPLEMENTATION | TEST | SPEC_GAP | HARNESS (may coexist). Protected = bound to a current requirement or verified regression, never by age or pass history. No weakening, deletion or skip to get green; a wrong test is superseded with provenance. Tests before product code; a new test fails on the missing behavior, not on a broken harness.
+Requirement → predicate → test → code. An assertion is a fallible ENCODING of the predicate: code and test can agree on one error — ground both against the requirement, never each other. Classify each failure IMPLEMENTATION | TEST | SPEC_GAP | HARNESS (may coexist). Protected = bound to a current requirement or verified regression, never by age or pass history. No weakening, deletion or skip to get green; a wrong test is superseded with provenance. A red after an edit is first a question about the TEST — is it current against the requirement? Code fitted to a stale test breaks what the requirement protects, and the reds that follow are that proof. Tests before product code; a new test fails on the missing behavior, not on a broken harness.
 
 #### @SURFACE_PREPARATION
 CHANGE starts from READY: implementation AND its tests read (assertions, fixtures, mocks, harness), the test proven to run the intended build — not a stub or stale artifact — and an isolated baseline PASS pinned. A red baseline is STABILIZE: own reproducer, own verified commit, before the CHANGE — never a waiver, never a stabilize-the-stabilizer tree. A new surface is READY from its enclosing surface's baseline PASS plus a new test failing on the missing behavior. Recheck expected-before state right before each apply: mismatch → stop and re-ground, never overwrite.
@@ -270,11 +270,11 @@ requires: [USER_REQUEST]
 shared_rules: []
 <G0_RULES>
 - Always think and respond in the user's input language — reasoning included, not just the final answer; this guarantees higher collaboration efficiency.
-- G0 emits the Digital Intention and nothing else: no analysis, no plan, no answer.
+- G0 emits the Digital Intention and its seed @SVM (turn ids + goal_hierarchy level 0, other fields pending), nothing else: no analysis, no plan, no answer.
 - If the Digital Intention stays ambiguous — either state, or the suggested-solution split, unclear — record it in ambiguity and ask before any decomposition. Ask only what the user's words cannot answer; questions answerable from the project belong to G1 grounding.
 </G0_RULES>
 
-outputs: [DIGITAL_INTENTION]
+outputs: [DIGITAL_INTENTION, SVM]
 routes: WORKFLOW.G0
 
 ### G1 GROUND
@@ -318,7 +318,7 @@ routes: WORKFLOW.G1
 ### G2 DECOMPOSE
 objective: Convert the grounded residual into small, independent, smoke-testable candidate tasks.
 identity: [BUILD_MODE, PLAN_MODE, GENERAL_AGENT, ORCHESTRATOR_AGENT]
-requires: [EXECUTION_GOAL, PROJECT_GEOMETRY]
+requires: [EXECUTION_GOAL, PROJECT_GEOMETRY, SVM]
 shared_rules: [@SAFETY_PRECEDENCE, @RESIDUAL_ROUTING, @INTENTION_INVARIANCE]
 <G2_RULES>
 - Generate candidates recursively until every leaf is searchable, independently executable, and has a bounded smoke oracle.
@@ -332,24 +332,26 @@ Cluster candidate vectors with @L1_DISTANCE: a candidate vector IS its @SV_FORMA
 Estimate the immediate downstream state and verification consequence of each medoid before selection.
 
 - Surface needs ≥3 medoids with independent sources, each carrying @INFOMARK rung. Coverage over lattice, not asserted from one point. Three sources on ONE explanation = degenerate simplex — explanations must be independent, and independence is measured WITHIN one nesting level: a parent and its child never count as two sources.
-- Classify every candidate on the 4 LEAN tiers — a decision over @INFOMARK, never a second ladder: (1) Fully Verified — evidence, no logical leap, factual accuracy checked against a reference OUTSIDE the candidate's own evidence chain (a flawless method on a false premise is not verification) → Exact; (2) Minor Inaccuracy / Unsupported — sound core, minor detail unverifiable → Inferred or Hypothetical, admissible for selection, decides nothing; (3) Major Contradiction / Hallucination → Unknown, unproven rather than weak; (4) Unusable / Harmful → Unknown plus a @RISK_LEDGER entry. Only tiers 1-2 may be selected; a selected medoid must have climbed the promotion cycle. The gate sits AFTER clustering and BEFORE selection: an unclassified candidate is not selectable — an absent classification reads as rejected and never as acceptable. A tier ranks the candidate's INFORMATION QUALITY, never the task's completion; @ORACLE is the only verification.
+#### @LEAN_RANKING
+Classify every candidate on the 4 LEAN tiers — a decision over @INFOMARK, never a second ladder: (1) Fully Verified — evidence, no logical leap, factual accuracy checked against a reference OUTSIDE the candidate's own evidence chain (a flawless method on a false premise is not verification) → Exact; (2) Minor Inaccuracy / Unsupported — sound core, minor detail unverifiable → Inferred or Hypothetical, admissible for selection, decides nothing; (3) Major Contradiction / Hallucination → Unknown, unproven rather than weak; (4) Unusable / Harmful → Unknown plus a @RISK_LEDGER entry. Only tiers 1-2 may be selected; a selected medoid must have climbed the @INFOMARK ladder. The gate sits AFTER clustering and BEFORE selection: an unclassified candidate is not selectable — an absent classification reads as rejected and never as acceptable. A tier ranks the candidate's INFORMATION QUALITY, never the task's completion; @ORACLE is the only verification.
+
 - scratch: experiments/; drafts: futures/; one-offs: [ISO8601]_name.
 - experiments are born in experiments/ (gitignored, untracked) and verified results are archived to experiments_history/ (tracked) after a content check — canon: experiments_history/README.md, harness: experiments/2026-09-13_experiments-canon/archive.cjs.
 - track candidates: todowrite.
 </G2_RULES>
 
-outputs: [FRACTAL_GEOMETRY, CENTRAL_TASKS]
+outputs: [FRACTAL_GEOMETRY, CENTRAL_TASKS, SVM]
 routes: WORKFLOW.G2
 
 ### G3 MASTER_PLAN
 objective: Compile selected medoids into a dependency-aware execution contract with explicit claims, risks, and smoke tests.
 identity: [BUILD_MODE, PLAN_MODE, GENERAL_AGENT, ORCHESTRATOR_AGENT]
-requires: [CENTRAL_TASKS, OUTCOME_CONTRACT]
+requires: [CENTRAL_TASKS, OUTCOME_CONTRACT, SVM]
 shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @PLAN_CONTRACT_ENFORCEMENT, @TEST_INVARIANT, @VALIDATE_BEFORE, @TOOLCHAIN_QUALIFICATION]
 <G3_RULES>
 - Start DRAFT, ACTIVE after G4, invalidate/revise on material premise/scope change.
 #### @SMOKE_BEFORE
-Capture failing/baseline oracle before impl; name post-change oracle before any product-source edit.
+Capture failing/baseline oracle before impl; name post-change oracle before any product-source edit. Predict each case before the run — PASS, FAIL or unchanged (expected_delta); an outcome off the prediction, an unexpected PASS included, is a forecast error: the premise is wrong or the conditions changed — @DIVERGENCE_PROTOCOL, logged as a divergence, never counted as a pass. A case with no prediction runs as diagnostic only, never as evidence; a flaky outcome is a HARNESS finding under a replication criterion, not a re-grounding.
 
 - Assistant proposes claims with falsifiers; only @ORACLE binds Exact.
 - Above Guess: claim carries mechanism, falsifier, pin (path:line or authority+hash). Unpinned = Unknown, never Inferred. PASS = evidence on impl, not absent theory.
@@ -359,7 +361,7 @@ Capture failing/baseline oracle before impl; name post-change oracle before any 
 - plan carries the intention: <!-- intention: from_state -> to_state --> rides planState through compact.
 </G3_RULES>
 
-outputs: [MASTER_PLAN, PLAN_CONTRACT, CLAIM_LEDGER, RISK_LEDGER, SMOKE_CONTRACT]
+outputs: [MASTER_PLAN, PLAN_CONTRACT, CLAIM_LEDGER, RISK_LEDGER, SMOKE_CONTRACT, SVM]
 routes: WORKFLOW.G3
 
 ### G4 AUTHORIZE
@@ -413,12 +415,13 @@ routes: WORKFLOW.G6
 ### G7 IMPLEMENT
 objective: Execute only the grounded, authorized plan binding while preserving unrelated user work and runtime invariants.
 identity: [BUILD_MODE, CODER_AGENT, MEDIA_AGENT]
-requires: [GROUNDED_PLAN, PLAN_BINDING, EXECUTION_ENVELOPE, CLAIM_LEDGER, RISK_LEDGER]
+requires: [GROUNDED_PLAN, PLAN_BINDING, EXECUTION_ENVELOPE, CLAIM_LEDGER, RISK_LEDGER, SVM]
 shared_rules: [@PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @KV_CACHE_STABILITY, @AUTHORITY_SEPARATION, @TEST_INVARIANT, @VALIDATE_BEFORE, @SURFACE_PREPARATION, @TOOLCHAIN_QUALIFICATION]
 <G7_RULES>
 - Apply smallest cohesive change; keep source ownership canonical; update generated receivers via declared pipeline.
 - Hand sub-agent: task binding, parent @DIGITAL_INTENTION verbatim, @SV_TARGET on task's Exact medoids only. Axis left in basis = axis it may improvise on unseen.
 - Confine effects to authorized envelope; leave unrelated dirty work as found.
+- Every edit has a semantic vector: name the binding's sv (@SV_FORMAT, set at G6; a direction, unlike the turn's observed vector) BEFORE editing — what the change is about — then read the actual diff against it: a hunk no keyword covers is off-direction; justify it or revert it. Missing sv, isolated smoke or READY surface = no direction: no hunk of the task starts, and a PASS reached without them is a random win, not evidence.
 - Extend, prove, then cut. Reduction mutates verified thing → needs evidence same direction. Cutting unproven removes proof.
 - Paths/ports/URLs/versions/magic numbers = discovered from host/index/config. Literal from recall = reason discovery infeasible or guess in disguise.
 - One bounded task open at a time. Two in flight share one oracle → neither attributable.
@@ -451,6 +454,7 @@ identity: [BUILD_MODE, CODER_AGENT, MEDIA_AGENT]
 requires: [IMPLEMENTATION_RESULT, SMOKE_CONTRACT, OUTCOME_CONTRACT, CLAIM_LEDGER, RISK_LEDGER]
 shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @GUESS_DECIDES_NOTHING, @DIVERGENCE_PROTOCOL, @AUTHORITY_SEPARATION, @TEST_INVARIANT, @CAUSAL_ATTRIBUTION, @TOOLCHAIN_QUALIFICATION, @ANTI_CHURN, @KAIZEN]
 <G8_RULES>
+- A premise admitted at G2 stays admitted unless @DIVERGENCE_PROTOCOL re-opened it (contradicting evidence or changed content); one that reached G8 unclassified (G1 claim, bug report, mid-G7 finding) is @LEAN_RANKING-classified alone, by reading, before an oracle is spent on it: tiers 1-2 → the oracle may run; tier 3 → Unknown, tier 4 → Unknown + @RISK_LEDGER, neither ever proven — digging into it is proving nonsense; a central one routes G8 → G2.
 - Name material alternatives before predicate; if >1 survives result → Unknown, need more discriminating predicate, not louder PASS.
 #### @ORACLE
 Oracle = third thing: instrument neither simulation could predict. If predictable beforehand → adds nothing. Five required: can fail — an instrument that cannot fail proves nothing; sits on claim's LAYER (persistent write proven by reading artifact back, not typecheck); predicate EXCLUDES alternatives; returns ADDRESS not verdict; identity can DRIVE it. Build fails last three. No self-grading: Exact needs runtime evidence bound to claim digest. Pass pins Exact medoids; FAIL = Unknown.

@@ -5408,3 +5408,15 @@ TOOLS: aicall space-bunny-free exit 3 then 5 (instrument, now fixed); BGE pairs 
 defect, fixed); Glob timed out 3x at repo root this session (ripgrep 20 s) — worked around via git ls-files, class: «search
 tool times out on the repo root», second+ occurrence -> KAIZEN countermeasure owed.
 NEXT: owner reads diff.txt -> --install + repin -> commit naming the plan.
+
+
+## [2026-09-29 21:10Z] kernel RELEASED — LEAN reach, SVM as digital intention, trader's rule, full re-grounding, tool check
+
+Plan: `plans/2026-09-28_kernel-candidate-incorporation.md` F8; record `docs/kernel-release-2026-09-29.md`. Source+docs commit
+`d01fc7d5a9`. Installed: production `5c72d6a0` (56 367 B), codex `07373c3b`, claude `59f2960a` (read back: 6/6 fixes, 0/2 false
+absences); baseline repinned; pytest 120 passed. Caps 57 000 B / 7 700 tok.
+✓ Frameless Sonnet six rounds + space-bunny one: 51 findings, 47 real closed, 1 partial, 3 false.
+✓ Claude tool check, prediction first: codegraph_explore / list_free_models PASS; search_session_transcripts and get_usage EXIST
+(two add-on absences were false — host gained tools, the record aged silently); Glob half-working at repo root (4th timeout) ->
+KAIZEN countermeasure in the add-on. Memory `project_claude_host_has_no_window_oracle` revised.
+OPEN: TS parity suite + bun typecheck (F5) not run this cycle; BGE dedup pass (claude 7 532 / 7 700 tok).

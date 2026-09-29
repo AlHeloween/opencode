@@ -200,7 +200,13 @@ Artifact for the boxes below (source-level, pre-install): `python -m pytest prom
       actually worked (aicall, frameless `claude -p`). Memory `project_claude_host_has_no_window_oracle` revised.
 - [x] Docs: `docs/kernel-release-2026-09-29.md`; `docs/gate-addons.md` (current caps; the stale «--codex
       --install fails» corrected); AGENTS.md index line.
-- [ ] Commit, release (production + codex install, baseline repin), then the Claude copy.
+- [x] Commit `d01fc7d5a9` (source + docs), then release: production `5c72d6a0…` (56 367 B), codex
+      `07373c3b…` (55 773 B), baseline repinned by hand (`prev_sha256` = `11add404…`); the Claude copy last,
+      after the tool check: `59f2960a…` (56 376 B), read back — 6/6 corrected tool phrases present, 0/2 false
+      absences left. `python -m pytest prompt_kernel/tests/ -q` → **120 passed** after install.
+- [ ] NOT RUN this cycle, stays open under F5: the TS parity suite (`kernel-identity-tools`, `registry`,
+      `kernel-alignment`) and `bun typecheck` — the product tool rows did not change, but «did not change» is
+      a claim, not a run.
 
 ### F7 — BGE semantic dedup + ordering (owner, 2026-09-29: «прогоним фразы через BGE… уберем лишнее»; «граф есть граф — его двигать не надо. Но вот элементы графа и аддоны — спокойно»)
 Instruments: `experiments/2026-09-29_kernel-semantic-dedup/{pairs,order,order_sub,tool_rows}.py` (BGE-M3, CUDA, GTX 1050 Ti).

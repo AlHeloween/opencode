@@ -92,6 +92,30 @@ the candidate's generic host layer is a fish drawn without our tool list and is 
 - Net F2 across passes 1–3: 49 498 → **49 685 B** (algorithms inside the declared 50 000 cap, no
   further raise); pytest **119 passed**; production `c24a80d5…`, claude `bb11e41f…`, codex `916251c5…`.
 
+PASS 5 (2026-09-29) — WATER HUNT, owner-directed («мы раздуваем файл» / «ищи полотна текста которые
+написал клауд»), with `aicall` as the instrument the owner named:
+- RESULT: 49 498 → **49 032 B** (−466) INCLUDING ~+600 B of new schema/ads landed the same pass, i.e.
+  about **1 KB of prose cut** with every decision and every pinned fragment intact — and the declared
+  50 000 cap no longer needs the raise that was briefly proposed. pytest green after install;
+  production `1d74933b…`, claude `c0f90c5f…`, codex `0258deac…`.
+- WHERE THE GAP WITH THE CANDIDATE ACTUALLY COMES FROM (measured, `sizes.py`): our CORE is at parity
+  (≈38.4 KB vs their 38.3 KB total); the visible ~11 KB is our host add-on layer, which the candidate
+  does not carry at all (its `host_bindings` is ~2.2 KB of generic placeholders — «рыба», not ported),
+  plus ~5–6 KB more gate-local rules. So «сделать как у чата» = dropping coverage, not editing prose.
+- MODEL COMPRESSION CEILING, measured: space-bunny-free rewrites our normative blocks by only 10–20%
+  before decisions start dying (LEAN 1081→~940, MANHATTAN −14%, BOUNDED −15%); the pins and identifiers
+  set a hard floor. The cut that counts is choosing what NOT to say, which is an owner call.
+- NAMED STRUCTURAL CANDIDATES (his call, not taken): (1) `1.3 @SOURCE_ROUTING` table 2.4 KB → move to
+  docs/, kernel keeps the rule («THE SPLIT IS THE ECONOMY»); (2) gate-local rules §3 core ~13.5 KB vs
+  candidate 7.8 KB — trim rules that restate what §2 already decides; (3) the add-on layer 11 KB — each
+  line is a measured lesson; which lessons the kernel still needs is a coverage decision.
+- TOOL FINDINGS (recorded, all cost a turn): the JS `aicall` REQUIRES `provider` (a bare model id yields
+  ProviderModelNotFoundError; with `provider=opencode` it works) and `nemotron-3-ultra-free` fails with
+  its cause hidden by `.pipe(Effect.orDie)`; a ~7 KB prompt returned EMPTY output from a free reasoning
+  model at max_tokens 12000 while the same batch answered at 32000 — budget spent on thinking. `multiedit`
+  twice reported «none applied» while 2–4 of its edits were in the file: read STATE after any edit, never
+  the report (the 9th instance of the filter class, and the second one inside `multiedit` itself).
+
 ### F3 — Knowledge statuses (§2)
 - [ ] `@INFORMATION_STATUS`: verified source wording ≠ verified reported proposition; decisive FAIL → REFUTED, inconclusive → UNRESOLVED; changed evidence/scope/artifact requires fresh verification.
 - [ ] `@EVIDENCE_ORDER`: requirements cannot be skipped; redundant intermediate searches can.

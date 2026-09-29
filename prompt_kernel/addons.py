@@ -164,7 +164,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "G1",
         "SEARCH_OUTPUT_SHAPE",
         (
-            "bound the ANSWER, not the search: a truncated result has not answered — return counts, the top hits, or the ONE path:line that decides, never a wall of lines.",
+            "bound the ANSWER, not the search: a truncated result has not answered — return counts, the top hits, or the ONE deciding path:line.",
             "an `include`/path filter is part of the instrument: no matches is a claim about the FILTER until proven otherwise — re-run with a control that MUST match; without it the answer is a false absence.",
             "`glob` is a locator, not an inventory: a capped listing is a sample, never «no more» or «absent». Product tools only — shell `ls`/`dir`/`find` are not the fallback for a bad glob.",
         ),
@@ -173,8 +173,8 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "G9",
         "TOOL_HEALTH",
         (
-            "report the TOOLS' state at closure — which instrument answered, which LIED, which had to be worked around; a tool that hides or reduces its own output without saying so is a delivery, not a footnote.",
-            "name the CLASS, not the anecdote: «reports Not found for a path it cannot see», «drops lines from its own report». A named class is what a later cycle can fix; a story is not.",
+            "report the TOOLS' state at closure — which answered, which LIED, which needed a workaround; a tool that hides its own output is a delivery, not a footnote.",
+            "name the CLASS, not the anecdote («reports Not found for a path it cannot see», «drops lines from its own report») — a named class is what a later cycle can fix; a story is not.",
             "a workaround is not a fix: a route around a broken tool IS the residual — record it, so the next cycle does not pay for that instrument twice.",
         ),
     ),
@@ -183,27 +183,27 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "DISAS",
         (
             "DISAS — do it simple and stupid: complexity is the DEFECT, not the price; a clever shape must first prove the dumb one fails.",
-            "a chain is walked ONCE, LINEARLY, at ONE point (a fill); every later reader looks up ONE source — a reader that decides how full the layer above it is has become a second, competing authority.",
+            "a chain is walked ONCE, LINEARLY, at ONE point (a fill); every later reader looks up ONE source, never re-decides how full the layer above is.",
             "a compensation on top of a defect is the signature — a reader-side parent chain, a hedge between two spellings of one name, a second validity filter; fix the hole and REMOVE the layer.",
-            "one predicate, one axis: «the stored value is well-formed» is not «the provider is connected now» — a gate that borrows its source from another question answers neither.",
+            "one predicate, one axis: «well-formed» is not «connected now» — a gate borrowing its source from another question answers neither.",
         ),
     ),
     GateAddon(
         "G7",
         "ASSERTION_STATUS",
         (
-            "ASSERTION_STATUS: every assertion you write — code comments, docs, plans, commits, memory, reports, replies, working notes — carries its status: CONFIRMED (✓, naming the instrument) or REFUTED (✗, naming what contradicts it).",
+            "ASSERTION_STATUS: every assertion — code, docs, plans, commits, memory, reports, replies — carries CONFIRMED (✓, its instrument) or REFUTED (✗, what contradicts it).",
             "Unmarked, a claim reads as CONFIRMED though it is Guess (@INFOMARK): its prose cannot be told from a verified one — that gap is the defect.",
-            "The machine counts them as `marks:` in `<compaction-status>`, so the history reads for confidence and not only for content — a confidence indicator, not epistemology.",
+            "`marks:` in `<compaction-status>` counts them: the history reads for confidence, not only for content.",
         ),
     ),
     GateAddon(
         "G8",
         "RUN_ARTIFACT_FIRST",
         (
-            "a cmd_runner run REPORTS ITSELF: read `<run>/state.json` (status, exit_code, bytes_written, bytes_dropped, truncated) and the WHOLE `<run>/stdout_text.log`; never `tail` — a crash banner then hides the whole failure inventory.",
-            "measure `bytes_written` before choosing an instrument: one whole read usually costs less than the peeks it replaces; a reading that will recur is written once into `experiments/` and read as its report.",
-            "an oracle that cannot print its own verdict is not an oracle: a suite cut off by crash, kill or timeout yields UNKNOWN, and its failure inventory is a FLOOR, not a total.",
+            "a cmd_runner run reports itself: read `<run>/state.json` (status, exit_code, bytes_written, bytes_dropped, truncated) and the WHOLE stdout_text.log — never a tail, which hides the failure inventory behind a crash banner.",
+            "measure `bytes_written` before choosing an instrument: one whole read usually costs less than the peeks it replaces.",
+            "an oracle that cannot print its verdict is not an oracle: a suite cut off by crash, kill or timeout yields UNKNOWN — its failure inventory a FLOOR, not a total.",
         ),
     ),
     GateAddon(
@@ -212,7 +212,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         (
             "prove via tests (cmd_runner), jobwait, logsearch, dbread; long probes: cmd_runner start only.",
             "render claims: cmd_runner inbox (send keys, read render) or cua screenshot|verify_state — typecheck is not an instrument.",
-            "a shared cmd_runner session has two writers: attribute who drove the state and re-read the render after handing the window over.",
+            "a shared cmd_runner session has two writers: attribute who drove, and re-read the render after a hand-over.",
             "shell dir/ls scans are not evidence — product tools only.",
             "isolated call: aicall (free-first, no tools, no repo) — attach every file it must see; Inferred at best, never a stamp.",
         ),
@@ -238,15 +238,15 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
             "undone task -> [~] + reason; scan plans for stale refs.",
             "behavior/paths changed -> update docs/ and repo index.",
             "deprecated -> obsolete/ (reference only).",
-            "the plan moves by the OUTCOME, and plans/ is legal only while the plan owes work: SUCCESS -> plans_completed/; OUT_OF_SCOPE -> plans_deferred/; BLOCKED and WAITING_APPROVAL -> plans/postponed/ naming the reason AND the lift signal; plans/futures/ takes evolution candidates only, naming the CONDITION that makes one executable — never a terminated run.",
-            "move it with `git mv` in a commit that names the ground — never a tick (the work is not done), never left in plans/ (it returns as open debt).",
+            "the plan moves by its OUTCOME: SUCCESS -> plans_completed/; OUT_OF_SCOPE -> plans_deferred/; BLOCKED/WAITING_APPROVAL -> plans/postponed/ naming the reason AND the lift signal; plans/futures/ takes evolution candidates only, naming their CONDITION — never a terminated run.",
+            "move it with `git mv` in a commit that names the ground — never a tick, never left in plans/ where it returns as open debt.",
         ),
     ),
     GateAddon(
         "G9",
         "ARTIFACT_LANGUAGE",
         (
-            "write every ARTIFACT in English — code comments, docs, plan files, folder READMEs, kernel text, memory, commit messages. Russian is for the owner-facing reply and the GUI only; G0 keeps that half.",
+            "artifacts in English — code, docs, plans, READMEs, kernel, memory, commits; Russian only for the owner-facing reply and the GUI (G0 keeps that half).",
             "THE SPLIT IS THE ECONOMY: canon prose -> the folder README, the rule alone -> the kernel.",
         ),
     ),
@@ -255,8 +255,8 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "ACCEPTANCE_PASS",
         (
             "ACCEPTANCE_PASS := ∀ criterion: covered(evidence_ref) — every criterion PROVEN; PASS may never be declared over an unproven one, read over the artefact and never from memory.",
-            "an unproven criterion may escalate ONCE and only where DELEGATION admits it: aicall gets the whole packet (claim, target, falsifier, instrument tried, result) and may only FALSIFY — it contradicts → persist, compact, re-enter G0; it agrees → nothing moved, the criterion stays uncovered and closes as residual.",
-            "an uncovered criterion is a residual, not a rounding error; report verification and validation apart; check @QUALITY_VECTOR axes only where the change could move one — acceptance is a measurement, not a ceremony.",
+            "an unproven criterion may escalate ONCE, only where DELEGATION admits it: aicall gets the whole packet (claim, target, falsifier, instrument tried, result) and may only FALSIFY — contradicts → persist, compact, re-enter G0; agrees → nothing moved, the criterion closes as residual.",
+            "an uncovered criterion is a residual, not a rounding error; report verification and validation apart — acceptance is a measurement, not a ceremony.",
         ),
     ),
     GateAddon(
@@ -264,7 +264,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_CLOSURE",
         (
             "verify completion: messagesearch; git status.",
-            "compact at a boundary: memory write first (it rides m* verbatim), then arm the fold; the fill gate already folds for room — this one is for attention.",
+            "compact at a boundary: memory first (it rides m* verbatim), then arm the fold — the fill gate folds for room, this one for attention.",
         ),
     ),
 )

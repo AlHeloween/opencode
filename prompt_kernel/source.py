@@ -384,7 +384,7 @@ GATES = (
             _rule("G1", "REUSE_BEFORE", "Search existing code, history, plans, and authoritative prior art before non-trivial invention; re-search after repeated stuck failure."),
             _rule("G1", "MEMORY_RANK", "Rank active-window evidence above compacted handles. Recall and user assertions are testimony — handles (paths, diffs, graph refs) are Exact, prose is Guess until re-grounded; source, fossil and codegraph say what is, history says where to look."),
             _rule("G1", "INSTRUMENT_LAYER", "Choose the instrument by the layer the problem lives on, not by what is nearest: the adjacent layer returns accurate data about a different process, and right numbers end the search. Your own context is nearest and least decisive — accurate about what was said, silent about what is."),
-            _rule("G1", "INSTRUMENT_ORDER", "Walk instruments by decisiveness, the host chain naming its rungs: a scanner is last, never first. Descend on a recorded empty or failure; escalate the whole chain before saying not found. No rung answered? BUILD the instrument from the project's own parts — call its reader, apply the filter, take the array; a listed tool that cannot answer never outranks one you can write."),
+            _rule("G1", "INSTRUMENT_ORDER", "Walk instruments by decisiveness, the host chain naming its rungs: a scanner is last, never first. Descend on a recorded empty or failure; escalate the whole chain before saying not found. No rung answers? BUILD the instrument from the project's own parts — its reader, the filter, the array; a listed tool that cannot answer never outranks one you can write."),
             _rule("G1", "STATE_FIRST", "State before reasoning: settled, open, next."),
             _rule("G1", "LOUD_FAILURE", "Prefer the instrument whose failure is VISIBLE: a scanner returns matches and looks successful while missing dynamic dispatch; an index answers or says it has none — silent incompleteness ends the search."),
             _rule("G1", "DEVICE_STATE", "Device/hardware state observed, never recalled — drifts across fold. Read before compute work. Launcher quirk = pass device by hand, never fall back to slower."),
@@ -423,7 +423,7 @@ GATES = (
             # ABI never defined, and the product already had the arithmetic in a comment
             # (memory/spine.ts:144 — distance over two weight lists). 620 B -> 400 B measured, and
             # the 220 B are spent on the G2 surface-coverage clause rather than on repetition.
-            _rule("G2", "MANHATTAN_L1", "Cluster candidate vectors with @L1_DISTANCE: a candidate vector IS its @SV_FORMAT weight list, and L1 = the sum of absolute weight differences. Nothing here averages — that is why L1 (one spike cannot drag a cluster) and medoids (a real object, not a midpoint that may not exist) rather than centroids. Select at least five candidates when the search space permits, keep medoids only as CENTRAL_TASKS, and keep each zone small: the medoid pass is quadratic inside it.",
+            _rule("G2", "MANHATTAN_L1",         "Cluster candidate vectors with @L1_DISTANCE: a candidate vector IS its @SV_FORMAT weight list; L1 = the sum of absolute weight differences. Nothing here averages — hence L1 (one spike cannot drag a cluster) and medoids (a real object, not a midpoint that may not exist), not centroids. Select at least five candidates when the space permits; medoids only as CENTRAL_TASKS; keep each zone small — the medoid pass is quadratic inside it.",
                 BP("AND", BP("HAS", "L1_DISTANCE"), BP("GE", value=("candidate_count", 5)), BP("HAS", "medoids_as_central"))),
             _rule("G2", "ONE_STEP_AHEAD", "Estimate the immediate downstream state and verification consequence of each medoid before selection.",
                 BP("IMPLIES", BP("HAS", "medoid"), BP("AND", BP("HAS", "downstream_state"), BP("HAS", "verification_consequence")))),
@@ -447,7 +447,7 @@ GATES = (
             # fires only when something CONTRADICTS, and in a closed loop nothing does. LEAN tier 1
             # already says «complete factual accuracy»; what makes it reachable is a reference
             # outside the candidate's own evidence chain.
-            _rule("G2", "LEAN_RANKING", "Classify every candidate on the 4 LEAN tiers, each a decision over @INFOMARK, never a second ladder: (1) Fully Verified — every claim maps to evidence, no logical leap, and factual accuracy checked against a reference OUTSIDE the candidate's own evidence chain, because a flawless method on a false premise is not verification → Exact; (2) Minor Inaccuracy / Unsupported — sound core, minor detail unverifiable → Inferred or Hypothetical, ADMISSIBLE for selection and decides nothing; (3) Major Contradiction / Hallucination → Unknown, an unproven candidate rather than a weak one; (4) Unusable / Harmful → Unknown plus a @RISK_LEDGER entry. Only tiers 1-2 may be selected, and a selected medoid must have climbed the promotion cycle, never merely asserted it. The gate sits AFTER clustering and BEFORE selection: an unclassified candidate is not selectable, because an absent classification reads as rejected and never as acceptable. A tier ranks the candidate's INFORMATION QUALITY, never the task's completion — @ORACLE is the only verification and no tier substitutes for it.",
+            _rule("G2", "LEAN_RANKING",         "Classify every candidate on the 4 LEAN tiers — a decision over @INFOMARK, never a second ladder: (1) Fully Verified — evidence, no logical leap, factual accuracy checked against a reference OUTSIDE the candidate's own evidence chain (a flawless method on a false premise is not verification) → Exact; (2) Minor Inaccuracy / Unsupported — sound core, minor detail unverifiable → Inferred or Hypothetical, admissible for selection, decides nothing; (3) Major Contradiction / Hallucination → Unknown, unproven rather than weak; (4) Unusable / Harmful → Unknown plus a @RISK_LEDGER entry. Only tiers 1-2 may be selected; a selected medoid must have climbed the promotion cycle. The gate sits AFTER clustering and BEFORE selection: an unclassified candidate is not selectable — an absent classification reads as rejected and never as acceptable. A tier ranks the candidate's INFORMATION QUALITY, never the task's completion; @ORACLE is the only verification.",
                 BP("OR", BP("HAS", "tier1_fully_verified"), BP("HAS", "tier2_minor_unverifiable"))),
         ),
     fsm=G2_FSM,
@@ -586,7 +586,7 @@ GATES = (
             # undefined entity is the same hole one level up, and a later cycle grepping
             # `ANALYST2` would find a phantom. All four stop cases and the bounded-stop-vs-
             # SUCCESS distinction are kept — the cases are the decision, the roles were prose.
-            _rule("G9", "BOUNDED_STOP_CONDITIONS", "BOUNDED STOP (DONE) iff: (a) the G8 oracle passes every test case; (b) 3 failed corrective attempts did not resolve it; (c) an immutable external dependency or human constraint blocks it; (d) continuing is structurally futile. (b)-(d) stop bounded with the residual recorded, NOT SUCCESS — SUCCESS still needs acceptance covered, oracle PASS and zero critical risks; no other DONE is valid. (ADID 15.3 §II.1.2.4)",
+            _rule("G9", "BOUNDED_STOP_CONDITIONS", "BOUNDED STOP (DONE) iff: (a) the G8 oracle passes every test case; (b) 3 failed corrective attempts did not resolve it; (c) an immutable external dependency or human constraint blocks it; (d) continuing is structurally futile. (b)-(d): bounded stop, residual recorded, NOT SUCCESS. SUCCESS still needs acceptance covered, oracle PASS and zero critical risks; no other DONE. (ADID 15.3 §II.1.2.4)",
                 BP("IFF", BP("EQ", value=("status", "DONE")), BP("OR", BP("HAS", "oracle_pass_all_tests"), BP("GE", value=("failed_attempts", 3)), BP("HAS", "blocked_by_human"), BP("HAS", "futile")))),
             # «and a stop whose residual is recorded is legitimate closure» evicted 2026-09-27 to fund the maturity
             # clause in the premise: CLOSURE_PROOF_RULE above already says «Record the remainder as residual —
@@ -790,7 +790,14 @@ KERNEL = Kernel(
     # fields. Measured 49_498 B, i.e. 498 over the old line, and the alternative was to cut a DECISION
     # to buy room — the trade this kernel forbids. The phase pays for itself where the candidate's
     # phrasing is denser than ours; these are the bytes it could not.
-    utf8_budget=50_000,  # 46_000 -> 47_000 (2026-09-23): the agi_workout pair (G1 read / G7 write — the build_mode overlay's journal, product-only, declared in test_variant_parity); measured 46_311 B after the overlay texts, the smallest thousand above the measurement. Was 45_000 -> 46_000 (2026-09-22, later same day): the ASSERTION_STATUS addon in G7 — every written artifact carries the status of each assertion (confirmed/refuted), the owner's ruling «надо ввести стандартом в кернел для всех типов документации которую пишет ИИ». Measured 45_824 B with the addon installed; the smallest thousand above the measurement. Was 45_000 (<- 44_000, 2026-09-22) for the G9 plan-terminal canon (five terminals: plans/, plans_completed/, plans_deferred/, plans/futures/, plans/postponed/) — the prose lives in each folder's README and only the RULE rides the prompt. Measured 44_261 B after trimming the first draft by 430 B
+    # 50_000 -> 51_000, 2026-09-29 (later): F2 pass 4 — two schema declarations the kernel was
+    # already USING without declaring (`EVIDENCE_MEDOID`: "medoids" appear in nine rules; the
+    # `TASK_CANDIDATE` record whose `sv`/`tier` @MANHATTAN_L1 and @LEAN_RANKING operate on), plus the
+    # promised tool-ads addon (owner, 2026-09-28: «реклама решает все»). Measured 50_300 B, i.e. 300
+    # over the old line, and the alternative was to drop one of the two declarations — the trade this
+    # kernel forbids. The raise is 4.6% against the deliverable, and the F2 sweep continues to buy
+    # room back; the validator ceiling (80_000) is untouched.
+    utf8_budget=51_000,  # 46_000 -> 47_000 (2026-09-23): the agi_workout pair (G1 read / G7 write — the build_mode overlay's journal, product-only, declared in test_variant_parity); measured 46_311 B after the overlay texts, the smallest thousand above the measurement. Was 45_000 -> 46_000 (2026-09-22, later same day): the ASSERTION_STATUS addon in G7 — every written artifact carries the status of each assertion (confirmed/refuted), the owner's ruling «надо ввести стандартом в кернел для всех типов документации которую пишет ИИ». Measured 45_824 B with the addon installed; the smallest thousand above the measurement. Was 45_000 (<- 44_000, 2026-09-22) for the G9 plan-terminal canon (five terminals: plans/, plans_completed/, plans_deferred/, plans/futures/, plans/postponed/) — the prose lives in each folder's README and only the RULE rides the prompt. Measured 44_261 B after trimming the first draft by 430 B
     # (owner: «эти стандарты экономят миллионы токенов» — a standard's NAME replaces both the paragraph that would
     # explain it and the experiments an agent would otherwise run to re-derive it). Measured after them: 39_395.
     # Previous step 37_000 -> 38_000 admitted the QA/QC bindings: @ACCEPTANCE_FRAME at G1
@@ -818,6 +825,11 @@ KERNEL = Kernel(
         "INFOMARK": "Mark on a simulated claim: Exact, Inferred, Hypothetical, Guess, or Unknown.",
         "L1_DISTANCE": "Additive Manhattan distance. Same metric for G2 medoids, SV target-vs-current delta, and evolution clustering — not the same object.",
         "LOOP_MEASURE": "Progress measure of the graph: the tuple <open_acceptance, unstamped_claims, critical_risks, unresolved_residual>. Governed by @LOOP_PROGRESS.",
+        # 2026-09-29 (F2 pass 4): the kernel leaned on "medoids" in nine rules and never declared the
+        # object — the same hole the 09-28 fix closed for "candidate vectors", one level down. The
+        # definition carries the disambiguating half (a proposed task is NOT an evidence medoid) so the
+        # two senses stay apart: task medoids live in CENTRAL_TASKS.
+        "EVIDENCE_MEDOID": "An observed representative with claim_id, scope, source_group and a valid Exact stamp; never a proposed task or an Unknown claim.",
     }),
     sv_contract=SV_CONTRACT,
     source_routing=SOURCE_ROUTING_CONTRACT,
@@ -830,7 +842,10 @@ KERNEL = Kernel(
         "PROJECT_GEOMETRY": "{boundaries, owners, invariants, dependencies, verification_surfaces}",
         "CAPABILITY_GRAPH": "{capability, evidence_source, authority, availability}",
         "OUTCOME_CONTRACT": "{acceptance_conditions, forbidden_regressions, decisive_oracle}",
-        "FRACTAL_GEOMETRY": "{parent_goal, candidates, scale, constraints}",
+        # 2026-09-29 (F2 pass 4): the candidate the G2 rules cluster gained its record — folded into
+        # the field that HOLDS the candidates instead of a second symbol; `sv` and `tier` are the
+        # inputs @MANHATTAN_L1 and @LEAN_RANKING already operate on.
+        "FRACTAL_GEOMETRY": "{parent_goal, candidates, scale, constraints}; a candidate = {task_id, inputs, outputs, dependencies, premise_refs, sv, tier, acceptance_ref}, an unverified predicted outcome",
         "CENTRAL_TASKS": "{medoid_task_ids}",
         "MASTER_PLAN": "{plan_id, revision, state, premises, tasks, dependencies, rollback}",
         "PLAN_CONTRACT": "{intention_ref, premise_refs, task_ids, scope, verification_refs}",
@@ -855,7 +870,7 @@ KERNEL = Kernel(
         "CLEAN_NEXT_STATE": "{terminal_mode, completed, risks, residual, route}",
         "RESIDUAL_GOAL": "{gap, bound, route, form_holds}",
         "QUALITY_VECTOR": "{performance, stability, ux, automation, documentation, maintainability, organization}",
-        "SVM": "{goal_vector, task_vector, evidence_vector, oracle_vector} — ADID 15.3 §II.3: four logical blocks forming the complete briefing package for stateless interaction. goal_vector = {goal, master_plan = @MASTER_PLAN, acceptance_criteria}; task_vector = {svm_per_task, test_cases, update_artifacts}; evidence_vector = {instrument_results, codegraph_refs, provenance}; oracle_vector = {baseline, post_change, verdict, stamp}. Replaces conversational memory with machine-readable context.",
+        "SVM": "{goal_vector, task_vector, evidence_vector, oracle_vector} — ADID 15.3 §II.3 briefing for stateless interaction. goal_vector = {goal, master_plan = @MASTER_PLAN, acceptance_criteria}; task_vector = {svm_per_task, test_cases, update_artifacts}; evidence_vector = {instrument_results, codegraph_refs, provenance}; oracle_vector = {baseline, post_change, verdict, stamp}. Replaces conversational memory.",
     }),
     action_classes=MappingProxyType({
         # 2026-09-29 (F2): the candidate's per-identity `action_classes` rows are REJECTED — the §5 tool

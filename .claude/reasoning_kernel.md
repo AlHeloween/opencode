@@ -77,6 +77,7 @@ terms:
 - INFOMARK: Mark on a simulated claim: Exact, Inferred, Hypothetical, Guess, or Unknown.
 - L1_DISTANCE: Additive Manhattan distance. Same metric for G2 medoids, SV target-vs-current delta, and evolution clustering — not the same object.
 - LOOP_MEASURE: Progress measure of the graph: the tuple <open_acceptance, unstamped_claims, critical_risks, unresolved_residual>. Governed by @LOOP_PROGRESS.
+- EVIDENCE_MEDOID: An observed representative with claim_id, scope, source_group and a valid Exact stamp; never a proposed task or an Unknown claim.
 1.1 @INFOMARK
 Guess -> (web hit) Hypothetical -> (authority|code) Inferred -> (smoke/PoC PASS) Exact
 failed proof -> Unknown; simulation never equals reality
@@ -149,7 +150,7 @@ software:
 - PROJECT_GEOMETRY: {boundaries, owners, invariants, dependencies, verification_surfaces}
 - CAPABILITY_GRAPH: {capability, evidence_source, authority, availability}
 - OUTCOME_CONTRACT: {acceptance_conditions, forbidden_regressions, decisive_oracle}
-- FRACTAL_GEOMETRY: {parent_goal, candidates, scale, constraints}
+- FRACTAL_GEOMETRY: {parent_goal, candidates, scale, constraints}; a candidate = {task_id, inputs, outputs, dependencies, premise_refs, sv, tier, acceptance_ref}, an unverified predicted outcome
 - CENTRAL_TASKS: {medoid_task_ids}
 - MASTER_PLAN: {plan_id, revision, state, premises, tasks, dependencies, rollback}
 - PLAN_CONTRACT: {intention_ref, premise_refs, task_ids, scope, verification_refs}
@@ -171,7 +172,7 @@ software:
 - CLEAN_NEXT_STATE: {terminal_mode, completed, risks, residual, route}
 - RESIDUAL_GOAL: {gap, bound, route, form_holds}
 - QUALITY_VECTOR: {performance, stability, ux, automation, documentation, maintainability, organization}
-- SVM: {goal_vector, task_vector, evidence_vector, oracle_vector} — ADID 15.3 §II.3: four logical blocks forming the complete briefing package for stateless interaction. goal_vector = {goal, master_plan = @MASTER_PLAN, acceptance_criteria}; task_vector = {svm_per_task, test_cases, update_artifacts}; evidence_vector = {instrument_results, codegraph_refs, provenance}; oracle_vector = {baseline, post_change, verdict, stamp}. Replaces conversational memory with machine-readable context.
+- SVM: {goal_vector, task_vector, evidence_vector, oracle_vector} — ADID 15.3 §II.3 briefing for stateless interaction. goal_vector = {goal, master_plan = @MASTER_PLAN, acceptance_criteria}; task_vector = {svm_per_task, test_cases, update_artifacts}; evidence_vector = {instrument_results, codegraph_refs, provenance}; oracle_vector = {baseline, post_change, verdict, stamp}. Replaces conversational memory.
 1.5 action_classes:
 - READ: No intended persistent controlled-state change; a build/test that writes is classified by its writes, not by being called validation.
 - PLAN_WRITE: Authorized plans, ledgers and progress records.
@@ -265,7 +266,7 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @GUESS_DECIDES_NOTHING, @DI
 - Search existing code, history, plans, and authoritative prior art before non-trivial invention; re-search after repeated stuck failure.
 - Rank active-window evidence above compacted handles. Recall and user assertions are testimony — handles (paths, diffs, graph refs) are Exact, prose is Guess until re-grounded; source, fossil and codegraph say what is, history says where to look.
 - Choose the instrument by the layer the problem lives on, not by what is nearest: the adjacent layer returns accurate data about a different process, and right numbers end the search. Your own context is nearest and least decisive — accurate about what was said, silent about what is.
-- Walk instruments by decisiveness, the host chain naming its rungs: a scanner is last, never first. Descend on a recorded empty or failure; escalate the whole chain before saying not found. No rung answered? BUILD the instrument from the project's own parts — call its reader, apply the filter, take the array; a listed tool that cannot answer never outranks one you can write.
+- Walk instruments by decisiveness, the host chain naming its rungs: a scanner is last, never first. Descend on a recorded empty or failure; escalate the whole chain before saying not found. No rung answers? BUILD the instrument from the project's own parts — its reader, the filter, the array; a listed tool that cannot answer never outranks one you can write.
 - State before reasoning: settled, open, next.
 - Prefer the instrument whose failure is VISIBLE: a scanner returns matches and looks successful while missing dynamic dispatch; an index answers or says it has none — silent incompleteness ends the search.
 - Device/hardware state observed, never recalled — drifts across fold. Read before compute work. Launcher quirk = pass device by hand, never fall back to slower.
@@ -301,13 +302,13 @@ shared_rules: [@SAFETY_PRECEDENCE, @RESIDUAL_ROUTING, @INTENTION_INVARIANCE]
 - Cut before planning: unsupported evidence → Unknown or residual.
 - Preserve parent goal/constraints at every scale; reject leaves with monolithic verification blast radius.
 #### @MANHATTAN_L1
-Cluster candidate vectors with @L1_DISTANCE: a candidate vector IS its @SV_FORMAT weight list, and L1 = the sum of absolute weight differences. Nothing here averages — that is why L1 (one spike cannot drag a cluster) and medoids (a real object, not a midpoint that may not exist) rather than centroids. Select at least five candidates when the search space permits, keep medoids only as CENTRAL_TASKS, and keep each zone small: the medoid pass is quadratic inside it.
+Cluster candidate vectors with @L1_DISTANCE: a candidate vector IS its @SV_FORMAT weight list; L1 = the sum of absolute weight differences. Nothing here averages — hence L1 (one spike cannot drag a cluster) and medoids (a real object, not a midpoint that may not exist), not centroids. Select at least five candidates when the space permits; medoids only as CENTRAL_TASKS; keep each zone small — the medoid pass is quadratic inside it.
 
 #### @ONE_STEP_AHEAD
 Estimate the immediate downstream state and verification consequence of each medoid before selection.
 
 - Surface needs ≥3 medoids with independent sources, each carrying @INFOMARK rung. Coverage over lattice, not asserted from one point. Three sources on ONE explanation = degenerate simplex — explanations must be independent, and independence is measured WITHIN one nesting level: a parent and its child never count as two sources.
-- Classify every candidate on the 4 LEAN tiers, each a decision over @INFOMARK, never a second ladder: (1) Fully Verified — every claim maps to evidence, no logical leap, and factual accuracy checked against a reference OUTSIDE the candidate's own evidence chain, because a flawless method on a false premise is not verification → Exact; (2) Minor Inaccuracy / Unsupported — sound core, minor detail unverifiable → Inferred or Hypothetical, ADMISSIBLE for selection and decides nothing; (3) Major Contradiction / Hallucination → Unknown, an unproven candidate rather than a weak one; (4) Unusable / Harmful → Unknown plus a @RISK_LEDGER entry. Only tiers 1-2 may be selected, and a selected medoid must have climbed the promotion cycle, never merely asserted it. The gate sits AFTER clustering and BEFORE selection: an unclassified candidate is not selectable, because an absent classification reads as rejected and never as acceptable. A tier ranks the candidate's INFORMATION QUALITY, never the task's completion — @ORACLE is the only verification and no tier substitutes for it.
+- Classify every candidate on the 4 LEAN tiers — a decision over @INFOMARK, never a second ladder: (1) Fully Verified — evidence, no logical leap, factual accuracy checked against a reference OUTSIDE the candidate's own evidence chain (a flawless method on a false premise is not verification) → Exact; (2) Minor Inaccuracy / Unsupported — sound core, minor detail unverifiable → Inferred or Hypothetical, admissible for selection, decides nothing; (3) Major Contradiction / Hallucination → Unknown, unproven rather than weak; (4) Unusable / Harmful → Unknown plus a @RISK_LEDGER entry. Only tiers 1-2 may be selected; a selected medoid must have climbed the promotion cycle. The gate sits AFTER clustering and BEFORE selection: an unclassified candidate is not selectable — an absent classification reads as rejected and never as acceptable. A tier ranks the candidate's INFORMATION QUALITY, never the task's completion; @ORACLE is the only verification.
 - scratch: experiments/; drafts: futures/; one-offs: [ISO8601]_name.
 - experiments are born in experiments/ (gitignored, untracked) and verified results are archived to experiments_history/ (tracked) after a content check — canon: experiments_history/README.md, harness: experiments/2026-09-13_experiments-canon/archive.cjs.
 - track candidates: TodoWrite if available, else inline in the plan file.
@@ -462,7 +463,7 @@ shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION, @I
 - Emit completed work, evidence, changed surfaces, risks, residual goal, next route, honest validation — no full trace repeat.
 - Convert uncovered acceptance gaps → bounded residual, take declared back move.
 - Closure only over what evidence settles: delivered carries oracle; uncovered intent = residual. Partial REAL > complete simulated.
-- BOUNDED STOP (DONE) iff: (a) the G8 oracle passes every test case; (b) 3 failed corrective attempts did not resolve it; (c) an immutable external dependency or human constraint blocks it; (d) continuing is structurally futile. (b)-(d) stop bounded with the residual recorded, NOT SUCCESS — SUCCESS still needs acceptance covered, oracle PASS and zero critical risks; no other DONE is valid. (ADID 15.3 §II.1.2.4)
+- BOUNDED STOP (DONE) iff: (a) the G8 oracle passes every test case; (b) 3 failed corrective attempts did not resolve it; (c) an immutable external dependency or human constraint blocks it; (d) continuing is structurally futile. (b)-(d): bounded stop, residual recorded, NOT SUCCESS. SUCCESS still needs acceptance covered, oracle PASS and zero critical risks; no other DONE. (ADID 15.3 §II.1.2.4)
 - report the TOOLS' working state at closure — which instrument answered, which LIED, which had to be worked around. A tool that hides or reduces its own output without saying so is a delivery, not a footnote.
 - name the CLASS, not the anecdote: «reports Not found for a path it cannot see», «drops lines from its own report». A named class is what a later cycle can fix; a story is not.
 - a workaround is not a fix: when the envelope was routed around a broken tool, the route IS the residual — record it, so the next cycle does not pay for the same instrument twice.

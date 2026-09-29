@@ -1,4 +1,4 @@
-import { Cause, Deferred, Effect, Layer, Context, Scope } from "effect"
+import { Cause, Deferred, Effect, Fiber, Layer, Context, Scope } from "effect"
 import * as Stream from "effect/Stream"
 import { Agent } from "@/agent/agent"
 import { Bus } from "@/bus"
@@ -270,6 +270,8 @@ const pendingWrites = new Map<
     exact: boolean
     write: boolean
     before?: string
+    /** The previous turn's snapshot commit, still running. Settled at the START of the next turn. */
+    job?: Fiber.Fiber<string | undefined, never>
     timing?: { t0: number; fossilMs: number; requestMs?: number; logged?: boolean }
   }
 >()
@@ -282,6 +284,7 @@ function turnWrites(sessionID: string) {
     exact: boolean
     write: boolean
     before?: string
+    job?: Fiber.Fiber<string | undefined, never>
     timing?: { t0: number; fossilMs: number; requestMs?: number; logged?: boolean }
   } = {
     files: new Set<string>(),
@@ -545,28 +548,20 @@ export const layer: Layer.Layer<
       if (turnStart) {
         const t0 = Date.now()
         turn.timing = { t0, fossilMs: 0 }
-        // The boundary commit is O(the WHOLE TREE) in fossil — this repo's own history
-        // measures 163.7 s per call on a 106k-file tree, which is ~16 s on this project's
-        // 10 913 tracked files — and the turn paid all of it BEFORE the model was asked
-        // anything. Measured live 2026-09-29: one `turn.prepare` row at fossilMs 16 364
-        // while every turn without a commit cost 1.5 s.
-        //
-        // Nothing in the turn needs the hash at this instant: every reader is at the END
-        // of the turn (`turn.before ?? ctx.snapshot` at step-finish, and `cleanup`'s
-        // patch), by which time the model has been working for minutes. So the commit is
-        // forked and the model starts while fossil works; the hash lands in `turn.before`
-        // as soon as it exists.
-        yield* snapshot.track(undefined).pipe(
-          Effect.catch(() => Effect.succeed(undefined as string | undefined)),
-          Effect.tap((hash) =>
-            Effect.sync(() => {
-              turn.before = hash
-              turn.timing!.fossilMs = Date.now() - t0
-            }),
-          ),
-          Effect.ignore,
-          Effect.forkIn(scope),
-        )
+        // A turn OPENS by settling the PREVIOUS turn's snapshot commit, and a turn CLOSES by
+        // forking this one's — owner, 2026-09-29: «надо делать fossil commit в конце хода…
+        // коммитить в бэкграунде, но начинать новый ход когда процесс завершен». Linear by
+        // construction: the commit that closes turn N is what turn N+1 waits for, so undo and
+        // rollback settle the same way. The commit is O(the whole tree) — 163.7 s / 106k files
+        // in this file's own history, ~16 s on this project's 10 913 tracked files — and it now
+        // runs while the model works instead of before it is asked anything. Measured live
+        // 2026-09-29: one `turn.prepare` at fossilMs 16 364 against 1.5 s for turns with no
+        // commit.
+        if (turn.job) {
+          turn.before = yield* Fiber.join(turn.job)
+          turn.job = undefined
+          turn.timing.fossilMs = Date.now() - t0
+        }
       }
       const initialSnapshot = turn.before
       const ctx: ProcessorContext = {
@@ -1180,6 +1175,15 @@ export const layer: Layer.Layer<
             // `tool-calls` means the prompt loop will come straight back for another
             // step, so this is mid-turn and nothing here is a reachable revert target.
             const turnEnds = value.finishReason !== "tool-calls"
+            if (turnEnds) {
+              // The snapshot job for the NEXT turn to settle — this turn's work, committed
+              // while nobody waits (owner, 2026-09-29). `Effect.fork` (not forkIn) because the
+              // fiber must outlive THIS turn's scope: it is joined at the start of the next one.
+              turn.job = yield* snapshot.track(undefined).pipe(
+                Effect.catch(() => Effect.succeed(undefined as string | undefined)),
+                Effect.forkDetach,
+              )
+            }
             yield* session.updatePart({
               id: PartID.ascending(),
               reason: value.finishReason,

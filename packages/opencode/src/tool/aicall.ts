@@ -159,7 +159,14 @@ export const AiCallTool = Tool.define(
           // Direct LLM call — no session, no system prompt, no tools.
           // This is a prose-only, isolated cognition accelerator.
           const language = yield* provider.getLanguage(model)
-          const result = yield* Effect.tryPromise(() =>
+          const envelope = requestEnvelope(model, userText)
+          // 2026-09-29: the call reports ITS OWN failure. A rejected provider request used to fall
+          // into the enclosing Effect and surface as the generic "An error occurred in
+          // Effect.tryPromise" — which is how a model that WORKS (nemotron-3-ultra-free, verified
+          // from the TUI by the owner) looked like a dead one from inside the tool: no provider,
+          // no model, no message. A tool that cannot say why it failed cannot be repaired, so a
+          // rejection is now an OUTPUT of the tool rather than a defect.
+          const attempted = yield* Effect.tryPromise(() =>
             generateText({
               model: language,
               messages: [{ role: "user", content: userText }],
@@ -170,11 +177,26 @@ export const AiCallTool = Tool.define(
               ...(params.presence_penalty !== undefined ? { presencePenalty: params.presence_penalty } : {}),
               ...(params.frequency_penalty !== undefined ? { frequencyPenalty: params.frequency_penalty } : {}),
               ...(params.seed !== undefined ? { seed: params.seed } : {}),
-            }),
+            }).then(
+              (value) => ({ ok: true as const, value }),
+              (error: unknown) => ({
+                ok: false as const,
+                message: error instanceof Error ? error.message : String(error),
+              }),
+            ),
           )
 
-          const output = result.text
-          const envelope = requestEnvelope(model, userText)
+          if (!attempted.ok) {
+            return {
+              title: `aicall FAILED: ${model.providerID}/${model.id}`,
+              metadata: {
+                model: { providerID: model.providerID, modelID: model.id },
+              },
+              output: `${envelope}\n\nAICALL FAILED: ${attempted.message}`,
+            }
+          }
+
+          const output = attempted.value.text
 
           // Optionally save to file
           if (params.output_file) {

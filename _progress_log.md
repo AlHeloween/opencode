@@ -5282,7 +5282,7 @@ The 2026-09-24 grounding-first metric (M1) is mis-specified — it penalises G1'
 
 NEXT: the after-reading on a session on the rebuilt binary; confound with `1a12d99bd6` named in advance.
 
-## [2026-09-29 11:20Z] One identity per tool (guard finds the offenders); json-repair made syntax-only — the loop engine
+## [2026-09-29 12:54Z] One identity per tool (guard finds the offenders); json-repair made syntax-only — the loop engine
 
 CONFIRMED ✓ (`ce9ece1f03`): `Tool.define` now rejects a non-canonical policy (`policy !== canonicalName(policy)` → throw),
 and the manifest run immediately found what the rename had missed — `joboutput`/`jobwait` still carried `job_output`/`job_wait`

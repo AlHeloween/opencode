@@ -758,7 +758,7 @@ LIVE TUI session and read the rendered output back. This solves most
 
 - Launch TUI: `cmd_runner start -- dist\bin\opencode.exe`
 - Send input: write to the session inbox (`logs/cmd_runner/<id>/inbox.jsonl`)
-- Read output: `job_output` / `cmd_runner tail`
+- Read output: `joboutput` / `cmd_runner tail`
 
 **Recursion works**: a TUI → cmd_runner → TUI → cmd_runner → TUI chain is
 valid — each level is its own ConPTY instance with its own inbox. Nested

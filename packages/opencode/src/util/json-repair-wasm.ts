@@ -153,6 +153,76 @@ function normalizeUnicode(input: string): string {
 }
 
 /**
+ * Decode the escape sequences that appear inside a raw JSON argument string, so a value
+ * returned by the repair can be searched for in its raw context (`\"`, `\n`, `\uXXXX`, …).
+ * An unknown escape keeps its backslash verbatim — that is the shape we must compare against.
+ */
+function decodeJsonishEscapes(raw: string): string {
+  let out = ""
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i]!
+    if (ch !== "\\") {
+      out += ch
+      continue
+    }
+    const next = raw[i + 1]
+    switch (next) {
+      case "n": out += "\n"; i++; break
+      case "r": out += "\r"; i++; break
+      case "t": out += "\t"; i++; break
+      case "b": out += "\b"; i++; break
+      case "f": out += "\f"; i++; break
+      case '"': out += '"'; i++; break
+      case "'": out += "'"; i++; break
+      case "\\": out += "\\"; i++; break
+      case "/": out += "/"; i++; break
+      case "u": {
+        const hex = raw.slice(i + 2, i + 6)
+        if (/^[0-9a-fA-F]{4}$/.test(hex)) {
+          out += String.fromCharCode(parseInt(hex, 16))
+          i += 5
+        } else out += ch
+        break
+      }
+      default: out += ch
+    }
+  }
+  return out
+}
+
+/**
+ * A repair may fix SYNTAX — braces, commas, quotes used as delimiters. It may never ALTER
+ * content. Every string value the repair returns must still be findable in the raw input.
+ *
+ * Measured 2026-09-29 (experiments/2026-09-29_json-repair-probe/): on a malformed call —
+ * exactly when repair runs — the wasm crate strips unescaped inner quotes AND eats
+ * backslashes, so the model's
+ *     cmd /c "cd /d D:\dir && .\run.exe"
+ * came back as
+ *     cmd /c cd /d D:dir && .un.exe
+ * which parses, is used SILENTLY, and runs a different command. The model cannot see the
+ * substitution, re-emits the same call, and the turn loops (G8: a proof that cannot fail
+ * proves nothing — this one fails visibly instead).
+ */
+function valuesTraceable(raw: string, repaired: string): boolean {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(repaired)
+  } catch {
+    return false
+  }
+  const decoded = decodeJsonishEscapes(raw)
+  const seen = (value: string) => value === "" || decoded.includes(value)
+  const walk = (node: unknown): boolean => {
+    if (typeof node === "string") return seen(node)
+    if (Array.isArray(node)) return node.every(walk)
+    if (node && typeof node === "object") return Object.values(node as Record<string, unknown>).every(walk)
+    return true
+  }
+  return walk(parsed)
+}
+
+/**
  * Attempt to repair malformed JSON using json-repair crate (Rust -> WASM).
  * Returns the repaired JSON string, or null if WASM is unavailable
  * or repair fails.
@@ -176,6 +246,13 @@ export async function repairJsonWasm(input: string): Promise<string | null> {
     wasm.__wbindgen_free(ret[0], ret[1], 1)
     if (!result) { Log.Default.debug("json-repair: returned empty result"); return null }
     JSON.parse(result)
+    // Syntax-only rule: a repair that changed string CONTENT is not a repair — reject it so
+    // the caller reports the ORIGINAL error and the model corrects itself instead of running
+    // a silently substituted command.
+    if (!valuesTraceable(normalized, result)) {
+      Log.Default.info("json-repair: rejected — the repair changed string content (syntax-only policy)")
+      return null
+    }
     return result
   } catch (err) {
     // Pure-JS fallback: try the single-quote fix as a last resort.

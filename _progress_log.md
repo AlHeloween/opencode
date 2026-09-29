@@ -5281,3 +5281,30 @@ The 2026-09-24 grounding-first metric (M1) is mis-specified — it penalises G1'
 (no LONG text before the first tool call) is declared for the next reading, uncomputed so it cannot be fitted.
 
 NEXT: the after-reading on a session on the rebuilt binary; confound with `1a12d99bd6` named in advance.
+
+## [2026-09-29 11:20Z] One identity per tool (guard finds the offenders); json-repair made syntax-only — the loop engine
+
+CONFIRMED ✓ (`ce9ece1f03`): `Tool.define` now rejects a non-canonical policy (`policy !== canonicalName(policy)` → throw),
+and the manifest run immediately found what the rename had missed — `joboutput`/`jobwait` still carried `job_output`/`job_wait`
+(the TUI matched those strings against the WIRE id, so both JobTool branches were dead) and `sessionread` carried
+`session-read`, which is also a public config key (`config/permission.ts` + the /permissions dialog). `fossilgrep` had
+`fossil_grep`; `dbread`/`imagerender` repeated their id. Model-facing prose and docs aligned; `patch/index.ts` accepts only
+`applypatch` (the legacy argv spelling is pinned as a negative test). 30_000 per-test-file budgets where the load-timeouts
+were measured. Oracles: applypatch+edit+write+patch+parameters → 160/0 (snapshot regenerated, 1 line);
+agent/+constitution+registry+sessionread → 123/0; `bun typecheck` clean; `script/kernel-tools-manifest.ts` runs clean
+(the guard fires for no tool) and prints canonical ids.
+
+CONFIRMED ✓ (json-repair — `experiments/2026-09-29_json-repair-probe/`): llm.ts step 2 uses a repaired tool call SILENTLY
+when it parses. On malformed input — exactly when repair runs — the WASM crate strips unescaped inner quotes AND eats
+backslashes: `cmd /c "cd /d D:\dir && .\run.exe"` → `cmd /c cd /d D:dir && .un.exe`. Parseable, silently different, and RUN —
+the model cannot see the substitution, re-emits the same call, and the turn loops. FIX: syntax-only policy in
+`src/util/json-repair-wasm.ts` — every string value the repair returns must be findable in the raw input (escapes decoded);
+content-altering repairs return null, so step 3 reports the ORIGINAL error and the model fixes its escaping. Benign repairs
+(missing brace, trailing comma, EOF, truncation) still pass with values intact. Tests: 47/0 across the two repair suites (3 new pins).
+
+OBSERVED (RAG, no fix claimed): `adm --query opencode "i+1).join(String.fromCharCode(10)))"` returns ONLY semantic neighbours
+(json-repair rust, opentui lcms2, tokenizer.c) and none of the files carrying the literal (`src/tool/path-hint.ts`,
+`src/tool/write.ts`, `test/tool/{bash,edit,write}.test.ts`); index opencode docs=10316 chunks=21596. Candidate: a distinctive
+literal must reach the FTS/exact leg.
+
+NEXT: an end-to-end smoke of the repair guard on a real malformed call in a session (not a probe); RAG literal recall.

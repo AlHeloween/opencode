@@ -217,3 +217,23 @@ describe("json-repair-wasm", () => {
     expect(() => JSON.parse(result!)).not.toThrow()
   })
 })
+
+describe("json-repair-wasm — syntax-only policy (measured 2026-09-29)", () => {
+  // On malformed input — exactly when repair runs — the crate strips unescaped inner quotes and
+  // eats backslashes in windows paths. Used SILENTLY (llm.ts step 2), that runs a DIFFERENT
+  // command than the model wrote; the model cannot see the substitution and re-emits the call.
+  // Repair may fix syntax; it may never change string content.
+  test("rejects a repair that would strip the quotes the model wrote", async () => {
+    expect(await repairJsonWasm(`{"command":"cmd /c "ver""}`)).toBeNull()
+  })
+
+  test("rejects a repair that would eat backslashes in a windows path", async () => {
+    expect(await repairJsonWasm(`{"command":"cmd /c "cd /d D:\\dir && .\\run.exe""}`)).toBeNull()
+  })
+
+  test("still repairs when the content survives — missing closing brace", async () => {
+    const result = await repairJsonWasm(`{"command":"echo 'x'"`)
+    expect(result).not.toBeNull()
+    expect(JSON.parse(result!)).toEqual({ command: "echo 'x'" })
+  })
+})

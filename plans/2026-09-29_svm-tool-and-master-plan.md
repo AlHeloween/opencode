@@ -72,18 +72,40 @@ oracle:   <what will prove it — the instrument, not the hope>
       (`summary.test.ts`, `mechanical-writer.test.ts`) — reused, not invented. Covers `planKey`
       (both separators, missing extension), the round-trip, `undefined` for an unwritten task, and
       `missing()` naming exactly the absent ids.
-- [ ] **S2 — the tool.** `svm read|set|render` as a native tool (`src/tool/svm.ts`), with the same
-      `Tool.define` registry/`builtin`/`dsml-normalizer` spelling discipline as every other tool name.
-      Acceptance: `set` → `read` round-trips every field; a task with no SVM is reported as missing,
-      never invented.
+- [x] ✓ **S2 — the tool.** `src/tool/svm.ts` over the S1 store, name `svm` wired in all four places
+      (definition, `ToolRegistry.layer` + `builtin`, `util/dsml-normalizer`), and `Storage.defaultLayer`
+      added to the registry's layer because the tool genuinely needs the store. **That requirement GREW,
+      and the growth is recorded, not smoothed over:** two test harnesses that assemble
+      `ToolRegistry.layer` by hand (`prompt.test.ts`, `snapshot-tool-race.test.ts`) now provide Storage
+      too. **Split, named rather than glossed:** this ships `read|set`; `render` moves to S4, where its
+      derivation lives — a verb advertised before it exists is a lie the model will act on. `set`
+      REFUSES a manifest missing sv/etaTurns/oracle instead of storing a partial one, and the refusal is
+      proven by reading the task back in the SAME instance. The store's functions now take
+      `Storage.Interface` as a parameter: `Def.execute` may carry no service requirement (`R = never`),
+      so a tool captures the store at init — one spelling per function, no second variant.
+      Oracles: `bun test test/session/svm.test.ts test/tool/svm.test.ts` → **7 pass / 0 fail**
+      (`20260929T234054Z_4c6ad0be`); `bun test test/tool/registry.test.ts test/session/tools.test.ts` →
+      **13 pass / 0 fail** (`20260929T234105Z_fac7d49b`); `bun typecheck` exit 0
+      (`20260929T234300Z_f180c798`, after the layer annotation gained `Storage.Service` and the two
+      harnesses gained the provision).
 - [ ] **S3 — the reminder.** One line in the existing turn status note: `svm: missing for <task>` (or
       the task's dominant when present). Acceptance: a turn whose current task has no record carries
       the line; a turn with one does not; the note is still delivered ONCE (the count assertion that
       `read.test.ts` already pins is the guard).
 - [ ] **S4 — the master plan.** `render` writes `MASTER_PLAN.md` at the repo root, recursively: goal →
       plans → tasks, each task with its sv, plan ref and `eta_turns`, plus the open/pass counts.
-      Acceptance: the file is outside `plans/`, `planstatus`/`reconcilePlans` ignore it, and a second
-      render immediately after the first is byte-identical (it is derived, so it must be stable).
+      **SV IS MANDATORY FOR EVERY ENTRY — owner, 2026-09-29, verbatim:** «в мастерплане sv для каждого
+      субплана, таска или линка обязателен, чтобы было четко ясно — нафига это все и с чем это
+      коррелирует». So `render` emits the entry's OWN vector for every plan, every task and every link it
+      prints, and an entry whose vector is absent is rendered as MISSING — never as a bare title, because
+      absence of an oracle reads as FALSE. A plan's vector is read from its own `<!-- intention: … -->`
+      header (that header is the one home; a retyped copy is a second source), a task's from the SVM
+      store. The end state the owner named is the point of it: any agent picks the plan up on autopilot
+      and works in the right key without guessing — so the file must read correctly for an agent that has
+      never seen this session. Acceptance: the file is outside `plans/`, `planstatus`/`reconcilePlans`
+      ignore it, a second render immediately after the first is byte-identical, and **no rendered plan or
+      task lacks its sv — asserted by the test, not eyeballed**. Until `render` lands, `MASTER_PLAN.md`
+      carries hand-derived plan vectors with their derivation stated in the file itself.
 - [ ] **S6 — the fold carrier.** At the Layer-2 fold the rendered master plan is emitted AFTER every
       summary block and after the window's messages, as the last carrier before the fresh tail
       (owner, 2026-09-29). Acceptance: a folded `m*` shows the master plan last; it is a RENDER of the

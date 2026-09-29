@@ -1,8 +1,10 @@
 import { PlanEnterTool, PlanExitTool } from "./plan"
 import { ReasoningEnterTool, ReasoningExitTool } from "./reasoning"
 import { MemoryTool } from "./memory"
+import { SvmTool } from "./svm"
 import { CheckStateTool } from "./checkstate"
 import { Session } from "@/session/session"
+import { Storage } from "@/storage/storage"
 import { QuestionTool } from "./question"
 import { BashTool } from "./bash"
 import { CmdTool } from "./cmd"
@@ -161,6 +163,7 @@ export const layer: Layer.Layer<
   | Agent.Service
   | Skill.Service
   | Session.Service
+  | Storage.Service
   | Provider.Service
   | LSP.Service
   | Instruction.Service
@@ -196,6 +199,7 @@ export const layer: Layer.Layer<
     const reasoningEnter = yield* ReasoningEnterTool
     const reasoningExit = yield* ReasoningExitTool
     const memory = yield* MemoryTool
+    const svm = yield* SvmTool
     const checkstate = yield* CheckStateTool
     const webfetch = yield* WebFetchTool
     const bash = yield* BashTool
@@ -340,6 +344,7 @@ export const layer: Layer.Layer<
           reasoningEnter: Tool.init(reasoningEnter),
           reasoningExit: Tool.init(reasoningExit),
           memory: Tool.init(memory),
+          svm: Tool.init(svm),
           checkstate: Tool.init(checkstate),
           list: Tool.init(listtool),
           multiedit: Tool.init(multiedit),
@@ -416,6 +421,7 @@ export const layer: Layer.Layer<
             tool.reasoningEnter,
             tool.reasoningExit,
             tool.memory,
+            tool.svm,
             tool.checkstate,
           ],
           task: tool.task,
@@ -549,6 +555,7 @@ export const defaultLayer = Layer.suspend(() =>
     Layer.provide(Ripgrep.defaultLayer),
     Layer.provide(Truncate.defaultLayer),
     Layer.provide(Jobs.defaultLayer),
+    Layer.provide(Storage.defaultLayer),
     Layer.provide(Capability.defaultLayer),
   ),
 )

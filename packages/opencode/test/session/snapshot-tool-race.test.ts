@@ -38,6 +38,7 @@ import { Permission } from "../../src/permission"
 import { Plugin } from "../../src/plugin"
 import { Provider as ProviderSvc } from "@/provider/provider"
 import { Capability } from "@/capability"
+import { Storage } from "@/storage/storage"
 import { Env } from "../../src/env"
 import { Question } from "../../src/question"
 import { Skill } from "../../src/skill"
@@ -135,6 +136,8 @@ function makeHttp() {
     Layer.provide(Ripgrep.defaultLayer),
     Layer.provide(Format.defaultLayer),
     Layer.provide(Capability.defaultLayer),
+    // The registry now ALSO carries the SVM tool, so it carries the SVM store's plane with it.
+    Layer.provide(Storage.defaultLayer),
     Layer.provideMerge(todo),
     Layer.provideMerge(question),
     Layer.provideMerge(deps),

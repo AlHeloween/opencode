@@ -40,28 +40,37 @@ describe("SVM store", () => {
     expect(SVM.planKey("plans\\2026-09-29_x.md")).toBe("2026-09-29_x")
     // A file without the extension still resolves — nothing is invented either way.
     expect(SVM.planKey("plans/plain")).toBe("plain")
+    // The key is the contract with the store, so it is pinned rather than described.
+    expect(SVM.taskKey("plans/2026-09-29_x.md", "S3")).toEqual(["svm", "task", "2026-09-29_x", "S3"])
   })
 
   test("a written manifest is read back field for field", async () => {
     const result = await inTmpdir(() =>
       Effect.gen(function* () {
-        yield* SVM.write(record.plan, record)
-        return yield* SVM.read(record.plan, "S1b")
+        const storage = yield* Storage.Service
+        yield* SVM.write(storage, record.plan, record)
+        return yield* SVM.read(storage, record.plan, "S1b")
       }),
     )
     expect(result).toEqual(record)
   })
 
   test("a task with no manifest reads as undefined, never as an empty one", async () => {
-    const result = await inTmpdir(() => SVM.read(record.plan, "NEVER-WRITTEN"))
+    const result = await inTmpdir(() =>
+      Effect.gen(function* () {
+        const storage = yield* Storage.Service
+        return yield* SVM.read(storage, record.plan, "NEVER-WRITTEN")
+      }),
+    )
     expect(result).toBeUndefined()
   })
 
   test("missing() names exactly the tasks without a manifest", async () => {
     const result = await inTmpdir(() =>
       Effect.gen(function* () {
-        yield* SVM.write(record.plan, record)
-        return yield* SVM.missing(record.plan, ["S1b", "S2", "S3"])
+        const storage = yield* Storage.Service
+        yield* SVM.write(storage, record.plan, record)
+        return yield* SVM.missing(storage, record.plan, ["S1b", "S2", "S3"])
       }),
     )
     expect(result).toEqual(["S2", "S3"])

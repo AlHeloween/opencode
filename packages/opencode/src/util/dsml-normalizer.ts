@@ -102,6 +102,7 @@ export const DEFAULT_KNOWN_TOOL_IDS: ReadonlySet<string> = new Set(
     "reasoninginenter",
     "reasoningexit",
     "memory",
+    "svm",
     "universalsearch",
     "codegraph",
     "messagesearch",

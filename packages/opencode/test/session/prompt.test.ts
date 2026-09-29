@@ -41,6 +41,7 @@ import { Shell } from "../../src/shell/shell"
 import { Snapshot } from "../../src/snapshot"
 import { SnapshotFossil } from "../../src/snapshot/fossil"
 import { ToolRegistry } from "@/tool/registry"
+import { Storage } from "@/storage/storage"
 import { Truncate } from "@/tool/truncate"
 import { Jobs } from "@/jobs"
 import * as Log from "@opencode-ai/core/util/log"
@@ -232,6 +233,9 @@ function makeHttp(summaryLayer = summary) {
     Layer.provide(Ripgrep.defaultLayer),
     Layer.provide(Format.defaultLayer),
     Layer.provide(Capability.defaultLayer),
+    // The registry now ALSO carries the SVM tool, so it carries the SVM store's plane with it: the
+    // manifest lives on `Storage`, exactly as `ToolRegistry.defaultLayer` provides it.
+    Layer.provide(Storage.defaultLayer),
     Layer.provideMerge(todo),
     Layer.provideMerge(question),
     Layer.provideMerge(deps),

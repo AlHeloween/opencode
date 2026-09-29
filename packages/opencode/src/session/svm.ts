@@ -7,11 +7,16 @@
  * approximate number of TURNS until that plan moves to `plans_completed/` — plus the state it is
  * in and the oracle that would prove it done.
  *
- * Storage: the existing keyed plane (`Storage`), key `["svm", "task", <planId>, <taskId>]`. The plan
- * is identified by its BASENAME WITHOUT the extension, because a key becomes a file path and a plan
- * path contains separators. There is no `remove` in `Storage`, and there should not be one here
+ * Storage: the keyed plane that EXISTS (`Storage`) — key `["svm", "task", <planId>, <taskId>]`. The
+ * plan is identified by its BASENAME WITHOUT the extension, because a key becomes a file path and a
+ * plan path contains separators. There is no `remove` in `Storage`, and there should not be one here
  * either: a task that stops existing loses its plan file, and the plan-ref check reports the orphan
  * rather than silently dropping it (plan S5).
+ *
+ * The `Storage.Interface` is a PARAMETER, not a service looked up inside: `Tool.execute` may not
+ * carry a service requirement (its effect is typed `R = never`), so a tool has to capture the store
+ * at init and pass it in. One spelling per function, and a caller that already holds the store pays
+ * nothing to use it.
  */
 import { Effect } from "effect"
 import { Storage } from "@/storage/storage"
@@ -36,35 +41,29 @@ export function planKey(planFile: string): string {
   return base.replace(/\.md$/i, "")
 }
 
-function key(planFile: string, taskId: string): string[] {
+/** The store key of one task's manifest. Exported because it IS the contract with the store. */
+export function taskKey(planFile: string, taskId: string): string[] {
   return ["svm", "task", planKey(planFile), taskId]
 }
 
 /** The manifest, or `undefined` when this task has never been given one — never an invented one. */
-export const read = (planFile: string, taskId: string) =>
-  Effect.gen(function* () {
-    const storage = yield* Storage.Service
-    return yield* storage
-      .read<SVMRecord>(key(planFile, taskId))
-      .pipe(Effect.catch(() => Effect.succeed(undefined as SVMRecord | undefined)))
-  })
+export const read = (storage: Storage.Interface, planFile: string, taskId: string) =>
+  storage
+    .read<SVMRecord>(taskKey(planFile, taskId))
+    .pipe(Effect.catch(() => Effect.succeed(undefined as SVMRecord | undefined)))
 
-export const write = (planFile: string, record: SVMRecord) =>
-  Effect.gen(function* () {
-    const storage = yield* Storage.Service
-    yield* storage.write(key(planFile, record.task), record)
-  })
+export const write = (storage: Storage.Interface, planFile: string, record: SVMRecord) =>
+  storage.write(taskKey(planFile, record.task), record)
 
 /**
  * The tasks of `planFile` that carry no manifest — what the turn's reminder prints. The count is
  * returned even when it is zero, because a silent check is not a check.
  */
-export const missing = (planFile: string, taskIds: readonly string[]) =>
+export const missing = (storage: Storage.Interface, planFile: string, taskIds: readonly string[]) =>
   Effect.gen(function* () {
     const found: string[] = []
     for (const id of taskIds) {
-      const record = yield* read(planFile, id)
-      if (!record) found.push(id)
+      if (!(yield* read(storage, planFile, id))) found.push(id)
     }
     return found
   })

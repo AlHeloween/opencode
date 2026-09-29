@@ -255,12 +255,35 @@ export function promptTokensFromUsage(tokens: { input: number; cache: { read: nu
   return tokens.input + tokens.cache.read + tokens.cache.write
 }
 
-const pendingWrites = new Map<string, { files: Set<string>; exact: boolean; write: boolean; before?: string }>()
+/**
+ * Per-turn bookkeeping. `timing` records the PRE-REQUEST window — the part of the wait
+ * the user actually feels, from the turn's first assistant message to the first
+ * `llm.stream()`. It exists because the 2026-09-29 measurement localised nothing there:
+ * fossil's reads cost 0.15 s on this worktree and the provider's own ttft is ~51 ms, yet a
+ * turn's first request could leave 20-37 s after the assistant message already existed.
+ * Emitted once per turn as `turn.prepare` — time and rate are what state cannot show.
+ */
+const pendingWrites = new Map<
+  string,
+  {
+    files: Set<string>
+    exact: boolean
+    write: boolean
+    before?: string
+    timing?: { t0: number; fossilMs: number; requestMs?: number; logged?: boolean }
+  }
+>()
 
 function turnWrites(sessionID: string) {
   const existing = pendingWrites.get(sessionID)
   if (existing) return existing
-  const fresh: { files: Set<string>; exact: boolean; write: boolean; before?: string } = {
+  const fresh: {
+    files: Set<string>
+    exact: boolean
+    write: boolean
+    before?: string
+    timing?: { t0: number; fossilMs: number; requestMs?: number; logged?: boolean }
+  } = {
     files: new Set<string>(),
     exact: false,
     write: false,
@@ -520,7 +543,10 @@ export const layer: Layer.Layer<
       const turnStart = beginTurn(input.sessionID)
       const turn = turnWrites(input.sessionID)
       if (turnStart) {
+        const t0 = Date.now()
+        turn.timing = { t0, fossilMs: 0 }
         turn.before = yield* snapshot.track(undefined).pipe(Effect.catch(() => Effect.succeed(undefined)))
+        turn.timing.fossilMs = Date.now() - t0
       }
       const initialSnapshot = turn.before
       const ctx: ProcessorContext = {
@@ -1521,6 +1547,14 @@ export const layer: Layer.Layer<
             ctx.textBuilder.reset()
             ctx.reasoningMap = {}
             ctx.reasoningBuilders = {}
+            // The felt wait, attributed: `t0` is the turn's first assistant message,
+            // `fossilMs` the snapshot boundary inside it, `requestMs` everything before the
+            // provider is asked. Once per TURN, guarded — `process` runs per step.
+            if (turn.timing && !turn.timing.logged) {
+              turn.timing.logged = true
+              turn.timing.requestMs = Date.now() - turn.timing.t0
+              slog.info("turn.prepare", { fossilMs: turn.timing.fossilMs, requestMs: turn.timing.requestMs })
+            }
             const stream = llm.stream(streamInput)
 
             yield* stream.pipe(

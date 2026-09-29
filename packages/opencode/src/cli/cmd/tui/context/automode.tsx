@@ -78,14 +78,35 @@ export function useAutoMode(currentSessionID: () => string | undefined): AutoMod
     toast.show({ message: `AUTO: ${reason} — mode off`, variant: "info" })
   }
 
-  /** One `continue` for the watched session. */
+  /**
+   * One automatic turn for the watched session.
+   *
+   * A bare "continue" told the agent NOTHING about the turn it was starting: not that nobody
+   * typed it, not which iteration it is, not what the mode is doing. Owner, 2026-09-29: «агент
+   * должен получить уведомление когда начинается новый ход». The kernel is explicit that a turn
+   * must open from a known state (SVM: turn id, parent turn, goal — «so every turn starts from a
+   * known, verifiable state»), and an auto-continuation is exactly the case where THIS message is
+   * the only carrier of that fact: there is no user part to read it from.
+   */
   async function continueOnce(sid: string) {
     waitingBusy = true
+    // The turn's own id goes into the notice because the kernel's SVM carries `turn_id` and
+    // `parent_turn_id` for exactly this reason — a turn must be ADDRESSABLE to the agent reading it.
+    const turnID = MessageID.ascending()
+    const notice = [
+      "<automode-turn>",
+      `automatic turn ${autoIteration()} — nobody typed this message; the previous turn ended and the mode continued it.`,
+      `turn: ${turnID}`,
+      `mode: /automode${autoKind() === "all" ? " all" : autoLimit() !== null ? ` ${autoLimit()}` : ""}`,
+      `plans still in plans/: ${activePlans()}`,
+      "Continue from the state you left: the next concrete step, evidence first, plan boxes kept honest.",
+      "</automode-turn>",
+    ].join("\n")
     try {
       const result = await sdk.client.session.promptAsync({
         sessionID: sid,
-        messageID: MessageID.ascending(),
-        parts: [{ type: "text" as const, text: "continue" }],
+        messageID: turnID,
+        parts: [{ type: "text" as const, text: notice }],
       })
       if ("error" in result && result.error) {
         console.debug("AUTO: continue rejected", result.error)

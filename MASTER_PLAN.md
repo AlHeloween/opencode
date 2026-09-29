@@ -23,10 +23,13 @@ loop itself (stall, snapshot, automode) before any new surface.
 | | count |
 |---|---|
 | plans completed | 177 |
-| plans active | 13 |
-| tasks passed / total | 605 / 814 |
+| plans active | 14 |
+| tasks passed / total | 609 / 818 |
 | open boxes | 54 |
 | misplaced plans | 1 (`plans/2026-09-29_bash-tool-single-execution-path.md` — wrong terminal) |
+
+Counts read from `planstatus` (2026-09-30), which walks `plans/` and `plans_completed/` itself — not retyped
+from memory.
 
 ## Active plans — every one carries its SV
 
@@ -65,6 +68,12 @@ author retyping them. A plan-level vector that disagrees with its plan's intenti
   open: 2
   sv: { keywords: { h2-session-pool 0.45, connection-badge 0.3, stream-concurrency 0.25 },
         dominant: "Concurrent provider streams ride a reused HTTP/2 pool, and the sidebar shows the living connection." }
+
+- plan: plans/2026-09-30_replacement-empty-assistant-row.md
+  open: 3
+  sv: { keywords: { replacement-path 0.4, empty-assistant-row 0.3, interrupted-step 0.3 },
+        dominant: "The turn-replacement path stops leaving an empty assistant row, or the test states why one may exist." }
+  note: a real red (`test/session/prompt.test.ts`), measured as NOT caused by S1–S3 — an interrupted loop step leaves a `parts: []` assistant row
 
 - plan: plans/2026-09-26_unified-settings-layers.md
   sv: { keywords: { fill-not-resolve 0.45, layer-chain 0.3, read-is-a-lookup 0.25 },

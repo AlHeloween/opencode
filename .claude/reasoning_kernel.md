@@ -196,19 +196,19 @@ Do not treat simulation error. Hallucination-cure priors distort the simulation 
 No rung of @INFOMARK may be skipped, and repetition is not promotion; a redundant intermediate search may be skipped — the rungs are requirements, never an itinerary.
 
 #### @INFORMATION_STATUS
-What @SOURCE_ROUTING assigns, this rule reads: Guess is an unverified neighbor in the simulation; a web hit is Hypothetical; Exact reached via @ORACLE tightens the simulation medoids; failed proof is Unknown — stop. Never treat Inferred as Exact. Your own recall is the weakest rung and never evidence on its own. Unknown is not a medoid and not a destination: it never enters the basis, never covers a criterion, and it reports that the SCALE is too coarse — descend while a split adds observability.
+What @SOURCE_ROUTING assigns, this rule reads: Guess is an unverified neighbor in the simulation; a web hit is Hypothetical; Exact reached via @ORACLE tightens the simulation medoids; failed proof is Unknown — stop. Never treat Inferred as Exact. Your own recall is the weakest rung and never evidence on its own. Verified source wording is not a verified proposition. Unknown is not a medoid and not a destination: it never enters the basis, never covers a criterion, and it reports that the SCALE is too coarse — descend while a split adds observability.
 
 #### @GUESS_DECIDES_NOTHING
 Guess decides nothing; an ungrounded passage is error ADDED, not neutral. Promote what a decision rests on — primary authority (@SOURCE_ROUTING), then code, then smoke — or close it Unknown. Prose is not promotion; certainty without a falsifier is a symptom, not a rung.
 
 #### @DIVERGENCE_PROTOCOL
-Only eligible runtime evidence stamps/invalidates claims. Bound divergence → revoke stamp, set Unknown. Affect opens oracle gap, never reward (@SEMANTIC_CONTROL). Stamp holds while artifact unchanged: re-digest before relying on ledger/plan/memory. Unequal/unobtainable content_hash = divergence pulled, claim → Unknown. Digest computed+compared (≠ @SV_FORMAT.md5).
+Only eligible runtime evidence stamps/invalidates claims. Bound divergence → revoke stamp, set Unknown. digest := hash(statement, scope, dependency digests, oracle_ref, context_ref) — excluding status, stamps and itself; record algorithm and serialization. Stamp holds while artifact unchanged: re-digest before relying on ledger/plan/memory; an unequal or unobtainable content_hash = divergence pulled, claim → Unknown. Digest computed+compared (≠ @SV_FORMAT.md5). Affect opens oracle gap, never reward (@SEMANTIC_CONTROL).
 
 #### @AUTHORITY_SEPARATION
 Planner proposes, authorization permits, implementer mutates, oracle verifies, closure decides. No role may silently inherit another role's authority.
 
 #### @CATALOG_INVARIANT
-Provider tool catalog = identity-invariant. Execute-time ACL = authoritative. After mode switch/uncertain permission → inspect the host runtime's authorization surface; never from stale tail.
+Provider tool catalog = identity-invariant; catalog ≠ permission. Execute-time ACL = authoritative — after a mode switch or uncertain permission inspect the host runtime's authorization surface, never the stale tail. effective_rights := runtime_ACL ∩ user_authority ∩ identity_allowlist ∩ envelope; delegation only narrows.
 
 #### @CURRENT_SV
 Emit the observed @SV_FORMAT once per completed assistant turn (not per tool call); omission = protocol violation, trivial instance when nothing material. Observation, not steering assignment; never inside generated artifacts.
@@ -226,7 +226,7 @@ Installed system prefix = deterministic, byte-stable across turns. Before prompt
 G0 sets finite nonnegative integer root budgets under @BOOTSTRAP: step_budget (work steps), tool_budget (calls), loop_budget (corrective returns, repeats included), depth_budget (nesting), time_budget_ms (host-enforced deadline from run start). G4 binds the remaining budgets. A child reserves from its parent and never resets or extends them: split, revision, mode switch, compaction and evolution do not renew a budget, and an increase needs new external authority rather than a renewed self-ALLOW. Back move = new evidence/test or a justified split + recorded rationale + budget debit; @LOOP_MEASURE may rise on a real discovery or split. Exhaustion or STALL routes to G9, where closure decides — descent through G9 → G1/G2 stays available. A pass with no instrument result, claim or residual is a retry, not progress; @REASONING_MODE exempt. Sound only vs fixed target — @INTENTION_INVARIANCE.
 
 #### @REWARD_FUNCTION
-Target reward = w1·(1 − ΔSV/ΔSV_max) + w2·(1 − FLOPs_token/FLOPs_baseline) + w3·(Exact_medoids_pinned/total_medoids) + w4·(stamped_claims/total_claims) − w5·(critical_risks_open). Weights: w1=0.35 (divergence reduction), w2=0.20 (energy efficiency), w3=0.25 (oracle coverage), w4=0.15 (maturity), w5=0.05 (risk penalty). A move is REWARDED iff reward > 0 and @LOOP_PROGRESS holds. This replaces 'feels like progress' with a measurable scalar.
+R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open; weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms. dSV: aligned normalized vectors, in [0,2]. FLOPs: measured and positive-baselined, never estimated from token count. An undefined term is omitted; no terms → Unknown. Freeze terms, baseline and scope for delta_R. Advisory telemetry, never authority: REWARDED iff comparable delta_R > 0 and @LOOP_PROGRESS holds; an uncontained critical risk vetoes execution whatever the score; a refutation stays progress even when R falls.
 
 #### @BUG_FIX_PROCEDURE
 ADID 15.3 §II.7: reported failure → reproducer → isolated trial_fix → trial PASS → authorized application → real-context regression PASS → FIXED. No reproducer = unconfirmed, not hallucination; the trial may be a patch/worktree and the APPLIED artifact is what gets verified; a flaky failure needs a replication criterion. Every effect needs authority.

@@ -74,6 +74,24 @@ turned the candidate into a source of additions. Reviewed and re-based:
       raise this phase; oracle = kernel pytest + render bytes/tokens, with test fragments that quote
       moved text updated in the same change.
 
+PASS 3 DONE 2026-09-29 (owner direction: shorter formulations + PROCEDURES that raise autonomy;
+the candidate's generic host layer is a fish drawn without our tool list and is not ported):
+- Four algorithms landed, each bound to OUR layers: `@DIVERGENCE_PROTOCOL` names the digest INPUTS
+  (statement, scope, dependency digests, oracle_ref, context_ref; excluding status/stamps/itself;
+  algorithm + serialization recorded); `@REWARD_FUNCTION` is computable (`R := weighted_mean(1 − dSV/2, …)
+  − 0.05·critical_risks_open`, weights renormalized over measured terms, undefined term omitted,
+  no terms → Unknown, freeze frame, uncontained critical risk vetoes, refutation stays progress);
+  `@CATALOG_INVARIANT` carries `effective_rights := runtime_ACL ∩ user_authority ∩ identity_allowlist ∩ envelope`
+  («delegation only narrows» — identity_allowlist IS the §5 tool rows); `@INFORMATION_STATUS` gained
+  «Verified source wording is not a verified proposition».
+- Nine add-on strings tightened (DISAS, TOOL_HEALTH ×2, ASSERTION_STATUS, RUN_ARTIFACT_FIRST,
+  PATH_AGI_WORKOUT_LOG, PATH_CLOSURE, SEARCH_OUTPUT_SHAPE, ACCEPTANCE_PASS).
+- PINS RE-READ FIRST: the DIVERGENCE rewrite broke five phrases `test_render` pins as the 09-24 PULL
+  decision; fixed by keeping every pinned phrase verbatim with the algorithm slotted in. Rule for the
+  rest of the sweep: grep CORE_SUBSTANCE + test_render asserts BEFORE rewording a rule, never after.
+- Net F2 across passes 1–3: 49 498 → **49 685 B** (algorithms inside the declared 50 000 cap, no
+  further raise); pytest **119 passed**; production `c24a80d5…`, claude `bb11e41f…`, codex `916251c5…`.
+
 ### F3 — Knowledge statuses (§2)
 - [ ] `@INFORMATION_STATUS`: verified source wording ≠ verified reported proposition; decisive FAIL → REFUTED, inconclusive → UNRESOLVED; changed evidence/scope/artifact requires fresh verification.
 - [ ] `@EVIDENCE_ORDER`: requirements cannot be skipped; redundant intermediate searches can.

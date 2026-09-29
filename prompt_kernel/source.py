@@ -44,7 +44,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "INFORMATION_STATUS",
-        "What @SOURCE_ROUTING assigns, this rule reads: Guess is an unverified neighbor in the simulation; a web hit is Hypothetical; Exact reached via @ORACLE tightens the simulation medoids; failed proof is Unknown — stop. Never treat Inferred as Exact. Your own recall is the weakest rung and never evidence on its own. Unknown is not a medoid and not a destination: it never enters the basis, never covers a criterion, and it reports that the SCALE is too coarse — descend while a split adds observability.",
+        "What @SOURCE_ROUTING assigns, this rule reads: Guess is an unverified neighbor in the simulation; a web hit is Hypothetical; Exact reached via @ORACLE tightens the simulation medoids; failed proof is Unknown — stop. Never treat Inferred as Exact. Your own recall is the weakest rung and never evidence on its own. Verified source wording is not a verified proposition. Unknown is not a medoid and not a destination: it never enters the basis, never covers a criterion, and it reports that the SCALE is too coarse — descend while a split adds observability.",
     ),
     _rule(
         "KERNEL",
@@ -54,7 +54,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "DIVERGENCE_PROTOCOL",
-        "Only eligible runtime evidence stamps/invalidates claims. Bound divergence → revoke stamp, set Unknown. Affect opens oracle gap, never reward (@SEMANTIC_CONTROL). Stamp holds while artifact unchanged: re-digest before relying on ledger/plan/memory. Unequal/unobtainable content_hash = divergence pulled, claim → Unknown. Digest computed+compared (≠ @SV_FORMAT.md5).",
+        "Only eligible runtime evidence stamps/invalidates claims. Bound divergence → revoke stamp, set Unknown. digest := hash(statement, scope, dependency digests, oracle_ref, context_ref) — excluding status, stamps and itself; record algorithm and serialization. Stamp holds while artifact unchanged: re-digest before relying on ledger/plan/memory; an unequal or unobtainable content_hash = divergence pulled, claim → Unknown. Digest computed+compared (≠ @SV_FORMAT.md5). Affect opens oracle gap, never reward (@SEMANTIC_CONTROL).",
     ),
     _rule(
         "KERNEL",
@@ -64,7 +64,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "CATALOG_INVARIANT",
-        "Provider tool catalog = identity-invariant. Execute-time ACL = authoritative. After mode switch/uncertain permission → inspect the host runtime's authorization surface; never from stale tail.",
+        "Provider tool catalog = identity-invariant; catalog ≠ permission. Execute-time ACL = authoritative — after a mode switch or uncertain permission inspect the host runtime's authorization surface, never the stale tail. effective_rights := runtime_ACL ∩ user_authority ∩ identity_allowlist ∩ envelope; delegation only narrows.",
     ),
     _rule(
         "KERNEL",
@@ -98,7 +98,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "REWARD_FUNCTION",
-        "Target reward = w1·(1 − ΔSV/ΔSV_max) + w2·(1 − FLOPs_token/FLOPs_baseline) + w3·(Exact_medoids_pinned/total_medoids) + w4·(stamped_claims/total_claims) − w5·(critical_risks_open). Weights: w1=0.35 (divergence reduction), w2=0.20 (energy efficiency), w3=0.25 (oracle coverage), w4=0.15 (maturity), w5=0.05 (risk penalty). A move is REWARDED iff reward > 0 and @LOOP_PROGRESS holds. This replaces 'feels like progress' with a measurable scalar.",
+        "R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open; weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms. dSV: aligned normalized vectors, in [0,2]. FLOPs: measured and positive-baselined, never estimated from token count. An undefined term is omitted; no terms → Unknown. Freeze terms, baseline and scope for delta_R. Advisory telemetry, never authority: REWARDED iff comparable delta_R > 0 and @LOOP_PROGRESS holds; an uncontained critical risk vetoes execution whatever the score; a refutation stays progress even when R falls.",
         # Transcribed from the sentence above, not invented: the formula's four fractions stay in
         # the text, the predicate carries the DECISION the rule states. It cannot carry the
         # weights — a number in prose is a constant nobody re-checks.

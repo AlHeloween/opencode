@@ -34,13 +34,45 @@ Ground rule: incorporate via `prompt_kernel/source.py` + addons, one phase per L
       `utf8_budget` 49 000 → **50 000** with the measured reason in `source.py` (49 498 measured);
       `baseline.json` advanced (`prev_sha256` = the 09-28 install).
 
-### F2 — Contracts & formulas (§2 digest/reward/catalog, §1.4 fields, §1.5 classes)
-- [ ] `@DIVERGENCE_PROTOCOL`: digest := hash(canonical statement / scope / dependency_digests / oracle_ref / context_ref), record algorithm + serialization; content_hash := hash(bytes).
-- [ ] `@REWARD_FUNCTION`: computable form — `1 − dSV/2` renormalized, FLOPs measured only, freeze frame, refutation stays progress, advisory-only.
-- [ ] `@CATALOG_INVARIANT`: `effective_rights := runtime_ACL ∩ user_authority ∩ identity_allowlist ∩ envelope`; “delegation only narrows”.
-- [ ] `state_contract` fields: CLAIM `scope/dependencies/assertion_status`; RISK `state`; OUTCOME `pass|fail|unknown`; STAMP `UNKNOWN` + refs; DIVERGENCE `cause`; MASTER_PLAN `state` — with the candidate's caution «added fields/enums require consuming-schema support before installation».
-- [ ] `action_classes`: READ vs network retrieval / purchases (`EXTERNAL_EFFECT`); SELF_MODIFY draft = `MODIFY_CANDIDATE`; “tests/builds with writes are not READ merely because called validation”.
-- [ ] Tests + budget check.
+### F2 — COMPRESSION PASS (candidate as the measure of density), not an add pass
+Owner correction (2026-09-29): the file was given to CUT prose — «я специально дал тебе этот файл
+чтобы по возможности порезать прозу, проверь формулировки в аддонах» — and F2 as first drafted had
+turned the candidate into a source of additions. Reviewed and re-based:
+- [ ] Rewrite the longest rules in the candidate's density where the content is EQUAL — measured
+      targets (rendered chars per line): LEAN tiers 1 081, `@INFORMATION_STATUS` 501, `@ORACLE` 489,
+      `SVM` 487, `@BUG_FIX_PROCEDURE` 468, `@MANHATTAN_L1` 467, `BOUNDED STOP (DONE)` 455, the G1
+      instrument chain 452. Every replacement keeps EVERY decision and any address (field names,
+      paths); a rule may shrink only where the candidate's own text is the smaller equal form.
+      PASS 1+2 DONE 2026-09-29: `@BUG_FIX_PROCEDURE`, `@GUESS_DECIDES_NOTHING`, `@EVIDENCE_ORDER`,
+      `@CURRENT_SV`, G1 `MEMORY_RANK`/`INSTRUMENT_LAYER`/`INSTRUMENT_ORDER`/`LOUD_FAILURE`/
+      `INSTRUMENT_RUNG`, `BOUNDED_STOP_CONDITIONS`, action-class lines, and six add-on strings.
+      STILL OPEN: the LEAN line (pinned by test_render), `@INFORMATION_STATUS`, `@ORACLE` local rules,
+      `SVM`, `@MANHATTAN_L1`, `@ONE_STEP_AHEAD`, and the rest of the add-on literals (10.7 KB / 152
+      entries — six tightened so far). Instrument: `experiments/2026-09-29_kernel-cut-targets/sizes.py`.
+- [ ] Sweep the add-ons for wording (product + claude + codex): `addons.py` carries 10 738 B of string
+      literals across 152 entries — the same facts phrased looser than the candidate's e.g. the style
+      list (done), the `state.json` report line (done), the ISO double citation in `@ACCEPTANCE_FRAME`
+      (done). Cut WORDS, never a decision or an address. The claude/codex twins carry their own copies:
+      sweep them with the same pass, not blindly — their tool rows differ by design.
+- [x] TAKE only clauses that close a MEASURED defect, folded into lines being rewritten anyway:
+      §1.5 gains «Classification follows actual effects; classes may combine» (landed in G4's
+      `ACTION_CLASS_RULE`, not as a non-class row — `set(kernel.action_classes)` is a namespace),
+      «writes are not READ for being called validation», PLAN_WRITE widened to ledgers/progress
+      records, MODIFY_CANDIDATE «no install/promotion authority», SELF_MODIFY «an uninstalled draft
+      alone is MODIFY_CANDIDATE»; `@EVIDENCE_ORDER` gains the redundant-searches clause;
+      `@CURRENT_SV` is once per completed turn and never inside artifacts. Oracle: pytest **119
+      passed**, production `2e076258…` (49 352 B), claude `88069978…`, codex `e16216dd…`; net
+      49 498 → **49 352 B** with NO budget raise.
+- [x] REJECT (recorded, do not revisit): per-identity `action_classes` rows — our §5 tool rows
+      (IDENTITY_ADDONS + parity test) already say WHO may call WHAT, and a category row would answer
+      nothing the rows do not, while looking like authority; the candidate's READ network/purchases
+      clause (EXTERNAL_EFFECT already states it); the whole `host_bindings` section (host layer is the
+      add-ons); the state_contract field additions that have no consumer today. Owner, 2026-09-29:
+      «что нам дают action classes вместо реальных тулов» — nothing; the layer is a classification
+      axis (G4 + envelope binding), never a permission list.
+- [ ] Budget: the additions above must fit inside what the cut frees — NO further `utf8_budget`
+      raise this phase; oracle = kernel pytest + render bytes/tokens, with test fragments that quote
+      moved text updated in the same change.
 
 ### F3 — Knowledge statuses (§2)
 - [ ] `@INFORMATION_STATUS`: verified source wording ≠ verified reported proposition; decisive FAIL → REFUTED, inconclusive → UNRESOLVED; changed evidence/scope/artifact requires fresh verification.

@@ -5320,3 +5320,19 @@ own error) and the tool-name lower-casing case. Oracles: repair suites → 49/0;
 
 RULE ✓: `import("pkg").Type` inline annotations are forbidden — the extracted module uses a top-level
 `import type { Parser as TreeSitterParser }`.
+
+## [2026-09-29 13:00Z] CORRECTION ✗ — the RAG "literal recall" claim was the wrong instrument, not a defect
+
+CORRECTED ✗ (my 12:54Z entry): "a distinctive literal must reach the FTS/exact leg" was mis-framed. The owner's
+correction holds and the index proves it — `meta` in `.adid_rag/data/opencode.sqlite3` (read 2026-09-29 12:5xZ):
+`chunker_version=tree_sitter_structural_v3`, `embed_runtime=sentence_transformers:BAAI/bge-base-en-v1.5:normalize=1`,
+`dq_signature_profile={projection_dim 2048, keep 6×6, energy}`, `chunk_lines=120/overlap=20`, `indexed_at_utc=12:26:17Z`.
+The literal IS in the index — 7 chunks (`src/tool/write.ts`, `src/tool/path-hint.ts`, three tool tests, two plan docs) —
+the semantic leg simply does not rank a code fragment into the top; that is the instrument's job, and the literal
+instrument is grep/codegraph.
+
+CONFIRMED ✓ (doc↔schema drift, NOT mine to resolve): the schema has `chunks.emb|dq_sig|se3_dq`, `chunk_tags`,
+`semantic_clusters` — and NO FTS5 virtual table (nor `*_data/_idx/_content` shadow tables) in that DB. The skill
+`.opencode/skills/rag/SKILL.md` («Embedding + retrieval model») advertises `Hybrid RRF: full-vector cosine +
+dual-quaternion structural signature + SQLite FTS5`. So either the FTS leg is not built in this generation, or the
+skill describes another one — the owner decides which side moves. Probes: `experiments/2026-09-29_rag-literal-probe/`.

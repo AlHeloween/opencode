@@ -5451,6 +5451,22 @@ Still owing work in `plans/`: h2 badges (T4 `[ ]`, T5 `[~]` — the gateway unit
 (16), dap-debugger (5), shelf-triage / fold-carrier-integrity / pre-fix-artifact-verification (3 each),
 constitution-parity (2), and the two live lanes of other owners (bash — Claude; cua — the owner).
 
+## [2026-09-29 15:05Z] CUA: the wrapper supplies the observation and binds the click (plan item FIRST closed)
+
+CONFIRMED ✓ (owner: «Cua делать должен сам opencode»): the in-tree CUA work was finished and verified here —
+`cuaScreenshotFile()` creates a fresh cache artifact (`<cache>/cua/<session>/<id>.png`) when the model omits
+`screenshot_out_file` for `get_window_state`/`get_desktop_state`; `cuaBoundClickArgs()` binds the click to the LATEST
+matching image observation of THIS conversation, fills `capture_id` (and `window_id` when unambiguous) and refuses a
+reused one-shot ID, an ambiguous PID with several windows, and an unbound pixel click; `cuaExecute()` is extracted with
+an injectable CLI so the tool RESULT itself is testable. Driver admission untouched; the `execute_javascript` refusal
+stays the negative control. Both branches covered: vision (attached image + dimensions + reusable binding) and no-vision
+(«no declared image input», no actionable packet).
+Oracles: `bun test test/tool/cua.test.ts` → **10 pass / 0 fail** (8 before, +2); `bun typecheck` exit 0; `prettier
+--check` clean after `--write`. Plan updated in place (`plans/2026-09-29_cua-windows-debug-input.md`, item FIRST `[x]`).
+Still open in that plan: the baseline/error-case comparison against the 2026-09-12 Go control, the Rust drag/held-button
+path (ONLY if the Windows fixture shows the capability gap after the restored short workflow), the isolated GUI smoke,
+and the game criterion (parked — needs the owner's game URL, controls and outcome signal).
+
 
 ## [2026-09-29 19:40Z] kernel F6+F7 staged, NOT installed — procedure layer, falsifier fixes, KAIZEN, BGE dedup/order
 

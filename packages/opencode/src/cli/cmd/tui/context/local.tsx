@@ -1003,9 +1003,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       /** Write the transport protocol for one model into the SELECTED layer
        * (owner directive 2026-09-24): worktree → provider.<id>.models.<m>.options.protocol
        * via merge-patch; global → the same shape through the global config route.
-       * Session scope is not honored by the server yet — the provider SDK is
-       * cached by options, so a per-session override needs server work and is
-       * reported instead of silently dropped. */
+       * Session → sessions/{sid}.jsonc `modelProtocol` (owner directive 2026-09-29:
+       * «протокол должен 1 раз пробаться и фиксироваться» at selection time; the runtime
+       * reads the ready value via `sessionModelProtocol` and never probes on the wire). */
       async function setModelProtocol(
         providerID: string,
         modelID: string,
@@ -1038,12 +1038,24 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           })
           return
         }
-        toast.show({
-          title: "Session scope not available",
-          message: "Protocol applies from global/worktree config for now — per-session override needs server work",
-          variant: "warning",
-          duration: 4000,
-        })
+        const sid = getActiveSessionID()
+        if (!sid) {
+          toast.show({
+            variant: "warning",
+            message: "No active session — cannot save the per-session protocol",
+            duration: 3000,
+          })
+          return
+        }
+        const ss = sessionSettings()
+        const map = { ...(ss?.modelProtocol ?? {}) }
+        // `auto` resolves to a CONCRETE rung before it reaches this writer; a literal
+        // "auto" arriving here means the probe failed — treat it as «no override» and drop the key.
+        if (protocol === "auto") delete map[`${providerID}/${baseID}`]
+        else map[`${providerID}/${baseID}`] = protocol
+        const next: SessionSettings = { ...ss, modelProtocol: Object.keys(map).length > 0 ? map : undefined }
+        setSessionSettings(next)
+        void saveSessionSettings(sid, sessionPayload(next))
       }
 
       /** Session-layer routing reads for the dialog's initial state (rev 4). */

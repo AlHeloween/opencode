@@ -121,7 +121,19 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
       (cursorValue) => {
         if (cursorValue === undefined) return
         const index = flat().findIndex((opt) => isDeepEqual(opt.value, cursorValue))
-        if (index >= 0) setCursor(index)
+        if (index < 0) return
+        setCursor(index)
+        // Restoring the marker is not restoring the POSITION: `setCursor` moves the
+        // highlight only, and a dialog that re-creates itself after an in-place action
+        // (DialogAgent returning from the model picker) mounts with its viewport at the
+        // TOP — a restored row below the fold then reads as «the cursor reset to the
+        // beginning» (owner, 2026-09-29). Scroll to it once the list has mounted, the
+        // same way the `props.current` effect below defers its moveTo; the index is
+        // re-resolved because `flat()` may rebuild between the effect and the timeout.
+        setTimeout(() => {
+          const at = flat().findIndex((opt) => isDeepEqual(opt.value, cursorValue))
+          if (at >= 0) moveTo(at, true)
+        }, 0)
       },
     ),
   )

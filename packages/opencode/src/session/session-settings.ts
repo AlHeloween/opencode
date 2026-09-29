@@ -56,7 +56,13 @@ export interface SessionSettings {
   modelRouting?: Record<string, Record<string, unknown>>
   /** Session-scoped sampling parameters per model (key: variant-stripped "providerID/modelID"). */
   modelSampling?: Record<string, ModelSampling>
-
+  /**
+   * Session-scoped transport protocol per model (key: variant-stripped "providerID/modelID").
+   * Resolved ONCE at selection time (owner directive 2026-09-29): `auto` is probed and the
+   * concrete rung (`h3`/`h2`) is written here, so a request reads a ready value instead of
+   * probing on the wire.
+   */
+  modelProtocol?: Record<string, string>
 }
 
 export interface ModelRef {
@@ -73,6 +79,7 @@ export const SESSION_SETTINGS_KEYS = [
   "agentVariant",
   "modelRouting",
   "modelSampling",
+  "modelProtocol",
 ] as const
 
 /** Runtime key inventory of the worktree model.json state file (local.tsx save shape). */
@@ -185,6 +192,19 @@ export function sessionAgentVariant(
     settings?.agent?.[agentName]?.variant ??
     settings?.variant?.[modelKey]
   )
+}
+
+/**
+ * Transport protocol override for one model in this session (variant-stripped key).
+ * The value is a CONCRETE rung written at selection time — the runtime reads it and
+ * never probes (owner directive 2026-09-29).
+ */
+export function sessionModelProtocol(
+  providerID: string,
+  modelID: string,
+  settings: SessionSettings | null | undefined,
+): string | undefined {
+  return settings?.modelProtocol?.[`${providerID}/${modelID.split(":")[0]}`]
 }
 
 /**
@@ -479,6 +499,14 @@ function normalizeSessionSettings(raw: Record<string, unknown>): SessionSettings
       Object.entries(raw.modelSampling as Record<string, unknown>).map(([key, value]) => [key, modelSampling(value)]),
     )
     if (Object.keys(map).length > 0) settings.modelSampling = map
+  }
+
+  if (typeof raw.modelProtocol === "object" && raw.modelProtocol !== null && !Array.isArray(raw.modelProtocol)) {
+    const map: Record<string, string> = {}
+    for (const [key, value] of Object.entries(raw.modelProtocol as Record<string, unknown>)) {
+      if (typeof value === "string") map[key] = value
+    }
+    if (Object.keys(map).length > 0) settings.modelProtocol = map
   }
 
   return settings

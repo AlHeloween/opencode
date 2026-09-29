@@ -1,9 +1,12 @@
 import { createMemo, createSignal } from "solid-js"
 import { useLocal, type ModelScope } from "@tui/context/local"
+import { useSync } from "@tui/context/sync"
 import { useDialog } from "@tui/ui/dialog"
+import { useToast } from "../ui/toast"
 import { DialogSelect } from "@tui/ui/dialog-select"
 import { DialogPrompt } from "@tui/ui/dialog-prompt"
 import { protocolChoices } from "./protocol-options"
+import { probeProtocol, protocolNeedsProbe } from "./protocol-probe"
 import type { ModelSampling } from "@/session/model-sampling"
 import * as Log from "@opencode-ai/core/util/log"
 
@@ -28,6 +31,8 @@ export function DialogModelParameters(props: {
 }) {
   const local = useLocal()
   const dialog = useDialog()
+  const sync = useSync()
+  const toast = useToast()
   const target = createMemo(() => local.model.forAgent(props.targetAgent))
   const sampling = createMemo<ModelSampling | undefined>(() => {
     const model = target()
@@ -89,12 +94,45 @@ export function DialogModelParameters(props: {
     const model = target()
     const value = sampling()
     if (!model || !value) return
-    void (async () => {
+    void (async (): Promise<boolean> => {
       await local.model.setModelSampling(model, value, props.scope)
       const draft = protocol()
+      const effective = draft ?? configuredProtocol()
+      if (protocolNeedsProbe(effective)) {
+        // Owner directive 2026-09-29: `auto` is resolved ONCE, here at selection time —
+        // one simple request against the provider origin — and the CONCRETE rung is
+        // written to the layer; the runtime reads it and never probes on the wire.
+        const provider = sync.data.provider.find((x) => x.id === model.providerID)
+        const origin = provider?.models[model.modelID.split(":")[0]]?.api?.url
+        const resolved = origin
+          ? await probeProtocol({ fetchImpl: (input, init) => fetch(input, init), url: origin })
+          : undefined
+        if (!resolved) {
+          toast.show({
+            title: "Protocol probe failed",
+            message: origin
+              ? `No transport answered ${origin} — the layer was left unchanged`
+              : "No origin URL for this provider — nothing written",
+            variant: "warning",
+            duration: 4000,
+          })
+          return false
+        }
+        await local.model.setModelProtocol(model.providerID, model.modelID, resolved, props.scope)
+        toast.show({
+          title: "Protocol resolved",
+          message: `auto → ${resolved} (probed ${origin})`,
+          variant: "info",
+          duration: 4000,
+        })
+        return true
+      }
       if (draft !== null) await local.model.setModelProtocol(model.providerID, model.modelID, draft, props.scope)
+      return true
     })()
-      .then(finish)
+      .then((ok) => {
+        if (ok) finish()
+      })
       .catch((error: unknown) => {
         Log.Default.warn("bug: model parameters save failed", {
           agent: props.targetAgent,

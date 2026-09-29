@@ -1026,7 +1026,7 @@ export interface Interface {
   readonly getModel: (providerID: ProviderID, modelID: ModelID) => Effect.Effect<Model>
   readonly getLanguage: (
     model: Model,
-    opts?: { routing?: Record<string, unknown> },
+    opts?: { routing?: Record<string, unknown>; protocol?: string },
   ) => Effect.Effect<LanguageModelV4>
   readonly closest: (
     providerID: ProviderID,
@@ -1591,6 +1591,9 @@ const layer: Layer.Layer<
             providerID: model.providerID,
             npm: resolvedNpm,
             options,
+            // The SDK's fetch closure bakes `model.options.protocol` (see the fetch below);
+            // two protocols must not share one cached SDK.
+            protocol: model.options?.protocol ?? null,
           }),
         )
         const existing = s.sdk.get(key)
@@ -1713,7 +1716,7 @@ const layer: Layer.Layer<
 
     const getLanguage = Effect.fn("Provider.getLanguage")(function* (
       model: Model,
-      opts?: { routing?: Record<string, unknown> },
+      opts?: { routing?: Record<string, unknown>; protocol?: string },
     ) {
       const s = yield* InstanceState.get(state)
       const envs = yield* env.all()
@@ -1726,25 +1729,35 @@ const layer: Layer.Layer<
       const routingKey = opts?.routing
         ? `#${createHash("sha256").update(JSON.stringify(opts.routing)).digest("hex").slice(0, 12)}`
         : ""
-      const key = `${model.providerID}/${model.id}/${resolvedNpm}${routingKey}`
+      // A session-scoped protocol override (owner directive 2026-09-29) likewise produces
+      // a DISTINCT language model: the gateway reads the rung when the SDK fetch is built,
+      // so cache keys must not collide across protocols.
+      const protocolKey = opts?.protocol ? `#p${opts.protocol}` : ""
+      const key = `${model.providerID}/${model.id}/${resolvedNpm}${routingKey}${protocolKey}`
       if (s.models.has(key)) return s.models.get(key)!
 
       return yield* Effect.promise(async () => {
         const provider = s.providers[model.providerID]
-        const sdk = await resolveSDK(model, s, envs)
+        // The gateway protocol rides the model's options into resolveSDK's fetch closure
+        // (`gatewayProtocol: model.options?.protocol`); a session override must replace it
+        // BEFORE the SDK is resolved, or the cached SDK keeps the previous rung.
+        const effectiveModel: Model = opts?.protocol
+          ? { ...model, options: { ...model.options, protocol: opts.protocol } }
+          : model
+        const sdk = await resolveSDK(effectiveModel, s, envs)
 
         try {
           const language = s.modelLoaders[model.providerID]
             ? await s.modelLoaders[model.providerID](
                 sdk,
-                model.api.id,
+                effectiveModel.api.id,
                 {
                   ...provider.options,
-                  ...model.options,
+                  ...effectiveModel.options,
                 },
                 opts,
               )
-            : sdk.languageModel(model.api.id)
+            : sdk.languageModel(effectiveModel.api.id)
           s.models.set(key, language)
           return language
         } catch (e) {

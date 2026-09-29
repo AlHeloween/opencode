@@ -36,6 +36,7 @@ import {
   loadSessionSettings,
   readModelState,
   sessionAgentRouting,
+  sessionModelProtocol,
   sessionModelSampling,
   sessionModelRouting,
 } from "./session-settings"
@@ -500,6 +501,11 @@ const live: Layer.Layer<
         Provider.openRouterRouting(input.agent.options) ??
         sessionModelRouting(input.model.providerID, input.model.id.split(":")[0], settings)
 
+      // Transport protocol — resolved ONCE at selection time (owner directive 2026-09-29)
+      // and read here as a ready value; undefined falls through to the model's configured
+      // options / the `auto` policy in the gateway.
+      const protocol = sessionModelProtocol(input.model.providerID, input.model.id, settings)
+
 
       const [language, cfg, item, info] = yield* Effect.all(
         [
@@ -509,6 +515,7 @@ const live: Layer.Layer<
             // per agent purpose). Undefined for non-openrouter/agents without
             // routing — the loader ignores it and config/defaults apply.
             routing,
+            protocol,
           }),
           config.get(),
           provider.getProvider(input.model.providerID),

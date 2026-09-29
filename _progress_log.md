@@ -5308,3 +5308,15 @@ OBSERVED (RAG, no fix claimed): `adm --query opencode "i+1).join(String.fromChar
 literal must reach the FTS/exact leg.
 
 NEXT: an end-to-end smoke of the repair guard on a real malformed call in a session (not a probe); RAG literal recall.
+
+## [2026-09-29 12:57Z] The repair policy left llm.ts — the test drives the real function, the mirror is gone
+
+CONFIRMED ✓: `experimental_repairToolCall` was an inline body in `llm.ts` and the test carried a MIRROR of it; the
+mirror had drifted silently (it still described the pre-gate policy — accept any parseable repair). Extracted to
+`src/session/tool-call-repair.ts` (`repairToolCall(toolCall, error, tools, log)`), the tree-sitter parser helper
+moved with it, `llm.ts` is now a one-line call, and `test/session/json-repair-policy.test.ts` drives the REAL
+function. Added: the windows-shape refusal at policy level (content-changing repair → ok=false, the model sees its
+own error) and the tool-name lower-casing case. Oracles: repair suites → 49/0; `bun typecheck` clean.
+
+RULE ✓: `import("pkg").Type` inline annotations are forbidden — the extracted module uses a top-level
+`import type { Parser as TreeSitterParser }`.

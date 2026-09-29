@@ -1,99 +1,43 @@
 import { describe, expect, test } from "bun:test"
-import { readWasmAsset } from "../../src/util/wasm-path"
-import { repairJsonWasm } from "../../src/util/json-repair-wasm"
+import { repairToolCall } from "../../src/session/tool-call-repair"
 
 /**
- * Tool call JSON repair — 2-step policy (llm.ts:experimental_repairToolCall):
+ * Tool call JSON repair — the policy `llm.ts` applies to a malformed tool call.
  *
- *   Step 1: JSON.parse(rawInput)
- *     → passes?  use as-is (identity — no modification)
- *     → fails?   continue to step 2
+ * These tests drive the REAL `repairToolCall`. The mirror that used to live here was a second
+ * description of one rule and had already drifted: it still accepted any parseable repair while
+ * the bridge had grown the syntax-only gate (2026-09-29).
  *
- *   Step 2: repairJsonWasm(rawInput) — lightweight, NOT anyrepair
- *     → repair succeeds + JSON.parse(repaired) passes?  use repaired silently
- *     → repair fails or produces invalid JSON?           report ORIGINAL error to model
- *
- * Invariants:
- *   - Valid JSON is NEVER modified (identity)
- *   - Step 2 never makes things worse (if repair output is still invalid, reject it)
- *   - Model always sees the ORIGINAL JSON.parse error, never the repair error
+ *   Step 1: JSON.parse(rawInput) passes → identity, the input is never modified
+ *   Step 2: repairJsonWasm → parses AND every string value intact → used silently
+ *   Step 3: otherwise the ORIGINAL parse error is thrown, with line/column when tree-sitter
+ *           finds an ERROR node — the AI SDK hands that error to the model
  */
+type RepairResult = { ok: true; input: string } | { ok: false; error: string }
+
+const call = (input: string, toolName = "bash") => ({
+  type: "tool-call" as const,
+  toolCallId: "call-1",
+  toolName,
+  input,
+})
+
+async function repair(input: string): Promise<RepairResult> {
+  try {
+    const fixed = await repairToolCall(call(input), new Error("Invalid JSON"), { bash: {} })
+    return { ok: true, input: String(fixed.input) }
+  } catch (e) {
+    return { ok: false, error: (e as Error).message }
+  }
+}
+
 describe("JSON repair policy", () => {
-  let _jsonParser: import("web-tree-sitter").Parser | undefined
-
-  async function getParser() {
-    if (_jsonParser) return _jsonParser
-    const [{ Parser }, { Language }, jsonWasm, runtimeWasm] = await Promise.all([
-      import("web-tree-sitter"),
-      import("web-tree-sitter"),
-      readWasmAsset("grammars/tree-sitter-json.wasm"),
-      readWasmAsset("web-tree-sitter.wasm"),
-    ])
-    if (!jsonWasm.bytes || !runtimeWasm.bytes) throw new Error("WASM unavailable")
-    await (Parser.init as any)({ wasmBinary: runtimeWasm.bytes })
-    const language = await Language.load(new Uint8Array(jsonWasm.bytes))
-    _jsonParser = new Parser()
-    _jsonParser.setLanguage(language)
-    return _jsonParser
-  }
-
-  // Replicates llm.ts experimental_repairToolCall logic exactly.
-  type RepairResult =
-    | { ok: true; input: string }
-    | { ok: false; error: string }
-
-  async function repair(input: string): Promise<RepairResult> {
-    const raw = input.replace(/\x00/g, "")
-
-    // Step 1: JSON.parse
-    try {
-      JSON.parse(raw)
-      return { ok: true, input: raw }
-    } catch (originalError) {
-      const originalMessage = (originalError as Error).message
-
-      // Step 2: json-repair WASM
-      const repaired = await repairJsonWasm(raw)
-      if (repaired !== null) {
-        try {
-          JSON.parse(repaired)
-          return { ok: true, input: repaired }
-        } catch {
-          // repair produced invalid JSON — reject, fall through to error
-        }
-      }
-
-      // Both failed — report ORIGINAL error with position (tree-sitter is system dep)
-      let message = `Invalid JSON: ${originalMessage}`
-      const parser = await getParser()
-      const tree = parser.parse(raw)
-      if (tree) {
-        const errors = tree.rootNode.descendantsOfType("ERROR")
-        if (errors.length > 0) {
-          const first = errors[0]!
-          const lines = raw.slice(0, first.startIndex).split("\n")
-          message = `JSON error at line ${lines.length}, column ${(lines[lines.length - 1]?.length ?? 0) + 1}: ${originalMessage}`
-        }
-      }
-      return { ok: false, error: message }
-    }
-  }
-
   // ═══════════════════════════════════════════════════════════════════════
   // Step 1: valid JSON — identity, never modified
   // ═══════════════════════════════════════════════════════════════════════
 
   test("step 1: valid JSON passes unchanged", async () => {
-    const inputs = [
-      '{"key":"value"}',
-      "[1, 2, 3]",
-      "42",
-      '"hello"',
-      "true",
-      "null",
-      "[]",
-      "{}",
-    ]
+    const inputs = ['{"key":"value"}', "[1, 2, 3]", "42", '"hello"', "true", "null", "[]", "{}"]
     for (const input of inputs) {
       const r = await repair(input)
       expect(r.ok).toBe(true)
@@ -119,7 +63,7 @@ describe("JSON repair policy", () => {
   })
 
   // ═══════════════════════════════════════════════════════════════════════
-  // Step 2: json-repair WASM fixes silently
+  // Step 2: json-repair WASM fixes silently — syntax only
   // ═══════════════════════════════════════════════════════════════════════
 
   test("step 2: trailing comma in array repaired", async () => {
@@ -168,17 +112,26 @@ describe("JSON repair policy", () => {
   })
 
   // ═══════════════════════════════════════════════════════════════════════
-  // Step 2 rejection: repair produces invalid JSON → reject
+  // Step 2 rejection: a repair that changes content is NOT a repair
   // ═══════════════════════════════════════════════════════════════════════
 
   test("step 2 rejection: repair output is re-validated", async () => {
     // json-repair might return non-null but invalid JSON — we must reject it.
-    // Test by feeding edge case that json-repair handles weirdly.
     const r = await repair("[")
     // Whatever happens, if ok=true then JSON.parse must succeed.
     if (r.ok) {
       expect(() => JSON.parse(r.input)).not.toThrow()
     }
+  })
+
+  test("step 2 rejection: a repair that eats quotes or backslashes is refused (windows shapes)", async () => {
+    // Measured 2026-09-29: on malformed input the crate returned
+    //   cmd /c cd /d D:dir && .un.exe
+    // for the model's `cmd /c "cd /d D:\dir && .\run.exe"` — parseable, silently different, RUN.
+    // The bridge refuses it, so the model gets its own error back and fixes the escaping.
+    const r = await repair(`{"command":"cmd /c "cd /d D:\\dir && .\\run.exe""}`)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error).toContain("JSON")
   })
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -196,7 +149,11 @@ describe("JSON repair policy", () => {
     // The model must see why JSON.parse failed, not why repair failed.
     const input = "definitely not json"
     let originalMessage = ""
-    try { JSON.parse(input) } catch (e) { originalMessage = (e as Error).message }
+    try {
+      JSON.parse(input)
+    } catch (e) {
+      originalMessage = (e as Error).message
+    }
     const r = await repair(input)
     if (!r.ok) {
       expect(r.error).toContain(originalMessage)
@@ -204,7 +161,7 @@ describe("JSON repair policy", () => {
   })
 
   // ═══════════════════════════════════════════════════════════════════════
-  // Null byte handling
+  // Null bytes and tool-name normalization
   // ═══════════════════════════════════════════════════════════════════════
 
   test("null bytes stripped before parse", async () => {
@@ -215,6 +172,14 @@ describe("JSON repair policy", () => {
       expect(r.input).not.toContain("\x00")
       JSON.parse(r.input)
     }
+  })
+
+  test("tool name is lower-cased when the SDK knows that name", async () => {
+    const fixed = await repairToolCall(call('{"command":"echo hi"}', "Bash"), new Error("nope"), {
+      bash: {},
+    })
+    expect(fixed.toolName).toBe("bash")
+    expect(fixed.input).toBe('{"command":"echo hi"}')
   })
 
   // ═══════════════════════════════════════════════════════════════════════

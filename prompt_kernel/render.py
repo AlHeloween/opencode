@@ -232,6 +232,12 @@ def render_kernel(
     terminal_edges = [e for e in kernel.edges if e.kind == "terminal"]
     for edge in terminal_edges:
         lines.append(f"- {edge.source} -> {edge.target}; when: {edge.condition}")
+    # 2026-09-29 (F1): interruption is its own block. `terminal:` means "an edge to a terminal" and
+    # validate.py enforces that reading, while G9 is a GATE - so an interrupt landing there is not a
+    # terminal and must not be listed among them: it is how a run reaches closure early.
+    lines.append("interrupt:")
+    for edge in (e for e in kernel.edges if e.kind == "interrupt"):
+        lines.append(f"- {edge.source} -> {edge.target} : {edge.condition}")
     lines.append("side_protocols:")
     for protocol in kernel.protocols:
         lines.append(f"- {protocol.id}: observe {_list(protocol.observed_at)} -> {protocol.returns_to}; authority={protocol.authority}")
@@ -242,7 +248,7 @@ def render_kernel(
         "",
         f"precedence: {' > '.join(kernel.precedence)}",
         "reference_grammar: an at-prefixed uppercase identifier refers to the single declared node, state, term, rule, protocol, action class, identity, contract, or terminal of that name.",
-        "control_flow_rule: gated_workflow is the success path; every deviation must use a declared move, concern, terminal, or protocol return.",
+        "control_flow_rule: gated_workflow is the success path; every deviation must use a declared move, concern, interrupt, terminal, or protocol return. Terminal ends this run; protocols cannot reopen it.",
         "terms:",
     ])
     for name, description in kernel.terms.items():

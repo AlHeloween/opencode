@@ -27,16 +27,22 @@ def validate_kernel(kernel: Kernel) -> list[str]:
 
     known_nodes = set(gate_ids) | set(kernel.terminals)
     for edge in kernel.edges:
-        if edge.source not in known_nodes:
+        if edge.source != "*" and edge.source not in known_nodes:
             errors.append(f"edge source is unknown: {edge.source}")
         if edge.target not in known_nodes:
             errors.append(f"edge target is unknown: {edge.target}")
-        if edge.kind not in {"forward", "side", "back", "terminal"}:
+        if edge.kind not in {"forward", "side", "back", "terminal", "interrupt"}:
             errors.append(f"edge kind is invalid: {edge.kind}")
         if edge.kind == "terminal" and edge.target not in set(kernel.terminals):
             errors.append(f"terminal edge must target a terminal: {edge.source} -> {edge.target}")
         if edge.kind != "terminal" and edge.target in set(kernel.terminals):
             errors.append(f"non-terminal edge cannot target a terminal: {edge.source} -> {edge.target}")
+        # 2026-09-29 (F1): `*` is the one wildcard source, and only an interrupt may use it — a run
+        # can be interrupted at ANY active gate, and G9 is the only gate that records partial state
+        # before closure decides. Any other use of `*` would smuggle an unconditional edge into the
+        # map, so it is refused rather than ignored.
+        if edge.kind == "interrupt" and (edge.source != "*" or edge.target != "G9"):
+            errors.append(f"interrupt edge must be * -> G9: {edge.source} -> {edge.target}")
 
     # 2026-09-24: mutation starts at G7, so a terminal reached from G7 or G8 leaves a changed tree
     # with no CLOSURE_PROOF, no residual, no tool-state report and no next route. G9 is the only
@@ -47,8 +53,15 @@ def validate_kernel(kernel: Kernel) -> list[str]:
 
     expected_forward = set(zip(kernel.spine, kernel.spine[1:]))
     actual_forward = {(edge.source, edge.target) for edge in kernel.edges if edge.kind == "forward"}
-    if actual_forward != expected_forward:
-        errors.append(f"forward edges must serialize the canonical spine: {sorted(actual_forward)}")
+    if not expected_forward <= actual_forward:
+        errors.append(f"forward edges must serialize the canonical spine: {sorted(expected_forward - actual_forward)}")
+    # 2026-09-29 (F1): a declared BRANCH may ride beside the spine — G6 -> G8, the read/plan-only
+    # deliverable, skips G7 because there is nothing to mutate. It may only move FORWARD along the
+    # spine: a "forward" edge that goes sideways or backward is a bug wearing the success path's
+    # clothes. Which branches exist is pinned by test_architecture, so a new one is a deliberate act.
+    for source, target in sorted(actual_forward - expected_forward):
+        if source not in kernel.spine or target not in kernel.spine or kernel.spine.index(target) <= kernel.spine.index(source):
+            errors.append(f"forward branch must move forward along the spine: {source} -> {target}")
     if not any(edge.source == "G4" and edge.target == "G5" and edge.kind == "side" for edge in kernel.edges):
         errors.append("G5 concern path must be explicit side edge G4 -> G5")
     if not any(edge.source == "G5" and edge.target == "G2" and edge.kind == "back" for edge in kernel.edges):

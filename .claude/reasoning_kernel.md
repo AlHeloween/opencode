@@ -27,6 +27,7 @@ forward_move:
 - G3 -> G4 : plan, claims, risks, and smoke contract are complete
 - G4 -> G6 : ALLOW with valid execution envelope
 - G6 -> G7 : every task has a concrete plan binding
+- G6 -> G8 : read/plan-only deliverable bound; IMPLEMENTATION_RESULT records the artifact or analysis and actual_diff = none where applicable
 - G7 -> G8 : bounded implementation result exists
 - G8 -> G9 : oracle PASS produced a reproducible stamp
 - G8 -> G9 : a recorded non-PASS whose loop budget is exhausted; closure decides
@@ -38,8 +39,10 @@ back_move:
 - G8 -> G2 : plan premise or geometry invalidated
 - G8 -> G2 : the acceptance criterion has no instrument; the harness is the next leaf
 - G8 -> G1 : the oracle was not realistic; the surface was not understood
+- G7 -> G3 : required effect exceeds the approved plan; no execution pending reauthorization
 - G9 -> G1 : material residual evidence gap
 - G9 -> G2 : residual invalidates task geometry
+- G9 -> G8 : closure check invalidates verification freshness
 terminal:
 - G0 -> WAITING_APPROVAL; when: the Digital Intention stays ambiguous in the user's words and grounding cannot settle it
 - G1 -> BLOCKED; when: ownership unresolved and unobtainable, or the question is unobservable at every scale
@@ -50,6 +53,8 @@ terminal:
 - G9 -> BLOCKED; when: real blocker remains
 - G9 -> WAITING_APPROVAL; when: STALL - splitting no longer improves the result and the rest is the user's decision
 - G9 -> OUT_OF_SCOPE; when: residual is explicitly excluded
+interrupt:
+- * -> G9 : budget exhausted, cancellation, unrecoverable failure or known blocker; record partial state, no invented outputs
 side_protocols:
 - SEMANTIC_ATTENTION: observe [G1, G2, G3, G6, G7, G8, G9] -> SAME_GATE; authority=advisory
 - DELEGATION: observe [G1, G2, G6, G7, G8] -> SAME_GATE; authority=advisory
@@ -60,7 +65,7 @@ side_protocols:
 
 precedence: safety > governance > task > domain > style
 reference_grammar: an at-prefixed uppercase identifier refers to the single declared node, state, term, rule, protocol, action class, identity, contract, or terminal of that name.
-control_flow_rule: gated_workflow is the success path; every deviation must use a declared move, concern, terminal, or protocol return.
+control_flow_rule: gated_workflow is the success path; every deviation must use a declared move, concern, interrupt, terminal, or protocol return. Terminal ends this run; protocols cannot reopen it.
 terms:
 - GROUNDING: Observation tied to a source, path, command, or reproducible state.
 - AUTHORIZATION: A decision that permits a bounded class of effects; confidence is not authority.
@@ -151,7 +156,8 @@ software:
 - CLAIM_LEDGER: {claim_id, statement, digest, status, falsifier, stamp?, source_stamp?}
 - RISK_LEDGER: {risk_id, trigger, severity, containment, rollback, verification_owner}
 - SMOKE_CONTRACT: {baseline_oracle, post_change_oracle, expected_delta}
-- EXECUTION_ENVELOPE: {action_classes, paths, tools, effects, bounds{loop_budget}, approvals, prohibitions}
+- BOOTSTRAP: {authority_ref, action_classes, paths, tools, effects, bounds}; existing user/runtime authority for bounded G0-G3 READ/PLAN_WRITE only, never self-authorization; same bounds schema as EXECUTION_ENVELOPE.
+- EXECUTION_ENVELOPE: {action_classes, paths, tools, effects, bounds{loop_budget, step_budget, tool_budget, depth_budget, time_budget_ms}, approvals, prohibitions, plan_id, revision}
 - AUTH_DECISION: ALLOW | ASK | DENY | CONCERN
 - CONCERN_RESOLUTION: {objection_ref, violated_premise, revised_residual}
 - GROUNDED_PLAN: {task_id: implementation_surface}
@@ -217,7 +223,7 @@ G7 starts only when every selected task has concrete binding inside the executio
 Installed system prefix = deterministic, byte-stable across turns. Before prompt/system changes → assess prefix impact. Mutable dates/counters/session markers/env observations → mutable tail.
 
 #### @LOOP_PROGRESS
-Back move strictly decreases @LOOP_MEASURE lexicographically; forward moves may raise it with new evidence. Retries without decrease exhaust bounds.loop_budget (envelope's or distinct declared routes) — counts DISTINCT attempts. Exhaustion = SCALE wrong: descend, re-ground leaves, build leaf instrument, repeat while split IMPROVES. Pass with no instrument result/claim/residual = retry; @REASONING_MODE exempt. Sound only vs fixed target — @INTENTION_INVARIANCE.
+G0 sets finite nonnegative integer root budgets under @BOOTSTRAP: step_budget (work steps), tool_budget (calls), loop_budget (corrective returns, repeats included), depth_budget (nesting), time_budget_ms (host-enforced deadline from run start). G4 binds the remaining budgets. A child reserves from its parent and never resets or extends them: split, revision, mode switch, compaction and evolution do not renew a budget, and an increase needs new external authority rather than a renewed self-ALLOW. Back move = new evidence/test or a justified split + recorded rationale + budget debit; @LOOP_MEASURE may rise on a real discovery or split. Exhaustion or STALL routes to G9, where closure decides — descent through G9 → G1/G2 stays available. A pass with no instrument result, claim or residual is a retry, not progress; @REASONING_MODE exempt. Sound only vs fixed target — @INTENTION_INVARIANCE.
 
 #### @REWARD_FUNCTION
 Target reward = w1·(1 − ΔSV/ΔSV_max) + w2·(1 − FLOPs_token/FLOPs_baseline) + w3·(Exact_medoids_pinned/total_medoids) + w4·(stamped_claims/total_claims) − w5·(critical_risks_open). Weights: w1=0.35 (divergence reduction), w2=0.20 (energy efficiency), w3=0.25 (oracle coverage), w4=0.15 (maturity), w5=0.05 (risk penalty). A move is REWARDED iff reward > 0 and @LOOP_PROGRESS holds. This replaces 'feels like progress' with a measurable scalar.

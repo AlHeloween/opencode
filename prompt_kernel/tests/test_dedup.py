@@ -23,13 +23,14 @@ def test_renderer_has_no_repeated_owner_boilerplate() -> None:
 def test_edges_are_serialized_once_in_workflow_map() -> None:
     text = render_kernel(KERNEL)
     # Each edge kind block serializes exactly once: forward_move, CONCERN,
-    # back_move, terminal — counts must match the kernel graph.
+    # back_move, terminal, interrupt — counts must match the kernel graph.
     edges_by_kind: dict[str, int] = {}
     for edge in KERNEL.edges:
         edges_by_kind[edge.kind] = edges_by_kind.get(edge.kind, 0) + 1
     rendered_forward = text[text.index("forward_move:") : text.index("CONCERN:")]
     rendered_back = text[text.index("back_move:") : text.index("terminal:")]
-    rendered_terminal = text[text.index("terminal:") : text.index("side_protocols:")]
+    rendered_terminal = text[text.index("terminal:") : text.index("interrupt:")]
+    rendered_interrupt = text[text.index("interrupt:") : text.index("side_protocols:")]
 
     def arrow_lines(block: str) -> tuple[str, ...]:
         return tuple(l for l in block.splitlines() if l.startswith("- ") and " -> " in l)
@@ -37,6 +38,7 @@ def test_edges_are_serialized_once_in_workflow_map() -> None:
     assert len(arrow_lines(rendered_forward)) == edges_by_kind["forward"]
     assert len(arrow_lines(rendered_back)) == edges_by_kind["back"]
     assert len(arrow_lines(rendered_terminal)) == edges_by_kind["terminal"]
+    assert len(arrow_lines(rendered_interrupt)) == edges_by_kind["interrupt"]
     assert text.count("CONCERN: G4 -> G5") == edges_by_kind["side"]
     gate_detail = text[text.index("## 3. GATE_REFINEMENT"):]
     assert not any(

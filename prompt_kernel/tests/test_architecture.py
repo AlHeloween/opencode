@@ -18,6 +18,26 @@ def test_map_declares_every_gate_and_explicit_g5_side_path() -> None:
     assert ("G5", "G2", "back") in edges
 
 
+def test_forward_branches_beside_the_spine_move_forward_and_are_pinned() -> None:
+    """2026-09-29 (F1): the spine is still serialized in full, and exactly ONE branch rides beside
+    it — G6 -> G8, the read/plan-only deliverable, which skips G7 because there is nothing to
+    mutate. A second branch must be a deliberate act, so the set is pinned here; and a branch may
+    only move FORWARD along the spine, which validate.py enforces."""
+    spine_pairs = set(zip(KERNEL.spine, KERNEL.spine[1:]))
+    forward = {(edge.source, edge.target) for edge in KERNEL.edges if edge.kind == "forward"}
+    assert forward >= spine_pairs
+    assert forward - spine_pairs == {("G6", "G8")}
+
+
+def test_interrupt_route_is_the_only_wildcard_and_lands_on_closure() -> None:
+    """2026-09-29 (F1): a run can be interrupted at ANY active gate, and G9 is the only gate that
+    records partial state — so the wildcard source `*` exists for exactly one edge, and validate.py
+    refuses it anywhere else (an unconditional edge smuggled into the map)."""
+    interrupts = [edge for edge in KERNEL.edges if edge.kind == "interrupt"]
+    assert [(edge.source, edge.target) for edge in interrupts] == [("*", "G9")]
+    assert not any(edge.source == "*" for edge in KERNEL.edges if edge.kind != "interrupt")
+
+
 def test_authorization_precedes_implementation_and_oracle_follows_it() -> None:
     assert KERNEL.spine.index("G4") < KERNEL.spine.index("G7") < KERNEL.spine.index("G8") < KERNEL.spine.index("G9")
 

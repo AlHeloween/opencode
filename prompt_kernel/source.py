@@ -89,7 +89,11 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "LOOP_PROGRESS",
-        "Back move strictly decreases @LOOP_MEASURE lexicographically; forward moves may raise it with new evidence. Retries without decrease exhaust bounds.loop_budget (envelope's or distinct declared routes) — counts DISTINCT attempts. Exhaustion = SCALE wrong: descend, re-ground leaves, build leaf instrument, repeat while split IMPROVES. Pass with no instrument result/claim/residual = retry; @REASONING_MODE exempt. Sound only vs fixed target — @INTENTION_INVARIANCE.",
+        # 2026-09-29 (candidate incorporation, F1): this rule was a gate without a number — "retries
+        # without decrease exhaust bounds.loop_budget" never said what a budget IS, who sets it, or
+        # whether a split renews it. The candidate's budget system answers all three; kept from ours is
+        # the load-bearing clause it lacked — a pass with no instrument result is a retry, not progress.
+        "G0 sets finite nonnegative integer root budgets under @BOOTSTRAP: step_budget (work steps), tool_budget (calls), loop_budget (corrective returns, repeats included), depth_budget (nesting), time_budget_ms (host-enforced deadline from run start). G4 binds the remaining budgets. A child reserves from its parent and never resets or extends them: split, revision, mode switch, compaction and evolution do not renew a budget, and an increase needs new external authority rather than a renewed self-ALLOW. Back move = new evidence/test or a justified split + recorded rationale + budget debit; @LOOP_MEASURE may rise on a real discovery or split. Exhaustion or STALL routes to G9, where closure decides — descent through G9 → G1/G2 stays available. A pass with no instrument result, claim or residual is a retry, not progress; @REASONING_MODE exempt. Sound only vs fixed target — @INTENTION_INVARIANCE.",
     ),
     _rule(
         "KERNEL",
@@ -780,7 +784,13 @@ KERNEL = Kernel(
     # replace `gates`/`may_mutate` with the real ACL view, kept honest by the manifest extractor
     # (packages/opencode/script/kernel-tools-manifest.ts) and the TS parity test. Nine rows add
     # ~1.3 KB against ~0.6 KB of removed contract lines; measured 48_304 B with them in.
-    utf8_budget=49_000,  # 46_000 -> 47_000 (2026-09-23): the agi_workout pair (G1 read / G7 write — the build_mode overlay's journal, product-only, declared in test_variant_parity); measured 46_311 B after the overlay texts, the smallest thousand above the measurement. Was 45_000 -> 46_000 (2026-09-22, later same day): the ASSERTION_STATUS addon in G7 — every written artifact carries the status of each assertion (confirmed/refuted), the owner's ruling «надо ввести стандартом в кернел для всех типов документации которую пишет ИИ». Measured 45_824 B with the addon installed; the smallest thousand above the measurement. Was 45_000 (<- 44_000, 2026-09-22) for the G9 plan-terminal canon (five terminals: plans/, plans_completed/, plans_deferred/, plans/futures/, plans/postponed/) — the prose lives in each folder's README and only the RULE rides the prompt. Measured 44_261 B after trimming the first draft by 430 B
+    # 49_000 -> 50_000, 2026-09-29: candidate incorporation, phase F1 — the edge graph gains a declared
+    # read/plan-only branch (G6 -> G8), the interruption route (* -> G9), G7 -> G3 and G9 -> G8;
+    # @LOOP_PROGRESS becomes a budget system with its BOOTSTRAP record; switch and envelope gain their
+    # fields. Measured 49_498 B, i.e. 498 over the old line, and the alternative was to cut a DECISION
+    # to buy room — the trade this kernel forbids. The phase pays for itself where the candidate's
+    # phrasing is denser than ours; these are the bytes it could not.
+    utf8_budget=50_000,  # 46_000 -> 47_000 (2026-09-23): the agi_workout pair (G1 read / G7 write — the build_mode overlay's journal, product-only, declared in test_variant_parity); measured 46_311 B after the overlay texts, the smallest thousand above the measurement. Was 45_000 -> 46_000 (2026-09-22, later same day): the ASSERTION_STATUS addon in G7 — every written artifact carries the status of each assertion (confirmed/refuted), the owner's ruling «надо ввести стандартом в кернел для всех типов документации которую пишет ИИ». Measured 45_824 B with the addon installed; the smallest thousand above the measurement. Was 45_000 (<- 44_000, 2026-09-22) for the G9 plan-terminal canon (five terminals: plans/, plans_completed/, plans_deferred/, plans/futures/, plans/postponed/) — the prose lives in each folder's README and only the RULE rides the prompt. Measured 44_261 B after trimming the first draft by 430 B
     # (owner: «эти стандарты экономят миллионы токенов» — a standard's NAME replaces both the paragraph that would
     # explain it and the experiments an agent would otherwise run to re-derive it). Measured after them: 39_395.
     # Previous step 37_000 -> 38_000 admitted the QA/QC bindings: @ACCEPTANCE_FRAME at G1
@@ -827,7 +837,11 @@ KERNEL = Kernel(
         "CLAIM_LEDGER": "{claim_id, statement, digest, status, falsifier, stamp?, source_stamp?}",
         "RISK_LEDGER": "{risk_id, trigger, severity, containment, rollback, verification_owner}",
         "SMOKE_CONTRACT": "{baseline_oracle, post_change_oracle, expected_delta}",
-        "EXECUTION_ENVELOPE": "{action_classes, paths, tools, effects, bounds{loop_budget}, approvals, prohibitions}",
+        # 2026-09-29 (F1): G0-G3 had no declared envelope of their own — grounding and plan writes ran on
+        # an authority nobody named — and the budget system needs a place to be SET (G0) before G4 binds
+        # what remains. BOOTSTRAP is that record, and its bounds schema is the envelope's own, not a second.
+        "BOOTSTRAP": "{authority_ref, action_classes, paths, tools, effects, bounds}; existing user/runtime authority for bounded G0-G3 READ/PLAN_WRITE only, never self-authorization; same bounds schema as EXECUTION_ENVELOPE.",
+        "EXECUTION_ENVELOPE": "{action_classes, paths, tools, effects, bounds{loop_budget, step_budget, tool_budget, depth_budget, time_budget_ms}, approvals, prohibitions, plan_id, revision}",
         "AUTH_DECISION": "ALLOW | ASK | DENY | CONCERN",
         "CONCERN_RESOLUTION": "{objection_ref, violated_premise, revised_residual}",
         "GROUNDED_PLAN": "{task_id: implementation_surface}",
@@ -868,6 +882,12 @@ KERNEL = Kernel(
         Edge("G3", "G4", "forward", "plan, claims, risks, and smoke contract are complete"),
         Edge("G4", "G6", "forward", "ALLOW with valid execution envelope"),
         Edge("G6", "G7", "forward", "every task has a concrete plan binding"),
+        # 2026-09-29 (F1): the read/plan-only deliverable. Until now a session whose whole deliverable
+        # was evidence or a plan had no forward exit after binding — G6 -> G7 binds MUTATION tasks, and
+        # G6 -> WAITING_APPROVAL hands the run to the user. Neither says "the deliverable IS the
+        # artifact; verify it". This is the case recorded on 2026-09-27 as inexpressible while the
+        # forward set was spine-only; validate.py now admits a declared spine-forward branch.
+        Edge("G6", "G8", "forward", "read/plan-only deliverable bound; IMPLEMENTATION_RESULT records the artifact or analysis and actual_diff = none where applicable"),
         Edge("G7", "G8", "forward", "bounded implementation result exists"),
         Edge("G8", "G9", "forward", "oracle PASS produced a reproducible stamp"),
         # UNKNOWN_ROUTING says an Unknown claim routes FORWARD, and until 2026-09-24 the map had no
@@ -892,8 +912,16 @@ KERNEL = Kernel(
         # An unrealistic oracle is a GROUNDING defect, not a plan defect: the surface was not
         # understood, so the route is back to evidence and not to plan repair (owner's loop, step 6).
         Edge("G8", "G1", "back", "the oracle was not realistic; the surface was not understood"),
+        # 2026-09-29 (F1): G7 had no way back to its own mandate. A required effect larger than the
+        # approved plan is neither a repairable failure (G7 -> G6) nor a geometry defect (G8 -> G2):
+        # the PLAN is short, so the route is G3 with nothing pending reauthorization.
+        Edge("G7", "G3", "back", "required effect exceeds the approved plan; no execution pending reauthorization"),
         Edge("G9", "G1", "back", "material residual evidence gap"),
         Edge("G9", "G2", "back", "residual invalidates task geometry"),
+        # 2026-09-29 (F1): closure RE-READS the stamps, and a stamp is only as fresh as the artifact
+        # under it. Before this edge, a stale verification found at G9 had to masquerade as an evidence
+        # gap (G9 -> G1) or a geometry defect (G9 -> G2); now it says what it is.
+        Edge("G9", "G8", "back", "closure check invalidates verification freshness"),
         # 2026-09-25, THE PRICE OF A DOOR. Three terminals state something about REALITY - proven,
         # impossible, excluded - and each costs evidence to reach. WAITING_APPROVAL states something
         # about the USER'S TURN and costs a sentence. An exit that cheap outbids every loop beside
@@ -928,11 +956,17 @@ KERNEL = Kernel(
         Edge("G4", "BLOCKED", "terminal", "DENY or required approval unavailable"),
         Edge("G9", "SUCCESS", "terminal", "closure proof passes"),
         Edge("G9", "BLOCKED", "terminal", "real blocker remains"),
-        # An exhausted budget is NOT this terminal: @LOOP_PROGRESS routes exhaustion to descent, and
-        # G9 -> G1 / G9 -> G2 are that route. The door opens only at the fixed point, where a split
-        # no longer gains - the one state descent cannot leave.
+        # An exhausted budget is NOT this terminal: @LOOP_PROGRESS routes exhaustion to G9 (the
+        # interrupt edge below), and G9 -> G1 / G9 -> G2 are that descent. The door opens only at the
+        # fixed point, where a split no longer gains - the one state descent cannot leave.
         Edge("G9", "WAITING_APPROVAL", "terminal", "STALL - splitting no longer improves the result and the rest is the user's decision"),
         Edge("G9", "OUT_OF_SCOPE", "terminal", "residual is explicitly excluded"),
+        # 2026-09-29 (F1): the interruption route. Cancellation, an unrecoverable failure, a known
+        # blocker or an exhausted budget can arrive at ANY active gate, and before this edge a run cut
+        # short at G2, G3 or G5 had no declared route at all - the terminals originate at G0, G1, G4, G6
+        # and G9 only. G9 is the one gate that records partial state, so the interrupt lands there and
+        # closure decides. `*` is the only wildcard the validator admits, and only for this kind.
+        Edge("*", "G9", "interrupt", "budget exhausted, cancellation, unrecoverable failure or known blocker; record partial state, no invented outputs"),
     ),
     shared_rules=SHARED_RULES,
     gates=GATES,

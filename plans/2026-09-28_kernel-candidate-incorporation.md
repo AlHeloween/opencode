@@ -179,6 +179,29 @@ Artifact for the boxes below (source-level, pre-install): `python -m pytest prom
       (52 951 B), codex `b1c963e2…` (52 530 B); `baseline.json` repinned by hand (`prev_sha256` = `1d74933b…`);
       `python -m pytest prompt_kernel/tests/ -q` → **120 passed** after repin.
 
+### F8 — follow-up to the 39e04ddbe7 install (owner-directed, 2026-09-29)
+- [x] LEAN reach: G8 `LEAN_BEFORE_PROOF` + `@BUG_FIX_PROCEDURE` classifies the report's expected behavior
+      (owner: «особенно lean… ковыряние и доказательство ерунды»); `@LEAN_RANKING` now rendered as named.
+- [x] SVM = State Vector Manifest (ADID 12.2 §I.3): seeded at G0 as the digital intention, grown at G2,
+      filled at G3, handed on at G7 (gate requires/outputs; graph edges untouched); a briefing that points to
+      evidence. Every artifact owns its SV; `PLAN_BINDING.sv` + G7 `EDIT_SV` (missing direction = no edit).
+- [x] Trader's rule: `@SMOKE_BEFORE` predicts per case; `@DIVERGENCE_PROTOCOL` transitive + FULL re-grounding
+      (persist to memory, compact, re-read from disk, re-baseline); `@TEST_INVARIANT` stale-test clause.
+- [x] Caps: bytes 54 000 → 57 000, tokens 7 000 → 7 500 (all three variants together), reasons in source/tests.
+- [x] Outside falsifier: frameless Sonnet rounds 2–6 — over the whole cycle 51 findings, 47 real and closed,
+      1 partial misread clarified, 3 false (partial-diff blindness), all pinned. Round 6 fixes funded by the
+      token cap 7 500 → 7 700 (owner: «Все 10 + токены 7 700»). Render 56 367 B.
+- [x] Tool check for the Claude variant (owner: «свою копию… только убедись что с тулами все хорошо»), one
+      cheapest primitive per tool, prediction written first: codegraph_explore PASS; list_free_models PASS;
+      search_session_transcripts FOUND history → add-on «(no history search on this host)» was FALSE;
+      get_usage REPORTED fill 51 % / auto-compact 97 % → «window fill … NOT reported» was FALSE; Glob at the repo
+      root TIMED OUT (4th time) while Glob with a path answered → half-working → KAIZEN countermeasure in the
+      add-on (explicit path; `git ls-files` for inventory). Isolated-call line rebound to the routes that
+      actually worked (aicall, frameless `claude -p`). Memory `project_claude_host_has_no_window_oracle` revised.
+- [x] Docs: `docs/kernel-release-2026-09-29.md`; `docs/gate-addons.md` (current caps; the stale «--codex
+      --install fails» corrected); AGENTS.md index line.
+- [ ] Commit, release (production + codex install, baseline repin), then the Claude copy.
+
 ### F7 — BGE semantic dedup + ordering (owner, 2026-09-29: «прогоним фразы через BGE… уберем лишнее»; «граф есть граф — его двигать не надо. Но вот элементы графа и аддоны — спокойно»)
 Instruments: `experiments/2026-09-29_kernel-semantic-dedup/{pairs,order,order_sub,tool_rows}.py` (BGE-M3, CUDA, GTX 1050 Ti).
 Run 1 was an instrument defect: schema lines (`identity:`, `tools:`, `shared_rules:`) ranked 1..20 by FORM; filtered.

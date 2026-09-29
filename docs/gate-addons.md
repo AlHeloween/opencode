@@ -119,10 +119,9 @@ harness to `Read`/`Glob`/`Grep`, `Edit`/`Write`, LSP, AST Edit, Hub, Eval
 Browser access, Todo, Task, and mounted `codegraph_explore`.
 
 `python -m prompt_kernel --codex` writes reviewed/runtime artifacts to
-`prompt_kernel/dist_codex/`. It intentionally has no installation command:
-the external Codex harness exposes no repository-local prompt-import contract.
-`--codex --install` fails rather than misreporting an inactive artifact as
-installed.
+`prompt_kernel/dist_codex/`. `--codex --install` writes `$CODEX_HOME/AGENTS.md`
+(default `~/.codex/AGENTS.md`) — measured 2026-09-29, installed `b1c963e2…`; this
+paragraph used to say the command fails, which the code no longer does.
 
 Divergences from the ADID methodology (deliberate): `makeups/` is not bound —
 opencode bans mocks/stubs in tests; RAG indexing and the adm XML pipeline are
@@ -157,7 +156,10 @@ will reach for the nearest thing that answers, which is itself.
    row — see *Identity add-ons*).
 2. Constraints (enforced by `validate_addons()` / `validate_identity_addons()`): `gate_id` ∈ G1–G9
    / `identity_id` ∈ `KERNEL.identities`, unique `addon_id`, non-empty lines. No `@`-references in lines.
-3. **Budgets are shared** — byte cap `KERNEL.utf8_budget` (**36 000**, raised from 35 000 on
+3. **Budgets are shared** — CURRENT (2026-09-29): byte cap `KERNEL.utf8_budget` **57 000** and token cap
+   **7 700**, the same for all three variants (`test_dedup.py`, `test_addons_claude.py`,
+   `test_addons_codex.py`, raised together); reasons per step in `source.py` and
+   [kernel-release-2026-09-29.md](kernel-release-2026-09-29.md). The rest of this item is HISTORY: byte cap (**36 000**, raised from 35 000 on
    2026-09-20) and token cap in `tests/test_dedup.py::test_compacted_runtime_budget` (**4 750**,
    raised from 4 500 there). The Claude and Codex variants carry their own ceilings in
    `tests/test_addons_claude.py` and `tests/test_addons_codex.py` (**36 000 / 4 750**) because

@@ -244,6 +244,11 @@ def test_procedure_layer_keeps_its_decisions() -> None:
     assert "IMPLEMENTATION | TEST | SPEC_GAP | HARNESS" in test
     assert "No weakening, deletion or skip to get green" in test
     assert "never by age or pass history" in test
+    # Owner, 2026-09-29: «мы исправляем код, тест падает, мы начинаем подгонять код под тест, а тест устарел — все
+    # остальное тоже падает». Measured here before: test/snapshot/snapshot.test.ts sat red 2.5 months as a stale
+    # spec of the git backend (AGENTS.md § Fossil).
+    assert "A red after an edit is first a question about the TEST — is it current against the requirement?" in test
+    assert "Code fitted to a stale test breaks what the requirement protects" in test
     surface = shared["SURFACE_PREPARATION"]
     assert "CHANGE starts from READY" in surface
     assert "not a stub or stale artifact" in surface
@@ -303,6 +308,81 @@ def test_procedure_layer_keeps_its_decisions() -> None:
     # BGE dedup D1: SUCCESS is defined once; the stop rule points to it instead of restating it.
     stop = next(rule.text for gate in KERNEL.gates for rule in gate.local_rules if rule.id == "BOUNDED_STOP_CONDITIONS")
     assert "SUCCESS still needs @CLOSURE_PROOF" in stop
+    # Owner, 2026-09-29: «Особенно lean… без этой проверки начинается ковыряние и доказательство ерунды».
+    # LEAN reaches the oracle and the bug report, not only G2 selection — and earns its rendered name.
+    g8 = {rule.id: rule.text for gate in KERNEL.gates if gate.id == "G8" for rule in gate.local_rules}
+    # Sonnet on the LEAN/SVM delta: «premise» was undefined, G8 re-opened a gate placed before selection,
+    # and a single bug report could not be classified without spending the reproducer it gates.
+    lean_g8 = g8["LEAN_BEFORE_PROOF"]
+    # Sonnet, final rounds: «stays admitted» had no divergence carve-out, and «premise» was defined only at G8,
+    # ~250 lines after @DIVERGENCE_PROTOCOL used it.
+    assert "A premise admitted at G2 stays admitted unless @DIVERGENCE_PROTOCOL re-opened it" in lean_g8
+    assert "diverged premise (any claim a verdict rests on)" in shared["DIVERGENCE_PROTOCOL"]
+    assert "classified alone, by reading, before an oracle is spent on it" in lean_g8
+    assert "tiers 1-2 → the oracle may run" in lean_g8
+    assert "neither ever proven" in lean_g8
+    assert "reported failure → @LEAN_RANKING of its expected behavior against the requirement (tiers 1-2 admit it to reproduction; 3-4 close it as Unknown with the reason) → reproducer" in shared["BUG_FIX_PROCEDURE"]
+    assert "tier 4 → Unknown + @RISK_LEDGER" in lean_g8
+    assert "#### @LEAN_RANKING" in render_kernel(KERNEL)
+    # SVM is a briefing: read as evidence it is the self-winding channel the owner named.
+    svm = dict(KERNEL.state_fields)["SVM"]
+    assert "BRIEFING that points to evidence, never evidence itself" in svm
+    # Owner: «SVM задается перед входом в задачу и фракталами расширяется, он задает направление».
+    assert "Seeded at G0 as the digital form of @DIGITAL_INTENTION" in svm
+    assert "null at the root" in svm
+    flow = {gate.id: (gate.requires, gate.outputs) for gate in KERNEL.gates}
+    assert "SVM" in flow["G0"][1]
+    for gate_id in ("G2", "G3"):
+        assert "SVM" in flow[gate_id][0] and "SVM" in flow[gate_id][1], gate_id
+    assert "SVM" in flow["G7"][0]
+    # Owner: «SVM = STATE VECTOR MANIFEST» — expanded, so it cannot be read as the @SV_FORMAT semantic vector;
+    # ADID 12.2 §I.3: one atomic task, a known verifiable starting state, a turn chain, a goal hierarchy.
+    assert svm.startswith("State Vector Manifest — the complete context of ONE atomic task")
+    assert "every turn starts from a known, verifiable state" in svm
+    for field in ("turn_id", "parent_turn_id", "goal_hierarchy", "goal_vector", "task_vector", "evidence_vector", "oracle_vector"):
+        assert field in svm, field
+    # Owner: «SV — SEMANTIC VECTOR — он есть у любого документа, сообщения, плана или таска». The candidate's
+    # «never inside artifacts» meant the CHAT vector; read bare, it denied artifacts their own vector.
+    current_sv = shared["CURRENT_SV"]
+    assert "The turn's chat vector is never pasted into a generated artifact" in current_sv
+    assert "carries its OWN @SV_FORMAT vector computed from that artifact alone" in current_sv
+    assert "however many one turn produces" in current_sv
+    # Owner: «мы правим код — есть ли у этой правки семантический вектор — если мы его знаем то править будем
+    # правильно». The vector is named before the edit and the diff is read back against it.
+    g7 = {rule.id: rule.text for gate in KERNEL.gates if gate.id == "G7" for rule in gate.local_rules}
+    # Sonnet: the edit's sv is set at G6 (PLAN_BINDING carries it) and is a direction — @CURRENT_SV's
+    # «Observation, not steering» is about the turn's vector only.
+    assert "name the binding's sv (@SV_FORMAT, set at G6; a direction, unlike the turn's observed vector) BEFORE editing" in g7["EDIT_SV"]
+    assert "a hunk no keyword covers is off-direction; justify it or revert it" in g7["EDIT_SV"]
+    # Owner: «если вектора нету… нету направления — то будет разброд… я не люблю случайный выигрыш, все должно
+    # быть системно».
+    assert "no hunk of the task starts, and a PASS reached without them is a random win, not evidence" in g7["EDIT_SV"]
+    # Round 6: the loops and dead ends a literal reader could fall into (the flaky pin sits beside `smoke` below).
+    assert "is it current against the requirement?" in test
+    assert "3-4 close it as Unknown with the reason" in shared["BUG_FIX_PROCEDURE"]
+    assert "a central one routes G8 → G2" in lean_g8
+    assert "re-opened it (contradicting evidence or changed content)" in lean_g8
+    assert "expected_diff, sv, oracle" in dict(KERNEL.state_fields)["PLAN_BINDING"]
+    # Owner: «тут я выиграю, тут я проиграю, тут при своих, но если эти условия не сбываются значит ошибка в
+    # прогнозе». The prediction is written per case BEFORE the run; a surprise in either direction is a model error.
+    smoke = next(rule.text for gate in KERNEL.gates for rule in gate.local_rules if rule.id == "SMOKE_BEFORE")
+    assert "Predict each case before the run — PASS, FAIL or unchanged (expected_delta)" in smoke
+    assert "an unexpected PASS included, is a forecast error" in smoke
+    assert "logged as a divergence, never counted as a pass" in smoke
+    assert "A case with no prediction runs as diagnostic only, never as evidence" in smoke
+    assert "a flaky outcome is a HARNESS finding under a replication criterion, not a re-grounding" in smoke
+    # Owner: «тогда выигрышные позиции тоже под вопросом» — a wrong model re-opens the wins it produced.
+    assert "Divergence is transitive: every stamp resting on the diverged premise (any claim a verdict rests on) — past PASSes included — returns to Unknown" in shared["DIVERGENCE_PROTOCOL"]
+    # Owner: «Не только — могли измениться условия. Короче — нужен regrounding».
+    # Owner: «если человек — руки от клавиатуры, спать, потом перечитать доки, код, тесты, сделать смоки и только
+    # потом продолжать — полный реграундинг». For a model the sleep is dropping the window's picture.
+    divergence = shared["DIVERGENCE_PROTOCOL"]
+    # Owner: «у модели — собрать новые факты, записать в память, сделать компакт и дальше работать по обновленной
+    # системе». Dropping the picture without persisting it would be a loss, not a sleep.
+    assert "FULL re-grounding at G1: pause the edit; the model's sleep — persist the new facts to memory, then compact" in divergence
+    assert "re-read docs, code and tests from disk, re-baseline with isolated smokes — only then continue" in divergence
+    assert "never a re-run on the old picture" in divergence
+    assert "the premise is wrong or the conditions changed" in smoke
     # F3 phrases, landed in F2 without a pin.
     assert "a redundant intermediate search may be skipped" in shared["EVIDENCE_ORDER"]
     assert "No reproducer = unconfirmed, not hallucination" in shared["BUG_FIX_PROCEDURE"]

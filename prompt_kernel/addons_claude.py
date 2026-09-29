@@ -35,15 +35,19 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G1",
         "INSTRUMENT_CHAIN",
         (
-            "instrument chain, in order: where/which -> codegraph_explore -> (no history search on this host) -> WebSearch/WebFetch -> Glob -> Grep; device state via the shell. Name the rung that answered.",
+            # 2026-09-29 tool check (@TOOLCHAIN_QUALIFICATION, cheapest primitive each): search_session_transcripts
+            # returned two past sessions, so «(no history search on this host)» had become false.
+            "instrument chain, in order: where/which -> codegraph_explore -> session history (search_session_transcripts) -> WebSearch/WebFetch -> Glob -> Grep; device state via the shell. Name the rung that answered.",
         ),
     ),
     GateAddon(
         "G1",
         "NO_WINDOW_ORACLE",
         (
-            "window fill, the fold threshold and the burn rate are NOT reported on this host, and the fold arrives as a notice AFTER it happened: treat it as unpredictable and persist the handles at every closed boundary, never at a threshold.",
-            "no chain reader runs here either: a prev-md5 break is found by reading, not announced, so recovery across one is Guess and the intention is re-read from the plan comment, the progress log and the ledgers — never from the prose in the window.",
+            # Same check: get_usage reported the window (51 %, auto-compact at 97 %) — fill and threshold are now
+            # observable; the burn rate still is not.
+            "window fill and the auto-compact threshold ARE reported (get_usage, deferred); the burn rate is not and the fold arrives as a notice after it happened: read the fill at each closed boundary and persist the handles there, never at a threshold.",
+            "no chain reader runs automatically: a prev-md5 break is found by reading (skill sv-chain), so recovery across one is Guess and the intention is re-read from the plan comment, the progress log and the ledgers — never from the prose in the window.",
         ),
     ),
     GateAddon(
@@ -51,7 +55,9 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_GROUNDING",
         (
             "ground via: codegraph_explore (if .codegraph/), Read, Grep/Glob, WebFetch/WebSearch.",
-            "file enumeration: Glob/Grep/Read — never shell ls/dir/find/cat (hard-blocked).",
+            # KAIZEN countermeasure: Glob timed out at the repo root four times in one session (ripgrep 20 s) while the
+            # same pattern with a path answered — a half-working tool, so the standard changes, not the workaround.
+            "file enumeration: Glob/Grep/Read with an explicit path — at the repo root they time out (20 s); inventory via git ls-files; never shell ls/dir/find/cat.",
             "platform: Windows = Bash or PowerShell tool; never mix syntaxes.",
             "openrouter-free (user-scope MCP): list_free_models is discovery; call_model is a network call, not local evidence.",
         ),
@@ -209,7 +215,8 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
             "rendered-page/visual claims need the Browser tool oracle (screenshot/read_page); typecheck is not proof.",
             "shell ls/dir scans are not evidence — Glob/Grep/Read only.",
             "sandbox egress blocking an MCP call is Unknown, not a failed oracle — retest with real network.",
-            "the isolated call is openrouter-free call_model: EXTERNAL_EFFECT, free tier, no repo access — attach the evidence inline. Inferred at best, never a stamp.",
+            # Measured 2026-09-29: the working isolated calls were skill aicall and a frameless `claude -p` (six rounds).
+            "the isolated call: skill aicall (tools/aicall.py --out) or frameless claude -p; openrouter-free call_model a third route — EXTERNAL_EFFECT, free tier, no repo access; attach the evidence inline. Inferred at best, never a stamp.",
         ),
     ),
     GateAddon(
@@ -248,7 +255,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "ACCEPTANCE_PASS",
         (
             "ACCEPTANCE_PASS := ∀ criterion: covered(evidence_ref) — every criterion PROVEN; PASS may never be declared over an unproven one, read over the artefact and never from memory.",
-            "an unproven criterion may escalate ONCE, and only where DELEGATION admits it: call_model gets the whole packet (claim, target, falsifier, instrument tried, result) and may only FALSIFY. It contradicts -> persist the finding, compact, re-enter G0; it agrees -> nothing moved, the criterion stays uncovered and closes as residual.",
+            "an unproven criterion may escalate ONCE, and only where DELEGATION admits it: the isolated call gets the whole packet (claim, target, falsifier, instrument tried, result) and may only FALSIFY. It contradicts -> persist the finding, compact, re-enter G0; it agrees -> nothing moved, the criterion stays uncovered and closes as residual.",
             "an uncovered criterion is a residual, not a rounding error; report verification and validation apart; check @QUALITY_VECTOR axes only where the change could move one — acceptance is a measurement, not a ceremony.",
         ),
     ),

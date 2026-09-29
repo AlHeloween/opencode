@@ -163,4 +163,11 @@ def test_compacted_runtime_budget() -> None:
     # ASSERTION_STATUS (the G7 addon) moved the byte cap to 46_000, and this assert steps with it:
     # measured 6_145 with the addon in — the next thousand above the measurement, per the rule the
     # other caps follow (each one is raised to the next thousand over ITS OWN measurement).
-    assert normalized_token_count(text) <= 7_000
+    # 7_000 -> 7_500 (2026-09-29, owner: «Поднять до 7 500»): the F6/F7 procedure layer and the LEAN reach
+    # (@LEAN_RANKING before any oracle and any bug report) put all three variants at the line — production
+    # 6_929, codex 6_953, claude 7_019. Raised TOGETHER with both variants so the relation holds; the byte
+    # cap (54_000) stays the tighter gate.
+    # 7_500 -> 7_700 (2026-09-29, owner: «Все 10 + токены 7 700»): frameless-Sonnet round 6 — five behavioural
+    # gaps (a flaky outcome looping re-grounding, «test first» read as licence to weaken, tier 3/4 bug and G8
+    # dead ends, a contradicted-but-unchanged premise) and five wording fixes; claude variant was at 7_485.
+    assert normalized_token_count(text) <= 7_700

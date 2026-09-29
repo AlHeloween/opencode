@@ -114,7 +114,10 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # the variant cap had fallen BELOW the product it mirrors, so it was failing on the product's
     # own content. The byte cap (47_000) stays the tighter gate; this axis only catches word bloat
     # that bytes miss.
-    assert normalized_token_count(text) <= 7_000
+    # 7_000 -> 7_500 (2026-09-29): tracks the product token ceiling (test_dedup.py), same decision;
+    # measured 7_019 with the LEAN reach in, 19 over the old line.
+    # 7_500 -> 7_700 (2026-09-29): tracks the product token ceiling (test_dedup.py), same decision.
+    assert normalized_token_count(text) <= 7_700
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

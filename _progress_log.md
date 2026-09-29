@@ -5336,3 +5336,17 @@ CONFIRMED ✓ (doc↔schema drift, NOT mine to resolve): the schema has `chunks.
 `.opencode/skills/rag/SKILL.md` («Embedding + retrieval model») advertises `Hybrid RRF: full-vector cosine +
 dual-quaternion structural signature + SQLite FTS5`. So either the FTS leg is not built in this generation, or the
 skill describes another one — the owner decides which side moves. Probes: `experiments/2026-09-29_rag-literal-probe/`.
+
+### [2026-09-29 13:17Z] Addendum — FTS lives in fossil and codegraph; RAG is semantic by design
+
+VERIFIED ✓ (owner's correction, checked against code and indexes): `codegraph.db` carries a real FTS5 leg —
+`nodes_fts USING fts5(id, name, qualified_name, docstring, signature, content='nodes')`, `MATCH fromCharCode` → 2 hits.
+Fossil is the other literal leg (built-in search; the agent tool `fossilgrep` = `fossil grep` over tracked files with
+version/hash/checkin headers). RAG's own fusion is `query_hybrid_rrf` = vector + DQ only, and `fts_top_k` / `weight_fts`
+are declared ORPHANS in `adm/rag/config_schema.py` ("never consumed by any code path") and stripped from the config —
+hence no FTS table in the index. Two DOC surfaces still advertise "+ FTS5" for RAG: `adm/resources/cli_help.md:31`
+(adm's own help text) and `.opencode/skills/rag/SKILL.md` — owner's call which side moves (skill untouched: control plane).
+
+OBSERVED (adm internals, not this runtime): `_rag_query.py:113` comments "384D cosine RRF" while `chunks.emb_dims=768`
+(bge-base); `dq_sig_dims=296`; `se3_dq` is filled for all 21 596 chunks yet `--query` passes no se3 parameter (only
+vector/DQ) — the geodesic fetch in `sqlite_store.py` has no caller on the query path. Probes: `experiments/2026-09-29_rag-literal-probe/probe{,2,3,4}.ts`.

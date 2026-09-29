@@ -17,45 +17,105 @@ export interface H2Session {
   session: http2.ClientHttp2Session
   remoteMaxConcurrentStreams: number
   activeStreams: number
-  waitQueue: Waiter[]
   createdAt: number
   lastUsedAt: number
   pingRttMs: number
 }
 
-const sessions = new Map<string, H2Session>()
-const MAX_IDLE_SESSIONS = 10
+/**
+ * One warm pool per origin. Sessions are REUSED and never torn down on idle
+ * (owner directive 2026-09-29: providers dislike dropped connections). A single
+ * session carries at most the server's advertised maxConcurrentStreams — 128 on
+ * api.deepseek.com, 100 on openrouter.ai (measured 2026-09-29) — so a large
+ * concurrency ceiling is met by a POOL of kept-alive sessions, never by a fresh
+ * connection per request.
+ */
+interface H2Pool {
+  key: string
+  baseUrl: string
+  sessions: H2Session[]
+  waitQueue: Waiter[]
+  /** Session cap, derived from the caller's concurrency ceiling and the advertised
+   *  per-session budget. Grows lazily, never shrinks; sessions are never evicted. */
+  cap: number
+}
 
-function releaseStreamSlot(session: H2Session) {
+const pools = new Map<string, H2Pool>()
+/** Absolute guard against runaway dialing; the real cap comes from the ceiling. */
+const HARD_MAX_SESSIONS_PER_ORIGIN = 64
+/** A session idle longer than this gets one liveness ping before reuse. */
+const H2_STALE_PING_MS = 30_000
+
+function getPool(key: string, baseUrl: string): H2Pool {
+  let pool = pools.get(key)
+  if (!pool) {
+    pool = { key, baseUrl, sessions: [], waitQueue: [], cap: 1 }
+    pools.set(key, pool)
+  }
+  return pool
+}
+
+function pickSession(pool: H2Pool): H2Session | null {
+  let best: H2Session | null = null
+  for (const candidate of pool.sessions) {
+    if (candidate.session.closed) continue
+    if (candidate.activeStreams >= candidate.remoteMaxConcurrentStreams) continue
+    if (!best || candidate.activeStreams < best.activeStreams) best = candidate
+  }
+  return best
+}
+
+function releaseSlot(pool: H2Pool, session: H2Session) {
   session.activeStreams = Math.max(0, session.activeStreams - 1)
-  const next = session.waitQueue.shift()
-  if (next) {
-    session.activeStreams++
-    next.resolve()
+  const next = pool.waitQueue.shift()
+  if (next) next.resolve()
+}
+
+function rejectAllWaiters(pool: H2Pool, err: Error) {
+  while (pool.waitQueue.length > 0) {
+    pool.waitQueue.shift()!.reject(err)
   }
 }
 
-async function acquireStreamSlot(session: H2Session): Promise<void> {
-  if (session.activeStreams < session.remoteMaxConcurrentStreams) {
-    session.activeStreams++
-    return
-  }
-  return new Promise<void>((resolve, reject) => {
-    session.waitQueue.push({ resolve, reject })
-  })
-}
-
-function rejectAllWaiters(session: H2Session, err: Error) {
-  while (session.waitQueue.length > 0) {
-    const waiter = session.waitQueue.shift()!
-    waiter.reject(err)
-  }
-}
-
-function closeSessionState(key: string, session: H2Session, err: Error) {
+function removeSession(pool: H2Pool, session: H2Session) {
   session.activeStreams = 0
-  rejectAllWaiters(session, err)
-  sessions.delete(key)
+  pool.sessions = pool.sessions.filter((s) => s !== session)
+}
+
+async function acquireSlot(pool: H2Pool, concurrencyLimit: number | undefined): Promise<H2Session> {
+  if (concurrencyLimit && concurrencyLimit > 0) {
+    const perSession = pool.sessions.find((s) => !s.session.closed)?.remoteMaxConcurrentStreams ?? 100
+    const wanted = Math.min(HARD_MAX_SESSIONS_PER_ORIGIN, Math.max(1, Math.ceil(concurrencyLimit / perSession)))
+    if (wanted > pool.cap) pool.cap = wanted
+  }
+  for (;;) {
+    const session = pickSession(pool)
+    if (session) {
+      if (Date.now() - session.lastUsedAt > H2_STALE_PING_MS) {
+        const ok = await healthCheck(session, 3000)
+        if (!ok) {
+          log.debug("h2 health check failed — dropping session", { key: pool.key })
+          removeSession(pool, session)
+          session.session.close()
+          continue
+        }
+      }
+      session.activeStreams++
+      session.lastUsedAt = Date.now()
+      return session
+    }
+    const open = pool.sessions.filter((s) => !s.session.closed).length
+    if (open < pool.cap) {
+      const created = createSession(pool)
+      if (created) {
+        pool.sessions.push(created)
+        created.activeStreams++
+        return created
+      }
+      throw new Error("Failed to create H2 session")
+    }
+    await new Promise<void>((resolve, reject) => pool.waitQueue.push({ resolve, reject }))
+  }
 }
 
 function getSessionKey(baseUrl: string): string {
@@ -88,17 +148,10 @@ async function healthCheck(session: H2Session, timeoutMs: number): Promise<boole
   }
 }
 
-function getOrCreateSession(baseUrl: string): H2Session | null {
-  const key = getSessionKey(baseUrl)
-  const existing = sessions.get(key)
-  if (existing && !existing.session.closed) {
-    existing.lastUsedAt = Date.now()
-    return existing
-  }
-
+function createSession(pool: H2Pool): H2Session | null {
+  const url = new URL(pool.baseUrl)
   try {
-    const url = new URL(baseUrl)
-    const session = http2.connect(baseUrl)
+    const session = http2.connect(pool.baseUrl)
 
     let remoteMaxStreams = 100
     let h2Session: H2Session | null = null
@@ -116,11 +169,11 @@ function getOrCreateSession(baseUrl: string): H2Session | null {
 
     session.on("error", (err) => {
       log.debug("h2 session error", { host: url.hostname, error: err.message })
-      if (h2Session) closeSessionState(key, h2Session, err)
+      if (h2Session) removeSession(pool, h2Session)
     })
 
     session.on("close", () => {
-      if (h2Session) closeSessionState(key, h2Session, new Error("H2 session closed"))
+      if (h2Session) removeSession(pool, h2Session)
     })
 
     session.on("goaway", (errorCode, lastStreamID, opaqueData) => {
@@ -128,10 +181,9 @@ function getOrCreateSession(baseUrl: string): H2Session | null {
         host: url.hostname,
         errorCode,
         lastStreamID,
+        opaqueData: opaqueData?.length ?? 0,
       })
-      if (h2Session) {
-        closeSessionState(key, h2Session, new Error("H2 session closed (goaway)"))
-      }
+      if (h2Session) removeSession(pool, h2Session)
     })
 
     session.on("ping", () => {
@@ -142,34 +194,13 @@ function getOrCreateSession(baseUrl: string): H2Session | null {
       session,
       remoteMaxConcurrentStreams: remoteMaxStreams,
       activeStreams: 0,
-      waitQueue: [],
       createdAt: Date.now(),
       lastUsedAt: Date.now(),
       pingRttMs: 0,
     }
-
-    if (sessions.size >= MAX_IDLE_SESSIONS) {
-      let oldestKey: string | null = null
-      let oldestTime = Infinity
-      for (const [key, candidate] of sessions) {
-        if (candidate.lastUsedAt < oldestTime) {
-          oldestTime = candidate.lastUsedAt
-          oldestKey = key
-        }
-      }
-      if (oldestKey) {
-        const victim = sessions.get(oldestKey)
-        if (victim) {
-          closeSessionState(oldestKey, victim, new Error("H2 session evicted"))
-          victim.session.close()
-        }
-      }
-    }
-
-    sessions.set(key, h2Session)
     return h2Session
   } catch (err) {
-    log.warn("bug: h2 session creation failed", { baseUrl, error: (err as Error).message })
+    log.warn("bug: h2 session creation failed", { baseUrl: pool.baseUrl, error: (err as Error).message })
     return null
   }
 }
@@ -196,6 +227,9 @@ export interface H2RequestOptions {
   body?: string
   signal?: AbortSignal
   timeoutMs?: number
+  /** Model concurrency ceiling (owner registry 2026-09-29): the pool grows to
+   *  ceil(ceiling / advertised per-session budget) sessions to meet it. */
+  concurrencyLimit?: number
   /** Raw-wire capture seam (T2): the pseudo-header set + body handed to node's http2. */
   onWire?: (headers: Record<string, string>, body?: string) => void
 }
@@ -210,46 +244,14 @@ export interface H2Response {
   error?: NormalizedError
 }
 
-async function getOrCreateHealthySession(baseUrl: string): Promise<H2Session | null> {
-  const key = getSessionKey(baseUrl)
-  const existing = sessions.get(key)
-  if (existing && !existing.session.closed) {
-    const ok = await healthCheck(existing, 3000)
-    if (ok) {
-      existing.lastUsedAt = Date.now()
-      return existing
-    }
-    log.debug("h2 health check failed — closing session", { baseUrl, key })
-    existing.session.close()
-    sessions.delete(key)
-  }
-  return getOrCreateSession(baseUrl)
-}
-
 export async function request(options: H2RequestOptions): Promise<H2Response> {
   const sample = M.makeSample(0, options.headers["x-request-id"])
   sample.queuedAt = Date.now()
 
-  const session = await getOrCreateHealthySession(options.baseUrl)
-  if (!session) {
-    const err = new Error("Failed to create H2 session")
-    const normalized = normalizeError(err)
-    sample.endedAt = Date.now()
-    throw new TransportError({
-      status: 0,
-      headers: {},
-      body: "",
-      metrics: M.computeMetrics(sample),
-      error: normalized,
-      requestId: options.headers["x-request-id"],
-      cause: err,
-    })
-  }
-
-  sample.socketAcquiredAt = Date.now()
-
+  const pool = getPool(getSessionKey(options.baseUrl), options.baseUrl)
+  let session: H2Session
   try {
-    await acquireStreamSlot(session)
+    session = await acquireSlot(pool, options.concurrencyLimit)
   } catch (err) {
     const normalized = normalizeError(err as Error)
     sample.endedAt = Date.now()
@@ -263,6 +265,8 @@ export async function request(options: H2RequestOptions): Promise<H2Response> {
       cause: err,
     })
   }
+
+  sample.socketAcquiredAt = Date.now()
 
   return new Promise<H2Response>((resolve, rejectPromise) => {
     const url = new URL(options.url)
@@ -288,7 +292,7 @@ export async function request(options: H2RequestOptions): Promise<H2Response> {
     let completed = false
 
     const cleanup = () => {
-      releaseStreamSlot(session)
+      releaseSlot(pool, session)
       req.removeAllListeners("response")
       req.removeAllListeners("data")
       req.removeAllListeners("end")
@@ -419,19 +423,16 @@ export async function requestStream(
   const sample = M.makeSample(0, options.headers["x-request-id"])
   sample.queuedAt = Date.now()
 
-  const session = await getOrCreateHealthySession(options.baseUrl)
-  if (!session) {
-    throw new Error("Failed to create H2 session")
-  }
-
-  sample.socketAcquiredAt = Date.now()
-
+  const pool = getPool(getSessionKey(options.baseUrl), options.baseUrl)
+  let session: H2Session
   try {
-    await acquireStreamSlot(session)
+    session = await acquireSlot(pool, options.concurrencyLimit)
   } catch (err) {
     sample.endedAt = Date.now()
     throw new Error(`Failed to acquire H2 stream slot: ${(err as Error).message}`)
   }
+
+  sample.socketAcquiredAt = Date.now()
 
   return new Promise<{ response: Response; metrics: MetricsResult }>((resolve, reject) => {
     const url = new URL(options.url)
@@ -459,7 +460,7 @@ export async function requestStream(
     const decrement = () => {
       if (streamDone) return
       streamDone = true
-      releaseStreamSlot(session)
+      releaseSlot(pool, session)
     }
 
     const settle = () => {
@@ -546,8 +547,10 @@ export async function requestStream(
 }
 
 export async function ping(baseUrl: string): Promise<number> {
-  const session = getOrCreateSession(baseUrl)
+  const pool = getPool(getSessionKey(baseUrl), baseUrl)
+  const session = pickSession(pool) ?? createSession(pool)
   if (!session) return -1
+  if (!pool.sessions.includes(session)) pool.sessions.push(session)
 
   return new Promise<number>((resolve) => {
     const start = Date.now()
@@ -565,45 +568,52 @@ export async function ping(baseUrl: string): Promise<number> {
 }
 
 export function getRemoteMaxConcurrentStreams(baseUrl: string): number | null {
-  const key = getSessionKey(baseUrl)
-  const session = sessions.get(key)
+  const pool = pools.get(getSessionKey(baseUrl))
+  const session = pool?.sessions.find((s) => !s.session.closed)
   return session?.remoteMaxConcurrentStreams ? session.remoteMaxConcurrentStreams : null
 }
 
 export function getMaxRemoteConcurrentStreamsAcrossSessions(): number {
   let max = 0
-  for (const [, session] of sessions) {
-    if (session.remoteMaxConcurrentStreams > max) {
-      max = session.remoteMaxConcurrentStreams
+  for (const pool of pools.values()) {
+    for (const session of pool.sessions) {
+      if (session.remoteMaxConcurrentStreams > max) {
+        max = session.remoteMaxConcurrentStreams
+      }
     }
   }
   return max || 100
 }
 
 export function closeAll(): void {
-  for (const [key, session] of sessions) {
-    closeSessionState(key, session, new Error("H2 session closed"))
-    session.session.close()
+  for (const pool of pools.values()) {
+    for (const session of pool.sessions) {
+      session.session.close()
+    }
+    rejectAllWaiters(pool, new Error("H2 sessions closed"))
+    pool.sessions = []
   }
 }
 
+/** Close every session of one origin's pool. Used by the downgrade path only —
+ *  a healthy pool is never torn down on idle (owner directive 2026-09-29). */
 export function closeSession(baseUrl: string): void {
-  const key = getSessionKey(baseUrl)
-  const session = sessions.get(key)
-  if (session) {
-    closeSessionState(key, session, new Error("H2 session closed"))
+  const pool = pools.get(getSessionKey(baseUrl))
+  if (!pool) return
+  for (const session of pool.sessions) {
     session.session.close()
   }
+  rejectAllWaiters(pool, new Error("H2 session closed"))
+  pool.sessions = []
 }
 
 export function isSessionHealthy(baseUrl: string): boolean {
-  const key = getSessionKey(baseUrl)
-  const session = sessions.get(key)
-  if (!session) return false
-  if (session.session.closed) return false
-  return true
+  const pool = pools.get(getSessionKey(baseUrl))
+  return pool ? pool.sessions.some((s) => !s.session.closed) : false
 }
 
 export function getSessionCount(): number {
-  return sessions.size
+  let total = 0
+  for (const pool of pools.values()) total += pool.sessions.length
+  return total
 }

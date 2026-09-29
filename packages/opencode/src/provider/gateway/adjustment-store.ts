@@ -1,3 +1,5 @@
+import { modelConcurrencyLimit, routeKeyParts } from "./model-limits"
+
 export interface Policy {
   minLaunchIntervalMs: number
   streamMinLaunchIntervalMs: number
@@ -46,44 +48,61 @@ export function isUnlimitedProvider(key: string): boolean {
   return provider ? UNLIMITED_PROVIDERS.has(provider) : false
 }
 
-/** Returns the initial policy for a given route key, using known provider limits. */
+/** Returns the initial policy for a given route key, using known provider limits.
+ *  A model with an owner-registered concurrency ceiling (2026-09-29) is never
+ *  clamped below it: deepseek-flash 2500 / deepseek-v4-pro 500 streams. */
 export function providerPolicy(key: string): Policy {
+  const provider = extractProvider(key)
+  const { model } = routeKeyParts(key)
+  const limit = provider && model ? modelConcurrencyLimit(provider, model) : undefined
+  const apply = (policy: Policy): Policy =>
+    limit
+      ? {
+          ...policy,
+          maxInflight: Math.max(policy.maxInflight, limit),
+          maxStreams: Math.max(policy.maxStreams, limit),
+        }
+      : policy
+
   if (isUnlimitedProvider(key)) {
-    return {
+    return apply({
       minLaunchIntervalMs: 0,
       streamMinLaunchIntervalMs: 0,
       maxInflight: 500,
       maxStreams: 500,
       cooldownMs: 0,
       jitterMs: 0,
-    }
+    })
   }
 
-  const provider = extractProvider(key)
   const rpm = provider ? PROVIDER_RPM[provider] : undefined
   if (rpm !== undefined) {
     const intervalMs = Math.round(60000 / rpm)
-    return {
+    return apply({
       minLaunchIntervalMs: intervalMs,
       streamMinLaunchIntervalMs: intervalMs,
       maxInflight: Math.min(100, Math.max(5, Math.round(rpm / 10))),
       maxStreams: Math.min(50, Math.max(4, Math.round(rpm / 8))),
       cooldownMs: 15000,
       jitterMs: Math.round(intervalMs * 0.2),
-    }
+    })
   }
 
-  return defaultPolicy()
+  return apply(defaultPolicy())
 }
 
 const MAX_LAUNCH_INTERVAL_MS = 600000
+/** Owner ceilings (2026-09-29): the largest per-model concurrency we admit —
+ *  deepseek-flash 2500. Floors must never clamp a registered ceiling back down. */
+const MAX_INFLIGHT_CEILING = 2500
+const MAX_STREAMS_CEILING = 2500
 
 export function enforcePolicyFloors(policy: Policy): Policy {
   return {
     minLaunchIntervalMs: Math.min(MAX_LAUNCH_INTERVAL_MS, Math.max(50, policy.minLaunchIntervalMs)),
     streamMinLaunchIntervalMs: Math.min(MAX_LAUNCH_INTERVAL_MS, Math.max(50, policy.streamMinLaunchIntervalMs)),
-    maxInflight: Math.min(100, Math.max(1, policy.maxInflight)),
-    maxStreams: Math.min(50, Math.max(1, policy.maxStreams)),
+    maxInflight: Math.min(MAX_INFLIGHT_CEILING, Math.max(1, policy.maxInflight)),
+    maxStreams: Math.min(MAX_STREAMS_CEILING, Math.max(1, policy.maxStreams)),
     cooldownMs: Math.min(60000, Math.max(1000, policy.cooldownMs)),
     jitterMs: Math.max(0, policy.jitterMs),
   }

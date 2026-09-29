@@ -8,6 +8,7 @@ import * as Metrics from "./metrics"
 import * as Errors from "./errors"
 import * as H2 from "./h2-transport"
 import * as H1 from "./h1-transport"
+import { modelConcurrencyLimit } from "./model-limits"
 import { healthScore } from "./health-window"
 import { Global } from "@opencode-ai/core/global"
 import * as Log from "@opencode-ai/core/util/log"
@@ -860,6 +861,7 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                   method: init?.method ?? "POST",
                   headers: headers,
                   body: typeof init?.body === "string" ? init.body : undefined,
+                  concurrencyLimit: modelConcurrencyLimit(provider, model),
                   onWire: (wireHeaderSet, wireBody) => captureWireAttempt("h2", wireHeaderSet, wireBody),
                 })
                 response = h2Result.response
@@ -870,6 +872,7 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                   method: init?.method ?? "POST",
                   headers: headers,
                   body: typeof init?.body === "string" ? init.body : undefined,
+                  concurrencyLimit: modelConcurrencyLimit(provider, model),
                   onWire: (wireHeaderSet, wireBody) => captureWireAttempt("h2", wireHeaderSet, wireBody),
                 })
                 if (h2Result.error) {
@@ -935,7 +938,10 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
               reason: normalized.category,
               message: normalized.message,
             })
-            if (protocol === "h2") H2.closeSession(baseUrl)
+            // A healthy H2 pool is NEVER torn down here (owner directive 2026-09-29:
+            // providers dislike dropped connections). A genuinely dead session removes
+            // itself through its own error/close/goaway handlers; a stream-level failure
+            // must not kill the sessions that other streams are riding.
           }
         }
 

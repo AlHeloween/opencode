@@ -32,6 +32,14 @@ itself». The owner's additions above are the same object seen from the plan sid
    kind of fact, so it becomes a third line in the status note — no new injection point, no new
    surface that could be delivered twice (the 2026-09-29 loop was a re-delivered surface), and it is
    measured by the census the note already prints.
+5. **The SVM is written into the summary on the fly** (owner, 2026-09-29: «в summary SVM можно кидать
+   на лету»). The layer-1 capture already stores `diffs`, `impact` and `planState` for its window;
+   the task manifest is the fourth such fact, so it is written AS the row is captured — no separate
+   step, and the durable row then carries the manifest too, not only the store.
+6. **At the fold the master plan is the LAST carrier** (owner, 2026-09-29: «при компакте masterplan
+   идет сразу после всех summaries и ходов»). In `m*` it stands after every summary row and after
+   the verbatim tail-adjacent messages, so the rendered goal → plans → tasks summary is the last
+   thing a reader meets before the fresh tail — which is where a reader looks for direction.
 
 ## Shape of one SVM record
 
@@ -61,6 +69,11 @@ oracle:   <what will prove it — the instrument, not the hope>
       plans → tasks, each task with its sv, plan ref and `eta_turns`, plus the open/pass counts.
       Acceptance: the file is outside `plans/`, `planstatus`/`reconcilePlans` ignore it, and a second
       render immediately after the first is byte-identical (it is derived, so it must be stable).
+- [ ] **S6 — the fold carrier.** At the Layer-2 fold the rendered master plan is emitted AFTER every
+      summary block and after the window's messages, as the last carrier before the fresh tail
+      (owner, 2026-09-29). Acceptance: a folded `m*` shows the master plan last; it is a RENDER of the
+      same two sources S4 uses, so a stale copy cannot be inherited — and its absence is visible
+      (absence of an oracle reads as false).
 - [ ] **S5 — the plan-ref invariant.** A task SVM whose `plan:` names a file that does not exist is
       reported, not silently kept — the same coupling check `statusNote` already runs for vectors.
 
@@ -73,6 +86,8 @@ oracle:   <what will prove it — the instrument, not the hope>
 - After S3: a turn with no task SVM shows the missing line; with one, shows the dominant; and the
   synthetic-part count on the user message is asserted (it was the 2026-09-29 loop's lesson).
 - Negative control: a task SVM pointing at a deleted plan file must be REPORTED, not dropped.
+- After S5/S6: a captured summary row carries the manifest it was written with (read it back from the
+  store, not from the transcript), and a folded `m*` renders the master plan last.
 
 ## Out of scope
 

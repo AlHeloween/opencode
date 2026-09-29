@@ -177,10 +177,16 @@ describe("tool.cmd paths with spaces", () => {
         const dir = path.join(tmp.path, "test space dir")
         require("fs").mkdirSync(dir, { recursive: true })
         const tool = await initCmd()
+        // `if exist`, not `dir`: native enumerators are blocked by the constitution (owner, 2026-09-21),
+        // and what this case pins is the quoting of a spaced path, not a listing (2026-09-29).
         const result = await Effect.runPromise(
-          tool.execute({ command: `dir /b "${dir}"`, description: "quoted spaced path", timeout: 5000 }, ctx as any),
+          tool.execute(
+            { command: `if exist "${dir}\\" (echo found) else (exit /b 1)`, description: "quoted spaced path", timeout: 5000 },
+            ctx as any,
+          ),
         )
         expect(result.metadata.exit).toBe(0)
+        expect(result.output).toContain("found")
       },
     })
   })
@@ -190,11 +196,20 @@ describe("tool.cmd paths with spaces", () => {
     await Instance.provide({
       directory: tmp.path,
       fn: async () => {
+        const dir = path.join(tmp.path, "test space dir")
+        require("fs").mkdirSync(dir, { recursive: true })
         const tool = await initCmd()
+        // The SAME existing directory, unquoted: cmd splits it at the space, tests the truncated
+        // path, finds nothing and skips the rest — so the quoted case above finds it and this one
+        // does not. (Exit is 0 either way: a false `if` runs nothing.) The old case listed a path
+        // that did not exist at all, so it failed for a reason unrelated to spaces (2026-09-29).
         const result = await Effect.runPromise(
-          tool.execute({ command: `dir ${tmp.path}\\test`, description: "unquoted path", timeout: 5000 }, ctx as any),
+          tool.execute(
+            { command: `if exist ${dir}\\ (echo found) else (exit /b 1)`, description: "unquoted path", timeout: 5000 },
+            ctx as any,
+          ),
         )
-        expect(result.metadata.exit).toBe(1)
+        expect(result.output).not.toContain("found")
       },
     })
   })
@@ -256,7 +271,9 @@ describe("tool.cmd permissions", () => {
         }
         const tool = await initCmd()
         await Effect.runPromise(
-          tool.execute({ command: "dir", description: "test dir safe", timeout: 5000 }, { ...ctx, ask } as any),
+          // `ver`, not `dir`: `dir` only passed while a bare word was invisible to the batch AST
+          // (C15, 2026-09-29) — it is a native enumerator and the constitution blocks it.
+          tool.execute({ command: "ver", description: "test safe command", timeout: 5000 }, { ...ctx, ask } as any),
         )
         expect(prompts.length).toBe(0)
       },
@@ -914,30 +931,11 @@ describe("tool.cmd PowerShell detection", () => {
 })
 
 describe("tool.cmd path validation", () => {
-  test("warns about double drive letter in paths", async () => {
-    await using tmp = await tmpdir()
-    await Instance.provide({
-      directory: tmp.path,
-      fn: async () => {
-        const tool = await initCmd()
-        // A path like D:\D:\x triggers double-drive validation
-        const result = await Effect.runPromise(
-          tool.execute(
-            {
-              command: `echo test > nul`,
-              workdir: tmp.path,
-              description: "Path validation test",
-              timeout: 5000,
-            },
-            ctx as any,
-          ),
-        )
-        expect(result.metadata.exit).toBe(0)
-      },
-    })
-  })
-
-  test("warns about system directory paths on Windows", async () => {
+  // Both cases here used a workdir INSIDE the project and asserted only `exit 0`, so neither could
+  // see a warning — and the path they ran (fallback) never printed one (2026-09-29). The double-drive
+  // case is gone: resolvePath normalises such a workdir before validation, and the message itself is
+  // pinned by test/util/path-validator.test.ts.
+  test("warns about system directory paths on Windows and still runs", async () => {
     await using tmp = await tmpdir()
     await Instance.provide({
       directory: tmp.path,
@@ -947,15 +945,16 @@ describe("tool.cmd path validation", () => {
           tool.execute(
             {
               command: `echo test`,
-              workdir: tmp.path,
+              workdir: process.env.SystemRoot || process.env.windir,
               description: "System dir path test",
               timeout: 5000,
             },
             ctx as any,
           ),
         )
-        // Even if path issues exist, the command should still run
         expect(result.metadata.exit).toBe(0)
+        expect(result.output).toContain("Path issues detected")
+        expect(result.output).toContain("system directory")
       },
     })
   })

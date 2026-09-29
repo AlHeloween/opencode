@@ -186,7 +186,7 @@ not merely to "some kill happened".
 
 | Mechanism | Timeout | What happens |
 |-----------|---------|-------------|
-| Inner timeout | `params.timeout` (default 60s via `OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS`) | Process killed via `taskkill /T /F` (tree kill) |
+| Inner timeout | `params.timeout` (default 60s via `OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS`; `adm` 3 min) — the same in `bash` and `cmd`, on the job, sync and Jobs-less paths alike. **cmd_runner commands have no deadline** — the runner owns its lifecycle (owner, 2026-09-29) | Process killed via `taskkill /T /F` (tree kill); the output ends with `… terminated command after exceeding timeout N ms …` |
 | Drain timeout | 10s per pipe (stdout, stderr) | Pipe drain times out instead of hanging forever |
 | Safety net | `timeout + 5s` | Last-resort scope timeout prevents Effect fiber leak |
 | Stalled detection | 15s no output, checked every 5s | Status → `stalled` + one ⚠ notice (cpu, remaining seconds, `jobreset` hint) |

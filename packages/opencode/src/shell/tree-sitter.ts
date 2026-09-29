@@ -51,6 +51,18 @@ export const getParser: () => Promise<ShellParsers> = lazy(async () => {
   return { bash, cmd, ps }
 })
 
+/**
+ * Parse one shell command — the only way a command enters the AST.
+ *
+ * The batch grammar needs a line terminator: a bare `dir` parses as `(ERROR (command_name))` with no
+ * `cmd` node, so `commands()` saw nothing and the constitution AND the permission scan both skipped
+ * it; `dir\n` parses as `(program (cmd (command_name)))` (measured 2026-09-29). The newline is the
+ * one the user's Enter would have supplied; `source()` trims it.
+ */
+export function parseShell(parser: Parser, command: string, isCmd: boolean) {
+  return parser.parse(isCmd ? `${command}\n` : command)
+}
+
 // ============================================================================
 // AST helpers — shared between bash.ts, cmd.ts, and constitution
 // ============================================================================

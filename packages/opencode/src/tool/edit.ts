@@ -22,7 +22,7 @@ import { Global } from "@opencode-ai/core/global"
 import * as Bom from "@/util/bom"
 import { execFile } from "child_process"
 import { Constitution } from "@/session/constitution"
-import { filePathDescription, looksLikeCodeFragment } from "./path-hint"
+import { filePathDescription } from "./path-hint"
 import * as Log from "@opencode-ai/core/util/log"
 
 const log = Log.create({ service: "edit-tool" })
@@ -182,12 +182,6 @@ export const EditTool = Tool.define(
 
           if (params.oldString === params.newString) {
             throw new Error("No changes to apply: oldString and newString are identical.")
-          }
-
-          // Same code-fragment guard as write.ts — see `looksLikeCodeFragment` for the measured shape
-          // and for why the old «parens AND no dot» test never fired on it.
-          if (looksLikeCodeFragment(params.filePath)) {
-            throw new Error(`filePath does not look like a valid path: ${params.filePath}`)
           }
 
           const filePath = path.isAbsolute(params.filePath)

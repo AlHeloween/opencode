@@ -16,7 +16,7 @@ import * as Log from "@opencode-ai/core/util/log"
 import { spawnSync } from "child_process"
 import { createHash } from "crypto"
 import type { Node, Parser } from "web-tree-sitter"
-import { getParser, commands as tsCommands, parts as tsParts, source as tsSource } from "@/shell/tree-sitter"
+import { getParser, parseShell, commands as tsCommands, parts as tsParts, source as tsSource } from "@/shell/tree-sitter"
 import { enumerationToolDecision, nativeEnumerationBlockMessage, resolveEnumerationTool } from "./enumeration-tools"
 import { loadEpistemic, saveEpistemic } from "./epistemic-store"
 
@@ -521,6 +521,24 @@ export type CommandFinding = {
   classification: ClassificationResult
   /** Whether this command is a file enumerator. */
   isFileEnumerator: boolean
+  /** Why an enumerator is blocked — set exactly when it is; the caller never recomputes it. */
+  message?: string
+}
+
+/**
+ * The enumeration decision for one first token: the block message, or undefined when the command
+ * may run. ONE predicate for the AST path (`evaluate`) and the token path (`guardCommand`) — they
+ * used to answer apart: `guardCommand` let a resolved unix tool through while `evaluate` blocked
+ * every enumerator, and its caller rebuilt the message from a decision that said "allowed", so the
+ * block arrived as `Error("")` (2026-09-29).
+ *
+ * The resolve escape covers AMBIGUOUS cross-platform names only; this platform's own enumerators
+ * resolve by construction, so for them resolution carries no information and they stay blocked.
+ */
+function enumerationBlock(firstToken: string): string | undefined {
+  if (_NATIVE_ENUM_FIRST_TOKENS.has(firstToken)) return nativeEnumerationBlockMessage(firstToken)
+  const decision = enumerationToolDecision(firstToken)
+  return decision.allowed ? undefined : decision.message
 }
 
 /** Result of a full constitution evaluation over a parsed shell command. */
@@ -568,15 +586,14 @@ export function evaluate(root: Node, isCmd: boolean): ConstitutionEvalResult {
 
     const classification = classifyAstNode(cmd, sub, lower)
     const sourceText = tsSource(node, isCmd)
+    const isFileEnumerator = classification.family === CommandFamily.FILE_ENUMERATOR
+    const message = isFileEnumerator ? enumerationBlock(cmd.replace(/^.*[/\\]/, "").replace(/\.exe$/, "")) : undefined
 
-    const finding: CommandFinding = {
-      command: sourceText,
-      classification,
-      isFileEnumerator: classification.family === CommandFamily.FILE_ENUMERATOR,
-    }
+    const finding: CommandFinding = { command: sourceText, classification, isFileEnumerator, message }
     findings.push(finding)
 
-    if (finding.isFileEnumerator || classification.hardBlock) {
+    // Enumerator rules carry `hardBlock: true`, so for them the decision above is the block, not the flag.
+    if (isFileEnumerator ? message !== undefined : classification.hardBlock) {
       blocked.push(finding)
     }
     if (classification.risk === "DESTRUCTIVE" && !classification.hardBlock) {
@@ -602,7 +619,7 @@ export async function evaluateCommand(
 ): Promise<ConstitutionEvalResult> {
   const parser = await getParser()
   const engine: Parser = shellType === "cmd" ? parser.cmd : shellType === "ps" ? parser.ps : parser.bash
-  const tree = engine.parse(command)
+  const tree = parseShell(engine, command, shellType === "cmd")
   if (!tree) throw new Error("Failed to parse command for constitution evaluation")
   return evaluate(tree.rootNode, shellType === "cmd")
 }
@@ -792,18 +809,11 @@ export function guardCommand(command: string, meta?: { sessionID?: string; agent
         // git ls-files, where/which, rg without --files are allowed
         if (firstToken === "git" || firstToken === "where" || firstToken === "which") continue
         if ((firstToken === "rg" || firstToken === "rg.exe") && !seg.includes("--files")) continue
-        // A tool that RESOLVES is a tool that works: beside the binary, in tools/, or on PATH.
-        // Blocking a command that would have run is its own kind of wrong decision.
-        //
-        // But this escape is about AMBIGUOUS cross-platform NAMES — `find` is System32's text search on
-        // Windows, so resolution is what proves the name means the unix tool. For this platform's OWN
-        // enumerators resolution is true BY CONSTRUCTION, so asking it disarmed the guard: `tree`
-        // reported `blocked: false` while sitting in the always-present set above.
-        const decision = enumerationToolDecision(firstToken)
-        if (decision.allowed && !_NATIVE_ENUM_FIRST_TOKENS.has(firstToken)) {
+        // A tool that RESOLVES is a tool that works — for ambiguous names only; see enumerationBlock.
+        const message = enumerationBlock(firstToken)
+        if (message === undefined) {
           log.info("constitution.enumeration_allowed_unix_tool", {
             command: seg.slice(0, 200),
-            tool: decision.path,
             sessionID: meta?.sessionID,
             agent: meta?.agent,
           })
@@ -820,12 +830,7 @@ export function guardCommand(command: string, meta?: { sessionID?: string; agent
           family: CommandFamily.FILE_ENUMERATOR,
           needsDestructivePermission: false,
           blocked: true,
-          // A native enumerator resolves by construction, so `decision.message` — empty when allowed —
-          // cannot describe this block, and the "not available" wording would be false. The refusal is
-          // about the route, and it says so.
-          message: _NATIVE_ENUM_FIRST_TOKENS.has(firstToken)
-            ? nativeEnumerationBlockMessage(firstToken)
-            : decision.message,
+          message,
         }
       }
     }
@@ -848,13 +853,10 @@ export function guardCommand(command: string, meta?: { sessionID?: string; agent
   // blocked=true by default). The probe is the difference between a capability that is missing and
   // one that is merely disbelieved.
   if (classification.family === CommandFamily.FILE_ENUMERATOR) {
-    const decision = enumerationToolDecision(cmd)
-    // Same distinction as above: the escape covers ambiguous NAMES, never this platform's own
-    // enumerators, whose resolution is guaranteed and therefore carries no information.
-    if (decision.allowed && !_NATIVE_ENUM_FIRST_TOKENS.has(cmd)) {
+    const message = enumerationBlock(cmd)
+    if (message === undefined) {
       log.info("constitution.enumeration_allowed_unix_tool", {
         command: command.slice(0, 200),
-        tool: decision.path,
         sessionID: meta?.sessionID,
         agent: meta?.agent,
       })
@@ -876,7 +878,7 @@ export function guardCommand(command: string, meta?: { sessionID?: string; agent
       family: CommandFamily.FILE_ENUMERATOR,
       needsDestructivePermission: false,
       blocked: true,
-      message: _NATIVE_ENUM_FIRST_TOKENS.has(cmd) ? nativeEnumerationBlockMessage(cmd) : decision.message,
+      message,
     }
   }
 

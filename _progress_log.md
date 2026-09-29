@@ -5493,3 +5493,28 @@ absences); baseline repinned; pytest 120 passed. Caps 57 000 B / 7 700 tok.
 (two add-on absences were false — host gained tools, the record aged silently); Glob half-working at repo root (4th timeout) ->
 KAIZEN countermeasure in the add-on. Memory `project_claude_host_has_no_window_oracle` revised.
 OPEN: TS parity suite + bun typecheck (F5) not run this cycle; BGE dedup pass (claude 7 532 / 7 700 tok).
+
+## [2026-09-29 16:40Z] #2 shell desync CLOSED — tests and code were both wrong; one execution input, cmd /d /s /c, timeout back
+
+Plan: `plans/2026-09-29_bash-tool-single-execution-path.md` (picks up the #2 handoff above). Evidence: runs under
+`experiments/2026-09-29_bash-exec-baseline/` — B0 baseline, `contract-red.log`, `post-1..3/`.
+✓ Three execution paths per tool (job / sync / Jobs-less fallback), each assembling its own input: sync + fallback ran
+`params.command`, so the cmd_runner auto-wrap was scanned and NOT executed; path warnings reached the model from sync only.
+The old suites ran `execute` through a bare `Effect.runPromise` → always the fallback. New
+`test/tool/shell-exec-contract.test.ts` drives all three paths × both tools with a real `Jobs.layer` and a fake
+`cmd_runner.cmd`: RED 11/24 on unchanged code (every red predicted), GREEN 35/0 after.
+✓ The 0-byte `i+1).join(String.fromCharCode(10)))` producer: a bare `cmd /c` with >2 quotes strips the first and last quote,
+`=>` becomes a redirect into the cwd. Fixed with `/d /s /c "…"` in bash.ts + cmd.ts; `looksLikeCodeFragment` (write/edit)
+removed on the owner's D2 — it guarded a write call that never happened.
+✓ Timeout restored on the owner's ruling («таймаут должен быть, нету таймаута только у cmd_runner»): code had dropped it
+07-20/07-31 while `regression.test.ts` + docs kept the contract; regression 3/4 → 7/0, 112 s → 22 s.
+✓ Found on the way, all fixed with an oracle: `stripCommand` ate the last digit of `127.0.0.1 > nul`; its Python guard
+never matched (`pattern.source` has escaped slashes); AST constitution threw `Error("")` and disagreed with `guardCommand`
+(one `enumerationBlock` now); the batch grammar needs a line terminator — bare `dir` had NO `cmd` node, invisible to the
+constitution and the permission scan (`parseShell`); external_directory asked only when the external TARGET existed (a
+file created outside the project was never asked); PowerShell aliases (`cd`, `cat`, `rm`…) never scanned; cmd.ts had its
+own drifted sets and a private path validator (one `tool/shell-sets.ts`, the shared validator).
+Final V1 (`post-3/`): typecheck 0; bash 60/27 → 88/0, cmd 36/2 → 37/0, contract 35/0, constitution 50/0 + parity 5/0,
+shell_tests 77/0 + 49/0, strip-win 15/0, write 18/0, edit 41/0, path-validator 11/0, parameters 51/0; no artefact.
+OPEN: K4 (`Shell.select()` silent fallback), C6 (`as any` on the background return), CRASH_PRONE_RE bypass by a quoted
+full path, cmd.ts scanner still duplicated. Not run live through `bin/` (owner's rebuild).

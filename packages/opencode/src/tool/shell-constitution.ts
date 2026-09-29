@@ -14,7 +14,6 @@
 import { Effect } from "effect"
 import path from "node:path"
 import { Constitution } from "@/session/constitution"
-import { enumerationToolDecision, ENUMERATION_TOOLS } from "@/session/enumeration-tools"
 import * as Log from "@opencode-ai/core/util/log"
 import type * as Tool from "./tool"
 import type { Node } from "web-tree-sitter"
@@ -69,17 +68,11 @@ export function enforceDestructiveShellFromAst(
 
     // Hard blocks (FILE_ENUMERATOR, GIT_HISTORY_REWRITE, FOSSIL_MUTATE)
     for (const finding of result.blocked) {
-      // The block is only reachable when the tool is genuinely ABSENT for this runtime —
-      // Constitution.evaluate already allowed every resolvable enumerator — so the message comes
-      // from the resolver, which names where to put the tool instead of pretending the capability
-      // does not exist (owner, 2026-09-21: either the tools are beside the binary, or the message
-      // says so).
-      const enumerator = finding.command.trim().split(/\s+/)[0]?.replace(/\.exe$/i, "").toLowerCase() ?? ""
+      // An enumerator's block carries its own reason from Constitution.evaluate — the same predicate
+      // guardCommand uses. It used to be rebuilt here from the resolver, whose message is "" whenever
+      // the tool RESOLVES, so a blocked `dir`/`cat` threw `Error("")` (2026-09-29).
       const msg = finding.isFileEnumerator
-        ? ENUMERATION_TOOLS.includes(enumerator as never)
-          ? enumerationToolDecision(enumerator).message
-          : "constitution: BLOCKED directory/file enumeration — the list tool browses, glob finds paths, " +
-            "grep finds content, read reads files."
+        ? (finding.message ?? "constitution: BLOCKED directory/file enumeration")
         : finding.classification.family === "FOSSIL_MUTATE"
           ? "constitution: BLOCKED fossil CLI mutate (permission: destructive-fossil). " +
             "Fossil is automatic session undo/snapshot — not project VCS. " +

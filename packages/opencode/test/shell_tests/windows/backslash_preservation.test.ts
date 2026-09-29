@@ -79,25 +79,26 @@ describeWin("Windows: backslash path preservation", () => {
   // ================================================================
 
   test(
-    "cmd.exe: preserves backslash in dir command",
+    "cmd.exe: preserves backslash in a path the shell resolves",
     withShell("cmd.exe", async () => {
       await Instance.provide({
         directory: projectRoot,
         fn: async () => {
           const bash = await initBash()
           const windir = process.env.WINDIR || "C:\\Windows"
+          // `if exist`, not `dir`: native enumerators are blocked by the constitution (owner,
+          // 2026-09-21); this case pins that cmd RESOLVES the backslash path (2026-09-29).
           const result = await Effect.runPromise(
             bash.execute(
               {
-                command: `dir "${windir}\\win.ini"`,
-                description: "List win.ini with backslash path",
+                command: `if exist "${windir}\\win.ini" (echo found win.ini) else (exit /b 1)`,
+                description: "Resolve win.ini with backslash path",
               },
               ctx,
             ),
           )
-          // Should find win.ini — exit 0 means path resolved correctly
           expect(result.metadata.exit).toBe(0)
-          expect(result.output).toContain("win.ini")
+          expect(result.output).toContain("found win.ini")
         },
       })
     }),
@@ -197,24 +198,25 @@ describeWin("Windows: backslash path preservation", () => {
   // ================================================================
 
   test(
-    "pwsh: preserves backslash in Get-ChildItem",
+    "pwsh: preserves backslash in a path the shell resolves",
     withShell("pwsh.exe", async () => {
       await Instance.provide({
         directory: projectRoot,
         fn: async () => {
           const bash = await initBash()
           const windir = process.env.WINDIR || "C:\\Windows"
+          // Test-Path, not Get-ChildItem: a native enumerator is blocked (owner, 2026-09-21).
           const result = await Effect.runPromise(
             bash.execute(
               {
-                command: `Get-ChildItem "${windir}\\win.ini"`,
-                description: "List with backslash path in pwsh",
+                command: `Test-Path "${windir}\\win.ini"`,
+                description: "Resolve backslash path in pwsh",
               },
               ctx,
             ),
           )
           expect(result.metadata.exit).toBe(0)
-          expect(result.output).toContain("win.ini")
+          expect(result.output).toContain("True")
         },
       })
     }),

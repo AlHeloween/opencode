@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test"
-import { looksLikeCodeFragment } from "../../src/tool/path-hint"
 import { Effect, Layer } from "effect"
 import path from "path"
 import fs from "fs/promises"
@@ -325,36 +324,13 @@ describe("tool.write", () => {
     )
   })
 
-  describe("code fragments rejected as file paths", () => {
-    // Measured 2026-09-21: this exact value became a 0-byte file in `packages/opencode`, and the
-    // owner reports it appearing there REGULARLY. The guard that stood in write.ts/edit.ts asked for
-    // «parens AND no dot» — `.join(` supplies the dot, so it never fired on the shape it was written
-    // for. Keep this test failing on any predicate that a `.join(`-style fragment can pass.
-    test("the predicate is SHAPE-based: a bare fragment yes, a qualified real path no", () => {
-      expect(looksLikeCodeFragment("i+1).join(String.fromCharCode(10)))")).toBe(true)
-      expect(looksLikeCodeFragment("src/foo(i).ts")).toBe(false)
-      expect(looksLikeCodeFragment("relative.txt")).toBe(false)
-      expect(looksLikeCodeFragment("Makefile")).toBe(false)
-    })
-
-    it.live("rejects the measured fragment and creates nothing", () =>
-      provideTmpdirInstance((dir) =>
-        Effect.gen(function* () {
-          const fragment = "i+1).join(String.fromCharCode(10)))"
-          const exit = yield* run({ filePath: fragment, content: "" }).pipe(Effect.exit)
-          expect(exit._tag).toBe("Failure")
-          const landed = yield* Effect.promise(() =>
-            fs.access(path.join(dir, fragment)).then(
-              () => true,
-              () => false,
-            ),
-          )
-          expect(landed).toBe(false)
-        }),
-      ),
-    )
-
-    it.live("POSITIVE CONTROL — a real name with parentheses still writes when it carries a separator", () =>
+  // The `looksLikeCodeFragment` guard and its two pinning cases were removed on 2026-09-29 (owner,
+  // plan 2026-09-29_bash-tool-single-execution-path D2): the 0-byte `i+1).join(…)` artefact was a
+  // cmd.exe REDIRECT from bash.test.ts's `fill()` under a bare `/c`, never a write call — a 0-byte
+  // file is the redirect's signature, a write would have carried content. The cause is fixed in
+  // bash.ts/cmd.ts (`/d /s /c "…"`) and pinned by test/tool/shell-exec-contract.test.ts.
+  describe("file names with punctuation", () => {
+    it.live("a real name with parentheses writes", () =>
       provideTmpdirInstance((dir) =>
         Effect.gen(function* () {
           const filepath = path.join(dir, "docs", "Report (final).md")

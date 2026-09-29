@@ -50,11 +50,9 @@ const quote = (text: string) => `"${text}"`
 const squote = (text: string) => `'${text}'`
 const projectRoot = path.join(__dirname, "../..")
 const bin = quote(process.execPath.replaceAll("\\", "/"))
-const bash = (() => {
-  const shell = Shell.acceptable()
-  if (Shell.name(shell) === "bash") return shell
-  return Shell.gitbash()
-})()
+// Only a bash the POLICY accepts: `Shell.gitbash()` used to stand here, and on win32 `ok()` refuses
+// it, so a `[bash]` case ran cmd under a bash label (2026-09-29; the matrix below, 5d5c637a54).
+const bash = Shell.name(Shell.acceptable()) === "bash" ? Shell.acceptable() : undefined
 const shells = (() => {
   if (process.platform !== "win32") {
     const shell = Shell.acceptable()
@@ -256,7 +254,9 @@ describe("tool.bash permissions", () => {
             await Effect.runPromise(
               bash.execute(
                 {
-                  command: "Write-Host foo; if ($?) { Write-Host bar }",
+                  // Not Write-Host: it joined POWERSHELL_SAFE on 2026-09-16 and never asks, so a safe
+                  // cmdlet here could only ever prove that the safe list works (2026-09-29).
+                  command: "Get-Date foo; if ($?) { Get-Date bar }",
                   description: "Check PowerShell conditional",
                 },
                 capture(requests),
@@ -266,9 +266,9 @@ describe("tool.bash permissions", () => {
               (r) => r.permission === "bash" || r.permission === "powershell" || r.permission === "cmd",
             )
             expect(bashReq).toBeDefined()
-            expect(bashReq!.patterns).toContain("Write-Host foo")
-            expect(bashReq!.patterns).toContain("Write-Host bar")
-            expect(bashReq!.always).toContain("Write-Host *")
+            expect(bashReq!.patterns).toContain("Get-Date foo")
+            expect(bashReq!.patterns).toContain("Get-Date bar")
+            expect(bashReq!.always).toContain("Get-Date *")
           },
         })
       }),
@@ -558,7 +558,11 @@ describe("tool.bash permissions", () => {
               ).rejects.toThrow(err.message)
               expect(requests[0]?.permission).toBe("external_directory")
               if (requests[0]?.permission !== "external_directory") return
-              expect(requests[0].patterns).toContain(glob(path.join(path.dirname(item.shell), "*")))
+              // Case-insensitive, as the rule matcher is on win32 (`util/wildcard.ts:17`): the runtime
+              // resolves powershell as `C:\WINDOWS\system32\windowspowershell\…` (2026-09-29).
+              expect(requests[0].patterns.map((p) => p.toLowerCase())).toContain(
+                glob(path.join(path.dirname(item.shell), "*")).toLowerCase(),
+              )
             },
           })
         }),
@@ -742,7 +746,8 @@ describe("tool.bash permissions", () => {
               await Effect.runPromise(
                 bash.execute(
                   {
-                    command: "Write-Output ('a' * 3)",
+                    // Out-String, not Write-Output: a POWERSHELL_SAFE cmdlet never asks (2026-09-29).
+                    command: "Out-String -InputObject ('a' * 3)",
                     description: "Write repeated text",
                   },
                   capture(requests),
@@ -1107,7 +1112,10 @@ describe("tool.bash abort", () => {
     SHELL_TEST_TIMEOUT,
   )
 
-  test.skip(
+  // Un-skipped 2026-09-29: the deadline is enforced again (owner's ruling; plan
+  // 2026-09-29_bash-tool-single-execution-path, D1). `sleep` does not exist under cmd, so the old
+  // command exited at once and could never have exercised the timeout on Windows.
+  test(
     "terminates command on timeout",
     async () => {
       await Instance.provide({
@@ -1117,7 +1125,7 @@ describe("tool.bash abort", () => {
           const result = await Effect.runPromise(
             bash.execute(
               {
-                command: `echo started && sleep 60`,
+                command: `echo started && ${process.platform === "win32" ? "ping -n 60 127.0.0.1" : "sleep 60"}`,
                 description: "Timeout test",
                 timeout: 500,
               },
@@ -1219,8 +1227,10 @@ describe("tool.bash truncation", () => {
   test(
     "truncates output exceeding line limit",
     async () => {
+      // A tmpdir cwd: when cmd mis-quoted `fill()` the redirect landed in packages/opencode (2026-09-29).
+      await using tmp = await tmpdir()
       await Instance.provide({
-        directory: projectRoot,
+        directory: tmp.path,
         fn: async () => {
           const bash = await initBash()
           const lineCount = Truncate.MAX_LINES + 500
@@ -1245,8 +1255,9 @@ describe("tool.bash truncation", () => {
   test(
     "truncates output exceeding byte limit",
     async () => {
+      await using tmp = await tmpdir()
       await Instance.provide({
-        directory: projectRoot,
+        directory: tmp.path,
         fn: async () => {
           const bash = await initBash()
           const byteCount = Truncate.MAX_BYTES + 10000
@@ -1271,8 +1282,9 @@ describe("tool.bash truncation", () => {
   test(
     "does not truncate small output",
     async () => {
+      await using tmp = await tmpdir()
       await Instance.provide({
-        directory: projectRoot,
+        directory: tmp.path,
         fn: async () => {
           const bash = await initBash()
           const result = await Effect.runPromise(
@@ -1295,8 +1307,9 @@ describe("tool.bash truncation", () => {
   test(
     "full output is saved to file when truncated",
     async () => {
+      await using tmp = await tmpdir()
       await Instance.provide({
-        directory: projectRoot,
+        directory: tmp.path,
         fn: async () => {
           const bash = await initBash()
           const lineCount = Truncate.MAX_LINES + 100
@@ -1583,27 +1596,29 @@ describe("tool.bash constitution guard", () => {
 })
 
 describe("tool.bash path validation", () => {
-  test("warns about double drive letter paths", async () => {
+  // Was "warns about double drive letter paths" with a workdir INSIDE the project and only `exit 0`
+  // asserted — a name promising a warning over a case that could not produce one, on the one path
+  // that never printed them anyway (2026-09-29). The double-drive message is pinned by
+  // `formatPathIssues` below and by test/util/path-validator.test.ts.
+  test.skipIf(process.platform !== "win32")("warns about system directory paths and still runs", async () => {
     await using tmp = await tmpdir()
     await Instance.provide({
       directory: tmp.path,
       fn: async () => {
         const bash = await initBash()
-        // Create a subdirectory so workdir is valid
-        const sub = path.join(tmp.path, "sub")
-        require("fs").mkdirSync(sub, { recursive: true })
         const result = await Effect.runPromise(
           bash.execute(
             {
               command: `echo test`,
-              workdir: sub,
+              workdir: process.env.SystemRoot || process.env.windir,
               description: "Path validation test",
             },
             ctx as any,
           ),
         )
-        // The result should not crash; path validation produces warnings
         expect(result.metadata.exit).toBe(0)
+        expect(result.output).toContain("Path issues detected")
+        expect(result.output).toContain("system directory")
       },
     })
   })

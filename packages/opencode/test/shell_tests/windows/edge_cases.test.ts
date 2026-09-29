@@ -269,14 +269,16 @@ describeWin("Windows: edge case integration", () => {
           const result = await Effect.runPromise(
             bash.execute(
               {
-                command: `dir "${spacedDir}"`,
-                description: "List directory with spaces",
+                // `if exist`, not `dir`: native enumerators are blocked by the constitution (owner,
+                // 2026-09-21); the case pins that cmd resolves the spaced path (2026-09-29).
+                command: `if exist "${spacedDir}\\file.txt" (echo found file.txt) else (exit /b 1)`,
+                description: "Resolve a file in a directory with spaces",
               },
               ctx,
             ),
           )
           expect(result.metadata.exit).toBe(0)
-          expect(result.output).toContain("file.txt")
+          expect(result.output).toContain("found file.txt")
         },
       })
     }),
@@ -304,14 +306,16 @@ describeWin("Windows: edge case integration", () => {
           const result = await Effect.runPromise(
             bash.execute(
               {
-                command: `dir "${parenDir}"`,
-                description: "List directory with parentheses",
+                // Inside an `if (...)` block the quoted parentheses must not close it — a stricter
+                // case than the blocked `dir` it replaces (2026-09-29).
+                command: `if exist "${parenDir}\\test.dll" (echo found test.dll) else (exit /b 1)`,
+                description: "Resolve a file in a directory with parentheses",
               },
               ctx,
             ),
           )
           expect(result.metadata.exit).toBe(0)
-          expect(result.output).toContain("test.dll")
+          expect(result.output).toContain("found test.dll")
         },
       })
     }),

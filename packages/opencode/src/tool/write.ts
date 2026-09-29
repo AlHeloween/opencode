@@ -18,7 +18,7 @@ import { assertExternalDirectoryEffect } from "./external-directory"
 import * as Bom from "@/util/bom"
 import { Constitution } from "@/session/constitution"
 import { validateCodeSyntax } from "@/util/syntax-validator"
-import { filePathDescription, looksLikeCodeFragment } from "./path-hint"
+import { filePathDescription } from "./path-hint"
 
 const MAX_PROJECT_DIAGNOSTICS_FILES = 5
 
@@ -50,13 +50,6 @@ export const WriteTool = Tool.define(
       parameters: Parameters,
       execute: (params: { content: string; filePath: string }, ctx: Tool.Context) =>
         Effect.gen(function* () {
-          // A malformed tool call hands over the tail of an expression instead of a path, e.g.
-          // "i+1).join(String.fromCharCode(10)))". The predicate that used to stand here («parens AND
-          // no dot») was PASSED by every such fragment — `.join(` carries the dot — so the guard never
-          // fired and the repository collected the 0-byte artefact again. See `looksLikeCodeFragment`.
-          if (looksLikeCodeFragment(params.filePath)) {
-            return yield* Effect.fail(new Error(`filePath does not look like a valid path: ${params.filePath}`))
-          }
           const filepath = path.isAbsolute(params.filePath)
             ? params.filePath
             : path.join(Instance.directory, params.filePath)

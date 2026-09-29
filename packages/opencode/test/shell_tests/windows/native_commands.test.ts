@@ -421,14 +421,15 @@ describeWin("Windows: native command path handling", () => {
           const result = await Effect.runPromise(
             bash.execute(
               {
-                command: `dir "${subdir}"`,
-                description: "List directory with backslash path",
+                // `if exist`, not `dir`: native enumerators are blocked (owner, 2026-09-21) (2026-09-29).
+                command: `if exist "${subdir}\\deep.txt" (echo found deep.txt) else (exit /b 1)`,
+                description: "Resolve a nested file with backslash path",
               },
               ctx,
             ),
           )
           expect(result.metadata.exit).toBe(0)
-          expect(result.output).toContain("deep.txt")
+          expect(result.output).toContain("found deep.txt")
         },
       })
     }),
@@ -451,8 +452,10 @@ describeWin("Windows: native command path handling", () => {
           const result = await Effect.runPromise(
             bash.execute(
               {
-                command: `type "${filepath}"`,
-                description: "Type file with backslash path",
+                // findstr, not `type`: `type` is a native enumerator the constitution blocks (owner,
+                // 2026-09-21); findstr is content search and reads the same backslash path (2026-09-29).
+                command: `findstr /c:"Hello" "${filepath}"`,
+                description: "Read file content with backslash path",
               },
               ctx,
             ),

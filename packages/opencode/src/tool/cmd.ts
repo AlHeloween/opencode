@@ -27,69 +27,12 @@ import {
   splitCmdRunnerSend,
 } from "./shell-constitution"
 import { cmdRunnerTailBlock } from "./cmd-runner-tail"
-import { getParser } from "@/shell/tree-sitter"
+import { getParser, parseShell } from "@/shell/tree-sitter"
+import { CMD_FILES, CMD_SAFE, CWD, POWERSHELL_FILES, POWERSHELL_SAFE } from "./shell-sets"
+import { formatPathIssues, validatePaths as validatePathsShared, type SandboxRules } from "@/util/path-validator"
 
 const MAX_METADATA_LENGTH = 30_000
 const DEFAULT_TIMEOUT = Flag.OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS || 60 * 1000
-const CWD = new Set(["cd", "pushd", "popd"])
-
-// Known-safe read-only cmd commands that never trigger permission scanning.
-const SAFE = new Set([
-  "cls",
-  "color",
-  "dir",
-  "echo",
-  "find",
-  "findstr",
-  "help",
-  "more",
-  "path",
-  "prompt",
-  "sort",
-  "title",
-  "tree",
-  "type",
-  "ver",
-  "vol",
-])
-
-// Filesystem-affecting cmd commands that need path scanning.
-const FILES = new Set([
-  ...CWD,
-  "attrib",
-  "copy",
-  "del",
-  "erase",
-  "expand",
-  "icacls",
-  "mkdir",
-  "mklink",
-  "move",
-  "openfiles",
-  "rd",
-  "rename",
-  "ren",
-  "replace",
-  "rmdir",
-  "takeown",
-  "xcopy",
-  "robocopy",
-])
-
-const POWERSHELL_SAFE = new Set(["get-location", "write-host", "write-output"])
-const POWERSHELL_FILES = new Set([
-  "add-content",
-  "copy-item",
-  "get-content",
-  "move-item",
-  "new-item",
-  "pop-location",
-  "push-location",
-  "remove-item",
-  "rename-item",
-  "set-content",
-  "set-location",
-])
 
 interface Part {
   type: string
@@ -263,11 +206,11 @@ function powerShellScript(command: string) {
 }
 
 function cmd(shell: string, command: string, cwd: string, env: NodeJS.ProcessEnv) {
-  // Use cmd /c directly (no shell mode) to avoid Node.js escaping inner
-  // quotes with \" — cmd.exe does not understand \" escaping and breaks
-  // on paths with spaces like "C:\Program Files\...".
-  // CrossSpawnSpawner auto-detects cmd.exe and sets windowsVerbatimArguments.
-  return ChildProcess.make(shell, ["/c", command], {
+  // No shell mode: Node would escape inner quotes as \" and cmd.exe does not understand \"
+  // (CrossSpawnSpawner sets windowsVerbatimArguments for cmd.exe). `/s` + one outer pair of
+  // quotes: with more than two quotes on the line a bare `/c` strips the FIRST and the LAST one,
+  // pushing the payload out of its quoting so `>` became a redirect into the cwd (2026-09-29).
+  return ChildProcess.make(shell, ["/d", "/s", "/c", `"${command}"`], {
     cwd,
     env,
     stdin: "ignore",
@@ -295,34 +238,12 @@ export const CmdTool = Tool.define(
       return yield* resolvePath(text, cwd)
     })
 
+    // The shared validator, as in bash.ts. A private copy used to stand here — a second answer to
+    // the same question that ignored the configured sandbox rules (2026-09-29).
     const validatePaths = Effect.fn("CmdTool.validatePaths")(function* (paths: string[], worktree: string) {
-      const issues: string[] = []
-      for (const p of paths) {
-        if (/^[A-Za-z]:[\\\/][A-Za-z]:/.test(p)) {
-          issues.push(`"${p}" — invalid: double drive letter`)
-          continue
-        }
-        if (/^(C:\\Windows)(\\|\/|$)/i.test(p)) {
-          issues.push(`"${p}" — blocked: system directory`)
-          continue
-        }
-        if (/[\\/]\.git([\\/]|$)/.test(p)) {
-          issues.push(`"${p}" — blocked: .git directory`)
-          continue
-        }
-        if (!p.includes("*") && !p.includes("?")) {
-          try {
-            const resolved = path.isAbsolute(p) ? p : path.resolve(worktree, p)
-            if (!require("fs").existsSync(resolved)) {
-              issues.push(`"${p}" — path does not exist`)
-            }
-          } catch (error) {
-            log.debug("failed to validate command path", { path: p, error })
-          }
-        }
-      }
-      if (issues.length === 0) return undefined
-      return `⚠ Path issues detected:\n${issues.map((i, n) => `  ${n + 1}. ${i}`).join("\n")}`
+      const sandbox = ((yield* config.get()).sandbox ?? undefined) as SandboxRules | undefined
+      const issues = yield* Effect.promise(() => validatePathsShared(paths, { worktree, rules: sandbox }))
+      return formatPathIssues(issues)
     })
 
     const collect = Effect.fn("CmdTool.collect")(function* (root: Node, cwd: string, ps: boolean) {
@@ -331,15 +252,18 @@ export const CmdTool = Tool.define(
         const command = parts(node, ps)
         const tokens = command.map((item) => item.text)
         const cmdName = tokens[0]?.toLowerCase()
-        const safe = ps ? POWERSHELL_SAFE : SAFE
-        const files = ps ? POWERSHELL_FILES : FILES
+        const safe = ps ? POWERSHELL_SAFE : CMD_SAFE
+        const files = ps ? POWERSHELL_FILES : CMD_FILES
         if (cmdName && safe.has(cmdName) && !hasRedirection(node, ps)) continue
         if (cmdName && files.has(cmdName)) {
           for (const arg of pathArgs(command)) {
             const resolved = yield* argPath(arg, cwd)
             if (!resolved || Instance.containsPath(resolved)) continue
-            if (!(yield* fs.existsSafe(resolved))) continue
-            const dir = (yield* fs.isDir(resolved)) ? resolved : path.dirname(resolved)
+            // The target OR its directory — a write that creates a file outside the project names a
+            // target that does not exist yet (same rule as bash.ts, 2026-09-29).
+            const exists = yield* fs.existsSafe(resolved)
+            if (!exists && !(yield* fs.existsSafe(path.dirname(resolved)))) continue
+            const dir = exists && (yield* fs.isDir(resolved)) ? resolved : path.dirname(resolved)
             scan.dirs.add(dir)
           }
         }
@@ -384,7 +308,8 @@ export const CmdTool = Tool.define(
         command: string
         cwd: string
         env: NodeJS.ProcessEnv
-        timeout: number
+        /** Milliseconds before the tree is killed; undefined only for cmd_runner (owner, 2026-09-29). */
+        timeout: number | undefined
         description: string
         /** Background mode: live job writer. Called per chunk so the job's
          *  lastOutputAt tracks real output — the stall heartbeat measures
@@ -407,10 +332,11 @@ export const CmdTool = Tool.define(
       let file = ""
       let sink: ReturnType<typeof createWriteStream> | undefined
       let cut = false
+      let expired = false
 
       yield* ctx.metadata({ metadata: { output: "", description: input.description } })
 
-      const code: number | null = yield* Effect.scoped(
+      const scoped = Effect.scoped(
         Effect.gen(function* () {
           const handle = yield* spawner.spawn(cmd(input.shell, input.command, input.cwd, input.env))
           input.onSpawn?.(Number(handle.pid))
@@ -454,18 +380,46 @@ export const CmdTool = Tool.define(
           }
           const awaitDrain = yield* forkDrainStdoutStderr(handle, onChunk)
 
-          // Process exit only — NO hard timeout, NO abort race.
-          // Long builds must not be killed by a fixed deadline. The agent
-          // sees stall detection hints and decides whether to jobkill.
-          // Fiber interruption (user cancel, jobkill) kills the process
-          // via Effect.scoped acquireRelease finalizer (taskkill /T /F).
-          const code = yield* handle.exitCode
+          // Exit vs deadline — the same contract as bash.ts (owner, 2026-09-29): no abort race,
+          // fiber interruption kills the tree through the scope; cmd_runner alone has no deadline.
+          const exit = yield* Effect.raceAll([
+            handle.exitCode.pipe(Effect.map((code): number | null => code)),
+            ...(input.timeout === undefined
+              ? []
+              : [Effect.sleep(`${input.timeout} millis`).pipe(Effect.as("expired" as const))]),
+          ])
+          if (exit === "expired") {
+            expired = true
+            // Kill BEFORE draining: a dead tree closes its pipes, so the drain returns.
+            yield* handle.kill().pipe(
+              Effect.catchCause((cause) => Effect.sync(() => log.debug("cmd timeout kill failed", { cause: String(cause) }))),
+            )
+          }
           yield* awaitDrain
-          return code
+          return exit === "expired" ? null : exit
         }),
       ).pipe(Effect.orDie)
+      // Safety net: if kill + drain still hang, the call resolves anyway, 5 s past the deadline.
+      const code: number | null =
+        input.timeout === undefined
+          ? yield* scoped
+          : yield* scoped.pipe(
+              Effect.timeoutOrElse({
+                duration: `${input.timeout + 5000} millis`,
+                orElse: () =>
+                  Effect.sync(() => {
+                    expired = true
+                    return null
+                  }),
+              }),
+            )
 
       const meta: string[] = []
+      if (expired) {
+        meta.push(
+          `cmd tool terminated command after exceeding timeout ${input.timeout} ms. If this command is waiting for interactive keyboard input, run it through cmd_runner instead. If it is a long-running non-interactive command, retry with a larger timeout value in milliseconds.`,
+        )
+      }
       const raw = list.map((item) => item.text).join("")
       const end = tail(raw, limits.maxLines, limits.maxBytes)
       if (end.cut) cut = true
@@ -524,19 +478,18 @@ export const CmdTool = Tool.define(
           if (params.timeout !== undefined && params.timeout < 0) {
             throw new Error(`Invalid timeout value: ${params.timeout}. Timeout must be a positive number.`)
           }
-          const CMD_RUNNER_TIMEOUT = 10 * 60 * 1000
           const ADM_TIMEOUT = 3 * 60 * 1000
+          // cmd_runner owns its own lifecycle: the one command with no deadline (owner, 2026-09-29).
           const isCmdRunner = /\bcmd_runner(?:\.exe)?\b/i.test(effectiveCommand)
           const isAdm = /\badm(?:\.exe)?\b|python(?:3)?(?:\.exe)? -m adm\b/i.test(params.command)
-          const timeout = params.timeout ?? (isCmdRunner ? CMD_RUNNER_TIMEOUT : isAdm ? ADM_TIMEOUT : DEFAULT_TIMEOUT)
+          const timeout = isCmdRunner ? undefined : (params.timeout ?? (isAdm ? ADM_TIMEOUT : DEFAULT_TIMEOUT))
           const shell = process.env.COMSPEC || "cmd.exe"
 
           const p = yield* Effect.promise(() => getParser())
           const script = powerShellScript(scanCommand)
           const ps = script !== undefined
           // Shared parser: p.cmd = batch grammar, p.ps = PowerShell grammar
-          const engine = ps ? p.ps : p.cmd
-          const tree = engine.parse(script ?? scanCommand)
+          const tree = parseShell(ps ? p.ps : p.cmd, script ?? scanCommand, !ps)
           if (!tree) throw new Error("Failed to parse command")
           const root = tree.rootNode
 
@@ -555,67 +508,56 @@ export const CmdTool = Tool.define(
           yield* ask(ctx, scan)
           const env = yield* shellEnv(ctx, cwd)
 
-          // Background mode: fork into JobManager, return immediately.
-          // Commands run non-blocking by default — the agent sees the job ID
-          // and can poll joboutput / jobwait / jobkill. Synchronous
-          // execution is opt-in via run_in_background: false.
-          if (params.run_in_background !== false) {
-            const jobSvc = yield* Effect.serviceOption(Jobs.Service)
-            if (jobSvc._tag === "None") {
-              return yield* run(
-                { shell, command: params.command, cwd, env, timeout, description: params.description },
-                ctx,
-              )
-            }
-            const jobID = yield* jobSvc.value.startEffect({
-              sessionID: ctx.sessionID,
-              kind: "bash" as any,
-              label: params.description || params.command.slice(0, 80),
-              run: (writeOutput, self) => Effect.gen(function* () {
-                const result = yield* run(
-                  {
-                    shell,
-                    command: effectiveCommand,
-                    cwd,
-                    env,
-                    timeout,
-                    description: params.description,
-                    // Stream chunks into the job: `joboutput` shows progress
-                    // while running and the stall heartbeat sees liveness
-                    // (2026-09-18 — this wiring was missing and every silent
-                    // >2min job was auto-killed).
-                    onOutput: writeOutput,
-                    onSpawn: (pid) => self.setPid(pid),
-                  },
-                  ctx,
-                )
-                if (autoWrap.wrapped) {
-                  result.output = `constitution: auto-wrapped via cmd_runner start --\n${result.output}`
-                }
-                // Append cmd_runner session tail so jobdone carries the real result.
-                result.output += yield* Effect.promise(() => cmdRunnerTailBlock(result.output))
-                return result.output
-              }),
-            })
-            return {
-              title: `Background cmd ${jobID}`,
-              output: `Started background job ${jobID} (${params.description || params.command.slice(0, 80)}). Use joboutput to read its output, or jobwait to wait for completion.`,
-              metadata: {
-                jobID,
-                output: "",
-                exit: null as number | null,
-                description: params.description || params.command.slice(0, 80),
-                truncated: false,
-              },
-            } as any
-          }
+          // ONE input for every path — same contract and same defect history as bash.ts: sync and
+          // fallback used to run `params.command` and only sync printed path warnings (2026-09-29).
+          const input = { shell, command: effectiveCommand, cwd, env, timeout, description: params.description }
+          const execute = (live?: { onOutput: (chunk: string) => void; onSpawn: (pid: number) => void }) =>
+            run({ ...input, ...live }, ctx).pipe(
+              Effect.flatMap((result) =>
+                // Append the cmd_runner session tail so the result carries the real output.
+                Effect.promise(() => cmdRunnerTailBlock(result.output)).pipe(
+                  Effect.map((tail) => ({
+                    ...result,
+                    output:
+                      [
+                        pathWarnings,
+                        autoWrap.wrapped ? "constitution: auto-wrapped via cmd_runner start --" : undefined,
+                        result.output,
+                      ]
+                        .filter(Boolean)
+                        .join("\n\n") + tail,
+                  })),
+                ),
+              ),
+            )
 
-          const result = yield* run(
-            { shell, command: params.command, cwd, env, timeout, description: params.description },
-            ctx,
-          )
-          if (pathWarnings) result.output = `${pathWarnings}\n\n${result.output}`
-          return result
+          // Background is the default: the agent gets a job ID and polls joboutput / jobwait /
+          // jobkill. Synchronous execution is opt-in via run_in_background: false.
+          const jobSvc = params.run_in_background === false ? undefined : yield* Effect.serviceOption(Jobs.Service)
+          if (jobSvc?._tag !== "Some") return yield* execute()
+          const label = params.description || params.command.slice(0, 80)
+          const jobID = yield* jobSvc.value.startEffect({
+            sessionID: ctx.sessionID,
+            kind: "cmd",
+            label,
+            // Stream chunks into the job: `joboutput` shows progress while running and the stall
+            // heartbeat sees liveness (2026-09-18 — without it every silent >2min job was killed).
+            run: (writeOutput, self) =>
+              execute({ onOutput: writeOutput, onSpawn: (pid) => self.setPid(pid) }).pipe(
+                Effect.map((result) => result.output),
+              ),
+          })
+          return {
+            title: `Background cmd ${jobID}`,
+            output: `Started background job ${jobID} (${label}). Use joboutput to read its output, or jobwait to wait for completion.`,
+            metadata: {
+              jobID,
+              output: "",
+              exit: null as number | null,
+              description: label,
+              truncated: false,
+            },
+          } as any
         }),
     }
   }),

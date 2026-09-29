@@ -14,6 +14,8 @@
  */
 import { describe, expect, test } from "bun:test"
 import { Constitution } from "../../src/session/constitution"
+import { ENUMERATION_TOOLS } from "../../src/session/enumeration-tools"
+import { getParser, parseShell } from "../../src/shell/tree-sitter"
 
 const isWin = process.platform === "win32"
 const blocked = (command: string) => Constitution.guardCommand(command).blocked
@@ -40,6 +42,34 @@ describe("enumeration guard: platform-aware, and still armed", () => {
   test("stdout printing and content search stay allowed", () => {
     for (const command of ["echo *", "echo hello", "findstr /s /i TODO *.ts"]) {
       expect(blocked(command)).toBe(false)
+    }
+  })
+})
+
+// C9 (plans/2026-09-29_bash-tool-single-execution-path.md): the AST path and the token path are ONE
+// predicate. `evaluate` used to block every enumerator while `guardCommand` let a resolved unix tool
+// through, and the AST block's message was rebuilt as "" for any tool that resolves.
+describe("enumeration guard: the AST path agrees with the token path", () => {
+  const commands = [...ENUMERATION_TOOLS.map((name) => `${name} x`), "dir", "tree /f", "Get-ChildItem -Force"]
+
+  test("same verdict, and every AST block names its reason", async () => {
+    const parser = await getParser()
+    const grammars = [
+      { isCmd: false, engine: isWin ? parser.ps : parser.bash },
+      ...(isWin ? [{ isCmd: true, engine: parser.cmd }] : []),
+    ]
+    for (const grammar of grammars) {
+      for (const command of commands) {
+        const root = parseShell(grammar.engine, command, grammar.isCmd)?.rootNode
+        expect(root).toBeTruthy()
+        const ast = Constitution.evaluate(root!, grammar.isCmd).blocked.filter((f) => f.isFileEnumerator)
+        expect({ command, isCmd: grammar.isCmd, blocked: ast.length > 0 }).toEqual({
+          command,
+          isCmd: grammar.isCmd,
+          blocked: blocked(command),
+        })
+        for (const finding of ast) expect(finding.message ?? "").toContain("BLOCKED")
+      }
     }
   })
 })

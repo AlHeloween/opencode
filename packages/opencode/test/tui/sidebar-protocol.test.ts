@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test"
-import { protocolLabel, protocolPinned, protocolRow, type LastProtocol } from "@/cli/cmd/tui/feature-plugins/sidebar/protocol-row"
+import {
+  connectionBadge,
+  protocolLabel,
+  protocolPinned,
+  protocolRow,
+  type LastProtocol,
+} from "@/cli/cmd/tui/feature-plugins/sidebar/protocol-row"
 
 const deepseek = { requestID: "msg_turn_2", sessionID: "ses_current", providerID: "deepseek", modelID: "deepseek-flash", assistantCreatedAt: 100 }
 const fact: LastProtocol = { ...deepseek, protocol: "h2", at: 200 }
@@ -65,5 +71,16 @@ describe("protocol cell label", () => {
     expect(protocolLabel("auto", "h2", "auto")).toBe("auto(h2)")
     // An explicitly configured protocol still wins over any pin.
     expect(protocolLabel("h3", "h2", "h2")).toBe("h3")
+  })
+})
+
+describe("connection badge", () => {
+  test("a keep-alive H2 session reads connected; a cold pool reads disconnected — never blank", () => {
+    expect(connectionBadge(1)).toBe("●")
+    expect(connectionBadge(20)).toBe("●")
+    // Absence renders a VALUE, never "": the owner reads a missing indicator as false
+    // (AGENTS.md), and "no keep-alive session" is itself a true statement about our pool.
+    expect(connectionBadge(0)).toBe("○")
+    expect(connectionBadge(undefined)).toBe("○")
   })
 })

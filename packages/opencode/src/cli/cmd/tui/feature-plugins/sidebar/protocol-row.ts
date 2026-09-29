@@ -1,7 +1,9 @@
-// Protocol row for the TUI sidebar — pure, so it is unit-testable in isolation.
+// Sidebar transport row helpers — pure, so they are unit-testable in isolation.
+// TWO axes, deliberately not fused: the RUNG a request ran on (`protocolRow`/`protocolLabel`)
+// and whether a KEEP-ALIVE H2 SESSION is open right now (`connectionBadge`).
 // The blank row shipped TWICE as a defect (10.0.1106 rendered an empty string
 // while the transport ran h2, 2026-09-24) and "absence of an oracle reads as
-// FALSE" is now an AGENTS.md invariant: this function must never return "".
+// FALSE" is now an AGENTS.md invariant: no helper here may return "".
 export type LastProtocol = {
   requestID: string
   providerID: string
@@ -70,4 +72,20 @@ export function protocolLabel(configured: string | undefined, resolved: string |
   if (mode !== "auto") return mode
   if (pinned && RUNGS.includes(pinned)) return pinned
   return `auto(${resolved && resolved.length > 0 ? resolved : "unknown"})`
+}
+
+/**
+ * The LIVING-CONNECTION badge — owner directive 2026-09-29 (screenshot 2): «в tui sidebar не
+ * только протокол но и значек - connected disconnected - обычная иконка». The owner named the
+ * source himself: a KEEP-ALIVE H2 SESSION we hold — not auth, not the last request's outcome.
+ *
+ * `h2Sessions` is the live status the gateway publishes every 5 s (`gateway/mod.ts`), summed
+ * over the origin pools by `h2-transport.ts:getSessionCount`. The badge answers its OWN question
+ * and deliberately does not borrow the protocol row's: an h3 or h1 request says nothing about
+ * whether our h2 pool is warm. It is never `unknown` for the same reason — a zero or missing
+ * count is a true statement about our pool, and it renders the disconnected glyph rather than a
+ * blank, because absence of an oracle reads as FALSE (AGENTS.md).
+ */
+export function connectionBadge(h2Sessions: number | undefined): string {
+  return (h2Sessions ?? 0) > 0 ? "●" : "○"
 }

@@ -4,7 +4,7 @@ import { createMemo, createSignal, onCleanup, onMount, untrack } from "solid-js"
 import { getModelStatus } from "@/provider/balance"
 import { usable } from "@/session/overflow"
 import { useAgiMode } from "@tui/context/agi-mode"
-import { protocolRow, protocolPinned, protocolLabel, type LastProtocol } from "./protocol-row"
+import { protocolRow, protocolPinned, protocolLabel, connectionBadge, type LastProtocol } from "./protocol-row"
 
 const id = "internal:sidebar-context"
 
@@ -452,7 +452,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       </text>
       {state().providerID ? (
         <text fg={theme().textMuted}>
-          {state().providerID} · {state().apiProtocol} ·{" "}
+          {state().providerID} · {state().apiProtocol} · {connectionBadge(state().h2Sessions)}{" "}
           {protocolLabel(state().configuredProtocol, state().protocol, state().pinnedProtocol)}
         </text>
       ) : null}

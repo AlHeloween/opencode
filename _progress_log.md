@@ -5350,3 +5350,18 @@ hence no FTS table in the index. Two DOC surfaces still advertise "+ FTS5" for R
 OBSERVED (adm internals, not this runtime): `_rag_query.py:113` comments "384D cosine RRF" while `chunks.emb_dims=768`
 (bge-base); `dq_sig_dims=296`; `se3_dq` is filled for all 21 596 chunks yet `--query` passes no se3 parameter (only
 vector/DQ) — the geodesic fetch in `sqlite_store.py` has no caller on the query path. Probes: `experiments/2026-09-29_rag-literal-probe/probe{,2,3,4}.ts`.
+
+## [2026-09-29 13:26Z] RAG doc-truth fixed on both sides; literal search is fossil+codegraph (measured)
+
+CONFIRMED ✓: `fts_top_k` / `weight_fts` are ORPHANS in `adm/rag/config_schema.py` (stripped as never-consumed) and the
+adm tests PIN the absence — the doc line "Hybrid RRF … + SQLite FTS5" was rot in our skill and in adm's docs alike.
+Fixed ours (`.opencode/skills/rag/SKILL.md`: two legs vector + DQ; literal → `fossilgrep` / `codegraph` / `grep`; the
+se3 slot is written but not passed by `--query`) and, in the adm repo (commit `8261c42`), the canonical
+`artefacts/skills/rag/SKILL.md` + three scaffolds + README + cli_help + workflow diagram + handover doc + the stale
+"384D" comment (`_rag_query.py`).
+MEASURED ✓: a literal sweep over the index's own `chunks.content` = 160–240 ms across 21 596 chunks, and the artifact
+literal lands on exactly the seven known chunks — the data was always there; only `--query` is semantic.
+✗ DISCLOSED (adm canon): its AGENTS.md forbids agents running internal scripts (`_release.cmd` is the only release
+entrypoint) — `scripts/internal/build_artefacts.py` and `sync_skills_from_artefacts.py` were run before that file was
+read. No version bump, no release cut; recorded in adm's own `_progress_log.md`.
+Probes: `experiments/2026-09-29_rag-literal-probe/probe{,2,3,4,5}.ts`.

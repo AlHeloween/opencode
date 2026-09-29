@@ -59,9 +59,10 @@ export type TransportProtocol = "h3" | "h2" | "http/1.1"
 
 // Transport policy (owner directive 2026-09-24): attempt h3 first, downgrade
 // to h2, keep http/1.1 strictly as the last resort — h1 is not a recommended
-// rung. `auto` is the default for every provider: the first request probes h3
-// and the outcome is cached per origin (h3UnavailableUntil), so an origin
-// without QUIC pays for one failed probe per TTL, not per request.
+// rung. `auto` is the default for every provider: the first request trials h3
+// and the OUTCOME IS PERSISTED per route (Store.resolvedProtocol) — an origin
+// pays for one probe EVER, then the pinned rung is read on every request
+// (owner directive 2026-09-29: «пробаем и сохраняем, больше не пробаем»).
 // Verified per-provider rungs still ride `options.protocol` from the catalog
 // (e.g. novita-ai h3), and an explicit user choice always wins over `auto`.
 export function resolveGatewayProtocol(_provider: string, configured?: GatewayProtocol): GatewayProtocol {
@@ -94,12 +95,8 @@ export function shouldDowngrade(from: TransportProtocol, error: Errors.Normalize
   return false
 }
 
-// Failed h3 probes are cached per origin: the next `auto` request skips QUIC
-// for this long instead of paying for another fast-fail handshake.
-const H3_PROBE_TTL_MS = 30 * 60 * 1000
 // A probe must not stall a request if QUIC neither connects nor refuses.
 const H3_PROBE_TIMEOUT_MS = 5000
-const h3UnavailableUntil = new Map<string, number>()
 
 interface AdaptiveFetchOptions extends RequestInit {
   gatewayRouteKey?: RouteKey
@@ -786,11 +783,11 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
 
       try {
         // Downgrade chain (owner directive 2026-09-24): h3 -> h2 -> http/1.1.
-        // `auto` probes h3 first; an origin whose h3 probe failed is skipped
-        // for H3_PROBE_TTL_MS — the failure was transport-level, so h2 is
-        // attempted next and h1 remains the last resort.
-        const h3CachedDead = modelProtocol === "auto" && (h3UnavailableUntil.get(baseUrl) ?? 0) > Date.now()
-        const chain = protocolChain(modelProtocol, h3CachedDead)
+        // `auto` trials h3 ONLY while the route has no pinned result; a pinned rung
+        // (written once, persisted) is read here and never trialled again — owner
+        // directive 2026-09-29: «пробаем и сохраняем, больше не пробаем».
+        const pinnedProtocol = modelProtocol === "auto" ? Store.getResolvedProtocol(routeKey) : undefined
+        const chain = protocolChain(pinnedProtocol ?? modelProtocol, false)
 
         log.info("gateway.protocol.decision", {
           provider,
@@ -917,13 +914,15 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
             }
             usedProtocol = protocol
             servedAttempt = wireAttempt > 0 ? wireAttempt : i + 1
-            if (protocol === "h3") h3UnavailableUntil.delete(baseUrl)
+            if (protocol === "h3" && modelProtocol === "auto") Store.setResolvedProtocol(routeKey, "h3")
             break
           } catch (err) {
             const normalized = err instanceof Errors.TransportError ? err.error : Errors.normalizeError(err)
             if (normalized.category === "client_abort") throw err
             if (protocol === "h3" && modelProtocol === "auto") {
-              h3UnavailableUntil.set(baseUrl, Date.now() + H3_PROBE_TTL_MS)
+              // Fix the probe outcome permanently: h2 becomes the pinned rung for
+              // this route — no second trial (owner directive 2026-09-29).
+              Store.setResolvedProtocol(routeKey, "h2")
             }
             const next = chain[i + 1]
             if (!next || !shouldDowngrade(protocol, normalized)) {

@@ -171,6 +171,13 @@ export function updateStreamingPreference(
 
 export interface RouteAdjustment {
   policy: Policy
+  /**
+   * Probed-once transport rung (owner directive 2026-09-29: «пробаем и сохраняем,
+   * больше не пробаем»). Written on the first automatic trial of an origin, read on
+   * every later request — persisted with the rest of the store, so an origin is never
+   * trialled twice.
+   */
+  resolvedProtocol?: "h3" | "h2" | "http/1.1"
   streamingPreference: StreamingPreference
   health: {
     successRate: number

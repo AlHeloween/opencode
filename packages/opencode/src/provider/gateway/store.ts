@@ -239,6 +239,26 @@ export async function shutdown(): Promise<void> {
   state = null
 }
 
+/** The probed-once rung for a route (owner directive 2026-09-29): read on every
+ *  request; written once, persisted, never trialled again. */
+export function getResolvedProtocol(key: RouteKey): "h3" | "h2" | "http/1.1" | undefined {
+  const s = ensureLoaded()
+  return s.data.routes[toRouteKeyString(key)]?.resolvedProtocol
+}
+
+export function setResolvedProtocol(key: RouteKey, protocol: "h3" | "h2" | "http/1.1"): void {
+  const s = ensureLoaded()
+  const keyStr = toRouteKeyString(key)
+  const route = s.data.routes[keyStr] ?? getOrCreateRoute(s.data, keyStr, Date.now())
+  if (route.resolvedProtocol === protocol) return
+  route.resolvedProtocol = protocol
+  route.updatedAt = Date.now()
+  s.dirty = true
+  void forcePersist().catch((e) =>
+    log.warn("bug: gateway store persist failed", { error: e instanceof Error ? e.message : String(e) }),
+  )
+}
+
 export function getRoute(key: RouteKey): RouteAdjustment {
   const s = ensureLoaded()
   const keyStr = toRouteKeyString(key)

@@ -5387,3 +5387,9 @@ Received "cmd") and its command ran under cmd with bash-style quoting: the path 
 the `[bash]`-variant class is gone; the remaining reds are a DIFFERENT mix (pwsh/powershell/cmd external_directory,
 PowerShell-conditional parsing, abort/truncation) and are the substance of the handoff. Owner assigned #2 to another
 agent; this entry is the handoff note.
+
+ADDENDUM ✓ (measured during that very run): the 0-byte artefact reappeared (`packages/opencode/i+1).join(String.fromCharCode(10)))`,
+21:36, deleted). Producer: `fill()` at `test/tool/bash.test.ts:1230/1256/1306` — the three truncation tests, all red in
+the run — builds `bun -e "…(_,i)=>i+1…"` and the tool runs it through `cmd /c "…"`; cmd's `/s /c` wrapper re-parses the
+line and exposes `>`, so cmd opens `i+1).join(String.fromCharCode(10)))` as a redirect target in the CWD. That is the
+first stop for the handoff.

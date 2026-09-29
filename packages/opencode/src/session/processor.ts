@@ -545,8 +545,28 @@ export const layer: Layer.Layer<
       if (turnStart) {
         const t0 = Date.now()
         turn.timing = { t0, fossilMs: 0 }
-        turn.before = yield* snapshot.track(undefined).pipe(Effect.catch(() => Effect.succeed(undefined)))
-        turn.timing.fossilMs = Date.now() - t0
+        // The boundary commit is O(the WHOLE TREE) in fossil — this repo's own history
+        // measures 163.7 s per call on a 106k-file tree, which is ~16 s on this project's
+        // 10 913 tracked files — and the turn paid all of it BEFORE the model was asked
+        // anything. Measured live 2026-09-29: one `turn.prepare` row at fossilMs 16 364
+        // while every turn without a commit cost 1.5 s.
+        //
+        // Nothing in the turn needs the hash at this instant: every reader is at the END
+        // of the turn (`turn.before ?? ctx.snapshot` at step-finish, and `cleanup`'s
+        // patch), by which time the model has been working for minutes. So the commit is
+        // forked and the model starts while fossil works; the hash lands in `turn.before`
+        // as soon as it exists.
+        yield* snapshot.track(undefined).pipe(
+          Effect.catch(() => Effect.succeed(undefined as string | undefined)),
+          Effect.tap((hash) =>
+            Effect.sync(() => {
+              turn.before = hash
+              turn.timing!.fossilMs = Date.now() - t0
+            }),
+          ),
+          Effect.ignore,
+          Effect.forkIn(scope),
+        )
       }
       const initialSnapshot = turn.before
       const ctx: ProcessorContext = {

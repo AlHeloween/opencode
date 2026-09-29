@@ -88,10 +88,37 @@ oracle:   <what will prove it — the instrument, not the hope>
       **13 pass / 0 fail** (`20260929T234105Z_fac7d49b`); `bun typecheck` exit 0
       (`20260929T234300Z_f180c798`, after the layer annotation gained `Storage.Service` and the two
       harnesses gained the provision).
-- [ ] **S3 — the reminder.** One line in the existing turn status note: `svm: missing for <task>` (or
-      the task's dominant when present). Acceptance: a turn whose current task has no record carries
-      the line; a turn with one does not; the note is still delivered ONCE (the count assertion that
-      `read.test.ts` already pins is the guard).
+- [x] ✓ **S3 — the reminder.** The note carries one more line, and it describes the task the note
+      ITSELF already points at (`owed: … · next: <plan> <task>`): the manifest's dominant, its eta and
+      its state — or `svm: MISSING for <plan> <task>`. **The acceptance is restated because the old one
+      contradicted itself:** it asked for the dominant "when present" and then for the line to be absent
+      in that same case, which cannot both hold. What it says now: the line is printed whenever the note
+      has a next task, so a reader can tell "not written down" from "nothing to say" — the discipline
+      `coupling:` and `claims:` already follow (a check whose silence cannot be told from its absence is
+      not a check).
+      Two functions carry it: **`owedTasks`** (exported; ONE spelling of "what is owed" — `tailNote`
+      prints `owed[0]` and the caller reads `owed[0]`'s manifest, so the debt line and the svm line
+      cannot name different tasks) and **`SVM.readNote`**.
+      **The reader is service-free on purpose:** the note is built on the prompt path, and a service
+      requirement there propagates into every layer that provides `SessionPrompt` (`tool/memory.ts`
+      names the trade). The file comes from `Storage.keyFile` — the store's OWN mapping, exported for
+      this — so it cannot drift even in spelling.
+      **The oracle caught a real, silent defect and the fix is part of this task:** the storage plane
+      captured its root when the LAYER was built, while `project/instance.ts:47` sets the global when an
+      INSTANCE is created — so a layer built before its instance (the app's at start-up, a test's
+      outside `provideTmpdirInstance`) read and wrote a DIFFERENT worktree's store. That is the
+      mechanism behind the leaked record fixed in `9e53d317a0`, and it would have made this line report
+      every task as MISSING while the store held manifests: silent, permanent, invisible in production.
+      `Storage` now resolves its root per operation, so the writer and the reader agree by construction
+      instead of by the accident that a process starts inside its own worktree.
+      Oracles: `bun test test/session/svm.test.ts test/session/tail-note.test.ts test/tool/svm.test.ts
+      test/session/mechanical-writer.test.ts test/session/summary.test.ts
+      test/session/summary-anchors.test.ts test/session/snapshot-tool-race.test.ts` → **54 pass / 0 fail**
+      across 7 files (`20260929T235113Z_8ee6f185`) — the last four are there because the plane they all
+      sit on changed; `bun typecheck` → **exit 0** (`20260929T235145Z_0c67f68f`). The store's suite gained
+      the round trip ACROSS the two implementations (write through the service, read through `readNote`)
+      and a malformed-manifest case, because "the reader never throws" is what stops one bad manifest
+      from blanking the whole note.
 - [ ] **S4 — the master plan.** `render` writes `MASTER_PLAN.md` at the repo root, recursively: goal →
       plans → tasks, each task with its sv, plan ref and `eta_turns`, plus the open/pass counts.
       **SV IS MANDATORY FOR EVERY ENTRY — owner, 2026-09-29, verbatim:** «в мастерплане sv для каждого

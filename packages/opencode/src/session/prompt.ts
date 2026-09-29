@@ -14,6 +14,7 @@ import { ModelID, ProviderID } from "../provider/schema"
 import { type Tool as AITool, type ModelMessage, tool, jsonSchema, type ToolExecutionOptions, asSchema } from "ai"
 import type { JSONSchema7 } from "@ai-sdk/provider"
 import { SessionCompaction } from "./compaction"
+import * as SVM from "./svm"
 import { Constitution } from "./constitution"
 import { normalizeAttachment } from "@/attachment/normalize"
 import {
@@ -2013,13 +2014,33 @@ export const layer = Layer.effect(
                       .map((part) => (part as { text: string }).text)
                       .join("\n"),
                   }))
+                  // THE MANIFEST OF THE TASK THE NOTE IS ABOUT TO NAME (plan S3). Read HERE, not inside
+                  // `tailNote`, because the note is a pure function and a manifest is a file — and read
+                  // through `SVM.readNote`, which is service-free ON PURPOSE: this runs on the prompt
+                  // path, where a new service requirement propagates into every layer that provides
+                  // `SessionPrompt` (the trade `tool/memory.ts` names). It resolves the file through the
+                  // store's OWN mapping, so the reader and the writer cannot disagree about the path.
+                  const debt = collectPlanState(worktree)
+                  const next = SessionCompaction.owedTasks(debt)[0]
+                  const svm =
+                    next === undefined
+                      ? null
+                      : {
+                          plan: next.plan,
+                          task: next.task.id,
+                          manifest: yield* SVM.readNote(next.plan, next.task.id),
+                        }
                   return SessionCompaction.tailNote({
                     open,
                     window,
                     // THE CALL TO ACTION: what the protocol still OWES, read from the plan files. The
                     // user is not allowed to be the only thing that ever asks for an account of the work.
-                    debt: collectPlanState(worktree),
+                    debt,
                     debtTotal: planDebt(worktree),
+                    // THE DIRECTION AXIS: the manifest of the very task `owed:` names (plan S3), read
+                    // above before the return. A task with no manifest is reported as MISSING there —
+                    // never silently, because an absent line reads as "all good".
+                    svm,
                     // @LOOP_MEASURE's third axis, from the SAME source as `owed`: the plan files. A
                     // separate home for risks would have to be kept in step by hand — the failure
                     // mode the storage canon names — and `## Risks` is already where containment and

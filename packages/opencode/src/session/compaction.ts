@@ -778,6 +778,19 @@ export function statusVector(messages: readonly { role: string; text: string }[]
 }
 
 /**
+ * Every task the plan files still owe, in the order the note names them.
+ *
+ * ONE spelling, two callers: `tailNote` prints `owed[0]` and counts the list, and the caller reads
+ * `owed[0]`'s manifest before handing the note its data. Two copies of this filter would be two answers
+ * to "what is next", and the `owed:` and `svm:` lines would be free to name different tasks.
+ */
+export function owedTasks(debt: PlanStatePayload) {
+  return debt.plans.flatMap((plan) =>
+    plan.tasks.filter((task) => task.status !== "PASS").map((task) => ({ plan: plan.file, task })),
+  )
+}
+
+/**
  * The note pushed onto the newest user message after every user turn: which
  * summaries are still OPEN and what is deficient in them, plus the distance to
  * both boundaries.
@@ -824,6 +837,11 @@ export function tailNote(input: {
    * вектор … глянь логи»). An instruction's POSITION in the window is part of its strength, so the
    * reminder rides where generation starts instead of where the rule was written. */
   vector?: VectorCensus | null
+  /** The manifest of the task `owed:` names — the note's direction axis, read by the CALLER because
+   *  this function is pure and a manifest is a file. `null` = there is no next task, so there is
+   *  nothing to look up. `{ manifest: null }` = the task about to be worked on has no manifest yet,
+   *  which is exactly the state the SVM store exists to end. */
+  svm?: { plan: string; task: string; manifest: { dominant: string; etaTurns: number; state: string } | null } | null
 }): string {
   const lines: string[] = []
   // A summary's gap list names NINE sections, so one unpaid row is already ~340 characters. The
@@ -879,9 +897,10 @@ export function tailNote(input: {
   // exists carries the DEBT: the open plan work, in the protocol's own terms (task ids, statuses,
   // attempts — never prose), stated as an obligation rather than as a statistic.
   if (input.debt) {
-    const owed = input.debt.plans.flatMap((plan) =>
-      plan.tasks.filter((task) => task.status !== "PASS").map((task) => ({ plan: plan.file, task })),
-    )
+    // ONE spelling of `owed`: `owedTasks` is the list, `owed[0]` is the address the `svm:` line below
+    // also describes — the caller reads THAT task's manifest, so two copies of this filter would let
+    // the two lines name different tasks.
+    const owed = owedTasks(input.debt)
     const next = owed[0]
     // THE MEASURE IS THE TOTAL; THE ADDRESS IS THE NEXT TASK. `debt` carries at most three relevant
     // plans — that is what a head surface is for — so a count taken from it UNDER-REPORTS its own
@@ -899,6 +918,20 @@ export function tailNote(input: {
                 }`
               : ""
           }`,
+    )
+  }
+  // THE MANIFEST OF THE TASK THE NOTE JUST NAMED (plan S3). The debt line says WHAT is owed; this one
+  // says what that work IS — or that nobody has written it down, which is the state the SVM store
+  // exists to end. It rides the note for the same measured reason as the vectors (@CURRENT_SV): the
+  // store is consultable, and an identity mid-edit consults nothing. Printed whenever there IS a next
+  // task, present or absent, because a line that appears only in the bad case reads as noise while a
+  // line that is always there reads as a measure — the same discipline as `coupling:` and `claims:`.
+  if (input.svm) {
+    const { plan, task, manifest } = input.svm
+    lines.push(
+      manifest
+        ? `svm: ${plan} ${task} — ${manifest.dominant} · eta ${manifest.etaTurns} turn(s) · ${manifest.state}`
+        : `svm: MISSING for ${plan} ${task} — nobody has written down what it is; write it (svm set) so the next agent works in the right key`,
     )
   }
   // THE COUPLING WATCHER's line (owner, 2026-09-22). The count is printed even when it is zero and

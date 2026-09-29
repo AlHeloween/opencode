@@ -21,8 +21,16 @@ export interface Interface {
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Storage") {}
 
-function file(dir: string, key: string[]) {
-  return path.join(dir, ...key) + ".json"
+/**
+ * The file a key maps to, under a data root.
+ *
+ * EXPORTED because a reader that cannot yield for the service needs the SAME mapping, not a second
+ * spelling of it: the turn note is built on the prompt path, where a new service requirement
+ * propagates into every layer that provides its consumer — the trade `tool/memory.ts` names and
+ * answers the same way (service-free, rooted at the worktree). One key, one file, both sides.
+ */
+export function keyFile(dataRoot: string, key: string[]): string {
+  return path.join(dataRoot, "storage", ...key) + ".json"
 }
 
 function missing(err: unknown) {
@@ -42,8 +50,6 @@ export const layer = Layer.effect(
       lookup: () => TxReentrantLock.make(),
       idleTimeToLive: 0,
     })
-    const state = yield* Effect.cached(Effect.succeed({ dir: path.join(Global.Path.data, "storage") }))
-
     const fail = (target: string): Effect.Effect<never, InstanceType<typeof NotFoundError>> =>
       Effect.fail(new NotFoundError({ message: `Resource not found: ${target}` }))
 
@@ -60,7 +66,18 @@ export const layer = Layer.effect(
     ): Effect.Effect<A, E | AppFileSystem.Error> =>
       Effect.scoped(
         Effect.gen(function* () {
-          const target = file((yield* state).dir, key)
+          // THE ROOT IS RESOLVED PER OPERATION, not captured when the layer is built. Measured
+          // 2026-09-30 by S3's own oracle: `project/instance.ts` calls `Global.initFromWorktree(ctx
+          // .worktree)` when an instance is created, so a layer built BEFORE the instance — the app's at
+          // start-up, a test's outside `provideTmpdirInstance` — captured a root belonging to a DIFFERENT
+          // worktree, and every read and write went there. That is why the store survived across test
+          // files and runs (a record written under one plan id turned another file's exact-set
+          // assertion red), and it would have made a service-free reader report every manifest as
+          // MISSING while the store held them: silent, permanent, invisible. Resolving here makes the
+          // plane's root the CALLER's worktree, and lets `session/svm.ts`'s `readNote` resolve the same
+          // file at the same moment BY CONSTRUCTION rather than by the accident that a process happens
+          // to start inside its own worktree.
+          const target = keyFile(Global.Path.data, key)
           return yield* fn(target, yield* RcMap.get(locks, target))
         }),
       )

@@ -19,6 +19,7 @@
  * nothing to use it.
  */
 import { Effect } from "effect"
+import { Global } from "@opencode-ai/core/global"
 import { Storage } from "@/storage/storage"
 
 export interface SVMRecord {
@@ -67,3 +68,46 @@ export const missing = (storage: Storage.Interface, planFile: string, taskIds: r
     }
     return found
   })
+
+/**
+ * The manifest as the TURN NOTE needs it — read SERVICE-FREE.
+ *
+ * Why not through the store: the note is built on the prompt path, and a service requirement there
+ * propagates into every layer that provides `SessionPrompt` (the trade `tool/memory.ts` names and
+ * answers the same way). Why `Global.Path.data` and not the caller's worktree: the invariant that
+ * matters is AGREEMENT with the writer, not any particular directory — the service captures its root
+ * from that same path, so a reader rooted anywhere else (the session's worktree, say) reports every
+ * manifest as MISSING while the store holds them, silently and permanently. Measured 2026-09-30: under
+ * the test fixture the service writes to `TEST_TEMP/.opencode/data`, not to the per-test tmpdir — so a
+ * reader that "obviously" belonged next to the worktree would have been wrong in every test and in no
+ * production run, which is the worst possible place to be wrong. The file itself comes from
+ * `Storage.keyFile`, the store's OWN mapping, so the path cannot drift even in spelling.
+ *
+ * Never throws and never invents: absent, unreadable or malformed ⇒ `null`. A reader that threw would
+ * take the WHOLE note down with it (`prompt.ts` catches that builder and returns an empty string), so
+ * one missing manifest would blank a status surface.
+ */
+export function readNote(
+  planFile: string,
+  taskId: string,
+): Effect.Effect<{ task: string; dominant: string; etaTurns: number; state: SVMRecord["state"] } | null> {
+  return Effect.tryPromise(async () => {
+    const file = Bun.file(Storage.keyFile(Global.Path.data, taskKey(planFile, taskId)))
+    if (!(await file.exists())) return null
+    const record = (await file.json()) as SVMRecord
+    return { task: record.task, dominant: dominantOf(record.sv), etaTurns: record.etaTurns, state: record.state }
+  }).pipe(Effect.catch(() => Effect.succeed(null)))
+}
+
+/**
+ * The dominant line of an `@SV_FORMAT` block. A block that carries none SAYS SO: absence reads as
+ * FALSE, and an empty string would render as a manifest that exists and tells the reader nothing.
+ */
+export function dominantOf(sv: string): string {
+  const text = sv
+    .split("\n")
+    .find((line) => /^\s*semantic dominant:/i.test(line))
+    ?.replace(/^\s*semantic dominant:\s*/i, "")
+    .trim()
+  return text ? text : "(dominant not stated)"
+}

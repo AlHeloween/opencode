@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test"
 import { Effect } from "effect"
-import { TAIL_NOTE_PREFIX, statusMarks, statusVector, tailNote, type WindowState } from "../../src/session/compaction"
+import { TAIL_NOTE_PREFIX, owedTasks, statusMarks, statusVector, tailNote, type WindowState } from "../../src/session/compaction"
 import { formatWindow } from "../../src/tool/checkstate"
 import { IncrementalCheckpoint } from "../../src/session/incremental-checkpoint"
 import { Instance } from "../../src/project/instance"
@@ -189,6 +189,58 @@ describe("the pushed compaction note", () => {
     expect(tailNote({ open: [], window: null, debt: { plans: [] } })).toContain("owed: no open plan task")
     // No debt handed in ⇒ no line at all: a caller without plan context keeps the old contract.
     expect(tailNote({ open: [], window: null })).toBe("")
+  })
+
+  test("the svm line names the manifest of the SAME task the debt line names — or says it is missing", () => {
+    // Plan S3. The debt line says WHAT is owed; this one says what that work IS. The property that
+    // makes it useful is that both name ONE task: the caller reads `owedTasks(debt)[0]` and reads the
+    // manifest of THAT task, so the address is asserted against `owedTasks` — the same function the
+    // caller uses — rather than against a literal this test also wrote (a literal would agree with a
+    // note that had drifted).
+    const debt = {
+      plans: [
+        {
+          file: "plans/2026-09-29_svm-tool-and-master-plan.md",
+          lifecycle: "ACTIVE",
+          goal_sv: [],
+          invariants: [],
+          tasks: [
+            { id: "S2", title: "a finished task", sv: [], status: "PASS" as const, done_pct: 100, attempts: 0 },
+            { id: "S3", title: "the reminder", sv: ["note"], status: "PENDING" as const, done_pct: null, attempts: 0 },
+          ],
+        },
+      ],
+    }
+    const next = owedTasks(debt)[0]!
+
+    // No manifest yet ⇒ the note SAYS SO. A blank would read as "all good", which is the state this
+    // line exists to end: the task is about to be worked on and nobody has written down what it is.
+    const absent = tailNote({ open: [], window: null, debt, svm: { plan: next.plan, task: next.task.id, manifest: null } })
+    expect(absent).toContain("svm: MISSING for plans/2026-09-29_svm-tool-and-master-plan.md S3")
+    // ONE ADDRESS: the task the line describes is the task the debt line points at.
+    expect(absent).toContain("next: plans/2026-09-29_svm-tool-and-master-plan.md S3 [PENDING]")
+
+    // With a manifest, the DOMINANT rides the note — the point of the owner's rule: an agent that has
+    // never seen this session works in the right key instead of guessing what the task is for.
+    const present = tailNote({
+      open: [],
+      window: null,
+      debt,
+      svm: {
+        plan: next.plan,
+        task: next.task.id,
+        manifest: { dominant: "the note names the manifest of the task it names", etaTurns: 2, state: "doing" },
+      },
+    })
+    expect(present).toContain(
+      "svm: plans/2026-09-29_svm-tool-and-master-plan.md S3 — the note names the manifest of the task it names · eta 2 turn(s) · doing",
+    )
+
+    // A caller with no plan context hands in no svm ⇒ the note keeps its old contract, and when there
+    // IS a next task the line is printed in BOTH states — never only in the bad one, which would read
+    // as noise instead of as a measure.
+    expect(tailNote({ open: [], window: null, debt, svm: null })).not.toContain("svm:")
+    expect(absent).toContain("owed: 1 open plan task(s)")
   })
 
   test("the @CURRENT_SV census — the vector rides the TAIL, not the middle of the prefix", () => {

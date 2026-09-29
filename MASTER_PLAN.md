@@ -105,14 +105,14 @@ Per-task manifests, YAML. `eta_turns` is the approximate number of turns until t
 `plans_completed/`. `state`: doing | blocked | verified | waiting-on-user.
 
 ```yaml
-- task: S2
+- task: S4
   plan: plans/2026-09-29_svm-tool-and-master-plan.md
   sv:
-    keywords: { svm-tool: 0.5, three-verbs: 0.3, render: 0.2 }
-    dominant: the svm tool — read|set|render — with the registry spelling discipline
+    keywords: { master-plan-render: 0.4, sv-mandatory-per-entry: 0.3, derived-not-written: 0.2, stable-rerun: 0.1 }
+    dominant: render regenerates this file from the plan files and the store, with an SV for every plan, task and link — a missing one prints as MISSING
   eta_turns: 3
-  state: waiting-on-user
-  oracle: set→read round-trips every field; a task with no manifest reports missing, never invented
+  state: doing
+  oracle: two renders in a row are byte-identical, and no rendered plan or task lacks its sv (asserted, not eyeballed)
 
 - task: R1
   plan: plans/2026-09-29_stall-reproducer.md

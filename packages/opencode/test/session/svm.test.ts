@@ -19,6 +19,9 @@
  */
 import { describe, expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
+import fs from "fs/promises"
+import path from "path"
+import { Global } from "@opencode-ai/core/global"
 import { Storage } from "@/storage/storage"
 import * as SVM from "@/session/svm"
 import { provideTmpdirInstance } from "../fixture/fixture"
@@ -91,5 +94,51 @@ describe("SVM store", () => {
       }),
     )
     expect(result).toEqual(["S2", "S3"])
+  })
+
+  test("readNote resolves the SAME file the store writes", async () => {
+    // Plan S3's whole risk in one assertion. The turn note cannot yield for `Storage`, so it reads the
+    // manifest with `Bun.file` through `Storage.keyFile` — and a reader that rooted itself anywhere
+    // other than where the SERVICE roots itself would report every task as MISSING while the store held
+    // manifests: silent, permanent, and invisible in production (the fixture's own store is not where a
+    // worktree-shaped guess would put it — see the header). Rooting both at `Global.Path.data` is what
+    // makes them agree, so the round trip is asserted ACROSS the two implementations, not inside one.
+    const result = await inTmpdir(() =>
+      Effect.gen(function* () {
+        const storage = yield* Storage.Service
+        yield* SVM.write(storage, record.plan, record)
+        return {
+          written: yield* SVM.readNote(record.plan, "S1b"),
+          absent: yield* SVM.readNote(record.plan, "NEVER-WRITTEN"),
+        }
+      }),
+    )
+    expect(result.written).toEqual({
+      task: "S1b",
+      // The dominant is EXTRACTED from the `@SV_FORMAT` block: the note is one line, not a block.
+      dominant: "the manifest round-trips.",
+      etaTurns: 1,
+      state: "doing",
+    })
+    // A task with no manifest is `null`, never an invented shell.
+    expect(result.absent).toBeNull()
+    // A block that states no dominant SAYS SO — an empty string would read as a manifest that exists
+    // and tells the reader nothing.
+    expect(SVM.dominantOf("Keywords: a 0.6, b 0.4")).toBe("(dominant not stated)")
+  })
+
+  test("a malformed manifest reads as absent, never as a thrown turn", async () => {
+    // The note's builder catches its own failures and returns an EMPTY note, so a reader that threw
+    // would not report one bad manifest — it would blank the whole status surface for that turn.
+    // Garbage in the file is the cheapest way to prove the reader swallows it.
+    const result = await inTmpdir(() =>
+      Effect.gen(function* () {
+        const file = Storage.keyFile(Global.Path.data, SVM.taskKey(record.plan, "BROKEN"))
+        yield* Effect.promise(() => fs.mkdir(path.dirname(file), { recursive: true }))
+        yield* Effect.promise(() => fs.writeFile(file, "{not json"))
+        return yield* SVM.readNote(record.plan, "BROKEN")
+      }),
+    )
+    expect(result).toBeNull()
   })
 })

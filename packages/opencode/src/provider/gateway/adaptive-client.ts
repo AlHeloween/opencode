@@ -964,6 +964,11 @@ export function wrapFetch(_baseFetch: typeof globalThis.fetch) {
                 providerID: provider,
                 modelID: init?.gatewayModel || model,
                 protocol: usedProtocol,
+                // The rung the route is now PINNED to, read back from the store AFTER the
+                // request — so the sidebar can say `h2` instead of `auto(h2)`, which read as
+                // «we will probe again» (owner, 2026-09-29). `null` on an explicitly configured
+                // protocol: nothing was pinned and nothing needs to be.
+                pinned: Store.getResolvedProtocol(routeKey) ?? null,
                 at: Date.now(),
               },
             },

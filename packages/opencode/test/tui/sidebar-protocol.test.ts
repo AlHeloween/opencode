@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { protocolLabel, protocolRow, type LastProtocol } from "@/cli/cmd/tui/feature-plugins/sidebar/protocol-row"
+import { protocolLabel, protocolPinned, protocolRow, type LastProtocol } from "@/cli/cmd/tui/feature-plugins/sidebar/protocol-row"
 
 const deepseek = { requestID: "msg_turn_2", sessionID: "ses_current", providerID: "deepseek", modelID: "deepseek-flash", assistantCreatedAt: 100 }
 const fact: LastProtocol = { ...deepseek, protocol: "h2", at: 200 }
@@ -29,6 +29,20 @@ describe("sidebar protocol row", () => {
     expect(protocolRow({}, deepseek)).toBe("unknown")
     expect(protocolRow({ msg_turn_2: { ...fact, protocol: "auto" } }, deepseek)).toBe("unknown")
   })
+
+  test("reports the pinned rung of the SAME turn, and refuses everything else", () => {
+    const pinned = { ...fact, pinned: "h2" }
+    expect(protocolPinned({ [pinned.requestID]: pinned }, deepseek)).toBe("h2")
+    // No pin on the event (an explicitly configured protocol pins nothing, the adapter sends null).
+    expect(protocolPinned({ [fact.requestID]: fact }, deepseek)).toBeUndefined()
+    expect(protocolPinned({ [fact.requestID]: { ...fact, pinned: null } }, deepseek)).toBeUndefined()
+    // A policy written into the field is not a rung.
+    expect(protocolPinned({ [fact.requestID]: { ...fact, pinned: "auto" } }, deepseek)).toBeUndefined()
+    // Scoped exactly like protocolRow: another turn, provider or a staler turn cannot answer.
+    expect(protocolPinned({ [fact.requestID]: pinned }, { ...deepseek, requestID: "msg_turn_3" })).toBeUndefined()
+    expect(protocolPinned({ [fact.requestID]: pinned }, { ...deepseek, providerID: "openrouter" })).toBeUndefined()
+    expect(protocolPinned({ [fact.requestID]: pinned }, { ...deepseek, assistantCreatedAt: 300 })).toBeUndefined()
+  })
 })
 
 describe("protocol cell label", () => {
@@ -42,5 +56,14 @@ describe("protocol cell label", () => {
   test("a fixed protocol is shown as itself", () => {
     expect(protocolLabel("h2", "h3")).toBe("h2")
     expect(protocolLabel("http/1.1", "unknown")).toBe("http/1.1")
+  })
+
+  test("a PINNED rung IS the setting, so it loses the auto() wrapper (owner, 2026-09-29)", () => {
+    expect(protocolLabel("auto", "h2", "h2")).toBe("h2")
+    expect(protocolLabel("auto", undefined, "h3")).toBe("h3")
+    // Not every pin string is a rung: the honest wrapping stays when it is not.
+    expect(protocolLabel("auto", "h2", "auto")).toBe("auto(h2)")
+    // An explicitly configured protocol still wins over any pin.
+    expect(protocolLabel("h3", "h2", "h2")).toBe("h3")
   })
 })

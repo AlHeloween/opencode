@@ -4,7 +4,7 @@ import { createMemo, createSignal, onCleanup, onMount, untrack } from "solid-js"
 import { getModelStatus } from "@/provider/balance"
 import { usable } from "@/session/overflow"
 import { useAgiMode } from "@tui/context/agi-mode"
-import { protocolRow, protocolLabel, type LastProtocol } from "./protocol-row"
+import { protocolRow, protocolPinned, protocolLabel, type LastProtocol } from "./protocol-row"
 
 const id = "internal:sidebar-context"
 
@@ -381,13 +381,15 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       | { activeStreams: number; h2Sessions: number; h2MaxConcurrentStreams: number; updatedAt: number }
       | undefined
 
-    const liveProtocol = protocolRow(protocolFacts(), {
+    const protocolCurrent = {
       requestID: last.parentID,
       sessionID: props.session_id,
       providerID: last.providerID,
       modelID: last.modelID,
       assistantCreatedAt: last.time.created,
-    })
+    }
+    const liveProtocol = protocolRow(protocolFacts(), protocolCurrent)
+    const livePinned = protocolPinned(protocolFacts(), protocolCurrent)
 
     const totalInput = last.tokens.input + last.tokens.cache.read
     const cacheHitRate =
@@ -408,6 +410,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       percent: budget > 0 ? Math.round((tokens / budget) * 100) : null,
       gatewayEnabled,
       protocol: liveProtocol,
+      pinnedProtocol: livePinned,
       configuredProtocol: ((model?.options as Record<string, unknown> | undefined)?.protocol as string | undefined) ?? "auto",
       streaming: gatewayEnabled ? (model?.options?.streaming ?? true) : undefined,
       activeStreams: liveStatus?.activeStreams ?? 0,
@@ -449,7 +452,8 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       </text>
       {state().providerID ? (
         <text fg={theme().textMuted}>
-          {state().providerID} · {state().apiProtocol} · {protocolLabel(state().configuredProtocol, state().protocol)}
+          {state().providerID} · {state().apiProtocol} ·{" "}
+          {protocolLabel(state().configuredProtocol, state().protocol, state().pinnedProtocol)}
         </text>
       ) : null}
       {state().streaming !== undefined ? (

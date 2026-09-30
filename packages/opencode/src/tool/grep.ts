@@ -119,6 +119,11 @@ export const GrepTool = Tool.define(
           // The transparency probe that used to stand here is GONE, for the same reason as in
           // glob.ts: it existed to explain a «No matches found» produced by the DEFAULT hide. The
           // default now searches everything, so an empty result is simply an empty result.
+          // REPORTING binary files was attempted here and reverted the same hour: the signal is
+          // ripgrep's own `end.binary_offset`, and `which("rg.exe")` on this host resolves to
+          // `C:\Windows\rg.exe`, which does not emit it (our `bin/tools/rg.exe` does). So the
+          // question «was a file read to the end» is still unanswerable here, and «No matches
+          // found» for a directory holding a binary file remains a statement the tool cannot make.
           if (result.items.length === 0) return empty
 
           const rows = result.items.map((item) => ({

@@ -4,4 +4,4 @@ Syntax: `|` is OR; `\|` is a literal pipe. Single backslashes are correct as-is 
 
 Default: searches every path, gitignored included (node_modules, .opencode/data, logs) — an absence must never be an artefact of an ignore rule. Pass `gitignore: true` to respect .gitignore.
 
-Returns file paths + line numbers, sorted by modification time. Each match is an ADDRESS plus a bounded window — `Line N, col C, offset B: …snippet…` — where the snippet keeps 160 chars on each side of the hit and `…` marks every clip, so a match inside a megabyte-long minified line costs a window and never the line. Cap: 100 results per call, no pagination — narrow the pattern or the path instead. Issue parallel calls for independent patterns.
+Returns file paths + line numbers, sorted by modification time. Each match is an ADDRESS plus a bounded window: `Line N, col C, offset B: …snippet…` — 160 chars each side of the hit, `…` marks every clip, so a match inside a megabyte-long minified line costs a window and never the line. Cap: 100 results per call; no pagination — narrow the pattern or the path instead. Issue parallel calls for independent patterns.

@@ -418,6 +418,12 @@ export const layer: Layer.Layer<Service, never, AppFileSystem.Service | ChildPro
               return yield* Effect.fail(error(stderr, code))
             }
 
+            // A `binary_offset` count was added here on 2026-09-30 and REVERTED the same hour, with
+            // its test: `which("rg.exe")` on this host resolves to `C:\Windows\rg.exe`, and THAT
+            // ripgrep does not report `binary_offset`, so the report could not be produced or
+            // proven. Measured with our own `bin/tools/rg.exe` the same JSON carries
+            // `"end":{…"binary_offset":4}`. The requirement stands; the instrument is not the one
+            // this runtime uses — see the rg-resolution task before rebuilding this.
             return {
               items: code === 1 ? [] : items,
               partial: code === 2,

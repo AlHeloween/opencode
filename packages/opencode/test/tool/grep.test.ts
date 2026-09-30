@@ -170,4 +170,11 @@ describe("tool.grep", () => {
       }),
     ),
   )
+
+  // WITHDRAWN with provenance, 2026-09-30: «reports files ripgrep treated as BINARY» asserted
+  // `metadata.binary === 1` from ripgrep's `end.binary_offset`. Measured: our `bin/tools/rg.exe`
+  // emits `binary_offset: 4` for a file with a NUL byte, but `which("rg.exe")` on this host
+  // resolves to `C:\Windows\rg.exe`, which does not emit it — so the assertion encoded a true
+  // requirement that no instrument available to this runtime can satisfy. The requirement is kept
+  // in `file/ripgrep.ts` as a comment rather than as a red test nobody can make green.
 })

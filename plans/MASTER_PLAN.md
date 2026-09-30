@@ -104,9 +104,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 180 |
-| plans active | 18 |
-| tasks passed / total | 639 / 871 |
-| open boxes | 84 |
+| plans active | 19 |
+| tasks passed / total | 639 / 876 |
+| open boxes | 89 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -220,6 +220,14 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - SE [PENDING] · sv [reliability, defect-classes, evidence] · manifest: MISSING — nobody has written down what this box is
   - SF [PENDING] · sv [universal-search, cdp-port, redistribution] · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-09-30_no-foreign-skill-discovery.md` — 5 open / 5 box(es) · lifecycle OPEN
+  sv: intention "opencode discovers skills from Claude's and .agents' directories -- a compatibility feature this project does not want, and the same disease reaches the instruction loader (CLAUDE.md is read as OUR instructions) -> our runtime reads ONLY our own skill and instruction surfaces, and the foreign discovery is removed with its tests superseded, not silenced" · keywords [foreign-discovery, skill-isolation, instruction-isolation, self-sufficient, supersede]
+  - F1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - F2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - F3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - F4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - F5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
 - `plans/2026-09-30_replacement-empty-assistant-row.md` — 3 open / 3 box(es) · lifecycle OPEN
   sv: intention "a red in the turn-replacement path is a named defect with a reproducer and a measured cause -> the empty assistant row that an interrupted step leaves behind is either not created or explicitly accounted for by the test, so the suite is green for a stated reason" · keywords []
   - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -257,6 +265,6 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 ## The checks
 
-This body names all 18 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 19 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

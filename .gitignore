@@ -192,6 +192,12 @@ packages/opencode/src/provider/models/
 
 .smit
 .cursor
-.opencode
+# .opencode holds BOTH runtime state and OUR OWN CONTENT. Git never descends into an excluded directory,
+# so ignoring `.opencode` wholesale made every one of our skills untrackable — a `!.opencode/skills/`
+# negation can never fire underneath it. Measured 2026-09-30: `git ls-files .opencode/skills` was EMPTY
+# with five skills on disk. Ignore the children instead and keep our content tracked.
+.opencode/*
+!.opencode/skills/
+!.opencode/tool/
 prompt_kernel/dist_codex/
 

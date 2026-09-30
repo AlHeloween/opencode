@@ -40,6 +40,35 @@ nothing in the delivery said so. That is the bug in one line: **the delivery doe
    `command/template/initialize.txt:14` (prose telling an agent which instruction files may exist). Neither
    imports a foreign skill or tool, so the owner's "скиллы и тулы" reduces to skills + instructions here.
 
+## Policy — ADOPT, never browse (owner, 2026-09-30)
+
+Owner, verbatim: «Если мы решим что нам какой-то скилл необходим — то мы его адаптируем под себя и скопируем
+в свою папку. А собирать ведь нерелевантный мусор это не круто.» So removal is not "lose access to useful
+skills": our skill set becomes CURATED. A foreign skill is never read in place — if it is judged necessary it
+is adapted to our conventions and copied under `.opencode/skills/`, one at a time, on a stated need.
+
+**The inventory, measured 2026-09-30.** Ours (`.opencode/skills/`): `rag`, `delphi_builder`, `dunit`,
+`cmd-runner`, `opentui`. Foreign (`.claude/skills/`): `aicall`, `robot`, `sv-chain`. All EIGHT are served to
+this runtime today, so three of them are foreign — which is how a Claude-side `aicall` came to be read as ours.
+
+| Skill | Whose it is | Action |
+|---|---|---|
+| `aicall` | BOTH sides call it, for different instruments | **Adapt + copy ours**: our copy is the TOOL route; the CLI/python route stays on the other side |
+| `sv-chain` | OURS — it reads our own transcripts | **Copy ours** |
+| `robot` | CLAUDE's — it is the dispatcher's skill, and the owner has said the delegation is Claude's to write | **Leave it there** |
+
+## The hole underneath: our own skills were never in the repository
+
+Measured 2026-09-30 while adopting the foreign ones: `git ls-files .opencode/skills` returns **nothing**, and
+`git check-ignore -v .opencode/skills/aicall/SKILL.md` answers `.gitignore:195:.opencode`. So **every** skill of
+ours — the five that existed and the two adopted here — is outside version control. It does not travel with a
+clone, it does not ship in the installer, and a colleague's machine would get a runtime with no skills at all.
+An ecosystem that is self-sufficient but untracked is not self-sufficient.
+
+The cause is a wholesale ignore: `.opencode` as a whole is excluded, and git does not descend into an excluded
+directory, so no `!`-negation for a child can ever fire. Narrowing it is the fix — `.opencode/data/` is runtime
+state and stays ignored; `.opencode/skills/` is CONTENT and must be tracked.
+
 ## What changes
 
 - `EXTERNAL_DIRS`, `EXTERNAL_SKILL_PATTERN` and the `:203-214` walk go away. Discovery reads

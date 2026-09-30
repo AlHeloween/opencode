@@ -93,7 +93,7 @@ describe("session.tools", () => {
           },
         })
         expect(Object.keys(resolved)).toSatisfy((names) => names.every((name) => /^[a-z0-9]+$/.test(name)))
-        expect(SessionTools.policyName(resolved, "applypatch")).toBe("applypatch")
+        expect(SessionTools.policyName(resolved, "multiedit")).toBe("multiedit")
         // Provider tool list stays full for KV stability; ACL is enforce-at-execute.
         const visible = LLM.resolveTools({
           tools: resolved,
@@ -102,7 +102,12 @@ describe("session.tools", () => {
           } as Agent.Info,
           user: { tools: {} } as never,
         })
-        expect(visible.applypatch).toBeDefined()
+        // The provider tool list stays complete for the tools that ARE in the catalog
+        // (KV stability: never reshape per role) — but applypatch is no longer catalogue-
+        // registered at all as of 2026-09-30, so it must be absent from the wire list too.
+        // Registration is what this pins; the ACL path is what the edit-family cases below pin.
+        expect(visible.applypatch).toBeUndefined()
+        expect(visible.edit).toBeDefined()
         expect(Object.keys(resolved)).toContain("memory")
         expect(Object.keys(resolved)).toContain("read")
         expect(Object.keys(resolved)).toContain("reasoningexit")
@@ -134,8 +139,8 @@ describe("session.tools", () => {
         })
         // Plan mode: scoped allow (plans/* → allow) means Gate A no longer
         // blocks the edit family. Gate B (ctx.ask with real path) enforces
-        // the plan-only path boundary. multiedit/applypatch are deliberately
-        // denied, so use the ordinary edit tool here.
+        // the plan-only path boundary. multiedit is deliberately denied, so
+        // use the ordinary edit tool here.
         const planEdit = planResolved.edit
         expect(planEdit).toBeDefined()
         yield* Effect.promise(() =>

@@ -58,7 +58,6 @@ import { Flag } from "@opencode-ai/core/flag/flag"
 import * as Log from "@opencode-ai/core/util/log"
 import { LspTool } from "./lsp"
 import * as Truncate from "./truncate"
-import { ApplyPatchTool } from "./applypatch"
 import { FossilGrepTool } from "./fossilgrep"
 import { Glob } from "@opencode-ai/core/util/glob"
 import path from "path"
@@ -210,7 +209,6 @@ export const layer: Layer.Layer<
     const edit = yield* EditTool
     const greptool = yield* GrepTool
     const fossilgreptool = yield* FossilGrepTool
-    const patchtool = yield* ApplyPatchTool
     const skilltool = yield* SkillTool
     const listtool = yield* ListTool
     const multiedit = yield* MultiEditTool
@@ -336,7 +334,6 @@ export const layer: Layer.Layer<
           fetch: Tool.init(webfetch),
           todo: Tool.init(todo),
           skill: Tool.init(skilltool),
-          patch: Tool.init(patchtool),
           question: Tool.init(question),
           lsp: Tool.init(lsptool),
           planEnter: Tool.init(planEnter),
@@ -391,7 +388,6 @@ export const layer: Layer.Layer<
             tool.fetch,
             tool.todo,
             tool.skill,
-            tool.patch,
             tool.list,
             tool.multiedit,
             tool.restore,

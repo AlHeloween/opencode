@@ -568,6 +568,15 @@ The saving is a token; the cost is a recall turn. Full design:
 - **There are NO pre-existing errors.** Every typecheck/test failure is a deliverable.
 - **Bugs block push.** All bugs must be fixed before `git push`. No `--no-verify`.
 - Silent `catch {}` blocks are bugs — must log (debug for expected, warn for unexpected).
+- **A test that can silently assert nothing is not a guard.** `test/tool/registry.test.ts` carried
+  `if (!planTool) continue // tool only in build (e.g. edit/write vs applypatch)` — a loop whose
+  comparison skipped every tool the other catalogue lacked, while the same file asserts three tests
+  above that the two catalogues have identical fingerprints. A conditional `continue`/`return` inside
+  an assertion loop, an `if (!x) return` before a check, a bare `test.skip` without its reason: each
+  turns a red into a green that says nothing, and the comment next to it reads like a justification.
+  **Replace the condition with the assertion it was standing in for** (here: compare the key sets), so
+  divergence FAILS. Found 2026-09-30 while trimming the tool catalog, where the same `applypatch` the
+  comment excused turned out to be measured-dead — `plans/2026-09-30_tool-catalog-trim.md`.
 - **A tool's documented contract is a claim, and it is falsifiable — test it, never inherit it.**
   `multiedit` promised «if any edit fails … none are applied — the file is rolled back» while
   implementing no rollback at all: it ran one `edit` per entry and `edit` writes immediately, so a

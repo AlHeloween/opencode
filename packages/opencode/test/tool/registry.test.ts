@@ -100,6 +100,15 @@ describe("tool.registry", () => {
           expect(new Set(ids).size).toBe(ids.length)
           expect(ids).toSatisfy((names) => names.every((id) => /^[a-z0-9]+$/.test(id)))
           expect(ids).toContain("treediff")
+          expect(ids).toContain("multiedit")
+          // applypatch left the catalog 2026-09-30: measured ONCE in the whole history against
+          // edit 757 / multiedit 285 / write 185, its description taught a grammar the parser
+          // rejects (`*** Operation:` / `*** Path:` vs the parser's `*** Add File:`), and its
+          // unique capability — rename/delete across files — is done through the shell
+          // (`git mv` / `git rm`, 19 calls). The MODULE deliberately stays: the CLI/heredoc
+          // path (src/patch/index.ts) and the TUI renderer import it, so this pins the CATALOG,
+          // not the file. Re-registering it in registry.ts makes this assertion fail.
+          expect(ids).not.toContain("applypatch")
           expect(ids.filter((id) => id === "cmd")).toHaveLength(process.platform === "win32" ? 1 : 0)
         }),
       ),
@@ -201,9 +210,15 @@ describe("tool.registry", () => {
         const buildById = new Map(buildTools.map((t) => [t.id, t]))
         const planById = new Map(planTools.map((t) => [t.id, t]))
 
+        // The catalog is mode-stable by design (registry.ts: "Provider tool schemas are
+        // mode-stable (KV): never shrink the list by role"), so the key sets MUST be equal.
+        // This loop used to read `if (!planTool) continue // tool only in build`, which skipped
+        // the comparison for any tool plan lacked — an assertion that could silently do nothing,
+        // and one contradicted by the fingerprint equality asserted three tests above. Compare
+        // the key sets instead, so a divergence FAILS here rather than being skipped.
+        expect([...planById.keys()].toSorted()).toEqual([...buildById.keys()].toSorted())
         for (const [id, buildTool] of buildById) {
-          const planTool = planById.get(id)
-          if (!planTool) continue // tool only in build (e.g. edit/write vs applypatch)
+          const planTool = planById.get(id)!
           expect(planTool.description).toBe(buildTool.description)
           expect(JSON.stringify(planTool.parameters)).toBe(JSON.stringify(buildTool.parameters))
         }

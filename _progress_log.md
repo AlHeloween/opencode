@@ -5589,6 +5589,14 @@ Learned: this check's real failure mode is the OPPOSITE of silence — crying wo
 what turns an alerter into noise (the coupling watcher's own first live finding was its own reader bug). The
 suite's fixtures cannot show that, which is why the live measurement ran against the REAL store.
 
+## [2026-09-30] The stall plan is refuted by measurement, and becomes the commit slot
+
+Plan: `plans/2026-09-30_turn-commit-slot.md` — born as `plans/2026-09-29_stall-reproducer.md` (untracked), re-grounded in place and renamed; the old file removed. Manifests R1/R2 written, `plans/MASTER_PLAN.md` re-rendered (15 plans, 65 open boxes, the new file named, the old one gone).
+What was measured (live, twelve `turn.prepare` lines of this session, 02:33→03:30 UTC): `requestMs` 19, 29, 33, 33, 34, 42, 43, 43, 47, 48, 65, 617 ms and `fossilMs` **0 in all twelve** — against the old plan's acceptance of a 20–36 s band in at least one of five turns. Its second premise dies with it: the stall was held to be history-dependent, and this session carries more history than 2026-09-29 did while preparing in tens of ms.
+The mechanism, from code and then confirmed by that measurement: a turn CLOSES by forking its commit into `turn.job` (`processor.ts:1182`, `forkDetach`) and OPENS by joining it (`:560-564`, which is what `fossilMs` measures), but `endTurn` (`:207-209`) DELETES the record holding `job` and is called in the same turn (`:1313`) AFTER the fork — so the next `beginTurn` (`:201-205`) always builds a fresh record with `job: undefined`. The join is unreachable on this path, `fossilMs` can only be 0, the commit is never settled in order, the comment's «linear by construction» is false as written, and two commits may overlap in one worktree.
+Left OPEN on purpose: the 2026-09-29 source-run reported `fossilMs 2940/491`, values that exist only inside the `if (turn.job)` branch — so the join DID run there. How that run differed is not measured, and the plan records the contradiction instead of resolving it by preference. Attribution of the removal is INDETERMINATE (it coincides with `d68243a635` and `75a99e1d18`; no before-run is available and the older session logs are gone).
+Tool state: `turn.prepare` is a LOG in a session-scoped file and the 29th's numbers no longer exist, so this plan could not be re-grounded from its own instrument — hence R2 (the datum has a key, so it is STATE). And a read batched in one block with a write returned the PRE-write state: the map looked un-rendered until it was read again in a separate block.
+
 ## [2026-09-30] SVM S6 — the fold ends with the map, and the map is a render rather than a copy
 Plan: `plans/2026-09-29_svm-tool-and-master-plan.md` S6 → [x], with `svm set state=verified` and a re-render.
 Oracles: `bun typecheck` → exit 0 (`20260930T032648Z_4d3c7acc`); `bun test test/session/svm.test.ts

@@ -105,8 +105,8 @@ missing: the handoff permitted «until that lands» without saying what would ru
 |---|---|
 | plans completed | 178 |
 | plans active | 14 |
-| tasks passed / total | 618 / 833 |
-| open boxes | 67 |
+| tasks passed / total | 618 / 831 |
+| open boxes | 65 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -206,13 +206,6 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T5 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-29_stall-reproducer.md` — 4 open / 4 box(es) · lifecycle ACTIVE
-  sv: intention "the 20-36 s post-input stall is reproduced deterministically in an isolated source-run, so the cause is found by bisection and named by a measured phase instead of by argument -> a frozen fixture carrying the real session + the phase marks it already emits, then counters if the gap is multiplicity" · keywords []
-  - R1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - R2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - R3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - R4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-
 - `plans/2026-09-29_svm-tool-and-master-plan.md` — 1 open / 7 box(es) · lifecycle DRAFT
   sv: intention "an agent must be able to STORE and READ the manifest of the turn it is in — task, plan ref, semantic vector, turn estimate — and the turn must be told when it is missing; the master plan becomes the rendered summary that no plan-file move can touch -> one SVM store + one tool + one turn-note reminder + a generated MASTER_PLAN.md" · keywords []
   - S4 [PARTIAL] · sv MISSING · manifest: the map regenerates itself from the plan files and the SVM store — every vector read from its source, a missing one printed MISSING, and a re-run byte-identical. · eta 2 · doing
@@ -228,6 +221,11 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-09-30_turn-commit-slot.md` — 2 open / 2 box(es) · lifecycle ACTIVE
+  sv: intention "the turn's felt wait and its snapshot commit sat on the same path, and the mechanism meant to take the commit off it (a settle at the next turn's open) never executes -> the commit runs OFF the input path AND in strict order (one slot, one job at a time), and its timing is keyed state rather than a line in a log that dies with the session" · keywords []
+  - R1 [PENDING] · sv MISSING · manifest: the snapshot commit runs off the input path and one job at a time, so no turn waits and two commits never overlap in one worktree. · eta 3 · doing
+  - R2 [PENDING] · sv MISSING · manifest: the per-turn prepare and commit timings live where their key lives, so a distribution survives the session instead of dying with a rotated log. · eta 3 · blocked
 
 ## The checks
 

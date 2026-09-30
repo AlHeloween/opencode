@@ -181,11 +181,37 @@ oracle:   <what will prove it — the instrument, not the hope>
     asserted now.
   - REMAINDER: 71 manifests are authoring work (one `svm set` per open box), and 2 plans still state no
     intention at all. Both are now COUNTED by every render instead of being invisible.
-- [ ] **S6 — the fold carrier.** At the Layer-2 fold the rendered master plan is emitted AFTER every
-      summary block and after the window's messages, as the last carrier before the fresh tail
-      (owner, 2026-09-29). Acceptance: a folded `m*` shows the master plan last; it is a RENDER of the
-      same two sources S4 uses, so a stale copy cannot be inherited — and its absence is visible
-      (absence of an oracle reads as false).
+- [x] ✓ **S6 — the fold carrier.** DONE 2026-09-30. `SVM.renderFoldBlock(worktree)` (with `svm render`) renders the
+      map AT the fold — the same two sources, through the same `renderBody` — and the compaction head carries it as
+      the LAST block, after the recent messages and after the closing pointers, so the fresh tail reads off a map of
+      the tree rather than off the middle of the last task. The block's header is owned by the builder and the
+      caller paints only into the body: one spelling of the header.
+      TWO ENABLING DECISIONS, both forced by where this runs:
+      (a) `renderBody` is now SERVICE-FREE and no longer an `Effect` — `Storage` is not in `SessionCompaction`'s
+      layer, and adding it would propagate a requirement into every provider of compaction (the trade
+      `tool/memory.ts` and `readNote` name and answer the same way). Every input it reads is a plain file; the
+      record read is `readRecord`, addressing the store's OWN mapping (`Storage.keyFile`), so reader and writer
+      cannot drift in spelling.
+      (b) `storedRecord` became the exported `readRecord(planFile, taskId)`, keyed through `taskKey` — the same
+      function the WRITER uses. The enumeration held a plan DIRECTORY and composed the key beside it: a second
+      spelling of one mapping, which is the drift `keyDir`/`keyFile` exist to prevent.
+      Absence is VISIBLE two ways: a fold that carried no render prints MISSING (the builder's fallback), and a
+      render that fails prints UNAVAILABLE with its reason (`renderFoldBlock` never throws — the fold is the
+      boundary, and a throw would take the boundary with it).
+      Oracles: `bun test test/session/svm.test.ts test/session/summary-block-shape.test.ts
+      test/session/fold-determinism.test.ts test/tool/svm.test.ts` → **33 pass / 0 fail** (`20260930T032653Z_1f9668f8`);
+      `bun typecheck` → **exit 0** (`20260930T032648Z_4d3c7acc`); LIVE measurement on the REAL repository
+      (`experiments/2026-09-30_s6-fold-carrier/check.ts`, `20260930T032829Z_3c60c493` then `20260930T032920Z_d099c720`):
+      the block is a real render (15004 then 14853 bytes, never UNAVAILABLE), it names 15 real plans and 68 then 67
+      open boxes, and **m\* ends with it** — `true` in BOTH runs.
+      THE TWO RUNS ARE THE PROOF THAT IT IS NOT A COPY. The first measured the block byte-identical to the body of
+      `plans/MASTER_PLAN.md` below the marker (`true`): both derived from the same state. The second measured them
+      DIFFERENT (`false` — 14853 bytes against the file's 15004, 67 open boxes against 68), because between the runs
+      S6's OWN box was closed and the file had not been re-rendered yet. A carrier that inherited a copy would have
+      matched the file; this one was FRESHER than it. That divergence is exactly the property this box claims.
+      First run of the oracles FAILED on my own test (`dir` used outside its `inTmpdir` scope — named exactly by
+      tsgo and by bun, then fixed) — recorded because a red that names its own file is the cheap half of the
+      oracle working.
 - [x] ✓ **S5 — the plan-ref invariant.** DONE 2026-09-30. `SVM.resolvePlan` + `SVM.orphanManifests`
       (`session/svm.ts`) enumerate the store's own layout — a key IS `["svm","task",<planId>,<taskId>]`, so
       the directory is the plan and the file name is the task — and read a record's contents ONLY when its

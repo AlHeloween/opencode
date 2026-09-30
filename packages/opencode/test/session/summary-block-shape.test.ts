@@ -464,4 +464,24 @@ describe("summary block shape", () => {
     expect(spaced.chainBreaks).toBe(0)
     expect(spaced.lines.join("\n")).not.toContain("chain break")
   })
+
+  test("FALSIFIER — the master plan is the LAST carrier, and a fold without one says so (plan S6)", () => {
+    // The fold ends holding the map (owner, 2026-09-29: «при компакте masterplan идет сразу после всех
+    // summaries и ходов»). TWO halves, and each alone is a defect. The map must be LAST — a reader who has
+    // just walked the window's tail must meet the state of the tree, not the middle of the last task — and
+    // a fold that carried no render must SAY so: a block that silently vanished cannot be told from a map
+    // that says nothing, which is exactly the silence this carrier exists to end.
+    const withMap = buildMessageStar({
+      sessionID: "ses_shape",
+      summaries: [{ id: "s1", text: '## Semantic Vector\ndominant: "shape pin"' }],
+      recent: [],
+      masterPlan: "MAP-MARKER: 3 open box(es)",
+    })
+    expect(withMap).toContain("MAP-MARKER: 3 open box(es)")
+    // LAST means nothing follows it: it is the block the fresh tail reads off.
+    expect(withMap.trimEnd().endsWith("MAP-MARKER: 3 open box(es)")).toBe(true)
+
+    const withoutMap = buildMessageStar({ sessionID: "ses_shape", summaries: [], recent: [] })
+    expect(withoutMap).toContain("MISSING — this fold carried no render of the tree")
+  })
 })

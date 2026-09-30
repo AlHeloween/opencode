@@ -160,7 +160,7 @@ export function orphanManifests(worktree: string): { checked: number; orphans: O
       checked += 1
       if (keyResolves) continue
       // TIER TWO: the key does not resolve, so the record is read and its own `plan` taken literally.
-      const ref = storedRecord(planDir, task)?.plan ?? keyed
+      const ref = readRecord(keyed, task)?.plan ?? keyed
       const state = resolvePlan(worktree, ref)
       if (state !== "present") orphans.push({ plan: ref, task, reason: state })
     }
@@ -168,16 +168,27 @@ export function orphanManifests(worktree: string): { checked: number; orphans: O
   return { checked, orphans }
 }
 
-/** One stored record, or `undefined` — read through the store's OWN mapping (`keyFile`), never a path
- *  composed here. A record that cannot be read is absent, not invented, and the caller then judges the
- *  KEY instead of the record. */
-function storedRecord(planDir: string, taskId: string): SVMRecord | undefined {
+/**
+ * One stored record, or `undefined` — read through the store's OWN mapping (`keyFile`), never a path
+ * composed here.
+ *
+ * SERVICE-FREE, and this is the reader EVERY surface that cannot yield for the store uses: `renderBody`
+ * (and through it the fold's carrier, plan S6) and the enumeration's tier two. The reason is the one
+ * `readNote`'s comment gives: `Storage` is a service, and the fold and the prompt path have no room for a
+ * new requirement — while the MAPPING is `Storage.keyFile`, so the file is still the store's own.
+ *
+ * Keyed by the plan FILE, so the key comes from `taskKey` — the same function the writer uses. Handing
+ * this a plan DIRECTORY (the shape the enumeration happens to hold) would be a second spelling of one
+ * mapping, which is the drift `keyDir`'s split out of `keyFile` exists to prevent.
+ *
+ * A record that cannot be read is ABSENT, never invented; the caller then judges the KEY.
+ */
+export function readRecord(planFile: string, taskId: string): SVMRecord | undefined {
   try {
-    const file = Storage.keyFile(Global.Path.data, ["svm", "task", planDir, taskId])
-    return JSON.parse(readFileSync(file, "utf-8")) as SVMRecord
+    return JSON.parse(readFileSync(Storage.keyFile(Global.Path.data, taskKey(planFile, taskId)), "utf-8")) as SVMRecord
   } catch (e) {
     log.debug("svm record unreadable — treated as absent, never invented", {
-      planDir,
+      planFile,
       taskId,
       error: e instanceof Error ? e.message : String(e),
     })
@@ -268,88 +279,92 @@ export interface RenderStats {
  * WHY determinism is part of the contract (owner: two renders in a row must be byte-identical): plans are
  * SORTED by path (`readdirSync` order is not a promise), tasks keep their file order, and NO CLOCK IS READ —
  * the date lives in the hand-owned head, which this body never contains.
+ *
+ * WHY IT READS THE STORE SERVICE-FREE (plan S6): the FOLD calls this, and `Storage` is not in
+ * `SessionCompaction`'s layer — adding it there would propagate a service requirement into every layer that
+ * provides compaction, the trade `tool/memory.ts` and `readNote` name and answer the same way. The record
+ * read is `readRecord`, which addresses the file through the store's OWN mapping, so reader and writer
+ * cannot drift in spelling: the invariant is AGREEMENT with the writer, not any particular directory.
+ *
+ * WHY IT IS NO LONGER AN `Effect`: every input it reads is a plain file, so an effect channel would have
+ * carried neither a failure nor a suspension. The write effect lives in `applyRender`.
  */
-export function renderBody(
-  worktree: string,
-  storage: Storage.Interface,
-): Effect.Effect<{ body: string; stats: RenderStats }> {
-  return Effect.gen(function* () {
-    const plans: PlanStatePlan[] = [...parsePlanFiles(worktree)].sort((a, b) => a.file.localeCompare(b.file))
-    const status = getPlanStatus(worktree)
-    const coverage = masterPlanCoverage(worktree)
+export function renderBody(worktree: string): { body: string; stats: RenderStats } {
+  const plans: PlanStatePlan[] = [...parsePlanFiles(worktree)].sort((a, b) => a.file.localeCompare(b.file))
+  const status = getPlanStatus(worktree)
+  const coverage = masterPlanCoverage(worktree)
 
-    // THE MAP IS BUILT FIRST, and the counts fall out of it: the table above it must report the same
-    // boxes the reader can count below, or the file contains two answers to one question.
-    const map: string[] = []
-    let openBoxes = 0
-    let missingPlanSv = 0
-    let missingTaskSv = 0
-    let missingManifests = 0
-    for (const plan of plans) {
-      const open = plan.tasks.filter((task) => task.status !== "PASS")
-      openBoxes += open.length
-      map.push("")
+  // THE MAP IS BUILT FIRST, and the counts fall out of it: the table above it must report the same
+  // boxes the reader can count below, or the file contains two answers to one question.
+  const map: string[] = []
+  let openBoxes = 0
+  let missingPlanSv = 0
+  let missingTaskSv = 0
+  let missingManifests = 0
+  for (const plan of plans) {
+    const open = plan.tasks.filter((task) => task.status !== "PASS")
+    openBoxes += open.length
+    map.push("")
+    map.push(
+      `- \`${plan.file}\` — ${open.length} open / ${plan.tasks.length} box(es) · lifecycle ${plan.lifecycle ?? "UNKNOWN"}`,
+    )
+    if (plan.intention) {
       map.push(
-        `- \`${plan.file}\` — ${open.length} open / ${plan.tasks.length} box(es) · lifecycle ${plan.lifecycle ?? "UNKNOWN"}`,
+        `  sv: intention "${plan.intention.from_state} -> ${plan.intention.to_state}" · keywords [${plan.goal_sv.join(", ")}]`,
       )
-      if (plan.intention) {
-        map.push(
-          `  sv: intention "${plan.intention.from_state} -> ${plan.intention.to_state}" · keywords [${plan.goal_sv.join(", ")}]`,
-        )
-      } else {
-        missingPlanSv += 1
-        map.push("  sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for")
-      }
-      if (open.length === 0) {
-        map.push("  - no open box")
-        continue
-      }
-      for (const task of open) {
-        const record = yield* read(storage, plan.file, task.id)
-        if (task.sv.length === 0) missingTaskSv += 1
-        if (!record) missingManifests += 1
-        map.push(
-          `  - ${task.id} [${task.status}] · sv ${task.sv.length ? `[${task.sv.join(", ")}]` : "MISSING"} · manifest: ${
-            record ? `${summarize(record).dominant} · eta ${record.etaTurns} · ${record.state}` : "MISSING — nobody has written down what this box is"
-          }`,
-        )
-      }
+    } else {
+      missingPlanSv += 1
+      map.push("  sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for")
     }
-
-    const lines = [
-      "## Where the work stands",
-      "",
-      "| | count |",
-      "|---|---|",
-      `| plans completed | ${status.completed.length} |`,
-      `| plans active | ${status.active.length} |`,
-      `| tasks passed / total | ${status.completedTasks} / ${status.totalTasks} |`,
-      `| open boxes | ${openBoxes} |`,
-      "",
-      "Counts read from the same instrument `planstatus` uses; nothing here is retyped.",
-      "",
-      "## The map",
-      "",
-      "Every plan under `plans/`, with every vector READ from its own source. `MISSING` means the source has none — it is never filled in here, and the source wins over anything printed below.",
-      ...map,
-      "",
-      "## The checks",
-      "",
-      `This body names all ${plans.length} plan(s) under \`plans/\` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.`,
-      "",
-      "That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.",
-    ]
-
-    const stats: RenderStats = {
-      plans: plans.length,
-      openBoxes,
-      missingPlanSv,
-      missingTaskSv,
-      missingManifests,
-      gapsBefore: coverage.misses,
+    if (open.length === 0) {
+      map.push("  - no open box")
+      continue
     }
-    return { body: lines.join("\n") + "\n", stats }
-  })
+    for (const task of open) {
+      const record = readRecord(plan.file, task.id)
+      if (task.sv.length === 0) missingTaskSv += 1
+      if (!record) missingManifests += 1
+      map.push(
+        `  - ${task.id} [${task.status}] · sv ${task.sv.length ? `[${task.sv.join(", ")}]` : "MISSING"} · manifest: ${
+          record ? `${summarize(record).dominant} · eta ${record.etaTurns} · ${record.state}` : "MISSING — nobody has written down what this box is"
+        }`,
+      )
+    }
+  }
+
+  const lines = [
+    "## Where the work stands",
+    "",
+    "| | count |",
+    "|---|---|",
+    `| plans completed | ${status.completed.length} |`,
+    `| plans active | ${status.active.length} |`,
+    `| tasks passed / total | ${status.completedTasks} / ${status.totalTasks} |`,
+    `| open boxes | ${openBoxes} |`,
+    "",
+    "Counts read from the same instrument `planstatus` uses; nothing here is retyped.",
+    "",
+    "## The map",
+    "",
+    "Every plan under `plans/`, with every vector READ from its own source. `MISSING` means the source has none — it is never filled in here, and the source wins over anything printed below.",
+    ...map,
+    "",
+    "## The checks",
+    "",
+    `This body names all ${plans.length} plan(s) under \`plans/\` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.`,
+    "",
+    "That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.",
+  ]
+
+  const stats: RenderStats = {
+    plans: plans.length,
+    openBoxes,
+    missingPlanSv,
+    missingTaskSv,
+    missingManifests,
+    gapsBefore: coverage.misses,
+  }
+  return { body: lines.join("\n") + "\n", stats }
 }
 
 /**
@@ -365,10 +380,7 @@ export function renderBody(
  * for the same reason: the GOAL lives in the hand-owned head, and a renderer that invented it would be
  * inventing the direction of the whole tree.
  */
-export function applyRender(
-  worktree: string,
-  storage: Storage.Interface,
-): Effect.Effect<
+export function applyRender(worktree: string): Effect.Effect<
   | { ok: true; file: string; bytes: number; stats: RenderStats }
   | { ok: false; reason: string }
 > {
@@ -397,9 +409,36 @@ export function applyRender(
           `\`${RENDER_MARKER}\` where the generated part begins.`,
       }
     }
-    const { body, stats } = yield* renderBody(worktree, storage)
+    const { body, stats } = renderBody(worktree)
     const content = `${head.slice(0, cut + RENDER_MARKER.length)}\n\n${body}`
     yield* Effect.promise(() => Bun.write(target, content))
     return { ok: true as const, file: MASTER_PLAN_FILE, bytes: content.length, stats }
   })
+}
+
+/**
+ * THE MAP AS THE FOLD'S LAST CARRIER (plan S6) — the text `m*` ends with, before the fresh tail.
+ *
+ * WHY A RENDER AT THE MOMENT OF THE FOLD, and not a copy kept somewhere: a stored copy would be written
+ * once and inherited by every later fold, going stale in silence — which is exactly what the map stopped
+ * being when it became a router with checks. This reads the SAME two sources `svm render` reads (the plan
+ * files and the SVM store), through the SAME `renderBody`, so the fold's map and the file's map cannot
+ * disagree: one derivation, and the caller only decides where the text lands.
+ *
+ * WHY IT NEVER THROWS AND EVERY PATH RETURNS TEXT: the fold is the boundary itself. A render that threw
+ * would take the whole boundary down with it, and a block that quietly vanished would leave a reader
+ * unable to tell «no map» from «the map says nothing» — absence of an oracle reads as FALSE (AGENTS §
+ * invariants). So the failure is stated IN the block, with the reason, and it is logged as the bug it is.
+ */
+export function renderFoldBlock(worktree: string): string {
+  try {
+    return renderBody(worktree).body.trimEnd()
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : String(e)
+    log.warn("bug: the fold's master plan could not be rendered — the block carries the failure instead", {
+      worktree,
+      error: reason,
+    })
+    return `UNAVAILABLE — the render failed: ${reason}. Nothing in this block describes the tree; read ${MASTER_PLAN_FILE} directly.`
+  }
 }

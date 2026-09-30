@@ -104,9 +104,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 178 |
-| plans active | 15 |
-| tasks passed / total | 617 / 833 |
-| open boxes | 68 |
+| plans active | 14 |
+| tasks passed / total | 618 / 833 |
+| open boxes | 67 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -213,10 +213,9 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - R3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - R4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-29_svm-tool-and-master-plan.md` — 2 open / 7 box(es) · lifecycle DRAFT
+- `plans/2026-09-29_svm-tool-and-master-plan.md` — 1 open / 7 box(es) · lifecycle DRAFT
   sv: intention "an agent must be able to STORE and READ the manifest of the turn it is in — task, plan ref, semantic vector, turn estimate — and the turn must be told when it is missing; the master plan becomes the rendered summary that no plan-file move can touch -> one SVM store + one tool + one turn-note reminder + a generated MASTER_PLAN.md" · keywords []
   - S4 [PARTIAL] · sv MISSING · manifest: the map regenerates itself from the plan files and the SVM store — every vector read from its source, a missing one printed MISSING, and a re-run byte-identical. · eta 2 · doing
-  - S6 [PENDING] · sv MISSING · manifest: a folded window ends with the RENDERED master plan, so the next cycle opens holding the map. · eta 3 · doing
 
 - `plans/2026-09-30_replacement-empty-assistant-row.md` — 3 open / 3 box(es) · lifecycle OPEN
   sv: intention "a red in the turn-replacement path is a named defect with a reproducer and a measured cause -> the empty assistant row that an interrupted step leaves behind is either not created or explicitly accounted for by the test, so the suite is green for a stated reason" · keywords []

@@ -22,9 +22,10 @@ import { SessionStatus } from "./status"
 import { IncrementalCheckpoint } from "./incremental-checkpoint"
 import { parseSummaryRange } from "./summary"
 import { describePart } from "./stored-part"
-import { collectPlanState, formatPlanStateText, type PlanStatePayload } from "@/util/plan-status"
+import { MASTER_PLAN_FILE, collectPlanState, formatPlanStateText, type PlanStatePayload } from "@/util/plan-status"
 import { InstanceState } from "@/effect/instance-state"
 import { Snapshot } from "@/snapshot"
+import { renderFoldBlock } from "./svm"
 
 const log = Log.create({ service: "session.compaction" })
 
@@ -2123,6 +2124,12 @@ export function buildMessageStar(input: {
   positionOf?: (id: string) => number | undefined
   /** Permanent reasoning memory, folded in verbatim. Empty string when unwritten. */
   memory?: string
+  /** THE FOLD'S LAST CARRIER (plan S6, owner, 2026-09-29: «при компакте masterplan идет сразу после всех
+    * summaries и ходов»): the RENDERED master plan BODY, read at fold time by `renderFoldBlock` — never a
+    * stored copy, so a stale one cannot be inherited. The builder stays pure: the CALLER renders, this
+    * places. An absent value is printed as MISSING rather than dropped, because a carrier that vanishes in
+    * silence cannot be told from a map that says nothing. */
+  masterPlan?: string
 }): string {
   const summaryBlocks = input.summaries.map((s, i) =>
     renderSummaryBlock({ sessionID: input.sessionID, s, index: i, positionOf: input.positionOf }),
@@ -2278,6 +2285,17 @@ export function buildMessageStar(input: {
         ].join("\n")
       : undefined
 
+  // THE MAP RIDES LAST (plan S6). It sits AFTER the recent messages and AFTER the closing pointers, so a
+  // reader that has just walked the window's tail meets the state of the tree as the last thing in the
+  // head. The header is owned HERE — one spelling of it — while the body is the caller's render; an absent
+  // body is STATED, because a block that silently vanished would leave «no map» and «the map says nothing»
+  // indistinguishable, which is the silence this carrier exists to end.
+  const masterPlanBlock = [
+    "--- Master plan (rendered at this fold — the plan files and the SVM store are the sources, and they win over anything here) ---",
+    input.masterPlan?.trim() ||
+      `MISSING — this fold carried no render of the tree, so nothing here says where the work stands. Read ${MASTER_PLAN_FILE} (\`svm render\` writes it) before acting on what is in flight.`,
+  ].join("\n")
+
   return [
     "=== COMPACTED ===",
     "Active memory for this session. Older messages remain soft-hidden in the DB (not deleted).",
@@ -2295,6 +2313,7 @@ export function buildMessageStar(input: {
     recentHeader,
     rangeAccounting,
     recoveryLine,
+    masterPlanBlock,
   ]
     .filter((line, idx, arr) => !(line === "" && arr[idx - 1] === ""))
     .join("\n\n")
@@ -2557,7 +2576,11 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
                 (part as { text: string }).text.trim().length > 0,
             ),
         )
-        const planState = collectPlanState((yield* InstanceState.context).worktree)
+        // The worktree is read ONCE and both carriers take it from here: the plan mirror and the fold's map
+        // are two reads of ONE tree, and a second `InstanceState.context` walk would be a second resolution
+        // of a fact already in hand.
+        const worktree = (yield* InstanceState.context).worktree
+        const planState = collectPlanState(worktree)
         const goal = buildGoalLines({
           planState,
           window: openingRequest
@@ -2632,6 +2655,7 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
           priorMessageStarId: priorMsgStarId,
           positionOf,
           memory: yield* readMemory(),
+          masterPlan: renderFoldBlock(worktree),
         })
 
         // Soft-hide every currently visible message (DB retained for

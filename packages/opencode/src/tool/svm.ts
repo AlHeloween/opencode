@@ -73,7 +73,7 @@ export const SvmTool = Tool.define<typeof Parameters, Metadata, Storage.Service>
           if (params.action === "render") {
             // The whole operation lives in the session layer (`applyRender`): one write path, so a probe that
             // smokes the renderer against the real repository exercises the SAME code this verb runs.
-            const result = yield* SVM.applyRender(Instance.worktree, storage)
+            const result = yield* SVM.applyRender(Instance.worktree)
             if (!result.ok) {
               return {
                 title: "svm: render refused",

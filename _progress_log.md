@@ -5588,3 +5588,28 @@ window's); `svm read` reports it in the title and `metadata.planRef` while `outp
 Learned: this check's real failure mode is the OPPOSITE of silence — crying wolf on healthy records, which is
 what turns an alerter into noise (the coupling watcher's own first live finding was its own reader bug). The
 suite's fixtures cannot show that, which is why the live measurement ran against the REAL store.
+
+## [2026-09-30] SVM S6 — the fold ends with the map, and the map is a render rather than a copy
+Plan: `plans/2026-09-29_svm-tool-and-master-plan.md` S6 → [x], with `svm set state=verified` and a re-render.
+Oracles: `bun typecheck` → exit 0 (`20260930T032648Z_4d3c7acc`); `bun test test/session/svm.test.ts
+test/session/summary-block-shape.test.ts test/session/fold-determinism.test.ts test/tool/svm.test.ts` →
+**33 pass / 0 fail** (`20260930T032653Z_1f9668f8`); LIVE measurement on the REAL repository
+(`experiments/2026-09-30_s6-fold-carrier/check.ts`, `20260930T032829Z_3c60c493` then `20260930T032920Z_d099c720`):
+the block is a real render (15004 then 14853 bytes, never UNAVAILABLE) naming 15 real plans and 68 then 67 open
+boxes, and **m\* ends with it** — `true` in BOTH runs.
+What changed: `SVM.renderFoldBlock(worktree)` renders the map AT fold time through the same `renderBody`; the
+compaction head carries it as the LAST block (`masterPlanBlock`, after the recent messages and the closing
+pointers); the builder owns the header and prints MISSING when no render was supplied, while `renderFoldBlock`
+never throws and prints UNAVAILABLE with its reason.
+Enabling, both forced by where the fold runs: `renderBody` is service-free (records read through
+`Storage.keyFile`, the store's own mapping) and is no longer an `Effect`, since every input it reads is a plain
+file; and the private `storedRecord` became the exported `readRecord(planFile, taskId)` keyed through `taskKey`
+— the enumeration used to compose the same key BESIDE it, a second spelling of one mapping.
+Learned: THE SECOND RUN WAS THE BETTER EVIDENCE. After S6's own box closed, the live block diverged from the
+file's body (14853 against 15004) — a carrier that inherited a copy would have matched the file; this one was
+fresher than it. Also: the first oracle run was red on a `dir` used outside its `inTmpdir` scope, named exactly
+by tsgo (file+line) and by bun — the cheap half of the oracle working.
+TOOL STATE — `stdout_text.log` under ConPTY printed two of the block's lines JOINED, dropping a blank line the
+string-level comparisons still carried (`true`/`true`). Class: the log is a RENDERING of the stream, so it cannot
+answer a question about the TEXT. Countermeasure used, and the habit worth keeping: print the tail as JSON
+escapes when layout is what is in doubt.

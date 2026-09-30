@@ -173,7 +173,7 @@ describe("SVM store", () => {
           state: "doing",
           oracle: "bun test test/session/svm.test.ts",
         })
-        return { first: yield* SVM.renderBody(dir, storage), second: yield* SVM.renderBody(dir, storage) }
+        return { first: SVM.renderBody(dir), second: SVM.renderBody(dir) }
       }),
     )
     const { body, stats } = result.first
@@ -238,5 +238,67 @@ describe("SVM store", () => {
     expect(named).not.toContain(`${LIVE_PLAN} LIVE`)
     // And they were LOOKED AT: a check that examined nothing cannot be told from one that found nothing.
     expect(result.checked).toBeGreaterThan(0)
+  })
+
+  test("the fold's last carrier is a RENDER of the two sources at fold time (plan S6)", async () => {
+    // S6's claim is a PAIR, and each half alone is a defect. The block a fold ends with must REFLECT the two
+    // sources — a plan file and a manifest written a moment ago — and it must be a DERIVATION, not a copy,
+    // or a stale map would be inherited by every later fold in silence. So the block is compared against the
+    // body `svm render` writes, byte for byte: one derivation, two surfaces.
+    //
+    // Its own key space (see this file's header): the store has no `remove`, so the record written here
+    // outlives the test — nothing else may assert on this id.
+    const PLAN = "plans/2026-09-30_test-s6-fold-carrier.md"
+    const result = await inTmpdir((dir) =>
+      Effect.gen(function* () {
+        const storage = yield* Storage.Service
+        yield* Effect.promise(async () => {
+          await fs.mkdir(path.join(dir, "plans"), { recursive: true })
+          await fs.writeFile(
+            path.join(dir, PLAN),
+            [
+              "# S6 fixture",
+              "",
+              "<!-- intention: a folded window must end holding the map -> the map is rendered at the fold -->",
+              "<!-- goal_sv: fold, carrier -->",
+              "",
+              "- [ ] **S6F** — the carrier <!-- sv: fold-carrier, last -->",
+              "",
+            ].join("\n"),
+          )
+        })
+        yield* SVM.write(storage, PLAN, {
+          task: "S6F",
+          plan: PLAN,
+          sv: "Keywords: fold-carrier 0.6, last 0.4\nSemantic dominant: the map rides last.",
+          etaTurns: 1,
+          state: "doing",
+          oracle: "bun test test/session/svm.test.ts",
+        })
+        return {
+          block: SVM.renderFoldBlock(dir),
+          body: SVM.renderBody(dir).body,
+          again: SVM.renderFoldBlock(dir),
+          // A tree with nothing to render still answers DEFINITELY — a reader must be able to tell «nothing
+          // is planned here» from «the render did not happen», because absence of an oracle reads as false.
+          nowhere: SVM.renderFoldBlock(path.join(dir, "no-such-worktree")),
+        }
+      }),
+    )
+    // READ FROM THE SOURCE — the manifest written a moment ago is IN the block, not a copy kept somewhere.
+    expect(result.block).toContain(
+      "S6F [PENDING] · sv [fold-carrier, last] · manifest: the map rides last. · eta 1 · doing",
+    )
+    expect(result.block).toContain(
+      'sv: intention "a folded window must end holding the map -> the map is rendered at the fold"',
+    )
+    // …and it IS the render — the same bytes `svm render` writes, minus the body's trailing newline — so a
+    // drift between the fold's map and the file's map cannot exist by construction.
+    expect(result.block).toBe(result.body.trimEnd())
+    // A re-run is byte-identical: the fold's determinism is the DERIVATION's, not an artifact of a file.
+    expect(result.again).toBe(result.block)
+    // The same block, from a tree with nothing to render: a DEFINITE answer either way, so «nothing is
+    // planned here» can never be read as «the render did not happen».
+    expect(result.nowhere).toMatch(/\| plans completed \||UNAVAILABLE —/)
   })
 })

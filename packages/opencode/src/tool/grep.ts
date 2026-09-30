@@ -8,7 +8,8 @@ import { assertExternalDirectoryEffect } from "./external-directory"
 import DESCRIPTION from "./grep.txt"
 import * as Tool from "./tool"
 
-const MAX_LINE_LENGTH = 2000
+const SNIPPET_MARGIN = 160
+const MAX_MATCH_TEXT = 200
 
 /**
  * Convert common regex patterns to Rust regex (ERE) format.
@@ -34,6 +35,32 @@ function toRustRegex(pattern: string): string {
     }
   }
   return result
+}
+
+/**
+ * A match is reported as an ADDRESS plus a bounded window around the hit.
+ *
+ * Why not the line: a minified bundle is ONE line of megabytes. The previous code printed
+ * `substring(0, MAX_LINE_LENGTH)`, anchored at the LINE START — so for a match deep inside
+ * such a line it emitted thousands of characters that did not contain the match it reported,
+ * and the caller had no way to tell. This window keeps `SNIPPET_MARGIN` characters on each
+ * side of the hit, clips the hit itself past `MAX_MATCH_TEXT`, and `…` marks EVERY clip so a
+ * window can never be mistaken for the whole line.
+ */
+function matchWindow(text: string, hit?: { start: number; end: number }) {
+  const start = Math.max(0, Math.min(hit?.start ?? 0, text.length))
+  const end = Math.max(start, Math.min(hit?.end ?? start, text.length))
+  const hitEnd = Math.min(end, start + MAX_MATCH_TEXT)
+  const from = Math.max(0, start - SNIPPET_MARGIN)
+  const to = Math.min(text.length, hitEnd + SNIPPET_MARGIN)
+  const snippet =
+    (from > 0 ? "…" : "") +
+    text.slice(from, start) +
+    text.slice(start, hitEnd) +
+    (end > hitEnd ? "…" : "") +
+    text.slice(hitEnd, to) +
+    (to < text.length ? "…" : "")
+  return { snippet, clipped: from > 0 || to < text.length || end > hitEnd }
 }
 
 export const Parameters = Schema.Struct({
@@ -116,7 +143,9 @@ export const GrepTool = Tool.define(
               path.isAbsolute(item.path.text) ? item.path.text : path.join(cwd, item.path.text),
             ),
             line: item.line_number,
+            offset: item.absolute_offset,
             text: item.lines.text,
+            hit: item.submatches[0],
           }))
           const times = new Map(
             (yield* Effect.forEach(
@@ -152,15 +181,25 @@ export const GrepTool = Tool.define(
           const output = [`Found ${total} matches${truncated ? ` (showing first ${limit})` : ""}`]
 
           let current = ""
+          let clipped = 0
           for (const match of final) {
             if (current !== match.path) {
               if (current !== "") output.push("")
               current = match.path
               output.push(`${match.path}:`)
             }
-            const text =
-              match.text.length > MAX_LINE_LENGTH ? match.text.substring(0, MAX_LINE_LENGTH) + "..." : match.text
-            output.push(`  Line ${match.line}: ${text}`)
+            const { snippet, clipped: hitClipped } = matchWindow(match.text, match.hit)
+            if (hitClipped) clipped++
+            const column = (match.hit?.start ?? 0) + 1
+            const at = match.offset + (match.hit?.start ?? 0)
+            output.push(`  Line ${match.line}, col ${column}, offset ${at}: ${snippet}`)
+          }
+
+          if (clipped > 0) {
+            output.push("")
+            output.push(
+              `(Match windows are bounded to ${SNIPPET_MARGIN} chars each side of the hit; … marks a clip — ${clipped} of ${final.length} shown were clipped.)`,
+            )
           }
 
           if (truncated) {

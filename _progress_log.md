@@ -1,5 +1,19 @@
 # Progress Log
 
+## [2026-09-30 15:48Z] grep: a match is now an ADDRESS plus a BOUNDED window — before, the window was anchored at the line start and could omit the match it reported
+
+✓ **Defect, measured.** `grep.ts` rendered each match as the WHOLE line, clipped from the START: `match.text.substring(0, MAX_LINE_LENGTH)`. On a minified line — one line of megabytes — a match at char 5,000 was reported as `Found 1 matches` while the printed 2,000 characters did **not** contain it. A false absence and a false presence from the same anchor error, and the caller could not tell which.
+
+✓ **Test first, and it was red on the old code for exactly that reason.** New case in `test/tool/grep.test.ts`: a 5,921-char line with the hit at 5,000. Surface pinned READY before any edit — **4 pass / 0 fail** (`20260930T154544Z_ed017c04`). With the new test, before the fix — **4 pass / 1 fail**, the failure reading `Expected to contain: "NEEDLE_IN_THE_DEEP"` against a 2,000-`x` payload (`20260930T154611Z_56662dcf`).
+
+✓ **Change:** each match is now `Line N, col C, offset B: …snippet…` — the hit with 160 chars on each side, the hit itself clipped past 200 chars, and `…` marking EVERY clip so a window can never be read as the whole line. A footer states how many of the shown windows were clipped. `SNIPPET_MARGIN` / `MAX_MATCH_TEXT` replace `MAX_LINE_LENGTH`. No wrapper change was needed: `ripgrep.ts` already exposes `absolute_offset` and `submatches[].start/end`.
+
+✓ **Oracles:** **5 pass / 0 fail / 17 expect**, exit 0 (`20260930T154646Z_d23462bf`) — the envelope case plus the four existing ones, including a real-tree search over `src/tool`; `bun typecheck` exit 0 with zero diagnostics (`20260930T154657Z_4537edf0`).
+
+✓ **The description moved in the SAME change** (`grep.txt:7`): it still promised «matched lines», «Lines >2000 chars are truncated» and `offset`/`limit` pagination — the last of which the tool has NEVER had. Now it states the real contract and the real cap.
+
+✗ **Three more defects in the same file — measured, NOT fixed here, because two need a ruling:** (1) `grep.txt:3` says «`\|` is a literal pipe» while `toRustRegex` (`grep.ts:19`, applied at `:96`) converts `\|` → `|`, i.e. to OR — the description contradicts live behaviour, and either the text or the conversion must move; (2) `hidden_by_ignore: 0` (`:73`, `:183`) is hardcoded — a metric that cannot be non-zero, the dead-`fossilMs` class; (3) binary files are skipped silently on a directory walk (no `--text` at `ripgrep.ts:217`), so a match inside a binary reports as «No matches found» — measured earlier today against `dist/bin/opencode.exe`, where the same pattern on the explicit file DOES match.
+
 ## [2026-09-30 15:22Z] S5 closed by ARTIFACT: the Zen 400 is proven gone from the wire body, not from a report (plans/2026-09-30_drop-penalty-sampling-params.md → plans_completed/)
 
 ✓ The owner reported Zen working. That is testimony, and the plan's S5 asked for one live message on a Zen model which the agent cannot drive (the key is the owner's). So instead of banking the words, I read the ARTIFACT the fix acts on — the outgoing request body — from the gateway's raw-wire captures: **2,071 records parsed, their parameter keys read.**

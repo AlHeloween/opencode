@@ -138,6 +138,26 @@ oracle:   <what will prove it — the instrument, not the hope>
       exempts itself from (an outside reader asked exactly that, 2026-09-30). `masterPlanCoverage` pins the
       reciprocal: every plan under `plans/` is named in the rendered file. Until `render` lands,
       `plans/MASTER_PLAN.md` carries hand-derived vectors with their derivation stated in the file itself.
+  - **IN PROGRESS — the DERIVATION landed** (`renderBody` in `session/svm.ts`, `summarize()`, and
+    `parsePlanFiles` split out of `collectPlanState` in `util/plan-status.ts` so the renderer gets the whole
+    set rather than the three-plan head surface), and it was **MEASURED against the real repository** instead
+    of assumed (`experiments/2026-09-30_svm-render/probe.ts`; the body is written as an artifact,
+    `body.md`, 12 999 bytes / 128 lines): **15 plans · 61 open boxes · 2 plans with NO `<!-- intention -->`
+    header · 61 of 61 open boxes with NO `<!-- sv: … -->` tag · 61 of 61 with NO manifest in the store ·
+    `gapsBefore: []`** (the map names every plan — the coverage fix of `831e05d82e` holds).
+    ⇒ The acceptance «no rendered plan or task lacks its sv» is **not yet satisfiable in this repository**:
+    the vectors the render is supposed to READ do not exist yet, and the render prints MISSING for every one
+    of them, correctly. That is AUTHORING work — one `svm set` per box, one header per plan — and it is this
+    task's real remainder, not a renderer defect.
+  - **The renderer's own test caught a real defect before the commit**: it printed `manifest: undefined`,
+    because it addressed `record.dominant` while the store returns the RAW record whose dominant is a LINE
+    INSIDE `sv`. Two readers of one store with two shapes; `summarize()` is now the single one, used by both
+    `readNote` and `renderBody`.
+  - Oracles: `bun test test/session/svm.test.ts` → **7 pass / 0 fail** (`20260930T011153Z_13ce0026`, the new
+    case asserts read-from-source, MISSING-for-absent, and byte-identical re-render); `bun typecheck` →
+    exit 0 (`20260930T011205Z_832da94f`). Still OPEN in this task: the **`svm render` verb** (the tool writes
+    the file across `RENDER_MARKER`, refusing a file with no hand-owned head so the GOAL is never invented),
+    and the authoring of the missing vectors named above.
 - [ ] **S6 — the fold carrier.** At the Layer-2 fold the rendered master plan is emitted AFTER every
       summary block and after the window's messages, as the last carrier before the fresh tail
       (owner, 2026-09-29). Acceptance: a folded `m*` shows the master plan last; it is a RENDER of the

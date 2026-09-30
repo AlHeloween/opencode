@@ -225,7 +225,14 @@ function parseGate(content: string): string | undefined {
 }
 
 /** Collect the GATED WORKFLOW mirror for all active plans (`plans/*.md`). */
-export function collectPlanState(worktree: string): PlanStatePayload {
+/**
+ * EVERY plan file under `plans/`, parsed — no relevance filter.
+ *
+ * The filter belongs to the HEAD surface (`collectPlanState`, capped at three newest relevant plans on
+ * purpose), not to the PARSER: `render` (S4) and the map's coverage check both need the whole set, and two
+ * copies of this loop would be two answers to "what does this plan say".
+ */
+export function parsePlanFiles(worktree: string): PlanStatePlan[] {
   const plansDir = path.join(worktree, "plans")
   const plans: PlanStatePlan[] = []
   for (const file of collectPlans(plansDir)) {
@@ -282,6 +289,17 @@ export function collectPlanState(worktree: string): PlanStatePayload {
       tasks,
     })
   }
+  return plans
+}
+
+/**
+ * The head surface: what the CURRENT workflow state is, not an archive.
+ *
+ * It is `parsePlanFiles` plus a filter, and the split is load-bearing: a reader that needs everything (the
+ * renderer, the coverage check) must not be handed a capped list wearing the name of the full one.
+ */
+export function collectPlanState(worktree: string): PlanStatePayload {
+  const plans = parsePlanFiles(worktree)
 
   // Relevance filter — the mirror is the CURRENT workflow state, not an archive
   // (2026-08-28: live panel showed July-era SUPERSEDED/DONE plans flooding s).
@@ -479,6 +497,18 @@ const FINISHED_STATE_RE = /(done|complete|completed|superseded|obsolete|closed|a
 
 /** Where the map of what is in flight lives — and the name it must never be moved out of `plans/`. */
 export const MASTER_PLAN_FILE = "plans/MASTER_PLAN.md"
+
+/**
+ * THE BOUNDARY between what a human owns and what `render` owns.
+ *
+ * Everything ABOVE this line is hand-owned and preserved verbatim — most importantly the goal, which is the
+ * one vector nothing else in the repository states, so a renderer that invented it would be inventing the
+ * direction of the whole tree. Everything BELOW is generated: every value there is a READ of its source, and
+ * the source wins. A file without this marker cannot be rendered (see `renderMasterPlan`), because there is
+ * then no way to tell the head from a body that has already been generated once.
+ */
+export const RENDER_MARKER =
+  "<!-- generated below — `svm render` (S4): every value here is READ from its source; the source wins -->"
 
 /**
  * The RECIPROCAL of the plan map: which plans under `plans/` the master plan does not name, and whether the

@@ -141,4 +141,56 @@ describe("SVM store", () => {
     )
     expect(result).toBeNull()
   })
+
+  test("renderBody reads every vector from its source, prints MISSING for what is absent, and is deterministic", async () => {
+    // S4's whole claim in one case: the map COPIES nothing (every value is a read of its source), invents
+    // nothing (an absent vector is printed MISSING, never filled in), and is stable (two renders in a row are
+    // byte-identical — which is why no clock is read and the plans are sorted).
+    const result = await inTmpdir((dir) =>
+      Effect.gen(function* () {
+        const storage = yield* Storage.Service
+        yield* Effect.promise(async () => {
+          await fs.mkdir(path.join(dir, "plans"), { recursive: true })
+          await fs.writeFile(
+            path.join(dir, "plans", "2026-01-01_demo.md"),
+            [
+              "# Demo",
+              "",
+              "<!-- intention: nothing says what this plan is for -> every entry names its own source -->",
+              "<!-- goal_sv: rendering, provenance -->",
+              "",
+              "- [ ] **Q1** — a tagged box <!-- sv: alpha, beta -->",
+              "- [ ] **Q2** — an untagged box",
+              "",
+            ].join("\n"),
+          )
+        })
+        yield* SVM.write(storage, "plans/2026-01-01_demo.md", {
+          task: "Q1",
+          plan: "plans/2026-01-01_demo.md",
+          sv: "Keywords: alpha 0.6, beta 0.4\nSemantic dominant: the first box is written down.",
+          etaTurns: 2,
+          state: "doing",
+          oracle: "bun test test/session/svm.test.ts",
+        })
+        return { first: yield* SVM.renderBody(dir, storage), second: yield* SVM.renderBody(dir, storage) }
+      }),
+    )
+    const { body, stats } = result.first
+    // READ FROM THE SOURCE — the plan's own header supplies its vector; nothing here was authored by render.
+    expect(body).toContain('sv: intention "nothing says what this plan is for -> every entry names its own source"')
+    expect(body).toContain("keywords [rendering, provenance]")
+    // A tagged box carries its own vector; an untagged one SAYS MISSING instead of printing nothing.
+    expect(body).toContain("Q1 [PENDING] · sv [alpha, beta] · manifest: the first box is written down. · eta 2 · doing")
+    expect(body).toContain("Q2 [PENDING] · sv MISSING · manifest: MISSING")
+    expect(stats).toEqual({
+      plans: 1,
+      openBoxes: 2,
+      missingPlanSv: 0,
+      missingTaskSv: 1,
+      missingManifests: 1,
+      gapsBefore: [],
+    })
+    expect(result.second.body).toBe(body)
+  })
 })

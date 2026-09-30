@@ -21,6 +21,13 @@
 import { Effect } from "effect"
 import { Global } from "@opencode-ai/core/global"
 import { Storage } from "@/storage/storage"
+import {
+  MASTER_PLAN_FILE,
+  getPlanStatus,
+  masterPlanCoverage,
+  parsePlanFiles,
+  type PlanStatePlan,
+} from "@/util/plan-status"
 
 export interface SVMRecord {
   /** Task id as it appears in the plan file, e.g. `S3`. */
@@ -95,7 +102,7 @@ export function readNote(
     const file = Bun.file(Storage.keyFile(Global.Path.data, taskKey(planFile, taskId)))
     if (!(await file.exists())) return null
     const record = (await file.json()) as SVMRecord
-    return { task: record.task, dominant: dominantOf(record.sv), etaTurns: record.etaTurns, state: record.state }
+    return summarize(record)
   }).pipe(Effect.catch(() => Effect.succeed(null)))
 }
 
@@ -110,4 +117,131 @@ export function dominantOf(sv: string): string {
     ?.replace(/^\s*semantic dominant:\s*/i, "")
     .trim()
   return text ? text : "(dominant not stated)"
+}
+
+/**
+ * The manifest as a READER wants it: the dominant EXTRACTED from the block, plus distance and state.
+ *
+ * ONE spelling for every reader of the store. `read` returns the raw record, where the dominant is a line
+ * inside `sv` — and a second reader that addressed `record.dominant` would print `undefined` while looking
+ * perfectly reasonable. Measured 2026-09-30: `renderBody` did exactly that, and its own test caught it.
+ */
+export function summarize(record: SVMRecord) {
+  return { task: record.task, dominant: dominantOf(record.sv), etaTurns: record.etaTurns, state: record.state }
+}
+
+/** What one render found — printed by the tool, asserted by the test. */
+export interface RenderStats {
+  plans: number
+  openBoxes: number
+  /** A plan with no `<!-- intention -->` header states no direction at all. */
+  missingPlanSv: number
+  /** An open box with no `<!-- sv: … -->` tag. */
+  missingTaskSv: number
+  /** An open box with no manifest in the store. */
+  missingManifests: number
+  /** Plans the file named BEFORE this render and does not name now — the map was stale. */
+  gapsBefore: string[]
+}
+
+/**
+ * `render` — the master plan's generated BODY, derived from the two sources and nothing else (plan S4).
+ *
+ * WHY it returns text instead of writing the file: the content is then assertable byte-for-byte in a test
+ * with no filesystem side effect, and exactly one place (the tool) knows the path. Writing is an effect; the
+ * derivation is a measurement.
+ *
+ * WHY every value is READ: a plan's vector comes from its own `<!-- intention -->` / `<!-- goal_sv -->`
+ * header, a task's from the `<!-- sv: … -->` tag on its box, an in-flight manifest from the store. One that
+ * is absent is printed as MISSING — never filled in, never quietly skipped, because a render that supplies a
+ * missing vector is a render that invented the direction of the tree.
+ *
+ * WHY determinism is part of the contract (owner: two renders in a row must be byte-identical): plans are
+ * SORTED by path (`readdirSync` order is not a promise), tasks keep their file order, and NO CLOCK IS READ —
+ * the date lives in the hand-owned head, which this body never contains.
+ */
+export function renderBody(
+  worktree: string,
+  storage: Storage.Interface,
+): Effect.Effect<{ body: string; stats: RenderStats }> {
+  return Effect.gen(function* () {
+    const plans: PlanStatePlan[] = [...parsePlanFiles(worktree)].sort((a, b) => a.file.localeCompare(b.file))
+    const status = getPlanStatus(worktree)
+    const coverage = masterPlanCoverage(worktree)
+
+    // THE MAP IS BUILT FIRST, and the counts fall out of it: the table above it must report the same
+    // boxes the reader can count below, or the file contains two answers to one question.
+    const map: string[] = []
+    let openBoxes = 0
+    let missingPlanSv = 0
+    let missingTaskSv = 0
+    let missingManifests = 0
+    for (const plan of plans) {
+      const open = plan.tasks.filter((task) => task.status !== "PASS")
+      openBoxes += open.length
+      map.push("")
+      map.push(
+        `- \`${plan.file}\` — ${open.length} open / ${plan.tasks.length} box(es) · lifecycle ${plan.lifecycle ?? "UNKNOWN"}`,
+      )
+      if (plan.intention) {
+        map.push(
+          `  sv: intention "${plan.intention.from_state} -> ${plan.intention.to_state}" · keywords [${plan.goal_sv.join(", ")}]`,
+        )
+      } else {
+        missingPlanSv += 1
+        map.push("  sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for")
+      }
+      if (open.length === 0) {
+        map.push("  - no open box")
+        continue
+      }
+      for (const task of open) {
+        const record = yield* read(storage, plan.file, task.id)
+        if (task.sv.length === 0) missingTaskSv += 1
+        if (!record) missingManifests += 1
+        map.push(
+          `  - ${task.id} [${task.status}] · sv ${task.sv.length ? `[${task.sv.join(", ")}]` : "MISSING"} · manifest: ${
+            record ? `${summarize(record).dominant} · eta ${record.etaTurns} · ${record.state}` : "MISSING — nobody has written down what this box is"
+          }`,
+        )
+      }
+    }
+
+    const lines = [
+      "## Where the work stands",
+      "",
+      "| | count |",
+      "|---|---|",
+      `| plans completed | ${status.completed.length} |`,
+      `| plans active | ${status.active.length} |`,
+      `| tasks passed / total | ${status.completedTasks} / ${status.totalTasks} |`,
+      `| open boxes | ${openBoxes} |`,
+      "",
+      "Counts read from the same instrument `planstatus` uses; nothing here is retyped.",
+      "",
+      "## The map",
+      "",
+      "Every plan under `plans/`, with every vector READ from its own source. `MISSING` means the source has none — it is never filled in here, and the source wins over anything printed below.",
+      ...map,
+      "",
+      "## The checks",
+      "",
+      coverage.present
+        ? coverage.misses.length
+          ? `MASTER PLAN GAPS before this render: ${coverage.misses.join(", ")}`
+          : `Every plan under \`plans/\` was named in ${MASTER_PLAN_FILE} before this render.`
+        : `MASTER PLAN MISSING: ${MASTER_PLAN_FILE} did not exist before this render.`,
+      `This body names all ${plans.length} plan(s) under \`plans/\` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.`,
+    ]
+
+    const stats: RenderStats = {
+      plans: plans.length,
+      openBoxes,
+      missingPlanSv,
+      missingTaskSv,
+      missingManifests,
+      gapsBefore: coverage.misses,
+    }
+    return { body: lines.join("\n") + "\n", stats }
+  })
 }

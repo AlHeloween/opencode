@@ -581,11 +581,15 @@ Full details: [docs/architecture.md](docs/architecture.md) § Checkpoint, [docs/
 
 ## Plan Maintenance
 
-### The DIRECTION lives in `MASTER_PLAN.md` — read it before the first edit of a session
+### The DIRECTION lives in `plans/MASTER_PLAN.md` — read it before the first edit of a session
 
-This file says **how** to work; [`MASTER_PLAN.md`](MASTER_PLAN.md) says **what is being worked on and why, right
-now**. It is the entry point for any agent — this repo's, or a different environment that simply read the
-repository — and it must be readable by an agent that has never seen this session, without guessing:
+This file says **how** to work; [`plans/MASTER_PLAN.md`](plans/MASTER_PLAN.md) says **what is being worked on
+and why, right now**. It lives WITH the plans because that is where a reader looks — «master plan должен быть
+в планах, а не в корне иначе его никто читать не будет» (owner, 2026-09-30) — and it is canon, not a plan: the
+plan scanner skips it by name (`NON_PLAN_FILES`) so neither the status nor `reconcilePlans` can ever file the
+map of all work into `plans_completed/`. It is the entry point for any agent — this repo's, or a different
+environment that simply read the repository — and it must be readable by an agent that has never seen this
+session, without guessing:
 
 - **every** active plan carries its own SV (keywords + dominant): «sv для каждого субплана, таска или линка
   обязателен, чтобы было четко ясно — нафига это все и с чем это коррелирует» (owner, 2026-09-29);

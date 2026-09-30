@@ -129,10 +129,15 @@ oracle:   <what will prove it — the instrument, not the hope>
       header (that header is the one home; a retyped copy is a second source), a task's from the SVM
       store. The end state the owner named is the point of it: any agent picks the plan up on autopilot
       and works in the right key without guessing — so the file must read correctly for an agent that has
-      never seen this session. Acceptance: the file is outside `plans/`, `planstatus`/`reconcilePlans`
-      ignore it, a second render immediately after the first is byte-identical, and **no rendered plan or
-      task lacks its sv — asserted by the test, not eyeballed**. Until `render` lands, `MASTER_PLAN.md`
-      carries hand-derived plan vectors with their derivation stated in the file itself.
+      never seen this session. Acceptance: the file lives IN `plans/` (owner, 2026-09-30: «master plan
+      должен быть в планах, а не в корне иначе его никто читать не будет»), is excluded from the plan
+      scanner as canon like `plans/README.md` — `NON_PLAN_FILES` in `util/plan-status.ts`, so neither the
+      status report nor `reconcilePlans` can ever file it into `plans_completed/` — a second render
+      immediately after the first is byte-identical, **no rendered plan or task lacks its sv**, and **the
+      goal at level 0 carries its own vector**: a rule every entry obeys cannot be one the top of the tree
+      exempts itself from (an outside reader asked exactly that, 2026-09-30). `masterPlanCoverage` pins the
+      reciprocal: every plan under `plans/` is named in the rendered file. Until `render` lands,
+      `plans/MASTER_PLAN.md` carries hand-derived vectors with their derivation stated in the file itself.
 - [ ] **S6 — the fold carrier.** At the Layer-2 fold the rendered master plan is emitted AFTER every
       summary block and after the window's messages, as the last carrier before the fresh tail
       (owner, 2026-09-29). Acceptance: a folded `m*` shows the master plan last; it is a RENDER of the

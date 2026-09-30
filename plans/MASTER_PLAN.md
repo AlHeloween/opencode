@@ -1,11 +1,16 @@
 <!--
 intention: the ONE document that says where the development actually stands — goal, plans, per-task
 manifests and their distance to done — so no session has to reconstruct that from memory or from a
-transcript. It lives at the repo ROOT and is never moved to plans_completed/: it is a summary of the
-work, not a unit of it, and planstatus/reconcilePlans must not see it.
+transcript. It lives IN `plans/`, beside the plans it maps, because that is where a reader looks (owner,
+2026-09-30: «master plan должен быть в планах, а не в корне иначе его никто читать не будет»), and it is
+CANON, not a plan: `NON_PLAN_FILES` in `util/plan-status.ts` skips it by name, so neither the status report
+nor `reconcilePlans` can ever file the map of all work into `plans_completed/`. It answers to the same
+coverage rule it imposes: every plan under `plans/` must be named here (`masterPlanCoverage` reports the
+gaps), and the goal itself carries an SV like every entry below it.
 
-NOT hand-maintained for long: `svm render` (plan S4) regenerates this file from the plan files and the
-SVM store. Until that lands, this file IS the rendered form — written once, by hand, on 2026-09-29.
+NOT hand-maintained for long: `svm render` (plan S4) regenerates this file from the plan files and the SVM
+store. Until that lands, this file IS the rendered form — written by hand, with every vector derived from the
+plan's own `<!-- intention: … -->` header.
 -->
 # MASTER PLAN
 
@@ -18,6 +23,18 @@ verifiable state (kernel §1.4 SVM), every mechanism carries the granularity of 
 and nothing is claimed done without an instrument that could have failed. Current focus: the turn
 loop itself (stall, snapshot, automode) before any new surface.
 
+```yaml
+sv:
+  keywords: { agent-continuity: 0.35, mechanical-state: 0.25, proof-not-claim: 0.25, turn-loop-first: 0.15 }
+  dominant: Continuity stops depending on memory — every turn opens from a known state, and nothing is called done without an instrument that could have failed.
+```
+
+**Why the goal carries a vector at all** — it did not until an outside reader asked for it («почему у goal
+нету семантического вектора», 2026-09-30). The rule below says every subplan, task and link carries one, and
+a level that exempts itself is the level every other level copies. The goal's vector is also the only place
+that says which AXIS the others are children of: `parent-goal-md5` needs an anchor, and an anchor that points
+at prose is not an anchor.
+
 ## Where the work stands
 
 | | count |
@@ -26,7 +43,7 @@ loop itself (stall, snapshot, automode) before any new surface.
 | plans active | 14 |
 | tasks passed / total | 609 / 818 |
 | open boxes | 54 |
-| misplaced plans | 1 (`plans/2026-09-29_bash-tool-single-execution-path.md` — wrong terminal) |
+| misplaced plans | 1 (`plans/2026-09-29_bash-tool-single-execution-path.md` — the mechanical rule reads its two `[~]` items as closable; they are NOT done, so it is listed below and NOT moved — a move would declare unfinished work complete) |
 
 Counts read from `planstatus` (2026-09-30), which walks `plans/` and `plans_completed/` itself — not retyped
 from memory.
@@ -68,6 +85,12 @@ author retyping them. A plan-level vector that disagrees with its plan's intenti
   open: 2
   sv: { keywords: { h2-session-pool 0.45, connection-badge 0.3, stream-concurrency 0.25 },
         dominant: "Concurrent provider streams ride a reused HTTP/2 pool, and the sidebar shows the living connection." }
+
+- plan: plans/2026-09-29_bash-tool-single-execution-path.md
+  open: 2
+  sv: { keywords: { one-execution-input 0.4, cmd-quoting 0.35, tests-on-production-paths 0.25 },
+        dominant: "bash and cmd share ONE execution input and their tests run on the production paths, not on a parallel harness." }
+  note: delivered and verified except `K4` (the silent `Shell.select()` fallback) and `C6` (`as any` on the background return) — both `[~]`, both named as NOT done. This is the plan an outside reader found missing from this file («почему не все планы в мастер плане», 2026-09-30), and it is the one file `planstatus` calls misplaced.
 
 - plan: plans/2026-09-30_replacement-empty-assistant-row.md
   open: 3

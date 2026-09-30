@@ -181,7 +181,21 @@ const [evolvingMode, setEvolvingMode] = createSignal(false)
 
 /** Module-level plan status — shared so refreshPlanStatus from any caller
  *  updates the badge rendered by routes/session/index.tsx. */
-const [planData, setPlanData] = createSignal<PlanStatus>({ active: [], completed: [], misplaced: [], noChecklist: [], noChecklistStated: [], totalPlans: 0, totalTasks: 0, completedTasks: 0, completion: 0 })
+const [planData, setPlanData] = createSignal<PlanStatus>({
+  active: [],
+  completed: [],
+  misplaced: [],
+  noChecklist: [],
+  noChecklistStated: [],
+  // NOT READ YET, and the empty pair says exactly that. A placeholder that claimed `present: true,
+  // misses: []` would render the all-clear nobody measured — the one thing this project refuses
+  // («absence of an oracle reads as FALSE»). `refreshPlanStatus` replaces the whole object on first load.
+  masterPlan: { present: false, misses: [] },
+  totalPlans: 0,
+  totalTasks: 0,
+  completedTasks: 0,
+  completion: 0,
+})
 const [turnCount, setTurnCount] = createSignal(0)
 const [cycleCount, setCycleCount] = createSignal(0)
 const [totalCost, setTotalCost] = createSignal(0)

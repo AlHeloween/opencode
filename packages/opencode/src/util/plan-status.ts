@@ -33,6 +33,9 @@ export interface PlanStatus {
     * is the genuinely silent set. Reading a state is not earning a completion — neither half moves
     * mechanically. */
   noChecklistStated: { file: string; lifecycle: string }[]
+  /** The reciprocal of the plan map — see {@link masterPlanCoverage}. `present: false` is a finding of its
+    * own, never merged into `misses`: «no map at all» and «a map that missed a plan» are different things. */
+  masterPlan: { present: boolean; misses: string[] }
   totalPlans: number
   totalTasks: number
   completedTasks: number
@@ -366,8 +369,13 @@ function countTasks(filePath: string): { total: number; done: number } {
  *  measured 2026-09-22, when `plans/README.md` showed up as an ACTIVE plan in the tick report and
  *  `reconcilePlans` would one day have moved the canon file itself into `plans_completed/` the moment
  *  its example boxes were ticked. Filtered by NAME, linearly: a plan is a dated record, canon is
- *  documentation — and one filter here covers the status, the debt, the plan map and the reconciler. */
-const NON_PLAN_FILES = new Set(["readme.md", "agents.md"])
+ *  documentation — and one filter here covers the status, the debt, the plan map and the reconciler.
+ *
+ *  `master_plan.md` joined the set on 2026-09-30, when the owner moved the master plan INTO `plans/`
+ *  («master plan должен быть в планах, а не в корне иначе его никто читать не будет») — it is canon of the
+ *  same kind, and WITHOUT this line `reconcilePlans` would move the map of all work into
+ *  `plans_completed/` the moment its own example boxes closed. */
+const NON_PLAN_FILES = new Set(["readme.md", "agents.md", "master_plan.md"])
 
 /** Collect .md filenames directly in a directory (flat, non-recursive). */
 function collectPlans(dir: string): string[] {
@@ -459,6 +467,43 @@ export function criticalRisks(worktree: string): { plans: string[]; count: numbe
   return { plans, count }
 }
 
+/** Where the map of what is in flight lives — and the name it must never be moved out of `plans/`. */
+export const MASTER_PLAN_FILE = "plans/MASTER_PLAN.md"
+
+/**
+ * The RECIPROCAL of the plan map: which plans under `plans/` the master plan does not name, and whether the
+ * master plan exists at all.
+ *
+ * `plans/` says what EXISTS; the master plan says what is being worked on and WHY (a vector, a distance, an
+ * oracle per entry). A plan in the first and not in the second is one no agent picks up — it is not read and
+ * it is not deleted, it simply stops being anyone's work (owner, 2026-09-30: «или сделать проверку что все
+ * планы в планах входят в мастер план»).
+ *
+ * The predicate is deliberately the cheapest one that can fail — the file's own text must CONTAIN the plan's
+ * filename — so it holds however the renderer later formats an entry, and it cannot read a mentioned plan as
+ * an unmentioned one. `present: false` is kept apart from `misses`: a master plan that is ABSENT and one that
+ * missed a plan are different findings, and folding them would report every plan as unmapped the first time
+ * the file was renamed.
+ */
+export function masterPlanCoverage(worktree: string): { present: boolean; misses: string[] } {
+  let text: string
+  try {
+    text = readFileSync(path.join(worktree, MASTER_PLAN_FILE), "utf-8")
+  } catch (e) {
+    log.debug("no master plan to check coverage against", {
+      file: MASTER_PLAN_FILE,
+      error: e instanceof Error ? e.message : String(e),
+    })
+    return { present: false, misses: [] }
+  }
+  return {
+    present: true,
+    misses: collectPlans(path.join(worktree, "plans"))
+      .filter((file) => !text.includes(file))
+      .map((file) => `plans/${file.replace(/\\/g, "/")}`),
+  }
+}
+
 /** Get plan completion status for a worktree. */
 export function getPlanStatus(worktree: string): PlanStatus {
   const plansDir = path.join(worktree, "plans")
@@ -521,6 +566,7 @@ export function getPlanStatus(worktree: string): PlanStatus {
     misplaced,
     noChecklist,
     noChecklistStated,
+    masterPlan: masterPlanCoverage(worktree),
     totalPlans,
     totalTasks,
     completedTasks,
@@ -672,6 +718,18 @@ export function formatPlanHygiene(status: PlanStatus, reconcile?: ReconcileResul
           `Stated, no checklist: ${status.noChecklistStated.map((p) => `${p.file} ${p.lifecycle}`).join(" · ")}`,
         ]
       : []),
+    // THE MAP'S OWN COVERAGE — printed even when it is clean, for the reason `Misplaced: none` is: a check
+    // whose silence cannot be told from its absence is not a check. A gap here is the one finding no other
+    // line can produce: a plan that exists, is read by nobody, and is not obviously wrong.
+    ...(status.masterPlan.present
+      ? status.masterPlan.misses.length
+        ? [
+            `MASTER PLAN GAPS: ${status.masterPlan.misses.length} plan(s) under plans/ are not named in ${MASTER_PLAN_FILE} — nobody picks them up: ${status.masterPlan.misses.join(", ")}`,
+          ]
+        : [`Master plan: every plan under plans/ is named in ${MASTER_PLAN_FILE}.`]
+      : [
+          `MASTER PLAN MISSING: ${MASTER_PLAN_FILE} does not exist — nothing maps what is in flight, so a plan under plans/ is reachable only to an agent that already knows it.`,
+        ]),
   ]
   if (reconcile) {
     if (reconcile.movedToCompleted.length) {

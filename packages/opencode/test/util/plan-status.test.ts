@@ -11,6 +11,7 @@ import {
   hasChecklist,
   isPlanHygieneClean,
   isPlanPlacementClean,
+  masterPlanCoverage,
   planDebt,
   reconcilePlans,
 } from "../../src/util/plan-status"
@@ -194,5 +195,65 @@ describe("util.plan-status hygiene axes", () => {
     expect(line).toContain("3 write their own state")
     expect(line).toContain("1 state nothing")
     expect(line).toContain("plans/2026-01-21_bold-ru.md DRAFT")
+  })
+})
+
+/**
+ * THE MAP'S COVERAGE — the owner's reciprocal check (2026-09-30): «или сделать проверку что все планы в
+ * планах входят в мастер план». Its first outside reader (an agent that had never seen this session) asked
+ * for it before anything else: «почему не все планы в мастер плане». A plan under `plans/` that the master
+ * plan does not name is not read and not deleted — it simply stops being anyone's work, and no other line in
+ * this file can report it.
+ */
+describe("util.plan-status master plan coverage", () => {
+  function fixture(files: Record<string, string>): string {
+    const dir = mkdtempSync(path.join(tmpdir(), "plan-master-"))
+    mkdirSync(path.join(dir, "plans"), { recursive: true })
+    mkdirSync(path.join(dir, "plans_completed"), { recursive: true })
+    for (const [name, body] of Object.entries(files)) writeFileSync(path.join(dir, "plans", name), body)
+    return dir
+  }
+
+  test("a plan the master plan does not name is REPORTED, and a named one is not", () => {
+    const dir = fixture({
+      "2026-01-01_named.md": "# Named\n\n- [ ] work\n",
+      "2026-01-02_orphan.md": "# Orphan\n\n- [ ] work\n",
+      "MASTER_PLAN.md": "# MASTER PLAN\n\n- plan: plans/2026-01-01_named.md\n",
+    })
+    const coverage = masterPlanCoverage(dir)
+    expect(coverage.present).toBe(true)
+    // `named` is the control that MUST NOT appear: a filter reporting everything, or nothing, would pass
+    // one half of this assertion and fail the other. (A filter is a claim about the pattern.)
+    expect(coverage.misses).toEqual(["plans/2026-01-02_orphan.md"])
+    const report = formatPlanHygiene(getPlanStatus(dir))
+    expect(report).toContain("MASTER PLAN GAPS: 1 plan(s)")
+    expect(report).toContain("plans/2026-01-02_orphan.md")
+  })
+
+  test("a complete map SAYS SO — a check whose silence cannot be told from its absence is not a check", () => {
+    const dir = fixture({
+      "2026-01-01_named.md": "# Named\n\n- [ ] work\n",
+      "MASTER_PLAN.md": "# MASTER PLAN\n\n- plan: plans/2026-01-01_named.md\n",
+    })
+    expect(masterPlanCoverage(dir).misses).toEqual([])
+    expect(formatPlanHygiene(getPlanStatus(dir))).toContain("Master plan: every plan under plans/ is named")
+  })
+
+  test("an ABSENT master plan is its own finding, never 'no misses'", () => {
+    const dir = fixture({ "2026-01-01_named.md": "# Named\n\n- [ ] work\n" })
+    expect(masterPlanCoverage(dir)).toEqual({ present: false, misses: [] })
+    expect(formatPlanHygiene(getPlanStatus(dir))).toContain("MASTER PLAN MISSING")
+  })
+
+  test("the master plan is NOT a plan: never active, never no-checklist, never moved", () => {
+    // The half that ACTS on a wrong answer is `reconcilePlans`, so it is asserted separately: without the
+    // `NON_PLAN_FILES` exception the map of all work would be filed as a completed plan the moment its own
+    // example boxes closed — the same class `plans/README.md` was exempted for on 2026-09-22.
+    const dir = fixture({ "MASTER_PLAN.md": "# MASTER PLAN\n\n- [ ] smoke: written\n- [x] done\n" })
+    const status = getPlanStatus(dir)
+    expect(status.active).toEqual([])
+    expect(status.noChecklist).toEqual([])
+    expect(status.misplaced).toEqual([])
+    expect(reconcilePlans(dir).movedToCompleted).toEqual([])
   })
 })

@@ -103,10 +103,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 180 |
+| plans completed | 183 |
 | plans active | 19 |
-| tasks passed / total | 639 / 876 |
-| open boxes | 89 |
+| tasks passed / total | 660 / 896 |
+| open boxes | 88 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -210,15 +210,14 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   sv: intention "an agent must be able to STORE and READ the manifest of the turn it is in — task, plan ref, semantic vector, turn estimate — and the turn must be told when it is missing; the master plan becomes the rendered summary that no plan-file move can touch -> one SVM store + one tool + one turn-note reminder + a generated MASTER_PLAN.md" · keywords []
   - S4 [PENDING] · sv MISSING · manifest: Мастер-план обязан нести свой вектор на каждой записи — остаток S4 есть авторинг этих векторов, и бокс остаётся открытым `[ ]`, пока они не написаны. · eta 3 · doing
 
-- `plans/2026-09-30_cua-robot-skill-pack.md` — 2 open / 8 box(es) · lifecycle ACTIVE
-  sv: intention "the cua skill pack the robot reads is the vendor's, written for a networked install, and it still tells an agent to run `irm https://cua.ai/driver/install.ps1 | iex` -> the robot reads its own cua skill pack, rewritten in the reasoning-kernel's style (gated cycle, prediction, instrument qualification, status-marked measured facts), embedded in the offline build and indexed by the cua tool" · keywords [skill-pack, kernel-style, measured-facts, offline-embedding, gui-debugging]
-  - K4 [PENDING] · sv [outside-falsifier, reading-test, held-out] · manifest: MISSING — nobody has written down what this box is
-  - P4 [PENDING] · sv [outside-falsifier, wording, revision] · manifest: MISSING — nobody has written down what this box is
-
 - `plans/2026-09-30_cua-supply-chain-audit.md` — 2 open / 10 box(es) · lifecycle ACTIVE
   sv: intention "cua and Universal Search are suspected on egress, hidden code and reliability, with no measurement behind the suspicion -> every component shipped to colleagues has a measured egress manifest, a known build provenance and a recorded reliability profile, and nothing leaves a machine the owner did not approve" · keywords [supply-chain-audit, egress-manifest, telemetry, provenance, reliability]
   - SE [PENDING] · sv [reliability, defect-classes, evidence] · manifest: MISSING — nobody has written down what this box is
   - SF [PENDING] · sv [universal-search, cdp-port, redistribution] · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-09-30_drop-penalty-sampling-params.md` — 1 open / 9 box(es) · lifecycle UNKNOWN
+  sv: intention "the request body carries presence_penalty/frequency_penalty (deprecated no-ops at the vendor, and one half of a pair the server rejects with 400) -> opencode sends neither; repetition_penalty (a live parameter on those vendors) stays" · keywords []
+  - TASK-9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-09-30_no-foreign-skill-discovery.md` — 5 open / 5 box(es) · lifecycle OPEN
   sv: intention "opencode discovers skills from Claude's and .agents' directories -- a compatibility feature this project does not want, and the same disease reaches the instruction loader (CLAUDE.md is read as OUR instructions) -> our runtime reads ONLY our own skill and instruction surfaces, and the foreign discovery is removed with its tests superseded, not silenced" · keywords [foreign-discovery, skill-isolation, instruction-isolation, self-sufficient, supersede]

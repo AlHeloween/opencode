@@ -97,6 +97,13 @@ removed knob is the defect, not a fix.
 - [x] P6 `src/tool/aicall.ts` — both params dropped from the schema and the mapping
 - [x] P7 tests moved in the SAME change (3 files; one new invariant added)
 - [x] P8 typecheck + focused tests PASS
+- [ ] S5 LIVE end-to-end confirmation — the only criterion measured against the owner's original
+      goal: after the rebuild, one ordinary message on a `chat/completions` Zen model streams a
+      reply instead of `400 invalid_request_error`. The agent cannot run it (it needs the owner's
+      key in their TUI), so it stays open and the plan stays in `plans/`. The unit tests prove OUR
+      request body no longer carries the pair; they cannot prove the vendor accepts the rest of it.
+      **Lift signal:** one message, one reply. attempts: 0 · last_failure: not run — blocked on the
+      owner's key, not on code (the rebuilt binary is promoted, 2026-09-30 19:02:33)
 
 ## Smoke Tests
 
@@ -104,7 +111,7 @@ removed knob is the defect, not a fix.
 |---|---|---|---|
 | S1 | `bun test test/session/model-sampling.test.ts` + `subagent-sampling` + `session-settings-persist` (cwd `packages/opencode`) | 35 pass / 0 fail / 98 expect, exit 0 — run `20260930T101037Z_43a8d440` | **36 pass / 0 fail / 105 expect, exit 0** — run `20260930T101208Z_ffe26266` |
 | S2 | `bun typecheck` = `tsgo --noEmit` (cwd `packages/opencode`) | (not separately run) | **exit 0, zero diagnostics** — run `20260930T101221Z_ad011f5f` |
-| S5 | live request on a `chat/completions` Zen model (owner TUI) | 400 invalid_request_error | **[~] OPEN — needs a rebuilt binary + the owner's key** |
+| S5 | live request on a `chat/completions` Zen model (owner TUI) | 400 invalid_request_error | **[ ] OPEN — awaiting the owner's live message; the rebuilt binary is promoted (2026-09-30 19:02:33). See box S5.** |
 
 S2 is the completeness oracle for this change: `keyof ModelSampling` and the agent
 schema are typed, so a missed consumer is a compile error, not a silent field.

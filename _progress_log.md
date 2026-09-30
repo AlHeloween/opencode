@@ -5726,3 +5726,18 @@ status-marked measured facts with run ids; TIERS; RUNTIME; DATA_ENTRY for forms/
 served by the offline build under the same skill:// URIs. Root: `cua.ts` skill-index → cua-robot, new
 `test/tool/cua-skill-index.test.ts` red-then-green on real files. Lint control saw the vendor pack's `| iex`; offline exe
 04A4F445… has 0 `| iex` / `install.ps1`. Egress not re-run on this exe (docs-only delta) — stated as Inferred.
+
+
+## [2026-09-30 09:00Z] session handoff — ADM measured, AGENTS no-script rule scoped, robot orchestration designed (DRAFT)
+
+✓ AGENTS.md: the no-script rule forbids UNVERIFIABLE edits; ADM descriptors are a distinct class (commits 1bec194ddb,
+2a29c12de1, 2134f10179, 82dcbb53a0). ADM 5.0.6 measured in `experiments/2026-09-30_adm-binary-smoke/` (README): process
+end to end ✓ (anchor miss aborts; baseline/backup/ADID_ROLLBACK/ledger/report; list-diff with Reason; replay-updates
+prints a per-mutation SV; rollback byte-identical); md5 = report detector by design, but the non-dry-run report hides the
+correction; base64 binary path wrote text; raw bytes >= 0x80 fail loudly. ADM fixes: separate session task_b22a12ec.
+✓ Plan `plans/2026-09-30_robot-delegation-and-orchestration.md` (DRAFT): run/AGI/automode facts with file:line, blockers
+B1-B10 (one worker only; per-cycle approval ask; ask stalls the loop), stages S1-S4, skill + Codex binding, and the
+deferred MASTER_PLAN assessment inputs (8 findings).
+TOOLS: Grep with `glob: "*.py"` on D:\zPython\ADID_Python\src returned a FALSE 0 (73 hits without the filter) — filter
+class, KAIZEN; codegraph natural-language query returned unrelated «manifest» symbols — named queries answer.
+NEXT: owner picks the first robot plan for S1; comprehensive assessment after the robot finishes S4 of the svm plan.

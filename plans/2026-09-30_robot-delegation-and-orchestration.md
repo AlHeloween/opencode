@@ -1,0 +1,92 @@
+# Robot delegation, orchestration and scheduling — using AGI mode and automode in full
+
+<!-- intention: Claude/Codex frame and verify while the opencode robot executes, unattended and in parallel where safe -> a Claude skill + a Codex binding that dispatch bounded tasks to the robot, and a staged path to AGI-mode parallel workers and a local scheduler -->
+
+- status: DRAFT (owner-directed design, 2026-09-30; nothing implemented yet)
+- sv: { keywords: { robot-delegation 0.30, agi-orchestrator 0.25, unattended-blockers 0.20, scheduler 0.15, worker-pool 0.10 },
+        dominant: "The robot runs bounded tasks unattended — one cmd_runner per worktree, orchestrator-driven workers — while Claude only frames and verifies." }
+- owner, 2026-09-30: «сделать скилл для claude чтобы делать новые сессии для нашего робота, чтобы минимизировать
+  нагрузку на твою модель… приблизительный скилл для кодекса… чего нехватает чтобы отправлять задания роботу через
+  местный шедулер»; then «1 cmd_runner на worktree, если в этом worktree несколько задач система вполне может их
+  обрабатывать параллельно… там есть режим оркестратора и автоматический режим».
+
+## Grounded facts (read in code 2026-09-30 — re-verify before building on them)
+
+- `opencode run` (`packages/opencode/src/cli/cmd/run.ts`): `run [message..]` with `--agent`, `--model`,
+  `--variant`, `--session/--continue/--fork`, `--format json`, `--file`, `--title`, `--dir`, `--attach <server>`.
+  Headless asks are AUTO-REJECTED (lines 523-541); `question`/`planenter`/`planexit` denied (339-355);
+  `--dangerously-skip-permissions` approves everything not denied (too broad). Exit code reflects setup errors
+  only (process.exit(1) at 301/313/331/336/613/619), not task acceptance.
+- Sanctioned launch point: `dist\bin\opencode.exe` (never `bin/` — AGENTS forbidden_actions).
+- AGI mode and `/automode` are TUI-SIDE state machines: `tui/context/agi-mode.tsx`, `automode.tsx`,
+  `automode-logic.ts`. `run` does NOT drive them — the entry for unattended AGI is a live TUI hosted by
+  cmd_runner (ConPTY) with `/agi` or `/automode` sent through its inbox.
+- AGI loop: `ORCH_BUSY → ORCH_DISPATCH → WORKERS_BUSY → WORKERS_COLLECT`; directives
+  `<workerN_<sessionID>>…</workerN_…>` (agi-mode.tsx:355-357), dispatched in a loop (:614), waits for ALL
+  `activeWorkers`; MAX_TURNS=100 (:166), MAX_RUNTIME 24 h (:169); reconcilePlans each collect; state in
+  `.opencode/data/state/agi-state.json`.
+- ONLY TWO sessions are created — `main` and `orch` (agi-mode.tsx:737, :753); «future sessions» (:6) is a
+  comment. Effective parallelism today = one worker + its `task` subagents + background jobs.
+- `/automode` exits on: a plan LEAVING `plans/` (default), all plans moved (`all`), or an iteration count (`N`).
+- Orchestrator prompt (`agent/prompt/orchestrator.txt:7`) ends every plan with «Do you approve this plan?».
+- docs/agi-workflow.md:144 — an ask left pending keeps the loop in WORKERS_BUSY until the user answers.
+- Kernel G7 «One bounded task open at a time. Two in flight share one oracle → neither attributable» — the
+  candidate's «concurrent children require disjoint effects, reserved budgets and separate oracles» was NOT ported.
+
+## Unattended blockers
+
+| # | blocker | fix direction |
+|---|---|---|
+| B1 | one worker session only | worker pool: create up to K sessions per directive `workerId` |
+| B2 | orchestrator asks «Do you approve this plan?» every cycle | pre-authorization marker in the plan header (owner approval + envelope); orchestrator skips the ask for approved plans |
+| B3 | a pending ask stalls the whole loop | unattended policy: ask = deny (as `run` already does), the decision goes to SVM `waiting-on-user` |
+| B4 | mode exit leaves TUI + cmd_runner alive | external dispatcher reads the stop signal (plan moved / agi-state.json) and `jobkill`s |
+| B5 | parallel workers in ONE tree vs kernel G7 | disjoint paths + a separate oracle per directive; ONE committer (orchestrator); port the candidate's G7 clause |
+| B6 | no task queue: `SVMRecord.state` has no `ready` | add `ready` + an eligibility rule; the dispatcher takes the next ready task |
+| B7 | no per-task permission envelope for headless | e.g. `run --envelope <file>` → `session.create({permission})` (the kernel's G4 envelope made executable) |
+| B8 | no timeout in `run`; outcome not in the exit code | cmd_runner / scheduler time limit; outcome read from SVM (`verified` + evidence, or `blocked` + lift signal) |
+| B9 | no owner channel for decisions and digests | digest file / PushNotification; decisions accumulate as `waiting-on-user` |
+| B10 | binary + API keys for the scheduled context | owner's procedure (bin/ is the owner's runtime) |
+
+## Stages (each measured before the next)
+
+- [ ] S1 — no code: one worktree, one cmd_runner hosting `dist\bin\opencode.exe`, `/automode` on ONE plan the
+      owner approved beforehand; Claude writes the brief and runs the oracle. Record where it stalls.
+- [ ] S2 — pre-authorization marker (B2) + ask=deny policy (B3). Acceptance: an AGI cycle completes with no
+      human answer and no self-authorization.
+- [ ] S3 — worker pool (B1) with disjoint paths and per-worker oracles (B5); kernel G7 clause ported through the
+      pipeline. Acceptance: two workers edit disjoint files in one tree, each oracle attributable, one commit per plan.
+- [ ] S4 — scheduler: `schtasks` + a READ-only dispatcher (queue B6, lease one-robot-per-tree, exit detection B4,
+      timeout B8, digest B9). Acceptance: a scheduled run takes a ready task, finishes, reports, releases.
+- [ ] Claude skill `.claude/skills/robot/SKILL.md` (brief = plan task + SV + oracle + prediction; launch via
+      cmd_runner/run_in_background; read only the final message + git diff; verify with the oracle itself;
+      `--session` to continue; never bin/, never --dangerously-skip-permissions).
+- [ ] Codex binding — a DELEGATION/G7 line in `addons_codex.py` (installed to ~/.codex/AGENTS.md). Whether the
+      installed Codex reads `$CODEX_HOME/skills/` is UNVERIFIED.
+
+## Smoke Tests
+
+- S1 smoke: the cmd_runner job for the TUI starts, `/automode` is accepted via the inbox (render read back), and
+  the chosen plan's box state changes on disk. Prediction to be written before the run.
+- Skill smoke: one tiny task dispatched and verified by its oracle; a provider call costs money — owner picks the
+  task and model first.
+
+## Deferred assessment inputs (owner: «пусть робот доделает работу, а потом проведем всестороннюю оценку»)
+
+MASTER_PLAN.md review, 2026-09-30 (verified on disk):
+1. level-0 goal has no SV/md5 → `parent-goal-md5` links have no root; YAML SVs carry keywords+dominant only (no
+   md5/prev/parent) → the mandated «link» SV is unrepresentable; the file has no own SV.
+2. `SVMRecord` (`session/svm.ts:25` = {task, plan, sv, etaTurns, state, oracle}) lacks parent_turn_id,
+   goal_hierarchy and any evidence/stamp field → `state: verified` cannot carry its run id (violates the file's own
+   rule #1); S4 renders from it.
+3. `plans/emergency/` (2 plans), postponed (2), futures (5), to_be_confirmed (17) are absent — collectPlans is flat.
+4. S4 oracle «two renders byte-identical» passes a deterministic wrong render — add counts == planstatus, every
+   plan in plans/** exactly once, missing SV prints MISSING.
+5. `open` field inconsistent (list / number / absent for 8 of 14).
+6. R1 `blocked` without a lift signal (its note describes a next step → really `doing`).
+7. kernel-candidate plan SV stale (describes «pipeline», not F6–F8).
+8. dangling «C3 above»; header 09-29 vs counts 09-30; misplaced bash-tool plan has no entry.
+Plus the reframing to weigh then: ADID 12.2 `scripts` as the task's replayable READ-only evidence (smokes,
+diagnostics, reproducers, qualification fixtures), and ADM descriptors as its verifiable mutation half
+(AGENTS.md § no-script rule; `experiments/2026-09-30_adm-binary-smoke/`; ADM fixes running in the ADID_Python
+session `task_b22a12ec`).

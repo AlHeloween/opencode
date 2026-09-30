@@ -5760,3 +5760,11 @@ attention by SV, boundary not fill, oracle at the door of memory). Memory: hand 
 instead of a late /compact — `start_session` is not exposed on this host (ToolSearch: no match).
 FACT: Zen free models answer only from inside opencode → the robot can run at zero provider cost; which are live is open.
 NEXT: owner picks the first task + free model for the skill smoke / S1; threshold for session hand-off still unnamed.
+
+## [2026-09-30] cua-robot pack K4 — outside falsifier: 9/10, 3 contradictions and 17 ambiguities fixed; plan closed
+`plans_completed/2026-09-30_cua-robot-skill-pack.md` (all boxes [x]). space-bunny-free, expectations sealed first;
+attempt 1 cut at 32k (all reasoning), attempt 2 answered: 9/10 scenarios matched, S4 partial (no in-window route).
+Real contradictions fixed: @TARGET_EXACT vs desktop scope, owner's yes vs B-tier focus invariant, C5 «bound» vs
+unbound drag; sharpest ambiguity: a write's in-call readback called an oracle. `external/cua` revision commit on
+local_development; offline exe 02B94871… re-embedded, lint PASS, mcp_skills 5/5. Residual: revised text not re-read
+by the outside model; 3-architecture panel needs an in-app run.

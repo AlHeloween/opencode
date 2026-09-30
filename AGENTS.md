@@ -71,12 +71,17 @@ constraints:
   parser locates the payload by those raw open/close tokens, not by XML escaping
   (`src/adm/manager_methods/_stream_md5_wrapped_updates.py:113`), and an unclosed block, a duplicate content
   block or content outside an update raises (same file, lines 44/64/67/76 — read in code, not run).
-  **What the md5 is NOT — measured 2026-09-30 on adm 5.0.6** (`experiments/2026-09-30_adm-binary-smoke/`):
-  it is a CHANGE DETECTOR for review, not a guard. `--apply` re-stamps the descriptor in place before
-  parsing (`apply_descriptor.py:20-22`) and then reports «Verified … (md5/size match)» against its own new
-  stamp — a payload altered after stamping was applied (✗ tamper accepted); `--dry-run` does show the
-  mismatch («MD5=auto-corrected, expected … actual …») and still marks the update applicable. So read the
-  integrity report; do not rely on the stamp to refuse. Raw bytes between the tags: the descriptor is read as
+  **Measured 2026-09-30 on adm 5.0.6** (`experiments/2026-09-30_adm-binary-smoke/`, both runs): the md5 is
+  a change detector FOR THE REPORT, by design (owner: «это для отчёта»), not a refusal — `--apply`
+  re-stamps the descriptor before parsing (`apply_descriptor.py:20-22`), a payload altered after stamping
+  is applied, and `--dry-run` shows the mismatch («MD5=auto-corrected, expected … actual …»). The gap: the
+  NON-dry-run report does not show it («MD5 match … no adjustments required»), so read the dry-run audit
+  when the question is «was this descriptor touched». The PROCESS itself, run on an existing file: a missed
+  `<find_text>` anchor aborts with the target untouched (✓); apply writes a `.baseline`, a timestamped
+  backup, an in-file `ADID_ROLLBACK` block (backup/new hash, goal_id, semantics, restore command), a
+  `<file>.adid.log.jsonl` ledger and the integrity report (✓); `--list-diff` shows the hunk with the
+  semantics as its `Reason` (✓); `--replay-updates` prints the intent AND a semantic vector per mutation
+  with an MD5 chain (✓); `--rollback` restored the file byte-identical and re-verified its hash (✓). Raw bytes between the tags: the descriptor is read as
   strict UTF-8, so a byte ≥ 0x80 fails loudly with `UnicodeDecodeError` and nothing is written (✓ safe, but
   only UTF-8-valid content passes raw). And the `binary-overwrite` template's base64 path wrote the base64
   TEXT itself (388 B) instead of the 291 decoded bytes — md5/size are computed over the text, not «on decoded

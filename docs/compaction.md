@@ -154,6 +154,36 @@ When (1) and (4) disagree — a boundary closed and the next one unmapped — th
 gap is the first thing the new window should close. What is never right is folding on the overflow gate ALONE:
 that is the trash-heap moment, not the sharp moment.
 
+### The cycle: TWO folds per task, and the fold is a sleep (owner, 2026-09-30)
+
+«когда план составлен, мы заземлились, прописали все в мастер план, определили что нам надо сделать — мы
+загружаем все что надо в память и summaries … и сделали компакт, делаем задачу — выполнили, провели тесты,
+получили артефакты и результаты — загрузили это в память и опять сделали компакт — если появились соображения
+по доведению темы, довели. Дальше то же самое со следующей задачей. Люди обычно делают подготовку и ложатся
+спать — это по сути тот же компакт; сделав работу и отчёты, снова ложатся спать. Если все ок, то ок, если
+вылезло — доделываем. Почему что LLM что мозг человека — пачка параллельных задач и информационный мусор —
+размазывают внимание как соплю.»
+
+The rhythm is **two folds per task**, and in that role the fold is a sleep, never a rescue:
+
+1. **Before the task — PREPARATION.** Ground, write the plan into the map, then LOAD THE BASIS into memory and
+   the summaries: what the task is for, its falsifier, the paths it touches, the oracle that will prove it.
+   Fold. The window that opens holds one task's basis and nothing else.
+2. **After the task — CONSOLIDATION.** The work is done, the tests ran, the artifacts and the results exist:
+   load THEM into memory, then fold again. The trace of execution — every failed attempt, every intermediate
+   read, the whole noisy middle — is released; what survives is the outcome and its evidence.
+3. **Then the next task, the same way.** And if consolidation surfaced a thought about finishing the topic,
+   finish it BEFORE the fold or name it as the next task's basis — that is the «если вылезло — доделываем».
+
+WHY this is the shape, in the owner's own terms: a window is a pack of PARALLEL tasks and informational
+garbage — «размазывают внимание как соплю». The fold is the deliberate narrowing that un-smears it, so it
+belongs at the two ENDS of a task and never in the middle: mid-task it throws away handles still being held, and
+at the window ceiling the smear has already been paid for every turn since the boundary.
+
+**A consequence worth stating: this rhythm REQUIRES a free fold.** Two folds per task cannot cost a model call —
+which is exactly what the opencode path already guarantees (the head is READ, nothing is generated), and why the
+Claude Code gap table below matters: a lossy LLM summarizer cannot be the sleep of a working cycle.
+
 ## When to compact by hand (2026-09-16)
 
 Automatic compaction is a **context-safety** gate: it fires when the window is

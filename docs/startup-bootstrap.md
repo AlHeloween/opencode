@@ -315,15 +315,29 @@ Still uses existing `_build_rust.ps1`, OpenTUI `bun run build`, and `script/buil
 
 Every other step needs only bun, python and git. The native half needs two things this host did not have ready:
 
-| Needs | Why | State here |
+| Needs | Why | Supplied by `build.py` |
 |---|---|---|
-| **Zig 0.16** | `packages/opentui/packages/native/build.zig` uses the 0.16 API — `std.Io.Dir`, `b.Graph.environ_map`; `std.mem.find` | **0.15.2 (chocolatey) ⇒ the step CANNOT complete.** `build.zig:111` fails on `std.Io.Dir` |
-| A POSIX **`sh`** | bun's `prepare:zig` runs `sh scripts/prepare-zig-deps.sh`, which unpacks the vendored `src/vendor/zig-deps.tar.gz` — offline, no download | Windows has none. `build.py` appends Git for Windows' `Git\usr\bin` **for that step only** |
+| **Zig 0.16** | `packages/opentui/packages/native/build.zig` uses the 0.16 API — `std.Io.Dir`, `b.Graph.environ_map`, `std.mem.find`; on 0.15 `build.zig:111` fails | The tree **ships its own compiler** at `external/zig-x86_64-windows-0.16.0/`. `build.py` **prepends** the highest `external/zig-*/zig.exe` by name, so the pinned compiler wins over whatever the host exposes |
+| A POSIX **`sh`** | bun's `prepare:zig` runs `sh scripts/prepare-zig-deps.sh`, which unpacks the vendored `src/vendor/zig-deps.tar.gz` — offline, no download | Windows has none; `build.py` **appends** Git for Windows' `Git\usr\bin` |
 
-The PATH ordering there is load-bearing and was bought with two failed runs: it is **appended, not
-prepended**, so `sh`/`cksum`/`cmp` come from Git while `tar` stays the system **bsdtar**. Prepending makes
-`tar` resolve to Git's **GNU tar**, which reads the drive-letter root bun hands the script (`D:\…`) as a
-**remote host** and dies with `tar (child): Cannot connect to D: resolve failed`.
+**Why `zig` is PREPENDED and `sh` is APPENDED — the two orderings are the whole fix.**
+`packages/opentui/packages/core/scripts/build.ts:194` calls `zig` BY NAME with no `env`, so the process
+PATH decides which compiler builds the DLL — and this host's PATH carries chocolatey's **0.15.2**, which
+cannot compile the tree. The in-repo compiler must therefore come FIRST. `sh` goes LAST on purpose:
+prepending also puts Git's GNU `tar` first, and GNU tar reads the drive-letter root bun hands the script
+as a **remote host**, dying with `tar (child): Cannot connect to D: resolve failed`, while the Windows
+bsdtar in system32 handles it. Appending keeps the blast radius at exactly the tools Windows lacks
+(`sh`, `cksum`, `cmp`, `ln`).
+
+**Do NOT measure this with a bare `zig` from python.** `subprocess.run(["zig", …], env=…)` resolves the
+program with the PARENT's PATH, not the `env` you passed — so it reports the host's 0.15.2 while the child
+would have used 0.16. That artifact cost two attempts on 2026-09-30 (the second through cmd_runner's
+auto-wrap, which swallows a `set PATH=…`). Ask the resolution itself — `python -c "import shutil;
+print(shutil.which('zig'))"` under the same PATH — or run the real step.
+
+**The other entry points do NOT do this.** `_opentui.ps1` and `_build.ps1` never touch PATH: they call
+`bun run build` and let the host's `zig` win. A native build through them needs
+`external/zig-x86_64-windows-0.16.0` on PATH by hand; through `build.py` it does not.
 
 **When the native half cannot be rebuilt**, a binary still builds from the DLL in the tree:
 

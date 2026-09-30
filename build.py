@@ -220,37 +220,51 @@ def step_rust() -> None:
     _run(["pwsh", "-NoProfile", "-File", str(ROOT / "_build_rust.ps1")])
 
 
-def _posix_shell_env() -> dict[str, str]:
-    """An environment in which `sh` resolves — and `tar` still understands Windows paths.
+def _native_toolchain_env() -> dict[str, str]:
+    """An environment in which the OpenTUI native build finds the tools it demands.
 
-    OpenTUI's native build shells out to `sh`
-    (`packages/opentui/packages/native/scripts/prepare-zig-deps.sh`, which unpacks the vendored
-    `src/vendor/zig-deps.tar.gz` — offline, no download). Windows has no `sh`, and bun answers
-    `bun: command not found: sh`, aborting the whole build. Git for Windows ships one and git is
-    already a prerequisite of this repo, so it is appended to PATH — APPENDED, not prepended, and
-    that ordering is the whole point: bun hands the script a Windows-style root (a drive-letter
-    path), and the Windows `tar` (bsdtar, system32) handles that, while Git's GNU tar reads the
-    drive letter as a REMOTE host and dies with `Cannot connect to D:` (measured 2026-09-30, runs
-    20260930T041858Z_8c08fdfb and 20260930T042235Z_718c5ca3). Appending also keeps the blast
-    radius at exactly the tools Windows lacks (`sh`, `cksum`, `cmp`, `ln`) instead of shadowing
+    Two tools, placed at OPPOSITE ends of PATH on purpose.
+
+    `zig` is PREPENDED. `packages/opentui/packages/core/scripts/build.ts:194` calls it BY NAME, so the
+    host's PATH decides which compiler produces the DLL — and this host's PATH carries chocolatey's
+    **0.15.2** while the tree needs the **0.16** API (`native/build.zig` uses `std.Io.Dir` and
+    `b.Graph.environ_map`; on 0.15 `build.zig:111` fails). The tree therefore ships its own compiler
+    under `external/zig-*/`, and it must WIN. The highest directory name wins when several are
+    present, which is why they are version-named.
+
+    `sh` is APPENDED. bun runs `sh scripts/prepare-zig-deps.sh` (which unpacks the vendored
+    `src/vendor/zig-deps.tar.gz` — offline, no download) and Windows has no `sh` at all: bun answered
+    `bun: command not found: sh` and aborted the build (run 20260930T041858Z_8c08fdfb). Git for
+    Windows ships one and git is already a prerequisite of this repo. Appended, not prepended,
+    because prepending also puts Git's GNU `tar` first — and GNU tar reads the drive-letter root bun
+    hands the script as a REMOTE host, dying with `Cannot connect to D:` (run
+    20260930T042235Z_718c5ca3), while the Windows bsdtar in system32 handles it. Appending keeps the
+    blast radius at exactly the tools Windows lacks (`sh`, `cksum`, `cmp`, `ln`) instead of shadowing
     `find`/`sort`/`tar` for every later step.
     """
-    if shutil.which("sh"):
-        return dict(os.environ)
-    for candidate in (Path(r"C:\Program Files\Git\usr\bin"), Path(r"C:\Program Files\Git\bin")):
-        if (candidate / "sh.exe").is_file():
-            return {**os.environ, "PATH": f"{os.environ.get('PATH', '')}{os.pathsep}{candidate}"}
-    raise RuntimeError(
-        "OpenTUI's native build needs a POSIX `sh` on PATH and none was found. "
-        "Install Git for Windows (it ships sh.exe in Git\\usr\\bin) and re-run."
-    )
+    parts: list[str] = []
+    zigs = sorted(ROOT.glob("external/zig-*/zig.exe"))
+    if zigs:
+        parts.append(str(zigs[-1].parent))
+    parts.append(os.environ.get("PATH", ""))
+    if not shutil.which("sh"):
+        for candidate in (Path(r"C:\Program Files\Git\usr\bin"), Path(r"C:\Program Files\Git\bin")):
+            if (candidate / "sh.exe").is_file():
+                parts.append(str(candidate))
+                break
+        else:
+            raise RuntimeError(
+                "OpenTUI's native build needs a POSIX `sh` on PATH and none was found. "
+                "Install Git for Windows (it ships sh.exe in Git\\usr\\bin) and re-run."
+            )
+    return {**os.environ, "PATH": os.pathsep.join(parts)}
 
 
 def step_opentui() -> None:
     core = ROOT / "packages/opentui/packages/core"
     solid = ROOT / "packages/opentui/packages/solid"
     three = ROOT / "packages/opentui/packages/three"
-    env = _posix_shell_env()
+    env = _native_toolchain_env()
     for d, label in ((core, "core"), (solid, "solid"), (three, "three")):
         if not d.is_dir():
             raise RuntimeError(f"OpenTUI package missing: {d}")

@@ -953,7 +953,7 @@ export function tailNote(input: {
     const base =
       openBoxes === 0
         ? `map: no un-ticked box — plans/MASTER_PLAN.md needs no reconciliation today`
-        : `map: ${openBoxes} un-ticked box(es) across ${plans} plan(s) — is each one accounted for in plans/MASTER_PLAN.md, and does it still match the plan file it came from?`
+        : `map: ${openBoxes} un-ticked box(es) across ${plans} plan(s) — accounted for in plans/MASTER_PLAN.md, still matching the plan file it came from, and STILL TRUE? A box outlives its topic: rewritten, deleted, or carried by a plan somebody forgot to move because confirming it meant running one isolated test. Re-ground each box against the code before working it, and close it with the evidence when the work is already there.`
     lines.push(base)
     if (notNamed.length) {
       lines.push(

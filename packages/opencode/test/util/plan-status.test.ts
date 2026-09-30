@@ -257,3 +257,91 @@ describe("util.plan-status master plan coverage", () => {
     expect(reconcilePlans(dir).movedToCompleted).toEqual([])
   })
 })
+
+/**
+ * THE UNMOVED-PLAN HAZARD, in the half a script can decide. Owner, 2026-09-30: «в планах иногда задерживается
+ * тема, которая уже была переписана и удалена, какой-нибудь агент обязательно это найдёт и под хорошее
+ * настроение начнёт исправлять — и это нормально, в планах есть — есть надо сделать — надо. А он же не в
+ * курсе что это просто другой агент забыл перенести потому что поленился выполнить тот или иной
+ * изолированный тест.» Read in the project's own terms: a stale OPEN box is a SIMULATED status presented as a
+ * MEASURED one — the next reader cannot tell it from real work, and the cost of the previous agent's skipped
+ * test is moved onto someone who cannot refuse it. The written half is decidable here; the unwritten half (the
+ * topic was simply rewritten and deleted) is what the turn note's `map:` question asks every turn.
+ */
+describe("util.plan-status stale stated plans", () => {
+  function fixture(files: Record<string, string>): string {
+    const dir = mkdtempSync(path.join(tmpdir(), "plan-stale-"))
+    mkdirSync(path.join(dir, "plans"), { recursive: true })
+    mkdirSync(path.join(dir, "plans_completed"), { recursive: true })
+    for (const [name, body] of Object.entries(files)) writeFileSync(path.join(dir, "plans", name), body)
+    return dir
+  }
+
+  test("a plan that STATES it is over while its boxes are open is reported; an ACTIVE one is not", () => {
+    const dir = fixture({
+      "2026-01-30_superseded.md": "# S\n\n**Status:** SUPERSEDED\n\n- [ ] work the topic again\n",
+      "2026-01-31_live.md": "# L\n\n**Status:** ACTIVE\n\n- [ ] real work\n",
+    })
+    const status = getPlanStatus(dir)
+    // The control that must NOT appear is the ACTIVE plan — a check that reported every open plan would tell
+    // the reader nothing, and one that reported none would hide exactly the hazard this exists for.
+    expect(status.staleStated).toEqual([{ file: "plans/2026-01-30_superseded.md", lifecycle: "SUPERSEDED" }])
+    const report = formatPlanHygiene(status)
+    expect(report).toContain("STALE STATED: 1 plan(s)")
+    expect(report).toContain("plans/2026-01-30_superseded.md SUPERSEDED")
+    expect(report).not.toContain("plans/2026-01-31_live.md ACTIVE")
+  })
+
+  test("the STATE axis catches what the CHECKLIST axis cannot — and the two never disagree", () => {
+    const dir = fixture({ "2026-01-30_done.md": "# D\n\n**Status:** DONE\n\n- [ ] box left open\n" })
+    const status = getPlanStatus(dir)
+    // Placement is clean: `misplaced` asks whether every box is TICKED, and this file's box is open, so the
+    // placement rule sees nothing at all. The stated state is the only thing that can catch it — which is why
+    // it is a second axis and not a second count of the first.
+    expect(status.misplaced).toEqual([])
+    expect(status.staleStated).toEqual([{ file: "plans/2026-01-30_done.md", lifecycle: "DONE" }])
+  })
+})
+
+/**
+ * THE UNMOVED-PLAN HAZARD, in the half a script can decide. Owner, 2026-09-30: «в планах иногда задерживается
+ * тема, которая уже была переписана и удалена, какой-нибудь агент обязательно это найдёт и под хорошее
+ * настроение начнёт исправлять — и это нормально, в планах есть — есть надо сделать — надо. А он же не в
+ * курсе что это просто другой агент забыл перенести потому что поленился выполнить тот или иной
+ * изолированный тест.» A plan that OUTLIVED its topic is a trap: the next reader re-implements work that was
+ * already rewritten or deleted. The stated half is decidable here; the unstated half is what the turn note's
+ * `map:` question asks, and it needs the code to answer.
+ */
+describe("util.plan-status stale stated plans", () => {
+  function fixture(files: Record<string, string>): string {
+    const dir = mkdtempSync(path.join(tmpdir(), "plan-stale-"))
+    mkdirSync(path.join(dir, "plans"), { recursive: true })
+    mkdirSync(path.join(dir, "plans_completed"), { recursive: true })
+    for (const [name, body] of Object.entries(files)) writeFileSync(path.join(dir, name === "MASTER_PLAN.md" ? "plans/MASTER_PLAN.md" : `plans/${name}`), body)
+    return dir
+  }
+
+  test("a plan that STATES it is over while its boxes are open is reported; an ACTIVE one is not", () => {
+    const dir = fixture({
+      "2026-01-30_superseded.md": "# S\n\n**Status:** SUPERSEDED\n\n- [ ] work the topic again\n",
+      "2026-01-31_live.md": "# L\n\n**Status:** ACTIVE\n\n- [ ] real work\n",
+    })
+    const status = getPlanStatus(dir)
+    // The control that MUST NOT be reported is the ACTIVE plan: a check that flagged every open plan would
+    // tell the reader nothing, and one that flagged none would hide the hazard.
+    expect(status.staleStated).toEqual([{ file: "plans/2026-01-30_superseded.md", lifecycle: "SUPERSEDED" }])
+    const report = formatPlanHygiene(status)
+    expect(report).toContain("STALE STATED: 1 plan(s)")
+    expect(report).toContain("plans/2026-01-30_superseded.md SUPERSEDED")
+    expect(report).not.toContain("2026-01-31_live.md ACTIVE")
+  })
+
+  test("the state axis catches what the checklist axis cannot — and the two are complementary", () => {
+    const dir = fixture({ "2026-01-30_done.md": "# D\n\n**Status:** DONE\n\n- [ ] box left open\n" })
+    const status = getPlanStatus(dir)
+    expect(status.staleStated.map((p) => p.lifecycle)).toEqual(["DONE"])
+    // NOT misplaced: the placement axis asks «are the boxes closed», and this file's are open. That is
+    // exactly why the state axis has to exist — the file says it is over, and its checklist disagrees.
+    expect(status.misplaced).toEqual([])
+  })
+})

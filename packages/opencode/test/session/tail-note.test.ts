@@ -254,7 +254,11 @@ describe("the pushed compaction note", () => {
       map: { openBoxes: 54, plans: 14, notNamed: ["plans/2026-09-29_bash-tool-single-execution-path.md"] },
     })
     expect(note).toContain("map: 54 un-ticked box(es) across 14 plan(s)")
-    expect(note).toContain("does it still match the plan file it came from?")
+    expect(note).toContain("and STILL TRUE?")
+    // The hazard is NAMED in-band, because the agent that meets a stale box is the one who cannot see it:
+    // «какой-нибудь агент обязательно это найдёт и под хорошее настроение начнёт исправлять — и это
+    // нормально, в планах есть — есть надо сделать» (owner, 2026-09-30).
+    expect(note).toContain("A box outlives its topic")
     expect(note).toContain("plans/2026-09-29_bash-tool-single-execution-path.md")
     // A CLEAN map still prints — silence would be indistinguishable from a check that never ran.
     expect(tailNote({ open: [], window: null, map: { openBoxes: 0, plans: 15, notNamed: [] } })).toContain(

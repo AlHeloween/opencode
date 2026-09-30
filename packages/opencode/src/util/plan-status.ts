@@ -33,6 +33,12 @@ export interface PlanStatus {
     * is the genuinely silent set. Reading a state is not earning a completion — neither half moves
     * mechanically. */
   noChecklistStated: { file: string; lifecycle: string }[]
+  /** Plans under `plans/` whose OWN stated state says the work is over while their boxes are still open.
+    * This is the unmoved-plan hazard in the half that is written down: the file outlived its topic, and an
+    * agent that finds it works it again in good faith (owner, 2026-09-30: «в планах есть — есть надо
+    * сделать — надо»). The other half — nobody stated anything, the topic was simply rewritten and
+    * deleted — cannot be decided by a script, and is what the turn note's `map:` question asks. */
+  staleStated: { file: string; lifecycle: string }[]
   /** The reciprocal of the plan map — see {@link masterPlanCoverage}. `present: false` is a finding of its
     * own, never merged into `misses`: «no map at all» and «a map that missed a plan» are different things. */
   masterPlan: { present: boolean; misses: string[] }
@@ -467,6 +473,10 @@ export function criticalRisks(worktree: string): { plans: string[]; count: numbe
   return { plans, count }
 }
 
+/** States that say the work is OVER. A plan still under `plans/` that writes one of these while its boxes
+ *  are open is a file that survived its own topic — the hazard the owner named on 2026-09-30. */
+const FINISHED_STATE_RE = /(done|complete|completed|superseded|obsolete|closed|archived)/i
+
 /** Where the map of what is in flight lives — and the name it must never be moved out of `plans/`. */
 export const MASTER_PLAN_FILE = "plans/MASTER_PLAN.md"
 
@@ -543,6 +553,24 @@ export function getPlanStatus(worktree: string): PlanStatus {
 
   const totalPlans = allActive.length + allCompleted.length
 
+  // The unmoved-plan hazard, in the half a script can decide: the plan SAYS it is over and still sits in
+  // `plans/` with open boxes. It is derived from the same `active` set the rest of this function uses, so
+  // the two can never disagree about which files are open.
+  const staleStated = active.flatMap((f) => {
+    try {
+      const lifecycle = parseLifecycle(readFileSync(path.join(plansDir, f), "utf-8"))
+      return lifecycle && FINISHED_STATE_RE.test(lifecycle)
+        ? [{ file: `plans/${f.replace(/\\/g, "/")}`, lifecycle }]
+        : []
+    } catch (e) {
+      log.debug("plan file unreadable while checking its stated state", {
+        file: f,
+        error: e instanceof Error ? e.message : String(e),
+      })
+      return []
+    }
+  })
+
   // Count tasks across ALL plan files
   let totalTasks = 0
   let completedTasks = 0
@@ -566,6 +594,7 @@ export function getPlanStatus(worktree: string): PlanStatus {
     misplaced,
     noChecklist,
     noChecklistStated,
+    staleStated,
     masterPlan: masterPlanCoverage(worktree),
     totalPlans,
     totalTasks,
@@ -716,6 +745,13 @@ export function formatPlanHygiene(status: PlanStatus, reconcile?: ReconcileResul
     ...(status.noChecklistStated.length
       ? [
           `Stated, no checklist: ${status.noChecklistStated.map((p) => `${p.file} ${p.lifecycle}`).join(" · ")}`,
+        ]
+      : []),
+    // AN ALERT, not a measure: it prints only when it fires, because its zero is already stated one line
+    // up («no un-ticked box»). `PLACEMENT DEBT` follows the same rule for the same reason.
+    ...(status.staleStated.length
+      ? [
+          `STALE STATED: ${status.staleStated.length} plan(s) under plans/ say their work is finished or superseded while their boxes are OPEN — a reader will work them again: ${status.staleStated.map((p) => `${p.file} ${p.lifecycle}`).join(" · ")}`,
         ]
       : []),
     // THE MAP'S OWN COVERAGE — printed even when it is clean, for the reason `Misplaced: none` is: a check

@@ -274,6 +274,20 @@ Goal → fractal task lattice → REUSE.BEFORE → implement → SMOKE.BEFORE �
 
 Full details: [docs/architecture.md](docs/architecture.md), [docs/compaction.md](docs/compaction.md), [docs/agi-workflow.md](docs/agi-workflow.md)
 
+### The product is a CLOSED loop — closure and safety are one property (2026-09-30)
+
+Owner, verbatim: «любая тема должна быть экономически целесообразной и достаточно замкнутой чтобы не трахать
+мозги обслуживающему персоналу», and on the statement below: «обвести в рамку и повесить на стенку».
+
+> Closure and safety are not in tension — they are the same property. A loop that proves its own results
+> and cannot leave its envelope needs neither a supervisor nor a prompt engineer standing next to it. What
+> industry buys is not a clever model but a stated price per verified task and near-zero human touches.
+
+Safety here is MECHANICS, not warnings: the envelope, an oracle per task, rollback, one store arbiter. A
+loop is judged by three measured numbers per verified task — Claude/verifier tokens, robot $, and **owner
+touches** (answers, restarts, manual fixes); the last one → 0 for the routine class is what «closed» means.
+Sizing and blockers: [plans/2026-09-30_robot-delegation-and-orchestration.md](plans/2026-09-30_robot-delegation-and-orchestration.md) § Scaling.
+
 ### Agent obligations
 
 - Prefer **small, named, testable** tasks over epic single-shot implementation.

@@ -5650,3 +5650,9 @@ models only, fully offline delivery, all packages (draft `d:\!Smit\Smit2\`); acc
 pristine VM; A6 = virtual monitor mandatory (IddCx/UMDF, signed, no hypervisor). MASTER_PLAN: two entries hand-added;
 an earlier edit of mine split another plan's line after a concurrent re-render — restored.
 Next: audit SB (dynamic egress, sampler qualified on a control request first).
+
+## [2026-09-30] handoff to the plan-reader owner — silent sv-tag loss and the map's second writer
+New plan `plans/2026-09-30_plan-parser-silent-sv-loss.md` (OPEN, for the robot / plan-status owner; nothing changed in
+code): `plan-status.ts:264` drops tags on boxes without a bold ID silently; `:259` truncates hyphenated IDs (`S-A`→`S`);
+`MASTER_PLAN.md` has two writers. Not hand-added to the map: the renderer already replaced my earlier hand lines with
+its own entries, so the new plan waits for the next render — single writer by practice until P3 makes it structural.

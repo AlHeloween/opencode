@@ -141,6 +141,12 @@ host-only network. Each lifts the tasks below that name it; none is a blocker fo
 - [ ] **T6 B-native-input oracle (needs O2):** capture-bound click then drag in the guest; guest-side state readback cross-checked against `vmrun captureScreen` (C6 decides whether that instrument exists). Only if the drag cannot be bound, the Rust `drag` + `capture_id` work above starts. <!-- sv: vmware-guest, capture-bound-drag, hypervisor-frame -->
 - [ ] **T7 docs:** `docs/tools-and-sidecars.md` §7.1 gets the mode/tier table and the hypervisor exclusion once T1/T3/T5 each have a run id. <!-- sv: docs, tier-table -->
 
+**VMware tier POSTPONED** (owner, 2026-10-01: «Вопросы с vmware пока отложим до лучших времен»): O2, T5, T6 are
+parked — do not start guest setup or the remote transport until the owner lifts it. Open at parking: the owner
+said JView's memory mapping «не проканает» in the VMware route; reason not yet stated (facts: named
+`CreateFileMapping` in `CommonFiles/RSCommonPackage/RTRWMapUnit.pas:176,280`, `CommonFiles/RSPack.MapUnit.pas:173,277`).
+The primary JView route stays tier B-native-bg on the virtual monitor (T3, waits on O1).
+
 ### Resumption signals
 
 - B-native-bg: the owner reports O1 done (driver name + version).

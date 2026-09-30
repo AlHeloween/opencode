@@ -5589,6 +5589,16 @@ Learned: this check's real failure mode is the OPPOSITE of silence — crying wo
 what turns an alerter into noise (the coupling watcher's own first live finding was its own reader bug). The
 suite's fixtures cannot show that, which is why the live measurement ran against the REAL store.
 
+## [2026-09-30] R3 — the per-repo order becomes a MEASURED property
+
+Plan: `plans/2026-09-30_turn-commit-slot.md` R3 → [x], with `svm set state=verified` and a re-render.
+What changed: `packages/opencode/test/snapshot/fossil-lock.test.ts` (new) — **no production line touched**. The service is handed a `ChildProcessSpawner` that answers every `fossil` invocation itself and counts how many are running at once; three `track()` calls on ONE repo start together (`Effect.all(..., {concurrency: 3})`) and the peak is asserted to be 1. The box's own proposal — a counter inside `snapshot/fossil.ts` — is REFINED rather than followed: a counter shipped for a test is dead production code, and the occupancy is real and already observable at the spawner. The layer is rebuilt from the raw `SnapshotFossil.layer`, because `defaultLayer` pipes its own dependencies and an outer `Layer.provide` would be shadowed.
+Falsifier — a MUTATION, not an argument: `locked := identity` (`snapshot/fossil.ts:181`) → **RED, `Received: 3`** at `expect(probe.peak).toBe(1)` (`20260930T035716Z_069ce67f`, exit 1, and only 5 of 6 expects consumed — the four control assertions had already passed, so the failure sits on the measurement and not on the harness). Restored from the pre-mutation backup; `git status` shows **no diff under `src/`**, and the file is GREEN again (`20260930T035735Z_6ec0f1ab`, 1 pass / 6 expect; first green `20260930T035658Z_ca97891a`). With `snapshot-granularity` + `snapshot-tool-race` (the R1/R2 regression set): **6 pass / 0 fail** (`20260930T035752Z_08605fa5`) — which also exercises the recorded trap that a new test file can poison the shared `TEST_TEMP` store for whichever file runs after it. `bun typecheck` → exit 0 (`20260930T035808Z_e55effc8`).
+Control that keeps it from lying: the three results are valid 40-hex hashes and BOTH named paths appear in the fossil argv log — a permit that «serialized» by never letting the others start, or a service that returned before touching fossil, would otherwise read as a pass. The stub drives every branch to a COMPLETED commit for the same reason.
+Why an instrument was needed at all: fossil carries its own SQLite busy handling underneath, so two racing commits can still leave a plausible repository behind — the full-stack snapshot suites fail only INDIRECTLY on that lock, never on the property itself.
+Note: the map grew again between renders (17 → 18 plans, 84 → 86 open boxes) — other work is landing in `plans/` — and this render reports one gap, `plans/2026-09-30_plan-parser-silent-sv-loss.md`: not my plan, and it states no intention the renderer could read. Reported, not touched.
+Residual: R4 (requalify the source-run runner).
+
 ## [2026-09-30] R2 — the turn's timings become STATE, on the turn's own part
 
 Plan: `plans/2026-09-30_turn-commit-slot.md` R2 → [x], with `svm set state=verified` and a re-render.

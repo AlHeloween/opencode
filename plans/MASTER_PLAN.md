@@ -104,9 +104,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 178 |
-| plans active | 16 |
-| tasks passed / total | 621 / 853 |
-| open boxes | 84 |
+| plans active | 17 |
+| tasks passed / total | 622 / 856 |
+| open boxes | 86 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -221,6 +221,12 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - SE [PENDING] · sv [reliability, defect-classes, evidence] · manifest: MISSING — nobody has written down what this box is
   - SF [PENDING] · sv [universal-search, cdp-port, redistribution] · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-09-30_plan-parser-silent-sv-loss.md` — 3 open / 3 box(es) · lifecycle OPEN
+  sv: intention "the plan reader drops a box's sv tag without a word when the box has no bold ID, and MASTER_PLAN.md has two writers -> every tag written on a box is either read or reported as unreadable, and the map has exactly one writer" · keywords [plan-parser, silent-loss, sv-tag, single-writer, master-plan]
+  - P1 [PENDING] · sv [a, b] · manifest: MISSING — nobody has written down what this box is
+  - P2 [PENDING] · sv [plan-parser, green, regression] · manifest: MISSING — nobody has written down what this box is
+  - P3 [PENDING] · sv [single-writer, master-plan, render] · manifest: MISSING — nobody has written down what this box is
+
 - `plans/2026-09-30_replacement-empty-assistant-row.md` — 3 open / 3 box(es) · lifecycle OPEN
   sv: intention "a red in the turn-replacement path is a named defect with a reproducer and a measured cause -> the empty assistant row that an interrupted step leaves behind is either not created or explicitly accounted for by the test, so the suite is green for a stated reason" · keywords []
   - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -247,13 +253,12 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-30_turn-commit-slot.md` — 2 open / 4 box(es) · lifecycle ACTIVE
+- `plans/2026-09-30_turn-commit-slot.md` — 1 open / 4 box(es) · lifecycle ACTIVE
   sv: intention "the turn's felt wait and its snapshot commit sat on the same path, and the mechanism meant to take the commit off it (a settle at the next turn's open) never executes -> the commit runs OFF the input path with strict order held ONE LAYER DOWN by the fossil service's per-repo lock, and the commit's own cost becomes keyed state rather than a line in a log that dies with the session" · keywords []
-  - R3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - R4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 ## The checks
 
-This body names all 17 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 18 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

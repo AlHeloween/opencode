@@ -94,15 +94,31 @@ kept for continuity; the "slot" it promises turned out to be **unnecessary** —
       have shown the second half either, and that is worth stating plainly: the CLI process exits at the end
       of the turn, so the detached commit's write-back races the shutdown. That is the owner's CLOSE-RECOVERY
       point, not a property of this box.
-- [ ] **R3 — the order the plan now RELIES ON is itself untested.** R1 points at the per-repo semaphore as
-      the reason no commit can interleave, and that claim currently rests on READING the code: no test in
-      `packages/opencode/test` exercises it (checked 2026-09-30 — the only nearby tests are the full-stack
-      snapshot ones, which fail *indirectly* if it breaks, not on the property itself). Owing to the rule
-      that a test must be able to print a verdict, the guard has to be deterministic rather than a timing
-      race: the smallest honest form is a seam in `snapshot/fossil.ts` exposing how many fossil operations
-      are in flight at once, driven from a test that starts several `track()` calls concurrently and asserts
-      the counter never exceeds one. Acceptance: the counter is observable, and a deliberately removed
-      `locked(...)` makes the test red.
+- [x] ✓ **R3 — the order is now MEASURED, not read.** DONE 2026-09-30. The claim R1 rests on — the
+      per-repo permit means two operations cannot interleave — now has an instrument that CAN FAIL ON IT,
+      and the instrument is a TEST rather than a production seam: `test/snapshot/fossil-lock.test.ts`
+      hands the service a `ChildProcessSpawner` that answers every `fossil` invocation itself and counts
+      how many are running at once, then starts THREE `track()` calls on one repo concurrently and asserts
+      the peak is 1. Nothing under `src/` changed — the same stack `defaultLayer` builds, one layer
+      replaced — so this box's own proposal («a seam in `snapshot/fossil.ts` exposing how many operations
+      are in flight») is **refined rather than followed**: a counter shipped for a test is dead
+      production code, and the spawner is where the occupancy is real and already observable.
+      **The falsifier is a MUTATION, not an argument.** `locked := identity` (`snapshot/fossil.ts:181`) and
+      the file went RED — `Received: 3` at `expect(probe.peak).toBe(1)` (`20260930T035716Z_069ce67f`,
+      exit 1, and only 5 of the 6 expects were consumed: the four control assertions ran first and PASSED,
+      so the failure sits on the measurement itself and not on a broken harness). Then the file was
+      restored from its pre-mutation backup and `git status` shows **no diff in `src/`** — the mutation was
+      the only edit and it is gone (`20260930T035735Z_6ec0f1ab`: 1 pass / 6 expect again).
+      **The control that keeps this from lying:** every call must have actually RUN. The three results are
+      valid 40-hex hashes and BOTH named paths appear in the fossil argv log — a permit that «serialized»
+      by never letting the others start, or a service that returned before touching fossil at all, would
+      otherwise read as a pass. The stub drives every branch to a COMPLETED commit for the same reason: a
+      run that ended in the early skip path would be a shorter program than the one being measured.
+      Oracles: the new file alone — GREEN 1 pass / 6 expect before and after the mutation
+      (`20260930T035658Z_ca97891a`, `20260930T035735Z_6ec0f1ab`) and RED 0 pass / 1 fail under it; with
+      its neighbours `snapshot-granularity` + `snapshot-tool-race` (the R1/R2 regression set) **6 pass /
+      0 fail** (`20260930T035752Z_08605fa5`) — which also exercises the recorded trap that a new test file
+      can poison the shared `TEST_TEMP` store for whichever file runs after it.
 
 - [ ] **R4 — the source-run oracle yields no verdict, and must be requalified before it is named again.**
       Measured 2026-09-30: `experiments/2026-09-29_source-run/run2.cmd`, the runner R2 originally named as its
@@ -125,8 +141,9 @@ kept for continuity; the "slot" it promises turned out to be **unnecessary** —
   the first half before the writer and GREEN after; it was both. (The source-run first named here is broken —
   R4 — and could not have shown the second half in any case: the CLI exits at the turn's end.)
 - R4: the runner's own output captured outside the ConPTY rendering, and a verdict in it.
-- R3: the in-flight counter reads 1 while several `track()` calls are started together — and the test goes
-  red when `locked(...)` is removed from that call path.
+- R3 (done): three concurrent `track()` calls on ONE repo through a stubbed fossil — peak in-flight
+  invocations === 1, with both named paths present in the argv log as the control that each call ran;
+  `locked := identity` makes it red with `Received: 3`, and restoring the file makes it green again.
 
 ## Out of scope
 

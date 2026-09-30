@@ -5629,3 +5629,15 @@ TOOL STATE — `stdout_text.log` under ConPTY printed two of the block's lines J
 string-level comparisons still carried (`true`/`true`). Class: the log is a RENDERING of the stream, so it cannot
 answer a question about the TEXT. Countermeasure used, and the habit worth keeping: print the tail as JSON
 escapes when layout is what is in doubt.
+
+## [2026-09-30] supply-chain audit (cua static stage) + robot installer plan, virtual monitor mandatory
+New plans: `plans/2026-09-30_cua-supply-chain-audit.md` (SA static egress [x]), `plans/2026-09-30_robot-installer.md`
+(DRAFT). cua static egress, read at `7ee9b37`: one HTTP client (`ureq`); E1 PostHog telemetry ON by default
+(`telemetry.rs:3-4,25-26`), E2 GitHub release check on serve/doctor/mcp (`version_check.rs:70,475-487`), E3 MCP tool
+`check_for_update` (model-triggerable egress), E4 skills `--from main`, E5 `iwr … install.ps1 | iex` updater.
+Telemetry payload seen via `telemetry inspect` (no send): content-free but keyed to a persistent installation ID;
+this host has telemetry disabled (persisted), registration already recorded. Installer decisions: Windows only, free
+models only, fully offline delivery, all packages (draft `d:\!Smit\Smit2\`); acceptance A0 = «привет» answered on a
+pristine VM; A6 = virtual monitor mandatory (IddCx/UMDF, signed, no hypervisor). MASTER_PLAN: two entries hand-added;
+an earlier edit of mine split another plan's line after a concurrent re-render — restored.
+Next: audit SB (dynamic egress, sampler qualified on a control request first).

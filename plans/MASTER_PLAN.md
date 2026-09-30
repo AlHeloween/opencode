@@ -216,6 +216,9 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-09-30_cua-supply-chain-audit.md` — hand-added 2026-09-30 before the next render; vectors live in the plan file
+- `plans/2026-09-30_robot-installer.md` — hand-added 2026-09-30 before the next render; vectors live in the plan file
+
 - `plans/2026-09-30_stale-gitbash-tests.md` — 3 open / 3 box(es) · lifecycle OPEN
   sv: intention "a red pair in test/shell/shell.test.ts is either the test's fault or the code's -> the pair is decided by the requirement it encodes, superseded with provenance if it is stale, and the file is green for a stated reason" · keywords []
   - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is

@@ -125,6 +125,35 @@ This design pays (2) as well — see §0, "After a fold, ONE full-price request 
 inherent" — but not (1): the fold itself costs nothing, and the Layer-1 requests
 that did the encoding rode a ~100% cached prefix when they ran.
 
+### The criterion is ATTENTION, not overflow (owner, 2026-09-30)
+
+«компакт по сути нам нужен не как защита от переполнения — переполнение это для мусорки, у нас мозги поэтому
+мы их переполнять не будем, надо определить момент когда мы можем безопасно заточить внимание — вот что имеет
+смысл.»
+
+So the gate above is a FALLBACK, not the reason this mechanism exists. Fitting more into the window is the
+garbage-collector's question; a window that has to be rescued by that gate has already been carrying
+non-evidence for a while — which is the cost the rule below is about. What a fold buys is the **sharpening of
+attention**, and the question worth asking is WHEN that is SAFE. Four conditions, each measurable and each
+readable off the turn note:
+
+1. **A boundary is CLOSED** — the task reached a terminal, its box is ticked by an artifact, its commit names
+   the ground. The trace behind a closed task is no longer evidence, and every vector formed after it is formed
+   partly from that trace.
+2. **The carriers are WRITTEN** — `memory/reasoning.md` holds what must survive, the plan file holds the state,
+   and the summary row is filled. That is exactly what the system's own «fill with summaryedit before the fold»
+   nag asks for: persist, then sharpen.
+3. **Nothing is MID-FLIGHT** — no uncommitted binding, no open tool call, no red left behind. A failure folded
+   into the next window arrives as noise that the next cycle must first explain away.
+4. **The next step is ADDRESSED** — `owed:` names the plan and the task, `svm:` carries its direction, and the
+   map is current, so the sharpened window opens HOLDING a direction instead of spending its first turns
+   reconstructing one. This is the precondition `svm`, the turn note and `plans/MASTER_PLAN.md` exist to
+   satisfy — and why «is every entry mapped» is a fold-readiness check rather than bookkeeping.
+
+When (1) and (4) disagree — a boundary closed and the next one unmapped — the fold is still available, and the
+gap is the first thing the new window should close. What is never right is folding on the overflow gate ALONE:
+that is the trash-heap moment, not the sharp moment.
+
 ## When to compact by hand (2026-09-16)
 
 Automatic compaction is a **context-safety** gate: it fires when the window is

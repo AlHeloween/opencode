@@ -66,11 +66,27 @@ parent-goal-md5: 00000000000000000000000000000000
       EXPORT, not on a harness error) holds, the shape does not.
       **Green:** **13 pass / 0 fail / 34 expect**, exit 0 (`20260930T231512Z_f73ab21f`) — the 8 existing
       watcher cases plus the 5 new ones.
-      Still owed from the plan's own smoke list: the **mutation check** (`return undefined` → cases 1, 2, 4
-      go red) is NOT yet run — L1 is not closed on evidence until it is.
-- [ ] **L2 — wire it.** `src/session/prompt.ts:2000`: `map` built from `planFiles(worktree)` +
-      `planHeaderLabel`, dropping `parsePlanMap(yield* readMemory())`. Update the comment block at
-      `prompt.ts:1988-1991` and the `map` doc at `spine.ts:216` to name the new source.
+      **Mutation check DONE (2026-10-01):** `if (text) return undefined` at the top of `planHeaderLabel` →
+      **10 pass / 3 fail**, exit 1 (`20260930T232041Z_e6838502`), failing EXACTLY cases 1, 2 and 4 while
+      cases 3 and 5 stayed green — which is the point: the mutation returns what those two already
+      demand. Restored. The reader is proven fallible, so L1 is now closed on evidence.
+- [x] ✓ **L2 — wired, with ONE deliberate deviation from this plan's letter.** The plan said build the map
+      inline in `prompt.ts` from `planFiles` + a raw `readFileSync`. Instead `planLabels(worktree)` lives in
+      `src/util/plan-status.ts`, for two measured reasons: (a) `memory/spine.ts` has **no imports at all** —
+      it is a leaf by construction, so a FILE READER does not belong there, while `plan-status.ts` is
+      already where plan files are read (`collectPlans`, `criticalRisks`); (b) a raw fs read inside the
+      3 141-line prompt path duplicates an idiom that exists one module away, and the prompt path is the one
+      place a new requirement propagates into every layer providing `SessionPrompt`. `plan-status.ts`
+      imports `planHeaderLabel` from `spine.ts`, and spine imports nothing — a cycle is impossible by
+      construction, not by care.
+      `prompt.ts`: `map: planLabels(worktree)`; `parsePlanMap` and `readMemory` dropped from the imports
+      (`readMemory` had no other use — measured by grep, not assumed). `spine.ts:216`'s `map` doc names the
+      new source.
+      **Green:** 13 pass / 0 fail / 34 expect (`20260930T232202Z_ceec669f`); typecheck exit 0
+      (`20260930T232202Z_d9eea723`).
+      ✗ **The wiring's oracle is L4 and it is NOT met** — nothing here proves production now resolves
+      `d99945d67a57440775f414e816c78773`; that needs a rebuilt binary. A hermetic unit test of `planLabels`
+      against a fixture plans dir is the alternative pin and is NOT written.
 - [ ] **L3 — cut the dead source, after L2 is proven.** Remove `parsePlanMap` and its test case («the map is
       read as WRITTEN», `vector-coupling.test.ts:124-150`); MOVE its still-valid assertion — the spaced label in
       a vector's `parent-goal-md5` (line 149) — into the L1 test so nothing it pinned is lost. The

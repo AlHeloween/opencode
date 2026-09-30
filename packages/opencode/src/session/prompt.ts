@@ -32,9 +32,8 @@ import { Jobs } from "../jobs"
 import { RequestDiff } from "./request-diff"
 import { Checkpoint, type CheckpointData } from "./checkpoint"
 import { IncrementalCheckpoint } from "./incremental-checkpoint"
-import { collectPlanState, criticalRisks, masterPlanCoverage, planDebt, planFiles } from "@/util/plan-status"
-import { couplingFindings, parsePlanMap } from "@/memory/spine"
-import { readMemory } from "@/tool/memory"
+import { collectPlanState, criticalRisks, masterPlanCoverage, planDebt, planFiles, planLabels } from "@/util/plan-status"
+import { couplingFindings } from "@/memory/spine"
 import { Bus } from "../bus"
 import { ProviderTransform } from "@/provider/transform"
 import { SystemPrompt } from "./system"
@@ -1986,9 +1985,15 @@ export const layer = Layer.effect(
                     boundary: open.at(-1)?.toMessageID,
                   })
                   // THE COUPLING WATCHER (owner, 2026-09-22). Every vector in the window that names a
-                  // parent plan must name one the memory MAP declares, and every map label must name a
+                  // parent plan must name one the plan files declare, and every declared label must name a
                   // plan that exists on disk. Nothing generates that linkage any more, so it is CHECKED
                   // — and the count is printed even at zero, because a silent check is not a check.
+                  //
+                  // The label source is each plan's OWN header (2026-10-01, plan L2). It used to be the map
+                  // hand-kept in `memory/reasoning.md`, MEASURED to hold ZERO `md5:` lines — so `labels`
+                  // came out empty and every non-zero parent was reported off-plan, every turn: true
+                  // statements about a DEAD INPUT. Read synchronously, like `planFiles` itself: the prompt
+                  // path stays service-free (`SVM.orphanManifests` below, same reason).
                   const coupling = couplingFindings({
                     messages: msgs.map((message) => ({
                       id: message.info.id,
@@ -1997,7 +2002,7 @@ export const layer = Layer.effect(
                         .map((part) => (part as { text: string }).text)
                         .join("\n"),
                     })),
-                    map: parsePlanMap(yield* readMemory()),
+                    map: planLabels(worktree),
                     plans: new Set(planFiles(worktree)),
                     // THE STORE'S HALF OF THE SAME PREDICATE (plan S5). A manifest whose plan file is
                     // gone cannot be reached by ANY plan-by-plan walk — the map is built FROM the plan

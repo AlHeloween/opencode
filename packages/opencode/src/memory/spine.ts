@@ -235,7 +235,9 @@ export function planHeaderLabel(text: string): string | undefined {
 export function couplingFindings(input: {
   /** The window's messages, in order, with the text that carries their vectors. */
   messages: readonly { id: string; text: string }[]
-  /** The map as written in memory (`parsePlanMap`). */
+  /** The map as the CALLER built it. Production reads each plan's own header (`util/plan-status.ts` →
+   *  `planLabels` → `planHeaderLabel`); `parsePlanMap` below is the old source, kept only until its
+   *  removal lands with the test that pins it. */
   map: readonly PlanMapEntry[]
   /** Plan paths that exist on disk, worktree-relative, exactly as the map writes them. */
   plans: ReadonlySet<string>

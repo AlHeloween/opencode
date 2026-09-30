@@ -18,6 +18,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync } from "fs"
 import path from "path"
 import * as Log from "@opencode-ai/core/util/log"
+import { planHeaderLabel } from "@/memory/spine"
 
 const log = Log.create({ service: "util.plan-status" })
 
@@ -477,6 +478,44 @@ export function planDebt(worktree: string): { plans: number; open: number } {
  * (`<!-- sv: … | attempts: … -->`), so the prose stays readable and the marker stays unambiguous.
  * Only plans with OPEN boxes count: a finished plan's risks are history, not debt.
  */
+
+/**
+ * THE COUPLING LABELS (plan 2026-10-01, L2): every plan's own label, read from its own header.
+ *
+ * Why HERE and not in the prompt path: this module is already where plan files are READ (`collectPlans`,
+ * `criticalRisks` below), and the prompt path is the one place a new service requirement propagates into
+ * every layer that provides `SessionPrompt`. One reader for one file family.
+ *
+ * Why not `parsePlanMap`: that read the map hand-kept in `memory/reasoning.md`, MEASURED 2026-10-01 to
+ * hold ZERO `md5:` lines — so the label set came out empty and the watcher reported every non-zero
+ * `parent-goal-md5` off-plan (15 findings), each a true statement about a DEAD INPUT.
+ *
+ * The label reader itself lives in `memory/spine.ts` — the anchor and its normalisation are written
+ * there ONCE, and spine imports nothing, so a leaf can never create a cycle. A plan that cannot be read,
+ * or declares no label, contributes NO entry: this never invents a label, and a broken file must never
+ * break a turn.
+ */
+export function planLabels(worktree: string): { plan: string; label: string }[] {
+  const plansDir = path.join(worktree, "plans")
+  const labels: { plan: string; label: string }[] = []
+  for (const file of collectPlans(plansDir)) {
+    const plan = `plans/${file}`
+    let body: string
+    try {
+      body = readFileSync(path.join(plansDir, file), "utf-8")
+    } catch (e) {
+      log.debug("plan unreadable while reading coupling labels", {
+        plan,
+        error: e instanceof Error ? e.message : String(e),
+      })
+      continue
+    }
+    const label = planHeaderLabel(body)
+    if (label !== undefined) labels.push({ plan, label })
+  }
+  return labels
+}
+
 export function criticalRisks(worktree: string): { plans: string[]; count: number } {
   const plansDir = path.join(worktree, "plans")
   const plans: string[] = []

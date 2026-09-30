@@ -29,6 +29,14 @@
 - **Stop-work authority is a valid return.** «Refused, unsafe» from a human MCP is an answer, not a failure to
   route around; safety-critical permission (permit-to-work) is granted by a competent human, never by an agent
   — the same line as the kernel's «never self-authorize».
+- **A human MCP is QUALIFIED before dispatch, like any tool** (@TOOLCHAIN_QUALIFICATION). Owner's contract,
+  2026-09-30: VR phobia course with self-administered PAVLOK, safety certification incl. platform evacuation,
+  AI/systems certification, production-cycle certification for everyone — «фобии очень опасны в нашем
+  бизнесе». The acceptance criterion, agreed the same day («тут корень проблемы»): **the procedure performed to
+  standard while the phobic stimulus is present** — fear is not removed, it stops blocking action. Physiology
+  (pulse) is recorded as telemetry, never the criterion: a stable pulse cannot tell recovery from suppression,
+  and a rising one can accompany a correct run. Qualified over the whole stimulus set — passing part of it is
+  not a partial qualification.
 - **Every number in the owner report is an address.** «Invoiced RM X» expands to invoice numbers, «cash RM Y»
   to statement lines; «the numbers agree» is a reconciliation run by an oracle.
 - **Owner report** (weekly): what came in, what was produced, what turned into money — tenders submitted/won,

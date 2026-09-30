@@ -107,15 +107,15 @@ if (backups.length > MAX_BACKUPS_PER_SESSION) {
   })
 }
 
-function normalizeLineEndings(text: string): string {
+export function normalizeLineEndings(text: string): string {
   return text.replaceAll("\r\n", "\n")
 }
 
-function detectLineEnding(text: string): "\n" | "\r\n" {
+export function detectLineEnding(text: string): "\n" | "\r\n" {
   return text.includes("\r\n") ? "\r\n" : "\n"
 }
 
-function convertToLineEnding(text: string, ending: "\n" | "\r\n"): string {
+export function convertToLineEnding(text: string, ending: "\n" | "\r\n"): string {
   if (ending === "\n") return text
   return text.replaceAll("\n", "\r\n")
 }

@@ -568,6 +568,19 @@ The saving is a token; the cost is a recall turn. Full design:
 - **There are NO pre-existing errors.** Every typecheck/test failure is a deliverable.
 - **Bugs block push.** All bugs must be fixed before `git push`. No `--no-verify`.
 - Silent `catch {}` blocks are bugs — must log (debug for expected, warn for unexpected).
+- **A tool's documented contract is a claim, and it is falsifiable — test it, never inherit it.**
+  `multiedit` promised «if any edit fails … none are applied — the file is rolled back» while
+  implementing no rollback at all: it ran one `edit` per entry and `edit` writes immediately, so a
+  later failure left the earlier edits on disk and the report named only the failing entry. Found
+  2026-09-29, hit again 2026-09-30 — and the response to the *first* occurrence was a habit («read
+  STATE after any edit, never the report»), which @KAIZEN forbids repeating. Repaired the same day:
+  every entry is now resolved against an in-memory buffer first and the file is written **once**, so a
+  failure writes nothing; the matcher is imported from `edit.ts` rather than re-spelled. Guard:
+  `test/tool/multiedit.test.ts` (the tool's FIRST test), proven fallible by a mutation check —
+  `plans/2026-09-30_multiedit-atomic-application.md`,
+  `experiments/2026-09-30_multiedit-partial-apply/`. The rule, generalised: when a tool's description
+  makes a safety promise, an untested promise is a defect waiting for its second occurrence; the
+  countermeasure is a test that fails without the guarantee, plus the honest report.
 - Plan-to-code gaps are bugs — correct immediately.
 - **Write-path oracles inspect the artifact.** Any change to a PERSISTENT_WRITE path (config/file/DB writers) is verified by reading back what was written (artifact shape / end-to-end), never by typecheck or resolver unit tests alone — a green oracle pointed at the wrong layer is how the duplicate routing writers shipped (2026-09-02). User-reported defects in deterministic, testable classes are process failures, not service events.
 
@@ -1064,13 +1077,17 @@ modalities. `compact` arms a boundary fold of the session window — primaries
 only (see [Mechanistic Compaction](docs/compaction.md) § three triggers).
 
 **Per-identity sampling.** Each native subagent declares its own
-`temperature` / `topP` / `presencePenalty` / `options.repetition_penalty` in
+`temperature` / `topP` / `options.repetition_penalty` in
 `src/agent/agent.ts` — verification identities (`explorer`, `coder`) are
 sampled tight and unpenalised so their output is reproducible and their
 repeated tokens (paths, identifiers) survive; generative ones (`general`,
 `media`) are sampled loose so a candidate set actually differs. Model-wide
 sampling merges *before* the agent in `session/llm.ts`, so the narrower
-declaration wins. Only what the provider honors binds — see the vendor
+declaration wins. `presence_penalty`/`frequency_penalty` are NOT sendable:
+the vendor documents both as deprecated no-ops and its endpoint rejects them
+beside `repetition_penalty` with a 400, so the pair was removed from the whole
+assembly on 2026-09-30 (`plans/2026-09-30_drop-penalty-sampling-params.md`) —
+upstream opencode sends neither. Only what the provider honors binds — see the vendor
 reasoning contract below.
 
 ---

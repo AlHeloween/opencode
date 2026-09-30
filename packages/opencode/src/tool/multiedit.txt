@@ -17,11 +17,25 @@ Each sub-edit inherits all Edit tool capabilities:
 
 ## Atomic Application
 
-All edits are applied in sequence within a single file. If any edit fails (oldString not found, multiple matches), **none are applied** — the file is rolled back to its original state.
+Every edit is resolved against an in-memory buffer FIRST, using `edit`'s own matcher and
+line-ending pipeline. **Nothing is written until all of them have matched**, and then the file
+is written **once**.
+
+So on failure: **no edit is applied and the file is untouched** — not because a partial write is
+rolled back, but because no write happens at all. The error names the entry that failed and says
+so explicitly:
+
+```
+multiedit: edit 2 of 3 did not apply. NOTHING was written — <path> is unchanged. <reason>
+```
+
+Edits are applied in array order, each operating on the result of the previous one, and the
+resolved content is what the single write puts on disk.
 
 ## Output
 
-Returns a combined diff showing all changes, with each edit's diff labeled by its position in the sequence.
+Returns a combined diff showing all changes, with each edit's diff labeled by its position in
+the sequence, followed by the diagnostics report for the file the single write produced.
 
 ## Creating New Files
 

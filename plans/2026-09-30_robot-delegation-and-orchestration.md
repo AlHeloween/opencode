@@ -61,8 +61,9 @@
 - [~] Claude skill `.claude/skills/robot/SKILL.md` (brief = plan task + SV + oracle + prediction; launch via
       cmd_runner/run_in_background; read only the final message + git diff; verify with the oracle itself;
       `--session` to continue; never bin/, never --dangerously-skip-permissions). WRITTEN 2026-09-30, flags
-      re-read in `run.ts` ✓; not smoke-tested — the box waits for the Skill smoke below. New fact for it: Zen
-      free models answer only from inside opencode, so the robot can run at zero provider cost.
+      re-read in `run.ts` ✓; not smoke-tested — the box waits for the Skill smoke below. Models: free Zen
+      (in-app only) for plumbing; real work on the funded pair GLM-5.3-Flash-BF16 (HF) + DeepSeek V4.1 Flash
+      from ~2026-10-01 (owner: «для реального workflow бесплатные модели не вариант»).
 - [ ] Codex binding — a DELEGATION/G7 line in `addons_codex.py` (installed to ~/.codex/AGENTS.md). Whether the
       installed Codex reads `$CODEX_HOME/skills/` is UNVERIFIED.
 

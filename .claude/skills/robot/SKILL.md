@@ -13,7 +13,7 @@ description: Dispatch a bounded plan task to the opencode robot (`dist\bin\openc
 ## Why
 
 Owner, 2026-09-30: «робот … значительно снизит нагрузку и количество циклов». Claude pays per token of the
-execution tail it carries (tool output, diffs, retries); the robot pays nothing on a free Zen model and its
+execution tail it carries (tool output, diffs, retries); the robot runs on cheap flash models and its
 tail never enters this window. What comes back is one final message and a diff — Claude's cost is the brief
 and the oracle. This is also the second form of consolidation (plans/futures/2026-09-29_mission-runtime…
 § Consolidation): the working state lives in the robot's session, only the verified result enters ours.
@@ -59,8 +59,13 @@ tools/cmd_runner.exe start --cwd D:/zPython/opencode --timeout-s 1800 --raw --no
 
 - cmd_runner gives the timeout (plan B8) and a run dir with `state.json`; `--raw` = clean stdout but
   all-or-nothing (memory `reference_cmd_runner_raw_buffers`) — read it after `cmd_runner wait <id>`.
-- The model is the owner's choice for the first run; afterwards free first, a paid model only on an explicit
-  yes to paying (memory `feedback-your-choice-is-not-consent-to-pay`).
+- **Models (owner, 2026-09-30: «для реального workflow бесплатные модели не вариант»).** Real work runs on
+  the funded pair, once the HF + DeepSeek balance has landed (~2026-10-01 — read the balance, never assume
+  it): `huggingface/zai-org/GLM-5.3-Flash-BF16` and `deepseek/deepseek-flash` (catalog name «DeepSeek V4.1
+  Flash»; `deepseek-v4-flash` is the V4 entry). Free Zen models only for plumbing smokes. Space Bunny
+  (MiniMax 3) is under evaluation, not a default. Any other paid model: explicit yes to paying (memory
+  `feedback-your-choice-is-not-consent-to-pay`). Open: the HF catalog entry has no `cost`, so its spend is
+  not metered from the catalog.
 - Continue the same robot session with `--session <sessionID>` (from any json line), never a fresh one.
 
 ## Read back — the only things that enter Claude's window
@@ -78,7 +83,7 @@ Then: box + `_progress_log.md` entry + one commit that names the plan (Claude is
 - `bin/` (edits, copies, launches — AGENTS forbidden_actions).
 - `--dangerously-skip-permissions` — it approves everything not denied; the unattended envelope is plan B7.
 - Two robot tasks on overlapping paths in one tree (kernel G7: two in flight share one oracle).
-- A paid model without an explicit yes.
+- A paid model outside the funded pair without an explicit yes.
 
 ## Open — measure on the first run (plan S1), then rewrite this section as facts
 

@@ -5560,3 +5560,14 @@ Plan: `plans/2026-09-29_cua-windows-debug-input.md` B2 → [x]. Run `20260930T02
 "unknown field"); `typed_click_*` controls pass. Tests uncommitted in `external/cua` (`inputs.rs` +20) until the fix.
 Blast radius recorded: uniffi Record → SDK + Python/TS bindings + three platform adapters.
 Next decision (owner): implement the contract change now, or first run P2/W3 live to prove the need (W2 condition).
+
+## [2026-09-30] cua W3 live drag check — gap confirmed; capture_id on drag is silently ignored (forecast error)
+Plan: `plans/2026-09-29_cua-windows-debug-input.md` W3 → [x]; W2 condition met; P2 partial; T8 added.
+Run `20260930T024021Z` (`experiments/2026-09-30_cua-drag-live/`), owner-approved on the primary monitor, source-built
+driver 0.29.1 on a private pipe, disposable WinForms fixture as the witness (qualified first by own PostMessage).
+L4 unobserved drag dispatched and landed (gap confirmed, predicted); L1 observe, L2 bound click (taps=1), L3 observed
+drag (±1 px, 10 pressed moves) all as predicted; L5 FORECAST ERROR — drag with capture_id accepted, field ignored,
+gesture delivered; owner foreground kept over 44 samples. Cause read after the run: the window-scope drag reads args
+field by field (`impl_.rs:7405-7428`), only `scope:desktop` parses `DragInput`, and the driver validates output
+schemas only — so fixing the contract (B2) alone changes nothing on Windows. Side: Windows rescales cross-DPI posted
+mouse coords ×1.25 (fixture qualification). Next: T8 wrapper guard, then W2 contract + window-path fix.

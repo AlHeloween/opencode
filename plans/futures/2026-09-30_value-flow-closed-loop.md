@@ -39,6 +39,12 @@
   not a partial qualification. **The contract fixes the requirement, never the method** (owner: «работать с VR
   или нет — выбор человека — но наши требования такие-то чтобы не было проблем потом»): VR and PAVLOK are
   offered, self-administered and optional; the acceptance above is mandatory for everyone.
+  **The precedent that sets this rule** (owner, 2026-09-30): «был провал прогона потому что у чела агорафобия
+  и он вместо запуска прибора спрятался в туалете. Ран провален.» Two lessons: the stimulus set must cover the
+  real site (open deck / open space), and the failure was SILENT — no «stop», he hid. So acceptance has two
+  admissible outcomes only: the procedure to standard, or an explicit stop signal through the agreed channel;
+  hiding, silence or disappearing is a FAIL whatever the reason — for a human MCP exactly as for a tool that
+  hides its own failure.
 - **Every number in the owner report is an address.** «Invoiced RM X» expands to invoice numbers, «cash RM Y»
   to statement lines; «the numbers agree» is a reconciliation run by an oracle.
 - **Owner report** (weekly): what came in, what was produced, what turned into money — tenders submitted/won,

@@ -48,6 +48,27 @@ the formatter, the bus events, diff stats and LSP diagnostics.
 - [x] M3 `src/tool/multiedit.txt` — contract rewritten to match the implementation
 - [x] M4 `test/tool/multiedit.test.ts` — first test suite for the tool: the three probes, sequential application, create-seed, and "a failure while creating leaves no file"
 - [x] M5 oracles run and green (see below)
+- [x] M6 candidate built and the artifact read back
+
+## Release
+
+`pwsh -File _build.ps1 -Task build` → `[OK] Build complete - artifacts in dist/`, run
+`run-1`, full log at `.opencode/data/tool-output/tool_0f1e6fb19001UCbeJ0Fh4oaA48`.
+
+**`-Task release` was deliberately NOT used**: `Invoke-Release` calls `Invoke-Check`, which runs
+`bun test` **with no path** — the full package suite AGENTS.md forbids (measured 2026-09-22: 18
+minutes, `bytes_written: 0`, ~5 GB RSS). Build only; the checks were run scoped instead.
+
+The artifact was read back rather than assumed: `dist/bin/opencode.exe` mtime `2026-09-30 18:40:50`,
+and `findstr /M /C:"NOTHING was written" dist\bin\opencode.exe` → `dist\bin\opencode.exe`, i.e. the
+new code is **inside the compiled binary**. Control on the same instrument (`findstr /M /C:multiedit`
+on the same file) matched first, so the hit is not an artefact of findstr refusing to read binaries;
+the `grep` tool, by contrast, reported «No matches» on that directory — a claim about its own
+binary-handling, not about the artifact.
+
+**`bin/` was NOT touched.** `_build.ps1` writes only to `dist/`; promoting a candidate into `bin/`
+is the owner's own procedure and needs their explicit word (AGENTS.md, 2026-09-24). The owner's live
+runtime therefore still runs the pre-fix binary until they promote.
 
 ## Smoke Tests
 

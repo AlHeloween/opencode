@@ -9,7 +9,7 @@
  * reader must accept the FORM THE WRITERS ACTUALLY WRITE, or it alarms on everything.
  */
 import { describe, expect, test } from "bun:test"
-import { EMPTY_HASH, couplingFindings, extractVectorChain, parsePlanMap } from "../../src/memory/spine"
+import { EMPTY_HASH, couplingFindings, extractVectorChain, parsePlanMap, planHeaderLabel } from "../../src/memory/spine"
 import { TAIL_NOTE_PREFIX, tailNote } from "../../src/session/compaction"
 
 const PLAN = "plans/2026-09-21_x.md"
@@ -164,5 +164,68 @@ describe("the coupling watcher", () => {
     expect(alarmed).toContain("msg_9")
     // No watcher handed in ⇒ no line: a caller without a map keeps the note's old contract.
     expect(tailNote({ open: [], window: null })).toBe("")
+  })
+})
+
+describe("a plan's label comes from its OWN header (plan 2026-10-01)", () => {
+  // The watcher's label source was the hand-kept map in `memory/reasoning.md`, and it is MEASURED
+  // (2026-10-01) to hold ZERO `md5:` lines — so `labels` was empty and every non-zero
+  // `parent-goal-md5` came back off-plan: 15 findings in one session, each a true statement about a
+  // DEAD INPUT. A plan already declares its label in its own header; this reader takes it from there,
+  // so a label is written once, in the file that IS the plan.
+  //
+  // The fixture repeats the PRODUCTION header shape (`plans/2026-10-01_tool-description-contracts.md`),
+  // fenced YAML included — a fixture that invents its own shape cannot observe a reader that accepts
+  // only the real one.
+  const header = (md5: string) =>
+    [
+      "# Tool description contracts — every published promise is true and pinned",
+      "",
+      "<!-- intention: … -->",
+      "",
+      "- **plan_id:** 2026-10-01_tool-description-contracts",
+      "",
+      "```yaml",
+      "Keywords: tool-description-contracts 0.30, falsifiable-promise 0.24",
+      "Semantic dominant: каждое обещание либо закреплено тестом, либо вычеркнуто.",
+      `md5: ${md5}`,
+      `prev-md5: ${EMPTY_HASH}`,
+      `parent-goal-md5: ${EMPTY_HASH}`,
+      "```",
+      "",
+    ].join("\n")
+
+  test("the header's label is the plan's label", () => {
+    expect(planHeaderLabel(header(LABEL))).toBe(LABEL)
+  })
+
+  test("every form the writers use is readable, and the answer is canonical", () => {
+    // All three forms `HEX32_SOURCE` accepts. A reader that knew only the contiguous one is how an
+    // alerter becomes one nobody reads.
+    expect(planHeaderLabel(header("a7f3c1e0d95b4826 f1a0c3e78b2d6405"))).toBe(LABEL)
+    expect(planHeaderLabel(header("a7f3c1e0 d95b4826 f1a0c3e7 8b2d6405"))).toBe(LABEL)
+  })
+
+  test("a plan declaring no label has none — the reader never invents one", () => {
+    expect(planHeaderLabel("# A plan\n\n- **plan_id:** x\n\n```yaml\nKeywords: a 1.0\n```\n")).toBeUndefined()
+  })
+
+  test("`prev-md5:` and `parent-goal-md5:` are NOT the label, even as the only hex present", () => {
+    const text = [
+      "# x",
+      "",
+      "```yaml",
+      `prev-md5: ${LABEL}`,
+      `parent-goal-md5: ${EMPTY_HASH}`,
+      "```",
+    ].join("\n")
+    expect(planHeaderLabel(text)).toBeUndefined()
+  })
+
+  test("the FIRST `md5:` wins: the header owns the label, a later copy does not", () => {
+    // A plan quotes its own vector further down (an example, a checklist). The header is first by
+    // construction, so first-wins is what makes the header the owner and the copy a copy.
+    const text = header(LABEL) + "\n## Example\n\n```yaml\nmd5: 44444444444444444444444444444444\n```\n"
+    expect(planHeaderLabel(text)).toBe(LABEL)
   })
 })

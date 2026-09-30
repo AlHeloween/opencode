@@ -192,6 +192,28 @@ export function parsePlanMap(memory: string): PlanMapEntry[] {
 }
 
 /**
+ * A plan's OWN label, read from the plan file — one label, one place.
+ *
+ * `parsePlanMap` above reads the map hand-kept in `memory/reasoning.md`, and that file is MEASURED
+ * (2026-10-01) to hold ZERO `md5:` lines: `labels` came out empty, so the watcher reported every
+ * non-zero `parent-goal-md5` as off-plan — 15 findings in one session, each a true statement about a
+ * DEAD INPUT. A plan already declares its label in its own `@SV_FORMAT` header, once, in the file that
+ * IS the plan; that is the source this reads, so there is no second copy to keep in step.
+ *
+ * The anchor and the normalisation are `parsePlanMap`'s, verbatim, for the reason it states: the header
+ * is fenced YAML inside markdown, so the line may be indented, and `prev-md5:` / `parent-goal-md5:` must
+ * never be read as the label — neither starts with `md5:`. The FIRST match wins: a header comes first by
+ * construction, so first-wins is what makes the header the owner and a quoted vector a copy.
+ */
+export function planHeaderLabel(text: string): string | undefined {
+  for (const line of text.split("\n")) {
+    const label = line.match(new RegExp(`^[ \\t]*md5:\\s*${HEX32_SOURCE}`))
+    if (label) return label[1]!.replace(/\s+/g, "")
+  }
+  return undefined
+}
+
+/**
  * THE COUPLING WATCHER (owner, 2026-09-22): «alerter … will follow messages in compact — their md5
  * actually… сцепление memory и всего остального контента». With generation removed nothing produces
  * that linkage, so it has to be CHECKED rather than hoped for: a vector that names a parent plan

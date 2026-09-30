@@ -44,7 +44,14 @@ const Parameters = Schema.Struct({
   }),
 })
 
-type Metadata = { plan?: string; task?: string; action: string; present: boolean }
+type Metadata = {
+  plan?: string
+  task?: string
+  action: string
+  present: boolean
+  /** Where the record's plan ref stands (`SVM.resolvePlan`) — `present` when it resolves. */
+  planRef?: "present" | "moved" | "deleted"
+}
 
 export const SvmTool = Tool.define<typeof Parameters, Metadata, Storage.Service>(
   "svm",
@@ -102,10 +109,22 @@ export const SvmTool = Tool.define<typeof Parameters, Metadata, Storage.Service>
                 metadata: { plan: params.plan, task: params.task, action: "read", present: false },
               }
             }
+            // THE PLAN-REF INVARIANT (plan S5): a record whose plan file is gone is REPORTED, never
+            // handed over as if its direction were live. The store has no `remove` — a record outliving
+            // its plan is the design, not an accident — so the reader is the one place it can say what
+            // the record has become.
+            //
+            // The finding rides the TITLE and the METADATA, never `output`: that payload is the record
+            // as DATA, and prose appended to it would make this tool unparseable to every machine
+            // reader — its own test included, which parses it.
+            const ref = SVM.resolvePlan(Instance.worktree, record.plan)
             return {
-              title: `svm: ${record.task} · ${record.state} · eta ${record.etaTurns}`,
+              title:
+                ref === "present"
+                  ? `svm: ${record.task} · ${record.state} · eta ${record.etaTurns}`
+                  : `svm: ${record.task} · ${record.state} · eta ${record.etaTurns} · PLAN REF GONE (${ref}) — ${record.plan} is not on disk, so this record outlived its plan and is a trace, not a task in flight`,
               output: JSON.stringify(record, null, 2),
-              metadata: { plan: record.plan, task: record.task, action: "read", present: true },
+              metadata: { plan: record.plan, task: record.task, action: "read", present: true, planRef: ref },
             }
           }
 

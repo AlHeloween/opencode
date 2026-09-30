@@ -198,8 +198,17 @@ export function parsePlanMap(memory: string): PlanMapEntry[] {
  * nobody declared is floating free, and a map entry that names a plan file which does not exist is a
  * link into nothing. Both are reported with the address that opens them.
  *
+ * ONE AXIS, THREE CARRIERS (plan S5): every declared reference to a plan must RESOLVE — a vector's
+ * `parent-goal-md5` into the map's labels, a map entry's path into the files on disk, a stored
+ * manifest's `plan:` into the plan it was keyed by. The carriers differ; the QUESTION does not, which
+ * is why they share one line rather than getting three. Each finding names its own carrier, so a
+ * reader knows which writer to go and fix, and one line keeps one predicate from passing on one
+ * carrier while quietly rotting on another.
+ *
  * `checked` is returned as well as the findings, because a silent check is indistinguishable from no
  * check — the same rule this project applies to every instrument that shortens its own output.
+ * `manifests` is carried SEPARATELY for the same reason: it counts a different population (what the
+ * store was asked about), and one number must not answer two questions.
  */
 export function couplingFindings(input: {
   /** The window's messages, in order, with the text that carries their vectors. */
@@ -208,7 +217,13 @@ export function couplingFindings(input: {
   map: readonly PlanMapEntry[]
   /** Plan paths that exist on disk, worktree-relative, exactly as the map writes them. */
   plans: ReadonlySet<string>
-}): { checked: number; findings: string[] } {
+  /** THE STORE'S OWN ANSWER (plan S5, `SVM.orphanManifests`): how many manifests were looked at, and
+   *  the ones whose ref no longer resolves. Resolved where the store lives, so this stays pure. */
+  manifests: {
+    checked: number
+    orphans: readonly { plan: string; task: string; reason: "moved" | "deleted" }[]
+  }
+}): { checked: number; manifests: number; findings: string[] } {
   const labels = new Set(input.map.map((entry) => entry.label))
   const findings: string[] = []
   let checked = 0
@@ -228,7 +243,15 @@ export function couplingFindings(input: {
       findings.push(`map-names-missing-plan ${entry.plan} (label ${entry.label}) has no file on disk`)
     }
   }
-  return { checked, findings }
+  // THE STORE'S CARRIER (plan S5): the plan these records were keyed by is not on disk any more, so no
+  // plan-by-plan walk can reach them and nothing else in the runtime would ever say it. The REASON rides
+  // the finding because the remedies differ — update the ref, or accept that the record outlived its task.
+  for (const orphan of input.manifests.orphans) {
+    findings.push(
+      `manifest-names-missing-plan ${orphan.plan} ${orphan.task} has no file on disk — the record outlived its plan (${orphan.reason.toUpperCase()})`,
+    )
+  }
+  return { checked, manifests: input.manifests.checked, findings }
 }
 
 /** The all-zero hash a vector uses to say «I open a chain» — absence of a predecessor, not a break. */

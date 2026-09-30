@@ -119,7 +119,7 @@ oracle:   <what will prove it — the instrument, not the hope>
       the round trip ACROSS the two implementations (write through the service, read through `readNote`)
       and a malformed-manifest case, because "the reader never throws" is what stops one bad manifest
       from blanking the whole note.
-- [ ] **S4 — the master plan.** `render` writes `MASTER_PLAN.md` at the repo root, recursively: goal →
+- [~] **S4 — the master plan.** <!-- done_pct: 90 | attempts: 1 | last_failure: the renderer is DONE and rendered; what remains is AUTHORING -- 71 manifests (one `svm set` per open box, 52 of them still without a `sv` tag) and 2 plans that state no intention at all. Not a renderer defect, and every render COUNTS them. --> `render` writes `MASTER_PLAN.md` in `plans/`, recursively: goal →
       plans → tasks, each task with its sv, plan ref and `eta_turns`, plus the open/pass counts.
       **SV IS MANDATORY FOR EVERY ENTRY — owner, 2026-09-29, verbatim:** «в мастерплане sv для каждого
       субплана, таска или линка обязателен, чтобы было четко ясно — нафига это все и с чем это
@@ -186,8 +186,29 @@ oracle:   <what will prove it — the instrument, not the hope>
       (owner, 2026-09-29). Acceptance: a folded `m*` shows the master plan last; it is a RENDER of the
       same two sources S4 uses, so a stale copy cannot be inherited — and its absence is visible
       (absence of an oracle reads as false).
-- [ ] **S5 — the plan-ref invariant.** A task SVM whose `plan:` names a file that does not exist is
-      reported, not silently kept — the same coupling check `statusNote` already runs for vectors.
+- [x] ✓ **S5 — the plan-ref invariant.** DONE 2026-09-30. `SVM.resolvePlan` + `SVM.orphanManifests`
+      (`session/svm.ts`) enumerate the store's own layout — a key IS `["svm","task",<planId>,<taskId>]`, so
+      the directory is the plan and the file name is the task — and read a record's contents ONLY when its
+      key does not resolve, to take its `plan:` literally. That is the predicate the box states («names a
+      file that does not exist»), and the two tiers are what keep it from crying wolf: cheap while it
+      resolves, exact when it does not. A record whose ref cannot be resolved is REPORTED, never dropped
+      (the store has no `remove`, by design — this file's header).
+      Reported on TWO surfaces, because the oracle named both: **the coupling line** every turn — a third
+      carrier beside the vector and the map entry, one axis («every declared plan ref must resolve»),
+      `<plan> <task> has no file on disk — the record outlived its plan (MOVED|DELETED)`, with the store's
+      own count printed at zero beside the vector count, since one number must not answer two questions —
+      and **`svm read`**, in the title and `metadata.planRef`, while `output` stays pure data (prose
+      appended to it would make the tool unparseable to its own test). `MOVED` is kept apart from
+      `DELETED`: the remedies differ, so they are never folded together. `Storage.keyDir` was split out of
+      `keyFile` so the directory a key maps to has ONE spelling — the S3 defect was exactly two spellings
+      of one mapping.
+      Oracles: `bun test test/session/svm.test.ts test/session/vector-coupling.test.ts
+      test/tool/svm.test.ts` → **22 pass / 0 fail** (`20260930T031801Z_15e39bef`), both halves asserted at
+      both layers (an orphan is NAMED; a live record is NOT flagged); `bun typecheck` → **exit 0**
+      (`20260930T031756Z_c1c9c5b6`); and a LIVE measurement of the real store
+      (`experiments/2026-09-30_svm-orphan/check.ts`, `20260930T032010Z_5054c96f`): the real worktree gives
+      `checked: 3, orphans: []` while the same three records against a directory with no `plans/` give all
+      three as `deleted` — the enumeration reaches them, and it does not cry wolf on live ones.
 
 ## Smoke Tests
 

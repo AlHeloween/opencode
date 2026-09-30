@@ -817,9 +817,11 @@ export function tailNote(input: {
     * surface capped at three relevant plans, so a count taken from it under-reports: this is the
     * measure, that is the address. */
   debtTotal?: { plans: number; open: number } | null
-  /** The coupling watcher's result: how many vectors were actually looked at, and what floated free.
-    * A silent check is indistinguishable from no check, so the count is printed even at zero. */
-  coupling?: { checked: number; findings: readonly string[] } | null
+  /** The coupling watcher's result: how many vector links were actually looked at, how many manifests
+   * the store was asked about, and what floated free. A silent check is indistinguishable from no
+   * check, so BOTH counts are printed even at zero. `manifests` is a second number on purpose — it
+   * counts a different population, and one number must not answer two questions. */
+  coupling?: { checked: number; findings: readonly string[]; manifests: number } | null
   /** The claim ledger's debt — `@LOOP_MEASURE`'s `unstamped_claims`, counted from the durable row. */
   claims?: { claims: number; unstamped: number } | null
   /** `@LOOP_MEASURE`'s THIRD axis — `critical_risks`, read from the plan files themselves
@@ -963,11 +965,14 @@ export function tailNote(input: {
   }
   // THE COUPLING WATCHER's line (owner, 2026-09-22). The count is printed even when it is zero and
   // even when nothing was found: a check whose silence cannot be told from its absence is not a check.
+  // TWO counts, because there are two populations (plan S5): vectors that declare a plan link, and
+  // manifests the store was asked about. One predicate — a declared ref must resolve — reported once.
   if (input.coupling) {
+    const { checked, manifests, findings } = input.coupling
     lines.push(
-      input.coupling.findings.length === 0
-        ? `coupling: ${input.coupling.checked} vector(s) with a plan link · 0 findings`
-        : `coupling: ${input.coupling.checked} linked · ${input.coupling.findings.length} finding(s) — ${input.coupling.findings.join(" · ")}`,
+      findings.length === 0
+        ? `coupling: ${checked} vector link(s), ${manifests} manifest(s) · 0 findings`
+        : `coupling: ${checked} vector link(s), ${manifests} manifest(s) · ${findings.length} finding(s) — ${findings.join(" · ")}`,
     )
   }
   // THE CLAIM LEDGER'S DEBT — `@LOOP_MEASURE`'s `unstamped_claims`, which had no durable carrier at

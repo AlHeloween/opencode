@@ -22,6 +22,20 @@ export interface Interface {
 export class Service extends Context.Service<Service, Interface>()("@opencode/Storage") {}
 
 /**
+ * The DIRECTORY a key maps to, under a data root — and the ONE place that mapping is written.
+ *
+ * `keyFile` is its file form: a key IS a path, and the `.json` suffix is the only difference between
+ * them. The split is not cosmetic. A reader that ENUMERATES the store (the plan-ref invariant, plan
+ * S5) needs the directory, and the obvious shortcut — composing `path.join(dataRoot, "storage", …)` a
+ * second time beside this one — is exactly the drift the S3 defect measured: a writer and a reader
+ * holding two spellings of one mapping agree until one of them is changed, and then disagree in
+ * silence, in production and never in a test.
+ */
+export function keyDir(dataRoot: string, key: string[]): string {
+  return path.join(dataRoot, "storage", ...key)
+}
+
+/**
  * The file a key maps to, under a data root.
  *
  * EXPORTED because a reader that cannot yield for the service needs the SAME mapping, not a second
@@ -30,7 +44,7 @@ export class Service extends Context.Service<Service, Interface>()("@opencode/St
  * answers the same way (service-free, rooted at the worktree). One key, one file, both sides.
  */
 export function keyFile(dataRoot: string, key: string[]): string {
-  return path.join(dataRoot, "storage", ...key) + ".json"
+  return keyDir(dataRoot, key) + ".json"
 }
 
 function missing(err: unknown) {

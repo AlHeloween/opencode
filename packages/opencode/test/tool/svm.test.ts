@@ -123,6 +123,50 @@ describe("svm tool", () => {
     expect(after.metadata.present).toBe(false)
   })
 
+  test("a record whose plan is gone is REPORTED, not handed over as live (plan S5)", async () => {
+    // The store has no `remove`, so a record outliving its plan is the DESIGN and not an accident — which
+    // makes this reader the one place the fact can be said. Silence here is a model reading a dead
+    // direction as a live one, which is exactly what the store's missing `remove` would otherwise
+    // guarantee. BOTH halves are asserted (plan S5's own oracle): the orphan is named, and a record whose
+    // plan IS on disk is handed over with no warning at all — without that half the check would pass by
+    // crying wolf on every record it can see.
+    const result = await inTmpdir((dir) =>
+      Effect.gen(function* () {
+        const write = (plan: string, task: string) =>
+          call({
+            action: "set",
+            plan,
+            task,
+            sv: "Keywords: plan-ref 0.6, orphan 0.4",
+            etaTurns: 1,
+            oracle: "the plan ref must resolve",
+          })
+        yield* write("plans/TEST-svm-orphan.md", "GONE")
+        const orphan = yield* call({ action: "read", plan: "plans/TEST-svm-orphan.md", task: "GONE" })
+
+        yield* Effect.promise(async () => {
+          await fs.mkdir(path.join(dir, "plans"), { recursive: true })
+          await fs.writeFile(path.join(dir, "plans", "TEST-svm-live.md"), "# live\n")
+        })
+        yield* write("plans/TEST-svm-live.md", "LIVE")
+        const live = yield* call({ action: "read", plan: "plans/TEST-svm-live.md", task: "LIVE" })
+        return { orphan, live }
+      }),
+    )
+
+    // The record IS returned: it is real, it is just not live.
+    expect(result.orphan.metadata.present).toBe(true)
+    expect(result.orphan.metadata.planRef).toBe("deleted")
+    expect(result.orphan.title).toContain("PLAN REF GONE")
+    expect(result.orphan.title).toContain("plans/TEST-svm-orphan.md")
+    // `output` stays DATA: a warning appended to it would make this tool unparseable to a machine reader.
+    expect(JSON.parse(result.orphan.output).task).toBe("GONE")
+
+    expect(result.live.metadata.planRef).toBe("present")
+    expect(result.live.title).not.toContain("PLAN REF GONE")
+    expect(JSON.parse(result.live.output).task).toBe("LIVE")
+  })
+
   test("render REFUSES to invent a goal — and writes nothing at all", async () => {
     const wrote = await inTmpdir(() =>
       Effect.gen(function* () {

@@ -18,9 +18,11 @@
  * at init and pass it in. One spelling per function, and a caller that already holds the store pays
  * nothing to use it.
  */
+import { existsSync, readFileSync, readdirSync } from "fs"
 import path from "path"
 import { Effect } from "effect"
 import { Global } from "@opencode-ai/core/global"
+import * as Log from "@opencode-ai/core/util/log"
 import { Storage } from "@/storage/storage"
 import {
   MASTER_PLAN_FILE,
@@ -30,6 +32,8 @@ import {
   parsePlanFiles,
   type PlanStatePlan,
 } from "@/util/plan-status"
+
+const log = Log.create({ service: "session.svm" })
 
 export interface SVMRecord {
   /** Task id as it appears in the plan file, e.g. `S3`. */
@@ -77,6 +81,109 @@ export const missing = (storage: Storage.Interface, planFile: string, taskIds: r
     }
     return found
   })
+
+/**
+ * WHERE A RECORD'S PLAN REF STANDS — the predicate plan S5 names, in ONE spelling.
+ *
+ * A record's `plan:` is a path into the worktree, and a ref that resolves to nothing is the defect:
+ * the store has no `remove` (see this file's header), so such a record would sit there for good,
+ * reading as a direction somebody once chose.
+ *
+ * `moved` is kept apart from `deleted` because the remedies differ — update the ref, or accept that
+ * the record outlived its task — the same split `masterPlanCoverage` makes between «no master plan at
+ * all» and «a master plan that missed a plan». Both are findings; neither is folded into the other.
+ */
+export function resolvePlan(worktree: string, plan: string): "present" | "moved" | "deleted" {
+  if (existsSync(path.join(worktree, plan))) return "present"
+  // The plan may have MOVED rather than died, and saying which is the whole point of the finding.
+  return existsSync(path.join(worktree, "plans_completed", `${planKey(plan)}.md`)) ? "moved" : "deleted"
+}
+
+/** One manifest the store holds whose plan ref no longer resolves. */
+export interface OrphanManifest {
+  /** The path a reader would follow and find nothing at. */
+  plan: string
+  task: string
+  reason: "moved" | "deleted"
+}
+
+/**
+ * THE PLAN-REF INVARIANT (plan S5): every manifest in the store whose plan file is gone.
+ *
+ * WHY THE STORE IS ENUMERATED rather than walked plan by plan: a record whose plan has LEFT is
+ * precisely the record a plan-by-plan walk can never reach. The map is built FROM the plan files, so
+ * an orphan is invisible there by construction — it would live in the store for good, and nothing
+ * would ever say so.
+ *
+ * WHY THE KEY IS USUALLY ENOUGH: a key IS `["svm","task",<planId>,<taskId>]`, so the store's own
+ * LAYOUT already answers both questions — the directory is the plan, the file name is the task — and
+ * the common case (the plan is still there) costs one readdir and ZERO parses. Only a record that
+ * does NOT resolve is read, to take its recorded `plan` LITERALLY: that is the predicate S5 states
+ * («names a file that does not exist»), and it is what stops a record legitimately written against
+ * `plans_completed/…` from being called an orphan. Cheap while it resolves, exact when it does not.
+ *
+ * SERVICE-FREE for the reason `readNote` is — this runs on the prompt path — and it never throws: a
+ * store nothing has been written to yet is a store with nothing to report, not a broken note.
+ */
+export function orphanManifests(worktree: string): { checked: number; orphans: OrphanManifest[] } {
+  const root = Storage.keyDir(Global.Path.data, ["svm", "task"])
+  let planDirs: string[]
+  try {
+    planDirs = readdirSync(root, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort()
+  } catch (e) {
+    log.debug("no svm store to enumerate", { root, error: e instanceof Error ? e.message : String(e) })
+    return { checked: 0, orphans: [] }
+  }
+
+  const orphans: OrphanManifest[] = []
+  let checked = 0
+  for (const planDir of planDirs) {
+    let tasks: string[]
+    try {
+      tasks = readdirSync(path.join(root, planDir), { withFileTypes: true })
+        .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+        .map((entry) => entry.name.slice(0, -".json".length))
+        .sort()
+    } catch (e) {
+      log.debug("svm store directory unreadable — skipped, never invented", {
+        planDir,
+        error: e instanceof Error ? e.message : String(e),
+      })
+      continue
+    }
+    const keyed = `plans/${planDir}.md`
+    const keyResolves = existsSync(path.join(worktree, keyed))
+    for (const task of tasks) {
+      checked += 1
+      if (keyResolves) continue
+      // TIER TWO: the key does not resolve, so the record is read and its own `plan` taken literally.
+      const ref = storedRecord(planDir, task)?.plan ?? keyed
+      const state = resolvePlan(worktree, ref)
+      if (state !== "present") orphans.push({ plan: ref, task, reason: state })
+    }
+  }
+  return { checked, orphans }
+}
+
+/** One stored record, or `undefined` — read through the store's OWN mapping (`keyFile`), never a path
+ *  composed here. A record that cannot be read is absent, not invented, and the caller then judges the
+ *  KEY instead of the record. */
+function storedRecord(planDir: string, taskId: string): SVMRecord | undefined {
+  try {
+    const file = Storage.keyFile(Global.Path.data, ["svm", "task", planDir, taskId])
+    return JSON.parse(readFileSync(file, "utf-8")) as SVMRecord
+  } catch (e) {
+    log.debug("svm record unreadable — treated as absent, never invented", {
+      planDir,
+      taskId,
+      error: e instanceof Error ? e.message : String(e),
+    })
+    return undefined
+  }
+}
 
 /**
  * The manifest as the TURN NOTE needs it — read SERVICE-FREE.

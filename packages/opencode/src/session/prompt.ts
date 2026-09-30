@@ -1999,6 +1999,13 @@ export const layer = Layer.effect(
                     })),
                     map: parsePlanMap(yield* readMemory()),
                     plans: new Set(planFiles(worktree)),
+                    // THE STORE'S HALF OF THE SAME PREDICATE (plan S5). A manifest whose plan file is
+                    // gone cannot be reached by ANY plan-by-plan walk — the map is built FROM the plan
+                    // files — so it is enumerated from the store and reported here, every turn, instead
+                    // of sitting there for good reading as a live direction. Service-free like
+                    // `readNote` below: this is the prompt path, where a service requirement would
+                    // propagate into every layer that provides `SessionPrompt`.
+                    manifests: SVM.orphanManifests(worktree),
                   })
                   // THE FLUSH POINT — and it must stand BEFORE the return. Written after it, the call
                   // was unreachable and the row never landed in production; the typecheck did not catch

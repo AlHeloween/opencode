@@ -193,4 +193,50 @@ describe("SVM store", () => {
     })
     expect(result.second.body).toBe(body)
   })
+
+  test("the plan-ref invariant: an orphaned manifest is NAMED and a live one is NOT (plan S5)", async () => {
+    // BOTH halves in one case, because each alone is a defect. Reporting nothing is the silence the store
+    // has today: there is no `remove` (see `session/svm.ts`'s header), and the map is built FROM the plan
+    // files, so a record whose plan has LEFT is unreachable by any plan-by-plan walk — it would sit there
+    // for good, reading as a direction somebody once chose. Reporting everything is an alerter nobody
+    // reads, which is the defect the coupling watcher's first live finding already was.
+    //
+    // DELIBERATELY NOT an exact-set assertion. The store is shared and persists across runs (see this
+    // file's header), so records ANOTHER file wrote — whose plans do not exist in this tmpdir — are
+    // honest orphans of this call too. Membership in, and absence from, MY OWN keys is a statement about
+    // the code; a count would be a statement about the history of `.temp/test`.
+    const LIVE_PLAN = "plans/TEST-svm-live.md"
+    const MOVED_PLAN = "plans/TEST-svm-moved.md"
+    const GONE_PLAN = "plans/TEST-svm-gone.md"
+
+    const result = await inTmpdir((dir) =>
+      Effect.gen(function* () {
+        const storage = yield* Storage.Service
+        yield* Effect.promise(async () => {
+          await fs.mkdir(path.join(dir, "plans"), { recursive: true })
+          await fs.mkdir(path.join(dir, "plans_completed"), { recursive: true })
+          await fs.writeFile(path.join(dir, LIVE_PLAN), "# live\n")
+          // The MOVED plan EXISTS — just not where the record was keyed.
+          await fs.writeFile(path.join(dir, "plans_completed", "TEST-svm-moved.md"), "# moved\n")
+        })
+        yield* SVM.write(storage, LIVE_PLAN, { ...record, task: "LIVE", plan: LIVE_PLAN })
+        yield* SVM.write(storage, MOVED_PLAN, { ...record, task: "MOVED", plan: MOVED_PLAN })
+        yield* SVM.write(storage, GONE_PLAN, { ...record, task: "GONE", plan: GONE_PLAN })
+        return SVM.orphanManifests(dir)
+      }),
+    )
+
+    const named = result.orphans.map((orphan) => `${orphan.plan} ${orphan.task}`)
+    // HALF ONE — the record whose plan is gone is NAMED. Nothing else in the runtime would ever say it.
+    expect(named).toContain(`${GONE_PLAN} GONE`)
+    expect(result.orphans.find((orphan) => orphan.task === "GONE")?.reason).toBe("deleted")
+    // MOVED and DELETED are different findings with different remedies, so they are never folded together.
+    expect(named).toContain(`${MOVED_PLAN} MOVED`)
+    expect(result.orphans.find((orphan) => orphan.task === "MOVED")?.reason).toBe("moved")
+    // HALF TWO — the record whose plan IS there is not flagged. Without this half the check passes by
+    // naming every record it can see.
+    expect(named).not.toContain(`${LIVE_PLAN} LIVE`)
+    // And they were LOOKED AT: a check that examined nothing cannot be told from one that found nothing.
+    expect(result.checked).toBeGreaterThan(0)
+  })
 })

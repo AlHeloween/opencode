@@ -105,8 +105,8 @@ missing: the handoff permitted «until that lands» without saying what would ru
 |---|---|
 | plans completed | 178 |
 | plans active | 15 |
-| tasks passed / total | 615 / 832 |
-| open boxes | 69 |
+| tasks passed / total | 617 / 833 |
+| open boxes | 68 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -180,7 +180,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - C2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - C4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-29_cua-windows-debug-input.md` — 17 open / 26 box(es) · lifecycle UNKNOWN
+- `plans/2026-09-29_cua-windows-debug-input.md` — 17 open / 27 box(es) · lifecycle UNKNOWN
   sv: intention "CUA debugging requires manual screenshots, IDs and multiple slow commands and cannot yet drive continuous Windows mouse input -> agents obtain an addressable visual observation and bounded, verifiable Windows mouse actions with minimal tool calls while protected operations stay protected; mode A (play together with the robot) runs on the primary monitor, mode B (debug interactive GUI and web apps) runs in the background on THIS host without a second computer and without taking the owner's cursor or focus" · keywords [cua, background-isolation, capture-binding, vmware-guest, virtual-monitor, cdp-web]
   - TASK-2 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - B1 [PENDING] · sv [page-read, webview2, js-policy-refusal] · manifest: MISSING — nobody has written down what this box is
@@ -191,10 +191,10 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - P3 [PENDING] · sv [mode-a, game-input, outcome-signal] · manifest: MISSING — nobody has written down what this box is
   - W1 [PENDING] · sv [baseline, go-control, negative-control] · manifest: MISSING — nobody has written down what this box is
   - W2 [PENDING] · sv [rust-input, capture-admission, conditional] · manifest: MISSING — nobody has written down what this box is
-  - W3 [PENDING] · sv [live-smoke, drag-vs-relative, observation] · manifest: MISSING — nobody has written down what this box is
   - W4 [PENDING] · sv [mode-a, game-input, relative-pointer] · manifest: MISSING — nobody has written down what this box is
   - T1b [PENDING] · sv [cdp-web, agent-route, headed-chrome] · manifest: MISSING — nobody has written down what this box is
   - T3 [PENDING] · sv [virtual-monitor, directcomposition, capture-binding] · manifest: MISSING — nobody has written down what this box is
+  - T8 [PENDING] · sv [cua-wrapper, capture-binding, silent-ignore] · manifest: MISSING — nobody has written down what this box is
   - T4 [PENDING] · sv [launch-placement, focus-policy, cua-wrapper] · manifest: MISSING — nobody has written down what this box is
   - T5 [PENDING] · sv [remote-driver, ssh-tunnel, loopback-only] · manifest: MISSING — nobody has written down what this box is
   - T6 [PENDING] · sv [vmware-guest, capture-bound-drag, hypervisor-frame] · manifest: MISSING — nobody has written down what this box is
@@ -213,11 +213,10 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - R3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - R4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-29_svm-tool-and-master-plan.md` — 3 open / 7 box(es) · lifecycle DRAFT
+- `plans/2026-09-29_svm-tool-and-master-plan.md` — 2 open / 7 box(es) · lifecycle DRAFT
   sv: intention "an agent must be able to STORE and READ the manifest of the turn it is in — task, plan ref, semantic vector, turn estimate — and the turn must be told when it is missing; the master plan becomes the rendered summary that no plan-file move can touch -> one SVM store + one tool + one turn-note reminder + a generated MASTER_PLAN.md" · keywords []
   - S4 [PARTIAL] · sv MISSING · manifest: the map regenerates itself from the plan files and the SVM store — every vector read from its source, a missing one printed MISSING, and a re-run byte-identical. · eta 2 · doing
   - S6 [PENDING] · sv MISSING · manifest: a folded window ends with the RENDERED master plan, so the next cycle opens holding the map. · eta 3 · doing
-  - S5 [PENDING] · sv MISSING · manifest: a manifest whose plan file no longer exists is reported as an orphan, never silently kept. · eta 2 · doing
 
 - `plans/2026-09-30_replacement-empty-assistant-row.md` — 3 open / 3 box(es) · lifecycle OPEN
   sv: intention "a red in the turn-replacement path is a named defect with a reproducer and a measured cause -> the empty assistant row that an interrupted step leaves behind is either not created or explicitly accounted for by the test, so the suite is green for a stated reason" · keywords []

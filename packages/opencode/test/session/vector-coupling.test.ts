@@ -19,6 +19,12 @@ const LABEL_SPACED = "a7f3c1e0 d95b4826 f1a0c3e7 8b2d6405"
 const LABEL = "a7f3c1e0d95b4826f1a0c3e78b2d6405"
 /** A perfectly valid label that no map entry declares — somebody else's plan. */
 const OFF_PLAN = "11111111111111111111111111111111"
+/**
+ * The store's answer when nothing was handed in: zero manifests looked at, no orphans. The field is
+ * REQUIRED rather than optional (plan S5) so a caller cannot silently skip the check — and an omitted
+ * one would print `0 manifest(s)`, which reads as «the store holds nothing» rather than «nobody asked».
+ */
+const NOTHING_STORED = { checked: 0, orphans: [] } as const
 
 /** A message carrying a vector, in the shape the rows actually use. */
 const carrier = (id: string, parent: string = LABEL) => ({
@@ -40,8 +46,10 @@ describe("the coupling watcher", () => {
       messages: [carrier("msg_1")],
       map: [{ plan: PLAN, label: LABEL }],
       plans: new Set([PLAN]),
+      manifests: NOTHING_STORED,
     })
     expect(result.checked).toBe(1)
+    expect(result.manifests).toBe(0)
     expect(result.findings).toEqual([])
   })
 
@@ -50,6 +58,7 @@ describe("the coupling watcher", () => {
       messages: [carrier("msg_7", OFF_PLAN)],
       map: [{ plan: PLAN, label: LABEL }],
       plans: new Set([PLAN]),
+      manifests: NOTHING_STORED,
     })
     expect(result.checked).toBe(1)
     expect(result.findings).toHaveLength(1)
@@ -62,6 +71,7 @@ describe("the coupling watcher", () => {
       messages: [carrier("msg_1")],
       map: [],
       plans: new Set([PLAN]),
+      manifests: NOTHING_STORED,
     })
     expect(result.findings).toHaveLength(1)
     expect(result.findings[0]).toContain("msg_1")
@@ -72,6 +82,7 @@ describe("the coupling watcher", () => {
       messages: [carrier("msg_1", EMPTY_HASH)],
       map: [],
       plans: new Set(),
+      manifests: NOTHING_STORED,
     })
     expect(result.checked).toBe(0)
     expect(result.findings).toEqual([])
@@ -80,9 +91,34 @@ describe("the coupling watcher", () => {
   test("a label naming a plan with no file on disk is a finding — the relevance filter is not the question", () => {
     // `planFiles` lists what EXISTS, deliberately unlike `collectPlanState`, which drops plans with
     // no open work. A map entry for a plan the filter hides is still a path that must resolve.
-    const result = couplingFindings({ messages: [], map: [{ plan: PLAN, label: LABEL }], plans: new Set() })
+    const result = couplingFindings({
+      messages: [],
+      map: [{ plan: PLAN, label: LABEL }],
+      plans: new Set(),
+      manifests: NOTHING_STORED,
+    })
     expect(result.findings).toHaveLength(1)
     expect(result.findings[0]).toContain(PLAN)
+  })
+
+  test("a manifest whose plan is gone is a finding of its OWN kind, and the two counts stay two (S5)", () => {
+    // THE THIRD CARRIER of one predicate (plan S5): a stored manifest whose `plan:` no longer resolves.
+    // Its own kind, because a reader must know WHICH writer to go and fix — and its own count, because
+    // `manifests` answers a different question from `checked`: one is what the window declared, the
+    // other is what the store was asked about, and one number must not answer both.
+    const result = couplingFindings({
+      messages: [carrier("msg_1")],
+      map: [{ plan: PLAN, label: LABEL }],
+      plans: new Set([PLAN]),
+      manifests: { checked: 2, orphans: [{ plan: "plans/gone.md", task: "S9", reason: "deleted" }] },
+    })
+    expect(result.checked).toBe(1)
+    expect(result.manifests).toBe(2)
+    expect(result.findings).toHaveLength(1)
+    expect(result.findings[0]).toContain("manifest-names-missing-plan")
+    expect(result.findings[0]).toContain("plans/gone.md S9")
+    // MOVED and DELETED are different findings with different remedies; the reason is carried through.
+    expect(result.findings[0]).toContain("DELETED")
   })
 
   test("the map is read as WRITTEN — the memory's markdown-list indentation included", () => {
@@ -114,13 +150,15 @@ describe("the coupling watcher", () => {
   })
 
   test("the push prints the count even at zero — a silent check is not a check", () => {
-    const quiet = tailNote({ open: [], window: null, coupling: { checked: 3, findings: [] } })
+    const quiet = tailNote({ open: [], window: null, coupling: { checked: 3, findings: [], manifests: 4 } })
     expect(quiet.startsWith(TAIL_NOTE_PREFIX)).toBe(true)
-    expect(quiet).toContain("coupling: 3 vector(s) with a plan link · 0 findings")
+    // TWO counts on one line — the vector links that were looked at, and the manifests the store was
+    // asked about. Both printed at zero, because a silent check is not a check.
+    expect(quiet).toContain("coupling: 3 vector link(s), 4 manifest(s) · 0 findings")
     const alarmed = tailNote({
       open: [],
       window: null,
-      coupling: { checked: 3, findings: ["vector-off-plan msg_9 → …"] },
+      coupling: { checked: 3, findings: ["vector-off-plan msg_9 → …"], manifests: 0 },
     })
     expect(alarmed).toContain("1 finding(s)")
     expect(alarmed).toContain("msg_9")

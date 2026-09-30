@@ -5571,3 +5571,20 @@ gesture delivered; owner foreground kept over 44 samples. Cause read after the r
 field by field (`impl_.rs:7405-7428`), only `scope:desktop` parses `DragInput`, and the driver validates output
 schemas only — so fixing the contract (B2) alone changes nothing on Windows. Side: Windows rescales cross-DPI posted
 mouse coords ×1.25 (fixture qualification). Next: T8 wrapper guard, then W2 contract + window-path fix.
+
+## [2026-09-30] SVM S5 — the plan-ref invariant: an orphaned manifest is REPORTED, never silently kept
+Plan: `plans/2026-09-29_svm-tool-and-master-plan.md` S5 → [x], with `svm set state=verified` and a re-render.
+Oracles: `bun typecheck` → exit 0 (`20260930T031756Z_c1c9c5b6`); `bun test test/session/svm.test.ts
+test/session/vector-coupling.test.ts test/tool/svm.test.ts` → **22 pass / 0 fail** (`20260930T031801Z_15e39bef`);
+LIVE probe `experiments/2026-09-30_svm-orphan/check.ts` (`20260930T032010Z_5054c96f`): the real worktree gives
+`checked: 3, orphans: []`, and the same three records against a directory with no `plans/` give all three as
+`deleted` — so the enumeration REACHES them and does not cry wolf on live ones.
+What changed: `SVM.resolvePlan` + `SVM.orphanManifests` (`session/svm.ts`) enumerate the store's own layout (the
+key IS the plan directory plus the task file name) and read a record's contents ONLY when its key does not
+resolve, to take its `plan:` literally; the coupling line gains a third carrier of one predicate
+(`manifest-names-missing-plan … MOVED|DELETED`, with TWO counts printed at zero — the store's beside the
+window's); `svm read` reports it in the title and `metadata.planRef` while `output` stays pure data;
+`Storage.keyDir` was split out of `keyFile` so the key→path mapping has ONE spelling.
+Learned: this check's real failure mode is the OPPOSITE of silence — crying wolf on healthy records, which is
+what turns an alerter into noise (the coupling watcher's own first live finding was its own reader bug). The
+suite's fixtures cannot show that, which is why the live measurement ran against the REAL store.

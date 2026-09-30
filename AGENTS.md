@@ -546,6 +546,24 @@ Full details: [docs/architecture.md](docs/architecture.md) § Checkpoint, [docs/
 
 ## Plan Maintenance
 
+### The DIRECTION lives in `MASTER_PLAN.md` — read it before the first edit of a session
+
+This file says **how** to work; [`MASTER_PLAN.md`](MASTER_PLAN.md) says **what is being worked on and why, right
+now**. It is the entry point for any agent — this repo's, or a different environment that simply read the
+repository — and it must be readable by an agent that has never seen this session, without guessing:
+
+- **every** active plan carries its own SV (keywords + dominant): «sv для каждого субплана, таска или линка
+  обязателен, чтобы было четко ясно — нафига это все и с чем это коррелирует» (owner, 2026-09-29);
+- every in-flight task carries its manifest: sv, plan ref, `eta_turns`, state, oracle;
+- a number there that disagrees with a plan file means the plan file wins and `MASTER_PLAN.md` is regenerated.
+
+`svm render` (plan S4) will generate that file from the plan files + the SVM store. Until it lands, the file is
+maintained by hand and says so in its own header. **Measured 2026-09-30: this pointer did not exist** — AGENTS.md
+never mentioned `MASTER_PLAN.md`, so the "any agent picks it up on autopilot" property held only for an agent
+that happened to list the repo root.
+
+### The rest
+
 - Active plans in `plans/` (repo root). Completed → `plans_completed/`.
 - **Never use `.opencode/plans/`.**
 - After implementation, audit `plans/*.md` — mark `[x]` if code confirms done.

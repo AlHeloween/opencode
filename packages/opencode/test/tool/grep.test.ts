@@ -107,8 +107,14 @@ describe("tool.grep", () => {
         )
         expect(result.metadata.matches).toBe(1)
         expect(result.output).toContain(file)
-        expect(result.output).toContain("Line 2")
-        expect(result.output).toContain("line2")
+        // Pinned EXACTLY, never by substring. This assertion superseded
+        // `toContain("Line 2: line2")` when the output contract became
+        // `Line N, col C, offset B: …window…` (commit 8051467cf4): the requirement moved, so the
+        // test moved with it, in the same change and with its provenance — it was NOT loosened to
+        // go green. The difference matters: `toContain("Line 2")` is satisfied by "Line 20" and
+        // stays green if the col/offset fields disappear entirely, which is the whole point of
+        // the address. `line1\n` is 6 bytes, so line 2 begins at offset 6 and the hit is at col 1.
+        expect(result.output).toContain("Line 2, col 1, offset 6: line2")
       }),
     ),
   )

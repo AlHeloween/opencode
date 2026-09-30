@@ -568,6 +568,17 @@ The saving is a token; the cost is a recall turn. Full design:
 - **There are NO pre-existing errors.** Every typecheck/test failure is a deliverable.
 - **Bugs block push.** All bugs must be fixed before `git push`. No `--no-verify`.
 - Silent `catch {}` blocks are bugs — must log (debug for expected, warn for unexpected).
+- **The direction of change is one-way: tests adapt to the functionality, never the reverse.**
+  Owner, 2026-09-30, verbatim: «Ты только смотри не вздумай подстраивать функционал под тесты.
+  Тесты подстраиваются под функционал, а не наоборот иначе в них пропадает какой либо смысл.»
+  A red test is a question about the TEST only against the REQUIREMENT — never a licence to soften
+  the assertion or the behaviour. When the requirement itself moves, the test moves in the SAME
+  change WITH its provenance and is re-pinned at least as tightly as before. Measured 2026-09-30
+  while fixing `grep`'s output contract: an existing assertion `toContain("Line 2: line2")` was
+  replaced by `toContain("Line 2")` + `toContain("line2")` so the suite would go green — the reverse
+  direction, and it dropped the contract, since `"Line 2"` is satisfied by `"Line 20"` and stays
+  green when the col/offset fields vanish entirely. Corrected to the exact new string
+  `"Line 2, col 1, offset 6: line2"`.
 - **A test that can silently assert nothing is not a guard.** `test/tool/registry.test.ts` carried
   `if (!planTool) continue // tool only in build (e.g. edit/write vs applypatch)` — a loop whose
   comparison skipped every tool the other catalogue lacked, while the same file asserts three tests

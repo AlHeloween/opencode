@@ -76,7 +76,10 @@ verify, robots execute on the funded models. What decides whether it holds (Hypo
 - **The two numbers that size it** — measured per verified task from the first real run on: Claude tokens per
   verified task (brief + read-back + own oracle; plan limits via `get_usage`) and robot $ per verified task
   (HF / DeepSeek balance before/after). Robots per seat = seat budget / Claude cost per task; nothing is sized
-  before these exist.
+  before these exist. A THIRD number decides whether the loop is closed at all: **owner touches per verified
+  task** (answers, restarts, manual fixes). Owner, 2026-09-30: «любая тема должна быть экономически
+  целесообразной и достаточно замкнутой чтобы не трахать мозги обслуживающему персоналу». Target for the
+  routine class: → 0, with the decisions that remain batched into the digest (B9), never interrupting a run.
 - **The verifier is the bottleneck, by design.** A robot result nobody verified is testimony; scaling robots
   without scaling verification scales unverified output. Tasks whose oracle is a command (tests, a read-back)
   verify cheaply — they are the ones that scale.

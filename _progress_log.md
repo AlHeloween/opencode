@@ -5589,6 +5589,14 @@ Learned: this check's real failure mode is the OPPOSITE of silence — crying wo
 what turns an alerter into noise (the coupling watcher's own first live finding was its own reader bug). The
 suite's fixtures cannot show that, which is why the live measurement ran against the REAL store.
 
+## [2026-09-30] PLACEMENT DEBT cleared by FORM, not by a move — and a forecast error recorded
+
+Plan: `plans/2026-09-29_svm-tool-and-master-plan.md` — S4's box rewritten from `- [~]` to `- [ ]` (its remainder, `done_pct`, `attempts` and `last_failure` kept and refreshed), and S4's manifest rewritten with the current remainder and oracle. No production line was touched this turn.
+Why the FORM changed: `[~]` marks a task the agent DECIDED NOT TO DO (`plans_completed/2026-09-24_open-boxes-slot.md` states it, and `getPlanStatus` reads `[x]`/`[~]` alike as complete) — so `planstatus` reported the plan `misplaced`, and its own advice (`reconcile`) would have filed a LIVE remainder into `plans_completed/`. S4 is work WAITING. The plan now carries this reasoning inline, so the next agent does not "fix" the form back.
+Oracles: `planstatus` → `Misplaced: none`, `Misplaced: 0`, the placement-debt line gone, the plan still Active; `Debt: 73 → 74 open box(es)` and `629/857 → 628/857 tasks` — the remainder is VISIBLE again and `reconcile` is safe to run. `svm render` → `plans/MASTER_PLAN.md` re-rendered (17 plans, 80 open boxes, `gapsBefore: []`), and the map prints S4 as `[PENDING]` WITH its manifest, eta and state — the next window meets the box with its direction attached.
+FORECAST ERROR, recorded and not smoothed over: I predicted `missingManifests 79 → 78` and it stayed 79. Cause: the record already existed and was REWRITTEN, not created — knowable only by measuring the STARTING state before predicting. The arithmetic closes it: 79 `manifest: MISSING` lines + exactly 1 line with a manifest (S4) = 80 = `openBoxes`; the store holds 7 records (S4/S5/S6, R1–R4) and only S4 is in the map's base.
+Class seen while looking, and NOT a defect: `planstatus` prints one file in `Active (open [ ])` and in `Misplaced` at the same time, which reads impossible. Two readers answer two questions — the map counts `status !== "PASS"` (`PARTIAL` open), the mover counts `countTasks` (`[x~]` done) — hence `Debt 74` beside `openBoxes 80`. Both are correct.
+
 ## [2026-09-30] R4 — the runner gives a verdict; the cause of its silence was the wrapper
 
 Plan: `plans/2026-09-30_turn-commit-slot.md` R4 → [x], with `svm set state=verified` and a re-render. That closes the plan (R1–R4) and it moves to `plans_completed/`. No production line was touched this turn.

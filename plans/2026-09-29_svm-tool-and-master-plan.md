@@ -119,7 +119,7 @@ oracle:   <what will prove it — the instrument, not the hope>
       the round trip ACROSS the two implementations (write through the service, read through `readNote`)
       and a malformed-manifest case, because "the reader never throws" is what stops one bad manifest
       from blanking the whole note.
-- [~] **S4 — the master plan.** <!-- done_pct: 90 | attempts: 1 | last_failure: the renderer is DONE and rendered; what remains is AUTHORING -- 71 manifests (one `svm set` per open box, 52 of them still without a `sv` tag) and 2 plans that state no intention at all. Not a renderer defect, and every render COUNTS them. --> `render` writes `MASTER_PLAN.md` in `plans/`, recursively: goal →
+- [ ] **S4 — the master plan.** <!-- done_pct: 90 | attempts: 1 | last_failure: the renderer is DONE and rendered; what remains is AUTHORING -- one `svm set` per open box (47 of the 80 still carry no `sv` tag, 79 have no manifest in the store) and 2 plans that state no intention at all. Not a renderer defect, and every render COUNTS them. --> `render` writes `MASTER_PLAN.md` in `plans/`, recursively: goal →
       plans → tasks, each task with its sv, plan ref and `eta_turns`, plus the open/pass counts.
       **SV IS MANDATORY FOR EVERY ENTRY — owner, 2026-09-29, verbatim:** «в мастерплане sv для каждого
       субплана, таска или линка обязателен, чтобы было четко ясно — нафига это все и с чем это
@@ -179,8 +179,15 @@ oracle:   <what will prove it — the instrument, not the hope>
     re-run could never be byte-identical. Measured, not argued: the second render differed from the first on
     that one line. A DELTA belongs in the tool's report; the body states only what is true NOW. Both halves are
     asserted now.
-  - REMAINDER: 71 manifests are authoring work (one `svm set` per open box), and 2 plans still state no
+  - REMAINDER: the manifests are authoring work (one `svm set` per open box), and 2 plans still state no
     intention at all. Both are now COUNTED by every render instead of being invisible.
+  - **WHY THIS BOX IS `[ ]` AND NOT `[~]`.** `[~]` marks a task the agent **decided NOT to do** — that is its
+    defined meaning in this repo (`plans_completed/2026-09-24_open-boxes-slot.md`: «a task not done is closed
+    `[~]` with its reason»), and `getPlanStatus` reads `[x]` and `[~]` alike as complete, so a plan whose last
+    box is `[~]` is one the mover files into `plans_completed/`. This box is WORK WAITING, not work declined:
+    written as `[~]` it made the plan read as finished, `planstatus` reported `plans/2026-09-29_svm-tool-and-master-plan.md`
+    as `misplaced`, and `reconcile` would have carried a live remainder out of `plans/`. A pending box is `[ ]`;
+    `last_failure` / `attempts` / `done_pct` are the fields that say WHY it is still open.
 - [x] ✓ **S6 — the fold carrier.** DONE 2026-09-30. `SVM.renderFoldBlock(worktree)` (with `svm render`) renders the
       map AT the fold — the same two sources, through the same `renderBody` — and the compaction head carries it as
       the LAST block, after the recent messages and after the closing pointers, so the fresh tail reads off a map of

@@ -105,7 +105,7 @@ missing: the handoff permitted «until that lands» without saying what would ru
 |---|---|
 | plans completed | 178 |
 | plans active | 14 |
-| tasks passed / total | 618 / 831 |
+| tasks passed / total | 619 / 832 |
 | open boxes | 65 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
@@ -222,10 +222,10 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-30_turn-commit-slot.md` — 2 open / 2 box(es) · lifecycle ACTIVE
-  sv: intention "the turn's felt wait and its snapshot commit sat on the same path, and the mechanism meant to take the commit off it (a settle at the next turn's open) never executes -> the commit runs OFF the input path AND in strict order (one slot, one job at a time), and its timing is keyed state rather than a line in a log that dies with the session" · keywords []
-  - R1 [PENDING] · sv MISSING · manifest: the snapshot commit runs off the input path and one job at a time, so no turn waits and two commits never overlap in one worktree. · eta 3 · doing
-  - R2 [PENDING] · sv MISSING · manifest: the per-turn prepare and commit timings live where their key lives, so a distribution survives the session instead of dying with a rotated log. · eta 3 · blocked
+- `plans/2026-09-30_turn-commit-slot.md` — 2 open / 3 box(es) · lifecycle ACTIVE
+  sv: intention "the turn's felt wait and its snapshot commit sat on the same path, and the mechanism meant to take the commit off it (a settle at the next turn's open) never executes -> the commit runs OFF the input path with strict order held ONE LAYER DOWN by the fossil service's per-repo lock, and the commit's own cost becomes keyed state rather than a line in a log that dies with the session" · keywords []
+  - R2 [PENDING] · sv MISSING · manifest: the turn's prepare window and the commit's own cost live under the turn's key instead of in a log that dies with the session. · eta 3 · doing
+  - R3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 ## The checks
 

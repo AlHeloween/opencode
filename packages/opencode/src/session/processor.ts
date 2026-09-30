@@ -1,4 +1,4 @@
-import { Cause, Deferred, Effect, Fiber, Layer, Context, Scope } from "effect"
+import { Cause, Deferred, Effect, Layer, Context, Scope } from "effect"
 import * as Stream from "effect/Stream"
 import { Agent } from "@/agent/agent"
 import { Bus } from "@/bus"
@@ -263,30 +263,25 @@ export function promptTokensFromUsage(tokens: { input: number; cache: { read: nu
  * turn's first request could leave 20-37 s after the assistant message already existed.
  * Emitted once per turn as `turn.prepare` — time and rate are what state cannot show.
  */
-const pendingWrites = new Map<
-  string,
-  {
-    files: Set<string>
-    exact: boolean
-    write: boolean
-    before?: string
-    /** The previous turn's snapshot commit, still running. Settled at the START of the next turn. */
-    job?: Fiber.Fiber<string | undefined, never>
-    timing?: { t0: number; fossilMs: number; requestMs?: number; logged?: boolean }
-  }
->()
+type TurnRecord = {
+  files: Set<string>
+  exact: boolean
+  write: boolean
+  /**
+   * The turn's revert target: the state to go back TO. Resolved on the turn's FIRST
+   * write-class call — `snapshot.checkpoint()`, taken before that tool runs and therefore
+   * before anything in this turn has changed.
+   */
+  before?: string
+  timing?: { t0: number; requestMs?: number; logged?: boolean }
+}
 
-function turnWrites(sessionID: string) {
+const pendingWrites = new Map<string, TurnRecord>()
+
+function turnWrites(sessionID: string): TurnRecord {
   const existing = pendingWrites.get(sessionID)
   if (existing) return existing
-  const fresh: {
-    files: Set<string>
-    exact: boolean
-    write: boolean
-    before?: string
-    job?: Fiber.Fiber<string | undefined, never>
-    timing?: { t0: number; fossilMs: number; requestMs?: number; logged?: boolean }
-  } = {
+  const fresh: TurnRecord = {
     files: new Set<string>(),
     exact: false,
     write: false,
@@ -545,24 +540,24 @@ export const layer: Layer.Layer<
       // that 2026-09-15 measured (1220 of 2380 messages called no write tool).
       const turnStart = beginTurn(input.sessionID)
       const turn = turnWrites(input.sessionID)
-      if (turnStart) {
-        const t0 = Date.now()
-        turn.timing = { t0, fossilMs: 0 }
-        // A turn OPENS by settling the PREVIOUS turn's snapshot commit, and a turn CLOSES by
-        // forking this one's — owner, 2026-09-29: «надо делать fossil commit в конце хода…
-        // коммитить в бэкграунде, но начинать новый ход когда процесс завершен». Linear by
-        // construction: the commit that closes turn N is what turn N+1 waits for, so undo and
-        // rollback settle the same way. The commit is O(the whole tree) — 163.7 s / 106k files
-        // in this file's own history, ~16 s on this project's 10 913 tracked files — and it now
-        // runs while the model works instead of before it is asked anything. Measured live
-        // 2026-09-29: one `turn.prepare` at fossilMs 16 364 against 1.5 s for turns with no
-        // commit.
-        if (turn.job) {
-          turn.before = yield* Fiber.join(turn.job)
-          turn.job = undefined
-          turn.timing.fossilMs = Date.now() - t0
-        }
-      }
+      if (turnStart) turn.timing = { t0: Date.now() }
+      // A turn waits for NO snapshot commit — not its own, not the previous turn's.
+      //
+      // What used to sit here — `turn.before = Fiber.join(turn.job)`, i.e. «the commit that
+      // closes turn N is what turn N+1 waits for» — never ran. `endTurn` deletes the record
+      // that holds the job, and it is called on the SAME step as the fork, after it (see
+      // `finish`); so the next `beginTurn` always built a fresh record whose `job` was
+      // `undefined`, and the window it measured could only ever read 0 — measured 2026-09-30
+      // over twelve consecutive turns. The promise lived in the comment, not in the code.
+      //
+      // Strict order between commits is held one layer DOWN, where a caller cannot forget it:
+      // every fossil call is serialised on a per-repo semaphore of one permit
+      // (`snapshot/fossil.ts` — `locks` / `locked`), and `track` holds that permit for its
+      // whole body. Two commits cannot interleave in one worktree.
+      //
+      // The revert target depends on neither: it is resolved on the turn's FIRST write-class
+      // call (`pending.before = snapshot.checkpoint()`, see `tool-call`), which is before that
+      // tool executes — hence before this turn has changed anything on disk.
       const initialSnapshot = turn.before
       const ctx: ProcessorContext = {
         assistantMessage: input.assistantMessage,
@@ -1163,10 +1158,10 @@ export const layer: Layer.Layer<
                 totalDurationMs: ctx.streamStartTime ? Date.now() - ctx.streamStartTime : undefined,
               })
             }
-            // The turn's baseline was committed at its start (see `create`), so
-            // there is nothing to decide here and nothing to commit: every step
-            // of the turn carries that one hash. `patch()` diffs the working
-            // copy against it, which is exactly what `revert.ts` walks.
+            // The turn's baseline is resolved once, on its first write-class call
+            // (see `tool-call`), so there is nothing to decide here and nothing to
+            // commit: every step of the turn stamps that one hash. `patch()` diffs
+            // the working copy against it, which is exactly what `revert.ts` walks.
             const snapshotBeforeTrack = turnWrites(ctx.sessionID).before ?? ctx.snapshot
             const turn = turnWrites(ctx.sessionID)
             for (const file of ctx.changedFiles) turn.files.add(file)
@@ -1176,10 +1171,16 @@ export const layer: Layer.Layer<
             // step, so this is mid-turn and nothing here is a reachable revert target.
             const turnEnds = value.finishReason !== "tool-calls"
             if (turnEnds) {
-              // The snapshot job for the NEXT turn to settle — this turn's work, committed
-              // while nobody waits (owner, 2026-09-29). `Effect.fork` (not forkIn) because the
-              // fiber must outlive THIS turn's scope: it is joined at the start of the next one.
-              turn.job = yield* snapshot.track(undefined).pipe(
+              // This turn's work, committed while nobody waits — owner, 2026-09-29: «надо
+              // делать fossil commit в конце хода… коммитить в бэкграунде». `forkDetach`
+              // because the fiber must outlive THIS turn's scope; nothing joins it. The commit
+              // is O(the whole tree) — 163.7 s / 106k files in this file's own history, ~16 s
+              // on this project's 10 913 tracked files — which is exactly why it must not sit
+              // on anybody's critical path.
+              //
+              // Strict order still holds, one layer down: `snapshot/fossil.ts` serialises every
+              // fossil call on a per-repo semaphore of one permit.
+              yield* snapshot.track(undefined).pipe(
                 Effect.catch(() => Effect.succeed(undefined as string | undefined)),
                 Effect.forkDetach,
               )
@@ -1571,13 +1572,14 @@ export const layer: Layer.Layer<
             ctx.textBuilder.reset()
             ctx.reasoningMap = {}
             ctx.reasoningBuilders = {}
-            // The felt wait, attributed: `t0` is the turn's first assistant message,
-            // `fossilMs` the snapshot boundary inside it, `requestMs` everything before the
-            // provider is asked. Once per TURN, guarded — `process` runs per step.
+            // The felt wait, attributed: `t0` is the turn's first assistant message and
+            // `requestMs` everything before the provider is asked. Once per TURN, guarded —
+            // `process` runs per step. The snapshot commit is deliberately NOT in this window:
+            // nothing waits for it (see `create` and `finish`).
             if (turn.timing && !turn.timing.logged) {
               turn.timing.logged = true
               turn.timing.requestMs = Date.now() - turn.timing.t0
-              slog.info("turn.prepare", { fossilMs: turn.timing.fossilMs, requestMs: turn.timing.requestMs })
+              slog.info("turn.prepare", { requestMs: turn.timing.requestMs })
             }
             const stream = llm.stream(streamInput)
 

@@ -104,9 +104,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 178 |
-| plans active | 14 |
-| tasks passed / total | 619 / 832 |
-| open boxes | 65 |
+| plans active | 16 |
+| tasks passed / total | 621 / 853 |
+| open boxes | 84 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -210,14 +210,36 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   sv: intention "an agent must be able to STORE and READ the manifest of the turn it is in — task, plan ref, semantic vector, turn estimate — and the turn must be told when it is missing; the master plan becomes the rendered summary that no plan-file move can touch -> one SVM store + one tool + one turn-note reminder + a generated MASTER_PLAN.md" · keywords []
   - S4 [PARTIAL] · sv MISSING · manifest: the map regenerates itself from the plan files and the SVM store — every vector read from its source, a missing one printed MISSING, and a re-run byte-identical. · eta 2 · doing
 
+- `plans/2026-09-30_cua-supply-chain-audit.md` — 8 open / 9 box(es) · lifecycle ACTIVE
+  sv: intention "cua and Universal Search are suspected on egress, hidden code and reliability, with no measurement behind the suspicion -> every component shipped to colleagues has a measured egress manifest, a known build provenance and a recorded reliability profile, and nothing leaves a machine the owner did not approve" · keywords [supply-chain-audit, egress-manifest, telemetry, provenance, reliability]
+  - A1 [PENDING] · sv [toolchain-qualification, egress-sampler, control-request] · manifest: MISSING — nobody has written down what this box is
+  - A2 [PENDING] · sv [egress-manifest, cua-runtime, prediction] · manifest: MISSING — nobody has written down what this box is
+  - A3 [PENDING] · sv [egress-manifest, opt-out, check-for-update] · manifest: MISSING — nobody has written down what this box is
+  - SB [PENDING] · sv [dynamic-egress, sampler, manifest] · manifest: MISSING — nobody has written down what this box is
+  - SC [PENDING] · sv [provenance, build-scripts, hidden-behaviour] · manifest: MISSING — nobody has written down what this box is
+  - SD [PENDING] · sv [fork-build, compile-out, zero-egress] · manifest: MISSING — nobody has written down what this box is
+  - SE [PENDING] · sv [reliability, defect-classes, evidence] · manifest: MISSING — nobody has written down what this box is
+  - SF [PENDING] · sv [universal-search, cdp-port, redistribution] · manifest: MISSING — nobody has written down what this box is
+
 - `plans/2026-09-30_replacement-empty-assistant-row.md` — 3 open / 3 box(es) · lifecycle OPEN
   sv: intention "a red in the turn-replacement path is a named defect with a reproducer and a measured cause -> the empty assistant row that an interrupted step leaves behind is either not created or explicitly accounted for by the test, so the suite is green for a stated reason" · keywords []
   - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-30_cua-supply-chain-audit.md` — hand-added 2026-09-30 before the next render; vectors live in the plan file
-- `plans/2026-09-30_robot-installer.md` — hand-added 2026-09-30 before the next render; vectors live in the plan file
+- `plans/2026-09-30_robot-installer.md` — 11 open / 11 box(es) · lifecycle DRAFT
+  sv: intention "the robot (opencode + kernel + toolchain) exists only as a hand-assembled setup on the owner's machine, with a draft bundle in d:\!Smit\Smit2 -> a unified builder and a unified Go+Wails offline installer let a colleague on an unprepared Windows install it, start the robot and get an answer to «привет» with no manual setup" · keywords [installer, offline-bundle, preflight, hello-smoke, free-models]
+  - I0 [PENDING] · sv [inventory, smit2, manifest] · manifest: MISSING — nobody has written down what this box is
+  - I1 [PENDING] · sv [pristine-vm, baseline, preflight] · manifest: MISSING — nobody has written down what this box is
+  - B1 [PENDING] · sv [builder, reproducible, hash-manifest] · manifest: MISSING — nobody has written down what this box is
+  - B2 [PENDING] · sv [wails-installer, webview2-bootstrap, pre-stage] · manifest: MISSING — nobody has written down what this box is
+  - B3 [PENDING] · sv [preflight, fixes, opt-in] · manifest: MISSING — nobody has written down what this box is
+  - V1 [PENDING] · sv [virtual-monitor, driver-selection, signature] · manifest: MISSING — nobody has written down what this box is
+  - V2 [PENDING] · sv [virtual-monitor, silent-install, hypervisor-guard] · manifest: MISSING — nobody has written down what this box is
+  - V3 [PENDING] · sv [virtual-monitor, robot-display, t3-oracle] · manifest: MISSING — nobody has written down what this box is
+  - B4 [PENDING] · sv [free-models, first-run, no-keys] · manifest: MISSING — nobody has written down what this box is
+  - B5 [PENDING] · sv [hello-smoke, failure-classes, final-check] · manifest: MISSING — nobody has written down what this box is
+  - B6 [PENDING] · sv [acceptance, pristine-vm, offline] · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-09-30_stale-gitbash-tests.md` — 3 open / 3 box(es) · lifecycle OPEN
   sv: intention "a red pair in test/shell/shell.test.ts is either the test's fault or the code's -> the pair is decided by the requirement it encodes, superseded with provenance if it is stale, and the file is green for a stated reason" · keywords []
@@ -225,13 +247,13 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-30_turn-commit-slot.md` — 2 open / 3 box(es) · lifecycle ACTIVE
+- `plans/2026-09-30_turn-commit-slot.md` — 2 open / 4 box(es) · lifecycle ACTIVE
   sv: intention "the turn's felt wait and its snapshot commit sat on the same path, and the mechanism meant to take the commit off it (a settle at the next turn's open) never executes -> the commit runs OFF the input path with strict order held ONE LAYER DOWN by the fossil service's per-repo lock, and the commit's own cost becomes keyed state rather than a line in a log that dies with the session" · keywords []
-  - R2 [PENDING] · sv MISSING · manifest: the turn's prepare window and the commit's own cost live under the turn's key instead of in a log that dies with the session. · eta 3 · doing
   - R3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - R4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 ## The checks
 
-This body names all 15 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 17 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

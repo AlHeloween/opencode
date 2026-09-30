@@ -1170,6 +1170,31 @@ export const layer: Layer.Layer<
             // `tool-calls` means the prompt loop will come straight back for another
             // step, so this is mid-turn and nothing here is a reachable revert target.
             const turnEnds = value.finishReason !== "tool-calls"
+            const feltWait = turn.timing?.requestMs
+            // THE PART IS WRITTEN FIRST and the commit is forked after it, because the fork's own
+            // cost is written back ONTO this part when it settles (below) — the fiber has to have
+            // the row it amends. The commit therefore starts a few milliseconds later than it
+            // used to; it is off the critical path either way, which is the point of it.
+            const stepFinish = yield* session.updatePart({
+              id: PartID.ascending(),
+              reason: value.finishReason,
+              // The turn's own baseline, committed once at its start. No commit
+              // chain runs here on any step, so a fifty-tool turn costs one
+              // snapshot rather than fifty decisions about whether to take one.
+              snapshot: turn.before ?? ctx.snapshot,
+              messageID: ctx.assistantMessage.id,
+              sessionID: ctx.assistantMessage.sessionID,
+              type: "step-finish",
+              // The felt wait, and ONLY that half of it: the commit has not been forked yet, so
+              // its cost is not knowable here. Both halves belong to the turn, so both live under
+              // its key — this part — instead of in a log that dies with the session (plan R2).
+              ...(feltWait === undefined ? {} : { timing: { requestMs: feltWait } }),
+              tokens: usage.tokens,
+              ...(cacheState && { cacheState }),
+              ...(usage.endpoint && { endpoint: usage.endpoint }),
+              cost: usage.cost,
+            })
+            yield* session.updateMessage(ctx.assistantMessage)
             if (turnEnds) {
               // This turn's work, committed while nobody waits — owner, 2026-09-29: «надо
               // делать fossil commit в конце хода… коммитить в бэкграунде». `forkDetach`
@@ -1180,27 +1205,42 @@ export const layer: Layer.Layer<
               //
               // Strict order still holds, one layer down: `snapshot/fossil.ts` serialises every
               // fossil call on a per-repo semaphore of one permit.
+              //
+              // What the commit COST, and what it produced, goes back onto the part above: the
+              // only place either can be written is here, because the value exists only once the
+              // commit has settled. `commitMs` counts the wait behind a sibling commit too — that
+              // wait is part of what the trajectory costs — and `commitHash` is its result, so a
+              // commit that failed or was aborted reads as an ABSENT hash rather than as nothing.
+              const startedAt = Date.now()
               yield* snapshot.track(undefined).pipe(
                 Effect.catch(() => Effect.succeed(undefined as string | undefined)),
+                Effect.flatMap((hash) =>
+                  session
+                    .updatePart({
+                      ...stepFinish,
+                      timing: {
+                        ...stepFinish.timing,
+                        commitMs: Date.now() - startedAt,
+                        ...(hash === undefined ? {} : { commitHash: hash }),
+                      },
+                    })
+                    // A detached fiber has no caller to reach: this failure is logged here or it
+                    // is nowhere, and this write is the turn's only record of what the commit did.
+                    .pipe(
+                      Effect.catchCause((cause) =>
+                        Effect.sync(() =>
+                          log.warn("bug: commit timing not recorded", {
+                            sessionID: ctx.sessionID,
+                            messageID: stepFinish.messageID,
+                            error: Cause.squash(cause),
+                          }),
+                        ),
+                      ),
+                    ),
+                ),
                 Effect.forkDetach,
               )
             }
-            yield* session.updatePart({
-              id: PartID.ascending(),
-              reason: value.finishReason,
-              // The turn's own baseline, committed once at its start. No commit
-              // chain runs here on any step, so a fifty-tool turn costs one
-              // snapshot rather than fifty decisions about whether to take one.
-              snapshot: turn.before ?? ctx.snapshot,
-              messageID: ctx.assistantMessage.id,
-              sessionID: ctx.assistantMessage.sessionID,
-              type: "step-finish",
-              tokens: usage.tokens,
-              ...(cacheState && { cacheState }),
-              ...(usage.endpoint && { endpoint: usage.endpoint }),
-              cost: usage.cost,
-            })
-            yield* session.updateMessage(ctx.assistantMessage)
             // Accumulate session-level token/cost totals and publish the fresh
             // cumulative to the TUI (session.updated patch) — without the
             // publish the sidebar stayed $0.00 for the whole session.

@@ -65,14 +65,35 @@ kept for continuity; the "slot" it promises turned out to be **unnecessary** —
       same two files plus `session-undo-fossil.test.ts` for the revert target (`20260930T034116Z_f7eda6f5`);
       `bun typecheck` → **exit 0** (`20260930T034216Z_3e9493ff`). Behaviour is unchanged by construction —
       the removed join never ran — so an identical-predicate before/after is the evidence, not a new test.
-- [ ] **R2 — the timing is STATE, keyed by the turn.** `requestMs` lives in a session-scoped log and dies
-      with the session, which is why this plan could not be re-grounded from its own instrument; the commit's
-      own cost is not measured at all any more (the metric was deleted with the dead branch, R1). Both belong
-      where their key lives — the turn's own message — so a distribution over the last N turns is a DB read
-      instead of a log hunt. Acceptance: after a source-run of two or more turns, the per-turn prepare window
-      AND the commit's duration are read back from the store, with the log line secondary. Oracle: the
-      source-run runner (`experiments/2026-09-29_source-run/`), whose 2026-09-29 numbers are also the open
-      question above.
+- [x] ✓ **R2 — the timing is STATE, keyed by the turn.** DONE 2026-09-30. The felt wait and what the
+      snapshot commit costs are now FIELDS OF THE TURN rather than a line in a log that dies with the session:
+      the `step-finish` part of the turn's own assistant message carries
+      `timing: { requestMs?, commitMs?, commitHash? }` (`session/message-v2.ts`, `StepFinishPart`), so a
+      distribution over the last N turns is a SELECT and not a log hunt.
+      **Two halves, written at different times — which is the whole shape of this box.** `requestMs` is known
+      when the part is created, so it rides the part. `commitMs`/`commitHash` CANNOT be: the commit is forked
+      at the turn's close and nothing joins it, so those values exist only once that fiber has settled. The
+      part is therefore written BEFORE the fork and the fiber writes BACK onto it (`session/processor.ts`).
+      `commitMs` counts a wait behind a sibling commit as well — that wait is part of what the trajectory
+      costs — and `commitHash` is the commit's address, recorded because its ABSENCE is what a failed or
+      aborted commit looks like in state, instead of a failure swallowed by the `Effect.catch` that used to
+      end that effect with nothing.
+      Oracles: `bun test test/session/turn-timing.test.ts` — a REAL turn driven through the real processor
+      against a stub LLM (`provideTmpdirServer` + `TestLLMServer`), then the part read back from SQLite, never
+      from the object the writer handed us. RED before the writer (`20260930T034925Z_bdcd40af`: fails exactly
+      on `typeof timing.requestMs === "number"` while `expect(ended).toBeDefined()` already passes — so the
+      instrument fails on the missing behaviour, not on a broken harness) and GREEN after it
+      (`20260930T034957Z_2b1f94d8`: 1 pass / 0 fail, 4 expect, both halves, hash 40-hex). Regressions on the
+      proportional surface: **19 pass / 0 fail** over `processor-effect` + `snapshot-tool-race` +
+      `snapshot-granularity` + `turn-timing` (`20260930T035033Z_187d6d85`); `bun typecheck` → **exit 0**
+      (`20260930T035139Z_7cde9bdc`). Live-store baseline: of 5394 `step-finish` parts in the real database,
+      **0** carry a timing — the running build predates this change, so the field appears only after a rebuild
+      (`bin/` untouched, by the standing prohibition).
+      **The acceptance moved from the source-run to this turn-driver, and the reason is measured rather than
+      preferred** — see R4: the runner named here produced NO VERDICT at all. A two-turn source-run could not
+      have shown the second half either, and that is worth stating plainly: the CLI process exits at the end
+      of the turn, so the detached commit's write-back races the shutdown. That is the owner's CLOSE-RECOVERY
+      point, not a property of this box.
 - [ ] **R3 — the order the plan now RELIES ON is itself untested.** R1 points at the per-repo semaphore as
       the reason no commit can interleave, and that claim currently rests on READING the code: no test in
       `packages/opencode/test` exercises it (checked 2026-09-30 — the only nearby tests are the full-stack
@@ -83,12 +104,27 @@ kept for continuity; the "slot" it promises turned out to be **unnecessary** —
       the counter never exceeds one. Acceptance: the counter is observable, and a deliberately removed
       `locked(...)` makes the test red.
 
+- [ ] **R4 — the source-run oracle yields no verdict, and must be requalified before it is named again.**
+      Measured 2026-09-30: `experiments/2026-09-29_source-run/run2.cmd`, the runner R2 originally named as its
+      oracle, exits **0 after 8 s** (`20260930T035215Z_19960e3e`) with a log of **181 bytes** holding only its
+      startup banner — not even the script's own `echo ---EXIT=%ERRORLEVEL%---` line — and NOTHING is written
+      anywhere: no new session and no new part in the real store (the newest foreign `step-finish` is ~16 h
+      older than the run), and no store under the stand directory either before or after it. So the run
+      performed no turn. Whether the process failed or the ConPTY log dropped its output is NOT measured, and
+      both readings fit what is visible. Acceptance: the runner produces a verdict at all — the smallest next
+      step is to capture its output OUTSIDE the ConPTY rendering (`> file 2>&1` inside the .cmd) so the exit
+      reason becomes readable, and only then re-attempt the two-turn drive. Until that lands, this plan does
+      not name it as an oracle.
+
 ## Smoke Tests
 
 - R1 (done): before/after on the same predicate — the snapshot suites above, 5/0 → 16/0, plus typecheck
   exit 0. The prediction was that behaviour would NOT change (the join never ran); it did not.
-- R2: a two-turn source-run, then the per-turn prepare window and the commit's duration read back from the
-  DB with no log in the loop.
+- R2 (done): a real turn driven in-process, then BOTH halves read back from the store — `requestMs` with the
+  part, `commitMs`/`commitHash` from the detached fiber's write-back, polled to a deadline. Predicted RED on
+  the first half before the writer and GREEN after; it was both. (The source-run first named here is broken —
+  R4 — and could not have shown the second half in any case: the CLI exits at the turn's end.)
+- R4: the runner's own output captured outside the ConPTY rendering, and a verdict in it.
 - R3: the in-flight counter reads 1 while several `track()` calls are started together — and the test goes
   red when `locked(...)` is removed from that call path.
 

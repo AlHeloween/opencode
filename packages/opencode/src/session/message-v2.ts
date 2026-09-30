@@ -350,6 +350,31 @@ export const StepFinishPart = Schema.Struct({
   cost: Schema.Number,
   /** Serving upstream endpoint (OpenRouter usage accounting, 2026-09-06) — e.g. "chutes". */
   endpoint: Schema.optional(Schema.String),
+  /**
+   * THE TURN'S OWN TIMINGS, held under the turn's own key (plan `2026-09-30_turn-commit-slot` R2).
+   *
+   * They lived in a `slog.info("turn.prepare", …)` line in a session-scoped log until
+   * 2026-09-30, and that cost a re-grounding: a turn's numbers were gone by the next day even
+   * though the datum has a key — the turn's assistant message, which this part already belongs
+   * to — and a keyed datum is STATE (AGENTS § Debugging Paradigm: a log records only what state
+   * cannot show).
+   *
+   * `requestMs` runs from the turn's first assistant message to the provider request: the felt
+   * wait. `commitMs` is the snapshot commit forked at the turn's close, measured until it
+   * SETTLED — a wait behind a sibling commit counts, because that is part of what the trajectory
+   * costs. `commitHash` is that commit's result, written on the same pass, so a commit that
+   * failed or was aborted stays visible as an absent hash instead of being swallowed.
+   *
+   * Both halves ride the step that ENDS the turn — the fork only happens there — so a mid-turn
+   * `step-finish` carries no timing at all.
+   */
+  timing: Schema.optional(
+    Schema.Struct({
+      requestMs: Schema.optional(Schema.Number),
+      commitMs: Schema.optional(Schema.Number),
+      commitHash: Schema.optional(Schema.String),
+    }),
+  ),
   tokens: Schema.Struct({
     total: Schema.optional(Schema.Number),
     input: Schema.Number,

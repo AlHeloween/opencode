@@ -842,6 +842,13 @@ export function tailNote(input: {
    *  nothing to look up. `{ manifest: null }` = the task about to be worked on has no manifest yet,
    *  which is exactly the state the SVM store exists to end. */
   svm?: { plan: string; task: string; manifest: { dominant: string; etaTurns: number; state: string } | null } | null
+  /** The debt READ AGAINST THE MAP (owner, 2026-09-30: «проверять — есть в мастер плане или нету, и
+   *  ненавязчиво спрашивать, как непроставленные галки соотносятся с мастер планом, и требовать
+   *  сопоставления с исходниками»). This is the ASK, not a verdict: un-ticked boxes exist, and the note
+   *  names the question rather than the answer, because the answer is in the plan files and the code.
+   *  It is also the pressure the owner named: a plan left open keeps asking until it is mapped or
+   *  finished. */
+  map?: { openBoxes: number; plans: number; notNamed: readonly string[] } | null
 }): string {
   const lines: string[] = []
   // A summary's gap list names NINE sections, so one unpaid row is already ~340 characters. The
@@ -933,6 +940,26 @@ export function tailNote(input: {
         ? `svm: ${plan} ${task} — ${manifest.dominant} · eta ${manifest.etaTurns} turn(s) · ${manifest.state}`
         : `svm: MISSING for ${plan} ${task} — nobody has written down what it is; write it (svm set) so the next agent works in the right key`,
     )
+  }
+  // THE MAP'S QUESTION (owner, 2026-09-30). The master plan is a ROUTER, not a copy: nothing about a plan
+  // is retyped there, so the only thing this line can honestly do is ask whether the debt is accounted for
+  // — and point at where the answer lives. It is phrased as a question on purpose: a command would be
+  // satisfied by editing this line's own output, while a question is only satisfied by the SOURCES (the plan
+  // file, the code). Printed even at zero, like every other measure here. The second half of the owner's
+  // intent rides on the same line: a plan left open keeps being asked about, which is exactly what makes
+  // leaving one open less attractive than finishing it.
+  if (input.map) {
+    const { openBoxes, plans, notNamed } = input.map
+    const base =
+      openBoxes === 0
+        ? `map: no un-ticked box — plans/MASTER_PLAN.md needs no reconciliation today`
+        : `map: ${openBoxes} un-ticked box(es) across ${plans} plan(s) — is each one accounted for in plans/MASTER_PLAN.md, and does it still match the plan file it came from?`
+    lines.push(base)
+    if (notNamed.length) {
+      lines.push(
+        `map: ${notNamed.length} plan(s) under plans/ are NOT in plans/MASTER_PLAN.md — map them or finish them; an unmapped plan is one nobody picks up: ${notNamed.join(", ")}`,
+      )
+    }
   }
   // THE COUPLING WATCHER's line (owner, 2026-09-22). The count is printed even when it is zero and
   // even when nothing was found: a check whose silence cannot be told from its absence is not a check.

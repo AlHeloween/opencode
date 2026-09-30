@@ -32,7 +32,7 @@ import { Jobs } from "../jobs"
 import { RequestDiff } from "./request-diff"
 import { Checkpoint, type CheckpointData } from "./checkpoint"
 import { IncrementalCheckpoint } from "./incremental-checkpoint"
-import { collectPlanState, criticalRisks, planDebt, planFiles } from "@/util/plan-status"
+import { collectPlanState, criticalRisks, masterPlanCoverage, planDebt, planFiles } from "@/util/plan-status"
 import { couplingFindings, parsePlanMap } from "@/memory/spine"
 import { readMemory } from "@/tool/memory"
 import { Bus } from "../bus"
@@ -2021,6 +2021,9 @@ export const layer = Layer.effect(
                   // `SessionPrompt` (the trade `tool/memory.ts` names). It resolves the file through the
                   // store's OWN mapping, so the reader and the writer cannot disagree about the path.
                   const debt = collectPlanState(worktree)
+                  // Read ONCE and used twice (the total and the map question): two reads of the same
+                  // tree in one note would be two answers waiting to disagree.
+                  const totals = planDebt(worktree)
                   const next = SessionCompaction.owedTasks(debt)[0]
                   const svm =
                     next === undefined
@@ -2036,11 +2039,15 @@ export const layer = Layer.effect(
                     // THE CALL TO ACTION: what the protocol still OWES, read from the plan files. The
                     // user is not allowed to be the only thing that ever asks for an account of the work.
                     debt,
-                    debtTotal: planDebt(worktree),
+                    debtTotal: totals,
                     // THE DIRECTION AXIS: the manifest of the very task `owed:` names (plan S3), read
                     // above before the return. A task with no manifest is reported as MISSING there —
                     // never silently, because an absent line reads as "all good".
                     svm,
+                    // THE MAP'S QUESTION (owner, 2026-09-30): the debt, read against the map. The master
+                    // plan is a ROUTER — nothing about a plan is retyped there — so the note asks whether
+                    // the un-ticked boxes are accounted for and points at the sources for the answer.
+                    map: { openBoxes: totals.open, plans: totals.plans, notNamed: masterPlanCoverage(worktree).misses },
                     // @LOOP_MEASURE's third axis, from the SAME source as `owed`: the plan files. A
                     // separate home for risks would have to be kept in step by hand — the failure
                     // mode the storage canon names — and `## Risks` is already where containment and

@@ -243,6 +243,27 @@ describe("the pushed compaction note", () => {
     expect(absent).toContain("owed: 1 open plan task(s)")
   })
 
+  test("the map line ASKS about the un-ticked boxes instead of asserting, and names the unmapped plans", () => {
+    // Owner, 2026-09-30: «просто проверять, есть в мастер плане или нету, и ненавязчиво спрашивать, как
+    // непроставленные галки соотносятся с мастер планом, и требовать сопоставления с исходниками». The
+    // wording is the mechanism: a command is satisfied by editing the NOTE's own output, while a question can
+    // only be answered by the SOURCES — the plan file and the code — which is the comparison the owner wants.
+    const note = tailNote({
+      open: [],
+      window: null,
+      map: { openBoxes: 54, plans: 14, notNamed: ["plans/2026-09-29_bash-tool-single-execution-path.md"] },
+    })
+    expect(note).toContain("map: 54 un-ticked box(es) across 14 plan(s)")
+    expect(note).toContain("does it still match the plan file it came from?")
+    expect(note).toContain("plans/2026-09-29_bash-tool-single-execution-path.md")
+    // A CLEAN map still prints — silence would be indistinguishable from a check that never ran.
+    expect(tailNote({ open: [], window: null, map: { openBoxes: 0, plans: 15, notNamed: [] } })).toContain(
+      "map: no un-ticked box",
+    )
+    // A caller with no plan context hands in no map ⇒ the note keeps its old contract.
+    expect(tailNote({ open: [], window: null })).toBe("")
+  })
+
   test("the @CURRENT_SV census — the vector rides the TAIL, not the middle of the prefix", () => {
     // Measured 2026-09-22 from the gateway's assembled messages (`per-response/*.md`): the rule sits in
     // the middle of the static prefix and goes quiet as the window grows — obeyed at prompt 352 776

@@ -165,6 +165,23 @@ goal (level 0)
 direction and distance. Nothing here is written twice — if a number in this file disagrees with a plan
 file, the plan file wins and this file is regenerated.
 
+**How this file is produced until `svm render` exists, and what the renderer must satisfy when it lands.**
+Until S4 ships, this file is written BY HAND from the two sources it names — the plan files (what exists and
+what passed) and the SVM store (direction and distance) — and every entry that cannot be filled from them
+says so instead of being invented. The contract the renderer must meet is NOT a new one: it is
+`plans/2026-09-29_svm-tool-and-master-plan.md` → task **S4**, which carries its acceptance (two renders in a
+row byte-identical; **no rendered plan, task or link without its sv**). An agent that opens this file before
+that task is done reads S4 before regenerating anything by hand.
+
+**Measured 2026-09-30 on an outside reader** (no frame, no tools, no session — `aicall`,
+`space-bunny-free`, brief and reply in `experiments/2026-09-30_masterplan-gravity/`): given only the repo
+root listing and this file, it named this file third — «next as a **state router**, not as an implementation
+specification» — reproduced this file's own precedence rule («the plan file wins»), and named S4 as the next
+action **with its oracle** («run `svm render` twice … correct only if the snapshots are byte-identical and
+the renderer's assertion reports no missing SV»). Then it named the one thing missing: the handoff permitted
+«until that lands» without saying what would run it. The paragraph above is the answer to it — the check the
+owner asked for («any agent picks this up on autopilot») is the same check that finds the hole.
+
 ## Standing rules that outlive any plan
 
 - Instrument before claim: no `[x]` without a run id, a hash or a rehearsal log.

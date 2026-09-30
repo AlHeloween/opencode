@@ -5674,3 +5674,11 @@ A2 (…115923): only `check-update --no-cache` → api.github.com:443; all else 
 ERROR: with CUA_DRIVER_RS_UPDATE_CHECK=0 the explicit check still went online (env hides the banner only). A4
 (…120037, fresh HOME, telemetry pinned off): the MODEL-callable tool `check_for_update` reached GitHub despite the env;
 its result also hands the model `irm https://cua.ai… | iex`. Consequence: zero egress needs compile-out (SD), not env.
+
+## [2026-09-30] cua audit SC — provenance and hidden behaviour (read-only)
+Plan: `plans/2026-09-30_cua-supply-chain-audit.md` SC → [x]. `bin/cua/cua-driver.exe` = vendor release, signed «Cua AI,
+Inc.», built before our HEAD, unverifiable against source; `target/release` = our unsigned source build. 620 deps, all
+crates.io, no git/patch. build.rs: linker args only on Windows, vendor extension-review key embedded. Spawns: schtasks
+only for explicit autostart, iwr|iex only in updater, icacls only in tests, the rest read-only. Host: no autostart task,
+no Run key, no extension installed; ~\.cua-driver has a persistent telemetry id. No hidden behaviour beyond E1–E5;
+dormant capabilities to remove in the fork: vendor-signed extension hooks, autostart. Next: SD (needs owner's yes).

@@ -5541,3 +5541,14 @@ Run `20260930T014846Z` FAIL = HARNESS: the tree probe matched its own `-Marker` 
 Findings: `@playwright/test` is a catalog entry only (not installed at root); playwright-core 1.59.1 lives in bun's
 store; `webfetch`'s "Playwright" fallback is the Universal Search service on :3005, not in-process Playwright.
 Next: T1b (agent-facing route), S1/T2 (Windows cargo instrument).
+
+## [2026-09-30] cua S1/T2 — Windows cargo test instrument qualified (cmd_runner ConPTY), raw-pipe is all-or-nothing
+Plan: `plans/2026-09-29_cua-windows-debug-input.md` S1 → [x], T2 → [x].
+Run `20260930T020656Z_79fe8af1` (ConPTY): `cargo test -j 2 -p platform-windows --release click_capture_id_schema_tests
+--lib` exit 0, 1 passed / 200 filtered, compile 3m35s, whole output read.
+The failed 09-29 run was the only `raw-pipe` run of 413; raw buffers stdout+stderr until exit (fixture
+`20260930T020539Z_02adba30`), so its `bytes_written:0` + `exit_code:null` is a lost buffer, not a test verdict.
+Refuted on fixtures: tick 0 alone does not false-finish; a status-poll race at exit (3/3 clean). The 09-29 supervisor
+loss at 3m34s stays Unknown. Side: PATH `C:\WINDOWS\cmd_runner.exe` logs into `C:\WINDOWS\logs\cmd_runner\` (six
+qualification runs of today sit there); `state.json` `bytes_written` lags the live log under ConPTY.
+Memory: reference_cmd_runner_raw_buffers.md. Next: B2 (drag schema red test) is now runnable; T3 waits on O1.

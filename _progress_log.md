@@ -5530,3 +5530,14 @@ Evidence: host CIM — HypervisorPresent False, VirtualizationFirmwareEnabled Tr
 Read-back: `parsePlanFiles` parses intention + goal_sv, every open box carries an sv tag (25 tasks), `masterPlanCoverage`
 misses [] . Parser finding: an sv tag is read only on a box with a bold ID (`**X1 …:**`) — untagged-ID boxes lose it.
 Next: T1 (B-web) and S1/T2 (instrument requalification) need nothing from the owner; T3 waits on O1, T5/T6 on O2.
+
+## [2026-09-30] cua T1 B-web tier PASS — headless Chromium over CDP leaves the owner's desktop untouched
+Plan: `plans/2026-09-29_cua-windows-debug-input.md` T1 → [x]. Instrument: `experiments/2026-09-30_cua-b-web-tier/`
+(untracked; kept for T3 — `win_probe.ps1` is reused for the four-state fixture; archive at T7).
+Run `20260930T014912Z` PASS 8/8, predicted: temp profile + headless; 0 visible windows in the browser tree (probe
+qualified on explorer.exe = 15 visible); 35 foreground samples, none ours; DOM/console/network readback; raw-CDP
+screenshot sha256 07119a37…612a viewed; 9222 toolchain Chrome identical before/after.
+Run `20260930T014846Z` FAIL = HARNESS: the tree probe matched its own `-Marker` command line; fixed by `$PID`.
+Findings: `@playwright/test` is a catalog entry only (not installed at root); playwright-core 1.59.1 lives in bun's
+store; `webfetch`'s "Playwright" fallback is the Universal Search service on :3005, not in-process Playwright.
+Next: T1b (agent-facing route), S1/T2 (Windows cargo instrument).

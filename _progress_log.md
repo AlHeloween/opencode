@@ -5863,3 +5863,11 @@ Standing egress: chrome → Google :5228 (FCM) despite --disable-background-netw
 Instrument defect found by its own control (comma list passed as one name → blind) and guarded in the sampler.
 Provenance: only crw/garnet hash-pinned; get-pip.py and choco install.ps1 download-and-execute; Chromium unsigned,
 source unknown.
+
+## [2026-10-01] boundary before compact — docs + memory handoff for the cua / installer / audit session
+docs: `docs/tools-and-sidecars.md` §7.1.1 (offline driver, cua-robot pack, tiers, VMware cycle, uploads by bytes).
+memory: `project_cua_windows_debug_input.md` — plan states, owner-pending actions (hardening `-Apply`, O1 virtual
+display, O2 VMware guest), rebuild-before-ship note for the embedded pack. Open question recorded without an answer:
+the owner says JView's memory mapping will not work in the VMware route; facts: named CreateFileMapping in
+`CommonFiles/RSCommonPackage/RTRWMapUnit.pas:176,280` and `CommonFiles/RSPack.MapUnit.pas:173,277`, data files
+≤ ~58 MB — the failure reason is still to be asked, not assumed. B2 red test remains uncommitted in `external/cua`.

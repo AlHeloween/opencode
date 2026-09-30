@@ -428,6 +428,26 @@ Windows cannot guarantee that constraint, the driver returns
 `background_unavailable`; it must not be retried via a foreground launch without
 the user's explicit approval.
 
+### 7.1.1 Robot distribution: offline driver, own skill pack, isolation tiers (2026-09-30)
+
+- **Offline driver build** (`external/cua` `local_development`, `f56a57e`+): `cargo build --release -p cua-driver
+  --no-default-features --features offline`. No HTTP client in the binary; telemetry, update check,
+  `check_for_update`, `install_extension`, `install_ffmpeg`, self-update and autostart refuse. Measured zero egress
+  (`plans/2026-09-30_cua-supply-chain-audit.md` SB/SD). The vendor release in `bin/cua/` is signed, has telemetry on
+  by default and a download-and-execute updater — not what the robot ships.
+- **Skill pack `Skills/cua-robot/`** (`bddae9c`…`d5522be`): gated GUI cycle (predict → bound action → independent
+  readback), 16 shared rules, status-marked Windows facts, tiers, runtime, data-entry oracles; embedded by the offline
+  build under the same `skill://cua-driver/` URIs; `skill-index` of `src/tool/cua.ts` lists it.
+- **Tiers** (`Skills/cua-robot/TIERS.md`): mode A on the primary monitor; B-web = a per-task Chromium over CDP
+  (proven, `experiments/2026-09-30_cua-b-web-tier`); B-native-bg = virtual (IDD) monitor; B-native-input = VMware
+  guest. Hyper-V and everything that turns on the hypervisor are excluded (VMware breaks).
+- **VMware guest cycle**: `vmrun revertToSnapshot/start/stop` need no guest credentials; guest OS commands
+  (`captureScreen`, `runProgramInGuest`, file copy) do and are not used. Inside the guest: SSH with key auth only; the
+  driver runs as a logon task of an auto-logged-on user (never a service — Session 0 has no desktop); GUI apps are
+  started by the driver itself.
+- **Uploads through a CDP browser**: pass bytes (`setInputFiles` with a buffer), not a path — the browser then reads
+  no disk (`experiments/2026-09-30_upload-over-cdp`).
+
 ### 7.2 Visible Chrome debug workflow
 
 Universal search owns an existing local Chrome debugging target at

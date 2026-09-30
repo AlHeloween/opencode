@@ -57,13 +57,22 @@ constraints:
   indistinguishable from a fresh one, and the read-before-edit that makes a change reviewable never
   happens. Measured the same day, which is where the rule comes from: a 75-line `cut.py` removed ~400
   lines of dead sidecar machinery by anchor and saved nothing — the seam still had to be re-read by
-  hand afterwards, while the edit itself had been withheld from review in the meantime. Scripts stay
+  hand afterwards, while the edit itself had been withheld from review in the meantime. The second
+  precedent, and the one that shows what «unverifiable» costs: an agent wrote Python scripts to rewrite
+  source — no syntax check before the write, no backup — corrupted the files and recovered by rolling
+  back from git, which returns the WHOLE file to the last commit and takes every uncommitted change in it
+  along (owner, 2026-09-29). Scripts stay
   for READING and MEASURING (a probe over the DB, a log analysis) — never for writing source.
   **ADM update descriptors are NOT scripts in this sense** (owner, 2026-09-29, verbatim: «запрещает
   редактирование исходников прямыми unverifable скриптами, adm — это другое»). An `updates/*.xml`
   descriptor (`D:\zPython\ADID_Python\updates\` is the corpus; `src/adm/` the engine) answers each
   objection above by construction: every payload is an `<update_md5_…>` block carrying its own md5 and
-  size, so a stale or altered payload is DETECTED rather than trusted; a `replace` names its exact anchor
+  size, so a stale or altered payload is DETECTED rather than trusted. The md5 IS the tag name
+  (`<update_md5_<hash>>…<content_md5_<hash>>…</content_md5_<hash>>`), and the parser locates the payload by
+  those raw open/close tokens, never by XML escaping (`src/adm/manager_methods/_stream_md5_wrapped_updates.py:113`) —
+  so the document is self-integrity-checking, anything can sit between the tags (owner: even raw binary,
+  not hex), and an unclosed block, a duplicate content block or content outside an update fails loudly
+  (same file, lines 44/64/67/76); a `replace` names its exact anchor
   in `<find_text>`, so a moved anchor fails instead of landing elsewhere; `<semantics>` states the intent
   in the descriptor itself; `adm --apply` writes atomically with a baseline snapshot, rotating backups, a
   rollback block and a ledger entry, and `adm --rollback <file>` restores and RE-VERIFIES; the edit is

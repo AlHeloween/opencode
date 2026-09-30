@@ -72,4 +72,10 @@ logged «cua-driver v0.30.4 is available» three times (runs of `experiments/202
   - ✗ instrument, run `US_idle_20260930T185518` / `US_ctl_20260930T185705` VOID: `pwsh -File` passed the comma list of names as ONE string, the sampler watched nothing and reported 0; the control (fetch 200, 0 seen) exposed it; the sampler now splits commas itself (KAIZEN guard).
   - ✓ code — external APIs in the service: Sourcegraph GraphQL (`src/config.rs:159`), OpenRouter `/api/v1/messages` for the `/agent` route (`src/service.rs:902-903`, key `None` by default → inert without a key); `bootstrap.rs` only prints download hints; `rclone.exe` ships in `tools/` but no tracked source references it.
   - ✓ code — provenance (`build_portable.ps1`): hash-pinned `crw-server` and `garnet` (`:104-147`); version-pinned without hash: Node, NSSM; **download-and-execute unpinned: `get-pip.py`**, Chocolatey's `install.ps1` (`dist/install_choco.bat:25`); git clones of SearXNG and websurfx; **bundled Chromium 152.0.7977.42 is unsigned and its source is not in the build script — provenance Unknown**.
+  - Remedy prepared, NOT applied (a service-account change is the owner's system change):
+    `experiments/2026-09-30_universal-search-hardening/harden_services.ps1` — dry run by default, `-Apply` (backup →
+    per-service `NT SERVICE\<name>` virtual accounts, RX on `dist\`, Modify only on each data/log folder → verify),
+    `-Rollback`, `-Verify`. Dry run and `-Verify` executed 2026-09-30: all six services `LocalSystem`, listeners
+    loopback, `/health` 200, `/web/browser` 200. Residual even after `-Apply`: CDP stays unauthenticated (rights drop
+    from SYSTEM to the virtual account); closing it needs `--remote-debugging-pipe` in Universal Search's code.
   - Open for stage 2: SearXNG engine egress per query, Chromium's full idle set (safebrowsing, component updater) over a longer window, websurfx/garnet/crw behaviour, and the redistribution question (bot-wall bypass) — a legal decision, not a measurement.

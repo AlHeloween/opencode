@@ -5,6 +5,19 @@ description: Make an isolated model call with NO system prompt, NO tools and NO 
 
 # aicall — the outside falsifier
 
+## Which route — read this BEFORE the rest
+
+Two callers, two instruments. Choosing the wrong one is a measurement artifact, not a fallback.
+
+| You are | Use | Why |
+|---|---|---|
+| **inside OpenCode** — the `aicall` tool is in your catalog | the **`aicall` tool** | same envelope, same free-first resolution, no python, no key handling: it is the first-class route |
+| outside it — Claude Code, a bare shell, a colleague's script | **`tools/aicall.py`** | the tool is not reachable there. This is the Python port, and **everything below is written for THIS route** |
+
+Measured 2026-09-30: this skill is served to BOTH audiences, and a reader inside OpenCode took the Python
+line as its own route. The Python port is not wrong — it is for the other side of the wall. Owner, verbatim:
+«Никакой не питон, питон это для клауда у нас тул с ts/».
+
 `tools/aicall.py` is the owner's Python port of OpenCode's own `aicall` tool (`src/tool/aicall.ts`):
 one user message, one answer, a printed call envelope, standard library only. Endpoint, env var and model
 list are read from the project's catalog (`packages/opencode/src/provider/models/opencode.json`), never

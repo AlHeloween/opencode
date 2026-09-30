@@ -5589,6 +5589,15 @@ Learned: this check's real failure mode is the OPPOSITE of silence — crying wo
 what turns an alerter into noise (the coupling watcher's own first live finding was its own reader bug). The
 suite's fixtures cannot show that, which is why the live measurement ran against the REAL store.
 
+## [2026-09-30] The plan reader no longer drops what the author wrote — closed with a MEASURED red first
+
+Plan: `plans/2026-09-30_plan-parser-silent-sv-loss.md` → COMPLETE, moved to `plans_completed/`. Two silent defects in the box parser, both fixed in `packages/opencode/src/util/plan-status.ts`, both re-grounded before the fix instead of trusted as reported.
+The red came FIRST: `test/util/plan-status.test.ts` gained five cases and ran **19 pass / 4 fail** (`20260930T084553Z_d3145fa7`) — failures on the assertions, not on the harness: `Received: "TASK"` where the author wrote `TASK-6`, `Received: "S"` for `S-A`, and `sv: []` on a box whose `<!-- sv: … -->` was written. The `19/4` split was predicted before the run, and it held.
+After the fix: **25 pass / 0 fail** across the two plan-status suites (`20260930T084644Z_bd8c7945`), **9 pass / 0 fail** for the renderer's own suite (`20260930T084654Z_2bdea610`), `bun typecheck` **exit 0** (`20260930T084704Z_191b60b6`).
+Finding 3 was REFUTED as reported: `svm.ts:389-413` already gives the map one writer per zone — a hand-owned head, a rendered body — so there was no two-writer race to repair, only a silent removal to measure. Measured: a hand line inserted into the body is gone after a render, `git status` is clean against HEAD, and two consecutive renders both produce 26188 bytes.
+Why these lasted: both were LATENT on the live tree — the only structured box with a hyphenated id is `[x]`, and no unstructured box in `plans/` carries a tag — and the two incidents the finding names were handled by RE-FORMATTING THE PLANS to fit the reader. The author adapted to the tool's blind spot; now the reader accepts both shapes, and an id is read or reported, never silently replaced.
+Residual, named: the render removes a hand line in the body SILENTLY rather than naming it. No consumer expects otherwise, so it is a refinement rather than a defect — recorded here, not filed as work.
+
 ## [2026-09-30] A full build was broken TWICE, and neither was weather — the binary is built
 
 Asked for a rebuild; `python build.py` (all steps) could not produce one, and the reasons were two real defects in the builder plus one toolchain blocker — each measured, none guessed. Commit `f4c65b0367`.

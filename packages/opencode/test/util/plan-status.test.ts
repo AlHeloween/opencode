@@ -53,6 +53,54 @@ describe("util.plan-status intention", () => {
 })
 
 /**
+ * P1/P2 of `plans/2026-09-30_plan-parser-silent-sv-loss.md` — a tag the author wrote is READ, and an id
+ * the author wrote SURVIVES.
+ *
+ * Both defects were SILENT, which is why they lasted. A box with no bold id was handed
+ * `parseTaskTags("")`, so its `<!-- sv: … -->` was never looked at — that is how a `svm set` can be
+ * written and never found again. And an id containing a hyphen was cut at the hyphen (`TASK-6` -> `TASK`),
+ * so every `TASK-N` box in one plan collapsed onto a single name and two boxes could claim one identity.
+ * The positional fallback hides the second one: it prints `TASK-6` for the SIXTH box whatever the author
+ * wrote, which reads correct until the order moves.
+ */
+describe("util.plan-status box parsing", () => {
+  const tasksOf = (boxes: string) =>
+    collectPlanState(worktreeWith(`# probe\n\n## Work\n\n${boxes}\n`)).plans[0]!.tasks
+
+  test("a tag on a box with no bold id is read, not dropped", () => {
+    const [task] = tasksOf("- [ ] plain box, no id at all <!-- sv: alpha, beta -->")
+    expect(task!.sv).toEqual(["alpha", "beta"])
+  })
+
+  test("the same box's bookkeeping fields are read too", () => {
+    const [task] = tasksOf(
+      "- [ ] plain <!-- sv: alpha | done_pct: 40 | attempts: 2 | last_failure: it broke here -->",
+    )
+    expect(task!.sv).toEqual(["alpha"])
+    expect(task!.done_pct).toBe(40)
+    expect(task!.attempts).toBe(2)
+    expect(task!.last_failure).toBe("it broke here")
+  })
+
+  test("an id containing a hyphen survives the reader", () => {
+    const [task] = tasksOf("- [ ] **S-A static inventory:** six boxes collapsed to one id")
+    expect(task!.id).toBe("S-A")
+  })
+
+  test("a hyphenated id and its title separate at the first space", () => {
+    const [task] = tasksOf("- [ ] **TASK-6 (a) agent glyph and (b) protocol glyph — still open.**")
+    expect(task!.id).toBe("TASK-6")
+    expect(task!.title).toBe("(a) agent glyph and (b) protocol glyph — still open.")
+  })
+
+  test("an em-dash separator still separates id from title", () => {
+    const [task] = tasksOf("- [ ] **R2 — the timing is STATE, keyed by the turn.**")
+    expect(task!.id).toBe("R2")
+    expect(task!.title).toBe("the timing is STATE, keyed by the turn.")
+  })
+})
+
+/**
  * ONE PREDICATE, ONE AXIS — the split that made the orchestrator usable.
  *
  * `isPlanHygieneClean` answers two questions at once: is there open work (`active`) and is every file in

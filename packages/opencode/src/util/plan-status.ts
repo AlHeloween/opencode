@@ -249,19 +249,33 @@ export function parsePlanFiles(worktree: string): PlanStatePlan[] {
       const bold = rest.match(/^\*\*([^*]+)\*\*(.*)$/)
       const structured = bold != null
       const header = bold?.[1] ?? rest
-      const after = bold?.[2] ?? ""
       // An id is either NAMED by the author (`**T7** — …`) or POSITIONAL. It used to fall back to a
       // 12-character slice of the header, which is how the block came to read `Карта «план [PENDING]`
       // and `` `@LOOP_MEASU [PENDING] `` — a truncated fragment wearing the shape of an identifier
       // (seen by the owner, 2026-09-22). A fabricated id is worse than no id: the positional one is
       // honest about being positional, and the TITLE carries the meaning in both cases.
-      const id = structured
-        ? header.match(/^([A-Za-z0-9_]+)/)?.[1] ?? `TASK-${tasks.length + 1}`
-        : `TASK-${tasks.length + 1}`
+      //
+      // A NAMED id may contain a hyphen — `TASK-6`, `S-A` — and until 2026-09-30 the class stopped at
+      // it, so `**TASK-6 …**` was read as `TASK` and EVERY `TASK-N` box in a plan collapsed onto one
+      // name: invisible in the map, because two colliding boxes render as two identical ids, and fatal
+      // to a manifest, whose key is the id and would never resolve. The id is a leading run that STARTS
+      // alphanumeric (`[A-Za-z0-9][A-Za-z0-9_-]*`), and the title is what follows it once the separator
+      // — whitespace, an em/en dash, or a run of them — is stripped: `R2 — x`, `S-A x` and `TASK-6 x`
+      // all separate at the same place, which the old `\s*[—-]\s*` could not do for a space-only header.
+      const named = structured ? header.match(/^([A-Za-z0-9][A-Za-z0-9_-]*)/)?.[1] : undefined
+      const id = named ?? `TASK-${tasks.length + 1}`
       const title = structured
-        ? header.replace(/^[A-Za-z0-9_]+\s*[—-]\s*/, "").trim()
+        ? header
+            .replace(/^[A-Za-z0-9][A-Za-z0-9_-]*/, "")
+            .replace(/^[\s—–-]+/, "")
+            .trim()
         : rest
-      const tags = parseTaskTags(structured ? after : "")
+      // The tag comment is searched ANYWHERE on the box's line. It used to be read from the text after
+      // the bold header only, and a box with no bold id was handed `""` — so its
+      // `<!-- sv: … | done_pct | attempts | last_failure -->` was never looked at and nothing said so
+      // (measured 2026-09-30: two boxes carrying tags parsed `sv=[]`). Silence is the defect: a tag the
+      // author wrote is either READ or reported, never dropped.
+      const tags = parseTaskTags(rest)
       tasks.push({
         id,
         title,

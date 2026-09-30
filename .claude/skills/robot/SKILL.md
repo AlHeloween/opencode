@@ -1,6 +1,6 @@
 ---
 name: robot
-description: Dispatch a bounded plan task to the opencode robot (`dist\bin\opencode.exe run`, headless) so Claude only frames and verifies — the robot carries the execution tail, Claude's window stays small and the cycle count drops. Use when a plan task has a concrete binding (paths, oracle) and needs no owner decision mid-run. Claude writes the brief, launches, reads back the final message + git diff, and runs the oracle ITSELF. Never bin/, never --dangerously-skip-permissions, free models first.
+description: Dispatch a bounded plan task to the opencode robot (`dist\bin\opencode.exe run`, headless) so Claude only frames and verifies — the robot carries the execution tail, Claude's window stays small and the cycle count drops. Use when a plan task has a concrete binding (paths, oracle) and needs no owner decision mid-run. Claude writes the brief, launches, reads back the final message + git diff, and runs the oracle ITSELF. Never bin/, never --dangerously-skip-permissions; real work on the funded pair (GLM-5.3-Flash-BF16 on HF, DeepSeek V4.1 Flash), free models only for plumbing.
 ---
 
 # robot — delegate execution, keep the verdict

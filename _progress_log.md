@@ -5666,3 +5666,11 @@ New plan `plans/2026-09-30_plan-parser-silent-sv-loss.md` (OPEN, for the robot /
 code): `plan-status.ts:264` drops tags on boxes without a bold ID silently; `:259` truncates hyphenated IDs (`S-A`→`S`);
 `MASTER_PLAN.md` has two writers. Not hand-added to the map: the renderer already replaced my earlier hand lines with
 its own entries, so the new plan waits for the next render — single writer by practice until P3 makes it structural.
+
+## [2026-09-30] cua audit SB — dynamic egress measured; the update opt-out is a banner switch, not a network switch
+Plan: `plans/2026-09-30_cua-supply-chain-audit.md` A1–A4, SB → [x]. Instrument `experiments/2026-09-30_cua-egress/`:
+v1 sampler was blind (missed a 665 ms curl, run A1_…115622) → native GetExtendedTcpTable v2 caught 3/3 (A1b_…115705).
+A2 (…115923): only `check-update --no-cache` → api.github.com:443; all else 0; PostHog 0. A3 (…115946) FORECAST
+ERROR: with CUA_DRIVER_RS_UPDATE_CHECK=0 the explicit check still went online (env hides the banner only). A4
+(…120037, fresh HOME, telemetry pinned off): the MODEL-callable tool `check_for_update` reached GitHub despite the env;
+its result also hands the model `irm https://cua.ai… | iex`. Consequence: zero egress needs compile-out (SD), not env.

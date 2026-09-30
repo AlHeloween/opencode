@@ -45,6 +45,9 @@
   admissible outcomes only: the procedure to standard, or an explicit stop signal through the agreed channel;
   hiding, silence or disappearing is a FAIL whatever the reason — for a human MCP exactly as for a tool that
   hides its own failure.
+  Qualification goes STALE like a tool's: on a new site class, a new role, an incident, or the refresher
+  interval — re-qualified before the next dispatch, never carried over («нефтянка — не дорога, там всё
+  должно быть выверено и риски намного выше», owner, 2026-09-30).
 - **Every number in the owner report is an address.** «Invoiced RM X» expands to invoice numbers, «cash RM Y»
   to statement lines; «the numbers agree» is a reconciliation run by an oracle.
 - **Owner report** (weekly): what came in, what was produced, what turned into money — tenders submitted/won,

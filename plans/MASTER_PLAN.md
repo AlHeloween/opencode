@@ -103,10 +103,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 177 |
-| plans active | 14 |
-| tasks passed / total | 615 / 829 |
-| open boxes | 67 |
+| plans completed | 178 |
+| plans active | 15 |
+| tasks passed / total | 615 / 832 |
+| open boxes | 69 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -175,10 +175,6 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - TASK-53 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-54 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-29_bash-tool-single-execution-path.md` — 1 open / 14 box(es) · lifecycle ACTIVE
-  sv: intention "bash.ts/cmd.ts run a command three divergent ways and their suites exercise only the non-production one -> one execution input shared by every path, cmd.exe receives the command intact, and the suites drive the job and sync paths the product actually uses" · keywords []
-  - TASK-6 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-
 - `plans/2026-09-29_codegraph-impact-decoupling.md` — 2 open / 5 box(es) · lifecycle ACTIVE
   sv: intention "fossil carries only the BRIEF (which files changed) and codegraph carries the REAL impact (symbols and edges touched) selected by the SUMMARY's own time window; the graph is synced off the turn's critical path -> the turn stops paying 2.2 s for a value its own summary consumes, and an empty impact stops reading as "nothing happened"" · keywords []
   - C2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -225,6 +221,12 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 - `plans/2026-09-30_replacement-empty-assistant-row.md` — 3 open / 3 box(es) · lifecycle OPEN
   sv: intention "a red in the turn-replacement path is a named defect with a reproducer and a measured cause -> the empty assistant row that an interrupted step leaves behind is either not created or explicitly accounted for by the test, so the suite is green for a stated reason" · keywords []
+  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-09-30_stale-gitbash-tests.md` — 3 open / 3 box(es) · lifecycle OPEN
+  sv: intention "a red pair in test/shell/shell.test.ts is either the test's fault or the code's -> the pair is decided by the requirement it encodes, superseded with provenance if it is stale, and the file is green for a stated reason" · keywords []
   - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is

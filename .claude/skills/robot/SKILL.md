@@ -62,7 +62,10 @@ tools/cmd_runner.exe start --cwd D:/zPython/opencode --timeout-s 1800 --raw --no
 - **Models (owner, 2026-09-30: «для реального workflow бесплатные модели не вариант»).** Real work runs on
   the funded pair, once the HF + DeepSeek balance has landed (~2026-10-01 — read the balance, never assume
   it): `huggingface/zai-org/GLM-5.3-Flash-BF16` and `deepseek/deepseek-flash` (catalog name «DeepSeek V4.1
-  Flash»; `deepseek-v4-flash` is the V4 entry). Free Zen models only for plumbing smokes. Space Bunny
+  Flash»; `deepseek-v4-flash` is the V4 entry). **Long runs (automode, AGI cycles) default to GLM-5.3-Flash-BF16**
+  — owner: «модель просто идеальная для долгих забегов»; on an HF Pro account it is cheaper but still billed,
+  so read the HF balance before and after a long run and record the spend in the run's log entry. Free Zen
+  models only for plumbing smokes. Space Bunny
   (MiniMax 3) is under evaluation, not a default. Any other paid model: explicit yes to paying (memory
   `feedback-your-choice-is-not-consent-to-pay`). Open: the HF catalog entry has no `cost`, so its spend is
   not metered from the catalog.

@@ -36,7 +36,9 @@
   standard while the phobic stimulus is present** — fear is not removed, it stops blocking action. Physiology
   (pulse) is recorded as telemetry, never the criterion: a stable pulse cannot tell recovery from suppression,
   and a rising one can accompany a correct run. Qualified over the whole stimulus set — passing part of it is
-  not a partial qualification.
+  not a partial qualification. **The contract fixes the requirement, never the method** (owner: «работать с VR
+  или нет — выбор человека — но наши требования такие-то чтобы не было проблем потом»): VR and PAVLOK are
+  offered, self-administered and optional; the acceptance above is mandatory for everyone.
 - **Every number in the owner report is an address.** «Invoiced RM X» expands to invoice numbers, «cash RM Y»
   to statement lines; «the numbers agree» is a reconciliation run by an oracle.
 - **Owner report** (weekly): what came in, what was produced, what turned into money — tenders submitted/won,

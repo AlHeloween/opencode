@@ -28,6 +28,16 @@ mechatronics and electronics. Owner: «как минимум могли запу
 
 | **A6 virtual monitor:** the robot gets its own display on the same PC — no second computer | installed IDD virtual display | the four-state fixture of `plans/2026-09-29_cua-windows-debug-input.md` T3 on the installed display: a DirectComposition window captured with its own pixels and a capture-bound click; `HypervisorPresent` unchanged | a second machine or a physical dummy plug needed, the owner's windows/cursor touched, or the hypervisor switched on |
 
+| **A7 secure by default, frictionless by default:** hardened components still do the everyday jobs with no manual workaround | installed services + robot | scenario checks on the pristine VM: upload a file through the shared browser from `exchange\in`, receive a download in `exchange\out`, debug a site in a per-task browser under the user's account with files from any user folder; every refusal message names the permitted route | a colleague has to switch a service back to LocalSystem, edit ACLs, or read source to find where files go |
+
+Owner, 2026-09-30: «Погоди а если мне для автоматизации надо будет зааплоадить файл? … Или использовть скрипты для веб
+автоматизации, отладка сайтов? … Чтобы потом народ не плевался.» A security fix that blocks daily work is the first
+thing people undo; the permitted route must be the easiest one. Prepared: `exchange\in` / `exchange\out` with a
+README in `experiments/2026-09-30_universal-search-hardening/harden_services.ps1`; the per-task browser is tier B-web
+(`Skills/cua-robot/TIERS.md`, proven in run `cua-b-web-tier/runs/20260930T014912Z`). Unknown: whether Playwright's
+`setInputFiles` over `connectOverCDP` streams file bytes itself (then no exchange folder is needed for uploads) —
+test on a fixture page before relying on either.
+
 **Virtual monitor is mandatory, not optional** (owner, 2026-09-30: «Обязательно удели внимание установке виртуального
 монитора чтобы под нашего робота не требовался отдельный компьютер»). It is the only component that installs a DRIVER,
 so it gets the strictest gate: signed, user-mode (IddCx/UMDF, not kernel), offline-installable, uninstallable, and it

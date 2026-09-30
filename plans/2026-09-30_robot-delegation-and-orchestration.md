@@ -58,9 +58,11 @@
       pipeline. Acceptance: two workers edit disjoint files in one tree, each oracle attributable, one commit per plan.
 - [ ] S4 — scheduler: `schtasks` + a READ-only dispatcher (queue B6, lease one-robot-per-tree, exit detection B4,
       timeout B8, digest B9). Acceptance: a scheduled run takes a ready task, finishes, reports, releases.
-- [ ] Claude skill `.claude/skills/robot/SKILL.md` (brief = plan task + SV + oracle + prediction; launch via
+- [~] Claude skill `.claude/skills/robot/SKILL.md` (brief = plan task + SV + oracle + prediction; launch via
       cmd_runner/run_in_background; read only the final message + git diff; verify with the oracle itself;
-      `--session` to continue; never bin/, never --dangerously-skip-permissions).
+      `--session` to continue; never bin/, never --dangerously-skip-permissions). WRITTEN 2026-09-30, flags
+      re-read in `run.ts` ✓; not smoke-tested — the box waits for the Skill smoke below. New fact for it: Zen
+      free models answer only from inside opencode, so the robot can run at zero provider cost.
 - [ ] Codex binding — a DELEGATION/G7 line in `addons_codex.py` (installed to ~/.codex/AGENTS.md). Whether the
       installed Codex reads `$CODEX_HOME/skills/` is UNVERIFIED.
 

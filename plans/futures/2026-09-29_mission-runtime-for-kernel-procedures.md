@@ -72,6 +72,36 @@ run K consolidation cycles. Stable iff after every cycle the loaded set contains
 M true ones, and the count of acted-on false alarms does not grow with K. A drift upward in either is
 the self-winding the owner predicts, measured.
 
+### Consolidation instead of compaction — the four layers (owner discussion, 2026-09-30)
+
+- sv: { keywords: { consolidation-oracle 0.30, attention-by-sv 0.25, boundary-not-fill 0.25, release-not-forget 0.20 },
+        dominant: "Compaction stops being an emergency when a boundary consolidates working state into memory under an oracle." }
+
+A four-layer picture was brought to the discussion (working state / episodic / semantic memory / identity
+invariants; «AGI ≈ controlled state evolution, not a huge context»). The mapping onto what exists — working
+state = SVM (`session/svm.ts`) + the content lifecycle (docs/content-lifecycle.md); episodic boundary = the
+fossil snapshot at turn start + a summary with its `#a..#b` range accounting (NOT the SV md5, which is a label);
+semantic memory = `memory/` + `.opencode/data/memory/reasoning.md`; invariants = the byte-stable kernel prefix.
+Two corrections to the picture, both from standing rules:
+
+- **Nothing is «forgotten».** Release replaces on the wire with an address and never deletes (AGENTS.md
+  § Content Lifecycle, invariant 3). The question is «what leaves attention, and by which address it returns».
+- **Consolidation is not self-decided.** A model that decides alone what becomes memory writes its own
+  self-winding into the next cycle — the alarm objection above. Consolidation needs its own oracle at the door.
+
+What is missing (Hypothetical until built and measured):
+
+1. **Attention by relevance, not size.** Release today is a size gate (`> 8 000` chars from an earlier turn).
+   Candidate criterion: L1 between the task's SVM sv and the part's own sv — far from the task → released
+   with its address, however small.
+2. **Consolidation at the boundary, not on fill.** The kernel already says «compact at a closed boundary,
+   never on window fill»; measured the opposite on the Claude host 2026-09-30 (a /compact asked at 76 %).
+   First crude form, adopted the same day: hand off to a fresh session that re-grounds from disk handles
+   (memory `feedback-hand-off-to-a-new-session-not-late-compact`). The robot is the second form — Claude
+   never carries the execution tail at all (plan `plans/2026-09-30_robot-delegation-and-orchestration.md`).
+3. **An oracle at the door of memory.** A record enters durable memory only with its reproducer or its
+   instrument ref, and is re-checked on load (the falsifier above covers this).
+
 ## What already exists (grounded 2026-09-29)
 
 | candidate record | our nearest carrier | status |

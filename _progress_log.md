@@ -5741,3 +5741,13 @@ deferred MASTER_PLAN assessment inputs (8 findings).
 TOOLS: Grep with `glob: "*.py"` on D:\zPython\ADID_Python\src returned a FALSE 0 (73 hits without the filter) — filter
 class, KAIZEN; codegraph natural-language query returned unrelated «manifest» symbols — named queries answer.
 NEXT: owner picks the first robot plan for S1; comprehensive assessment after the robot finishes S4 of the svm plan.
+
+## [2026-09-30 11:30Z] robot skill written; consolidation layers in futures; hand-off rule adopted
+DONE: `.claude/skills/robot/SKILL.md` (brief contract, cmd_runner launch of `dist\bin\opencode.exe run --format json`,
+read-back = state.json + last `text` + errors + git diff, Claude runs the oracle, Claude is the one committer) — flags
+re-read in `run.ts:209-282`, json envelope `run.ts:411-415` ✓; the harness loaded the skill (listed) ✓; NOT smoke-tested
+([~] in plan). Futures plan: § Consolidation instead of compaction (release-not-forget, no self-decided memory; missing:
+attention by SV, boundary not fill, oracle at the door of memory). Memory: hand off to a fresh session (spawn_task chip)
+instead of a late /compact — `start_session` is not exposed on this host (ToolSearch: no match).
+FACT: Zen free models answer only from inside opencode → the robot can run at zero provider cost; which are live is open.
+NEXT: owner picks the first task + free model for the skill smoke / S1; threshold for session hand-off still unnamed.

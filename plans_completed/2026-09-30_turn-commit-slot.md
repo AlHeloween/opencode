@@ -120,17 +120,45 @@ kept for continuity; the "slot" it promises turned out to be **unnecessary** —
       0 fail** (`20260930T035752Z_08605fa5`) — which also exercises the recorded trap that a new test file
       can poison the shared `TEST_TEMP` store for whichever file runs after it.
 
-- [ ] **R4 — the source-run oracle yields no verdict, and must be requalified before it is named again.**
-      Measured 2026-09-30: `experiments/2026-09-29_source-run/run2.cmd`, the runner R2 originally named as its
-      oracle, exits **0 after 8 s** (`20260930T035215Z_19960e3e`) with a log of **181 bytes** holding only its
-      startup banner — not even the script's own `echo ---EXIT=%ERRORLEVEL%---` line — and NOTHING is written
-      anywhere: no new session and no new part in the real store (the newest foreign `step-finish` is ~16 h
-      older than the run), and no store under the stand directory either before or after it. So the run
-      performed no turn. Whether the process failed or the ConPTY log dropped its output is NOT measured, and
-      both readings fit what is visible. Acceptance: the runner produces a verdict at all — the smallest next
-      step is to capture its output OUTSIDE the ConPTY rendering (`> file 2>&1` inside the .cmd) so the exit
-      reason becomes readable, and only then re-attempt the two-turn drive. Until that lands, this plan does
-      not name it as an oracle.
+- [x] ✓ **R4 — the runner gives a verdict, and the real cause of its silence is named.** DONE 2026-09-30.
+      The box's own remedy — «capture its output OUTSIDE the ConPTY rendering (`> file 2>&1` inside the .cmd)»
+      — is **REFUTED**: that redirect cannot exist, because the `.cmd` stops being executed at the first
+      `bun` call. Measured with a three-fixture qualification (`experiments/2026-09-30_source-run-requal/`):
+      `probe2.cmd` — the same script shape WITHOUT `bun` — ran to the end and its run carried **exit code 7**
+      (`20260930T040101Z_a5036d79`), so the .cmd mechanics, the redirect and the exit code all work;
+      `probe.cmd` / `probe3.cmd` — `bun --version` between markers — wrote `BEFORE-BUN` and `1.4.2` and
+      NEVER `AFTER-BUN`/`PROBE3-DONE` (`20260930T040030Z_dc28b557`, `20260930T040130Z_4f25f444`), so **the
+      script stops being executed when `bun` exits** while cmd_runner reports `finished, exit_code=0` — the
+      code of the last child, not of the script.
+      That one fact explains the whole failure: `run2.cmd` is a `.cmd` whose last act is a `bun` call, so
+      `opencode run` never finished a turn — hence the 181-byte log and the total absence of writes, with no
+      crash anywhere. CLASS, not anecdote: *a cmd_runner-hosted `.cmd` does not survive a child `bun`, and
+      reports success regardless*.
+
+      **The working recipe** (each clause load-bearing):
+      `cmd_runner.exe start --cwd <stand> --raw --timeout-s 150 --env OPENCODE_TEST_CONFIG=<stand>
+       --env OPENCODE_CONFIG_DIR=D:\zPython\opencode\bin -- bun run --conditions=browser
+       D:\zPython\opencode\packages\opencode\src\index.ts run -m deepseek/deepseek-flash ok`
+      - `--raw` is the capture-outside-ConPTY the box asked for, done by the INSTRUMENT instead of by a
+        redirect the shell cannot host (spelled out in cmd_runner's own help: `--raw` = raw pipe capture);
+      - `--env KEY=VALUE` is how the provider auth (which lives in the `bin/` config dir) is passed — proven
+        separately: `PROBE_X=hello` came back through the hosted command (`20260930T040318Z_005afd3c`);
+      - the entrypoint is ABSOLUTE and `--cwd` is left on the stand, because `bun run --cwd <pkg>` **moves the
+        process cwd** and the worktree (hence the store) is taken from the cwd: in the package-relative form
+        the app resolved its worktree to `packages/opencode` — visible in the verdict as
+        `No such file or directory: 'D:\zPython\opencode\packages\opencode\plans'` — so the stand isolated
+        nothing. This held for `run.cmd`/`run2.cmd` too, and it is the second class this box paid for.
+
+      **Verdict, twice.** `20260930T040334Z_02147267` (package cwd): the turn starts (`> build_mode ·
+      deepseek-flash`), grounds the WRONG worktree, and dies on `question Tool denied`. `20260930T040610Z_7d2d0944`
+      (stand cwd, absolute entrypoint): a COMPLETE turn — `G0 UNDERSTAND` on the word `ok`, the ambiguity
+      declared, a seed SVM, a question back, `exit 0`, no stderr. And the stand, which held no store before,
+      now holds `.opencode/`, `.codegraph/`, `.fossil-settings/` and `_FOSSIL_` — isolation measured, not
+      assumed.
+      Consequence for this plan's other boxes: the two-turn drive they waited for is **not owed**. Its
+      predicate — both halves of the turn's timing readable from the store — was covered in-process by R2's
+      test, and what a CLI run cannot show (the detached commit's write-back racing the shutdown) is the
+      owner's CLOSE-RECOVERY point, already recorded under R2.
 
 ## Smoke Tests
 
@@ -140,7 +168,11 @@ kept for continuity; the "slot" it promises turned out to be **unnecessary** —
   part, `commitMs`/`commitHash` from the detached fiber's write-back, polled to a deadline. Predicted RED on
   the first half before the writer and GREEN after; it was both. (The source-run first named here is broken —
   R4 — and could not have shown the second half in any case: the CLI exits at the turn's end.)
-- R4: the runner's own output captured outside the ConPTY rendering, and a verdict in it.
+- R4 (done): the runner's own verdict, captured outside the ConPTY rendering by `--raw`, with the cause of
+  the silence named by three fixtures — a `.cmd` without `bun` finishes and carries code 7, the same `.cmd`
+  with `bun` stops at that call and reports 0. Recipe (`--env` for auth, absolute entrypoint so the stand IS
+  the worktree) verified twice: a package-cwd run that grounds the wrong worktree, and a stand-cwd run that
+  answers with a complete G0 turn.
 - R3 (done): three concurrent `track()` calls on ONE repo through a stubbed fossil — peak in-flight
   invocations === 1, with both named paths present in the argv log as the control that each call ran;
   `locked := identity` makes it red with `Received: 3`, and restoring the file makes it green again.

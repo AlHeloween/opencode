@@ -103,10 +103,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 178 |
-| plans active | 17 |
-| tasks passed / total | 622 / 856 |
-| open boxes | 86 |
+| plans completed | 179 |
+| plans active | 16 |
+| tasks passed / total | 629 / 857 |
+| open boxes | 80 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -210,13 +210,8 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   sv: intention "an agent must be able to STORE and READ the manifest of the turn it is in — task, plan ref, semantic vector, turn estimate — and the turn must be told when it is missing; the master plan becomes the rendered summary that no plan-file move can touch -> one SVM store + one tool + one turn-note reminder + a generated MASTER_PLAN.md" · keywords []
   - S4 [PARTIAL] · sv MISSING · manifest: the map regenerates itself from the plan files and the SVM store — every vector read from its source, a missing one printed MISSING, and a re-run byte-identical. · eta 2 · doing
 
-- `plans/2026-09-30_cua-supply-chain-audit.md` — 8 open / 9 box(es) · lifecycle ACTIVE
+- `plans/2026-09-30_cua-supply-chain-audit.md` — 3 open / 10 box(es) · lifecycle ACTIVE
   sv: intention "cua and Universal Search are suspected on egress, hidden code and reliability, with no measurement behind the suspicion -> every component shipped to colleagues has a measured egress manifest, a known build provenance and a recorded reliability profile, and nothing leaves a machine the owner did not approve" · keywords [supply-chain-audit, egress-manifest, telemetry, provenance, reliability]
-  - A1 [PENDING] · sv [toolchain-qualification, egress-sampler, control-request] · manifest: MISSING — nobody has written down what this box is
-  - A2 [PENDING] · sv [egress-manifest, cua-runtime, prediction] · manifest: MISSING — nobody has written down what this box is
-  - A3 [PENDING] · sv [egress-manifest, opt-out, check-for-update] · manifest: MISSING — nobody has written down what this box is
-  - SB [PENDING] · sv [dynamic-egress, sampler, manifest] · manifest: MISSING — nobody has written down what this box is
-  - SC [PENDING] · sv [provenance, build-scripts, hidden-behaviour] · manifest: MISSING — nobody has written down what this box is
   - SD [PENDING] · sv [fork-build, compile-out, zero-egress] · manifest: MISSING — nobody has written down what this box is
   - SE [PENDING] · sv [reliability, defect-classes, evidence] · manifest: MISSING — nobody has written down what this box is
   - SF [PENDING] · sv [universal-search, cdp-port, redistribution] · manifest: MISSING — nobody has written down what this box is
@@ -253,12 +248,8 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-30_turn-commit-slot.md` — 1 open / 4 box(es) · lifecycle ACTIVE
-  sv: intention "the turn's felt wait and its snapshot commit sat on the same path, and the mechanism meant to take the commit off it (a settle at the next turn's open) never executes -> the commit runs OFF the input path with strict order held ONE LAYER DOWN by the fossil service's per-repo lock, and the commit's own cost becomes keyed state rather than a line in a log that dies with the session" · keywords []
-  - R4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-
 ## The checks
 
-This body names all 18 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 17 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

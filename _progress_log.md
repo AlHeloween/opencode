@@ -1,5 +1,17 @@
 # Progress Log
 
+## [2026-09-30 15:22Z] S5 closed by ARTIFACT: the Zen 400 is proven gone from the wire body, not from a report (plans/2026-09-30_drop-penalty-sampling-params.md → plans_completed/)
+
+✓ The owner reported Zen working. That is testimony, and the plan's S5 asked for one live message on a Zen model which the agent cannot drive (the key is the owner's). So instead of banking the words, I read the ARTIFACT the fix acts on — the outgoing request body — from the gateway's raw-wire captures: **2,071 records parsed, their parameter keys read.**
+
+✓ **Result:** **2,036 bodies carried a REAL `"presence_penalty"` key**, the last at **2026-09-30T10:53:09Z** (while the pre-fix binary was still the running one), and **every body after the rebuild was promoted at 13:02Z carries neither of the pair.** In the newest six the word survives only as PROSE — escaped quotes inside message text.
+
+✗ **A grep over that directory returned 2,985 hits and not one was the answer.** The `.diff` reports there embed the agent's own transcript, where the banned words appear in prose and in the plan text, so the matches were statements ABOUT the fix rather than the body the fix applies to. The discriminator that works: a real KEY is `"presence_penalty":0.2` (unescaped quotes), a prose mention is `\"presence_penalty\"` (escaped) — because that prose is itself a JSON string nested inside the body.
+
+✓ **The instrument was qualified before its zeros were believed** (@TOOLCHAIN_QUALIFICATION): the banned key WAS found in 2,036 records, so its absence afterwards is a measurement and not a blind spot; control `"temperature"` as a real key on **2,069**. Probe: `experiments/2026-09-30_wire-body-keys/check.mjs` (writes its verdict to `result.txt`; the ConPTY render dropped lines from the longer stdout, so the file is the durable copy).
+
+**Class:** a report is not an oracle. The surface that decides a wire fix is the body the wire carried — and the word appearing in a corpus is not the word appearing at the position that matters.
+
 ## [2026-09-30 13:07Z] Cycle closure: two completed plans moved, and a live remainder rescued from a table cell (plans/2026-09-30_drop-penalty-sampling-params.md)
 
 ✓ **Two finished plans were still in `plans/` — per AGENTS.md that is JOB FAILED, not bookkeeping.** Moved with `git mv` in this commit: `2026-09-30_multiedit-atomic-application.md` and `2026-09-30_tool-catalog-trim.md`, both with every box `[x]` and their acceptance oracles recorded (multiedit: dry run + one write, mutation-proven, artifact read back from the binary; tool-catalog: 13 pass / 194 expect, 78 pass module suite, typecheck exit 0).

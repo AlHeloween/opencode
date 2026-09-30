@@ -103,9 +103,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 183 |
-| plans active | 19 |
-| tasks passed / total | 660 / 896 |
+| plans completed | 184 |
+| plans active | 18 |
+| tasks passed / total | 669 / 906 |
 | open boxes | 88 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
@@ -215,9 +215,9 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - SE [PENDING] · sv [reliability, defect-classes, evidence] · manifest: MISSING — nobody has written down what this box is
   - SF [PENDING] · sv [universal-search, cdp-port, redistribution] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-30_drop-penalty-sampling-params.md` — 1 open / 9 box(es) · lifecycle UNKNOWN
+- `plans/2026-09-30_drop-penalty-sampling-params.md` — 0 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "the request body carries presence_penalty/frequency_penalty (deprecated no-ops at the vendor, and one half of a pair the server rejects with 400) -> opencode sends neither; repetition_penalty (a live parameter on those vendors) stays" · keywords []
-  - TASK-9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - no open box
 
 - `plans/2026-09-30_no-foreign-skill-discovery.md` — 5 open / 5 box(es) · lifecycle OPEN
   sv: intention "opencode discovers skills from Claude's and .agents' directories -- a compatibility feature this project does not want, and the same disease reaches the instruction loader (CLAUDE.md is read as OUR instructions) -> our runtime reads ONLY our own skill and instruction surfaces, and the foreign discovery is removed with its tests superseded, not silenced" · keywords [foreign-discovery, skill-isolation, instruction-isolation, self-sufficient, supersede]
@@ -242,7 +242,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - TASK-5 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-30_robot-installer.md` — 11 open / 11 box(es) · lifecycle DRAFT
+- `plans/2026-09-30_robot-installer.md` — 12 open / 12 box(es) · lifecycle DRAFT
   sv: intention "the robot (opencode + kernel + toolchain) exists only as a hand-assembled setup on the owner's machine, with a draft bundle in d:\!Smit\Smit2 -> a unified builder and a unified Go+Wails offline installer let a colleague on an unprepared Windows install it, start the robot and get an answer to «привет» with no manual setup" · keywords [installer, offline-bundle, preflight, hello-smoke, free-models]
   - I0 [PENDING] · sv [inventory, smit2, manifest] · manifest: MISSING — nobody has written down what this box is
   - I1 [PENDING] · sv [pristine-vm, baseline, preflight] · manifest: MISSING — nobody has written down what this box is
@@ -252,6 +252,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - V1 [PENDING] · sv [virtual-monitor, driver-selection, signature] · manifest: MISSING — nobody has written down what this box is
   - V2 [PENDING] · sv [virtual-monitor, silent-install, hypervisor-guard] · manifest: MISSING — nobody has written down what this box is
   - V3 [PENDING] · sv [virtual-monitor, robot-display, t3-oracle] · manifest: MISSING — nobody has written down what this box is
+  - U1 [PENDING] · sv [universal-search, two-ethics, redesign] · manifest: MISSING — nobody has written down what this box is
   - B4 [PENDING] · sv [free-models, first-run, no-keys] · manifest: MISSING — nobody has written down what this box is
   - B5 [PENDING] · sv [hello-smoke, failure-classes, final-check] · manifest: MISSING — nobody has written down what this box is
   - B6 [PENDING] · sv [acceptance, pristine-vm, offline] · manifest: MISSING — nobody has written down what this box is

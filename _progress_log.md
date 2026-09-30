@@ -5818,3 +5818,12 @@ Real contradictions fixed: @TARGET_EXACT vs desktop scope, owner's yes vs B-tier
 unbound drag; sharpest ambiguity: a write's in-call readback called an oracle. `external/cua` revision commit on
 local_development; offline exe 02B94871… re-embedded, lint PASS, mcp_skills 5/5. Residual: revised text not re-read
 by the outside model; 3-architecture panel needs an in-app run.
+
+## [2026-09-30] audit SF stage 1 — Universal Search: SYSTEM-privileged CDP browser; standing Google push channel
+Plan: `plans/2026-09-30_cua-supply-chain-audit.md` SF (open, stage 1 recorded). CRITICAL: `chromium-debug` and
+`universal-search` run as LocalSystem (AUTO_START) with unauthenticated CDP on 127.0.0.1:9222 → local privilege
+escalation to SYSTEM (inferred, not exploited); remedy is the owner's service-account change. All listeners loopback.
+Standing egress: chrome → Google :5228 (FCM) despite --disable-background-networking; SearXNG 9 persistent :443.
+Instrument defect found by its own control (comma list passed as one name → blind) and guarded in the sampler.
+Provenance: only crw/garnet hash-pinned; get-pip.py and choco install.ps1 download-and-execute; Chromium unsigned,
+source unknown.

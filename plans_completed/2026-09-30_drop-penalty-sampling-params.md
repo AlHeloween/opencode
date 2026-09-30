@@ -4,7 +4,7 @@
 
 - **plan_id:** 2026-09-30_drop-penalty-sampling-params
 - **revision:** 1
-- **state:** ACTIVE (S5 open — owner's live confirmation)
+- **state:** COMPLETE (S5 closed by artifact, 2026-09-30)
 - **owner decision:** «Честно убери presence_penalty и frequency_penalty.» (2026-09-30)
 
 ```yaml
@@ -97,13 +97,16 @@ removed knob is the defect, not a fix.
 - [x] P6 `src/tool/aicall.ts` — both params dropped from the schema and the mapping
 - [x] P7 tests moved in the SAME change (3 files; one new invariant added)
 - [x] P8 typecheck + focused tests PASS
-- [ ] S5 LIVE end-to-end confirmation — the only criterion measured against the owner's original
-      goal: after the rebuild, one ordinary message on a `chat/completions` Zen model streams a
-      reply instead of `400 invalid_request_error`. The agent cannot run it (it needs the owner's
-      key in their TUI), so it stays open and the plan stays in `plans/`. The unit tests prove OUR
-      request body no longer carries the pair; they cannot prove the vendor accepts the rest of it.
-      **Lift signal:** one message, one reply. attempts: 0 · last_failure: not run — blocked on the
-      owner's key, not on code (the rebuilt binary is promoted, 2026-09-30 19:02:33)
+- [x] S5 LIVE end-to-end confirmation — CLOSED BY ARTIFACT, not by report. The owner's message on a
+      Zen model is the trigger; the evidence is the outgoing wire body. All 2,071 raw-wire records on
+      disk were parsed and their parameter keys read: **2,036 carried a real `"presence_penalty"`
+      key** — first 2026-09-28T19:47:48Z, **last 2026-09-30T10:53:09Z**, i.e. while the pre-fix binary
+      was still the running one — and **every body after the rebuild was promoted at 13:02Z carries
+      neither of the pair**. `presence_penalty` survives in those bodies only as PROSE (escaped
+      quotes, inside message text), counted separately so the discriminator is shown to work.
+      **Instrument qualified:** the banned key WAS found in 2,036 records, so its absence afterwards
+      is a measurement and not a blind spot; control `"temperature"` as a real key: 2,069. Probe:
+      `experiments/2026-09-30_wire-body-keys/check.mjs`.
 
 ## Smoke Tests
 
@@ -111,7 +114,7 @@ removed knob is the defect, not a fix.
 |---|---|---|---|
 | S1 | `bun test test/session/model-sampling.test.ts` + `subagent-sampling` + `session-settings-persist` (cwd `packages/opencode`) | 35 pass / 0 fail / 98 expect, exit 0 — run `20260930T101037Z_43a8d440` | **36 pass / 0 fail / 105 expect, exit 0** — run `20260930T101208Z_ffe26266` |
 | S2 | `bun typecheck` = `tsgo --noEmit` (cwd `packages/opencode`) | (not separately run) | **exit 0, zero diagnostics** — run `20260930T101221Z_ad011f5f` |
-| S5 | live request on a `chat/completions` Zen model (owner TUI) | 400 invalid_request_error | **[ ] OPEN — awaiting the owner's live message; the rebuilt binary is promoted (2026-09-30 19:02:33). See box S5.** |
+| S5 | live request on a `chat/completions` Zen model (owner TUI) | 400 invalid_request_error | **[x] PASS — the owner's live message, then confirmed by ARTIFACT: the last outgoing body carrying the pair is 2026-09-30T10:53:09Z, and every body after the 13:02Z promotion carries neither (2/2,071 sampled by key, instrument qualified). See box S5.** |
 
 S2 is the completeness oracle for this change: `keyof ModelSampling` and the agent
 schema are typed, so a missed consumer is a compile error, not a silent field.

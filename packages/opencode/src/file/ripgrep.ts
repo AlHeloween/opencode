@@ -418,12 +418,14 @@ export const layer: Layer.Layer<Service, never, AppFileSystem.Service | ChildPro
               return yield* Effect.fail(error(stderr, code))
             }
 
-            // A `binary_offset` count was added here on 2026-09-30 and REVERTED the same hour, with
-            // its test: `which("rg.exe")` on this host resolves to `C:\Windows\rg.exe`, and THAT
-            // ripgrep does not report `binary_offset`, so the report could not be produced or
-            // proven. Measured with our own `bin/tools/rg.exe` the same JSON carries
-            // `"end":{…"binary_offset":4}`. The requirement stands; the instrument is not the one
-            // this runtime uses — see the rg-resolution task before rebuilding this.
+            // A `binary_offset` count was added here on 2026-09-30 and reverted the same hour, with
+            // its test, after the test reported 0. The FIRST explanation — «the resolved ripgrep does
+            // not emit it» — is REFUTED by measurement: `rg --json --hidden --no-ignore --no-messages
+            // -e … <file with a NUL>` emits BOTH a `match` and an `end` carrying `"binary_offset":4`,
+            // identically from `C:\Windows\rg.exe` (what `which("rg.exe")` resolves) and from our
+            // `bin/tools/rg.exe` — 959 and 961 bytes of output, same events. So the signal EXISTS and
+            // the count still came back 0: the cause is UNKNOWN, and the next instrument is a probe of
+            // `Ripgrep.search` on that fixture, not another guess. Do not rebuild this on a story.
             return {
               items: code === 1 ? [] : items,
               partial: code === 2,

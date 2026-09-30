@@ -5718,3 +5718,11 @@ Oracles: cargo tree has no ureq/rustls offline; final exe sha256 5F0810C8… has
 strings; egress A2_…122547 + A4_…124857 = 0 connections, fresh home untouched; tests default 155/6 = same 6 as clean
 HEAD (stash baseline …043330Z_8d0347cc), offline 151/6 + 3 new offline contract tests. Residual: embedded skill docs
 still say `irm … | iex` (text); 6 inherited red tests (extension_manager ×5, skills ×1) recorded under SE.
+
+## [2026-09-30] cua-robot skill pack — the kernel's cycle for GUI work, embedded in the offline driver
+Plan: `plans/2026-09-30_cua-robot-skill-pack.md` K1–K3, P1–P3 → [x]; K4/P4 (outside falsifier) open.
+`external/cua` `bddae9c`: `Skills/cua-robot/` (SKILL: gated cycle C0–C7 + 15 shared rules + failure map; WINDOWS:
+status-marked measured facts with run ids; TIERS; RUNTIME; DATA_ENTRY for forms/grids/filters/settings/commits),
+served by the offline build under the same skill:// URIs. Root: `cua.ts` skill-index → cua-robot, new
+`test/tool/cua-skill-index.test.ts` red-then-green on real files. Lint control saw the vendor pack's `| iex`; offline exe
+04A4F445… has 0 `| iex` / `install.ps1`. Egress not re-run on this exe (docs-only delta) — stated as Inferred.

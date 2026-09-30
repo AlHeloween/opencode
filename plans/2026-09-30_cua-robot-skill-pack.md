@@ -34,14 +34,17 @@ network build and is cited as prior art; the new pack lives beside it as `Skills
 
 ## Smoke Tests
 
-- [ ] **K1 lint (read-only script):** every `@RULE` used is defined once; every measured-fact line carries ✓/✗ and a run id or `path:line`; no `| iex`, no `irm http`, no vendor URL as an instruction. Predicted on the draft: passes after authoring, fails on the vendor pack (`| iex` present). <!-- sv: lint, rule-references, evidence-marks -->
-- [ ] **K2 embedding:** offline exe contains `name: cua-robot` and 0× `install.ps1 | iex` (today: 4×, from the vendor docs); default exe still embeds the vendor pack. <!-- sv: embedding, offline-build, binary-scan -->
-- [ ] **K3 consumer:** `cua.ts` `skill-index` lists the cua-robot files; focused test in `test/tool/cua.test.ts`. <!-- sv: skill-index, cua-wrapper, focused-test -->
+- [x] **K1 lint (read-only script):** every `@RULE` used is defined once; every measured-fact line carries ✓/✗ and a run id or `path:line`; no `| iex`, no `irm http`, no vendor URL as an instruction. Predicted on the draft: passes after authoring, fails on the vendor pack (`| iex` present). <!-- sv: lint, rule-references, evidence-marks -->
+  ✓ `experiments/2026-09-30_cua-robot-skills/lint.ts`: control on the vendor pack → `CONTROL_SEEN` (`README.md:26`, `WINDOWS.md:446`); cua-robot → `PASS`, 15 rules defined / 15 used, 0 unmarked facts, 0 download-and-execute lines.
+- [x] **K2 embedding:** offline exe contains `name: cua-robot` and 0× `install.ps1 | iex` (today: 4×, from the vendor docs); default exe still embeds the vendor pack. <!-- sv: embedding, offline-build, binary-scan -->
+  ✓ `external/cua` `bddae9c`; offline exe sha256 `04A4F4456660CBAA3EE80D1143911E85CF05CAB3A7A4E083BCFD3AFCA29D24A8` (build `20260930T064338Z_640a3b48`): `name: cua-robot` 2×, `name: cua-driver` 0×, `| iex` 0×, `install.ps1` 0×, `eu.i.posthog.com` 0×, `rustls` 0×. Default config keeps the vendor pack: `mcp_skills` tests 5/5 with the vendor frontmatter test (`20260930T063607Z_637572f9`); offline 5/5 with `offline_pack_is_the_robot_pack_without_download_and_execute` (`20260930T064008Z_8867ed31`). Not re-measured: egress on this exe (only embedded text changed since `A4_20260930T124857`) — Inferred, not a run.
+- [x] **K3 consumer:** `cua.ts` `skill-index` lists the cua-robot files; focused test in `test/tool/cua.test.ts`. <!-- sv: skill-index, cua-wrapper, focused-test -->
+  ✓ Behaviour-preserving refactor first (`cuaSkillIndex(worktree)` exported), then the new `test/tool/cua-skill-index.test.ts` on the real repository files — RED as predicted (`20260930T064657Z_8c858222`: lists `Skills/cua-driver/…`; missing-pack message lacked `cua-robot`), then the change → 2/2 (`…064723Z_fedb2c67`); `test/tool/cua.test.ts` 10/10 (`…064728Z_f7666f61`); `bun typecheck` exit 0 (`…064732Z_3598b943`); Prettier clean.
 - [ ] **K4 outside falsifier:** an isolated free model (skill `aicall`) reads SKILL.md + WINDOWS.md and answers held-out scenarios («tool said ✅ Posted drag — done?», «capture_id on drag accepted — bound?», «minimized window, pixel click?»); predicted: answers match the pack; a mismatch is a wording defect in the pack. <!-- sv: outside-falsifier, reading-test, held-out -->
 
 ## Work
 
-- [ ] **P1 author:** SKILL.md, WINDOWS.md, TIERS.md, RUNTIME.md, DATA_ENTRY.md. <!-- sv: authoring, kernel-style, measured-facts -->
-- [ ] **P2 embed:** offline `mcp_skills.rs` include list → cua-robot; rebuild; K2. <!-- sv: embedding, mcp-skills, offline-cfg -->
-- [ ] **P3 index:** `cua.ts` SKILL_GUIDES → cua-robot files; K3. <!-- sv: skill-index, cua-wrapper, guides -->
+- [x] **P1 author:** SKILL.md, WINDOWS.md, TIERS.md, RUNTIME.md, DATA_ENTRY.md. <!-- sv: authoring, kernel-style, measured-facts --> ✓ K1; `external/cua` `bddae9c` (377 lines against the vendor's 3596 — Windows-only, no copied text).
+- [x] **P2 embed:** offline `mcp_skills.rs` include list → cua-robot; rebuild; K2. <!-- sv: embedding, mcp-skills, offline-cfg --> ✓ K2.
+- [x] **P3 index:** `cua.ts` SKILL_GUIDES → cua-robot files; K3. <!-- sv: skill-index, cua-wrapper, guides --> ✓ K3.
 - [ ] **P4 falsify:** K4; fix the wording the outside reader misread. <!-- sv: outside-falsifier, wording, revision -->

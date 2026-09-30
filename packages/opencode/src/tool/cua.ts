@@ -27,28 +27,29 @@ function resolveBinary(): string {
   return BINARY
 }
 
-/** Skill guide index (partial vendoring): names + one-line purpose + link.
- *  Full documents stay in external/cua — read on demand, never inline. */
+/** Skill guide index: names + one-line purpose + link. The robot reads its own pack (Skills/cua-robot — the
+ *  kernel's gated cycle and the measured Windows facts, served by the offline driver too), not the vendor's
+ *  networked one (plans/2026-09-30_cua-robot-skill-pack.md). Full documents are read on demand, never inlined. */
+const SKILL_PACK = "external/cua/libs/cua-driver/rust/Skills/cua-robot"
 const SKILL_GUIDES: Record<string, string> = {
-  "SKILL.md": "Shared contract: snapshot→action→verify loop, tool selection, session identity",
-  "WINDOWS.md": "Windows: UIA tree, UWP/ApplicationFrameHost, layered UIA+PostMessage clicks, Session 0",
-  "BROWSER.md": "Browser: exact window binding, browser_prepare, page refs, trust classes",
-  "RECORDING.md": "Trajectory recording: screenshots, MP4, replay",
-  "EMBEDDING.md": "Embedding driver into host apps (macOS TCC identity contract)",
-  "README.md": "Install & reading order",
+  "SKILL.md": "The cycle: intent → ground → qualify → predict → bound action → independent readback; shared rules",
+  "WINDOWS.md": "Measured Windows facts: capture, minimized, DPI, UIA coverage by toolkit, input routes, instruments",
+  "TIERS.md": "Modes A/B and isolation tiers: web (CDP), virtual monitor, VMware guest — what each may do",
+  "RUNTIME.md": "Offline driver: zero egress, refused tools, private-pipe daemon, jobs, cleanup",
+  "DATA_ENTRY.md": "Forms, grids, sorts, filters, settings, commits — reading the app's data, not its rendering",
 }
 
-function skillIndex(): string {
-  const dir = path.join(Instance.worktree, "external", "cua", "libs", "cua-driver", "rust", "Skills", "cua-driver")
+export function cuaSkillIndex(worktree: string): string {
+  const dir = path.join(worktree, ...SKILL_PACK.split("/"))
   try {
     const present = new Set(readdirSync(dir))
     return Object.entries(SKILL_GUIDES)
       .filter(([file]) => present.has(file))
-      .map(([file, purpose]) => `- external/cua/libs/cua-driver/rust/Skills/cua-driver/${file} — ${purpose}`)
+      .map(([file, purpose]) => `- ${SKILL_PACK}/${file} — ${purpose}`)
       .join("\n")
   } catch (e) {
     log.debug("skill index dir missing", { dir, error: String(e) })
-    return "(skill guides not found — external/cua clone missing)"
+    return `(skill guides not found — ${SKILL_PACK} is missing from this worktree)`
   }
 }
 
@@ -368,7 +369,7 @@ export function cuaExecute(
       return {
         title: "cua-driver skill guides",
         metadata: { action: params.action, exit: 0, stdoutBytes: 0 } satisfies Metadata,
-        output: skillIndex(),
+        output: cuaSkillIndex(Instance.worktree),
       }
     }
 

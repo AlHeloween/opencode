@@ -45,7 +45,7 @@ constraints:
   процессоре.» An embedding run that takes minutes on cores and seconds on the GPU is not a slow
   probe, it is a misconfigured one — and it was a misconfigured one here, broken by an explicit
   `device="cpu"` written to dodge an unrelated torch error.
-- **Never edit code with a script — and before the edit, ask codegraph what it touches.** Source
+- **Never edit source with a direct, UNVERIFIABLE script — and before the edit, ask codegraph what it touches.** Source
   changes go through `edit` / `write` / `applypatch`, by hand, and the hand is informed: call
   `codegraph` (impact / explore) FIRST to confirm the blast radius, so the change is bounded by
   evidence and not by the two files the author happened to have open. After the edit the oracle
@@ -59,6 +59,19 @@ constraints:
   lines of dead sidecar machinery by anchor and saved nothing — the seam still had to be re-read by
   hand afterwards, while the edit itself had been withheld from review in the meantime. Scripts stay
   for READING and MEASURING (a probe over the DB, a log analysis) — never for writing source.
+  **ADM update descriptors are NOT scripts in this sense** (owner, 2026-09-29, verbatim: «запрещает
+  редактирование исходников прямыми unverifable скриптами, adm — это другое»). An `updates/*.xml`
+  descriptor (`D:\zPython\ADID_Python\updates\` is the corpus; `src/adm/` the engine) answers each
+  objection above by construction: every payload is an `<update_md5_…>` block carrying its own md5 and
+  size, so a stale or altered payload is DETECTED rather than trusted; a `replace` names its exact anchor
+  in `<find_text>`, so a moved anchor fails instead of landing elsewhere; `<semantics>` states the intent
+  in the descriptor itself; `adm --apply` writes atomically with a baseline snapshot, rotating backups, a
+  rollback block and a ledger entry, and `adm --rollback <file>` restores and RE-VERIFIES; the edit is
+  never withheld from review — `adm --replay-updates [--unified-diff]` shows the intent and the exact
+  hunks, `adm --list-diff <file> N` the history of one file, and `--rag` indexes the descriptors as exact
+  history records keyed by `goal_id` + `target_file` (`src/adm/rag/adid_history.py`). The requirement
+  that does NOT go away: the descriptor is authored after reading the code and asking codegraph what it
+  touches — a verifiable mutation of the wrong thing is still the wrong thing.
 - No .opencode/plans/ — only plans/ and plans_completed/
 - **A plan hand-off is JOB FAILED** when any of these is true: a box its code has earned is still unconfirmed, the plan is still in `plans/` after its last item closed, or the plan's work has no commit that names it (owner, 2026-09-22) — details and rationale in § Plan Maintenance
 - After plan changes, run explore agent to validate

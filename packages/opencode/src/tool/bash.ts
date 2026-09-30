@@ -251,11 +251,20 @@ const ask = Effect.fn("BashTool.ask")(function* (ctx: Tool.Context, scan: Scan, 
   if (scan.patterns.size === 0) return
   // bash | powershell | cmd — separate keys so /permissions can gate each shell.
   const permission = Shell.permissionKey(shell)
+  // THE RESOLUTION RIDES THE ASK. A user who requested a shell that was refused now sees the substitution at
+  // the moment they are asked to approve the command — which is the whole of K4: the fallback used to be
+  // silent, and the permission dialog is where a human is already reading (AGENTS § Debugging Paradigm: the
+  // shell has a key, so the signal is STATE, and this is a surface that renders it).
+  const resolution = Shell.resolution()
   yield* ctx.ask({
     permission,
     patterns: Array.from(scan.patterns),
     always: Array.from(scan.always),
-    metadata: { shell: Shell.name(shell), permission },
+    metadata: {
+      shell: Shell.name(shell),
+      permission,
+      ...(resolution?.fellBack ? { requestedShell: resolution.requested, shellFallback: true } : {}),
+    },
   })
 })
 

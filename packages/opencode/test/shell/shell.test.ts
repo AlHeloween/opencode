@@ -21,6 +21,32 @@ const withShell = async (shell: string | undefined, fn: () => void | Promise<voi
 }
 
 describe("shell", () => {
+  test("a REFUSED shell is state, and a default is not a refusal (K4/C5)", async () => {
+    // The defect this pins: `select()` replaced a requested shell with the platform default and said nothing,
+    // so a reader could not tell why their shell had been ignored. The signal's home was the open question;
+    // AGENTS § Debugging Paradigm answers it — a fallback has a key, so it is STATE, not a log line.
+    //
+    // The predicate is the pair, and both halves matter: a flag that fired on EVERY start (the platform
+    // default being the answer is not a refusal) would be cried-wolf noise, and one that never fired would be
+    // the original silence wearing a name.
+    await withShell(undefined, () => {
+      const used = Shell.acceptable()
+      const none = Shell.resolution()
+      expect(used).toBeTruthy()
+      expect(none?.used).toBe(used)
+      expect(none?.requested).toBeUndefined()
+      expect(none?.fellBack).toBe(false)
+    })
+
+    await withShell("/nonexistent/shell-that-cannot-resolve", () => {
+      const used = Shell.acceptable()
+      const refused = Shell.resolution()
+      expect(refused?.fellBack).toBe(true)
+      expect(refused?.requested).toBe("/nonexistent/shell-that-cannot-resolve")
+      expect(refused?.used).toBe(used)
+    })
+  })
+
   test("normalizes shell names", () => {
     expect(Shell.name("/bin/bash")).toBe("bash")
     if (process.platform === "win32") {

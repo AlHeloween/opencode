@@ -120,13 +120,47 @@ async function unix() {
   return ["/bin/bash", "/bin/zsh", "/bin/sh"]
 }
 
+/**
+ * THE LAST RESOLUTION, as STATE rather than as a log line — K4/C5 of
+ * `plans/2026-09-29_bash-tool-single-execution-path.md`.
+ *
+ * `select()` used to fall back SILENTLY: a requested shell that was missing or unacceptable was replaced by
+ * the platform default and nothing said so, so a reader of the output could not tell why their shell had been
+ * ignored. Where the signal belongs was the open question, and AGENTS § Debugging Paradigm answers it: a log
+ * may record only what state cannot show, and a fallback HAS a key — the resolved shell already rides the
+ * tools' own metadata. So it is exposed beside the accessors that produce it, and any surface that renders
+ * shell state can read it (`bash.ts` rides it on the permission ask).
+ *
+ * `fellBack` is true only when something was actually REFUSED: with no request the platform default IS the
+ * answer, and calling that a fallback would make this state cry wolf on every start.
+ */
+export interface Resolution {
+  /** The shell that will be used. */
+  used: string
+  /** What was ASKED for, when something was — absent means no request was made. */
+  requested?: string
+  /** True only when a request was refused and the answer is not it. */
+  fellBack: boolean
+}
+
+let lastResolution: Resolution | undefined
+
+/** The last resolution `select()` made. State, not a log — see {@link Resolution}. */
+export function resolution(): Resolution | undefined {
+  return lastResolution
+}
+
 function select(file: string | undefined, opts?: { acceptable?: boolean }) {
   if (file && (!opts?.acceptable || ok(file))) {
     const shell = resolve(file)
-    if (shell) return shell
+    if (shell) {
+      lastResolution = { used: shell, requested: file, fellBack: false }
+      return shell
+    }
   }
-  if (process.platform === "win32") return win()[0]!
-  return fallback()
+  const shell = process.platform === "win32" ? win()[0]! : fallback()
+  lastResolution = { used: shell, ...(file ? { requested: file } : {}), fellBack: Boolean(file) }
+  return shell
 }
 
 export function gitbash() {

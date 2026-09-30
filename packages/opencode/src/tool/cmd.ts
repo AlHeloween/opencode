@@ -218,7 +218,23 @@ function cmd(shell: string, command: string, cwd: string, env: NodeJS.ProcessEnv
   })
 }
 
-export const CmdTool = Tool.define(
+/** The same declared shape as `bash`: one type for both branches, so the background handle's `jobID`
+ *  reaches its callers TYPED instead of through the `as any` that used to hide it (C6). */
+type Metadata = {
+  output: string
+  exit?: number | null
+  description?: string
+  truncated?: boolean
+  outputPath?: string
+  /** Background branch only: the job that was started. */
+  jobID?: string
+}
+
+export const CmdTool = Tool.define<
+  typeof Parameters,
+  Metadata,
+  Config.Service | ChildProcessSpawner | AppFileSystem.Service | Truncate.Service | Plugin.Service
+>(
   "cmd",
   Effect.gen(function* () {
     const config = yield* Config.Service
@@ -557,7 +573,7 @@ export const CmdTool = Tool.define(
               description: label,
               truncated: false,
             },
-          } as any
+          }
         }),
     }
   }),

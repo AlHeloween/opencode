@@ -304,8 +304,32 @@ function cmd(shell: string, command: string, cwd: string, env: NodeJS.ProcessEnv
     detached: false,
   })
 }
+/**
+ * The metadata BOTH branches of this tool return: the foreground result, and the background handle.
+ *
+ * Declared ONCE, here, because the tool's `M` used to be inferred from the foreground return alone and the
+ * background branch papered the difference over with `as any` — which also erased `jobID` for every caller
+ * (the tests read it through `any`). C6 of `plans/2026-09-29_bash-tool-single-execution-path.md`, measured
+ * 2026-09-30: removing the cast WITHOUT this type breaks exactly five call sites — which is how a cast in a
+ * return path answers the compiler's only useful question here («does the caller know what it holds») with
+ * silence.
+ */
+type Metadata = {
+  output: string
+  exit?: number | null
+  description?: string
+  truncated?: boolean
+  outputPath?: string
+  /** Background branch only: the job that was started. */
+  jobID?: string
+}
+
 // TODO: we may wanna rename this tool so it works better on other shells
-export const BashTool = Tool.define(
+export const BashTool = Tool.define<
+  typeof Parameters,
+  Metadata,
+  Config.Service | ChildProcessSpawner | AppFileSystem.Service | Truncate.Service | Plugin.Service
+>(
   "bash",
   Effect.gen(function* () {
     const config = yield* Config.Service
@@ -756,7 +780,7 @@ export const BashTool = Tool.define(
                   description: label,
                   truncated: false,
                 },
-              } as any
+              }
             }),
         }
       })

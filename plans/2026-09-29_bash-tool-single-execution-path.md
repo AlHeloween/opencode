@@ -114,9 +114,18 @@ Evidence for every box below: run V1 = `experiments/2026-09-29_bash-exec-baselin
 - [x] K3 timeout per D1 in both tools, cmd_runner exempt, one default (C10) — contract D1 ×12 green;
       `regression.test.ts` 7/0 (was 3/4, 112 s → 22 s); `bash.test.ts` "terminates command on
       timeout" un-skipped and green.
-- [~] K4 `Shell.select()` silent fallback (C5) — NOT done: with the suite now built from the policy
-      nothing reaches it in tests; making it observable is its own unit (it needs a decision on WHERE
-      the signal lives — state vs log, AGENTS § Debugging Paradigm).
+- [~] K4 `Shell.select()` silent fallback (C5) — NOT done, but **DECIDED (2026-09-30), so the next cycle does
+      not pay for the decision twice. The signal is STATE, not a log.** AGENTS § Debugging Paradigm settles the
+      question this item left open: a log may record only what state cannot show, and a shell fallback HAS a
+      key — the resolved shell already rides the tool's own metadata
+      (`metadata: { shell: Shell.name(shell), permission }`, `bash.ts:258`). So the fix is a QUERYABLE
+      resolution, not a line somebody had to have predicted: `select()` records `{ used, requested, fellBack }`
+      (the last two meaningful only when a request was actually REFUSED — with no request the platform default
+      IS the answer and nothing was ignored), exposed beside the existing accessors as `Shell.resolution()` and
+      readable by the surfaces that already render shell state. Still a unit of its own: the accessors
+      (`preferred()`/`acceptable()`) have callers in bash/cmd/pty/prompt, so it needs its own baseline and its
+      own oracle. What is NOT acceptable is leaving the fallback silent — it is the same class as a stale box:
+      the user reads a command's output and cannot tell why their shell was ignored.
 - [x] K5 fd patterns bounded (C7) + C14 (`hasPython` in the conversion AND the strip's dead
       `"/dev/null"` source test) — contract C7 ×3 green, `strip-win.test.ts` 15/0 (was red on HEAD by
       reading), `shell_tests/common` 77/0.
@@ -138,7 +147,15 @@ Evidence for every box below: run V1 = `experiments/2026-09-29_bash-exec-baselin
       timeout row updated (cmd_runner exemption, both tools, all paths).
 - [x] V1 B0 set + neighbours re-run — every B0 red is green: bash 60/27 → 88/0, cmd 36/2 → 37/0,
       regression 3/4 → 7/0, backslash 4/2 → green; parameters 51/0, path-validator 11/0.
-- [~] C6 `as any` on the background return (both tools) — NOT done, out of this unit.
+- [x] ✓ C6 `as any` on the background return (both tools) — DONE 2026-09-30. **The cast was load-bearing in
+      the worst way**, and that is why it took a measurement to see: the tool's metadata type was INFERRED from
+      the foreground return, so the background branch erased it — and every caller then read `jobID` through
+      `any` (five call sites, invisible by construction). Removing the cast made the compiler answer
+      «Expected 3-4 type arguments, but got 2»: `Tool.define` needs its SERVICE union named as soon as `M` is
+      declared, which is precisely why the author left `M` inferred and reached for `as any`. Both tools now
+      declare `Metadata` once (`jobID?: string` for the background handle) and name their services: a TYPE-ONLY
+      change, no runtime behaviour. Oracles: `bun typecheck` → exit 0 (`20260930T014722Z_8487a46c`), plus the
+      suites that read `jobID` and hold the contract (`shell-exec-contract`, `job-workflow`, `regression`).
 
 ## Smoke Tests
 

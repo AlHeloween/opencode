@@ -1,4 +1,5 @@
-Recover the content of an earlier tool result by its id, with line numbers so you can narrow it.
+Recover anything you were sent earlier — a heavy tool result OR an attachment — by its id, with line numbers,
+so you can read the part that matters instead of paying for all of it.
 
 Why this exists: a completed tool result heavier than 8 000 characters is replaced on the wire by a
 one-line placeholder once its turn is no longer the one being continued:
@@ -11,6 +12,13 @@ one-line placeholder once its turn is no longer the one being continued:
 
 Only the copy sent to the provider was dropped — the bytes are still stored in the session. `recall`
 reads them back by that id.
+
+**Attachments are recallable too.** A released `file` part — a pasted image, a dropped document, a
+screenshot — is named the same way and read back the same way: the payload is still in the stored
+part, so the address works. That is the difference between a release and a loss, and it is why the
+release note names an id instead of telling you to go and find the file again. `keep` is REFUSED for
+an attachment, because it is ONE payload: a kept slice would send the provider a truncated data URL —
+not an image, just damage. Use a `range` to read it.
 
 Every answer opens with the SAME label the placeholder printed — `<tool>: <title>`, for example
 `recall: grep: log\.(debug|info) — id=prt_0b8da48fb001…`. One handle in both places, so a recalled

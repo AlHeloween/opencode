@@ -1245,8 +1245,12 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
    * judgement is a comparison and never arithmetic, and the part itself carries it.
    *
    * A released tool result keeps a note that NAMES ITS ID, which is the address `recall` can fetch: the
-   * stored part still holds the full output, so the release is on the WIRE and not in the record. For a
-   * file part the note says to read the file again, which is that case's real address.
+   * stored part still holds the full output, so the release is on the WIRE and not in the record. A file
+   * part gets the SAME note, for the same reason: its payload sits in the stored part and `recall`
+   * returns it. The note used to say «read the file again», which is a real address only when a FILE
+   * exists — a pasted image, a dropped document or a screenshot has none, so the content was
+   * unreachable while the part still held it (owner, 2026-09-30: «то, что нельзя вернуть — это
+   * неправильно»).
    *
    * `ttlScope` (`tmp_xxx`) is deliberately NOT judged yet: nothing yet says whether a temporary enable is
    * still alive, and a guess would either release what is held or hold what was released. An unjudged
@@ -1259,7 +1263,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
       `[held] payload released: the declared span ended at turn ${declaredUntil(part)}. ` +
       (part.type === "tool"
         ? `Call recall with id=${part.id} for the full result.`
-        : "Read the file again if it is still needed.")
+        : `Call recall with id=${part.id} for the payload — an attachment's content is in the stored part, and a pasted or uploaded one has no file to read again.`)
     return messages.map((msg) => {
       if (!msg.parts.some(expired)) return msg
       return {

@@ -254,3 +254,60 @@ describe("recall: reading a stored tool result by part id", () => {
     expect(result.text).toContain("2: second line")
   })
 })
+
+describe("recall: an ATTACHMENT is recallable too", () => {
+  // The release note for a `file` part used to say «Read the file again if it is still needed» — a
+  // real address only when a FILE exists. A pasted image, a dropped document or a screenshot has no
+  // path behind it, so the content became unreachable while the stored part still held it
+  // (`message-v2.ts:1248-1249` states the old judgement in its own words; owner, 2026-09-30: «то,
+  // что нельзя вернуть — это неправильно»). The payload is the part's `url` — a data: URL for an
+  // inline one — and that is TEXT, so the same selector, range and pattern apply unchanged.
+  const payload = "data:text/plain;base64," + "QUJD".repeat(400)
+
+  test("a file part's payload comes back by its part id", () => {
+    seed("prt_att", "file", { type: "file", mime: "text/plain", filename: "notes.txt", url: payload })
+    const result = call({ id: "prt_att" })
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error(result.error)
+    expect(result.tool).toBe("attachment")
+    expect(result.label).toBe("attachment: notes.txt")
+    expect(result.totalChars).toBe(payload.length)
+    expect(result.text).toContain(payload.slice(0, 40))
+  })
+
+  test("a heavy attachment is walkable by range like any other stored result", () => {
+    const rows = Array.from({ length: 20 }, (_, i) => `row ${i + 1} ${"z".repeat(80)}`).join("\n")
+    seed("prt_att_big", "file", { type: "file", mime: "text/plain", url: rows })
+    const first = call({ id: "prt_att_big", range: "3-4" })
+    if (!first.ok) throw new Error(first.error)
+    expect(first.totalLines).toBe(20)
+    expect(first.text).toBe(`3: row 3 ${"z".repeat(80)}\n4: row 4 ${"z".repeat(80)}\n`)
+    // `nextLine` is the CAP's business, not a range's: an explicitly requested window that fitted is
+    // «fully delivered», so it is null — the documented contract, which my first version of this
+    // assertion contradicted by inventing 5. The requirement is walkability, so it is asserted by
+    // WALKING: ask for the next window and get it.
+    expect(first.nextLine).toBeNull()
+    const second = call({ id: "prt_att_big", range: "5-" })
+    if (!second.ok) throw new Error(second.error)
+    expect(second.firstLine).toBe(5)
+    expect(second.text).toContain("row 5 ")
+  })
+
+  test("keep is REFUSED for an attachment: it is one payload, and slicing it would corrupt it", () => {
+    // A kept selection REPLACES the result on the wire. For a tool result that is a narrowing; for an
+    // attachment it would send a truncated data: URL — not an image, not a document, just damage.
+    seed("prt_att_keep", "file", { type: "file", mime: "text/plain", url: "data:text/plain;base64,QUJD" })
+    const result = call({ id: "prt_att_keep", keep: true })
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error("expected refusal")
+    expect(result.error).toContain("attachment")
+  })
+
+  test("a file part with no payload is refused, not answered with an empty body", () => {
+    seed("prt_att_empty", "file", { type: "file", mime: "text/plain", url: "" })
+    const result = call({ id: "prt_att_empty" })
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error("expected refusal")
+    expect(result.error).toContain("payload")
+  })
+})

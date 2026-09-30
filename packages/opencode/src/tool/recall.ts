@@ -29,6 +29,10 @@ export type StoredToolPart = {
     title?: string
     [field: string]: unknown
   }
+  /** A `file` part carries its payload in `url` (a data: URL when inline) — what `recall` returns for an attachment. */
+  url?: string
+  mime?: string
+  filename?: string
 }
 
 export type RecallSuccess = {
@@ -92,6 +96,82 @@ export function parseRange(
 }
 
 /**
+ * Range + pattern + cap, applied to the TEXT of a stored result — ONE implementation for a tool
+ * result and for an attachment, because two would drift invisibly: the day they disagree, the same
+ * call shows one thing for a grep and another for a pasted image. Every row carries its ABSOLUTE line
+ * number, and `nextLine` says what to ask for next, so a caller can walk a result past the cap.
+ */
+function sliceResult(
+  output: string,
+  input: { range?: string; pattern?: string; ignoreCase?: boolean; maxChars: number },
+):
+  | {
+      ok: true
+      from: number
+      to: number
+      totalLines: number
+      firstLine: number
+      lastLine: number
+      matchedLines: number
+      text: string
+      nextLine: number | null
+    }
+  | { ok: false; error: string } {
+  const totalLines = resultLines(output).length
+
+  const window = parseRange(input.range, totalLines)
+  if (!window.ok) return window
+
+  // Validate the pattern BEFORE selecting: a malformed regex is a user error with an obvious fix,
+  // so it must come back as a message rather than die inside the selector.
+  if (input.pattern !== undefined && input.pattern !== "") {
+    try {
+      optionalPattern(input.pattern, input.ignoreCase)
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) }
+    }
+  }
+
+  const selection = selectLines(output, {
+    from: window.from,
+    to: window.to,
+    pattern: input.pattern,
+    ignoreCase: input.ignoreCase,
+  })
+  const selected = selection.rows
+
+  const chunks: string[] = []
+  let used = 0
+  let lastLine = 0
+  for (let i = 0; i < selected.length; i++) {
+    const rowText = `${selected[i]}\n`
+    if (used + rowText.length > input.maxChars) break
+    chunks.push(rowText)
+    used += rowText.length
+    lastLine = selection.numbers[i] ?? 0
+  }
+  // Never answer with an empty body when lines WERE selected: a single line longer than the cap is
+  // cut instead, so the caller always learns the content starts here.
+  if (selected.length > 0 && chunks.length === 0) {
+    chunks.push(`${selected[0]}\n`.slice(0, input.maxChars))
+    lastLine = selection.numbers[0] ?? 0
+  }
+
+  const lastSelected = selection.numbers.length > 0 ? selection.numbers[selection.numbers.length - 1]! : 0
+  return {
+    ok: true,
+    from: window.from,
+    to: window.to,
+    totalLines,
+    firstLine: chunks.length > 0 ? (selection.numbers[0] ?? 0) : 0,
+    lastLine,
+    matchedLines: selected.length,
+    text: chunks.join(""),
+    nextLine: lastLine > 0 && lastLine < lastSelected ? lastLine + 1 : null,
+  }
+}
+
+/**
  * Read a stored tool result by its PART id — the address `toolPlaceholder()` already prints on the
  * wire (`message-v2.ts:902`, `id=<partID>`). A plain keyed lookup: the placeholder hands over exactly
  * one id, so the way back takes exactly one id.
@@ -127,6 +207,9 @@ export function readToolResult(input: {
       tool?: string
       callID?: string
       state?: StoredToolPart["state"]
+      url?: string
+      mime?: string
+      filename?: string
     }
     const part: StoredToolPart = {
       id: lookup.part.id,
@@ -136,6 +219,42 @@ export function readToolResult(input: {
       tool: stored.tool ?? "",
       callID: stored.callID ?? "",
       state: stored.state ?? {},
+      ...(stored.url === undefined ? {} : { url: stored.url }),
+      ...(stored.mime === undefined ? {} : { mime: stored.mime }),
+      ...(stored.filename === undefined ? {} : { filename: stored.filename }),
+    }
+
+    // AN ATTACHMENT IS RECALLABLE. The release note for a `file` part used to say «Read the file again
+    // if it is still needed» — a real address only when a FILE exists. A pasted image, a dropped
+    // document or a screenshot has no path behind it, so the content became unreachable while the
+    // stored part still held it (owner, 2026-09-30: «то, что нельзя вернуть — это неправильно»). The
+    // payload is the part's `url`, which is TEXT, so the same selector, range and pattern serve it.
+    if (part.type === "file") {
+      const payload = part.url ?? ""
+      if (payload.length === 0) return { ok: false, error: `attachment ${input.id} stored no payload` }
+      if (input.keep === true) {
+        return {
+          ok: false,
+          error:
+            "keep is for narrowing a tool result — an attachment is ONE payload (its data URL), so a kept slice would send the provider a truncated one. Read it with a range instead.",
+        }
+      }
+      const slice = sliceResult(payload, input)
+      if (!slice.ok) return slice
+      return {
+        ok: true,
+        tool: "attachment",
+        part,
+        title: part.filename ?? "",
+        label: `attachment: ${part.filename ?? part.mime ?? "unknown type"}`,
+        totalLines: slice.totalLines,
+        totalChars: payload.length,
+        firstLine: slice.firstLine,
+        lastLine: slice.lastLine,
+        matchedLines: slice.matchedLines,
+        text: slice.text,
+        nextLine: slice.nextLine,
+      }
     }
 
     if (part.type !== "tool") return { ok: false, error: `part ${input.id} is a ${part.type ?? "unknown"} part, not a tool result` }
@@ -153,55 +272,17 @@ export function readToolResult(input: {
     const output = status === "completed" ? (part.state?.output ?? "") : (part.state?.error ?? "")
     if (output.length === 0) return { ok: false, error: `part ${input.id} stored an empty result` }
 
-    // ONE selector, shared with the replay rendering of a kept selection (`message-v2.selectLines`).
-    // Two implementations would drift invisibly — the tool showing one thing and the wire another.
-    const totalLines = resultLines(output).length
-
-    const window = parseRange(input.range, totalLines)
-    if (!window.ok) return window
-
-    // Validate the pattern BEFORE selecting: a malformed regex is a user error with an obvious fix,
-    // so it must come back as a message rather than die inside the selector.
-    if (input.pattern !== undefined && input.pattern !== "") {
-      try {
-        optionalPattern(input.pattern, input.ignoreCase)
-      } catch (error) {
-        return { ok: false, error: error instanceof Error ? error.message : String(error) }
-      }
-    }
-
-    const selection = selectLines(output, {
-      from: window.from,
-      to: window.to,
-      pattern: input.pattern,
-      ignoreCase: input.ignoreCase,
-    })
-    const selected = selection.rows
-
-    const chunks: string[] = []
-    let used = 0
-    let lastLine = 0
-    for (let i = 0; i < selected.length; i++) {
-      const rowText = `${selected[i]}\n`
-      if (used + rowText.length > input.maxChars) break
-      chunks.push(rowText)
-      used += rowText.length
-      lastLine = selection.numbers[i] ?? 0
-    }
-    // Never answer with an empty body when lines WERE selected: a single line longer than the cap is
-    // cut instead, so the caller always learns the content starts here.
-    if (selected.length > 0 && chunks.length === 0) {
-      chunks.push(`${selected[0]}\n`.slice(0, input.maxChars))
-      lastLine = selection.numbers[0] ?? 0
-    }
-
-    const lastSelected = selection.numbers.length > 0 ? selection.numbers[selection.numbers.length - 1]! : 0
+    // ONE selector, shared with the replay rendering of a kept selection (`message-v2.selectLines`),
+    // reached through the ONE slicer an attachment uses too.
     const tool = part.tool ?? "tool"
+    const slice = sliceResult(output, input)
+    if (!slice.ok) return slice
+    const { from, to, totalLines, firstLine, lastLine, matchedLines, text, nextLine } = slice
     const title = part.state?.title ?? ""
     // A kept selection REPLACES the result on the wire, so it must never be allowed to blank it: a
     // selection that matched nothing would leave the model an EMPTY tool result carrying only its call
     // id, and the caller would have paid a round trip to destroy the content it was narrowing.
-    if (input.keep === true && selected.length === 0) {
+    if (input.keep === true && matchedLines === 0) {
       return {
         ok: false,
         error:
@@ -216,8 +297,8 @@ export function readToolResult(input: {
     const kept =
       input.keep === true
         ? {
-            from: window.from,
-            to: Math.min(window.to, totalLines),
+            from,
+            to: Math.min(to, totalLines),
             ...(input.pattern ? { pattern: input.pattern } : {}),
             ...(input.ignoreCase ? { ignoreCase: true } : {}),
             ...(input.reason ? { reason: input.reason } : {}),
@@ -232,11 +313,11 @@ export function readToolResult(input: {
       label: title ? `${tool}: ${title}` : tool,
       totalLines,
       totalChars: output.length,
-      firstLine: chunks.length > 0 ? (selection.numbers[0] ?? 0) : 0,
+      firstLine,
       lastLine,
-      matchedLines: selected.length,
-      text: chunks.join(""),
-      nextLine: lastLine > 0 && lastLine < lastSelected ? lastLine + 1 : null,
+      matchedLines,
+      text,
+      nextLine,
     }
   } catch (error) {
     return { ok: false, error: `lookup failed: ${String(error)}` }

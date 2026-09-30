@@ -75,7 +75,7 @@ def _log(msg: str, *, color: str | None = None) -> None:
         print(msg)
 
 
-def _run(cmd: Sequence[str], *, cwd: Path | None = None) -> None:
+def _run(cmd: Sequence[str], *, cwd: Path | None = None, env: dict[str, str] | None = None) -> None:
     _log(f"  $ {' '.join(cmd)}", color="dim")
     # Windows: CreateProcess only appends ".exe" to extensionless commands, so
     # npm shims like bun.cmd are invisible to subprocess (WinError 2). Resolve
@@ -86,7 +86,7 @@ def _run(cmd: Sequence[str], *, cwd: Path | None = None) -> None:
         argv[0] = resolved
         if resolved.lower().endswith((".cmd", ".bat")):
             argv = [os.environ.get("COMSPEC", "cmd.exe"), "/c", *argv]
-    r = subprocess.run(argv, cwd=str(cwd or ROOT))
+    r = subprocess.run(argv, cwd=str(cwd or ROOT), env=env)
     if r.returncode != 0:
         raise RuntimeError(f"command failed ({r.returncode}): {' '.join(cmd)}")
 
@@ -199,10 +199,16 @@ def step_kernel() -> None:
 
 def step_reasoning() -> None:
     env = {**os.environ, "PYTHONPATH": str(ROOT)}
+    # The prefix assert below is CORRECTED, not weakened (2026-09-30): the kernel's section 0
+    # was renamed `KERNEL_MAP` -> `WORKFLOW` (prompt_kernel/render.py:183), the canon states the
+    # first heading IS `## 0. WORKFLOW` (docs/two-canon-protocol.md:44), and the kernel's own
+    # tests assert it (tests/test_render.py:15, test_compatibility.py:39, test_contracts.py:78).
+    # This check had gone stale and failed EVERY full build right here, after `kernel` had already
+    # written production — the worst place to stop. `validate_kernel` above is untouched.
     code = r"""
 from prompt_kernel import KERNEL, render_kernel, validate_kernel
 assert not validate_kernel(KERNEL)
-assert render_kernel().lstrip().startswith("## 0. KERNEL_MAP")
+assert render_kernel().lstrip().startswith("## 0. WORKFLOW")
 print("OK reasoning kernel")
 """
     r = subprocess.run([sys.executable, "-c", code], cwd=str(ROOT), env=env)
@@ -214,15 +220,42 @@ def step_rust() -> None:
     _run(["pwsh", "-NoProfile", "-File", str(ROOT / "_build_rust.ps1")])
 
 
+def _posix_shell_env() -> dict[str, str]:
+    """An environment in which `sh` resolves — and `tar` still understands Windows paths.
+
+    OpenTUI's native build shells out to `sh`
+    (`packages/opentui/packages/native/scripts/prepare-zig-deps.sh`, which unpacks the vendored
+    `src/vendor/zig-deps.tar.gz` — offline, no download). Windows has no `sh`, and bun answers
+    `bun: command not found: sh`, aborting the whole build. Git for Windows ships one and git is
+    already a prerequisite of this repo, so it is appended to PATH — APPENDED, not prepended, and
+    that ordering is the whole point: bun hands the script a Windows-style root (a drive-letter
+    path), and the Windows `tar` (bsdtar, system32) handles that, while Git's GNU tar reads the
+    drive letter as a REMOTE host and dies with `Cannot connect to D:` (measured 2026-09-30, runs
+    20260930T041858Z_8c08fdfb and 20260930T042235Z_718c5ca3). Appending also keeps the blast
+    radius at exactly the tools Windows lacks (`sh`, `cksum`, `cmp`, `ln`) instead of shadowing
+    `find`/`sort`/`tar` for every later step.
+    """
+    if shutil.which("sh"):
+        return dict(os.environ)
+    for candidate in (Path(r"C:\Program Files\Git\usr\bin"), Path(r"C:\Program Files\Git\bin")):
+        if (candidate / "sh.exe").is_file():
+            return {**os.environ, "PATH": f"{os.environ.get('PATH', '')}{os.pathsep}{candidate}"}
+    raise RuntimeError(
+        "OpenTUI's native build needs a POSIX `sh` on PATH and none was found. "
+        "Install Git for Windows (it ships sh.exe in Git\\usr\\bin) and re-run."
+    )
+
+
 def step_opentui() -> None:
     core = ROOT / "packages/opentui/packages/core"
     solid = ROOT / "packages/opentui/packages/solid"
     three = ROOT / "packages/opentui/packages/three"
+    env = _posix_shell_env()
     for d, label in ((core, "core"), (solid, "solid"), (three, "three")):
         if not d.is_dir():
             raise RuntimeError(f"OpenTUI package missing: {d}")
         _log(f"  OpenTUI {label}...", color="yellow")
-        _run(["bun", "run", "build"], cwd=d)
+        _run(["bun", "run", "build"], cwd=d, env=env)
 
 
 def step_opencode() -> None:
@@ -274,7 +307,7 @@ def make_steps(*, skip_reasoning: bool) -> list[Step]:
         steps.append(
             Step(
                 name="reasoning",
-                description="prompt_kernel validate + KERNEL_MAP prefix",
+                description="prompt_kernel validate + WORKFLOW prefix",
                 inputs=[
                     "prompt_kernel",
                 ],

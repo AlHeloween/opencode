@@ -16,7 +16,6 @@ export const Model = Schema.Struct({
       temperature: Schema.optional(Schema.Number),
       repetition_penalty: Schema.optional(Schema.Number),
       top_p: Schema.optional(Schema.Number),
-      presence_penalty: Schema.optional(Schema.Number),
     }).annotate({ description: "Per-model sampling parameters" }),
   ),
   interleaved: Schema.optional(

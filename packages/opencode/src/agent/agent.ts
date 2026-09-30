@@ -42,7 +42,6 @@ export const Info = Schema.Struct({
   hidden: Schema.optional(Schema.Boolean),
   topP: Schema.optional(Schema.Number),
   temperature: Schema.optional(Schema.Number),
-  presencePenalty: Schema.optional(Schema.Number),
   color: Schema.optional(Schema.String),
   permission: Permission.Ruleset,
   model: Schema.optional(
@@ -267,16 +266,23 @@ export const layer = Layer.effect(
             subagents: ["explorer_agent", "coder_agent"],
           },
           // Per-identity sampling (2026-09-16). Every subagent was sending the
-          // same DEFAULT_MODEL_SAMPLING triple — 0.65 / 0.95 / 0.2 / 1.1 — which
-          // is the TUI's model-wide default, never a decision about the job.
+          // same DEFAULT_MODEL_SAMPLING profile — 0.65 / 0.95 / 1.1 — which is the
+          // TUI's model-wide default, never a decision about the job.
           //
           // The axis is what the output is for. Grounding, implementation and
           // oracle work gets verified: it must be reproducible, and its text
           // legitimately repeats (paths, symbols, identifiers), so a repetition
-          // penalty there corrupts rather than diversifies. Decomposition and
-          // media produce a candidate SET — @MANHATTAN_L1 asks for five
-          // candidates that actually differ, which is what temperature and
-          // presence_penalty buy.
+          // penalty there corrupts rather than diversifies — those two sit at 1.
+          // Decomposition and media produce a candidate SET — @MANHATTAN_L1 asks
+          // for five candidates that actually differ — which is what temperature
+          // buys.
+          //
+          // `presence_penalty` used to carry the "diversify" half of that axis.
+          // It is gone (2026-09-30): the vendor documents it as a deprecated no-op
+          // and its endpoint rejects it alongside `repetition_penalty` with a 400
+          // ("repetition_penalty can't be combined with frequency_penalty or
+          // presence_penalty"). Upstream opencode sends neither. Temperature alone
+          // is the axis now.
           //
           // Only what the provider honors binds: `capabilities.temperature`
           // gates temperature, and a thinking model may treat the penalties as
@@ -326,7 +332,6 @@ export const layer = Layer.effect(
             prompt: PROMPT_GENERAL,
             temperature: 0.8,
             topP: 0.95,
-            presencePenalty: 0.4,
             options: { repetition_penalty: 1.1 },
             mode: "subagent",
             native: true,
@@ -362,7 +367,6 @@ export const layer = Layer.effect(
             prompt: PROMPT_EXPLORE,
             temperature: 0.2,
             topP: 0.85,
-            presencePenalty: 0,
             options: { repetition_penalty: 1 },
             mode: "subagent",
             native: true,
@@ -397,7 +401,6 @@ export const layer = Layer.effect(
             prompt: PROMPT_CODER,
             temperature: 0.25,
             topP: 0.9,
-            presencePenalty: 0,
             options: { repetition_penalty: 1 },
             mode: "subagent",
             native: true,
@@ -455,7 +458,6 @@ export const layer = Layer.effect(
             prompt: PROMPT_RESEARCHER,
             temperature: 0.3,
             topP: 0.9,
-            presencePenalty: 0.1,
             options: { repetition_penalty: 1.05 },
             mode: "subagent",
             native: true,
@@ -481,7 +483,6 @@ export const layer = Layer.effect(
             prompt: PROMPT_MEDIA,
             temperature: 0.9,
             topP: 0.95,
-            presencePenalty: 0.5,
             options: { repetition_penalty: 1.1 },
             mode: "subagent",
             native: true,
@@ -527,7 +528,6 @@ export const layer = Layer.effect(
           item.prompt = value.prompt ?? item.prompt
           item.description = value.description ?? item.description
           item.temperature = value.temperature ?? item.temperature
-          item.presencePenalty = value.presencePenalty ?? item.presencePenalty
           item.topP = value.top_p ?? item.topP
           item.mode = value.mode ?? item.mode
           item.color = value.color ?? item.color

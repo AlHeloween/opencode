@@ -11,10 +11,9 @@ import { DEFAULT_MODEL_SAMPLING } from "../../src/session/model-sampling"
 
 /**
  * Every subagent used to send the same wire body — temperature 0.65, top_p
- * 0.95, presence_penalty 0.2, repetition_penalty 1.1 — because those are
- * DEFAULT_MODEL_SAMPLING, the model-wide TUI default. Nothing about the agent
- * reached the request, so "explore the repo" and "invent five designs" were
- * sampled identically.
+ * 0.95, repetition_penalty 1.1 — because those are DEFAULT_MODEL_SAMPLING, the
+ * model-wide TUI default. Nothing about the agent reached the request, so
+ * "explore the repo" and "invent five designs" were sampled identically.
  *
  * These tests hold the declaration (agent.ts) and the reachability (llm.ts
  * merge order) separately, because the second is what silently broke the first:
@@ -41,8 +40,12 @@ test("every native subagent declares its own sampling, not the model default", a
         expect(agent).toBeDefined()
         expect(typeof agent!.temperature).toBe("number")
         expect(typeof agent!.topP).toBe("number")
-        expect(typeof agent!.presencePenalty).toBe("number")
         expect(typeof agent!.options["repetition_penalty"]).toBe("number")
+        // The penalty pair is gone (deprecated at the vendor, and its endpoint
+        // rejects it beside repetition_penalty). Guard against re-introduction:
+        // a silent second spelling is the defect this assertion exists for.
+        expect("presencePenalty" in agent!).toBe(false)
+        expect("frequencyPenalty" in agent!).toBe(false)
       }
     },
   })
@@ -59,12 +62,14 @@ test("verification identities are sampled tighter than generative ones", async (
     fn: async () => {
       const agents = new Map((await load(tmp.path, (svc) => svc.list())).map((a) => [a.name, a]))
       const t = (n: string) => agents.get(n)!.temperature!
-      const pp = (n: string) => agents.get(n)!.presencePenalty!
       const rp = (n: string) => agents.get(n)!.options["repetition_penalty"] as number
       for (const verifier of ["explorer_agent", "coder_agent"]) {
         for (const generator of ["general_agent", "media_agent"]) {
           expect(t(verifier)).toBeLessThan(t(generator))
-          expect(pp(verifier)).toBeLessThan(pp(generator))
+          // The second axis here used to be presence_penalty, removed 2026-09-30.
+          // The ordering invariant survives on repetition_penalty, which is a live
+          // knob on those vendors.
+          expect(rp(verifier)).toBeLessThan(rp(generator))
         }
         // Code and file paths legitimately repeat tokens; penalising that is
         // how an identifier comes back renamed. No penalty on those two.

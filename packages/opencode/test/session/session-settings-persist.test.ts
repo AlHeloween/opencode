@@ -163,7 +163,7 @@ describe("saveSessionSettings → loadSessionSettings", () => {
     })
   })
 
-  test("round-trip: model sampling keeps the four standard parameters", async () => {
+  test("round-trip: model sampling keeps the standard parameters", async () => {
     await using tmp = await tmpdir()
     await withDataDir(tmp, async () => {
       await saveSessionSettings("ses_sampling", {
@@ -172,7 +172,6 @@ describe("saveSessionSettings → loadSessionSettings", () => {
             temperature: 0.6,
             repetition_penalty: 1.15,
             top_p: 0.92,
-            presence_penalty: 0.8,
           },
         },
       })
@@ -181,7 +180,6 @@ describe("saveSessionSettings → loadSessionSettings", () => {
         temperature: 0.6,
         repetition_penalty: 1.15,
         top_p: 0.92,
-        presence_penalty: 0.8,
       })
     })
   })

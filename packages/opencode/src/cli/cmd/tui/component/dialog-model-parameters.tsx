@@ -14,7 +14,6 @@ const FIELDS: Array<{ key: keyof ModelSampling; title: string; description: stri
   { key: "temperature", title: "Temperature", description: "Sampling temperature" },
   { key: "repetition_penalty", title: "Repetition penalty", description: "Repetition penalty" },
   { key: "top_p", title: "Top P", description: "Nucleus sampling mass" },
-  { key: "presence_penalty", title: "Presence penalty", description: "Penalty for already-used tokens" },
 ]
 
 // Transport rungs, best first (owner directive 2026-09-24): h1 exists only as

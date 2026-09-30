@@ -652,7 +652,6 @@ const live: Layer.Layer<
           temperature: input.model.capabilities.temperature ? (input.agent.temperature ?? sampling.temperature) : undefined,
           topP: input.agent.topP ?? sampling.top_p,
           topK: ProviderTransform.topK(input.model),
-          presencePenalty: input.agent.presencePenalty ?? sampling.presence_penalty,
           maxOutputTokens: ProviderTransform.maxOutputTokens(input.model, input.outputTokenMax),
           options,
 
@@ -873,7 +872,6 @@ const live: Layer.Layer<
         temperature: params.temperature,
         topP: params.topP,
         topK: params.topK,
-        presencePenalty: params.presencePenalty,
         providerOptions: ProviderTransform.providerOptions(input.model, params.options),
         activeTools: Object.keys(tools).filter((x) => x !== "invalid"),
         tools,

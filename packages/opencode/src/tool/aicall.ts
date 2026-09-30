@@ -59,8 +59,6 @@ export const Parameters = Schema.Struct({
   top_p: Schema.optional(Schema.Number).annotate({ description: "Nucleus sampling mass (0-1)" }),
   top_k: Schema.optional(Schema.Number).annotate({ description: "Top-K sampling" }),
   max_tokens: Schema.optional(Schema.Number).annotate({ description: "Maximum output tokens" }),
-  presence_penalty: Schema.optional(Schema.Number).annotate({ description: "Presence penalty (-2 to 2)" }),
-  frequency_penalty: Schema.optional(Schema.Number).annotate({ description: "Frequency penalty (-2 to 2)" }),
   seed: Schema.optional(Schema.Number).annotate({ description: "Seed for (mostly) deterministic sampling" }),
 })
 
@@ -188,8 +186,6 @@ export const AiCallTool = Tool.define(
               ...(params.top_p !== undefined ? { topP: params.top_p } : {}),
               ...(params.top_k !== undefined ? { topK: params.top_k } : {}),
               ...(params.max_tokens !== undefined ? { maxOutputTokens: params.max_tokens } : {}),
-              ...(params.presence_penalty !== undefined ? { presencePenalty: params.presence_penalty } : {}),
-              ...(params.frequency_penalty !== undefined ? { frequencyPenalty: params.frequency_penalty } : {}),
               ...(params.seed !== undefined ? { seed: params.seed } : {}),
             }).then(
               (value) => ({ ok: true as const, value }),

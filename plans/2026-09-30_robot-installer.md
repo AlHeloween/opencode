@@ -34,9 +34,13 @@ Owner, 2026-09-30: «Погоди а если мне для автоматиза
 автоматизации, отладка сайтов? … Чтобы потом народ не плевался.» A security fix that blocks daily work is the first
 thing people undo; the permitted route must be the easiest one. Prepared: `exchange\in` / `exchange\out` with a
 README in `experiments/2026-09-30_universal-search-hardening/harden_services.ps1`; the per-task browser is tier B-web
-(`Skills/cua-robot/TIERS.md`, proven in run `cua-b-web-tier/runs/20260930T014912Z`). Unknown: whether Playwright's
-`setInputFiles` over `connectOverCDP` streams file bytes itself (then no exchange folder is needed for uploads) —
-test on a fixture page before relying on either.
+(`Skills/cua-robot/TIERS.md`, proven in run `cua-b-web-tier/runs/20260930T014912Z`). ✓ **Resolved 2026-09-30** (`experiments/2026-09-30_upload-over-cdp/run.ts`, separate
+headless Chromium on 127.0.0.1:9223, page hashes the file itself, 3/3 AS_PREDICTED): `setInputFiles` with a BUFFER
+(`{name, mimeType, buffer}`) delivers the bytes into the page even after the source file was deleted from disk (5 MB,
+SHA-256 matched) — the browser never reads the disk (`playwright-core/lib/server/dom.js:583-593`: payloads go through
+`injected.setInputFiles`, paths through CDP `DOM.setFileInputFiles`). With a PATH the browser reads the file itself
+(deleted path → `ENOENT`). Consequence: uploads through the least-privilege browser need no folder grant when the
+caller passes bytes; `exchange\in` stays only for path-based callers, `exchange\out` for downloads.
 
 **Virtual monitor is mandatory, not optional** (owner, 2026-09-30: «Обязательно удели внимание установке виртуального
 монитора чтобы под нашего робота не требовался отдельный компьютер»). It is the only component that installs a DRIVER,

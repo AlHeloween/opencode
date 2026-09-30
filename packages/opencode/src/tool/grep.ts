@@ -11,31 +11,14 @@ import * as Tool from "./tool"
 const SNIPPET_MARGIN = 160
 const MAX_MATCH_TEXT = 200
 
-/**
- * Convert common regex patterns to Rust regex (ERE) format.
- * LLMs often generate BRE-style patterns (e.g. \| for OR) that don't
- * work in ripgrep's Rust regex engine where | is OR and \| is literal pipe.
- */
-function toRustRegex(pattern: string): string {
-  // BRE \| → ERE | (OR operator)
-  // But not \\| (escaped backslash + pipe) or [|] (character class)
-  // Strategy: replace \| with | but preserve \\|
-  let result = ""
-  for (let i = 0; i < pattern.length; i++) {
-    if (pattern[i] === "\\" && i + 1 < pattern.length && pattern[i + 1] === "|") {
-      // Check if it's \\| (escaped backslash) — keep as-is
-      if (i > 0 && pattern[i - 1] === "\\") {
-        result += "|"
-      } else {
-        result += "|"
-      }
-      i++ // skip the |
-    } else {
-      result += pattern[i]
-    }
-  }
-  return result
-}
+// `toRustRegex` used to stand here and rewrite a BRE-style `\|` into `|` — i.e. into OR — while
+// the shipped description says «`|` is OR; `\|` is a literal pipe», which is also what ripgrep's
+// own dialect (Rust regex / ERE) means. A caller who read the description and asked for a literal
+// pipe silently got an alternation instead: one spelling carrying two meanings, separated by a
+// guess about the caller's dialect. The guess is gone — the pattern reaches ripgrep exactly as
+// written, a literal pipe is `[|]` as it always was, and the description is now true. (The deleted
+// function also carried a dead branch: both halves of its `if` appended `|`, so the `\\|` it
+// promised to preserve was not preserved — a signature of a layer nobody could state precisely.)
 
 /**
  * A match is reported as an ADDRESS plus a bounded window around the hit.
@@ -93,11 +76,11 @@ export const GrepTool = Tool.define(
           }
 
           // Normalize regex for Rust engine (BRE → ERE)
-          const pattern = toRustRegex(params.pattern)
+          const pattern = params.pattern
 
           const empty = {
             title: pattern,
-            metadata: { matches: 0, truncated: false, hidden_by_ignore: 0 },
+            metadata: { matches: 0, truncated: false },
             output: "No matches found",
           }
 
@@ -219,7 +202,6 @@ export const GrepTool = Tool.define(
             metadata: {
               matches: total,
               truncated,
-              hidden_by_ignore: 0,
             },
             output: output.join("\n"),
           }

@@ -1,6 +1,8 @@
 Search or browse conversation history across all sessions in the current project.
 Ground conversation facts before judgment. Epistemic ranking: Exact > Inferred > Hypothetical > Guess > Unknown.
 
+**`pattern` is a JavaScript `RegExp`** (compiled with the `u` flag), NOT ripgrep's Rust dialect. A Unicode property must name what it is a property OF: write `\p{Script=Han}`, not `\p{Han}` — the lone form is a syntax error in this dialect, and it is now REPORTED as one rather than quietly compiled without `u`, where it became the literal text `p{Han}` and matched nothing (which read exactly like «the corpus does not contain it»).
+
 ## Modes
 
 - **Search mode** (with `query`): FTS5 full-text search over all message content. Results ordered by combined BM25 relevance and epistemic-weighted semantic rank.

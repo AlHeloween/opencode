@@ -47,7 +47,7 @@ export const GlobTool = Tool.define(
           if (!info) {
             return {
               title: path.relative(ins.worktree, search),
-              metadata: { count: 0, truncated: false, hidden_by_ignore: 0 },
+              metadata: { count: 0, truncated: false },
               output: `Directory not found: ${search}`,
             }
           }
@@ -58,6 +58,12 @@ export const GlobTool = Tool.define(
 
           const limit = 100
           let truncated = false
+          // NOTE on the sample and its order: `take(limit + 1)` stops at the first 101 files in
+          // ripgrep's traversal order, so the mtime sort below orders THAT SAMPLE, not the whole
+          // match set — which makes the output «newest-first among the first 100 found», not «the
+          // 100 newest». Sorting every match by mtime would mean enumerating the whole tree to
+          // order one page, so the sample stays; the truncation notice is what keeps it honest, and
+          // a caller who needs the newest must narrow the pattern or the path.
           const files = yield* rg.files({ cwd: search, glob: [params.pattern], signal: ctx.abort, gitignore: params.gitignore }).pipe(
             Stream.mapEffect((file) =>
               Effect.gen(function* () {
@@ -104,7 +110,6 @@ export const GlobTool = Tool.define(
             metadata: {
               count: files.length,
               truncated,
-              hidden_by_ignore: 0,
             },
             output: output.join("\n"),
           }

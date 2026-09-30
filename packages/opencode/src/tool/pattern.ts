@@ -13,9 +13,22 @@ export function compilePattern(pattern: string, ignoreCase?: boolean): RegExp {
   try {
     return new RegExp(pattern, ignoreCase ? "iu" : "u")
   } catch (cause) {
-    // `u` rejects some patterns the non-unicode engine accepts (lone `\d` in a
-    // class is fine, but e.g. `\p` without a name, or an unescaped `{`). Retry
-    // without it rather than refusing a pattern that plainly works elsewhere.
+    // The non-unicode engine accepts patterns the `u` engine rejects, and for some of them it
+    // gives them a DIFFERENT MEANING. That is harmless where the meaning does not move — `a{` is
+    // an incomplete quantifier under `u` and a plain literal without it. It is NOT harmless for a
+    // Unicode property: with `u`, `\p{Han}` is a property (and `Han` is a Script, so the lone form
+    // is itself the syntax error that lands us here); without `u` it is the literal text
+    // `p{Han}`, which matches nothing. Falling back would report a PATTERN ERROR as an EMPTY
+    // RESULT — the one failure a caller cannot see. Measured 2026-09-30: `\p{Han}` and
+    // `\p{Cyrillic}` both returned zero hits on a session full of Cyrillic while
+    // `\p{Script=Han}` matched, and a search cycle was spent reading «the index has no CJK».
+    if (/\\[pP]\{/.test(pattern)) {
+      throw new Error(
+        `Invalid regular expression ${JSON.stringify(pattern)}: ${cause instanceof Error ? cause.message : String(cause)}. ` +
+          `A Unicode property must name what it is a property OF — write \\p{Script=Han}, not \\p{Han}.`,
+      )
+    }
+    // Retry without `u` rather than refusing a pattern that plainly works elsewhere.
     try {
       return new RegExp(pattern, ignoreCase ? "i" : "")
     } catch {

@@ -150,4 +150,24 @@ describe("tool.grep", () => {
       }),
     ),
   )
+
+  it.live("treats \\| as a LITERAL pipe, exactly as the description says", () =>
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        // grep.txt states: «`|` is OR; `\|` is a literal pipe», and the pattern is handed to
+        // ripgrep, whose dialect (Rust regex / ERE) agrees. `toRustRegex` used to rewrite `\|`
+        // into `|` — i.e. into OR — so a caller who read the description and asked for a literal
+        // pipe silently got an alternation: both lines match and nothing says why. One spelling,
+        // one meaning.
+        const file = path.join(dir, "pipes.txt")
+        yield* Effect.promise(() => Bun.write(file, "a|b\naXb\n"))
+        const info = yield* GrepTool
+        const grep = yield* info.init()
+        const result = yield* grep.execute({ pattern: "a\\|b", path: file }, ctx)
+        expect(result.metadata.matches).toBe(1)
+        expect(result.output).toContain("a|b")
+        expect(result.output).not.toContain("aXb")
+      }),
+    ),
+  )
 })

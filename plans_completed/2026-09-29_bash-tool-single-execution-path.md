@@ -114,7 +114,15 @@ Evidence for every box below: run V1 = `experiments/2026-09-29_bash-exec-baselin
 - [x] K3 timeout per D1 in both tools, cmd_runner exempt, one default (C10) — contract D1 ×12 green;
       `regression.test.ts` 7/0 (was 3/4, 112 s → 22 s); `bash.test.ts` "terminates command on
       timeout" un-skipped and green.
-- [~] K4 `Shell.select()` silent fallback (C5) — NOT done, but **DECIDED (2026-09-30), so the next cycle does
+- [x] ✓ K4 `Shell.select()` silent fallback (C5) — DONE 2026-09-30: `Shell.resolution()` returns
+      `{ used, requested, fellBack }`, recorded by `select()` and ridden on bash's permission ask, so a user
+      who requested a shell that was refused sees the substitution where they are already reading. Oracles:
+      `bun test test/shell/shell.test.ts` → **10 pass / 2 fail** (`20260930T023456Z_71c7d6ac`) with the new
+      pair green, and the two gitbash reds MEASURED as inherited — the same file on the pre-K4 code gives
+      **9 pass / 3 fail** (`20260930T023430Z_af1d007a`), one MORE failure, because the new test's own red is
+      the third; `bun typecheck` → **exit 0** (`20260930T022753Z_1fa615cb`). The two inherited reds are their
+      own finding: `plans/2026-09-30_stale-gitbash-tests.md`. And the decision below is the one implemented —
+      **DECIDED (2026-09-30), so the next cycle does
       not pay for the decision twice. The signal is STATE, not a log.** AGENTS § Debugging Paradigm settles the
       question this item left open: a log may record only what state cannot show, and a shell fallback HAS a
       key — the resolved shell already rides the tool's own metadata

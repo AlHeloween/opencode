@@ -67,12 +67,20 @@ constraints:
   редактирование исходников прямыми unverifable скриптами, adm — это другое»). An `updates/*.xml`
   descriptor (`D:\zPython\ADID_Python\updates\` is the corpus; `src/adm/` the engine) answers each
   objection above by construction: every payload is an `<update_md5_…>` block carrying its own md5 and
-  size, so a stale or altered payload is DETECTED rather than trusted. The md5 IS the tag name
-  (`<update_md5_<hash>>…<content_md5_<hash>>…</content_md5_<hash>>`), and the parser locates the payload by
-  those raw open/close tokens, never by XML escaping (`src/adm/manager_methods/_stream_md5_wrapped_updates.py:113`) —
-  so the document is self-integrity-checking, anything can sit between the tags (owner: even raw binary,
-  not hex), and an unclosed block, a duplicate content block or content outside an update fails loudly
-  (same file, lines 44/64/67/76); a `replace` names its exact anchor
+  size, and the md5 IS the tag name (`<update_md5_<hash>>…<content_md5_<hash>>…</content_md5_<hash>>`); the
+  parser locates the payload by those raw open/close tokens, not by XML escaping
+  (`src/adm/manager_methods/_stream_md5_wrapped_updates.py:113`), and an unclosed block, a duplicate content
+  block or content outside an update raises (same file, lines 44/64/67/76 — read in code, not run).
+  **What the md5 is NOT — measured 2026-09-30 on adm 5.0.6** (`experiments/2026-09-30_adm-binary-smoke/`):
+  it is a CHANGE DETECTOR for review, not a guard. `--apply` re-stamps the descriptor in place before
+  parsing (`apply_descriptor.py:20-22`) and then reports «Verified … (md5/size match)» against its own new
+  stamp — a payload altered after stamping was applied (✗ tamper accepted); `--dry-run` does show the
+  mismatch («MD5=auto-corrected, expected … actual …») and still marks the update applicable. So read the
+  integrity report; do not rely on the stamp to refuse. Raw bytes between the tags: the descriptor is read as
+  strict UTF-8, so a byte ≥ 0x80 fails loudly with `UnicodeDecodeError` and nothing is written (✓ safe, but
+  only UTF-8-valid content passes raw). And the `binary-overwrite` template's base64 path wrote the base64
+  TEXT itself (388 B) instead of the 291 decoded bytes — md5/size are computed over the text, not «on decoded
+  bytes» as the template says (✗, an ADM defect to fix in `ADID_Python`); a `replace` names its exact anchor
   in `<find_text>`, so a moved anchor fails instead of landing elsewhere; `<semantics>` states the intent
   in the descriptor itself; `adm --apply` writes atomically with a baseline snapshot, rotating backups, a
   rollback block and a ledger entry, and `adm --rollback <file>` restores and RE-VERIFIES; the edit is

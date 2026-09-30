@@ -5552,3 +5552,11 @@ Refuted on fixtures: tick 0 alone does not false-finish; a status-poll race at e
 loss at 3m34s stays Unknown. Side: PATH `C:\WINDOWS\cmd_runner.exe` logs into `C:\WINDOWS\logs\cmd_runner\` (six
 qualification runs of today sit there); `state.json` `bytes_written` lags the live log under ConPTY.
 Memory: reference_cmd_runner_raw_buffers.md. Next: B2 (drag schema red test) is now runnable; T3 waits on O1.
+
+## [2026-09-30] cua B2 — capture-bound drag red test, at the portable-contract boundary
+Plan: `plans/2026-09-29_cua-windows-debug-input.md` B2 → [x]. Run `20260930T023106Z_7d7d7b36` (ConPTY) exit 101:
+6 passed / 2 failed, exactly as predicted — `typed_drag_round_trips_capture_bound_endpoints` (unknown field
+`capture_id`) and `typed_drag_rejects_blank_capture_id_by_its_own_error` (refusal must name capture_id, not
+"unknown field"); `typed_click_*` controls pass. Tests uncommitted in `external/cua` (`inputs.rs` +20) until the fix.
+Blast radius recorded: uniffi Record → SDK + Python/TS bindings + three platform adapters.
+Next decision (owner): implement the contract change now, or first run P2/W3 live to prove the need (W2 condition).

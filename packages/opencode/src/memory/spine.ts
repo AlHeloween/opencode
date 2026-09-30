@@ -155,52 +155,30 @@ export function extractSvTarget(text: string): WeightedTerm[] | undefined {
   return extractKeywords(text.slice(at))
 }
 
-/** One entry of the plan map in `memory/reasoning.md`: a plan, and the md5 label its vector carries. */
+/** One entry of the plan map the CALLER built: a plan path, and the md5 label that plan declares. */
 export interface PlanMapEntry {
   plan: string
   label: string
 }
 
-/**
- * Read the PLAN MAP as it is written in memory: a plan path in backticks, then that block's `md5:`.
- *
- * The map is written BY HAND on every fold (owner, 2026-09-22: «Раз мы убрали summary — мы обязаны
- * заполнять и сопровождать эту форму в memory»), so nothing but a read can check it. A block with no
- * `md5:` line — the ratchet list — contributes no entry: an unlabelled plan is not a link, and this
- * reader must not invent one for it.
- */
-export function parsePlanMap(memory: string): PlanMapEntry[] {
-  const entries: PlanMapEntry[] = []
-  let named: string | undefined
-  for (const line of memory.split("\n")) {
-    const plan = line.match(/`(plans\/[^`]+\.md)`/)
-    if (plan) {
-      named = plan[1]!
-      continue
-    }
-    // The map is a markdown LIST, so its label lines are INDENTED (`  md5: …`). A `^md5:` anchor
-    // matched NOTHING in the live memory (measured 2026-09-23: `^md5:` -> no matches,
-    // `^[ \t]+md5:` -> 3), which left `labels` empty and reported every non-zero `parent-goal-md5`
-    // as off-plan. The watcher's first live finding was its own bug, not a vector's.
-    const label = line.match(new RegExp(`^[ \\t]*md5:\\s*${HEX32_SOURCE}`))
-    if (label && named) {
-      entries.push({ plan: named, label: label[1]!.replace(/\s+/g, "") })
-      named = undefined
-    }
-  }
-  return entries
-}
+// `parsePlanMap` stood here until 2026-10-01 (plan L3). It read the map hand-kept in
+// `memory/reasoning.md`, and that file held ZERO `md5:` lines — so the label set came out empty and the
+// watcher reported every non-zero `parent-goal-md5` as off-plan: true statements about a DEAD INPUT,
+// every turn. Labels now come from each plan's OWN header (`util/plan-status.ts` → `planLabels` →
+// `planHeaderLabel`), which is the file that IS the plan. What it still pinned survives as assertions in
+// `test/session/vector-coupling.test.ts`: the indented and the unindented header forms, and the spaced
+// label as a VECTOR carries it.
 
 /**
  * A plan's OWN label, read from the plan file — one label, one place.
  *
- * `parsePlanMap` above reads the map hand-kept in `memory/reasoning.md`, and that file is MEASURED
- * (2026-10-01) to hold ZERO `md5:` lines: `labels` came out empty, so the watcher reported every
- * non-zero `parent-goal-md5` as off-plan — 15 findings in one session, each a true statement about a
- * DEAD INPUT. A plan already declares its label in its own `@SV_FORMAT` header, once, in the file that
- * IS the plan; that is the source this reads, so there is no second copy to keep in step.
+ * The map it replaces was hand-kept in `memory/reasoning.md`, MEASURED (2026-10-01) to hold ZERO
+ * `md5:` lines: `labels` came out empty, so the watcher reported every non-zero `parent-goal-md5` as
+ * off-plan — 15 findings in one session, each a true statement about a DEAD INPUT. A plan already
+ * declares its label once, in its own `@SV_FORMAT` header, in the file that IS the plan; that is the
+ * source this reads, so there is no second copy to keep in step.
  *
- * The anchor and the normalisation are `parsePlanMap`'s, verbatim, for the reason it states: the header
+ * The anchor and the normalisation are the removed reader's, verbatim, for the reason it stated: the header
  * is fenced YAML inside markdown, so the line may be indented, and `prev-md5:` / `parent-goal-md5:` must
  * never be read as the label — neither starts with `md5:`. The FIRST match wins: a header comes first by
  * construction, so first-wins is what makes the header the owner and a quoted vector a copy.
@@ -236,8 +214,8 @@ export function couplingFindings(input: {
   /** The window's messages, in order, with the text that carries their vectors. */
   messages: readonly { id: string; text: string }[]
   /** The map as the CALLER built it. Production reads each plan's own header (`util/plan-status.ts` →
-   *  `planLabels` → `planHeaderLabel`); `parsePlanMap` below is the old source, kept only until its
-   *  removal lands with the test that pins it. */
+   *  `planLabels` → `planHeaderLabel`); the reader that used the hand-kept memory map was removed
+   *  2026-10-01 (plan L3) once that file was measured to hold zero `md5:` lines. */
   map: readonly PlanMapEntry[]
   /** Plan paths that exist on disk, worktree-relative, exactly as the map writes them. */
   plans: ReadonlySet<string>

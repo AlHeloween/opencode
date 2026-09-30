@@ -3,13 +3,17 @@
  * actually… сцепление memory и всего остального контента».
  *
  * With generation removed, NOTHING produces the vector→plan linkage any more, so it has to be
- * checked rather than hoped for: a vector whose `parent-goal-md5` names a plan the memory map does
- * not declare is floating free, and a map entry naming a plan file that does not exist is a link
- * into nothing. These are the falsifiers the plan named, plus the one the wiring exposed — the
- * reader must accept the FORM THE WRITERS ACTUALLY WRITE, or it alarms on everything.
+ * checked rather than hoped for: a vector whose `parent-goal-md5` names a plan no file declares is
+ * floating free, and a declared label naming a plan that does not exist is a link into nothing.
+ * These are the falsifiers the plan named, plus the one the wiring exposed — the reader must accept
+ * the FORM THE WRITERS ACTUALLY WRITE, or it alarms on everything.
+ *
+ * The label source changed on 2026-10-01 (plan L2/L3): it was the map hand-kept in
+ * `memory/reasoning.md`, MEASURED to hold ZERO `md5:` lines, so every non-zero parent came back
+ * off-plan; it is now each plan's OWN header (`util/plan-status.ts` → `planLabels`).
  */
 import { describe, expect, test } from "bun:test"
-import { EMPTY_HASH, couplingFindings, extractVectorChain, parsePlanMap, planHeaderLabel } from "../../src/memory/spine"
+import { EMPTY_HASH, couplingFindings, extractVectorChain, planHeaderLabel } from "../../src/memory/spine"
 import { TAIL_NOTE_PREFIX, tailNote } from "../../src/session/compaction"
 
 const PLAN = "plans/2026-09-21_x.md"
@@ -121,34 +125,6 @@ describe("the coupling watcher", () => {
     expect(result.findings[0]).toContain("DELETED")
   })
 
-  test("the map is read as WRITTEN — the memory's markdown-list indentation included", () => {
-    const memory = [
-      "## Мастер-план: план ↔ SVM ↔ носитель",
-      "",
-      `- \`${PLAN}\` — carrier: the fold's head`,
-      "  Keywords: fold-head 0.30, mStarRow 0.24",
-      "  Semantic dominant: …",
-      `  md5: ${LABEL_SPACED}`,
-      `  prev-md5: ${EMPTY_HASH}`,
-      `  parent-goal-md5: ${EMPTY_HASH}`,
-      "",
-      "**Храповик:** `plans/2026-09-20_y.md` · `plans/2026-09-19_z.md`",
-    ].join("\n")
-    // THE FORM THAT COST A LIVE FINDING (2026-09-23). The map is a markdown LIST, so its label lines
-    // are INDENTED. This fixture used to write `md5:` flush left — a shape the live memory never uses
-    // — so the parser's `^md5:` anchor passed HERE and matched NOTHING there: `labels` came out empty
-    // and the watcher reported every non-zero `parent-goal-md5` as off-plan, its own bug read as a
-    // vector's. A fixture must repeat the prod schema or it cannot observe the wrong query.
-    expect(parsePlanMap(memory)).toEqual([{ plan: PLAN, label: LABEL }])
-    // AND the unindented form stays readable — a hand-written or generated map may legitimately use
-    // it, and a reader that alarms on a shape it was never shown is not a reader.
-    expect(parsePlanMap(`\`${PLAN}\`\nmd5: ${LABEL_SPACED}`)).toEqual([{ plan: PLAN, label: LABEL }])
-    // A ratchet entry with no `md5:` line is not a link, and the reader must not invent one for it.
-    expect(parsePlanMap(memory).length).toBe(1)
-    // The same form is readable where the OTHER writer puts it: in a message's vector.
-    expect(extractVectorChain(carrier("msg_1", LABEL_SPACED).text).parentGoalMd5).toBe(LABEL)
-  })
-
   test("the push prints the count even at zero — a silent check is not a check", () => {
     const quiet = tailNote({ open: [], window: null, coupling: { checked: 3, findings: [], manifests: 4 } })
     expect(quiet.startsWith(TAIL_NOTE_PREFIX)).toBe(true)
@@ -227,5 +203,18 @@ describe("a plan's label comes from its OWN header (plan 2026-10-01)", () => {
     // construction, so first-wins is what makes the header the owner and the copy a copy.
     const text = header(LABEL) + "\n## Example\n\n```yaml\nmd5: 44444444444444444444444444444444\n```\n"
     expect(planHeaderLabel(text)).toBe(LABEL)
+  })
+
+  // MOVED here from the removed `parsePlanMap` case (2026-10-01, plan L3): two of its observations that
+  // the surviving reader must also hold, so removing that reader costs no coverage. The third — «a block
+  // with no `md5:` is not a link» — is already case 3 above.
+  test("an UNFENCED header is still a header — a reader that alarms on a shape it was never shown is not a reader", () => {
+    expect(planHeaderLabel(`# x\n\nmd5: ${LABEL_SPACED}\n`)).toBe(LABEL)
+  })
+
+  test("the same spaced label is readable where the OTHER writer puts it: a vector's parent-goal-md5", () => {
+    // `extractVectorChain` reads vectors, not headers — the other end of the same label form, and the
+    // reason the spaced form must never be read as a foreign value.
+    expect(extractVectorChain(carrier("msg_1", LABEL_SPACED).text).parentGoalMd5).toBe(LABEL)
   })
 })

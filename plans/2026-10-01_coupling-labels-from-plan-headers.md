@@ -87,18 +87,33 @@ parent-goal-md5: 00000000000000000000000000000000
       ✗ **The wiring's oracle is L4 and it is NOT met** — nothing here proves production now resolves
       `d99945d67a57440775f414e816c78773`; that needs a rebuilt binary. A hermetic unit test of `planLabels`
       against a fixture plans dir is the alternative pin and is NOT written.
-- [ ] **L3 — cut the dead source, after L2 is proven.** Remove `parsePlanMap` and its test case («the map is
-      read as WRITTEN», `vector-coupling.test.ts:124-150`); MOVE its still-valid assertion — the spaced label in
-      a vector's `parent-goal-md5` (line 149) — into the L1 test so nothing it pinned is lost. The
-      `map-names-missing-plan` branch (`spine.ts:241-245`) becomes unreachable from production (every entry
-      now comes from an existing file): remove it together with its test (`vector-coupling.test.ts:91-102`),
-      and say so in the commit. Update the header comment of `vector-coupling.test.ts` (lines 1-10) — it
-      describes the memory map. Everything else in the test file stays as is.
-- [ ] **L4 — live oracle.** On a fresh build candidate (`packages/opencode/dist/**`, never `bin/`), a session
-      whose turns carry `parent-goal-md5: d99945d67a57440775f414e816c78773` (the label of
-      `plans/2026-10-01_tool-description-contracts.md`) → the status note reads `… · 0 findings` with
-      `checked ≥ 1`; one turn with an undeclared 32-hex parent → exactly one `vector-off-plan` finding naming
-      that message.
+- [x] ✓ **L3 — the dead source is gone (2026-10-01), with ONE refusal.** `parsePlanMap` removed from
+      `src/memory/spine.ts`, together with the three doc mentions it left behind (`PlanMapEntry`'s, the
+      `map` param's, and `planHeaderLabel`'s own header). Its test case is gone, but **two of its
+      observations MOVED** into the L1 describe rather than dying with it: the UNFENCED header form, and the
+      spaced label where the OTHER writer puts it — a vector's `parent-goal-md5` (via `extractVectorChain`).
+      The third observation («a block with no `md5:` is not a link») was already L1 case 3. The test file's
+      header comment now names the new label source.
+      ✗ **REFUSED, with the reason:** the plan also ordered removing the `map-names-missing-plan` branch
+      (`spine.ts:241-245`) and its test as «unreachable from production». NOT done. That branch is the SAME
+      predicate on the SAME axis («every declared reference to a plan must resolve»), `map` is still
+      caller-supplied to a PURE function, and nothing removes the possibility of a caller handing it a map
+      that names a plan file which is gone. Deleting a working check to remove four lines is the wrong
+      trade; both the branch and its test stay.
+      **Green:** 14 pass / 0 fail / 32 expect (`20260930T232957Z_427b70d4`); typecheck exit 0
+      (`20260930T232957Z_bdd730c3`).
+      **Worth recording about the road there:** the first `multiedit` refused ATOMICALLY — nothing written —
+      because I anchored the block's end on a test that actually PRECEDES it. That is the third time this
+      session a reconstruction of multi-line prose was wrong; the instrument behaved correctly, my recall
+      did not, and the fix was to read the block again rather than to retry.
+- [x] ✓ **L4 — MET on the owner's rebuilt binary (2026-10-01).** The status note reads
+      `coupling: 18 vector link(s), 8 manifest(s) · 5 finding(s)`: **zero `vector-off-plan`**, down from 17,
+      with `checked = 18`. The five remaining are the SECOND axis (manifests, all `MOVED` — S5's designed
+      behaviour), and the line prints ONE total for two axes, so «5», not «0», is the honest reading — but
+      the vector axis is clean. That is the wiring proven in production, which no unit test in the commit
+      could show.
+      ✗ The second half of L4 — «one turn with an undeclared 32-hex parent → exactly one finding» — is NOT
+      exercised: it needs a turn carrying a bad parent, which no turn has produced since.
 
 ## Smoke Tests
 

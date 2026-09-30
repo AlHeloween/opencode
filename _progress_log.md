@@ -5589,6 +5589,14 @@ Learned: this check's real failure mode is the OPPOSITE of silence — crying wo
 what turns an alerter into noise (the coupling watcher's own first live finding was its own reader bug). The
 suite's fixtures cannot show that, which is why the live measurement ran against the REAL store.
 
+## [2026-09-30] A full build was broken TWICE, and neither was weather — the binary is built
+
+Asked for a rebuild; `python build.py` (all steps) could not produce one, and the reasons were two real defects in the builder plus one toolchain blocker — each measured, none guessed. Commit `f4c65b0367`.
+What changed (`build.py`): (1) `step_reasoning` asserted `## 0. KERNEL_MAP`, a heading the kernel renamed to `## 0. WORKFLOW` — the canon states the first heading IS `## 0. WORKFLOW` (`docs/two-canon-protocol.md:44`), `prompt_kernel/render.py:183` renders it, and the kernel's own tests assert it (`test_render.py:15`, `test_compatibility.py:39`, `test_contracts.py:78`). It failed EVERY full build, at the step right after `kernel` had already written production. (2) `step_opentui` needs a POSIX `sh` (bun runs `sh scripts/prepare-zig-deps.sh`) and Windows has none; the Git for Windows shell is now on PATH for that step — APPENDED, because prepending made `tar` resolve to Git's GNU tar, which reads the drive-letter root bun hands the script as a REMOTE host (`Cannot connect to D:`).
+Oracles: `20260930T041744Z_a081efaf` died on the assert, and `python build.py --only reasoning` answers `OK reasoning kernel` after the fix; `20260930T041858Z_8c08fdfb` (`command not found: sh`); `20260930T042235Z_718c5ca3` (`Cannot connect to D:`); final run `20260930T042548Z_107f8a99` exit 0 — `dist/bin/opencode.exe` + `opentui.dll` + `opencode-markdownify.exe` staged, and the binary answers version **10.0.1161**.
+NOT fixed, named: the native half needs **Zig 0.16** and this host has 0.15.2, so `build.zig:111` fails on `std.Io.Dir`; the `opentui` step cannot complete here. The exe was built from the DLL already in the tree, which IS source-current — the last commit touching opentui (`26604f2ca4`) changed only a `.gitignore`, which the step's fingerprint counts, so `[REBUILD] opentui` was bookkeeping rather than staleness.
+Tool state — three classes: (a) under cmd_runner `--raw` STALLS `bun run script/build.ts`: 0.11 s of CPU per 20 s of wall, 0 bytes written, `state: running` while the job wrapper already reported `done`; its ConPTY backend completes the same command. (b) `list` returned a STALE snapshot — `packages/opencode/dist/.../opencode.exe` read as `10:31:32` while the file on disk was `12:26:26`; freshness of a build must be read from the binary (`--version`) or a fresh listing, never from a timestamp remembered minutes earlier. (c) `stage` writes via `write_bytes`, so a copied artifact ALWAYS carries a fresh mtime — a new timestamp in `dist/bin/` is not evidence of a new build.
+
 ## [2026-09-30] PLACEMENT DEBT cleared by FORM, not by a move — and a forecast error recorded
 
 Plan: `plans/2026-09-29_svm-tool-and-master-plan.md` — S4's box rewritten from `- [~]` to `- [ ]` (its remainder, `done_pct`, `attempts` and `last_failure` kept and refreshed), and S4's manifest rewritten with the current remainder and oracle. No production line was touched this turn.
@@ -5700,3 +5708,13 @@ crates.io, no git/patch. build.rs: linker args only on Windows, vendor extension
 only for explicit autostart, iwr|iex only in updater, icacls only in tests, the rest read-only. Host: no autostart task,
 no Run key, no extension installed; ~\.cua-driver has a persistent telemetry id. No hidden behaviour beyond E1–E5;
 dormant capabilities to remove in the fork: vendor-signed extension hooks, autostart. Next: SD (needs owner's yes).
+
+## [2026-09-30] cua audit SD — offline driver build: no HTTP client, zero egress measured
+Plan: `plans/2026-09-30_cua-supply-chain-audit.md` SD → [x]. `external/cua` `local_development` commit `f56a57e`:
+feature pair network (default) / offline (`--no-default-features --features offline`), compile_error on any other mix;
+ureq optional; offline refuses telemetry, release lookup, remote skills, self-update, check_for_update,
+install_extension, install_ffmpeg (E6 — new egress site found during SD, via winget, model-confirmed) and autostart.
+Oracles: cargo tree has no ureq/rustls offline; final exe sha256 5F0810C8… has no posthog/github/iwr/rustls/ureq
+strings; egress A2_…122547 + A4_…124857 = 0 connections, fresh home untouched; tests default 155/6 = same 6 as clean
+HEAD (stash baseline …043330Z_8d0347cc), offline 151/6 + 3 new offline contract tests. Residual: embedded skill docs
+still say `irm … | iex` (text); 6 inherited red tests (extension_manager ×5, skills ×1) recorded under SE.

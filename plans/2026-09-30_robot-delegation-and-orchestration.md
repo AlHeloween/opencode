@@ -67,6 +67,29 @@
 - [ ] Codex binding — a DELEGATION/G7 line in `addons_codex.py` (installed to ~/.codex/AGENTS.md). Whether the
       installed Codex reads `$CODEX_HOME/skills/` is UNVERIFIED.
 
+## Scaling — 100-1000 robots (owner, 2026-09-30)
+
+Owner: «у Claude подписка на workspace вполне нормальная для скейлинга просто буду докупать рабочие места и
+получим вполне непротиворечивый цикл чтобы ранать 100-1000 таких роботов». The loop: Claude seats frame and
+verify, robots execute on the funded models. What decides whether it holds (Hypothetical until S1-S4 measure it):
+
+- **The two numbers that size it** — measured per verified task from the first real run on: Claude tokens per
+  verified task (brief + read-back + own oracle; plan limits via `get_usage`) and robot $ per verified task
+  (HF / DeepSeek balance before/after). Robots per seat = seat budget / Claude cost per task; nothing is sized
+  before these exist.
+- **The verifier is the bottleneck, by design.** A robot result nobody verified is testimony; scaling robots
+  without scaling verification scales unverified output. Tasks whose oracle is a command (tests, a read-back)
+  verify cheaply — they are the ones that scale.
+- **Consistency needs one arbiter, not agreement.** Leases, ANTI_CHURN counters, the task queue and the budget
+  ledger live in the store (futures plan build order 1-5: ledgers, counters, budget with reservations, effect
+  journal, leases + fencing). Without them 1000 robots re-try the same bug 1000 times.
+- **One committer per tree; one cmd_runner per worktree.** Many trees → a merge queue in front of
+  `Local_Development`, each merge gated by its oracle.
+- **Host capacity.** `dist\bin\opencode.exe` is 303 MB on disk; RSS per robot is unmeasured — hundreds of
+  robots means several hosts, and the fleet then needs the scheduler (S4) on each.
+- **Seat terms.** Whether Team seats may drive automated verification at this volume, or whether that is the
+  API / Agent SDK route, is the owner's check against Anthropic's terms — unverified here.
+
 ## Smoke Tests
 
 - S1 smoke: the cmd_runner job for the TUI starts, `/automode` is accepted via the inbox (render read back), and

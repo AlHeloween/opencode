@@ -226,7 +226,7 @@ Full indexing needs a real CLI build; empty index still allows boot.
 | Linux musl | `*-musl` variants | `libopentui.so` |
 | macOS | `core-darwin-*` | `libopentui.dylib` |
 
-Built by Zig via `packages/opentui/packages/core` (`bun run build`). Embedded into the bun-compiled `opencode` binary when present at compile time; shipping a sidecar next to the binary remains a useful fallback when debugging load failures.
+Built by Zig via `packages/opentui/packages/core` (`bun run build`). `script/build.ts:148-152` copies it into `packages/opencode/node_modules/@opentui/core-win32-x64/` **before** the compile, and it must ALSO sit **next to the exe at runtime** — this is a requirement, not a fallback: `_build.ps1:259` refuses to finish without it, and a binary started without it dies `error 126`. `build.py`'s `stage` step puts it in `dist/bin/` beside `opencode.exe`.
 
 ---
 

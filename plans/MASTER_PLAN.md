@@ -104,9 +104,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 179 |
-| plans active | 17 |
-| tasks passed / total | 628 / 857 |
-| open boxes | 80 |
+| plans active | 18 |
+| tasks passed / total | 629 / 865 |
+| open boxes | 87 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -210,9 +210,19 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   sv: intention "an agent must be able to STORE and READ the manifest of the turn it is in — task, plan ref, semantic vector, turn estimate — and the turn must be told when it is missing; the master plan becomes the rendered summary that no plan-file move can touch -> one SVM store + one tool + one turn-note reminder + a generated MASTER_PLAN.md" · keywords []
   - S4 [PENDING] · sv MISSING · manifest: Мастер-план обязан нести свой вектор на каждой записи — остаток S4 есть авторинг этих векторов, и бокс остаётся открытым `[ ]`, пока они не написаны. · eta 3 · doing
 
-- `plans/2026-09-30_cua-supply-chain-audit.md` — 3 open / 10 box(es) · lifecycle ACTIVE
+- `plans/2026-09-30_cua-robot-skill-pack.md` — 8 open / 8 box(es) · lifecycle ACTIVE
+  sv: intention "the cua skill pack the robot reads is the vendor's, written for a networked install, and it still tells an agent to run `irm https://cua.ai/driver/install.ps1 | iex` -> the robot reads its own cua skill pack, rewritten in the reasoning-kernel's style (gated cycle, prediction, instrument qualification, status-marked measured facts), embedded in the offline build and indexed by the cua tool" · keywords [skill-pack, kernel-style, measured-facts, offline-embedding, gui-debugging]
+  - K1 [PENDING] · sv [lint, rule-references, evidence-marks] · manifest: MISSING — nobody has written down what this box is
+  - K2 [PENDING] · sv [embedding, offline-build, binary-scan] · manifest: MISSING — nobody has written down what this box is
+  - K3 [PENDING] · sv [skill-index, cua-wrapper, focused-test] · manifest: MISSING — nobody has written down what this box is
+  - K4 [PENDING] · sv [outside-falsifier, reading-test, held-out] · manifest: MISSING — nobody has written down what this box is
+  - P1 [PENDING] · sv [authoring, kernel-style, measured-facts] · manifest: MISSING — nobody has written down what this box is
+  - P2 [PENDING] · sv [embedding, mcp-skills, offline-cfg] · manifest: MISSING — nobody has written down what this box is
+  - P3 [PENDING] · sv [skill-index, cua-wrapper, guides] · manifest: MISSING — nobody has written down what this box is
+  - P4 [PENDING] · sv [outside-falsifier, wording, revision] · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-09-30_cua-supply-chain-audit.md` — 2 open / 10 box(es) · lifecycle ACTIVE
   sv: intention "cua and Universal Search are suspected on egress, hidden code and reliability, with no measurement behind the suspicion -> every component shipped to colleagues has a measured egress manifest, a known build provenance and a recorded reliability profile, and nothing leaves a machine the owner did not approve" · keywords [supply-chain-audit, egress-manifest, telemetry, provenance, reliability]
-  - SD [PENDING] · sv [fork-build, compile-out, zero-egress] · manifest: MISSING — nobody has written down what this box is
   - SE [PENDING] · sv [reliability, defect-classes, evidence] · manifest: MISSING — nobody has written down what this box is
   - SF [PENDING] · sv [universal-search, cdp-port, redistribution] · manifest: MISSING — nobody has written down what this box is
 
@@ -250,6 +260,6 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 ## The checks
 
-This body names all 17 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 18 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

@@ -309,7 +309,55 @@ python build.py --only opencode
 Steps: `kernel` → `reasoning` → `rust` → `opentui` → `opencode` → `stage`.  
 Cache: `.build-cache/manifest.json` (gitignored).  
 On incremental failure: message to retry with `--full`.  
-Still uses existing `_build_rust.ps1`, OpenTUI `bun run build`, and `script/build.ts --single` under the hood.
+Still uses existing `_build_rust.ps1`, OpenTUI `bun run build`, and `script/build.ts --single` under the hood. `--only` is repeatable (`--only opencode --only stage`).
+
+### Host prerequisites for `opentui` (measured 2026-09-30)
+
+Every other step needs only bun, python and git. The native half needs two things this host did not have ready:
+
+| Needs | Why | State here |
+|---|---|---|
+| **Zig 0.16** | `packages/opentui/packages/native/build.zig` uses the 0.16 API — `std.Io.Dir`, `b.Graph.environ_map`; `std.mem.find` | **0.15.2 (chocolatey) ⇒ the step CANNOT complete.** `build.zig:111` fails on `std.Io.Dir` |
+| A POSIX **`sh`** | bun's `prepare:zig` runs `sh scripts/prepare-zig-deps.sh`, which unpacks the vendored `src/vendor/zig-deps.tar.gz` — offline, no download | Windows has none. `build.py` appends Git for Windows' `Git\usr\bin` **for that step only** |
+
+The PATH ordering there is load-bearing and was bought with two failed runs: it is **appended, not
+prepended**, so `sh`/`cksum`/`cmp` come from Git while `tar` stays the system **bsdtar**. Prepending makes
+`tar` resolve to Git's **GNU tar**, which reads the drive-letter root bun hands the script (`D:\…`) as a
+**remote host** and dies with `tar (child): Cannot connect to D: resolve failed`.
+
+**When the native half cannot be rebuilt**, a binary still builds from the DLL in the tree:
+
+```text
+python build.py --only opencode --only stage
+```
+
+That is correct only while the DLL is source-current. Check before trusting it:
+`git log -1 -- packages/opentui` — the step's fingerprint counts every non-ignored file, so a commit
+touching only `.gitignore` (measured: `26604f2ca4`) flips it to `[REBUILD]` as **bookkeeping, not staleness**.
+
+### Artifacts, and the freshness oracle
+
+`stage` copies into `dist/`:
+
+| File | Role |
+|---|---|
+| `dist/bin/opencode.exe` | the binary to promote into `bin/` |
+| `dist/bin/opentui.dll` | must sit NEXT TO the exe at runtime — without it the TUI dies `error 126` |
+| `dist/bin/opencode-markdownify.exe` | markdown-rendering sidecar |
+
+**A fresh mtime is not a fresh build.** `stage` writes with `write_bytes`, so every copied artifact carries
+the current time. Ask the binary instead:
+
+```text
+dist\bin\opencode.exe --version
+```
+
+### Under cmd_runner, use ConPTY — not `--raw`
+
+With `--raw`, `bun run script/build.ts` **stalls**: measured 2026-09-30 at **0.11 s of CPU per 20 s of wall
+time**, 0 bytes written, while the job wrapper already reported `done` and the run's own `state.json` still
+said `running`. The same command under cmd_runner's ConPTY backend completes. Progress is a **CPU delta**
+(`(Get-Process bun).CPU` sampled twice), never silence — a stall and a slow build look identical otherwise.
 
 ---
 

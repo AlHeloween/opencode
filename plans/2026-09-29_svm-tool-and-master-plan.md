@@ -158,6 +158,29 @@ oracle:   <what will prove it — the instrument, not the hope>
     exit 0 (`20260930T011205Z_832da94f`). Still OPEN in this task: the **`svm render` verb** (the tool writes
     the file across `RENDER_MARKER`, refusing a file with no hand-owned head so the GOAL is never invented),
     and the authoring of the missing vectors named above.
+  - **LANDED — the verb, and the FIRST REAL RENDER.** `applyRender` lives in `session/svm.ts` and the verb
+    `svm read|set|render` is its only surface; the operation is in ONE place, so the probe that rendered the
+    real repository (and any re-render) exercises the SHIPPED path rather than a copy of it.
+    `plans/MASTER_PLAN.md` now has the split the design named: the hand-owned head (goal + rules + standing
+    rules) through the `RENDER_MARKER`, and the generated body below it — **22 233 bytes, 240 lines**.
+    The first render's own report (`20260930T013912Z_2d8a1166`): **15 plans · 71 open boxes · 2 plans with no
+    `intention` · 52 of 71 boxes with no `sv` tag · 71 of 71 with no manifest · `gapsBefore` named 14 plans the
+    map did not mention** (the 15th counted as named only because the head's prose mentions it — the check is a
+    text-contains, by design and by documentation).
+    **And the movement is the point:** `missingTaskSv` was 61 of 61 an hour ago and is 52 of 71 now — vectors
+    are being WRITTEN INTO THE SOURCES while this task sat open, which is exactly what printing MISSING
+    instead of hiding it is for.
+  - Oracles: `bun test test/tool/svm.test.ts test/session/svm.test.ts` → **12 pass / 0 fail**
+    (`20260930T013759Z_58750ed5`) — including that a refusal writes NOTHING at all, that the hand-owned head
+    survives a render verbatim, and that a re-render is byte-identical; `bun typecheck` → exit 0
+    (`20260930T013834Z_39205702`); the real render run: `20260930T013912Z_2d8a1166`.
+  - **A DEFECT THE ACCEPTANCE CAUGHT IN MY OWN DESIGN:** the first version put `gapsBefore` INTO the body — and
+    a body that reports the previous state of the file it generates changes the instant it is written, so a
+    re-run could never be byte-identical. Measured, not argued: the second render differed from the first on
+    that one line. A DELTA belongs in the tool's report; the body states only what is true NOW. Both halves are
+    asserted now.
+  - REMAINDER: 71 manifests are authoring work (one `svm set` per open box), and 2 plans still state no
+    intention at all. Both are now COUNTED by every render instead of being invisible.
 - [ ] **S6 — the fold carrier.** At the Layer-2 fold the rendered master plan is emitted AFTER every
       summary block and after the window's messages, as the last carrier before the fresh tail
       (owner, 2026-09-29). Acceptance: a folded `m*` shows the master plan last; it is a RENDER of the

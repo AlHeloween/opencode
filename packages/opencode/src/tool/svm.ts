@@ -1,31 +1,34 @@
 /**
- * The task manifest as a tool — `svm read|set`.
+ * The task manifest as a tool — `svm read|set|render`.
  *
  * Kernel §1.4 SVM, seen from the plan side (owner, 2026-09-29): a task carries its semantic VECTOR, a
  * REF to its plan, and the approximate number of TURNS until that plan moves to `plans_completed/` —
  * plus the state it is in and the oracle that would prove it done.
  *
- * The store is `session/svm.ts` over the keyed `Storage` plane. This file is only the surface: read
- * one task's manifest, or write one. `render` — the master plan that carries ALL of them — is a
- * separate task (S4 of the plan), because its derivation walks every plan file rather than one key,
- * and a verb that is advertised before it exists is a lie the model will act on.
+ * The store is `session/svm.ts` over the keyed `Storage` plane. This file is only the surface:
+ * `read` one task's manifest, `set` one, or `render` the map of all of them into `plans/MASTER_PLAN.md`.
  *
  * The store is captured at init, not looked up inside `execute`: a tool's execute effect may carry no
  * service requirement (`Def.execute` is typed `R = never`), and a service fetched inside it would
  * simply not typecheck. `Agent.Service` and `Truncate.Service` are closed over by `Tool.define` the
- * same way.
+ * same way. The WORKTREE is read the same service-free way (`Instance.worktree`), which is also how
+ * `tool/memory.ts` reaches its file.
  */
 import { Effect, Schema } from "effect"
 import * as Tool from "./tool"
 import { Storage } from "@/storage/storage"
 import * as SVM from "@/session/svm"
+import { Instance } from "@/project/instance"
 
 const Parameters = Schema.Struct({
-  action: Schema.Literals(["read", "set"]),
-  plan: Schema.String.annotate({
-    description: "The plan file this task belongs to, as written in the repo, e.g. plans/2026-09-29_x.md",
+  action: Schema.Literals(["read", "set", "render"]),
+  plan: Schema.optional(Schema.String).annotate({
+    description:
+      "read/set only, and REQUIRED there: the plan file this task belongs to, as written in the repo, e.g. plans/2026-09-29_x.md",
   }),
-  task: Schema.String.annotate({ description: "Task id as it appears in the plan file, e.g. S3" }),
+  task: Schema.optional(Schema.String).annotate({
+    description: "read/set only, and REQUIRED there: task id as it appears in the plan file, e.g. S3",
+  }),
   sv: Schema.optional(Schema.String).annotate({
     description:
       "set only, and REQUIRED there: the task's @SV_FORMAT block — Keywords, semantic dominant, md5 chain.",
@@ -41,7 +44,7 @@ const Parameters = Schema.Struct({
   }),
 })
 
-type Metadata = { plan: string; task: string; action: string; present: boolean }
+type Metadata = { plan?: string; task?: string; action: string; present: boolean }
 
 export const SvmTool = Tool.define<typeof Parameters, Metadata, Storage.Service>(
   "svm",
@@ -50,15 +53,44 @@ export const SvmTool = Tool.define<typeof Parameters, Metadata, Storage.Service>
 
     return {
       description:
-        "Read or write the manifest (SVM, kernel §1.4) of ONE task: its semantic vector, its plan ref, and " +
-        "the approximate number of turns until that plan moves to plans_completed/, plus its state and the " +
-        "oracle that would prove it. action='read' returns the stored manifest, or says plainly that the task " +
-        "has none — nothing is invented. action='set' writes one and REQUIRES sv, etaTurns and oracle: a " +
-        "manifest without its vector is the hole this store exists to close, so a partial one is refused " +
-        "rather than stored.",
+        "The manifest (SVM, kernel §1.4) of a task. action='read' returns the stored manifest, or says plainly " +
+        "that the task has none — nothing is invented. action='set' writes one and REQUIRES sv, etaTurns and " +
+        "oracle: a manifest without its vector is the hole this store exists to close, so a partial one is " +
+        "refused rather than stored. action='render' regenerates the generated BODY of " +
+        "`plans/MASTER_PLAN.md` from the plan files and this store — every vector READ from its source, a " +
+        "missing one printed as MISSING — and preserves the hand-owned head above the render marker, " +
+        "including the goal, which it must never invent.",
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, _ctx: Tool.Context<Metadata>) =>
         Effect.gen(function* () {
+          if (params.action === "render") {
+            // The whole operation lives in the session layer (`applyRender`): one write path, so a probe that
+            // smokes the renderer against the real repository exercises the SAME code this verb runs.
+            const result = yield* SVM.applyRender(Instance.worktree, storage)
+            if (!result.ok) {
+              return {
+                title: "svm: render refused",
+                output: `Refused: ${result.reason}`,
+                metadata: { action: "render", present: false },
+              }
+            }
+            return {
+              title: `svm: render — ${result.stats.plans} plan(s), ${result.stats.openBoxes} open box(es), ${result.stats.missingTaskSv + result.stats.missingPlanSv} vector(s) MISSING`,
+              output: JSON.stringify({ file: result.file, bytes: result.bytes, ...result.stats }, null, 2),
+              metadata: { action: "render", present: true },
+            }
+          }
+
+          if (!params.plan || !params.task) {
+            return {
+              title: `svm: ${params.action} refused — plan and task are required`,
+              output:
+                `Refused: action="${params.action}" addresses ONE task, so it needs both \`plan\` and \`task\`. ` +
+                `\`render\` is the action that addresses every task at once.`,
+              metadata: { action: params.action, present: false },
+            }
+          }
+
           if (params.action === "read") {
             const record = yield* SVM.read(storage, params.plan, params.task)
             if (!record) {

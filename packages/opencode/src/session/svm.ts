@@ -18,11 +18,13 @@
  * at init and pass it in. One spelling per function, and a caller that already holds the store pays
  * nothing to use it.
  */
+import path from "path"
 import { Effect } from "effect"
 import { Global } from "@opencode-ai/core/global"
 import { Storage } from "@/storage/storage"
 import {
   MASTER_PLAN_FILE,
+  RENDER_MARKER,
   getPlanStatus,
   masterPlanCoverage,
   parsePlanFiles,
@@ -226,12 +228,9 @@ export function renderBody(
       "",
       "## The checks",
       "",
-      coverage.present
-        ? coverage.misses.length
-          ? `MASTER PLAN GAPS before this render: ${coverage.misses.join(", ")}`
-          : `Every plan under \`plans/\` was named in ${MASTER_PLAN_FILE} before this render.`
-        : `MASTER PLAN MISSING: ${MASTER_PLAN_FILE} did not exist before this render.`,
       `This body names all ${plans.length} plan(s) under \`plans/\` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.`,
+      "",
+      "That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.",
     ]
 
     const stats: RenderStats = {
@@ -243,5 +242,57 @@ export function renderBody(
       gapsBefore: coverage.misses,
     }
     return { body: lines.join("\n") + "\n", stats }
+  })
+}
+
+/**
+ * The render as an OPERATION: read the hand-owned head, refuse if there is nothing to render into, generate
+ * the body, write the file.
+ *
+ * WHY the whole operation lives here and not in the tool: a surface that assembled the head and the body
+ * itself would be a SECOND implementation of the same write, and the probe that smokes the renderer against
+ * the real repository would then be testing a copy of it. One function, one write path — the tool only
+ * formats the reply.
+ *
+ * The two refusals are the interesting part. A missing file and a file without `RENDER_MARKER` are refused
+ * for the same reason: the GOAL lives in the hand-owned head, and a renderer that invented it would be
+ * inventing the direction of the whole tree.
+ */
+export function applyRender(
+  worktree: string,
+  storage: Storage.Interface,
+): Effect.Effect<
+  | { ok: true; file: string; bytes: number; stats: RenderStats }
+  | { ok: false; reason: string }
+> {
+  return Effect.gen(function* () {
+    const target = path.join(worktree, MASTER_PLAN_FILE)
+    const head = yield* Effect.promise(async () => {
+      const file = Bun.file(target)
+      return (await file.exists()) ? await file.text() : null
+    })
+    if (head === null) {
+      return {
+        ok: false as const,
+        reason:
+          `${MASTER_PLAN_FILE} does not exist. The GOAL lives in that file's hand-owned head, and inventing ` +
+          `the direction of the tree is the one thing this renderer must never do. Create the file with a head ` +
+          `(\`## Goal — level 0\` carrying its own sv) and the marker line \`${RENDER_MARKER}\`, then render.`,
+      }
+    }
+    const cut = head.indexOf(RENDER_MARKER)
+    if (cut === -1) {
+      return {
+        ok: false as const,
+        reason:
+          `${MASTER_PLAN_FILE} carries no render marker. Without it there is no way to tell the hand-owned head ` +
+          `from a body a previous render produced, so writing would risk overwriting the head. Add ` +
+          `\`${RENDER_MARKER}\` where the generated part begins.`,
+      }
+    }
+    const { body, stats } = yield* renderBody(worktree, storage)
+    const content = `${head.slice(0, cut + RENDER_MARKER.length)}\n\n${body}`
+    yield* Effect.promise(() => Bun.write(target, content))
+    return { ok: true as const, file: MASTER_PLAN_FILE, bytes: content.length, stats }
   })
 }

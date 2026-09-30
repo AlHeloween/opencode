@@ -20,10 +20,14 @@
  */
 import { describe, expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
+import fs from "fs/promises"
+import path from "path"
 import { Storage } from "@/storage/storage"
 import { SvmTool } from "@/tool/svm"
 import { Truncate } from "@/tool/truncate"
 import { Agent } from "@/agent/agent"
+import { Instance } from "@/project/instance"
+import { RENDER_MARKER } from "@/util/plan-status"
 import { SessionID, MessageID } from "@/session/schema"
 import { provideTmpdirInstance } from "../fixture/fixture"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
@@ -55,9 +59,9 @@ function inTmpdir<A, E, R>(body: (dir: string) => Effect.Effect<A, E, R>) {
 }
 
 type Params = {
-  action: "read" | "set"
-  plan: string
-  task: string
+  action: "read" | "set" | "render"
+  plan?: string
+  task?: string
   sv?: string
   etaTurns?: number
   oracle?: string
@@ -117,5 +121,70 @@ describe("svm tool", () => {
       }),
     )
     expect(after.metadata.present).toBe(false)
+  })
+
+  test("render REFUSES to invent a goal — and writes nothing at all", async () => {
+    const wrote = await inTmpdir(() =>
+      Effect.gen(function* () {
+        const refused = yield* call({ action: "render" })
+        expect(refused.metadata.present).toBe(false)
+        expect(refused.title).toContain("refused")
+        // The claim that matters is about the FILESYSTEM, not the tool's own output: a refusal that still
+        // created the file would read exactly the same from inside the tool.
+        return yield* Effect.promise(() => Bun.file(path.join(Instance.worktree, "plans", "MASTER_PLAN.md")).exists())
+      }),
+    )
+    expect(wrote).toBe(false)
+  })
+
+  test("render keeps the hand-owned head, replaces the generated body, and is byte-identical on a re-run", async () => {
+    const result = await inTmpdir((dir) =>
+      Effect.gen(function* () {
+        const target = path.join(dir, "plans", "MASTER_PLAN.md")
+        yield* Effect.promise(async () => {
+          await fs.mkdir(path.join(dir, "plans"), { recursive: true })
+          await fs.writeFile(
+            target,
+            [
+              "<!-- intention: the map -->",
+              "# MASTER PLAN",
+              "",
+              "## Goal — level 0",
+              "",
+              "The one vector nothing else states.",
+              "",
+              'sv: { keywords: { a: 1 }, dominant: "the goal" }',
+              "",
+              RENDER_MARKER,
+              "",
+              "STALE BODY THAT MUST BE REPLACED",
+              "",
+            ].join("\n"),
+          )
+          await fs.writeFile(
+            path.join(dir, "plans", "2026-01-01_demo.md"),
+            "# Demo\n\n<!-- intention: nothing -> every entry names its source -->\n\n- [ ] **Q1** — a box\n",
+          )
+        })
+        const first = yield* call({ action: "render" })
+        const afterFirst = yield* Effect.promise(() => Bun.file(target).text())
+        const second = yield* call({ action: "render" })
+        const afterSecond = yield* Effect.promise(() => Bun.file(target).text())
+        return { first, second, afterFirst, afterSecond }
+      }),
+    )
+    expect(result.first.metadata.present).toBe(true)
+    // THE HEAD IS PRESERVED VERBATIM — most importantly the goal, the one vector a renderer must never invent.
+    expect(result.afterFirst).toContain("The one vector nothing else states.")
+    expect(result.afterFirst).toContain('sv: { keywords: { a: 1 }, dominant: "the goal" }')
+    // The generated body REPLACED the stale one, and it names the plan by a READ of that plan's own header.
+    expect(result.afterFirst).not.toContain("STALE BODY THAT MUST BE REPLACED")
+    expect(result.afterFirst).toContain('sv: intention "nothing -> every entry names its source"')
+    expect(result.afterFirst).toContain("Q1 [PENDING] · sv MISSING")
+    // The FIRST render reports the gap it is about to close; the second finds none, because it closed it.
+    expect(JSON.parse(result.first.output).gapsBefore).toEqual(["plans/2026-01-01_demo.md"])
+    expect(JSON.parse(result.second.output).gapsBefore).toEqual([])
+    // DETERMINISM IS THE ACCEPTANCE: a re-run is byte-identical, which is why no clock is read.
+    expect(result.afterSecond).toBe(result.afterFirst)
   })
 })

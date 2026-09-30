@@ -2,4 +2,4 @@ Path/name file search. Use for finding files by name pattern; use Grep for conte
 
 Default: searches every path, gitignored included (node_modules, .opencode/data, logs) — an absence must never be an artefact of an ignore rule. Pass `gitignore: true` to respect .gitignore.
 
-Returns absolute paths, sorted by modification time. Cap: 100 results (truncation notice on overflow). Issue parallel calls for independent patterns.
+Returns absolute paths. Cap: 100 results, with a truncation notice on overflow. ORDER: the sample is taken in ripgrep's traversal order and only THEN sorted by modification time — so it is «newest-first among the first 100 found», NOT «the 100 newest». Narrow the pattern or the path when you need the newest. Issue parallel calls for independent patterns.

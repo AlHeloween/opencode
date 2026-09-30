@@ -103,7 +103,8 @@ What the generalisation adds:
    only by the tool") is exactly this question, and it now has a general answer.
 2. **Acquire covers more than media.** Sources enter through `read`; a document through an attachment;
    a search result through `universalsearch`. All of them already land as tool parts with an address,
-   so the release/re-acquire half is shipped for them TODAY — only attachments lack it.
+   so the release/re-acquire half is shipped for them TODAY — and for attachments too since 2026-09-30:
+   `recall` returns a released `file` part's payload by its id (commit `18fe82c426`).
 3. **Release produces a report, and the diffs are its evidence.** Letting go of a working set is the
    moment to state what changed: the diffs recorded while it was held (`fossil` snapshots, tool
    `filediff`s) are the report's evidence, not a recollection of it. This is the same rule as
@@ -150,8 +151,13 @@ Plans: `plans/to_be_confirmed/2026-09-19_temporary-data-acquisition.md` (T6, wit
 ## What is NOT shipped (do not read as done)
 
 - **No hold, no lifetime.** Nothing counts turns for a frame; a held set has no expiry.
-- **Attachments have no release and no re-acquire.** A file or image part that entered the
-  conversation is immutable — there is no removal path except the fold. The actualizer is unbuilt.
+- **Attachments: released, and re-acquirable since 2026-09-30.** A `file` part HAS a release path (an
+  expired declared span replaces its payload with a note, `message-v2.ts` `releaseExpiredParts`), and
+  that note now NAMES THE PART ID — `recall` reads the payload back, exactly as it does for a tool
+  result (commit `18fe82c426`; `keep` is refused for one, since it is a single payload). The wording
+  that stood here — «Attachments have no release and no re-acquire… immutable — there is no removal
+  path except the fold. The actualizer is unbuilt.» — was true when written and is now half false:
+  what is still unbuilt is the ACTUALIZER (the hold side and the ledger), not the way back.
 - **The active set has no home.** No store, no ledger keyed by id; §4.1 of the actualizer plan puts the
   ledger in permanent memory, which is a decision, not an implementation.
 

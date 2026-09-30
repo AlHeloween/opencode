@@ -527,8 +527,11 @@ suites missed it; **one live call against the real database found it**. A cast i
 disabled oracle — type the value; and a fixture's schema must match production's, or it cannot observe
 the wrong query.
 
-**Planned, not shipped:** attachments have no release and no re-acquire (a part that entered the
-conversation is immutable until the fold), and nothing counts a lifetime. The generalisation to
+**Shipped 2026-09-30:** attachments ARE re-acquirable — a released `file` part names its own id on the
+wire and `recall` returns its payload (commit `18fe82c426`); `keep` is refused for one, since an
+attachment is a single payload and a kept slice would send the provider a truncated data URL. **Still
+planned, not shipped:** nothing counts a lifetime for an attachment, and the actualizer and its ledger
+are unbuilt. The generalisation to
 *temporary data acquisition* is in [plans/to_be_confirmed/2026-09-19_temporary-data-acquisition.md](plans/to_be_confirmed/2026-09-19_temporary-data-acquisition.md):
 a document, a set of sources, a screenshot — acquire, hold for a declared span, release, and let the
 recorded diffs be the report's evidence.

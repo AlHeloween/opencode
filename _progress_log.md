@@ -5518,3 +5518,15 @@ Final V1 (`post-3/`): typecheck 0; bash 60/27 → 88/0, cmd 36/2 → 37/0, contr
 shell_tests 77/0 + 49/0, strip-win 15/0, write 18/0, edit 41/0, path-validator 11/0, parameters 51/0; no artefact.
 OPEN: K4 (`Shell.select()` silent fallback), C6 (`as any` on the background return), CRASH_PRONE_RE bypass by a quoted
 full path, cmd.ts scanner still duplicated. Not run live through `bin/` (owner's rebuild).
+
+## [2026-09-30] cua plan re-planned — mode A + three mode-B isolation tiers, Hyper-V excluded
+Plan: `plans/2026-09-29_cua-windows-debug-input.md`. PLAN_WRITE only, no product source touched.
+Owner decisions: mode A (play together) on the primary monitor; mode B (GUI/web debugging) in the background on this
+host; Hyper-V and every hypervisor-backed feature (Windows Sandbox, WSL2, VBS) excluded — VMware Workstation 25.0.0 breaks.
+Tiers: B-web (CDP, isolated profile) / B-native-bg (IDD virtual monitor) / B-native-input (VMware guest + SSH -L to the
+driver's loopback-only MCP HTTP, `mcp_http.rs:32-61`). Found in code: capture is PrintWindow+BitBlt, not WGC
+(`capture.rs:1-27`); wrapper's blanket `start_minimized:true` conflicts with capture-bound clicks (T4).
+Evidence: host CIM — HypervisorPresent False, VirtualizationFirmwareEnabled True, Sandbox/Hyper-V Disabled.
+Read-back: `parsePlanFiles` parses intention + goal_sv, every open box carries an sv tag (25 tasks), `masterPlanCoverage`
+misses [] . Parser finding: an sv tag is read only on a box with a bold ID (`**X1 …:**`) — untagged-ID boxes lose it.
+Next: T1 (B-web) and S1/T2 (instrument requalification) need nothing from the owner; T3 waits on O1, T5/T6 on O2.

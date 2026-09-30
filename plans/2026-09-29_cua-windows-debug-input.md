@@ -1,7 +1,54 @@
-<!-- intention: CUA debugging requires manual screenshots, IDs and multiple slow commands and cannot yet drive continuous Windows mouse input -> agents obtain an addressable visual observation and bounded, verifiable Windows mouse actions with minimal tool calls while protected operations stay protected -->
+<!-- intention: CUA debugging requires manual screenshots, IDs and multiple slow commands and cannot yet drive continuous Windows mouse input -> agents obtain an addressable visual observation and bounded, verifiable Windows mouse actions with minimal tool calls while protected operations stay protected; mode A (play together with the robot) runs on the primary monitor, mode B (debug interactive GUI and web apps) runs in the background on THIS host without a second computer and without taking the owner's cursor or focus -->
+<!-- goal_sv: cua, background-isolation, capture-binding, vmware-guest, virtual-monitor, cdp-web -->
 # CUA Windows debug-input ergonomics
 
-**Status:** ACTIVE — owner authorized Windows-first changes and `external/cua` branch `local_development`; product edits remain confined to this plan. No unbounded policy bypass.
+```yaml
+Keywords: cua 0.25, background-isolation 0.25, capture-binding 0.20, vmware-guest 0.15, virtual-monitor 0.10, cdp-web 0.05
+Semantic dominant: Two CUA modes on one host - shared play on the primary monitor, and background GUI/web debugging split into three isolation tiers.
+md5: 6a1f0c93e2b847d5a09c3e71f4b28d56
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 00000000000000000000000000000000
+```
+
+## Modes and isolation tiers (owner decision, 2026-09-30)
+
+One Windows session has ONE cursor and ONE keyboard focus. Anything that needs real input (SendInput, drag, hotkeys,
+focus) collides with the owner in the same session; a virtual monitor fixes CAPTURE, never input. Hence:
+
+| Mode / tier | What runs there | Isolation | Collides with the owner? |
+|---|---|---|---|
+| **A** — play together | a game on the primary monitor | none, deliberately shared | yes, by design |
+| **B-web** | web apps via a separate Chromium over CDP/Playwright (DOM, console, network, screenshots) | separate browser profile, no desktop | no |
+| **B-native-bg** | native GUI driven via UIA/PostMessage, window on a virtual (IDD) monitor | same session, separate display | no, while no real input is needed |
+| **B-native-input** | native GUI needing real input, Electron/WebView2 hosts, drag, focus | VMware Workstation guest with `cua-driver` inside | no — own session, cursor, focus |
+
+Excluded, owner 2026-09-30 («Hyper-V отпадает. VMWare с ним глючит.»): Hyper-V and EVERY feature that switches on the
+Windows hypervisor — Windows Sandbox (`Containers-DisposableClientVM`), WSL2, VBS / memory integrity, Credential Guard.
+cua's own `winsandbox` / `hyperv` providers are therefore unusable here.
+
+Host facts, measured 2026-09-30 (PowerShell/CIM): ✓ `VirtualizationFirmwareEnabled=True`, ✓ `HypervisorPresent=False`,
+✓ VMware Workstation `25.0.0.24995812` (`C:\Program Files (x86)\VMware\VMware Workstation\vmrun.exe`), ✓ 16 GB RAM,
+8 logical CPUs, GTX 1050 Ti + HD 630; Sandbox and Hyper-V features `Disabled`.
+
+Driver facts, read in code at `external/cua` `7ee9b37` (Inferred — not yet run live):
+- ✓ Windows capture is `PrintWindow(PW_RENDERFULLCONTENT)` + screen-region BitBlt fallback, NOT Windows.Graphics.Capture
+  (`platform-windows/src/capture.rs:1-27`; WGC is upstream CUA-542). GDI windows capture even when occluded;
+  DirectComposition windows (UWP/WinUI3) come back black and need the BitBlt fallback, which requires the window to be
+  on-screen and unoccluded (`capture.rs:14-19`, occlusion probe `:176-186`). A dedicated virtual monitor guarantees both.
+- ✓ Minimized windows: capture refuses (`capture.rs:412-428`); coordinate/element actions refuse with `window_minimized`
+  (`tools/impl_.rs:135-161`); off-desktop points refuse with `element_not_visible` (`impl_.rs:75-91`). Points on any
+  attached monitor pass (`input/inject.rs:431-440` uses the virtual-screen union). UIA patterns / PostMessage are
+  documented as still working on minimized windows (`impl_.rs:2119-2121`).
+- ✗ Conflict: the wrapper forces `start_minimized:true` on every `launch_app`
+  (`plans_completed/2026-09-13_cua-background-minimized-launch.md`), so the first observation of a freshly launched app
+  has no image and no `capture_id`, and the capture-bound pixel click (2026-09-29) is refused. Per-tier launch placement
+  must replace the blanket rule.
+- ✓ The driver's MCP HTTP listener binds `127.0.0.1` only and requires a token (`cua-driver/src/mcp_http.rs:32-61`).
+  Keep it loopback: reach a guest's driver through an SSH `-L` tunnel over a VMware host-only network; never widen the
+  bind. No VMware provider exists in `external/cua/libs` (grep `vmware|vmrun`: only generated protobuf and `lume` tests).
+- ✗ `packages/opencode/src/tool/cua.ts` only spawns a local `cua-driver.exe`; a remote (URL + token) transport is new work.
+
+**Status:** ACTIVE — owner authorized Windows-first changes and `external/cua` branch `local_development`; product edits remain confined to this plan. No unbounded policy bypass. Re-planned 2026-09-30 into mode A + three mode-B isolation tiers (owner: «Отлично, да давай сделаем.»); B-web and the instrument requalification need nothing from the owner, B-native-bg waits on O1, B-native-input on O2.
 **Owner decision:** `external/cua` is a separate Git repository on owner-requested branch `local_development`, created from clean `main` at `7ee9b37edc4ebc5f7f606682ae2699d1baa5d397`. This branch holds local patches and may later incorporate upstream updates deliberately; do not fetch/merge/push now. Root Git ignores `external/`. Work Windows-first; advertise explicit unsupported results rather than claiming other platforms work.
 **Bound:** at most 3 distinct repair attempts per failing task. Rust builds use no more than 2 workers (`cargo -j 2` / `CARGO_BUILD_JOBS=2`; inspect actual compiler scheduling before further runs and reduce if needed). No modifications, launches or promotions under root `bin/`; no default CUA daemon, unrestricted policy, script edits of source, full package test suites, or remote push. Candidate binary stays under Rust `target/release`, GUI tests use disposable fixtures and private endpoints only after separate foreground consent.
 
@@ -23,6 +70,10 @@
 | A Windows drag cannot act on an unobserved, foreign, changed or out-of-frame target; both endpoints map through one capture | Rust core/Windows adapter | red→green core/adapter tests plus disposable drag fixture with state readback | any endpoint invalid but gesture dispatched, capture used twice, or mismatched target accepted |
 | Windows game-like control uses real input rather than moving only the agent overlay; held buttons always release on stop/error | Rust Windows input and capability schema | bounded fixture/game probe for relative movement + held press/release; OS cursor and game state are independently observed | tool says moved but game sees no movement, release omitted, or focus unexpectedly taken |
 | Game play result itself is measured by the game's victory/defeat indicator | user-selected game | actual gameplay oracle once the owner provides the target | no game target/controls or outcome signal: Unknown residual, never PASS |
+| **B-web:** a web app is observed and driven with no desktop window of the owner's touched | isolated Chromium profile over CDP | DOM/console/network readback + CDP screenshot while the owner's foreground window and cursor stay unchanged (recorded before/after) | foreground window or cursor position changes, or the run reuses the owner's browser profile |
+| **B-native-bg:** a DirectComposition window (WinUI3 Calculator) on the virtual monitor yields its own pixels and accepts a capture-bound click | IDD virtual monitor + source-built driver | four-state fixture (minimized / shown-no-activate / occluded / on virtual monitor): screenshot hash + visible-content check + click effect via UIA readback | the virtual-monitor frame is black or shows another window, or the click needs focus |
+| **B-native-input:** the host agent drives a guest app with real input through a loopback-only driver | VMware guest + SSH `-L` tunnel + remote mode in `cua.ts` | `tools/list` handshake over the tunnel, capture-bound drag in the guest, guest-side state readback, cross-checked against `vmrun captureScreen` | the driver bind is widened beyond loopback, the tunnel is unauthenticated, or the tool reports success while the hypervisor frame shows no change |
+| Launch placement is per tier, not a blanket minimize | `cua.ts` launch normalizer | focused tool test: B-native-bg launches shown-no-activate onto the virtual monitor rect discovered at run time; default stays minimized | a launched app steals focus, or a hard-coded monitor offset appears in source |
 
 ## Risks and claims
 
@@ -32,6 +83,12 @@
 - C4 Inferred from read-only historical DB: requiring the model to copy capture IDs and pick screenshot paths added avoidable steps relative to the Go control. Falsifier: old CUA call rows do contain `capture_id`/`session`, or a new tool execution without a path cannot return a model image. Keep Rust capture admission unchanged; fill missing context in the owning wrapper once.
 - R1 critical: a held button left down or uncontrolled foreground takeover. Contain with bounded action duration, target identity, guaranteed release on exit/cancel, no implicit foreground escalation; native fixture oracle owns verification.
 - R2 high: root Git does not track Rust changes. Keep Rust commit on `external/cua` `local_development` and record its SHA in root plan/docs; never claim a root commit alone installs or reproduces Rust code.
+- C5 Inferred, pinned `capture.rs:14-19,176-186`: on a dedicated virtual monitor the BitBlt fallback returns the target's own pixels for a DirectComposition window. Falsifier: the four-state fixture's virtual-monitor frame is black or the occlusion probe fires.
+- C6 Guess (recall, not read): `vmrun captureScreen` returns the guest console frame from the hypervisor side when VMware Tools run in the guest. Falsifier: the command is absent from `vmrun` help on 25.0.0 or needs guest credentials we will not handle; then the cross-check oracle is replaced, not dropped.
+- C7 Unknown: whether an IDD virtual display driver coexists with VMware Workstation without switching on the hypervisor. Falsifier: `HypervisorPresent` becomes True after installing it.
+- R4 critical: any setup step that switches on the Windows hypervisor breaks the owner's VMware. Containment: read `HypervisorPresent` before and after every host-level install; no Windows optional feature is enabled by the agent.
+- R5 high: the guest driver token or tunnel exposed. Containment: driver stays on `127.0.0.1`; tunnel is SSH key-auth set up by the owner; token lives outside Git; host-only network.
+- R6 high: guest or host credentials. The agent never types or stores passwords; the owner provisions the guest account and SSH key.
 - R3 high: per-frame model/tool calls cannot meet an unknown game's real-time deadline. Measure call/screenshot latency; if too slow, propose a bounded driver-side sequence only after a game oracle exists, not an unbounded macro.
 
 ## Smoke Tests
@@ -39,23 +96,46 @@
 ### Baseline before product-source edit
 
 - [x] ✓ `20260929T021550Z_1f0459fa`: `CARGO_BUILD_JOBS=2 cargo test -p cua-driver-core --release capture_registry::tests --lib`, cwd Rust workspace — exit 0, 18 passed; full log and state read. One `dead_code` warning in an unrelated test-only method, not a proof of a defect in this change.
-- [ ] ✗ `20260929T022326Z_0ed13693`: Windows schema baseline launched with `CARGO_BUILD_JOBS=2` but `cmd_runner` health-check reported `exit_code:null` and `bytes_written:0` after the PID vanished. No verdict; change the instrument/limits before relying on a Windows test stamp.
+- [~] ✗ `20260929T022326Z_0ed13693`: Windows schema baseline launched with `CARGO_BUILD_JOBS=2` but `cmd_runner` health-check reported `exit_code:null` and `bytes_written:0` after the PID vanished. No verdict; change the instrument/limits before relying on a Windows test stamp. **Superseded by S1** (requalification of the instrument), kept as the failed-run record.
 - [x] ✓ `20260929T022832Z_994574e4`: `bun test test/tool/cua.test.ts`, cwd `packages/opencode` — exit 0, 8 pass / 0 fail; existing capture-bound click intact. The current `CuaTool.execute` condition checks `params.screenshot_out_file` before entering image packaging (`src/tool/cua.ts:374`), so an image is not attached when omitted. Add an exact failing tool execution regression before implementation.
-- [ ] Drive `page get_text`/`query_dom` on an isolated source-built driver/WebView2 fixture in standard mode, verify target app text, and confirm `page execute_javascript` remains refused. No policy override.
-- [ ] Driver schema test for `drag` with `capture_id` and two valid/invalid endpoints fails against current source; exact error case for the intended fix.
+- [ ] **B1 page read path:** Drive `page get_text`/`query_dom` on an isolated source-built driver/WebView2 fixture in standard mode, verify target app text, and confirm `page execute_javascript` remains refused. No policy override. <!-- sv: page-read, webview2, js-policy-refusal -->
+- [ ] **B2 drag schema red:** Driver schema test for `drag` with `capture_id` and two valid/invalid endpoints fails against current source; exact error case for the intended fix. <!-- sv: capture-bound-drag, rust-schema-test, red-first -->
+- [ ] **S1 instrument requalification:** Requalify the Windows `cargo test` instrument: rerun `20260929T022326Z_0ed13693`'s command with `CARGO_BUILD_JOBS=2` and read the run's own state file; `exit_code:null` + `bytes_written:0` again means the instrument is broken (KAIZEN: second occurrence), not the tests. <!-- sv: toolchain-qualification, cmd-runner, cargo-windows -->
+- [ ] **S2 four-state capture baseline:** Four-state capture baseline on the MAIN monitor (minimized / shown-no-activate / occluded) with WinUI3 Calculator, predicted: minimized → `window_minimized` refusal, shown-no-activate unoccluded → own pixels, occluded → obscured signal or foreign pixels. <!-- sv: capture-baseline, directcomposition, minimized-refusal -->
+- [ ] **S3 hypervisor guard:** Host hypervisor baseline recorded: `HypervisorPresent=False` (✓ 2026-09-30), re-read after every host-level install. <!-- sv: hypervisor-guard, vmware-compat -->
 
 ### Post-change oracles
 
-- [ ] Focused Rust core and Windows adapter tests cover both endpoints, one-shot consumption, wrong session/window and changed frame; unaffected Linux/macOS builds or explicit unverified platform limitation.
+- [ ] **P1 Rust drag tests green:** Focused Rust core and Windows adapter tests cover both endpoints, one-shot consumption, wrong session/window and changed frame; unaffected Linux/macOS builds or explicit unverified platform limitation. <!-- sv: capture-bound-drag, rust-tests, cross-platform-contract -->
 - [x] ✓ **Focused root tool/image tests + `bun typecheck` + Prettier pass after the ergonomic wrapper changes (2026-09-29):** `bun test test/tool/cua.test.ts` → **10 pass / 0 fail** (the auto-artifact path, the history-bound binding with its refusals — reused ID, ambiguous PID, no matching observation — and the no-vision branch); `bun typecheck` exit 0; `prettier --check src/tool/cua.ts test/tool/cua.test.ts` clean after `--write`. The failing-before regression is pinned by the refusal cases themselves (a click without a matching observation throws).
-- [ ] Source-built driver and disposable GUI confirm screenshot→capture-bound drag→fresh screenshot/state change, plus `get_text` without unrestricted; record command, endpoint, PID, image hashes and stop/cleanup state.
-- [ ] Game-specific relative pointer, hold and victory/defeat checks remain open until game URL, control scheme and signal are available.
+- [ ] **P2 live GUI chain:** Source-built driver and disposable GUI confirm screenshot→capture-bound drag→fresh screenshot/state change, plus `get_text` without unrestricted; record command, endpoint, PID, image hashes and stop/cleanup state. Runs in the tier the case needs (T3 or T6). <!-- sv: live-smoke, capture-binding, fixture-cleanup -->
+- [ ] **P3 mode A game checks:** Game-specific relative pointer, hold and victory/defeat checks remain open until game URL, control scheme and signal are available. <!-- sv: mode-a, game-input, outcome-signal -->
 
 ## Work
 
 - [x] ✓ Create `external/cua` `local_development` branch at clean `7ee9b37` (Git status after `switch -c` showed `## local_development`).
-- [ ] Establish the exact baseline/error cases including the 2026-09-12 Go control; keep `execute_javascript` policy refusal as a negative control, not a defect to erase.
+- [ ] **W1 baseline error cases:** Establish the exact baseline/error cases including the 2026-09-12 Go control; keep `execute_javascript` policy refusal as a negative control, not a defect to erase. <!-- sv: baseline, go-control, negative-control -->
 - [x] ✓ **FIRST: reduce root CUA tool's agent-visible capture/addressing steps without weakening driver admission — DONE 2026-09-29.** `src/tool/cua.ts`: `cuaScreenshotFile()` creates a fresh cache artifact (`<cache>/cua/<session>/<id>.png`) when the model omits `screenshot_out_file` for `get_window_state`/`get_desktop_state` (or keeps an explicit path); `cuaBoundClickArgs()` binds the click to the LATEST matching image observation of THIS conversation (fills `capture_id`, and `window_id` when unambiguous), refuses a reused one-shot ID, refuses an ambiguous PID with several windows, and refuses an unbound pixel click; `cuaExecute()` is extracted with an injectable CLI so the tool result itself is testable. Driver admission untouched. Both branches covered: the vision path (attached image + dimensions + reusable binding) and the no-vision path (`no declared image input`, no actionable packet). Oracles: `bun test test/tool/cua.test.ts` → **10 pass / 0 fail** (two new cases on top of the previous 8), `bun typecheck` exit 0, `prettier --check` clean after `--write`.
-- [ ] THEN, only if the Windows fixture/game oracle demonstrates missing capability after restoring the old short workflow: implement the smallest safe Rust input path and tests, with shared capture admission where needed; build a candidate outside root `bin/`. Do not add a second cursor authority on a guess.
-- [ ] Run isolated window-level smoke and record what was genuinely observed; distinguish `drag`/held button from relative camera motion.
-- [ ] Revisit the game criterion when its target and outcome signal exist. If unavailable, move only proven scoped work to completed and park the remaining criterion with an explicit resumption signal; no SUCCESS over an unplayed game.
+- [ ] **W2 Rust input path (conditional):** THEN, only if the Windows fixture/game oracle demonstrates missing capability after restoring the old short workflow: implement the smallest safe Rust input path and tests, with shared capture admission where needed; build a candidate outside root `bin/`. Do not add a second cursor authority on a guess. <!-- sv: rust-input, capture-admission, conditional -->
+- [ ] **W3 window-level smoke:** Run isolated window-level smoke and record what was genuinely observed; distinguish `drag`/held button from relative camera motion. <!-- sv: live-smoke, drag-vs-relative, observation -->
+- [ ] **W4 game revisit:** Revisit the game criterion when its target and outcome signal exist. If unavailable, move only proven scoped work to completed and park the remaining criterion with an explicit resumption signal; no SUCCESS over an unplayed game. <!-- sv: mode-a, game-input, relative-pointer -->
+
+### Tier work (added 2026-09-30, order = cheapest first; one bounded task open at a time)
+
+Owner prerequisites (host/system changes the agent does not perform): (O1) optionally install an IDD virtual display
+driver and report its version; (O2) provide a VMware Windows guest with VMware Tools, OpenSSH Server and key auth on a
+host-only network. Each lifts the tasks below that name it; none is a blocker for B-web.
+
+- [ ] **T1 B-web:** isolated Chromium profile over CDP driving a local fixture page; record DOM/console/network readback and a CDP screenshot, and the owner's foreground window + cursor before/after (must be unchanged). Reuse the existing browser tooling; do not touch the toolchain Chromium on 9222. <!-- sv: cdp-web, isolated-profile, no-focus -->
+- [ ] **T2 instrument:** Windows `cargo test` requalification (Smoke Tests above) before any Rust edit. <!-- sv: toolchain-qualification, cargo-windows -->
+- [ ] **T3 B-native-bg (needs O1):** four-state fixture on the virtual monitor; monitor rect discovered via `EnumDisplayMonitors`, window placed with `SW_SHOWNOACTIVATE` + `SWP_NOACTIVATE|SWP_NOZORDER` (never `SW_RESTORE` — it activates). Record PID, image hashes, click effect, cleanup, `HypervisorPresent` after install. <!-- sv: virtual-monitor, directcomposition, capture-binding -->
+- [ ] **T4 launch placement:** replace the blanket `start_minimized:true` in `cua.ts` with a per-tier placement (default minimized; B-native-bg = shown-no-activate on the discovered virtual monitor); failing test first, then the change. <!-- sv: launch-placement, focus-policy, cua-wrapper -->
+- [ ] **T5 B-native-input transport (needs O2):** remote mode in `cua.ts` (MCP HTTP URL + token from env, never from Git), failing tool test first; qualify with `tools/list` over the SSH tunnel before any GUI action. <!-- sv: remote-driver, ssh-tunnel, loopback-only -->
+- [ ] **T6 B-native-input oracle (needs O2):** capture-bound click then drag in the guest; guest-side state readback cross-checked against `vmrun captureScreen` (C6 decides whether that instrument exists). Only if the drag cannot be bound, the Rust `drag` + `capture_id` work above starts. <!-- sv: vmware-guest, capture-bound-drag, hypervisor-frame -->
+- [ ] **T7 docs:** `docs/tools-and-sidecars.md` §7.1 gets the mode/tier table and the hypervisor exclusion once T1/T3/T5 each have a run id. <!-- sv: docs, tier-table -->
+
+### Resumption signals
+
+- B-native-bg: the owner reports O1 done (driver name + version).
+- B-native-input: the owner reports O2 done (guest IP on the host-only network, SSH key path).
+- Mode A: the owner names a game, its controls and its win/lose signal.

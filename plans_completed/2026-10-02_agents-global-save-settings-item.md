@@ -37,5 +37,5 @@ Owner, 2026-10-02, verbatim: «когда из TUI в /agents мы работа�
       model declares it (`carriedVariant`); ctrl+t on a global agent row steps and stages in place
       (`setForModel` refuses the global layer — that was the dead key); `layerView(global)` now returns
       the agent's global variant; DialogVariant's dead `pendingModel` prop removed — 31/31, typecheck exit 0
-- [ ] live TUI check on a built candidate (`dist/`, never `bin/`): global → pick model → variant → row
-      `· unsaved` → `Save settings` → `bin/opencode.jsonc`-adjacent global config holds the model and variant
+- [x] live TUI check — run by the owner on the live TUI after `89a86cf168`, verdict 2026-10-02 verbatim:
+      «Шикарно, можно коммитить.» (owner acceptance; no agent-side TUI run)

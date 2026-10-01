@@ -5983,3 +5983,6 @@ Diff: dialog-model/dialog-agent stage the pick directly (carriedVariant keeps a 
 agent row stages the step; layerView(global) returns the agent variant; DialogVariant pendingModel removed and its
 model memo moved below `scope` (createMemo evaluates on creation — TDZ throw caught by reading, not by typecheck).
 Oracle: global-agent-stage + agent-model-cell 31/0; bun typecheck exit 0. Open: live TUI check.
+
+[2026-10-02] /agents global Save settings — CLOSED. Owner verdict on the live TUI: «Шикарно, можно коммитить.»
+Plan moved to plans_completed/ (commits 3d553f1381, 89a86cf168).

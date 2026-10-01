@@ -135,7 +135,7 @@ describe("plugin.anthropic-auth", () => {
     if (typeof transformed.body !== "string") throw new Error("OAuth transform did not produce a gateway body")
     expect(requestMetadata(transformed.body)).toEqual({ model: "claude-opus-4-8", streaming: true })
     const body = JSON.parse(transformed.body)
-    expect(body.max_tokens).toBe(64_000)
+    expect(body.max_tokens).toBe(100_000)
     expect(body.system).toHaveLength(3)
     expect(body.system[0].text).toStartWith("x-anthropic-billing-header:")
     expect(body.system[0].text).not.toContain("cch=00000")

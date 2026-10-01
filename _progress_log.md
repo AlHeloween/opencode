@@ -5949,3 +5949,6 @@ typecheck clean. Amendment appended to plans_completed/2026-10-01_hash-addressed
 TOOLS: cmd_runner state.json carries a UTF-8 BOM (json.load fails; read with utf-8-sig) and reports no
 bytes_written/truncated keys in --raw mode.
 NEXT: owner rebuild/promote of bin/ — addresses change once at promotion.
+
+## [2026-10-01] Anthropic OAuth — полный выходной лимит модели
+✓ CONFIRMED (`git show 42aee39175`, CodeGraph `transformOAuthRequest`): oh-my-pi удалил устаревший OAuth-only clamp 64k; в OpenCode он находился в одном преобразователе и одном узком тесте. Test-first `cmd_runner` `20261001T123240Z_22b58a3c` дал ожидаемый FAIL: received 64000, expected 100000. После удаления константы и clamp `cmd_runner` `20261001T123307Z_de4b13b5` — 8 pass, 0 fail, 69 assertions, полный лог без потерь. Обновлены архитектурная документация и исторический план. OAuth-вход, refresh, токены, fingerprint-заголовки, CCH, gateway и API-key путь не менялись; живой OAuth не запускался.

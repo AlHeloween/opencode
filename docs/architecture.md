@@ -324,7 +324,8 @@ Anthropic subscription OAuth keeps its provider auth hook. The hook prepares the
 Messages request and passes it to `__gatewayFetch` when the gateway is active;
 without an active gateway it uses `fetch`. Its final body is a UTF-8 string so
 the gateway can classify streaming requests and send the complete body through
-the selected transport. The local wire test in
+the selected transport. The hook preserves the `max_tokens` value selected by
+the model layer; subscription OAuth does not impose a second 64k ceiling. The local wire test in
 `test/plugin/anthropic-auth.test.ts` covers HTTP/1.1 without credentials;
 Anthropic HTTP/2 and HTTP/3 still need separate transport probes. OAuth login
 and token refresh remain in the auth hook, outside the gateway transport.

@@ -83,7 +83,16 @@ the file says …» to a write: the address exists only in the output of a read 
         cue, not the address.
       The window (`offset`/`limit`) must not change a hash — asserted, because the whole scheme dies quietly if
       it does.
-- [ ] **H3 — ONE tool: `edit` takes `edits: [...]`.** Each entry `{ fromHash, toHash?, newString }` (`toHash` absent = a single line). `multiedit` is unregistered as a tool and its description is retired; its atomicity — resolve against a buffer, write once, say «NOTHING was written» on failure — becomes `edit`'s own property, which the list makes structural rather than compensating.
+- [x] ✓ **H3 — ONE tool: `edit` takes `edits: [...]`. DONE (commit `815cf266b6`).** `multiedit` is UNREGISTERED
+      from the catalog (`registry.ts`, 4 sites ✓) and turned INTO a module that declares itself retired, rather
+      than deleted — the constitution blocks deleting files from the shell ✓, and a module that says so is
+      better than a silent absence ✓ Its real property («nothing is written unless every entry resolves» ✓) did
+      not die with it: it became `edit`'s own, structural via `resolveEdits` ✓ The old flat fields
+      (`oldString`/`newString`/`replaceAll`/`exact`/`from`/`to`/`expect` ✓) are gone ✓ And the TUI's inline edit
+      row rendered `replaceAll` ✓ — it now reports the number of changes ✓
+      **Blast radius, mine:** the first typecheck found **35 errors across 5 files** ✗ — including the TUI and
+      three test files ✓ AGENTS.md says to ask codegraph what an edit touches BEFORE it ✓ I did not ✓ and this is
+      the price that rule was written about ✓ Recorded, not smoothed ✓
 - [x] ✓ **H4 — resolve ALL, then apply. DONE (commit `660c370578`).** The chain is computed
       once over the ORIGINAL content; `fromHash` names the line BEFORE the span (the seed `00000000` names the
       state before line 1), `toHash` its last line, and an absent `toHash` means a single line. Refusals: an
@@ -99,8 +108,19 @@ the file says …» to a write: the address exists only in the output of a read 
       against the ORIGINAL content landed on lines the earlier edit had already shifted. Restored: green
       **26 pass / 0 fail** (`20261001T045218Z_1e2c8f1c`), with `edit.ts` absent from `git status`, i.e. byte-identical
       to HEAD.
-- [ ] **H5 — the cascade is CUT in the same change, not after it.** With the tool merged and hash-only there is nowhere for a fuzzy stage to live: `oldString` and the ten stages go, and `edit.txt` / `multiedit.txt` (retired) lose the stage vocabulary with them. The tests that pinned the stages are **replaced, not adjusted** — superseded with provenance, per the owner's «просто замени соответствующие тесты».
-- [ ] **File creation survives.** A hash cannot address lines that do not exist: creating a file (today `oldString: ""`) needs an explicit form, named in the description, and it must not become a back door that skips resolution.
+- [x] ✓ **H5 — the cascade is CUT from the editing path. DONE (commit `815cf266b6`).** The tool can no longer
+      reach a fuzzy stage at all: `oldString` and the ten stages left `Parameters`, `edit.txt` was rewritten for
+      the address, and `multiedit.txt` (retired) carries a banner ✓ The tests that pinned the stages are
+      **replaced, not adjusted**, with their names written down in `edit.test.ts`'s header ✓✓
+      **Residue, named rather than hidden:** the cascade FUNCTIONS still exist as dead exports in `edit.ts`, kept
+      because the pure suites still exercise the helpers directly ✓ Removing them is a separate reduction that
+      must take those cases with it ✓ — it is not needed for this plan ✓ and it is not silently kept either ✓
+- [x] ✓ **File creation survives. DONE (commit `815cf266b6`).** `content` CREATES and is refused when the file
+      already exists — the address path cannot name lines that are not there, so the two shapes are kept apart on
+      purpose ✓ It is not a back door: it never reaches `resolveEdits` ✓ and `edits` + `content` together are a
+      refusal ✓ The door was in fact the FIRST thing my own test caught: I had made `edits` a REQUIRED field,
+      which quietly killed creation ✓ — the schema now has it optional and the guard names both doors ✓
+
 
 ## Smoke Tests
 

@@ -570,6 +570,55 @@ it.live("session.processor effect tests do not treat a colon inside a finished a
   30_000,
 )
 
+// The 2026-10-02 diagnosis had to infer the provider's finish reason from token arithmetic: the
+// step carried only the SDK-mapped `reason`, and no raw stream is kept anywhere. Keyed datum → state.
+it.live("session.processor effect tests store the provider's raw finish reason on step-finish", () =>
+  provideTmpdirServer(
+    ({ dir, llm }) =>
+      Effect.gen(function* () {
+        const { processors, session, provider } = yield* boot()
+
+        yield* llm.push(reply().text("done").stop())
+
+        const chat = yield* session.create({})
+        const parent = yield* user(chat.id, "finish")
+        const msg = yield* assistant(chat.id, parent.id, path.resolve(dir))
+        const mdl = yield* provider.getModel(ref.providerID, ref.modelID)
+        const handle = yield* processors.create({
+          assistantMessage: msg,
+          sessionID: chat.id,
+          model: mdl,
+        })
+
+        yield* handle.process({
+          user: {
+            id: parent.id,
+            sessionID: chat.id,
+            role: "user",
+            time: parent.time,
+            agent: parent.agent,
+            model: { providerID: ref.providerID, modelID: ref.modelID },
+          } satisfies MessageV2.User,
+          sessionID: chat.id,
+          model: mdl,
+          agent: agent(),
+          system: [],
+          messages: [{ role: "user", content: "finish" }],
+          tools: {},
+        })
+
+        const finish = MessageV2.parts(msg.id).find(
+          (part): part is MessageV2.StepFinishPart => part.type === "step-finish",
+        )
+
+        expect(finish?.reason).toBe("stop")
+        expect(finish?.rawFinishReason).toBe("stop")
+      }),
+    { git: true, config: (url) => providerCfg(url) },
+  ),
+  30_000,
+)
+
 it.live("session.processor effect tests do not retry unknown json errors", () =>
   provideTmpdirServer(
     ({ dir, llm }) =>

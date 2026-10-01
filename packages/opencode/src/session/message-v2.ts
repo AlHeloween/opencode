@@ -345,6 +345,13 @@ export const StepFinishPart = Schema.Struct({
   ...partBase,
   type: Schema.Literal("step-finish"),
   reason: Schema.String,
+  /**
+   * The provider's own finish reason, before the SDK maps it into `reason`. Kept because no raw
+   * stream is stored anywhere: on 2026-10-02 «did the model stop, or did we drop its call?» had to
+   * be answered by token arithmetic (plan `2026-10-02_announce-then-stop`). Absent when the
+   * provider sent none, and on parts written before this field existed.
+   */
+  rawFinishReason: Schema.optional(Schema.String),
   cacheState: Schema.optional(Schema.Literals(["hit", "miss", "unknown"])),
   snapshot: Schema.optional(Schema.String),
   cost: Schema.Number,

@@ -1214,6 +1214,7 @@ export const layer: Layer.Layer<
             const stepFinish = yield* session.updatePart({
               id: PartID.ascending(),
               reason: value.finishReason,
+              ...(value.rawFinishReason === undefined ? {} : { rawFinishReason: value.rawFinishReason }),
               // The turn's own baseline, committed once at its start. No commit
               // chain runs here on any step, so a fifty-tool turn costs one
               // snapshot rather than fifty decisions about whether to take one.

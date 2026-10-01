@@ -393,3 +393,22 @@ Not changed: a second spelling of this codec in a module nobody can call would b
   output names the page, so the model is the one who can see a wrong decode (owner's design, H10).
 - **`applypatch` module** — out of the catalog; the module stays for the CLI heredoc path and the TUI's history
   renderer. Removing it is a separate change with those consumers.
+
+## Amendment 2026-10-01 — the chain is xxh3, as decided (refutes «Grounded before planning», first bullet)
+
+- ✗ The premise «xxHash3 appears NOWHERE in `packages/opencode/src` → … add no dependency» answered a RUNTIME
+  question with a grep of SOURCE: `Bun.hash.xxHash3` is built into Bun (`bun -e` → `function`). The owner's
+  verbatim decision («короткий инкрементальный xxH3 хеш») was replaced on that premise; owner, on finding it:
+  «давай исправим все на xxh3».
+- ✓ `chainHash` (`src/tool/read.ts`) now calls `Bun.hash.xxHash3`, still `trunc32`, still chained.
+- ✓ Pinned by `test/tool/read-address.test.ts` «the chain is xxh3_64 …» against an INDEPENDENT implementation
+  (Python `xxhash.xxh3_64_intdigest`: `alpha` → `57e53539`, then `beta` → `0b29c45a`; Bun agrees). Needed because
+  read and edit share the function and agree under ANY hash — no round-trip test could see the substitution.
+  Negative control: xxHash64 gives `71c2f857` for the same input (the address the live battery
+  `experiments/2026-10-01_hash-address-live/` recorded for line 1 `alpha` — that battery ran on xxHash64).
+- ✓ Baseline 56 pass / 0 fail (run `20261001T103743Z_8fa654ce`), after 57 / 0 (run `20261001T103833Z_aa27c16b`),
+  three files: read-address, edit, edit-exact; `bun typecheck` clean. Prediction «56 unchanged + the new test» held.
+- Open: `bin/opencode.exe` still runs xxHash64 until the owner rebuilds/promotes; addresses change once at that
+  moment (a read before the promotion and an edit after it would be refused — by design).
+- Kernel rule that now covers the class: @INTENTION_INVARIANCE «departing from the user's verbatim decision needs a
+  measurement on the layer the decision is about» (release 2026-10-01, `c7f32d4195`).

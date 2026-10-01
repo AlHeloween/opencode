@@ -48,6 +48,15 @@ describe("read — the line address (pure)", () => {
     expect(parseHash("")).toBeUndefined()
   })
 
+  test("the chain is xxh3_64, truncated to 32 bits — pinned against an independent implementation", () => {
+    // read and edit share chainHash, so they agree under ANY hash function: no round-trip test can tell which one
+    // runs. Only an outside implementation can. Values from Python `xxhash.xxh3_64_intdigest` (2026-10-01):
+    // "0\0alpha" -> 0xe1ff011f57e53539, then "<that low 32 as decimal>\0beta" — the owner chose xxh3.
+    const alpha = chainHash(0, "alpha")
+    expect(hashLabel(alpha)).toBe("57e53539")
+    expect(hashLabel(chainHash(alpha, "beta"))).toBe("0b29c45a")
+  })
+
   test("CRLF and LF hash IDENTICALLY — the class `oldString` could not survive", async () => {
     const lf = await withFile("lf.txt", "alpha\nbeta\n", (p) => lines(p, { limit: 10, offset: 1 }))
     const crlf = await withFile("crlf.txt", "alpha\r\nbeta\r\n", (p) => lines(p, { limit: 10, offset: 1 }))

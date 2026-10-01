@@ -466,7 +466,7 @@ export const ReadTool = Tool.define(
 /**
  * The LINE ADDRESS (plan 2026-10-01_hash-addressed-edits, H1).
  *
- * `h(i) = trunc32(xxHash64(h(i-1) ‖ "\u0000" ‖ line(i)))`, seeded at 0, so a line's hash carries the WHOLE
+ * `h(i) = trunc32(xxh3_64(h(i-1) ‖ "\u0000" ‖ line(i)))`, seeded at 0, so a line's hash carries the WHOLE
  * prefix above it: an address says what the FILE is, not where a line is. Any change above an addressed span
  * changes its hash, and the edit is refused instead of landing near it — a guess is not implemented at all.
  *
@@ -479,10 +479,15 @@ export const ReadTool = Tool.define(
  * 32 bits, because the address is a PAIR and the chain already carries position and history: the hash only has
  * to catch substitution, where a per-line collision is ≈ 2·10⁻¹⁰. If that ever proves too tight, the lever is
  * width — never a fuzzy fallback.
+ *
+ * xxh3, the owner's decision (2026-10-01: «короткий инкрементальный xxH3 хеш»): it has dedicated short-input
+ * paths, and a line is a short input. A first build used xxHash64 on the premise «xxHash3 appears nowhere in src»
+ * — but `Bun.hash.xxHash3` is built into the runtime. The algorithm is pinned by a test against an independent
+ * implementation (Python `xxhash.xxh3_64`), because read and edit share this function and would agree on ANY hash.
  */
 export function chainHash(previous: number, line: string): number {
   // Mask in the hash's OWN space: converting first would round the low bits away (64 bits do not fit a double).
-  return Number(Bun.hash.xxHash64(`${previous}\u0000${line}`) & 0xffff_ffffn)
+  return Number(Bun.hash.xxHash3(`${previous}\u0000${line}`) & 0xffff_ffffn)
 }
 
 /** The printed form. ONE spelling, shared by `read` and `edit` — never a second. */

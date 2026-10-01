@@ -5941,3 +5941,11 @@ repinned (prev 7f9a1b6f from H10, which had left the hash-boundary test red). py
 TOOLS: pdftoppm absent (Read on PDF fails) -> PyMuPDF for text; render_diff needs PYTHONPATH=. from repo root.
 NEXT: mechanisms (SVMRecord.evidence, red-on-parent test gate, READY gate on edit, prev-md5 check in the turn note,
 chainHash -> xxh3, parser code-span tag) — to Smit when funded; residual on SVM old text (svm_per_task, master_plan).
+
+## [2026-10-01] chainHash -> xxh3 (owner: «давай исправим все на xxh3»)
+DONE: read.ts chainHash xxHash64 -> xxHash3 (trunc32, chained); new pinned test vs Python xxhash (57e53539/0b29c45a);
+negative control xxHash64 = 71c2f857. Tests 56/0 -> 57/0 (runs 20261001T103743Z_8fa654ce, 20261001T103833Z_aa27c16b);
+typecheck clean. Amendment appended to plans_completed/2026-10-01_hash-addressed-edits.md.
+TOOLS: cmd_runner state.json carries a UTF-8 BOM (json.load fails; read with utf-8-sig) and reports no
+bytes_written/truncated keys in --raw mode.
+NEXT: owner rebuild/promote of bin/ — addresses change once at promotion.

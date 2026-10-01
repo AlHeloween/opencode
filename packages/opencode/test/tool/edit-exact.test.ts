@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { replace, replaceRange, replaceWithStage } from "../../src/tool/edit"
+import { Schema } from "effect"
+import { Parameters, replace, replaceRange, replaceWithStage } from "../../src/tool/edit"
 
 /**
  * `exact` — the CALLER states the precision of its anchor.
@@ -81,6 +82,41 @@ describe("tool.edit — an address plus a guard", () => {
   test("out of bounds and a reversed range are refusals, never silent clamps", () => {
     expect(() => replaceRange(TWICE, { from: 9, to: 9, expect: "x", replacement: "y" })).toThrow(/out of bounds/)
     expect(() => replaceRange(TWICE, { from: 4, to: 2, expect: "x", replacement: "y" })).toThrow(/out of bounds/)
+  })
+})
+
+/**
+ * THE ADDRESS MUST PASS THE TOOL'S OWN SCHEMA (plan F6).
+ *
+ * F4 was proven through `replaceRange` — one layer BELOW the call a caller actually makes — so the address
+ * LOGIC was green while `Parameters` still demanded `oldString`, the very parameter the address branch throws
+ * away. Every F4 case called the helper; none decoded the schema the runtime decodes (`tool/tool.ts:115`
+ * compiles `Schema.decodeUnknownEffect(toolInfo.parameters)` per tool), and the defect survived until a LIVE
+ * probe hit it on a real binary: `SchemaError(Missing key at ["oldString"])` for a call carrying
+ * `from`/`to`/`expect`.
+ *
+ * All THREE sides are asserted, because a door opened for one case must be shown not to have opened wider:
+ * an address alone decodes; neither an address nor `oldString` stays a refusal; and a plain content edit is
+ * exactly as it was.
+ */
+describe("tool.edit — the address passes the TOOL's schema", () => {
+  const decode = Schema.decodeUnknownSync(Parameters)
+
+  test("an ADDRESS alone is a valid call — `oldString` is not required with `from`/`to`/`expect`", () => {
+    expect(() => decode({ filePath: "x.txt", newString: "NEW", from: 4, to: 4, expect: "dup-marker" })).not.toThrow()
+  })
+
+  test("the schema does NOT decide `neither` — that refusal is the tool's own guard, where the message can name both doors", () => {
+    // Asserting the LAYER deliberately. `oldString` became optional so the address does not carry a value it
+    // discards, which means the schema now ACCEPTS `{filePath, newString}` and the refusal moved into
+    // `execute`: «pass `oldString` — the text to replace — or address the lines with `from`/`to` + `expect`».
+    // That is an actionable message a `SchemaError` cannot give, and the price is named rather than hidden —
+    // a schema test can see that this door is open, but it cannot see that the guard holds.
+    expect(() => decode({ filePath: "x.txt", newString: "NEW" })).not.toThrow()
+  })
+
+  test("a plain content edit is unchanged: `oldString` alone still decodes", () => {
+    expect(() => decode({ filePath: "x.txt", oldString: "old", newString: "NEW" })).not.toThrow()
   })
 })
 

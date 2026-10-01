@@ -192,7 +192,10 @@ export const Parameters = Schema.Struct({
   filePath: Schema.String.annotate({
     description: filePathDescription("Path to the file to modify"),
   }),
-  oldString: Schema.String.annotate({ description: "The text to replace" }),
+  oldString: Schema.optional(Schema.String).annotate({
+    description:
+      "The text to replace. NOT needed when an ADDRESS is given (`from`/`to` + `expect`): in address mode `expect` takes this role and `oldString` is ignored.",
+  }),
   newString: Schema.String.annotate({
     description: "The text to replace it with (must be different from oldString)",
   }),
@@ -233,7 +236,16 @@ export const EditTool = Tool.define(
             throw new Error("filePath is required")
           }
 
-          if (params.oldString === params.newString) {
+          // Either an anchor or an address, never neither: `oldString` is optional only so that ADDRESS mode
+          // does not have to carry a value it discards (plan F6).
+          const addressed = params.from !== undefined || params.to !== undefined
+          if (params.oldString === undefined && !addressed) {
+            throw new Error(
+              "pass `oldString` — the text to replace — or address the lines with `from`/`to` + `expect`.",
+            )
+          }
+
+          if (!addressed && params.oldString === params.newString) {
             throw new Error("No changes to apply: oldString and newString are identical.")
           }
 
@@ -290,7 +302,7 @@ export const EditTool = Tool.define(
               yield* writeBackup(contentOld, ctx.sessionID, ctx.callID ?? "", filePath, afs)
 
               const ending = detectLineEnding(contentOld)
-              const old = convertToLineEnding(normalizeLineEndings(params.oldString), ending)
+              const old = convertToLineEnding(normalizeLineEndings(params.oldString ?? ""), ending)
               const replacement = convertToLineEnding(normalizeLineEndings(params.newString), ending)
 
               // THE ADDRESS, WITH ITS GUARD (plan F4). `read` prints absolute 1-based line numbers, so a

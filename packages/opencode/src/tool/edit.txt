@@ -27,23 +27,32 @@ One file with one change is the SAME shape with one entry — there is no second
 Every change names its lines by the hashes `read` printed, and by nothing else:
 
 - `fromHash` — the address of the line **before** the span (`00000000` for line 1: the state before the file).
-- `toHash` — the address of the span's **last** line. Omit it to change one line.
-- `newString` — what replaces the addressed lines. May span several lines, and may be empty to delete them.
+- `toHash` — the address of the span's **last** line. Omit it to change one line. Pass the SAME hash as
+  `fromHash` to INSERT after that line without replacing anything — `00000000` twice inserts before line 1, the
+  last line's hash twice appends at the end.
+- `newString` — the lines that replace the span, one per line. `""` DELETES the span. One trailing line break is
+  optional and changes nothing: the last new line ends the way the replaced line ended (a file that ends without
+  a final line break keeps ending without one).
 
 **Read first; you cannot address what you have not read.** The hashes come from a CHAIN over the file (`h(i) = xxHash64(h(i-1) ‖ line(i))`, seeded at `00000000`), so an address names a position AND the state of the file up to that point. Any change above an addressed span changes its hash, and the call is REFUSED rather than landing near it. There is no approximate match, no nearest anchor, no guess: a wrong address does not edit less — it does not edit at all.
 
 **Every address, in EVERY file, is resolved BEFORE anything is written anywhere.** The whole batch is checked against the files as they were read, and only then is each file written, once — so no entry is affected by another, a denied permission writes nothing, and a failure in one file leaves EVERY file in the batch untouched.
 
-## Line Endings & Unicode
+## Line Endings & Encodings
 
-- Addresses are IDENTICAL for a CRLF file and an LF file: the chain is taken over each line WITHOUT its terminator, which is exactly the string `read` printed. Replacement text uses the file's own detected ending.
-- Unicode normalization handles dash/quote/space variants.
+- Addresses are IDENTICAL for a CRLF file and an LF file, and in every encoding: the chain is taken over each line's TEXT without its terminator, which is exactly the string `read` printed.
+- Your line breaks are rewritten to the file's own — the ending MOST of the file uses — so an edit never mixes endings. Send plain `\n`.
+- The file keeps its encoding: UTF-8, UTF-8 with BOM, UTF-16 LE/BE.
+- **Delphi sources** (`.pas .dpr .dpk .inc .dfm .dproj`) are always written as UTF-8 with BOM and CRLF, the WHOLE file, new or existing.
+- **A legacy ANSI file** (not UTF-8, no BOM — read in this host's code page) is converted to UTF-8 with BOM and CRLF when it is saved: a legacy code page cannot hold every script.
+- Any such conversion is NAMED in the result (`converted from … to …`). The next `read` prints the same text — and, because the ADDRESSES are over the text, the same hashes.
+- A binary file is refused. Inspect it with `read` and `hex: true`.
+- Text is matched exactly: there is no Unicode normalization of dashes, quotes or spaces — nothing is compared at all, the address is the whole guard.
 
 ## Post-Edit Processing
 
 - LSP diagnostics run on modified files after editing, and are reported per file.
-- File formatting respects project's configured formatter.
-- BOM preserved/detected on UTF-8 files.
+- File formatting respects project's configured formatter; the file is put back in its encoding afterwards.
 
 ## File Backups
 
@@ -59,6 +68,6 @@ Each edit automatically creates a backup of the file's pre-edit content. Backups
 | `files[].filePath` | string | Path to the file to modify. |
 | `files[].edits` | array | Every change to THIS file: `{ fromHash, toHash?, newString }`. All of them are resolved against the file as it was read and applied in ONE write. |
 | `files[].edits[].fromHash` | string | The address of the line BEFORE the span — the hash `read` printed for the line just above the first line you are changing, or `00000000` for line 1. |
-| `files[].edits[].toHash` | string (optional) | The address of the LAST line of the span, exactly as `read` printed it. Omit to change a single line. |
-| `files[].edits[].newString` | string | Replacement text for the addressed lines. May span several lines, and may be empty to delete them. |
+| `files[].edits[].toHash` | string (optional) | The address of the LAST line of the span, exactly as `read` printed it. Omit to change a single line; equal to `fromHash` to insert after that line. |
+| `files[].edits[].newString` | string | The lines replacing the span. `""` deletes it; a trailing line break is optional. |
 | `files[].content` | string (optional) | Create a NEW file with this content. Refused when the file already exists — address its lines instead — and never combined with `edits`. |

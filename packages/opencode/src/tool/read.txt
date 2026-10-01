@@ -40,7 +40,7 @@ When the `hex` parameter is `true`, the tool outputs a formatted hex dump regard
 
 ## Binary Safety
 
-Binary files (executables, compiled code, binary formats) are detected and refused with a clear error message, unless `hex: true` is set. The detection is extension-based and safe.
+Binary files (executables, compiled code, binary formats) are detected and refused with a clear error message, unless `hex: true` is set. The detection checks for a BOM first (so UTF-16 text is not mistaken for binary), then the extension, NUL bytes and the share of control bytes.
 
 ## Reading Text Files
 
@@ -52,6 +52,9 @@ Binary files (executables, compiled code, binary formats) are detected and refus
   labels on every read) and identical for a CRLF file and an LF file, because the line's terminator is not part
   of the text that is hashed. A re-read that reproduces a label therefore proves the file has not moved — an
   address you did not read from THIS file will not be found in it.
+- **Encodings**: UTF-8 with or without BOM, UTF-16 LE/BE (by its BOM) and legacy ANSI files (read in this host's
+  code page) are all read as their TEXT. A BOM is never part of line 1, and the addresses are over the text, so
+  they do not change when `edit`/`write` convert a file's encoding.
 - **Long lines**: a line over 2000 characters is WRAPPED, not truncated. The first chunk is the line itself,
   with its address; each following chunk continues it and is prefixed with `↳+<charOffset>: ` — the position
   INSIDE the line where it resumes (`      ↳+2000: …`). Nothing is lost and the position of any part of the

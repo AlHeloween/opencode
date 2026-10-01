@@ -15,7 +15,7 @@ import { Instance } from "../project/instance"
 import { Snapshot } from "@/snapshot"
 import { trimDiff } from "./edit"
 import { assertExternalDirectoryEffect } from "./external-directory"
-import * as Bom from "@/util/bom"
+import * as TextCodec from "@/util/text-codec"
 import { Constitution } from "@/session/constitution"
 import { validateCodeSyntax } from "@/util/syntax-validator"
 import { filePathDescription } from "./path-hint"
@@ -57,11 +57,20 @@ export const WriteTool = Tool.define(
           yield* assertExternalDirectoryEffect(ctx, filepath)
 
           const exists = yield* fs.existsSafe(filepath)
-          const source = exists ? yield* Bom.readFile(fs, filepath) : { bom: false, text: "" }
-          const next = Bom.split(params.content)
-          const desiredBom = source.bom || next.bom
-          const contentOld = source.text
-          const contentNew = next.text
+          // The SAME codec `read` and `edit` use (plan H9d). An overwrite takes the existing file's FORM — its
+          // encoding and its majority ending — not the agent's: «анализ какие ендинги отправил агент, а какие у
+          // файла и поправить … тоже самое с кодировкой» (owner, 2026-10-01). A binary or undecodable file has no
+          // form to keep, so it is written as a new file would be.
+          const source = exists ? TextCodec.decode(new Uint8Array(yield* fs.readFile(filepath)), filepath) : undefined
+          const original = source?.kind === "text" ? source : undefined
+          const form = TextCodec.fit(
+            filepath,
+            source,
+            params.content,
+            original ? TextCodec.lineEnding(original.text) : undefined,
+          )
+          const contentOld = original?.text ?? ""
+          const contentNew = form.text
 
           const diff = trimDiff((yield* Effect.promise(() => createPatch(contentOld, contentNew))) ?? "")
           yield* ctx.ask({
@@ -91,9 +100,9 @@ export const WriteTool = Tool.define(
             }
           }
 
-          yield* fs.writeWithDirs(filepath, Bom.join(contentNew, desiredBom))
+          yield* fs.writeWithDirs(filepath, TextCodec.encode(contentNew, form.encoding))
           if (yield* format.file(filepath)) {
-            yield* Bom.syncFile(fs, filepath, desiredBom)
+            yield* TextCodec.syncFile(fs, filepath, form.encoding, form.ending)
           }
           yield* bus.publish(File.Event.Edited, { file: filepath })
           yield* bus.publish(FileWatcher.Event.Updated, {
@@ -102,6 +111,8 @@ export const WriteTool = Tool.define(
           })
 
           let output = "Wrote file successfully."
+          // A conversion is never silent (owner: «агент получает уведомление»).
+          if (form.notice) output += `\n\n${form.notice}`
           yield* lsp.touchFile(filepath, "document")
           const diagnostics = yield* lsp.diagnostics()
           const normalizedFilepath = AppFileSystem.normalizePath(filepath)

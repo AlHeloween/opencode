@@ -7,7 +7,12 @@ printed and applies a whole list of changes in one call.
 
 - **Creates parent directories** automatically — no need to `mkdir` first.
 - **LSP diagnostics** run on the written file and come back in `metadata.diagnostics`.
-- **UTF-8 BOM** preserved/detected.
+- **An overwrite keeps the file's form**: its encoding (UTF-8, UTF-8 with BOM, UTF-16 LE/BE) and its line
+  ending — the one MOST of the file uses; your line breaks are rewritten to it. A new file is written as you
+  send it (a leading BOM in `content` is honoured).
+- **Delphi sources** (`.pas .dpr .dpk .inc .dfm .dproj`) are always written as UTF-8 with BOM and CRLF, new or
+  existing. **A legacy ANSI file** is converted to UTF-8 with BOM and CRLF. Either conversion is NAMED in the
+  result (`converted from … to …`).
 - **Diff** comes back in `metadata.filediffs` — a LIST, one entry per file, each carrying `file`,
   `patch`, `additions` and `deletions`.
 

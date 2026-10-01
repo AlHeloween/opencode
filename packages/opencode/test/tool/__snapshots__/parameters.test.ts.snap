@@ -84,11 +84,11 @@ exports[`tool parameters JSON Schema (wire shape) edit 1`] = `
                   "type": "string",
                 },
                 "newString": {
-                  "description": "The text that replaces the addressed lines. May span several lines, and may be empty to delete them.",
+                  "description": "The lines that replace the span. \`""\` deletes it. A trailing line break is optional: the last line ends the way the replaced line ended, and every break is fitted to the file's own endings.",
                   "type": "string",
                 },
                 "toHash": {
-                  "description": "The address of the LAST line of the span, exactly as \`read\` printed it. Omit it to change a single line.",
+                  "description": "The address of the LAST line of the span, exactly as \`read\` printed it. Omit it to change a single line. Pass the SAME hash as \`fromHash\` to INSERT after that line without replacing anything.",
                   "type": "string",
                 },
               },

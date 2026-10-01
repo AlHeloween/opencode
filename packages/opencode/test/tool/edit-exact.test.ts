@@ -213,6 +213,108 @@ describe("tool.edit — a list of addresses, resolved then applied", () => {
 })
 
 /**
+ * THE SPAN'S EDGES (plan H9c). Owner, 2026-10-01: «от хеша - до хеша вставляем что отправил агент», with the
+ * agent's endings fitted to the file's, and the final terminator «проверить как было в оригинале и не
+ * выдумывать». Every case below was measured WRONG before this change (experiments/2026-10-01_chain-review):
+ * `""` left a blank line, a trailing `\n` added one, and an append either was refused or ate the final newline.
+ */
+describe("tool.edit — the span's edges: deletion, the final terminator, insertion, endings", () => {
+  const labels = (content: string) => {
+    const out = [hashLabel(0)]
+    let running = 0
+    for (const line of content.split("\n")) out.push(hashLabel((running = chainHash(running, line.replace(/\r$/, "")))))
+    return out
+  }
+
+  test("an empty `newString` DELETES the span — no blank line is left behind", () => {
+    const content = "a\nb\nc\n"
+    const h = labels(content)
+    expect(resolveEdits(content, [{ fromHash: h[1]!, newString: "" }])).toBe("a\nc\n")
+    expect(resolveEdits(content, [{ fromHash: h[0]!, toHash: h[3]!, newString: "" }])).toBe("")
+    // Deleting an UNTERMINATED last line keeps the file's final form: it still ends without a terminator.
+    const bare = "a\nb"
+    expect(resolveEdits(bare, [{ fromHash: labels(bare)[1]!, newString: "" }])).toBe("a")
+  })
+
+  test("ONE trailing terminator is the last line's own: «B» and «B\\n» are the same line, «\\n» is a blank one", () => {
+    const content = "a\nb\nc\n"
+    const h = labels(content)
+    expect(resolveEdits(content, [{ fromHash: h[1]!, newString: "B\n" }])).toBe("a\nB\nc\n")
+    expect(resolveEdits(content, [{ fromHash: h[1]!, newString: "B" }])).toBe("a\nB\nc\n")
+    expect(resolveEdits(content, [{ fromHash: h[1]!, newString: "\n" }])).toBe("a\n\nc\n")
+  })
+
+  test("the ORIGINAL decides the final terminator — an unterminated last line stays unterminated", () => {
+    const content = "a\nb"
+    const h = labels(content)
+    expect(resolveEdits(content, [{ fromHash: h[1]!, newString: "B\n" }])).toBe("a\nB")
+  })
+
+  test("`toHash` equal to `fromHash` is the EMPTY span after that line: an insertion", () => {
+    const content = "a\nc\n"
+    const h = labels(content)
+    expect(resolveEdits(content, [{ fromHash: h[1]!, toHash: h[1]!, newString: "b" }])).toBe("a\nb\nc\n")
+    expect(resolveEdits(content, [{ fromHash: h[0]!, toHash: h[0]!, newString: "first" }])).toBe("first\na\nc\n")
+  })
+
+  test("appending after the LAST line keeps the file's own final form, terminated or not", () => {
+    const terminated = "a\nb\n"
+    const t = labels(terminated)
+    expect(resolveEdits(terminated, [{ fromHash: t[2]!, toHash: t[2]!, newString: "c" }])).toBe("a\nb\nc\n")
+    const bare = "a\nb"
+    const b = labels(bare)
+    expect(resolveEdits(bare, [{ fromHash: b[2]!, toHash: b[2]!, newString: "c" }])).toBe("a\nb\nc")
+    // A ONE-line file without any break has no ending to copy — and the append must still not GLUE the lines.
+    const single = "a"
+    const s = labels(single)
+    expect(resolveEdits(single, [{ fromHash: s[1]!, toHash: s[1]!, newString: "c" }])).toBe("a\nc")
+  })
+
+  test("the address cannot reach past the last line: no phantom line after the final terminator", () => {
+    const content = "a\nb\n"
+    const h = labels(content)
+    expect(() => resolveEdits(content, [{ fromHash: h[2]!, newString: "c" }])).toThrow(/past the end/)
+  })
+
+  test("an empty file takes an insertion at the seed, written as sent — there is no original to copy", () => {
+    expect(resolveEdits("", [{ fromHash: "00000000", toHash: "00000000", newString: "x\n" }])).toBe("x\n")
+  })
+
+  test("the agent's endings are fitted to the file's MAJORITY ending; the last line keeps the original's", () => {
+    const crlf = "a\r\nb\r\n"
+    const c = labels(crlf)
+    expect(resolveEdits(crlf, [{ fromHash: c[0]!, newString: "X\nY" }])).toBe("X\r\nY\r\nb\r\n")
+    // Mostly LF with one CRLF line: the new internal break is LF, and the replaced line's own CRLF survives.
+    const mixed = "a\r\nb\nc\nd\n"
+    const m = labels(mixed)
+    expect(resolveEdits(mixed, [{ fromHash: m[0]!, newString: "X\r\nY" }])).toBe("X\nY\r\nb\nc\nd\n")
+  })
+
+  test("two insertions at one point, or an insertion where a span starts, are refused — no defined order", () => {
+    const content = "a\nb\n"
+    const h = labels(content)
+    expect(() =>
+      resolveEdits(content, [
+        { fromHash: h[1]!, toHash: h[1]!, newString: "x" },
+        { fromHash: h[1]!, toHash: h[1]!, newString: "y" },
+      ]),
+    ).toThrow(/claim line/)
+    expect(() =>
+      resolveEdits(content, [
+        { fromHash: h[1]!, toHash: h[1]!, newString: "x" },
+        { fromHash: h[1]!, newString: "B" },
+      ]),
+    ).toThrow(/claim line/)
+  })
+
+  test("a `toHash` ABOVE `fromHash` is still an inverted range", () => {
+    const content = "a\nb\nc\n"
+    const h = labels(content)
+    expect(() => resolveEdits(content, [{ fromHash: h[2]!, toHash: h[1]!, newString: "x" }])).toThrow(/inverted/)
+  })
+})
+
+/**
  * THE STAGE IS NAMED (plan F3).
  *
  * Probe C measured that a drifted anchor APPLIES while the success said nothing about it — so how much

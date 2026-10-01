@@ -114,6 +114,56 @@ describe("read — the line address (pure)", () => {
     // The true total must still be the LINE count, not the chunk count — the pager pages by source lines.
     expect(result.count).toBe(1)
   })
+
+  // H9b. The address is a function of the TEXT, never of the bytes that carry it: every encoding `edit` can
+  // write must print the same lines and the same hashes as plain UTF-8, or `edit` (which decodes through the
+  // codec) refuses every address — measured for the BOM in experiments/2026-10-01_chain-review/probe.ts.
+  const MULTILINGUAL = "Hello\r\nSelamat pagi\r\n你好\r\nനമസ്കാരം\r\nПривет\r\n"
+  const encodings = {
+    "UTF-8 BOM": Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(MULTILINGUAL, "utf-8")]),
+    "UTF-16 LE": Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(MULTILINGUAL, "utf16le")]),
+    "UTF-16 BE": Buffer.concat([Buffer.from([0xfe, 0xff]), Buffer.from(MULTILINGUAL, "utf16le").swap16()]),
+  }
+  for (const [name, encoded] of Object.entries(encodings)) {
+    test(`${name} prints the SAME lines and the SAME addresses as plain UTF-8`, async () => {
+      const plain = await withFile("plain.txt", MULTILINGUAL, (p) => lines(p, { limit: 10, offset: 1 }))
+      const other = await withFile("other.txt", "", async (p) => {
+        await writeFile(p, encoded)
+        return lines(p, { limit: 10, offset: 1 })
+      })
+
+      expect(other.raw).toEqual(plain.raw)
+      expect(other.raw[0]).toBe("Hello") // no U+FEFF, no NUL — the first line is text, not its carrier
+      expect(other.hashes).toEqual(plain.hashes)
+    })
+  }
+
+  test("an ANSI (cp1251) file reads as its TEXT in the host code page, not as U+FFFD", async () => {
+    // "unit A;\nS := 'Привет';\n" — the Delphi IDE default on a 1251 host.
+    const ansi = Buffer.from([...Buffer.from("unit A;\nS := '"), 0xcf, 0xf0, 0xe8, 0xe2, 0xe5, 0xf2, ...Buffer.from("';\n")])
+    const result = await withFile("a.pas", "", async (p) => {
+      await writeFile(p, ansi)
+      return lines(p, { limit: 10, offset: 1 })
+    })
+    const plain = await withFile("u.pas", "unit A;\nS := 'Привет';\n", (p) => lines(p, { limit: 10, offset: 1 }))
+
+    expect(result.raw).toEqual(plain.raw)
+    expect(result.hashes).toEqual(plain.hashes)
+  })
+
+  test("a non-UTF-8 byte PAST the window still decides the encoding — the window must not", async () => {
+    // Line 1 is ASCII and is the only line returned; the cp1251 byte sits on line 3. If the window decided the
+    // encoding, line 1's text would be the same either way — but the TALLY would have streamed UTF-8 over a
+    // file `edit` decodes as ANSI, and the two would disagree about every line past the first non-ASCII one.
+    const ansi = Buffer.from([...Buffer.from("one\ntwo\n"), 0xcf, 0xf0, ...Buffer.from("\n")])
+    const result = await withFile("w.pas", "", async (p) => {
+      await writeFile(p, ansi)
+      return lines(p, { limit: 1, offset: 1 })
+    })
+
+    expect(result.encoding).toBe("ansi")
+    expect(result.count).toBe(3)
+  })
 })
 
 /**

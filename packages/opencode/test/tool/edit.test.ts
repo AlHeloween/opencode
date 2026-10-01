@@ -3,6 +3,7 @@ import fs from "fs/promises"
 import { Effect, Layer } from "effect"
 import { EditTool } from "../../src/tool/edit"
 import { chainHash, hashLabel } from "../../src/tool/read"
+import * as TextCodec from "../../src/util/text-codec"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { LSP } from "@/lsp/lsp"
@@ -261,6 +262,127 @@ describe("tool.edit — a batch of addressed changes, through the real layers", 
 
       expect(String(failed)).toContain("pass `edits`")
       expect(String(failed)).toContain("files[0]")
+    }),
+  )
+})
+
+/**
+ * ENCODINGS AND ENDINGS ON THE WRITE PATH (plan H9d). Every case reads the written BYTES back — the layer the
+ * claim lives on: a BOM, a UTF-16 byte order or a CRLF is invisible in a decoded string, so a string read-back
+ * would stay green through exactly the regressions these cases exist for.
+ */
+describe("tool.edit — encodings and endings, read back as BYTES", () => {
+  const putBytes = (file: string, bytes: Uint8Array) => Effect.promise(() => fs.writeFile(file, bytes))
+  const readBytes = (file: string) => Effect.promise(async () => new Uint8Array(await fs.readFile(file)))
+  const BOM8 = [0xef, 0xbb, 0xbf]
+  const utf8 = (text: string, bom = false) => new Uint8Array([...(bom ? BOM8 : []), ...Buffer.from(text, "utf-8")])
+  const utf16le = (text: string) => new Uint8Array([0xff, 0xfe, ...Buffer.from(text, "utf16le")])
+
+  it.live("a UTF-8 BOM file: the address resolves, and the BOM is kept", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      const text = "alpha\nbeta\n"
+      const file = `${dir}/bom.txt`
+      yield* putBytes(file, utf8(text, true))
+
+      const result = yield* edit(dir, oneFile(file, text, [{ line: 2, newString: "BETA" }]))
+
+      expect(yield* readBytes(file)).toEqual(utf8("alpha\nBETA\n", true))
+      expect(result.output).not.toContain("converted")
+    }),
+  )
+
+  it.live("a UTF-16 LE file stays UTF-16 LE, with every script intact", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      const text = "Hello\r\n你好\r\nനമസ്കാരം\r\n"
+      const file = `${dir}/multi.txt`
+      yield* putBytes(file, utf16le(text))
+
+      yield* edit(dir, oneFile(file, text, [{ line: 2, newString: "Привет · Selamat pagi" }]))
+
+      expect(yield* readBytes(file)).toEqual(utf16le("Hello\r\nПривет · Selamat pagi\r\nനമസ്കാരം\r\n"))
+    }),
+  )
+
+  it.live("an ANSI file is converted to UTF-8 BOM + CRLF on save, and the output NAMES the conversion", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      // "one\nS := 'Привет';\n" in windows-1251 — the untouched line 2 is the one the old path destroyed.
+      const bytes = new Uint8Array([...Buffer.from("one\nS := '"), 0xcf, 0xf0, 0xe8, 0xe2, 0xe5, 0xf2, ...Buffer.from("';\n")])
+      const file = `${dir}/legacy.txt`
+      yield* putBytes(file, bytes)
+      const page = TextCodec.hostCodePage()
+      const decoded = new TextDecoder(page ?? "utf-8").decode(bytes)
+
+      const result = yield* edit(dir, oneFile(file, decoded, [{ line: 1, newString: "ONE" }])).pipe(Effect.exit)
+
+      // No host code page: the file cannot be read honestly, so it must be refused and left as it was.
+      if (page === undefined) {
+        expect(String(result)).toContain("Cannot decode")
+        expect(yield* readBytes(file)).toEqual(bytes)
+        return
+      }
+      expect(String(result)).toContain(`ANSI ${page}`)
+      expect(String(result)).toContain("UTF-8 with BOM, CRLF")
+      expect(yield* readBytes(file)).toEqual(utf8(TextCodec.normalizeEndings(decoded, "\r\n").replace("one", "ONE"), true))
+    }),
+  )
+
+  it.live("a Delphi file is normalised WHOLE to UTF-8 BOM + CRLF, and the agent is told what changed", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      const text = "unit A;\ninterface\nend.\n"
+      const file = `${dir}/Unit1.pas`
+      yield* putBytes(file, utf8(text))
+
+      const result = yield* edit(dir, oneFile(file, text, [{ line: 2, newString: "implementation" }]))
+
+      expect(yield* readBytes(file)).toEqual(utf8("unit A;\r\nimplementation\r\nend.\r\n", true))
+      expect(result.output).toContain("UTF-8, LF")
+      expect(result.output).toContain("UTF-8 with BOM, CRLF")
+    }),
+  )
+
+  it.live("a Delphi file ALREADY in UTF-8 BOM + CRLF is edited without a conversion notice", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      const text = "unit A;\r\ninterface\r\n"
+      const file = `${dir}/Unit2.pas`
+      yield* putBytes(file, utf8(text, true))
+
+      const result = yield* edit(dir, oneFile(file, text, [{ line: 2, newString: "implementation" }]))
+
+      expect(yield* readBytes(file)).toEqual(utf8("unit A;\r\nimplementation\r\n", true))
+      expect(result.output).not.toContain("converted")
+    }),
+  )
+
+  it.live("a NEW Delphi file is written as UTF-8 BOM + CRLF whatever the agent sent", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      const file = `${dir}/Unit3.pas`
+
+      const result = yield* edit(dir, { files: [{ filePath: file, content: "unit B;\nend.\n" }] })
+
+      expect(yield* readBytes(file)).toEqual(utf8("unit B;\r\nend.\r\n", true))
+      expect(result.output).toContain("UTF-8 with BOM, CRLF")
+    }),
+  )
+
+  it.live("a BINARY file is refused — the seed address resolves in ANY file, so the guard must be the tool's", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      const bytes = new Uint8Array([0x41, 0x00, 0x42, 0x0a, 0x43])
+      const file = `${dir}/blob.txt`
+      yield* putBytes(file, bytes)
+
+      const failed = yield* edit(dir, {
+        files: [{ filePath: file, edits: [{ fromHash: hashLabel(0), newString: "X" }] }],
+      }).pipe(Effect.exit)
+
+      expect(String(failed)).toContain("binary")
+      expect(yield* readBytes(file)).toEqual(bytes)
     }),
   )
 })

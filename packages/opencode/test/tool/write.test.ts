@@ -269,6 +269,47 @@ describe("tool.write", () => {
         }),
       ),
     )
+
+    // H9d — the form of an OVERWRITE is the file's, not the agent's (owner, 2026-10-01: «анализ какие ендинги
+    // отправил агент, а какие у файла и поправить … чтобы не было микширования, тоже самое с кодировкой»).
+    // Read back as BYTES: a BOM, a byte order or a CRLF is invisible in a decoded string.
+    it.live("overwriting a CRLF file fits the agent's LF content to CRLF", () =>
+      provideTmpdirInstance((dir) =>
+        Effect.gen(function* () {
+          const filepath = path.join(dir, "crlf-existing.txt")
+          yield* Effect.promise(() => fs.writeFile(filepath, "a\r\nb\r\n"))
+          yield* run({ filePath: filepath, content: "x\ny\n" })
+
+          expect(yield* Effect.promise(() => fs.readFile(filepath, "latin1"))).toBe("x\r\ny\r\n")
+        }),
+      ),
+    )
+
+    it.live("overwriting a UTF-16 LE file keeps UTF-16 LE, every script intact", () =>
+      provideTmpdirInstance((dir) =>
+        Effect.gen(function* () {
+          const filepath = path.join(dir, "multi.txt")
+          const utf16 = (text: string) => Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, "utf16le")])
+          yield* Effect.promise(() => fs.writeFile(filepath, utf16("old\n")))
+          yield* run({ filePath: filepath, content: "你好 · നമസ്കാരം · Привет\n" })
+
+          expect(yield* Effect.promise(() => fs.readFile(filepath))).toEqual(utf16("你好 · നമസ്കാരം · Привет\n"))
+        }),
+      ),
+    )
+
+    it.live("a NEW Delphi file is written UTF-8 BOM + CRLF, and the output names it", () =>
+      provideTmpdirInstance((dir) =>
+        Effect.gen(function* () {
+          const filepath = path.join(dir, "Unit1.pas")
+          const result = yield* run({ filePath: filepath, content: "unit A;\nend.\n" })
+
+          const bytes = yield* Effect.promise(() => fs.readFile(filepath))
+          expect(bytes).toEqual(Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from("unit A;\r\nend.\r\n")]))
+          expect(result.output).toContain("UTF-8 with BOM, CRLF")
+        }),
+      ),
+    )
   })
 
   describe("error handling", () => {

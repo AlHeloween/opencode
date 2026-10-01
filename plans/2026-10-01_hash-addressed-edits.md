@@ -207,6 +207,88 @@ the file says …» to a write: the address exists only in the output of a read 
       нарочно; а мёртвый рендер в TUI **снят** ✓ и ложная проза сводки (`write/edit/multiedit filediff`) —
       исправлена ✓
 
+## H9 — encodings, endings and the span's edges (review 2026-10-01, revision 3)
+
+A review of `read`/`edit` found the chain itself sound on LF/CRLF, and the surface AROUND it wrong — every
+item below was reproduced by `experiments/2026-10-01_chain-review/probe.ts` (predictions written before the
+run, 7/7 matched, control case green):
+
+- ✓ BOM: `read` decodes with `Buffer.toString("utf8")` and keeps U+FEFF in line 1 (`read.ts:548`), `edit`
+  strips it (`util/bom.ts:19`) ⇒ every address of a BOM file is refused.
+- ✓ ANSI (cp1251, the Delphi IDE default): every path decodes UTF-8 only ⇒ an edit of an ASCII line turned
+  the untouched Cyrillic bytes `cff0e8e2e5f2` into U+FFFD — the whole file destroyed by an edit elsewhere.
+- ✓ `newString: ""` leaves a blank line (`"".split("\n")` is `[""]`); a trailing `\n` adds one; appending
+  after the last line is refused (no final `\n`) or eats the final newline (with one).
+- read only: `detectLineEnding` says CRLF on the FIRST `\r\n` (mixed files); `edit` does not refuse binary
+  files (`00000000` resolves in ANY file); `withFileLocks` sorts raw paths while `lock()` keys resolved
+  ones; `edit.txt:40` still promises the removed Unicode normalisation.
+
+**Owner decisions (2026-10-01), verbatim:**
+- «инструмент дубовый - от хеша - до хеша вставляем что отправил агент, безусловно надо анализ какие ендинги
+  отправил агент, а какие у файла и поправить если файл текстовый, чтобы не было микширования тоже самое с
+  кодировкой.»
+- «c crlf эндингами, если их не соблюдать то нативный дельфи парсер начнет плеваться»
+- ANSI: «надо сконвертить файл в utf-8 bom c crlf - и закрыть вопрос. Это решается в момент сохранения и агент
+  получает уведомление.» and «Обратное кодирование в cp1251 сносит все мультиязычные темы» ⇒ ANSI is DECODED,
+  never ENCODED: there is no ANSI encoder in the tree.
+- trailing terminator: «Надо просто проверить как было в оригинале и не выдумывать. Обычно есть.»
+- Delphi / new files: «UTF-8 c BOM crlf - сам эндинг можно проверить у файла, если это дельфи файл то надо об
+  этом напомнить агенту, если есть различия, сканнер сущностей дельфи заточен под UTF-8 BOM CRLF, это кстати
+  исправит ошибки если они были сделаны ранее.»
+- UTF-16: «Конечно. Это тоже критично для мультиязыковых систем.»
+
+**The contract:**
+1. ONE codec for `read`, `edit` and `write` (`src/util/text-codec.ts`): BOM first (UTF-8, UTF-16 LE/BE),
+   then a NUL byte or the binary heuristic ⇒ binary, then strict UTF-8, else ANSI in the host code page (ACP
+   read from the registry once; no ACP ⇒ refusal, never a guessed literal). `read` and `edit` hash the SAME
+   decoded text, BOM excluded, so an address resolves in every supported encoding.
+2. The span is whole lines WITH their terminators. `newString` is split into lines; ONE trailing terminator
+   belongs to its last line and is dropped; `""` is zero lines (deletion). The replacement's last line takes
+   the terminator the ORIGINAL span's last line had (none only at an unterminated EOF); every other new line
+   takes the file's ending. `toHash` equal to `fromHash` names the EMPTY span after that line: an insertion,
+   which is also how a line is appended at the end.
+3. File ending = the MAJORITY ending of the file (no mixing introduced); the agent's endings are rewritten
+   to it.
+4. Encoding out: the file's own (UTF-8, UTF-8 BOM, UTF-16 LE/BE with BOM). ANSI ⇒ UTF-8 BOM + CRLF.
+   Delphi (`.pas .dpr .dpk .inc .dfm .dproj`) ⇒ ALWAYS UTF-8 BOM + CRLF over the WHOLE file, new or existing.
+   Any conversion is NAMED in the tool output (from → to), and the pre-edit backup holds the original bytes.
+5. New non-Delphi files (`content`, `write`): as the agent sent them.
+6. Binary ⇒ `edit` refuses (H7 stays the owner's open box for hex edits).
+
+**Risk (named, not hidden):** an ANSI file is decoded in the HOST code page. A file in another code page
+(e.g. GBK on a 1251 host) decodes to garbage and the conversion would make it permanent; bytes cannot settle
+the code page. Containment: the backup, the named conversion in the output, and the whole-file diff.
+
+Baseline before any edit: pure `read-address` + `edit-exact` **37 pass / 0 fail**; `edit.test.ts` **9 / 0**;
+`write.test.ts` **18 / 0**. Tool qualified first: Bun 1.4.2 `TextDecoder` decodes `windows-1251` («Привет»),
+`gbk`, `shift_jis`, `euc-kr`, `big5`, `utf-16le/be`; strict UTF-8 throws; `isUtf8` from `node:buffer` works;
+`writeWithDirs` takes `Uint8Array`; host ACP = 1251 (registry).
+
+- [x] ✓ **H9a — codec** `src/util/text-codec.ts` + `test/util/text-codec.test.ts`: red before (module absent),
+      **11 pass / 0 fail** after. `encode` takes `TextEncoding`, which has no ANSI member — the «never write
+      ANSI» rule is a type, not a test. The binary heuristic MOVED here from `read` (one definition for both).
+- [x] ✓ **H9b — `read`**: `lines()` streams UTF-8 (BOM stripped) and hands anything else to the codec whole;
+      the window logic is ONE function for both paths. 5 new cases red before (BOM, UTF-16 LE, UTF-16 BE,
+      cp1251, a non-UTF-8 byte PAST the window), **16 pass / 0 fail** after. Mutation — validate only inside
+      the window — gave exactly the past-the-window case red (15/1), restored.
+- [x] ✓ **H9c — `resolveEdits`** on terminated lines: 9 new cases red before (the inverted-range guard green,
+      as it must stay), **36 / 0** after. A defect of MY first version was caught by re-reading it, not by the
+      suite: appending to a one-line file with no break glued the lines (`??` where `||` was needed) — a test
+      was added red first («a» + «c» → «ac»), then fixed. Mutation — take the final terminator from the agent
+      instead of the original — **7 red**, restored.
+- [x] ✓ **H9d — write path**: `edit` and `write` decode through the codec, write `TextCodec.encode`, sync after
+      the formatter with `TextCodec.syncFile` (replaces `Bom.syncFile`, which re-read every file as UTF-8),
+      back up the BYTES as read, refuse binary files, order locks by RESOLVED path, and NAME every conversion
+      in the output. `detectLineEnding`/`convertToLineEnding` deleted (no consumer; the first was the
+      first-CRLF defect). Byte read-back cases: `edit.test.ts` 5 red before → **16 / 0**; `write.test.ts`
+      3 red before → **21 / 0**. Mutation — `fit` forgets the forced CRLF — **3 red** (ANSI, Delphi edit, new
+      Delphi), restored. `bun typecheck` **exit 0**. Schema snapshot: exactly `edit` moved, two description
+      lines in the diff; control run **15 snapshots, none added**. `edit.txt`/`write.txt`/`read.txt` say what
+      the code does; the false «Unicode normalization» promise is gone.
+
+**Residual:** `applypatch` / `src/patch` still decode UTF-8 only — INERT, the tool is not in the registry.
+Not changed: a second spelling of this codec in a module nobody can call would be work nobody reads.
+
 ## Smoke Tests
 
 - **Baseline before any edit:** `bun test test/tool/` — counts recorded in H0.
@@ -229,6 +311,9 @@ the file says …» to a write: the address exists only in the output of a read 
   The properties those three cases assert are therefore proven at the PURE layer (`read-address.test.ts`: green,
   and measured fallible by mutation), which is the doctrine both files already carry — and the integration case
   for the byte-row address stays in `read.test.ts` as the OWED half.
+- **The owed integration half — PAID (H9, 2026-10-01):** `bun test test/tool/read.test.ts` → **42 pass / 0 fail**,
+  exit 0, 15.4 s (`experiments/2026-10-01_chain-review/read-integration.log`), after every H2 and H9 change to
+  `read`. No stall this run; the stall class above stays recorded, not cleared.
 - **A tool-state finding with no address, recorded so it is not paid twice:** a `cmd`-launched run puts its log
   under `C:\WINDOWS\logs\cmd_runner\`, because the wrapper's CWD is the one it was GIVEN, not the worktree. That
   session cannot even be stopped afterwards (`Unknown run_id`) — an orphan conhost nobody can name. A

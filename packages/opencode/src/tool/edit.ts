@@ -20,7 +20,7 @@ import { Snapshot } from "@/snapshot"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Global } from "@opencode-ai/core/global"
-import * as Bom from "@/util/bom"
+import * as TextCodec from "@/util/text-codec"
 import { execFile } from "child_process"
 import { Constitution } from "@/session/constitution"
 import { filePathDescription } from "./path-hint"
@@ -71,7 +71,8 @@ function isGitIgnored(filePath: string): Promise<boolean> {
 }
 
 function writeBackup(
-  content: string,
+  // The BYTES as read: a backup that re-encoded the text would «restore» a UTF-16 or ANSI file as UTF-8.
+  content: Uint8Array,
   sessionID: string,
   callID: string,
   filePath: string,
@@ -91,7 +92,7 @@ function writeBackup(
 
     yield* afs.makeDirectory(dir, { recursive: true }).pipe(Effect.catch(() => Effect.void))
 
-    yield* afs.writeFileString(bakPath, content).pipe(Effect.catch(() => Effect.void))
+    yield* afs.writeWithDirs(bakPath, content).pipe(Effect.catch(() => Effect.void))
 
     yield* afs
       .writeFileString(bakPath + ".meta.json", JSON.stringify({ originalPath: filePath }))
@@ -110,15 +111,6 @@ if (backups.length > MAX_BACKUPS_PER_SESSION) {
 
 export function normalizeLineEndings(text: string): string {
   return text.replaceAll("\r\n", "\n")
-}
-
-export function detectLineEnding(text: string): "\n" | "\r\n" {
-  return text.includes("\r\n") ? "\r\n" : "\n"
-}
-
-export function convertToLineEnding(text: string, ending: "\n" | "\r\n"): string {
-  if (ending === "\n") return text
-  return text.replaceAll("\n", "\r\n")
 }
 
 function normalizeLineEndingsWithIndexMap(text: string) {
@@ -161,7 +153,9 @@ function lock(filePath: string) {
  * semaphore this file already took per file, held once for the set.
  */
 function withFileLocks<A, E, R>(filePaths: string[], effect: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> {
-  const ordered = [...filePaths].sort()
+  // Ordered by the RESOLVED path — the key `lock()` takes — or two spellings of one file would order differently
+  // in two batches and could deadlock against each other.
+  const ordered = filePaths.map((filePath) => AppFileSystem.resolve(filePath)).sort()
   const acquire = (index: number): Effect.Effect<A, E, R> =>
     index >= ordered.length ? effect : lock(ordered[index]!).withPermits(1)(acquire(index + 1))
   return acquire(0)
@@ -215,24 +209,50 @@ export function replaceRange(
  *
  * The address is a PAIR. `fromHash` is the hash of the line BEFORE the span — the seed `00000000` names the
  * state before line 1, so the first line is addressable like any other — and `toHash` is the hash of the span's
- * LAST line; `toHash` absent means a single line. Both must exist in the current chain or the call is REFUSED:
- * nothing lands approximately, and nothing is guessed.
+ * LAST line; `toHash` absent means a single line, and `toHash` EQUAL to `fromHash` names the empty span after
+ * that line — an insertion, which is also how a line is appended at the end. Both must exist in the current
+ * chain or the call is REFUSED: nothing lands approximately, and nothing is guessed.
+ *
+ * THE SPAN'S EDGES (H9c — owner, 2026-10-01: «от хеша - до хеша вставляем что отправил агент», the final
+ * terminator «проверить как было в оригинале и не выдумывать»). A span is whole lines WITH their terminators.
+ * `newString` is split into lines; ONE trailing terminator is its last line's own and is replaced by what the
+ * ORIGINAL span's last line had, so «B» and «B\n» are the same line and nothing is glued or lost; `""` is zero
+ * lines, a deletion. Every other new line takes the file's MAJORITY `ending`, so an edit adds no mixing.
  */
 export type EditAddress = { fromHash: string; toHash?: string; newString: string }
 
-export function resolveEdits(content: string, edits: EditAddress[]): string {
-  const lines = content.split("\n")
-  // The chain over the ORIGINAL content, computed ONCE — the whole point of the order above.
+type Line = { text: string; eol: string }
+
+/** Lines WITH their terminators. No phantom line follows a final terminator — `read` prints none either. */
+function terminated(content: string): Line[] {
+  const out: Line[] = []
+  let from = 0
+  for (;;) {
+    const nl = content.indexOf("\n", from)
+    if (nl === -1) break
+    const cr = nl > from && content[nl - 1] === "\r"
+    out.push({ text: content.slice(from, cr ? nl - 1 : nl), eol: cr ? "\r\n" : "\n" })
+    from = nl + 1
+  }
+  if (from < content.length) {
+    const rest = content.slice(from)
+    // `read` strips ONE trailing CR from an unterminated last line as well, so the chain must see the same text.
+    out.push(rest.endsWith("\r") ? { text: rest.slice(0, -1), eol: "\r" } : { text: rest, eol: "" })
+  }
+  return out
+}
+
+export function resolveEdits(
+  content: string,
+  edits: readonly EditAddress[],
+  ending: TextCodec.LineEnding | undefined = TextCodec.lineEnding(content),
+): string {
+  const lines = terminated(content)
+  // The chain over the ORIGINAL content, computed ONCE — the whole point of the order above. `read` prints a
+  // line WITHOUT its terminator and the chain is taken over exactly that string, so CRLF and LF hash alike.
   const chain: number[] = []
   let running = 0
-  // `read` prints a line WITHOUT its terminator, and the chain is taken over exactly that string — so a CRLF
-  // file must be chained with its `\r` stripped. Without this the addresses NEVER resolve on a CRLF file, and
-  // that is the one class this whole design exists to kill. Found while wiring `edit` to this function; the LF
-  // tests above could not see it.
-  for (const line of lines) {
-    const text = line.endsWith("\r") ? line.slice(0, -1) : line
-    chain.push((running = chainHash(running, text)))
-  }
+  for (const line of lines) chain.push((running = chainHash(running, line.text)))
   const seed = hashLabel(0)
 
   const spans = edits.map((edit, index) => {
@@ -255,20 +275,21 @@ export function resolveEdits(content: string, edits: EditAddress[]): string {
     if (edit.toHash !== undefined && parsedTo === undefined) {
       throw new Error(at(`\`toHash\` is not an 8-hex address: ${JSON.stringify(edit.toHash)}`))
     }
-    const end = parsedTo === undefined ? start : chain.indexOf(parsedTo)
-    if (end === -1) {
+    // `toHash` equal to `fromHash` — the seed included — names the EMPTY span after that line: end = start - 1.
+    const end = parsedTo === undefined ? start : edit.toHash === seed ? -1 : chain.indexOf(parsedTo)
+    if (edit.toHash !== undefined && edit.toHash !== seed && end === -1) {
       throw new Error(at("`toHash` is not in this file — the address drifted") + ". Re-read and pass the current hashes.")
     }
-    if (end < start) throw new Error(at("`toHash` precedes `fromHash` — an inverted range"))
+    if (end < start - 1) throw new Error(at("`toHash` precedes `fromHash` — an inverted range"))
     if (end >= lines.length) throw new Error(at("the address runs past the end of the file"))
     return { start, end, replacement: edit.newString }
   })
 
-  // A refusal, never a merge decision: two entries claiming one line have no defined order, and «last writer
-  // wins» is exactly the silent outcome this design exists to remove.
+  // A refusal, never a merge decision: two entries claiming one line — or two claiming one insertion point —
+  // have no defined order, and «last writer wins» is exactly the silent outcome this design exists to remove.
   const ordered = [...spans].sort((a, b) => a.start - b.start)
   for (let i = 1; i < ordered.length; i += 1) {
-    if (ordered[i]!.start <= ordered[i - 1]!.end) {
+    if (ordered[i]!.start <= ordered[i - 1]!.end || ordered[i]!.start === ordered[i - 1]!.start) {
       throw new Error(`two edits claim line ${ordered[i]!.start + 1} — refuse rather than let one silently win`)
     }
   }
@@ -276,17 +297,35 @@ export function resolveEdits(content: string, edits: EditAddress[]): string {
   // Bottom-up, so a replacement cannot move a span that has not been applied yet.
   let result = lines
   for (const span of [...ordered].reverse()) {
-    // A CRLF file keeps CRLF: the lines around the span keep their own `\r` through the split/join, but the
-    // replacement's LAST line has nowhere to get one — the caller converts the INTERNAL breaks, the joiner
-    // supplies the final `\n`, and nothing supplies the `\r` that belongs to it. So it is taken from the line
-    // being replaced. Without this an edit on a CRLF file silently converts the edited line to LF.
-    const replacement = span.replacement.split("\n")
-    if ((lines[span.end] ?? "").endsWith("\r")) {
-      replacement[replacement.length - 1] = `${replacement[replacement.length - 1]}\r`
-    }
-    result = [...result.slice(0, span.start), ...replacement, ...result.slice(span.end + 1)]
+    const incoming = span.replacement === "" ? [] : terminated(span.replacement)
+    const insertion = span.end < span.start
+    const previous = result[span.start - 1]
+    // A break where the file needs one and has none to copy: its majority ending, else the agent's, else LF.
+    const lineBreak = ending ?? (incoming.at(-1)?.eol || "\n")
+    const atBareEnd = previous !== undefined && previous.eol === "" && span.start === lines.length
+    const appendToBare = insertion && atBareEnd
+    const deletesBareEnd =
+      !insertion && incoming.length === 0 && span.end === lines.length - 1 && lines[span.end]!.eol === ""
+    // The terminator the new LAST line carries — the original's form, never the agent's guess.
+    const tail = (() => {
+      if (!insertion) return lines[span.end]!.eol // a replaced span: what its last line had
+      if (lines.length === 0) return incoming.at(-1)?.eol ?? "" // an empty file: nothing to copy, as sent
+      if (appendToBare) return "" // the file ended bare, and still does
+      if (span.start === lines.length) return previous!.eol // an append: the end keeps its form
+      return lineBreak // an insertion before a line
+    })()
+    const fitted = incoming.map((line, i) => ({
+      text: line.text,
+      eol: i === incoming.length - 1 ? tail : (ending ?? line.eol),
+    }))
+    const head = result.slice(0, span.start)
+    // Appending after a bare last line: that line now needs the break. Deleting a bare last line: the line
+    // before it becomes the end, and takes the bare form.
+    if (previous !== undefined && appendToBare) head[head.length - 1] = { text: previous.text, eol: lineBreak }
+    if (previous !== undefined && deletesBareEnd) head[head.length - 1] = { text: previous.text, eol: "" }
+    result = [...head, ...fitted, ...result.slice(span.end + 1)]
   }
-  return result.join("\n")
+  return result.map((line) => line.text + line.eol).join("")
 }
 
 /**
@@ -307,10 +346,12 @@ const FileChange = Schema.Struct({
             "The address of the line BEFORE the span: the hash `read` printed for the line just above the first line you are changing — `00000000` for line 1, which is the state before the file. It must come from THIS file; an address that does not resolve fails the whole call.",
         }),
         toHash: Schema.optional(Schema.String).annotate({
-          description: "The address of the LAST line of the span, exactly as `read` printed it. Omit it to change a single line.",
+          description:
+            "The address of the LAST line of the span, exactly as `read` printed it. Omit it to change a single line. Pass the SAME hash as `fromHash` to INSERT after that line without replacing anything.",
         }),
         newString: Schema.String.annotate({
-          description: "The text that replaces the addressed lines. May span several lines, and may be empty to delete them.",
+          description:
+            "The lines that replace the span. `\"\"` deletes it. A trailing line break is optional: the last line ends the way the replaced line ended, and every break is fitted to the file's own endings.",
         }),
       }),
     ).annotate({
@@ -388,10 +429,14 @@ export const EditTool = Tool.define(
             filePath: string
             existed: boolean
             status: "change" | "add"
+            // The bytes as they were READ — what the backup must restore, not a re-encoding of their text.
+            bytesOld: Uint8Array | undefined
             contentOld: string
             contentNew: string
             contentFinal: string
-            desiredBom: boolean
+            encoding: TextCodec.TextEncoding
+            ending: TextCodec.LineEnding | undefined
+            notice: string | undefined
             diff: string
           }[] = []
 
@@ -407,52 +452,67 @@ export const EditTool = Tool.define(
                 yield* assertExternalDirectoryEffect(ctx, item.filePath)
 
                 const existed = yield* afs.existsSafe(item.filePath)
-                const source = existed ? yield* Bom.readFile(afs, item.filePath) : { bom: false, text: "" }
-                const contentOld = source.text
-                let contentNew: string
-                let desiredBom = source.bom
 
-                // ONE write path for both shapes; they differ only in how `contentNew` is produced.
+                // ONE write path for both shapes; they differ only in how the text is produced. The FORM it is
+                // written in — encoding, endings — comes from `TextCodec.fit` for both, so a conversion is decided
+                // and NAMED in one place (H9d).
                 if (item.entry.content !== undefined) {
                   if (existed) {
                     throw new Error(
                       `${item.filePath} already exists — \`content\` only CREATES a file. Address its lines with \`edits\`.`,
                     )
                   }
-                  const created = Bom.split(item.entry.content)
-                  contentNew = created.text
-                  desiredBom = source.bom || created.bom
-                } else {
-                  if (!existed) {
-                    throw new Error(`${item.filePath} not found — an address can only name lines of a file that exists`)
-                  }
-                  const info = yield* afs.stat(item.filePath)
-                  if (info.type === "Directory") throw new Error(`Path is a directory, not a file: ${item.filePath}`)
-                  // The file's OWN ending is applied to the REPLACEMENTS, so an edit does not silently convert a
-                  // CRLF file. The ADDRESSES never depend on it: the chain is taken over each line WITHOUT its
-                  // terminator, which is exactly the string `read` printed.
-                  const ending = detectLineEnding(contentOld)
-                  const addressed = item.edits.map((change) => ({
-                    ...change,
-                    newString: convertToLineEnding(normalizeLineEndings(change.newString), ending),
-                  }))
-                  const applied = resolveEdits(contentOld, addressed)
-                  if (applied === contentOld) {
-                    throw new Error(`${item.filePath}: no changes to apply — the result is identical to the file.`)
-                  }
-                  const next = Bom.split(applied)
-                  contentNew = next.text
-                  desiredBom = source.bom || next.bom
+                  const form = TextCodec.fit(item.filePath, undefined, item.entry.content)
+                  planned.push({
+                    filePath: item.filePath,
+                    existed,
+                    status: "add",
+                    bytesOld: undefined,
+                    contentOld: "",
+                    contentNew: form.text,
+                    contentFinal: form.text,
+                    encoding: form.encoding,
+                    ending: form.ending,
+                    notice: form.notice,
+                    diff: "",
+                  })
+                  continue
                 }
-
+                if (!existed) {
+                  throw new Error(`${item.filePath} not found — an address can only name lines of a file that exists`)
+                }
+                const info = yield* afs.stat(item.filePath)
+                if (info.type === "Directory") throw new Error(`Path is a directory, not a file: ${item.filePath}`)
+                // Decoded through the SAME codec `read` uses, so the text the addresses were printed over is the
+                // text they resolve against — in every encoding, the BOM never part of line 1.
+                const bytesOld = new Uint8Array(yield* afs.readFile(item.filePath))
+                const source = TextCodec.decode(bytesOld, item.filePath)
+                if (source.kind === "binary") {
+                  throw new Error(
+                    `${item.filePath} is a binary file — \`edit\` addresses text lines only. Inspect it with \`read\` and \`hex: true\`.`,
+                  )
+                }
+                if (source.kind === "undecodable") throw new Error(`Cannot decode ${item.filePath}: ${source.reason}`)
+                // The new lines are fitted to the TARGET's ending — CRLF for Delphi/ANSI, else the file's majority —
+                // so an edit adds no mixing. The ADDRESSES never depend on it: the chain is taken over each line
+                // WITHOUT its terminator, which is exactly the string `read` printed.
+                const forced = TextCodec.target(item.filePath, source.encoding).ending
+                const applied = resolveEdits(source.text, item.edits, forced ?? TextCodec.lineEnding(source.text))
+                if (applied === source.text) {
+                  throw new Error(`${item.filePath}: no changes to apply — the result is identical to the file.`)
+                }
+                const form = TextCodec.fit(item.filePath, source, applied)
                 planned.push({
                   filePath: item.filePath,
                   existed,
-                  status: existed ? "change" : "add",
-                  contentOld,
-                  contentNew,
-                  contentFinal: contentNew,
-                  desiredBom,
+                  status: "change",
+                  bytesOld,
+                  contentOld: source.text,
+                  contentNew: form.text,
+                  contentFinal: form.text,
+                  encoding: form.encoding,
+                  ending: form.ending,
+                  notice: form.notice,
                   diff: "",
                 })
               }
@@ -476,12 +536,12 @@ export const EditTool = Tool.define(
 
               // ---- PHASE 3 — WRITE EVERY FILE, each as it was verified. ------------------------------------
               for (const plan of planned) {
-                if (plan.existed) {
-                  yield* writeBackup(plan.contentOld, ctx.sessionID, ctx.callID ?? "", plan.filePath, afs)
+                if (plan.bytesOld !== undefined) {
+                  yield* writeBackup(plan.bytesOld, ctx.sessionID, ctx.callID ?? "", plan.filePath, afs)
                 }
-                yield* afs.writeWithDirs(plan.filePath, Bom.join(plan.contentNew, plan.desiredBom))
+                yield* afs.writeWithDirs(plan.filePath, TextCodec.encode(plan.contentNew, plan.encoding))
                 if (yield* format.file(plan.filePath)) {
-                  plan.contentFinal = yield* Bom.syncFile(afs, plan.filePath, plan.desiredBom)
+                  plan.contentFinal = yield* TextCodec.syncFile(afs, plan.filePath, plan.encoding, plan.ending)
                 }
                 yield* bus.publish(File.Event.Edited, { file: plan.filePath })
                 yield* bus.publish(FileWatcher.Event.Updated, { file: plan.filePath, event: plan.status })
@@ -535,6 +595,9 @@ export const EditTool = Tool.define(
               ? "Edit applied successfully."
               : `Edit applied successfully to ${changed.length} files.`
           for (const plan of planned) {
+            // A conversion is never silent (owner: «агент получает уведомление»): the file's FORM changed beyond
+            // the lines the agent addressed, and the next read prints different bytes.
+            if (plan.notice) output += `\n\n${path.relative(Instance.worktree, plan.filePath)}: ${plan.notice}`
             const normalized = AppFileSystem.normalizePath(plan.filePath)
             const block = LSP.Diagnostic.report(plan.filePath, diagnostics[normalized] ?? [])
             if (block) {

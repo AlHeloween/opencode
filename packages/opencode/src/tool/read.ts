@@ -1,4 +1,5 @@
 import { Effect, Option, Schema, Scope } from "effect"
+import { isUtf8 } from "node:buffer"
 import { createReadStream } from "fs"
 import * as path from "path"
 import * as Tool from "./tool"
@@ -12,6 +13,7 @@ import { isImageAttachment, sniffAttachmentMime, sniffVideoMime } from "@/util/m
 import { convertDocument, isSupportedDocumentFormat } from "../util/markdownify"
 import { extractVideoFrames, probeDuration } from "@/util/video"
 import { filePathDescription } from "./path-hint"
+import * as TextCodec from "../util/text-codec"
 
 const DEFAULT_READ_LIMIT = 2000
 const MAX_LINE_LENGTH = 2000
@@ -118,53 +120,10 @@ export const ReadTool = Tool.define(
       )
     })
 
-    const isBinaryFile = (filepath: string, bytes: Uint8Array) => {
-      const ext = path.extname(filepath).toLowerCase()
-      switch (ext) {
-        case ".zip":
-        case ".tar":
-        case ".gz":
-        case ".exe":
-        case ".dll":
-        case ".so":
-        case ".class":
-        case ".jar":
-        case ".war":
-        case ".7z":
-        case ".doc":
-        case ".docx":
-        case ".xls":
-        case ".xlsx":
-        case ".ppt":
-        case ".pptx":
-        case ".pdf":
-        case ".odt":
-        case ".ods":
-        case ".odp":
-        case ".bin":
-        case ".dat":
-        case ".obj":
-        case ".o":
-        case ".a":
-        case ".lib":
-        case ".wasm":
-        case ".pyc":
-        case ".pyo":
-          return true
-      }
-
-      if (bytes.length === 0) return false
-
-      let nonPrintableCount = 0
-      for (let i = 0; i < bytes.length; i++) {
-        if (bytes[i] === 0) return true
-        if (bytes[i] < 9 || (bytes[i] > 13 && bytes[i] < 32)) {
-          nonPrintableCount++
-        }
-      }
-
-      return nonPrintableCount / bytes.length > 0.3
-    }
+    // ONE definition of «binary» for `read` and `edit` (TextCodec). A BOM is checked FIRST: UTF-16 is full of
+    // NUL bytes, and the heuristic alone called every UTF-16 file binary.
+    const isBinaryFile = (filepath: string, bytes: Uint8Array) =>
+      TextCodec.bomEncoding(bytes) === undefined && TextCodec.looksBinary(filepath, bytes)
 
     const run = Effect.fn("ReadTool.execute")(function* (
       params: Schema.Schema.Type<typeof Parameters>,
@@ -514,7 +473,31 @@ export function parseHash(label: string): number | undefined {
   return /^[0-9a-f]{8}$/.test(label) ? Number.parseInt(label, 16) >>> 0 : undefined
 }
 
+/**
+ * The file's lines, its true line count and the chained address of every returned line.
+ *
+ * The address is a function of the TEXT, never of the bytes that carry it (plan H9): `edit` decodes through
+ * `TextCodec`, so this must produce the SAME text for every encoding `edit` accepts, or an address printed here
+ * never resolves there. UTF-8 — with or without a BOM, the BOM never part of line 1 — is STREAMED, as it always
+ * was; anything else (UTF-16, ANSI in the host code page) is decoded WHOLE by the codec. The fallback is decided
+ * by the WHOLE file, past the window included: a window of ASCII lines over a file whose third line is cp1251
+ * would otherwise stream as UTF-8 while `edit` decodes it as ANSI.
+ */
 export async function lines(filepath: string, opts: { limit: number; offset: number }) {
+  const streamed = await streamUtf8(filepath, opts)
+  if (streamed) return streamed
+  const decoded = TextCodec.decode(new Uint8Array(await Bun.file(filepath).arrayBuffer()), filepath)
+  if (decoded.kind === "binary") throw new Error(`Cannot read binary file: ${filepath}`)
+  if (decoded.kind === "undecodable") throw new Error(`Cannot decode ${filepath}: ${decoded.reason}`)
+  const window = lineWindow(opts)
+  const parts = decoded.text.split("\n")
+  if (parts.at(-1) === "") parts.pop() // the terminator of the last line opens no line of its own
+  for (const part of parts) window.push(part.endsWith("\r") ? part.slice(0, -1) : part)
+  return { ...window.result(), encoding: decoded.encoding }
+}
+
+/** The UTF-8 path, streamed. `undefined` = not UTF-8 — a UTF-16 BOM, or any line that is not valid UTF-8. */
+async function streamUtf8(filepath: string, opts: { limit: number; offset: number }) {
   // Raw byte scan instead of readline: 0x0A never appears inside a multi-byte
   // UTF-8 sequence, so splitting the stream on newline bytes is exact. The
   // tally CONTINUES past the limit (tally-only mode) so `count` is the TRUE
@@ -523,6 +506,54 @@ export async function lines(filepath: string, opts: { limit: number; offset: num
   // full readline pass stalled on huge files (b07ddf7cda). A byte scan is
   // memcpy-speed: correct count without the stall.
   const stream = createReadStream(filepath)
+  const window = lineWindow(opts)
+  let encoding: "utf-8" | "utf-8-bom" = "utf-8"
+  let first = true
+  let pending: Buffer = Buffer.alloc(0)
+
+  // `false` = this line is not UTF-8, and the file is not either. Validated even past the window: the window
+  // must not decide the encoding. The line is DECODED only inside it.
+  const processLine = (lineBuf: Buffer) => {
+    const line = lineBuf.length > 0 && lineBuf[lineBuf.length - 1] === 0x0d ? lineBuf.subarray(0, -1) : lineBuf
+    if (!isUtf8(line)) return false
+    window.push(window.tallyOnly() ? undefined : line.toString("utf8")) // CRLF counts as a single break
+    return true
+  }
+
+  try {
+    for await (const chunk of stream) {
+      let buf: Buffer = pending.length === 0 ? chunk : Buffer.concat([pending, chunk])
+      if (first) {
+        first = false
+        const bom = TextCodec.bomEncoding(buf)
+        if (bom === "utf-16le" || bom === "utf-16be") return undefined
+        if (bom === "utf-8-bom") {
+          encoding = bom
+          buf = buf.subarray(3)
+        }
+      }
+      let from = 0
+      for (;;) {
+        const nl = buf.indexOf(0x0a, from)
+        if (nl === -1) break
+        if (!processLine(buf.subarray(from, nl))) return undefined
+        from = nl + 1
+      }
+      pending = buf.subarray(from)
+    }
+    if (pending.length > 0 && !processLine(pending)) return undefined // final line without trailing newline
+  } finally {
+    stream.destroy()
+  }
+
+  return { ...window.result(), encoding }
+}
+
+/**
+ * The window over a file's lines, fed one decoded line at a time — ONE implementation for the streamed and the
+ * decoded path, so the two cannot disagree about a hash, a wrap or a count.
+ */
+function lineWindow(opts: { limit: number; offset: number }) {
   const start = opts.offset - 1
   const raw: string[] = []
   const hashes: string[] = []
@@ -533,19 +564,14 @@ export async function lines(filepath: string, opts: { limit: number; offset: num
   let cut = false
   let more = false
   let tallyOnly = false
-  let pending: Buffer = Buffer.alloc(0)
 
-  const processLine = (lineBuf: Buffer) => {
+  // `text` is undefined only in tally-only mode, where the caller need not decode the line at all.
+  const push = (text: string | undefined) => {
     count += 1
     // Past the window NOTHING is needed: `count` keeps tallying (the pager needs the true total) but the line
-    // is neither decoded nor hashed — exactly as before this change. Only the lines up to the window's end are
-    // chained, because no printed address depends on a later line.
-    if (tallyOnly) return
-    let line = lineBuf
-    if (line.length > 0 && line[line.length - 1] === 0x0d) {
-      line = line.subarray(0, line.length - 1) // CRLF counts as a single break
-    }
-    const text = line.toString("utf8")
+    // is neither decoded nor hashed. Only the lines up to the window's end are chained, because no printed
+    // address depends on a later line.
+    if (tallyOnly || text === undefined) return
     // BEFORE the skip, and that position is load-bearing: a line's address must be the same whether it was
     // read in a three-line window or in a five-hundred-line one, so the chain has to run over the lines this
     // window does not RETURN — the skipped prefix is not skippable, because a hash carries its whole prefix.
@@ -592,24 +618,11 @@ export async function lines(filepath: string, opts: { limit: number; offset: num
     bytes += separator + chunkBytes
   }
 
-  try {
-    for await (const chunk of stream) {
-      const buf = pending.length === 0 ? chunk : Buffer.concat([pending, chunk])
-      let from = 0
-      for (;;) {
-        const nl = buf.indexOf(0x0a, from)
-        if (nl === -1) break
-        processLine(buf.subarray(from, nl))
-        from = nl + 1
-      }
-      pending = buf.subarray(from)
-    }
-    if (pending.length > 0) processLine(pending) // final line without trailing newline
-  } finally {
-    stream.destroy()
+  return {
+    push,
+    tallyOnly: () => tallyOnly,
+    result: () => ({ raw, hashes, count, cut, more, offset: opts.offset }),
   }
-
-  return { raw, hashes, count, cut, more, offset: opts.offset }
 }
 
 // ------------------------------------------------------------------

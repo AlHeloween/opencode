@@ -9,6 +9,9 @@ In repositories indexed by CodeGraph (a `.codegraph/` directory exists at the re
 If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is the user's decision.
 <!-- CODEGRAPH_END -->
 
+Host note (outside the generated block, measured 2026-10-01): on THIS host the shell CLI is not installed —
+`codegraph explore …` → «No such file or directory». The MCP tool `codegraph_explore` answers; use it.
+
 ## Reasoning kernel
 
 @reasoning_kernel.md

@@ -5949,3 +5949,14 @@ typecheck clean. Amendment appended to plans_completed/2026-10-01_hash-addressed
 TOOLS: cmd_runner state.json carries a UTF-8 BOM (json.load fails; read with utf-8-sig) and reports no
 bytes_written/truncated keys in --raw mode.
 NEXT: owner rebuild/promote of bin/ — addresses change once at promotion.
+
+## [2026-10-01] tool health pass before the release (owner: «привести в порядок чтобы сделать полноценный релиз»)
+OK: aicall (Sonnet, 2 kernel rounds), sv-chain (this session, 91 links), codegraph MCP, cmd_runner, adm (09-30),
+opencode-bridge (owner: works; needs a TUI with --port).
+BROKEN / fixed here: shell `codegraph` CLI absent though .claude/CLAUDE.md said «always works» -> host note added
+outside the generated block; robot skill now routes through opencode-bridge, headless run = plumbing only (stalls).
+BROKEN / not ours: cmd_runner state.json has a UTF-8 BOM and --raw lacks bytes_written/truncated; Read on PDF needs
+pdftoppm (absent; PyMuPDF works). cua: PATH has the VENDOR cua-driver 0.29.1 (telemetry/update); the audited offline
+build is bin\cua.cmd — not launched (bin/ needs owner permission); native-GUI path untested.
+New cmd_runner with mouse (ADID_Python worktree affectionate-moore-617439, 6d794c0) is not in tools/ yet
+(tools/cmd_runner.exe = 2026.07.08).

@@ -1,6 +1,6 @@
 ---
 name: robot
-description: Dispatch a bounded plan task to the opencode robot (`dist\bin\opencode.exe run`, headless) so Claude only frames and verifies — the robot carries the execution tail, Claude's window stays small and the cycle count drops. Use when a plan task has a concrete binding (paths, oracle) and needs no owner decision mid-run. Claude writes the brief, launches, reads back the final message + git diff, and runs the oracle ITSELF. Never bin/, never --dangerously-skip-permissions; real work on the funded pair (GLM-5.3-Flash-BF16 on HF, DeepSeek V4.1 Flash), free models only for plumbing.
+description: Dispatch a bounded plan task to the opencode robot Smit — through skill `opencode-bridge` (the server API of a TUI started with `--port`; headless `run` stalls after a tool result, measured 2026-10-01, so it is plumbing only) — so Claude only frames and verifies — the robot carries the execution tail, Claude's window stays small and the cycle count drops. Use when a plan task has a concrete binding (paths, oracle) and needs no owner decision mid-run. Claude writes the brief, launches, reads back the final message + git diff, and runs the oracle ITSELF. Never bin/, never --dangerously-skip-permissions; real work on the funded pair (GLM-5.3-Flash-BF16 on HF, DeepSeek V4.1 Flash), free models only for plumbing.
 ---
 
 # robot — delegate execution, keep the verdict
@@ -52,6 +52,10 @@ Write it to `experiments/<ISO-date>_robot-<task>/brief.md`:
    what is unresolved.
 
 ## Launch
+
+**Primary route: skill `opencode-bridge`** — `POST /session` + `prompt_async` on the server of a TUI started with
+`--port` (owner's window; measured: a 33-`webfetch` tool turn finished in ~96 s with no stall). The headless form
+below stalls after a tool result (four runs, 2026-10-01) — keep it for plumbing smokes only.
 
 ```bash
 tools/cmd_runner.exe start --cwd D:/zPython/opencode --timeout-s 1800 --raw --no-tail -- \

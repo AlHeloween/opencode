@@ -1107,6 +1107,37 @@ export const layer: Layer.Layer<
                 }),
               )
             }
+            // Level 5: the same stop, but the text is an announcement — it ends with a colon,
+            // promising what follows, and nothing follows. Measured 2026-10-02 (deepseek-flash,
+            // msg_0f965705b001HE9fqp352z0Dqq): reasoning planned the `run` call and said «Let me
+            // do it.», the text said «Now the RED run — the focused test against the real
+            // defect:», completion = 671 reasoning + 24 output tokens, finish "stop" — and the
+            // non-empty text made the loop record a finished turn mid-task. In the live DB 1 of
+            // 451 stop+text+no-call steps ends with a colon: this one. Re-sending the identical
+            // request is the whole remedy; nothing is said to the model.
+            if (
+              value.finishReason === "stop" &&
+              !ctx.toolCallEmitted &&
+              !ctx.fileEmitted &&
+              !ctx.assistantMessage.error &&
+              /[:：][\s*_]*$/.test(ctx.textBuilder.toString())
+            ) {
+              log.warn("empty response: finishReason=stop after text that announces what follows — triggering retry", {
+                sessionID: ctx.sessionID,
+                modelID: ctx.model.id,
+                providerID: ctx.model.providerID,
+                outputTokens: usage.tokens.output,
+                reasoningTokens: usage.tokens.reasoning,
+              })
+              return yield* Effect.fail(
+                new MessageV2.EmptyResponseError({
+                  message:
+                    `Provider ${ctx.model.providerID}/${ctx.model.id} ended the step with finishReason="stop" ` +
+                    `right after text announcing what follows, and emitted no tool call. ` +
+                    `The turn delivered an announcement, not its action. Retrying automatically.`,
+                }),
+              )
+            }
             log.info("finish-step", {
               sessionID: ctx.sessionID,
               modelID: ctx.model.id,

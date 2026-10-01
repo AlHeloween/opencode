@@ -475,6 +475,101 @@ it.live("session.processor effect tests reset reasoning state across retries", (
   30_000,
 )
 
+// Measured 2026-10-02 (deepseek-flash, msg_0f965705b001HE9fqp352z0Dqq): reasoning planned a `run`
+// call, the text announced it and ended with a colon, no call, finish "stop" — and the turn was
+// recorded as complete. 1 of 451 stop+text+no-call steps in the live DB ended with a colon: that one.
+it.live("session.processor effect tests retry a stop whose text announces what follows and delivers no call", () =>
+  provideTmpdirServer(
+    ({ dir, llm }) =>
+      Effect.gen(function* () {
+        const { processors, session, provider } = yield* boot()
+
+        yield* llm.push(
+          reply().reason("run the focused test. Let me do it.").text("Now the RED run — the focused test:").stop(),
+          reply().text("Report: the test is red on the real defect.").stop(),
+        )
+
+        const chat = yield* session.create({})
+        const parent = yield* user(chat.id, "announce")
+        const msg = yield* assistant(chat.id, parent.id, path.resolve(dir))
+        const mdl = yield* provider.getModel(ref.providerID, ref.modelID)
+        const handle = yield* processors.create({
+          assistantMessage: msg,
+          sessionID: chat.id,
+          model: mdl,
+        })
+
+        const value = yield* handle.process({
+          user: {
+            id: parent.id,
+            sessionID: chat.id,
+            role: "user",
+            time: parent.time,
+            agent: parent.agent,
+            model: { providerID: ref.providerID, modelID: ref.modelID },
+          } satisfies MessageV2.User,
+          sessionID: chat.id,
+          model: mdl,
+          agent: agent(),
+          system: [],
+          messages: [{ role: "user", content: "announce" }],
+          tools: {},
+        })
+
+        const texts = MessageV2.parts(msg.id).filter((part): part is MessageV2.TextPart => part.type === "text")
+
+        expect(value).toBe("continue")
+        expect(yield* llm.calls).toBe(2)
+        expect(texts.some((part) => part.text === "Report: the test is red on the real defect.")).toBe(true)
+      }),
+    { git: true, config: (url) => providerCfg(url) },
+  ),
+  30_000,
+)
+
+it.live("session.processor effect tests do not treat a colon inside a finished answer as an announcement", () =>
+  provideTmpdirServer(
+    ({ dir, llm }) =>
+      Effect.gen(function* () {
+        const { processors, session, provider } = yield* boot()
+
+        yield* llm.push(reply().text("Result: green, 3 of 3.").stop())
+
+        const chat = yield* session.create({})
+        const parent = yield* user(chat.id, "answer")
+        const msg = yield* assistant(chat.id, parent.id, path.resolve(dir))
+        const mdl = yield* provider.getModel(ref.providerID, ref.modelID)
+        const handle = yield* processors.create({
+          assistantMessage: msg,
+          sessionID: chat.id,
+          model: mdl,
+        })
+
+        const value = yield* handle.process({
+          user: {
+            id: parent.id,
+            sessionID: chat.id,
+            role: "user",
+            time: parent.time,
+            agent: parent.agent,
+            model: { providerID: ref.providerID, modelID: ref.modelID },
+          } satisfies MessageV2.User,
+          sessionID: chat.id,
+          model: mdl,
+          agent: agent(),
+          system: [],
+          messages: [{ role: "user", content: "answer" }],
+          tools: {},
+        })
+
+        expect(value).toBe("continue")
+        expect(yield* llm.calls).toBe(1)
+      }),
+    { git: true, config: (url) => providerCfg(url) },
+  ),
+  30_000,
+)
+
 it.live("session.processor effect tests do not retry unknown json errors", () =>
   provideTmpdirServer(
     ({ dir, llm }) =>

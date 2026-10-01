@@ -264,7 +264,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_CLOSURE",
         (
             "verify completion: git status; no message-search tool exists.",
-            "compact at a boundary: no compact tool here — /compact is the user's and lossy. Write the handles to plans/, docs/ and _progress_log.md, then ask.",
+            "compact at a boundary: no compact tool here — /compact is the user's and lossy. Write the handles to plans/, docs/ and _progress_log.md, then hand off: a fresh session (spawn_task) that re-grounds from those handles; /compact only on the user's call.",
             "a smoke-tested MCP contract (handshake, tools/list, errors) is Exact; live response shape stays Hypothetical until run live.",
         ),
     ),

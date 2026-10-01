@@ -5894,3 +5894,50 @@ display, O2 VMware guest), rebuild-before-ship note for the embedded pack. Open 
 the owner says JView's memory mapping will not work in the VMware route; facts: named CreateFileMapping in
 `CommonFiles/RSCommonPackage/RTRWMapUnit.pas:176,280` and `CommonFiles/RSPack.MapUnit.pas:173,277`, data files
 ≤ ~58 MB — the failure reason is still to be asked, not assumed. B2 red test remains uncommitted in `external/cua`.
+
+## [2026-10-01 09:35Z] the epoch's `dominant:` hook — writer and reader disagreed on one field
+
+✓ **Found by the owner's GMS material, then MEASURED on the live DB rather than argued.** `mechanicalSummaryBody`
+(`packages/opencode/src/session/compaction.ts:1412`) is the ONLY writer of `## Semantic Vector`, and it never wrote the
+FIELD both readers of the epoch-level hook require — `memory/spine.ts:extractDominant` (first `dominant:` in the body,
+reached from `tool/messagesearch.ts:143`) and `compaction.extractSemanticVector` (a quoted `dominant:` inside the section).
+`dbread` on `project_checkpoint` for this session: **23 rows, `body LIKE '%dominant:%'` → 0, `%Semantic dominant%` → 0.**
+
+✓ **Second half, same disagreement, also measured.** The `Labels:` line counted `speakable.length` (every assistant reply)
+while listing only the carriers, so a one-reply range spelled `1 dominant: none` — and `extractDominant` returned the
+literal string `none` as that epoch's hook. Captured verbatim in the mutation run's own output.
+
+✓ **Fix: one field + one axis repair.** The field is written FIRST under the heading (`extractDominant` takes the first
+occurrence, and a request quoted into `## Goal` can spell those characters too); its value is the LAST dominant the range
+carries — the vector the next window chains from, the same reason `lastMd5` is half the row's identity; emitted only when a
+carrier exists, because an empty hook would read as a dominant while an absent one is truthfully `(no dominant)`.
+
+✓ **Oracle, every prediction made BEFORE its run.** `bun test test/session/mechanical-summary-body.test.ts`
+(cwd `packages/opencode`): baseline **15 pass / 0 fail / 38 expect**, exit 0 (`20261001T093230Z_f447ec32`) → after the fix
+**17/0/42**, exit 0 (`20261001T093324Z_2d627fb9`; exactly +2 tests / +4 expect). TWO mutations, each predicted to kill
+exactly ONE new case and neither moving the other 15: field line deleted → **16/1**, red at `extractDominant → undefined`
+(`20261001T093355Z_217063c7`); count axis reverted → **16/1**, red on the lone-reply case, its output reproducing
+`· 1 dominant: none.` (`20261001T093428Z_3173210`). Both reverted → **17/0/42**, exit 0 (`20261001T093453Z_cac11019`),
+no residue. `git diff --numstat`: `27/1` + `29/0` — the single deletion is the old `Labels:` line.
+*Tool note, not a verdict: the count-axis run reported `exit_code=-1` while printing its complete aggregate line — a
+cmd_runner observation to explain, recorded rather than smoothed over.*
+
+✗ **The live half is NOT confirmed and is NOT waived.** `compaction.ts` is runtime source, so a fold in this session still
+writes the OLD body: the 23 stored rows keep the shape their writer gave them, and no new fold can confirm anything until a
+binary carrying the change is promoted (the OWNER's step, never mine). Recorded as box **S3** with its lift signal and its
+oracle, and as manifest `plans/2026-10-01_epoch-dominant-hook.md` S3, state `waiting-on-user`. Legacy rows are deliberately
+NOT backfilled: their bodies hold the two model-written sections this function does not produce, so a re-render would delete
+them.
+
+Scope, stated plainly: this was **my** workstream, not the owner's task — he asked for the GMS manual, and this defect is
+what the manual's own TEST REMEMBERING criterion surfaced. Commits `d53c331986` (fix + plan) and `3b50098218` (canon).
+
+## [2026-10-01] kernel release — K1-K5 from the owner discussion (plan kernel-candidate-incorporation § F9)
+DONE: source.py K1 (@TOOLCHAIN_QUALIFICATION executor contract), K2 (@INTENTION_INVARIANCE verbatim decision),
+K3 (DELEGATION re-verify by digest), K4 (SVM evidence anchor stability); addons_claude G9 hand-off (K5). Two
+frameless-Sonnet rounds (experiments/2026-10-01_kernel-k1-k5/), 8 real fixed, 1 false, 5 on old text -> residual.
+Budget 57 000 -> 58 000. Installed: production 86f727c0 (57 023 B), Claude 9164f4e6, Codex a5616512; baseline
+repinned (prev 7f9a1b6f from H10, which had left the hash-boundary test red). pytest 122 passed; 5 phrases read back.
+TOOLS: pdftoppm absent (Read on PDF fails) -> PyMuPDF for text; render_diff needs PYTHONPATH=. from repo root.
+NEXT: mechanisms (SVMRecord.evidence, red-on-parent test gate, READY gate on edit, prev-md5 check in the turn note,
+chainHash -> xxh3, parser code-span tag) — to Smit when funded; residual on SVM old text (svm_per_task, master_plan).

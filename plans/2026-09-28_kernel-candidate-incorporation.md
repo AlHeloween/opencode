@@ -222,6 +222,17 @@ Prose-only: 375 sentences, knee at cos ≈ 0.80 (p99.9 = 0.723), 10 pairs above 
       entries, i.e. a registry restructure across three variants under `test_variant_parity`, not a reorder.
 - Budget: render 52 970 B against the 53 000 cap — 30 B headroom; the next addition needs a cut or a raise.
 
+### F9 — what the 2026-09-30/10-01 owner discussion collected (owner: «сверхценная информация, которую стоит закрепить в нашем кернеле»)
+<!-- sv: executor-contract, verbatim-decision, recursive-verification, anchor-stability, session-handoff -->
+
+- [x] K1 @TOOLCHAIN_QUALIFICATION: any executor — tool, agent, human — qualified to one contract; two admissible outcomes (done to standard / explicit stop through the envelope's channel); silence = FAIL (the agoraphobia run). ✓ read back in all three installed kernels.
+- [x] K2 @INTENTION_INVARIANCE: departing from the user's verbatim decision needs a measurement on the decision's layer, else @CONCERN (the xxh3 → xxHash64 substitution on a grep-of-source premise). ✓ read back ×3.
+- [x] K3 DELEGATION/FRESH_EYES: every level re-verifies by re-digesting the stamp; «done», the user's included, is testimony about state, not a decision. ✓ read back ×3.
+- [x] K4 SVM evidence_vector: provenance anchored on a non-artifact surface, commit hash > symbol > path:line (the mnemonist's locus rule, GMS). ✓ read back ×3.
+- [x] K5 Claude add-on G9: hand off to a fresh session (spawn_task) instead of a late /compact. ✓ read back in `.claude/reasoning_kernel.md`.
+- Evidence: two frameless-Sonnet rounds (`experiments/2026-10-01_kernel-k1-k5/reply.md`, `reply2.md`; $0.116 + $0.045): round 1 found 6 real defects in the new text (fixed), 1 false (E: «no compact tool» vs «/compact only on the user's call» — /compact is a command, not a tool), and 5 on UNCHANGED text A (brief defect: it said «the last sentence is new» where A's change is mid-paragraph) — recorded as residual, not fixed here; round 2: 2 fixed, 2 context-limited (the reviewer did not see G1's «layer» rule or ANTI_CHURN's «our own artifact»). Budget 57 000 → 58 000 (Claude variant 57 092 before); installed product 57 023 B, Claude copy 57 263 B (wc -c). pytest 122 passed; baseline repinned 7f9a1b6f → 86f727c0 (the H10 commit `1a437f6def` had installed 7f9a1b6f without repinning, leaving `test_normal_build_preserves_current_kernel_hash_boundary` red — inherited, closed here).
+- Residual (round 1 on A, old text): `task_vector.svm_per_task` reads as a nested manifest against «one task keeps one manifest»; `master_plan` is placed both in goal_vector and «filled at G3»; «unavailable refs stated» names no status value.
+
 ### F5 — Release
 - [ ] Final pytest + parity suite + typecheck; render vs caps; **diff to the owner**; `--install` + repin; claude/codex receivers refreshed (no identity rows).
 - [ ] docs: record the release (amend `docs/kernel-release-2026-09-28.md` or a sibling — one home per fact); update `docs/gate-addons.md` if budgets move.

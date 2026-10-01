@@ -1144,6 +1144,7 @@ All detailed docs live in `docs/`. Here's the quick map:
 - [Kernel release 2026-09-24](docs/kernel-release-2026-09-24.md) — the rebuild on the battle-tested 09-17 base, with the three measured regression mechanisms
 - [Kernel release 2026-09-27](docs/kernel-release-2026-09-27.md) — closure is no longer the only self-start (ADID 15.3 Mode 2 triggers restored), the priced exits reverted, and the premise declares the reward: divergence shrunk by evidence, accumulated as maturity
 - [Kernel release 2026-09-29](docs/kernel-release-2026-09-29.md) — tool readiness before testing (qualification, KAIZEN, half-working = broken), directed edits (SVM as the digital intention, EDIT_SV), the trader's rule (predict per case; divergence is transitive and triggers full re-grounding), LEAN before any oracle
+- [Kernel release 2026-10-01](docs/kernel-release-2026-10-01.md) — one executor contract for tool/agent/human (done or explicit stop; silence = FAIL), a verbatim decision departed from only with a measurement on its layer, recursive re-verification by digest, evidence anchored on a non-artifact surface
 - [Gate add-ons](docs/gate-addons.md) — advisory path bindings per kernel gate, addon registry, budget guardrails
 - [Agentic reasoning runtime](docs/agentic-reasoning-runtime.md) — gates, REUSE ladder, claim ledger
 - [AGI Workflow](docs/agi-workflow.md) — orchestrator/worker loop, plan hygiene

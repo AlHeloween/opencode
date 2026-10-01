@@ -156,7 +156,7 @@ will reach for the nearest thing that answers, which is itself.
    row — see *Identity add-ons*).
 2. Constraints (enforced by `validate_addons()` / `validate_identity_addons()`): `gate_id` ∈ G1–G9
    / `identity_id` ∈ `KERNEL.identities`, unique `addon_id`, non-empty lines. No `@`-references in lines.
-3. **Budgets are shared** — CURRENT (2026-09-29): byte cap `KERNEL.utf8_budget` **57 000** and token cap
+3. **Budgets are shared** — CURRENT (2026-10-01): byte cap `KERNEL.utf8_budget` **58 000** and token cap
    **7 700**, the same for all three variants (`test_dedup.py`, `test_addons_claude.py`,
    `test_addons_codex.py`, raised together); reasons per step in `source.py` and
    [kernel-release-2026-09-29.md](kernel-release-2026-09-29.md). The rest of this item is HISTORY: byte cap (**36 000**, raised from 35 000 on

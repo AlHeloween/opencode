@@ -1,27 +1,32 @@
-import { createMemo, createSignal } from "solid-js"
+import { createMemo } from "solid-js"
 import { useLocal, type ModelScope } from "@tui/context/local"
 import { useRoute } from "@tui/context/route"
 import { useSync } from "@tui/context/sync"
 import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
-import * as Log from "@opencode-ai/core/util/log"
 import { variantDetail, variantDialogTitle, variantFamily, variantLabels } from "./variant-dialog-state"
 import { useKV } from "@tui/context/kv"
 import { availableScopes, coerceScope, readScope, SCOPE_KV_KEY } from "./config-scope"
+import { globalStage } from "./global-agent-stage"
 
 export function DialogVariant(props: {
   targetAgent?: string
   scope?: ModelScope
   onDone?: () => void
-  /** GLOBAL /agents model selection is staged here so model + variant are one write. */
+  /** GLOBAL /agents model pick: staged together with the variant chosen here. */
   pendingModel?: { providerID: string; modelID: string }
 }) {
   const local = useLocal()
   const sync = useSync()
   const dialog = useDialog()
   const route = useRoute()
+  // A model staged earlier in /agents (global) is the one whose variants this dialog lists.
   const model = createMemo(
-    () => props.pendingModel ?? (props.targetAgent ? local.model.forAgent(props.targetAgent) : local.model.current()),
+    () =>
+      props.pendingModel ??
+      (props.targetAgent
+        ? (globalStage.get(props.targetAgent)?.model ?? local.model.forAgent(props.targetAgent))
+        : local.model.current()),
   )
   // The family comes from the shared engine predicate on `api.id` (see
   // variant-dialog-state.ts); `modelID` is the catalog name and spelled differently.
@@ -38,40 +43,27 @@ export function DialogVariant(props: {
   // neighbour session must not surface here as editable).
   const scopes = createMemo(() => availableScopes(route.data.type === "session"))
   const scope = createMemo(() => props.scope ?? coerceScope(readScope(kv.get(SCOPE_KV_KEY)), scopes()))
+  // GLOBAL from /agents: the pick is STAGED and written by the form's «Save settings» item — no
+  // per-pick save question (owner, 2026-10-02).
   const staged = createMemo(() => scope() === "global" && props.targetAgent !== undefined)
-  const [selected, setSelected] = createSignal<string | undefined>(
-    props.pendingModel ? undefined : local.model.variant.selected(props.targetAgent),
-  )
+  const stagedEdit = () => (props.targetAgent ? globalStage.get(props.targetAgent) : undefined)
 
   function finish() {
     if (props.onDone) props.onDone()
     else dialog.clear()
   }
 
-  function apply(value: string | undefined) {
-    local.model.variant.set(value, props.targetAgent, scope())
+  function choose(value: string | undefined) {
+    if (staged() && props.targetAgent) globalStage.stage(props.targetAgent, { model: props.pendingModel, variant: value })
+    else local.model.variant.set(value, props.targetAgent, scope())
     finish()
   }
 
-  function choose(value: string | undefined) {
-    if (staged()) {
-      setSelected(value)
-      return
-    }
-    apply(value)
-  }
-
-  function save() {
-    if (!props.targetAgent) return
-    const write = props.pendingModel
-      ? local.model.setGlobalAgentSelection(props.targetAgent, props.pendingModel, selected())
-      : local.model.writeGlobalAgentField(props.targetAgent, { variant: selected() ?? null })
-    void write.then(finish).catch((error: unknown) => {
-      Log.Default.warn("bug: staged global agent save failed", {
-        agent: props.targetAgent,
-        error: error instanceof Error ? error.message : String(error),
-      })
-    })
+  function current() {
+    if (!staged()) return local.model.variant.selected(props.targetAgent)
+    if (props.pendingModel) return "default"
+    const edit = stagedEdit()
+    return (edit ? edit.variant : local.model.variant.selected(props.targetAgent)) ?? "default"
   }
 
   const options = createMemo(() => {
@@ -81,7 +73,7 @@ export function DialogVariant(props: {
     const target = model()
     const provider = target ? sync.data.provider.find((item) => item.id === target.providerID) : undefined
     const list = target ? Object.keys(provider?.models[target.modelID]?.variants ?? {}) : []
-    const variants = [
+    return [
       {
         value: "default",
         title: details?.default.title ?? "Default",
@@ -98,37 +90,8 @@ export function DialogVariant(props: {
         }
       }),
     ]
-    if (!staged()) return variants
-    return [
-      ...variants,
-      {
-        value: "__save__",
-        title: props.pendingModel ? "Save model and variant" : "Save variant",
-        description: `Write once to GLOBAL config for agent ${props.targetAgent}`,
-        category: "Actions",
-        onSelect: save,
-      },
-      {
-        value: "__cancel__",
-        title: "Cancel",
-        category: "Actions",
-        onSelect: finish,
-      },
-    ]
   })
 
-  return (
-    <DialogSelect<string>
-      options={options()}
-      title={
-        staged()
-          ? props.pendingModel
-            ? "Configure model variant — then Save"
-            : "Configure variant — then Save"
-          : variantDialogTitle(family())
-      }
-      current={staged() ? (selected() ?? "default") : local.model.variant.selected(props.targetAgent)}
-      flat={true}
-    />
-  )
+  return <DialogSelect<string> options={options()} title={variantDialogTitle(family())} current={current()} flat={true} />
+
 }

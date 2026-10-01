@@ -6,6 +6,8 @@ import { availableScopes, coerceScope, cycleScope as nextScope, inheritLabel, pa
 import { classifyVariantState, pruneSummary, removable } from "./model-state-prune"
 import { agentHintText, agentModelRef, agentRowModelCell, nextVariant, scopedModelCell } from "./agent-model-cell"
 import { DialogConfirm } from "./dialog-confirm"
+import { commitStage, globalStage } from "./global-agent-stage"
+import * as Log from "@opencode-ai/core/util/log"
 import { useSync } from "@tui/context/sync"
 import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
@@ -88,9 +90,49 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
     if (!props.scope && scope !== stored) kv.set(SCOPE_KV_KEY, scope)
   })
 
+  /** Write every staged GLOBAL edit — the form's «Save settings» item (owner, 2026-10-02). */
+  async function saveGlobal() {
+    const edits = globalStage.edits()
+    if (Object.keys(edits).length === 0) {
+      toast.show({ title: "Nothing to save", message: "no unsaved global changes", variant: "info", duration: 3000 })
+      return
+    }
+    const result = await commitStage(edits, (agent, edit) =>
+      edit.model
+        ? local.model.setGlobalAgentSelection(agent, edit.model, edit.variant)
+        : local.model.writeGlobalAgentField(agent, { variant: edit.variant ?? null }),
+    )
+    globalStage.drop(result.saved)
+    result.failed.forEach((item) => Log.Default.warn("bug: global agent save failed", item))
+    toast.show(
+      result.failed.length === 0
+        ? { title: "Settings saved", message: `global: ${result.saved.join(", ")}`, variant: "success", duration: 4000 }
+        : {
+            title: `Saved ${result.saved.length}, failed ${result.failed.length}`,
+            message: result.failed.map((item) => `${item.agent}: ${item.error}`).join(" · "),
+            variant: "error",
+            duration: 6000,
+          },
+    )
+  }
+
   // ── Build options grouped by category ──
   const options = createMemo(() => {
     const items: any[] = []
+
+    // GLOBAL picks are staged; this plain menu item writes them (owner, 2026-10-02: «сделай
+    // обычный пункт в меню сохранить настройки и все»). It always renders in global scope, with
+    // the count — an absent item would read as «nothing to save».
+    if (scope === "global") {
+      const pending = globalStage.count()
+      items.push({
+        value: "__save_settings__",
+        title: "Save settings",
+        description: pending > 0 ? `${pending} unsaved` : "nothing to save",
+        category: "Actions",
+        onSelect: () => void saveGlobal(),
+      })
+    }
 
     for (const agent of primaryAgents()) {
       items.push(buildOption(agent, "Primary Agents"))
@@ -166,9 +208,15 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
     // The effective chain is a RUNTIME question and the prompt's status line answers it; a scoped
     // settings form answers «what does the layer I am editing hold». The hint still names the
     // layer, so nothing becomes unlabelled — it now names the SCOPE, which is what the title says.
+    // An unsaved GLOBAL pick is what the row shows, marked unsaved in the title.
+    const pending = scope === "global" ? globalStage.get(agent.name) : undefined
     const view = local.model.layerView(agent.name, scope)
-    const cell = scopedModelCell(scope, view.model, inheritLabel(scope))
-    const layerVariant = view.variant
+    const cell = scopedModelCell(
+      scope,
+      pending?.model ? `${pending.model.providerID}/${pending.model.modelID}` : view.model,
+      inheritLabel(scope),
+    )
+    const layerVariant = pending ? pending.variant : view.variant
 
     // Session subagents override (worktree-local) else global Agent.Info
     const sub = local.model.subagentsFor(agent.name)
@@ -205,7 +253,7 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
       // COLOUR was invisible; and the old " ← active" suffix sat at the END of the
       // footer, which is the part that yields first when the row is narrow
       // (dialog-select.tsx: flexShrink 1 + overflow hidden).
-      title: `${agent.name}${isActive ? " ← active" : ""}`,
+      title: `${agent.name}${isActive ? " ← active" : ""}${pending ? " · unsaved" : ""}`,
       description: row.description,
       category,
       gutter: <text fg={color}>●</text>,
@@ -251,7 +299,7 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
       // title truncated to `…(←/→ swit…` — which then filled the whole row, left `space-between`
       // nothing to distribute, and made `esc` hug it exactly as before the width fix. A keybind
       // hint belongs to the keybind footer, not to the title (2026-09-19).
-      title={`Agent Configuration — scope: ${scope}${scope === "global" ? " (save)" : ""}`}
+      title={`Agent Configuration — scope: ${scope}${scope === "global" && globalStage.count() > 0 ? ` (${globalStage.count()} unsaved)` : ""}`}
       current={local.agent.current()?.name}
       cursorValue={props.restoreValue}
       options={options()}

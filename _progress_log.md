@@ -5970,3 +5970,9 @@ as before (run 20261001T205113Z_2526b699) — the worktree build wrote next to i
 FOUND (robot): headless `opencode run` with an unknown model emits one `error` event and never exits — hung to the
 300 s timeout (run 20261001T142522Z_d2376a8a, «Model not found: opencode/deepseek-v4-flash-free»); the raw-pipe stall
 hypothesis (cmd_runner item 3) is not yet tested on a live model.
+
+[2026-10-02] /agents global scope — plain «Save settings» item (plans/2026-10-02_agents-global-save-settings-item.md)
+Diff: new component/global-agent-stage.ts (stageEdit, commitStage sequential, in-memory store); dialog-variant.tsx
+staged mode stages and returns, Save/Cancel rows removed; dialog-agent.tsx renders `Save settings` (Actions, unsaved
+count) in global scope, rows show staged value + `· unsaved`. Oracle: test/tui/global-agent-stage.test.ts baseline FAIL
+(module missing) -> 28/0 with agent-model-cell; bun typecheck exit 0. Open: live TUI check on a dist/ candidate.

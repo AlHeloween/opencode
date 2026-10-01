@@ -60,7 +60,7 @@ Oracle: focused Vanchin state and provider-option tests.
 3. `dialog-routing-state.ts` exposes an existing `only` or `order` selection, validates native `price`/`throughput`/`latency` sorting, and chooses fp8 by default only when live endpoint metadata supports it.
 4. Choosing dynamic sort clears manual provider selection; choosing a provider clears dynamic sort. Unknown native routing keys survive reconstruction.
 5. The Save row calls the scope-specific writer once and closes only after that write succeeds. There is no follow-up confirmation dialog.
-6. Global `/agents` model selection passes a pending model into `DialogVariant`; variant selection stays local until `Save model and variant`, which calls `setGlobalAgentSelection` once.
+6. Global `/agents` model selection passes a pending model into `DialogVariant`; picking the variant STAGES model + variant in `global-agent-stage.ts` and returns to `/agents`, where the row is marked `· unsaved`. Nothing is written until the form's own `Save settings` item, which writes every staged agent one at a time (`commitStage` → `setGlobalAgentSelection` / `writeGlobalAgentField`). There is no per-pick save question (owner, 2026-10-02).
 7. For the active agent only, that explicit global Save writes the chosen model and variant into the open session's settings. Session precedence makes the next prompt and its status row agree with the saved selection; another agent and an in-flight request are not changed.
 
 Oracle: `test/tui/dialog-routing-state.test.ts`, package typecheck, and cmd_runner TUI render showing sort rows, `[x] fp8`, `Save to GLOBAL config`, and `Save model and variant`.

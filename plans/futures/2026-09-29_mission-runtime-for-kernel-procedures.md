@@ -112,7 +112,7 @@ What is missing (Hypothetical until built and measured):
 | workspace fingerprint / rollback | Fossil snapshots (`{data}/fossil/{projectID}/snapshot.fsl`), four boundaries before the thing they cover | Inferred (AGENTS.md § Fossil) |
 | process lifecycle, timeouts, output capture | `cmd_runner` run dirs with `state.json` (status, exit, bytes written/dropped) | Inferred (AGENTS.md § cmd_runner) |
 | impact / `MODIFICATION_CONE` | codegraph (impact, explore) | ✓ tool is live in this session |
-| isolated falsifier | `tools/aicall.py` (free tier) | Inferred (memory + skill) |
+| isolated falsifier | skill `aicall` — frameless `claude -p --model sonnet` (the Python port was deleted 2026-10-01); other models via the robot's `aicall` tool | ✓ measured 2026-10-01 |
 | leases / fencing / watchdog | — | absent |
 | budget ledger (free + reserved + spent = total) | — | absent (the host reports no window fill, burn or cost here) |
 | `CONTROL_EVENT` (authenticated approval / revocation) | — | absent; today it is «the owner typed it in chat» |

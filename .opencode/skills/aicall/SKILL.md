@@ -37,6 +37,6 @@ SURFACES rather than dying behind an effect; and the ladder's reachability is th
 
 Adapted from the Claude-side skill that used to live in `.claude/skills/aicall/`, per the owner's rule
 (2026-09-30): «если мы решим что нам какой-то скилл необходим — то мы его адаптируем под себя и скопируем
-в свою папку». Everything about `tools/aicall.py`, its CLI flags and the bare `claude -p` route belongs to
+в свою папку». The bare `claude -p` route (the only Claude-side route; the Python port `tools/aicall.py` was deleted 2026-10-01) belongs to
 that side and is deliberately NOT carried over: **we do not browse another agent's directory, and we do not
 carry its dead weight either.** See `plans/2026-09-30_no-foreign-skill-discovery.md`.

@@ -470,7 +470,7 @@ Oracle = third thing: instrument neither simulation could predict. If predictabl
 - rendered-page/visual claims need the Browser tool oracle (screenshot/read_page); typecheck is not proof.
 - shell ls/dir scans are not evidence — Glob/Grep/Read only.
 - sandbox egress blocking an MCP call is Unknown, not a failed oracle — retest with real network.
-- the isolated call: skill aicall (tools/aicall.py --out) or frameless claude -p; openrouter-free call_model a third route — EXTERNAL_EFFECT, free tier, no repo access; attach the evidence inline. Inferred at best, never a stamp.
+- the isolated call: skill aicall — frameless `claude -p --model sonnet` from an empty dir outside any repo, no tools, no MCP — the ONLY route, no other model or script. Attach the evidence inline; Inferred at best, never a stamp.
 - an unvalidated frame is not an oracle: prove the capture shows the WHOLE object unoccluded — the Browser tool is the instrument, a viewport crop is not.
 - GUI claims: E2E for the critical flows (Playwright/Cypress) and visual regression for components (Storybook/Percy).
 </G8_RULES>

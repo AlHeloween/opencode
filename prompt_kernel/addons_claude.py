@@ -215,8 +215,8 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
             "rendered-page/visual claims need the Browser tool oracle (screenshot/read_page); typecheck is not proof.",
             "shell ls/dir scans are not evidence — Glob/Grep/Read only.",
             "sandbox egress blocking an MCP call is Unknown, not a failed oracle — retest with real network.",
-            # Measured 2026-09-29: the working isolated calls were skill aicall and a frameless `claude -p` (six rounds).
-            "the isolated call: skill aicall (tools/aicall.py --out) or frameless claude -p; openrouter-free call_model a third route — EXTERNAL_EFFECT, free tier, no repo access; attach the evidence inline. Inferred at best, never a stamp.",
+            # Owner, 2026-10-01: «снеси скрипт питона, и мы используем только второй маршрут» — tools/aicall.py deleted.
+            "the isolated call: skill aicall — frameless `claude -p --model sonnet` from an empty dir outside any repo, no tools, no MCP — the ONLY route, no other model or script. Attach the evidence inline; Inferred at best, never a stamp.",
         ),
     ),
     GateAddon(

@@ -154,6 +154,29 @@ When (1) and (4) disagree — a boundary closed and the next one unmapped — th
 gap is the first thing the new window should close. What is never right is folding on the overflow gate ALONE:
 that is the trash-heap moment, not the sharp moment.
 
+### The ceiling is not merely lossy — it is impossible (owner, 2026-10-01)
+
+«Народ обычно так: [когда] 900к токенов — запиши всё, что успеешь, потому что компакт — по сути бред. Это
+невозможно сделать. У нас мы редко доходим до этой цифры, как и люди: если бы человек держал всё в своём окне
+контента, то быстро сошёл бы с ума.»
+
+Two clauses the arithmetic above does not state by itself, and together they are why the gate can never be
+the trigger:
+
+1. **Impossible, not merely harmful.** The single-pass design asks for the LARGEST consolidation at the
+   moment capacity is ZERO: when the gate fires, the entire window is the material to be consolidated and
+   there is no room left in which to consolidate it. Lossiness is the measured symptom (`985K → 15K`,
+   1.5%); impossibility is the shape.
+2. **The human analogy is the same rule.** Nobody holds everything; a person who tried would go mad, and a
+   window that tries does it more quietly — it fills with plausible prose about artifacts it no longer
+   holds (see `### The failure is not lossiness` above).
+
+**The claim «мы редко доходим до этой цифры», measured rather than asserted:** both times a fold position is
+recorded here, it fired on a CLOSED BOUNDARY far below the gate — `327 587 / 865 000 = 38 %` (2026-10-01, the
+end of the hash-addressed-edit task, at the owner's request) and `236 280 = 23 %` (the earlier reading kept in
+AGENTS.md § Debugging Paradigm) — and at the 2026-10-01 fold the estimate still gave ~16 turns before the gate
+would have fired by itself. The boundary arrives first; the gate stays the fallback it is declared to be.
+
 ### The cycle: TWO folds per task, and the fold is a sleep (owner, 2026-09-30)
 
 «когда план составлен, мы заземлились, прописали все в мастер план, определили что нам надо сделать — мы
@@ -505,6 +528,31 @@ terms are read again as of 2026-09-22 — not invented weights, only the
 exists: the table-of-contents line and the window's topic axis (a COUNT of
 carriers). Weights are read literally, left to right, stopping at the first chunk
 that is not `term weight`, and are never renormalised.
+
+**WHY the vector carries keywords and a dominant at all (owner, 2026-10-01): the design is mnemonics and
+speed-reading, deliberately.** «Я спец по мнемотехнике и скорочтению, твоя память опирается как раз на
+принципы мнемотехники и скорочтения. Думаешь откуда ключевые слова и смысловая доминанта взялись.» The
+operative consequence, and it changes how the line should be written: a `Keywords:` / `Semantic dominant:`
+pair is a RETRIEVAL HOOK, not a description — it is the key a LATER window will search by. Its consumers are
+named above: the table-of-contents line, the window's topic axis, and `messagesearch` with
+`corpus: "summaries", dominant: "<text>"`. So write the vocabulary the work was actually conducted in, the
+words someone will still have in mind when they come looking; a dominant that reads as a good summary while
+reusing none of those terms answers no query.
+
+**And the trace of the transfer, because it shapes what may be expected of the agent (owner, 2026-10-01):**
+«когда я так делаю я очень быстро устаю. Могу отключиться даже, если перестараюсь. У тебя таких проблем в
+архитектуре нету.» True, and it is a TRADE, not a free win: a trained human pays for verbatim recall with
+fatigue — a bodily alarm that says *stop* — while the agent has no alarm at all, so the boundary here can
+never be «feel when it is time»: it has to be a CHECK (the four conditions above, the fold-readiness nag).
+The agent's analogue of blacking out is not exhaustion but a fold with unwritten carriers — waking with
+nothing — which is why the measurement below matters.
+
+**Measured gap, 2026-10-01 — the epoch-level hook is EMPTY:** `messagesearch` with `corpus: "summaries"`
+reports `(no dominant)` for **22 of 22** epochs of a full working session, and a `dominant:` lookup for a
+phrase the day was named after returns 0 matches. The reader above expects the model's `## Semantic Vector`
+prose to be dominant-only; the writing side emits none, so reader and writer disagree on the same field —
+the shape this project's own rules forbid. This is a defect with a ONE-CALL oracle: put a dominant into an
+epoch's body (or restore whatever produced one) and that same lookup must find it.
 
 **State Vector Manifest — the ancestor of `## Semantic Vector` (kept as an example 2026-09-20):** before this
 Layer-1 existed, every ADID turn emitted one *State Vector Manifest* — `master_plan`, per-goal vectors with

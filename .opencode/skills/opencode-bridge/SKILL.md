@@ -46,8 +46,11 @@ This file is written for an agent INSIDE opencode. Use your own tools (`bash` th
 3. **Start the server** through cmd_runner (a long-lived process — never a bare `start`), from the worktree:
    - owner watches → TUI in Windows Terminal:
      `cmd_runner start --terminal wt --cwd <worktree> --no-tail -- D:/zPython/opencode/bin/opencode.exe --session <id> --port <port>`
-   - nobody watches → headless server (✗ NOT yet verified on this route):
-     `cmd_runner start --cwd <worktree> --no-tail -- D:/zPython/opencode/bin/opencode.exe serve --port <port>`
+   - **`serve` is NOT our route (owner, 2026-10-01: «это веб двиг — он нам не нужен пока»).** `serve` is
+     `Server.listen` (`src/cli/cmd/serve.ts:15`), which mounts the EMBEDDED WEB UI (`src/server/routes/ui.ts:11,25`
+     — `opencode-web-ui.gen.ts`, `index.html`) and warns «OPENCODE_SERVER_PASSWORD is not set; server is
+     unsecured» when launched bare. A robot to be driven is a TUI **with `--port`**, above — the port is what
+     makes it reachable, the terminal is what the owner watches.
    The server binds `127.0.0.1` unless `--hostname` is given — keep it local.
 4. **Talk HTTP** — base `http://127.0.0.1:<port>`, every call with `?directory=<url-encoded worktree>`:
    - `POST /session` `{"title":"…"}` → the new session's `id`
@@ -76,9 +79,16 @@ This file is written for an agent INSIDE opencode. Use your own tools (`bash` th
   so the gap is the SERVER side, not the client.
   ⇒ **To be reachable, a session's host must be launched WITH `--port <p>` (recipe step 3)**: the in-process
   server a plain TUI starts binds no socket, which is also why the config `server.port` is ignored. And a child
-  robot needs its OWN worktree — a second `serve` on THIS worktree puts two writers on one session database,
+  robot needs its OWN worktree — a second server on THIS worktree puts two writers on one session database,
   which the section above forbids.
-- `serve --port` as the headless child server — read in `src/cli/cmd/serve.ts`, not yet run on this route.
+- **`serve --port` is EXCLUDED — the web engine, not our route** (owner, 2026-10-01: «это веб двиг — он нам не
+  нужен пока»). It is `Server.listen` (`src/cli/cmd/serve.ts:15`), which mounts the embedded web UI
+  (`src/server/routes/ui.ts:11,25`), and it warns «OPENCODE_SERVER_PASSWORD is not set; server is unsecured»
+  when launched bare. Recorded rather than deleted, with its lift signal: it returns only if a task needs the
+  WEB surface itself — and then with a password set.
+- **A child robot is therefore a TUI with its own `--port`, in its OWN worktree** — never a `serve`, and never a
+  second server on a worktree that already has one (rule 2). Whether such a TUI can run unattended without a
+  terminal, or needs `--terminal wt`, is NOT measured here.
 - The TUI ignores `server.port` from config (`src/cli/cmd/tui/thread.ts:227` calls
   `resolveNetworkOptionsNoConfig(args)` without config) — Inferred by reading.
 - No port registry: by the storage paradigm it belongs in the LMDB plane (`worktree:<path>:port`), not a file.

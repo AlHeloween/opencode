@@ -1,4 +1,4 @@
-import { afterEach, describe, expect } from "bun:test"
+import { afterEach, describe, expect, setDefaultTimeout } from "bun:test"
 import { Cause, Effect, Exit, Layer } from "effect"
 import path from "path"
 import { Agent } from "../../src/agent/agent"
@@ -17,6 +17,18 @@ import { provideInstance, tmpdirScoped } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
 const FIXTURES_DIR = path.join(import.meta.dir, "fixtures")
+
+// FILE-level, per AGENTS.md § Testing Convention — «bun's 5 s default turns a loaded machine into a red that
+// says nothing about the code» — declared once here, never as per-test bumps.
+//
+// STATUS 2026-10-01, stated rather than implied: this file produced NO verdict after the line-address change.
+// `bun test` on this host began returning an empty log with the process at `cpu_delta_seconds=0` — first for a
+// directory-wide run, then for THIS file, and finally for the two UNIT files (edit-exact + multiedit) that had
+// passed three times minutes earlier and do not import `read.ts` at all. That last control is what rules the
+// change out: the instrument stopped answering, the code did not. Forty-plus `conhost` processes are alive on
+// the host — ConPTY sessions accumulated by this session's runs — which is the leading hypothesis and NOT a
+// conclusion. The address tests below are therefore UNPROVEN and their verdict is UNKNOWN: a floor, not a total.
+setDefaultTimeout(20_000)
 
 afterEach(async () => {
   await Instance.disposeAll()
@@ -493,6 +505,80 @@ describe("tool.read binary detection", () => {
 
       const err = yield* fail(dir, { filePath: path.join(dir, "module.wasm") })
       expect(err.message).toContain("Cannot read binary file")
+    }),
+  )
+})
+
+/**
+ * THE LINE ADDRESS (plan 2026-10-01_hash-addressed-edits, H1/H2).
+ *
+ * `read` prints a CHAINED hash per line and `edit` will consume it. Four properties carry the whole scheme,
+ * and every one of them is a way the address could lie without anything looking broken:
+ *
+ *   1. it is STABLE — the same file read twice prints the same labels;
+ *   2. it survives CRLF — the bytes a caller types back never equal the bytes on disk, which is the class
+ *      `oldString` could not survive and the fuzzy cascade existed only to forgive;
+ *   3. it does not depend on the WINDOW — line 3 hashes the same read alone or inside a range, because the
+ *      chain runs over the lines a window does not return;
+ *   4. it carries the PREFIX — two IDENTICAL lines get DIFFERENT addresses.
+ *
+ * The third is the one the implementation could get wrong while every other test still passed: placing the
+ * chain below the skip is a one-line mistake that breaks only cross-window agreement. The fourth is the case
+ * that failed LIVE an hour before this file was written — the content path refused
+ * `experiments/2026-10-01_edit-range-verify/dup-lines.txt` with «Found multiple matches for oldString».
+ */
+describe("tool.read — the line address", () => {
+  const labels = (output: string) => output.match(/\b[0-9a-f]{8}: /g)
+
+  it.live("prints an 8-hex address per line, and the same file prints the same addresses twice", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      yield* put(path.join(dir, "a.txt"), "alpha\nbeta\ngamma\n")
+
+      const first = yield* exec(dir, { filePath: path.join(dir, "a.txt") })
+      const second = yield* exec(dir, { filePath: path.join(dir, "a.txt") })
+
+      expect(first.output).toMatch(/^1 {2}[0-9a-f]{8}: alpha$/m)
+      expect(second.output).toBe(first.output)
+    }),
+  )
+
+  it.live("CRLF and LF hash IDENTICALLY — the class `oldString` could not survive", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      yield* put(path.join(dir, "lf.txt"), "alpha\nbeta\n")
+      yield* put(path.join(dir, "crlf.txt"), "alpha\r\nbeta\r\n")
+
+      const lf = yield* exec(dir, { filePath: path.join(dir, "lf.txt") })
+      const crlf = yield* exec(dir, { filePath: path.join(dir, "crlf.txt") })
+
+      expect(labels(crlf.output)).toEqual(labels(lf.output))
+    }),
+  )
+
+  it.live("the WINDOW does not change an address — line 3 alone is line 3 in a range", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      yield* put(path.join(dir, "w.txt"), "one\ntwo\nthree\nfour\nfive\n")
+
+      const whole = yield* exec(dir, { filePath: path.join(dir, "w.txt") })
+      const slice = yield* exec(dir, { filePath: path.join(dir, "w.txt"), offset: 3, limit: 2 })
+
+      const at = (output: string) => output.match(/^3 {2}([0-9a-f]{8}): three$/m)?.[1]
+      expect(at(slice.output)).toBeDefined()
+      expect(at(slice.output)).toBe(at(whole.output))
+    }),
+  )
+
+  it.live("the chain carries the PREFIX: the same text in another position is another address", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      yield* put(path.join(dir, "dup.txt"), "same\nsame\n")
+
+      const result = yield* exec(dir, { filePath: path.join(dir, "dup.txt") })
+      const found = result.output.match(/[0-9a-f]{8}: same/g) ?? []
+      expect(found.length).toBe(2)
+      expect(found[0]).not.toBe(found[1])
     }),
   )
 })

@@ -412,7 +412,7 @@ export const ReadTool = Tool.define(
       }
 
       let output = [`<path>${filepath}</path>`, `<type>file</type>`, "<content>\n"].join("\n")
-      output += file.raw.map((line, i) => `${i + file.offset}: ${line}`).join("\n")
+      output += file.raw.map((line, i) => `${i + file.offset}  ${file.hashes[i]}: ${line}`).join("\n")
 
       const last = file.offset + file.raw.length - 1
       const next = last + 1
@@ -475,7 +475,39 @@ export const ReadTool = Tool.define(
   }),
 )
 
-async function lines(filepath: string, opts: { limit: number; offset: number }) {
+/**
+ * The LINE ADDRESS (plan 2026-10-01_hash-addressed-edits, H1).
+ *
+ * `h(i) = trunc32(xxHash64(h(i-1) ‖ "\u0000" ‖ line(i)))`, seeded at 0, so a line's hash carries the WHOLE
+ * prefix above it: an address says what the FILE is, not where a line is. Any change above an addressed span
+ * changes its hash, and the edit is refused instead of landing near it — a guess is not implemented at all.
+ *
+ * The text hashed is the line WITHOUT its terminator, which is exactly the string `read` prints. That is what
+ * makes the address survive CRLF: `\r` is stripped below (CRLF counts as one break), so a CRLF file and an LF
+ * file hash their lines IDENTICALLY and an ending rewrite invalidates nothing. That class — the bytes a caller
+ * types back never equal the bytes on disk — is the one `oldString` could not survive, and the fuzzy cascade
+ * existed only to forgive it.
+ *
+ * 32 bits, because the address is a PAIR and the chain already carries position and history: the hash only has
+ * to catch substitution, where a per-line collision is ≈ 2·10⁻¹⁰. If that ever proves too tight, the lever is
+ * width — never a fuzzy fallback.
+ */
+export function chainHash(previous: number, line: string): number {
+  // Mask in the hash's OWN space: converting first would round the low bits away (64 bits do not fit a double).
+  return Number(Bun.hash.xxHash64(`${previous}\u0000${line}`) & 0xffff_ffffn)
+}
+
+/** The printed form. ONE spelling, shared by `read` and `edit` — never a second. */
+export function hashLabel(hash: number): string {
+  return (hash >>> 0).toString(16).padStart(8, "0")
+}
+
+/** Read a printed label back. `undefined` for anything that is not exactly 8 hex characters. */
+export function parseHash(label: string): number | undefined {
+  return /^[0-9a-f]{8}$/.test(label) ? Number.parseInt(label, 16) >>> 0 : undefined
+}
+
+export async function lines(filepath: string, opts: { limit: number; offset: number }) {
   // Raw byte scan instead of readline: 0x0A never appears inside a multi-byte
   // UTF-8 sequence, so splitting the stream on newline bytes is exact. The
   // tally CONTINUES past the limit (tally-only mode) so `count` is the TRUE
@@ -486,6 +518,9 @@ async function lines(filepath: string, opts: { limit: number; offset: number }) 
   const stream = createReadStream(filepath)
   const start = opts.offset - 1
   const raw: string[] = []
+  const hashes: string[] = []
+  // The chain state. It advances over EVERY line, including the ones this window does not return.
+  let hash = 0
   let bytes = 0
   let count = 0
   let cut = false
@@ -495,17 +530,25 @@ async function lines(filepath: string, opts: { limit: number; offset: number }) 
 
   const processLine = (lineBuf: Buffer) => {
     count += 1
-    if (tallyOnly || count <= start) return
-    if (raw.length >= opts.limit) {
-      more = true
-      tallyOnly = true
-      return
-    }
+    // Past the window NOTHING is needed: `count` keeps tallying (the pager needs the true total) but the line
+    // is neither decoded nor hashed — exactly as before this change. Only the lines up to the window's end are
+    // chained, because no printed address depends on a later line.
+    if (tallyOnly) return
     let line = lineBuf
     if (line.length > 0 && line[line.length - 1] === 0x0d) {
       line = line.subarray(0, line.length - 1) // CRLF counts as a single break
     }
     const text = line.toString("utf8")
+    // BEFORE the skip, and that position is load-bearing: a line's address must be the same whether it was
+    // read in a three-line window or in a five-hundred-line one, so the chain has to run over the lines this
+    // window does not RETURN — the skipped prefix is not skippable, because a hash carries its whole prefix.
+    hash = chainHash(hash, text)
+    if (count <= start) return
+    if (raw.length >= opts.limit) {
+      more = true
+      tallyOnly = true
+      return
+    }
     const clipped = text.length > MAX_LINE_LENGTH ? text.substring(0, MAX_LINE_LENGTH) + MAX_LINE_SUFFIX : text
     const size = Buffer.byteLength(clipped, "utf-8") + (raw.length > 0 ? 1 : 0)
     if (bytes + size > MAX_BYTES) {
@@ -515,6 +558,7 @@ async function lines(filepath: string, opts: { limit: number; offset: number }) 
       return
     }
     raw.push(clipped)
+    hashes.push(hashLabel(hash))
     bytes += size
   }
 
@@ -535,7 +579,7 @@ async function lines(filepath: string, opts: { limit: number; offset: number }) 
     stream.destroy()
   }
 
-  return { raw, count, cut, more, offset: opts.offset }
+  return { raw, hashes, count, cut, more, offset: opts.offset }
 }
 
 // ------------------------------------------------------------------

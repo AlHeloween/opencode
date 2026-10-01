@@ -84,7 +84,21 @@ the file says …» to a write: the address exists only in the output of a read 
       The window (`offset`/`limit`) must not change a hash — asserted, because the whole scheme dies quietly if
       it does.
 - [ ] **H3 — ONE tool: `edit` takes `edits: [...]`.** Each entry `{ fromHash, toHash?, newString }` (`toHash` absent = a single line). `multiedit` is unregistered as a tool and its description is retired; its atomicity — resolve against a buffer, write once, say «NOTHING was written» on failure — becomes `edit`'s own property, which the list makes structural rather than compensating.
-- [ ] **H4 — resolve ALL, then apply.** Walk the chain once over the original content, map every `fromHash`/`toHash` to its line, refuse an address that is not found, refuse overlapping spans, and apply the replacements bottom-up so earlier offsets stay valid. Nothing is written until every entry has resolved — «в начале определяет куда - и только потом правит».
+- [x] ✓ **H4 — resolve ALL, then apply. DONE (commit `660c370578`).** The chain is computed
+      once over the ORIGINAL content; `fromHash` names the line BEFORE the span (the seed `00000000` names the
+      state before line 1), `toHash` its last line, and an absent `toHash` means a single line. Refusals: an
+      address not in the file, a malformed hash naming its ENTRY, an inverted range, past the end, and two
+      entries claiming one line — that last one is a refusal, not a merge decision, because «last writer wins»
+      is the silent outcome this design removes. Application is bottom-up so a replacement cannot move a span
+      that has not been applied yet. Oracles: green **26 pass / 0 fail / 33 expect** (`20261001T045124Z_8c7741c6`);
+      typecheck exit 0 (`20261001T045036Z_0b9e616f`). **My own expectation was wrong** — I read `fromHash: h[2]`
+      as «line 2» when it is «the line after line 2» — and the TEST moved, with its provenance, not the contract.
+      **Fallibility by MUTATION, and it names the mechanism:** applying the resolved spans top-down instead of
+      bottom-up (`[...ordered].reverse()` → `ordered`) gave **25 pass / 1 fail** (`20261001T045158Z_86f4f438`),
+      failing exactly «ALL entries resolve BEFORE any is applied» — and the diff shows WHY: a span computed
+      against the ORIGINAL content landed on lines the earlier edit had already shifted. Restored: green
+      **26 pass / 0 fail** (`20261001T045218Z_1e2c8f1c`), with `edit.ts` absent from `git status`, i.e. byte-identical
+      to HEAD.
 - [ ] **H5 — the cascade is CUT in the same change, not after it.** With the tool merged and hash-only there is nowhere for a fuzzy stage to live: `oldString` and the ten stages go, and `edit.txt` / `multiedit.txt` (retired) lose the stage vocabulary with them. The tests that pinned the stages are **replaced, not adjusted** — superseded with provenance, per the owner's «просто замени соответствующие тесты».
 - [ ] **File creation survives.** A hash cannot address lines that do not exist: creating a file (today `oldString: ""`) needs an explicit form, named in the description, and it must not become a back door that skips resolution.
 

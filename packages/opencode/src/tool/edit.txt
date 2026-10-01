@@ -25,6 +25,8 @@ Each edit automatically creates a backup of the file's pre-edit content. Backups
 
 If all 10 fail, edit throws error. Multiple matches without `replaceAll` also fails — provide more context.
 
+**The cascade is fuzzy BY DESIGN** — a padded or drifted anchor still applies, and the report does not say which stage matched — so `exact: true` is how a caller says «find it literally or refuse»: it runs the exact match ALONE, and a miss under it fails the call instead of landing near it. Default `false` keeps today's accommodating behaviour.
+
 ## Line Endings & Unicode
 - Matching accepts `\r\n` and `\n` variations, including mixed-EOL source files. Replacement text uses the file's detected line ending.
 - Unicode normalization handles dash/quote/space variants.
@@ -41,4 +43,8 @@ If all 10 fail, edit throws error. Multiple matches without `replaceAll` also fa
 | `filePath` | string | Absolute path to the file to modify |
 | `oldString` | string | The text to replace |
 | `newString` | string | Replacement text (must differ from oldString) |
+| `exact` | boolean | Require a LITERAL match for `oldString` (default `false`). The matcher is fuzzy by design: this turns the guess off for this call. |
+| `from` | number | First line of an ADDRESS-BASED edit (1-based — the numbers `read` prints). Needs `expect`. |
+| `to` | number | Last line of an address-based edit, inclusive (defaults to `from`). |
+| `expect` | string | The CURRENT text of lines `from`-`to`, exactly as you just read it — REQUIRED with `from`/`to`. The tool refuses if the file no longer holds it: that guard is what makes an address safe against line numbers drifting. The slice is then replaced BY POSITION, so a range that repeats elsewhere in the file still addresses the lines it names. |
 | `replaceAll` | boolean (default: false) | Replace all occurrences |

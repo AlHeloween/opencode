@@ -150,6 +150,44 @@ function lock(filePath: string) {
   return next
 }
 
+/**
+ * Line-addressed replacement WITH the guard an address needs — see the call site for why.
+ *
+ * The slice is replaced BY POSITION: a range that happens to repeat elsewhere in the file must still
+ * address the lines it names, which is the one thing a content anchor cannot do.
+ */
+export function replaceRange(
+  content: string,
+  input: { from?: number; to?: number; expect?: string; replacement: string },
+): string {
+  if (input.expect === undefined) {
+    throw new Error(
+      "`from`/`to` require `expect`: an address alone can land on lines that moved. Pass the slice's text exactly as you just read it.",
+    )
+  }
+  const lines = content.split("\n")
+  const from = input.from ?? input.to ?? 1
+  const to = input.to ?? input.from ?? lines.length
+  if (from < 1 || to < from || to > lines.length) {
+    throw new Error(
+      `range ${from}-${to} is out of bounds for a file of ${lines.length} line(s) — the numbers are 1-based and \`to\` must not precede \`from\``,
+    )
+  }
+  const slice = lines.slice(from - 1, to).join("\n")
+  // The guard compares NORMALIZED text with ONE trailing newline allowed, because that is the whole
+  // difference a caller can reasonably have: they read the lines, the file has a terminator.
+  const expected = normalizeLineEndings(input.expect).replace(/\r?\n$/, "")
+  if (slice !== expected) {
+    throw new Error(
+      `the file's lines ${from}-${to} are no longer what \`expect\` says — the address drifted.\n` +
+        `expected: ${JSON.stringify(expected)}\n` +
+        `found:    ${JSON.stringify(slice)}\n` +
+        `Read those lines again and pass their current text, or address by content with \`exact: true\`.`,
+    )
+  }
+  return [...lines.slice(0, from - 1), ...input.replacement.split("\n"), ...lines.slice(to)].join("\n")
+}
+
 export const Parameters = Schema.Struct({
   filePath: Schema.String.annotate({
     description: filePathDescription("Path to the file to modify"),
@@ -164,6 +202,17 @@ export const Parameters = Schema.Struct({
   exact: Schema.optional(Schema.Boolean).annotate({
     description:
       "Require a LITERAL match for oldString (default false). The matcher is fuzzy by design — a padded or drifted anchor still applies — and the report does not say which stage matched. Set `exact: true` when the anchor must be found verbatim: a miss then fails the call instead of landing near it.",
+  }),
+  from: Schema.optional(Schema.Number).annotate({
+    description:
+      "First line of an ADDRESS-BASED edit (1-based, the numbers `read` prints). Needs `to` or defaults to a single line, and REQUIRES `expect`: line numbers drift, and a bare address would write into whatever now occupies those lines.",
+  }),
+  to: Schema.optional(Schema.Number).annotate({
+    description: "Last line of an address-based edit (1-based, inclusive). Defaults to `from`.",
+  }),
+  expect: Schema.optional(Schema.String).annotate({
+    description:
+      "The CURRENT text of lines `from`-`to`, exactly as you just read it. The tool refuses if the file no longer holds it — that guard is what makes an address safe. Replaces `oldString` in this mode.",
   }),
 })
 
@@ -199,7 +248,7 @@ export const EditTool = Tool.define(
           let contentNew = ""
           yield* lock(filePath).withPermits(1)(
             Effect.gen(function* () {
-              if (params.oldString === "") {
+              if (params.oldString === "" && params.from === undefined && params.to === undefined) {
                 const existed = yield* afs.existsSafe(filePath)
                 const source = existed ? yield* Bom.readFile(afs, filePath) : { bom: false, text: "" }
                 const next = Bom.split(params.newString)
@@ -241,7 +290,23 @@ export const EditTool = Tool.define(
               const old = convertToLineEnding(normalizeLineEndings(params.oldString), ending)
               const replacement = convertToLineEnding(normalizeLineEndings(params.newString), ending)
 
-              const next = Bom.split(replace(contentOld, old, replacement, params.replaceAll, params.exact))
+              // THE ADDRESS, WITH ITS GUARD (plan F4). `read` prints absolute 1-based line numbers, so a
+              // caller can say WHICH lines it means instead of describing them. But numbers DRIFT: a bare
+              // address would write into whatever now occupies those lines, so the address carries
+              // `expect` — the slice's text as the caller just read it — and a mismatch is a refusal that
+              // shows both. The slice is then replaced BY POSITION, which is the one thing a content
+              // anchor cannot do: a range that repeats elsewhere still addresses the lines it names.
+              const next =
+                params.from !== undefined || params.to !== undefined
+                  ? Bom.split(
+                      replaceRange(contentOld, {
+                        from: params.from,
+                        to: params.to,
+                        expect: params.expect,
+                        replacement,
+                      }),
+                    )
+                  : Bom.split(replace(contentOld, old, replacement, params.replaceAll, params.exact))
               const desiredBom = source.bom || next.bom
               contentNew = next.text
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { replace } from "../../src/tool/edit"
+import { replace, replaceRange } from "../../src/tool/edit"
 
 /**
  * `exact` — the CALLER states the precision of its anchor.
@@ -44,5 +44,42 @@ describe("tool.edit — replace() and the caller's declared precision", () => {
 
   test("EXACT: true turns a miss into a refusal, never a silent no-op", () => {
     expect(() => replace(FILE, "L9 nothing", "x", false, true)).toThrow(/exact/i)
+  })
+})
+
+/**
+ * THE ADDRESS, WITH ITS GUARD (plan F4). `read` prints absolute 1-based line numbers, so a caller can
+ * say WHICH lines it means instead of describing them — but the numbers DRIFT, so the address carries
+ * `expect`: the slice's text as the caller just read it.
+ */
+const TWICE = "head\nSAME\nSAME\nSAME\ntail\n"
+
+describe("tool.edit — an address plus a guard", () => {
+  test("replaces the NAMED lines even when the same text appears elsewhere", () => {
+    // Three identical lines and the edit must reach the second: a content anchor cannot do this — it
+    // refuses on multiple matches — while an address can, which is the whole point of having one.
+    expect(replaceRange(TWICE, { from: 3, to: 3, expect: "SAME", replacement: "SECOND" })).toBe(
+      "head\nSAME\nSECOND\nSAME\ntail\n",
+    )
+  })
+
+  test("refuses WITHOUT `expect` — a bare address is exactly what the guard exists against", () => {
+    expect(() => replaceRange(TWICE, { from: 3, to: 3, replacement: "x" })).toThrow(/expect/)
+  })
+
+  test("refuses when the lines moved, and shows BOTH sides so the caller can re-read", () => {
+    expect(() => replaceRange(TWICE, { from: 2, to: 2, expect: "GONE", replacement: "x" })).toThrow(/no longer what/)
+    expect(() => replaceRange(TWICE, { from: 2, to: 2, expect: "GONE", replacement: "x" })).toThrow(/"/)
+  })
+
+  test("a multi-line slice, and ONE trailing newline is the only difference allowed", () => {
+    expect(replaceRange(TWICE, { from: 2, to: 3, expect: "SAME\nSAME\n", replacement: "X" })).toBe(
+      "head\nX\nSAME\ntail\n",
+    )
+  })
+
+  test("out of bounds and a reversed range are refusals, never silent clamps", () => {
+    expect(() => replaceRange(TWICE, { from: 9, to: 9, expect: "x", replacement: "y" })).toThrow(/out of bounds/)
+    expect(() => replaceRange(TWICE, { from: 4, to: 2, expect: "x", replacement: "y" })).toThrow(/out of bounds/)
   })
 })

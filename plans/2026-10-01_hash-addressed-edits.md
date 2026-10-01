@@ -122,6 +122,37 @@ the file says …» to a write: the address exists only in the output of a read 
       which quietly killed creation ✓ — the schema now has it optional and the guard names both doors ✓
 
 
+- [x] ✓ **H6 — ONE call for EVERY file: the batch. DONE (commit `a9fbb11313`).** Owner, 2026-10-01: «ты когда
+      файлы читаешь - ты уже видишь хеши, потом разовый edit на все измения и все, никаких степов все выверено
+      - раз и все» · «Что одно изменение что пачка» ✓ `edit` takes `files: [{ filePath, edits?, content? }]` and
+      NOTHING else: the entry type IS the shape the tool took for one file, so one change is a list of one and
+      there is no second spelling of «a change to a file» to keep in step ✓
+      **Three phases, and the ORDER is the property** ✓ (1) resolve every entry of every file, writing nothing —
+      every address checked against the content AS IT WAS READ, so no entry has to survive an intermediate state;
+      (2) ask for every file; (3) write every file, each as it was verified ✓ Asking at write time would have let
+      a denial land after an earlier file was already written — a partial apply, the one outcome the list exists
+      to make impossible ✓
+      `withFileLocks` holds EVERY lock for the whole operation, in canonical order ✓ — with the resolve outside
+      the hold, a concurrent edit could land between the read and the write and be silently overwritten, which is
+      the exact failure an address exists to prevent ✓ It is the semaphore this file already took per file, held
+      once for the set, not a new mechanism ✓
+      **`filediffs` (a LIST) replaces `diff` + `filediff`** ✓ — ONE key for «what did this call change», from
+      `edit` AND `write`, because a consumer that has to choose between two spellings of one question has already
+      lost the answer ✓ Consumers: `processor` (changedFiles adds EVERY file — reading the first would silently
+      drop the rest from the snapshot ✓), `summary`, `run.ts`, the TUI renderer (one diff block per file ✓),
+      `write.ts` ✓
+      **Two shapes are still READ and are labelled HISTORY, not alternatives** ✓ (`metadata.filediff` one file,
+      `results[].filediff` multiedit): a stored record does not migrate and NO new part can produce either, so a
+      reader that ignored them would drop the edits of every range written before now ✓ Pinned by fixtures that
+      say so ✓
+      **Оракулы:** typecheck exit 0 `20261001T050848Z_810e0140`; **57 pass / 0 fail** `20261001T050848Z_177c57f9`;
+      снимок схемы переснят и **проверен контролем** — **54 pass / 0 fail, 15 снимков, ни одного не добавлено**
+      `20261001T050955Z_a6405c94` ✓
+      **Остаток по `multiedit` назван:** строка осталась в deny-списках `agent.ts` (×5) и в защитных множествах
+      (`constitution`, `processor`, `dsml-normalizer`) — **инертна**, ибо инструмент нельзя вызвать, и оставлена
+      нарочно; а мёртвый рендер в TUI **снят** ✓ и ложная проза сводки (`write/edit/multiedit filediff`) —
+      исправлена ✓
+
 ## Smoke Tests
 
 - **Baseline before any edit:** `bun test test/tool/` — counts recorded in H0.

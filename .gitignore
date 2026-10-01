@@ -145,8 +145,10 @@ src.bak/
 
 # ── Project Tooling ──
 # .opencode: agent-asset receivers + runtime data ignored; project config
-# (agent/, command/, glossary/, tool/, plugins/, themes/, package.json) stays tracked
-.opencode/data/
+# (agent/, command/, glossary/, tool/, plugins/, themes/, package.json) stays tracked.
+# `.opencode/data/` and `.opencode/*` contain a slash, so git anchors them to the repo root; runtime data of an
+# opencode started in a subdirectory (packages/.opencode/data/, packages/<pkg>/.opencode/data/) needs `**/`.
+**/.opencode/data/
 .opencode/skills/
 .opencode/rules/
 .codex

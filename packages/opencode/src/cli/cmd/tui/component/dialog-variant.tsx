@@ -13,26 +13,11 @@ export function DialogVariant(props: {
   targetAgent?: string
   scope?: ModelScope
   onDone?: () => void
-  /** GLOBAL /agents model pick: staged together with the variant chosen here. */
-  pendingModel?: { providerID: string; modelID: string }
 }) {
   const local = useLocal()
   const sync = useSync()
   const dialog = useDialog()
   const route = useRoute()
-  // A model staged earlier in /agents (global) is the one whose variants this dialog lists.
-  const model = createMemo(
-    () =>
-      props.pendingModel ??
-      (props.targetAgent
-        ? (globalStage.get(props.targetAgent)?.model ?? local.model.forAgent(props.targetAgent))
-        : local.model.current()),
-  )
-  // The family comes from the shared engine predicate on `api.id` (see
-  // variant-dialog-state.ts); `modelID` is the catalog name and spelled differently.
-  const family = createMemo(() =>
-    variantFamily(sync.data.provider.find((item) => item.id === model()?.providerID)?.models[model()?.modelID ?? ""]),
-  )
   // app.tsx opens <DialogVariant /> bare; without a scope variant.set falls
   // into the legacy dual write (session + worktree) instead of the layer the
   // user selected.
@@ -46,7 +31,24 @@ export function DialogVariant(props: {
   // GLOBAL from /agents: the pick is STAGED and written by the form's «Save settings» item — no
   // per-pick save question (owner, 2026-10-02).
   const staged = createMemo(() => scope() === "global" && props.targetAgent !== undefined)
-  const stagedEdit = () => (props.targetAgent ? globalStage.get(props.targetAgent) : undefined)
+  // Declared AFTER `scope`: createMemo evaluates on creation, so reading `scope()` above its
+  // declaration is a temporal-dead-zone throw the typecheck does not see.
+  // GLOBAL from /agents lists the variants of the model the GLOBAL row shows — staged, else the
+  // global layer's own — not of the effective session → worktree chain.
+  const model = createMemo(() => {
+    if (!props.targetAgent) return local.model.current()
+    if (!staged()) return local.model.forAgent(props.targetAgent)
+    return (
+      globalStage.get(props.targetAgent)?.model ??
+      sync.data.agent.find((item) => item.name === props.targetAgent)?.model ??
+      local.model.forAgent(props.targetAgent)
+    )
+  })
+  // The family comes from the shared engine predicate on `api.id` (see
+  // variant-dialog-state.ts); `modelID` is the catalog name and spelled differently.
+  const family = createMemo(() =>
+    variantFamily(sync.data.provider.find((item) => item.id === model()?.providerID)?.models[model()?.modelID ?? ""]),
+  )
 
   function finish() {
     if (props.onDone) props.onDone()
@@ -54,16 +56,15 @@ export function DialogVariant(props: {
   }
 
   function choose(value: string | undefined) {
-    if (staged() && props.targetAgent) globalStage.stage(props.targetAgent, { model: props.pendingModel, variant: value })
+    if (staged() && props.targetAgent) globalStage.stage(props.targetAgent, { variant: value })
     else local.model.variant.set(value, props.targetAgent, scope())
     finish()
   }
 
   function current() {
-    if (!staged()) return local.model.variant.selected(props.targetAgent)
-    if (props.pendingModel) return "default"
-    const edit = stagedEdit()
-    return (edit ? edit.variant : local.model.variant.selected(props.targetAgent)) ?? "default"
+    if (!staged() || !props.targetAgent) return local.model.variant.selected(props.targetAgent)
+    const edit = globalStage.get(props.targetAgent)
+    return (edit ? edit.variant : local.model.layerView(props.targetAgent, "global").variant) ?? "default"
   }
 
   const options = createMemo(() => {

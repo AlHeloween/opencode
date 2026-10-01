@@ -170,15 +170,15 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
         variantLabel: modelInfo.name ?? item.modelID,
         onSelect: () => {
           if (!cur) return
+          // GLOBAL: staged like a pick in the model dialog — no follow-up dialog.
           if (scope === "global") {
-            dialog.replace(() => (
-              <DialogVariant
-                targetAgent={cur.name}
-                scope="global"
-                pendingModel={{ providerID: item.providerID, modelID: item.modelID }}
-                onDone={() => dialog.replace(() => <DialogAgent scope={scope} restoreValue={cur.name} />)}
-              />
-            ))
+            const staged = globalStage.get(cur.name)
+            globalStage.stageModel(
+              cur.name,
+              modelRef,
+              staged ? staged.variant : local.model.layerView(cur.name, "global").variant,
+              Object.keys(modelInfo.variants ?? {}),
+            )
             return
           }
           // Without `scope` local.model.set falls into the legacy dual-write
@@ -274,7 +274,8 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
             agent: agent.name,
             model: ref,
             list: variants,
-            current: local.model.variant.selectedForModel(ref, agent.name),
+            // Global keeps the variant per agent in the global layer (or the stage), not in model.json.
+            current: scope === "global" ? layerVariant : local.model.variant.selectedForModel(ref, agent.name),
           }
         : undefined,
       variantLabel: row.description,
@@ -352,6 +353,20 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
                 message: `${option?.variantLabel ?? "this model"} declares none — the model itself is the only choice`,
                 variant: "info",
                 duration: 3000,
+              })
+              return
+            }
+            // GLOBAL agent row: ctrl+t steps in place and STAGES the step — `setForModel` refuses the
+            // global layer (it has no model-level key), which is how ctrl+t went dead here
+            // (owner, 2026-10-02: «ctrl+t не работает»). Recents rows carry no agent and keep the refusal.
+            if (scope === "global" && step?.agent) {
+              const next = nextVariant(step.list, step.current)
+              globalStage.stage(step.agent, { variant: next })
+              toast.show({
+                title: `Variant: ${next ?? "default"} · unsaved`,
+                message: option?.variantLabel ?? step.agent,
+                variant: "info",
+                duration: 2000,
               })
               return
             }

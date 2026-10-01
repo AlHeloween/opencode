@@ -18,6 +18,7 @@ import * as fuzzysort from "fuzzysort"
 import { useConnected } from "./use-connected"
 import { shouldActivateAgent } from "../util/agent"
 import { availableScopes, coerceScope } from "./config-scope"
+import { globalStage } from "./global-agent-stage"
 
 export function DialogModel(props: {
   providerID?: string
@@ -216,20 +217,21 @@ export function DialogModel(props: {
 
   function onSelect(providerID: string, modelID: string) {
     const agent = props.targetAgent ?? local.agent.current()?.name
+    // GLOBAL from /agents: the pick is STAGED and the form's «Save settings» writes it. No dialog
+    // follows — the variant stays as it was when the new model declares it, and ctrl+t steps it
+    // (owner, 2026-10-02: «вылазит тупой диалог выбора каждый раз если модель выбирается»).
     if (scope() === "global" && props.targetAgent) {
-      dialog.replace(() => (
-        <DialogVariant
-          targetAgent={props.targetAgent}
-          scope="global"
-          pendingModel={{ providerID, modelID }}
-          onDone={props.onDone}
-        />
-      ))
+      const staged = globalStage.get(props.targetAgent)
+      const current = staged ? staged.variant : local.model.layerView(props.targetAgent, "global").variant
+      const list = Object.keys(sync.data.provider.find((x) => x.id === providerID)?.models[modelID]?.variants ?? {})
+      globalStage.stageModel(props.targetAgent, { providerID, modelID }, current, list)
+      if (props.onDone) props.onDone()
+      else dialog.clear()
       return
     }
     // Policy (2026-08-31, Alexander): saving to GLOBAL config requires an
     // explicit Save action — the write applies to all projects. The /agents
-    // path above stages model + variant together and does not use this dialog.
+    // path above stages the pick and does not use this dialog.
     if (scope() === "global") {
       dialog.replace(() => (
         <DialogConfirm

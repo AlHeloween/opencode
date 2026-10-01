@@ -5976,3 +5976,10 @@ Diff: new component/global-agent-stage.ts (stageEdit, commitStage sequential, in
 staged mode stages and returns, Save/Cancel rows removed; dialog-agent.tsx renders `Save settings` (Actions, unsaved
 count) in global scope, rows show staged value + `· unsaved`. Oracle: test/tui/global-agent-stage.test.ts baseline FAIL
 (module missing) -> 28/0 with agent-model-cell; bun typecheck exit 0. Open: live TUI check on a dist/ candidate.
+
+[2026-10-02] /agents global — fix round (owner: «Variant отвалился… тупой диалог каждый раз», «ctrl+t не работает»)
+Cause: global model pick always opened DialogVariant; ctrl+t inline step went to setForModel, which refuses global.
+Diff: dialog-model/dialog-agent stage the pick directly (carriedVariant keeps a declared variant); ctrl+t on a global
+agent row stages the step; layerView(global) returns the agent variant; DialogVariant pendingModel removed and its
+model memo moved below `scope` (createMemo evaluates on creation — TDZ throw caught by reading, not by typecheck).
+Oracle: global-agent-stage + agent-model-cell 31/0; bun typecheck exit 0. Open: live TUI check.

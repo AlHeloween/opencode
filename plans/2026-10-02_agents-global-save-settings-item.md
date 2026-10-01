@@ -32,5 +32,10 @@ Owner, 2026-10-02, verbatim: «когда из TUI в /agents мы работа�
 - [x] stage module + its test (28/28, typecheck exit 0, 2026-10-02)
 - [x] DialogVariant: no per-pick Save/Cancel in global /agents
 - [x] DialogAgent: `Save settings` item, unsaved marks
+- [x] fix round (owner: «Variant отвалился… тупой диалог выбора каждый раз», «ctrl+t не работает»):
+      a global model pick stages the model with NO follow-up dialog, carrying the variant when the new
+      model declares it (`carriedVariant`); ctrl+t on a global agent row steps and stages in place
+      (`setForModel` refuses the global layer — that was the dead key); `layerView(global)` now returns
+      the agent's global variant; DialogVariant's dead `pendingModel` prop removed — 31/31, typecheck exit 0
 - [ ] live TUI check on a built candidate (`dist/`, never `bin/`): global → pick model → variant → row
       `· unsaved` → `Save settings` → `bin/opencode.jsonc`-adjacent global config holds the model and variant

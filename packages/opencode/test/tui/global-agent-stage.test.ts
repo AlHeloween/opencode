@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { commitStage, stageEdit, type GlobalStage } from "../../src/cli/cmd/tui/component/global-agent-stage"
+import { carriedVariant, commitStage, stageEdit, type GlobalStage } from "../../src/cli/cmd/tui/component/global-agent-stage"
 
 const flash = { providerID: "deepseek", modelID: "deepseek-v4.1-flash" }
 const glm = { providerID: "huggingface", modelID: "zai-org/GLM-5.3-Flash-BF16" }
@@ -26,6 +26,21 @@ describe("stageEdit", () => {
     const stage: GlobalStage = {}
     stageEdit(stage, "build", { model: flash, variant: "max" })
     expect(stage).toEqual({})
+  })
+})
+
+describe("carriedVariant", () => {
+  test("a model pick keeps the variant the new model also declares", () => {
+    expect(carriedVariant("max", ["high", "max"])).toBe("max")
+  })
+
+  test("a variant the new model does not declare falls back to the default", () => {
+    expect(carriedVariant("max", ["low", "high"])).toBeUndefined()
+    expect(carriedVariant("max", [])).toBeUndefined()
+  })
+
+  test("no variant stays no variant", () => {
+    expect(carriedVariant(undefined, ["high"])).toBeUndefined()
   })
 })
 

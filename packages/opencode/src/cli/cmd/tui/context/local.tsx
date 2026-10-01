@@ -760,7 +760,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           return { model: workspace ? `${workspace.providerID}/${workspace.modelID}` : undefined }
         }
         const a = sync.data.agent.find((x) => x.name === name)
-        return { model: a?.model ? `${a.model.providerID}/${a.model.modelID}` : undefined }
+        return { model: a?.model ? `${a.model.providerID}/${a.model.modelID}` : undefined, variant: a?.variant }
       }
 
       /** The layer /agents opens on, by PHASE (owner spec, 2026-09-26): global until the worktree

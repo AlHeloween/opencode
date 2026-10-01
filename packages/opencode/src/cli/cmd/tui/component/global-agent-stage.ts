@@ -24,6 +24,11 @@ export function stageEdit(stage: GlobalStage, agent: string, edit: StagedAgentEd
   return { ...stage, [agent]: { model: edit.model ?? stage[agent]?.model, variant: edit.variant } }
 }
 
+/** A model pick keeps the agent's variant only when the new model declares it; otherwise the default. */
+export function carriedVariant(variant: string | undefined, list: readonly string[]): string | undefined {
+  return variant && list.includes(variant) ? variant : undefined
+}
+
 /**
  * Write the stage one agent at a time. Each write is a get → update of the WHOLE global config, so
  * two in flight would lose one of them — the loop awaits each write before starting the next.
@@ -50,6 +55,13 @@ export const globalStage = {
   edits: (): GlobalStage => store.edits,
   get: (agent: string): StagedAgentEdit | undefined => store.edits[agent],
   count: () => Object.keys(store.edits).length,
+  /** Stage a model pick, carrying the agent's current variant when the new model declares it. */
+  stageModel: (
+    agent: string,
+    model: { providerID: string; modelID: string },
+    current: string | undefined,
+    list: readonly string[],
+  ) => globalStage.stage(agent, { model, variant: carriedVariant(current, list) }),
   stage: (agent: string, edit: StagedAgentEdit) => setStore("edits", reconcile(stageEdit(store.edits, agent, edit))),
   drop: (agents: readonly string[]) =>
     setStore(

@@ -1,28 +1,28 @@
-## Mutation class
-
-`write` is **MODIFY / PERSISTENT_WRITE / ELEVATED**. Follow kernel G7 (IMPLEMENT). Prefer `edit` for partial changes to existing files. Runtime may block if active claim ledger has premises outside G.
-
-After write: run declared oracles before Done. Prefer edit over write for partial updates (rollback-friendly).
-
 Writes a file to the local filesystem. Overwrites if the file already exists.
+
+For a partial change to a file that already exists, prefer `edit`: it takes the addresses `read`
+printed and applies a whole list of changes in one call.
 
 ## Behavior
 
 - **Creates parent directories** automatically — no need to `mkdir` first.
-- **LSP diagnostics** run on the written file after writing.
+- **LSP diagnostics** run on the written file and come back in `metadata.diagnostics`.
 - **UTF-8 BOM** preserved/detected.
-- **Diff** is generated and stored for tracking/undo.
+- **Diff** comes back in `metadata.filediffs` — a LIST, one entry per file, each carrying `file`,
+  `patch`, `additions` and `deletions`.
 
 ## When to Use vs Edit
 
-- **Write**: Creating NEW files or completely replacing existing files.
-- **Edit**: Modifying specific sections of existing files.
+- **Write**: a file that does not exist yet, or one you are replacing WHOLESALE (you are holding the
+  whole content anyway).
+- **Edit**: a change to a file you have already read — addresses printed by `read`, one call, every
+  entry resolved before anything is written. `edit` can create a file too (`content`), so the
+  difference is not «new vs existing»: it is «the whole file at once» vs «addressed changes».
 
 ## Do NOT
 
 - Create documentation files (*.md) or README files proactively — only if explicitly requested.
 - Create files unless absolutely necessary for the task. Prefer editing existing files.
-- Treat write success as Exact Done — run Gate 8 oracles for verification claims.
 
 ## Parameters
 

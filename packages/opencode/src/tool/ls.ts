@@ -196,7 +196,17 @@ export const ListTool = Tool.define(
             return output
           }
 
-          const output = `${searchPath}/\n` + renderDir(".", 0)
+          // The cap is a FACT about the listing, so it belongs IN the listing. It used to reach
+          // `metadata` only — and a listing that silently drops entries cannot support «absent»:
+          // a reader handed 100 files out of 120 has no way to learn that the other 20 exist.
+          // `metadata.truncated` stays, for a caller reading the result; this notice is for whoever
+          // reads the text, which is the surface the tool promises it on.
+          const notice = truncated
+            ? `\n(TRUNCATED at ${LIMIT} entries — the tree holds MORE. This listing is INCOMPLETE: ` +
+              `narrow \`path\`, or pass \`directoriesOnly: true\` to check the shape first.)\n`
+            : ""
+
+          const output = `${searchPath}/\n` + renderDir(".", 0) + notice
 
           return {
             title: path.relative(ins.worktree, searchPath),

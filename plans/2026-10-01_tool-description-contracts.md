@@ -94,6 +94,55 @@ Never the reverse direction: behaviour is not bent to fit a test, and a test is 
       - **`restore.txt`** ссылается на снятый тул: «written automatically by the `edit` / `multiedit` tools» ✓
       - `read.txt` / `edit.txt` / `multiedit.txt` приведены к правде сегодня же (`4a768738da`, `53bea05cfa`,
         серия H3/H6) — это ГОТОВАЯ половина C2 ✓
+      **ХОД 2 (2026-10-01): compare / ls / write / restore / treediff — приговоры и ОДИН НАСТОЯЩИЙ ПИН.**
+      Контракт требует по каждой фразе ровно одно из двух: тест, который без неё краснеет ✓, либо
+      исправление/удаление ✓. Приговоры (полностью — в теле коммита):
+      - **`compare`** — `Parameters.ignore` **УДАЛЁН из схемы** вместе со строкой в тексте: `execute` не
+        читал его НИ РАЗУ ✓ (параметр требуют и выбрасывают ✓). «`same` — identical» **ИСПРАВЛЕНО** на
+        «same size AND same mtime» + явная оговорка, что содержимое НЕ ЧИТАЕТСЯ (код: `compare.ts:94` ✓).
+        «between branches» убрано — тул сравнивает две директории на диске, не ветки ✓. Назван точный
+        список шумовых папок вместо «etc.» ✓ ПИНОВАНЫ самим кодом: «differs by size/timestamp» и
+        «changed» ✓ — но теста у `compare` нет ✗ (остаток ниже).
+      - **`ls`/`list`** — обещание «truncation notice on overflow» было **ЛОЖНО** ✗: `truncated` уезжал
+        только в `metadata` ✗. **ПОВЕДЕНИЕ ИСПРАВЛЕНО** (`ls.ts`): вывод заканчивается
+        `(TRUNCATED at 100 entries — the tree holds MORE …)`. **НОВЫЙ ПИН** `test/tool/list.test.ts`, ДВА
+        случая: уведомление обязано появиться, когда усечение ДЕЙСТВИТЕЛЬНО (сначала
+        `metadata.truncated === true` и `count === 100` ✓), и **молчать**, когда его не было ✓ —
+        уведомление, срабатывающее всегда, это крикун ✗. Fallibility: RED до реализации — падение ровно
+        на `list.test.ts:84` (`20261001T053334Z_b174ee16` ✓); мутация (снят `+ notice`) — падение на ТОМ
+        ЖЕ адресе (`20261001T053431Z_afd8ec1f` ✓), откат подтверждён контрольным `grep` (`renderDir` → 3
+        попадания, маркера `MUTATION` нет ✓); GREEN `20261001T053410Z_96b212df` ✓. Ещё: «absolute paths»
+        было ложно для записей (basename ✓) — ИСПРАВЛЕНО ✓
+      - **`write`** — кернел-проза (Mutation class, G7, claim ledger, Gate 8) **УДАЛЕНА** ✓; вместо
+        «Diff … stored for tracking/undo» названо наблюдаемое — `metadata.filediffs` ✓; дихотомия
+        «Write = new / Edit = sections» ИСПРАВЛЕНА: `edit` с `content` создаёт файлы с H2/H6 ✓. BOM и
+        diagnostics уже ПИНОВАНЫ (`write.test.ts:127/143/298` ✓)
+      - **`restore`** — `multiedit` (снятый тул ✗) заменён: `writeBackup` зовётся из `edit.ts:480` ✓;
+        G7-проза удалена ✓
+      - **`treediff`** — кернел-метка «(G1 observe)» удалена ✓; обещания **ПИНОВАНЫ**:
+        `treediff.test.ts:69` (exit-код 1 = различия, не провал ✓) и `:93-94` (`context` клампится к 100 ✓)
+      - **Префикс (пункт 5):** замер — `experiments/2026-10-01_tool-txt-bytes/count.mjs` ✓
+        (`20261001T053727Z_03f0c2a0`). **HEAD (LF) 73 560 B → дерево 74 476 B, дельта +916 B** ровно по ПЯТИ
+        моим файлам: `compare` +553, `ls` +276, `write` +141, `restore` −17, `treediff` −37 ✓. Рабочее
+        дерево КАК ХРАНИТСЯ — 75 305 B (CRLF включён ✓). База плана 67 618 B **УСТАРЕЛА** ✓: C1 и прочее
+        приземлились после неё (+5 942 B закоммиченного ✓) — названо, а не списано ✓
+      - **КЛАСС, оплаченный этим пробником (и снятый здесь же):** он показал «изменения» у СЕМНАДЦАТИ
+        файлов, которых никто не касался ✗ — потому что `git show HEAD:<path>` отдаёт BLOB (LF ✓), а
+        рабочее дерево — CRLF ✓, и «дельта» оказалась **ЧИСЛОМ СТРОК файла** (`skill.txt` 19 строк →
+        «+19» ✓, `fossilgrep.txt` 41 → «+41» ✓). `git status`, который сравнивает ЧЕРЕЗ фильтр, считал их
+        чистыми и был прав ✓ Первый вывод — «чужая незакоммиченная рука» — был **ЛОЖНЫМ** ✗ и снят здесь
+        же ✓ Приём: байтовое сравнение с git-блобом обязано нормализовать переводы строк, иначе оно
+        измеряет ФОРМАТ, а не изменение ✓
+      - **ОСТАТКИ, названные явно (поэтому бокс остаётся `[ ]`):** (а) **третий класс**, которого контракт
+        в двух вариантах не предусмотрел ✗ — фразы ИСТИННЫЕ, но НЕ пинуемые тестом (`list`: `dates`,
+        `directoriesOnly`; `compare`: `verbose`); (б) `compare` и `list` **отсутствуют в снапшот-сьюте схем**
+        — `parameters.test.ts` знает 15 тулов, этих двух нет ✗ ⇒ возврат `ignore` или порча `Parameters`
+        не покраснеет ✗; (в) рабочее дерево несёт ЧУЖОЕ незакоммиченное состояние ВНЕ `src/tool/`:
+        ` M .claude/skills/aicall/SKILL.md` и три untracked каталога (`.claude/skills/opencode-bridge/`,
+        `packages/.opencode/`, `packages/httpapi-codegen/`) — не тронуты и в коммит не взяты ✓; (г) `grep`
+        на НЕВАЛИДНОМ регексе отвечает «No matches found»
+        вместо ошибки ✗ — воспроизведено: `MUTATION|const notice` → 1 попадание ✓, `MUTATION|const
+        notice|+ notice` → «No matches» ✗ (класс инструмента, вне C2)
 - [ ] **C3 — shell tools:** `bash`, `cmd`, `powershell`, `run`.
 - [ ] **C4 — search / memory tools:** `codegraph`, `dbread`, `fossilgrep`, `logsearch`, `sessionread`,
       `summaryedit`, `universalsearch`, `webfetch`.

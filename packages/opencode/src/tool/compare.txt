@@ -1,7 +1,7 @@
 Recursively compare two directories and report differences: files only in A, only in B, or different (by size/timestamp).
 Observe — read-only evidence.
 
-Use this tool to see what changed between two directory trees — e.g. before/after a build, between branches, or after a refactor.
+Use this tool to see what changed between two directory trees — e.g. a checkout and its build output, two copies of one tree, or a tree before and after a refactor. It compares two directories ON DISK; a git branch is not a directory (check the two branches out into two worktrees if that is the comparison you want).
 
 ## What it does
 
@@ -9,9 +9,13 @@ Use this tool to see what changed between two directory trees — e.g. before/af
 2. For each file found in either tree, reports:
    - `A only` — exists only in first directory
    - `B only` — exists only in second directory
-   - `changed` — exists in both but differs (size or mtime)
-   - `same` — identical (only shown in verbose mode)
-3. Skips common ignore patterns (node_modules, .git, etc.)
+   - `changed` — exists in both but differs by SIZE or MTIME
+   - `same` — same size AND same mtime (shown only with `verbose: true`)
+   Nothing is ever READ: the two trees are compared by size and mtime alone, so two byte-identical
+   files whose timestamps differ report as `changed`, and `same` never means «same content».
+3. Skips a fixed noise list — node_modules, __pycache__, .git, dist, build, target, vendor, bin, obj,
+   .idea, .vscode, .zig-cache, zig-out, .coverage, coverage, tmp, temp, .cache, cache, logs, .venv,
+   venv, env, .opencode. The list is not configurable.
 
 ## Parameters
 
@@ -19,8 +23,7 @@ Use this tool to see what changed between two directory trees — e.g. before/af
 |-----------|------|---------|-------------|
 | `pathA` | string | — | First directory path (required) |
 | `pathB` | string | — | Second directory path (required) |
-| `verbose` | boolean | false | Include identical files in output |
-| `ignore` | string[] | — | Additional glob patterns to ignore |
+| `verbose` | boolean | false | Include the `same`-by-metadata files in the output |
 
 ## Output
 

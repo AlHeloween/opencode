@@ -16,11 +16,12 @@ export const Parameters = Schema.Struct({
   pathA: Schema.String.annotate({ description: "First directory path (required)" }),
   pathB: Schema.String.annotate({ description: "Second directory path (required)" }),
   verbose: Schema.optional(Schema.Boolean).annotate({
-    description: "Include identical files in output. Default: false.",
+    description: "Include the `same`-by-metadata files in the output. Default: false.",
   }),
-  ignore: Schema.optional(Schema.Array(Schema.String)).annotate({
-    description: "Additional glob patterns to ignore",
-  }),
+  // `ignore` was removed 2026-10-01: it was ACCEPTED and never read by `execute` — a parameter
+  // demanded and then discarded, while its description rode the KV-stable prefix promising a
+  // filter that did not exist. The noise list above is fixed, and a filter nobody implements is
+  // not a filter. Do NOT re-add it without wiring it into `walk`.
 })
 
 type FileEntry = { size: number; mtime: number }

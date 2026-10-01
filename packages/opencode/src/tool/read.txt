@@ -38,8 +38,15 @@ Binary files (executables, compiled code, binary formats) are detected and refus
 ## Reading Text Files
 
 - **Default limit**: 2000 lines per read.
-- **Line numbers**: Each line is prefixed with `<line>: <content>`.
-- **Long lines**: Lines exceeding 2000 characters are truncated with a `... (line truncated)` suffix.
+- **Line addresses**: every text line is prefixed with `<line>  <hash>: <content>` — e.g. `470  3f19c2ea: text`.
+  The hash is a CHAIN over everything above the line (`h(i) = xxHash64(h(i-1) ‖ line(i))`, seeded at `00000000`),
+  so it names the line's position AND the state of the file up to it: two IDENTICAL lines get DIFFERENT
+  addresses, and any change above a line changes its address. It is stable (the same bytes print the same
+  labels on every read) and identical for a CRLF file and an LF file, because the line's terminator is not part
+  of the text that is hashed. A re-read that reproduces a label therefore proves the file has not moved — an
+  address you did not read from THIS file will not be found in it.
+- **Long lines**: Lines exceeding 2000 characters are truncated with a `... (line truncated)` suffix. The
+  ADDRESS is still exact for such a line: it is computed over the full text, before truncation.
 - **Byte cap**: Output is capped at 50KB. If exceeded, shows the range read and suggests `offset` to continue.
 - **File not found**: Lists similar files in the same directory to help correct typos.
 - **LSP warming**: After reading, the file is touched to activate the language server for code intelligence.

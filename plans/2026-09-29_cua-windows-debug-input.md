@@ -136,6 +136,7 @@ host-only network. Each lifts the tasks below that name it; none is a blocker fo
 - [x] **T2 instrument:** Windows `cargo test` requalification (Smoke Tests above) before any Rust edit. <!-- sv: toolchain-qualification, cargo-windows --> ✓ Closed by S1 (run `20260930T020656Z_79fe8af1`, ConPTY, exit 0).
 - [ ] **T3 B-native-bg (needs O1):** four-state fixture on the virtual monitor; monitor rect discovered via `EnumDisplayMonitors`, window placed with `SW_SHOWNOACTIVATE` + `SWP_NOACTIVATE|SWP_NOZORDER` (never `SW_RESTORE` — it activates). Record PID, image hashes, click effect, cleanup, `HypervisorPresent` after install. <!-- sv: virtual-monitor, directcomposition, capture-binding -->
 - [ ] **T8 wrapper guard (until W2 lands):** `cua.ts` refuses `capture_id` on any tool the driver does not bind it for (today: everything except `click`), so a model cannot believe an unbound gesture is bound — W3/L5 showed the driver silently ignores it; failing test first. <!-- sv: cua-wrapper, capture-binding, silent-ignore -->
+- [ ] **T9 background modifiers (Alt):** owner, 2026-10-02: «он alt не удерживает … чистое использование апстрима отпадает». Read in code, not yet run: background `post_key` (`platform-windows/src/input/keyboard.rs:334-406`) posts `WM_SYSKEYDOWN` without lParam bit 29 (context code = Alt down) and never touches the thread key state, so `GetKeyState(VK_MENU)` stays up; background clicks carry no keyboard state at all — upstream says a `modifier` there «is necessarily ignored» (`input/mouse.rs:436-442`), only the foreground `SendInput` path holds it. Candidate fix (Guess until a fixture proves it): bit 29 on Alt chords + the target thread's key state set via `AttachThreadInput`/`SetKeyboardState` around the posted sequence, restored after; `GetAsyncKeyState` readers stay out of reach without foreground and must be refused by name, not faked. Order: fixture logging `lParam` bit 29, `GetKeyState` and `GetAsyncKeyState` per message (qualified by a real keyboard) → red driver test → patch in `local_development` → VCL check on JView. <!-- sv: background-modifiers, alt-key-state, vcl-shiftstate -->
 - [ ] **T4 launch placement:** replace the blanket `start_minimized:true` in `cua.ts` with a per-tier placement (default minimized; B-native-bg = shown-no-activate on the discovered virtual monitor); failing test first, then the change. <!-- sv: launch-placement, focus-policy, cua-wrapper -->
 - [ ] **T5 B-native-input transport (needs O2):** remote mode in `cua.ts` (MCP HTTP URL + token from env, never from Git), failing tool test first; qualify with `tools/list` over the SSH tunnel before any GUI action. <!-- sv: remote-driver, ssh-tunnel, loopback-only -->
 - [ ] **T6 B-native-input oracle (needs O2):** capture-bound click then drag in the guest; guest-side state readback cross-checked against `vmrun captureScreen` (C6 decides whether that instrument exists). Only if the drag cannot be bound, the Rust `drag` + `capture_id` work above starts. <!-- sv: vmware-guest, capture-bound-drag, hypervisor-frame -->
@@ -149,6 +150,11 @@ The primary JView route stays tier B-native-bg on the virtual monitor (T3, waits
 
 ### Resumption signals
 
-- B-native-bg: the owner reports O1 done (driver name + version).
+- B-native-bg: the owner reports O1 done (driver name + version). 2026-10-02: bundle delivered to `external/virtual/`
+  (gitignored) — VirtualDrivers «Virtual Display Driver» `MttVDD` 11.30.4.434, UMDF 2.25 + IddCx 0102, hw-id
+  `Root\MttVDD`, `.cat`/`.dll` Authenticode Valid (SignPath Foundation) ✓ `Get-AuthenticodeSignature`; plus a virtual
+  AUDIO driver (kernel `.sys`, not needed — do not install), `devcon.exe`, and `VDD Control.exe` (171 MB GUI). NOT yet
+  installed: no IDD adapter among display devices, 2 screens ✓ `Get-PnpDevice`/`Screen.AllScreens`;
+  `HypervisorPresent=False` before install.
 - B-native-input: the owner reports O2 done (guest IP on the host-only network, SSH key path).
 - Mode A: the owner names a game, its controls and its win/lose signal.

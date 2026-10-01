@@ -723,3 +723,169 @@ describe("acp.agent event subscription", () => {
     })
   })
 })
+
+// The batch `edit` tool takes `{ files: [{ filePath, edits }] }` and reports `metadata.filediffs` (one unified
+// patch per file, no full old/new text); `write` takes `{ filePath, content }` and reports `exists` + filediffs.
+function completedTool(
+  sessionId: string,
+  opts: { callID: string; tool: string; input: Record<string, unknown>; metadata: Record<string, unknown> },
+) {
+  return {
+    id: `part_${opts.callID}`,
+    sessionID: sessionId,
+    messageID: `msg_${opts.callID}`,
+    type: "tool" as const,
+    callID: opts.callID,
+    tool: opts.tool,
+    state: {
+      status: "completed" as const,
+      input: opts.input,
+      output: "Edit applied successfully to 2 files.",
+      title: "2 files",
+      metadata: opts.metadata,
+      time: { start: Date.now(), end: Date.now() },
+    },
+  }
+}
+
+const batchEdit = {
+  callID: "call_edit",
+  tool: "edit",
+  input: {
+    files: [
+      { filePath: "/repo/a.ts", edits: [{ fromHash: "a1b2", newString: "const a = 2" }] },
+      { filePath: "/repo/b.ts", content: "export {}\n" },
+    ],
+  },
+  metadata: {
+    diagnostics: {},
+    filediffs: [
+      { file: "/repo/a.ts", patch: "@@ -1 +1 @@\n-const a = 1\n+const a = 2\n", additions: 1, deletions: 1 },
+      { file: "/repo/b.ts", patch: "@@ -0,0 +1 @@\n+export {}\n", additions: 1, deletions: 0 },
+    ],
+  },
+}
+
+function completedContent(sessionUpdates: SessionUpdateParams[], callID: string) {
+  return sessionUpdates
+    .map((u) => u.update)
+    .filter(isToolCallUpdate)
+    .filter((u) => u.toolCallId === callID && u.status === "completed")
+    .flatMap((u) => u.content ?? [])
+}
+
+describe("acp.agent edit-kind tool content", () => {
+  async function live(opts: Parameters<typeof completedTool>[1]) {
+    const { agent, controller, sessionUpdates, stop } = createFakeAgent()
+    const cwd = "/tmp/opencode-acp-test"
+    const sessionId = await agent.newSession({ cwd, mcpServers: [] } as any).then((x) => x.sessionId)
+    controller.push({
+      directory: cwd,
+      payload: {
+        type: "message.part.updated",
+        properties: { sessionID: sessionId, time: Date.now(), part: completedTool(sessionId, opts) },
+      } as EventMessagePartUpdated,
+    })
+    await new Promise((r) => setTimeout(r, 20))
+    stop()
+    return completedContent(sessionUpdates, opts.callID)
+  }
+
+  async function replayed(opts: Parameters<typeof completedTool>[1]) {
+    const { agent, sessionUpdates, stop, sdk } = createFakeAgent()
+    const cwd = "/tmp/opencode-acp-test"
+    const sessionId = await agent.newSession({ cwd, mcpServers: [] } as any).then((x) => x.sessionId)
+    sdk.session.messages = async () => ({
+      data: [{ info: { role: "assistant", sessionID: sessionId }, parts: [completedTool(sessionId, opts)] }],
+    })
+    await agent.loadSession({ sessionId, cwd, mcpServers: [] } as any)
+    stop()
+    return completedContent(sessionUpdates, opts.callID)
+  }
+
+  const patchFor = (file: string, patch: string) => ({
+    type: "content",
+    content: { type: "text", text: `${file}\n\`\`\`diff\n${patch}\n\`\`\`` },
+  })
+
+  for (const [site, emit] of [
+    ["live event", live],
+    ["history replay", replayed],
+  ] as const) {
+    test(`${site}: a batch edit reports one patch per file and no fabricated diff`, async () => {
+      await using tmp = await tmpdir()
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const content = await emit(batchEdit)
+          expect(content.filter((c) => c.type === "diff")).toEqual([])
+          expect(content.slice(1)).toEqual(
+            batchEdit.metadata.filediffs.map((fd) => patchFor(fd.file, fd.patch)) as typeof content,
+          )
+        },
+      })
+    })
+
+    test(`${site}: a write that creates a file is a full diff with no old text`, async () => {
+      await using tmp = await tmpdir()
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const content = await emit({
+            callID: "call_write_new",
+            tool: "write",
+            input: { filePath: "/repo/new.ts", content: "export const x = 1\n" },
+            metadata: {
+              exists: false,
+              filediffs: [
+                { file: "/repo/new.ts", patch: "@@ -0,0 +1 @@\n+export const x = 1\n", additions: 1, deletions: 0 },
+              ],
+            },
+          })
+          expect(content.slice(1)).toEqual([
+            { type: "diff", path: "/repo/new.ts", oldText: null, newText: "export const x = 1\n" },
+          ])
+        },
+      })
+    })
+
+    test(`${site}: a write over an existing file reports its patch, not an empty old text`, async () => {
+      await using tmp = await tmpdir()
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const patch = "@@ -1 +1 @@\n-export const x = 1\n+export const x = 2\n"
+          const content = await emit({
+            callID: "call_write_over",
+            tool: "write",
+            input: { filePath: "/repo/old.ts", content: "export const x = 2\n" },
+            metadata: { exists: true, filediffs: [{ file: "/repo/old.ts", patch, additions: 1, deletions: 1 }] },
+          })
+          expect(content.slice(1)).toEqual([patchFor("/repo/old.ts", patch)] as typeof content)
+        },
+      })
+    })
+  }
+
+  test("a running batch edit locates every file it names", async () => {
+    await using tmp = await tmpdir()
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const { agent, controller, sessionUpdates, stop } = createFakeAgent()
+        const cwd = "/tmp/opencode-acp-test"
+        const sessionId = await agent.newSession({ cwd, mcpServers: [] } as any).then((x) => x.sessionId)
+        controller.push(
+          toolEvent(sessionId, cwd, { callID: "call_edit", tool: "edit", status: "running", input: batchEdit.input }),
+        )
+        await new Promise((r) => setTimeout(r, 20))
+        stop()
+        const running = sessionUpdates
+          .map((u) => u.update)
+          .filter(isToolCallUpdate)
+          .find((u) => u.status === "in_progress")
+        expect(running?.locations).toEqual([{ path: "/repo/a.ts" }, { path: "/repo/b.ts" }])
+      },
+    })
+  })
+})

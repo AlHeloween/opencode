@@ -361,25 +361,8 @@ export class Agent implements ACPAgent {
                     text: sanitizeText(part.state.output),
                   },
                 },
+                ...(kind === "edit" ? editContent(part.state.input, part.state.metadata) : []),
               ]
-
-              if (kind === "edit") {
-                const input = part.state.input
-                const filePath = typeof input["filePath"] === "string" ? input["filePath"] : ""
-                const oldText = typeof input["oldString"] === "string" ? input["oldString"] : ""
-                const newText =
-                  typeof input["newString"] === "string"
-                    ? input["newString"]
-                    : typeof input["content"] === "string"
-                      ? input["content"]
-                      : ""
-                content.push({
-                  type: "diff",
-                  path: filePath,
-                  oldText,
-                  newText,
-                })
-              }
 
               if (part.tool === "todowrite") {
                 const parsedTodos = decodeTodos(part.state.output)
@@ -894,25 +877,8 @@ export class Agent implements ACPAgent {
                   text: sanitizeText(part.state.output),
                 },
               },
+              ...(kind === "edit" ? editContent(part.state.input, part.state.metadata) : []),
             ]
-
-            if (kind === "edit") {
-              const input = part.state.input
-              const filePath = typeof input["filePath"] === "string" ? input["filePath"] : ""
-              const oldText = typeof input["oldString"] === "string" ? input["oldString"] : ""
-              const newText =
-                typeof input["newString"] === "string"
-                  ? input["newString"]
-                  : typeof input["content"] === "string"
-                    ? input["content"]
-                    : ""
-              content.push({
-                type: "diff",
-                path: filePath,
-                oldText,
-                newText,
-              })
-            }
 
             if (part.tool === "todowrite") {
               const parsedTodos = decodeTodos(part.state.output)
@@ -1593,8 +1559,11 @@ function toToolKind(toolName: string): ToolKind {
 function toLocations(toolName: string, input: Record<string, any>): { path: string }[] {
   const tool = toolName.toLocaleLowerCase()
   switch (tool) {
-    case "read":
     case "edit":
+      return Array.isArray(input["files"])
+        ? input["files"].flatMap((file) => (typeof file?.filePath === "string" ? [{ path: file.filePath }] : []))
+        : []
+    case "read":
     case "write":
       return input["filePath"] ? [{ path: input["filePath"] }] : []
     case "glob":
@@ -1605,6 +1574,21 @@ function toLocations(toolName: string, input: Record<string, any>): { path: stri
     default:
       return []
   }
+}
+
+// ACP's `diff` block carries the WHOLE old and new text. Of the edit-kind tools only a `write` that creates a
+// file knows both (old: none, new: its `content`). The batch `edit` and an overwriting `write` report only a
+// unified patch per file in `metadata.filediffs`, and old/new text rebuilt from a trimmed patch would be
+// invented. So each changed file goes out as its own patch in text content, under the file's path.
+function editContent(input: Record<string, any>, metadata: Record<string, any>): ToolCallContent[] {
+  if (metadata["exists"] === false && typeof input["filePath"] === "string" && typeof input["content"] === "string")
+    return [{ type: "diff", path: input["filePath"], oldText: null, newText: input["content"] }]
+  if (!Array.isArray(metadata["filediffs"])) return []
+  return metadata["filediffs"]
+    .filter(
+      (fd): fd is { file: string; patch: string } => typeof fd?.file === "string" && typeof fd?.patch === "string",
+    )
+    .map((fd) => ({ type: "content", content: { type: "text", text: `${fd.file}\n\`\`\`diff\n${fd.patch}\n\`\`\`` } }))
 }
 
 async function defaultModel(config: ACPConfig, cwd?: string): Promise<{ providerID: ProviderID; modelID: ModelID }> {

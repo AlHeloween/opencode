@@ -39,6 +39,9 @@ and the oracle. This is also the second form of consolidation (plans/futures/202
 
 Write it to `experiments/<ISO-date>_robot-<task>/brief.md`:
 
+0. **Address** — the brief opens by naming the robot: «Smith, software architect: …» (owner, 2026-10-01:
+   «называй его Смит. Так он будет лучше помнить что он software architect»). The name is a role anchor —
+   frame, decompose, verify — not decoration.
 1. **Intention** — the plan's `<!-- intention: … -->` line, verbatim.
 2. **Task** — plan path + task id, and the sv of THIS task (@SV_FORMAT, its own, not the turn's).
 3. **Binding** — the exact paths/symbols it may touch; everything else is read-only.
@@ -62,8 +65,16 @@ tools/cmd_runner.exe start --cwd D:/zPython/opencode --timeout-s 1800 --raw --no
 - ✗ (measured 2026-10-01): `--format json` may print only `step_start` while the DB holds the full reply. A
   silent stream is not an empty reply — read the turn from `.opencode/data/opencode.db` (`part` by `message_id`).
 - ✗ (measured 2026-10-01, run `20260930T234231Z_82d53c38`): a run continued with `--session` on a session the
-  owner also has open in the TUI stalled after a tool result until the timeout. Cause Unknown; prefer a fresh
-  `--title` session for robot work, or ask the owner to close that session first.
+  owner also has open in the TUI stalled after a tool result until the timeout. The same stall then
+  reproduced in FRESH sessions with no TUI running (runs `20261001T001049Z_7d682c7e`,
+  `20261001T001539Z_cf6c38f9`, and with `snapshot:false` `20261001T001913Z_5873e037`) — so the TUI is not the
+  cause; Unknown, last seen in the gateway stream path (owner's zone).
+- **The bridge to a session the owner has open is the SERVER, not a second process.** Without `--attach`,
+  `run` boots its own server and writes the same session DB as the owner's TUI — two writers. When the owner
+  starts the TUI with `--port <N>`, continue the owner's session with `run --attach http://127.0.0.1:<N> --session
+  <id> …` (or `POST /session/:id/prompt_async`) and read state from the API — never by driving the TUI
+  through cmd_runner (owner, 2026-10-01: «через cmd_runner — это как операция на гланды через анус»).
+  The verified recipe lives in ONE place: skill **`opencode-bridge`** (`.claude/skills/opencode-bridge/SKILL.md`).
 
 - cmd_runner gives the timeout (plan B8) and a run dir with `state.json`; `--raw` = clean stdout but
   all-or-nothing (memory `reference_cmd_runner_raw_buffers`) — read it after `cmd_runner wait <id>`.

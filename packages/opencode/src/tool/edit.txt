@@ -4,11 +4,23 @@
 
 Before edit: inspect the target (read/codegraph). State the semantic delta, not only the path. After edit: run **declared** oracle before Done / `[x]`.
 
-## File Backups
+## Read the files, then ONE call for every change you already read
 
-Each edit automatically creates a backup of the file's pre-edit content. Backups stored under worktree data backups directory. Max 50 per session; oldest deleted first.
+`read` prints every line with its address, so once you have read the files you already hold everything a change needs. Put ALL of them in ONE call — one entry per file:
 
-**Undo without git:** use `restore` tool — `restore({ filePath })` for latest bak, `restore({ list: true })` to list.
+```json
+{
+  "files": [
+    { "filePath": "src/a.ts", "edits": [{ "fromHash": "3f19c2ea", "toHash": "9c0be411", "newString": "the new lines" }] },
+    { "filePath": "src/b.ts", "edits": [{ "fromHash": "00000000", "newString": "replacement for line 1" }] },
+    { "filePath": "src/new.ts", "content": "a file that does not exist yet\n" }
+  ]
+}
+```
+
+One file with one change is the SAME shape with one entry — there is no second form of this tool. Read several files, then change them all at once: a call per file is the stepping this design removes, and the tokens it wastes are the tokens you just spent reading.
+
+**A file may appear ONCE.** To change one file in several places, put several entries in ITS `edits`. A second entry for the same file is refused, because two entries for one file have no defined order — the same rule as two spans claiming one line.
 
 ## The address IS the guard — there is no fuzzy matching
 
@@ -16,11 +28,11 @@ Every change names its lines by the hashes `read` printed, and by nothing else:
 
 - `fromHash` — the address of the line **before** the span (`00000000` for line 1: the state before the file).
 - `toHash` — the address of the span's **last** line. Omit it to change one line.
-- `newString` — what replaces the addressed lines.
+- `newString` — what replaces the addressed lines. May span several lines, and may be empty to delete them.
 
 **Read first; you cannot address what you have not read.** The hashes come from a CHAIN over the file (`h(i) = xxHash64(h(i-1) ‖ line(i))`, seeded at `00000000`), so an address names a position AND the state of the file up to that point. Any change above an addressed span changes its hash, and the call is REFUSED rather than landing near it. There is no approximate match, no nearest anchor, no guess: a wrong address does not edit less — it does not edit at all.
 
-**Every address is resolved BEFORE anything is written.** The whole list is checked against the file as it was read, and the file is written once — so no entry is affected by another, and a failure writes NOTHING.
+**Every address, in EVERY file, is resolved BEFORE anything is written anywhere.** The whole batch is checked against the files as they were read, and only then is each file written, once — so no entry is affected by another, a denied permission writes nothing, and a failure in one file leaves EVERY file in the batch untouched.
 
 ## Line Endings & Unicode
 
@@ -29,17 +41,24 @@ Every change names its lines by the hashes `read` printed, and by nothing else:
 
 ## Post-Edit Processing
 
-- LSP diagnostics run on modified file after editing.
+- LSP diagnostics run on modified files after editing, and are reported per file.
 - File formatting respects project's configured formatter.
 - BOM preserved/detected on UTF-8 files.
+
+## File Backups
+
+Each edit automatically creates a backup of the file's pre-edit content. Backups stored under worktree data backups directory. Max 50 per session; oldest deleted first.
+
+**Undo without git:** use `restore` tool — `restore({ filePath })` for latest bak, `restore({ list: true })` to list.
 
 ## Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `filePath` | string | Absolute path to the file to modify |
-| `edits` | array | The changes to apply, each `{ fromHash, toHash?, newString }`. Every address is resolved against the file as it was read before anything is written; if any address does not resolve, the call fails and NOTHING is written. |
-| `edits[].fromHash` | string | The address of the line BEFORE the span — the hash `read` printed for the line just above the first line you are changing, or `00000000` for line 1. |
-| `edits[].toHash` | string (optional) | The address of the LAST line of the span, exactly as `read` printed it. Omit to change a single line. |
-| `edits[].newString` | string | Replacement text for the addressed lines. May span several lines, and may be empty to delete them. |
-| `content` | string (optional) | Create a NEW file with this content. Refused when the file already exists — address its lines instead — and never combined with `edits`. |
+| `files` | array | The files this call changes — **one entry per file**, and the only way to call this tool. |
+| `files[].filePath` | string | Path to the file to modify. |
+| `files[].edits` | array | Every change to THIS file: `{ fromHash, toHash?, newString }`. All of them are resolved against the file as it was read and applied in ONE write. |
+| `files[].edits[].fromHash` | string | The address of the line BEFORE the span — the hash `read` printed for the line just above the first line you are changing, or `00000000` for line 1. |
+| `files[].edits[].toHash` | string (optional) | The address of the LAST line of the span, exactly as `read` printed it. Omit to change a single line. |
+| `files[].edits[].newString` | string | Replacement text for the addressed lines. May span several lines, and may be empty to delete them. |
+| `files[].content` | string (optional) | Create a NEW file with this content. Refused when the file already exists — address its lines instead — and never combined with `edits`. |

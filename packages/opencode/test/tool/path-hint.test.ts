@@ -23,16 +23,28 @@ describe("tool.path-hint", () => {
     expect(generic).toContain("Prefer a path relative")
   })
 
-  test("write/edit/read/ls/multiedit schemas include path prior", async () => {
+  test("write/read/ls schemas include path prior, and `edit` carries it on ITS entry", async () => {
     const { toJsonSchema } = await import("../../src/util/effect-zod")
     const { Parameters: Write } = await import("../../src/tool/write")
     const { Parameters: Edit } = await import("../../src/tool/edit")
     const { Parameters: Read } = await import("../../src/tool/read")
     const { Parameters: Ls } = await import("../../src/tool/ls")
 
-    for (const schema of [Write, Edit, Read]) {
-      const js = toJsonSchema(schema) as { properties?: { filePath?: { description?: string } } }
-      const desc = js.properties?.filePath?.description ?? ""
+    // Named per schema rather than looped, because `edit` takes a BATCH now: its path hint lives on the ENTRY
+    // (`files[].filePath`). A loop still looking for a top-level `filePath` would have found NOTHING for `edit`,
+    // and the empty string satisfies `not.toContain("must be absolute")` while failing `toContain` — so half of
+    // the loop would have gone on reporting a hint that had moved out of view as a hint that was present.
+    const writeSchema = toJsonSchema(Write) as { properties?: { filePath?: { description?: string } } }
+    const readSchema = toJsonSchema(Read) as { properties?: { filePath?: { description?: string } } }
+    const editSchema = toJsonSchema(Edit) as {
+      properties?: { files?: { items?: { properties?: { filePath?: { description?: string } } } } }
+    }
+
+    for (const desc of [
+      writeSchema.properties?.filePath?.description ?? "",
+      readSchema.properties?.filePath?.description ?? "",
+      editSchema.properties?.files?.items?.properties?.filePath?.description ?? "",
+    ]) {
       expect(desc).toContain("Prefer a path relative")
       expect(desc.toLowerCase()).not.toContain("must be absolute")
     }

@@ -151,9 +151,9 @@ function svLabelOf(msg: MessageV2.WithParts): string | undefined {
 }
 
 /**
- * Exact WC edits for a message range: completed write / edit / multiedit tool
- * parts already stored in session DB (input + metadata.filediff / results).
- * Last write wins per path. No Fossil.
+ * Exact WC edits for a message range: completed write / edit tool parts already
+ * stored in session DB (input + `metadata.filediffs`, plus the historical
+ * `filediff` / `results[]` shapes). Last write wins per path. No Fossil.
  */
 export function collectToolFileDiffs(messages: MessageV2.WithParts[]): TurnedFileDiff[] {
   const filediffs = new Map<string, TurnedFileDiff>()
@@ -189,13 +189,22 @@ export function collectToolFileDiffs(messages: MessageV2.WithParts[]): TurnedFil
       const state = part.state
       if (state.status !== "completed") continue
       const meta = state.metadata as Record<string, unknown>
+      // `filediffs` is the ONE LIVE shape, and it is a LIST: a tool call may touch several files, because `edit`
+      // takes a batch (2026-10-01).
+      //
+      // The two shapes BELOW it are HISTORY, not alternatives. Parts already stored carry `filediff` (one file,
+      // from `edit`/`write` before that date) or `results[].filediff` (`multiedit`, retired). They are read
+      // because a stored record does not migrate and NO new part can produce either — `multiedit` is out of the
+      // catalog. A reader that ignored them would silently drop the edits of every range written before today,
+      // which is a partial presented as a whole: the failure this function is the anchor against.
+      const live = meta.filediffs
+      if (Array.isArray(live)) {
+        for (const row of live) take(row as Snapshot.FileDiff, turn, sv)
+      }
       take(meta.filediff as Snapshot.FileDiff | undefined, turn, sv)
-      // multiedit nests per-edit filediff under results[]
       if (Array.isArray(meta.results)) {
         for (const row of meta.results) {
           if (!row || typeof row !== "object") continue
-          // `multiedit` is one of the most-used tools in this project, so an unattributed branch here
-          // would have been the COMMON case carrying no anchor at all — a silent partial, not an edge.
           take((row as { filediff?: Snapshot.FileDiff }).filediff, turn, sv)
         }
       }

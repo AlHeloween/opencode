@@ -34,7 +34,7 @@ type WriteMetadata = {
   filepath: string
   exists: boolean
   diagnostics: Record<string, Diagnostic[]>
-  filediff: Snapshot.FileDiff
+  filediffs: Snapshot.FileDiff[]
 }
 
 export const WriteTool = Tool.define(
@@ -82,7 +82,7 @@ export const WriteTool = Tool.define(
               filepath,
               exists,
               diagnostics: {},
-              filediff: { file: filepath, patch: diff, additions: 0, deletions: 0 },
+              filediffs: [{ file: filepath, patch: diff, additions: 0, deletions: 0 }],
             }
             return {
               title: path.relative(Instance.worktree, filepath),
@@ -124,12 +124,14 @@ export const WriteTool = Tool.define(
             filepath,
             exists,
             diagnostics,
-            filediff: {
-              file: filepath,
-              patch: diff,
-              additions: stats?.additions ?? 0,
-              deletions: stats?.deletions ?? 0,
-            },
+            filediffs: [
+              {
+                file: filepath,
+                patch: diff,
+                additions: stats?.additions ?? 0,
+                deletions: stats?.deletions ?? 0,
+              },
+            ],
           }
 
           return {

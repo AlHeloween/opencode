@@ -15,25 +15,27 @@ import { Truncate } from "@/tool/truncate"
 import { provideInstance, tmpdirScoped } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
+/**
+ * `edit` DRIVEN THROUGH ITS REAL LAYERS, as a BATCH (plan 2026-10-01_hash-addressed-edits, H6).
+ *
+ * The surface is one entry per file, and one file with one change is the same shape with one entry — so the
+ * cases below read as «what a batch must do», not as «what a single edit must do plus a batch add-on».
+ *
+ * The property this file exists for is the one an in-file refusal cannot show: a failure in the SECOND file
+ * must leave the FIRST untouched. Resolving everything before writing anything is what buys that, and a test
+ * that only ever batches one file would not see it.
+ *
+ * Named so the loss is not silent — the cases that did NOT survive the move to addresses: the cascade-stage
+ * cases (the cascade left the editing path) and the `exact` / `from` / `to` / `expect` cases (superseded by
+ * the address itself). What an address MEANS is asserted where it can be asserted exactly: `resolveEdits` in
+ * `edit-exact.test.ts` and the chain in `read-address.test.ts`, both pure.
+ */
+
 // FILE-level budget, and it is not decoration: every case here boots the LSP/format stack, and `edit` itself
 // carries a 5 s diagnostics budget (`DIAGNOSTICS_BUDGET`) that the code names as the thing which once made this
-// suite time out against bun's 5 000 ms default. The old file declared 30 s; that declaration was right and is
-// restored rather than rediscovered.
+// suite time out against bun's 5 000 ms default.
 setDefaultTimeout(30_000)
 
-/**
- * `edit` DRIVEN THROUGH ITS REAL LAYERS (plan 2026-10-01_hash-addressed-edits, H3).
- *
- * REWRITTEN, not adjusted: the tool's surface changed from content anchors to a LIST OF ADDRESSES, so the cases
- * that drove it with `oldString` described a tool that no longer exists. Named so the loss is not silent — the
- * cases that did NOT survive: the cascade-stage cases (the cascade is gone from the editing path), the
- * `exact`/`from`/`to`/`expect` cases (superseded by the address itself), and the per-anchor BOM/bus/format
- * spellings. The PROPERTIES they guarded are asserted here through the new surface.
- *
- * What an address MEANS is asserted where it can be asserted exactly: `resolveEdits` in `edit-exact.test.ts`
- * and the chain in `read-address.test.ts`, both pure. THIS file is the one that crosses the layers — file
- * system, backup, formatter, LSP — because that is what a caller actually meets.
- */
 afterEach(async () => {
   await Instance.disposeAll()
 })
@@ -89,22 +91,27 @@ const addresses = (content: string, spans: { line: number; to?: number; newStrin
   }))
 }
 
-describe("tool.edit — a list of addresses, through the real layers", () => {
-  it.live("applies a list in ONE write and leaves the untouched lines byte-identical", () =>
+/** A batch of one — the shape a single-file edit is, since one change IS a package of one. */
+const oneFile = (file: string, content: string, spans: { line: number; to?: number; newString: string }[]) => ({
+  files: [{ filePath: file, edits: addresses(content, spans) }],
+})
+
+describe("tool.edit — a batch of addressed changes, through the real layers", () => {
+  it.live("one entry is a batch of one: one file, one change, untouched lines byte-identical", () =>
     Effect.gen(function* () {
       const dir = yield* tmpdirScoped()
       const content = "alpha\nbeta\ngamma\ndelta\n"
       const file = `${dir}/a.txt`
       yield* put(file, content)
 
-      const result = yield* edit(dir, { filePath: file, edits: addresses(content, [{ line: 2, to: 3, newString: "X" }]) })
+      const result = yield* edit(dir, oneFile(file, content, [{ line: 2, to: 3, newString: "X" }]))
 
       expect(result.output).toContain("Edit applied successfully")
       expect(yield* readBack(file)).toBe("alpha\nX\ndelta\n")
     }),
   )
 
-  it.live("two entries in ONE call, resolved against the ORIGINAL file — the second is not moved by the first", () =>
+  it.live("two entries in ONE file, resolved against the ORIGINAL — the second is not moved by the first", () =>
     Effect.gen(function* () {
       const dir = yield* tmpdirScoped()
       const content = "one\ntwo\nthree\n"
@@ -112,14 +119,84 @@ describe("tool.edit — a list of addresses, through the real layers", () => {
       yield* put(file, content)
 
       yield* edit(dir, {
-        filePath: file,
-        edits: addresses(content, [
-          { line: 2, newString: "SECOND-A\nSECOND-B" },
-          { line: 3, newString: "THIRD" },
-        ]),
+        files: [
+          {
+            filePath: file,
+            edits: addresses(content, [
+              { line: 2, newString: "SECOND-A\nSECOND-B" },
+              { line: 3, newString: "THIRD" },
+            ]),
+          },
+        ],
       })
 
       expect(yield* readBack(file)).toBe("one\nSECOND-A\nSECOND-B\nTHIRD\n")
+    }),
+  )
+
+  it.live("a BATCH ACROSS TWO FILES lands in ONE call", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      const first = "alpha\nbeta\n"
+      const second = "one\ntwo\n"
+      const a = `${dir}/a.txt`
+      const b = `${dir}/b.txt`
+      yield* put(a, first)
+      yield* put(b, second)
+
+      const result = yield* edit(dir, {
+        files: [
+          { filePath: a, edits: addresses(first, [{ line: 1, newString: "ALPHA" }]) },
+          { filePath: b, edits: addresses(second, [{ line: 2, newString: "TWO" }]) },
+        ],
+      })
+
+      expect(result.output).toContain("2 files")
+      expect(yield* readBack(a)).toBe("ALPHA\nbeta\n")
+      expect(yield* readBack(b)).toBe("one\nTWO\n")
+    }),
+  )
+
+  it.live("a failure in the SECOND file writes NOTHING — the FIRST file is untouched", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      const first = "alpha\nbeta\n"
+      const second = "one\ntwo\n"
+      const a = `${dir}/a.txt`
+      const b = `${dir}/b.txt`
+      yield* put(a, first)
+      yield* put(b, second)
+
+      const failed = yield* edit(dir, {
+        files: [
+          // This entry WOULD resolve on its own. The point of the case is that it must not be applied anyway.
+          { filePath: a, edits: addresses(first, [{ line: 1, newString: "ALPHA" }]) },
+          { filePath: b, edits: [{ fromHash: "deadbeef", newString: "TWO" }] },
+        ],
+      }).pipe(Effect.exit)
+
+      expect(String(failed)).toContain("not in this file")
+      expect(yield* readBack(a)).toBe(first)
+      expect(yield* readBack(b)).toBe(second)
+    }),
+  )
+
+  it.live("the SAME file twice in one call is refused — one entry carries all of a file's changes", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      const content = "one\ntwo\n"
+      const file = `${dir}/c.txt`
+      yield* put(file, content)
+
+      const failed = yield* edit(dir, {
+        files: [
+          { filePath: file, edits: addresses(content, [{ line: 1, newString: "X" }]) },
+          { filePath: file, edits: addresses(content, [{ line: 2, newString: "Y" }]) },
+        ],
+      }).pipe(Effect.exit)
+
+      expect(String(failed)).toContain("name the same file")
+      expect(yield* readBack(file)).toBe(content)
     }),
   )
 
@@ -127,14 +204,18 @@ describe("tool.edit — a list of addresses, through the real layers", () => {
     Effect.gen(function* () {
       const dir = yield* tmpdirScoped()
       const content = "keep\nme\n"
-      const file = `${dir}/c.txt`
+      const file = `${dir}/d.txt`
       yield* put(file, content)
 
       const failed = yield* edit(dir, {
-        filePath: file,
-        edits: [
-          { fromHash: "deadbeef", newString: "X" },
-          { fromHash: hashLabel(0), newString: "Y" },
+        files: [
+          {
+            filePath: file,
+            edits: [
+              { fromHash: "deadbeef", newString: "X" },
+              { fromHash: hashLabel(0), newString: "Y" },
+            ],
+          },
         ],
       }).pipe(Effect.exit)
 
@@ -147,10 +228,10 @@ describe("tool.edit — a list of addresses, through the real layers", () => {
     Effect.gen(function* () {
       const dir = yield* tmpdirScoped()
       const content = "alpha\r\nbeta\r\n"
-      const file = `${dir}/d.txt`
+      const file = `${dir}/e.txt`
       yield* put(file, content)
 
-      yield* edit(dir, { filePath: file, edits: addresses(content, [{ line: 2, newString: "BETA" }]) })
+      yield* edit(dir, oneFile(file, content, [{ line: 2, newString: "BETA" }]))
 
       expect(yield* readBack(file)).toBe("alpha\r\nBETA\r\n")
     }),
@@ -159,25 +240,27 @@ describe("tool.edit — a list of addresses, through the real layers", () => {
   it.live("`content` creates a file, and refuses to overwrite an existing one", () =>
     Effect.gen(function* () {
       const dir = yield* tmpdirScoped()
-      const file = `${dir}/e.txt`
+      const file = `${dir}/f.txt`
 
-      yield* edit(dir, { filePath: file, content: "hello\n" })
+      yield* edit(dir, { files: [{ filePath: file, content: "hello\n" }] })
       expect(yield* readBack(file)).toBe("hello\n")
 
-      const refused = yield* edit(dir, { filePath: file, content: "other\n" }).pipe(Effect.exit)
+      const refused = yield* edit(dir, { files: [{ filePath: file, content: "other\n" }] }).pipe(Effect.exit)
       expect(String(refused)).toContain("already exists")
       expect(yield* readBack(file)).toBe("hello\n")
     }),
   )
 
-  it.live("neither `edits` nor `content` is refused by the tool's OWN guard", () =>
+  it.live("an entry with NEITHER `edits` nor `content` is refused by the tool's guard, which NAMES the entry", () =>
     Effect.gen(function* () {
       const dir = yield* tmpdirScoped()
-      const file = `${dir}/f.txt`
+      const file = `${dir}/g.txt`
       yield* put(file, "alpha\n")
 
-      const failed = yield* edit(dir, { filePath: file }).pipe(Effect.exit)
+      const failed = yield* edit(dir, { files: [{ filePath: file }] }).pipe(Effect.exit)
+
       expect(String(failed)).toContain("pass `edits`")
+      expect(String(failed)).toContain("files[0]")
     }),
   )
 })

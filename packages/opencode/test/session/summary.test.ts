@@ -28,6 +28,10 @@ function fileDiff(file: string, additions: number, deletions: number): MessageV2
       output: "",
       time: { start: 0, end: 1 },
       input: {},
+      // HISTORICAL SHAPE, kept ON PURPOSE: parts stored before 2026-10-01 carry `metadata.filediff` (one file),
+      // not today's `filediffs` list. The fixture pins the reader for them, because a stored record does not
+      // migrate — so the compatibility branch has a reason AND a test rather than surviving as an unexamined
+      // hedge. The live shape is pinned in `mechanical-writer.test.ts` and `summary-exact-live.test.ts`.
       metadata: { filediff: { file, patch: "", additions, deletions } },
       title: "",
     },

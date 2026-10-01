@@ -49,7 +49,6 @@ import type { GlobTool } from "@/tool/glob"
 import { TodoWriteTool } from "@/tool/todo"
 import type { GrepTool } from "@/tool/grep"
 import type { EditTool } from "@/tool/edit"
-import type { MultiEditTool } from "@/tool/multiedit"
 import type { ApplyPatchTool } from "@/tool/applypatch"
 import type { WebFetchTool } from "@/tool/webfetch"
 import type { UniversalSearchTool } from "@/tool/universalsearch"
@@ -2466,9 +2465,6 @@ function ToolPart(props: { last: boolean; part: ToolPart; message: AssistantMess
         <Match when={props.part.tool === "edit"}>
           <Edit {...toolprops} />
         </Match>
-        <Match when={props.part.tool === "multiedit"}>
-          <MultiEdit {...toolprops} />
-        </Match>
         <Match when={props.part.tool === "task"}>
           <Task {...toolprops} />
         </Match>
@@ -3220,41 +3216,56 @@ function Edit(props: ToolProps<typeof EditTool>) {
     return ctx.width > 120 ? "split" : "unified"
   })
 
-  const ft = createMemo(() => filetype(props.input.filePath))
-
-  const diffContent = createMemo(() => props.metadata.diff)
+  // `edit` takes a BATCH: ONE call may change several files, so a call is a LIST and not a file. A renderer that
+  // read a single `input.filePath` / `metadata.diff` would draw the first file and hide the rest — the batch
+  // would look like a success while most of it was never shown.
+  const filediffs = createMemo(() => props.metadata.filediffs ?? [])
+  const names = createMemo(() => {
+    const list = filediffs()
+    return list.length > 0 ? list.map((fd) => fd.file) : (props.input.files ?? []).map((f) => f.filePath)
+  })
+  const heading = createMemo(() => {
+    const list = names()
+    return list.length === 1 ? normalizePath(list[0]!) : `${list.length} files`
+  })
 
   return (
     <Switch>
-      <Match when={props.metadata.diff !== undefined}>
-        <BlockTool title={"← Edit " + normalizePath(props.input.filePath!)} part={props.part}>
-          <box paddingLeft={1}>
-            <diff
-              diff={diffContent()}
-              view={view()}
-              filetype={ft()}
-              syntaxStyle={syntax()}
-              showLineNumbers={true}
-              width="100%"
-              wrapMode={ctx.diffWrapMode()}
-              fg={theme.text}
-              addedBg={theme.diffAddedBg}
-              removedBg={theme.diffRemovedBg}
-              contextBg={theme.diffContextBg}
-              addedSignColor={theme.diffHighlightAdded}
-              removedSignColor={theme.diffHighlightRemoved}
-              lineNumberFg={theme.diffLineNumber}
-              lineNumberBg={theme.diffContextBg}
-              addedLineNumberBg={theme.diffAddedLineNumberBg}
-              removedLineNumberBg={theme.diffRemovedLineNumberBg}
-            />
-          </box>
-          <Diagnostics diagnostics={props.metadata.diagnostics} filePath={props.input.filePath ?? ""} />
+      <Match when={filediffs().length > 0}>
+        <BlockTool title={"← Edit " + heading()} part={props.part}>
+          <For each={filediffs()}>
+            {(filediff) => (
+              <>
+                <box paddingLeft={1}>
+                  <diff
+                    diff={filediff.patch}
+                    view={view()}
+                    filetype={filetype(filediff.file)}
+                    syntaxStyle={syntax()}
+                    showLineNumbers={true}
+                    width="100%"
+                    wrapMode={ctx.diffWrapMode()}
+                    fg={theme.text}
+                    addedBg={theme.diffAddedBg}
+                    removedBg={theme.diffRemovedBg}
+                    contextBg={theme.diffContextBg}
+                    addedSignColor={theme.diffHighlightAdded}
+                    removedSignColor={theme.diffHighlightRemoved}
+                    lineNumberFg={theme.diffLineNumber}
+                    lineNumberBg={theme.diffContextBg}
+                    addedLineNumberBg={theme.diffAddedLineNumberBg}
+                    removedLineNumberBg={theme.diffRemovedLineNumberBg}
+                  />
+                </box>
+                <Diagnostics diagnostics={props.metadata.diagnostics} filePath={filediff.file} />
+              </>
+            )}
+          </For>
         </BlockTool>
       </Match>
       <Match when={true}>
-        <InlineTool icon="←" pending="Preparing edit..." complete={props.input.filePath} part={props.part}>
-          Edit {normalizePath(props.input.filePath!)} {input({ changes: props.input.edits?.length ?? 1 })}
+        <InlineTool icon="←" pending="Preparing edit..." complete={names()[0]} part={props.part}>
+          Edit {heading()} {input({ changes: (props.input.files ?? []).reduce((n, f) => n + (f.edits?.length ?? 1), 0) })}
         </InlineTool>
       </Match>
     </Switch>
@@ -3391,62 +3402,11 @@ function Question(props: ToolProps<typeof QuestionTool>) {
   )
 }
 
-function MultiEdit(props: ToolProps<typeof MultiEditTool>) {
-  const ctx = use()
-  const { theme, syntax } = useTheme()
-
-  const view = createMemo(() => {
-    const diffStyle = ctx.tui.diff_style
-    if (diffStyle === "stacked") return "unified"
-    return ctx.width > 120 ? "split" : "unified"
-  })
-
-  const results = createMemo(() => (props.metadata.results ?? []) as { diff?: string; filediff?: { file: string } }[])
-  const filePath = () => props.input.filePath ?? ""
-  const ft = createMemo(() => filetype(filePath()))
-
-  return (
-    <Switch>
-      <Match when={results().length > 0}>
-        <BlockTool title={"← MultiEdit " + normalizePath(filePath())} part={props.part}>
-          <For each={results()}>
-            {(result, i) => (
-              <Show when={result.diff}>
-                <box paddingLeft={1}>
-                  <diff
-                    diff={result.diff!}
-                    view={view()}
-                    filetype={ft()}
-                    syntaxStyle={syntax()}
-                    showLineNumbers={true}
-                    width="100%"
-                    wrapMode={ctx.diffWrapMode()}
-                    fg={theme.text}
-                    addedBg={theme.diffAddedBg}
-                    removedBg={theme.diffRemovedBg}
-                    contextBg={theme.diffContextBg}
-                    addedSignColor={theme.diffHighlightAdded}
-                    removedSignColor={theme.diffHighlightRemoved}
-                    lineNumberFg={theme.diffLineNumber}
-                    lineNumberBg={theme.diffContextBg}
-                    addedLineNumberBg={theme.diffAddedLineNumberBg}
-                    removedLineNumberBg={theme.diffRemovedLineNumberBg}
-                  />
-                </box>
-              </Show>
-            )}
-          </For>
-        </BlockTool>
-      </Match>
-      <Match when={true}>
-        <InlineTool icon="←" pending="Preparing edits..." complete={filePath()} part={props.part}>
-          MultiEdit {normalizePath(filePath())}
-        </InlineTool>
-      </Match>
-    </Switch>
-  )
-}
-
+// `MultiEdit` lived here. It is GONE, not hidden: `multiedit` was retired as a tool (plan
+// 2026-10-01_hash-addressed-edits, H3) and unregistered from the catalog, so this renderer could never match a
+// part — a component for a tool that cannot run is not a fallback, it is code that will never execute and a
+// second place where the shape of an edit is spelled out. `edit` takes the list itself now, and its renderer
+// above shows every file of the batch.
 function Skill(props: ToolProps<typeof SkillTool>) {
   return (
     <InlineTool icon="→" pending="Loading skill..." complete={props.input.name} part={props.part}>

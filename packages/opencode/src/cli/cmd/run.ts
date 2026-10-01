@@ -133,15 +133,17 @@ function webfetch(info: ToolProps<typeof WebFetchTool>) {
 }
 
 function edit(info: ToolProps<typeof EditTool>) {
-  const title = normalizePath(info.input.filePath)
-  const diff = info.metadata.diff
-  block(
-    {
-      icon: "←",
-      title: `Edit ${title}`,
-    },
-    diff,
-  )
+  // A batch touches several files, so the icon row names ALL of them: a single `title` carrying only the first
+  // file would read as a one-file edit that happened to succeed — the partial-as-a-whole shape again.
+  const filediffs = info.metadata.filediffs ?? []
+  const named = filediffs.length > 0 ? filediffs.map((fd) => fd.file) : (info.input.files ?? []).map((f) => f.filePath)
+  if (filediffs.length === 0) {
+    inline({ icon: "←", title: `Edit ${named.length === 1 ? normalizePath(named[0]!) : `${named.length} files`}` })
+    return
+  }
+  for (const filediff of filediffs) {
+    block({ icon: "←", title: `Edit ${normalizePath(filediff.file)}` }, filediff.patch)
+  }
 }
 
 function task(info: ToolProps<typeof TaskTool>) {

@@ -58,7 +58,8 @@ afterEach(async () => {
 
 const EDIT_FILE = "src/session/writer-fixture.ts"
 
-/** A completed `edit` part carrying the filediff metadata the real tool leaves behind. */
+/** A completed `edit` part carrying the metadata the real tool leaves behind — `filediffs`, a LIST, since one
+ *  call may change several files. */
 function editPart(sid: SessionID, messageID: string): MessageV2.ToolPart {
   const patch = [
     "--- a/" + EDIT_FILE,
@@ -77,7 +78,10 @@ function editPart(sid: SessionID, messageID: string): MessageV2.ToolPart {
       output: "ok",
       time: { start: 0, end: 1 },
       input: { filePath: EDIT_FILE, oldString: "const A = 1", newString: "const B = 2" },
-      metadata: { filediff: { file: EDIT_FILE, patch, additions: 1, deletions: 0, status: "modified" }, diff: patch },
+      metadata: {
+        filediffs: [{ file: EDIT_FILE, patch, additions: 1, deletions: 0, status: "modified" }],
+        diff: patch,
+      },
       title: path.basename(EDIT_FILE),
     },
     sessionID: sid,

@@ -152,6 +152,22 @@ function lock(filePath: string) {
 }
 
 /**
+ * Hold EVERY file's lock for the whole batch, in a canonical order so two batches over overlapping files
+ * cannot deadlock.
+ *
+ * The batch resolves every address against each file as it was READ and only then writes, so the reads and the
+ * writes have to sit inside ONE hold: with the resolve outside it, a concurrent edit could land in between and
+ * be silently overwritten — the one failure the address exists to prevent. Nothing new is built here; it is the
+ * semaphore this file already took per file, held once for the set.
+ */
+function withFileLocks<A, E, R>(filePaths: string[], effect: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> {
+  const ordered = [...filePaths].sort()
+  const acquire = (index: number): Effect.Effect<A, E, R> =>
+    index >= ordered.length ? effect : lock(ordered[index]!).withPermits(1)(acquire(index + 1))
+  return acquire(0)
+}
+
+/**
  * Line-addressed replacement WITH the guard an address needs — see the call site for why.
  *
  * The slice is replaced BY POSITION: a range that happens to repeat elsewhere in the file must still
@@ -273,30 +289,45 @@ export function resolveEdits(content: string, edits: EditAddress[]): string {
   return result.join("\n")
 }
 
-export const Parameters = Schema.Struct({
+/**
+ * ONE file's changes — the ENTRY type, and it is exactly the shape `edit` took when it addressed a single file.
+ *
+ * That is deliberate: «что одно изменение что пачка» (owner, 2026-10-01). One change is a list of one, so there
+ * is no second spelling of «a change to a file» to keep in sync — the uniform shape IS the feature.
+ */
+const FileChange = Schema.Struct({
   filePath: Schema.String.annotate({
     description: filePathDescription("Path to the file to modify"),
   }),
-  edits: Schema.optional(Schema.Array(
-    Schema.Struct({
-      fromHash: Schema.String.annotate({
-        description:
-          "The address of the line BEFORE the span: the hash `read` printed for the line just above the first line you are changing — `00000000` for line 1, which is the state before the file. It must come from THIS file; an address that does not resolve fails the whole call.",
+  edits: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        fromHash: Schema.String.annotate({
+          description:
+            "The address of the line BEFORE the span: the hash `read` printed for the line just above the first line you are changing — `00000000` for line 1, which is the state before the file. It must come from THIS file; an address that does not resolve fails the whole call.",
+        }),
+        toHash: Schema.optional(Schema.String).annotate({
+          description: "The address of the LAST line of the span, exactly as `read` printed it. Omit it to change a single line.",
+        }),
+        newString: Schema.String.annotate({
+          description: "The text that replaces the addressed lines. May span several lines, and may be empty to delete them.",
+        }),
       }),
-      toHash: Schema.optional(Schema.String).annotate({
-        description: "The address of the LAST line of the span, exactly as `read` printed it. Omit it to change a single line.",
-      }),
-      newString: Schema.String.annotate({
-        description: "The text that replaces the addressed lines. May span several lines, and may be empty to delete them.",
-      }),
+    ).annotate({
+      description:
+        "Every change to THIS file. All of them are resolved against the file AS IT WAS READ and applied in ONE write, so no entry is affected by another.",
     }),
-  ).annotate({
-    description:
-      "The changes to apply. Every address is resolved against the file AS IT WAS READ before anything is written, so no entry is affected by another; if any address does not resolve, the call fails and NOTHING is written.",
-  })),
+  ),
   content: Schema.optional(Schema.String).annotate({
     description:
       "Create a NEW file with this content. Refused when the file already exists — address its lines instead — and never combined with `edits`.",
+  }),
+})
+
+export const Parameters = Schema.Struct({
+  files: Schema.Array(FileChange).annotate({
+    description:
+      "The files this call changes — one entry per file. Read several files, then change them all in ONE call, as one batch. Every address in EVERY entry is resolved before ANYTHING is written, so a failure anywhere writes NOTHING, in any file.",
   }),
 })
 
@@ -313,148 +344,210 @@ export const EditTool = Tool.define(
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
         Effect.gen(function* () {
-          if (!params.filePath) {
-            throw new Error("filePath is required")
-          }
-          const edits = params.edits ?? []
-          if (params.content !== undefined && edits.length > 0) {
-            throw new Error("`content` creates a new file; it cannot be combined with `edits`.")
-          }
-          if (params.content === undefined && edits.length === 0) {
-            throw new Error("pass `edits` — at least one addressed change — or `content` to create a new file.")
+          if (params.files.length === 0) {
+            throw new Error(
+              "`files` is empty — pass at least one entry, `{ filePath, edits: [{ fromHash, newString }] }`, or `{ filePath, content }` to create a file.",
+            )
           }
 
-          const filePath = path.isAbsolute(params.filePath)
-            ? params.filePath
-            : path.join(Instance.directory, params.filePath)
-          Constitution.noteMutationRisk({ tool: "edit", path: filePath, sessionID: ctx.sessionID })
-          yield* assertExternalDirectoryEffect(ctx, filePath)
+          // ONE entry per file, and the entry IS the shape a single-file edit always had — «что одно изменение
+          // что пачка» (owner, 2026-10-01). Two entries for one file have no defined order, and the list INSIDE
+          // an entry is what changes one file twice, so a duplicate is REFUSED rather than merged: the same rule,
+          // one level up, as two spans claiming one line.
+          const entries = params.files.map((entry, index) => {
+            const edits = entry.edits ?? []
+            const at = (what: string) => `files[${index}] (${entry.filePath}): ${what}`
+            if (entry.content !== undefined && edits.length > 0) {
+              throw new Error(at("`content` creates a new file; it cannot be combined with `edits`."))
+            }
+            if (entry.content === undefined && edits.length === 0) {
+              throw new Error(at("pass `edits` — at least one addressed change — or `content` to create a new file."))
+            }
+            return {
+              entry,
+              edits,
+              filePath: path.isAbsolute(entry.filePath)
+                ? entry.filePath
+                : path.join(Instance.directory, entry.filePath),
+            }
+          })
+          const seenAt = new Map<string, number>()
+          entries.forEach((item, index) => {
+            const key = AppFileSystem.resolve(item.filePath)
+            const first = seenAt.get(key)
+            if (first !== undefined) {
+              throw new Error(
+                `files[${first}] and files[${index}] name the same file (${item.filePath}) — one entry carries ALL of a file's changes; a second entry for it has no defined order.`,
+              )
+            }
+            seenAt.set(key, index)
+          })
 
-          let diff = ""
-          let contentOld = ""
-          let contentNew = ""
-          yield* lock(filePath).withPermits(1)(
+          // What the batch decided. Filled by PHASE 1, consumed after the hold is released.
+          const planned: {
+            filePath: string
+            existed: boolean
+            status: "change" | "add"
+            contentOld: string
+            contentNew: string
+            contentFinal: string
+            desiredBom: boolean
+            diff: string
+          }[] = []
+
+          yield* withFileLocks(
+            entries.map((item) => item.filePath),
             Effect.gen(function* () {
-              const existed = yield* afs.existsSafe(filePath)
-              const source = existed ? yield* Bom.readFile(afs, filePath) : { bom: false, text: "" }
-              contentOld = source.text
-              let desiredBom = source.bom
-              if (existed) yield* writeBackup(contentOld, ctx.sessionID, ctx.callID ?? "", filePath, afs)
+              // ---- PHASE 1 — RESOLVE EVERY ENTRY OF EVERY FILE. NOTHING IS WRITTEN HERE. ------------------
+              // This is the order the whole design rests on: every address is checked against the content as it
+              // was READ, so no entry has to survive an intermediate state, and a failure anywhere leaves every
+              // file in the batch exactly as it was.
+              for (const item of entries) {
+                Constitution.noteMutationRisk({ tool: "edit", path: item.filePath, sessionID: ctx.sessionID })
+                yield* assertExternalDirectoryEffect(ctx, item.filePath)
 
-              // ONE write path for both shapes; they differ only in how `contentNew` is produced. The old
-              // duplication — a create branch and an edit branch, each repeating backup/diff/ask/write/format/
-              // bus — is exactly where two spellings of one rule start to drift.
-              if (params.content !== undefined) {
-                if (existed) {
-                  throw new Error(
-                    `${filePath} already exists — \`content\` only CREATES a file. Address its lines with \`edits\`.`,
-                  )
+                const existed = yield* afs.existsSafe(item.filePath)
+                const source = existed ? yield* Bom.readFile(afs, item.filePath) : { bom: false, text: "" }
+                const contentOld = source.text
+                let contentNew: string
+                let desiredBom = source.bom
+
+                // ONE write path for both shapes; they differ only in how `contentNew` is produced.
+                if (item.entry.content !== undefined) {
+                  if (existed) {
+                    throw new Error(
+                      `${item.filePath} already exists — \`content\` only CREATES a file. Address its lines with \`edits\`.`,
+                    )
+                  }
+                  const created = Bom.split(item.entry.content)
+                  contentNew = created.text
+                  desiredBom = source.bom || created.bom
+                } else {
+                  if (!existed) {
+                    throw new Error(`${item.filePath} not found — an address can only name lines of a file that exists`)
+                  }
+                  const info = yield* afs.stat(item.filePath)
+                  if (info.type === "Directory") throw new Error(`Path is a directory, not a file: ${item.filePath}`)
+                  // The file's OWN ending is applied to the REPLACEMENTS, so an edit does not silently convert a
+                  // CRLF file. The ADDRESSES never depend on it: the chain is taken over each line WITHOUT its
+                  // terminator, which is exactly the string `read` printed.
+                  const ending = detectLineEnding(contentOld)
+                  const addressed = item.edits.map((change) => ({
+                    ...change,
+                    newString: convertToLineEnding(normalizeLineEndings(change.newString), ending),
+                  }))
+                  const applied = resolveEdits(contentOld, addressed)
+                  if (applied === contentOld) {
+                    throw new Error(`${item.filePath}: no changes to apply — the result is identical to the file.`)
+                  }
+                  const next = Bom.split(applied)
+                  contentNew = next.text
+                  desiredBom = source.bom || next.bom
                 }
-                const created = Bom.split(params.content)
-                contentNew = created.text
-                desiredBom = source.bom || created.bom
-              } else {
-                if (!existed) {
-                  throw new Error(`${filePath} not found — an address can only name lines of a file that exists`)
-                }
-                const info = yield* afs.stat(filePath)
-                if (info.type === "Directory") throw new Error(`Path is a directory, not a file: ${filePath}`)
-                // The file's OWN ending is applied to the REPLACEMENTS, so an edit does not silently convert a
-                // CRLF file. The ADDRESSES never depend on it: the chain is taken over each line WITHOUT its
-                // terminator, which is exactly the string `read` printed.
-                const ending = detectLineEnding(contentOld)
-                const addressed = edits.map((edit) => ({
-                  ...edit,
-                  newString: convertToLineEnding(normalizeLineEndings(edit.newString), ending),
-                }))
-                const applied = resolveEdits(contentOld, addressed)
-                if (applied === contentOld) {
-                  throw new Error("No changes to apply: the result is identical to the file.")
-                }
-                const next = Bom.split(applied)
-                contentNew = next.text
-                desiredBom = source.bom || next.bom
+
+                planned.push({
+                  filePath: item.filePath,
+                  existed,
+                  status: existed ? "change" : "add",
+                  contentOld,
+                  contentNew,
+                  contentFinal: contentNew,
+                  desiredBom,
+                  diff: "",
+                })
               }
 
-              diff = trimDiff(
-                (yield* Effect.promise(() => createPatch(normalizeLineEndings(contentOld), normalizeLineEndings(contentNew)))) ?? "",
-              )
-              yield* ctx.ask({
-                permission: "edit",
-                patterns: [path.relative(Instance.worktree, filePath)],
-                always: ["*"],
-                metadata: {
-                  filepath: filePath,
-                  diff,
-                },
-              })
-
-              yield* afs.writeWithDirs(filePath, Bom.join(contentNew, desiredBom))
-              if (yield* format.file(filePath)) {
-                contentNew = yield* Bom.syncFile(afs, filePath, desiredBom)
+              // ---- PHASE 2 — ASK FOR EVERY FILE BEFORE WRITING ANY OF THEM. --------------------------------
+              // Asking at write time would let a denial land after an earlier file had already been written, and
+              // the batch would be a partial apply — the one outcome the list exists to make impossible.
+              for (const plan of planned) {
+                plan.diff = trimDiff(
+                  (yield* Effect.promise(() =>
+                    createPatch(normalizeLineEndings(plan.contentOld), normalizeLineEndings(plan.contentNew)),
+                  )) ?? "",
+                )
+                yield* ctx.ask({
+                  permission: "edit",
+                  patterns: [path.relative(Instance.worktree, plan.filePath)],
+                  always: ["*"],
+                  metadata: { filepath: plan.filePath, diff: plan.diff },
+                })
               }
-              yield* bus.publish(File.Event.Edited, { file: filePath })
-              yield* bus.publish(FileWatcher.Event.Updated, {
-                file: filePath,
-                event: existed ? "change" : "add",
-              })
-              diff = trimDiff(
-                (yield* Effect.promise(() => createPatch(normalizeLineEndings(contentOld), normalizeLineEndings(contentNew)))) ?? "",
-              )
+
+              // ---- PHASE 3 — WRITE EVERY FILE, each as it was verified. ------------------------------------
+              for (const plan of planned) {
+                if (plan.existed) {
+                  yield* writeBackup(plan.contentOld, ctx.sessionID, ctx.callID ?? "", plan.filePath, afs)
+                }
+                yield* afs.writeWithDirs(plan.filePath, Bom.join(plan.contentNew, plan.desiredBom))
+                if (yield* format.file(plan.filePath)) {
+                  plan.contentFinal = yield* Bom.syncFile(afs, plan.filePath, plan.desiredBom)
+                }
+                yield* bus.publish(File.Event.Edited, { file: plan.filePath })
+                yield* bus.publish(FileWatcher.Event.Updated, { file: plan.filePath, event: plan.status })
+                plan.diff = trimDiff(
+                  (yield* Effect.promise(() =>
+                    createPatch(normalizeLineEndings(plan.contentOld), normalizeLineEndings(plan.contentFinal)),
+                  )) ?? "",
+                )
+              }
             }).pipe(Effect.orDie),
           )
 
-          let additions = 0
-          let deletions = 0
-          const stats = yield* Effect.promise(() => diffStats(contentOld, contentNew))
-          if (stats) {
-            additions = stats.additions
-            deletions = stats.deletions
+          const filediffs: Snapshot.FileDiff[] = []
+          for (const plan of planned) {
+            const stats = yield* Effect.promise(() => diffStats(plan.contentOld, plan.contentFinal))
+            filediffs.push({
+              file: plan.filePath,
+              patch: plan.diff,
+              additions: stats?.additions ?? 0,
+              deletions: stats?.deletions ?? 0,
+            })
           }
-          const filediff: Snapshot.FileDiff = {
-            file: filePath,
-            patch: diff,
-            additions,
-            deletions,
-          }
+
+          // Diagnostics are advisory and the writes have already happened, so they must never gate the return.
+          // `waitForDocumentDiagnostics` is bounded at 5s (lsp/client.ts DIAGNOSTICS_DOCUMENT_WAIT_TIMEOUT_MS),
+          // which is what a spawned-but-silent server costs — long enough to look like the tool hung, and exactly
+          // what made the whole edit suite time out at ~5 040ms against bun's 5 000ms default. ONE budget for the
+          // whole batch rather than one per file: every file is touched and the map is then read ONCE, so a batch
+          // of ten waits what a batch of one waits. Where a server answers promptly this changes nothing.
+          const diagnostics = yield* Effect.gen(function* () {
+            for (const plan of planned) yield* lsp.touchFile(plan.filePath, "document")
+            return yield* lsp.diagnostics()
+          }).pipe(
+            Effect.timeout(DIAGNOSTICS_BUDGET),
+            Effect.catch((cause) => {
+              log.debug("diagnostics skipped; reporting the edit without them", { error: cause })
+              return Effect.succeed({} as Record<string, LSPClient.Diagnostic[]>)
+            }),
+          )
 
           yield* ctx.metadata({
             metadata: {
-              diff,
-              filediff,
-              diagnostics: {},
+              filediffs,
+              diagnostics,
             },
           })
 
-          let output = "Edit applied successfully."
-          // Diagnostics are advisory and the edit has already been written, so
-          // they must never gate the return. `waitForDocumentDiagnostics` is
-          // bounded at 5s (lsp/client.ts DIAGNOSTICS_DOCUMENT_WAIT_TIMEOUT_MS),
-          // which is what a spawned-but-silent server costs on EVERY edit —
-          // long enough to look like the tool hung, and exactly what made the
-          // whole edit suite time out at ~5 040ms against bun's 5 000ms default.
-          // Where a server answers promptly this changes nothing.
-          const diagnostics = yield* lsp
-            .touchFile(filePath, "document")
-            .pipe(
-              Effect.andThen(() => lsp.diagnostics()),
-              Effect.timeout(DIAGNOSTICS_BUDGET),
-              Effect.catch((cause) => {
-                log.debug("diagnostics skipped; reporting the edit without them", { filePath, error: cause })
-                return Effect.succeed({} as Record<string, LSPClient.Diagnostic[]>)
-              }),
-            )
-          const normalizedFilePath = AppFileSystem.normalizePath(filePath)
-          const block = LSP.Diagnostic.report(filePath, diagnostics[normalizedFilePath] ?? [])
-          if (block) output += `\n\nLSP errors detected in this file, please fix:\n${block}`
+          const changed = planned.map((plan) => path.relative(Instance.worktree, plan.filePath))
+          let output =
+            changed.length === 1
+              ? "Edit applied successfully."
+              : `Edit applied successfully to ${changed.length} files.`
+          for (const plan of planned) {
+            const normalized = AppFileSystem.normalizePath(plan.filePath)
+            const block = LSP.Diagnostic.report(plan.filePath, diagnostics[normalized] ?? [])
+            if (block) {
+              output += `\n\nLSP errors detected in ${path.relative(Instance.worktree, plan.filePath)}, please fix:\n${block}`
+            }
+          }
 
           return {
             metadata: {
               diagnostics,
-              diff,
-              filediff,
+              filediffs,
             },
-            title: `${path.relative(Instance.worktree, filePath)}`,
+            title: changed.length === 1 ? changed[0]! : `${changed.length} files`,
             output,
           }
         }),

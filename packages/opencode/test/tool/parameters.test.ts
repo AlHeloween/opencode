@@ -86,17 +86,29 @@ describe("tool parameters", () => {
   })
 
   describe("edit", () => {
-    test("accepts a list of addressed changes", () => {
-      expect(parse(Edit, { filePath: "/a", edits: [{ fromHash: "00000000", newString: "y" }] })).toEqual({
-        filePath: "/a",
-        edits: [{ fromHash: "00000000", newString: "y" }],
+    test("accepts a BATCH — one entry per file, each with its own list of addressed changes", () => {
+      expect(
+        parse(Edit, {
+          files: [
+            { filePath: "/a", edits: [{ fromHash: "00000000", newString: "y" }] },
+            { filePath: "/b", content: "hello" },
+          ],
+        }),
+      ).toEqual({
+        files: [
+          { filePath: "/a", edits: [{ fromHash: "00000000", newString: "y" }] },
+          { filePath: "/b", content: "hello" },
+        ],
       })
     })
-    test("`content` alone is accepted — a created file has no lines to address", () => {
-      expect(parse(Edit, { filePath: "/a", content: "hello" }).content).toBe("hello")
+    test("an entry with NEITHER `edits` nor `content` still decodes — the refusal is the tool's, and it can name the entry", () => {
+      // Asserting the LAYER on purpose. A `SchemaError` cannot say WHICH entry is wrong; the guard in `execute`
+      // can, as `files[2] (x.ts): …`. The price is that this shape reaches `execute`, and it is named here
+      // rather than hidden: a schema test can see that the door is open, but it cannot see that the guard holds.
+      expect(parse(Edit, { files: [{ filePath: "/a" }] }).files[0]!.filePath).toBe("/a")
     })
-    test("rejects missing filePath", () => {
-      expect(accepts(Edit, { edits: [] })).toBe(false)
+    test("rejects a call with no `files` at all", () => {
+      expect(accepts(Edit, {})).toBe(false)
     })
   })
 

@@ -54,7 +54,10 @@ function toolEditPart(file: string, patch: string, additions: number, deletions:
       time: { start: 0, end: 1 },
       input: { filePath: file, oldString: "a", newString: "b" },
       metadata: {
-        filediff: { file, patch, additions, deletions, status: "modified" as const },
+        // The LIVE shape: a list, because one call may change several files. What the historical single-file and
+        // `multiedit` shapes are still read for is pinned by the case below, on purpose, so that the
+        // compatibility branch carries a reason AND a test instead of surviving as an unexamined hedge.
+        filediffs: [{ file, patch, additions, deletions, status: "modified" as const }],
         diff: patch,
       },
       title: path.basename(file),
@@ -99,12 +102,14 @@ describe("Exact: tool filediffs for summary (no Fossil)", () => {
         time: { start: 0, end: 1 },
         input: { filePath: "/a.ts", content: "x" },
         metadata: {
-          filediff: {
-            file: "/a.ts",
-            patch: "--- a\n+++ b\n+x\n",
-            additions: 1,
-            deletions: 0,
-          },
+          filediffs: [
+            {
+              file: "/a.ts",
+              patch: "--- a\n+++ b\n+x\n",
+              additions: 1,
+              deletions: 0,
+            },
+          ],
         },
         title: "a.ts",
       },

@@ -296,7 +296,7 @@ describe("tool.write", () => {
 
           expect(result.output.startsWith("REJECTED —")).toBe(true)
           expect(result.metadata.diagnostics).toEqual({})
-          expect(result.metadata.filediff.file).toBe(filepath)
+          expect(result.metadata.filediffs[0]!.file).toBe(filepath)
 
           const existed = yield* Effect.promise(() =>
             fs.access(filepath).then(

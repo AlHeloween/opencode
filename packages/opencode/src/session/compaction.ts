@@ -1379,7 +1379,7 @@ export function renderFileDiffLegend(
   return [
     sidecar
       ? `- tool_diff: system Exact (snapshot range diff — fossil anchors + tool metadata; file bodies via sessionread of this range)`
-      : `- tool_diff: system Exact (write/edit/multiedit filediff from session DB; file bodies via sessionread of this range)`,
+      : `- tool_diff: system Exact (write/edit filediffs from session DB; file bodies via sessionread of this range)`,
     `  files=${diffs.length}; additions=${additions}; deletions=${deletions}`,
     // `N: line` is an addition (its number is in the NEW file); `N: −line` is a removal (its number is
     // the position it had in the OLD one) — the only address a deleted line can have.

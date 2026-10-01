@@ -770,9 +770,14 @@ export const layer: Layer.Layer<
               : {}),
           },
         })
-        // Track changed files for snapshot
-        const filediff = output.metadata?.filediff as { file?: string } | undefined
-        if (filediff?.file) ctx.changedFiles.add(filediff.file)
+        // Track changed files for snapshot. A tool call may touch SEVERAL files — `edit` takes a batch — so the
+        // per-call diff is a LIST now, and reading only the first would silently drop every other file from the
+        // snapshot's changed set. That is the exact shape of failure this file exists to prevent: a partial that
+        // reports as a whole.
+        const filediffs = output.metadata?.filediffs as { file?: string }[] | undefined
+        for (const filediff of filediffs ?? []) {
+          if (filediff?.file) ctx.changedFiles.add(filediff.file)
+        }
         yield* settleToolCall(toolCallID)
       })
 

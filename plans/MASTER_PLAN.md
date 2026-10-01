@@ -105,8 +105,8 @@ missing: the handoff permitted «until that lands» without saying what would ru
 |---|---|
 | plans completed | 185 |
 | plans active | 21 |
-| tasks passed / total | 674 / 924 |
-| open boxes | 102 |
+| tasks passed / total | 682 / 926 |
+| open boxes | 96 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -263,15 +263,9 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   sv: intention "`edit` addresses by CONTENT through a nine-stage fuzzy cascade whose loosest stage tolerates half the middle lines (measured 2026-10-01, probe C), so how much drift is forgiven is decided by the TOOL and said nowhere; `read` prints absolute line numbers and the read side has `offset`/`limit` ranges, while the write side cannot consume an address at all -> the caller can state the precision it needs (`exact`), a fuzzy hit names the stage that fired, and a range-plus-guard mode lets the numbers just read be used without line drift deciding what gets written" · keywords []
   - F5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-01_hash-addressed-edits.md` — 7 open / 7 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-01_hash-addressed-edits.md` — 1 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "`read` prints a line number and nothing else, so `edit` must be told WHAT a slice says — and because a model's anchor drifts in whitespace and indentation, the tool answers with a ten-stage fuzzy cascade whose loosest step forgives half of the middle lines, silently. That one path produced three separate defects in a single day: a promise of atomicity that was never implemented, a stage that matched and said nothing, and an address mode that demanded a parameter it then discarded. -> `read` prints a CHAINED hash per line, so an address says what the FILE is rather than where a line is; ONE tool `edit` takes `edits: [...]`, resolves every entry against the original content and only then applies, and no fuzzy stage exists. A wrong hash does not land approximately — it does not land at all." · keywords []
-  - H0 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - H1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - H2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - H3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - H4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - H5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - File [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - H7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-01_tool-description-contracts.md` — 6 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "36 tool descriptions ride the KV-stable prefix and make promises the code does not always keep (multiedit atomicity, grep's line format, recall's reach); the work fixing them ran under a parent-goal anchor no plan declared -> one line of work that owns that anchor, where every promise in a description is either pinned by a test that fails without it or removed from the text" · keywords []

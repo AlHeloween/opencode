@@ -6063,3 +6063,15 @@ Classified TEST (pre-S6 encoding «recovery pointer last»). Re-pinned: one poin
 block after it. 89/0, mutation red at :353, reverted 106/0. stash@{0} red-proof-tmp dropped on the owner's yes (de33e440).
 
 [2026-10-02T07:05Z] plan cua-windows-debug-input T3 - B-native-bg fixture on the IDD virtual monitor: run 20261002T070413Z 7/7 PASS (experiments/2026-10-02_cua-virtual-monitor-t3/, offline driver 02b94871). Minimized = no image + named screenshot_error; virtual monitor own pixels + capture-bound UIA and pixel clicks; owner focus/cursor kept. One HARNESS fail fixed (predicate on truncated stdout). Virtual monitor still 800x600 despite the owner's report. Residual: T3b (OpenGL/WebView2 screen-region targets), T9 (Alt).
+
+## [2026-10-02] announce-then-stop: model drops the call, the loop no longer drops the turn
+Plan: plans/2026-10-02_announce-then-stop.md (revision 2). Branch claude/wizardly-agnesi-bde437, not merged.
+DONE: 07b9ed7a7a Level 5 retry in SessionProcessor (stop + colon-ended text + no call → EmptyResponseError);
+3da87807d3 @hono/standard-validator declared (fresh install broke the server routes); 6517ed7db1 step-finish
+stores rawFinishReason; 25dc16e75f the census `bug:` false alarm removed from provider/transform.ts.
+Evidence: run ids in the plan's Results; typecheck exit 0. Diagnosis: completion 671 reasoning + 24 output tokens
+= the announcement only; no call, no DSML; 1 of 451 stop+text+no-call steps in the DB ends with a colon.
+OPEN: L1 live confirmation on the next promoted binary (owner). Separate gap: src/provider/models/ is gitignored
+while transform.test.ts and packages/opencode/AGENTS.md treat the catalog JSON as committed.
+Merged into Local_Development 2026-10-02 by Claude (cherry-pick, branch base was fb8cd6e663) WITHOUT 3da87807d3 — the same
+dependency landed once as e5ebc3eb14 (the catalog form, from claude/confident-ritchie-244412).

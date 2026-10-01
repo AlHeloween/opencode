@@ -3,8 +3,9 @@
 # Announce-then-stop: the model drops the call, the loop must not drop the turn
 
 - **plan_id:** 2026-10-02_announce-then-stop
-- **revision:** 1
-- **state:** IMPLEMENTED (S1–S3 below); W1–W2 are owner-side wire items, plan only
+- **revision:** 2
+- **state:** IMPLEMENTED — S1–S6 done and verified in branch `claude/wizardly-agnesi-bde437`; one box
+  open: L1, the live confirmation, owed against the next binary the owner builds and promotes
 - **found by:** owner's measurement 2026-10-02 (Smit, `deepseek`/`deepseek-flash`, variant `max`,
   step `msg_0f965705b001HE9fqp352z0Dqq`, created 05:36:09 local)
 
@@ -44,24 +45,55 @@ their call (`tool-calls`) — the normal shape the model was imitating.
       «a colon inside a finished answer is not an announcement».
 - [x] **S3 — memory correction:** the «CoT never round-tripped» memory is stale for this runtime
       (59/77 at 2026-10-02).
+- [x] **S4 — the provider's raw finish reason is STATE** (revision 2; replaces W1). AI SDK 7 hands
+      `rawFinishReason` to the `finish-step` event, so no wire code is needed: the `step-finish` part
+      stores it beside the turn timings (`message-v2.ts` `StepFinishPart.rawFinishReason`,
+      `processor.ts`). The content census W1 asked for already IS state — the stored text, reasoning
+      and tool parts of the step; only the raw reason was missing. Commit `6517ed7db1`.
+- [x] **S5 — the census false alarm removed** (revision 2; replaces W2). `provider/transform.ts` is not
+      `provider/gateway/**`, so it is not wire work. The `bug:` marker is gone; the `reasoning census`
+      already counts the fill (cotAbsent → cotEmpty) and shows a real loss (cotText in > out).
+      Commit `25dc16e75f`.
+- [x] **S6 — fresh-install defect: `@hono/standard-validator`** (found while running S2). hono-openapi
+      1.3.1 imports it unconditionally while listing it as an optional peer; nothing declared it, so
+      `bun.lock` never carried it and every fresh `bun install --frozen-lockfile` broke the server
+      routes. Declared at 0.2.3 (newest inside the peer range ^0.2.0). Commit `3da87807d3`.
+- [ ] **L1 — live confirmation.** Against the next binary the owner builds and promotes: a
+      deepseek-flash step that stops right after a colon-ended announcement shows the Level 5 warn
+      and a retry instead of an idle turn, and every new `step-finish` row carries `rawFinishReason`.
+      Instrument: the read-only DB probe used above (`part.data` of type `step-finish`).
 
-## Owner-side (wire — diagnosis and plan only, not implemented by Claude)
-
-- **W1 — keep a per-step wire receipt.** Today the only evidence of what the provider returned is the
-  usage arithmetic. Log once per step, at the stream boundary: raw `finish_reason`, count of
-  `delta.content` chars, `delta.reasoning_content` chars, `delta.tool_calls` fragments. One line,
-  printed even at zero. Then the next «was it the model?» is read, not computed.
-- **W2 — the census WARN is mislabelled.** `provider.transform` warns «empty reasoning injected on
-  tool-call turns — vendor CoT round-trip is lost» for every `cotAbsent` turn. On this request all
-  18 were steps with `tokens.reasoning = 0`: nothing was lost, `""` is the vendor-required filler.
-  Warn only for turns that HAD reasoning text upstream and reach the wire empty.
+W1/W2 of revision 1 were filed as owner-side wire items; both turned out to be off the wire —
+`rawFinishReason` arrives through the SDK event, and the transform is not the gateway (the memory's
+boundary is `packages/opencode/src/provider/gateway/**`). Raw SSE capture stays the owner's, and is no
+longer needed for this question.
 
 ## Residual
 
 - Announcements without a trailing colon («I'll run the tests now.» + stop) are not caught; the
   corpus has none, and the lexical form has a 100 % false-positive rate. Revisit with data.
+  reopen_when: a stop+text+no-call step without a colon is found mid-task in the DB.
 - Retry leaves the announcement text part in the message; the retried attempt appends its own parts
   after it. Replay shows «…the focused test:» followed by the call — the shape it promised.
+- **Not in this branch's power:** the fix reaches Smit only after a rebuild and promotion into `bin\`
+  (owner's procedure), and the branch reaches `Local_Development` only by the owner's merge — the
+  main tree carries Smit's uncommitted `run.ts` / `run-lifetime.test.ts`.
+- **Desktop-app trap (owner decided to keep `origin/HEAD` as is, 2026-10-02):** `origin/HEAD` points
+  at `origin/dev`, the upstream mirror, and the app births new worktrees on it — this one started on
+  upstream `10765ff2a9` and its first-loaded AGENTS.md was upstream's (default branch `dev`, «run
+  `bun run generate`», «regenerate the SDK»). Re-based on `Local_Development` before any work; nothing
+  from upstream was followed. Same day, on the owner's choice: `git remote set-url --push upstream
+  no_push`, and the 11 stale `branch.Local_Development.github-pr-owner-number` entries (closed,
+  unmerged upstream PR #34719) removed. Fetch from upstream stays — the owner reads its code, never
+  merges it.
+- **Plan-to-code gap, separate issue:** `packages/opencode/src/provider/models/` is in `.gitignore`
+  (line 193) while `test/provider/transform.test.ts` calls `openrouter.json` «the COMMITTED CATALOG»
+  and `packages/opencode/AGENTS.md` says to commit those JSON files separately. On a fresh checkout
+  that test fails with ENOENT. Not fixed here — which side is right is the owner's call.
+- **Fresh worktree prerequisites** (ignored build outputs, copied from the main tree for these runs):
+  `packages/wasm/core/pkg`, `packages/wasm/markdownify/pkg`, `packages/opencode/src/provider/
+  models-snapshot.{js,d.ts}`, `packages/opentui-spinner/dist`, `packages/opencode/src/provider/
+  models/openrouter.json`.
 
 ## Smoke Tests
 
@@ -84,7 +116,26 @@ From `packages/opencode`, one named file, through `D:\zPython\opencode\tools\cmd
    `opentui-spinner` (×2), both absent from a fresh worktree. Zero errors in `processor.ts` or the
    test file. Environment, not this change — Inferred; confirm on the main tree's install.
 
-Worktree environment notes (no tracked effect): the ignored wasm `pkg/` build outputs were copied
-from the main tree; `bun install --frozen-lockfile` does not produce the optional peer
-`@hono/standard-validator` that the main tree's older install hoisted into
-`node_modules/.bun/node_modules/@hono/`, so it was junctioned in from the main tree's store.
+Worktree environment notes: the ignored wasm `pkg/` build outputs were copied from the main tree;
+`bun install --frozen-lockfile` did not produce `@hono/standard-validator` (the main tree's older
+install had hoisted 0.1.5 into `node_modules/.bun/node_modules/@hono/`), so revision 1 ran with a
+temporary junction into the main tree's store. Revision 2 removed the junction and fixed the cause (S6).
+
+### Results, revision 2 (2026-10-02)
+
+4. S6 — RED, junction removed: run `20261001T233925Z_d943ecc1`, **1 pass / 14 fail**, «Cannot find
+   module '@hono/standard-validator'». As predicted ✓ GREEN after the declaration + `bun install`
+   (lock diff: 3 lines): run `20261001T234011Z_c0f9bc2e`, **15 / 0** ✓ `consolidate_catalog.py
+   --dry-run`: nothing about the new entry ✓
+5. S4 — RED: run `20261001T234218Z_0a0b520f`, the new case fails `rawFinishReason` Expected "stop" /
+   Received undefined, 15 others pass. As predicted ✓ GREEN: run `20261001T235431Z_e8ebc5e8`,
+   **16 / 0** ✓ consumer test `finish-step.test.ts` (named by codegraph): run
+   `20261001T235526Z_ee758d24`, **6 / 0** ✓
+6. S5 — RED: run `20261001T235623Z_45dbc125`, the new case finds the «…round-trip is lost» entry in
+   `Log.bugReport()`, 3 others pass. As predicted ✓ GREEN: run `20261001T235645Z_b220540d`, **4 / 0** ✓
+   `transform-reasoning.test.ts`: **27 / 0** ✓ `transform.test.ts`: first 169 / 1 — the 1 is ENOENT on
+   the ignored `models/openrouter.json` (see Residual), not this change; with the file present, run
+   `20261001T235731Z_352b0cc3`, **170 / 0** ✓
+7. typecheck with the build outputs present: runs `20261001T235507Z_aaa3576c` and
+   `20261001T235736Z_9665ba5c`, **exit 0** ✓ — revision 1's five TS2307 were the missing build outputs,
+   now confirmed (Exact) rather than Inferred.

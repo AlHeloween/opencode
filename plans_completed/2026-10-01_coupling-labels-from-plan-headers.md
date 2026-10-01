@@ -4,7 +4,7 @@
 
 - **plan_id:** 2026-10-01_coupling-labels-from-plan-headers
 - **revision:** 1
-- **state:** ACTIVE
+- **state:** DONE
 - **owner decision (2026-10-01):** «Давай!» — on option (b): source the labels from the plans' own SV headers
   instead of reviving the hand-kept memory map (option (a)). Supersedes the 2026-09-22 placement of the map in
   memory («Раз мы убрали summary — мы обязаны заполнять и сопровождать эту форму в memory», quoted at
@@ -84,9 +84,10 @@ parent-goal-md5: 00000000000000000000000000000000
       new source.
       **Green:** 13 pass / 0 fail / 34 expect (`20260930T232202Z_ceec669f`); typecheck exit 0
       (`20260930T232202Z_d9eea723`).
-      ✗ **The wiring's oracle is L4 and it is NOT met** — nothing here proves production now resolves
-      `d99945d67a57440775f414e816c78773`; that needs a rebuilt binary. A hermetic unit test of `planLabels`
-      against a fixture plans dir is the alternative pin and is NOT written.
+      ✓ **The wiring's oracle is L4 and it is MET** — see the box below: on the owner's rebuilt binary the
+      note reports zero `vector-off-plan` findings with `checked ≥ 1`, and a deliberately foreign parent
+      produces exactly one. The alternative pin — a hermetic unit test of `planLabels` on a fixture plans
+      dir — stayed unnecessary and is NOT written; that is a recorded decision, not an oversight.
 - [x] ✓ **L3 — the dead source is gone (2026-10-01), with ONE refusal.** `parsePlanMap` removed from
       `src/memory/spine.ts`, together with the three doc mentions it left behind (`PlanMapEntry`'s, the
       `map` param's, and `planHeaderLabel`'s own header). Its test case is gone, but **two of its
@@ -112,8 +113,19 @@ parent-goal-md5: 00000000000000000000000000000000
       behaviour), and the line prints ONE total for two axes, so «5», not «0», is the honest reading — but
       the vector axis is clean. That is the wiring proven in production, which no unit test in the commit
       could show.
-      ✗ The second half of L4 — «one turn with an undeclared 32-hex parent → exactly one finding» — is NOT
-      exercised: it needs a turn carrying a bad parent, which no turn has produced since.
+      ✓ **Its SECOND half is now exercised too, deliberately rather than by accident (2026-10-01).** One
+      reply was ended on purpose with `parent-goal-md5: 11111111111111111111111111111111` — a label no plan
+      declares — and the note on the NEXT user message read, verbatim:
+
+      ```
+      coupling: 20 vector link(s), 8 manifest(s) · 6 finding(s) — vector-off-plan msg_0f4b123e6001B8mStl65qLIPH7 → parent-goal-md5 11111111111111111111111111111111 is not a label in the plan map · manifest-names-missing-plan plans/2026-09-30_drop-penalty-sampling-params.md P8 has no file on disk — the record outlived its plan (MOVED) · manifest-names-missing-plan plans/2026-09-30_turn-commit-slot.md R1 has no file on disk — the record outlived its plan (MOVED) · manifest-names-missing-plan plans/2026-09-30_turn-commit-slot.md R2 has no file on disk — the record outlived its plan (MOVED) · manifest-names-missing-plan plans/2026-09-30_turn-commit-slot.md R3 has no file on disk — the record outlived its plan (MOVED) · manifest-names-missing-plan plans/2026-09-30_turn-commit-slot.md R4 has no file on disk — the record outlived its plan (MOVED)
+      ```
+
+      The finding, verbatim: `vector-off-plan msg_0f4b123e6001B8mStl65qLIPH7 → parent-goal-md5
+      11111111111111111111111111111111 is not a label in the plan map`. The turn that carried the foreign
+      parent: `msg_0f4b123e6001B8mStl65qLIPH7`. `checked` rose 19 → 20, and the five manifest findings are
+      byte-identical to the previous turn — the two axes did not interfere. **The falsifier did NOT fire:**
+      exactly one finding named that message, not zero and not two.
 
 ## Smoke Tests
 

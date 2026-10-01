@@ -1,5 +1,28 @@
 # Progress Log
 
+## [2026-10-01 00:05Z] coupling labels from plan headers — L4 closed on BOTH halves; plan → plans_completed/
+
+✓ **L4 negative half, produced deliberately.** Robot session `ses_f0e3e4801ffefwaT00Co8CHgZX`, step 1 (cmd_runner
+`20260930T234037Z_ed89ef29`, deepseek-flash): reply `msg_0f4b123e6001B8mStl65qLIPH7` ended with
+`parent-goal-md5: 11111111111111111111111111111111`. The note on the next user message
+(`msg_0f4b2d51e001JoJ6AM9eT29A7B`), read by the VERIFIER straight from `opencode.db`, not from the robot's report:
+`coupling: 20 vector link(s), 8 manifest(s) · 6 finding(s) — vector-off-plan msg_0f4b123e6001B8mStl65qLIPH7 → …`
+— exactly one vector finding, naming that turn; the other five are the manifest axis (`MOVED`, unchanged).
+Positive half was already met (0 `vector-off-plan` at `checked = 18`). Verifier re-run before closure:
+`vector-coupling.test.ts` + `svm.test.ts` **23 pass / 0 fail**, `bun typecheck` exit 0.
+
+✗ **Robot step 2 stalled and was killed at the 1200 s cmd_runner timeout** (`20260930T234231Z_82d53c38`, exit 1):
+its `multiedit` on the plan completed at ~23:42:50Z, then no `step-finish` and no next step for 19.5 min. The
+plan edits it made are correct and kept; the `git mv` + commit were done by the verifier. Cause Unknown —
+candidate: the same session open concurrently in the owner's TUI (`bin/`). The assistant row
+`msg_0f4b2de3e001xvfjXG8QAGTW21` is left without `finish`.
+
+✗ **`run --format json` printed no `text` event for step 1** although the DB holds the reply text — the stream
+showed only `step_start`. A silent json stream is not evidence of an empty reply; read the DB.
+
+✗ **`run … --file <f> "<message>"`: `--file` is an array option and swallows the trailing positional** — the first
+launch failed `File not found: <message>`. Put the message BEFORE `--file`. (robot skill's launch line has it after.)
+
 ## [2026-09-30 15:48Z] grep: a match is now an ADDRESS plus a BOUNDED window — before, the window was anchored at the line start and could omit the match it reported
 
 ✓ **Defect, measured.** `grep.ts` rendered each match as the WHOLE line, clipped from the START: `match.text.substring(0, MAX_LINE_LENGTH)`. On a minified line — one line of megabytes — a match at char 5,000 was reported as `Found 1 matches` while the printed 2,000 characters did **not** contain it. A false absence and a false presence from the same anchor error, and the caller could not tell which.

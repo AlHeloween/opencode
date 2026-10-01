@@ -52,10 +52,18 @@ Write it to `experiments/<ISO-date>_robot-<task>/brief.md`:
 
 ```bash
 tools/cmd_runner.exe start --cwd D:/zPython/opencode --timeout-s 1800 --raw --no-tail -- \
-  D:/zPython/opencode/dist/bin/opencode.exe run --dir D:/zPython/opencode \
+  D:/zPython/opencode/dist/bin/opencode.exe run "Follow the attached brief exactly." --dir D:/zPython/opencode \
   --model opencode/<free-model> --agent build --format json --title "<plan>:<task>" \
-  --file experiments/<dir>/brief.md "Follow the attached brief exactly."
+  --file experiments/<dir>/brief.md
 ```
+
+- ✗ → ✓ (measured 2026-10-01, run `20260930T234022Z_dedc9a8e`): the MESSAGE goes BEFORE `--file`. `--file` is an
+  array option and swallows a trailing positional — the run fails `File not found: <message>`.
+- ✗ (measured 2026-10-01): `--format json` may print only `step_start` while the DB holds the full reply. A
+  silent stream is not an empty reply — read the turn from `.opencode/data/opencode.db` (`part` by `message_id`).
+- ✗ (measured 2026-10-01, run `20260930T234231Z_82d53c38`): a run continued with `--session` on a session the
+  owner also has open in the TUI stalled after a tool result until the timeout. Cause Unknown; prefer a fresh
+  `--title` session for robot work, or ask the owner to close that session first.
 
 - cmd_runner gives the timeout (plan B8) and a run dir with `state.json`; `--raw` = clean stdout but
   all-or-nothing (memory `reference_cmd_runner_raw_buffers`) — read it after `cmd_runner wait <id>`.

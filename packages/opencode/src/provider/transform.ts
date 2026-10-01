@@ -254,22 +254,13 @@ function normalizeMessages(
     // The injection below is a 400-guard, not a feature: DeepSeek rejects a
     // tool-call turn whose `reasoning_content` is missing. Filling it with ""
     // ALSO converts a loud vendor error into silent CoT loss, which is how
-    // 262k empty tool-call turns shipped unnoticed. Count the holes it plugs
-    // so the silence stops being free.
-    const silentHoles = msgs.filter(
-      (msg) =>
-        msg.role === "assistant" &&
-        Array.isArray(msg.content) &&
-        msg.content.some((part) => part.type === "tool-call") &&
-        !msg.content.some((part) => part.type === "reasoning"),
-    ).length
-    if (silentHoles > 0)
-      tlog.warn("bug: empty reasoning injected on tool-call turns — vendor CoT round-trip is lost", {
-        providerID: model.providerID,
-        modelID: model.id,
-        apiNpm: model.api.npm,
-        turns: silentHoles,
-      })
+    // 262k empty tool-call turns shipped unnoticed (2026-09-13). The holes it
+    // plugs are counted by the `reasoning census` in `message()` — cotAbsent in,
+    // cotEmpty out — and NOT reported as a bug: measured 2026-10-02, every one of
+    // 18 filled turns on a live deepseek-flash request had `tokens.reasoning = 0`
+    // in the DB. The model did not think on those steps; the fill is correct.
+    // A real loss is CoT text that existed upstream and is gone here — the
+    // census's cotText in/out shows that.
     msgs = msgs.map((msg) => {
       if (msg.role !== "assistant") return msg
       if (Array.isArray(msg.content)) {

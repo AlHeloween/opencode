@@ -5986,3 +5986,14 @@ Oracle: global-agent-stage + agent-model-cell 31/0; bun typecheck exit 0. Open: 
 
 [2026-10-02] /agents global Save settings — CLOSED. Owner verdict on the live TUI: «Шикарно, можно коммитить.»
 Plan moved to plans_completed/ (commits 3d553f1381, 89a86cf168).
+
+## [2026-10-02] CORRECTION — the «relative path breaks cmd_runner» and «health-check BOM» defects were MINE
+✗ Retracted: both «defects» sent to the cmd_runner session were the OLD binary. Python's env has
+NoDefaultCurrentDirectoryInExePath=1 and `D:\zPython\opencode\bin` is on PATH (index 63), so CreateProcess resolved
+`tools/cmd_runner.exe` (a «bare» name — `/` is not a separator for it) to `bin\tools\cmd_runner.exe` (2026-07-01,
+sha cf804633…). Runs 20261001T211850Z_0dcf7772, 20261001T211948Z_8b229445 and the relative-path probe executed
+that binary — an UNINTENDED launch from bin/ (forbidden without owner permission), disclosed to the owner.
+Delegate's proof: QueryFullProcessImageNameW on the spawned process; new binary 335db660 in a scratch tools\ → raw-pipe,
+no BOM, health-check writer without BOM too (AdidCmdRunnerSession.pas:1345). No cmd_runner change needed.
+Rule for harnesses: call cmd_runner by ABSOLUTE path (or `tools\cmd_runner.exe`); never `tools/…` from Python.
+Owner decision pending: `bin\tools\cmd_runner.exe` (old) shadows any bare `tools/cmd_runner.exe` from cwd-less callers.

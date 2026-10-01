@@ -161,6 +161,10 @@ export const Parameters = Schema.Struct({
   replaceAll: Schema.optional(Schema.Boolean).annotate({
     description: "Replace all occurrences of oldString (default false)",
   }),
+  exact: Schema.optional(Schema.Boolean).annotate({
+    description:
+      "Require a LITERAL match for oldString (default false). The matcher is fuzzy by design — a padded or drifted anchor still applies — and the report does not say which stage matched. Set `exact: true` when the anchor must be found verbatim: a miss then fails the call instead of landing near it.",
+  }),
 })
 
 export const EditTool = Tool.define(
@@ -237,7 +241,7 @@ export const EditTool = Tool.define(
               const old = convertToLineEnding(normalizeLineEndings(params.oldString), ending)
               const replacement = convertToLineEnding(normalizeLineEndings(params.newString), ending)
 
-              const next = Bom.split(replace(contentOld, old, replacement, params.replaceAll))
+              const next = Bom.split(replace(contentOld, old, replacement, params.replaceAll, params.exact))
               const desiredBom = source.bom || next.bom
               contentNew = next.text
 
@@ -911,25 +915,34 @@ export function trimDiff(diff: string): string {
   return trimmedLines.join("\n")
 }
 
-export function replace(content: string, oldString: string, newString: string, replaceAll = false): string {
+export function replace(content: string, oldString: string, newString: string, replaceAll = false, exact = false): string {
   if (oldString === newString) {
     throw new Error("No changes to apply: oldString and newString are identical.")
   }
 
   let notFound = true
 
-  for (const replacer of [
-    SimpleReplacer,
-    LineEndingNormalizedReplacer,
-    LineTrimmedReplacer,
-    BlockAnchorReplacer,
-    WhitespaceNormalizedReplacer,
-    IndentationFlexibleReplacer,
-    EscapeNormalizedReplacer,
-    TrimmedBoundaryReplacer,
-    ContextAwareReplacer,
-    MultiOccurrenceReplacer,
-  ]) {
+  // The cascade, IN ORDER — and its head is the exact match. `exact` runs the head ALONE: the caller
+  // has declared that its anchor must be found literally, so a miss is a refusal instead of a guess.
+  // The guess stays available to every caller who has not ruled it out, because it is what keeps a
+  // drifting anchor from failing (measured 2026-10-01: a padded anchor applies, and so does an anchor
+  // whose three of six middle lines differ — the loosest stage's 50 % threshold, sat exactly).
+  const replacers = exact
+    ? [SimpleReplacer]
+    : [
+        SimpleReplacer,
+        LineEndingNormalizedReplacer,
+        LineTrimmedReplacer,
+        BlockAnchorReplacer,
+        WhitespaceNormalizedReplacer,
+        IndentationFlexibleReplacer,
+        EscapeNormalizedReplacer,
+        TrimmedBoundaryReplacer,
+        ContextAwareReplacer,
+        MultiOccurrenceReplacer,
+      ]
+
+  for (const replacer of replacers) {
     for (const search of replacer(content, oldString)) {
       const index = content.indexOf(search)
       if (index === -1) continue
@@ -944,7 +957,11 @@ export function replace(content: string, oldString: string, newString: string, r
   }
 
   if (notFound) {
-    throw new Error("Could not find oldString in the file after normalized matching. Include unique surrounding text.")
+    throw new Error(
+      exact
+        ? "Could not find oldString in the file EXACTLY — `exact: true` disables the fuzzy stages, so the anchor must match the file literally. Include unique surrounding text."
+        : "Could not find oldString in the file after normalized matching. Include unique surrounding text.",
+    )
   }
   throw new Error("Found multiple matches for oldString. Provide more surrounding context to make the match unique.")
 }

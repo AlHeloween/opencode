@@ -17,6 +17,10 @@ const Edit = Schema.Struct({
   replaceAll: Schema.optional(Schema.Boolean).annotate({
     description: "Replace all occurrences of oldString (default false)",
   }),
+  exact: Schema.optional(Schema.Boolean).annotate({
+    description:
+      "Require a LITERAL match for oldString in this entry (default false). The matcher is fuzzy: a padded or drifted anchor still applies, and the report does not say which stage matched. Set `exact: true` when the anchor must be found verbatim — a miss then fails the whole call instead of landing near it.",
+  }),
 })
 
 export const Parameters = Schema.Struct({
@@ -38,7 +42,7 @@ export const MultiEditTool = Tool.define(
       description: DESCRIPTION,
       parameters: Parameters,
       execute: (
-        params: { filePath: string; edits: { oldString: string; newString: string; replaceAll?: boolean }[] },
+        params: { filePath: string; edits: { oldString: string; newString: string; replaceAll?: boolean; exact?: boolean }[] },
         ctx: Tool.Context,
       ) =>
         Effect.gen(function* () {
@@ -94,7 +98,7 @@ export const MultiEditTool = Tool.define(
             const old = convertToLineEnding(normalizeLineEndings(edit.oldString), ending)
             const replacement = convertToLineEnding(normalizeLineEndings(edit.newString), ending)
             try {
-              current = replace(current, old, replacement, edit.replaceAll)
+              current = replace(current, old, replacement, edit.replaceAll, edit.exact)
             } catch (cause) {
               throw new Error(
                 `multiedit: edit ${index + 1} of ${params.edits.length} did not apply. ` +

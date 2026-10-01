@@ -11,10 +11,12 @@ import { toJsonSchema } from "../../src/util/effect-zod"
 
 import { Parameters as ApplyPatch } from "../../src/tool/applypatch"
 import { Parameters as Bash } from "../../src/tool/bash"
+import { Parameters as Compare } from "../../src/tool/compare"
 import { Parameters as Edit } from "../../src/tool/edit"
 import { Parameters as Glob } from "../../src/tool/glob"
 import { Parameters as Grep } from "../../src/tool/grep"
 import { Parameters as Invalid } from "../../src/tool/invalid"
+import { Parameters as List } from "../../src/tool/ls"
 import { Parameters as Lsp } from "../../src/tool/lsp"
 import { Parameters as Plan } from "../../src/tool/plan"
 import { Parameters as Question } from "../../src/tool/question"
@@ -30,6 +32,16 @@ const parse = <S extends Schema.Decoder<unknown>>(schema: S, input: unknown): S[
 
 const accepts = (schema: Schema.Decoder<unknown>, input: unknown): boolean =>
   Result.isSuccess(Schema.decodeUnknownResult(schema)(input))
+
+// The property NAMES are the contract this file can cheapest fail on — and `compare` and `list`
+// were simply ABSENT here, which is why `compare.Parameters.ignore` could be accepted-and-never-read
+// (`execute` did not look at it once) without a single red. A snapshot of a schema is a picture; the
+// names are what the tool promises the model, so they are asserted directly: re-adding `ignore` has
+// to fail, and so does losing a field a reader relies on.
+const propertyNames = (schema: Schema.Top): string[] => {
+  const json = toJsonSchema(schema) as { properties?: Record<string, unknown> }
+  return Object.keys(json.properties ?? {}).sort()
+}
 
 describe("tool parameters", () => {
   describe("JSON Schema (wire shape)", () => {
@@ -48,6 +60,13 @@ describe("tool parameters", () => {
     test("todo", () => expect(toJsonSchema(Todo)).toMatchSnapshot())
     test("webfetch", () => expect(toJsonSchema(WebFetch)).toMatchSnapshot())
     test("write", () => expect(toJsonSchema(Write)).toMatchSnapshot())
+
+    test("compare exposes exactly the three parameters its description documents", () => {
+      expect(propertyNames(Compare)).toEqual(["pathA", "pathB", "verbose"])
+    })
+    test("list exposes exactly the five parameters its description documents", () => {
+      expect(propertyNames(List)).toEqual(["dates", "directoriesOnly", "gitignore", "ignore", "path"])
+    })
   })
 
   describe("applypatch", () => {

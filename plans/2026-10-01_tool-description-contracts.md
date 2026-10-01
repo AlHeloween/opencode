@@ -133,16 +133,29 @@ Never the reverse direction: behaviour is not bent to fit a test, and a test is 
         чистыми и был прав ✓ Первый вывод — «чужая незакоммиченная рука» — был **ЛОЖНЫМ** ✗ и снят здесь
         же ✓ Приём: байтовое сравнение с git-блобом обязано нормализовать переводы строк, иначе оно
         измеряет ФОРМАТ, а не изменение ✓
+      - **(б) ЗАКРЫТ (второй заход):** `compare` и `list` были **отсутствуют в сьюте схем** ✗
+        (`parameters.test.ts` знал 15 тулов, этих двух нет ✓) ⇒ возврат `ignore` не покраснел бы ✗
+        ИСПРАВЛЕНО — и **с ОТКЛОНЕНИЕМ ОТ БУКВЫ БОКСА, названным честно**: бокс говорил «добавить в
+        снапшот-сьют», а сделано **именованное утверждение на НАБОР ИМЁН ПОЛЕЙ** ✓ — снапшот схемы это
+        картинка, которую читает только тот, кто уже подозревает ✗, тогда как имена полей и есть обещание
+        тулу модели ✓ `propertyNames()` через ту же `toJsonSchema`, что эмитит схемы в промпт ✓:
+        `compare` — ровно `[pathA, pathB, verbose]`, `list` — ровно `[dates, directoriesOnly, gitignore,
+        ignore, path]` ✓
+        Оракулы: GREEN **53 pass / 0 fail** (`20261001T054026Z_78a77d68` ✓ — 51+2, и СЧЁТ подтверждает, что
+        добавились именно два ✓); **мутация** (возврат `ignore` в `compare.Parameters`) — **RED ровно на
+        моём пине**: `parameters.test.ts:65`, `Received` несёт `+ "ignore"`, а 52 прочих (включая 15
+        снапшотов) не шевельнулись ✓ (`20261001T054043Z_417766b6` ✓) ⇒ упало ИЗМЕРЕНИЕ, а не харнесс ✓;
+        откат доказан **контролем в том же дыхании**: `MUTATION` — ноль ✗, а `verbose` (обязан совпасть)
+        — 2 попадания ✓ (фильтр видит файл ✓), плюс `git status -- packages/opencode/src/` пуст ✓;
+        GREEN на финальном дереве **55 pass / 0 fail** (`20261001T054118Z_5aef656d` ✓, вместе с `list.test.ts` ✓)
       - **ОСТАТКИ, названные явно (поэтому бокс остаётся `[ ]`):** (а) **третий класс**, которого контракт
         в двух вариантах не предусмотрел ✗ — фразы ИСТИННЫЕ, но НЕ пинуемые тестом (`list`: `dates`,
-        `directoriesOnly`; `compare`: `verbose`); (б) `compare` и `list` **отсутствуют в снапшот-сьюте схем**
-        — `parameters.test.ts` знает 15 тулов, этих двух нет ✗ ⇒ возврат `ignore` или порча `Parameters`
-        не покраснеет ✗; (в) рабочее дерево несёт ЧУЖОЕ незакоммиченное состояние ВНЕ `src/tool/`:
-        ` M .claude/skills/aicall/SKILL.md` и три untracked каталога (`.claude/skills/opencode-bridge/`,
-        `packages/.opencode/`, `packages/httpapi-codegen/`) — не тронуты и в коммит не взяты ✓; (г) `grep`
-        на НЕВАЛИДНОМ регексе отвечает «No matches found»
-        вместо ошибки ✗ — воспроизведено: `MUTATION|const notice` → 1 попадание ✓, `MUTATION|const
-        notice|+ notice` → «No matches» ✗ (класс инструмента, вне C2)
+        `directoriesOnly`; `compare`: `verbose`); (в) рабочее дерево несёт ЧУЖОЕ незакоммиченное состояние
+        ВНЕ `src/tool/`: `.claude/skills/aicall/SKILL.md` и три untracked каталога
+        (`.claude/skills/opencode-bridge/`, `packages/.opencode/`, `packages/httpapi-codegen/`) — не тронуты
+        и в коммит не взяты ✓; (г) `grep` на НЕВАЛИДНОМ регексе отвечает «No matches found» вместо ошибки ✗
+        — воспроизведено: `MUTATION|const notice` → 1 попадание ✓, `MUTATION|const notice|+ notice` →
+        «No matches» ✗ (класс инструмента, вне C2)
 - [ ] **C3 — shell tools:** `bash`, `cmd`, `powershell`, `run`.
 - [ ] **C4 — search / memory tools:** `codegraph`, `dbread`, `fossilgrep`, `logsearch`, `sessionread`,
       `summaryedit`, `universalsearch`, `webfetch`.

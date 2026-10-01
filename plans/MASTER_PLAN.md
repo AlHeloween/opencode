@@ -270,7 +270,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 - `plans/2026-10-01_tool-description-contracts.md` — 6 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "36 tool descriptions ride the KV-stable prefix and make promises the code does not always keep (multiedit atomicity, grep's line format, recall's reach); the work fixing them ran under a parent-goal anchor no plan declared -> one line of work that owns that anchor, where every promise in a description is either pinned by a test that fails without it or removed from the text" · keywords []
-  - C2 [PENDING] · sv MISSING · manifest: Пять описаний приведены к коду — у list/list это правка поведения с красным-до, мутацией и зелёным, у остальных исправление текста и снятие кернел-прозы, — а бокс остаётся открытым на трёх классах, названных явно. · eta 3 · doing
+  - C2 [PENDING] · sv MISSING · manifest: Два тула, которых сьют схем не знал, теперь пинуются по именам полей — с мутацией, покрасневшей ровно на этом пине, — а бокс открыт на непроверенном ПОВЕДЕНИИ трёх флагов и на `compare`, у которого нет ни одного теста. · eta 2 · doing
   - C3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - C4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - C5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is

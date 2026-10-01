@@ -1,37 +1,20 @@
-Writes a file to the local filesystem. Overwrites if the file already exists.
-
-For a partial change to a file that already exists, prefer `edit`: it takes the addresses `read`
-printed and applies a whole list of changes in one call.
+Write a whole file — create it, or replace it entirely. For a change to a file you have read, use `edit`: it takes the addresses `read` printed.
 
 ## Behavior
 
-- **Creates parent directories** automatically — no need to `mkdir` first.
-- **LSP diagnostics** run on the written file and come back in `metadata.diagnostics`.
-- **An overwrite keeps the file's form**: its encoding (UTF-8, UTF-8 with BOM, UTF-16 LE/BE) and its line
-  ending — the one MOST of the file uses; your line breaks are rewritten to it. A new file is written as you
-  send it (a leading BOM in `content` is honoured).
-- **Delphi sources** (`.pas .dpr .dpk .inc .dfm .dproj`) are always written as UTF-8 with BOM and CRLF, new or
-  existing. **A legacy ANSI file** is converted to UTF-8 with BOM and CRLF. Either conversion is NAMED in the
-  result (`converted from … to …`).
-- **Diff** comes back in `metadata.filediffs` — a LIST, one entry per file, each carrying `file`,
-  `patch`, `additions` and `deletions`.
-
-## When to Use vs Edit
-
-- **Write**: a file that does not exist yet, or one you are replacing WHOLESALE (you are holding the
-  whole content anyway).
-- **Edit**: a change to a file you have already read — addresses printed by `read`, one call, every
-  entry resolved before anything is written. `edit` can create a file too (`content`), so the
-  difference is not «new vs existing»: it is «the whole file at once» vs «addressed changes».
+- Parent directories are created.
+- **An overwrite keeps the file's form**: its encoding (UTF-8, UTF-8 with BOM, UTF-16 LE/BE) and its line ending; your breaks are fitted to it. A new file is written as sent.
+- **Delphi** (`.pas .dpr .dpk .inc .dfm .dproj`) is always saved as UTF-8 with BOM + CRLF; a **legacy ANSI** file is converted to the same. Any conversion is NAMED in the result.
+- LSP diagnostics come back in `metadata.diagnostics`; the diff in `metadata.filediffs`.
 
 ## Do NOT
 
-- Create documentation files (*.md) or README files proactively — only if explicitly requested.
-- Create files unless absolutely necessary for the task. Prefer editing existing files.
+- Create documentation or README files unless asked.
+- Create files the task does not need — prefer changing existing ones.
 
 ## Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `filePath` | string | Path to the file to write |
-| `content` | string | The full file content |
+| Parameter | Description |
+|---|---|
+| `filePath` | The file to write. |
+| `content` | The whole file content. |

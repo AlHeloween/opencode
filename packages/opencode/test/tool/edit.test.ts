@@ -370,6 +370,64 @@ describe("tool.edit — encodings and endings, read back as BYTES", () => {
     }),
   )
 
+  // H10 — the hole closes BY CONSTRUCTION: the address is over the DECODED text, so an edit is only ever applied
+  // in the page the model READ the file in. A different page does not resolve — a refusal, never a conversion
+  // of garbage.
+  it.live("a GBK file edited with `encoding: gbk` is converted from GBK, every character intact", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      const gbk = new Uint8Array([0x61, 0x0a, 0xc4, 0xe3, 0xba, 0xc3, 0x0a]) // "a\n你好\n" in GBK
+      const file = `${dir}/legacy.txt`
+      yield* putBytes(file, gbk)
+
+      const result = yield* edit(dir, {
+        files: [{ filePath: file, encoding: "gbk", edits: addresses("a\n你好\n", [{ line: 1, newString: "A" }]) }],
+      })
+
+      expect(yield* readBytes(file)).toEqual(utf8("A\r\n你好\r\n", true))
+      expect(result.output).toContain("ANSI gbk")
+    }),
+  )
+
+  it.live("addresses read in ONE page do not resolve in ANOTHER — the file is left untouched", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      const gbk = new Uint8Array([0x61, 0x0a, 0xc4, 0xe3, 0xba, 0xc3, 0x0a])
+      const file = `${dir}/legacy.txt`
+      yield* putBytes(file, gbk)
+
+      // Read as GBK (line 2 is «你好»), edited as windows-1252: line 2 is different text there, so its hash
+      // — and every hash after it — is not in the file the edit decoded.
+      const failed = yield* edit(dir, {
+        files: [
+          {
+            filePath: file,
+            encoding: "windows-1252",
+            edits: addresses("a\n你好\n", [{ line: 2, to: 2, newString: "x" }]),
+          },
+        ],
+      }).pipe(Effect.exit)
+
+      expect(String(failed)).toContain("not in this file")
+      expect(yield* readBytes(file)).toEqual(gbk)
+    }),
+  )
+
+  it.live("an unknown code page label is refused, naming the entry", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      const file = `${dir}/legacy.txt`
+      yield* putBytes(file, new Uint8Array([0x61, 0x0a]))
+
+      const failed = yield* edit(dir, {
+        files: [{ filePath: file, encoding: "klingon", edits: [{ fromHash: hashLabel(0), newString: "x" }] }],
+      }).pipe(Effect.exit)
+
+      expect(String(failed)).toContain("files[0]")
+      expect(String(failed)).toContain("not a code page")
+    }),
+  )
+
   it.live("a BINARY file is refused — the seed address resolves in ANY file, so the guard must be the tool's", () =>
     Effect.gen(function* () {
       const dir = yield* tmpdirScoped()

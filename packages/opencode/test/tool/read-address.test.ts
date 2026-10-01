@@ -151,6 +151,19 @@ describe("read — the line address (pure)", () => {
     expect(result.hashes).toEqual(plain.hashes)
   })
 
+  test("a chosen code page reads a legacy file as ITS text — the same lines and addresses as UTF-8 (H10)", async () => {
+    const gbk = Buffer.from([0x61, 0x0a, 0xc4, 0xe3, 0xba, 0xc3, 0x0a]) // "a\n你好\n" in GBK
+    const chosen = await withFile("g.txt", "", async (p) => {
+      await writeFile(p, gbk)
+      return lines(p, { limit: 10, offset: 1, codepage: "gbk" })
+    })
+    const plain = await withFile("u.txt", "a\n你好\n", (p) => lines(p, { limit: 10, offset: 1 }))
+
+    expect(chosen.raw).toEqual(plain.raw)
+    expect(chosen.hashes).toEqual(plain.hashes)
+    expect(chosen.codepage).toBe("gbk")
+  })
+
   test("a non-UTF-8 byte PAST the window still decides the encoding — the window must not", async () => {
     // Line 1 is ASCII and is the only line returned; the cp1251 byte sits on line 3. If the window decided the
     // encoding, line 1's text would be the same either way — but the TALLY would have streamed UTF-8 over a

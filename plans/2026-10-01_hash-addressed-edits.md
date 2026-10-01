@@ -286,6 +286,26 @@ Baseline before any edit: pure `read-address` + `edit-exact` **37 pass / 0 fail*
       lines in the diff; control run **15 snapshots, none added**. `edit.txt`/`write.txt`/`read.txt` say what
       the code does; the false «Unicode normalization» promise is gone.
 
+- [x] ✓ **H10 — DONE.** `TextCodec.codePage` (canonical name; unknown and UTF labels refused), `decode(…, codepage)`,
+      `read`/`edit` `encoding`, the `<encoding>` line on a legacy read. Red before → green after: codec 3, read-address
+      1, read.test 3 (+1 guard: a UTF-8 file prints no `<encoding>`), edit.test 2 (+1 guard: a page mismatch is a
+      refusal with the file untouched). Mutation — `edit` ignores the chosen page — the GBK case red, restored.
+      Also found while checking the owner's «если по глупости кто-нибудь откатит»: `registry.test.ts:103` asserted
+      `toContain("multiedit")` and had been RED since H3 unregistered it — the suite was left behind. Turned to
+      `not.toContain` with provenance; re-registering multiedit (import + init + list) is red at `:109`,
+      `registry.ts` restored byte-identical. Tool texts (`read.txt`, `edit.txt`, `write.txt`) rewritten short; an
+      unbacked «EXIF» claim dropped. Final: pure **67/0**, integration (edit, write, read, registry, parameters,
+      multiedit) **151/0**, snapshots 15 none added, `bun typecheck` exit 0.
+  **The decision H10 implements** (owner, 2026-10-01: «понять что там сможет только модель, значит
+      у модели должна быть возможность правильного чтения, разумеется cp1251 по умолчанию, но можно выбирать.
+      Тогда все будет ок и для edit тоже самое и дырка красиво закрывается»). `read` and `edit` take `encoding`
+      — a WHATWG label for a LEGACY file only (not UTF-8, no BOM); default the host page. `read` NAMES the page
+      in its output when a file is legacy, so the model can see a wrong decode and re-read. The hole closes by
+      construction: the address is over the DECODED text, so an edit decoded in a different page than the read
+      does not resolve — a refusal, never a conversion of garbage. A UTF label is refused there (it would decode
+      a legacy file to U+FFFD). Oracles: codec/read-address/edit-exact pure cases, a GBK file through `read`
+      and `edit` integration (bytes read back), the mismatch refusal, schema snapshot with control.
+
 **Residual:** `applypatch` / `src/patch` still decode UTF-8 only — INERT, the tool is not in the registry.
 Not changed: a second spelling of this codec in a module nobody can call would be work nobody reads.
 

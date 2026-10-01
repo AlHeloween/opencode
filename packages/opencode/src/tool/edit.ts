@@ -363,6 +363,10 @@ const FileChange = Schema.Struct({
     description:
       "Create a NEW file with this content. Refused when the file already exists — address its lines instead — and never combined with `edits`.",
   }),
+  encoding: Schema.optional(Schema.String).annotate({
+    description:
+      "The code page a LEGACY file (not UTF-8, no BOM) was READ in — pass exactly the `encoding` you gave `read`; default: this host's ANSI page. The addresses are over the decoded text, so a different page does not resolve. Ignored for UTF-8 and BOM files.",
+  }),
 })
 
 export const Parameters = Schema.Struct({
@@ -404,9 +408,22 @@ export const EditTool = Tool.define(
             if (entry.content === undefined && edits.length === 0) {
               throw new Error(at("pass `edits` — at least one addressed change — or `content` to create a new file."))
             }
+            // The page the model READ a legacy file in (H10). Validated here, before any file is touched.
+            const codepage = entry.encoding === undefined ? undefined : TextCodec.codePage(entry.encoding)
+            if (entry.encoding !== undefined && codepage === undefined) {
+              throw new Error(
+                at(
+                  `\`encoding\` ${JSON.stringify(entry.encoding)} is not a code page — pass the legacy page you read the file in, e.g. windows-1251, windows-1252, gbk.`,
+                ),
+              )
+            }
+            if (entry.encoding !== undefined && entry.content !== undefined) {
+              throw new Error(at("`encoding` names the page an EXISTING legacy file is read in; a new file has none."))
+            }
             return {
               entry,
               edits,
+              codepage,
               filePath: path.isAbsolute(entry.filePath)
                 ? entry.filePath
                 : path.join(Instance.directory, entry.filePath),
@@ -486,7 +503,7 @@ export const EditTool = Tool.define(
                 // Decoded through the SAME codec `read` uses, so the text the addresses were printed over is the
                 // text they resolve against — in every encoding, the BOM never part of line 1.
                 const bytesOld = new Uint8Array(yield* afs.readFile(item.filePath))
-                const source = TextCodec.decode(bytesOld, item.filePath)
+                const source = TextCodec.decode(bytesOld, item.filePath, item.codepage)
                 if (source.kind === "binary") {
                   throw new Error(
                     `${item.filePath} is a binary file — \`edit\` addresses text lines only. Inspect it with \`read\` and \`hex: true\`.`,

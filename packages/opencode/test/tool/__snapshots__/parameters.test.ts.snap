@@ -100,6 +100,10 @@ exports[`tool parameters JSON Schema (wire shape) edit 1`] = `
             },
             "type": "array",
           },
+          "encoding": {
+            "description": "The code page a LEGACY file (not UTF-8, no BOM) was READ in — pass exactly the \`encoding\` you gave \`read\`; default: this host's ANSI page. The addresses are over the decoded text, so a different page does not resolve. Ignored for UTF-8 and BOM files.",
+            "type": "string",
+          },
           "filePath": {
             "description": "Path to the file to modify. Prefer a path relative to the project working directory (e.g. "src/foo.ts", "experiments/x"). Absolute paths are allowed only when they resolve under the working directory or worktree. Do not invent foreign OS user paths (e.g. C:\\Users\\other\\... unrelated to this project).",
             "type": "string",
@@ -314,6 +318,10 @@ exports[`tool parameters JSON Schema (wire shape) read 1`] = `
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
+    "encoding": {
+      "description": "The code page of a LEGACY file — one that is neither UTF-8 nor marked by a BOM: windows-1251, windows-1252, gbk, shift_jis, ibm866… Default: this host's ANSI page. Such a file's output names the page it was read in; if the text looks wrong, read it again with the right one, and pass the same \`encoding\` to \`edit\`. Ignored for UTF-8 and BOM files.",
+      "type": "string",
+    },
     "filePath": {
       "description": "Path to the file or directory to read. Prefer a path relative to the project working directory (e.g. "src/foo.ts", "experiments/x"). Absolute paths are allowed only when they resolve under the working directory or worktree. Do not invent foreign OS user paths (e.g. C:\\Users\\other\\... unrelated to this project).",
       "type": "string",

@@ -86,22 +86,36 @@ export function hostCodePage(): string | undefined {
     log.warn("bug: host ANSI code page unreadable", { exitCode: result.exitCode, stderr: result.stderr.toString() })
     return undefined
   }
-  const label = CODEPAGE_LABELS[page] ?? `windows-${page}`
-  // The decoder is the judge of the label: one it does not know is no page at all, not a page to guess around.
-  const known = (() => {
-    try {
-      new TextDecoder(label)
-      return true
-    } catch (error) {
-      log.warn("bug: host ANSI code page has no decoder", { page, label, error })
-      return false
-    }
-  })()
-  hostPage = { label: known ? label : undefined }
+  const label = codePage(CODEPAGE_LABELS[page] ?? `windows-${page}`)
+  if (label === undefined) log.warn("bug: host ANSI code page has no decoder", { page })
+  hostPage = { label }
   return hostPage.label
 }
 
-export function decode(bytes: Uint8Array, filePath: string): Decoded {
+/**
+ * A legacy code page by any label the decoder knows — `cp1251`, `windows-1252`, `gbk`, `866` — as its CANONICAL
+ * name, or undefined. The decoder is the judge: a label it does not know is no page at all, not a page to guess
+ * around. A UTF label is refused: a file reaches the code-page path only because it is NOT valid UTF-8 and has
+ * no BOM, so «read it as UTF-8» would decode it to U+FFFD and the save would make that permanent.
+ */
+export function codePage(label: string): string | undefined {
+  const canonical = (() => {
+    try {
+      return new TextDecoder(label).encoding
+    } catch (error) {
+      log.debug("not a code page label", { label, error })
+      return undefined
+    }
+  })()
+  return canonical === undefined || canonical.startsWith("utf-") ? undefined : canonical
+}
+
+/**
+ * `codepage` is the MODEL's choice for a legacy file (plan H10: «понять что там сможет только модель … cp1251 по
+ * умолчанию, но можно выбирать»), already canonical (`codePage`); absent, the host's page. It never overrides
+ * what the bytes SAY — a BOM or valid UTF-8 decides on its own.
+ */
+export function decode(bytes: Uint8Array, filePath: string, codepage?: string): Decoded {
   const bom = bomEncoding(bytes)
   if (bom === "utf-8-bom") return { kind: "text", encoding: bom, text: new TextDecoder("utf-8").decode(bytes.subarray(3)) }
   if (bom === "utf-16le" || bom === "utf-16be") {
@@ -109,11 +123,14 @@ export function decode(bytes: Uint8Array, filePath: string): Decoded {
   }
   if (looksBinary(filePath, bytes)) return { kind: "binary" }
   if (isUtf8(bytes)) return { kind: "text", encoding: "utf-8", text: new TextDecoder("utf-8").decode(bytes) }
-  const codepage = hostCodePage()
-  if (codepage === undefined) {
-    return { kind: "undecodable", reason: "not UTF-8, no BOM, and this host has no ANSI code page to read it in" }
+  const page = codepage ?? hostCodePage()
+  if (page === undefined) {
+    return {
+      kind: "undecodable",
+      reason: "not UTF-8, no BOM, and this host has no ANSI code page — pass `encoding` with the file's code page",
+    }
   }
-  return { kind: "text", encoding: "ansi", codepage, text: new TextDecoder(codepage).decode(bytes) }
+  return { kind: "text", encoding: "ansi", codepage: page, text: new TextDecoder(page).decode(bytes) }
 }
 
 export function encode(text: string, encoding: TextEncoding): Uint8Array {
@@ -183,7 +200,7 @@ export function fit(filePath: string, source: Decoded | undefined, text: string,
   const from = describe(fromEncoding, original?.encoding === "ansi" ? original.codepage : undefined, sent.text)
   const why =
     original?.encoding === "ansi"
-      ? ` — a legacy code page cannot hold every script. It was read as ${original.codepage}; if the file was in another code page, the diff shows it and the backup holds the original bytes`
+      ? ` — a legacy code page cannot hold every script. It was read as ${original.codepage}; if that was not its code page, \`restore\` the backup (it holds the original bytes) and edit again with \`encoding\` set to the right one`
       : isDelphi(filePath)
         ? " — Delphi sources are kept in UTF-8 with BOM and CRLF"
         : ""

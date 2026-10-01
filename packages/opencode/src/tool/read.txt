@@ -1,82 +1,36 @@
-Read a file or directory from the local filesystem. Supports text files, images, binary documents, archives, media files, and hex dumps.
-Read entire file before judgment or modification (entire file when under 100KB; use offset/limit for larger files).
+Read a file or a directory. Read the whole file before judging or changing it (offset/limit for files over 100 KB). Read independent files in parallel.
 
-## Document Conversion
+## Text files
 
-The tool automatically detects and converts binary document formats to markdown:
-- **PDF** (.pdf)
-- **Word/Excel/PowerPoint** (.docx, .xlsx, .xlsm, .xlsb, .pptx, .pptm)
-- **OpenDocument** (.ods, .odt, .odp)
-- **Web** (.html, .htm, .xml, .rss, .atom)
-- **JSON & text** (.json, .txt, .md, .csv)
+Every line is printed as `<line>  <hash>: <text>`, e.g. `470  3f19c2ea: text` — the address `edit` takes.
 
-Conversion uses WASM (in-process, fast) with native binary fallback.
+- The hash is a chain over the file up to that line: identical lines get different hashes, and any change above a line changes its hash. Same file, same hashes — on every read, for CRLF and LF alike.
+- **Encodings**: UTF-8 (with or without BOM) and UTF-16 LE/BE are detected. A **legacy** file (not UTF-8, no BOM) is read in this host's code page and its output says so in `<encoding>`. If the text looks wrong, read it again with `encoding` set to its page (`gbk`, `windows-1252`, …) and pass the same `encoding` to `edit`.
+- **Long lines** are wrapped, never cut: continuation chunks start with `↳+<charOffset>: `. The address covers the whole line.
+- Up to 2000 lines or 50 KB per read; the footer tells you the `offset` to continue from.
+- A missing file lists similar names.
 
-## Image & Media Files
+## Other files
 
-- **Images** (PNG, JPEG, GIF, WebP, etc.) are returned as base64 data URL attachments visible in the UI.
-- **Audio/video files** — metadata (EXIF) is extracted and returned.
-- **Archive files** (.zip, .tar, .gz, .7z) — contents are listed and individual files can be read.
+- **Documents** — PDF, Word/Excel/PowerPoint, OpenDocument, HTML/XML — are converted to numbered markdown. Media and archives go through the same converter.
+- **Images** come back as attachments. **Video** is attached natively, or as sampled frames when the model only takes images.
+- **Directories** list one entry per line, `/` after a directory; `offset`/`limit` page through them.
+- **Binary** files are refused unless `hex: true`.
 
-## Hex Dump Mode
-
-When the `hex` parameter is `true`, the tool outputs a formatted hex dump regardless of file type:
+## Hex mode (`hex: true`)
 
 ```
 00000000  3f19c2ea  48 65 6c 6c 6f 20 57 6f  72 6c 64 21 0a 00 00 00  |Hello World!....|
-00000010  9c0be411  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
 ```
 
-- **Row addresses**: every row is prefixed with its byte offset AND an 8-hex address, over the row's BYTES with
-  the same chain text mode uses (`h(i) = xxHash64(h(i-1) ‖ rowBytes)`, seeded at `00000000`). Two identical
-  rows get different addresses and any byte changed ABOVE a row changes its address, so a re-read that
-  reproduces a label proves the file has not moved — exactly as for a text line. The row's offset is a
-  rendering; the address is what pins the FILE.
-- **Rows are aligned to the file, not to `offset`**: `offset` means «the first row shown is the one CONTAINING
-  this byte», so the same row carries the same address in every read. Pagination moves by whole rows.
-- Byte offset `offset` (1-indexed, default: 1)
-- Byte count `limit` (default: 512 bytes), rounded up to whole rows
-- Same 50KB output cap as text mode, with pagination via `offset`
-
-## Binary Safety
-
-Binary files (executables, compiled code, binary formats) are detected and refused with a clear error message, unless `hex: true` is set. The detection checks for a BOM first (so UTF-16 text is not mistaken for binary), then the extension, NUL bytes and the share of control bytes.
-
-## Reading Text Files
-
-- **Default limit**: 2000 lines per read.
-- **Line addresses**: every text line is prefixed with `<line>  <hash>: <content>` — e.g. `470  3f19c2ea: text`.
-  The hash is a CHAIN over everything above the line (`h(i) = xxHash64(h(i-1) ‖ line(i))`, seeded at `00000000`),
-  so it names the line's position AND the state of the file up to it: two IDENTICAL lines get DIFFERENT
-  addresses, and any change above a line changes its address. It is stable (the same bytes print the same
-  labels on every read) and identical for a CRLF file and an LF file, because the line's terminator is not part
-  of the text that is hashed. A re-read that reproduces a label therefore proves the file has not moved — an
-  address you did not read from THIS file will not be found in it.
-- **Encodings**: UTF-8 with or without BOM, UTF-16 LE/BE (by its BOM) and legacy ANSI files (read in this host's
-  code page) are all read as their TEXT. A BOM is never part of line 1, and the addresses are over the text, so
-  they do not change when `edit`/`write` convert a file's encoding.
-- **Long lines**: a line over 2000 characters is WRAPPED, not truncated. The first chunk is the line itself,
-  with its address; each following chunk continues it and is prefixed with `↳+<charOffset>: ` — the position
-  INSIDE the line where it resumes (`      ↳+2000: …`). Nothing is lost and the position of any part of the
-  line is readable; a line too long for the whole output is capped with an explicit note rather than silently.
-  The ADDRESS is over the FULL text before any wrapping, so it is exact for such a line.
-- **Byte cap**: Output is capped at 50KB. If exceeded, shows the range read and suggests `offset` to continue.
-- **File not found**: Lists similar files in the same directory to help correct typos.
-- **LSP warming**: After reading, the file is touched to activate the language server for code intelligence.
-
-## Directory Listing
-
-When `filePath` points to a directory, entries are listed one per line. Directories are suffixed with `/`. Use `offset` and `limit` to paginate.
+Offset, address (the same chain, over the row's bytes), hex, ASCII. Rows are aligned to the file, so a row has one address in every read. `offset` is a 1-based byte; `limit` is bytes (default 512), rounded up to whole rows.
 
 ## Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `filePath` | string | — | Absolute path to file or directory |
-| `offset` | number | 1 | Line number (or byte offset in hex mode) to start reading from (1-indexed) |
-| `limit` | number | 2000 (text) / 512 (hex) | Maximum lines or bytes to read |
-| `hex` | boolean | false | When true, read any file as a formatted hex dump with offset and ASCII tail |
-
-## Parallel Usage
-
-Call this tool in parallel when you need to read multiple independent files.
+| Parameter | Default | Description |
+|---|---|---|
+| `filePath` | — | File or directory. |
+| `offset` | 1 | First line (byte in hex mode), 1-based. |
+| `limit` | 2000 / 512 | Lines (bytes in hex mode). |
+| `hex` | false | Read any file as a hex dump. |
+| `encoding` | host page | Code page of a legacy file; ignored for UTF-8 and BOM files. |

@@ -50,6 +50,10 @@ export const Parameters = Schema.Struct({
   hex: Schema.optional(Schema.Boolean).annotate({
     description: "When true, read a binary file as a formatted hex dump with offset and ASCII tail",
   }),
+  encoding: Schema.optional(Schema.String).annotate({
+    description:
+      "The code page of a LEGACY file — one that is neither UTF-8 nor marked by a BOM: windows-1251, windows-1252, gbk, shift_jis, ibm866… Default: this host's ANSI page. Such a file's output names the page it was read in; if the text looks wrong, read it again with the right one, and pass the same `encoding` to `edit`. Ignored for UTF-8 and BOM files.",
+  }),
 })
 
 export const ReadTool = Tool.define(
@@ -131,6 +135,14 @@ export const ReadTool = Tool.define(
     ) {
       if (params.offset !== undefined && params.offset < 1) {
         return yield* Effect.fail(new Error("offset must be greater than or equal to 1"))
+      }
+      const codepage = params.encoding === undefined ? undefined : TextCodec.codePage(params.encoding)
+      if (params.encoding !== undefined && codepage === undefined) {
+        return yield* Effect.fail(
+          new Error(
+            `\`encoding\`: ${JSON.stringify(params.encoding)} is not a code page — pass a legacy page such as windows-1251, windows-1252, gbk, shift_jis or ibm866. UTF-8 and BOM files are detected on their own.`,
+          ),
+        )
       }
 
       let filepath = params.filePath
@@ -368,16 +380,26 @@ export const ReadTool = Tool.define(
         return yield* Effect.fail(new Error(`Cannot read binary file: ${filepath}`))
       }
 
-      const file = yield* Effect.promise(() =>
-        lines(filepath, { limit: params.limit ?? DEFAULT_READ_LIMIT, offset: params.offset ?? 1 }),
-      )
+      // A refusal from the decoder (no host page) is a FAILURE the model can act on, not a defect.
+      const file = yield* Effect.tryPromise({
+        try: () => lines(filepath, { limit: params.limit ?? DEFAULT_READ_LIMIT, offset: params.offset ?? 1, codepage }),
+        catch: (error) => (error instanceof Error ? error : new Error(String(error))),
+      })
       if (file.count < file.offset && !(file.count === 0 && file.offset === 1)) {
         return yield* Effect.fail(
           new Error(`Offset ${file.offset} is out of range for this file (${file.count} lines)`),
         )
       }
 
-      let output = [`<path>${filepath}</path>`, `<type>file</type>`, "<content>\n"].join("\n")
+      // A LEGACY file says which page it was read in — bytes cannot name their code page, a reader of the text
+      // can (H10). Only then: a UTF-8 file's output stays byte-identical.
+      const legacy =
+        file.codepage === undefined
+          ? []
+          : [
+              `<encoding>ANSI ${file.codepage} — a legacy file (not UTF-8, no BOM), read in ${file.codepage}${codepage ? "" : ", this host's default"}. If the text looks wrong, read it again with \`encoding\` set to its code page, and pass the same \`encoding\` to \`edit\`. Saving converts it to UTF-8 with BOM and CRLF.</encoding>`,
+            ]
+      let output = [`<path>${filepath}</path>`, `<type>file</type>`, ...legacy, "<content>\n"].join("\n")
       output += file.raw.map((line, i) => `${i + file.offset}  ${file.hashes[i]}: ${line}`).join("\n")
 
       const last = file.offset + file.raw.length - 1
@@ -483,17 +505,22 @@ export function parseHash(label: string): number | undefined {
  * by the WHOLE file, past the window included: a window of ASCII lines over a file whose third line is cp1251
  * would otherwise stream as UTF-8 while `edit` decodes it as ANSI.
  */
-export async function lines(filepath: string, opts: { limit: number; offset: number }) {
+export async function lines(filepath: string, opts: { limit: number; offset: number; codepage?: string }) {
   const streamed = await streamUtf8(filepath, opts)
-  if (streamed) return streamed
-  const decoded = TextCodec.decode(new Uint8Array(await Bun.file(filepath).arrayBuffer()), filepath)
+  if (streamed) return { ...streamed, codepage: undefined }
+  // `codepage` is the model's choice for a legacy file (H10) — canonical, validated by the caller.
+  const decoded = TextCodec.decode(new Uint8Array(await Bun.file(filepath).arrayBuffer()), filepath, opts.codepage)
   if (decoded.kind === "binary") throw new Error(`Cannot read binary file: ${filepath}`)
   if (decoded.kind === "undecodable") throw new Error(`Cannot decode ${filepath}: ${decoded.reason}`)
   const window = lineWindow(opts)
   const parts = decoded.text.split("\n")
   if (parts.at(-1) === "") parts.pop() // the terminator of the last line opens no line of its own
   for (const part of parts) window.push(part.endsWith("\r") ? part.slice(0, -1) : part)
-  return { ...window.result(), encoding: decoded.encoding }
+  return {
+    ...window.result(),
+    encoding: decoded.encoding,
+    codepage: decoded.encoding === "ansi" ? decoded.codepage : undefined,
+  }
 }
 
 /** The UTF-8 path, streamed. `undefined` = not UTF-8 — a UTF-16 BOM, or any line that is not valid UTF-8. */

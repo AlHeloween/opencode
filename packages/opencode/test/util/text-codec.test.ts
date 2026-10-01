@@ -49,6 +49,24 @@ describe("text-codec — detection", () => {
     if (page === "windows-1251") expect(decoded.kind === "text" && decoded.text).toBe("S := 'Привет';\n")
   })
 
+  // H10. The model chooses the page — only the model can tell whether the text it reads makes sense.
+  test("an explicit code page decodes a legacy file in THAT page, named by its canonical name", () => {
+    const gbk = new Uint8Array([0xc4, 0xe3, 0xba, 0xc3, 0x0a]) // "你好\n" in GBK
+    expect(TextCodec.decode(gbk, "x.txt", "gbk")).toEqual({ kind: "text", encoding: "ansi", codepage: "gbk", text: "你好\n" })
+    // A label the decoder knows under another spelling is reported by its canonical name.
+    expect(TextCodec.codePage("cp1251")).toBe("windows-1251")
+  })
+
+  test("an unknown label, or a UTF one, is not a code page — UTF-8 would decode a legacy file to U+FFFD", () => {
+    expect(TextCodec.codePage("no-such-page")).toBeUndefined()
+    expect(TextCodec.codePage("utf-8")).toBeUndefined()
+    expect(TextCodec.codePage("utf-16le")).toBeUndefined()
+  })
+
+  test("a chosen page never overrides what the bytes SAY — UTF-8 and BOM files ignore it", () => {
+    expect(TextCodec.decode(bytes("Привет\n"), "x.txt", "gbk")).toEqual({ kind: "text", encoding: "utf-8", text: "Привет\n" })
+  })
+
   test("a NUL byte without a BOM is binary, and so is a known binary extension", () => {
     expect(TextCodec.decode(bytes("ab", [0], "cd"), "x.txt").kind).toBe("binary")
     expect(TextCodec.decode(bytes("plain"), "x.exe").kind).toBe("binary")

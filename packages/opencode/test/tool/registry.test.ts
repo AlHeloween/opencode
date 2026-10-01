@@ -100,7 +100,13 @@ describe("tool.registry", () => {
           expect(new Set(ids).size).toBe(ids.length)
           expect(ids).toSatisfy((names) => names.every((id) => /^[a-z0-9]+$/.test(id)))
           expect(ids).toContain("treediff")
-          expect(ids).toContain("multiedit")
+          // multiedit left the catalog 2026-10-01 (plan hash-addressed-edits, H3, commit 815cf266b6): ONE tool,
+          // `edit`, takes a list of chained-hash addresses resolved against the file AS READ before anything is
+          // written. A per-entry editor cannot honour that — each entry would move the chain under the next —
+          // so re-registering it breaks the address model, and must break THIS assertion. It used to read
+          // `toContain("multiedit")` and stayed red from H3 until H10 (2026-10-01): the requirement moved and
+          // the test did not move with it.
+          expect(ids).not.toContain("multiedit")
           // applypatch left the catalog 2026-09-30: measured ONCE in the whole history against
           // edit 757 / multiedit 285 / write 185, its description taught a grammar the parser
           // rejects (`*** Operation:` / `*** Path:` vs the parser's `*** Add File:`), and its

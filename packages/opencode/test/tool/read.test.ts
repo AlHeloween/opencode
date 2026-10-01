@@ -13,6 +13,7 @@ import { ReadTool } from "../../src/tool/read"
 import { Truncate } from "@/tool/truncate"
 import { Tool } from "@/tool/tool"
 import { Filesystem } from "@/util/filesystem"
+import * as TextCodec from "@/util/text-codec"
 import { provideInstance, tmpdirScoped } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
@@ -627,6 +628,71 @@ describe("tool.read — the byte-row address (hex mode)", () => {
       // — which is exactly what aligning rows to the FILE buys, and what an offset-relative row destroys.
       expect(at(narrow.output, 32)).toBeDefined()
       expect(at(narrow.output, 32)).toBe(at(wide.output, 32))
+    }),
+  )
+})
+
+/**
+ * THE MODEL CHOOSES THE CODE PAGE (plan H10). Owner, 2026-10-01: «понять что там сможет только модель, значит у
+ * модели должна быть возможность правильного чтения, разумеется cp1251 по умолчанию, но можно выбирать». Bytes
+ * cannot name their code page; a reader of the TEXT can. So a legacy file is read in the host page by default,
+ * the output SAYS which page it was read in, and `encoding` re-reads it in another.
+ */
+describe("tool.read legacy code pages", () => {
+  const GBK = Buffer.from([0x61, 0x0a, 0xc4, 0xe3, 0xba, 0xc3, 0x0a]) // "a\n你好\n" in GBK
+
+  it.live("a legacy file NAMES the page it was read in, so a wrong decode is visible", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      yield* put(path.join(dir, "legacy.txt"), GBK)
+      const page = TextCodec.hostCodePage()
+
+      // No host page: nothing honest to decode with, and the refusal must point at the way out.
+      if (page === undefined) {
+        expect((yield* fail(dir, { filePath: path.join(dir, "legacy.txt") })).message).toContain("encoding")
+        return
+      }
+      const result = yield* exec(dir, { filePath: path.join(dir, "legacy.txt") })
+      expect(result.output).toContain(`<encoding>ANSI ${page}`)
+      expect(result.output).toContain("`encoding`")
+    }),
+  )
+
+  it.live("`encoding` reads it in the chosen page — and the output names THAT page", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      yield* put(path.join(dir, "legacy.txt"), GBK)
+
+      const result = yield* exec(dir, { filePath: path.join(dir, "legacy.txt"), encoding: "gbk" })
+
+      expect(result.output).toContain("你好")
+      expect(result.output).toContain("<encoding>ANSI gbk")
+    }),
+  )
+
+  it.live("an unknown or UTF label is refused before anything is read", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      yield* put(path.join(dir, "legacy.txt"), GBK)
+
+      expect((yield* fail(dir, { filePath: path.join(dir, "legacy.txt"), encoding: "klingon" })).message).toContain(
+        "not a code page",
+      )
+      expect((yield* fail(dir, { filePath: path.join(dir, "legacy.txt"), encoding: "utf-8" })).message).toContain(
+        "not a code page",
+      )
+    }),
+  )
+
+  it.live("a UTF-8 file prints no encoding line — the common case keeps its output byte-identical", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      yield* put(path.join(dir, "plain.txt"), "a\n你好\n")
+
+      const result = yield* exec(dir, { filePath: path.join(dir, "plain.txt"), encoding: "gbk" })
+
+      expect(result.output).toContain("你好")
+      expect(result.output).not.toContain("<encoding>")
     }),
   )
 })

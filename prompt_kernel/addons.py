@@ -132,7 +132,7 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "G7",
         "TOOL_IMPLEMENT",
         (
-            "mutate: edit, multiedit, write, applypatch; crash-prone shell via cmd_runner.",
+            "mutate: edit, write; crash-prone shell via cmd_runner.",
             "shell = process orchestration only; never file browsing (constitution blocks).",
         ),
     ),
@@ -288,7 +288,7 @@ IDENTITY_ADDONS: tuple[IdentityAddon, ...] = (
         "PLAN_MODE",
         "PLAN_MODE_TOOLS",
         (
-            "tools: all except bash, cmd, jobkill, multiedit, pipeline, planenter, reasoningenter, reasoningexit, restore, run;"
+            "tools: all except bash, cmd, jobkill, pipeline, planenter, reasoningenter, reasoningexit, restore, run;"
             " write/edit: plans/ only.",
         ),
     ),
@@ -301,7 +301,7 @@ IDENTITY_ADDONS: tuple[IdentityAddon, ...] = (
         "ORCHESTRATOR_AGENT",
         "ORCHESTRATOR_AGENT_TOOLS",
         (
-            "tools: all except bash, cmd, jobkill, multiedit, pipeline, planenter, planexit, reasoningenter, reasoningexit, restore, run;"
+            "tools: all except bash, cmd, jobkill, pipeline, planenter, planexit, reasoningenter, reasoningexit, restore, run;"
             " write/edit: plans/, plans_completed/, orchestrator memory only.",
         ),
     ),
@@ -309,7 +309,7 @@ IDENTITY_ADDONS: tuple[IdentityAddon, ...] = (
         "EXPLORER_AGENT",
         "EXPLORER_AGENT_TOOLS",
         (
-            "tools: all except applypatch, bash, cmd, compact, edit, jobkill, multiedit, pipeline,"
+            "tools: all except bash, cmd, compact, edit, jobkill, pipeline,"
             " planenter, planexit, reasoningenter, reasoningexit, restore, run, summaryedit, task, write.",
         ),
     ),
@@ -317,16 +317,15 @@ IDENTITY_ADDONS: tuple[IdentityAddon, ...] = (
         "RESEARCHER_AGENT",
         "RESEARCHER_AGENT_TOOLS",
         (
-            "tools: aicall, checkstate, cua, fossilgrep, imagerender, joboutput, jobreset, jobwait,"
-            " memory, planstatus, recall, sessionread, tempdisable, tempenable, todowrite,"
-            " universalsearch, webfetch.",
+            "tools: checkstate, cua, imagerender, jobreset, memory, planstatus, recall, svm,"
+            " tempdisable, tempenable, todowrite, universalsearch, webfetch.",
         ),
     ),
     IdentityAddon(
         "GENERAL_AGENT",
         "GENERAL_AGENT_TOOLS",
         (
-            "tools: all except bash, cmd, compact, jobkill, multiedit, pipeline, planenter, planexit,"
+            "tools: all except bash, cmd, compact, jobkill, pipeline, planenter, planexit,"
             " reasoningenter, reasoningexit, restore, run, summaryedit, task; write/edit: plans/ only.",
         ),
     ),

@@ -428,7 +428,7 @@ shared_rules: [@PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @KV_CACHE_
 - After each bounded task, record actual diff, evidence delta, residual risk, and the exact oracle to run; a plan-to-code gap is a blocking defect. The record lands in the log and the plan box, never in the reply; the report waits for the boundary, an exceeded bound, or a decision only the user can take.
 - one _progress_log.md [TIMESTAMP] entry per bounded task.
 - build_mode overlay (/automode): every new-tool decision and every blocker gets one entry in agi_workout/ — its memory; product-only.
-- mutate: edit, multiedit, write, applypatch; crash-prone shell via cmd_runner.
+- mutate: edit, write; crash-prone shell via cmd_runner.
 - shell = process orchestration only; never file browsing (constitution blocks).
 - delegate: task (explorer_agent G1/G6, general_agent G2/G3, coder_agent G7/G8, researcher_agent, media_agent); pipeline chains them in declared order.
 - per-identity sampling: tight for reproducible verification, loose for generation.
@@ -584,7 +584,7 @@ tools: all except planexit, reasoningexit.
 ### PLAN_MODE
 kind: primary
 scope: Evidence and plans; no product-source mutation.
-tools: all except bash, cmd, jobkill, multiedit, pipeline, planenter, reasoningenter, reasoningexit, restore, run; write/edit: plans/ only.
+tools: all except bash, cmd, jobkill, pipeline, planenter, reasoningenter, reasoningexit, restore, run; write/edit: plans/ only.
 
 ### REASONING_MODE
 kind: primary
@@ -594,22 +594,22 @@ tools: checkstate, memory, reasoningexit.
 ### ORCHESTRATOR_AGENT
 kind: specialized
 scope: Plan and delegate; never self-authorize.
-tools: all except bash, cmd, jobkill, multiedit, pipeline, planenter, planexit, reasoningenter, reasoningexit, restore, run; write/edit: plans/, plans_completed/, orchestrator memory only.
+tools: all except bash, cmd, jobkill, pipeline, planenter, planexit, reasoningenter, reasoningexit, restore, run; write/edit: plans/, plans_completed/, orchestrator memory only.
 
 ### EXPLORER_AGENT
 kind: subagent
 scope: Read-only project grounding.
-tools: all except applypatch, bash, cmd, compact, edit, jobkill, multiedit, pipeline, planenter, planexit, reasoningenter, reasoningexit, restore, run, summaryedit, task, write.
+tools: all except bash, cmd, compact, edit, jobkill, pipeline, planenter, planexit, reasoningenter, reasoningexit, restore, run, summaryedit, task, write.
 
 ### RESEARCHER_AGENT
 kind: subagent
 scope: Internet-only research via webfetch and universalsearch source web.
-tools: aicall, checkstate, cua, fossilgrep, imagerender, joboutput, jobreset, jobwait, memory, planstatus, recall, sessionread, tempdisable, tempenable, todowrite, universalsearch, webfetch.
+tools: checkstate, cua, imagerender, jobreset, memory, planstatus, recall, svm, tempdisable, tempenable, todowrite, universalsearch, webfetch.
 
 ### GENERAL_AGENT
 kind: subagent
 scope: Design, decomposition, and root-cause analysis.
-tools: all except bash, cmd, compact, jobkill, multiedit, pipeline, planenter, planexit, reasoningenter, reasoningexit, restore, run, summaryedit, task; write/edit: plans/ only.
+tools: all except bash, cmd, compact, jobkill, pipeline, planenter, planexit, reasoningenter, reasoningexit, restore, run, summaryedit, task; write/edit: plans/ only.
 
 ### CODER_AGENT
 kind: subagent

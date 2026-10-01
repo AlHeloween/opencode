@@ -45,7 +45,9 @@ def test_tool_addons_bind_expected_gates() -> None:
     text = render_kernel(KERNEL)
     assert "- track candidates: todowrite." in _gate_block(text, "G2")
     assert "- symbols + ownership: codegraph explore/impact (impact analysis); read-only." in _gate_block(text, "G6")
-    assert "- mutate: edit, multiedit, write, applypatch; crash-prone shell via cmd_runner." in _gate_block(text, "G7")
+    # multiedit (2026-10-01) and applypatch (2026-09-30) left the catalog: a mutate line that named them taught
+    # the model two tools the runtime does not have.
+    assert "- mutate: edit, write; crash-prone shell via cmd_runner." in _gate_block(text, "G7")
     assert (
         "- shell = process orchestration only; never file browsing (constitution blocks)."
         in _gate_block(text, "G7")

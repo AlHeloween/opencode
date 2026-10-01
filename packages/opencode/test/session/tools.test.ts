@@ -139,17 +139,14 @@ describe("session.tools", () => {
         })
         // Plan mode: scoped allow (plans/* → allow) means Gate A no longer
         // blocks the edit family. Gate B (ctx.ask with real path) enforces
-        // the plan-only path boundary. multiedit is deliberately denied, so
-        // use the ordinary edit tool here.
+        // the plan-only path boundary. The call is in edit's CURRENT shape — one entry per file, `content`
+        // creates — because the old `{ filePath, oldString, newString }` shape left with H6 and this case
+        // then failed on the schema before it reached either gate (red since H6; moved with H10, 2026-10-01).
         const planEdit = planResolved.edit
         expect(planEdit).toBeDefined()
         yield* Effect.promise(() =>
           planEdit!.execute!(
-            {
-              filePath: "plans/test.md",
-              oldString: "",
-              newString: "# plan test",
-            } as never,
+            { files: [{ filePath: "plans/test.md", content: "# plan test" }] } as never,
             { toolCallId: "call-plan-allowed" } as never,
           ),
         )

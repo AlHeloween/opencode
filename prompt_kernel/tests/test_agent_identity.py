@@ -29,8 +29,10 @@ def test_next_kernel_still_valid_after_identity_scope_fix() -> None:
 
 def test_primary_modes_match_runtime_acl_shape() -> None:
     # Gates are not an identity property (2026-09-28): what an identity may do lives in the
-    # runtime ACL (agent.ts) and renders as its tools row; the TS parity test in packages/opencode
-    # fails when the two drift. This test pins the runtime slugs and kinds that pair the kernel
+    # runtime ACL (agent.ts) and renders as its tools row; the two meet at identity_tools.json —
+    # tests/test_identity_manifest.py fails when the rows drift from it, and its TS twin
+    # (test/agent/kernel-identity-manifest.test.ts) when agent.ts does. (Until 2026-10-01 this comment
+    # named a TS parity test deleted 2026-09-28; nothing checked the rows.) This pins the runtime slugs and kinds that pair the kernel
     # symbols with the host identities.
     identities = {item.id: item for item in KERNEL.identities}
     assert identities["BUILD_MODE"].runtime == "build_mode"

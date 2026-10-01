@@ -27,6 +27,23 @@ afterEach(async () => {
   await Instance.disposeAll()
 })
 
+// A RETIRED tool has no permission at all (plan hash-addressed-edits, H10; owner, 2026-10-01: «поправим
+// разрешения и кернел чтобы потом левых ходов не было»). `multiedit` (H3) and `applypatch` (2026-09-30) left
+// the catalog; a deny on them guarded nothing — no such tool exists to be denied — and kept a dead name alive in
+// every ruleset, and from there in the kernel's identity rows, where it reads as a tool that exists. The catalog
+// itself is guarded in `test/tool/registry.test.ts`.
+test("no native agent names a retired tool in its permission rules", async () => {
+  await using tmp = await tmpdir()
+  const agents = await load(tmp.path, (svc) => svc.list())
+  const named = agents.flatMap((agent) =>
+    agent.permission
+      .filter((rule) => rule.permission === "multiedit" || rule.permission === "applypatch")
+      .map((rule) => `${agent.name}: ${rule.permission}`),
+  )
+  expect(agents.length).toBeGreaterThan(0)
+  expect(named).toEqual([])
+})
+
 test("returns default native agents when no config", async () => {
   await using tmp = await tmpdir()
   await Instance.provide({
@@ -77,8 +94,7 @@ test("plan agent is read-only except for plans/*", async () => {
       expect(evalPerm(plan, "cmd")).toBe("deny")
       expect(evalPerm(plan, "powershell")).toBe("deny")
       expect(evalPerm(plan, "run")).toBe("deny")
-      expect(evalPerm(plan, "applypatch")).toBe("deny")
-      expect(evalPerm(plan, "multiedit")).toBe("deny")
+      // applypatch / multiedit: retired, so no rule names them — «no native agent names a retired tool» above.
       expect(evalPerm(plan, "restore")).toBe("deny")
       expect(evalPerm(plan, "pipeline")).toBe("deny")
       expect(evalPerm(plan, "jobkill")).toBe("deny")
@@ -201,8 +217,7 @@ test("explore agent denies edit and write", async () => {
       expect(evalPerm(explore, "cmd")).toBe("deny")
       expect(evalPerm(explore, "powershell")).toBe("deny")
       expect(evalPerm(explore, "run")).toBe("deny")
-      expect(evalPerm(explore, "applypatch")).toBe("deny")
-      expect(evalPerm(explore, "multiedit")).toBe("deny")
+      // applypatch / multiedit: retired, so no rule names them — «no native agent names a retired tool» above.
       expect(evalPerm(explore, "restore")).toBe("deny")
       expect(evalPerm(explore, "task")).toBe("deny")
       expect(evalPerm(explore, "pipeline")).toBe("deny")
@@ -319,8 +334,7 @@ test("researcher agent permits only Internet search plus universal session tools
       expect(evalPerm(researcher, "cmd")).toBe("deny")
       expect(evalPerm(researcher, "powershell")).toBe("deny")
       expect(evalPerm(researcher, "run")).toBe("deny")
-      expect(evalPerm(researcher, "applypatch")).toBe("deny")
-      expect(evalPerm(researcher, "multiedit")).toBe("deny")
+      // applypatch / multiedit: retired, so no rule names them — «no native agent names a retired tool» above.
       expect(evalPerm(researcher, "restore")).toBe("deny")
       expect(evalPerm(researcher, "task")).toBe("deny")
       expect(evalPerm(researcher, "pipeline")).toBe("deny")

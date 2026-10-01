@@ -15,7 +15,11 @@ SEMANTIC_OVERLAP_ALLOWLIST: Mapping[tuple[str, str], str] = {}
 # identities genuinely deny the same transition tools, so "all except …" rows share the phrase
 # once per identity. A repeated fragment here is data, not prose bloat.
 REPEATED_NGRAM_ALLOWLIST: frozenset[str] = frozenset({
+    # Identity tool rows are DATA — the same denied names recur per identity by construction. The two below
+    # surfaced on 2026-10-01 when `multiedit`/`applypatch` left the rows: they had been splitting these runs.
     "pipeline planenter planexit reasoningenter reasoningexit",
+    "jobkill pipeline planenter planexit reasoningenter",
+    "tools all except bash cmd",
 })
 
 

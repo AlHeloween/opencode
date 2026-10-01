@@ -2,8 +2,17 @@
 # Hash-addressed edits — one `edit`, a chained address, no cascade
 
 - **plan_id:** 2026-10-01_hash-addressed-edits
-- **revision:** 2
-- **state:** ACTIVE
+- **revision:** 4
+- **state:** COMPLETED (2026-10-01) — every box closed by an artifact; H7 moved to
+  `plans/postponed/2026-10-01_hex-address-edit.md` as the owner's decision.
+
+```yaml
+Keywords: chained-address 0.28, one-edit-tool 0.22, text-codec 0.18, no-fuzzy-cascade 0.14, acl-kernel-parity 0.10, byte-readback 0.08
+Semantic dominant: read prints a chained hash per line, edit applies a whole batch by those hashes in the file's own encoding and endings, and no fuzzy stage exists.
+md5: 8a3d6e0f1c47b92e5d08a7f4c63e1b95
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: d99945d67a57440775f414e816c78773
+```
 - **owner decision (2026-10-01), verbatim:** «если мы читаем пофигу что: мы можем реализовать короткий инкерементальный xxH3 хеш который будем писать на против строки, потом текст - для правки нужен хеш старта хеш конца и чем заменяем - все. 1. Read. 2. Edit. 3. Mutiedit. Никакого fuzzy search и прочей лабуды.»
 - **owner decision, second round, verbatim:** «**Цепочкой чтобы четко знать что за файл** - multiedit в начале определяет куда - и только потом правит, а не исправление, потом еще исправление, потом еще. **Edit/multiedit упраздняются есть только edit** - список изменений как массив и все. Чистая работа - если неправильно вбиты хеши - не работает - правильно - работает на лету. Погоняй в начале тесты потом просто замени соответствующие тесты. И все - закрываем вопрос раз и навсегда.»
 
@@ -111,7 +120,10 @@ the file says …» to a write: the address exists only in the output of a read 
       `bun typecheck` exit 0 — proven by the `&&` chain reaching `echo` in `20261001T051633Z_600ef7f0` ✓
       **Остаток, названный:** `edit` адресует ТОЛЬКО текстовые строки — адрес hex-строки печатается для
       ЧТЕНИЯ и повторной проверки, и `read.txt` теперь говорит ровно это, не обещая большего ✓ (бокс H7 ниже)
-- [ ] **H7 — вторая половина «для бинарника тоже самое»: `edit` обязан УМЕТЬ применить адрес строки.** Сейчас
+- [~] **H7 — MOVED OUT, not done:** an owner decision, not a task of this plan — split to
+      `plans/postponed/2026-10-01_hex-address-edit.md` (lift signal: the owner picks the replacement format), so
+      this plan can close. Meanwhile H9 made `edit` REFUSE a binary file, so the gap is a refusal, not a hole.
+      The original box, kept for the wording: **H7 — вторая половина «для бинарника тоже самое»: `edit` обязан УМЕТЬ применить адрес строки.** Сейчас
       `read` его печатает, а `edit` резолвит текстовые строки (`resolveEdits` делит по `\n`) ⇒ у бинарника
       адрес есть, а применить его нечем ✓ Это решение ВЛАДЕЛЬЦА, не моё — «чем заменяем» — ибо три ответа не
       эквивалентны:
@@ -123,7 +135,12 @@ the file says …» to a write: the address exists only in the output of a read 
          преобразование, которого адрес не требует.
       Любой выбор решает заодно, как `edit` ОПОЗНАЁТ бинарник (флаг, или провал UTF-8-декодирования) — а
       неверная догадка здесь это ПУТЬ ЗАПИСИ, поэтому это бокс, а не рефлекс ✓
-- [ ] **H8 — цель плана говорит «and no fuzzy stage exists», а 560 строк его всё ещё существуют.** `edit.ts`
+- [x] ✓ **H8 — DONE (2026-10-01).** Removed WITH its tests in one change: `edit.ts` **+0 / −683** lines (the ten
+      `Replacer` stages, their helpers, `STAGES`, `replaceWithStage`, `replace`, `replaceRange`,
+      `normalizeLineEndingsWithIndexMap`, the cline/gemini attribution header), `edit-exact.test.ts` −118 (the
+      three blocks that pinned it). No reference left in `src/` or `test/` (grep, control: the provenance comments
+      DO match). `bun typecheck` exit 0; edit-exact + edit + write + applypatch + parameters + registry
+      **151 / 0**, 15 snapshots. The original box: **H8 — цель плана говорит «and no fuzzy stage exists», а 560 строк его всё ещё существуют.** `edit.ts`
       по-прежнему ЭКСПОРТИРУЕТ десять ступеней `Replacer` (`SimpleReplacer` … `ContextAwareReplacer`,
       `:649`–`:1106`), `replaceWithStage` (`:1165`), `replace` (`:1212`) и `replaceRange` (`:176`) — замерено
       2026-10-01: **в `src/` ни одного вызова** ✓ `replaceRange`/`replaceWithStage` встречаются только в своих
@@ -205,7 +222,8 @@ the file says …» to a write: the address exists only in the output of a read 
       **Остаток по `multiedit` назван:** строка осталась в deny-списках `agent.ts` (×5) и в защитных множествах
       (`constitution`, `processor`, `dsml-normalizer`) — **инертна**, ибо инструмент нельзя вызвать, и оставлена
       нарочно; а мёртвый рендер в TUI **снят** ✓ и ложная проза сводки (`write/edit/multiedit filediff`) —
-      исправлена ✓
+      исправлена ✓ **Update H10:** the five `agent.ts` denies are GONE (`1a437f6def`), with the kernel rows that
+      mirrored them; `constitution`/`processor`/`dsml-normalizer`/`summary` still name it as HISTORY readers.
 
 ## H9 — encodings, endings and the span's edges (review 2026-10-01, revision 3)
 
@@ -359,4 +377,19 @@ Not changed: a second spelling of this codec in a module nobody can call would b
   fact unless it IS that computation. «Two spellings of one mapping» is a defect this project has paid for
   twice, so the choice is: it replaces the check, or it is declared an additional witness with its own scope.
 - `multiedit` as a module: unregistered from the tool catalog (as `applypatch` was), and its own tests move to `edit` rather than being deleted.
-- The `from`/`to`/`expect` text-guard address (F4/F6) becomes redundant once hashes ship. Removing it is a separate decision — it is not needed for this plan, and it is not silently kept either.
+- The `from`/`to`/`expect` text-guard address (F4/F6) becomes redundant once hashes ship. Removing it is a separate decision — it is not needed for this plan, and it is not silently kept either. **Closed by H8:** removed with `replaceRange`.
+
+## Residual at closure (2026-10-01) — named, each with where it lives
+
+- **H7** — `plans/postponed/2026-10-01_hex-address-edit.md` (owner's choice of the replacement format).
+- **ACP diff for the batch edit** — `src/acp/agent.ts:366/899` still reads `input.oldString`/`newString`, so an
+  ACP client gets an empty diff for every edit; a missed H6 consumer. Handed off as its own task (it needs an
+  ACP test harness first), not fixed in passing.
+- **Kernel baseline** — `--install` put sha256 `7f9a1b6f…` in production; `baseline.json` is repinned only by
+  the owner, so `test_normal_build_preserves_current_kernel_hash_boundary` is red until he does.
+- **Kernel wording** — the G7 line «crash-prone shell via cmd_runner» names a binary, not a tool id; the outside
+  falsifier flagged that a model may read it as a tool. Unchanged text, not part of this change.
+- **ANSI code page** — a legacy file is decoded in the host page unless the model passes `encoding`; the read
+  output names the page, so the model is the one who can see a wrong decode (owner's design, H10).
+- **`applypatch` module** — out of the catalog; the module stays for the CLI heredoc path and the TUI's history
+  renderer. Removing it is a separate change with those consumers.

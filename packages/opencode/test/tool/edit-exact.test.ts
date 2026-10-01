@@ -1,100 +1,21 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { Parameters, replace, replaceRange, replaceWithStage, resolveEdits } from "../../src/tool/edit"
+import { Parameters, resolveEdits } from "../../src/tool/edit"
 import { chainHash, hashLabel } from "../../src/tool/read"
 
 /**
- * THREE BLOCKS BELOW PIN A LAYER THE RUNTIME NO LONGER RUNS — LABELLED, NOT HIDDEN.
+ * THE LIVE PATH ONLY: `Parameters` + `resolveEdits`.
  *
- * `replace`, `replaceRange`, `replaceWithStage` and the ten `Replacer` stages are still EXPORTED from
- * `src/tool/edit.ts` and still behave exactly as the cases below assert — but nothing in `src/` calls them.
- * Measured 2026-10-01 (grep over `packages/opencode/src`): `replaceRange` and `replaceWithStage` appear ONLY
- * at their own definitions plus this file; `replaceWithStage` is called only by `replace`; and
- * `[^.\w]replace\(` returns the definition at `edit.ts:1212` plus two unrelated dialog `replace()` methods
- * (`dialog.tsx:122`, `api.tsx:300`) — **no caller in `src/`**. The live path is `resolveEdits` + `Parameters`
- * + `EditTool`, and it is covered by the two blocks at the bottom of this file.
- *
- * So those three blocks are GREEN AND CANNOT FAIL ON THE PRODUCT: they cannot go red when the tool's behaviour
- * changes, which is the entire job of a guard. They are kept until the dead layer is removed WITH them, in ONE
- * change, so the proof does not vanish before the thing it proves — the removal is box **H8** of
- * `plans/2026-10-01_hash-addressed-edits.md`, whose own intention already claims «and no fuzzy stage exists».
+ * H8 (plans_completed/2026-10-01_hash-addressed-edits.md) removed the fuzzy cascade — `replace`,
+ * `replaceWithStage`, `replaceRange` and the ten `Replacer` stages — together with the three blocks here that
+ * pinned it. Nothing in `src/` called them, so those blocks were green and could not fail on the product; they
+ * were kept only until the dead layer left WITH them, in one change, so the proof never outlived its subject.
  *
  * WHAT MOVED, AND WHEN: the batch surface (H6, 2026-10-01) made `edit` take `files: [{ filePath, edits? }]`, so
  * the schema cases below were RE-PINNED to the shape a caller actually sends — the same three sides, none
  * dropped. Their red on the pre-H6 shape is recorded as provenance, not deleted as embarrassment:
  * `20261001T052355Z_7c3c83cb` — all three failed with `Missing key at ["files"]`.
  */
-const FILE = "L1 alpha\nL2 beta\nL3 gamma\nL4 delta\nL5 epsilon\nL6 zeta\nL7 eta\nL8 theta\n"
-/** First and last lines match, three of the six middle lines differ — probe C's shape. */
-const DRIFTED = "L1 alpha\nL2 CHANGED-beta\nL3 gamma\nL4 CHANGED-delta\nL5 epsilon\nL6 CHANGED-zeta\nL7 eta\nL8 theta"
-
-// SUPERSEDED (H8): pins the dead cascade — it cannot fail on the product; removed WITH the layer, not before it.
-describe("tool.edit — replace() and the caller's declared precision", () => {
-  test("DEFAULT: a padded anchor still applies — the accommodation is not removed", () => {
-    expect(replace(FILE, "  L2 beta  ", "L2 PATCHED")).toContain("L2 PATCHED")
-  })
-
-  test("DEFAULT: content drift in the middle still applies — measured at the documented threshold", () => {
-    expect(replace(FILE, DRIFTED, "REPLACED")).toContain("REPLACED")
-  })
-
-  test("EXACT: true refuses a padded anchor — the same call with the guess switched off", () => {
-    expect(() => replace(FILE, "  L2 beta  ", "L2 PATCHED", false, true)).toThrow(/exact/i)
-  })
-
-  test("EXACT: true refuses content drift", () => {
-    expect(() => replace(FILE, DRIFTED, "REPLACED", false, true)).toThrow(/exact/i)
-  })
-
-  test("EXACT: true still applies a literal anchor — it narrows, it does not disable", () => {
-    expect(replace(FILE, "L2 beta", "L2 PATCHED", false, true)).toBe(
-      "L1 alpha\nL2 PATCHED\nL3 gamma\nL4 delta\nL5 epsilon\nL6 zeta\nL7 eta\nL8 theta\n",
-    )
-  })
-
-  test("EXACT: true turns a miss into a refusal, never a silent no-op", () => {
-    expect(() => replace(FILE, "L9 nothing", "x", false, true)).toThrow(/exact/i)
-  })
-})
-
-/**
- * THE ADDRESS, WITH ITS GUARD (plan F4). `read` prints absolute 1-based line numbers, so a caller can
- * say WHICH lines it means instead of describing them — but the numbers DRIFT, so the address carries
- * `expect`: the slice's text as the caller just read it.
- */
-const TWICE = "head\nSAME\nSAME\nSAME\ntail\n"
-
-// SUPERSEDED (H8): `from`/`to`/`expect` left the tool when the hash address replaced the line range.
-describe("tool.edit — an address plus a guard", () => {
-  test("replaces the NAMED lines even when the same text appears elsewhere", () => {
-    // Three identical lines and the edit must reach the second: a content anchor cannot do this — it
-    // refuses on multiple matches — while an address can, which is the whole point of having one.
-    expect(replaceRange(TWICE, { from: 3, to: 3, expect: "SAME", replacement: "SECOND" })).toBe(
-      "head\nSAME\nSECOND\nSAME\ntail\n",
-    )
-  })
-
-  test("refuses WITHOUT `expect` — a bare address is exactly what the guard exists against", () => {
-    expect(() => replaceRange(TWICE, { from: 3, to: 3, replacement: "x" })).toThrow(/expect/)
-  })
-
-  test("refuses when the lines moved, and shows BOTH sides so the caller can re-read", () => {
-    expect(() => replaceRange(TWICE, { from: 2, to: 2, expect: "GONE", replacement: "x" })).toThrow(/no longer what/)
-    expect(() => replaceRange(TWICE, { from: 2, to: 2, expect: "GONE", replacement: "x" })).toThrow(/"/)
-  })
-
-  test("a multi-line slice, and ONE trailing newline is the only difference allowed", () => {
-    expect(replaceRange(TWICE, { from: 2, to: 3, expect: "SAME\nSAME\n", replacement: "X" })).toBe(
-      "head\nX\nSAME\ntail\n",
-    )
-  })
-
-  test("out of bounds and a reversed range are refusals, never silent clamps", () => {
-    expect(() => replaceRange(TWICE, { from: 9, to: 9, expect: "x", replacement: "y" })).toThrow(/out of bounds/)
-    expect(() => replaceRange(TWICE, { from: 4, to: 2, expect: "x", replacement: "y" })).toThrow(/out of bounds/)
-  })
-})
-
 /**
  * THE ADDRESS MUST PASS THE TOOL'S OWN SCHEMA (plan F6) — AND, SINCE H6, IT RIDES IN A BATCH ENTRY.
  *
@@ -311,38 +232,5 @@ describe("tool.edit — the span's edges: deletion, the final terminator, insert
     const content = "a\nb\nc\n"
     const h = labels(content)
     expect(() => resolveEdits(content, [{ fromHash: h[2]!, toHash: h[1]!, newString: "x" }])).toThrow(/inverted/)
-  })
-})
-
-/**
- * THE STAGE IS NAMED (plan F3).
- *
- * Probe C measured that a drifted anchor APPLIES while the success said nothing about it — so how much
- * drift got forgiven was decided by the tool and reported nowhere. The stage names asserted here are the
- * matcher's OWN, read from the same table that holds the functions, so a stage cannot be added there and
- * forgotten in a list of labels.
- */
-// SUPERSEDED (H8): the stage name is real for the dead cascade and unreachable from the tool.
-describe("tool.edit — the stage that matched is reported", () => {
-  test("a literal anchor matches at the exact stage", () => {
-    expect(replaceWithStage(FILE, "L2 beta", "L2 PATCHED").stage).toBe("exact")
-  })
-
-  test("a padded anchor matches at line-trimmed — the shape probe B measured", () => {
-    expect(replaceWithStage(FILE, "  L2 beta  ", "L2 PATCHED").stage).toBe("line-trimmed")
-  })
-
-  test("drift in the middle matches at block-anchor — the shape probe C measured", () => {
-    expect(replaceWithStage(FILE, DRIFTED, "REPLACED").stage).toBe("block-anchor")
-  })
-
-  test("`replace` still returns bare content, so no existing caller is disturbed", () => {
-    expect(replace(FILE, "L2 beta", "L2 PATCHED")).toBe(replaceWithStage(FILE, "L2 beta", "L2 PATCHED").content)
-    expect(typeof replace(FILE, "L2 beta", "L2 PATCHED")).toBe("string")
-  })
-
-  test("`exact: true` reports the exact stage or throws — it never reports a guess", () => {
-    expect(replaceWithStage(FILE, "L2 beta", "L2 PATCHED", false, true).stage).toBe("exact")
-    expect(() => replaceWithStage(FILE, "  L2 beta  ", "x", false, true)).toThrow(/exact/i)
   })
 })

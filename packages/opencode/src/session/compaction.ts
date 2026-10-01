@@ -1481,6 +1481,20 @@ export function mechanicalSummaryBody(input: {
   })
 
   const carriers = speakable.filter((r) => r.dominant).length
+  // THE EPOCH'S OWN HOOK (2026-10-01). This function is the ONLY writer of `## Semantic Vector`,
+  // and until now it carried the dominants as PROSE inside `Labels:` while never writing the FIELD
+  // both readers of the epoch-level hook look for — `memory/spine.ts:extractDominant` and
+  // `extractSemanticVector` below. Measured on the live DB the same day: 23 summary rows, ZERO
+  // containing the marker, so the whole spine printed `(no dominant)` and the `dominant:` second
+  // query could not match an epoch at all. Reader and writer disagreeing on one field is the shape
+  // this project forbids, and this body is the writer's half of it.
+  //
+  // WHICH dominant: the LAST one the range carries. That is the vector the NEXT window chains from
+  // — the same reason `lastMd5` is half the row's identity, and the same «last marker wins» rule a
+  // message's own vector follows — so the hook names the state the epoch ENDED in. The whole list
+  // stays on the `Labels:` line below: the hook is ONE searchable term, not a digest of the list.
+  const dominants = speakable.filter((r) => r.dominant)
+  const epochDominant = dominants.at(-1)?.dominant
   // Only the HEAD noun takes the plural: "0 vectors without a label", not "0 vector without a
   // labels". A count line that reads wrong gets skimmed, and a skimmed count line is a silent one.
   const plural = (n: number, head: string, tail = "") =>
@@ -1531,6 +1545,13 @@ export function mechanicalSummaryBody(input: {
     `Range: ${rows.length} messages · ${input.messages.reduce((s, m) => s + text(m).length, 0)} chars of text · ${input.diffs.length} files changed (+${additions} −${deletions})`,
     "",
     "## Semantic Vector",
+    // The FIELD, first in the section. Order is part of the contract, not a formatting choice:
+    // `extractDominant` takes the FIRST `dominant:` in the body, and this body holds other text that
+    // can spell those characters (the `Labels:` count, a request quoted into `## Goal`).
+    // Emitted only when a carrier exists — an EMPTY hook would read as a dominant to both readers,
+    // which is worse than an absent one: the spine prints `(no dominant)` for the absent case, and
+    // that is a true statement about a range that carried no vector.
+    ...(epochDominant ? [`dominant: "${epochDominant}"`] : []),
     // "assistant turn", not "assistant reply": `plural` appends a plain "s", so "reply" would come
     // out as "replys", which is not a word — measured 2026-09-27 in the live status line. The defect
     // it replaces was the plural landing on the TAIL ("reply without a vectors"): same class, other
@@ -1539,7 +1560,12 @@ export function mechanicalSummaryBody(input: {
     // Capped by the same constant as the positions: a list that scales with the range becomes a
     // wall, and the two lists live on ONE line — fixing the positions and leaving the dominants
     // unbounded would move the wall, not remove it.
-    `Labels: first ${firstMd5 ?? "none in range"} · last ${lastMd5 ?? "none in range"} (the row's sv identity — grep either to find the range, and the pair chains ranges across a break) · ${plural(speakable.length, "dominant")}: ${speakable.filter((r) => r.dominant).slice(0, SUMMARY_POSITION_ROWS_SHOWN).map((r) => `"${r.dominant!.slice(0, 90)}"`).join(" · ") || "none"}${speakable.filter((r) => r.dominant).length > SUMMARY_POSITION_ROWS_SHOWN ? ` (+${speakable.filter((r) => r.dominant).length - SUMMARY_POSITION_ROWS_SHOWN} more)` : ""}.`,
+    // The COUNT is the carriers', not the range's (2026-10-01): `speakable.length` counted replies
+    // that carry no vector at all, so a one-reply range read `1 dominant: none` — a count that
+    // disagreed with the list under it, and the `dominant:` it spelled turned this line into a
+    // SECOND marker for `extractDominant`, which takes the first one it finds. One axis: the count
+    // counts what is listed.
+    `Labels: first ${firstMd5 ?? "none in range"} · last ${lastMd5 ?? "none in range"} (the row's sv identity — grep either to find the range, and the pair chains ranges across a break) · ${plural(dominants.length, "dominant")}: ${dominants.slice(0, SUMMARY_POSITION_ROWS_SHOWN).map((r) => `"${r.dominant!.slice(0, 90)}"`).join(" · ") || "none"}${dominants.length > SUMMARY_POSITION_ROWS_SHOWN ? ` (+${dominants.length - SUMMARY_POSITION_ROWS_SHOWN} more)` : ""}.`,
     // The range's own weights, aggregated. These are the numbers an `@SV_TARGET` is written
     // against, so the row has to carry them or the steering is checked against a recollection.
     (() => {

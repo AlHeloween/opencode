@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test"
 import type { MessageV2 } from "../../src/session/message-v2"
 import { LAYER1_SUMMARY_MARKER, mechanicalSummaryBody } from "../../src/session/compaction"
+import { extractDominant } from "../../src/memory/spine"
 
 /**
  * A reply as the TUI stores it: one text part. Cast, because the function under test reads only
@@ -215,4 +216,32 @@ test("a range with no owner request says so — it never credits a plan that sta
   expect(out).not.toContain(LAYER1_SUMMARY_MARKER)
   expect(out).toContain("no plan states an intention")
   expect(out).not.toContain("opens mid-thread")
+})
+
+test("the epoch carries a `dominant:` FIELD — the one line a later window searches it by", () => {
+  // MEASURED 2026-10-01 on the live DB, not inferred: `project_checkpoint` held 23 rows for this
+  // session and ZERO of them contained the marker, so `messagesearch { corpus: "summaries" }`
+  // printed `(no dominant)` for every epoch and its `dominant:` second query could never match one.
+  // Two readers already expected the field (`memory/spine.ts:extractDominant`, and
+  // `compaction.extractSemanticVector`); this body is written by a machine and never wrote it.
+  const out = body([
+    msg("msg_1", "assistant", vector({ dominant: "первый", md5: A, prevMd5: ZERO })),
+    msg("msg_2", "assistant", vector({ dominant: "последний", md5: B, prevMd5: A })),
+  ])
+  // Read back through the SAME reader the spine uses: the writer and the reader are the PAIR that
+  // broke, so a test that only looked at the text would lock in one half of the disagreement.
+  // LAST, because that is the vector the next window chains from.
+  expect(extractDominant(out)).toBe("последний")
+  // Order is contract: `extractDominant` takes the FIRST `dominant:` in the body.
+  expect(out.indexOf('dominant: "')).toBeLessThan(out.indexOf("Labels:"))
+})
+
+test("a lone reply with no vector spells no marker — a count cannot invent a hook", () => {
+  // The degenerate shape that produced a FALSE hook. The Labels line counted `speakable.length`
+  // (every assistant reply) while listing only the carriers, so a one-reply range printed
+  // `1 dominant: none` — and `extractDominant` returned the literal string `none`, because
+  // `plural(1, "dominant")` spells the marker itself.
+  const out = body([msg("msg_1", "assistant", "ответ без вектора")])
+  expect(out).not.toContain("dominant:")
+  expect(extractDominant(out)).toBeUndefined()
 })

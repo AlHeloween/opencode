@@ -104,9 +104,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 187 |
-| plans active | 20 |
-| tasks passed / total | 690 / 934 |
-| open boxes | 96 |
+| plans active | 21 |
+| tasks passed / total | 693 / 938 |
+| open boxes | 97 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -264,9 +264,13 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - R1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - R2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-01_epoch-dominant-hook.md` — 1 open / 4 box(es) · lifecycle UNKNOWN
+  sv: intention "«the summary body is written by one machine function and carries its dominants as prose inside `Labels:`, while BOTH readers of the epoch-level hook (`memory/spine.ts:extractDominant`, `compaction.extractSemanticVector`) require a `dominant:` FIELD — measured on the live DB 2026-10-01: 23 summary rows, ZERO carrying the marker, so `messagesearch { corpus: "summaries" }` printed `(no dominant)` for every epoch and its `dominant:` second query could never match» -> «every epoch the writer stores carries a real `dominant:` field, read back by the same reader the spine uses, so the second query — the manual's own TEST REMEMBERING — finds the epoch by the vocabulary the work was conducted in»" · keywords []
+  - S3 [PENDING] · sv MISSING · manifest: Живое подтверждение крючка эпохи отложено до следующего продвинутого в бинарь билда — `compaction.ts` это рантайм, так что свёртка в этой сессии всё ещё пишет старое тело; оракул назван: строка `dominant:` в новом `project_checkpoint` и её поиск через spine вместо `(no dominant)`. · eta 2 · waiting-on-user
+
 - `plans/2026-10-01_tool-description-contracts.md` — 6 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "36 tool descriptions ride the KV-stable prefix and make promises the code does not always keep (multiedit atomicity, grep's line format, recall's reach); the work fixing them ran under a parent-goal anchor no plan declared -> one line of work that owns that anchor, where every promise in a description is either pinned by a test that fails without it or removed from the text" · keywords []
-  - C2 [PENDING] · sv MISSING · manifest: Два тула, которых сьют схем не знал, теперь пинуются по именам полей — с мутацией, покрасневшей ровно на этом пине, — а бокс открыт на непроверенном ПОВЕДЕНИИ трёх флагов и на `compare`, у которого нет ни одного теста. · eta 2 · doing
+  - C2 [PENDING] · sv MISSING · manifest: Три флага, обещавшие поведение, теперь пинуются — у `compare` появился первый тест за всю историю и он зелёный, — а бокс открыт ровно на одной невыполненной мутации, названной явно. · eta 1 · doing
   - C3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - C4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - C5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -275,6 +279,6 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 ## The checks
 
-This body names all 20 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 21 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

@@ -646,10 +646,18 @@ session, without guessing:
 - every in-flight task carries its manifest: sv, plan ref, `eta_turns`, state, oracle;
 - a number there that disagrees with a plan file means the plan file wins and `MASTER_PLAN.md` is regenerated.
 
-`svm render` (plan S4) will generate that file from the plan files + the SVM store. Until it lands, the file is
-maintained by hand and says so in its own header. **Measured 2026-09-30: this pointer did not exist** — AGENTS.md
-never mentioned `MASTER_PLAN.md`, so the "any agent picks it up on autopilot" property held only for an agent
-that happened to list the repo root.
+**The renderer WORKS — RUN IT, never hand-maintain the body.** `svm render` (plan S4) rewrites everything below
+the `<!-- generated below -->` marker from the plan files + the SVM store, and preserves the hand-owned head
+verbatim. **Measured 2026-10-01:** two consecutive renders reported the same 27 595 B, and the second one's own
+`gapsBefore` was `[]` where the first had NAMED two unmapped plans — the run closed the gap and the check
+confirmed it closed, which is why the coverage claim is two-sided and not a silence. `planstatus` prints that
+coverage line whether it is clean or not («Master plan: every plan under plans/ is named in
+plans/MASTER_PLAN.md.»), by design: a check whose silence cannot be told from its absence is not a check.
+**What is still open is the VECTOR AUTHORING, not the renderer** — a render prints `MISSING` where a source has
+none, and as of 2026-10-01 that is 2 plan SVs, 65 task SVs and 94 manifests. Those are authored in the plan
+files and the SVM store, never here; the map only PRINTS them.
+*(History: this pointer did not exist until 2026-09-30 — AGENTS.md never mentioned `MASTER_PLAN.md`, so the
+"any agent picks it up on autopilot" property held only for an agent that happened to list the repo root.)*
 
 ### The rest
 

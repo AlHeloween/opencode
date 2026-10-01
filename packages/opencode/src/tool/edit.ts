@@ -201,7 +201,7 @@ export const Parameters = Schema.Struct({
   }),
   exact: Schema.optional(Schema.Boolean).annotate({
     description:
-      "Require a LITERAL match for oldString (default false). The matcher is fuzzy by design — a padded or drifted anchor still applies — and the report does not say which stage matched. Set `exact: true` when the anchor must be found verbatim: a miss then fails the call instead of landing near it.",
+      "Require a LITERAL match for oldString (default false). The matcher is fuzzy by design: a padded or drifted anchor still applies, and the success report names the stage that matched. Set `exact: true` when the anchor must be found verbatim — a miss then fails the call instead of landing near it.",
   }),
   from: Schema.optional(Schema.Number).annotate({
     description:
@@ -246,6 +246,9 @@ export const EditTool = Tool.define(
           let diff = ""
           let contentOld = ""
           let contentNew = ""
+          // Which cascade stage matched (plan F3). "exact" until an approximate stage says otherwise, so
+          // the caller is TOLD when its anchor was approximated instead of having to infer it.
+          let matchedStage = "exact"
           yield* lock(filePath).withPermits(1)(
             Effect.gen(function* () {
               if (params.oldString === "" && params.from === undefined && params.to === undefined) {
@@ -296,17 +299,20 @@ export const EditTool = Tool.define(
               // `expect` — the slice's text as the caller just read it — and a mismatch is a refusal that
               // shows both. The slice is then replaced BY POSITION, which is the one thing a content
               // anchor cannot do: a range that repeats elsewhere still addresses the lines it names.
-              const next =
+              const applied =
                 params.from !== undefined || params.to !== undefined
-                  ? Bom.split(
-                      replaceRange(contentOld, {
+                  ? {
+                      content: replaceRange(contentOld, {
                         from: params.from,
                         to: params.to,
                         expect: params.expect,
                         replacement,
                       }),
-                    )
-                  : Bom.split(replace(contentOld, old, replacement, params.replaceAll, params.exact))
+                      stage: "address",
+                    }
+                  : replaceWithStage(contentOld, old, replacement, params.replaceAll, params.exact)
+              const next = Bom.split(applied.content)
+              matchedStage = applied.stage
               const desiredBom = source.bom || next.bom
               contentNew = next.text
 
@@ -360,7 +366,14 @@ export const EditTool = Tool.define(
             },
           })
 
-          let output = "Edit applied successfully."
+          // Plan F3: the SUCCESS names the stage, for the same reason the refusal does — a caller must
+          // never have to INFER that its anchor was approximated. Exact and address matches carry no
+          // note, because there is nothing to disclose: nothing was guessed.
+          let output =
+            matchedStage === "exact" || matchedStage === "address"
+              ? "Edit applied successfully."
+              : `Edit applied successfully — matched by the \`${matchedStage}\` stage, NOT literally. ` +
+                `The anchor was approximated; pass \`exact: true\` to require a literal match.`
           // Diagnostics are advisory and the edit has already been written, so
           // they must never gate the return. `waitForDocumentDiagnostics` is
           // bounded at 5s (lsp/client.ts DIAGNOSTICS_DOCUMENT_WAIT_TIMEOUT_MS),
@@ -980,7 +993,36 @@ export function trimDiff(diff: string): string {
   return trimmedLines.join("\n")
 }
 
-export function replace(content: string, oldString: string, newString: string, replaceAll = false, exact = false): string {
+/**
+ * THE CASCADE, WITH ITS STAGES NAMED (plan F3). The name lives in the SAME entry as the function, so a
+ * stage cannot be added here and forgotten in a parallel list of labels — two spellings of one mapping
+ * is the defect this project has already paid for more than once.
+ */
+const STAGES: { name: string; fn: Replacer }[] = [
+  { name: "exact", fn: SimpleReplacer },
+  { name: "line-ending-normalized", fn: LineEndingNormalizedReplacer },
+  { name: "line-trimmed", fn: LineTrimmedReplacer },
+  { name: "block-anchor", fn: BlockAnchorReplacer },
+  { name: "whitespace-normalized", fn: WhitespaceNormalizedReplacer },
+  { name: "indentation-flexible", fn: IndentationFlexibleReplacer },
+  { name: "escape-normalized", fn: EscapeNormalizedReplacer },
+  { name: "trimmed-boundary", fn: TrimmedBoundaryReplacer },
+  { name: "context-aware", fn: ContextAwareReplacer },
+  { name: "multi-occurrence", fn: MultiOccurrenceReplacer },
+]
+
+/**
+ * `replace`, but it also reports WHICH stage matched, so the caller can say «this anchor was
+ * approximated» instead of that fact staying inside the matcher (plan F3). `replace` below is the same
+ * call with the report dropped — there is still exactly ONE matcher.
+ */
+export function replaceWithStage(
+  content: string,
+  oldString: string,
+  newString: string,
+  replaceAll = false,
+  exact = false,
+): { content: string; stage: string } {
   if (oldString === newString) {
     throw new Error("No changes to apply: oldString and newString are identical.")
   }
@@ -992,32 +1034,22 @@ export function replace(content: string, oldString: string, newString: string, r
   // The guess stays available to every caller who has not ruled it out, because it is what keeps a
   // drifting anchor from failing (measured 2026-10-01: a padded anchor applies, and so does an anchor
   // whose three of six middle lines differ — the loosest stage's 50 % threshold, sat exactly).
-  const replacers = exact
-    ? [SimpleReplacer]
-    : [
-        SimpleReplacer,
-        LineEndingNormalizedReplacer,
-        LineTrimmedReplacer,
-        BlockAnchorReplacer,
-        WhitespaceNormalizedReplacer,
-        IndentationFlexibleReplacer,
-        EscapeNormalizedReplacer,
-        TrimmedBoundaryReplacer,
-        ContextAwareReplacer,
-        MultiOccurrenceReplacer,
-      ]
+  const stages = exact ? STAGES.slice(0, 1) : STAGES
 
-  for (const replacer of replacers) {
-    for (const search of replacer(content, oldString)) {
+  for (const { name, fn } of stages) {
+    for (const search of fn(content, oldString)) {
       const index = content.indexOf(search)
       if (index === -1) continue
       notFound = false
       if (replaceAll) {
-        return content.replaceAll(search, newString)
+        return { content: content.replaceAll(search, newString), stage: name }
       }
       const lastIndex = content.lastIndexOf(search)
       if (index !== lastIndex) continue
-      return content.substring(0, index) + newString + content.substring(index + search.length)
+      return {
+        content: content.substring(0, index) + newString + content.substring(index + search.length),
+        stage: name,
+      }
     }
   }
 
@@ -1029,5 +1061,9 @@ export function replace(content: string, oldString: string, newString: string, r
     )
   }
   throw new Error("Found multiple matches for oldString. Provide more surrounding context to make the match unique.")
+}
+
+export function replace(content: string, oldString: string, newString: string, replaceAll = false, exact = false): string {
+  return replaceWithStage(content, oldString, newString, replaceAll, exact).content
 }
 

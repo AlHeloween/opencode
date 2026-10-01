@@ -224,4 +224,61 @@ describe("tool.multiedit — atomic application", () => {
       },
     })
   })
+
+  /**
+   * Plan F3 — the report names an APPROXIMATE match.
+   *
+   * The cascade is fuzzy by design and is not removed: a padded anchor still applies. What changed is
+   * that the success no longer hides it, so an agent that inherits this file is told which entry landed
+   * near its anchor rather than having to infer it. Both halves are asserted: the note FIRES on an
+   * approximate match and STAYS SILENT on a literal one — a note that always fires is a cry wolf, and
+   * one that never fires is the defect being fixed.
+   */
+  test("an APPROXIMATE match is named in the report, with the stage", async () => {
+    await using tmp = await tmpdir()
+    const filepath = await seed(tmp.path, "approximated.txt")
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const tool = await resolve()
+        const result = await Effect.runPromise(
+          tool.execute(
+            {
+              filePath: filepath,
+              // Padded around the real line: SimpleReplacer misses, line-trimmed lands it.
+              edits: [{ oldString: "  line1: ORIGINAL-A  ", newString: "line1: PATCHED-A" }],
+            },
+            ctx,
+          ),
+        )
+
+        expect(result.output).toContain("APPROXIMATE stage")
+        expect(result.output).toContain("line-trimmed")
+        expect(result.output).toContain("edit 1")
+        // The match still LANDED — this reports an approximation, it does not forbid one.
+        expect(await fs.readFile(filepath, "utf-8")).toBe(SEED.replace("ORIGINAL-A", "PATCHED-A"))
+      },
+    })
+  })
+
+  test("a LITERAL match carries no note — the report only discloses a guess", async () => {
+    await using tmp = await tmpdir()
+    const filepath = await seed(tmp.path, "literal.txt")
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const tool = await resolve()
+        const result = await Effect.runPromise(
+          tool.execute(
+            { filePath: filepath, edits: [{ oldString: "line1: ORIGINAL-A", newString: "line1: PATCHED-A" }] },
+            ctx,
+          ),
+        )
+
+        expect(result.output).toContain("applied successfully")
+        expect(result.output).not.toContain("APPROXIMATE")
+        expect(await fs.readFile(filepath, "utf-8")).toBe(SEED.replace("ORIGINAL-A", "PATCHED-A"))
+      },
+    })
+  })
 })

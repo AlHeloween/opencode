@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { replace, replaceRange } from "../../src/tool/edit"
+import { replace, replaceRange, replaceWithStage } from "../../src/tool/edit"
 
 /**
  * `exact` — the CALLER states the precision of its anchor.
@@ -81,5 +81,37 @@ describe("tool.edit — an address plus a guard", () => {
   test("out of bounds and a reversed range are refusals, never silent clamps", () => {
     expect(() => replaceRange(TWICE, { from: 9, to: 9, expect: "x", replacement: "y" })).toThrow(/out of bounds/)
     expect(() => replaceRange(TWICE, { from: 4, to: 2, expect: "x", replacement: "y" })).toThrow(/out of bounds/)
+  })
+})
+
+/**
+ * THE STAGE IS NAMED (plan F3).
+ *
+ * Probe C measured that a drifted anchor APPLIES while the success said nothing about it — so how much
+ * drift got forgiven was decided by the tool and reported nowhere. The stage names asserted here are the
+ * matcher's OWN, read from the same table that holds the functions, so a stage cannot be added there and
+ * forgotten in a list of labels.
+ */
+describe("tool.edit — the stage that matched is reported", () => {
+  test("a literal anchor matches at the exact stage", () => {
+    expect(replaceWithStage(FILE, "L2 beta", "L2 PATCHED").stage).toBe("exact")
+  })
+
+  test("a padded anchor matches at line-trimmed — the shape probe B measured", () => {
+    expect(replaceWithStage(FILE, "  L2 beta  ", "L2 PATCHED").stage).toBe("line-trimmed")
+  })
+
+  test("drift in the middle matches at block-anchor — the shape probe C measured", () => {
+    expect(replaceWithStage(FILE, DRIFTED, "REPLACED").stage).toBe("block-anchor")
+  })
+
+  test("`replace` still returns bare content, so no existing caller is disturbed", () => {
+    expect(replace(FILE, "L2 beta", "L2 PATCHED")).toBe(replaceWithStage(FILE, "L2 beta", "L2 PATCHED").content)
+    expect(typeof replace(FILE, "L2 beta", "L2 PATCHED")).toBe("string")
+  })
+
+  test("`exact: true` reports the exact stage or throws — it never reports a guess", () => {
+    expect(replaceWithStage(FILE, "L2 beta", "L2 PATCHED", false, true).stage).toBe("exact")
+    expect(() => replaceWithStage(FILE, "  L2 beta  ", "x", false, true)).toThrow(/exact/i)
   })
 })

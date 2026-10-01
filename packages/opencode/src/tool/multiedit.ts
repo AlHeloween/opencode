@@ -1,6 +1,6 @@
 import path from "path"
 import { Effect, Schema } from "effect"
-import { EditTool, convertToLineEnding, detectLineEnding, normalizeLineEndings, replace, trimDiff } from "./edit"
+import { EditTool, convertToLineEnding, detectLineEnding, normalizeLineEndings, replaceWithStage, trimDiff } from "./edit"
 import { createPatch, diffStats } from "@/util/diff-wasm"
 import { InstanceState } from "@/effect/instance-state"
 import DESCRIPTION from "./multiedit.txt"
@@ -19,7 +19,7 @@ const Edit = Schema.Struct({
   }),
   exact: Schema.optional(Schema.Boolean).annotate({
     description:
-      "Require a LITERAL match for oldString in this entry (default false). The matcher is fuzzy: a padded or drifted anchor still applies, and the report does not say which stage matched. Set `exact: true` when the anchor must be found verbatim — a miss then fails the whole call instead of landing near it.",
+      "Require a LITERAL match for oldString in this entry (default false). The matcher is fuzzy: a padded or drifted anchor still applies, and the report names the stage that matched. Set `exact: true` when the anchor must be found verbatim — a miss then fails the whole call instead of landing near it.",
   }),
 })
 
@@ -83,7 +83,9 @@ export const MultiEditTool = Tool.define(
           const contentOld = source.text
           const createPath = params.edits.some((edit) => edit.oldString === "")
           let current = contentOld
-          const steps: { before: string; after: string }[] = []
+          // `stage` rides with each step (plan F3) so the report can name the entries an approximate
+          // stage matched. "seed" and "exact" and "address" are the ones with nothing to disclose.
+          const steps: { before: string; after: string; stage: string }[] = []
 
           for (const [index, edit] of params.edits.entries()) {
             const before = current
@@ -91,14 +93,17 @@ export const MultiEditTool = Tool.define(
               // `edit`'s seed semantics: the given text becomes the content and later
               // entries refine it.
               current = Bom.split(edit.newString).text
-              steps.push({ before, after: current })
+              steps.push({ before, after: current, stage: "seed" })
               continue
             }
             const ending = detectLineEnding(current)
             const old = convertToLineEnding(normalizeLineEndings(edit.oldString), ending)
             const replacement = convertToLineEnding(normalizeLineEndings(edit.newString), ending)
+            let stage = "exact"
             try {
-              current = replace(current, old, replacement, edit.replaceAll, edit.exact)
+              const applied = replaceWithStage(current, old, replacement, edit.replaceAll, edit.exact)
+              current = applied.content
+              stage = applied.stage
             } catch (cause) {
               throw new Error(
                 `multiedit: edit ${index + 1} of ${params.edits.length} did not apply. ` +
@@ -106,7 +111,7 @@ export const MultiEditTool = Tool.define(
                   `${cause instanceof Error ? cause.message : String(cause)}`,
               )
             }
-            steps.push({ before, after: current })
+            steps.push({ before, after: current, stage })
           }
 
           if (!createPath && current === contentOld) {
@@ -152,12 +157,23 @@ export const MultiEditTool = Tool.define(
           }
 
           const allDiffs = labelled.join("\n")
+          // Plan F3: an approximated entry is NAMED here too. Same defect as `edit`'s silent success —
+          // the caller inherits a file it did not describe — and this tool is where the cascade is
+          // reached most often, because per-entry anchors are written in bulk.
+          const approximated = steps
+            .map((step, index) => ({ edit: index + 1, stage: step.stage }))
+            .filter((entry) => entry.stage !== "exact" && entry.stage !== "seed" && entry.stage !== "address")
+          const approximationNote = approximated.length
+            ? `\n\n⚠ ${approximated.length} of ${params.edits.length} edit(s) matched by an APPROXIMATE stage, ` +
+              `not literally: ${approximated.map((entry) => `edit ${entry.edit} → \`${entry.stage}\``).join(", ")}. ` +
+              `Pass \`exact: true\` on an entry to require a literal match for it.`
+            : ""
           return {
             title: path.relative(ins.worktree, params.filePath),
             metadata: { results, allDiffs },
             output:
               `Multiple edits applied successfully (${params.edits.length} edits, written once)\n\n` +
-              `${allDiffs}\n\n${outcome.output}`,
+              `${allDiffs}\n\n${outcome.output}${approximationNote}`,
           }
         }).pipe(Effect.orDie),
     }

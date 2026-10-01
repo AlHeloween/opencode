@@ -9,7 +9,7 @@ Perform multiple edits to a single file in one operation. Each edit is applied s
 ## Edit Inheritance
 
 Each sub-edit inherits all Edit tool capabilities:
-- **9-stage fuzzy matching cascade** (exact → trimmed → Levenshtein → Hamming → whitespace-normalized → indentation-flexible → escape-normalized → trimmed-boundary → context-aware)
+- **10-stage fuzzy matching cascade** (exact → line-ending-normalized → line-trimmed → block-anchor → whitespace-normalized → indentation-flexible → escape-normalized → trimmed-boundary → context-aware → multi-occurrence)
 - **Line ending auto-detection** and preservation
 - **Unicode normalization** (handles various dash, quote, and space characters)
 - **LSP diagnostics** on the file after all edits
@@ -32,6 +32,19 @@ multiedit: edit 2 of 3 did not apply. NOTHING was written — <path> is unchange
 Edits are applied in array order, each operating on the result of the previous one, and the
 resolved content is what the single write puts on disk.
 
+## An approximate match is NAMED
+
+The cascade is fuzzy by design — a padded or drifted anchor still applies — so a match that was not
+literal is reported as such, per entry, instead of leaving you to infer it:
+
+```
+⚠ 1 of 2 edit(s) matched by an APPROXIMATE stage, not literally: edit 2 → `line-trimmed`. Pass
+`exact: true` on an entry to require a literal match for it.
+```
+
+`exact: true` on an entry removes the guess for THAT entry: it is then matched by the exact stage alone,
+and a miss fails the whole call with nothing written rather than landing near its anchor.
+
 ## Output
 
 Returns a combined diff showing all changes, with each edit's diff labeled by its position in
@@ -51,5 +64,6 @@ Each edit in the `edits` array:
 | `edits[].oldString` | string | — | Text to replace |
 | `edits[].newString` | string | — | Replacement text (must differ) |
 | `edits[].replaceAll` | boolean | false | Replace all occurrences |
+| `edits[].exact` | boolean | false | Require a LITERAL match for this entry's `oldString`. Without it the fuzzy cascade may still land the edit near your anchor — and the report will name the stage that did. |
 
 Edits are applied in array order — each edit operates on the result of the previous one.

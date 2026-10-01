@@ -25,7 +25,9 @@ Each edit automatically creates a backup of the file's pre-edit content. Backups
 
 If all 10 fail, edit throws error. Multiple matches without `replaceAll` also fails — provide more context.
 
-**The cascade is fuzzy BY DESIGN** — a padded or drifted anchor still applies, and the report does not say which stage matched — so `exact: true` is how a caller says «find it literally or refuse»: it runs the exact match ALONE, and a miss under it fails the call instead of landing near it. Default `false` keeps today's accommodating behaviour.
+**The cascade is fuzzy BY DESIGN** — a padded or drifted anchor still applies — so `exact: true` is how a caller says «find it literally or refuse»: it runs the exact match ALONE, and a miss under it fails the call instead of landing near it. Default `false` keeps today's accommodating behaviour.
+
+**A match that was not literal is NAMED.** The success says which stage fired — `line-trimmed`, `block-anchor`, `whitespace-normalized`, `indentation-flexible`, `escape-normalized`, `trimmed-boundary`, `context-aware`, `multi-occurrence` — so a caller never has to infer that its anchor was approximated. Exact and address matches say nothing extra, because nothing was guessed.
 
 ## Line Endings & Unicode
 - Matching accepts `\r\n` and `\n` variations, including mixed-EOL source files. Replacement text uses the file's detected line ending.

@@ -5960,3 +5960,13 @@ pdftoppm (absent; PyMuPDF works). cua: PATH has the VENDOR cua-driver 0.29.1 (te
 build is bin\cua.cmd — not launched (bin/ needs owner permission); native-GUI path untested.
 New cmd_runner with mouse (ADID_Python worktree affectionate-moore-617439, 6d794c0) is not in tools/ yet
 (tools/cmd_runner.exe = 2026.07.08).
+
+## [2026-10-02] cmd_runner 2026.10.01 adopted into tools/ (owner: «новый cmd_runner поддерживает мышь, можем работать»)
+DONE: tools/cmd_runner.exe <- ADID_Python 9557f0a build (sha256 335db660…, 3 219 456 B, not UPX); the old one kept as
+tools/cmd_runner.2026.07.08.exe (tools/ is gitignored — local swap). Verified BEFORE adoption with the original
+reproducer (run 20261001T142423Z_aa2d1b87): state.json starts 7b 0d 0a (no BOM), strict json.load, --raw log block
+present, bytes_written 104 == stdout.log 104, tests 57/0. Placement probe from tools/: logs land in repo logs/cmd_runner
+as before (run 20261001T205113Z_2526b699) — the worktree build wrote next to itself only because of where it sat.
+FOUND (robot): headless `opencode run` with an unknown model emits one `error` event and never exits — hung to the
+300 s timeout (run 20261001T142522Z_d2376a8a, «Model not found: opencode/deepseek-v4-flash-free»); the raw-pipe stall
+hypothesis (cmd_runner item 3) is not yet tested on a live model.

@@ -3,7 +3,7 @@
 <!-- intention: `edit` addresses by CONTENT through a nine-stage fuzzy cascade whose loosest stage tolerates half the middle lines (measured 2026-10-01, probe C), so how much drift is forgiven is decided by the TOOL and said nowhere; `read` prints absolute line numbers and the read side has `offset`/`limit` ranges, while the write side cannot consume an address at all -> the caller can state the precision it needs (`exact`), a fuzzy hit names the stage that fired, and a range-plus-guard mode lets the numbers just read be used without line drift deciding what gets written -->
 
 - **plan_id:** 2026-10-01_edit-precision
-- **revision:** 2
+- **revision:** 3
 - **state:** ACTIVE
 - **owner decision (2026-10-01):** «Давай делать, план детали и прочее, описание тулов, исправляем edit и multiedit.»
 
@@ -39,6 +39,21 @@ parent-goal-md5: d99945d67a57440775f414e816c78773
 - [x] ✓ **F4 — `from`/`to`/`expect` on `edit`. DONE (commit `162b2ae80b`), and it should have been F1.** An ADDRESS plus a **required** guard: a bare range is WORSE than an anchor because line numbers drift, so `expect` (the slice as the caller just read it) is compared against the file's CURRENT lines and a mismatch is a refusal printing both sides. The slice is replaced **BY POSITION** through an exported `replaceRange` — the one thing a content anchor cannot do, tested on a file with three identical lines. It runs through the SAME locked write path (backup, diff, ask, write, format, bus), so no second write path exists. Green 11 pass / 0 fail (`20261001T005022Z_f5a5dbea`); typecheck exit 0 (`20261001T005022Z_1e72148e`). **This box was the owner's own request three turns before it was written** — see the ordering note at the end of this plan.
 - [x] ✓ **Descriptions moved in the SAME change** (`a3f8b79a5a`): `edit.txt` states that the cascade is fuzzy by design AND names the stages the success can print; `multiedit.txt` gains the `edits[].exact` row, the approximation note, and a CORRECTED cascade count — it advertised a «9-stage» cascade whose list omitted `line-ending-normalized` and `multi-occurrence`, while the code runs ten. `multiedit.ts`'s own `exact` parameter text claimed «the report does not say which stage matched», which F3 makes FALSE — corrected there, and in `edit.ts`'s, in the same change.
 - [ ] **F5 — the live A/B/C re-run, owed against the next binary promotion.** Probes A/B/C measure the cascade's OUTCOMES, which F1–F4 do not change (F3 names the stage; it does not alter which one fires), and the report itself is already pinned by driving the REAL tool through the REAL pipeline (`multiedit.test.ts`). What a live run adds is the packaged binary: it costs a rebuild, and promoting a build into `bin/` is the owner's own procedure. This box is `[ ]` ON PURPOSE — a plan whose every box is ticked while a smoke line is owed would be filed into `plans_completed/` and take the debt with it. `experiments/2026-10-01_edit-probes/README.md` is the reopener.
+- [x] ✓ **F6 — the ADDRESS no longer requires a parameter it throws away. DONE (commit `5f2c1436e0`).**
+      Found by DRIVING a real binary, not by reading a diff: a call carrying `from`/`to`/`expect` returned
+      `SchemaError(Missing key at ["oldString"])` — while `expect`'s own description said «Replaces `oldString`
+      in this mode». Grounded in the code: `oldString` was `Schema.String` (required, `edit.ts:195`) while the
+      address branch DISCARDS it (line 293 computes `old`; 302–313 never uses it), and the equality guard at 236
+      fired on a parameter meaningless in address mode. **Why F4 missed it — the layer:** every F4 case called
+      `replaceRange` DIRECTLY, so the address LOGIC was green while the schema every caller actually crosses was
+      never decoded.
+      Four touches: optional `oldString` with text saying when it is unneeded; the equality guard off-address
+      only; an explicit refusal for «neither address nor anchor», kept in `execute` because a `SchemaError`
+      cannot say «pass the anchor, or the address»; `?? ""` for the content path.
+      Oracles: green **27 pass / 0 fail / 47 expect** (`20261001T042057Z_1dbc9a0a`); typecheck exit 0, zero
+      diagnostics (`20261001T042019Z_e35d34e1`). Three cases decode `Parameters` — the same schema
+      `tool/tool.ts:115` compiles per tool — and the third asserts an OPEN door on purpose, with the trade
+      named but not hidden.
 
 ## Smoke Tests
 

@@ -39,7 +39,7 @@ and the oracle. This is also the second form of consolidation (plans/futures/202
 
 Write it to `experiments/<ISO-date>_robot-<task>/brief.md`:
 
-0. **Address** — the brief opens by naming the robot: «Smith, software architect: …» (owner, 2026-10-01:
+0. **Address** — the brief opens by naming the robot: «Smit, software architect: …» — spelled **Smit**, not Smith, as in `d:\!Smit\Smit2` (owner, 2026-10-01:
    «называй его Смит. Так он будет лучше помнить что он software architect»). The name is a role anchor —
    frame, decompose, verify — not decoration.
 1. **Intention** — the plan's `<!-- intention: … -->` line, verbatim.

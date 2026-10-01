@@ -25,6 +25,11 @@ import { Agent } from "../../src/agent/agent"
  * BOTH halves are asserted on purpose. A notice that always fires is a cry wolf; a listing that
  * truncates in silence is the defect. So the count is checked BEFORE the notice: «TRUNCATED» on a
  * listing nobody truncated would pass a one-sided test.
+ *
+ * Extended the same day to the two FLAGS whose descriptions promise behaviour nothing drove:
+ * `dates` («Default: true» — so the default must really stamp, or «dates: false hides it» is
+ * vacuous) and `directoriesOnly` («show only directories» — asserted as directory PRESENT and file
+ * ABSENT, because a listing that printed nothing at all would satisfy the absence alone).
  */
 setDefaultTimeout(30_000)
 
@@ -95,6 +100,46 @@ describe("tool.list — the truncation notice", () => {
 
         expect(result.metadata.truncated).toBe(false)
         expect(result.output).not.toContain("TRUNCATED")
+      }),
+    ),
+  )
+})
+
+describe("tool.list — the two flags its description promises", () => {
+  const DATE = /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/
+
+  it.live("`dates` is on by default and `dates: false` drops the stamp entirely", () =>
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        yield* Effect.promise(() => fs.writeFile(path.join(dir, "stamped.txt"), "x", "utf-8"))
+
+        // Half one: «Default: true» must really render a stamp, or «dates: false hides it» says
+        // nothing — the flag would look correct on a tool that never printed a date at all.
+        const stamped = yield* run({ path: dir })
+        expect(stamped.output).toMatch(DATE)
+
+        const bare = yield* run({ path: dir, dates: false })
+        expect(bare.output).not.toMatch(DATE)
+        // …and the entry is still listed: «no date» must not be satisfiable by «no listing».
+        expect(bare.output).toContain("stamped.txt")
+      }),
+    ),
+  )
+
+  it.live("`directoriesOnly: true` keeps the directories and drops the files", () =>
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        yield* Effect.promise(() => fs.mkdir(path.join(dir, "sub"), { recursive: true }))
+        yield* Effect.promise(() => fs.writeFile(path.join(dir, "sub", "nested.txt"), "x", "utf-8"))
+        yield* Effect.promise(() => fs.writeFile(path.join(dir, "root.txt"), "x", "utf-8"))
+
+        const result = yield* run({ path: dir, directoriesOnly: true })
+
+        // The indent is part of the address, so the directory is asserted as the LINE the tree
+        // renders — and its presence is what makes the two absences mean something.
+        expect(result.output).toContain("  sub/")
+        expect(result.output).not.toContain("nested.txt")
+        expect(result.output).not.toContain("root.txt")
       }),
     ),
   )

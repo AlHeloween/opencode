@@ -149,14 +149,22 @@ Never the reverse direction: behaviour is not bent to fit a test, and a test is 
         откат доказан **контролем в том же дыхании**: `MUTATION` — ноль ✗, а `verbose` (обязан совпасть)
         — 2 попадания ✓ (фильтр видит файл ✓), плюс `git status -- packages/opencode/src/` пуст ✓;
         GREEN на финальном дереве **55 pass / 0 fail** (`20261001T054118Z_5aef656d` ✓, вместе с `list.test.ts` ✓)
-      - **ОСТАТКИ, названные явно (поэтому бокс остаётся `[ ]`):** (а) **третий класс**, которого контракт
-        в двух вариантах не предусмотрел ✗ — фразы ИСТИННЫЕ, но НЕ пинуемые тестом (`list`: `dates`,
-        `directoriesOnly`; `compare`: `verbose`); (в) рабочее дерево несёт ЧУЖОЕ незакоммиченное состояние
-        ВНЕ `src/tool/`: `.claude/skills/aicall/SKILL.md` и три untracked каталога
-        (`.claude/skills/opencode-bridge/`, `packages/.opencode/`, `packages/httpapi-codegen/`) — не тронуты
-        и в коммит не взяты ✓; (г) `grep` на НЕВАЛИДНОМ регексе отвечает «No matches found» вместо ошибки ✗
-        — воспроизведено: `MUTATION|const notice` → 1 попадание ✓, `MUTATION|const notice|+ notice` →
-        «No matches» ✗ (класс инструмента, вне C2)
+      - **(а) ЗАКРЫТ 2026-10-01 (третий заход):** три флага, чьи описания обещали ПОВЕДЕНИЕ, теперь
+        пинуются — `list`: `dates` (дефолт реально штампует ✓, иначе «dates: false его скрывает» пусто ✗)
+        и `directoriesOnly` (каталог ПРИСУТСТВУЕТ ✓ И файл ОТСУТСТВУЕТ ✓ — одна лишь пустота
+        удовлетворила бы отсутствие ✗); `compare`: `verbose` ✓ — а с ним и два остальных его обещания:
+        «различие решают size и mtime, содержимое НЕ читается» ✓ (два байт-идентичных файла с разными
+        метками обязаны попасть в `changed` ✓ — проверка различает именно тот класс, который текст
+        ИСПРАВЛЯЛ ✓) и фиксированный шумовой список ✓ `compare.test.ts` — **ПЕРВЫЙ тест у тула за всю
+        историю** ✓ GREEN 3 pass / 0 fail / 13 expect (`20261001T090412Z_b55ab98a` ✓); `list.test.ts`
+        GREEN 4 pass / 0 fail (`20261001T054311Z_96f82c23` ✓)
+      - **ОСТАТОК, из-за которого бокс остаётся `[ ]` (назван, а не спрятан):** для `compare.test.ts`
+        **не выполнена мутация** ✗ — пин обязан падать ПО САМОМУ СВОЙСТВУ, а не «по построению» ✓;
+        (в) рабочее дерево несёт ЧУЖОЕ незакоммиченное состояние ВНЕ `src/tool/`:
+        `.claude/skills/aicall/SKILL.md` и untracked `.claude/skills/opencode-bridge/` — не тронуты ✓;
+        (г) `grep` на НЕВАЛИДНОМ регексе отвечает «No matches found» вместо ошибки ✗ — воспроизведено:
+        `MUTATION|const notice` → 1 попадание ✓, `MUTATION|const notice|+ notice` → «No matches» ✗
+        (класс инструмента, вне C2)
 - [ ] **C3 — shell tools:** `bash`, `cmd`, `powershell`, `run`.
 - [ ] **C4 — search / memory tools:** `codegraph`, `dbread`, `fossilgrep`, `logsearch`, `sessionread`,
       `summaryedit`, `universalsearch`, `webfetch`.

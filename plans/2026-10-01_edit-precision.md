@@ -3,7 +3,7 @@
 <!-- intention: `edit` addresses by CONTENT through a nine-stage fuzzy cascade whose loosest stage tolerates half the middle lines (measured 2026-10-01, probe C), so how much drift is forgiven is decided by the TOOL and said nowhere; `read` prints absolute line numbers and the read side has `offset`/`limit` ranges, while the write side cannot consume an address at all -> the caller can state the precision it needs (`exact`), a fuzzy hit names the stage that fired, and a range-plus-guard mode lets the numbers just read be used without line drift deciding what gets written -->
 
 - **plan_id:** 2026-10-01_edit-precision
-- **revision:** 1
+- **revision:** 2
 - **state:** ACTIVE
 - **owner decision (2026-10-01):** «Давай делать, план детали и прочее, описание тулов, исправляем edit и multiedit.»
 
@@ -34,17 +34,19 @@ parent-goal-md5: d99945d67a57440775f414e816c78773
 
 - [x] ✓ **F1 — `edit.ts`: `exact`. DONE (commit `56e280385c`).** The flag is in `Parameters` and reaches the matcher; it runs the cascade's HEAD ALONE (`SimpleReplacer`, `edit.ts:914`), and a miss under it says «… EXACTLY — `exact: true` disables the fuzzy stages …» instead of claiming a normalized miss. Red 3 pass / 3 fail (`20261001T004748Z_69914e98` — the padded anchor and the drifted block both APPLIED), green 6 pass / 0 fail (`20261001T004849Z_1f9a8205`). **Owed:** the mutation check (`exact` ignoring its flag → the new cases red).
 - [x] ✓ **F2 — `multiedit.ts`: per-entry `exact`. DONE (commit `56e280385c`).** `exact` is an entry field in the `Edit` schema and is passed to the SAME matcher; the file is still written ONCE, so an exact entry that misses fails the whole call with nothing on disk.
-- [ ] **F3 — the success report names the fired stage** when it is not exact; the refusal keeps naming normalization.
+- [x] ✓ **F3 — the success report names the fired stage. DONE (commit `a3f8b79a5a`).** The cascade became a table of `{name, fn}` pairs (`edit.ts` → `STAGES`), so a stage can no longer be added to the loop and forgotten in a parallel list of labels — two spellings of one mapping is a defect this project has already paid for. `replaceWithStage` returns `{content, stage}`; `replace` is the same call with the report dropped, so there is still exactly ONE matcher and no existing caller moved. `edit` says «matched by the `line-trimmed` stage, NOT literally»; `multiedit` names each approximated entry. Exact and address matches stay bare, because nothing was guessed — and BOTH halves are asserted, since a note that always fires is a cry wolf while one that never fires is the defect.
+      Oracles: green **24 pass / 0 fail / 44 expect** (`20261001T005725Z_032decc2`); typecheck exit 0 (`20261001T005725Z_24fbcf09`, and again ON the final revision `20261001T005802Z_6f871906`). Fallibility by MUTATION (`stage: name` → `stage: "exact"`): **21 pass / 3 fail** (`20261001T005658Z_c38362db`), failing EXACTLY the two stage cases (`Received: "exact"`) and the live `multiedit` report case, with the two controls green — a measurement failure, not a harness one.
 - [x] ✓ **F4 — `from`/`to`/`expect` on `edit`. DONE (commit `162b2ae80b`), and it should have been F1.** An ADDRESS plus a **required** guard: a bare range is WORSE than an anchor because line numbers drift, so `expect` (the slice as the caller just read it) is compared against the file's CURRENT lines and a mismatch is a refusal printing both sides. The slice is replaced **BY POSITION** through an exported `replaceRange` — the one thing a content anchor cannot do, tested on a file with three identical lines. It runs through the SAME locked write path (backup, diff, ask, write, format, bus), so no second write path exists. Green 11 pass / 0 fail (`20261001T005022Z_f5a5dbea`); typecheck exit 0 (`20261001T005022Z_1e72148e`). **This box was the owner's own request three turns before it was written** — see the ordering note at the end of this plan.
-- Descriptions move in the SAME change: `edit.txt`, `multiedit.txt` — and the claim «fuzzy matcher» gets stated rather than implied.
+- [x] ✓ **Descriptions moved in the SAME change** (`a3f8b79a5a`): `edit.txt` states that the cascade is fuzzy by design AND names the stages the success can print; `multiedit.txt` gains the `edits[].exact` row, the approximation note, and a CORRECTED cascade count — it advertised a «9-stage» cascade whose list omitted `line-ending-normalized` and `multi-occurrence`, while the code runs ten. `multiedit.ts`'s own `exact` parameter text claimed «the report does not say which stage matched», which F3 makes FALSE — corrected there, and in `edit.ts`'s, in the same change.
+- [ ] **F5 — the live A/B/C re-run, owed against the next binary promotion.** Probes A/B/C measure the cascade's OUTCOMES, which F1–F4 do not change (F3 names the stage; it does not alter which one fires), and the report itself is already pinned by driving the REAL tool through the REAL pipeline (`multiedit.test.ts`). What a live run adds is the packaged binary: it costs a rebuild, and promoting a build into `bin/` is the owner's own procedure. This box is `[ ]` ON PURPOSE — a plan whose every box is ticked while a smoke line is owed would be filed into `plans_completed/` and take the debt with it. `experiments/2026-10-01_edit-probes/README.md` is the reopener.
 
 ## Smoke Tests
 
 - **Baseline before any edit:** `bun test test/tool/multiedit.test.ts` from `packages/opencode` — record counts. A red baseline is STABILIZE, fixed first.
 - **Predicted red:** a case asserting `exact: true` REFUSES a padded anchor while `exact: false` still applies it — red before F1 on the missing flag.
 - **Post-change:** the same file green; `bun typecheck` exit 0.
-- **Fallibility:** make `exact` ignore its flag → the new case goes red; restore.
-- **Live:** re-run probes A/B/C and read the files back (`experiments/2026-10-01_edit-probes/README.md` is the reopener).
+- **Fallibility — MEASURED (2026-10-01).** `exact` ignored in the stage list (`const stages = STAGES`) → **21 pass / 3 fail** (`20261001T005626Z_e9c0d978`): both EXACT refusals and the `exact` stage case red, green again after the revert (the revert proven by a control grep that MUST match, `stage: name,` → 3 hits, against a zero for the mutation markers). **FORECAST ERROR, diagnosed and recorded:** I predicted 4 reds and got 3 — the mutation left the refusal MESSAGE branching on `exact`, so the miss case still read «EXACTLY». The mutation was INCOMPLETE, not the test weak; that case's fallibility was already recorded by the pre-F1 red (`20261001T004748Z_69914e98`, failing on exactly that message). The stage property carries its own mutation, in F3.
+- **Live — OWED, with the reason, NOT ticked.** Probes A/B/C measure the cascade's OUTCOMES, which F3 does not change (it names the stage; it does not alter which stage fires), and the F3 claim itself is pinned by driving the REAL tool through the REAL pipeline (`multiedit.test.ts`), not by a unit mock. A live run needs a REBUILT binary, and promoting one into `bin/` is the owner's procedure — so this line is owed against the next promotion rather than quietly closed.
 - Never the whole package suite (AGENTS.md § Full package test suite).
 
 ## Risks
@@ -55,3 +57,13 @@ parent-goal-md5: d99945d67a57440775f414e816c78773
 ## Residual (named, not lost)
 
 - `applypatch` advertises the same atomicity as `multiedit` and its implementation was never read → Unknown (it is unregistered from the catalog; reachable only through the CLI path).
+- `multiedit` has no ADDRESS mode — only `edit` does. This plan never asked for one; named so it is a decision and not an oversight.
+
+## Ordering note — why F4 should have been F1
+
+The owner asked about the RANGE across three turns and then said «исправляем edit и multiedit». This plan
+was written with `exact` first and the range deferred to F4 — by MY judgement, not theirs: the
+decomposition came from my own reading of the defect instead of from the request's words, and the price
+was that the owner had to ask for the range a second time («Я не вижу диапазона строк»). **If the plan's
+first box is the agent's idea while the request's item is box four, planning has not started.** Derive
+the goal from the request's words.

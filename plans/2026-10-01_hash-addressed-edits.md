@@ -106,5 +106,14 @@ the file says …» to a write: the address exists only in the output of a read 
 
 ## Residual (named, not lost)
 
+- **Backups can now carry a PROVABLE state** (owner, 2026-10-01: «для бэкапов — мы теперь можем четко сохранять
+  хеши — тогда rollback будет доказуемым без гессинга»). The chain's FINAL value over a file is a whole-file
+  digest: a backup can record it and a rollback can be CHECKED against it — an oracle instead of a resemblance.
+  Two things must be settled before it is built, and this plan deliberately does not settle them:
+  **WIDTH** — 32 bits exists for the ADDRESS, where position pins the rest; a backup proof needs the full 64, or
+  a collision reports «same file» in silence, which is the green-looking wrong verdict this project fears most;
+  **the SECOND SOURCE** — fossil already hashes content, so a chain digest beside it is a second spelling of one
+  fact unless it IS that computation. «Two spellings of one mapping» is a defect this project has paid for
+  twice, so the choice is: it replaces the check, or it is declared an additional witness with its own scope.
 - `multiedit` as a module: unregistered from the tool catalog (as `applypatch` was), and its own tests move to `edit` rather than being deleted.
 - The `from`/`to`/`expect` text-guard address (F4/F6) becomes redundant once hashes ship. Removing it is a separate decision — it is not needed for this plan, and it is not silently kept either.

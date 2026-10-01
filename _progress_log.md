@@ -5997,3 +5997,9 @@ Delegate's proof: QueryFullProcessImageNameW on the spawned process; new binary 
 no BOM, health-check writer without BOM too (AdidCmdRunnerSession.pas:1345). No cmd_runner change needed.
 Rule for harnesses: call cmd_runner by ABSOLUTE path (or `tools\cmd_runner.exe`); never `tools/…` from Python.
 Owner decision pending: `bin\tools\cmd_runner.exe` (old) shadows any bare `tools/cmd_runner.exe` from cwd-less callers.
+
+## [2026-10-02] bin\tools\cmd_runner.exe updated to 2026.10.01 (owner: «Да, обнови»)
+DONE: bin\tools\cmd_runner.exe -> sha 335db660… (== tools\cmd_runner.exe); old kept as
+bin\tools\cmd_runner.2026.07.01.exe (sha cf804633…). Checked before the swap: no process ran from bin\tools (only
+tools\cmd_runner.exe, pid 23420, hosting Smit's TUI). Verified by hash, not by launching from bin/. The PATH shadow now
+resolves to the same build, so a bare `tools/cmd_runner.exe` from Python lands on 2026.10.01 either way.

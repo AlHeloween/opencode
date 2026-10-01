@@ -209,7 +209,14 @@ export function resolveEdits(content: string, edits: EditAddress[]): string {
   // The chain over the ORIGINAL content, computed ONCE — the whole point of the order above.
   const chain: number[] = []
   let running = 0
-  for (const line of lines) chain.push((running = chainHash(running, line)))
+  // `read` prints a line WITHOUT its terminator, and the chain is taken over exactly that string — so a CRLF
+  // file must be chained with its `\r` stripped. Without this the addresses NEVER resolve on a CRLF file, and
+  // that is the one class this whole design exists to kill. Found while wiring `edit` to this function; the LF
+  // tests above could not see it.
+  for (const line of lines) {
+    const text = line.endsWith("\r") ? line.slice(0, -1) : line
+    chain.push((running = chainHash(running, text)))
+  }
   const seed = hashLabel(0)
 
   const spans = edits.map((edit, index) => {
@@ -253,7 +260,15 @@ export function resolveEdits(content: string, edits: EditAddress[]): string {
   // Bottom-up, so a replacement cannot move a span that has not been applied yet.
   let result = lines
   for (const span of [...ordered].reverse()) {
-    result = [...result.slice(0, span.start), ...span.replacement.split("\n"), ...result.slice(span.end + 1)]
+    // A CRLF file keeps CRLF: the lines around the span keep their own `\r` through the split/join, but the
+    // replacement's LAST line has nowhere to get one — the caller converts the INTERNAL breaks, the joiner
+    // supplies the final `\n`, and nothing supplies the `\r` that belongs to it. So it is taken from the line
+    // being replaced. Without this an edit on a CRLF file silently converts the edited line to LF.
+    const replacement = span.replacement.split("\n")
+    if ((lines[span.end] ?? "").endsWith("\r")) {
+      replacement[replacement.length - 1] = `${replacement[replacement.length - 1]}\r`
+    }
+    result = [...result.slice(0, span.start), ...replacement, ...result.slice(span.end + 1)]
   }
   return result.join("\n")
 }
@@ -262,30 +277,26 @@ export const Parameters = Schema.Struct({
   filePath: Schema.String.annotate({
     description: filePathDescription("Path to the file to modify"),
   }),
-  oldString: Schema.optional(Schema.String).annotate({
+  edits: Schema.optional(Schema.Array(
+    Schema.Struct({
+      fromHash: Schema.String.annotate({
+        description:
+          "The address of the line BEFORE the span: the hash `read` printed for the line just above the first line you are changing — `00000000` for line 1, which is the state before the file. It must come from THIS file; an address that does not resolve fails the whole call.",
+      }),
+      toHash: Schema.optional(Schema.String).annotate({
+        description: "The address of the LAST line of the span, exactly as `read` printed it. Omit it to change a single line.",
+      }),
+      newString: Schema.String.annotate({
+        description: "The text that replaces the addressed lines. May span several lines, and may be empty to delete them.",
+      }),
+    }),
+  ).annotate({
     description:
-      "The text to replace. NOT needed when an ADDRESS is given (`from`/`to` + `expect`): in address mode `expect` takes this role and `oldString` is ignored.",
-  }),
-  newString: Schema.String.annotate({
-    description: "The text to replace it with (must be different from oldString)",
-  }),
-  replaceAll: Schema.optional(Schema.Boolean).annotate({
-    description: "Replace all occurrences of oldString (default false)",
-  }),
-  exact: Schema.optional(Schema.Boolean).annotate({
+      "The changes to apply. Every address is resolved against the file AS IT WAS READ before anything is written, so no entry is affected by another; if any address does not resolve, the call fails and NOTHING is written.",
+  })),
+  content: Schema.optional(Schema.String).annotate({
     description:
-      "Require a LITERAL match for oldString (default false). The matcher is fuzzy by design: a padded or drifted anchor still applies, and the success report names the stage that matched. Set `exact: true` when the anchor must be found verbatim — a miss then fails the call instead of landing near it.",
-  }),
-  from: Schema.optional(Schema.Number).annotate({
-    description:
-      "First line of an ADDRESS-BASED edit (1-based, the numbers `read` prints). Needs `to` or defaults to a single line, and REQUIRES `expect`: line numbers drift, and a bare address would write into whatever now occupies those lines.",
-  }),
-  to: Schema.optional(Schema.Number).annotate({
-    description: "Last line of an address-based edit (1-based, inclusive). Defaults to `from`.",
-  }),
-  expect: Schema.optional(Schema.String).annotate({
-    description:
-      "The CURRENT text of lines `from`-`to`, exactly as you just read it. The tool refuses if the file no longer holds it — that guard is what makes an address safe. Replaces `oldString` in this mode.",
+      "Create a NEW file with this content. Refused when the file already exists — address its lines instead — and never combined with `edits`.",
   }),
 })
 
@@ -305,18 +316,12 @@ export const EditTool = Tool.define(
           if (!params.filePath) {
             throw new Error("filePath is required")
           }
-
-          // Either an anchor or an address, never neither: `oldString` is optional only so that ADDRESS mode
-          // does not have to carry a value it discards (plan F6).
-          const addressed = params.from !== undefined || params.to !== undefined
-          if (params.oldString === undefined && !addressed) {
-            throw new Error(
-              "pass `oldString` — the text to replace — or address the lines with `from`/`to` + `expect`.",
-            )
+          const edits = params.edits ?? []
+          if (params.content !== undefined && edits.length > 0) {
+            throw new Error("`content` creates a new file; it cannot be combined with `edits`.")
           }
-
-          if (!addressed && params.oldString === params.newString) {
-            throw new Error("No changes to apply: oldString and newString are identical.")
+          if (params.content === undefined && edits.length === 0) {
+            throw new Error("pass `edits` — at least one addressed change — or `content` to create a new file.")
           }
 
           const filePath = path.isAbsolute(params.filePath)
@@ -328,75 +333,48 @@ export const EditTool = Tool.define(
           let diff = ""
           let contentOld = ""
           let contentNew = ""
-          // Which cascade stage matched (plan F3). "exact" until an approximate stage says otherwise, so
-          // the caller is TOLD when its anchor was approximated instead of having to infer it.
-          let matchedStage = "exact"
           yield* lock(filePath).withPermits(1)(
             Effect.gen(function* () {
-              if (params.oldString === "" && params.from === undefined && params.to === undefined) {
-                const existed = yield* afs.existsSafe(filePath)
-                const source = existed ? yield* Bom.readFile(afs, filePath) : { bom: false, text: "" }
-                const next = Bom.split(params.newString)
-                const desiredBom = source.bom || next.bom
-                contentOld = source.text
-                if (existed) yield* writeBackup(contentOld, ctx.sessionID, ctx.callID ?? "", filePath, afs)
-                contentNew = next.text
-                diff = trimDiff((yield* Effect.promise(() => createPatch(contentOld, contentNew))) ?? "")
-                yield* ctx.ask({
-                  permission: "edit",
-                  patterns: [path.relative(Instance.worktree, filePath)],
-                  always: ["*"],
-                  metadata: {
-                    filepath: filePath,
-                    diff,
-                  },
-                })
-                yield* afs.writeWithDirs(filePath, Bom.join(contentNew, desiredBom))
-                if (yield* format.file(filePath)) {
-                  contentNew = yield* Bom.syncFile(afs, filePath, desiredBom)
-                }
-                yield* bus.publish(File.Event.Edited, { file: filePath })
-                yield* bus.publish(FileWatcher.Event.Updated, {
-                  file: filePath,
-                  event: existed ? "change" : "add",
-                })
-                return
-              }
-
-              const info = yield* afs.stat(filePath).pipe(Effect.catch(() => Effect.succeed(undefined)))
-              if (!info) throw new Error(`File ${filePath} not found`)
-              if (info.type === "Directory") throw new Error(`Path is a directory, not a file: ${filePath}`)
-              const source = yield* Bom.readFile(afs, filePath)
+              const existed = yield* afs.existsSafe(filePath)
+              const source = existed ? yield* Bom.readFile(afs, filePath) : { bom: false, text: "" }
               contentOld = source.text
+              let desiredBom = source.bom
+              if (existed) yield* writeBackup(contentOld, ctx.sessionID, ctx.callID ?? "", filePath, afs)
 
-              yield* writeBackup(contentOld, ctx.sessionID, ctx.callID ?? "", filePath, afs)
-
-              const ending = detectLineEnding(contentOld)
-              const old = convertToLineEnding(normalizeLineEndings(params.oldString ?? ""), ending)
-              const replacement = convertToLineEnding(normalizeLineEndings(params.newString), ending)
-
-              // THE ADDRESS, WITH ITS GUARD (plan F4). `read` prints absolute 1-based line numbers, so a
-              // caller can say WHICH lines it means instead of describing them. But numbers DRIFT: a bare
-              // address would write into whatever now occupies those lines, so the address carries
-              // `expect` — the slice's text as the caller just read it — and a mismatch is a refusal that
-              // shows both. The slice is then replaced BY POSITION, which is the one thing a content
-              // anchor cannot do: a range that repeats elsewhere still addresses the lines it names.
-              const applied =
-                params.from !== undefined || params.to !== undefined
-                  ? {
-                      content: replaceRange(contentOld, {
-                        from: params.from,
-                        to: params.to,
-                        expect: params.expect,
-                        replacement,
-                      }),
-                      stage: "address",
-                    }
-                  : replaceWithStage(contentOld, old, replacement, params.replaceAll, params.exact)
-              const next = Bom.split(applied.content)
-              matchedStage = applied.stage
-              const desiredBom = source.bom || next.bom
-              contentNew = next.text
+              // ONE write path for both shapes; they differ only in how `contentNew` is produced. The old
+              // duplication — a create branch and an edit branch, each repeating backup/diff/ask/write/format/
+              // bus — is exactly where two spellings of one rule start to drift.
+              if (params.content !== undefined) {
+                if (existed) {
+                  throw new Error(
+                    `${filePath} already exists — \`content\` only CREATES a file. Address its lines with \`edits\`.`,
+                  )
+                }
+                const created = Bom.split(params.content)
+                contentNew = created.text
+                desiredBom = source.bom || created.bom
+              } else {
+                if (!existed) {
+                  throw new Error(`${filePath} not found — an address can only name lines of a file that exists`)
+                }
+                const info = yield* afs.stat(filePath)
+                if (info.type === "Directory") throw new Error(`Path is a directory, not a file: ${filePath}`)
+                // The file's OWN ending is applied to the REPLACEMENTS, so an edit does not silently convert a
+                // CRLF file. The ADDRESSES never depend on it: the chain is taken over each line WITHOUT its
+                // terminator, which is exactly the string `read` printed.
+                const ending = detectLineEnding(contentOld)
+                const addressed = edits.map((edit) => ({
+                  ...edit,
+                  newString: convertToLineEnding(normalizeLineEndings(edit.newString), ending),
+                }))
+                const applied = resolveEdits(contentOld, addressed)
+                if (applied === contentOld) {
+                  throw new Error("No changes to apply: the result is identical to the file.")
+                }
+                const next = Bom.split(applied)
+                contentNew = next.text
+                desiredBom = source.bom || next.bom
+              }
 
               diff = trimDiff(
                 (yield* Effect.promise(() => createPatch(normalizeLineEndings(contentOld), normalizeLineEndings(contentNew)))) ?? "",
@@ -418,7 +396,7 @@ export const EditTool = Tool.define(
               yield* bus.publish(File.Event.Edited, { file: filePath })
               yield* bus.publish(FileWatcher.Event.Updated, {
                 file: filePath,
-                event: "change",
+                event: existed ? "change" : "add",
               })
               diff = trimDiff(
                 (yield* Effect.promise(() => createPatch(normalizeLineEndings(contentOld), normalizeLineEndings(contentNew)))) ?? "",
@@ -448,14 +426,7 @@ export const EditTool = Tool.define(
             },
           })
 
-          // Plan F3: the SUCCESS names the stage, for the same reason the refusal does — a caller must
-          // never have to INFER that its anchor was approximated. Exact and address matches carry no
-          // note, because there is nothing to disclose: nothing was guessed.
-          let output =
-            matchedStage === "exact" || matchedStage === "address"
-              ? "Edit applied successfully."
-              : `Edit applied successfully — matched by the \`${matchedStage}\` stage, NOT literally. ` +
-                `The anchor was approximated; pass \`exact: true\` to require a literal match.`
+          let output = "Edit applied successfully."
           // Diagnostics are advisory and the edit has already been written, so
           // they must never gate the return. `waitForDocumentDiagnostics` is
           // bounded at 5s (lsp/client.ts DIAGNOSTICS_DOCUMENT_WAIT_TIMEOUT_MS),

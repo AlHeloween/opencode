@@ -67,27 +67,42 @@ exports[`tool parameters JSON Schema (wire shape) edit 1`] = `
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
+    "content": {
+      "description": "Create a NEW file with this content. Refused when the file already exists — address its lines instead — and never combined with \`edits\`.",
+      "type": "string",
+    },
+    "edits": {
+      "description": "The changes to apply. Every address is resolved against the file AS IT WAS READ before anything is written, so no entry is affected by another; if any address does not resolve, the call fails and NOTHING is written.",
+      "items": {
+        "properties": {
+          "fromHash": {
+            "description": "The address of the line BEFORE the span: the hash \`read\` printed for the line just above the first line you are changing — \`00000000\` for line 1, which is the state before the file. It must come from THIS file; an address that does not resolve fails the whole call.",
+            "type": "string",
+          },
+          "newString": {
+            "description": "The text that replaces the addressed lines. May span several lines, and may be empty to delete them.",
+            "type": "string",
+          },
+          "toHash": {
+            "description": "The address of the LAST line of the span, exactly as \`read\` printed it. Omit it to change a single line.",
+            "type": "string",
+          },
+        },
+        "required": [
+          "fromHash",
+          "newString",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
     "filePath": {
       "description": "Path to the file to modify. Prefer a path relative to the project working directory (e.g. "src/foo.ts", "experiments/x"). Absolute paths are allowed only when they resolve under the working directory or worktree. Do not invent foreign OS user paths (e.g. C:\\Users\\other\\... unrelated to this project).",
       "type": "string",
     },
-    "newString": {
-      "description": "The text to replace it with (must be different from oldString)",
-      "type": "string",
-    },
-    "oldString": {
-      "description": "The text to replace",
-      "type": "string",
-    },
-    "replaceAll": {
-      "description": "Replace all occurrences of oldString (default false)",
-      "type": "boolean",
-    },
   },
   "required": [
     "filePath",
-    "oldString",
-    "newString",
   ],
   "type": "object",
 }

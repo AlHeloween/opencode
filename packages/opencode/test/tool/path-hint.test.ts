@@ -29,9 +29,8 @@ describe("tool.path-hint", () => {
     const { Parameters: Edit } = await import("../../src/tool/edit")
     const { Parameters: Read } = await import("../../src/tool/read")
     const { Parameters: Ls } = await import("../../src/tool/ls")
-    const { Parameters: Multi } = await import("../../src/tool/multiedit")
 
-    for (const schema of [Write, Edit, Read, Multi]) {
+    for (const schema of [Write, Edit, Read]) {
       const js = toJsonSchema(schema) as { properties?: { filePath?: { description?: string } } }
       const desc = js.properties?.filePath?.description ?? ""
       expect(desc).toContain("Prefer a path relative")

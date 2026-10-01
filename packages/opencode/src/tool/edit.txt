@@ -2,7 +2,7 @@
 
 `edit` is **MODIFY / PERSISTENT_WRITE / ELEVATED**. Follow kernel G7 (IMPLEMENT) rules: read-before-edit, use product tools, preserve unrelated changes, run oracle after change, mark [x] only on PASS.
 
-Before edit: inspect the target (read/codegraph). State the semantic delta, not only the path. After edit: run **declared** oracle before Done / `[x]`. Prefer edit over write for partial updates (rollback-friendly backups).
+Before edit: inspect the target (read/codegraph). State the semantic delta, not only the path. After edit: run **declared** oracle before Done / `[x]`.
 
 ## File Backups
 
@@ -10,30 +10,25 @@ Each edit automatically creates a backup of the file's pre-edit content. Backups
 
 **Undo without git:** use `restore` tool — `restore({ filePath })` for latest bak, `restore({ list: true })` to list.
 
-## Matching: 10-Stage Cascade
+## The address IS the guard — there is no fuzzy matching
 
-1. **SimpleReplacer** — Exact match.
-2. **LineEndingNormalizedReplacer** — Match `LF`/`CRLF` variations using source offsets; supports text ending within a line.
-3. **LineTrimmedReplacer** — Line-by-line after trimming whitespace.
-4. **BlockAnchorReplacer** — Anchor on first/last lines, Levenshtein middle.
-5. **WhitespaceNormalizedReplacer** — Normalize whitespace runs.
-6. **IndentationFlexibleReplacer** — Strip minimum common indentation.
-7. **EscapeNormalizedReplacer** — Unescape `\n`, `\t`, etc.
-8. **TrimmedBoundaryReplacer** — Try trimmed version of search block.
-9. **ContextAwareReplacer** — Anchor-based with 50% middle-line threshold.
-10. **MultiOccurrenceReplacer** — Find all exact matches for `replaceAll`.
+Every change names its lines by the hashes `read` printed, and by nothing else:
 
-If all 10 fail, edit throws error. Multiple matches without `replaceAll` also fails — provide more context.
+- `fromHash` — the address of the line **before** the span (`00000000` for line 1: the state before the file).
+- `toHash` — the address of the span's **last** line. Omit it to change one line.
+- `newString` — what replaces the addressed lines.
 
-**The cascade is fuzzy BY DESIGN** — a padded or drifted anchor still applies — so `exact: true` is how a caller says «find it literally or refuse»: it runs the exact match ALONE, and a miss under it fails the call instead of landing near it. Default `false` keeps today's accommodating behaviour.
+**Read first; you cannot address what you have not read.** The hashes come from a CHAIN over the file (`h(i) = xxHash64(h(i-1) ‖ line(i))`, seeded at `00000000`), so an address names a position AND the state of the file up to that point. Any change above an addressed span changes its hash, and the call is REFUSED rather than landing near it. There is no approximate match, no nearest anchor, no guess: a wrong address does not edit less — it does not edit at all.
 
-**A match that was not literal is NAMED.** The success says which stage fired — `line-trimmed`, `block-anchor`, `whitespace-normalized`, `indentation-flexible`, `escape-normalized`, `trimmed-boundary`, `context-aware`, `multi-occurrence` — so a caller never has to infer that its anchor was approximated. Exact and address matches say nothing extra, because nothing was guessed.
+**Every address is resolved BEFORE anything is written.** The whole list is checked against the file as it was read, and the file is written once — so no entry is affected by another, and a failure writes NOTHING.
 
 ## Line Endings & Unicode
-- Matching accepts `\r\n` and `\n` variations, including mixed-EOL source files. Replacement text uses the file's detected line ending.
+
+- Addresses are IDENTICAL for a CRLF file and an LF file: the chain is taken over each line WITHOUT its terminator, which is exactly the string `read` printed. Replacement text uses the file's own detected ending.
 - Unicode normalization handles dash/quote/space variants.
 
 ## Post-Edit Processing
+
 - LSP diagnostics run on modified file after editing.
 - File formatting respects project's configured formatter.
 - BOM preserved/detected on UTF-8 files.
@@ -43,10 +38,8 @@ If all 10 fail, edit throws error. Multiple matches without `replaceAll` also fa
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `filePath` | string | Absolute path to the file to modify |
-| `oldString` | string | The text to replace |
-| `newString` | string | Replacement text (must differ from oldString) |
-| `exact` | boolean | Require a LITERAL match for `oldString` (default `false`). The matcher is fuzzy by design: this turns the guess off for this call. |
-| `from` | number | First line of an ADDRESS-BASED edit (1-based — the numbers `read` prints). Needs `expect`. |
-| `to` | number | Last line of an address-based edit, inclusive (defaults to `from`). |
-| `expect` | string | The CURRENT text of lines `from`-`to`, exactly as you just read it — REQUIRED with `from`/`to`. The tool refuses if the file no longer holds it: that guard is what makes an address safe against line numbers drifting. The slice is then replaced BY POSITION, so a range that repeats elsewhere in the file still addresses the lines it names. |
-| `replaceAll` | boolean (default: false) | Replace all occurrences |
+| `edits` | array | The changes to apply, each `{ fromHash, toHash?, newString }`. Every address is resolved against the file as it was read before anything is written; if any address does not resolve, the call fails and NOTHING is written. |
+| `edits[].fromHash` | string | The address of the line BEFORE the span — the hash `read` printed for the line just above the first line you are changing, or `00000000` for line 1. |
+| `edits[].toHash` | string (optional) | The address of the LAST line of the span, exactly as `read` printed it. Omit to change a single line. |
+| `edits[].newString` | string | Replacement text for the addressed lines. May span several lines, and may be empty to delete them. |
+| `content` | string (optional) | Create a NEW file with this content. Refused when the file already exists — address its lines instead — and never combined with `edits`. |

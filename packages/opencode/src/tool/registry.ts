@@ -23,7 +23,6 @@ import { RunTool } from "./run"
 import { InvalidTool } from "./invalid"
 import { SkillTool } from "./skill"
 import { ListTool } from "./ls"
-import { MultiEditTool } from "./multiedit"
 import { RestoreTool } from "./restore"
 import { CompactTool } from "./compact"
 import { SummaryEditTool } from "./summaryedit"
@@ -211,7 +210,6 @@ export const layer: Layer.Layer<
     const fossilgreptool = yield* FossilGrepTool
     const skilltool = yield* SkillTool
     const listtool = yield* ListTool
-    const multiedit = yield* MultiEditTool
     const restore = yield* RestoreTool
     const compact = yield* CompactTool
     const summaryedit = yield* SummaryEditTool
@@ -344,7 +342,6 @@ export const layer: Layer.Layer<
           svm: Tool.init(svm),
           checkstate: Tool.init(checkstate),
           list: Tool.init(listtool),
-          multiedit: Tool.init(multiedit),
           restore: Tool.init(restore),
           compact: Tool.init(compact),
           summaryedit: Tool.init(summaryedit),
@@ -389,7 +386,6 @@ export const layer: Layer.Layer<
             tool.todo,
             tool.skill,
             tool.list,
-            tool.multiedit,
             tool.restore,
             tool.compact,
             tool.summaryedit,

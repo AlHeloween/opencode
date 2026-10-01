@@ -100,24 +100,24 @@ describe("tool.edit — an address plus a guard", () => {
  * an address alone decodes; neither an address nor `oldString` stays a refusal; and a plain content edit is
  * exactly as it was.
  */
-describe("tool.edit — the address passes the TOOL's schema", () => {
+describe("tool.edit — the TOOL's schema carries the list", () => {
   const decode = Schema.decodeUnknownSync(Parameters)
 
-  test("an ADDRESS alone is a valid call — `oldString` is not required with `from`/`to`/`expect`", () => {
-    expect(() => decode({ filePath: "x.txt", newString: "NEW", from: 4, to: 4, expect: "dup-marker" })).not.toThrow()
+  test("a list of addresses decodes — the shape `read` feeds", () => {
+    expect(() => decode({ filePath: "x.txt", edits: [{ fromHash: "00000000", newString: "NEW" }] })).not.toThrow()
+    expect(() =>
+      decode({ filePath: "x.txt", edits: [{ fromHash: "a3f19c2e", toHash: "b7c1d0e4", newString: "NEW" }] }),
+    ).not.toThrow()
   })
 
-  test("the schema does NOT decide `neither` — that refusal is the tool's own guard, where the message can name both doors", () => {
-    // Asserting the LAYER deliberately. `oldString` became optional so the address does not carry a value it
-    // discards, which means the schema now ACCEPTS `{filePath, newString}` and the refusal moved into
-    // `execute`: «pass `oldString` — the text to replace — or address the lines with `from`/`to` + `expect`».
-    // That is an actionable message a `SchemaError` cannot give, and the price is named rather than hidden —
-    // a schema test can see that this door is open, but it cannot see that the guard holds.
-    expect(() => decode({ filePath: "x.txt", newString: "NEW" })).not.toThrow()
+  test("`content` alone decodes — creating a file has no lines to address", () => {
+    expect(() => decode({ filePath: "x.txt", content: "hello\n" })).not.toThrow()
   })
 
-  test("a plain content edit is unchanged: `oldString` alone still decodes", () => {
-    expect(() => decode({ filePath: "x.txt", oldString: "old", newString: "NEW" })).not.toThrow()
+  test("the schema does NOT decide `neither` — the tool's own guard does, naming both doors", () => {
+    // Deliberate, exactly as under F6: a SchemaError cannot say «pass `edits` — or `content` to create a file»,
+    // and that message is the one a caller can act on.
+    expect(() => decode({ filePath: "x.txt" })).not.toThrow()
   })
 })
 

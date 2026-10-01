@@ -86,20 +86,17 @@ describe("tool parameters", () => {
   })
 
   describe("edit", () => {
-    test("accepts all four fields", () => {
-      expect(parse(Edit, { filePath: "/a", oldString: "x", newString: "y", replaceAll: true })).toEqual({
+    test("accepts a list of addressed changes", () => {
+      expect(parse(Edit, { filePath: "/a", edits: [{ fromHash: "00000000", newString: "y" }] })).toEqual({
         filePath: "/a",
-        oldString: "x",
-        newString: "y",
-        replaceAll: true,
+        edits: [{ fromHash: "00000000", newString: "y" }],
       })
     })
-    test("replaceAll is optional", () => {
-      const parsed = parse(Edit, { filePath: "/a", oldString: "x", newString: "y" })
-      expect(parsed.replaceAll).toBeUndefined()
+    test("`content` alone is accepted — a created file has no lines to address", () => {
+      expect(parse(Edit, { filePath: "/a", content: "hello" }).content).toBe("hello")
     })
     test("rejects missing filePath", () => {
-      expect(accepts(Edit, { oldString: "x", newString: "y" })).toBe(false)
+      expect(accepts(Edit, { edits: [] })).toBe(false)
     })
   })
 

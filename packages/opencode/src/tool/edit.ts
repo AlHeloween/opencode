@@ -10,6 +10,7 @@ import { LSP } from "@/lsp/lsp"
 import type * as LSPClient from "@/lsp/client"
 import { createPatch, diffStats } from "@/util/diff-wasm"
 import DESCRIPTION from "./edit.txt"
+import { chainHash, hashLabel, parseHash } from "./read"
 import { File } from "../file"
 import { FileWatcher } from "../file/watcher"
 import { Bus } from "../bus"
@@ -186,6 +187,75 @@ export function replaceRange(
     )
   }
   return [...lines.slice(0, from - 1), ...input.replacement.split("\n"), ...lines.slice(to)].join("\n")
+}
+
+/**
+ * THE EDIT LIST, RESOLVED AGAINST THE ORIGINAL CONTENT (plan 2026-10-01_hash-addressed-edits, H3/H4).
+ *
+ * «multiedit в начале определяет куда — и только потом правит, а не исправление, потом еще исправление»
+ * (owner, 2026-10-01). That ORDER is what makes a CHAINED address usable: every entry resolves against the
+ * content as it was READ, so no entry has to survive an intermediate state. It is also what makes ONE tool with
+ * a list atomic by construction rather than by compensation: nothing is written until every entry has resolved.
+ *
+ * The address is a PAIR. `fromHash` is the hash of the line BEFORE the span — the seed `00000000` names the
+ * state before line 1, so the first line is addressable like any other — and `toHash` is the hash of the span's
+ * LAST line; `toHash` absent means a single line. Both must exist in the current chain or the call is REFUSED:
+ * nothing lands approximately, and nothing is guessed.
+ */
+export type EditAddress = { fromHash: string; toHash?: string; newString: string }
+
+export function resolveEdits(content: string, edits: EditAddress[]): string {
+  const lines = content.split("\n")
+  // The chain over the ORIGINAL content, computed ONCE — the whole point of the order above.
+  const chain: number[] = []
+  let running = 0
+  for (const line of lines) chain.push((running = chainHash(running, line)))
+  const seed = hashLabel(0)
+
+  const spans = edits.map((edit, index) => {
+    const at = (what: string) => `edit ${index + 1}: ${what}`
+    const parsedFrom = parseHash(edit.fromHash)
+    if (parsedFrom === undefined) {
+      throw new Error(at(`\`fromHash\` is not an 8-hex address: ${JSON.stringify(edit.fromHash)}`))
+    }
+    // `fromHash` names the line BEFORE the span, so the seed resolves to "before line 1".
+    const before = edit.fromHash === seed ? -1 : chain.indexOf(parsedFrom)
+    if (edit.fromHash !== seed && before === -1) {
+      throw new Error(
+        at("`fromHash` is not in this file — the address drifted, or the file changed since it was read") +
+          ". Re-read and pass the current hashes.",
+      )
+    }
+    const start = before + 1
+
+    const parsedTo = edit.toHash === undefined ? undefined : parseHash(edit.toHash)
+    if (edit.toHash !== undefined && parsedTo === undefined) {
+      throw new Error(at(`\`toHash\` is not an 8-hex address: ${JSON.stringify(edit.toHash)}`))
+    }
+    const end = parsedTo === undefined ? start : chain.indexOf(parsedTo)
+    if (end === -1) {
+      throw new Error(at("`toHash` is not in this file — the address drifted") + ". Re-read and pass the current hashes.")
+    }
+    if (end < start) throw new Error(at("`toHash` precedes `fromHash` — an inverted range"))
+    if (end >= lines.length) throw new Error(at("the address runs past the end of the file"))
+    return { start, end, replacement: edit.newString }
+  })
+
+  // A refusal, never a merge decision: two entries claiming one line have no defined order, and «last writer
+  // wins» is exactly the silent outcome this design exists to remove.
+  const ordered = [...spans].sort((a, b) => a.start - b.start)
+  for (let i = 1; i < ordered.length; i += 1) {
+    if (ordered[i]!.start <= ordered[i - 1]!.end) {
+      throw new Error(`two edits claim line ${ordered[i]!.start + 1} — refuse rather than let one silently win`)
+    }
+  }
+
+  // Bottom-up, so a replacement cannot move a span that has not been applied yet.
+  let result = lines
+  for (const span of [...ordered].reverse()) {
+    result = [...result.slice(0, span.start), ...span.replacement.split("\n"), ...result.slice(span.end + 1)]
+  }
+  return result.join("\n")
 }
 
 export const Parameters = Schema.Struct({

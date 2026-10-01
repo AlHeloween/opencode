@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { Parameters, replace, replaceRange, replaceWithStage } from "../../src/tool/edit"
+import { Parameters, replace, replaceRange, replaceWithStage, resolveEdits } from "../../src/tool/edit"
+import { chainHash, hashLabel } from "../../src/tool/read"
 
 /**
  * `exact` — the CALLER states the precision of its anchor.
@@ -117,6 +118,83 @@ describe("tool.edit — the address passes the TOOL's schema", () => {
 
   test("a plain content edit is unchanged: `oldString` alone still decodes", () => {
     expect(() => decode({ filePath: "x.txt", oldString: "old", newString: "NEW" })).not.toThrow()
+  })
+})
+
+/**
+ * THE EDIT LIST, RESOLVED THEN APPLIED (plan 2026-10-01_hash-addressed-edits, H3/H4).
+ *
+ * The addresses here are built the SAME way `read` prints them — the chain over the file — so the test states
+ * the contract a caller actually meets rather than a private spelling of it. Two hashes name a span; anything
+ * that does not resolve is a REFUSAL, and nothing lands near its address.
+ */
+describe("tool.edit — a list of addresses, resolved then applied", () => {
+  const labels = (content: string) => {
+    const out = [hashLabel(0)]
+    let running = 0
+    for (const line of content.split("\n")) out.push(hashLabel((running = chainHash(running, line))))
+    return out
+  }
+
+  test("replaces a span by its two hashes and leaves the rest byte-identical", () => {
+    const content = "alpha\nbeta\ngamma\ndelta\n"
+    const h = labels(content)
+    // `fromHash` names the line BEFORE the span, `toHash` its LAST line: lines 2..3 here.
+    expect(resolveEdits(content, [{ fromHash: h[1]!, toHash: h[3]!, newString: "X" }])).toBe("alpha\nX\ndelta\n")
+  })
+
+  test("`toHash` absent means ONE line, and the seed `00000000` addresses the first", () => {
+    const content = "alpha\nbeta\n"
+    const h = labels(content)
+    expect(h[0]).toBe("00000000")
+    expect(resolveEdits(content, [{ fromHash: h[0]!, newString: "FIRST" }])).toBe("FIRST\nbeta\n")
+    expect(resolveEdits(content, [{ fromHash: h[1]!, newString: "SECOND" }])).toBe("alpha\nSECOND\n")
+  })
+
+  test("the whole point: identical lines are addressable INDIVIDUALLY", () => {
+    const content = "same\nsame\nsame\n"
+    const h = labels(content)
+    // `fromHash` is the label of the line BEFORE the span, so naming line 2 means passing LINE 1's label. My
+    // first version of this expectation passed `h[2]` — line 2's OWN label — and the code correctly moved line
+    // 3, because that is what «the line after this one» means. The test was wrong, not the contract.
+    expect(resolveEdits(content, [{ fromHash: h[1]!, newString: "MIDDLE" }])).toBe("same\nMIDDLE\nsame\n")
+    // Both halves of the owner's «хеш старта хеш конца»: the pair names the same single line explicitly.
+    expect(resolveEdits(content, [{ fromHash: h[1]!, toHash: h[2]!, newString: "MIDDLE" }])).toBe(
+      "same\nMIDDLE\nsame\n",
+    )
+    // …while the two neighbours — IDENTICAL to it — stay untouched, which a content anchor could never do.
+  })
+
+  test("a hash that is not in the file is a REFUSAL — never a nearby landing", () => {
+    expect(() => resolveEdits("alpha\nbeta\n", [{ fromHash: "deadbeef", newString: "X" }])).toThrow(/not in this file/)
+  })
+
+  test("a malformed hash is refused, and the refusal names the entry", () => {
+    expect(() => resolveEdits("alpha\n", [{ fromHash: "DEADBEEF", newString: "X" }])).toThrow(/edit 1/)
+  })
+
+  test("two entries claiming one line are refused, not ordered by luck", () => {
+    const content = "alpha\nbeta\n"
+    const h = labels(content)
+    expect(() =>
+      resolveEdits(content, [
+        { fromHash: h[0]!, newString: "A" },
+        { fromHash: h[0]!, newString: "B" },
+      ]),
+    ).toThrow(/claim line/)
+  })
+
+  test("ALL entries resolve BEFORE any is applied — a later span is not moved by an earlier edit", () => {
+    const content = "one\ntwo\nthree\n"
+    const h = labels(content)
+    // Entry 1 rewrites line 2 with TWO lines; entry 2 still addresses line 3 by ITS ORIGINAL hash. Applied
+    // top-down, entry 2 would land one line late — which is exactly the failure this order removes.
+    expect(
+      resolveEdits(content, [
+        { fromHash: h[1]!, newString: "SECOND-A\nSECOND-B" },
+        { fromHash: h[2]!, newString: "THIRD" },
+      ]),
+    ).toBe("one\nSECOND-A\nSECOND-B\nTHIRD\n")
   })
 })
 

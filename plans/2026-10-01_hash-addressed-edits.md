@@ -123,6 +123,20 @@ the file says …» to a write: the address exists only in the output of a read 
          преобразование, которого адрес не требует.
       Любой выбор решает заодно, как `edit` ОПОЗНАЁТ бинарник (флаг, или провал UTF-8-декодирования) — а
       неверная догадка здесь это ПУТЬ ЗАПИСИ, поэтому это бокс, а не рефлекс ✓
+- [ ] **H8 — цель плана говорит «and no fuzzy stage exists», а 560 строк его всё ещё существуют.** `edit.ts`
+      по-прежнему ЭКСПОРТИРУЕТ десять ступеней `Replacer` (`SimpleReplacer` … `ContextAwareReplacer`,
+      `:649`–`:1106`), `replaceWithStage` (`:1165`), `replace` (`:1212`) и `replaceRange` (`:176`) — замерено
+      2026-10-01: **в `src/` ни одного вызова** ✓ `replaceRange`/`replaceWithStage` встречаются только в своих
+      определениях, `replaceWithStage` зовётся только из `replace`, а `[^.\w]replace\(` даёт определение
+      `edit.ts:1212` и два посторонних метода диалога (`dialog.tsx:122`, `api.tsx:300`). Единственный
+      потребитель всего этого — `test/tool/edit-exact.test.ts`, и три его блока зелёные, но **упасть на
+      продукте не могут**: тест и мёртвый код держат друг друга ✓ Это «тест, который молча ничего не
+      утверждает» в чистейшем виде ✓
+      **Это ОДНА правка, а не две** (AGENTS: когда поведение переезжает, его сьют переезжает в той же правке):
+      снять мёртвые экспорты И эти три блока вместе ✓ Оракул живого пути уже стоит на месте (`resolveEdits`
+      + случаи схемы, которые остаются ✓), поэтому резать можно ✓ — но **не снимать сначала тесты** ✗: иначе
+      мёртвый код останется вообще без наблюдателя ✗
+      Оракул: названные файлы C2 зелёные после + `bun typecheck` exit 0 + удаление видно одним связным коммитом.
 - [x] ✓ **H3 — ONE tool: `edit` takes `edits: [...]`. DONE (commit `815cf266b6`).** `multiedit` is UNREGISTERED
       from the catalog (`registry.ts`, 4 sites ✓) and turned INTO a module that declares itself retired, rather
       than deleted — the constitution blocks deleting files from the shell ✓, and a module that says so is

@@ -64,7 +64,36 @@ Never the reverse direction: behaviour is not bent to fit a test, and a test is 
       `optionalPattern` at all. Deleting that call leaves every test green while the tool searches with no
       filter. Pinning it costs a messagesearch instance driven with a malformed pattern; the residual is
       recorded here instead of being left implied.
-- [ ] **C2 — file tools:** `read`, `write`, `edit`, `multiedit`, `ls`, `restore`, `treediff`, `compare`.
+- [ ] **C2 — file tools:** `read`, `write`, `edit`, `multiedit`, `ls`/`list`, `restore`, `treediff`, `compare`.
+      **Перегрунтован на код 2026-10-01** — и это окупилось дважды:
+      - **БАЗА БЫЛА КРАСНОЙ, и красное — наше.** `test/tool/edit-exact.test.ts` падал тремя случаями с
+        `Missing key at ["files"]` (`20261001T052355Z_7c3c83cb`): схема уехала на пакет (H6), а этот файл
+        остался на старой форме ✓ Первым делом СТАБИЛИЗИРОВАНО, как велит контракт: перенацелено на
+        `files: [{ filePath, edits? }]`, те же три стороны, провенанс — в самом файле ✓ → **26 pass / 0 fail
+        / 34 expect**, exit 0 (`20261001T052620Z_7a54b258`).
+      - **МЁРТВЫЙ СЛОЙ назван боксом, а не починен здесь:** три блока того же файла держат `replace`,
+        `replaceRange`, `replaceWithStage` и десять ступеней `Replacer` — замерено: **в `src/` ни одного
+        вызова**, единственный потребитель — этот тест ✓ Удаление — бокс **H8** плана
+        `2026-10-01_hash-addressed-edits.md`, и оно обязано быть ОДНОЙ правкой (тесты и код вместе ✓): снять
+        сначала тесты — оставить мёртвый код вообще без наблюдателя ✗
+      - **`compare` — ДВА ложных обещания** (замерено чтением `compare.ts`): (а) `Parameters.ignore`
+        («Additional glob patterns to ignore») **не читается `execute` ни разу** — параметр требуют и
+        выбрасывают, тот же класс, что старый дефект `from`/`to`/`expect`; (б) текст обещает «`same` —
+        identical», а код сравнивает `size` И `mtime` ⇒ два побайтово равных файла с разными метками
+        попадают в **changed** ✓ Текст утверждает про СОДЕРЖИМОЕ там, где код имеет МЕТАДАННЫЕ ✓ Плюс:
+        первые две строки `compare.txt` побайтово одинаковы (шов копипасты), а пример «between branches» —
+        то, чего тул не умеет (он сравнивает две директории на диске, не ветки ✓)
+      - **`ls.txt` (тул зарегистрирован как `list`) — обещание, которого вывод не держит:** «Cap: 100 entries
+        (truncation notice on overflow)» — `truncated` считается и уезжает **только в `metadata`**, в `output`
+        уведомления не дописывает ни одна строка ✗ Это собственное правило проекта наоборот: перечисление,
+        которое СКРЫВАЕТ пути, не может поддерживать «absent» ✓ Ещё: «absolute paths» ложно для записей
+        (`path.basename`; абсолютна только корневая строка ✓), и **у `list`/`compare` нет ни одного теста** ✗
+      - **`write.txt`** всё ещё несёт кернел-прозу, которую `edit.txt` сбросил сегодня (Mutation class, G7,
+        claim ledger, Gate 8) — правило, сказанное дважды, оплачивается дважды, а описание тула едет в
+        KV-стабильном префиксе ✓
+      - **`restore.txt`** ссылается на снятый тул: «written automatically by the `edit` / `multiedit` tools» ✓
+      - `read.txt` / `edit.txt` / `multiedit.txt` приведены к правде сегодня же (`4a768738da`, `53bea05cfa`,
+        серия H3/H6) — это ГОТОВАЯ половина C2 ✓
 - [ ] **C3 — shell tools:** `bash`, `cmd`, `powershell`, `run`.
 - [ ] **C4 — search / memory tools:** `codegraph`, `dbread`, `fossilgrep`, `logsearch`, `sessionread`,
       `summaryedit`, `universalsearch`, `webfetch`.

@@ -4,23 +4,31 @@ import { Parameters, replace, replaceRange, replaceWithStage, resolveEdits } fro
 import { chainHash, hashLabel } from "../../src/tool/read"
 
 /**
- * `exact` — the CALLER states the precision of its anchor.
+ * THREE BLOCKS BELOW PIN A LAYER THE RUNTIME NO LONGER RUNS — LABELLED, NOT HIDDEN.
  *
- * MEASURED 2026-10-01 against the live binary (`experiments/2026-10-01_edit-probes/README.md`):
- *   A  anchor absent                      -> refused, file unchanged
- *   B  anchor padded with spaces          -> APPLIED (the accommodation that keeps a drifting anchor alive)
- *   C  first+last lines match, 3 of 6 middle lines DIFFER -> APPLIED, whole block replaced
- * — probe C sitting exactly on the loosest stage's documented 50 % middle threshold, with the SUCCESS
- * report never saying which stage fired.
+ * `replace`, `replaceRange`, `replaceWithStage` and the ten `Replacer` stages are still EXPORTED from
+ * `src/tool/edit.ts` and still behave exactly as the cases below assert — but nothing in `src/` calls them.
+ * Measured 2026-10-01 (grep over `packages/opencode/src`): `replaceRange` and `replaceWithStage` appear ONLY
+ * at their own definitions plus this file; `replaceWithStage` is called only by `replace`; and
+ * `[^.\w]replace\(` returns the definition at `edit.ts:1212` plus two unrelated dialog `replace()` methods
+ * (`dialog.tsx:122`, `api.tsx:300`) — **no caller in `src/`**. The live path is `resolveEdits` + `Parameters`
+ * + `EditTool`, and it is covered by the two blocks at the bottom of this file.
  *
- * The cascade is deliberate and is NOT removed: a model's anchor drifts in whitespace and indentation,
- * and refusing all of it would burn turns re-reading. What changes is WHO decides how much drift is
- * forgiven. Today the tool decides, silently. With `exact: true` the caller does.
+ * So those three blocks are GREEN AND CANNOT FAIL ON THE PRODUCT: they cannot go red when the tool's behaviour
+ * changes, which is the entire job of a guard. They are kept until the dead layer is removed WITH them, in ONE
+ * change, so the proof does not vanish before the thing it proves — the removal is box **H8** of
+ * `plans/2026-10-01_hash-addressed-edits.md`, whose own intention already claims «and no fuzzy stage exists».
+ *
+ * WHAT MOVED, AND WHEN: the batch surface (H6, 2026-10-01) made `edit` take `files: [{ filePath, edits? }]`, so
+ * the schema cases below were RE-PINNED to the shape a caller actually sends — the same three sides, none
+ * dropped. Their red on the pre-H6 shape is recorded as provenance, not deleted as embarrassment:
+ * `20261001T052355Z_7c3c83cb` — all three failed with `Missing key at ["files"]`.
  */
 const FILE = "L1 alpha\nL2 beta\nL3 gamma\nL4 delta\nL5 epsilon\nL6 zeta\nL7 eta\nL8 theta\n"
 /** First and last lines match, three of the six middle lines differ — probe C's shape. */
 const DRIFTED = "L1 alpha\nL2 CHANGED-beta\nL3 gamma\nL4 CHANGED-delta\nL5 epsilon\nL6 CHANGED-zeta\nL7 eta\nL8 theta"
 
+// SUPERSEDED (H8): pins the dead cascade — it cannot fail on the product; removed WITH the layer, not before it.
 describe("tool.edit — replace() and the caller's declared precision", () => {
   test("DEFAULT: a padded anchor still applies — the accommodation is not removed", () => {
     expect(replace(FILE, "  L2 beta  ", "L2 PATCHED")).toContain("L2 PATCHED")
@@ -56,6 +64,7 @@ describe("tool.edit — replace() and the caller's declared precision", () => {
  */
 const TWICE = "head\nSAME\nSAME\nSAME\ntail\n"
 
+// SUPERSEDED (H8): `from`/`to`/`expect` left the tool when the hash address replaced the line range.
 describe("tool.edit — an address plus a guard", () => {
   test("replaces the NAMED lines even when the same text appears elsewhere", () => {
     // Three identical lines and the edit must reach the second: a content anchor cannot do this — it
@@ -87,7 +96,7 @@ describe("tool.edit — an address plus a guard", () => {
 })
 
 /**
- * THE ADDRESS MUST PASS THE TOOL'S OWN SCHEMA (plan F6).
+ * THE ADDRESS MUST PASS THE TOOL'S OWN SCHEMA (plan F6) — AND, SINCE H6, IT RIDES IN A BATCH ENTRY.
  *
  * F4 was proven through `replaceRange` — one layer BELOW the call a caller actually makes — so the address
  * LOGIC was green while `Parameters` still demanded `oldString`, the very parameter the address branch throws
@@ -96,28 +105,33 @@ describe("tool.edit — an address plus a guard", () => {
  * probe hit it on a real binary: `SchemaError(Missing key at ["oldString"])` for a call carrying
  * `from`/`to`/`expect`.
  *
- * All THREE sides are asserted, because a door opened for one case must be shown not to have opened wider:
- * an address alone decodes; neither an address nor `oldString` stays a refusal; and a plain content edit is
- * exactly as it was.
+ * H6 then moved the surface: the address rides on an ENTRY (`files[]`), not at the top level. These cases were
+ * re-pinned to that shape — the same THREE sides, none dropped: an entry carrying addresses decodes; `content`
+ * alone decodes; and NEITHER decodes HERE, because the schema does not decide it — the tool's own guard does,
+ * with a message a caller can act on.
  */
-describe("tool.edit — the TOOL's schema carries the list", () => {
+describe("tool.edit — the TOOL's schema carries the batch, and the address rides in an entry", () => {
   const decode = Schema.decodeUnknownSync(Parameters)
 
-  test("a list of addresses decodes — the shape `read` feeds", () => {
-    expect(() => decode({ filePath: "x.txt", edits: [{ fromHash: "00000000", newString: "NEW" }] })).not.toThrow()
+  test("an entry carrying a list of addresses decodes — the shape `read` feeds", () => {
     expect(() =>
-      decode({ filePath: "x.txt", edits: [{ fromHash: "a3f19c2e", toHash: "b7c1d0e4", newString: "NEW" }] }),
+      decode({ files: [{ filePath: "x.txt", edits: [{ fromHash: "00000000", newString: "NEW" }] }] }),
+    ).not.toThrow()
+    expect(() =>
+      decode({
+        files: [{ filePath: "x.txt", edits: [{ fromHash: "a3f19c2e", toHash: "b7c1d0e4", newString: "NEW" }] }],
+      }),
     ).not.toThrow()
   })
 
   test("`content` alone decodes — creating a file has no lines to address", () => {
-    expect(() => decode({ filePath: "x.txt", content: "hello\n" })).not.toThrow()
+    expect(() => decode({ files: [{ filePath: "x.txt", content: "hello\n" }] })).not.toThrow()
   })
 
   test("the schema does NOT decide `neither` — the tool's own guard does, naming both doors", () => {
     // Deliberate, exactly as under F6: a SchemaError cannot say «pass `edits` — or `content` to create a file»,
     // and that message is the one a caller can act on.
-    expect(() => decode({ filePath: "x.txt" })).not.toThrow()
+    expect(() => decode({ files: [{ filePath: "x.txt" }] })).not.toThrow()
   })
 })
 
@@ -206,6 +220,7 @@ describe("tool.edit — a list of addresses, resolved then applied", () => {
  * matcher's OWN, read from the same table that holds the functions, so a stage cannot be added there and
  * forgotten in a list of labels.
  */
+// SUPERSEDED (H8): the stage name is real for the dead cascade and unreachable from the tool.
 describe("tool.edit — the stage that matched is reported", () => {
   test("a literal anchor matches at the exact stage", () => {
     expect(replaceWithStage(FILE, "L2 beta", "L2 PATCHED").stage).toBe("exact")

@@ -103,10 +103,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 184 |
-| plans active | 18 |
-| tasks passed / total | 669 / 906 |
-| open boxes | 88 |
+| plans completed | 185 |
+| plans active | 20 |
+| tasks passed / total | 673 / 916 |
+| open boxes | 95 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -215,10 +215,6 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - SE [PENDING] · sv [reliability, defect-classes, evidence] · manifest: MISSING — nobody has written down what this box is
   - SF [PENDING] · sv [universal-search, cdp-port, redistribution] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-30_drop-penalty-sampling-params.md` — 0 open / 9 box(es) · lifecycle UNKNOWN
-  sv: intention "the request body carries presence_penalty/frequency_penalty (deprecated no-ops at the vendor, and one half of a pair the server rejects with 400) -> opencode sends neither; repetition_penalty (a live parameter on those vendors) stays" · keywords []
-  - no open box
-
 - `plans/2026-09-30_no-foreign-skill-discovery.md` — 5 open / 5 box(es) · lifecycle OPEN
   sv: intention "opencode discovers skills from Claude's and .agents' directories -- a compatibility feature this project does not want, and the same disease reaches the instruction loader (CLAUDE.md is read as OUR instructions) -> our runtime reads ONLY our own skill and instruction surfaces, and the foreign discovery is removed with its tests superseded, not silenced" · keywords [foreign-discovery, skill-isolation, instruction-isolation, self-sufficient, supersede]
   - F1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -263,8 +259,21 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-01_edit-precision.md` — 1 open / 6 box(es) · lifecycle UNKNOWN
+  sv: intention "`edit` addresses by CONTENT through a nine-stage fuzzy cascade whose loosest stage tolerates half the middle lines (measured 2026-10-01, probe C), so how much drift is forgiven is decided by the TOOL and said nowhere; `read` prints absolute line numbers and the read side has `offset`/`limit` ranges, while the write side cannot consume an address at all -> the caller can state the precision it needs (`exact`), a fuzzy hit names the stage that fired, and a range-plus-guard mode lets the numbers just read be used without line drift deciding what gets written" · keywords []
+  - F5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-01_tool-description-contracts.md` — 6 open / 9 box(es) · lifecycle UNKNOWN
+  sv: intention "36 tool descriptions ride the KV-stable prefix and make promises the code does not always keep (multiedit atomicity, grep's line format, recall's reach); the work fixing them ran under a parent-goal anchor no plan declared -> one line of work that owns that anchor, where every promise in a description is either pinned by a test that fails without it or removed from the text" · keywords []
+  - C2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - C3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - C4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - C5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - C6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - C7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
 ## The checks
 
-This body names all 19 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 20 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

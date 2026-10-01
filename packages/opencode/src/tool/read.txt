@@ -23,12 +23,19 @@ Conversion uses WASM (in-process, fast) with native binary fallback.
 When the `hex` parameter is `true`, the tool outputs a formatted hex dump regardless of file type:
 
 ```
-00000000  48 65 6c 6c 6f 20 57 6f  72 6c 64 21 0a 00 00 00  |Hello World!....|
-00000010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+00000000  3f19c2ea  48 65 6c 6c 6f 20 57 6f  72 6c 64 21 0a 00 00 00  |Hello World!....|
+00000010  9c0be411  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
 ```
 
+- **Row addresses**: every row is prefixed with its byte offset AND an 8-hex address, over the row's BYTES with
+  the same chain text mode uses (`h(i) = xxHash64(h(i-1) ‖ rowBytes)`, seeded at `00000000`). Two identical
+  rows get different addresses and any byte changed ABOVE a row changes its address, so a re-read that
+  reproduces a label proves the file has not moved — exactly as for a text line. The row's offset is a
+  rendering; the address is what pins the FILE.
+- **Rows are aligned to the file, not to `offset`**: `offset` means «the first row shown is the one CONTAINING
+  this byte», so the same row carries the same address in every read. Pagination moves by whole rows.
 - Byte offset `offset` (1-indexed, default: 1)
-- Byte count `limit` (default: 512 bytes)
+- Byte count `limit` (default: 512 bytes), rounded up to whole rows
 - Same 50KB output cap as text mode, with pagination via `offset`
 
 ## Binary Safety
@@ -45,8 +52,11 @@ Binary files (executables, compiled code, binary formats) are detected and refus
   labels on every read) and identical for a CRLF file and an LF file, because the line's terminator is not part
   of the text that is hashed. A re-read that reproduces a label therefore proves the file has not moved — an
   address you did not read from THIS file will not be found in it.
-- **Long lines**: Lines exceeding 2000 characters are truncated with a `... (line truncated)` suffix. The
-  ADDRESS is still exact for such a line: it is computed over the full text, before truncation.
+- **Long lines**: a line over 2000 characters is WRAPPED, not truncated. The first chunk is the line itself,
+  with its address; each following chunk continues it and is prefixed with `↳+<charOffset>: ` — the position
+  INSIDE the line where it resumes (`      ↳+2000: …`). Nothing is lost and the position of any part of the
+  line is readable; a line too long for the whole output is capped with an explicit note rather than silently.
+  The ADDRESS is over the FULL text before any wrapping, so it is exact for such a line.
 - **Byte cap**: Output is capped at 50KB. If exceeded, shows the range read and suggests `offset` to continue.
 - **File not found**: Lists similar files in the same directory to help correct typos.
 - **LSP warming**: After reading, the file is touched to activate the language server for code intelligence.

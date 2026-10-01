@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { chainHash, hashLabel, lines, parseHash } from "../../src/tool/read"
+import { chainHash, formatHexDump, hashLabel, lines, parseHash } from "../../src/tool/read"
 
 /**
  * THE LINE ADDRESS — the PURE half (plan 2026-10-01_hash-addressed-edits, H1/H2).
@@ -18,7 +18,8 @@ import { chainHash, hashLabel, lines, parseHash } from "../../src/tool/read"
  * WHY THIS IS A SEPARATE FILE, and it is not litter. `read.test.ts` drives the real tool through real Effect
  * layers (Instance, LSP, git-backed tmpdirs) and on 2026-10-01 it stopped producing ANY verdict: no log,
  * `bytes_written: 0`, `cpu_delta_seconds=0`, while `jobwait` reported `done`. This file touches only `lines()`
- * — a plain async byte reader — and three pure functions, so it runs and its green means something.
+ * — a plain async byte reader — and a handful of pure functions (`chainHash`, `hashLabel`, `parseHash`,
+ * `formatHexDump`), so it runs and its green means something.
  *
  * The integration form of the same four cases stays in `read.test.ts` and is OWED a verdict once that harness
  * is qualified (@TOOLCHAIN_QUALIFICATION). Two forms, two layers, on purpose: a property that can be checked
@@ -96,5 +97,85 @@ describe("read — the line address (pure)", () => {
     expect(result.raw[0]).toBe(result.raw[19])
     expect(new Set(result.hashes).size).toBe(20)
     expect(result.hashes[0]).not.toBe(result.hashes[19])
+  })
+
+  test("a long line is WRAPPED with its position, not clipped — and it is still ONE line with ONE address", async () => {
+    // Owner, 2026-10-01: «если в файле очень длинные строки то у тебя должен быть перенос строк. Для
+    // определения позиции». Two distinguishable halves, because «the end is reachable» must be something the
+    // output can SHOW: `"x".repeat(3000)` satisfies `toContain` on any 2000-character window of itself.
+    const result = await withFile("long.txt", "A".repeat(2000) + "B".repeat(1000), (p) =>
+      lines(p, { limit: 10, offset: 1 }),
+    )
+
+    expect(result.raw.length).toBe(1) // ONE source line…
+    expect(result.hashes.length).toBe(1) // …ONE address, because the wrap is not a second line…
+    expect(result.raw[0]).toContain("↳+2000: " + "B".repeat(1000)) // …and the LAST character is reachable.
+    expect(result.raw[0]).not.toContain("line truncated")
+    // The true total must still be the LINE count, not the chunk count — the pager pages by source lines.
+    expect(result.count).toBe(1)
+  })
+})
+
+/**
+ * THE BYTE-ROW ADDRESS — the hex half of H2 (owner, 2026-10-01: «Для бинарника тоже самое»).
+ *
+ * A hex row is BYTES, not a text line, and three things had to be true before it could carry an address at
+ * all:
+ *
+ *   1. the row's content must not depend on the WINDOW. Rows used to begin wherever `offset` pointed, so a
+ *      read at byte 5 and a read at byte 1 disagreed about where a row STARTS — and an address computed there
+ *      is a rendering of the CALL, not of the file;
+ *   2. the bytes must reach a string chain intact. `latin1` is that map, and it was qualified BEFORE the code
+ *      was built on it (experiments/2026-10-01_hex-address: 28 340 of 28 340 distinct rows), not after;
+ *   3. the chain must run over the rows a window does NOT return, because a hash carries its whole prefix.
+ *
+ * The address is taken over the bytes that EXIST — never a 16-byte block padded to the window's edge, which
+ * would make the last row's address depend on `limit`.
+ */
+describe("read — the byte-row address (hex mode)", () => {
+  const bytes = (length: number) => Uint8Array.from({ length }, (_, i) => (i * 7 + 1) & 0xff)
+  const dump = (data: Uint8Array, offset: number, limit: number) =>
+    formatHexDump(data, { offset, limit, maxTotalBytes: 50 * 1024 })
+  // `00000020  3f19c2ea  …` — the offset column, two spaces, then the address.
+  const addressOf = (result: { lines: string[] }, offset: number) =>
+    result.lines.find((line) => line.startsWith(offset.toString(16).padStart(8, "0")))?.slice(10, 18)
+
+  test("a row carries an 8-hex address, and the same bytes print the same one twice", () => {
+    const first = dump(bytes(64), 1, 64)
+    const second = dump(bytes(64), 1, 64)
+
+    expect(first.lines[0]).toMatch(/^00000000 {2}[0-9a-f]{8} {2}/)
+    expect(second.lines).toEqual(first.lines)
+  })
+
+  test("the WINDOW does not move a row — the prefix is chained where it is not even shown", () => {
+    const data = bytes(64)
+
+    // `offset: 40` deliberately does NOT sit on a row boundary (index 39 lives in row 32) — which is the
+    // whole point. With rows aligned to `offset`, the row at 0x20 would not exist in this read at all and the
+    // case would pass while proving nothing: the first version used 33, which IS index 32, a boundary.
+    expect(addressOf(dump(data, 40, 16), 32)).toBeDefined()
+    expect(addressOf(dump(data, 40, 16), 32)).toBe(addressOf(dump(data, 1, 64), 32))
+    // The same row read from two offsets, where NEITHER sits on a row boundary.
+    expect(dump(data, 5, 32).lines[0]).toBe(dump(data, 1, 32).lines[0])
+  })
+
+  test("a byte changed ABOVE a row changes the address of every row below it", () => {
+    const before = dump(bytes(64), 1, 64)
+    const mutated = bytes(64)
+    mutated[3] = mutated[3]! ^ 0xff
+    const after = dump(mutated, 1, 64)
+
+    expect(addressOf(after, 0)).not.toBe(addressOf(before, 0))
+    expect(addressOf(after, 16)).not.toBe(addressOf(before, 16))
+  })
+
+  test("rows are aligned to the FILE: `offset` names the row CONTAINING that byte, not a new start", () => {
+    const result = dump(bytes(64), 5, 32)
+
+    expect(result.offsetStart).toBe(1)
+    expect(result.lines[0]!.startsWith("00000000")).toBe(true)
+    // …and pagination moves by whole ROWS, or the next page would re-request a byte already delivered.
+    expect(result.bytesShown % 16).toBe(0)
   })
 })

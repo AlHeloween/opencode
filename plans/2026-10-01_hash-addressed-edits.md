@@ -73,16 +73,56 @@ the file says …» to a write: the address exists only in the output of a read 
       `chainHash(previous, line)` = `trunc32(xxHash64(previous ‖ "\u0000" ‖ line))` seeded at 0, plus
       `hashLabel` / `parseHash`, exported from `read.ts` and from nowhere else — `edit` must never grow a
       second spelling of the address. 32 bits, 8 lowercase hex. Typecheck exit 0 (`20261001T043453Z_44a6f951`).
-- [ ] **H2 — `read` prints it** at `read.ts:415` — **text half DONE** (commit `4a768738da`), two halves OPEN:
-      - **Hex dumps get an address too** (owner, 2026-10-01: «Для бинарника тоже самое») — otherwise `edit` has
-        no address for a binary file at all. Directory listings stay unchanged: they have no lines to write.
-      - **A long line needs a POSITION marker** (owner, 2026-10-01: «если в файле очень длинные строки то у тебя
-        должен быть перенос строк. Для определения позиции»). Today a line over `MAX_LINE_LENGTH` is clipped
-        with `MAX_LINE_SUFFIX`, which loses WHERE IN THE LINE the reader is. The address is already exact for
-        such a line — the hash is taken over the FULL text before clipping — so what is missing is the visual
-        cue, not the address.
-      The window (`offset`/`limit`) must not change a hash — asserted, because the whole scheme dies quietly if
-      it does.
+- [x] ✓ **H2 — `read` prints it — BOTH halves DONE.** The text half landed in `4a768738da`; the byte-row
+      address and the long-line wrap in the commit that carries this box ✓
+      - **Hex rows carry an address** (owner, 2026-10-01: «Для бинарника тоже самое») ✓ `formatHexDump` chains
+        the row's BYTES with the SAME `chainHash` the text path uses, printed between the offset and the hex:
+        `00000020  3f19c2ea  48 65 6c 6c 6f …  |Hello|` ✓ Directory listings stay unchanged: they have no lines.
+        **Two things had to change before the address could mean anything, and both are asserted:** rows are
+        aligned to the FILE, never to `offset` — they used to begin wherever the caller pointed, so a row's
+        content, and therefore its address, depended on the WINDOW, and an address that moves with the call is
+        a rendering of the call rather than of the file — and the chain runs from byte ZERO over the rows a
+        window does NOT return, because a hash carries its whole prefix ✓ `limit` therefore pages by whole
+        ROWS: a page advancing by a byte count would re-show the row it stopped inside, for ever ✓
+      - **Bytes reach a string chain losslessly.** `latin1`, the 1:1 byte↔code-point map — what «binary» MEANS
+        rather than a rendering of it ✓ **Qualified BEFORE the code was built on it**, and the qualification
+        earned its keep: the first probe printed faithfulness `false`, and that verdict was about a DEGENERATE
+        FIXTURE (a sawtooth whose top byte repeats far sooner than the sample — 28 340 windows of the same
+        bytes), not about latin1; with a real generator, 28 340 of 28 340 rows are distinct ✓ The same probe
+        shows a latin1 string does NOT hash to what the raw byte view does, so a text address and a hex address
+        over one file live in DIFFERENT spaces and can never resolve for one another ✓ Cost: **77.4 ms per MiB**
+        of prefix (`experiments/2026-10-01_hex-address/qualify.mjs`) — the price of window-independence, as a
+        number instead of a worry.
+      - **A long line is WRAPPED, not clipped** (owner, 2026-10-01: «если в файле очень длинные строки то у
+        тебя должен быть перенос строк. Для определения позиции») ✓ The suffix this replaced — «… (line
+        truncated to 2000 chars)» — answers «how much did I lose», and he asked a DIFFERENT question: WHERE the
+        reader is ✓ Chunks after the first carry `↳+<charOffset>: `, the line's ADDRESS stays on its first
+        chunk, and running out of the whole output budget SAYS SO instead of truncating in silence (the old
+        form always showed the first 2000 characters; the new one must never show less) ✓ The hash is still
+        taken over the FULL text, before any wrapping, so the address is exact for such a line ✓
+      **The window must not change a hash — asserted on both paths** (`read-address.test.ts`: four byte-row cases
+      plus the wrap) ✓ and the MUTATION is measured, not asserted: `alignedStart = start` (rows following the
+      caller's pointer) gives **two** named reds in the pure suite (`read-address.test.ts:141` — the row at
+      0x20 no longer exists; `:160` — `offsetStart` became 5), and green again after `restore` ✓ The first
+      version of that case used `offset: 33`, which IS a row boundary — it would have passed either way, which
+      is the «a test that can silently assert nothing» class, caught by re-reading my own case before trusting
+      it ✓
+      **Оракулы:** чистый сьют **11 pass / 0 fail / 32 expect** `20261001T052102Z_66d5d559` (exit 0) ✓
+      `bun typecheck` exit 0 — proven by the `&&` chain reaching `echo` in `20261001T051633Z_600ef7f0` ✓
+      **Остаток, названный:** `edit` адресует ТОЛЬКО текстовые строки — адрес hex-строки печатается для
+      ЧТЕНИЯ и повторной проверки, и `read.txt` теперь говорит ровно это, не обещая большего ✓ (бокс H7 ниже)
+- [ ] **H7 — вторая половина «для бинарника тоже самое»: `edit` обязан УМЕТЬ применить адрес строки.** Сейчас
+      `read` его печатает, а `edit` резолвит текстовые строки (`resolveEdits` делит по `\n`) ⇒ у бинарника
+      адрес есть, а применить его нечем ✓ Это решение ВЛАДЕЛЬЦА, не моё — «чем заменяем» — ибо три ответа не
+      эквивалентны:
+      1. **hex-текст**: `newString` — то, что печатает `read --hex` (`48 65 6c`), декодируется в байты; совпадает
+         с тем, что читатель видит, и отказывает всему, что не hex (никакой молчаливой переинтерпретации);
+      2. **latin1-текст**: `newString` — байты замены как символы; принимает что угодно, то есть ровно тот
+         класс, ради которого каскад и был снят;
+      3. **base64**: однозначен для любых байтов, но в выводе `read` нет base64 ⇒ перекладывает на вызывающего
+         преобразование, которого адрес не требует.
+      Любой выбор решает заодно, как `edit` ОПОЗНАЁТ бинарник (флаг, или провал UTF-8-декодирования) — а
+      неверная догадка здесь это ПУТЬ ЗАПИСИ, поэтому это бокс, а не рефлекс ✓
 - [x] ✓ **H3 — ONE tool: `edit` takes `edits: [...]`. DONE (commit `815cf266b6`).** `multiedit` is UNREGISTERED
       from the catalog (`registry.ts`, 4 sites ✓) and turned INTO a module that declares itself retired, rather
       than deleted — the constitution blocks deleting files from the shell ✓, and a module that says so is
@@ -160,7 +200,26 @@ the file says …» to a write: the address exists only in the output of a read 
 - **Predicted green after:** the unchanged file edits exactly the named lines; and on `dup-lines.txt` an address replaces Line 4 and ONLY Line 4 while Line 2 — identical text — is untouched. That second half is the whole point: it is what a content anchor cannot do, and it is the case that failed live an hour ago.
 - **The layer:** at least one case decodes `Parameters` — the schema `tool/tool.ts:115` compiles per tool. F6's lesson, paid an hour ago: a suite that only calls helpers stayed green while the schema every caller crosses demanded a parameter the code discarded.
 - **Fallibility:** mutate the hash comparison to always-true → the stale-address case MUST go red.
-- **Live, after a promotion:** read a scratch file, edit by hash, read back. A claim about a binary is verified by DRIVING it: the running runtime (10.0.1168) behaved as PRE-F4 on 2026-10-01, and `dist/bin/opencode.exe` 10.0.1169 (compiled 12:21:58, staged 12:22:04) is not yet promoted — promotion is the owner's procedure.
+- **Live, after a promotion:** read a scratch file, edit by hash, read back; and `read --hex` a small binary twice at two different `offset`s, confirming the SAME row prints the SAME address. A claim about a binary is verified by DRIVING it: the running runtime (10.0.1168) behaved as PRE-F4 on 2026-10-01, and `dist/bin/opencode.exe` 10.0.1169 (compiled 12:21:58, staged 12:22:04) is not yet promoted — promotion is the owner's procedure.
+- **The integration half is OWED, and the reason is measured rather than assumed:** `read.test.ts` produced ONE
+  verdict today (`40 pass / 1 fail`, 41 tests, 64.7 s, `20261001T051356Z_91a08082` — and that run predates every
+  edit below it, so it certifies NONE of them) and then STALLED on four consecutive attempts
+  (`20261001T051903Z_ae7becc6`, `20261001T051957Z_12b3f9f8`, `20261001T052033Z_9d948336`,
+  `20261001T052102Z_6eb9f011`), each printing the banner and nothing else.
+  **Attribution is INDETERMINATE, and convenience does not excuse the rule:** the one PASS is before this change
+  and the failures are after it, which by itself points AT the change — so it is recorded as ours, never as
+  inherited. What the logs DO show is where it stops: the banner alone, before ANY of the three cases changed
+  here runs (the first is the offset case, well past the top of the file), so the hang sits UPSTREAM of the
+  edits. That is a narrowing, not a clearance ✓ `bun test` on this host stalls intermittently with a banner-only
+  log and no progress signal, and the countermeasure that has worked is `cmd_runner stop` plus a retry.
+  The properties those three cases assert are therefore proven at the PURE layer (`read-address.test.ts`: green,
+  and measured fallible by mutation), which is the doctrine both files already carry — and the integration case
+  for the byte-row address stays in `read.test.ts` as the OWED half.
+- **A tool-state finding with no address, recorded so it is not paid twice:** a `cmd`-launched run puts its log
+  under `C:\WINDOWS\logs\cmd_runner\`, because the wrapper's CWD is the one it was GIVEN, not the worktree. That
+  session cannot even be stopped afterwards (`Unknown run_id`) — an orphan conhost nobody can name. A
+  `run`-launched run lands in the project's own `logs/cmd_runner/` and IS readable; the canon is to launch from
+  the worktree root and pass `--cwd` for the package.
 - Never the whole package suite (AGENTS.md § Full package test suite).
 
 ## Risks

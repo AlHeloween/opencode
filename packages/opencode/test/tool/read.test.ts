@@ -21,13 +21,13 @@ const FIXTURES_DIR = path.join(import.meta.dir, "fixtures")
 // FILE-level, per AGENTS.md § Testing Convention — «bun's 5 s default turns a loaded machine into a red that
 // says nothing about the code» — declared once here, never as per-test bumps.
 //
-// STATUS 2026-10-01, stated rather than implied: this file produced NO verdict after the line-address change.
-// `bun test` on this host began returning an empty log with the process at `cpu_delta_seconds=0` — first for a
-// directory-wide run, then for THIS file, and finally for the two UNIT files (edit-exact + multiedit) that had
-// passed three times minutes earlier and do not import `read.ts` at all. That last control is what rules the
-// change out: the instrument stopped answering, the code did not. Forty-plus `conhost` processes are alive on
-// the host — ConPTY sessions accumulated by this session's runs — which is the leading hypothesis and NOT a
-// conclusion. The address tests below are therefore UNPROVEN and their verdict is UNKNOWN: a floor, not a total.
+// STATUS 2026-10-01, CORRECTED rather than left standing: this file produced NO verdict that afternoon and
+// produces one NOW — `40 pass / 1 fail`, 41 tests, 64.7 s (`20261001T051356Z_91a08082`). The cause of the
+// earlier silence is UNMEASURED: the conhost hypothesis below was never confirmed, and nothing here retires it
+// by explaining it — the instrument simply answers again. What the silence COST is now visible, and it is the
+// reason this status is worth stating at all: with the verdict withheld, a stale assertion (`10: line10`, the
+// pre-address format) sat in this file unnoticed for as long as nobody could run it, and the first real run
+// since surfaced it. A suite that cannot report is not a suite that is quiet.
 setDefaultTimeout(20_000)
 
 afterEach(async () => {
@@ -316,14 +316,20 @@ describe("tool.read truncation", () => {
       yield* put(path.join(dir, "offset.txt"), lines)
 
       const result = yield* exec(dir, { filePath: path.join(dir, "offset.txt"), offset: 10, limit: 5 })
-      expect(result.output).toContain("10: line10")
-      expect(result.output).toContain("14: line14")
-      expect(result.output).not.toContain("9: line10")
-      expect(result.output).not.toContain("15: line15")
-      expect(result.output).toContain("line10")
-      expect(result.output).toContain("line14")
-      expect(result.output).not.toContain("line0")
-      expect(result.output).not.toContain("line15")
+
+      // SUPERSEDES eight membership checks that pinned the PRE-ADDRESS format (`"10: line10"`). The requirement
+      // moved — H2 gave every line a chained address — so the test moves in the same change, and it is pinned
+      // MORE tightly than what it replaces: an EXACT list of the lines returned, address included. A shifted
+      // window, a dropped address or a line that lost its prefix no longer satisfies it, where
+      // `toContain("line10")` was happy either way.
+      const shown = [...result.output.matchAll(/^(\d+) {2}([0-9a-f]{8}): (.*)$/gm)].map((match) => [match[1], match[3]])
+      expect(shown).toEqual([
+        ["10", "line10"],
+        ["11", "line11"],
+        ["12", "line12"],
+        ["13", "line13"],
+        ["14", "line14"],
+      ])
     }),
   )
 
@@ -376,14 +382,27 @@ describe("tool.read truncation", () => {
     }),
   )
 
-  it.live("truncates long lines", () =>
+  it.live("WRAPS a long line and says WHERE in it the reader is, instead of clipping it", () =>
     Effect.gen(function* () {
       const dir = yield* tmpdirScoped()
-      yield* put(path.join(dir, "long-line.txt"), "x".repeat(3000))
+      // Two distinguishable halves, so «the end is reachable» is a claim the output can actually show —
+      // `"x".repeat(3000)` would satisfy `toContain` on ANY 2000-character window of it.
+      yield* put(path.join(dir, "long-line.txt"), "A".repeat(2000) + "B".repeat(1000))
 
       const result = yield* exec(dir, { filePath: path.join(dir, "long-line.txt") })
-      expect(result.output).toContain("(line truncated to 2000 chars)")
-      expect(result.output.length).toBeLessThan(3000)
+
+      // SUPERSEDES «truncates long lines», whose assertions were `toContain("(line truncated to 2000 chars)")`
+      // and `output.length < 3000`. The requirement moved: the owner asked to know WHERE in the line the
+      // reader is («в файле очень длинные строки то у тебя должен быть перенос строк. Для определения
+      // позиции»), and a suffix saying «truncated» answers a different question. Every assertion below is at
+      // least as tight, and the second one claims something the clipped form could NEVER show — the final
+      // character of the line.
+      expect(result.output).toContain("A".repeat(2000))
+      expect(result.output).toContain("↳+2000: " + "B".repeat(1000))
+      expect(result.output).not.toContain("line truncated")
+      // ONE source line, ONE address: the wrap is not a second line, and the footer must still count 1.
+      expect(result.output.match(/^\d+ {2}[0-9a-f]{8}: /gm)?.length).toBe(1)
+      expect(result.output).toContain("End of file - total 1 lines")
     }),
   )
 
@@ -579,6 +598,35 @@ describe("tool.read — the line address", () => {
       const found = result.output.match(/[0-9a-f]{8}: same/g) ?? []
       expect(found.length).toBe(2)
       expect(found[0]).not.toBe(found[1])
+    }),
+  )
+})
+
+/**
+ * THE BYTE-ROW ADDRESS, through the REAL tool — the layer `read-address.test.ts` deliberately does not cross.
+ * The pure file proves the chain; this proves the address reaches the MODEL'S OUTPUT, which is the only place
+ * it is worth anything (F6's lesson, paid for an hour before either file existed).
+ */
+describe("tool.read — the byte-row address (hex mode)", () => {
+  it.live("a hex row carries an address, and the WINDOW does not move it", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      const blob = Buffer.from(Array.from({ length: 64 }, (_, i) => (i * 7 + 1) & 0xff))
+      yield* put(path.join(dir, "blob.bin"), blob)
+
+      const wide = yield* exec(dir, { filePath: path.join(dir, "blob.bin"), hex: true, offset: 1, limit: 64 })
+      // `offset: 40` deliberately does NOT sit on a row boundary (index 39 lives in row 32): an offset that
+      // lands on one would pass whether rows are aligned to the file or to the caller's pointer.
+      const narrow = yield* exec(dir, { filePath: path.join(dir, "blob.bin"), hex: true, offset: 40, limit: 16 })
+
+      const at = (output: string, byte: number) =>
+        output.match(new RegExp("^" + byte.toString(16).padStart(8, "0") + " {2}([0-9a-f]{8})", "m"))?.[1]
+
+      expect(at(wide.output, 0)).toBeDefined()
+      // Row 0x20 is the SAME row in both reads, and the second read's `offset` does not sit on a row boundary
+      // — which is exactly what aligning rows to the FILE buys, and what an offset-relative row destroys.
+      expect(at(narrow.output, 32)).toBeDefined()
+      expect(at(narrow.output, 32)).toBe(at(wide.output, 32))
     }),
   )
 })

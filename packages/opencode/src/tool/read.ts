@@ -15,7 +15,14 @@ import { filePathDescription } from "./path-hint"
 
 const DEFAULT_READ_LIMIT = 2000
 const MAX_LINE_LENGTH = 2000
-const MAX_LINE_SUFFIX = `... (line truncated to ${MAX_LINE_LENGTH} chars)`
+// A line longer than MAX_LINE_LENGTH is WRAPPED, not clipped (plan 2026-10-01_hash-addressed-edits, H2). The
+// suffix this replaced — «... (line truncated to 2000 chars)» — answers «how much did I lose», and the owner
+// asked a DIFFERENT question: WHERE in the line the reader is («если в файле очень длинные строки то у тебя
+// должен быть перенос строк. Для определения позиции»). Chunks after the first therefore name their character
+// offset inside the line, so any part of it can be pointed at; the line's ADDRESS stays on its first chunk,
+// where the line begins.
+const LINE_CONTINUATION = "      ↳+"
+const LINE_OUTPUT_CAPPED = "... (output capped before the end of this line)"
 const MAX_BYTES = 50 * 1024
 const MAX_BYTES_LABEL = `${MAX_BYTES / 1024} KB`
 const SAMPLE_BYTES = 4096
@@ -549,17 +556,40 @@ export async function lines(filepath: string, opts: { limit: number; offset: num
       tallyOnly = true
       return
     }
-    const clipped = text.length > MAX_LINE_LENGTH ? text.substring(0, MAX_LINE_LENGTH) + MAX_LINE_SUFFIX : text
-    const size = Buffer.byteLength(clipped, "utf-8") + (raw.length > 0 ? 1 : 0)
-    if (bytes + size > MAX_BYTES) {
-      cut = true
-      more = true
-      tallyOnly = true
-      return
+    // A long line is WRAPPED: chunks after the first name their character offset inside the line, so a reader
+    // can tell WHERE they are, and the line's address stays on its first chunk. Chunks are added only while
+    // they fit the output budget, and running out of budget SAYS SO instead of truncating in silence — a line
+    // longer than the whole output would otherwise be dropped entirely, which is strictly worse than the
+    // clipped form this replaces (that one always showed the first 2000 characters).
+    const separator = raw.length > 0 ? 1 : 0
+    const chunks: string[] = []
+    let chunkBytes = 0
+    let cursor = 0
+    for (;;) {
+      const chunk = text.slice(cursor, cursor + MAX_LINE_LENGTH)
+      const piece = cursor === 0 ? chunk : `${LINE_CONTINUATION}${cursor}: ${chunk}`
+      const pieceBytes = Buffer.byteLength(piece, "utf-8") + (chunks.length > 0 ? 1 : 0)
+      if (bytes + separator + chunkBytes + pieceBytes > MAX_BYTES) {
+        // The budget cannot hold even the FIRST chunk: the line is not shown, exactly as before.
+        if (chunks.length === 0) {
+          cut = true
+          more = true
+          tallyOnly = true
+          return
+        }
+        const capped = `${LINE_CONTINUATION}${cursor}: ${LINE_OUTPUT_CAPPED}`
+        chunks.push(capped)
+        chunkBytes += Buffer.byteLength(capped, "utf-8") + 1
+        break
+      }
+      chunks.push(piece)
+      chunkBytes += pieceBytes
+      cursor += chunk.length
+      if (cursor >= text.length) break
     }
-    raw.push(clipped)
+    raw.push(chunks.join("\n"))
     hashes.push(hashLabel(hash))
-    bytes += size
+    bytes += separator + chunkBytes
   }
 
   try {
@@ -586,14 +616,14 @@ export async function lines(filepath: string, opts: { limit: number; offset: num
 // Hex dump formatting
 // ------------------------------------------------------------------
 
-interface HexDumpResult {
+export interface HexDumpResult {
   lines: string[]
   offsetStart: number
   bytesShown: number
   truncated: boolean
 }
 
-interface HexDumpOptions {
+export interface HexDumpOptions {
   offset: number     // 1-indexed byte offset
   limit: number      // max bytes to show
   maxTotalBytes: number  // max total text output bytes before truncation
@@ -603,22 +633,47 @@ interface HexDumpOptions {
  * Format binary data as a classic hex dump table.
  *
  * Output per row (16 bytes):
- *   <8-digit offset>  <8 hex bytes> <8 hex bytes>  |<ASCII tail>|
+ *   <8-digit offset>  <8-hex address>  <8 hex bytes> <8 hex bytes>  |<ASCII tail>|
  *
  * Example:
- *   00000000  48 65 6c 6c 6f 20 57 6f  72 6c 64 21 0a 00 00 00  |Hello World!....|
- *   00000010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+ *   00000000  3f19c2ea  48 65 6c 6c 6f 20 57 6f  72 6c 64 21 0a 00 00 00  |Hello World!....|
+ *   00000010  9c0be411  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+ *
+ * A BYTE ROW GETS AN ADDRESS, exactly as a text line does (owner, 2026-10-01: «Для бинарника тоже самое») —
+ * the same chain, over the row's BYTES rather than a line's text. Two consequences are the whole point:
+ *
+ *   - rows are aligned to the FILE, never to `offset`. They used to begin wherever the caller pointed, which
+ *     made a row's content — and so its address — depend on the WINDOW. `offset` now means «the first row
+ *     shown is the one CONTAINING this byte». Without that, two reads of one file disagree and the address is
+ *     a rendering of the call rather than of the file.
+ *   - the chain runs from byte ZERO over every row, including the ones above the window nobody reads, because
+ *     a hash carries its whole prefix. Same rule `lines()` follows for text, and it is what makes a re-read at
+ *     another offset REPRODUCE an address rather than invent one. It costs ~77 ms per MiB of prefix
+ *     (experiments/2026-10-01_hex-address), which is why `limit` pages by whole ROWS: a page that advanced by
+ *     a byte count would re-show the row it stopped inside, for ever.
+ *
+ * The bytes reach the chain as a latin1 string — the 1:1 map from a byte to a code point, which is what
+ * «binary» MEANS rather than a rendering of it. Qualified BEFORE the code was built on it, not after: 28 340
+ * distinct rows produced 28 340 distinct strings, and a latin1 string does NOT hash to what the raw byte view
+ * does — so a text address and a hex address over one file live in different spaces and can never resolve for
+ * one another.
  */
-function formatHexDump(data: Uint8Array, opts: HexDumpOptions): HexDumpResult {
+export function formatHexDump(data: Uint8Array, opts: HexDumpOptions): HexDumpResult {
   const lines: string[] = []
   const start = Math.max(0, opts.offset - 1)
-  const end = Math.min(data.length, start + opts.limit)
+  const alignedStart = Math.floor(start / HEX_DUMP_BYTES_PER_ROW) * HEX_DUMP_BYTES_PER_ROW
+  const rows = Math.max(1, Math.ceil(opts.limit / HEX_DUMP_BYTES_PER_ROW))
+  const end = Math.min(data.length, alignedStart + rows * HEX_DUMP_BYTES_PER_ROW)
   let textBytes = 0
   let truncated = false
   let rowCount = 0
+  let chain = 0
 
-  for (let i = start; i < end && !truncated; i += HEX_DUMP_BYTES_PER_ROW) {
-    const rowEnd = Math.min(i + HEX_DUMP_BYTES_PER_ROW, end)
+  for (let i = 0; i < end && !truncated; i += HEX_DUMP_BYTES_PER_ROW) {
+    const rowEnd = Math.min(i + HEX_DUMP_BYTES_PER_ROW, data.length)
+    // Hashed from byte zero, PRINTED only inside the window — the prefix is not skippable.
+    chain = chainHash(chain, Buffer.from(data.subarray(i, rowEnd)).toString("latin1"))
+    if (i < alignedStart) continue
     const rowHex: string[] = []
     const rowAscii: string[] = []
 
@@ -636,7 +691,7 @@ function formatHexDump(data: Uint8Array, opts: HexDumpOptions): HexDumpResult {
     const hexPadded = hexPart.padEnd(50)
 
     const asciiPart = rowAscii.join("")
-    const line = `${i.toString(16).padStart(8, "0")}  ${hexPadded}  |${asciiPart}|`
+    const line = `${i.toString(16).padStart(8, "0")}  ${hashLabel(chain)}  ${hexPadded}  |${asciiPart}|`
 
     const lineBytes = Buffer.byteLength(line, "utf-8") + (lines.length > 0 ? 1 : 0)
     if (textBytes + lineBytes > opts.maxTotalBytes && rowCount > 0) {
@@ -651,8 +706,10 @@ function formatHexDump(data: Uint8Array, opts: HexDumpOptions): HexDumpResult {
 
   return {
     lines,
-    offsetStart: start + 1,
-    bytesShown: Math.min(end - start, data.length - start),
+    // The ALIGNED start, because that is what is actually shown — reporting `start` would name a byte the
+    // output does not begin at, and the pager would then re-request a byte it already delivered.
+    offsetStart: alignedStart + 1,
+    bytesShown: Math.max(0, end - alignedStart),
     truncated,
   }
 }

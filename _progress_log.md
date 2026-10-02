@@ -6159,3 +6159,21 @@ Re-landed here by hand: the original commit `36bcb2d789` went onto the LOCAL `de
 sat on `dev` (upstream tip `1ddb0873ae`) from 00:33:29 to 00:43:25 +0800 (`git reflog HEAD` ✓). Who switched it is
 Unknown — no `git checkout dev` in any Claude transcript under ~/.claude/projects (Grep ✓); a `pull: fast-forward`
 of local `dev` at 00:19:34 precedes it.
+
+## [2026-10-03] Branch / worktree / session cleanup — only Local_Development + the OAuth rescue branch remain
+Owner: «снесем чтобы глаза не мозолили», then chose every remaining group and «Удали и сессии тоже».
+- Deleted, content already in Local_Development (`git cherry` 0 or ancestor ✓): claude/confident-ritchie, funny-feistel,
+  vigorous-nash, wizardly-agnesi (its plan revision = 698d99ab11, `git diff` empty ✓), tui-live-sync, acp-edit-diff,
+  codex/pre-adid-15-4-3.
+- Deleted, upstream `dev` base (10765ff2a9 / 1ddb0873ae): claude/festive-dubinsky, gallant-bouman, suspicious-joliot,
+  local `dev` (its one own commit re-landed above).
+- Deleted on the owner's explicit choice, carrying unmerged work: claude/great-blackburn (3 provider commits:
+  loadProvider import-failure log, resolveModel full-registry fallback, models fixture), claude/relaxed-leakey
+  (UNCOMMITTED plan 2026-10-02_provider-catalog-tracking + .gitignore + packages/opencode/AGENTS.md +
+  src/provider/models/), Trash_Started, codex/pre-local-history-cleanup, codex/recovery-before-split,
+  safety/local-development-before-7d-unwind, safety/pre-kernel-cancel-20260927; codex worktree tui-protocol-smoke.
+  Backup: `.temp/2026-10-03_branch-cleanup-backup/` — deleted-branches.bundle (7 heads, `git bundle list-heads` ✓),
+  relaxed-leakey-dirty.patch + the plan file + models/ copy.
+- Outward junction `suspicious-joliot/node_modules/.bun/node_modules/@hono/standard-validator` → main node_modules
+  unlinked with `rmdir` before removal; main `node_modules/hono` intact ✓. 9 app sessions of those worktrees deleted.
+- Kept: rescue/0db8b57076-oauth-output-ceiling (deliberate rescue).

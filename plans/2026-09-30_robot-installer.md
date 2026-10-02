@@ -127,6 +127,22 @@ Target, replacing the SearXNG design below (kept as the rejected branch):
   `ironclaw/universal_search/install_firecrawl_service.bat`); one user's sequential queries need no queue, and any
   state that appears goes to the repo's two planes (SQLite relational, LMDB keyed) per AGENTS.md § Storage Paradigm.
 
+**DECIDED 2026-10-02 — hybrid** (owner: «Поддерживаю»; «вот же исходники, у нас все пакеты в исходном коде»):
+1. SearXNG (`D:\zPython\universal-search\dist\searxng-src`, source in hand) keeps ONLY engines whose request goes to a
+   documented, free, official API, pinned by `use_default_settings: engines: keep_only:` (`settings_loader.py:152` ✓
+   read). The engine's own `use_official_api` flag is NOT the gate — 71 engines claim «official, no key», and the source
+   refutes some ✓ read: `qwant.py:2-4` «engineered by reading the network log of qwant.com» + a `datadome` cookie
+   (`:153`) = back door, OUT; `piratebay.py:28` `apibay.org` = OUT. Each kept engine is vetted by reading its
+   `request()` URL against the service's own API documentation; the vetted list lives next to the settings.
+2. The browser leg (`universal-search` `/web/browser`, playwright-rs over CDP, returns `page.content()` HTML,
+   `src/web/browser_fetch.rs:22-55` ✓ read) carries Google, Bing and DuckDuckGo as ordinary pages, and every result
+   page that is opened. Open option to measure, not assume: route those three SearXNG engines through `/web/browser`
+   at the single send point `searx/search/processors/online.py:207` so their existing parsers read browser HTML —
+   holds only where the browser DOM matches what the parser expects (DDG `html` endpoint likely, Google unlikely);
+   otherwise own DOM adapters in universal-search.
+3. `universal-search` merges both into the one JSON contract; services: chromium, searxng, universal-search (3, was 6),
+   none as LocalSystem.
+
 #### Rejected branch — SearXNG with API-only engines (2026-10-02, superseded the same day)
 
 One JSON contract, sources chosen by their terms, never by what can be scraped:

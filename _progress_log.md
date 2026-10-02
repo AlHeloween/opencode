@@ -6061,3 +6061,5 @@ red (own STABILIZE), robot stash@{0} red-proof-tmp awaiting the owner's yes to d
 ## [2026-10-02] STABILIZE compaction.test.ts:301 — re-pinned to plan S6; robot stash dropped
 Classified TEST (pre-S6 encoding «recovery pointer last»). Re-pinned: one pointer after --- Recent, only the master-plan
 block after it. 89/0, mutation red at :353, reverted 106/0. stash@{0} red-proof-tmp dropped on the owner's yes (de33e440).
+
+[2026-10-02T07:05Z] plan cua-windows-debug-input T3 - B-native-bg fixture on the IDD virtual monitor: run 20261002T070413Z 7/7 PASS (experiments/2026-10-02_cua-virtual-monitor-t3/, offline driver 02b94871). Minimized = no image + named screenshot_error; virtual monitor own pixels + capture-bound UIA and pixel clicks; owner focus/cursor kept. One HARNESS fail fixed (predicate on truncated stdout). Virtual monitor still 800x600 despite the owner's report. Residual: T3b (OpenGL/WebView2 screen-region targets), T9 (Alt).

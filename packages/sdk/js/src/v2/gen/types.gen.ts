@@ -2360,10 +2360,11 @@ export type GlobalHealthResponses = {
   200: {
     healthy: true
     version: string
+    host: string
   }
 }
 
-export type GlobalHealthResponse = GlobalHealthResponses[keyof GlobalHealthResponses]
+export type GlobalHealthResponse =GlobalHealthResponses[keyof GlobalHealthResponses]
 
 export type GlobalEventData = {
   body?: never

@@ -8,6 +8,7 @@ import { HTTPException } from "hono/http-exception"
 import { HttpApiError } from "effect/unstable/httpapi"
 import * as Log from "@opencode-ai/core/util/log"
 import { Flag } from "@opencode-ai/core/flag/flag"
+import { ServerHost } from "./host"
 import { basicAuth } from "hono/basic-auth"
 import { cors } from "hono/cors"
 import { compress } from "hono/compress"
@@ -56,11 +57,14 @@ export const ErrorMiddleware: ErrorHandler = (err, c) => {
   })
 }
 
-export const AuthMiddleware: MiddlewareHandler = (c, next) => {
+export const AuthMiddleware: MiddlewareHandler = async (c, next) => {
   // Allow CORS preflight requests to succeed without auth.
   // Browser clients sending Authorization headers will preflight with OPTIONS.
+  if (!ServerHost.allowsHost(new URL(c.req.url).hostname)) return c.text("Forbidden host", 403)
   if (c.req.method === "OPTIONS") return next()
-  const password = Flag.OPENCODE_SERVER_PASSWORD
+  // The liveness probe of server/host.ts: open, and it never carries the token.
+  if (c.req.path === "/global/health") return next()
+  const password = ServerHost.credential()
   if (!password) return next()
   const username = Flag.OPENCODE_SERVER_USERNAME ?? "opencode"
 

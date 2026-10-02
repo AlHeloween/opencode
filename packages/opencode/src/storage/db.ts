@@ -282,12 +282,27 @@ CREATE TABLE IF NOT EXISTS "balance_snapshot" (
   time_created integer NOT NULL
 );
 CREATE INDEX IF NOT EXISTS "balance_snapshot_provider_time_idx" ON "balance_snapshot" ("provider_id", "time_created");
+
+CREATE TABLE IF NOT EXISTS "server_host" (
+  id text PRIMARY KEY NOT NULL,
+  url text NOT NULL,
+  pid integer NOT NULL,
+  nonce text NOT NULL,
+  token text NOT NULL,
+  time_started integer NOT NULL
+);
 `
 
 export function getProjectDb(projectID: ProjectID, worktree: string): DrizzleClient {
   const dbPath = getProjectDbPath(worktree)
   log.info("opening project database", { projectID, path: dbPath })
   return getOrCreateDb(dbPath)
+}
+
+/** The worktree's database without a project id: for records that belong to the FILE itself, such as
+ *  `server_host` — which process serves this database — read before any project is resolved. */
+export function getWorktreeDb(worktree: string): DrizzleClient {
+  return getOrCreateDb(getProjectDbPath(worktree))
 }
 
 export function closeProjectDb(projectID: ProjectID) {

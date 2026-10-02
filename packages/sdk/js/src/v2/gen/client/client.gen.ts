@@ -255,7 +255,12 @@ export const createClient = (config: Config = {}): Client => {
         }
         return request
       },
-      serializedBody: getValidRequestBody(opts) as BodyInit | null | undefined,
+      // Same guard as `request` above: a GET carrying a body (the serialized empty JSON) makes Bun's fetch
+      // wait forever on the SSE request — `run --attach` then never saw its turn end.
+      serializedBody: (method === "GET" || method === "HEAD" ? undefined : getValidRequestBody(opts)) as
+        | BodyInit
+        | null
+        | undefined,
       url,
     })
   }

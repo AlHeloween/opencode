@@ -5,12 +5,14 @@ import { Effect, Layer, Schema } from "effect"
 import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 import { HttpServerResponse } from "effect/unstable/http"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
+import { ServerHost } from "@/server/host"
 
 const version = InstallationVersion
 
 const GlobalHealth = Schema.Struct({
   healthy: Schema.Literal(true),
   version: Schema.String,
+  host: Schema.String,
 }).annotate({ identifier: "GlobalHealth" })
 
 const GlobalEvent = Schema.Struct({
@@ -101,7 +103,7 @@ export const globalHandlers = Layer.unwrap(
 
     return HttpApiBuilder.group(GlobalApi, "global", (handlers) =>
       handlers
-        .handle("health", Effect.fn("GlobalHttpApi.health")(() => Effect.succeed({ healthy: true as const, version })))
+        .handle("health", Effect.fn("GlobalHttpApi.health")(() => Effect.succeed({ healthy: true as const, version, host: ServerHost.nonce })))
         .handle("dispose", dispose)
         .handle("event", () => Effect.succeed(HttpServerResponse.empty({ status: 501 })))
         .handle("configGet", configGet)

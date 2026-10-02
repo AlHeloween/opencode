@@ -10,6 +10,7 @@ import { EOL } from "os"
 import { Filesystem } from "@/util/filesystem"
 import { createOpencodeClient, type Event, type OpencodeClient, type ToolPart } from "@opencode-ai/sdk/v2"
 import { Server } from "../../server/server"
+import { ServerHost } from "../../server/host"
 import { Provider } from "@/provider/provider"
 import { Agent } from "../../agent/agent"
 import { Permission } from "../../permission"
@@ -327,6 +328,12 @@ export const RunCommand = cmd({
         type: "number",
         describe: "port for the local server (defaults to random port if no value provided)",
       })
+      .option("standalone", {
+        type: "boolean",
+        default: false,
+        describe:
+          "boot a private server even if this worktree already has a running host (a second writer: a TUI will not see this run live)",
+      })
       .option("variant", {
         type: "string",
         describe: "model variant (provider-specific reasoning effort, e.g., high, max, minimal)",
@@ -358,6 +365,11 @@ export const RunCommand = cmd({
         process.exit(1)
       }
     })()
+
+    // One server per worktree DB: a live host takes this run as a client, so its steps reach every TUI
+    // on that host's bus instead of a private one (plans/2026-10-02_one-server-per-worktree.md).
+    const host = args.attach || args.standalone ? undefined : await ServerHost.lookup(process.cwd())
+    const attach = args.attach ?? host?.url
 
     const files: { type: "file"; url: string; filename: string; mime: string }[] = []
     if (args.file) {
@@ -608,7 +620,7 @@ export const RunCommand = cmd({
         const name = args.agent
 
         // When attaching, validate against the running server instead of local Instance state.
-        if (args.attach) {
+        if (attach) {
           const modes = await sdk.app
             .agents(undefined, { throwOnError: true })
             .then((x) => x.data ?? [])
@@ -618,7 +630,7 @@ export const RunCommand = cmd({
             UI.println(
               UI.Style.TEXT_WARNING_BOLD + "!",
               UI.Style.TEXT_NORMAL,
-              `failed to list agents from ${args.attach}. Falling back to default agent`,
+              `failed to list agents from ${attach}. Falling back to default agent`,
             )
             return undefined
           }
@@ -710,25 +722,40 @@ export const RunCommand = cmd({
       if (terminal.kind === "error") process.exit(1)
     }
 
-    if (args.attach) {
+    if (attach) {
       const headers = (() => {
-        const password = args.password ?? process.env.OPENCODE_SERVER_PASSWORD
+        // A host found through its record is commanded with the record's per-start token.
+        const password = args.password ?? process.env.OPENCODE_SERVER_PASSWORD ?? host?.token
         if (!password) return undefined
         const username = process.env.OPENCODE_SERVER_USERNAME ?? "opencode"
         const auth = `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`
         return { Authorization: auth }
       })()
-      const sdk = createOpencodeClient({ baseUrl: args.attach, directory, headers })
+      if (host) process.stderr.write(`attached to worktree host ${host.url} (pid ${host.pid})${EOL}`)
+      const sdk = createOpencodeClient({ baseUrl: attach, directory: directory ?? (host ? process.cwd() : undefined), headers })
       return await execute(sdk)
     }
 
     await bootstrap(process.cwd(), async () => {
+      // RUN-FIRST: with no live host this run becomes the host for its lifetime, so a TUI started while it
+      // works attaches to it instead of booting a second writer. `--standalone` keeps the server private.
+      const worktree = process.cwd()
+      const listener = args.standalone ? undefined : await Server.listen({ port: args.port ?? 0, hostname: "127.0.0.1" })
+      const claimed = listener ? await ServerHost.claim(worktree, listener.url.toString()) : undefined
+      if (claimed && !claimed.won) {
+        process.stderr.write(`warning: worktree host ${claimed.host.url} appeared while starting; this run is a second writer${EOL}`)
+      }
+      if (claimed?.won) process.once("exit", () => ServerHost.release(worktree))
       const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
         const request = new Request(input, init)
+        const auth = ServerHost.authorization()
+        if (auth) request.headers.set("authorization", auth)
         return Server.Default().app.fetch(request)
       }) as typeof globalThis.fetch
       const sdk = createOpencodeClient({ baseUrl: "http://opencode.internal", fetch: fetchFn })
       await execute(sdk)
+      if (claimed?.won) ServerHost.release(worktree)
+      await listener?.stop(true)
     })
   },
 })

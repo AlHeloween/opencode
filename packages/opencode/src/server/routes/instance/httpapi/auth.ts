@@ -1,6 +1,7 @@
 import { Effect, Encoding, Layer, Redacted, Schema } from "effect"
 import { HttpApiMiddleware, HttpApiSecurity } from "effect/unstable/httpapi"
 import { Flag } from "@opencode-ai/core/flag/flag"
+import { ServerHost } from "@/server/host"
 
 class Unauthorized extends Schema.TaggedErrorClass<Unauthorized>()(
   "Unauthorized",
@@ -29,12 +30,13 @@ function validateCredential<A, E, R>(
   credential: { readonly username: string; readonly password: typeof emptyCredential.password },
 ) {
   return Effect.gen(function* () {
-    if (!Flag.OPENCODE_SERVER_PASSWORD) return yield* effect
+    const password = ServerHost.credential()
+    if (!password) return yield* effect
 
     if (credential.username !== (Flag.OPENCODE_SERVER_USERNAME ?? "opencode")) {
       return yield* new Unauthorized({ message: "Unauthorized" })
     }
-    if (Redacted.value(credential.password) !== Flag.OPENCODE_SERVER_PASSWORD) {
+    if (Redacted.value(credential.password) !== password) {
       return yield* new Unauthorized({ message: "Unauthorized" })
     }
     return yield* effect

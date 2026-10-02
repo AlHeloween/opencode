@@ -233,17 +233,26 @@ export const TuiThreadCommand = cmd({
         network.port !== 0 ||
         network.hostname !== "127.0.0.1"
 
-      const transport = external
-        ? {
-            url: (await client.call("server", network, { timeoutMs: WORKER_CALL_TIMEOUT_MS })).url,
+      const transport = await (async () => {
+        if (external) {
+          const listening = await client.call("server", { ...network, directory: cwd }, { timeoutMs: WORKER_CALL_TIMEOUT_MS })
+          return {
+            url: listening.url,
             fetch: undefined,
             events: undefined,
+            headers: listening.authorization ? { authorization: listening.authorization } : undefined,
           }
-        : {
-            url: "http://opencode.internal",
-            fetch: createWorkerFetch(client),
-            events: createEventSource(client),
-          }
+        }
+        // One server per worktree DB: the worker serves it, or proxies to the process that already does.
+        const role = await client.call("host", { directory: cwd }, { timeoutMs: WORKER_CALL_TIMEOUT_MS })
+        Log.Default.info("worktree host", role)
+        return {
+          url: "http://opencode.internal",
+          fetch: createWorkerFetch(client),
+          events: createEventSource(client),
+          headers: undefined,
+        }
+      })()
 
       try {
         await validateSession({
@@ -251,6 +260,7 @@ export const TuiThreadCommand = cmd({
           sessionID: args.session,
           directory: cwd,
           fetch: transport.fetch,
+          headers: transport.headers,
         })
       } catch (error) {
         UI.error(errorMessage(error))
@@ -273,6 +283,7 @@ export const TuiThreadCommand = cmd({
           directory: cwd,
           fetch: transport.fetch,
           events: transport.events,
+          headers: transport.headers,
           args: {
             continue: args.continue,
             sessionID: args.session,

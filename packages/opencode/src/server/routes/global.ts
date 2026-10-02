@@ -15,6 +15,7 @@ import * as Log from "@opencode-ai/core/util/log"
 import { lazy } from "../../util/lazy"
 import { Config } from "@/config/config"
 import { errors } from "../error"
+import { ServerHost } from "../host"
 
 const log = Log.create({ service: "server" })
 
@@ -83,14 +84,15 @@ export const GlobalRoutes = lazy(() =>
             description: "Health information",
             content: {
               "application/json": {
-                schema: resolver(z.object({ healthy: z.literal(true), version: z.string() })),
+                schema: resolver(z.object({ healthy: z.literal(true), version: z.string(), host: z.string() })),
               },
             },
           },
         },
       }),
       async (c) => {
-        return c.json({ healthy: true, version: InstallationVersion })
+        // `host` is the liveness nonce of server/host.ts — never the command token.
+        return c.json({ healthy: true, version: InstallationVersion, host: ServerHost.nonce })
       },
     )
     .get(

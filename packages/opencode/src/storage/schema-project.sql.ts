@@ -145,6 +145,16 @@ export const PermissionTable = sqliteTable("permission", {
   data: text({ mode: "json" }).notNull().$type<Permission.Ruleset>(),
 })
 
+/** Which process serves this worktree database (one row, id 'host') — see `server/host.ts`. */
+export const ServerHostTable = sqliteTable("server_host", {
+  id: text().primaryKey(),
+  url: text().notNull(),
+  pid: integer().notNull(),
+  nonce: text().notNull(),
+  token: text().notNull(),
+  time_started: integer().notNull(),
+})
+
 export const EventTable = sqliteTable("event", {
   id: text().primaryKey(),
   aggregate_id: text().notNull(),

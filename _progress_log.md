@@ -6038,3 +6038,9 @@ REFUTED my line above «the robot's work epoch carried 0/79 vectors» ✗: it wa
 measurement. Per-turn count from the DB: …892N7AfF 1 closing report of 2 turns carries the full block (107 steps);
 …Co8CHgZX 64/95 turns end with the vector. The `Chain:` line divides by assistant STEPS, not turns — recorded as a
 residual in plans/2026-10-01_epoch-dominant-hook.md. Lesson for recall: a counter's self-report is testimony; read the rows.
+
+## [2026-10-02] messagesearch read against live data (owner: «глянь тулзу messagesearch»)
+Level 1 spine: 25/25 epochs `(no dominant)` (fix only affects future folds). Level 3 `dominants:true`: 65/66 precise,
+1 prose-poisoned hook (spine.ts:431 loose extractor) — reproduced. FTS `porter unicode61` stems English only:
+мнемотехника 1 / мнемотехнике 2 / мнемотехнику 0 / мнемотехник* 5; mnemonic = mnemonics = 3. Recorded in
+plans/2026-10-01_epoch-dominant-hook.md residual.

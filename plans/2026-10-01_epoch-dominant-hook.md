@@ -76,7 +76,11 @@ verdict, so the row stands; the code is a cmd_runner observation to explain, not
   NOT backfilled: the body also holds the two model-written sections (`## Constraints & Preferences`,
   `## Key decisions`) that `mechanicalSummaryBody` does not produce, so a re-render would DELETE them.
   Recovery is the `Labels:` line plus `summaryedit`, by hand, per row.
-- **The hook can be poisoned by prose (found 2026-10-02, Inferred from code + DB, no reproducer yet).**
+- **The hook can be poisoned by prose (found 2026-10-02; reproduced on live data the same day — `memory.db`
+  `part_index`, session `…Co8CHgZX`: `listDominants`' `instr(text,'dominant:')` admits 66 assistant text parts,
+  65 carry a real tail vector, 1 is prose whose «dominant» reads «One line of what this vector is about.\` ✓ То
+  есть ноль был свойством **шаблона**…»). Also measured: the spine (level 1) prints `(no dominant)` for
+  25/25 existing epochs (24 + 1), so `dominant:` filtering finds nothing in today's history.**
   The per-reply dominant the writer lists comes from `extractMessageDominant` (`memory/spine.ts:431`):
   the LAST `dominant:` anywhere in the text, prose and inline code included. The `Chain:` count uses the
   strict tail-block predicate (`compaction.ts:764`) — two predicates for «this reply carries a vector».

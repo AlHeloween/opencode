@@ -979,8 +979,8 @@ cadence fixture carried no provider usage and so took the fallback path.
 
 After every user message the runtime pushes a small `<compaction-status>` block onto its first step:
 one line per LEGACY open checkpoint (nothing creates new ones since 2026-09-22) with the gaps `diagnoseSummaryGaps` finds on read (filling a section
-retires its own nag), plus `ctx open/foldAt · headroom ~N more turns at the recent X/turn (estimate)
-· layer-1 sinceSummary/65 536`, plus the **DEBT** line —
+retires its own nag), plus `Your context window: X of Y tokens. By calculation: approximately N more model requests before compact`,
+the compact threshold, `ctx open/foldAt · headroom · layer-1 sinceSummary/65 536`, plus the **DEBT** line —
 `owed: N open plan task(s) · next: <plan> <id> [status]` — read from the plan files. The debt line is
 not decoration: the sidecar capture was the only event in this loop that came from the MACHINE rather
 than from the user, so removing generation left the protocol triggered by the user alone, i.e. an
@@ -997,6 +997,38 @@ can never be read as "nothing owed". Two properties make the note safe:
 
 The note is MODEL-facing: synthetic parts are hidden from the TUI transcript (`UserMessage` renders
 real text plus the `=== COMPACTED ===` / `=== LAYER-1 SUMMARY ===` panels only).
+
+### Forecasting model requests before compact from request growth (2026-10-02)
+
+✓ The contract is pinned by `context-forecast.test.ts`, `tail-note.test.ts` and `checkstate.test.ts`: the open
+window must NOT be divided by the number of user messages. One user turn can hold many model requests, and
+`assistant.info.tokens` SUMS them. The series comes from the individual `step-finish.tokens`: the full prompt is
+`input + cache.read + cache.write`, and the cost between requests is the difference of full prompts — the constant
+system prefix, the tool schemas and the repeated history cancel in that difference. A cache hit or miss by itself
+does not change the content cost.
+
+✓ `llm.test.ts` checks the fingerprint of the system part and the FULL wire tool catalog on a real HTTP request;
+`processor-effect.test.ts` checks that the fingerprint lands in the persisted `step-finish.contextPrefix`. The
+OAuth fingerprint uses the final `instructions` after `chat.params`, since they are sent instead of system
+messages; a change of instructions is pinned by its own fingerprint test. A change of system / schema /
+description / tool order, of model, a compact, or a shrinking prompt starts a new sample. Legacy records without
+a fingerprint do not prove a stable prefix and do not train the forecast. The window FILL still counts cached
+tokens and the system prefix — they occupy space. The fill takes the LAST `step-finish`, not the message's sum of
+requests (that sum overstated the fill of every multi-step reply); legacy records without a step-finish keep the
+old fallback.
+
+The model is constrained least squares `c + a*q^i`, non-negative coefficients, `0 <= q <= 1`. At least four
+growth samples are needed; the last 64 are used. The last sample is HELD OUT: the prediction error must stay
+within 35 % of the mean, and the training RMSE within 35 % of the training mean. When the decaying model fails
+that test, the estimate is the mean of the last four steps — an estimate of future load, not a guarantee of its
+shape (a rising cost per step makes it optimistic). A horizon of 1024 requests is reported as «at least», and no
+statistics as «estimate unavailable», never as zero. Metadata keeps `turns_at_least`, the method and the sample
+count next to `turns_left` (the field counts model REQUESTS — the name predates the wording fix).
+
+✓ The push and `checkstate` share one format and one forecast result. The note first shows `X of Y tokens`, then
+the calculated number of model requests **before compact**, and reminds that work continues from the preserved
+state after a compact. The push stays a snapshot of the user message's first step; `checkstate` computes the
+current estimate. Status parts already sent are never rewritten.
 
 ## The output reserve IS the requested output (2026-09-19)
 

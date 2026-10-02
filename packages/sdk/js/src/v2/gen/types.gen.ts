@@ -878,6 +878,7 @@ export type StepFinishPart = {
   sessionID: string
   messageID: string
   type: "step-finish"
+  contextPrefix?: string
   reason: string
   snapshot?: string
   cost: number

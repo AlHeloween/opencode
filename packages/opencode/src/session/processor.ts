@@ -587,6 +587,7 @@ export const layer: Layer.Layer<
         evidenceFloor: input.evidenceFloor ?? "Inferred",
       }
       let aborted = false
+      let contextPrefix: string | undefined
       const slog = log
         .clone()
         .tag("session.id", input.sessionID)
@@ -1213,6 +1214,7 @@ export const layer: Layer.Layer<
             // used to; it is off the critical path either way, which is the point of it.
             const stepFinish = yield* session.updatePart({
               id: PartID.ascending(),
+              contextPrefix,
               reason: value.finishReason,
               ...(value.rawFinishReason === undefined ? {} : { rawFinishReason: value.rawFinishReason }),
               // The turn's own baseline, committed once at its start. No commit
@@ -1658,7 +1660,11 @@ export const layer: Layer.Layer<
               turn.timing.requestMs = Date.now() - turn.timing.t0
               slog.info("turn.prepare", { requestMs: turn.timing.requestMs })
             }
-            const stream = llm.stream(streamInput)
+            contextPrefix = undefined
+            const stream = llm.stream({ ...streamInput, onRequestPrefix: (fingerprint) => {
+              contextPrefix = fingerprint
+              streamInput.onRequestPrefix?.(fingerprint)
+            } })
 
             yield* stream.pipe(
               Stream.tap((event) => handleEvent(event)),

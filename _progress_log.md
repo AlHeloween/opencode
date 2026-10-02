@@ -6123,3 +6123,9 @@ Residual: корреляция framebuffer/ANSI/pixels повреждённог�
 разрешённого применения, отдельные 6–9 s до session_diff. bin/ и клиентский проект не изменялись.
 Tools: cmd_runner без потерь; sh PATH исправлен на qualified Git shell/Zig0.16; Codegraph Zig
 lookup дал нерелевантный fallback, owning source прочитан напрямую; MCP очередь остаётся у сервера.
+
+## [2026-10-02] context-growth forecast (GPT/Codex session) — reviewed, finished, committed by Claude
+Forecast of model requests before compact from per-step prompt growth under a fingerprinted prefix (context-forecast.ts;
+llm.ts measures, never alters the wire; step-finish.contextPrefix). Also fixes the window fill read from the message's
+summed step usage. Claude: SPACE rule checked (request space throughout), «agent turns» -> «model requests», plan + docs
+section translated to English, plan closed and moved. 177/0 (20261002T150147Z_23b1f137), typecheck 0 opencode + sdk/js.

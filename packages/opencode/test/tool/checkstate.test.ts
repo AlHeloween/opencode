@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
-import { burnRate } from "../../src/session/compaction"
-import { formatModeSnapshot, formatSummaries, formatWindow } from "../../src/tool/checkstate"
+import { forecastContext } from "../../src/session/context-forecast"
+import { forecastMetadata, formatModeSnapshot, formatSummaries, formatWindow } from "../../src/tool/checkstate"
 
 test("checkstate returns the complete ordered runtime ACL without changing the tool catalog", () => {
   const output = formatModeSnapshot(
@@ -38,13 +38,16 @@ test("the window block reports headroom and converts it to turns", () => {
     foldAt: 120_000,
     open: 90_000,
     perTurn: 7_500,
+    forecast: forecastContext([7_500, 7_500, 7_500, 7_500], 30_000),
     armed: false,
     auto: true,
   })
-  expect(output).toContain("Auto-fold at: 120,000 tokens")
+  expect(output).toContain("Auto-fold at: 120,000 request tokens")
   expect(output).toContain("Open window now: 90,000 tokens (75% of the fold threshold)")
   // 30 000 headroom / 7 500 per turn = 4 turns.
-  expect(output).toContain("Headroom: 30,000 tokens ~ 4 more turns")
+  expect(output).toContain("Your context window: 90,000 of 163,840 tokens")
+  expect(output).toContain("approximately 4 more model requests before compact")
+  expect(output).toContain("continue from the preserved state")
   expect(output).toContain("Boundary fold armed this turn: no")
   expect(output).toContain("Automatic fold: ON")
 })
@@ -58,21 +61,26 @@ test("an unknown burn rate is reported as unknown, not as zero turns", () => {
     foldAt: 150_000,
     open: 10_000,
     perTurn: null,
+    forecast: forecastContext([], 140_000),
     armed: true,
     auto: false,
   })
-  expect(output).toContain("Headroom: 140,000 tokens (burn rate unknown")
+  expect(output).toContain("Headroom: 140,000 tokens")
+  expect(output).toContain("estimate unavailable")
   expect(output).not.toContain("more turn")
   expect(output).toContain("Boundary fold armed this turn: yes")
   expect(output).toContain("Automatic fold: OFF")
 })
 
-test("one turn is not a rate", () => {
-  // The first turn after a fold carries the folded star: dividing by one turn
-  // reads it as the burn rate and reports a headroom of zero turns.
-  expect(burnRate(64_000, 1)).toBeNull()
-  expect(burnRate(0, 5)).toBeNull()
-  expect(burnRate(60_000, 4)).toBe(15_000)
+test("few measured request increments are not a rate (supersedes user-turn averaging)", () => {
+  expect(forecastContext([64_000], 100_000).turnsLeft).toBeNull()
+  expect(forecastContext([0, 0, 0, 0], 100_000).turnsLeft).toBeNull()
+  expect(forecastContext([15_000, 15_000, 15_000, 15_000], 60_000).turnsLeft).toBe(4)
+})
+
+test("metadata preserves the lower bound and estimate method shown to the agent", () => {
+  const forecast = forecastContext([16000, 8000, 4000, 2000, 1000, 500], 100_000)
+  expect(forecastMetadata(forecast)).toEqual({ turns_left: 1024, turns_at_least: true, forecast_method: "exponential", forecast_samples: 6 })
 })
 
 test("open summaries are listed with their ids, so they can be fixed before the fold", () => {

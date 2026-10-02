@@ -400,6 +400,7 @@ export const StepFinishPart = Schema.Struct({
     }),
     cacheRatio: Schema.optional(Schema.Number),
     }),
+  contextPrefix: Schema.optional(Schema.String),
 })
   .annotate({ identifier: "StepFinishPart" })
   .pipe(withStatics((s) => ({ zod: zod(s) })))

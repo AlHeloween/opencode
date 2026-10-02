@@ -467,6 +467,7 @@ describe("session.llm.stream", () => {
           model: { providerID: ProviderID.make(providerID), modelID: resolved.id, variant: "high" },
         } satisfies MessageV2.User
 
+        const prefixes: string[] = []
         await drain({
           user,
           sessionID,
@@ -476,12 +477,17 @@ describe("session.llm.stream", () => {
           messages: [{ role: "user", content: "Hello" }],
           tools: {},
           outputTokenMax: 512,
+          onRequestPrefix: (fingerprint) => prefixes.push(fingerprint),
         })
 
         const capture = await request
         const body = capture.body
         const headers = capture.headers
         const url = capture.url
+        expect(prefixes).toHaveLength(1)
+        const wireSystem = (body.messages as Array<{ role: string; content: string }>)
+          .filter((message) => message.role === "system").map((message) => message.content)
+        expect(prefixes[0]).toBe(LLM.requestPrefixFingerprint(wireSystem, LLM.toolCatalogFingerprint({}).hash))
 
         expect(url.pathname.startsWith("/v1/")).toBe(true)
         expect(url.pathname.endsWith("/chat/completions")).toBe(true)

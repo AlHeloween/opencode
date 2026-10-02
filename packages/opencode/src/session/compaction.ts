@@ -26,6 +26,7 @@ import { MASTER_PLAN_FILE, collectPlanState, formatPlanStateText, type PlanState
 import { InstanceState } from "@/effect/instance-state"
 import { Snapshot } from "@/snapshot"
 import { renderFoldBlock } from "./svm"
+import { COMPACT_CONTINUATION, forecastContext, formatContextBudget, type ContextForecast } from "./context-forecast"
 
 const log = Log.create({ service: "session.compaction" })
 
@@ -474,10 +475,12 @@ function lastBilledPrompt(msgs: MessageV2.WithParts[]): { from: number; tokens: 
     const msg = msgs[i]
     const info = msg.info
     if (info.role !== "assistant") continue
-    const prompt = promptTokensFromUsage(info.tokens)
+    const step = msg.parts.findLast((p) => p.type === "step-finish")
+    const usage = step?.type === "step-finish" ? step.tokens : info.tokens
+    const prompt = promptTokensFromUsage(usage)
     if (prompt <= 0) continue
     const reasoningCounts = msg.parts.some((p) => p.type === "tool")
-    const response = info.tokens.output + (reasoningCounts ? info.tokens.reasoning : 0)
+    const response = usage.output + (reasoningCounts ? usage.reasoning : 0)
     return { from: i + 1, tokens: prompt + response }
   }
   return undefined
@@ -657,16 +660,28 @@ export function windowFillTokens(msgs: MessageV2.WithParts[], model?: Provider.M
   return estimateRequestTokens(Math.ceil(contentChars(slice) / CHARS_PER_TOKEN)) + media
 }
 
-/**
- * Average visible tokens added per user turn in the open window.
- *
- * One turn is not a rate: the first turn after a fold carries the folded star
- * and would read as an enormous burn, which would then report a headroom of
- * zero turns and provoke a pointless fold. Two is the smallest honest sample.
- */
-export function burnRate(open: number, userTurns: number): number | null {
-  if (userTurns < 2 || open <= 0) return null
-  return open / userTurns
+/** Provider prompt differences cancel repeated prefix/history. A changed or
+ * unmeasured prefix begins a new sample; cache misses alone do not change it. */
+export function requestGrowth(msgs: MessageV2.WithParts[], model: Provider.Model): number[] {
+  let previous: { prompt: number; prefix: string } | undefined
+  let growth: number[] = []
+  for (const msg of openWindowSlice(msgs)) {
+    if (isMessageStar(msg) || isLayer1SummaryMessage(msg)) { previous = undefined; growth = []; continue }
+    if (msg.info.role !== "assistant") continue
+    if (msg.info.providerID !== model.providerID || msg.info.modelID !== model.id) {
+      previous = undefined; growth = []; continue
+    }
+    for (const part of msg.parts) {
+      if (part.type !== "step-finish") continue
+      const prompt = promptTokensFromUsage(part.tokens)
+      const prefix = part.contextPrefix
+      if (!prefix || prompt <= 0 || !Number.isFinite(prompt)) { previous = undefined; growth = []; continue }
+      if (!previous || prefix !== previous.prefix || prompt < previous.prompt) growth = []
+      else growth.push(prompt - previous.prompt)
+      previous = { prompt, prefix }
+    }
+  }
+  return growth
 }
 
 /**
@@ -682,9 +697,12 @@ export function burnRate(open: number, userTurns: number): number | null {
  */
 export type WindowState = {
   open: number
+  limit: number
   foldAt: number
   sinceSummary: number
+  /** Predicted next request growth; never whole-window/user-message average. */
   perTurn: number | null
+  forecast: ContextForecast
 }
 
 export function windowState(input: {
@@ -695,14 +713,15 @@ export function windowState(input: {
   boundary?: MessageID
 }): WindowState {
   const open = windowFillTokens(input.visible, input.model)
+  const foldAt = usable({ cfg: input.cfg, model: input.model })
+  const forecast = forecastContext(input.model.limit.context > 0 ? requestGrowth(input.visible, input.model) : [], Math.max(0, foldAt - open))
   return {
     open,
-    foldAt: usable({ cfg: input.cfg, model: input.model }),
+    limit: input.model.limit.context,
+    foldAt,
     sinceSummary: computeOpenWindowTokens(input.visible, input.boundary, input.model),
-    perTurn: burnRate(
-      open,
-      input.visible.filter((m) => m.info.role === "user").length,
-    ),
+    perTurn: forecast.nextTokens,
+    forecast,
   }
 }
 
@@ -1030,13 +1049,10 @@ export function tailNote(input: {
   if (input.window) {
     const w = input.window
     const headroom = Math.max(0, w.foldAt - w.open)
-    const turns = w.perTurn && w.perTurn > 0 ? Math.floor(headroom / w.perTurn) : null
-    const burn =
-      turns === null
-        ? `headroom ${headroom.toLocaleString("en-US")} (burn rate unknown — too few turns since the last fold)`
-        : `headroom ${headroom.toLocaleString("en-US")} ~ ${turns} more turn${turns === 1 ? "" : "s"} at the recent ${Math.round(w.perTurn ?? 0).toLocaleString("en-US")}/turn (estimate)`
     lines.push(
-      `ctx ${w.open.toLocaleString("en-US")}/${w.foldAt.toLocaleString("en-US")} · ${burn} · layer-1 ${w.sinceSummary.toLocaleString("en-US")}/${SUMMARY_INTERVAL_TOKENS.toLocaleString("en-US")}`,
+      formatContextBudget(w),
+      COMPACT_CONTINUATION,
+      `ctx ${w.open.toLocaleString("en-US")}/${w.foldAt.toLocaleString("en-US")} · headroom ${headroom.toLocaleString("en-US")} · layer-1 ${w.sinceSummary.toLocaleString("en-US")}/${SUMMARY_INTERVAL_TOKENS.toLocaleString("en-US")}`,
     )
   }
   if (lines.length === 0) return ""

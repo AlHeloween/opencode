@@ -2,6 +2,7 @@ import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test"
 import { Effect } from "effect"
 import { TAIL_NOTE_PREFIX, owedTasks, statusMarks, statusVector, tailNote, type WindowState } from "../../src/session/compaction"
 import { formatWindow } from "../../src/tool/checkstate"
+import { forecastContext } from "../../src/session/context-forecast"
 import { IncrementalCheckpoint } from "../../src/session/incremental-checkpoint"
 import { Instance } from "../../src/project/instance"
 import { MessageID } from "../../src/session/schema"
@@ -25,9 +26,11 @@ setDefaultTimeout(20_000)
  */
 const WINDOW: WindowState = {
   open: 90_000,
+  limit: 1_005_808,
   foldAt: 120_000,
   sinceSummary: 12_345,
   perTurn: 7_500,
+  forecast: forecastContext([7_500, 7_500, 7_500, 7_500], 30_000),
 }
 
 /** Over 200 chars, missing Next Steps / Critical Context / Relevant Files. The Plan section IS
@@ -136,10 +139,11 @@ describe("the pushed compaction note", () => {
       foldAt: WINDOW.foldAt,
       open: WINDOW.open,
       perTurn: WINDOW.perTurn,
+      forecast: WINDOW.forecast,
       armed: false,
       auto: true,
     })
-    for (const token of ["90,000", "120,000", "30,000", "4 more turns", "7,500/turn"]) {
+    for (const token of ["90,000", "1,005,808", "120,000", "30,000", "4 more model requests before compact"]) {
       expect(note).toContain(token)
       expect(block).toContain(token)
     }
@@ -147,8 +151,8 @@ describe("the pushed compaction note", () => {
   })
 
   test("an unknown burn rate is reported as unknown, not as zero turns", () => {
-    const note = tailNote({ open: [], window: { ...WINDOW, perTurn: null } })
-    expect(note).toContain("burn rate unknown")
+    const note = tailNote({ open: [], window: { ...WINDOW, perTurn: null, forecast: forecastContext([], 30_000) } })
+    expect(note).toContain("estimate unavailable")
     expect(note).not.toContain("more turn")
   })
 

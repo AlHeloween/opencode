@@ -115,6 +115,20 @@ const toolCatalogHashes = new Map<string, number>()
 const toolCatalogPrev = new Map<string, string>()
 const MAX_TOOL_HASHES = 500
 
+export function toolCatalogFingerprint(tools: Record<string, Tool>) {
+  const wire = Object.keys(tools).map((name) => {
+    const item = tools[name]
+    const desc = typeof item.description === "string" ? item.description : item.description?.({ context: undefined } as never) ?? ""
+    return [name, desc, getToolSchema(item)]
+  })
+  const content = stableStringify(wire)
+  return { content, hash: Number(Bun.hash(content)) }
+}
+
+export function requestPrefixFingerprint(system: string[], catalogHash: number, instructions?: unknown) {
+  return `${hashInfo(instructions === undefined ? system : [system, instructions]).hash}:${catalogHash}`
+}
+
 function checkToolStability(input: {
   sessionID: string
   agent: string
@@ -122,13 +136,7 @@ function checkToolStability(input: {
   cacheKey: string
   tools: Record<string, Tool>
 }) {
-  const wire = Object.keys(input.tools).map((name) => {
-    const item = input.tools[name]
-    const desc = typeof item.description === "string" ? item.description : item.description?.({ context: undefined } as never) ?? ""
-    return [name, desc, getToolSchema(item)]
-  })
-  const content = stableStringify(wire)
-  const hash = Number(Bun.hash(content))
+  const { content, hash } = toolCatalogFingerprint(input.tools)
   const prevHash = toolCatalogHashes.get(input.cacheKey)
   const prevContent = toolCatalogPrev.get(input.cacheKey)
   if (prevHash !== undefined && prevHash !== hash) {
@@ -156,6 +164,7 @@ function checkToolStability(input: {
       toolCatalogPrev.delete(first)
     }
   }
+  return hash
 }
 
 function checkSystemStability(input: { sessionID: string; agent: string; modelID: string; cacheKey: string; content: string }) {  const key = input.cacheKey
@@ -413,6 +422,7 @@ export type StreamInput = {
   outputTokenMax?: number
   toolChoice?: "auto" | "required" | "none"
   checkpoint?: boolean
+  onRequestPrefix?: (fingerprint: string) => void
 }
 
 export type StreamRequest = StreamInput & {
@@ -842,13 +852,18 @@ const live: Layer.Layer<
       })
 
       // Wire catalog drift detector — includes the post-resolve _noop stub.
-      checkToolStability({
+      const catalogHash = checkToolStability({
         sessionID: input.sessionID,
         agent: input.agent.name,
         modelID: input.model.id,
         cacheKey: providerCacheKey,
         tools,
       })
+      input.onRequestPrefix?.(requestPrefixFingerprint(
+        isOpenaiOauth || isWorkflow ? [] : system,
+        catalogHash,
+        isOpenaiOauth ? params.options.instructions : undefined,
+      ))
 
       // Wire messages drift detector — mutation of already-sent history
       // invalidates the provider KV prefix from the first divergent position.

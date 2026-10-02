@@ -10,6 +10,7 @@ import { SessionCompaction } from "@/session/compaction"
 import { IncrementalCheckpoint } from "@/session/incremental-checkpoint"
 import * as CompactionRequest from "@/session/compaction-request"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
+import { COMPACT_CONTINUATION, formatContextBudget, type ContextForecast } from "@/session/context-forecast"
 
 export const Parameters = Schema.Struct({})
 
@@ -25,6 +26,9 @@ type Metadata = {
     open: number
     headroom: number
     turns_left: number | null
+    turns_at_least: boolean
+    forecast_method: ContextForecast["method"]
+    forecast_samples: number
     compact_armed: boolean
   }
   summaries: { id: string; from: string; to: string; chars: number }[]
@@ -62,23 +66,22 @@ export function formatWindow(input: {
   foldAt: number
   open: number
   perTurn: number | null
+  forecast: ContextForecast
   armed: boolean
   auto: boolean
 }) {
   const headroom = Math.max(0, input.foldAt - input.open)
   const pct = input.foldAt > 0 ? Math.round((input.open / input.foldAt) * 100) : 0
-  const turns = input.perTurn && input.perTurn > 0 ? Math.floor(headroom / input.perTurn) : null
   return [
     `Model: ${input.model}`,
-    `Context window: ${input.limit.toLocaleString("en-US")} tokens`,
-    `Auto-fold at: ${input.foldAt.toLocaleString("en-US")} tokens of visible content`,
+    formatContextBudget(input),
+    `Auto-fold at: ${input.foldAt.toLocaleString("en-US")} request tokens`,
     `Open window now: ${input.open.toLocaleString("en-US")} tokens (${pct}% of the fold threshold)`,
-    turns === null
-      ? `Headroom: ${headroom.toLocaleString("en-US")} tokens (burn rate unknown — too few turns since the last fold)`
-      : `Headroom: ${headroom.toLocaleString("en-US")} tokens ~ ${turns} more turn${turns === 1 ? "" : "s"} at the recent ${Math.round(input.perTurn ?? 0).toLocaleString("en-US")}/turn`,
+    `Headroom: ${headroom.toLocaleString("en-US")} tokens`,
+    COMPACT_CONTINUATION,
     `Boundary fold armed this turn: ${input.armed ? "yes" : "no"}`,
     input.auto
-      ? "Automatic fold: ON. It fires on window fill, wherever that lands — including mid-edit. Call `compact` at a boundary you choose instead."
+      ? "Automatic fold: ON. Call `compact` at a completed boundary to preserve state and continue."
       : "Automatic fold: OFF (compaction.auto=false). Nothing folds unless you call `compact`.",
   ].join("\n")
 }
@@ -92,6 +95,15 @@ export function formatWindow(input: {
  * an identity can read summaries via `sessionread` but cannot tell which ones
  * are still open, so it does not know what it is about to carry forward.
  */
+export function forecastMetadata(forecast: ContextForecast) {
+  return {
+    turns_left: forecast.turnsLeft,
+    turns_at_least: forecast.atLeast,
+    forecast_method: forecast.method,
+    forecast_samples: forecast.samples,
+  }
+}
+
 export function formatSummaries(
   open: { id: string; fromMessageID: string; toMessageID: string; body: string }[],
 ) {
@@ -170,6 +182,7 @@ export const CheckStateTool = Tool.define<
               open: state.open,
               sinceSummary: state.sinceSummary,
               perTurn: state.perTurn,
+              forecast: state.forecast,
               armed: CompactionRequest.pendingFor(ctx.sessionID),
               auto: cfg.compaction?.auto !== false,
             }
@@ -203,7 +216,7 @@ export const CheckStateTool = Tool.define<
                   fold_at: window.foldAt,
                   open: window.open,
                   headroom,
-                  turns_left: window.perTurn ? Math.floor(headroom / window.perTurn) : null,
+                  ...forecastMetadata(window.forecast),
                   compact_armed: window.armed,
                 },
               }),

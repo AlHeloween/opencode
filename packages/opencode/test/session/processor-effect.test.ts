@@ -213,6 +213,7 @@ it.live("session.processor effect tests capture llm input cleanly", () =>
           model: mdl,
         })
 
+        const measuredPrefixes: string[] = []
         const input = {
           user: {
             id: parent.id,
@@ -228,6 +229,7 @@ it.live("session.processor effect tests capture llm input cleanly", () =>
           system: [],
           messages: [{ role: "user", content: "hi" }],
           tools: {},
+          onRequestPrefix: (fingerprint: string) => measuredPrefixes.push(fingerprint),
         } satisfies LLM.StreamInput
 
         const value = yield* handle.process(input)
@@ -237,6 +239,10 @@ it.live("session.processor effect tests capture llm input cleanly", () =>
         expect(value).toBe("continue")
         expect(calls).toBe(1)
         expect(parts.some((part) => part.type === "text" && part.text === "hello")).toBe(true)
+        expect(measuredPrefixes).toHaveLength(1)
+        expect(measuredPrefixes[0]).toMatch(/^\d+:\d+$/)
+        const finish = parts.find((part) => part.type === "step-finish")
+        expect(finish?.type === "step-finish" ? finish.contextPrefix : undefined).toBe(measuredPrefixes[0])
       }),
     { git: true, config: (url) => providerCfg(url) },
   ),

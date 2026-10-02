@@ -47,5 +47,10 @@
   comparable run on a HEAD worktree without this change: FAIL there too, same line (`20261002T053624Z_414bf144`),
   while the fold-head test PASSED there (so that one WAS this change → fixture superseded). Candidate cause, not
   verified: `28449f3285` (the fold ends with the rendered master plan, S6). Ours to fix — its own STABILIZE commit.
-- **Robot's temp stash** `stash@{0}: red-proof-tmp` holds an intermediate version; popping it reverts the fix.
-  Drop awaits the owner's yes.
+  **CLOSED 2026-10-02 (owner: «бери тест следующей задачей»):** classified TEST — the assertion encoded the pre-S6
+  requirement («recovery pointer is the LAST line»); S6 deliberately moved the master plan after it, and S6's commit
+  did not run compaction.test.ts. Re-pinned no looser (one pointer, after `--- Recent`, followed only by the
+  master-plan block): compaction.test.ts 89/0 (`20261002T054205Z_685f27a8`); MUTATION (map and pointer swapped in
+  `buildMessageStar`) → red at the new assertion, line 353 (`20261002T054226Z_7524b11f`); reverted, diff empty,
+  compaction + summary-block-shape 106/0 (`20261002T054240Z_6821090b`).
+- **Robot's temp stash** `stash@{0}: red-proof-tmp` — dropped on the owner's yes (`de33e440`), 2026-10-02.

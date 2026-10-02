@@ -339,15 +339,20 @@ describe("session.compaction.memory", () => {
         expect(star).toContain("</memory>")
         expect(star).toContain(criterion)
         // Before the summaries: it is the most durable content in the star,
-        // not a recovery recipe, and the one recovery pointer stays last.
+        // not a recovery recipe, and the one recovery pointer closes the window's part of it.
         expect(star.indexOf("<memory>")).toBeLessThan(star.indexOf("--- Recent"))
-        expect(
-          star
-            .trimEnd()
-            .endsWith(
-              "Use messagesearch, sessionread and dbread to restore missing facts; recall(id) returns a dropped tool result in full.",
-            ),
-        ).toBe(true)
+        // Superseded 2026-10-02: this assertion read «the recovery pointer is the LAST line», which plan S6
+        // (28449f3285, plans/2026-09-29_svm-tool-and-master-plan.md) moved on purpose — the rendered master plan
+        // now rides AFTER the closing pointers. Re-pinned no looser: ONE pointer, after the recent block, and
+        // nothing follows it but the master-plan block.
+        const recovery =
+          "Use messagesearch, sessionread and dbread to restore missing facts; recall(id) returns a dropped tool result in full."
+        const at = star.indexOf(recovery)
+        expect(at).toBeGreaterThan(star.indexOf("--- Recent"))
+        expect(star.indexOf(recovery, at + 1)).toBe(-1)
+        expect(star.slice(at + recovery.length).trimStart().startsWith("--- Master plan (rendered at this fold")).toBe(
+          true,
+        )
       }),
     ),
   )

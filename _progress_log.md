@@ -6057,3 +6057,7 @@ Smit (ses_f04f93739ffeLlmlvAwnzCtPJV, deepseek-flash 97/97 rows) changed spine.t
 removed; 9 files 190/1 (20261002T053649Z_359a6a4f), typecheck 0, live S4 66->65 / 417->416 (20261002T053721Z_2147850b).
 The 1 red (compaction.test.ts:301) is inherited — fails on a HEAD worktree too (20261002T053624Z_414bf144). Residual: that
 red (own STABILIZE), robot stash@{0} red-proof-tmp awaiting the owner's yes to drop.
+
+## [2026-10-02] STABILIZE compaction.test.ts:301 — re-pinned to plan S6; robot stash dropped
+Classified TEST (pre-S6 encoding «recovery pointer last»). Re-pinned: one pointer after --- Recent, only the master-plan
+block after it. 89/0, mutation red at :353, reverted 106/0. stash@{0} red-proof-tmp dropped on the owner's yes (de33e440).

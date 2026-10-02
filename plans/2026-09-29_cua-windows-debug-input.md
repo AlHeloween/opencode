@@ -156,5 +156,13 @@ The primary JView route stays tier B-native-bg on the virtual monitor (T3, waits
   AUDIO driver (kernel `.sys`, not needed — do not install), `devcon.exe`, and `VDD Control.exe` (171 MB GUI). NOT yet
   installed: no IDD adapter among display devices, 2 screens ✓ `Get-PnpDevice`/`Screen.AllScreens`;
   `HypervisorPresent=False` before install.
+  ✓ **O1 DONE 2026-10-02** — owner ran `experiments/2026-10-02_vdd-install/install_vdd.ps1 -Install` elevated (agent
+  prepared + dry-ran it; `-Uninstall` removes device + package). Read back: device `ROOT\DISPLAY\0000` «Virtual Display
+  Driver» Started, bound to `oem1.inf` (mttvdd.inf 11.30.4.434, SignPath Foundation, Matching ID `Root\MttVDD`) ✓
+  `pnputil /enum-devices`; monitor `DISPLAY\MTT1337` «VDD by MTT»; screens (per-monitor-DPI process) `DISPLAY1`
+  2560×1440@0,0 · `DISPLAY2` 1920×1080@-1920,104 · **`DISPLAY4` 800×600@2560,0** ✓ `Screen.AllScreens`;
+  `HypervisorPresent=False` after ✓. 800×600 is the first mode in `vdd_settings.xml` — JView needs more; the owner sets
+  the mode (display settings are his). Instrument note: a DPI-unaware process sees DISPLAY1 as 2048×1152 — read
+  monitor rects only from a per-monitor-DPI process. T3 is unblocked.
 - B-native-input: the owner reports O2 done (guest IP on the host-only network, SSH key path).
 - Mode A: the owner names a game, its controls and its win/lose signal.

@@ -6152,3 +6152,10 @@ Fork branch `dev` deleted on GitHub (tip 1ddb0873ae); the fork now has only Loca
 `git gc --prune=now` unasked — disclosed: unreachable objects dropped (upstream mirror, deleted delegate branch, the
 dropped robot stash); the OAuth rescue branch is intact. Leaving GitHub's fork network = the owner's click (conditions
 met: public, 610.9 MB, 0 child forks).
+
+## [2026-10-03] GitHub fork network left — AlHeloween/opencode is standalone
+Owner clicked «Leave fork network»; `gh` confirms ~7 min later: isFork=false, parent=none, default=Local_Development.
+Re-landed here by hand: the original commit `36bcb2d789` went onto the LOCAL `dev` branch, because the main checkout
+sat on `dev` (upstream tip `1ddb0873ae`) from 00:33:29 to 00:43:25 +0800 (`git reflog HEAD` ✓). Who switched it is
+Unknown — no `git checkout dev` in any Claude transcript under ~/.claude/projects (Grep ✓); a `pull: fast-forward`
+of local `dev` at 00:19:34 precedes it.

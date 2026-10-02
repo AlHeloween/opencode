@@ -6018,3 +6018,9 @@ DONE R1: awaitTurnEnd in run.ts + test/cli/run-lifetime.test.ts (5 tests): Smit 
 5/0 (20261002T044216Z_d43a327f), typecheck exit 0 (20261002T044220Z_e1fbee02). OPEN R2: live run after the owner's build.
 First robot task end-to-end through the bridge: brief -> Smit -> report with run ids -> own oracle -> commit by Claude.
 Owner touches: 2 (restart after the binary update; the «don't nudge, delegate the cause» decision).
+
+## [2026-10-02] session boundary before /compact — handles
+Memory updated: project_robot_loop_state_2026_10_02 (robot loop state + open items), reference_python_path_shadows_bin_tools,
+project_jview_delphi_cua_target (live cua run facts — experiments/ is gitignored). Window 65 % (647 833 / 1 000 000).
+Open, owned elsewhere: DeepSeek announce-then-stop (delegate session task_4726c815); install kit plan (ADID_Python session,
+plans/2026-10-01_kernel-and-skills-install-kit.md DRAFT). Owner decisions pending: codex bare home, cua offline build, PDF reader.

@@ -70,6 +70,31 @@ Note: offline DELIVERY ≠ offline USE — «привет» to a free model need
 - Console VT support / terminal host for the TUI.
 - Corporate proxy / firewall for the free-model endpoint — detected, not configured blindly.
 
+## Contents — proposed order (2026-10-02; sizes measured with `du -sh` on `d:\!Smit\Smit2`, everything else Guess until I0)
+
+Draft bundle total ≈ 3.2 GB: `smit/` 1.5 G (of it `smit.exe` 280 M + `opencode.exe` 276 M — two copies of one
+binary —, `logseq/` 535 M, `codegraph/` 251 M), `git/` 479 M (full Git for Windows), `chromium/` 429 M (152.0.7977.42),
+`adid_dist_*` 206 M, `python/` 172 M, `tools/` 139 M, `playwright-driver/` 103 M (own `node.exe`), `node/` 92 M
+(a second node), `windows_scripts/` 72 M. **A4 finding:** `smit/auth.json` holds two provider entries with `key`
+fields (values not read) — the builder must never copy a user's auth file; the secret scan is a build gate.
+
+| # | Stage | Contents | Self-check (the cheapest primitive, KAIZEN) |
+|---|---|---|---|
+| 0 | Bootstrap (native, before any UI) | one signed Go exe + payload; WebView2 Evergreen Standalone offline installer | Windows x64 build, free disk, WebView2 present or installed; failure = plain native message box |
+| 1 | Preflight (read-only report) | — | OS edition (LTSC has no Store/Calculator), non-ASCII profile path, long paths, VC++ runtime, console VT, ports free, proxy, GPU, `HypervisorPresent`, existing install; shown as a list before any change |
+| 2 | Core robot | Smit (one binary, not two), OpenTUI dll, kernel prompt + skills, config with a free provider and NO auth file | `smit --version`; a config load; robot starts headless and exits clean |
+| 3 | Core tools | Git (MinGit, not the full 479 M installer tree), fossil, rg, fd, sed/grep, sqlite tools, cmd_runner rebuilt without UPX | each tool's `--version` from the install root by absolute path (never PATH — see memory `reference-python-path-shadows-bin-tools`) |
+| 4 | GUI debugging | offline cua-driver (`network` feature off, rebuilt so the embedded `cua-robot` pack is current) + the IDD Virtual Display Driver (admin, signed, Root\MttVDD) with settings at 1920×1080 | the T3 fixture embedded: own pixels + bound click on the virtual monitor, owner focus untouched, `HypervisorPresent` unchanged |
+| 5 | Web debugging | portable Chromium for per-task B-web, playwright-core + ONE node | the B-web fixture (T1): headless isolated profile, DOM/console/network readback, zero visible windows |
+| 6 | Search (U1, only after its redesign) | Universal Search under virtual accounts, CDP by pipe, paced polite fetching; SearXNG/websurfx/garnet/crw only if U1 keeps them | `/health`; one search against a local fixture; egress manifest per audit plan |
+| 7 | Knowledge tooling (owner decision) | adm / adm-rag, embedded Python, codegraph, logseq (535 M) | `adm --version`; RAG only where a GPU is present (host rule: no neural nets on the CPU) |
+| 8 | Integration | user-level PATH entry, Start-menu shortcuts, `exchange\in`/`exchange\out`, uninstaller from a recorded manifest (files, device hardware ID, services) | uninstall dry-run lists exactly what install recorded |
+| 9 | Final self-diagnostics | `smit doctor`: re-runs 1–8 checks + «привет» to the free model | each check PASS/FAIL with a one-line remedy; «привет» failure classified (no network / provider refused / robot broken); report file without secrets, shareable |
+
+Out of the installer: `windows_scripts/*` (Store add, gpedit enabler — system changes, at most a separate opt-in),
+`install_choco.bat`/`install_winget.bat` (network, breaks A2), the virtual AUDIO driver (kernel `.sys`), anything that
+enables Hyper-V / VBS.
+
 ## Smoke Tests
 
 - [ ] **I0 inventory:** read-only manifest of `d:\!Smit\Smit2\` (component, version, size, source, license, what it touches); system-modifying scripts (`windows_scripts/*`: LTSC Store add, `gpedit-enabler`) flagged opt-in. <!-- sv: inventory, smit2, manifest -->

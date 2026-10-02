@@ -127,6 +127,17 @@ Target, replacing the SearXNG design below (kept as the rejected branch):
   `ironclaw/universal_search/install_firecrawl_service.bat`); one user's sequential queries need no queue, and any
   state that appears goes to the repo's two planes (SQLite relational, LMDB keyed) per AGENTS.md § Storage Paradigm.
 
+**Purpose (owner, 2026-10-02):** «мы же не веб скрэпаем а делаем поисковик для нашей epistemic системы — чистые
+запросы из нескольких источников + sourcegraph чтобы получить этот самый inferred. Это часть нашего пайплайна.» The
+search service is the evidence intake of the kernel's @SOURCE_ROUTING ladder: a web hit is Hypothetical, a primary
+authority or canonical code is Inferred, and «Remote Inferred still needs source_stamp {authority_class,
+url_provenance, content_hash}». So every result the service returns carries what that promotion needs:
+`authority_class` (primary authority / canonical repo / official docs / secondary / generic web), `url` + the source
+that produced it, `retrieved_at`, and — for anything opened and read — `content_hash` of the exact text read, plus for
+code the repo + commit/tag + path:line (Sourcegraph locates, `gh api …?ref=` reads at the shipped version). A result
+without a stamp is a Hypothetical lead, never evidence. The page reader (the crw fork, below) exists to produce that
+stamped text through a real browser — reading, not crawling.
+
 **DECIDED 2026-10-02 — hybrid** (owner: «Поддерживаю»; «вот же исходники, у нас все пакеты в исходном коде»):
 1. SearXNG (`D:\zPython\universal-search\dist\searxng-src`, source in hand) keeps ONLY engines whose request goes to a
    documented, free, official API, pinned by `use_default_settings: engines: keep_only:` (`settings_loader.py:152` ✓
@@ -163,6 +174,14 @@ a local page logging every request's UA, qualified by a probe): with `renderer.m
 `github.com/fastcrw/crw`, read at `v0.15.2`): `crw-renderer/src/lib.rs:609-611` HTTP pre-fetch is unconditional even
 with `render_js = true`; `:636-700` escalates refusals (401/403/429/503) to Chrome; `crw-core/src/config.rs:1028-1035`
 forges the Mac Chrome UA on purpose to pass UA filters.
+✓ **FORKED and built 2026-10-02** (owner: «Давай сделаем форк и соберем.») — `external/crw` branch
+`local_development`, commit `6d2747e`: `renderer.browser_only`, `STEALTH_JS` removed (it was injected on every
+navigation, stealth flag or not — found while forking), automatic «Accept all» on cookie banners removed, honest UA.
+Tests red→green (114/0; with cdp 71/0 + 155/0). Live oracle run `20261002T113753Z`: `renderJs:false` → 400 with 0
+requests; otherwise only `HeadlessChrome/152` reaches the page, and the page sees the real 5 plugins (vendor: 3 faked).
+Evidence: `experiments/2026-10-02_crw-chrome-only/README.md`. Role in the pipeline: the stamped document reader behind
+universal-search (`/web/context` → crw `/v1/scrape` with `browser_only = true`). Open owner decision: cookie
+banners — leave to the user's profile, or a reject-non-essential variant of the removed script.
 
 #### Rejected branch — SearXNG with API-only engines (2026-10-02, superseded the same day)
 

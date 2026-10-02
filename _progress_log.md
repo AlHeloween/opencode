@@ -6089,3 +6089,5 @@ shim bun.cmd, kill() reaches cmd.exe only. Fixed with process.execPath: host tes
 (20261002T113232Z_cc570fce). Rescue branch rescue/0db8b57076-oauth-output-ceiling anchors the commit orphaned by the
 2026-10-01 21:27 reset (author of that reset unknown — no Claude/Smit transcript holds the command).
 Open before promoting a binary to bin/: R1 — bridge/robot skills and wait_done.py must send the host token.
+
+[2026-10-02T11:40Z] plan robot-installer U1 - crw fork: external/crw local_development 6d2747e (browser_only, STEALTH_JS removed, no auto consent, honest UA). Tests 110/0 baseline -> 4 red -> 114/0; cdp 71/0 + 155/0. Live oracle 20261002T113753Z: renderJs:false refused with 0 requests, only HeadlessChrome/152 reaches the page, real 5 plugins. Void baseline recorded (edited while compiling). Open: cookie-banner policy (owner).

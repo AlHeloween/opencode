@@ -6138,3 +6138,10 @@ Local_Development. Owner ordered the session, worktree and branch deleted (plan 
 junction check first: 8 585 links, all relative and inside the worktree; main node_modules intact. New tool
 tools/worktree_audit.py: 10 remaining worktrees, all our lineage, all carry the kernel. Divergence: ours 2 390 vs
 origin/dev 3 662. Memory feedback_delegate_worktree_must_carry_our_kernel updated.
+
+## [2026-10-02] session boundary before /compact — handles
+Memory: project_robot_loop_state_2026_10_02 rewritten as the end-of-day state (merged + pushed list, what waits for the
+owner's binary promotion, NEXT = a delegate in a verified worktree that itself dispatches Smit); new
+project_fossil_snapshot_state_2026_10_02 (the deleted audit plan's verified facts: history intact, no snapshot since 12:41,
+packages/opencode never covered, silent close path in fossil.ts); feedback_delegate_worktree_must_carry_our_kernel.
+Pending owner yes: delete the fork's dev; UserPromptSubmit guard hook. Fossil fixes 1+2 offered, not started.

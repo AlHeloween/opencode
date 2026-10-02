@@ -53,6 +53,11 @@ Write it to `experiments/<ISO-date>_robot-<task>/brief.md`:
 
 ## Launch
 
+**The run must be OBSERVABLE by the owner** (owner, 2026-10-02: «я прибиваю любые процессы которые не
+observable» — and a reboot loses an invisible run). Bridge into a TUI he can see; if the server is down, start it
+visibly (`cmd_runner start --terminal wt -- D:\zPython\opencode\bin\opencode.exe --session <id> --port 4096`) or
+ask. Headless `run` only on his explicit yes — never as a silent fallback.
+
 **Primary route: skill `opencode-bridge`** — `POST /session` + `prompt_async` on the server of a TUI started with
 `--port` (owner's window; measured: a 33-`webfetch` tool turn finished in ~96 s with no stall). The headless form
 below WORKS since 2026-10-02 (binary 12:44): the old «stall after a tool result» was two defects — cmd_runner's raw

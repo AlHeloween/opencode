@@ -6044,3 +6044,9 @@ Level 1 spine: 25/25 epochs `(no dominant)` (fix only affects future folds). Lev
 1 prose-poisoned hook (spine.ts:431 loose extractor) — reproduced. FTS `porter unicode61` stems English only:
 мнемотехника 1 / мнемотехнике 2 / мнемотехнику 0 / мнемотехник* 5; mnemonic = mnemonics = 3. Recorded in
 plans/2026-10-01_epoch-dominant-hook.md residual.
+
+## [2026-10-02] one-vector-predicate: headless run stopped on the owner's ground (not observable)
+Run 20261002T051157Z_56021e88 (Smit, DeepSeek V4.1 Flash, session ses_f04f93739ffeLlmlvAwnzCtPJV, 28 tool calls, no tracked
+edits) stopped: owner «прибиваю любые процессы которые не observable». `cmd_runner stop` wrote stop_request.json but the run
+stayed `running` > 11 s — killed by pid 21968 (state finished, exit -1). Rule written: robot skill § Launch + memory
+feedback_delegation_must_be_observable. Next: after the reboot, continue the SAME session through the bridge in a visible TUI.

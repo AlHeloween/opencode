@@ -6129,3 +6129,12 @@ Forecast of model requests before compact from per-step prompt growth under a fi
 llm.ts measures, never alters the wire; step-finish.contextPrefix). Also fixes the window fill read from the message's
 summed step usage. Claude: SPACE rule checked (request space throughout), «agent turns» -> «model requests», plan + docs
 section translated to English, plan closed and moved. 177/0 (20261002T150147Z_23b1f137), typecheck 0 opencode + sdk/js.
+
+## [2026-10-02] audit delegate ran WITHOUT our kernel — root cause fixed at source, delegate deleted, fleet audited
+The audit session's worktree was born on origin/dev (10765ff2a9): no CLAUDE.md, no kernel, upstream AGENTS.md (no Fossil).
+Cause: the GitHub fork had inherited upstream's default branch `dev`. Fixed on the owner's yes: Local_Development pushed
+(802ace365b..01f7a1afee, pre-push typecheck 16/16) and made the fork's default branch; `git remote set-head origin -a` =
+Local_Development. Owner ordered the session, worktree and branch deleted (plan included — built on the dev picture);
+junction check first: 8 585 links, all relative and inside the worktree; main node_modules intact. New tool
+tools/worktree_audit.py: 10 remaining worktrees, all our lineage, all carry the kernel. Divergence: ours 2 390 vs
+origin/dev 3 662. Memory feedback_delegate_worktree_must_carry_our_kernel updated.

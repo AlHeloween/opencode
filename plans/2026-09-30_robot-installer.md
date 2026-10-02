@@ -70,6 +70,30 @@ Note: offline DELIVERY ≠ offline USE — «привет» to a free model need
 - Console VT support / terminal host for the TUI.
 - Corporate proxy / firewall for the free-model endpoint — detected, not configured blindly.
 
+## Execution order (owner, 2026-10-02: «не распыляйся надо доделать то что делаем. Мне нужен установочный пакет,
+## который работает со всем функционалом», «Поиск должен работать и работать правильно — иначе от установщика толку 0»)
+
+Search is the first gate: an installer whose search is wrong is worth zero. One bounded task open at a time.
+
+- [ ] **Q1 search acceptance oracle:** a fixed query set of the pipeline's real kind (Delphi/VCL docwiki, Win32 on
+  learn.microsoft.com, MFL / pipeline-inspection science, a code question for Sourcegraph, a PMID via EuropePMC) with
+  a predicate per query: ≥1 result from each source class that should answer, every result stamped
+  (`authority_class`, url, source, retrieved_at; `content_hash` for read documents), every failing source NAMED with
+  its status. Baseline on today's stack first, so the redesign is measured, not asserted. <!-- sv: search-oracle, query-set, baseline -->
+- [ ] **Q2 browser SERP adapters** in universal-search: DuckDuckGo html, Bing, Google through `/web/browser` (real
+  Chromium), DOM → contract; selector fixtures from saved SERPs + live canary. <!-- sv: serp-adapters, browser-search, selectors -->
+- [ ] **Q3 SearXNG official-API set:** `keep_only` list, each engine vetted by its `request()` URL against the
+  service's API docs. <!-- sv: searxng-whitelist, official-api, vetting -->
+- [ ] **Q4 reader:** universal-search `/web/context` → crw fork (`browser_only = true`) → stamped markdown with
+  `content_hash`. <!-- sv: document-reader, crw-fork, content-hash -->
+- [ ] **Q5 merge + stamps:** one JSON contract from Q2+Q3+Sourcegraph+free APIs; Q1 passes. <!-- sv: merge, source-stamp, q1-pass -->
+- [ ] **Q6 services:** chromium, searxng, universal-search, crw — user-level, loopback, never LocalSystem; start/stop
+  owned by the installer. <!-- sv: services, least-privilege, lifecycle -->
+- then B1 builder → B2 installer shell → B3 preflight → V1–V3 virtual display (driver chosen and proven: MttVDD,
+  T3 PASS) → B4 free-model config → B5 `smit doctor` incl. Q1 as its search check → B6 acceptance.
+- **Acceptance host is OPEN:** A0/B6 need a pristine Windows; the VMware tier is postponed and Hyper-V/Sandbox are
+  excluded on this host — a colleague's clean PC or a lifted VMware postponement is the owner's call when B6 is next.
+
 ## Contents — proposed order (2026-10-02; sizes measured with `du -sh` on `d:\!Smit\Smit2`, everything else Guess until I0)
 
 Draft bundle total ≈ 3.2 GB: `smit/` 1.5 G (of it `smit.exe` 280 M + `opencode.exe` 276 M — two copies of one

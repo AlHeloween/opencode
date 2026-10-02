@@ -8,7 +8,7 @@ import { Flag } from "@opencode-ai/core/flag/flag"
 import { bootstrap } from "../bootstrap"
 import { EOL } from "os"
 import { Filesystem } from "@/util/filesystem"
-import { createOpencodeClient, type OpencodeClient, type ToolPart } from "@opencode-ai/sdk/v2"
+import { createOpencodeClient, type Event, type OpencodeClient, type ToolPart } from "@opencode-ai/sdk/v2"
 import { Server } from "../../server/server"
 import { Provider } from "@/provider/provider"
 import { Agent } from "../../agent/agent"
@@ -26,6 +26,7 @@ import { BashTool } from "../../tool/bash"
 import { TodoWriteTool } from "../../tool/todo"
 import { Locale } from "@/util/locale"
 import { AppRuntime } from "@/effect/app-runtime"
+import { errorMessage } from "@/util/error"
 
 type ToolProps<T> = {
   input: Tool.InferParameters<T>
@@ -195,6 +196,60 @@ function normalizePath(input?: string) {
   if (!input) return ""
   if (path.isAbsolute(input)) return path.relative(process.cwd(), input) || "."
   return input
+}
+
+/** Verdict for one session event: keep the turn open, or end it as idle/error. */
+export type TurnVerdict = "continue" | "idle" | "error"
+
+/** How the turn ended; `start-failed` carries the request error for the caller to report. */
+export type TurnTerminal =
+  | { kind: "idle" }
+  | { kind: "error" }
+  | { kind: "stream-ended" }
+  | { kind: "start-failed"; error: unknown }
+
+/**
+ * Bind the command's lifetime to the turn, not to the request that started it.
+ *
+ * The prompt/command HTTP call can return while the turn is still running (the
+ * server streams the turn asynchronously) — a caller that ends on that reply
+ * exits mid-turn and takes the in-process server, and the unfinished answer,
+ * with it. The event stream is the authority: settle on idle, on a session
+ * error, or when the stream ends — and also when the request itself fails
+ * before any terminal event, so a dead server ends the command instead of
+ * hanging it. Exported for test/cli/run-lifetime.test.ts.
+ */
+export async function awaitTurnEnd(input: {
+  events: AsyncIterable<Event>
+  onEvent: (event: Event) => TurnVerdict | Promise<TurnVerdict>
+  start: () => Promise<unknown>
+}): Promise<TurnTerminal> {
+  async function consume(): Promise<TurnTerminal> {
+    for await (const event of input.events) {
+      const verdict = await input.onEvent(event)
+      if (verdict !== "continue") return { kind: verdict }
+    }
+    return { kind: "stream-ended" }
+  }
+
+  const consuming = consume()
+
+  const starting = (async (): Promise<TurnTerminal | undefined> => {
+    try {
+      await input.start()
+      return undefined
+    } catch (error) {
+      return { kind: "start-failed", error }
+    }
+  })()
+
+  // The request settling without an error is NOT the end of the turn — the
+  // server streams the turn asynchronously, so keep waiting for the events.
+  // A request failure IS the end: once the call that started the turn is
+  // gone, no terminal event is guaranteed to ever arrive.
+  const first = await Promise.race([consuming, starting])
+  if (first === undefined) return await consuming
+  return first
 }
 
 export const RunCommand = cmd({
@@ -422,128 +477,129 @@ export const RunCommand = cmd({
       const events = await sdk.event.subscribe()
       let error: string | undefined
 
-      async function loop() {
-        const toggles = new Map<string, boolean>()
+      const toggles = new Map<string, boolean>()
 
-        for await (const event of events.stream) {
-          if (
-            event.type === "message.updated" &&
-            event.properties.info.role === "assistant" &&
-            args.format !== "json" &&
-            toggles.get("start") !== true
-          ) {
-            UI.empty()
-            UI.println(`> ${event.properties.info.agent} · ${event.properties.info.modelID}`)
-            UI.empty()
-            toggles.set("start", true)
-          }
+      async function handleEvent(event: Event): Promise<TurnVerdict> {
+        if (
+          event.type === "message.updated" &&
+          event.properties.info.role === "assistant" &&
+          args.format !== "json" &&
+          toggles.get("start") !== true
+        ) {
+          UI.empty()
+          UI.println(`> ${event.properties.info.agent} · ${event.properties.info.modelID}`)
+          UI.empty()
+          toggles.set("start", true)
+        }
 
-          if (event.type === "message.part.updated") {
-            const part = event.properties.part
-            if (part.sessionID !== sessionID) continue
+        if (event.type === "message.part.updated") {
+          const part = event.properties.part
+          if (part.sessionID !== sessionID) return "continue"
 
-            if (part.type === "tool" && (part.state.status === "completed" || part.state.status === "error")) {
-              if (emit("tool_use", { part })) continue
-              if (part.state.status === "completed") {
-                tool(part)
-                continue
-              }
-              inline({
-                icon: "✗",
-                title: `${part.tool} failed`,
-              })
-              UI.error(part.state.error)
+          if (part.type === "tool" && (part.state.status === "completed" || part.state.status === "error")) {
+            if (emit("tool_use", { part })) return "continue"
+            if (part.state.status === "completed") {
+              tool(part)
+              return "continue"
             }
-
-            if (
-              part.type === "tool" &&
-              part.tool === "task" &&
-              part.state.status === "running" &&
-              args.format !== "json"
-            ) {
-              if (toggles.get(part.id) === true) continue
-              task(props<typeof TaskTool>(part))
-              toggles.set(part.id, true)
-            }
-
-            if (part.type === "step-start") {
-              if (emit("step_start", { part })) continue
-            }
-
-            if (part.type === "step-finish") {
-              if (emit("step_finish", { part })) continue
-            }
-
-            if (part.type === "text" && part.time?.end) {
-              if (emit("text", { part })) continue
-              const text = part.text.trim()
-              if (!text) continue
-              if (!process.stdout.isTTY) {
-                process.stdout.write(text + EOL)
-                continue
-              }
-              UI.empty()
-              UI.println(text)
-              UI.empty()
-            }
-
-            if (part.type === "reasoning" && part.time?.end && args.thinking) {
-              if (emit("reasoning", { part })) continue
-              const text = part.text.trim()
-              if (!text) continue
-              const line = `Thinking: ${text}`
-              if (process.stdout.isTTY) {
-                UI.empty()
-                UI.println(`${UI.Style.TEXT_DIM}\u001b[3m${line}\u001b[0m${UI.Style.TEXT_NORMAL}`)
-                UI.empty()
-                continue
-              }
-              process.stdout.write(line + EOL)
-            }
-          }
-
-          if (event.type === "session.error") {
-            const props = event.properties
-            if (props.sessionID !== sessionID || !props.error) continue
-            let err = String(props.error.name)
-            if ("data" in props.error && props.error.data && "message" in props.error.data) {
-              err = String(props.error.data.message)
-            }
-            error = error ? error + EOL + err : err
-            if (emit("error", { error: props.error })) continue
-            UI.error(err)
+            inline({
+              icon: "✗",
+              title: `${part.tool} failed`,
+            })
+            UI.error(part.state.error)
           }
 
           if (
-            event.type === "session.status" &&
-            event.properties.sessionID === sessionID &&
-            event.properties.status.type === "idle"
+            part.type === "tool" &&
+            part.tool === "task" &&
+            part.state.status === "running" &&
+            args.format !== "json"
           ) {
-            break
+            if (toggles.get(part.id) === true) return "continue"
+            task(props<typeof TaskTool>(part))
+            toggles.set(part.id, true)
           }
 
-          if (event.type === "permission.asked") {
-            const permission = event.properties
-            if (permission.sessionID !== sessionID) continue
+          if (part.type === "step-start") {
+            if (emit("step_start", { part })) return "continue"
+          }
 
-            if (args["dangerously-skip-permissions"]) {
-              await sdk.permission.reply({
-                requestID: permission.id,
-                reply: "once",
-              })
-            } else {
-              UI.println(
-                UI.Style.TEXT_WARNING_BOLD + "!",
-                UI.Style.TEXT_NORMAL +
-                  `permission requested: ${permission.permission} (${permission.patterns.join(", ")}); auto-rejecting`,
-              )
-              await sdk.permission.reply({
-                requestID: permission.id,
-                reply: "reject",
-              })
+          if (part.type === "step-finish") {
+            if (emit("step_finish", { part })) return "continue"
+          }
+
+          if (part.type === "text" && part.time?.end) {
+            if (emit("text", { part })) return "continue"
+            const text = part.text.trim()
+            if (!text) return "continue"
+            if (!process.stdout.isTTY) {
+              process.stdout.write(text + EOL)
+              return "continue"
             }
+            UI.empty()
+            UI.println(text)
+            UI.empty()
+          }
+
+          if (part.type === "reasoning" && part.time?.end && args.thinking) {
+            if (emit("reasoning", { part })) return "continue"
+            const text = part.text.trim()
+            if (!text) return "continue"
+            const line = `Thinking: ${text}`
+            if (process.stdout.isTTY) {
+              UI.empty()
+              UI.println(`${UI.Style.TEXT_DIM}\u001b[3m${line}\u001b[0m${UI.Style.TEXT_NORMAL}`)
+              UI.empty()
+              return "continue"
+            }
+            process.stdout.write(line + EOL)
           }
         }
+
+        if (event.type === "session.error") {
+          const props = event.properties
+          if (props.sessionID !== sessionID || !props.error) return "continue"
+          let err = String(props.error.name)
+          if ("data" in props.error && props.error.data && "message" in props.error.data) {
+            err = String(props.error.data.message)
+          }
+          error = error ? error + EOL + err : err
+          if (emit("error", { error: props.error })) return "error"
+          UI.error(err)
+          return "error"
+        }
+
+        if (
+          event.type === "session.status" &&
+          event.properties.sessionID === sessionID &&
+          event.properties.status.type === "idle"
+        ) {
+          return "idle"
+        }
+
+        if (event.type === "permission.asked") {
+          const permission = event.properties
+          if (permission.sessionID !== sessionID) return "continue"
+
+          if (args["dangerously-skip-permissions"]) {
+            await sdk.permission.reply({
+              requestID: permission.id,
+              reply: "once",
+            })
+          } else {
+            UI.println(
+              UI.Style.TEXT_WARNING_BOLD + "!",
+              UI.Style.TEXT_NORMAL +
+                `permission requested: ${permission.permission} (${permission.patterns.join(", ")}); auto-rejecting`,
+            )
+            await sdk.permission.reply({
+              requestID: permission.id,
+              reply: "reject",
+            })
+          }
+        }
+
+        return "continue"
       }
 
       // Validate agent if specified
@@ -616,30 +672,42 @@ export const RunCommand = cmd({
       }
       await share(sdk, sessionID)
 
-      loop().catch((e) => {
-        Log.Default.warn("bug: run command failed", { error: e instanceof Error ? e.message : String(e) })
-        process.exit(1)
+      const terminal = await awaitTurnEnd({
+        events: events.stream,
+        onEvent: handleEvent,
+        start: async () => {
+          if (args.command) {
+            await sdk.session.command({
+              sessionID,
+              agent,
+              model: args.model,
+              command: args.command,
+              arguments: message,
+              variant: args.variant,
+            })
+            return
+          }
+          const model = args.model ? Provider.parseModel(args.model) : undefined
+          await sdk.session.prompt({
+            sessionID,
+            agent,
+            model,
+            variant: args.variant,
+            parts: [...files, { type: "text", text: message }],
+          })
+        },
       })
 
-      if (args.command) {
-        await sdk.session.command({
-          sessionID,
-          agent,
-          model: args.model,
-          command: args.command,
-          arguments: message,
-          variant: args.variant,
-        })
-      } else {
-        const model = args.model ? Provider.parseModel(args.model) : undefined
-        await sdk.session.prompt({
-          sessionID,
-          agent,
-          model,
-          variant: args.variant,
-          parts: [...files, { type: "text", text: message }],
-        })
+      if (terminal.kind === "start-failed") {
+        UI.error(errorMessage(terminal.error))
+        process.exit(1)
       }
+      if (terminal.kind === "stream-ended") {
+        UI.error("event stream ended before the session went idle")
+        process.exit(1)
+      }
+      // The session error was already printed with its event.
+      if (terminal.kind === "error") process.exit(1)
     }
 
     if (args.attach) {

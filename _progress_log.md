@@ -6003,3 +6003,18 @@ DONE: bin\tools\cmd_runner.exe -> sha 335db660… (== tools\cmd_runner.exe); old
 bin\tools\cmd_runner.2026.07.01.exe (sha cf804633…). Checked before the swap: no process ran from bin\tools (only
 tools\cmd_runner.exe, pid 23420, hosting Smit's TUI). Verified by hash, not by launching from bin/. The PATH shadow now
 resolves to the same build, so a bare `tools/cmd_runner.exe` from Python lands on 2026.10.01 either way.
+
+## [2026-10-02] skill `omp` — oh-my-pi as a second headless robot runtime (owner: «сделать скил чтобы его юзать как мы юзаем смита»)
+DONE: `.claude/skills/omp/` — SKILL.md (brief contract shared with skill `robot`), `omp-robot.yml` (per-run approval
+overlay: write mode, bash allow, eval deny, destructive git + bin/ deny), `read_run.py` (json-stream reader).
+Measured on fixture `.temp/test/omp-smoke/`, session 01a0f979: headless read + final message + terminal agent_end ✓;
+`git commit` refused by the overlay and reported, not routed around ✓; `--resume` recalls the prior turn ✓; allowed
+bash + write + read-back ✓; $0.0049 on deepseek/deepseek-flash. Trap found: omp reads non-TTY stdin as the prompt and
+hangs in readPipedInput — every launch needs `</dev/null`. Open: bash tool 60 s default timeout, which context files
+omp loads at the repo root, whether subagents/advisor inherit the overlay, HF GLM credential in omp (not called: paid).
+
+## [2026-10-02] run lifetime bound to the turn — Smit implemented, Claude verified (plan 2026-10-02_run-lifetime-bound-to-turn)
+DONE R1: awaitTurnEnd in run.ts + test/cli/run-lifetime.test.ts (5 tests): Smit RED 1/4 -> GREEN 5/0; Claude re-run
+5/0 (20261002T044216Z_d43a327f), typecheck exit 0 (20261002T044220Z_e1fbee02). OPEN R2: live run after the owner's build.
+First robot task end-to-end through the bridge: brief -> Smit -> report with run ids -> own oracle -> commit by Claude.
+Owner touches: 2 (restart after the binary update; the «don't nudge, delegate the cause» decision).

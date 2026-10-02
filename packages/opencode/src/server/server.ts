@@ -19,6 +19,7 @@ import { WorkspaceRoutes } from "./routes/control/workspace"
 import { ExperimentalHttpApiServer } from "./routes/instance/httpapi/server"
 import { WorkspacePaths } from "./routes/instance/httpapi/workspace"
 import { Context } from "effect"
+import { OpenApi } from "effect/unstable/httpapi"
 
 // @ts-ignore This global is needed to prevent ai-sdk from logging warnings to stdout https://github.com/vercel/ai/blob/2dc67e0ef538307f21368db32d5a12345d98831b/packages/ai/src/logger/log-warnings.ts#L85
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -98,7 +99,27 @@ export async function openapi() {
       openapi: "3.1.1",
     },
   })
-  return result
+  // Routes bridged into the Effect HttpApi (`handler(c.req.raw, context)` mounts) carry no describeRoute
+  // metadata, so hono-openapi cannot see them and `opencode generate` drops them from the SDK. Their
+  // contracts live in PublicApi: fill every method the Hono document lacks from it. On a component-name
+  // collision the Hono definition wins — it is what the generated SDK already types, and the Effect dialect
+  // differs (e.g. finite numbers also admit "NaN"/"Infinity" strings).
+  const { PublicApi } = await import("./routes/instance/httpapi/public")
+  const effect = OpenApi.fromApi(PublicApi)
+  return {
+    ...result,
+    paths: Object.fromEntries(
+      [...new Set([...Object.keys(result.paths), ...Object.keys(effect.paths)])].map((path) => [
+        path,
+        { ...effect.paths[path], ...result.paths[path] },
+      ]),
+    ) as typeof result.paths,
+    components: {
+      ...result.components,
+      schemas: { ...effect.components.schemas, ...result.components?.schemas },
+      securitySchemes: { ...effect.components.securitySchemes, ...result.components?.securitySchemes },
+    } as typeof result.components,
+  }
 }
 
 export let url: URL

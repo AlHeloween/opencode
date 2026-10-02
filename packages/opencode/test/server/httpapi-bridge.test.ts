@@ -107,37 +107,32 @@ afterEach(async () => {
 })
 
 describe("HttpApi Hono bridge", () => {
-  test("mounts experimental handlers for every legacy instance route", () => {
-    Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", false)
-    const legacy = InstanceRoutes()
-    Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", true)
-    const experimental = InstanceRoutes()
+  // InstanceRoutes no longer splits into "bridge + legacy tail": 4a9eea22e4 removed the
+  // OPENCODE_EXPERIMENTAL_HTTPAPI gate and 2481637696 (api-v2 1.7) deleted the legacy instance routes,
+  // so slicing the flag-on app by the flag-off length left an empty bridge. The instance app IS the mount set.
+  test("mounts an HttpApi handler for every legacy workspace route", () => {
+    const mounted = new Set(InstanceRoutes().routes.map(routeKey))
+    // WorkspaceRoutes is the remaining legacy Hono app, mounted by Server.create() behind the bridged handlers.
+    const legacyRoutes = [
+      ...new Set(
+        WorkspaceRoutes().routes.map(
+          (route) => `${route.method} /experimental/workspace${route.path === "/" ? "" : route.path}`,
+        ),
+      ),
+    ]
 
-    const bridge = experimental.routes.slice(0, experimental.routes.length - legacy.routes.length)
-    const workspaceRoutes = WorkspaceRoutes().routes.map((route) => ({
-      ...route,
-      path: `/experimental/workspace${route.path === "/" ? "" : route.path}`,
-    }))
-    const legacyRoutes = [...new Set([...legacy.routes, ...workspaceRoutes].map(routeKey))]
-    const bridgeRoutes = new Set(bridge.map(routeKey))
-
-    expect(legacyRoutes.filter((route) => !bridgeRoutes.has(route))).toEqual([])
-    expect([...bridgeRoutes].filter((route) => !legacyRoutes.includes(route)).sort()).toEqual([])
+    expect(legacyRoutes.length).toBeGreaterThan(0)
+    expect(legacyRoutes.filter((route) => !mounted.has(route))).toEqual([])
   })
 
-  test("mounts every Effect HttpApi route through the Hono bridge", () => {
-    Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", false)
-    const legacy = InstanceRoutes()
-    Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", true)
-    const experimental = InstanceRoutes()
-
-    const bridgeRoutes = new Set(
-      experimental.routes.slice(0, experimental.routes.length - legacy.routes.length).map(routeKey),
-    )
+  // InstanceApi routes (/path, /vcs, /agent, ...) are served by native describeRoute handlers since
+  // 2cfeaf25d1; every other HttpApi route reaches the Effect handler through the bridge.
+  test("mounts every Effect HttpApi route on the instance app", () => {
+    const mounted = new Set(InstanceRoutes().routes.map(routeKey))
     const httpApiRoutes = reflectedHttpApiRoutes()
 
-    expect(httpApiRoutes.filter((route) => !bridgeRoutes.has(route))).toEqual([])
-    expect([...bridgeRoutes].filter((route) => !httpApiRoutes.includes(route)).sort()).toEqual([])
+    expect(httpApiRoutes.filter((route) => !mounted.has(route))).toEqual([])
+    expect([...mounted].filter((route) => !httpApiRoutes.includes(route)).sort()).toEqual([])
   })
 
   test("covers every generated OpenAPI route with Effect HttpApi contracts", async () => {

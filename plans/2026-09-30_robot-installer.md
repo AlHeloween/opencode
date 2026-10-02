@@ -154,6 +154,12 @@ defaults (`config.default.toml`, web): renderer mode `auto` (LightPanda → Chro
 pool is in our binary ✓ grep: four Chrome/Firefox/Mac/Linux UA strings). In the hybrid it is redundant: page opening
 is `/web/browser`, search is SearXNG, markdown conversion exists in-house (`smit-markdownify.exe`). Kept only if a
 measured need for its crawl/map appears; then mode `chrome` only, stealth off, source pinned beside the binary.
+✗ **Measured the same day — REMOVED** (`experiments/2026-10-02_crw-chrome-only/`, run `20261002T105214Z`, witness =
+a local page logging every request's UA, qualified by a probe): with `renderer.mode = "chrome"` and
+`render_js_default = true` (and with `render_js:true` per request) crw first sends a plain HTTP GET with a FORGED UA
+(`Macintosh … Chrome/131.0.0.0`, no `sec-ch-ua`) and only then the real `HeadlessChrome/152`; its log names an
+«http+…» renderer ladder. Web-fetch plus impersonation with stealth OFF — fails the owner's rule «Или реальный брауз
+или официальные апи». Services in the hybrid: chromium, searxng, universal-search.
 
 #### Rejected branch — SearXNG with API-only engines (2026-10-02, superseded the same day)
 

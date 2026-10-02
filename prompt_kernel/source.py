@@ -902,7 +902,21 @@ KERNEL = Kernel(
         "AUTHORIZATION": "A decision that permits a bounded class of effects; confidence is not authority.",
         # The @SIMULATION_ERROR cross-reference was evicted 2026-09-27 (the rule keeps two consumers in G8); the
         # oracle-to-error link is now stated in the premise, together with the reward it pays.
-        "ORACLE_ROLE": "Independent proof of zero simulation error. Neither simulation is the oracle.",
+        # 2026-10-02, owner: an opencode agent (deepseek-flash, XEComponents ses_f555b44c8ffe6lJrTR69KN5zf3) closed
+        # a report with «твой проход по GUI — здесь оракул ты» and a vector keyword `owner-is-the-oracle`, while a
+        # GUI instrument (cua) existed. The rule «neither simulation is the oracle» held only by inference from the
+        # premise; the owner's formula makes it explicit: «Оракул = Реальность - моя симуляция + Реальность - твоя
+        # симуляция. Реальность это exact, что достигается тестами.»
+        # The formula itself is already the premise («error … is the sum of the two»); the Claude variant had 17 tokens
+        # of headroom under its 7_700 cap (measured), so the term names the consequence and the route, nothing more.
+        # Outside falsifier round 1 (frameless Sonnet, $0.072): «nor the user» read the user as a THIRD party, not
+        # one of the two simulations; «missing tool or residual» as siblings let residual skip the tool ladder (the
+        # incident itself: cua existed); «unrunnable» had no threshold. Round 2 ($0.079) on the fix: «built first»
+        # inverted the cited ladder (build is its LAST rung), the explicit-stop exit was missing, and «acceptance»
+        # collides with G9's ACCEPTANCE_PASS (which IS proof). Round 3 ($0.086): «lacking» misses the incident's own case
+        # (the tool existed, unused), «or» set no order, «approval» is no kernel term (DELEGATION says «testimony»).
+        # Owner chose the full wording at +8 tokens on the Claude variant's cap (7_700 -> 7_708), 2026-10-02.
+        "ORACLE_ROLE": "Independent proof of zero simulation error. Neither simulation, the user's included, is the oracle: get the tool, unused ones too, and only then stop into residual (@TOOLCHAIN_QUALIFICATION); the user's word is testimony, not proof.",
         "CLOSURE": "A proof that acceptance is covered and critical risk is zero, not merely that execution stopped.",
         "RESIDUAL": "The uncovered part of the requested outcome after current evidence and verified work.",
         "MUTATION": "Any persistent filesystem, repository, external-system, or user-visible state change.",

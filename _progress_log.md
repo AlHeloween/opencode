@@ -6099,3 +6099,10 @@ after kill. Bridge skill made binary-aware (old bin build vs 442ecb5c84+); robot
 wait_done.py connects through the client. CUA session committed its installer plan (da598954b0).
 
 [2026-10-02T12:40Z] plan robot-installer Q1/Q2/Q4 - search oracle baseline 1/6 (live stack) -> candidate 6/6 (run 20261002T123757Z). universal-search 4d00d73 POST /search (DDG+Bing via CDP, stamped, paced, cooldown), f4eef45 /web/context content_hash. Playwright driver 404 (2nd occurrence of the class) worked around by seeding OUT_DIR - countermeasure assigned to builder B1. Mis-staged another agent's service.rs work, undone (reset --soft) and re-committed by hunk; memory feedback_shared_tree_stage_by_hunk. Q2b selector fixtures split out, open.
+
+## [2026-10-02] kernel amendment — ORACLE_ROLE: the user is never the oracle (owner: «баг в кернеле … я типа оракул»)
+Incident: XEComponents opencode ses_f555b44c8ffe6lJrTR69KN5zf3 (deepseek-flash) «здесь оракул ты», keyword owner-is-the-oracle,
+cua existed. Term rewritten; 3 frameless-Sonnet rounds ($0.237 total, experiments/2026-10-02_kernel-oracle-role/), 9 findings
+fixed. Claude variant token cap 7700 -> 7708 on the owner's choice; test_render pin re-pinned to the new phrase. Installed
+product 5b609132 (57 178 B), Claude 57 421 B, Codex ~/.codex/AGENTS.md; baseline repinned by hand; prompt_kernel 122/122
+(20261002T125355Z_8ebed099). Same error fixed in plans/2026-10-02_one-server-per-worktree.md R2 («visual oracle: the owner»).

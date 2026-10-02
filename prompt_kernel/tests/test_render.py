@@ -85,7 +85,10 @@ def test_kernel_does_not_restate_entities_under_three_spellings() -> None:
     assert "failed proof -> Unknown" in text
     assert "statuses: @INFORMATION_STATUS" in text
     assert "Generic web never becomes Inferred" in text
-    assert "Neither simulation is the oracle" in text
+    # Re-pinned 2026-10-02 (ORACLE_ROLE fix, owner): the phrase now names the user as one of the simulations; the
+    # pin grows with it rather than loosening to a fragment both spellings would satisfy.
+    assert "Neither simulation, the user's included, is the oracle" in text
+    assert "the user's word is testimony, not proof" in text
     assert "Hallucination-cure priors" in text
     assert "Do not treat simulation error" in text
     assert "#### @SIMULATION_ERROR" in text

@@ -117,7 +117,10 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # 7_000 -> 7_500 (2026-09-29): tracks the product token ceiling (test_dedup.py), same decision;
     # measured 7_019 with the LEAN reach in, 19 over the old line.
     # 7_500 -> 7_700 (2026-09-29): tracks the product token ceiling (test_dedup.py), same decision.
-    assert normalized_token_count(text) <= 7_700
+    # 7_700 -> 7_708 (2026-10-02, owner's choice): the ORACLE_ROLE fix («the user's included … the user's word is
+    # testimony») after three frameless-Sonnet rounds; measured 7_708 with it, the product itself at 7_557 / 7_700.
+    # The +8 is this variant's alone — the product ceiling did not move.
+    assert normalized_token_count(text) <= 7_708
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

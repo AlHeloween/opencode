@@ -126,7 +126,10 @@ worktree. There is no worktree-wide surface at all.
       `Host: evil.example` 403, repr hides the token, killed host → STALE exit 2 + HostError. Bridge skill: binary-aware
       recipe; robot skill + `wait_done.py` connect through it (main tree today: «no host record», exit 3 — the old
       binary, as expected). The same check against the PROMOTED binary rides with R2.
-- [ ] R2 — visual oracle: the owner sees an attached run's steps + busy in the promoted TUI.
+- [ ] R2 — visual check on the promoted TUI: an attached run's steps + busy appear in the TUI. ORACLE = an instrument,
+      not the owner (kernel ORACLE_ROLE, 2026-10-02: the user is a simulation, never the oracle): a cua window capture
+      of the TUI taken while the attached run is busy, plus the host's `/event` stream showing the same step ids. The
+      owner's look is ACCEPTANCE, recorded separately — never the proof. (Was worded «visual oracle: the owner sees».)
 
 ## Residuals (named, not built)
 

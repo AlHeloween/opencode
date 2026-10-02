@@ -70,7 +70,7 @@ control_flow_rule: gated_workflow is the success path; every deviation must use 
 terms:
 - GROUNDING: Observation tied to a source, path, command, or reproducible state.
 - AUTHORIZATION: A decision that permits a bounded class of effects; confidence is not authority.
-- ORACLE_ROLE: Independent proof of zero simulation error. Neither simulation is the oracle.
+- ORACLE_ROLE: Independent proof of zero simulation error. Neither simulation, the user's included, is the oracle: get the tool, unused ones too, and only then stop into residual (@TOOLCHAIN_QUALIFICATION); the user's word is testimony, not proof.
 - CLOSURE: A proof that acceptance is covered and critical risk is zero, not merely that execution stopped.
 - RESIDUAL: The uncovered part of the requested outcome after current evidence and verified work.
 - MUTATION: Any persistent filesystem, repository, external-system, or user-visible state change.

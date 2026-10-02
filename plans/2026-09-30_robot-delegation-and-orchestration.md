@@ -89,7 +89,18 @@ verify, robots execute on the funded models. What decides whether it holds (Hypo
 - **One committer per tree; one cmd_runner per worktree.** Many trees → a merge queue in front of
   `Local_Development`, each merge gated by its oracle.
 - **Host capacity.** `dist\bin\opencode.exe` is 303 MB on disk; RSS per robot is unmeasured — hundreds of
-  robots means several hosts, and the fleet then needs the scheduler (S4) on each.
+  robots means several hosts, and the fleet then needs the scheduler (S4) on each. First number (2026-10-02,
+  Get-Process): a headless `run` booting its OWN server = 882 MB, the owner's TUI = 691 MB — the per-robot cost of
+  «every process is a server».
+- **One addressable host per worktree = the fleet's address space** (owner, 2026-10-02: «любой из наших роботов
+  сможет работать с другими worktrees если там запущен сервер, ты тоже сможешь подхватить запущенный сервер для
+  оркестрации»). Built by the TUI delegate's plan `plans/2026-10-02_one-server-per-worktree.md` (branch
+  `tui-live-sync`): every host records port + nonce + per-start token in its worktree's store. Discovery needs NO
+  global registry: `git worktree list` names the trees, each tree's record names its live host. Consequences for
+  this plan: a robot is a thin attached client, not a server (RSS: measured by that plan's acceptance); Claude
+  orchestrates by subscribing to each host's `/event` instead of launching processes or polling the DB (retires
+  `wait_done.py` and its race); the owner's TUI on any tree shows the robot's work live. Not yet built — a
+  cross-worktree client probe (A reads B's record, drives B's host, B's TUI shows it) is the stage that proves it.
 - **Seat terms.** Whether Team seats may drive automated verification at this volume, or whether that is the
   API / Agent SDK route, is the owner's check against Anthropic's terms — unverified here.
 

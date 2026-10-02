@@ -119,6 +119,9 @@ Target, replacing the SearXNG design below (kept as the rejected branch):
   plugins, a challenge page = status `challenge` for that source and stop (Cloudflare's own self-resolving check may
   finish as in any browser — never solved or clicked by us).
 - No paid aggregator, no third-party query logging: Brave API dropped.
+- The only non-browser route: a service's own documented, FREE API used as documented (EuropePMC REST, arXiv API) —
+  owner, 2026-10-02: «Если есть официальный апи путь — бесплатный — не через задний проход очень хорошо иначе лучше не
+  надо.» Undocumented/internal endpoints, paid APIs or a borrowed key are not admitted; no such API → browser or nothing.
 - Services: 6 (chromium, crw-server, searxng, garnet, websurfx, universal-search) → 2 (chromium, universal-search), both
   user-level. No Postgres: the self-hosted Firecrawl needs it only for its NUQ job queue (`NUQ_DATABASE_URL` in
   `ironclaw/universal_search/install_firecrawl_service.bat`); one user's sequential queries need no queue, and any

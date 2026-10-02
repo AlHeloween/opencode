@@ -80,6 +80,15 @@ Search is the first gate: an installer whose search is wrong is worth zero. One 
   a predicate per query: ≥1 result from each source class that should answer, every result stamped
   (`authority_class`, url, source, retrieved_at; `content_hash` for read documents), every failing source NAMED with
   its status. Baseline on today's stack first, so the redesign is measured, not asserted. <!-- sv: search-oracle, query-set, baseline -->
+  ✓ Oracle built (`experiments/2026-10-02_search-oracle/run.ts`: delphi, win32, science, driver via `/web/search`;
+  code via `/web/sourcegraph`; read via `/web/context`). **Baseline run `20261002T115644Z`: 1/6** (predicted 1/6;
+  worse in detail): delphi → 10 TeamViewer-forum results, no docwiki; win32/science/driver → 0 results (bing's ban
+  window); read → 351 chars without the page text, no hash; code ✓. The owner's «толку 0» is literally the state.
+  Q2 prototype `serp_probe.ts` run `20261002T115857Z_serp` (real Chromium via `/web/browser`, 4 s apart): DuckDuckGo
+  `html` 10/10 results on all 4 queries in ~2 s, authority hosts present (docwiki ×3, learn.microsoft.com, sciencedirect
+  / ieee / springer, learn + github); Bing 10/10 once its `bing.com/ck/a?u=a1<base64url>` links are unwrapped, same
+  authority hosts, but ~32 s per page (the browser waits for `load`); Google 0 results and «unusual traffic» on 2 of 4
+  → a challenge is a stop: Google is not a source.
 - [ ] **Q2 browser SERP adapters** in universal-search: DuckDuckGo html, Bing, Google through `/web/browser` (real
   Chromium), DOM → contract; selector fixtures from saved SERPs + live canary. <!-- sv: serp-adapters, browser-search, selectors -->
 - [ ] **Q3 SearXNG official-API set:** `keep_only` list, each engine vetted by its `request()` URL against the

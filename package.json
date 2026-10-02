@@ -36,6 +36,7 @@
       "@babel/core": "7.28.4",
       "@cloudflare/workers-types": "4.20251008.0",
       "@effect/platform-node": "4.0.0-beta.57",
+      "@hono/standard-validator": "0.2.3",
       "@hono/zod-validator": "0.4.2",
       "@jsx-email/render": "1.1.1",
       "@kobalte/core": "0.13.11",

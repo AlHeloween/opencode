@@ -16,6 +16,7 @@
     "@opencode-ai/core": "workspace:*",
     "@opencode-ai/ui": "workspace:*",
     "aws4fetch": "^1.0.20",
+    "@hono/standard-validator": "catalog:",
     "@pierre/diffs": "catalog:",
     "@solidjs/router": "catalog:",
     "@solidjs/start": "catalog:",

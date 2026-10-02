@@ -112,6 +112,7 @@
     "@effect/platform-node": "catalog:",
     "@hono/node-server": "1.19.11",
     "@hono/node-ws": "1.3.0",
+    "@hono/standard-validator": "catalog:",
     "@lydell/node-pty": "catalog:",
     "@modelcontextprotocol/sdk": "1.27.1",
     "@octokit/graphql": "9.0.2",

@@ -19,9 +19,10 @@
       a failed request ends the turn); `test/cli/run-lifetime.test.ts`, 5 tests. RED on the extracted old semantics:
       1 pass / 4 fail (Smit, run `20261002T043905Z_c447149b`); GREEN 5/0 (Smit `20261002T044018Z_49360727`, Claude
       re-run `20261002T044216Z_d43a327f`); `bun typecheck` exit 0 (Claude `20261002T044220Z_e1fbee02`).
-- [ ] **R2 live oracle** — after the owner's rebuild of dist: a one-`read` turn via `dist/bin/opencode.exe run …
-      --format json` emits `text` and exits 0 with the assistant row in the DB; `--model <unknown>` exits 1 within
-      seconds. Waits on the build (owner's procedure).
+- [x] **R2 live oracle** — after the owner's rebuild (dist/bin + bin, 12:44, 302 981 120 B), prediction written first
+      (`experiments/2026-10-02_robot-run-lifetime/r2_prediction.txt`): one-`read` turn `20261002T044631Z_3b71feb4` —
+      steps `tool-calls` → `stop`, a `text` event (reply `opencode`), exit 0 in 14.7 s, DB rows user/assistant/assistant;
+      unknown model `20261002T044646Z_162406ca` — `error` «Model not found», exit 1 in 5.6 s (was a 300 s hang).
 
 ## Smoke Tests
 - R1: `cmd_runner start --cwd packages/opencode -- bun test test/cli/run-lifetime.test.ts` → 5 pass / 0 fail.

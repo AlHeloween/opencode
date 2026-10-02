@@ -56,7 +56,11 @@ Write it to `experiments/<ISO-date>_robot-<task>/brief.md`:
 **The run must be OBSERVABLE by the owner** (owner, 2026-10-02: «я прибиваю любые процессы которые не
 observable» — and a reboot loses an invisible run). Bridge into a TUI he can see; if the server is down, start it
 visibly (`cmd_runner start --terminal wt -- D:\zPython\opencode\bin\opencode.exe --session <id> --port 4096`) or
-ask. Headless `run` only on his explicit yes — never as a silent fallback.
+ask. Headless `run` only on his explicit yes — never as a silent fallback — and only for a SHORT request (owner,
+2026-10-02: «headless run имеет смысл только для краткого запроса — он реально непредсказуем, ты не можешь сказать
+какая модель для него выберется»). Without `--model` the model comes from `opencode.json` (the dist default is a free
+model); with it, measured once: run `20261002T051157Z_56021e88` — 18/18 assistant rows `deepseek/deepseek-flash` ✓ —
+one run, not a guarantee. So the FIRST check of any headless run is the `modelID` of its first assistant row in the DB.
 
 **Primary route: skill `opencode-bridge`** — `POST /session` + `prompt_async` on the server of a TUI started with
 `--port` (owner's window; measured: a 33-`webfetch` tool turn finished in ~96 s with no stall). The headless form

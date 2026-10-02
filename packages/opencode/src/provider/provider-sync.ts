@@ -481,6 +481,15 @@ const NOVITA_STATIC_MODELS: ModelsDevModel[] = [
 //   family default: zone h2 verified live (pinned http2 200 on /zen/v1 and
 //   /zen/go/v1) + h2 SSE stream smoke end-to-end PASS
 //   (cmd_runner 20260911T051635Z_4eefe556).
+// 2026-10-02 negative result, prior art (code reading, not run):
+//   external/agentic-flow-2.1.3 has NO working HTTP/3 to any provider — do not
+//   mine it for h3. http3-proxy.ts (Gemini) start() logs "Native QUIC not yet
+//   implemented" and calls the HTTP/2 parent; quic-proxy.ts (OpenRouter)
+//   overrides sendRequest, which its base class never calls (plain fetch at
+//   anthropic-to-openrouter.ts:217/356); transport/quic.ts encodes/decodes
+//   HTTP/3 as stubs returning an empty 200. The only real QUIC is quinn 0.11 in
+//   crates/agentic-flow-quic and reasoningbank-network: raw agent-to-agent
+//   JSON framing, no h3/QPACK, server cert verification disabled.
 const VERIFIED_H2_OPTIONS: Record<string, unknown> = { protocol: "h2", streaming: true }
 const VERIFIED_NOVITA_OPTIONS: Record<string, unknown> = { protocol: "h3", streaming: true }
 

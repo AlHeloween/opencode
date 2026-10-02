@@ -46,6 +46,11 @@ Two consequences, both measured:
       promoted (the OWNER's step, never mine), the next fold writes one `project_checkpoint` row whose
       body carries `dominant: "…"`, and `messagesearch { corpus: "summaries" }` prints that hook where
       it printed `(no dominant)` for the 23 rows below it.
+      *Partial, 2026-10-02 (read-only DB probe, `project_checkpoint` newest rows):* the D2 count axis IS live —
+      the row of 2026-10-01T21:36Z (session `…892N7AfF`, the robot's run-lifetime work) reads
+      `Chain: 0/79 … · 0 dominants: none.` where the old writer would print `79 dominants` ✓. The FIELD is
+      not observable there: the range carried ZERO vectors, so its absence is the correct output, not a
+      refutation. S3 stays open until a fold over a range with ≥ 1 carrier.
 
 ## Smoke Tests — run, with the prediction made BEFORE each one
 
@@ -71,5 +76,14 @@ verdict, so the row stands; the code is a cmd_runner observation to explain, not
   NOT backfilled: the body also holds the two model-written sections (`## Constraints & Preferences`,
   `## Key decisions`) that `mechanicalSummaryBody` does not produce, so a re-render would DELETE them.
   Recovery is the `Labels:` line plus `summaryedit`, by hand, per row.
+- **The hook can be poisoned by prose (found 2026-10-02, Inferred from code + DB, no reproducer yet).**
+  The per-reply dominant the writer lists comes from `extractMessageDominant` (`memory/spine.ts:431`):
+  the LAST `dominant:` anywhere in the text, prose and inline code included. The `Chain:` count uses the
+  strict tail-block predicate (`compaction.ts:764`) — two predicates for «this reply carries a vector».
+  Seen in the row whose `Chain:` says `5/45` while `Labels:` lists prose fragments such as
+  «` — писатель её **никогда не пишет** ✓ Читаю рендерер:» (a reply that only TALKED about the field).
+  With D1, the last such fragment becomes the epoch's `dominant:` field. Falsifier: a
+  `mechanicalSummaryBody` case whose only reply mentions `` `dominant:` `` in prose and carries no
+  vector — predicted: the field is emitted with that fragment (RED against the requirement).
 - **Reader-side legacy fallback: deliberately NOT added.** A reader that fell back to the prose list
   would answer two different questions under one name — the exact shape this defect is an instance of.

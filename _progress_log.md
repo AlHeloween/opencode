@@ -6024,3 +6024,11 @@ Memory updated: project_robot_loop_state_2026_10_02 (robot loop state + open ite
 project_jview_delphi_cua_target (live cua run facts — experiments/ is gitignored). Window 65 % (647 833 / 1 000 000).
 Open, owned elsewhere: DeepSeek announce-then-stop (delegate session task_4726c815); install kit plan (ADID_Python session,
 plans/2026-10-01_kernel-and-skills-install-kit.md DRAFT). Owner decisions pending: codex bare home, cua offline build, PDF reader.
+
+## [2026-10-02] post-compact recall trial (GMS topic) — process measured
+Three steps worked: (1) `tools/claude_svchain.py <sid> --grep gms|mnemo|recall` → vectors 74-77, 107, 122;
+(2) a scratch reader (svchain's own `vector_in`) mapped ordinals to jsonl line + timestamp + the owner's words;
+(3) read-only DB probe of Smit's session ses_f0e3e4801ffefwaT00Co8CHgZX → his GMS mapping and the 22/22 finding.
+Gaps: svchain prints an ordinal, not an address; keywords are ad-hoc per turn (no fixed code vocabulary) and English
+while the owner's words are Russian; the robot's work epoch carried 0/79 vectors. epoch-dominant-hook S3 partial
+(count axis live, field unobservable on a carrier-less range); new residual: prose-poisoned hook via spine.ts:431.

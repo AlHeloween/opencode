@@ -6032,3 +6032,9 @@ Three steps worked: (1) `tools/claude_svchain.py <sid> --grep gms|mnemo|recall` 
 Gaps: svchain prints an ordinal, not an address; keywords are ad-hoc per turn (no fixed code vocabulary) and English
 while the owner's words are Russian; the robot's work epoch carried 0/79 vectors. epoch-dominant-hook S3 partial
 (count axis live, field unobservable on a carrier-less range); new residual: prose-poisoned hook via spine.ts:431.
+
+## [2026-10-02] correction — the robot DOES emit vectors (owner: «во всех сообщениях смита есть семантическая доминанта»)
+REFUTED my line above «the robot's work epoch carried 0/79 vectors» ✗: it was the summary's own `Chain:` count, read as a
+measurement. Per-turn count from the DB: …892N7AfF 1 closing report of 2 turns carries the full block (107 steps);
+…Co8CHgZX 64/95 turns end with the vector. The `Chain:` line divides by assistant STEPS, not turns — recorded as a
+residual in plans/2026-10-01_epoch-dominant-hook.md. Lesson for recall: a counter's self-report is testimony; read the rows.

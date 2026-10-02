@@ -85,5 +85,11 @@ verdict, so the row stands; the code is a cmd_runner observation to explain, not
   With D1, the last such fragment becomes the epoch's `dominant:` field. Falsifier: a
   `mechanicalSummaryBody` case whose only reply mentions `` `dominant:` `` in prose and carries no
   vector — predicted: the field is emitted with that fragment (RED against the requirement).
+- **`Chain:` counts STEPS as turns (found 2026-10-02, measured on the DB).** «79 assistant turns without a
+  vector» counts every assistant ROW, tool-call steps included, while @CURRENT_SV asks for one vector per
+  completed TURN. Measured per turn: session `…892N7AfF` — 2 user turns, 107 assistant steps, the closing
+  report carries the full block; session `…Co8CHgZX` — 95 turns, 946 steps, 64 turns whose last text
+  carries the vector (67 with one anywhere). So `0/79` is a range cut mid-turn, not a robot that omits
+  vectors — the denominator is the wrong unit and reads as a false alarm (it misled this very probe).
 - **Reader-side legacy fallback: deliberately NOT added.** A reader that fell back to the prose list
   would answer two different questions under one name — the exact shape this defect is an instance of.

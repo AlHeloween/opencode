@@ -1,0 +1,35 @@
+# Per-run approval overlay for the omp robot: `omp --config .claude/skills/omp/omp-robot.yml ...`
+# Headless (-p) has no UI, so every `prompt` fails CLOSED as a visible tool error
+# (oh-my-pi packages/coding-agent/src/extensibility/extensions/wrapper.ts:307-322).
+# `deny` is absolute and wins in every mode (docs/approval-mode.md, "Resolution per tool call").
+tools:
+  approvalMode: write
+  approval:
+    bash: allow
+    # eval can spawn a shell that bash.patterns never sees (docs/approval-mode.md:72)
+    eval: deny
+
+bash:
+  patterns:
+    - match: "git commit*"
+      approval: deny
+    - match: "git push*"
+      approval: deny
+    - match: "git reset*"
+      approval: deny
+    - match: "git checkout*"
+      approval: deny
+    - match: "git restore*"
+      approval: deny
+    - match: "git stash*"
+      approval: deny
+    - match: "git clean*"
+      approval: deny
+    - match: "*bin\\opencode*"
+      approval: deny
+    - match: "*bin/opencode*"
+      approval: deny
+    - match: "*bin\\tools*"
+      approval: deny
+    - match: "*bin/tools*"
+      approval: deny

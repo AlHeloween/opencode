@@ -6091,3 +6091,9 @@ shim bun.cmd, kill() reaches cmd.exe only. Fixed with process.execPath: host tes
 Open before promoting a binary to bin/: R1 — bridge/robot skills and wait_done.py must send the host token.
 
 [2026-10-02T11:40Z] plan robot-installer U1 - crw fork: external/crw local_development 6d2747e (browser_only, STEALTH_JS removed, no auto consent, honest UA). Tests 110/0 baseline -> 4 red -> 114/0; cdp 71/0 + 155/0. Live oracle 20261002T113753Z: renderJs:false refused with 0 requests, only HeadlessChrome/152 reaches the page, real 5 plugins. Void baseline recorded (edited while compiling). Open: cookie-banner policy (owner).
+
+## [2026-10-02] R1 — one host client for the bridge and the robot (plan 2026-10-02_one-server-per-worktree)
+tools/opencode_host.py: read-only server_host lookup, nonce liveness, Basic header from the per-start token, never prints
+it. Probe on the real fixture host 7/7 (20261002T120031Z_601b3ba6): 401 without token, 403 on Host: evil.example, STALE
+after kill. Bridge skill made binary-aware (old bin build vs 442ecb5c84+); robot skill pointer fixed (.claude twin gone);
+wait_done.py connects through the client. CUA session committed its installer plan (da598954b0).

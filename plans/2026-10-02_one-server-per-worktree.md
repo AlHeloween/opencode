@@ -116,9 +116,16 @@ worktree. There is no worktree-wide surface at all.
       hung with no output. `client.gen.ts` makeSseFn now drops the body for GET/HEAD like `request` already did;
       guard `test/server/host-attach.test.ts` red («no event within 5 s», `20261002T093610Z_e48c84a5`) → green.
 - [ ] W — after the owner's answer.
-- [ ] R1 — bridge/robot: a TUI started with `--port` now requires the record's token; `.opencode/skills/opencode-bridge`
+- [x] R1 — bridge/robot: a TUI started with `--port` now requires the record's token; `.opencode/skills/opencode-bridge`
       and skill `robot` must send `Authorization: Basic opencode:<token>` read from `server_host` (owner/other session:
       those skill files are dirty in the main tree under another session).
+      DONE 2026-10-02 (Claude): the «dirty» skill files carried line-ending differences only, no content. ONE client
+      `tools/opencode_host.py` (read-only record lookup, nonce liveness, header, token never printed); qualified on a
+      real host (`test/fixture/host-worker.ts`): `experiments/2026-10-02_host-client/probe.py` run
+      `20261002T120031Z_601b3ba6` 7/7 — no record → exit 3, live → exit 0, authed GET 200, no header 401,
+      `Host: evil.example` 403, repr hides the token, killed host → STALE exit 2 + HostError. Bridge skill: binary-aware
+      recipe; robot skill + `wait_done.py` connect through it (main tree today: «no host record», exit 3 — the old
+      binary, as expected). The same check against the PROMOTED binary rides with R2.
 - [ ] R2 — visual oracle: the owner sees an attached run's steps + busy in the promoted TUI.
 
 ## Residuals (named, not built)

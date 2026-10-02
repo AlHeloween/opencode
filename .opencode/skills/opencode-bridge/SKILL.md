@@ -13,6 +13,22 @@ description: Start, read and drive another opencode session — or another robot
   and MEASURED the same day: a robot cannot reach its OWN TUI session, because that host binds no socket at all
   (see Open). The CLIENT half is proven from inside; it is the SERVER half that needs `--port`.
 
+## Which binary you are on decides the recipe
+
+- **A binary built from `442ecb5c84` or later («one server per worktree DB»)** — every worktree has ONE host,
+  recorded in its own DB (table `server_host`: url, pid, nonce, per-start token). The TUI claims it on start (it
+  listens on `127.0.0.1:<free port>` — no `--port` needed), a later `run` attaches to it, a second `serve` refuses.
+  Command routes need the token; a foreign `Host` header is refused. **Reach it only through the shared client**
+  `D:/zPython/opencode/tools/opencode_host.py` — it reads the record read-only, checks the host is LIVE (its
+  `/global/health` echoes the recorded nonce — a pid or a port alone proves nothing) and sends the header; it never
+  prints the token. `python tools/opencode_host.py <worktree>` → `live: <url> pid=… started=…` (exit 0), `STALE`
+  (exit 2) or `none` (exit 3). From Python: `from opencode_host import connect; h = connect(worktree);
+  h.post("/session", {"title": "…"}); h.get("/session/status")`. Qualified 2026-10-02 against a real host
+  (`experiments/2026-10-02_host-client/probe.py`, run `20261002T120031Z_601b3ba6`, 7/7: no token → 401,
+  `Host: evil.example` → 403, killed host → STALE, token never printed).
+- **An older binary** (the `bin/` build until the owner promotes one with `442ecb5c84`) — the recipe below:
+  a TUI binds NOTHING unless launched with `--port`, and there is no auth unless `OPENCODE_SERVER_PASSWORD` is set.
+
 This file is written for an agent INSIDE opencode. Use your own tools (`bash` through the constitution, `read`,
 `write`); the shell rules of AGENTS.md § Shell Command Restrictions apply unchanged.
 
@@ -91,7 +107,9 @@ This file is written for an agent INSIDE opencode. Use your own tools (`bash` th
   terminal, or needs `--terminal wt`, is NOT measured here.
 - The TUI ignores `server.port` from config (`src/cli/cmd/tui/thread.ts:227` calls
   `resolveNetworkOptionsNoConfig(args)` without config) — Inferred by reading.
-- No port registry: by the storage paradigm it belongs in the LMDB plane (`worktree:<path>:port`), not a file.
-- The Claude-side twin of this skill lives in `.claude/skills/opencode-bridge/`; this one wins inside the
-  runtime (scanned later, `src/skill/index.ts:155`), and plan `2026-09-30_no-foreign-skill-discovery` F1 removes
-  the foreign root altogether.
+- ~~No port registry~~ — superseded by `442ecb5c84`: the host record in the worktree DB IS the registry (a
+  SQLite table, read once at process start — the relational plane's access pattern, not a hot-path key).
+  Cross-worktree discovery needs no global list: `git worktree list` names the trees, each tree's record names its
+  live host.
+- The Claude-side twin that used to live in `.claude/skills/opencode-bridge/` no longer exists (checked
+  2026-10-02); this file is the one recipe.

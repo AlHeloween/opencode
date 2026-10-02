@@ -90,7 +90,13 @@ tools/cmd_runner.exe start --cwd D:/zPython/opencode --timeout-s 1800 --raw --no
   starts the TUI with `--port <N>`, continue the owner's session with `run --attach http://127.0.0.1:<N> --session
   <id> …` (or `POST /session/:id/prompt_async`) and read state from the API — never by driving the TUI
   through cmd_runner (owner, 2026-10-01: «через cmd_runner — это как операция на гланды через анус»).
-  The verified recipe lives in ONE place: skill **`opencode-bridge`** (`.claude/skills/opencode-bridge/SKILL.md`).
+  The verified recipe lives in ONE place: skill **`opencode-bridge`** (`.opencode/skills/opencode-bridge/SKILL.md`
+  — the `.claude/` twin no longer exists).
+- **On a binary built from `442ecb5c84` or later** the host requires its per-start token: connect ONLY through
+  `tools/opencode_host.py` (`connect(worktree)` → `.get/.post` with the header; `python tools/opencode_host.py
+  <worktree>` says live / STALE / none and never prints the token). The waiter
+  `experiments/2026-10-02_robot-run-lifetime/wait_done.py` goes through the same client. A TUI on that binary
+  claims the host by itself — no `--port`.
 
 - cmd_runner gives the timeout (plan B8) and a run dir with `state.json`; `--raw` = clean stdout but
   all-or-nothing (memory `reference_cmd_runner_raw_buffers`) — read it after `cmd_runner wait <id>`.

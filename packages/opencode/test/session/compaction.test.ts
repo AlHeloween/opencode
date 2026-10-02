@@ -3299,8 +3299,10 @@ it.live(
       )
 
       yield* say("Fix the fold — it loses the why.")
-      yield* say('did one thing\n\ndominant: "first epoch"\n\nKeywords: fold 0.60, memory 0.40')
-      yield* say('did another\n\ndominant: "second epoch"\n\nKeywords: tail 0.70, memory 0.30')
+      // A reply's vector as @SV_FORMAT spells it (`Semantic dominant:` on its own line) — the summary-body
+      // field `dominant: "…"` used here before is superseded (plans/2026-10-02_one-vector-predicate.md P1).
+      yield* say("did one thing\n\nSemantic dominant: first epoch\n\nKeywords: fold 0.60, memory 0.40")
+      yield* say("did another\n\nSemantic dominant: second epoch\n\nKeywords: tail 0.70, memory 0.30")
       yield* say("tail " + "y".repeat(140_000))
 
       yield* compact.compact({ sessionID: info.id, model: ref, agent: "build" })

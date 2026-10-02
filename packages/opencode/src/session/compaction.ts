@@ -12,7 +12,7 @@ import { NotFoundError } from "@/storage/storage"
 import { ModelID, ProviderID } from "@/provider/schema"
 import { Effect, Layer, Context, Schema, Option } from "effect"
 import { readMemory } from "@/tool/memory"
-import { EMPTY_HASH, KEYWORD_TOP_N, dominantLine, extractKeywords, extractMessageDominant, extractSvTarget, extractVectorChain, malformedFragment, readRawVectorField } from "@/memory/spine"
+import { EMPTY_HASH, KEYWORD_TOP_N, dominantLine, extractKeywords, extractMessageDominant, extractSvTarget, extractVectorChain, hasSemanticVector, malformedFragment, readRawVectorField } from "@/memory/spine"
 import { estimateMediaTokens, estimateRequestTokens, isOverflow as overflow, usable } from "./overflow"
 import { countTokens } from "./token-count"
 import { promptTokensFromUsage } from "./processor"
@@ -744,25 +744,13 @@ export function statusMarks(messages: readonly { role: string; text: string }[])
 }
 
 /**
- * The @SV_FORMAT signature — the lines a semantic vector always carries, read AT THE END of the text
- * (the contract says «at the END of every reply»), with the presentation stripped.
- *
- * WHY the tail, and why the strip: the same block is written plainly, inside `backticks`, or inside a
- * fenced code block — a reader that knows ONE form declares every other form ABSENT, which is exactly
- * the defect the coupling watcher shipped with (labels written `8×4`, vectors `16+16`, a reader that
- * accepted neither). Measured 2026-09-22: the `sv:` line read ABSENT for a reply that carried the
- * block in backticks. Reading the TAIL is also what keeps a QUOTED vector from counting: a reply that
- * cites someone else's `Semantic dominant:` in its middle does not carry one of its own.
+ * `hasSemanticVector` lives in `memory/spine` now, beside `extractMessageDominant`: the two
+ * questions about a reply's vector — «is the block complete enough to link?» (this one) and «does
+ * the reply declare a dominant at all?» (`extractMessageDominant`) — are answered in one module
+ * from the same tail. Re-exported as the single import address this module already is for the
+ * delegate report (`tool/task.ts`); `statusVector` below reads the same binding.
  */
-export function hasSemanticVector(text: string): boolean {
-  const tail = text
-    .split("\n")
-    .filter((line) => line.trim().length > 0)
-    .slice(-8)
-    .map((line) => line.replace(/^[^\w]*/, ""))
-    .join("\n")
-  return /^Keywords:/m.test(tail) && /^Semantic dominant:/m.test(tail) && /^md5:/m.test(tail)
-}
+export { hasSemanticVector }
 
 /** The `@CURRENT_SV` census — the same contract as `statusMarks`, one axis over: does the NEWEST reply
  * carry a `@SV_FORMAT` block? `hasSemanticVector` is the predicate; this only counts replies.

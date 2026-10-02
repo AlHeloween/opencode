@@ -6050,3 +6050,10 @@ Run 20261002T051157Z_56021e88 (Smit, DeepSeek V4.1 Flash, session ses_f04f93739f
 edits) stopped: owner «прибиваю любые процессы которые не observable». `cmd_runner stop` wrote stop_request.json but the run
 stayed `running` > 11 s — killed by pid 21968 (state finished, exit -1). Rule written: robot skill § Launch + memory
 feedback_delegation_must_be_observable. Next: after the reboot, continue the SAME session through the bridge in a visible TUI.
+
+## [2026-10-02] one-vector-predicate P1+P2 closed (Smit headless, Claude verified)
+Smit (ses_f04f93739ffeLlmlvAwnzCtPJV, deepseek-flash 97/97 rows) changed spine.ts / compaction.ts / messagesearch.ts / .txt
++ spine.test.ts. Claude: 4 stale fixtures superseded (summary-block-shape x3, compaction fold-head), duplicated comment line
+removed; 9 files 190/1 (20261002T053649Z_359a6a4f), typecheck 0, live S4 66->65 / 417->416 (20261002T053721Z_2147850b).
+The 1 red (compaction.test.ts:301) is inherited — fails on a HEAD worktree too (20261002T053624Z_414bf144). Residual: that
+red (own STABILIZE), robot stash@{0} red-proof-tmp awaiting the owner's yes to drop.

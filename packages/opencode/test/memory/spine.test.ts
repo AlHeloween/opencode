@@ -151,3 +151,49 @@ describe("dominantLine", () => {
     )
   })
 })
+
+/**
+/**
+ * `extractMessageDominant` and «does this reply carry a vector» are ONE question: the reply must
+ * WRITE the `@SV_FORMAT` field as its own line. A reply that only talks about it — the measured
+ * poison of 2026-10-02, a prose line quoting «`Semantic dominant: One line of what this vector is
+ * about.`» in inline code — declares nothing. Over the whole `memory.db` that day: 417 assistant
+ * text parts contain the marker, the predicate admits 416, and the one it drops is that reply.
+ */
+describe("extractMessageDominant", () => {
+  const VECTOR = [
+    "Keywords: one-vector-predicate 0.35, prose-poisoned-hook 0.25",
+    "Semantic dominant: the dominant rides a real block",
+    "md5: 46fc824faffe64bf56568156aacc1cc4",
+  ].join("\n")
+
+  test("reads the dominant out of the reply's own tail block", () => {
+    expect(extractMessageDominant(`Some prose first.\n\n${VECTOR}`)).toBe("the dominant rides a real block")
+  })
+
+  test("the LAST field line wins — an answer quotes vectors before writing its own", () => {
+    expect(extractMessageDominant(`Semantic dominant: someone else's\n\n${VECTOR}`)).toBe(
+      "the dominant rides a real block",
+    )
+  })
+
+  test("the measured poison: the field QUOTED inside a prose sentence is not a declaration", () => {
+    // The live row (session `…Co8CHgZX`, msg#1007), verbatim in shape: the field sits inside the
+    // sentence, in inline code, and the OLD reader took «One line of what this vector is about.»
+    const poison =
+      "**Стоп — контроль сработал** ✗✓ `grep` вернул «No matches found» — `docs/compaction.md:552` содержит `Semantic dominant: One line of what this vector is about.` ✓ То есть ноль был свойством **шаблона**"
+    expect(extractMessageDominant(poison)).toBeUndefined()
+  })
+
+  test("a reply that only MENTIONS the marker in prose carries NO dominant", () => {
+    expect(extractMessageDominant("…ноль был свойством **шаблона** ✓ и я записал `dominant:` в шаблоне")).toBeUndefined()
+  })
+
+  test("a lone marker line that is not the @SV_FORMAT field declares nothing", () => {
+    expect(extractMessageDominant('dominant: "One line of what this vector is about."')).toBeUndefined()
+  })
+
+  test("a block without its md5 is still a carrier — the label is a separate axis", () => {
+    expect(extractMessageDominant("Keywords: sv-chain 0.29\nSemantic dominant: совсем без поля")).toBe("совсем без поля")
+  })
+})

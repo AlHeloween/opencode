@@ -420,18 +420,68 @@ export function epochOpen(input: {
   ].join("\n")
 }
 
+/** How many non-empty trailing lines a `@SV_FORMAT` block may occupy. */
+const VECTOR_TAIL_LINES = 8
+
 /**
- * The dominant of a MESSAGE's own text, or undefined when it carries none.
+ * The reply's TAIL, presentation stripped — where a `@SV_FORMAT` block is written (the contract
+ * says «at the END of every reply»).
  *
- * The LAST marker wins here — the asymmetry with `extractDominant` is measured, not a taste.
- * An answer quotes other dominants (the spine it just read, a plan, a summary), while its own
- * vector block is written at the very end. Measured 2026-09-20 on the owner session: 223
- * non-machinery parts carry the marker and 16 of them carry more than one.
+ * WHY the strip, and why the tail: the same block is written plainly, inside `backticks`, or inside
+ * a fenced code block — a reader that knows ONE form declares every other form ABSENT, which is
+ * exactly the defect the coupling watcher shipped with (labels written `8×4`, vectors `16+16`, a
+ * reader that accepted neither). Reading the TAIL is also what keeps a QUOTED vector from counting
+ * HERE: a reply that cites someone else's block in its middle does not carry one of its own.
+ */
+function vectorTail(text: string): string {
+  return text
+    .split("\n")
+    .filter((line) => line.trim().length > 0)
+    .slice(-VECTOR_TAIL_LINES)
+    .map((line) => line.replace(/^[^\w]*/, ""))
+    .join("\n")
+}
+
+/**
+ * The @SV_FORMAT SIGNATURE — the lines a semantic vector always carries, read AT THE END of the text
+ * with the presentation stripped.
+ *
+ * Same tail, the COMPLETENESS question: `@CURRENT_SV` (`statusVector`) and the delegate report
+ * (`tool/task.ts`) read THIS one, because a reply whose block carries no `md5` is the state they
+ * exist to name. Whether the reply declares a dominant AT ALL is the other, looser question —
+ * `extractMessageDominant` below, which reads the field line wherever the reply wrote it.
+ */
+export function hasSemanticVector(text: string): boolean {
+  const tail = vectorTail(text)
+  return /^Keywords:/m.test(tail) && /^Semantic dominant:/m.test(tail) && /^md5:/m.test(tail)
+}
+
+/** The `@SV_FORMAT` field this reader reads, as the start of the reply's OWN line. */
+const SEMANTIC_DOMINANT_FIELD = "Semantic dominant:"
+
+/**
+ * The dominant of a MESSAGE's own text, or undefined when the reply declares none.
+ *
+ * ONE predicate for «this reply carries a vector»: the reply must WRITE THE FIELD — a line of its
+ * own whose start (presentation stripped) is `Semantic dominant:` — and the reader takes the LAST
+ * such line, because an answer quotes other vectors (the spine it just read, a plan, a summary)
+ * before writing its own. Two measured samples hold this shape: 2026-09-20, 223 non-machinery parts
+ * carry the marker and 16 of them carry more than one.
+ *
+ * A reply that only MENTIONS the field declares nothing. The measured poison (2026-10-02) is a prose
+ * line — «`docs/compaction.md:552` содержит `Semantic dominant: One line of what this vector is
+ * about.`» — where the field sits INSIDE a sentence, in inline code. Over the whole `memory.db` that
+ * day: 417 assistant text parts contain the marker, this predicate admits 416, and the single one it
+ * drops is that reply. A tail-window variant drops 15, fourteen of them real blocks written before
+ * the reply's closing paragraph — the field LINE, not a position, is the discriminator.
  */
 export function extractMessageDominant(text: string): string | undefined {
-  const at = text.lastIndexOf(DOMINANT_MARKER)
-  if (at < 0) return undefined
-  const line = text.slice(at + DOMINANT_MARKER.length).split("\n")[0] ?? ""
-  const value = unquote(line)
-  return value.length > 0 ? value : undefined
+  const lines = text.split("\n")
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const field = (lines[i] ?? "").replace(/^[^\w]*/, "")
+    if (!field.startsWith(SEMANTIC_DOMINANT_FIELD)) continue
+    const value = unquote(field.slice(SEMANTIC_DOMINANT_FIELD.length))
+    return value.length > 0 ? value : undefined
+  }
+  return undefined
 }

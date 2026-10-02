@@ -11,7 +11,7 @@ Ground conversation facts before judgment. Epistemic ranking: Exact > Inferred >
 
 ## Search Engine
 
-- **FTS5 full-text search** with Porter stemming and unicode tokenizer over dedicated memory database.
+- **FTS5 full-text search** with Porter stemming and unicode tokenizer over dedicated memory database. **Stemming is English-only** — `mnemonic` and `mnemonics` fold to one stem, but Russian word forms are NOT stemmed: reach a Russian word by its stem with a trailing `*`. Measured 2026-10-02: `мнемотехника` 1 hit, `мнемотехнике` 2, `мнемотехнику` 0, `мнемотехник*` 5.
 - **Hybrid ranking**: BM25 relevance score (0.7 weight) + epistemic-weighted semantic rank (0.3 weight):
   - `[Exact]` → 10x weight
   - `[Inferred]` → 7x weight

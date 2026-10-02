@@ -253,10 +253,14 @@ describe("summary block shape", () => {
         info: { id, role },
         parts: [{ id: `${id}-p1`, type: "text", text }],
       }) as unknown as MessageV2.WithParts
+    // A reply's vector is spelled as @SV_FORMAT writes it — `Semantic dominant:` on its own line.
+    // These fixtures used the summary-body field `dominant: "…"` instead (superseded 2026-10-02,
+    // plans/2026-10-02_one-vector-predicate.md P1): that shape occurs in 0 of 417 live assistant
+    // parts, and `extractMessageDominant` now reads only the reply's own field line.
     const entries = [
-      { message: asMessage("msg_a", "assistant", 'did the first thing\n\ndominant: "first thing"'), position: 1 },
+      { message: asMessage("msg_a", "assistant", "did the first thing\n\nSemantic dominant: first thing"), position: 1 },
       { message: asMessage("msg_b", "user", "no dominant anywhere in this one"), position: 2 },
-      { message: asMessage("msg_c", "assistant", 'did the second thing\n\ndominant: "second thing"'), position: 3 },
+      { message: asMessage("msg_c", "assistant", "did the second thing\n\nSemantic dominant: second thing"), position: 3 },
     ]
 
     const toc = buildTableOfContents(entries)
@@ -278,7 +282,7 @@ describe("summary block shape", () => {
 
     // The cap is a FLOOR with a name: a trimmed table says so, and the newest lines survive.
     const many = Array.from({ length: 40 }, (_, i) => ({
-      message: asMessage(`msg_${i}`, "assistant", `work ${i}\n\ndominant: "epoch ${i} of a long session"`),
+      message: asMessage(`msg_${i}`, "assistant", `work ${i}\n\nSemantic dominant: epoch ${i} of a long session`),
       position: i + 1,
     }))
     const capped = buildTableOfContents(many, { maxChars: 400 })
@@ -364,18 +368,18 @@ describe("summary block shape", () => {
         {
           message: asMessage(
             "msg_1",
-            'one\n\ndominant: "first epoch"\n\nKeywords: fold 0.50, memory 0.30, keywords 0.20',
+            "one\n\nSemantic dominant: first epoch\n\nKeywords: fold 0.50, memory 0.30, keywords 0.20",
           ),
           position: 1,
         },
         {
           message: asMessage(
             "msg_2",
-            'two\n\ndominant: "second epoch"\n\nKeywords: memory 0.60, fold 0.40',
+            "two\n\nSemantic dominant: second epoch\n\nKeywords: memory 0.60, fold 0.40",
           ),
           position: 2,
         },
-        { message: asMessage("msg_3", 'three\n\ndominant: "no vector beyond it"'), position: 3 },
+        { message: asMessage("msg_3", "three\n\nSemantic dominant: no vector beyond it"), position: 3 },
       ],
       { maxChars: 4_000 },
     )
@@ -403,7 +407,7 @@ describe("summary block shape", () => {
     const b = "b".repeat(32)
     const zero = "0".repeat(32)
     const vector = (md5: string, prev: string) =>
-      `work\n\ndominant: "an epoch"\n\nmd5: ${md5}\nprev-md5: ${prev}\nparent-goal-md5: ${zero}`
+      `work\n\nSemantic dominant: an epoch\n\nmd5: ${md5}\nprev-md5: ${prev}\nparent-goal-md5: ${zero}`
     // LINKED: the second message declares the first message's own hash. Nothing is marked, and the
     // chain START declares the empty hash — the absence of a predecessor is not a break.
     const linked = buildTableOfContents([
@@ -426,8 +430,8 @@ describe("summary block shape", () => {
 
     // SILENT: neither side declares a chain ⇒ UNKNOWN, and unknown is not a break.
     const silent = buildTableOfContents([
-      { message: asMessage("msg_1", 'dominant: "no chain here"'), position: 1 },
-      { message: asMessage("msg_2", 'dominant: "still none"'), position: 2 },
+      { message: asMessage("msg_1", "Semantic dominant: no chain here"), position: 1 },
+      { message: asMessage("msg_2", "Semantic dominant: still none"), position: 2 },
     ])
     expect(silent.chainBreaks).toBe(0)
     expect(silent.lines.join("\n")).not.toContain("chain break")

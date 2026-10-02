@@ -76,7 +76,9 @@ verdict, so the row stands; the code is a cmd_runner observation to explain, not
   NOT backfilled: the body also holds the two model-written sections (`## Constraints & Preferences`,
   `## Key decisions`) that `mechanicalSummaryBody` does not produce, so a re-render would DELETE them.
   Recovery is the `Labels:` line plus `summaryedit`, by hand, per row.
-- **The hook can be poisoned by prose (found 2026-10-02; reproduced on live data the same day — `memory.db`
+- **FIXED 2026-10-02 by plans_completed/2026-10-02_one-vector-predicate.md (P1): the per-reply dominant now comes
+  only from the reply's own `Semantic dominant:` line; live 66 → 65, the poison dropped.** Original finding:
+  **The hook can be poisoned by prose (found 2026-10-02; reproduced on live data the same day — `memory.db`
   `part_index`, session `…Co8CHgZX`: `listDominants`' `instr(text,'dominant:')` admits 66 assistant text parts,
   65 carry a real tail vector, 1 is prose whose «dominant» reads «One line of what this vector is about.\` ✓ То
   есть ноль был свойством **шаблона**…»). Also measured: the spine (level 1) prints `(no dominant)` for

@@ -238,7 +238,14 @@ export const MessageSearchTool = Tool.define(
               limit: cap,
             })
             const wanted = params.dominant?.toLowerCase()
-            const projected = rows.map((row) => ({ row, dominant: extractMessageDominant(row.text) }))
+            // ONE predicate with the writer: a row the `dominant:` marker filter admits but where the
+            // reply never wrote the `Semantic dominant:` field LINE — a reply that only talked about
+            // the field — is NOT a carrier and is not listed. `listDominants` filters on the marker,
+            // and prose can contain the marker.
+            const projected = rows.flatMap((row) => {
+              const dominant = extractMessageDominant(row.text)
+              return dominant === undefined ? [] : [{ row, dominant }]
+            })
             const matched = wanted
               ? projected.filter((entry) => entry.dominant?.toLowerCase().includes(wanted))
               : projected
@@ -249,7 +256,7 @@ export const MessageSearchTool = Tool.define(
                 : ""
             const capNote = rows.length >= cap ? `\nnote: stopped at ${cap} carrying parts — narrow the range.\n` : ""
             const header =
-              `## Message dominants — ${listed.length} of ${rows.length} carrier(s)` +
+              `## Message dominants — ${listed.length} of ${projected.length} carrier(s)` +
               (wanted ? `, matching "${params.dominant}"` : "") +
               `\ninfo_mark: Inferred — the dominant is model prose; indices and ids are Exact.\n` +
               scopeNote +

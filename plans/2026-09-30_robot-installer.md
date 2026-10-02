@@ -159,7 +159,10 @@ a local page logging every request's UA, qualified by a probe): with `renderer.m
 `render_js_default = true` (and with `render_js:true` per request) crw first sends a plain HTTP GET with a FORGED UA
 (`Macintosh … Chrome/131.0.0.0`, no `sec-ch-ua`) and only then the real `HeadlessChrome/152`; its log names an
 «http+…» renderer ladder. Web-fetch plus impersonation with stealth OFF — fails the owner's rule «Или реальный брауз
-или официальные апи». Services in the hybrid: chromium, searxng, universal-search.
+или официальные апи». Services in the hybrid: chromium, searxng, universal-search. ✓ Source confirms it (Sourcegraph →
+`github.com/fastcrw/crw`, read at `v0.15.2`): `crw-renderer/src/lib.rs:609-611` HTTP pre-fetch is unconditional even
+with `render_js = true`; `:636-700` escalates refusals (401/403/429/503) to Chrome; `crw-core/src/config.rs:1028-1035`
+forges the Mac Chrome UA on purpose to pass UA filters.
 
 #### Rejected branch — SearXNG with API-only engines (2026-10-02, superseded the same day)
 

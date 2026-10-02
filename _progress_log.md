@@ -6173,7 +6173,10 @@ Owner: «снесем чтобы глаза не мозолили», then chose 
   src/provider/models/), Trash_Started, codex/pre-local-history-cleanup, codex/recovery-before-split,
   safety/local-development-before-7d-unwind, safety/pre-kernel-cancel-20260927; codex worktree tui-protocol-smoke.
   Backup: `.temp/2026-10-03_branch-cleanup-backup/` — deleted-branches.bundle (7 heads, `git bundle list-heads` ✓),
-  relaxed-leakey-dirty.patch + the plan file + models/ copy.
+  relaxed-leakey-tracked.patch + the plan file + models/ copy, README.md with the commands (smoke-run from the repo
+  root ✓). The first patch was written through a PowerShell pipeline that dropped every newline (`git apply`: «No valid
+  patches»); rebuilt by hand on b711107c13 and proven byte-identical — all 8 files match the blob hashes the broken
+  patch still carried in its `index` lines.
 - Outward junction `suspicious-joliot/node_modules/.bun/node_modules/@hono/standard-validator` → main node_modules
   unlinked with `rmdir` before removal; main `node_modules/hono` intact ✓. 9 app sessions of those worktrees deleted.
 - Kept: rescue/0db8b57076-oauth-output-ceiling (deliberate rescue).

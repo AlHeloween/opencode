@@ -48,6 +48,11 @@ Owner, verbatim: «Fossil кстати тоже, мы его четко вызы
 
 ## Smoke Tests
 
+✓ Дополнение 2026-10-02: [план паузы после инструмента](to_be_confirmed/2026-10-02_render-artifacts-and-post-tool-pause.md)
+убрал live MCP из per-step `SessionSummary.summarize`, оставив readonly cached impact и live
+`enrichRange`. Regression 40/0, typecheck exit 0; это закрывает ожидание MCP после каждого tool,
+но C2 остаётся открыт — его отдельная приёмка свежести индекса не измерялась этой работой.
+
 - Baseline (before C1, on the live worktree): one turn that edits a TS file → `SELECT path, indexed_at, modified_at FROM files WHERE path = '<that file>'` is FRESH (drift ≤ 10 s), and `turn.prepare` reports `fossilMs` including the MCP touch.
 - After C1/C2: the same turn reports a `fossilMs` WITHOUT the MCP touch, and the file is still FRESH a few seconds later — **the self-update IS the requirement; no gate and no verification step is added**.
 - After C3: the summary row for a window that edited TS files carries an attributed impact naming those elements, matched with the ±10 s band. A symbol a few seconds outside the exact boundary appearing (or not) is NOT a failure.

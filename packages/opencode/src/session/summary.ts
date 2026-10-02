@@ -3,7 +3,7 @@ import * as path from "path"
 import { existsSync } from "fs"
 import { Bus } from "@/bus"
 import { hasCodegraphIndex, mcpTouchThenSqlitePack } from "@/codegraph/mcp-client"
-import { packToImpactFields } from "@/codegraph/sqlite-pack"
+import { packGraphForFiles, packToImpactFields } from "@/codegraph/sqlite-pack"
 import { Instance } from "@/project/instance"
 import { Snapshot } from "@/snapshot"
 import { Storage } from "@/storage/storage"
@@ -459,7 +459,7 @@ export const layer = Layer.effect(
      * CodeGraph structural impact over paths from tool edits (no Fossil hashes).
      * SQLite index stores worktree-relative paths — absolutize → relative first.
      */
-    const impactForToolFiles = (files: string[]) =>
+    const impactForToolFiles = (files: string[], source: "live" | "cached" = "live") =>
       Effect.gen(function* () {
         if (files.length === 0) return undefined as Snapshot.ImpactSummary | undefined
         const worktree = Instance.worktree
@@ -480,19 +480,22 @@ export const layer = Layer.effect(
           ),
         ].filter(Boolean)
         if (relFiles.length === 0) return undefined
-        const hybrid = yield* mcpTouchThenSqlitePack(worktree, relFiles).pipe(
+        const pack = yield* (source === "live"
+          ? mcpTouchThenSqlitePack(worktree, relFiles).pipe(Effect.map((hybrid) => hybrid.pack))
+          : Effect.try({ try: () => packGraphForFiles(worktree, relFiles), catch: (error) => error })).pipe(
           Effect.catchCause((cause) => {
             log.warn("summary CodeGraph impact unavailable", {
               files: relFiles.length,
+              source,
               error: Cause.pretty(cause),
             })
             return Effect.succeed(undefined)
           }),
         )
-        if (!hybrid) return undefined
-        const fields = packToImpactFields(hybrid.pack)
+        if (!pack) return undefined
+        const fields = packToImpactFields(pack)
         return {
-          from: "tools",
+          from: source === "cached" ? "codegraph-sqlite-cache" : "tools",
           to: "summary-range",
           changedFiles: relFiles.length,
           symbolCountByKind: fields.symbolCountByKind,
@@ -660,10 +663,13 @@ export const layer = Layer.effect(
       }
 
       const rangeDiffs = collectToolFileDiffs(msgDiffSource)
+      // On each tool step, read the index already maintained by CodeGraph. Live
+      // refresh belongs to enrichRange's summary cadence; awaiting its MCP queue
+      // here blocks the next model request even after read-only tools.
       const impact =
         rangeDiffs.length === 0
           ? undefined
-          : yield* impactForToolFiles(rangeDiffs.map((d) => d.file))
+          : yield* impactForToolFiles(rangeDiffs.map((d) => d.file), "cached")
       target.info.summary = {
         ...target.info.summary,
         diffs: rangeDiffs,

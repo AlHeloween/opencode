@@ -18,7 +18,7 @@
 - [Reasoning mode](reasoning-mode.md) — memory-only calibration identity, no execution surface
 - [System prompt order](system-prompt-order.md) — slot order; any mid-prefix mutation is a full cache miss
 - [UNIVERSAL_ENV](system-prompt-universal-env.md) — the immutable `system[0]` head
-- [CodeGraph MCP](codegraph-mcp.md) — live graph contract + readonly SQLite pack
+- [CodeGraph MCP](codegraph-mcp.md) — live graph contract + readonly SQLite pack; per-step cached summary
 - [Session recovery](session-recovery.md) — portable replay after a moved worktree
 - [Run lifecycle semantics](run-lifecycle-semantics.md) — join, supersede, bounded cancel
 - [Gate add-ons](gate-addons.md) — advisory path bindings per kernel gate, addon registry, budget guardrails

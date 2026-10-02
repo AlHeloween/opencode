@@ -6106,3 +6106,20 @@ cua existed. Term rewritten; 3 frameless-Sonnet rounds ($0.237 total, experiment
 fixed. Claude variant token cap 7700 -> 7708 on the owner's choice; test_render pin re-pinned to the new phrase. Installed
 product 5b609132 (57 178 B), Claude 57 421 B, Codex ~/.codex/AGENTS.md; baseline repinned by hand; prompt_kernel 122/122
 (20261002T125355Z_8ebed099). Same error fixed in plans/2026-10-02_one-server-per-worktree.md R2 («visual oracle: the owner»).
+
+## [2026-10-02T13:49Z] render-artifacts-and-post-tool-pause
+
+✓ P1/P2: live finish-step -> session_diff -> user-summary timestamps выделили 45.519 s MCP await;
+отдельный codegraph_explore вернул очередь 45 s (47 337 ms wall). Per-step summary теперь читает
+readonly SQLite с provenance codegraph-sqlite-cache; enrichRange сохраняет live MCP cadence.
+Baseline 21/0 (20261002T133600Z_5a2247c5), новый regression RED-before missing marker
+(20261002T133818Z_54f7939b), после исправления 40/0 (20261002T134017Z_165481fa), typecheck0
+(20261002T134019Z_5c6cbaa8). Первая правка Effect.try получила IMPLEMENTATION red, исправлена без
+ослабления predicate. Plan: plans/to_be_confirmed/2026-10-02_render-artifacts-and-post-tool-pause.md.
+✓ R1 diagnostic: native filtered renderer 129/131 (2 skipped, не покрываются), новая Malayalam
+replacement/erase differential 2/2 (20261002T134323Z_92806c34); отдельный Windows Terminal clear
+frame после 20-row native replay чистый (20261002T134626Z_01a83e2d). Исходный артефакт НЕ воспроизведён.
+Residual: корреляция framebuffer/ANSI/pixels повреждённого live кадра, проверка новой сборки после
+разрешённого применения, отдельные 6–9 s до session_diff. bin/ и клиентский проект не изменялись.
+Tools: cmd_runner без потерь; sh PATH исправлен на qualified Git shell/Zig0.16; Codegraph Zig
+lookup дал нерелевантный fallback, owning source прочитан напрямую; MCP очередь остаётся у сервера.

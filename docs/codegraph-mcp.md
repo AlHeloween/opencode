@@ -59,10 +59,24 @@ Set `CODEGRAPH_MCP_TOOLS` as above so impact/search modes work.
 | Surface | Backend |
 |---------|---------|
 | Built-in `codegraph` tool | **MCP touch → SQLite pack** (`mcpTouchQueryThenSqlitePack`) |
-| `Snapshot.impact` / track `sym` tag | **MCP touch → SQLite pack** (`mcpTouchThenSqlitePack` + `KINDS\|TOP\|IMPACT`) |
+| `Snapshot.impact` (on demand) | **MCP touch → SQLite pack** (`mcpTouchThenSqlitePack`) |
+| `SessionSummary.summarize` (per step) | readonly SQLite; `impact.from = codegraph-sqlite-cache` |
+| `SessionSummary.enrichRange` (range cadence) | **MCP touch → SQLite pack** |
 | Agent MCP tools list | same server via `mcp.codegraph` (optional raw explore) |
 
 Env: `CODEGRAPH_HYBRID_DEBOUNCE_MS` (default `500`) between MCP touch and SQLite read.
+
+### Пауза после инструмента — 2026-10-02
+
+✓ Журнал сессии XEComponents и read-back SQLite выделили 45.519 s ожидания между записью
+session diff и обновлением user summary. Прямой MCP probe вернул `waited 45s in the queue`.
+Последовательный `summarize` вызывал этот запрос после каждого шага по накопленным diff,
+включая `read` и `run`. Теперь этот путь читает готовый индекс; обновление через MCP
+сохраняется в `enrichRange`. Кэшированный impact не доказывает свежесть индекса.
+
+✓ Регрессия `summary-exact-live.test.ts` читает сохранённые diff и символ из настоящих
+Session/SQLite без MCP runtime; исходная версия теряет символ, исправленная сохраняет.
+Проверка запущенного бинарника требует отдельного применения сборки; `bin/` здесь не менялся.
 
 ## Smoke (from `packages/opencode`)
 

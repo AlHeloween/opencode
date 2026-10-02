@@ -7,7 +7,8 @@
  * 2) CodeGraph impact over monorepo file paths when .codegraph is present
  */
 import { afterEach, describe, expect, test } from "bun:test"
-import { existsSync } from "fs"
+import { Database } from "bun:sqlite"
+import { existsSync, mkdirSync, writeFileSync } from "fs"
 import path from "path"
 import { Effect, Layer } from "effect"
 import { Bus } from "../../src/bus"
@@ -185,6 +186,69 @@ describe("Exact: tool filediffs for summary (no Fossil)", () => {
 })
 
 describe("Exact live: CodeGraph impact on tool file paths", () => {
+  test("per-step summary preserves cached graph impact without an MCP runtime", async () => {
+    await Effect.runPromise(
+      Effect.scoped(
+        provideTmpdirInstance((dir) =>
+          Effect.gen(function* () {
+            const file = path.join(dir, "edited.ts")
+            writeFileSync(file, "export function CriticalPathMarker() {}\n")
+            mkdirSync(path.join(dir, ".codegraph"))
+            const db = new Database(path.join(dir, ".codegraph", "codegraph.db"))
+            try {
+              db.run("CREATE TABLE nodes (id TEXT, kind TEXT, name TEXT, file_path TEXT, start_line INTEGER)")
+              db.run("CREATE TABLE edges (source TEXT, target TEXT, kind TEXT)")
+              db.run("INSERT INTO nodes VALUES ('marker', 'function', 'CriticalPathMarker', 'edited.ts', 1)")
+            } finally {
+              db.close()
+            }
+
+            const sessions = yield* SessionNs.Service
+            const summary = yield* SessionSummary.Service
+            const storage = yield* Storage.Service
+            const session = yield* sessions.create({})
+            const userID = MessageID.ascending()
+            const assistantID = MessageID.ascending()
+            yield* sessions.updateMessage({
+              id: userID,
+              sessionID: session.id,
+              role: "user",
+              time: { created: Date.now() },
+              agent: "build",
+              model: ref,
+            })
+            const assistant = asMessages([])[0]!.info
+            if (assistant.role !== "assistant") throw new Error("fixture requires an assistant message")
+            yield* sessions.updateMessage({
+              ...assistant,
+              id: assistantID,
+              sessionID: session.id,
+              parentID: userID,
+            })
+            const patch = "--- a/edited.ts\n+++ b/edited.ts\n+export function CriticalPathMarker() {}\n"
+            yield* sessions.updatePart({
+              ...toolEditPart(file, patch, 1, 0),
+              id: PartID.ascending(),
+              sessionID: session.id,
+              messageID: assistantID,
+            })
+
+            yield* summary.summarize({ sessionID: session.id, messageID: userID })
+            const persisted = MessageV2.get({ sessionID: session.id, messageID: userID }).info
+            if (persisted.role !== "user") throw new Error("fixture requires a user message")
+            expect(persisted.summary?.diffs?.[0]?.patch).toBe(patch)
+            expect(persisted.summary?.impact?.topSymbols).toEqual(["CriticalPathMarker[function]"])
+            expect(persisted.summary?.impact?.from).toBe("codegraph-sqlite-cache")
+            const diffs = yield* storage.read<{ file: string; patch: string }[]>(["session_diff", session.id])
+            expect(diffs).toHaveLength(1)
+            expect(diffs[0]?.file).toBe(file)
+            expect(diffs[0]?.patch).toBe(patch)
+          }),
+        ).pipe(Effect.provide(liveSummaryLayer)),
+      ),
+    )
+  }, 30_000)
+
   test.skipIf(!HAS_CODEGRAPH)(
     "enrichRange CodeGraph impact uses worktree-relative paths from tool filediffs",
     async () => {

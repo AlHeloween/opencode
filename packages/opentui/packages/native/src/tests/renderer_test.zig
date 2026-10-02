@@ -718,6 +718,46 @@ test "renderer preserves Malayalam report after Ghostty probe replies" {
     try std.testing.expectEqualStrings(report ++ "|", std.mem.trimEnd(u8, screen, " "));
 }
 
+test "renderer replaces and erases Malayalam through differential frames" {
+    const pool = gp.initGlobalPool(std.testing.allocator);
+    defer gp.deinitGlobalPool();
+    defer link.deinitGlobalLinkPool();
+    var test_renderer = try TestRenderer.create(std.testing.allocator, 40, 1, pool);
+    defer test_renderer.deinit();
+    try std.testing.expect(test_renderer.renderer.setTerminalEnvVar("TERM_PROGRAM", "ghostty"));
+    try std.testing.expect(test_renderer.renderer.setTerminalEnvVar("TERM_PROGRAM_VERSION", "1.3.1"));
+
+    var terminal: ghostty_vt.vt.Terminal = try .init(std.testing.io, std.testing.allocator, .{
+        .cols = 40,
+        .rows = 1,
+    });
+    defer terminal.deinit(std.testing.allocator);
+    var stream = terminal.vtStream();
+    defer stream.deinit();
+    stream.nextSlice("\x1b[?2027h");
+
+    const foreground = ansi.rgbColor(255, 255, 255, 255);
+    const background = ansi.rgbColor(0, 0, 0, 255);
+    const frames = [_][]const u8{
+        "പരിശോധിക്കൽ| side",
+        "1234567890| side",
+        "          | side",
+        "പരിശോധിക്കൽ| side",
+        "          | updated",
+        "",
+    };
+    for (frames, 0..) |text, index| {
+        const next = test_renderer.renderer.getNextBuffer();
+        next.clear(background, 32);
+        try next.drawText(text, 0, 0, foreground, background, 0);
+        try std.testing.expectEqual(renderer.RenderStatus.rendered, test_renderer.renderer.render(index == 0));
+        stream.nextSlice(test_renderer.memory.lastWrite());
+        const screen = try terminal.plainString(std.testing.allocator);
+        defer std.testing.allocator.free(screen);
+        try std.testing.expectEqualStrings(text, std.mem.trimEnd(u8, screen, " "));
+    }
+}
+
 test "renderer preserves wide grapheme when continuation and next cell colors match" {
     const pool = gp.initGlobalPool(std.testing.allocator);
     defer gp.deinitGlobalPool();

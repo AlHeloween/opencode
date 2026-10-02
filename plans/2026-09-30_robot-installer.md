@@ -143,6 +143,18 @@ Target, replacing the SearXNG design below (kept as the rejected branch):
 3. `universal-search` merges both into the one JSON contract; services: chromium, searxng, universal-search (3, was 6),
    none as LocalSystem.
 
+**crw-server (fastCRW) assessed 2026-10-02** — owner: «crw-server по идее самодостаточен. Что ему надо?»
+Shipped as a downloaded BINARY, not source: v0.15.2 from `github.com/us/crw` releases, SHA256-pinned
+(`universal-search/build.ps1:98-100` ✓ read); engine license AGPL-3.0 (repo README — Hypothetical, web) → redistributing
+it obliges us to offer its source. Needs: nothing for HTTP scraping (built-in fetcher = the web-fetch the owner rules
+out); a renderer for JS — `lightpanda` (`crw-server setup` downloads a nightly = network + unsigned) or `chrome` via
+`renderer.chrome.ws_url` (our CDP Chromium); SearXNG for search (`search.searxng_url` — no index of its own). Upstream
+defaults (`config.default.toml`, web): renderer mode `auto` (LightPanda → Chrome), crawler `respect_robots_txt = true`,
+`user_agent = CRW/...`, 10 rps, stealth OFF (when on: UA rotated from a built-in pool + 12 browser-like headers — the
+pool is in our binary ✓ grep: four Chrome/Firefox/Mac/Linux UA strings). In the hybrid it is redundant: page opening
+is `/web/browser`, search is SearXNG, markdown conversion exists in-house (`smit-markdownify.exe`). Kept only if a
+measured need for its crawl/map appears; then mode `chrome` only, stealth off, source pinned beside the binary.
+
 #### Rejected branch — SearXNG with API-only engines (2026-10-02, superseded the same day)
 
 One JSON contract, sources chosen by their terms, never by what can be scraped:

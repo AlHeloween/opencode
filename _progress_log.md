@@ -6075,3 +6075,17 @@ OPEN: L1 live confirmation on the next promoted binary (owner). Separate gap: sr
 while transform.test.ts and packages/opencode/AGENTS.md treat the catalog JSON as committed.
 Merged into Local_Development 2026-10-02 by Claude (cherry-pick, branch base was fb8cd6e663) WITHOUT 3da87807d3 — the same
 dependency landed once as e5ebc3eb14 (the catalog form, from claude/confident-ritchie-244412).
+
+## [2026-10-02] cleanup — four delegate branches merged into Local_Development, each verified by Claude
+e5ebc3eb14 @hono/standard-validator (catalog form, from confident-ritchie; the two pinned duplicates 3da87807d3 and
+0987da19b3 NOT taken) — catalog dry-run clean of hono, bun install exit 0 no warnings (20261002T112606Z_3e4fe152).
+cefd4dd97e Server.openapi() documents bridged routes (funny-feistel) — httpapi-bridge 5/3 before -> 8/0 after
+(20261002T112623Z_31255c83, 20261002T112646Z_d0b5e8f7); typecheck 0 (20261002T112716Z_5cd53288).
+550b1cbddd..698d99ab11 announce-then-stop (wizardly-agnesi, 4 of 5 commits, rebased off fb8cd6e663; log conflict resolved
+by keeping both) — 5 files 223/0 = 16+6+4+27+170 as the delegate reported (20261002T112907Z_e1024114), typecheck 0.
+442ecb5c84 one server per worktree (tui-live-sync) — 5 files 24/0, typecheck 0 for opencode and sdk/js; but the run left
+3 orphan host-worker.ts bun processes (parent dead; cmd_runner exit null): Bun.spawn(["bun"…]) on Windows hits the npm
+shim bun.cmd, kill() reaches cmd.exe only. Fixed with process.execPath: host tests 11/0, exit 0, 0 orphans
+(20261002T113232Z_cc570fce). Rescue branch rescue/0db8b57076-oauth-output-ceiling anchors the commit orphaned by the
+2026-10-01 21:27 reset (author of that reset unknown — no Claude/Smit transcript holds the command).
+Open before promoting a binary to bin/: R1 — bridge/robot skills and wait_done.py must send the host token.

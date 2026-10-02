@@ -35,7 +35,9 @@ afterEach(async () => {
 type Claimed = { url: string; nonce: string; result: ServerHost.ClaimResult }
 
 async function spawnHost(worktree: string) {
-  const child = Bun.spawn(["bun", "run", "--conditions=browser", worker, worktree], {
+  // process.execPath, never "bun": on Windows `bun` on PATH is the npm shim `bun.cmd`, so `kill()` in afterEach
+  // reached cmd.exe and the real bun.exe host worker outlived the suite (measured 2026-10-02: 3 orphans per run).
+  const child = Bun.spawn([process.execPath, "run", "--conditions=browser", worker, worktree], {
     cwd: path.join(import.meta.dir, "..", ".."),
     stdout: "pipe",
     stderr: "inherit",

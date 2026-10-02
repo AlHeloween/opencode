@@ -91,9 +91,35 @@ fields (values not read) — the builder must never copy a user's auth file; the
 | 8 | Integration | user-level PATH entry, Start-menu shortcuts, `exchange\in`/`exchange\out`, uninstaller from a recorded manifest (files, device hardware ID, services) | uninstall dry-run lists exactly what install recorded |
 | 9 | Final self-diagnostics | `smit doctor`: re-runs 1–8 checks + «привет» to the free model | each check PASS/FAIL with a one-line remedy; «привет» failure classified (no network / provider refused / robot broken); report file without secrets, shareable |
 
-Out of the installer: `windows_scripts/*` (Store add, gpedit enabler — system changes, at most a separate opt-in),
-`install_choco.bat`/`install_winget.bat` (network, breaks A2), the virtual AUDIO driver (kernel `.sys`), anything that
-enables Hyper-V / VBS.
+**Advanced options** (owner, 2026-10-02: «вынеси установку скриптов на advanced options») — a separate page, every
+item OFF by default, each shows exactly what it changes before apply and is recorded for uninstall where reversible:
+`windows_scripts/LTSC-Add-MicrosoftStore`, `windows_scripts/PackageModifiers` (incl. the gpedit enabler),
+`install_choco.bat`, `install_winget.bat` (these two need the network — marked «online», outside A2's offline promise).
+Not offered at all: the virtual AUDIO driver (kernel `.sys`), anything that enables Hyper-V / VBS.
+
+### Search for colleagues — the U1 target (2026-10-02)
+
+One JSON contract, sources chosen by their terms, never by what can be scraped:
+`{query, results:[{title, url, snippet, source, rank, retrieved_at}], sources:[{name, status, latency_ms, error?}]}`
+— a source that failed is named, never silently empty (absence of an oracle reads as false).
+
+- Engine: the bundled SearXNG (`searxng-src`, `formats: [html, json]` already set ✓ read) restricted to engines that
+  use an official API or open data — present in the tree ✓ `ls searx/engines`: `wikipedia`, `wikidata`, `arxiv`,
+  `pubmed`, `crossref`, `openalex`, `semantic_scholar`, `core`, `base`, `github`, `github_code`, `stackexchange`,
+  `openlibrary`, `marginalia`, `mwmbl`, `braveapi`, `yacy`. Scraping engines OFF: `google*`, `bing*`, `brave` (HTML),
+  `duckduckgo*`, `startpage`, `qwant`, `mojeek` (its file says `use_official_api: False`).
+- General web without the big engines: Marginalia (independent index; key `public` = shared limit, 503 when hit; a
+  free non-commercial key by e-mail — Hypothetical, from its API page) and Mwmbl (non-profit open index — Guess, not
+  read); Brave Search API as an opt-in with the user's OWN key ($5/month free credit ≈ 1 000 queries, payment method
+  required, since Feb 2026 — Hypothetical, web). Keys are entered by the user at first run, never shipped.
+- Own index (optional, heavy): YaCy — the only fully independent route, weak coverage, its crawler obeys the same
+  manners.
+- Manners in code, not in prose: identifiable User-Agent with a contact, robots.txt + crawl-delay, one request per
+  host at a time, backoff on 429/503, stop on CAPTCHA/challenge, cache (garnet) with ETag/If-Modified-Since, no stealth
+  plugins, no fingerprint spoofing, no proxy rotation.
+- Page fetch for a chosen result: plain HTTP + readability to text/markdown first; the browser only for pages that need
+  JS, through the per-task B-web profile, never the shared CDP :9222.
+- Self-check: one query per enabled source against its health endpoint; the report names which sources answered.
 
 ## Smoke Tests
 

@@ -6097,3 +6097,5 @@ tools/opencode_host.py: read-only server_host lookup, nonce liveness, Basic head
 it. Probe on the real fixture host 7/7 (20261002T120031Z_601b3ba6): 401 without token, 403 on Host: evil.example, STALE
 after kill. Bridge skill made binary-aware (old bin build vs 442ecb5c84+); robot skill pointer fixed (.claude twin gone);
 wait_done.py connects through the client. CUA session committed its installer plan (da598954b0).
+
+[2026-10-02T12:40Z] plan robot-installer Q1/Q2/Q4 - search oracle baseline 1/6 (live stack) -> candidate 6/6 (run 20261002T123757Z). universal-search 4d00d73 POST /search (DDG+Bing via CDP, stamped, paced, cooldown), f4eef45 /web/context content_hash. Playwright driver 404 (2nd occurrence of the class) worked around by seeding OUT_DIR - countermeasure assigned to builder B1. Mis-staged another agent's service.rs work, undone (reset --soft) and re-committed by hunk; memory feedback_shared_tree_stage_by_hunk. Q2b selector fixtures split out, open.

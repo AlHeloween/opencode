@@ -75,7 +75,7 @@ Note: offline DELIVERY ≠ offline USE — «привет» to a free model need
 
 Search is the first gate: an installer whose search is wrong is worth zero. One bounded task open at a time.
 
-- [ ] **Q1 search acceptance oracle:** a fixed query set of the pipeline's real kind (Delphi/VCL docwiki, Win32 on
+- [x] **Q1 search acceptance oracle:** a fixed query set of the pipeline's real kind (Delphi/VCL docwiki, Win32 on
   learn.microsoft.com, MFL / pipeline-inspection science, a code question for Sourcegraph, a PMID via EuropePMC) with
   a predicate per query: ≥1 result from each source class that should answer, every result stamped
   (`authority_class`, url, source, retrieved_at; `content_hash` for read documents), every failing source NAMED with
@@ -89,12 +89,24 @@ Search is the first gate: an installer whose search is wrong is worth zero. One 
   / ieee / springer, learn + github); Bing 10/10 once its `bing.com/ck/a?u=a1<base64url>` links are unwrapped, same
   authority hosts, but ~32 s per page (the browser waits for `load`); Google 0 results and «unusual traffic» on 2 of 4
   → a challenge is a stop: Google is not a source.
-- [ ] **Q2 browser SERP adapters** in universal-search: DuckDuckGo html, Bing, Google through `/web/browser` (real
+- [x] **Q2 browser SERP adapters** in universal-search: DuckDuckGo html, Bing, Google through `/web/browser` (real
   Chromium), DOM → contract; selector fixtures from saved SERPs + live canary. <!-- sv: serp-adapters, browser-search, selectors -->
+  ✓ universal-search `4d00d73` — `POST /search` (`src/web/serp.rs`): DDG html + Bing over CDP, `DOMContentLoaded`
+  (Bing 32 s → 1 s), ≥4 s per engine, 30 min cooldown after a challenge, Google dropped (challenges). Unit tests 5 new,
+  red→green (lib 19/0). Live canary = the Q1 oracle: run `20261002T122518Z` 5/6 (all 4 web queries PASS with authority
+  hosts, every hit stamped, both engines `ok`). Committed tree compile-checked alone in a worktree (`cargo check` ✓).
+  Contract note: `sources` (engine list) instead of `source` — one URL is often found by both engines.
+- [ ] **Q2b selector fixtures:** run each engine's extract JS against SAVED SERP pages (the `*_serp/*.html` of run
+  `20261002T115857Z_serp`) in the browser, so a markup change upstream fails a test, not a user's search. Split out
+  of Q2: not done yet. <!-- sv: selector-fixtures, saved-serp, regression -->
 - [ ] **Q3 SearXNG official-API set:** `keep_only` list, each engine vetted by its `request()` URL against the
   service's API docs. <!-- sv: searxng-whitelist, official-api, vetting -->
-- [ ] **Q4 reader:** universal-search `/web/context` → crw fork (`browser_only = true`) → stamped markdown with
+- [x] **Q4 reader:** universal-search `/web/context` → crw fork (`browser_only = true`) → stamped markdown with
   `content_hash`. <!-- sv: document-reader, crw-fork, content-hash -->
+  ✓ universal-search `f4eef45` — `/web/context` returns `content_hash` (`sha256:` of the markdown, FIPS vector test
+  red→green, lib 20/0), `authority_class`, `retrieved_at`; reader = crw fork `6d2747e` on 3092 with `browser_only`.
+  **Q1 run `20261002T123757Z`: 6/6** (docwiki read through the real browser, 6239 chars, hash present) — candidate
+  instance on 3015, the live 3005 service untouched.
 - [ ] **Q5 merge + stamps:** one JSON contract from Q2+Q3+Sourcegraph+free APIs; Q1 passes. <!-- sv: merge, source-stamp, q1-pass -->
 - [ ] **Q6 services:** chromium, searxng, universal-search, crw — user-level, loopback, never LocalSystem; start/stop
   owned by the installer. <!-- sv: services, least-privilege, lifecycle -->

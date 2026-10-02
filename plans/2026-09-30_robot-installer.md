@@ -97,7 +97,34 @@ item OFF by default, each shows exactly what it changes before apply and is reco
 `install_choco.bat`, `install_winget.bat` (these two need the network — marked «online», outside A2's offline promise).
 Not offered at all: the virtual AUDIO driver (kernel `.sys`), anything that enables Hyper-V / VBS.
 
-### Search for colleagues — the U1 target (2026-10-02)
+### Search for colleagues — the U1 target, REVISED 2026-10-02 by the owner
+
+Owner: «Платить за Brave агрегатор ну блин, и чтобы они еще пасли запросы, зачем?», «никаких проблем с капчей никогда
+не было, это значит что у нас что-то заточено криво», «нормальный брауз для поиска только через хром, дебаг порт и
+playwright. Никакого веб фетча априори.» Measured the same day on the live SearXNG (:3434, one query per engine, 2 s
+apart): `google` 0 results in 0.11 s and NOT listed as unresponsive (a silent zero), `duckduckgo` → `CAPTCHA`,
+`wikipedia` → infobox only, a general query → 10/10 from `bing` alone ✓ curl + `unresponsive_engines`. The browser leg
+`POST :3005/web/browser` was 30/30 with zero challenge pages on 2026-09-26 (memory `universal-search-chromium-9222`).
+So the crooked part is the HTTP-scraping path (SearXNG engines), not search as such. Its log is also blind: the
+`searxng` service has no `AppStdout`/`AppStderr`, so its bans are written nowhere ✓ `nssm get`.
+
+Target, replacing the SearXNG design below (kept as the rejected branch):
+- ONE Chromium (portable, under the user's account — never LocalSystem), CDP on 127.0.0.1, a persistent search profile
+  (cookies and consent kept, like a person's browser); Playwright connects over CDP. No HTTP fetch of pages or SERPs.
+- Per-engine adapters (DuckDuckGo html, Bing, Google, Wikipedia; science/code sites as needed) open the results page in
+  a tab and read the DOM into the JSON contract below; selectors pinned by saved-SERP fixtures + a live canary in
+  `smit doctor` — a selector break is a named FAIL, not an empty list.
+- Reading a result: the page in a tab, text extracted in-page to markdown.
+- Manners as mechanism: one query at a time per engine, a human-scale pause, real Chrome UA, no stealth/fingerprint
+  plugins, a challenge page = status `challenge` for that source and stop (Cloudflare's own self-resolving check may
+  finish as in any browser — never solved or clicked by us).
+- No paid aggregator, no third-party query logging: Brave API dropped.
+- Services: 6 (chromium, crw-server, searxng, garnet, websurfx, universal-search) → 2 (chromium, universal-search), both
+  user-level. No Postgres: the self-hosted Firecrawl needs it only for its NUQ job queue (`NUQ_DATABASE_URL` in
+  `ironclaw/universal_search/install_firecrawl_service.bat`); one user's sequential queries need no queue, and any
+  state that appears goes to the repo's two planes (SQLite relational, LMDB keyed) per AGENTS.md § Storage Paradigm.
+
+#### Rejected branch — SearXNG with API-only engines (2026-10-02, superseded the same day)
 
 One JSON contract, sources chosen by their terms, never by what can be scraped:
 `{query, results:[{title, url, snippet, source, rank, retrieved_at}], sources:[{name, status, latency_ms, error?}]}`

@@ -299,7 +299,7 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @GUESS_DECIDES_NOTHING, @DI
 - durable criteria store: memory tool over .opencode/data/memory/reasoning.md — read/append/write; write replaces (revisions kept); folds into m* verbatim.
 - never store plans under .opencode/plans/.
 - agi_workout/ — the build_mode overlay's journal (/automode): new-tool decisions and the mode's blockers; read it before inventing a tool.
-- instrument chain, in order: where/which -> codegraph -> messagesearch -> universalsearch -> glob -> grep; device state via nvidia-smi. Name the rung that answered.
+- instrument chain, in order: where/which -> adm --query -> codegraph -> messagesearch -> universalsearch -> glob -> grep; device state via nvidia-smi. Refresh an index before a task's first query and after edits: adm --rag index, codegraph sync. Name the rung that answered.
 - ground via: codegraph, read, messagesearch, webfetch/universalsearch.
 - file enumeration: list/glob/grep/read — never shell ls/dir/find/cat (hard-blocked).
 - platform: Windows = cmd/powershell tools; bash unavailable.

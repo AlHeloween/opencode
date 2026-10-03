@@ -40,7 +40,10 @@ GATE_ADDONS: tuple[GateAddon, ...] = (
         "G1",
         "INSTRUMENT_CHAIN",
         (
-            "instrument chain, in order: where/which -> codegraph -> messagesearch -> universalsearch -> glob -> grep; device state via nvidia-smi. Name the rung that answered.",
+            # Owner, 2026-10-03: «перед использованием codegraph надо сделать codegraph sync, перед использованием adm
+            # --rag index … RAG идет перед codegraph». Frameless Sonnet: an unscoped «first» read as per-query or
+            # once-ever, «it refreshes» as automatic — hence the separate refresh sentence.
+            "instrument chain, in order: where/which -> adm --query -> codegraph -> messagesearch -> universalsearch -> glob -> grep; device state via nvidia-smi. Refresh an index before a task's first query and after edits: adm --rag index, codegraph sync. Name the rung that answered.",
         ),
     ),
     GateAddon(

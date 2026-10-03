@@ -298,7 +298,7 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @GUESS_DECIDES_NOTHING, @DI
 - first read: AGENTS.md, plans/*.md, docs/.
 - durable criteria: .opencode/data/memory/reasoning.md — read before non-trivial work.
 - never store plans under .claude/plans/.
-- instrument chain, in order: where/which -> codegraph_explore -> session history (search_session_transcripts) -> WebSearch/WebFetch -> Glob -> Grep; device state via the shell. Name the rung that answered.
+- instrument chain, in order: where/which -> adm --query -> codegraph_explore -> session history (search_session_transcripts) -> WebSearch/WebFetch -> Glob -> Grep; device state via the shell. Refresh an index before a task's first query and after edits: adm --rag index, codegraph sync. Name the rung that answered.
 - window fill and the auto-compact threshold ARE reported (get_usage, deferred); the burn rate is not and the fold arrives as a notice after it happened: read the fill at each closed boundary and persist the handles there, never at a threshold.
 - no chain reader runs automatically: a prev-md5 break is found by reading (skill sv-chain), so recovery across one is Guess and the intention is re-read from the plan comment, the progress log and the ledgers — never from the prose in the window.
 - ground via: codegraph_explore (if .codegraph/), Read, Grep/Glob, WebFetch/WebSearch.

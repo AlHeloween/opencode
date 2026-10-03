@@ -66,3 +66,16 @@ Round 2 — an AGENTS.md override must move one item, not the layout; «canon»,
 ambiguous; create lazily, not scaffold. Round 3 — «read scripts/» was satisfiable by a directory listing (the
 incident's own shape) → «OPEN the scripts that fit the task»; an absent docs/README.md is nothing to read, not a file
 to create. Stopped at 3: the rest was style.
+
+## Amendment 2026-10-03 (latest) — G1 instrument chain: RAG before codegraph, refresh before use
+
+- production `71abbf96…` (prev `3a70508b…`), 58 753 B / 7 802 tok; Claude `3d093085…` 58 996 B / 7 953 tok (cap
+  7 950 → 8 000); codex `bb76f97b…` 58 286 B / 7 837 tok; G0+G1 6 183 B (cap 6 100 → 6 200) — both raises the owner's
+  choice; the line was trimmed to fit `utf8_budget` 59 000 rather than raising it again
+- evidence: `experiments/2026-10-03_kernel-instrument-chain/` (one frameless-Sonnet round, $0.023)
+- rule (all three variants): «… where/which -> adm --query -> codegraph … Refresh an index before a task's first query
+  and after edits: adm --rag index, codegraph sync. …» — owner: «перед использованием codegraph надо сделать codegraph
+  sync, перед использованием adm --rag index проверить что все свежее RAG идет перед codegraph». Falsifier: an unscoped
+  «first» read as per-query or once-ever, «it refreshes» as automatic, parentheticals as «sync everything up front».
+- host side (AGENTS.md, not the kernel): the CLI is `bin\codegraph.cmd`; `codegraph sync` / `status` are the one
+  standing exception to the `bin/` ban (owner: «Разрешить sync из bin/»); «Do not write codegraph.db» replaced.

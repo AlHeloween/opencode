@@ -469,6 +469,8 @@ def test_pre_action_section_stays_small() -> None:
     5_600 -> 6_100 (2026-10-03, owner's choice): the G1 PROJECT_LAYOUT binding is a FINDING aid — where to read
     before the first call, and «open scripts/ before inventing a build» (a robot invented one that day) — the kind
     of line this cap admits, unlike the catalogues it evicted. Measured 6_073 B with it and VCS_ROLES.
+    6_100 -> 6_200 (2026-10-03, later, owner's choice): adm RAG before codegraph and the index-refresh sentence in
+    the G1 instrument chain — again where-to-find; measured 6_183 B after trimming the line to fit.
     """
     from prompt_kernel.addons import GATE_ADDONS
 
@@ -477,4 +479,4 @@ def test_pre_action_section_stays_small() -> None:
     for gate in ("G0", "G1"):
         block = text[text.index(f"<{gate}_RULES>") : text.index(f"</{gate}_RULES>")]
         section += len(block.encode("utf-8"))
-    assert section <= 6_100, section
+    assert section <= 6_200, section

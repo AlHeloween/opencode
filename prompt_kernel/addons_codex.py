@@ -28,7 +28,10 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G1",
         "INSTRUMENT_CHAIN",
         (
-            "instrument chain, in order: where/which -> codegraph_explore -> tools/codex_svchain.py for own trajectory -> Read a URL or Browser through Eval -> Glob -> Grep; device state via the shell. Name the rung that answered.",
+            # Owner, 2026-10-03: «перед использованием codegraph надо сделать codegraph sync, перед использованием adm
+            # --rag index … RAG идет перед codegraph». Frameless Sonnet: an unscoped «first» read as per-query or
+            # once-ever, «it refreshes» as automatic — hence the separate refresh sentence.
+            "instrument chain, in order: where/which -> adm --query -> codegraph_explore -> tools/codex_svchain.py for own trajectory -> Read a URL or Browser through Eval -> Glob -> Grep; device state via the shell. Refresh an index before a task's first query and after edits: adm --rag index, codegraph sync. Name the rung that answered.",
         ),
     ),
     GateAddon(

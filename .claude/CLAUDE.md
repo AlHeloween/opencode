@@ -9,8 +9,10 @@ In repositories indexed by CodeGraph (a `.codegraph/` directory exists at the re
 If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is the user's decision.
 <!-- CODEGRAPH_END -->
 
-Host note (outside the generated block, measured 2026-10-01): on THIS host the shell CLI is not installed —
-`codegraph explore …` → «No such file or directory». The MCP tool `codegraph_explore` answers; use it.
+Host note (outside the generated block, re-measured 2026-10-03): on THIS host the shell CLI resolves to
+`bin\codegraph.cmd` (`where codegraph`); `bin/` is off-limits except `codegraph sync` / `codegraph status` (AGENTS.md,
+owner 2026-10-03). Queries go through the MCP tool `codegraph_explore`; run `codegraph sync` before a task's first
+query and after edits. (2026-10-01 measured «No such file or directory» — no longer true.)
 
 ## Reasoning kernel
 

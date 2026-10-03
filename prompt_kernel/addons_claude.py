@@ -37,7 +37,10 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         (
             # 2026-09-29 tool check (@TOOLCHAIN_QUALIFICATION, cheapest primitive each): search_session_transcripts
             # returned two past sessions, so «(no history search on this host)» had become false.
-            "instrument chain, in order: where/which -> codegraph_explore -> session history (search_session_transcripts) -> WebSearch/WebFetch -> Glob -> Grep; device state via the shell. Name the rung that answered.",
+            # Owner, 2026-10-03: «перед использованием codegraph надо сделать codegraph sync, перед использованием adm
+            # --rag index … RAG идет перед codegraph». Frameless Sonnet: an unscoped «first» read as per-query or
+            # once-ever, «it refreshes» as automatic — hence the separate refresh sentence.
+            "instrument chain, in order: where/which -> adm --query -> codegraph_explore -> session history (search_session_transcripts) -> WebSearch/WebFetch -> Glob -> Grep; device state via the shell. Refresh an index before a task's first query and after edits: adm --rag index, codegraph sync. Name the rung that answered.",
         ),
     ),
     GateAddon(

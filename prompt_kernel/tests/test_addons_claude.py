@@ -125,7 +125,9 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # Product 7_643 and codex 7_678 stay under their 7_700 — the product ceiling did not move.
     # 7_800 -> 7_950 (2026-10-03, owner: «Поднять лимиты»): the G1 PROJECT_LAYOUT binding; measured 7_934, the
     # product moved 7_700 -> 7_850 in the same decision.
-    assert normalized_token_count(text) <= 7_950
+    # 7_950 -> 8_000 (2026-10-03, later, owner's choice): adm RAG before codegraph in the G1 instrument chain and
+    # «refresh an index before a task's first query and after edits»; measured 7_953.
+    assert normalized_token_count(text) <= 8_000
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

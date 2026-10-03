@@ -6199,3 +6199,11 @@ DEVIATION recorded: I installed before the suite was green — test_pre_action_s
 5 600); the owner then chose the raise. Installed product 3a70508b… (baseline repinned by hand), claude 9002f460…,
 codex 8c7c30c3… (~/.codex/AGENTS.md, global). pytest prompt_kernel 122 passed ✓ after. ADID's claude.candidate is
 stale again (3c1b9172…).
+
+## [2026-10-03] kernel: RAG before codegraph, refresh an index before use; AGENTS.md bin/ exception for codegraph sync
+Owner: «перед использованием codegraph надо сделать codegraph sync … RAG идет перед codegraph»; «Разрешить sync из
+bin/»; caps Claude 7 950 → 8 000, G0+G1 6 100 → 6 200. One frameless-Sonnet round ($0.023). This time the suite was
+gated BEFORE install (only install-parity reds allowed through). Installed product 71abbf96… (baseline repinned by
+hand), claude 3d093085…, codex bb76f97b…; pytest prompt_kernel 122 passed ✓. AGENTS.md staged by index blob (HEAD + my
+two hunks) — another writer's uncommitted Content Lifecycle edit in the same file left unstaged ✓ (git diff --cached).
+.claude/CLAUDE.md host note re-measured: the CLI resolves to bin\codegraph.cmd.

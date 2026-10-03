@@ -108,7 +108,7 @@ constraints:
 - Tool names ARE wire ids: lowercase ASCII alphanumerics only — `_` and `-` are refused and the tool fails to load at `Tool.define`; the same spelling must appear in the registry, its `builtin` list and `util/dsml-normalizer`, or a DeepSeek-emitted call is never recognised (2026-09-19, restating 2026-08-26: `canonicalName` strips non-alphanumerics — `multi_edit`→`multiedit`, `session-read`→`sessionread`). WHY it is a prohibition and not a taste: a second spelling of a TOOL NAME is a generation bug, not a validation one — the model emits whichever variant association hands it (`-` and `_` are its standard separator habits) and the mismatch is silent, because a validator can see a typo and cannot see an association. SCOPE: tool names ONLY. This is not a naming rule for fields, keys or internal identifiers — a tool name is the one identifier the model must reproduce itself for the call to be routed (2026-09-19).
 
 forbidden_actions:
-- **Never touch `bin/` without explicit owner permission** — no edits, no replace/rename/move/copy into it, and no launching executables from it (including a version check like `bin\opencode.exe --version`). WHY: `bin/` is the owner's LIVE runtime — the running TUI executes from that folder, and in-session "bin surgery" (move-aside + copy to dodge a locked exe) on 2026-09-24 mixed 10.0.1106/10.0.1107 and broke the owner's session. Build candidates belong in `packages/opencode/dist/**`; promoting a candidate into `bin/` happens ONLY on an explicit owner request, by the owner's own procedure. Owner, 2026-09-24, verbatim: «любые правки в bin папке и запуски оттуда без конкретного разрешения - запрещены».
+- **Never touch `bin/` without explicit owner permission** — no edits, no replace/rename/move/copy into it, and no launching executables from it (including a version check like `bin\opencode.exe --version`). WHY: `bin/` is the owner's LIVE runtime — the running TUI executes from that folder, and in-session "bin surgery" (move-aside + copy to dodge a locked exe) on 2026-09-24 mixed 10.0.1106/10.0.1107 and broke the owner's session. Build candidates belong in `packages/opencode/dist/**`; promoting a candidate into `bin/` happens ONLY on an explicit owner request, by the owner's own procedure. Owner, 2026-09-24, verbatim: «любые правки в bin папке и запуски оттуда без конкретного разрешения - запрещены». **The one standing exception** (owner, 2026-10-03, «Разрешить sync из bin/»): `codegraph sync` and `codegraph status`, launched through `bin\codegraph.cmd` — the CodeGraph CLI exists only there. Nothing else in `bin/` is launched, and nothing there is ever edited.
 - Exposing secrets (API keys, tokens, passwords, private keys) to git
 - Using git push --no-verify (or any --no-verify variant)
 - Using silent catch {} blocks
@@ -1170,7 +1170,10 @@ Reach for it BEFORE grep/find when you need to understand code. MCP owns the liv
 
 - Built-in `codegraph` tool: MCP touch → SQLite pack (symbols, cross-file edges).
 - Config: auto-injected when `.codegraph/` exists (opt out: `OPENCODE_CODEGRAPH_MCP=0`).
-- Do not write `codegraph.db` or use CLI reindex as fallback.
+- Before a task's first query and after edits, run `codegraph sync` (incremental; through `bin\codegraph.cmd`, the
+  one sanctioned launch from `bin/`). Owner, 2026-10-03: «перед использованием codegraph надо сделать codegraph sync»
+  — this replaces the earlier «Do not write `codegraph.db` or use CLI reindex as fallback». A full `codegraph index`
+  stays the owner's call. RAG goes first: `adm --rag index` (incremental), then `adm --query`, then codegraph.
 
 Full details: [docs/codegraph-mcp.md](docs/codegraph-mcp.md)
 <!-- CODEGRAPH_END -->

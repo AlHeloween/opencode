@@ -6214,3 +6214,14 @@ removes .temp\test\ (lines 69-74, 131-136), clears dist/ content, builds into di
 not collide with the bin/ ban. Recorded gap ✗: both cleanups are Remove-Item -ErrorAction SilentlyContinue followed by
 an unconditional «cleaned». Constraint bullet + § Build after tests and changes; staged by hunk (another writer's
 Content Lifecycle edit in AGENTS.md left out ✓). .temp size breakdown: measurement running.
+
+## [2026-10-03] _build.ps1: honest scratch cleanup (Clear-ScratchDir); .temp mass traced to leaked test dirs
+Measured: .temp = 62.7 GB / 5.08 M files in .temp\test (other subdirs < 1 GB). First mandated run (cmd_runner
+20261003T043816Z_92f4ed62) printed «.temp/test/ cleaned» while 50.2 GB / 4.07 M files stayed ✗. Fix: Clear-ScratchDir —
+entry-by-entry Remove-Item -ErrorAction Stop, survivors named with their reason. Oracle: parse 0 errors; 3-entry fixture
+with one locked file → 2 removed + the locked one named, then cleaned after unlock ✓; mutation — the old block on the
+same fixture printed «cleaned» over the locked entry ✓. My first causal claim («one busy entry stops the rest») was
+REFUTED by that fixture ✗ (the old block did remove the free entries) — the comment states only the measured lie.
+Mass: each test dir carries its own .opencode\node_modules (24–26 MB, ~2.5 k files) and outlives its test; 1 731 dirs
+on 10-03 ≈ 43 GB → the leak is in the test harness (open; another writer is active in tests). Also seen, not fixed:
+`_build.ps1 -Task check` runs `bun test` with no path — the full suite AGENTS.md forbids.

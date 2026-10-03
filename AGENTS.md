@@ -895,8 +895,14 @@ Owner, verbatim: «запуск _build.ps1 после тестов и измен
 - **Why it is a rule:** the cleanup lives in the build, so a session that tests and never builds leaves its scratch
   behind — `.temp` reached 80 GB (owner). A build that fails still ran its cleanup first, so run it even when the
   candidate itself is not wanted.
-- **Known gap (✗, read 2026-10-03):** both cleanups use `Remove-Item -ErrorAction SilentlyContinue` and then print
-  «cleaned» unconditionally — a locked file survives silently. Check `.temp\test\` is gone after the run.
+- **The cleanup reports honestly since 2026-10-03.** The first mandated run printed «.temp/test/ cleaned» while
+  50.2 GB / 4.07 M files of 62.7 GB stayed (measured): the old block was `Remove-Item -ErrorAction SilentlyContinue`
+  plus an unconditional «cleaned». Now `Clear-ScratchDir` removes entry by entry and names every survivor with its
+  reason (fixture: 3 entries, one locked → 2 removed, the locked one named; the old block said «cleaned» over it).
+  A `[WARN] … still in use` line is not noise: a live process holds that test dir.
+- **Where the mass comes from (✓ measured 2026-10-03):** every test dir under `.temp\test\` carries its own
+  `.opencode\node_modules` (24–26 MB, ~2.5 k files: zod, effect, @ai-sdk…) and is not removed when the test ends —
+  1 731 dirs from one day ≈ 43 GB. The build only sweeps it; the leak is in the test harness and is open.
 
 ---
 

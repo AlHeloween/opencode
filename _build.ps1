@@ -57,6 +57,31 @@ function Get-Version {
     return $pkgJson.version
 }
 
+# Empties a scratch directory entry by entry and reports what survived.
+# Why: the old `Remove-Item <dir> -Recurse -ErrorAction SilentlyContinue` + an unconditional «cleaned» printed success
+# while 50.2 GB / 4.07 M files of 62.7 GB stayed (measured 2026-10-03; owner: «Темп 80гиг это слишком»). On a 3-entry
+# fixture with one locked file the old block removed the free entries and still said «cleaned» — the lie is the
+# report, so each failure is now caught per entry and named; a survivor is never reported as cleaned.
+function Clear-ScratchDir {
+    param([string] $Path, [string] $Label)
+    if (-not (Test-Path -LiteralPath $Path)) { return }
+    Write-Host "  Cleaning $Label..." -ForegroundColor Yellow
+    $failed = @()
+    foreach ($entry in Get-ChildItem -LiteralPath $Path -Force) {
+        try {
+            Remove-Item -LiteralPath $entry.FullName -Recurse -Force -ErrorAction Stop
+        } catch {
+            $failed += "$($entry.Name): $($_.Exception.Message)"
+        }
+    }
+    if ($failed.Count -eq 0) {
+        Write-Success "$Label cleaned"
+        return
+    }
+    Write-Host "  [WARN] $Label - $($failed.Count) entries still in use, left in place:" -ForegroundColor Yellow
+    $failed | Select-Object -First 10 | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
+}
+
 # ═══════════════════════════════════════════════════════════
 # CHECK TASK — typecheck, tests, prettier only.
 # Kernel assembly → python -m prompt_kernel --install
@@ -66,13 +91,7 @@ function Invoke-Check {
 
     $allPassed = $true
 
-    # Clean up .temp/test/ directory
-    $tempTestDir = Join-Path $Root ".temp\test"
-    if (Test-Path $tempTestDir) {
-        Write-Host "  Cleaning .temp/test/..." -ForegroundColor Yellow
-        Remove-Item $tempTestDir -Recurse -Force -ErrorAction SilentlyContinue
-        Write-Success ".temp/test/ cleaned"
-    }
+    Clear-ScratchDir (Join-Path $Root ".temp\test") ".temp/test/"
 
     # Check 1: Typecheck
     if (-not $SkipTypecheck) {
@@ -128,13 +147,7 @@ function Invoke-Check {
 function Invoke-Build {
     Write-Step "Building"
 
-    # Clean up .temp/test/
-    $tempTestDirBuild = Join-Path $Root ".temp\test"
-    if (Test-Path $tempTestDirBuild) {
-        Write-Host "  Cleaning .temp/test/..." -ForegroundColor Yellow
-        Remove-Item $tempTestDirBuild -Recurse -Force -ErrorAction SilentlyContinue
-        Write-Success ".temp/test/ cleaned"
-    }
+    Clear-ScratchDir (Join-Path $Root ".temp\test") ".temp/test/"
 
     # Build Rust WASM modules
     Write-Host "  Building Rust WASM modules..." -ForegroundColor Yellow

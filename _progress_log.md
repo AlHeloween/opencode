@@ -6234,3 +6234,12 @@ stated to the owner: «foreign» = a worktree other than the one the session sta
 caps by measurement (tokens 7 950 / 8 100, bytes 60 000). Installed product 26f99108… (baseline repinned by hand),
 claude 813ee43c…, codex ede14a7a…; pytest prompt_kernel 122 passed ✓. Plan plans/2026-10-04_robot-peer-messaging.md:
 P4 [x]; P0 (binary promotion) blocks the rest — `opencode_host.py` → «none: no host record» today.
+
+## [2026-10-04] plan: Fossil as the agent organization (org.fossil + project repos); peer plan superseded
+Owner: «Да ты из системы управления корпорацией сделал приемную отдела кадров» — my VCS_ROLES line framed Fossil as
+an undo box and my peer plan re-invented its registry/bus/delegation over HTTP. Read research/fossil_deep_research.md
+(summary, semantics, delegation, protocol, isolation, roadmap). Verified in fossil-src-2.28 ✓: `open --keep` touches
+only the manifest (db.c:4251), `fossil all list`/`ignore` (allrepo.c:148, :204, :356), chat CLI needs a served remote
+(chat.c:1204-1246), busy timeout 15 s (db.c:2208). `fossil all list` → 48 repos (live projects + junk). Owner chose
+topology org.fossil + projects, then «Только давай спланируем»: plans/2026-10-04_fossil-agent-organization.md F0–F7,
+nothing executed; peer plan → plans_deferred/ as superseded. Memory: project_fossil_is_the_corporation.

@@ -1,5 +1,10 @@
 # Robot-to-robot messaging — `peer`, over the one host per worktree
 
+> **SUPERSEDED 2026-10-04 → `plans/2026-10-04_fossil-agent-organization.md`.** This design re-invented, over HTTP,
+> what Fossil already is: a registry (`fossil all list` — 48 repos), a bus (chat), delegation with lineage (tickets),
+> reports (technotes), identity (users + capabilities). Owner: «Да ты из системы управления корпорацией сделал
+> приемную отдела кадров». Kept for the record; P4 (the kernel COLLABORATION rule) stays valid and is re-pointed by F0.
+
 <!-- intention: robots cannot address each other — an agent sent into another project works there by hand instead of handing the task to that project's resident robot -> a robot sends a task or a question to another worktree's resident through its host, the message is visible in that TUI with its origin, the answer comes back, and nothing in it carries the user's authority -->
 
 - sv: { keywords: { peer-messaging 0.30, resident-robot 0.25, structural-origin 0.20, host-transport 0.15, hop-limit 0.10 },

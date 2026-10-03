@@ -19,6 +19,7 @@ import { MessageID } from "./schema"
 import { registry } from "@/attachment/registry"
 import { filePartFromNormalized, normalizeAttachment } from "@/attachment/normalize"
 import { MediaTokenCalibration } from "./media-token-calibration"
+import { vectorSign } from "@/memory/spine"
 
 /**
  * Count media file parts in a wire request (ModelMessage[]): images and
@@ -1250,8 +1251,14 @@ export const layer: Layer.Layer<
               // commit has settled. `commitMs` counts the wait behind a sibling commit too — that
               // wait is part of what the trajectory costs — and `commitHash` is its result, so a
               // commit that failed or was aborted reads as an ABSENT hash rather than as nothing.
+              // SIGNED BY THE REPLY ITSELF. `ctx.currentText` is already cleared — `text-end` runs
+              // before `finish` (see the empty-response check above) — so the vector is read from the
+              // accumulator, which is the same text the reply closed on. A turn whose last reply
+              // wrote a vector commits a snapshot that NAMES that vector, so the work is reachable
+              // by it (`fossilgrep sv:<md5>`) instead of only by time. A turn that wrote no vector
+              // commits unsigned, which reads as unsigned rather than as "the same as always".
               const startedAt = Date.now()
-              yield* snapshot.track(undefined).pipe(
+              yield* snapshot.track(undefined, vectorSign(ctx.textBuilder.toString())).pipe(
                 Effect.catch(() => Effect.succeed(undefined as string | undefined)),
                 Effect.flatMap((hash) =>
                   session
@@ -1508,25 +1515,26 @@ export const layer: Layer.Layer<
 
       const cleanup = Effect.fn("SessionProcessor.cleanup")(function* () {
         if (ctx.snapshot) {
-          // BUG-5 fix: commit any pending write-tool changes before computing
-          // the patch. Without this, snapshot.patch() diffs against the
-          // uncommitted working tree, mixing committed and uncommitted changes
-          // into a single aggregate patch that loses per-step granularity.
-          // The shell-only case is handled by the step-finish path, which
-          // probes ONCE per user turn (see snapshotMode). It must not be
-          // repeated here: `cleanup` runs per assistant message and one user
-          // turn can span several, so probing here would multiply the spawns
-          // the turn-level decision exists to bound. By the time cleanup runs,
-          // step-finish has already committed anything a shell turn changed,
-          // so skipping is not a coverage gap — it is the same commit, once.
-          if (ctx.hasWriteToolCall) {
-            const shellOnlyNoFiles = ctx.changedFiles.size === 0 && !ctx.exclusiveWriteToolCall
-            if (!shellOnlyNoFiles) {
-              yield* snapshot
-                .track(ctx.changedFiles.size > 0 ? [...ctx.changedFiles] : undefined)
-                .pipe(Effect.catch(() => Effect.void))
-            }
-          }
+          // NO COMMIT HERE — AND THE COMMENT THAT USED TO ARGUE FOR ONE WAS MEASURED WRONG.
+          //
+          // It claimed that committing first is what preserves «per-step granularity». It does not:
+          // `patch()` returns the hash it was HANDED (`snapshot/fossil.ts:804`) and diffs the working
+          // copy against it, so the patch part's anchor is the TURN BASELINE either way — as are
+          // `step-start.snapshot` and `step-finish.snapshot`, which carry `turn.before ?? ctx.snapshot`.
+          // Nothing in the anchor chain was ever per-step, so per-step commits bought no anchoring;
+          // what they bought was a commit mid-turn, which only matters if the process dies mid-turn
+          // and costs one fossil probe on EVERY step of a write turn otherwise.
+          //
+          // The commit belongs to the turn's close, and it is already there: the step-finish path
+          // gates on `turnEnds` and runs before this `ensuring` block. So this is the same commit,
+          // once — which is what the note here already said should happen, and did not.
+          //
+          // What is lost, stated plainly: the working copy stays uncommitted until the turn closes,
+          // so an abrupt death mid-turn leaves no fossil leaf for that turn's work. The files are
+          // still on disk — fossil does not revert them — only the undo target is not there. Patch
+          // reporting and the summary anchors are unaffected, per the paragraph above.
+          //
+          // A shell-only step is unchanged either way: it reaches the turn-end commit like any other.
           const patch = yield* snapshot.patch(ctx.snapshot)
           if (patch.files.length) {
             yield* session.updatePart({

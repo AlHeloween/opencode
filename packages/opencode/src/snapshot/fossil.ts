@@ -469,7 +469,7 @@ export const layer = Layer.effect(
           return true
         })
 
-        const track = Effect.fnUntraced(function* (files?: string[]) {
+        const track = Effect.fnUntraced(function* (files?: string[], sign?: string) {
           return yield* locked(
             Effect.gen(function* () {
               if (!(yield* enabled())) return undefined
@@ -609,7 +609,19 @@ export const layer = Layer.effect(
               // commits that would create a fork are rejected unless --allow-fork
               // is passed. Since this is a snapshot system where fork topology
               // doesn't matter, always allow forking.
-              const commitArgs = ["commit", "-m", "auto-snapshot", "--no-warnings", "--allow-fork", "--hash"]
+              // THE SIGN IS PART OF THE MESSAGE, not a second field fossil has no column for: it is
+              // what `fossilgrep sv:<md5>` and `fossil timeline` both already read. A snapshot taken
+              // at a reply that wrote a semantic vector is therefore addressable BY that vector, and
+              // a reply that omitted one leaves an unsigned commit — visible as such rather than as
+              // an indistinguishable "same as always".
+              const commitArgs = [
+                "commit",
+                "-m",
+                sign ? `auto-snapshot ${sign}` : "auto-snapshot",
+                "--no-warnings",
+                "--allow-fork",
+                "--hash",
+              ]
               let commitResult = yield* fossil(commitArgs, { cwd: worktree })
 
               if (commitResult.code !== 0) {
@@ -1205,8 +1217,8 @@ export const layer = Layer.effect(
       cleanup: Effect.fn("SnapshotFossil.cleanup")(function* () {
         return yield* InstanceState.useEffect(state, (s) => s.cleanup())
       }),
-      track: Effect.fn("SnapshotFossil.track")(function* (files?: string[]) {
-        return yield* InstanceState.useEffect(state, (s) => s.track(files))
+      track: Effect.fn("SnapshotFossil.track")(function* (files?: string[], sign?: string) {
+        return yield* InstanceState.useEffect(state, (s) => s.track(files, sign))
       }),
       checkpoint: Effect.fn("SnapshotFossil.checkpoint")(function* () {
         return yield* InstanceState.useEffect(state, (s) => s.opId())

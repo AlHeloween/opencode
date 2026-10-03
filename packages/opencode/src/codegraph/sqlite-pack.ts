@@ -183,6 +183,60 @@ export function packGraphForFiles(worktree: string, files: string[]): GraphPack 
   }
 }
 
+/**
+ * Files the index says were WRITTEN inside a time window, newest first.
+ *
+ * `packGraphForFiles` can only answer for paths someone already named, and the caller names
+ * what the TRANSCRIPT touched — reads included. This answers a different and unanswerable-by-
+ * transcript question: what actually changed on disk while the summary's range was running,
+ * from anyone. Measured 2026-10-03 on the newest checkpoint of one project: of its 11
+ * transcript-touched files, the 6 the agent had genuinely WRITTEN all carry an mtime inside the
+ * window, and the other 5 were reads (plus one file edited later, outside it). The two sources
+ * are complements, not alternatives — a read leaves no mtime footprint, and a write by anything
+ * other than a tool leaves no transcript entry.
+ *
+ * `modified_at` is the FILE's mtime, not the moment the indexer saw it — verified against
+ * `os.stat` on 11 sampled files, 11/11 exact. It is millisecond epoch as a float, and the index
+ * carries ~7 900 distinct values across ~41 000 files, so the resolution is fine for a
+ * minute-scale window.
+ *
+ * BOUNDED, newest first: a window that spans a bulk operation (a reformat, a vendor sync, a
+ * reindex) would otherwise return the whole tree. The caller unions this with its own list, so
+ * a truncated answer degrades to the transcript's, which is what it would have been anyway.
+ */
+export function filesModifiedInWindow(
+  worktree: string,
+  fromMs: number,
+  toMs: number,
+  limit = 200,
+): string[] {
+  const dbPath = getCodegraphDbPath(worktree)
+  if (!existsSync(dbPath) || !Number.isFinite(fromMs) || !Number.isFinite(toMs) || toMs <= fromMs)
+    return []
+  const db = new Database(dbPath, { readonly: true })
+  try {
+    db.run("PRAGMA query_only = ON")
+    db.run("PRAGMA busy_timeout = 5000")
+    return (
+      db
+        .query(`SELECT path FROM files WHERE modified_at >= ? AND modified_at <= ? ORDER BY modified_at DESC LIMIT ?`)
+        .all(fromMs, toMs, limit) as { path: string }[]
+    ).map((r) => norm(r.path))
+  } catch (error) {
+    // A SELECT THAT CANNOT BE ASKED IS NOT A CRASH. `hasCodegraphIndex` answers "does an index
+    // file exist", and a project can carry one with no `files` table at all — measured on a
+    // data-only project, and produced by the test fixture. Throwing here took summary capture down
+    // with it; the empty list is the honest answer, and it degrades to the caller's other two
+    // sources rather than to nothing.
+    console.warn(
+      `[codegraph] window selection unavailable: ${error instanceof Error ? error.message : String(error)}`,
+    )
+    return []
+  } finally {
+    db.close()
+  }
+}
+
 /** Agent-facing packed markdown (MCP prose suppressed). */
 export function formatPackMarkdown(
   pack: GraphPack,

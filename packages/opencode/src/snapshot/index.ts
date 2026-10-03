@@ -34,6 +34,31 @@ export const ImpactSummary = Schema.Struct({
   impactedFiles: Schema.mutable(Schema.Array(Schema.String)),
   /** Total cross-file caller references found */
   callerCount: Schema.Number,
+  /**
+   * THREE LISTS, THREE QUESTIONS — kept apart because a reader cannot tell them apart once
+   * merged, and each is blind to something the others see.
+   *
+   * - `transcript` — files the session's TOOLS touched. Sees reads, which leave no other trace;
+   *   blind to any writer that was not a tool in this session.
+   * - `snapshot` — files the undo/redo anchors say changed between the range's boundaries. Sees
+   *   everything committed in the range from any writer; blind to uncommitted working-copy edits,
+   *   and absent entirely when the repo has no snapshot anchors.
+   * - `mtime` — files the CodeGraph index says were WRITTEN while the range ran. Sees the
+   *   working copy directly, so it catches a user edit, a formatter, or another agent's work that
+   *   left neither an anchor nor a tool entry; blind to a file whose mtime has since moved, because
+   *   the index holds the CURRENT mtime and not a history.
+   *
+   * Optional because rows written before this field existed must still parse.
+   */
+  sources: Schema.optional(
+    Schema.Struct({
+      // mutable, like `topSymbols` above: the producer builds these with a spread and a Set, and a
+      // readonly array would make every caller that composes one fail on the type alone.
+      transcript: Schema.mutable(Schema.Array(Schema.String)),
+      snapshot: Schema.mutable(Schema.Array(Schema.String)),
+      mtime: Schema.mutable(Schema.Array(Schema.String)),
+    }),
+  ),
 })
   .annotate({ identifier: "SnapshotImpactSummary" })
   .pipe(withStatics((s) => ({ zod: zod(s) })))
@@ -42,7 +67,9 @@ export type ImpactSummary = typeof ImpactSummary.Type
 export interface Interface {
   readonly init: () => Effect.Effect<void>
   readonly cleanup: () => Effect.Effect<void>
-  readonly track: (files?: string[]) => Effect.Effect<string | undefined>
+  /** `sign` rides the commit message, so a snapshot taken at a reply that wrote a semantic vector
+   *  is ADDRESSABLE by that vector — see `vectorSign`. Optional: an unsigned snapshot is normal. */
+  readonly track: (files?: string[], sign?: string) => Effect.Effect<string | undefined>
   /** Current snapshot hash for undo/rollback */
   readonly checkpoint: () => Effect.Effect<string | undefined>
   /** Restore working copy to a previous checkpoint */

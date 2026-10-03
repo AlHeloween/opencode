@@ -3,7 +3,7 @@ import * as path from "path"
 import { existsSync } from "fs"
 import { Bus } from "@/bus"
 import { hasCodegraphIndex, mcpTouchThenSqlitePack } from "@/codegraph/mcp-client"
-import { packGraphForFiles, packToImpactFields } from "@/codegraph/sqlite-pack"
+import { filesModifiedInWindow, packGraphForFiles, packToImpactFields } from "@/codegraph/sqlite-pack"
 import { Instance } from "@/project/instance"
 import { Snapshot } from "@/snapshot"
 import { Storage } from "@/storage/storage"
@@ -456,19 +456,58 @@ export const layer = Layer.effect(
     })
 
     /**
-     * CodeGraph structural impact over paths from tool edits (no Fossil hashes).
-     * SQLite index stores worktree-relative paths — absolutize → relative first.
+     * The range's own span in wall-clock ms — the other half of the selection, and the one that
+     * can see work no tool recorded. Read from the messages themselves rather than from a clock:
+     * the range IS the set of messages, so its start and end are the first and last timestamps it
+     * contains, and a caller cannot pass a window that disagrees with what it is summarising.
+     *
+     * A single message, or a range whose messages share one timestamp, has no span — a zero-width
+     * window would answer nothing and look like an empty project, so it is `undefined` and the
+     * caller falls back to the transcript's own list.
      */
-    const impactForToolFiles = (files: string[], source: "live" | "cached" = "live") =>
+    const timeWindow = (messages: readonly MessageV2.WithParts[]) => {
+      let fromMs = Number.POSITIVE_INFINITY
+      let toMs = 0
+      for (const m of messages) {
+        const at = m.info.time.created
+        if (typeof at !== "number") continue
+        if (at < fromMs) fromMs = at
+        if (at > toMs) toMs = at
+      }
+      if (!Number.isFinite(fromMs) || toMs <= fromMs) return undefined
+      return { fromMs, toMs }
+    }
+
+    /**
+     * CodeGraph structural impact over the range's files (no Fossil hashes).
+     * SQLite index stores worktree-relative paths — absolutize → relative first.
+     *
+     * THREE INDEPENDENT SELECTIONS, THREE BLIND SPOTS, ONE PACK. `transcript` is what the
+     * session's tools touched (reads included — a read leaves no trace anywhere else);
+     * `snapshot` is what the undo/redo anchors say changed between the range's boundaries; `mtime`
+     * is what the index says was WRITTEN while the range ran, by any writer. None contains
+     * another, and the pack runs on their union so the structural answer covers all of it — while
+     * the three stay SEPARATE in the result, because a reader who cannot tell «the agent edited
+     * this» from «something committed this» cannot judge either claim.
+     *
+     * Measured 2026-10-03 on one project's newest checkpoint: 11 files named by the transcript, of
+     * which 6 carried an mtime inside the window (every file the agent had actually written), 1
+     * was edited after the range closed, and 4 are absent from the index entirely — so their
+     * structural impact reads as zero rather than as unknown (see the note on `hasCodegraphIndex`).
+     */
+    const impactForRange = (
+      sources: { transcript: string[]; snapshot: string[] },
+      source: "live" | "cached" = "live",
+      window?: { fromMs: number; toMs: number },
+    ) =>
       Effect.gen(function* () {
-        if (files.length === 0) return undefined as Snapshot.ImpactSummary | undefined
         const worktree = Instance.worktree
         if (!hasCodegraphIndex(worktree)) {
           log.debug("summary CodeGraph impact skipped: no .codegraph index", { worktree })
           return undefined
         }
         const wt = worktree.replaceAll("\\", "/")
-        const relFiles = [
+        const rel = (files: string[]) => [
           ...new Set(
             files.map((f) => {
               const n = f.replaceAll("\\", "/")
@@ -479,13 +518,31 @@ export const layer = Layer.effect(
             }),
           ),
         ].filter(Boolean)
-        if (relFiles.length === 0) return undefined
+        // The window is read ONLY after the index check, so a project without one costs no query,
+        // and ONLY when a window was supplied, so a caller that has none keeps its exact answer.
+        const named = {
+          transcript: rel(sources.transcript),
+          snapshot: rel(sources.snapshot),
+          mtime: window ? filesModifiedInWindow(worktree, window.fromMs, window.toMs) : [],
+        }
+        const union = [...new Set([...named.transcript, ...named.snapshot, ...named.mtime])]
+        if (union.length === 0) return undefined as Snapshot.ImpactSummary | undefined
+        const namedEarlier = [...named.transcript, ...named.snapshot]
+        log.info("summary CodeGraph selection", {
+          transcript: named.transcript.length,
+          snapshot: named.snapshot.length,
+          mtime: named.mtime.length,
+          union: union.length,
+          // The count that says the window is EARNING its place: files only it could see. With a
+          // single writer it is near zero, and that is the honest reading, not a broken feature.
+          windowOnly: named.mtime.filter((p) => !namedEarlier.includes(p)).length,
+        })
         const pack = yield* (source === "live"
-          ? mcpTouchThenSqlitePack(worktree, relFiles).pipe(Effect.map((hybrid) => hybrid.pack))
-          : Effect.try({ try: () => packGraphForFiles(worktree, relFiles), catch: (error) => error })).pipe(
+          ? mcpTouchThenSqlitePack(worktree, union).pipe(Effect.map((hybrid) => hybrid.pack))
+          : Effect.try({ try: () => packGraphForFiles(worktree, union), catch: (error) => error })).pipe(
           Effect.catchCause((cause) => {
             log.warn("summary CodeGraph impact unavailable", {
-              files: relFiles.length,
+              files: union.length,
               source,
               error: Cause.pretty(cause),
             })
@@ -495,9 +552,12 @@ export const layer = Layer.effect(
         if (!pack) return undefined
         const fields = packToImpactFields(pack)
         return {
-          from: source === "cached" ? "codegraph-sqlite-cache" : "tools",
+          // Names where the STRUCTURE came from — the pack's own source. Which FILES were
+          // considered, and by which selection, is `sources`; one string cannot carry both.
+          from: source === "cached" ? "codegraph-sqlite-cache" : "codegraph-mcp",
           to: "summary-range",
-          changedFiles: relFiles.length,
+          changedFiles: union.length,
+          sources: named,
           symbolCountByKind: fields.symbolCountByKind,
           topSymbols: fields.topSymbols,
           impactedFiles: fields.impactedFiles,
@@ -666,10 +726,14 @@ export const layer = Layer.effect(
       // On each tool step, read the index already maintained by CodeGraph. Live
       // refresh belongs to enrichRange's summary cadence; awaiting its MCP queue
       // here blocks the next model request even after read-only tools.
-      const impact =
-        rangeDiffs.length === 0
-          ? undefined
-          : yield* impactForToolFiles(rangeDiffs.map((d) => d.file), "cached")
+      // A range can name NO file in the transcript and still have changed the disk, so the window
+      // is asked whether or not the transcript named anything — the two selections are independent,
+      // and the guard that used to skip this call dropped half the work on the floor when it fired.
+      const impact = yield* impactForRange(
+        { transcript: [...new Set(rangeDiffs.map((d) => d.file))], snapshot: [] },
+        "cached",
+        timeWindow(msgDiffSource),
+      )
       target.info.summary = {
         ...target.info.summary,
         diffs: rangeDiffs,
@@ -721,9 +785,16 @@ export const layer = Layer.effect(
       beforeMessages?: MessageV2.WithParts[]
     }) {
       const tools = collectToolFileDiffs(input.messages)
-      if (snapshot._tag !== "Some") return tools
+      // Provenance is kept HERE, before the merge, because a merged list cannot be labelled
+      // afterwards: `mergeAnchorDiffs` exists so the body reports one diff set, and it is exactly
+      // that flattening that would make «the agent edited this» indistinguishable from «something
+      // committed this in the range». The merged list still goes to the body; the three named
+      // lists go to the impact.
+      const transcript = [...new Set(tools.map((d) => d.file))]
+      const toolsOnly = { diffs: tools, transcript, snapshot: [] as string[] }
+      if (snapshot._tag !== "Some") return toolsOnly
       const from = summaryRangeStartHash(input.messages, input.beforeMessages)
-      if (!from) return tools
+      if (!from) return toolsOnly
       // The range END, not the working copy: `diffFull(from, undefined)` means «anchor → tree right
       // now», which is only correct when the summary genuinely ends at HEAD. A range with no end
       // anchor keeps the old behaviour — and says so, so it is never mistaken for an exact range.
@@ -741,13 +812,17 @@ export const layer = Layer.effect(
           return Effect.succeed(undefined as Snapshot.FileDiff[] | undefined)
         }),
       )
-      if (!anchored) return tools
+      if (!anchored) return toolsOnly
       log.info("summary range diff from snapshot anchors", {
         from: from.slice(0, 12),
         anchored: anchored.length,
         tools: tools.length,
       })
-      return mergeAnchorDiffs(anchored, tools)
+      return {
+        diffs: mergeAnchorDiffs(anchored, tools),
+        transcript,
+        snapshot: [...new Set(anchored.map((d) => d.file))],
+      }
     })
 
     const enrichRange = Effect.fn("SessionSummary.enrichRange")(function* (input: {
@@ -755,21 +830,27 @@ export const layer = Layer.effect(
       messages: MessageV2.WithParts[]
       beforeMessages?: MessageV2.WithParts[]
     }) {
-      const diffs = yield* rangeDiffs({ messages: input.messages, beforeMessages: input.beforeMessages })
-      if (diffs.length === 0) {
-        log.info("enrichRange: no file diffs in range", {
+      const sources = yield* rangeDiffs({ messages: input.messages, beforeMessages: input.beforeMessages })
+      // Same independence as `summarize`: no tool diffs is a statement about the TRANSCRIPT, not
+      // about the window or the anchors, and it used to be the reason no impact was computed at all.
+      const impact = yield* impactForRange(sources, "live", timeWindow(input.messages))
+      if (sources.diffs.length === 0) {
+        log.info("enrichRange: no tool diffs in range — impact from the write window alone", {
           sessionID: input.sessionID,
           rangeMessages: input.messages.length,
+          hasImpact: !!impact,
         })
-        return { diffs: [] as TurnedFileDiff[], impact: undefined }
+        return { diffs: [] as TurnedFileDiff[], impact }
       }
-      const impact = yield* impactForToolFiles(diffs.map((d) => d.file))
-      log.info("enrichRange: range diffs + CodeGraph", {
+      log.info("enrichRange: merged diffs + the three source lists", {
         sessionID: input.sessionID,
-        files: diffs.length,
+        mergedDiffs: sources.diffs.length,
+        transcript: sources.transcript.length,
+        snapshot: sources.snapshot.length,
+        mtime: impact?.sources?.mtime.length ?? 0,
         hasImpact: !!impact,
       })
-      return { diffs, ...(impact ? { impact } : {}) }
+      return { diffs: sources.diffs, ...(impact ? { impact } : {}) }
     })
 
     /**

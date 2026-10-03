@@ -20,7 +20,21 @@ import {
 
 export const CODEGRAPH_MCP_SERVER = "codegraph"
 
-/** True when the worktree has a CodeGraph index (MCP required for live use). */
+/**
+ * True when the worktree has a CodeGraph index (MCP required for live use).
+ *
+ * IT ANSWERS "IS THERE AN INDEX", NOT "IS IT POPULATED", and the two are not the same question.
+ * Measured 2026-10-03 on a data-only project: `.codegraph/codegraph.db` present, `index_state =
+ * complete`, `index_files_discovered = 0`, and `nodes`/`edges`/`files` all empty. This returns
+ * true for it, so every caller proceeds and reads an empty pack, which reads as "this range has
+ * no structure" rather than "this project was never indexed" — and the second reading is the one
+ * that costs a summary its structural half with nothing logged above `debug`.
+ *
+ * An existence check is the right check for the MCP path: the daemon may be about to populate the
+ * index, and a project can legitimately hold no indexable source. A caller that wants the honest
+ * answer asks the pack instead — `callerCount === 0` over a non-empty file list is a hole worth
+ * naming, and the summary selection now logs its counts so the hole is visible when it happens.
+ */
 export function hasCodegraphIndex(worktree: string): boolean {
   return existsSync(getCodegraphDbPath(worktree)) || existsSync(path.join(worktree, ".codegraph"))
 }

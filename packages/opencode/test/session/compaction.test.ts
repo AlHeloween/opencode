@@ -45,6 +45,65 @@ Log.init()
 // shares the load profile, and whack-a-mole per test only moves the boundary.
 setDefaultTimeout(20_000)
 
+describe("session.compaction.impact-source-lists", () => {
+  // A reader of a Layer-1 summary cannot interpret `files=N` without knowing WHICH selection
+  // produced those N, and each selection is blind to something the others see. So the block has to
+  // name every source that contributed AND say what that source can see. Dropping one is not a
+  // formatting regression: it turns a zero into an uninterpretable one.
+  const display = (impact?: Snapshot.ImpactSummary) =>
+    SessionCompaction.formatLayer1SummaryDisplay({
+      checkpointID: "ckpt_1",
+      fromID: "msg_a",
+      toID: "msg_b",
+      sessionID: "ses_1",
+      body: "## Current state\nx",
+      diffs: [],
+      ...(impact ? { impact } : {}),
+    })
+
+  test("names each source that contributed, and what that source can see", () => {
+    const block = display({
+      from: "codegraph-mcp",
+      to: "summary-range",
+      changedFiles: 4,
+      sources: { transcript: ["a.ts", "b.ts"], snapshot: ["c.ts"], mtime: ["d.ts"] },
+      symbolCountByKind: {},
+      topSymbols: [],
+      impactedFiles: [],
+      callerCount: 0,
+    })
+    expect(block).toContain("transcript: 2")
+    expect(block).toContain("snapshot: 1")
+    expect(block).toContain("mtime: 1")
+    // The captions are the point: they are what makes a zero readable as «this source saw none»
+    // rather than as «this source was not asked».
+    expect(block).toContain("reads included")
+    expect(block).toContain("snapshot anchors")
+    expect(block).toContain("WRITTEN on disk")
+    // And the union count is declared as one, so the lists can be checked against it.
+    expect(block).toContain("files=4 (union of the lists below)")
+  })
+
+  test("an absent source is omitted, and no index is named as what it is", () => {
+    // A row written before the field existed must still render — and must not invent empty lists.
+    const legacy = display({
+      from: "tools",
+      to: "summary-range",
+      changedFiles: 1,
+      symbolCountByKind: {},
+      topSymbols: [],
+      impactedFiles: [],
+      callerCount: 0,
+    })
+    expect(legacy).toContain("codegraph: files=1")
+    expect(legacy).not.toContain("transcript:")
+
+    // «No index» and «the range selected nothing» are different facts, and neither may read as
+    // «this work had no structural impact».
+    expect(display(undefined)).toContain("no .codegraph index")
+  })
+})
+
 // --- planState mirror: sidecar → m* fold (GATED WORKFLOW post-compact pickup) ---
 
 describe("session.compaction planState mirror", () => {

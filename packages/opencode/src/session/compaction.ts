@@ -137,9 +137,25 @@ export function formatLayer1SummaryDisplay(input: {
           ...(input.diffs.length > 12 ? [`- … +${input.diffs.length - 12} more`] : []),
         ].join("\n")
       : "tool_diff_files: 0"
+  // THREE LISTS, EACH NAMED — this block is read by the agent that inherits the range, and a bare
+  // `changed_files` cannot say WHICH of the three produced them. Each source is blind to something
+  // the others see, so the caption is not decoration: it is what makes a zero interpretable
+  // («the window found nothing» and «the window was not asked» are different facts).
+  const IMPACT_SOURCE_MEANING: Record<string, string> = {
+    transcript: "files this session's TOOLS touched — reads included, so a file that was only read still counts",
+    snapshot: "files the snapshot anchors changed between this range's boundaries — any writer, committed",
+    mtime: "files WRITTEN on disk while this range ran — any writer, including one that left no anchor and no tool entry",
+  }
   const impactLine = input.impact
-    ? `codegraph: changed_files=${input.impact.changedFiles}; callers=${input.impact.callerCount}`
-    : "codegraph: none"
+    ? [
+        `codegraph: files=${input.impact.changedFiles} (union of the lists below); callers=${input.impact.callerCount}`,
+        ...(["transcript", "snapshot", "mtime"] as const).flatMap((key) => {
+          const files = input.impact?.sources?.[key]
+          if (!files || files.length === 0) return []
+          return [`  ${key}: ${files.length} — ${IMPACT_SOURCE_MEANING[key]}`, ...files.slice(0, 6).map((f) => `    - ${f}`), ...(files.length > 6 ? [`    - … +${files.length - 6} more`] : [])]
+        }),
+      ].join("\n")
+    : "codegraph: none — no .codegraph index for this worktree, or the range selected no files"
   const planStateBlock = input.planState
     ? ["### Plan state (GATED WORKFLOW)", ...(formatPlanStateText(input.planState) ?? "").split("\n")].join("\n")
     : undefined

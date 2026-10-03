@@ -108,7 +108,8 @@ def test_codex_variant_stays_within_explicit_budget() -> None:
     # tighter gate.
     # 7_000 -> 7_500 (2026-09-29): tracks the product token ceiling (test_dedup.py), same decision.
     # 7_500 -> 7_700 (2026-09-29): tracks the product token ceiling (test_dedup.py), same decision.
-    assert normalized_token_count(text) <= 7_700
+    # 7_700 -> 7_850 (2026-10-03): tracks the product token ceiling (test_dedup.py), same decision; measured 7_818.
+    assert normalized_token_count(text) <= 7_850
 
 
 def test_codex_addon_render_is_deterministic_lf() -> None:

@@ -48,3 +48,21 @@ open, «defect» invited a repair. Round 3 — «root marker» bound to the `fos
 closed list, live-file reads outside fossil uncovered, «never repair» could halt the task, «NOT a VCS» factually
 arguable. Round 4 — «them» covered the folder but not the files under it, `-R` is not read-only, a «copy» could be
 made by moving the original. Rounds stopped at 4: the incident-shaped holes closed; the remaining findings were style.
+
+## Amendment 2026-10-03 (later) — G1 add-on `PROJECT_LAYOUT` (all three variants)
+
+- production `3a70508b…` (prev `d4cfef5e…`), 58 643 B / 7 783 tok; Claude `9002f460…` 58 886 B / 7 934 tok; codex
+  `8c7c30c3…` 58 176 B / 7 818 tok. Caps (owner: «Поднять лимиты»): product + codex tokens 7 700 → 7 850, Claude
+  7 800 → 7 950, `utf8_budget` 58 000 → 59 000; the G0+G1 section cap 5 600 → 6 100 B (owner's choice; measured 6 073)
+- evidence: `experiments/2026-10-03_kernel-layout/` (three frameless-Sonnet rounds, $0.135)
+
+| rule | where | the case that produced it |
+|---|---|---|
+| «project layout (paths from the repo root; an item the project's own AGENTS.md places elsewhere is read there instead): AGENTS.md … plans/ … _progress_log.md … docs/ indexed by docs/README.md; scripts/ = build, run and maintenance scripts; experiments/ … external/ = third-party copies, never edit; .temp/ … Before building, running or scripting the project, read docs/README.md and OPEN the scripts in scripts/ that fit the task: an existing procedure is reused, never re-invented …» | G1 add-on `PROJECT_LAYOUT` | owner: the layout belongs in the add-ons «чтобы не гессить в новом проекте», nothing opencode-specific in it; the same day a robot asked to build read neither docs nor scripts and invented a build («Скрипты не проверил»). |
+
+Falsifier dispositions: round 1 — «created at first need» clashed with «never invented» for content files, «→» read
+as a pipeline over three terminal states, no precedence for a project's own conventions, «untracked» meant git.
+Round 2 — an AGENTS.md override must move one item, not the layout; «canon», «maintained», «read-only» were
+ambiguous; create lazily, not scaffold. Round 3 — «read scripts/» was satisfiable by a directory listing (the
+incident's own shape) → «OPEN the scripts that fit the task»; an absent docs/README.md is nothing to read, not a file
+to create. Stopped at 3: the rest was style.

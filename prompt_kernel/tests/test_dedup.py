@@ -170,4 +170,7 @@ def test_compacted_runtime_budget() -> None:
     # 7_500 -> 7_700 (2026-09-29, owner: «Все 10 + токены 7 700»): frameless-Sonnet round 6 — five behavioural
     # gaps (a flaky outcome looping re-grounding, «test first» read as licence to weaken, tier 3/4 bug and G8
     # dead ends, a contradicted-but-unchanged premise) and five wording fixes; claude variant was at 7_485.
-    assert normalized_token_count(text) <= 7_700
+    # 7_700 -> 7_850 (2026-10-03, owner: «Поднять лимиты»): the G1 add-ons VCS_ROLES (git = the VCS, Fossil = the
+    # runtime's undo/redo store) and PROJECT_LAYOUT (where to read; reuse scripts/ before inventing a procedure);
+    # measured 7_783. Raised together with both variants so the relation holds.
+    assert normalized_token_count(text) <= 7_850

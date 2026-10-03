@@ -123,7 +123,9 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # 7_708 -> 7_800 (2026-10-03, owner's choice): the G1 VCS_ROLES binding (git = the VCS, Fossil = the runtime's
     # undo/redo store, never altered by hand) after four frameless-Sonnet rounds; measured 7_794, bytes 57_930 / 58_000.
     # Product 7_643 and codex 7_678 stay under their 7_700 — the product ceiling did not move.
-    assert normalized_token_count(text) <= 7_800
+    # 7_800 -> 7_950 (2026-10-03, owner: «Поднять лимиты»): the G1 PROJECT_LAYOUT binding; measured 7_934, the
+    # product moved 7_700 -> 7_850 in the same decision.
+    assert normalized_token_count(text) <= 7_950
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

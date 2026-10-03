@@ -6189,3 +6189,13 @@ installed product d4cfef5e… (baseline repinned by hand, prev 5b609132…), cla
 off — `.claude/` writes are denied inside it), codex 3337a61a… → ~/.codex/AGENTS.md. Staged by file: the tree also
 carries another writer's uncommitted edits (AGENTS.md, session/*, snapshot/index.ts, codegraph/*) — not touched.
 Running binaries pick the product change up only after the owner's build + promotion.
+
+## [2026-10-03] kernel: G1 add-on PROJECT_LAYOUT — where to read; open scripts/ before inventing a build
+Owner: layout rules belong in the kernel add-ons «чтобы не гессить в новом проекте», opencode-specific things stay
+out; scripts/ and external/ added on his word; VCS_ROLES stays in all variants («Вообще везде»). Trigger the same
+day: a robot invented a build without reading docs or scripts. Three frameless-Sonnet rounds ($0.135,
+experiments/2026-10-03_kernel-layout/). Caps raised on his choice (tokens 7 850 / 7 950, bytes 59 000, G0+G1 6 100 B).
+DEVIATION recorded: I installed before the suite was green — test_pre_action_section_stays_small was red (6 073 >
+5 600); the owner then chose the raise. Installed product 3a70508b… (baseline repinned by hand), claude 9002f460…,
+codex 8c7c30c3… (~/.codex/AGENTS.md, global). pytest prompt_kernel 122 passed ✓ after. ADID's claude.candidate is
+stale again (3c1b9172…).

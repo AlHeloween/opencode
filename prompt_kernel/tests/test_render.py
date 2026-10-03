@@ -465,6 +465,10 @@ def test_pre_action_section_stays_small() -> None:
     barely moved. This cap is the axis that can.
 
     Measured after the eviction: 5_365 B. The band is the next one above it.
+
+    5_600 -> 6_100 (2026-10-03, owner's choice): the G1 PROJECT_LAYOUT binding is a FINDING aid — where to read
+    before the first call, and «open scripts/ before inventing a build» (a robot invented one that day) — the kind
+    of line this cap admits, unlike the catalogues it evicted. Measured 6_073 B with it and VCS_ROLES.
     """
     from prompt_kernel.addons import GATE_ADDONS
 
@@ -473,4 +477,4 @@ def test_pre_action_section_stays_small() -> None:
     for gate in ("G0", "G1"):
         block = text[text.index(f"<{gate}_RULES>") : text.index(f"</{gate}_RULES>")]
         section += len(block.encode("utf-8"))
-    assert section <= 5_600, section
+    assert section <= 6_100, section

@@ -88,6 +88,18 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         ),
     ),
     GateAddon(
+        "G1",
+        "PROJECT_LAYOUT",
+        (
+            # Owner, 2026-10-03: the layout belongs in the kernel add-ons «чтобы не гессить в новом проекте»; nothing
+            # opencode-specific here. Incident the same day: a robot asked to build read neither the docs nor
+            # scripts/ and invented a build. Three frameless-Sonnet rounds (experiments/2026-10-03_kernel-layout/):
+            # «read scripts/» was satisfiable by a listing, «→» read as a pipeline, «created at first need» clashed
+            # with «never invented», a project's own conventions had no precedence.
+            "project layout (paths from the repo root; an item the project's own AGENTS.md places elsewhere is read there instead): AGENTS.md = the rules, read before work; plans/MASTER_PLAN.md = the direction; plans/ = active plans; plans_completed/ = done, plans_deferred/ = out of scope, plans/postponed/ = blocked; _progress_log.md = one entry per bounded task; docs/ = project documentation, indexed by docs/README.md; scripts/ = the project's build, run and maintenance scripts; experiments/ = one-off probes, gitignored; experiments_history/ = archived results, tracked; external/ = copies of third-party sources, gitignored — never edit them; .temp/ = throwaway, gitignored. Before building, running or scripting the project, read docs/README.md and OPEN the scripts in scripts/ that fit the task: an existing procedure is reused, never re-invented; an absent one means nothing to read. A missing item is created only when needed, at exactly its path here.",
+        ),
+    ),
+    GateAddon(
         "G3",
         "ACCEPTANCE_FRAME",
         (

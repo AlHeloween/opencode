@@ -36,7 +36,7 @@ describe("tool.edit — the TOOL's schema carries the batch, and the address rid
 
   test("an entry carrying a list of addresses decodes — the shape `read` feeds", () => {
     expect(() =>
-      decode({ files: [{ filePath: "x.txt", edits: [{ fromHash: "00000000", newString: "NEW" }] }] }),
+      decode({ files: [{ filePath: "x.txt", edits: [{ insertAfter: "00000000", newString: "NEW" }] }] }),
     ).not.toThrow()
     expect(() =>
       decode({
@@ -74,27 +74,55 @@ describe("tool.edit — a list of addresses, resolved then applied", () => {
   test("replaces a span by its two hashes and leaves the rest byte-identical", () => {
     const content = "alpha\nbeta\ngamma\ndelta\n"
     const h = labels(content)
-    // `fromHash` names the line BEFORE the span, `toHash` its LAST line: lines 2..3 here.
-    expect(resolveEdits(content, [{ fromHash: h[1]!, toHash: h[3]!, newString: "X" }])).toBe("alpha\nX\ndelta\n")
+    // INCLUSIVE (plan 2026-10-04_edit-inclusive-span): `fromHash` is the span's FIRST line, `toHash` its LAST —
+    // the hashes `read` prints beside the very lines being changed. Lines 2..3 here.
+    expect(resolveEdits(content, [{ fromHash: h[2]!, toHash: h[3]!, newString: "X" }])).toBe("alpha\nX\ndelta\n")
   })
 
-  test("`toHash` absent means ONE line, and the seed `00000000` addresses the first", () => {
+  test("`toHash` absent means ONE line — the line whose own hash is `fromHash`", () => {
     const content = "alpha\nbeta\n"
     const h = labels(content)
-    expect(h[0]).toBe("00000000")
-    expect(resolveEdits(content, [{ fromHash: h[0]!, newString: "FIRST" }])).toBe("FIRST\nbeta\n")
-    expect(resolveEdits(content, [{ fromHash: h[1]!, newString: "SECOND" }])).toBe("alpha\nSECOND\n")
+    expect(resolveEdits(content, [{ fromHash: h[1]!, newString: "FIRST" }])).toBe("FIRST\nbeta\n")
+    expect(resolveEdits(content, [{ fromHash: h[2]!, newString: "SECOND" }])).toBe("alpha\nSECOND\n")
+  })
+
+  test("REGRESSION 2026-10-04: `toHash` equal to `fromHash` REPLACES that line — it never inserts beside it", () => {
+    // The ClientSoft robots passed `fromHash = toHash = X` meaning «from X to X» and got X twice (the old
+    // contract read it as an insertion). The natural reading is now the contract.
+    const content = "a\nb\nc\n"
+    const h = labels(content)
+    expect(resolveEdits(content, [{ fromHash: h[2]!, toHash: h[2]!, newString: "b\nb2" }])).toBe("a\nb\nb2\nc\n")
+  })
+
+  test("REGRESSION 2026-10-04: the hash printed beside a line changes THAT line, never its neighbour", () => {
+    // The shader case: the robot passed the hashes beside the line it meant and the old contract (line BEFORE
+    // the span) deleted the line above. Here the span 2..2 is named by line 2's own hash and line 1 survives.
+    const content = "vec3 c;\nfloat l=0.35;\no=c*l;\n"
+    const h = labels(content)
+    expect(resolveEdits(content, [{ fromHash: h[2]!, newString: "float l=0.55;" }])).toBe(
+      "vec3 c;\nfloat l=0.55;\no=c*l;\n",
+    )
+  })
+
+  test("the seed `00000000` is no line — as `fromHash` it is refused, pointing at `insertAfter`", () => {
+    expect(() => resolveEdits("alpha\n", [{ fromHash: "00000000", newString: "X" }])).toThrow(/insertAfter/)
+  })
+
+  test("an entry is a span OR an insertion: both or neither is refused, naming the two forms", () => {
+    const h = labels("alpha\n")
+    expect(() => resolveEdits("alpha\n", [{ fromHash: h[1]!, insertAfter: h[1]!, newString: "X" }])).toThrow(
+      /fromHash.*insertAfter|insertAfter.*fromHash/,
+    )
+    expect(() => resolveEdits("alpha\n", [{ newString: "X" }])).toThrow(/fromHash.*insertAfter|insertAfter.*fromHash/)
   })
 
   test("the whole point: identical lines are addressable INDIVIDUALLY", () => {
     const content = "same\nsame\nsame\n"
     const h = labels(content)
-    // `fromHash` is the label of the line BEFORE the span, so naming line 2 means passing LINE 1's label. My
-    // first version of this expectation passed `h[2]` — line 2's OWN label — and the code correctly moved line
-    // 3, because that is what «the line after this one» means. The test was wrong, not the contract.
-    expect(resolveEdits(content, [{ fromHash: h[1]!, newString: "MIDDLE" }])).toBe("same\nMIDDLE\nsame\n")
+    // Line 2 is named by LINE 2's own label — the chain makes it unique although its text is not.
+    expect(resolveEdits(content, [{ fromHash: h[2]!, newString: "MIDDLE" }])).toBe("same\nMIDDLE\nsame\n")
     // Both halves of the owner's «хеш старта хеш конца»: the pair names the same single line explicitly.
-    expect(resolveEdits(content, [{ fromHash: h[1]!, toHash: h[2]!, newString: "MIDDLE" }])).toBe(
+    expect(resolveEdits(content, [{ fromHash: h[2]!, toHash: h[2]!, newString: "MIDDLE" }])).toBe(
       "same\nMIDDLE\nsame\n",
     )
     // …while the two neighbours — IDENTICAL to it — stay untouched, which a content anchor could never do.
@@ -113,8 +141,8 @@ describe("tool.edit — a list of addresses, resolved then applied", () => {
     const h = labels(content)
     expect(() =>
       resolveEdits(content, [
-        { fromHash: h[0]!, newString: "A" },
-        { fromHash: h[0]!, newString: "B" },
+        { fromHash: h[1]!, newString: "A" },
+        { fromHash: h[1]!, newString: "B" },
       ]),
     ).toThrow(/claim line/)
   })
@@ -126,8 +154,8 @@ describe("tool.edit — a list of addresses, resolved then applied", () => {
     // top-down, entry 2 would land one line late — which is exactly the failure this order removes.
     expect(
       resolveEdits(content, [
-        { fromHash: h[1]!, newString: "SECOND-A\nSECOND-B" },
-        { fromHash: h[2]!, newString: "THIRD" },
+        { fromHash: h[2]!, newString: "SECOND-A\nSECOND-B" },
+        { fromHash: h[3]!, newString: "THIRD" },
       ]),
     ).toBe("one\nSECOND-A\nSECOND-B\nTHIRD\n")
   })
@@ -150,65 +178,66 @@ describe("tool.edit — the span's edges: deletion, the final terminator, insert
   test("an empty `newString` DELETES the span — no blank line is left behind", () => {
     const content = "a\nb\nc\n"
     const h = labels(content)
-    expect(resolveEdits(content, [{ fromHash: h[1]!, newString: "" }])).toBe("a\nc\n")
-    expect(resolveEdits(content, [{ fromHash: h[0]!, toHash: h[3]!, newString: "" }])).toBe("")
+    expect(resolveEdits(content, [{ fromHash: h[2]!, newString: "" }])).toBe("a\nc\n")
+    expect(resolveEdits(content, [{ fromHash: h[1]!, toHash: h[3]!, newString: "" }])).toBe("")
     // Deleting an UNTERMINATED last line keeps the file's final form: it still ends without a terminator.
     const bare = "a\nb"
-    expect(resolveEdits(bare, [{ fromHash: labels(bare)[1]!, newString: "" }])).toBe("a")
+    expect(resolveEdits(bare, [{ fromHash: labels(bare)[2]!, newString: "" }])).toBe("a")
   })
 
   test("ONE trailing terminator is the last line's own: «B» and «B\\n» are the same line, «\\n» is a blank one", () => {
     const content = "a\nb\nc\n"
     const h = labels(content)
-    expect(resolveEdits(content, [{ fromHash: h[1]!, newString: "B\n" }])).toBe("a\nB\nc\n")
-    expect(resolveEdits(content, [{ fromHash: h[1]!, newString: "B" }])).toBe("a\nB\nc\n")
-    expect(resolveEdits(content, [{ fromHash: h[1]!, newString: "\n" }])).toBe("a\n\nc\n")
+    expect(resolveEdits(content, [{ fromHash: h[2]!, newString: "B\n" }])).toBe("a\nB\nc\n")
+    expect(resolveEdits(content, [{ fromHash: h[2]!, newString: "B" }])).toBe("a\nB\nc\n")
+    expect(resolveEdits(content, [{ fromHash: h[2]!, newString: "\n" }])).toBe("a\n\nc\n")
   })
 
   test("the ORIGINAL decides the final terminator — an unterminated last line stays unterminated", () => {
     const content = "a\nb"
     const h = labels(content)
-    expect(resolveEdits(content, [{ fromHash: h[1]!, newString: "B\n" }])).toBe("a\nB")
+    expect(resolveEdits(content, [{ fromHash: h[2]!, newString: "B\n" }])).toBe("a\nB")
   })
 
-  test("`toHash` equal to `fromHash` is the EMPTY span after that line: an insertion", () => {
+  test("`insertAfter` is the EMPTY span after that line: an insertion; the seed inserts before line 1", () => {
     const content = "a\nc\n"
     const h = labels(content)
-    expect(resolveEdits(content, [{ fromHash: h[1]!, toHash: h[1]!, newString: "b" }])).toBe("a\nb\nc\n")
-    expect(resolveEdits(content, [{ fromHash: h[0]!, toHash: h[0]!, newString: "first" }])).toBe("first\na\nc\n")
+    expect(resolveEdits(content, [{ insertAfter: h[1]!, newString: "b" }])).toBe("a\nb\nc\n")
+    expect(resolveEdits(content, [{ insertAfter: h[0]!, newString: "first" }])).toBe("first\na\nc\n")
   })
 
   test("appending after the LAST line keeps the file's own final form, terminated or not", () => {
     const terminated = "a\nb\n"
     const t = labels(terminated)
-    expect(resolveEdits(terminated, [{ fromHash: t[2]!, toHash: t[2]!, newString: "c" }])).toBe("a\nb\nc\n")
+    expect(resolveEdits(terminated, [{ insertAfter: t[2]!, newString: "c" }])).toBe("a\nb\nc\n")
     const bare = "a\nb"
     const b = labels(bare)
-    expect(resolveEdits(bare, [{ fromHash: b[2]!, toHash: b[2]!, newString: "c" }])).toBe("a\nb\nc")
+    expect(resolveEdits(bare, [{ insertAfter: b[2]!, newString: "c" }])).toBe("a\nb\nc")
     // A ONE-line file without any break has no ending to copy — and the append must still not GLUE the lines.
     const single = "a"
     const s = labels(single)
-    expect(resolveEdits(single, [{ fromHash: s[1]!, toHash: s[1]!, newString: "c" }])).toBe("a\nc")
+    expect(resolveEdits(single, [{ insertAfter: s[1]!, newString: "c" }])).toBe("a\nc")
   })
 
   test("the address cannot reach past the last line: no phantom line after the final terminator", () => {
     const content = "a\nb\n"
     const h = labels(content)
-    expect(() => resolveEdits(content, [{ fromHash: h[2]!, newString: "c" }])).toThrow(/past the end/)
+    // h[3] is the label of the phantom "" after the final terminator — `read` prints no such line.
+    expect(() => resolveEdits(content, [{ fromHash: h[3]!, newString: "c" }])).toThrow(/not in this file/)
   })
 
   test("an empty file takes an insertion at the seed, written as sent — there is no original to copy", () => {
-    expect(resolveEdits("", [{ fromHash: "00000000", toHash: "00000000", newString: "x\n" }])).toBe("x\n")
+    expect(resolveEdits("", [{ insertAfter: "00000000", newString: "x\n" }])).toBe("x\n")
   })
 
   test("the agent's endings are fitted to the file's MAJORITY ending; the last line keeps the original's", () => {
     const crlf = "a\r\nb\r\n"
     const c = labels(crlf)
-    expect(resolveEdits(crlf, [{ fromHash: c[0]!, newString: "X\nY" }])).toBe("X\r\nY\r\nb\r\n")
+    expect(resolveEdits(crlf, [{ fromHash: c[1]!, newString: "X\nY" }])).toBe("X\r\nY\r\nb\r\n")
     // Mostly LF with one CRLF line: the new internal break is LF, and the replaced line's own CRLF survives.
     const mixed = "a\r\nb\nc\nd\n"
     const m = labels(mixed)
-    expect(resolveEdits(mixed, [{ fromHash: m[0]!, newString: "X\r\nY" }])).toBe("X\nY\r\nb\nc\nd\n")
+    expect(resolveEdits(mixed, [{ fromHash: m[1]!, newString: "X\r\nY" }])).toBe("X\nY\r\nb\nc\nd\n")
   })
 
   test("two insertions at one point, or an insertion where a span starts, are refused — no defined order", () => {
@@ -216,14 +245,14 @@ describe("tool.edit — the span's edges: deletion, the final terminator, insert
     const h = labels(content)
     expect(() =>
       resolveEdits(content, [
-        { fromHash: h[1]!, toHash: h[1]!, newString: "x" },
-        { fromHash: h[1]!, toHash: h[1]!, newString: "y" },
+        { insertAfter: h[1]!, newString: "x" },
+        { insertAfter: h[1]!, newString: "y" },
       ]),
     ).toThrow(/claim line/)
     expect(() =>
       resolveEdits(content, [
-        { fromHash: h[1]!, toHash: h[1]!, newString: "x" },
-        { fromHash: h[1]!, newString: "B" },
+        { insertAfter: h[1]!, newString: "x" },
+        { fromHash: h[2]!, newString: "B" },
       ]),
     ).toThrow(/claim line/)
   })
@@ -231,6 +260,6 @@ describe("tool.edit — the span's edges: deletion, the final terminator, insert
   test("a `toHash` ABOVE `fromHash` is still an inverted range", () => {
     const content = "a\nb\nc\n"
     const h = labels(content)
-    expect(() => resolveEdits(content, [{ fromHash: h[2]!, toHash: h[1]!, newString: "x" }])).toThrow(/inverted/)
+    expect(() => resolveEdits(content, [{ fromHash: h[3]!, toHash: h[2]!, newString: "x" }])).toThrow(/inverted/)
   })
 })

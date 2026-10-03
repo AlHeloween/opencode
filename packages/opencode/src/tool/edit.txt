@@ -6,7 +6,7 @@ Change files by the line addresses `read` printed. **MODIFY / PERSISTENT_WRITE /
 {
   "files": [
     { "filePath": "src/a.ts", "edits": [{ "fromHash": "3f19c2ea", "toHash": "9c0be411", "newString": "new lines" }] },
-    { "filePath": "src/b.ts", "edits": [{ "fromHash": "00000000", "newString": "new line 1" }] },
+    { "filePath": "src/b.ts", "edits": [{ "insertAfter": "00000000", "newString": "new line 1" }] },
     { "filePath": "src/new.ts", "content": "a file that does not exist yet\n" }
   ]
 }
@@ -16,15 +16,19 @@ One change is a list of one — there is no other form. Each file appears ONCE; 
 
 ## The address
 
-`read` prints `470  3f19c2ea: text`. The hash is a chain over the file up to that line, so it pins the FILE, not just a line number.
+`read` prints `470  3f19c2ea: text`. The hash is a chain over the file up to that line, so it pins the FILE, not just a line number. **Use the hash printed beside the line you mean** — the address is the lines themselves.
 
-| You want | `fromHash` | `toHash` |
-|---|---|---|
-| replace lines A..B | hash of the line BEFORE A (`00000000` before line 1) | hash of B |
-| replace one line | hash of the line before it | omit |
-| insert after line X | hash of X | the same hash of X |
+| You want | entry |
+|---|---|
+| replace lines A..B | `{ "fromHash": hash of A, "toHash": hash of B, "newString": … }` |
+| replace one line A | `{ "fromHash": hash of A, "newString": … }` |
+| delete lines A..B | `{ "fromHash": hash of A, "toHash": hash of B, "newString": "" }` |
+| insert after line X | `{ "insertAfter": hash of X, "newString": … }` |
+| insert before line 1 | `{ "insertAfter": "00000000", "newString": … }` |
 
-- `newString` is the new lines. `""` deletes the span. A trailing line break is optional: the last line ends as the replaced one did.
+- `fromHash`..`toHash` is inclusive: both lines are replaced, and everything between them. `newString` must therefore carry every line you want to KEEP from that span.
+- An entry is a replacement (`fromHash`) OR an insertion (`insertAfter`) — never both.
+- `newString` is the new lines. A trailing line break is optional: the last line ends as the replaced one did.
 - **No address resolves, nothing is written — in any file.** Every entry of every file is checked against the files as you read them before anything is saved. There is no fuzzy match: a stale hash means *read again*.
 
 ## Endings and encodings
@@ -44,6 +48,6 @@ LSP diagnostics per file; the project formatter runs and the file keeps its enco
 | Parameter | Description |
 |---|---|
 | `files[].filePath` | The file to change. |
-| `files[].edits` | `[{ fromHash, toHash?, newString }]` — every change to this file. |
+| `files[].edits` | `[{ fromHash, toHash?, newString }]` or `[{ insertAfter, newString }]` — every change to this file. |
 | `files[].content` | Create a NEW file instead; refused if it exists. |
 | `files[].encoding` | Code page of a legacy file, as passed to `read` (default: the host's). |

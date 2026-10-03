@@ -18,7 +18,8 @@ import DESCRIPTION from "./multiedit.txt"
 export function multiEditRetired(): string {
   return (
     "multiedit is RETIRED. Use `edit` with a list of addressed changes: " +
-    "`edits: [{ fromHash, toHash?, newString }]`, the hashes `read` printed."
+    "`edits: [{ fromHash, toHash?, newString }]` (the first and last line you replace) or " +
+    "`[{ insertAfter, newString }]`, the hashes `read` printed beside those lines."
   )
 }
 

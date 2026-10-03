@@ -146,11 +146,18 @@ function withFileLocks<A, E, R>(filePaths: string[], effect: Effect.Effect<A, E,
  * content as it was READ, so no entry has to survive an intermediate state. It is also what makes ONE tool with
  * a list atomic by construction rather than by compensation: nothing is written until every entry has resolved.
  *
- * The address is a PAIR. `fromHash` is the hash of the line BEFORE the span — the seed `00000000` names the
- * state before line 1, so the first line is addressable like any other — and `toHash` is the hash of the span's
- * LAST line; `toHash` absent means a single line, and `toHash` EQUAL to `fromHash` names the empty span after
- * that line — an insertion, which is also how a line is appended at the end. Both must exist in the current
- * chain or the call is REFUSED: nothing lands approximately, and nothing is guessed.
+ * The address is INCLUSIVE (plan 2026-10-04_edit-inclusive-span): `fromHash` is the hash of the span's FIRST
+ * line and `toHash` of its LAST — the very hashes `read` prints beside the lines being changed; `toHash` absent
+ * or EQUAL to `fromHash` means that one line. An insertion is its own form, `insertAfter` (the seed `00000000`
+ * names the state before line 1), which is also how a line is appended at the end. An entry carries exactly
+ * one of `fromHash` / `insertAfter`. Every hash must exist in the current chain or the call is REFUSED:
+ * nothing lands approximately, and nothing is guessed.
+ *
+ * WHY INCLUSIVE (owner, 2026-10-04: «модель ошибаться не может - само описание edit значит кривое»). The old
+ * pair named the line BEFORE the span and read `fromHash == toHash` as an insertion. Both readings a model
+ * naturally makes («the hash beside the line I change», «from X to X») were VALID addresses of a DIFFERENT
+ * span, so a miss was never refused — it landed one line off or duplicated a line (measured on the ClientSoft
+ * robots the same day). The address now means what it looks like.
  *
  * THE SPAN'S EDGES (H9c — owner, 2026-10-01: «от хеша - до хеша вставляем что отправил агент», the final
  * terminator «проверить как было в оригинале и не выдумывать»). A span is whole lines WITH their terminators.
@@ -158,7 +165,7 @@ function withFileLocks<A, E, R>(filePaths: string[], effect: Effect.Effect<A, E,
  * ORIGINAL span's last line had, so «B» and «B\n» are the same line and nothing is glued or lost; `""` is zero
  * lines, a deletion. Every other new line takes the file's MAJORITY `ending`, so an edit adds no mixing.
  */
-export type EditAddress = { fromHash: string; toHash?: string; newString: string }
+export type EditAddress = { fromHash?: string; toHash?: string; insertAfter?: string; newString: string }
 
 type Line = { text: string; eol: string }
 
@@ -196,31 +203,43 @@ export function resolveEdits(
 
   const spans = edits.map((edit, index) => {
     const at = (what: string) => `edit ${index + 1}: ${what}`
-    const parsedFrom = parseHash(edit.fromHash)
-    if (parsedFrom === undefined) {
-      throw new Error(at(`\`fromHash\` is not an 8-hex address: ${JSON.stringify(edit.fromHash)}`))
-    }
-    // `fromHash` names the line BEFORE the span, so the seed resolves to "before line 1".
-    const before = edit.fromHash === seed ? -1 : chain.indexOf(parsedFrom)
-    if (edit.fromHash !== seed && before === -1) {
-      throw new Error(
-        at("`fromHash` is not in this file — the address drifted, or the file changed since it was read") +
+    const drifted = (field: string) =>
+      new Error(
+        at(`\`${field}\` is not in this file — the address drifted, or the file changed since it was read`) +
           ". Re-read and pass the current hashes.",
       )
+    // The line a hash names, or a refusal. `allowSeed`: only an insertion may name the state before line 1.
+    const lineOf = (field: string, hash: string, allowSeed: boolean) => {
+      const parsed = parseHash(hash)
+      if (parsed === undefined) throw new Error(at(`\`${field}\` is not an 8-hex address: ${JSON.stringify(hash)}`))
+      if (hash === seed) {
+        if (allowSeed) return -1
+        throw new Error(at(`\`${field}\` 00000000 is no line — to insert before line 1 pass \`insertAfter: "00000000"\``))
+      }
+      const found = chain.indexOf(parsed)
+      if (found === -1) throw drifted(field)
+      return found
     }
-    const start = before + 1
-
-    const parsedTo = edit.toHash === undefined ? undefined : parseHash(edit.toHash)
-    if (edit.toHash !== undefined && parsedTo === undefined) {
-      throw new Error(at(`\`toHash\` is not an 8-hex address: ${JSON.stringify(edit.toHash)}`))
+    const isSpan = edit.fromHash !== undefined
+    const isInsertion = edit.insertAfter !== undefined
+    if (isSpan === isInsertion) {
+      throw new Error(
+        at(
+          "pass EITHER `fromHash` (+ optional `toHash`) to replace the lines from..to, OR `insertAfter` to insert after a line — " +
+            (isSpan ? "not both" : "one of them is required"),
+        ),
+      )
     }
-    // `toHash` equal to `fromHash` — the seed included — names the EMPTY span after that line: end = start - 1.
-    const end = parsedTo === undefined ? start : edit.toHash === seed ? -1 : chain.indexOf(parsedTo)
-    if (edit.toHash !== undefined && edit.toHash !== seed && end === -1) {
-      throw new Error(at("`toHash` is not in this file — the address drifted") + ". Re-read and pass the current hashes.")
+    if (isInsertion) {
+      if (edit.toHash !== undefined) throw new Error(at("`toHash` belongs to a span — an insertion has only `insertAfter`"))
+      // The EMPTY span after that line: end = start - 1.
+      const start = lineOf("insertAfter", edit.insertAfter!, true) + 1
+      return { start, end: start - 1, replacement: edit.newString }
     }
-    if (end < start - 1) throw new Error(at("`toHash` precedes `fromHash` — an inverted range"))
-    if (end >= lines.length) throw new Error(at("the address runs past the end of the file"))
+    // INCLUSIVE: `fromHash` IS the first line, `toHash` the last; absent or equal = that one line.
+    const start = lineOf("fromHash", edit.fromHash!, false)
+    const end = edit.toHash === undefined ? start : lineOf("toHash", edit.toHash, false)
+    if (end < start) throw new Error(at("`toHash` precedes `fromHash` — an inverted range"))
     return { start, end, replacement: edit.newString }
   })
 
@@ -280,17 +299,21 @@ const FileChange = Schema.Struct({
   edits: Schema.optional(
     Schema.Array(
       Schema.Struct({
-        fromHash: Schema.String.annotate({
+        fromHash: Schema.optional(Schema.String).annotate({
           description:
-            "The address of the line BEFORE the span: the hash `read` printed for the line just above the first line you are changing — `00000000` for line 1, which is the state before the file. It must come from THIS file; an address that does not resolve fails the whole call.",
+            "The FIRST line you replace: the hash `read` printed beside that very line. It must come from THIS file; an address that does not resolve fails the whole call. Use `insertAfter` instead to add lines without replacing any.",
         }),
         toHash: Schema.optional(Schema.String).annotate({
           description:
-            "The address of the LAST line of the span, exactly as `read` printed it. Omit it to change a single line. Pass the SAME hash as `fromHash` to INSERT after that line without replacing anything.",
+            "The LAST line you replace (inclusive): the hash `read` printed beside it. Omit it, or pass the same hash as `fromHash`, to replace exactly that one line.",
+        }),
+        insertAfter: Schema.optional(Schema.String).annotate({
+          description:
+            "INSERT `newString` after this line, replacing nothing: the hash `read` printed beside it; `00000000` inserts before line 1 (also into an empty file). Pass this OR `fromHash`, never both.",
         }),
         newString: Schema.String.annotate({
           description:
-            "The lines that replace the span. `\"\"` deletes it. A trailing line break is optional: the last line ends the way the replaced line ended, and every break is fitted to the file's own endings.",
+            "The lines that replace fromHash..toHash, or the lines inserted after `insertAfter`. `\"\"` with `fromHash` deletes the span. A trailing line break is optional: the last line ends the way the replaced line ended, and every break is fitted to the file's own endings.",
         }),
       }),
     ).annotate({
@@ -330,7 +353,7 @@ export const EditTool = Tool.define(
         Effect.gen(function* () {
           if (params.files.length === 0) {
             throw new Error(
-              "`files` is empty — pass at least one entry, `{ filePath, edits: [{ fromHash, newString }] }`, or `{ filePath, content }` to create a file.",
+              "`files` is empty — pass at least one entry, `{ filePath, edits: [{ fromHash, toHash?, newString }] }` (or `{ insertAfter, newString }`), or `{ filePath, content }` to create a file.",
             )
           }
 

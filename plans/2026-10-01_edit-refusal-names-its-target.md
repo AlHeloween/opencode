@@ -15,6 +15,9 @@
 - **One builder, and it carries no file.** `src/tool/edit.ts:198` —
   `const at = (what: string) => \`edit ${index + 1}: ${what}\`` — and the address refusals go through
   it: `:207` (`fromHash` is not in this file), `:220` (`toHash` is not in this file).
+  *Moved 2026-10-04 (plan 2026-10-04_edit-inclusive-span):* the address refusals now go through ONE helper,
+  `drifted(field)` inside `resolveEdits` (also `insertAfter`), still built on `at` — same message text, so this
+  plan's target is unchanged; re-read the line numbers before binding.
 - **The better form already exists in the SAME file.** `:418` —
   `` `${item.filePath} already exists — \`content\` only CREATES a file. Address its lines with \`edits\`.` ``
   — names the target (absolutely) and names the alternative. The shape refusal does the same:

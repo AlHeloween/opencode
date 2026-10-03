@@ -86,7 +86,8 @@ const addresses = (content: string, spans: { line: number; to?: number; newStrin
   let running = 0
   for (const line of lines) chain.push((running = chainHash(running, line.endsWith("\r") ? line.slice(0, -1) : line)))
   return spans.map((span) => ({
-    fromHash: hashLabel(span.line === 1 ? 0 : chain[span.line - 2]!),
+    // INCLUSIVE (plan 2026-10-04_edit-inclusive-span): the span's FIRST line's own label.
+    fromHash: hashLabel(chain[span.line - 1]!),
     ...(span.to === undefined ? {} : { toHash: hashLabel(chain[span.to - 1]!) }),
     newString: span.newString,
   }))
@@ -214,7 +215,7 @@ describe("tool.edit — a batch of addressed changes, through the real layers", 
             filePath: file,
             edits: [
               { fromHash: "deadbeef", newString: "X" },
-              { fromHash: hashLabel(0), newString: "Y" },
+              { insertAfter: hashLabel(0), newString: "Y" },
             ],
           },
         ],
@@ -420,7 +421,7 @@ describe("tool.edit — encodings and endings, read back as BYTES", () => {
       yield* putBytes(file, new Uint8Array([0x61, 0x0a]))
 
       const failed = yield* edit(dir, {
-        files: [{ filePath: file, encoding: "klingon", edits: [{ fromHash: hashLabel(0), newString: "x" }] }],
+        files: [{ filePath: file, encoding: "klingon", edits: [{ insertAfter: hashLabel(0), newString: "x" }] }],
       }).pipe(Effect.exit)
 
       expect(String(failed)).toContain("files[0]")
@@ -436,7 +437,7 @@ describe("tool.edit — encodings and endings, read back as BYTES", () => {
       yield* putBytes(file, bytes)
 
       const failed = yield* edit(dir, {
-        files: [{ filePath: file, edits: [{ fromHash: hashLabel(0), newString: "X" }] }],
+        files: [{ filePath: file, edits: [{ insertAfter: hashLabel(0), newString: "X" }] }],
       }).pipe(Effect.exit)
 
       expect(String(failed)).toContain("binary")

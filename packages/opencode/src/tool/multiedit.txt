@@ -8,7 +8,7 @@ Perform multiple edits to a single file in one operation. Each edit is applied s
 
 #**RETIRED 2026-10-01.** This tool is no longer in the catalog: `edit` takes a LIST of addressed changes, so a
 second tool for lists has nothing left to be the tool for. Use `edit` with `edits: [{ fromHash, toHash?,
-newString }]` — the hashes `read` printed. The text below is kept only so that the retired module still carries
+newString }]` or `[{ insertAfter, newString }]` — the hashes `read` printed beside those lines. The text below is kept only so that the retired module still carries
 a description of the contract it USED to have; it describes nothing the runtime will run.
 
 ## Retired contract (historical)

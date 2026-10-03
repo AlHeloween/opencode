@@ -80,20 +80,23 @@ exports[`tool parameters JSON Schema (wire shape) edit 1`] = `
             "items": {
               "properties": {
                 "fromHash": {
-                  "description": "The address of the line BEFORE the span: the hash \`read\` printed for the line just above the first line you are changing — \`00000000\` for line 1, which is the state before the file. It must come from THIS file; an address that does not resolve fails the whole call.",
+                  "description": "The FIRST line you replace: the hash \`read\` printed beside that very line. It must come from THIS file; an address that does not resolve fails the whole call. Use \`insertAfter\` instead to add lines without replacing any.",
+                  "type": "string",
+                },
+                "insertAfter": {
+                  "description": "INSERT \`newString\` after this line, replacing nothing: the hash \`read\` printed beside it; \`00000000\` inserts before line 1 (also into an empty file). Pass this OR \`fromHash\`, never both.",
                   "type": "string",
                 },
                 "newString": {
-                  "description": "The lines that replace the span. \`""\` deletes it. A trailing line break is optional: the last line ends the way the replaced line ended, and every break is fitted to the file's own endings.",
+                  "description": "The lines that replace fromHash..toHash, or the lines inserted after \`insertAfter\`. \`""\` with \`fromHash\` deletes the span. A trailing line break is optional: the last line ends the way the replaced line ended, and every break is fitted to the file's own endings.",
                   "type": "string",
                 },
                 "toHash": {
-                  "description": "The address of the LAST line of the span, exactly as \`read\` printed it. Omit it to change a single line. Pass the SAME hash as \`fromHash\` to INSERT after that line without replacing anything.",
+                  "description": "The LAST line you replace (inclusive): the hash \`read\` printed beside it. Omit it, or pass the same hash as \`fromHash\`, to replace exactly that one line.",
                   "type": "string",
                 },
               },
               "required": [
-                "fromHash",
                 "newString",
               ],
               "type": "object",

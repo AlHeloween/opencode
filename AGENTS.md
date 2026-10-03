@@ -99,6 +99,7 @@ constraints:
 - After plan changes, run explore agent to validate
 - Tests cannot run from repo root — run from package dirs
 - Avoid mocks in tests — test actual implementation
+- **Run `_build.ps1` after tests and after changes — mandatory** (owner, 2026-10-03: «запуск _build.ps1 после тестов и изменений обязателен. Темп 80гиг это слишком»). It cleans `.temp/test/` and `dist/` and builds the candidate into `dist/` — never `bin/`. See § Build after tests and changes
 - **Never run a full package test suite** (`bun test` with no path) — measured 2026-09-22: `packages/opencode` ran 18 minutes with `bytes_written: 0` and ~5 GB RSS, indistinguishable from a stall; name a file or a directory instead. If one was started anyway, every error in its log is RED and needs the owner's explicit clearance — see § Full package test suite (owner, 2026-09-22)
 - **"Don't litter in .opencode folder"** — instruments live in `experiments/<ISO-date>_<name>/` while in use and move to `experiments_history/` when the finding is recorded; runtime data lives under `.opencode/data/`. `.opencode/` is NOT a drawer: no `.ps1`, `.mjs`, `.ts` or scratch `.json` is written there (owner, 2026-09-20: «почем каждый придурок срет в папке .opencode без резонного обоснования, вместо того чтобы использовать папку experiments или этого нет в правилах» — it was NOT in the rules; this is the rule)
 - A measure and its threshold must share a SPACE (content vs request) and a SCOPE (slice vs whole window) — two spaces under one name is how a threshold silently changes meaning (2026-09-19)
@@ -877,6 +878,25 @@ Override: `OPENCODE_ALLOW_DESTRUCTIVE=1` or `bypass_constitution`.
 ## Type Checking
 
 Always run `bun typecheck` from package directories (e.g., `packages/opencode`), never `tsc` directly.
+
+---
+
+## Build after tests and changes — mandatory (owner, 2026-10-03)
+
+Owner, verbatim: «запуск _build.ps1 после тестов и изменений обязателен. Темп 80гиг это слишком.»
+
+- **When:** after any test run and after any source change, before the work is reported done.
+- **How:** `cmd_runner start -- pwsh -File _build.ps1` from the repo root (a build is crash-prone in the agent shell —
+  § Shell Command Restrictions); read the run's own state file for the exit code, never a tail.
+- **What it does** (read in `_build.ps1`, 2026-10-03 ✓): removes `.temp\test\` (lines 69-74, 131-136) — where test
+  runs leave their scratch; clears `dist/` content except a running build's state (lines 143-158); builds and stages
+  the candidate into `dist/` (`dist\bin\opencode.exe`). It writes **only** `dist/` and `.temp/` — never `bin/`;
+  promotion into `bin/` stays the owner's act.
+- **Why it is a rule:** the cleanup lives in the build, so a session that tests and never builds leaves its scratch
+  behind — `.temp` reached 80 GB (owner). A build that fails still ran its cleanup first, so run it even when the
+  candidate itself is not wanted.
+- **Known gap (✗, read 2026-10-03):** both cleanups use `Remove-Item -ErrorAction SilentlyContinue` and then print
+  «cleaned» unconditionally — a locked file survives silently. Check `.temp\test\` is gone after the run.
 
 ---
 

@@ -6207,3 +6207,10 @@ gated BEFORE install (only install-parity reds allowed through). Installed produ
 hand), claude 3d093085…, codex bb76f97b…; pytest prompt_kernel 122 passed ✓. AGENTS.md staged by index blob (HEAD + my
 two hunks) — another writer's uncommitted Content Lifecycle edit in the same file left unstaged ✓ (git diff --cached).
 .claude/CLAUDE.md host note re-measured: the CLI resolves to bin\codegraph.cmd.
+
+## [2026-10-03] AGENTS.md: _build.ps1 after tests and changes is mandatory (.temp reached 80 GB)
+Owner: «запуск _build.ps1 после тестов и изменений обязателен. Темп 80гиг это слишком». Read _build.ps1 first: it
+removes .temp\test\ (lines 69-74, 131-136), clears dist/ content, builds into dist/ — never bin/ ✓, so the rule does
+not collide with the bin/ ban. Recorded gap ✗: both cleanups are Remove-Item -ErrorAction SilentlyContinue followed by
+an unconditional «cleaned». Constraint bullet + § Build after tests and changes; staged by hunk (another writer's
+Content Lifecycle edit in AGENTS.md left out ✓). .temp size breakdown: measurement running.

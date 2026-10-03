@@ -34,6 +34,15 @@
   between clones and keeps 7 days by default → never the sole record; ticket state is a reduction of ticket-change
   artifacts; the JSON API is non-final → CLI for writes; the ticket CLI has no compare-and-swap → claim arbitration
   belongs in a gateway; hooks are not a security boundary; capabilities guard HTTP, not a local repo file.
+- ✓ (owner's change, source only, uncommitted on 2026-10-04 — not in any running binary yet) Auto-snapshots are
+  SIGNED by the reply's semantic vector: commit message `auto-snapshot sv:<md5> dominant=<≤80 chars>`
+  (`memory/spine.ts:504` `vectorSign`, `snapshot/fossil.ts` `track(files, sign)`); the opencode tool `fossilgrep`
+  finds a turn's working-copy state by `sv:<md5>`. Checked live 2026-10-04: the three repos with snapshots on 10-03
+  (ClientSoft, RView, XEComponents) still write a bare `auto-snapshot` — expected until the build. This is the join
+  key between the reasoning chain and the timeline: a REPORT/technote can cite `sv:<md5>` and resolve to the exact
+  check-in. Gap: Claude Code sessions take no Fossil snapshots, so their vectors stay unaddressable.
+- ✗ This worktree's snapshot repo has had no check-in since 2026-10-02 04:41 UTC (timeline read 2026-10-04) — the
+  10-02 fossil incident is still open (memory: project-fossil-snapshot-state-2026-10-02).
 - ✗ Today nothing coordinates: the snapshot repos carry no tickets/chat use; the one-host-per-worktree binary is not
   promoted (`tools/opencode_host.py` → «none: no host record»).
 

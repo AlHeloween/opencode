@@ -147,11 +147,19 @@ describe("session.llm.messagesStabilityVerdict", () => {
     })
   })
 
-  test("mutation at the 50% boundary stays a mutation bug (ratio not > 0.5)", () => {
+  test("a mid-array divergence is a mutation however much of the tail moved", () => {
+    // The turn-gate shape, and the case the retired `mutatedTail/minLen > 0.5` rule filed as a benign
+    // restructure: the prefix survives, the whole tail is re-rendered (a heavy tool result collapsing
+    // to its placeholder at the next user turn) and the array GREW. Structural, not proportional.
     expect(LLM.messagesStabilityVerdict([1, 2, 3, 4], [1, 2, 9, 9])).toEqual({
       kind: "mutated",
       position: 2,
       mutatedTail: 2,
+    })
+    expect(LLM.messagesStabilityVerdict([1, 2, 3, 4], [1, 9, 9, 9])).toEqual({
+      kind: "mutated",
+      position: 1,
+      mutatedTail: 3,
     })
   })
 
@@ -162,10 +170,10 @@ describe("session.llm.messagesStabilityVerdict", () => {
     })
   })
 
-  test("majority divergence beyond 50% is restructure", () => {
-    expect(LLM.messagesStabilityVerdict([1, 2, 3, 4], [1, 9, 9, 9])).toEqual({
+  test("a shrinking replay is a restructure — a fold removes, the turn gate only appends", () => {
+    expect(LLM.messagesStabilityVerdict([1, 2, 3, 4, 5], [1, 2, 9])).toEqual({
       kind: "restructured",
-      firstDivergence: 1,
+      firstDivergence: 2,
     })
   })
 

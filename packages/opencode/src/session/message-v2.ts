@@ -946,40 +946,31 @@ function evictIfFull() {
 }
 
 /**
- * Deliver-once replay gate (2026-09-07, Alexander): tool outputs heavier than
- * this (chars) collapse to a stable ID-addressed placeholder on every build
- * EXCEPT the delivery turn (afterMessageID). Byte-stable text keeps
- * the provider prefix cache warm; Token estimate reads placeholders, not
- * pages — the compaction threshold stops depending on history heaviness.
- * 32k replay cap stays as the delivery-turn ceiling.
+ * A tool output heavier than this (chars) renders as a stable ID-addressed
+ * placeholder — in EVERY request, for the whole life of the part.
+ *
+ * The predicate is the SIZE and nothing else. It used to be "heavy AND not the
+ * delivery turn", which meant one part had two renderings and the wire changed
+ * bytes it had already sent the moment a new user message moved the boundary
+ * (measured 2026-10-02: 229 mid-history rewrites in one project, $0.0174 on a
+ * single turn). A pure predicate has no boundary to cross. Byte-stable text is
+ * what keeps the provider prefix cache warm, and a token estimate that reads
+ * placeholders rather than pages keeps the compaction threshold independent of
+ * history heaviness.
  */
 export const TOOL_PLACEHOLDER_THRESHOLD_CHARS = 8_000
 
 /**
- * Delivery-turn sentinel: pass this as `afterMessageID` when NO message
- * is the delivery turn, so every heavy tool output collapses to its placeholder.
- *
- * Leaving the option unset does the opposite — `!afterMessageID` reads as
- * "every turn is the delivery turn" and replays everything in full. That default
- * is why the sidecar checkpoint diverged from the trunk: the checkpoint was built
- * with the option unset, so it froze 17 tool results at full size (401_856 chars,
- * first at message index 9) while the trunk sent placeholders for the same
- * messages. The shared prefix broke almost immediately and one summary call
- * recomputed 541_502 tokens — 48% of that session's entire cache miss
- * (measured 2026-09-15).
- *
- * MUST compare greater than every ULID message id: the gate is now "ids strictly after this one
- * are the current turn", so a smaller sentinel would silently make real messages current.
- */
-export const NO_DELIVERY_TURN = "\uffff"
-
-/**
  * Markers of a DELIBERATE replay reduction — shared with the stability check in `llm.ts`.
  *
- * A heavy tool result of a turn that is no longer current is replaced by its placeholder, so the
- * SAME message legitimately renders differently once the turn moves on. That is the mechanism that
- * makes the drop addressable, not an accidental mutation: reporting it under `bug:` trains the
- * reader to ignore the marker that exists for real ones.
+ * A reader that sees one knows the body was dropped on purpose and is still in the session,
+ * reachable through the id the placeholder prints. Reporting such a reduction under `bug:` trains
+ * the reader to ignore the marker that exists for real ones.
+ *
+ * Two producers still rewrite an already-sent message on purpose, and the guard reports both as
+ * INFO rather than `bug:` because the model or the fold asked for them: `recall(…, keep: true)`
+ * narrows a result, and a declared span expires at the fold. The size predicate no longer belongs
+ * to that list — it never rewrites anything, because it reads only the part.
  */
 export const REPLAY_DELIVERED_MARKER = "— result delivered earlier ("
 export const REPLAY_CLEARED_MARKER = "[Old tool result content cleared]"
@@ -1128,14 +1119,6 @@ export function spansToExpire(messages: readonly { parts: readonly Part[] }[], t
  */
 export type ConversionOptions = {
   toolOutputMaxChars?: number
-  /**
-   * Deliver-once (2026-09-07, Alexander): BOUNDARY message id — the last user message. Every assistant
-   * message with a GREATER id is the current turn and replays its tool parts in full (up to
-   * toolOutputMaxChars); tool parts of EARLIER turns heavier than TOOL_PLACEHOLDER_THRESHOLD_CHARS
-   * collapse to a byte-stable ID-addressed placeholder. One assistant message was the wrong boundary: a
-   * user turn spans several assistant steps, so a heavy result collapsed the moment the next step began.
-   */
-  afterMessageID?: string
   /**
    * The session's CURRENT TURN, supplied by the caller.
    *
@@ -1318,11 +1301,6 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
     // Per-message conversion cache: skip redundant conversion of stable messages.
     // The key includes all provider-visible part state, including tool outputs.
     const contentFp = hashParts(msg.parts)
-    // afterMessageID is part of the key: the same message must
-    // convert differently when it is the delivery turn (full replay) vs an
-    // earlier turn (placeholder) — a shared cache entry would clone the
-    // full text into the wrong request.
-    //
     // The declared lifetime needs NO component of its own here, and that is worth stating
     // because the opposite looks compelling: a release REWRITES the parts (the payload becomes
     // the note), and this fingerprint is taken FROM those parts — so a pre-release entry and a
@@ -1330,7 +1308,11 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
     // cache case passes with and without a `turn` component, and the negative control that
     // removes it stays green — the property holds structurally rather than by this line. Adding
     // `turn` would be a guard over an invariant contentFp already derives.
-    const cacheKey = `${msg.info.id}:${model.id}:${options?.toolOutputMaxChars ?? 0}:${options?.afterMessageID ?? ""}:${contentFp}`
+    //
+    // The TURN BOUNDARY used to be a key component too, because the same message converted
+    // differently as delivery turn (full replay) vs earlier turn (placeholder). It does not any
+    // more — a message renders one way, for every request, forever (see the size predicate below).
+    const cacheKey = `${msg.info.id}:${model.id}:${options?.toolOutputMaxChars ?? 0}:${contentFp}`
     const cached = cache.get(cacheKey)
     if (cached) {
       result.push(cached)
@@ -1428,16 +1410,22 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
           const toolName = canonicalName(part.tool)
           toolNames.add(toolName)
           if (part.state.status === "completed") {
-            // Deliver-once replay gate (2026-09-07): tool parts of the CURRENT
-            // turn deliver in full; heavy parts of EARLIER turns collapse to a
-            // byte-stable ID-addressed placeholder. Light parts always replay.
-            // UNSET afterMessageID = legacy behavior everywhere (title,
-            // checkpoint conversions) — no gating, full replay up to the cap.
-            // The delivery window is the WHOLE CURRENT USER TURN, not one assistant message. Ordering
-            // by id is the existing idiom (`prompt.ts` compares `lastUser.id < lastAssistant.id`), and
-            // message ids are ascending ULIDs — so "after the last user message" is a comparison.
-            const isCurrentTurn =
-              options?.afterMessageID === undefined || msg.info.id > options.afterMessageID
+            // SIZE, AND NOTHING ELSE, DECIDES (2026-10-03). This used to be a delivery gate: a heavy
+            // result rode in full for the turn that produced it and collapsed to a placeholder once
+            // the NEXT user message moved the boundary. Both renderings were correct and they were
+            // mutually exclusive, so the wire changed bytes it had already sent — measured on
+            // `d:/zPython/opencode/.opencode/data`: 229 user turns re-rendered mid-history, 1.52M of
+            // the project's 42.8M fresh input tokens, and one measured turn paid $0.0174 to re-prefill
+            // a 134K-token suffix that had been 99.6% cached one step earlier.
+            //
+            // The provider's prefix cache is keyed on bytes, so ANY dependence on where we are in the
+            // conversation is a cache event waiting for a user turn. A pure predicate cannot have one:
+            // the same part renders the same way in every request that ever carries it. What the gate
+            // bought — junk never accumulating in the window — survives intact, and is in fact
+            // stronger: junk does not enter for even one turn. The model that needs the body recalls it
+            // by the id the placeholder prints; `recall` APPENDS to the tail, so re-acquiring costs
+            // nothing structurally. Measured over 34 sessions: 34 recalls against 691 heavy results,
+            // and `keep` never used once (0/35).
             const compactedOutput = part.state.time.compacted
             const stripped = stripFloodReminderBlocks(part.state.output)
             // Every removal the replay performs is reported (conservation.ts): the body stays in
@@ -1477,7 +1465,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
               ? REPLAY_CLEARED_MARKER
               : keptRows !== undefined && keptRows.length > 0
                 ? truncateToolOutput(keptRows.join("\n"), options?.toolOutputMaxChars, part.id)
-                : !isCurrentTurn && rawOutput.length > TOOL_PLACEHOLDER_THRESHOLD_CHARS
+                : rawOutput.length > TOOL_PLACEHOLDER_THRESHOLD_CHARS
                 ? toolPlaceholder({
                     tool: part.tool,
                     partID: part.id,
@@ -1670,9 +1658,9 @@ export function toModelMessages(
  * each produced. Used by checkpoint save so prefix reuse can slice past
  * expanded tool-result messages (assistant tool-call → assistant + tool roles).
  *
- * Deliver-once: when `afterMessageID` is set, that assistant message's
- * tool parts replay in full (delivery); earlier turns' heavy parts collapse to
- * ID-addressed placeholders.
+ * Rendering is a pure function of the part: a heavy tool result is an
+ * ID-addressed placeholder in every request, and no option can make one
+ * conversion of a part disagree with another.
  */
 export const toModelMessagesWithCountsEffect = Effect.fnUntraced(function* (
   input: WithParts[],

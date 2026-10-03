@@ -504,8 +504,8 @@ CURRENT task needs; released content stays reachable without occupying it. Full 
 | verb | mechanism |
 |---|---|
 | **acquire** | a tool result arrives (`read` / `webfetch` / `codegraph` / …) |
-| **hold** | resident for the WHOLE user turn, not one assistant step (`afterMessageID` gate) |
-| **release** | `> 8 000` chars from an earlier turn → an ID-addressed placeholder; or `recall(…, keep: true)` → only the chosen slice |
+| **hold** | resident until the request goes out — the rendering is a PURE FUNCTION of the part, so it never changes after it is sent |
+| **release** | `> 8 000` chars → an ID-addressed placeholder in EVERY request; or `recall(…, keep: true)` → only the chosen slice |
 | **re-acquire** | `recall(id, range, pattern)` returns the stored result by its address |
 
 **Invariants — each one cost a defect to learn:**

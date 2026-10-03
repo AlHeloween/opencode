@@ -23,8 +23,8 @@ released content remain reachable without occupying it.
 | verb | mechanism | site | status |
 |---|---|---|---|
 | **acquire** | a tool result arrives, or `read` / `webfetch` / `codegraph` return content | tool layer | **shipped** |
-| **hold** | resident for the WHOLE user turn, not one assistant step | `afterMessageID` gate (`message-v2.ts`) | **shipped** |
-| **release — automatic** | a result heavier than 8 000 chars, from an earlier turn, collapses to an ID-addressed placeholder | `TOOL_PLACEHOLDER_THRESHOLD_CHARS` | **shipped** |
+| **hold** | resident until the request goes out — the rendering is a PURE FUNCTION of the part | `message-v2.ts` | **shipped** |
+| **release — automatic** | a result heavier than 8 000 chars renders as an ID-addressed placeholder in EVERY request | `TOOL_PLACEHOLDER_THRESHOLD_CHARS` | **shipped** |
 | **release — deliberate** | `recall(…, keep: true)` REPLACES the result with the chosen slice | `ToolKeptSelection` | **shipped** |
 | **re-acquire** | `recall(id, range, pattern)` returns the stored result by its address | `tool/recall.ts` | **shipped** |
 | **hold for attachments** (image, document, sources) | — | — | **NOT shipped** — see `plans/to_be_confirmed/2026-09-19_temporary-data-acquisition.md` |
@@ -35,15 +35,16 @@ together: a release with no address is a loss, and an address with no re-acquire
 ## Constants and where they are
 
 ```
-TOOL_PLACEHOLDER_THRESHOLD_CHARS = 8_000    message-v2.ts   when a heavy result of an earlier turn is dropped
-REPLAY_TOOL_OUTPUT_MAX_CHARS     = 32_000   message-v2.ts   the hard cap, applies even on the delivery turn
+TOOL_PLACEHOLDER_THRESHOLD_CHARS = 8_000    message-v2.ts   the size at which a result renders as a placeholder
+REPLAY_TOOL_OUTPUT_MAX_CHARS     = 32_000   message-v2.ts   the hard cap on anything that does ride
 PLACEHOLDER_HEAD_LINES           = 6         message-v2.ts   how much of a dropped result stays visible
 PLACEHOLDER_HEAD_LINE_CHARS      = 120       message-v2.ts   per-line cap inside that head
-NO_DELIVERY_TURN                 = "\uffff"  message-v2.ts   sentinel that sorts after every id
 ```
 
-The placeholder is a **pure function** of `(tool, id, title, output)` — byte-identical across builds,
-which is what keeps `@KV_CACHE_STABILITY` intact when it replaces a result in the prefix.
+The placeholder is a **pure function** of `(tool, id, title, output)` — byte-identical across builds
+and across every request that ever carries the part. That is what keeps `@KV_CACHE_STABILITY` intact:
+the prefix cannot be rewritten under the provider, because nothing about the rendering depends on
+where the conversation currently is.
 
 ## Invariants — each one paid for by a defect
 
@@ -97,8 +98,8 @@ shape — *an active set*.
 
 What the generalisation adds:
 
-1. **Hold is declared, not implied.** Today a release happens by SIZE (`> 8 000`, earlier turn) or
-   explicitly (`keep`). Temporary acquisition needs the third trigger: **a lifetime** — this content is
+1. **Hold is declared, not implied.** Today a release happens by SIZE (`> 8 000`) or explicitly
+   (`keep`). Temporary acquisition needs the third trigger: **a lifetime** — this content is
    held for the next N turns or until released. The plan's open decision 3 ("auto-detach at a fold or
    only by the tool") is exactly this question, and it now has a general answer.
 2. **Acquire covers more than media.** Sources enter through `read`; a document through an attachment;

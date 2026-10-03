@@ -237,9 +237,22 @@ export type MessagesStabilityVerdict =
 
 /**
  * Compare previous and current per-position wire-message hashes. Pure —
- * exported for unit tests. Whole-prefix divergence is classified as
- * restructure (compaction/restart/fork — an expected cache reset); partial
- * divergence inside the previously-sent region is the mutation bug.
+ * exported for unit tests.
+ *
+ * THE DISCRIMINATOR IS STRUCTURAL, NOT PROPORTIONAL (2026-10-03). It used to be
+ * `mutatedTail / minLen > 0.5` — "if most of the array changed, call it a
+ * restructure". That is backwards for the defect this guard exists to catch: a
+ * mid-history rewrite (the deliver-once turn gate collapsing a heavy tool result
+ * at the next user turn) rewrites the WHOLE TAIL, so it is always >50% and was
+ * always filed as an expected cache reset. Measured 2026-10-02 on
+ * `d:/zPython/opencode/.opencode/data`: 229 turn boundaries mutated mid-history
+ * and this guard reported ONE of them, at INFO, with a question mark.
+ *
+ * What separates a fold from a mutation is SHAPE, and both halves are already in
+ * the two arrays: a rebuild diverges at position 0, and a compaction or
+ * checkpoint SHRINKS the replay — the turn gate only ever appends. A shrinking
+ * array that lost its prefix is a fold; a growing array that lost its prefix is
+ * a mutation, however much of the tail moved.
  */
 export function messagesStabilityVerdict(
   prev: number[] | undefined,
@@ -257,7 +270,7 @@ export function messagesStabilityVerdict(
   }
   if (divergeAt < 0) return { kind: "stable" }
   const mutatedTail = minLen - divergeAt
-  if (divergeAt === 0 || mutatedTail / Math.max(minLen, 1) > 0.5) {
+  if (divergeAt === 0 || next.length < prev.length) {
     return { kind: "restructured", firstDivergence: divergeAt }
   }
   return { kind: "mutated", position: divergeAt, mutatedTail }
@@ -271,15 +284,19 @@ function checkMessagesStability(input: {
   messages: ModelMessage[]
 }) {
   const hashes = input.messages.map((message) => Number(Bun.hash(stableStringify(message))))
-  const verdict = messagesStabilityVerdict(messagesWireHashes.get(input.cacheKey), hashes)
+  const previous = messagesWireHashes.get(input.cacheKey)
+  const verdict = messagesStabilityVerdict(previous, hashes)
   if (verdict.kind === "mutated") {
     const mutated = input.messages[verdict.position]
     const content = typeof mutated?.content === "string" ? mutated.content : stableStringify(mutated?.content ?? {})
     if (isReplayReduced(content)) {
-      // Expected, not a defect: a heavy tool result of a turn that is no longer current is replaced
-      // by its placeholder, so the same message legitimately renders differently once the turn moves
-      // on (`message-v2.ts`). The content is recoverable through the id that placeholder prints.
-      log.info("replay substitution re-rendered a sent message (heavy tool result)", {
+      // Asked for, not a defect: two producers rewrite an already-sent message deliberately — the
+      // model narrowing a result with `recall(…, keep: true)`, and the fold expiring a declared
+      // span. Both leave a marker, both are recoverable, and the cost is real either way: the wire
+      // still moved, so this stays a number worth reading rather than a shrug. It used to name a
+      // THIRD producer — the size predicate collapsing a heavy result at the turn boundary — which
+      // is gone: that predicate reads only the part now, so it can never rewrite a sent message.
+      log.info("replay substitution re-rendered a sent message (kept selection or expired span)", {
         sessionID: input.sessionID,
         position: verdict.position,
         role: mutated?.role,
@@ -299,12 +316,16 @@ function checkMessagesStability(input: {
       })
     }
   } else if (verdict.kind === "restructured") {
-    log.info("messages prefix restructured (compact/restart?)", {
+    // The classification is now evidence, not a guess: `firstDivergence: 0` is a whole rebuild, and a
+    // count that went DOWN is a fold or a checkpoint — the turn gate only appends. Both counts ride
+    // here so a reader can check the call instead of taking the label on trust.
+    log.info("messages prefix rebuilt (compact/checkpoint/fork)", {
       sessionID: input.sessionID,
       agent: input.agent,
       modelID: input.modelID,
       cacheKeyHash: Number(Bun.hash(input.cacheKey)),
       firstDivergence: verdict.firstDivergence,
+      previousMessageCount: previous?.length,
       messageCount: input.messages.length,
     })
   }

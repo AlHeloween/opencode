@@ -1,8 +1,8 @@
 Recover anything you were sent earlier — a heavy tool result OR an attachment — by its id, with line numbers,
 so you can read the part that matters instead of paying for all of it.
 
-Why this exists: a completed tool result heavier than 8 000 characters is replaced on the wire by a
-one-line placeholder once its turn is no longer the one being continued:
+Why this exists: a completed tool result heavier than 8 000 characters reaches you as a bounded
+placeholder — every time, for the rest of the session. The payload is never re-sent with the prompt:
 
   [grep id=prt_0b8da48fb001xD6AvY4MQp2Mo0 — result delivered earlier (10.0 KB, <pattern>) —
    first 6 of 412 line(s), to judge without paying a round trip:]

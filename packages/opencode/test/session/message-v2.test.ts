@@ -882,9 +882,8 @@ describe("session.message-v2.toModelMessage", () => {
     expect(MessageV2.isReplayReduced("ordinary content carrying no marker")).toBe(false)
   })
 
-  test("a long tool result is delivered for its turn then released by ID", async () => {
-    const output = "tool-line\n".repeat(1_000)
-    const input: MessageV2.WithParts[] = [
+  const conversationWith = (output: string, partID = "a1") =>
+    [
       {
         info: userInfo("m1"),
         parts: [{ ...basePart("m1", "u1"), type: "text", text: "run" }] as MessageV2.Part[],
@@ -892,7 +891,7 @@ describe("session.message-v2.toModelMessage", () => {
       {
         info: assistantInfo("m2", "m1"),
         parts: [{
-          ...basePart("m2", "a1"),
+          ...basePart("m2", partID),
           type: "tool",
           callID: "call-1",
           tool: "bash",
@@ -906,18 +905,39 @@ describe("session.message-v2.toModelMessage", () => {
           },
         }] as MessageV2.Part[],
       },
-    ]
-    const delivered = await MessageV2.toModelMessages(input, model, { afterMessageID: "m1" })
-    const released = await MessageV2.toModelMessages(input, model, { afterMessageID: "m3" })
-    expect(delivered.slice(0, -1)).toEqual(released.slice(0, -1))
-    expect(delivered.at(-1)).toMatchObject({ role: "tool", content: [{ output: { type: "text", value: output } }] })
-    expect(JSON.stringify(released.at(-1))).toContain("recall(id=a1")
-    expect(JSON.stringify(released.at(-1)).length).toBeLessThan(output.length / 2)
+    ] as MessageV2.WithParts[]
 
-    const expiring = structuredClone(input)
+  test("a tool result renders the same way in every request — the wire is a pure function of the part", async () => {
+    // The turn gate this replaces gave ONE part TWO renderings: full while its own turn was current,
+    // a placeholder once the next user message moved the boundary. The provider's prefix cache is
+    // keyed on bytes, so that switch rewrote history the provider had already cached — measured
+    // 2026-10-02 across 34 sessions: 229 mid-history rewrites, 1.52M of the project's 42.8M fresh
+    // input tokens. Purity is what makes such a switch impossible, so purity is what is under test.
+    const heavy = "tool-line\n".repeat(1_000)
+    const input = conversationWith(heavy)
+
+    const inItsOwnTurn = await MessageV2.toModelMessages(input, model)
+    const manyTurnsLater = await MessageV2.toModelMessages(input, model, { turn: 7 })
+    expect(manyTurnsLater).toEqual(inItsOwnTurn)
+
+    // Heavy never rides in full — not even in the turn that produced it — so junk does not enter the
+    // window even once, and the id the placeholder prints is how the body comes back.
+    expect(JSON.stringify(inItsOwnTurn.at(-1))).toContain("recall(id=a1")
+    expect(JSON.stringify(inItsOwnTurn.at(-1)).length).toBeLessThan(heavy.length / 2)
+  })
+
+  test("a result under the threshold still rides in full — the predicate is size", async () => {
+    const light = "tool-line\n".repeat(100)
+    expect(light.length).toBeLessThan(MessageV2.TOOL_PLACEHOLDER_THRESHOLD_CHARS)
+    const rendered = await MessageV2.toModelMessages(conversationWith(light, "a-light"), model)
+    expect(rendered.at(-1)).toMatchObject({ role: "tool", content: [{ output: { type: "text", value: light } }] })
+  })
+
+  test("a declared span expires by turn and then stops changing", async () => {
+    const expiring = conversationWith("tool-line\n".repeat(1_000))
     expiring[1]!.parts[0]!.ttlUntil = 1
-    const turn2 = await MessageV2.toModelMessages(expiring, model, { afterMessageID: "m1", turn: 2 })
-    const turn3 = await MessageV2.toModelMessages(expiring, model, { afterMessageID: "m1", turn: 3 })
+    const turn2 = await MessageV2.toModelMessages(expiring, model, { turn: 2 })
+    const turn3 = await MessageV2.toModelMessages(expiring, model, { turn: 3 })
     expect(JSON.stringify(turn2.at(-1))).toContain("[held] payload released")
     expect(turn3).toEqual(turn2)
   })
@@ -953,9 +973,7 @@ describe("session.message-v2.toModelMessage", () => {
       },
     ]
 
-    const narrowed = await MessageV2.toModelMessages(conversation({ from: 2, to: 3 }), model, {
-      afterMessageID: MessageV2.NO_DELIVERY_TURN,
-    })
+    const narrowed = await MessageV2.toModelMessages(conversation({ from: 2, to: 3 }), model)
     expect(narrowed.at(-1)).toStrictEqual({
       role: "tool",
       content: [
@@ -968,9 +986,7 @@ describe("session.message-v2.toModelMessage", () => {
       ],
     })
 
-    const blanking = await MessageV2.toModelMessages(conversation({ from: 90, to: 99 }), model, {
-      afterMessageID: MessageV2.NO_DELIVERY_TURN,
-    })
+    const blanking = await MessageV2.toModelMessages(conversation({ from: 90, to: 99 }), model)
     expect(blanking.at(-1)).toStrictEqual({
       role: "tool",
       content: [

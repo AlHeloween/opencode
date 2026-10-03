@@ -54,38 +54,40 @@ import MAX_STEPS from "../session/prompt/max-steps.txt"
 
 /** Bounded replay of completed tool outputs keeps per-turn cache-miss blocks small.
  *  Config: tool_output.replay_max_chars (default MessageV2.REPLAY_TOOL_OUTPUT_MAX_CHARS).
- *  Deliver-once (2026-09-07): afterMessageID is the TURN BOUNDARY — the last user
- *  message. Every assistant message after it replays its tool parts in full
- *  (delivery); heavy results from earlier turns collapse to byte-stable
- *  ID-addressed placeholders (message-v2.ts). Passing the newest assistant
- *  message instead made the window one step wide, so a heavy result collapsed
- *  as soon as the turn took its next step.
+ *  What renders as what is decided by SIZE ALONE (message-v2.ts): a result over
+ *  TOOL_PLACEHOLDER_THRESHOLD_CHARS is a byte-stable ID-addressed placeholder in every
+ *  request, forever. There is no turn boundary to pass, and that is the point — the 2026-09-07
+ *  gate that made the newest user message the boundary gave one part two renderings, so the
+ *  wire changed bytes it had already sent. Its two measured costs are the reason the boundary
+ *  is gone: 229 mid-history rewrites across 34 sessions (1.52M of 42.8M fresh input tokens),
+ *  and a guard that filed every one of them as an expected restructure.
  *
- *  Declared lifetime (2026-09-19): the third argument is the SESSION whose history is
- *  being converted, and the current turn is derived from it HERE — one resolver, not
- *  an expression repeated at every call site that would otherwise have to remember
- *  it. The turn is what lets a part whose declared span has passed stop sending its
- *  payload, and the conversion's own cache key carries it (message-v2.ts), so a
- *  release cannot be undone by a cache entry taken while the span was still running.
+ *  The other half of that incident is why the argument list is short. A checkpoint built
+ *  without the trunk's options froze 17 tool results at full size (401_856 chars, first at
+ *  message index 9) and one summary call recomputed 541_502 tokens — 48% of that session's
+ *  miss. Two renderings of the same part are what let two call sites disagree; a predicate
+ *  that reads only the part cannot disagree with another call site, however it is spelled.
  *
- *  Every conversion of session history goes through here, and not only the request:
- *  the checkpoint paths MUST see the same turn, because a checkpoint has to store what
- *  the trunk sends — one built without it froze full tool outputs the trunk had already
- *  collapsed (prefix divergence from message 9, 541_502 tokens recomputed, 2026-09-07).
+ *  Declared lifetime (2026-09-19): the argument is the SESSION whose history is being
+ *  converted, and the current turn is derived from it HERE — one resolver, not an expression
+ *  repeated at every call site that would otherwise have to remember it. The turn is what
+ *  lets a part whose declared span has passed stop sending its payload.
  *
- *  Both arguments are required, and passing `undefined` is a DECISION rather than an
- *  omission: a site that judges nothing says so at the call, and a site added later
- *  cannot inherit "no release" by forgetting. The compiler asks at every one of them.
- *  The single exception is title generation, which names the session's opening messages
- *  rather than delivering history to the main model, and runs where no declared span can
- *  have passed — it passes neither argument, deliberately. */
+ *  Every conversion of session history goes through here, and not only the request: the
+ *  checkpoint paths must see the same turn, because a checkpoint has to store what the trunk
+ *  sends.
+ *
+ *  The argument is required, and passing `undefined` is a DECISION rather than an omission: a
+ *  site that judges nothing says so at the call, and a site added later cannot inherit
+ *  "no release" by forgetting. The compiler asks at every one of them. The single exception
+ *  is title generation, which names the session's opening messages rather than delivering
+ *  history to the main model, and runs where no declared span can have passed — it passes
+ *  no session, deliberately. */
 const toolReplayOptions = (
   cfg: { tool_output?: { replay_max_chars?: number } },
-  afterMessageID: string | undefined,
   sessionID: SessionID | undefined,
 ) => ({
   toolOutputMaxChars: cfg.tool_output?.replay_max_chars ?? MessageV2.REPLAY_TOOL_OUTPUT_MAX_CHARS,
-  afterMessageID,
   turn: sessionID === undefined ? undefined : currentTurn(sessionID),
 })
 import { ToolRegistry } from "@/tool/registry"
@@ -358,7 +360,7 @@ export const layer = Layer.effect(
         if (mdl) {
           const msgs = onlySubtasks
             ? [{ role: "user" as const, content: subtasks.map((p) => p.prompt).join("\n") }]
-            : yield* MessageV2.toModelMessagesEffect(context, mdl, toolReplayOptions(yield* config.get(), undefined, undefined)).pipe(
+            : yield* MessageV2.toModelMessagesEffect(context, mdl, toolReplayOptions(yield* config.get(), undefined)).pipe(
                 Effect.catchCause((cause) => {
                   elog.error("title model messages failed", { error: Cause.squash(cause) })
                   return Effect.succeed([] as ModelMessage[])
@@ -871,15 +873,16 @@ export const layer = Layer.effect(
           freshPath: assemblePathSystem({ skills: skills || undefined, env, rules, instructions }),
           identity: cleanIdentity,
         })
-        // The checkpoint is replayed LATER (by the sidecar), so by the time it is
-        // sent no message in it is the delivery turn. Built with the option unset
-        // it froze full tool outputs the trunk had already collapsed — 17 messages,
-        // 401_856 chars, prefix divergence from message 9, 541_502 tokens recomputed
-        // in one call. The sentinel makes the checkpoint store what the trunk sends.
+        // Same options as the trunk, and that used to be a manual duty: the checkpoint is replayed
+        // LATER, so a conversion built with different options froze full tool outputs the trunk had
+        // already collapsed — 17 messages, 401_856 chars, prefix divergence from message 9, 541_502
+        // tokens recomputed in one call (2026-09-07). It was fixed with a sentinel, which is a
+        // promise two call sites have to keep. It no longer has to: the rendering is a pure function
+        // of the part, so a checkpoint cannot disagree with the trunk however it is built.
         const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
           visible,
           model,
-          toolReplayOptions(yield* config.get(), MessageV2.NO_DELIVERY_TURN, input.sessionID),
+          toolReplayOptions(yield* config.get(), input.sessionID),
         )
         const checkpointData = {
           kind: Checkpoint.CHECKPOINT_KIND,
@@ -2225,7 +2228,7 @@ export const layer = Layer.effect(
                 const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                   msgs,
                   model,
-                  toolReplayOptions(yield* config.get(), lastUser?.id, sessionID),
+                  toolReplayOptions(yield* config.get(), sessionID),
                 )
                 modelMsgs = converted.messages
                 modelMessageIDs = Checkpoint.expandMessageIDs(msgs.map((m) => m.info.id), converted.counts)
@@ -2234,7 +2237,7 @@ export const layer = Layer.effect(
                 const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                   suffix,
                   model,
-                  toolReplayOptions(yield* config.get(), lastUser?.id, sessionID),
+                  toolReplayOptions(yield* config.get(), sessionID),
                 )
                 modelMsgs = [...prefixModel, ...converted.messages]
                 // IDs must index modelMsgs positions, not DB messages: an assistant
@@ -2253,7 +2256,7 @@ export const layer = Layer.effect(
               const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                 msgs,
                 model,
-                toolReplayOptions(yield* config.get(), lastUser?.id, sessionID),
+                toolReplayOptions(yield* config.get(), sessionID),
               )
               modelMsgs = converted.messages
               modelMessageIDs = Checkpoint.expandMessageIDs(msgs.map((m) => m.info.id), converted.counts)
@@ -2499,7 +2502,7 @@ export const layer = Layer.effect(
                 const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                   visibleAfter,
                   model,
-                  toolReplayOptions(yield* config.get(), MessageV2.NO_DELIVERY_TURN, sessionID),
+                  toolReplayOptions(yield* config.get(), sessionID),
                 )
                 const checkpointData = {
                   kind: Checkpoint.CHECKPOINT_KIND,
@@ -2782,7 +2785,7 @@ export const layer = Layer.effect(
                   const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                     checkpointMsgs.slice(prefixLen),
                     model,
-                    toolReplayOptions(yield* config.get(), MessageV2.NO_DELIVERY_TURN, sessionID),
+                    toolReplayOptions(yield* config.get(), sessionID),
                   )
                   fullModel = [...prefixModel, ...converted.messages]
                   modelMessageCounts = [
@@ -2793,7 +2796,7 @@ export const layer = Layer.effect(
                   const converted = yield* MessageV2.toModelMessagesWithCountsEffect(
                     checkpointMsgs,
                     model,
-                    toolReplayOptions(yield* config.get(), MessageV2.NO_DELIVERY_TURN, sessionID),
+                    toolReplayOptions(yield* config.get(), sessionID),
                   )
                   fullModel = converted.messages
                   modelMessageCounts = converted.counts

@@ -107,7 +107,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "BUG_FIX_PROCEDURE",
-        "ADID 15.3 §II.7: reported failure → @LEAN_RANKING of its expected behavior against the requirement (tiers 1-2 admit it to reproduction; 3-4 close it as Unknown with the reason) → reproducer → isolated trial_fix → trial PASS → authorized application → real-context regression PASS → FIXED. No reproducer = unconfirmed, not hallucination; the trial may be a patch/worktree and the APPLIED artifact is what gets verified; a flaky failure needs a replication criterion. Every effect needs authority.",
+        "ADID 15.4 §III.6: reported failure → @LEAN_RANKING of its expected behavior against the requirement (tiers 1-2 admit it to reproduction; 3-4 close it as Unknown with the reason) → reproducer → isolated trial_fix → trial PASS → authorized application → real-context regression PASS → FIXED. No reproducer = unconfirmed, not hallucination; the trial may be a patch/worktree and the APPLIED artifact is what gets verified; a flaky failure needs a replication criterion. Every effect needs authority.",
         # The conjunction carries the four REQUIREMENTS and deliberately NOT the order: (4) is a
         # gate — real_fix exists only after trial_fix_test PASS. An order-free conjunction cannot
         # express that, which is the honest limit of the algebra form on a pipeline rule; the
@@ -119,7 +119,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "VALIDATE_BEFORE",
-        "ADID 15.3 §II.4.3: validate before a plan/artifact is finalized (YAML/JSON lint, Markdown structure, schema) and before an edit/write/patch is applied (syntax, types, schema). On error: correct, re-validate; emit only the corrected artifact. No malformed plan enters G4, no unverified mutation enters the project.",
+        "ADID 15.4 §III.4: validate before a plan/artifact is finalized (YAML/JSON lint, Markdown structure, schema) and before an edit/write/patch is applied (syntax, types, schema). On error: correct, re-validate; emit only the corrected artifact. No malformed plan enters G4, no unverified mutation enters the project.",
     ),
     # 2026-09-29 (candidate incorporation, F6): the procedure layer of
     # prompt_kernel/candidate/reasoning_prompt.final.txt that (3) did not carry — testing, the memory
@@ -647,7 +647,7 @@ GATES = (
             # undefined entity is the same hole one level up, and a later cycle grepping
             # `ANALYST2` would find a phantom. All four stop cases and the bounded-stop-vs-
             # SUCCESS distinction are kept — the cases are the decision, the roles were prose.
-            _rule("G9", "BOUNDED_STOP_CONDITIONS", "BOUNDED STOP (DONE) iff: (a) the G8 oracle passes every test case; (b) 3 failed corrective attempts did not resolve it; (c) an immutable external dependency or human constraint blocks it; (d) continuing is structurally futile. (b)-(d): bounded stop, residual recorded, NOT SUCCESS. SUCCESS still needs @CLOSURE_PROOF; no other DONE. (ADID 15.3 §II.1.2.4)",
+            _rule("G9", "BOUNDED_STOP_CONDITIONS", "BOUNDED STOP (DONE) iff: (a) the G8 oracle passes every test case; (b) 3 failed corrective attempts did not resolve it; (c) an immutable external dependency or human constraint blocks it; (d) continuing is structurally futile. (b)-(d): bounded stop, residual recorded, NOT SUCCESS. SUCCESS still needs @CLOSURE_PROOF; no other DONE. (ADID 15.4 §III.1)",
                 BP("IFF", BP("EQ", value=("status", "DONE")), BP("OR", BP("HAS", "oracle_pass_all_tests"), BP("GE", value=("failed_attempts", 3)), BP("HAS", "blocked_by_human"), BP("HAS", "futile")))),
             # «and a stop whose residual is recorded is legitimate closure» evicted 2026-09-27 to fund the maturity
             # clause in the premise: CLOSURE_PROOF_RULE above already says «Record the remainder as residual —
@@ -725,6 +725,9 @@ PROTOCOLS = (
             # NOT cut: the self-start itself, restored 2026-09-27 (0e2d752ce8) because with only
             # G9 as a self-start, an agent whose every task was blocked could never reach it and
             # turned each move into a question to the owner — 12 asks, 0 builds in one session.
+            # 2026-10-04 (owner: «ADID 15.4 теперь»): the other ADID citations moved to 15.4; these two keep 15.3 because
+            # 15.4 §II.4 item 1 says «Observe only after G9» and has no self-trigger B — a 15.4 DEFECT by its own §0
+            # conflict rule («the kernel wins and this document is defective»), to be fixed in ADID_Python, not here.
             _rule("EVOLUTION_LOOP", "SELF_TRIGGER_A", "Self-trigger A (ADID 15.3 §15.2.i): @CENTRAL_TASKS exhausted — the task list stopped moving, closed or stalled on anything but a user decision.",
                 BP("AND", BP("HAS", "CENTRAL_TASKS"), BP("OR", BP("HAS", "primary_tasks_closed"), BP("HAS", "stalled_on_non_user_blocker")))),
             _rule("EVOLUTION_LOOP", "SELF_TRIGGER_B", "Self-trigger B (ADID 15.3 §15.2.ii): undirected conversation (no actionable goal) + ≥10 message history — history depth, not a stall.",
@@ -976,7 +979,7 @@ KERNEL = Kernel(
         # 2026-09-29 (owner: «SVM = STATE VECTOR MANIFEST»; ADID 12.2 §I.3 is where it is worked out best):
         # the acronym was never expanded beside @SV_FORMAT, the semantic vector, and 12.2's turn chain and goal
         # hierarchy were missing. No runtime consumer reads these fields (grep over packages/opencode/src).
-        "SVM": "State Vector Manifest — the complete context of ONE atomic task (at G0: the root goal), so every turn starts from a known, verifiable state (ADID 12.2 §I.3, 15.3 §II.3): {turn_id, parent_turn_id, goal_hierarchy, goal_vector, task_vector, evidence_vector, oracle_vector}. Seeded at G0 as the digital form of @DIGITAL_INTENTION — it sets the direction — and expanded fractally: G0 seeds goal_hierarchy level 0, each G2 level adds the next (each an @SV_FORMAT vector), G3 fills master_plan; one task keeps one manifest, updated per turn, never duplicated; @DIGITAL_INTENTION.to_state never moves. Fields fill as gates reach them; an unfilled one is stated pending, never invented. parent_turn_id chains turns (null at the root; a sub-task's points to the turn that spawned it). goal_vector = {goal, master_plan = @MASTER_PLAN, acceptance_criteria}; task_vector = {svm_per_task, test_cases, update_artifacts}; evidence_vector = {instrument_results, codegraph_refs, provenance — anchored on a surface that is not our artifact, most stable first: commit hash > symbol > path:line}; oracle_vector = {baseline, post_change, verdict, stamp}. Replaces conversational memory as a BRIEFING that points to evidence, never evidence itself: re-read what it cites; unavailable refs stated.",
+        "SVM": "State Vector Manifest — the complete context of ONE atomic task (at G0: the root goal), so every turn starts from a known, verifiable state (ADID 12.2 §I.3, 15.4 §III.3): {turn_id, parent_turn_id, goal_hierarchy, goal_vector, task_vector, evidence_vector, oracle_vector}. Seeded at G0 as the digital form of @DIGITAL_INTENTION — it sets the direction — and expanded fractally: G0 seeds goal_hierarchy level 0, each G2 level adds the next (each an @SV_FORMAT vector), G3 fills master_plan; one task keeps one manifest, updated per turn, never duplicated; @DIGITAL_INTENTION.to_state never moves. Fields fill as gates reach them; an unfilled one is stated pending, never invented. parent_turn_id chains turns (null at the root; a sub-task's points to the turn that spawned it). goal_vector = {goal, master_plan = @MASTER_PLAN, acceptance_criteria}; task_vector = {svm_per_task, test_cases, update_artifacts}; evidence_vector = {instrument_results, codegraph_refs, provenance — anchored on a surface that is not our artifact, most stable first: commit hash > symbol > path:line}; oracle_vector = {baseline, post_change, verdict, stamp}. Replaces conversational memory as a BRIEFING that points to evidence, never evidence itself: re-read what it cites; unavailable refs stated.",
     }),
     action_classes=MappingProxyType({
         # 2026-09-29 (F2): the candidate's per-identity `action_classes` rows are REJECTED — the §5 tool

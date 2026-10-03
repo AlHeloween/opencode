@@ -479,4 +479,6 @@ def test_pre_action_section_stays_small() -> None:
     for gate in ("G0", "G1"):
         block = text[text.index(f"<{gate}_RULES>") : text.index(f"</{gate}_RULES>")]
         section += len(block.encode("utf-8"))
-    assert section <= 6_200, section
+    # 6_200 -> 6_500 (2026-10-04, owner: «резать особо нечего»): VCS_ROLES became the organization orientation —
+    # where the org lives, genesis, Protocol, the `--keep` recovery — a finding aid again; measured 6_485 B.
+    assert section <= 6_500, section

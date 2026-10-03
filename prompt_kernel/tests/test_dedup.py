@@ -175,4 +175,6 @@ def test_compacted_runtime_budget() -> None:
     # measured 7_783. Raised together with both variants so the relation holds.
     # 7_850 -> 7_950 (2026-10-04, owner: limits by measurement): the G7 COLLABORATION binding — a foreign worktree with
     # its own opencode base is its resident robot's; measured 7_898.
-    assert normalized_token_count(text) <= 7_950
+    # 7_950 -> 8_000 (2026-10-04, later; owner: «резать особо нечего»): G1 VCS_ROLES rewritten as the organization
+    # orientation ($HOME/.org/org.fossil, genesis, `--keep` recovery) + DELEGATE ticket in COLLABORATION; measured 7_950.
+    assert normalized_token_count(text) <= 8_000

@@ -128,7 +128,8 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # 7_950 -> 8_000 (2026-10-03, later, owner's choice): adm RAG before codegraph in the G1 instrument chain and
     # «refresh an index before a task's first query and after edits»; measured 7_953.
     # 8_000 -> 8_100 (2026-10-04, owner: limits by measurement): the G7 COLLABORATION binding; measured 8_049.
-    assert normalized_token_count(text) <= 8_100
+    # 8_100 -> 8_150 (2026-10-04, later; owner: «резать особо нечего»): the organization orientation; measured 8_101.
+    assert normalized_token_count(text) <= 8_150
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

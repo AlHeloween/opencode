@@ -6243,3 +6243,14 @@ only the manifest (db.c:4251), `fossil all list`/`ignore` (allrepo.c:148, :204, 
 (chat.c:1204-1246), busy timeout 15 s (db.c:2208). `fossil all list` → 48 repos (live projects + junk). Owner chose
 topology org.fossil + projects, then «Только давай спланируем»: plans/2026-10-04_fossil-agent-organization.md F0–F7,
 nothing executed; peer plan → plans_deferred/ as superseded. Memory: project_fossil_is_the_corporation.
+
+## [2026-10-04] org.fossil raised by genesis; kernel orientation (F0); ADID refs → 15.4
+Owner: «если нету org.fossil то его надо создать и установить, если есть подключиться и работать»; «первый агент
+который увидел что ее нет - тут же ее поднимает — секта»; «универсально … для тебя, для гпт, для антигравити или наших
+роботов». Built $HOME/.org/genesis/{init.py, ticket-schema.sql, Protocol.md}; S1 contract set on .temp copies ✓ (one
+false «state differs» was my unordered group_concat ✗, re-run ordered ✓); found fossil 2.28 /chat-poll defect (temp
+trigger not authorized) → chat read from the table. Real org created at C:\Users\Alexander\.org\org.fossil, server
+:8079, /timeline 200 ✓; fixtures unregistered (`fossil all ignore`) and deleted. Kernel: VCS_ROLES → organization
+orientation, COLLABORATION → DELEGATE ticket; two Sonnet rounds ($0.098); ADID 15.3 → 15.4 citations except the
+self-triggers (15.4 §II.4 lacks them). Caps raised on «резать особо нечего». Installed product d29959bf… (baseline
+repinned by hand), claude 9f4caea6…, codex e3937cf2…; pytest prompt_kernel 122 passed ✓.

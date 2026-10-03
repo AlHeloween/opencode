@@ -81,7 +81,13 @@
 
 ## Tasks
 
-- [ ] F0 — kernel orientation (all three variants): rewrite G1 `VCS_ROLES` — git = the code history (GitHub); Fossil =
+- [x] F0 — DONE 2026-10-04: G1 VCS_ROLES rewritten as the organization orientation and COLLABORATION re-pointed at a
+      DELEGATE ticket (all three variants; two frameless-Sonnet rounds, experiments/2026-10-04_kernel-org/; caps on the
+      owner's «резать особо нечего»: tokens 8 000 / 8 150, G0+G1 6 500 B; pytest prompt_kernel 122 passed ✓; installed
+      product d29959bf…, claude 9f4caea6…, codex e3937cf2…). Same change: ADID citations 15.3 → 15.4 (§III.6, §III.4,
+      §III.1, §III.3); the two EVOLUTION self-triggers keep 15.3 — 15.4 §II.4 lacks them (a 15.4 defect by its §0).
+      Original task text, kept:
+- [~] F0-orig — kernel orientation (all three variants): rewrite G1 `VCS_ROLES` — git = the code history (GitHub); Fossil =
       the coordination system (chat, tickets, technotes, wiki, timeline) whose repo also holds the runtime's undo
       snapshots; never use it as «a second git»; registry = `fossil all list`; lost `_FOSSIL_` → `fossil open
       <repo.fsl> --keep` from the worktree root, then report. Re-point G7 `COLLABORATION` at DELEGATE (via the host /
@@ -89,7 +95,16 @@
       polished a false frame); caps by measurement, owner's call.
 - [ ] F1 — registry hygiene: classify the 48 entries (live project / junk); `fossil all ignore` the junk on the owner's
       list; record the classification here.
-- [ ] F2 — foundation (owner decisions first: org.fossil path; service via nssm; robot account names): create
+- [~] F2 — PARTLY DONE 2026-10-04 by genesis (owner's «секта»: the first agent that finds the system missing raises
+      it): `$HOME/.org/org.fossil` created by `$HOME/.org/genesis/init.py` (idempotent; tracked copy scripts/org-genesis/,
+      also `fossil uv` files genesis/* inside org.fossil): 22 lineage/lease fields, robot users claude/codex/antigravity
+      (caps Cnrwcjfkm), wiki Protocol, registered in `fossil all list`, server 127.0.0.1:8079 (`--localauth`). Contract
+      set on a throwaway copy (S1) ✓: lineage root→child→grandchild, per-change author, technote tagged task-<id>, wiki,
+      timeline, state equal after `rebuild`; `chat send` ✓. Residual ✗: HTTP `/chat-poll` fails in 2.28 («not
+      authorized: CREATE TEMP TRIGGER chat_ai») — chat is read from the table; with `--localauth` every chat line is
+      authored by the admin, not the robot; `fossil ticket history` CLI not exercised; genesis is on this machine only
+      (ADID installer distribution open). Original task text, kept:
+- [ ] F2-orig — foundation (owner decisions first: org.fossil path; service via nssm; robot account names): create
       org.fossil, robot accounts + capabilities, custom ticket fields (`root_task, parent_task, delegated_by,
       assigned_to, agent_state, lease_owner, lease_token, lease_epoch, lease_until, workspace_repo, report_ref,
       idempotency_key, failure_code`), enable chat, login group with the project repos; contract tests (criterion 3).

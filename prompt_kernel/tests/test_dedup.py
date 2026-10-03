@@ -173,4 +173,6 @@ def test_compacted_runtime_budget() -> None:
     # 7_700 -> 7_850 (2026-10-03, owner: «Поднять лимиты»): the G1 add-ons VCS_ROLES (git = the VCS, Fossil = the
     # runtime's undo/redo store) and PROJECT_LAYOUT (where to read; reuse scripts/ before inventing a procedure);
     # measured 7_783. Raised together with both variants so the relation holds.
-    assert normalized_token_count(text) <= 7_850
+    # 7_850 -> 7_950 (2026-10-04, owner: limits by measurement): the G7 COLLABORATION binding — a foreign worktree with
+    # its own opencode base is its resident robot's; measured 7_898.
+    assert normalized_token_count(text) <= 7_950

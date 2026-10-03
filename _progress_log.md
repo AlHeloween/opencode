@@ -6225,3 +6225,12 @@ REFUTED by that fixture ✗ (the old block did remove the free entries) — the 
 Mass: each test dir carries its own .opencode\node_modules (24–26 MB, ~2.5 k files) and outlives its test; 1 731 dirs
 on 10-03 ≈ 43 GB → the leak is in the test harness (open; another writer is active in tests). Also seen, not fixed:
 `_build.ps1 -Task check` runs `bun test` with no path — the full suite AGENTS.md forbids.
+
+## [2026-10-04] kernel: G7 add-on COLLABORATION; plan for robot-to-robot messaging (peer)
+Owner: robots have no concept of collaboration — a worktree with its own base goes to its resident robot, not worked
+by hand from outside; «давай подумаем как роботы могут кидать сообщения друг другу»; chose «Правило сейчас + план
+peer». Two frameless-Sonnet rounds ($0.079, experiments/2026-10-04_kernel-collaboration/). Scope decided by me and
+stated to the owner: «foreign» = a worktree other than the one the session started in. Suite gated before install;
+caps by measurement (tokens 7 950 / 8 100, bytes 60 000). Installed product 26f99108… (baseline repinned by hand),
+claude 813ee43c…, codex ede14a7a…; pytest prompt_kernel 122 passed ✓. Plan plans/2026-10-04_robot-peer-messaging.md:
+P4 [x]; P0 (binary promotion) blocks the rest — `opencode_host.py` → «none: no host record» today.

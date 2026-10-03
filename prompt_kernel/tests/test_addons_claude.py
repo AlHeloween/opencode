@@ -120,7 +120,10 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # 7_700 -> 7_708 (2026-10-02, owner's choice): the ORACLE_ROLE fix («the user's included … the user's word is
     # testimony») after three frameless-Sonnet rounds; measured 7_708 with it, the product itself at 7_557 / 7_700.
     # The +8 is this variant's alone — the product ceiling did not move.
-    assert normalized_token_count(text) <= 7_708
+    # 7_708 -> 7_800 (2026-10-03, owner's choice): the G1 VCS_ROLES binding (git = the VCS, Fossil = the runtime's
+    # undo/redo store, never altered by hand) after four frameless-Sonnet rounds; measured 7_794, bytes 57_930 / 58_000.
+    # Product 7_643 and codex 7_678 stay under their 7_700 — the product ceiling did not move.
+    assert normalized_token_count(text) <= 7_800
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

@@ -56,6 +56,24 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         ),
     ),
     GateAddon(
+        "G1",
+        "VCS_ROLES",
+        (
+            # Owner, 2026-10-03: «Добавь в аддоны кернела назначение fossil у нас и то что мы используем гит как VCS».
+            # Incident 2026-10-02: a delegate without this binding invented a «two VCS» story and the root _FOSSIL_
+            # vanished. Source: AGENTS.md § Fossil Snapshot System.
+            # Round 1 frameless Sonnet: «delete through it» left a direct file delete open (the incident's shape), «it»
+            # had no clear antecedent, recreating the marker was not covered, the cadence list invited misreadings.
+            # Round 2: «by hand» let a script through (the incident was a script), «inspection» admitted fossil
+            # open/checkout, two named files left the folder and a move open, «defect» invited a repair.
+            # Round 3: «root marker» bound to the fossil/ folder, the parenthetical read as a closed list, live-file
+            # reads outside fossil were uncovered, «never repair» could halt the task, «NOT a VCS» is factually arguable.
+            # Round 4: «them» covered the folder, not the files under it; -R is not read-only; a «copy» could be made by
+            # moving the original. Rounds stopped here: the incident-shaped holes are closed, the rest is style.
+            "git is the project VCS (commits, branches, history); Fossil serves only as the runtime's own undo/redo store, never as a second VCS. Nothing under {worktree}/.opencode/data/fossil/ nor the worktree-root marker _FOSSIL_ is ever altered by you (delete, move, rename, recreate, overwrite — by command or script); to inspect, COPY snapshot.fsl and run read-only fossil -R commands (timeline, info, ls) on the copy. A missing _FOSSIL_: report it to the user as a defect, do not recreate it, continue the task.",
+        ),
+    ),
+    GateAddon(
         "G3",
         "ACCEPTANCE_FRAME",
         (

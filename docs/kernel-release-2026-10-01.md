@@ -30,3 +30,21 @@ skipped the ladder; «unrunnable» had no threshold. Round 2 ($0.079) — «buil
 LAST rung), the explicit-stop exit was missing, «acceptance» collided with G9's `ACCEPTANCE_PASS`. Round 3 ($0.086) —
 «lacking» missed the incident's own case (tool present, unused), «or» set no order, «approval» is no kernel term.
 All fixed in the installed wording; the test pin in `test_render.py` grew with the phrase.
+
+## Amendment 2026-10-03 — G1 add-on `VCS_ROLES` (all three variants)
+
+- production sha256 `d4cfef5e…` (prev `5b609132…`), 57 687 B / 7 643 tok; Claude variant `39ea4694…` 57 930 B / 7 794
+  tok, its token cap 7 708 → 7 800 (owner's choice); codex `3337a61a…` 57 220 B / 7 678 tok; product ceiling unmoved
+- evidence: `experiments/2026-10-03_kernel-vcs-roles/` (four frameless-Sonnet rounds, briefs + envelopes, $0.166)
+
+| rule | where | the case that produced it |
+|---|---|---|
+| «git is the project VCS …; Fossil serves only as the runtime's own undo/redo store, never as a second VCS. Nothing under {worktree}/.opencode/data/fossil/ nor the worktree-root marker _FOSSIL_ is ever altered by you …; to inspect, COPY snapshot.fsl and run read-only fossil -R commands … A missing _FOSSIL_: report it to the user as a defect, do not recreate it, continue the task.» | G1 add-on `VCS_ROLES` | owner, 2026-10-03: «Добавь в аддоны кернела назначение fossil у нас и то что мы используем гит как VCS». 2026-10-02: a Claude delegate on a worktree without our kernel invented a «two VCS» story, and the root `_FOSSIL_` disappeared the same day (cause Unknown). Source of the facts: AGENTS.md § Fossil Snapshot System. |
+
+Falsifier dispositions: round 1 — «delete through it» left a direct file delete open (the incident's own shape), «it»
+had no antecedent, recreating the marker was uncovered, the cadence list invited misreadings (dropped). Round 2 — «by
+hand» let a script through, «inspection» admitted `fossil open`/`checkout`, two named files left the folder and a move
+open, «defect» invited a repair. Round 3 — «root marker» bound to the `fossil/` folder, the parenthetical read as a
+closed list, live-file reads outside fossil uncovered, «never repair» could halt the task, «NOT a VCS» factually
+arguable. Round 4 — «them» covered the folder but not the files under it, `-R` is not read-only, a «copy» could be
+made by moving the original. Rounds stopped at 4: the incident-shaped holes closed; the remaining findings were style.

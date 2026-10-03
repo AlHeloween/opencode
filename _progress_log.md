@@ -6180,3 +6180,12 @@ Owner: «снесем чтобы глаза не мозолили», then chose 
 - Outward junction `suspicious-joliot/node_modules/.bun/node_modules/@hono/standard-validator` → main node_modules
   unlinked with `rmdir` before removal; main `node_modules/hono` intact ✓. 9 app sessions of those worktrees deleted.
 - Kept: rescue/0db8b57076-oauth-output-ceiling (deliberate rescue).
+
+## [2026-10-03] kernel: G1 add-on VCS_ROLES — git is the VCS, Fossil the runtime's undo/redo store (all three variants)
+Owner: «Добавь в аддоны кернела назначение fossil у нас и то что мы используем гит как VCS». Four frameless-Sonnet
+rounds ($0.166, experiments/2026-10-03_kernel-vcs-roles/); dispositions in docs/kernel-release-2026-10-01.md
+§ Amendment 2026-10-03. Claude cap 7 708 → 7 800 (owner's choice, measured 7 794). pytest prompt_kernel 122 passed ✓;
+installed product d4cfef5e… (baseline repinned by hand, prev 5b609132…), claude 39ea4694… (install needed the sandbox
+off — `.claude/` writes are denied inside it), codex 3337a61a… → ~/.codex/AGENTS.md. Staged by file: the tree also
+carries another writer's uncommitted edits (AGENTS.md, session/*, snapshot/index.ts, codegraph/*) — not touched.
+Running binaries pick the product change up only after the owner's build + promotion.

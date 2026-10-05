@@ -254,6 +254,73 @@ export async function getModelStatus(providerID: string): Promise<ModelStatus> {
 
 // ─── Legacy: Balance Snapshot (for cost validation in processor) ─────────
 
+/**
+ * COST-MODEL DRIFT — the alarm on `costValidationDelta`.
+ *
+ * That field was computed, stored and published for months and read by
+ * nothing. Measured 2026-10-04 on `d:/!!!`: the model predicted $1.074 while
+ * the provider billed $2.390 — a 2.22x gap that sat in SQLite every day.
+ * The model is arithmetically exact (recorded/computed ratio 1.000 on every
+ * sample), so the drift is never arithmetic: it is a RATE that no longer
+ * matches the tariff, and the only instrument that can see it is the balance.
+ *
+ * Sampled over a WINDOW, not per snapshot: one poll absorbs several requests
+ * (measured ratios per snapshot ranged 0.3x..19.2x for the same traffic), so a
+ * single sample cannot distinguish drift from attribution. The window is what
+ * makes the alarm mean something.
+ */
+const DRIFT_WINDOW = 8
+const DRIFT_TOLERANCE = 0.15
+
+/** How the bill compares with the model over the last {@link DRIFT_WINDOW} snapshots. */
+export interface CostDriftReport {
+  providerID: string
+  samples: number
+  predicted: number
+  actual: number
+  ratio: number
+}
+
+const driftWindow: Record<string, Array<{ predicted: number; actual: number }>> = {}
+
+export function resetCostDrift(providerID?: string): void {
+  if (providerID) {
+    delete driftWindow[providerID]
+    return
+  }
+  for (const key of Object.keys(driftWindow)) delete driftWindow[key]
+}
+
+/**
+ * Fold one snapshot into the window and report when the bill has left the
+ * model. Returns undefined while the window is still filling or while the
+ * model is inside tolerance — a healthy provider produces no log at all.
+ */
+export function observeCostDrift(
+  providerID: string,
+  calculatedCostSinceLast: number | undefined,
+  actualBalanceDelta: number | undefined,
+): CostDriftReport | undefined {
+  if (calculatedCostSinceLast === undefined || actualBalanceDelta === undefined) return undefined
+  if (!Number.isFinite(calculatedCostSinceLast) || !Number.isFinite(actualBalanceDelta)) return undefined
+  // A top-up moves the balance UP and would read as a huge negative spend.
+  if (actualBalanceDelta <= 0) return undefined
+
+  const samples = driftWindow[providerID] ?? []
+  samples.push({ predicted: calculatedCostSinceLast, actual: actualBalanceDelta })
+  if (samples.length > DRIFT_WINDOW) samples.shift()
+  driftWindow[providerID] = samples
+  if (samples.length < DRIFT_WINDOW) return undefined
+
+  const predicted = samples.reduce((sum, s) => sum + s.predicted, 0)
+  const actual = samples.reduce((sum, s) => sum + s.actual, 0)
+  if (predicted <= 0) return undefined
+
+  const ratio = actual / predicted
+  if (Math.abs(ratio - 1) <= DRIFT_TOLERANCE) return undefined
+  return { providerID, samples: samples.length, predicted, actual, ratio }
+}
+
 /** Used by checkAndSnapshotBalance in processor.ts for cost-delta tracking. */
 export async function checkBalance(params: {
   providerID: string
@@ -290,6 +357,19 @@ export async function checkBalance(params: {
       actualBalanceDelta = prevTotal - currTotal
       costValidationDelta = actualBalanceDelta - params.calculatedCostSinceLast
     }
+  }
+
+  // The alarm on the column above. Fires only when the bill has LEFT the model
+  // over a full window — a provider whose rates still match produces no log.
+  const drift = observeCostDrift(params.providerID, params.calculatedCostSinceLast, actualBalanceDelta)
+  if (drift) {
+    log.warn("cost model drift: provider bill has left the computed cost", {
+      providerID: drift.providerID,
+      samples: drift.samples,
+      predicted: drift.predicted.toFixed(6),
+      actual: drift.actual.toFixed(6),
+      ratio: `${drift.ratio.toFixed(3)}x`,
+    })
   }
 
   return {

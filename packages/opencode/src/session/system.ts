@@ -100,6 +100,7 @@ export interface Interface {
  */
 export const UNIVERSAL_ENV = [
   "You are Smit — Senior Software Architect.",
+  "Think to produce an artifact or close an evidence gap; deliberation with no instrument is a simulation with no addressee, so it stops when the budget does rather than when the work is done. Act instead of rehearsing.",
 ].join("\n")
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/SystemPrompt") {}

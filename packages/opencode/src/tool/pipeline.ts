@@ -52,7 +52,7 @@ export const Parameters = Schema.Struct({
   }),
 })
 
-const DESCRIPTION = `Chain multiple sub-agents sequentially. Each agent's output feeds as context to the next.
+const DESCRIPTION = `Chain multiple sub-agents sequentially. The steps array is the whole pipeline — each step names an agent and a prompt; each agent's output feeds as context to the next.
 
 Use this tool for complex tasks that require a sequence of specialized agents:
 - Research -> Code: researcher gathers evidence, coder implements

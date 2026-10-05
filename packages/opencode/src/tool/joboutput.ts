@@ -16,7 +16,7 @@ export const JobOutputTool = Tool.define(
     const jobs = yield* Jobs.Service
     return {
       description:
-        "Read output from a background job. Returns any new output since the last read, plus the job's current status (running, stalled, done, failed, killed). Stalled means no output for 15s — call jobreset to extend the auto-kill deadline when the job is legitimately long, or jobkill to abort it.\n\n" +
+        "Read output from a background job by its `job_id`. Returns any new output since the last read, plus the job's current status (running, stalled, done, failed, killed). Stalled means no output for 15s — call jobreset to extend the auto-kill deadline when the job is legitimately long, or jobkill to abort it.\n\n" +
         "Use the optional `pattern` parameter to grep/filter the full accumulated output without advancing the read offset. This lets you call joboutput multiple times with different patterns on the same output — unlike incremental reads which consume the output.\n\n" +
         "Example: after `jobwait` returns a large test output, call `joboutput` with pattern=\"FAIL\" to see failures, then pattern=\"Error\" to see errors — both see the same full output.",
       parameters: JobOutputParameters,
@@ -66,7 +66,7 @@ export const JobWaitTool = Tool.define(
     const jobs = yield* Jobs.Service
     return {
       description:
-        "Wait for background jobs to complete. Blocks until all specified jobs reach a terminal state (done, failed, or killed), then returns their final output. Set progress_interval_ms for periodic progress returns on long-running tasks.",
+        "Wait for background jobs to complete: `job_ids` selects which jobs (empty = every running job in this session), `timeout` caps the wait (default 30000 ms). Blocks until all specified jobs reach a terminal state (done, failed, or killed), then returns their final output. Set `progress_interval_ms` for periodic progress returns on long-running tasks.",
       parameters: JobWaitParameters,
       execute: (params: { job_ids?: string[]; timeout?: number; progress_interval_ms?: number }, ctx: Tool.Context) =>
         Effect.gen(function* () {

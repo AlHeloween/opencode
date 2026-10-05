@@ -1,10 +1,17 @@
 Fossil in this project is an AUTOMATIC AGENT SNAPSHOT SYSTEM — NOT the project VCS.
 It records every file change the agent makes so you can undo/redo/review agent work.
 For source control, use GIT — Fossil is a sidecar, not the repository.
-Fossil in this project is an AUTOMATIC AGENT SNAPSHOT SYSTEM — NOT the project VCS.
-It records every file change the agent makes so you can undo/redo/review agent work.
-For source control, use GIT — Fossil is a sidecar, not the repository.
 Constitution: do not use fossil CLI mutate paths; this tool is for inspection/search of the snapshot timeline.
+
+## Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `pattern` | string | **required** | POSIX extended regular expression to search for |
+| `files` | string[] | — | File paths to search. If omitted, searches all tracked files. |
+| `ignoreCase` | boolean | — | Case-insensitive search (default: false) |
+| `maxResults` | number | — | Maximum number of version matches to return (default: 50) |
+| `once` | boolean | — | Stop after first match per file (default: false) |
 
 Useful Fossil commands for development workflow (faster than git for agent review):
 

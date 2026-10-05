@@ -30,6 +30,7 @@ A summary has two halves and they do not have the same standing:
 | `id` | string | yes | Checkpoint id from `checkstate` (e.g. `ckpt_…`) |
 | `action` | `"read"` \| `"write"` | yes | `read` returns the current body; `write` replaces it |
 | `body` | string | for `write` | The corrected prose |
+| `sessionId` | string | — | Session to look in. Defaults to the current one. Another session's summaries are readable but not writable. |
 
 The replaced text is kept under `.opencode/data/summary-revisions/` — the
 compaction contract is that nothing is lost, and that applies to a correction

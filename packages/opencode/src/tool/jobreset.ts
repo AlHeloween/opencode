@@ -22,7 +22,7 @@ export const JobResetTool = Tool.define(
     const jobs = yield* Jobs.Service
     return {
       description:
-        "Reset the stall deadline of a running/stalled background job so it is not auto-killed. Call this after a stall warning when the job is legitimately long (builds, test suites, downloads); it does not touch the job's output or result.",
+        "Reset the stall deadline of a running/stalled background job (`job_id`) so it is not auto-killed. Call this after a stall warning when the job is legitimately long (builds, test suites, downloads); it does not touch the job's output or result.",
       parameters: JobResetParameters,
       execute: (params: { job_id: string }, ctx: Tool.Context) =>
         Effect.gen(function* () {

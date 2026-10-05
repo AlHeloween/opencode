@@ -60,7 +60,7 @@ export const SvmTool = Tool.define<typeof Parameters, Metadata, Storage.Service>
 
     return {
       description:
-        "The manifest (SVM, kernel §1.4) of a task. action='read' returns the stored manifest, or says plainly " +
+        "The manifest (SVM, kernel §1.4) of a task; `state` records where it stands (default: doing). action='read' returns the stored manifest, or says plainly " +
         "that the task has none — nothing is invented. action='set' writes one and REQUIRES sv, etaTurns and " +
         "oracle: a manifest without its vector is the hole this store exists to close, so a partial one is " +
         "refused rather than stored. action='render' regenerates the generated BODY of " +

@@ -51,6 +51,7 @@ Output is capped at 50KB. Use `sessionread` to get full context around found mes
 |-----------|------|---------|-------------|
 | `query` | string (optional) | — | Search keywords or phrase. Omit to browse all sessions. |
 | `limit` | number | 20 | Maximum results to return |
+| `ignoreCase` | boolean | false | Case-insensitive `pattern` |
 | `corpus` | string | `parts` | `parts` = the indexed transcript (unchanged); `summaries` = the session memory spine |
 | `dominant` | string | — | With `summaries`, keep only epochs whose semantic dominant contains this text. A LEXICAL lookup in a semantically rich field, not a similarity search: the dominant is an address the epoch once wrote for itself, and matching it resolves that address — so a phrase nobody ever wrote will not match |
 | `goals` | boolean | false | With `summaries`, also print each epoch's `## Goal` head |

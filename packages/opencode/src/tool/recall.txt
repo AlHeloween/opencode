@@ -53,7 +53,7 @@ refusing it would hide the failure behind a count. Only a result that never fini
 And errors are the case where `keep` matters MOST, because an errored result has no size gate at all:
 it replays in FULL on every later turn until something shrinks it. Read the part that matters, then
 `keep` it — that is what stops a failure from spamming the context for the rest of the session. Put
-the mistake itself in `reason` ("multiedit: stale anchor; re-read the region first") so the same error
+the mistake itself in `reason` ("edit: stale anchor; re-read the region first") so the same error
 is not repeated.
 
 Not a substitute for `sessionread`, which truncates every tool output to 500 characters. And when

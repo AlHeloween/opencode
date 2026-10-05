@@ -83,3 +83,81 @@ python experiments/2026-08-14_deepseek-test/deepseek_test.py --series all
 ```
 
 Requires `DEEPSEEK_API_KEY` in env. Results land in `experiments/2026-08-14_deepseek-test/results/` with per-turn rows + auto verification summaries (balance, lattice, hit ratio, cost).
+
+---
+
+# What a request actually costs (added 2026-10-05)
+
+Measured on `d:/!!!` over one day, cross-checked against the provider's own
+`/user/balance` endpoint. Companion plan: `plans/2026-10-04_files-api-and-tariff.md`.
+
+## The tariff changes with the clock, and our model had no clock
+
+Off-peak rates are **half** the peak price. Peak is a wall-clock window —
+01:00-04:00 and 06:00-10:00 UTC, Monday through Friday, public holidays excluded
+(api-docs.deepseek.com, pricing footnote 2). `getUsage` branched only on a
+context threshold and never on the time, so the model could not express a
+time-varying tariff at all.
+
+| tariff (deepseek-flash) | predicted for the day | against actual |
+|---|---|---|
+| off-peak (what the model used) | $1.074 | 55% low |
+| **PEAK** | **$2.149** | **10% low — closest** |
+
+Peak/off-peak is exactly 2.0; the measured gap was 2.22x. The arithmetic itself
+was never wrong: recorded/computed was **1.000** to the last digit. `provider/tariff.ts`
+now selects by UTC clock, the schedule lives in config beside the rates, and
+DeepSeek's peak block is **derived by doubling** the base so a re-priced table
+needs no code edit.
+
+## Cost decomposition — it is the thinking, not the context
+
+One captured request (245 120 cache-hit, 304 fresh, 4 009 completion):
+
+| | tokens | cost | share |
+|---|---|---|---|
+| cache hit | 245 120 | $0.000735 | 23.1% |
+| cache miss | 304 | $0.000046 | 1.4% |
+| **completion** | **4 009** | **$0.002405** | **75.5%** |
+
+4 009 output tokens cost as much as the entire 245k context. Reasoning was 59.5%
+of that output, and 82.3% of output on tool-calling turns. **The bill is paid for
+thinking.** Any optimisation aimed at the context or at images is aimed at the
+cheap 24.5%.
+
+## Images: 74% of the bytes, 6.3% of the tokens
+
+An image bills as at most **1024 tokens** regardless of its pixel size
+(api-docs.deepseek.com vision docs), so fifteen base64 screenshots are ≤15 360
+tokens — 6.3% of a 245k prompt — while being 5.77 MB of a 7.75 MB payload.
+
+- Base64 in the request is **not** counted as text: 6.51 MB would be 1 705 723
+  text tokens against an actual `prompt_tokens` of 638 553. Refuted by 2.7x.
+- But base64 in a **TEXT block** would be the catastrophe: ~205 000 tokens for one
+  image versus ≤1 024 as a file block. Nothing guards that path; it wants a WARN.
+- Consecutive screenshots repeat: 7 of 13 `cua` frame pairs were pixel-identical,
+  and only 2 of 13 had a diff small enough for a crop to pay. Skipping identical
+  frames is a bandwidth win, not a money one.
+
+## Files API: bytes, not money
+
+`POST /files` (`purpose=user_data`, ≤64 MiB) → `file_id`, referenced as
+`{"type":"file","file_id":"…"}`. The response carries **no status field** — there
+is nothing to poll, so "ready" is established by asking (`files.retrieve`).
+Limits: 25 GiB and 10 000 files per account; JPEG/PNG/GIF/**WebP**.
+
+It removes 5.77 MB from every request and walks us away from the 48 MiB body
+limit. It saves almost no money, because a 1024-token image on a warm cache is
+$0.000046. Ranking it above reasoning as a cost optimisation would be wrong.
+
+## What is still open
+
+The residual 10% ($2.149 vs $2.390) is not explained locally. It needs
+`platform.deepseek.com/usage` — the daily total, the model named on the charge,
+and the per-token-type breakdown. Their cache-hit rate decides whether the
+account is on peak pricing or the gap is in the provider's own deduction:
+ `/user/balance` returns only `is_available` and `balance_infos`, no tariff.
+
+`provider/balance.ts` carries the alarm for this: it compares our model against
+the real balance over an 8-snapshot window at 15% tolerance, and was silent the
+whole time this drift was running.

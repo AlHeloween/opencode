@@ -1,5 +1,19 @@
 # Progress Log
 
+## [2026-10-03 23:10Z] edit tool verified live - 43 unit tests green + a live battery of 16 edit calls (9 applied, 7 refusals - every refusal re-read as a no-write); codecs byte-stable
+
+✓ **Unit suite green** - `bun test test/tool/edit.test.ts test/tool/edit-exact.test.ts` (cwd `packages/opencode`, cmd_runner run `20261003T230427Z_e45b15b5`): **43 pass / 0 fail / 77 expect(), exit 0** - including both 2026-10-04 regressions (`toHash == fromHash` REPLACES the line, never inserts beside it; the hash printed beside a line changes THAT line, never its neighbour).
+
+✓ **Live battery** (`experiments/2026-10-04_edit-tool-smoke/`; every step verified by re-reading state, bytes via hex `read`): one 4-address call in which `toHash == fromHash` replaced, the FIRST of two identical lines changed while its twin did not, and a later address still hit its ORIGINAL line after an earlier insertion shifted it (resolve-all-before-apply); inclusive span 2→1; delete leaves no blank line; seed insert before line 1; unicode round-trip; append keeps the file's own final form - terminated AND unterminated; an empty file takes an insertion «as sent».
+
+✓ **Refusals are total - each proved a no-write by the very next read**: stale hash; a batch with file A valid + file B stale → the WHOLE call refuses and file A stays byte-identical (cross-file atomicity); a 4-entry batch refused BEFORE any write (same-file atomicity); `00000000` as `fromHash` names `insertAfter`; both/neither address forms; two entries claiming one line; an insertion where a span starts («refuse rather than let one silently win»).
+
+✓ **Codecs by bytes**: UTF-8 BOM survives an edit; Delphi `.pas` is written and edited as BOM+CRLF; an unterminated file stays unterminated after appending.
+
+✓ **The backup predicate skips gitignored paths by design** - `restore list` was empty after ~12 edits because all of them were inside gitignored `experiments/`; `edit.ts:81` skips when `git check-ignore --quiet` exits 0, and the edits returned promptly (the old `check-ignore --stdin` stall does not fire). Follow-up, same experiment: the first NON-gitignored edit - this very file - produced its `.bak` immediately (`20261004-071009_call_00_..._progress_log.md.bak`, meta path absolute), and a `restore({filePath})` round-trip on a probe file returned the content byte-identical (same chain hash before and after).
+
+✓ **Brace-ambiguity class (`}` vs `}}`) - the owner-named reason for hash addressing - tested to stay dead**: in `braces.txt`, adjacent identical `\t}` lines plus a `\t}}` prefix-superset and a `} // trailer` sibling: replacing `\t}` → `\t}}` by hash changed ONLY the addressed line (twin + superset byte-identical, re-read); a follow-up ONE-call 4-address pass moved two twins and the trailer line with the bare-`}` twin and the `\t}}` superset intact; hex read shows no mid-line splice. Chain determinism observed live: the address is positional, there is no string search left to mis-anchor.
+
 ## [2026-10-01 00:05Z] coupling labels from plan headers — L4 closed on BOTH halves; plan → plans_completed/
 
 ✓ **L4 negative half, produced deliberately.** Robot session `ses_f0e3e4801ffefwaT00Co8CHgZX`, step 1 (cmd_runner

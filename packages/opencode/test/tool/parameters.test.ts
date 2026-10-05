@@ -9,7 +9,6 @@ import { toJsonSchema } from "../../src/util/effect-zod"
 // prompt.ts` uses to emit tool schemas to the LLM, so the snapshots stay
 // byte-identical regardless of whether a tool has migrated from zod to Schema.
 
-import { Parameters as ApplyPatch } from "../../src/tool/applypatch"
 import { Parameters as Bash } from "../../src/tool/bash"
 import { Parameters as Compare } from "../../src/tool/compare"
 import { Parameters as Edit } from "../../src/tool/edit"
@@ -45,7 +44,6 @@ const propertyNames = (schema: Schema.Top): string[] => {
 
 describe("tool parameters", () => {
   describe("JSON Schema (wire shape)", () => {
-    test("applypatch", () => expect(toJsonSchema(ApplyPatch)).toMatchSnapshot())
     test("bash", () => expect(toJsonSchema(Bash)).toMatchSnapshot())
     test("edit", () => expect(toJsonSchema(Edit)).toMatchSnapshot())
     test("glob", () => expect(toJsonSchema(Glob)).toMatchSnapshot())
@@ -69,19 +67,6 @@ describe("tool parameters", () => {
     })
   })
 
-  describe("applypatch", () => {
-    test("accepts patchText", () => {
-      expect(parse(ApplyPatch, { patchText: "*** Begin Patch\n*** End Patch" })).toEqual({
-        patchText: "*** Begin Patch\n*** End Patch",
-      })
-    })
-    test("rejects missing patchText", () => {
-      expect(accepts(ApplyPatch, {})).toBe(false)
-    })
-    test("rejects non-string patchText", () => {
-      expect(accepts(ApplyPatch, { patchText: 123 })).toBe(false)
-    })
-  })
 
   describe("bash", () => {
     test("accepts minimum: command + description", () => {

@@ -28,6 +28,6 @@ use CodeGraph, tests, and review for behavior.
 
 | Parameter | Meaning |
 |---|---|
-| `pathA`, `pathB` | Two files or directory trees to compare. |
-| `mode` | `names`, `numstat`, or `patch`. |
-| `context` | Context lines in patch mode, from 0 to 100. |
+| `pathA`, `pathB` | Two files or directory trees to compare — both **required**. |
+| `mode` | `names` (default), `numstat`, or `patch`. |
+| `context` | Unified-diff context lines for patch mode, 0–100. Default 3. |

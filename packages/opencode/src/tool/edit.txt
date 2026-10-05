@@ -2,34 +2,62 @@ Change files by the line addresses `read` printed. **MODIFY / PERSISTENT_WRITE /
 
 ## One call, every file
 
+The whole call is `{"files": [...]}` — ONE element per file, and `filePath` is **required** on every element. The change itself is exactly one of `edits` (changes to an existing file) or `content` (create a new file).
+
 ```json
 {
   "files": [
-    { "filePath": "src/a.ts", "edits": [{ "fromHash": "3f19c2ea", "toHash": "9c0be411", "newString": "new lines" }] },
-    { "filePath": "src/b.ts", "edits": [{ "insertAfter": "00000000", "newString": "new line 1" }] },
+    { "filePath": "src/a.ts", "edits": [ { "fromHash": "3f19c2ea", "toHash": "9c0be411", "newString": "new lines" } ] },
+    { "filePath": "src/b.ts", "edits": [ { "insertAfter": "00000000", "newString": "new line 1" } ] },
     { "filePath": "src/new.ts", "content": "a file that does not exist yet\n" }
   ]
 }
 ```
 
-One change is a list of one — there is no other form. Each file appears ONCE; several changes to it go in its `edits`.
+- `files[0]` replaces the span `3f19c2ea..9c0be411` (both lines inclusive) of `src/a.ts` with `new lines`.
+- `files[1]` inserts `new line 1` at the very top of `src/b.ts` (`00000000` = before line 1).
+- `files[2]` creates `src/new.ts` — `content` instead of `edits`.
+
+`edits` is ALWAYS an array, even for a single change — one change is a list of one. Several changes to the same file are several elements of its `edits`. Each element of `edits` is ONE entry, and an entry **never carries the file name** — the `files` element around it does.
 
 ## The address
 
 `read` prints `470  3f19c2ea: text`. The hash is a chain over the file up to that line, so it pins the FILE, not just a line number. **Use the hash printed beside the line you mean** — the address is the lines themselves.
 
-| You want | entry |
-|---|---|
-| replace lines A..B | `{ "fromHash": hash of A, "toHash": hash of B, "newString": … }` |
-| replace one line A | `{ "fromHash": hash of A, "newString": … }` |
-| delete lines A..B | `{ "fromHash": hash of A, "toHash": hash of B, "newString": "" }` |
-| insert after line X | `{ "insertAfter": hash of X, "newString": … }` |
-| insert before line 1 | `{ "insertAfter": "00000000", "newString": … }` |
+Every example below is one full call; `<file>` stands for the `filePath` of the `files` element that carries the entry.
 
-- `fromHash`..`toHash` is inclusive: both lines are replaced, and everything between them. `newString` must therefore carry every line you want to KEEP from that span.
-- An entry is a replacement (`fromHash`) OR an insertion (`insertAfter`) — never both.
+Replace lines A..B — both inclusive; `newString` must carry every line you want to KEEP from that span, as it should read:
+```json
+{"files":[{"filePath":"<file>","edits":[{"fromHash":"<hash of A>","toHash":"<hash of B>","newString":"<lines A..B as they should read>"}]}]}
+```
+
+Replace exactly one line A (`toHash` omitted):
+```json
+{"files":[{"filePath":"<file>","edits":[{"fromHash":"<hash of A>","newString":"<that line as it should read>"}]}]}
+```
+
+Delete lines A..B (empty `newString`):
+```json
+{"files":[{"filePath":"<file>","edits":[{"fromHash":"<hash of A>","toHash":"<hash of B>","newString":""}]}]}
+```
+
+Insert lines after line X:
+```json
+{"files":[{"filePath":"<file>","edits":[{"insertAfter":"<hash of X>","newString":"<lines to insert>"}]}]}
+```
+
+Insert lines before line 1 (`insertAfter` `00000000`; also works into an empty file):
+```json
+{"files":[{"filePath":"<file>","edits":[{"insertAfter":"00000000","newString":"<lines to insert>"}]}]}
+```
+
+Rules that hold for every entry:
+
+- An entry is a replacement (`fromHash`, optionally with `toHash`) OR an insertion (`insertAfter`) — never both forms in one entry.
+- `newString` is required on every entry; `""` with `fromHash` deletes the span.
+- Every address must be a hash `read` printed for THIS file; there is no fuzzy match — a stale hash means *read again*.
 - `newString` is the new lines. A trailing line break is optional: the last line ends as the replaced one did.
-- **No address resolves, nothing is written — in any file.** Every entry of every file is checked against the files as you read them before anything is saved. There is no fuzzy match: a stale hash means *read again*.
+- **No address resolves, nothing is written — in any file.** Every entry of every file is checked against the files as you read them before anything is saved.
 
 ## Endings and encodings
 
@@ -47,7 +75,7 @@ LSP diagnostics per file; the project formatter runs and the file keeps its enco
 
 | Parameter | Description |
 |---|---|
-| `files[].filePath` | The file to change. |
-| `files[].edits` | `[{ fromHash, toHash?, newString }]` or `[{ insertAfter, newString }]` — every change to this file. |
-| `files[].content` | Create a NEW file instead; refused if it exists. |
-| `files[].encoding` | Code page of a legacy file, as passed to `read` (default: the host's). |
+| `files[].filePath` | The file to change. **Required** on every `files` element. |
+| `files[].edits` | The changes to that file — an array of entries, always an array; several changes to one file go here. Exactly one of `edits` / `content` per element. |
+| `files[].content` | Create a NEW file with this content; refused if it exists. Exactly one of `edits` / `content` per element. |
+| `files[].encoding` | Optional. Code page of a legacy file, as passed to `read` (default: the host's). |

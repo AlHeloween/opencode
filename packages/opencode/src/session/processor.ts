@@ -144,7 +144,7 @@ interface ProcessorContext extends Input {
   streamStartTime: number | undefined
   firstTokenLogged: boolean
   hasWriteToolCall: boolean
-  /** True when an exact write tool (edit/write/multiedit/applypatch) ran — shell tools don't count. */
+  /** True when an exact write tool (edit/write) ran — shell tools don't count. */
   exclusiveWriteToolCall: boolean
   changedFiles: Set<string>
   /** Cumulative context token estimate from prompt loop. */
@@ -159,12 +159,12 @@ type StreamEvent = Event
 
 /**
  * Provider-canonical tool names that can modify the working copy.
- * Snapshot tracking only needed after these (names must match wire form, e.g. applypatch).
+ * Snapshot tracking only needed after these (names must match the wire form).
  */
-const WRITE_TOOLS = new Set(["write", "edit", "multiedit", "applypatch", "bash", "run", "task", "pipeline"])
+const WRITE_TOOLS = new Set(["write", "edit", "bash", "run", "task", "pipeline"])
 
 /** Exact file-mutation tools — these alone justify a snapshot without filediff evidence. */
-const EXACT_WRITE_TOOLS = new Set(["write", "edit", "multiedit", "applypatch"])
+const EXACT_WRITE_TOOLS = new Set(["write", "edit"])
 
 /**
  * Working-copy changes accumulated across the steps of ONE user turn, keyed by

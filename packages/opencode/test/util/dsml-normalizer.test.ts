@@ -151,12 +151,12 @@ Then: write{"filePath": "/b.txt", "content": "ok"}`
   })
 
   test("extracts tool call with array argument", () => {
-    const input = 'multiedit{"filePath": "/x.ts", "edits": [{"old": "a", "new": "b"}, {"old": "c", "new": "d"}]}'
+    const input = 'todowrite{"todos": [{"content": "a", "status": "pending", "priority": "high"}, {"content": "b", "status": "pending", "priority": "low"}]}'
     const result = extractInlineToolCalls(input)
     expect(result).not.toBeNull()
-    expect(result![0]!.name).toBe("multiedit")
+    expect(result![0]!.name).toBe("todowrite")
     const args = JSON.parse(result![0]!.input)
-    expect(args.edits).toHaveLength(2)
+    expect(args.todos).toHaveLength(2)
   })
 
   test("extracts tool call preceded by reasoning text", () => {

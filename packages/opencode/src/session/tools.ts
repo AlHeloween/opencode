@@ -126,10 +126,10 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     if (input.userDisabled?.has(canonicalName(toolID))) return true
     const keys = new Set<string>([
       toolID,
-      ...(["edit", "write", "applypatch"].includes(toolID) ? (["edit"] as const) : []),
+      ...(["edit", "write"].includes(toolID) ? (["edit"] as const) : []),
     ])
     for (const key of keys) {
-      const perm = ["edit", "write", "applypatch"].includes(key) ? "edit" : key
+      const perm = ["edit", "write"].includes(key) ? "edit" : key
 
       // Agent ruleset: a wildcard deny (e.g. edit * → deny) should not block
       // when the same ruleset also has a path-scoped allow for the edit family
@@ -141,7 +141,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
       if (agentEval.action === "deny") {
         // A wildcard deny should not block when the same ruleset also has a
         // path-scoped allow for the plan-mode plans/ exception. Only the edit
-        // family (edit/write/applypatch) uses path-scoped allows to carve out
+        // family (edit/write) uses path-scoped allows to carve out
         // plans/* from an otherwise flat deny. Other permissions (e.g. read
         // with *.env=ask) keep their scoped allows for ctx.ask enforcement
         // only — the wildcard deny at Gate A still stands.

@@ -489,9 +489,9 @@ test("disabled - disables tool when denied", () => {
   expect(result.has("read")).toBe(false)
 })
 
-test("disabled - disables edit/write/applypatch when edit denied", () => {
+test("disabled - disables edit/write when edit denied", () => {
   const result = Permission.disabled(
-    ["edit", "write", "applypatch", "bash"],
+    ["edit", "write", "bash"],
     [
       { permission: "*", pattern: "*", action: "allow" },
       { permission: "edit", pattern: "*", action: "deny" },
@@ -499,7 +499,6 @@ test("disabled - disables edit/write/applypatch when edit denied", () => {
   )
   expect(result.has("edit")).toBe(true)
   expect(result.has("write")).toBe(true)
-  expect(result.has("applypatch")).toBe(true)
   expect(result.has("bash")).toBe(false)
 })
 
@@ -519,7 +518,7 @@ test("disabled - does not disable when action is ask", () => {
   expect(result.size).toBe(0)
 })
 
-test("disabled - does not disable when specific allow after wildcard deny", () => {
+test("disabled - a scoped allow does not carve out a flat deny for non-edit permissions", () => {
   const result = Permission.disabled(
     ["bash"],
     [
@@ -527,13 +526,15 @@ test("disabled - does not disable when specific allow after wildcard deny", () =
       { permission: "bash", pattern: "echo *", action: "allow" },
     ],
   )
-  expect(result.has("bash")).toBe(false)
+  // Only the edit family reopens a flat wildcard deny via a scoped allow/ask
+  // (Permission.disabled + SessionTools.denied parity, 2026-09-29) — bash is hidden.
+  expect(result.has("bash")).toBe(true)
 })
 
 test("disabled - keeps edit when plans path allow exists even if wildcard deny is last", () => {
   // Plan-mode geometry: global edit deny + plans/* allow must not strip write/edit tools.
   const result = Permission.disabled(
-    ["edit", "write", "applypatch", "bash"],
+    ["edit", "write", "bash"],
     [
       { permission: "edit", pattern: "plans/*", action: "allow" },
       { permission: "edit", pattern: "*", action: "deny" },
@@ -541,7 +542,6 @@ test("disabled - keeps edit when plans path allow exists even if wildcard deny i
   )
   expect(result.has("edit")).toBe(false)
   expect(result.has("write")).toBe(false)
-  expect(result.has("applypatch")).toBe(false)
   expect(result.has("bash")).toBe(false)
 })
 

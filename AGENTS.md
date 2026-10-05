@@ -46,7 +46,7 @@ constraints:
   probe, it is a misconfigured one — and it was a misconfigured one here, broken by an explicit
   `device="cpu"` written to dodge an unrelated torch error.
 - **Never edit source with a direct, UNVERIFIABLE script — and before the edit, ask codegraph what it touches.** Source
-  changes go through `edit` / `write` / `applypatch`, by hand, and the hand is informed: call
+  changes go through `edit` / `write`, by hand, and the hand is informed: call
   `codegraph` (impact / explore) FIRST to confirm the blast radius, so the change is bounded by
   evidence and not by the two files the author happened to have open. After the edit the oracle
   answers the same question with runtime evidence — the two are not interchangeable, and neither
@@ -854,7 +854,7 @@ Runtime constitution hard-blocks shell **directory/file enumeration** and routes
 | `Get-ChildItem`, `gci` | ❌ BLOCK | `list` / `glob` |
 | `type`, `cat`, `more` | ❌ BLOCK | `read` |
 | `for … *` globs | ❌ BLOCK | `glob` / `list` |
-| `findstr` | ⚠️ ALLOWED — non-ASCII paths fail to open | `grep` (preferred fallback) |
+| `findstr` | ⚠️ ALLOWED when the real binary passes its needle smoke (2026-10-05); non-ASCII paths fail to open | `grep` (preferred fallback) |
 | `echo`, `printf` | ✅ ALLOWED | stdout, not enumeration |
 | `git ls-files` | ✅ ALLOWED | VCS oracle |
 | `where`, `which` | ✅ ALLOWED | PATH lookup |

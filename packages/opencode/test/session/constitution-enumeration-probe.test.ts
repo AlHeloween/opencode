@@ -14,7 +14,12 @@
  */
 import { describe, expect, test } from "bun:test"
 import { Constitution } from "../../src/session/constitution"
-import { ENUMERATION_TOOLS } from "../../src/session/enumeration-tools"
+import {
+  ENUMERATION_TOOLS,
+  enumerationToolDecision,
+  resetEnumerationToolCache,
+  resolveEnumerationTool,
+} from "../../src/session/enumeration-tools"
 import { getParser, parseShell } from "../../src/shell/tree-sitter"
 
 const isWin = process.platform === "win32"
@@ -40,9 +45,12 @@ describe("enumeration guard: platform-aware, and still armed", () => {
   })
 
   test("stdout printing and content search stay allowed", () => {
-    for (const command of ["echo *", "echo hello", "findstr /s /i TODO *.ts"]) {
+    for (const command of ["echo *", "echo hello"]) {
       expect(blocked(command)).toBe(false)
     }
+    // `findstr` is content search: admitted only while it passes its smoke; the live verdict must equal
+    // the decision, never silently differ (smoke-gate tests below).
+    expect(blocked("findstr /s /i TODO *.ts")).toBe(!enumerationToolDecision("findstr").allowed)
   })
 })
 
@@ -70,6 +78,62 @@ describe("enumeration guard: the AST path agrees with the token path", () => {
         })
         for (const finding of ast) expect(finding.message ?? "").toContain("BLOCKED")
       }
+    }
+  })
+})
+
+// The `run` tool is binary+argv, NOT a shell (measured 2026-10-05). Its argv was reconstructed as a
+// string and pushed through the legacy token path, whose shell segmentation read the CONTENTS of a
+// python `-c` script as commands: the segment `for mid,role,t in out: print('='*90)` hit the
+// `for`-glob rule (the `*` of a Python multiplication) and blocked a legitimate run.
+describe("guardCommand argv form: argument contents are data, not shell commands", () => {
+  const script = [
+    "import sqlite3, json",
+    "out=[]",
+    "for mid,role,t in out: print('='*90); print(mid)",
+  ].join("\n")
+  const argvLine = `D:\\USESoft\\Python313\\python.exe -c ${script}`
+
+  test("a python -c script with `for` and `*` is not an enumeration block", () => {
+    const guard = Constitution.guardCommand(argvLine, undefined, { argv: true })
+    expect(guard.blocked).toBe(false)
+    expect(guard.family).toBe("ALLOWED")
+  })
+
+  test("the binary itself is still classified — git rewrite stays blocked", () => {
+    const guard = Constitution.guardCommand("git checkout main", undefined, { argv: true })
+    expect(guard.blocked).toBe(true)
+    expect(guard.family).toBe("GIT_HISTORY_REWRITE")
+  })
+
+  test("shell form is unchanged — a real for-glob is still blocked", () => {
+    expect(Constitution.guardCommand("for f in **/*; do echo $f; done").blocked).toBe(true)
+  })
+})
+
+describe("smoke-gated names: findstr must actually FIND its needle", () => {
+  const decision = (smoke: (name: string, path: string) => boolean) =>
+    enumerationToolDecision("findstr", { exists: () => false, which: () => "C:\\fake\\findstr.exe", smoke })
+
+  test("a resolving findstr that does not search text is BLOCKED, never read as «no matches»", () => {
+    const gate = decision(() => false)
+    expect(gate.allowed).toBe(false)
+    expect(gate.message).toContain("smoke")
+    resetEnumerationToolCache() // do not leak the injected path into the other tests
+  })
+
+  test("a findstr that passes the smoke is admitted", () => {
+    expect(decision(() => true).allowed).toBe(true)
+    resetEnumerationToolCache()
+  })
+
+  test("rg: content search allowed; `--files` is a blocked walk", () => {
+    expect(blocked("rg TODO src")).toBe(false)
+    if (resolveEnumerationTool("rg")) {
+      expect(blocked("rg --files")).toBe(true)
+    } else {
+      // without rg on the host the name is never scanned at all
+      expect(blocked("rg --files")).toBe(false)
     }
   })
 })

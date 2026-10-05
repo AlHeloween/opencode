@@ -72,7 +72,7 @@ belongs in `source.py` (requires a full kernel change cycle). If it only says
 | G6 | TOOL_BINDING | `codegraph explore/impact`, read-only task grounding |
 | G6 | SURFACE_CONSUMERS | enumerate a multi-consumer surface's importers before binding, and name the one you touch (2026-09-20) |
 | G7 | PATH_PROGRESS | `_progress_log.md` [TIMESTAMP] entry per bounded task |
-| G7 | TOOL_IMPLEMENT | `edit`, `multiedit`, `write`, `applypatch`; crash-prone shell via `cmd_runner` |
+| G7 | TOOL_IMPLEMENT | `edit`, `write`; crash-prone shell via `cmd_runner` |
 | G8 | TOOL_ORACLE | tests via `cmd_runner`, `jobwait`, `logsearch`, `dbread` |
 | G8 | ORACLE_INSTRUMENT_CHECK | a capture is evidence only after it is validated — whole object, unoccluded, not a viewport crop (2026-09-20) |
 | G9 | PATH_CLOSURE | undone task → `[~]` + reason, plan moves by outcome + stale-ref scan; docs/index update; `obsolete/` |

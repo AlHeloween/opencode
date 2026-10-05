@@ -3,6 +3,14 @@ Follow G1: never invent URLs; discover first (universalsearch). Each successful
 fetch emits a software `source_stamp` (authority_class, url_provenance, content_hash).
 Primary-authority documents may become Inferred; snippets and generic web stay Guess.
 
+## The call
+
+```json
+{"url": "https://…", "format": "markdown", "timeout": 30}
+```
+
+`url` is **required**; `format` and `timeout` are optional (defaults in the parameter table below).
+
 ## Two-Stage Fetch Strategy
 
 1. **HTTP** — Direct request with content-type negotiation (default timeout: 30s, max 120s).
@@ -19,7 +27,7 @@ Primary-authority documents may become Inferred; snippets and generic web stay G
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `url` | string | — | Fully-formed URL (HTTP upgraded to HTTPS) |
+| `url` | string | **required** | Fully-formed URL (HTTP upgraded to HTTPS) |
 | `format` | enum | `"markdown"` | `"markdown"`, `"text"`, or `"html"` |
 | `timeout` | number | 30 | Timeout in seconds (max 120) |
 

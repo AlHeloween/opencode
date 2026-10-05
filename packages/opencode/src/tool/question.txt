@@ -5,6 +5,12 @@ explicit approval / clarify before unauthorized MODIFY. This allows you to:
 3. Get decisions on implementation choices as you work
 4. Offer choices to the user about what direction to take.
 
+## The call
+
+```json
+{"questions": [{"question": "Which approach?", "header": "Approach", "options": [{"label": "Option A (Recommended)", "description": "Why A is better"}, {"label": "Option B", "description": "Why B is worse"}]}]}
+```
+
 ## Parameters
 
 The `questions` parameter takes an array of question objects, each with:
@@ -16,7 +22,7 @@ The `questions` parameter takes an array of question objects, each with:
 | `options` | array | Yes | Available choices, each with `label` (1-5 word display text) and `description` (explanation) |
 | `multiple` | boolean | No | Allow selecting multiple choices (default: false) |
 
-The `custom` field on the question request (not on individual questions) controls whether a "Type your own answer" option is added automatically. When enabled (default), do NOT include "Other" or catch-all options in your question's options list.
+This call takes ONLY `questions`, each of them a `Question.Prompt`: `question`, `header` (max 30 chars), `options` (`label` + `description`), `multiple`. There is **no `custom` field in this call** — the "Type your own answer" option is added automatically (default: true), so do NOT add an "Other"/catch-all option to `options` yourself.
 
 ## Return Value
 

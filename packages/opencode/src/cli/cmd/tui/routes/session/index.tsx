@@ -49,7 +49,6 @@ import type { GlobTool } from "@/tool/glob"
 import { TodoWriteTool } from "@/tool/todo"
 import type { GrepTool } from "@/tool/grep"
 import type { EditTool } from "@/tool/edit"
-import type { ApplyPatchTool } from "@/tool/applypatch"
 import type { WebFetchTool } from "@/tool/webfetch"
 import type { UniversalSearchTool } from "@/tool/universalsearch"
 import type { CapabilityTool } from "@/tool/capability"
@@ -2468,9 +2467,6 @@ function ToolPart(props: { last: boolean; part: ToolPart; message: AssistantMess
         <Match when={props.part.tool === "task"}>
           <Task {...toolprops} />
         </Match>
-        <Match when={props.part.tool === "applypatch"}>
-          <ApplyPatch {...toolprops} />
-        </Match>
         <Match when={props.part.tool === "todowrite"}>
           <TodoWrite {...toolprops} />
         </Match>
@@ -3272,80 +3268,10 @@ function Edit(props: ToolProps<typeof EditTool>) {
   )
 }
 
-function ApplyPatch(props: ToolProps<typeof ApplyPatchTool>) {
-  const ctx = use()
-  const { theme, syntax } = useTheme()
-
-  const files = createMemo(() => props.metadata.files ?? [])
-
-  const view = createMemo(() => {
-    const diffStyle = ctx.tui.diff_style
-    if (diffStyle === "stacked") return "unified"
-    return ctx.width > 120 ? "split" : "unified"
-  })
-
-  function Diff(p: { diff: string; filePath: string }) {
-    return (
-      <box paddingLeft={1}>
-        <diff
-          diff={p.diff}
-          view={view()}
-          filetype={filetype(p.filePath)}
-          syntaxStyle={syntax()}
-          showLineNumbers={true}
-          width="100%"
-          wrapMode={ctx.diffWrapMode()}
-          fg={theme.text}
-          addedBg={theme.diffAddedBg}
-          removedBg={theme.diffRemovedBg}
-          contextBg={theme.diffContextBg}
-          addedSignColor={theme.diffHighlightAdded}
-          removedSignColor={theme.diffHighlightRemoved}
-          lineNumberFg={theme.diffLineNumber}
-          lineNumberBg={theme.diffContextBg}
-          addedLineNumberBg={theme.diffAddedLineNumberBg}
-          removedLineNumberBg={theme.diffRemovedLineNumberBg}
-        />
-      </box>
-    )
-  }
-
-  function title(file: { type: string; relativePath: string; filePath: string; deletions: number }) {
-    if (file.type === "delete") return "# Deleted " + file.relativePath
-    if (file.type === "add") return "# Created " + file.relativePath
-    if (file.type === "move") return "# Moved " + normalizePath(file.filePath) + " → " + file.relativePath
-    return "← Patched " + file.relativePath
-  }
-
-  return (
-    <Switch>
-      <Match when={files().length > 0}>
-        <For each={files()}>
-          {(file) => (
-            <BlockTool title={title(file)} part={props.part}>
-              <Show
-                when={file.type !== "delete"}
-                fallback={
-                  <text fg={theme.diffRemoved}>
-                    -{file.deletions} line{file.deletions !== 1 ? "s" : ""}
-                  </text>
-                }
-              >
-                <Diff diff={file.patch} filePath={file.filePath} />
-                <Diagnostics diagnostics={props.metadata.diagnostics} filePath={file.movePath ?? file.filePath} />
-              </Show>
-            </BlockTool>
-          )}
-        </For>
-      </Match>
-      <Match when={true}>
-        <InlineTool icon="%" pending="Preparing patch..." complete={false} part={props.part}>
-          Patch
-        </InlineTool>
-      </Match>
-    </Switch>
-  )
-}
+// `ApplyPatch` lived here. It is GONE, not hidden: `applypatch` was retired as a tool (plan
+// 2026-09-30_tool-catalog-trim, measured ONCE in the whole history) and unregistered from the catalog, so
+// this renderer could never match a part — a component for a tool that cannot run is not a fallback, it is
+// code that will never execute. Historic parts fall through to `GenericTool`.
 
 function TodoWrite(props: ToolProps<typeof TodoWriteTool>) {
   return (

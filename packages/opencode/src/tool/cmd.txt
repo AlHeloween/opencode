@@ -20,6 +20,15 @@ Do NOT escape quotes with backslashes. Prefer `""` inside a quoted string for li
 
 Commands are parsed with a batch grammar. Dangerous filesystem ops prompt for approval.
 
+## What will not run (constitution)
+
+Every command is classified before it executes; these are refused, not warned about:
+
+- **File enumeration — hard block.** `dir`, `type`, `tree`, `Get-ChildItem`/`gci`, `Get-Item`, `Resolve-Path`, and `for`-globs (`for %f in (*) do …`); also `ls`, `cat`, `find`, `fd`, `more`, `busybox` wherever a real unix build exists here. Use `list` / `glob` / `grep` / `read`.
+- **History rewrite — hard block.** `git checkout`/`switch`/`restore`, `git reset --hard`, `git stash pop|apply|drop|clear`; mutating `fossil` subcommands (`commit`, `add`, `update`, `merge`, `undo`, `revert`…). Recover WIP with the edit-tool `.bak` or the Fossil snapshot.
+- **Destructive — approval first** (refused without it): `del /f /s`, `rmdir /s`, `Remove-Item -Recurse -Force`, `format`, `mkfs`, `dd`, `robocopy /mir|/e`, `xcopy /e`, `DROP TABLE` / `TRUNCATE` / `DELETE`, `git push --force`, `git clean -f`.
+- **Crash-prone binaries never run bare.** `cargo`, `rustc`, `clang`, `gcc`, `g++`, `zig`, `dotnet`, `msbuild`, `ninja`, `cmake`, `make`, `go`, `bun` are auto-wrapped into `cmd_runner start -- …`; without `cmd_runner` they are refused.
+
 ## Output Handling
 
 Stdout and stderr are captured. Truncated above ${maxLines} lines or ${maxBytes} bytes.
@@ -33,6 +42,16 @@ Default 60000ms. On timeout the job is tree-killed; output before termination is
 Before executing:
 
 1. Quote paths with spaces.
-2. Use Windows syntax: `type`, `copy`, `move`, `del`, `mkdir`, `takeown`. Never `dir` — use glob/list.
+2. Use Windows syntax: `copy`, `move`, `del`, `mkdir`, `takeown`. Never `dir` or `type` — both are blocked as file enumeration; use `list` / `read`.
 3. Chain with `&&`. Pipe with `|`. Redirect with `>` and `2>&1`.
 4. Use `nul` for the null device. Do not use `grep`, `rg`, `head`, `tail`, `sed`, `awk`.
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `command` | string | **required** | The command to execute |
+| `timeout` | number | — | Optional timeout in milliseconds |
+| `workdir` | string | — | Working directory (instead of `cd`) |
+| `description` | string | **required** | Clear, concise description (5-10 words) |
+| `run_in_background` | boolean | true | Run as a tracked background job |

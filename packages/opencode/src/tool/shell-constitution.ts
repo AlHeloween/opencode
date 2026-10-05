@@ -118,18 +118,26 @@ export function enforceDestructiveShellFromAst(
  *
  * For `cmd_runner send … -- payload`: full guard on wrapper only; payload is
  * brutal-DESTRUCTIVE permission only (no ls/dir hard-blocks).
+ *
+ * `opts.argv` passes through to guardCommand: the command is binary+argv (run tool) — the
+ * argument contents are data, never shell segments.
  */
 export function enforceDestructiveShell(
   command: string,
   ctx: Tool.Context,
   description?: string,
+  opts?: { argv?: boolean },
 ): Effect.Effect<void> {
   return Effect.gen(function* () {
     const split = splitCmdRunnerSend(command)
-    const guard = Constitution.guardCommand(split.shellScan, {
-      sessionID: ctx.sessionID,
-      agent: ctx.extra?.agent as string | undefined,
-    })
+    const guard = Constitution.guardCommand(
+      split.shellScan,
+      {
+        sessionID: ctx.sessionID,
+        agent: ctx.extra?.agent as string | undefined,
+      },
+      opts,
+    )
     if (guard.blocked) {
       throw new Error(guard.message ?? "constitution: command blocked")
     }

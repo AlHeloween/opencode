@@ -12,6 +12,15 @@ Returns a job ID. Stalled jobs (no output for 15s) are NOT auto-killed — call 
 
 Commands are parsed with a PowerShell grammar (tree-sitter-powershell). Dangerous filesystem ops prompt for approval.
 
+## What will not run (constitution)
+
+Every command is classified before it executes; these are refused, not warned about:
+
+- **File enumeration — hard block.** `Get-ChildItem`/`gci`, `Get-Item`, `Resolve-Path`, `dir`, `type`, `tree`, and `for`-globs; also `ls`, `cat`, `find`, `fd`, `more`, `busybox` wherever a real unix build exists here. Use `list` / `glob` / `grep` / `read`.
+- **History rewrite — hard block.** `git checkout`/`switch`/`restore`, `git reset --hard`, `git stash pop|apply|drop|clear`; mutating `fossil` subcommands (`commit`, `add`, `update`, `merge`, `undo`, `revert`…). Recover WIP with the edit-tool `.bak` or the Fossil snapshot.
+- **Destructive — approval first** (refused without it): `Remove-Item -Recurse -Force`, `rm -rf`, `format`, `mkfs`, `dd`, `robocopy /mir|/e`, `xcopy /e`, `DROP TABLE` / `TRUNCATE` / `DELETE`, `git push --force`, `git clean -f`.
+- **Crash-prone binaries never run bare.** `cargo`, `rustc`, `clang`, `gcc`, `g++`, `zig`, `dotnet`, `msbuild`, `ninja`, `cmake`, `make`, `go`, `bun` are auto-wrapped into `cmd_runner start -- …`; without `cmd_runner` they are refused.
+
 ## Output Handling
 
 Truncated above ${maxLines} lines or ${maxBytes} bytes.

@@ -1,5 +1,16 @@
 Content search by regex (Rust regex / ERE). Use for finding code by content; use Glob for file names, CodeGraph for structure.
 
+## The call
+
+```json
+{"pattern": "classifyAstNode\\\\(", "include": "*.ts", "path": "packages/opencode/src"}
+```
+
+- `pattern` is **required** — the regex (Rust regex / ERE).
+- `path` is optional — the directory to search in; omit for the working directory.
+- `include` is optional — a file glob filter, e.g. `"*.ts"` or `"*.{js,jsx}"`.
+- `gitignore` is optional, default `false` — see below.
+
 Syntax: `|` is OR; `\|` is a literal pipe. Single backslashes are correct as-is (`function\s+\w+`). Patterns are passed via `-e`, so leading `-` is safe.
 
 Default: searches every path, gitignored included (node_modules, .opencode/data, logs) — an absence must never be an artefact of an ignore rule. Pass `gitignore: true` to respect .gitignore.

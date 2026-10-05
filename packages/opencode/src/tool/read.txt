@@ -1,4 +1,13 @@
-Read a file or a directory. Read the whole file before judging or changing it (offset/limit for files over 100 KB). Read independent files in parallel.
+Read a file or a directory. Read the whole file before judging or changing it. Read independent files in parallel.
+
+## The call
+
+```json
+{"filePath": "packages/opencode/src/tool/read.ts", "offset": 1, "limit": 2000}
+```
+
+- `filePath` is **required**; `offset`, `limit`, `hex`, `encoding` are optional — defaults in the parameter table below.
+- Paging: one read returns at most 2000 lines or 50 KB; when output is capped, the footer names the `offset` to continue with (directories page the same way).
 
 ## Text files
 
@@ -6,7 +15,7 @@ Every line is printed as `<line>  <hash>: <text>`, e.g. `470  3f19c2ea: text` �
 
 - The hash is a chain over the file up to that line: identical lines get different hashes, and any change above a line changes its hash. Same file, same hashes — on every read, for CRLF and LF alike.
 - **Encodings**: UTF-8 (with or without BOM) and UTF-16 LE/BE are detected. A **legacy** file (not UTF-8, no BOM) is read in this host's code page and its output says so in `<encoding>`. If the text looks wrong, read it again with `encoding` set to its page (`gbk`, `windows-1252`, …) and pass the same `encoding` to `edit`.
-- **Long lines** are wrapped, never cut: continuation chunks start with `↳+<charOffset>: `. The address covers the whole line.
+- **Long lines** are wrapped, never silently cut: continuation chunks start with `↳+<charOffset>: `, and an exhausted output budget says so. The address covers the whole line.
 - Up to 2000 lines or 50 KB per read; the footer tells you the `offset` to continue from.
 - A missing file lists similar names.
 
@@ -29,7 +38,7 @@ Offset, address (the same chain, over the row's bytes), hex, ASCII. Rows are ali
 
 | Parameter | Default | Description |
 |---|---|---|
-| `filePath` | — | File or directory. |
+| `filePath` | **required** | File or directory. |
 | `offset` | 1 | First line (byte in hex mode), 1-based. |
 | `limit` | 2000 / 512 | Lines (bytes in hex mode). |
 | `hex` | false | Read any file as a hex dump. |

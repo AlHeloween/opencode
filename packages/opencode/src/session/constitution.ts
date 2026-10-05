@@ -65,6 +65,16 @@ if (process.platform === "win32") {
   }
 }
 
+// `findstr` is content search, and it is ALWAYS scanned: an unresolved name must block (naming
+// `grep`) instead of returning empty output that reads as «no matches» — a wrong or absent findstr
+// makes the model believe there is nothing (owner, 2026-10-05).
+_KNOWN_ENUM_FIRST_TOKENS.add("findstr")
+
+// `rg --files` is a walk MODE, not a name — resolution says nothing about a flag, so the escape must
+// not re-enable it: it joins the always-blocked set. `rg <pattern>` never reaches this check (the
+// early exit in evaluate/guardCommand lets content search through).
+_NATIVE_ENUM_FIRST_TOKENS.add("rg")
+
 // Cross-platform / POSIX — probe lazily: only block if binary exists on PATH
 function _probeBinary(name: string): boolean {
   try {
@@ -193,6 +203,11 @@ const COMMAND_RULES: CommandRule[] = [
       ["more", null],
       ["busybox", null],
       ["for", null],
+      // findstr: allowed only while the real binary resolves — the enumerationBlock escape does that;
+      // unresolved, it blocks naming `grep` (never a silent empty result — owner, 2026-10-05).
+      ["findstr", null],
+      // rg: content search unless `--files` turns it into a walk (the extra below reads the flag).
+      ["rg", null],
       // findstr / echo / printf are NOT hard-blocked:
       // - findstr = Windows content search (grep-like; product grep preferred, not exclusive)
       // - echo/printf = stdout print, not directory enumeration (even with *)
@@ -789,9 +804,18 @@ export type CommandGuardResult = {
  * command-like words (e.g. "fossil clean" in git commit -m "...").
  * Prefer guardFromEval() / evaluate() when TreeSitter AST is available.
  */
-export function guardCommand(command: string, meta?: { sessionID?: string; agent?: string }): CommandGuardResult {
-  // Check file enumeration first (any segment) — uses legacy shellSegments + regex
-  const segments = shellSegments(command)
+export function guardCommand(
+  command: string,
+  meta?: { sessionID?: string; agent?: string },
+  opts?: { argv?: boolean },
+): CommandGuardResult {
+  // Check file enumeration first (any segment) — uses legacy shellSegments + regex.
+  // `argv: true` is the `run` tool's form: binary + args, NOT a shell — argument contents are
+  // DATA, and segmenting them by `\n`/`;` read a python `-c` script's lines as commands and
+  // blocked a legitimate run on the `for`-glob rule (`print('='*90)` — a multiplication `*`),
+  // measured 2026-10-05. In argv form only the first token (the binary) is a command; the
+  // remaining tokens still feed the destructive rules below.
+  const segments = opts?.argv ? [command] : shellSegments(command)
   for (const seg of segments) {
     const firstToken =
       seg
@@ -1023,17 +1047,17 @@ export function guardBrutalDestructive(
 // ============================================================================
 
 /** Tools that mutate filesystem — hard-gated when premises ungrounded. */
-export const MUTATION_TOOLS = new Set(["write", "edit", "multiedit", "applypatch", "restore"])
+export const MUTATION_TOOLS = new Set(["write", "edit", "restore"])
 
 export function isMutationTool(tool: string): boolean {
   const t = tool.toLowerCase().replace(/[^a-z0-9]/g, "")
-  if (t === "write" || t === "edit" || t === "multiedit" || t === "applypatch") return true
+  if (t === "write" || t === "edit") return true
   return MUTATION_TOOLS.has(tool)
 }
 
 /** File mutation is always at least ELEVATED (persistent write). */
 export function noteMutationRisk(input: {
-  tool: "edit" | "write" | "multiedit" | "applypatch" | "restore"
+  tool: "edit" | "write" | "restore"
   path: string
   sessionID?: string
 }): Risk {

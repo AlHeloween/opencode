@@ -1,5 +1,13 @@
 Write a whole file — create it, or replace it entirely. For a change to a file you have read, use `edit`: it takes the addresses `read` printed.
 
+## The call
+
+```json
+{"filePath": "docs/note.md", "content": "# Note\n\nthe whole file, as it should read\n"}
+```
+
+`filePath` and `content` are both **required**, and `content` is the entire file — not a patch.
+
 ## Behavior
 
 - Parent directories are created.
@@ -16,5 +24,5 @@ Write a whole file — create it, or replace it entirely. For a change to a file
 
 | Parameter | Description |
 |---|---|
-| `filePath` | The file to write. |
-| `content` | The whole file content. |
+| `filePath` | **required** | The file to write. |
+| `content` | **required** | The whole file content. |

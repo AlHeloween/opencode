@@ -286,9 +286,11 @@ export const RunTool = Tool.define(
           if (params.timeout !== undefined && params.timeout < 0) throw new Error(`Invalid timeout: ${params.timeout}`)
           const timeout = params.timeout ?? DEFAULT_TIMEOUT
 
-          // Constitution on reconstructed argv (e.g. run git checkout → destructive)
+          // Constitution on reconstructed argv (e.g. run git checkout → destructive).
+          // `argv: true` keeps argument contents as data — a python `-c` script's `for`/`*`
+          // is not a shell for-glob (measured 2026-10-05).
           const argvLine = [params.binary, ...params.args].join(" ")
-          yield* enforceDestructiveShell(argvLine, ctx, params.description)
+          yield* enforceDestructiveShell(argvLine, ctx, params.description, { argv: true })
 
           // Auto-route crash-prone binaries through cmd_runner BEFORE the
           // binary enforce net — same order as cmd.ts (wrap → enforce sees the

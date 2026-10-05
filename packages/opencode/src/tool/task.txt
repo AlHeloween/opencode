@@ -2,6 +2,14 @@ Launch a specialized sub-agent in an isolated child session. The live agent
 inventory is appended to this description by the tool registry — do not invent
 types. Runtime ACL still decides who may spawn whom.
 
+## The call
+
+```json
+{"subagent_type": "explorer_agent", "description": "Find callers", "prompt": "Find callers of X in src/foo/; return paths, lines, signatures."}
+```
+
+`subagent_type`, `description` and `prompt` are **required**; `task_id` resumes a prior child session; `run_in_background: true` returns a job ID (read it with `joboutput`).
+
 ## Alignment with gates
 
 - **G1 / G6** — prefer `explorer_agent` with a bounded goal (paths, symbols, return shape). Vague prompts waste turns.
@@ -41,9 +49,11 @@ Independent explorations or analyses should be parallel Task calls.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `subagent_type` | string | — | Canonical agent id from the live inventory |
-| `description` | string | — | Short (3-5 word) description |
-| `prompt` | string | — | Detailed task for the sub-agent |
+| `subagent_type` | string | **required** | Canonical agent id from the live inventory |
+| `description` | string | **required** | Short (3-5 word) description |
+| `prompt` | string | **required** | Detailed task for the sub-agent |
 | `task_id` | string | — | Resume a previous sub-agent session |
+| `run_in_background` | boolean | — | Run as a background job; read the result with `joboutput` |
+| `command` | string | — | The command that triggered this task (set by the caller harness) |
 
 Do NOT use for a single trivial operation (read a file, grep a pattern).

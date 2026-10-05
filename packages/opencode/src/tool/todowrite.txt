@@ -3,6 +3,14 @@ It also helps the user understand the progress of the task and overall progress 
 
 **Protocol**: Follow G2 (DECOMPOSE) and G3 (MASTER_PLAN) from the kernel. This tool is the execution surface for task tracking.
 
+## The call
+
+```json
+{"todos": [{"content": "Re-ground the box against the code", "status": "in_progress", "priority": "high"}]}
+```
+
+The call **REPLACES the whole list** — send every item you want to keep. `status`: `pending` | `in_progress` | `completed` | `cancelled`; `priority`: `high` | `medium` | `low`.
+
 ## When to Use This Tool
 Use this tool proactively in these scenarios:
 
@@ -30,4 +38,4 @@ When in doubt, use this tool.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `todos` | array | yes | The updated todo list with content, status, priority fields |
+| `todos` | array | **required** | The FULL updated list — a replacement, not a patch; items are `{content, status, priority}` |

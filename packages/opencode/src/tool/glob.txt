@@ -1,5 +1,15 @@
 Path/name file search. Use for finding files by name pattern; use Grep for content, CodeGraph for structure.
 
+## The call
+
+```json
+{"pattern": "**/*.test.ts", "path": "packages/opencode/test", "gitignore": true}
+```
+
+- `pattern` is **required** — the glob to match files against.
+- `path` is optional — the directory to search in; omit for the working directory.
+- `gitignore` is optional, default `false` — see below.
+
 Default: searches every path, gitignored included (node_modules, .opencode/data, logs) — an absence must never be an artefact of an ignore rule. Pass `gitignore: true` to respect .gitignore.
 
 Returns absolute paths. Cap: 100 results, with a truncation notice on overflow. ORDER: the sample is taken in ripgrep's traversal order and only THEN sorted by modification time — so it is «newest-first among the first 100 found», NOT «the 100 newest». Narrow the pattern or the path when you need the newest. Issue parallel calls for independent patterns.

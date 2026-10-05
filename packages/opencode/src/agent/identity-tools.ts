@@ -6,7 +6,7 @@ import type { Def } from "@/tool/tool"
 export type ToolLike = Pick<Def, "id" | "policy">
 
 /** Tool policies that reach `ctx.ask({ permission: "edit" })` as the edit family. */
-const EDIT_FAMILY = ["edit", "write", "applypatch"] as const
+const EDIT_FAMILY = ["edit", "write"] as const
 
 /** The permission keys a tool policy is evaluated under — mirrors `SessionTools.denied`. */
 export function policyPermissionKeys(policy: string): string[] {

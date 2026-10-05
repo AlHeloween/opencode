@@ -18,12 +18,16 @@
  * not use it — instead of pretending the capability does not exist.
  */
 import { existsSync } from "node:fs"
+import { spawnSync } from "node:child_process"
 import path from "node:path"
 
 /** The commands the enumeration block covers, by the name used on the command line. */
 export const ENUMERATION_TOOLS = [
   "ls",
   "dir",
+  // findstr: content search, not a walker — here so an UNRESOLVED findstr blocks with `grep` named
+  // instead of returning empty output the model reads as «no matches» (owner, 2026-10-05).
+  "findstr",
   "tree",
   "find",
   "fd",
@@ -66,6 +70,8 @@ export interface ResolveOptions {
   which?: (name: string) => string | null
   /** File probe. Defaults to `existsSync`; injectable for the same reason. */
   exists?: (candidate: string) => boolean
+  /** Smoke check for gate-checked names (SMOKE_GATED); injectable, so the decision stays testable. */
+  smoke?: (name: string, toolPath: string) => boolean
 }
 
 function defaultWhich(name: string): string | null {
@@ -107,6 +113,46 @@ export function resolveEnumerationTool(name: string, options: ResolveOptions = {
   return resolved
 }
 
+// ---------------------------------------------------------------------------
+// SMOKE GATE — resolution alone is not evidence for a name that can land on a NAMESAKE
+// ---------------------------------------------------------------------------
+
+const SMOKE_NEEDLE = "constitution-smoke-2b1e"
+
+/**
+ * `findstr` is the measured case (owner, 2026-10-05): a WRONG findstr — a shim, another toolchain's
+ * copy — resolves fine and then returns EMPTY output, which reads as «no matches» and makes the
+ * model conclude the content is absent. So the name must pass a smoke: feed it a needle it has to
+ * find («палит или не палит»). A failing tool is BLOCKED with the reason named, not admitted.
+ */
+function smokeFindstr(toolPath: string): boolean {
+  try {
+    const result = spawnSync(toolPath, [`/c:${SMOKE_NEEDLE}`], {
+      input: `${SMOKE_NEEDLE}\n`,
+      timeout: 2000,
+      windowsHide: true,
+    })
+    return result.status === 0 && String(result.stdout ?? "").includes(SMOKE_NEEDLE)
+  } catch {
+    return false
+  }
+}
+
+/** Names whose RESOLUTION must be confirmed by an actual run (see smokeFindstr). */
+const SMOKE_GATED: Record<string, (toolPath: string) => boolean> = { findstr: smokeFindstr }
+
+const smokeCache = new Map<string, boolean>()
+
+/** One smoke per process per name; an injected check (tests) is never cached. */
+function smokeVerdict(name: string, toolPath: string, smoke?: (name: string, path: string) => boolean): boolean {
+  if (smoke) return smoke(name, toolPath)
+  const cached = smokeCache.get(name)
+  if (cached !== undefined) return cached
+  const verdict = SMOKE_GATED[name]?.(toolPath) ?? true
+  smokeCache.set(name, verdict)
+  return verdict
+}
+
 export interface EnumerationDecision {
   allowed: boolean
   /** Absolute path of the tool that made it allowed. */
@@ -121,7 +167,19 @@ export interface EnumerationDecision {
  */
 export function enumerationToolDecision(name: string, options: ResolveOptions = {}): EnumerationDecision {
   const found = resolveEnumerationTool(name, options)
-  if (found) return { allowed: true, path: found, message: "" }
+  if (found) {
+    const key = name.replace(/\.exe$/i, "").toLowerCase()
+    if (SMOKE_GATED[key] && !smokeVerdict(key, found, options.smoke)) {
+      return {
+        allowed: false,
+        path: found,
+        message:
+          `constitution: BLOCKED — \`${key}\` resolved to ${found} but failed its smoke (it does not ` +
+          "find text it is given), so its empty output would be read as «no matches». Use the grep tool instead.",
+      }
+    }
+    return { allowed: true, path: found, message: "" }
+  }
 
   const exeDir = options.exeDir ?? path.dirname(process.execPath)
   const toolsDir = options.toolsDir ?? path.join(options.worktree ?? process.cwd(), "tools")
@@ -139,6 +197,7 @@ export function enumerationToolDecision(name: string, options: ResolveOptions = 
 /** Test seam: forget every probe result. */
 export function resetEnumerationToolCache(): void {
   cache.clear()
+  smokeCache.clear()
 }
 
 /**

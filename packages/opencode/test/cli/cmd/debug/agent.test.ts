@@ -4,10 +4,10 @@ import type { Def as ToolDef } from "@/tool/tool"
 import { resolveTools } from "@/cli/cmd/debug/agent"
 
 test("debug agent resolves canonical IDs through their legacy policy guardrail", () => {
-  const tools = [{ id: "applypatch", policy: "applypatch" }] as ToolDef[]
+  const tools = [{ id: "write", policy: "write" }] as ToolDef[]
   const agent = {
     permission: [{ permission: "edit", pattern: "*", action: "deny" }],
   } as Agent.Info
 
-  expect(resolveTools(agent, tools)).toEqual({ applypatch: false })
+  expect(resolveTools(agent, tools)).toEqual({ write: false })
 })

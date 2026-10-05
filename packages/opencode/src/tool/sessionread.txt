@@ -3,6 +3,12 @@ Reads messages from a conversation session by index position. Use this to get fu
 **Epistemic rank:** output is **Exact** (ground-truth archive). Memory ranking: Exact > Inferred > Hypothetical > Guess > Unknown.
 Prefer these IDs over Inferred compaction/summary text when resolving conflicts.
 
+## The call
+
+```json
+{"sessionId": "ses_ef41b7ec…", "offset": 40, "limit": 20}
+```
+
 ## Output Format
 
 Each message includes:
@@ -24,10 +30,12 @@ Each message includes:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `sessionId` | string | — | The session ID to read from (from messagesearch results) |
+| `sessionId` | string | **required** | The session ID to read from (from messagesearch results) |
 | `offset` | number | last 10 | Start reading from this message index (1-based) |
-| `limit` | number | 10 | Maximum messages to read |
-| `raw` | boolean | false | When true, skip compaction summary messages and show only original conversation |
+| `limit` | number | 10 | Maximum messages to read (capped at 50) |
+| `pattern` | string | — | Regex — only messages whose rendered text matches; search instead of paging |
+| `ignoreCase` | boolean | false | Case-insensitive `pattern` |
+| `raw` | boolean | false | Skip compaction summary messages, show only original conversation |
 
 ## When to Use
 

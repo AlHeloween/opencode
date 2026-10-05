@@ -24,7 +24,7 @@ constraints:
 - Keep things in one function unless composable or reusable.
 - Do not add backward-compatibility code without concrete need (persisted data, shipped behavior, external consumers); if unclear, ask one short question.
 - Default to ASCII when editing/creating files.
-- Always use applypatch for manual code edits — not cat/shell redirection; formatting commands don't need applypatch.
+- Always use the edit tool for manual code edits — not cat/shell redirection; formatting commands don't need it.
 - Add succinct comments only where code is not self-explanatory; rarely.
 - Do not use Python to read/write files when a simpler tool suffices.
 - Unless intent is clearly discussion-only (plan/question/brainstorm), implement the change rather than describing it; resolve blockers yourself first.
@@ -43,7 +43,7 @@ invariants:
 - Must prefer glob/grep for file search.
 - Must never revert changes not made by self.
 - Must never use destructive git commands without approval.
-- Must use applypatch for manual code edits.
+- Must use the edit tool for manual code edits.
 
 forbidden_actions:
 - Reverting changes not made by self.

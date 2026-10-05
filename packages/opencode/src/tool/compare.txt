@@ -21,8 +21,8 @@ Use this tool to see what changed between two directory trees — e.g. a checkou
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `pathA` | string | — | First directory path (required) |
-| `pathB` | string | — | Second directory path (required) |
+| `pathA` | string | **required** | First directory path |
+| `pathB` | string | **required** | Second directory path |
 | `verbose` | boolean | false | Include the `same`-by-metadata files in the output |
 
 ## Output

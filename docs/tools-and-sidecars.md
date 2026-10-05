@@ -230,11 +230,9 @@ Built by Zig via `packages/opentui/packages/core` (`bun run build`). `script/bui
 
 ---
 
-### 4.6 applypatch (model tool)
+### 4.6 applypatch (model tool) — REMOVED
 
-**Code:** `packages/opencode/src/tool/applypatch.ts` + `packages/opencode/src/patch/`
-
-Does **not** execute `tools/applypatch.exe`. The Windows `applypatch.exe` in `tools/` is legacy/extra and must not be treated as a deploy dependency.
+**Removed 2026-10-05.** The kit — tool, description, tests and the `src/patch/` parser — is gone: it was measured ONCE in the whole history (plan `2026-09-30_tool-catalog-trim`). `edit` takes the multi-file batch itself.
 
 ---
 

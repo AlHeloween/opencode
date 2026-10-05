@@ -41,9 +41,11 @@ Parameters:
   Each answer prints the next range to continue with, so a result larger than the cap is walked.
 - `pattern` — a regular expression; only matching lines inside the range come back, keeping their
   absolute numbers.
+- `ignoreCase` — case-insensitive `pattern`. Default false.
 - `maxChars` — body cap, defaulting to the same 32 000 ceiling the replay path applies.
 - `reason` (required) — why you are reading this, and why the kept slice is enough. It is stored WITH
   the selection, so a narrowed result can be audited later instead of being a silent edit.
+- `keep` — leave exactly this selection on the tool result (see above); refused for attachments, which are one payload.
 
 Errors ARE recallable: an errored result is exactly what tells you to discard or repair a step, so
 refusing it would hide the failure behind a count. Only a result that never finished is refused.

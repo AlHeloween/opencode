@@ -22,9 +22,6 @@ import type { PlanStatePayload } from "@/util/plan-status"
 
 const log = Log.create({ service: "session.summary" })
 
-/** Tools that mutate WC and store filediff metadata on completed parts. */
-const MUTATION_TOOLS = new Set(["write", "edit", "multiedit"])
-
 /**
  * Resolve a session_diff path for existence checks.
  * Tool filediffs are often absolute; relative paths resolve under project directory.
@@ -185,7 +182,7 @@ export function collectToolFileDiffs(messages: MessageV2.WithParts[]): TurnedFil
     if (sv) lastSv = sv
     for (const part of item.parts) {
       if (part.type !== "tool") continue
-      if (!MUTATION_TOOLS.has(part.tool)) continue
+      // No tool-name filter — filediff shapes are read from ANY completed part (see the note below).
       const state = part.state
       if (state.status !== "completed") continue
       const meta = state.metadata as Record<string, unknown>
@@ -193,8 +190,8 @@ export function collectToolFileDiffs(messages: MessageV2.WithParts[]): TurnedFil
       // takes a batch (2026-10-01).
       //
       // The two shapes BELOW it are HISTORY, not alternatives. Parts already stored carry `filediff` (one file,
-      // from `edit`/`write` before that date) or `results[].filediff` (`multiedit`, retired). They are read
-      // because a stored record does not migrate and NO new part can produce either — `multiedit` is out of the
+      // from `edit`/`write` before that date) or `results[].filediff` (a batch tool retired 2026-10-01). They are read
+      // because a stored record does not migrate and NO new part can produce either — that tool is out of the
       // catalog. A reader that ignored them would silently drop the edits of every range written before today,
       // which is a partial presented as a whole: the failure this function is the anchor against.
       const live = meta.filediffs

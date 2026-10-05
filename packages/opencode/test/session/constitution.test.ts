@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Constitution } from "../../src/session/constitution"
+import { enumerationToolDecision } from "../../src/session/enumeration-tools"
 
 describe("session.constitution", () => {
   test("classifyCommandRisk ranks destructive git/rm", () => {
@@ -141,11 +142,13 @@ describe("session.constitution", () => {
       expect(guard.message).toContain("list tool")
     }
     if (!isWin) expect(Constitution.guardCommand("find . -type f").blocked).toBe(true)
-    // echo / findstr are not enumerators — always allowed
+    // echo / printf are not enumerators — always allowed. `findstr` is content search: it is admitted
+    // only while it PASSES ITS SMOKE (it must actually find a needle); an unresolved or non-searching
+    // one blocks — a silent empty result reads as «no matches» (owner, 2026-10-05).
     expect(Constitution.guardCommand("echo *").blocked).toBe(false)
     expect(Constitution.guardCommand("echo hello").blocked).toBe(false)
     expect(Constitution.guardCommand("printf '%s\\n' *").blocked).toBe(false)
-    expect(Constitution.guardCommand("findstr /s /i TODO *.ts").blocked).toBe(false)
+    expect(Constitution.guardCommand("findstr /s /i TODO *.ts").blocked).toBe(!enumerationToolDecision("findstr").allowed)
 
     // Windows-only builtins / cmdlets
     if (isWin) {
@@ -329,7 +332,7 @@ describe("session.constitution", () => {
   // --- epistemic nudge (plans/2026-07-22_epistemic_guardrails.md step B) ---
 
   test("epistemicNudge: mutation tools get nudge when floor is Inferred", () => {
-    for (const tool of ["write", "edit", "multiedit", "applypatch"]) {
+    for (const tool of ["write", "edit"]) {
       const n = Constitution.epistemicNudge({ tool, evidenceFloor: "Inferred" })
       expect(n).toBeDefined()
       expect(n).toContain("epistemic nudge")

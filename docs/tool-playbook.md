@@ -32,7 +32,7 @@ is the concrete routing table for it.
 | A verdict about MY OWN plan, no smoke available | `aicall` on a cheap model, packet complete | self-grading — agreement between two simulators is not evidence |
 | A visual / TUI claim | `cmd_runner` inbox render, or `cua` `screenshot`/`verify_state` | typecheck as an oracle, or a screenshot that crops the object |
 | A **write** claim | read the WRITTEN ARTIFACT back | exit code, typecheck, or the writer's own report |
-| Editing source | `edit` / `multiedit` (read first), `applypatch` for a multi-file atomic change | `write` over an existing file |
+| Editing source | `edit` (read first; it takes the whole batch itself) | `write` over an existing file |
 | Undoing an edit | `restore` (session `.bak`) | reconstructing the old text by hand |
 | A value across history | `fossilgrep` | grepping only the working tree |
 | Something the next cycle must not re-derive | `memory` — criteria and state only | writing a session report into memory (it rides the fold verbatim) |

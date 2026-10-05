@@ -474,10 +474,14 @@ export const CmdTool = Tool.define<
       }
     })
 
-    return {
+    // The tool registers WITHOUT an Instance and instantiates under one — same lazy shape as bash.ts:
+    // limits must be read where Config has a context, or the registry crashes (2026-10-05).
+    return () => Effect.gen(function* () {
+      const limits = yield* trunc.limits()
+      return {
       description: DESCRIPTION.replaceAll("${os}", process.platform)
-        .replaceAll("${maxLines}", String(Truncate.MAX_LINES))
-        .replaceAll("${maxBytes}", String(Truncate.MAX_BYTES)),
+        .replaceAll("${maxLines}", String(limits.maxLines))
+        .replaceAll("${maxBytes}", String(limits.maxBytes)),
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
         Effect.gen(function* () {
@@ -575,6 +579,7 @@ export const CmdTool = Tool.define<
             },
           }
         }),
-    }
+      }
+    })
   }),
 )

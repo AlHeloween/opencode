@@ -1,5 +1,4 @@
 Query any SQLite database under the project's .opencode/data/ directory with read-only SQL.
-Query any SQLite database under the project's .opencode/data/ directory with read-only SQL.
 Ground evidence before judgment; never destructive DDL (constitution blocks).
 
 Use this for diagnostics, inspecting internal state, and debugging.
@@ -15,9 +14,9 @@ Use this for diagnostics, inspecting internal state, and debugging.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `database` | string | — | Database name (e.g. "opencode", "memory", "jobs") or path relative to .opencode/data/ |
-| `sql` | string | — | SELECT SQL query to execute |
-| `limit` | number | 100 | Maximum rows to return |
+| `database` | string | **required** | Database name: "opencode" (main), "memory" (search index), "jobs" (background jobs), or a path relative to .opencode/data/ |
+| `sql` | string | **required** | SELECT SQL query to execute (read-only) |
+| `limit` | number | 100 | Maximum rows to return (capped at 100) |
 
 ## Examples
 

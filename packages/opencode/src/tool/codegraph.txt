@@ -18,4 +18,13 @@ Prefer this for structure (symbols, callers, impact) before grep/glob/read loops
 
 **Output:** Packed markdown (files, kinds, symbols, cross-file edges, external impact).
 
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `query` | string | **required** | Question, symbol name, or file path(s). Prefer including paths when known for tighter SQLite packs. |
+| `mode` | enum | `explore` | `explore`, `search`, `trace`, `impact`, `path` — MCP touch mode; output is always SQLite-packed after the MCP touch. |
+| `path` | string | — | Project subdirectory / projectPath scope. |
+| `depth` | number | server-side | Traversal depth for impact/trace MCP touch. |
+
 **Config:** `mcp.codegraph` local `["codegraph","serve","--mcp"]`. `CODEGRAPH_HYBRID_DEBOUNCE_MS` (default 500).

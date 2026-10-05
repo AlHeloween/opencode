@@ -16,4 +16,4 @@ If the skill name does not match any available skill, returns an error with the 
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `name` | string | Name of the skill from the available skills list |
+| `name` | string | **required**. Name of the skill from the available skills list |

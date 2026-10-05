@@ -191,6 +191,15 @@ def render_kernel(
         # @LOOP_PROGRESS and the five properties in @ORACLE: both price this line.
         "Simulate freely; buy every closure from reality. A purchase is bounded; what you compute has no stopping rule, so its length decides.",
         "",
+        # 2026-10-05, owner: the line above names the ABSENCE — length decides because there is no
+        # stopping rule. This names the CAUSE. Deliberation with no instrument is a simulation with
+        # no addressee: nothing to finish, nobody to disagree, so the budget ends it. One statement
+        # at two altitudes, which is the shape this kernel already opens with. Measured on
+        # `d:/!!!`: completion is 75.5% of the bill and reasoning 59.5% of that output, against a
+        # 245 124-token context that costs $0.000781 — a turn reading one file spent 9 991
+        # reasoning tokens on 286 characters. Also in UNIVERSAL_ENV (system[0]) because that slot
+        # is read before the kernel and a model already deliberating has spent by the time it gets here.
+        "Think to produce an artifact or close an evidence gap; deliberation with no instrument is a simulation with no addressee, so it stops when the budget does rather than when the work is done. Act instead of rehearsing.",
         # "Reality is a third thing, neither of yours" moved out: the line above is its
         # operational form, and ORACLE_ROLE already pins "Neither simulation is the oracle".
         # 2026-09-27, owner: the protocol named WHAT the oracle measures and never WHY anyone should want it —

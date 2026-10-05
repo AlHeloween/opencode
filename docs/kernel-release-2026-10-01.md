@@ -103,8 +103,8 @@ to create. Stopped at 3: the rest was style.
 
 ## Amendment 2026-10-05 — answer-shortly: deliberation with no instrument is simulation with no addressee
 
-- surface: `reasoning_prompt.txt` 59 891 B / ~14 973 tok (`sha256 bb91e72ad9dedcc2…`), one line added at the head;
-  `UNIVERSAL_ENV` (system[0]) +220 B. Not yet rendered through the pipeline — see DEFECT.
+- surface: `reasoning_prompt.txt`, one line added at the head; as hand-edited `bb91e72a…` 59 891 B, as GENERATED and
+  installed 59 890 B `312212cf…` / ~14 973 tok. `UNIVERSAL_ENV` (system[0]) +220 B, outside the kernel build.
 - rule, verbatim: «Think to produce an artifact or close an evidence gap; deliberation with no instrument is a
   simulation with no addressee, so it stops when the budget does rather than when the work is done. Act instead of
   rehearsing.»
@@ -124,7 +124,11 @@ to create. Stopped at 3: the rest was style.
   the per-family YAML prompts (`default.txt` / `gpt.txt` / `anthropic.txt`). Both were wrong — the first competed
   with the kernel for the same attention, the second put the rule behind a per-family filter where one model family
   would have it and another would not. Reverted; the owner pointed at `UNIVERSAL_ENV`.
-- **DEFECT, open.** `prompt_kernel/render.py` does **not** carry the line (0 matches). The installed artifact was
-  edited directly, so the next `python -m prompt_kernel --install` DROPS it. The amendment is not reproducible until
-  the generator carries it, and per `docs/kernel-amendment.md` an amendment that does not survive regeneration was
-  never an amendment. Raised once, already known, decision pending.
+- **DEFECT, closed 2026-10-05.** The generator did **not** carry the line and the installed artifact had been
+  edited directly, so the next `python -m prompt_kernel --install` would have dropped it — an amendment that does
+  not survive regeneration was never an amendment.
+  The generator now renders it and the build reports `installed == working_copy`, which is the check that matters.
+  Rebuilt and installed in all three variants: product `312212cf…` 59 890 B, Claude `d305f898…` 60 133 B, codex
+  `0a6f5523…` 59 423 B. Caps raised by measurement — the smallest thousand above the largest: `utf8_budget`
+  60 000 → 61 000 (Claude 60 133 B), product 8 000 → 8 050 (measured 7 988), codex 8 000 → 8 100 (measured 8 023);
+  Claude needed no raise (8 139 under 8 150). Boundary advanced in `baseline.json`; 122 kernel tests pass.

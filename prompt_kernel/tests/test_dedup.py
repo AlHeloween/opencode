@@ -177,4 +177,6 @@ def test_compacted_runtime_budget() -> None:
     # its own opencode base is its resident robot's; measured 7_898.
     # 7_950 -> 8_000 (2026-10-04, later; owner: «резать особо нечего»): G1 VCS_ROLES rewritten as the organization
     # orientation ($HOME/.org/org.fossil, genesis, `--keep` recovery) + DELEGATE ticket in COLLABORATION; measured 7_950.
-    assert normalized_token_count(text) <= 8_000
+    # 8_000 -> 8_050 (2026-10-05, owner: limits by measurement): the answer-shortly binding at the kernel head —
+    # deliberation with no instrument is a simulation with no addressee. Measured 7_988.
+    assert normalized_token_count(text) <= 8_050

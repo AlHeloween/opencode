@@ -9,6 +9,7 @@ import { Flag } from "@opencode-ai/core/flag/flag"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 
 import { Database } from "@/storage/db"
+import { isPeakWindow } from "@/provider/tariff"
 import { NotFoundError } from "@/storage/storage"
 import { Checkpoint } from "./checkpoint"
 import { RequestDiff } from "./request-diff"
@@ -568,7 +569,13 @@ export function plan(input: { slug: string; time: { created: number } }) {
   return path.join(Instance.worktree, "plans", [input.time.created, input.slug].join("-") + ".md")
 }
 
-export const getUsage = (input: { model: Provider.Model; usage: LanguageModelUsage; metadata?: ProviderMetadata }) => {
+export const getUsage = (input: {
+  model: Provider.Model
+  usage: LanguageModelUsage
+  metadata?: ProviderMetadata
+  /** Moment the request was billed. Explicit so peak selection is testable. */
+  at?: Date
+}) => {
   const safe = (value: number) => {
     if (!Number.isFinite(value)) return 0
     return value
@@ -614,10 +621,23 @@ export const getUsage = (input: { model: Provider.Model; usage: LanguageModelUsa
     cacheRatio: safe(cacheReadInputTokens / Math.max(1, adjustedInputTokens + cacheReadInputTokens + cacheWriteInputTokens)),
   }
 
+  const configured = input.model.cost
+  // PEAK WINDOW — DeepSeek bills off-peak at half the peak price, and peak is
+  // a wall-clock window. Measured 2026-10-04: this line's absence is the 2.22x.
+  // The schedule is READ from the model and never inferred here — a wrong
+  // window silently over-charges, and only config can correct one.
+  const peak = configured?.experimentalPeak
+  const peakActive = peak ? isPeakWindow(input.at ?? new Date(), peak.schedule) : false
+  // Peak REPLACES the base rates rather than composing with the context
+  // threshold: the peak block carries no over-200K tier, so during peak that
+  // tier does not apply instead of being inherited unnoticed from the
+  // off-peak block. Two dimensions nobody defined to combine should not
+  // combine by accident.
+  const base = peakActive && peak ? peak.rates : configured
   const costInfo =
-    input.model.cost?.experimentalOver200K && tokens.input + tokens.cache.read > 200_000
-      ? input.model.cost.experimentalOver200K
-      : input.model.cost
+    !peakActive && configured?.experimentalOver200K && tokens.input + tokens.cache.read > 200_000
+      ? configured.experimentalOver200K
+      : base
   const computed = safe(
     new Decimal(0)
       .add(new Decimal(tokens.input).mul(costInfo?.input ?? 0).div(1_000_000))

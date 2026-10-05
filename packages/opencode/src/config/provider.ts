@@ -40,6 +40,30 @@ export const Model = Schema.Struct({
           cache_write: Schema.optional(Schema.Number),
         }),
       ),
+      /**
+       * Peak-window tariff. DeepSeek bills off-peak rates at half the peak
+       * price, and peak is a WALL-CLOCK window (api-docs.deepseek.com
+       * footnote 2: 01:00-04:00 and 06:00-10:00 UTC, Mon-Fri, public holidays
+       * excluded). A flat `cost` cannot express it, which is why the measured
+       * spend sat at 2.22x the model: 2026-10-04.
+       *
+       * The SCHEDULE lives here beside the rates, not as a constant in the
+       * cost function: a wrong window silently over-charges, and a constant
+       * cannot be corrected by config. Windows are [start,end) UTC hours.
+       */
+      peak: Schema.optional(
+        Schema.Struct({
+          input: Schema.Number,
+          output: Schema.Number,
+          cache_read: Schema.optional(Schema.Number),
+          cache_write: Schema.optional(Schema.Number),
+          windows: Schema.mutable(Schema.Array(Schema.Struct({ start: Schema.Number, end: Schema.Number }))),
+          /** UTC weekdays, 0 = Sunday. Absent = every day bills at peak. */
+          weekdays: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
+          /** YYYY-MM-DD (UTC) excluded from peak even when the weekday matches. */
+          holidays: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
+        }),
+      ),
     }),
   ),
   limit: Schema.optional(

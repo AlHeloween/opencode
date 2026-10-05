@@ -30,6 +30,7 @@ import { withStatics } from "@/util/schema"
 
 import * as ProviderTransform from "./transform"
 import { ModelID, ProviderID } from "./schema"
+import { DEEPSEEK_PEAK_SCHEDULE } from "./tariff"
 
 const log = Log.create({ service: "provider" })
 
@@ -902,6 +903,26 @@ const ProviderCost = Schema.Struct({
       cache: ProviderCacheCost,
     }),
   ),
+  /**
+   * Peak-window rates plus the schedule that selects them. See
+   * `ConfigProvider.Model.cost.peak` for the measured reason this exists.
+   * `schedule` is carried through untouched — the cost function consults it and
+   * never decides a window of its own.
+   */
+  experimentalPeak: Schema.optional(
+    Schema.Struct({
+      rates: Schema.Struct({
+        input: Schema.Number,
+        output: Schema.Number,
+        cache: ProviderCacheCost,
+      }),
+      schedule: Schema.Struct({
+        windows: Schema.mutable(Schema.Array(Schema.Struct({ start: Schema.Number, end: Schema.Number }))),
+        weekdays: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
+        holidays: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
+      }),
+    }),
+  ),
 })
 
 const ProviderLimit = Schema.Struct({
@@ -1081,6 +1102,35 @@ function reasoningOptions(options: ModelsDev.Model["reasoning_options"]): Model[
   return normalized?.length ? normalized : undefined
 }
 
+/**
+ * Attach DeepSeek's peak tariff, DERIVED by doubling.
+ *
+ * Off-peak rates are exactly half the peak price (api-docs.deepseek.com,
+ * pricing footnote 2), so the peak block is computed from the base rather
+ * than typed out: it then tracks whatever the registry says, for every
+ * DeepSeek model, and a re-priced table needs no code edit.
+ *
+ * Only the schedule is stated — where and when, not how much. Measured
+ * 2026-10-04: with no clock in the cost path the model predicted $1.074
+ * against $2.390 billed, and Flash PEAK ($2.149) was the closest of the four
+ * published tariffs. The window itself lives in `provider/tariff`.
+ */
+function withPeakTariff(providerID: string, cost: Model["cost"]): Model["cost"] {
+  if (providerID !== "deepseek") return cost
+  if (cost.experimentalPeak) return cost
+  return {
+    ...cost,
+    experimentalPeak: {
+      rates: {
+        input: cost.input * 2,
+        output: cost.output * 2,
+        cache: { read: cost.cache.read * 2, write: cost.cache.write * 2 },
+      },
+      schedule: DEEPSEEK_PEAK_SCHEDULE,
+    },
+  }
+}
+
 function fromModelsDevModel(provider: ModelsDev.Provider, model: ModelsDev.Model): Model {
   const base: Model = {
     id: ModelID.make(model.id),
@@ -1101,7 +1151,7 @@ function fromModelsDevModel(provider: ModelsDev.Provider, model: ModelsDev.Model
     model_type: model.model_type ?? "chat",
     options: model.options ? { ...model.options } : {},
     headers: {},
-    cost: cost(model.cost),
+    cost: withPeakTariff(provider.id, cost(model.cost)),
     limit: {
       context: model.limit.context,
       input: model.limit.input,
@@ -1333,14 +1383,14 @@ const layer: Layer.Layer<
                 ? { field: "reasoning_content" }
                 : false),
               },
-              cost: {
+              cost: withPeakTariff(providerID, {
                 input: model?.cost?.input ?? existingModel?.cost?.input ?? 0,
                 output: model?.cost?.output ?? existingModel?.cost?.output ?? 0,
                 cache: {
                   read: model?.cost?.cache_read ?? existingModel?.cost?.cache.read ?? 0,
                   write: model?.cost?.cache_write ?? existingModel?.cost?.cache.write ?? 0,
                 },
-              },
+              }),
               options: mergeDeep(existingModel?.options ?? {}, model.options ?? {}),
               limit: {
                 context: model.limit?.context ?? existingModel?.limit?.context ?? 0,

@@ -1,17 +1,4 @@
 ## 0. WORKFLOW — gated execution protocol
-### **ANSWER SHORT**
-
-Deliberation without an instrument is a simulation with no addressee. It has no
-oracle to disagree with and no artifact to finish, so it cannot end — it stops
-when the budget runs out, and its length is an artifact of how long it lasted
-rather than of what it established. Think to produce an artifact or to close a
-gap in evidence. With neither available, act; do not rehearse.
-
-Measured 2026-10-05 on a live session: completion is 75.5% of the bill and
-reasoning is 59.5% of that, while the entire 245k context costs $0.000781
-against $0.002405 for 4009 output tokens. A turn that read one file spent 9991
-reasoning tokens on 286 characters of answer. Brief is the cheaper default, not
-the less careful one.
 
 Simulate freely; buy every closure from reality. A purchase is bounded; what you compute has no stopping rule, so its length decides.
 

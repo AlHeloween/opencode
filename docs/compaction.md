@@ -498,7 +498,7 @@ rows are consumed **only at compact** into `m*`.
 |-------|--------|------|
 | AI body | **Inferred** | `## Semantic Vector`, `## Goal`, `## Key decisions`, `## Current state` |
 | System data | **Exact** | range `from_id`/`to_id`, locus for `sessionread`, checkpoint id |
-| Tool diffs | **Exact** | snapshot anchor range diff (fossil, revision → working copy) merged with write/edit/multiedit `filediff` — see `summary-exact-handles.md` |
+| Tool diffs | **Exact** | snapshot anchor range diff (fossil, revision → working copy) merged with tool filediffs (any completed part) — see `summary-exact-handles.md` |
 | CodeGraph | **Exact** | structural impact over those file paths (system, not model) |
 | Plan state | **Exact** | GATED WORKFLOW mirror of active `plans/*.md`: lifecycle, gate, intention, per-task `sv`/status/attempts/last_failure, invariants — kernel-native anchors (see below) |
 | Fossil | **Anchors + rollback** | the range diff starts from the stored anchor; track/restore remain undo/redo — see `summary-exact-handles.md` |

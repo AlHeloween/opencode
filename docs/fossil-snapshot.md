@@ -283,7 +283,7 @@ full-worktree `fossil addremove` reconcile — correct but O(worktree).
 
 processor rule per LLM step (`session/processor.ts`):
 
-- step had edit/write/multiedit/applypatch with changed files →
+- step had edit/write with changed files →
   bounded `track(changedFiles)`.
 - step had bash/run/task/pipeline but NO product-write changes →
   full reconcile `track(undefined)`: shell redirects/scripts can mutate the

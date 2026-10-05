@@ -4,7 +4,7 @@
 **Tool diffs + CodeGraph on s:** [`summary-exact-handles.md`](summary-exact-handles.md)
 
 - Content without `s`; after durable checkpoint → summary; M restored; compact → `m*=[s,s(≤32K),recent m (the WHOLE epoch since the previous summary — 32K is a floor that reaches further BACK)]` (prior m* ROW excluded — real messages re-eligible; summaries carry forward; the tail is CONTIGUOUS with the newest message the s's COVER)
-- Exact on s: **snapshot anchors** — the undo/redo hashes stored on the range's messages — diffed once (`diffFull`, revision → working copy) and merged with **write/edit/multiedit** tool filediffs; CodeGraph runs over the merged paths
+- Exact on s: **snapshot anchors** — the undo/redo hashes stored on the range's messages — diffed once (`diffFull`, revision → working copy) and merged with tool filediffs (any completed part carrying one); CodeGraph runs over the merged paths
 - Fossil: the same chain serves **rollback** (track/restore) and the anchor the range diff starts from
 
 If a graph is prettier than code, **code wins** for Exact claims.
@@ -43,7 +43,7 @@ when: await checkpoint persist (inferences done)
 ### Tool Exact on one summary window
 
 ```text
-range messages: write / edit / multiedit completed parts
+range messages: completed parts carrying filediff shapes (write / edit)
   → collectToolFileDiffs
   → CodeGraph on worktree-relative paths
   → no mutation tools in range → empty Exact (ok)

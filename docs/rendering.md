@@ -306,7 +306,6 @@ Uses `PART_MAPPING` with tool-specific renderers:
 | bash | 2108 | Full output with expand/collapse (10 line threshold) |
 | write | 2175 | Code content with line numbers + diagnostics |
 | edit | 2476 | Diff view (`<diff>` renderable) — split/unified auto-detect |
-| multiedit | 2658 | Multi-diff stacked display |
 | read | 2217 | File paths + inline attachment previews |
 | grep | 2271 | Pattern + match count |
 | glob | 2206 | Pattern + match count |

@@ -23,7 +23,7 @@ Also do not confuse with:
 
 | Concept | Not the same as sidecars |
 |---------|---------------------------|
-| Built-in agent tools (`read`, `write`, `edit`, `applypatch`, `bash`, `universalsearch`, …) | Implemented in `packages/opencode/src/tool/` — no `tools/*.exe`. Descriptions: `src/tool/*.txt` (aligned with reasoning gates / REUSE / InfoMark). |
+| Built-in agent tools (`read`, `write`, `edit`, `bash`, `universalsearch`, …) | Implemented in `packages/opencode/src/tool/` — no `tools/*.exe`. Descriptions: `src/tool/*.txt` (aligned with reasoning gates / REUSE / InfoMark). |
 | Skills (host skill trees, often from ADID install) | Markdown workflows runtime-loaded per worktree — **not** kernel SPECS; update with ADID/host package |
 | Formatters / LSPs | Resolved via `which` or download into `cache/bin` |
 
@@ -76,7 +76,7 @@ Typical contents of repo-root `tools/` and stable portable copies (`bin_tst/…-
 | **`rg.exe`** | Ripgrep | Soft — PATH / tools / auto-download | Optional offline; §4.2 |
 | **`fd.exe`** | Fast file finder | Soft — agent/skills may invoke `fd` | Optional on PATH |
 | **`grep.exe`**, **`sed.exe`** | Windows ports of Unix utils | Soft — shell only | Skip on Linux |
-| **`applypatch.exe`** | Legacy external patch CLI | **None** for model tool | Skip — in-process `applypatch` tool |
+| **`applypatch.exe`** | Legacy external patch CLI | **None** for model tool | Skip — no model tool needs it (the in-process tool was removed 2026-10-05) |
 | **`opencode-markdownify.exe`** | Doc→markdown native fallback | Soft — WASM preferred | Ship OS-native binary or rely on WASM |
 | **`cmd_runner.exe`** | Interactive terminal automation | Skills / bash notes on Windows | Skip on Linux (real `bash` tool) |
 | **`adm.exe`**, **`adm-rag.exe`** | ADID update manager / RAG | Skills (`adm-exe`, `rag`, `patch-tool`) | Linux ADM or `python -m adm` |
@@ -509,7 +509,6 @@ fossil version || /opt/opencode/tools/fossil.exe version
 | Ripgrep | `packages/opencode/src/file/ripgrep.ts` |
 | Markdownify | `packages/opencode/src/util/markdownify.ts` |
 | CodeGraph init | `packages/opencode/src/project/bootstrap.ts` |
-| applypatch tool | `packages/opencode/src/tool/applypatch.ts` |
 | OpenTUI native select | `packages/opentui/packages/core/src/zig.ts` |
 | Compile targets | `packages/opencode/script/build.ts` |
 | Windows package stage | `_build.ps1`, `build.py` |

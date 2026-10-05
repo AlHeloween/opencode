@@ -9,7 +9,7 @@ reproduce:
     - packages/opencode/src/session/sidecar-policy.ts
   commands:
     - cd packages/opencode && bun test test/session/summary-anchors.test.ts test/session/summary-sidecar.test.ts test/session/summary-cadence.test.ts test/session/summary.test.ts
-  inputs: A Layer-1 capture range whose messages carry snapshot anchors (or completed write/edit/multiedit parts for the fallback).
+  inputs: A Layer-1 capture range whose messages carry snapshot anchors (or, for the fallback, completed parts carrying filediff shapes — no tool-name filter).
   expected_outputs: A sidecar checkpoint with model summary body plus system-authored file diffs and CodeGraph impact.
 ---
 
@@ -90,7 +90,7 @@ matched PROSE quoting the fragment rather than the field; a 40-char window swall
 **The range diff derives from the snapshot anchors the undo/redo chain already stores** (2026-09-21):
 `step-start`/`step-finish` carry the turn's baseline and `patch` parts carry the pre-write context, so ONE
 fossil diff (anchor → working copy) answers what the whole worktree did in the range — shell-made edits,
-deletions and renames included. Tool write/edit/multiedit filediffs are merged on top (they backfill snippets
+deletions and renames included. Tool filediffs (from any completed part carrying them) are merged on top (they backfill snippets
 where the chain ships stats only and carry paths the chain has not taken in yet) and are the whole answer
 where no anchor resolves. See [fossil-snapshot.md](fossil-snapshot.md) for the chain itself.
 
@@ -118,7 +118,7 @@ range messages (from_id..to_id)
 | Piece | Source |
 |-------|--------|
 | Range start | `summaryRangeStartHash` — the undo/redo anchors stored on the range's parts |
-| Diffs | `Snapshot.diffFull(anchor)` merged with tool write/edit/multiedit filediffs |
+| Diffs | `Snapshot.diffFull(anchor)` merged with tool filediffs (any completed part) |
 | Impact | `mcpTouchThenSqlitePack(worktree, files)` — merged paths |
 | No anchor | tool filediffs alone (old rows, `snapshot: false`, recreated repo) |
 

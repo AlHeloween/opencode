@@ -283,6 +283,25 @@ CREATE TABLE IF NOT EXISTS "balance_snapshot" (
 );
 CREATE INDEX IF NOT EXISTS "balance_snapshot_provider_time_idx" ON "balance_snapshot" ("provider_id", "time_created");
 
+-- Files uploaded to a provider's Files API. The row IS the receipt: the
+-- provider's response carries no status field to poll, so verified_at being
+-- set is the only evidence the file is there, and a null expires_at means
+-- permanent rather than unknown.
+CREATE TABLE IF NOT EXISTS "provider_file" (
+  file_id text PRIMARY KEY NOT NULL,
+  provider_id text NOT NULL,
+  part_id text,
+  session_id text,
+  mime text NOT NULL,
+  filename text,
+  bytes integer NOT NULL,
+  expires_at integer,
+  verified_at integer,
+  time_created integer NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "provider_file_session_idx" ON "provider_file" ("session_id");
+CREATE INDEX IF NOT EXISTS "provider_file_expiry_idx" ON "provider_file" ("expires_at");
+
 CREATE TABLE IF NOT EXISTS "server_host" (
   id text PRIMARY KEY NOT NULL,
   url text NOT NULL,

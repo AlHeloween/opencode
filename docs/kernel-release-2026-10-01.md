@@ -100,3 +100,31 @@ to create. Stopped at 3: the rest was style.
 - mechanism: robot-to-robot messaging is planned in `plans/2026-10-04_robot-peer-messaging.md` (tool `peer`,
   structural `origin`, hop bound); until the host is live (owner's binary promotion) the rule's «hand over» runs
   through the existing bridge.
+
+## Amendment 2026-10-05 — answer-shortly: deliberation with no instrument is simulation with no addressee
+
+- surface: `reasoning_prompt.txt` 59 891 B / ~14 973 tok (`sha256 bb91e72ad9dedcc2…`), one line added at the head;
+  `UNIVERSAL_ENV` (system[0]) +220 B. Not yet rendered through the pipeline — see DEFECT.
+- rule, verbatim: «Think to produce an artifact or close an evidence gap; deliberation with no instrument is a
+  simulation with no addressee, so it stops when the budget does rather than when the work is done. Act instead of
+  rehearsing.»
+- placement, and why two altitudes: the kernel's opening line states the absence — «what you compute has no stopping
+  rule, so its length decides» — without naming its cause. The new line names the cause. One statement, two
+  altitudes, which is the shape the kernel already uses at the top: economic claim first, machinery underneath.
+  It is ALSO in `UNIVERSAL_ENV` because that slot is read before the kernel, and a model that has already begun
+  deliberating has spent before reaching any line that tells it not to.
+- evidence, measured 2026-10-04/05 on `d:/!!!` against the provider's own balance: completion is **75.5%** of the
+  bill and reasoning **59.5%** of that output (82.3% on tool-calling turns); the entire 245 124-token context costs
+  **$0.000781** against **$0.002405** for 4 009 output tokens; a turn that read one file spent **9 991** reasoning
+  tokens on 286 characters of answer. The bill is paid for thinking, so this is the largest line item available.
+- cost accepted: `UNIVERSAL_ENV` is an eternal KV-cache prefix, so placing a rule there is a deliberate one-time
+  invalidation of every session's prefix. One cold rebuild is repaid by a single request, because the whole context
+  costs less than one request's output. Cutting the largest item is worth a one-time cost smaller than that item.
+- attempt rejected and reverted (`f0502ddbeb`): the rule was first placed inside the kernel text by hand, then in
+  the per-family YAML prompts (`default.txt` / `gpt.txt` / `anthropic.txt`). Both were wrong — the first competed
+  with the kernel for the same attention, the second put the rule behind a per-family filter where one model family
+  would have it and another would not. Reverted; the owner pointed at `UNIVERSAL_ENV`.
+- **DEFECT, open.** `prompt_kernel/render.py` does **not** carry the line (0 matches). The installed artifact was
+  edited directly, so the next `python -m prompt_kernel --install` DROPS it. The amendment is not reproducible until
+  the generator carries it, and per `docs/kernel-amendment.md` an amendment that does not survive regeneration was
+  never an amendment. Raised once, already known, decision pending.

@@ -342,6 +342,13 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
   `tools/` 139 MB, `playwright-driver/` 102 MB (node 24.15), `node/` 87 MB (node 22.9), `windows_scripts/` 72 MB.
   **Duplicates:** adm/adm-rag in 3 places (`tools/`, `smit/tools/`, `adid_dist`), node.exe ×3 (+ Electron), markdownify
   ×2, opencode/smit ×2. **`rclone.exe` 72.7 MB** in `smit/tools` — a cloud-sync tool: egress, decide or drop.
+  **DECIDED 2026-10-07 — KEPT** (owner: «а как же робот будет с серверами работать? cmd_runner -> ssh -> rclone
+  чистая связка»): the robot's server route is `cmd_runner` → `ssh` → `rclone`; egress happens only when the robot
+  runs it for a task, nothing in the background. Measured: rclone 1.73.3, `NotSigned` → B1c pins the version and
+  checks its sha256 against rclone's own published release checksums. ssh: on this host the Windows OpenSSH client is
+  present (`OpenSSH.Client~~~~0.0.1.0 Installed`, `System32\OpenSSH\ssh.exe`) and full Git carries
+  `git\usr\bin\ssh.exe`; B3 preflight checks the OpenSSH client (a pristine or trimmed Windows may lack it — then the
+  Git ssh, or add the capability as a shown fix), and if B1c switches to MinGit it must not lose ssh silently.
   **Secrets (build gate):** `smit/auth.json` — 2 entries with `key` fields; SearXNG `settings.yml` ships a FIXED
   `secret_key` (`portab…`) → per-install `SEARXNG_SECRET`; other hits are commented examples and public CA bundles.
   **Unsigned:** chromium, adm*, crw, universal-search, websurfx, nssm, all `tools/` → signing decision (B6/SmartScreen).

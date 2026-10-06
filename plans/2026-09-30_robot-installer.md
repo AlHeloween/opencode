@@ -130,6 +130,13 @@ Search is the first gate: an installer whose search is wrong is worth zero. One 
   Docs: `universal-search/docs/search-contract.md`, `opencode/docs/tools-and-sidecars.md` §7.2.1.
 - [ ] **Q6 services:** chromium, searxng, universal-search, crw — user-level, loopback, never LocalSystem; start/stop
   owned by the installer. <!-- sv: services, least-privilege, lifecycle -->
+  **Scope changed by the owner, 2026-10-07:** «давай не будем делать учетную запись пользователя — пусть будет как
+  есть». The services KEEP their current account (LocalSystem, NSSM). Accepted residual, recorded once with its
+  measurement (audit SF stage 1, `sc qc`, 2026-09-30): CDP on 127.0.0.1:9222 has no auth, so any LOCAL process can
+  drive a SYSTEM browser — loopback-only, not reachable from the network. `harden_services.ps1` stays unused unless
+  the owner asks. What remains of Q6: deploy the new builds into the existing services (universal-search with
+  `/search`, the crw fork with `browser_only`, SearXNG with `config/searxng/settings.yml`), start order with a SearXNG
+  warm-up query, and the installer owning start/stop.
 - [ ] **C1 model choice is explicit in the configurator** (owner, 2026-10-06: «в настройках нашего конфигуратора
   должен быть четкий выбор модели или ее отсутствие»). Every component that calls a model (Smit, universal-search
   `/agent`, …) shows the user ONE explicit setting: a chosen model, or «no model» — never a default silently filled in.
@@ -183,7 +190,7 @@ So the crooked part is the HTTP-scraping path (SearXNG engines), not search as s
 `searxng` service has no `AppStdout`/`AppStderr`, so its bans are written nowhere ✓ `nssm get`.
 
 Target, replacing the SearXNG design below (kept as the rejected branch):
-- ONE Chromium (portable, under the user's account — never LocalSystem), CDP on 127.0.0.1, a persistent search profile
+- ONE Chromium (portable; account: kept as LocalSystem by the owner 2026-10-07, see Q6), CDP on 127.0.0.1, a persistent search profile
   (cookies and consent kept, like a person's browser); Playwright connects over CDP. No HTTP fetch of pages or SERPs.
 - Per-engine adapters (DuckDuckGo html, Bing, Google, Wikipedia; science/code sites as needed) open the results page in
   a tab and read the DOM into the JSON contract below; selectors pinned by saved-SERP fixtures + a live canary in
@@ -225,8 +232,8 @@ stamped text through a real browser — reading, not crawling.
    at the single send point `searx/search/processors/online.py:207` so their existing parsers read browser HTML —
    holds only where the browser DOM matches what the parser expects (DDG `html` endpoint likely, Google unlikely);
    otherwise own DOM adapters in universal-search.
-3. `universal-search` merges both into the one JSON contract; services: chromium, searxng, universal-search (3, was 6),
-   none as LocalSystem.
+3. `universal-search` merges both into the one JSON contract; services: chromium, searxng, universal-search (3, was 6;
+   crw fork added later as the reader), accounts kept as they are (owner, 2026-10-07 — see Q6).
 
 **crw-server (fastCRW) assessed 2026-10-02** — owner: «crw-server по идее самодостаточен. Что ему надо?»
 Shipped as a downloaded BINARY, not source: v0.15.2 from `github.com/us/crw` releases, SHA256-pinned

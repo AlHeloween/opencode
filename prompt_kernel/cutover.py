@@ -17,6 +17,7 @@ PRODUCTION_PROMPT = (
 )
 CLAUDE_KERNEL_PATH = REPO_ROOT / ".claude" / "reasoning_kernel.md"
 CODEX_KERNEL_PATH = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")) / "AGENTS.md"
+CURSOR_KERNEL_PATH = REPO_ROOT / ".cursor" / "rules" / "reasoning-kernel.mdc"
 
 
 def cutover(
@@ -124,3 +125,32 @@ def install_codex_kernel(*, kernel_path: Path | None = None, dist: Path | None =
     dest.parent.mkdir(parents=True, exist_ok=True)
     _atomic_write(dest, runtime)
     return hashlib.sha256(runtime.encode("utf-8")).hexdigest()
+
+
+def install_cursor_kernel(*, kernel_path: Path | None = None, dist: Path | None = None) -> str:
+    """Refresh the Cursor rule receiver `.cursor/rules/reasoning-kernel.mdc`.
+
+    Cursor reads this file through its `.mdc` frontmatter, so the receiver is
+    the rendered body plus that frontmatter — never the bare body, which
+    Cursor would load as an unlabelled rule. The returned digest is the BODY's
+    digest, so it compares with a `dist_cursor/*_reasoning_prompt.txt` stamp.
+    """
+    from .addons_cursor import CURSOR_GATE_ADDONS, render_cursor_rule
+    from .artifacts import DIST_CURSOR
+
+    dest = kernel_path if kernel_path is not None else CURSOR_KERNEL_PATH
+    errors = validate_kernel(KERNEL)
+    if errors:
+        raise RuntimeError("kernel validation failed: " + "; ".join(errors))
+    migration_errors = validate_migration(tuple(LEGACY_RULE_MIGRATION), KERNEL)
+    if migration_errors:
+        raise RuntimeError("migration ledger failed: " + "; ".join(migration_errors))
+    _, runtime_path = write_artifacts(
+        dist=dist if dist is not None else DIST_CURSOR, addons=CURSOR_GATE_ADDONS, identity_addons=()
+    )
+    body = runtime_path.read_text(encoding="utf-8")
+    if body != render_kernel(KERNEL, CURSOR_GATE_ADDONS, ()):
+        raise RuntimeError(f"stamped artifact drifted from renderer: {runtime_path}")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    _atomic_write(dest, render_cursor_rule(body))
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()

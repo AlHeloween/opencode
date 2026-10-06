@@ -21,28 +21,81 @@ from prompt_kernel import KERNEL, render_kernel
 from prompt_kernel.addons import GATE_ADDONS
 from prompt_kernel.addons_claude import CLAUDE_GATE_ADDONS
 from prompt_kernel.addons_codex import CODEX_GATE_ADDONS
+from prompt_kernel.addons_cursor import CURSOR_GATE_ADDONS, render_cursor_rule
 from prompt_kernel.artifacts import DIST_CODEX
-from prompt_kernel.cutover import CLAUDE_KERNEL_PATH
+from prompt_kernel.cutover import CLAUDE_KERNEL_PATH, CURSOR_KERNEL_PATH
 
 REGISTRIES = {
     "product": GATE_ADDONS,
     "claude": CLAUDE_GATE_ADDONS,
     "codex": CODEX_GATE_ADDONS,
+    "cursor": CURSOR_GATE_ADDONS,
 }
+
+# Bindings with no host-specific fact: their wording is ONE spelling copied into
+# each registry. If a copy is retyped instead of copied, these fail — a fourth
+# hand-written variant is how the ADID `.mdc` fork drifted from the generator in
+# the first place.
+SHARED_BINDINGS = (
+    ("G1", "VCS_ROLES"),
+    ("G1", "PROJECT_LAYOUT"),
+    ("G1", "SEARCH_OUTPUT_SHAPE"),
+    ("G2", "PATH_EXPERIMENTS"),
+    ("G3", "ACCEPTANCE_FRAME"),
+    ("G3", "PATH_PLANS"),
+    ("G7", "PATH_PROGRESS"),
+    ("G7", "COLLABORATION"),
+    ("G7", "ASSERTION_STATUS"),
+    ("G7", "STYLE_AUTHORITY"),
+    ("G7", "DISAS"),
+    ("G8", "GUI_ORACLE"),
+    ("G9", "PATH_CLOSURE"),
+)
 
 # (variant, gate, addon_id) -> why this host and no other carries it.
 DECLARED_DIFFERENCES = {
-    ("product", "G9", "ARTIFACT_LANGUAGE"): "names the owner's language; the Claude variant shares this repo, the external Codex harness does not",
+    ("product", "G9", "ARTIFACT_LANGUAGE"): "names the owner's language; the Claude variant shares this repo, the external Codex and Cursor hosts do not",
     ("claude", "G9", "ARTIFACT_LANGUAGE"): "same repo, same owner-facing split",
-    ("product", "G1", "PATH_AGI_WORKOUT"): "the build_mode overlay's journal is bound to THIS kernel only: /automode exists here, the Codex and Claude hosts have no such overlay",
+    ("product", "G1", "PATH_AGI_WORKOUT"): "the build_mode overlay's journal is bound to THIS kernel only: /automode exists here, the Codex, Cursor and Claude hosts have no such overlay",
     ("product", "G7", "PATH_AGI_WORKOUT_LOG"): "same binding, write half — the overlay's memory is host-local by design",
     ("claude", "G1", "NO_WINDOW_ORACLE"): "opencode computes the window and reads the vector chain back; this host reports neither, so the cadence rule replaces the threshold rule",
     ("codex", "G1", "NO_WINDOW_ORACLE"): "same absence on the external harness — the note names the missing rung instead of skipping it",
+    ("cursor", "G1", "NO_WINDOW_ORACLE"): "same absence in the editor host: no window fill and no auto-compact threshold are reported, so handles are persisted at closed boundaries",
 }
 
 
 def _slots(addons) -> set[tuple[str, str]]:
     return {(addon.gate_id, addon.addon_id) for addon in addons}
+
+
+def _lines(addons) -> dict[tuple[str, str], tuple[str, ...]]:
+    return {(addon.gate_id, addon.addon_id): addon.lines for addon in addons}
+
+
+def test_shared_bindings_keep_one_spelling() -> None:
+    """A host-agnostic binding retyped per host is a fork waiting to happen."""
+    cursor, codex = _lines(CURSOR_GATE_ADDONS), _lines(CODEX_GATE_ADDONS)
+    drifted = [
+        gate_addon
+        for gate_addon in SHARED_BINDINGS
+        if cursor[gate_addon] != codex[gate_addon]
+    ]
+    assert drifted == [], drifted
+
+
+def test_cursor_rule_receiver_is_current() -> None:
+    """`.cursor/rules/reasoning-kernel.mdc` is always-apply context, so a stale file is a stale prefix.
+
+    `.cursor/` is an untracked receiver here (third-party-managed), so an absent
+    file is a host that has not installed it, not a red.
+    Fix: `python -m prompt_kernel --cursor --install`.
+    """
+    installed = Path(CURSOR_KERNEL_PATH)
+    if not installed.is_file():
+        pytest.skip("no Cursor rule receiver on this host; run `python -m prompt_kernel --cursor --install`")
+    assert installed.read_text(encoding="utf-8") == render_cursor_rule(
+        render_kernel(KERNEL, CURSOR_GATE_ADDONS, ())
+    )
 
 
 def test_registries_share_their_addon_slots() -> None:

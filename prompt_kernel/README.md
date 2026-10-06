@@ -112,6 +112,12 @@ only prior renderer output. Re-run `--claude --install` after any change to
 `source.py` or `addons_claude.py` to keep it in sync — nothing does this
 automatically yet.
 
+Before wiring this in, note the size trade-off: the installed file is the
+full kernel render (60 133 B as of 2026-10-05), so every session in this repo
+spends that many tokens up front. If that is not wanted, remove the
+`@reasoning_kernel.md` line from `.claude/CLAUDE.md` (the generator and
+`dist_claude/` builds stay unaffected either way).
+
 ### Codex harness
 
 `addons_codex.py` binds the same graph to this Codex harness: `Read`, `Glob`,
@@ -141,8 +147,34 @@ gains a host binding — a shared mechanism with no instrument named on this hos
 is the defect the reverse-reachability check catches inside the graph and
 nothing catches across variants.
 
-Before wiring this in, note the size trade-off: the installed file is the
-full kernel render (~26 KB), so every session in this repo now spends that
-many tokens up front. If that is not wanted, remove the `@reasoning_kernel.md`
-line from `.claude/CLAUDE.md` (the generator and `dist_claude/` builds stay
-unaffected either way).
+### Cursor host
+
+`addons_cursor.py` binds the same graph to Cursor. Cursor publishes its agent
+tools as capabilities rather than stable function names — Read File, List
+Directory, Codebase, Grep, Search Files, Web, Fetch Rules; Edit & Reapply,
+Delete File; Terminal; plus MCP servers — so this registry names the
+capability the way the host presents it and makes the LADDER the binding. It
+has no LSP tool, no background/daemon control and no session-history search;
+each of those gates says so instead of naming a tool it does not have.
+
+```powershell
+python -m prompt_kernel --cursor
+```
+
+Artifacts are stamped under `prompt_kernel/dist_cursor/`. Install into the
+always-apply rule receiver with:
+
+```powershell
+python -m prompt_kernel --cursor --install
+```
+
+which refreshes `.cursor/rules/reasoning-kernel.mdc`: the rendered body plus
+the `description`/`alwaysApply: true` frontmatter Cursor's `.mdc` reader
+requires, written atomically after kernel and migration validation plus a
+stamped-artifact equality check. The returned digest is the BODY's digest, so
+it compares with a `dist_cursor/*_reasoning_prompt.txt` stamp. ADID ships this
+generated file to the projects its installer serves; before that host existed,
+`artefacts/rules/reasoning-kernel.mdc` was a hand-copied fork and drifted a
+whole kernel generation behind — `test_variant_parity.py` now fails if the
+host-agnostic bindings are retyped instead of copied.
+

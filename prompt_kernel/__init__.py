@@ -7,8 +7,9 @@ from .addons import (
     validate_identity_addons,
 )
 from .addons_claude import CLAUDE_GATE_ADDONS
-from .artifacts import DIST_CLAUDE, build_stamp, write_artifacts
-from .cutover import PRODUCTION_PROMPT, cutover, install_production
+from .addons_cursor import CURSOR_GATE_ADDONS, render_cursor_rule
+from .artifacts import DIST_CLAUDE, DIST_CURSOR, build_stamp, write_artifacts
+from .cutover import PRODUCTION_PROMPT, cutover, install_cursor_kernel, install_production
 from .compatibility import (
     REQUIRED_NEXT_SEMANTICS,
     REQUIRED_SEMANTICS,
@@ -29,6 +30,10 @@ __all__ = [
     "IdentityAddon",
     "CLAUDE_GATE_ADDONS",
     "DIST_CLAUDE",
+    "CURSOR_GATE_ADDONS",
+    "render_cursor_rule",
+    "DIST_CURSOR",
+    "install_cursor_kernel",
     "KERNEL",
     "LEGACY_RULE_MIGRATION",
     "LEGACY_RUNTIME_RULES",

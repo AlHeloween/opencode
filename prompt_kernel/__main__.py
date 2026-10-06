@@ -1,16 +1,20 @@
 from __future__ import annotations
 
 import sys
+import hashlib
 
 from .addons_claude import CLAUDE_GATE_ADDONS
 from .addons_codex import CODEX_GATE_ADDONS
-from .artifacts import DIST, DIST_CLAUDE, DIST_CODEX, write_artifacts
+from .addons_cursor import CURSOR_GATE_ADDONS, render_cursor_rule
+from .artifacts import DIST, DIST_CLAUDE, DIST_CODEX, DIST_CURSOR, write_artifacts
 from .cutover import (
     CLAUDE_KERNEL_PATH,
     CODEX_KERNEL_PATH,
+    CURSOR_KERNEL_PATH,
     PRODUCTION_PROMPT,
     install_claude_kernel,
     install_codex_kernel,
+    install_cursor_kernel,
     install_production,
 )
 from .render import kernel_digest, render_kernel
@@ -18,6 +22,22 @@ from .source import KERNEL
 
 
 def main() -> int:
+    if "--cursor" in sys.argv:
+        review, runtime = write_artifacts(dist=DIST_CURSOR, addons=CURSOR_GATE_ADDONS, identity_addons=())
+        print(f"runtime={runtime}")
+        print(f"review={review}")
+        print(f"utf8_bytes={len(render_kernel(KERNEL, CURSOR_GATE_ADDONS, ()).encode('utf-8'))}")
+        print(f"sha256={kernel_digest(KERNEL, CURSOR_GATE_ADDONS, ())}")
+        print(f"dist={DIST_CURSOR}")
+        if "--install" in sys.argv:
+            digest = install_cursor_kernel(kernel_path=CURSOR_KERNEL_PATH, dist=DIST_CURSOR)
+            print(f"cursor_rule={CURSOR_KERNEL_PATH}")
+            print(f"installed={digest}")
+            print(f"receiver_sha256={hashlib.sha256(render_cursor_rule(runtime.read_text(encoding='utf-8')).encode('utf-8')).hexdigest()}")
+            return 0
+        print(f"cursor_rule=not_updated; python -m prompt_kernel --cursor --install to refresh {CURSOR_KERNEL_PATH}")
+        return 0
+
     if "--codex" in sys.argv:
         review, runtime = write_artifacts(dist=DIST_CODEX, addons=CODEX_GATE_ADDONS, identity_addons=())
         print(f"runtime={runtime}")

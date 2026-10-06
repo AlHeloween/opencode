@@ -312,6 +312,11 @@ the real result living in the cmd_runner session log:
    patterns stay granular (`bun *`), send-payloads are untouched, and
    `enforceBinaryViaCmdRunner` remains as a defense-in-depth net for bare calls.
 
+   Since 2026-10-06 the same route covers unknown apps: any executable FILE outside the
+   known set (`bin/**` + `git`/`python`/`node`/`pwsh`/`cmd`) is treated as crash-prone —
+   it can crash OR hang, and a bare hang took the TUI and its logs with it. Bare command
+   words keep the ordinary permission flow; paths to the known crash-prone runners stay
+   unwrapped (the truncation contract). Plan: `plans_completed/2026-10-06_unknown-app-safe-launch.md`.
 ## Internal Packages
 
 | Package | Role |

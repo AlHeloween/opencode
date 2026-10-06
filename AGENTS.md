@@ -871,6 +871,8 @@ Runtime constitution hard-blocks shell **directory/file enumeration** and routes
 ❌ bun run script/build.ts  # crashes TUI
 ```
 
+**Unknown apps are crash-prone too (owner, 2026-10-06):** «Любой экзешник кроме известных тулов из бина - crash prone.» Any executable FILE that is not a known tool (`bin/**` utilities + `git`/`python`/`node`/`pwsh`/`cmd`) is auto-wrapped into `cmd_runner start -- …` by the `run`/`bash`/`cmd` tools; without `cmd_runner` it is refused (fail-closed). A freshly built app can crash OR hang — a bare hang takes the TUI and its logs with it («TUI зависла то и логов никаких»). Bare command words (`ping`, `Get-Date`) and builtins keep the ordinary permission flow.
+
 Override: `OPENCODE_ALLOW_DESTRUCTIVE=1` or `bypass_constitution`.
 
 ---

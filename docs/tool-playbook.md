@@ -20,7 +20,7 @@ is the concrete routing table for it.
 | A file PLUS what depends on it | `codegraph_node` (file mode) | `read` then a separate grep for importers |
 | Who calls X / radius of changing X | `codegraph` (callers / impact / explore) | three `grep`s on one area, or a `grep` whose PATTERN is a symbol name — the pattern's shape does not decide the layer |
 | Does this exact string occur | `grep` | codegraph for a string search |
-| A long, interactive or crash-prone command | `cmd_runner start` → `wait` → **read the run dir** | bare `start` (hangs the TUI); `tail` for the verdict |
+| A long, interactive, crash-prone or unknown (freshly built) command | `cmd_runner start` → `wait` → **read the run dir** | bare `start` (hangs the TUI); `tail` for the verdict |
 | What did a run actually do | `<run>/state.json` (status, exit_code, bytes_written, bytes_dropped, truncated) + the WHOLE `<run>/stdout_text.log` | `tail` — it shows the last lines, so a crash banner HIDES the failure inventory |
 | What is the runtime saying | `logsearch`, `dbread` | hand-grepping log files |
 | My own identity, permissions, context fill | `checkstate` | inferring them, or trusting a stale tail notice |

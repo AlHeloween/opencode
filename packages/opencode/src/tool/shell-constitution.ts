@@ -230,7 +230,7 @@ const KNOWN_BIN_TOOLS = [
   "rclone", "ambr", "ambs", "awk", "cat", "find", "ls", "head", "tail", "sort", "wc",
   "sqlite3", "sqlite3_analyzer", "sqlite3_rsync", "sqldiff", "ffmpeg", "ffplay", "ffprobe",
   "opencode", "opencode-markdownify", "consolecompare", "cua-driver", "cua-driver-uia",
-  "codegraph", "node",
+  "codegraph", "node", "samply",
 ] as const
 
 /** System minimum (owner-approved scope): these stay allowed bare. */

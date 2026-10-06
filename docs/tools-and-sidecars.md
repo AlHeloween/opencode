@@ -466,6 +466,18 @@ Policy/safety: `CUA_DRIVER_POLICY_FILE` (YAML/Rego) enforces deny-by-default
 tool policy on the daemon — see `external/cua/libs/cua-driver/rust/README.md`
 § Permission Policies. `doctor` is the host-readiness probe (`bin\cua.cmd doctor`).
 
+### 7.3 samply — CPU profiler (vendored, 2026-10-06)
+
+Source: `external/samply` (mstange/samply, MIT; `cargo build --release` through cmd_runner — verified 6m48s, exit 0).
+Vendored like cua — `bin/` is gitignored.
+
+| Item | Where | Notes |
+|------|-------|-------|
+| Binary | `bin/tools/samply.exe` (0.13.1) | `samply record --save-only -o <file> -- <command...>` writes a Firefox-Profiler profile (`*.jslb.gz`); a record of `cmd /c exit` produced a 6 626-byte profile on this host |
+| Builtin tool | `packages/opencode/src/tool/samply.ts` + `samply.txt` | `samply` tool: modes `command` / `pid` / `all`; always `--save-only` (never opens a browser, never leaves a server); permission key `samply` asked like `run` |
+| Tests | `packages/opencode/test/tool/samply.test.ts` | argv invariants + default output path |
+| Rebuild recipe | `cd external\samply && cargo build --release`, then copy `target\release\samply.exe` → `bin\tools\` | cargo is crash-prone — run through cmd_runner |
+
 ---
 
 ## 8. Verification checklist

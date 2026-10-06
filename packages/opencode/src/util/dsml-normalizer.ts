@@ -115,6 +115,7 @@ export const DEFAULT_KNOWN_TOOL_IDS: ReadonlySet<string> = new Set(
     "recall",
     "imagerender",
     "cua",
+    "samply",
     "planstatus",
     "tempenable",
     "tempdisable",

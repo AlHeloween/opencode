@@ -29,6 +29,7 @@ import { SummaryEditTool } from "./summaryedit"
 import { UniversalSearchTool } from "./universalsearch"
 import { CodeGraphTool } from "./codegraph"
 import { CuaTool } from "./cua"
+import { SamplyTool } from "./samply"
 import { MessageSearchTool } from "./messagesearch"
 import { DbReadTool } from "./dbread"
 import { LogSearchTool } from "./logsearch"
@@ -216,6 +217,7 @@ export const layer: Layer.Layer<
     const universalsearch = yield* UniversalSearchTool
     const codegraph = yield* CodeGraphTool
     const cua = yield* CuaTool
+    const samply = yield* SamplyTool
     const messagesearch = yield* MessageSearchTool
     const dbread = yield* DbReadTool
     const logsearch = yield* LogSearchTool
@@ -348,6 +350,7 @@ export const layer: Layer.Layer<
           universalsearch: Tool.init(universalsearch),
           codegraph: Tool.init(codegraph),
           cua: Tool.init(cua),
+          samply: Tool.init(samply),
           messagesearch: Tool.init(messagesearch),
           dbread: Tool.init(dbread),
           logsearch: Tool.init(logsearch),
@@ -392,6 +395,7 @@ export const layer: Layer.Layer<
             tool.universalsearch,
             tool.codegraph,
             tool.cua,
+            tool.samply,
             tool.messagesearch,
             tool.dbread,
             tool.logsearch,

@@ -1,0 +1,25 @@
+CPU profiler — vendored `samply` (github.com/mstange/samply, MIT) as `bin/tools/samply.exe`.
+
+Records a sampling CPU profile (default 1000 Hz) and saves it as a Firefox-Profiler file (`*.jslb.gz`).
+The tool always saves only (`--save-only`): it never opens a browser and never leaves a local profiler server
+running. Inspect a saved profile later with `samply load <file>` (or upload it at https://profiler.firefox.com/).
+
+**Modes — pass exactly ONE:**
+- `command` — profile a fresh process: `["python", "bench.py"]` → `samply record -- <command...>`.
+- `pid` — attach to an existing process (`record -p <pid>`).
+- `all` — record all processes (`-a`; Windows).
+
+**Parameters:**
+- `command` — argv array of the profiled program.
+- `pid` — existing process id to attach to.
+- `all` — record all processes (Windows).
+- `output` — absolute profile file path. Default: `{data}/samply/profile-<timestamp>.jslb.gz`.
+- `rate` — sampling rate in Hz (samply default: 1000).
+- `duration` — limit the recording to this many seconds.
+- `timeout` — milliseconds before the whole record call is killed; by default the command is awaited to completion.
+
+**Notes:**
+- The binary resolves from `{worktree}/bin/tools/samply.exe`, then `Global.Path.bin`, then PATH.
+- Recording runs as long as the profiled command runs — bound long runs with `duration` or `timeout`.
+- Attaching (`pid`) or `-a` may need elevation for some processes on Windows; failures surface samply's
+  stderr verbatim, and the profile path is reported only when the file was actually written.

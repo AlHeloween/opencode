@@ -114,8 +114,16 @@ Search is the first gate: an installer whose search is wrong is worth zero. One 
   red→green, lib 20/0), `authority_class`, `retrieved_at`; reader = crw fork `6d2747e` on 3092 with `browser_only`.
   **Q1 run `20261002T123757Z`: 6/6** (docwiki read through the real browser, 6239 chars, hash present) — candidate
   instance on 3015, the live 3005 service untouched.
-- [ ] **Q5 merge + stamps:** one JSON contract from Q2+Q3+Sourcegraph+free APIs; Q1 passes. <!-- sv: merge, source-stamp, q1-pass -->
-  Code committed, NOT yet proven live: universal-search `be74d9c` — `/search` also asks SearXNG (`apis`, `categories`;
+- [x] **Q5 merge + stamps:** one JSON contract from Q2+Q3+Sourcegraph+free APIs; Q1 passes. <!-- sv: merge, source-stamp, q1-pass -->
+  ✓ **Proven live 2026-10-07, run `20261006T185948Z`: 7/7** on isolated ports (3015 search, 3092 crw fork, 3435
+  vetted SearXNG; live 3005/9222 untouched), with a relevance predicate the oracle lacked before: the first 7/7
+  (`20261006T185014Z`) still carried 6/10 off-topic science-API hits for the Delphi query (vanadium chlorides,
+  a vaccine, zirconia, some stamped `primary_science`) → predicate added (≤ 20 % noise) → red 5/7
+  (`20261006T185224Z`) → fix universal-search `ac9991a` (`relevant_to`: an API hit must hold half of the query's
+  significant words, cap 3; `SourceStatus.dropped`; test red→green, lib 22/0) → green 7/7 (delphi 2/10, driver
+  0/10). Docs `a70a39e`. Known residuals for Q6: the first query to a cold SearXNG can miss the 20 s timeout (warm
+  it up at start); Semantic Scholar answers `error` under its shared keyless limit (named, not hidden).
+  Earlier note — code committed before the live run: universal-search `be74d9c` — `/search` also asks SearXNG (`apis`, `categories`;
   `US_SEARXNG_URL`), one list + one status per API engine; unit test red→green; the committed tree tested alone in a
   worktree: lib 16/0 (the working tree's 21 includes another agent's uncommitted OpenRouter tests). Remaining: the
   live Q1 run with both legs (oracle case `science_api` added — a hit must come from an official-API engine).

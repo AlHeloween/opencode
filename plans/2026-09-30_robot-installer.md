@@ -330,7 +330,21 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
 
 ## Smoke Tests
 
-- [ ] **I0 inventory:** read-only manifest of `d:\!Smit\Smit2\` (component, version, size, source, license, what it touches); system-modifying scripts (`windows_scripts/*`: LTSC Store add, `gpedit-enabler`) flagged opt-in. <!-- sv: inventory, smit2, manifest -->
+- [x] **I0 inventory:** read-only manifest of `d:\!Smit\Smit2\` (component, version, size, source, license, what it touches); system-modifying scripts (`windows_scripts/*`: LTSC Store add, `gpedit-enabler`) flagged opt-in. <!-- sv: inventory, smit2, manifest -->
+  ✓ 2026-10-07, `experiments/2026-10-07_smit2-inventory/inventory.ps1` → `inventory.json` (read-only; secret VALUES never
+  read out). **3.27 GB, 39 entries.** Largest: `smit/` 1.52 GB (`opencode.exe` + `smit.exe` both 1.4.0-canary.1 — the
+  same binary twice, stale vs today's `dist/`; Logseq 216 MB; codegraph's node 88 MB), `git/` 460 MB (full Git for
+  Windows 2.54, signed), `chromium/` 427 MB (152.0.7977.42, **NotSigned**), `adid_dist_*` 205 MB, `python/` 154 MB,
+  `tools/` 139 MB, `playwright-driver/` 102 MB (node 24.15), `node/` 87 MB (node 22.9), `windows_scripts/` 72 MB.
+  **Duplicates:** adm/adm-rag in 3 places (`tools/`, `smit/tools/`, `adid_dist`), node.exe ×3 (+ Electron), markdownify
+  ×2, opencode/smit ×2. **`rclone.exe` 72.7 MB** in `smit/tools` — a cloud-sync tool: egress, decide or drop.
+  **Secrets (build gate):** `smit/auth.json` — 2 entries with `key` fields; SearXNG `settings.yml` ships a FIXED
+  `secret_key` (`portab…`) → per-install `SEARXNG_SECRET`; other hits are commented examples and public CA bundles.
+  **Unsigned:** chromium, adm*, crw, universal-search, websurfx, nssm, all `tools/` → signing decision (B6/SmartScreen).
+  **System-changing scripts (21):** `windows_scripts/*` (Store, gpedit, virtual-client-fix) and `install_choco/winget`
+  → Advanced options; `add_paths/setup_env/init_delphi` → PATH changes (user-level, opt-in); `install_rag` → pip
+  (network); `node/install_tools.bat` (choco + elevate) and playwright `reinstall_*` download scripts → excluded.
+  Consequence for B1: the builder takes components from current sources/`dist/`, never from Smit2 as is.
 - [ ] **I1 pristine baseline:** on a clean VMware Windows snapshot, record what is missing BEFORE any install (WebView2, VC++, Git, VT, paths). <!-- sv: pristine-vm, baseline, preflight -->
 
 ## Work

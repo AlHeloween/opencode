@@ -179,6 +179,13 @@ Search is the first gate: an installer whose search is wrong is worth zero. One 
   background check exercised prints 0 warnings ✓. Not exercised: the demo-install goroutine (needs model clicks).
   Usable from 2.8 for B2: `FormItem.Required` for the model choice, Markdown tables for check/doctor results, GPU
   shadows for cards, `desktop.Window.RequestPosition` instead of the external `show.ps1`.
+  **DECIDED 2026-10-07 — Fyne 2.8.1 for the installer UI** (owner: «2.8.1 — самодостаточна… пусть будет как есть.
+  Выглядит отлично»; no skinning library, no gofynex). The model choice is now a `widget.Form` with `Required` items
+  over our `requiredSelect` (a `Select` + `fyne.Validatable` + `fyne.Requireable` — in 2.8.1 only `Entry` implements
+  `Requireable`, and a non-Requireable Required item is only logged, never enforced). ✓ seen: red required markers,
+  Russian placeholder and hints; ✓ console twin: no «Cannot mark a widget that is not Requirable» line. NOT yet run:
+  `app/model_form_test.go` (submit disabled until both picks, «Без модели» valid) — written, not executed; carry it
+  into B2 with the real installer, it needs the Zig cgo env (`build.cmd`) to compile.
 - then B1 builder → B2 installer shell → B3 preflight → V1–V3 virtual display (driver chosen and proven: MttVDD,
   T3 PASS) → B4 free-model config → B5 `smit doctor` incl. Q1 as its search check → B6 acceptance.
 - **Acceptance host is OPEN:** A0/B6 need a pristine Windows; the VMware tier is postponed and Hyper-V/Sandbox are

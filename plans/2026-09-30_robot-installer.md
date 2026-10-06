@@ -171,6 +171,14 @@ Search is the first gate: an installer whose search is wrong is worth zero. One 
   read-only checks, demo install). Toolchain: cgo through the repo-pinned Zig 0.16 (`external/zig-x86_64-windows-0.16.0`,
   `CC=zig cc -target x86_64-windows-gnu`) — no MinGW needed, MSVC cl.exe cannot serve cgo; ✓ built (`go build -a`) and
   rendered (cua capture). A Fyne installer needs no WebView2 at all. Decision pending the owner's look. <!-- sv: fyne-ui, no-webview2, zig-cgo -->
+  2026-10-07 update: the owner's art as background (embedded, dark theme, veil), required components as bright ✓ rows
+  (not dim disabled checkboxes); **Fyne 2.5.4 → 2.8.1** on the owner's go (gofynex reviewed: not taken — one author,
+  0 users, needs 2.8 anyway). Verified in Fyne's own CHANGELOG/source: `fyne.Do` (2.6), «Cover» fill (2.7),
+  `Label.SizeName`; 2.8 warns un-migrated apps. All goroutine UI updates moved into `fyne.Do`. Thread oracle: a console
+  twin of the build + a deliberate-violation control (`threadctl`: warns with file:line) — the prototype with the
+  background check exercised prints 0 warnings ✓. Not exercised: the demo-install goroutine (needs model clicks).
+  Usable from 2.8 for B2: `FormItem.Required` for the model choice, Markdown tables for check/doctor results, GPU
+  shadows for cards, `desktop.Window.RequestPosition` instead of the external `show.ps1`.
 - then B1 builder → B2 installer shell → B3 preflight → V1–V3 virtual display (driver chosen and proven: MttVDD,
   T3 PASS) → B4 free-model config → B5 `smit doctor` incl. Q1 as its search check → B6 acceptance.
 - **Acceptance host is OPEN:** A0/B6 need a pristine Windows; the VMware tier is postponed and Hyper-V/Sandbox are

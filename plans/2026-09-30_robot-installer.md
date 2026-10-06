@@ -147,6 +147,10 @@ Search is the first gate: an installer whose search is wrong is worth zero. One 
   After the fix no listener of our stack is on 0.0.0.0/::. Guard, not a habit: `smit doctor` lists every listening
   port owned by the installed stack and FAILS on any non-loopback address; the installer never adds firewall allow
   rules (the existing `crw-server` rule is the owner's to remove — now harmless, nothing listens outside).
+  PostgreSQL (not ours, but on this host it listened on `*`): `listen_addresses = 'localhost'` set 2026-10-07 (backup
+  `postgresql.conf.bak-20261007`), restarted by the owner the same day ✓ `Get-NetTCPConnection`: 127.0.0.1:5432 and
+  ::1:5432 only (pid started 03:48); ✓ 127.0.0.1:5432 connects; ✓ LAN 192.168.123.100:5432 actively refused.
+  `pg_hba` `127.0.0.1 trust` stays as is — the owner's decision, parked, not tightened.
 - [ ] **C1 model choice is explicit in the configurator** (owner, 2026-10-06: «в настройках нашего конфигуратора
   должен быть четкий выбор модели или ее отсутствие»). Every component that calls a model (Smit, universal-search
   `/agent`, …) shows the user ONE explicit setting: a chosen model, or «no model» — never a default silently filled in.
@@ -166,7 +170,7 @@ Search is the first gate: an installer whose search is wrong is worth zero. One 
   storage bus (`IOCTL_STORAGE_QUERY_PROPERTY` → USB/SD/MMC); a cloud/virtual «removable» drive is shown as NOT a
   target and refused by the system check (the robot's data would silently sync to the cloud). Prototype implements
   it: `experiments/2026-10-07_installer-fyne/app/main.go`. <!-- sv: portable-install, install-path, flash-detection -->
-- [ ] **B2 decision — Fyne instead of Wails** (owner, 2026-10-07: «сделай наше приложение на fyne хочу посмотреть»):
+- [x] **B2 decision — Fyne instead of Wails** (owner, 2026-10-07: «сделай наше приложение на fyne хочу посмотреть»):
   prototype built and shown (tabs Обзор/Куда/Проверка/Компоненты/Модель/Дополнительно/Установка/Диагностика; real
   read-only checks, demo install). Toolchain: cgo through the repo-pinned Zig 0.16 (`external/zig-x86_64-windows-0.16.0`,
   `CC=zig cc -target x86_64-windows-gnu`) — no MinGW needed, MSVC cl.exe cannot serve cgo; ✓ built (`go build -a`) and
@@ -350,7 +354,7 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
 ## Work
 
 - [ ] **B1 builder:** one reproducible build script that assembles the bundle from pinned sources into `dist/installer/` (never `bin/`), with a hash manifest. <!-- sv: builder, reproducible, hash-manifest -->
-- [ ] **B2 installer shell:** Go + Wails app; native pre-stage installs WebView2 if absent, then the UI. <!-- sv: wails-installer, webview2-bootstrap, pre-stage -->
+- [ ] **B2 installer shell:** Go + Fyne 2.8.1 app (decided 2026-10-07, see above; no WebView2 needed, so no pre-stage), grown from `experiments/2026-10-07_installer-fyne/app`; its `model_form_test.go` runs green first. <!-- sv: fyne-installer, no-webview2, model-form-test -->
 - [ ] **B3 preflight + fix:** each candidate above as check → fix/remedy, shown to the user before apply. <!-- sv: preflight, fixes, opt-in -->
 - [ ] **V1 virtual-display selection:** read each candidate's signature, driver model, license and install method; pick one with evidence; its egress goes through the audit plan. <!-- sv: virtual-monitor, driver-selection, signature -->
 - [ ] **V2 virtual-display install/uninstall:** silent offline install + uninstall by recorded hardware ID; `HypervisorPresent` read before and after; resolution set for the robot's display. <!-- sv: virtual-monitor, silent-install, hypervisor-guard -->

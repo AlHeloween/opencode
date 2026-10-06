@@ -481,4 +481,7 @@ def test_pre_action_section_stays_small() -> None:
         section += len(block.encode("utf-8"))
     # 6_200 -> 6_500 (2026-10-04, owner: «резать особо нечего»): VCS_ROLES became the organization orientation —
     # where the org lives, genesis, Protocol, the `--keep` recovery — a finding aid again; measured 6_485 B.
-    assert section <= 6_500, section
+    # 6_500 -> 6_800 (2026-10-06, owner: limits by measurement): the G0 turn-termination
+    # clarification (a gate is not a terminal) and the @CAPABILITY_ABSTRACTION pointer in
+    # @CATALOG_INVARIANT; measured 6_701 B — the smallest 300 above the largest, as before.
+    assert section <= 6_800, section

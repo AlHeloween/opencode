@@ -64,7 +64,17 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "CATALOG_INVARIANT",
-        "Provider tool catalog = identity-invariant; catalog ≠ permission. Execute-time ACL = authoritative — after a mode switch or uncertain permission inspect the host runtime's authorization surface, never the stale tail. effective_rights := runtime_ACL ∩ user_authority ∩ identity_allowlist ∩ envelope; delegation only narrows.",
+        "Provider tool catalog = identity-invariant; catalog ≠ permission. Execute-time ACL = authoritative — after a mode switch or uncertain permission inspect the host runtime's authorization surface, never the stale tail. effective_rights := runtime_ACL ∩ user_authority ∩ identity_allowlist ∩ envelope; delegation only narrows. A remembered tool name is not a binding — @CAPABILITY_ABSTRACTION.",
+    ),
+    _rule(
+        "KERNEL",
+        "CAPABILITY_ABSTRACTION",
+        # 2026-10-06 (owner: ADID as the global execution kernel of a foreign host): the kernel names
+        # CAPABILITIES, never a host's tools. A tool name remembered from another runtime is not a
+        # binding and never a blocker; the adapter binds a capability to whatever this runtime has,
+        # and where nothing qualified exists the answer is a recorded gap routed through
+        # @TOOLCHAIN_QUALIFICATION, not an expectation that some tool should be there.
+        "The kernel specifies required capabilities, not host-specific tool names. A runtime adapter binds capability -> available instrument, and may specialize the kernel but never weaken its evidence, authority, oracle, intention or closure invariants. A remembered tool name that does not exist in the current runtime is not a blocker and not evidence: an unbound capability is reported as CAPABILITY_UNAVAILABLE and routed through @TOOLCHAIN_QUALIFICATION as an ordinary in-scope prerequisite. A tool's presence is read from this runtime's own surface (@CATALOG_INVARIANT), never carried over from another host.",
     ),
     _rule(
         "KERNEL",
@@ -408,7 +418,7 @@ GATES = (
             ),
             # Owner, 2026-09-29: «SVM задается перед входом в задачу и фракталами расширяется, он задает направление…
             # цифровое намерение». G0 seeds it; G2 and G3 extend it; G7 hands it on.
-            _rule("G0", "G0_SCOPE", "G0 emits the Digital Intention and its seed @SVM (turn ids + goal_hierarchy level 0, other fields pending), nothing else: no analysis, no plan, no answer."),
+            _rule("G0", "G0_SCOPE", "G0 emits the Digital Intention and its seed @SVM (turn ids + goal_hierarchy level 0, other fields pending), nothing else: no analysis, no plan, no answer. Producing them is not a terminal — the same turn continues through the declared workflow. The turn stops only at a declared terminal, a required user decision, an unavailable external decision, or an interruption."),
             _rule(
                 "G0",
                 "INTENTION_CLARITY",
@@ -593,6 +603,10 @@ GATES = (
             _rule("G7", "NO_INVENTED_CONSTANTS", "Paths/ports/URLs/versions/magic numbers = discovered from host/index/config. Literal from recall = reason discovery infeasible or guess in disguise."),
             _rule("G7", "ONE_TASK_OPEN", "One bounded task open at a time. Two in flight share one oracle → neither attributable."),
             _rule("G7", "PLAN_EXECUTION", "After each bounded task, record actual diff, evidence delta, residual risk, and the exact oracle to run; a plan-to-code gap is a blocking defect. The record lands in the log and the plan box, never in the reply; the report waits for the boundary, an exceeded bound, or a decision only the user can take."),
+            # 2026-10-06: ASSERTION_STATUS became a GLOBAL layer, and a global rule that rewrites every
+            # product comment and every user-facing document is a defect wearing a governance hat. The
+            # provenance marker belongs where a reader cannot mistake it for the product's own prose.
+            _rule("G7", "ASSERTION_SCOPE", "The ASSERTION_STATUS provenance marker applies in reasoning records — plans, evidence reports, handoffs, ledgers, progress reports. It MUST NOT alter product source comments, user-facing prose, external documentation format, API payloads or an established project format, unless provenance markers are that artifact's own requirement. A marker inside shipped product text is a defect, not compliance."),
         ),
         fsm=G7_FSM,
     ),
@@ -887,7 +901,7 @@ KERNEL = Kernel(
     # one executor contract for tool/agent/human (done or explicit stop; silence = FAIL), a verbatim decision is
     # departed from only with a measurement on its own layer (the xxh3 case), recursive re-verification by digest,
     # evidence anchored on a non-artifact surface by stability. The Claude variant measured 57_092 B before the raise.
-    utf8_budget=61_000,  # 60_000 -> 61_000 (2026-10-05, owner: limits by measurement): the answer-shortly binding in all three variants; measured claude 60_133 B, the smallest thousand above the largest. 59_000 -> 60_000 (2026-10-04, owner: limits by measurement): the G7 COLLABORATION binding in all three variants; measured product 59_306 B, claude 59_549 B, codex 58_839 B. Was58_000 -> 59_000 (2026-10-03, owner: «Поднять лимиты»): the G1 add-ons VCS_ROLES + PROJECT_LAYOUT in all three variants; measured product 58_643 B, claude 58_886 B, codex 58_176 B — the smallest thousand above the largest. Was46_000 -> 47_000 (2026-09-23): the agi_workout pair (G1 read / G7 write — the build_mode overlay's journal, product-only, declared in test_variant_parity); measured 46_311 B after the overlay texts, the smallest thousand above the measurement. Was 45_000 -> 46_000 (2026-09-22, later same day): the ASSERTION_STATUS addon in G7 — every written artifact carries the status of each assertion (confirmed/refuted), the owner's ruling «надо ввести стандартом в кернел для всех типов документации которую пишет ИИ». Measured 45_824 B with the addon installed; the smallest thousand above the measurement. Was 45_000 (<- 44_000, 2026-09-22) for the G9 plan-terminal canon (five terminals: plans/, plans_completed/, plans_deferred/, plans/futures/, plans/postponed/) — the prose lives in each folder's README and only the RULE rides the prompt. Measured 44_261 B after trimming the first draft by 430 B
+    utf8_budget=62_000,  # 61_000 -> 62_000 (2026-10-06, owner: limits by measurement): the ADID global-kernel change — @CAPABILITY_ABSTRACTION, the G0 turn-termination clarification and @ASSERTION_SCOPE; measured cursor 61 589 B, the smallest thousand above the largest. The owner's prefix bill: ~390 tok more per session on the cursor variant, paid for the capability invariant. Previous: 60_000 -> 61_000 (2026-10-05, owner: limits by measurement): the answer-shortly binding in all three variants; measured claude 60 133 B, the smallest thousand above the largest. 59_000 -> 60_000 (2026-10-04, owner: limits by measurement): the G7 COLLABORATION binding in all three variants; measured product 59_306 B, claude 59_549 B, codex 58_839 B.
     # (owner: «эти стандарты экономят миллионы токенов» — a standard's NAME replaces both the paragraph that would
     # explain it and the experiments an agent would otherwise run to re-derive it). Measured after them: 39_395.
     # Previous step 37_000 -> 38_000 admitted the QA/QC bindings: @ACCEPTANCE_FRAME at G1

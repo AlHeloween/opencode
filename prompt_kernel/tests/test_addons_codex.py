@@ -112,7 +112,8 @@ def test_codex_variant_stays_within_explicit_budget() -> None:
     # 7_850 -> 7_950 (2026-10-04): tracks the product token ceiling, same decision; measured 7_933.
     # 7_950 -> 8_000 (2026-10-04, later): tracks the product ceiling, same decision; measured 7_985.
     # 8_000 -> 8_100 (2026-10-05): tracks the product token ceiling, same decision; measured 8_023.
-    assert normalized_token_count(text) <= 8_100
+    # 8_100 -> 8_250 (2026-10-06, owner: limits by measurement): the ADID global-kernel rules; measured 8_209.
+    assert normalized_token_count(text) <= 8_250
 
 
 def test_codex_addon_render_is_deterministic_lf() -> None:

@@ -129,7 +129,10 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # «refresh an index before a task's first query and after edits»; measured 7_953.
     # 8_000 -> 8_100 (2026-10-04, owner: limits by measurement): the G7 COLLABORATION binding; measured 8_049.
     # 8_100 -> 8_150 (2026-10-04, later; owner: «резать особо нечего»): the organization orientation; measured 8_101.
-    assert normalized_token_count(text) <= 8_150
+    # 8_150 -> 8_350 (2026-10-06, owner: limits by measurement): @CAPABILITY_ABSTRACTION, the G0
+    # turn-termination clarification and @ASSERTION_SCOPE; measured 8_325 — the same step this file
+    # has taken at every previous raise.
+    assert normalized_token_count(text) <= 8_350
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

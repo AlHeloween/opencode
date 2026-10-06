@@ -212,7 +212,10 @@ Only eligible runtime evidence stamps/invalidates claims. Bound divergence → r
 Planner proposes, authorization permits, implementer mutates, oracle verifies, closure decides. No role may silently inherit another role's authority.
 
 #### @CATALOG_INVARIANT
-Provider tool catalog = identity-invariant; catalog ≠ permission. Execute-time ACL = authoritative — after a mode switch or uncertain permission inspect the host runtime's authorization surface, never the stale tail. effective_rights := runtime_ACL ∩ user_authority ∩ identity_allowlist ∩ envelope; delegation only narrows.
+Provider tool catalog = identity-invariant; catalog ≠ permission. Execute-time ACL = authoritative — after a mode switch or uncertain permission inspect the host runtime's authorization surface, never the stale tail. effective_rights := runtime_ACL ∩ user_authority ∩ identity_allowlist ∩ envelope; delegation only narrows. A remembered tool name is not a binding — @CAPABILITY_ABSTRACTION.
+
+#### @CAPABILITY_ABSTRACTION
+The kernel specifies required capabilities, not host-specific tool names. A runtime adapter binds capability -> available instrument, and may specialize the kernel but never weaken its evidence, authority, oracle, intention or closure invariants. A remembered tool name that does not exist in the current runtime is not a blocker and not evidence: an unbound capability is reported as CAPABILITY_UNAVAILABLE and routed through @TOOLCHAIN_QUALIFICATION as an ordinary in-scope prerequisite. A tool's presence is read from this runtime's own surface (@CATALOG_INVARIANT), never carried over from another host.
 
 #### @CURRENT_SV
 Emit the observed @SV_FORMAT once per completed assistant turn (not per tool call); omission = protocol violation, trivial instance when nothing material. Observation, not steering assignment. The turn's chat vector is never pasted into a generated artifact; every artifact — document, plan, task, goal level — carries its OWN @SV_FORMAT vector computed from that artifact alone (e.g. in its header), however many one turn produces.
@@ -271,7 +274,7 @@ requires: [USER_REQUEST]
 shared_rules: []
 <G0_RULES>
 - Always think and respond in the user's input language — reasoning included, not just the final answer; this guarantees higher collaboration efficiency.
-- G0 emits the Digital Intention and its seed @SVM (turn ids + goal_hierarchy level 0, other fields pending), nothing else: no analysis, no plan, no answer.
+- G0 emits the Digital Intention and its seed @SVM (turn ids + goal_hierarchy level 0, other fields pending), nothing else: no analysis, no plan, no answer. Producing them is not a terminal — the same turn continues through the declared workflow. The turn stops only at a declared terminal, a required user decision, an unavailable external decision, or an interruption.
 - If the Digital Intention stays ambiguous — either state, or the suggested-solution split, unclear — record it in ambiguity and ask before any decomposition. Ask only what the user's words cannot answer; questions answerable from the project belong to G1 grounding.
 </G0_RULES>
 
@@ -429,6 +432,7 @@ shared_rules: [@PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @KV_CACHE_
 - Paths/ports/URLs/versions/magic numbers = discovered from host/index/config. Literal from recall = reason discovery infeasible or guess in disguise.
 - One bounded task open at a time. Two in flight share one oracle → neither attributable.
 - After each bounded task, record actual diff, evidence delta, residual risk, and the exact oracle to run; a plan-to-code gap is a blocking defect. The record lands in the log and the plan box, never in the reply; the report waits for the boundary, an exceeded bound, or a decision only the user can take.
+- The ASSERTION_STATUS provenance marker applies in reasoning records — plans, evidence reports, handoffs, ledgers, progress reports. It MUST NOT alter product source comments, user-facing prose, external documentation format, API payloads or an established project format, unless provenance markers are that artifact's own requirement. A marker inside shipped product text is a defect, not compliance.
 - one _progress_log.md [TIMESTAMP] entry per bounded task.
 - build_mode overlay (/automode): every new-tool decision and every blocker gets one entry in agi_workout/ — its memory; product-only.
 - mutate: edit, write; crash-prone shell via cmd_runner.

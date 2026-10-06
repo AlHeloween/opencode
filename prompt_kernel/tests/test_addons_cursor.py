@@ -81,14 +81,14 @@ def test_cursor_variant_never_names_a_tool_it_does_not_have() -> None:
 
 def test_cursor_variant_stays_within_explicit_budget() -> None:
     text = render_kernel(KERNEL, CURSOR_GATE_ADDONS, ())
-    # 8_250 (2026-10-06, owner: limits by measurement): this host's first
-    # measurement is 8_208 — the largest of the four variants, because the
-    # bindings name capabilities ("Read File, Grep, Search Files and Codebase")
-    # that the snake_case tool names of the product variant did not. 61_000 /
-    # 8_250 is the smallest step above the largest, same rule as every raise
-    # before it (see source.py utf8_budget).
-    assert len(text.encode("utf-8")) <= 61_000
-    assert normalized_token_count(text) <= 8_250
+    # 8_400 (2026-10-06, owner: limits by measurement): @CAPABILITY_ABSTRACTION, the G0
+    # turn-termination clarification and @ASSERTION_SCOPE; measured 8_394. This host stays the
+    # largest of the four because its bindings name capabilities («Read File, Grep,
+    # Search Files and Codebase») that the product variant's snake_case tool names
+    # did not. The byte cap is the shared one, not a number repeated here.
+
+    assert len(text.encode("utf-8")) <= KERNEL.utf8_budget
+    assert normalized_token_count(text) <= 8_400
 
 
 def test_cursor_addon_render_is_deterministic_lf() -> None:

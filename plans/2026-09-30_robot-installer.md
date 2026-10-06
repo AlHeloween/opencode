@@ -429,7 +429,10 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
     worktree. Если запустить из bin то bin тоже станет worktree»).** ✓ `packages/core/src/global.ts:8` worktree =
     `process.cwd()` (data, log, cache and `Global.Path.bin` hang off it), config = `exeDir` (`:7,16`); ✓ state:
     `bin/.opencode/data/log` exists since 2026-09-22 — the robot was once started with cwd = `bin/` and `bin/` became a
-    worktree. Hence **R1** (product source, test first, before B2): resolve own tools beside `process.execPath`
+    worktree. **Per-worktree data is the DESIGN, not the defect** (owner: «сам opencode его генерит — это позволяет
+    делать распределенную систему проектов, у каждого проекта своя база»): every project the robot is started in gets
+    its own `.opencode/data`; R1 never moves data, state, log or cache. Hence **R1** (product source, test first,
+    before B2) is about the robot's OWN tools only: resolve them beside `process.execPath`
     (`<exeDir>/tools`, `<exeDir>/cua`) first — in the repo that is the same `bin/tools`, so dev is unchanged — and
     refuse/warn when worktree == exeDir; the installer's shortcut and portable launcher always start the robot in a
     workspace folder, never in `bin/`. samply: `bin/samply.exe` and `bin/tools/samply.exe` are the same file

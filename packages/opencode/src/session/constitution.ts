@@ -541,6 +541,39 @@ export type CommandFinding = {
 }
 
 /**
+ * A targeted QUERY names its subject — one file, one path, the environment — while a WALK searches the
+ * tree, and the walk is what hangs a box. The gate exists for the WALK (owner, 2026-10-06: «запрет
+ * чтобы дир не вызывался как глобальный искатель — потому что это вешает систему»), so a named query
+ * is never refused for borrowing the enumerator's NAME: `dir /b one.obj`, `type one.txt`,
+ * `Get-Item <path>`, `Resolve-Path <path>`, `Get-ChildItem env:` all run. A wildcard argument or a
+ * recursive flag turns the query back into a walk, and a bare `dir`, `dir /s`, `tree` and `rg --files`
+ * stay refused.
+ */
+function targetedQuery(firstToken: string, tokens: string[]): boolean {
+  const args = tokens.slice(1).filter((t) => t.length > 0)
+  const isFlag = (t: string) => t.startsWith("-") || t.startsWith("/")
+  const flags = args.filter(isFlag).map((t) => t.toLowerCase())
+  if (flags.some((f) => f === "/s" || f === "-s" || f === "-recurse" || f === "/recurse")) return false
+  if (args.some((t) => t.includes("*") || t.includes("?"))) return false
+  const named = args.some((t) => !isFlag(t))
+  switch (firstToken) {
+    case "dir":
+    case "type":
+    case "get-item":
+    case "resolve-path":
+      return named
+    case "get-childitem":
+    case "gci":
+      return (
+        args.some((t) => t.toLowerCase().startsWith("env:")) ||
+        (named && flags.some((f) => f === "-literalpath" || f === "-lp"))
+      )
+    default:
+      return false
+  }
+}
+
+/**
  * The enumeration decision for one first token: the block message, or undefined when the command
  * may run. ONE predicate for the AST path (`evaluate`) and the token path (`guardCommand`) — they
  * used to answer apart: `guardCommand` let a resolved unix tool through while `evaluate` blocked
@@ -548,9 +581,11 @@ export type CommandFinding = {
  * block arrived as `Error("")` (2026-09-29).
  *
  * The resolve escape covers AMBIGUOUS cross-platform names only; this platform's own enumerators
- * resolve by construction, so for them resolution carries no information and they stay blocked.
+ * resolve by construction, so for them resolution carries no information and they stay blocked —
+ * unless the invocation is a targeted QUERY, which is not a walk at all.
  */
-function enumerationBlock(firstToken: string): string | undefined {
+function enumerationBlock(firstToken: string, tokens: string[] = []): string | undefined {
+  if (targetedQuery(firstToken, tokens)) return undefined
   if (_NATIVE_ENUM_FIRST_TOKENS.has(firstToken)) return nativeEnumerationBlockMessage(firstToken)
   const decision = enumerationToolDecision(firstToken)
   return decision.allowed ? undefined : decision.message
@@ -609,7 +644,9 @@ export function evaluate(root: Node, isCmd: boolean): ConstitutionEvalResult {
     const isFileEnumerator = classification.family === CommandFamily.FILE_ENUMERATOR
     // HEAD-only: a non-head enumerator is classified and reported, never blocked (see above).
     const message =
-      isFileEnumerator && index === 0 ? enumerationBlock(cmd.replace(/^.*[/\\]/, "").replace(/\.exe$/, "")) : undefined
+      isFileEnumerator && index === 0
+        ? enumerationBlock(cmd.replace(/^.*[/\\]/, "").replace(/\.exe$/, ""), lower)
+        : undefined
 
     const finding: CommandFinding = { command: sourceText, classification, isFileEnumerator, message }
     findings.push(finding)
@@ -841,7 +878,7 @@ export function guardCommand(
         if (firstToken === "git" || firstToken === "where" || firstToken === "which") continue
         if ((firstToken === "rg" || firstToken === "rg.exe") && !seg.includes("--files")) continue
         // A tool that RESOLVES is a tool that works — for ambiguous names only; see enumerationBlock.
-        const message = enumerationBlock(firstToken)
+        const message = enumerationBlock(firstToken, seg.split(/\s+/))
         if (message === undefined) {
           log.info("constitution.enumeration_allowed_unix_tool", {
             command: seg.slice(0, 200),
@@ -884,7 +921,7 @@ export function guardCommand(
   // blocked=true by default). The probe is the difference between a capability that is missing and
   // one that is merely disbelieved.
   if (classification.family === CommandFamily.FILE_ENUMERATOR) {
-    const message = enumerationBlock(cmd)
+    const message = enumerationBlock(cmd, lower)
     if (message === undefined) {
       log.info("constitution.enumeration_allowed_unix_tool", {
         command: command.slice(0, 200),

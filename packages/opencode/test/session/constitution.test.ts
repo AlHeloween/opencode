@@ -227,12 +227,17 @@ describe("session.constitution", () => {
 
     // Platform-specific builtins
     if (process.platform === "win32") {
-      for (const command of ["dir /b", "gci", "type file.txt"]) {
+      // WALKS stay blocked: a bare `dir`, a bare `gci`, a bare `type` and a GLOB argument. The gate
+      // exists so `dir` is not used as a global searcher (owner, 2026-10-06) — not to forbid a query.
+      for (const command of ["dir /b", "gci", "type", "type *.txt"]) {
         expect(Constitution.guardCommand(command).blocked).toBe(true)
       }
-      // `ls` does NOT exist on native Windows → no block
+      // ...while a query that NAMES its subject runs — `type file.txt` is read-class, not a walk.
+      expect(Constitution.guardCommand("type file.txt").blocked).toBe(false)
+      // `ls` RESOLVES here: the project ships bin/ls.exe (a shim), so the escape admits it. The old
+      // comment claimed the opposite ("does NOT exist on native Windows") — measured 2026-10-06.
       expect(Constitution.guardCommand("ls").blocked).toBe(false)
-      // `cat` does NOT exist on native Windows → no block
+      // `cat` likewise resolves through bin/cat.exe.
       expect(Constitution.guardCommand("cat file.txt").blocked).toBe(false)
     } else {
       for (const command of ["ls", "cat file.txt"]) {

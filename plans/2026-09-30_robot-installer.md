@@ -99,8 +99,15 @@ Search is the first gate: an installer whose search is wrong is worth zero. One 
 - [ ] **Q2b selector fixtures:** run each engine's extract JS against SAVED SERP pages (the `*_serp/*.html` of run
   `20261002T115857Z_serp`) in the browser, so a markup change upstream fails a test, not a user's search. Split out
   of Q2: not done yet. <!-- sv: selector-fixtures, saved-serp, regression -->
-- [ ] **Q3 SearXNG official-API set:** `keep_only` list, each engine vetted by its `request()` URL against the
+- [x] **Q3 SearXNG official-API set:** `keep_only` list, each engine vetted by its `request()` URL against the
   service's API docs. <!-- sv: searxng-whitelist, official-api, vetting -->
+  ✓ universal-search `1beaa7b` — `config/searxng/settings.yml`, 15 engines; each vetted by the host its `request()`
+  calls (read in `searx/engines/*.py`) and the API-documentation link the engine itself names — the services' own
+  docs pages were not re-read one by one (Inferred, not Exact, for that half). Refused by source: qwant (network-log
+  reverse engineering + `datadome` cookie), piratebay, core (key), base, pypi, openlibrary. Live on a test instance
+  (3435): `/config` lists exactly the 15; a science query → 51 results from arxiv/crossref/semantic scholar/openalex/
+  pubmed; a control query per engine → all answer (wikipedia as an infobox); mwmbl timeout raised to 6 s after a
+  measured 3 s miss.
 - [x] **Q4 reader:** universal-search `/web/context` → crw fork (`browser_only = true`) → stamped markdown with
   `content_hash`. <!-- sv: document-reader, crw-fork, content-hash -->
   ✓ universal-search `f4eef45` — `/web/context` returns `content_hash` (`sha256:` of the markdown, FIPS vector test
@@ -108,6 +115,11 @@ Search is the first gate: an installer whose search is wrong is worth zero. One 
   **Q1 run `20261002T123757Z`: 6/6** (docwiki read through the real browser, 6239 chars, hash present) — candidate
   instance on 3015, the live 3005 service untouched.
 - [ ] **Q5 merge + stamps:** one JSON contract from Q2+Q3+Sourcegraph+free APIs; Q1 passes. <!-- sv: merge, source-stamp, q1-pass -->
+  Code committed, NOT yet proven live: universal-search `be74d9c` — `/search` also asks SearXNG (`apis`, `categories`;
+  `US_SEARXNG_URL`), one list + one status per API engine; unit test red→green; the committed tree tested alone in a
+  worktree: lib 16/0 (the working tree's 21 includes another agent's uncommitted OpenRouter tests). Remaining: the
+  live Q1 run with both legs (oracle case `science_api` added — a hit must come from an official-API engine).
+  Docs: `universal-search/docs/search-contract.md`, `opencode/docs/tools-and-sidecars.md` §7.2.1.
 - [ ] **Q6 services:** chromium, searxng, universal-search, crw — user-level, loopback, never LocalSystem; start/stop
   owned by the installer. <!-- sv: services, least-privilege, lifecycle -->
 - then B1 builder → B2 installer shell → B3 preflight → V1–V3 virtual display (driver chosen and proven: MttVDD,

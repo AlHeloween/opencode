@@ -445,6 +445,12 @@ the user's explicit approval.
   started by the driver itself.
 - **Uploads through a CDP browser**: pass bytes (`setInputFiles` with a buffer), not a path — the browser then reads
   no disk (`experiments/2026-09-30_upload-over-cdp`).
+- **Virtual monitor (B-native-bg)**: the IDD «Virtual Display Driver» (`MttVDD` 11.30.4.434, UMDF, SignPath-signed,
+  hw-id `Root\MttVDD`) is installed on this host by the owner via `experiments/2026-10-02_vdd-install/install_vdd.ps1`
+  (`-Check` default, `-Install` / `-Uninstall` elevated; the bundled virtual AUDIO driver is never installed);
+  `HypervisorPresent` stays `False`. Fixture run `experiments/2026-10-02_cua-virtual-monitor-t3` `20261002T070413Z`:
+  7/7 — own pixels and capture-bound UIA + pixel clicks on the virtual monitor, owner focus untouched. Find the
+  monitor by its PnP id `MTT1337`, never by a `DISPLAYn` number; read monitor rects from a per-monitor-DPI process.
 
 ### 7.2 Visible Chrome debug workflow
 
@@ -455,6 +461,28 @@ or screenshots, bind that existing Chrome's exact native window through
 CUA/CDP, use CUA `bring_to_front`, then use typed browser actions and
 screenshots. Do not launch, restart, or change Chrome's debugging flags; do not
 make it visible for ordinary universal-search work.
+
+### 7.2.1 Search for the evidence pipeline (Universal Search, 2026-10-02)
+
+Universal Search (`D:\zPython\universal-search`, port 3005) is the pipeline's evidence intake, not a scraper. Two
+admissible clients, by the owner's rule: **a real browser** for pages built for people (the Chromium on 9222 over CDP,
+keeping cookies, consent and the site's checks), or **a service's own documented free API**. Raw HTTP fetching of
+browser pages, fingerprint spoofing and challenge-solving are out; a challenge page is a stop.
+
+- `POST /search` — DuckDuckGo `html` + Bing through the browser, plus SearXNG restricted to 15 vetted official-API
+  engines (`config/searxng/settings.yml`); every hit carries `sources`, `rank`, `authority_class`, `retrieved_at`,
+  every source a status (`ok|empty|challenge|cooldown|error`). Google is not a source (challenges).
+- `POST /web/context` — reads one page through the crw fork (`external/crw`, `local_development`, `browser_only`) and
+  stamps it with `content_hash` (sha256 of the text), `authority_class`, `retrieved_at`.
+- `POST /web/sourcegraph` — code: returns file paths; read the text at the shipped version with
+  `gh api repos/<o>/<r>/contents/<path>?ref=<tag>`. A zero is a claim about the filter (repo indexed under another
+  owner — `us/crw` is `fastcrw/crw`); run a control query.
+- Contract and evidence: `D:\zPython\universal-search\docs\search-contract.md`. Oracle:
+  `experiments/2026-10-02_search-oracle/run.ts` — live stack 1/6, candidate 6/6 (`20261002T123757Z`).
+- Vendor crw v0.15.2 is NOT used: it fetches every page over HTTP with a forged Mac Chrome UA before opening the
+  browser and injects anti-detection JS on every navigation (measured: `experiments/2026-10-02_crw-chrome-only`;
+  source `crw-renderer/src/lib.rs:609-611`).
+- WebFetch (Claude's tool) is for the internal pipeline and debugging only; research goes through this service.
 
 Skill guides (partial vendoring — index + links, not full copies):
 `external/cua/libs/cua-driver/rust/Skills/cua-driver/` — `SKILL.md`

@@ -385,7 +385,8 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
     (run `20261006T205241Z_67dc1011`, all 6 bundle tests PASS). Real data, Smit2: 23 179 files / 3 428 934 279 B in
     20 s, two runs byte-identical (md5 of both manifests `a12c2ab0b8ca…`); independent control — PowerShell
     `Get-ChildItem -Force` counts the same 23 179 / 3 428 934 279, three seeded-random entries match `Get-FileHash`;
-    `bundle verify` on the untouched tree: 0 differences (run `20261006T205343Z…` series). For B1c: Smit2 ships
+    `bundle verify` on the untouched tree: 0 differences (run `20261006T205358Z_045246f9`; manifests
+    `20261006T205302Z_1820591d`, `20261006T205323Z_d8a6d341`). For B1c: Smit2 ships
     `__pycache__/*.pyc`, which Python rewrites at run time — exclude them, or a post-run verify reports false changes.
   - [ ] **B1c components**: a pinned list (component, source = its own builder's output, include/exclude, license);
     robot ONE binary (not smit.exe + opencode.exe), ONE node, search = chromium + searxng + universal-search + crw fork

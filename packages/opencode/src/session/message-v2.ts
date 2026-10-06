@@ -226,6 +226,13 @@ export const FilePart = Schema.Struct({
   mime: Schema.String,
   filename: Schema.optional(Schema.String),
   url: Schema.String,
+  /**
+   * Provider-hosted id (`file-api-…`), set once the file has been uploaded and
+   * VERIFIED. Absent means the bytes were never hosted upstream and the part
+   * travels inline — which is the fallback, not a failure: `url` is always
+   * present, so a part is usable with or without this.
+   */
+  fileId: Schema.optional(Schema.String),
   source: Schema.optional(_FilePartSource),
   /**
    * Pixel dimensions of an image part, stamped ONCE at ingestion (2026-09-18)

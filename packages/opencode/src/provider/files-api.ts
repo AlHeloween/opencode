@@ -70,8 +70,12 @@ function authHeaders(apiKey: string) {
 }
 
 /**
- * Upload one file. `expiresAfterSeconds` is omitted for a permanent file; the
- * API accepts 3600 … 2592000 when present.
+ * Upload one file. The API accepts `expires_after` between 3600 and 2 592 000 seconds; omit it and the file is
+ * permanent.
+ *
+ * DEFAULT TERM IS ONE MONTH (2 592 000 s — the maximum), not permanent. Permanent is one argument away and
+ * becomes a lie the day the account is lost or the key rotated, while a month outlives any debugging session and
+ * keeps the account's storage bounded. Re-uploading is cheap; recovering an id with no term is not.
  */
 export async function uploadFile(input: {
   apiKey: string

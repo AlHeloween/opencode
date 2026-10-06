@@ -397,6 +397,28 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
   - [ ] **B1c components**: a pinned list (component, source = its own builder's output, include/exclude, license);
     robot ONE binary (not smit.exe + opencode.exe), ONE node, search = chromium + searxng + universal-search + crw fork
     (no garnet/websurfx), robot config = a template with no model/provider; never `bin/`, never Smit2.
+    **Tool layout = `bin/` (owner, 2026-10-07: «гит и стандартные тулы … мы их в bin сложили — сам робот проверяет
+    при старте что есть в bin и использует; что в bin — напрямую, экзешники которые нет — через cmd_runner»).** Read
+    the same day, not run: the "known" set is a STATIC list in code — `KNOWN_BIN_TOOLS`
+    (`packages/opencode/src/tool/shell-constitution.ts:228`, samply already in it) + `SYSTEM_KNOWN_TOOLS` git/python/
+    node/pwsh/cmd (`:237`); no start-up scan of `bin/` was found (grep for a bin readdir — Inferred, not proven absent).
+    `bin/` here holds the msys tools (awk, cat, find, grep, head, ls, sed, sort, tail, wc + `msys-2.0.dll`), sqlite,
+    ffmpeg, `tools/` (adm, cmd_runner, fd, fossil, rg, rclone, samply, …), `cua/`, `codegraph/` — **git is NOT in
+    `bin/`**: it is a system tool, taken from PATH. So the bundle must give the robot a git without clobbering a
+    user's own Git — decision pending (owner: «с гитом очень аккуратно»).
+    **Never copy `bin/` wholesale:** it also holds `auth.json`, `auth.json.enc` + its `.tmp.*` copies,
+    `.opencode.encryption.key` (44 B), `gateway.jsonc`, `opencode.jsonc(.enc)`, `locks/`, `.opencode/data/` ✓ listed.
+    Gate gap found by that listing: B1a catches `auth.json` but NOT the encryption key (a `.key` file is only read for
+    a PEM block) nor `auth.json.enc*` → extend the name rule, test first.
+    **Resolution defect for an installed robot:** `samply.ts:19` resolves `{worktree}/bin/tools` → `Global.Path.bin`
+    (= `{worktree}/.opencode/data/cache/bin`, `packages/core/src/global.ts:15`) → PATH; `cua.ts:24` resolves PATH or
+    `{worktree}/bin/cua` — its comment promises `Global.Path.bin` first, the code never reads it (comment ≠ code). Both
+    are relative to the PROJECT the robot works in, not to the robot's own install; only codegraph looks beside the exe
+    (`project/bootstrap.ts:62`). Installed, the tools are found only through PATH — the route that already picked the
+    wrong binary once (memory: Python PATH shadows bin\tools). Fix (separate bounded task, test first): resolve beside
+    `process.execPath` first, like codegraph. samply: `bin/samply.exe` and `bin/tools/samply.exe` are the same file
+    (md5 `641ec5a458a3…`, 17 052 160 B) — ship one; source `external/samply` 0.13.1 @ `f5a8bf10` (MIT/Apache-2.0),
+    built from source by B1.
   - [ ] **B1d playwright-rs driver 404 countermeasure** in the search build (provision `playwright-core` into the
     build-script OUT_DIR, reset its fingerprint) — second occurrence, KAIZEN.
   - [ ] **B1e end-to-end**: build → gate PASS → manifest → the built tree contains no `auth.json` and no model id.

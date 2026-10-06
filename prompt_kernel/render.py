@@ -330,3 +330,30 @@ def kernel_digest(
 
         kernel = KERNEL
     return hashlib.sha256(render_kernel(kernel, addons, identity_addons).encode("utf-8")).hexdigest()
+
+
+def render_adapter(addons: tuple) -> str:
+    """The host-binding half of a render, on its own.
+
+    `render_kernel` interleaves a host's tool names into the gate blocks. When
+    the portable half has to travel separately — as Codex's `developer_instructions`
+    does — this renders the same bindings as their own section, so the Core that
+    ships beside it contains no tool name at all and the boundary stays visible.
+    """
+    grouped: dict[str, list[str]] = {}
+    for addon in addons:
+        grouped.setdefault(addon.gate_id, []).append(f"{addon.addon_id}: " + " ".join(addon.lines))
+    lines = [
+        "Runtime bindings for this host. Each line names what the Core asks for",
+        "(@CAPABILITY_ABSTRACTION) and what this runtime actually offers; a",
+        "capability with no binding here is CAPABILITY_UNAVAILABLE, not a reason",
+        "to expect a tool that another host happened to have.",
+        "",
+    ]
+    for gate_id in sorted(grouped, key=lambda value: int(value[1:])):
+        lines.append(f"### {gate_id}")
+        lines.append("")
+        for entry in grouped[gate_id]:
+            lines.append(f"- {entry}")
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"

@@ -21,7 +21,43 @@ from .render import kernel_digest, render_kernel
 from .source import KERNEL
 
 
+def _codex_global() -> int:
+    """ADID as Codex's global developer-instruction layer (spec §1, §7).
+
+    Not the same operation as `--codex --install`: that writes the kernel to
+    ~/.codex/AGENTS.md as a project document, subject to project_doc_max_bytes.
+    This writes `developer_instructions` to the USER config, which codex applies
+    as a developer-role message with no such cap and which project config cannot
+    shadow (it ignores that key).
+    """
+    from . import codex_install as ci
+
+    if "uninstall" in sys.argv:
+        report = ci.uninstall()
+        print(f"status={report.status}")
+        print(f"config={report.path}")
+        if report.detail:
+            print(f"detail={report.detail}")
+        return 0
+    if "doctor" in sys.argv:
+        rows = ci.doctor()
+        width = max(len(check) for check, _, _ in rows)
+        for check, status, detail in rows:
+            print(f"{check.ljust(width)}  {status:<14}  {detail}")
+        return 1 if any(status == "FAIL" for _, status, _ in rows) else 0
+    report = ci.install(compose="--compose" in sys.argv)
+    print(f"status={report.status}")
+    print(f"config={report.path}")
+    print(f"version={report.version}")
+    print(f"content_sha256={report.digest}")
+    if report.detail:
+        print(f"detail={report.detail}")
+    return 0 if report.status in {"INSTALLED", "UNCHANGED"} else 1
+
+
 def main() -> int:
+    if "--codex-global" in sys.argv:
+        return _codex_global()
     if "--cursor" in sys.argv:
         review, runtime = write_artifacts(dist=DIST_CURSOR, addons=CURSOR_GATE_ADDONS, identity_addons=())
         print(f"runtime={runtime}")

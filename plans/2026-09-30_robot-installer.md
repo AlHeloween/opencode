@@ -137,6 +137,16 @@ Search is the first gate: an installer whose search is wrong is worth zero. One 
   the owner asks. What remains of Q6: deploy the new builds into the existing services (universal-search with
   `/search`, the crw fork with `browser_only`, SearXNG with `config/searxng/settings.yml`), start order with a SearXNG
   warm-up query, and the installer owning start/stop.
+  **No external exposure** (owner, 2026-10-07: «Я и не хочу чтобы снаружи это было видно», «0.0.0.0:3000 это в корне
+  не верно — 127.0.0.1», «Никаких внешних экспозов»). Measured the same day: of the stack's listeners 3005, 3008,
+  3434, 6379, 9222 were on 127.0.0.1 but **crw-server was on 0.0.0.0:3000** (crw's default host; no `[server]` in the
+  generated config) with a Private-profile firewall allow rule — a page-fetching proxy for the LAN. Fixed:
+  universal-search `8d61bdb` (`build_portable.ps1` + `patches/crw-server/config.toml` write `host = "127.0.0.1"`),
+  live `dist/config.toml` patched (backup `config.toml.bak-20261007`), service restarted ✓ `Get-NetTCPConnection`:
+  127.0.0.1:3000; ✓ loopback `/health` 200; ✓ LAN IP 192.168.123.100:3000 refused; ✓ `/web/search` via 3005 answers.
+  After the fix no listener of our stack is on 0.0.0.0/::. Guard, not a habit: `smit doctor` lists every listening
+  port owned by the installed stack and FAILS on any non-loopback address; the installer never adds firewall allow
+  rules (the existing `crw-server` rule is the owner's to remove — now harmless, nothing listens outside).
 - [ ] **C1 model choice is explicit in the configurator** (owner, 2026-10-06: «в настройках нашего конфигуратора
   должен быть четкий выбор модели или ее отсутствие»). Every component that calls a model (Smit, universal-search
   `/agent`, …) shows the user ONE explicit setting: a chosen model, or «no model» — never a default silently filled in.

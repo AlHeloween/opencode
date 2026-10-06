@@ -47,9 +47,13 @@ type Allow struct {
 var (
 	credentialNames = map[string]bool{
 		"auth.json": true, ".env": true, "credentials": true, "credentials.json": true,
-		".netrc": true, ".pgpass": true, ".git-credentials": true,
+		".netrc": true, ".pgpass": true, ".git-credentials": true, ".opencode.encryption.key": true,
 	}
-	credentialName = regexp.MustCompile(`^(id_(rsa|dsa|ecdsa|ed25519)|\.env\..+|.+\.(pfx|p12))$`)
+	// `*.json(c).enc` / `….enc.tmp.*`: the robot's encrypted stores (`encryptedPath` appends `.enc` to a JSON file),
+	// sealed with a per-install key it generates itself (packages/opencode/src/util/encrypted-json.ts). A bare `.enc`
+	// is not enough — Tcl's encoding tables use it (83 in Smit2). Never shipped by default; a preset config pair (key +
+	// `opencode.jsonc.enc`) is an owner option and passes only as an Allow entry with its reason.
+	credentialName = regexp.MustCompile(`^(id_(rsa|dsa|ecdsa|ed25519)|\.env\..+|.+\.(pfx|p12)|.+\.jsonc?\.enc(\.tmp\..+)?)$`)
 	// Text formats a config or key can live in; binaries are not read. Code is read too: upstream SearXNG hard-codes
 	// a third-party key in engines/pexels.py (measured in Smit2, 2026-10-07).
 	textExt = map[string]bool{
@@ -128,6 +132,11 @@ func scanText(p string, code bool, add func(line int, rule string)) error {
 			continue
 		}
 		if strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, ";") {
+			continue
+		}
+		// Block-comment lines in code (`/**`, ` * @example API_KEY: "sk-…"` — effect's Config.ts doc example); in YAML a
+		// leading `*` is an alias, so only code skips them.
+		if code && (strings.HasPrefix(trimmed, "*") || strings.HasPrefix(trimmed, "/*")) {
 			continue
 		}
 		for _, m := range keyField.FindAllStringSubmatch(line, -1) {

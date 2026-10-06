@@ -410,13 +410,29 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
     `.opencode.encryption.key` (44 B), `gateway.jsonc`, `opencode.jsonc(.enc)`, `locks/`, `.opencode/data/` ✓ listed.
     Gate gap found by that listing: B1a catches `auth.json` but NOT the encryption key (a `.key` file is only read for
     a PEM block) nor `auth.json.enc*` → extend the name rule, test first.
+    **Config = `.jsonc.enc`, keys made by the robot** (owner, 2026-10-07: «нужны только jsonc enc и ключи робот сам
+    генерит»). Read in code: `util/encrypted-json.ts:46-58` creates `.opencode.encryption.key` (32 random bytes,
+    AES-256-GCM) beside the config when it is missing; `config/config.ts:563` mirrors a plaintext global config into
+    `<file>.enc`; loading from the `.enc` alone, plaintext deleted, is covered by `test/config/config.test.ts:146-153`
+    (read, not run). So an `.enc` or key from our machine is useless and secret elsewhere: the bundle ships NO key,
+    NO `.enc`, NO auth. Install: the installer writes the plaintext global `opencode.jsonc` holding only the C1 pick
+    (no secrets) → the first start (B5 «привет») makes this install's own key and `.jsonc.enc` → the installer removes
+    the plaintext, leaving `.jsonc.enc` only, after B5 has read the config back through the robot.
     **Resolution defect for an installed robot:** `samply.ts:19` resolves `{worktree}/bin/tools` → `Global.Path.bin`
     (= `{worktree}/.opencode/data/cache/bin`, `packages/core/src/global.ts:15`) → PATH; `cua.ts:24` resolves PATH or
     `{worktree}/bin/cua` — its comment promises `Global.Path.bin` first, the code never reads it (comment ≠ code). Both
     are relative to the PROJECT the robot works in, not to the robot's own install; only codegraph looks beside the exe
     (`project/bootstrap.ts:62`). Installed, the tools are found only through PATH — the route that already picked the
     wrong binary once (memory: Python PATH shadows bin\tools). Fix (separate bounded task, test first): resolve beside
-    `process.execPath` first, like codegraph. samply: `bin/samply.exe` and `bin/tools/samply.exe` are the same file
+    `process.execPath` first, like codegraph.
+    **CRITICAL (owner, 2026-10-07: «на бин указывают пути — но запуск робота делается из папки которая станет
+    worktree. Если запустить из bin то bin тоже станет worktree»).** ✓ `packages/core/src/global.ts:8` worktree =
+    `process.cwd()` (data, log, cache and `Global.Path.bin` hang off it), config = `exeDir` (`:7,16`); ✓ state:
+    `bin/.opencode/data/log` exists since 2026-09-22 — the robot was once started with cwd = `bin/` and `bin/` became a
+    worktree. Hence **R1** (product source, test first, before B2): resolve own tools beside `process.execPath`
+    (`<exeDir>/tools`, `<exeDir>/cua`) first — in the repo that is the same `bin/tools`, so dev is unchanged — and
+    refuse/warn when worktree == exeDir; the installer's shortcut and portable launcher always start the robot in a
+    workspace folder, never in `bin/`. samply: `bin/samply.exe` and `bin/tools/samply.exe` are the same file
     (md5 `641ec5a458a3…`, 17 052 160 B) — ship one; source `external/samply` 0.13.1 @ `f5a8bf10` (MIT/Apache-2.0),
     built from source by B1.
   - [ ] **B1d playwright-rs driver 404 countermeasure** in the search build (provision `playwright-core` into the

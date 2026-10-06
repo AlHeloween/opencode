@@ -34,6 +34,12 @@ func TestGateFailsOnPlantedCredentials(t *testing.T) {
 	put(t, root, "config/.env", "TOKEN=abc\n")
 	// Measured 2026-10-07 in Smit2: upstream SearXNG hard-codes a third-party key in engine CODE (pexels.py:29).
 	put(t, root, "searxng-src/searx/engines/pexels.py", "import x\napi_key = \""+fakeKey+"\"\n")
+	// Measured in bin/ 2026-10-07: the robot's own encrypted stores and their key. They are per install — the robot
+	// generates the key (encrypted-json.ts:46-58) — so none of them may ship.
+	put(t, root, "bin/.opencode.encryption.key", "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU=")
+	put(t, root, "bin/auth.json.enc", `{"version":1,"algorithm":"AES-256-GCM","iv":"x","ciphertext":"y"}`)
+	put(t, root, "bin/auth.json.enc.tmp.6640.murvei3p", "")
+	put(t, root, "bin/opencode.jsonc.enc", `{"version":1}`)
 	// A key embedded in code as one escaped string is still a PEM block.
 	put(t, root, "tools/sign.js", "const k = \"-----BEGIN PRIVATE KEY-----\\nMIIEvQIBADANBgkqhkiG9w0BAQEF\\n-----END PRIVATE KEY-----\";\n")
 
@@ -49,6 +55,10 @@ func TestGateFailsOnPlantedCredentials(t *testing.T) {
 		"config/.env":                         RuleName,
 		"searxng-src/searx/engines/pexels.py": RuleField,
 		"tools/sign.js":                       RulePrivateKey,
+		"bin/.opencode.encryption.key":        RuleName,
+		"bin/auth.json.enc":                   RuleName,
+		"bin/auth.json.enc.tmp.6640.murvei3p": RuleName,
+		"bin/opencode.jsonc.enc":              RuleName,
 	}
 	got := map[string]string{}
 	for _, h := range hits {
@@ -82,6 +92,10 @@ func TestGatePassesCleanTreeAndExamples(t *testing.T) {
 	put(t, root, "playwright-driver/lib/attribute.js", "const q = { key: \"quantifierPropertyName\", password: credentials.password };\n")
 	// Key-parsing code names the marker; a doc example fills it with placeholders (both measured in Smit2).
 	put(t, root, "python/Lib/site-packages/cryptography/ssh.py", "_SK_START = b\"-----BEGIN OPENSSH PRIVATE KEY-----\"\n")
+	// Tcl's encoding tables share the extension and are not stores (83 of them in Smit2's git/mingw64/lib/tcl8.6).
+	put(t, root, "git/mingw64/lib/tcl8.6/encoding/cp1251.enc", "# Encoding file: cp1251, single-byte\nS\n003F 0 1\n")
+	// A doc example inside a block comment (measured in bin/node_modules/effect Config.ts:1529).
+	put(t, root, "node_modules/effect/src/Config.ts", "/**\n * @example\n *     API_KEY: \"sk-1234567890abcdef1234\"\n */\n")
 	put(t, root, "node/npm/definitions.js", "      key=\"-----BEGIN PRIVATE KEY-----\\\\nXXXX\\\\nXXXX\\\\n-----END PRIVATE KEY-----\"\n")
 
 	hits, err := Scan(root, nil)
@@ -110,5 +124,35 @@ func TestGateAllowlistNeedsReasonAndIsReported(t *testing.T) {
 	}
 	if Failed(hits) {
 		t.Fatal("only allowed hits, yet the gate failed")
+	}
+}
+
+// Owner option, 2026-10-07: «можно копировать только ключи и enc — тогда plain text нету — но это опционально».
+// A preset config pair passes only by name in the allow list; the provider-key store never does.
+func TestGatePresetConfigPairIsAnExplicitOption(t *testing.T) {
+	root := t.TempDir()
+	put(t, root, "bin/.opencode.encryption.key", "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU=")
+	put(t, root, "bin/opencode.jsonc.enc", `{"version":1}`)
+	put(t, root, "bin/auth.json.enc", `{"version":1}`)
+
+	if hits, _ := Scan(root, nil); len(hits) != 3 || !Failed(hits) {
+		t.Fatalf("by default all three must fail: %v", hits)
+	}
+	preset := []Allow{
+		{Path: "bin/.opencode.encryption.key", Rule: RuleName, Reason: "preset config option: key of the shipped opencode.jsonc.enc"},
+		{Path: "bin/opencode.jsonc.enc", Rule: RuleName, Reason: "preset config option: model pick only, no plaintext"},
+	}
+	hits, err := Scan(root, preset)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var open []Hit
+	for _, h := range hits {
+		if !h.Allowed {
+			open = append(open, h)
+		}
+	}
+	if len(open) != 1 || open[0].Path != "bin/auth.json.enc" {
+		t.Fatalf("with the preset allowed, only auth.json.enc may still fail: %v", open)
 	}
 }

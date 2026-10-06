@@ -10,7 +10,7 @@ Executes a bash command as a **non-blocking background job** by default. Use `jo
 
 Every command is classified before it executes; these are refused, not warned about:
 
-- **File enumeration — hard block.** `ls`, `dir`, `tree`, `find`, `fd`, `cat`, `type`, `more`, `busybox`, `Get-ChildItem`/`gci`, `Get-Item`, `Resolve-Path`, and `for`-globs (`for f in *…`). Use `list` / `glob` / `grep` / `read`.
+- **File enumeration — hard block when it IS the command.** `ls`, `dir`, `tree`, `find`, `fd`, `cat`, `type`, `more`, `busybox`, `Get-ChildItem`/`gci`, `Get-Item`, `Resolve-Path`, and `for`-globs (`for f in *…`). The same name inside a `|`/`&` chain is pipeline plumbing and runs — only the command's head is gated. Use `list` / `glob` / `grep` / `read`.
 - **History rewrite — hard block.** `git checkout`/`switch`/`restore`, `git reset --hard`, `git stash pop|apply|drop|clear`; mutating `fossil` subcommands (`commit`, `add`, `update`, `merge`, `undo`, `revert`…). Recover WIP with the edit-tool `.bak` or the Fossil snapshot.
 - **Destructive — approval first** (refused without it): `rm -rf`, `Remove-Item -Recurse -Force`, `del /f /s`, `format`, `mkfs`, `dd`, `robocopy /mir|/e`, `xcopy /e`, `DROP TABLE` / `TRUNCATE` / `DELETE`, `git push --force`, `git clean -f`.
 - **Crash-prone binaries never run bare.** `cargo`, `rustc`, `clang`, `gcc`, `g++`, `zig`, `dotnet`, `msbuild`, `ninja`, `cmake`, `make`, `go`, `bun` are auto-wrapped into `cmd_runner start -- …`; without `cmd_runner` they are refused.

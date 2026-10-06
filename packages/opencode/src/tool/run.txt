@@ -8,7 +8,7 @@ Executes a binary directly with arguments — no shell interpretation, no quotin
 
 The call is classified with `binary` as the first token:
 
-- File enumeration (`ls`, `find`, `cat`, `dir`, `type`, `tree`, `Get-ChildItem`…) is refused the same way it is in the shell tools — use the product tools.
+- File enumeration (`ls`, `find`, `cat`, `dir`, `type`, `tree`, `Get-ChildItem`…) is refused the same way it is in the shell tools when it IS the command — the same name inside a `|`/`&` chain is plumbing and runs. Use the product tools.
 - History rewrite (`git checkout`/`switch`/`restore`, `git reset --hard`, `git stash …`, mutating `fossil`) is refused.
 - Brutal destructive (`rm -rf`, `DROP TABLE`, force-push) requires your approval first.
 - Crash-prone binaries (`cargo`, `rustc`, `clang`, `gcc`, `g++`, `zig`, `dotnet`, `msbuild`, `ninja`, `cmake`, `make`, `go`, `bun`) are auto-wrapped via `cmd_runner start -- …`; without `cmd_runner` they are refused.

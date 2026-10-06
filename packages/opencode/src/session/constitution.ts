@@ -585,7 +585,12 @@ export function evaluate(root: Node, isCmd: boolean): ConstitutionEvalResult {
   const needsPermission: CommandFinding[] = []
   let hasElevated = false
 
-  for (const node of tsCommands(root, isCmd)) {
+  // The enumeration gate reads the HEAD only (owner, 2026-10-06): `dir`/`ls`/`tree`/`find`/`cat`/
+  // `type` and the grep replacements block only when they ARE the command. The same word after
+  // `|`/`&`/`;` is plumbing inside a pipeline — `… | findstr … & dir /b one.obj` — not the global
+  // searcher that walks the box, and blocking it there killed legitimate builds.
+  const nodes = [...tsCommands(root, isCmd)]
+  for (const [index, node] of nodes.entries()) {
     const commandParts = tsParts(node, isCmd)
     const tokens = commandParts.map((p) => p.text)
     const lower = tokens.map((t) => t.toLowerCase())
@@ -602,7 +607,9 @@ export function evaluate(root: Node, isCmd: boolean): ConstitutionEvalResult {
     const classification = classifyAstNode(cmd, sub, lower)
     const sourceText = tsSource(node, isCmd)
     const isFileEnumerator = classification.family === CommandFamily.FILE_ENUMERATOR
-    const message = isFileEnumerator ? enumerationBlock(cmd.replace(/^.*[/\\]/, "").replace(/\.exe$/, "")) : undefined
+    // HEAD-only: a non-head enumerator is classified and reported, never blocked (see above).
+    const message =
+      isFileEnumerator && index === 0 ? enumerationBlock(cmd.replace(/^.*[/\\]/, "").replace(/\.exe$/, "")) : undefined
 
     const finding: CommandFinding = { command: sourceText, classification, isFileEnumerator, message }
     findings.push(finding)

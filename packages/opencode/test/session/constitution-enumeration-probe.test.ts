@@ -137,3 +137,42 @@ describe("smoke-gated names: findstr must actually FIND its needle", () => {
     }
   })
 })
+
+// The enumeration gate reads the COMMAND'S HEAD only (owner, 2026-10-06): `dir` and the other
+// glob/grep replacements block when they ARE the command — the searcher that walks the box — and
+// not when they sit inside a `|`/`&` chain, where they are plumbing. Measured before the fix: the
+// AST path blocked every node, so «dumpbin … | findstr … & dir /b one.obj» died on its own tail,
+// while `dir` alone must still be refused (owner: «запрет чтобы дир не вызывался как глобальный
+// искатель — потому что это вешает систему»).
+describe("enumeration gate: HEAD only — a pipeline tail is plumbing, not a searcher", () => {
+  const ACCEPT = `dumpbin /symbols crc32_simd64.obj 2>&1 | findstr /i "UNDEF" & echo --- & dir /b crc32_simd64.obj`
+
+  test("the owner's acceptance pipeline runs in the token path", () => {
+    expect(blocked(ACCEPT)).toBe(false)
+  })
+
+  test("the same word AS the command is still the searcher, and still blocked", () => {
+    expect(blocked("dir")).toBe(true)
+    expect(blocked("dir /b")).toBe(true)
+    expect(blocked("dir /s /b *.obj")).toBe(true)
+  })
+
+  test("the AST path agrees: only the head node may block as an enumerator", async () => {
+    const parser = await getParser()
+    for (const grammar of [
+      { name: "ps", engine: parser.ps, isCmd: false },
+      { name: "cmd", engine: parser.cmd, isCmd: true },
+    ] as const) {
+      const root = parseShell(grammar.engine, ACCEPT, grammar.isCmd)?.rootNode
+      expect(root).toBeTruthy()
+      const tail = Constitution.evaluate(root!, grammar.isCmd).blocked.filter((f) => f.isFileEnumerator)
+      // On failure the array prints the offending command — the tail must contribute NO block.
+      expect(tail.map((f) => `${grammar.name}: ${f.command}`)).toEqual([])
+
+      // Control on the SAME instrument: the head alone is still refused.
+      const headRoot = parseShell(grammar.engine, "dir /b", grammar.isCmd)?.rootNode
+      expect(headRoot).toBeTruthy()
+      expect(Constitution.evaluate(headRoot!, grammar.isCmd).blocked.some((f) => f.isFileEnumerator)).toBe(true)
+    }
+  })
+})

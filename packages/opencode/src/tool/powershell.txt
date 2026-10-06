@@ -20,6 +20,7 @@ Every command is classified before it executes; these are refused, not warned ab
 - **History rewrite — hard block.** `git checkout`/`switch`/`restore`, `git reset --hard`, `git stash pop|apply|drop|clear`; mutating `fossil` subcommands (`commit`, `add`, `update`, `merge`, `undo`, `revert`…). Recover WIP with the edit-tool `.bak` or the Fossil snapshot.
 - **Destructive — approval first** (refused without it): `Remove-Item -Recurse -Force`, `rm -rf`, `format`, `mkfs`, `dd`, `robocopy /mir|/e`, `xcopy /e`, `DROP TABLE` / `TRUNCATE` / `DELETE`, `git push --force`, `git clean -f`.
 - **Crash-prone binaries never run bare.** `cargo`, `rustc`, `clang`, `gcc`, `g++`, `zig`, `dotnet`, `msbuild`, `ninja`, `cmake`, `make`, `go`, `bun` are auto-wrapped into `cmd_runner start -- …`; without `cmd_runner` they are refused.
+- **Unknown apps never run bare.** Anything that is not a known tool is crash-prone too (a freshly built app can crash on a bug, or hang — and a bare hang takes the UI and its logs down). Known = the `bin/**` utilities plus `git`, `python`, `node`, `pwsh`, `cmd`; everything else is auto-wrapped into `cmd_runner start -- …` and refused without `cmd_runner`.
 
 ## Output Handling
 

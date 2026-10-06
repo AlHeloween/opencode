@@ -17,6 +17,7 @@ import { Constitution } from "@/session/constitution"
 import * as Log from "@opencode-ai/core/util/log"
 import type * as Tool from "./tool"
 import type { Node } from "web-tree-sitter"
+import { CMD_FILES, CMD_SAFE, CWD, FILES, POWERSHELL_FILES, POWERSHELL_SAFE, SAFE } from "./shell-sets"
 
 /**
  * `cmd_runner send <run_id> … -- <payload>`
@@ -214,6 +215,102 @@ const CRASH_PRONE_RE = new RegExp(
 
 const VIA_CMD_RUNNER = /\bcmd_runner(?:\.exe)?\b/i
 
+// ============================================================================
+// Unknown-app safe launch (owner directive 2026-10-06):
+// any executable other than the known tools (bin/** + git/python/node/pwsh/cmd)
+// is crash-prone — a freshly built app can crash on a bug OR hang waiting on
+// input, and a bare hang took the agent's TUI and its logs with it (no trace
+// left to read). Unknown apps get the same route as the crash-prone list:
+// auto-wrapped into `cmd_runner start -- …`; refused (fail-closed) without it.
+// ============================================================================
+
+/** Tools shipped in the repo's bin/** (bin/ + bin/tools/) — known, may run bare. */
+const KNOWN_BIN_TOOLS = [
+  "cmd_runner", "adm", "adm-rag", "apply_patch", "rg", "fd", "fossil", "grep", "sed",
+  "rclone", "ambr", "ambs", "awk", "cat", "find", "ls", "head", "tail", "sort", "wc",
+  "sqlite3", "sqlite3_analyzer", "sqlite3_rsync", "sqldiff", "ffmpeg", "ffplay", "ffprobe",
+  "opencode", "opencode-markdownify", "consolecompare", "cua-driver", "cua-driver-uia",
+  "codegraph", "node",
+] as const
+
+/** System minimum (owner-approved scope): these stay allowed bare. */
+const SYSTEM_KNOWN_TOOLS = ["git", "python", "python3", "node", "pwsh", "powershell", "cmd"] as const
+
+const KNOWN_TOOLS: ReadonlySet<string> = new Set([...KNOWN_BIN_TOOLS, ...SYSTEM_KNOWN_TOOLS])
+
+/** Bare crash-prone names (normalized) — paths to these keep the old, unwrapped behaviour. */
+const CRASH_PRONE_NAMES: ReadonlySet<string> = new Set(
+  CRASH_PRONE_BINARIES.map((n) => n.replace(/\\/g, "").toLowerCase()),
+)
+
+/**
+ * Shell builtins / known-safe command words — not executables, so the unknown-app
+ * rule must not wrap them (`cd repo && echo ok` stays bare). Seeded from the
+ * shell-sets.ts safe lists plus the cmd.exe / POSIX builtins those lists omit.
+ */
+const NON_APP_HEADS: ReadonlySet<string> = new Set([
+  ...CWD, ...FILES, ...SAFE, ...CMD_SAFE, ...CMD_FILES, ...POWERSHELL_SAFE, ...POWERSHELL_FILES,
+  "assoc", "break", "call", "chdir", "cls", "date", "endlocal", "erase", "exit", "for", "ftype",
+  "goto", "if", "md", "mklink", "pause", "rem", "rename", "set", "setlocal", "shift", "start",
+  "time", "title", "ver", "verify", "vol", "help", "where",
+  ".", ":", "[", "alias", "bg", "bind", "builtin", "caller", "command", "compgen", "complete",
+  "continue", "declare", "dirs", "disown", "enable", "eval", "exec", "export", "fc", "fg",
+  "getopts", "hash", "history", "jobs", "kill", "let", "local", "logout", "mapfile", "popd",
+  "pushd", "pwd", "read", "readonly", "return", "shopt", "source", "suspend", "test",
+  "times", "trap", "typeset", "ulimit", "umask", "unalias", "unset", "wait",
+])
+
+const SHELL_SEGMENT_SPLIT = /(?:\s*(?:&&|\|\||[;&|])\s*)/
+
+/** First word of every `;`/`&`/`|` segment — the only words that can name an app. */
+function headTokens(command: string): string[] {
+  return command
+    .split(SHELL_SEGMENT_SPLIT)
+    .map((segment) => {
+      const trimmed = segment.trim()
+      // A quoted head (`"C:\Program Files\...\pwsh.exe" -Command …`) is ONE token:
+      // splitting on whitespace first tore it at the space and wrapped a bare path.
+      const quoted = trimmed.match(/^(["'])((?:(?!\1).)*)\1/)
+      return quoted ? `${quoted[1]}${quoted[2]}${quoted[1]}` : (trimmed.split(/\s+/)[0] ?? "")
+    })
+    .filter(Boolean)
+}
+
+/** De-quote, take the basename, drop the exec extension — a normalized tool name. */
+function toolName(token: string): string {
+  const unquoted = token.replace(/^["']+|["']+$/g, "")
+  const base = unquoted.split(/[\\/]/).pop() ?? unquoted
+  return base.toLowerCase().replace(/\.(exe|com|bat|cmd|ps1)$/, "")
+}
+
+/** True for a segment head that is an executable we do not know and have not tested. */
+function isUnknownAppToken(token: string): boolean {
+  const raw = token.replace(/^["']+|["']+$/g, "")
+  if (!raw) return false
+  if (/^[-<>#@%$(!]/.test(raw)) return false // option / redirect / env var / comment
+  if (/^\d+$/.test(raw)) return false // `2>&1` leftovers
+  if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(raw)) return false // VAR=value
+  // Only a FILE is an app for this rule: a path or an exec-suffixed name. A bare
+  // command word (`ping`, `Get-Date`, `mytool`) is not wrapped — its permission
+  // flow stays exactly as before (bash.test.ts «asks for the permission…»).
+  const isFile = /[\\/]/.test(raw) || /\.(exe|com|bat|cmd|ps1)$/i.test(raw)
+  if (!isFile) return false
+  const name = toolName(raw)
+  if (!name) return false
+  // Paths to the KNOWN crash-prone runners (`C:\…\bun.exe -e …`) keep their existing
+  // behaviour: only BARE forms are routed by CRASH_PRONE_RE, and the truncation suite
+  // depends on that (a wrapped session returns session output, not the command's own
+  // stream). Extending the rule to those paths means reworking the wrapped-output
+  // contract — a separate task.
+  if (CRASH_PRONE_NAMES.has(name)) return false
+  return !NON_APP_HEADS.has(name) && !KNOWN_TOOLS.has(name)
+}
+
+/** True when any segment head is an unknown app — the whole command gets safe-launched. */
+function containsUnknownApp(command: string): boolean {
+  return headTokens(command).some(isUnknownAppToken)
+}
+
 /**
  * cmd_runner availability probe (cached). Constitution routing requires the
  * wrapper binary; without it routing degrades gracefully (skip, one warn).
@@ -289,17 +386,21 @@ function cmdRunnerAvailable(): boolean {
 /** True when the command hits a crash-prone binary and is not already inside cmd_runner. */
 export function shouldRouteViaCmdRunner(command: string): boolean {
   if (VIA_CMD_RUNNER.test(command)) return false
-  const match = command.match(CRASH_PRONE_RE)
-  if (!match) return false
-  // bun is a full member of the class (carve-out retired 2026-09-18).
-  // `bun typecheck` → `tsgo --noEmit` prints NOTHING on success and `bun build`
-  // runs for minutes: the exact class this guard exists for. The old "bun test
-  // only" exception (user directive 2026-09-09) left them bare and exposed to
-  // the background-job stall heartbeat, which auto-kills a silent child at 120s.
   // FAIL-CLOSED (2026-09-18): availability is NOT part of routing. The old
   // graceful skip let a missing wrapper disable the whole guard silently;
   // now the absence surfaces in enforceBinaryViaCmdRunner as a BLOCK.
-  return true
+  if (command.match(CRASH_PRONE_RE)) {
+    // bun is a full member of the class (carve-out retired 2026-09-18).
+    // `bun typecheck` → `tsgo --noEmit` prints NOTHING on success and `bun build`
+    // runs for minutes: the exact class this guard exists for. The old "bun test
+    // only" exception (user directive 2026-09-09) left them bare and exposed to
+    // the background-job stall heartbeat, which auto-kills a silent child at 120s.
+    return true
+  }
+  // Unknown app (owner directive 2026-10-06): anything outside the known set is a
+  // crash/hang risk — the agent built an app, ran it bare, it hung, and the TUI
+  // went down with the logs. Safe launch = the same cmd_runner route as above.
+  return containsUnknownApp(command)
 }
 
 /**

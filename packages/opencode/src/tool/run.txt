@@ -12,6 +12,7 @@ The call is classified with `binary` as the first token:
 - History rewrite (`git checkout`/`switch`/`restore`, `git reset --hard`, `git stash …`, mutating `fossil`) is refused.
 - Brutal destructive (`rm -rf`, `DROP TABLE`, force-push) requires your approval first.
 - Crash-prone binaries (`cargo`, `rustc`, `clang`, `gcc`, `g++`, `zig`, `dotnet`, `msbuild`, `ninja`, `cmake`, `make`, `go`, `bun`) are auto-wrapped via `cmd_runner start -- …`; without `cmd_runner` they are refused.
+- **Unknown apps never run bare.** Anything that is not a known tool is crash-prone too (a freshly built app can crash on a bug, or hang — and a bare hang takes the UI and its logs down). Known = the `bin/**` utilities plus `git`, `python`, `node`, `pwsh`, `cmd`; everything else is auto-wrapped into `cmd_runner start -- …` and refused without `cmd_runner`.
 
 ## Binary Resolution
 

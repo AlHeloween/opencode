@@ -155,6 +155,84 @@ describe("cmd_runner auto-wrap (constitution routing)", () => {
   })
 })
 
+// 2026-10-06 (owner directive): any executable other than the known tools
+// (bin/** + git/python/node/pwsh/cmd) is crash-prone — it can crash on a bug or
+// HANG, and a bare hang took the TUI and its logs with it. Unknown apps take the
+// same route as the crash-prone list: cmd_runner start -- … (fail-closed).
+describe("unknown-app safe launch (crash-prone inversion)", () => {
+  beforeEach(() => setCmdRunnerProbe(true))
+  afterEach(() => setCmdRunnerProbe(undefined))
+
+  test("a freshly built app is wrapped even though it is not on the crash-prone list", () => {
+    const r = autoWrapCmdRunner("bench_crc32_obj.exe")
+    expect(r.wrapped).toBe(true)
+    expect(r.command).toBe("cmd_runner start -- bench_crc32_obj.exe")
+    expect(shouldRouteViaCmdRunner("D:\\proj\\bench_crc32_obj.exe --fast")).toBe(true)
+    expect(shouldRouteViaCmdRunner("dcc64.exe -B -$R- bench.dpr")).toBe(true)
+  })
+
+  test("run tool: unknown binary+argv is wrapped; known binary stays bare", () => {
+    const w = autoWrapBinary("D:\\proj\\bench_crc32_obj.exe", [])
+    expect(w.wrapped).toBe(true)
+    expect(w.binary).toBe("cmd_runner")
+    expect(w.args).toEqual(["start", "--", "D:\\proj\\bench_crc32_obj.exe"])
+    const known = autoWrapBinary("python", ["script.py"])
+    expect(known.wrapped).toBe(false)
+    expect(known.binary).toBe("python")
+  })
+
+  test("known tools stay bare", () => {
+    for (const cmd of [
+      "git status",
+      "python x.py",
+      "node x.js",
+      "rg foo",
+      "fossil status",
+      "sqlite3 db .tables",
+      "cmd /c ver",
+    ]) {
+      expect(shouldRouteViaCmdRunner(cmd)).toBe(false)
+    }
+  })
+
+  test("shell builtins stay bare (no false wraps)", () => {
+    for (const cmd of ["cd repo", "echo hi", "set X=1", "dir /b", "cd repo && echo done"]) {
+      expect(shouldRouteViaCmdRunner(cmd)).toBe(false)
+    }
+  })
+
+  // A bare command word is not an executable FILE: it keeps the old permission
+  // flow (bash.test.ts «asks for the permission of the shell it actually runs»).
+  test("bare command words are not app files", () => {
+    for (const cmd of ["mytool --flag", "ping -n 2 127.0.0.1", "Get-Date foo", "nonexistent_cmd_xyz"]) {
+      expect(shouldRouteViaCmdRunner(cmd)).toBe(false)
+    }
+  })
+
+  test("quoted executable paths are one token", () => {
+    expect(shouldRouteViaCmdRunner('"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "x"')).toBe(false)
+    expect(shouldRouteViaCmdRunner('"C:\\Tools\\myapp.exe" -x')).toBe(true)
+  })
+
+  // Paths to the KNOWN crash-prone runners keep the old unwrapped behaviour —
+  // only BARE forms are routed (the truncation suite depends on this).
+  test("paths to crash-prone runners keep the old unwrapped behaviour", () => {
+    expect(shouldRouteViaCmdRunner('C:/host/bun.exe -e "1"')).toBe(false)
+    expect(shouldRouteViaCmdRunner("bun test x")).toBe(true)
+  })
+
+  test("an unknown app inside a chain routes the whole command", () => {
+    expect(shouldRouteViaCmdRunner("git status && bench_crc32_obj.exe")).toBe(true)
+    expect(shouldRouteViaCmdRunner("echo start | mytool.exe --run")).toBe(true)
+  })
+
+  test("fail-closed: unknown app without cmd_runner is BLOCKED, not run bare", () => {
+    setCmdRunnerProbe(false)
+    expect(autoWrapCmdRunner("bench_crc32_obj.exe").wrapped).toBe(false)
+    expect(() => enforceBinaryViaCmdRunner("bench_crc32_obj.exe")).toThrow(/must run through cmd_runner/)
+  })
+})
+
 describe("guardBrutalDestructive vs bare guardCommand", () => {
   test("payload enumeration is not gated; bare platform enum is blocked", () => {
     const prev = process.env["OPENCODE_ALLOW_DESTRUCTIVE"]

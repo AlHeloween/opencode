@@ -156,6 +156,21 @@ Search is the first gate: an installer whose search is wrong is worth zero. One 
   the agent is off and `/agent` answers with a named refusal; the configurator lists the free models (B4) plus «no
   model» and writes exactly the user's pick; `smit doctor` prints the choice, never a blank (absence of an oracle
   reads as false). Test first: a config without a model must NOT produce a model. <!-- sv: model-choice, explicit-none, configurator -->
+- [ ] **P1 install target: path + portable (flash drive)** (owner, 2026-10-07: «выбора пути нету, и надо бы сделать
+  portable установку на флешку»). Two modes: *this computer* (chosen folder, services on 127.0.0.1, virtual-monitor
+  driver, Start-menu shortcuts, uninstall manifest) and *portable* (everything — robot, tools, data, logs — in one
+  folder on the drive; no Windows services, nothing in the registry; search/browser started by a «Запустить Smit»
+  launcher on the drive; the virtual-monitor driver is per computer, never on the drive; Advanced options disabled).
+  Path chosen by folder dialog or from the detected flash drives; ASCII path; exFAT/NTFS recommended (FAT32 warns).
+  **Measured finding:** the pCloud virtual drive (P:) reports `DRIVE_REMOVABLE` — a flash drive is recognised by its
+  storage bus (`IOCTL_STORAGE_QUERY_PROPERTY` → USB/SD/MMC); a cloud/virtual «removable» drive is shown as NOT a
+  target and refused by the system check (the robot's data would silently sync to the cloud). Prototype implements
+  it: `experiments/2026-10-07_installer-fyne/app/main.go`. <!-- sv: portable-install, install-path, flash-detection -->
+- [ ] **B2 decision — Fyne instead of Wails** (owner, 2026-10-07: «сделай наше приложение на fyne хочу посмотреть»):
+  prototype built and shown (tabs Обзор/Куда/Проверка/Компоненты/Модель/Дополнительно/Установка/Диагностика; real
+  read-only checks, demo install). Toolchain: cgo through the repo-pinned Zig 0.16 (`external/zig-x86_64-windows-0.16.0`,
+  `CC=zig cc -target x86_64-windows-gnu`) — no MinGW needed, MSVC cl.exe cannot serve cgo; ✓ built (`go build -a`) and
+  rendered (cua capture). A Fyne installer needs no WebView2 at all. Decision pending the owner's look. <!-- sv: fyne-ui, no-webview2, zig-cgo -->
 - then B1 builder → B2 installer shell → B3 preflight → V1–V3 virtual display (driver chosen and proven: MttVDD,
   T3 PASS) → B4 free-model config → B5 `smit doctor` incl. Q1 as its search check → B6 acceptance.
 - **Acceptance host is OPEN:** A0/B6 need a pristine Windows; the VMware tier is postponed and Hyper-V/Sandbox are

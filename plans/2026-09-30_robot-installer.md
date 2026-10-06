@@ -354,6 +354,38 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
 ## Work
 
 - [ ] **B1 builder:** one reproducible build script that assembles the bundle from pinned sources into `dist/installer/` (never `bin/`), with a hash manifest. <!-- sv: builder, reproducible, hash-manifest -->
+  **Owner decision 2026-10-07 — zero credentials, installer-defined models only:** «все ключи убираем, модели только
+  заданные инсталлятором. Это универсальный пакет, клиенты сами пусть ставят чего хотят.» The bundle carries NO key,
+  token or auth file of ours; the robot's model/provider config is WRITTEN by the installer from the user's pick (C1:
+  a listed model or «Без модели»), never copied; a client adds their own providers and keys after install. Measured
+  why copying is wrong: Smit2's `smit/smit.jsonc` + `opencode.jsonc` pin `smit1/kat-coder-pro-v2.5` (×10) over two
+  private gateway providers (`gateway.jsonc`, 3 provider blocks), `auth.json` holds 2 key fields ✓ grep counts (values
+  not read). Leaves, in order (builder in Go — the installer is Go, so the builder WRITES and the installer VERIFIES
+  one manifest type; home `installer/` at the repo root, tracked):
+  - [x] **B1a secret gate** (test first): scan the staged tree; FAIL on an auth/credential file by name, a key/token
+    field with a non-empty value, a fixed SearXNG `secret_key`; report path + rule, never the value. Fixtures: a planted
+    fake key → FAIL, a clean tree → PASS, a commented example / public CA bundle → PASS.
+    ✓ `installer/bundle/gate.go` + `gate_test.go` (3 tests, each step red→green; run `20261006T204941Z_94f2be7c`),
+    CLI `installer/cmd/bundle` (`bundle gate <dir>`, exit 1 on any non-allowed hit). Real-data oracle on Smit2 (run
+    `20261006T204944Z_54eef5ac`, ~2 s): 96 hits with code included → 9 after two measured refinements (in code a
+    value counts only as a quoted literal with a digit — the 87 dropped were identifiers like `key=get_candidate`; a
+    PEM key must open a line or follow an escaped newline with base64 — not the marker constant in `ssh.py:77`, not
+    npm's `\\nXXXX` doc example). The 9: **real** — `smit/auth.json`, `searxng-src/searx/settings.yml:106` (the fixed
+    `secret_key`; the I0 regex had MISSED it — its 2 hits in that file were commented lines 521/3171), and
+    `searxng-src/searx/engines/pexels.py:29` (upstream hard-codes a third-party Pexels key: a borrowed key, out);
+    **B1c excludes** — `smit/locks/**` (runtime lock token), `searxng-src/tests/**`, `searxng-src/container/**`;
+    **B1c allowlist, with reasons** — Chromium's `reading_mode_gdocs_helper_manifest.json` `key` (upstream component
+    file; its value opens like a PKCS#8 private key `MIIEvgIBADAN…`, Chromium's own), corepack `MFkw…` (npm registry
+    signing PUBLIC keys). Known miss, accepted: SearXNG's template `secret_key: "ultrasecretkey"` (14 chars < 16) —
+    upstream's placeholder, refused by SearXNG itself.
+  - [ ] **B1b hash manifest**: sha256 + size per file, sorted, written by the builder; the same inputs built twice →
+    byte-identical manifest; a changed byte → named in the diff.
+  - [ ] **B1c components**: a pinned list (component, source = its own builder's output, include/exclude, license);
+    robot ONE binary (not smit.exe + opencode.exe), ONE node, search = chromium + searxng + universal-search + crw fork
+    (no garnet/websurfx), robot config = a template with no model/provider; never `bin/`, never Smit2.
+  - [ ] **B1d playwright-rs driver 404 countermeasure** in the search build (provision `playwright-core` into the
+    build-script OUT_DIR, reset its fingerprint) — second occurrence, KAIZEN.
+  - [ ] **B1e end-to-end**: build → gate PASS → manifest → the built tree contains no `auth.json` and no model id.
 - [ ] **B2 installer shell:** Go + Fyne 2.8.1 app (decided 2026-10-07, see above; no WebView2 needed, so no pre-stage), grown from `experiments/2026-10-07_installer-fyne/app`; its `model_form_test.go` runs green first. <!-- sv: fyne-installer, no-webview2, model-form-test -->
 - [ ] **B3 preflight + fix:** each candidate above as check → fix/remedy, shown to the user before apply. <!-- sv: preflight, fixes, opt-in -->
 - [ ] **V1 virtual-display selection:** read each candidate's signature, driver model, license and install method; pick one with evidence; its egress goes through the audit plan. <!-- sv: virtual-monitor, driver-selection, signature -->

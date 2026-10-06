@@ -378,8 +378,15 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
     file; its value opens like a PKCS#8 private key `MIIEvgIBADAN…`, Chromium's own), corepack `MFkw…` (npm registry
     signing PUBLIC keys). Known miss, accepted: SearXNG's template `secret_key: "ultrasecretkey"` (14 chars < 16) —
     upstream's placeholder, refused by SearXNG itself.
-  - [ ] **B1b hash manifest**: sha256 + size per file, sorted, written by the builder; the same inputs built twice →
+  - [x] **B1b hash manifest**: sha256 + size per file, sorted, written by the builder; the same inputs built twice →
     byte-identical manifest; a changed byte → named in the diff.
+    ✓ `installer/bundle/manifest.go` (`MANIFEST.sha256`, line `<sha256>  <size>  <path>`; `Verify` names
+    changed/missing/extra; `ParseManifest` refuses malformed lines and paths leaving the root), 3 tests red→green
+    (run `20261006T205241Z_67dc1011`, all 6 bundle tests PASS). Real data, Smit2: 23 179 files / 3 428 934 279 B in
+    20 s, two runs byte-identical (md5 of both manifests `a12c2ab0b8ca…`); independent control — PowerShell
+    `Get-ChildItem -Force` counts the same 23 179 / 3 428 934 279, three seeded-random entries match `Get-FileHash`;
+    `bundle verify` on the untouched tree: 0 differences (run `20261006T205343Z…` series). For B1c: Smit2 ships
+    `__pycache__/*.pyc`, which Python rewrites at run time — exclude them, or a post-run verify reports false changes.
   - [ ] **B1c components**: a pinned list (component, source = its own builder's output, include/exclude, license);
     robot ONE binary (not smit.exe + opencode.exe), ONE node, search = chromium + searxng + universal-search + crw fork
     (no garnet/websurfx), robot config = a template with no model/provider; never `bin/`, never Smit2.

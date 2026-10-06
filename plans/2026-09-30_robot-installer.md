@@ -122,6 +122,15 @@ Search is the first gate: an installer whose search is wrong is worth zero. One 
   Docs: `universal-search/docs/search-contract.md`, `opencode/docs/tools-and-sidecars.md` §7.2.1.
 - [ ] **Q6 services:** chromium, searxng, universal-search, crw — user-level, loopback, never LocalSystem; start/stop
   owned by the installer. <!-- sv: services, least-privilege, lifecycle -->
+- [ ] **C1 model choice is explicit in the configurator** (owner, 2026-10-06: «в настройках нашего конфигуратора
+  должен быть четкий выбор модели или ее отсутствие»). Every component that calls a model (Smit, universal-search
+  `/agent`, …) shows the user ONE explicit setting: a chosen model, or «no model» — never a default silently filled in.
+  Gap measured the same day: universal-search `agent.model` is a `String` whose serde default is
+  `nvidia/nemotron-3-ultra-550b-a55b:free` (`src/config.rs:295`) and `agent.enabled` defaults to `true` (`:331`), so a
+  missing model silently becomes Nemotron and «none» cannot be expressed. Change: `model: Option<String>`, `None` =
+  the agent is off and `/agent` answers with a named refusal; the configurator lists the free models (B4) plus «no
+  model» and writes exactly the user's pick; `smit doctor` prints the choice, never a blank (absence of an oracle
+  reads as false). Test first: a config without a model must NOT produce a model. <!-- sv: model-choice, explicit-none, configurator -->
 - then B1 builder → B2 installer shell → B3 preflight → V1–V3 virtual display (driver chosen and proven: MttVDD,
   T3 PASS) → B4 free-model config → B5 `smit doctor` incl. Q1 as its search check → B6 acceptance.
 - **Acceptance host is OPEN:** A0/B6 need a pristine Windows; the VMware tier is postponed and Hyper-V/Sandbox are

@@ -10,7 +10,8 @@ prev-md5: 00000000000000000000000000000000
 parent-goal-md5: 00000000000000000000000000000000
 ```
 
-**Status:** OPEN. Owner, 2026-09-30, verbatim: «мы не должны дергать скиллы и тулы из других папок, нам они
+**Status:** DONE 2026-10-08 — F1..F5 confirmed by the runs named in § Smoke Tests (✓ cmd_runner state.json
+exit 0 + whole output read). Owner, 2026-09-30, verbatim: «мы не должны дергать скиллы и тулы из других папок, нам они
 впились ни во что. У нас своя самодостаточная экосистема.»
 
 ## The reproduction is not a fixture — it happened in this session
@@ -81,16 +82,45 @@ state and stays ignored; `.opencode/skills/` is CONTENT and must be tracked.
 
 ## Smoke Tests
 
-- [ ] **F1 the foreign roots stop being read.** A fixture worktree carrying BOTH `.opencode/skills/ours/SKILL.md`
+- [x] **F1 the foreign roots stop being read.** A fixture worktree carrying BOTH `.opencode/skills/ours/SKILL.md`
   and `.claude/skills/theirs/SKILL.md` yields exactly one skill, ours; the same for `.agents/skills/` and for
   `~/.claude/skills` / `~/.agents/skills`. Predicted RED today (both are discovered), GREEN after.
-- [ ] **F2 our own discovery is untouched.** A fixture with `.opencode/skills/ours/SKILL.md` (and the
+  ✓ One fixture holds all four foreign roots (project + `~/`) and both of ours. RED before the change, as predicted:
+  run `20261007T161247Z_9c699454` (4 pass / 1 fail — the four `theirs-*` skills were served). GREEN after:
+  `20261007T161748Z_17d64a98` (5/5). Change: `src/skill/index.ts` — `EXTERNAL_DIRS`, `EXTERNAL_SKILL_PATTERN` and
+  the project/global walk removed (with the now-unused `Flag`/`Global` imports and `worktree` parameter).
+- [x] **F2 our own discovery is untouched.** A fixture with `.opencode/skills/ours/SKILL.md` (and the
   `{skill,skills}` variants) is discovered before and after — the removal must not take our own surface with it.
-- [ ] **F3 instructions.** A fixture worktree with `AGENTS.md` and `CLAUDE.md` yields only `AGENTS.md`; with
+  ✓ The same F1 case asserts `ours-singular` (`.opencode/skill/`) and `ours-plural` (`.opencode/skills/`) by name
+  and their two dirs exactly; both were present in the RED run's received list too (only `theirs-*` were extra),
+  so our surface is proven before and after. The three pre-existing `.opencode/skill/` cases stay green.
+- [x] **F3 instructions.** A fixture worktree with `AGENTS.md` and `CLAUDE.md` yields only `AGENTS.md`; with
   `~/.claude/CLAUDE.md` present, it is not read. Predicted RED today, GREEN after.
-- [ ] **F4 the superseded specs.** The six foreign-discovery cases are replaced by one assertion of the new
+  ✓ Forecast correction: the AGENTS.md + CLAUDE.md root was already GREEN before (the `FILES` loop breaks on the
+  first match, AGENTS.md) — it stays as a control. The discriminating cases are CLAUDE.md-only root, a
+  subdirectory CLAUDE.md through `find`/`resolve`, and `~/.claude/CLAUDE.md` (HOME/USERPROFILE redirected): all
+  three RED before, run `20261007T161252Z_d4cfec5f` (13/3), GREEN after, `20261007T161812Z_bc9a0b7c` (16/16).
+  Change: `src/session/instruction.ts` — `CLAUDE.md` out of `FILES`, `~/.claude/CLAUDE.md` out of `globalFiles()`.
+  Flag decision: `OPENCODE_DISABLE_CLAUDE_CODE_PROMPT` (and `OPENCODE_DISABLE_EXTERNAL_SKILLS`) are no longer
+  consulted by any behaviour, but they are still declared in `packages/core/src/flag/flag.ts` and plumbed through
+  the config schema (`features.disableClaudeCode*`, `features.disableExternalSkills`, `Flag.fromConfig`,
+  `ENV_TO_CONFIG_MAP` in `src/config/config.ts`), so they were KEPT — removing them changes the user config
+  schema and is its own decision (residual, below).
+- [x] **F4 the superseded specs.** The six foreign-discovery cases are replaced by one assertion of the new
   requirement, and the file carries WHY (the requirement changed) — never a `.skip`.
-- [ ] **F5 regression.** `bun test test/skill/skill.test.ts` plus the instruction suite, and `bun typecheck`, all green.
+  ✓ `test/skill/skill.test.ts`: the five discovery cases and the dir count that included the foreign roots are
+  gone; one case replaces them with a `SUPERSEDED SPEC` comment naming this plan and the owner's decision.
+- [x] **F5 regression.** `bun test test/skill/skill.test.ts` plus the instruction suite, and `bun typecheck`, all green.
+  ✓ skill `20261007T161748Z_17d64a98` 5/5; instruction (`test/session/instruction.test.ts`)
+  `20261007T161812Z_bc9a0b7c` 16/16; `bun typecheck` `20261007T161834Z_82ba11c1` exit 0. HARNESS note: running
+  the three concurrently timed out at bun's 5 s default (`20261007T161354Z_f782d0b1` 0/5,
+  `20261007T161359Z_89d728bf` 13/3, all "timed out after 5000ms"); both files now carry a file-level
+  `setDefaultTimeout(20_000)` per AGENTS.md. The worktree's first typecheck failed on six missing gitignored
+  build artefacts (`models-snapshot.js`, `markdownify_wasm.js`, `opentui-spinner/dist`), none in this change;
+  copied from the main checkout before the green run.
+
+**Residual (not this plan's to decide):** the four flags above and their `features.*` config keys are now
+no-ops; deleting them is a config-schema change (user configs may set them) and needs the owner's call.
 
 ## Why a plan and not a one-line edit
 

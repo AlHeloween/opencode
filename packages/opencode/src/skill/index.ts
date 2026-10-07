@@ -8,8 +8,6 @@ import { withStatics } from "@/util/schema"
 import { NamedError } from "@opencode-ai/core/util/error"
 import { Bus } from "@/bus"
 import { InstanceState } from "@/effect/instance-state"
-import { Flag } from "@opencode-ai/core/flag/flag"
-import { Global } from "@opencode-ai/core/global"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Config } from "@/config/config"
 import { ConfigMarkdown } from "@/config/markdown"
@@ -18,8 +16,6 @@ import * as Log from "@opencode-ai/core/util/log"
 import { Discovery } from "./discovery"
 
 const log = Log.create({ service: "skill" })
-const EXTERNAL_DIRS = [".claude", ".agents"]
-const EXTERNAL_SKILL_PATTERN = "skills/**/SKILL.md"
 const OPENCODE_SKILL_PATTERN = "{skill,skills}/**/SKILL.md"
 const SKILL_PATTERN = "**/SKILL.md"
 
@@ -195,26 +191,12 @@ const discoverSkills = Effect.fnUntraced(function* (
   discovery: Discovery.Interface,
   fsys: AppFileSystem.Interface,
   directory: string,
-  worktree: string,
 ) {
   const state: ScanState = { matches: new Set(), dirs: new Set() }
 
-  if (!Flag.OPENCODE_DISABLE_EXTERNAL_SKILLS) {
-    for (const dir of EXTERNAL_DIRS) {
-      const root = path.join(Global.Path.home, dir)
-      if (!(yield* fsys.isDir(root))) continue
-      yield* scan(state, root, EXTERNAL_SKILL_PATTERN, { dot: true, scope: "global" })
-    }
-
-    const upDirs = yield* fsys
-      .up({ targets: EXTERNAL_DIRS, start: directory, stop: worktree })
-      .pipe(Effect.catch(() => Effect.succeed([] as string[])))
-
-    for (const root of upDirs) {
-      yield* scan(state, root, EXTERNAL_SKILL_PATTERN, { dot: true, scope: "project" })
-    }
-  }
-
+  // Our own roots only. Foreign skill roots (`.claude/skills`, `.agents/skills`, project or
+  // ~/) are NOT read: a foreign skill is adopted by copying it under `.opencode/skills/`,
+  // never served in place (plans_completed/2026-09-30_no-foreign-skill-discovery.md, owner 2026-09-30).
   const configDirs = yield* config.directories()
   for (const dir of configDirs) {
     yield* scan(state, dir, OPENCODE_SKILL_PATTERN)
@@ -274,7 +256,7 @@ export const layer = Layer.effect(
     const fsys = yield* AppFileSystem.Service
     const discovered = yield* InstanceState.make(
       Effect.fn("Skill.discovery")(function* (ctx) {
-        return yield* discoverSkills(config, discovery, fsys, ctx.directory, ctx.worktree)
+        return yield* discoverSkills(config, discovery, fsys, ctx.directory)
       }),
     )
     const state = yield* InstanceState.make(

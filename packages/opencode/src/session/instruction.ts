@@ -12,9 +12,11 @@ import type { MessageID } from "./schema"
 
 const log = Log.create({ service: "instruction" })
 
+// Our instruction files only. CLAUDE.md (project or ~/.claude/CLAUDE.md) belongs to another
+// agent's ecosystem and is never read: it would enter our prompt with instruction authority
+// (plans_completed/2026-09-30_no-foreign-skill-discovery.md, owner 2026-09-30).
 const FILES = [
   "AGENTS.md",
-  ...(Flag.OPENCODE_DISABLE_CLAUDE_CODE_PROMPT ? [] : ["CLAUDE.md"]),
   "CONTEXT.md", // deprecated
 ]
 
@@ -24,9 +26,6 @@ function globalFiles() {
     files.push(path.join(Flag.OPENCODE_CONFIG_DIR, "AGENTS.md"))
   }
   files.push(path.join(Global.Path.config, "AGENTS.md"))
-  if (!Flag.OPENCODE_DISABLE_CLAUDE_CODE_PROMPT) {
-    files.push(path.join(os.homedir(), ".claude", "CLAUDE.md"))
-  }
   return files
 }
 

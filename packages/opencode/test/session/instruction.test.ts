@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test"
+import { afterEach, beforeEach, describe, expect, setDefaultTimeout, test } from "bun:test"
 import fs from "fs/promises"
 import path from "path"
 import { Effect } from "effect"
@@ -9,6 +9,10 @@ import { Instance } from "../../src/project/instance"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
 import { Global } from "@opencode-ai/core/global"
 import { tmpdir } from "../fixture/fixture"
+
+// Instance boot dominates each case; under load bun's 5 s default turned three cases red on
+// 2026-10-07 (run 20261007T161359Z_89d728bf) with no code fault.
+setDefaultTimeout(20_000)
 
 const run = <A>(effect: Effect.Effect<A, any, Instruction.Service>) =>
   Effect.runPromise(effect.pipe(Effect.provide(Instruction.defaultLayer)))
@@ -329,6 +333,122 @@ describe("Instruction.system", () => {
         delete process.env["OPENCODE_CONFIG_DIR"]
       } else {
         process.env["OPENCODE_CONFIG_DIR"] = originalConfigDir
+      }
+    }
+  })
+})
+
+// plans_completed/2026-09-30_no-foreign-skill-discovery.md, F3: our instructions are AGENTS.md (and the
+// deprecated CONTEXT.md). CLAUDE.md belongs to another agent's ecosystem and must never enter
+// our prompt with instruction authority — neither at the project root, nor from a subdirectory
+// walk, nor from ~/.claude/CLAUDE.md.
+describe("Instruction: foreign CLAUDE.md is never read", () => {
+  test("a root with AGENTS.md and CLAUDE.md yields only AGENTS.md", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(path.join(dir, "AGENTS.md"), "# Ours")
+        await Bun.write(path.join(dir, "CLAUDE.md"), "# Theirs")
+      },
+    })
+    await Instance.provide({
+      directory: tmp.path,
+      fn: () =>
+        run(
+          Instruction.Service.use((svc) =>
+            Effect.gen(function* () {
+              const paths = yield* svc.systemPaths()
+              expect(paths.has(path.join(tmp.path, "AGENTS.md"))).toBe(true)
+              expect(paths.has(path.join(tmp.path, "CLAUDE.md"))).toBe(false)
+              expect((yield* svc.system()).some((x) => x.includes("# Theirs"))).toBe(false)
+            }),
+          ),
+        ),
+    })
+  })
+
+  test("a root with only CLAUDE.md yields no project instructions", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(path.join(dir, "CLAUDE.md"), "# Theirs")
+      },
+    })
+    await Instance.provide({
+      directory: tmp.path,
+      fn: () =>
+        run(
+          Instruction.Service.use((svc) =>
+            Effect.gen(function* () {
+              expect((yield* svc.systemPaths()).has(path.join(tmp.path, "CLAUDE.md"))).toBe(false)
+              expect((yield* svc.system()).some((x) => x.includes("# Theirs"))).toBe(false)
+            }),
+          ),
+        ),
+    })
+  })
+
+  test("a subdirectory CLAUDE.md is not attached by resolve", async () => {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(path.join(dir, "subdir", "CLAUDE.md"), "# Theirs")
+        await Bun.write(path.join(dir, "subdir", "nested", "file.ts"), "const x = 1")
+      },
+    })
+    await Instance.provide({
+      directory: tmp.path,
+      fn: () =>
+        run(
+          Instruction.Service.use((svc) =>
+            Effect.gen(function* () {
+              expect(yield* svc.find(path.join(tmp.path, "subdir"))).toBeUndefined()
+              const { results } = yield* svc.resolve(
+                [],
+                path.join(tmp.path, "subdir", "nested", "file.ts"),
+                MessageID.make("message-foreign-1"),
+              )
+              expect(results).toEqual([])
+            }),
+          ),
+        ),
+    })
+  })
+
+  test("~/.claude/CLAUDE.md is not read as a global instruction", async () => {
+    await using home = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(path.join(dir, ".claude", "CLAUDE.md"), "# Theirs global")
+      },
+    })
+    await using emptyConfig = await tmpdir()
+    await using projectTmp = await tmpdir()
+
+    const saved = {
+      HOME: process.env.HOME,
+      USERPROFILE: process.env.USERPROFILE,
+      OPENCODE_CONFIG_DIR: process.env.OPENCODE_CONFIG_DIR,
+      OPENCODE_TEST_CONFIG: process.env.OPENCODE_TEST_CONFIG,
+    }
+    process.env.HOME = home.path
+    process.env.USERPROFILE = home.path
+    delete process.env.OPENCODE_CONFIG_DIR
+    process.env.OPENCODE_TEST_CONFIG = emptyConfig.path
+
+    try {
+      await Instance.provide({
+        directory: projectTmp.path,
+        fn: () =>
+          run(
+            Instruction.Service.use((svc) =>
+              Effect.gen(function* () {
+                expect((yield* svc.systemPaths()).has(path.join(home.path, ".claude", "CLAUDE.md"))).toBe(false)
+                expect((yield* svc.system()).some((x) => x.includes("# Theirs global"))).toBe(false)
+              }),
+            ),
+          ),
+      })
+    } finally {
+      for (const [key, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[key]
+        else process.env[key] = value
       }
     }
   })

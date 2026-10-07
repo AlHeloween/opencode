@@ -39,4 +39,4 @@ Adapted from the Claude-side skill that used to live in `.claude/skills/aicall/`
 (2026-09-30): «если мы решим что нам какой-то скилл необходим — то мы его адаптируем под себя и скопируем
 в свою папку». The bare `claude -p` route (the only Claude-side route; the Python port `tools/aicall.py` was deleted 2026-10-01) belongs to
 that side and is deliberately NOT carried over: **we do not browse another agent's directory, and we do not
-carry its dead weight either.** See `plans/2026-09-30_no-foreign-skill-discovery.md`.
+carry its dead weight either.** See `plans_completed/2026-09-30_no-foreign-skill-discovery.md`.

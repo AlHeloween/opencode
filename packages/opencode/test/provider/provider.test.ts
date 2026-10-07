@@ -68,6 +68,24 @@ function paid(providers: Awaited<ReturnType<typeof list>>) {
   return Object.values(item.models).filter((model) => model.cost.input > 0).length
 }
 
+// The opencode loader counts ANY of its declared env names as a key (provider.ts:176), and the Env
+// service snapshots process.env per instance (env/index.ts:18). preload.ts clears twenty provider
+// keys but not these, so on a host with OPENCODE_API_KEY set the "keyless" half ran WITH a key and
+// kept 27 paid models (measured 2026-10-07, cmd_runner run 20261007T051320Z_7e14e22f). The names are
+// read from the registry the loader reads, never respelled here, and an empty list fails rather than
+// turning this guard into a silent no-op.
+async function withoutOpencodeEnv<T>(fn: () => Promise<T>) {
+  const names = (await ModelsDev.get())["opencode"].env
+  expect(names.length).toBeGreaterThan(0)
+  const saved = names.map((name) => [name, process.env[name]] as const)
+  names.forEach((name) => delete process.env[name])
+  try {
+    return await fn()
+  } finally {
+    saved.forEach(([name, value]) => (value === undefined ? delete process.env[name] : (process.env[name] = value)))
+  }
+}
+
 test("provider loaded from env variable", async () => {
   await using tmp = await tmpdir({
     init: async (dir) => {
@@ -2659,10 +2677,12 @@ test("opencode loader keeps paid models when config apiKey is present", async ()
     },
   })
 
-  const none = await Instance.provide({
-    directory: base.path,
-    fn: async () => paid(await list()),
-  })
+  const none = await withoutOpencodeEnv(() =>
+    Instance.provide({
+      directory: base.path,
+      fn: async () => paid(await list()),
+    }),
+  )
 
   await using keyed = await tmpdir({
     init: async (dir) => {
@@ -2682,10 +2702,13 @@ test("opencode loader keeps paid models when config apiKey is present", async ()
     },
   })
 
-  const keyedCount = await Instance.provide({
-    directory: keyed.path,
-    fn: async () => paid(await list()),
-  })
+  // The keyed half runs without the env key too, so it passes only through the config apiKey.
+  const keyedCount = await withoutOpencodeEnv(() =>
+    Instance.provide({
+      directory: keyed.path,
+      fn: async () => paid(await list()),
+    }),
+  )
 
   expect(none).toBe(0)
   expect(keyedCount).toBeGreaterThan(0)
@@ -2703,10 +2726,12 @@ test("opencode loader keeps paid models when auth exists", async () => {
     },
   })
 
-  const none = await Instance.provide({
-    directory: base.path,
-    fn: async () => paid(await list()),
-  })
+  const none = await withoutOpencodeEnv(() =>
+    Instance.provide({
+      directory: base.path,
+      fn: async () => paid(await list()),
+    }),
+  )
 
   await using keyed = await tmpdir({
     init: async (dir) => {
@@ -2739,10 +2764,13 @@ test("opencode loader keeps paid models when auth exists", async () => {
       }),
     )
 
-    const keyedCount = await Instance.provide({
-      directory: keyed.path,
-      fn: async () => paid(await list()),
-    })
+    // The keyed half runs without the env key too, so it passes only through auth.json.
+    const keyedCount = await withoutOpencodeEnv(() =>
+      Instance.provide({
+        directory: keyed.path,
+        fn: async () => paid(await list()),
+      }),
+    )
 
     expect(none).toBe(0)
     expect(keyedCount).toBeGreaterThan(0)

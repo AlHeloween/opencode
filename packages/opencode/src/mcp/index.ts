@@ -525,13 +525,15 @@ export const layer = Layer.effect(
           Object.entries(config),
           ([key, mcp]) =>
             Effect.gen(function* () {
-              if (!isMcpConfigured(mcp)) {
-                log.error("Ignoring MCP config entry without type", { key })
+              // Before the type check: the legacy `{ enabled: false }` form (config.ts mcp
+              // schema) disables a server without defining one — disabled, not malformed.
+              if (mcp.enabled === false) {
+                s.status[key] = { status: "disabled" }
                 return
               }
 
-              if (mcp.enabled === false) {
-                s.status[key] = { status: "disabled" }
+              if (!isMcpConfigured(mcp)) {
+                log.error("Ignoring MCP config entry without type", { key })
                 return
               }
 
@@ -601,7 +603,7 @@ export const layer = Layer.effect(
       const result: Record<string, Status> = {}
 
       for (const [key, mcp] of Object.entries(config)) {
-        if (!isMcpConfigured(mcp)) continue
+        if (!isMcpConfigured(mcp) && mcp.enabled !== false) continue
         result[key] = s.status[key] ?? { status: "disabled" }
       }
 

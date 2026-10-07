@@ -1,5 +1,6 @@
-import { test, expect, mock, beforeEach, beforeAll, afterAll } from "bun:test"
+import { test, expect, mock, beforeEach, beforeAll, afterAll, spyOn } from "bun:test"
 import { Effect } from "effect"
+import * as Log from "@opencode-ai/core/util/log"
 import type { MCP as MCPNS } from "../../src/mcp/index"
 
 // --- Mock infrastructure ---
@@ -504,6 +505,34 @@ test(
 
         const status = yield* mcp.status()
         expect(status["disabled-server"]?.status).toBe("disabled")
+      }),
+  ),
+)
+
+// The legacy `{ enabled: false }` form (no `type`) is the documented way to
+// disable a server — config.ts mcp schema, codegraph-mcp-auto.ts header,
+// docs/codegraph-mcp.md § Manual override. It is a disabled server, not a
+// malformed entry: status() must report it and init must not log an error.
+test(
+  "bare { enabled: false } entry is reported as disabled without an error log",
+  withInstance(
+    {
+      codegraph: { enabled: false },
+    },
+    (mcp) =>
+      Effect.gen(function* () {
+        const countBefore = clientCreateCount
+        const errorSpy = spyOn(Log.create({ service: "mcp" }), "error")
+        try {
+          const status = yield* mcp.status()
+          // Log first: a red baseline on this line proves the spy observes
+          // state init (init is lazy — it runs inside status()).
+          expect(errorSpy.mock.calls.map((call) => call[0])).not.toContain("Ignoring MCP config entry without type")
+          expect(status["codegraph"]).toEqual({ status: "disabled" })
+          expect(clientCreateCount).toBe(countBefore)
+        } finally {
+          errorSpy.mockRestore()
+        }
       }),
   ),
 )

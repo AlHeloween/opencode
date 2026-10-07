@@ -1,0 +1,17 @@
+probe baseline/robot 2026-10-07T17:31:59.3691369+08:00 exe=D:\zPython\opencode\dist\bin\opencode.exe version=10.0.1219
+fixture=D:\zPython\opencode\.claude\worktrees\strange-babbage-7812ea\.temp\test\cg-resolver\baseline-robot-20261007T173155
+PATH=D:\zPython\opencode\.claude\worktrees\strange-babbage-7812ea\.temp\test\cg-resolver\baseline-robot-20261007T173155\robot;C:\WINDOWS\System32;C:\WINDOWS;C:\WINDOWS\System32\WindowsPowerShell\v1.0
+control: codegraph.cmd beside the exe: True
+control: codegraph resolvable through the fixture PATH: D:\zPython\opencode\.claude\worktrees\strange-babbage-7812ea\.temp\test\cg-resolver\baseline-robot-20261007T173155\robot\codegraph.cmd
+run1 (run, bootstrap trigger) exit=1
+run1 stderr: Error: Model not found: opencode/no-such-model.
+after run1: project .codegraph\codegraph.db exists: True
+run2 exit=0
+┌  MCP Servers
+│
+●  ✓ codegraph connected
+│      codegraph serve --mcp
+│
+└  1 server(s)
+processes naming the fixture after run2: 0
+done

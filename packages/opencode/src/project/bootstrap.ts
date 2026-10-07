@@ -16,7 +16,7 @@ import { Config } from "@/config/config"
 import path from "path"
 import { Global } from "@opencode-ai/core/global"
 import { spawn } from "child_process"
-import { which } from "@/util/which"
+import { resolveCodegraphBin } from "@/config/codegraph-mcp-auto"
 
 export const InstanceBootstrap = Effect.gen(function* () {
   Log.Default.info("bootstrapping", { directory: Instance.directory })
@@ -50,24 +50,6 @@ export const InstanceBootstrap = Effect.gen(function* () {
 
 // ——— CodeGraph auto-init + MCP server (self-contained, no external CLI needed) ———
 
-/**
- * Find the codegraph binary. Same resolution as tool/codegraph.ts:
- * PATH first, then sibling of the opencode executable.
- */
-function findCodegraphBin(): string | null {
-  const bin = which("codegraph")
-  if (bin) return bin
-  try {
-    const exts = process.platform === "win32" ? [".exe", ".cmd", ".CMD"] : [""]
-    const binDir = path.dirname(process.execPath)
-    for (const ext of exts) {
-      const sibling = path.join(binDir, `codegraph${ext}`)
-      if (require("fs").existsSync(sibling)) return sibling
-    }
-  } catch { /* fall through */ }
-  return null
-}
-
 function initCodeGraphBg(): void {
   const dir = Global.Path.worktree || Global.Path.home
   const cgDir = path.join(dir, ".codegraph")
@@ -78,7 +60,8 @@ function initCodeGraphBg(): void {
     catch { return false }
   })()
 
-  const cgBin = findCodegraphBin()
+  // The same resolver the auto-injected mcp.codegraph command comes from, so init and MCP agree on the binary.
+  const cgBin = resolveCodegraphBin()
 
   // ——— Init (only if DB doesn't exist) ———
   if (!dbExists) {

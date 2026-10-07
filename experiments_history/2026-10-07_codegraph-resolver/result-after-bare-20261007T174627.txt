@@ -1,0 +1,17 @@
+probe after/bare 2026-10-07T17:46:30.2476863+08:00 exe=D:\zPython\opencode\.claude\worktrees\strange-babbage-7812ea\dist\bin\opencode.exe version=10.0.2
+fixture=D:\zPython\opencode\.claude\worktrees\strange-babbage-7812ea\.temp\test\cg-resolver\after-bare-20261007T174627
+PATH=C:\WINDOWS\System32;C:\WINDOWS;C:\WINDOWS\System32\WindowsPowerShell\v1.0
+control: codegraph.cmd beside the exe: True
+control: codegraph resolvable through the fixture PATH: <none>
+run1 (run, bootstrap trigger) exit=1
+run1 stderr: Error: Model not found: opencode/no-such-model.
+after run1: project .codegraph\codegraph.db exists: True
+run2 exit=0
+┌  MCP Servers
+│
+●  ✓ codegraph connected
+│      D:\zPython\opencode\.claude\worktrees\strange-babbage-7812ea\.temp\test\cg-resolver\after-bare-20261007T174627\robot\codegraph.cmd serve --mcp
+│
+└  1 server(s)
+processes naming the fixture after run2: 0
+done

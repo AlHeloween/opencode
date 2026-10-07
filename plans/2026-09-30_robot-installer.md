@@ -57,6 +57,12 @@ before it is called done:
   «привет» (B5); on a failure it repairs first and shows only what it could not repair.
 - **M7 No technical questions.** Ports, folders, services, accounts are never asked; the folder has a working
   default, the rest is decided by the installer.
+- **M8 The industrial grade — a DRUNK monkey** (owner: «для промышленного сектора звучит так: представь что ты
+  делаешь программу для пьяной обезьяны»). Any action at any moment is safe: a wrong click, a double click, a second
+  copy of the installer, «Отмена» or the window closed mid-install, power lost, the flash drive pulled out. The
+  install is idempotent (run again = same result) and resumable (it continues from what is verified on disk — the
+  hash manifest says what is already there), a half-done step is rolled back or finished on the next start, and two
+  instances cannot run at once.
 
 Open against the lens: C1 (model choice is a Required field with NOTHING prefilled — the owner's 2026-10-06
 decision) vs M1/M7 (every field arrives filled) — the owner decides; not changed silently.

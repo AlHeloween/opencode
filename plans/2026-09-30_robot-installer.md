@@ -397,8 +397,21 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
   a listed model or «Без модели»), never copied; a client adds their own providers and keys after install. Measured
   why copying is wrong: Smit2's `smit/smit.jsonc` + `opencode.jsonc` pin `smit1/kat-coder-pro-v2.5` (×10) over two
   private gateway providers (`gateway.jsonc`, 3 provider blocks), `auth.json` holds 2 key fields ✓ grep counts (values
-  not read). Leaves, in order (builder in Go — the installer is Go, so the builder WRITES and the installer VERIFIES
-  one manifest type; home `installer/` at the repo root, tracked):
+  not read).
+  **REUSE correction 2026-10-07 (owner: «пункт кернела про reuse помнишь, граундинг?»).** G1 «search existing code …
+  before non-trivial invention» and «an existing procedure is reused, never re-invented» were skipped: B1 was started
+  as a new Go builder without asking whether a builder exists. It does: **`universal-search/build_portable.ps1`
+  (1 688 lines) is the builder that produced Smit2** — steps ✓ read by their headers: [1] build the main binary, [4]
+  download crw-server (upstream, SHA-pinned — must become OUR fork), [5] Garnet, [6] NSSM, [7] portable Python 3.12,
+  [8] Node 22, [8b] Chromium (Chrome for Testing), [8c] Playwright driver (where B1d belongs), [9] SearXNG into the
+  portable Python, [10] websurfx, then it GENERATES `config.jsonc`, `start_all.bat` (:674), `stop_all.bat` (:884),
+  `install_services.bat` (:926), `uninstall_services.bat`, `run_only.bat`, `add_paths.bat` (:1149), `setup_env.bat`
+  (:1236), README/index/DOCINDEX. Consequences: B1 = EXTEND `build_portable.ps1` (robot from `opencode/bin`, crw from
+  the fork, Git from Smit2's portable tree, the 7 script hazards fixed in the GENERATOR — a fix in Smit2's `.bat`
+  is reverted by the next build); Smit2 is that builder's output and the working reference, not something to avoid.
+  The Go pieces below stay as what they are — VERIFIERS on top of the builder's output (gate, manifest) and the robot
+  copy-by-list — and are recorded here as the only invention, justified: no existing tool scans for credentials or
+  writes a verifiable manifest. Leaves, in order (home `installer/` at the repo root, tracked):
   - [x] **B1a secret gate** (test first): scan the staged tree; FAIL on an auth/credential file by name, a key/token
     field with a non-empty value, a fixed SearXNG `secret_key`; report path + rule, never the value. Fixtures: a planted
     fake key → FAIL, a clean tree → PASS, a commented example / public CA bundle → PASS.

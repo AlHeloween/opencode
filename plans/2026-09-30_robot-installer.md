@@ -64,8 +64,7 @@ before it is called done:
   hash manifest says what is already there), a half-done step is rolled back or finished on the next start, and two
   instances cannot run at once.
 
-Open against the lens: C1 (model choice is a Required field with NOTHING prefilled — the owner's 2026-10-06
-decision) vs M1/M7 (every field arrives filled) — the owner decides; not changed silently.
+Resolved against the lens: C1 vs M1/M7 — the owner chose a VERIFIED recommended model preselected (see C1, 2026-10-07).
 
 Owner, 2026-09-30: «Погоди а если мне для автоматизации надо будет зааплоадить файл? … Или использовть скрипты для веб
 автоматизации, отладка сайтов? … Чтобы потом народ не плевался.» A security fix that blocks daily work is the first
@@ -197,6 +196,32 @@ Search is the first gate: an installer whose search is wrong is worth zero. One 
   the agent is off and `/agent` answers with a named refusal; the configurator lists the free models (B4) plus «no
   model» and writes exactly the user's pick; `smit doctor` prints the choice, never a blank (absence of an oracle
   reads as false). Test first: a config without a model must NOT produce a model. <!-- sv: model-choice, explicit-none, configurator -->
+  **Revised 2026-10-07 (owner: «Предвыбери рекомендованную модель только тестани — ключей для openrouter или nvidia у
+  клиента нету, я вот думаю просто бесплатную opencode версию использовать по умолчанию, нужна форма для того чтобы
+  добавить ключи. Но чтобы работало и без них»; «Тест сделай обязательно обрубив все известные ключи из энва, opencode
+  их цепляет автоматом»).** Still explicit and still with «no model», but the robot's field arrives PRESELECTED with a
+  model measured to answer with no key at all. Mechanism read: keyless, the `opencode` provider keeps only cost-0
+  models and sends `apiKey: "public"` (`packages/opencode/src/provider/provider.ts:174-195`). Measurement
+  (`experiments/2026-10-07_free-model-smoke/run.ps1`, results `results.jsonl`): the env names the robot can read —
+  223 from the provider catalogs + every key-shaped name + `OPENCODE_*` — removed (here: BASETEN, DEEPSEEK, HF,
+  NOVITA, OPENCODE, OPENROUTER, STREAMLAKE keys and two tokens; none left), no auth/config beside the `dist/bin`
+  candidate (only the robot's own key-free `gateway.jsonc`, written by its first start), an empty workspace per run:
+  ✓ `opencode/nemotron-3-ultra-free` «Привет! Чем могу помочь?» 15.8 s; ✓ `opencode/space-bunny-free` 15.8 s;
+  ✗ deepseek-v4-flash, kimi-k2.5, glm-5, minimax-m3, qwen3.6-plus (all `-free`) → «Model not found» in 3–4 s —
+  listed in our bundled catalog, gone from the service; CONTROL `opencode/gpt-5.4` (paid) → «Model not found»
+  as predicted, so no key leaked. Consequence: the installer's model list is what ANSWERS keyless, re-measured at
+  build time — never the catalog file. Prototype: Smit robot = `nemotron-3-ultra-free` (recommended),
+  `space-bunny-free`, «No model»; Search /agent starts on «No model» (opencode's free models serve only the robot
+  itself — memory/aicall: from outside OpenCode Zen refuses them) and lists OpenRouter models once an OpenRouter key
+  is entered; «Your own keys (optional)» (OpenRouter, NVIDIA) says everything works without them. Test
+  `app/model_default_test.go` (mutation-proven: a key handler that ignores the key → FAIL), all 4 prototype tests
+  PASS, live tab captured, 0 thread warnings. Open: where the installer writes a key — into the robot's own encrypted
+  store (`auth.json.enc`, per-install key) via the robot, never a plaintext file (B4).
+  **Tool finding (reproduced twice):** a harness started by `cmd_runner` dies right after the robot's first full
+  `opencode run` session ends (deepseek errors fine; nemotron answers → harness gone; cmd_runner then reports
+  «finished by health-check» or a stale «running»). The same harness started by `Start-Process` survives the whole
+  run, and `probe.ps1` proves the parent of `opencode run` survives (`alive.txt`, exit 0) — so the installer's B5
+  «привет» launch is safe; the kill sits in the robot ↔ cmd_runner pairing (cause not yet found).
 - [ ] **P1 install target: path + portable (flash drive)** (owner, 2026-10-07: «выбора пути нету, и надо бы сделать
   portable установку на флешку»). Two modes: *this computer* (chosen folder, services on 127.0.0.1, virtual-monitor
   driver, Start-menu shortcuts, uninstall manifest) and *portable* (everything — robot, tools, data, logs — in one

@@ -15,7 +15,6 @@ import * as Log from "@opencode-ai/core/util/log"
 import { Global } from "@opencode-ai/core/global"
 import fs from "fs"
 import path from "path"
-import { fitFontAnchoredSize, fitToWidthSize, parseSvgFontSize, parseSvgNaturalSize } from "./fit-image"
 import { readEmbeddedWasmAsset } from "./wasm-embedded"
 import { getMermaidWasmRenderer, resetMermaidWasmRenderer, type MermaidWasmRenderer } from "./mermaid-wasm"
 import type { AnsiChunk } from "./image-to-ansi"
@@ -32,25 +31,15 @@ const FALLBACK_CELL_W = 18
 
 export type SvgFitBudget = {
   /**
-   * Target SVG/raster **width** in CSS px. Height is never set here — resvg
-   * `fitTo: width` derives height from the diagram's natural aspect.
+   * The ONE dimension we set: the width the diagram is drawn at, in CSS px — the terminal's
+   * own width (owner, 2026-10-07: «в mermaid max width ширина в tui»).
    */
   maxWidth?: number
-  /**
-   * Accepted for compatibility — NOT a sizing input. Width clamps; height flows at the
-   * anchored scale and the raster is inserted as-is (owner ruling, 2026-09-26:
-   * «клампить ширину, высоту отпускать и вставлять как есть»). Kept optional so
-   * MediaImage can still pass a terminal box without effect.
-   */
+  /** Accepted for compatibility — NOT a sizing input. Height is never constrained. */
   maxHeight?: number
-  /**
-   * Physical terminal cell height in device px (CSI 16t). When present, the
-   * raster scale is anchored to the FONT and `maxWidth` becomes a clamp instead
-   * of a target — see {@link fitFontAnchoredSize}. Without it the old
-   * width-filling behaviour is kept, because there is nothing to anchor to.
-   */
+  /** Accepted for compatibility — NOT a sizing input. See {@link resvgOptionsForSvg}. */
   cellHeight?: number
-  /** How many terminal rows one line of diagram text should occupy. Default 1. */
+  /** Accepted for compatibility — NOT a sizing input. */
   labelCells?: number
 }
 
@@ -77,57 +66,17 @@ function resvgFont(): { font?: MermaidResvgFont } {
   return { font: { loadSystemFonts: false, fontFiles: [mermaidFontFilePath], defaultFontFamily: mermaidFontFamily } }
 }
 
-export function resvgOptionsForSvg(svg: string, background: string, budget?: SvgFitBudget): MermaidResvgOptions {
-  const maxWidth = mermaidPixelBudget(budget).maxWidth
-  // Attribute/viewBox parse. A probe `new Resvg(svg, {background})` used to sit here to read
-  // width/height — it re-ran the system-font scan (~230 ms) and the SAME SVG tree was then
-  // parsed again for the real render, i.e. the scan was paid twice per diagram (2026-09-24).
-  const parsed = parseSvgNaturalSize(svg)
-  const srcW = parsed?.width ?? 0
-  const srcH = parsed?.height ?? 0
-  if (srcW <= 0 || srcH <= 0) {
-    // Unparseable SVG — still force width so large unknown trees fit horizontally.
-    return { background, ...resvgFont(), fitTo: { mode: "width", value: maxWidth } }
-  }
-
-  // Preferred path: anchor the scale to the terminal cell so label text is the
-  // same size in every diagram and follows the user's font. Width only clamps.
-  if (budget?.cellHeight && budget.cellHeight > 0) {
-    const { width, scale, clamped } = fitFontAnchoredSize({
-      srcWidth: srcW,
-      srcHeight: srcH,
-      srcFontPx: parseSvgFontSize(svg) ?? 0,
-      cellHeight: budget.cellHeight,
-      labelCells: budget.labelCells,
-      maxWidth,
-    })
-    log.debug("mermaid raster scale anchored to cell", {
-      srcW,
-      srcH,
-      cellHeight: budget.cellHeight,
-      scale: Number(scale.toFixed(3)),
-      clamped,
-      outW: width,
-    })
-    // HEIGHT FLOWS; only width clamps (owner ruling, 2026-09-26: «клампить ширину, высоту
-    // отпускать и вставлять как есть»). The 2026-09-23 height re-fit lived here and divided the
-    // font-anchored scale on tall diagrams — text that was exactly ONE terminal row tall arrived
-    // smaller than a row, which is the «нечитаемо» it had meant to fix. The anchor is the floor:
-    // the only smaller scale comes from the width clamp inside fitFontAnchoredSize, and only when
-    // the diagram genuinely does not fit horizontally. A raster taller than the row budget is
-    // inserted as-is — the MediaImage is interactive (wheel zoom · drag pan).
-    return { background, ...resvgFont(), fitTo: { mode: "width", value: width } }
-  }
-
-  // No measured cell (PNG symbol fallback): nothing to anchor to, so keep the
-  // old width-filling behaviour rather than inventing a cell size.
-  const { width } = fitToWidthSize({
-    srcWidth: srcW,
-    srcHeight: srcH,
-    width: maxWidth,
-    allowUpscale: true,
-  })
-  return { background, ...resvgFont(), fitTo: { mode: "width", value: width } }
+export function resvgOptionsForSvg(_svg: string, background: string, budget?: SvgFitBudget): MermaidResvgOptions {
+  // WIDTH IS THE ONLY DIMENSION WE SET, and height is never budgeted: the diagram is drawn exactly
+  // `maxWidth` wide (the window's own width) and its height follows from the SVG's viewBox. There is
+  // no font-anchored scale, no clamp arithmetic and no row budget — the raster IS the drawing at its
+  // габариты, not a resized copy of it.
+  //
+  // Owner, 2026-10-07, replacing the 2026-09-26 font-anchor ruling: «ЗАДАЙ МАКСИМАЛЬНУЮ ШИРИНУ.
+  // БЕЗ ВЫСОТЫ», «рендер svg ничего ресайзить не должен». The anchor computed a scale from the
+  // terminal cell (`scale = min(cellHeight/fontPx, maxWidth/naturalWidth)`) and shrank the text of
+  // any diagram wider than the clamp — that shrink is what made wide diagrams unreadable.
+  return { background, ...resvgFont(), fitTo: { mode: "width", value: mermaidPixelBudget(budget).maxWidth } }
 }
 
 export interface MermaidRenderOptions {

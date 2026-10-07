@@ -105,7 +105,12 @@ export function mediaImageCellBounds(input: {
   terminalRows?: number
 }): { maxCols: number; maxRows: number } {
   return {
-    maxCols: Math.min(MAX_COLS, input.terminalCols ?? MAX_COLS),
+    // A mermaid diagram is drawn to the WINDOW's own width; the 80-column attachment cap must not
+    // decide a diagram's габариты — «в mermaid max width ширина в tui» (owner, 2026-10-07).
+    maxCols:
+      input.layout === "diagram"
+        ? Math.max(1, input.terminalCols ?? MAX_COLS)
+        : Math.min(MAX_COLS, input.terminalCols ?? MAX_COLS),
     maxRows: Math.max(8, Math.min(MAX_ROWS, input.terminalRows ? Math.max(8, input.terminalRows - 6) : MAX_ROWS)),
   }
 }

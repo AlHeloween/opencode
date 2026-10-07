@@ -79,9 +79,11 @@ describe("MediaImage native pixel sizing (contain-fit)", () => {
     expect(size.height).toBeLessThanOrEqual(512)
   })
 
-  test("diagrams use the same terminal-aware contain budget as attachments", () => {
+  test("a diagram takes the window's width, an attachment keeps the decode cap", () => {
+    // «в mermaid max width ширина в tui» (owner, 2026-10-07): the 80-column attachment cap is a
+    // decode budget, not a diagram's габариты.
     expect(mediaImageCellBounds({ layout: "diagram", terminalCols: 120, terminalRows: 50 })).toEqual({
-      maxCols: 80,
+      maxCols: 120,
       maxRows: 40,
     })
     expect(mediaImageCellBounds({ layout: "attachment", terminalCols: 120, terminalRows: 50 })).toEqual({

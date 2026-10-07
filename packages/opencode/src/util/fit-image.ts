@@ -28,7 +28,7 @@ export type FitContainResult = {
 /**
  * Scale (srcWidth × srcHeight) to fit inside (maxWidth × maxHeight).
  * Aspect ratio is preserved. Degenerate sizes clamp to 1×1.
- * Prefer {@link fitToWidthSize} for mermaid SVG (width only).
+ * Mermaid SVG is sized width-only in mermaid.ts — this helper is for raster sources.
  */
 export function fitContainSize(input: FitContainInput): FitContainResult {
   const sw = Math.max(1, Math.round(input.srcWidth))
@@ -44,89 +44,6 @@ export function fitContainSize(input: FitContainInput): FitContainResult {
   const width = Math.max(1, Math.round(sw * scale))
   const height = Math.max(1, Math.round(sh * scale))
   return { width, height, scale }
-}
-
-export type FitToWidthInput = {
-  srcWidth: number
-  srcHeight: number
-  /** Target output width in CSS/px. Height is never an input. */
-  width: number
-  /**
-   * When false, only shrink diagrams wider than `width`; smaller ones keep natural size.
-   * When true (vector SVG), always emit exactly `width` and height = f(aspect).
-   */
-  allowUpscale?: boolean
-}
-
-/**
- * Width-only fit: set width, height is automatic from natural aspect.
- * Does not take a maxHeight — tall diagrams stay tall (scroll), large ones always
- * match the given width.
- */
-export function fitToWidthSize(input: FitToWidthInput): FitContainResult {
-  const sw = Math.max(1, Math.round(input.srcWidth))
-  const sh = Math.max(1, Math.round(input.srcHeight))
-  const targetW = Math.max(1, Math.round(input.width))
-
-  let scale = targetW / sw
-  if (!input.allowUpscale) scale = Math.min(1, scale)
-  if (!Number.isFinite(scale) || scale <= 0) scale = 1
-
-  const width = Math.max(1, Math.round(sw * scale))
-  const height = Math.max(1, Math.round(sh * scale))
-  return { width, height, scale }
-}
-
-export type FitFontAnchoredInput = {
-  srcWidth: number
-  srcHeight: number
-  /** Intrinsic text size inside the source SVG, CSS px. */
-  srcFontPx: number
-  /** Physical terminal cell height in device px (CSI 16t). */
-  cellHeight: number
-  /** How many terminal rows one line of diagram text should occupy. Default 1. */
-  labelCells?: number
-  /** Hard width clamp in device px — the diagram may not exceed it. */
-  maxWidth: number
-}
-
-export type FitFontAnchoredResult = FitContainResult & {
-  /** True when the width clamp, not the font anchor, decided the scale. */
-  clamped: boolean
-}
-
-/**
- * Scale a diagram so its TEXT has a predictable size, then clamp to the width.
- *
- * Width-driven fitting makes apparent text size a function of the diagram's
- * natural width, which for mermaid tracks node count: measured 2026-09-18, the
- * same 14px label renders at 136px in a two-node graph and 6px in a twelve-node
- * chain on the same terminal — a 22x spread with nothing the user can predict.
- *
- * Anchoring on the cell instead makes the label a fixed number of terminal rows
- * tall, so it tracks the user's font size and stays constant across diagrams.
- * Width stops being the target and becomes a limit: a diagram still shrinks when
- * it genuinely does not fit, which is legible, unlike being silently enlarged.
- */
-export function fitFontAnchoredSize(input: FitFontAnchoredInput): FitFontAnchoredResult {
-  const sw = Math.max(1, Math.round(input.srcWidth))
-  const sh = Math.max(1, Math.round(input.srcHeight))
-  const maxW = Math.max(1, Math.round(input.maxWidth))
-  const fontPx = Number.isFinite(input.srcFontPx) && input.srcFontPx > 0 ? input.srcFontPx : DEFAULT_SVG_FONT_PX
-  const cellH = Math.max(1, input.cellHeight)
-  const labelCells = Number.isFinite(input.labelCells) && (input.labelCells ?? 0) > 0 ? input.labelCells! : 1
-
-  const fontScale = (cellH * labelCells) / fontPx
-  const widthScale = maxW / sw
-  const clamped = widthScale < fontScale
-  const scale = clamped ? widthScale : fontScale
-
-  return {
-    width: Math.max(1, Math.round(sw * scale)),
-    height: Math.max(1, Math.round(sh * scale)),
-    scale,
-    clamped,
-  }
 }
 
 /** Mermaid's intrinsic label size — measured 2026-09-18, constant across diagrams and themes. */

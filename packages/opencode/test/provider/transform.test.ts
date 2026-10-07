@@ -2857,20 +2857,33 @@ describe("ProviderTransform.variants", () => {
       ])
     })
 
-    test("the COMMITTED CATALOG drives the menu — a real entry, not a fixture", () => {
+    test("the SYNCED CATALOG drives the menu — a real entry, not a fixture", () => {
       // The fixture above can agree with the code while the shipped data disagrees with both.
-      // This reads `src/provider/models/openrouter.json` — the file the build actually wrote from
-      // `reasoning.supported_efforts` (provider-sync.ts:222) — so a break on EITHER end is visible:
-      // revert the name whitelist and this fails on the code end; a bad sync fails on the data end.
+      // This reads `src/provider/models/openrouter.json` — the file `script/provider-sync.ts` wrote
+      // from `reasoning.supported_efforts` (provider-sync.ts:222) — so a break on EITHER end is
+      // visible: revert the name whitelist and this fails on the code end; a bad sync fails on the
+      // data end.
+      //
+      // The entry is chosen by its DECLARED LIST, not by model id. The file is generated and
+      // gitignored (`.gitignore:193`, since 340d181f45), so an id pinned here is rotated out by the
+      // next sync: `stealth/space-bunny-alpha` (verbatim from GET /api/v1/models on 2026-09-26) was
+      // a stealth model; its testing period closed and OpenRouter dropped it from the list (owner,
+      // 2026-10-07; absent from the catalog in cmd_runner run 20261007T051320Z_7e14e22f). The list it declared is
+      // the pin that survives: on 2026-10-07 it matched 27 entries, e.g. `openai/gpt-6.1-sol`,
+      // `anthropic/claude-sonnet-5.5`. It still pins the absence of `none` (the gateway answers 400
+      // for `none` on `mandatory: true` models) and the presence of `max`, which OPENAI_EFFORTS
+      // lacks — so the old name whitelist would not reproduce it.
+      const declared = ["max", "xhigh", "high", "medium", "low"]
       const catalog = JSON.parse(
         fs.readFileSync(path.join(import.meta.dir, "../../src/provider/models/openrouter.json"), "utf8"),
       )
-      const entry = catalog.models["stealth/space-bunny-alpha"]
+      const entry = Object.values(catalog.models).find(
+        (model: any) => JSON.stringify(model.reasoning_options?.[0]?.values) === JSON.stringify(declared),
+      ) as any
       expect(entry).toBeDefined()
       expect(entry.reasoning).toBe(true)
-      // Verbatim from GET /api/v1/models on 2026-09-26, including the absence of `none`
-      // (this model is `mandatory: true`, and the gateway answers 400 for `none`).
-      expect(entry.reasoning_options[0].values).toEqual(["max", "xhigh", "high", "medium", "low"])
+      expect(entry.reasoning_options[0].type).toBe("effort")
+      expect(entry.reasoning_options[0].values).toEqual(declared)
 
       const model = openrouterModel({
         id: `openrouter/${entry.id}`,

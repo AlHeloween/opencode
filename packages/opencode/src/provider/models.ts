@@ -153,6 +153,22 @@ const fetchApi = async () => {
   return { ok: result.ok, text: await result.text() }
 }
 
+/**
+ * Read the models.dev cache. Absent is the expected first start of a fresh install (debug): logging it as a bug made
+ * the robot print «Bugs encountered … failed to read models json» to a client (plan robot-installer B4, 2026-10-07).
+ * A cache that exists and cannot be read is still a bug. Undefined either way — the bundled snapshot then serves.
+ */
+export async function readModelsCache(file: string): Promise<unknown> {
+  return Filesystem.readJson(file).catch((e) => {
+    if ((e as NodeJS.ErrnoException)?.code === "ENOENT") {
+      log.debug("models cache absent (first start) — the bundled snapshot serves", { file })
+      return undefined
+    }
+    log.warn("bug: failed to read models json", { error: e instanceof Error ? e.message : String(e) })
+    return undefined
+  })
+}
+
 export const Data = lazy(async () => {
   // Test/custom fixture path is authoritative as-is — provider overrides skip it.
   if (Flag.OPENCODE_MODELS_PATH) {
@@ -170,9 +186,7 @@ export const Data = lazy(async () => {
       return undefined
     })
   const overlay = (registry: Record<string, unknown>) => applyBundledOverrides(registry, snapshot ?? {})
-  const cached = await Filesystem.readJson(filepath).catch((e) => {
-    log.warn("bug: failed to read models json", { error: e instanceof Error ? e.message : String(e) })
-  })
+  const cached = await readModelsCache(filepath)
   // The runtime cache/refresh path re-downloads raw models.dev, which lags
   // behind live provider APIs — overlay the bundled snapshot entries for every
   // configured source before serving.
@@ -185,9 +199,6 @@ export const Data = lazy(async () => {
   return Flock.withLock(
     `models-dev:${filepath}`,
     async () => {
-      const result = await Filesystem.readJson(filepath).catch((e) => {
-        log.warn("bug: failed to read models json from cache", { error: e instanceof Error ? e.message : String(e) })
-      })
       const result2 = await fetchApi()
       if (result2.ok) {
         await Filesystem.write(filepath, result2.text).catch((e) => {

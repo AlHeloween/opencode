@@ -27,6 +27,21 @@ const put = (key: string, info: Auth.Info) =>
     }),
   )
 
+/**
+ * Store an API key with no prompt and no network — the installer's path (`providers login -p <id> --key-stdin`, plan
+ * robot-installer B4). The provider is checked against the bundled models snapshot; the robot stays the one writer of
+ * its store, so with no plaintext auth.json the key lands only in auth.json.enc under its own per-install key
+ * (auth/index.ts writeAuthData, util/encrypted-json.ts). Returns an error message, or undefined when stored.
+ */
+export async function storeApiKey(provider: string, key: string): Promise<string | undefined> {
+  const value = key.trim()
+  if (!value) return "empty key — nothing stored"
+  const known = await ModelsDev.get()
+  if (!known[provider]) return `unknown provider "${provider}" — nothing stored`
+  await put(provider, { type: "api", key: value })
+  return undefined
+}
+
 async function handlePluginAuth(plugin: { auth: PluginAuth }, provider: string, methodName?: string): Promise<boolean> {
   let index = 0
   if (methodName) {
@@ -289,8 +304,23 @@ export const ProvidersLoginCommand = cmd({
         alias: ["m"],
         describe: "login method label (skips method selection)",
         type: "string",
+      })
+      .option("key-stdin", {
+        describe: "read the API key for --provider from stdin: no prompt, no network (for installers)",
+        type: "boolean",
       }),
   async handler(args) {
+    if (args.keyStdin) {
+      // The key comes through stdin, never argv (a process list shows argv); only the provider id is printed.
+      const err = await storeApiKey(args.provider ?? "", await text(process.stdin))
+      if (err) {
+        process.stderr.write(`opencode providers login: ${err}\n`)
+        process.exitCode = 1
+        return
+      }
+      process.stdout.write(`stored a key for ${args.provider}\n`)
+      return
+    }
     await Instance.provide({
       directory: process.cwd(),
       async fn() {

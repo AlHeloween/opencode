@@ -618,6 +618,27 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
 - [ ] **V2 virtual-display install/uninstall:** silent offline install + uninstall by recorded hardware ID; `HypervisorPresent` read before and after; resolution set for the robot's display. <!-- sv: virtual-monitor, silent-install, hypervisor-guard -->
 - [ ] **V3 robot on its own display:** the installed robot places its GUI targets on the virtual display (T3/T4 of the cua plan) and the A6 oracle passes. <!-- sv: virtual-monitor, robot-display, t3-oracle -->
 - [ ] **U1 Universal Search fit for colleagues:** not shippable as is — it fails both duties (memory `user-two-ethics-user-and-services`): to the user, services as LocalSystem with an unauthenticated CDP port (fix prepared: `experiments/2026-09-30_universal-search-hardening/harden_services.ps1`, then `--remote-debugging-pipe` in its code); to the services, a design meant to get past bot walls. Redesign for the bundle: official APIs first, paced polite fetching (one request per host at a time, backoff on 429/challenge, cache), stop at any CAPTCHA, no human impersonation; its egress manifest per the audit plan SF. <!-- sv: universal-search, two-ethics, redesign -->
-- [ ] **B4 free-model config:** first-run config selects a free provider; no key prompt required. <!-- sv: free-models, first-run, no-keys -->
+- [x] **B4 free-model config:** first-run config selects a free provider; no key prompt required. <!-- sv: free-models, first-run, no-keys -->
+  ✓ 2026-10-07 (owner: «ключи в зашифрованное хранилище это мысль! Только проверь чтобы все работало»). Keyless
+  default measured (C1: `opencode/nemotron-3-ultra-free`, second `space-bunny-free`). Optional keys go to the ROBOT,
+  the one writer of its store: new `opencode providers login -p <id> --key-stdin` (`src/cli/cmd/providers.ts`
+  `storeApiKey`: key from stdin never argv, no prompt, no network — provider checked against the bundled snapshot —
+  encrypted-only `auth.json.enc` under the robot's own per-install key); installer side `installer/bundle/keys.go`
+  `StoreKey(robotExe, provider, key, env)`. Tests: `test/cli/providers-key-stdin.test.ts` 4/4 red→green (+ auth 7/7
+  unchanged), `installer/bundle/keys_test.go` 2/2 against the REAL compiled candidate (config dir redirected by
+  `OPENCODE_TEST_CONFIG`), bundle package 15/15. End to end as a client (`experiments/2026-10-07_free-model-smoke/
+  b4.ps1`, fresh install folder, every key-shaped env removed, a FAKE key only), all 6 predictions held: a. before
+  login an OpenRouter model → «Model not found»; b. login exit 0; c. `auth.json.enc` + `.opencode.encryption.key`, NO
+  `auth.json`, the key text absent; d. after login → «User not found.» — OpenRouter refusing the fake key, so the
+  stored key WAS loaded and sent; e. `providers list` → «OpenRouter api»; f. the keyless default answers «Привет! Чем
+  могу помочь?». Fixed on the way (a client saw «Bugs encountered (1): bug-0001 failed to read models json» on a
+  fresh install): `models.ts` `readModelsCache` — a missing cache is the expected first start (debug), an unreadable
+  one stays a bug; a dead second cache read under the lock removed; test `test/provider/models-cache.test.ts` red→green;
+  after the rebuild stderr of b/e is empty. `test/provider` 537/540 — the 3 fails are INHERITED (same 3 on the
+  committed tree, run `20261007T051320Z_7e14e22f`: env-leaking keyless tests, a re-synced catalog entry) → separate
+  task. Residual: wiring the prototype's keys form to `StoreKey` lands with the real installer (B2).
+  **For B5 (measured the same day):** the free default once answered `503 Upstream error from Nvidia: Service
+  temporarily overloaded`; 6/6 retries over both free models then answered in 13–16 s. So the «привет» check must
+  retry with backoff and then try the second verified model before it reports a failure (M3/M4).
 - [ ] **B5 hello smoke:** final step starts the robot, sends «привет», shows the answer or a classified failure. <!-- sv: hello-smoke, failure-classes, final-check --> 
 - [ ] **B6 pristine-VM acceptance:** A0–A5 on a reverted snapshot, network disconnected for install. <!-- sv: acceptance, pristine-vm, offline -->

@@ -30,6 +30,37 @@ mechatronics and electronics. Owner: «как минимум могли запу
 
 | **A7 secure by default, frictionless by default:** hardened components still do the everyday jobs with no manual workaround | installed services + robot | scenario checks on the pristine VM: upload a file through the shared browser from `exchange\in`, receive a download in `exchange\out`, debug a site in a per-task browser under the user's account with files from any user folder; every refusal message names the permitted route | a colleague has to switch a service back to LocalSystem, edit ACLs, or read source to find where files go |
 
+## Design lens — a program for a monkey (owner, 2026-10-07)
+
+Owner: «Планируй — как меня учили когда-то — представь что ты делаешь программу для обезьяны», after «сделать чтобы
+работало из коробки без заглушек. У клиента упадёт сервис и что потом прикажешь делать — жестами по телефону? ты
+вообще представляешь людей которые не умеют пользоваться компьютером?» Every component and every screen passes these
+before it is called done:
+
+- **M1 Nothing to know.** The user's whole job: start the installer, press «Установить», wait, read the robot's answer
+  to «привет». Every other field arrives filled with a working default.
+- **M2 Nothing to remember.** Every per-install value — secrets, keys, ports — is created by the component itself on
+  its first start, never by a step someone must not forget. ✓ SearXNG: `installer/assets/searxng/run_searxng.py`
+  creates `searxng-data/secret_key` on the first start (5 unit tests red→green; from the staged bundle with no
+  SEARXNG_* set it served `/healthz` 200 and 40 JSON results on 127.0.0.1:3437, the secret file appeared, run
+  `20261007T015637Z_2a4a1a03`); ✓ the robot makes its own `.opencode.encryption.key` (`encrypted-json.ts:46-58`).
+- **M3 Heals itself on every start.** Missing or damaged state is recreated (✓ damaged secret replaced — test);
+  services restart on exit (reference: NSSM `AppExit Default Restart`); a busy port must be handled without asking
+  (design open).
+- **M4 A safety check never takes the service down for the user.** It repairs, or degrades and says so. Rejected the
+  same day: shipping SearXNG's refused placeholder so a forgotten secret «fails loudly» — loud for us, a dead service
+  for a user who cannot read a log. (The placeholder still ships, but the launcher always supplies the secret, so it
+  is never reached.)
+- **M5 One button to repair, one file for support.** A failure is one plain Russian sentence plus «Починить» (doctor
+  + every fix); «Сохранить отчёт» puts a report WITHOUT secrets on the Desktop so support works over the phone.
+- **M6 The installer checks its own work.** Before it says «Готово»: every service healthy and the robot answered
+  «привет» (B5); on a failure it repairs first and shows only what it could not repair.
+- **M7 No technical questions.** Ports, folders, services, accounts are never asked; the folder has a working
+  default, the rest is decided by the installer.
+
+Open against the lens: C1 (model choice is a Required field with NOTHING prefilled — the owner's 2026-10-06
+decision) vs M1/M7 (every field arrives filled) — the owner decides; not changed silently.
+
 Owner, 2026-09-30: «Погоди а если мне для автоматизации надо будет зааплоадить файл? … Или использовть скрипты для веб
 автоматизации, отладка сайтов? … Чтобы потом народ не плевался.» A security fix that blocks daily work is the first
 thing people undo; the permitted route must be the easiest one. Prepared: `exchange\in` / `exchange\out` with a

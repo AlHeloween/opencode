@@ -88,6 +88,13 @@
       ]
     },
     {
+      "name": "searxng-launcher",
+      "_ref": "replaces Smit2's bare `pythonw -m searx.webapp`: creates the per-install secret on the first start, so SearXNG works out of the box (owner: «чтобы работало из коробки без заглушек»)",
+      "from": "assets/searxng",
+      "to": "searxng-src",
+      "files": ["run_searxng.py"]
+    },
+    {
       "name": "searxng-settings",
       "_ref": "the vetted settings (keep_only 15 official-API engines) - Smit2 pointed SEARXNG_SETTINGS_PATH at the full default searx/settings.yml instead",
       "from": "../../universal-search/config/searxng",

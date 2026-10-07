@@ -17,15 +17,23 @@
 When config is loaded, opencode **auto-injects** `mcp.codegraph` if:
 
 - it is **not** already set in any config layer, and  
-- `.codegraph/` exists **or** `codegraph` is on PATH (incl. `Global.Path.bin`), and  
+- `.codegraph/` exists **or** `resolveCodegraphBin` finds the binary, and  
 - env is not opting out: `OPENCODE_CODEGRAPH_MCP=0|false|off|no`
+
+**One resolver (2026-10-07).** `resolveCodegraphBin` (`src/config/codegraph-mcp-auto.ts`) answers bootstrap's
+`codegraph init`, this gate and the MCP command: `codegraph(.exe|.cmd)` **beside the running executable** first —
+where the installer ships it, not on a client's PATH — then PATH + `Global.Path.bin` via `which`. The command
+carries the resolved **absolute** path: the stdio spawn (cross-spawn in the MCP SDK) sees the process PATH only, so a
+bare `codegraph` failed to start while bootstrap had already created the index from the sibling (measured on
+candidate 10.0.1219, `experiments_history/2026-10-07_codegraph-resolver/`). Found nowhere → the bare name, so the
+spawn error names the missing tool.
 
 Injected shape:
 
 ```json
 {
   "type": "local",
-  "command": ["codegraph", "serve", "--mcp"],
+  "command": ["<resolved absolute path to codegraph>", "serve", "--mcp"],
   "enabled": true,
   "timeout": 120000,
   "environment": {

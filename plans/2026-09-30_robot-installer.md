@@ -647,9 +647,27 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
   `run` exits via `process.exit(1)` on a session error and skips the MCP finalizer; `src/mcp/exit-reaper.ts` kills
   every stdio server tree on the process `exit` event. Candidate 10.0.1218: provider-error exit 2 survivors → 0,
   success exit 0 → 0 (`experiments_history/2026-10-07_codegraph-mcp-orphan/result-after-*.txt`). **Open for the installer**
-  (Inferred — read in code, not run): the MCP spawn is bare `codegraph` through the process PATH
-  (`config/codegraph-mcp-auto.ts:25`; its comment claims `Global.Path.bin`, but only `util/which.ts:7` adds that),
-  while `project/bootstrap.ts:62` also accepts a `codegraph` beside the exe — a client with codegraph shipped
-  beside `opencode.exe` and not on PATH gets an index created and an MCP that fails to start.
+  (was Inferred from code): the MCP spawn was bare `codegraph` through the process PATH
+  (`config/codegraph-mcp-auto.ts:25`; its comment claimed `Global.Path.bin`, but only `util/which.ts:7` adds that),
+  while `project/bootstrap.ts:62` also accepted a `codegraph` beside the exe.
+  **Fixed 2026-10-07** ✓ — proven first, then one resolver. Probe `experiments_history/2026-10-07_codegraph-resolver/
+  probe.ps1`: the candidate's `dist\bin` copied to a fixture `robot\` + `codegraph.cmd` + `codegraph\` beside it
+  (the shipped layout, copied from `bin\`, never launched there), a fresh client `project\`, PATH = Windows' own dirs
+  only; run 1 = a one-shot `run` on a missing model (bootstrap trigger), run 2 = `mcp list`. Baseline candidate
+  10.0.1219: the index WAS created from the sibling and then `✗ codegraph failed — MCP error -32000: Connection
+  closed` (`result-baseline-bare-*`); control with the robot dir on PATH `✓ connected` (`result-baseline-robot-*`) —
+  so the gap is the resolution, not the copy ✓. (Forecast error recorded: `mcp list` alone does not run
+  InstanceBootstrap — no index, nothing injected; `superseded/`.) Fix: `resolveCodegraphBin` in
+  `config/codegraph-mcp-auto.ts` — `codegraph(.exe|.cmd)` beside the exe, then `which` (PATH + `Global.Path.bin`) — is
+  the ONE resolver for bootstrap's `codegraph init`, the auto-inject gate and the MCP command, which now carries the
+  absolute path (cross-spawn runs an absolute `.cmd`); found nowhere → bare name so the spawn error names the tool;
+  `findCodegraphBin` removed; the false comment corrected; `docs/codegraph-mcp.md` updated. Test first:
+  `test/config/codegraph-mcp-auto.test.ts` 13 tests on temp layouts with an empty PATH, stub 5 fail / 8 pass as
+  predicted → 13/13; the old conditional `return` (an assertion that could assert nothing) replaced by fixtures.
+  `bun typecheck` 0; `_build.ps1` exit 0. Candidate from this change: `✓ codegraph connected` with
+  `<install>\codegraph.cmd serve --mcp` under the bare PATH, and also with an install folder holding a space
+  (`robot dir`) and a Cyrillic name (`робот`); control connected; 0 processes left naming the fixture
+  (`result-after-*`). Inherited, not this change: `test/config/tui.test.ts` 4 fails identical on the committed code
+  (the TUI config search walks up from the nested worktree into host `.opencode/plugins/tui-smoke.tsx`) → separate task.
 - [ ] **B5 hello smoke:** final step starts the robot, sends «привет», shows the answer or a classified failure. <!-- sv: hello-smoke, failure-classes, final-check --> 
 - [ ] **B6 pristine-VM acceptance:** A0–A5 on a reverted snapshot, network disconnected for install. <!-- sv: acceptance, pristine-vm, offline -->

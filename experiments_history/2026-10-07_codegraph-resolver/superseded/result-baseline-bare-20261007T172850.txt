@@ -1,0 +1,20 @@
+probe baseline/bare 2026-10-07T17:28:53.6225237+08:00 exe=D:\zPython\opencode\dist\bin\opencode.exe version=10.0.1219
+fixture=D:\zPython\opencode\.claude\worktrees\strange-babbage-7812ea\.temp\test\cg-resolver\baseline-bare-20261007T172850
+PATH=C:\WINDOWS\System32;C:\WINDOWS;C:\WINDOWS\System32\WindowsPowerShell\v1.0
+control: codegraph.cmd beside the exe: True
+control: codegraph resolvable through the fixture PATH: <none>
+run1 exit=0
+┌  MCP Servers
+│
+▲  No MCP servers configured
+│
+└  Add servers with: opencode mcp add
+after run1: project .codegraph\codegraph.db exists: False
+run2 exit=0
+┌  MCP Servers
+│
+▲  No MCP servers configured
+│
+└  Add servers with: opencode mcp add
+processes naming the fixture after run2: 0
+done

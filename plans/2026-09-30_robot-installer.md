@@ -355,6 +355,37 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
   → Advanced options; `add_paths/setup_env/init_delphi` → PATH changes (user-level, opt-in); `install_rag` → pip
   (network); `node/install_tools.bat` (choco + elevate) and playwright `reinstall_*` download scripts → excluded.
   Consequence for B1: the builder takes components from current sources/`dist/`, never from Smit2 as is.
+  **Correction 2026-10-07 — I0 was a scan, not an analysis** (owner: «Ты проанализировал пакет вообще? add_paths.bat
+  не?»). The box above was earned by sizes, signatures and REGEX classes of scripts; the scripts were never read, and
+  two wrong conclusions followed (Git called «installed, not portable» from its `unins*` files → a needless PortableGit
+  download proposed; garnet dropped from the stack without checking who uses it). Read in full the same day
+  (README, index, all 11 `.bat`, `config.toml`, `config/config.jsonc` keys, universal-search `src/bootstrap.rs`):
+  - **Design.** Smit2 = universal-search's portable flash edition (its `build_portable.ps1` output) + user-added
+    `git/`, `tools/`, `smit/`. Every path is derived from `%~dp0` — drive-letter independent. Python 3.12 (+ SearXNG
+    deps), Node 22, Chromium (Chrome for Testing), `playwright-driver` (own node) and Git are all PORTABLE, wired by
+    `add_paths.bat` (session PATH: root, `smit`, `smit\tools`, `tools`, `chromium`, `python`, `python\Scripts`,
+    `git\cmd`, `git\bin`, `git\usr\bin`, `node\node-v*`) and by each service's NSSM `AppEnvironmentExtra`. Git is used
+    portably via `git\cmd`; its `unins*` files and the inner `Git-2.54.0-64-bit.exe` are leftovers to skip — NO
+    download needed.
+  - **Services.** 6 via NSSM (admin, LocalSystem), `start_all.bat` removes + re-registers + starts each run in order
+    with port waits: garnet-cache :6379 (`--bind 127.0.0.1`), searxng :3434 (`pythonw -m searx.webapp`), crw-server
+    :3000, websurfx :3008, chromium-debug :9222 (`--remote-debugging-address=127.0.0.1`), universal-search :3005.
+  - **Garnet's only consumer is websurfx** (`REDIS_URL`). SearXNG's `valkey: url: false` (Smit2 settings.yml:121-125)
+    and `limiter: false`; universal-search defines `redis: Option<RedisConfig>` (`src/config.rs:75`) but nothing reads
+    it; `bootstrap.rs:52-58` warns «Garnet not running — SearXNG cache unavailable» — FALSE text, SearXNG uses no
+    cache — and `all_healthy` (`:79-83`) requires garnet AND websurfx, so dropping them without changing bootstrap
+    makes the stack report unhealthy forever (absence of an oracle reads as false).
+  - **Hazards found by reading** (none may reach the installer as is): (a) `add_paths.bat /permanent` runs
+    `setx PATH "%PATH%"` — writes the merged system+user PATH into the USER PATH, capped at 1024 chars (the script
+    itself warns); (b) `setup_env.bat /permanent` runs `setx HOME <flash dir>` — moves the user's HOME globally
+    (Inferred effect: git/ssh read their config there); (c) `start_all.bat` force-kills by image name
+    (`taskkill /F /IM crw-server.exe`, `universal-search-service.exe`, …) and EVERY process listening on
+    6379/3434/3000/9222/3008/3005 — on this host it would kill the owner's live stack; (d) `config.toml` has no
+    `[server] host` → crw on 0.0.0.0:3000, the exposure fixed today in universal-search `8d61bdb`, still in Smit2;
+    (e) `stop_all.bat`'s fallback kills `GarnetServer.exe`, but the binary is `garnet-server.exe`; (f)
+    `wait_port_free` pings `127.0.0.` (typo) — a failing ping returns at once, so the «wait for the port to free»
+    likely does not wait (Inferred); (g) README says «На целевой машине НЕ нужно ничего устанавливать» while
+    `start_all` registers six Windows services under admin.
 - [ ] **I1 pristine baseline:** on a clean VMware Windows snapshot, record what is missing BEFORE any install (WebView2, VC++, Git, VT, paths). <!-- sv: pristine-vm, baseline, preflight -->
 
 ## Work

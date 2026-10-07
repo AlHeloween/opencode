@@ -119,7 +119,12 @@ oracle:   <what will prove it — the instrument, not the hope>
       the round trip ACROSS the two implementations (write through the service, read through `readNote`)
       and a malformed-manifest case, because "the reader never throws" is what stops one bad manifest
       from blanking the whole note.
-- [ ] **S4 — the master plan.** <!-- done_pct: 90 | attempts: 1 | last_failure: the renderer is DONE and rendered; what remains is AUTHORING -- one `svm set` per open box (47 of the 80 still carry no `sv` tag, 79 have no manifest in the store) and 2 plans that state no intention at all. Not a renderer defect, and every render COUNTS them. --> `render` writes `MASTER_PLAN.md` in `plans/`, recursively: goal →
+- [x] **S4 — CLOSED 2026-10-07 (owner: «Закрыть, sv — правило»).** The renderer half is done and verified in code
+  (`SVM.applyRender` via `tool/svm.ts:76`, `NON_PLAN_FILES` `plan-status.ts:417`, plans/MASTER_PLAN.md rendered ✓).
+  The authoring half — «no rendered plan or task lacks its sv» (113 MISSING on 2026-10-07) — never converges while
+  new boxes keep appearing, so it leaves this plan and becomes a STANDING RULE enforced by a plan-form check (sv +
+  a three-line status header per plan), to be built as the mechanism of the 2026-10-07 plans triage. Original box:
+  **S4 — the master plan.** <!-- done_pct: 90 | attempts: 1 | last_failure: the renderer is DONE and rendered; what remains is AUTHORING -- one `svm set` per open box (47 of the 80 still carry no `sv` tag, 79 have no manifest in the store) and 2 plans that state no intention at all. Not a renderer defect, and every render COUNTS them. --> `render` writes `MASTER_PLAN.md` in `plans/`, recursively: goal →
       plans → tasks, each task with its sv, plan ref and `eta_turns`, plus the open/pass counts.
       **SV IS MANDATORY FOR EVERY ENTRY — owner, 2026-09-29, verbatim:** «в мастерплане sv для каждого
       субплана, таска или линка обязателен, чтобы было четко ясно — нафига это все и с чем это

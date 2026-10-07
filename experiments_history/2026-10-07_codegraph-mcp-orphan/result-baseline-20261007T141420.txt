@@ -1,0 +1,11 @@
+repro baseline 2026-10-07T14:14:20.4978138+08:00 exe=D:\zPython\opencode\dist\bin\opencode.exe ws=D:\zPython\opencode\.temp\test\cg-orphan\ws-baseline-20261007T141420
+codegraph on PATH: d:\zPython\opencode\bin\codegraph.cmd
+before: 0
+robot: exit=0 seconds=18 answer=Привет! Чем могу помочь?Привет! Чем могу помочь?
+during (max processes naming ws while the robot ran): 2
+workspace .codegraph exists: True
+after +0s: 0
+after +5s: 0
+after +15s: 0
+cleanup: survivors stopped; remaining=0
+done

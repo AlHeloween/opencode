@@ -643,5 +643,13 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
   **Found after B4's build** («.temp/test/ - 1 entries still in use»): a `codegraph serve --mcp --path <workspace>`
   node.exe pair spawned by a one-shot `opencode run` outlived the robot (alive from 13:16 until stopped by hand) —
   clients would collect such orphans per run → separate task (robot's MCP child lifecycle).
+  **Fixed 2026-10-07, `3d11b398f6`** ✓: the orphan was codegraph's DETACHED daemon (300 s idle timeout), left when
+  `run` exits via `process.exit(1)` on a session error and skips the MCP finalizer; `src/mcp/exit-reaper.ts` kills
+  every stdio server tree on the process `exit` event. Candidate 10.0.1218: provider-error exit 2 survivors → 0,
+  success exit 0 → 0 (`experiments_history/2026-10-07_codegraph-mcp-orphan/result-after-*.txt`). **Open for the installer**
+  (Inferred — read in code, not run): the MCP spawn is bare `codegraph` through the process PATH
+  (`config/codegraph-mcp-auto.ts:25`; its comment claims `Global.Path.bin`, but only `util/which.ts:7` adds that),
+  while `project/bootstrap.ts:62` also accepts a `codegraph` beside the exe — a client with codegraph shipped
+  beside `opencode.exe` and not on PATH gets an index created and an MCP that fails to start.
 - [ ] **B5 hello smoke:** final step starts the robot, sends «привет», shows the answer or a classified failure. <!-- sv: hello-smoke, failure-classes, final-check --> 
 - [ ] **B6 pristine-VM acceptance:** A0–A5 on a reverted snapshot, network disconnected for install. <!-- sv: acceptance, pristine-vm, offline -->

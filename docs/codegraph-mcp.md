@@ -42,7 +42,7 @@ DETACHED per-project daemon `serve --mcp --path <root>` (+ a `node -e` watchdog)
 twice over: the MCP state finalizer (`killTree`, on instance dispose) and `src/mcp/exit-reaper.ts` (synchronous, on
 the process `exit` event — the one that still runs when `process.exit()` skips every finalizer, as `opencode run`
 does on a session error). Before the reaper, that error exit left the daemon holding a fresh workspace ✓ measured
-(`experiments/2026-10-07_codegraph-mcp-orphan/`); guard: `test/mcp/exit-reaper.test.ts`. A hard kill (SIGKILL,
+(`experiments_history/2026-10-07_codegraph-mcp-orphan/`); guard: `test/mcp/exit-reaper.test.ts`. A hard kill (SIGKILL,
 Task Manager) still bypasses both — the daemon then reaps itself after its idle timeout.
 
 ### Manual override

@@ -2,7 +2,7 @@
 // mocks: the host fixture starts a stdio server that spawns a detached daemon (codegraph's shape), then exits
 // with process.exit(1). Measured 2026-10-07 on the compiled candidate before this guard existed: a session
 // error in `opencode run` left `codegraph serve --mcp --path <ws>` + its watchdog alive (300 s idle timeout)
-// — experiments/2026-10-07_codegraph-mcp-orphan/.
+// — experiments_history/2026-10-07_codegraph-mcp-orphan/.
 import { expect, setDefaultTimeout, test } from "bun:test"
 import path from "path"
 import { tmpdir } from "../fixture/fixture"

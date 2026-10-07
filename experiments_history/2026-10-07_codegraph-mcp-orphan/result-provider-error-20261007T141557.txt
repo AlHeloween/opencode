@@ -1,0 +1,17 @@
+repro provider-error 2026-10-07T14:15:57.2830265+08:00 exe=D:\zPython\opencode\dist\bin\opencode.exe ws=D:\zPython\opencode\.temp\test\cg-orphan\ws-provider-error-20261007T141557
+codegraph on PATH: d:\zPython\opencode\bin\codegraph.cmd
+before: 0
+robot: exit=1 seconds=4 answer=
+during (max processes naming ws while the robot ran): 1
+workspace .codegraph exists: True
+after +0s: 2
+  pid=23132 ppid=17648 node.exe d:\zPython\opencode\bin\codegraph\node.exe --liftoff-only d:\zPython\opencode\bin\codegraph\lib\dist\bin\codegraph.js serve --mcp --path D:\zPython\opencode\.te
+  pid=25872 ppid=23132 node.exe d:\zPython\opencode\bin\codegraph\node.exe -e " const fs = require('fs'); const parentPid = Number(process.argv[1]); const timeoutMs = Number(process.argv[2]); 
+after +5s: 2
+  pid=23132 ppid=17648 node.exe d:\zPython\opencode\bin\codegraph\node.exe --liftoff-only d:\zPython\opencode\bin\codegraph\lib\dist\bin\codegraph.js serve --mcp --path D:\zPython\opencode\.te
+  pid=25872 ppid=23132 node.exe d:\zPython\opencode\bin\codegraph\node.exe -e " const fs = require('fs'); const parentPid = Number(process.argv[1]); const timeoutMs = Number(process.argv[2]); 
+after +15s: 2
+  pid=23132 ppid=17648 node.exe d:\zPython\opencode\bin\codegraph\node.exe --liftoff-only d:\zPython\opencode\bin\codegraph\lib\dist\bin\codegraph.js serve --mcp --path D:\zPython\opencode\.te
+  pid=25872 ppid=23132 node.exe d:\zPython\opencode\bin\codegraph\node.exe -e " const fs = require('fs'); const parentPid = Number(process.argv[1]); const timeoutMs = Number(process.argv[2]); 
+cleanup: survivors stopped; remaining=0
+done

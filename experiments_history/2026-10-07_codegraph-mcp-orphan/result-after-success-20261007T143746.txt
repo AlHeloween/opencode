@@ -1,0 +1,11 @@
+repro after-success 2026-10-07T14:37:47.0186536+08:00 exe=D:\zPython\opencode\dist\bin\opencode.exe ws=D:\zPython\opencode\.temp\test\cg-orphan\ws-after-success-20261007T143746
+codegraph on PATH: d:\zPython\opencode\bin\codegraph.cmd
+before: 0
+robot: exit=0 seconds=22 answer=Привет! Чем могу помочь?
+during (max processes naming ws while the robot ran): 2
+workspace .codegraph exists: True
+after +0s: 0
+after +5s: 0
+after +15s: 0
+cleanup: survivors stopped; remaining=0
+done

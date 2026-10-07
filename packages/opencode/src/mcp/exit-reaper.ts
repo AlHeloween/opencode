@@ -7,7 +7,7 @@
  * and codegraph's `serve --mcp` is only a proxy to a DETACHED per-project daemon that outlives its last client
  * by 300 s (codegraph `mcp/daemon.js` DEFAULT_IDLE_TIMEOUT_MS). Measured 2026-10-07 on the compiled candidate:
  * after a provider error the daemon `serve --mcp --path <workspace>` and its watchdog were alive 15 s after the
- * robot exited, holding the workspace (experiments/2026-10-07_codegraph-mcp-orphan/). The daemon is still a
+ * robot exited, holding the workspace (experiments_history/2026-10-07_codegraph-mcp-orphan/). The daemon is still a
  * descendant of the live server process here, so walking the tree from the server pid reaches it.
  *
  * The `exit` event fires on every exit that is not a hard kill and admits only synchronous work — hence

@@ -15,6 +15,13 @@
 - G6 promotion: chat → ticket/technote/wiki enforced in G3.
 - G7 isolation: workspace broker — only the delegated project mounted.
 
+## Seeds carried from the deferred robot-delegation plan (2026-10-07)
+
+- ask=deny / pre-authorization: an AGI cycle must finish without asking the owner — `orchestrator.txt:7` still ends
+  with «Do you approve this plan?». Belongs in front of G4.
+- worker pool: two workers on disjoint paths, each oracle attributable (the kernel G7 «one bounded task open at a
+  time» binds one worker, not the pool). Belongs with G5.
+
 ## Residuals carried from the foundation
 
 - fossil 2.28 `/chat-poll` fails («not authorized: CREATE TEMP TRIGGER chat_ai», measured 2026-10-04); chat is read

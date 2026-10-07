@@ -6,6 +6,10 @@
 
 # DAP debugger — port the module out of oh-my-pi
 
+- status: NOT STARTED (shelf, moved from plans/ 2026-10-07). A feature, not a hanging fix: T1–T5 never begun.
+- next: T1 — protocol core + framer against a fake adapter (robot-sized).
+- waits for: the owner picking the debugger up (Delphi debugging need); source still in oh-my-pi `src/dap/` (4 027 lines).
+
 Status: DRAFT (lifecycle ACTIVE). Source measured 2026-09-27 from
 `D:\zPython\oh-my-pi\packages\coding-agent\src\dap\` — by reading the source, NOT from its prose.
 

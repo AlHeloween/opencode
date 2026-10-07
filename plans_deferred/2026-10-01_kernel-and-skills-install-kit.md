@@ -1,5 +1,10 @@
 # Kernel + standard skills as ONE install kit in ADID_Python — works out of the box on every project
 
+> **DEFERRED 2026-10-07 — absorbed.** S0 became ADID_Python's skills ledger (`artefacts/skills_ledger.json`,
+> `e41f03c`, `a48bebd`); S3/S4 became the ADID installer's ledger-driven scope and plans/2026-09-30_robot-installer.md
+> («kernel prompt + skills»). Left for those owners: S1 — host literals in `.claude/skills/{aicall,omp,robot}` and
+> `.opencode/skills/opencode-bridge`; S2 — where the kernel source lives (owner's call). reopen_when: neither absorbs them.
+
 <!-- intention: the kernel and the standard skills live in several hand-maintained homes per host (repo .claude/, .opencode/, ~/.codex/, ~/.claude/, the plugin) with host paths written into them -> ONE source in ADID_Python, ONE installer, and any project gets the same kernel and skills for Claude, Codex and opencode with no manual setup; only the kernel is edited by hand, everything else is installed -->
 
 - status: DRAFT (owner-directed, 2026-10-01; nothing built)

@@ -1,5 +1,12 @@
 # Robot delegation, orchestration and scheduling — using AGI mode and automode in full
 
+> **DEFERRED 2026-10-07 — overtaken.** The robot route became the bridge + worktree server API (`7ad9f71fb0`,
+> plans/postponed/2026-10-02_one-server-per-worktree.md) and the organization moved to Fossil tickets with leases
+> (plans_completed/2026-10-04_fossil-agent-organization.md). The Claude skill box is done (`ef3df9d0e2`, R2a run
+> `20261002T044631Z_3b71feb4`). Living seeds carried to plans/futures/2026-10-07_fossil-organization-roadmap.md:
+> S2 ask=deny / pre-authorization (`orchestrator.txt:7` still asks «Do you approve this plan?») and S3 the worker pool.
+> reopen_when: AGI mode itself is picked up again.
+
 <!-- intention: Claude/Codex frame and verify while the opencode robot executes, unattended and in parallel where safe -> a Claude skill + a Codex binding that dispatch bounded tasks to the robot, and a staged path to AGI-mode parallel workers and a local scheduler -->
 
 - status: DRAFT (owner-directed design, 2026-09-30; nothing implemented yet)
@@ -58,7 +65,7 @@
       pipeline. Acceptance: two workers edit disjoint files in one tree, each oracle attributable, one commit per plan.
 - [ ] S4 — scheduler: `schtasks` + a READ-only dispatcher (queue B6, lease one-robot-per-tree, exit detection B4,
       timeout B8, digest B9). Acceptance: a scheduled run takes a ready task, finishes, reports, releases.
-- [~] Claude skill `.claude/skills/robot/SKILL.md` (brief = plan task + SV + oracle + prediction; launch via
+- [x] (done: `ef3df9d0e2`, revised through `0bdf828759`) Claude skill `.claude/skills/robot/SKILL.md` (brief = plan task + SV + oracle + prediction; launch via
       cmd_runner/run_in_background; read only the final message + git diff; verify with the oracle itself;
       `--session` to continue; never bin/, never --dangerously-skip-permissions). WRITTEN 2026-09-30, flags
       re-read in `run.ts` ✓; not smoke-tested — the box waits for the Skill smoke below. Models: free Zen

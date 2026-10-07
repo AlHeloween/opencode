@@ -1,0 +1,27 @@
+{
+  "_comment": "Bundle composition (plan robot-installer B1c). Paths are relative to this file. A component is copied by an explicit list: anything unnamed - bin/ also holds auth.json, the encryption key, *.enc, gateway.jsonc, opencode.jsonc, locks/, .opencode/ - never reaches the bundle. Rebranding to smit comes later (owner, 2026-10-07).",
+  "allow": [],
+  "components": [
+    {
+      "name": "robot",
+      "from": "../bin",
+      "to": "bin",
+      "files": [
+        "opencode.exe", "opencode-markdownify.exe", "opentui.dll", "dxcompiler.dll", "dxil.dll",
+        "msys-2.0.dll", "awk.exe", "cat.exe", "find.exe", "grep.exe", "head.exe", "ls.exe", "sed.exe", "sort.exe",
+        "tail.exe", "wc.exe",
+        "sqlite3.exe", "sqlite3_analyzer.exe", "sqlite3_rsync.exe", "sqldiff.exe",
+        "ffmpeg.exe", "ffplay.exe", "ffprobe.exe", "ConsoleCompare.exe",
+        "compare.cmd", "head.cmd", "tail.cmd", "codegraph.cmd", "cua.cmd",
+        "package.json", "package-lock.json"
+      ],
+      "dirs": ["codegraph", "cua", "logseq", "tools", "node_modules"],
+      "skip": [
+        "tools/cmd_runner.2026.07.01.exe",
+        "tools/install_rag.cmd", "tools/install_rag.sh",
+        "tools/init_delphi.cmd", "tools/init_delphi.ps1", "tools/init_msvc.cmd", "tools/init_msvc.ps1",
+        "tools/build_delphi_msbuild.cmd", "tools/build_delphi_msbuild.ps1"
+      ]
+    }
+  ]
+}

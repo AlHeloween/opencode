@@ -458,6 +458,21 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
       place in the bundle is a B1c layout decision). samply: `bin/samply.exe` and `bin/tools/samply.exe` are the same file
     (md5 `641ec5a458a3…`, 17 052 160 B) — ship one; source `external/samply` 0.13.1 @ `f5a8bf10` (MIT/Apache-2.0),
     built from source by B1.
+    - [x] **B1c.1 robot component** (rebrand to smit later — owner: «Ребрендинг в smit сделаем позже»):
+      `installer/bundle/stage.go` `Stage` copies by explicit list (files + dirs), drops runtime litter
+      (`__pycache__`, `*.pyc`, `.opencode`, `locks`), fails on a missing listed file, on a `skip` entry that matched
+      nothing (a typo would ship the old file silently) and on a non-empty output; 4 tests, the skip test proven by a
+      mutation (check disabled → FAIL `20261007T012400Z_cd5783cf`, reverted), all 11 bundle tests PASS
+      (`20261007T012347Z_8d0a88a0`). Composition `installer/components.json` (robot from `../bin`); CLI
+      `bundle build <components.json> <out>` = stage → gate with the file's allow list → `MANIFEST.sha256`.
+      Real run from `bin/` (`20261007T012438Z_b86eabec`, 23 s): 4 467 files, 1 823 433 691 B, gate PASS with 0 hits;
+      independent checks — PowerShell finds 0 forbidden names in the stage (auth*, key, *.enc, gateway/opencode
+      jsonc, locks, .opencode, pycache), `opencode.exe` equal to `bin/` by `Get-FileHash`, a second build gives a
+      byte-identical manifest (`20261007T012528Z_5a428ad4`), `verify` 0 differences (exit 0 — read by a direct run:
+      cmd_runner closed that run «by health-check (pid absent or creation tick mismatch)» with `exit_code: null`,
+      `bytes_written: 0` while its log held the output — a cmd_runner defect: such a run's verdict is UNKNOWN), a
+      rebuild into the full stage refused. Remaining components: search stack, Chromium, portable Git (official
+      PortableGit 2.54.0 + sha256), Python, node/playwright-driver, VDD driver, cua skill pack.
   - [ ] **B1d playwright-rs driver 404 countermeasure** in the search build (provision `playwright-core` into the
     build-script OUT_DIR, reset its fingerprint) — second occurrence, KAIZEN.
   - [ ] **B1e end-to-end**: build → gate PASS → manifest → the built tree contains no `auth.json` and no model id.

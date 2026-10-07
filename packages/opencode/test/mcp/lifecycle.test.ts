@@ -1,7 +1,12 @@
-import { test, expect, mock, beforeEach, beforeAll, afterAll, spyOn } from "bun:test"
+import { test, expect, mock, beforeEach, beforeAll, afterAll, spyOn, setDefaultTimeout } from "bun:test"
 import { Effect } from "effect"
 import * as Log from "@opencode-ai/core/util/log"
 import type { MCP as MCPNS } from "../../src/mcp/index"
+
+// Each test boots a full Instance; on a loaded host one takes > 5 s, bun's default
+// times it out, its body keeps running and then fails against the NEXT test's
+// beforeEach-reset mocks (run 20261007T111902Z_4625b431: 3 such reds, 21/21 alone).
+setDefaultTimeout(20_000)
 
 // --- Mock infrastructure ---
 

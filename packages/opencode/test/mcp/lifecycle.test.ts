@@ -52,7 +52,9 @@ function getOrCreateClientState(name?: string): MockClientState {
 // Mock transport that succeeds or fails based on connectShouldFail / connectShouldHang
 class MockStdioTransport {
   stderr: null = null
-  pid = 12345
+  // No process is spawned, so no pid: the state finalizer and the exit reaper taskkill /T /F whatever pid
+  // a stdio transport reports, and a made-up one is some real process on this host.
+  pid: number | null = null
   // oxlint-disable-next-line no-useless-constructor
   constructor(_opts: any) {}
   async start() {

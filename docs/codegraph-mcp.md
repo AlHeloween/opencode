@@ -36,6 +36,15 @@ Injected shape:
 
 This is **in-memory** on load (no write to gitignored `opencode.json`). MCP service then starts stdio `serve --mcp` like any other local MCP server.
 
+**Process lifecycle — the tree ends with opencode (2026-10-07).** `serve --mcp` is only a proxy: it spawns a
+DETACHED per-project daemon `serve --mcp --path <root>` (+ a `node -e` watchdog) that outlives its last client by
+300 s (codegraph `mcp/daemon.js`, `CODEGRAPH_DAEMON_IDLE_TIMEOUT_MS`). opencode kills each stdio server's whole tree
+twice over: the MCP state finalizer (`killTree`, on instance dispose) and `src/mcp/exit-reaper.ts` (synchronous, on
+the process `exit` event — the one that still runs when `process.exit()` skips every finalizer, as `opencode run`
+does on a session error). Before the reaper, that error exit left the daemon holding a fresh workspace ✓ measured
+(`experiments/2026-10-07_codegraph-mcp-orphan/`); guard: `test/mcp/exit-reaper.test.ts`. A hard kill (SIGKILL,
+Task Manager) still bypasses both — the daemon then reaps itself after its idle timeout.
+
 ### Manual override
 
 Set `mcp.codegraph` explicitly in `opencode.json` / global config to customize or disable:

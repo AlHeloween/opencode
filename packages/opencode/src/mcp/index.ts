@@ -20,6 +20,7 @@ import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { McpOAuthProvider } from "./oauth-provider"
 import { McpOAuthCallback } from "./oauth-callback"
 import { McpAuth } from "./auth"
+import { ExitReaper } from "./exit-reaper"
 import { BusEvent } from "../bus/bus-event"
 import { Bus } from "@/bus"
 import { TuiEvent } from "@/cli/cmd/tui/event"
@@ -402,10 +403,11 @@ export const layer = Layer.effect(
 
       const connectTimeout = mcp.timeout ?? DEFAULT_TIMEOUT
       return yield* connectTransport(transport, connectTimeout).pipe(
-        Effect.map((client): { client: MCPClient | undefined; status: Status } => ({
-          client,
-          status: { status: "connected" },
-        })),
+        Effect.map((client): { client: MCPClient | undefined; status: Status } => {
+          // The state finalizer's killTree needs a dispose; process.exit() skips it. See exit-reaper.ts.
+          ExitReaper.track(transport)
+          return { client, status: { status: "connected" } }
+        }),
         Effect.catch((error): Effect.Effect<{ client: MCPClient | undefined; status: Status }> => {
           const msg = error instanceof Error ? error.message : String(error)
           log.error("local mcp startup failed", { key, command: mcp.command, cwd, error: msg })

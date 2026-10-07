@@ -24,6 +24,7 @@ import { useProject } from "@tui/context/project"
 import { useEvent } from "@tui/context/event"
 import { useSDK } from "@tui/context/sdk"
 import { Binary } from "@opencode-ai/core/util/binary"
+import { arrivalUpdate } from "../util/divergence"
 
 export interface JobInfo {
   readonly id: string
@@ -48,14 +49,6 @@ import { emptyConsoleState, type ConsoleState } from "@/config/console-state"
  * log line, until the 5-minute flock default expired.
  */
 const STARTUP_DEADLINE_MS = 15_000
-
-/**
- * How many live message ids are remembered per session. Enough to cover a long
- * turn and its undo — the window in which a render divergence is observed — and
- * bounded, because an unbounded arrival list on a session that runs for days is
- * a memory leak wearing a diagnostic's clothes.
- */
-const ARRIVED_MAX = 400
 
 export const { use: useSync, provider: SyncProvider } = createSimpleContext({
   name: "Sync",
@@ -640,18 +633,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           // side; this is the one line that says the event arrived.
           const arrivedSID = event.properties.info.sessionID
           const arrivedID = event.properties.info.id
-          setStore(
-            "arrived",
-            arrivedSID,
-            produce((draft) => {
-              // `draft` is a string[], not a map — I wrote `draft[arrivedID]` first
-              // and it type-checked as an index into an array, which is how a
-              // membership test becomes a value read. `includes` is the predicate.
-              if (draft.includes(arrivedID)) return
-              draft.unshift(arrivedID)
-              if (draft.length > ARRIVED_MAX) draft.length = ARRIVED_MAX
-            }),
-          )
+          setStore("arrived", arrivedSID, arrivalUpdate(arrivedID))
           const messages = store.message[event.properties.info.sessionID]
           if (!messages) {
             setStore("message", event.properties.info.sessionID, [event.properties.info])

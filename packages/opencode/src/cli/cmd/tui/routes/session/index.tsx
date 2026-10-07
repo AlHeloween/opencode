@@ -108,6 +108,7 @@ import { getRevertDiffFiles } from "../../util/revert-diff"
 import { revertSteps } from "../../util/revert-steps"
 import { revertedRun } from "../../util/reverted-run"
 import { createDivergenceReporter } from "../../util/divergence-reporter"
+import { sessionTranscriptInput } from "../../util/divergence"
 
 import * as Log from "@opencode-ai/core/util/log"
 
@@ -325,19 +326,15 @@ export function Session() {
   // This runs after the event store has updated and writes only changed ID sets,
   // status or revert state, never high-frequency part text or a timer tick.
   createEffect(() => {
-    const rev = session()?.revert
-    const reverted = rev?.messageID && !rev.partID
-      ? revertedRun(messages(), rev.messageID, (m) => isSyntheticTextMessage(m))
-      : undefined
-    divergenceReporter.observe({
-      sessionID: route.sessionID,
-      status: sync.data.session_status[route.sessionID]?.type ?? "unknown",
-      arrived: sync.data.arrived[route.sessionID] ?? [],
-      held: (sync.data.message[route.sessionID] ?? []).map((m) => m.id),
-      listed: messagesList().filter((m) => !("_source" in m) || m._source === route.sessionID).map((m) => m.id),
-      revertID: rev?.messageID,
-      exempt: (id) => reverted?.has(id) ? "reverted run" : undefined,
-    })
+    divergenceReporter.observe(
+      sessionTranscriptInput({
+        sessionID: route.sessionID,
+        data: sync.data,
+        listed: messagesList(),
+        revert: session()?.revert,
+        revertedRun: (id) => revertedRun(messages(), id, (m) => isSyntheticTextMessage(m)),
+      }),
+    )
   })
 
   // Consecutive memory rows (message* + L1 summary panels) collapse into one

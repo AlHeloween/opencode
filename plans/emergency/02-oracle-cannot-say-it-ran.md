@@ -5,7 +5,9 @@
      event-driven, bounded client trace distinguishes event arrival, stored rows and listed rows;
      actual terminal visibility is checked against a separate captured frame -->
 
-**Status: OPEN — product-level liveness was not delivered by `5a87a8baa9`.**
+**Status: OPEN — product-level liveness was not delivered by `5a87a8baa9`.** 2026-10-07: the dead
+arrival write is fixed and the caller is proven by test (see the caller box); the first box and the
+live-frame box stay open until a live run shows `arrivedCount > 0`.
 
 ✗ `index.tsx:344,353-355` returns on empty held and skips every id already listed before calling
 `report()`. A healthy session therefore cannot write the purported `alive` line. The reporter-only
@@ -21,6 +23,9 @@ below as the record of the failed approach, not as acceptance.
       `tui-divergence/<pid>.jsonl`. An initial empty snapshot is a known observation, NOT a pass;
       a healthy arrival must produce a later snapshot and no hidden finding. `listed` means the
       transcript's computed list, not pixels actually painted by OpenTUI.
+      2026-10-07: still open. ✗ The live traces refuted the arrival ids (always 0); the write is
+      fixed and caller-tested (see the caller box), but «a healthy arrival must produce a later
+      snapshot» on the REAL Session is only shown by the live-frame box.
 - [x] Classify arrived+held+not-listed (unless legitimately reverted), arrived+not-held, and
       healthy listed states without conflating them. Append only on transitions, not every reactive
       render or on a timer. Make write errors visible through the existing client logging surface
@@ -29,9 +34,32 @@ below as the record of the failed approach, not as acceptance.
       exemption, dedup, bounded ids and failed-write callback); typecheck
       `20260927T153759Z_948e8442` exit 0. The earlier parallel run
       `20260927T153759Z_1eaf93b8` printed 15 pass but exited -1; it is not the stamp.
-- [ ] Prove the real caller feeds the instrument on an empty initial store AND on a healthy id;
+- [x] Prove the real caller feeds the instrument on an empty initial store AND on a healthy id;
       focused test reads the artifact back and forces the hidden and missing-store alternatives.
-      Only a live `cmd_runner` frame plus the corresponding trace can verify actual rendered pixels.
+      Evidence (2026-10-07, worktree `worktree-agent-a3b3b57d6701b6f32`):
+      ✓ ROOT CAUSE of the dead arrival channel (42 live traces / 6 028 snapshots, all
+      `arrivedCount: 0`): `sync.tsx` wrote `setStore("arrived", sid, produce(...))`; Solid's
+      `produce` runs its recipe only on a wrappable value, and every session starts with NO entry
+      (`undefined`), so the first — and therefore every — arrival was a no-op. Reproduced RED on the
+      real Solid store: `test/tui/arrival.test.ts` run `20261007T164357Z_d5942e4c`, 0 pass / 3 fail,
+      received `undefined`. Fix: `arrivalUpdate` in `util/divergence.ts` is a plain updater of the
+      previous value (creates the entry, newest first, dedup, bounded at `ARRIVED_MAX`); GREEN run
+      `20261007T164520Z_0332d466`, 3 pass / 0 fail.
+      ✓ Caller: the route's effect body is now the single call
+      `observe(sessionTranscriptInput({...}))`; `test/tui/divergence-caller.test.ts` drives that call
+      inside a real `createRoot`/`createEffect` over a real store fed the way `sync.tsx` feeds it,
+      from the EMPTY initial store, and reads the JSONL back: initial `arrivedCount 0` snapshot, then
+      a healthy `arrivedCount 1 / held 1 / listed 1 / hidden 0` one; status transition; hidden vs
+      missing-store forced apart; reverted run exempt. Run `20261007T164605Z_d31b6dbd`, 4 pass / 0
+      fail. Fallibility: with the absent-key no-op re-introduced as a mutation, run
+      `20261007T164549Z_cb2bed99` went 0 pass / 4 fail. Reporter suite `test/tui/divergence.test.ts`
+      run `20261007T164531Z_c6f9fd3e`, 6 pass / 0 fail; `bun typecheck` run
+      `20261007T164610Z_ae17e6fa` exit 0. Limit: the `Session` component itself is not mounted (it
+      needs the whole TUI provider tree); the test runs the same functions its effect calls.
+- [ ] Live frame: a candidate TUI run under `cmd_runner` with a NEW arrival must show
+      `arrivedCount > 0` in `tui-divergence/<pid>.jsonl` next to a captured frame. Only a live
+      `cmd_runner` frame plus the corresponding trace can verify actual rendered pixels. Needs a
+      running TUI — not done.
 
 Baseline oracle: old `bun test test/tui/divergence.test.ts` from `packages/opencode` passed
 11/0 (`20260927T153247Z_241ffd82`) despite the blind caller. The new interface went RED on

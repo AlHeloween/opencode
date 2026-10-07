@@ -1,5 +1,15 @@
 # Progress Log
 
+## [2026-10-07 16:50Z] tui divergence: the arrival channel was dead — `produce` on an absent store key writes nothing (plan emergency/02)
+
+✓ **Root cause** — 42 live traces / 6 028 snapshots in `.opencode/data/tui-divergence/*.jsonl` all had `arrivedCount: 0`. `context/sync.tsx` (`message.updated`) wrote `setStore("arrived", sid, produce(...))`; Solid's `produce` calls its recipe only on a wrappable value, and every session starts with no `arrived` entry, so every arrival was a no-op. Reproduced RED on a real Solid store: `test/tui/arrival.test.ts` run `20261007T164357Z_d5942e4c`, 0/3, received `undefined`.
+
+✓ **Fix** — `arrivalUpdate(messageID)` in `cli/cmd/tui/util/divergence.ts` (with `ARRIVED_MAX` moved there): a plain updater of the previous value that creates the entry, keeps newest first, dedups and bounds at 400; `sync.tsx` calls it. GREEN run `20261007T164520Z_0332d466`, 3/3.
+
+✓ **Caller** — the Session route's effect body is now one call, `divergenceReporter.observe(sessionTranscriptInput({...}))`. `test/tui/divergence-caller.test.ts` runs that call in a real `createRoot`/`createEffect` over a real store fed as `sync.tsx` feeds it, from the empty initial store, and reads the JSONL back (initial 0-snapshot, healthy arrival, status transition, hidden vs missing-store, reverted run exempt): run `20261007T164605Z_d31b6dbd`, 4/4. A mutation that re-introduces the absent-key no-op turns it 0/4 (run `20261007T164549Z_cb2bed99`). `test/tui/divergence.test.ts` 6/6 (run `20261007T164531Z_c6f9fd3e`); `bun typecheck` exit 0 (run `20261007T164610Z_ae17e6fa`).
+
+✗ **Residual** — the `Session` component itself is not mounted by the test (it needs the whole provider tree). A live candidate run that shows `arrivedCount > 0` next to a captured frame is still owed: plan boxes 1 and «live frame» stay open.
+
 ## [2026-10-07 11:45Z] mcp: a bare `{ enabled: false }` entry is a disabled server, not a malformed one
 
 ✓ **Defect** — `src/mcp/index.ts` state init ran `isMcpConfigured` (needs `type`) before the `enabled === false` check, so the documented disable form (`config.ts` mcp schema «legacy `{ enabled: false }` form», `codegraph-mcp-auto.ts` header, `docs/codegraph-mcp.md` § Manual override) logged `error "Ignoring MCP config entry without type"` on every instance start, and `status()` skipped it, so the sidebar/dialog never showed it as Disabled. Fixed in `a1ad4a3f46`: the `enabled === false` check comes before the type guard (every member of the mcp union has `enabled`); `status()` keeps a no-type entry when it is disabled; `log.error` stays for a no-type entry that is not disabled (`{ enabled: true }` names nothing to start).

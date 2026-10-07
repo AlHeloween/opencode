@@ -406,12 +406,11 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
   [8] Node 22, [8b] Chromium (Chrome for Testing), [8c] Playwright driver (where B1d belongs), [9] SearXNG into the
   portable Python, [10] websurfx, then it GENERATES `config.jsonc`, `start_all.bat` (:674), `stop_all.bat` (:884),
   `install_services.bat` (:926), `uninstall_services.bat`, `run_only.bat`, `add_paths.bat` (:1149), `setup_env.bat`
-  (:1236), README/index/DOCINDEX. Consequences: B1 = EXTEND `build_portable.ps1` (robot from `opencode/bin`, crw from
-  the fork, Git from Smit2's portable tree, the 7 script hazards fixed in the GENERATOR — a fix in Smit2's `.bat`
-  is reverted by the next build); Smit2 is that builder's output and the working reference, not something to avoid.
-  The Go pieces below stay as what they are — VERIFIERS on top of the builder's output (gate, manifest) and the robot
-  copy-by-list — and are recorded here as the only invention, justified: no existing tool scans for credentials or
-  writes a verifiable manifest. Leaves, in order (home `installer/` at the repo root, tracked):
+  (:1236), README/index/DOCINDEX. **Owner's ruling the same day: «Пиши на го, как задумал, просто используй то что
+  уже сделано как реф.»** So the builder stays Go (`installer/`), and `build_portable.ps1` + Smit2 are the REFERENCE:
+  what goes in, from where, in which layout, with which service settings, start order and env — each Go component
+  names the reference step it mirrors; the 7 script hazards are not carried over. Leaves, in order (home
+  `installer/` at the repo root, tracked):
   - [x] **B1a secret gate** (test first): scan the staged tree; FAIL on an auth/credential file by name, a key/token
     field with a non-empty value, a fixed SearXNG `secret_key`; report path + rule, never the value. Fixtures: a planted
     fake key → FAIL, a clean tree → PASS, a commented example / public CA bundle → PASS.
@@ -515,8 +514,22 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
       byte-identical manifest (`20261007T012528Z_5a428ad4`), `verify` 0 differences (exit 0 — read by a direct run:
       cmd_runner closed that run «by health-check (pid absent or creation tick mismatch)» with `exit_code: null`,
       `bytes_written: 0` while its log held the output — a cmd_runner defect: such a run's verdict is UNKNOWN), a
-      rebuild into the full stage refused. Remaining components: search stack, Chromium, portable Git (official
-      PortableGit 2.54.0 + sha256), Python, node/playwright-driver, VDD driver, cua skill pack.
+      rebuild into the full stage refused.
+    - [x] **B1c.2 portable runtimes from the reference (Smit2 / build_portable.ps1)** — components `git` (Smit2's
+      portable Git 2.54.0, uninstaller files + inner installer skipped — no download), `python` ([7]+[9]), `node`
+      ([8]), `chromium` ([8b], «First Run» skipped), `playwright-driver` ([8c]), `searxng` ([9]; `tests/`,
+      `container/` and the borrowed-key `engines/pexels.py` skipped), `searxng-settings` (the VETTED keep_only-15
+      `universal-search/config/searxng/settings.yml` — Smit2 had pointed SEARXNG_SETTINGS_PATH at the full default),
+      `nssm` ([6]). New `Rewrite` (line pattern, never a value, exactly one match — red→green, 13/13 PASS
+      `20261007T014153Z_deb34452`): `searx/settings.yml` `secret_key` → SearXNG's own placeholder, which
+      `webapp.py:1360` refuses with `sys.exit(1)`, so the per-install `SEARXNG_SECRET` (`settings_defaults.py:218`)
+      becomes mandatory for the installer and a missing one fails loudly. Real build (`20261007T014216Z_f65fb863`):
+      gate predicted to fail ONLY on that line before the rewrite (`20261007T014005Z_b24f76ce`: exactly so), after it
+      PASS with the 2 reasoned allows, 23 348 files / 3 030 931 956 B; second build byte-identical manifest
+      (`20261007T014316Z_897a944b`); skipped paths absent and the vetted settings byte-equal ✓ `ls`/`cmp`. Risk noted:
+      Stage copies files only, so Git's empty `dev/`, `tmp/` are not created — whether msys needs them on a pristine
+      host is for B6. Remaining components: universal-search (new `/search` build) + config, the crw fork + its
+      loopback config, garnet/websurfx (owner decision pending), the VDD driver, the cua skill pack.
   - [ ] **B1d playwright-rs driver 404 countermeasure** in the search build (provision `playwright-core` into the
     build-script OUT_DIR, reset its fingerprint) — second occurrence, KAIZEN.
   - [ ] **B1e end-to-end**: build → gate PASS → manifest → the built tree contains no `auth.json` and no model id.

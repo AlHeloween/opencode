@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -18,6 +19,16 @@ type Component struct {
 	Files []string // files directly copied, relative to From
 	Dirs  []string // directories copied recursively, relative to From
 	Skip  []string // slash-separated paths under From left out of a listed directory; each must match something
+
+	Rewrites []Rewrite // line rewrites applied to staged files
+}
+
+// Rewrite replaces the one line of a staged file (Path, relative to From) matching Pattern with With ($1… refer to
+// Pattern's groups). It names a line shape, never a value, and must match exactly one line.
+type Rewrite struct {
+	Path    string
+	Pattern string
+	With    string
 }
 
 // Runtime litter a listed directory may carry: rewritten at run time (Python bytecode) or per-install state.
@@ -92,7 +103,42 @@ func stageOne(c Component, out string) error {
 	if len(unused) > 0 {
 		return fmt.Errorf("skip entries matched nothing: %s", strings.Join(unused, ", "))
 	}
+	for _, rw := range c.Rewrites {
+		if err := rewriteLine(filepath.Join(dest, filepath.FromSlash(rw.Path)), rw); err != nil {
+			return fmt.Errorf("rewrite %s %q: %w", rw.Path, rw.Pattern, err)
+		}
+	}
 	return nil
+}
+
+func rewriteLine(file string, rw Rewrite) error {
+	re, err := regexp.Compile(rw.Pattern)
+	if err != nil {
+		return err
+	}
+	b, err := os.ReadFile(file)
+	if err != nil {
+		return err
+	}
+	lines := strings.Split(string(b), "\n")
+	hit := -1
+	for i, l := range lines {
+		if re.MatchString(strings.TrimRight(l, "\r")) {
+			if hit >= 0 {
+				return fmt.Errorf("matches lines %d and %d, want exactly one", hit+1, i+1)
+			}
+			hit = i
+		}
+	}
+	if hit < 0 {
+		return fmt.Errorf("matches no line")
+	}
+	cr := strings.HasSuffix(lines[hit], "\r")
+	lines[hit] = re.ReplaceAllString(strings.TrimRight(lines[hit], "\r"), rw.With)
+	if cr {
+		lines[hit] += "\r"
+	}
+	return os.WriteFile(file, []byte(strings.Join(lines, "\n")), 0o644)
 }
 
 func copyFile(src, dst string) error {

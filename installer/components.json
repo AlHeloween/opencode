@@ -1,6 +1,17 @@
 {
-  "_comment": "Bundle composition (plan robot-installer B1c). Paths are relative to this file. A component is copied by an explicit list: anything unnamed - bin/ also holds auth.json, the encryption key, *.enc, gateway.jsonc, opencode.jsonc, locks/, .opencode/ - never reaches the bundle. Rebranding to smit comes later (owner, 2026-10-07).",
-  "allow": [],
+  "_comment": "Bundle composition (plan robot-installer B1c). Paths are relative to this file unless absolute. A component is copied by an explicit list: anything unnamed - bin/ also holds auth.json, the encryption key, *.enc, gateway.jsonc, opencode.jsonc, locks/, .opencode/ - never reaches the bundle. Reference for layout and contents: universal-search/build_portable.ps1 and its output d:/!Smit/Smit2 (owner, 2026-10-07: «используй то что уже сделано как реф»). Rebranding to smit comes later.",
+  "allow": [
+    {
+      "path": "chromium/resources/accessibility/reading_mode_gdocs_helper_manifest.json",
+      "rule": "key-field",
+      "reason": "Chromium's own component manifest key, shipped by Chrome for Testing upstream - not ours"
+    },
+    {
+      "path": "node/node-v22.9.0-win-x64/node_modules/corepack/dist/lib/corepack.cjs",
+      "rule": "key-field",
+      "reason": "npm registry signing PUBLIC keys (MFkw... = EC SubjectPublicKeyInfo) inside Node's corepack"
+    }
+  ],
   "components": [
     {
       "name": "robot",
@@ -22,6 +33,73 @@
         "tools/init_delphi.cmd", "tools/init_delphi.ps1", "tools/init_msvc.cmd", "tools/init_msvc.ps1",
         "tools/build_delphi_msbuild.cmd", "tools/build_delphi_msbuild.ps1"
       ]
+    },
+    {
+      "name": "git",
+      "_ref": "Smit2 git/ (user-added Git for Windows 2.54.0, used portably via git\\cmd - add_paths.bat); the uninstaller files and the installer inside are leftovers",
+      "from": "D:/!Smit/Smit2/git",
+      "to": "git",
+      "dirs": ["."],
+      "skip": ["unins000.dat", "unins000.exe", "unins001.dat", "unins001.exe", "unins001.msg", "Git-2.54.0-64-bit.exe"]
+    },
+    {
+      "name": "python",
+      "_ref": "build_portable.ps1 [7] portable Python 3.12 + [9] SearXNG deps",
+      "from": "D:/!Smit/Smit2/python",
+      "to": "python",
+      "dirs": ["."]
+    },
+    {
+      "name": "node",
+      "_ref": "build_portable.ps1 [8] portable Node.js 22",
+      "from": "D:/!Smit/Smit2/node",
+      "to": "node",
+      "dirs": ["."]
+    },
+    {
+      "name": "chromium",
+      "_ref": "build_portable.ps1 [8b] Chrome for Testing; «First Run» is first-run state",
+      "from": "D:/!Smit/Smit2/chromium",
+      "to": "chromium",
+      "dirs": ["."],
+      "skip": ["First Run"]
+    },
+    {
+      "name": "playwright-driver",
+      "_ref": "build_portable.ps1 [8c] Playwright driver (own node.exe) for /web/browser",
+      "from": "D:/!Smit/Smit2/playwright-driver",
+      "to": "playwright-driver",
+      "dirs": ["."]
+    },
+    {
+      "name": "searxng",
+      "_ref": "build_portable.ps1 [9] SearXNG source patched for Windows; tests/container are not runtime; pexels.py hard-codes a borrowed third-party key and pexels is not a vetted engine",
+      "from": "D:/!Smit/Smit2/searxng-src",
+      "to": "searxng-src",
+      "dirs": ["."],
+      "skip": ["tests", "container", "searx/engines/pexels.py"],
+      "rewrites": [
+        {
+          "_why": "Smit2 ships a FIXED secret_key here; SearXNG's own placeholder makes webapp.py:1360 refuse to start, so the installer's per-install SEARXNG_SECRET (settings_defaults.py:218) is mandatory, never shared",
+          "path": "searx/settings.yml",
+          "pattern": "^(\\s*)secret_key: .*$",
+          "with": "${1}secret_key: \"ultrasecretkey\""
+        }
+      ]
+    },
+    {
+      "name": "searxng-settings",
+      "_ref": "the vetted settings (keep_only 15 official-API engines) - Smit2 pointed SEARXNG_SETTINGS_PATH at the full default searx/settings.yml instead",
+      "from": "../../universal-search/config/searxng",
+      "to": "config/searxng",
+      "files": ["settings.yml"]
+    },
+    {
+      "name": "nssm",
+      "_ref": "build_portable.ps1 [6] NSSM portable service manager",
+      "from": "D:/!Smit/Smit2",
+      "to": "",
+      "files": ["nssm.exe"]
     }
   ]
 }

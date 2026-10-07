@@ -1,6 +1,12 @@
-import { test, expect, mock, beforeEach } from "bun:test"
+import { test, expect, mock, beforeEach, beforeAll, afterAll, spyOn, setDefaultTimeout } from "bun:test"
 import { Effect } from "effect"
+import * as Log from "@opencode-ai/core/util/log"
 import type { MCP as MCPNS } from "../../src/mcp/index"
+
+// Each test boots a full Instance; on a loaded host one takes > 5 s, bun's default
+// times it out, its body keeps running and then fails against the NEXT test's
+// beforeEach-reset mocks (run 20261007T111902Z_4625b431: 3 such reds, 21/21 alone).
+setDefaultTimeout(20_000)
 
 // --- Mock infrastructure ---
 
@@ -168,6 +174,20 @@ beforeEach(() => {
   connectError = "Mock transport cannot connect"
   clientCreateCount = 0
   transportCloseCount = 0
+})
+
+// Config load auto-injects mcp.codegraph whenever the worktree has .codegraph/ or
+// `codegraph` is on PATH (config/codegraph-mcp-auto.ts) — true on this host. The
+// injected server then joins every withInstance() config: one more client, one
+// more tool, and a 120 s connect that the timeout tests wait on. These tests own
+// their MCP config, so they opt out.
+const codegraphMcpEnv = process.env.OPENCODE_CODEGRAPH_MCP
+beforeAll(() => {
+  process.env.OPENCODE_CODEGRAPH_MCP = "0"
+})
+afterAll(() => {
+  if (codegraphMcpEnv === undefined) delete process.env.OPENCODE_CODEGRAPH_MCP
+  else process.env.OPENCODE_CODEGRAPH_MCP = codegraphMcpEnv
 })
 
 // Import after mocks
@@ -490,6 +510,34 @@ test(
 
         const status = yield* mcp.status()
         expect(status["disabled-server"]?.status).toBe("disabled")
+      }),
+  ),
+)
+
+// The legacy `{ enabled: false }` form (no `type`) is the documented way to
+// disable a server — config.ts mcp schema, codegraph-mcp-auto.ts header,
+// docs/codegraph-mcp.md § Manual override. It is a disabled server, not a
+// malformed entry: status() must report it and init must not log an error.
+test(
+  "bare { enabled: false } entry is reported as disabled without an error log",
+  withInstance(
+    {
+      codegraph: { enabled: false },
+    },
+    (mcp) =>
+      Effect.gen(function* () {
+        const countBefore = clientCreateCount
+        const errorSpy = spyOn(Log.create({ service: "mcp" }), "error")
+        try {
+          const status = yield* mcp.status()
+          // Log first: a red baseline on this line proves the spy observes
+          // state init (init is lazy — it runs inside status()).
+          expect(errorSpy.mock.calls.map((call) => call[0])).not.toContain("Ignoring MCP config entry without type")
+          expect(status["codegraph"]).toEqual({ status: "disabled" })
+          expect(clientCreateCount).toBe(countBefore)
+        } finally {
+          errorSpy.mockRestore()
+        }
       }),
   ),
 )

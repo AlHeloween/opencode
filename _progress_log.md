@@ -1,5 +1,15 @@
 # Progress Log
 
+## [2026-10-07 11:45Z] mcp: a bare `{ enabled: false }` entry is a disabled server, not a malformed one
+
+✓ **Defect** — `src/mcp/index.ts` state init ran `isMcpConfigured` (needs `type`) before the `enabled === false` check, so the documented disable form (`config.ts` mcp schema «legacy `{ enabled: false }` form», `codegraph-mcp-auto.ts` header, `docs/codegraph-mcp.md` § Manual override) logged `error "Ignoring MCP config entry without type"` on every instance start, and `status()` skipped it, so the sidebar/dialog never showed it as Disabled. Fixed in `a1ad4a3f46`: the `enabled === false` check comes before the type guard (every member of the mcp union has `enabled`); `status()` keeps a no-type entry when it is disabled; `log.error` stays for a no-type entry that is not disabled (`{ enabled: true }` names nothing to start).
+
+✓ **Test first** — `test/mcp/lifecycle.test.ts` «bare { enabled: false } entry is reported as disabled without an error log» spies on the real `mcp` logger (cached per service in `core/util/log.ts`). Red at the log assertion before the fix (run `20261007T111659Z_b9e5d02e`); 21/21 after (run `20261007T112223Z_de0df145`); 21/21 under a concurrent `_build.ps1` (run `20261007T112436Z_b6ace80e`).
+
+✓ **Inherited red, stabilized first** (`558a3d3d04`) — the file did NOT opt out of codegraph MCP auto-inject (git log -S: never did), so 10 of 20 existing tests were red on this host: an extra injected `codegraph` client/tool/prompt/resource, and the timeout tests hung on its 120 s connect (run `20261007T111542Z_666359ca`). Added `OPENCODE_CODEGRAPH_MCP=0` in beforeAll/afterAll. Then `898032d265`: file-level `setDefaultTimeout(20_000)`. Under typecheck load 3 tests passed 5 s and their bodies failed against the next test's reset mocks (run `20261007T111902Z_4625b431`).
+
+✓ **Build / typecheck** — `_build.ps1` exit 0 (run `20261007T114334Z_9c47428b`), `bun typecheck` exit 0 (run `20261007T114444Z_88b2e69a`). ✗ **Residual (fresh worktree)**: `_opentui.ps1` cannot pass on a fresh checkout. The core build writes `opentui.dll` to `native/lib/x86_64-windows/` and `core/node_modules/@opentui/core-win32-x64/`, while `_opentui.ps1:98`, `_build.ps1:259`, `build-prerequisites.ts` and `build.ts:148` read `packages/opentui/packages/core-win32-x64/opentui.dll` (hand-placed 2026-09-21 in the main checkout). It also needs Zig 0.16 ahead of choco's 0.15.2, Git `sh`, and `llvm-readobj` on PATH; `opentui-spinner` needs its own `bun run build`. Worked around by hand for this run; filed as a separate task.
+
 ## [2026-10-06 03:35Z] question tool: the answer never left the TUI — a host-hop fetch timeout killed the worker and the reply was dropped silently (owner rebuilt; the class is UNFIXED)
 
 Symptom (owner, RView session `ses_ef127c835ffeqEfMi6MkbFsmSh`): the questionnaire could not be answered — «поломали опросник / Confirm пропал». The tool call was ONE question, `multiple` absent (3 options) → `single()` (question.tsx:24, «no confirm for single select») → no Confirm tab BY DESIGN; the break was elsewhere.

@@ -640,5 +640,8 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
   **For B5 (measured the same day):** the free default once answered `503 Upstream error from Nvidia: Service
   temporarily overloaded`; 6/6 retries over both free models then answered in 13–16 s. So the «привет» check must
   retry with backoff and then try the second verified model before it reports a failure (M3/M4).
+  **Found after B4's build** («.temp/test/ - 1 entries still in use»): a `codegraph serve --mcp --path <workspace>`
+  node.exe pair spawned by a one-shot `opencode run` outlived the robot (alive from 13:16 until stopped by hand) —
+  clients would collect such orphans per run → separate task (robot's MCP child lifecycle).
 - [ ] **B5 hello smoke:** final step starts the robot, sends «привет», shows the answer or a classified failure. <!-- sv: hello-smoke, failure-classes, final-check --> 
 - [ ] **B6 pristine-VM acceptance:** A0–A5 on a reverted snapshot, network disconnected for install. <!-- sv: acceptance, pristine-vm, offline -->

@@ -406,6 +406,15 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
     ffmpeg, `tools/` (adm, cmd_runner, fd, fossil, rg, rclone, samply, …), `cua/`, `codegraph/` — **git is NOT in
     `bin/`**: it is a system tool, taken from PATH. So the bundle must give the robot a git without clobbering a
     user's own Git — decision pending (owner: «с гитом очень аккуратно»).
+    **DECIDED 2026-10-07** (owner: «Юзаем портативный»; «Opencode.exe, бери для сборки то что лежит тут в bin»):
+    git = ALWAYS the bundle's portable Git, first on the robot's own PATH (set by the shortcut / portable launcher —
+    never the system PATH, never a user's Git). Measured: Smit2's `git/` is an INSTALLED Git 2.54.0, not a portable
+    one — it carries `unins000/001.*` and the installer `Git-2.54.0-64-bit.exe` itself (9 513 files, 481 843 219 B) →
+    B1c takes the official `PortableGit-2.54.0-64-bit` release, downloaded once at BUILD time and checked against the
+    release's published sha256; install stays offline. The robot = `opencode.exe` (name kept) + its neighbours, taken
+    from this repo's `bin/` (read/copy only, never launched, never written; secrets kept out by the B1a gate). Note:
+    `bin/opencode.exe` is 2026-10-06 23:05 (302 981 632 B) — BEFORE R1; R1 lives in `dist/bin/opencode.exe`
+    (2026-10-07 08:58) and reaches the bundle when the owner promotes it into `bin/`.
     **Never copy `bin/` wholesale:** it also holds `auth.json`, `auth.json.enc` + its `.tmp.*` copies,
     `.opencode.encryption.key` (44 B), `gateway.jsonc`, `opencode.jsonc(.enc)`, `locks/`, `.opencode/data/` ✓ listed.
     Gate gap found by that listing: B1a catches `auth.json` but NOT the encryption key (a `.key` file is only read for

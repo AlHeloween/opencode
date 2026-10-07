@@ -100,8 +100,9 @@ export interface Interface {
    */
   readonly impact: (from: string, to: string) => Effect.Effect<ImpactSummary>
   /**
-   * Read the sym tag from the current fossil checkout.
-   * Hard-fails if tag/MCP metadata missing — never soft-returns undefined success.
+   * Impact of the LAST snapshot: the brief from fossil (`diff --brief` parent → checkout) and the
+   * elements from the readonly CodeGraph SQLite pack over those files — no MCP, no `sym` tag.
+   * Hard-fails when the CodeGraph index is missing — never soft-returns an empty success.
    */
   readonly lastImpact: () => Effect.Effect<ImpactSummary>
 }

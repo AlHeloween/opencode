@@ -12,7 +12,7 @@ import { Service as SnapshotService, type Interface, type Patch, type FileDiff, 
 // asks the graph a question when the answer is needed. It is deliberately NOT called from `track`
 // (the turn path): see the note above `return afterHash`.
 import { hasCodegraphIndex, mcpTouchThenSqlitePack } from "@/codegraph/mcp-client"
-import { packToImpactFields } from "@/codegraph/sqlite-pack"
+import { packGraphForFiles, packToImpactFields } from "@/codegraph/sqlite-pack"
 import { composeIgnoreGlob } from "./ignore-glob"
 
 const log = Log.create({ service: "snapshot-fossil" })
@@ -21,20 +21,19 @@ function currentHash(text: string): string | undefined {
   return text.match(/^checkout:\s+([a-f0-9]+)/m)?.[1] ?? text.match(/^hash:\s+([a-f0-9]+)/m)?.[1]
 }
 
-/** Parse structural tag value from `fossil tag list CHECKIN` output (`sym=VALUE` or `sym VALUE`). */
-function parseSymTagValue(tagListText: string): string | undefined {
-  for (const line of tagListText.split("\n")) {
-    const t = line.trim()
-    // Prefer name=value (current fossil list format)
-    const eq = t.match(/^sym=(.+)$/)
-    if (eq?.[1]) return eq[1].trim()
-    // Legacy / alternate: "sym  value"
-    if (t.startsWith("sym ") || t.startsWith("sym\t")) {
-      const v = t.slice(3).trim()
-      if (v) return v
-    }
-  }
-  return undefined
+/** The checkout's parent out of `fossil info` (`parent: <hash> <date>`); absent on a first check-in. */
+function parentHash(text: string): string | undefined {
+  return text.match(/^parent:\s+([a-f0-9]+)/m)?.[1]
+}
+
+/** Paths out of `fossil diff --brief` (`EDITED path`, `ADDED path`, `DELETED path`), `/`-separated. */
+function briefPaths(text: string): string[] {
+  return text
+    .trim()
+    .split("\n")
+    .map((l) => l.replace(/^[A-Z]+\s+/, "").trim())
+    .filter((f) => f.length > 0)
+    .map((f) => f.replace(/\\/g, "/"))
 }
 
 // Find fossil binary: canonical side-installer `tools/` first (repo root and
@@ -1062,12 +1061,7 @@ export const layer = Layer.effect(
                 )
               }
 
-              const changedFiles = diff.text
-                .trim()
-                .split("\n")
-                .map((l: string) => l.replace(/^[A-Z]+\s+/, "").trim())
-                .filter((f: string) => f.length > 0)
-                .map((f: string) => f.replace(/\\/g, "/"))
+              const changedFiles = briefPaths(diff.text)
 
               if (changedFiles.length === 0) {
                 const empty: ImpactSummary = {
@@ -1110,60 +1104,41 @@ export const layer = Layer.effect(
                 return yield* Effect.fail(new Error("fossil snapshot not initialized"))
               }
 
+              // THE BRIEF from fossil, THE IMPACT from the graph (codegraph-impact-decoupling C5). This used
+              // to decode the `sym` tag — measured EMPTY on the live checkouts 2026-09-29, and written by
+              // nobody since C1 took the CodeGraph touch off the commit path. Same contract as `impact()`:
+              // no index ⇒ a failure that names it, never an empty answer that reads as «no structure».
+              if (!hasCodegraphIndex(worktree)) {
+                return yield* Effect.fail(
+                  new Error(`No .codegraph/ in ${worktree}. Initialize CodeGraph (codegraph init) before impact.`),
+                )
+              }
+
               const info = yield* fossil(["info"], { cwd: worktree })
               const hash = currentHash(info.text)
               if (!hash) {
                 return yield* Effect.fail(new Error("no fossil checkout hash"))
               }
-
-              const tag = yield* fossil(["tag", "list", hash], { cwd: worktree })
-              if (tag.code !== 0 || !tag.text.trim()) {
-                return yield* Effect.fail(
-                  new Error(
-                    `No fossil tags for ${hash}. Structural sym tag requires CodeGraph MCP on track.`,
-                  ),
-                )
+              // No parent = the repository's first check-in: there is nothing to diff, and the brief is empty.
+              const parent = parentHash(info.text)
+              const diff = parent
+                ? yield* fossil(["diff", "--from", parent, "--to", hash, "--brief"], { cwd: worktree })
+                : undefined
+              if (diff && diff.code !== 0) {
+                return yield* Effect.fail(new Error(`fossil diff --brief failed (${parent} → ${hash})`))
               }
+              const changedFiles = diff ? briefPaths(diff.text) : []
 
-              // fossil tag list CHECKIN prints "name=value" (or bare name)
-              const tagValue = parseSymTagValue(tag.text)
-              if (!tagValue) {
-                return yield* Effect.fail(
-                  new Error(
-                    `No sym tag on ${hash}. MCP structural tagging did not run or failed hard previously.`,
-                  ),
-                )
-              }
-
-              const kindSection = tagValue.match(/KINDS:([^|]*)/)?.[1]
-              const symbolCountByKind: Record<string, number> = {}
-              if (kindSection) {
-                for (const pair of kindSection.split(",")) {
-                  const [k, v] = pair.split("=")
-                  if (k && v) symbolCountByKind[k] = parseInt(v) || 0
-                }
-              } else if (tagValue.startsWith("MCP:")) {
-                symbolCountByKind["mcp"] = 1
-              }
-
-              const topSection = tagValue.match(/TOP:([^|]*)/)?.[1]
-              const topSymbols = topSection
-                ? topSection.split(",").filter(Boolean)
-                : tagValue.startsWith("MCP:")
-                  ? [tagValue.slice(0, 200)]
-                  : []
-
-              const impactSection = tagValue.match(/IMPACT:([^|]*)/)?.[1]
-              const impactedFiles = impactSection ? impactSection.split(",").filter(Boolean) : []
-
+              // READONLY SQLite, no MCP: the last snapshot's impact is a lookup, not a refresh.
+              const fields = packToImpactFields(packGraphForFiles(worktree, changedFiles))
               const summary: ImpactSummary = {
-                from: hash,
+                from: parent ?? hash,
                 to: hash,
-                changedFiles: 0,
-                symbolCountByKind,
-                topSymbols,
-                impactedFiles,
-                callerCount: topSymbols.length,
+                changedFiles: changedFiles.length,
+                symbolCountByKind: fields.symbolCountByKind,
+                topSymbols: fields.topSymbols,
+                impactedFiles: fields.impactedFiles,
+                callerCount: fields.callerCount,
               }
               return summary
             }).pipe(Effect.orDie),

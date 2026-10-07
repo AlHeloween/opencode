@@ -306,6 +306,9 @@ describe("summary block shape", () => {
 
     const lines = buildGoalLines({
       planState,
+      // The window IS coupled (fold-carrier-integrity T1, 2026-10-08): a plan names the goal only
+      // when at least one vector in the window links to a plan. The uncoupled case is pinned below.
+      coupling: { checked: 1 },
       window: {
         messageID: "msg_opening",
         position: 7,
@@ -328,6 +331,49 @@ describe("summary block shape", () => {
 
     // No carrier ⇒ the goal is UNKNOWN and says so. It is a record, never an invented line.
     expect(buildGoalLines({}).join("\n")).toContain("goal: Unknown")
+  })
+
+  test("FALSIFIER — one ACTIVE plan does not name the goal of a window that is not coupled to it (fold-carrier-integrity T1)", () => {
+    // Measured 2026-09-26: a token-measurement session was handed a plan-shelf-triage goal. The >1-plan
+    // case already declined; ONE active plan was still named whatever the window was doing, because
+    // the goal carrier took no coupling input while the coupling count sat in the same block.
+    const file = "plans/2026-09-24_to-be-confirmed-shelf-triage.md"
+    const planState: PlanStatePayload = {
+      plans: [
+        {
+          file,
+          lifecycle: "ACTIVE",
+          intention: { from_state: "the shelf is unsorted", to_state: "the shelf is triaged" },
+          goal_sv: ["shelf", "triage"],
+          invariants: [],
+          tasks: [],
+        },
+      ],
+    }
+    const window = { messageID: "msg_req", position: 3, text: "Measure the token traffic." }
+
+    // Coupling 0 + the owner's words ⇒ the owner's words are the goal, the plan is NOT named, and
+    // the decline states its reason instead of swapping silently.
+    const uncoupled = buildGoalLines({ planState, coupling: { checked: 0 }, window }).join("\n")
+    expect(uncoupled).not.toContain(file)
+    expect(uncoupled).not.toContain("the shelf is triaged")
+    expect(uncoupled).toContain("goal (plan): UNKNOWN")
+    expect(uncoupled).toContain("0 vector link(s)")
+    expect(uncoupled).toContain('"Measure the token traffic."')
+
+    // Coupling 0 and NO owner request ⇒ Unknown with the reason, still never the plan.
+    const bare = buildGoalLines({ planState, coupling: { checked: 0 } }).join("\n")
+    expect(bare).not.toContain(file)
+    expect(bare).toContain("goal (plan): UNKNOWN")
+
+    // Coupling NOT MEASURED is not coupling: an absent oracle reads as FALSE (AGENTS.md invariant).
+    const unmeasured = buildGoalLines({ planState, window }).join("\n")
+    expect(unmeasured).not.toContain(file)
+    expect(unmeasured).toContain("coupling was not measured")
+
+    // The fallible half: a coupled window DOES get the plan, so the gate is not a blanket refusal.
+    const coupled = buildGoalLines({ planState, coupling: { checked: 2 }, window }).join("\n")
+    expect(coupled).toContain(`goal (plan \`${file}\`): the shelf is unsorted -> the shelf is triaged`)
   })
 
   test("FALSIFIER — weighted terms are read literally: left to right, stop at prose, never repaired", () => {

@@ -1,6 +1,7 @@
 /**
- * Production smoke: Snapshot.impact() and lastImpact() through the real
- * Fossil sidecar and configured Opencode CodeGraph MCP service.
+ * Production smoke: Snapshot.impact() through the real Fossil sidecar and the
+ * configured Opencode CodeGraph MCP service, and lastImpact() through the fossil
+ * brief + readonly SQLite pack (no MCP, no sym tag).
  *
  * Usage (from packages/opencode):
  *   bun test/codegraph/fossil_hybrid_impact_smoke.ts [from_hash to_hash]
@@ -47,13 +48,19 @@ async function main() {
   if (result.impact.topSymbols.length + result.impact.impactedFiles.length === 0) {
     fail("Snapshot.impact returned no structural fields")
   }
-  if (result.last.topSymbols.length + Object.keys(result.last.symbolCountByKind).length === 0) {
-    fail("Snapshot.lastImpact did not decode the Fossil sym tag")
+  // lastImpact reads the BRIEF (fossil diff --brief parent → checkout) and the readonly SQLite pack —
+  // the `sym` tag it used to decode is written by nobody since C1 (plans/2026-09-29_codegraph-impact-
+  // decoupling.md, C5). Its contract: a real checkout hash as `to`, and a brief whose size is a count.
+  if (!/^[a-f0-9]{10,}$/.test(result.last.to)) fail(`Snapshot.lastImpact returned no checkout hash: ${result.last.to}`)
+  if (!Number.isInteger(result.last.changedFiles) || result.last.changedFiles < 0) {
+    fail("Snapshot.lastImpact did not read the fossil brief of the last snapshot")
   }
 
   console.log(`impact: ${result.impact.changedFiles} changed files, ${result.impact.callerCount} callers`)
-  console.log(`last tag: ${Object.keys(result.last.symbolCountByKind).length} kinds, ${result.last.topSymbols.length} top symbols`)
-  console.log("PASS: Snapshot impact and Fossil sym-tag decode use configured MCP→SQLite hybrid")
+  console.log(
+    `last snapshot: ${result.last.changedFiles} changed files (${result.last.from.slice(0, 10)} → ${result.last.to.slice(0, 10)}), ${result.last.topSymbols.length} top symbols`,
+  )
+  console.log("PASS: Snapshot.impact uses the MCP→SQLite hybrid; lastImpact reads the fossil brief + SQLite pack")
 }
 
 main().catch((error) => {

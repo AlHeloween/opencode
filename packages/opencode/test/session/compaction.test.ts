@@ -3221,7 +3221,12 @@ describe("session.compaction.full-cycle", () => {
         // четкий реф»).
         expect(combined).toContain("--- Range accounting")
         expect(combined).toContain("tail: #")
-        expect(combined).toContain("not verifiable here")
+        // Unplaceable is still ADDRESSED (fold-carrier-integrity T3, 2026-10-08): the line names the
+        // cause and the region's sessionread address — never «unavailable» / «not verifiable» alone.
+        expect(combined).toContain("summaries: the rows carry no from_id/to_id to place")
+        expect(combined).not.toContain("positions unavailable")
+        expect(combined).not.toContain("not verifiable here")
+        expect(combined).toMatch(/continuity: .*precedes the tail: sessionread sessionId=\S+ offset=1 limit=\d+/)
       }),
     ),
   )
@@ -3296,8 +3301,19 @@ test("the closing continuity line names what the selector omits instead of calli
   expect(
     line({ tailFirst: 3002, summaryLast: 2998, between: { excluded: ["a summary row"], unrepresented: 2 } }),
   ).toContain("GAP — summaries end at #2998, tail starts at #3002 (2 message(s) represented by neither)")
-  // No positions to compare: SAY so rather than print a guess.
-  expect(line({ tailFirst: 3000 })).toContain("not verifiable here")
+  // No positions to compare: SAY so rather than print a guess — and print the ADDRESS of the region that
+  // could not be placed (fold-carrier-integrity T3, 2026-10-08). «not verifiable here» was an absence
+  // with no address, the exact failure `docs/compaction.md` § "absence has no representation" names.
+  const unplaced = line({ tailFirst: 3000, sessionID: "ses_x" })
+  expect(unplaced).not.toContain("not verifiable here")
+  expect(unplaced).toContain("#1..#2999")
+  expect(unplaced).toContain("sessionread sessionId=ses_x offset=1 limit=50")
+  // More than one page: the line says how to reach the END of the region, not only its first page.
+  expect(unplaced).toContain("through #2999")
+  // A short region fits one call, and the limit is the region's own size.
+  expect(line({ tailFirst: 5, sessionID: "ses_x" })).toContain("#1..#4 precedes the tail: sessionread sessionId=ses_x offset=1 limit=4")
+  // Nothing precedes the tail: there is no region, and the line says that instead of an address.
+  expect(line({ tailFirst: 1 })).toContain("nothing precedes the tail")
 })
 
 /**
@@ -3314,6 +3330,9 @@ test("the closing continuity line names what the selector omits instead of calli
  * promise, and the body silently never executes (measured: a test whose first statement was
  * `expect(1).toBe(2)` passed). A green from that shape is worth nothing.
  */
+/** The fixture plan's own label (its `md5:` header) — a fixed value, so the fold is deterministic. */
+const PLAN_LABEL = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
+
 it.live(
   "the fold's head carries memory, the plan's goal, the rows' own terms and the tail — all read",
   provideTmpdirInstance((dir) =>
@@ -3352,7 +3371,10 @@ it.live(
         // whose lifecycle is not ACTIVE/EXECUTING — so a plan written without it is invisible to the
         // fold and the goal silently loses its first carrier (measured while writing this test: the
         // head came back with the window's goal and no plan goal at all).
-        "# Head\n\n**Status:** ACTIVE\n\n- [ ] read the fold's head\n\n<!-- intention: the fold loses the why -> the fold reads it -->\n",
+        // The `md5:` header is the plan's own label (`planHeaderLabel`): a window vector whose
+        // `parent-goal-md5` names it is what COUPLES the window to the plan, and since
+        // fold-carrier-integrity T1 (2026-10-08) only a coupled window gets the plan as its goal.
+        "# Head\n\n```yaml\nmd5: " + PLAN_LABEL + "\n```\n\n**Status:** ACTIVE\n\n- [ ] read the fold's head\n\n<!-- intention: the fold loses the why -> the fold reads it -->\n",
         "utf8",
       )
       fs.mkdirSync(nodePath.join(dir, ".opencode", "data", "memory"), { recursive: true })
@@ -3365,7 +3387,9 @@ it.live(
       yield* say("Fix the fold — it loses the why.")
       // A reply's vector as @SV_FORMAT spells it (`Semantic dominant:` on its own line) — the summary-body
       // field `dominant: "…"` used here before is superseded (plans/2026-10-02_one-vector-predicate.md P1).
-      yield* say("did one thing\n\nSemantic dominant: first epoch\n\nKeywords: fold 0.60, memory 0.40")
+      yield* say(
+        "did one thing\n\nSemantic dominant: first epoch\n\nKeywords: fold 0.60, memory 0.40\nparent-goal-md5: " + PLAN_LABEL,
+      )
       yield* say("did another\n\nSemantic dominant: second epoch\n\nKeywords: tail 0.70, memory 0.30")
       yield* say("tail " + "y".repeat(140_000))
 
@@ -3415,6 +3439,31 @@ it.live(
       // An id is NAMED or POSITIONAL, never a truncated fragment of the title (the class the owner
       // caught in the live block: `Карта «план [PENDING]`).
       expect(head).not.toContain("TASK-1 [PENDING] · TASK-1")
+      // 7. THE GOAL BLOCK names the plan BECAUSE the window is coupled to it (fold-carrier-integrity T1):
+      // the fold measures coupling itself — read from the Goal block, not from the Plan-state block,
+      // which prints the same intention and would let an uncoupled goal pass unseen.
+      const goalBlock = head.slice(head.indexOf("--- Goal ---"), head.indexOf("\n\n", head.indexOf("--- Goal ---")))
+      expect(goalBlock).toContain("goal (plan `plans/2026-09-22_head.md`): the fold loses the why -> the fold reads it")
+      // 8. THE ADDRESS RESOLVES (fold-carrier-integrity T3). No summary places the folded region, so the
+      // continuity line prints a sessionread address for it. Read back THROUGH that address with the same
+      // walk `sessionread` uses (`MessageV2.stream`, oldest first) and compare with what the tail says.
+      const address = head.match(/continuity: .*precedes the tail: sessionread sessionId=(\S+) offset=(\d+) limit=(\d+)/)
+      expect(address).not.toBeNull()
+      expect(address![1]).toBe(info.id)
+      const tailStart = Number(head.match(/^tail: #(\d+)\.\./m)![1])
+      const all = [...MessageV2.stream(info.id)].reverse()
+      const offset = Number(address![2])
+      const limit = Number(address![3])
+      const region = all.slice(offset - 1, offset - 1 + limit)
+      // The address returns exactly the messages before the tail: it starts at #1 and ends at #tail-1.
+      expect(offset).toBe(1)
+      expect(region).toHaveLength(tailStart - 1)
+      const text = (m: MessageV2.WithParts) =>
+        m.parts.map((part) => (part.type === "text" ? (part as { text: string }).text : "")).join("")
+      expect(text(region[0]!)).toContain("Fix the fold — it loses the why.")
+      expect(text(region.at(-1)!)).toContain("second epoch")
+      // …and the message right after the region is the tail's first one.
+      expect(text(all[offset - 1 + limit]!)).toContain("tail yyyy")
     }),
   ),
 )

@@ -344,6 +344,29 @@ describe("the pushed compaction note", () => {
     expect(tailNote({ open: [], window: null })).toBe("")
   })
 
+  test("the @CURRENT_SV census sees a MID-WINDOW gap, not only the last reply (fold-carrier-integrity T2)", () => {
+    // Measured 2026-09-26 (plan P5): two replies in the observed window (#52, #54) carried no vector and
+    // the meter never surfaced them, because the LATER replies carried one and the line looked only at the
+    // last. The marks line already reports `N/M window replies with none`; the vector line now mirrors it.
+    const window = [
+      { role: "user", text: "first ask" },
+      { role: "assistant", text: "Answered, and the vector never made it." },
+      { role: "user", text: "second ask" },
+      {
+        role: "assistant",
+        text: "Done.\n\nKeywords: a 0.6, b 0.4\nSemantic dominant: one line.\nmd5: 11111111111111111111111111111111",
+      },
+    ]
+    const census = statusVector(window)
+    expect(census).toEqual({ present: true, missing: 1, replies: 2 })
+    const note = tailNote({ open: [], window: null, vector: census })
+    // The last-reply verdict is KEPT, and the window-wide count rides beside it.
+    expect(note).toContain("sv: @SV_FORMAT present in the last reply · 1/2 window replies without a vector")
+    // Printed at zero too — a count whose silence cannot be told from its absence is not a count.
+    const clean = statusVector(window.slice(2))
+    expect(tailNote({ open: [], window: null, vector: clean })).toContain("· 0/1 window replies without a vector")
+  })
+
   test("the confidence census — the marks are the model's, the count is the MACHINE's", () => {
     // Owner, 2026-09-22: «Сделай это системным алертом… ты сам будешь историю свою читать потом и
     // видеть — где ты был уверен, а где нет… это не эписистемология, это индикатор уверенности за 3

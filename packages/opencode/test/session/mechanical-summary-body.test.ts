@@ -236,6 +236,46 @@ test("the epoch carries a `dominant:` FIELD — the one line a later window sear
   expect(out.indexOf('dominant: "')).toBeLessThan(out.indexOf("Labels:"))
 })
 
+test("the impact line is ATTRIBUTED — never a bare `top symbols none` (codegraph-impact-decoupling C4)", () => {
+  // Measured 2026-09-29: the row read `Impact: 8 changed files, 0 callers; top symbols none` — no
+  // source, and `none` could not be told from «nothing ran». The graph's domain is CODE ONLY (no
+  // markdown, no cmd, no mjs in `files`), so a window that edited only plans has no graph rows at all.
+  const reply = msg("msg_1", "assistant", vector({ dominant: "план", md5: A, prevMd5: ZERO }))
+  const emptyImpact = { changedFiles: 2, callerCount: 0, topSymbols: [], impactedFiles: [] }
+
+  // The negative control the plan names: only `.md` / `.cmd` changed ⇒ `not applicable`.
+  const docs = body([reply], {
+    diffs: [
+      { file: "plans/2026-09-29_x.md", additions: 3, deletions: 1 },
+      { file: "scripts/run.cmd", additions: 1, deletions: 0 },
+    ],
+    impact: emptyImpact,
+  })
+  expect(docs).toContain("Impact: not applicable")
+  expect(docs).not.toContain("top symbols none")
+  expect(docs).not.toMatch(/Impact:[^\n]*\bnone\b/)
+
+  // A code file changed and the graph returned elements ⇒ `synced → elements`, with the source named.
+  const synced = body([reply], {
+    diffs: [{ file: "packages/opencode/src/session/compaction.ts", additions: 5, deletions: 2 }],
+    impact: { from: "codegraph-sqlite-cache", changedFiles: 1, callerCount: 4, topSymbols: ["buildGoalLines[function]"], impactedFiles: [] },
+  })
+  expect(synced).toContain("Impact (codegraph-sqlite-cache): synced → elements buildGoalLines[function]")
+  expect(synced).toContain("4 callers")
+
+  // A code file changed and the graph returned NOTHING for it ⇒ `not synced`, never `none`.
+  const stale = body([reply], {
+    diffs: [{ file: "packages/opencode/src/session/compaction.ts", additions: 5, deletions: 2 }],
+    impact: emptyImpact,
+  })
+  expect(stale).toContain("Impact: not synced → impact unverified")
+  expect(stale).not.toMatch(/Impact:[^\n]*\bnone\b/)
+
+  // A code file changed and NO impact was computed at all ⇒ also `not synced`, never silence.
+  const absent = body([reply], { diffs: [{ file: "src/a.ts", additions: 1, deletions: 0 }] })
+  expect(absent).toContain("Impact: not synced → impact unverified")
+})
+
 test("a lone reply with no vector spells no marker — a count cannot invent a hook", () => {
   // The degenerate shape that produced a FALSE hook. The Labels line counted `speakable.length`
   // (every assistant reply) while listing only the carriers, so a one-reply range printed

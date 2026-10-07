@@ -336,6 +336,22 @@ export function packToSymTag(pack: GraphPack, maxLen = 1500): string {
   return tag.length > maxLen ? tag.slice(0, maxLen) + "…" : tag
 }
 
+/**
+ * The file extensions of the languages the index HOLDS — read from the graph, not assumed. Measured
+ * 2026-09-29 on this project's `files` table (plans/2026-09-29_codegraph-impact-decoupling.md):
+ * typescript 3174 · rust 1695 · tsx 562 · python 127 · javascript 77 · yaml 41 · astro 14 · xml 13 ·
+ * c 7 · nix 4 · lua 1 · objc 1 — and NO markdown, cmd or mjs. A file outside this set has no row in
+ * the graph, so an empty impact over it is «not applicable», never «nothing ran».
+ */
+const GRAPH_EXTENSIONS = new Set([
+  ".ts", ".rs", ".tsx", ".py", ".js", ".yaml", ".yml", ".astro", ".xml", ".c", ".h", ".nix", ".lua", ".m",
+])
+
+/** Is this path in the code graph's DOMAIN (a language the index holds)? Pure — no DB read. */
+export function isGraphFile(file: string): boolean {
+  return GRAPH_EXTENSIONS.has(path.extname(file).toLowerCase())
+}
+
 export function packToImpactFields(pack: GraphPack): {
   symbolCountByKind: Record<string, number>
   topSymbols: string[]

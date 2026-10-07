@@ -26,9 +26,10 @@ visible when `m*` is rendered. It was, and the evidence is addresses rather than
 | one row is not in the head | row 1 (`ckpt_0e079be0f001M55eySXco0B8tT`, from `msg_0e02dab0…`) predates the retained head and survives as the fading link only | 10 of 11 render; the oldest is outside the head's range, which the range accounting states (`summaries: #329..#561`) |
 | the Goal gate fires on COUPLING, not position | the head reads `goal (plan): UNKNOWN — 2 plans state an intention and this window is coupled to none of them; nothing here may name one by position`, and `coupling: 0` | before the fix the same fold named `2026-09-24_to-be-confirmed-shelf-triage`, a plan the owner never set |
 
-**The last row is live evidence for `plans/2026-09-26_fold-carrier-integrity.md` T1**, and it is
+**The last row is live evidence for `plans_completed/2026-09-26_fold-carrier-integrity.md` T1**, and it is
 behaviour, not a closing artifact: whether that box can close is a code read against its acceptance,
-not this head. Recorded here so the next cycle does not re-derive it.
+not this head. Recorded here so the next cycle does not re-derive it. (T1 closed 2026-10-08 — the
+single-ACTIVE-plan case is now gated on coupling too; the run ids are in that plan.)
 
 **`--- Window topics ---` is still degenerate in a milder form:** `current-sv×30` against six terms at
 1-2. The carrier counts how many vectors carry a term in their own top-3, and I write `current-sv`

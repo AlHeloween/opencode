@@ -2,7 +2,7 @@
 
 # Fold carrier integrity — Goal linkage and the sv meter's blind spot
 
-Status: DRAFT (lifecycle ACTIVE). Four tasks, all small, all grounded at path:line.
+Status: COMPLETE (2026-10-08) — T1–T4 closed with run ids below; moved to `plans_completed/`.
 
 ## Why this plan exists
 
@@ -55,17 +55,32 @@ C2. Adding `${n}/${m} window replies without a vector` to the sv line catches a 
 
 ## Tasks
 
-- [ ] **T1 — Gate the plan goal on coupling.**
+- [x] **T1 — Gate the plan goal on coupling.**
       In `buildGoalLines` (`compaction.ts:1579`-`:1619`), accept the coupling count
       already available to the caller (`:788`). Emit the plan-intention line only when the
       window is actually coupled to that plan; otherwise fall through to the owner's words
       and, failing that, to the existing Unknown at `:1619` — with the reason stated in
       the line. Do NOT derive a goal from the Table of contents: P1 forbids it
       ("READ, never derived").
-- [ ] **T2 — Window-wide absence in the sv meter.**
+      ✓ **Done 2026-10-08.** `buildGoalLines` takes `coupling?: { checked }`; a selected plan is named
+      only when `checked > 0`, else `goal (plan): UNKNOWN — … carries 0 vector link(s) …` (or «coupling
+      was not measured») WITHOUT naming the plan, followed by the owner's words or an explicit Unknown.
+      The fold computes the count with the same `couplingFindings` the status note runs, over the
+      folded window (`planLabels`/`planFiles` of the worktree). Oracles: pure falsifier in
+      `test/session/summary-block-shape.test.ts` (RED `20261007T162012Z_ee9a9846` 17/1 → GREEN
+      `20261007T162334Z_14116057` 18/0); live fold in `test/session/compaction.test.ts` asserts the
+      Goal BLOCK names the plan only because a vector's `parent-goal-md5` matches the plan's `md5:`
+      header (GREEN `20261007T162738Z_e11d4125` 91/0).
+      Residual (not this box): `checked` counts links to ANY plan, not to the selected one, and the
+      Layer-1 row's `## Goal` (`mechanicalSummaryBody`) still picks `plans.find((p) => p.intention)` by
+      array order — the same class, a different carrier.
+- [x] **T2 — Window-wide absence in the sv meter.**
       At `compaction.ts:828`-`:836`, mirror the marks line: keep the last-reply verdict
       and append `· N/M window replies without a vector`.
-- [ ] **T3 — Give the ranges line an ADDRESS instead of "unavailable".** ADDED after
+      ✓ **Done 2026-10-08.** `VectorCensus.missing`; the line reads e.g. `sv: @SV_FORMAT present in the
+      last reply · 1/2 window replies without a vector` (printed at 0 too). Oracle: `test/session/
+      tail-note.test.ts` (RED `20261007T162007Z_04693ac4` 12/1 → GREEN `20261007T162329Z_b68c3ca9` 13/0).
+- [x] **T3 — Give the ranges line an ADDRESS instead of "unavailable".** ADDED after
       `docs/compaction.md:56-78` was read: the failure it names is losing information
       "without leaving a marker where the loss occurred … absence has no
       representation", and what this design preserves instead is ADDRESSABILITY
@@ -79,6 +94,15 @@ C2. Adding `${n}/${m} window replies without a vector` to the sv line catches a 
       oh-my-pi has the reusable marker shape — in-band, naming what was dropped and how
       much (`: omp-debug-elided chars=…`, `: omp-debug-truncated originalChars=…` in
       `packages/tui/src/apps/debug/raw-sse-buffer.ts`).
+      ✓ **Done 2026-10-08.** `foldedRegionAddress` prints `#1..#N precedes the tail: sessionread
+      sessionId=<id> offset=1 limit=<≤50>` (+ `page by offset+50 through #N` past one call); both
+      `continuityLine` (no summary positions) and the `summaries:` line (no summaries / rows without
+      ids / ids the walk did not resolve — those ids are listed) carry it. «positions unavailable» and
+      «not verifiable here» are gone. Resolution oracle: the live fold in `test/session/
+      compaction.test.ts` parses the printed address and reads back through `MessageV2.stream` (the
+      walk `sessionread` pages): it returns exactly #1..#tail-1, opening on the owner's first request
+      and ending on the message before the tail (RED `20261007T162023Z_9e3d28b2` 88/3 → GREEN
+      `20261007T162738Z_e11d4125` 91/0).
 
 - [x] **T4 — The Goal carrier must not quote a machine artifact as the owner's request.** ADDED
       2026-09-27, from a measurement rather than a reading.

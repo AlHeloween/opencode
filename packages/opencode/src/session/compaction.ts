@@ -12,7 +12,7 @@ import { NotFoundError } from "@/storage/storage"
 import { ModelID, ProviderID } from "@/provider/schema"
 import { Effect, Layer, Context, Schema, Option } from "effect"
 import { readMemory } from "@/tool/memory"
-import { EMPTY_HASH, KEYWORD_TOP_N, dominantLine, extractKeywords, extractMessageDominant, extractSvTarget, extractVectorChain, hasSemanticVector, malformedFragment, readRawVectorField } from "@/memory/spine"
+import { EMPTY_HASH, KEYWORD_TOP_N, couplingFindings, dominantLine, extractKeywords, extractMessageDominant, extractSvTarget, extractVectorChain, hasSemanticVector, malformedFragment, readRawVectorField } from "@/memory/spine"
 import { estimateMediaTokens, estimateRequestTokens, isOverflow as overflow, usable } from "./overflow"
 import { countTokens } from "./token-count"
 import { promptTokensFromUsage } from "./processor"
@@ -22,8 +22,9 @@ import { SessionStatus } from "./status"
 import { IncrementalCheckpoint } from "./incremental-checkpoint"
 import { parseSummaryRange } from "./summary"
 import { describePart } from "./stored-part"
-import { MASTER_PLAN_FILE, collectPlanState, formatPlanStateText, type PlanStatePayload } from "@/util/plan-status"
+import { MASTER_PLAN_FILE, collectPlanState, formatPlanStateText, planFiles, planLabels, type PlanStatePayload } from "@/util/plan-status"
 import { InstanceState } from "@/effect/instance-state"
+import { isGraphFile } from "@/codegraph/sqlite-pack"
 import { Snapshot } from "@/snapshot"
 import { renderFoldBlock } from "./svm"
 import { COMPACT_CONTINUATION, forecastContext, formatContextBudget, type ContextForecast } from "./context-forecast"
@@ -793,12 +794,19 @@ export { hasSemanticVector }
  * marks — they are excluded rather than counted as failures. */
 export interface VectorCensus {
   present: boolean
+  /** Window replies carrying NO vector — the mid-window gap the last-reply verdict cannot see
+   *  (fold-carrier-integrity T2: two replies, #52 and #54, went unreported because later ones carried one). */
+  missing: number
   replies: number
 }
 export function statusVector(messages: readonly { role: string; text: string }[]): VectorCensus {
   const replies = messages.filter((m) => m.role === "assistant" && m.text.trim().length > 0)
   const last = replies.at(-1)
-  return { present: last ? hasSemanticVector(last.text) : false, replies: replies.length }
+  return {
+    present: last ? hasSemanticVector(last.text) : false,
+    missing: replies.filter((m) => !hasSemanticVector(m.text)).length,
+    replies: replies.length,
+  }
 }
 
 /**
@@ -1054,12 +1062,16 @@ export function tailNote(input: {
   // reason: the rule is in the static prefix, the reminder is here. ABSENT is an ALERT — the coupling
   // watcher cannot link a reply that carries no `md5`, so a missing vector is not a cosmetic omission.
   if (input.vector) {
+    const v = input.vector
+    // The window-wide count mirrors the marks line: the last-reply verdict alone missed a mid-window
+    // gap whenever a later reply carried a vector (fold-carrier-integrity T2). Printed at zero too.
+    const window = ` · ${v.missing}/${v.replies} window replies without a vector`
     lines.push(
-      input.vector.replies === 0
+      v.replies === 0
         ? "sv: no assistant reply in the window yet — nothing to check"
-        : input.vector.present
-          ? "sv: @SV_FORMAT present in the last reply"
-          : "sv: ABSENT in the last reply — @CURRENT_SV requires the @SV_FORMAT block at the END of EVERY reply (Keywords with weights, Semantic dominant, md5/prev-md5/parent-goal-md5)",
+        : v.present
+          ? `sv: @SV_FORMAT present in the last reply${window}`
+          : `sv: ABSENT in the last reply${window} — @CURRENT_SV requires the @SV_FORMAT block at the END of EVERY reply (Keywords with weights, Semantic dominant, md5/prev-md5/parent-goal-md5)`,
     )
   }
   if (input.window) {
@@ -1429,10 +1441,37 @@ export function renderFileDiffLegend(
  * renders them once, from system-Exact data. The single count line below is the only summary,
  * and it exists so a body read raw (`summaryedit`) is not context-free.
  */
+/**
+ * The summary row's impact line, in one of THREE attributed states (codegraph-impact-decoupling C4) —
+ * never the bare `top symbols none` the row used to print, which could not be told from «nothing ran»
+ * (measured 2026-09-29: `Impact: 8 changed files, 0 callers; top symbols none`, no source named):
+ *   - `synced → elements` — the graph returned elements; the source that answered is named;
+ *   - `not applicable` — no changed file is in the graph's domain (code only: plans, scripts and docs
+ *     have no rows in `files`), so there is nothing the graph could say;
+ *   - `not synced → impact unverified` — a code file changed and the graph returned nothing for it.
+ */
+function impactLine(
+  diffs: readonly { file: string }[],
+  impact?: { from?: string; changedFiles?: number; callerCount?: number; topSymbols?: string[] },
+): string {
+  const elements = impact?.topSymbols ?? []
+  if (elements.length > 0)
+    return `Impact (${impact?.from ?? "codegraph"}): synced → elements ${elements.slice(0, 8).join(", ")}${elements.length > 8 ? ` (+${elements.length - 8} more)` : ""} · ${impact?.changedFiles ?? diffs.length} changed files, ${impact?.callerCount ?? 0} callers.`
+  const code = diffs.filter((d) => isGraphFile(d.file))
+  if (code.length === 0)
+    return diffs.length === 0
+      ? "Impact: not applicable — no file changed in this range."
+      : `Impact: not applicable — no code-graph file in the window (${diffs.length} changed file(s), all outside the indexed languages).`
+  return `Impact: not synced → impact unverified — ${code.length} code-graph file(s) changed (${code
+    .slice(0, 3)
+    .map((d) => d.file)
+    .join(", ")}${code.length > 3 ? ", …" : ""}) and the graph ${impact ? "returned no elements for them" : "was not asked (no impact computed)"}.`
+}
+
 export function mechanicalSummaryBody(input: {
   messages: MessageV2.WithParts[]
   diffs: readonly { file: string; additions: number; deletions: number }[]
-  impact?: { changedFiles?: number; callerCount?: number; topSymbols?: string[]; impactedFiles?: string[] }
+  impact?: { from?: string; changedFiles?: number; callerCount?: number; topSymbols?: string[]; impactedFiles?: string[] }
   planState?: PlanStatePayload | null
 }): string {
   const text = (m: MessageV2.WithParts) =>
@@ -1638,9 +1677,7 @@ export function mechanicalSummaryBody(input: {
     input.diffs.length === 0
       ? "No file changes in this range — the work was reading and reasoning."
       : input.diffs.slice(0, 30).map((d) => `${d.file} +${d.additions} −${d.deletions}`).join(" · "),
-    input.impact
-      ? `Impact: ${input.impact.changedFiles ?? "?"} changed files, ${input.impact.callerCount ?? "?"} callers; top symbols ${(input.impact.topSymbols ?? []).slice(0, 8).join(", ") || "none"}.`
-      : "",
+    impactLine(input.diffs, input.impact),
     "",
     "## Constraints & Preferences",
     "",
@@ -1950,6 +1987,24 @@ export function tailMessageText(msg: MessageV2.WithParts): string {
   return parts.join("\n").trim()
 }
 
+/** `sessionread` returns at most this many messages per call (`tool/sessionread.ts`: `Math.min(limit, 50)`). */
+const SESSIONREAD_MAX_LIMIT = 50
+
+/**
+ * The resolvable address of everything BEFORE the tail: `#1..#(tailFirst-1)` as a `sessionread`
+ * call. The positions are the fold's own walk over ALL messages (compacted included), which is the
+ * walk `sessionread` pages by when no `pattern`/`raw` filter is given — so the printed offset IS the
+ * message. A region longer than one call names its end, so the reader knows when to stop paging.
+ */
+function foldedRegionAddress(tailFirst: number, sessionID?: string): string {
+  const last = tailFirst - 1
+  if (last < 1) return `nothing precedes the tail (it starts at #${tailFirst}) — no folded region to place`
+  const limit = Math.min(last, SESSIONREAD_MAX_LIMIT)
+  return `#1..#${last} precedes the tail: sessionread sessionId=${sessionID ?? "<this session>"} offset=1 limit=${limit}${
+    last > limit ? ` (page by offset+${SESSIONREAD_MAX_LIMIT} through #${last})` : ""
+  }`
+}
+
 /** m*'s closing continuity statement, as a PURE function so the RULE — not merely
   * its wiring — is falsifiable. A line that cannot fail proves nothing; a line
   * that fails on a clean fold is worse, because it retires the check itself.
@@ -1962,9 +2017,14 @@ export function continuityLine(args: {
   tailFirst: number
   summaryLast?: number
   between?: { excluded: string[]; unrepresented: number }
+  /** Names the session in the printed address, so the region is reachable without a second lookup. */
+  sessionID?: string
 }): string {
-  if (args.summaryLast == null)
-    return "continuity: not verifiable here — the summaries carry no positions to compare against"
+  // No summary position to compare against: the region before the tail is still ADDRESSED
+  // (fold-carrier-integrity T3). «not verifiable here» was an absence with no address — the failure
+  // `docs/compaction.md` names («absence has no representation») — while the region itself is
+  // one sessionread away by the very `#N` positions the tail prints.
+  if (args.summaryLast == null) return `continuity: summaries carry no positions to compare against — ${foldedRegionAddress(args.tailFirst, args.sessionID)}`
   if (args.tailFirst <= args.summaryLast + 1)
     return `continuity: summaries end at #${args.summaryLast}, tail starts at #${args.tailFirst} — no gap, no overlap`
   if (args.between != null && args.between.unrepresented === 0)
@@ -2092,6 +2152,10 @@ export function buildTableOfContents(
  */
 export function buildGoalLines(input: {
   planState?: PlanStatePayload
+  /** The coupling watcher's count over THIS window: vectors whose `parent-goal-md5` links a plan
+   *  (`couplingFindings(...).checked`). A plan is the goal only of a window coupled to one — absent
+   *  or zero, the plan is not named (fold-carrier-integrity T1). */
+  coupling?: { checked: number }
   window?: { messageID: string; position: number; text: string }
 }): string[] {
   const lines: string[] = []
@@ -2108,7 +2172,22 @@ export function buildGoalLines(input: {
   )
   const plan =
     running.length === 1 ? running[0] : candidates.length === 1 ? candidates[0] : undefined
-  if (plan?.intention) {
+  // ONE plan is not yet a reason to name it: the 2026-09-26 session that inherited a shelf-triage goal
+  // would have inherited it just the same with only that plan ACTIVE. The window must be COUPLED — at
+  // least one vector in it links a plan — and an unmeasured coupling is not coupling (a missing oracle
+  // reads as FALSE). The decline does NOT name the plan: naming it is exactly the claim being refused.
+  const coupled = (input.coupling?.checked ?? 0) > 0
+  if (plan?.intention && !coupled) {
+    lines.push(
+      `- goal (plan): UNKNOWN — one plan states an intention, but ${
+        input.coupling
+          ? `this window carries ${input.coupling.checked} vector link(s) to a plan`
+          : "this window's coupling was not measured"
+      }, so naming it would be a guess by position. ${
+        input.window ? "The window's own words below are the goal." : "No owner request opened this window either — the goal is Unknown."
+      }`,
+    )
+  } else if (plan?.intention) {
     lines.push(`- goal (plan \`${plan.file}\`): ${plan.intention.from_state} -> ${plan.intention.to_state}`)
     if (plan.goal_sv.length > 0) lines.push(`- goal_sv: ${plan.goal_sv.join(", ")}`)
   } else if (candidates.length > 1) {
@@ -2258,14 +2337,22 @@ export function buildMessageStar(input: {
   // here, and the old text reported the second while the first was the live cause. An instrument that
   // cannot tell two explanations apart reads as a confident diagnosis, which is the class this whole
   // line exists to avoid: the `LIKE` traps, the "positions unavailable" that named a cause nobody had.
-  const rowsWithIds = input.summaries.filter((s) => s.fromId && s.toId).length
+  const rowsWithIds = input.summaries.filter((s) => s.fromId && s.toId)
+  const tailFirst = input.recentStartOffset
+  // An unplaced summary is still ADDRESSED (fold-carrier-integrity T3): the cause, the ids the rows DO
+  // carry, and the sessionread address of the region they fold — never «positions unavailable» alone.
+  const region = tailFirst != null ? ` — ${foldedRegionAddress(tailFirst, input.sessionID)}` : ""
   const summariesLine =
     summaryFirst != null && summaryLast != null
       ? `summaries: #${summaryFirst}..#${summaryLast} (each Summary block above lists its own from#/to#)`
-      : rowsWithIds === 0
-        ? "summaries: positions unavailable — the summary rows carry no from_id/to_id to place"
-        : `summaries: positions unavailable — ${rowsWithIds} row(s) DO carry from_id/to_id and the walk did not resolve them (inside an older summary, or another epoch). The ids under each block are the localizers that survive a shift.`
-  const tailFirst = input.recentStartOffset
+      : input.summaries.length === 0
+        ? `summaries: none in this fold${region}`
+        : rowsWithIds.length === 0
+          ? `summaries: the rows carry no from_id/to_id to place${region}`
+          : `summaries: ${rowsWithIds.length} row(s) carry from_id/to_id the walk did not resolve (inside an older summary, or another epoch): ${rowsWithIds
+              .slice(0, SUMMARY_POSITION_ROWS_SHOWN)
+              .map((s) => `${s.fromId}..${s.toId}`)
+              .join(", ")}${rowsWithIds.length > SUMMARY_POSITION_ROWS_SHOWN ? ` (+${rowsWithIds.length - SUMMARY_POSITION_ROWS_SHOWN} more)` : ""}${region}`
   const tailLast = tailFirst != null && input.recent.length > 0 ? tailFirst + input.recent.length - 1 : undefined
   const rangeAccounting =
     tailFirst != null && tailLast != null
@@ -2273,7 +2360,7 @@ export function buildMessageStar(input: {
           "--- Range accounting (system Exact — `#N` are the positions the Recent messages print) ---",
             summariesLine,
           `tail: #${tailFirst}..#${tailLast} (${input.recent.length} messages, verbatim — nothing in it is compressed)`,
-          continuityLine({ tailFirst, summaryLast, between: input.between }),
+          continuityLine({ tailFirst, summaryLast, between: input.between, sessionID: input.sessionID }),
         ].join("\n")
       : undefined
 
@@ -2629,6 +2716,21 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Config.Service | S
         const planState = collectPlanState(worktree)
         const goal = buildGoalLines({
           planState,
+          // The SAME watcher the status note runs (prompt.ts), over the window being folded: the goal
+          // carrier names a plan only when this window's vectors link one (fold-carrier-integrity T1).
+          // The store's half (orphan manifests) is irrelevant to the count, so it is not asked.
+          coupling: couplingFindings({
+            messages: visible.map((message) => ({
+              id: message.info.id,
+              text: message.parts
+                .filter((part) => part.type === "text")
+                .map((part) => (part as { text: string }).text)
+                .join("\n"),
+            })),
+            map: planLabels(worktree),
+            plans: new Set(planFiles(worktree)),
+            manifests: { checked: 0, orphans: [] },
+          }),
           window: openingRequest
             ? {
                 messageID: openingRequest.info.id,

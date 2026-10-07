@@ -188,11 +188,32 @@ function terminated(content: string): Line[] {
   return out
 }
 
+/**
+ * The new text, or EVERY refusal — never the first failure alone (plan 2026-10-01_edit-refusal-names-its-target,
+ * R2): the batch exists to be one call, so its refusal must be enough to fix it in one more.
+ */
+export type Resolution = { kind: "text"; text: string } | { kind: "refused"; refusals: string[] }
+
+type Span = { start: number; end: number; replacement: string }
+
+/** `resolveAddresses` for a caller that wants a throw: one Error whose lines are the whole refusal set. */
 export function resolveEdits(
   content: string,
   edits: readonly EditAddress[],
   ending: TextCodec.LineEnding | undefined = TextCodec.lineEnding(content),
+  target?: string,
 ): string {
+  const resolution = resolveAddresses(content, edits, ending, target)
+  if (resolution.kind === "refused") throw new Error(resolution.refusals.join("\n"))
+  return resolution.text
+}
+
+export function resolveAddresses(
+  content: string,
+  edits: readonly EditAddress[],
+  ending: TextCodec.LineEnding | undefined = TextCodec.lineEnding(content),
+  target?: string,
+): Resolution {
   const lines = terminated(content)
   // The chain over the ORIGINAL content, computed ONCE — the whole point of the order above. `read` prints a
   // line WITHOUT its terminator and the chain is taken over exactly that string, so CRLF and LF hash alike.
@@ -200,57 +221,62 @@ export function resolveEdits(
   let running = 0
   for (const line of lines) chain.push((running = chainHash(running, line.text)))
   const seed = hashLabel(0)
+  // ONE builder names the file for every refusal below (R1), so a future refusal cannot forget it.
+  const named = (what: string) => (target === undefined ? what : `${target}: ${what}`)
 
-  const spans = edits.map((edit, index) => {
-    const at = (what: string) => `edit ${index + 1}: ${what}`
+  // Each entry resolves to its span or to the refusal that says why not; every entry is walked, so the failing
+  // SET is in hand before anything is decided.
+  const resolved = edits.map((edit, index): Span | string => {
+    const at = (what: string) => named(`edit ${index + 1}: ${what}`)
     const drifted = (field: string) =>
-      new Error(
-        at(`\`${field}\` is not in this file — the address drifted, or the file changed since it was read`) +
-          ". Re-read and pass the current hashes.",
-      )
+      at(`\`${field}\` is not in this file — the address drifted, or the file changed since it was read`) +
+      ". Re-read and pass the current hashes."
     // The line a hash names, or a refusal. `allowSeed`: only an insertion may name the state before line 1.
-    const lineOf = (field: string, hash: string, allowSeed: boolean) => {
+    const lineOf = (field: string, hash: string, allowSeed: boolean): number | string => {
       const parsed = parseHash(hash)
-      if (parsed === undefined) throw new Error(at(`\`${field}\` is not an 8-hex address: ${JSON.stringify(hash)}`))
+      if (parsed === undefined) return at(`\`${field}\` is not an 8-hex address: ${JSON.stringify(hash)}`)
       if (hash === seed) {
         if (allowSeed) return -1
-        throw new Error(at(`\`${field}\` 00000000 is no line — to insert before line 1 pass \`insertAfter: "00000000"\``))
+        return at(`\`${field}\` 00000000 is no line — to insert before line 1 pass \`insertAfter: "00000000"\``)
       }
       const found = chain.indexOf(parsed)
-      if (found === -1) throw drifted(field)
-      return found
+      return found === -1 ? drifted(field) : found
     }
     const isSpan = edit.fromHash !== undefined
     const isInsertion = edit.insertAfter !== undefined
     if (isSpan === isInsertion) {
-      throw new Error(
-        at(
-          "pass EITHER `fromHash` (+ optional `toHash`) to replace the lines from..to, OR `insertAfter` to insert after a line — " +
-            (isSpan ? "not both" : "one of them is required"),
-        ),
+      return at(
+        "pass EITHER `fromHash` (+ optional `toHash`) to replace the lines from..to, OR `insertAfter` to insert after a line — " +
+          (isSpan ? "not both" : "one of them is required"),
       )
     }
     if (isInsertion) {
-      if (edit.toHash !== undefined) throw new Error(at("`toHash` belongs to a span — an insertion has only `insertAfter`"))
+      if (edit.toHash !== undefined) return at("`toHash` belongs to a span — an insertion has only `insertAfter`")
       // The EMPTY span after that line: end = start - 1.
-      const start = lineOf("insertAfter", edit.insertAfter!, true) + 1
-      return { start, end: start - 1, replacement: edit.newString }
+      const after = lineOf("insertAfter", edit.insertAfter!, true)
+      if (typeof after === "string") return after
+      return { start: after + 1, end: after, replacement: edit.newString }
     }
     // INCLUSIVE: `fromHash` IS the first line, `toHash` the last; absent or equal = that one line.
     const start = lineOf("fromHash", edit.fromHash!, false)
+    if (typeof start === "string") return start
     const end = edit.toHash === undefined ? start : lineOf("toHash", edit.toHash, false)
-    if (end < start) throw new Error(at("`toHash` precedes `fromHash` — an inverted range"))
+    if (typeof end === "string") return end
+    if (end < start) return at("`toHash` precedes `fromHash` — an inverted range")
     return { start, end, replacement: edit.newString }
   })
+  const refusals = resolved.filter((entry): entry is string => typeof entry === "string")
+  if (refusals.length > 0) return { kind: "refused", refusals }
+  const spans = resolved.filter((entry): entry is Span => typeof entry !== "string")
 
   // A refusal, never a merge decision: two entries claiming one line — or two claiming one insertion point —
   // have no defined order, and «last writer wins» is exactly the silent outcome this design exists to remove.
   const ordered = [...spans].sort((a, b) => a.start - b.start)
-  for (let i = 1; i < ordered.length; i += 1) {
-    if (ordered[i]!.start <= ordered[i - 1]!.end || ordered[i]!.start === ordered[i - 1]!.start) {
-      throw new Error(`two edits claim line ${ordered[i]!.start + 1} — refuse rather than let one silently win`)
-    }
-  }
+  const clashes = ordered
+    .slice(1)
+    .filter((span, i) => span.start <= ordered[i]!.end || span.start === ordered[i]!.start)
+    .map((span) => named(`two edits claim line ${span.start + 1} — refuse rather than let one silently win`))
+  if (clashes.length > 0) return { kind: "refused", refusals: clashes }
 
   // Bottom-up, so a replacement cannot move a span that has not been applied yet.
   let result = lines
@@ -283,7 +309,7 @@ export function resolveEdits(
     if (previous !== undefined && deletesBareEnd) head[head.length - 1] = { text: previous.text, eol: "" }
     result = [...head, ...fitted, ...result.slice(span.end + 1)]
   }
-  return result.map((line) => line.text + line.eol).join("")
+  return { kind: "text", text: result.map((line) => line.text + line.eol).join("") }
 }
 
 /**
@@ -426,6 +452,9 @@ export const EditTool = Tool.define(
               // This is the order the whole design rests on: every address is checked against the content as it
               // was READ, so no entry has to survive an intermediate state, and a failure anywhere leaves every
               // file in the batch exactly as it was.
+              // Every entry's refusal is COLLECTED and the batch is refused once, naming them all — so one more
+              // call is enough to fix it (plan 2026-10-01_edit-refusal-names-its-target, R2).
+              const refusals: string[] = []
               for (const item of entries) {
                 Constitution.noteMutationRisk({ tool: "edit", path: item.filePath, sessionID: ctx.sessionID })
                 yield* assertExternalDirectoryEffect(ctx, item.filePath)
@@ -437,9 +466,10 @@ export const EditTool = Tool.define(
                 // and NAMED in one place (H9d).
                 if (item.entry.content !== undefined) {
                   if (existed) {
-                    throw new Error(
+                    refusals.push(
                       `${item.filePath} already exists — \`content\` only CREATES a file. Address its lines with \`edits\`.`,
                     )
+                    continue
                   }
                   const form = TextCodec.fit(item.filePath, undefined, item.entry.content)
                   planned.push({
@@ -458,29 +488,47 @@ export const EditTool = Tool.define(
                   continue
                 }
                 if (!existed) {
-                  throw new Error(`${item.filePath} not found — an address can only name lines of a file that exists`)
+                  refusals.push(`${item.filePath} not found — an address can only name lines of a file that exists`)
+                  continue
                 }
                 const info = yield* afs.stat(item.filePath)
-                if (info.type === "Directory") throw new Error(`Path is a directory, not a file: ${item.filePath}`)
+                if (info.type === "Directory") {
+                  refusals.push(`Path is a directory, not a file: ${item.filePath}`)
+                  continue
+                }
                 // Decoded through the SAME codec `read` uses, so the text the addresses were printed over is the
                 // text they resolve against — in every encoding, the BOM never part of line 1.
                 const bytesOld = new Uint8Array(yield* afs.readFile(item.filePath))
                 const source = TextCodec.decode(bytesOld, item.filePath, item.codepage)
                 if (source.kind === "binary") {
-                  throw new Error(
+                  refusals.push(
                     `${item.filePath} is a binary file — \`edit\` addresses text lines only. Inspect it with \`read\` and \`hex: true\`.`,
                   )
+                  continue
                 }
-                if (source.kind === "undecodable") throw new Error(`Cannot decode ${item.filePath}: ${source.reason}`)
+                if (source.kind === "undecodable") {
+                  refusals.push(`Cannot decode ${item.filePath}: ${source.reason}`)
+                  continue
+                }
                 // The new lines are fitted to the TARGET's ending — CRLF for Delphi/ANSI, else the file's majority —
                 // so an edit adds no mixing. The ADDRESSES never depend on it: the chain is taken over each line
                 // WITHOUT its terminator, which is exactly the string `read` printed.
                 const forced = TextCodec.target(item.filePath, source.encoding).ending
-                const applied = resolveEdits(source.text, item.edits, forced ?? TextCodec.lineEnding(source.text))
-                if (applied === source.text) {
-                  throw new Error(`${item.filePath}: no changes to apply — the result is identical to the file.`)
+                const resolution = resolveAddresses(
+                  source.text,
+                  item.edits,
+                  forced ?? TextCodec.lineEnding(source.text),
+                  item.filePath,
+                )
+                if (resolution.kind === "refused") {
+                  refusals.push(...resolution.refusals)
+                  continue
                 }
-                const form = TextCodec.fit(item.filePath, source, applied)
+                if (resolution.text === source.text) {
+                  refusals.push(`${item.filePath}: no changes to apply — the result is identical to the file.`)
+                  continue
+                }
+                const form = TextCodec.fit(item.filePath, source, resolution.text)
                 planned.push({
                   filePath: item.filePath,
                   existed,
@@ -495,6 +543,7 @@ export const EditTool = Tool.define(
                   diff: "",
                 })
               }
+              if (refusals.length > 0) throw new Error(refusals.join("\n"))
 
               // ---- PHASE 2 — ASK FOR EVERY FILE BEFORE WRITING ANY OF THEM. --------------------------------
               // Asking at write time would let a denial land after an earlier file had already been written, and

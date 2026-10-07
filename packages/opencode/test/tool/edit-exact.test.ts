@@ -147,6 +147,26 @@ describe("tool.edit — a list of addresses, resolved then applied", () => {
     ).toThrow(/claim line/)
   })
 
+  test("given its target, every refusal NAMES the file — the address refusal and the clash alike", () => {
+    // Plan 2026-10-01_edit-refusal-names-its-target, R1: the builder carries the file, so no refusal can forget it.
+    const content = "alpha\nbeta\n"
+    const h = labels(content)
+    expect(() => resolveEdits(content, [{ fromHash: "deadbeef", newString: "X" }], "\n", "src/x.ts")).toThrow(
+      /^src\/x\.ts: edit 1: `fromHash` is not in this file/,
+    )
+    expect(() =>
+      resolveEdits(
+        content,
+        [
+          { fromHash: h[1]!, newString: "A" },
+          { fromHash: h[1]!, newString: "B" },
+        ],
+        "\n",
+        "src/x.ts",
+      ),
+    ).toThrow(/^src\/x\.ts: two edits claim line 1/)
+  })
+
   test("ALL entries resolve BEFORE any is applied — a later span is not moved by an earlier edit", () => {
     const content = "one\ntwo\nthree\n"
     const h = labels(content)

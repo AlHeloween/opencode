@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, setDefaultTimeout } from "bun:test"
 import fs from "fs/promises"
-import { Effect, Layer } from "effect"
+import { Cause, Effect, Exit, Layer } from "effect"
 import { EditTool } from "../../src/tool/edit"
 import { chainHash, hashLabel } from "../../src/tool/read"
 import * as TextCodec from "../../src/util/text-codec"
@@ -263,6 +263,133 @@ describe("tool.edit — a batch of addressed changes, through the real layers", 
 
       expect(String(failed)).toContain("pass `edits`")
       expect(String(failed)).toContain("files[0]")
+    }),
+  )
+})
+
+/** The refusal's own text — asserted on the message, not on a rendering of the Exit that may escape a path. */
+const refusal = (exit: Exit.Exit<unknown, unknown>) => {
+  expect(Exit.isFailure(exit)).toBe(true)
+  const error = Exit.isFailure(exit) ? Cause.squash(exit.cause) : undefined
+  return error instanceof Error ? error.message : String(error)
+}
+
+/**
+ * A REFUSAL NAMES ITS TARGET AND THE WHOLE FAILING SET (plan 2026-10-01_edit-refusal-names-its-target).
+ *
+ * The batch exists to be ONE call, so its refusal must be enough to fix it in ONE more: the file each failing
+ * entry belongs to (R1), and every failing entry rather than the first (R2). Each case carries the control that
+ * keeps it from being satisfied by a tool that refuses everything, or that reports everything.
+ */
+describe("tool.edit — a refusal names its file and every failing entry", () => {
+  it.live("R1: a fabricated hash in the SECOND file is refused naming THAT file; the valid batch still applies", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      const first = "alpha\nbeta\n"
+      const second = "one\ntwo\n"
+      const a = `${dir}/a.txt`
+      const b = `${dir}/b.txt`
+      yield* put(a, first)
+      yield* put(b, second)
+
+      const message = refusal(
+        yield* edit(dir, {
+          files: [
+            { filePath: a, edits: addresses(first, [{ line: 1, newString: "ALPHA" }]) },
+            { filePath: b, edits: [{ fromHash: "deadbeef", newString: "TWO" }] },
+          ],
+        }).pipe(Effect.exit),
+      )
+
+      expect(message).toContain(`${b}: edit 1: \`fromHash\` is not in this file`)
+      expect(message).not.toContain(a)
+      expect(yield* readBack(a)).toBe(first)
+      expect(yield* readBack(b)).toBe(second)
+
+      // The control: the SAME shape with both addresses valid applies — «names the file» is not «refuses».
+      yield* edit(dir, {
+        files: [
+          { filePath: a, edits: addresses(first, [{ line: 1, newString: "ALPHA" }]) },
+          { filePath: b, edits: addresses(second, [{ line: 2, newString: "TWO" }]) },
+        ],
+      })
+      expect(yield* readBack(a)).toBe("ALPHA\nbeta\n")
+      expect(yield* readBack(b)).toBe("one\nTWO\n")
+    }),
+  )
+
+  it.live("R2: two fabricated hashes in ONE file are BOTH named, and nothing is written", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      const content = "keep\nme\n"
+      const file = `${dir}/r2.txt`
+      yield* put(file, content)
+
+      const message = refusal(
+        yield* edit(dir, {
+          files: [
+            {
+              filePath: file,
+              edits: [
+                { fromHash: "cafebabe", newString: "X" },
+                { fromHash: "deadbeef", newString: "Y" },
+              ],
+            },
+          ],
+        }).pipe(Effect.exit),
+      )
+
+      // Asserted WITHOUT the path: this box is the failing SET, and R1's case owns the naming.
+      expect(message).toContain("edit 1: `fromHash` is not in this file")
+      expect(message).toContain("edit 2: `fromHash` is not in this file")
+      expect(yield* readBack(file)).toBe(content)
+    }),
+  )
+
+  it.live("R2 control: ONE bad entry beside a valid one is reported exactly once — the report is not a wall", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      const content = "keep\nme\n"
+      const file = `${dir}/r2-one.txt`
+      yield* put(file, content)
+
+      const message = refusal(
+        yield* edit(dir, {
+          files: [
+            {
+              filePath: file,
+              edits: [...addresses(content, [{ line: 1, newString: "X" }]), { fromHash: "deadbeef", newString: "Y" }],
+            },
+          ],
+        }).pipe(Effect.exit),
+      )
+
+      expect(message.match(/edit \d+:/g)).toEqual(["edit 2:"])
+      expect(yield* readBack(file)).toBe(content)
+    }),
+  )
+
+  it.live("R2 across files: a bad entry in EACH of two files — both are reported in one refusal", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      const a = `${dir}/a.txt`
+      const b = `${dir}/b.txt`
+      yield* put(a, "alpha\n")
+      yield* put(b, "one\n")
+
+      const message = refusal(
+        yield* edit(dir, {
+          files: [
+            { filePath: a, edits: [{ fromHash: "cafebabe", newString: "X" }] },
+            { filePath: b, edits: [{ fromHash: "deadbeef", newString: "Y" }] },
+          ],
+        }).pipe(Effect.exit),
+      )
+
+      // Counted, not matched by path: the set is this box's claim, the names are R1's.
+      expect(message.match(/edit 1: `fromHash` is not in this file/g)).toHaveLength(2)
+      expect(yield* readBack(a)).toBe("alpha\n")
+      expect(yield* readBack(b)).toBe("one\n")
     }),
   )
 })

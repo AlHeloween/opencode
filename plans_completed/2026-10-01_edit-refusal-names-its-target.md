@@ -3,8 +3,8 @@
 # `edit`'s refusals must name their target
 
 - **plan_id:** 2026-10-01_edit-refusal-names-its-target
-- **revision:** 1
-- **state:** DRAFT
+- **revision:** 2
+- **state:** DONE (2026-10-07) — R1 and R2 shipped, both boxes earned by runs below ✓
 - **found by:** the live probe battery `experiments/2026-10-01_hash-address-live/README.md` (2026-10-01),
   under the owner's «давай баловаться в экспериментах все ли ок с нашим хеш чтением и редактированием» ✓
   Both refusals were run TWICE, minutes apart, across the landing of H9/H10 — the text was identical
@@ -47,16 +47,33 @@ file name costs is a re-read of every file in the batch, and the batch exists pr
 
 ## Tasks
 
-- [ ] **R1 — every refusal out of `edit` names the FILE it is about.** The fix belongs in the builder
+- [x] **R1 — every refusal out of `edit` names the FILE it is about.** The fix belongs in the builder
       (`:198`), not at each call site — one spelling, so a future refusal cannot forget it. The form is
       the one already in use at `:418`; `files[i] (path)` from the shape refusal is the same idea.
       Oracle: a batch whose SECOND file carries a fabricated hash must produce a message containing
       that file's path — AND the same shape with both files valid must still apply, so the case cannot
       be satisfied by a tool that refuses everything.
-- [ ] **R2 — the refusal reports EVERY failing entry, not only the first.** Resolution already walks
+      **Done:** `resolveAddresses(content, edits, ending, target)` in `src/tool/edit.ts` builds every
+      per-entry refusal AND the two-edits-claim-one-line clash through ONE `named` builder, as
+      `<path>: edit N: …` (the `${item.filePath}: no changes to apply` form). Cases: `edit.test.ts` «R1: a
+      fabricated hash in the SECOND file …» (+ the all-valid control in the same case) and `edit-exact.test.ts`
+      «given its target, every refusal NAMES the file». Red before the fix: cmd_runner run
+      `20261007T161524Z_04773817` (44 pass / 4 fail, the new cases, «Received: "edit 1: …"» with no path) ✓;
+      green after: `20261007T161949Z_cdc1f57e` (97 pass / 0 fail over edit + edit-exact + parameters) ✓;
+      mutation (builder drops the path): `20261007T161851Z_26c90419` — RED on exactly the 2 R1 cases ✓.
+- [x] **R2 — the refusal reports EVERY failing entry, not only the first.** Resolution already walks
       every entry before anything is written, so the failing set is in hand.
       Oracle: one call with two fabricated hashes must name BOTH entries — and one call with a single
       bad entry must still name exactly one, so the report cannot become a wall of noise.
+      **Done:** each entry resolves to a span or a refusal string (no throw mid-walk); PHASE 1 of `execute`
+      collects every refusal of every file in the batch (address refusals, `not found`, `already exists`,
+      directory, binary, undecodable, no-op) and throws ONCE, one line per refusal. Cases: `edit.test.ts`
+      «R2: two fabricated hashes in ONE file …», «R2 control: ONE bad entry … exactly once» (`["edit 2:"]`),
+      «R2 across files …» (counted: 2). Green: `20261007T161949Z_cdc1f57e` ✓; mutation (call site throws
+      `refusals[0]` — «first failure wins»): `20261007T161922Z_ec9465ac` — RED on exactly the 2 R2 cases,
+      the control stays green ✓. `bun typecheck` exit 0: `20261007T161954Z_c51208c3` ✓.
+      Scope note: the SHAPE refusals in the `entries` map (`files[i] (path): …`) still stop at the first
+      bad entry — they are schema-level, already name their file, and were not in this plan's measured cases.
 
 ## Smoke Tests
 

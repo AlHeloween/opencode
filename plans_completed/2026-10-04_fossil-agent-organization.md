@@ -87,15 +87,22 @@
       product d29959bf…, claude 9f4caea6…, codex e3937cf2…). Same change: ADID citations 15.3 → 15.4 (§III.6, §III.4,
       §III.1, §III.3); the two EVOLUTION self-triggers keep 15.3 — 15.4 §II.4 lacks them (a 15.4 defect by its §0).
       Original task text, kept:
-- [~] F0-orig — kernel orientation (all three variants): rewrite G1 `VCS_ROLES` — git = the code history (GitHub); Fossil =
+- [x] F0-orig (closed by F0 above) — kernel orientation (all three variants): rewrite G1 `VCS_ROLES` — git = the code history (GitHub); Fossil =
       the coordination system (chat, tickets, technotes, wiki, timeline) whose repo also holds the runtime's undo
       snapshots; never use it as «a second git»; registry = `fossil all list`; lost `_FOSSIL_` → `fossil open
       <repo.fsl> --keep` from the worktree root, then report. Re-point G7 `COLLABORATION` at DELEGATE (via the host /
       bridge until F3 lands). Frameless-Sonnet rounds with the research summary IN the brief (last time the falsifier
       polished a false frame); caps by measurement, owner's call.
-- [ ] F1 — registry hygiene: classify the 48 entries (live project / junk); `fossil all ignore` the junk on the owner's
+- [x] F1 — DONE 2026-10-07: `fossil all list` 49 → 32 by `fossil all ignore` of 17 non-project repos — the
+      `%TEMP%\fossil_rollback_*` repo, 4 `bin_tst/*` copies, 12 `experiments/**` sandboxes (registry only: 17/17 files
+      still on disk ✓; `fossil all add <repo>` restores an entry). Kept: every real project, `$HOME/.org/org.fossil`,
+      and the test-named projects `_tst_open`, `_oc_fresh_test` (they may be the owner's — his call). Original text:
+- [x] F1-orig — registry hygiene: classify the 48 entries (live project / junk); `fossil all ignore` the junk on the owner's
       list; record the classification here.
-- [~] F2 — PARTLY DONE 2026-10-04 by genesis (owner's «секта»: the first agent that finds the system missing raises
+- [x] F2 — DONE (foundation) 2026-10-07: the last untested primitive passed — `fossil ticket history` on a copy of
+      org.fossil shows every change with its author (claude → codex) and the lease fields ✓. Residuals (chat-poll defect,
+      per-robot chat identity, genesis distribution) moved to plans/futures/2026-10-07_fossil-organization-roadmap.md.
+      Original record: PARTLY DONE 2026-10-04 by genesis (owner's «секта»: the first agent that finds the system missing raises
       it): `$HOME/.org/org.fossil` created by `$HOME/.org/genesis/init.py` (idempotent; tracked copy scripts/org-genesis/,
       also `fossil uv` files genesis/* inside org.fossil): 22 lineage/lease fields, robot users claude/codex/antigravity
       (caps Cnrwcjfkm), wiki Protocol, registered in `fossil all list`, server 127.0.0.1:8079 (`--localauth`). Contract
@@ -104,18 +111,20 @@
       authorized: CREATE TEMP TRIGGER chat_ai») — chat is read from the table; with `--localauth` every chat line is
       authored by the admin, not the robot; `fossil ticket history` CLI not exercised; genesis is on this machine only
       (ADID installer distribution open). Original task text, kept:
-- [ ] F2-orig — foundation (owner decisions first: org.fossil path; service via nssm; robot account names): create
+- [x] F2-orig (closed by F2 above) — foundation (owner decisions first: org.fossil path; service via nssm; robot account names): create
       org.fossil, robot accounts + capabilities, custom ticket fields (`root_task, parent_task, delegated_by,
       assigned_to, agent_state, lease_owner, lease_token, lease_epoch, lease_until, workspace_repo, report_ref,
       idempotency_key, failure_code`), enable chat, login group with the project repos; contract tests (criterion 3).
-- [ ] F3 — `fossil-agentd` gateway: adapters (chat, ticket, technote, wiki, timeline), envelope validator, claim/lease
+- [~] F3–F7 not started — moved as ONE roadmap to plans/futures/2026-10-07_fossil-organization-roadmap.md (owner,
+      2026-10-07: unfinished plans snowball; a roadmap is a shelf entry, not open work). Original items:
+- [~] F3 — `fossil-agentd` gateway: adapters (chat, ticket, technote, wiki, timeline), envelope validator, claim/lease
       arbitration; a CLI any robot can call; integration tests against F2's repo.
-- [ ] F4 — robot surfaces: opencode tool (wire-id name, lowercase alnum) over the gateway + the resident's inbox loop
+- [~] F4 — robot surfaces: opencode tool (wire-id name, lowercase alnum) over the gateway + the resident's inbox loop
       (an assigned ticket wakes that project's session — needs the one-host binary, P0 of
       plans/2026-10-02_one-server-per-worktree.md); a Claude skill over the same CLI.
-- [ ] F5 — delegation smoke (criterion 4) and collaboration smoke (criterion 5).
-- [ ] F6 — promotion rules chat → ticket/technote/wiki enforced in the gateway (no important event only in chat).
-- [ ] F7 — later phase: workspace broker / hard isolation (research layers C–D).
+- [~] F5 — delegation smoke (criterion 4) and collaboration smoke (criterion 5).
+- [~] F6 — promotion rules chat → ticket/technote/wiki enforced in the gateway (no important event only in chat).
+- [~] F7 — later phase: workspace broker / hard isolation (research layers C–D).
 
 ## Smoke Tests
 

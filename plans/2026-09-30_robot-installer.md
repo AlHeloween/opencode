@@ -227,6 +227,23 @@ Search is the first gate: an installer whose search is wrong is worth zero. One 
   Russian placeholder and hints; ✓ console twin: no «Cannot mark a widget that is not Requirable» line. NOT yet run:
   `app/model_form_test.go` (submit disabled until both picks, «Без модели» valid) — written, not executed; carry it
   into B2 with the real installer, it needs the Zig cgo env (`build.cmd`) to compile.
+  ✓ **Run 2026-10-07** through `app/test.cmd` (the same Zig cgo env): PASS.
+  **Language: English by default, Russian on the picker** (owner, 2026-10-07: «сделай выбор языка английский и
+  русский — английский по умолчанию»). Fyne 2.8.1's `lang` follows the system locale with no public switch
+  (`lang.go` `setupLang` unexported) → `t(en, ru)` pairs at the call sites, a picker (English/Русский) at the top
+  right, the window rebuilt on a switch; logic no longer compares translated text (tab item, radio option values,
+  drive TYPE instead of its label). `app/lang_test.go`: (1) every drawn text on every tab has no Cyrillic in the
+  English window except «Русский» and the literal «привет», and the picker switches to Russian — mutation-proven
+  (an untranslated «Обзор» → FAIL, reverted); (2) the window fits a small screen: minimum width ≤ 780 LOGICAL px in
+  both languages, in the real theme — red first (826 / 896 px: long labels without wrapping), green after wrapping
+  (595 / 697). Live, the 800×600 virtual monitor showed 785 / 917 physical px = those × Fyne's ≈1.3 scale + an 11 px
+  frame — the test and the screen agree; the Russian window is clipped only on that temporary robot display. A
+  «keep the size on switch» fix was tried on a wrong hypothesis (min before layout) and removed. The two Overview
+  cards are now transparent sections with a coloured title (owner: «background transparent. Same as other text just
+  highlight with color»). Thread oracle: the console twin's stderr streamed to a file (`run_twin.cmd`) across the
+  whole switch = 0 bytes, with the control on the same route (`threadctl/run_ctl.cmd`) = 2 696 bytes of warnings ✓.
+  Tool finding: `cmd_runner --raw` writes nothing for a killed process (0 bytes = unknown), and `cmd_runner stop`
+  left a GUI process alive — a second instance with the same title then took a background click (run voided, redone).
 - then B1 builder → B2 installer shell → B3 preflight → V1–V3 virtual display (driver chosen and proven: MttVDD,
   T3 PASS) → B4 free-model config → B5 `smit doctor` incl. Q1 as its search check → B6 acceptance.
 - **Acceptance host is OPEN:** A0/B6 need a pristine Windows; the VMware tier is postponed and Hyper-V/Sandbox are

@@ -1,4 +1,4 @@
-import { test, expect, mock, beforeEach } from "bun:test"
+import { test, expect, mock, beforeEach, beforeAll, afterAll } from "bun:test"
 import { Effect } from "effect"
 import type { MCP as MCPNS } from "../../src/mcp/index"
 
@@ -168,6 +168,20 @@ beforeEach(() => {
   connectError = "Mock transport cannot connect"
   clientCreateCount = 0
   transportCloseCount = 0
+})
+
+// Config load auto-injects mcp.codegraph whenever the worktree has .codegraph/ or
+// `codegraph` is on PATH (config/codegraph-mcp-auto.ts) — true on this host. The
+// injected server then joins every withInstance() config: one more client, one
+// more tool, and a 120 s connect that the timeout tests wait on. These tests own
+// their MCP config, so they opt out.
+const codegraphMcpEnv = process.env.OPENCODE_CODEGRAPH_MCP
+beforeAll(() => {
+  process.env.OPENCODE_CODEGRAPH_MCP = "0"
+})
+afterAll(() => {
+  if (codegraphMcpEnv === undefined) delete process.env.OPENCODE_CODEGRAPH_MCP
+  else process.env.OPENCODE_CODEGRAPH_MCP = codegraphMcpEnv
 })
 
 // Import after mocks

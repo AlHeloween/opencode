@@ -435,7 +435,18 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
     before B2) is about the robot's OWN tools only: resolve them beside `process.execPath`
     (`<exeDir>/tools`, `<exeDir>/cua`) first — in the repo that is the same `bin/tools`, so dev is unchanged — and
     refuse/warn when worktree == exeDir; the installer's shortcut and portable launcher always start the robot in a
-    workspace folder, never in `bin/`. samply: `bin/samply.exe` and `bin/tools/samply.exe` are the same file
+    workspace folder, never in `bin/`.
+    - [x] **R1 own-tool resolution** — `packages/opencode/src/util/own-tool.ts` `resolveOwnTool`: `<exeDir>/<subdir>`
+      → `{worktree}/bin/<subdir>` → `Global.Path.bin` → PATH → bare name; `samply.ts` (subdir `tools`) and `cua.ts`
+      (subdir `cua`, whose comment had promised `Global.Path.bin` and never read it) call it. Impact by codegraph:
+      one caller each (`SamplyTool`, `runCli`). Baseline 18/0 (`20261007T005602Z_5b67faa8`); new
+      `test/util/own-tool.test.ts` red on a stub exactly as predicted (3 fail / 1 pass, `20261007T005624Z_e01b13a1`),
+      green with the code: 22/0 over own-tool + samply + cua + cua-skill-index (`20261007T005655Z_ac7660ed`);
+      `bun typecheck` exit 0, and a control with a planted TS2322 → exit 2 (`20261007T005733Z_a5d1f318`), so the
+      zero is real. Inferred, not run: in the compiled exe `process.execPath` is the exe itself — the same premise
+      config-beside-exe (`global.ts:16`) already rests on in production. Left: the start-up warning when worktree ==
+      exeDir (with the B2 launcher), and `cuaSkillIndex` reading its skill pack from the worktree (same class — its
+      place in the bundle is a B1c layout decision). samply: `bin/samply.exe` and `bin/tools/samply.exe` are the same file
     (md5 `641ec5a458a3…`, 17 052 160 B) — ship one; source `external/samply` 0.13.1 @ `f5a8bf10` (MIT/Apache-2.0),
     built from source by B1.
   - [ ] **B1d playwright-rs driver 404 countermeasure** in the search build (provision `playwright-core` into the

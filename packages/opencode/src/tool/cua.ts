@@ -7,7 +7,7 @@ import { normalizeAttachment } from "../attachment/normalize"
 import * as Tool from "./tool"
 import DESCRIPTION from "./cua.txt"
 import { Instance } from "../project/instance"
-import { which } from "@/util/which"
+import { resolveOwnTool } from "@/util/own-tool"
 import * as Log from "@opencode-ai/core/util/log"
 import { existsSync, readdirSync } from "node:fs"
 
@@ -19,12 +19,8 @@ function resolveBinary(): string {
   // Spawn the .exe directly — Node refuses to spawn .cmd/.bat shims without
   // shell:true (EINVAL since Node 18 CVE-2024-27980 hardening), and shelling
   // through cmd.exe would re-expose the quote-stripping we avoid via stdin.
-  // Resolution order: Global.Path.bin (vendored install surface) →
-  // {worktree}/bin/cua/ → PATH.
-  const binDir = path.join(Instance.worktree, "bin", "cua")
-  const direct = path.join(binDir, BINARY)
-  if (which(BINARY) || existsSync(direct)) return which(BINARY) ?? direct
-  return BINARY
+  // Resolution: beside the exe (`cua/`) first, then {worktree}/bin/cua → Global.Path.bin → PATH (`resolveOwnTool`).
+  return resolveOwnTool({ binary: BINARY, subdir: "cua", worktree: Instance.worktree })
 }
 
 /** Skill guide index: names + one-line purpose + link. The robot reads its own pack (Skills/cua-robot — the

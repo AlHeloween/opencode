@@ -2,25 +2,20 @@ import { Effect, Schema } from "effect"
 import path from "path"
 import { spawn } from "node:child_process"
 import { mkdir, stat } from "node:fs/promises"
-import { existsSync } from "node:fs"
 import { Global } from "@opencode-ai/core/global"
 import * as Tool from "./tool"
 import DESCRIPTION from "./samply.txt"
 import { Instance } from "../project/instance"
-import { which } from "@/util/which"
+import { resolveOwnTool } from "@/util/own-tool"
 import * as Log from "@opencode-ai/core/util/log"
 
 const log = Log.create({ service: "tool.samply" })
 
 const BINARY = process.platform === "win32" ? "samply.exe" : "samply"
 
-/** Vendored install surface: `{worktree}/bin/tools` → `Global.Path.bin` → PATH. */
+/** Beside the exe (`tools/`) first, then `{worktree}/bin/tools` → `Global.Path.bin` → PATH — see `resolveOwnTool`. */
 export function resolveSamplyBinary(): string {
-  const direct = path.join(Instance.worktree, "bin", "tools", BINARY)
-  if (existsSync(direct)) return direct
-  const vendored = path.join(Global.Path.bin, BINARY)
-  if (existsSync(vendored)) return vendored
-  return which(BINARY) ?? BINARY
+  return resolveOwnTool({ binary: BINARY, subdir: "tools", worktree: Instance.worktree })
 }
 
 export const Parameters = Schema.Struct({

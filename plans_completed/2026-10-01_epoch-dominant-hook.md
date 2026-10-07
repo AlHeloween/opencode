@@ -40,7 +40,10 @@ Two consequences, both measured:
       read the body back through `extractDominant` — the reader that was broken WITH the writer — and
       assert the LAST dominant plus the field's position before `Labels:`, and that a one-reply range
       with no vector spells no marker at all and yields `undefined`.
-- [ ] **S3 — the LIVE confirmation, owed against the next promoted binary.** `compaction.ts` is runtime
+- [x] **S3 — CLOSED 2026-10-07 on live data:** 10 of 78 `project_checkpoint` rows (main DB, read-only) carry a
+  `dominant: "…"` field line, all written 10-02..10-06 by promoted binaries, all from ranges with a vector-carrying reply;
+  0 such rows before 10-02 ✓. The reader half (`extractDominant` returns that line) is read in code, not run (Inferred).
+  Original box: **S3 — the LIVE confirmation, owed against the next promoted binary.** `compaction.ts` is runtime
       source, so a session runs whatever `captureMechanical` its BINARY carries — a fold in this session
       still writes the old body. Lift signal and oracle in one: after a binary carrying this change is
       promoted (the OWNER's step, never mine), the next fold writes one `project_checkpoint` row whose

@@ -69,5 +69,8 @@ T1 → T2 → T3 → T4 → T5 (сборка кандидата для живо�
 
 - **T6 — protocol + routing в слоях.** Добавить protocol/routing в agent-слои (по образцу модели), выбор в `/agents`, чтение рантаймом из session; индикация `auto(resolved)` / `resolved` (addendum 3-4). Отдельный смоук: выбор протокола в слое → запрос использует его без решения «на лету».
   - [x] **Часть 1 (2026-09-26):** индикация — `protocolLabel` (`protocol-row.ts`): `auto(<resolved>)` при auto/пусто, иначе сам протокол; сайдбар читает configured из слоя модели (`model.options.protocol`). Оракулы: 6/0 (`20260926T093646Z_8240877c`), typecheck 0 (`20260926T093658Z_39ad61a0`).
-  - [ ] **Часть 2 (остаток):** per-session override (`setModelProtocol` session scope — сейчас тост «needs server work»: SDK options кэшируются; gateway должен брать protocol при сборке запроса) + «протокол фиксируется при выборе настроек, а не при запросе».
+  - [x] **DONE 2026-10-07 (re-read):** session `modelProtocol` read at `llm.ts:513` (`sessionModelProtocol`), pinned at
+    selection by `c6a81a089c`/`fc82510344`, rung persisted by `7d77a8fb3a`; the «needs server work» toast is gone
+    (grep 0 ✓); closed live under plans_completed/2026-09/2026-09-29_agents-protocol-and-cursor.md. Original:
+    **Часть 2 (остаток):** per-session override (`setModelProtocol` session scope — сейчас тост «needs server work»: SDK options кэшируются; gateway должен брать protocol при сборке запроса) + «протокол фиксируется при выборе настроек, а не при запросе».
 - **T4 (уточнён).** Интерактивный путь уже session-only: TUI шлёт `local.model.current()` (session-слой). Серверные fallback'и (`prompt.ts:660`, `:984`, `:2759-2760`) покрывают CLI/скрипты; задача — обвязать их `bug:`-warn'ом при промахе ниже session, не ломая CLI-путь, и зафиксировать правило в доке.

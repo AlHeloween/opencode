@@ -58,7 +58,13 @@ their call (`tool-calls`) — the normal shape the model was imitating.
       1.3.1 imports it unconditionally while listing it as an optional peer; nothing declared it, so
       `bun.lock` never carried it and every fresh `bun install --frozen-lockfile` broke the server
       routes. Declared at 0.2.3 (newest inside the peer range ^0.2.0). Commit `3da87807d3`.
-- [ ] **L1 — live confirmation.** Against the next binary the owner builds and promotes: a
+- [x] **L1 — CLOSED 2026-10-07 on live data.** The promoted binary carries the code (bin\opencode.exe 2026-10-06, literals
+  «The turn delivered an announcement, not its action», `rawFinishReason` present ✓). Half A ✓: 732/732 `step-finish`
+  parts since the first one carry `rawFinishReason` (main DB, read-only, 2026-10-07). Half B — the Level 5 retry itself —
+  NOT observed: 0 of the 36 stop+text+no-call steps since ended in a colon, so the trigger never fired (not a refutation).
+  Residual, reopen_when: a step with finish `stop`, text ending in «:» and no tool call appears without the retry.
+  Code hashes after the rebase: `550b1cbddd`, `34abb0276f`, `46d4c186be`, `e5ebc3eb14`. Original box:
+  **L1 — live confirmation.** Against the next binary the owner builds and promotes: a
       deepseek-flash step that stops right after a colon-ended announcement shows the Level 5 warn
       and a retry instead of an idle turn, and every new `step-finish` row carries `rawFinishReason`.
       Instrument: the read-only DB probe used above (`part.data` of type `step-finish`).

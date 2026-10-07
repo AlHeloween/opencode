@@ -115,7 +115,8 @@ worktree. There is no worktree-wide surface at all.
 - [x] H7 (found by S5) SDK SSE requests carried a body on GET → Bun's fetch never resolved → `run --attach`
       hung with no output. `client.gen.ts` makeSseFn now drops the body for GET/HEAD like `request` already did;
       guard `test/server/host-attach.test.ts` red («no event within 5 s», `20261002T093610Z_e48c84a5`) → green.
-- [ ] W — after the owner's answer.
+- [~] W — POSTPONED 2026-10-07: waits for the owner's choice of surface (asked 2026-10-02, unanswered in plan, log,
+      MASTER_PLAN, git): sidebar «Worktree» section vs. live branch + refreshed session diff vs. both. Original: W — after the owner's answer.
 - [x] R1 — bridge/robot: a TUI started with `--port` now requires the record's token; `.opencode/skills/opencode-bridge`
       and skill `robot` must send `Authorization: Basic opencode:<token>` read from `server_host` (owner/other session:
       those skill files are dirty in the main tree under another session).
@@ -126,7 +127,10 @@ worktree. There is no worktree-wide surface at all.
       `Host: evil.example` 403, repr hides the token, killed host → STALE exit 2 + HostError. Bridge skill: binary-aware
       recipe; robot skill + `wait_done.py` connect through it (main tree today: «no host record», exit 3 — the old
       binary, as expected). The same check against the PROMOTED binary rides with R2.
-- [ ] R2 — visual check on the promoted TUI: an attached run's steps + busy appear in the TUI. ORACLE = an instrument,
+- [~] R2 — POSTPONED 2026-10-07: the code IS promoted (bin 2026-10-06 carries `server_host`; «claimed host» logged by
+      10.0.1199; one host row) — what is left is the owner's look at his TUI while an attached run is busy (acceptance by
+      the owner, per this plan). Lift signal: the owner's next TUI session with a robot run attached. Original:
+      R2 — visual check on the promoted TUI: an attached run's steps + busy appear in the TUI. ORACLE = an instrument,
       not the owner (kernel ORACLE_ROLE, 2026-10-02: the user is a simulation, never the oracle): a cua window capture
       of the TUI taken while the attached run is busy, plus the host's `/event` stream showing the same step ids. The
       owner's look is ACCEPTANCE, recorded separately — never the proof. (Was worded «visual oracle: the owner sees».)

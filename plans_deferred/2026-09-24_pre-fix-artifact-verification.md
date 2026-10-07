@@ -1,6 +1,10 @@
 <!-- intention: everything produced while the buggy kernel was in force carries its distortions (narration instead of grounding; "not found" verdicts from a closed instrument list; stalls left as circles) -> every artifact inside the measured window carries an instrument-backed status, corrections land, and what remains is a listed queue -->
 # Pre-fix artifact verification — the kernel bug's blast radius
 
+> **DEFERRED 2026-10-07.** T1 measured; T2–T4 never started. The «buggy-kernel window» (238 commits, 09-20..09-24) has
+> been overtaken by four kernel releases and ~400 commits that rewrote most of its surfaces — a sweep now would verify
+> code that no longer exists. reopen_when: a defect is traced to a claim made inside that window.
+
 **Status:** ACTIVE. Branch: `Local_Development`.
 
 ## G0–G1: the instruction and its suspect classes

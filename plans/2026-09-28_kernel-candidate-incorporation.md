@@ -38,7 +38,7 @@ Ground rule: incorporate via `prompt_kernel/source.py` + addons, one phase per L
 Owner correction (2026-09-29): the file was given to CUT prose — «я специально дал тебе этот файл
 чтобы по возможности порезать прозу, проверь формулировки в аддонах» — and F2 as first drafted had
 turned the candidate into a source of additions. Reviewed and re-based:
-- [ ] Rewrite the longest rules in the candidate's density where the content is EQUAL — measured
+- [~] Rewrite the longest rules in the candidate's density where the content is EQUAL — measured
       targets (rendered chars per line): LEAN tiers 1 081, `@INFORMATION_STATUS` 501, `@ORACLE` 489,
       `SVM` 487, `@BUG_FIX_PROCEDURE` 468, `@MANHATTAN_L1` 467, `BOUNDED STOP (DONE)` 455, the G1
       instrument chain 452. Every replacement keeps EVERY decision and any address (field names,
@@ -49,11 +49,15 @@ turned the candidate into a source of additions. Reviewed and re-based:
       STILL OPEN: the LEAN line (pinned by test_render), `@INFORMATION_STATUS`, `@ORACLE` local rules,
       `SVM`, `@MANHATTAN_L1`, `@ONE_STEP_AHEAD`, and the rest of the add-on literals (10.7 KB / 152
       entries — six tightened so far). Instrument: `experiments/2026-09-29_kernel-cut-targets/sizes.py`.
-- [ ] Sweep the add-ons for wording (product + claude + codex): `addons.py` carries 10 738 B of string
+      [~] 2026-10-08: owner's call — measured 10–20 % compression ceiling (PASS 5); the remaining cuts =
+      choosing what not to say (the 3 structural candidates named in PASS 5), not prose editing.
+- [~] Sweep the add-ons for wording (product + claude + codex): `addons.py` carries 10 738 B of string
       literals across 152 entries — the same facts phrased looser than the candidate's e.g. the style
       list (done), the `state.json` report line (done), the ISO double citation in `@ACCEPTANCE_FRAME`
       (done). Cut WORDS, never a decision or an address. The claude/codex twins carry their own copies:
       sweep them with the same pass, not blindly — their tool rows differ by design.
+      [~] 2026-10-08: owner's call — measured 10–20 % compression ceiling (PASS 5); each add-on line is a
+      measured lesson, so which ones the kernel still needs is a coverage decision (PASS 5 candidate 3).
 - [x] TAKE only clauses that close a MEASURED defect, folded into lines being rewritten anyway:
       §1.5 gains «Classification follows actual effects; classes may combine» (landed in G4's
       `ACTION_CLASS_RULE`, not as a non-class row — `set(kernel.action_classes)` is a namespace),
@@ -70,9 +74,11 @@ turned the candidate into a source of additions. Reviewed and re-based:
       add-ons); the state_contract field additions that have no consumer today. Owner, 2026-09-29:
       «что нам дают action classes вместо реальных тулов» — nothing; the layer is a classification
       axis (G4 + envelope binding), never a permission list.
-- [ ] Budget: the additions above must fit inside what the cut frees — NO further `utf8_budget`
+- [~] Budget: the additions above must fit inside what the cut frees — NO further `utf8_budget`
       raise this phase; oracle = kernel pytest + render bytes/tokens, with test fragments that quote
       moved text updated in the same change.
+      [~] 2026-10-08 SUPERSEDED: the owner chose to raise the limit (F6 «Поднять лимит», then «limits by
+      measurement»); ✓ read `prompt_kernel/source.py:904` → `utf8_budget=62_000` with each raise's reason.
 
 PASS 3 DONE 2026-09-29 (owner direction: shorter formulations + PROCEDURES that raise autonomy;
 the candidate's generic host layer is a fish drawn without our tool list and is not ported):
@@ -119,20 +125,35 @@ PASS 5 (2026-09-29) — WATER HUNT, owner-directed («мы раздуваем ф
 ### F3 — Knowledge statuses (§2)
 - [~] `@INFORMATION_STATUS`: verified source wording ≠ verified reported proposition; decisive FAIL → REFUTED, inconclusive → UNRESOLVED; changed evidence/scope/artifact requires fresh verification.
       PARTIAL (2026-09-29): «Verified source wording is not a verified proposition» landed in F2 pass 3 (`source.py:47`, installed render); REFUTED/UNRESOLVED split and fresh-verification clause NOT landed.
+      SUPERSEDED (2026-10-08): the wording landed in `1d5b9d7150`; the fresh-verification half is carried by
+      `@DIVERGENCE_PROTOCOL` (`9329fa8b01`: «re-digest before relying … unequal or unobtainable content_hash …
+      claim → Unknown», ✓ read in `source.py:57`); a separate REFUTED/UNRESOLVED split would be a second ladder
+      beside @INFOMARK (failed proof → Unknown).
 - [x] `@EVIDENCE_ORDER`: requirements cannot be skipped; redundant intermediate searches can.
       Landed in F2 cut pass (`0e3853c2c2`); artifact: `source.py:42` + installed `.claude/reasoning_kernel.md`; pytest 119 passed 2026-09-29.
 - [x] `@BUG_FIX_PROCEDURE`: no reproducer = unconfirmed (not hallucination); flaky criteria; trial may be a patch/worktree; verify the applied artifact.
       Landed in F2 cut pass (`0e3853c2c2`); artifact: `source.py:110` + installed render; pytest 119 passed 2026-09-29. F6 supersedes it with the STABILIZE sequence.
-- [ ] Tests. OPEN: none of the F3 phrases is pinned by a test (grep over `prompt_kernel/**/*.py` finds them only in `source.py`) — pins land with F6.
+- [x] Tests. OPEN: none of the F3 phrases is pinned by a test (grep over `prompt_kernel/**/*.py` finds them only in `source.py`) — pins land with F6.
+      ✓ 2026-10-08: the three phrases are pinned at `prompt_kernel/tests/test_render.py:390-392` (landed `39e04ddbe7`);
+      `python -m pytest prompt_kernel/tests/ -q` at d27eeca940 → 144 passed, 1 skipped (Cursor receiver absent on this host, reason printed).
 
 ### F4 — Composition & precision (§0/§1/§4)
-- [ ] G0: DIGITAL_INTENTION is internal state, not a compulsory separate reply.
+- [x] G0: DIGITAL_INTENTION is internal state, not a compulsory separate reply.
+      ✓ landed in `7721bfce84` (G0 turn-termination clarification): «Producing them is not a terminal — the same
+      turn continues through the declared workflow» (read `source.py:421`).
 - [~] `@CURRENT_SV`: once per completed assistant turn (not per tool call); never inside generated artifacts; host-schema omission clause.
       PARTIAL (2026-09-29): first two landed (`source.py:72`, F2 cut pass); the host-schema omission clause («strict schemas: permitted metadata channel or higher-priority omission») NOT landed.
-- [ ] `@INTENTION_RESET`: `observed_at` adds G1/G3/G4/G5.
-- [ ] Notation header (§1) only if it pays for itself (formulas are defined in-place today).
-- [ ] Recorded rejections: candidate `gates:`/`may_mutate:` and `action_classes` rows in §5 — our identity tool rows win (owner, 2026-09-28); candidate `host_bindings` content — host layer stays in add-ons (only a host-agnostic “no listed name asserts availability” principle may land in §1).
-- [ ] Compression pass only if the cap needs it (three gates from docs/gate-addons.md; never cut a decision).
+      DECLINED (2026-10-08): not landed in 9 days of releases; no defect traced to its absence.
+- [~] `@INTENTION_RESET`: `observed_at` adds G1/G3/G4/G5.
+      DECLINED (2026-10-08): G3/G5 are already observed; G1/G4 not landed in 9 days of releases; no defect traced to their absence.
+- [~] Notation header (§1) only if it pays for itself (formulas are defined in-place today).
+      DECLINED (2026-10-08): not landed in 9 days of releases; no defect traced to its absence (formulas stay defined in place).
+- [x] Recorded rejections: candidate `gates:`/`may_mutate:` and `action_classes` rows in §5 — our identity tool rows win (owner, 2026-09-28); candidate `host_bindings` content — host layer stays in add-ons (only a host-agnostic “no listed name asserts availability” principle may land in §1).
+      ✓ `gates`/`may_mutate` dropped in `10fb48c1cd`; action_classes rows rejected in the F2 REJECT box above; the host-agnostic
+      principle landed as `@CAPABILITY_ABSTRACTION` in `7721bfce84` («A remembered tool name that does not exist in the current
+      runtime is not a blocker and not evidence», read `source.py:71-77`).
+- [~] Compression pass only if the cap needs it (three gates from docs/gate-addons.md; never cut a decision).
+      SUPERSEDED (2026-10-08): the cap was raised by the owner instead (`utf8_budget=62_000`, `source.py:904`); the cut itself is the owner's call (F2).
 
 ### F6 — Procedure layer from `reasoning_prompt.final.txt` (testing, memory cut-off, tool readiness)
 Owner, 2026-09-29: «самое главное грамотно дернуть процедуры… кратко и лаконично, там по поводу
@@ -207,6 +228,15 @@ Artifact for the boxes below (source-level, pre-install): `python -m pytest prom
 - [ ] NOT RUN this cycle, stays open under F5: the TS parity suite (`kernel-identity-tools`, `registry`,
       `kernel-alignment`) and `bun typecheck` — the product tool rows did not change, but «did not change» is
       a claim, not a run.
+      RUN 2026-10-08 at d27eeca940 (cmd_runner, `packages/opencode`, one file per run): `kernel-identity-tools.test.ts`
+      no longer exists — deleted as superseded in `86e4a5c564`, its successor is `test/agent/kernel-identity-manifest.test.ts`
+      (`1a437f6def`). Results: `registry.test.ts` 11 pass / 0 fail (run `20261007T170448Z_50a5a012`);
+      `kernel-alignment.test.ts` 5 pass / 0 fail (`20261007T170505Z_ca57329f`); `kernel-identity-manifest.test.ts`
+      **RED 0 pass / 1 fail** (`20261007T170424Z_60b4484f`): «every native identity's live tool sets equal
+      prompt_kernel/identity_tools.json» — the live allowed set holds `samply`, the manifest does not. Origin (Inferred
+      from history, no before/after run): the `samply` tool landed in `d582038233` (2026-10-06) without re-running
+      `script/kernel-tools-manifest.ts`; `identity_tools.json` last moved in `1a437f6def`. `bun typecheck` → exit 0, no
+      diagnostics (`20261007T170314Z_718c4158`). Box stays OPEN until the manifest suite is green; not fixed here.
 
 ### F7 — BGE semantic dedup + ordering (owner, 2026-09-29: «прогоним фразы через BGE… уберем лишнее»; «граф есть граф — его двигать не надо. Но вот элементы графа и аддоны — спокойно»)
 Instruments: `experiments/2026-09-29_kernel-semantic-dedup/{pairs,order,order_sub,tool_rows}.py` (BGE-M3, CUDA, GTX 1050 Ti).
@@ -235,7 +265,9 @@ Prose-only: 375 sentences, knee at cos ≈ 0.80 (p99.9 = 0.723), 10 pairs above 
 
 ### F5 — Release
 - [ ] Final pytest + parity suite + typecheck; render vs caps; **diff to the owner**; `--install` + repin; claude/codex receivers refreshed (no identity rows).
-- [ ] docs: record the release (amend `docs/kernel-release-2026-09-28.md` or a sibling — one home per fact); update `docs/gate-addons.md` if budgets move.
+      2026-10-08: pytest 144 passed / 1 skipped, typecheck clean, parity RED on `kernel-identity-manifest` (`samply`) — see F8; open.
+- [x] docs: record the release (amend `docs/kernel-release-2026-09-28.md` or a sibling — one home per fact); update `docs/gate-addons.md` if budgets move.
+      ✓ `docs/kernel-release-2026-09-29.md` and `docs/kernel-release-2026-10-01.md` exist and name this plan (lines 3 and 5).
 - [ ] Commits naming this plan; move to `plans_completed/` when boxes close; scan for stale refs.
 
 ## Smoke Tests

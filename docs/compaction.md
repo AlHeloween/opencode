@@ -148,8 +148,8 @@ readable off the turn note:
 4. **The next step is ADDRESSED** — `owed:` names THIS session's plan and the task inside it (read from the
    session's own messages; a session that binds no plan is told exactly that), `svm:` carries its direction,
    and the map is current, so the sharpened window opens HOLDING a direction instead of spending its first
-   turns reconstructing one.
-   satisfy — and why «is every entry mapped» is a fold-readiness check rather than bookkeeping.
+   turns reconstructing one. This is the precondition `svm`, the turn note and `plans/MASTER_PLAN.md` exist
+   to satisfy — and why «is every entry mapped» is a fold-readiness check rather than bookkeeping.
 
 When (1) and (4) disagree — a boundary closed and the next one unmapped — the fold is still available, and the
 gap is the first thing the new window should close. What is never right is folding on the overflow gate ALONE:

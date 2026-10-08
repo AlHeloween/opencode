@@ -28,10 +28,12 @@ in worktrees while the job needed process management and monitoring.
   `dist\bin` has no tools. Both happened on 2026-10-08.
 - **Needs a branch?** Tell the robot to create it, and to merge it into `Local_Development` when its oracle passes.
 - **At most 3 robots run at once.** Claude keeps the list (session id, task, started) and checks each one's state.
-- **The one exception: the kernel is Claude's own** (owner, 2026-10-08: «по поводу любых правок кернела — к тебе. Ты
-  владеешь темой»). `prompt_kernel/**` — source, add-ons, generated manifests, the falsifier rounds, install, baseline —
-  is done by Claude through the pipeline, never briefed to a robot. A robot task that needs a kernel change stops at
-  the product side and names the kernel change it needs.
+- **The kernel: the robot makes the change, Claude owns the topic and reviews it critically** (owner, 2026-10-08: «по
+  поводу любых правок кернела — к тебе. Ты владеешь темой», then «пусть сделает, а ты критически проверишь»). A robot
+  changes `prompt_kernel/**` only through the pipeline and STOPS before `--install`: commit + the kernel diff. Claude
+  reads the diff against the quality doctrine, runs the outside falsifier (skill `aicall`) and the gates; only on PASS
+  does Claude tell the same robot session to install (and repin baseline). A FAIL goes back to the robot with the
+  findings.
 - **Claude's job:** brief → launch → monitor → read back (final message, diff, DB rows) → run the oracle itself →
   analyse. Every kernel-protocol error, by robot or by Claude as delegator, is one row in
   `docs/robot-protocol-log.md` — sorted out later with the owner, not fixed in flight.

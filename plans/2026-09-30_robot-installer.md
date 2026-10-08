@@ -726,6 +726,13 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
   `worker.lock`; login `--login`, default `<agent>-worker`, a missing Fossil user = result `error` (the worker never creates users); one tick = `org_worker.py --agent … --once` (exit ≠ 0 = the worker failed), the Task Scheduler is
   the clock. Scheduler settings on this side: per-user, «run only when the user is logged on», a new instance is
   IGNORED while one runs (the lock is the second guard), no execution time limit (a child run may be long).
+  Permission fragment (`claude-org.settings.template.json`, ADID branch claude/org-worker 40099ec): REJECTED as
+  sent ✗ — measured 2026-10-08 on fossil 2.28 [52445a27f1], harmless payloads: `fossil sql --readonly … ".shell
+  echo X"` / `".system echo X"` execute (rc 0), `".output <file>"` writes a file, `fossil wiki export PAGE FILE`
+  writes FILE; so `Bash(fossil sql --readonly *)` and `Bash(fossil wiki export *)` = arbitrary execution / write.
+  Only `Bash("{PYTHON}" "{ORG_HOME}/genesis/org.py" *)` ships; reads move into org.py verbs (asked of the
+  legislator: `inbox --json --no-presence`). Until then B7 ships NO permission fragment. Our own allowlists
+  checked: only an exact full-command rule, no fossil wildcard ✓.
   Verify scope: MANIFEST.sha256 covers the program tree only; runtime roots (`org/`, data, logs) are outside it, so
   verify + repair never call a live org.fossil or a run log «extra»; (b) the org server + orgd also need an autostart after reboot on the target — today only
   `init.py` raises them, so the same per-user logon task runs `init.py` (idempotent); (c) B1f portability.

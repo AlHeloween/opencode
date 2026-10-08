@@ -103,10 +103,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 207 |
-| plans active | 12 |
-| tasks passed / total | 829 / 1043 |
-| open boxes | 72 |
+| plans completed | 209 |
+| plans active | 11 |
+| tasks passed / total | 831 / 1043 |
+| open boxes | 70 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -123,10 +123,6 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 - `plans/2026-09-26_unified-settings-layers.md` — 0 open / 12 box(es) · lifecycle ACTIVE
   sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for
   - no open box
-
-- `plans/2026-09-27_mechanical-s-cadence.md` — 1 open / 7 box(es) · lifecycle UNKNOWN
-  sv: intention "the 2026-09-22 removal took the model call AND the mechanical half with it — `enrichRange` has zero call sites, `project_checkpoint` holds 0 rows over 870 messages, so the fold carries memory + a tail and the code-thread past ~32K is unreachable -> every 64k of work writes a mechanical summary (semantic-vector list + the range's messages + fossil/tool diffs + CodeGraph impact) with no model call, the owner can READ it as a panel, and the fold carries its three layers again" · keywords []
-  - T4b [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-09-28_kernel-candidate-incorporation.md` — 12 open / 59 box(es) · lifecycle ACTIVE
   sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for
@@ -211,20 +207,15 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   sv: intention "расход не сходится с моделью, и картинки едут инлайном в каждом запросе -> деньги считаются по фактическому тарифу, файлы живут в провайдерском хранилище и адресуются ссылкой, кеш не ломается" · keywords []
   - no open box
 
-- `plans/2026-10-07_mermaid-diagram-width.md` — 0 open / 4 box(es) · lifecycle ACTIVE
-  sv: intention "a mermaid diagram's apparent text size was decided by a font-anchored scale clamped to an 80-column budget, so any diagram wider than the clamp rendered its labels below one terminal row -> the diagram is DRAWN at the window's own width and its height is never budgeted, so nothing in the pipeline resizes a rendered diagram" · keywords []
-  - no open box
-
 - `plans/2026-10-07_supersede-between-steps-loses-reply.md` — 3 open / 3 box(es) · lifecycle OPEN
   sv: intention "a user prompt that replaces a running turn is sometimes left unanswered (no request, one aborted empty row) -> every replacing prompt either gets its own reply or a visible, named failure; the race between the superseded run and the new run is reproduced, explained and closed" · keywords []
   - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-08_mcps-connector-manager.md` — 6 open / 8 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-08_mcps-connector-manager.md` — 5 open / 8 box(es) · lifecycle UNKNOWN
   sv: intention "/mcps is a runtime-only toggle list -> the TUI's ONE place to attach MCP connectors: statuses, OAuth auth, add/remove with scope, persistent enable/disable, and a connector catalog (Canva first). The server-side routes (add / auth start / auth authenticate / auth callback / auth remove / connect / disconnect / status) already exist and are REUSED, not rebuilt; the work is the TUI surface, the persistence, and the connector data." · keywords []
   - S3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - S4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - S5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - S6 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - S7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -236,6 +227,6 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 ## The checks
 
-This body names all 15 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 13 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

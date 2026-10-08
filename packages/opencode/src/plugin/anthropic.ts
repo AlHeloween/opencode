@@ -14,7 +14,6 @@ const CALLBACK_TIMEOUT_MS = 5 * 60 * 1000
 const EXPIRY_SAFETY_MARGIN_MS = 5 * 60 * 1000
 const CLAUDE_CODE_VERSION = "2.1.257"
 const CLAUDE_CODE_SDK_VERSION = "0.112.1"
-const CLAUDE_CODE_MAX_OUTPUT_TOKENS = 64_000
 const CLAUDE_CODE_SYSTEM_INSTRUCTION = "You are Claude Code, Anthropic's official CLI for Claude."
 const CCH_SEED = 0x4d659218e32a3268n
 const CCH_PLACEHOLDER = "cch=00000"
@@ -410,8 +409,6 @@ export function transformOAuthRequest(init: RequestInit | undefined): RequestIni
       ...existingSystem,
     ]
   }
-  if (typeof payload.max_tokens === "number") payload.max_tokens = Math.min(payload.max_tokens, CLAUDE_CODE_MAX_OUTPUT_TOKENS)
-
   const body = new TextEncoder().encode(JSON.stringify(payload))
   patchCch(body)
   return { ...init, headers, body: new TextDecoder().decode(body) }

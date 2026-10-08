@@ -16,6 +16,8 @@ reproduce:
 
 # Anthropic OAuth — Claude Pro/Max
 
+> ✓ Актуализация 2026-10-01: исходный OAuth-only лимит `64_000` был удалён после подтверждённого изменения oh-my-pi `42aee39175`; текущий хук сохраняет `max_tokens`, выбранный модельным слоем. См. `plans_completed/2026-10-01_anthropic-oauth-full-output-ceiling.md`.
+
 ## Goal
 
 Restore Anthropic OAuth in this fork as a first-class OpenCode auth plugin, faithfully porting the established `oh-my-pi` Claude Pro/Max flow: PKCE browser login with loopback callback and manual-code fallback, token rotation, Claude-Code-compatible OAuth request fingerprint, and visible account identity. Existing Anthropic API-key behaviour must remain unchanged.

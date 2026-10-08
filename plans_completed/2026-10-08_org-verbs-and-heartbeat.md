@@ -2,8 +2,8 @@
 
 # Org verbs + heartbeat — delegation through tickets, a robot that is woken to finish
 
-- status: ACTIVE (owner, 2026-10-08: «давай делать»; G3 of the roadmap first, plus the heartbeat gap)
-- next: T1 verb CLI
+- status: COMPLETE 2026-10-08 — every box earned (S1-S5 green in one run, job cmd-4; S4: init ×2 → one orgd); results archived to experiments_history/2026-10-08_org-heartbeat/
+- next: moved to plans_completed/ in the same commit
 - waits for: nothing
 - sv: { keywords: { robot-heartbeat 0.30, wake-delegator 0.25, org-verbs-cli 0.20, claim-arbitration 0.15, assignee-inbox 0.10 },
         dominant: "A robot that delegates is woken by the organization when its child finishes or stalls, so it finishes the task itself." }
@@ -38,11 +38,11 @@ so the organization must be the one that knocks.
 
 ## Tasks
 
-- [ ] T1 `org.py` verbs + schema fields (`wake_session`, `wake_worktree`, `woken_state`), installed to `$HOME/.org/genesis`
-- [ ] T2 `orgd.py` loop (cases 1-4) + start from `init.py`
-- [ ] T3 how a robot knows its own session id and worktree inside a tool call — measured, then written into Protocol
-- [ ] T4 Protocol wiki page + `scripts/org-genesis/Protocol.md` updated with the verbs CLI and the wake rule
-- [ ] T5 smoke tests S1-S5 green, run ids here
+- [x] T1 `org.py` verbs + schema fields (`wake_session`, `wake_worktree`, `woken_state`), installed to `$HOME/.org/genesis` — DONE 2026-10-08: `scripts/org-genesis/org.py` (delegate/claim/heartbeat/report/done/escalate/inbox; claim arbitrated by the exclusive epoch lock); install = copies + `fossil uv add` ×6. Evidence: S1 in job cmd-4 — winner `claude` epoch 1, loser exit 1 «already claimed by claude 1791421387»; sandbox race cmd-1/cmd-2. Finding fixed: `fossil ticket set F ""` exits 0 and silently keeps the old value → resets use `-` (CLEARED).
+- [x] T2 `orgd.py` loop (cases 1-4) + start from `init.py` — DONE 2026-10-08: job cmd-4 — S2 DONE-wake 4.4 s, S3 STALLED-wake 73.4 s (lease 60), S5 inbox-wake 16.2 s; `woken_state` recorded only after a 2xx; S4: init ×2 → one orgd (pid 13492, one python.exe running orgd.py); wake lines in `~/.org/orgd.log`.
+- [x] T3 how a robot knows its own session id and worktree inside a tool call — MEASURED 2026-10-08: a tool call's environment carries no session id (`set OPENCODE` → OPENCODE_PID, OPENCODE_RUN_ID, OPENCODE_PROCESS_ROLE only); the id is visible to the model as the `[session: ses_…:<model>]` banner (session/llm.ts:569) and equals the session row; worktree = cwd. Auto-discovery from the running tool call proven live: delegate attributed its caller, and a robot session's own `org.py inbox` registered its own session. Written into Protocol §«Who you are in a tool call».
+- [x] T4 Protocol wiki page + `scripts/org-genesis/Protocol.md` updated with the verbs CLI and the wake rule — DONE 2026-10-08: rewritten around the verbs, «after DELEGATE end your turn; the organization wakes you», presence and the `-` reset marker; committed to the wiki by init (`fossil wiki export Protocol` shows it).
+- [x] T5 smoke tests S1-S5 green, run ids here — DONE 2026-10-08: S1-S5 all PASS in ONE run, job cmd-4, summary `experiments/2026-10-08_org-heartbeat/runs/20261008T010448Z_org-heartbeat-summary.json` (raw: S1 loser exit 1 naming the holder; S2 wake_s 4.4; S3 stall_wake_s 73.4; S5 wake_s 16.2). First run job cmd-3 = S3/S5 green and surfaced the two findings (empty-set defect; child-session fixture), both fixed before the rerun.
 
 ## Smoke Tests
 

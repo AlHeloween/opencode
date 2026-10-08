@@ -1,5 +1,12 @@
 # Progress Log
 
+## [2026-10-08 01:05Z] org verbs + heartbeat: the organization wakes robots (plan 2026-10-08_org-verbs-and-heartbeat)
+
+✓ **T1-T5 done** — `scripts/org-genesis/org.py` (delegate/claim/heartbeat/report/done/escalate/inbox; claim arbitrated by an exclusive epoch lock) + `orgd.py` (15 s heartbeat: DONE/BLOCKED → delegator, lease-expired WORKING → «STALLED», READY → assignee via PRESENCE, no live host → retry) started by `init.py` together with the schema upgrade (wake_session/wake_worktree/woken_state); Protocol + wiki rewritten (verbs, wake rule, presence, session discovery); installed + `fossil uv add` ×6.
+
+✓ **S1-S5 green in one run, job cmd-4** — S1 loser exit 1 naming the holder, winner epoch 1; S2 DONE-wake 4.4 s; S3 STALLED-wake 73.4 s (lease 60); S5 inbox-wake 16.2 s; S4: init ×2 → one orgd (pid 13492). Summary: `experiments/2026-10-08_org-heartbeat/runs/20261008T010448Z_org-heartbeat-summary.json`.
+
+✓ **Two findings, both fixed** — (a) `fossil ticket set F ""` exits 0 and silently keeps the old value (measured) → `woken_state` resets use `-` (CLEARED); (b) a woken full-build session acts on its ticket (one claimed it), so the smoke suite pre-frames its test sessions and aborts them at the end. Archived: `experiments_history/2026-10-08_org-heartbeat/`.
 
 ## [2026-10-08 00:55Z] settings layers: T4/T5/T7 residuals closed — server falls below session are recorded, the last two neighbour-session writes are gated (plan 2026-09-26_unified-settings-layers)
 

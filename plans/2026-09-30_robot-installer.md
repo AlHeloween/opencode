@@ -740,7 +740,13 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
   allowlist (org_worker.py:159), measured 2026-10-08 in a scratch repo: `git diff/log --output=<path>` write a file
   ✓, `git status` runs `core.fsmonitor` from .git/config ✓; Inferred: `--add-dir <ORG_HOME>` + Write can rewrite
   genesis/org.py, which the one rule then runs. Asked: no add-dir of ORG_HOME, no git rule (repo state into the
-  brief by the worker), a test against both. B7 does not register a worker until this lands. Our own allowlists
+  brief by the worker), a test against both. B7 does not register a worker until this lands. Landed in ADID
+  b643b21 ✓ (read via `git show`): allowed tools exactly Read,Grep,Glob,Edit,Write (:56), the only add-dir = the
+  run's scratch (:154/:157), the agent never runs org.py — it writes outcome.json and the WORKER reports/closes,
+  the worker's own git call disables fsmonitor/untrackedCache/diff.external with GIT_CONFIG_NOSYSTEM (:170-175).
+  Last residual asked 2026-10-08: deferred execution through workspace writes (.git/config, .git/hooks,
+  .claude/settings*.json, .codex/, .mcp.json) → the worker hashes that set before/after the host, restores and
+  escalates on any change. Registration held until it lands. Our own allowlists
   checked: only an exact full-command rule, no fossil wildcard ✓.
   Verify scope: MANIFEST.sha256 covers the program tree only; runtime roots (`org/`, data, logs) are outside it, so
   verify + repair never call a live org.fossil or a run log «extra»; (b) the org server + orgd also need an autostart after reboot on the target — today only

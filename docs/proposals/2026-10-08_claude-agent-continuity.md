@@ -11,6 +11,22 @@ We run Claude as the commander of a fleet of opencode robots. The robots keep co
 scheduled Claude run starts blank. The difference is not model quality — it is how memory is ORGANISED. Ours is not
 the usual «summarise when the window is full»; it is built around one invariant.
 
+## The core defect: compaction is a summarisation request
+
+Owner, 2026-10-08, verbatim: «здесь компакт обязательно заряжает ИИ запрос на суммаризацию, а так быть вообще не
+должно, мы же нарушаем правила информации — нельзя 800к полотна сжать в 32к ответа как не извивайся.»
+
+A compact today sends the whole window to the model and replaces it with the model's summary. That is an
+information-theoretic loss, not an engineering one: a 32k-token answer cannot carry what an 800k-token window held,
+however good the summariser. Whatever the summary omits is gone — no address, no way back — and the agent does not even
+know what it lost, so it cannot ask for it. Better prompts for the summariser do not fix this; nothing does, as long as
+the summary REPLACES the content.
+
+Our fold is mechanistic: no model call decides what survives. Content leaves the attended window but stays stored and
+addressed; the window keeps the inviolate tail plus pointers with exact handles, and anything released is re-acquired
+by address on demand. The loss is confined to attention, never to the record — which is the only kind of compression
+that information allows.
+
 ## The invariant
 
 **Maximum continuity = acting without re-deriving.** «Remembering more» is not the goal; a boundary that forces a
@@ -40,7 +56,7 @@ boundary broke continuity. (docs/compaction.md, AGENTS.md § Continuity Paradigm
 
 ## The ask
 
-Give a long-lived Claude agent this organisation: one resumable session (a scheduled task continuing the same
+Replace the summarisation-request compact with a mechanistic fold, and give a long-lived Claude agent this organisation: one resumable session (a scheduled task continuing the same
 conversation), a fold the agent calls itself at a boundary with a reason, an inviolate contiguous tail, and release by
 address with recall instead of lossy summarisation. The rest of our system already exists around it; the commander's
 memory is the missing piece.

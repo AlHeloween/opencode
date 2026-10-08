@@ -103,7 +103,7 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 205 |
+| plans completed | 206 |
 | plans active | 11 |
 | tasks passed / total | 819 / 1030 |
 | open boxes | 68 |
@@ -223,16 +223,12 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-08_messages-endpoint-401.md` — 0 open / 5 box(es) · lifecycle UNKNOWN
-  sv: intention "GET /session/ses_ee71eb62bffeGfzHDNQGaxq2Q6/message on the owner's host answers 401 {"_tag":"Unauthorized","message":"Unauthorized"} whenever the page reaches the session's OLDEST message (limit 74 -> 200; limit >= 75 or no limit -> 401) although the credential is identical in every call -> the endpoint returns the whole history for every limit, and any real failure reports itself as its own class instead of Unauthorized" · keywords []
-  - no open box
-
 - `plans/2026-10-08_org-portable-home.md` — 1 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "hidden test-only ORG_HOME/ORG_PORT in three copies + PATH-first fossil + fossil-CLI reads -> one shared resolver as SUPPORTED settings, bundled fossil outranking PATH, reads through org.py verbs only, documented in Protocol and the kernel add-on (plan 2026-09-30_robot-installer.md B1f)" · keywords []
   - S9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 ## The checks
 
-This body names all 15 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 14 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

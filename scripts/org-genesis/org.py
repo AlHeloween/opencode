@@ -1,6 +1,6 @@
 """org.py — the organization's verbs over $HOME/.org/org.fossil (one file, stdlib only).
 
-    python ~/.org/genesis/org.py delegate --title "..." --assignee smit-x --worktree D:\\proj
+    python ~/.org/genesis/org.py delegate --title "..." --assignee smit-x [--worktree D:\\proj] [--no-wake]
     python ~/.org/genesis/org.py claim <uuid> [--lease 600]
     python ~/.org/genesis/org.py heartbeat <uuid> [--what "..."] [--lease 600]
     python ~/.org/genesis/org.py report <uuid> --title NAME (--file f.md | --text "...")
@@ -21,6 +21,12 @@ Wake bookkeeping (the fields orgd reads): wake_session + wake_worktree name the 
 session to wake on DONE/BLOCKED/stall; woken_state = the last wake kind already sent for the
 current situation. claim/heartbeat/done/escalate reset it to CLEARED ("-") so a later
 transition can wake again — never to "", because an empty field value is silently ignored.
+
+`--no-wake` declares the delegator un-wakeable: no wake_session/wake_worktree is recorded,
+and orgd never attempts a wake for that child's state changes — the delegator (e.g. a
+Claude session that polls its inbox) reads its own inbox. Without it a delegator must be an
+opencode session (--session or auto-discovery): a wake target that cannot receive is not
+recorded, and a wake is never guessed into some other session.
 
 Session discovery (T3, measured 2026-10-08): a tool call's environment carries NO session id —
 OPENCODE_PID/OPENCODE_RUN_ID identify the process run, not the session. The session id is
@@ -162,7 +168,8 @@ def need_session(a, verb: str) -> str:
     if not session:
         sys.exit(
             f"org: cannot determine the calling session — pass --session ses_… "
-            f"(the first field of the `[session: …]` banner in your own context)"
+            f"(the first field of the `[session: …]` banner in your own context), "
+            f"or --no-wake if you poll your inbox instead"
         )
     return session
 
@@ -183,7 +190,9 @@ def cmd_delegate(a) -> int:
     known = rows("SELECT 1 FROM user WHERE login = ?", (a.assignee,))
     if not known:
         sys.exit(f"org: no such user {a.assignee!r} — create it first (fossil user new {a.assignee} robot <secret> -R <org>)")
-    session = need_session(a, "delegate")
+    if a.no_wake and a.session:
+        sys.exit("org: --no-wake and --session are mutually exclusive — a wake target and \"never wake me\" cannot both hold")
+    session = None if a.no_wake else need_session(a, "delegate")
     worktree = a.worktree or str(Path.cwd())
     if a.parent:
         parent = ticket(a.parent)
@@ -197,7 +206,7 @@ def cmd_delegate(a) -> int:
         "title", a.title, "type", "Task", "status", "Open",
         "agent_state", "READY", "delegated_by", user, "assigned_to", a.assignee,
         "delegation_depth", str(depth), "workspace_repo", worktree,
-        "wake_session", session, "wake_worktree", worktree,
+        *(["wake_session", session, "wake_worktree", worktree] if session else []),
         *parent_args,
         *(["root_task", root] if root else []),
         *(["sv", a.sv] if a.sv else []),
@@ -349,6 +358,8 @@ def main() -> int:
     p.add_argument("--depth", type=int, help="delegation depth (default: parent's +1, else 0)")
     p.add_argument("--sv", help="semantic vector md5 of the delegating reasoning step")
     p.add_argument("--comment", help="one line of context")
+    p.add_argument("--no-wake", action="store_true",
+                   help="you cannot be woken (inbox-polled): record NO wake target; orgd never wakes you")
     p.set_defaults(func=cmd_delegate)
 
     p = sub.add_parser("claim", parents=[common], help="claim/lease a ticket (arbitrated by an epoch lock)")

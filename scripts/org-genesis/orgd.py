@@ -9,10 +9,13 @@ woken when its child ends, and an assignee is woken when a ticket lands:
   2. WORKING ticket past its lease (lease_until < now; a heartbeat extends it) and not yet
      woken as stalled -> wake the delegator with «stalled»; woken_state = STALLED. A fresh
      heartbeat or a new claim clears woken_state, so a later stall wakes again.
-  3. READY ticket with workspace_repo -> wake the assignee: the session of the newest PRESENCE
-     line (user, session, worktree) for that assignee and worktree — `org.py inbox` registers
-     it — else the newest session of that worktree; text = «new ticket in your inbox»;
-     woken_state = NEW.
+  3. READY ticket with workspace_repo -> wake the ASSIGNEE'S OWN session: the one named by
+     the newest PRESENCE line (user, session, worktree) for that assignee and this worktree —
+     `org.py inbox` registers it; text = «new ticket in your inbox»; woken_state = NEW. No
+     such PRESENCE (or its session is gone) -> NOTHING is sent and the reason is logged once
+     (never every tick): a wake lands only where the assignee declared itself — never in
+     whatever session happens to be newest. (That fallback woke another robot's or the
+     owner's session for a ticket that was never theirs, found 2026-10-08.)
   4. No live host / no such session -> nothing sent, nothing recorded, retry next tick.
      Never start a second server: one worktree = one host.
 
@@ -152,20 +155,14 @@ def session_exists(worktree: str, session_id: str) -> bool:
         con.close()
 
 
-def newest_session(worktree: str) -> str | None:
-    db = Path(worktree) / ".opencode" / "data" / "opencode.db"
-    if not db.exists():
-        return None
-    con = connect(db)
-    try:
-        row = con.execute("SELECT id FROM session ORDER BY time_updated DESC LIMIT 1").fetchone()
-        return row[0] if row else None
-    finally:
-        con.close()
+def assignee_session(assigned_to: str, worktree: str) -> tuple[str | None, str]:
+    """Where the organization knocks: ONLY the assignee's own PRESENCE in this worktree.
 
-
-def assignee_session(assigned_to: str, worktree: str) -> str | None:
-    """Where the organization knocks: the assignee's newest PRESENCE in this worktree, else its newest session."""
+    A wake goes to a session that declared ITSELF the addressee (`org.py inbox` writes the
+    PRESENCE line) or to nobody — never to "whichever session is newest": measured
+    2026-10-08, that fallback woke a session that never asked for the ticket. Returns
+    (session_id, "") or (None, why); the caller logs `why` once per change, not per tick.
+    """
     con = connect(ORG)
     try:
         lines = con.execute("SELECT xmsg FROM chat ORDER BY msgid DESC LIMIT 400").fetchall()
@@ -175,9 +172,10 @@ def assignee_session(assigned_to: str, worktree: str) -> str | None:
         parts = str(message or "").split()
         if len(parts) >= 4 and parts[0] == "PRESENCE" and parts[1] == assigned_to and norm(parts[3]) == norm(worktree):
             if session_exists(worktree, parts[2]):
-                return parts[2]
-            break  # the newest presence names a dead session — fall through to the newest session
-    return newest_session(worktree)
+                return parts[2], ""
+            return None, f"the newest PRESENCE for {assigned_to} names a session that no longer exists ({parts[2]})"
+    return None, (f"no PRESENCE for {assigned_to} in {worktree} — nothing to wake; "
+                  f"`org.py inbox` there registers the session")
 
 
 def wake(session_id: str, worktree: str, text: str, tag: str) -> bool:
@@ -232,13 +230,15 @@ def tick() -> list[str]:
                     if ticket_set(uuid, woken_state="STALLED"):
                         actions.append(f"{head}: stalled -> woke delegator {t['wake_session']}")
         elif state == "READY" and t["workspace_repo"] and woken != "NEW":
-            session_id = assignee_session(str(t["assigned_to"] or ""), str(t["workspace_repo"]))
+            session_id, why = assignee_session(str(t["assigned_to"] or ""), str(t["workspace_repo"]))
             if session_id:
                 text = (f"ORG ticket {uuid} is a NEW ticket in your inbox: {t['title']}. "
                         f"Claim it or hand it on.")
                 if wake(session_id, str(t["workspace_repo"]), text, f"{head}/new"):
                     if ticket_set(uuid, woken_state="NEW"):
                         actions.append(f"{head}: new -> woke assignee {session_id}")
+            else:
+                log_once(f"{head}/new", f"{head}/new: not woken — {why}")
     return actions
 
 

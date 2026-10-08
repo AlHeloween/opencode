@@ -25,10 +25,12 @@ You act as a Fossil user of this repository: `--user <you>` on every write (or `
 
 ## The verbs — `python ~/.org/genesis/org.py <verb>`
 
-- DELEGATE — `org.py delegate --title "..." --assignee smit-<project> [--worktree D:\proj] [--parent <uuid>]` —
+- DELEGATE — `org.py delegate --title "..." --assignee smit-<project> [--worktree D:\proj] [--parent <uuid>] [--no-wake]` —
   creates a READY ticket carrying lineage (`root_task`, `parent_task`, `delegation_depth`) and records the
-  delegator's session (`wake_session`, `wake_worktree`). Prints the new ticket uuid. **After DELEGATE end your turn
-  naming the ticket; the organization wakes you** when the child ends or stalls.
+  delegator's session (`wake_session`, `wake_worktree`). `--no-wake` records NO wake target — for a delegator
+  that cannot be woken (a Claude session that polls its inbox): orgd never attempts a wake for it. Prints the
+  new ticket uuid. **After DELEGATE end your turn naming the ticket; the organization wakes you** when the
+  child ends or stalls.
 - CLAIM — `org.py claim <uuid> [--lease 600]` — sets WORKING with a lease epoch; arbitrated by an exclusive lock
   file (`$ORG_HOME/locks/<uuid>.<epoch>`) because `fossil ticket` has no compare-and-swap. The loser exits non-zero
   naming the holder. A WORKING ticket past `lease_until` may be taken over (epoch+1); a report with an older epoch
@@ -55,11 +57,15 @@ from the organization):
 1. your ticket's child turned DONE → you (its delegator, the session recorded at DELEGATE) are woken with the
    state, the report ref and «verify it and continue your task»; BLOCKED → decide: unblock, re-delegate, escalate;
 2. a child STALLED (WORKING past its lease) → you are woken with «stalled» once per lease;
-3. a READY ticket for you → your session is woken with «new ticket in your inbox» — the one that last ran
-   `org.py inbox` in that worktree (presence), else the worktree's newest session.
+3. a READY ticket for you → your session is woken with «new ticket in your inbox» — ONLY the session that
+   registered itself with `org.py inbox` in that worktree (presence); no presence line (or its session is gone)
+   → NOTHING is sent and the reason is logged once. The organization never guesses a session: run `org.py inbox`
+   when you start work, and the wake finds you there.
 
 A wake means: verify the ticket (it is testimony), claim it or continue, then end your turn again. Never sit
-polling the repo — the organization knocks. No live host → nothing is sent, retried next tick; a second server is
+polling the repo — the organization knocks. A wake lands only where its addressee declared itself: the
+assignee's own PRESENCE, or the `wake_session` recorded at DELEGATE; a `--no-wake` delegation is never woken
+(its delegator reads its own inbox). No live host → nothing is sent, retried next tick; a second server is
 never started (one worktree = one host).
 
 ## Who you are in a tool call (measured 2026-10-08)

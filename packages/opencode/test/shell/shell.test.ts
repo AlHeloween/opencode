@@ -94,23 +94,45 @@ describe("shell", () => {
       })
     })
 
-    test("resolves /usr/bin/bash from env to Git Bash", async () => {
-      const bash = Shell.gitbash()
-      if (!bash) return
-      await withShell("/usr/bin/bash", async () => {
-        expect(Shell.acceptable()).toBe(bash)
-        expect(Shell.preferred()).toBe(bash)
+    // SUPERSEDED 2026-10-07 (plans_completed/2026-09-30_stale-gitbash-tests.md). The two cases that stood here
+    // ("resolves /usr/bin/bash from env to Git Bash", "resolves bare bash to Git Bash before PATH") came from
+    // 141f33d24b (2026-04-27), when a request for bash on win32 resolved to Git Bash through BOTH accessors.
+    // 62624951ff (2026-07-11) made `ok()` refuse bash on win32 for the agent's shell — quoting through cmd's
+    // `/s /c` wrapper and an unpredictable environment — and 1a6f426c81 (2026-09-16, "stop advertising Git
+    // Bash") reaffirmed it: anything that genuinely needs Git Bash asks `gitbash()` for it by name. So the
+    // requirement is split by accessor, and each half is pinned below:
+    //   - `acceptable()` (the agent's shell, policy-filtered) REFUSES bash and records the refusal as state;
+    //   - `preferred()` (no policy filter) still maps bash to Git Bash — `full()` is the only production
+    //     caller of `gitbash()`, so this is the cover for its role.
+    test("refuses bash for the agent's shell and records the refusal (62624951ff)", async () => {
+      // No Git Bash guard: the refusal is policy and holds whether or not Git Bash is installed.
+      let platform = ""
+      await withShell(undefined, () => {
+        platform = Shell.acceptable()
       })
+      expect(Shell.name(platform)).not.toBe("bash")
+
+      for (const requested of ["/usr/bin/bash", "bash"]) {
+        await withShell(requested, () => {
+          expect(Shell.acceptable()).toBe(platform)
+          expect(Shell.resolution()).toEqual({ used: platform, requested, fellBack: true })
+        })
+      }
+
+      expect(Shell.acceptable("bash")).toBe(platform)
+      expect(Shell.resolution()).toEqual({ used: platform, requested: "bash", fellBack: true })
     })
 
-    test("resolves bare bash to Git Bash before PATH", async () => {
+    // Skipped only where Git Bash is not installed: `preferred()` then has nothing to map bash TO, and the case
+    // would be asserting `which("bash")` — a different claim from the one pinned here.
+    test.skipIf(!Shell.gitbash())("preferred() still maps bash to Git Bash, before PATH (1a6f426c81)", async () => {
       const bash = Shell.gitbash()
-      if (!bash) return
-      expect(Shell.acceptable("bash")).toBe(bash)
-      expect(Shell.preferred("bash")).toBe(bash)
-      await withShell("bash", async () => {
-        expect(Shell.acceptable()).toBe(bash)
-        expect(Shell.preferred()).toBe(bash)
+      expect(Shell.preferred("bash")).toBe(bash!)
+      await withShell("/usr/bin/bash", () => {
+        expect(Shell.preferred()).toBe(bash!)
+      })
+      await withShell("bash", () => {
+        expect(Shell.preferred()).toBe(bash!)
       })
     })
 

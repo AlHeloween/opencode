@@ -1342,8 +1342,26 @@ it.live(
         }
         if (!saved) throw new Error("timed out waiting for second prompt to save")
 
-        // The test server serializes a held HTTP/1 stream, so release its
-        // handler only after the replacement user message is durable.
+        // The test server serializes a held HTTP/1 stream, so its handler is released only after the
+        // replacement has actually INTERRUPTED turn A — not merely after the second user row is durable.
+        // `prompt()` saves that row BEFORE it calls `loop({ supersede: true })`, and `Runner.supersede`
+        // forks the old fiber's interrupt, so releasing on the row alone let the first reply complete
+        // un-interrupted; turn A's loop then opened a step for the newer user message, the supersede aborted
+        // that step before it produced a part, and that is the extra empty assistant row parented to the
+        // second prompt (plans_completed/2026-09-30_replacement-empty-assistant-row.md; measured 2026-10-07: 3/3 solo
+        // runs red, and in every one "first" had completed with no abort). While `gate` holds the stream,
+        // the only writer of an error on turn A's row is `finalizeInterruptedAssistant` — so that error is
+        // the exact signal that the turn was replaced while still in flight, which is what this test names.
+        let replaced = false
+        while (Date.now() < deadline) {
+          const msgs = yield* sessions.messages({ sessionID: chat.id })
+          if (msgs.some((msg) => msg.info.role === "assistant" && msg.info.parentID !== id && msg.info.error)) {
+            replaced = true
+            break
+          }
+          yield* Effect.sleep("20 millis")
+        }
+        if (!replaced) throw new Error("timed out waiting for the second prompt to interrupt the first turn")
         gate.resolve()
 
         const [ea, eb] = yield* Effect.all([Fiber.await(a), Fiber.await(b)])
@@ -1354,6 +1372,12 @@ it.live(
         const msgs = yield* sessions.messages({ sessionID: chat.id })
         const assistants = msgs.filter((msg) => msg.info.role === "assistant")
         expect(assistants).toHaveLength(2)
+        // Turn A was REPLACED, not completed: its row carries the abort and the held reply never reached it.
+        const first = assistants[0]
+        if (!first || first.info.role !== "assistant") throw new Error("expected first assistant")
+        expect(first.info.parentID).not.toBe(id)
+        expect(first.info.error).toBeDefined()
+        expect(first.parts.some((part) => part.type === "text" && part.text === "first")).toBe(false)
         const last = assistants.at(-1)
         if (!last || last.info.role !== "assistant") throw new Error("expected second assistant")
         expect(last.info.parentID).toBe(id)

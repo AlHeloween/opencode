@@ -46,6 +46,24 @@ The longest session's whole trajectory fits as a map in ~45 k characters (≈ 11
 stored and addressable. The vectors are an index, not a replacement: the ratio is the cost of KNOWING the whole
 trajectory; the content itself is re-acquired by address, so nothing is lost.
 
+## Semantic vectors are NOT embeddings
+
+Owner, 2026-10-08: «не путать семантические вектора с эмбеддингами. Это иное. Сейчас море моделей памяти на
+эмбеддингах — эффективность стремится к нулю, более того может зацепить вообще то, что не в тему.»
+
+| | semantic vector (ours) | embedding memory |
+|---|---|---|
+| what it is | named keywords with weights + a one-line dominant, written by the agent itself at the turn | an opaque dense float vector from an external encoder |
+| whose view | the agent's own statement of what it attended to and why | the encoder's view of the text's surface |
+| readable | yes — a human and the agent read it as text | no |
+| linkage | chained: previous turn, parent goal | none — loose chunks |
+| retrieval | by topic over named axes (keywords, L1 between weight lists), then by address to the exact turn | nearest neighbours by cosine over chunks |
+| failure mode | a missing or wrong vector is visible in the list | a near-but-wrong chunk arrives looking relevant |
+
+Embedding memory retrieves what is SIMILAR in surface; a semantic vector records what MATTERED to the agent. The first
+can return an off-topic chunk with full confidence; the second points to the turn where the agent itself said what it
+was doing.
+
 ## The invariant
 
 **Maximum continuity = acting without re-deriving.** «Remembering more» is not the goal; a boundary that forces a

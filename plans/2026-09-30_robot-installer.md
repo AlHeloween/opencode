@@ -720,7 +720,14 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
   per subscription per org, and POLLING (`org.py inbox --user <login>` ~10 min) is the wake contract — orgd wakes
   only opencode residents; `init.py` creates both `-worker` logins idempotently (legislator's t14, smoke: init.py
   twice on a scratch ORG_HOME → each login exactly once), the installer only registers the scheduler for ticked +
-  logged-in hosts — a login without a worker is inert; (b) the org server + orgd also need an autostart after reboot on the target — today only
+  logged-in hosts — a login without a worker is inert; worker data contract (ADID lane, 2026-10-08): env
+  `ORG_WORKER_DATA`, default `<ORG_HOME>/workers/<agent>/` with `last_tick.json` (atomic; `result` idle | busy |
+  claimed | done | blocked | escalated | error, `finished_utc`, `pid`, `run_log`) + `worker.log` + `runs/*.log` +
+  `worker.lock`; one tick = `org_worker.py --agent … --once` (exit ≠ 0 = the worker failed), the Task Scheduler is
+  the clock. Scheduler settings on this side: per-user, «run only when the user is logged on», a new instance is
+  IGNORED while one runs (the lock is the second guard), no execution time limit (a child run may be long).
+  Verify scope: MANIFEST.sha256 covers the program tree only; runtime roots (`org/`, data, logs) are outside it, so
+  verify + repair never call a live org.fossil or a run log «extra»; (b) the org server + orgd also need an autostart after reboot on the target — today only
   `init.py` raises them, so the same per-user logon task runs `init.py` (idempotent); (c) B1f portability.
   Observability (memory `feedback-delegation-must-be-observable`): every worker run leaves a record the user can
   see (ticket report + a log under the data dir) and the installer's status page names the last tick. Oracle: on

@@ -46,7 +46,10 @@ TEST_FILE_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_./-]*\.(ts|tsx)$")
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 COUNT_RE = {k: re.compile(rf"^\s*(\d+)\s+{k}\b", re.MULTILINE) for k in ("pass", "fail", "skip")}
 
-USAGE = __doc__.split("    python", 1)[1].replace("    python experiments/2026-10-08_robot-wave/fleet.py ", "  ")
+USAGE = "\n".join(
+    "  python experiments/2026-10-08_robot-wave/fleet.py " + verb
+    for verb in ("status", "final <name>", "dispatch <brief-name> [--dry-run]",
+                 "verify <name> <test-file>...", "next"))
 
 
 # ---------------------------------------------------------------- shared helpers

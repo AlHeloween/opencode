@@ -23,8 +23,8 @@ know what it lost, so it cannot ask for it. Better prompts for the summariser do
 the summary REPLACES the content.
 
 Our fold is mechanistic: no model call decides what survives. Content leaves the attended window but stays stored and
-addressed; the window keeps the inviolate tail plus pointers with exact handles, and anything released is re-acquired
-by address on demand. The loss is confined to attention, never to the record — which is the only kind of compression
+addressed; the window keeps the inviolate tail, the list of per-turn semantic vectors (the map of what was released)
+and pointers with exact handles, and anything released is re-acquired by address on demand. The loss is confined to attention, never to the record — which is the only kind of compression
 that information allows.
 
 ## The invariant
@@ -48,9 +48,13 @@ boundary broke continuity. (docs/compaction.md, AGENTS.md § Continuity Paradigm
    ids — prose is a pointer, the handle is the evidence.
 5. **The agent folds itself, at a closed boundary.** A compact is called by the agent before a task (not by a fill
    threshold), with a required, recorded reason.
-6. **Direction is stored as vectors.** Every turn emits a semantic vector chained by prev/parent ids to the goal;
-   working-copy snapshots are taken at the start of each turn and signed with that vector, so «what was the state when
-   I decided X» is one lookup.
+6. **The list of semantic vectors is the map of everything released.** Every turn emits a semantic vector — 3-9
+   weighted keywords, a one-line dominant, an id chained to the previous turn and to the goal — about sixty tokens.
+   The fold keeps the WHOLE list in the window: an 800k-token history becomes a few thousand tokens of vectors, each
+   pointing at its turn. That answers the question a summary cannot: the agent KNOWS what it released and where — it
+   finds the turn by topic (keywords, L1 distance between vectors) and re-acquires it by address. Working-copy
+   snapshots are taken at the start of each turn and signed with the same vector id, so «what was the state when I
+   decided X» is one lookup.
 7. **Durable memory is written during the work**, not reconstructed after it: decisions with their reason, falsifiers,
    open residuals — read at grounding, not only after a failure.
 

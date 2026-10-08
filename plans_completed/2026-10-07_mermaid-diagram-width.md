@@ -2,7 +2,7 @@
 
 <!-- intention: a mermaid diagram's apparent text size was decided by a font-anchored scale clamped to an 80-column budget, so any diagram wider than the clamp rendered its labels below one terminal row -> the diagram is DRAWN at the window's own width and its height is never budgeted, so nothing in the pipeline resizes a rendered diagram -->
 
-**Status:** ACTIVE · **Owner call:** 2026-10-07
+**Status:** COMPLETE — closed 2026-10-08 (boxes earned by `de33b3e7c9`; scratch probes relocated to `experiments/2026-10-07_mermaid-diagram-width/`)
 
 ## Why
 
@@ -37,4 +37,4 @@ Height вообще никак не ограничиваем», «Ты прос�
   fit, and this renderer exposes no reflow knob (measured above). Holding label size there needs a
   renderer-side width/reflow option or a viewer that pans instead of fitting — an upstream question, not a
   pipeline one.
-- `packages/opencode/probe*.ts` scratch files left by the investigation are still in the tree (untracked).
+- The investigation's scratch probes (`probe2.ts` … `probe11.ts`, their PNGs and `probe10.out`) moved out of `packages/opencode/` and the repo root into `experiments/2026-10-07_mermaid-diagram-width/` on 2026-10-08 — they were untracked, so nothing entered git history.

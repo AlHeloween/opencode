@@ -32,6 +32,7 @@
 - [Gateway three-point capture](gateway-capture.md) — intent / wire / response under one exchange key; masking, terminal states, derived views
 - [Протокол gateway в TUI](gateway-protocol-status.md) — фактический транспорт, адресация события и значение `unknown`
 - [Background Jobs](background-jobs.md) — non-blocking shell jobs, `joboutput` / `pattern`, TUI
+- [Claude scheduled tasks](claude-scheduled-tasks.md) — unattended Desktop runs: user-settings `defaultMode: auto` + allowlist works, project settings do not
 - [ADID Framework 15.3](ADID_Framework_15_3.md) — safe-update manager contract. Frozen, untracked,
   package-rendered; still the reference standard for kernel design, but only realizable on MHA-class
   attention — see [two-canon-protocol.md](two-canon-protocol.md) § 3 for why it did not port to MLA

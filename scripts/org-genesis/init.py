@@ -7,7 +7,8 @@ points it at the org beside the install, created EMPTY from here; ORG_PORT (defa
 (the server binds 127.0.0.1 only); FOSSIL or --fossil selects the binary — without it the fossil beside these
 scripts outranks PATH, so a bundled fossil is never shadowed. No <ORG_HOME>/org.fossil -> create it: ticket
 fields (ticket-schema.sql), robot users (interactive agents and subscription workers), the Protocol wiki page,
-and its place in `fossil all list`. A ticket table missing the wake fields (wake_session, wake_worktree,
+branding and the report formats (branding.sql, re-applied on every run), and its place in `fossil all
+list`. A ticket table missing the wake fields (wake_session, wake_worktree,
 woken_state) -> apply the new schema and rebuild. Its server not answering on 127.0.0.1:<port> -> start it,
 detached; the heartbeat daemon orgd not alive -> start it too. Existing pieces are left as they are. The admin
 password `fossil new` prints is never echoed.
@@ -39,10 +40,12 @@ ROBOTS = ("claude", "codex", "antigravity", "claude-worker", "codex-worker")  # 
 ROBOT_CAPS = "Cnrwcjfkm"
 
 
-def run(fossil: str, *args: str, quiet: bool = False) -> str:
-    out = subprocess.run([fossil, *args], capture_output=True, text=True, encoding="utf-8", errors="replace")
+def run(fossil: str, *args: str, quiet: bool = False, stdin: str | None = None, label: str | None = None) -> str:
+    out = subprocess.run([fossil, *args], capture_output=True, text=True, encoding="utf-8", errors="replace",
+                         input=stdin)
     if out.returncode != 0:
-        sys.exit(f"genesis: fossil {args[0]} failed: {out.stderr.strip() or out.stdout.strip()}")
+        who = f"{label}: " if label else ""
+        sys.exit(f"genesis: {who}fossil {args[0]} failed: {out.stderr.strip() or out.stdout.strip()}")
     return "" if quiet else out.stdout
 
 
@@ -88,6 +91,24 @@ def ensure_ticket_fields(fossil: str) -> bool:
         f"INSERT OR REPLACE INTO config(name,value,mtime) VALUES('ticket-table','{schema}',now());")
     run(fossil, "rebuild", str(ORG), quiet=True)
     return True
+
+
+def apply_branding(fossil: str) -> None:
+    """Apply branding.sql (config + the two report formats) and verify it landed.
+
+    `fossil sql` cannot report a failed statement: its shell's return value is discarded by the
+    void cmd_sqlite3, so a broken script still exits 0 (measured 2026-10-08, t11). The outcome is
+    read back from the artifact, never trusted from the exit code.
+    """
+    run(fossil, "sql", "-R", str(ORG), stdin=(GENESIS / "branding.sql").read_text(encoding="utf-8"),
+        quiet=True, label="branding")
+    counts = run(fossil, "sql", "-R", str(ORG),
+                 "SELECT count(*) FROM config WHERE name IN"
+                 " ('project-name','short-project-name','project-description','index-page');"
+                 " SELECT count(*) FROM reportfmt WHERE title='Active tasks';"
+                 " SELECT count(*) FROM reportfmt WHERE title='Delegation tree';").split()
+    if counts != ["4", "1", "1"]:
+        sys.exit(f"genesis: branding failed its read-back: counts {counts}, want ['4', '1', '1']")
 
 
 def start_orgd() -> int | None:
@@ -136,6 +157,8 @@ def main() -> int:
     verb = "commit" if "Protocol" in pages else "create"
     run(fossil, "wiki", verb, "Protocol", str(GENESIS / "Protocol.md"), "--mimetype", "text/x-markdown",
         "-R", str(ORG), quiet=True)
+
+    apply_branding(fossil)
 
     run(fossil, "all", "add", str(ORG), quiet=True)
 

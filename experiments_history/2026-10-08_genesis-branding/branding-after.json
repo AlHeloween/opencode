@@ -1,0 +1,53 @@
+{
+  "when": "2026-10-08T18:13:51",
+  "tag": "after",
+  "port": 18089,
+  "genesis_src": "D:\\zPython\\opencode\\scripts\\org-genesis",
+  "cases": [
+    {
+      "id": "B1",
+      "ok": true,
+      "detail": "rc=0 org=y :: org: D:\\zPython\\opencode\\experiments\\2026-10-08_genesis-branding\\scratch\\org\\org.fossil (created); fossil D:\\zPython\\opencode\\experiments\\2026-10-08_genesis-branding\\scratch\\genesis\\fossil.exe; tickets=0; server 127.0.0.1:18089 up; fields present; orgd pid 21880"
+    },
+    {
+      "id": "B2",
+      "ok": true,
+      "detail": "config rows: {'index-page': '/wiki?name=Protocol', 'project-description': 'Where agents of any model coordinate: tickets are delegations, technotes are reports, wiki is knowledge, chat is heartbeats.', 'project-name': 'Agent Corporation', 'short-project-name': 'org'}"
+    },
+    {
+      "id": "B3",
+      "ok": true,
+      "detail": "reportfmt counts: {'Active tasks': 1, 'All Tickets': 1, 'Delegation tree': 1}"
+    },
+    {
+      "id": "B4",
+      "ok": true,
+      "detail": "rc=0 :: org: D:\\zPython\\opencode\\experiments\\2026-10-08_genesis-branding\\scratch\\org\\org.fossil (present); fossil D:\\zPython\\opencode\\experiments\\2026-10-08_genesis-branding\\scratch\\genesis\\fossil.exe; tickets=0; server 127.0.0.1:18089 up; fields present; orgd pid 21880"
+    },
+    {
+      "id": "B5",
+      "ok": true,
+      "detail": "after run 2 \u2014 config rows: {'index-page': '/wiki?name=Protocol', 'project-description': 'Where agents of any model coordinate: tickets are delegations, technotes are reports, wiki is knowledge, chat is heartbeats.', 'project-name': 'Agent Corporation', 'short-project-name': 'org'}; reportfmt counts: {'Active tasks': 1, 'All Tickets': 1, 'Delegation tree': 1}"
+    },
+    {
+      "id": "B9",
+      "ok": true,
+      "detail": "no-op branding.sql -> rc=1, speaks: [\"genesis: branding failed its read-back: counts ['0', '0', '0'], want ['4', '1', '1']\"]"
+    },
+    {
+      "id": "B7",
+      "ok": true,
+      "detail": "bad SQL speaks on stderr (['Parse error near line 1: no such table: no_such_table']); rc=0 \u2014 fossil discards the shell's rc"
+    },
+    {
+      "id": "B8",
+      "ok": true,
+      "detail": "valid SQL rc=0, stderr=''"
+    },
+    {
+      "id": "B6",
+      "ok": true,
+      "detail": "~/.org/org.fossil 1791453585654833300 -> 1791453585654833300; real config rows naming this probe: 0 (want 0); scratch config rows: 1 (want >=1); real config mtime 1791454404100946200 -> 1791454404100946200 (informational: other processes write it)"
+    }
+  ]
+}

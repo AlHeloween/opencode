@@ -1,6 +1,6 @@
 ---
 description: "Search GitHub issues in anomalyco/opencode"
-model: opencode/claude-haiku-4-5
+model: opencode/space-bunny-free
 ---
 
 Search GitHub issues in the anomalyco/opencode repository matching the query.

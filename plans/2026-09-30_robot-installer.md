@@ -642,10 +642,12 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
     "portable"` of `_release.cmd`'s `releases/adid_dist_<ts>/`, `to: "bin/tools"`, explicit files = cmd_runner.exe,
     adm.exe, adm-rag.exe, rg.exe, sed.exe, apply_patch.exe, claude_svchain.py, codex_svchain.py; manifest in our
     format over the packed bytes. NOT a subtree replacement: the robot component drops its catch-all `tools` dir and
-    lists its own tools/ files (fd, fossil, grep, rclone, samply, ambr?, ambs? — ownership of ambr/ambs asked); a
-    shared path fails the build by `O_EXCL` (stage.go:153). Asked of that lane: a cmd_runner log-root env var honored
-    by every subcommand, so run logs stay outside the manifest-verified tree; fix 34c0728e5f before the first
-    package. The stale bin/tools/cmd_runner.exe (2026-07-01, BOM + misparsed `start`, measured by that lane
+    lists its own tools/ files (fd, fossil, grep, rclone, samply, ambr, ambs — that lane confirmed ambr/ambs/fd/grep/
+    rclone are not ADID's: undeclared in its artefacts_map.json, byte-identical copies); a shared path fails the
+    build by `O_EXCL` (stage.go:153). That lane's order, after its owner's go-ahead: fix 34c0728e5f →
+    `CMD_RUNNER_LOG_ROOT` (one env var honored by every run-resolving subcommand; unset = today) → the package via
+    `_release.cmd`, release path sent to this lane. Then ONE robot brief here: add `adid-tools`, narrow `robot` to its
+    explicit tools/ list, the installer sets `CMD_RUNNER_LOG_ROOT` outside the verified tree. The stale bin/tools/cmd_runner.exe (2026-07-01, BOM + misparsed `start`, measured by that lane
     2026-10-02) is replaced by the package's. <!-- sv: tools-package, component-contract, manifest-reverify -->
 - [ ] **B2 installer shell:** Go + Fyne 2.8.1 app (decided 2026-10-07, see above; no WebView2 needed, so no pre-stage), grown from `experiments/2026-10-07_installer-fyne/app`; its `model_form_test.go` runs green first. <!-- sv: fyne-installer, no-webview2, model-form-test -->
 - [ ] **B3 preflight + fix:** each candidate above as check → fix/remedy, shown to the user before apply. <!-- sv: preflight, fixes, opt-in -->

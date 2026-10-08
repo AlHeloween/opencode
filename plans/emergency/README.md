@@ -29,7 +29,7 @@ what the terminal painted. Do not read an empty file as a pass.
 | item | where | state | the next measurable step |
 |---|---|---|---|
 | **DAP debugger** | `plans/2026-09-27_dap-debugger.md` | 5 leaves, 0 done. Surface **measured**: 4 405 lines | T1 protocol core, oracle = a FAKE adapter over stdio |
-| **T4b crossing regression** | `plans/2026-09-27_mechanical-s-cadence.md` | open; both of its candidates REFUTED by measurement | prove whether the scenario enters `prompt.ts:2429` |
+| **T4b crossing regression** | `plans_completed/2026-09-27_mechanical-s-cadence.md` | CLOSED 2026-10-08 — the scenario DOES enter `prompt.ts:2498` and writes exactly one row (real-writer harness; the old «rows: 0» was the harness stubbing `captureMechanical`); mutation check red → restored green, run ids in the plan | — |
 | **fold carrier T1/T2/T3** | `plans_completed/2026-09-26_fold-carrier-integrity.md` | CLOSED 2026-10-08 (T1–T4, run ids in the plan) | — |
 | **settings layers, part 2** | `plans/2026-09-26_unified-settings-layers.md` | TASK-8 part 2 only | per-session protocol override |
 | shelf triage, pre-fix verification | two 2026-09-24 plans | open, untouched today | — |

@@ -627,7 +627,26 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
       loopback config, garnet/websurfx (owner decision pending), the VDD driver, the cua skill pack.
   - [ ] **B1d playwright-rs driver 404 countermeasure** in the search build (provision `playwright-core` into the
     build-script OUT_DIR, reset its fingerprint) — second occurrence, KAIZEN.
-  - [ ] **B1e end-to-end**: build → gate PASS → manifest → the built tree contains no `auth.json` and no model id.
+  - [x] **B1e end-to-end**: build → gate PASS → manifest → the built tree contains no `auth.json` and no model id.
+    ✓ 2026-10-08 real run over the current sources; `installer/components.json` needed no fix. `go test ./bundle/`
+    15/15 PASS (`20261008T095431Z_561ee38d`, fresh 8.4 s; inventory `20261008T095454Z_0eee8e2f`). Build #1
+    (`20261008T095504Z_83895183`, exit 0, 86 s): `build: gate PASS (2 allowed), 23349 file(s), 3030970007 byte(s)`
+    → `dist/installer/bundle-1`, the two hits exactly the reasoned allows of components.json (chromium
+    `reading_mode_gdocs_helper_manifest.json:2` key-field; node `corepack.cjs:21445` key-field); `verify` 0
+    differences / 23 349 files (`20261008T095651Z_5396018a`). Build #2 (`20261008T095651Z_95fe3ccc`) → bundle-2: same
+    23 349 / 3 030 970 007 B, gate PASS; both `MANIFEST.sha256` byte-identical (blob
+    `025c3ccb34f04228d3795561ab04bd8ebd3b9d04`, `git diff --no-index` clean). Tree audit of bundle-1: no `auth.json*` /
+    `*.key` / `opencode.jsonc` (glob); `*.enc` only the Tcl encoding tables `git/mingw64/lib/tcl8.6/encoding/*.enc`
+    (the false-positive class already named in gate.go); the tree ships no robot config at all — `"model"` over the
+    config-extension set = 0 hits (control `secret_key` = 3, filter live); tree-wide text `"model"` = 15 hits, all
+    code (SDK query-key names, MCP Literal enum, vim syntax, effect sourcemaps), no model id;
+    `nemotron-3-ultra-free|space-bunny-free` absent from the tree's text files. Counts vs B1c.2 (23 348 / 3 030 931 956):
+    sources advanced since 2026-10-07, +1 file / +38 051 B. Noted, not a B1e criterion: `searxng-src/.git/` (29 files,
+    upstream history, `url = https://github.com/searxng/searxng.git`, no credentials) ships in the bundle — layout
+    question for B1c/B1f. `_build.ps1` (build task) clears ALL of `dist/` except `bin/.opencode*`/`bin/locks*`: the
+    mandatory post-change build wipes `dist/installer/**`, so bundle-1 was held in `.temp/installer-hold/` across it,
+    restored and re-verified 0 differences (`20261008T100317Z_aaef8380`; the build itself `20261008T100113Z_e07b3bd8`,
+    exit 0, smoke `opencode.exe --version` → 10.0.1240); bundle-2 was removed by that same clean, as instructed.
   - [ ] **B1f organization component** (scope 2026-10-08): `scripts/org-genesis/**` staged as component `org`; the
     first start runs `init.py` with ORG_HOME = `<install>\org` (needs ORG_HOME promoted from «test fixtures only» to
     a supported setting — legislator's lane, accepted 2026-10-08 as robot task t14-org-portable-home after

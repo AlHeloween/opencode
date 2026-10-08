@@ -1,0 +1,43 @@
+robot t2-red-tests (ses_ee71eb62bffeGfzHDNQGaxq2Q6) via sqlite (read-only), API said: HTTP Error 401: Unauthorized
+finish=stop error=None
+last-message tool errors: 0
+--- last assistant text ---
+All verification steps are complete and the tree is settled. Final state confirmed by `planstatus`: both plans out of the active list, `supersede` plan ACTIVE, and "every plan under plans/ is named in MASTER_PLAN.md."
+
+---
+
+## Landed and verified
+
+**What changed (paths + hashes)**
+- `git cherry-pick 83dbba8750` → **`3aeacd1b77`** on `Local_Development` — clean; only `_progress_log.md` needed the 3-way merge and both sides were kept (their 4 lines + our 10 lines; verified in the merged file).
+- **`9b80870b83`** — verification commit that names both plans (2 files, +3/−1):
+  - `plans_completed/2026-09-30_stale-gitbash-tests.md` — its one open mark (`✗ mutation check`, previously refused by the authoring session's permission layer) is now **earned in place**.
+  - `plans_completed/2026-09-30_replacement-empty-assistant-row.md` — landing verification recorded (runs, counts).
+- Progress-log entry appended; it rode into **`f600332e43`** (a concurrent robot committed the shared file first — verified present and intact in HEAD via `git log -S`).
+
+**What ran** (from `packages/opencode`, one file per cmd_runner run; logs under `logs/cmd_runner/<id>/`)
+
+| command | run id | result |
+|---|---|---|
+| `bun test test/shell/shell.test.ts` | `20261008T002123Z_4c725c05` | **11 pass / 1 skip / 0 fail**, exit 0 |
+| `bun test test/session/prompt.test.ts` | `20261008T002244Z_293aaf5b` | **42 pass / 13 skip / 0 fail**, exit 0 |
+| `bun test -t "prompt submitted during active reasoning replaces the active turn" …` | `20261008T002618Z_3cdb11ab` | **1 pass / 0 fail** |
+| mutation check: refusal disabled in `ok()` | `20261008T002553Z_b7a4066a` | **1 fail** — exactly the named case at `shell.test.ts:117` (`Expected cmd.exe / Received Git\usr\bin\bash.EXE`), exit 1 |
+| revert (bytes identical to HEAD) → re-run | `20261008T002609Z_94500002` | 11/1/0, exit 0 |
+| `pwsh -NoProfile -File _build.ps1` (repo root) | `20261008T002835Z_2df5cef3` | exit 0 — `.temp/test/ cleaned`; WASM + web + windows-x64 built; smoke `opencode.exe --version` = 10.0.1224 and `reasoning_prompt.txt` embedded; artifacts in `dist/` |
+
+No red left unsettled. **Plan placement:** both plans **stay in `plans_completed/`** — every box is now earned by a run id; `plans/2026-10-07_supersede-between-steps-loses-reply.md` stays open in `plans/` (3 open boxes, its own reproducer; `planstatus` shows it ACTIVE).
+
+**Unresolved / notes**
+- The 1 skip in `shell.test.ts` is environmental, by design: here `which("git")` → `…\Git\mingw64\bin\git.EXE`, so `Shell.gitbash()` derives `…\Git\mingw64\bin\bash.exe` (absent) and the `preferred()` case self-skips although Git Bash is installed — `gitbash()`'s derivation is PATH-shape dependent. Recorded in the plan as residual (outside this task's scope).
+- Shared-index reality: a concurrent robot's cherry-pick left `UU _progress_log.md` mid-session; I waited for it to finish before touching the index. Two other robots committed during the session (`2c0835cf30`, `b65757638e`, `9638bb24b6`, `f600332e43`) — disjoint paths; `git diff 3aeacd1b77..HEAD` over `shell.ts` + both test files is empty, so the evidence runs still hold on HEAD.
+- The MASTER_PLAN staleness I measured before writing my log entry was cleared by the other robot's `svm render` (`9638bb24b6`) minutes later — the map is current; nothing left to regenerate.
+- Untouched: `bin/`, no `--no-verify`, other robots' untracked files left alone.
+
+```yaml
+Keywords: cherry-pick-landing 0.30, test-verification 0.25, mutation-check 0.20, plan-closure 0.15, shared-index-choreography 0.10
+Semantic dominant: The WIP commit 83dbba8750 is landed and verified — both plans earned every box (the last mutation check closed by a real red/revert pair), one PATH-shape residual recorded.
+md5: f3c9d2e7a1b84f6c9d2e0a7b5c4d9e21
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 00000000000000000000000000000000
+```

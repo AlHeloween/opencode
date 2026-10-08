@@ -1,0 +1,8 @@
+== status2.txt: 15 lines | host: live http://127.0.0.1:4096/ pid=27004 started=2026-10-08 08:19:26
+== final-t2b.txt: 43 lines | robot t2-red-tests (ses_ee71eb62bffeGfzHDNQGaxq2Q6) via sqlite (read-only), API said: HTTP Error 401: Unauthorized
+== dryrun2.txt: 1 lines | dispatch --dry-run t18-fleet-cli: title=robot-wave:t18-fleet-cli model=deepseek/deepseek-flash brief=3148 chars — would send, wrote nothing
+== next2.txt: 3 lines | skipped: t15-org-fencing-effects (waits t14 — not verified); t16-kernel-review-fixes (waits t14 — not verified); t19-lane-sessions (waits t15 — not ve
+== queue t18 line:
+   - t18-fleet-cli ses_ee5d78f29ffeUX6JjEymdVdpOE (2026-10-08 14:17) — brief amended: dispatch smoke is --dry-run only; verified PASS 2026-10-08 14:27: test/session/tail-note.test.ts: 13 pass / 0 fail `20261008T062743Z_cb170e43`
+== fallback equivalence: api == sqlite: True | chars 3664/3664
+FALLBACK EQUIVALENCE PASS

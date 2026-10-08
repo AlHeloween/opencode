@@ -1,0 +1,43 @@
+robot t1-fold-carrier (ses_ee71eb865ffeZZyounpd8FJn2o) via API
+finish=stop error=None
+last-message tool errors: 0
+--- last assistant text ---
+All done. Final state verified: my commit sits on top of the landed cherry-pick, and the only remaining working-tree changes are another robot's in-flight files (left as found).
+
+---
+
+## What changed
+
+**`2c0835cf30`** — cherry-pick `-x` of `9b2827e9fc` onto `Local_Development` (15 files, 484+/109−, provenance line records the source commit):
+
+| area | paths |
+|---|---|
+| src | `packages/opencode/src/session/compaction.ts`, `src/snapshot/fossil.ts`, `src/snapshot/index.ts`, `src/codegraph/sqlite-pack.ts` |
+| tests | `test/session/{compaction,mechanical-summary-body,summary-block-shape,tail-note}.test.ts`, `test/snapshot/fossil-last-impact.test.ts` (new), `test/codegraph/fossil_hybrid_impact_smoke.ts` |
+| plans | `plans/2026-09-26_fold-carrier-integrity.md` → `plans_completed/` (R079), `plans/2026-09-29_codegraph-impact-decoupling.md`, `plans/2026-09-27_mechanical-s-cadence.md`, `plans/emergency/README.md` |
+
+One conflict, only in `_progress_log.md` (both sides appended): resolved keeping **both** sides verbatim — foreign entries first, the robot's two entries appended, markers removed.
+
+**`9638bb24b6`** — `_progress_log.md` (my verification entry) + `plans/MASTER_PLAN.md` (`svm render`: the moved plan was still listed as `plans/… — 3 open / 4 boxes · DRAFT`; render-marker head preserved, 4 plan-coverage gaps closed). Staged exactly these two paths; the two foreign `plans_completed/2026-09-30_*` edits were left untouched.
+
+## What ran (each via cmd_runner, each run's `state.json` + full output read)
+
+| command | run id | exit | result |
+|---|---|---|---|
+| `bun typecheck` (cwd `packages/opencode`) | `20261008T002409Z_c7faafa9` | 0 | 320 B written, 0 dropped |
+| `bun test test/session/compaction.test.ts` | `20261008T002455Z_4247ec89` | 0 | **91 pass / 0 fail** |
+| `bun test …/mechanical-summary-body.test.ts` | `20261008T002528Z_2ba4fa42` | 0 | **18 / 0** |
+| `bun test …/summary-block-shape.test.ts` | `20261008T002538Z_a3710612` | 0 | **18 / 0** |
+| `bun test …/tail-note.test.ts` | `20261008T002546Z_df1a83f6` | 0 | **13 / 0** |
+| `bun test …/fossil-last-impact.test.ts` | `20261008T002555Z_81c3d871` | 0 | **2 / 0** |
+| `pwsh -NoProfile -File _build.ps1` (repo root) | `20261008T002622Z_33f2db39` | 0 | built in 27.1 s, smoke `10.0.1223`, artifacts in `dist/` |
+
+**No reds — no code or test changes were needed.** Plan boxes (`T1–T3` in the moved plan, `C4`/`C5 remainder` in the codegraph plan) were already ticked by the commit with run ids; my independent re-runs corroborate them. JOB-FAILED criteria are met: boxes confirmed with an artifact, plan moved, commits name the plans.
+
+## Unresolved
+
+- **`C2`** (index freshness a few seconds after an edit) — still open in `plans/2026-09-29_codegraph-impact-decoupling.md`, out of this commit's scope by design.
+- **`fossil_hybrid_impact_smoke.ts` not run** — a live-repo + MCP script; the plan records it as Unknown until run on the main checkout (its asserted behavior is covered by the new real-fossil test).
+- **Authoring debt shown by the render**: 2 plan SVs, 42 task SVs, 70 manifests `MISSING` — pre-existing, not touched.
+- **Instrument notes**: `cmd_runner wait` hard-errors («file not found [state.json]») on a running session — its state file exists only at finish; I polled `state.json` directly instead. The build's cleanup honestly `[WARN]`-named one `.temp/test` entry that was already gone (phantom, race — nothing locked).
+- **Concurrent work respected**: a robot cherry-pick of `3df5a222e4` landed as `b65757638e` mid-verification (disjoint paths, no interference); its two `plans_completed/2026-09-30_*` files remain modified in the working tree — left as found.

@@ -1,0 +1,15 @@
+host: live http://127.0.0.1:4096/ pid=27004 started=2026-10-08 08:19:26
+t1-fold-carrier idle {'deepseek-flash'} rows 79 tool_err 1 finish stop err None
+t2-red-tests UNREADABLE via API: HTTP Error 401: Unauthorized
+t3-kernel-candidate idle {'deepseek-flash'} rows 87 tool_err 2 finish stop err None
+t4-org-heartbeat idle {'deepseek-flash'} rows 2 tool_err 0 finish stop err None
+t5-cua-t8-t4 idle {'deepseek-flash'} rows 53 tool_err 1 finish stop err None
+t6-unified-settings-residuals idle {'deepseek-flash'} rows 76 tool_err 1 finish stop err None
+t13-orgd-wake-routing idle {'deepseek-flash'} rows 112 tool_err 5 finish stop err None
+t17-canva-review-channel idle {'deepseek-flash'} rows 195 tool_err 7 finish stop err None
+t14-org-portable-home idle {'deepseek-flash'} rows 113 tool_err 2 finish stop err None
+t12-branch-consolidation idle {'deepseek-flash'} rows 76 tool_err 0 finish stop err None
+t7-messages-401 idle {'deepseek-flash'} rows 210 tool_err 11 finish stop err None
+t18-fleet-cli busy {'deepseek-flash'} rows 70 tool_err 4 finish None err None
+t8-status-goal-attribution busy {'deepseek-flash'} rows 82 tool_err 0 finish None err None
+t10-free-model-upstream-agents busy {'deepseek-flash'} rows 21 tool_err 1 finish None err None

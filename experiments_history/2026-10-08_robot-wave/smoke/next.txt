@@ -1,0 +1,3 @@
+skipped: t15-org-fencing-effects (waits t14 — not verified); t16-kernel-review-fixes (waits t14 — not verified); t19-lane-sessions (waits t15 — not verified); t20-robot-orchestrator (waits t19 — not verified)
+next: - inst-b1e-end-to-end — brief ready: inst-b1e-end-to-end.md (Installer admin, lane prefix inst-: real components → build twice → gate/verify/manifest diff; plan robot-installer B1e) — HELD 2026-10-08 13:19: its output is dist/installer/bundle-N, and every other robot ends with _build.ps1, which clears dist/ content (_build.ps1 Invoke-Build «Clean dist directory»); dispatch it when no other robot is due to build, or move its output out of dist/
+slots: 0 free of 3 (busy: t18-fleet-cli, t8-status-goal-attribution, t10-free-model-upstream-agents)

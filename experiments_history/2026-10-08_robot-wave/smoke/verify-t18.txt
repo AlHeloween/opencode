@@ -1,0 +1,40 @@
+--- test/session/tail-note.test.ts: run 20261008T062743Z_cb170e43 started (log: logs/cmd_runner/20261008T062743Z_cb170e43/)
+--- test/session/tail-note.test.ts: run 20261008T062743Z_cb170e43 status=finished exit=0 pass=13 fail=0 skip=None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+bun test v1.4.2 (744846f84)
+
+ 13 pass
+ 0 fail
+ 64 expect() calls
+Ran 13 tests across 1 file. [3.18s]
+
+queue.md: note appended to t18-fleet-cli's line
+verdict: PASS

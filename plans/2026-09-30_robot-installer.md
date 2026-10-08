@@ -707,4 +707,18 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
   (`result-after-*`). Inherited, not this change: `test/config/tui.test.ts` 4 fails identical on the committed code
   (the TUI config search walks up from the nested worktree into host `.opencode/plugins/tui-smoke.tsx`) → separate task.
 - [ ] **B5 hello smoke:** final step starts the robot, sends «привет», shows the answer or a classified failure. <!-- sv: hello-smoke, failure-classes, final-check --> 
+- [ ] **B7 subscription agents join the organization** (owner requirement 2026-10-08, relayed by the ADID_Python
+  lane: anyone with a Claude or ChatGPT/Codex subscription gets an agent that joins the org out of the box; the
+  corporate model is to be cloneable as a standard). Split: the ADID lane ships `org_worker.py` (polls org.fossil
+  read-only, claims, runs `codex exec -p org …` / `claude -p` with an allowlist, heartbeats, escalates on a silent
+  exit; no `--dangerously-bypass-*`), `CODEX_ORG.md` + an `org` skill, and a separate Codex profile
+  `$CODEX_HOME/org.config.toml` (config.toml never edited). This lane: (a) opt-in UI tick per host, shown only when
+  `codex login status` / `claude auth status` says logged in, registering a PER-USER Task Scheduler entry
+  `org_worker.py --agent codex|claude --every 10m` (per-user, not an nssm LocalSystem service: the CLI login lives
+  in the user profile); (b) the org server + orgd also need an autostart after reboot on the target — today only
+  `init.py` raises them, so the same per-user logon task runs `init.py` (idempotent); (c) B1f portability.
+  Observability (memory `feedback-delegation-must-be-observable`): every worker run leaves a record the user can
+  see (ticket report + a log under the data dir) and the installer's status page names the last tick. Oracle: on
+  the pristine VM, a READY test ticket for `codex`/`claude` is claimed, reported and closed with no hand edit; a
+  logged-out host gets no task registered. <!-- sv: org-worker, subscription-agents, per-user-scheduler -->
 - [ ] **B6 pristine-VM acceptance:** A0–A5 on a reverted snapshot, network disconnected for install. <!-- sv: acceptance, pristine-vm, offline -->

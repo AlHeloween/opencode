@@ -28,6 +28,7 @@ import { ScrollBoxRenderable, addDefaultParsers, getTreeSitterClient, TextAttrib
 import { Prompt, type PromptRef } from "@tui/component/prompt"
 import { reasoningView, splitTextSegments, type TextSegment } from "./text-segments"
 import { deferredOnEntry, nextSlice } from "./deferred-mount"
+import { editInputSummary } from "./edit-input"
 
 import type {
   AssistantMessage,
@@ -3213,12 +3214,9 @@ function Edit(props: ToolProps<typeof EditTool>) {
   // read a single `input.filePath` / `metadata.diff` would draw the first file and hide the rest — the batch
   // would look like a success while most of it was never shown.
   const filediffs = createMemo(() => props.metadata.filediffs ?? [])
-  const names = createMemo(() => {
-    const list = filediffs()
-    return list.length > 0 ? list.map((fd) => fd.file) : (props.input.files ?? []).map((f) => f.filePath)
-  })
+  const summary = createMemo(() => editInputSummary(props.input, filediffs()))
   const heading = createMemo(() => {
-    const list = names()
+    const list = summary().names
     return list.length === 1 ? normalizePath(list[0]!) : `${list.length} files`
   })
 
@@ -3257,8 +3255,8 @@ function Edit(props: ToolProps<typeof EditTool>) {
         </BlockTool>
       </Match>
       <Match when={true}>
-        <InlineTool icon="←" pending="Preparing edit..." complete={names()[0]} part={props.part}>
-          Edit {heading()} {input({ changes: (props.input.files ?? []).reduce((n, f) => n + (f.edits?.length ?? 1), 0) })}
+        <InlineTool icon="←" pending="Preparing edit..." complete={summary().names[0]} part={props.part}>
+          Edit {heading()} {input({ changes: summary().changes })}
         </InlineTool>
       </Match>
     </Switch>

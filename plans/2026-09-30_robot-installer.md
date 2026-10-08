@@ -731,7 +731,11 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
   echo X"` / `".system echo X"` execute (rc 0), `".output <file>"` writes a file, `fossil wiki export PAGE FILE`
   writes FILE; so `Bash(fossil sql --readonly *)` and `Bash(fossil wiki export *)` = arbitrary execution / write.
   Only `Bash("{PYTHON}" "{ORG_HOME}/genesis/org.py" *)` ships; reads move into org.py verbs (asked of the
-  legislator: `inbox --json --no-presence`). Until then B7 ships NO permission fragment. Our own allowlists
+  legislator: `inbox --json --no-presence`). Until then B7 ships NO permission fragment. Accepted in full by the
+  legislator, in t14: read verbs `inbox --user X --json --no-presence`, `chat --since`, `wiki`/`protocol` to stdout,
+  no raw-SQL/pass-through verb, no verb writes a caller-named path; Protocol stops recommending `fossil sql`
+  (protocol-log 535ada6a6b). Worker login read in ADID 40099ec ✓ (`git show`): tools/org_worker.py:330 default
+  `<agent>-worker`, :145/:228 ORG_USER=<login>, :327 `--max-minutes` 120 kills a runaway host and escalates. Our own allowlists
   checked: only an exact full-command rule, no fossil wildcard ✓.
   Verify scope: MANIFEST.sha256 covers the program tree only; runtime roots (`org/`, data, logs) are outside it, so
   verify + repair never call a live org.fossil or a run log «extra»; (b) the org server + orgd also need an autostart after reboot on the target — today only

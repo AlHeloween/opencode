@@ -1,0 +1,47 @@
+<!-- intention: /mcps is a runtime-only toggle list -> the TUI's ONE place to attach MCP connectors: statuses, OAuth auth, add/remove with scope, persistent enable/disable, and a connector catalog (Canva first). The server-side routes (add / auth start / auth authenticate / auth callback / auth remove / connect / disconnect / status) already exist and are REUSED, not rebuilt; the work is the TUI surface, the persistence, and the connector data. -->
+
+# MCPs connector manager — /mcps gets hands
+
+- sv: { keywords: { mcps-ui 0.28, connector-auth 0.22, config-persist 0.18, oauth-flow 0.14, catalog-presets 0.10, kv-safe-reload 0.08 },
+  dominant: "/mcps becomes the connector manager: auth, add/remove with scope, persistent toggle — built on the existing server routes (add/auth*/connect/disconnect/status), with Canva as the first catalog preset." }
+
+## What already exists (reuse — do not rebuild)
+
+| piece | where | state |
+|---|---|---|
+| server routes: status, add, auth start/authenticate/callback/remove, connect, disconnect | `src/server/routes/instance/httpapi/mcp.ts` | built ✓ (`mcp.add` = `MCP.add`, `src/mcp/index.ts:632`) |
+| OAuth stack: PKCE, DCR, config clientId/secret, tokens in `bin/mcp-auth.json` (0600) | `src/mcp/oauth-provider.ts`, `src/mcp/auth.ts` | built ✓ |
+| statuses incl. `needs_auth`, `needs_client_registration` | `src/mcp/index.ts:74-97` | built ✓ |
+| CLI reference logic: scope (project/global), type (remote/local), JSONC config writer | `src/cli/cmd/mcp.ts` (`add` → `addMcpToConfig`) | built ✓ |
+| TUI: `/mcps` list + SPACE toggle (runtime only) | `component/dialog-mcp.tsx`, `context/local.tsx:1553` | too narrow — the gap |
+| TUI patterns to copy: merge-patch config write, text-entry forms | `dialog-feature-toggle.tsx` (PATCH /config, `{key:false}`/`{key:null}`), `dialog-session-rename.tsx` | reference |
+| server test harness for MCP routes | `test/server/httpapi-mcp.test.ts` (status/add/connect/disconnect) | exists — extend |
+
+## Tasks
+
+- [ ] **S1 — TUI transport for the missing calls.** Expose auth + config mutations to the TUI: either extend the hand-maintained SDK (`packages/sdk/js/src/v2/gen`, by hand — never regenerate) or use the raw core pattern already proven in `dialog-feature-toggle.tsx` (`core().post/get/patch({url})`). Calls needed: `POST {McpPaths.authAuthenticate}`, `POST {McpPaths.auth}` (start), `DELETE {McpPaths.auth}`, and the config write for add/remove/toggle. No new server routes for auth (they exist); a `DELETE /mcp/:name` (or config-patch equivalent) only if S4 shows the config path needs it.
+- [ ] **S2 — Row actions in `/mcps`.** ENTER on a row opens an action sheet (nested DialogSelect): **Authenticate** (visible when `needs_auth` / `needs_client_registration`), **Reconnect**, **Enable/Disable**, **Logout**, **Details** (url/command, error text, tool count, config source file), **Remove** (confirm). SPACE stays the quick toggle.
+- [ ] **S3 — OAuth flow in the TUI.** On Authenticate: call auth/authenticate, show `⋯ waiting for browser`; subscribe `mcp.browser.open.failed` (event exists) and render the URL as selectable text when the browser did not open; refresh status via `sdk.client.mcp.status()` when done. `needs_client_registration` → sub-form for clientId/clientSecret → saved to config `mcp.<name>.oauth` (the first source `McpOAuthProvider.clientInformation()` reads), then retry.
+- [ ] **S4 — Add connector wizard.** Steps: name (slug-validated) → type (Remote URL / Local command) → URL or argv → OAuth (auto / off / clientId+clientSecret) → scope. Persist through the SAME writer the CLI uses (JSONC modify; project `opencode.json` default, global `bin/opencode.jsonc` selectable — mirror `mcp add` semantics) → then connect; if the result is `needs_auth`, offer Authenticate immediately.
+- [ ] **S5 — Remove + persistent toggle.** Remove = config delete + disconnect + logout (confirm dialog, `dialog-confirm.tsx`). SPACE-toggle becomes persistent: write `enabled` into the config (merge-patch) instead of the current runtime-only connect/disconnect — the defect `dialog-feature-toggle.tsx` names in its own header comment.
+- [ ] **S6 — Tests, one file per cmd_runner run, from `packages/opencode`.** Extend `test/server/httpapi-mcp.test.ts`: (a) `add` returns the new status and is visible in `status`; (b) auth-start on a non-OAuth server fails loudly (UnsupportedOAuthError path); (c) the config write path leaves a read-back-able entry (add → file → status). TUI-side logic (wizard state machine, patch builder) gets a focused unit test if it is extracted; otherwise the dialog stays thin over tested calls.
+- [ ] **S7 — Connector catalog (presets), Canva first.** A small preset table (name, url, auth kind, docs link) + "Add from catalog" entry in the wizard: pick Canva → remote `https://api.canva.com/connect/v1/mcp` → OAuth form (clientId/clientSecret from the owner's Developer-Portal app) → Authenticate. Presets live in code next to the dialog (or config), not invented at runtime.
+- [ ] **S8 — Run + record.** Baseline (pre-change) → change → focused greens; live smoke: add a local echo server (`test/server/httpapi-mcp.test.ts` already uses `["echo","demo"]` as a disabled fixture) and one real OAuth connector when credentials exist; `_build.ps1` exit 0; findings into `_progress_log.md`.
+
+## Smoke Tests
+
+**Baseline (before any edit):** `cmd_runner start --cwd packages/opencode -- bun test test/server/httpapi-mcp.test.ts` — expected PASS (the existing 3-4 cases); any red there is STABILIZE first, per @SURFACE_PREPARATION.
+
+**Post-change cases (predicted):**
+1. `add` via TUI transport path → config file contains `mcp.<name>` (read-back) and `status` shows the server — PASS expected.
+2. Toggle → `enabled` persists in the config file (read-back), a restart keeps the state — PASS expected; today it does NOT persist (expect RED on the baseline run, GREEN after S5).
+3. Authenticate on a non-OAuth server → loud 4xx (`does not support OAuth`) — PASS expected (server already returns it).
+4. Authenticate on a real OAuth connector (Canva, once the owner's app credentials are in config) → status flips `needs_auth` → `connected`; tokens land in `bin/mcp-auth.json` — PASS expected (live, gated on credentials).
+5. `mcp.browser.open.failed` → the dialog renders the URL instead of hanging — simulated event, PASS expected.
+
+**KV note (not a test):** attaching a connector changes the tool catalog, hence the request prefix, hence the prompt cache — the change takes effect with the NEXT message; the dialog should say so instead of pretending it is live.
+
+## Open points (owner)
+
+- Secrets: OAuth tokens already live in `bin/mcp-auth.json`; the Canva app's clientId/clientSecret go to config `mcp.canva.oauth` (first source read by the OAuth provider). `bin/auth.json` is the provider-key store — different file; confirm if the owner meant `mcp-auth.json`.
+- Default scope for Add: project (`opencode.json`, gitignored) with global (`bin/opencode.jsonc`) selectable — mirror of CLI's choice prompt.

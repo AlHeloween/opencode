@@ -1,23 +1,44 @@
-import { afterEach, describe, expect, test } from "bun:test"
+import { afterAll, afterEach, beforeAll, describe, expect, test } from "bun:test"
 import type { UpgradeWebSocket } from "hono/ws"
-import { Context, Effect, FileSystem, Layer, Path } from "effect"
+import { Context, Effect, Layer } from "effect"
 import { NodeFileSystem, NodePath } from "@effect/platform-node"
 import { Flag } from "@opencode-ai/core/flag/flag"
+import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { ExperimentalHttpApiServer } from "../../src/server/routes/instance/httpapi/server"
 import { McpPaths } from "../../src/server/routes/instance/httpapi/mcp"
 import { Instance } from "../../src/project/instance"
 import { InstanceRoutes } from "../../src/server/routes/instance"
 import * as Log from "@opencode-ai/core/util/log"
 import { resetDatabase } from "../fixture/db"
-import { provideInstance, tmpdir } from "../fixture/fixture"
+import { provideTmpdirInstance, tmpdir } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
 Log.init()
 
+// Config load auto-injects mcp.codegraph whenever the worktree has .codegraph/ or
+// `codegraph` is on PATH (config/codegraph-mcp-auto.ts) — true on this host. The injected
+// server joins the status map (breaking the { demo: … } expectation below) and its child
+// process holds the scoped temp dir (EBUSY on rm). These tests own their MCP config, so
+// they opt out — same pattern as test/mcp/lifecycle.test.ts. The live case below also gets
+// its scoped temp dir held on win32 by the file watcher (EBUSY on rm) — disabled there,
+// same as test/server/session-messages.test.ts.
+const codegraphMcpEnv = process.env.OPENCODE_CODEGRAPH_MCP
+const fileWatcherEnv = process.env.OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER
+beforeAll(() => {
+  process.env.OPENCODE_CODEGRAPH_MCP = "0"
+  if (process.platform === "win32") process.env.OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER = "true"
+})
+afterAll(() => {
+  if (codegraphMcpEnv === undefined) delete process.env.OPENCODE_CODEGRAPH_MCP
+  else process.env.OPENCODE_CODEGRAPH_MCP = codegraphMcpEnv
+  if (fileWatcherEnv === undefined) delete process.env.OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER
+  else process.env.OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER = fileWatcherEnv
+})
+
 const original = Flag.OPENCODE_EXPERIMENTAL_HTTPAPI
 const context = Context.empty() as Context.Context<unknown>
 const websocket = (() => () => new Response(null, { status: 501 })) as unknown as UpgradeWebSocket
-const it = testEffect(Layer.mergeAll(NodeFileSystem.layer, NodePath.layer))
+const it = testEffect(Layer.mergeAll(NodeFileSystem.layer, NodePath.layer, CrossSpawnSpawner.defaultLayer))
 
 function app(experimental: boolean) {
   Flag._setTest("OPENCODE_EXPERIMENTAL_HTTPAPI", experimental)
@@ -37,32 +58,23 @@ function request(route: string, directory: string, init?: RequestInit) {
   )
 }
 
+// `provideTmpdirInstance` (test/fixture/fixture.ts) is the fixture that already solved this
+// class on Windows: the scoped dir is cleaned with retries (EBUSY) and the process-global
+// logger is re-pointed off the removed worktree before the scope closes. The hand-rolled
+// makeTempDirectoryScoped version lost that cleanup — measured EBUSY on rm.
 function withMcpProject<A, E, R>(self: (dir: string) => Effect.Effect<A, E, R>) {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem.FileSystem
-    const path = yield* Path.Path
-    const dir = yield* fs.makeTempDirectoryScoped({ prefix: "opencode-test-" })
-
-    yield* fs.writeFileString(
-      path.join(dir, "opencode.json"),
-      JSON.stringify({
-        $schema: "https://opencode.ai/config.json",
-        formatter: false,
-        lsp: false,
-        mcp: {
-          demo: {
-            type: "local",
-            command: ["echo", "demo"],
-            enabled: false,
-          },
+  return provideTmpdirInstance(self, {
+    config: {
+      formatter: false,
+      lsp: false,
+      mcp: {
+        demo: {
+          type: "local" as const,
+          command: ["echo", "demo"],
+          enabled: false,
         },
-      }),
-    )
-    yield* Effect.addFinalizer(() =>
-      Effect.promise(() => Instance.provide({ directory: dir, fn: () => Instance.dispose() })).pipe(Effect.ignore),
-    )
-
-    return yield* self(dir).pipe(provideInstance(dir))
+      },
+    },
   })
 }
 

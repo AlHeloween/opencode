@@ -746,7 +746,12 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
   the worker's own git call disables fsmonitor/untrackedCache/diff.external with GIT_CONFIG_NOSYSTEM (:170-175).
   Last residual asked 2026-10-08: deferred execution through workspace writes (.git/config, .git/hooks,
   .claude/settings*.json, .codex/, .mcp.json) → the worker hashes that set before/after the host, restores and
-  escalates on any change. Registration held until it lands. Our own allowlists
+  escalates on any change. Registration held until it lands. Landed in ADID 2b0b98c ✓ (read via `git show`:
+  protected_roots incl. the worktree commondir and core.hooksPath, byte snapshot, restore, escalation whatever the
+  agent's outcome; mutation without restore failed the two planting tests — that lane's run). Known limit
+  (Inferred, theirs): detect-and-restore after the run, so a hook planted DURING it can fire if something else runs
+  git in that repo meanwhile — asked as a non-blocking follow-up: refuse a run when the repo has a live opencode
+  resident. B7 unblocked on the ADID side; waits for that lane's release (its owner's go-ahead). Our own allowlists
   checked: only an exact full-command rule, no fossil wildcard ✓.
   Verify scope: MANIFEST.sha256 covers the program tree only; runtime roots (`org/`, data, logs) are outside it, so
   verify + repair never call a live org.fossil or a run log «extra»; (b) the org server + orgd also need an autostart after reboot on the target — today only

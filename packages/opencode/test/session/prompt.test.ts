@@ -265,6 +265,19 @@ const it = testEffect(makeHttp())
 const orderedIt = testEffect(makeHttp(orderedSummary))
 const unix = process.platform !== "win32" ? it.live : it.live.skip
 
+// T4b — the crossing regression needs the real WRITER. `makeHttp()`'s default summary layer stubs
+// `captureMechanical` to `Effect.succeed(undefined)` (line 75 above), so in that harness a row can
+// NEVER be written — whatever the production path does — and no assertion built on it can tell «the
+// Layer-1 block did not run» from «it ran and the stub wrote nothing». This variant wires the REAL
+// service, the same way `mechanical-writer.test.ts` wires its `writerLayer`; that is what turns the
+// row into an instrument.
+const realSummaryLayer = SessionSummary.layer.pipe(
+  Layer.provideMerge(
+    Layer.mergeAll(Session.defaultLayer, Storage.defaultLayer, Bus.layer, CrossSpawnSpawner.defaultLayer),
+  ),
+)
+const realSummaryIt = testEffect(makeHttp(realSummaryLayer))
+
 // Config that registers a custom "test" provider with a "test-model" model
 // so provider model lookup succeeds inside the loop.
 const cfg = {
@@ -922,6 +935,70 @@ it.live(
         // (`result === "stop" || completedCleanly`), which encloses the whole Layer-1 block. The
         // crossing regression stays OPEN and specified in plans/2026-09-27_mechanical-s-cadence.md
         // T4b; what is fixed here is the claim this test made about itself.
+      }),
+      { git: true, config: reasoningBigProviderCfg },
+    ),
+  60_000,
+)
+
+// T4b — the crossing regression, with an assertion that CAN FAIL. The test above measures the
+// occasion but runs on the stubbed harness; this one wires the real writer (`realSummaryIt`) and pins
+// the write itself: after a turn that crosses the threshold, a row EXISTS.
+realSummaryIt.live(
+  "a 70_000-token turn WRITES the Layer-1 row - the crossing really runs the prompt.ts:2498 block",
+  () =>
+    provideTmpdirServer(
+      Effect.fnUntraced(function* ({ llm }) {
+        const prompt = yield* SessionPrompt.Service
+        const sessions = yield* Session.Service
+        const session = yield* sessions.create({ title: "Layer-1 crossing writes the row" })
+        // The same crossing as the test above: 70_000 content tokens against the 65 536 threshold.
+        yield* prompt.prompt({
+          sessionID: session.id,
+          agent: "reasoning",
+          noReply: true,
+          parts: [{ type: "text", text: "x".repeat(70_000 * 4) }],
+        })
+        yield* llm.text("completed reasoning answer")
+        yield* prompt.loop({ sessionID: session.id })
+
+        // ONE row — and the chain that makes a row PROVE the crossing ran is closed by construction:
+        // `captureMechanical` has ONE production call site (`prompt.ts`, `const row = yield*
+        // summary.captureMechanical({`), inside `if (layer1Due)` inside
+        // `if (result === "stop" || completedCleanly)` (`prompt.ts:2498`); and
+        // `IncrementalCheckpoint.save` has ONE caller (`summary.ts`, `const row =
+        // IncrementalCheckpoint.save({`). Counted with `listAll`, never `listOpen`: `save` inserts with
+        // `time_materialized` NULL, so a written row is OPEN and a `listOpen` assertion holds in both
+        // worlds (`incremental-checkpoint.ts:75`).
+        const rows = IncrementalCheckpoint.listAll(session.id)
+        expect(rows).toHaveLength(1)
+
+        // The row covers THIS turn's range — from the big user message to the reply that answered
+        // it — not an idle or empty window. The user text is matched by PREFIX, never by raw length:
+        // `createUserMessage` appends "\n\nUTC: <ISO>" to every non-synthetic text part
+        // (`prompt.ts:1441-1446`), so the stored part is 280 031 chars and an exact `=== 280 000`
+        // lookup finds nothing — measured by the probe run 20261008T122851Z_d247610b.
+        const msgs = yield* MessageV2.filterCompactedEffect(session.id)
+        const asked = msgs.find(
+          (m) =>
+            m.info.role === "user" &&
+            m.parts.some(
+              (p) => p.type === "text" && p.text.startsWith("x".repeat(1_024)) && p.text.length >= 70_000 * 4,
+            ),
+        )
+        const answered = msgs.find(
+          (m) =>
+            m.info.role === "assistant" &&
+            m.parts.some((p) => p.type === "text" && p.text === "completed reasoning answer"),
+        )
+        expect(asked).toBeDefined()
+        expect(answered).toBeDefined()
+        expect(rows[0]!.fromMessageID).toBe(asked!.info.id)
+        expect(rows[0]!.toMessageID).toBe(answered!.info.id)
+
+        // The mechanical write buys NO model call: the crossing still costs exactly the working turn.
+        const inputs = yield* llm.inputs
+        expect(inputs).toHaveLength(1)
       }),
       { git: true, config: reasoningBigProviderCfg },
     ),

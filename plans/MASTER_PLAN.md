@@ -103,10 +103,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 204 |
-| plans active | 11 |
-| tasks passed / total | 794 / 1008 |
-| open boxes | 71 |
+| plans completed | 205 |
+| plans active | 10 |
+| tasks passed / total | 805 / 1012 |
+| open boxes | 64 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -120,7 +120,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - T3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-26_unified-settings-layers.md` — 0 open / 8 box(es) · lifecycle ACTIVE
+- `plans/2026-09-26_unified-settings-layers.md` — 0 open / 12 box(es) · lifecycle ACTIVE
   sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for
   - no open box
 
@@ -147,7 +147,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   sv: intention "fossil carries only the BRIEF (which files changed) and codegraph carries the REAL impact (symbols and edges touched) selected by the SUMMARY's own time window; the graph is synced off the turn's critical path -> the turn stops paying 2.2 s for a value its own summary consumes, and an empty impact stops reading as "nothing happened"" · keywords []
   - C2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-29_cua-windows-debug-input.md` — 18 open / 29 box(es) · lifecycle UNKNOWN
+- `plans/2026-09-29_cua-windows-debug-input.md` — 16 open / 29 box(es) · lifecycle UNKNOWN
   sv: intention "CUA debugging requires manual screenshots, IDs and multiple slow commands and cannot yet drive continuous Windows mouse input -> agents obtain an addressable visual observation and bounded, verifiable Windows mouse actions with minimal tool calls while protected operations stay protected; mode A (play together with the robot) runs on the primary monitor, mode B (debug interactive GUI and web apps) runs in the background on THIS host without a second computer and without taking the owner's cursor or focus" · keywords [cua, background-isolation, capture-binding, vmware-guest, virtual-monitor, cdp-web]
   - TASK-2 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - B1 [PENDING] · sv [page-read, webview2, js-policy-refusal] · manifest: MISSING — nobody has written down what this box is
@@ -161,9 +161,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - W4 [PENDING] · sv [mode-a, game-input, relative-pointer] · manifest: MISSING — nobody has written down what this box is
   - T1b [PENDING] · sv [cdp-web, agent-route, headed-chrome] · manifest: MISSING — nobody has written down what this box is
   - T3b [PENDING] · sv [virtual-monitor, opengl-capture, screen-region-fallback] · manifest: MISSING — nobody has written down what this box is
-  - T8 [PENDING] · sv [cua-wrapper, capture-binding, silent-ignore] · manifest: MISSING — nobody has written down what this box is
   - T9 [PENDING] · sv [background-modifiers, alt-key-state, vcl-shiftstate] · manifest: MISSING — nobody has written down what this box is
-  - T4 [PENDING] · sv [launch-placement, focus-policy, cua-wrapper] · manifest: MISSING — nobody has written down what this box is
   - T5 [PENDING] · sv [remote-driver, ssh-tunnel, loopback-only] · manifest: MISSING — nobody has written down what this box is
   - T6 [PENDING] · sv [vmware-guest, capture-bound-drag, hypervisor-frame] · manifest: MISSING — nobody has written down what this box is
   - T7 [PENDING] · sv [docs, tier-table] · manifest: MISSING — nobody has written down what this box is
@@ -222,16 +220,8 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-08_org-verbs-and-heartbeat.md` — 5 open / 5 box(es) · lifecycle ACTIVE
-  sv: intention "a robot delegates and then leaves its loop, so a human has to poke it to continue -> delegation goes through org.fossil tickets and a heartbeat daemon wakes the delegator (child done / stalled) and the assignee (new ticket), so a robot carries a task to its end with no human touch" · keywords []
-  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-
 ## The checks
 
-This body names all 14 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 13 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

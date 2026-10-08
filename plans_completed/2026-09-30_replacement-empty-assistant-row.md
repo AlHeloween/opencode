@@ -106,3 +106,5 @@ old fiber's interrupt is still in flight, `src/effect/runner.ts:176-187`). Track
 - Baseline (measured now): `bun test -t "prompt submitted during active reasoning replaces the active turn" test/session/prompt.test.ts` → **1 fail**.
 - After: the same command → **1 pass**, and the rest of the file is unchanged (41 pass / 13 skip in the full run `20260929T234355Z_f3fd0b66`).
 - Negative control: the two other prompts-during-reasoning tests in the same file must keep their current verdicts — this fix may not buy green by weakening the replacement contract. ✓ unchanged (full file 42/13/0 before and after; no source change, the replacement contract was tightened, not weakened).
+
+**Landing verification (2026-10-08, cherry-pick `3aeacd1b77` onto `Local_Development`):** full file **42 pass / 13 skip / 0 fail** (run `20261008T002244Z_293aaf5b`, 131.0 s) and the named case solo **1 pass / 0 fail** (run `20261008T002618Z_3cdb11ab`, 6.2 s) — the re-keyed gate holds on the landing tree, not only on the authoring worktree.

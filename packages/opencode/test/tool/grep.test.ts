@@ -171,10 +171,48 @@ describe("tool.grep", () => {
     ),
   )
 
-  // WITHDRAWN with provenance, 2026-09-30: «reports files ripgrep treated as BINARY» asserted
-  // `metadata.binary === 1` from ripgrep's `end.binary_offset`. Measured: our `bin/tools/rg.exe`
-  // emits `binary_offset: 4` for a file with a NUL byte, but `which("rg.exe")` on this host
-  // resolves to `C:\Windows\rg.exe`, which does not emit it — so the assertion encoded a true
-  // requirement that no instrument available to this runtime can satisfy. The requirement is kept
-  // in `file/ripgrep.ts` as a comment rather than as a red test nobody can make green.
+  // C6 (plan 2026-10-01_tool-description-contracts): a NUL byte in a matched line used to reach
+  // `output` RAW. Reproduced 2026-10-08 against the runtime's own rg (15.1.0, the `C:\Windows\rg.exe`
+  // that `which("rg.exe")` resolves to): targeting the FILE directly, rg's JSON emits the match with
+  // `"text":"NEEDLE\u0000TAIL\n"` — the escape is decoded back into a real U+0000 by the schema — and
+  // the tool printed one raw NUL (run 20261008T113310Z_c69b7656, pre-fix). Targeting the DIRECTORY
+  // the same rg emits NO event for that file at all, `--no-messages` or not (run
+  // 20261008T113444Z_10e6d0d2) — so the leak lives on the file-target shape only. The window MARKS
+  // the byte (U+2400 SYMBOL FOR NULL) instead of dropping it: a drop would silently join the halves
+  // the byte keeps apart, the same defect the clip `…` exists to prevent. Line/col/offset come from
+  // the raw hit, so the address is untouched by the marking.
+  it.live("marks a NUL byte in a matched line instead of passing the raw byte through", () =>
+    provideTmpdirInstance((dir) =>
+      Effect.gen(function* () {
+        const binary = path.join(dir, "binary.dat")
+        const plain = path.join(dir, "plain.txt")
+        yield* Effect.promise(() => Bun.write(binary, "line one\nNEEDLE\u0000TAIL\nline three\n"))
+        yield* Effect.promise(() => Bun.write(plain, "line one\nNEEDLE in plain text\nline three\n"))
+        const info = yield* GrepTool
+        const grep = yield* info.init()
+
+        const direct = yield* grep.execute({ pattern: "NEEDLE", path: binary }, ctx)
+        expect(direct.metadata.matches).toBe(1)
+        expect(direct.output).toContain(binary)
+        expect(direct.output).not.toContain("\u0000")
+        expect(direct.output).toContain("Line 2, col 1, offset 9: NEEDLE\u2400TAIL")
+
+        const fromDir = yield* grep.execute({ pattern: "NEEDLE", path: dir }, ctx)
+        expect(fromDir.output).toContain(path.join(dir, "plain.txt"))
+        expect(fromDir.output).toContain("Line 2, col 1, offset 9: NEEDLE in plain text")
+        expect(fromDir.output).not.toContain("\u0000")
+      }),
+    ),
+  )
+
+  // WITHDRAWN with provenance, 2026-09-30 (`75f1033ee7`, explanation corrected in `80c352e0a3`):
+  // «reports files ripgrep treated as BINARY» asserted `metadata.binary === 1` from ripgrep's
+  // `end.binary_offset`; the count came back 0 and the cause was left Unknown. Measured 2026-10-08
+  // (runs 20261008T113248Z_c16d4de5, 20261008T113310Z_c69b7656, 20261008T113444Z_10e6d0d2): the
+  // signal EXISTS, but only on the FILE-TARGET shape — `rg --json … -e NEEDLE binary.dat` ends with
+  // `"binary_offset":15` — while the same rg on the DIRECTORY emits no event for the file at all,
+  // which is consistent with a count of 0 read off a directory search (no `end` event, no offset).
+  // So a directory search still cannot say «binary file matched», and the requirement (an absence
+  // the tool cannot see must never be reported as an absence) stays as a comment in
+  // `file/ripgrep.ts`, not as a test — nothing in this runtime can make it green yet.
 })

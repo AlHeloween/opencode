@@ -170,9 +170,21 @@ Never the reverse direction: behaviour is not bent to fit a test, and a test is 
       `summaryedit`, `universalsearch`, `webfetch`.
 - [ ] **C5 — control / agent tools:** `task`, `skill`, `todowrite`, `question`, `plan-enter`, `planexit`,
       `compact`, `aicall`, `cua`, `imagerender`, `lsp`.
-- [ ] **C6 — NUL bytes in grep output on binary files.** Cause Unknown after the withdrawn report
-      (`75f1033ee7`). Reproducer first (@BUG_FIX_PROCEDURE): a fixture file with a NUL, the runtime's own `rg`,
-      the exact output bytes. No fix before the reproducer fails.
+- [x] ✓ **C6 — NUL bytes in grep output on binary files.** REPRODUCED 2026-10-08 against the runtime's own rg
+      (15.1.0, the `C:\Windows\rg.exe` that `which("rg.exe")` resolves): the leak is REAL on the FILE-TARGET
+      shape — `grep(path: <a file whose matched line holds a NUL>)` printed one raw 0x00 (`NEEDLE\u0000TAIL`,
+      pre-fix run `20261008T113310Z_c69b7656`). A DIRECTORY search is clean and rg emits NO event for the
+      binary file at all (`--no-messages` or not: runs `20261008T113248Z_c16d4de5`, `20261008T113444Z_10e6d0d2`);
+      `end.binary_offset` = 15 on the file target and no `end` at all on the directory — the target shape,
+      not the decoder, is why the withdrawn counter read 0. FIX: `tool/grep.ts` `matchWindow` MARKS the byte
+      U+2400 instead of dropping it (a drop would silently join the halves it keeps apart; the address is
+      computed from the raw hit, untouched), pinned in `test/tool/grep.test.ts` — RED `20261008T113600Z_674ee1b2`
+      (1 fail) → GREEN `20261008T113627Z_1477239a` (7 pass / 0 fail / 26 expect); mutation check — fix
+      reverted → RED `20261008T113644Z_a1154448`, restored → final green `20261008T113720Z_fe97495a`.
+      `test/file/ripgrep.test.ts` 12/0 (`20261008T113720Z_0e75481a`); `bun typecheck` exit 0
+      (`20261008T113735Z_b0c3f6ca`); no `.txt` touched (prefix cost unchanged). Commit names this box
+      (t21-grep-nul-reproducer). The withdrawn REPORT (a directory search NAMING binary files) stays
+      withdrawn — rg gives no signal there; the measured runs are recorded in `file/ripgrep.ts` and the test.
 - [ ] **C7 — recall of an attachment, live.** Unit-proven (`18fe82c426`, 20/4 red → 24/0 green); the robot's
       session held no `file` part, so no live run exists. Owner recipe: paste an image or document, take its
       part id, `tempenable` with a short span; after the span the wire note names the attachment id and

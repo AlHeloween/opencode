@@ -423,9 +423,14 @@ export const layer: Layer.Layer<Service, never, AppFileSystem.Service | ChildPro
             // not emit it» — is REFUTED by measurement: `rg --json --hidden --no-ignore --no-messages
             // -e … <file with a NUL>` emits BOTH a `match` and an `end` carrying `"binary_offset":4`,
             // identically from `C:\Windows\rg.exe` (what `which("rg.exe")` resolves) and from our
-            // `bin/tools/rg.exe` — 959 and 961 bytes of output, same events. So the signal EXISTS and
-            // the count still came back 0: the cause is UNKNOWN, and the next instrument is a probe of
-            // `Ripgrep.search` on that fixture, not another guess. Do not rebuild this on a story.
+            // `bin/tools/rg.exe` — 959 and 961 bytes of output, same events.
+            // PROBED 2026-10-08 (the «next instrument» named here): the signal survives only on the
+            // FILE-TARGET shape — `… -e NEEDLE binary.dat` ends with `"binary_offset":15` — while a
+            // DIRECTORY search emits NO event for the binary file at all, `--no-messages` or not
+            // (runs 20261008T113248Z_c16d4de5, 20261008T113310Z_c69b7656, 20261008T113444Z_10e6d0d2).
+            // A directory search therefore has no signal to count; rebuilding the report needs that
+            // target-shape decision first, not a story. The NUL-byte side of the same fixture is
+            // handled in `tool/grep.ts` (`matchWindow`, U+2400).
             return {
               items: code === 1 ? [] : items,
               partial: code === 2,

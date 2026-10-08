@@ -29,6 +29,14 @@ const MAX_MATCH_TEXT = 200
  * and the caller had no way to tell. This window keeps `SNIPPET_MARGIN` characters on each
  * side of the hit, clips the hit itself past `MAX_MATCH_TEXT`, and `…` marks EVERY clip so a
  * window can never be mistaken for the whole line.
+ *
+ * A NUL byte in the line is MARKED too — `␀` (U+2400 SYMBOL FOR NULL). It is binary content that
+ * ripgrep hands through `lines.text` (escaped in its JSON, decoded back into a real U+0000 by the
+ * schema), and a raw 0x00 in the output is invisible in every terminal while corrupting anything
+ * that later reads the text as bytes. Dropping it would silently join the two halves it keeps
+ * apart — the same defect the clip marker exists to prevent. The address (line/col/offset) comes
+ * from the raw hit, so the marking cannot move it. Reproduced 2026-10-08 on the file-target shape
+ * (plan `2026-10-01_tool-description-contracts` C6).
  */
 function matchWindow(text: string, hit?: { start: number; end: number }) {
   const start = Math.max(0, Math.min(hit?.start ?? 0, text.length))
@@ -43,7 +51,7 @@ function matchWindow(text: string, hit?: { start: number; end: number }) {
     (end > hitEnd ? "…" : "") +
     text.slice(hitEnd, to) +
     (to < text.length ? "…" : "")
-  return { snippet, clipped: from > 0 || to < text.length || end > hitEnd }
+  return { snippet: snippet.replaceAll("\u0000", "\u2400"), clipped: from > 0 || to < text.length || end > hitEnd }
 }
 
 export const Parameters = Schema.Struct({

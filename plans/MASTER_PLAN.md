@@ -103,10 +103,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 206 |
-| plans active | 11 |
-| tasks passed / total | 819 / 1030 |
-| open boxes | 68 |
+| plans completed | 207 |
+| plans active | 12 |
+| tasks passed / total | 829 / 1043 |
+| open boxes | 72 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -177,7 +177,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - SE [PENDING] · sv [reliability, defect-classes, evidence] · manifest: MISSING — nobody has written down what this box is
   - SF [PENDING] · sv [universal-search, cdp-port, redistribution] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-30_robot-installer.md` — 20 open / 33 box(es) · lifecycle DRAFT
+- `plans/2026-09-30_robot-installer.md` — 19 open / 33 box(es) · lifecycle DRAFT
   sv: intention "the robot (opencode + kernel + toolchain) exists only as a hand-assembled setup on the owner's machine, with a draft bundle in d:\!Smit\Smit2 -> a unified builder and a unified Go+Wails offline installer let a colleague on an unprepared Windows install it, start the robot and get an answer to «привет» with no manual setup" · keywords [installer, offline-bundle, preflight, hello-smoke, free-models]
   - Q2b [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - Q6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -187,7 +187,6 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - B1 [PENDING] · sv [builder, reproducible, hash-manifest] · manifest: MISSING — nobody has written down what this box is
   - B1c [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - B1d [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - B1e [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - B1f [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - B1g [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - B2 [PENDING] · sv [fyne-installer, no-webview2, model-form-test] · manifest: MISSING — nobody has written down what this box is
@@ -200,13 +199,12 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - B7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - B6 [PENDING] · sv [acceptance, pristine-vm, offline] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-01_tool-description-contracts.md` — 6 open / 9 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-01_tool-description-contracts.md` — 5 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "36 tool descriptions ride the KV-stable prefix and make promises the code does not always keep (multiedit atomicity, grep's line format, recall's reach); the work fixing them ran under a parent-goal anchor no plan declared -> one line of work that owns that anchor, where every promise in a description is either pinned by a test that fails without it or removed from the text" · keywords []
   - C2 [PENDING] · sv MISSING · manifest: Три флага, обещавшие поведение, теперь пинуются — у `compare` появился первый тест за всю историю и он зелёный, — а бокс открыт ровно на одной невыполненной мутации, названной явно. · eta 1 · doing
   - C3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - C4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - C5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - C6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - C7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-04_files-api-and-tariff.md` — 0 open / 0 box(es) · lifecycle ACTIVE
@@ -223,12 +221,21 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-08_mcps-connector-manager.md` — 6 open / 8 box(es) · lifecycle UNKNOWN
+  sv: intention "/mcps is a runtime-only toggle list -> the TUI's ONE place to attach MCP connectors: statuses, OAuth auth, add/remove with scope, persistent enable/disable, and a connector catalog (Canva first). The server-side routes (add / auth start / auth authenticate / auth callback / auth remove / connect / disconnect / status) already exist and are REUSED, not rebuilt; the work is the TUI surface, the persistence, and the connector data." · keywords []
+  - S3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - S4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - S5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - S6 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - S7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - S8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
 - `plans/2026-10-08_org-portable-home.md` — 1 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "hidden test-only ORG_HOME/ORG_PORT in three copies + PATH-first fossil + fossil-CLI reads -> one shared resolver as SUPPORTED settings, bundled fossil outranking PATH, reads through org.py verbs only, documented in Protocol and the kernel add-on (plan 2026-09-30_robot-installer.md B1f)" · keywords []
   - S9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 ## The checks
 
-This body names all 14 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 15 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

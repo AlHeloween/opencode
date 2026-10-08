@@ -22,7 +22,7 @@ import { SessionStatus } from "./status"
 import { IncrementalCheckpoint } from "./incremental-checkpoint"
 import { parseSummaryRange } from "./summary"
 import { describePart } from "./stored-part"
-import { MASTER_PLAN_FILE, collectPlanState, formatPlanStateText, planFiles, planLabels, type PlanStatePayload } from "@/util/plan-status"
+import { MASTER_PLAN_FILE, collectPlanState, formatPlanStateText, planFiles, planLabels, type PlanStatePayload, type PlanStatePlan, type PlanStateTask } from "@/util/plan-status"
 import { InstanceState } from "@/effect/instance-state"
 import { isGraphFile } from "@/codegraph/sqlite-pack"
 import { Snapshot } from "@/snapshot"
@@ -822,6 +822,109 @@ export function owedTasks(debt: PlanStatePayload) {
   )
 }
 
+/** A plan file as a session's own words spell it: `plans/<file>.md`, the exact relative form
+ *  `planFiles` returns (`@/util/plan-status`). The match is only a CANDIDATE — it resolves against
+ *  the plans on disk before it is believed, so a path quoted in prose can never invent a plan. */
+const PLAN_REF = /plans\/[A-Za-z0-9._-]+\.md/g
+
+/** The tools that CREATE or MODIFY a worktree file. A plan file among their arguments is one the
+ *  session owns; the read-side tools are absent on purpose — see `sessionSignals`. */
+const FILE_WRITING_TOOLS = new Set(["write", "edit"])
+
+/**
+ * ONE message of a session, reduced to the two things that can bind it to a plan.
+ *
+ * `text` is what the message SAID — the brief that names the plan is one of these. `writes` are the
+ * worktree-relative paths the message WROTE (`write`/`edit`). Reads are deliberately not here: a
+ * session that opens somebody else's plan to review it does not thereby own it.
+ */
+export interface SessionSignal {
+  text: string
+  writes?: readonly string[]
+}
+
+/**
+ * WHICH PLAN THIS SESSION OWNS (owner, 2026-10-08).
+ *
+ * The note's address used to be `owedTasks(collectPlanState(worktree))[0]` — the first open box of
+ * the NEWEST plan file on disk — so every robot session's note named the same plan, whoever had
+ * written it last, and each session read another session's task as its own goal (measured in the
+ * robot turns, 2026-10-08). The address belongs to the session, and the session says which plan it
+ * is: its own brief names it, and a plan file it WRITES is its own by construction.
+ *
+ * Newest signal wins — a session that moved on to another plan works on the newer one — and a
+ * signal is only a candidate until it resolves to a plan under `plans/` (`plans` is every parsed
+ * plan, so the binding and the task list can never come from two different readings of the tree).
+ * `null` = the session binds nothing, which the note states outright rather than filling in
+ * somebody else's file.
+ */
+export function sessionPlan(input: { messages: readonly SessionSignal[]; plans: readonly string[] }): string | null {
+  const known = new Set(input.plans)
+  for (let i = input.messages.length - 1; i >= 0; i--) {
+    const message = input.messages[i]!
+    // Writes first: a file this session wrote is stronger evidence than a path it quoted.
+    for (const signal of [...(message.writes ?? []), message.text]) {
+      const hits = signal.match(PLAN_REF) ?? []
+      for (let j = hits.length - 1; j >= 0; j--) if (known.has(hits[j]!)) return hits[j]!
+    }
+  }
+  return null
+}
+
+/**
+ * The note's ADDRESS for ONE session: the plan `sessionPlan` read from its own messages, plus the
+ * first open task OF THAT PLAN — `owedTasks` is the one spelling of "what is next", so the bound
+ * session and the legacy caller can never disagree about which task it is.
+ *
+ * `null` plan = the session names no plan on disk; `null` next = it named one, and that plan's
+ * boxes are clear. Both are states the note prints as themselves.
+ */
+export function sessionTarget(input: { messages: readonly SessionSignal[]; plans: readonly PlanStatePlan[] }): {
+  plan: string | null
+  next: { plan: string; task: PlanStateTask } | null
+} {
+  const plan = sessionPlan({ messages: input.messages, plans: input.plans.map((candidate) => candidate.file) })
+  if (plan === null) return { plan: null, next: null }
+  return { plan, next: owedTasks({ plans: input.plans.filter((candidate) => candidate.file === plan) })[0] ?? null }
+}
+
+/**
+ * The session's messages reduced to their plan-binding signals — the projection the CALLER hands
+ * `sessionTarget`. One spelling for one question: the text parts say what the session said, and a
+ * `write`/`edit` call says what it made.
+ */
+export function sessionSignals(messages: readonly MessageV2.WithParts[]): SessionSignal[] {
+  return messages.map((message) => ({
+    text: message.parts
+      .filter((part) => part.type === "text")
+      .map((part) => (part as MessageV2.TextPart).text)
+      .join("\n"),
+    writes: message.parts.flatMap((part) => {
+      if (part.type !== "tool" || !FILE_WRITING_TOOLS.has(part.tool)) return []
+      const filePath = (part.state.input as Record<string, unknown>).filePath
+      return typeof filePath === "string" ? [filePath] : []
+    }),
+  }))
+}
+
+/**
+ * ONE spelling of the debt line's address. The legacy half — a caller with no session context —
+ * names `owed[0]` of the capped payload, which is the newest plan on disk; the session half names
+ * THIS session's plan, and says so when there is none. Both halves print a task the same way, so
+ * the two can never look like different kinds of statement.
+ */
+function debtAddress(
+  own: { plan: string | null; task: PlanStateTask | null } | undefined,
+  next: { plan: string; task: PlanStateTask } | undefined,
+): string {
+  const task = (plan: string, target: PlanStateTask) =>
+    `next: ${plan} ${target.id} [${target.status}]${target.attempts > 0 ? ` · attempts ${target.attempts}` : ""}`
+  if (own === undefined) return next ? ` · ${task(next.plan, next.task)}` : ""
+  if (own.plan === null) return " · next: none — no plan bound to this session (its own messages name no plan)"
+  if (own.task === null) return ` · next: none in ${own.plan} — its boxes are clear`
+  return ` · ${task(own.plan, own.task)}`
+}
+
 /**
  * The note pushed onto the newest user message after every user turn: which
  * summaries are still OPEN and what is deficient in them, plus the distance to
@@ -849,6 +952,14 @@ export function tailNote(input: {
     * surface capped at three relevant plans, so a count taken from it under-reports: this is the
     * measure, that is the address. */
   debtTotal?: { plans: number; open: number } | null
+  /** WHOSE work this note points at (owner, 2026-10-08). The caller reads it from THIS session's own
+   *  messages (`sessionTarget`): the plan the session names, and that plan's next open task.
+   *  · `undefined` — no session context: the address keeps its legacy source, `owedTasks(debt)[0]`,
+   *    which is the NEWEST plan file on disk.
+   *  · `{ plan: null }` — the session names no plan. The note SAYS SO and never falls back to the
+   *    newest file, which is how every session's note came to name another session's plan.
+   *  · `{ plan, task: null }` — the plan is bound and its boxes are clear. */
+  own?: { plan: string | null; task: PlanStateTask | null }
   /** The coupling watcher's result: how many vector links were actually looked at, how many manifests
    * the store was asked about, and what floated free. A silent check is indistinguishable from no
    * check, so BOTH counts are printed even at zero. `manifests` is a second number on purpose — it
@@ -937,28 +1048,22 @@ export function tailNote(input: {
   // оракулом по протоколу являться не может. Это критическое противоречие.» So the push that already
   // exists carries the DEBT: the open plan work, in the protocol's own terms (task ids, statuses,
   // attempts — never prose), stated as an obligation rather than as a statistic.
-  if (input.debt) {
-    // ONE spelling of `owed`: `owedTasks` is the list, `owed[0]` is the address the `svm:` line below
-    // also describes — the caller reads THAT task's manifest, so two copies of this filter would let
-    // the two lines name different tasks.
-    const owed = owedTasks(input.debt)
+  if (input.debt || input.own) {
+    // ONE spelling of `owed`: `owedTasks` is the list, its first element is the task the `svm:` line
+    // below also describes — the caller reads THAT task's manifest, so two copies of this filter
+    // would let the two lines name different tasks.
+    const owed = input.debt ? owedTasks(input.debt) : []
     const next = owed[0]
-    // THE MEASURE IS THE TOTAL; THE ADDRESS IS THE NEXT TASK. `debt` carries at most three relevant
+    // THE MEASURE IS THE TOTAL; THE ADDRESS IS THIS SESSION'S. `debt` carries at most three relevant
     // plans — that is what a head surface is for — so a count taken from it UNDER-REPORTS its own
     // name (measured 2026-09-22: twelve printed while the root had thirty open). When the caller can
-    // afford the full read, the total is what the line states, and the capped view only names where
-    // to start.
-    const total = input.debtTotal ?? { plans: input.debt.plans.length, open: owed.length }
+    // afford the full read, the total is what the line states, and the address comes from `own`,
+    // which the caller read from THIS session instead of from the newest file on disk.
+    const total = input.debtTotal ?? { plans: input.debt?.plans.length ?? 0, open: owed.length }
     lines.push(
       total.open === 0
         ? "owed: no open plan task — the boxes are clear; memory's open list is the remainder (not machine-readable yet)"
-        : `owed: ${total.open} open plan task(s) in ${total.plans} plan(s)${
-            next
-              ? ` · next: ${next.plan} ${next.task.id} [${next.task.status}]${
-                  next.task.attempts > 0 ? ` · attempts ${next.task.attempts}` : ""
-                }`
-              : ""
-          }`,
+        : `owed: ${total.open} open plan task(s) in ${total.plans} plan(s)${debtAddress(input.own, next)}`,
     )
   }
   // THE MANIFEST OF THE TASK THE NOTE JUST NAMED (plan S3). The debt line says WHAT is owed; this one

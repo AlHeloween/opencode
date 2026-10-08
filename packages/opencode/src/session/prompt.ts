@@ -32,7 +32,7 @@ import { Jobs } from "../jobs"
 import { RequestDiff } from "./request-diff"
 import { Checkpoint, type CheckpointData } from "./checkpoint"
 import { IncrementalCheckpoint } from "./incremental-checkpoint"
-import { collectPlanState, criticalRisks, masterPlanCoverage, planDebt, planFiles, planLabels } from "@/util/plan-status"
+import { collectPlanState, criticalRisks, masterPlanCoverage, parsePlanFiles, planDebt, planFiles, planLabels } from "@/util/plan-status"
 import { couplingFindings } from "@/memory/spine"
 import { Bus } from "../bus"
 import { ProviderTransform } from "@/provider/transform"
@@ -2040,31 +2040,46 @@ export const layer = Layer.effect(
                       .map((part) => (part as { text: string }).text)
                       .join("\n"),
                   }))
+                  // ONE READ OF THE PLAN TREE (owner, 2026-10-08). Every line below — this session's
+                  // binding, the total and the map question — comes from the same parse, so two of
+                  // them cannot disagree about what the plans say.
+                  const plans = parsePlanFiles(worktree)
+                  // Read ONCE and used twice (the total and the map question): two reads of the same
+                  // tree in one note would be two answers waiting to disagree.
+                  const totals = planDebt(worktree)
+                  // WHOSE WORK THIS NOTE POINTS AT (owner, 2026-10-08). The address used to be
+                  // `owedTasks(collectPlanState(worktree))[0]` — the newest plan file on disk — so
+                  // every session's note named the same plan, whoever had written it last, and each
+                  // robot read another robot's task as its own goal. The session is asked instead:
+                  // the plan ITS OWN messages bind it to (`sessionSignals` → `sessionTarget`), and
+                  // an explicit "no plan bound" when they bind none.
+                  const own = SessionCompaction.sessionTarget({
+                    messages: SessionCompaction.sessionSignals(msgs),
+                    plans,
+                  })
                   // THE MANIFEST OF THE TASK THE NOTE IS ABOUT TO NAME (plan S3). Read HERE, not inside
                   // `tailNote`, because the note is a pure function and a manifest is a file — and read
                   // through `SVM.readNote`, which is service-free ON PURPOSE: this runs on the prompt
                   // path, where a new service requirement propagates into every layer that provides
                   // `SessionPrompt` (the trade `tool/memory.ts` names). It resolves the file through the
                   // store's OWN mapping, so the reader and the writer cannot disagree about the path.
-                  const debt = collectPlanState(worktree)
-                  // Read ONCE and used twice (the total and the map question): two reads of the same
-                  // tree in one note would be two answers waiting to disagree.
-                  const totals = planDebt(worktree)
-                  const next = SessionCompaction.owedTasks(debt)[0]
                   const svm =
-                    next === undefined
+                    own.next === null
                       ? null
                       : {
-                          plan: next.plan,
-                          task: next.task.id,
-                          manifest: yield* SVM.readNote(next.plan, next.task.id),
+                          plan: own.next.plan,
+                          task: own.next.task.id,
+                          manifest: yield* SVM.readNote(own.next.plan, own.next.task.id),
                         }
                   return SessionCompaction.tailNote({
                     open,
                     window,
-                    // THE CALL TO ACTION: what the protocol still OWES, read from the plan files. The
-                    // user is not allowed to be the only thing that ever asks for an account of the work.
-                    debt,
+                    // THE CALL TO ACTION: what the protocol still OWES, read from the plan files — the
+                    // user is not allowed to be the only thing that ever asks for an account of the
+                    // work. The address is the plan THIS session is bound to, never the newest file on
+                    // disk (owner, 2026-10-08): a session that names no plan is told exactly that,
+                    // instead of being handed another session's task as its goal.
+                    own: { plan: own.plan, task: own.next?.task ?? null },
                     debtTotal: totals,
                     // THE DIRECTION AXIS: the manifest of the very task `owed:` names (plan S3), read
                     // above before the return. A task with no manifest is reported as MISSING there —

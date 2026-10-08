@@ -145,9 +145,10 @@ readable off the turn note:
    nag asks for: persist, then sharpen.
 3. **Nothing is MID-FLIGHT** — no uncommitted binding, no open tool call, no red left behind. A failure folded
    into the next window arrives as noise that the next cycle must first explain away.
-4. **The next step is ADDRESSED** — `owed:` names the plan and the task, `svm:` carries its direction, and the
-   map is current, so the sharpened window opens HOLDING a direction instead of spending its first turns
-   reconstructing one. This is the precondition `svm`, the turn note and `plans/MASTER_PLAN.md` exist to
+4. **The next step is ADDRESSED** — `owed:` names THIS session's plan and the task inside it (read from the
+   session's own messages; a session that binds no plan is told exactly that), `svm:` carries its direction,
+   and the map is current, so the sharpened window opens HOLDING a direction instead of spending its first
+   turns reconstructing one.
    satisfy — and why «is every entry mapped» is a fold-readiness check rather than bookkeeping.
 
 When (1) and (4) disagree — a boundary closed and the next one unmapped — the fold is still available, and the
@@ -981,7 +982,12 @@ After every user message the runtime pushes a small `<compaction-status>` block 
 one line per LEGACY open checkpoint (nothing creates new ones since 2026-09-22) with the gaps `diagnoseSummaryGaps` finds on read (filling a section
 retires its own nag), plus `Your context window: X of Y tokens. By calculation: approximately N more model requests before compact`,
 the compact threshold, `ctx open/foldAt · headroom · layer-1 sinceSummary/65 536`, plus the **DEBT** line —
-`owed: N open plan task(s) · next: <plan> <id> [status]` — read from the plan files. The debt line is
+`owed: N open plan task(s) · next: <plan> <id> [status]`. The count is the project's total, read from the
+plan files; the ADDRESS is the plan THIS session is bound to — the one its own messages name, or the plan
+file it wrote, resolved against the plans on disk (`sessionPlan`/`sessionTarget` in `session/compaction.ts`)
+— and a session that binds none reads `next: none — no plan bound to this session`. Until 2026-10-08 the
+address came from `owedTasks(collectPlanState(worktree))[0]`, i.e. the newest plan file on disk, so every
+robot session's note named the same plan, whoever had written it last. The debt line is
 not decoration: the sidecar capture was the only event in this loop that came from the MACHINE rather
 than from the user, so removing generation left the protocol triggered by the user alone, i.e. an
 oracle it is not allowed to have (owner, 2026-09-22: «мы убили call to action вместе с sidecar

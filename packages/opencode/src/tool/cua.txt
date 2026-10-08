@@ -26,7 +26,7 @@ PowerShell 5.1 quote stripping.
   for SMOKE assertions).
 - `click` / `type_text` / `scroll` / `press_key` / `hotkey` — input
   (PostMessage-based, does not steal focus).
-- `launch_app` — wrapper-enforced minimized, inactive start (`start_minimized:true`); background UIA/PostMessage actions remain available.
+- `launch_app` — per-tier placement: the default stays minimized and inactive (`start_minimized:true`); declare `tier:"B-native-bg"` to launch shown-no-activate (`start_minimized:false`, SW_SHOWNOACTIVATE) — a window a fresh capture can observe. The wrapper never positions windows and refuses an invented offset: the monitor is discovered at run time.
 - Browser suite: `browser_prepare`, `browser_navigate`, `browser_click`,
   `browser_type`, `get_browser_state` — CDP over an exactly-bound tab.
 - Page reads: `page` with `action:"get_text"` or `action:"query_dom"` when
@@ -54,9 +54,11 @@ PowerShell 5.1 quote stripping.
   NEVER fall back to an unbound pixel click. Element and zoom-addressed clicks
   retain their own rules. A provider-resized preview is NOT an exact coordinate
   source: prefer UIA, DOM or keyboard for tiny targets.
-- Driver `drag` and other coordinate gestures do not share `click`'s capture-id
-  admission contract; this packet does not certify those actions. Re-observe
-  and verify the outcome separately rather than treating a gesture as proof.
+- A `capture_id` binds only `click`; the wrapper refuses it on any other tool (the driver
+  ignores it silently — measured in run `20260930T024021Z`). Driver `drag` and other coordinate
+  gestures do not share `click`'s capture-id admission contract; this packet does not certify
+  those actions. Re-observe and verify the outcome separately rather than treating a gesture as
+  proof.
 - Writes to disk count as PERSISTENT_WRITE — verify the artifact by reading
   it back, not by exit code alone.
 

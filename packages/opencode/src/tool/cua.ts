@@ -71,14 +71,60 @@ function runCli(args: string[], stdin?: string): Effect.Effect<{ code: number; o
   })
 }
 
+/** Driver truth, read in source 2026-10-08 (`platform-windows/src/tools/impl_.rs`): only `click`
+ *  declares a `capture_id` input (line 3139); `drag` (7322-7337) and every other tool have no such
+ *  field and DROP it silently — run 20260930T024021Z (W3/L5) delivered a drag with the ID gone.
+ *  The wrapper refuses what the driver would ignore, so a model cannot believe a gesture is bound. */
+const CAPTURE_BOUND_TOOLS = new Set(["click"])
+
+/** The B-native-bg tier launches shown-no-activate: `start_minimized:false` maps to
+ *  SW_SHOWNOACTIVATE (impl_.rs:2043-2045,2070-2126) — visible to a fresh capture (a minimized
+ *  window refuses capture; capture.rs), never activated. */
+const SHOWN_NO_ACTIVATE_TIER = "B-native-bg"
+
+/** `launch_app` has no position input (impl_.rs:2070-2081, `additionalProperties:false`); an offset
+ *  would be ignored silently, so the wrapper refuses it — the target monitor is discovered at
+ *  run time and a hard-coded monitor offset never appears in this source (plan T4). */
+const LAUNCH_PLACEMENT_FIELDS = ["x", "y", "monitor", "monitor_rect", "placement", "rect"]
+
+/** Refuse a `capture_id` the driver does not bind for the tool (plan T8); parsed call object in. */
+function refuseUnboundCaptureId(tool: string, input: Record<string, unknown>) {
+  if (!CAPTURE_BOUND_TOOLS.has(tool) && "capture_id" in input) {
+    throw new Error(
+      `capture_id is not bound for ${tool}: only click binds a capture_id and the driver would ignore it silently.`,
+    )
+  }
+}
+
+/** Best-effort parse of a pass-through call: only a well-formed JSON object can hide a capture_id
+ *  the wrapper must refuse; malformed payloads stay the driver's to reject, exactly as before. */
+function parsePassThroughCall(tool: string, args?: string): Record<string, unknown> | undefined {
+  if (args === undefined) return {}
+  try {
+    const parsed: unknown = JSON.parse(args)
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : undefined
+  } catch (error) {
+    log.debug("CUA pass-through arguments are not a JSON object; leaving them to the driver", {
+      tool,
+      error: String(error),
+    })
+    return undefined
+  }
+}
+
 /**
- * Keep every CUA-managed Windows launch out of the user's active workspace.
- * The driver maps this to SW_SHOWMINNOACTIVE while retaining UIA/PostMessage
- * background delivery. This is intentionally enforced even if a caller sends
- * false: foreground restoration is a separately authorized action.
+ * Normalize one `call` payload for the driver CLI.
+ * Launch placement is per tier (plan T4): the default keeps every CUA-managed launch minimized and
+ * out of the owner's way (SW_SHOWMINNOACTIVE; enforced even when a caller sends false — foreground
+ * restoration is a separately authorized action), while the B-native-bg tier launches
+ * shown-no-activate so a fresh capture can observe the window.
  */
-export function cuaCallArgs(tool: string, args?: string, sessionID?: string): string {
+export function cuaCallArgs(tool: string, args?: string, sessionID?: string, tier?: string): string {
   if (tool !== "launch_app" && (!sessionID || !["get_window_state", "get_desktop_state", "click"].includes(tool))) {
+    const passed = parsePassThroughCall(tool, args)
+    if (passed) refuseUnboundCaptureId(tool, passed)
     return args ?? "{}"
   }
 
@@ -86,9 +132,17 @@ export function cuaCallArgs(tool: string, args?: string, sessionID?: string): st
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw new Error(`${tool} arguments must be a JSON object`)
   }
-  if (tool === "launch_app") return JSON.stringify({ ...parsed, start_minimized: true })
-
   const input = parsed as Record<string, unknown>
+  refuseUnboundCaptureId(tool, input)
+  if (tool === "launch_app") {
+    const invented = LAUNCH_PLACEMENT_FIELDS.filter((field) => field in input)
+    if (invented.length)
+      throw new Error(
+        `launch_app cannot place a window: ${invented.join(", ")} would be ignored silently; the monitor is discovered at run time, never passed as an offset.`,
+      )
+    return JSON.stringify({ ...input, start_minimized: tier !== SHOWN_NO_ACTIVATE_TIER })
+  }
+
   if (
     tool === "click" &&
     ("x" in input || "y" in input) &&
@@ -266,6 +320,10 @@ const Parameters = Schema.Struct({
   screenshot_out_file: Schema.optional(Schema.String).annotate({
     description: "Write screenshot bytes to this path instead of inline base64 (recommended; read the artifact back).",
   }),
+  tier: Schema.optional(Schema.Literals(["B-native-bg"])).annotate({
+    description:
+      "Launch placement tier for launch_app: B-native-bg launches shown-no-activate (SW_SHOWNOACTIVATE) so a fresh capture can observe the window; the default minimized launch stays for every other tier.",
+  }),
 })
 
 type Metadata = {
@@ -383,7 +441,7 @@ export function cuaExecute(
       stdin =
         params.tool === "click"
           ? cuaBoundClickArgs(params.args ?? "{}", ctx.sessionID, ctx.messages)
-          : cuaCallArgs(params.tool, params.args, ctx.sessionID)
+          : cuaCallArgs(params.tool, params.args, ctx.sessionID, params.tier)
     }
     const screenshotFile =
       params.action === "call" && params.tool

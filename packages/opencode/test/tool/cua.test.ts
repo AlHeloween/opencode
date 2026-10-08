@@ -17,7 +17,9 @@ import { MessageID, SessionID } from "../../src/session/schema"
 import type * as Tool from "../../src/tool/tool"
 
 describe("CUA launch arguments", () => {
-  test("forces launches to start minimized even when the caller requests otherwise", () => {
+  // T4 (plans/2026-09-29_cua-windows-debug-input.md): the blanket minimize became the
+  // DEFAULT-tier placement; the tier test below pins the B-native-bg exception.
+  test("keeps the default launch minimized even when the caller requests otherwise", () => {
     expect(JSON.parse(cuaCallArgs("launch_app", '{"name":"notepad.exe"}'))).toEqual({
       name: "notepad.exe",
       start_minimized: true,
@@ -30,6 +32,28 @@ describe("CUA launch arguments", () => {
       path: "C:\\Windows\\System32\\notepad.exe",
       start_minimized: true,
     })
+  })
+
+  test("places launches per tier without fabricating a monitor offset", () => {
+    // B-native-bg = shown-no-activate: start_minimized:false maps to SW_SHOWNOACTIVATE in the
+    // driver (impl_.rs:2043-2045,2070-2126) — visible for a fresh capture (a minimized window
+    // refuses capture), never activated. The monitor is discovered at run time: launch_app has
+    // no position input, so an invented offset is refused instead of passed through.
+    expect(JSON.parse(cuaCallArgs("launch_app", '{"name":"notepad.exe"}', "ses_one"))).toEqual({
+      name: "notepad.exe",
+      start_minimized: true,
+    })
+    expect(JSON.parse(cuaCallArgs("launch_app", '{"name":"notepad.exe"}', "ses_one", "B-native-bg"))).toEqual({
+      name: "notepad.exe",
+      start_minimized: false,
+    })
+    expect(
+      JSON.parse(cuaCallArgs("launch_app", '{"name":"notepad.exe","start_minimized":true}', "ses_one", "B-native-bg"))
+        .start_minimized,
+    ).toBe(false)
+    expect(() => cuaCallArgs("launch_app", '{"name":"notepad.exe","x":2560,"y":0}', "ses_one", "B-native-bg")).toThrow(
+      "cannot place",
+    )
   })
 
   test("preserves unrelated CUA call payloads without parsing them", () => {
@@ -126,6 +150,27 @@ describe("CUA launch arguments", () => {
 
   test("refuses an unbound pixel click before the CLI can dispatch it", () => {
     expect(() => cuaCallArgs("click", '{"pid":42,"window_id":99,"x":10,"y":20}', "ses_one")).toThrow("capture_id")
+  })
+
+  test("refuses capture_id on every tool the driver does not bind it for", () => {
+    // Only `click` declares a capture_id in the driver schemas (platform-windows/src/tools/impl_.rs:3139);
+    // `drag` has no such field (impl_.rs:7322-7337) and run 20260930T024021Z (W3/L5) measured the
+    // silence this guard removes: the gesture was dispatched while the ID was dropped.
+    expect(() =>
+      cuaCallArgs("drag", '{"from_x":1,"from_y":2,"to_x":30,"to_y":40,"capture_id":"capture_1"}', "ses_one"),
+    ).toThrow("capture_id")
+    expect(() => cuaCallArgs("get_window_state", '{"pid":42,"capture_id":"capture_1"}', "ses_one")).toThrow(
+      "capture_id",
+    )
+    expect(() => cuaCallArgs("type_text", '{"text":"hello","capture_id":"capture_1"}')).toThrow("capture_id")
+    expect(() => cuaCallArgs("launch_app", '{"name":"notepad.exe","capture_id":"capture_1"}', "ses_one")).toThrow(
+      "capture_id",
+    )
+    // Control: click is the bound tool — the ID survives the normalizer and reaches the driver.
+    expect(
+      JSON.parse(cuaCallArgs("click", '{"pid":42,"window_id":99,"capture_id":"capture_1","x":10,"y":20}', "ses_one"))
+        .capture_id,
+    ).toBe("capture_1")
   })
 
   test("preserves element and zoom addressing", () => {

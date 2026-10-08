@@ -1,0 +1,61 @@
+[
+  {
+    "case": "A1 whole history (no limit)",
+    "status": 200,
+    "ok": true,
+    "detail": {
+      "items": 75,
+      "oldest_present": true,
+      "culprit_present": true
+    }
+  },
+  {
+    "case": "A1 culprit part served whole",
+    "status": 200,
+    "ok": true,
+    "detail": {
+      "input": {},
+      "rawInputLen": 1760
+    }
+  },
+  {
+    "case": "A1 limit=75",
+    "status": 200,
+    "ok": true,
+    "detail": {
+      "items": 75
+    }
+  },
+  {
+    "case": "A3 limit=74 cursor branch intact",
+    "status": 200,
+    "ok": true,
+    "detail": {
+      "items": 74
+    }
+  },
+  {
+    "case": "A2 declared BadRequest -> 400",
+    "status": 400,
+    "ok": true,
+    "detail": {
+      "body": "{\"_tag\":\"BadRequest\"}"
+    }
+  },
+  {
+    "case": "A4 auth_token query -> 200",
+    "status": 200,
+    "ok": true,
+    "detail": {
+      "body0": "[{\"info\":{\"role\":\"user\",\"agent\":\"build_mode\",\"model\":{\"providerID\":\"deepseek\",\"m"
+    }
+  },
+  {
+    "case": "residual: missing session (expected 404 by the test) ",
+    "status": 500,
+    "ok": true,
+    "detail": {
+      "body0": ""
+    }
+  }
+]

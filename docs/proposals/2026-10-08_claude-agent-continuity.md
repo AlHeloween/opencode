@@ -27,6 +27,25 @@ addressed; the window keeps the inviolate tail, the list of per-turn semantic ve
 and pointers with exact handles, and anything released is re-acquired by address on demand. The loss is confined to attention, never to the record — which is the only kind of compression
 that information allows.
 
+## What it achieves (measured)
+
+Owner, 2026-10-08: «после компакта наши роботы вообще ничего не теряют и помнят себя с самого первого сообщения и все
+траектории. Сжатие через семантические доминанты колоссально.»
+
+Measured the same day, read-only over the robots' session store (`experiments/2026-10-08_sv-compression/measure.py`):
+the stored history of a session (text + tool calls and results) against the text of its semantic-vector blocks.
+
+| session | history | vector blocks | vector text | ratio |
+|---|---|---|---|---|
+| longest | 18.35 M chars | 151 | 45.1 k chars | 407× |
+| 2nd | 12.92 M | 93 | 32.0 k | 404× |
+| 3rd | 10.95 M | 189 | 52.3 k | 209× |
+| 4th–6th | 4.3–5.5 M | 27–74 | 8.0–37.0 k | 148–552× |
+
+The longest session's whole trajectory fits as a map in ~45 k characters (≈ 11 k tokens) while 18 M characters stay
+stored and addressable. The vectors are an index, not a replacement: the ratio is the cost of KNOWING the whole
+trajectory; the content itself is re-acquired by address, so nothing is lost.
+
 ## The invariant
 
 **Maximum continuity = acting without re-deriving.** «Remembering more» is not the goal; a boundary that forces a

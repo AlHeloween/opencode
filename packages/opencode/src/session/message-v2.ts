@@ -39,6 +39,7 @@ import * as EffectLogger from "@opencode-ai/core/effect/logger"
 import { canonicalName } from "@/tool/tool"
 import { optionalPattern } from "@/tool/pattern"
 
+import { isRecord } from "@/util/record"
 /** Error shape thrown by Bun's fetch() when gzip/br decompression fails mid-stream */
 interface FetchDecompressionError extends Error {
   code: "ZlibError"
@@ -563,6 +564,29 @@ export type ToolPart = Omit<Types.DeepMutable<Schema.Schema.Type<typeof ToolPart
   state: ToolState
 }
 
+/**
+ * A tool part whose `state.input` is not a record is malformed: the schema says
+ * `Record<string, unknown>` — the arguments PARSED. A tool call whose JSON never parsed
+ * (the repair threw, `tool-call-repair.ts`) arrives from the stream as the raw STRING, and
+ * a writer stored it verbatim — the part then fails `Schema.Array(WithParts)` encode, and
+ * every page that includes it dies inside the response encoder (2026-10-08: one such row
+ * made a whole session list unreadable). The text is not dropped: it moves to
+ * `metadata.rawInput` (declared on the running/error/completed states) and `input` becomes
+ * the empty record. Applied at the write boundary (`Session.updatePart`) and when rows are
+ * materialized (`parts`) — one predicate, both ends of the stored shape.
+ */
+export function normalizeToolPart<T extends Part>(part: T): T {
+  if (part.type !== "tool") return part
+  const state = part.state as { input?: unknown; metadata?: unknown } & Record<string, unknown>
+  if (isRecord(state.input)) return part
+  const metadata = isRecord(state.metadata) ? state.metadata : {}
+  const raw = state.input === undefined ? undefined : typeof state.input === "string" ? state.input : JSON.stringify(state.input)
+  return {
+    ...part,
+    state: { ...state, input: {}, ...(raw === undefined ? {} : { metadata: { ...metadata, rawInput: raw } }) },
+  } as T
+}
+
 const messageBase = {
   id: MessageID,
   sessionID: SessionID,
@@ -887,13 +911,15 @@ const info = (row: typeof MessageTable.$inferSelect) =>
   }) as Info
 
 const part = (row: typeof PartTable.$inferSelect) =>
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-  ({
-    ...row.data,
-    id: row.id,
-    sessionID: row.session_id,
-    messageID: row.message_id,
-  }) as Part
+  normalizeToolPart(
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+    ({
+      ...row.data,
+      id: row.id,
+      sessionID: row.session_id,
+      messageID: row.message_id,
+    }) as Part,
+  )
 
 const older = (row: Cursor) =>
   or(lt(MessageTable.time_created, row.time), and(eq(MessageTable.time_created, row.time), lt(MessageTable.id, row.id)))
@@ -1891,16 +1917,7 @@ export function parts(message_id: MessageID) {
   const rows = Database.use((db) =>
     db.select().from(PartTable).where(eq(PartTable.message_id, message_id)).orderBy(PartTable.id).all(),
   )
-  return rows.map(
-    (row) =>
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-      ({
-        ...row.data,
-        id: row.id,
-        sessionID: row.session_id,
-        messageID: row.message_id,
-      }) as Part,
-  )
+  return rows.map((row) => part(row))
 }
 
 export function get(input: { sessionID: SessionID; messageID: MessageID }): WithParts {

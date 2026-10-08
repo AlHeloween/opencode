@@ -898,15 +898,21 @@ export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service> =
       Effect.gen(function* () {
         const ctx = yield* InstanceState.context.pipe(Effect.option)
         const project = Option.isSome(ctx) ? { projectID: ctx.value.project.id, directory: ctx.value.worktree } : {}
+        // The write boundary owns the stored shape: a tool part whose `state.input` is not
+        // a record (a tool call whose JSON never parsed arrives from the stream as the raw
+        // STRING) is STORED normalized, so no reader — nor any later reader of this DB —
+        // meets a value the published schema cannot encode (2026-10-08: one such part made a
+        // whole session list fail its response encode and answer as a swallowed failure).
+        const normalized = MessageV2.normalizeToolPart(part)
         yield* Effect.sync(() =>
           SyncEvent.run(MessageV2.Event.PartUpdated, {
-            sessionID: part.sessionID,
+            sessionID: normalized.sessionID,
             ...project,
-            part,
+            part: normalized,
             time: Date.now(),
           }),
         )
-        return part
+        return normalized
       }).pipe(Effect.withSpan("Session.updatePart"))
 
     const getPart: Interface["getPart"] = Effect.fn("Session.getPart")(function* (input) {

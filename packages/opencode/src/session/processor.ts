@@ -831,6 +831,10 @@ export const layer: Layer.Layer<
             status: "error",
             input: match.part.state.input,
             error: errorMessage(error),
+            // The running state's metadata survives the flip (the abort path below already
+            // carries it): dropping it lost a `metadata.rawInput` a normalization had parked
+            // there — the record of what an unparsed call actually contained.
+            ...(match.part.state.metadata ? { metadata: match.part.state.metadata } : {}),
             time: { start: match.part.state.time.start, end: Date.now() },
           },
         })

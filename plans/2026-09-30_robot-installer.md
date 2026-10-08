@@ -723,7 +723,7 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
   logged-in hosts — a login without a worker is inert; worker data contract (ADID lane, 2026-10-08): env
   `ORG_WORKER_DATA`, default `<ORG_HOME>/workers/<agent>/` with `last_tick.json` (atomic; `result` idle | busy |
   claimed | done | blocked | escalated | error, `finished_utc`, `pid`, `run_log`) + `worker.log` + `runs/*.log` +
-  `worker.lock`; one tick = `org_worker.py --agent … --once` (exit ≠ 0 = the worker failed), the Task Scheduler is
+  `worker.lock`; login `--login`, default `<agent>-worker`, a missing Fossil user = result `error` (the worker never creates users); one tick = `org_worker.py --agent … --once` (exit ≠ 0 = the worker failed), the Task Scheduler is
   the clock. Scheduler settings on this side: per-user, «run only when the user is logged on», a new instance is
   IGNORED while one runs (the lock is the second guard), no execution time limit (a child run may be long).
   Verify scope: MANIFEST.sha256 covers the program tree only; runtime roots (`org/`, data, logs) are outside it, so

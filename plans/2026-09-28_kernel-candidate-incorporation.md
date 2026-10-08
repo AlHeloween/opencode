@@ -237,6 +237,29 @@ Artifact for the boxes below (source-level, pre-install): `python -m pytest prom
       from history, no before/after run): the `samply` tool landed in `d582038233` (2026-10-06) without re-running
       `script/kernel-tools-manifest.ts`; `identity_tools.json` last moved in `1a437f6def`. `bun typecheck` → exit 0, no
       diagnostics (`20261007T170314Z_718c4158`). Box stays OPEN until the manifest suite is green; not fixed here.
+      2026-10-08 FINDINGS (fresh runs at `b65757638e` — the cherry-pick of `3df5a222e4` onto Local_Development;
+      it touches only this plan and `_progress_log.md`, so the run code equals `2c0835cf30`):
+      - `python -m pytest prompt_kernel/tests/ -q` → **145 passed, 0 skipped** (`20261008T002202Z_c95b83a1`, exit 0).
+        The triage's «144 passed / 1 skipped» is ENVIRONMENTAL: `test_variant_parity.py:95` skips the Cursor receiver
+        case when the untracked `.cursor/rules/reasoning-kernel.mdc` is absent (fresh worktree); in the main checkout
+        the receiver is present and CURRENT → it passes. No kernel defect behind the skip.
+      - `kernel-identity-manifest.test.ts` RED **0 pass / 1 fail**, reproduced (`20261008T002714Z_374895ab`, exit 1):
+        first key `build_mode` — the manifest (whole file) holds no `samply`, its live `allowed` does; the loop
+        aborts at the first mismatch, so the other 8 identities' comparisons did not run.
+      - `registry.test.ts` 11/0 (`20261008T002755Z_0a4e96fc`); `kernel-alignment.test.ts` 5/0
+        (`20261008T002831Z_b291019f`); `bun typecheck` exit 0, no diagnostics (`20261008T002838Z_7951fe73`).
+      - CLASSIFICATION: **IMPLEMENTATION** — `d582038233` (2026-10-06) added the `samply` tool to the catalog and
+        registry without re-running the declared extractor `script/kernel-tools-manifest.ts`. The test is CORRECT
+        (it caught real drift); not TEST / SPEC_GAP / HARNESS.
+      - FIX RECIPE, measured by re-running the extractor (`20261008T002404Z_7c6afb61`, exit 0): the regenerated
+        manifest differs by EXACTLY one tool — `samply` joins `allowed` in 8 sets (build_mode, plan_mode,
+        orchestrator_agent, explorer_agent, researcher_agent, general_agent, coder_agent, media_agent) and `denied`
+        in reasoning_mode. Applying `test_identity_manifest.py`'s own predicate to the regenerated JSON yields
+        exactly ONE drifting row: `RESEARCHER_AGENT` (`acl_only=['samply']`). Closing the red = regenerate
+        `prompt_kernel/identity_tools.json` AND add `samply` to RESEARCHER_AGENT's `tools:` row in
+        `prompt_kernel/addons.py` (the alternative — the runtime ACL drops samply — is an intent call, not parity).
+        Both are kernel changes (the row edit re-renders §5 → release cadence) → the owner's call; the box stays
+        OPEN with this lift path until then.
 
 ### F7 — BGE semantic dedup + ordering (owner, 2026-09-29: «прогоним фразы через BGE… уберем лишнее»; «граф есть граф — его двигать не надо. Но вот элементы графа и аддоны — спокойно»)
 Instruments: `experiments/2026-09-29_kernel-semantic-dedup/{pairs,order,order_sub,tool_rows}.py` (BGE-M3, CUDA, GTX 1050 Ti).
@@ -266,13 +289,18 @@ Prose-only: 375 sentences, knee at cos ≈ 0.80 (p99.9 = 0.723), 10 pairs above 
 ### F5 — Release
 - [ ] Final pytest + parity suite + typecheck; render vs caps; **diff to the owner**; `--install` + repin; claude/codex receivers refreshed (no identity rows).
       2026-10-08: pytest 144 passed / 1 skipped, typecheck clean, parity RED on `kernel-identity-manifest` (`samply`) — see F8; open.
+      2026-10-08 fresh at `b65757638e`: pytest 145/0 (`20261008T002202Z_c95b83a1`); parity trio in F8 — registry
+      11/0, kernel-alignment 5/0, manifest **RED** (`samply`); `bun typecheck` exit 0 (`20261008T002838Z_7951fe73`).
+      Not closable here: `--install` is the owner's act and the manifest red needs the F8 fix (kernel row).
 - [x] docs: record the release (amend `docs/kernel-release-2026-09-28.md` or a sibling — one home per fact); update `docs/gate-addons.md` if budgets move.
       ✓ `docs/kernel-release-2026-09-29.md` and `docs/kernel-release-2026-10-01.md` exist and name this plan (lines 3 and 5).
 - [ ] Commits naming this plan; move to `plans_completed/` when boxes close; scan for stale refs.
+      2026-10-08: `b65757638e` (triage, cherry-picked) + the same day's findings commit name the plan; the move
+      waits for F8's lift path and F5's install box.
 
 ## Smoke Tests
 - Per phase: `python -m pytest prompt_kernel/tests/ -q` (baseline 117) + render bytes/tokens; BEFORE rewording, grep the exact phrase in `prompt_kernel/tests/` — tests quoting rule text move in the same change.
-- Release: `bun test test/agent/kernel-identity-tools.test.ts test/tool/registry.test.ts test/tool/kernel-alignment.test.ts` + `bun typecheck` (cmd_runner, from `packages/opencode`); `PIN_OK`.
+- Release: `bun test test/agent/kernel-identity-manifest.test.ts test/tool/registry.test.ts test/tool/kernel-alignment.test.ts` + `bun typecheck` (cmd_runner, from `packages/opencode`); `PIN_OK`. (Path corrected 2026-10-08: `kernel-identity-tools.test.ts` was deleted as superseded in `86e4a5c564`, successor `1a437f6def`.)
 
 ## Acceptance frame
 | # | Criterion | Surface | Instrument | Falsifier |

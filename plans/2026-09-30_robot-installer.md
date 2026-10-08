@@ -718,7 +718,9 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
   in the user profile); identity and wake decided by the legislator 2026-10-08: logins `claude-worker` /
   `codex-worker` (plain `claude`/`codex` are the interactive agents — the hourly orchestrator reads `claude`), one
   per subscription per org, and POLLING (`org.py inbox --user <login>` ~10 min) is the wake contract — orgd wakes
-  only opencode residents; (b) the org server + orgd also need an autostart after reboot on the target — today only
+  only opencode residents; `init.py` creates both `-worker` logins idempotently (legislator's t14, smoke: init.py
+  twice on a scratch ORG_HOME → each login exactly once), the installer only registers the scheduler for ticked +
+  logged-in hosts — a login without a worker is inert; (b) the org server + orgd also need an autostart after reboot on the target — today only
   `init.py` raises them, so the same per-user logon task runs `init.py` (idempotent); (c) B1f portability.
   Observability (memory `feedback-delegation-must-be-observable`): every worker run leaves a record the user can
   see (ticket report + a log under the data dir) and the installer's status page names the last tick. Oracle: on

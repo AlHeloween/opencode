@@ -30,6 +30,22 @@ mechatronics and electronics. Owner: «как минимум могли запу
 
 | **A7 secure by default, frictionless by default:** hardened components still do the everyday jobs with no manual workaround | installed services + robot | scenario checks on the pristine VM: upload a file through the shared browser from `exchange\in`, receive a download in `exchange\out`, debug a site in a per-task browser under the user's account with files from any user folder; every refusal message names the permitted route | a colleague has to switch a service back to LocalSystem, edit ACLs, or read source to find where files go |
 
+## Scope widened — the whole agent corporation is portable (owner, 2026-10-08)
+
+Owner: «Ты занимаешься Installer — чтобы вся наша корпорация агентов была переносимой.» The bundle is no longer «a
+robot that answers привет» alone; it carries everything the organization runs on, so a fresh machine (or a flash
+drive) comes up as the same corporation. Lanes (memory `project-admin-roles-2026-10-08`): the hourly orchestrator,
+this installer lane, the legislator (kernel + orchestration), the tools-package lane (ADID_Python). Admins brief and
+verify; robots do the work through `experiments/2026-10-08_robot-wave/queue.md`.
+
+What «the corporation» is, read on disk 2026-10-08 (✓ `ls`, `grep` over `scripts/org-genesis/` and `~/.org/`):
+the robot + kernel (B1c.1), the organization layer `scripts/org-genesis/` (init.py, org.py, orgd.py,
+opencode_host.py, Protocol.md, ticket-schema.sql, branding.sql) installed to `~/.org/genesis` and its repository
+`~/.org/org.fossil` (server 127.0.0.1:8079, orgd heartbeat), the search stack (U1), and the tools package (lane 4).
+Portability gap ✗: all three org scripts resolve `HOME = $ORG_HOME or ~/.org` with ORG_HOME marked «test fixtures
+only» (init.py:28, org.py:47, orgd.py:41) — a flash-drive corporation needs it beside the install. That code is the
+legislator's lane: requested, not done here (B1f).
+
 ## Design lens — a program for a monkey (owner, 2026-10-07)
 
 Owner: «Планируй — как меня учили когда-то — представь что ты делаешь программу для обезьяны», after «сделать чтобы
@@ -612,6 +628,15 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
   - [ ] **B1d playwright-rs driver 404 countermeasure** in the search build (provision `playwright-core` into the
     build-script OUT_DIR, reset its fingerprint) — second occurrence, KAIZEN.
   - [ ] **B1e end-to-end**: build → gate PASS → manifest → the built tree contains no `auth.json` and no model id.
+  - [ ] **B1f organization component** (scope 2026-10-08): `scripts/org-genesis/**` staged as component `org`; the
+    first start runs `init.py` with ORG_HOME = `<install>\org` (needs ORG_HOME promoted from «test fixtures only» to
+    a supported setting — legislator's lane, requested 2026-10-08), fossil resolved from the bundle, an EMPTY
+    org.fossil born on the target (the owner's tickets/chat never ship — gate rule: no `*.fossil` in the bundle
+    except an explicit allow). Oracle: on a scratch dir, staged tree → init.py → `org.py inbox` answers and the
+    server listens on 127.0.0.1 only. <!-- sv: org-layer, portable-org-home, empty-repo -->
+  - [ ] **B1g tools-package component** (lane 4, ADID_Python): the package arrives as a folder + its own
+    MANIFEST.sha256 + a components.json fragment (name, From, Files/Dirs, Skip); the builder stages it unchanged
+    and re-verifies its manifest. Contract to be agreed with that lane. <!-- sv: tools-package, component-contract, manifest-reverify -->
 - [ ] **B2 installer shell:** Go + Fyne 2.8.1 app (decided 2026-10-07, see above; no WebView2 needed, so no pre-stage), grown from `experiments/2026-10-07_installer-fyne/app`; its `model_form_test.go` runs green first. <!-- sv: fyne-installer, no-webview2, model-form-test -->
 - [ ] **B3 preflight + fix:** each candidate above as check → fix/remedy, shown to the user before apply. <!-- sv: preflight, fixes, opt-in -->
 - [ ] **V1 virtual-display selection:** read each candidate's signature, driver model, license and install method; pick one with evidence; its egress goes through the audit plan. <!-- sv: virtual-monitor, driver-selection, signature -->

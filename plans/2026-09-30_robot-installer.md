@@ -630,7 +630,9 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
   - [ ] **B1e end-to-end**: build → gate PASS → manifest → the built tree contains no `auth.json` and no model id.
   - [ ] **B1f organization component** (scope 2026-10-08): `scripts/org-genesis/**` staged as component `org`; the
     first start runs `init.py` with ORG_HOME = `<install>\org` (needs ORG_HOME promoted from «test fixtures only» to
-    a supported setting — legislator's lane, requested 2026-10-08), fossil resolved from the bundle, an EMPTY
+    a supported setting — legislator's lane, accepted 2026-10-08 as robot task t14-org-portable-home after
+    t13: ORG_HOME/ORG_PORT supported via one shared resolver, server 127.0.0.1 at any port, fossil order
+    $FOSSIL → beside the scripts → PATH with the chosen binary printed; the installer still sets FOSSIL), fossil resolved from the bundle, an EMPTY
     org.fossil born on the target (the owner's tickets/chat never ship — gate rule: no `*.fossil` in the bundle
     except an explicit allow). Oracle: on a scratch dir, staged tree → init.py → `org.py inbox` answers and the
     server listens on 127.0.0.1 only. <!-- sv: org-layer, portable-org-home, empty-repo -->

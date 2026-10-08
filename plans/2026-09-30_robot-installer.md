@@ -638,7 +638,15 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
     server listens on 127.0.0.1 only. <!-- sv: org-layer, portable-org-home, empty-repo -->
   - [ ] **B1g tools-package component** (lane 4, ADID_Python): the package arrives as a folder + its own
     MANIFEST.sha256 + a components.json fragment (name, From, Files/Dirs, Skip); the builder stages it unchanged
-    and re-verifies its manifest. Contract to be agreed with that lane. <!-- sv: tools-package, component-contract, manifest-reverify -->
+    and re-verifies its manifest. Agreed 2026-10-08 with the ADID_Python lane: component `adid-tools`, `from:
+    "portable"` of `_release.cmd`'s `releases/adid_dist_<ts>/`, `to: "bin/tools"`, explicit files = cmd_runner.exe,
+    adm.exe, adm-rag.exe, rg.exe, sed.exe, apply_patch.exe, claude_svchain.py, codex_svchain.py; manifest in our
+    format over the packed bytes. NOT a subtree replacement: the robot component drops its catch-all `tools` dir and
+    lists its own tools/ files (fd, fossil, grep, rclone, samply, ambr?, ambs? — ownership of ambr/ambs asked); a
+    shared path fails the build by `O_EXCL` (stage.go:153). Asked of that lane: a cmd_runner log-root env var honored
+    by every subcommand, so run logs stay outside the manifest-verified tree; fix 34c0728e5f before the first
+    package. The stale bin/tools/cmd_runner.exe (2026-07-01, BOM + misparsed `start`, measured by that lane
+    2026-10-02) is replaced by the package's. <!-- sv: tools-package, component-contract, manifest-reverify -->
 - [ ] **B2 installer shell:** Go + Fyne 2.8.1 app (decided 2026-10-07, see above; no WebView2 needed, so no pre-stage), grown from `experiments/2026-10-07_installer-fyne/app`; its `model_form_test.go` runs green first. <!-- sv: fyne-installer, no-webview2, model-form-test -->
 - [ ] **B3 preflight + fix:** each candidate above as check → fix/remedy, shown to the user before apply. <!-- sv: preflight, fixes, opt-in -->
 - [ ] **V1 virtual-display selection:** read each candidate's signature, driver model, license and install method; pick one with evidence; its egress goes through the audit plan. <!-- sv: virtual-monitor, driver-selection, signature -->

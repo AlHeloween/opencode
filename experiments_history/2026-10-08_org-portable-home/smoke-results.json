@@ -1,0 +1,66 @@
+{
+  "when": "2026-10-08T13:39:25",
+  "port": 18079,
+  "cases": [
+    {
+      "id": "C1",
+      "ok": true,
+      "detail": "rc=0 org=y server=up :: org: D:\\zPython\\opencode\\experiments\\2026-10-08_org-portable-home\\scratch\\org\\org.fossil (created); fossil D:\\zPython\\opencode\\experiments\\2026-10-08_org-portable-home\\scratch\\genesis\\fossil.exe; tickets=0; server 127.0.0.1:18079 up; fields present; orgd pid 4820"
+    },
+    {
+      "id": "C3",
+      "ok": true,
+      "detail": "beside outranks a PATH decoy; chose beside: org: D:\\zPython\\opencode\\experiments\\2026-10-08_org-portable-home\\scratch\\org\\org.fossil (created); fossil D:\\zPython\\opencode\\experiments\\2026-10-08_org-portable-home\\scratch\\genesis\\fossil.exe; tickets=0; server 127.0.0.1:18079 up; fields present; orgd pid 4820"
+    },
+    {
+      "id": "C5",
+      "ok": true,
+      "detail": "$FOSSIL chosen: True (rc=0)"
+    },
+    {
+      "id": "C4",
+      "ok": true,
+      "detail": "fixture bites (decoy reachable): True (rc=0) :: 'org: D:\\\\zPython\\\\opencode\\\\experiments\\\\2026-10-08_org-portable-home\\\\scratch\\\\org\\\\org.fossil (present); fossil D:\\\\zPython\\\\opencode\\\\experiments\\\\2026-10-08_'"
+    },
+    {
+      "id": "C10",
+      "ok": true,
+      "detail": "claude-worker=1 codex-worker=1 after 3 init runs"
+    },
+    {
+      "id": "C11",
+      "ok": true,
+      "detail": "orgd pid 4820 alive after READY ticket: True; log tail ['2026-10-08 13:39:14 f1528bd1a7/new: not woken \u2014 no PRESENCE for claude in D:\\\\zPython\\\\opencode\\\\experiments\\\\2026-10-08_org-portable-home\\\\scratch \u2014 nothing to wake; `org.py inbox` there registers the session']"
+    },
+    {
+      "id": "C6",
+      "ok": true,
+      "detail": "json ok, ticket a8b96a7cb2 READY=True, chat rows 0->0"
+    },
+    {
+      "id": "C7",
+      "ok": true,
+      "detail": "fresh-empty rc=0 out=''; claim=0 hb=0; after: HEARTBEAT=True cursor=1 tail-empty=True"
+    },
+    {
+      "id": "C8",
+      "ok": true,
+      "detail": "wiki rc=0 match=True settings-section=True alias-equal=True"
+    },
+    {
+      "id": "C9",
+      "ok": true,
+      "detail": "rcs=(1,1,2) markers=True leftovers=[]"
+    },
+    {
+      "id": "C2",
+      "ok": true,
+      "detail": "127.0.0.1 listener=True; non-loopback=[]"
+    },
+    {
+      "id": "C12",
+      "ok": true,
+      "detail": "~/.org/org.fossil mtime 1791436914418134100 -> 1791436914418134100"
+    }
+  ]
+}

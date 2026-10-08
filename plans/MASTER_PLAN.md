@@ -103,10 +103,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 189 |
-| plans active | 24 |
-| tasks passed / total | 712 / 968 |
-| open boxes | 108 |
+| plans completed | 204 |
+| plans active | 11 |
+| tasks passed / total | 794 / 1008 |
+| open boxes | 71 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -114,73 +114,40 @@ Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
 Every plan under `plans/`, with every vector READ from its own source. `MISSING` means the source has none — it is never filled in here, and the source wins over anything printed below.
 
-- `plans/2026-09-24_pre-fix-artifact-verification.md` — 3 open / 4 box(es) · lifecycle ACTIVE
-  sv: intention "everything produced while the buggy kernel was in force carries its distortions (narration instead of grounding; "not found" verdicts from a closed instrument list; stalls left as circles) -> every artifact inside the measured window carries an instrument-backed status, corrections land, and what remains is a listed queue" · keywords []
-  - T2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - T3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - T4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-
 - `plans/2026-09-24_to-be-confirmed-shelf-triage.md` — 3 open / 4 box(es) · lifecycle ACTIVE
   sv: intention "19 plans sit on plans/to_be_confirmed/ after the 2026-09-24 audit — four of them owner-confirmed as shipped and live-tested, one (TUI gateway row) awaiting a confirmation run, the rest awaiting re-verification against current code — while planstatus cannot see the shelf at all -> every file on the shelf reaches a proven terminal (plans_completed/ with evidence, plans/ with a single named remaining criterion, or a lawfully shelved terminal), and the shelf readme states the result" · keywords []
   - T2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-26_fold-carrier-integrity.md` — 3 open / 4 box(es) · lifecycle DRAFT
-  sv: intention "a live fold labelled a token-measurement session with a plan-shelf-triage goal, so the next cycle would inherit a goal the owner never set -> every folded window names only a goal its own coupling supports, and the sv meter reports absence over the window instead of only in the last reply" · keywords []
-  - T1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - T2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - T3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-
-- `plans/2026-09-26_unified-settings-layers.md` — 1 open / 8 box(es) · lifecycle ACTIVE
+- `plans/2026-09-26_unified-settings-layers.md` — 0 open / 8 box(es) · lifecycle ACTIVE
   sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for
-  - TASK-8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-
-- `plans/2026-09-27_dap-debugger.md` — 5 open / 5 box(es) · lifecycle DRAFT
-  sv: intention "the agent cannot drive a debugger, so every runtime bug ends in theories about state that
-     the one known workaround (a restart) has already destroyed; the owner needs a debugger for Delphi
-     (Embarcadero/dap4delphi) and for JS, and the empty-transcript bug was the TRIGGER, not the goal -> every debugging session is driven by an instrument the agent can drive, and no explanation
-     survives without a state that outlives the process that had it" · keywords []
-  - T1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - T2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - T4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - T5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - no open box
 
 - `plans/2026-09-27_mechanical-s-cadence.md` — 1 open / 7 box(es) · lifecycle UNKNOWN
   sv: intention "the 2026-09-22 removal took the model call AND the mechanical half with it — `enrichRange` has zero call sites, `project_checkpoint` holds 0 rows over 870 messages, so the fold carries memory + a tail and the code-thread past ~32K is unreachable -> every 64k of work writes a mechanical summary (semantic-vector list + the range's messages + fossil/tool diffs + CodeGraph impact) with no model call, the owner can READ it as a panel, and the fold carries its three layers again" · keywords []
   - T4b [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-28_constitution-parity-and-grouped-commits.md` — 2 open / 6 box(es) · lifecycle DRAFT
-  sv: intention "the owner-approved ADID 15.3-aligned kernel is rewritten but its constitution, executable predicate wiring, documentation and mixed software/kernel working tree have not been verified or committed -> retain that agreed kernel design, prove the actual transitions and constitutional invariants, then land only verified changes as bounded, coherent commits without touching bin/ or pushing" · keywords []
-  - T3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - T5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-
-- `plans/2026-09-28_kernel-candidate-incorporation.md` — 16 open / 59 box(es) · lifecycle ACTIVE
+- `plans/2026-09-28_kernel-candidate-incorporation.md` — 12 open / 59 box(es) · lifecycle ACTIVE
   sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for
-  - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-10 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-6 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-7 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-10 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-11 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-14 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-15 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-16 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-17 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-18 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-19 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-20 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-17 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-18 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-20 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-44 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-51 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-57 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-58 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-59 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-29_codegraph-impact-decoupling.md` — 2 open / 5 box(es) · lifecycle ACTIVE
+- `plans/2026-09-29_codegraph-impact-decoupling.md` — 1 open / 6 box(es) · lifecycle ACTIVE
   sv: intention "fossil carries only the BRIEF (which files changed) and codegraph carries the REAL impact (symbols and edges touched) selected by the SUMMARY's own time window; the graph is synced off the turn's critical path -> the turn stops paying 2.2 s for a value its own summary consumes, and an empty impact stops reading as "nothing happened"" · keywords []
   - C2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - C4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-29_cua-windows-debug-input.md` — 18 open / 28 box(es) · lifecycle UNKNOWN
+- `plans/2026-09-29_cua-windows-debug-input.md` — 18 open / 29 box(es) · lifecycle UNKNOWN
   sv: intention "CUA debugging requires manual screenshots, IDs and multiple slow commands and cannot yet drive continuous Windows mouse input -> agents obtain an addressable visual observation and bounded, verifiable Windows mouse actions with minimal tool calls while protected operations stay protected; mode A (play together with the robot) runs on the primary monitor, mode B (debug interactive GUI and web apps) runs in the background on THIS host without a second computer and without taking the owner's cursor or focus" · keywords [cua, background-isolation, capture-binding, vmware-guest, virtual-monitor, cdp-web]
   - TASK-2 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - B1 [PENDING] · sv [page-read, webview2, js-policy-refusal] · manifest: MISSING — nobody has written down what this box is
@@ -193,7 +160,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - W2 [PENDING] · sv [rust-input, capture-admission, conditional] · manifest: MISSING — nobody has written down what this box is
   - W4 [PENDING] · sv [mode-a, game-input, relative-pointer] · manifest: MISSING — nobody has written down what this box is
   - T1b [PENDING] · sv [cdp-web, agent-route, headed-chrome] · manifest: MISSING — nobody has written down what this box is
-  - T3 [PENDING] · sv [virtual-monitor, directcomposition, capture-binding] · manifest: MISSING — nobody has written down what this box is
+  - T3b [PENDING] · sv [virtual-monitor, opengl-capture, screen-region-fallback] · manifest: MISSING — nobody has written down what this box is
   - T8 [PENDING] · sv [cua-wrapper, capture-binding, silent-ignore] · manifest: MISSING — nobody has written down what this box is
   - T9 [PENDING] · sv [background-modifiers, alt-key-state, vcl-shiftstate] · manifest: MISSING — nobody has written down what this box is
   - T4 [PENDING] · sv [launch-placement, focus-policy, cua-wrapper] · manifest: MISSING — nobody has written down what this box is
@@ -207,75 +174,30 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - T5 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-29_svm-tool-and-master-plan.md` — 1 open / 7 box(es) · lifecycle DRAFT
-  sv: intention "an agent must be able to STORE and READ the manifest of the turn it is in — task, plan ref, semantic vector, turn estimate — and the turn must be told when it is missing; the master plan becomes the rendered summary that no plan-file move can touch -> one SVM store + one tool + one turn-note reminder + a generated MASTER_PLAN.md" · keywords []
-  - S4 [PENDING] · sv MISSING · manifest: Мастер-план обязан нести свой вектор на каждой записи — остаток S4 есть авторинг этих векторов, и бокс остаётся открытым `[ ]`, пока они не написаны. · eta 3 · doing
-
 - `plans/2026-09-30_cua-supply-chain-audit.md` — 2 open / 10 box(es) · lifecycle ACTIVE
   sv: intention "cua and Universal Search are suspected on egress, hidden code and reliability, with no measurement behind the suspicion -> every component shipped to colleagues has a measured egress manifest, a known build provenance and a recorded reliability profile, and nothing leaves a machine the owner did not approve" · keywords [supply-chain-audit, egress-manifest, telemetry, provenance, reliability]
   - SE [PENDING] · sv [reliability, defect-classes, evidence] · manifest: MISSING — nobody has written down what this box is
   - SF [PENDING] · sv [universal-search, cdp-port, redistribution] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-30_no-foreign-skill-discovery.md` — 5 open / 5 box(es) · lifecycle OPEN
-  sv: intention "opencode discovers skills from Claude's and .agents' directories -- a compatibility feature this project does not want, and the same disease reaches the instruction loader (CLAUDE.md is read as OUR instructions) -> our runtime reads ONLY our own skill and instruction surfaces, and the foreign discovery is removed with its tests superseded, not silenced" · keywords [foreign-discovery, skill-isolation, instruction-isolation, self-sufficient, supersede]
-  - F1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - F2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - F3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - F4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - F5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-
-- `plans/2026-09-30_replacement-empty-assistant-row.md` — 3 open / 3 box(es) · lifecycle OPEN
-  sv: intention "a red in the turn-replacement path is a named defect with a reproducer and a measured cause -> the empty assistant row that an interrupted step leaves behind is either not created or explicitly accounted for by the test, so the suite is green for a stated reason" · keywords []
-  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-
-- `plans/2026-09-30_robot-delegation-and-orchestration.md` — 6 open / 6 box(es) · lifecycle DRAFT
-  sv: intention "Claude/Codex frame and verify while the opencode robot executes, unattended and in parallel where safe -> a Claude skill + a Codex binding that dispatch bounded tasks to the robot, and a staged path to AGI-mode parallel workers and a local scheduler" · keywords []
-  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-5 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-
-- `plans/2026-09-30_robot-installer.md` — 12 open / 12 box(es) · lifecycle DRAFT
+- `plans/2026-09-30_robot-installer.md` — 17 open / 30 box(es) · lifecycle DRAFT
   sv: intention "the robot (opencode + kernel + toolchain) exists only as a hand-assembled setup on the owner's machine, with a draft bundle in d:\!Smit\Smit2 -> a unified builder and a unified Go+Wails offline installer let a colleague on an unprepared Windows install it, start the robot and get an answer to «привет» with no manual setup" · keywords [installer, offline-bundle, preflight, hello-smoke, free-models]
-  - I0 [PENDING] · sv [inventory, smit2, manifest] · manifest: MISSING — nobody has written down what this box is
+  - Q2b [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - Q6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - C1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - P1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - I1 [PENDING] · sv [pristine-vm, baseline, preflight] · manifest: MISSING — nobody has written down what this box is
   - B1 [PENDING] · sv [builder, reproducible, hash-manifest] · manifest: MISSING — nobody has written down what this box is
-  - B2 [PENDING] · sv [wails-installer, webview2-bootstrap, pre-stage] · manifest: MISSING — nobody has written down what this box is
+  - B1c [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - B1d [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - B1e [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - B2 [PENDING] · sv [fyne-installer, no-webview2, model-form-test] · manifest: MISSING — nobody has written down what this box is
   - B3 [PENDING] · sv [preflight, fixes, opt-in] · manifest: MISSING — nobody has written down what this box is
   - V1 [PENDING] · sv [virtual-monitor, driver-selection, signature] · manifest: MISSING — nobody has written down what this box is
   - V2 [PENDING] · sv [virtual-monitor, silent-install, hypervisor-guard] · manifest: MISSING — nobody has written down what this box is
   - V3 [PENDING] · sv [virtual-monitor, robot-display, t3-oracle] · manifest: MISSING — nobody has written down what this box is
   - U1 [PENDING] · sv [universal-search, two-ethics, redesign] · manifest: MISSING — nobody has written down what this box is
-  - B4 [PENDING] · sv [free-models, first-run, no-keys] · manifest: MISSING — nobody has written down what this box is
   - B5 [PENDING] · sv [hello-smoke, failure-classes, final-check] · manifest: MISSING — nobody has written down what this box is
   - B6 [PENDING] · sv [acceptance, pristine-vm, offline] · manifest: MISSING — nobody has written down what this box is
-
-- `plans/2026-09-30_stale-gitbash-tests.md` — 3 open / 3 box(es) · lifecycle OPEN
-  sv: intention "a red pair in test/shell/shell.test.ts is either the test's fault or the code's -> the pair is decided by the requirement it encodes, superseded with provenance if it is stale, and the file is green for a stated reason" · keywords []
-  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-
-- `plans/2026-10-01_edit-refusal-names-its-target.md` — 2 open / 2 box(es) · lifecycle UNKNOWN
-  sv: intention "«edit refuses an address it cannot resolve, and in a batch that refusal is the one a caller meets most — yet its message does not name the FILE it is about («edit 1: `fromHash` is not in this file»), while the sibling refusals in the same file do name theirs (the shape refusal as `files[0] (path)`, the `content` refusal with an absolute path); and with several bad entries only the FIRST is reported, so a batch costs one round trip per bad entry» -> «every refusal out of `edit` names the file it is about and reports the whole failing set, so ONE round trip is enough to fix any batch»" · keywords []
-  - R1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - R2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-
-- `plans/2026-10-01_epoch-dominant-hook.md` — 1 open / 4 box(es) · lifecycle UNKNOWN
-  sv: intention "«the summary body is written by one machine function and carries its dominants as prose inside `Labels:`, while BOTH readers of the epoch-level hook (`memory/spine.ts:extractDominant`, `compaction.extractSemanticVector`) require a `dominant:` FIELD — measured on the live DB 2026-10-01: 23 summary rows, ZERO carrying the marker, so `messagesearch { corpus: "summaries" }` printed `(no dominant)` for every epoch and its `dominant:` second query could never match» -> «every epoch the writer stores carries a real `dominant:` field, read back by the same reader the spine uses, so the second query — the manual's own TEST REMEMBERING — finds the epoch by the vocabulary the work was conducted in»" · keywords []
-  - S3 [PENDING] · sv MISSING · manifest: Живое подтверждение крючка эпохи отложено до следующего продвинутого в бинарь билда — `compaction.ts` это рантайм, так что свёртка в этой сессии всё ещё пишет старое тело; оракул назван: строка `dominant:` в новом `project_checkpoint` и её поиск через spine вместо `(no dominant)`. · eta 2 · waiting-on-user
-
-- `plans/2026-10-01_kernel-and-skills-install-kit.md` — 5 open / 5 box(es) · lifecycle DRAFT
-  sv: intention "the kernel and the standard skills live in several hand-maintained homes per host (repo .claude/, .opencode/, ~/.codex/, ~/.claude/, the plugin) with host paths written into them -> ONE source in ADID_Python, ONE installer, and any project gets the same kernel and skills for Claude, Codex and opencode with no manual setup; only the kernel is edited by hand, everything else is installed" · keywords []
-  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-01_tool-description-contracts.md` — 6 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "36 tool descriptions ride the KV-stable prefix and make promises the code does not always keep (multiedit atomicity, grep's line format, recall's reach); the work fixing them ran under a parent-goal anchor no plan declared -> one line of work that owns that anchor, where every promise in a description is either pinned by a test that fails without it or removed from the text" · keywords []
@@ -286,19 +208,30 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - C6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - C7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-02_one-server-per-worktree.md` — 3 open / 10 box(es) · lifecycle UNKNOWN
-  sv: intention "a second process over the same worktree DB (headless `run`, robot, second TUI) boots its OWN server, so the owner's TUI sees its work only on re-read, with no busy state -> ONE server per worktree DB, every other process attaches to it as a client, so all writes and all notifications go through one bus and reach every client live" · keywords []
-  - TASK-8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-10 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+- `plans/2026-10-04_files-api-and-tariff.md` — 0 open / 0 box(es) · lifecycle ACTIVE
+  sv: intention "расход не сходится с моделью, и картинки едут инлайном в каждом запросе -> деньги считаются по фактическому тарифу, файлы живут в провайдерском хранилище и адресуются ссылкой, кеш не ломается" · keywords []
+  - no open box
 
-- `plans/2026-10-02_one-vector-predicate.md` — 2 open / 2 box(es) · lifecycle UNKNOWN
-  sv: intention "a reply that only MENTIONS `dominant:` in prose yields a message dominant (and, via D1 of the epoch-dominant-hook plan, can become an epoch's hook); FTS misses Russian word forms silently -> a message dominant exists only when the reply carries a real @SV_FORMAT block, by the same predicate the Chain count uses; messagesearch.txt tells the caller how to reach Russian word forms" · keywords []
-  - P1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - P2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+- `plans/2026-10-07_mermaid-diagram-width.md` — 0 open / 4 box(es) · lifecycle ACTIVE
+  sv: intention "a mermaid diagram's apparent text size was decided by a font-anchored scale clamped to an 80-column budget, so any diagram wider than the clamp rendered its labels below one terminal row -> the diagram is DRAWN at the window's own width and its height is never budgeted, so nothing in the pipeline resizes a rendered diagram" · keywords []
+  - no open box
+
+- `plans/2026-10-07_supersede-between-steps-loses-reply.md` — 3 open / 3 box(es) · lifecycle OPEN
+  sv: intention "a user prompt that replaces a running turn is sometimes left unanswered (no request, one aborted empty row) -> every replacing prompt either gets its own reply or a visible, named failure; the race between the superseded run and the new run is reproduced, explained and closed" · keywords []
+  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-08_org-verbs-and-heartbeat.md` — 5 open / 5 box(es) · lifecycle ACTIVE
+  sv: intention "a robot delegates and then leaves its loop, so a human has to poke it to continue -> delegation goes through org.fossil tickets and a heartbeat daemon wakes the delegator (child done / stalled) and the assignee (new ticket), so a robot carries a task to its end with no human touch" · keywords []
+  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 ## The checks
 
-This body names all 24 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 14 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

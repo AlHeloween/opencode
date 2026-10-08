@@ -939,6 +939,13 @@ Use `cmd_runner.exe` to automate TUI interactions. Launch from `dist/bin` for cl
 
 Workflow: build (`pwsh _build.ps1`) → start → tail → send text/keys → verify.
 
+**Final tests run from `dist/` after the rebuild, with API-key env vars BLOCKED** (owner, 2026-10-08). The binary
+reads provider keys from the environment, so a final test on the owner's env silently runs on his keys and money,
+and proves nothing about the configured path. Sequence: `_build.ps1` → start `dist\bin\opencode.exe` in a child
+environment with every `*_API_KEY`, `*_TOKEN`, `*_SECRET` variable removed (list the removed NAMES in the run
+record, never the values) → run the final checks. `dist/` is for tests only; robot WORK runs from `bin/` in the
+main checkout (`.claude/CLAUDE.md` § Delegation).
+
 See cmd-runner skill for full reference.
 
 ### Process launch policy (TUI-hang protection)

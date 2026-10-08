@@ -14,6 +14,24 @@ Host note (outside the generated block, re-measured 2026-10-03): on THIS host th
 owner 2026-10-03). Queries go through the MCP tool `codegraph_explore`; run `codegraph sync` before a task's first
 query and after edits. (2026-10-01 measured «No such file or directory» — no longer true.)
 
+## Delegation — robots do the work, Claude manages and monitors (owner, 2026-10-08)
+
+Owner, verbatim: «больше ветки не плодить … делегировать роботам — нужна ветка — ок сказать роботу её создать и
+потом смержить, анализировать работу, проблемы логировать в отчёт по кернелу … Следить чтобы не более 3х роботов
+работало одновременно. Почему в ворктри — память, в bin все тулы.» Half a weekly limit went into Claude sub-agents
+in worktrees while the job needed process management and monitoring.
+
+- **Every plan task goes to a robot (Smit, skill `robot`)** — never to a Claude sub-agent (`Agent` tool), never in a
+  worktree Claude creates. Claude does not create branches or worktrees.
+- **The robot runs from `bin\opencode.exe` (all tools are there) with cwd = `D:\zPython\opencode` (the common base
+  `.opencode\data\opencode.db` is its memory).** A linked worktree creates a new empty base = a robot with no memory;
+  `dist\bin` has no tools. Both happened on 2026-10-08.
+- **Needs a branch?** Tell the robot to create it, and to merge it into `Local_Development` when its oracle passes.
+- **At most 3 robots run at once.** Claude keeps the list (session id, task, started) and checks each one's state.
+- **Claude's job:** brief → launch → monitor → read back (final message, diff, DB rows) → run the oracle itself →
+  analyse. Every kernel-protocol error, by robot or by Claude as delegator, is one row in
+  `docs/robot-protocol-log.md` — sorted out later with the owner, not fixed in flight.
+
 ## Reasoning kernel
 
 @reasoning_kernel.md

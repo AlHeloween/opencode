@@ -11,6 +11,8 @@ import { useToast } from "../ui/toast"
 import { errorMessage } from "@/util/error"
 import * as Log from "@opencode-ai/core/util/log"
 import { describeMcpStatus } from "./mcp-dialog-state"
+import { useDialog } from "@tui/ui/dialog"
+import { MCP_ADD_KEYBIND, runMcpAddWizard } from "./dialog-mcp-add"
 
 export function Status(props: { enabled: boolean; loading: boolean }) {
   const { theme } = useTheme()
@@ -29,6 +31,7 @@ export function DialogMcp() {
   const sync = useSync()
   const sdk = useSDK()
   const toast = useToast()
+  const dialog = useDialog()
   const [, setRef] = createSignal<DialogSelectRef<unknown>>()
   const [loading, setLoading] = createSignal<string | null>(null)
 
@@ -86,6 +89,21 @@ export function DialogMcp() {
       },
     },
     {
+      keybind: MCP_ADD_KEYBIND.keybind,
+      title: MCP_ADD_KEYBIND.title,
+      onTrigger: async () => {
+        // The wizard replaces this dialog as it walks its steps; onExit brings the list back.
+        await runMcpAddWizard({
+          dialog,
+          sdk,
+          toast,
+          existing: Object.keys(sync.data.mcp ?? {}),
+          refresh,
+          onExit: () => dialog.replace(() => <DialogMcp />),
+        })
+      },
+    },
+    {
       keybind: Keybind.parse("ctrl+a")[0],
       title: "authenticate",
       onTrigger: async (option: DialogSelectOption<string>) => {
@@ -113,7 +131,7 @@ export function DialogMcp() {
   return (
     <DialogSelect
       ref={setRef}
-      title="MCPs"
+      title="MCPs — ctrl+n add"
       options={options()}
       keybind={keybinds()}
       onSelect={(_option) => {

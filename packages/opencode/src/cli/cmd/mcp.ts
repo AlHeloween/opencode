@@ -7,15 +7,13 @@ import { UI } from "../ui"
 import { MCP } from "../../mcp"
 import { McpAuth } from "../../mcp/auth"
 import { McpOAuthProvider } from "../../mcp/oauth-provider"
+import { addMcpToConfig, resolveConfigPath } from "../../mcp/config-file"
 import { Config } from "@/config/config"
 import { ConfigMCP } from "../../config/mcp"
 import { Instance } from "../../project/instance"
 import { Installation } from "../../installation"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
-import path from "path"
 import { Global } from "@opencode-ai/core/global"
-import { modify, applyEdits } from "jsonc-parser"
-import { Filesystem } from "@/util/filesystem"
 import { Bus } from "../../bus"
 import { AppRuntime } from "../../effect/app-runtime"
 import { Effect } from "effect"
@@ -408,41 +406,6 @@ export const McpLogoutCommand = cmd({
     })
   },
 })
-
-async function resolveConfigPath(baseDir: string, global = false) {
-  // Check for existing config files (prefer .jsonc over .json, check .opencode/ subdirectory too)
-  const candidates = [path.join(baseDir, "opencode.json"), path.join(baseDir, "opencode.jsonc")]
-
-  if (!global) {
-    candidates.push(path.join(baseDir, ".opencode", "opencode.json"), path.join(baseDir, ".opencode", "opencode.jsonc"))
-  }
-
-  for (const candidate of candidates) {
-    if (await Filesystem.exists(candidate)) {
-      return candidate
-    }
-  }
-
-  // Default to opencode.json if none exist
-  return candidates[0]
-}
-
-async function addMcpToConfig(name: string, mcpConfig: ConfigMCP.Info, configPath: string) {
-  let text = "{}"
-  if (await Filesystem.exists(configPath)) {
-    text = await Filesystem.readText(configPath)
-  }
-
-  // Use jsonc-parser to modify while preserving comments
-  const edits = modify(text, ["mcp", name], mcpConfig, {
-    formattingOptions: { tabSize: 2, insertSpaces: true },
-  })
-  const result = applyEdits(text, edits)
-
-  await Filesystem.write(configPath, result)
-
-  return configPath
-}
 
 export const McpAddCommand = cmd({
   command: "add",

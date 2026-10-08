@@ -1,5 +1,15 @@
 # Progress Log
 
+
+## [2026-10-08 00:55Z] settings layers: T4/T5/T7 residuals closed — server falls below session are recorded, the last two neighbour-session writes are gated (plan 2026-09-26_unified-settings-layers)
+
+✓ **T4 (refined)** — `prompt.ts`: `shellImpl` records a miss below the layer (`bug: shell model fell through the session layer`, `used: agent-declaration | last-message/default`) and the command chain returns its OWN source label (`command-declaration | agent-declaration | session | last-message/default`) and warns for anything but `session`; both chains unchanged, so CLI/scripts keep working. Rule + the three sites recorded in `docs/agent-model-resolution.md` § 3.
+
+✓ **T7/T8 write remnant** — `local.tsx`: `saveAll` and the startup `--model` effect take the sid behind `route.data.type === "session" ? getActiveSessionID() : undefined` (the `refreshSessionSettings` predicate); on `home` neither writes the newest (neighbour) session's file, and the startup model lands in the worktree layer alone. Tests first: `test/tui/agent-selection.test.ts` RED 15 pass / 2 fail (run `20261008T004811Z_1988773e`) → GREEN 17/0/51 (run `20261008T005048Z_3b5e4302`).
+
+✓ **T5 S1 + S4 as tests** — new `test/session/session-settings-smoke.test.ts` (file read-backs): S1 — an empty worktree layer is filled from the global declaration and `state/model.json` reads back full (+ structural pin of `fillSourceFor`'s empty-worktree branch); S4 — copy-not-link: the session keeps its copied value after the worktree moves, a re-fill is a no-op, and a session created AFTER the pick copies the new value. GREEN 6/0/44 (run `20261008T004957Z_18faca66`); the T4 pins in the same file went RED 3/6 first (run `20261008T004929Z_c8439ec9`). `bun test test/session/session-settings-persist.test.ts` 28/0/50 (run `20261008T005040Z_68d91769`); `bun typecheck` exit 0 (run `20261008T005017Z_dfadf0fd`).
+
+✗ **Still open (explicitly out of scope)** — the variant residual (B: per-layer variant writes / `sessionPayload()` dumping the whole worktree variant map into the session file — `local.tsx` variant writes) stays open in the plan; the flaky `test/session/revert-compact.test.ts:658` (folder-run only) is recorded, not touched.
 ## [2026-10-07 16:50Z] tui divergence: the arrival channel was dead — `produce` on an absent store key writes nothing (plan emergency/02)
 
 ✓ **Root cause** — 42 live traces / 6 028 snapshots in `.opencode/data/tui-divergence/*.jsonl` all had `arrivedCount: 0`. `context/sync.tsx` (`message.updated`) wrote `setStore("arrived", sid, produce(...))`; Solid's `produce` calls its recipe only on a wrappable value, and every session starts with no `arrived` entry, so every arrival was a no-op. Reproduced RED on a real Solid store: `test/tui/arrival.test.ts` run `20261007T164357Z_d5942e4c`, 0/3, received `undefined`.

@@ -659,6 +659,17 @@ export const layer = Layer.effect(
               yield* bus.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
               throw error
             }
+            // Runtime parameters come only from the session layer (owner spec, 2026-09-26: «Все
+            // параметры для работы берутся только из session и она должна обязательно быть»).
+            // The TUI sends it; the fallback below covers CLI/scripts, and a miss below the layer
+            // is recorded with the source that answered — kept working, never guessed silently.
+            if (!input.model) {
+              log.warn("bug: shell model fell through the session layer", {
+                sessionID: input.sessionID,
+                agent: agent.name,
+                used: agent.model ? "agent-declaration" : "last-message/default",
+              })
+            }
             const model = input.model ?? agent.model ?? (yield* lastModel(input.sessionID))
             const userMsg: MessageV2.User = {
               id: input.messageID ?? MessageID.ascending(),
@@ -2916,15 +2927,28 @@ export const layer = Layer.effect(
       }
       template = template.trim()
 
-      const taskModel = yield* Effect.gen(function* () {
-        if (cmd.model) return Provider.parseModel(cmd.model)
+      // Runtime parameters come only from the session layer (owner spec, 2026-09-26: «Все параметры
+      // для работы берутся только из session и она должна обязательно быть»). The TUI sends it as
+      // `input.model`; this chain covers CLI/scripts, and a resolution that lands anywhere below
+      // the layer — command declaration, agent declaration, last-used model — is recorded with the
+      // source that answered instead of staying silent. The chain itself is unchanged.
+      const taskModelSource = yield* Effect.gen(function* () {
+        if (cmd.model) return { model: Provider.parseModel(cmd.model), used: "command-declaration" }
         if (cmd.agent) {
           const cmdAgent = yield* agents.get(cmd.agent)
-          if (cmdAgent?.model) return cmdAgent.model
+          if (cmdAgent?.model) return { model: cmdAgent.model, used: "agent-declaration" }
         }
-        if (input.model) return Provider.parseModel(input.model)
-        return yield* lastModel(input.sessionID)
+        if (input.model) return { model: Provider.parseModel(input.model), used: "session" }
+        return { model: yield* lastModel(input.sessionID), used: "last-message/default" }
       })
+      if (taskModelSource.used !== "session") {
+        log.warn("bug: command model fell through the session layer", {
+          sessionID: input.sessionID,
+          command: input.command,
+          used: taskModelSource.used,
+        })
+      }
+      const taskModel = taskModelSource.model
 
       yield* getModel(taskModel.providerID, taskModel.modelID, input.sessionID)
 

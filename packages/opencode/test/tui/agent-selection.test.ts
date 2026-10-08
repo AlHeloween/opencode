@@ -136,6 +136,23 @@ describe("the write path asks the predicate", () => {
     expect(refresh).toContain('route.data.type === "session" ? getActiveSessionID() : undefined')
     expect(refresh).toContain("fillSessionAgents(")
   })
+
+  test("saveAll persists into the session layer only while a session is OPEN", () => {
+    // The write half of the neighbour-session defect (the plan's T7/T8 residual): on `home` the
+    // resolver returns the NEWEST session, and `sessionPayload()` was persisted into a file
+    // nobody had open.
+    const saveAll = between("function saveAll() {", "\n      }\n")
+    expect(saveAll).toContain('route.data.type === "session" ? getActiveSessionID() : undefined')
+    expect(saveAll).toContain("saveSessionSettings(sid, sessionPayload())")
+    expect(saveAll).not.toContain("const sid = getActiveSessionID()")
+  })
+
+  test("the startup --model effect writes the session layer only while a session is OPEN", () => {
+    const effect = between("const chosen = args.model", "// Fill the worktree layer the moment")
+    expect(effect).toContain('route.data.type === "session" ? getActiveSessionID() : undefined')
+    expect(effect).toContain("saveSessionSettings(sid, sessionPayload(next))")
+    expect(effect).not.toContain("const sid = getActiveSessionID()")
+  })
 })
 
 test("TUI session settings follow the open session instead of its newest child", () => {

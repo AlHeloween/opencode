@@ -127,6 +127,15 @@ let `/agents` offer a NEIGHBOUR session's values as editable (removed from every
 With no open session the dialog says «No session yet — edits land in the <layer> layer; the next
 session is filled from it».
 
+**Write-side closure (2026-10-08, T7/T8 remnant).** The two remaining write paths that took their
+session id from `getActiveSessionID()` now read it behind the same predicate. `saveAll`
+(`local.tsx:272-281`) — the unscoped pick and the restore path both persist S2 through it — and the
+startup `--model` effect (`local.tsx:368-401`) write S2 only while `route.data.type === "session"`.
+On `home` the startup model lands in S1 alone and waits for the fill; before the gate,
+`sessionPayload()` (the session signal still null) was written into the NEWEST session's file — a
+neighbour nobody had open. Pinned by `test/tui/agent-selection.test.ts` § «the write path asks the
+predicate».
+
 ---
 
 ## 0-historical. The selection graph as it stands — 2026-09-21, after the C1/C5 fixes (not a snapshot of the current code)
@@ -387,6 +396,23 @@ The message footer reads what the server recorded from that same resolution
 (`prompt.ts:1309-1312`), so footer-vs-status can differ **only** if the session layer changes
 between the two reads.
 
+### Server fallbacks record a miss below the session layer (T4 rule, 2026-10-08)
+
+Owner spec §0 п.5: «Все параметры для работы берутся только из session и она должна обязательно
+быть». The TUI sends `local.model.current()` as `input.model`; the chains below the layer exist for
+CLI/scripts, and none of them may resolve below it SILENTLY:
+
+| site in `prompt.ts` | chain (order as written) | record when the layer missed |
+|---|---|---|
+| `createUserMessage` (~:1004) | `input.model ?? resolveAgentModel(S2→S1) ?? ag.model ?? lastModel` | `bug: prompt model fell through the session layer`, `used: agent-declaration \| last-message/default` |
+| `shellImpl` (~:667) | `input.model ?? agent.model ?? lastModel` | `bug: shell model fell through the session layer`, `used: agent-declaration \| last-message/default` |
+| `command` (~:2935) | `cmd.model ?? cmdAgent.model ?? input.model ?? lastModel` | the chain returns its OWN source label (`command-declaration \| agent-declaration \| session \| last-message/default`); anything but `session` logs `bug: command model fell through the session layer` with that `used` |
+
+The warn is observability, never a working branch: an unfilled layer is a defect to fix by filling,
+the fallbacks keep answering so CLI/script callers never break, and `used` names which source
+actually answered — «below the session layer» is a statement about which source answered, not a
+guess. Pinned by `test/session/session-settings-smoke.test.ts` § T4.
+
 ### Variant sub-graph
 
 ```
@@ -620,7 +646,8 @@ validity GET /config/providers       → sync.data.provider       ← what `isMo
          GET /provider               → sync.data.provider_next  ← full catalogue (S5b), NOT checked
 ```
 
-For a given session, the runtime model is decided by `prompt.ts:1289`; compare it against
+For a given session, the runtime model is decided by `prompt.ts` `createUserMessage` (the
+`bug: prompt model fell through the session layer` site, ~:1004); compare it against
 `agent.<name>.model` in that session's `.jsonc`. A disagreement means the session layer the TUI
 reads and the layer the server reads are not the same object.
 

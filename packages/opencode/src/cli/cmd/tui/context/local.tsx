@@ -271,8 +271,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       /** Save workspace state and the current session's settings. */
       function saveAll() {
         save()
-        // Also persist to session settings if a session is active
-        const sid = getActiveSessionID()
+        // Only an OPEN session owns a session layer — `getActiveSessionID()` resolves the NEWEST
+        // session on `home` (the T7/T8 defect's write side): persisting the store into a
+        // neighbour's file rewrote a session nobody had open.
+        const sid = route.data.type === "session" ? getActiveSessionID() : undefined
         if (!sid) return
         void saveSessionSettings(sid, sessionPayload())
 
@@ -387,7 +389,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         // argument while `local.model.current()` reads the session — the exact glitch reported
         // (Alexander, 2026-09-20: «введено было дипсику, ответил дипсик, а билд показывает
         // glm»). Same rule the global save already follows (2026-09-18, below).
-        const sid = getActiveSessionID()
+        // Only an OPEN session owns a session layer (same predicate as `refreshSessionSettings`
+        // and `saveAll`): on `home` this resolver returns the NEWEST session, and the startup
+        // model would land in a neighbour's file instead of waiting for the worktree fill.
+        const sid = route.data.type === "session" ? getActiveSessionID() : undefined
         if (sid) {
           const next = setSessionAgentModel(sessionSettings(), a.name, `${parsed.providerID}/${parsed.modelID}`, undefined)
           setSessionSettings(next)

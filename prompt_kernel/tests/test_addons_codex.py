@@ -113,6 +113,7 @@ def test_codex_variant_stays_within_explicit_budget() -> None:
     # 7_950 -> 8_000 (2026-10-04, later): tracks the product ceiling, same decision; measured 7_985.
     # 8_000 -> 8_100 (2026-10-05): tracks the product token ceiling, same decision; measured 8_023.
     # 8_100 -> 8_250 (2026-10-06, owner: limits by measurement): the ADID global-kernel rules; measured 8_209.
+    # 2026-10-08 (no raise): VCS_ROLES portability; measured 8_210.
     assert normalized_token_count(text) <= 8_250
 
 

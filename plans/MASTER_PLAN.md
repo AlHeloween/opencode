@@ -104,9 +104,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 205 |
-| plans active | 10 |
-| tasks passed / total | 805 / 1012 |
-| open boxes | 64 |
+| plans active | 12 |
+| tasks passed / total | 816 / 1030 |
+| open boxes | 71 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -177,7 +177,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - SE [PENDING] · sv [reliability, defect-classes, evidence] · manifest: MISSING — nobody has written down what this box is
   - SF [PENDING] · sv [universal-search, cdp-port, redistribution] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-30_robot-installer.md` — 17 open / 30 box(es) · lifecycle DRAFT
+- `plans/2026-09-30_robot-installer.md` — 20 open / 33 box(es) · lifecycle DRAFT
   sv: intention "the robot (opencode + kernel + toolchain) exists only as a hand-assembled setup on the owner's machine, with a draft bundle in d:\!Smit\Smit2 -> a unified builder and a unified Go+Wails offline installer let a colleague on an unprepared Windows install it, start the robot and get an answer to «привет» with no manual setup" · keywords [installer, offline-bundle, preflight, hello-smoke, free-models]
   - Q2b [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - Q6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -188,6 +188,8 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - B1c [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - B1d [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - B1e [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - B1f [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - B1g [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - B2 [PENDING] · sv [fyne-installer, no-webview2, model-form-test] · manifest: MISSING — nobody has written down what this box is
   - B3 [PENDING] · sv [preflight, fixes, opt-in] · manifest: MISSING — nobody has written down what this box is
   - V1 [PENDING] · sv [virtual-monitor, driver-selection, signature] · manifest: MISSING — nobody has written down what this box is
@@ -195,6 +197,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - V3 [PENDING] · sv [virtual-monitor, robot-display, t3-oracle] · manifest: MISSING — nobody has written down what this box is
   - U1 [PENDING] · sv [universal-search, two-ethics, redesign] · manifest: MISSING — nobody has written down what this box is
   - B5 [PENDING] · sv [hello-smoke, failure-classes, final-check] · manifest: MISSING — nobody has written down what this box is
+  - B7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - B6 [PENDING] · sv [acceptance, pristine-vm, offline] · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-01_tool-description-contracts.md` — 6 open / 9 box(es) · lifecycle UNKNOWN
@@ -220,8 +223,18 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-08_messages-endpoint-401.md` — 3 open / 5 box(es) · lifecycle UNKNOWN
+  sv: intention "GET /session/ses_ee71eb62bffeGfzHDNQGaxq2Q6/message on the owner's host answers 401 {"_tag":"Unauthorized","message":"Unauthorized"} whenever the page reaches the session's OLDEST message (limit 74 -> 200; limit >= 75 or no limit -> 401) although the credential is identical in every call -> the endpoint returns the whole history for every limit, and any real failure reports itself as its own class instead of Unauthorized" · keywords []
+  - T3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-08_org-portable-home.md` — 1 open / 9 box(es) · lifecycle UNKNOWN
+  sv: intention "hidden test-only ORG_HOME/ORG_PORT in three copies + PATH-first fossil + fossil-CLI reads -> one shared resolver as SUPPORTED settings, bundled fossil outranking PATH, reads through org.py verbs only, documented in Protocol and the kernel add-on (plan 2026-09-30_robot-installer.md B1f)" · keywords []
+  - S9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
 ## The checks
 
-This body names all 13 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 15 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

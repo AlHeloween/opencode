@@ -1,12 +1,16 @@
 """Genesis of the organization repository — idempotent; any agent of any model may run it.
 
-    python ~/.org/genesis/init.py [--fossil PATH]
+    python <ORG_HOME>/genesis/init.py [--fossil PATH]
 
-No ~/.org/org.fossil -> create it: ticket fields (ticket-schema.sql), robot users, the Protocol wiki page, and its
-place in `fossil all list`. A ticket table missing the wake fields (wake_session, wake_worktree, woken_state) ->
-apply the new schema and rebuild. Its server not answering on 127.0.0.1:8079 -> start it, detached; the heartbeat
-daemon orgd not alive -> start it too. Existing pieces are left as they are. The admin password `fossil new` prints
-is never echoed.
+Settings (supported; see Protocol): ORG_HOME (default $HOME/.org) is the organization's home — a portable install
+points it at the org beside the install, created EMPTY from here; ORG_PORT (default 8079) is its server port
+(the server binds 127.0.0.1 only); FOSSIL or --fossil selects the binary — without it the fossil beside these
+scripts outranks PATH, so a bundled fossil is never shadowed. No <ORG_HOME>/org.fossil -> create it: ticket
+fields (ticket-schema.sql), robot users (interactive agents and subscription workers), the Protocol wiki page,
+and its place in `fossil all list`. A ticket table missing the wake fields (wake_session, wake_worktree,
+woken_state) -> apply the new schema and rebuild. Its server not answering on 127.0.0.1:<port> -> start it,
+detached; the heartbeat daemon orgd not alive -> start it too. Existing pieces are left as they are. The admin
+password `fossil new` prints is never echoed.
 
 Owner, 2026-10-04: «если нету org.fossil то его надо создать и установить, если есть подключиться и работать»;
 «первый агент который увидел что ее нет - тут же ее поднимает».
@@ -18,26 +22,21 @@ import argparse
 import ctypes
 import json
 import os
-import shutil
 import socket
 import subprocess
 import sys
 import time
 from pathlib import Path
 
-HOME = Path(os.environ.get("ORG_HOME") or Path.home() / ".org")  # ORG_HOME/ORG_PORT: test fixtures only
-ORG = HOME / "org.fossil"
-GENESIS = Path(__file__).resolve().parent
-PORT = int(os.environ.get("ORG_PORT") or 8079)
-ROBOTS = ("claude", "codex", "antigravity")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import orgcfg  # the ONE settings/fossil resolver, shared with org.py and orgd.py
+
+HOME = orgcfg.HOME
+ORG = orgcfg.ORG
+GENESIS = orgcfg.GENESIS
+PORT = orgcfg.PORT
+ROBOTS = ("claude", "codex", "antigravity", "claude-worker", "codex-worker")  # agents + subscription workers
 ROBOT_CAPS = "Cnrwcjfkm"
-
-
-def find_fossil(explicit: str | None) -> str:
-    for candidate in (explicit, os.environ.get("FOSSIL"), shutil.which("fossil")):
-        if candidate and Path(candidate).exists() or (candidate and shutil.which(candidate)):
-            return candidate
-    sys.exit("genesis: no fossil binary — pass --fossil PATH or set FOSSIL")
 
 
 def run(fossil: str, *args: str, quiet: bool = False) -> str:
@@ -110,7 +109,9 @@ def start_orgd() -> int | None:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--fossil")
-    fossil = find_fossil(ap.parse_args().fossil)
+    fossil = orgcfg.find_fossil(ap.parse_args().fossil)
+    if not fossil:
+        sys.exit("genesis: no fossil binary — pass --fossil PATH, set FOSSIL, ship one beside the scripts, or put it on PATH")
     HOME.mkdir(parents=True, exist_ok=True)
     created = False
 
@@ -147,7 +148,7 @@ def main() -> int:
     orgd = start_orgd()
 
     tickets = run(fossil, "sql", "-R", str(ORG), "SELECT count(*) FROM ticket;").strip()
-    print(f"org: {ORG} ({'created' if created else 'present'}); tickets={tickets}; "
+    print(f"org: {ORG} ({'created' if created else 'present'}); fossil {fossil}; tickets={tickets}; "
           f"server 127.0.0.1:{PORT} {'up' if server_up() else 'starting'}; "
           f"fields {'upgraded' if fields_upgraded else 'present'}; "
           f"orgd {'pid ' + str(orgd) if orgd else 'starting'}")

@@ -484,4 +484,5 @@ def test_pre_action_section_stays_small() -> None:
     # 6_500 -> 6_800 (2026-10-06, owner: limits by measurement): the G0 turn-termination
     # clarification (a gate is not a terminal) and the @CAPABILITY_ABSTRACTION pointer in
     # @CATALOG_INVARIANT; measured 6_701 B — the smallest 300 above the largest, as before.
+    # 2026-10-08 (no raise): VCS_ROLES portability — $ORG_HOME/$ORG_PORT named, Protocol via `org.py protocol`; measured 6_730 B.
     assert section <= 6_800, section

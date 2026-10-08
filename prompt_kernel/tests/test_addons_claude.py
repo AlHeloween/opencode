@@ -132,6 +132,7 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # 8_150 -> 8_350 (2026-10-06, owner: limits by measurement): @CAPABILITY_ABSTRACTION, the G0
     # turn-termination clarification and @ASSERTION_SCOPE; measured 8_325 — the same step this file
     # has taken at every previous raise.
+    # 2026-10-08 (no raise): VCS_ROLES portability; measured 8_326.
     assert normalized_token_count(text) <= 8_350
 
 

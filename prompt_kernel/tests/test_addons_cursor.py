@@ -86,6 +86,7 @@ def test_cursor_variant_stays_within_explicit_budget() -> None:
     # largest of the four because its bindings name capabilities («Read File, Grep,
     # Search Files and Codebase») that the product variant's snake_case tool names
     # did not. The byte cap is the shared one, not a number repeated here.
+    # 2026-10-08 (no raise): VCS_ROLES portability; measured 8_395 — 5 under the cap.
 
     assert len(text.encode("utf-8")) <= KERNEL.utf8_budget
     assert normalized_token_count(text) <= 8_400

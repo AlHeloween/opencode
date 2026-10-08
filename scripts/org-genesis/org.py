@@ -1,16 +1,23 @@
-"""org.py — the organization's verbs over $HOME/.org/org.fossil (one file, stdlib only).
+"""org.py — the organization's verbs over $ORG_HOME/org.fossil (one file, stdlib only).
 
-    python ~/.org/genesis/org.py delegate --title "..." --assignee smit-x [--worktree D:\\proj] [--no-wake]
-    python ~/.org/genesis/org.py claim <uuid> [--lease 600]
-    python ~/.org/genesis/org.py heartbeat <uuid> [--what "..."] [--lease 600]
-    python ~/.org/genesis/org.py report <uuid> --title NAME (--file f.md | --text "...")
-    python ~/.org/genesis/org.py done <uuid> [--report NAME]
-    python ~/.org/genesis/org.py escalate <uuid> --code "why"
-    python ~/.org/genesis/org.py inbox
+    python $ORG_HOME/genesis/org.py delegate --title "..." --assignee smit-x [--worktree D:\\proj] [--no-wake]
+    python $ORG_HOME/genesis/org.py claim <uuid> [--lease 600]
+    python $ORG_HOME/genesis/org.py heartbeat <uuid> [--what "..."] [--lease 600]
+    python $ORG_HOME/genesis/org.py report <uuid> --title NAME (--file f.md | --text "...")
+    python $ORG_HOME/genesis/org.py done <uuid> [--report NAME]
+    python $ORG_HOME/genesis/org.py escalate <uuid> --code "why"
+    python $ORG_HOME/genesis/org.py inbox [--user X] [--json] [--no-presence]
+    python $ORG_HOME/genesis/org.py chat --since <msgid>
+    python $ORG_HOME/genesis/org.py wiki <page>          (protocol == wiki Protocol)
 
 Reads go straight to the SQLite file (mode=ro); every write goes through the fossil CLI so the
 repository keeps its artifact semantics. Identity: --user or $ORG_USER — the Fossil login is the
 author; escalate ends with the owner (the admin).
+
+Settings (supported): ORG_HOME (default $HOME/.org), ORG_PORT (default 8079), FOSSIL. Without FOSSIL the fossil
+beside these scripts outranks PATH (a bundled fossil is never shadowed). These reads are the ONLY read surface
+agents need: `fossil sql` executes `.shell`/`.system`/`.output` even under --readonly, and `fossil wiki export
+PAGE FILE` writes FILE (measured 2026-10-08) — no verb here passes raw SQL, and none writes a caller-named path.
 
 Claim arbitration: `fossil ticket` has no compare-and-swap, so a claim races through an
 exclusive-create lock file ($ORG_HOME/locks/<uuid>.<epoch>): the process that creates it owns
@@ -41,7 +48,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import shutil
 import sqlite3
 import subprocess
 import sys
@@ -50,19 +56,22 @@ import time
 import urllib.request
 from pathlib import Path
 
-HOME = Path(os.environ.get("ORG_HOME") or Path.home() / ".org")  # ORG_HOME/ORG_PORT: test fixtures only
-ORG = HOME / "org.fossil"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import orgcfg  # the ONE settings/fossil resolver, shared with init.py and orgd.py
+
+HOME = orgcfg.HOME
+ORG = orgcfg.ORG
 LOCKS = HOME / "locks"
-PORT = int(os.environ.get("ORG_PORT") or 8079)
+PORT = orgcfg.PORT
 LEASE_S = 600  # default lease; a robot's claim/heartbeat --lease must agree
 CLEARED = "-"  # woken_state reset marker: `fossil ticket set F ""` succeeds and keeps the OLD value (measured 2026-10-08)
 
 
 def find_fossil() -> str:
-    for candidate in (os.environ.get("FOSSIL"), shutil.which("fossil"), Path(__file__).resolve().parent / "fossil.exe"):
-        if candidate and (Path(candidate).exists() or shutil.which(candidate)):
-            return candidate
-    sys.exit("org: no fossil binary — set FOSSIL or put fossil on PATH")
+    fossil = orgcfg.find_fossil()
+    if not fossil:
+        sys.exit("org: no fossil binary — set FOSSIL, ship one beside the scripts, or put it on PATH")
+    return fossil
 
 
 def fossil(*args: str, user: str | None = None, check: bool = True) -> str:
@@ -324,26 +333,70 @@ def cmd_escalate(a) -> int:
 def cmd_inbox(a) -> int:
     user = need_user(a)
     mine = rows(
-        "SELECT tkt_uuid, title, agent_state, lease_owner, parent_task FROM ticket "
+        "SELECT tkt_uuid, title, agent_state, lease_owner, lease_until, parent_task FROM ticket "
         "WHERE assigned_to = ? AND agent_state IN ('READY','WORKING','BLOCKED') ORDER BY tkt_ctime DESC",
         (user,),
     )
-    if not mine:
-        print(f"org: inbox empty for {user}")
-    for row in mine:
-        lease = f" lease={row['lease_owner']}" if row["lease_owner"] else ""
-        print(f"{str(row['tkt_uuid'])[:10]}  {str(row['agent_state']):<8}{lease}  {row['title']}")
+    machine = a.json
+    if machine:
+        print(json.dumps({
+            "user": user,
+            "tickets": [
+                {
+                    "id": str(row["tkt_uuid"]),
+                    "title": str(row["title"] or ""),
+                    "state": str(row["agent_state"] or ""),
+                    "lease_owner": str(row["lease_owner"] or ""),
+                    "lease_until": num(row["lease_until"]),
+                    "parent_task": str(row["parent_task"] or ""),
+                }
+                for row in mine
+            ],
+        }))
+    else:
+        if not mine:
+            print(f"org: inbox empty for {user}")
+        for row in mine:
+            lease = f" lease={row['lease_owner']}" if row["lease_owner"] else ""
+            print(f"{str(row['tkt_uuid'])[:10]}  {str(row['agent_state']):<8}{lease}  {row['title']}")
+    if a.no_presence:
+        return 0
     session = resolve_session(a, "inbox")
     if session:
         if chat(f"PRESENCE {user} {session} {Path.cwd()}"):
-            print(f"org: presence {user} at {session} ({Path.cwd()}) — the organization will wake this session")
+            note = f"org: presence {user} at {session} ({Path.cwd()}) — the organization will wake this session"
+            print(note, file=sys.stderr if machine else sys.stdout)
     else:
         print("org: presence skipped — calling session unknown (pass --session ses_… to register)", file=sys.stderr)
     return 0
 
 
+def cmd_chat(a) -> int:
+    try:
+        lines = rows("SELECT msgid, datetime(mtime) AS at, xfrom, xmsg FROM chat WHERE msgid > ? ORDER BY msgid",
+                     (a.since,))
+    except sqlite3.OperationalError as error:  # born-empty org: the chat table appears with the first send (chat.c:328)
+        if "no such table" not in str(error):
+            raise
+        lines = []
+    for row in lines:
+        print(f"{row['msgid']} {row['at']} {row['xfrom'] or '-'} {row['xmsg']}")
+    return 0
+
+
+def cmd_wiki(a) -> int:
+    # `fossil wiki export PAGE` with no FILE writes the page to stdout; a FILE argument would be a
+    # caller-named write (arbitrary file creation, measured 2026-10-08) — never pass one.
+    out = subprocess.run([find_fossil(), "wiki", "export", a.page, "-R", str(ORG)],
+                         capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if out.returncode != 0:
+        sys.exit(f"org: no wiki page {a.page!r} — {(out.stderr or out.stdout).strip()}")
+    sys.stdout.write(out.stdout)
+    return 0
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(prog="org.py", description="the organization's verbs over $HOME/.org/org.fossil")
+    parser = argparse.ArgumentParser(prog="org.py", description="the organization's verbs over $ORG_HOME/org.fossil (default $HOME/.org)")
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--user", help="Fossil login you act as (default $ORG_USER)")
     common.add_argument("--session", help="your opencode session id (default: auto-detect)")
@@ -391,7 +444,21 @@ def main() -> int:
     p.set_defaults(func=cmd_escalate)
 
     p = sub.add_parser("inbox", parents=[common], help="list your tickets and register this session for wakes")
+    p.add_argument("--json", action="store_true", help="machine-readable: one JSON document on stdout")
+    p.add_argument("--no-presence", action="store_true",
+                   help="read-only poll: post no PRESENCE line and resolve no session")
     p.set_defaults(func=cmd_inbox)
+
+    p = sub.add_parser("chat", help="read the chat table since a msgid (a cursor poll)")
+    p.add_argument("--since", type=int, default=0, help="highest msgid already seen (default 0: all)")
+    p.set_defaults(func=cmd_chat)
+
+    p = sub.add_parser("wiki", help="print a wiki page to stdout (no file is written)")
+    p.add_argument("page")
+    p.set_defaults(func=cmd_wiki)
+
+    p = sub.add_parser("protocol", help="print the Protocol wiki page (== wiki Protocol)")
+    p.set_defaults(func=cmd_wiki, page="Protocol")
 
     args = parser.parse_args()
     return args.func(args)

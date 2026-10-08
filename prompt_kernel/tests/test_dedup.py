@@ -180,4 +180,5 @@ def test_compacted_runtime_budget() -> None:
     # 8_000 -> 8_050 (2026-10-05, owner: limits by measurement): the answer-shortly binding at the kernel head —
     # deliberation with no instrument is a simulation with no addressee. Measured 7_988.
     # 8_050 -> 8_200 (2026-10-06, owner: limits by measurement): the ADID global-kernel rules; measured 8_174.
+    # 2026-10-08 (no raise): VCS_ROLES portability; measured 8_048.
     assert normalized_token_count(text) <= 8_200

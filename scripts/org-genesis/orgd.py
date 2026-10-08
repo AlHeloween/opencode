@@ -1,4 +1,4 @@
-"""orgd.py — the organization's heartbeat: one loop every 15 s over $HOME/.org/org.fossil.
+"""orgd.py — the organization's heartbeat: one loop every 15 s over $ORG_HOME/org.fossil (default $HOME/.org).
 
 It is the only thing that re-enters a robot's session, so a delegator that left its loop is
 woken when its child ends, and an assignee is woken when a ticket lands:
@@ -33,7 +33,6 @@ import argparse
 import ctypes
 import json
 import os
-import shutil
 import sqlite3
 import subprocess
 import sys
@@ -41,13 +40,15 @@ import time
 import urllib.request
 from pathlib import Path
 
-HOME = Path(os.environ.get("ORG_HOME") or Path.home() / ".org")  # ORG_HOME: test fixtures only
-ORG = HOME / "org.fossil"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import orgcfg  # the ONE settings/fossil resolver, shared with init.py and org.py
+
+HOME = orgcfg.HOME
+ORG = orgcfg.ORG
 STATE = HOME / "orgd.state"
 LOG = HOME / "orgd.log"
 INTERVAL_S = 15
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 try:
     import opencode_host
 except Exception as error:  # reported at the first wake, never silent
@@ -57,13 +58,6 @@ else:
     IMPORT_ERROR = None
 
 LAST_LOG: dict[str, str] = {}  # tag -> last message; a repeated failure logs once, not every tick
-
-
-def find_fossil() -> str | None:
-    for candidate in (os.environ.get("FOSSIL"), shutil.which("fossil"), Path(__file__).resolve().parent / "fossil.exe"):
-        if candidate and (Path(candidate).exists() or shutil.which(candidate)):
-            return candidate
-    return None
 
 
 def connect(db: Path) -> sqlite3.Connection:
@@ -84,7 +78,7 @@ def tickets() -> list[sqlite3.Row]:
 
 
 def ticket_set(uuid: str, **fields) -> bool:
-    fossil = find_fossil()
+    fossil = orgcfg.find_fossil()
     if not fossil:
         log(f"no fossil binary — cannot record woken_state on {uuid[:10]}")
         return False
@@ -165,7 +159,12 @@ def assignee_session(assigned_to: str, worktree: str) -> tuple[str | None, str]:
     """
     con = connect(ORG)
     try:
-        lines = con.execute("SELECT xmsg FROM chat ORDER BY msgid DESC LIMIT 400").fetchall()
+        try:
+            lines = con.execute("SELECT xmsg FROM chat ORDER BY msgid DESC LIMIT 400").fetchall()
+        except sqlite3.OperationalError as error:  # born-empty org: the chat table appears with the first send
+            if "no such table" not in str(error):
+                raise
+            lines = []
     finally:
         con.close()
     for (message,) in lines:

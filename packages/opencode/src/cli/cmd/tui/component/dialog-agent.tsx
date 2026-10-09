@@ -4,7 +4,7 @@ import { useKV } from "@tui/context/kv"
 import { useRoute } from "@tui/context/route"
 import { availableScopes, coerceScope, cycleScope as nextScope, inheritLabel, parentScope, readScope, SCOPE_KV_KEY } from "./config-scope"
 import { classifyVariantState, pruneSummary, removable } from "./model-state-prune"
-import { agentHintText, agentModelRef, agentRowModelCell, nextVariant, scopedModelCell } from "./agent-model-cell"
+import { agentHintText, agentModelRef, agentRowModelCell, agentRowTitle, nextVariant, scopedModelCell } from "./agent-model-cell"
 import { DialogConfirm } from "./dialog-confirm"
 import { commitStage, globalStage } from "./global-agent-stage"
 import * as Log from "@opencode-ai/core/util/log"
@@ -252,8 +252,10 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
       // bullet (the enabled gutter dot), so a "current" bullet distinguished only by
       // COLOUR was invisible; and the old " ← active" suffix sat at the END of the
       // footer, which is the part that yields first when the row is narrow
-      // (dialog-select.tsx: flexShrink 1 + overflow hidden).
-      title: `${agent.name}${isActive ? " ← active" : ""}${pending ? " · unsaved" : ""}`,
+      // (dialog-select.tsx: flexShrink 1 + overflow hidden). The suffix is now a GLYPH —
+      // ◉ (T4a, owner addendum 2026-09-29T09:34Z: «active мы можем изобразить значком») —
+      // a shape no other marker in the list shares.
+      title: agentRowTitle(agent.name, isActive, Boolean(pending)),
       description: row.description,
       category,
       gutter: <text fg={color}>●</text>,

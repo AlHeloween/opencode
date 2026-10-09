@@ -141,3 +141,15 @@ export function agentHintText(input: {
   return parts.length > 0 ? parts.join(" · ") : undefined
 }
 
+/**
+ * The /agents row title: the agent's name, the ACTIVE glyph, the staged mark.
+ *
+ * Owner addendum 2026-09-29T09:34Z («active мы можем изобразить значком»): the words
+ * `← active` sat at the very END of the row and yielded first when it was narrow — they are
+ * replaced by ◉, the selected-radio shape of the dot family. A SHAPE, not a colour: the
+ * measured failure of 2026-09-20 was a current marker distinguished only by colour.
+ */
+export function agentRowTitle(name: string, active: boolean, pending: boolean): string {
+  return `${name}${active ? " ◉" : ""}${pending ? " · unsaved" : ""}`
+}
+

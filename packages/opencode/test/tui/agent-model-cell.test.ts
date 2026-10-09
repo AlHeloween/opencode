@@ -4,6 +4,7 @@ import {
   agentModelCell,
   agentModelRef,
   agentRowModelCell,
+  agentRowTitle,
   nextVariant,
   scopedModelCell,
 } from "../../src/cli/cmd/tui/component/agent-model-cell"
@@ -193,5 +194,26 @@ describe("nextVariant", () => {
   test("a model with no variants has nowhere to step", () => {
     expect(nextVariant([], undefined)).toBeUndefined()
     expect(nextVariant([], "high")).toBeUndefined()
+  })
+})
+
+
+describe("agentRowTitle", () => {
+  // T4(a), plan 2026-09-29_h2-session-pool-and-connection-badge.md (owner addendum 2026-09-29T09:34Z:
+  // «active мы можем изобразить значком»): the active agent is marked by a GLYPH, not the words.
+  // ◉ is the selected-radio shape of the dot family — a distinct SHAPE, because the measured failure
+  // was a marker distinguished only by COLOUR (the current bullet, 2026-09-20).
+  test("the active agent carries the glyph instead of the words", () => {
+    expect(agentRowTitle("build_mode", true, false)).toBe("build_mode ◉")
+    expect(agentRowTitle("orchestrator_agent", false, false)).toBe("orchestrator_agent")
+  })
+
+  test("the unsaved mark rides the same title, after the glyph", () => {
+    expect(agentRowTitle("build_mode", true, true)).toBe("build_mode ◉ · unsaved")
+    expect(agentRowTitle("build_mode", false, true)).toBe("build_mode · unsaved")
+  })
+
+  test("an inactive row never carries the glyph — it answers only for the active agent", () => {
+    expect(agentRowTitle("explore", false, false)).not.toContain("◉")
   })
 })

@@ -52,25 +52,33 @@ describe("sidebar protocol row", () => {
 })
 
 describe("protocol cell label", () => {
-  test("auto wraps the measured transport", () => {
-    expect(protocolLabel("auto", "h2")).toBe("auto(h2)")
-    expect(protocolLabel(undefined, "h3")).toBe("auto(h3)")
-    expect(protocolLabel("auto", "unknown")).toBe("auto(unknown)")
-    expect(protocolLabel("auto", undefined)).toBe("auto(unknown)")
+  // T4(b), plan 2026-09-29_h2-session-pool-and-connection-badge.md (owner addendum 2026-09-29T09:34Z:
+  // «протокол ... тоже [изобразить значком]»): the cell carries the transport GLYPH, and the rung text
+  // stays verbatim behind it — the glyph marks the axis, it never replaces the measurement.
+  test("the transport glyph leads the cell, and auto wraps the measured transport", () => {
+    expect(protocolLabel("auto", "h2")).toBe("⇅ auto(h2)")
+    expect(protocolLabel(undefined, "h3")).toBe("⇅ auto(h3)")
+    expect(protocolLabel("auto", "unknown")).toBe("⇅ auto(unknown)")
+    expect(protocolLabel("auto", undefined)).toBe("⇅ auto(unknown)")
   })
 
-  test("a fixed protocol is shown as itself", () => {
-    expect(protocolLabel("h2", "h3")).toBe("h2")
-    expect(protocolLabel("http/1.1", "unknown")).toBe("http/1.1")
+  test("a fixed protocol is shown as itself, behind the same glyph", () => {
+    expect(protocolLabel("h2", "h3")).toBe("⇅ h2")
+    expect(protocolLabel("http/1.1", "unknown")).toBe("⇅ http/1.1")
   })
 
-  test("a PINNED rung IS the setting, so it loses the auto() wrapper (owner, 2026-09-29)", () => {
-    expect(protocolLabel("auto", "h2", "h2")).toBe("h2")
-    expect(protocolLabel("auto", undefined, "h3")).toBe("h3")
+  test("a PINNED rung IS the setting, so it loses the auto() wrapper — the glyph stays (owner, 2026-09-29)", () => {
+    expect(protocolLabel("auto", "h2", "h2")).toBe("⇅ h2")
+    expect(protocolLabel("auto", undefined, "h3")).toBe("⇅ h3")
     // Not every pin string is a rung: the honest wrapping stays when it is not.
-    expect(protocolLabel("auto", "h2", "auto")).toBe("auto(h2)")
+    expect(protocolLabel("auto", "h2", "auto")).toBe("⇅ auto(h2)")
     // An explicitly configured protocol still wins over any pin.
-    expect(protocolLabel("h3", "h2", "h2")).toBe("h3")
+    expect(protocolLabel("h3", "h2", "h2")).toBe("⇅ h3")
+  })
+
+  test("the cell is never glyph-less and never blank — absence reads as FALSE (AGENTS.md)", () => {
+    expect(protocolLabel(undefined, undefined)).toBe("⇅ auto(unknown)")
+    expect(protocolLabel("", "")).toBe("⇅ auto(unknown)")
   })
 })
 

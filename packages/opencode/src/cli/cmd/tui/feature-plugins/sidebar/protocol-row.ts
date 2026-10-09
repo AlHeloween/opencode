@@ -21,6 +21,14 @@ export type LastProtocol = {
 const RUNGS = ["h3", "h2", "http/1.1"]
 
 /**
+ * The glyph that DEPICTS the protocol axis (T4(b), owner addendum 2026-09-29T09:34Z:
+ * «протокол ... тоже [изобразить значком]»). It leads every cell — the rung text stays
+ * verbatim behind it, and even the `unknown` cell keeps the glyph: a blank reads as FALSE
+ * (AGENTS.md).
+ */
+const TRANSPORT_GLYPH = "⇅"
+
+/**
  * The ONE fact that answers for the current assistant turn. Both readers below share it, so the
  * rung and its pinned flag can never come from two different requests.
  */
@@ -60,6 +68,8 @@ export function protocolPinned(
  * The sidebar protocol CELL (owner spec, 2026-09-26): the CONFIGURED mode names the cell; `auto`
  * wraps the protocol the last request actually used — «если auto → auto(выбранный протокол),
  * если не auto → протокол». Never empty: absence of an oracle reads as FALSE (AGENTS.md).
+ * Since T4(b) the cell ALSO leads with the transport glyph: the protocol axis is depicted by
+ * the glyph, and the rung text is what stays behind it.
  *
  * A PINNED rung is the setting, not a measurement (owner, 2026-09-29): the runtime writes the
  * probe outcome once and reads it on every later request, so `auto(h2)` advertised a probe that
@@ -69,9 +79,9 @@ export function protocolPinned(
  */
 export function protocolLabel(configured: string | undefined, resolved: string | undefined, pinned?: string): string {
   const mode = configured && configured.length > 0 ? configured : "auto"
-  if (mode !== "auto") return mode
-  if (pinned && RUNGS.includes(pinned)) return pinned
-  return `auto(${resolved && resolved.length > 0 ? resolved : "unknown"})`
+  if (mode !== "auto") return `${TRANSPORT_GLYPH} ${mode}`
+  if (pinned && RUNGS.includes(pinned)) return `${TRANSPORT_GLYPH} ${pinned}`
+  return `${TRANSPORT_GLYPH} auto(${resolved && resolved.length > 0 ? resolved : "unknown"})`
 }
 
 /**

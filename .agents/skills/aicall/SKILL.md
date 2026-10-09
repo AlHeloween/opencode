@@ -1,64 +1,65 @@
 ---
 name: aicall
-description: The OUTSIDE FALSIFIER — one frameless Sonnet call, `Codex -p --model sonnet` from an empty directory outside any repo, with NO project frame, NO tools, NO MCP: what you put in is what you get. Use it before installing a kernel change (render diff → falsifier → install) and whenever a verdict would be about your own work and no real smoke test exists. It falsifies, it never stamps. Sonnet is the ONLY route — no other model, provider or script.
+description: Внешний опровергатель для Codex через штатный codex exec и GPT. Используй перед решением о kernel или при проверке собственного рассуждения без реального smoke, включая проверку туннельного внимания. Только вводные данные и ответ; без добавленного системного промпта, проектного kernel, истории, инструментов и MCP. Вызов может опровергнуть, но не подтвердить результат самостоятельно.
 ---
 
-# aicall — the outside falsifier (one route: frameless Sonnet)
+# aicall для Codex
 
-- sv: { keywords: { outside-falsifier 0.35, frameless-call 0.30, single-route 0.20, falsify-not-stamp 0.15 },
-        dominant: "One frameless Sonnet call reads our text without our frame and may only falsify it." }
+sv: {keywords: {aicall: 0.40, codex-cli: 0.30, isolation: 0.20, falsification: 0.10}, dominant: "Проверять собственную рамку отдельным вызовом GPT через Codex CLI."}
 
-**Owner, 2026-10-01, verbatim:** «твой aicall должен быть однозначно завернут на sonnet — и все. Навороченные
-aicall через робота — у него полная поддержка целой пачки провайдеров», then «снеси скрипт питона, и мы
-используем только второй маршрут» and «вызов без тулов и прочего — что впихнули то и получаем». The Python port
-`tools/aicall.py` was deleted the same day. ONE route: frameless Sonnet. No other model, no other provider, no
-script, no opencode call.
+Пользователь, 2026-10-09: «Клауд спрашивае клауда, а ты спрашиваешь GPT»;
+«он толжен быть без какого либо системного промпта - чисто вводные данные и ответ - все».
+Это Codex-скилл. Claude-скилл остаётся отдельным. Sonnet, Claude CLI и прямой HTTP
+не являются заменой этого маршрута.
 
-## Why it exists
+## Маршрут
 
-The author cannot see their own seam, and the owner who approved the text is less able to, not more (memory
-`feedback-outside-falsifier-on-the-kernel-diff`). A sub-agent carries our prompts — the same tunnel in a second
-seat. Only a call with no frame reads a connector as a connector.
+1. Найди штатный CLI через `Get-Command codex`; прочитай `codex exec --help`.
+   `exec` — неинтерактивный вызов. `-p` означает профиль, а не print.
+2. Подготовь UTF-8 файл с вводными данными. Отметь проверяемый текст `>>> … <<<`,
+   приложи точные источники. Попроси цитаты проблемных мест и упущенные альтернативы,
+   не сообщая ожидаемый вывод. Это единственный пользовательский ввод.
+3. Запускай новый `codex exec`, без resume/fork и без собственной роли вроде
+   `You are a reviewer.`. Выбери GPT из текущего каталога. Данные передай через stdin,
+   ответ сохрани через `--output-last-message`; stdout JSONL и stderr раздельно.
 
-## The call
+Базовая форма запуска (это контракт CLI, ещё не доказательство изоляции):
 
-```bash
-D=<an EMPTY directory outside any git repo, e.g. the session scratchpad/aicall-empty>
-cd "$D" && git rev-parse   # must answer «not a git repository»
-Codex -p --model sonnet --system-prompt "You are a reviewer." --tools "" --strict-mcp-config \
-  --setting-sources "" --output-format json < brief.txt > out.json 2> err.txt
+```text
+codex exec --ignore-user-config --ignore-rules --skip-git-repo-check --ephemeral --model <GPT из каталога> --sandbox read-only --json --output-last-message <answer.txt> -
 ```
 
-- `--system-prompt` REPLACES the prompt (the SDK still prepends one identity sentence); `--tools ""` removes every
-  built-in tool; `--strict-mcp-config` with no config removes MCP; `--setting-sources ""` and the empty directory
-  keep AGENTS.md, memory and project settings out.
-- The brief goes in through a FILE on stdin — never a quoted shell string.
-- stdout is the JSON envelope (`result`, `modelUsage`, `total_cost_usd`); stderr goes to its own file — never
-  `2>&1` into the envelope (a spliced notice broke the JSON, measured 2026-09-29).
-- It streams: no read timeout to tune. Runs on the owner's Codex subscription; the CLI needed `Codex /login`
-  once — the owner's act.
+Команда выполняется из пустого каталога вне проекта. Перенаправление stdin берёт
+только подготовленный файл. Не копируй настройки, AGENTS.md, память, skills или
+историю текущей сессии. Не меняй установленный kernel и пользовательский config.
 
-## Measured
+## Проверка отсутствия рамки
 
-- 2026-10-01 smoke: reply `SONNET-OK, none` (no tools), `modelUsage` key `Codex-sonnet-5`, $0.0018, 6 s, exit 0.
-- 2026-10-01 kernel K1-K5: two rounds ($0.116 + $0.045); round 1 found 6 real defects in the new text, round 2
-  two more (`experiments/2026-10-01_kernel-k1-k5/`).
-- 2026-09-27 leak check: the model reported no tools, quoted only the two-sentence prompt, saw no project content.
+- Пустая папка и `--ignore-user-config` сами по себе не доказывают отсутствие
+  встроенных инструкций CLI. Перед признанием вызова aicall проверь фактический
+  ввод (`codex debug prompt-input` с тем же окружением/настройками) и полный запрос,
+  если доступен инструмент захвата. Нужен ровно исходный пользовательский пакет,
+  пустые/отсутствующие instructions, отсутствие system/developer, tools и MCP.
+- Не придумывай флаги. `user_instructions` проверенный CLI игнорирует;
+  пустой `model_instructions_file` он отвергает. Не заменяй пустоту текстом-роли.
+- Если CLI добавляет рамку, зафиксируй её адресуемый дамп и конкретный остаток.
+  Успешное выполнение команды не превращает её в изолированный aicall.
+  Не переходи молча на HTTP, Sonnet или робота.
 
-## Brief hygiene (each rule cost a false finding once)
+## Проверенные границы на этом хосте
 
-- Mark EXACTLY what is under review (`>>> … <<<`) — «the last sentence is new» sent round 1 of 2026-10-01 into
-  unchanged text when the change sat mid-paragraph.
-- Give the referenced rules as context, or a finding will be «undefined reference» for a term defined next door.
-- Ask for addresses — the quoted words and the problem — never for a verdict; do not state your own reading.
+✓ Запуск штатного `codex exec`, GPT gpt-6.1-sol: exit 0, ответ 437 на 19*23;
+thread_id `01a11ef5-8a48-7eb1-a987-1dee6168c5a1`.
+✓ `codex debug prompt-input` обнаружил встроенные developer-сообщения и
+environment_context даже при отдельном пустом home и пустом каталоге инструкций.
+✗ Полная изоляция этого запуска не доказана; его ответ не является результатом aicall.
+Дампы и логи: `C:/Users/Alexander/AppData/Local/Temp/org-aicall-20261009-1230/`.
+Эти свидетельства исторические: после смены CLI повтори проверку.
 
-## Caveat — same family
+## Использование ответа
 
-Zero frame, but the author's own model family: blind spots are partly shared — say so in the report.
-
-## Rules
-
-- **Falsify, do not approve.** A finding is verified by reading the artifact yourself before acting on it.
-- **It never stamps.** Two simulators agreeing is self-grading with a second seat.
-- **One route.** If it fails twice, stop, record the falsifier as an uncovered criterion, hand the decision to the
-  owner — never switch providers from here.
+Проверяй найденные противоречия по первичным источникам и реальным оракулам.
+Ответ GPT — свидетельство, не разрешение, не PASS и не независимая печать качества.
+Два согласных симулятора ничего не подтверждают. Для повторяющегося блокирующего
+решения проверяй, какие доступные альтернативы рамка исключила без измерения.
+Две неудачные корректирующие попытки заканчивают текущий цикл с адресуемым остатком.

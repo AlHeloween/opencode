@@ -158,13 +158,23 @@ Never the reverse direction: behaviour is not bent to fit a test, and a test is 
         ИСПРАВЛЯЛ ✓) и фиксированный шумовой список ✓ `compare.test.ts` — **ПЕРВЫЙ тест у тула за всю
         историю** ✓ GREEN 3 pass / 0 fail / 13 expect (`20261001T090412Z_b55ab98a` ✓); `list.test.ts`
         GREEN 4 pass / 0 fail (`20261001T054311Z_96f82c23` ✓)
-      - **ОСТАТОК, из-за которого бокс остаётся `[ ]` (назван, а не спрятан):** для `compare.test.ts`
-        **не выполнена мутация** ✗ — пин обязан падать ПО САМОМУ СВОЙСТВУ, а не «по построению» ✓;
-        (в) рабочее дерево несёт ЧУЖОЕ незакоммиченное состояние ВНЕ `src/tool/`:
-        `.claude/skills/aicall/SKILL.md` и untracked `.claude/skills/opencode-bridge/` — не тронуты ✓;
-        (г) `grep` на НЕВАЛИДНОМ регексе отвечает «No matches found» вместо ошибки ✗ — воспроизведено:
-        `MUTATION|const notice` → 1 попадание ✓, `MUTATION|const notice|+ notice` → «No matches» ✗
-        (класс инструмента, вне C2)
+      - **ОСТАТОК, из-за которого бокс остаётся `[ ]` (назван, а не спрятан):** мутация для `compare.test.ts`
+        **ВЫПОЛНЕНА 2026-10-09** ✓ (t23-compare-mutation) — три пина, три локальные мутации, каждый RED пришёл ПО
+        СВОЕМУ адресу, каждый откат доказан в том же дыхании (`git diff --stat -- packages/opencode/src/` пуст ✓,
+        контроль `MUTATION` → 0 попаданий ✓, строки-обещания снова на :9 / :95 / :129 ✓):
+        (1) снят `params.verbose`-гард (`compare.ts:129`) → RED `compare.test.ts:115` (`20261009T002428Z_583d3123` —
+        quiet-вывод напечатал `--- Identical (1) ---` и `twin.txt`); (2) равенство ЧИТАЕТ содержимое
+        (`readFileSync` вместо size/mtime, `compare.ts:95`) → RED `compare.test.ts:92` (`20261009T002501Z_8bbba0d3`
+        — `changed` 1→0: байт-идентичные близнецы с разными метками уехали в `same`); (3) `node_modules` выброшен
+        из `SKIP_DIRS` (`compare.ts:9`) → RED `compare.test.ts:137` (`20261009T002529Z_a041dcf3` — вывод показал
+        `node_modules/pkg/x.js`). Ни один пин не остался зелёным — усиливать утверждения не потребовалось ✓.
+        GREEN до и после (база `20261009T002348Z_a659411b`, восстановленное дерево `20261009T002551Z_1ce704b6` —
+        3 pass / 0 fail / 13 expect), `bun typecheck` exit 0 (`20261009T002603Z_3b580b1e`);
+        (в) **ПЕРЕПРОВЕРЕНО 2026-10-09 — состояния больше нет** ✓: `git status --short` по дереву пуст, названные
+        `.claude/skills/aicall/SKILL.md` и `.claude/skills/opencode-bridge/` ушли вместе с чужими коммитами;
+        (г) `grep` на НЕВАЛИДНОМ регексе отвечает «No matches found» вместо ошибки ✗ — **воспроизведено заново
+        2026-10-09**: `MUTATION|const notice|+ notice` → «No matches» ✗ (класс инструмента, вне C2) — бокс `[ ]`
+        держит теперь ровно он
 - [ ] **C3 — shell tools:** `bash`, `cmd`, `powershell`, `run`.
 - [ ] **C4 — search / memory tools:** `codegraph`, `dbread`, `fossilgrep`, `logsearch`, `sessionread`,
       `summaryedit`, `universalsearch`, `webfetch`.

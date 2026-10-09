@@ -58,6 +58,8 @@ Their defects are RESOLVED (2026-09-22): `Markdown.test.ts` 185/0, `audio-stream
   already gone (candidates: `mkdir -p` under the Windows shell, or the reporter under the full
   5.7k-test load — unverified). The clean-checkout run (`test.yml` → `bun turbo test:ci`) fires on the
   next push.
+  See §5 — re-verified 2026-10-09 (t28): the arming is green, the «next push» premise is corrected, and the box
+  stays `[ ]` for the CI half alone.
 - [x] **G4 — the spelling is pinned.** `src/tests/ci-gate.test.ts` holds all three surfaces (package
   script + turbo task + workflow glob) in one test; green — 1 pass / 0 fail, 5 expect (run
   `20260923T051543Z_96b1dc1e`). A renamed script or a dropped turbo entry now fails a test instead of
@@ -81,3 +83,25 @@ Post: the same two, plus the full `test:ci` invocation the CI uses, recorded as 
   `cmd_runner` (low priority), never bare, and never as one full-suite invocation from the package root
   without a path (the prohibition is about the opencode package's full suite; the same discipline
   applies here by intent).
+
+## 5. Shelf re-verification — 2026-10-09 (t28-shelf-triage-slice3): stays on the shelf, G3 open
+
+Read-only re-check against the current tree; no code was touched.
+
+- Arming re-verified ✓: `packages/opentui/packages/core/package.json:54` carries `test:ci`; `turbo.json:30`
+  carries `@opentui/core#test:ci`; `src/tests/ci-gate.test.ts` green — **1 pass / 0 fail**, 5 expect (run
+  `20261009T052655Z_51739669`, exit 0).
+- CORRECTION to G3's premise: `.github/workflows/test.yml` triggers `push` only on branch **`dev`**
+  (`branches: [dev]`), plus `pull_request` and `workflow_dispatch`. A push to `Local_Development` — this
+  repo's default branch — does NOT fire the workflow, so «fires on the next push» does not hold as written.
+  The arming commit `e0f4d73e2b` (2026-09-23, the one that widened the report glob to
+  `packages/**/.artifacts/unit/junit.xml`) is an ancestor of `origin/Local_Development`.
+- G3 stays `[ ]`. The clean-checkout half has no artifact: GitHub Actions on `origin` is public and the `test`
+  workflow DOES carry runs (24, newest `test #24` on `1ddb0873ae`), but every one rides an **upstream-history**
+  commit — `1ddb0873ae` is upstream `chore(stats): retire legacy s3 lake (#52515)` and is NOT an ancestor of
+  `origin/Local_Development` — so no run covers our armed gate; consistent with `push: [dev]`, since our branch
+  is `Local_Development`. The local half is unproven too: a full `bun run test:ci` was not re-attempted here
+  (this triage may not run a full suite without a path) and the 2026-09-23 attempt was inconclusive
+  (`state.json` stayed `running`, `bytes_written: 0`).
+- Single remaining criterion: a clean-checkout `bun turbo test:ci` on CI — reachable only by a push to a
+  `dev` branch, a PR, or a manual `workflow_dispatch` on the remote. Nothing else in this plan is open.

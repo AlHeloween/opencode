@@ -920,3 +920,31 @@ Post-implementation: the same three, plus T1–T3 unit counters, the T7/T8 count
   must cover both callers; a change that helps reasoning and regresses prose blocks is a regression.
 - Rollback: each task is one commit; T1/T2 are confined to `ReasoningPart` + the Markdown/Code call
   path, so reverting the commit restores the previous rendering without touching the renderer core.
+
+---
+
+## 5. Полка → `plans/`, 2026-10-09 (t28-shelf-triage-slice3) — возвращён, остаток живой
+
+Вердикт: **ВОЗВРАЩЁН в `plans/`** (живой остаток, не завершён). Интенция не закрыта вживую: владелец
+2026-09-24 всё ещё видит мерцание после T11/T11b, а цепочка исправления — T13/T13a/T13b. Перепроверка
+по коду и прогонам (правок продукта не делалось):
+
+- T1-пин зелёный сегодня: `test/tui/reasoning-window.test.ts` — **7 pass / 0 fail** (18 expect, run
+  `20261009T052655Z_66837feb`, exit 0).
+- T13a — шов на месте и зелёный: `core/src/lib/render-trace.ts` (переменная `OTUI_RENDER_TRACE` на :85),
+  `__tests__/render-trace.test.ts` — **5 pass / 0 fail** (run `20261009T052655Z_dafb4e6f`, exit 0). Коробка
+  остаётся `[ ]`: живой трейс не запускался.
+- T5 ЖИВ ✓: `renderables/ScrollBox.ts:802-804` по-прежнему вызывает `process.nextTick(() => this.requestRender())`.
+- T14 ЖИВ ✓: `routes/session/index.tsx` — контрол пишется в СТАРЫЙ `collapseControlCache` (:422), который
+  затем заменяется пустым `nextControls` (:427); кэш не держит. Правка по плану: писать в `nextControls`.
+- T12 — площадка на месте ✓: `packages/opentui/packages/native/src/renderer.zig:1682-1730` (временный
+  DECSTBM-регион + восстановление, split-footer); проба не запускалась.
+- T8: пересборки после 2026-09-23 записаны (вплоть до бинаря 10.0.1110) — выполнено; глаз владельца на
+  живом потоке всё ещё должен.
+- T13/T13b: не сделано (`highlight: false` не появлялся).
+- Инструменты живы: `experiments/2026-09-24_render-trace/read-trace.ts`,
+  `experiments/2026-09-23_flicker-frame-reader/{reader.py,burst.ps1}`.
+- Что дальше: владелец запускает `dist/bin/opencode.exe` с `OTUI_RENDER_TRACE=<path>` на живом потоке →
+  `read-trace.ts` называет источник мерцания → T13b лечит → шов читает 0 мерцаний вживую; независимо
+  исполнимо уже сейчас: T14 (вынести конструкцию контрола в чистую функцию и запинить тождество), T5
+  (свернуть `nextTick(requestRender)` ScrollBox), T10b (только после замера стоимости encode), T12 (проба).

@@ -1,5 +1,6 @@
-import { describe, expect, test } from "bun:test"
+import { describe, expect, spyOn, test } from "bun:test"
 
+import * as Log from "@opencode-ai/core/util/log"
 import { analyzeRawDiff, assembleMessage, collectReasoning, KERNEL_MARKER, messageSpans, renderIntegrityReport, renderLineDiff, renderRawDiff, renderRawWirePseudoDiff, renderResponseMarkdown, renderWireMessageMd } from "@/provider/gateway/raw-diff"
 
 function body(messages: string[], maxTokens = 100) {
@@ -337,6 +338,65 @@ describe("renderIntegrityReport", () => {
 
   test("non-envelope body is skipped", () => {
     expect(renderIntegrityReport({ body: "raw string" })).toContain("report skipped")
+  })
+
+  // T5 (files-api): base64 image data in a TEXT block is the payload catastrophe —
+  // ~205k tokens against ≤1024 as a file block, ×200; 15 of them are the whole
+  // context. The detector must see TEXT blocks only: an attachment travels as its
+  // own part (`image_url` / `file`) and must stay silent.
+  const dataUri = (payloadChars: number) => `data:image/webp;base64,${"A".repeat(payloadChars)}`
+
+  test("base64 detector: normal text input does not raise the alarm", () => {
+    const warnSpy = spyOn(Log.create({ service: "gateway.raw-diff" }), "warn")
+    try {
+      const text = renderIntegrityReport({
+        body: { messages: [{ role: "user", content: "plain text, no payload here" }] },
+      })
+      expect(text).not.toContain("BASE64-IN-TEXT")
+      expect(warnSpy).not.toHaveBeenCalled()
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
+
+  test("base64 detector: data URI inside a TEXT block raises a WARN", () => {
+    const warnSpy = spyOn(Log.create({ service: "gateway.raw-diff" }), "warn")
+    try {
+      const partForm = renderIntegrityReport({
+        body: { messages: [{ role: "user", content: [{ type: "text", text: `look ${dataUri(2048)} end` }] }] },
+      })
+      expect(partForm).toContain("BASE64-IN-TEXT")
+      expect(partForm).toContain("#0 user")
+
+      const stringForm = renderIntegrityReport({
+        body: { messages: [{ role: "tool", content: `result: ${dataUri(64)}` }] },
+      })
+      expect(stringForm).toContain("BASE64-IN-TEXT")
+
+      expect(warnSpy).toHaveBeenCalledTimes(2)
+      expect(warnSpy.mock.calls[0]![0]).toBe("gateway.base64_image_in_text")
+      expect(warnSpy.mock.calls[0]![1]).toMatchObject({ count: 1, chars: 2048, where: "#0 user" })
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
+
+  test("base64 detector: the same image as a file block raises no alarm", () => {
+    const warnSpy = spyOn(Log.create({ service: "gateway.raw-diff" }), "warn")
+    try {
+      const text = renderIntegrityReport({
+        body: {
+          messages: [
+            { role: "user", content: [{ type: "image_url", image_url: { url: dataUri(2048) } }] },
+            { role: "user", content: [{ type: "file", file_id: "file-abc" }] },
+          ],
+        },
+      })
+      expect(text).not.toContain("BASE64-IN-TEXT")
+      expect(warnSpy).not.toHaveBeenCalled()
+    } finally {
+      warnSpy.mockRestore()
+    }
   })
 })
 

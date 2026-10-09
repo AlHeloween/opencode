@@ -11,6 +11,9 @@
  * same chars/3.5 convention as the kv-cache-parity tooling.
  */
 
+import * as Log from "@opencode-ai/core/util/log"
+
+const log = Log.create({ service: "gateway.raw-diff" })
 export interface MessageSpan {
   /** Raw offset of the element's opening "{". */
   start: number
@@ -753,6 +756,53 @@ function messageText(message: Record<string, unknown>): string {
 }
 
 /**
+ * T5 (files-api): a base64 image inside a TEXT block is the payload catastrophe —
+ * ~×200 the tokens of a file block (~205k vs ≤1024) and 15 of them are the whole
+ * context. Detection covers TEXT blocks only: a message's string content or its
+ * `type:"text"` parts. An attachment travels as its own part (`image_url` / `file`)
+ * and must never match. One entry per message (payload chars summed over its text
+ * blocks) keeps the report addressable without splitting a message into N lines.
+ */
+const BASE64_IMAGE_IN_TEXT = /data:image\/[\w.+-]+;base64,([A-Za-z0-9+/=]+)/g
+
+interface Base64InText {
+  index: number
+  role: string
+  chars: number
+}
+
+function base64ImagesInTextBlocks(messages: unknown[]): Base64InText[] {
+  const found: Base64InText[] = []
+  messages.forEach((item, index) => {
+    if (item === null || typeof item !== "object") return
+    const message = item as Record<string, unknown>
+    const content = message.content
+    const textBlocks =
+      typeof content === "string"
+        ? [content]
+        : Array.isArray(content)
+          ? content
+              .filter((part) => {
+                const entry = part as Record<string, unknown> | null
+                return (
+                  entry !== null &&
+                  typeof entry === "object" &&
+                  entry.type === "text" &&
+                  typeof entry.text === "string"
+                )
+              })
+              .map((part) => (part as Record<string, unknown>).text as string)
+          : []
+    let chars = 0
+    for (const text of textBlocks) {
+      for (const match of text.matchAll(BASE64_IMAGE_IN_TEXT)) chars += match[1]!.length
+    }
+    if (chars > 0) found.push({ index, role: typeof message.role === "string" ? message.role : "?", chars })
+  })
+  return found
+}
+
+/**
  * Short conformance report of the request's messages against the recommended
  * wire flow (docs/reasoning-round-trip-contract.md):
  *  - exactly ONE reasoning-kernel copy among system messages (the compaction
@@ -770,6 +820,14 @@ export function renderIntegrityReport(input: { body: unknown }): string {
       ? ((body as Record<string, unknown>).messages as unknown[])
       : null
   if (!messages) return "integrity: body is not a JSON messages envelope — report skipped\n"
+  const base64InText = base64ImagesInTextBlocks(messages)
+  if (base64InText.length > 0) {
+    log.warn("gateway.base64_image_in_text", {
+      count: base64InText.length,
+      chars: base64InText.reduce((sum, found) => sum + found.chars, 0),
+      where: base64InText.map((found) => `#${found.index} ${found.role}`).join(", "),
+    })
+  }
   let kernelCopies = 0
   let assistants = 0
   let canonical = 0
@@ -818,7 +876,13 @@ export function renderIntegrityReport(input: { body: unknown }): string {
     violations.length === 0
       ? "integrity: CONFORMS to recommended flow"
       : `integrity: VIOLATIONS: ${violations.join("; ")}`
-  return `${head}\n${tail}\n`
+  const payloadAlarm =
+    base64InText.length === 0
+      ? ""
+      : `integrity: BASE64-IN-TEXT: ${base64InText
+          .map((found) => `#${found.index} ${found.role} (${found.chars} chars)`)
+          .join(", ")} — attach images as file blocks, not text\n`
+  return `${head}\n${payloadAlarm}${tail}\n`
 }
 
 /** Compact one-line structural summary of a wire message (LEVEL 1 table). */

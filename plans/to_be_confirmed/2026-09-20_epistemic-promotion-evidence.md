@@ -215,3 +215,15 @@ closed.
 2. The shared-surface/Exact lever — park it with the other parked proposal, or schedule it as an L3?
 3. Carrier confirmation: pin in the claim ledger **and** in `_progress_log.md` / the plan (my
    recommendation — the ledger does not survive a fold), or ledger only?
+
+## Shelf triage 2026-10-09 (t27-shelf-triage-slice2)
+
+**Verdict: OPEN — stays on the shelf.** The proposal half-landed: L1/L5/L6 are kernel prose, L4 is fixed; L2/L3 and the runtime consumer are not built, and the plan's own falsifier fires.
+
+- L1 (fail-closed pin) + L6 (mechanism) + L5 (instrument rung): landed as kernel rules on 2026-09-20 (`379fd74d0d`) — `prompt_kernel/source.py:450` `INSTRUMENT_RUNG`, `:529` `CLAIM_CITATION` («Above Guess: claim carries mechanism, falsifier, pin (path:line or authority+hash). Unpinned = Unknown, never Inferred»).
+- L4 (one owner): done — `docs/agentic-reasoning-runtime.md:119` «Corrected 2026-09-20 (H4)»; the doc now names `@SOURCE_ROUTING` as the owner and calls itself a summary.
+- **L2 (pin = coordinate + verbatim quote): not implemented** — the rule text carries no quote requirement.
+- **L3 (the form is a red): not built** — no validator/test rejects an unpinned `Inferred` claim, no mutation pair exists.
+- **The runtime consumer is absent** — the commit that landed the rules names it itself: «Not yet built… Without a guard in `packages/opencode/src/session/constitution.ts` plus a mutation test, these norms are declarations without a consumer». Re-measured today: `premisesGrounded` (`constitution.ts:1530-1546`) checks only that the premise's status ∈ {Exact, Inferred}; nothing reads a pin. **The plan's falsifier fires:** a claim can still be labelled `Inferred` with no pin and satisfy `premises_for_plan` for a MODIFY.
+- Context, not this plan's criterion: `python -m pytest prompt_kernel/tests/ -q` today = **142 passed / 3 failed** — all three are stale-receiver checks (production prompt, `.cursor`, `.claude`) after `66db455ad3` (2026-10-08, active plan `2026-10-08_org-portable-home` re-rendered the addons without re-installing receivers).
+- **Open criterion (single): the runtime consumer guard in `session/constitution.ts` + its mutation pair** — that is what makes L1 real where mutation is licensed; L2/L3 are its kernel-side companion. Owner decisions 1–3 (subset taken; shared-surface lever; carrier) remain partially overtaken and unrecorded → carry them into the return.

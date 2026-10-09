@@ -1026,3 +1026,14 @@ attachment half.
 - **Whether a release is ever automatic.** A span can expire by itself, or only the model may release
   and a forgotten set keeps costing. The falsifiers differ: a model-released set can be forgotten, an
   expiring one can drop what is still needed mid-task.
+
+## Shelf triage 2026-10-09 (t27-shelf-triage-slice2)
+
+**Verdict: OPEN — stays on the shelf.** T0–T6 are confirmed against code and green today; the half that makes the layer CALLABLE is absent, and the live contour cannot be proven here.
+
+- Task table re-measured: T0/T1/T2/T3a/T3b/T3c/T3d/T4/T6 hold; every named suite re-run green (run ids below). T6's set: 81 pass / 0 fail / 197 expect (recorded 73/0/169; the suites grew).
+- **The layer has NO CALLER (A1 stands, re-measured today).** No `tool/acquire*` exists; `session/acquired-item-store.ts:43` `acquire()` has zero callers outside its own module, so `acquired_item` is never written, `tdaHeaderFor` always returns `undefined`, and the wire half is inert exactly as §0.11 measured on 2026-09-20. The only acquirers that exist are `tempenable`/`tempdisable` (`tool/temp-lifetime.ts`, the T6 half).
+- T7 (`the release report`), T8 (`stored records`), T9 (`epoch memory`) still carry no status marker in §0.5 — unstarted.
+- T5 residual stands (the sandbox double never received a request; the CLOSED-port discriminator is unrun; nothing is in a deployed binary). T6's two residuals stand (live proof; the fold-summary ordering seam).
+- **Open criterion (single): A1 — the acquirer tool.** Nothing can call the layer until something fills `acquired_item`; §0.11's own build order is `A1 → A2 → A5`, with T7–T9 behind it.
+- Runs (cmd_runner, `packages/opencode`, one file per call, all exit 0): `gateway-tda` 9/0/26 `20261009T032659Z_0f47aaa7` · `gateway-tda-wire` 5/0/17 `20261009T032712Z_9b430cb9` · `acquired-item` 6/0/31 `20261009T032720Z_4a32206f` · `acquired-item-store` 4/0/17 `20261009T032727Z_4d6d18f8` · `temp-lifetime` 3/0/20 `20261009T032736Z_4fe9ea3d` · `recall` 24/0/71 `20261009T032743Z_7d1a4e71` · `part-ttl-gate` 8/0/22 `20261009T032752Z_3025f735` · `part-ttl-storage` 1/0/4 `20261009T032807Z_5f52457b` · `message-v2` 45/0/80 `20261009T032815Z_e0c1f919` · `migration-part-ttl` 3/0/12 `20261009T033716Z_36a9a73b`.

@@ -86,3 +86,12 @@ preparation|compression` из `renderer.ts:1968` — это **kitty-трансп
 2. **Захват залипания:** при воспроизведении залипания состояние допуска читается ИЗ ЖИВОГО процесса,
    до перезапуска; прогон без залипания не считается доказательством.
 3. **Валидация:** после правки тот же сценарий — TUI отвечает, кадры допускаются, переходы видны.
+
+## Shelf triage 2026-10-09 (t27-shelf-triage-slice2)
+
+**Verdict: OPEN — stays on the shelf.** The instrument the plan asks for does not exist in the product, and no new live freeze case was captured; it remains the diagnostic DRAFT it declares itself to be.
+
+- §4's frame-admission heartbeat (`{state: waiting|admitted|backpressured, writableLength, pendingSpans, sinceMs}` written on TRANSITION) was never built: no `isBackpressured`/`pendingSpans`/`writableLength` use and no transition log anywhere under `packages/opencode/src`; the machinery exists only in `packages/opentui/packages/core` (`renderer.frame-admission.test.ts`), i.e. the surface the plan wanted to make attributable still writes nothing.
+- No new live freeze: smoke 1–3 (baseline transitions visible; capture from the LIVE process before restart; validation after the fix) need a real freeze and cannot run in this triage (no live TUI runs allowed here).
+- The state graph (§3), the Inferred zone (§2) and the withdrawn kitty-transport guess (§1) stand as written; nothing to correct.
+- **Open criterion (single): build the frame-admission heartbeat, then capture a NEW freeze from the live process before restarting it** — the plan cannot become a confirmed fix before that capture exists.

@@ -93,3 +93,16 @@ F1 буквально («заполнить global») сталкивается �
 исходная жалоба закрыта.
 
 Решает владелец: это продуктовое направление, репозиторий его не содержит.
+
+## Shelf triage 2026-10-09 (t27-shelf-triage-slice2)
+
+**Verdict: CLOSED — moved to `plans_completed/`.** Q1 is answered by the owner's spec of 2026-09-26; every delta is resolved or carried by the ACTIVE successor plan; S1–S5 are pinned by suites re-run today. No live remainder is owned by this file.
+
+- **Q1 — answered, by the owner's third semantics (2026-09-26), and implemented as predicates:** a pick's reach is decided by its SCOPE, in `cli/cmd/tui/util/agent.ts` — `shouldUpdateSessionModelOnPick` (`:27-32`): an open session receives every non-global pick; `writesWorktreeOnPick` (`:50-52`): only `worktree`-scoped or unscoped (`undefined` — hotkey/`/model`/`--model`) picks write the worktree; `readLayer` (`:66-68`): the read layer is chosen by the ROUTE. Pinned: `test/tui/agent-selection.test.ts` 17/0/51 run `20261009T033723Z_5f926c58` (incl. a structural pin that `local.tsx` calls `writesWorktreeOnPick(options.scope)`).
+- **R1 — stale as the shelf suspected:** `canonicalIdentity` IS used in the TUI now (`local.tsx:512`; the comment names the removed hedge) — pinned by `fill-layers.test.ts` «one authority for an agent NAME, not a hedge between two spellings».
+- **R2 — fixed:** the agent variant is keyed by agent+MODEL (`session/session-settings.ts:184-193` — the entry key is `agent/model`), so a variant chosen for one model no longer answers for another.
+- **R3 — not this file's remainder:** the variant residual (B: `sessionPayload()` carrying the worktree variant maps into the session file) is tracked by the ACTIVE plan `2026-09-26_unified-settings-layers` (`_progress_log.md` 2026-10-08 00:55Z, «Still open (explicitly out of scope)»).
+- **R4 — the owner's build action**, by the plan's own words; nothing runnable here.
+- Deltas: D2/D5 closed in code (`fillSourceFor` reports `unresolved` instead of guessing; `isModelValid` sits at choice sites, not on the read); D3 superseded by the same 2026-09-26 spec; **D1 (the global-fill link) is owned by the active successor** — `2026-09-26_unified-settings-layers` cites «global fill — нет» as its basis and its T1 builds it (`seedGlobalLayer` `local.tsx:679` is part of that work). Nothing competes: this file completes; the live surface work lives in the active plan.
+- Wiring re-measured: the three fills fire together — `seedGlobalLayer()` / `fillWorktreeLayer()` / `refreshSessionSettings()` (`local.tsx:428-430`); fill functions `session/fill-layers.ts:82,103`.
+- **S1–S5 pinned today** (cmd_runner, one file per call, all exit 0): `fill-layers.test.ts` 19/0/54 `20261009T033644Z_1cb3222a` (S3/S5 + one-layer read) · `agent-selection.test.ts` 17/0/51 `20261009T033723Z_5f926c58` (S4 scope rules) · `session-settings-smoke.test.ts` 6/0/44 `20261009T034321Z_58b83954` (S1 file read-back + copy-not-link) · `session-settings-persist.test.ts` 28/0/50 `20261009T034330Z_59d73995`.

@@ -55,6 +55,7 @@ Rules that hold for every entry:
 
 - An entry is a replacement (`fromHash`, optionally with `toHash`) OR an insertion (`insertAfter`) — never both forms in one entry.
 - `newString` is required on every entry; `""` with `fromHash` deletes the span.
+- `newString` is written EXACTLY as sent — column for column. Its **first line is not re-indented** to match the line it replaces: for indentation-sensitive code (Python) send every line at its absolute indent (`    if x:` — the `if` included). The result shows the written lines at once, so a slip is visible there and fixed in one more edit.
 - Every address must be a hash `read` printed for THIS file; there is no fuzzy match — a stale hash means *read again*.
 - `newString` is the new lines. A trailing line break is optional: the last line ends as the replaced one did.
 - **No address resolves, nothing is written — in any file.** Every entry of every file is checked against the files as you read them before anything is saved.
@@ -70,6 +71,12 @@ Rules that hold for every entry:
 ## After the write
 
 LSP diagnostics per file; the project formatter runs and the file keeps its encoding. The pre-edit bytes are backed up (50 per session) — undo with `restore({ filePath })`.
+
+The result then closes with the file's FRESH ADDRESSES, so the next edit needs no re-read:
+
+- the written lines in `read`'s own form (`N  hash: text`) with two lines of context — what actually landed, as it now reads;
+- below the change EVERY line's address has moved (the chain runs over the whole file), and the result restates those labels (`N  hash`). Labels above the change are unchanged and are not repeated;
+- a list cut for length says so and names the offset to `read` for the rest.
 
 ## Parameters
 

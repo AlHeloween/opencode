@@ -220,6 +220,14 @@ function Invoke-Build {
     # ── Collect artifacts ─────────────────────────────────────────────
     Write-Host "  Collecting release artifacts..." -ForegroundColor Yellow
 
+    # `dist\bin` is ensured ONCE here, before any artifact is copied into it: a branch that is skipped (its source
+    # missing) must not turn a LATER copy into "Could not find a part of the path" after the whole build has
+    # already succeeded (measured 2026-10-09: the native-binary branch skipped, the markdownify copy died, the run
+    # reported exit 1 over a fully built candidate).
+    if (-not (Test-Path (Join-Path $DistDir "bin"))) {
+        New-Item -ItemType Directory -Path (Join-Path $DistDir "bin") | Out-Null
+    }
+
     # CLI binary
     $cliBin = [IO.Path]::Combine($OpencodePkg, "dist", "cli.js")
     if (Test-Path $cliBin) {

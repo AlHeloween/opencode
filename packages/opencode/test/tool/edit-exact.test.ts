@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { Parameters, resolveEdits } from "../../src/tool/edit"
+import { Parameters, addressReport, resolveEdits } from "../../src/tool/edit"
 import { chainHash, hashLabel } from "../../src/tool/read"
 
 /**
@@ -281,5 +281,100 @@ describe("tool.edit — the span's edges: deletion, the final terminator, insert
     const content = "a\nb\nc\n"
     const h = labels(content)
     expect(() => resolveEdits(content, [{ fromHash: h[3]!, toHash: h[2]!, newString: "x" }])).toThrow(/inverted/)
+  })
+})
+
+/**
+ * THE RESULT IS AN ADDRESS SOURCE (plan 2026-10-09_edit-address-report).
+ *
+ * The chain runs over the whole prefix, so the edit that just landed moved every label below it — before this
+ * report, continuing to edit meant re-reading (`plans_completed/2026-10-01_hash-addressed-edits.md` made that
+ * mandatory by construction). The property asserted here is the one that removes the re-read: the labels the
+ * report prints are the labels `edit` ACCEPTS next.
+ */
+describe("tool.edit — the report hands back the fresh addresses", () => {
+  const labels = (content: string) => {
+    const out = [hashLabel(0)]
+    let running = 0
+    for (const line of content.split("\n")) out.push(hashLabel((running = chainHash(running, line))))
+    return out
+  }
+  const report = (
+    oldText: string,
+    finalText: string,
+    spans: { start: number; end: number }[],
+    created = false,
+    budget?: number,
+  ) => addressReport({ path: "x.txt", oldText, finalText, spans, created, formatTouched: false }, budget)
+
+  test("the written line is echoed with its CURRENT label, and every moved label below is restated", () => {
+    const oldText = "l1\nl2\nl3\nl4\nl5\nl6\nl7\nl8\n"
+    const finalText = "l1\nl2\nNEW\nl4\nl5\nl6\nl7\nl8\n"
+    const h = labels(finalText)
+    const out = report(oldText, finalText, [{ start: 2, end: 2 }])
+    // `read`'s own shape, carrying the FINAL text's label — not the old one.
+    expect(out).toContain(`3  ${h[3]!}: NEW`)
+    // Below the change the chain moved every label: 3..8 are restated.
+    expect(out.split("\n")).toContain(`3  ${h[3]!}`)
+    expect(out.split("\n")).toContain(`8  ${h[8]!}`)
+    // Above it nothing moved — line 1's label never appears in the bare `N  hash` form the map uses.
+    expect(out.split("\n")).not.toContain(`1  ${h[1]!}`)
+  })
+
+  test("ACCEPTANCE: the label printed by the report resolves in the very next edit", () => {
+    const oldText = "alpha\nbeta\ngamma\ndelta\n"
+    const finalText = "alpha\nBETA-1\nBETA-2\ngamma\ndelta\n"
+    const out = report(oldText, finalText, [{ start: 1, end: 1 }])
+    const line = out.split("\n").find((l) => l.endsWith(": gamma"))
+    expect(line).toBeDefined()
+    const hash = line!.match(/^\d+\s+([0-9a-f]{8}): /)![1]!
+    // No re-read anywhere: the report's own label IS the address.
+    expect(resolveEdits(finalText, [{ fromHash: hash, newString: "GAMMA" }])).toBe("alpha\nBETA-1\nBETA-2\nGAMMA\ndelta\n")
+  })
+
+  test("the map starts at the FIRST moved line — a change at the top restates everything below it", () => {
+    const oldText = "one\ntwo\nthree\nfour\nfive\nsix\n"
+    const finalText = "ONE\ntwo\nthree\nfour\nfive\nsix\n"
+    const h = labels(finalText)
+    const out = report(oldText, finalText, [{ start: 0, end: 0 }])
+    expect(out.split("\n")).toContain(`1  ${h[1]!}`)
+    expect(out.split("\n")).toContain(`6  ${h[6]!}`)
+  })
+
+  test("CRLF and LF hash their lines identically — the report carries no carriage returns", () => {
+    const h = labels("a\nB\nc\n")
+    const out = report("a\r\nb\r\nc\r\n", "a\r\nB\r\nc\r\n", [{ start: 1, end: 1 }])
+    expect(out).not.toContain("\r")
+    expect(out).toContain(`2  ${h[2]!}: B`)
+    expect(out).toContain(`3  ${h[3]!}`)
+  })
+
+  test("a cut is NAMED — the footer gives the offset to `read` for the rest", () => {
+    const oldText = Array.from({ length: 40 }, (_, i) => `line ${i + 1}`).join("\n") + "\n"
+    const finalText = oldText.replace("line 1\n", "LINE 1\n")
+    const out = report(oldText, finalText, [{ start: 0, end: 0 }], false, 220)
+    expect(out).toContain("`read` from offset")
+    expect(out).toContain("carry new labels too")
+  })
+
+  test("a created file's report IS the whole file — every line in `read`'s shape", () => {
+    const finalText = "one\ntwo\n"
+    const h = labels(finalText)
+    const out = report("", finalText, [], true)
+    expect(out).toContain("created")
+    expect(out).toContain(`1  ${h[1]!}: one`)
+    expect(out).toContain(`2  ${h[2]!}: two`)
+  })
+
+  test("a deletion echoes the seam and restates what follows it", () => {
+    const h = labels("a\nd\n")
+    // The APPLIED span of a deletion is an empty range at the seam (end < start), as `resolveAddresses` returns it.
+    const out = report("a\nb\nc\nd\n", "a\nd\n", [{ start: 1, end: 0 }])
+    expect(out).toContain(`1  ${h[1]!}: a`)
+    expect(out.split("\n")).toContain(`2  ${h[2]!}`)
+  })
+
+  test("an all-deleted file says so instead of printing nothing", () => {
+    expect(report("a\n", "", [])).toContain("now empty")
   })
 })

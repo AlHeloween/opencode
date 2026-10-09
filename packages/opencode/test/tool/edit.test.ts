@@ -302,6 +302,8 @@ describe("tool.edit — a refusal names its file and every failing entry", () =>
       )
 
       expect(message).toContain(`${b}: edit 1: \`fromHash\` is not in this file`)
+      // A refusal writes NOTHING - so its message can carry no addresses block either (plan 2026-10-09_edit-address-report).
+      expect(message).not.toContain("Addresses for")
       expect(message).not.toContain(a)
       expect(yield* readBack(a)).toBe(first)
       expect(yield* readBack(b)).toBe(second)
@@ -569,6 +571,61 @@ describe("tool.edit — encodings and endings, read back as BYTES", () => {
 
       expect(String(failed)).toContain("binary")
       expect(yield* readBytes(file)).toEqual(bytes)
+    }),
+  )
+})
+
+/**
+ * THE RESULT IS AN ADDRESS SOURCE (plan 2026-10-09_edit-address-report) — asserted through the real layers.
+ *
+ * Before this report, continuing to edit anything BELOW a change required a re-read: the chain moved every label
+ * below it. «после edit - надо возвращать номера строк и изменившиеся хеши… иначе придется постоянно
+ * перечитывать» (owner, 2026-10-09). The acceptance case below never reads between its two edits — the second
+ * address comes from the first result's own text.
+ */
+describe("tool.edit — the result carries the fresh addresses (no re-read)", () => {
+  it.live("an edit below the change is addressed ONLY from the first result", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      const content = "alpha\nbeta\ngamma\ndelta\n"
+      const file = `${dir}/fresh.txt`
+      yield* put(file, content)
+
+      const first = yield* edit(dir, oneFile(file, content, [{ line: 2, newString: "BETA-1\nBETA-2" }]))
+      expect(first.output).toContain("Addresses for")
+      // `gamma` moved from line 3 to line 4; its CURRENT label is printed in the result's echo.
+      const line = first.output.split("\n").find((l) => l.endsWith(": gamma"))
+      expect(line).toBeDefined()
+      const hash = line!.match(/^\d+\s+([0-9a-f]{8}): /)![1]!
+
+      // NO read anywhere between: the address is the one the result just printed.
+      yield* edit(dir, { files: [{ filePath: file, edits: [{ fromHash: hash, newString: "GAMMA" }] }] })
+      expect(yield* readBack(file)).toBe("alpha\nBETA-1\nBETA-2\nGAMMA\ndelta\n")
+    }),
+  )
+
+  it.live("the Python slip: the echo shows the line AS WRITTEN, and the echoed label fixes it in one more edit", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped()
+      const content = "def f(x):\n    a = x\n    with c() as t:\n        b = 1\n    return b\n"
+      const file = `${dir}/seam.py`
+      yield* put(file, content)
+
+      // The measured slip (universal-search, 2026-10-09): the block's FIRST line lost its indent and the edit
+      // writes it literally — the report must show exactly that, not a repaired version of it.
+      const slipped = yield* edit(
+        dir,
+        oneFile(file, content, [{ line: 3, newString: "if x:\n        return 1\n    with c() as t:\n" }]),
+      )
+      const echo = slipped.output.split("\n").find((l) => l.endsWith(": if x:"))
+      expect(echo).toBeDefined()
+      const hash = echo!.match(/^\d+\s+([0-9a-f]{8}): /)![1]!
+
+      // One more edit, addressed from the report alone: the slip is repaired without a re-read.
+      yield* edit(dir, { files: [{ filePath: file, edits: [{ fromHash: hash, newString: "    if x:" }] }] })
+      expect(yield* readBack(file)).toBe(
+        "def f(x):\n    a = x\n    if x:\n        return 1\n    with c() as t:\n        b = 1\n    return b\n",
+      )
     }),
   )
 })

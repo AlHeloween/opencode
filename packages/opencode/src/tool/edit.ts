@@ -192,7 +192,15 @@ function terminated(content: string): Line[] {
  * The new text, or EVERY refusal — never the first failure alone (plan 2026-10-01_edit-refusal-names-its-target,
  * R2): the batch exists to be one call, so its refusal must be enough to fix it in one more.
  */
-export type Resolution = { kind: "text"; text: string } | { kind: "refused"; refusals: string[] }
+export type Resolution =
+  | { kind: "text"; text: string; spans: readonly AppliedSpan[] }
+  | { kind: "refused"; refusals: string[] }
+
+/**
+ * Where a written block LANDS in the file the edit produced (0-based, inclusive; `end < start` is a deletion's
+ * empty seam). The addressed spans are resolved against the ORIGINAL text — these are their final coordinates.
+ */
+export type AppliedSpan = { start: number; end: number }
 
 type Span = { start: number; end: number; replacement: string }
 
@@ -278,6 +286,18 @@ export function resolveAddresses(
     .map((span) => named(`two edits claim line ${span.start + 1} — refuse rather than let one silently win`))
   if (clashes.length > 0) return { kind: "refused", refusals: clashes }
 
+  // Where every written block LANDS in the final text (plan 2026-10-09_edit-address-report). Ascending walk with a
+  // running shift: a span's new position is its original one plus the deltas of the spans ABOVE it — the coordinate
+  // system the emitted addresses live in.
+  const applied: AppliedSpan[] = []
+  let shift = 0
+  for (const span of ordered) {
+    const length = span.replacement === "" ? 0 : terminated(span.replacement).length
+    const start = span.start + shift
+    applied.push({ start, end: start + length - 1 })
+    shift += length - (span.end - span.start + 1)
+  }
+
   // Bottom-up, so a replacement cannot move a span that has not been applied yet.
   let result = lines
   for (const span of [...ordered].reverse()) {
@@ -309,7 +329,121 @@ export function resolveAddresses(
     if (previous !== undefined && deletesBareEnd) head[head.length - 1] = { text: previous.text, eol: "" }
     result = [...head, ...fitted, ...result.slice(span.end + 1)]
   }
-  return { kind: "text", text: result.map((line) => line.text + line.eol).join("") }
+  return { kind: "text", text: result.map((line) => line.text + line.eol).join(""), spans: applied }
+}
+
+/**
+ * The FRESH ADDRESSES of the file an edit just produced (plan 2026-10-09_edit-address-report).
+ *
+ * The chain runs over the whole prefix, so a change at line K moves the address of every line BELOW it — a caller
+ * that just edited holds no current address for anything further down and would have to re-read, which
+ * `plans_completed/2026-10-01_hash-addressed-edits.md` made mandatory by construction. This report hands the
+ * labels back instead: the written lines in `read`'s own form with two lines of context, then every moved label
+ * below — all computed over the FINAL text with the SAME `chainHash`/`hashLabel` `read` prints, so the next call
+ * can address them directly. Labels above the first change did not move and are not repeated. Bounded; a cut
+ * names the offset to `read` for the rest.
+ */
+export const ADDRESS_REPORT_BUDGET = 8 * 1024
+const ECHO_CONTEXT = 2
+
+export function addressReport(
+  input: {
+    path: string
+    oldText: string
+    finalText: string
+    spans: readonly AppliedSpan[]
+    created: boolean
+    formatTouched: boolean
+  },
+  budget: number = ADDRESS_REPORT_BUDGET,
+): string {
+  const oldLines = input.created ? [] : terminated(input.oldText)
+  const lines = terminated(input.finalText)
+  if (lines.length === 0) return `Addresses for ${input.path}: the file is now empty — no lines to address.`
+
+  // The chain over the FINAL text — the same walk `read` prints its labels from.
+  const hashes: string[] = []
+  let running = 0
+  for (const line of lines) hashes.push(hashLabel((running = chainHash(running, line.text))))
+
+  let first = 0
+  if (!input.created) {
+    while (first < lines.length && first < oldLines.length && lines[first]!.text === oldLines[first]!.text) first++
+    if (first === lines.length && first === oldLines.length) return ""
+  }
+
+  // ECHO windows. When the formatter rewrote the file (`formatTouched`) the spans themselves no longer sit where
+  // they were addressed, so the honest window is the changed range; everywhere else each span ± context, and a
+  // deletion echoes its seam.
+  let windows: { start: number; end: number }[]
+  if (input.created || input.formatTouched) {
+    let last = lines.length - 1
+    let lastOld = oldLines.length - 1
+    while (last >= first && lastOld >= first && lines[last]!.text === oldLines[lastOld]!.text) {
+      last--
+      lastOld--
+    }
+    windows = last >= first ? [{ start: first, end: last }] : []
+  } else {
+    windows = input.spans.map((span) => ({
+      start: Math.max(0, span.start - ECHO_CONTEXT),
+      end: Math.min(lines.length - 1, (span.end < span.start ? span.start : span.end) + ECHO_CONTEXT),
+    }))
+    windows.sort((a, b) => a.start - b.start)
+  }
+  const merged = windows.reduce<{ start: number; end: number }[]>((acc, window) => {
+    const tail = acc.at(-1)
+    if (tail && window.start <= tail.end + 1) tail.end = Math.max(tail.end, window.end)
+    else acc.push({ ...window })
+    return acc
+  }, [])
+
+  const total = lines.length === 1 ? "1 line" : `${lines.length} lines`
+  const out = [
+    input.created
+      ? `Addresses for ${input.path} (created — ${total}):`
+      : `Addresses for ${input.path} (the file is now ${total}):`,
+  ]
+  let used = Buffer.byteLength(out[0]!, "utf-8") + 1
+  let cutAt = -1
+  const add = (text: string, line: number) => {
+    if (cutAt !== -1) return
+    const bytes = Buffer.byteLength(text, "utf-8") + 1
+    if (used + bytes > budget) {
+      cutAt = line
+      return
+    }
+    used += bytes
+    out.push(text)
+  }
+
+  if (merged.length > 0) {
+    add(
+      input.created ? "Written lines — the labels are current:" : "Written lines, with context — the labels are current:",
+      merged[0]!.start,
+    )
+    for (const window of merged) {
+      for (let i = window.start; i <= window.end && cutAt === -1; i++) {
+        add(`${i + 1}  ${hashes[i]!}: ${lines[i]!.text}`, i)
+      }
+      if (cutAt !== -1) break
+    }
+  }
+
+  if (cutAt === -1 && !input.created && first < lines.length) {
+    add(`Every line from ${first + 1} down has a NEW address — current labels:`, first)
+    for (let i = first; i < lines.length && cutAt === -1; i++) {
+      add(`${i + 1}  ${hashes[i]!}`, i)
+    }
+  }
+
+  if (cutAt !== -1) {
+    const rest = lines.length - cutAt
+    out.push(
+      `(${rest} more line${rest === 1 ? "" : "s"}, through line ${lines.length}, carry new labels too — \`read\` from offset ${cutAt + 1} to address them.)`,
+    )
+  }
+  return out.length === 1 ? "" : out.join("\n")
 }
 
 /**
@@ -443,6 +577,7 @@ export const EditTool = Tool.define(
             ending: TextCodec.LineEnding | undefined
             notice: string | undefined
             diff: string
+            spans?: readonly AppliedSpan[]
           }[] = []
 
           yield* withFileLocks(
@@ -541,6 +676,7 @@ export const EditTool = Tool.define(
                   ending: form.ending,
                   notice: form.notice,
                   diff: "",
+                  spans: resolution.spans,
                 })
               }
               if (refusals.length > 0) throw new Error(refusals.join("\n"))
@@ -631,6 +767,15 @@ export const EditTool = Tool.define(
             if (block) {
               output += `\n\nLSP errors detected in ${path.relative(Instance.worktree, plan.filePath)}, please fix:\n${block}`
             }
+            const report = addressReport({
+              path: path.relative(Instance.worktree, plan.filePath),
+              oldText: plan.contentOld,
+              finalText: plan.contentFinal,
+              spans: plan.spans ?? [],
+              created: plan.status === "add",
+              formatTouched: plan.contentFinal !== plan.contentNew,
+            })
+            if (report) output += `\n\n${report}`
           }
 
           return {

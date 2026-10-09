@@ -209,3 +209,13 @@ exactly the property being bought (settings must not be losable).
 - Caveat that limits all of the above: `ifVersion` only helps if **every** writer goes through the
   store. A writer that ignores versions still wins — which is why §7's inventory (all three writers
   of `model.json`) is the completion condition, not a starting point.
+
+## Shelf triage 2026-10-09 (t25-shelf-triage)
+
+**Verdict: OPEN — stays on the shelf.** The chain is in the code and S3–S5 are pinned; S6 is unrun here, and the merge owed to the 2026-09-21 plan has not happened.
+
+- S3/S4/S5 + the one-layer read rule: `test/session/fill-layers.test.ts` — 19 pass / 0 fail, exit 0 (run `20261009T012848Z_7903be24`), including the structural pins on `local.tsx`'s `forAgent`/`fillSourceFor`.
+- Wiring: `refreshSessionSettings()` fills the session layer (`local.tsx:232`); `fillWorktreeLayer()` fills the worktree (`local.tsx:540`); both warn `bug:` on unresolved names (`:235`, `:558`).
+- S1/S2 superseded by the owner spec of 2026-09-26: `seedGlobalLayer()` (`local.tsx:679`) seeds the global layer with the recommended free vision model when no agent model is declared; `big-pickle` is fail-protection only (`free-default.ts:20-31`). The S1/S2 text above predates that spec.
+- **Open criterion: S6 — `/agents` shows a concrete model in all three scopes**: a live TUI render (rebuilt binary + an open session), not run in this triage.
+- Owed (shelf README): merge the real residual with `2026-09-21_fill-chain-global-worktree-session.md` so the two specifications stop competing.

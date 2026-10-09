@@ -93,8 +93,24 @@ search needs an account; the crate source was not read.
 
 ## Residual — do these irrespective of Rig
 
-- [ ] Oracle on the deepseek patch: a test driving the SDK's own
+- [x] Oracle on the deepseek patch: a test driving the SDK's own
       `convertToDeepSeekChatMessages` with `deepseek-flash`, so a version bump
       that drops the patch goes red instead of degrading silently.
+      — closed 2026-10-09 (t25): `test/provider/deepseek-cot-roundtrip.test.ts` drives the SDK's own
+      conversion with `deepseek-flash` — run `20261009T013026Z_237ed1ad`, 4 pass / 0 fail, exit 0. The
+      patch itself is gone by design: `a42599aa60` deleted `patches/@ai-sdk%2Fdeepseek@3.0.26.patch`
+      when the @ai-sdk family was bumped, so the test now guards the behaviour against the unpinned SDK.
 - [ ] Decide where provider truth lives. Two unsynchronised copies is the actual
       defect; it is independent of which framework holds one of them.
+      — still open 2026-10-09 (t25): no recorded decision found (`grep -i "provider truth"` over
+      `*.md` returns only this file). An owner/architecture call.
+
+## Shelf triage 2026-10-09 (t25-shelf-triage)
+
+**Verdict: OPEN — stays on the shelf.** The option is still unprobed and one residual box remains.
+
+- Box 1 closed with an artifact (run `20261009T013026Z_237ed1ad`); the box's premise evolved — the
+  version-exact patch no longer exists (`a42599aa60`), so the test guards the behaviour itself.
+- Box 2 open: where provider truth lives is still undecided.
+- The header's falsifier — is `rig-agent`'s `AgentRun` serialization *total*? — is still unrun;
+  «do NOT act on this without the probe below» stands.

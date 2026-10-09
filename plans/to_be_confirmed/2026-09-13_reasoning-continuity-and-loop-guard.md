@@ -249,3 +249,13 @@ firing, so disabling the detector disables it.
   Read the body or soften the quotes before they harden as first-source.
 - That same memory records "the loop lives in tool-call space, not in tokens". Falsified:
   two token-space specimens exist, one in its own database.
+
+## Shelf triage 2026-10-09 (t25-shelf-triage)
+
+**Verdict: OPEN — stays on the shelf.** The reasoning-continuity half is closed with artifacts; the loop-guard half has not started.
+
+- T1: RESOLVED (premise false; the vendor returns empty `reasoning_content` — opencode loses nothing), as recorded above.
+- T9: shipped and re-run — `bun test test/provider/raw-diff.test.ts` → 41 pass / 0 fail, exit 0 (run `20261009T013012Z_d11c614e`).
+- T2: satisfied by supersession — the tail is INVIOLATE (2026-09-19 ruling): `tailMessageText` emits `[reasoning]` unconditionally (`compaction.ts:2044-2046`) and `tailContentChars` counts it (`compaction.ts:1999`), pinned at `test/session/compaction.test.ts:3181`; full file 91 pass / 0 fail, exit 0 (run `20261009T012915Z_b10dd562`).
+- T3: shipped — permanent memory rides every fold verbatim (`compaction.ts:2477-2483`, fed by `readMemory()` at `:2910`).
+- **Open criterion: T4 — no loop detector exists** (nothing scans text/reasoning for period-1-4 cycles, threshold 6). T6 is equally absent: `dsml-normalizer.ts:18` still matches `name{json}` only, so the captured `</parameter></invoke>` specimen would still be missed. T5/T7/T8 remain open by their own text (T8 gated after T4/T5 as written).

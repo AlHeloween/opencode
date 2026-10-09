@@ -4,6 +4,18 @@ state: DRAFT
 scope: `packages/opencode/src/provider/transform.ts`, `packages/opencode/src/session/llm.ts` + tests
 evidence: `experiments_history/2026-09-12_anthropic-cache/REPORT.md`
 
+## Shelf triage 2026-10-09 (t25-shelf-triage)
+
+**Verdict: RETURN — moved back to `plans/` root.** Verified current against the code: T1–T3 are unstarted, not stale.
+
+- T2 not done: `transform.ts:375` still `slice(0, 2)` for system messages; no ≤4-breakpoint guard in code.
+- T1 not done: `variants()` still substring-matches (`anthropicAdaptiveEfforts`, `transform.ts:626-640`) and `budgetTokens: Math.floor(model.limit.context / 2)` is still emitted (`transform.ts:940`); no `reasoning_options` carry-through for Anthropic models.
+- T3 not done: the diagnostic still reads the removed dialect — `llm.ts:981` `providerOptions.openaiCompatible.cache_control`.
+- T4/T5 stay probe-gated (probes 10/11 unrun; `experiments_history/2026-09-12_anthropic-cache/REPORT.md` lists them as unproven).
+- Reconciliation here: `@ai-sdk/anthropic` has moved 4.0.7 → 4.0.57 — re-run `04_sdk_contract.mts` before relying on R9/R10; the push-gate line below updated to the per-file convention.
+- Baseline for the surface: `bun test test/provider/transform.test.ts` → 170 pass / 0 fail, exit 0 (run `20261009T013046Z_ca44e58e`).
+- Next: T2 (one line + guard) and T3 (log fix) first — small and independently revertible; then T1; re-run `01`/`03`/`04`; decide T4/T5 by probes 10/11.
+
 ## Context / goal
 
 User: «мне кажется что в opencode мы могли бы работать в разы эффективнее» —
@@ -176,8 +188,9 @@ New unit tests in `packages/opencode/test/provider/transform.test.ts`
    regression that R6 would otherwise re-introduce silently);
 4. every adaptive payload carries `display:"summarized"`.
 
-Full suite before push, from `packages/opencode`: `bun test`, plus
-`bun typecheck`.
+Push gate, from `packages/opencode`: the task's named file(s) — for this plan
+`bun test test/provider/transform.test.ts` — plus `bun typecheck`. (A full-suite
+`bun test` with no path is forbidden — AGENTS.md § Full package test suite.)
 
 ## Risks
 

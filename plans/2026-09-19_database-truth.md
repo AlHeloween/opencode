@@ -5,6 +5,18 @@
 Owner, 2026-09-19: «если посмотреть базу там море таблиц с непонятными целями». That aside produced a real
 defect within the hour — and it was found by READING the database, not by any test.
 
+## Shelf triage 2026-10-09 (t25-shelf-triage)
+
+**Verdict: RETURN — moved back to `plans/` root.** T1's analysis is done below; the remaining actions are named and unblocked.
+
+Re-measured on the live DB (`.opencode/data/opencode.db`, 2026-10-09) and against the code:
+
+- `event` **123 921 rows** (was 87 548) — writer `sync/index.ts:179` (paired with `event_sequence`); readers `session/recovery.ts:87`, `server/routes/instance/httpapi/sync.ts:122`, `control-plane/workspace.ts:178`; growth policy: per-aggregate delete via `sync.remove()` (`sync/index.ts:377`), **no time policy — T2 open: name it or bound it.**
+- `balance_snapshot` 840 rows — writer `provider/balance-storage.ts:36`; it is an append-log (a row per balance check; reads take the latest per provider) with **no retention — T3 open.**
+- `session_entry` 0 rows — **no writer anywhere in this build** (schema/indexes only: `storage/db.ts:177-187`, `session/session.sql.ts:142-156`; the fact is recorded in `session/turn.ts:14` and pinned by `test/session/turn.test.ts:71`). **T1's concrete next action: remove the surface.**
+- Zero-row but with writers (keep): `part_embedding` ← `attachment/embedding.ts:79`; `session_share` ← `share/share-next.ts:320`; `workspace` ← `control-plane/workspace.ts:107`; `media_token_calibration` ← `session/media-token-calibration.ts:112` — empty only because the paths are unexercised here.
+- T4: the fixtures already rebased (store suite per the Done section; `test/session/acquired-item-store.test.ts:72`) cover the known offenders; the sweeping audit of every raw-SQL fixture is not evidenced — **still open.**
+
 ## Why this is its own plan
 
 It is not TDA. It is a standing property of the storage plane, and the discovery arrived while answering a

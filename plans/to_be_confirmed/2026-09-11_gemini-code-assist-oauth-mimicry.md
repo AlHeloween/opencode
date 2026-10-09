@@ -357,3 +357,13 @@ C5 нельзя закрыть end-to-end, пока нет лицензиров�
   склейка `data:`-строк до пустой строки, разворот `.response`, usage != 0.
 - **S5 (C5, live, блокирован §7):** реальный `streamGenerateContent` на
   лицензированном проекте → 200 + текстовый дельта-поток. До лицензии — Unknown, не PASS.
+
+## Shelf triage 2026-10-09 (t25-shelf-triage)
+
+**Verdict: OPEN — stays on the shelf.** The provider and its tests exist, but they are the pre-plan shape: not one of C1–C6 is in the code.
+
+- C1/C2: `src/plugin/gemini.ts` (last touched 2026-04-29) still requires `GOOGLE_OAUTH_CLIENT_ID` (`:14-23`), still carries the `generative-language` scope (`:27-32`) and PKCE in the browser flow — D1/D2 unchanged; nothing reads `~/.gemini/oauth_creds.json`.
+- C4: the `Oauth` schema still has no `projectId`/`tier` (`src/auth/index.ts:17-28`) — D7 unchanged.
+- C3/C5: a case-insensitive grep for `loadcodeassist|onboarduser|cloudcode|v1internal|codeassist` over `packages/opencode/src` finds nothing; `src/provider/google-code-assist.ts` (last touched 2026-05-16) still speaks `generativelanguage.googleapis.com/v1beta`, and its test pins that host (`test/provider/google-code-assist.test.ts:47`) — run `20261009T013041Z_bbbe99c4`, 9 pass / 0 fail, exit 0.
+- Not runnable in this triage: S1/S2/S5 need live OAuth and a licensed project; §7 is still the blocker (403 `SUBSCRIPTION_REQUIRED` without one).
+- **Open criterion: C3 — the `loadCodeAssist` → `onboardUser` → project bootstrap does not exist.** C1/C2/C5/C6 are equally unstarted.

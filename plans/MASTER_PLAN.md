@@ -103,16 +103,46 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 209 |
-| plans active | 11 |
-| tasks passed / total | 831 / 1043 |
-| open boxes | 70 |
+| plans completed | 214 |
+| plans active | 14 |
+| tasks passed / total | 879 / 1109 |
+| open boxes | 87 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
 ## The map
 
 Every plan under `plans/`, with every vector READ from its own source. `MISSING` means the source has none — it is never filled in here, and the source wins over anything printed below.
+
+- `plans/2026-09-12_anthropic-cache-breakpoints.md` — 0 open / 0 box(es) · lifecycle DRAFT
+  sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for
+  - no open box
+
+- `plans/2026-09-19_database-truth.md` — 0 open / 0 box(es) · lifecycle UNKNOWN
+  sv: intention "tables and counters nobody writes produce mechanisms that never fire while every suite stays green -> every table has a named writer, every dead surface is removed, and any counter is checked against the live database" · keywords []
+  - no open box
+
+- `plans/2026-09-21_mstar-order-and-summary-restore.md` — 6 open / 24 box(es) · lifecycle ACTIVE
+  sv: intention "m* и summary деградировали (порядок блоков неверен, summary стал дампом патчей, память стала пачкой записок) -> вернуть порядок владельца и вернуть summary к намерениям с планами" · keywords []
+  - TASK-11 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-12 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-15 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-16 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-18 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-19 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-09-22_reasoning-stream-render-stability.md` — 10 open / 22 box(es) · lifecycle UNKNOWN
+  sv: intention "a long reasoning stream flickers — formatting arrives late or never, the viewport jumps, artifacts appear -> the visible reasoning window is append-only again and highlight commits atomically at quiet-window and at time.end" · keywords []
+  - T4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T8 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T10b [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-18 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T13a [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T13b [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-21 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T12 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-09-24_to-be-confirmed-shelf-triage.md` — 3 open / 4 box(es) · lifecycle ACTIVE
   sv: intention "19 plans sit on plans/to_be_confirmed/ after the 2026-09-24 audit — four of them owner-confirmed as shipped and live-tested, one (TUI gateway row) awaiting a confirmation run, the rest awaiting re-verification against current code — while planstatus cannot see the shelf at all -> every file on the shelf reaches a proven terminal (plans_completed/ with evidence, plans/ with a single named remaining criterion, or a lawfully shelved terminal), and the shelf readme states the result" · keywords []
@@ -162,11 +192,10 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - T6 [PENDING] · sv [vmware-guest, capture-bound-drag, hypervisor-frame] · manifest: MISSING — nobody has written down what this box is
   - T7 [PENDING] · sv [docs, tier-table] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-29_h2-session-pool-and-connection-badge.md` — 3 open / 8 box(es) · lifecycle ACTIVE
+- `plans/2026-09-29_h2-session-pool-and-connection-badge.md` — 2 open / 8 box(es) · lifecycle ACTIVE
   sv: intention "up to 2500 concurrent provider streams must ride a REUSED pool of HTTP/2 sessions (one session caps at the server's advertised 128), never short-lived connections, and the TUI sidebar must show the living connection as an icon -> session pool + model concurrency limits + connected/disconnected badge" · keywords []
-  - T4 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T4 [PARTIAL] · sv MISSING · manifest: T4a/b shipped as glyphs — ◉ on the active /agents row and ⇅ on the sidebar protocol cell, text oracles green, the on-screen check still owed to the owner. · eta 2 · waiting-on-user
   - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - T5 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-09-30_cua-supply-chain-audit.md` — 2 open / 10 box(es) · lifecycle ACTIVE
   sv: intention "cua and Universal Search are suspected on egress, hidden code and reliability, with no measurement behind the suspicion -> every component shipped to colleagues has a measured egress manifest, a known build provenance and a recorded reliability profile, and nothing leaves a machine the owner did not approve" · keywords [supply-chain-audit, egress-manifest, telemetry, provenance, reliability]
@@ -225,8 +254,13 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   sv: intention "hidden test-only ORG_HOME/ORG_PORT in three copies + PATH-first fossil + fossil-CLI reads -> one shared resolver as SUPPORTED settings, bundled fossil outranking PATH, reads through org.py verbs only, documented in Protocol and the kernel add-on (plan 2026-09-30_robot-installer.md B1f)" · keywords []
   - S9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-10_organization-wiki-and-reporting.md` — 2 open / 4 box(es) · lifecycle UNKNOWN
+  sv: intention "паспорт организации сохранён отчётом, wiki содержит только Protocol -> организация получает заполненную связанную wiki и воспроизводимую отчётность с проверяемыми источниками" · keywords []
+  - TASK-3 [PENDING] · sv [publication 0.40, oracle 0.40, closure 0.20] · manifest: Publish the five prepared wiki pages through wiki-put with full UTF8 readback and pin the report technote. · eta 3 · doing
+  - TASK-4 [PENDING] · sv [documentation 0.45, traceability 0.35, scoped-commit 0.20] · manifest: Route docs to the wiki, keep one progress-log boundary, and close the plan with a commit that names it. · eta 2 · doing
+
 ## The checks
 
-This body names all 13 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 18 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

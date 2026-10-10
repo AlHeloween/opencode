@@ -31,9 +31,9 @@ Envelope: 36 шагов, 80 tool calls, 2 коррекции на проблем
   Оракул: stdlib unittest на реальном изолированном Fossil без запуска служб; create/readback Unicode, update/readback, unchanged, stale expectation, existing/absent conflict, malformed name/option injection, malformed hash, отсутствующий user/file, неизвестный login и login без подходящего wiki capability, invalid UTF8, protected Protocol, lock contention/cleanup, nonzero Fossil. Предсказание: до реализации отсутствующее поведение FAIL; после — полный declared focused suite PASS, reject cases без изменения текущей wiki. Сам exit0 не покрывает readback.
 - [x] W2 — административные страницы и шаблон подготовлены; публикация отдельно W3. <!-- sv: portfolio 0.35, reporting 0.40, source-routing 0.25 -->
   Пять новых страниц: Agent Corporation (вход/назначение), Projects (реестр/ссылка на проверенный паспорт), Participants (регистрации/границы), Reporting (порядок и шаблон), Knowledge (индекс и наполнение). Canonical ссылки ведут к tickets/technotes; wiki не дублирует живую очередь. Источники проектов — полный паспорт и повторный fossil all list, участники — текущий user без passwords. Не назначать неизвестные приоритеты, моделей, бюджеты и готовность.
-- [ ] W3 — проверенная публикация и отчёт. <!-- sv: publication 0.40, oracle 0.40, closure 0.20 -->
+- [x] W3 — проверенная публикация и отчёт. <!-- sv: publication 0.40, oracle 0.40, closure 0.20 -->
   После независимого focused oracle установить только два явно разрешённых genesis файла и штатный init. Перед каждым эффектом перечитывать относящийся ticket и wiki. Опубликовать org.py wiki-put --user codex с expected=absent; повторно прочитать каждую через org.py wiki и сравнить полные UTF8 bytes/hash. Проверить все внутренние ссылки и полное равенство множеств адресов/логинов свежему снимку: исходный паспорт содержит39 адресов и12 логинов, но изменение любого множества требует обновления паспорта либо остановки его публикации. Проверить отсутствие секретов; опубликованный Protocol должен совпасть с принятой новой редакцией, а wiki-put не должен его менять; чужие ticket state неизменны. Закрепить technote report с доказательствами и честными остатками. DONE только после readback, результат исполнителя отдельно от заключения проверки.
-- [ ] W4 — документация, запись границы и scoped commit. <!-- sv: documentation 0.45, traceability 0.35, scoped-commit 0.20 -->
+- [x] W4 — документация, запись границы и scoped commit. <!-- sv: documentation 0.45, traceability 0.35, scoped-commit 0.20 -->
   Дать адресуемый вход через docs/README.md; факты/правила отчётности — wiki, docs маршрутизирует. _progress_log.md одна запись. Проверка плана explore-agent после изменений. Терминал сохраняет точный остаток; завершённый план moves plans_completed и normal commit именует его. Посторонний dirty work сохраняется.
 
 ## Риски, откат, закрытие
@@ -44,7 +44,19 @@ Envelope: 36 шагов, 80 tool calls, 2 коррекции на проблем
 
 SUCCESS = пять полных readbacks, связность и источник каждой страницы, проверенный gateway, финальный организационный отчёт, clean scoped handoff; runtime/производственная готовность внешних проектов сюда не входят. Owner touches для routine procedures — 0; содержательное уточнение назначения было в предыдущем шаге, не повторяется.
 
+## Закрытие — 2026-10-10T13:27Z
+
+✓ CONFIRMED (независимый focused suite run20261010T122301Z_547755fc):15/15 OK; installed genesis source digests совпадают; Protocol полный readback SHA25614c33997653e4ea934da5d10c987de6ddfaa82bef60d92d37f9dbc58033cf33c. Рабочий report W1 сохранён отдельно.
+
+✓ CONFIRMED (PASS_CURRENT_W3): полные пять readbacks и Charter/Protocol совпадают с UTF8 sources; wiki/artifact/ticket links существуют; secret scan PASS. Свежий snapshot41 artifactf203e60434ddfea5764da9ca00d5fbceb59a5483cd00a94915a8f7904859f1ac полностью совпадает с fossil all list, исходные39 сохранены, delta2 snapshots,12 login прежние. Прежний check_prepared FAIL не скрыт, критерий свежести восстановлен дополнительным полным снимком. Главная/Knowledge содержат Charter и его sources; Projects содержит старый и новый снимки. Проверка experiments/2026-10-10_organization-wiki/verification-20261010T1326.md сохраняется отдельным native technote, полный payload сравнивается.
+
+Docs маршрутизирует к реальным wiki/артефактам. Эта запись и новая progress boundary входят только в scoped commit, именующий план, со штатным hook. Фактический commit и финальный build20261010T132600Z_35e651e0 подтверждаются завершающим technote после чтения их полного результата; при неуспехе DONE не выполняется. Чужие README/progress/source/MASTER_PLAN hunks сохранены. Отчёты не выдают кадровых прав: t15/t19/t20, production readiness и raw-tool countermeasure вне этого результата. Дополнительных вопросов владельцу0.
+
 ## Граница W2 — 2026-10-10T00:59Z
+
+### Уточнение W3 — 2026-10-10T13:24Z
+
+✓ CONFIRMED (сравнение полных fossil all list множеств): теперь41 адрес, исходные39 сохранены, ровно два additions — существующие snapshots OpenCode;12 логинов прежние. Оракул старого паспорта39 честно FAIL; не ослабляется и не удаляется. Дополнительный датированный registry snapshot хранит всё актуальное множество, полностью сравнивается со свежим CLI результатом и readback technote. Исторический passport неизменен. В рамках W2/W3 Projects получает адрес нового snapshot; главная и Knowledge — опубликованный Charter и источник. Candidate generation остаётся в experiments; никаких прав или готовности новых проектов из этого не выводится. W3 oracle теперь сравнивает полный current snapshot41 и отдельно old39⊂current41 с точно установленным delta2, плюс все12 login и полные readbacks/links. Бюджет текущего heartbeat30 calls/10min/2 коррекции; старые бюджеты не возобновляются.
 
 ✓ CONFIRMED (check_prepared.py exit0 PASS_PREPARED_ONLY): пять Markdown страниц, fence/SV/link checks и проверка явных секретных форматов прошли; полное множество39 адресов совпало с текущим fossil all list, все файлы существуют; множество12 user login совпало. Это проверка подготовленных текстов, не публикации wiki. Gateway baseline: отсутствующий wiki-put exit2 invalid choice. Остаток W1/W3: реализовать и независимо проверить verb, затем только publish/readback.
 

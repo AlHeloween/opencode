@@ -487,15 +487,15 @@ export function extractMessageDominant(text: string): string | undefined {
 }
 
 /**
- * The signature a SNAPSHOT carries when the reply it closes wrote a vector — one token, the vector's
- * own address plus what it is about.
+ * The signature a SNAPSHOT carries when the reply it closes wrote a vector: a searchable address
+ * and the reply's full YAML roadmap, preserving its weights, dominant and chain fields.
  *
  * WHY THE COMMIT SIGNS ITSELF (owner, 2026-10-03). `@CURRENT_SV` is a rule in the middle of the
  * static prefix, and an instruction's POSITION in the window is part of its strength: the emission
  * was measured obeying at prompt 352 776 and gone at 389 893 and 498 315. A reminder in the tail
  * note treats the symptom and rides the same window that is failing. The signature treats the
  * cause — it makes the vector the ADDRESS of a durable artefact, so a reply that omitted it leaves
- * its snapshot unsigned and `fossilgrep sv:<md5>` cannot find the work, which is a fact the next
+ * its snapshot unsigned and its Fossil comment carries no vector address, which is a fact the next
  * turn can read rather than a rule it has to remember.
  *
  * Returns undefined when the reply declared no vector. An unsigned snapshot is not a broken one —
@@ -503,9 +503,16 @@ export function extractMessageDominant(text: string): string | undefined {
  */
 export function vectorSign(text: string | undefined): string | undefined {
   if (!text || !hasSemanticVector(text)) return undefined
-  const { md5 } = extractVectorChain(text)
+  const lines = vectorTail(text).split("\n")
+  const start = lines.findLastIndex((line) => line.startsWith("Keywords:"))
+  const vector = lines
+    .slice(start)
+    .filter((line) => /^(Keywords|Semantic dominant|md5|prev-md5|parent-goal-md5):/.test(line))
+    .map((line) => line.trimEnd())
+    .join("\n")
+  const { md5 } = extractVectorChain(vector)
   if (!md5) return undefined
-  const dominant = extractMessageDominant(text)
+  const dominant = extractMessageDominant(vector)
   const about = dominant ? ` dominant=${dominant.replace(/\s+/g, " ").slice(0, 80)}` : ""
-  return `sv:${md5}${about}`
+  return `sv:${md5}${about}\n\n${vector}`
 }

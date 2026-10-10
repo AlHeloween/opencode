@@ -480,7 +480,8 @@ export const layer = Layer.effect(
               // changes and no extras-to-add, a commit would fail with
               // "nothing has changed" after seconds of work (measured 4.75s
               // no-op locally; ~48s inside the live loop with DB contention).
-              // Skip the entire commit/tag chain and return the current hash.
+              // Unsigned no-ops return the current hash. A signed reply records its
+              // roadmap even when the tree is unchanged, using --allow-empty below.
               const noExplicitFiles = files === undefined || files.length === 0
               if (noExplicitFiles) {
                 const changes = yield* fossil(["changes"], { cwd: worktree }).pipe(
@@ -500,7 +501,7 @@ export const layer = Layer.effect(
                   )
                   hasAdds = addremoveDry.code === 0 && /added \d+ files?/i.test(addremoveDry.text)
                 }
-                if (!hasChanges && !hasAdds) {
+                if (!sign && !hasChanges && !hasAdds) {
                   const probe = yield* fossil(["info"], { cwd: worktree })
                   const hash = currentHash(probe.text)
                   log.debug("snapshot skipped — no working-copy changes", { hash })
@@ -592,7 +593,7 @@ export const layer = Layer.effect(
                       }
                       return { code, text }
                     })
-              if (pending.code === 0 && !pending.text.trim()) {
+              if (!sign && pending.code === 0 && !pending.text.trim()) {
                 const probe = yield* fossil(["info"], { cwd: worktree })
                 const hash = currentHash(probe.text)
                 log.debug("tracking skipped — nothing to commit", { hash })
@@ -609,7 +610,7 @@ export const layer = Layer.effect(
               // is passed. Since this is a snapshot system where fork topology
               // doesn't matter, always allow forking.
               // THE SIGN IS PART OF THE MESSAGE, not a second field fossil has no column for: it is
-              // what `fossilgrep sv:<md5>` and `fossil timeline` both already read. A snapshot taken
+              // what `fossil info` and the timeline read. A snapshot taken
               // at a reply that wrote a semantic vector is therefore addressable BY that vector, and
               // a reply that omitted one leaves an unsigned commit — visible as such rather than as
               // an indistinguishable "same as always".
@@ -620,6 +621,7 @@ export const layer = Layer.effect(
                 "--no-warnings",
                 "--allow-fork",
                 "--hash",
+                ...(sign ? ["--allow-empty"] : []),
               ]
               let commitResult = yield* fossil(commitArgs, { cwd: worktree })
 

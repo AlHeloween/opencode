@@ -27,7 +27,7 @@
 - [Gate add-ons](gate-addons.md) — advisory path bindings per kernel gate, addon registry, budget guardrails
 - [AGI Workflow](agi-workflow.md) — orchestrator/worker loop, plan hygiene
 - [Startup & bootstrap](startup-bootstrap.md) — cold start, CodeGraph, Fossil vs git/jj
-- [Fossil snapshot system](fossil-snapshot.md) — **canonical** agent undo/redo leaves, extras cleanup, HISTORY_INVALID
+- [Fossil snapshot system](fossil-snapshot.md) — **canonical** agent undo/redo leaves, полный YAML SV и дорожная карта ответов, extras cleanup, HISTORY_INVALID
 - [External File Locations](external-file-locations.md) — where opencode reads/writes files
 - [Linux deploy](linux-deploy.md) — Linux build and portable install
 - [Tools and sidecars](tools-and-sidecars.md) — `tools/` binaries, Fossil/rg/markdownify

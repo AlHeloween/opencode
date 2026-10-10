@@ -4,6 +4,14 @@
 Code: `packages/opencode/src/snapshot/fossil.ts`, `packages/opencode/src/session/revert.ts`.  
 Audit / bug history: `plans_completed/fossil-undo-redo-fix.md`.
 
+```yaml
+Keywords: fossil-snapshots 0.40, semantic-roadmap 0.30, restore 0.20, history-readback 0.10
+Semantic dominant: История Fossil связывает полные YAML SV завершённых ответов со снимками дерева и поддерживает восстановление файлов.
+md5: 9ac281f5b7364d0ea874c1923b5de608
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 00000000000000000000000000000000
+```
+
 ---
 
 ## 1. Role (do not conflate)
@@ -28,15 +36,16 @@ Bootstrap: [startup-bootstrap.md](startup-bootstrap.md).
 
 ## 2. Mental model: leaves, not per-file soup
 
-### 2.0 When a leaf is taken — boundaries, all of them BEFORE (2026-09-17; sidecar row removed 2026-09-21)
+### 2.0 Snapshot boundaries (updated 2026-10-10)
 
-A snapshot is the state you revert **to**, so it is taken before the thing it
-covers. There is no decision about *whether* to snapshot and no inspection of
-what a turn did:
+Перед первой операцией записи ход получает baseline через `checkpoint()` — адрес
+существующего leaf. Завершение хода записывает его результат в фоне. Undo/redo
+сохраняют состояние, которое предстоит покинуть:
 
 | Boundary | Code | Why here |
 |---|---|---|
-| Start of a user turn | `session/processor.ts` — `beginTurn` + `track(undefined)` | The baseline to revert to. Taken before anything is touched, so it needs no evidence about what the turn will do. |
+| First write-class tool of a turn | `session/processor.ts` — `snapshot.checkpoint()` | Адрес дерева до записи для последующего undo. |
+| Completed reply | `session/processor.ts` — `track(undefined, vectorSign(text))` | Состояние дерева и полный SV ответа; фоновая запись сериализуется semaphore Fossil. |
 | Before an undo | `session/revert.ts` — `revert` | The state you are leaving must be recoverable, or redo has nothing to return to. |
 | Before a redo | `session/revert.ts` — `unrevert` | Same rule in the other direction. `checkout` replaces the working copy wholesale, so an edit made while the cursor sat back in the sequence was destroyed with no trace. |
 
@@ -54,23 +63,49 @@ list contains no track/auto-add key); a new file stays `extras` until
 `addremove` runs, and `addremove` only runs inside `track()`. That call *is* the
 automatic tracking.
 
-Once per USER turn, never per command and never per assistant message:
-`beginTurn` both answers and registers, so a turn spanning fifty tool calls and
-several assistant messages snapshots once. `track()`'s early-exit returns the
-current hash without a commit chain when the working copy has not moved, which
-covers the read-only turns (measured 2026-09-15: 1220 of 2380 snapshot-bearing
-messages called no write-class tool at all).
+Вызов закрытия выполняется при `turnEnds`, а не после каждого tool call. Без SV
+и без изменений `track()` возвращает текущий hash. С SV создаётся checkin даже
+для read-only ответа (`--allow-empty`): это отдельный шаг дорожной карты с тем
+же деревом. `snapshot: false` отключает и такие записи.
 
-**What this replaced.** From c41c4b9bf2 (2026-09-10) the decision was made at the
+**Historical baseline policy.** From c41c4b9bf2 (2026-09-10) the decision was made at the
 END of a turn from per-tool evidence. `bash`/`run`/`task`/`pipeline` emit no
 `filediff` metadata — only `edit.ts` and `write.ts` do — so "zero changed files"
 covered both `bun --version` and a command that had just created a file, and
 every shell mutation fell out of undo coverage. `test/session/snapshot-tool-race.test.ts`
 stated the lost contract and was red the whole time.
 
-A bash mutation is therefore covered **relative to the turn baseline, at the next
-boundary**: `Snapshot.diff(hash)` is `fossil diff --from`, which reports tracked
-files only, and a freshly created file is `extras` until the next `track()`.
+A freshly created file remains `extras` until `track()` runs `addremove` at the
+completion boundary; `Snapshot.diff(hash)` reports tracked files only.
+
+### 2.0.1 Полный SV как дорожная карта
+
+Комментарий подписанного checkin начинается с совместимого
+`auto-snapshot sv:<md5> dominant=<краткая тема>`, затем содержит полный YAML SV
+последнего ответа: `Keywords` с исходными весами, полный `Semantic dominant`,
+`md5`, `prev-md5`, `parent-goal-md5`. Markdown-ограждение удаляется; значения
+полей сохраняются. Отсутствующие поля не достраиваются. SV показывает внимание
+и связи ходов; PASS, gate или SVM из него не выводятся.
+
+Читать полную запись можно через `fossil info HASH` из корня worktree. Для
+последовательного чтения всех комментариев без сокращения:
+
+```sql
+SELECT blob.uuid, event.comment
+FROM event JOIN blob ON blob.rid = event.objid
+WHERE event.type = 'ci'
+ORDER BY event.mtime, event.objid;
+```
+
+Запрос выполняется через `fossil sql -R PATH_TO_SNAPSHOT_FSL`. `fossilgrep`
+ищет содержимое версий файлов, поэтому для SV в комментариях checkin нужен
+`info`, timeline или SQL. OpenCode DB для чтения этого YAML не требуется.
+
+Signed read-only шаг платит стоимость обычного Fossil commit/обхода дерева;
+его непосредственный parent→checkout diff пустой, и `lastImpact()` покажет
+ноль изменённых файлов. Старые checkin, содержащие только сокращение SV,
+автоматически не дополняются. Новая запись действует в runtime, собранном с
+этим изменением.
 
 ### 2.1 Leaves
 

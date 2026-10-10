@@ -11,8 +11,23 @@ export function listen(rpc: Definition) {
       return
     }
     if (parsed.type === "rpc.request") {
-      const result = await rpc[parsed.method](parsed.input)
-      postMessage(JSON.stringify({ type: "rpc.result", result, id: parsed.id }))
+      // A rejecting handler must become an `rpc.error` REPLY, never an escaping rejection.
+      // `onmessage` is async and nobody holds its promise, so a throw here surfaced as
+      // `unhandledRejection` — and the worker answers that with `process.exit(1)`
+      // (cli/cmd/tui/worker.ts), killing the whole TUI transport over ONE failed call while
+      // the host process kept serving. Measured 2026-10-10: TUI empty, server alive.
+      try {
+        const result = await rpc[parsed.method](parsed.input)
+        postMessage(JSON.stringify({ type: "rpc.result", result, id: parsed.id }))
+      } catch (error) {
+        postMessage(
+          JSON.stringify({
+            type: "rpc.error",
+            id: parsed.id,
+            error: error instanceof Error ? error.message : String(error),
+          }),
+        )
+      }
     }
   }
 }
@@ -35,10 +50,14 @@ export function client<T extends Definition>(target: {
     } catch {
       return
     }
-    if (parsed.type === "rpc.result") {
+    if (parsed.type === "rpc.result" || parsed.type === "rpc.error") {
       const entry = pending.get(parsed.id)
       if (entry) {
-        entry.resolve(parsed.result)
+        if (parsed.type === "rpc.error") {
+          entry.reject(new Error(parsed.error))
+        } else {
+          entry.resolve(parsed.result)
+        }
         pending.delete(parsed.id)
       }
     }

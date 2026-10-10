@@ -70,4 +70,73 @@ describe("util.rpc", () => {
 
     expect(true).toBe(true)
   })
+
+  /**
+   * 2026-10-10 regression: `Rpc.listen`'s `onmessage` is async and nobody holds its promise, so a
+   * rejecting handler escaped as `unhandledRejection` — which the TUI worker answers with
+   * `process.exit(1)` (`cli/cmd/tui/worker.ts`). ONE failed proxied fetch therefore killed the whole
+   * TUI transport while the host server kept serving: empty TUI, healthy server.
+   *
+   * A rejecting handler must become an `rpc.error` reply the caller can read, and must never reject
+   * the (unobserved) `onmessage` promise.
+   */
+  test("a rejecting handler replies rpc.error instead of escaping as a rejection", async () => {
+    const replies: string[] = []
+    const original = {
+      postMessage: globalThis.postMessage,
+      onmessage: (globalThis as any).onmessage,
+    }
+
+    globalThis.postMessage = ((data: string) => {
+      replies.push(data)
+    }) as unknown as typeof postMessage
+
+    try {
+      Rpc.listen({
+        boom: async () => {
+          throw new Error("upstream unreachable")
+        },
+      } as any)
+
+      const handler = (globalThis as any).onmessage as (evt: { data: string }) => unknown
+      const returned = handler({
+        data: JSON.stringify({ type: "rpc.request", method: "boom", input: undefined, id: 7 }),
+      }) as Promise<unknown>
+
+      // The unobserved promise must RESOLVE. A rejection here is the whole defect: nothing awaits
+      // `onmessage`, so it becomes `unhandledRejection`, which the worker answers with exit(1).
+      expect(
+        await returned.then(
+          () => "resolved",
+          () => "REJECTED",
+        ),
+      ).toBe("resolved")
+
+      const reply = JSON.parse(replies[0]!)
+      expect(reply.type).toBe("rpc.error")
+      expect(reply.id).toBe(7)
+      expect(reply.error).toContain("upstream unreachable")
+    } finally {
+      globalThis.postMessage = original.postMessage
+      ;(globalThis as any).onmessage = original.onmessage
+    }
+  })
+
+  test("client rejects with the worker's error message", async () => {
+    const worker = fakeWorker()
+    const client = Rpc.client<{ ping: (input: undefined) => string }>(worker as any)
+    const promise = client.call("ping", undefined)
+    const request = JSON.parse(worker.messages[0]!)
+
+    worker.onmessage!({
+      data: JSON.stringify({ type: "rpc.error", id: request.id, error: "upstream unreachable" }),
+    } as any)
+
+    const error = await promise.then(
+      () => undefined,
+      (e) => e as Error,
+    )
+    expect(error).toBeInstanceOf(Error)
+    expect(error!.message).toContain("upstream unreachable")
+  })
 })

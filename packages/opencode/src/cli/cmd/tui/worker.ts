@@ -29,10 +29,15 @@ await Log.init({
 Heap.start()
 
 process.on("unhandledRejection", (e) => {
+  // Log, do NOT exit. This process is the TUI's only transport: exiting here answered a single
+  // background rejection (an unreachable upstream fetch, a plugin promise) with a dead RPC channel
+  // — the TUI went blank while the host server kept running and healthy (measured 2026-10-10).
+  // A rejection is a defect to report, not a reason to take the user's terminal down.
+  // OPENCODE_STRICT_WORKER=1 restores the old kill for bisecting a hang.
   Log.Default.error("rejection", {
     e: e instanceof Error ? e.message : e,
   })
-  process.exit(1)
+  if (process.env["OPENCODE_STRICT_WORKER"] === "1") process.exit(1)
 })
 
 process.on("uncaughtException", (e) => {
@@ -147,7 +152,23 @@ export const rpc = {
       target.protocol = base.protocol
       target.host = base.host
       headers["authorization"] ??= basic(upstream.token)
-      const response = await fetch(target, { method: input.method, headers, body: input.body })
+      let response: Response
+      try {
+        response = await fetch(target, { method: input.method, headers, body: input.body })
+      } catch (error) {
+        // The upstream died mid-request. Surface it as a 502 the caller can read instead of an
+        // escaping rejection, which used to take the whole worker down via unhandledRejection.
+        // `follow()` repairs the stream on its own; this call simply loses this round trip.
+        Log.Default.warn("worktree host: proxied fetch failed", {
+          url: upstream.url,
+          error: errorText(error),
+        })
+        return {
+          status: 502,
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ error: `worktree host unreachable: ${errorText(error)}` }),
+        }
+      }
       return {
         status: response.status,
         headers: Object.fromEntries(response.headers.entries()),

@@ -2,7 +2,7 @@
 
 # Plan hygiene in build mode + closing the accumulated plans
 
-**Status:** DRAFT. Owner, 2026-10-10, verbatim: «В том то все и дело что большая часть этих планов выполнена, у нас есть серьезный баг и его надо решить: смотри по протоколу - если все оракулы окей, план взяли и поместили в завершенные, обновили доки. Если потом чего вылезло - делаем новый план.» Also: «люди … слишком налегают на греп без codegraph» — the sweep below obeys that: the graph is asked first, grep only as a negative text control.
+**Status:** ACTIVE — M1 done 2026-10-10 (commit `9d4174ee41`); M2 (the TUI half) and SW (the sweep) are open. Owner, 2026-10-10, verbatim: «В том то все и дело что большая часть этих планов выполнена, у нас есть серьезный баг и его надо решить: смотри по протоколу - если все оракулы окей, план взяли и поместили в завершенные, обновили доки. Если потом чего вылезло - делаем новый план.» Also: «люди … слишком налегают на греп без codegraph» — the sweep below obeys that: the graph is asked first, grep only as a negative text control.
 
 ## 0. Grounding (read with instruments, 2026-10-10)
 
@@ -31,9 +31,9 @@
 
 ## 3. Tasks
 
-- **M1 — the mechanism.** Call `reconcilePlans(worktree)` on the path that runs in every mode, immediately before the debt is computed in `session/prompt.ts` (near `:2049`), so the note reports the repaired tree. Errors → `log.warn("bug: plan hygiene failed …")`, never a throw. Oracle: a new test — a `plans/*.md` with zero open boxes lands in `plans_completed/` on the pass, and a file with `- [ ]` stays.
-- **M2 — the TUI half.** The plan panel must reflect the same pass rather than only AGI activation (`agi-mode.tsx:718`). Oracle: the status surface shows the post-pass state; absence renders FALSE (AGENTS invariant).
-- **S1…Sn — the sweep.** For each plan in `plans/`, one plan at a time: read its boxes → for each box whose work appears done, find the oracle **named in that plan** → run it today, one file per invocation → tick with the run id → when no open box remains, `git mv` to `plans_completed/` in a commit naming the plan → update docs if the plan changed them. Anything that surfaces as genuinely undone becomes a **new** plan (owner's protocol), never a reopened one.
+- [x] **M1 — the mechanism.** DONE 2026-10-10, commit `9d4174ee41`. `reconcilePlans(worktree)` runs in `session/prompt.ts` immediately BEFORE the note's one read of the plan tree (the block now at `:2046-2066`; `const plans = parsePlanFiles(worktree)` at `:2067`), so the debt the note prints is the tree's own. Errors collected and logged; the call is guarded because a throw on the prompt path would take every turn with it. Oracle, three runs of `test/util/plan-status.test.ts`, ONE FILE PER INVOCATION: baseline 23 pass/0 fail/67 expect (`20261010T190047Z_cf1a50c4`) → 25/0/72 (`20261010T190222Z_30bcd83b`); MUTATION, call removed, 24 pass/1 fail/71 expect exit 1 (`20261010T190320Z_5bf21a74`); restored from `.bak` → 25/0/72 (`20261010T190331Z_f9bc042a`). `bun typecheck` exit 0 (`20261010T190248Z_ffc3cb28`); `_build.ps1` green, `dist/bin/opencode.exe` 303 793 664 B relanded.
+- [ ] **M2 — the TUI half.** The plan panel must reflect the same pass rather than only AGI activation (`agi-mode.tsx:718`). Oracle: the status surface shows the post-pass state; absence renders FALSE (AGENTS invariant).
+- [ ] **SW — the sweep of the accumulated plans.** Owner, 2026-10-10: «большая часть этих планов выполнена… если все оракулы окей, план взяли и поместили в завершенные, обновили доки. Если потом чего вылезло - делаем новый план.» For each plan in `plans/`, ONE plan at a time: read its boxes → for each box whose work appears done, find the oracle **named in that plan** → run it TODAY, one file per invocation → tick with the run id → when no open box remains, `git mv` to `plans_completed/` in a commit naming the plan → update docs if the plan changed them. A box with no runnable oracle today is LEFT ALONE and reported (`R3`); anything genuinely undone becomes a **new** plan, never a reopened one.
 
 ## 4. Smoke Tests
 

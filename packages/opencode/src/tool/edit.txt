@@ -2,7 +2,7 @@ Change files by the line addresses `read` printed. **MODIFY / PERSISTENT_WRITE /
 
 ## One call, every file
 
-The whole call is `{"files": [...]}` — ONE element per file, and `filePath` is **required** on every element. The change itself is exactly one of `edits` (changes to an existing file) or `content` (create a new file).
+The whole call is `{"files": [...]}` — ONE element per file, and `filePath` is **required** on every element. The change itself is exactly one of `edits` (changes to an existing file) or `content` (create a new file). **`edit` is the only file tool whose `filePath` is nested**: `write`, `read`, `restore` take it at the TOP level, and this asymmetry is the most expensive mistake made against this tool (three refusals in one session, 2026-10-10) — `edit` needs the `files` array because it addresses several files in one call, and a top-level `filePath` beside `files` is an error before any address is checked.
 
 ```json
 {
@@ -24,6 +24,13 @@ The whole call is `{"files": [...]}` — ONE element per file, and `filePath` is
 
 `read` prints `470  3f19c2ea: text`. The hash is a chain over the file up to that line, so it pins the FILE, not just a line number. **Use the hash printed beside the line you mean** — the address is the lines themselves.
 
+The chain runs over the WHOLE file, so an address fingerprints a POSITION and never a text match: two IDENTICAL lines get DIFFERENT addresses (the text-matching path this replaced refused a duplicated line as «Found multiple matches» — that is what this design was built to kill). Four consequences a reader should hold before re-reading anything «just to be sure» — the first three measured 2026-10-01 on the promoted binary, the fourth re-measured 2026-10-10:
+
+- the address is CONTENT, not path — a copy of the file under another name carries the SAME addresses;
+- `read`'s window does not move an address — one line hashes identically at `offset:88/limit:12` and at `98/5`, so re-reading a region with another `offset` invalidates nothing you already hold;
+- CRLF and LF produce the SAME addresses (the terminator is excluded), so a file's endings never change what you address;
+- **a change moves every address BELOW it and NONE above.** An edit ABOVE another writer's change still lands with the addresses you hold; one BELOW it refuses until you re-read. That is what makes several agents on one tree safe — the guarantee is not «one writer wins» but «no silent clobber of what you addressed».
+
 Every example below is one full call; `<file>` stands for the `filePath` of the `files` element that carries the entry.
 
 Replace lines A..B — both inclusive; `newString` must carry every line you want to KEEP from that span, as it should read:
@@ -31,7 +38,7 @@ Replace lines A..B — both inclusive; `newString` must carry every line you wan
 {"files":[{"filePath":"<file>","edits":[{"fromHash":"<hash of A>","toHash":"<hash of B>","newString":"<lines A..B as they should read>"}]}]}
 ```
 
-Replace exactly one line A (`toHash` omitted):
+Replace exactly one line A — `toHash` omitted, **or passed equal to `fromHash`**: both spell the same thing, and the equal-hash form is NOT an insertion (measured 2026-10-10: a three-line file stayed three lines). Insertion is `insertAfter`, further down.
 ```json
 {"files":[{"filePath":"<file>","edits":[{"fromHash":"<hash of A>","newString":"<that line as it should read>"}]}]}
 ```
@@ -58,7 +65,7 @@ Rules that hold for every entry:
 - `newString` is written EXACTLY as sent — column for column. Its **first line is not re-indented** to match the line it replaces: for indentation-sensitive code (Python) send every line at its absolute indent (`    if x:` — the `if` included). The result shows the written lines at once, so a slip is visible there and fixed in one more edit.
 - Every address must be a hash `read` printed for THIS file; there is no fuzzy match — a stale hash means *read again*.
 - `newString` is the new lines. A trailing line break is optional: the last line ends as the replaced one did.
-- **No address resolves, nothing is written — in any file.** Every entry of every file is checked against the files as you read them before anything is saved.
+- **No address resolves, nothing is written — in any file.** Every entry of every file is checked against the files as you read them before anything is saved. The refusal NAMES the file and the failing entry (`…/probe.txt: edit 1: \`fromHash\` is not in this file`), so it points at the one file to re-read — measured 2026-10-10.
 
 ## Endings and encodings
 
@@ -78,7 +85,7 @@ The result then closes with the file's FRESH ADDRESSES, so the next edit needs n
 - below the change EVERY line's address has moved (the chain runs over the whole file), and the result restates those labels (`N  hash`). Labels above the change are unchanged and are not repeated;
 - a list cut for length says so and names the offset to `read` for the rest.
 
-### `edit` and `write` do not print addresses — only `read` does
+### `write` prints no addresses; `edit` does — and its block chains the next edit
 
 This is the trap that costs the most turns. A `write` result carries **no address block at all**
 (the file was created or replaced wholesale), so the next edit needs a `read` even when the file is

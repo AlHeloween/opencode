@@ -71,16 +71,19 @@ as FALSE». Модель на следующем шаге видит ошибк�
 - [x] **S4 — цикл из 9 разных вызовов давится**: **PASS** — тот же run, тест `session.processor caps
       the storm-shaped loop of nine cycling calls`: 72 вызова (9 пар по кругу) → ровно 8 отказов, все
       начиная с 65-го, ни одного раньше. Именно эта форма повторяет шторм, который `doom_loop` пропустил.
-- [ ] **S5 — регрессия**: **UNKNOWN, не «зелёный»** — перепроверено 2026-10-10T16:0xZ. Файлы, поднимающие
-      fixture с git (`tmpdir({git:true})` / `provideTmpdirServer`), висят молча: `processor-effect.test.ts`
-      (runs `20261010T160246Z_fed337f7`, `20261010T160309Z_3385f261`) и `finish-step.test.ts`
-      (`20261010T160345Z_8eb74aae`) — `running`, `bytes_written: 0`, >7 мин, ни одной строки лога сверх
-      заголовка. **Контроль без тяжёлого fixture РАБОТАЕТ**: существующий `processor-tool-identity.test.ts` —
-      1 pass / 0 fail / 5 expect / 3.24 s, exit 0 (run `20261010T160236Z_3dcd37ee`). Примитив fixture
-      (`git init` → `git config core.fsmonitor/gpgsign/user.*` → `git commit --allow-empty`) отрабатывает за
-      доли секунды без зависания ⇒ дело не в git и не в этом изменении. Это HARNESS-дефект класса
-      «`bun test` молча висит на fixture-классе с git-репозиторием» (совпадает с прежним контролем
-      `20261010T103525Z_f694ea1f`). Не выполнено; закрывать S5 нельзя, пока harness не поднят.
+- [x] **S5 — регрессия**: **PASS — по одному файлу за прогон** (2026-10-10T16:2xZ, shell-путь). Прежний
+      вывод «harness висит» был НЕВЕРЕН и откатывается целиком. Факт: `bun test` с НЕСКОЛЬКИМИ файлами
+      за один вызов молча встаёт (`running`, `bytes_written: 0`, >4 мин — run `20261010T162837Z_5e572a5c`),
+      и это не связано с этим изменением (тот же прогон встаёт и на посторонних файлах); правило AGENTS
+      «называй файл или каталог» это и обходит. По одному файлу ЗЕЛЁНО через shell-путь
+      (`cmd_runner start -- bun test <file>`):
+      `test/session/processor-tool-identity.test.ts` — 1 pass / 0 fail / 3.24 s (run `20261010T160236Z_3dcd37ee`);
+      `test/session/finish-step.test.ts` — 6 pass / 0 fail / 26 expect / 6.27 s, exit 0;
+      `test/session/processor-effect.test.ts` (S1–S4 + 16 существующих) — 20 pass / 0 fail / 83 expect / 59.00 s.
+      Откат ложного диагноза: правки `test/preload.ts` (`OPENCODE_CODEGRAPH_MCP=0` и filewatcher opt-out)
+      и `.env` УДАЛЕНЫ, probe-файлы убраны. Почему диагноз был ложный: гейт codegraph под preload-правкой
+      честно возвращал `injected=false`, а тест всё равно «висел» — на деле он ИДЁТ 59 s, дольше моего
+      ожидания; `set OPENCODE_CODEGRAPH_MCP=0` в шелле «помогало» лишь совпадением с shell-путём запуска.
 - [x] **S6 — typecheck** `bun typecheck` из `packages/opencode` — exit 0. **PASS** — свежий перезамер
       после правок: run `20261010T160146Z_c7334b39`, `finished`, `exit_code 0`, `bytes_written 320`,
       `bytes_dropped 0`, `truncated false`; лог = `$ tsgo --noEmit`, ни одной диагностики.

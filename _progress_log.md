@@ -1,5 +1,10 @@
 # Progress Log
 
+## [2026-10-10T16:35Z] tool-call-cap — S5 PASS; «harness висит» ОТОЗВАНО
+
+✓ CONFIRMED (по одному файлу через shell-путь `cmd_runner start -- bun test <file>`): S5 плана plans/2026-10-10_tool-call-cap.md закрыт — `test/session/processor-tool-identity.test.ts` 1 pass/0 fail/3.24 s; `test/session/finish-step.test.ts` 6 pass/0 fail/26 expect/6.27 s exit0; `test/session/processor-effect.test.ts` (S1–S4 + 16 существующих) 20 pass/0 fail/83 expect/59.00 s.
+
+✗ REFUTED (запись `[2026-10-10T16:05Z]`, отзывается): «S5 упирается в harness» — неверно. Причина «молчания» двойная и не в продукте: (1) `bun test` с НЕСКОЛЬКИМИ файлами за один вызов встаёт (`running`, `bytes_written: 0`, >4 мин — run `20261010T162837Z_5e572a5c`), обходится правилом AGENTS «называй файл»; (2) `processor-effect.test.ts` не висит — идёт 59 s, дольше моего ожидания. Ложный диагноз «codegraph MCP / filewatcher» опирался на совпадение: правки `test/preload.ts` (opt-out MCP и watcher) и `.env` «помогали» лишь потому, что шли вместе с shell-путём запуска; гейт codegraph под preload-правкой честно вернул `injected=false`, а тест всё равно «висел». Правки `test/preload.ts`, `.env` и probe-файлы ОТКАЧЕНЫ, дерево чистое.
 ## [2026-10-10T16:05Z] tool-call-cap — S6 typecheck PASS, S5 упирается в harness
 
 ✓ CONFIRMED (`bun typecheck` из packages/opencode, run `20261010T160146Z_c7334b39`, finished/exit_code 0, bytes_written 320, drops 0, truncated false; лог = `$ tsgo --noEmit` без диагностик): S6 плана plans/2026-10-10_tool-call-cap.md закрыт. Правка `src/session/processor.ts` (+42 строк): `MAX_TOOL_CALLS_PER_MESSAGE = 64` и `ctx.toolCallCount` на assistant-сообщение; 65-й вызов уходит в `failToolCall(...)` с названным текстом, `doom_loop` не тронут. Три строки сбитой индентации в файле восстановлены вручную.

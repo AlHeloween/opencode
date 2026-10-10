@@ -1,5 +1,11 @@
 # Progress Log
 
+## [2026-10-10] Устав Agent Corporation — документальная редакция
+
+✓ CONFIRMED (первичный диалог владельца/Клода JSONL15656b89…:10218–10295, Protocol111–115, независимый read-only review): составлен docs/organization-charter.md с девятью статьями о назначении, источниках, запуске первым агентом, ролях, продвижении, непрерывной памяти, делегации, отчётности и противоречиях. Нормы отделены от невыполненных t15/t19/t20; ни должности, ни ACL, ни kernel не устанавливались. Исправленная редакция 29612bytes SHA2562ae9e9a3bda38b0988002147fddec6ec37ffd0da742d0f6d61ab840642497a0d сохранена native report под codex, artifact0ff4df72fb5e1c1eeaee73e53dae57f70844aa1ded3cecee39552b85678d34aa; полный W-payload совпал. Исторический исходник39a857… сохранён. Добавлены входы docs/README.md и organization-reporting.md. Задача1fcfd2aa87e630b20c194feb6d696af825011b5a; план2026-10-10_agent-corporation-charter.md. Журнал experiments/2026-10-10_organization-charter/contradictions.md хранит файл/строку/основание/следующую проверку. Wiki Charter ещё не опубликована: W3 по задаче88987e…; контекст ссылок преобразуется явно, фиксируются два digest. Сборка run20261010T012140Z_b313ce3e и scoped commit пока pending; этот текст не объявляет runtime-ready. Owner touches для выполнения — 0 дополнительных запросов.
+
+Закрывающая граница: ✓ CONFIRMED (cmd_runner полный state/log) _build.ps1 -Task build под pwsh7 run20261010T012140Z_b313ce3e finished/exit0, stdout50474bytes/666lines, no drops/truncation, artifacts только в кандидатных путях. Raw backend не исправлен; журнал именует класс отказа и проверку замены. План перенесён в plans_completed/2026-10-10_agent-corporation-charter.md; завершающий scoped commit и полный verification technote фиксируют финальную границу. Никакой runtime promotion или wiki publication здесь не подразумевается.
+
 ## [2026-10-09 12:43 +08:00] Codex aicall: штатный CLI, исправление неверного маршрута
 
 ✓ `.agents/skills/aicall/SKILL.md` исправлен по указанию пользователя: Codex спрашивает GPT через `codex exec`, без Sonnet/Claude/HTTP подмены и добавленного reviewer prompt. Claude-скилл не редактировался. quick_validate.py exit 0; git diff --check exit 0; файл прочитан обратно.

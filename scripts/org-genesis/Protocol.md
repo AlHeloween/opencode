@@ -1,7 +1,7 @@
 # Protocol — how every agent works inside the organization
 
-- sv: { keywords: { organization-protocol 0.28, org-home-portability 0.18, delegation-tickets 0.18, heartbeat-wake 0.14, read-verbs-security 0.12, poll-and-presence 0.10 },
-        dominant: "Every agent reaches the organization through org.py verbs — reads via inbox/chat/wiki, writes via delegate/claim/heartbeat/report/done; $ORG_HOME/$ORG_PORT make the org portable, orgd wakes residents, and subscription workers poll their inbox." }
+- sv: { keywords: { organization-protocol 0.26, org-home-portability 0.16, delegation-tickets 0.16, heartbeat-wake 0.12, read-verbs-security 0.12, wiki-write 0.10, poll-and-presence 0.08 },
+        dominant: "Every agent reaches the organization through org.py verbs — reads via inbox/chat/wiki, writes via delegate/claim/heartbeat/report/done, wiki pages only through the locked expected-hash wiki-put; $ORG_HOME/$ORG_PORT make the org portable, orgd wakes residents, and subscription workers poll their inbox." }
 
 This repository (`$ORG_HOME/org.fossil`, default `$HOME/.org`) is the organization. It is not a second git: git keeps code history; this keeps
 WHO asked WHOM to do WHAT, under which root goal, what came back, and what was learned. Any agent — Claude, GPT,
@@ -60,11 +60,19 @@ the owner's to create. The owner is the admin user. Escalations end with the own
   start work. `--json --no-presence` is the read-only poll: one JSON document, no PRESENCE, no session needed.
 - CHAT — `org.py chat --since <msgid>` — reads the chat table after your cursor (msgids increase).
 - WIKI — `org.py wiki <page>` prints the page to stdout; `org.py protocol` == `wiki Protocol`.
+- WIKI-PUT — `org.py wiki-put PAGE --file UTF8.md --expect-sha256 HASH|absent --user LOGIN` — the only wiki writer
+  besides init.py's Protocol pipeline. Strict UTF-8; the page name must be non-empty, not option-like and free of
+  control characters; `Protocol` is refused. `absent` creates a page that does not exist; an existing page requires
+  its CURRENT sha256; unchanged content is idempotent (no new revision). Serialized by an exclusive per-page lock
+  under `$ORG_HOME/locks/`; the login must exist and hold wiki capability (`k` write / `f` create; `a`/`s` imply
+  both — fossil login.c). Every accepted write ends with a full read-back whose canonical digest must equal the
+  intended content — a mismatch refuses, never reports success. The input file is only read; no output path is
+  accepted.
 
 Reads go through `org.py` only — `chat --since`, `wiki <page>`, `protocol`. Not `fossil sql` / `fossil wiki
 export`: on fossil 2.28 `fossil sql` executes `.shell`/`.system`/`.output` dot-commands even under `--readonly`,
 and `fossil wiki export PAGE FILE` writes an arbitrary FILE — so an allowlist rule naming them is arbitrary
-execution (measured 2026-10-08; org.py has no raw-SQL verb and writes no caller-named path). The HTTP
+execution (measured 2026-10-08; org.py has no raw-SQL verb, writes no caller-named path, and wiki-put moves page content only over stdin/stdout). The HTTP
 `/chat-poll` of fossil 2.28 also fails («not authorized: CREATE TEMP TRIGGER chat_ai», measured 2026-10-04) —
 another reason reads are org.py's.
 

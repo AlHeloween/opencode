@@ -1,5 +1,11 @@
 # Progress Log
 
+## [2026-10-10T06:25Z] Wiki-put реализация — W1 oracle подтверждён
+
+✓ CONFIRMED (python scripts/org-genesis/test_wiki_put.py -v, 15 tests OK, 10.303s): focused suite прошёл полностью — create/readback Unicode, update/readback, unchanged идемпотентен, stale hash rejected, absent-on-existing rejected, hash-on-missing rejected, page validation (empty/option/control), expect-hash validation (bad hex/missing), missing user/file, unknown login rejected, login without capability rejected, invalid UTF8 rejected, Protocol protected, lock contention/cleanup, fossil nonzero rejected. Каждый reject-кейс проверяет отказ И нетронутость репозитория (page digests + lock files). Реализация: org.py wiki-put с per-page lock, canonical LF+trailing-newline, capability guard (fossil CLI не enforce'ит для -U — measured), readback digest. Protocol.md документирует verb. Тест: scripts/org-genesis/test_wiki_put.py (328 lines, isolated Fossil fixture).
+
+W1 → [x]. Остаток: W3 (publication — install genesis files + publish 5 wiki pages + full readback), W4 (docs уже в README, progress log пишется, scoped commit). Host toolchain AGENTS.md — отдельный коммит (независимая работа).
+
 ## [2026-10-10T05:07Z] Полный YAML SV в Fossil — план закрыт
 
 ✓ CONFIRMED (jobs.db cmd-4 status=done + dist/bin/opencode.exe 303029248 B @ 12:53:36): `_build.ps1` дошёл до «Build complete - artifacts in dist/» — последней строки Invoke-Build при $ErrorActionPreference=Stop; два внутренних smoke (10.0.1261 + reasoning_prompt embedded) прошли. Сборка шла мимо cmd_runner (pwsh — known tool), поэтому state.json нет; exit выведен из структуры скрипта и хвоста результата в jobs.db.

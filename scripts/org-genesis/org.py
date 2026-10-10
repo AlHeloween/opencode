@@ -9,6 +9,7 @@
     python $ORG_HOME/genesis/org.py inbox [--user X] [--json] [--no-presence]
     python $ORG_HOME/genesis/org.py chat --since <msgid>
     python $ORG_HOME/genesis/org.py wiki <page>          (protocol == wiki Protocol)
+    python $ORG_HOME/genesis/org.py wiki-put PAGE --file UTF8.md --expect-sha256 HASH|absent --user LOGIN
 
 Reads go straight to the SQLite file (mode=ro); every write goes through the fossil CLI so the
 repository keeps its artifact semantics. Identity: --user or $ORG_USER — the Fossil login is the
@@ -46,8 +47,10 @@ verb — exactly one candidate is used; zero or several is an error naming the f
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import re
 import sqlite3
 import subprocess
 import sys
@@ -395,6 +398,135 @@ def cmd_wiki(a) -> int:
     return 0
 
 
+def wiki_lock_path(page: str) -> Path:
+    """The exclusive per-page lock file, following the org's lock convention ($ORG_HOME/locks)."""
+    return LOCKS / f"wiki-{hashlib.sha256(page.encode('utf-8')).hexdigest()[:16]}.lock"
+
+
+def _wiki_canon(raw: bytes) -> bytes:
+    """Canonical wiki content: strict UTF-8, LF endings, one trailing newline.
+
+    fossil's wiki CLI stores a page as text lines, and its Windows export re-emits CRLF and
+    guarantees the trailing newline (measured 2026-10-10); pinning one canonical form on both
+    sides keeps a file's digest and a read-back's digest directly comparable."""
+    text = raw.decode("utf-8")
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    if text and not text.endswith("\n"):
+        text += "\n"
+    return text.encode("utf-8")
+
+
+def _fossil_bytes(*args: str, user: str | None = None, data: bytes | None = None):
+    """`fossil()` for byte-exact wiki content: same command shape (-R ORG, optional -U user),
+    but no text codec — the text path's errors="replace" would silently corrupt a page body."""
+    cmd = [find_fossil(), *args, "-R", str(ORG)]
+    if user:
+        cmd += ["-U", user]
+    return subprocess.run(cmd, input=data, capture_output=True)
+
+
+def _wiki_address(page: str) -> str | None:
+    """The artifact hash of the newest wiki event naming `page` (timeline -t w), when listed."""
+    out = _fossil_bytes("timeline", "-n", "20", "-t", "w")
+    if out.returncode != 0:
+        return None
+    for line in out.stdout.decode("utf-8", "replace").splitlines():
+        if f'wiki page "{page}"' in line:
+            match = re.search(r"\[([0-9a-f]{6,40})\]", line)
+            return match.group(1) if match else None
+    return None
+
+
+def _wiki_put_locked(page: str, content: bytes, expect: str, user: str, caps: str) -> int:
+    listing = _fossil_bytes("wiki", "list")
+    if listing.returncode != 0:
+        sys.exit(f"org: wiki-put: fossil wiki list failed: {(listing.stderr or listing.stdout).decode('utf-8', 'replace').strip()}")
+    exists = page in listing.stdout.decode("utf-8", "replace").splitlines()
+    if expect == "absent" and exists:
+        sys.exit(f"org: wiki-put: {page!r} already exists — pass its current sha256, not 'absent'")
+    if expect != "absent" and not exists:
+        sys.exit(f"org: wiki-put: {page!r} does not exist — pass 'absent' to create it")
+    if exists and not set(caps) & set("kas"):
+        sys.exit(f"org: wiki-put: login {user!r} lacks the wiki write capability ('k'; 'a'/'s' imply it)")
+    if not exists and not set(caps) & set("fas"):
+        sys.exit(f"org: wiki-put: login {user!r} lacks the wiki create capability ('f'; 'a'/'s' imply it)")
+    digest = hashlib.sha256(content).hexdigest()
+    if exists:
+        # the same read as cmd_wiki (`wiki export`), byte-pinned so the digest sees stored bytes
+        current = _fossil_bytes("wiki", "export", page)
+        if current.returncode != 0:
+            sys.exit(f"org: wiki-put: fossil wiki export failed: {(current.stderr or current.stdout).decode('utf-8', 'replace').strip()}")
+        try:
+            current_digest = hashlib.sha256(_wiki_canon(current.stdout)).hexdigest()
+        except UnicodeDecodeError as error:
+            sys.exit(f"org: wiki-put: the stored {page!r} is not valid UTF-8: {error}")
+        if expect != current_digest:
+            sys.exit(f"org: wiki-put: stale --expect-sha256 for {page!r}: expected {expect}, current {current_digest}")
+        if current_digest == digest:
+            print(f"wiki-put: {page}: unchanged sha256={digest} bytes={len(content)}")
+            return 0
+        action, verb = "commit", "updated"
+    else:
+        action, verb = "create", "created"
+    written = _fossil_bytes("wiki", action, page, user=user, data=content)
+    if written.returncode != 0:
+        sys.exit(f"org: wiki-put: fossil wiki {action} failed: {(written.stderr or written.stdout).decode('utf-8', 'replace').strip()}")
+    back = _fossil_bytes("wiki", "export", page)
+    if back.returncode != 0:
+        sys.exit(f"org: wiki-put: read-back of {page!r} failed: {(back.stderr or back.stdout).decode('utf-8', 'replace').strip()}")
+    try:
+        back_digest = hashlib.sha256(_wiki_canon(back.stdout)).hexdigest()
+    except UnicodeDecodeError as error:
+        sys.exit(f"org: wiki-put: read-back of {page!r} is not valid UTF-8: {error}")
+    if back_digest != digest:
+        sys.exit(f"org: wiki-put: readback mismatch for {page!r}: wrote sha256={digest}, read sha256={back_digest}")
+    address = _wiki_address(page)
+    print(f"wiki-put: {page}: {verb} sha256={digest} bytes={len(content)}" + (f" address={address}" if address else ""))
+    return 0
+
+
+def cmd_wiki_put(a) -> int:
+    page = a.page
+    if not page:
+        sys.exit("org: wiki-put: page name is empty")
+    if page.startswith("-"):
+        sys.exit("org: wiki-put: page name must not look like an option")
+    if any(ord(ch) < 32 or 0x7F <= ord(ch) <= 0x9F for ch in page):
+        sys.exit("org: wiki-put: page name contains control characters")
+    if page.lower() == "protocol":
+        sys.exit("org: wiki-put: the Protocol page is protected — init.py publishes it, not this verb")
+    if a.expect_sha256 != "absent" and not re.fullmatch(r"[0-9a-f]{64}", a.expect_sha256 or ""):
+        sys.exit("org: wiki-put: --expect-sha256 must be 'absent' or a lowercase 64-char hex digest")
+    try:
+        raw = Path(a.file).read_bytes()
+    except OSError as error:
+        sys.exit(f"org: wiki-put: cannot read {a.file}: {error}")
+    try:
+        content = _wiki_canon(raw)
+    except UnicodeDecodeError as error:
+        sys.exit(f"org: wiki-put: {a.file} is not valid UTF-8: {error}")
+    user = need_user(a)
+    found = rows("SELECT cap FROM user WHERE login = ?", (user,))
+    if not found:
+        sys.exit(f"org: wiki-put: no such user {user!r} — create it first (fossil user new {user} robot <secret> -R <org>)")
+    caps = str(found[0]["cap"] or "")
+    lock = wiki_lock_path(page)
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        handle = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        sys.exit(f"org: wiki-put: {page!r} is locked by another writer ({lock}) — retry after it finishes")
+    try:
+        os.write(handle, f"{os.getpid()} {now()}\n".encode("ascii"))
+        os.close(handle)
+        return _wiki_put_locked(page, content, a.expect_sha256, user, caps)
+    finally:
+        try:
+            lock.unlink()
+        except OSError as error:
+            print(f"org: wiki-put: could not remove the lock {lock}: {error}", file=sys.stderr)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="org.py", description="the organization's verbs over $ORG_HOME/org.fossil (default $HOME/.org)")
     common = argparse.ArgumentParser(add_help=False)
@@ -459,6 +591,12 @@ def main() -> int:
 
     p = sub.add_parser("protocol", help="print the Protocol wiki page (== wiki Protocol)")
     p.set_defaults(func=cmd_wiki, page="Protocol")
+
+    p = sub.add_parser("wiki-put", parents=[common], help="create/update a wiki page under an expected sha256 and a per-page lock")
+    p.add_argument("page", help="wiki page name (Protocol is refused — init.py publishes that page)")
+    p.add_argument("--file", required=True, help="UTF-8 file with the new page body (read only; no output path)")
+    p.add_argument("--expect-sha256", required=True, dest="expect_sha256", help="the page's current sha256, or 'absent' to create it")
+    p.set_defaults(func=cmd_wiki_put)
 
     args = parser.parse_args()
     return args.func(args)

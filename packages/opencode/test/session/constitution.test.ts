@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Constitution } from "../../src/session/constitution"
-import { enumerationToolDecision } from "../../src/session/enumeration-tools"
+import { enumerationToolDecision, resolveEnumerationTool } from "../../src/session/enumeration-tools"
+import { evaluateCommand } from "../../src/session/constitution"
 
 describe("session.constitution", () => {
   test("classifyCommandRisk ranks destructive git/rm", () => {
@@ -123,6 +124,64 @@ describe("session.constitution", () => {
       if (prev === undefined) delete process.env["OPENCODE_ALLOW_DESTRUCTIVE"]
       else process.env["OPENCODE_ALLOW_DESTRUCTIVE"] = prev
     }
+  })
+/**
+   * The AST path is what bash.ts/cmd.ts ACTUALLY use, and it used to disagree with guardCommand on the
+   * same string: `cmd /c dir /s /b` parses as ONE command whose head is `cmd`, so the enumerator behind
+   * the flag was never classified and the walk ran (measured 2026-10-10 —
+   * experiments/2026-10-10_constitution-wrapper-bypass/: parts [["cmd","/c","dir","/s","/b"]], blocked 0).
+   * guardCommand could never catch this: shellSegments already unwrapped wrappers there.
+   */
+  test("AST path (bash/cmd) blocks enumeration hidden behind a shell wrapper", async () => {
+    const isWin = process.platform === "win32"
+    // Wrapper forms — every one of these RAN the walk before the unwrap.
+    const bypasses: Array<[string, "cmd" | "bash"]> = [
+      ["cmd /c dir /s /b", "cmd"],
+      ["cmd.exe /c dir", "cmd"],
+      ['cmd /c "dir /s /b x\\*.c | find /c /v """', "cmd"],
+      ["powershell -Command Get-ChildItem", "cmd"],
+      ["bash -lc 'tree /f'", "bash"],
+      ["sudo tree /f", "bash"],
+      ["env FOO=1 tree /f", "bash"],
+    ]
+    for (const [command, shell] of bypasses) {
+const result = await evaluateCommand(command, shell)
+      expect(result.blocked.some((f) => f.isFileEnumerator)).toBe(true)
+    }
+
+    // A NAMED query is not a walk — the wrapper must not turn it into one (owner, 2026-10-10).
+    for (const [command, shell] of [
+      ["cmd /c dir /b one.obj", "cmd"],
+      ["bash -c 'cat file.txt'", "bash"],
+    ] as Array<[string, "cmd" | "bash"]>) {
+const result = await evaluateCommand(command, shell)
+      expect(result.blocked.some((f) => f.isFileEnumerator)).toBe(false)
+    }
+// The KNOWN-TOOLS allow-list survives the unwrap: a tool that lives in bin/ and passes its smoke is
+    // not under the constitution at all, so unwrapping must not revoke that it ever ran.
+    for (const [command, shell] of [
+      ["cmd /c ls", "cmd"],
+      ["cmd /c cat file.txt", "cmd"],
+      ["bash -lc 'ls'", "bash"],
+      ["bash -lc 'sed -n 1p file'", "bash"],
+    ] as Array<[string, "cmd" | "bash"]>) {
+      if (!resolveEnumerationTool(command.split(/\s+/).at(-1) ?? "")) continue
+      const result = await evaluateCommand(command, shell)
+      expect(result.blocked.some((f) => f.isFileEnumerator)).toBe(false)
+    }
+    // DATA, not commands: an argument that merely MENTIONS an enumerator stays untouched. `python -c`
+    // is the one that must never break — the agent scripting Python is not walking the box.
+    for (const command of [
+      "python -c \"print('dir /s')\"",
+      "node -e \"console.log('ls')\"",
+      "git commit -m 'drop dir /s'",
+    ]) {
+const result = await evaluateCommand(command, "bash")
+      expect(result.blocked.some((f) => f.isFileEnumerator)).toBe(false)
+    }
+
+    // `ls` is not an enumerator on native Windows, so only assert it where it is one.
+if (!isWin) expect((await evaluateCommand("bash -lc 'ls -la'", "bash")).blocked.length).toBeGreaterThan(0)
   })
 
   test("guardCommand blocks shell directory and file enumeration in every supported shell form", () => {

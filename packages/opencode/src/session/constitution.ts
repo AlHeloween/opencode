@@ -572,7 +572,87 @@ function targetedQuery(firstToken: string, tokens: string[]): boolean {
       return false
   }
 }
+/**
+ * Shell WRAPPERS hide the real command behind a legal head: `cmd /c dir /s /b` parses as ONE
+ * command whose first token is `cmd`, so the enumerator behind the flag was never classified and
+ * the walk ran (measured 2026-10-10 — `experiments/2026-10-10_constitution-wrapper-bypass/`:
+ * parts `[["cmd","/c","dir","/s","/b"]]`, blocked 0). The legacy regex path already unwrapped it
+ * (`shellSegments` → `unwrapShellCommand`), the AST path — the one bash.ts/cmd.ts actually use —
+ * did not, so the two disagreed on the same string.
+ *
+ * The unwrap runs on the TOKEN LIST and only for a wrapper that carries its OWN flag, so an argument
+ * that merely mentions an enumerator is untouched: `python -c "print('dir /s')"` and
+ * `node -e "console.log('ls')"` are DATA, not commands (owner, 2026-10-10: «питон вообще не трогай»).
+ */
+const _SHELL_WRAPPER_HEADS = new Set([
+  "cmd",
+  "sh",
+  "bash",
+  "zsh",
+  "ksh",
+  "dash",
+  "powershell",
+  "pwsh",
+  "sudo",
+  "command",
+  "env",
+  "nohup",
+  "exec",
+  "time",
+])
 
+/** Drop the wrapper and its own flags / `VAR=VALUE` assignments, repeatedly (depth-capped like the regex path). */
+function unwrapShellHead(tokens: string[]): string[] {
+  let current = tokens
+  for (let depth = 0; depth < 4; depth++) {
+    const head = current[0]?.replace(/^.*[/\\]/, "").replace(/\.exe$/, "").toLowerCase() ?? ""
+    if (!_SHELL_WRAPPER_HEADS.has(head) || current.length < 2) return current
+    const rest = current.slice(1)
+    // `cmd /c …` / `cmd /k …` — without the switch there is no wrapped command to unwrap.
+    if (head === "cmd") {
+      if (!/^\/[ck]$/i.test(rest[0] ?? "")) return current
+      current = rest.slice(1)
+      continue
+    }
+    // `bash -c` / `sh -lc` / `zsh -ic` — the flag must actually carry a `c`.
+    if (["sh", "bash", "zsh", "ksh", "dash"].includes(head)) {
+      const flag = (rest[0] ?? "").toLowerCase()
+      if (!flag.startsWith("-") || !flag.includes("c")) return current
+      current = rest.slice(1)
+      continue
+    }
+    // `powershell -NoProfile -Command …` — profile switches may precede the payload switch.
+    if (head === "powershell" || head === "pwsh") {
+      const at = rest.findIndex((t) => /^-(?:command|c)$/i.test(t))
+      if (at === -1) return current
+      current = rest.slice(at + 1)
+      continue
+    }
+    // `sudo -u root …`, `env -i FOO=1 …`, `command`, `nohup`, `exec`, `time` — skip their own syntax.
+    let at = 0
+    while (at < rest.length && (/^-/.test(rest[at]!) || /^[A-Za-z_][A-Za-z0-9_]*=/.test(rest[at]!))) at++
+    current = rest.slice(at)
+  }
+  return current
+}
+
+/**
+* A wrapper's payload arrives as a QUOTED token carrying a whole inner command line — `cmd /c "dir
+ * /s /b x | find …"` — which the batch grammar hands over as a string, sometimes SPLIT across two
+ * tokens (`["cmd","/c","\"dir … \"","\"\""]`, measured 2026-10-10), so the FIRST token decides, not
+ * the count. Split it with the quote-aware splitter the legacy path uses and keep the HEAD segment:
+ * that is the head-only contract this file already applies to a pipeline (`… | findstr … & dir /b
+ * one.obj` is plumbing, not the global searcher), not a new one.
+ *
+ * Only a QUOTED head is expanded — `cmd /c dir /b one.obj` (a targeted query) reaches the enumerator
+ * as a bare token and stays a targeted query.
+ */
+function expandWrappedPayload(tokens: string[]): string[] {
+  const head = tokens[0]
+  if (!head || (head[0] !== '"' && head[0] !== "'")) return tokens
+  const segments = shellSegments(unquote(head))
+  return segments.length ? segments[0]!.split(/\s+/) : tokens
+}
 /**
  * The enumeration decision for one first token: the block message, or undefined when the command
  * may run. ONE predicate for the AST path (`evaluate`) and the token path (`guardCommand`) — they
@@ -626,10 +706,13 @@ export function evaluate(root: Node, isCmd: boolean): ConstitutionEvalResult {
   // searcher that walks the box, and blocking it there killed legitimate builds.
   const nodes = [...tsCommands(root, isCmd)]
   for (const [index, node] of nodes.entries()) {
-    const commandParts = tsParts(node, isCmd)
-    const tokens = commandParts.map((p) => p.text)
+const commandParts = tsParts(node, isCmd)
+    // The wrapper is unwrapped on the TOKENS this command owns — never by scanning the raw line.
+    const rawTokens = commandParts.map((p) => p.text)
+const unwrapped = unwrapShellHead(rawTokens)
+    const tokens = unwrapped.length === rawTokens.length ? rawTokens : expandWrappedPayload(unwrapped)
     const lower = tokens.map((t) => t.toLowerCase())
-    const cmd = lower[0] ?? ""
+const cmd = lower[0] ?? ""
     const sub = lower[1]
 
     // git ls-files is always allowed — VCS oracle, not FS enumeration

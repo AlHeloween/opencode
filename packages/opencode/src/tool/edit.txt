@@ -78,6 +78,47 @@ The result then closes with the file's FRESH ADDRESSES, so the next edit needs n
 - below the change EVERY line's address has moved (the chain runs over the whole file), and the result restates those labels (`N  hash`). Labels above the change are unchanged and are not repeated;
 - a list cut for length says so and names the offset to `read` for the rest.
 
+### `edit` and `write` do not print addresses — only `read` does
+
+This is the trap that costs the most turns. A `write` result carries **no address block at all**
+(the file was created or replaced wholesale), so the next edit needs a `read` even when the file is
+one you just wrote. `edit` DOES print them — its result ends with the full fresh label list, so the
+next edit chains straight off it with no re-read (measured 2026-10-10).
+
+### The `N  hash: text` prefix is an address, not content
+
+The label is metadata the tool strips; it is NOT the line. Copying it into `newString` writes a line
+that literally reads `86fa63b8: }`, and the result then shows `78f7b028: 86fa63b8: }` — a mangled
+file that looks edited and parses. It happens when a `read` line is pasted whole instead of just its
+text. `newString` takes the text after the first `: `, at its absolute indent (measured
+2026-10-10: `fromHash`=line 574, `newString`=`86fa63b8: }` → LSP error, one extra edit to repair).
+
+### One edit per file per call — an entry does not carry the file name
+
+A `files` element without `filePath` is a schema error before any address is even checked, so two
+changes to the same file are two `files` elements or two `edits` entries in ONE element — never a
+bare second entry. A rejected multi-file call writes NOTHING, so a typo in element 3 does not
+silently apply elements 1-2.
+
+### A replacing span must carry every line you mean to KEEP
+
+`fromHash`..`toHash` is replaced by `newString` WHOLE. Omitting a line you meant to preserve deletes
+it — the tool reports success and the damage is only visible when you read the file back. When the
+span is large, quote the whole intended result rather than the delta.
+
+### One entry, one span — no speculative multi-range replacements
+
+Several changes to one file are SEVERAL entries, each with its own `fromHash`/`toHash`. One entry
+carrying a block of unrelated ranges either fails to resolve or writes one span where several were
+intended.
+
+### A diagnostic in another file is not a verdict on this edit
+
+LSP errors reported for OTHER files are pre-existing and say nothing about whether the write
+succeeded — the write already happened before the diagnostics run. Only errors on the file you
+addressed indicate that the newString did not parse; check the file's own section, then read it back
+(`@ORACLE`: a persistent write is proven by reading the artifact, not by a clean exit).
+
 ## Parameters
 
 | Parameter | Description |

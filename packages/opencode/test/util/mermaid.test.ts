@@ -5,7 +5,6 @@ import {
   renderMermaidToRgba,
   renderSvgToPngDataUrl,
   resetRendererCache,
-  resvgOptionsForSvg,
 } from "../../src/util/mermaid"
 import { parseSvgNaturalSize } from "../../src/util/fit-image"
 
@@ -65,27 +64,23 @@ describe("mermaid rendering", () => {
     expect(dataUrl!.length).toBeGreaterThan(100)
   })
 
-  test("renderSvgToPngDataUrl fits SVG to width; height automatic from aspect", async () => {
+  test("renderSvgToPngDataUrl preserves the SVG dimensions", async () => {
     const { Resvg } = await import("@resvg/resvg-js")
     const svg = await renderMermaidToSvg(flowchart)
     expect(svg).not.toBeNull()
     const natural = new Resvg(svg!, { background: "#fff" })
-    const targetW = 800
-    const dataUrl = renderSvgToPngDataUrl(svg!, "#ffffff", {
-      maxWidth: targetW,
-    })
+    const dataUrl = renderSvgToPngDataUrl(svg!, "#ffffff")
     expect(dataUrl).not.toBeNull()
     const b64 = dataUrl!.split(",")[1]!
     const j = (await import("jimp")) as any
     const img = await j.Jimp.read(Buffer.from(b64, "base64"))
-    // Width is the only constraint; height follows natural aspect.
-    expect(img.width).toBe(targetW)
+    expect(img.width).toBe(natural.width)
     expect(img.width / img.height).toBeCloseTo(natural.width / natural.height, 1)
   })
 
-  test("renderSvgToPngDataUrl width-fits tall SVG without height budget shrinking width", () => {
+  test("renderSvgToPngDataUrl does not shrink a tall SVG", () => {
     const tall = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="10000"><rect width="100" height="10000" fill="#333"/></svg>`
-    const dataUrl = renderSvgToPngDataUrl(tall, "#ffffff", { maxWidth: 200 })
+    const dataUrl = renderSvgToPngDataUrl(tall, "#ffffff")
     expect(dataUrl).not.toBeNull()
     // Decode is enough — width-only fit; height is large (not capped to 800).
   })
@@ -106,10 +101,11 @@ describe("mermaid rendering", () => {
     const frame = await renderMermaidToRgba(flowchart, {
       theme: "dark",
       background: "#1a1b26",
-      budget: { maxWidth: 640 },
+      cellWidth: 12,
     })
     expect(frame).not.toBeNull()
-    expect(frame!.width).toBe(640)
+    const svg = await renderMermaidToSvg(flowchart, { theme: "dark", cellWidth: 12 })
+    expect(frame!.width).toBe(Math.ceil(parseSvgNaturalSize(svg!)!.width))
     expect(frame!.height).toBeGreaterThan(0)
     expect(frame!.data.byteLength).toBe(frame!.width * frame!.height * 4)
   })
@@ -118,15 +114,15 @@ describe("mermaid rendering", () => {
   // The same (source, theme, background, budget) returns the SAME frame; any differing input is a
   // different frame — the control that keeps a cache from answering every question with one value.
   test("renderMermaidToRgba returns the stored frame for the same inputs, a new one for different inputs", async () => {
-    const options = { theme: "dark" as const, background: "#1a1b26", budget: { maxWidth: 320 } }
+    const options = { theme: "dark" as const, background: "#1a1b26", cellWidth: 12 }
     const first = await renderMermaidToRgba(flowchart, options)
-    const again = await renderMermaidToRgba(flowchart, { ...options, budget: { ...options.budget } })
-    const otherBudget = await renderMermaidToRgba(flowchart, { ...options, budget: { maxWidth: 240 } })
+    const again = await renderMermaidToRgba(flowchart, { ...options })
+    const otherBudget = await renderMermaidToRgba(flowchart, { ...options, cellWidth: 24 })
     const otherSource = await renderMermaidToRgba(sequence, options)
     expect(first).not.toBeNull()
     expect(again).toBe(first)
     expect(otherBudget).not.toBe(first)
-    expect(otherBudget!.width).toBe(240)
+    expect(otherBudget!.width).toBeGreaterThan(first!.width)
     expect(otherSource).not.toBe(first)
   })
 
@@ -143,84 +139,6 @@ describe("mermaid rendering", () => {
   })
 })
 
-describe("mermaid raster width is the budget, height is never budgeted", () => {
-  // End-to-end over real wasm output, not synthetic SVG. The contract this pins (owner, 2026-10-07):
-  // the diagram is DRAWN at the width we hand resvg and nothing else decides its size — no
-  // font-anchored scale, no clamp, no height. «ЗАДАЙ МАКСИМАЛЬНУЮ ШИРИНУ. БЕЗ ВЫСОТЫ»,
-  // «рендер svg ничего ресайзить не должен».
-  //
-  // Superseded: the 2026-09-18 font anchor (`scale = min(cellHeight/fontPx, maxWidth/naturalWidth)`)
-  // held apparent text size constant across diagrams by SHRINKING every diagram wider than the
-  // clamp — that shrink is what made wide diagrams unreadable.
-  const CELL_H = 20
-
-  const twoNodes = `graph TD
-    A[Start] --> B[End]`
-
-  const sixNodes = `graph TD
-    A[Start] --> B[Parse]
-    B --> C[Validate]
-    C --> D[Transform]
-    D --> E[Emit]
-    E --> F[End]`
-
-  const twelveNodeChain = `graph LR
-    ${Array.from({ length: 12 }, (_, i) => `N${i}[Node number ${i}] --> N${i + 1}[Node number ${i + 1}]`).join("\n    ")}`
-
-  beforeEach(() => resetRendererCache())
-
-  /** fitTo width emitted for a real diagram at a real budget. */
-  async function rasterWidth(
-    source: string,
-    budget: { maxWidth: number; cellHeight?: number; maxHeight?: number },
-  ): Promise<number> {
-    const svg = await renderMermaidToSvg(source)
-    expect(svg).not.toBeNull()
-    const opts = resvgOptionsForSvg(svg!, "#ffffff", budget)
-    expect(opts.fitTo).toBeDefined()
-    expect(opts.fitTo!.mode).toBe("width")
-    return opts.fitTo!.value
-  }
-
-  test("the raster is drawn at exactly the width budget", async () => {
-    expect(await rasterWidth(sixNodes, { maxWidth: 1200, cellHeight: CELL_H })).toBe(1200)
-  })
-
-  test("a narrow diagram gets the same width — width is габариты, not a clamp", async () => {
-    const svg = await renderMermaidToSvg(twoNodes)
-    const natural = parseSvgNaturalSize(svg!)!
-    expect(natural.width).toBeLessThan(1200)
-    expect(await rasterWidth(twoNodes, { maxWidth: 1200, cellHeight: CELL_H })).toBe(1200)
-  })
-
-  test("a diagram wider than the budget is still drawn at the budget width", async () => {
-    const svg = await renderMermaidToSvg(twelveNodeChain)
-    const natural = parseSvgNaturalSize(svg!)!
-    expect(natural.width).toBeGreaterThan(1200)
-    expect(await rasterWidth(twelveNodeChain, { maxWidth: 1200, cellHeight: CELL_H })).toBe(1200)
-  })
-
-  test("the terminal cell height never changes the width", async () => {
-    const at10 = await rasterWidth(twoNodes, { maxWidth: 1000, cellHeight: 10 })
-    const at20 = await rasterWidth(twoNodes, { maxWidth: 1000, cellHeight: 20 })
-    expect(at10).toBe(at20)
-  })
-
-  test("no height budget is honoured — the row budget cannot change the width", async () => {
-    // Owner ruling, 2026-10-07: «Height вообще никак не ограничиваем».
-    const svg = await renderMermaidToSvg(sixNodes)
-    const natural = parseSvgNaturalSize(svg!)!
-    const opts = resvgOptionsForSvg(svg!, "#ffffff", { maxWidth: 2000, cellHeight: CELL_H, maxHeight: 40 })
-    expect(opts.fitTo!.mode).toBe("width")
-    expect(opts.fitTo!.value).toBe(2000)
-    // The diagram is genuinely taller than the row budget, and stays that way.
-    const outHeight = (natural.height * opts.fitTo!.value) / natural.width
-    expect(outHeight).toBeGreaterThan(40)
-  })
-
-  test("a budget without a cell height behaves identically", async () => {
-    // The PNG symbol fallback and the inline quadrant path pass no cell geometry; there is no
-    // second sizing mode for them to fall into.
-    expect(await rasterWidth(twoNodes, { maxWidth: 1200 })).toBe(1200)
-  })
-})
+// The exact-width expectations from 2026-10-07 are superseded by the owner's
+// 2026-10-10 requirement: letters match TUI, regardless of diagram/window width.
+// Actual layout/raster/cache predicates live in mermaid-text-size.test.ts.

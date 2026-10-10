@@ -28,13 +28,15 @@ export function MediaMermaid(props: { source: string }) {
     // owner's dark theme, where the node fill visibly detached from the background. Same class as
     // the protocol cell: the value existed, a different one was read.
     const background = toHex(theme.theme.background)
-    return { theme: theme.mode() === "dark" ? "dark" as const : "default" as const, background }
+    return { theme: theme.mode() === "dark" ? ("dark" as const) : ("default" as const), background }
   }
 
-  return <MediaImage
-    mime="image/png"
-    layout="diagram"
-    renderNative={(budget) => renderMermaidToRgba(props.source, { ...options(), budget })}
-    fallbackDataUrl={() => renderMermaidToPngDataUrl(props.source, options())}
-  />
+  return (
+    <MediaImage
+      mime="image/png"
+      layout="diagram"
+      renderNative={({ cellWidth }) => renderMermaidToRgba(props.source, { ...options(), cellWidth })}
+      fallbackDataUrl={() => renderMermaidToPngDataUrl(props.source, options())}
+    />
+  )
 }

@@ -4,7 +4,7 @@ import type { OptimizedBuffer } from "../buffer.js"
 import { RGBA } from "../lib/RGBA.js"
 import type { ImageRenderProtocol, RenderContext, TerminalCapabilities } from "../types.js"
 
-export type ImageFit = "fit" | "cover" | "fill"
+export type ImageFit = "fit" | "cover" | "fill" | "none"
 export type ImageRenderableSource = ImageSource | NativeImage
 
 const TRANSPARENT = RGBA.fromValues(0, 0, 0, 0)
@@ -158,7 +158,7 @@ export class ImageRenderable extends Renderable {
     sourceHeight: number = this._image?.height ?? 0,
   ): { width: number; height: number } {
     if (sourceWidth <= 0 || sourceHeight <= 0 || targetWidth <= 0 || targetHeight <= 0) return { width: 0, height: 0 }
-    if (this._fit === "fill") return { width: targetWidth, height: targetHeight }
+    if (this._fit === "fill" || this._fit === "none") return { width: targetWidth, height: targetHeight }
 
     const displayAspect = (sourceWidth / sourceHeight) * cellAspectRatio
     const scale =
@@ -194,12 +194,18 @@ export class ImageRenderable extends Renderable {
     const x = originX + Math.floor((this.width - fitted.width) / 2)
     const y = originY + Math.floor((this.height - fitted.height) / 2)
     const resolution = pixelResolution(this._ctx)
-    const pixelWidth = resolution
-      ? Math.max(1, Math.round((fitted.width * resolution.width) / this._ctx.terminalWidth!))
-      : 0
-    const pixelHeight = resolution
-      ? Math.max(1, Math.round((fitted.height * resolution.height) / this._ctx.terminalHeight!))
-      : 0
+    const pixelWidth =
+      this._fit === "none" && resolution
+        ? this._image.width
+        : resolution
+          ? Math.max(1, Math.round((fitted.width * resolution.width) / this._ctx.terminalWidth!))
+          : 0
+    const pixelHeight =
+      this._fit === "none" && resolution
+        ? this._image.height
+        : resolution
+          ? Math.max(1, Math.round((fitted.height * resolution.height) / this._ctx.terminalHeight!))
+          : 0
     let sourceX = 0
     let sourceY = 0
     let sourceWidth = this._image.width

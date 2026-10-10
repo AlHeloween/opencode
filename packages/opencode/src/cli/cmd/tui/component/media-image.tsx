@@ -20,13 +20,7 @@ import { Spinner } from "./spinner"
 import { imageToChunks } from "@/util/image-to-ansi"
 import { readImage, toPngBytes } from "@/util/image-decode"
 import { fitContainSize } from "@/util/fit-image"
-import {
-  type ViewportState,
-  clampZoom,
-  sampleViewport,
-  zoomByWheel,
-  panByCells,
-} from "@/util/image-viewport"
+import { type ViewportState, clampZoom, sampleViewport, zoomByWheel, panByCells } from "@/util/image-viewport"
 import * as Log from "@opencode-ai/core/util/log"
 
 const log = Log.create({ service: "tui.media.image" })
@@ -73,12 +67,9 @@ export function subscribeCapabilities(renderer: CapsRenderer, handler: () => voi
   if (!subscribers) {
     subscribers = new Set()
     capabilitySubscribers.set(renderer as object, subscribers)
-    ;(renderer as unknown as { on: (event: unknown, fn: () => void) => void }).on(
-      CliRenderEvents.CAPABILITIES,
-      () => {
-        for (const subscriber of [...subscribers!]) subscriber()
-      },
-    )
+    ;(renderer as unknown as { on: (event: unknown, fn: () => void) => void }).on(CliRenderEvents.CAPABILITIES, () => {
+      for (const subscriber of [...subscribers!]) subscriber()
+    })
   }
   subscribers.add(handler)
   return () => {
@@ -123,8 +114,10 @@ export function solidBorderCropBounds(frame: RgbaFrame, padding: number = 0, tol
     const offset = (y * frame.width + x) * 4
     return [0, 1, 2, 3].every((channel) => Math.abs(frame.data[offset + channel]! - background[channel]!) <= tolerance)
   }
-  const rowIsBackground = (y: number) => Array.from({ length: frame.width }, (_, x) => isBackground(x, y)).every(Boolean)
-  const columnIsBackground = (x: number) => Array.from({ length: frame.height }, (_, y) => isBackground(x, y)).every(Boolean)
+  const rowIsBackground = (y: number) =>
+    Array.from({ length: frame.width }, (_, x) => isBackground(x, y)).every(Boolean)
+  const columnIsBackground = (x: number) =>
+    Array.from({ length: frame.height }, (_, y) => isBackground(x, y)).every(Boolean)
 
   let top = 0
   let bottom = frame.height - 1
@@ -187,7 +180,10 @@ export function nativeGraphicsLayoutMode(renderer: CapsRenderer): GraphicsLayout
   return graphicsLayoutMode(renderer)
 }
 
-export function cellPixelSize(renderer: CapsRenderer, mode?: GraphicsLayoutMode): { cellWidth: number; cellHeight: number } {
+export function cellPixelSize(
+  renderer: CapsRenderer,
+  mode?: GraphicsLayoutMode,
+): { cellWidth: number; cellHeight: number } {
   if (mode === "sixel" && hasSixelCellGeometry(renderer)) {
     return {
       cellWidth: renderer.cellSize!.width,
@@ -354,6 +350,8 @@ export function MediaImage(props: {
   renderNative?: (budget: {
     maxWidth: number
     maxHeight: number
+    /** Physical monospace advance used by vector layout. */
+    cellWidth: number
     /** Measured cell height — lets vector sources scale their text per terminal font. */
     cellHeight: number
   }) => Promise<RgbaFrame | null>
@@ -458,6 +456,7 @@ export function MediaImage(props: {
           ? await props.renderNative({
               maxWidth: Math.max(1, Math.round(bounds.maxCols * cells.cellWidth)),
               maxHeight: Math.max(1, Math.round(bounds.maxRows * cells.cellHeight)),
+              cellWidth: cells.cellWidth,
               cellHeight: Math.max(1, Math.round(cells.cellHeight)),
             })
           : null
@@ -515,7 +514,10 @@ export function MediaImage(props: {
           log.debug("MediaImage: native path", {
             mode,
             detectedMode,
-            calibrated: mode === "sixel" ? hasSixelCellGeometry(renderer as CapsRenderer) : hasTerminalPixelGeometry(renderer as CapsRenderer),
+            calibrated:
+              mode === "sixel"
+                ? hasSixelCellGeometry(renderer as CapsRenderer)
+                : hasTerminalPixelGeometry(renderer as CapsRenderer),
             interactive: Boolean(props.interactive),
             displayW: displaySize.width,
             displayH: displaySize.height,
@@ -687,32 +689,10 @@ export function MediaImage(props: {
   return (
     <Switch>
       <Match when={state() === "native" && frame()}>
-        {(f) => (
-          <box
-            paddingTop={1}
-            paddingLeft={2}
-            flexDirection="column"
-            flexShrink={0}
-            minHeight={nativeImageCellRows(f().height, cellPixelSize(renderer as CapsRenderer, mode).cellHeight) + 1}
-            onMouseScroll={props.interactive ? handleMouse : undefined}
-            onMouseDown={props.interactive ? handleMouse : undefined}
-            onMouseDrag={props.interactive ? handleMouse : undefined}
-            onMouseDragEnd={props.interactive ? handleMouse : undefined}
-            onMouseUp={props.interactive ? handleMouse : undefined}
-          >
-            {/* OpenTUI 0.5.11 contract (packages/opentui/.../renderables/Image.ts): the
-             * renderable has NO Yoga measure function and NO `data`/`imageWidth`/`imageHeight`
-             * props — an unknown prop is assigned as a plain JS property and read by nobody
-             * (reconciler setProperty). Two things are therefore mandatory and both were
-             * missing after the re-base:
-             *   1. the frame must be handed over through setImage() AT REF TIME. The old
-             *      frame-effect never ran: it returned on `!imageRef` while the element did
-             *      not exist yet, so `state()` was never read and never tracked — the later
-             *      setState("native") could not re-trigger it, and the mounted element kept
-             *      `image === null` (measured 2026-09-21 in the dist build: mermaid frame
-             *      ready, element mounted, nothing painted).
-             *   2. the cell box must be explicit, because renderSelf() bails on
-             *      `!this._image || width <= 0 || height <= 0` (Image.ts:184). */}
+        {(f) => {
+          const rows = () => nativeImageCellRows(f().height, cellPixelSize(renderer as CapsRenderer, mode).cellHeight)
+          const cols = () => nativeImageCellCols(f().width, cellPixelSize(renderer as CapsRenderer, mode).cellWidth)
+          const image = () => (
             <image
               ref={(r: ImageRenderable) => {
                 imageRef = r
@@ -728,14 +708,45 @@ export function MediaImage(props: {
                   layoutHeight: r.height,
                 })
               }}
-              width={nativeImageCellCols(f().width, cellPixelSize(renderer as CapsRenderer, mode).cellWidth)}
-              height={nativeImageCellRows(f().height, cellPixelSize(renderer as CapsRenderer, mode).cellHeight)}
+              width={cols()}
+              height={rows()}
+              flexShrink={0}
+              fit={props.layout === "diagram" ? "none" : "fit"}
             />
-            <Show when={props.interactive && hint()}>
-              <text fg={theme.textMuted}>{hint()}</text>
-            </Show>
-          </box>
-        )}
+          )
+          return (
+            <box
+              paddingTop={1}
+              paddingLeft={2}
+              flexDirection="column"
+              flexShrink={0}
+              minHeight={rows() + (props.layout === "diagram" ? 2 : 1)}
+              onMouseScroll={props.interactive ? handleMouse : undefined}
+              onMouseDown={props.interactive ? handleMouse : undefined}
+              onMouseDrag={props.interactive ? handleMouse : undefined}
+              onMouseDragEnd={props.interactive ? handleMouse : undefined}
+              onMouseUp={props.interactive ? handleMouse : undefined}
+            >
+              {props.layout === "diagram" ? (
+                <scrollbox
+                  width="100%"
+                  height={rows() + 1}
+                  scrollX={true}
+                  scrollY={false}
+                  contentOptions={{ width: cols(), minWidth: cols(), maxWidth: cols() }}
+                  flexShrink={0}
+                >
+                  {image()}
+                </scrollbox>
+              ) : (
+                image()
+              )}
+              <Show when={props.interactive && hint()}>
+                <text fg={theme.textMuted}>{hint()}</text>
+              </Show>
+            </box>
+          )
+        }}
       </Match>
       <Match when={state() === "symbols" && styledText()}>
         <box paddingTop={1} paddingLeft={2}>
@@ -763,7 +774,10 @@ export function MediaImage(props: {
   )
 }
 
-async function decodeAndSymbols(dataUrl: string, maxCols: number): Promise<{ styled: StyledText; content: string } | null> {
+async function decodeAndSymbols(
+  dataUrl: string,
+  maxCols: number,
+): Promise<{ styled: StyledText; content: string } | null> {
   const match = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/)
   if (!match) return null
   const [, ext, base64] = match

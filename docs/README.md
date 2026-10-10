@@ -12,7 +12,7 @@
 - [Отчётность и wiki организации](organization-reporting.md) — входы к паспорту, портфелю, участникам и отчётам Agent Corporation
 - [Устав агентной корпорации](organization-charter.md) — роли, продвижение по проверенным результатам, непрерывная память и самостоятельный запуск
 
-- [Rendering Pipeline](rendering.md) — LLM→terminal display, mermaid, images
+- [Rendering Pipeline](rendering.md) — LLM→terminal display, Mermaid font metrics, natural pixels, horizontal viewport, images
 - [Architecture](architecture.md) — prompt system, checkpoint, compaction, agents, KV cache
 - [Agentic reasoning runtime](agentic-reasoning-runtime.md) — gates, REUSE ladder, claim ledger, host-agnostic SPECS
 - [Kernel package](../prompt_kernel/README.md) — gate graph, serialization order, source of the runtime prefix

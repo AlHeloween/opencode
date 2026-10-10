@@ -1,7 +1,7 @@
 # Rendering Pipeline — LLM Response → Terminal Display
 
 **Status:** production  
-**Last Updated:** 2026-09-23
+**Last Updated:** 2026-10-10
 
 > **3D terminal rendering note:** Three.js WebGPU via `@opentui/three` has known issues
 > on this platform (see §14). The working 3D pipeline uses GPU compute shaders + Sixel
@@ -526,19 +526,39 @@ The `trailingUnstable` parameter:
 
 ## 6. Mermaid Diagram Rendering
 
+### Text size contract (2026-10-10)
+
+The native path measures the terminal cell width and sets Mermaid's font size BEFORE layout:
+`fontSize = cellWidth * unitsPerEm / advanceWidth(M)`. Fontkit reads the same Consolas face that
+WASM registers and resvg uses; embedded Cascadia Mono remains the fallback. Resetting WASM also
+resets font registration and metrics. The cache includes cell width.
+
+SVG is rasterized at its natural size. `ImageRenderable.fit="none"` preserves source pixels even
+when the reserved cell box rounds up. Narrow diagrams keep their width; wide diagrams use a horizontal
+scrollbox whose content width/minWidth/maxWidth equal the image's reserved columns. Its full height
+belongs to the surrounding session scrollbox. Attachments retain their previous fit behavior.
+
+The PNG/symbols fallback remains available without terminal graphics; physical font equality is only
+defined for the native pixel path. Fixed-width enlargement and raster budget inputs were removed.
+
+Regression predicates: glyph advance at 12/24px; unchanged label size across short/long diagrams;
+font reset; pixel-exact 23x19 source in a rounded 24x20 cell box; horizontal wheel reaches the last
+column at 40/80 terminal columns; tall diagrams scroll with the parent; nonempty symbol fallback.
+Tests live in `test/util/mermaid-text-size.test.ts`, `test/tui/mermaid-text-size.test.tsx`, and
+OpenTUI `src/tests/image-natural-size.test.ts`.
+
 ### Pipeline
 
 ```
 Mermaid source
   → splitTextSegments() (text-segments.ts regex)
-  → renderMermaidToPngDataUrl (mermaid.ts)
+  → MediaMermaid → renderMermaidToRgba (mermaid.ts)
     → getRenderer() lazy loader — first call dynamically imports WASM
     → withTimeout() — 10s timeout guard
     → renderMermaidToSvg (mermaid.ts) — mermaid-wasm-renderer v0.3.1 (Rust → WASM)
-    → renderSvgToPngDataUrl (mermaid.ts) — @resvg/resvg-js v2.6.2 (SVG → PNG)
-  → PNG data URL → <MediaImage interactive> (media-image.tsx)
-    → decode → RGBA → OpenTUI <image> PixelBuffer → Kitty or Sixel → terminal
-    → half-block symbols when the terminal has no graphics protocol
+    → font metrics → SVG layout → resvg at natural size → RGBA
+  → MediaImage diagram → horizontal viewport → OpenTUI image fit=none → Kitty/Sixel
+    → PNG → half-block symbols when the terminal has no graphics protocol
 ```
 
 **Files:**

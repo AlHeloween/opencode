@@ -15,6 +15,7 @@ import * as Log from "@opencode-ai/core/util/log"
 import { Global } from "@opencode-ai/core/global"
 import fs from "fs"
 import path from "path"
+import { create as readFont } from "fontkit"
 import { readEmbeddedWasmAsset } from "./wasm-embedded"
 import { getMermaidWasmRenderer, resetMermaidWasmRenderer, type MermaidWasmRenderer } from "./mermaid-wasm"
 import type { AnsiChunk } from "./image-to-ansi"
@@ -22,43 +23,7 @@ import type { AnsiChunk } from "./image-to-ansi"
 const log = Log.create({ service: "mermaid.renderer" })
 
 const MERMAID_RENDER_TIMEOUT = 10_000 // 10s max per diagram
-/**
- * Cell pixel budget for high-quality terminal display.
- * Match OpenTUI Image defaults (~18×35) so SVG is rasterized at screen density,
- * not a ~12×20 low-res stamp that looks like a pixelated screenshot.
- */
-const FALLBACK_CELL_W = 18
-
-export type SvgFitBudget = {
-  /**
-   * The ONE dimension we set: the width the diagram is drawn at, in CSS px — the terminal's
-   * own width (owner, 2026-10-07: «в mermaid max width ширина в tui»).
-   */
-  maxWidth?: number
-  /** Accepted for compatibility — NOT a sizing input. Height is never constrained. */
-  maxHeight?: number
-  /** Accepted for compatibility — NOT a sizing input. See {@link resvgOptionsForSvg}. */
-  cellHeight?: number
-  /** Accepted for compatibility — NOT a sizing input. */
-  labelCells?: number
-}
-
-/** Terminal width budget (px) for mermaid SVG — height is not a budget input. */
-export function mermaidPixelBudget(opts?: SvgFitBudget): { maxWidth: number } {
-  const cols = process.stdout.columns ?? 80
-  return {
-    maxWidth: opts?.maxWidth ?? Math.max(64, cols * FALLBACK_CELL_W),
-  }
-}
-
-/**
- * Build resvg options: **width only**, height automatic from SVG aspect.
- *
- * Large diagrams always match the given width; tall diagrams stay tall (scroll)
- * instead of being re-shrunk by a maxHeight contain box.
- */
 type MermaidResvgFont = { loadSystemFonts: boolean; fontFiles: string[]; defaultFontFamily: string }
-type MermaidResvgOptions = { background: string; font?: MermaidResvgFont; fitTo?: { mode: "width" | "height"; value: number } }
 
 /** Embedded font options — the font travels WITH the binary (BunFS → materialized path). */
 function resvgFont(): { font?: MermaidResvgFont } {
@@ -66,21 +31,10 @@ function resvgFont(): { font?: MermaidResvgFont } {
   return { font: { loadSystemFonts: false, fontFiles: [mermaidFontFilePath], defaultFontFamily: mermaidFontFamily } }
 }
 
-export function resvgOptionsForSvg(_svg: string, background: string, budget?: SvgFitBudget): MermaidResvgOptions {
-  // WIDTH IS THE ONLY DIMENSION WE SET, and height is never budgeted: the diagram is drawn exactly
-  // `maxWidth` wide (the window's own width) and its height follows from the SVG's viewBox. There is
-  // no font-anchored scale, no clamp arithmetic and no row budget — the raster IS the drawing at its
-  // габариты, not a resized copy of it.
-  //
-  // Owner, 2026-10-07, replacing the 2026-09-26 font-anchor ruling: «ЗАДАЙ МАКСИМАЛЬНУЮ ШИРИНУ.
-  // БЕЗ ВЫСОТЫ», «рендер svg ничего ресайзить не должен». The anchor computed a scale from the
-  // terminal cell (`scale = min(cellHeight/fontPx, maxWidth/naturalWidth)`) and shrank the text of
-  // any diagram wider than the clamp — that shrink is what made wide diagrams unreadable.
-  return { background, ...resvgFont(), fitTo: { mode: "width", value: mermaidPixelBudget(budget).maxWidth } }
-}
-
 export interface MermaidRenderOptions {
   theme?: "default" | "dark" | "forest" | "neutral" | "modern"
+  /** One monospace glyph advances one terminal column, in physical pixels. */
+  cellWidth?: number
 }
 
 export type MermaidRgbaFrame = {
@@ -130,6 +84,10 @@ export async function registerMermaidFont(fontPath: string): Promise<boolean> {
 export function resetRendererCache(): void {
   _renderer = null
   _rendererLoading = null
+  mermaidFontFilePath = null
+  mermaidFontSetup = null
+  mermaidFontAdvance = null
+  mermaidFontFamily = MERMAID_EMBEDDED_FAMILY
   rgbaFrames.clear()
   resetMermaidWasmRenderer()
 }
@@ -148,9 +106,12 @@ let mermaidFontFamily = MERMAID_EMBEDDED_FAMILY
 // engine's calibrated fallback while the raster drew another face — labels were sized wrong
 // (owner: «размер шрифтов не учитывается», 2026-09-24). With the family in the theme, both
 // engines resolve the SAME face.
-const mermaidFontConfig = () =>
+const mermaidFontConfig = (cellWidth?: number) =>
   JSON.stringify({
-    themeVariables: { fontFamily: `${mermaidFontFamily}, ui-sans-serif, system-ui, sans-serif` },
+    themeVariables: {
+      fontFamily: `${mermaidFontFamily}, ui-sans-serif, system-ui, sans-serif`,
+      ...(cellWidth && cellWidth > 0 && mermaidFontAdvance ? { fontSize: cellWidth / mermaidFontAdvance } : {}),
+    },
   })
 
 // Embedded font: materialized once to a real file (resvg accepts only paths, not
@@ -159,6 +120,16 @@ const mermaidFontConfig = () =>
 // is never consulted, and the render is identical on every machine.
 let mermaidFontFilePath: string | null = null
 let mermaidFontSetup: Promise<void> | null = null
+let mermaidFontAdvance: number | null = null
+
+function registerFont(mod: MermaidWasmRenderer, bytes: Uint8Array): void {
+  const font = readFont(Buffer.from(bytes))
+  if ("fonts" in font) throw new Error("Mermaid requires a single font face")
+  const advance = font.glyphForCodePoint(77).advanceWidth / font.unitsPerEm
+  if (!Number.isFinite(advance) || advance <= 0) throw new Error("Mermaid font has no monospace advance")
+  mod.registerFont(bytes)
+  mermaidFontAdvance = advance
+}
 
 async function ensureMermaidFont(mod: MermaidWasmRenderer): Promise<void> {
   if (mermaidFontFilePath) return
@@ -170,7 +141,7 @@ async function ensureMermaidFont(mod: MermaidWasmRenderer): Promise<void> {
         const stat = await fs.promises.stat(candidate.file).catch(() => null)
         if (!stat || !stat.isFile()) continue
         const bytes = await fs.promises.readFile(candidate.file)
-        mod.registerFont(new Uint8Array(bytes))
+        registerFont(mod, new Uint8Array(bytes))
         mermaidFontFilePath = candidate.file
         mermaidFontFamily = candidate.family
         log.info("mermaid font ready (terminal face)", {
@@ -193,7 +164,7 @@ async function ensureMermaidFont(mod: MermaidWasmRenderer): Promise<void> {
       if (!known || known.size !== asset.bytes.byteLength) {
         await fs.promises.writeFile(file, Buffer.from(asset.bytes))
       }
-      mod.registerFont(new Uint8Array(asset.bytes))
+      registerFont(mod, new Uint8Array(asset.bytes))
       mermaidFontFilePath = file
       mermaidFontFamily = MERMAID_EMBEDDED_FAMILY
       log.info("mermaid font ready (embedded)", { file, bytes: asset.bytes.byteLength })
@@ -208,11 +179,7 @@ async function ensureMermaidFont(mod: MermaidWasmRenderer): Promise<void> {
 
 // ── Timeout wrapper ─────────────────────────────────────────────────────────
 
-function withTimeout<T>(
-  promise: Promise<T>,
-  source: string,
-  ms: number = MERMAID_RENDER_TIMEOUT,
-): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, source: string, ms: number = MERMAID_RENDER_TIMEOUT): Promise<T> {
   const onTimeout = new Promise<never>((_, reject) => {
     const id = setTimeout(() => {
       reject(new Error(`Mermaid render timed out after ${ms}ms (${source.slice(0, 80).replace(/\n/g, " ")})`))
@@ -225,15 +192,12 @@ function withTimeout<T>(
 // ── Rendering functions ─────────────────────────────────────────────────────
 
 /** Render Mermaid source to SVG using WASM (lazy loaded, with timeout) */
-export async function renderMermaidToSvg(
-  source: string,
-  options?: MermaidRenderOptions,
-): Promise<string | null> {
+export async function renderMermaidToSvg(source: string, options?: MermaidRenderOptions): Promise<string | null> {
   const started = performance.now()
   try {
     const mod = await withTimeout(getRenderer(), source)
     await ensureMermaidFont(mod)
-    const svg = mod.renderSvgWithConfig(source, mermaidFontConfig(), options?.theme ?? "modern")
+    const svg = mod.renderSvgWithConfig(source, mermaidFontConfig(options?.cellWidth), options?.theme ?? "modern")
     log.info("mermaid SVG rendered", {
       sourceChars: source.length,
       svgChars: svg.length,
@@ -251,14 +215,10 @@ export async function renderMermaidToSvg(
 }
 
 /** Rasterize SVG directly into the RGBA frame consumed by OpenTUI ImageRenderable. */
-export function renderSvgToRgba(
-  svg: string,
-  background?: string,
-  budget?: SvgFitBudget,
-): MermaidRgbaFrame | null {
+export function renderSvgToRgba(svg: string, background?: string): MermaidRgbaFrame | null {
   const started = performance.now()
   try {
-    const rendered = new Resvg(svg, resvgOptionsForSvg(svg, background ?? "#ffffff", budget)).render()
+    const rendered = new Resvg(svg, { background: background ?? "#ffffff", ...resvgFont() }).render()
     const frame = {
       data: rendered.pixels,
       width: rendered.width,
@@ -281,14 +241,10 @@ export function renderSvgToRgba(
 }
 
 /** Render SVG to PNG data URL for MediaImage's symbols fallback. */
-export function renderSvgToPngDataUrl(
-  svg: string,
-  background?: string,
-  budget?: SvgFitBudget,
-): string | null {
+export function renderSvgToPngDataUrl(svg: string, background?: string): string | null {
   try {
     const bg = background ?? "#ffffff"
-    const resvg = new Resvg(svg, resvgOptionsForSvg(svg, bg, budget))
+    const resvg = new Resvg(svg, { background: bg, ...resvgFont() })
     const pngData = resvg.render()
     const pngBuffer = pngData.asPng()
     const base64 = Buffer.from(pngBuffer).toString("base64")
@@ -309,10 +265,22 @@ export function renderSvgToPngDataUrl(
 // ── Quadrant Unicode rendering (4px/cell, inline, no terminal write) ──────
 
 const QUAD_CHARS: Record<number, string> = {
-  0b0000: " ", 0b0001: "▝", 0b0010: "▐", 0b0011: "▗",
-  0b0100: "▘", 0b0101: "▞", 0b0110: "▌", 0b0111: "▙",
-  0b1000: "▀", 0b1001: "▚", 0b1010: "▜", 0b1011: "▛",
-  0b1100: "▄", 0b1101: "▟", 0b1110: "▖", 0b1111: "█",
+  0b0000: " ",
+  0b0001: "▝",
+  0b0010: "▐",
+  0b0011: "▗",
+  0b0100: "▘",
+  0b0101: "▞",
+  0b0110: "▌",
+  0b0111: "▙",
+  0b1000: "▀",
+  0b1001: "▚",
+  0b1010: "▜",
+  0b1011: "▛",
+  0b1100: "▄",
+  0b1101: "▟",
+  0b1110: "▖",
+  0b1111: "█",
 }
 
 /**
@@ -323,12 +291,11 @@ const QUAD_CHARS: Record<number, string> = {
 export function renderSvgToQuadChunks(svg: string, maxCols: number = 60): AnsiChunk[][] | null {
   try {
     // Quad is 4px/cell (2×2); width-only fit, height automatic.
-    const resvg = new Resvg(
-      svg,
-      resvgOptionsForSvg(svg, "#fafafc", {
-        maxWidth: maxCols * 4,
-      }),
-    )
+    const resvg = new Resvg(svg, {
+      background: "#fafafc",
+      ...resvgFont(),
+      fitTo: { mode: "width", value: maxCols * 4 },
+    })
     const rendered = resvg.render()
     const pixels: Uint8Array = rendered.pixels
     const pw = rendered.width
@@ -361,30 +328,51 @@ export function renderSvgToQuadChunks(svg: string, maxCols: number = 60): AnsiCh
         const cutoff = (sorted[1]! + sorted[2]!) / 2
         // When all lums equal, use "<=" to avoid all-space (bits=0) on solid areas
         const allSame = sorted[0] === sorted[3]
-        const isFg = (lum: number) => allSame ? lum <= cutoff : lum < cutoff
+        const isFg = (lum: number) => (allSame ? lum <= cutoff : lum < cutoff)
 
         // Quadrant bits: TL=8, TR=4, BL=2, BR=1  (1 = dark/fg, 0 = light/bg)
-        const bits =
-          ((isFg(lumTL) ? 8 : 0) |
-           (isFg(lumTR) ? 4 : 0) |
-           (isFg(lumBL) ? 2 : 0) |
-           (isFg(lumBR) ? 1 : 0))
+        const bits = (isFg(lumTL) ? 8 : 0) | (isFg(lumTR) ? 4 : 0) | (isFg(lumBL) ? 2 : 0) | (isFg(lumBR) ? 1 : 0)
 
         // Average colors for dark (fg) and light (bg) pixel groups
-        let fgR = 0, fgG = 0, fgB = 0, fgN = 0
-        let bgR = 0, bgG = 0, bgB = 0, bgN = 0
+        let fgR = 0,
+          fgG = 0,
+          fgB = 0,
+          fgN = 0
+        let bgR = 0,
+          bgG = 0,
+          bgB = 0,
+          bgN = 0
 
         const addPx = (pxIdx: number, isFgPx: boolean) => {
-          if (isFgPx) { fgR += pixels[pxIdx]!; fgG += pixels[pxIdx + 1]!; fgB += pixels[pxIdx + 2]!; fgN++ }
-          else        { bgR += pixels[pxIdx]!; bgG += pixels[pxIdx + 1]!; bgB += pixels[pxIdx + 2]!; bgN++ }
+          if (isFgPx) {
+            fgR += pixels[pxIdx]!
+            fgG += pixels[pxIdx + 1]!
+            fgB += pixels[pxIdx + 2]!
+            fgN++
+          } else {
+            bgR += pixels[pxIdx]!
+            bgG += pixels[pxIdx + 1]!
+            bgB += pixels[pxIdx + 2]!
+            bgN++
+          }
         }
         addPx(tlIdx, !!(bits & 8))
         addPx(trIdx, !!(bits & 4))
         addPx(blIdx, !!(bits & 2))
         addPx(brIdx, !!(bits & 1))
 
-        if (fgN === 0) { fgR = bgR; fgG = bgG; fgB = bgB; fgN = 1 }
-        if (bgN === 0) { bgR = fgR; bgG = fgG; bgB = fgB; bgN = 1 }
+        if (fgN === 0) {
+          fgR = bgR
+          fgG = bgG
+          fgB = bgB
+          fgN = 1
+        }
+        if (bgN === 0) {
+          bgR = fgR
+          bgG = fgG
+          bgB = fgB
+          bgN = 1
+        }
 
         line.push({
           fg: RGBA.fromInts(Math.round(fgR / fgN), Math.round(fgG / fgN), Math.round(fgB / fgN)),
@@ -437,9 +425,9 @@ const rgbaFrames = new Map<string, Promise<MermaidRgbaFrame | null>>()
 /** Mermaid source → SVG → direct RGBA. Native TUI graphics do not need a PNG hop. */
 export function renderMermaidToRgba(
   source: string,
-  options?: MermaidRenderOptions & { background?: string; budget?: SvgFitBudget },
+  options?: MermaidRenderOptions & { background?: string },
 ): Promise<MermaidRgbaFrame | null> {
-  const key = JSON.stringify([source, options?.theme, options?.background, options?.budget])
+  const key = JSON.stringify([source, options?.theme, options?.background, options?.cellWidth])
   const stored = rgbaFrames.get(key)
   if (stored) {
     rgbaFrames.delete(key)
@@ -447,7 +435,7 @@ export function renderMermaidToRgba(
     return stored
   }
   const pending = renderMermaidToSvg(source, options).then((svg) => {
-    if (svg) return renderSvgToRgba(svg, options?.background, options?.budget)
+    if (svg) return renderSvgToRgba(svg, options?.background)
     return null
   })
   rgbaFrames.set(key, pending)
@@ -471,9 +459,6 @@ export async function renderSvgToText(_svg: string): Promise<string | null> {
 }
 
 /** @deprecated Native TUI rendering uses renderMermaidToRgba through MediaImage. */
-export async function renderMermaidToText(
-  _source: string,
-  _options?: MermaidRenderOptions,
-): Promise<string | null> {
+export async function renderMermaidToText(_source: string, _options?: MermaidRenderOptions): Promise<string | null> {
   return null
 }

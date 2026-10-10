@@ -1,0 +1,11 @@
+{
+  "status": "PASS candidate; live bin not promoted",
+  "sha256": {
+    "packages/opencode/src/util/mermaid.ts": "69f222c1c927f3d0303c2807238cebe719db3a7383499caa453b593dd5b1aaaf",
+    "packages/opencode/src/cli/cmd/tui/component/media-image.tsx": "e6bca7daefaa76df78c2fe79ea66d14c5828cfc3dd133f746c087d7651b9056b",
+    "packages/opencode/src/cli/cmd/tui/component/media-mermaid.tsx": "79068f4bf74b51f27b5891f5dbda3c7d1cead3f8f7646a1041dd3b446ce13352",
+    "packages/opentui/packages/core/src/renderables/Image.ts": "98eb9d471e6a3fc6ba6f5c09cebcb366609fb5397b8341bac6a7fbb5d9ba4466",
+    "dist/bin/opencode.exe": "0f3dff4af11edca2d8878e004ce3ccb881a0da2ab0a1a51e9a1bda1adc0df436",
+    "logs/cmd_runner/20261010T150338Z_9adfe5ad/stdout_text.log": "4ae70485416598425cce3c0a355e88a89ff29ca6f339343aa82b98f49d6bc49b"
+  }
+}

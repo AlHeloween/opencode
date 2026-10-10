@@ -1,0 +1,1 @@
+{"cellWidth":10,"cellHeight":20,"resolution":{"width":1000,"height":1200},"terminal":[100,60],"cases":[{"label":"NARROW","width":264,"height":216},{"label":"WIDE - horizontal wheel / Shift+wheel","width":960,"height":81},{"label":"TALL","width":124,"height":371}]}

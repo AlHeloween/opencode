@@ -67,6 +67,25 @@ import { eq, sql } from "drizzle-orm"
 import { Database } from "@/storage/db"
 
 const DOOM_LOOP_THRESHOLD = 3
+/** Hard cap on the number of tool calls ONE assistant message may execute.
+ *
+ *  DOOM_LOOP_THRESHOLD above only sees a loop that repeats the SAME call three times IN A
+ *  ROW. A provider degeneration need not do that: measured 2026-10-10 on this session,
+ *  `xiaomi/mimo-v2.6-flash` streamed 2444 calls in a single assistant message (one
+ *  `step-start`, zero `step-finish`) by cycling nine DIFFERENT calls — 2047 of the 2444
+ *  were byte-identical repeats, at 32 calls per 5 s. `last.every(...)` never held, the
+ *  guard never fired, and only a manual abort at t+156 s stopped it.
+ *
+ *  A count cap is the guard that degeneracy cannot evade: a cap on OUTPUT TOKENS would
+ *  have fired at ~344 s on the same measurement — more than twice as late as the abort it
+ *  replaces. This one fires on the 65th call, ~10 s in.
+ *
+ *  The refusal is a NAMED error written onto the part, never a silent drop: absence of an
+ *  oracle reads as FALSE, and the model has to be able to SEE the refusal to finish the
+ *  turn on the calls that did run. A legitimate step that wants more than this degrades
+ *  instead of failing — the remainder is issued in the next assistant message, where the
+ *  results of this one are already visible. */
+const MAX_TOOL_CALLS_PER_MESSAGE = 64
 const log = Log.create({ service: "session.processor" })
 export type Result = "compact" | "stop" | "continue"
 
@@ -136,6 +155,9 @@ interface ProcessorContext extends Input {
   reasoningMap: Record<string, MessageV2.ReasoningPart>
   reasoningBuilders: Record<string, StringBuilder>
   recentToolCalls: { toolName: string; input: unknown }[]
+  /** Count of tool calls seen in THIS assistant message. `ctx` is rebuilt per message, so
+   *  this is the cap's whole scope (see MAX_TOOL_CALLS_PER_MESSAGE). */
+  toolCallCount: number
   /** Zero-payload census for this turn: finalized parts that carried NOTHING (trim-empty text,
    *  empty reasoning). Owner directive 2026-09-29 — track every zero payload; never trim it
    *  (the transcript keeps what arrived) and never forward it (an empty delivery is dropped
@@ -579,6 +601,7 @@ export const layer: Layer.Layer<
         reasoningMap: {},
         reasoningBuilders: {},
         recentToolCalls: [],
+        toolCallCount: 0,
         knownToolIds: DEFAULT_KNOWN_TOOL_IDS,
         streamStartTime: undefined,
         firstTokenLogged: false,
@@ -954,6 +977,19 @@ export const layer: Layer.Layer<
                 ? { ...value.providerMetadata, providerExecuted: true }
                 : value.providerMetadata,
             }))
+            // The cap counts calls this message EXECUTES. It is checked after the part is
+            // flipped to `running` because failToolCall only acts on a running part, and
+            // before the doom-loop bookkeeping below because a REFUSED call is not a call
+            // the model made twice — feeding it to the loop detector would be noise.
+            ctx.toolCallCount++
+            if (ctx.toolCallCount > MAX_TOOL_CALLS_PER_MESSAGE) {
+              yield* failToolCall(
+                value.toolCallId,
+                `Refused: this assistant message already issued ${MAX_TOOL_CALLS_PER_MESSAGE} tool calls, which is the cap. ` +
+                  `${value.toolName} did not run. Answer from the results you already have, or continue in the next step.`,
+              )
+              return
+            }
 
             ctx.recentToolCalls.push({ toolName: value.toolName, input: value.input })
             if (ctx.recentToolCalls.length > DOOM_LOOP_THRESHOLD) ctx.recentToolCalls.shift()

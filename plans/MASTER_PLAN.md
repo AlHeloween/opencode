@@ -103,9 +103,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 214 |
+| plans completed | 215 |
 | plans active | 14 |
-| tasks passed / total | 879 / 1109 |
+| tasks passed / total | 885 / 1115 |
 | open boxes | 87 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
@@ -194,7 +194,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 - `plans/2026-09-29_h2-session-pool-and-connection-badge.md` — 2 open / 8 box(es) · lifecycle ACTIVE
   sv: intention "up to 2500 concurrent provider streams must ride a REUSED pool of HTTP/2 sessions (one session caps at the server's advertised 128), never short-lived connections, and the TUI sidebar must show the living connection as an icon -> session pool + model concurrency limits + connected/disconnected badge" · keywords []
-  - T4 [PARTIAL] · sv MISSING · manifest: T4a/b shipped as glyphs — ◉ on the active /agents row and ⇅ on the sidebar protocol cell, text oracles green, the on-screen check still owed to the owner. · eta 2 · waiting-on-user
+  - T4 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-09-30_cua-supply-chain-audit.md` — 2 open / 10 box(es) · lifecycle ACTIVE
@@ -226,7 +226,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 - `plans/2026-10-01_tool-description-contracts.md` — 5 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "36 tool descriptions ride the KV-stable prefix and make promises the code does not always keep (multiedit atomicity, grep's line format, recall's reach); the work fixing them ran under a parent-goal anchor no plan declared -> one line of work that owns that anchor, where every promise in a description is either pinned by a test that fails without it or removed from the text" · keywords []
-  - C2 [PENDING] · sv MISSING · manifest: Три флага, обещавшие поведение, теперь пинуются — у `compare` появился первый тест за всю историю и он зелёный, — а бокс открыт ровно на одной невыполненной мутации, названной явно. · eta 1 · doing
+  - C2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - C3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - C4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - C5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -254,10 +254,10 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   sv: intention "hidden test-only ORG_HOME/ORG_PORT in three copies + PATH-first fossil + fossil-CLI reads -> one shared resolver as SUPPORTED settings, bundled fossil outranking PATH, reads through org.py verbs only, documented in Protocol and the kernel add-on (plan 2026-09-30_robot-installer.md B1f)" · keywords []
   - S9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-10_organization-wiki-and-reporting.md` — 2 open / 4 box(es) · lifecycle UNKNOWN
-  sv: intention "паспорт организации сохранён отчётом, wiki содержит только Protocol -> организация получает заполненную связанную wiki и воспроизводимую отчётность с проверяемыми источниками" · keywords []
-  - TASK-3 [PENDING] · sv [publication 0.40, oracle 0.40, closure 0.20] · manifest: Publish the five prepared wiki pages through wiki-put with full UTF8 readback and pin the report technote. · eta 3 · doing
-  - TASK-4 [PENDING] · sv [documentation 0.45, traceability 0.35, scoped-commit 0.20] · manifest: Route docs to the wiki, keep one progress-log boundary, and close the plan with a commit that names it. · eta 2 · doing
+- `plans/2026-10-10_tool-call-cap.md` — 2 open / 6 box(es) · lifecycle UNKNOWN
+  sv: intention "один assistant-ход может породить неограниченный поток tool-call'ов, и кап на токены ловит его слишком поздно -> каждый assistant-ход исполняет не более 64 tool-call'ов, 65-й отказом назван в part, и цикл дегенерации обрывается на десятой секунде вместо пятой минуты" · keywords []
+  - S5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - S6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 ## The checks
 

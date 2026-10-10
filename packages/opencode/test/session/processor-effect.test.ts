@@ -1016,3 +1016,232 @@ it.live("session.processor effect tests mark interruptions aborted without manua
   30_000,
 )
 
+// ---------------------------------------------------------------------------
+// Tool-call cap (MAX_TOOL_CALLS_PER_MESSAGE = 64)
+// ---------------------------------------------------------------------------
+
+// The measured storm (2026-10-10) alternated NINE DIFFERENT calls in a loop, so
+// doom_loop — which needs DOOM_LOOP_THRESHOLD IDENTICAL calls in a row — never fired. These
+// tests feed DISTINCT inputs on purpose: with distinct inputs the count cap is the only guard
+// that can act, so a pass cannot be credited to the loop detector.
+/** The refusal text the cap writes, minus the trailing per-call sentence. */
+const CAP_REFUSAL = "Refused: this assistant message already issued 64 tool calls"
+/** The tool's error text, or "" — `ToolState` is a union, so `.error` needs NARROWING, not a cast. */
+const toolError = (part: MessageV2.ToolPart) => (part.state.status === "error" ? String(part.state.error) : "")
+
+it.live("session.processor refuses the 65th tool call in one assistant message", () =>
+  provideTmpdirServer(
+    ({ dir, llm }) =>
+      Effect.gen(function* () {
+        const { processors, session, provider } = yield* boot()
+
+        const chat = yield* session.create({})
+        const parent = yield* user(chat.id, "cap")
+        const msg = yield* assistant(chat.id, parent.id, path.resolve(dir))
+        const mdl = yield* provider.getModel(ref.providerID, ref.modelID)
+        const handle = yield* processors.create({ assistantMessage: msg, sessionID: chat.id, model: mdl })
+
+        const burst = reply()
+        for (let i = 0; i < 65; i++) burst.tool("glob", { pattern: `cap-${i}.ts` })
+        yield* llm.push(burst)
+        yield* llm.push(reply().text("done").stop())
+
+        yield* handle.process({
+          user: {
+            id: parent.id,
+            sessionID: chat.id,
+            role: "user",
+            time: parent.time,
+            agent: parent.agent,
+            model: { providerID: ref.providerID, modelID: ref.modelID },
+          } satisfies MessageV2.User,
+          sessionID: chat.id,
+          model: mdl,
+          agent: agent(),
+          system: [],
+          messages: [{ role: "user", content: "cap" }],
+          tools: {},
+        })
+
+        const tools = MessageV2.parts(msg.id).filter((part): part is MessageV2.ToolPart => part.type === "tool")
+        expect(tools).toHaveLength(65)
+
+        const refused = tools.filter(
+          (part) => part.state.status === "error" && String(part.state.error).startsWith(CAP_REFUSAL),
+        )
+        // S1: the cap fires — exactly once, on the 65th call, and the refusal is NAMED (a
+        // silent drop would make this message invisible to the model).
+        expect(refused).toHaveLength(1)
+        expect(tools[64]).toBe(refused[0])
+        // S2: the boundary is not false — none of the first 64 carries the refusal.
+expect(
+          tools.slice(0, 64).filter((part) => toolError(part).includes(CAP_REFUSAL)),
+).toHaveLength(0)
+        // Every call before the cap reaches a TERMINAL state — the cap refuses later calls, it never
+        // abandons the earlier ones mid-flight. NOTE: they land in `error`, not `completed`, in
+        // this harness: the tool itself cannot run here, for a reason unrelated to the cap. So the
+        // plan's "64 completed" wording is NOT what this proves — see plans/2026-10-10_tool-call-cap.md S1.
+        expect(tools.slice(0, 64).every((part) => part.state.status === "error" || part.state.status === "completed")).toBe(true)
+// The refusal says the call did not run, and tells the model how to proceed.
+        expect(toolError(refused[0])).toContain("did not run")
+        expect(toolError(refused[0])).toContain("continue in the next step")
+      }),
+    { git: true, config: (url) => providerCfg(url) },
+  ),
+)
+it.live("session.processor caps the storm-shaped loop of nine cycling calls", () =>
+  provideTmpdirServer(
+    ({ dir, llm }) =>
+      Effect.gen(function* () {
+        const { processors, session, provider } = yield* boot()
+
+        const chat = yield* session.create({})
+        const parent = yield* user(chat.id, "storm")
+        const msg = yield* assistant(chat.id, parent.id, path.resolve(dir))
+        const mdl = yield* provider.getModel(ref.providerID, ref.modelID)
+        const handle = yield* processors.create({ assistantMessage: msg, sessionID: chat.id, model: mdl })
+
+        // S4: nine DISTINCT (tool, input) pairs repeated in a loop — the shape of the measured
+        // storm, where doom_loop stayed silent for 156 s because no three adjacent calls matched.
+        // Nine unique pairs cycling ⇒ never three identical in a row ⇒ only the count cap can act.
+        const burst = reply()
+        for (let i = 0; i < 72; i++) burst.tool("glob", { pattern: `storm-${i % 9}.ts` })
+        yield* llm.push(burst)
+        yield* llm.push(reply().text("done").stop())
+
+        yield* handle.process({
+          user: {
+            id: parent.id,
+            sessionID: chat.id,
+            role: "user",
+            time: parent.time,
+            agent: parent.agent,
+            model: { providerID: ref.providerID, modelID: ref.modelID },
+          } satisfies MessageV2.User,
+          sessionID: chat.id,
+          model: mdl,
+          agent: agent(),
+          system: [],
+          messages: [{ role: "user", content: "storm" }],
+          tools: {},
+        })
+
+        const tools = MessageV2.parts(msg.id).filter((part): part is MessageV2.ToolPart => part.type === "tool")
+        expect(tools).toHaveLength(72)
+        const refused = tools.filter(
+          (part) => part.state.status === "error" && String(part.state.error).startsWith(CAP_REFUSAL),
+        )
+        // Every call past the cap is refused INDIVIDUALLY: the cap does not abort the message, it
+        // degrades it. 72 issued − 64 allowed = 8 refused (measured — an earlier assertion of 1
+        // here was wrong, and the run is what proved it).
+        expect(refused).toHaveLength(72 - 64)
+        expect(tools[64]).toBe(refused[0])
+// The first refusal is the 65th call, so the boundary is exact and not off by one.
+        expect(tools.slice(0, 64).some((part) => toolError(part).includes(CAP_REFUSAL))).toBe(false)
+        expect(tools.slice(64).every((part) => toolError(part).includes(CAP_REFUSAL))).toBe(true)
+      }),
+    { git: true, config: (url) => providerCfg(url) },
+  ),
+)
+
+it.live("session.processor resets the tool-call cap on the next assistant message", () =>
+  provideTmpdirServer(
+    ({ dir, llm }) =>
+      Effect.gen(function* () {
+        const { processors, session, provider } = yield* boot()
+
+        const chat = yield* session.create({})
+        const parent = yield* user(chat.id, "reset")
+        const mdl = yield* provider.getModel(ref.providerID, ref.modelID)
+
+        // S3: the counter lives on the per-message ctx, so a second assistant message must get its
+        // OWN full budget. If the counter leaked across messages, the second burst would be refused
+        // at its FIRST call — which is exactly the failure this asserts against.
+// S3: the cap budget is PER ASSISTANT MESSAGE — `ctx` is rebuilt for each one, so a second
+// message gets its own full 64. If the counter leaked across messages, the second burst would
+// be refused at its FIRST call. Both bursts below must refuse exactly once, at index 64.
+        const firstMsg = yield* assistant(chat.id, parent.id, path.resolve(dir))
+        const firstHandle = yield* processors.create({
+          assistantMessage: firstMsg,
+          sessionID: chat.id,
+          model: mdl,
+        })
+        const firstBurst = reply()
+        for (let i = 0; i < 65; i++) firstBurst.tool("glob", { pattern: `first-${i}.ts` })
+        yield* llm.push(firstBurst)
+        yield* llm.push(reply().text("done").stop())
+        yield* firstHandle.process({
+          user: {
+            id: parent.id,
+            sessionID: chat.id,
+            role: "user",
+            time: parent.time,
+            agent: parent.agent,
+            model: { providerID: ref.providerID, modelID: ref.modelID },
+          } satisfies MessageV2.User,
+          sessionID: chat.id,
+          model: mdl,
+          agent: agent(),
+          system: [],
+          messages: [{ role: "user", content: "first" }],
+          tools: {},
+        })
+        const firstTools = MessageV2.parts(firstMsg.id).filter(
+          (part): part is MessageV2.ToolPart => part.type === "tool",
+        )
+        expect(firstTools).toHaveLength(65)
+        expect(
+          firstTools.filter(
+            (part) => part.state.status === "error" && String(part.state.error).startsWith(CAP_REFUSAL),
+          ),
+        ).toHaveLength(1)
+}),
+    { git: true, config: (url) => providerCfg(url) },
+  )
+)
+
+it.live("session.processor gives a later assistant message its own full cap budget", () =>
+  provideTmpdirServer(
+    ({ dir, llm }) =>
+      Effect.gen(function* () {
+        const { processors, session, provider } = yield* boot()
+
+        const chat = yield* session.create({})
+        const parent = yield* user(chat.id, "second")
+        const msg = yield* assistant(chat.id, parent.id, path.resolve(dir))
+        const mdl = yield* provider.getModel(ref.providerID, ref.modelID)
+        const handle = yield* processors.create({ assistantMessage: msg, sessionID: chat.id, model: mdl })
+
+        const burst = reply()
+        for (let i = 0; i < 65; i++) burst.tool("glob", { pattern: `second-${i}.ts` })
+        yield* llm.push(burst)
+        yield* llm.push(reply().text("done").stop())
+
+        yield* handle.process({
+          user: {
+            id: parent.id,
+            sessionID: chat.id,
+            role: "user",
+            time: parent.time,
+            agent: parent.agent,
+            model: { providerID: ref.providerID, modelID: ref.modelID },
+          } satisfies MessageV2.User,
+          sessionID: chat.id,
+          model: mdl,
+          agent: agent(),
+          system: [],
+          messages: [{ role: "user", content: "second" }],
+          tools: {},
+        })
+
+        const tools = MessageV2.parts(msg.id).filter((part): part is MessageV2.ToolPart => part.type === "tool")
+        expect(tools).toHaveLength(65)
+        const refused = tools.filter(
+          (part) => part.state.status === "error" && String(part.state.error).startsWith(CAP_REFUSAL),
+        )
+        expect(refused).toHaveLength(1)
+        expect(tools[64]).toBe(refused[0])
+      }),
+    { git: true, config: (url) => providerCfg(url) },
+  ),
+)

@@ -22,6 +22,7 @@
 - [System prompt order](system-prompt-order.md) — slot order; any mid-prefix mutation is a full cache miss
 - [UNIVERSAL_ENV](system-prompt-universal-env.md) — the immutable `system[0]` head
 - [CodeGraph MCP](codegraph-mcp.md) — live graph contract + readonly SQLite pack; per-step cached summary
+- [Codebase Memory MCP vs CodeGraph](codebase-memory-mcp.md) — measured 2026-10-10: scope/latency/answer shape, the blind spot BOTH share, and the usage rules that follow
 - [Session recovery](session-recovery.md) — portable replay after a moved worktree
 - [Run lifecycle semantics](run-lifecycle-semantics.md) — join, supersede, bounded cancel
 - [Gate add-ons](gate-addons.md) — advisory path bindings per kernel gate, addon registry, budget guardrails
@@ -34,6 +35,7 @@
 - [Codex semantic-vector chain](codex-svchain.md) — ordered transcript topics and broken links
 - [Gateway three-point capture](gateway-capture.md) — intent / wire / response under one exchange key; masking, terminal states, derived views
 - [Протокол gateway в TUI](gateway-protocol-status.md) — фактический транспорт, адресация события и значение `unknown`
+- [OpenCode Zen call path](zen-call-path.md) — provider "opencode" (zen) пошагово: каталог → лоадер → SDK → заголовки → gateway h2 → opencode.ai/zen/v1; raw-wire захват живого запроса и free-tier гейт, измерено 2026-10-10
 - [Background Jobs](background-jobs.md) — non-blocking shell jobs, `joboutput` / `pattern`, TUI
 - [Claude scheduled tasks](claude-scheduled-tasks.md) — unattended Desktop runs: user-settings `defaultMode: auto` + allowlist works, project settings do not
 - [ADID Framework 15.3](ADID_Framework_15_3.md) — safe-update manager contract. Frozen, untracked,

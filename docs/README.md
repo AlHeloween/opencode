@@ -45,6 +45,7 @@
 
 ## Measured vendor behaviour
 
+- [Haiku 5.5 adaptive thinking](haiku-adaptive-thinking.md) — исправление классификации модели, SDK wire-регрессия и граница локального доказательства
 - [Reasoning round-trip contract](reasoning-round-trip-contract.md) — cross-vendor reasoning field behaviour
 - [DeepSeek thinking cache](deepseek-thinking-cache.md) — measured thinking vs prompt cache
 - [ChatGPT OAuth cache](chatgpt-oauth-cache.md) — SDK cache key, tool-result replay, and what still needs live measurement

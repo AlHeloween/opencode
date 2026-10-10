@@ -1,5 +1,17 @@
 # Progress Log
 
+## [2026-10-11T03:48+08:00] Haiku 5.5 — T3 build и граница поставки
+
+✓ CONFIRMED (cmd_runner state + полный stdout): `_build.ps1 -Task build`, `20261010T194523Z_4fcaf6d6`, exit 0; кандидат `dist/bin/opencode.exe`, bin не менялся. Build logs SHA-256 `308caf93e47faabdc83dfa4c5cb9debfd796b62f818583cb52684288509a704c`, dropped 0/truncated false. Cargo/Vite warnings сохранены в плане, не скрыты. Документация: docs/haiku-adaptive-thinking.md + docs/README.md. План: plans_completed/2026-10-11_haiku-adaptive-thinking.md. Остаток: live API и установленный TUI не измерены; продвижение — отдельное действие владельца.
+
+## [2026-10-11T03:45+08:00] Haiku 5.5 — T2 независимый oracle Codex
+
+✓ CONFIRMED (полные logs/state): `20261010T194432Z_8e254dcc` — 181 pass / 0 fail, exit 0, tests + реальный Anthropic SDK fetch capture; thinking adaptive, budget_tokens отсутствует, output_config.effort high. `bun typecheck`, `20261010T194433Z_1740217c`, exit 0. SHA-256 source `b699a74abddf1c99f85015956c84db9c5d4cfce3f176ceecddb883efa818affd`. Oracle stamp привязан к source/test hashes в плане. Повторный paid API не запускался.
+
+## [2026-10-11T03:44+08:00] Haiku 5.5 — T1 Smit coding
+
+✓ CONFIRMED (CodeGraph + independent baseline SDK wire): matcher anthropicAdaptiveEfforts пропускал Haiku 5.5, поэтому SDK отправлял enabled. Smit dispatched через live host 127.0.0.1:4096, session `ses_ed8aabe9affeEv2RzS5q0Owsds`, funded deepseek/deepseek-flash; final idle + stop/completed. Actual diff: transform.ts (Haiku aliases), новый transform-anthropic-adaptive.test.ts, прочие source не затронуты. Baseline existing 170/170 PASS; новый regression `20261010T194309Z_6efcb501` — 3 pass / 7 fail до source-edit. Результат робота — свидетельство; T2 проверяет его независимо. Tool findings: guessed .bun path not found (две read ошибки); root scratch module import сначала HARNESS FAIL, исправлен и повторён с package-relative dependencies. Следующий oracle: полный целевой regression + SDK wire + typecheck; закрытие только после build.
+
 ## [2026-10-10T19:26Z] edit.txt — док приведён к измеренному; найдены 4 несоответствия инструкций
 
 ✓ CONFIRMED (замеры на `experiments/2026-10-10_edit-doc-audit/probe.txt`, эта сессия): (1) `fromHash == toHash` — **ЗАМЕНА одной строки**, НЕ вставка: файл из трёх строк остался трёхстрочным (`alpha / INSERTED / gamma`); память говорила «вставляет» → ОПРОВЕРГНУТО. (2) Отказ **называет файл и запись**: отказ содержит путь `probe.txt` и `edit 1`; память говорила «свой файл не называет» → ОПРОВЕРГНУТО (план `2026-10-01_edit-refusal-names-its-target.md` доехал). (3) SWARM подтверждён: правка строки 2 сохранила адрес строки 1 (`57e53539`) и сдвинула строки 2-3; правка строки 3 по старому адресу (`d7d8adf0`) отказала ⇒ «выше изменения — проходит, ниже — отказ».

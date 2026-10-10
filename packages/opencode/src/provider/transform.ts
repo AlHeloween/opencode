@@ -624,7 +624,11 @@ function deepSeekThinkingVariants(
 }
 
 function anthropicAdaptiveEfforts(apiId: string): string[] | null {
-  if (["opus-4-7", "opus-4.7", "sonnet-5", "sonnet-5-20260630"].some((v) => apiId.includes(v))) {
+  // Haiku 5.5 joins the five-level adaptive set. Its migration guide
+  // (platform.claude.com/docs/en/models/haiku-5-5) returns 400 for
+  // `thinking.type="enabled"` and its effort vocabulary is low|medium|high|xhigh|max.
+  // Both spellings are listed because the id reaches us hyphen- and dot-joined.
+  if (["opus-4-7", "opus-4.7", "haiku-5-5", "haiku-5.5", "sonnet-5", "sonnet-5-20260630"].some((v) => apiId.includes(v))) {
     return ["low", "medium", "high", "xhigh", "max"]
   }
   if (["opus-4-6", "opus-4.6", "sonnet-4-6", "sonnet-4.6"].some((v) => apiId.includes(v))) {

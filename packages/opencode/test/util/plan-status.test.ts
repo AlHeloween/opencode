@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs"
 import { tmpdir } from "os"
 import path from "path"
 import {
@@ -391,5 +391,37 @@ describe("util.plan-status stale stated plans", () => {
     // NOT misplaced: the placement axis asks «are the boxes closed», and this file's are open. That is
     // exactly why the state axis has to exist — the file says it is over, and its checklist disagrees.
     expect(status.misplaced).toEqual([])
+  })
+})
+
+/**
+ * THE WIRING — the half that was missing. `reconcilePlans` itself is correct and covered above; what
+ * no test covered was whether the TURN PATH ever calls it, so deleting the call left every suite
+ * green. Measured 2026-10-10: it had exactly ONE automatic caller and that one lives in AGI mode
+ * (`agi-mode.tsx:467`, behind `if (agiMode())`) — an ordinary build session reported `misplaced`
+ * every turn and moved nothing. Owner, 2026-10-10: «большая часть этих планов выполнена… смотри по
+ * протоколу — если все оракулы окей, план взяли и поместили в завершенные, обновили доки.»
+ *
+ * This is a SOURCE-shape oracle BY CONSTRUCTION: the pass sits inside prompt assembly, where no
+ * fixture reaches without booting a whole session. It still fails for the right reason — remove the
+ * call, or move it after the read, and it goes red — and the positive control keeps a wrong or
+ * unreadable file from passing vacuously.
+ */
+describe("util.plan-status wiring into the turn path", () => {
+  const promptPath = path.join(import.meta.dir, "..", "..", "src", "session", "prompt.ts")
+  const source = readFileSync(promptPath, "utf-8")
+
+  test("the turn path runs plan hygiene BEFORE its one read of the plan tree", () => {
+    const read = source.indexOf("parsePlanFiles(worktree)")
+    const hygiene = source.indexOf("reconcilePlans(worktree)")
+    expect(read).toBeGreaterThan(-1) // control: a wrong or empty read must not pass
+    expect(hygiene).toBeGreaterThan(-1)
+    expect(hygiene).toBeLessThan(read)
+  })
+
+  test("a hygiene failure is logged, never swallowed", () => {
+    // The call sits on the prompt path, where a silent catch would take a turn down with no trace.
+    expect(source).toContain('log.warn("bug: plan hygiene threw"')
+    expect(source).toContain('log.warn("bug: plan hygiene failed"')
   })
 })

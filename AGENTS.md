@@ -1235,6 +1235,21 @@ All detailed docs live in `docs/`. Here's the quick map:
 ### Deployment
 - [Linux deploy](docs/linux-deploy.md) — Linux build and portable install
 
+
+## Search instruments — the graph BEFORE the text (2026-10-10)
+
+**A symbol, a caller or an impact question is a GRAPH question. `grep` answers a different one — «does this text occur» — and a lexical answer presented as a structural one is an UNGROUNDED claim, which is exactly where fabrication starts.** Owner, 2026-10-10, verbatim: «народ в последнее время слишком налегает на греп без codegraph это очень криво потому что codegraph хоть какой-то нечеткий поиск дает, glob, list - ладно нашли файлы, но грепить без графа - ну как бы несколько странновато не находишь?» — and on the price: a model that «самоотмазался грепом от граундинга и потом когда надо было зен проверить как работает просто начал фантазировать».
+
+Order — the kernel's own chain, made blunt here because it keeps being skipped:
+
+1. **`codegraph`** — does this symbol exist, who calls it, what breaks if it changes. FIRST, always, for structure.
+2. `messagesearch` / `universalsearch` — prior art and prior decisions about that code.
+3. `glob` / `list` — locating files by name. That is what they are for; «a file was found» is their whole answer.
+4. **`grep` — LAST, and only after the graph has been asked.** It is a text tool, never a structure tool.
+
+**One measured exception, and it is the only one.** BOTH graph indexes are blind to declarations INSIDE a function (measured 2026-10-10: `failToolCall`, `session/processor.ts:848` — 4 `grep` hits, 0 in codegraph, 0 in CBM — while the top-level `MAX_TOOL_CALLS_PER_MESSAGE` in the SAME file, SAME fresh index, SAME `const` shape, IS in the graph). So when the graph says «not found», `grep` is the correct NEGATIVE TEXT CONTROL — and what it establishes is «the graph does not index it; the text does occur», never «it does not exist».
+
+**A skipped graph call is not a style slip — it is the grounding step itself skipped**, and the fabricated zen gate is what that looks like downstream. @KAIZEN: the second occurrence of «grepped on a structural question instead of asking the graph» is a tool-USAGE defect, not weather.
 <!-- CODEGRAPH_START -->
 ## CodeGraph
 

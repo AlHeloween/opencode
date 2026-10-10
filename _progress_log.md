@@ -1,5 +1,18 @@
 # Progress Log
 
+## [2026-10-10T19:05Z] plan-hygiene M1 - механизм вшит в обычный ход; оракул фальсифицируем
+
+✓ CONFIRMED (`codegraph` callers; тело `util/plan-status.ts:733`; call-sites `agi-mode.tsx:283,467,653,718`): у гигиены планов (`reconcilePlans`) был РОВНО один автоматический вызывающий - `runPlanHygiene` внутри `useAgiMode`, оба сайта под `if (agiMode())` (`:431`), плюс инструмент `planstatus` при явном `reconcile:true`. В обычной build-сессии она не срабатывала никогда, а нота хода печатала долг (`misplaced`) каждый ход и не правила. Механизм при этом КОРРЕКТЕН, и его же собственная строка говорит: «Does not edit checkbox content - only moves files by open-item presence» - то есть галки он не проставляет даже когда его вызвать.
+
+✓ CONFIRMED (`read` + `edit`, `src/session/prompt.ts:2046-2066`): проход вшит в путь, который исполняется в ЛЮБОМ режиме - непосредственно перед единственным чтением дерева планов (`const plans = parsePlanFiles(worktree)`, `:2067` - тот самый «ONE READ OF THE PLAN TREE» владельца от 2026-10-08), так что числа долга ниже - это числа самого дерева. `isFinished`-only, идемпотентно, ошибки собираются и логируются; `try/catch` стоит по делу: путь промпта, где бросок унёс бы каждый ход.
+
+✓ CONFIRMED - оракул в три прогона (по одному файлу за прогон): baseline `test/util/plan-status.test.ts` 23 pass / 0 fail / 67 expect (run `20261010T190047Z_cf1a50c4`); после правки 25 / 0 / 72 (run `20261010T190222Z_30bcd83b`); **мутация - вызов снят** 24 pass / **1 fail** / 71 expect, exit1 (run `20261010T190320Z_5bf21a74`); возврат из `.bak` (без git) → 25 / 0 / 72 (run `20261010T190331Z_f9bc042a`). Плюс `bun typecheck` exit 0 (run `20261010T190248Z_ffc3cb28`). Тест шва был НЕОБХОДИМ: mover покрыт сильно, а то, что нота его вообще зовёт, не проверял никто - поэтому удаление вызова оставляло все сьюты зелёными.
+
+✓ CONFIRMED (`svm render`): `plans/MASTER_PLAN.md` перегенерирован, `gapsBefore` назвал ровно новый план `plans/2026-10-10_plan-hygiene-in-build-mode.md` - пробел закрыт.
+
+Правило закреплено по прямому указанию владельца: `AGENTS.md` § «Search instruments - the graph BEFORE the text (2026-10-10)» - `codegraph` первым на структурный вопрос, `grep` последним и только как негативный текстовый контроль; измеренное исключение - объявления ВНУТРИ функций не индексирует ни один граф.
+
+✗ REFUTED (трижды за сессию, `edit`): я посылал `edit` с `filePath` ВНЕ `files[0]` - три отказа схемы подряд. Инструмент каждый раз отказывал ДО записи (ничего не испорчено), но это дефект КОМПОЗИЦИИ вызова, не инструмента: канон - `{files:[{filePath, edits:[…]}]}`. Контрмера по @KAIZEN: счётчик и стандарт в memory, а не четвёртая попытка «аккуратнее».
 ## [2026-10-10T18:56Z] settings-layers — план переземлён по коду и переведён в plans_completed
 
 ✓ CONFIRMED (`planstatus` называл MISPLACED; `grep '- [ ]'` — No matches, `grep '- [x]'` — 12): план `plans/2026-09-26_unified-settings-layers.md` — все боксы подтверждены артефактами, открытых нет — переведён в `plans_completed/` коммитом, называющим план. Основание сверено с кодом ПЕРЕД переводом, а не принято со слов: символы на месте (`grep` по `packages/opencode/src`, 28 совпадений) — `pickFreeVisionModel` (`provider/free-default.ts:31`), `seedGlobalLayer` (`tui/context/local.tsx:679`), `phaseScope` (`tui/component/config-scope.ts:102`), `readLayer`/`writesWorktreeOnPick` (`tui/util/agent.ts:66`/`:50`), `protocolLabel` (`sidebar/protocol-row.ts:80`), `sessionModelProtocol` (`session/session-settings.ts:202`, вызов `llm.ts:513`).

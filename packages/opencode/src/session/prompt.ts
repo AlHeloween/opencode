@@ -32,7 +32,7 @@ import { Jobs } from "../jobs"
 import { RequestDiff } from "./request-diff"
 import { Checkpoint, type CheckpointData } from "./checkpoint"
 import { IncrementalCheckpoint } from "./incremental-checkpoint"
-import { collectPlanState, criticalRisks, masterPlanCoverage, parsePlanFiles, planDebt, planFiles, planLabels } from "@/util/plan-status"
+import { collectPlanState, criticalRisks, masterPlanCoverage, parsePlanFiles, planDebt, planFiles, planLabels, reconcilePlans } from "@/util/plan-status"
 import { couplingFindings } from "@/memory/spine"
 import { Bus } from "../bus"
 import { ProviderTransform } from "@/provider/transform"
@@ -2043,6 +2043,27 @@ export const layer = Layer.effect(
                   // ONE READ OF THE PLAN TREE (owner, 2026-10-08). Every line below — this session's
                   // binding, the total and the map question — comes from the same parse, so two of
                   // them cannot disagree about what the plans say.
+                  // PLAN HYGIENE BEFORE THE READ (plan 2026-10-10_plan-hygiene-in-build-mode, M1).
+                  // The debt printed below was READ every turn and never REPAIRED: `reconcilePlans`
+                  // had exactly one automatic caller and it lives in AGI mode (`agi-mode.tsx:467`,
+                  // behind `if (agiMode())`), so an ordinary build session reported `misplaced` for
+                  // ever while nobody moved a file. Run it HERE — the one point that runs in every
+                  // mode, immediately before the one read of the plan tree — so the numbers below are
+                  // the tree's own. It moves only files whose boxes are ALL closed (`isFinished`),
+                  // is idempotent, collects its own errors and never throws; the guard is here because
+                  // this sits on the prompt path, where a throw would take every turn with it.
+                  try {
+                    const hygiene = reconcilePlans(worktree)
+                    if (hygiene.movedToCompleted.length > 0 || hygiene.reopenedToActive.length > 0) {
+                      log.info("plan hygiene", {
+                        moved: hygiene.movedToCompleted,
+                        reopened: hygiene.reopenedToActive,
+                      })
+                    }
+                    if (hygiene.errors.length > 0) log.warn("bug: plan hygiene failed", { errors: hygiene.errors })
+                  } catch (error) {
+                    log.warn("bug: plan hygiene threw", { error: error instanceof Error ? error.message : String(error) })
+                  }
                   const plans = parsePlanFiles(worktree)
                   // Read ONCE and used twice (the total and the map question): two reads of the same
                   // tree in one note would be two answers waiting to disagree.

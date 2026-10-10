@@ -1,5 +1,12 @@
 # Progress Log
 
+## [2026-10-10T18:56Z] settings-layers — план переземлён по коду и переведён в plans_completed
+
+✓ CONFIRMED (`planstatus` называл MISPLACED; `grep '- [ ]'` — No matches, `grep '- [x]'` — 12): план `plans/2026-09-26_unified-settings-layers.md` — все боксы подтверждены артефактами, открытых нет — переведён в `plans_completed/` коммитом, называющим план. Основание сверено с кодом ПЕРЕД переводом, а не принято со слов: символы на месте (`grep` по `packages/opencode/src`, 28 совпадений) — `pickFreeVisionModel` (`provider/free-default.ts:31`), `seedGlobalLayer` (`tui/context/local.tsx:679`), `phaseScope` (`tui/component/config-scope.ts:102`), `readLayer`/`writesWorktreeOnPick` (`tui/util/agent.ts:66`/`:50`), `protocolLabel` (`sidebar/protocol-row.ts:80`), `sessionModelProtocol` (`session/session-settings.ts:202`, вызов `llm.ts:513`).
+
+✓ CONFIRMED — оракулы плана перезапущены сегодня, ПО ОДНОМУ ФАЙЛУ ЗА ПРОГОН: `test/session/session-settings-smoke.test.ts` 6 pass / 0 fail / 44 expect, exit 0 (run `20261010T185438Z_8fb68fb2`); `test/tui/agent-selection.test.ts` 17 pass / 0 fail / 51 expect, exit 0 (run `20261010T185447Z_5ae7b832`); `test/provider/free-default.test.ts` 4 pass + `test/session/fill-layers.test.ts` 19 pass = 23 pass / 0 fail (run `20261010T185457Z_1aaa7e81`). Итого 46 pass / 0 fail — ровно те числа, которыми боксы закрывались 2026-09-26 и 2026-10-08. Коммиты, называющие план: `f13259e60e`, `1f29b57c1c`.
+
+⚠ ОСТАТОК (вне объёма, владелец варианты не называл) записан в § 6 плана и едет вместе с ним: шаг варианта (`variant`/`agentVariant`) при session-пике по-прежнему пишется в worktree-слой (`local.tsx:1398-1401`, `:1464-1481`), а `sessionPayload()` выгружает весь worktree-словарь вариантов в файл сессии — переработка трёх ридеров + вызовов из `dialog-agent`, отдельная задача. Планом НЕ закрыто и закрытым не объявлено.
 ## [2026-10-10T16:35Z] tool-call-cap — S5 PASS; «harness висит» ОТОЗВАНО
 
 ✓ CONFIRMED (по одному файлу через shell-путь `cmd_runner start -- bun test <file>`): S5 плана plans/2026-10-10_tool-call-cap.md закрыт — `test/session/processor-tool-identity.test.ts` 1 pass/0 fail/3.24 s; `test/session/finish-step.test.ts` 6 pass/0 fail/26 expect/6.27 s exit0; `test/session/processor-effect.test.ts` (S1–S4 + 16 существующих) 20 pass/0 fail/83 expect/59.00 s.

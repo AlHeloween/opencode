@@ -1,7 +1,7 @@
 <!-- intention: три слоя (global → worktree → session) физически заполнены при создании; /agents открывается на слое фазы; рантайм читает только session -->
 # Unified settings layers — global → worktree → session (owner spec, 2026-09-26)
 
-**Статус:** ACTIVE. Спецификация владельца ниже — дословно; сверка с кодом — по состоянию на 2026-09-26.
+**Статус:** COMPLETE (закрыт 2026-10-10). Спецификация владельца ниже — дословно; сверка с кодом — по состоянию на 2026-09-26. Боксы переземлены повторным прогоном оракулов 2026-10-10 перед переводом — см. § 6.
 Основание: `plans/to_be_confirmed/2026-09-19_fill-every-settings-layer.md` (правило «fill, do not search» частично реализовано: worktree/session fill; global fill — нет).
 
 ## 0. Owner spec (verbatim)
@@ -78,3 +78,15 @@ T1 → T2 → T3 → T4 → T5 (сборка кандидата для живо�
     **Часть 2 (остаток):** per-session override (`setModelProtocol` session scope — сейчас тост «needs server work»: SDK options кэшируются; gateway должен брать protocol при сборке запроса) + «протокол фиксируется при выборе настроек, а не при запросе».
 - **T4 (уточнён).** Интерактивный путь уже session-only: TUI шлёт `local.model.current()` (session-слой). Серверные fallback'и (`prompt.ts:660`, `:984`, `:2759-2760`) покрывают CLI/скрипты; задача — обвязать их `bug:`-warn'ом при промахе ниже session, не ломая CLI-путь, и зафиксировать правило в доке.
   - [x] **DONE 2026-10-08:** `shellImpl` now records a miss below the layer (`bug: shell model fell through the session layer`, `used: agent-declaration | last-message/default`) and the command chain returns its OWN source label (`command-declaration | agent-declaration | session | last-message/default`) and warns for anything but `session` — both chains unchanged, so CLI/scripts keep working. The rule is recorded in `docs/agent-model-resolution.md` § 3. Pins: `test/session/session-settings-smoke.test.ts` § T4 — RED 3/6 (run `20261008T004929Z_c8439ec9`) → GREEN 6 pass / 0 fail (run `20261008T004957Z_18faca66`); `bun typecheck` exit 0 (run `20261008T005017Z_dfadf0fd`).
+
+## 6. Закрытие (2026-10-10) — переземление боксов и исход
+
+Владелец, 2026-10-10: «Кстати settings тоже сделан.» План уезжал механически (`planstatus`: MISPLACED — 0 открытых боксов), поэтому боксы ПЕРЕземлены по коду и по приборам перед переводом, а не приняты по слову:
+
+- ✓ CONFIRMED (grep по `packages/opencode/src`, 28 совпадений): все названные в § 2/4 символы существуют — `pickFreeVisionModel` (`provider/free-default.ts:31`), `seedGlobalLayer` (`tui/context/local.tsx:679`), `phaseScope` (`tui/component/config-scope.ts:102`, `local.tsx:773`), `readLayer` (`tui/util/agent.ts:66`), `writesWorktreeOnPick` (`tui/util/agent.ts:50`), `protocolLabel` (`feature-plugins/sidebar/protocol-row.ts:80`), `sessionModelProtocol` (`session/session-settings.ts:202`, вызывается из `session/llm.ts:513`).
+- ✓ CONFIRMED — оракулы плана перезапущены 2026-10-10, по одному файлу за прогон: `test/session/session-settings-smoke.test.ts` — 6 pass / 0 fail / 44 expect, exit 0 (run `20261010T185438Z_8fb68fb2`); `test/tui/agent-selection.test.ts` — 17 pass / 0 fail / 51 expect, exit 0 (run `20261010T185447Z_5ae7b832`); `test/provider/free-default.test.ts` — 4 pass + `test/session/fill-layers.test.ts` — 19 pass = 23 pass / 0 fail (run `20261010T185457Z_1aaa7e81`). Итого 46 pass / 0 fail — те же числа, которыми боксы закрывались 2026-09-26 и 2026-10-08.
+- ✓ CONFIRMED (`git log --oneline --grep=unified-settings-layers`): коммиты, называющие план, — `f13259e60e fix(tui): settings layers — home reads the worktree, session reads follow writes` и `1f29b57c1c fix(settings): record server falls below the session layer, gate the last neighbour-session writes`.
+
+**Остаток (вне объёма; не от владельца; переносится вместе с планом).** Шаг варианта (`variant`/`agentVariant`) при session-пике по-прежнему пишется в worktree-слой (`local.tsx:1398-1401`, `:1464-1481`), а `sessionPayload()` выгружает ВЕСЬ worktree-словарь вариантов в файл сессии (разбор — § 4, остаток B, строка с «Остаток (B, варианты)»). Владелец варианты не называл; послойные варианты = переработка трёх ридеров (`variant.selectedForModel`, `variant.state()`, `selected()`) и их вызовов из `dialog-agent`, то есть ОТДЕЛЬНАЯ задача. Этим планом не закрыто и закрытым не считается.
+
+Второй записанный боковой дефект остаётся тем же, чем был: `test/session/revert-compact.test.ts:658` флакует при прогоне папки, в изоляции 7 pass / 0 fail; к слоям настроек не относится, не списан (§ 4, строка с «Побочный дефект»).

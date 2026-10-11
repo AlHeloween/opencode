@@ -103,10 +103,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 218 |
-| plans active | 13 |
-| tasks passed / total | 891 / 1119 |
-| open boxes | 85 |
+| plans completed | 220 |
+| plans active | 14 |
+| tasks passed / total | 900 / 1130 |
+| open boxes | 87 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -250,12 +250,17 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   sv: intention "hidden test-only ORG_HOME/ORG_PORT in three copies + PATH-first fossil + fossil-CLI reads -> one shared resolver as SUPPORTED settings, bundled fossil outranking PATH, reads through org.py verbs only, documented in Protocol and the kernel add-on (plan 2026-09-30_robot-installer.md B1f)" · keywords []
   - S9 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-10_plan-hygiene-in-build-mode.md` — 0 open / 0 box(es) · lifecycle DRAFT
+- `plans/2026-10-10_plan-hygiene-in-build-mode.md` — 2 open / 3 box(es) · lifecycle ACTIVE
   sv: intention "plan hygiene (reconcilePlans) is invoked only from AGI mode and by construction never ticks a box, so finished plans pile up in plans/ and the debt only grows -> every ordinary turn repairs plans/ itself (finished plans move to plans_completed/), and the accumulated plans are swept per protocol: green oracle -> box ticked with an artifact -> move -> docs; anything new that surfaces becomes a NEW plan." · keywords []
+  - M2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - SW [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-11_cua-runtime-context.md` — 0 open / 0 box(es) · lifecycle UNKNOWN
+  sv: intention "completed CUA capture cannot be consumed by a subsequent coordinate click within a tool loop -> verified current execution context for cached tools without changing provider catalog, permissions or capture safety" · keywords []
   - no open box
 
 ## The checks
 
-This body names all 17 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 18 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

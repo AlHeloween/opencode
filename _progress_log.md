@@ -1,5 +1,9 @@
 # Progress Log
 
+## [2026-10-11T15:39Z] MASTER_PLAN — карта догнала план CUA runtime-context (проектный рендерер)
+
+✓ CONFIRMED (`planstatus` до/после + собственный отчёт рендера): `planstatus` печатал «MASTER PLAN GAPS: 1 plan(s) under plans/ are not named in plans/MASTER_PLAN.md — plans/2026-10-11_cua-runtime-context.md» — гап РЕАЛЬНЫЙ на диске, а не артефакт чтения (свёртка СТРОИТ тело карты, но файл с тех пор не переписывался). `svm render` назвал закрытый им гап сам: `gapsBefore: ["plans/2026-10-11_cua-runtime-context.md"]`, 18 планов / 25 286 байт; повторный `planstatus` печатает «Master plan: every plan under plans/ is named in plans/MASTER_PLAN.md.» ⇒ закрытие двустороннее. Диф ограничен одним файлом (+11/−6): счётчики 218→220 / 13→14 / 891/1119→900/1130 / 85→87, план-гигиены «0 open · DRAFT» → «2 open / 3 box(es) · ACTIVE» с боксами M2/SW, CUA-план внесён в карту; рукописная голова (выше «generated below») не тронута. Работа МОЯ (`2026-10-10_plan-hygiene-in-build-mode.md`), владелец её не заказывал.
+⚠ Остаток (назван, не снят): авторский долг — рендер печатает `missingPlanSv 2 · missingTaskSv 60 · missingManifests 85` (MISSING печатается, никогда не выдумывается); бокс SW («свип накопленных планов») открыт ровно на это.
 ## [2026-10-11T15:31Z] CUA runtime-context — T2 починен: живой ctx.messages при байт-идентичном каталоге
 
 ✓ CONFIRMED (правка + cmd_runner state/полные логи): `session/tools.ts:107` расширяет вход `messages` до `MessageV2.WithParts[] | (() => MessageV2.WithParts[])`, а per-call `Tool.Context` (`:203`) его вычисляет; каталог/схемы/описания/порядок не тронуты ⇒ префикс провайдера неизменен. `prompt.ts` — турн-скоупный держатель `liveMessages` (`:1548`), перепривязан к `msgs` шага сразу после `insertReminders` (`:1842`), resolve получает `() => liveMessages` (`:1906`). Почему держатель, а не `() => msgs`: `msgs` объявлен ВНУТРИ шагового цикла, замыкание захватило бы биндинг одной итерации.

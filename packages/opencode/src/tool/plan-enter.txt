@@ -2,7 +2,7 @@ Use this tool to suggest switching to **plan_mode** when the user's request woul
 
 If they explicitly mention wanting to create a plan, ALWAYS call this tool first.
 
-This tool will ask the user if they want to switch to plan_mode.
+The switch is permission-gated (`planenter`): allowed silently by default, prompted only when configured as `ask`, refused when denied.
 
 Call this tool when:
 - The user's request is complex and would benefit from planning first

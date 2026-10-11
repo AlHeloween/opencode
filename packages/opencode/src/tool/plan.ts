@@ -1,7 +1,6 @@
 import path from "path"
 import { Effect, Schema } from "effect"
 import * as Tool from "./tool"
-import { Question } from "../question"
 import { Session } from "@/session/session"
 import { sealUserText } from "@/session/user-seal"
 import { MessageV2 } from "../session/message-v2"
@@ -69,12 +68,11 @@ function attachIdentityTail(session: Session.Interface, msg: MessageV2.User, tex
   } satisfies MessageV2.TextPart)
 }
 
-/** build_mode → plan_mode (user approval). */
+/** build_mode → plan_mode (permission-gated; default allow — no dialog). */
 export const PlanEnterTool = Tool.define(
   "planenter",
   Effect.gen(function* () {
     const session = yield* Session.Service
-    const question = yield* Question.Service
     const provider = yield* Provider.Service
     const agents = yield* Agent.Service
 
@@ -83,23 +81,12 @@ export const PlanEnterTool = Tool.define(
       parameters: Parameters,
       execute: (_params: {}, ctx: Tool.Context) =>
         Effect.gen(function* () {
-          const answers = yield* question.ask({
-            sessionID: ctx.sessionID,
-            questions: [
-              {
-                question: "This looks like it would benefit from planning first. Switch to plan_mode?",
-                header: "plan_mode",
-                custom: false,
-                options: [
-                  { label: "Yes", description: "Switch to plan_mode — plans/ only, no product edits" },
-                  { label: "No", description: "Stay in build_mode and implement now" },
-                ],
-              },
-            ],
-            tool: ctx.callID ? { messageID: ctx.messageID, callID: ctx.callID } : undefined,
+          yield* ctx.ask({
+            permission: "planenter",
+            patterns: ["*"],
+            always: ["*"],
+            metadata: { target: "plan_mode" },
           })
-
-          if (answers[0]?.[0] === "No") return yield* new Question.RejectedError()
 
           const targetAgent = yield* agents.get("plan_mode")
           const fallbackModel = getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel())
@@ -139,12 +126,11 @@ export const PlanEnterTool = Tool.define(
   }),
 )
 
-/** plan_mode → build_mode (user approval). */
+/** plan_mode → build_mode (permission-gated; default allow — no dialog). */
 export const PlanExitTool = Tool.define(
   "planexit",
   Effect.gen(function* () {
     const session = yield* Session.Service
-    const question = yield* Question.Service
     const provider = yield* Provider.Service
     const agents = yield* Agent.Service
 
@@ -155,23 +141,12 @@ export const PlanExitTool = Tool.define(
         Effect.gen(function* () {
           const info = yield* session.get(ctx.sessionID)
           const plan = path.relative(Instance.worktree, Session.plan(info))
-          const answers = yield* question.ask({
-            sessionID: ctx.sessionID,
-            questions: [
-              {
-                question: `Plan at ${plan} is complete. Would you like to switch to build_mode and start implementing?`,
-                header: "build_mode",
-                custom: false,
-                options: [
-                  { label: "Yes", description: "Switch to build_mode and start implementing the plan" },
-                  { label: "No", description: "Stay in plan_mode to continue refining the plan" },
-                ],
-              },
-            ],
-            tool: ctx.callID ? { messageID: ctx.messageID, callID: ctx.callID } : undefined,
+          yield* ctx.ask({
+            permission: "planexit",
+            patterns: ["*"],
+            always: ["*"],
+            metadata: { target: "build_mode", plan },
           })
-
-          if (answers[0]?.[0] === "No") return yield* new Question.RejectedError()
 
           const targetAgent = yield* agents.get("build_mode")
           const fallbackModel = getLastModel(ctx.sessionID) ?? (yield* provider.defaultModel())

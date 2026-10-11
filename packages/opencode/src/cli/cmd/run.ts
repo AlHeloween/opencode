@@ -406,18 +406,11 @@ export const RunCommand = cmd({
     }
 
     const rules: Permission.Ruleset = [
+      // Headless sessions have no one to answer dialogs: refuse the question tool.
+      // planenter/planexit are permission-gated and silent by default (allow),
+      // so autonomy keeps full mode transitions — nothing to answer there.
       {
         permission: "question",
-        action: "deny",
-        pattern: "*",
-      },
-      {
-        permission: "planenter",
-        action: "deny",
-        pattern: "*",
-      },
-      {
-        permission: "planexit",
         action: "deny",
         pattern: "*",
       },

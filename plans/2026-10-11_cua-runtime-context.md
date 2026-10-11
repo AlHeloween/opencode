@@ -111,6 +111,9 @@ Oracles, all run from `packages/opencode`, one file per cmd_runner run:
 - `test/tool/read.test.ts` produced NO verdict (`bytes_written: 0`, process gone) — UNKNOWN, never green. It is
   also structurally blind to this change: it hand-builds its `Tool.Context` (`read.test.ts:38-47`, `messages: []`)
   and never calls `SessionTools.resolve`; its own header records the silence as a known property of the file.
+- Commit: `7c4876f28a` — the owner's own commit («Tools/Skills update», which also carried the skills edits). It does
+  NOT name this plan; this line is the link, because rewriting history is forbidden. The plan's boxes and this
+  file's run ids are the durable record of what was verified.
 
 Residual (named, not waived): this fixture reproduces the loop's CALL SHAPE; it does NOT pin `prompt.ts`, so a
 revert of the loop to a bare array would still pass it — the guard for that is the full-loop oracle (capture in

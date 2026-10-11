@@ -53,10 +53,13 @@ Headless `opencode run` therefore had to pre-deny both tools
 nothing to answer. The `question` TOOL stays denied in headless sessions — it
 genuinely needs a human.
 
-`reasoningenter`/`reasoningexit` never asked a question: they switch directly,
-gated by Gate A plus a native-identity check (`src/tool/reasoning.ts`). They do
-not call `ctx.ask`, so they are not `ask`-configurable today; adding that is one
-`ctx.ask` line per tool if it is ever wanted.
+`reasoningenter`/`reasoningexit` never asked a question, and they are deliberately
+left OUT of the permission-configurable surface: they switch directly, gated by
+Gate A plus a native-identity check (`src/tool/reasoning.ts`). Owner decision,
+2026-10-11, verbatim: «Reasoning мы вообще не трогаем - это для модели если чета
+заглючило». Reasoning mode is the model's own recovery device, so no `ctx.ask` and
+no `ask` setting is to be added there — the asymmetry with the plan pair (which IS
+permission-gated) is intentional, not a gap to close.
 
 ## What a switch does
 

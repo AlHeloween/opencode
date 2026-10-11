@@ -20,6 +20,14 @@ masked by opportunistic tool use.
 The calibration loop is: observe bounded behavior → tune the stable prompt or
 software guardrail → re-observe. This keeps prompt changes evidence-led.
 
+Reasoning mode is the model's own recovery device: it is entered when the model is
+stuck, looping, or glitching — a deliberate operator act for the model's sake, not a
+user convenience. Its transitions are therefore deliberately NOT permission-configurable.
+Owner decision, 2026-10-11, verbatim: «Reasoning мы вообще не трогаем - это для модели
+если чета заглючило» — no `ctx.ask` and no `ask` setting is to be added to
+`reasoningenter`/`reasoningexit`; they stay silent, gated by Gate A and the
+native-identity check (see [Mode transitions](mode-transitions.md)).
+
 ## Capability boundary
 
 | Surface | Rule |

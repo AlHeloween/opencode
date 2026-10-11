@@ -101,7 +101,10 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   session: Session.Info
   processor: Pick<SessionProcessor.Handle, "message" | "updateToolCall" | "completeToolCall">
   bypassAgentCheck: boolean
-  messages: MessageV2.WithParts[]
+  /** Live execution context: an array (a caller that resolves once) or an accessor
+   *  the per-call Tool.Context evaluates — so a tool executed in a LATER loop step
+   *  observes that step's messages instead of the step that resolved the catalog. */
+  messages: MessageV2.WithParts[] | (() => MessageV2.WithParts[])
   promptOps: TaskPromptOps
   /** Canonical tool names disabled via user.tools[k] === false — runtime-deny
    *  only; the catalog on the wire stays complete (KV prefix stability). */
@@ -197,7 +200,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     extra: { model: input.model, bypassAgentCheck: input.bypassAgentCheck, promptOps: input.promptOps },
     agent: input.agent.name,
     agentInfo: input.agent,
-    messages: input.messages,
+    messages: typeof input.messages === "function" ? input.messages() : input.messages,
     metadata: (val: { title?: string; metadata?: Record<string, unknown>; output?: string }) =>
       input.processor.updateToolCall(options.toolCallId, (match) => {
         if (!["running", "pending"].includes(match.state.status)) return match

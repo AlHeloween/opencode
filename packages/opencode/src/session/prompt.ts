@@ -1542,6 +1542,10 @@ export const layer = Layer.effect(
           * avoids re-paginating the entire history on every tool-using loop step. */
         let cachedMsgs: MessageV2.WithParts[] | undefined
         let lastKnownId: string | undefined
+        /** Latest messages of the current loop step. The tool catalog is cached for
+          * the whole turn (KV prefix stability) while its execution context must stay
+          * live: cached tool closures read ctx.messages THROUGH this holder. */
+        let liveMessages: MessageV2.WithParts[] = []
         /** Cached tool resolution — tool set is stable across loop iterations
           * within a single turn (same agent, model, session, provider). */
         let cachedTools: Record<string, AITool> | undefined
@@ -1835,6 +1839,7 @@ export const layer = Layer.effect(
           const maxSteps = agent.steps ?? Infinity
           const isLastStep = step >= maxSteps
           msgs = yield* insertReminders({ messages: msgs, agent, session })
+          liveMessages = msgs
           const msg: MessageV2.Assistant = {
             id: MessageID.ascending(),
             parentID: lastUser.id,
@@ -1898,7 +1903,7 @@ export const layer = Layer.effect(
                 model,
                 processor: handle,
                 bypassAgentCheck,
-                messages: msgs,
+                messages: () => liveMessages,
                 promptOps: yield* ops(),
                 userDisabled: new Set(
                   Object.entries(lastUser?.tools ?? {})

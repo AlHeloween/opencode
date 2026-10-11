@@ -138,12 +138,20 @@ cmd_runner send <run_id> --keys "ctrl+c"
 cmd_runner send <run_id> --keys "TEXT:root,ENTER"
 cmd_runner send <run_id> --stdin-file FILEPATH
 cmd_runner send <run_id> --text-file FILEPATH
+cmd_runner send <run_id> --text-file FILEPATH --paste --no-tail
 cmd_runner send <run_id> --text "whoami" --text-as-b64 --crlf
 cmd_runner send <run_id> --hex 03
 ```
 
 - `--keys` tokens: `LEFT,RIGHT,UP,DOWN,HOME,END,INSERT,DELETE,TAB,ESC,ENTER,BACKSPACE,ctrl+a..ctrl+z,TEXT:text,CHAR:char,HEX:hex`
 - `--crlf` appends CRLF after text.
+- `--paste` sends `ESC[200~`, the exact source bytes, then `ESC[201~`. Use it for a large
+  TUI text attachment after the input field is ready. With `--crlf`, the final Enter is
+  outside the paste; omit it to leave the attachment unsubmitted. A closing paste marker
+  inside the source is rejected. `--keys` cannot be combined with `--paste`.
+- Ordinary text sources normalize bare LF to CRLF. Existing CRLF gains no extra bytes.
+  Binary sources (`--stdin-file`, `--stdin-b64-file`, `--hex`, `--b64`, `--text-as-b64`)
+  preserve bytes; `--stdin-b64-file` is a binary-file alias. Paste preserves both LF and CRLF.
 - Auto-tails last 3 lines after send (default; `--send-tail 0` to disable).
 
 **Quoting tips (PowerShell):**
@@ -210,6 +218,40 @@ cmd_runner start --raw -- <image_command ...>
 - Text-based tools (`tail`, `assert`, `snapshot`) work on clean text.
 - `--no-raw` forces ConPTY mode (no image capture in logs).
 
+### Output encoding (2026.10.08)
+
+- `stdout.log` holds the payload's bytes exactly as written; `log.bytes_written` counts them.
+- `stdout_text.log` is decoded leniently and never stops a run: valid UTF-8 is decoded (a character split
+  across two pipe reads is joined), and any other byte is decoded through the console OEM code page.
+  pwsh and other console apps write to a pipe in that code page, not UTF-8, e.g. `═` is byte `0xCD` on cp866.
+  A byte the OEM code page cannot map becomes U+FFFD. Read `stdout.log` when the exact bytes matter.
+- A fault in the output path is written to `stderr.log` as `[cmd_runner] output path fault, capture continues ...`;
+  capture and the payload go on. Before 2026.10.08, the first non-UTF-8 byte killed the raw host and the payload.
+
+## What `state.json` notes mean
+
+- `log final` — the host wrote the final state itself; `exit_code` is the payload's real exit code.
+- `host error: <class>: <message>` (status `host_error`) — the host failed and said so before exiting.
+- `finished by health-check: exit unknown - ...` — no live payload, and the host (`host_pid`) is gone without
+  writing its final state (it died or was killed). The payload's exit code is NOT known; do not read it as success.
+  While the host is still alive, the run stays `running` even after the payload exits, until its final write.
+
+### Robot lifecycle (2026.10.11)
+
+- `start` explicitly requests Job breakaway for its terminal host. Runner-owned ConPTY,
+  raw and direct-terminal Jobs allow explicit breakaway; ordinary children remain managed.
+  If Windows denies breakaway, `start` fails visibly and never retries with inherited ownership.
+- Processes already launched through an older runner keep their old Job policy. Updating the
+  executable does not change their Jobs; restart those launches before using nested `start`.
+- A successful breakaway can retain system Job membership. Actual survival after parent exit
+  is the lifecycle check. Arbitrary restrictive external Job hierarchies are not qualified.
+- `status --json` and JSON `list` refresh process liveness. A raw file read is a saved snapshot.
+  `running` means a live payload or host; it does not prove an HTTP listener, TUI input readiness,
+  provider progress, or completion of a robot task.
+- For OpenCode robots, use the `opencode-bridge` HTTP route: validate the worktree host nonce,
+  authenticated request and session completion. A live PID with a failed HTTP probe is a transport
+  failure to investigate, never a successful agent run.
+
 ## Screenshot
 
 ```
@@ -229,6 +271,11 @@ cmd_runner screenshot <run_id> [--out PATH]
 | `--tail-timeout N` | 0 | Retry tail up to N seconds |
 
 ## Log layout
+
+The run store is `<exe dir>/logs/cmd_runner/` (the `tools/` parent when it also holds `cmd_runner.exe`).
+`CMD_RUNNER_LOG_ROOT=<dir>` moves it for every subcommand (start, tail, status, wait, list, stop, send, ...);
+`--log-root <dir>` does the same for one invocation. Use it when the tool's folder must stay unchanged,
+e.g. an install that is re-verified against a manifest. `start` passes the root to its host explicitly.
 
 ```
 logs/cmd_runner/<run_id>/

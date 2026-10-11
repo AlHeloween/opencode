@@ -1,115 +1,83 @@
 ---
 name: opencode-bridge
-description: Start, read and drive another opencode session — or another robot — through its server HTTP API (POST /session, prompt_async, /session/status, /message). Use when a task needs a second agent in its own worktree, a child robot, or a session the owner watches in his TUI. Never by typing into a TUI through cmd_runner, never by a second process writing the same session.
+description: Start, read and drive another opencode session or robot through its server HTTP API. Use for bounded child work in its own worktree or a session the owner watches in TUI. Never drive a robot by typing prompts through cmd_runner, never start a competing writer on its session database.
 ---
 
-# opencode-bridge — another session through its server (OUR route, inside the runtime)
+# OpenCode bridge
 
-- sv: { keywords: { server-api-bridge 0.30, one-server-per-worktree 0.24, robots-launch-robots 0.20,
-        narrowed-authority 0.14, completion-predicate 0.12 },
-        dominant: "An opencode agent starts or reaches another session through its server API, one server per worktree, never through a terminal." }
-- status: ✓ verified end-to-end 2026-10-01 from OUTSIDE the runtime (Claude → the owner's TUI server): create
-  session, send, a 33-`webfetch` tool turn finished `stop` in ~96 s, reply read back. Not yet run FROM a robot —
-  and MEASURED the same day: a robot cannot reach its OWN TUI session, because that host binds no socket at all
-  (see Open). The CLIENT half is proven from inside; it is the SERVER half that needs `--port`.
+```yaml
+Keywords: server-api-bridge 0.35, host-identity 0.25, completion-predicate 0.20, narrowed-authority 0.20
+Semantic dominant: Drive a bounded robot through the worktree host and independently verify completion.
+md5: 6d67cb8d8a9a4b9e8b0f67c242ef47ec
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 492175a4cfee486cbd9680f397f3d688
+```
 
-## Which binary you are on decides the recipe
+## Evidence and compatibility
 
-- **A binary built from `442ecb5c84` or later («one server per worktree DB»)** — every worktree has ONE host,
-  recorded in its own DB (table `server_host`: url, pid, nonce, per-start token). The TUI claims it on start (it
-  listens on `127.0.0.1:<free port>` — no `--port` needed), a later `run` attaches to it, a second `serve` refuses.
-  Command routes need the token; a foreign `Host` header is refused. **Reach it only through the shared client**
-  `D:/zPython/opencode/tools/opencode_host.py` — it reads the record read-only, checks the host is LIVE (its
-  `/global/health` echoes the recorded nonce — a pid or a port alone proves nothing) and sends the header; it never
-  prints the token. `python tools/opencode_host.py <worktree>` → `live: <url> pid=… started=…` (exit 0), `STALE`
-  (exit 2) or `none` (exit 3). From Python: `from opencode_host import connect; h = connect(worktree);
-  h.post("/session", {"title": "…"}); h.get("/session/status")`. Qualified 2026-10-02 against a real host
-  (`experiments/2026-10-02_host-client/probe.py`, run `20261002T120031Z_601b3ba6`, 7/7: no token → 401,
-  `Host: evil.example` → 403, killed host → STALE, token never printed).
-- **An older binary** (the `bin/` build until the owner promotes one with `442ecb5c84`) — the recipe below:
-  a TUI binds NOTHING unless launched with `--port`, and there is no auth unless `OPENCODE_SERVER_PASSWORD` is set.
+Verified 2026-10-11 on the local OpenCode build: a plain TUI creates an HTTP host;
+a second plain TUI in the same worktree uses that host. After stopping the owning
+test TUI, the surviving TUI claimed a new host nonce and authenticated
+`GET /session/status` returned 200. Evidence: ADID's
+`experiments_history/2026-10-11_cmd_runner_robot_fixes/tui-failover-results.json`.
+The 2026-10-01 observations that plain TUI had no socket and no registry describe
+an older build. Discover the current build's contract before using an older one.
 
-This file is written for an agent INSIDE opencode. Use your own tools (`bash` through the constitution, `read`,
-`write`); the shell rules of AGENTS.md § Shell Command Restrictions apply unchanged.
+## Authority and ownership
 
-## Why this route and no other
+1. Launch the project's `bin/opencode.exe` (locally
+   `D:/zPython/opencode/bin/opencode.exe`); discover its path on another host.
+2. A child robot gets its own worktree and no more authority than its parent.
+   Hand it paths, bounded effects, acceptance criteria and an independently
+   drivable oracle. Many sessions on the worktree's one host are allowed.
+3. Prefer the existing host. Do not launch another explicit-port server or
+   unattached `opencode run` against the same database.
+4. The owner's route is a visible TUI through cmd_runner. `serve` remains excluded
+   unless the owner requests the web surface. Stop only a process you started.
 
-- A TUI is a rendering of state; reading its terminal is reading pictures. The server holds the state.
-- `opencode run` WITHOUT `--attach` boots its own server and writes the same session database as any other
-  server on that worktree — two writers, against the single-arbiter rule (AGENTS.md § Storage Paradigm).
-  Measured 2026-10-01: headless `run` tool turns stalled until killed; the same tool turn over a TUI's server
-  completed.
-- The owner, 2026-10-01: driving opencode through cmd_runner keystrokes is «как операция на гланды через
-  анус»; this bridge is «нормальный навык и очень полезный».
+## Find or start the host
 
-## Rules (owner, 2026-10-01)
+The current implementation stores `server_host` in the worktree's
+`.opencode/data/opencode.db`: URL, PID, nonce, token and start time.
+Read the record without writing the database. Never print its token, place it
+in a tracked file, shell command, progress entry or log.
 
-1. **Launch from `bin/`** — `D:/zPython/opencode/bin/opencode.exe`, never `dist/bin` («туда мы его собираем и
-   там же отлаживаем»). Launching only — nothing is edited, copied or built into `bin/`.
-2. **One worktree = one server = one port = one terminal.** Launch from the worktree's own folder (each has its
-   own database); ports never mix («порты не микшировать. Под каждую сессию свой терминал»).
-3. **Many sessions per server are fine** — `POST /session` on the same port.
-4. **A session is held by ONE server.** Before starting a server on a session, make sure no other server has it.
-5. **A child never gets more authority than its parent.** Hand the child a bounded task, its oracle and its
-   paths; do not hand it a permission you were not given.
+Check `GET <url>/global/health`: require `healthy=true` and `host` equal to the
+record's nonce. A live PID alone does not establish HTTP reachability or progress.
+For command routes, use Basic authentication with username `opencode` and the
+record's token. Explicit `OPENCODE_SERVER_USERNAME` / `OPENCODE_SERVER_PASSWORD`
+configuration takes precedence; obtain it through the authorized secret path.
 
-## Recipe
+If no healthy host exists, start the worktree's plain TUI:
 
-1. **Choose the session** (no server needed): `D:/zPython/opencode/bin/opencode.exe session list -n 6`
-   — or create one in step 4.
-2. **Choose a free port** and check nobody listens on it (`Get-NetTCPConnection -LocalPort <port>`). There is no
-   port registry yet: record `worktree → port → run_id` in your progress log entry.
-3. **Start the server** through cmd_runner (a long-lived process — never a bare `start`), from the worktree:
-   - owner watches → TUI in Windows Terminal:
-     `cmd_runner start --terminal wt --cwd <worktree> --no-tail -- D:/zPython/opencode/bin/opencode.exe --session <id> --port <port>`
-   - **`serve` is NOT our route (owner, 2026-10-01: «это веб двиг — он нам не нужен пока»).** `serve` is
-     `Server.listen` (`src/cli/cmd/serve.ts:15`), which mounts the EMBEDDED WEB UI (`src/server/routes/ui.ts:11,25`
-     — `opencode-web-ui.gen.ts`, `index.html`) and warns «OPENCODE_SERVER_PASSWORD is not set; server is
-     unsecured» when launched bare. A robot to be driven is a TUI **with `--port`**, above — the port is what
-     makes it reachable, the terminal is what the owner watches.
-   The server binds `127.0.0.1` unless `--hostname` is given — keep it local.
-4. **Talk HTTP** — base `http://127.0.0.1:<port>`, every call with `?directory=<url-encoded worktree>`:
-   - `POST /session` `{"title":"…"}` → the new session's `id`
-   - `POST /session/<id>/prompt_async`
-     `{"model":{"providerID":"deepseek","modelID":"deepseek-flash"},"parts":[{"type":"text","text":"…"}]}` → `204`
-   - `GET /session/status` → `{}` when idle; a busy session appears under its id
-   - `GET /session/<id>/message?limit=N` → rows `{info:{id,role,finish,time}, parts:[…]}`
-   - `GET /event` → server-sent events
-   Write the request as a small script file under `experiments/<ISO-date>_<name>/` (UTF-8 JSON body) and run
-   it — Russian text and quotes survive a file, not a quoted one-liner.
-5. **Done means:** `/session/status` idle AND the newest ASSISTANT row has `finish` ∉ {null, `tool-calls`} and
-   `time.completed` set. NOT «the last row has `finish`»: the server may append a Layer-1 summary (role
-   `user`) right after the reply — that exact misread happened on 2026-10-01.
-6. **Verify the child's result yourself.** Its reply is testimony; run the oracle you handed it.
-7. **Stop** the server you started (`cmd_runner stop <run_id>`) when its work is verified — never a server you
-   did not start.
+```text
+cmd_runner start --terminal wt --cwd <worktree> --no-tail -- <opencode.exe>
+```
 
-## Open
+Record worktree, run_id, URL and nonce; keep credentials out. Wait for nonce health.
+The default TUI can discover/proxy a host; do not assume a remembered port remains
+current after host replacement. Readiness of HTTP does not prove the prompt field
+is ready for terminal paste. Use this HTTP bridge for robot prompts.
 
-- **A running TUI binds NOTHING — measured 2026-10-01 FROM INSIDE, so a robot cannot bridge to its own session.**
-  `tasklist /FI "IMAGENAME eq opencode.exe"` → exactly one process (pid 19348, the TUI running the probe);
-  `netstat -ano` filtered by that pid → 5 lines, ALL `ESTABLISHED … :443` outbound to the model providers and
-  **zero LISTENING**. The port the outside bridge used (`127.0.0.1:4096`) answered `curl: (7) Failed to connect
-  … after 2003 ms` / `HTTP:000`, while one stale client (pid 24568) sat in `SYN_SENT` toward it. Reachability
-  from inside was proven in the same minute — `curl 8.21.0` answers and 12 loopback ports listen on this host —
-  so the gap is the SERVER side, not the client.
-  ⇒ **To be reachable, a session's host must be launched WITH `--port <p>` (recipe step 3)**: the in-process
-  server a plain TUI starts binds no socket, which is also why the config `server.port` is ignored. And a child
-  robot needs its OWN worktree — a second server on THIS worktree puts two writers on one session database,
-  which the section above forbids.
-- **`serve --port` is EXCLUDED — the web engine, not our route** (owner, 2026-10-01: «это веб двиг — он нам не
-  нужен пока»). It is `Server.listen` (`src/cli/cmd/serve.ts:15`), which mounts the embedded web UI
-  (`src/server/routes/ui.ts:11,25`), and it warns «OPENCODE_SERVER_PASSWORD is not set; server is unsecured»
-  when launched bare. Recorded rather than deleted, with its lift signal: it returns only if a task needs the
-  WEB surface itself — and then with a password set.
-- **A child robot is therefore a TUI with its own `--port`, in its OWN worktree** — never a `serve`, and never a
-  second server on a worktree that already has one (rule 2). Whether such a TUI can run unattended without a
-  terminal, or needs `--terminal wt`, is NOT measured here.
-- The TUI ignores `server.port` from config (`src/cli/cmd/tui/thread.ts:227` calls
-  `resolveNetworkOptionsNoConfig(args)` without config) — Inferred by reading.
-- ~~No port registry~~ — superseded by `442ecb5c84`: the host record in the worktree DB IS the registry (a
-  SQLite table, read once at process start — the relational plane's access pattern, not a hot-path key).
-  Cross-worktree discovery needs no global list: `git worktree list` names the trees, each tree's record names its
-  live host.
-- The Claude-side twin that used to live in `.claude/skills/opencode-bridge/` no longer exists (checked
-  2026-10-02); this file is the one recipe.
+## Drive and finish
+
+Write a small UTF-8 client script under `experiments/<date>_<name>/`; send JSON
+bodies through its HTTP client. Calls include `?directory=<URL-encoded worktree>`.
+
+- `POST /session` with `{"title":"…"}` creates a session.
+- `POST /session/<id>/prompt_async` with model and text parts returns 204.
+- `GET /session/status` gives the busy-session map.
+- `GET /session/<id>/message?limit=N` returns message info and parts.
+- `GET /event` provides server-sent events.
+
+Completion requires the session to be idle AND its newest assistant message to
+have a non-null `finish` other than `tool-calls`, with `time.completed` set.
+A trailing user summary, empty busy map, healthy process or HTTP 204 alone is not
+completion. Independently inspect artifacts and run the handed oracle.
+
+On transport error, mark the observation unavailable, re-read the host record and
+verify its nonce before reconnecting. Do not blindly replay a prompt after a
+timeout: inspect messages/status first to avoid duplicate work. A replacement host
+does not prove an interrupted provider call completed. Inferred from current
+worker code: a silent half-open SSE read has no explicit idle deadline; the clean
+host-stop probe does not qualify that failure mode.

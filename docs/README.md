@@ -19,6 +19,7 @@
 - [Kernel assembly point](kernel-assembly-point.md) — where `source.py` becomes `reasoning_prompt.txt`
 - [Two-canon protocol](two-canon-protocol.md) — ADID 15.3 ↔ kernel parity: one protocol, two compilers
 - [Reasoning mode](reasoning-mode.md) — memory-only calibration identity, no execution surface
+- [Mode transitions](mode-transitions.md) — plan↔build↔reasoning: Gate A ACL + `ctx.ask`; `planenter`/`planexit` permission-gated with default allow (Question dialog removed 2026-10-11)
 - [System prompt order](system-prompt-order.md) — slot order; any mid-prefix mutation is a full cache miss
 - [UNIVERSAL_ENV](system-prompt-universal-env.md) — the immutable `system[0]` head
 - [CodeGraph MCP](codegraph-mcp.md) — live graph contract + readonly SQLite pack; per-step cached summary

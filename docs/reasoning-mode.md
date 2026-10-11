@@ -24,10 +24,10 @@ software guardrail → re-observe. This keeps prompt changes evidence-led.
 
 | Surface | Rule |
 |---|---|
-| Entry | User UI selection, or a transition requested by the native Orchestrator for its controlled model. |
-| Available tool | `memory` only: read, write, or append the project's reasoning notes. |
+| Entry | User UI selection, or the native `build_mode`'s `reasoningenter` transition (`src/tool/reasoning.ts`; native-identity check). Ordinary models never receive the transition schema. |
+| Available tools | `checkstate`, `memory` (read, write, or append the project's reasoning notes), and the mode's own `reasoningexit` (`agent/agent.ts:204-216`). |
 | Denied capabilities | File inspection, search, shell, edits, subagents, and all execution tools. |
-| Exit | User UI selection, or the native Orchestrator's controlled `reasoningexit` transition. Ordinary models never receive either transition schema. |
+| Exit | User UI selection, or the native `reasoning_mode`'s own `reasoningexit` transition (`src/tool/reasoning.ts`). Ownership is enforced twice: Gate A denies the tool to every other identity, and the tool re-checks `ctx.agentInfo` for `reasoning_mode`. See [Mode transitions](mode-transitions.md). |
 | Steady state | No repeated mode-tail or task-continuation prompt injection. Software permissions enforce the boundary. |
 
 Reasoning memory is stored per project at

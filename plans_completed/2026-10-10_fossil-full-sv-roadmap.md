@@ -1,5 +1,7 @@
 # Полный YAML SV в Fossil
 
+Закрытие перепроверено 2026-10-11: ✓ CONFIRMED (git show/status + SHA256) commit 6e3f386db1 содержит все восемь файлов задачи; четыре source/test пина ниже совпадают с текущими байтами. ✓ CONFIRMED (полный state/stdout cmd_runner 20261010T012320Z_bc83d96f): сборка через pwsh ConPTY завершилась exit0, smoke 10.0.1259 и embedded reasoning_prompt PASS, dropped0/truncatedfalse. Позднейшая запись о версии 10.0.1261 ниже — отдельное историческое свидетельство, не замена этого проверенного build stamp. ACTIVE и oracle pending в описании стартового envelope относились к началу работы; текущий статус CLOSED.
+
 <!-- intention: в Fossil остаётся только адрес/сокращение SV, read-only ответы теряются -> полный существующий SV завершённого ответа читается из Fossil без OpenCode DB -->
 
 ```yaml
@@ -12,11 +14,11 @@ parent-goal-md5: 00000000000000000000000000000000
 
 ## Контракт
 
-Статус ACTIVE, задачи привязаны и исполняются. Explore-проверка плана и diff пройдена; её вывод — testimony, runtime oracle ниже.
+Статус CLOSED: S1–S3 подтверждены, реализация сохранена в commit 6e3f386db1b15d735f8a69cdd0e25a1040c03f5e. Explore-проверка плана и diff пройдена; её вывод — testimony, runtime oracle ниже.
 
 G3 DRAFT -> G4 ALLOW: пользователь требует сохранения сообщений SV в Fossil. Эффекты: MODIFY_PROJECT, PLAN_WRITE, локальная сборка кандидата и scoped git commit; без promotion, внешней публикации, kernel/bin, чужих dirty hunks и изменения живой snapshot.fsl. Бюджеты: steps 120, tools 100, corrective loops 3, depth 2, time 1800000 ms. Корневой SVM: goal_hierarchy level 0, parent_turn_id null; acceptance ниже; oracle pending до измерений.
 
-✓ CONFIRMED (CodeGraph + чтение source): `memory/spine.ts:vectorSign` вызывается `session/processor.ts` на finish-step завершённого ответа; `snapshot/fossil.ts:track` принимает подпись, но без изменений возвращает старый hash. Это привязки, не доказательство нового поведения.
+✓ CONFIRMED (CodeGraph + чтение source до изменения, red baseline): `memory/spine.ts:vectorSign` вызывается `session/processor.ts` на finish-step завершённого ответа; старый `snapshot/fossil.ts:track` принимал подпись, но без изменений возвращал прежний hash. Это исторический baseline, не описание текущего поведения.
 
 ## Задачи и oracle
 

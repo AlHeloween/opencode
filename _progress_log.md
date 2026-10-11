@@ -1,5 +1,9 @@
 # Progress Log
 
+## [2026-10-11] Перепроверка commit полного YAML SV в Fossil
+
+✓ CONFIRMED (git show/status, SHA256): основной commit 6e3f386db1 включает два source, два test, два docs, журнал и закрытый план; все четыре source/test пина совпали с проверенной версией, дерево до этого уточнения было чистым. В plans_completed/2026-10-10_fossil-full-sv-roadmap.md исправлены устаревшие ACTIVE и описание baseline как текущего состояния. ✓ CONFIRMED (полный cmd_runner 20261010T012320Z_bc83d96f state/stdout): build exit0, smoke 10.0.1259 + embedded reasoning_prompt PASS, dropped0/truncatedfalse. Это уточнение закрытия, source/runtime не меняется; прежние runtime/форматные residual сохранены.
+
 ## [2026-10-11T03:48+08:00] Haiku 5.5 — T3 build и граница поставки
 
 ✓ CONFIRMED (cmd_runner state + полный stdout): `_build.ps1 -Task build`, `20261010T194523Z_4fcaf6d6`, exit 0; кандидат `dist/bin/opencode.exe`, bin не менялся. Build logs SHA-256 `308caf93e47faabdc83dfa4c5cb9debfd796b62f818583cb52684288509a704c`, dropped 0/truncated false. Cargo/Vite warnings сохранены в плане, не скрыты. Документация: docs/haiku-adaptive-thinking.md + docs/README.md. План: plans_completed/2026-10-11_haiku-adaptive-thinking.md. Остаток: live API и установленный TUI не измерены; продвижение — отдельное действие владельца.

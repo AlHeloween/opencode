@@ -1,0 +1,158 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.FFFFFFFFF.                                                                                                      [100%]
+====================================================== FAILURES =======================================================
+_____________________________ test_validator_rejects_wildcard_outside_the_interrupt_edge ______________________________    def test_validator_rejects_wildcard_outside_the_interrupt_edge() -> None:
+        for kind in ("side", "forward", "back", "terminal"):
+            errors = validate_kernel(_with_mutated_edge("*", "G7", kind))
+>assert any("wildcard" in error for error in errors), (kind, errors)
+E           AssertionError: ('side', [])
+E           assert False
+E            +  where False = any(<generator object test_validator_rejects_wildcard_outside_the_interrupt_edge.<locals>.<genexpr> at 0x00000000059A7850>)tests\test_validation_guards.py:61: AssertionError
+________________________________ test_validator_rejects_outgoing_edges_from_a_terminal ________________________________    def test_validator_rejects_outgoing_edges_from_a_terminal() -> None:
+        assert "SUCCESS" in KERNEL.terminals
+        for terminal in KERNEL.terminals:
+            errors = validate_kernel(_with_mutated_edge(terminal, "G7", "side"))
+>assert any("no outgoing edges" in error for error in errors), (terminal, errors)
+E           AssertionError: ('SUCCESS', [])
+E           assert False
+E            +  where False = any(<generator object test_validator_rejects_outgoing_edges_from_a_terminal.<locals>.<genexpr> at 0x0000000005BB4110>)tests\test_validation_guards.py:70: AssertionError
+___________________________________ test_validator_rejects_an_undeclared_side_edge ____________________________________    def test_validator_rejects_an_undeclared_side_edge() -> None:
+        for source, target in (("G0", "G7"), ("G0", "G8")):
+            errors = validate_kernel(_with_mutated_edge(source, target, "side"))
+>assert any("side edge" in error for error in errors), (source, target, errors)
+E           AssertionError: ('G0', 'G7', [])
+E           assert False
+E            +  where False = any(<generator object test_validator_rejects_an_undeclared_side_edge.<locals>.<genexpr> at
+t 0x0000000005BB4E10>)
+
+tests\test_validation_guards.py:76: AssertionError
+_________________________________ test_validator_rejects_an_undeclared_forward_branch _________________________________
+
+    def test_validator_rejects_an_undeclared_forward_branch() -> None:
+        # G3 -> G7 skips authorization (G4); G4 -> G8 skips grounding and implementation (G6, G7);
+        # G0 -> G4 skips three gates. Only the declared read/plan-only branch G6 -> G8 may ride.
+        for source, target in (("G3", "G7"), ("G4", "G8"), ("G0", "G4")):
+            errors = validate_kernel(_with_mutated_edge(source, target, "forward"))
+>assert any("undeclared forward branch" in error for error in errors), (source, target, errors)
+E           AssertionError: ('G3', 'G7', [])
+E           assert False
+E            +  where False = any(<generator object test_validator_rejects_an_undeclared_forward_branch.<locals>.<genexp
+pr> at 0x0000000005BB6B50>)
+
+tests\test_validation_guards.py:84: AssertionError
+________________________ test_validator_rejects_fsm_initial_state_outside_its_declared_states _________________________ 
+
+    def test_validator_rejects_fsm_initial_state_outside_its_declared_states() -> None:
+        gate = KERNEL.gates[0]
+        assert gate.fsm is not None
+        errors = validate_kernel(_with_gate_fsm(gate.id, replace(gate.fsm, initial_state="UNDECLARED")))
+>       assert any("initial state" in error for error in errors), errors
+E       AssertionError: []
+E       assert False
+E        +  where False = any(<generator object test_validator_rejects_fsm_initial_state_outside_its_declared_states.<lo
+ocals>.<genexpr> at 0x0000000005BB4D40>)
+
+tests\test_validation_guards.py:91: AssertionError
+_______________________ test_validator_rejects_fsm_accepting_state_outside_its_declared_states ________________________ 
+
+    def test_validator_rejects_fsm_accepting_state_outside_its_declared_states() -> None:
+        gate = KERNEL.gates[0]
+        assert gate.fsm is not None
+        errors = validate_kernel(_with_gate_fsm(gate.id, replace(gate.fsm, accepting_states=("UNDECLARED",))))
+>       assert any("accepting state" in error for error in errors), errors
+E       AssertionError: []
+E       assert False
+E        +  where False = any(<generator object test_validator_rejects_fsm_accepting_state_outside_its_declared_states.<
+<locals>.<genexpr> at 0x0000000005BB4860>)
+
+tests\test_validation_guards.py:98: AssertionError
+_____________________ test_validator_rejects_fsm_transition_endpoint_outside_its_declared_states ______________________ 
+
+    def test_validator_rejects_fsm_transition_endpoint_outside_its_declared_states() -> None:
+        gate = KERNEL.gates[0]
+        assert gate.fsm is not None
+        broken = replace(
+            gate.fsm,
+            transitions=(replace(gate.fsm.transitions[0], to_state="UNDECLARED"), *gate.fsm.transitions[1:]),
+        )
+        errors = validate_kernel(_with_gate_fsm(gate.id, broken))
+>       assert any("transition endpoint" in error for error in errors), errors
+E       AssertionError: []
+E       assert False
+E        +  where False = any(<generator object test_validator_rejects_fsm_transition_endpoint_outside_its_declared_stat
+tes.<locals>.<genexpr> at 0x0000000005BB4AD0>)
+
+tests\test_validation_guards.py:109: AssertionError
+_____________________________ test_validator_rejects_fsm_id_that_disagrees_with_its_owner _____________________________ 
+
+    def test_validator_rejects_fsm_id_that_disagrees_with_its_owner() -> None:
+        gate = KERNEL.gates[0]
+        assert gate.fsm is not None
+        errors = validate_kernel(_with_gate_fsm(gate.id, replace(gate.fsm, id="G0_ORPHAN")))
+>       assert any("must match its owner" in error for error in errors), errors
+E       AssertionError: []
+E       assert False
+E        +  where False = any(<generator object test_validator_rejects_fsm_id_that_disagrees_with_its_owner.<locals>.<ge
+enexpr> at 0x0000000005C6C5F0>)
+
+tests\test_validation_guards.py:116: AssertionError
+______________________________ test_validator_applies_the_same_fsm_contract_to_protocols ______________________________ 
+
+    def test_validator_applies_the_same_fsm_contract_to_protocols() -> None:
+        protocol = KERNEL.protocols[0]
+        assert protocol.fsm is not None
+        broken = replace(protocol, fsm=replace(protocol.fsm, initial_state="UNDECLARED"))
+        errors = validate_kernel(replace(KERNEL, protocols=(broken, *KERNEL.protocols[1:])))
+>       assert any("initial state" in error for error in errors), errors
+E       AssertionError: []
+E       assert False
+E        +  where False = any(<generator object test_validator_applies_the_same_fsm_contract_to_protocols.<locals>.<gene
+expr> at 0x0000000005C6CEE0>)
+
+tests\test_validation_guards.py:124: AssertionError
+=============================================== short test summary info =============================================== 
+FAILED tests\test_validation_guards.py::test_validator_rejects_wildcard_outside_the_interrupt_edge - AssertionError: ('s
+side', [])
+FAILED tests\test_validation_guards.py::test_validator_rejects_outgoing_edges_from_a_terminal - AssertionError: ('SUCCES
+SS', [])
+FAILED tests\test_validation_guards.py::test_validator_rejects_an_undeclared_side_edge - AssertionError: ('G0', 'G7', []
+])
+FAILED tests\test_validation_guards.py::test_validator_rejects_an_undeclared_forward_branch - AssertionError: ('G3', 'G7
+7', [])
+FAILED tests\test_validation_guards.py::test_validator_rejects_fsm_initial_state_outside_its_declared_states - Assertion
+nError: []
+FAILED tests\test_validation_guards.py::test_validator_rejects_fsm_accepting_state_outside_its_declared_states - Asserti
+ionError: []
+FAILED tests\test_validation_guards.py::test_validator_rejects_fsm_transition_endpoint_outside_its_declared_states - Ass
+sertionError: []
+FAILED tests\test_validation_guards.py::test_validator_rejects_fsm_id_that_disagrees_with_its_owner - AssertionError: []
+FAILED tests\test_validation_guards.py::test_validator_applies_the_same_fsm_contract_to_protocols - AssertionError: []  
+9 failed, 2 passed in 2.65s

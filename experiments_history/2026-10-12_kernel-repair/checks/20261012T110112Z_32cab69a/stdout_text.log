@@ -1,0 +1,148 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+bun test v1.4.2 (744846f84)
+
+test\tool\description-integrity.test.ts:
+(pass) tool description integrity (static) > the scan finds the corpus (control that MUST match) [4.72ms]
+(pass) tool description integrity (static) > every description file is non-trivial [72.80ms]
+(pass) tool description integrity (static) > no description or hand-maintained model prompt names a retired tool [4.80ms]
+(pass) tool description integrity (static) > no description repeats a prose line verbatim [2.33ms]
+[11:01:16.397] ERROR (#4): 54 | }
+55 | /**
+56 |  * @since 4.0.0
+57 |  * @category constructors
+58 |  */
+59 | export const systemError = options => new PlatformError(new SystemError(options));
+                                               ^
+PlatformError: NotFound: FileSystem.writeFile (D:\zPython\opencode\.temp\test\opencode-test-data-9912\configs\.gitignore)
+       _tag: "PlatformError",
+ ~effect/platform/PlatformError: "~effect/platform/PlatformError",      at systemError (D:\zPython\opencode\node_modules\.bun\effect@4.0.0-beta.57\node_modules\effect\dist\PlatformError.js:59:43)
+      at D:\zPython\opencode\node_modules\.bun\@effect+platform-node-shared@4.0.0-beta.99+2b77f6bfdae23d8d\node_modules\@effect\platform-node-shared\dist\NodeFileSystem.js:392:74
+      at guarded (internal:shared:112:26)
+      at processTicksAndRejections (native:7:39)54 | }
+55 | /**
+56 |  * @since 4.0.0
+57 |  * @category constructors
+58 |  */
+59 | export const systemError = options => new PlatformError(new SystemError(options));
+                                                             ^
+error: NotFound: FileSystem.writeFile (D:\zPython\opencode\.temp\test\opencode-test-data-9912\configs\.gitignore)       
+       _tag: "NotFound",
+     module: "FileSystem",
+     method: "writeFile",
+ pathOrDescriptor: "D:\\zPython\\opencode\\.temp\\test\\opencode-test-data-9912\\configs\\.gitignore",
+    syscall: "open",
+
+      at systemError (D:\zPython\opencode\node_modules\.bun\effect@4.0.0-beta.57\node_modules\effect\dist\PlatformError.
+.js:59:57)
+      at <anonymous> (D:\zPython\opencode\node_modules\.bun\@effect+platform-node-shared@4.0.0-beta.99+2b77f6bfdae23d8d\
+\node_modules\@effect\platform-node-shared\dist\NodeFileSystem.js:392:74)
+      at guarded (internal:shared:112:26)
+
+ENOENT: no such file or directory, open 'D:\zPython\opencode\.temp\test\opencode-test-data-9912\configs\.gitignore'     
+    path: "D:\\zPython\\opencode\\.temp\\test\\opencode-test-data-9912\\configs\\.gitignore",
+ syscall: "open",
+   errno: -4058,
+    code: "ENOENT"
+
+
+204 | /** @internal */
+205 | export const causePrettyError = (original, annotations) => {
+206 |   const kind = typeof original;
+207 |   let error;
+208 |   if (original && kind === "object") {
+209 |     error = new globalThis.Error(causePrettyMessage(original), {
+                                 ^
+ENOENT: no such file or directory, open 'D:\zPython\opencode\.temp\test\opencode-test-data-9912\configs\.gitignore'     
+    path: "D:\\zPython\\opencode\\.temp\\test\\opencode-test-data-9912\\configs\\.gitignore",
+ syscall: "open",
+   errno: -4058,
+    code: "ENOENT"
+
+      at D:\zPython\opencode\node_modules\.bun\effect@4.0.0-beta.57\node_modules\effect\dist\internal\effect.js:209:28  
+
+54 | }
+55 | /**
+56 |  * @since 4.0.0
+57 |  * @category constructors
+58 |  */
+59 | export const systemError = options => new PlatformError(new SystemError(options));
+                                               ^
+error: NotFound: FileSystem.writeFile (D:\zPython\opencode\.temp\test\opencode-test-data-9912\configs\.gitignore)       
+       _tag: "PlatformError",
+ ~effect/platform/PlatformError: "~effect/platform/PlatformError",
+
+      at systemError (D:\zPython\opencode\node_modules\.bun\effect@4.0.0-beta.57\node_modules\effect\dist\PlatformError.
+.js:59:43)
+      at D:\zPython\opencode\node_modules\.bun\@effect+platform-node-shared@4.0.0-beta.99+2b77f6bfdae23d8d\node_modules\
+\@effect\platform-node-shared\dist\NodeFileSystem.js:392:74
+      at guarded (internal:shared:112:26)
+      at processTicksAndRejections (native:7:39)
+
+54 | }
+55 | /**
+56 |  * @since 4.0.0
+57 |  * @category constructors
+58 |  */
+59 | export const systemError = options => new PlatformError(new SystemError(options));
+                                                             ^
+error: NotFound: FileSystem.writeFile (D:\zPython\opencode\.temp\test\opencode-test-data-9912\configs\.gitignore)       
+       _tag: "NotFound",
+     module: "FileSystem",
+     method: "writeFile",
+ pathOrDescriptor: "D:\\zPython\\opencode\\.temp\\test\\opencode-test-data-9912\\configs\\.gitignore",
+    syscall: "open",
+
+      at systemError (D:\zPython\opencode\node_modules\.bun\effect@4.0.0-beta.57\node_modules\effect\dist\PlatformError.
+.js:59:57)
+      at <anonymous> (D:\zPython\opencode\node_modules\.bun\@effect+platform-node-shared@4.0.0-beta.99+2b77f6bfdae23d8d\
+\node_modules\@effect\platform-node-shared\dist\NodeFileSystem.js:392:74)
+      at guarded (internal:shared:112:26)
+
+ENOENT: no such file or directory, open 'D:\zPython\opencode\.temp\test\opencode-test-data-9912\configs\.gitignore'     
+    path: "D:\\zPython\\opencode\\.temp\\test\\opencode-test-data-9912\\configs\\.gitignore",
+ syscall: "open",
+   errno: -4058,
+    code: "ENOENT"
+
+
+ENOENT: no such file or directory, open 'D:\zPython\opencode\.temp\test\opencode-test-data-9912\configs\.gitignore'     
+    path: "D:\\zPython\\opencode\\.temp\\test\\opencode-test-data-9912\\configs\\.gitignore",
+ syscall: "open",
+   errno: -4058,
+    code: "ENOENT"
+
+(fail) tool description integrity (parameters named) > every declared parameter is named in its tool's description [205.
+.21ms]
+
+ 4 pass
+ 1 fail
+ 4 expect() calls
+Ran 5 tests across 1 file. [3.45s]

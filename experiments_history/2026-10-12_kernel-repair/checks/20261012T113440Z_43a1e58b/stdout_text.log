@@ -1,0 +1,63 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+bun test v1.4.2 (744846f84)
+
+test\codegraph\mcp-client-args.test.ts:
+10 | 
+11 | describe("codegraph mcp-client helpers", () => {
+12 |   test("query project root is separate from its subdirectory scope", () => {
+13 |     const root = path.resolve(import.meta.dir, "../../../..")
+14 |     const call = modeToMcpCall("explore", "query", { path: "prompt_kernel", projectPath: root } as any)
+15 |     expect(call.args.projectPath).toBe(root)
+                                       ^
+error: expect(received).toBe(expected)Expected: "D:\zPython\opencode"
+Received: "prompt_kernel"      at <anonymous> (D:\zPython\opencode\packages\opencode\test\codegraph\mcp-client-args.test.ts:15:35)
+(fail) codegraph mcp-client helpers > query project root is separate from its subdirectory scope [13.54ms]
+18 | 
+19 |   test("absolute root, subdirectory and file scopes preserve relative packed paths", () => {
+20 |     const root = path.resolve(import.meta.dir, "../../../..")
+21 |     const files = ["prompt_kernel/model.py", "delphi/unit.pas", "src/index.ts"]
+22 |     const scope = (Client as any).scopePackedFiles
+23 |     expect(typeof scope).toBe("function")
+                              ^
+error: expect(received).toBe(expected)Expected: "function"
+Received: "undefined"      at <anonymous> (D:\zPython\opencode\packages\opencode\test\codegraph\mcp-client-args.test.ts:23:26)
+(fail) codegraph mcp-client helpers > absolute root, subdirectory and file scopes preserve relative packed paths [0.48ms
+s]
+(pass) codegraph mcp-client helpers > exploreArgsForChangedFiles matches smoke query shape [0.64ms]
+(pass) codegraph mcp-client helpers > exploreArgsForChangedFiles respects maxFiles [0.33ms]
+(pass) codegraph mcp-client helpers > mcpTextToSymTag hard-fails on empty and truncates long text [0.59ms]
+(pass) codegraph mcp-client helpers > modeToMcpCall maps all modes [0.45ms]
+(pass) codegraph mcp-client helpers > hasCodegraphIndex detects monorepo .codegraph when present [0.22ms]
+
+ 5 pass
+ 2 fail
+ 22 expect() calls
+Ran 7 tests across 1 file. [2.26s]

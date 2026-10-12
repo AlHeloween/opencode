@@ -1,0 +1,332 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.FFFFFFFFFFFFFF.F                                                                                                [100%]
+====================================================== FAILURES =======================================================
+_________________________ test_g6_missing_required_evidence_cannot_bind[STRUCTURAL_EVIDENCE] __________________________evidence_context = {'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'path': 'src/state.py', 'sha256': '...f7658f3a9c22b87a6d6e828f2458fb23d567cd2423e2c01f', ...}, 'acceptance_covered': True, 'consumers_identified': True, ...}
+missing = 'STRUCTURAL_EVIDENCE'    @pytest.mark.parametrize("missing", ["STRUCTURAL_EVIDENCE", "PLAN_STRATEGY"])
+    def test_g6_missing_required_evidence_cannot_bind(evidence_context, missing):
+        evidence_context.pop(missing)
+>       assert not bind(evidence_context)
+E       AssertionError: assert not True
+E        +  where True = bind({'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'path': 'src/state.py', 'sha256': '...f7658f3a9c22b87a6d6e828f2458fb23d567cd2423e2c01f', ...}, 'acceptance_covered': True, 'consumers_identified': True, ...})tests\test_evidence_gates.py:24: AssertionError
+____________________________ test_g6_missing_required_evidence_cannot_bind[PLAN_STRATEGY] _____________________________evidence_context = {'PORTFOLIO_AUDIT': {'entries': [{'contribution': 'T1 makes state observable', 'evidence_pins': [{'path': 'src/state.p...ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...}, 'acceptance_covered': True, 'consumers_identified': True, ...}
+missing = 'PLAN_STRATEGY'    @pytest.mark.parametrize("missing", ["STRUCTURAL_EVIDENCE", "PLAN_STRATEGY"])
+    def test_g6_missing_required_evidence_cannot_bind(evidence_context, missing):
+        evidence_context.pop(missing)
+>       assert not bind(evidence_context)
+E       AssertionError: assert not True
+E        +  where True = bind({'PORTFOLIO_AUDIT': {'entries': [{'contribution': 'T1 makes state observable', 'evidence_p
+pins': [{'path': 'src/state.p...ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...}, 'acceptance_covered': True, 'con
+nsumers_identified': True, ...})
+
+tests\test_evidence_gates.py:24: AssertionError
+_________________________________ test_irrelevant_graph_is_not_grounding[scope-other] _________________________________ 
+
+evidence_context = {'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'path': 'src/state
+e.py', 'sha256': '..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...}, 'acceptance_c
+covered': True, ...}
+field = 'scope', value = 'other'
+
+    @pytest.mark.parametrize("field,value", [("scope", "other"), ("symbols", ["unrelated"]),
+                                           ("owner", ""), ("query_or_reason", "")])
+    def test_irrelevant_graph_is_not_grounding(evidence_context, field, value):
+        evidence_context["STRUCTURAL_EVIDENCE"][field] = value
+>       assert not bind(evidence_context)
+E       AssertionError: assert not True
+E        +  where True = bind({'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'path':
+: 'src/state.py', 'sha256': '..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...}, 'a
+acceptance_covered': True, ...})
+
+tests\test_evidence_gates.py:31: AssertionError
+_______________________________ test_irrelevant_graph_is_not_grounding[symbols-value1] ________________________________ 
+
+evidence_context = {'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'path': 'src/state
+e.py', 'sha256': '..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...}, 'acceptance_c
+covered': True, ...}
+field = 'symbols', value = ['unrelated']
+
+    @pytest.mark.parametrize("field,value", [("scope", "other"), ("symbols", ["unrelated"]),
+                                           ("owner", ""), ("query_or_reason", "")])
+    def test_irrelevant_graph_is_not_grounding(evidence_context, field, value):
+        evidence_context["STRUCTURAL_EVIDENCE"][field] = value
+>       assert not bind(evidence_context)
+E       AssertionError: assert not True
+E        +  where True = bind({'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'path':
+: 'src/state.py', 'sha256': '..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...}, 'a
+acceptance_covered': True, ...})
+
+tests\test_evidence_gates.py:31: AssertionError
+___________________________________ test_irrelevant_graph_is_not_grounding[owner-] ____________________________________ 
+
+evidence_context = {'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'path': 'src/state
+e.py', 'sha256': '..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...}, 'acceptance_c
+covered': True, ...}
+field = 'owner', value = ''
+
+    @pytest.mark.parametrize("field,value", [("scope", "other"), ("symbols", ["unrelated"]),
+                                           ("owner", ""), ("query_or_reason", "")])
+    def test_irrelevant_graph_is_not_grounding(evidence_context, field, value):
+        evidence_context["STRUCTURAL_EVIDENCE"][field] = value
+>       assert not bind(evidence_context)
+E       AssertionError: assert not True
+E        +  where True = bind({'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'path':
+: 'src/state.py', 'sha256': '..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...}, 'a
+acceptance_covered': True, ...})
+
+tests\test_evidence_gates.py:31: AssertionError
+______________________________ test_irrelevant_graph_is_not_grounding[query_or_reason-] _______________________________ 
+
+evidence_context = {'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'path': 'src/state
+e.py', 'sha256': '..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...}, 'acceptance_c
+covered': True, ...}
+field = 'query_or_reason', value = ''
+
+    @pytest.mark.parametrize("field,value", [("scope", "other"), ("symbols", ["unrelated"]),
+                                           ("owner", ""), ("query_or_reason", "")])
+    def test_irrelevant_graph_is_not_grounding(evidence_context, field, value):
+        evidence_context["STRUCTURAL_EVIDENCE"][field] = value
+>       assert not bind(evidence_context)
+E       AssertionError: assert not True
+E        +  where True = bind({'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'path':
+: 'src/state.py', 'sha256': '..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...}, 'a
+acceptance_covered': True, ...})
+
+tests\test_evidence_gates.py:31: AssertionError
+_____________________________ test_source_divergence_invalidates_both_binding_and_closure _____________________________ 
+
+evidence_context = {'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'path': 'src/state
+e.py', 'sha256': '..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...}, 'acceptance_c
+covered': True, ...}
+
+    def test_source_divergence_invalidates_both_binding_and_closure(evidence_context):
+        (Path(evidence_context["worktree"]) / "src/state.py").write_text("changed", encoding="utf-8")
+>       assert not bind(evidence_context)
+E       AssertionError: assert not True
+E        +  where True = bind({'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'path':
+: 'src/state.py', 'sha256': '..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...}, 'a
+acceptance_covered': True, ...})
+
+tests\test_evidence_gates.py:36: AssertionError
+________________________________ test_filename_presence_without_strategy_cannot_close _________________________________ 
+
+evidence_context = {'PLAN_STRATEGY': {'evidence_pins': [{'path': 'src/state.py', 'sha256': 'b8508af5ad70abca5c8c509c5974
+4436e6d63756e8a2c6..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...}, 'acceptance_c
+covered': True, ...}
+
+    def test_filename_presence_without_strategy_cannot_close(evidence_context):
+        evidence_context["PORTFOLIO_AUDIT"]["entries"][0].pop("contribution")
+>       assert not success(evidence_context)
+E       AssertionError: assert not True
+E        +  where True = success({'PLAN_STRATEGY': {'evidence_pins': [{'path': 'src/state.py', 'sha256': 'b8508af5ad70ab
+bca5c8c509c5974436e6d63756e8a2c6..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...},
+, 'acceptance_covered': True, ...})
+
+tests\test_evidence_gates.py:42: AssertionError
+________________________ test_portfolio_audit_is_mandatory_and_independently_verified[absent] _________________________ 
+
+evidence_context = {'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'path': 'src/state
+e.py', 'sha256': '...ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...}, 'acceptance_covered': True, 'consumers_iden
+ntified': True, ...}
+mutation = 'absent'
+
+    @pytest.mark.parametrize("mutation", ["absent", "omitted", "unaligned", "no_parent", "same_identity"])
+    def test_portfolio_audit_is_mandatory_and_independently_verified(evidence_context, mutation):
+        audit = evidence_context["PORTFOLIO_AUDIT"]
+        if mutation == "absent":
+            evidence_context.pop("PORTFOLIO_AUDIT")
+        elif mutation == "omitted":
+            audit["entries"] = []
+        elif mutation == "unaligned":
+            audit["unaligned"] = ["plans/task.md"]
+        elif mutation == "no_parent":
+            audit.pop("parent_verification_pin")
+        else:
+            audit["parent_id"] = audit["explorer_id"]
+>       assert not success(evidence_context)
+E       AssertionError: assert not True
+E        +  where True = success({'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'pat
+th': 'src/state.py', 'sha256': '...ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...}, 'acceptance_covered': True, '
+'consumers_identified': True, ...})
+
+tests\test_evidence_gates.py:58: AssertionError
+________________________ test_portfolio_audit_is_mandatory_and_independently_verified[omitted] ________________________ 
+
+evidence_context = {'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'path': 'src/state
+e.py', 'sha256': '..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...}, 'acceptance_c
+covered': True, ...}
+mutation = 'omitted'
+
+    @pytest.mark.parametrize("mutation", ["absent", "omitted", "unaligned", "no_parent", "same_identity"])
+    def test_portfolio_audit_is_mandatory_and_independently_verified(evidence_context, mutation):
+        audit = evidence_context["PORTFOLIO_AUDIT"]
+        if mutation == "absent":
+            evidence_context.pop("PORTFOLIO_AUDIT")
+        elif mutation == "omitted":
+            audit["entries"] = []
+        elif mutation == "unaligned":
+            audit["unaligned"] = ["plans/task.md"]
+        elif mutation == "no_parent":
+            audit.pop("parent_verification_pin")
+        else:
+            audit["parent_id"] = audit["explorer_id"]
+>       assert not success(evidence_context)
+E       AssertionError: assert not True
+E        +  where True = success({'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'pat
+th': 'src/state.py', 'sha256': '..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...},
+, 'acceptance_covered': True, ...})
+
+tests\test_evidence_gates.py:58: AssertionError
+_______________________ test_portfolio_audit_is_mandatory_and_independently_verified[unaligned] _______________________ 
+
+evidence_context = {'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'path': 'src/state
+e.py', 'sha256': '..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...}, 'acceptance_c
+covered': True, ...}
+mutation = 'unaligned'
+
+    @pytest.mark.parametrize("mutation", ["absent", "omitted", "unaligned", "no_parent", "same_identity"])
+    def test_portfolio_audit_is_mandatory_and_independently_verified(evidence_context, mutation):
+        audit = evidence_context["PORTFOLIO_AUDIT"]
+        if mutation == "absent":
+            evidence_context.pop("PORTFOLIO_AUDIT")
+        elif mutation == "omitted":
+            audit["entries"] = []
+        elif mutation == "unaligned":
+            audit["unaligned"] = ["plans/task.md"]
+        elif mutation == "no_parent":
+            audit.pop("parent_verification_pin")
+        else:
+            audit["parent_id"] = audit["explorer_id"]
+>       assert not success(evidence_context)
+E       AssertionError: assert not True
+E        +  where True = success({'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'pat
+th': 'src/state.py', 'sha256': '..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...},
+, 'acceptance_covered': True, ...})
+
+tests\test_evidence_gates.py:58: AssertionError
+_______________________ test_portfolio_audit_is_mandatory_and_independently_verified[no_parent] _______________________ 
+
+evidence_context = {'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'path': 'src/state
+e.py', 'sha256': '..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...}, 'acceptance_c
+covered': True, ...}
+mutation = 'no_parent'
+
+    @pytest.mark.parametrize("mutation", ["absent", "omitted", "unaligned", "no_parent", "same_identity"])
+    def test_portfolio_audit_is_mandatory_and_independently_verified(evidence_context, mutation):
+        audit = evidence_context["PORTFOLIO_AUDIT"]
+        if mutation == "absent":
+            evidence_context.pop("PORTFOLIO_AUDIT")
+        elif mutation == "omitted":
+            audit["entries"] = []
+        elif mutation == "unaligned":
+            audit["unaligned"] = ["plans/task.md"]
+        elif mutation == "no_parent":
+            audit.pop("parent_verification_pin")
+        else:
+            audit["parent_id"] = audit["explorer_id"]
+>       assert not success(evidence_context)
+E       AssertionError: assert not True
+E        +  where True = success({'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'pat
+th': 'src/state.py', 'sha256': '..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...},
+, 'acceptance_covered': True, ...})
+
+tests\test_evidence_gates.py:58: AssertionError
+_____________________ test_portfolio_audit_is_mandatory_and_independently_verified[same_identity] _____________________ 
+
+evidence_context = {'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'path': 'src/state
+e.py', 'sha256': '..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...}, 'acceptance_c
+covered': True, ...}
+mutation = 'same_identity'
+
+    @pytest.mark.parametrize("mutation", ["absent", "omitted", "unaligned", "no_parent", "same_identity"])
+    def test_portfolio_audit_is_mandatory_and_independently_verified(evidence_context, mutation):
+        audit = evidence_context["PORTFOLIO_AUDIT"]
+        if mutation == "absent":
+            evidence_context.pop("PORTFOLIO_AUDIT")
+        elif mutation == "omitted":
+            audit["entries"] = []
+        elif mutation == "unaligned":
+            audit["unaligned"] = ["plans/task.md"]
+        elif mutation == "no_parent":
+            audit.pop("parent_verification_pin")
+        else:
+            audit["parent_id"] = audit["explorer_id"]
+>       assert not success(evidence_context)
+E       AssertionError: assert not True
+E        +  where True = success({'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'pat
+th': 'src/state.py', 'sha256': '..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...},
+, 'acceptance_covered': True, ...})
+
+tests\test_evidence_gates.py:58: AssertionError
+________________________________ test_inventory_and_master_goal_are_re_read_at_closure ________________________________ 
+
+evidence_context = {'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'path': 'src/state
+e.py', 'sha256': '..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...}, 'acceptance_c
+covered': True, ...}
+
+    def test_inventory_and_master_goal_are_re_read_at_closure(evidence_context):
+        root = Path(evidence_context["worktree"])
+        (root / "plans/new.md").write_text("unaccounted", encoding="utf-8")
+>       assert not success(evidence_context)
+E       AssertionError: assert not True
+E        +  where True = success({'PLAN_STRATEGY': {'contribution': 'T1 makes state observable', 'evidence_pins': [{'pat
+th': 'src/state.py', 'sha256': '..., 'sha256': 'd2f0f1515eb17c907ebbfc2d1289e3ae436eb08604497a13f94a457310b31c24'}, ...},
+, 'acceptance_covered': True, ...})
+
+tests\test_evidence_gates.py:64: AssertionError
+_______________________________ test_state_contracts_have_real_producers_and_consumers ________________________________ 
+
+    def test_state_contracts_have_real_producers_and_consumers():
+        gates = {gate.id: gate for gate in KERNEL.gates}
+>       assert "STRUCTURAL_EVIDENCE" in gates["G1"].outputs
+E       assert 'STRUCTURAL_EVIDENCE' in ('INTENT_PROJECTION', 'EXECUTION_GOAL', 'PROJECT_GEOMETRY', 'CAPABILITY_GRAPH', 
+ 'OUTCOME_CONTRACT')
+E        +  where ('INTENT_PROJECTION', 'EXECUTION_GOAL', 'PROJECT_GEOMETRY', 'CAPABILITY_GRAPH', 'OUTCOME_CONTRACT') = 
+ Gate(id='G1', anchor='GATE_1_GROUND', name='GROUND', objective="Separate the user's request from the executable goal a..
+..D', predicate=BooleanPredicate(op='HAS', args=(), value='OUTCOME_CONTRACT'), description='Outcome contract defined'))))
+).outputs
+
+tests\test_evidence_gates.py:77: AssertionError
+=============================================== short test summary info =============================================== 
+FAILED tests\test_evidence_gates.py::test_g6_missing_required_evidence_cannot_bind[STRUCTURAL_EVIDENCE] - AssertionEr...
+FAILED tests\test_evidence_gates.py::test_g6_missing_required_evidence_cannot_bind[PLAN_STRATEGY] - AssertionError: a...
+FAILED tests\test_evidence_gates.py::test_irrelevant_graph_is_not_grounding[scope-other] - AssertionError: assert not...
+FAILED tests\test_evidence_gates.py::test_irrelevant_graph_is_not_grounding[symbols-value1] - AssertionError: assert ...
+FAILED tests\test_evidence_gates.py::test_irrelevant_graph_is_not_grounding[owner-] - AssertionError: assert not True   
+FAILED tests\test_evidence_gates.py::test_irrelevant_graph_is_not_grounding[query_or_reason-] - AssertionError: asser...
+FAILED tests\test_evidence_gates.py::test_source_divergence_invalidates_both_binding_and_closure - AssertionError: as...
+FAILED tests\test_evidence_gates.py::test_filename_presence_without_strategy_cannot_close - AssertionError: assert no...
+FAILED tests\test_evidence_gates.py::test_portfolio_audit_is_mandatory_and_independently_verified[absent] - Assertion...
+FAILED tests\test_evidence_gates.py::test_portfolio_audit_is_mandatory_and_independently_verified[omitted] - Assertio...
+FAILED tests\test_evidence_gates.py::test_portfolio_audit_is_mandatory_and_independently_verified[unaligned] - Assert...
+FAILED tests\test_evidence_gates.py::test_portfolio_audit_is_mandatory_and_independently_verified[no_parent] - Assert...
+FAILED tests\test_evidence_gates.py::test_portfolio_audit_is_mandatory_and_independently_verified[same_identity] - As...
+FAILED tests\test_evidence_gates.py::test_inventory_and_master_goal_are_re_read_at_closure - AssertionError: assert n...
+FAILED tests\test_evidence_gates.py::test_state_contracts_have_real_producers_and_consumers - assert 'STRUCTURAL_EVID...
+15 failed, 2 passed in 0.58s

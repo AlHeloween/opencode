@@ -1,0 +1,57 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+bun test v1.4.2 (744846f84)
+
+test\codegraph\sqlite-pack.test.ts:
+20 |       for (const file of files) {
+21 |         mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
+22 |         writeFileSync(path.join(root, file), "fixture")
+23 |       }
+24 |       const text = files.map((file) => `**\`${file}\`** — source`).join("\n")
+25 |       expect(extractPathsFromText(text, root)).toEqual(files)
+                                                    ^
+error: expect(received).toEqual(expected)- [
+-   "prompt_kernel/model.py",
+-   "delphi/InstallerOps.pas",
+-   "tools/server.go",
+-   "engine/main.cpp",
+-   "скрипты/файл с пробелом.ps1",
+- ]
++ []- Expected  - 7
++ Received  + 1      at <anonymous> (D:\zPython\opencode\packages\opencode\test\codegraph\sqlite-pack.test.ts:25:48)
+(fail) sqlite-pack > MCP paths outside standard directories survive for all existing source extensions [27.50ms]
+(pass) sqlite-pack > extractPathsFromText finds project paths [0.32ms]
+(pass) sqlite-pack > packGraphForFiles packs sandbox_field_test when indexed [12.88ms]
+(pass) sqlite-pack > packToSymTag hard-fails on empty pack content [0.13ms]
+
+ 3 pass
+ 1 fail
+ 12 expect() calls
+Ran 4 tests across 1 file. [3.19s]

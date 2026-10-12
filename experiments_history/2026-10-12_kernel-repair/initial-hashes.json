@@ -1,0 +1,14 @@
+{
+  "prompt_kernel/source.py": "727d4f1f0e4372ab473c7dd1ce95e509d9b5ab8c983e992b0a608d4d4c0bbe54",
+  "prompt_kernel/model.py": "f9362b9388f80bf72fb8480affca759a754ea80ace77b6878a7897080427a6d4",
+  "prompt_kernel/validate.py": "bac15c8d59b55d743e7b40e8e21af311e9b188ee9376b7e1fddaf3f72fbdcb9a",
+  "prompt_kernel/addons.py": "6b5b98292514b143ccb71b4bc1cfe195edad5af758bf48046ba8ec81b9fa5b4f",
+  "prompt_kernel/addons_claude.py": "881a97daf21f4fa6649f4a57f5a02f16538ed7b112dcd4b8fd1ce0002236ff48",
+  "prompt_kernel/addons_codex.py": "91eb258c73e01dc17bc5896105784051afc55f2bb8b8be4d9ac88115dcc15f9c",
+  "prompt_kernel/addons_cursor.py": "038defebbca03ff5ac70478c91eefd33e88b36cd9baf48e73caf556f438c7fbf",
+  "prompt_kernel/baseline.json": "5f8361b6a5a8921cde50518f673c41f385b08dd6fa0a38e026fa257bfd23a348",
+  "packages/opencode/src/session/prompt/reasoning_prompt.txt": "ab8bff98d1a3807456f388601c24b5d3fd074f7f6a19e152373f39bf3feef978",
+  ".claude/reasoning_kernel.md": "fa1d2027572c9db40faba595b062fc0d42c14f24c10358924a3bda1381c28d1a",
+  ".cursor/rules/reasoning-kernel.mdc": "4275f1a324003cb7d3ae0e4456de73bad17844d89faf86ad7e1bf7e69eb8c844",
+  "C:/Users/Alexander/.codex/AGENTS.md": "2a6bc6e97946bcfdc5d56a725e0109c55c75b99682d723361d0efbddb3563e9a"
+}

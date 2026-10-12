@@ -1,0 +1,42 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+bun test v1.4.2 (744846f84)
+
+test\tool\description-integrity.test.ts:
+(pass) tool description integrity (static) > the scan finds the corpus (control that MUST match) [2.58ms]
+(pass) tool description integrity (static) > every description file is non-trivial [11.84ms]
+(pass) tool description integrity (static) > no description or hand-maintained model prompt names a retired tool [6.01ms]
+(pass) tool description integrity (static) > no description repeats a prose line verbatim [1.79ms]
+(pass) tool description integrity (parameters named) > every declared parameter is named in its tool's description [1129.71ms]
+
+ 5 pass
+ 0 fail
+ 8 expect() calls
+Ran 5 tests across 1 file. [4.07s]

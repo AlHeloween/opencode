@@ -1,0 +1,59 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+bun test v1.4.2 (744846f84)
+
+test\codegraph\mcp-client-args.test.ts:
+(pass) codegraph mcp-client helpers > query project root is separate from its subdirectory scope [2.64ms]
+(pass) codegraph mcp-client helpers > absolute root, subdirectory and file scopes preserve relative packed paths [17.03ms]
+(pass) codegraph mcp-client helpers > exploreArgsForChangedFiles matches smoke query shape [0.38ms]
+(pass) codegraph mcp-client helpers > exploreArgsForChangedFiles respects maxFiles [1.59ms]
+(pass) codegraph mcp-client helpers > mcpTextToSymTag hard-fails on empty and truncates long text [0.50ms]
+(pass) codegraph mcp-client helpers > modeToMcpCall maps all modes [0.26ms]
+(pass) codegraph mcp-client helpers > hasCodegraphIndex detects monorepo .codegraph when present [0.44ms]test\codegraph\mcp-client.effect.test.ts:
+(pass) callCodegraphMcpOptionalRuntime > hard-fails when MCP.Service is absent from runtime [2.51ms]
+(pass) callCodegraphMcpOptionalRuntime > hard-fails when callTool fails (MCP down) [2.49ms]
+(pass) callCodegraphMcpOptionalRuntime > returns text on successful MCP callTool [1.08ms]
+(pass) callCodegraphMcpOptionalRuntime > normalizes short tool names to codegraph_* [0.52ms]
+(pass) exploreChangedFilesMcp (diff expansion) > calls codegraph_explore with structural impact query over file list [7.11ms]
+(pass) exploreChangedFilesMcp (diff expansion) > hard-fails on empty MCP body when tagging [1.02ms]
+(pass) exploreChangedFilesMcp (diff expansion) > hard-fails when MCP callTool fails during diff expansion [1.50ms]
+(pass) mcpTouchThenSqlitePack (hybrid) > hard-fails when MCP is down (no soft empty pack) [1.47ms]
+(pass) mcpTouchThenSqlitePack (hybrid) > MCP success then SQLite pack markdown (no MCP prose body) [35.78ms]
+
+test\codegraph\sqlite-pack.test.ts:
+(pass) sqlite-pack > MCP paths outside standard directories survive for all existing source extensions [20.43ms]
+(pass) sqlite-pack > extractPathsFromText finds project paths [0.79ms]
+(pass) sqlite-pack > packGraphForFiles packs sandbox_field_test when indexed [4.03ms]
+(pass) sqlite-pack > packToSymTag hard-fails on empty pack content [0.28ms]
+
+ 20 pass
+ 0 fail
+ 71 expect() calls
+Ran 20 tests across 3 files. [3.21s]

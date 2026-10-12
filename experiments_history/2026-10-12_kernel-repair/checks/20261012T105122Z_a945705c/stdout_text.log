@@ -1,0 +1,41 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+bun test v1.4.2 (744846f84)
+
+test\codegraph\sqlite-pack.test.ts:
+(pass) sqlite-pack > MCP paths outside standard directories survive for all existing source extensions [23.16ms]
+(pass) sqlite-pack > extractPathsFromText finds project paths [1.80ms]
+(pass) sqlite-pack > packGraphForFiles packs sandbox_field_test when indexed [12.55ms]
+(pass) sqlite-pack > packToSymTag hard-fails on empty pack content [0.14ms]
+
+ 4 pass
+ 0 fail
+ 13 expect() calls
+Ran 4 tests across 1 file. [3.24s]

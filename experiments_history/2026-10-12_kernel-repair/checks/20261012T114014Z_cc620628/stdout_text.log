@@ -1,0 +1,120 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+F..............................................................................F................................ [ 54%]
+......................................................................F.......................                   [100%]
+====================================================== FAILURES =======================================================
+_____________________________________ test_addons_render_inside_gate_rule_blocks ______________________________________    def test_addons_render_inside_gate_rule_blocks() -> None:
+        text = render_kernel(KERNEL)
+        g1 = _gate_block(text, "G1")
+        assert "- first read: plans/*.md, docs/." in g1
+        assert "- never store plans under .opencode/plans/." in g1
+        assert "- ground via: codegraph, read, messagesearch, webfetch/universalsearch." in g1
+        assert (
+            "- file enumeration: list/glob/grep/read — never shell ls/dir/find/cat"
+            " (hard-blocked)." in g1
+        )
+        assert (
+            "- platform: Windows = cmd/powershell tools; bash unavailable." in g1
+        )
+        assert (
+            "- cmd.exe: never dir/type/tree; quote spaced paths; chain &&; pipe 2>&1." in g1
+        )
+        assert (
+            "- findstr: host-allowed, but non-ASCII paths fail to open — the fallback is grep." in g1
+        )
+        assert (
+            "- Chrome 127.0.0.1:9222 is universal-search's debug target: bind it only for user-requested"
+            " visible web debugging or screenshots (CUA/CDP + bring_to_front); never launch, restart or alter its flags." in g1
+        )
+        g4 = _gate_block(text, "G4")
+        assert "- identity or permission uncertain -> checkstate; unresolved decision -> question (ASK)." in g4
+        g9 = _gate_block(text, "G9")
+>       assert "- undone task -> [~] + reason; scan plans for stale refs." in g9
+E       AssertionError: assert '- undone task -> [~] + reason; scan plans for stale refs.' in '<G9_RULES>\n- SUCCESS = a
+acceptance covered + oracle passed + critical risks 0 + current accepted @PORTFOLIO_AUDIT. An...dary: memory first (it ri
+ides m* verbatim), then arm the fold — the fill gate folds for room, this one for attention.\n'
+
+tests\test_addons.py:40: AssertionError
+______________________________ test_normal_build_preserves_current_kernel_hash_boundary _______________________________ 
+
+    def test_normal_build_preserves_current_kernel_hash_boundary() -> None:
+        from prompt_kernel import assert_current_kernel_unchanged
+
+>       assert assert_current_kernel_unchanged() == []
+E       AssertionError: assert ['production:...5e13fecbf525'] == []
+E
+E         Left contains one more item: 'production: expected 49149e59ebda07a13777648fd680ebb072f70a575a0a0bab432695435f7
+72dab5, got bc7d5b8fcd1408e75f1ec0f06df44b70218326081a05a347767c5e13fecbf525'
+E         Use -v to get more diff
+
+tests\test_compatibility.py:52: AssertionError
+_________________________________________ test_pre_action_section_stays_small _________________________________________ 
+
+    def test_pre_action_section_stays_small() -> None:
+        """G0+G1 is what an agent must read and SATISFY before its first instrument call.
+
+        2026-09-24: it had grown 2_840 -> 7_309 B (x2.6) against the battle-tested 09-17 build, and a
+        third of G1 was catalogues that help build a surface but never help find one. An imperative
+        that is not a call can only be satisfied by PROSE, so mass moved forward in the pass buys
+        narration instead of grounding — and one flat total ceiling cannot see that, because the total
+        barely moved. This cap is the axis that can.
+
+        Measured after the eviction: 5_365 B. The band is the next one above it.
+
+        5_600 -> 6_100 (2026-10-03, owner's choice): the G1 PROJECT_LAYOUT binding is a FINDING aid — where to read     
+        before the first call, and «open scripts/ before inventing a build» (a robot invented one that day) — the kind  
+        of line this cap admits, unlike the catalogues it evicted. Measured 6_073 B with it and VCS_ROLES.
+        6_100 -> 6_200 (2026-10-03, later, owner's choice): adm RAG before codegraph and the index-refresh sentence in  
+        the G1 instrument chain — again where-to-find; measured 6_183 B after trimming the line to fit.
+        """
+        from prompt_kernel.addons import GATE_ADDONS
+
+        text = render_kernel(KERNEL, GATE_ADDONS)
+        section = 0
+        for gate in ("G0", "G1"):
+            block = text[text.index(f"<{gate}_RULES>") : text.index(f"</{gate}_RULES>")]
+            section += len(block.encode("utf-8"))
+        # 6_200 -> 6_500 (2026-10-04, owner: «резать особо нечего»): VCS_ROLES became the organization orientation —    
+        # where the org lives, genesis, Protocol, the `--keep` recovery — a finding aid again; measured 6_485 B.        
+        # 6_500 -> 6_800 (2026-10-06, owner: limits by measurement): the G0 turn-termination
+        # clarification (a gate is not a terminal) and the @CAPABILITY_ABSTRACTION pointer in
+        # @CATALOG_INVARIANT; measured 6_701 B — the smallest 300 above the largest, as before.
+        # 2026-10-08 (no raise): VCS_ROLES portability — $ORG_HOME/$ORG_PORT named, Protocol via `org.py protocol`; meas
+sured 6_730 B.
+>       assert section <= 6_800, section
+E       AssertionError: 7510
+E       assert 7510 <= 6800
+
+tests\test_render.py:488: AssertionError
+=============================================== short test summary info ===============================================
+FAILED tests\test_addons.py::test_addons_render_inside_gate_rule_blocks - AssertionError: assert '- undone task -> [~...
+FAILED tests\test_compatibility.py::test_normal_build_preserves_current_kernel_hash_boundary - AssertionError: assert...
+FAILED tests\test_render.py::test_pre_action_section_stays_small - AssertionError: 7510
+3 failed, 203 passed in 4.01s

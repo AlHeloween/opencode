@@ -104,9 +104,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 221 |
-| plans active | 17 |
-| tasks passed / total | 903 / 1144 |
-| open boxes | 98 |
+| plans active | 18 |
+| tasks passed / total | 906 / 1149 |
+| open boxes | 100 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -228,9 +228,10 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - C5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - C7 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-04_files-api-and-tariff.md` — 0 open / 0 box(es) · lifecycle ACTIVE
+- `plans/2026-10-04_files-api-and-tariff.md` — 2 open / 5 box(es) · lifecycle ACTIVE
   sv: intention "расход не сходится с моделью, и картинки едут инлайном в каждом запросе -> деньги считаются по фактическому тарифу, файлы живут в провайдерском хранилище и адресуются ссылкой, кеш не ломается" · keywords []
-  - no open box
+  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-10-07_supersede-between-steps-loses-reply.md` — 3 open / 3 box(es) · lifecycle OPEN
   sv: intention "a user prompt that replaces a running turn is sometimes left unanswered (no request, one aborted empty row) -> every replacing prompt either gets its own reply or a visible, named failure; the race between the superseded run and the new run is reproduced, explained and closed" · keywords []

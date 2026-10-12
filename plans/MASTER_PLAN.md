@@ -112,9 +112,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 223 |
-| plans active | 19 |
-| tasks passed / total | 922 / 1171 |
-| open boxes | 106 |
+| plans active | 18 |
+| tasks passed / total | 929 / 1171 |
+| open boxes | 99 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -198,7 +198,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 - `plans/2026-09-29_h2-session-pool-and-connection-badge.md` — 2 open / 8 box(es) · lifecycle ACTIVE
   sv: intention "up to 2500 concurrent provider streams must ride a REUSED pool of HTTP/2 sessions (one session caps at the server's advertised 128), never short-lived connections, and the TUI sidebar must show the living connection as an icon -> session pool + model concurrency limits + connected/disconnected badge" · keywords []
-  - T4 [PARTIAL] · sv MISSING · manifest: T4a/b shipped as glyphs — ◉ on the active /agents row and ⇅ on the sidebar protocol cell, text oracles green, the on-screen check still owed to the owner. · eta 2 · waiting-on-user
+  - T4 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-09-30_cua-supply-chain-audit.md` — 2 open / 10 box(es) · lifecycle ACTIVE
@@ -230,7 +230,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 - `plans/2026-10-01_tool-description-contracts.md` — 5 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "36 tool descriptions ride the KV-stable prefix and make promises the code does not always keep (multiedit atomicity, grep's line format, recall's reach); the work fixing them ran under a parent-goal anchor no plan declared -> one line of work that owns that anchor, where every promise in a description is either pinned by a test that fails without it or removed from the text" · keywords []
-  - C2 [PENDING] · sv MISSING · manifest: Три флага, обещавшие поведение, теперь пинуются — у `compare` появился первый тест за всю историю и он зелёный, — а бокс открыт ровно на одной невыполненной мутации, названной явно. · eta 1 · doing
+  - C2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - C3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - C4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - C5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -271,18 +271,12 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - S3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - S4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-11_sv-chain-and-scope.md` — 4 open / 5 box(es) · lifecycle ACTIVE
+- `plans/2026-10-11_sv-chain-and-scope.md` — 0 open / 5 box(es) · lifecycle COMPLETE
   sv: intention "the semantic-vector chain is the only carrier that can rebuild a trajectory after a fold, but it is 8.5% dense, it is read by re-parsing prose, `session: "*"` silently returns nothing, and sessions can be mixed into one list -> the chain becomes readable, addressable and scope-correct: current session by default, `*`/`all` means the whole base, breaks counted inside a session." · keywords []
-  - S2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - S3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - S4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - S5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - no open box
 
-- `plans/2026-10-12_kernel-contract-repair-and-adid-release.md` — 8 open / 9 box(es) · lifecycle ACTIVE
+- `plans/2026-10-12_kernel-contract-repair-and-adid-release.md` — 5 open / 9 box(es) · lifecycle ACTIVE
   sv: intention "K01-K10 expose divergent receivers, incomplete guards and unbound grounding/closure contracts -> kernel and host addons are repaired under regression oracles, then the ADID_Python resident updates its canonical bundle, releases and installs it with independent per-receiver verification" · keywords [kernel-contracts, host-bindings, delegation, release-verification]
-  - TASK-2 [PENDING] · sv [topology, validation] · manifest: MISSING — nobody has written down what this box is
-  - TASK-3 [PENDING] · sv [decomposition, bounded-closure] · manifest: MISSING — nobody has written down what this box is
-  - TASK-4 [PENDING] · sv [host-parity] · manifest: MISSING — nobody has written down what this box is
   - TASK-5 [PENDING] · sv [host-bindings, codegraph] · manifest: MISSING — nobody has written down what this box is
   - TASK-6 [PENDING] · sv [strategy, explorer-audit, closure] · manifest: MISSING — nobody has written down what this box is
   - TASK-7 [PENDING] · sv [receivers, regression, release-verification] · manifest: MISSING — nobody has written down what this box is

@@ -2,7 +2,7 @@ import { Database as BunDatabase } from "bun:sqlite"
 import * as Log from "@opencode-ai/core/util/log"
 import { Global } from "@opencode-ai/core/global"
 import { classifyText } from "../session/semantic-vector"
-import { DOMINANT_MARKER } from "./spine"
+import { DOMINANT_MARKER, VECTOR_MARKER } from "./spine"
 import path from "path"
 import { existsSync, mkdirSync } from "fs"
 
@@ -492,6 +492,93 @@ export function listDominants(params: {
       partType: row.part_type,
       text: row.text,
     }))
+  } finally {
+    memDb.close()
+  }
+}
+
+export interface MemoryVectorCarrier {
+  partID: string
+  messageID: string
+  messageIndex: number
+  sessionID: string
+  timeCreated: number
+  text: string
+}
+
+/**
+ * Assistant `text` parts that carry a semantic vector, in TIME order across sessions.
+ *
+ * Ordered by `message_id` DESC — ids are ULIDs, so their lexicographic order is creation order
+ * GLOBALLY. That is what makes "the newest N vectors", across sessions if asked, one query
+ * instead of a per-session fan-out; a single-session caller adds one `session_id` filter. The
+ * candidate marker (`VECTOR_MARKER`) is the cheap prefilter — a reply that merely QUOTES a
+ * vector is dropped by the caller's `hasSemanticVector` projection, the same split
+ * `listDominants` uses.
+ */
+export function listVectorCarriers(params: {
+  worktree: string
+  sessionID?: string
+  from?: string
+  to?: string
+  limit?: number
+}): MemoryVectorCarrier[] {
+  const memDb = openMemoryDb(params.worktree)
+
+  try {
+    const rows = memDb.prepare(`
+      SELECT part_id, message_id, message_index, session_id, time_created, text
+      FROM part_index
+      WHERE role = 'assistant'
+        AND part_type = 'text'
+        AND substr(text, 1, 17) <> '=== COMPACTED ==='
+        ${params.sessionID ? "AND session_id = ?" : ""}
+        ${params.from ? "AND message_id >= ?" : ""}
+        ${params.to ? "AND message_id <= ?" : ""}
+        AND instr(text, ?) > 0
+      ORDER BY message_id DESC, part_id DESC
+      LIMIT ?
+    `).all(
+      ...(params.sessionID ? [params.sessionID] : []),
+      ...(params.from ? [params.from] : []),
+      ...(params.to ? [params.to] : []),
+      VECTOR_MARKER,
+      params.limit ?? 200,
+    ) as Array<{
+      part_id: string
+      message_id: string
+      message_index: number
+      session_id: string
+      time_created: number
+      text: string
+    }>
+
+    return rows.map((row) => ({
+      partID: row.part_id,
+      messageID: row.message_id,
+      messageIndex: row.message_index,
+      sessionID: row.session_id,
+      timeCreated: row.time_created,
+      text: row.text,
+    }))
+  } finally {
+    memDb.close()
+  }
+}
+
+/**
+ * Whether the index holds ANY row for a session — the difference between «that session said
+ * nothing» and «that id is not in the index at all» (the silent-false class the scope fix
+ * closed: «absence of an oracle reads as FALSE»).
+ */
+export function hasSession(params: { worktree: string; sessionID: string }): boolean {
+  const memDb = openMemoryDb(params.worktree)
+
+  try {
+    const row = memDb
+      .prepare("SELECT 1 AS one FROM part_index WHERE session_id = ? LIMIT 1")
+      .get(params.sessionID) as { one: number } | undefined
+    return row !== undefined && row !== null
   } finally {
     memDb.close()
   }

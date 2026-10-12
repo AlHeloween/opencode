@@ -4,7 +4,7 @@ import { Memory } from "@/memory/memory"
 import { getProjectDbPath } from "@/storage/db"
 import { IncrementalCheckpoint } from "@/session/incremental-checkpoint"
 import type { SessionID } from "@/session/schema"
-import { dominantLine, epochOpen, epochOrdinal, extractDominant, extractGoal, extractMessageDominant, parseRange, spineLine } from "@/memory/spine"
+import { chainBreaks, dominantLine, epochOpen, epochOrdinal, extractDominant, extractGoal, extractKeywords, extractMessageDominant, extractVectorChain, hasSemanticVector, parseRange, spineLine, vectorLine } from "@/memory/spine"
 import * as Tool from "./tool"
 import { optionalPattern } from "./pattern"
 
@@ -28,11 +28,11 @@ export const Parameters = Schema.Struct({
   }),
   session: Schema.optional(Schema.String).annotate({
     description:
-      "Scope: 'all' (default, every session in the project), 'current' (this session only), or an explicit session id. Narrow it when a project-wide sweep buries the answer in other sessions' noise.",
+      "Scope: 'all' (default, every session in the project), '*' (same as 'all'), 'current' (this session only), or an explicit session id. Narrow it when a project-wide sweep buries the answer in other sessions' noise.",
   }),
   corpus: Schema.optional(Schema.String).annotate({
     description:
-      'Which corpus to read: "parts" (default — the indexed transcript across sessions, unchanged) or "summaries" (the session memory spine: one line per epoch, read from the compaction summaries).',
+      'Which corpus to read: "parts" (default — the indexed transcript across sessions, unchanged), "summaries" (the session memory spine: one line per epoch, read from the compaction summaries), or "vectors" (the semantic-vector chain: each row a message that declared a vector, with its md5/prev-md5 link and dominant).',
   }),
   dominant: Schema.optional(Schema.String).annotate({
     description:
@@ -47,7 +47,7 @@ export const Parameters = Schema.Struct({
   }),
   last: Schema.optional(Schema.Number).annotate({
     description:
-      "Keep only the last N units of the selected corpus — epochs for corpus=summaries, message dominants for dominants: true. One name, one meaning: the unit is the corpus's own.",
+      "Keep only the last N units of the selected corpus — epochs for corpus=summaries, message dominants for dominants: true, vector rows for corpus=vectors (default 20). One name, one meaning: the unit is the corpus's own.",
   }),
   range: Schema.optional(Schema.String).annotate({
     description:
@@ -99,7 +99,7 @@ export const MessageSearchTool = Tool.define(
         ) =>
         Effect.gen(function* () {
           const mode = params.query && params.query.trim().length > 0 ? "search" : "browse"
-          const corpus = params.corpus === "summaries" ? "summaries" : "parts"
+          const corpus = params.corpus === "summaries" ? "summaries" : params.corpus === "vectors" ? "vectors" : "parts"
           const scope = resolveScope(params.session, ctx.sessionID)
           // Compiled before the DB is touched: a bad pattern should cost nothing.
           const filter = optionalPattern(params.pattern, params.ignoreCase)
@@ -122,6 +122,16 @@ export const MessageSearchTool = Tool.define(
           // Sync memory.db from project DB before querying
           const projectDbPath = getProjectDbPath(worktree)
           yield* Effect.sync(() => Memory.sync(worktree, projectDbPath))
+          // A session id that is not in the index is a FACT the caller must be told: «No results
+          // found» reads as "that session said nothing", the same silent-false class the scope
+          // fix closed. Skipped for `summaries` — the spine reads checkpoints, not the index.
+          if (corpus !== "summaries" && scope !== undefined && !Memory.hasSession({ worktree, sessionID: scope })) {
+            return {
+              title: `MessageSearch "session ${scope}"`,
+              metadata: { query: params.query ?? "(browse)", mode, results: 0 },
+              output: `session ${scope} is not in the memory index`,
+            }
+          }
 
           const limit = params.limit ?? 20
 
@@ -213,6 +223,124 @@ export const MessageSearchTool = Tool.define(
             return {
               title: `Memory Spine — ${listed.length} of ${epochs.length} epoch(s)${wanted ? ` matching "${params.dominant}"` : ""}`,
               metadata: { query: params.query ?? "(spine)", mode: "summaries", results: listed.length },
+              output: text.length > MAX_OUTPUT ? text.slice(0, MAX_OUTPUT) : text,
+            }
+          }
+
+          // The chain itself: one row per message that DECLARED a vector — the level below the
+          // spine, and the one a fold cannot erase because every row carries an Exact address.
+          // Newest first (ULID order); `last` (default 20) keeps the tail; breaks are counted
+          // inside a session's own chain, and with `session: "*"` a session boundary is never
+          // a break.
+          if (corpus === "vectors") {
+            const parsed = params.range === undefined ? undefined : parseRange(params.range)
+            if (params.range !== undefined && !parsed) {
+              return {
+                title: "Vector chain",
+                metadata: { query: params.query ?? "(vectors)", mode: "vectors", results: 0 },
+                output: `range must look like "<fromMessageID>..<toMessageID>" — got "${params.range}"`,
+              }
+            }
+
+            const cap = 500
+            const rows = Memory.listVectorCarriers({
+              worktree,
+              sessionID: spineScope,
+              from: parsed?.from,
+              to: parsed?.to,
+              limit: cap,
+            })
+            const carriers = rows.flatMap((row) => {
+              // ONE predicate with the writer: a reply is a carrier only when it DECLARED the
+              // full vector — prose that quotes one (a plan, a summary, this tool's own output)
+              // is not, the same rule the dominants list holds. A malformed md5 is not an
+              // addressable node either.
+              if (!hasSemanticVector(row.text)) return []
+              const chain = extractVectorChain(row.text)
+              if (!chain.md5) return []
+              return [
+                {
+                  row,
+                  md5: chain.md5,
+                  prevMd5: chain.prevMd5,
+                  keywords: extractKeywords(row.text),
+                  dominant: extractMessageDominant(row.text),
+                },
+              ]
+            })
+
+            if (carriers.length === 0) {
+              return {
+                title: "Vector chain — 0 carrier(s)",
+                metadata: { query: params.query ?? "(vectors)", mode: "vectors", results: 0 },
+                output:
+                  "No vector carriers in scope — no assistant reply indexed here declares a full {keywords, dominant, md5} vector. The chain densifies as replies write @SV_FORMAT.",
+              }
+            }
+
+            const last = params.last ?? 20
+            const listed = carriers.slice(0, last)
+
+            const bySession = new Map<string, typeof listed>()
+            for (const entry of listed) {
+              const group = bySession.get(entry.row.sessionID) ?? []
+              group.push(entry)
+              bySession.set(entry.row.sessionID, group)
+            }
+            // `listed` is newest-first; a chain is read oldest-first, and never across a
+            // session seam.
+            const breaks = [...bySession.values()].reduce(
+              (total, group) =>
+                total + chainBreaks([...group].reverse().map((entry) => ({ md5: entry.md5, prevMd5: entry.prevMd5 }))),
+              0,
+            )
+
+            const ignoredQuery =
+              params.query && params.query.trim().length > 0
+                ? `\nnote: \`query\` is ignored for corpus=vectors — the chain is listed, not word-searched.\n`
+                : ""
+            const notApplicable =
+              params.epoch !== undefined || params.goals === true || params.dominants === true
+                ? `\nnote: \`epoch\`/\`goals\`/\`dominants\` do not apply to corpus=vectors.\n`
+                : ""
+            const capNote = rows.length >= cap ? `\nnote: stopped at ${cap} carrier rows — narrow with \`range\`.\n` : ""
+            const newest = listed[0]
+            const oldest = listed[listed.length - 1]
+            const span =
+              newest && oldest
+                ? `span: #${oldest.row.messageIndex} ${oldest.row.messageID} .. #${newest.row.messageIndex} ${newest.row.messageID}\n`
+                : ""
+            const header =
+              `## Vector chain — ${listed.length} of ${carriers.length} carrier(s) \u00b7 ${breaks} break(s)\n` +
+              span +
+              `info_mark: addresses and md5 fields are Exact; everything a vector claims is Inferred.\n` +
+              ignoredQuery +
+              notApplicable +
+              capNote +
+              `\nolder rows: raise \`last\` (currently ${last}) — every row carries its messageID for a \`sessionread\` or a \`range\` descent.\n`
+
+            let ordinal = 0
+            const sections: string[] = []
+            for (const [groupSession, group] of bySession) {
+              const lines = group.map((entry) =>
+                vectorLine({
+                  ordinal: ++ordinal,
+                  messageIndex: entry.row.messageIndex,
+                  md5: entry.md5,
+                  prevMd5: entry.prevMd5,
+                  keywords: entry.keywords,
+                  dominant: entry.dominant,
+                  messageID: entry.row.messageID,
+                }),
+              )
+              const groupHeader = spineScope === undefined ? `\n## Session: ${groupSession}\n` : ""
+              sections.push(`${groupHeader}${lines.join("\n")}`)
+            }
+
+            const text = [header, ...sections].join("\n")
+            return {
+              title: `Vector chain — ${listed.length} of ${carriers.length} vector(s) \u00b7 ${breaks} break(s)`,
+              metadata: { query: params.query ?? "(vectors)", mode: "vectors", results: listed.length },
               output: text.length > MAX_OUTPUT ? text.slice(0, MAX_OUTPUT) : text,
             }
           }

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { dominantLine, epochOpen, epochOrdinal, extractDominant, extractGoal, extractMessageDominant, parseRange, spineLine } from "@/memory/spine"
+import { chainBreaks, dominantLine, epochOpen, epochOrdinal, extractDominant, extractGoal, extractMessageDominant, parseRange, spineLine } from "@/memory/spine"
 
 /**
  * Two findings from an OUTSIDE call that navigated its own history with this mechanism
@@ -195,5 +195,28 @@ describe("extractMessageDominant", () => {
 
   test("a block without its md5 is still a carrier — the label is a separate axis", () => {
     expect(extractMessageDominant("Keywords: sv-chain 0.29\nSemantic dominant: совсем без поля")).toBe("совсем без поля")
+  })
+})
+
+describe("chainBreaks", () => {
+  test("an intact chain is 0 breaks; one link that points elsewhere is 1", () => {
+    const intact = [
+      { md5: "aaaaaaaa", prevMd5: "00000000000000000000000000000000" },
+      { md5: "bbbbbbbb", prevMd5: "aaaaaaaa" },
+      { md5: "cccccccc", prevMd5: "bbbbbbbb" },
+    ]
+    expect(chainBreaks(intact)).toBe(0)
+    expect(chainBreaks([...intact.slice(0, 2), { md5: "cccccccc", prevMd5: "dddddddd" }])).toBe(1)
+  })
+
+  test("the all-zero prev is a chain START, counted separately — not a break", () => {
+    expect(chainBreaks([{ md5: "aaaaaaaa" }, { md5: "bbbbbbbb", prevMd5: "0".repeat(32) }])).toBe(0)
+  })
+
+  test("an unreadable side is UNKNOWN and is never marked", () => {
+    // No prev field at all, and a prev whose predecessor md5 is unreadable: both are absences,
+    // not breaks — the rule `extractVectorChain` measures («a missing field is not a break»).
+    expect(chainBreaks([{ md5: "aaaaaaaa" }, { md5: "bbbbbbbb" }])).toBe(0)
+    expect(chainBreaks([{ prevMd5: "x" }, { md5: "bbbbbbbb", prevMd5: "aaaaaaaa" }])).toBe(0)
   })
 })

@@ -16,6 +16,8 @@
  */
 
 export const DOMINANT_MARKER = "dominant:"
+/** The SQL prefilter for vector carriers; the FULL predicate is `hasSemanticVector` — a quote is not a carrier. */
+export const VECTOR_MARKER = "md5:"
 export const KEYWORDS_MARKER = "Keywords:"
 export const GOAL_HEADING = "## Goal"
 /** How many weighted terms a navigation line carries — the axis, not the whole vector. */
@@ -379,6 +381,54 @@ export function dominantLine(input: {
       : ""
   const kind = [input.role, input.partType].filter((part) => part && part.length > 0).join("/")
   return `#${input.messageIndex} ${dominant}${keywords} \u00b7 ${kind || "?"} \u00b7 ${input.messageID} \u00b7 ${input.partID}`
+}
+
+/**
+ * Chain breaks inside ONE session — `prev-md5` is the discriminator the chain carries, because
+ * ΔSV over the weighted terms saturates (consecutive messages share no terms at all). The rules
+ * are the ones `extractVectorChain` measured: an unreadable side is UNKNOWN and is never marked
+ * (a missing field is not a break), and the all-zero hash is an explicit chain START — the
+ * calibration counts those separately (`experiments/2026-09-22_sv-delta`), not as breaks. A
+ * seam between sessions WOULD read as a break, which is why the caller counts per session and
+ * never feeds one across a session boundary. Rows arrive in chronological order.
+ */
+export function chainBreaks(rows: readonly { md5?: string; prevMd5?: string }[]): number {
+  let breaks = 0
+  for (let i = 1; i < rows.length; i++) {
+    const prev = rows[i]!.prevMd5
+    const previous = rows[i - 1]!.md5
+    if (prev === undefined || previous === undefined) continue
+    if (prev === EMPTY_HASH) continue
+    if (prev !== previous) breaks++
+  }
+  return breaks
+}
+
+/**
+ * One row of the vector-chain listing: the link the vector declares (`prev→self`, 8-hex
+ * prefixes — the header's break count is what the links are FOR), its dominant and topic axis,
+ * and the address of the message that carries it. `dominantLine` is the level above.
+ */
+export function vectorLine(input: {
+  ordinal: number
+  messageIndex: number
+  md5?: string
+  prevMd5?: string
+  keywords?: readonly WeightedTerm[]
+  dominant?: string
+  messageID: string
+}): string {
+  const short = (value: string | undefined) =>
+    value === undefined ? "?" : value === EMPTY_HASH ? "start" : value.slice(0, 8)
+  const dominant = input.dominant ? `"${input.dominant}"` : "(no dominant)"
+  const keywords =
+    input.keywords && input.keywords.length > 0
+      ? ` \u00b7 kw: ${input.keywords
+          .slice(0, KEYWORD_TOP_N)
+          .map((entry) => `${entry.term} ${entry.weight}`)
+          .join(", ")}`
+      : ""
+  return `#${input.ordinal} #${input.messageIndex} ${short(input.prevMd5)}→${short(input.md5)} ${dominant}${keywords} \u00b7 ${input.messageID}`
 }
 
 /**

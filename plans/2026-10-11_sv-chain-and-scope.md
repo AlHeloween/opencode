@@ -2,7 +2,7 @@
 
 # messagesearch: the vector chain as carrier, and session scope that means something
 
-**Status:** ACTIVE — 2026-10-11. Owner: «Давай план и понеслась.» Design settled in the same session; every premise below is measured, not assumed.
+**Status:** COMPLETE 2026-10-12 — S1–S5 earned; unit gates + a live source-run smoke on a copied index; closing commit names this plan.
 
 ## 1. What is measured (all instruments named)
 
@@ -28,28 +28,50 @@
       `_build.ps1` exit 0, smoke **10.0.1276** `20261011T163435Z_20ad046a`. A LIVE tool verdict is not
       available in this session — the tool catalogue is frozen in the checkpoint and built from the
       binary — so the test (which loads source) is the oracle here, and that is stated in the log.
-- [ ] **S2 — `corpus: "vectors"`.** A third corpus, read from the EXISTING `part_index` (no new table
-      yet): rows are assistant `text` parts carrying the vector marker, projected to
-      `{ ordinal, messageID, messageIndex, md5, prevMd5, keywords, dominant }`, **newest first**, `last`
-      default ~20, with the address to continue (the machinery already exists: `extractVectorChain`,
-      `extractKeywords`, `extractMessageDominant`, `Memory.listDominants`).
-- [ ] **S3 — breaks counted inside a session.** In the vectors list, a `prev-md5` that does not equal the
-      previous listed row's `md5` is a break; the header prints `N vectors · M breaks`. With `session:"*"`
-      the list is grouped by session and a session boundary is NEVER a break.
-- [ ] **S4 — silence is not an answer.** A `session` id with no rows in the index must say so
-      (`session <id> is not in the memory index`), not `No results found` — the same class as
-      «absence of an oracle reads as FALSE».
-- [ ] **S5 — gates.** `test/tool/history-filters.test.ts`, `test/memory/*.test.ts` one file per run;
-      `bun typecheck` from `packages/opencode`; `_build.ps1`.
+- [x] **S2 — `corpus: "vectors"`.** DONE — `Memory.listVectorCarriers` reads the EXISTING `part_index`
+      (assistant `text`, ULID `message_id` DESC = global time order, `session_id` carried per row);
+      the tool projects each row through `hasSemanticVector` + `extractVectorChain` + `extractKeywords`
+      + `extractMessageDominant` and renders `vectorLine` (`{ordinal, messageIndex, prev→self md5,
+      dominant, keywords, messageID}`). `last` defaults to 20 for this corpus. Unit:
+      `test/memory/vector-carriers.test.ts` (projection keeps declared vectors, drops a quoting row;
+      link reads intact) — 30/30 with spine in run `20261012T104654Z_9832b3ef`. LIVE (source-run on a
+      copied index, `experiments/2026-10-11_sv-chain-smoke`): run `20261012T105036Z_c99fe01d` —
+      `## Vector chain — 5 of 441 carrier(s) · 2 break(s)`, newest first, links visible
+      (`08f076f1→7c31b9e5`, chain start as `start→3f19c2ea`), grouped under `## Session:`.
+- [x] **S3 — breaks counted inside a session.** DONE — `chainBreaks` (`spine.ts`): a row whose
+      `prev-md5` differs from the previous listed row's `md5` is a break; an unreadable side is
+      UNKNOWN and never marked; the all-zero hash is a chain START, not a break. Header prints
+      `N carrier(s) · M break(s)`; with `session: "*"` the list is grouped by session and a session
+      boundary is never fed to the counter. Unit: `chainBreaks` cases in `test/memory/spine.test.ts`
+      (same 30/30 run). LIVE: `· 2 break(s)` in `20261012T105036Z_c99fe01d`, matching the real
+      session seam between listed rows.
+- [x] **S4 — silence is not an answer.** DONE — `Memory.hasSession` + a guard in `messagesearch`
+      (skipped for `summaries`, which reads checkpoints rather than the index): an explicit session id
+      with no index rows answers `session <id> is not in the memory index`. Unit:
+      `test/memory/vector-carriers.test.ts` (`hasSession` true for the live session, false for an
+      absent id). LIVE: run `20261012T104941Z_504aceec` — model called
+      `messagesearch { session: "ses_absent_smoke_xyz" }` and the tool answered
+      `session ses_absent_smoke_xyz is not in the memory index` (title `MessageSearch "session …"`).
+- [x] **S5 — gates.** DONE — `bun test test/tool/history-filters.test.ts` 7/7 (run
+      `20261012T104654Z_9832b3ef`); `test/memory/*.test.ts` one file per run
+      (`20261012T104724Z_08dc8f98`: search, search-rank, fts-query, budget 6/6, abort-leak 2/2,
+      vector-sign 6/6 — 0 fail each), `bun typecheck` exit 0 (same run); `test/tool/registry.test.ts`
+      11/11 `20261012T105140Z_fa4255ea` (the parameter annotations changed); `_build.ps1` exit 0, smoke **10.0.1287** (run `20261012T105202Z_a4cfcd94`).
 
 ## 3. Smoke Tests
 
-| oracle | before | after |
+| oracle | before | after / result |
 |---|---|---|
-| `bun test test/tool/history-filters.test.ts` | PASS (baseline pinned) | PASS + `*` case |
-| `messagesearch { session: "*", query: "liveMessages" }` | **«No results found»** (the defect) | same 5 hits as no-`session` |
-| `messagesearch { corpus: "vectors", last: 5 }` | unknown parameter → parts mode | 5 newest vectors, newest first, with md5/prev |
-| `messagesearch { session: "ses_absent" }` | «No results found» | names the absent session |
+| `bun test test/tool/history-filters.test.ts` | PASS (baseline pinned) | PASS + `*` case — 7/7 `20261012T104654Z_9832b3ef` |
+| `messagesearch { session: "*", query: "liveMessages" }` | **«No results found»** (the defect) | same hits as no-`session` — S1 unit-verified; live re-verification is S5's `*` semantics |
+| `messagesearch { corpus: "vectors", last: 5 }` | unknown parameter → parts mode | LIVE `20261012T105036Z_c99fe01d` (with `session:"*"`): 5 newest of 441 carriers, newest first, with md5/prev links and `2 break(s)`. On a FRESH session the same call honestly answers `Vector chain — 0 carrier(s)` (default scope = current session, as `summaries`) — run `20261012T104941Z_504aceec`. |
+| `messagesearch { session: "ses_absent" }` | «No results found» | LIVE `20261012T104941Z_504aceec`: names the absent session |
+
+**Measured incident, recorded for the next smoke:** the sandbox project DB is a COPY of the repo's,
+and the copy drags the `server_host` row with it — the first run thus ATTACHED to the live host
+(pid 26272, port 4096) and its tools executed from the OLD binary (browse + «No results found»).
+Fix: `DELETE FROM server_host` in the sandbox copy; the two later runs executed the source and
+self-identify by the new titles (`Vector chain — …`, `MessageSearch "session …"`).
 
 ## 4. Deliberately NOT in this plan (named so they are not mistaken for done)
 
@@ -65,9 +87,13 @@
 - **`patch` parts are unsearchable** (`if (!text) continue`) — `edit` diffs do not exist for search.
 - Pre-existing floating-effect diagnostics in `session/prompt.ts` (documented in `AGENTS.md`).
 
+Residual (named, not silently dropped): `vectors` has no exclusive «older than X» cursor — the
+continuation is `last` + `range`, and every row carries its messageID as the address.
+
 ## 5. KV note
 
 `messagesearch.txt` and the `Schema.annotate` descriptions ride the tool catalogue in the prompt, so any
 description edit is a PREFIX edit. S1 changes an annotation only if the wording needs it — the current
 text («'all' (default, every session in the project)») stays TRUE for `parts`, so the minimal edit is
-adding `*` as an accepted spelling.
+adding `*` as an accepted spelling. (Applied here together with the `corpus: "vectors"` and `last`
+extensions of S2.)

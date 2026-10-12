@@ -8,6 +8,7 @@ Ground conversation facts before judgment. Epistemic ranking: Exact > Inferred >
 - **Search mode** (with `query`): FTS5 full-text search over all message content. Results ordered by combined BM25 relevance and epistemic-weighted semantic rank.
 - **Browse mode** (no `query`): Returns all user messages chronologically per session, each preceded by its context (the preceding assistant message). No ranking.
 - **Spine mode** (`corpus: "summaries"`): the session's own memory, one line per epoch, read from the compaction summaries. Each line carries the epoch's **semantic dominant** and its address (`from..to` message ids). This is a table of contents: cheap enough to read in full, and it exists so that the one epoch you need can be opened by ordinal (`{ corpus: "summaries", epoch: N }`) instead of searched for. Two queries replace a word sweep over thousands of indexed parts.
+- **Vector-chain mode** (`corpus: "vectors"`): one row per message that DECLARED a semantic vector — its `md5`/`prev-md5` link, keywords and dominant, each with the message's Exact address. Newest first; `last` defaults to 20; the header counts breaks **inside a session's own chain** (`N carrier(s) · M break(s)`), and `session: "*"` lists every session, grouped, where a boundary between sessions is never a break.
 
 ## Search Engine
 
@@ -52,11 +53,11 @@ Output is capped at 50KB. Use `sessionread` to get full context around found mes
 | `query` | string (optional) | — | Search keywords or phrase. Omit to browse all sessions. |
 | `limit` | number | 20 | Maximum results to return |
 | `ignoreCase` | boolean | false | Case-insensitive `pattern` |
-| `corpus` | string | `parts` | `parts` = the indexed transcript (unchanged); `summaries` = the session memory spine |
+| `corpus` | string | `parts` | `parts` = the indexed transcript (unchanged); `summaries` = the session memory spine; `vectors` = the semantic-vector chain (each row a message that declared a vector, with its md5 link) |
 | `dominant` | string | — | With `summaries`, keep only epochs whose semantic dominant contains this text. A LEXICAL lookup in a semantically rich field, not a similarity search: the dominant is an address the epoch once wrote for itself, and matching it resolves that address — so a phrase nobody ever wrote will not match |
 | `goals` | boolean | false | With `summaries`, also print each epoch's `## Goal` head |
 | `epoch` | number | — | With `summaries`, print ONLY that epoch's full body (1-based, in spine order) — the second query |
-| `last` | number | — | Keep only the last N units of the selected corpus: epochs for `summaries`, message dominants for `dominants` |
+| `last` | number | — | Keep only the last N units of the selected corpus: epochs for `summaries`, message dominants for `dominants`, vector rows for `vectors` (default 20) |
 | `range` | string | — | Restrict to a message range in the form the spine prints: `"<fromMessageID>..<toMessageID>"` |
 | `dominants` | boolean | false | Descend one level: return the message-level semantic dominants instead of raw parts or snippets |
 
@@ -69,3 +70,4 @@ Output is capped at 50KB. Use `sessionread` to get full context around found mes
 - Browse all user messages (omit query) to get an overview of past sessions
 - **Navigate your own memory**: read the spine (`corpus: "summaries"`), pick an epoch by its dominant, then open that one epoch (`epoch: N`). The spine costs a few kilobytes for a whole long session, where reading the raw window costs tens of thousands of tokens.
 - **Descend to the messages**: take the address the spine printed and read it back — `{ corpus: "parts", dominants: true, range: "<from>..<to>" }` returns the messages of that epoch, each with the dominant it carries. Pass the range: without it the same filter scans every message in scope and costs about a second.
+- **Walk the vector chain**: `{ corpus: "vectors" }` lists this session's newest vector carriers — the `md5` link each one declares, its dominant and topic axis, and the Exact address of the message carrying it. This is the level below the spine and the one that survives a fold as an address; `session: "*"` widens it to every session, grouped.

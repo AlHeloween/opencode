@@ -111,7 +111,7 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 222 |
+| plans completed | 223 |
 | plans active | 19 |
 | tasks passed / total | 922 / 1171 |
 | open boxes | 106 |
@@ -289,16 +289,12 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - TASK-8 [PENDING] · sv [delegation, release-verification] · manifest: MISSING — nobody has written down what this box is
   - TASK-9 [PENDING] · sv [installed-readback, closure] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-12_model-wire-param-gate.md` — 0 open / 10 box(es) · lifecycle COMPLETE
-  sv: intention "our runtime merged `repetition_penalty` into EVERY request body and opencode-go/glm-5.3-flash rejects the unknown field with a 400 -> only fields the target actually accepts ride the wire; the rejection is the descent signal, recorded once per model (never hand-coded), and provider-stated context limits survive restarts" · keywords []
-  - no open box
-
 - `plans/2026-10-12_specs-inventory-truth.md` — 1 open / 4 box(es) · lifecycle ACTIVE
   sv: intention "the specs under packages/opencode/specs state live inventory in prose — file lists, call-site counts, feature flags — and that prose rots silently (measured 2026-10-12: facades.md names a makeRuntime composition that has since changed on BOTH sides, http-api.md still announces a gate flag that no longer exists in src) -> inventory that can rot is either replaced by the command that recomputes it or generated, while the rules and the work order — which do not rot — stay hand-written." · keywords []
   - S2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 ## The checks
 
-This body names all 22 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 21 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

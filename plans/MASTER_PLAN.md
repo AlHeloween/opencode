@@ -111,10 +111,10 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 224 |
-| plans active | 17 |
-| tasks passed / total | 925 / 1162 |
-| open boxes | 94 |
+| plans completed | 225 |
+| plans active | 18 |
+| tasks passed / total | 930 / 1170 |
+| open boxes | 97 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -198,7 +198,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 - `plans/2026-09-29_h2-session-pool-and-connection-badge.md` — 2 open / 8 box(es) · lifecycle ACTIVE
   sv: intention "up to 2500 concurrent provider streams must ride a REUSED pool of HTTP/2 sessions (one session caps at the server's advertised 128), never short-lived connections, and the TUI sidebar must show the living connection as an icon -> session pool + model concurrency limits + connected/disconnected badge" · keywords []
-  - T4 [PARTIAL] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - T4 [PARTIAL] · sv MISSING · manifest: T4a/b shipped as glyphs — ◉ on the active /agents row and ⇅ on the sidebar protocol cell, text oracles green, the on-screen check still owed to the owner. · eta 2 · waiting-on-user
   - TASK-6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-09-30_cua-supply-chain-audit.md` — 2 open / 10 box(es) · lifecycle ACTIVE
@@ -230,7 +230,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 - `plans/2026-10-01_tool-description-contracts.md` — 5 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "36 tool descriptions ride the KV-stable prefix and make promises the code does not always keep (multiedit atomicity, grep's line format, recall's reach); the work fixing them ran under a parent-goal anchor no plan declared -> one line of work that owns that anchor, where every promise in a description is either pinned by a test that fails without it or removed from the text" · keywords []
-  - C2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - C2 [PENDING] · sv MISSING · manifest: Три флага, обещавшие поведение, теперь пинуются — у `compare` появился первый тест за всю историю и он зелёный, — а бокс открыт ровно на одной невыполненной мутации, названной явно. · eta 1 · doing
   - C3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - C4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - C5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -275,8 +275,14 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   sv: intention "the specs under packages/opencode/specs state live inventory in prose — file lists, call-site counts, feature flags — and that prose rots silently (measured 2026-10-12: facades.md names a makeRuntime composition that has since changed on BOTH sides, http-api.md still announces a gate flag that no longer exists in src) -> inventory that can rot is either replaced by the command that recomputes it or generated, while the rules and the work order — which do not rot — stay hand-written." · keywords []
   - S2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-12_transport-options-body-leak.md` — 3 open / 3 box(es) · lifecycle UNKNOWN
+  sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for
+  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
 ## The checks
 
-This body names all 19 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 20 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

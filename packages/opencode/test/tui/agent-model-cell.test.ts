@@ -93,8 +93,8 @@ describe("agentModelRef", () => {
 describe("agentRowModelCell", () => {
   test("renders the model picker's cell: pretty name, price, capabilities, variant", () => {
     // The owner's target row (2026-09-21): `DeepSeek V4.1 Flash  DeepSeek  ⇣0.15 ⇡0.6 ↻0.003 [👁 🧠 🔧] · max`.
-    // The provider chip is NOT here: at `large` (88 cells) the name column needs those cells,
-    // and the provider rides the hint instead.
+    // The provider rides the ROW since 2026-10-12 («чтобы отображалось не только название модели
+    // но и провайдер») — hint-only was the 2026-09-21 width trade-off, now overridden.
     expect(
       agentRowModelCell({
         ref: "deepseek/deepseek-flash",
@@ -107,7 +107,7 @@ describe("agentRowModelCell", () => {
         variant: "max",
       }),
     ).toEqual({
-      description: "DeepSeek V4.1 Flash",
+      description: "DeepSeek V4.1 Flash · DeepSeek",
       footer: "⇣0.15 ⇡0.6 ↻0.003 [👁 🧠 🔧] · max",
     })
   })
@@ -119,7 +119,7 @@ describe("agentRowModelCell", () => {
         provider: { id: "custom", name: "Custom" },
         info: { name: "Local Model", capabilities: { toolcall: true } },
       }),
-    ).toEqual({ description: "Local Model", footer: "[🔧]" })
+    ).toEqual({ description: "Local Model · Custom", footer: "[🔧]" })
   })
 
   test("a Zen free-tier model reads Free — the test model on this host", () => {
@@ -137,7 +137,7 @@ describe("agentRowModelCell", () => {
         variant: "high",
       }),
     ).toEqual({
-      description: "Muse Spark 1.2 Free",
+      description: "Muse Spark 1.2 Free · OpenCode Zen",
       footer: "Free [🎥 👁 🧠 🔧] · high",
     })
   })
@@ -165,10 +165,10 @@ describe("agentHintText", () => {
     expect(agentHintText({ origin: "agent" })).toBe("model from the agent layer")
   })
 
-  test("the provider rides the hint, because the row has no room for it", () => {
-    expect(agentHintText({ description: "Primary implementer", provider: "OpenCode Zen" })).toBe(
-      "Primary implementer · OpenCode Zen",
-    )
+  test("the hint no longer carries the provider — the row does (owner, 2026-10-12)", () => {
+    // Supersedes «the provider rides the hint, because the row has no room for it»: the owner
+    // moved the provider into the row, and the hint must not repeat the row (13484dc0aa).
+    expect(agentHintText({ description: "Primary implementer" })).toBe("Primary implementer")
   })
 
   test("nothing to say → no hint, so the line is hidden rather than blank", () => {

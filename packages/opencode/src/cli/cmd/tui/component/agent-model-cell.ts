@@ -71,9 +71,10 @@ export function agentModelRef(ref: string): { providerID: string; modelID: strin
  * as the target). The raw `provider/modelID` it replaced named the model in the one form the
  * reader cannot price or recognise.
  *
- * `description` is the pretty name alone and the PROVIDER is not in the footer: the form was
- * narrowed to `large` (88 cells) and `agent | model | runtime` needs the columns — a provider
- * chip in the footer pushed the name past the budget. The provider rides the hint instead.
+ * `description` is the pretty name plus the provider (owner, 2026-10-12: «чтобы отображалось не
+ * только название модели но и провайдер» — the 2026-09-21 hint-only trade-off is overridden):
+ * `Exo Free · opencode-go`. The footer stays price/caps/variant — a provider chip there was
+ * measured to push the name past its budget, so the provider rides the description's tail.
  */
 export function agentRowModelCell(input: {
   ref: string
@@ -94,7 +95,9 @@ export function agentRowModelCell(input: {
   if (caps) parts.push(caps)
   const head = parts.join(" ")
   return {
-    description: input.info?.name ?? parsed.modelID,
+    description: input.provider
+      ? `${input.info?.name ?? parsed.modelID} · ${input.provider.name}`
+      : (input.info?.name ?? parsed.modelID),
     footer: input.variant ? `${head} · ${input.variant}` : head,
   }
 }
@@ -127,15 +130,12 @@ export function nextVariant(variants: readonly string[], current: string | undef
 
 export function agentHintText(input: {
   description?: string
-  /** The provider the model is served by — the row has no room for it at `large` width. */
-  provider?: string
   origin?: AgentModelOrigin
   /** Undefined when the agent has no subagent overrides at all; 0 reads «none». */
   taskCount?: number
 }): string | undefined {
   const parts: string[] = []
   if (input.description) parts.push(input.description)
-  if (input.provider) parts.push(input.provider)
   if (input.origin) parts.push(`model from the ${input.origin} layer`)
   if (input.taskCount !== undefined) parts.push(input.taskCount === 0 ? "task: none" : `task: ${input.taskCount}`)
   return parts.length > 0 ? parts.join(" · ") : undefined

@@ -231,6 +231,9 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
     const provider = ref ? sync.data.provider.find((p) => p.id === ref.providerID) : undefined
     const row = agentRowModelCell({
       ref: cell.model,
+      // The provider rides the ROW (owner, 2026-10-12: «чтобы отображалось не только название
+      // модели но и провайдер») — it was hint-only before, a width trade-off now overridden.
+      provider: provider ? { id: provider.id, name: provider.name } : undefined,
       info: provider && ref ? (provider.models[ref.modelID] as any) : undefined,
       variant: layerVariant ?? undefined,
     })
@@ -266,7 +269,6 @@ export function DialogAgent(props: { restoreValue?: string; scope?: ModelScope }
       // origin is the difference between an override this scope owns and an inherited one.
       hint: agentHintText({
         description: agent.description ?? undefined,
-        provider: provider?.name,
         origin: cell.origin,
         taskCount: sub === undefined ? undefined : sub.length,
       }),

@@ -104,9 +104,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 221 |
-| plans active | 18 |
-| tasks passed / total | 906 / 1149 |
-| open boxes | 100 |
+| plans active | 20 |
+| tasks passed / total | 906 / 1158 |
+| open boxes | 109 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -114,13 +114,20 @@ Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
 Every plan under `plans/`, with every vector READ from its own source. `MISSING` means the source has none — it is never filled in here, and the source wins over anything printed below.
 
-- `plans/2026-09-12_anthropic-cache-breakpoints.md` — 0 open / 0 box(es) · lifecycle DRAFT
+- `plans/2026-09-12_anthropic-cache-breakpoints.md` — 5 open / 5 box(es) · lifecycle DRAFT
   sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for
-  - no open box
+  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-19_database-truth.md` — 0 open / 0 box(es) · lifecycle UNKNOWN
+- `plans/2026-09-19_database-truth.md` — 4 open / 4 box(es) · lifecycle UNKNOWN
   sv: intention "tables and counters nobody writes produce mechanisms that never fire while every suite stays green -> every table has a named writer, every dead surface is removed, and any counter is checked against the live database" · keywords []
-  - no open box
+  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 - `plans/2026-09-21_mstar-order-and-summary-restore.md` — 6 open / 24 box(es) · lifecycle ACTIVE
   sv: intention "m* и summary деградировали (порядок блоков неверен, summary стал дампом патчей, память стала пачкой записок) -> вернуть порядок владельца и вернуть summary к намерениям с планами" · keywords []

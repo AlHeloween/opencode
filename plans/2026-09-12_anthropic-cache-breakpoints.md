@@ -75,6 +75,12 @@ which beta it needs (probe 11), that today's payload 400s (probe 12).
 
 ## Tasks
 
+- [ ] T1 — `variants()` derives from the catalog, not from substrings
+- [ ] T2 — breakpoint placement: anchor the deep end of the static prefix
+- [ ] T3 — make the diagnostic tell the truth
+- [ ] T4 — 1h TTL as an opt-in (probe-gated: probe 11)
+- [ ] T5 — decide the tail-marker count (probe-gated: probe 10)
+
 ### T1 — `variants()` derives from the catalog, not from substrings
 
 Claim: for every model in `provider/models/anthropic.json`, the emitted

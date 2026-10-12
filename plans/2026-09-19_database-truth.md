@@ -53,6 +53,11 @@ question about TDA and would have eaten that cycle. Separated so the TDA plan ca
 
 ## Tasks
 
+- [ ] T1 — no table without a named writer
+- [ ] T2 — `event`: name its writer, its reader and its growth policy
+- [ ] T3 — `balance_snapshot`: snapshot, or a log with retention
+- [ ] T4 — the fixture rule, made checkable
+
 - **T1 — no table without a named writer.** For every zero-row table: find the writer in code, or state
   that there is none. A table with no writer is a SURFACE TO REMOVE, not to keep — a defect is fixed by
   deleting a surface, not by adding a guard.

@@ -92,6 +92,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 Стратегия доказанной непрерывности: [завершённый аудит кернела и host addons](../plans_completed/2026-10-12_kernel-addons-correctness-audit.md) проверил согласованность правил, инструментальных привязок и условий завершения. Анализ не устанавливал новый кернел; его выход — K01–K10, воспроизводимые дефекты и границы доказательства для отдельного ремонта.
 <!-- sv: kernel-correctness,evidence,host-bindings,closure -->
 
+Реализация этой стратегии: [ремонт контрактов и ADID release](2026-10-12_kernel-contract-repair-and-adid-release.md) восстанавливает guards и mandatory inputs, затем передаёт доказанный snapshot резиденту ADID для release/install с независимым readback.
+<!-- sv: kernel-contracts,host-bindings,delegation,release-verification -->
+
 ## Standing rules that outlive any plan
 
 - Instrument before claim: no `[x]` without a run id, a hash or a rehearsal log.

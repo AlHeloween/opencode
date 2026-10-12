@@ -30,7 +30,12 @@ export const UNSUPPORTED_WIRE_PARAMS: Record<string, readonly string[]> = {
   // 400 [unknown_parameter] invalid request body: json: unknown field.
   // Same provider and session, mimo-v2.6-flash finished 11 turns with the field
   // in its body — the rejection is PER MODEL, so the entry stays model-scoped.
-  "opencode-go/glm-5.3-flash": ["repetition_penalty"],
+  // thinking: measured 2026-10-12 ~05:25 — the GLM variant sets
+  // `thinking:{type:"enabled"}` (transform.ts variants), zen/go's strict
+  // upstream answered 400 [unknown_parameter]; recorded as a learned fact
+  // (provider_fact row) and pinned here so a fresh install does not re-learn.
+  // reasoning_effort drives reasoning on this route, so the strip is safe.
+  "opencode-go/glm-5.3-flash": ["repetition_penalty", "thinking"],
 }
 
 /** Seed ∪ learned, deduplicated — what this model's upstream must never be sent. Never throws. */

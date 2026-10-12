@@ -57,7 +57,9 @@ test("a rejected field is learned once, then strips from packaging", async () =>
 
 test("the compiled seed keeps working while the store is unavailable", () => {
   // No Instance context: loadFacts answers empty; the seed still guards the wire.
-  expect(unsupportedWireParams("opencode-go", "glm-5.3-flash")).toEqual(["repetition_penalty"])
+  // Seed grew 2026-10-12: `thinking` joined after zen/go's strict upstream 400'd
+  // it (provider_fact row, measured ~05:25) — pinned into the compiled seed.
+  expect(unsupportedWireParams("opencode-go", "glm-5.3-flash")).toEqual(["repetition_penalty", "thinking"])
 })
 
 test("fromError learns on the provider's own 400 and retries exactly once", async () => {

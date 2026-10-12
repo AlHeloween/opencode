@@ -51,11 +51,16 @@ test("glm-5.3-flash on opencode-go drops repetition_penalty at packaging", () =>
   const packaged = ProviderTransform.providerOptions(createModel("opencode-go", "glm-5.3-flash"), {
     repetition_penalty: 1.1,
     thinking: { type: "enabled" },
+    top_p: 0.95,
     prompt_cache_key: "ses_x:glm-5.3-flash",
   })
   expect(packaged["opencode-go"].repetition_penalty).toBeUndefined()
+  // thinking joined the measured-rejected set 2026-10-12 (zen/go strict upstream
+  // 400'd it; provider_fact row + seed) — the gate MUST strip it now. The old
+  // assertion used it as the untouched control; the control moved to top_p.
+  expect(packaged["opencode-go"].thinking).toBeUndefined()
   // the rest of the body is untouched — the gate is a strip, not a filter
-  expect(packaged["opencode-go"].thinking).toEqual({ type: "enabled" })
+  expect(packaged["opencode-go"].top_p).toBe(0.95)
   expect(packaged["opencode-go"].prompt_cache_key).toBe("ses_x:glm-5.3-flash")
 })
 
@@ -80,4 +85,34 @@ test("an unrecorded pair is untouched — no probing, no over-stripping", () => 
     repetition_penalty: 1.1,
   })
   expect(stripped.repetition_penalty).toBe(1.1)
+})
+
+/**
+ * Transport controls are OUR knobs, never wire parameters: the gateway fetch
+ * reads `model.options.protocol` / `model.options.streaming` directly
+ * (provider.ts gatewayProtocol/gatewayStreaming), and no upstream accepts them
+ * as body fields — zen/go answered 400 [unknown_parameter] on "protocol"
+ * (measured 2026-10-12, payload dump 141041.594). The @ai-sdk openai-compatible
+ * model spreads unknown providerOptions keys into the body, so the strip is
+ * deterministic at packaging — not learned-by-rejection.
+ */
+test("transport knobs never reach the body — protocol/streaming are ours", () => {
+  const packaged = ProviderTransform.providerOptions(createModel("opencode-go", "glm-5.3-flash"), {
+    protocol: "h2",
+    streaming: true,
+    prompt_cache_key: "ses_x:glm-5.3-flash",
+  })
+  expect(packaged["opencode-go"].protocol).toBeUndefined()
+  expect(packaged["opencode-go"].streaming).toBeUndefined()
+  // the rest of the body is untouched
+  expect(packaged["opencode-go"].prompt_cache_key).toBe("ses_x:glm-5.3-flash")
+})
+
+test("the transport strip is global — any provider, not just a learned pair", () => {
+  const packaged = ProviderTransform.providerOptions(createModel("deepseek", "deepseek-flash"), {
+    protocol: "h2",
+    streaming: true,
+  })
+  expect(packaged["deepseek"].protocol).toBeUndefined()
+  expect(packaged["deepseek"].streaming).toBeUndefined()
 })

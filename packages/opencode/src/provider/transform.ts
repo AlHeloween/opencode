@@ -1333,6 +1333,14 @@ export function smallOptions(model: Provider.Model) {
 
 // Maps model ID prefix to provider slug used in providerOptions.
 // Example: "amazon/nova-2-lite" → "bedrock"
+/**
+ * Transport controls ride `model.options` (config/catalog) into the call options
+ * and must never reach the request BODY: they name the HTTP rung and the
+ * streaming preference for the gateway fetch, not a model parameter. The
+ * standard wire field for streaming is `stream`, set by the SDK itself.
+ */
+const TRANSPORT_OPTIONS = new Set(["protocol", "streaming"])
+
 const SLUG_OVERRIDES: Record<string, string> = {
   amazon: "bedrock",
 }
@@ -1346,12 +1354,22 @@ export function providerOptions(model: Provider.Model, options: { [x: string]: a
   // Wire gate: a field the model's upstream rejects never survives packaging,
   // whatever merged it (model-wide sampling, agent options, variant, plugin) —
   // the descent rung is recorded in wire-params.ts, not probed per request.
-  const normalized = WireParams.stripUnsupportedWireParams(
+  const wireGateStripped = WireParams.stripUnsupportedWireParams(
     model,
     usesOpenAIReasoningGate &&
       (model.capabilities.reasoning || options.reasoningEffort !== undefined || options.reasoningSummary !== undefined)
       ? { ...options, forceReasoning: true }
       : options,
+  )
+  // Transport controls are OUR knobs, never wire parameters: the gateway fetch
+  // reads `model.options.protocol` / `model.options.streaming` directly
+  // (provider.ts gatewayProtocol/gatewayStreaming), and no upstream accepts them
+  // as body fields — zen/go answered 400 [unknown_parameter] on "protocol"
+  // (measured 2026-10-12, payload dump 141041.594). The @ai-sdk openai-compatible
+  // model spreads unknown providerOptions keys into the body, so the strip is
+  // deterministic here at the single packaging point — not learned-by-rejection.
+  const normalized = Object.fromEntries(
+    Object.entries(wireGateStripped).filter(([key]) => !TRANSPORT_OPTIONS.has(key)),
   )
 
   if (model.api.npm === "@ai-sdk/gateway") {

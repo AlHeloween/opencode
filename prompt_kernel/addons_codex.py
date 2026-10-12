@@ -1,9 +1,10 @@
 """Gate add-ons for the current Codex harness.
 
 The shared graph stays in ``source.py``. This registry only binds it to the
-host's actual tools: filesystem reads/searches, surgical edits, LSP/AST
-refactors, ``hub`` process control, ``eval`` Browser access, and the mounted
-CodeGraph device. It deliberately does not claim a repository-local prompt
+host's discovered tools: node_repl filesystem reads, apply_patch edits,
+exec_command/write_stdin process sessions, collaboration, cua_repl browser
+control, and the mounted CodeGraph device. Optional tools need discovery and
+qualification. It deliberately does not claim a repository-local prompt
 installation mechanism: that belongs to the external harness.
 """
 
@@ -31,7 +32,8 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
             # Owner, 2026-10-03: «перед использованием codegraph надо сделать codegraph sync, перед использованием adm
             # --rag index … RAG идет перед codegraph». Frameless Sonnet: an unscoped «first» read as per-query or
             # once-ever, «it refreshes» as automatic — hence the separate refresh sentence.
-            "instrument chain, in order: where/which -> adm --query -> codegraph_explore -> tools/codex_svchain.py for own trajectory -> Read a URL or Browser through Eval -> Glob -> Grep; device state via the shell. Refresh an index before a task's first query and after edits: adm --rag index, codegraph sync. Name the rung that answered.",
+            "instrument chain: discover executables -> qualified adm query -> mounted CodeGraph -> tools/codex_svchain.py for own trajectory -> web/fetch or cua_repl -> filesystem search. On indexed code use graph-before-scanners; an empty or irrelevant graph result is a recorded evidence gap, not a proof of absence.",
+            "refresh owner: the authorized parent runs adm --rag index/codegraph sync, or the query tool supplies verified freshness. Receipt names worktree, index, owner, command/result reference and current source hashes; edits invalidate it. A read-only explorer requests that receipt from its parent instead of acquiring shell rights.",
         ),
     ),
     GateAddon(
@@ -46,9 +48,9 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G1",
         "TOOL_GROUNDING",
         (
-            "ground code via mounted codegraph_explore when .codegraph/ exists; otherwise Read, Glob, and Grep.",
-            "file enumeration: Glob/Grep/Read — never shell ls/dir/find/cat.",
-            "static web content: Read a URL; interactive/authenticated pages: Browser through Eval.",
+            "discover mounted codegraph_explore by capability; query relevant symbols/callers before node_repl filesystem reads or rg scans. No index/unqualified tool requires recorded proof and qualification, never an invented binding.",
+            "file enumeration/read: node_repl filesystem API, or discovered file/search tools; rg for text search. Never shell ls/dir/find/cat.",
+            "static web: web/fetch; interactive pages: cua_repl browser API after reading its documentation.",
         ),
     ),
     GateAddon(
@@ -113,8 +115,8 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G2",
         "TOOL_DECOMPOSE",
         (
-            "track candidates: Todo.",
-            "delegate only user-enumerated independent slices via one Task batch; preserve shared contracts in its context.",
+            "track candidates in the authorized plan.",
+            "delegate authorized independent slices via collaboration spawn_agent/followup_task; preserve shared contracts and use wait_agent for bounded waits.",
         ),
     ),
     GateAddon(
@@ -138,15 +140,15 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G6",
         "TOOL_BINDING",
         (
-            "map symbols and ownership: codegraph_explore; use LSP definition, references, and implementation for language-aware impact.",
-            "LSP rename/code-action precedes textual cross-file refactors; task grounding is read-only.",
+            "map symbols/consumers with mounted CodeGraph. Optional LSP definition/references/implementation are used only when discovered and qualified; otherwise record the capability gap and use an independently verified reference sweep.",
+            "an optional LSP rename/code-action precedes textual refactoring only when bound; task grounding is read-only.",
         ),
     ),
     GateAddon(
         "G6",
         "SURFACE_CONSUMERS",
         (
-            "shared surface (renderer, component or route with more than one consumer): impact analysis by import — codegraph_explore, plus LSP references/implementation — before binding, and name which consumer your change touches.",
+            "shared surface: CodeGraph impact before binding, with qualified optional language references; name the affected consumer and retain the query/result receipt.",
         ),
     ),
     GateAddon(
@@ -160,7 +162,7 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G7",
         "TOOL_IMPLEMENT",
         (
-            "mutate existing files with Edit and new files with Write; use AST Edit only for structural codemods.",
+            "apply_patch supplies reviewable manual edits/new files; discovered edit/write equivalents may be bound. AST edits need a qualified tool; source-writing scripts are not a substitute.",
             "shell executes binaries or short fact pipelines only; never browse files through shell.",
         ),
     ),
@@ -168,7 +170,7 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G7",
         "TOOL_DELEGATE",
         (
-            "delegate through Task: hand it the binding, the falsifier and the parent intention verbatim, withholding the answer you expect.",
+            "delegate through collaboration: hand binding, falsifier and parent intention verbatim; withhold the expected answer. send_message/interrupt_agent/wait_agent use the returned agent id.",
             "a batch runs unattended and reports once: never state a pending result, and re-brief a follow-up slice instead of assuming it kept the earlier context.",
         ),
     ),
@@ -195,8 +197,8 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G7",
         "PROCESS_LAUNCH",
         (
-            "persistent services, watchers, debuggers, and REPLs start through Hub; do not daemonize them through Bash.",
-            "use Hub logs, wait, send, stop, and restart by stable process name; never sleep-retry a process.",
+            "managed processes use exec_command sessions and write_stdin for input/observation; long Windows runs use the cmd_runner skill and complete logs. REPLs use their native session API (node_repl), never an invented Hub.",
+            "retain the returned process/session handle and an explicit stop contract; persistent service authority and qualification remain required.",
         ),
     ),
     GateAddon(
@@ -249,16 +251,16 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         "TOOL_ORACLE",
         (
             "prove via the narrowest instrument; long, interactive, or crash-prone Windows commands use the cmd_runner skill.",
-            "rendered web claims require Browser through Eval with an observed page/screenshot; typecheck is not a visual oracle.",
-            "read artifacts and logs with Read; shell directory scans are not evidence.",
-            "no isolated model call is bound here, and a Task shares this frame: a verdict about your own reasoning has no outside falsifier, so it closes Inferred or Unknown rather than as a stamp.",
+            "rendered web claims require cua_repl observed DOM/screenshot; typecheck is not a visual oracle.",
+            "read complete artifacts/logs via node_repl or discovered read tools; shell directory scans are not evidence.",
+            "no isolated model call is bound here; a collaboration sub-agent shares this frame. A reasoning verdict without an outside falsifier closes Inferred or Unknown, never as a stamp.",
         ),
     ),
     GateAddon(
         "G8",
         "ORACLE_INSTRUMENT_CHECK",
         (
-            "an unvalidated frame is not an oracle: prove the capture shows the WHOLE object unoccluded — Browser through Eval is the instrument, a viewport crop is not.",
+            "an unvalidated frame is not an oracle: cua_repl capture must show the WHOLE object unoccluded; a viewport crop is not proof of a whole surface.",
         ),
     ),
     GateAddon(

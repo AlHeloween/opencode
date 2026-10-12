@@ -355,7 +355,7 @@ export const layer = Layer.effect(
               ),
               externalDirectory,
             ),
-            description: `Fast agent (explorer_agent) specialized for exploring codebases and researching conversation history. Use when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), answer questions about the codebase, or search past conversations. Thoroughness: "quick" | "medium" | "very thorough". Not codegraph mode "explore".`,
+            description: `Read-only explorer_agent: ground bounded code questions with structural CodeGraph before scanners, identify consumers, and recheck plan completion and strategy against MASTER_PLAN from source/oracle evidence. Return paths, freshness gaps and falsifiers; parent verifies. Also researches conversation history. Thoroughness: "quick" | "medium" | "very thorough". Not codegraph mode "explore".`,
             prompt: PROMPT_EXPLORE,
             temperature: 0.2,
             topP: 0.85,

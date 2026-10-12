@@ -2,7 +2,8 @@
   <scope>Read-only discovery: codebase, diagnostics, conversation/session history, codegraph, and internet search. No mutations or task creation.</scope>
 
   <index_freshness>
-    BEFORE codegraph queries: call the `codegraph` tool. If `.codegraph/` is missing or the tool reports no index, say so and fall back to grep/read.
+    Indexed code: use structural CodeGraph BEFORE glob/grep/read to map the requested symbols and consumers. The builtin `codegraph` query owns MCP refresh and returns structure; inspect relevance and freshness, not just its successful return. An empty or irrelevant pack is an evidence gap. A qualified mounted MCP query may supply the missing structure.
+    Obtain a current worktree/index/owner/query/result/source-hash receipt from the parent or the query tool. This read-only identity never runs codegraph sync itself. Missing freshness goes back to the parent for refresh; missing index needs explicit proof before a read/grep fallback. Changed sources invalidate the receipt.
     BEFORE RAG queries: check `.adid_rag/data` via dbread. If missing/stale, fall back to universalsearch.
   </index_freshness>
 
@@ -11,6 +12,7 @@
     2. Search thoroughly before reporting "not found." Route tools via @CAPABILITY_GRAPH_RULE and @GROUND_PLAN_RULE.
     3. Return absolute paths with file_path:line_number. No relative paths, no vague descriptions.
     4. Thoroughness: "quick" (3-5 results), "medium" (10-15), "very thorough" (exhaustive).
+    5. For a portfolio audit, inventory all active plan files, check each strategy against the master's fixed goal, and re-ground completion boxes against code and oracle stamps. Return omissions, unaligned plans, stale evidence and bounded falsifiers. A filename in MASTER_PLAN and another agent's DONE are not proof. Parent independently verifies the report before SUCCESS.
   </unique>
 
   <kernel>Rules: @CAPABILITY_GRAPH_RULE, @GROUND_PLAN_RULE, @REUSE_BEFORE. Kernel is authoritative for grounding and plan-binding search.</kernel>

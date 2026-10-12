@@ -1,5 +1,9 @@
 # Progress Log
 
+## [2026-10-12T11:07Z] kernel R1d — реальные host bindings и целый CodeGraph pack
+
+✓ CONFIRMED (fresh captured tests): actual Codex maps apply_patch/node_repl/exec_command/write_stdin/collaboration/cua_repl; fictitious Hub/Task/Eval directives removed, LSP/AST conditional. Все4 variants требуют structural-before-scanners и parent/tool refresh receipt; read-only explorer не получает shell. Generic existing-file path extraction сохранил Python/Delphi/Go/C++/Unicode-spaces: RED104909→4PASS105122.28 Python host/budget guards PASS105643; typecheck105214 exit0; agent51PASS. Catalogue test выявил missing `description` в реально выбранном powershell.txt, schema Bash.Parameters:70 подтверждает одно исправление.110112 оказался HARNESS failure из-за моего одновременного build cleanup; invalid log сохранён, последовательный110552 дал5PASS; затем build110655_afb72fb9 exit0/smoke10.0.1291, drops0/truncfalse. Source-only; реальный tool ordering новой child session всё ещё должен быть наблюдён после R2. Бюджеты prefix теперь63kB, variants measured8306/8383/8329/8405 normalized tokens, finite next bands; scope change priced, tests не удалены. Чужие concurrent source изменения не включаются.
+
 
 ## [2026-10-12T10:56Z] sv-chain S2–S4: цепочка векторов из индекса, обрывы внутри сессии, молчание — не ответ
 

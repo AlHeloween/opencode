@@ -26,22 +26,22 @@ def test_codex_addons_render_host_tool_bindings() -> None:
     text = render_kernel(KERNEL, CODEX_GATE_ADDONS, ())
     g1 = _gate_block(text, "G1")
     assert "codegraph_explore" in g1
-    assert "Glob/Grep/Read" in g1
-    assert "Browser through Eval" in g1
+    assert "node_repl" in g1
+    assert "cua_repl" in g1
     assert "durable criteria" in g1
     assert "tools/codex_svchain.py" in g1
     assert "broken prev-md5 edge" in g1
     g4 = _gate_block(text, "G4")
     assert "unresolved user decision -> Ask" in g4
     g6 = _gate_block(text, "G6")
-    assert "LSP definition, references, and implementation" in g6
+    assert "Optional LSP" in g6
     g7 = _gate_block(text, "G7")
-    assert "AST Edit" in g7
-    assert "Hub" in g7
-    assert "delegate through Task" in g7
+    assert "apply_patch" in g7
+    assert "exec_command" in g7
+    assert "delegate through collaboration" in g7
     g8 = _gate_block(text, "G8")
     assert "cmd_runner skill" in g8
-    assert "Browser through Eval" in g8
+    assert "cua_repl" in g8
     assert "no isolated model call is bound here" in g8
     g9 = _gate_block(text, "G9")
     assert "no message-search tool exists" in g9
@@ -114,7 +114,8 @@ def test_codex_variant_stays_within_explicit_budget() -> None:
     # 8_000 -> 8_100 (2026-10-05): tracks the product token ceiling, same decision; measured 8_023.
     # 8_100 -> 8_250 (2026-10-06, owner: limits by measurement): the ADID global-kernel rules; measured 8_209.
     # 2026-10-08 (no raise): VCS_ROLES portability; measured 8_210.
-    assert normalized_token_count(text) <= 8_250
+    # R1d actual host bindings replace fictitious APIs: measured 8_329.
+    assert normalized_token_count(text) <= 8_350
 
 
 def test_codex_addon_render_is_deterministic_lf() -> None:

@@ -35,6 +35,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G1",
         "INSTRUMENT_CHAIN",
         (
+            "graph-before-scanners on indexed code: query relevant symbols/consumers before glob/grep/read; empty or irrelevant structure is an evidence gap, not absence. refresh owner: authorized parent supplies worktree/index/command/result/source-hash receipt, or the MCP query verifies freshness. Edits invalidate it; a read-only explorer requests the receipt, never shell rights.",
             # 2026-09-29 tool check (@TOOLCHAIN_QUALIFICATION, cheapest primitive each): search_session_transcripts
             # returned two past sessions, so «(no history search on this host)» had become false.
             # Owner, 2026-10-03: «перед использованием codegraph надо сделать codegraph sync, перед использованием adm

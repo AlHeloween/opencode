@@ -925,7 +925,7 @@ KERNEL = Kernel(
     # one executor contract for tool/agent/human (done or explicit stop; silence = FAIL), a verbatim decision is
     # departed from only with a measurement on its own layer (the xxh3 case), recursive re-verification by digest,
     # evidence anchored on a non-artifact surface by stability. The Claude variant measured 57_092 B before the raise.
-    utf8_budget=62_000,  # 61_000 -> 62_000 (2026-10-06, owner: limits by measurement): the ADID global-kernel change — @CAPABILITY_ABSTRACTION, the G0 turn-termination clarification and @ASSERTION_SCOPE; measured cursor 61 589 B, the smallest thousand above the largest. The owner's prefix bill: ~390 tok more per session on the cursor variant, paid for the capability invariant. Previous: 60_000 -> 61_000 (2026-10-05, owner: limits by measurement): the answer-shortly binding in all three variants; measured claude 60 133 B, the smallest thousand above the largest. 59_000 -> 60_000 (2026-10-04, owner: limits by measurement): the G7 COLLABORATION binding in all three variants; measured product 59_306 B, claude 59_549 B, codex 58_839 B.
+    utf8_budget=63_000,  # R1d, 2026-10-12: authorized host-contract repair; measured largest 62_026 B, next finite thousand. Prior 62_000 bound retained in the dated plan/evidence; no unbounded waiver.
     # (owner: «эти стандарты экономят миллионы токенов» — a standard's NAME replaces both the paragraph that would
     # explain it and the experiments an agent would otherwise run to re-derive it). Measured after them: 39_395.
     # Previous step 37_000 -> 38_000 admitted the QA/QC bindings: @ACCEPTANCE_FRAME at G1

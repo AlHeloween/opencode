@@ -55,8 +55,8 @@ CURSOR_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G1",
         "INSTRUMENT_CHAIN",
         (
-            'instrument chain, in order: where/which -> Codebase -> Web -> Grep -> Search Files -> Read File; device state via Terminal. Name the rung that answered.',
-            'no index refresh is bound unless an MCP server provides one (adm --rag index, codegraph sync); a stale index that no tool refreshes is a claim about the index, not about the code.',
+            'instrument chain: executable discovery -> qualified retrieval MCP -> structural CodeGraph MCP -> Codebase/Web -> Grep/Search Files/Read File. On indexed code use graph-before-scanners; discover the actual MCP wire id, never guess it. Record no-index or irrelevant-result evidence before fallback.',
+            'refresh owner: authorized parent executes refresh, or the MCP supplies verified freshness; receipt names worktree, index, owner, command/result and source hashes. Edits invalidate it. A read-only explorer requests the receipt, never extra Terminal rights.',
         ),
     ),
     GateAddon(
@@ -71,7 +71,7 @@ CURSOR_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G1",
         "TOOL_GROUNDING",
         (
-            "ground via Read File, Grep, Search Files and Codebase; Codebase answers semantically and may return an Explore subagent's summary instead of files — a summary is testimony until a path:line is read.",
+            "ground indexed code via discovered structural MCP first, then Read File, Grep, Search Files and Codebase for uncovered details; a subagent summary is testimony until its path:line is read.",
             'file enumeration: Search Files / List Directory / Grep — never shell ls/dir/find/cat; a capped listing is a sample, not an inventory.',
             'platform: Windows = PowerShell in Terminal; never mix syntaxes.',
             'the Run/approval mode governs Terminal: a denied or sandbox-blocked command is a host blocker to report, never a route around.',
@@ -106,7 +106,7 @@ CURSOR_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G6",
         "TOOL_BINDING",
         (
-            'map symbols and ownership with Codebase plus Grep over a definition and its references; no LSP tool is bound here, so a rename or cross-file refactor is proven by that reference sweep and then by a build or test run.',
+            'map symbols/ownership with discovered CodeGraph MCP before scanners; no LSP tool is bound here, so uncovered references require a verified sweep and then a build/test.',
             'task grounding is read-only.',
         ),
     ),
@@ -114,7 +114,7 @@ CURSOR_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G6",
         "SURFACE_CONSUMERS",
         (
-            'shared surface (renderer, component or route with more than one consumer): impact analysis by reference — Codebase for meaning, Grep for every call site — before binding, and name which consumer your change touches.',
+            'shared surface: structural MCP impact before binding; Codebase/Grep fill only evidenced gaps. Name the affected consumer and retain the query/result receipt.',
         ),
     ),
     GateAddon(

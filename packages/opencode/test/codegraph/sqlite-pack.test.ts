@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import path from "path"
+import os from "os"
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "fs"
 import {
   extractPathsFromText,
   formatPackMarkdown,
@@ -10,6 +12,22 @@ import {
 const RUST_ROOT = path.resolve(import.meta.dir, "../../../../external/codegraph-rust")
 
 describe("sqlite-pack", () => {
+  test("MCP paths outside standard directories survive for all existing source extensions", () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "codegraph-paths-"))
+    const files = ["prompt_kernel/model.py", "delphi/InstallerOps.pas", "tools/server.go",
+      "engine/main.cpp", "скрипты/файл с пробелом.ps1"]
+    try {
+      for (const file of files) {
+        mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
+        writeFileSync(path.join(root, file), "fixture")
+      }
+      const text = files.map((file) => `**\`${file}\`** — source`).join("\n")
+      expect(extractPathsFromText(text, root)).toEqual(files)
+      expect(extractPathsFromText("`missing/file.py` `../outside.py`", root)).toEqual([])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
   test("extractPathsFromText finds project paths", () => {
     const text = `
       **\`sandbox_field_test/def.ts\`** — stuff

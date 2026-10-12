@@ -4,6 +4,8 @@ Be aware: OS: ${os}, Shell: powershell
 
 Use `workdir` instead of `Set-Location`.
 
+Required `description`: a concise 5-10 word label of what the `command` does; it labels the tracked job and its result.
+
 ## Background Jobs
 
 Returns a job ID. Stalled jobs (no output for 15s) are NOT auto-killed — call `jobkill`.

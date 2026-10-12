@@ -50,9 +50,12 @@ export function extractPathsFromText(text: string, worktree?: string): string[] 
   }
   // bare relative paths under worktree
   if (worktree) {
-    for (const m of text.matchAll(/(?:^|[\s`"'(])([A-Za-z0-9_./+\-]+\.(?:ts|tsx|rs))(?:$|[\s`"')\],])/gim)) {
-      const rel = norm(m[1]!)
-      if (rel.includes("/") && existsSync(path.join(worktree, rel))) hits.add(rel)
+    // MCP supports more languages/directories than the legacy standard-prefix matcher.
+    // Quoted paths preserve spaces/Unicode; existing files qualify unquoted paths too.
+    for (const m of text.matchAll(/`([^`\r\n]+)`|([^\s`"'()\[\],<>]+\.[A-Za-z0-9]+)/g)) {
+      const rel = norm((m[1] ?? m[2])!)
+      if (rel.includes("/") && !path.isAbsolute(rel) && !rel.split("/").includes("..") &&
+          existsSync(path.join(worktree, rel))) hits.add(rel)
     }
   }
   return [...hits]

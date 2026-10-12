@@ -1,0 +1,55 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{
+  "slot": [
+    "G1",
+    "VCS_ROLES"
+  ],
+  "outcomes": {
+    "product": {
+      "slots_control_passed": true,
+      "spelling_guard_rejected": false
+    },
+    "claude": {
+      "slots_control_passed": true,
+      "spelling_guard_rejected": false
+    },
+    "codex": {
+      "slots_control_passed": true,
+      "spelling_guard_rejected": true
+    },
+    "cursor": {
+      "slots_control_passed": true,
+      "spelling_guard_rejected": true
+    }
+  },
+  "source_files_changed": false
+}
+PARITY_PROBE_COMPLETED

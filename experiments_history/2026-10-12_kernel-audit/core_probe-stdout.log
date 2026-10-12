@@ -1,0 +1,111 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{
+  "baseline_errors": [],
+  "counterexamples": [
+    {
+      "id": "unknown-node-control",
+      "errors": [
+        "edge source is unknown: MISSING"
+      ]
+    },
+    {
+      "id": "side-edge-*",
+      "errors": [],
+      "rendered": true
+    },
+    {
+      "id": "side-edge-G0",
+      "errors": [],
+      "rendered": true
+    },
+    {
+      "id": "side-edge-SUCCESS",
+      "errors": [],
+      "rendered": true
+    },
+    {
+      "id": "undeclared-fsm-state",
+      "errors": [],
+      "same_render": true
+    },
+    {
+      "id": "g2-small-space",
+      "small": false,
+      "five-control": true
+    },
+    {
+      "id": "g9-nonpass-closure",
+      "nonpass": false,
+      "pass-control": true
+    },
+    {
+      "id": "parity-guard",
+      "cursor-control-rejected": true,
+      "product-claude-empty-accepted": true
+    }
+  ],
+  "receivers": {
+    "product": {
+      "path": "D:\\zPython\\opencode\\packages\\opencode\\src\\session\\prompt\\reasoning_prompt.txt",
+      "text_matches_render": false,
+      "receiver_text_sha256": "ab8bff98d1a3807456f388601c24b5d3fd074f7f6a19e152373f39bf3feef978",
+      "render_text_sha256": "49149e59ebda07a13777648fd680ebb072f70a575a0a0bab432695435f72dab5",
+      "render_utf8_bytes": 61247,
+      "diff_hunks": 1
+    },
+    "claude": {
+      "path": "D:\\zPython\\opencode\\.claude\\reasoning_kernel.md",
+      "text_matches_render": false,
+      "receiver_text_sha256": "fa1d2027572c9db40faba595b062fc0d42c14f24c10358924a3bda1381c28d1a",
+      "render_text_sha256": "9b5b24bf3b82ca5f2414f4dfe6c0657102101319f75e339938764c1a61a6b703",
+      "render_utf8_bytes": 61490,
+      "diff_hunks": 1
+    },
+    "codex": {
+      "path": "C:\\Users\\Alexander\\.codex\\AGENTS.md",
+      "text_matches_render": false,
+      "receiver_text_sha256": "2a6bc6e97946bcfdc5d56a725e0109c55c75b99682d723361d0efbddb3563e9a",
+      "render_text_sha256": "178a3ef8211071c05fa9a23e2f421354907372372b98312c0277ec278e62c2c4",
+      "render_utf8_bytes": 60780,
+      "diff_hunks": 1
+    },
+    "cursor": {
+      "path": "D:\\zPython\\opencode\\.cursor\\rules\\reasoning-kernel.mdc",
+      "text_matches_render": false,
+      "receiver_text_sha256": "4275f1a324003cb7d3ae0e4456de73bad17844d89faf86ad7e1bf7e69eb8c844",
+      "render_text_sha256": "f6a31c7d6ad3382ec3272769f4f8bafdb1f26f673c562389709c106b8df186c9",
+      "render_utf8_bytes": 61885,
+      "diff_hunks": 1
+    }
+  },
+  "boundary": "IR and host artifacts only; no live model verdict"
+}
+AUDIT_PROBE_COMPLETED

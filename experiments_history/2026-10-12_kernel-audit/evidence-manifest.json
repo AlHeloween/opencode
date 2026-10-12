@@ -1,0 +1,169 @@
+{
+  "evidence": {
+    "fixture": {
+      "run": "20261012T032722Z_ee8984a4",
+      "state": {
+        "status": "finished",
+        "pids": [
+          26272
+        ],
+        "exit_code": 0,
+        "started_utc": "2026-10-12T03:27:23Z",
+        "finished_utc": "2026-10-12T03:27:23Z",
+        "stopped_utc": null,
+        "timeout_utc": null,
+        "backend": "windows-conpty",
+        "log": {
+          "limit_bytes": 52428800,
+          "bytes_written": 128,
+          "bytes_dropped": 0,
+          "truncated": false
+        },
+        "creation_tick": 134362492430319820,
+        "host_pid": 20732,
+        "host_creation_tick": 134362492428493760,
+        "notes": "log final"
+      },
+      "stdout_sha256": "c905731d8eabfeb888a0108b5dc00cc5c06134a82f53d234084e9cc40195e0fc",
+      "fullLogReadBytes": 37
+    },
+    "suite": {
+      "run": "20261012T032745Z_83c5c288",
+      "state": {
+        "status": "finished",
+        "pids": [
+          5068
+        ],
+        "exit_code": 1,
+        "started_utc": "2026-10-12T03:27:45Z",
+        "finished_utc": "2026-10-12T03:27:53Z",
+        "stopped_utc": null,
+        "timeout_utc": null,
+        "backend": "windows-conpty",
+        "log": {
+          "limit_bytes": 52428800,
+          "bytes_written": 5411,
+          "bytes_dropped": 0,
+          "truncated": false
+        },
+        "creation_tick": 134362492655797600,
+        "host_pid": 20732,
+        "host_creation_tick": 134362492653850600,
+        "notes": "log final"
+      },
+      "stdout_sha256": "b2d2095f8685eb22c27f7a5cf927b1ae8a0607348dcf40b6d309c46e09b2d702",
+      "fullLogReadBytes": 5087
+    },
+    "core_probe": {
+      "run": "20261012T033203Z_08c660d1",
+      "state": {
+        "status": "finished",
+        "pids": [
+          11516
+        ],
+        "exit_code": 0,
+        "started_utc": "2026-10-12T03:32:03Z",
+        "finished_utc": "2026-10-12T03:32:05Z",
+        "stopped_utc": null,
+        "timeout_utc": null,
+        "backend": "windows-conpty",
+        "log": {
+          "limit_bytes": 52428800,
+          "bytes_written": 2722,
+          "bytes_dropped": 0,
+          "truncated": false
+        },
+        "creation_tick": 134362495235387140,
+        "host_pid": 19588,
+        "host_creation_tick": 134362495233841950,
+        "notes": "log final"
+      },
+      "stdout_sha256": "c2d408f6c5bda8f822b8e0ac5b7a1aaba0b64253c583df5ce9bcbacac534dee4",
+      "fullLogReadBytes": 2518
+    },
+    "build": {
+      "run": "20261012T033204Z_10b89f8f",
+      "state": {
+        "status": "finished",
+        "pids": [
+          16924
+        ],
+        "exit_code": 0,
+        "started_utc": "2026-10-12T03:32:04Z",
+        "finished_utc": "2026-10-12T03:33:10Z",
+        "stopped_utc": null,
+        "timeout_utc": null,
+        "backend": "windows-conpty",
+        "log": {
+          "limit_bytes": 52428800,
+          "bytes_written": 51444,
+          "bytes_dropped": 0,
+          "truncated": false
+        },
+        "creation_tick": 134362495249533000,
+        "host_pid": 28404,
+        "host_creation_tick": 134362495248044720,
+        "notes": "log final"
+      },
+      "stdout_sha256": "dd9f562779b67998bdba6ee6e620212d08b5bb6ec6855e0cfc4934e14c9cf39b",
+      "fullLogReadBytes": 50474
+    },
+    "parity_probe": {
+      "run": "20261012T033408Z_55f17333",
+      "state": {
+        "status": "finished",
+        "pids": [
+          27888
+        ],
+        "exit_code": 0,
+        "started_utc": "2026-10-12T03:34:09Z",
+        "finished_utc": "2026-10-12T03:34:09Z",
+        "stopped_utc": null,
+        "timeout_utc": null,
+        "backend": "windows-conpty",
+        "log": {
+          "limit_bytes": 52428800,
+          "bytes_written": 689,
+          "bytes_dropped": 0,
+          "truncated": false
+        },
+        "creation_tick": 134362496490779700,
+        "host_pid": 18604,
+        "host_creation_tick": 134362496489111020,
+        "notes": "log final"
+      },
+      "stdout_sha256": "1b9e705d87bd61e9c93f87119c606d68bf40a132a39ecc91e75f99cbed2099c9",
+      "fullLogReadBytes": 541
+    }
+  },
+  "source_sha256": {
+    "prompt_kernel/source.py": "727d4f1f0e4372ab473c7dd1ce95e509d9b5ab8c983e992b0a608d4d4c0bbe54",
+    "prompt_kernel/model.py": "f9362b9388f80bf72fb8480affca759a754ea80ace77b6878a7897080427a6d4",
+    "prompt_kernel/validate.py": "bac15c8d59b55d743e7b40e8e21af311e9b188ee9376b7e1fddaf3f72fbdcb9a",
+    "prompt_kernel/render.py": "b2de9e37095795dbb48529e4d88c4005c34b6effb3144df3e744eba534f986f2",
+    "prompt_kernel/addons.py": "6b5b98292514b143ccb71b4bc1cfe195edad5af758bf48046ba8ec81b9fa5b4f",
+    "prompt_kernel/addons_claude.py": "881a97daf21f4fa6649f4a57f5a02f16538ed7b112dcd4b8fd1ce0002236ff48",
+    "prompt_kernel/addons_codex.py": "91eb258c73e01dc17bc5896105784051afc55f2bb8b8be4d9ac88115dcc15f9c",
+    "prompt_kernel/addons_cursor.py": "038defebbca03ff5ac70478c91eefd33e88b36cd9baf48e73caf556f438c7fbf",
+    "prompt_kernel/tests/test_architecture.py": "681a2655b068df4a357985ef93e8f103064703d482c7d283fa12f71b4bb4faa5",
+    "prompt_kernel/tests/test_constitution.py": "c5478415dc5edab837e7966bf83428400caebf9d8e9ff89766f4054c63950b40",
+    "prompt_kernel/tests/test_variant_parity.py": "ef89b5206755f1eaa6e087f7cef5e13f80b2bcae6b1fe766b7c8a9161649c7a6",
+    "prompt_kernel/tests/test_addons_codex.py": "e9133ecec31bf9cb8eebf625ff55a4d2cb062cb6360a4af3072432d63a126d74",
+    "packages/opencode/src/agent/prompt/explore.txt": "948bf49e8a61db05bdf2d7be223093fffa00e55d8720dc4797cd92f0f40d7ef2",
+    "packages/opencode/src/agent/agent.ts": "2eda9658ca39f682979522785ba9fd5d37a5a57c0b29c556fd3622a35518a885",
+    "packages/opencode/src/util/plan-status.ts": "dffb4500a439626351476417804124554b759810f814cbfe90a8079ed3653a20"
+  },
+  "original_source_receiver_sha256": {
+    "prompt_kernel/source.py": "727d4f1f0e4372ab473c7dd1ce95e509d9b5ab8c983e992b0a608d4d4c0bbe54",
+    "prompt_kernel/addons.py": "6b5b98292514b143ccb71b4bc1cfe195edad5af758bf48046ba8ec81b9fa5b4f",
+    "prompt_kernel/addons_claude.py": "881a97daf21f4fa6649f4a57f5a02f16538ed7b112dcd4b8fd1ce0002236ff48",
+    "prompt_kernel/addons_codex.py": "91eb258c73e01dc17bc5896105784051afc55f2bb8b8be4d9ac88115dcc15f9c",
+    "prompt_kernel/addons_cursor.py": "038defebbca03ff5ac70478c91eefd33e88b36cd9baf48e73caf556f438c7fbf",
+    "prompt_kernel/baseline.json": "5f8361b6a5a8921cde50518f673c41f385b08dd6fa0a38e026fa257bfd23a348",
+    "packages/opencode/src/session/prompt/reasoning_prompt.txt": "ab8bff98d1a3807456f388601c24b5d3fd074f7f6a19e152373f39bf3feef978",
+    ".claude/reasoning_kernel.md": "fa1d2027572c9db40faba595b062fc0d42c14f24c10358924a3bda1381c28d1a",
+    ".cursor/rules/reasoning-kernel.mdc": "4275f1a324003cb7d3ae0e4456de73bad17844d89faf86ad7e1bf7e69eb8c844",
+    "C:/Users/Alexander/.codex/AGENTS.md": "2a6bc6e97946bcfdc5d56a725e0109c55c75b99682d723361d0efbddb3563e9a"
+  },
+  "boundary": "Immutable audit snapshot; no kernel fixes or install. All logs retained including suite FAIL."
+}

@@ -1,0 +1,93 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.............................................................................F.................................. [ 77%]
+...........................F...F.                                                                                [100%]
+====================================================== FAILURES =======================================================
+_________________________________ test_production_prompt_matches_next_kernel_renderer _________________________________    def test_production_prompt_matches_next_kernel_renderer() -> None:
+        current = PRODUCTION.read_text(encoding="utf-8")
+        assert current.lstrip().startswith("## 0. WORKFLOW")
+>       assert current == render_kernel()
+E       AssertionError: assert '## 0. WORKFL...edit, task.\n' == '## 0. WORKFL...edit, task.\n'
+E
+E         Skipping 31020 identical leading characters in diff, use -v to show
+E         - history. $ORG_HOME/org.fossil (default $HOME/.org) = the organization's repository: tickets (delegations with root_task/parent_task lineage, leases), technotes (reports), wiki (knowledge; page Protocol = how to work here), chat (heartbeats). Before any use of it, run python $ORG_HOME/genesis/init.py (idempotent: creates whatever is missing, starts its server on 127.0.0.1:$ORG_PORT (default 8079)) and read Protocol via python $ORG_HOME/genesis/org.py protocol, then do what you came to do. A project's .o...
+E
+E         ...Full output truncated (320 lines hidden), use '-vv' to showtests\test_compatibility.py:40: AssertionError
+________________________________________ test_cursor_rule_receiver_is_current _________________________________________    def test_cursor_rule_receiver_is_current() -> None:
+        """`.cursor/rules/reasoning-kernel.mdc` is always-apply context, so a stale file is a stale prefix.
+    
+        `.cursor/` is an untracked receiver here (third-party-managed), so an absent
+        file is a host that has not installed it, not a red.
+        Fix: `python -m prompt_kernel --cursor --install`.
+        """
+        installed = Path(CURSOR_KERNEL_PATH)
+        if not installed.is_file():
+            pytest.skip("no Cursor rule receiver on this host; run `python -m prompt_kernel --cursor --install`")       
+>       assert installed.read_text(encoding="utf-8") == render_cursor_rule(
+            render_kernel(KERNEL, CURSOR_GATE_ADDONS, ())
+        )
+E       AssertionError: assert '---\ndescrip...ual oracle.\n' == '---\ndescrip...ual oracle.\n'
+E
+E         Skipping 31809 identical leading characters in diff, use -v to show
+E         - history. $ORG_HOME/org.fossil (default $HOME/.org) = the organization's repository: tickets (delegations wit
+th root_task/parent_task lineage, leases), technotes (reports), wiki (knowledge; page Protocol = how to work here), chat 
+ (heartbeats). Before any use of it, run python $ORG_HOME/genesis/init.py (idempotent: creates whatever is missing, start
+ts its server on 127.0.0.1:$ORG_PORT (default 8079)) and read Protocol via python $ORG_HOME/genesis/org.py protocol, then
+n do what you came to do. A project's .o...
+E
+E         ...Full output truncated (307 lines hidden), use '-vv' to show
+
+tests\test_variant_parity.py:96: AssertionError
+_______________________________________ test_claude_kernel_is_installed_current _______________________________________ 
+
+    def test_claude_kernel_is_installed_current() -> None:
+        """`.claude/reasoning_kernel.md` is loaded by CLAUDE.md, so a stale file is a stale prefix.
+
+        Fix: `python -m prompt_kernel --claude --install`.
+        """
+        installed = Path(CLAUDE_KERNEL_PATH).read_text(encoding="utf-8")
+>       assert installed == render_kernel(KERNEL, CLAUDE_GATE_ADDONS, ())
+E       AssertionError: assert '## 0. WORKFL...ual oracle.\n' == '## 0. WORKFL...ual oracle.\n'
+E
+E         Skipping 31247 identical leading characters in diff, use -v to show
+E         - history. $ORG_HOME/org.fossil (default $HOME/.org) = the organization's repository: tickets (delegations wit
+th root_task/parent_task lineage, leases), technotes (reports), wiki (knowledge; page Protocol = how to work here), chat 
+ (heartbeats). Before any use of it, run python $ORG_HOME/genesis/init.py (idempotent: creates whatever is missing, start
+ts its server on 127.0.0.1:$ORG_PORT (default 8079)) and read Protocol via python $ORG_HOME/genesis/org.py protocol, then
+n do what you came to do. A project's .o...
+E
+E         ...Full output truncated (310 lines hidden), use '-vv' to show
+
+tests\test_variant_parity.py:129: AssertionError
+=============================================== short test summary info =============================================== 
+FAILED tests\test_compatibility.py::test_production_prompt_matches_next_kernel_renderer - AssertionError: assert '## ...
+FAILED tests\test_variant_parity.py::test_cursor_rule_receiver_is_current - AssertionError: assert '---\ndescrip...ua...
+FAILED tests\test_variant_parity.py::test_claude_kernel_is_installed_current - AssertionError: assert '## 0. WORKFL.....
+3 failed, 142 passed in 5.44s

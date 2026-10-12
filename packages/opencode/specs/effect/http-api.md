@@ -12,7 +12,7 @@ Plan for replacing instance Hono route implementations with Effect `HttpApi` whi
 
 ## Current State
 
-- `OPENCODE_EXPERIMENTAL_HTTPAPI` gates the bridge. Default behavior still uses Hono.
+- The bridge is mounted unconditionally by `src/server/routes/instance/index.ts` (`ExperimentalHttpApiServer.webHandler()`), Hono acting as the outer router (measured 2026-10-12). No `OPENCODE_EXPERIMENTAL_HTTPAPI` flag exists in `src/` any more; recompute with `rg -n "OPENCODE_EXPERIMENTAL" src`.
 - The bridge mounts selected paths in `server/routes/instance/index.ts` before legacy Hono routes.
 - Legacy Hono routes remain for default behavior and for `hono-openapi` SDK generation.
 - `HttpApi` auth is independent of Hono auth.
@@ -36,7 +36,7 @@ Use this checklist for each small HttpApi migration PR:
 
 1. Read the legacy Hono route and copy behavior exactly, including default values, headers, operation IDs, response schemas, and status codes.
 2. Put the new `HttpApiGroup`, route paths, DTO schemas, and handlers in `src/server/routes/instance/httpapi/*`.
-3. Mount the new paths in `src/server/routes/instance/index.ts` only inside the `OPENCODE_EXPERIMENTAL_HTTPAPI` block.
+3. Mount the new paths in `src/server/routes/instance/index.ts` next to the existing bridge registrations (the feature-flag block is gone).
 4. Use `InstanceState.context` / `InstanceState.directory` inside HttpApi handlers instead of `Instance.directory`, `Instance.worktree`, or `Instance.project` ALS globals.
 5. Reuse existing services directly. If a service returns plain objects, use `Schema.Struct`; use `Schema.Class` only when handlers return actual class instances.
 6. Keep legacy Hono routes and `.zod` compatibility in place for SDK/OpenAPI generation.
@@ -48,7 +48,7 @@ Use this checklist for each small HttpApi migration PR:
 Use this checklist before deleting any Hono route implementation. A route being `bridged` is not enough.
 
 1. `HttpApi` parity is complete for the route path, method, auth behavior, query parameters, request body, response status, response headers, and error status.
-2. The route is mounted by default, not only behind `OPENCODE_EXPERIMENTAL_HTTPAPI`.
+2. The route is mounted by default in `src/server/routes/instance/index.ts`.
 3. If a fallback flag exists, tests cover both the default `HttpApi` path and the fallback Hono path until the fallback is removed.
 4. OpenAPI generation uses the Effect `HttpApi` route as the source for that path.
 5. Generated SDK output is unchanged from the Hono-generated contract, or the SDK diff is intentionally reviewed and accepted.
@@ -170,23 +170,7 @@ Use raw Effect HTTP routes where `HttpApi` does not fit. The goal is deleting Ho
 
 ## Current Route Status
 
-| Area                      | Status            | Notes                                                                      |
-| ------------------------- | ----------------- | -------------------------------------------------------------------------- |
-| `question`                | `bridged`         | `GET /question`, reply, reject                                             |
-| `permission`              | `bridged`         | list and reply                                                             |
-| `provider`                | `bridged`         | list, auth, OAuth authorize/callback                                       |
-| `config`                  | `bridged`         | read, providers, update                                                    |
-| `project`                 | `bridged`         | list, current, git init, update                                            |
-| `file`                    | `bridged` partial | find text/file/symbol, list/content/status                                 |
-| `mcp`                     | `bridged`         | status, add, OAuth, connect/disconnect                                     |
-| `workspace`               | `bridged`         | adaptor/list/status/create/remove/session-restore                          |
-| top-level instance routes | `bridged`         | path, vcs, command, agent, skill, lsp, formatter, dispose                  |
-| experimental JSON routes  | `bridged`         | console, tool, worktree list/mutations, global session list, resource list |
-| `session`                 | `bridged`         | read, lifecycle, prompt, message/part mutations, revert, permission reply  |
-| `sync`                    | `bridged`         | start/replay/history                                                       |
-| `event`                   | `bridged`         | SSE via raw Effect HTTP                                                    |
-| `pty`                     | `special`         | websocket                                                                  |
-| `tui`                     | `special`         | UI bridge                                                                  |
+Do not keep a status table here; it is state, and it rots (the 2026-10-03 table marked every area `bridged`). Read it from the tree: every path registered in `src/server/routes/instance/index.ts` is mounted, and each `src/server/routes/instance/httpapi/*` module defines the routes its `HttpApiGroup` owns.
 
 ## Full Route Checklist
 
@@ -366,7 +350,7 @@ Prefer smaller PRs from here so route behavior and SDK/OpenAPI fallout stays rev
 ## Checklist
 
 - [x] Add first `HttpApi` JSON route slices.
-- [x] Bridge selected `HttpApi` routes into Hono behind `OPENCODE_EXPERIMENTAL_HTTPAPI`.
+- [x] Bridge selected `HttpApi` routes into Hono (originally behind `OPENCODE_EXPERIMENTAL_HTTPAPI`, a flag since removed).
 - [x] Reuse existing Effect services in handlers.
 - [x] Provide auth, instance lookup, and observability in the Effect route layer.
 - [x] Attach auth middleware in route modules.

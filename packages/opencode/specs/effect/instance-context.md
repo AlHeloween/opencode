@@ -157,7 +157,7 @@ Direct legacy usage means any source file that still calls one of:
 - `Instance.reload(...)`
 - `Instance.dispose()` / `Instance.disposeAll()`
 
-Current total: `56` files in `packages/opencode/src`.
+Current total: `56` files in `packages/opencode/src` - a number to recompute, not to keep. List them with `rg -l -F "Instance." src` (56 was the 2026-10-03 figure).
 
 ### Core bridge and plumbing
 
@@ -220,7 +220,6 @@ Migration rule:
 
 These tools mostly use direct getters for path resolution and repo-relative display logic.
 
-- `src/tool/apply_patch.ts`
 - `src/tool/bash.ts`
 - `src/tool/edit.ts`
 - `src/tool/lsp.ts`
@@ -263,16 +262,7 @@ Migration rule:
 
 ### Highest-churn hotspots
 
-Current highest direct-usage counts by file:
-
-- `src/file/index.ts` - `18`
-- `src/lsp/server.ts` - `14`
-- `src/worktree/index.ts` - `12`
-- `src/file/watcher.ts` - `9`
-- `src/cli/cmd/mcp.ts` - `8`
-- `src/format/formatter.ts` - `8`
-- `src/tool/apply_patch.ts` - `8`
-- `src/cli/cmd/github.ts` - `7`
+Counts belong to the tree; the 2026-10-03 ranking (which included `src/tool/apply_patch.ts`, gone since) is stale. Recompute per file with `rg -c -F "Instance." src`.
 
 These files should drive the first measurable burn-down.
 

@@ -36,57 +36,30 @@ This keeps tool tests aligned with the production service graph and makes follow
 
 ## Exported tools
 
-These exported tool definitions currently use `Tool.define(...)` in `src/tool`:
+Read the list from the tree; a hand-kept list drifts. This one did: the 2026-10-03 version named
+`apply_patch.ts`, `codesearch.ts`, `websearch.ts`, and `mcp-exa.ts` (all gone; search now lives in
+`universalsearch.ts`) and asserted that `ls.ts` did not exist, while `src/tool/ls.ts` does.
 
-- [x] `apply_patch.ts`
-- [x] `bash.ts`
-- [x] `codesearch.ts`
-- [x] `edit.ts`
-- [x] `glob.ts`
-- [x] `grep.ts`
-- [x] `invalid.ts`
-- [x] `lsp.ts`
-- [x] `plan.ts`
-- [x] `question.ts`
-- [x] `read.ts`
-- [x] `skill.ts`
-- [x] `task.ts`
-- [x] `todo.ts`
-- [x] `webfetch.ts`
-- [x] `websearch.ts`
-- [x] `write.ts`
+```sh
+rg -l "Tool.define" src/tool     # one line per file that defines a tool
+```
 
-Notes:
+Notes that hold by construction:
 
-- There is no current `ls.ts` tool file on this branch.
 - `truncate.ts` is an Effect service used by tools, not a tool definition itself.
-- `mcp-exa.ts`, `external-directory.ts`, and `schema.ts` are support modules, not standalone tool definitions.
+- `tool.ts`, `registry.ts`, `schema.ts`, `external-directory.ts`, and the `*.txt` files are framework, support, or description text, not standalone tool definitions.
 
 ## Follow-up cleanup
 
 Most exported tools are already on the intended Effect-native shape. The remaining cleanup is narrower than the old checklist implied.
 
-Current spot cleanups worth tracking:
+Read the current set from the tree; the 2026-10-03 lists here named `patch/index.ts`,
+`apply_patch.ts`, `codesearch.ts`, and `websearch.ts`, none of which exist any more.
 
-- [ ] `read.ts` — still bridges to Node stream / `readline` helpers and Promise-based binary detection
-- [ ] `bash.ts` — already uses Effect child-process primitives; only keep tracking shell-specific platform bridges and parser/loading details as they come up
-- [ ] `webfetch.ts` — already uses `HttpClient`; remaining work is limited to smaller boundary helpers like HTML text extraction
-- [ ] `file/ripgrep.ts` — adjacent to tool migration; still has raw fs/process usage that affects `grep.ts` and file-search routes
-- [ ] `patch/index.ts` — adjacent to tool migration; still has raw fs usage behind patch application
+```sh
+rg -n "createReadStream|readline|fs/promises|Bun.spawn|child_process" src/tool src/file
+```
 
-Notable items that are already effectively on the target path and do not need separate migration bullets right now:
-
-- `apply_patch.ts`
-- `grep.ts`
-- `write.ts`
-- `codesearch.ts`
-- `websearch.ts`
-- `edit.ts`
-
-## Filesystem notes
-
-Current raw fs users that still appear relevant here:
-
-- `tool/read.ts` — `fs.createReadStream`, `readline`
-- `file/ripgrep.ts` — `fs/promises`
-- `patch/index.ts` — `fs`, `fs/promises`
+Anything that appears there still bridges to a raw Node/Bun API inside a tool path; anything absent
+is already Effect-native. `file/ripgrep.ts` is the standing example: raw fs/process behind `grep.ts`
+and the file-search routes.

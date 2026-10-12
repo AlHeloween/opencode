@@ -284,25 +284,12 @@ Each tool declares its parameters via a zod schema. Tools are consumed by
 both the in-process runtime and the AI SDK's tool-calling layer, so the
 emitted JSON Schema must stay byte-identical.
 
-- [x] `src/tool/apply_patch.ts`
-- [x] `src/tool/bash.ts`
-- [x] `src/tool/codesearch.ts`
-- [x] `src/tool/edit.ts`
-- [x] `src/tool/glob.ts`
-- [x] `src/tool/grep.ts`
-- [x] `src/tool/invalid.ts`
-- [x] `src/tool/lsp.ts`
-- [x] `src/tool/plan.ts`
-- [x] `src/tool/question.ts`
-- [x] `src/tool/read.ts`
-- [x] `src/tool/registry.ts`
-- [x] `src/tool/skill.ts`
-- [x] `src/tool/task.ts`
-- [x] `src/tool/todo.ts`
-- [x] `src/tool/tool.ts`
-- [x] `src/tool/webfetch.ts`
-- [x] `src/tool/websearch.ts`
-- [x] `src/tool/write.ts`
+Read the list from the tree; this one named `apply_patch.ts`, `codesearch.ts`, and `websearch.ts`,
+none of which exist any more:
+
+```sh
+rg -l "zod" src/tool
+```
 
 ### HTTP route boundaries
 

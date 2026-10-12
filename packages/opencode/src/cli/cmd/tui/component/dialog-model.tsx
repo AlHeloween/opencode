@@ -20,6 +20,22 @@ import { shouldActivateAgent } from "../util/agent"
 import { availableScopes, coerceScope } from "./config-scope"
 import { globalStage } from "./global-agent-stage"
 
+/**
+ * The description column of a model row: the exact `providerID/modelID` ref the config uses.
+ *
+ * When sections are shown the provider name is the section header, so the row itself had empty
+ * space between title and footer (owner, 2026-10-12: «есть свободное место чтобы еще отобразить
+ * провайдера deepseek/deepseek.... opencode-go/mimo-v2.6-Flash»). The full ref fills it, and
+ * during a filter it replaces the bare provider.name that used to fall into this slot. A starred
+ * row keeps its marker: flat search has no Favorites section, so the suffix is the only signal.
+ *
+ * Pure and exported, so the contract is pinned by tests instead of argued over a screenshot.
+ */
+export function modelOptionDescription(providerID: string, modelID: string, favorite = false): string {
+  const ref = `${providerID}/${modelID}`
+  return favorite ? `${ref} ★` : ref
+}
+
 export function DialogModel(props: {
   providerID?: string
   targetAgent?: string
@@ -116,7 +132,7 @@ export function DialogModel(props: {
             key: item,
             value: { providerID: provider.id, modelID: model.id },
             title: model.name ?? item.modelID,
-            description: provider.name,
+            description: modelOptionDescription(provider.id, item.modelID),
             category,
             // The provider's -nano helpers are internal: not offered in the picker.
             hidden: provider.id === "opencode" && model.id.includes("-nano"),
@@ -152,9 +168,18 @@ export function DialogModel(props: {
           map(([model, info]) => ({
             value: { providerID: provider.id, modelID: model },
             title: info.name ?? model,
-            description: favorites.some((item) => item.providerID === provider.id && item.modelID === model)
-              ? "(Favorite)"
-              : undefined,
+            // The full ref in the free description column: when sections are
+            // shown the provider name is the section header, so the row itself
+            // had empty space between title and footer. The exact
+            // `providerID/modelID` form is what the config uses and what the
+            // user needs to recognise (deepseek/deepseek-flash,
+            // opencode-go/mimo-v2.6-Flash). When filtering, it replaces the
+            // bare provider.name that used to fall into this slot.
+            description: modelOptionDescription(
+              provider.id,
+              model,
+              favorites.some((item) => item.providerID === provider.id && item.modelID === model),
+            ),
             category: connected() ? provider.name : undefined,
             // The provider's -nano helpers are internal: not offered in the picker.
             hidden: provider.id === "opencode" && model.includes("-nano"),
@@ -197,7 +222,7 @@ export function DialogModel(props: {
 
     if (needle) {
       return [
-        ...fuzzysort.go(needle, providerOptions, { keys: ["title", "category"] }).map((x) => x.obj),
+        ...fuzzysort.go(needle, providerOptions, { keys: ["title", "category", "description"] }).map((x) => x.obj),
         ...fuzzysort.go(needle, popularProviders, { keys: ["title"] }).map((x) => x.obj),
       ]
     }

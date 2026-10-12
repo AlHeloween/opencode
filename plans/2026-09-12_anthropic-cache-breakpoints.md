@@ -16,6 +16,8 @@ evidence: `experiments_history/2026-09-12_anthropic-cache/REPORT.md`
 - Baseline for the surface: `bun test test/provider/transform.test.ts` → 170 pass / 0 fail, exit 0 (run `20261009T013046Z_ca44e58e`).
 - Next: T2 (one line + guard) and T3 (log fix) first — small and independently revertible; then T1; re-run `01`/`03`/`04`; decide T4/T5 by probes 10/11.
 
+**Re-verified 2026-10-12** (explorer, reading the SOURCE, not this text): all three "unstarted" claims still hold — `transform.ts:375` caps system cache markers with `slice(0, 2)` and no cap-4 guard exists; `transform.ts:626-644` still picks the variant by substring (`anthropicAdaptiveEfforts`) and still emits `budgetTokens: Math.floor(model.limit.context / 2)`; `llm.ts:981` still reads `providerOptions.openaiCompatible.cache_control`. `reasoning_options` is read only on the deepseek (:604, :619) and openrouter (:748) paths. T4/T5 remain probe-gated.
+
 ## Context / goal
 
 User: «мне кажется что в opencode мы могли бы работать в разы эффективнее» —
@@ -74,12 +76,6 @@ Unproven and explicitly **not** assumed by this plan: that layout C raises
 which beta it needs (probe 11), that today's payload 400s (probe 12).
 
 ## Tasks
-
-- [ ] T1 — `variants()` derives from the catalog, not from substrings
-- [ ] T2 — breakpoint placement: anchor the deep end of the static prefix
-- [ ] T3 — make the diagnostic tell the truth
-- [ ] T4 — 1h TTL as an opt-in (probe-gated: probe 11)
-- [ ] T5 — decide the tail-marker count (probe-gated: probe 10)
 
 ### T1 — `variants()` derives from the catalog, not from substrings
 

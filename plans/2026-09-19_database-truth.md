@@ -17,6 +17,8 @@ Re-measured on the live DB (`.opencode/data/opencode.db`, 2026-10-09) and agains
 - Zero-row but with writers (keep): `part_embedding` ← `attachment/embedding.ts:79`; `session_share` ← `share/share-next.ts:320`; `workspace` ← `control-plane/workspace.ts:107`; `media_token_calibration` ← `session/media-token-calibration.ts:112` — empty only because the paths are unexercised here.
 - T4: the fixtures already rebased (store suite per the Done section; `test/session/acquired-item-store.test.ts:72`) cover the known offenders; the sweeping audit of every raw-SQL fixture is not evidenced — **still open.**
 
+**Re-measured 2026-10-12** (explorer; `dbread` for counts, `grep` for code) — the numbers below had drifted, the verdict did not: `event` **168 485** rows (was 123 921 on 2026-10-09, ~15 k/day), `event_sequence` 86, `balance_snapshot` 1 039, `session_entry` still **0** — and its ONLY writer in the whole tree is the fixture `test/session/turn.test.ts:81`. That single line is T1 and T4 at once: a table nothing in production writes, kept alive by a test that writes it. Re-count any table with `dbread`: `SELECT COUNT(*) FROM <table>`.
+
 ## Why this is its own plan
 
 It is not TDA. It is a standing property of the storage plane, and the discovery arrived while answering a
@@ -52,11 +54,6 @@ question about TDA and would have eaten that cycle. Separated so the TDA plan ca
 | `workspace` | 0 | ? → T1 |
 
 ## Tasks
-
-- [ ] T1 — no table without a named writer
-- [ ] T2 — `event`: name its writer, its reader and its growth policy
-- [ ] T3 — `balance_snapshot`: snapshot, or a log with retention
-- [ ] T4 — the fixture rule, made checkable
 
 - **T1 — no table without a named writer.** For every zero-row table: find the writer in code, or state
   that there is none. A table with no writer is a SURFACE TO REMOVE, not to keep — a defect is fixed by

@@ -152,10 +152,11 @@ def test_declared_fsm_predicates_drive_their_real_transitions() -> None:
     assert G0_FSM.is_valid_transition("AWAIT_REQUEST", "PARSE_INTENT", {"USER_REQUEST": "hello"})
     assert not G0_FSM.is_valid_transition("AWAIT_REQUEST", "PARSE_INTENT", {})
     assert G2_FSM.is_valid_transition(
-        "GENERATE_CANDIDATES", "CLUSTER_MEDOIDS", {"candidates": ["a"], "candidate_count": 5}
+        "GENERATE_CANDIDATES", "CLUSTER_MEDOIDS", {"candidates": ["a", "b", "c", "d", "e"]}
     )
+    # K04 requirement supersedes the old fixture that asserted five while supplying one.
     assert not G2_FSM.is_valid_transition(
-        "GENERATE_CANDIDATES", "CLUSTER_MEDOIDS", {"candidates": ["a"], "candidate_count": 4}
+        "GENERATE_CANDIDATES", "CLUSTER_MEDOIDS", {"candidates": ["a"], "candidate_count": 5}
     )
     assert G2_FSM.is_valid_transition(
         "VALIDATE_SIMPLEX", "EMIT_TASKS", {"medoids": ["a"], "independent_explanations": True}

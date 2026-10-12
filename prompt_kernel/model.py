@@ -24,12 +24,12 @@ class BooleanPredicate:
         - BooleanPredicate("AND", [BooleanPredicate("HAS", ["evidence"]), BooleanPredicate("NOT", [BooleanPredicate("HAS", ["divergence"])])])
         - BooleanPredicate("IMPLIES", [BooleanPredicate("HAS", ["plan"]), BooleanPredicate("HAS", ["binding"])])
     """
-    op: Literal["AND", "OR", "NOT", "IMPLIES", "IFF", "HAS", "EQ", "GT", "GE", "LT", "LE", "EXISTS"]
+    op: Literal["AND", "OR", "NOT", "IMPLIES", "IFF", "HAS", "EQ", "GT", "GE", "LT", "LE", "EXISTS", "COUNT_GE"]
     args: tuple["BooleanPredicate", ...] = ()
     value: object = None
 
-    def __init__(self, op: Literal["AND", "OR", "NOT", "IMPLIES", "IFF", "HAS", "EQ", "GT", "GE", "LT", "LE", "EXISTS"], *args, value: object = None):
-        leaf = ("HAS", "EXISTS", "EQ", "GT", "GE", "LT", "LE")
+    def __init__(self, op: Literal["AND", "OR", "NOT", "IMPLIES", "IFF", "HAS", "EQ", "GT", "GE", "LT", "LE", "EXISTS", "COUNT_GE"], *args, value: object = None):
+        leaf = ("HAS", "EXISTS", "EQ", "GT", "GE", "LT", "LE", "COUNT_GE")
         branch = ("AND", "OR", "NOT", "IMPLIES", "IFF")
         if op not in leaf + branch:
             raise ValueError(f"unknown predicate operator: {op}")
@@ -63,6 +63,8 @@ class BooleanPredicate:
             return f"HAS({self.value})"
         elif self.op in ("EQ", "GT", "GE", "LT", "LE"):
             return f"{self.value[0]} {self.op} {self.value[1]}"
+        elif self.op == "COUNT_GE":
+            return f"COUNT({self.value[0]}) GE {self.value[1]}"
         elif self.op == "NOT":
             return f"NOT({self.args[0]})"
         elif self.op in ("AND", "OR"):
@@ -124,6 +126,9 @@ class StateMachine:
             return pred.value[0] in context and context[pred.value[0]] < pred.value[1]
         elif pred.op == "LE":
             return pred.value[0] in context and context[pred.value[0]] <= pred.value[1]
+        elif pred.op == "COUNT_GE":
+            items = context.get(pred.value[0])
+            return isinstance(items, (list, tuple)) and len(items) >= pred.value[1]
         elif pred.op == "EXISTS":
             return pred.value in context
         raise ValueError(f"unknown predicate operator: {pred.op}")

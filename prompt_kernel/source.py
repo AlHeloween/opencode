@@ -222,6 +222,19 @@ G1_FSM = StateMachine(
 )
 
 # G2 DECOMPOSE FSM
+# The one sufficiency condition the MANHATTAN_L1 rule predicate and the G2 FSM must both gate
+# (K04): at least five REAL candidates, or a small exhaustive space that is actually proven —
+# a nonempty list plus a domain-evidence reference. `small_space=True` alone is not a bypass, and
+# `candidates` is counted by its length: a separately asserted number must never stand in for the
+# list it claims to summarise, or the gate passes while the decomposition is absent.
+G2_CANDIDATE_SUFFICIENCY = BP(
+    "AND",
+    BP("COUNT_GE", ("candidates", 1)),
+    BP("OR",
+        BP("COUNT_GE", ("candidates", 5)),
+        BP("AND", BP("EQ", ("small_space", True)), BP("HAS", "domain_evidence_ref"))),
+)
+
 G2_FSM = StateMachine(
     id="G2",
     states=("AWAIT_GOAL", "GENERATE_CANDIDATES", "CLUSTER_MEDOIDS", "VALIDATE_SIMPLEX", "EMIT_TASKS"),
@@ -229,7 +242,7 @@ G2_FSM = StateMachine(
     accepting_states=("EMIT_TASKS",),
     transitions=(
         FSMTransition("AWAIT_GOAL", "GENERATE_CANDIDATES", BP("HAS", "EXECUTION_GOAL"), "Execution goal available"),
-        FSMTransition("GENERATE_CANDIDATES", "CLUSTER_MEDOIDS", BP("AND", BP("HAS", "candidates"), BP("GT", ("candidate_count", 4))), "≥5 candidates generated"),
+        FSMTransition("GENERATE_CANDIDATES", "CLUSTER_MEDOIDS", G2_CANDIDATE_SUFFICIENCY, "≥5 real candidates, or a proven small exhaustive space"),
         FSMTransition("CLUSTER_MEDOIDS", "VALIDATE_SIMPLEX", BP("HAS", "medoids"), "Medoids selected"),
         FSMTransition("VALIDATE_SIMPLEX", "EMIT_TASKS", BP("AND", BP("HAS", "medoids"), BP("EQ", ("independent_explanations", True))), "Simplex valid: independent explanations"),
         FSMTransition("VALIDATE_SIMPLEX", "GENERATE_CANDIDATES", BP("NOT", BP("EQ", ("independent_explanations", True))), "Degenerate simplex, regenerate"),
@@ -325,16 +338,27 @@ G8_FSM = StateMachine(
 )
 
 # G9 CLEAN_STATE FSM
+# K05: closure evaluation and SUCCESS are different outcomes. SUCCESS needs acceptance covered
+# AND oracle PASS AND zero critical risks at once; a recorded non-PASS may close the run through a
+# lawful bounded stop (a finite stop reason + a recorded residual + a lawful non-success terminal)
+# but never reaches EMIT_SUCCESS. The non-PASS entry reads the verdict's PRESENCE (EXISTS): a
+# recorded-but-falsy verdict is still a verdict, which HAS would drop. Endpoints are unique per
+# (from, to) pair — an OR faked with duplicate endpoints is invisible, since is_valid_transition
+# returns only the first match.
 G9_FSM = StateMachine(
     id="G9",
-    states=("AWAIT_VERIFICATION", "CHECK_ACCEPTANCE", "CHECK_ORACLE", "CHECK_RISKS", "EMIT_CLOSURE"),
+    states=("AWAIT_VERIFICATION", "CHECK_ACCEPTANCE", "CHECK_ORACLE", "CHECK_RISKS", "EVALUATE_STOP", "EMIT_SUCCESS", "EMIT_CLOSURE"),
     initial_state="AWAIT_VERIFICATION",
-    accepting_states=("EMIT_CLOSURE",),
+    accepting_states=("EMIT_SUCCESS", "EMIT_CLOSURE"),
     transitions=(
         FSMTransition("AWAIT_VERIFICATION", "CHECK_ACCEPTANCE", BP("HAS", "VERIFIED_OUTCOME"), "Verification available"),
         FSMTransition("CHECK_ACCEPTANCE", "CHECK_ORACLE", BP("HAS", "acceptance_covered"), "Acceptance covered"),
-        FSMTransition("CHECK_ORACLE", "CHECK_RISKS", BP("HAS", "oracle_passed"), "Oracle passed"),
-        FSMTransition("CHECK_RISKS", "EMIT_CLOSURE", BP("OR", BP("EQ", ("critical_risks", 0)), BP("HAS", "residual_defined")), "Risks zero or residual defined"),
+        FSMTransition("CHECK_ACCEPTANCE", "EVALUATE_STOP", BP("NOT", BP("HAS", "acceptance_covered")), "Uncovered acceptance — evaluate a bounded stop"),
+        FSMTransition("CHECK_ORACLE", "CHECK_RISKS", BP("EQ", ("oracle", "PASS")), "Oracle passed — SUCCESS track"),
+        FSMTransition("CHECK_ORACLE", "EVALUATE_STOP", BP("AND", BP("EXISTS", "oracle"), BP("NOT", BP("EQ", ("oracle", "PASS")))), "Recorded non-PASS — evaluate a lawful stop"),
+        FSMTransition("CHECK_RISKS", "EMIT_SUCCESS", BP("AND", BP("HAS", "acceptance_covered"), BP("EQ", ("oracle", "PASS")), BP("EQ", ("critical_risks", 0))), "Acceptance covered + oracle PASS + zero critical risks — SUCCESS"),
+        FSMTransition("CHECK_RISKS", "EVALUATE_STOP", BP("NOT", BP("EQ", ("critical_risks", 0))), "Critical risks remain — not SUCCESS, evaluate a stop"),
+        FSMTransition("EVALUATE_STOP", "EMIT_CLOSURE", BP("AND", BP("HAS", "stop_reason"), BP("HAS", "residual_defined"), BP("OR", BP("EQ", ("lawful_non_success_terminal", "BLOCKED")), BP("EQ", ("lawful_non_success_terminal", "WAITING_APPROVAL")), BP("EQ", ("lawful_non_success_terminal", "OUT_OF_SCOPE")))), "Stop reason + residual + declared non-success terminal — closure, not SUCCESS"),
     ),
 )
 
@@ -483,7 +507,7 @@ GATES = (
             # (memory/spine.ts:144 — distance over two weight lists). 620 B -> 400 B measured, and
             # the 220 B are spent on the G2 surface-coverage clause rather than on repetition.
             _rule("G2", "MANHATTAN_L1",         "Cluster candidate vectors with @L1_DISTANCE: a candidate vector IS its @SV_FORMAT weight list; L1 = the sum of absolute weight differences. Nothing here averages — hence L1 (one spike cannot drag a cluster) and medoids (a real object, not a midpoint that may not exist), not centroids. Select at least five candidates when the space permits; medoids only as CENTRAL_TASKS; keep each zone small — the medoid pass is quadratic inside it.",
-                BP("AND", BP("HAS", "L1_DISTANCE"), BP("GE", value=("candidate_count", 5)), BP("HAS", "medoids_as_central"))),
+                BP("AND", BP("HAS", "L1_DISTANCE"), G2_CANDIDATE_SUFFICIENCY, BP("HAS", "medoids_as_central"))),
             _rule("G2", "ONE_STEP_AHEAD", "Estimate the immediate downstream state and verification consequence of each medoid before selection.",
                 BP("IMPLIES", BP("HAS", "medoid"), BP("AND", BP("HAS", "downstream_state"), BP("HAS", "verification_consequence")))),
             _rule("G2", "MEDOID_SIMPLEX", "Surface needs ≥3 medoids with independent sources, each carrying @INFOMARK rung. Coverage over lattice, not asserted from one point. Three sources on ONE explanation = degenerate simplex — explanations must be independent, and independence is measured WITHIN one nesting level: a parent and its child never count as two sources.",

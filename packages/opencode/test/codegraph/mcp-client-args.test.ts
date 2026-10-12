@@ -6,8 +6,27 @@ import {
   modeToMcpCall,
 } from "../../src/codegraph/mcp-client"
 import path from "path"
+import * as Client from "../../src/codegraph/mcp-client"
 
 describe("codegraph mcp-client helpers", () => {
+  test("query project root is separate from its subdirectory scope", () => {
+    const root = path.resolve(import.meta.dir, "../../../..")
+    const call = modeToMcpCall("explore", "query", { path: "prompt_kernel", projectPath: root })
+    expect(call.args.projectPath).toBe(root)
+    expect(call.args.path).toBe("prompt_kernel")
+  })
+
+  test("absolute root, subdirectory and file scopes preserve relative packed paths", () => {
+    const root = path.resolve(import.meta.dir, "../../../..")
+    const files = ["prompt_kernel/model.py", "delphi/unit.pas", "src/index.ts"]
+    const scope = Client.scopePackedFiles
+    expect(typeof scope).toBe("function")
+    expect(scope(root, files, root)).toEqual(files)
+    expect(scope(root, files, path.join(root, "prompt_kernel"))).toEqual([files[0]])
+    expect(scope(root, files, "prompt_kernel")).toEqual([files[0]])
+    expect(scope(root, files, path.join(root, files[0]))).toEqual([files[0]])
+    expect(() => scope(root, files, path.resolve(root, "../outside"))).toThrow(/outside/)
+  })
   test("exploreArgsForChangedFiles matches smoke query shape", () => {
     const { tool, args } = exploreArgsForChangedFiles("/proj", [
       "packages/opencode/src/session/compaction.ts",

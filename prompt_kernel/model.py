@@ -24,12 +24,12 @@ class BooleanPredicate:
         - BooleanPredicate("AND", [BooleanPredicate("HAS", ["evidence"]), BooleanPredicate("NOT", [BooleanPredicate("HAS", ["divergence"])])])
         - BooleanPredicate("IMPLIES", [BooleanPredicate("HAS", ["plan"]), BooleanPredicate("HAS", ["binding"])])
     """
-    op: Literal["AND", "OR", "NOT", "IMPLIES", "IFF", "HAS", "EQ", "GT", "GE", "LT", "LE", "EXISTS", "COUNT_GE"]
+    op: Literal["AND", "OR", "NOT", "IMPLIES", "IFF", "HAS", "EQ", "GT", "GE", "LT", "LE", "EXISTS", "COUNT_GE", "CHECK"]
     args: tuple["BooleanPredicate", ...] = ()
     value: object = None
 
-    def __init__(self, op: Literal["AND", "OR", "NOT", "IMPLIES", "IFF", "HAS", "EQ", "GT", "GE", "LT", "LE", "EXISTS", "COUNT_GE"], *args, value: object = None):
-        leaf = ("HAS", "EXISTS", "EQ", "GT", "GE", "LT", "LE", "COUNT_GE")
+    def __init__(self, op: Literal["AND", "OR", "NOT", "IMPLIES", "IFF", "HAS", "EQ", "GT", "GE", "LT", "LE", "EXISTS", "COUNT_GE", "CHECK"], *args, value: object = None):
+        leaf = ("HAS", "EXISTS", "EQ", "GT", "GE", "LT", "LE", "COUNT_GE", "CHECK")
         branch = ("AND", "OR", "NOT", "IMPLIES", "IFF")
         if op not in leaf + branch:
             raise ValueError(f"unknown predicate operator: {op}")
@@ -42,7 +42,9 @@ class BooleanPredicate:
                 value = value[0]
             if value is None:
                 raise ValueError(f"{op} needs an operand")
-            if op not in ("HAS", "EXISTS") and (not isinstance(value, tuple) or len(value) != 2):
+            if op == "CHECK" and value not in ("STRUCTURAL_EVIDENCE", "PLAN_STRATEGY", "PORTFOLIO_AUDIT"):
+                raise ValueError("CHECK needs a declared evidence contract")
+            if op not in ("HAS", "EXISTS", "CHECK") and (not isinstance(value, tuple) or len(value) != 2):
                 raise ValueError(f"{op} needs a (key, expected) operand")
             children = ()
         else:
@@ -75,6 +77,8 @@ class BooleanPredicate:
             return f"{self.args[0]} <=> {self.args[1]}"
         elif self.op == "EXISTS":
             return f"EXISTS({self.value})"
+        elif self.op == "CHECK":
+            return f"CHECK({self.value})"
         return self.op
 
 
@@ -131,6 +135,9 @@ class StateMachine:
             return isinstance(items, (list, tuple)) and len(items) >= pred.value[1]
         elif pred.op == "EXISTS":
             return pred.value in context
+        elif pred.op == "CHECK":
+            from .evidence import check_evidence
+            return check_evidence(pred.value, context)
         raise ValueError(f"unknown predicate operator: {pred.op}")
 
 

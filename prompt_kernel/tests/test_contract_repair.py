@@ -107,18 +107,19 @@ def test_g2_has_no_duplicate_transition_endpoints() -> None:
 # ------------------------------------------------- G9 close-vs-SUCCESS (K05)
 
 
-def test_g9_success_requires_acceptance_oracle_pass_and_zero_risks() -> None:
-    good = {"acceptance_covered": True, "oracle": "PASS", "critical_risks": 0}
+def test_g9_success_requires_acceptance_oracle_pass_and_zero_risks(evidence_context) -> None:
+    # K10 adds a fourth prerequisite; satisfy it to discriminate each old leg.
+    good = evidence_context
     assert G9_FSM.is_valid_transition("CHECK_RISKS", "EMIT_SUCCESS", good)
     # any single missing leg refuses SUCCESS.
     assert not G9_FSM.is_valid_transition(
-        "CHECK_RISKS", "EMIT_SUCCESS", {"acceptance_covered": True, "oracle": "PASS", "critical_risks": 1}
+        "CHECK_RISKS", "EMIT_SUCCESS", {**good, "critical_risks": 1}
     )
     assert not G9_FSM.is_valid_transition(
-        "CHECK_RISKS", "EMIT_SUCCESS", {"acceptance_covered": True, "oracle": "FAIL", "critical_risks": 0}
+        "CHECK_RISKS", "EMIT_SUCCESS", {**good, "oracle": "FAIL"}
     )
     assert not G9_FSM.is_valid_transition(
-        "CHECK_RISKS", "EMIT_SUCCESS", {"oracle": "PASS", "critical_risks": 0}
+        "CHECK_RISKS", "EMIT_SUCCESS", {**good, "acceptance_covered": False}
     )
 
 

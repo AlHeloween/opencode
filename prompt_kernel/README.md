@@ -49,6 +49,33 @@ flowchart LR
 
 ## Build and test
 
+### Проверяемые evidence gates (2026-10-12)
+
+`evidence.py` — read-only consumer predicates Rule/FSM на G6/G9. G1 выдаёт
+`STRUCTURAL_EVIDENCE`; G3 — `PLAN_STRATEGY` и `PORTFOLIO_AUDIT`. G6 требует
+релевантного структурного запроса со свидетельством свежести от parent/tool и
+поддержанной стратегии относительно неизменной цели мастера. SUCCESS на G9
+требует полного текущего аудита: каждый active root plan является стратегией,
+каждый `[x]` имеет source/oracle pins, отдельный explorer report проверен родителем.
+Присутствие имени файла, заявленные счётчики и текст DONE контракт не выполняют.
+
+Consumers перечитывают SHA256 pins, секцию цели мастера и полный active inventory.
+Изменение, пропущенный план, устаревший отчёт, отсутствие проверки или неподчинённая
+стратегия запрещают SUCCESS. Открытая согласованная работа может оставаться;
+законный ограниченный stop сохраняется. Filesystem fixtures и mutation tests
+проверяют настоящие переходы Rule/FSM. Эти consumers и нормативный prompt сами
+по себе не являются runtime ACL каждого вызова модели; живые tool paths проверяются отдельно.
+
+Codex bindings используют обнаруженные node_repl/apply_patch/exec_command/write_stdin,
+collaboration и cua_repl APIs. LSP/AST требуют отдельной привязки и квалификации.
+Во всех вариантах структурный CodeGraph предшествует scanners; read-only explorer
+получает refresh evidence, без shell authority. MCP pack сохраняет существующие
+Python/Delphi/Unicode paths вне фиксированных prefixes.
+
+Четыре variants измерены: максимум 63 553 UTF-8 bytes / 8 571 normalized tokens.
+Фиксированный cap — 64 000 bytes и следующий token band каждого variant.
+Normalized tokens не являются измерением model tokenizer или FLOPs.
+
 ```powershell
 python -m pytest prompt_kernel/tests/ -q
 python -m prompt_kernel

@@ -90,7 +90,8 @@ def test_cursor_variant_stays_within_explicit_budget() -> None:
 
     assert len(text.encode("utf-8")) <= KERNEL.utf8_budget
     # R1d structural MCP precedes scanners: measured 8_405, bounded next band.
-    assert normalized_token_count(text) <= 8_450
+    # R1e mandatory strategy/portfolio inputs: measured 8_569.
+    assert normalized_token_count(text) <= 8_600
 
 
 def test_cursor_addon_render_is_deterministic_lf() -> None:

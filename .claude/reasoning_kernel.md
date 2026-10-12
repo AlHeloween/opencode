@@ -157,6 +157,9 @@ software:
 - CENTRAL_TASKS: {medoid_task_ids}
 - MASTER_PLAN: {plan_id, revision, state, premises, tasks, dependencies, rollback}
 - PLAN_CONTRACT: {intention_ref, premise_refs, task_ids, scope, verification_refs}
+- STRUCTURAL_EVIDENCE: {scope, method, owner, query_or_reason, symbols, source_pins, result_pin, qualification_pin?}; pins={path,sha256}, current and relevant to the binding
+- PLAN_STRATEGY: {plan_pin, master_goal_sha256, contribution, alignment_verdict, evidence_pins, completion_checks=[{box,source_pins,oracle_pins,result}]}; SUPPORTED strategy and checked boxes need current evidence, not filename presence
+- PORTFOLIO_AUDIT: {inventory_sha256, master_goal_sha256, entries=[PLAN_STRATEGY], explorer_id, parent_id, explorer_report_pin, parent_verification_pin, unaccounted, unaligned}; exhaustive current active inventory, with completion evidence rechecked
 - CLAIM_LEDGER: {claim_id, statement, digest, status, falsifier, stamp?, source_stamp?}
 - RISK_LEDGER: {risk_id, trigger, severity, containment, rollback, verification_owner}
 - SMOKE_CONTRACT: {baseline_oracle, post_change_oracle, expected_delta}
@@ -165,13 +168,13 @@ software:
 - AUTH_DECISION: ALLOW | ASK | DENY | CONCERN
 - CONCERN_RESOLUTION: {objection_ref, violated_premise, revised_residual}
 - GROUNDED_PLAN: {task_id: implementation_surface}
-- PLAN_BINDING: {task_id: [paths, symbols, dependencies, expected_diff, sv, oracle]}
+- PLAN_BINDING: {task_id: [paths, symbols, dependencies, expected_diff, sv, oracle, structural_evidence_ref, plan_strategy_ref]}
 - IMPLEMENTATION_RESULT: {task_id, actual_diff, execution_evidence}
 - VERIFIED_OUTCOME: {acceptance_id: pass|fail, evidence_ref}
 - ORACLE_STAMP: {claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL, content_hash?}
 - DIVERGENCE_EVENT: {claim_id, evidence_ref}
 - SOURCE_STAMP: {authority_class, url_provenance, content_hash}
-- CLOSURE_PROOF: {acceptance_coverage, oracle_result, critical_risks, residual, open_boxes}
+- CLOSURE_PROOF: {acceptance_coverage, oracle_result, critical_risks, residual, open_boxes, portfolio_audit_ref}
 - CLEAN_NEXT_STATE: {terminal_mode, completed, risks, residual, route}
 - RESIDUAL_GOAL: {gap, bound, route, form_holds}
 - QUALITY_VECTOR: {performance, stability, ux, automation, documentation, maintainability, organization}
@@ -288,6 +291,7 @@ requires: [USER_REQUEST, DIGITAL_INTENTION]
 shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @GUESS_DECIDES_NOTHING, @DIVERGENCE_PROTOCOL, @SAFETY_PRECEDENCE, @INTENTION_INVARIANCE, @ANTI_CHURN]
 <G1_RULES>
 - Derive EXECUTION_GOAL from the uncovered projection residual, not from the suggested solution: the request is not the goal.
+- Indexed-code grounding emits @STRUCTURAL_EVIDENCE: relevant symbols/consumers, scope, query/result and source digests, with parent/tool refresh ownership. No index, failed tool or documentation-only scope needs a verified explicit fallback; an empty or irrelevant graph is a gap, never absence.
 - Establish the smallest evidence-backed change region before planning; unresolved ownership blocks decomposition.
 - Inventory available product tools, local evidence, skills, and @SOURCE_ROUTING authorities by intent; tool availability does not grant mutation authority.
 - Search existing code, history, plans, and authoritative prior art before non-trivial invention; re-search after repeated stuck failure.
@@ -302,6 +306,7 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @GUESS_DECIDES_NOTHING, @DI
 - first read: AGENTS.md, plans/*.md, docs/.
 - durable criteria: .opencode/data/memory/reasoning.md — read before non-trivial work.
 - never store plans under .claude/plans/.
+- graph-before-scanners on indexed code: query relevant symbols/consumers before glob/grep/read; empty or irrelevant structure is an evidence gap, not absence. refresh owner: authorized parent supplies worktree/index/command/result/source-hash receipt, or the MCP query verifies freshness. Edits invalidate it; a read-only explorer requests the receipt, never shell rights.
 - instrument chain, in order: where/which -> adm --query -> codegraph_explore -> session history (search_session_transcripts) -> WebSearch/WebFetch -> Glob -> Grep; device state via the shell. Refresh an index before a task's first query and after edits: adm --rag index, codegraph sync. Name the rung that answered.
 - window fill and the auto-compact threshold ARE reported (get_usage, deferred); the burn rate is not and the fold arrives as a notice after it happened: read the fill at each closed boundary and persist the handles there, never at a threshold.
 - no chain reader runs automatically: a prev-md5 break is found by reading (skill sv-chain), so recovery across one is Guess and the intention is re-read from the plan comment, the progress log and the ledgers — never from the prose in the window.
@@ -313,11 +318,11 @@ shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @GUESS_DECIDES_NOTHING, @DI
 - git = the code's history. $ORG_HOME/org.fossil (default $HOME/.org) = the organization's repository: tickets (delegations with root_task/parent_task lineage, leases), technotes (reports), wiki (knowledge; page Protocol = how to work here), chat (heartbeats). Before any use of it, run python $ORG_HOME/genesis/init.py (idempotent: creates whatever is missing, starts its server on 127.0.0.1:$ORG_PORT (default 8079)) and read Protocol via python $ORG_HOME/genesis/org.py protocol, then do what you came to do. A project's .opencode/data/fossil/<id>/snapshot.fsl is NOT the organization but the runtime's undo timeline (its commit messages carry sv:<md5>); a lost worktree-root _FOSSIL_ → fossil open <that snapshot.fsl> --keep from the worktree root (it rewrites only the manifest files), then tell the user what was lost and restored.
 - project layout (paths from the repo root; an item the project's own AGENTS.md places elsewhere is read there instead): AGENTS.md = the rules, read before work; plans/MASTER_PLAN.md = the direction; plans/ = active plans; plans_completed/ = done, plans_deferred/ = out of scope, plans/postponed/ = blocked; _progress_log.md = one entry per bounded task; docs/ = project documentation, indexed by docs/README.md; scripts/ = the project's build, run and maintenance scripts; experiments/ = one-off probes, gitignored; experiments_history/ = archived results, tracked; external/ = copies of third-party sources, gitignored — never edit them; .temp/ = throwaway, gitignored. Before building, running or scripting the project, read docs/README.md and OPEN the scripts in scripts/ that fit the task: an existing procedure is reused, never re-invented; an absent one means nothing to read. A missing item is created only when needed, at exactly its path here.
 - bound the ANSWER, not the search: a result that has to be truncated has not answered — return counts, or the top hits, or the ONE path:line that decides, never a wall of matched lines.
-- any path, name or file filter is part of the instrument: when it matches nothing, that is a claim about the FILTER until proven otherwise — re-run it with a control that MUST match, then report; without it the answer is a false absence.
-- a result capped by its own limit is a SAMPLE, not an inventory: never conclude «no more» or «absent» from one, and never fall back to shell directory enumeration — the host's own search tools are the fallback.
+- an `include`/path filter is part of the instrument: when it matches nothing, that is a claim about the FILTER until proven otherwise — re-run it with a control that MUST match, then report; without it the answer is a false absence.
+- `glob` is a locator, not an inventory: a capped listing is a sample, so never conclude «no more» or «absent» from one. Product tools only — shell `ls`/`dir`/`find` are not the fallback for a bad glob.
 </G1_RULES>
 
-outputs: [INTENT_PROJECTION, EXECUTION_GOAL, PROJECT_GEOMETRY, CAPABILITY_GRAPH, OUTCOME_CONTRACT]
+outputs: [INTENT_PROJECTION, EXECUTION_GOAL, PROJECT_GEOMETRY, CAPABILITY_GRAPH, OUTCOME_CONTRACT, STRUCTURAL_EVIDENCE]
 routes: WORKFLOW.G1
 
 ### G2 DECOMPOSE
@@ -355,6 +360,7 @@ requires: [CENTRAL_TASKS, OUTCOME_CONTRACT, SVM]
 shared_rules: [@EVIDENCE_ORDER, @INFORMATION_STATUS, @PLAN_CONTRACT_ENFORCEMENT, @TEST_INVARIANT, @VALIDATE_BEFORE, @TOOLCHAIN_QUALIFICATION]
 <G3_RULES>
 - Start DRAFT, ACTIVE after G4, invalidate/revise on material premise/scope change.
+- Every plan is a supported strategy toward the fixed master goal; emit @PLAN_STRATEGY. Delegate existing-plan completion/strategy rechecks to a read-only explorer, inventory the whole active portfolio, and independently verify source/oracle pins as @PORTFOLIO_AUDIT. Filename presence and DONE testimony are insufficient.
 #### @SMOKE_BEFORE
 Capture failing/baseline oracle before impl; name post-change oracle before any product-source edit. Predict each case before the run — PASS, FAIL or unchanged (expected_delta); an outcome off the prediction, an unexpected PASS included, is a forecast error: the premise is wrong or the conditions changed — @DIVERGENCE_PROTOCOL, logged as a divergence, never counted as a pass. A case with no prediction runs as diagnostic only, never as evidence; a flaky outcome is a HARNESS finding under a replication criterion, not a re-grounding.
 
@@ -363,10 +369,10 @@ Capture failing/baseline oracle before impl; name post-change oracle before any 
 - Unresolved critical entries block G4. Refresh after G7/G8, close only with oracle evidence.
 - ACCEPTANCE_FRAME := {(criterionᵢ, surfaceᵢ, instrumentᵢ@rung, falsifierᵢ)} — one per requested outcome, named BEFORE planning; a criterion first named at G8 was improvised, not defined (ISO/IEC 25010: QC criteria and acceptance criteria are requirements-time artefacts; ISO/IEC/IEEE 29119-1 for testing concepts).
 - plans: plans/[ISO8601]_<description>.md; Smoke Tests before G4.
-- plan carries the intention: <!-- intention: from_state -> to_state --> rides planState through compact.
+- plan carries the intention: <!-- intention: from_state -> to_state --> rides compaction.
 </G3_RULES>
 
-outputs: [MASTER_PLAN, PLAN_CONTRACT, CLAIM_LEDGER, RISK_LEDGER, SMOKE_CONTRACT, SVM]
+outputs: [MASTER_PLAN, PLAN_CONTRACT, CLAIM_LEDGER, RISK_LEDGER, SMOKE_CONTRACT, SVM, PLAN_STRATEGY, PORTFOLIO_AUDIT]
 routes: WORKFLOW.G3
 
 ### G4 AUTHORIZE
@@ -405,7 +411,7 @@ routes: WORKFLOW.G5
 ### G6 GROUND_PLAN
 objective: Bind every authorized task to the real implementation path and eliminate plan-to-code gaps before mutation.
 identity: [BUILD_MODE, PLAN_MODE, EXPLORER_AGENT]
-requires: [MASTER_PLAN, PLAN_CONTRACT, EXECUTION_ENVELOPE, AUTH_DECISION, PROJECT_GEOMETRY]
+requires: [MASTER_PLAN, PLAN_CONTRACT, EXECUTION_ENVELOPE, AUTH_DECISION, PROJECT_GEOMETRY, STRUCTURAL_EVIDENCE, PLAN_STRATEGY]
 shared_rules: [@EVIDENCE_ORDER, @PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @SURFACE_PREPARATION, @TOOLCHAIN_QUALIFICATION, @TEST_INVARIANT]
 <G6_RULES>
 - Map symbols/ownership first, inspect implementation surface second, fill evidence gaps third. Impact query runs for every mutation binding: other consumers = answer, not precondition.
@@ -444,7 +450,7 @@ shared_rules: [@PLAN_CONTRACT_ENFORCEMENT, @PLAN_BINDING_ENFORCEMENT, @KV_CACHE_
 - launch long-lived processes only via run_in_background:true; a blocking start stalls the turn.
 - poll/stream background output via Monitor, never a sleep-retry loop.
 - style authority per language: Python PEP-8; JS/TS Google JS Style Guide + Prettier/ESLint; Go gofmt + Effective Go; C/C++ clang-format + Google C++ Style Guide; Rust rustfmt; Delphi Embarcadero Style Guide; MSVC MSDN; 8051 Intel MCS-51 (MIT 6.115). A repo formatter config is the executable form of its guide.
-- surface standards (GUI, TUI, ergonomics, project shape): docs/ui-standards.md — read before building or reviewing one.
+- surface standards (GUI, TUI, ergonomics, project shape) belong to the repo's own docs — read them before building or reviewing a surface.
 - DISAS — do it simple and stupid: complexity is the DEFECT, not the price. Ask of every change «can this be dumber and more linear?»; a clever shape must first prove the dumb one fails.
 - a chain is walked ONCE, LINEARLY, at ONE point (a fill); every later reader is a lookup of ONE source. A reader that decides how full the layer above it is has become a second, competing authority.
 - a compensation built on top of a defect is the signature: a reader-side parent chain, a hedge between two spellings of one name, a second validity filter. Fix the hole and REMOVE the layer.
@@ -489,10 +495,10 @@ routes: WORKFLOW.G8
 ### G9 CLEAN_STATE
 objective: Close only verified work, expose residual state, and select a declared terminal or continuation route.
 identity: [BUILD_MODE, ORCHESTRATOR_AGENT]
-requires: [VERIFIED_OUTCOME, ORACLE_STAMP, CLAIM_LEDGER, RISK_LEDGER]
+requires: [VERIFIED_OUTCOME, ORACLE_STAMP, CLAIM_LEDGER, RISK_LEDGER, PORTFOLIO_AUDIT]
 shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION, @INTENTION_INVARIANCE, @KAIZEN]
 <G9_RULES>
-- SUCCESS = acceptance covered + oracle passed + critical risks 0. Else take declared terminal or continue. Completion two-sided: no split adds, nothing present lacks support. Remainder = residual (finished, not abandoned).
+- SUCCESS = acceptance covered + oracle passed + critical risks 0 + current accepted @PORTFOLIO_AUDIT. Any unaccounted or unaligned plan forbids SUCCESS; stale or unverified completion also leaves a gap. Open aligned work may remain. Else take a declared terminal or continue; residual is recorded.
 - Emit completed work, evidence, changed surfaces, risks, residual goal, next route, honest validation — no full trace repeat.
 - Convert uncovered acceptance gaps → bounded residual, take declared back move.
 - Closure only over what evidence settles: delivered carries oracle; uncovered intent = residual. Partial REAL > complete simulated.
@@ -500,7 +506,7 @@ shared_rules: [@INFORMATION_STATUS, @RESIDUAL_ROUTING, @AUTHORITY_SEPARATION, @I
 - report the TOOLS' working state at closure — which instrument answered, which LIED, which had to be worked around. A tool that hides or reduces its own output without saying so is a delivery, not a footnote.
 - name the CLASS, not the anecdote: «reports Not found for a path it cannot see», «drops lines from its own report». A named class is what a later cycle can fix; a story is not.
 - a workaround is not a fix: when the envelope was routed around a broken tool, the route IS the residual — record it, so the next cycle does not pay for the same instrument twice.
-- the plan moves by the OUTCOME and plans/ is legal only while it owes work: SUCCESS -> plans_completed/, OUT_OF_SCOPE -> plans_deferred/, BLOCKED and WAITING_APPROVAL -> plans/postponed/ naming the reason AND the signal that lifts it; `git mv` in the commit that names the ground. Undone task -> [~] + reason. Scan plans for stale refs.
+- the plan moves by its OUTCOME: SUCCESS -> plans_completed/; OUT_OF_SCOPE -> plans_deferred/; BLOCKED/WAITING_APPROVAL -> plans/postponed/ naming the reason AND the lift signal; plans/futures/ takes evolution candidates only, naming their CONDITION — never a terminated run. Undone task -> [~] + reason; scan plans for stale refs; use `git mv` in a commit that names the ground.
 - behavior/paths changed -> update docs/ and repo index.
 - deprecated -> obsolete/ (reference only).
 - write every ARTIFACT in English — code comments, docs, plan files, folder READMEs, kernel text, memory, commit messages. Russian is for the owner-facing reply and the GUI only; G0 keeps that half.

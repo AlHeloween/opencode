@@ -81,9 +81,12 @@ export function callCodegraphMcpOptionalRuntime(
 export function modeToMcpCall(
   mode: string,
   query: string,
-  opts: { path?: string; depth?: number },
+  opts: { path?: string; depth?: number; projectPath?: string },
 ): { tool: string; args: Record<string, unknown> } {
-  const pathArg = opts.path ? { projectPath: opts.path, path: opts.path } : {}
+  const pathArg = {
+    ...(opts.path ? { projectPath: opts.path, path: opts.path } : {}),
+    ...(opts.projectPath ? { projectPath: opts.projectPath } : {}),
+  }
   const depthArg = opts.depth != null ? { depth: opts.depth } : {}
 
   switch (mode) {
@@ -219,13 +222,15 @@ export function mcpTouchQueryThenSqlitePack(
   opts?: { path?: string; depth?: number; debounceMs?: number },
 ): Effect.Effect<HybridPackResult, Error> {
   return Effect.gen(function* () {
+    const scope = relativeQueryScope(worktree, opts?.path)
     const { tool, args } = modeToMcpCall(mode, query, {
-      path: opts?.path ?? worktree,
+      path: scope || undefined,
+      projectPath: worktree,
       depth: opts?.depth,
     })
     const callArgs = {
       ...args,
-      projectPath: (args.projectPath as string) ?? worktree,
+      projectPath: worktree,
     }
     const mcpText = yield* callCodegraphMcpOptionalRuntime(tool, callArgs)
 
@@ -237,14 +242,11 @@ export function mcpTouchQueryThenSqlitePack(
     let files = extractPathsFromText(mcpText, worktree)
     // If query looks like a path, include it
     const q = query.trim().replace(/\\/g, "/")
-    if (/\.(ts|tsx|js|jsx|rs|py)$/i.test(q) && existsSync(path.join(worktree, q))) {
-      files = [...new Set([q, ...files])]
+    if (/\.[A-Za-z0-9]+$/.test(q) && existsSync(path.resolve(worktree, q))) {
+      const relative = relativeQueryScope(worktree, q)
+      if (relative) files = [...new Set([relative, ...files])]
     }
-    if (opts?.path && !path.extname(opts.path)) {
-      // directory scope: keep extracted files under that prefix
-      const prefix = opts.path.replace(/\\/g, "/").replace(/\/$/, "")
-      files = files.filter((f) => f.startsWith(prefix + "/") || f.startsWith(prefix))
-    }
+    files = scopePackedFiles(worktree, files, opts?.path)
 
     if (files.length === 0) {
       // Still return empty pack with a clear structured note (MCP did run).
@@ -273,4 +275,19 @@ export function mcpTouchQueryThenSqlitePack(
     const symTag = packToSymTag(pack)
     return { pack, markdown, symTag, mcpText, files }
   })
+}
+
+function relativeQueryScope(worktree: string, requested?: string): string {
+  if (!requested) return ""
+  const relative = path.relative(path.resolve(worktree), path.resolve(worktree, requested))
+  if (relative === ".." || relative.startsWith(".." + path.sep) || path.isAbsolute(relative)) {
+    throw new Error("CodeGraph query scope is outside its authorized worktree")
+  }
+  return relative.replace(/\\/g, "/")
+}
+
+export function scopePackedFiles(worktree: string, files: string[], requested?: string): string[] {
+  const scope = relativeQueryScope(worktree, requested)
+  const relativeFiles = files.map((file) => file.replace(/\\/g, "/").replace(/^\.\//, ""))
+  return scope ? relativeFiles.filter((file) => file === scope || file.startsWith(scope + "/")) : relativeFiles
 }

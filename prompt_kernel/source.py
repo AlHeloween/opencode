@@ -304,7 +304,7 @@ G6_FSM = StateMachine(
         FSMTransition("MAP_SYMBOLS", "INSPECT_SURFACE", BP("HAS", "symbol_map"), "Symbols mapped"),
         FSMTransition("INSPECT_SURFACE", "FILL_EVIDENCE_GAPS", BP("HAS", "implementation_surface"), "Surface inspected"),
         FSMTransition("FILL_EVIDENCE_GAPS", "RUN_IMPACT", BP("HAS", "evidence_complete"), "Evidence gaps filled"),
-        FSMTransition("RUN_IMPACT", "EMIT_BINDING", BP("AND", BP("HAS", "impact_analysis"), BP("HAS", "consumers_identified")), "Impact analyzed, consumers identified"),
+        FSMTransition("RUN_IMPACT", "EMIT_BINDING", BP("AND", BP("HAS", "impact_analysis"), BP("HAS", "consumers_identified"), BP("CHECK", "STRUCTURAL_EVIDENCE"), BP("CHECK", "PLAN_STRATEGY")), "Relevant current structure and master-goal strategy verified"),
     ),
 )
 
@@ -345,6 +345,9 @@ G8_FSM = StateMachine(
 # recorded-but-falsy verdict is still a verdict, which HAS would drop. Endpoints are unique per
 # (from, to) pair — an OR faked with duplicate endpoints is invisible, since is_valid_transition
 # returns only the first match.
+G9_SUCCESS = BP("AND", BP("HAS", "acceptance_covered"), BP("EQ", ("oracle", "PASS")),
+                BP("EQ", ("critical_risks", 0)), BP("CHECK", "PORTFOLIO_AUDIT"))
+
 G9_FSM = StateMachine(
     id="G9",
     states=("AWAIT_VERIFICATION", "CHECK_ACCEPTANCE", "CHECK_ORACLE", "CHECK_RISKS", "EVALUATE_STOP", "EMIT_SUCCESS", "EMIT_CLOSURE"),
@@ -356,8 +359,8 @@ G9_FSM = StateMachine(
         FSMTransition("CHECK_ACCEPTANCE", "EVALUATE_STOP", BP("NOT", BP("HAS", "acceptance_covered")), "Uncovered acceptance — evaluate a bounded stop"),
         FSMTransition("CHECK_ORACLE", "CHECK_RISKS", BP("EQ", ("oracle", "PASS")), "Oracle passed — SUCCESS track"),
         FSMTransition("CHECK_ORACLE", "EVALUATE_STOP", BP("AND", BP("EXISTS", "oracle"), BP("NOT", BP("EQ", ("oracle", "PASS")))), "Recorded non-PASS — evaluate a lawful stop"),
-        FSMTransition("CHECK_RISKS", "EMIT_SUCCESS", BP("AND", BP("HAS", "acceptance_covered"), BP("EQ", ("oracle", "PASS")), BP("EQ", ("critical_risks", 0))), "Acceptance covered + oracle PASS + zero critical risks — SUCCESS"),
-        FSMTransition("CHECK_RISKS", "EVALUATE_STOP", BP("NOT", BP("EQ", ("critical_risks", 0))), "Critical risks remain — not SUCCESS, evaluate a stop"),
+        FSMTransition("CHECK_RISKS", "EMIT_SUCCESS", G9_SUCCESS, "Acceptance PASS, zero critical risks and current independently verified aligned portfolio"),
+        FSMTransition("CHECK_RISKS", "EVALUATE_STOP", BP("OR", BP("NOT", BP("EQ", ("critical_risks", 0))), BP("NOT", BP("CHECK", "PORTFOLIO_AUDIT"))), "Risk or portfolio gap — evaluate a stop, never SUCCESS"),
         FSMTransition("EVALUATE_STOP", "EMIT_CLOSURE", BP("AND", BP("HAS", "stop_reason"), BP("HAS", "residual_defined"), BP("OR", BP("EQ", ("lawful_non_success_terminal", "BLOCKED")), BP("EQ", ("lawful_non_success_terminal", "WAITING_APPROVAL")), BP("EQ", ("lawful_non_success_terminal", "OUT_OF_SCOPE")))), "Stop reason + residual + declared non-success terminal — closure, not SUCCESS"),
     ),
 )
@@ -458,10 +461,11 @@ GATES = (
         objective="Separate the user's request from the executable goal and ground both in observable project evidence.",
         identities=("BUILD_MODE", "PLAN_MODE", "EXPLORER_AGENT", "RESEARCHER_AGENT"),
         requires=("USER_REQUEST", "DIGITAL_INTENTION"),
-        outputs=("INTENT_PROJECTION", "EXECUTION_GOAL", "PROJECT_GEOMETRY", "CAPABILITY_GRAPH", "OUTCOME_CONTRACT"),
+        outputs=("INTENT_PROJECTION", "EXECUTION_GOAL", "PROJECT_GEOMETRY", "CAPABILITY_GRAPH", "OUTCOME_CONTRACT", "STRUCTURAL_EVIDENCE"),
         shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "GUESS_DECIDES_NOTHING", "DIVERGENCE_PROTOCOL", "SAFETY_PRECEDENCE", "INTENTION_INVARIANCE", "ANTI_CHURN"),
         local_rules=(
             _rule("G1", "INTENT_PROJECTION_RULE", "Derive EXECUTION_GOAL from the uncovered projection residual, not from the suggested solution: the request is not the goal."),
+            _rule("G1", "STRUCTURAL_GROUNDING", "Indexed-code grounding emits @STRUCTURAL_EVIDENCE: relevant symbols/consumers, scope, query/result and source digests, with parent/tool refresh ownership. No index, failed tool or documentation-only scope needs a verified explicit fallback; an empty or irrelevant graph is a gap, never absence."),
             _rule("G1", "PROJECT_GEOMETRY_RULE", "Establish the smallest evidence-backed change region before planning; unresolved ownership blocks decomposition."),
             _rule("G1", "CAPABILITY_GRAPH_RULE", "Inventory available product tools, local evidence, skills, and @SOURCE_ROUTING authorities by intent; tool availability does not grant mutation authority."),
             _rule("G1", "REUSE_BEFORE", "Search existing code, history, plans, and authoritative prior art before non-trivial invention; re-search after repeated stuck failure."),
@@ -542,10 +546,11 @@ GATES = (
         objective="Compile selected medoids into a dependency-aware execution contract with explicit claims, risks, and smoke tests.",
         identities=("BUILD_MODE", "PLAN_MODE", "GENERAL_AGENT", "ORCHESTRATOR_AGENT"),
         requires=("CENTRAL_TASKS", "OUTCOME_CONTRACT", "SVM"),
-        outputs=("MASTER_PLAN", "PLAN_CONTRACT", "CLAIM_LEDGER", "RISK_LEDGER", "SMOKE_CONTRACT", "SVM"),
+        outputs=("MASTER_PLAN", "PLAN_CONTRACT", "CLAIM_LEDGER", "RISK_LEDGER", "SMOKE_CONTRACT", "SVM", "PLAN_STRATEGY", "PORTFOLIO_AUDIT"),
         shared_rules=("EVIDENCE_ORDER", "INFORMATION_STATUS", "PLAN_CONTRACT_ENFORCEMENT", "TEST_INVARIANT", "VALIDATE_BEFORE", "TOOLCHAIN_QUALIFICATION"),
         local_rules=(
             _rule("G3", "MASTER_PLAN_RULE", "Start DRAFT, ACTIVE after G4, invalidate/revise on material premise/scope change."),
+            _rule("G3", "STRATEGY_AND_PORTFOLIO", "Every plan is a supported strategy toward the fixed master goal; emit @PLAN_STRATEGY. Delegate existing-plan completion/strategy rechecks to a read-only explorer, inventory the whole active portfolio, and independently verify source/oracle pins as @PORTFOLIO_AUDIT. Filename presence and DONE testimony are insufficient."),
             # Owner, 2026-09-29: «трэйдеры работают системно и планируют так: тут я выиграю, тут я проиграю, тут при
             # своих, но если эти условия не сбываются значит ошибка в прогнозе». An unexpected PASS is a model error.
             _rule("G3", "SMOKE_BEFORE", "Capture failing/baseline oracle before impl; name post-change oracle before any product-source edit. Predict each case before the run — PASS, FAIL or unchanged (expected_delta); an outcome off the prediction, an unexpected PASS included, is a forecast error: the premise is wrong or the conditions changed — @DIVERGENCE_PROTOCOL, logged as a divergence, never counted as a pass. A case with no prediction runs as diagnostic only, never as evidence; a flaky outcome is a HARNESS finding under a replication criterion, not a re-grounding."),
@@ -597,7 +602,7 @@ GATES = (
         name="GROUND_PLAN",
         objective="Bind every authorized task to the real implementation path and eliminate plan-to-code gaps before mutation.",
         identities=("BUILD_MODE", "PLAN_MODE", "EXPLORER_AGENT"),
-        requires=("MASTER_PLAN", "PLAN_CONTRACT", "EXECUTION_ENVELOPE", "AUTH_DECISION", "PROJECT_GEOMETRY"),
+        requires=("MASTER_PLAN", "PLAN_CONTRACT", "EXECUTION_ENVELOPE", "AUTH_DECISION", "PROJECT_GEOMETRY", "STRUCTURAL_EVIDENCE", "PLAN_STRATEGY"),
         outputs=("GROUNDED_PLAN", "PLAN_BINDING"),
         shared_rules=("EVIDENCE_ORDER", "PLAN_CONTRACT_ENFORCEMENT", "PLAN_BINDING_ENFORCEMENT", "SURFACE_PREPARATION", "TOOLCHAIN_QUALIFICATION", "TEST_INVARIANT"),
         local_rules=(
@@ -667,12 +672,12 @@ GATES = (
         name="CLEAN_STATE",
         objective="Close only verified work, expose residual state, and select a declared terminal or continuation route.",
         identities=("BUILD_MODE", "ORCHESTRATOR_AGENT"),
-        requires=("VERIFIED_OUTCOME", "ORACLE_STAMP", "CLAIM_LEDGER", "RISK_LEDGER"),
+        requires=("VERIFIED_OUTCOME", "ORACLE_STAMP", "CLAIM_LEDGER", "RISK_LEDGER", "PORTFOLIO_AUDIT"),
         outputs=("CLOSURE_PROOF", "CLEAN_NEXT_STATE", "RESIDUAL_GOAL", "QUALITY_VECTOR"),
         shared_rules=("INFORMATION_STATUS", "RESIDUAL_ROUTING", "AUTHORITY_SEPARATION", "INTENTION_INVARIANCE", "KAIZEN"),
         local_rules=(
-            _rule("G9", "CLOSURE_PROOF_RULE", "SUCCESS = acceptance covered + oracle passed + critical risks 0. Else take declared terminal or continue. Completion two-sided: no split adds, nothing present lacks support. Remainder = residual (finished, not abandoned).",
-                BP("IFF", BP("EQ", value=("status", "SUCCESS")), BP("AND", BP("HAS", "acceptance_covered"), BP("EQ", value=("oracle", "PASS")), BP("EQ", value=("critical_risks", 0))))),
+            _rule("G9", "CLOSURE_PROOF_RULE", "SUCCESS = acceptance covered + oracle passed + critical risks 0 + current accepted @PORTFOLIO_AUDIT. Any unaccounted or unaligned plan forbids SUCCESS; stale or unverified completion also leaves a gap. Open aligned work may remain. Else take a declared terminal or continue; residual is recorded.",
+                BP("IFF", BP("EQ", value=("status", "SUCCESS")), G9_SUCCESS)),
             _rule("G9", "CLEAN_STATE_RULE", "Emit completed work, evidence, changed surfaces, risks, residual goal, next route, honest validation — no full trace repeat.",
                 BP("IMPLIES", BP("HAS", "VERIFIED_OUTCOME"), BP("AND", BP("HAS", "completed_work"), BP("HAS", "evidence"), BP("HAS", "residual_goal"), BP("HAS", "next_route")))),
             _rule("G9", "RESIDUAL_GOAL_RULE", "Convert uncovered acceptance gaps → bounded residual, take declared back move.",
@@ -925,7 +930,7 @@ KERNEL = Kernel(
     # one executor contract for tool/agent/human (done or explicit stop; silence = FAIL), a verbatim decision is
     # departed from only with a measurement on its own layer (the xxh3 case), recursive re-verification by digest,
     # evidence anchored on a non-artifact surface by stability. The Claude variant measured 57_092 B before the raise.
-    utf8_budget=63_000,  # R1d, 2026-10-12: authorized host-contract repair; measured largest 62_026 B, next finite thousand. Prior 62_000 bound retained in the dated plan/evidence; no unbounded waiver.
+    utf8_budget=64_000,  # R1e, 2026-10-12: mandatory evidence inputs/closure; measured largest 63_524 B, next finite thousand. Prior 62_000/63_000 bounds retained in the dated evidence; no unbounded waiver.
     # (owner: «эти стандарты экономят миллионы токенов» — a standard's NAME replaces both the paragraph that would
     # explain it and the experiments an agent would otherwise run to re-derive it). Measured after them: 39_395.
     # Previous step 37_000 -> 38_000 admitted the QA/QC bindings: @ACCEPTANCE_FRAME at G1
@@ -993,6 +998,9 @@ KERNEL = Kernel(
         "CENTRAL_TASKS": "{medoid_task_ids}",
         "MASTER_PLAN": "{plan_id, revision, state, premises, tasks, dependencies, rollback}",
         "PLAN_CONTRACT": "{intention_ref, premise_refs, task_ids, scope, verification_refs}",
+        "STRUCTURAL_EVIDENCE": "{scope, method, owner, query_or_reason, symbols, source_pins, result_pin, qualification_pin?}; pins={path,sha256}, current and relevant to the binding",
+        "PLAN_STRATEGY": "{plan_pin, master_goal_sha256, contribution, alignment_verdict, evidence_pins, completion_checks=[{box,source_pins,oracle_pins,result}]}; SUPPORTED strategy and checked boxes need current evidence, not filename presence",
+        "PORTFOLIO_AUDIT": "{inventory_sha256, master_goal_sha256, entries=[PLAN_STRATEGY], explorer_id, parent_id, explorer_report_pin, parent_verification_pin, unaccounted, unaligned}; exhaustive current active inventory, with completion evidence rechecked",
         "CLAIM_LEDGER": "{claim_id, statement, digest, status, falsifier, stamp?, source_stamp?}",
         "RISK_LEDGER": "{risk_id, trigger, severity, containment, rollback, verification_owner}",
         "SMOKE_CONTRACT": "{baseline_oracle, post_change_oracle, expected_delta}",
@@ -1004,13 +1012,13 @@ KERNEL = Kernel(
         "AUTH_DECISION": "ALLOW | ASK | DENY | CONCERN",
         "CONCERN_RESOLUTION": "{objection_ref, violated_premise, revised_residual}",
         "GROUNDED_PLAN": "{task_id: implementation_surface}",
-        "PLAN_BINDING": "{task_id: [paths, symbols, dependencies, expected_diff, sv, oracle]}",
+        "PLAN_BINDING": "{task_id: [paths, symbols, dependencies, expected_diff, sv, oracle, structural_evidence_ref, plan_strategy_ref]}",
         "IMPLEMENTATION_RESULT": "{task_id, actual_diff, execution_evidence}",
         "VERIFIED_OUTCOME": "{acceptance_id: pass|fail, evidence_ref}",
         "ORACLE_STAMP": "{claim_id, evidence_ref, layer, result: PASS | FAIL | EXPECTED_FAIL, content_hash?}",
         "DIVERGENCE_EVENT": "{claim_id, evidence_ref}",
         "SOURCE_STAMP": "{authority_class, url_provenance, content_hash}",
-        "CLOSURE_PROOF": "{acceptance_coverage, oracle_result, critical_risks, residual, open_boxes}",
+        "CLOSURE_PROOF": "{acceptance_coverage, oracle_result, critical_risks, residual, open_boxes, portfolio_audit_ref}",
         "CLEAN_NEXT_STATE": "{terminal_mode, completed, risks, residual, route}",
         "RESIDUAL_GOAL": "{gap, bound, route, form_holds}",
         "QUALITY_VECTOR": "{performance, stability, ux, automation, documentation, maintainability, organization}",

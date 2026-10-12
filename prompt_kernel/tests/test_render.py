@@ -485,4 +485,6 @@ def test_pre_action_section_stays_small() -> None:
     # clarification (a gate is not a terminal) and the @CAPABILITY_ABSTRACTION pointer in
     # @CATALOG_INVARIANT; measured 6_701 B — the smallest 300 above the largest, as before.
     # 2026-10-08 (no raise): VCS_ROLES portability — $ORG_HOME/$ORG_PORT named, Protocol via `org.py protocol`; measured 6_730 B.
-    assert section <= 6_800, section
+    # R1d/e requested structural evidence and explicit parent/tool refresh ownership,
+    # both finding aids before planning. Measured 7_510 B; retain a finite band.
+    assert section <= 7_800, section

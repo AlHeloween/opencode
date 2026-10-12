@@ -115,7 +115,8 @@ def test_codex_variant_stays_within_explicit_budget() -> None:
     # 8_100 -> 8_250 (2026-10-06, owner: limits by measurement): the ADID global-kernel rules; measured 8_209.
     # 2026-10-08 (no raise): VCS_ROLES portability; measured 8_210.
     # R1d actual host bindings replace fictitious APIs: measured 8_329.
-    assert normalized_token_count(text) <= 8_350
+    # R1e mandatory strategy/portfolio inputs: measured 8_493.
+    assert normalized_token_count(text) <= 8_500
 
 
 def test_codex_addon_render_is_deterministic_lf() -> None:

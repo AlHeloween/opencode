@@ -52,6 +52,38 @@ SHARED_BINDINGS = (
     ("G9", "PATH_CLOSURE"),
 )
 
+# Exact host telemetry tail; the normative prefix still has to match every host.
+SHARED_SUFFIXES = {
+    ("product", "G7", "ASSERTION_STATUS"): (
+        "`marks:` in `<compaction-status>` counts them: the history reads for confidence, not only for content.",
+    ),
+}
+
+
+def shared_binding_gaps(registries) -> list[tuple[str, tuple[str, str]]]:
+    gaps = []
+    normalized = {}
+    for host in REGISTRIES:
+        lines = _lines(registries.get(host, ()))
+        for slot in SHARED_BINDINGS:
+            actual = lines.get(slot)
+            tail = SHARED_SUFFIXES.get((host, *slot), ())
+            if tail:
+                if actual is None or actual[-len(tail):] != tail:
+                    gaps.append((host, slot))
+                    continue
+                actual = actual[:-len(tail)]
+            normalized[(host, slot)] = actual
+            if actual is None:
+                gaps.append((host, slot))
+    for slot in SHARED_BINDINGS:
+        values = {value for (host, key), value in normalized.items()
+                  if key == slot and value is not None}
+        if len(values) > 1:
+            gaps.extend((host, slot) for host in REGISTRIES
+                        if (host, slot) not in gaps)
+    return gaps
+
 # (variant, gate, addon_id) -> why this host and no other carries it.
 DECLARED_DIFFERENCES = {
     ("product", "G9", "ARTIFACT_LANGUAGE"): "names the owner's language; the Claude variant shares this repo, the external Codex and Cursor hosts do not",
@@ -74,13 +106,35 @@ def _lines(addons) -> dict[tuple[str, str], tuple[str, ...]]:
 
 def test_shared_bindings_keep_one_spelling() -> None:
     """A host-agnostic binding retyped per host is a fork waiting to happen."""
-    cursor, codex = _lines(CURSOR_GATE_ADDONS), _lines(CODEX_GATE_ADDONS)
-    drifted = [
-        gate_addon
-        for gate_addon in SHARED_BINDINGS
-        if cursor[gate_addon] != codex[gate_addon]
-    ]
+    drifted = shared_binding_gaps(REGISTRIES)
     assert drifted == [], drifted
+
+
+@pytest.mark.parametrize("host", tuple(REGISTRIES))
+def test_shared_guard_rejects_each_host_drift_and_missing_slot(host) -> None:
+    from dataclasses import replace
+
+    slot = ("G1", "VCS_ROLES")
+    original = REGISTRIES[host]
+    mutated = tuple(replace(a, lines=("drift",)) if (a.gate_id, a.addon_id) == slot
+                    else a for a in original)
+    assert (host, slot) in shared_binding_gaps({**REGISTRIES, host: mutated})
+    missing = tuple(a for a in original if (a.gate_id, a.addon_id) != slot)
+    assert (host, slot) in shared_binding_gaps({**REGISTRIES, host: missing})
+    assert (host, slot) in shared_binding_gaps({**REGISTRIES, host: ()})
+
+
+def test_exact_telemetry_exemption_cannot_hide_normative_drift() -> None:
+    from dataclasses import replace
+
+    slot = ("G7", "ASSERTION_STATUS")
+    for host, gate, name in SHARED_SUFFIXES:
+        mutated = tuple(replace(a, lines=("drift", *a.lines[1:]))
+                        if (a.gate_id, a.addon_id) == slot else a
+                        for a in REGISTRIES[host])
+        assert (host, slot) in shared_binding_gaps({**REGISTRIES, host: mutated})
+        tail = SHARED_SUFFIXES[(host, gate, name)]
+        assert _lines(REGISTRIES[host])[(gate, name)][-len(tail):] == tail
 
 
 def test_cursor_rule_receiver_is_current() -> None:

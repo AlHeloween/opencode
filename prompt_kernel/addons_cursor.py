@@ -317,7 +317,7 @@ CURSOR_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G9",
         "PATH_CLOSURE",
         (
-            'a terminal always moves the plan and plans/ is never the destination: done -> plans_completed/, otherwise the folder this repo uses for excluded or paused work, naming the reason AND the signal that lifts it. Scan plans for stale refs.',
+            'the plan moves by its OUTCOME: SUCCESS -> plans_completed/; OUT_OF_SCOPE -> plans_deferred/; BLOCKED/WAITING_APPROVAL -> plans/postponed/ naming the reason AND the lift signal; plans/futures/ takes evolution candidates only, naming their CONDITION — never a terminated run. Undone task -> [~] + reason; scan plans for stale refs; use `git mv` in a commit that names the ground.',
             'behavior/paths changed -> update docs/ and repo index.',
             'deprecated -> obsolete/ (reference only).',
         ),

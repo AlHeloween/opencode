@@ -135,7 +135,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "PATH_PLANS",
         (
             "plans: plans/[ISO8601]_<description>.md; Smoke Tests before G4.",
-            "plan carries the intention: <!-- intention: from_state -> to_state --> rides planState through compact.",
+            "plan carries the intention: <!-- intention: from_state -> to_state --> rides compaction.",
         ),
     ),
     GateAddon(
@@ -216,7 +216,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "STYLE_AUTHORITY",
         (
             "style authority per language: Python PEP-8; JS/TS Google JS Style Guide + Prettier/ESLint; Go gofmt + Effective Go; C/C++ clang-format + Google C++ Style Guide; Rust rustfmt; Delphi Embarcadero Style Guide; MSVC MSDN; 8051 Intel MCS-51 (MIT 6.115). A repo formatter config is the executable form of its guide.",
-            "surface standards (GUI, TUI, ergonomics, project shape): docs/ui-standards.md — read before building or reviewing one.",
+            "surface standards (GUI, TUI, ergonomics, project shape) belong to the repo's own docs — read them before building or reviewing a surface.",
         ),
     ),
     GateAddon(
@@ -224,8 +224,8 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "SEARCH_OUTPUT_SHAPE",
         (
             "bound the ANSWER, not the search: a result that has to be truncated has not answered — return counts, or the top hits, or the ONE path:line that decides, never a wall of matched lines.",
-            "any path, name or file filter is part of the instrument: when it matches nothing, that is a claim about the FILTER until proven otherwise — re-run it with a control that MUST match, then report; without it the answer is a false absence.",
-            "a result capped by its own limit is a SAMPLE, not an inventory: never conclude «no more» or «absent» from one, and never fall back to shell directory enumeration — the host's own search tools are the fallback.",
+            "an `include`/path filter is part of the instrument: when it matches nothing, that is a claim about the FILTER until proven otherwise — re-run it with a control that MUST match, then report; without it the answer is a false absence.",
+            "`glob` is a locator, not an inventory: a capped listing is a sample, so never conclude «no more» or «absent» from one. Product tools only — shell `ls`/`dir`/`find` are not the fallback for a bad glob.",
         ),
     ),
     GateAddon(
@@ -287,7 +287,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G9",
         "PATH_CLOSURE",
         (
-            "the plan moves by the OUTCOME and plans/ is legal only while it owes work: SUCCESS -> plans_completed/, OUT_OF_SCOPE -> plans_deferred/, BLOCKED and WAITING_APPROVAL -> plans/postponed/ naming the reason AND the signal that lifts it; `git mv` in the commit that names the ground. Undone task -> [~] + reason. Scan plans for stale refs.",
+            "the plan moves by its OUTCOME: SUCCESS -> plans_completed/; OUT_OF_SCOPE -> plans_deferred/; BLOCKED/WAITING_APPROVAL -> plans/postponed/ naming the reason AND the lift signal; plans/futures/ takes evolution candidates only, naming their CONDITION — never a terminated run. Undone task -> [~] + reason; scan plans for stale refs; use `git mv` in a commit that names the ground.",
             "behavior/paths changed -> update docs/ and repo index.",
             "deprecated -> obsolete/ (reference only).",
         ),

@@ -1,5 +1,9 @@
 # Progress Log
 
+## [2026-10-12T10:48Z] kernel R1c — четыре registry под одним parity guard
+
+✓ CONFIRMED (retained RED104232/104353, corrected GREEN104520): shared spelling guard сравнивает byte-equivalent norms между всеми четырьмя hosts, не голосует о правильности текста. Мутация, удаление slot и empty registry каждого host обнаруживаются; exact product telemetry tail не исключает нормативный prefix.9PASS/exit0; build104522_5b8f4d62 finished/exit0, smoke10.0.1286, drops0/truncfalse. Source-only checkpoint; renderer receivers ещё не синхронизированы после source edits. Чужие current dirty memory/spine/messagesearch/tests исключены. R1d и mandatory plan evidence остаются открыты.
+
 ## [2026-10-12T10:42Z] kernel R1b — реальные кандидаты и полный bounded-stop path
 
 ✓ CONFIRMED (parent RED→GREEN): robot draft исходника проверен инструментом —49PASS/1 stale requirement fixture FAIL;3 дополнительных parent tests воспроизвели отсутствие полного stop path при acceptance=false, SUCCESS-as-non-success bypass и невалидную candidate payload. После ручного COUNT_GE (list/tuple only) и terminal whitelist53PASS/exit0, run103931_fcee1bb2. Protected fixture test_constitution superseded с provenanceK04: пяти реально существующим кандидатам соответствует positive, fake count соответствует negative. Build104002_5b687768 finished/exit0, smoke10.0.1285, drops0/truncfalse. OMP draft report claims не приняты:46 measured calls > reserve40; runtime ограничивал time, не calls. Root взял validation, не переносит unsupported DONE. CodeGraph parent binding получен до edits; omp сам его не вызвал, current catalog asset qualification gap остаётся R1d. Прежний bridge host умер до child claim; новый500, tool class recorded. Продолжение владельца «Продолжай» зафиксировано новым finite envelope, root org epoch2. R1c–A2 открыты.

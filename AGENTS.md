@@ -665,6 +665,7 @@ files and the SVM store, never here; the map only PRINTS them.
 - Active plans in `plans/` (repo root). Completed → `plans_completed/`.
 - **Never use `.opencode/plans/`.**
 - After implementation, audit `plans/*.md` — mark `[x]` if code confirms done.
+- **A plan's tasks are `- [ ]` boxes.** Measured 2026-10-12: three live plans with real open work carried their tasks as headings or tables, so `planstatus` saw **no box at all** — they were absent from `Active` and from the debt count entirely, and nothing could move them. It prints the count as `No checklist: N plan(s)`; keep it at zero. A plan you have just written and cannot see in `Active` is invisible, not finished.
 - **PRE_FLIGHT smoke gate:** plan must have `## Smoke Tests` (or `smoke: N/A`) before any edit.
 - Plan-to-code gaps are bugs.
 - Use `messagesearch` to verify task completion before implementing.

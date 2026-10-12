@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from .model import Kernel, SourceRoutingContract, SemanticVectorContract
+from .model import Kernel, SourceRoutingContract, SemanticVectorContract, StateMachine
 
 
 REFERENCE = re.compile(r"@([A-Z][A-Z0-9_]*)")
@@ -12,9 +12,32 @@ EXPECTED_SPINE = ("G0", "G1", "G2", "G3", "G4", "G6", "G7", "G8", "G9")
 EXPECTED_SV_DIGEST = ("md5", "prev-md5", "parent-goal-md5")
 EXPECTED_EVIDENCE_STATUSES = ("Guess", "Hypothetical", "Inferred", "Exact", "Unknown")
 
+# 2026-10-12 (K02): the declared deviation classes ride beside the spine only where named —
+# `side` for the concern path, a `forward` branch for the read/plan-only deliverable. Pinned
+# here so a new one is a deliberate act in the validator too, not just in test_architecture.
+DECLARED_SIDE_EDGES = (("G4", "G5"),)
+DECLARED_FORWARD_BRANCHES = (("G6", "G8"),)
+
 
 def _duplicates(values: list[str]) -> list[str]:
     return sorted({value for value in values if values.count(value) > 1})
+
+
+def _validate_fsm(owner: str, fsm: StateMachine | None, errors: list[str]) -> None:
+    """An FSM is only meaningful against its own declared states and its owner's name."""
+    if fsm is None:
+        return
+    if fsm.id != owner:
+        errors.append(f"FSM {fsm.id} id must match its owner {owner}")
+    if fsm.initial_state not in fsm.states:
+        errors.append(f"FSM {fsm.id} initial state {fsm.initial_state} is not among its declared states")
+    for state in fsm.accepting_states:
+        if state not in fsm.states:
+            errors.append(f"FSM {fsm.id} accepting state {state} is not among its declared states")
+    for transition in fsm.transitions:
+        for endpoint in (transition.from_state, transition.to_state):
+            if endpoint not in fsm.states:
+                errors.append(f"FSM {fsm.id} transition endpoint {endpoint} is not among its declared states")
 
 
 def validate_kernel(kernel: Kernel) -> list[str]:
@@ -26,6 +49,7 @@ def validate_kernel(kernel: Kernel) -> list[str]:
         errors.append(f"canonical spine must be {EXPECTED_SPINE}, got {kernel.spine}")
 
     known_nodes = set(gate_ids) | set(kernel.terminals)
+    terminal_ids = set(kernel.terminals)
     for edge in kernel.edges:
         if edge.source != "*" and edge.source not in known_nodes:
             errors.append(f"edge source is unknown: {edge.source}")
@@ -43,6 +67,18 @@ def validate_kernel(kernel: Kernel) -> list[str]:
         # map, so it is refused rather than ignored.
         if edge.kind == "interrupt" and (edge.source != "*" or edge.target != "G9"):
             errors.append(f"interrupt edge must be * -> G9: {edge.source} -> {edge.target}")
+
+        # 2026-10-12 (K02): the audit (experiments_history/2026-10-12_kernel-audit/) measured that
+        # `* -> G7`, `G0 -> G7` and `SUCCESS -> G7` were all accepted as `side` edges. The wildcard
+        # exists for exactly one interrupt (any active gate may be hit; G9 alone records partial
+        # state), a terminal is a run END that originates nothing, and `side` is the declared
+        # concern path — anything else here is a bypass wearing the map's clothes.
+        if edge.source == "*" and edge.kind != "interrupt":
+            errors.append(f"wildcard source is only lawful on the interrupt edge: {edge.source} -> {edge.target} ({edge.kind})")
+        if edge.source in terminal_ids:
+            errors.append(f"terminal {edge.source} must have no outgoing edges: {edge.source} -> {edge.target} ({edge.kind})")
+        if edge.kind == "side" and (edge.source, edge.target) not in DECLARED_SIDE_EDGES:
+            errors.append(f"undeclared side edge: {edge.source} -> {edge.target} (only the declared concern path G4 -> G5 may ride beside the spine)")
 
     # 2026-09-24: mutation starts at G7, so a terminal reached from G7 or G8 leaves a changed tree
     # with no CLOSURE_PROOF, no residual, no tool-state report and no next route. G9 is the only
@@ -62,6 +98,8 @@ def validate_kernel(kernel: Kernel) -> list[str]:
     for source, target in sorted(actual_forward - expected_forward):
         if source not in kernel.spine or target not in kernel.spine or kernel.spine.index(target) <= kernel.spine.index(source):
             errors.append(f"forward branch must move forward along the spine: {source} -> {target}")
+        if (source, target) not in DECLARED_FORWARD_BRANCHES:
+            errors.append(f"undeclared forward branch: {source} -> {target} (the only declared branch beside the spine is G6 -> G8, the read/plan-only deliverable)")
     if not any(edge.source == "G4" and edge.target == "G5" and edge.kind == "side" for edge in kernel.edges):
         errors.append("G5 concern path must be explicit side edge G4 -> G5")
     if not any(edge.source == "G5" and edge.target == "G2" and edge.kind == "back" for edge in kernel.edges):
@@ -147,6 +185,17 @@ def validate_kernel(kernel: Kernel) -> list[str]:
         for identity in gate.identities:
             if identity not in identities:
                 errors.append(f"gate {gate.id} references unknown identity {identity}")
+
+    # 2026-10-12 (K03): the audit (`undeclared-fsm-state`) measured that a gate FSM whose
+    # `initial_state` sat outside its own `states` validated clean and rendered byte-identically —
+    # invalid IR slipped the one gate that stands before render (cutover.py validates, then
+    # renders). The FSM is the gate's executable contract: its id must match its owner, and its
+    # initial, accepting and transition endpoints must be declared states. `fsm` stays optional —
+    # the model declares it so and the renderer never reads it.
+    for gate in kernel.gates:
+        _validate_fsm(gate.id, gate.fsm, errors)
+    for protocol in kernel.protocols:
+        _validate_fsm(protocol.id, protocol.fsm, errors)
 
     errors.extend(_validate_sv_contract(kernel.sv_contract))
     errors.extend(_validate_source_routing(kernel.source_routing))

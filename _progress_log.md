@@ -1,5 +1,13 @@
 # Progress Log
 
+## [2026-10-12T04:24Z] kernel R1a — validator topology/FSM guards
+
+✓ CONFIRMED (retained RED + parent oracle + полный build log): Smit в child6eeceb317c/session ses_ed1b4c028ffey71HMGdhGGm0gA добавил тесты до validator edit: 9 FAIL/2 PASS, run20261012T041415Z_44b06fff. Parent independently прочитал actual diff и новые fixtures; run20261012T041753Z_44b90e0a дал45 PASS/exit0. Build20261012T042145Z_994998da finished/exit0, smoke10.0.1282 и embedded prompt PASS, dropped0/truncatedfalse; Rust/Vite warnings сохранены. Guards запрещают wildcard вне interrupt, terminal outgoing, undeclared side/forward branches и malformed owner/initial/accepting/endpoint FSM. Source.py/addons/receivers не менялись. Explorer review сервис вернул out-of-credits; это не печать review, parent inspection записан отдельно. Native robot CodeGraph вернул пустой Python pack; parent mounted CodeGraph возвращает source, tool-adapter discrepancy остаётся R1d. План kernel-contract-repair-and-adid-release R1a заработан; R1b–A2 остаются открыты.
+
+
+## [2026-10-12T05:40Z] архивный пример wire-param gate падал: скелет не пережил архивацию
+
+✓ CONFIRMED (воспроизведение + повторные прогоны): «Падает пример» = `experiments_history/2026-10-12_glm-wire-param-gate/run-stub.cmd`: `stand/` и `config/` в архив не попадали, `cd /d %~dp0stand` падал, И СКРИПТ ШЁЛ ДАЛЬШЕ — opencode запускался в чужом cwd и умирал `NotFound: FileSystem.writeFile (…config\.gitignore)` (воспроизведено в одноразовом `experiments/…/repro`, в живые БД ничего не попало). Второй слой: репо-`.gitignore` прячет `opencode.jsonc` (стр.33) и `experiments_history/**/.opencode/` (стр.135) — копии скелета были невидимы git. Фикс `1d8de152c2`: скелеты `config/opencode.jsonc.skeleton` + `stand/gateway.jsonc.skeleton`, скрипт материализует их при запуске; оба скрипта HARD-STOP вместо молчаливого провала. Доказательства: повторный прогон из архива `20261012T053353Z_049d69a2` (exit0, PONG, пара 400→без поля, ряд `provider_fact`) и симуляция свежего клона (только закоммиченные файлы) `20261012T053510Z_a4b9ed8c` (exit0, PONG — материализация сработала). README обновлён (рецепт + доказательства + нота protocol pin).
 
 ## [2026-10-12T05:10Z] wire-param gate: GLM-5.3-Flash на opencode-go — отвергнутое поле больше не летит, ошибка учится один раз
 

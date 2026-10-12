@@ -39,7 +39,7 @@ ADID_Python — read-only для Codex; изменение/сборка/рели
 ## Задачи и smoke
 
 - [x] S0 — STABILIZE K01. ✓ CONFIRMED: baseline `20261012T035647Z_115e1035` 142 PASS/3 receiver FAIL; четыре install-команды и hash readback соответствуют renderer, production pin обновлён, rollback pointer сохранён. Parent suite `20261012T040338Z_b8877528` 145 PASS, exit0; `_build.ps1` `20261012T040415Z_b857b088` finished/exit0, candidate10.0.1281, drops0/truncatedfalse. Отдельный named checkpoint до R1. <!-- sv: receivers,baseline -->
-- [ ] R1a — K02/K03 validator: недопустимые рёбра и malformed FSM, `tests/test_validation_guards.py`; child reserve step=35/tool=45/loop=2/time=900000. Parent oracle — новый файл + test_architecture/test_constitution. <!-- sv: topology,validation -->
+- [x] R1a — K02/K03 validator. ✓ CONFIRMED: retained RED `logs/cmd_runner/20261012T041415Z_44b06fff` 9 FAIL/2 PASS; parent `20261012T041753Z_44b90e0a` 45 PASS/exit0; build `20261012T042145Z_994998da` exit0/candidate10.0.1282, drops0/truncatedfalse. Diff ограничен validate.py и новым test_validation_guards.py. Независимый explorer review не состоялся: сервис вернул out-of-credits; parent перечитал весь diff и реальные mutation fixtures. Runtime normative source/addons не менялись. <!-- sv: topology,validation -->
 - [ ] R1b — K04/K05 FSM: исчерпывающее малое пространство и lawful non-PASS closure; differential cases в `test_contract_repair.py`; reserve step=30/tool=40/loop=2/time=900000. <!-- sv: decomposition,bounded-closure -->
 - [ ] R1c — K06 parity: одно изменение slot проверяется во всех registry; oracle `test_variant_parity.py`; reserve step=15/tool=20/loop=1/time=300000. <!-- sv: host-parity -->
 - [ ] R1d — K07–K09 host bindings/explorer: capability table, refresh owner/evidence, graph-before-scanners; oracle addon tests + observed child tool parts; reserve step=35/tool=45/loop=2/time=900000. <!-- sv: host-bindings,codegraph -->
@@ -66,6 +66,6 @@ Robot не коммитит локальный opencode repair; Codex прове
 
 S0 после проверок коммитуется отдельным verified checkpoint до R1. Прочитанные tests импортируют реальный пакет через conftest, без mocks; source/transcript pins перечитываются после изменения.
 
-Pending: concrete robot task ids, source/receiver stamp, замороженный delivery root list и evidence. До A1/installer список берётся из configured ADID delivery source, фиксируется parent-ом с исключениями; ребёнок не выбирает собственный охват.
+Pending: source/receiver stamp и delivery evidence. ✓ CONFIRMED (BOM-aware config readback): delivery-roots.json фиксирует текущие 31 configured rows/30 unique roots; после действующего исключения OpenClaw — 30 rows/29 unique roots. Дубликат link-redirector сохраняет flags, installer не выбирает охват сам. Исторический registry содержит 2650 записей, включая test fixtures, и не подменяет configured delivery source.
 
 Организация: root task `4695566a9179750f9eae9bafdac01181e49aa5e6`, codex claim epoch1/lease7200s. R1a child `6eeceb317ccd4f8bf37e454d6c127730101aafb2`, session `ses_ed1b4c028ffey71HMGdhGGm0gA`; prompt ещё не отправлен до S0 commit. Bridge при каждом connect перепроверяет новый host nonce; root host сменился с55624 на59150, новая session создана один раз, дубля prompt нет.

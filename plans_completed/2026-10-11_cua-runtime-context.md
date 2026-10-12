@@ -34,6 +34,7 @@ sv: Keywords: runtime-context 0.40, cua-freshness 0.30, catalog-stability 0.20, 
   4. used capture (`captureAttempt === capture_id`) → «capture_id was already used for a click attempt».
 - **T4 — focus suites.** `test/session/tools.test.ts` (array callers keep working), `test/tool/cua.test.ts` (binder + observation guards intact).
 - **T5 — build.** `_build.ps1` via cmd_runner (absolute path), dist candidate only, state.json + full stdout log read.
+- [x] **Sweep 2026-10-12 — every task above is done.** The oracle T3 names was re-run TODAY: `20261012T023453Z_42197756`, exit 0, `1 pass / 0 fail / 5 expect() calls` (4.51 s, one file per invocation). T1/T2 by the fix landed 2026-10-11, T4/T5 by their own recorded runs (`20261011T153023Z_bdf517f3`, `20261011T153043Z_9ad1e51a`, `20261011T153248Z_5cc0cfaa`). Closed by the plan-hygiene sweep (SW of `plans/2026-10-10_plan-hygiene-in-build-mode.md`) and moved to `plans_completed/`.
 
 ## Predictions BEFORE runs (divergence is a forecast error, logged)
 

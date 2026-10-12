@@ -103,9 +103,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 220 |
+| plans completed | 221 |
 | plans active | 17 |
-| tasks passed / total | 902 / 1143 |
+| tasks passed / total | 903 / 1144 |
 | open boxes | 98 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
@@ -255,10 +255,6 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - M2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - SW [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-11_cua-runtime-context.md` — 0 open / 0 box(es) · lifecycle UNKNOWN
-  sv: intention "completed CUA capture cannot be consumed by a subsequent coordinate click within a tool loop -> verified current execution context for cached tools without changing provider catalog, permissions or capture safety" · keywords []
-  - no open box
-
 - `plans/2026-10-11_memory-orphan-parts.md` — 4 open / 4 box(es) · lifecycle ACTIVE
   sv: intention "the memory index only ever ADDS (rowid watermark, monotonic) and carries no liveness filter on the session -> parts of DELETED sessions stay in the index and in search results forever (18 903 parts + 4 310 messages left behind by the cmd_runner bug cleanup; 4 sampled deleted sessions each still carry 3 indexed parts) -> the index stops serving deleted content and stops growing on it." · keywords []
   - S1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -281,6 +277,6 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 ## The checks
 
-This body names all 21 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 20 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

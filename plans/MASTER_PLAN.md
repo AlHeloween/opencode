@@ -104,9 +104,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 220 |
-| plans active | 14 |
-| tasks passed / total | 900 / 1130 |
-| open boxes | 87 |
+| plans active | 17 |
+| tasks passed / total | 902 / 1143 |
+| open boxes | 98 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -259,8 +259,28 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   sv: intention "completed CUA capture cannot be consumed by a subsequent coordinate click within a tool loop -> verified current execution context for cached tools without changing provider catalog, permissions or capture safety" · keywords []
   - no open box
 
+- `plans/2026-10-11_memory-orphan-parts.md` — 4 open / 4 box(es) · lifecycle ACTIVE
+  sv: intention "the memory index only ever ADDS (rowid watermark, monotonic) and carries no liveness filter on the session -> parts of DELETED sessions stay in the index and in search results forever (18 903 parts + 4 310 messages left behind by the cmd_runner bug cleanup; 4 sampled deleted sessions each still carry 3 indexed parts) -> the index stops serving deleted content and stops growing on it." · keywords []
+  - S1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - S2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - S3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - S4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-11_sv-chain-and-scope.md` — 4 open / 5 box(es) · lifecycle ACTIVE
+  sv: intention "the semantic-vector chain is the only carrier that can rebuild a trajectory after a fold, but it is 8.5% dense, it is read by re-parsing prose, `session: "*"` silently returns nothing, and sessions can be mixed into one list -> the chain becomes readable, addressable and scope-correct: current session by default, `*`/`all` means the whole base, breaks counted inside a session." · keywords []
+  - S2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - S3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - S4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - S5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-12_specs-inventory-truth.md` — 3 open / 4 box(es) · lifecycle ACTIVE
+  sv: intention "the specs under packages/opencode/specs state live inventory in prose — file lists, call-site counts, feature flags — and that prose rots silently (measured 2026-10-12: facades.md names a makeRuntime composition that has since changed on BOTH sides, http-api.md still announces a gate flag that no longer exists in src) -> inventory that can rot is either replaced by the command that recomputes it or generated, while the rules and the work order — which do not rot — stay hand-written." · keywords []
+  - S2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - S3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - S4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+
 ## The checks
 
-This body names all 18 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 21 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

@@ -67,7 +67,9 @@ export const Parameters = Schema.Struct({
  * answer rather than a smaller one. Narrowing is the caller's choice.
  */
 export function resolveScope(scope: string | undefined, current: string): string | undefined {
-  if (scope === undefined || scope === "all") return undefined
+  // `*` is accepted as a spelling of "all": this tool already uses `*` as "every pattern"
+  // in its own permission ask (`:107-108`), so a caller who read that will try it here.
+  if (scope === undefined || scope === "all" || scope === "*") return undefined
   if (scope === "current") return current
   return scope
 }

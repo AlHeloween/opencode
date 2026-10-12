@@ -942,6 +942,41 @@ Owner, verbatim: «запуск _build.ps1 после тестов и измен
 - **Where the mass comes from (✓ measured 2026-10-03):** every test dir under `.temp\test\` carries its own
   `.opencode\node_modules` (24–26 MB, ~2.5 k files: zod, effect, @ai-sdk…) and is not removed when the test ends —
   1 731 dirs from one day ≈ 43 GB. The build only sweeps it; the leak is in the test harness and is open.
+- **Running the product is `_run.cmd` — open it before starting anything by hand** (owner, 2026-10-11, verbatim:
+  «Почему ты просто не следовал _run.cmd»). It sets `OPENCODE_TEST_CONFIG`/`OPENCODE_CONFIG_DIR` to `bin/`
+  and `OPENCODE_DB` to the worktree DB, then runs **`bun run --cwd packages/opencode --conditions=browser
+  src/index.ts <worktree>`** — the product executed from **SOURCE**, not from a built binary.
+- **Why this is the live oracle for a source change.** A change under `src/**` (a tool, a gate, a session
+  path) is verifiable LIVE by launching through `_run.cmd`, because that is a NEW process reading the
+  sources you just edited. «The live session does not see a tool change» describes the AGENT'S OWN session
+  only — its catalogue is frozen in its checkpoint and built from the executable — and it is **never** a
+  reason to declare a live verdict impossible. Division: `_build.ps1` stages a candidate into `dist/`;
+  `_run.cmd` runs what you just edited; promotion into `bin/` stays the owner's act.
+- **Measured 2026-10-11, the reason this rule exists:** a `messagesearch` scope fix was reported as having
+  «no live verdict possible in this session» while `_run.cmd` sat in the repo root, unread — the fix was
+  proven only by the source-loading test. The procedure existed; the agent invented its own and skipped the
+  live oracle. Same class as «scripts/ = reuse the procedure, never re-invent it».
+- **A source-run's PROJECT is its WORKING DIRECTORY — that is the whole mechanism (✓ measured 2026-10-12).**
+  `cd` into the directory that should be the project and run the entry file by ABSOLUTE path:
+  `SET OPENCODE_CONFIG_DIR=<repo>\bin` (provider auth), `cd /d <target>`, then
+  `bun run <repo>\packages\opencode\src\index.ts run "<prompt>" -m <model>`. Verified both ways the same day:
+  with `cd` into `experiments/2026-09-29_source-run/stand`, the run wrote THAT stand's `opencode.db` and its
+  own session, touching no other database.
+- **Two knobs that look like they set the project and DO NOT.** (a) `--cwd <repo>\packages\opencode` overrides
+  the shell's `cd`, so the worktree becomes `packages/opencode` — which means
+  `experiments/2026-09-29_source-run/run.cmd` does **not** isolate the way its own comment claims: it `cd`s into
+  the stand and then points `--cwd` at the package, and the run wrote there. Treat that runner as non-isolating
+  until fixed. (b) `OPENCODE_TEST_CONFIG` does not redirect the data dir (measured: a run with it set to the
+  stand left the stand's DB untouched), and neither does `OPENCODE_DB` — `getProjectDbPath` is hard-coded
+  (`{worktree}/.opencode/data/opencode.db`), recorded 2026-09-29.
+- **Garbage belongs in `experiments/` — never in a live DB.** Measured mistake 2026-10-11: a source-run with no
+  project set resolved to `packages/opencode` and wrote its throwaway sessions into THAT package's DB.
+- **Two traps that still bite (✓ measured):** an `opencode/*-free` model REFUSES from a source-run — «free tier
+  can only be used from within OpenCode» — while an **openrouter `:free`** model passes and costs nothing; and
+  the subcommand comes FIRST (`src/index.ts <project> run …` prints help instead of running).
+- **Overriding the model needs the CLI flag** (`run2.cmd` = `run.cmd` + `-m`): `bin/opencode.jsonc` pins a model
+  and `OPENCODE_CONFIG_DIR` is re-applied as highest priority (`config.ts:885`), so the flag is the only override
+  that wins.
 
 ---
 

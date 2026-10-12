@@ -18,6 +18,11 @@ test("scope defaults to the whole project and narrows only when asked", () => {
   // into a wrong answer rather than a smaller one.
   expect(resolveScope(undefined, "ses_current")).toBeUndefined()
   expect(resolveScope("all", "ses_current")).toBeUndefined()
+  // `*` already means "all" in this very tool — it is the permission pattern on every call
+  // (`messagesearch.ts:107-108`) — so it must mean "all" here too, instead of falling through
+  // to the explicit-id branch as `session_id = '*'` and returning nothing IN SILENCE (measured
+  // live 2026-10-11: same query, 5 hits without `session`, «No results found» with `session:"*"`).
+  expect(resolveScope("*", "ses_current")).toBeUndefined()
   expect(resolveScope("current", "ses_current")).toBe("ses_current")
   expect(resolveScope("ses_other", "ses_current")).toBe("ses_other")
 })

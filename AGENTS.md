@@ -95,7 +95,7 @@ constraints:
   that does NOT go away: the descriptor is authored after reading the code and asking codegraph what it
   touches — a verifiable mutation of the wrong thing is still the wrong thing.
 - No .opencode/plans/ — only plans/ and plans_completed/
-- **A plan hand-off is JOB FAILED** when any of these is true: a box its code has earned is still unconfirmed, the plan is still in `plans/` after its last item closed, or the plan's work has no commit that names it (owner, 2026-09-22) — details and rationale in § Plan Maintenance
+- **A plan hand-off is JOB FAILED** when any of these is true: a box its code has earned is still unconfirmed, the plan is still in `plans/` after its last item closed, the plan's work has no commit that names it (owner, 2026-09-22), or the plan is not named in `plans/MASTER_PLAN.md` (owner, 2026-10-12) — details and rationale in § Plan Maintenance
 - After plan changes, run explore agent to validate
 - Tests cannot run from repo root — run from package dirs
 - Avoid mocks in tests — test actual implementation
@@ -679,6 +679,7 @@ A unit of work is **JOB FAILED** — not "mostly done", not "code landed" — wh
 1. **No confirmed box.** The plan still carries `- [ ]` for work that is actually done, or `[x]` for work that is not. Both are the same lie in opposite directions, and both make the plan unreadable to the next cycle. A confirmed box means **the acceptance declared in the plan was run and passed** — never that the code "looks right".
 2. **The plan is still in `plans/`.** After the last open item closes, the file moves to `plans_completed/` **in the same change**. Tool: `reconcilePlans`. Known blindness: `collectPlans` is flat (no recursion), so a plan inside `plans/emergency/`, `plans/futures/` or any archive subdirectory is **invisible** to the mover and must be moved by hand — that is not an excuse, it is part of the job.
 3. **No commit for the plan.** One plan's work lands as one coherent commit (or a short series that names the plan), so plan and diff can be read together. Work spread over unrelated commits with no reference to the plan is indistinguishable from a lost job.
+4. **Not named in `plans/MASTER_PLAN.md`.** The map's body is generated FROM the plan files, so a plan the map does not name is an unfinished record — a note nobody picks up, not a plan. Run `svm render` in the same change that creates or renames one; `planstatus` prints the coverage line either way, so its silence can never be mistaken for its absence. Owner, 2026-10-12, verbatim: «если план висит в plans и это не часть мастера а просто недоделанная запись это по определению неверно».
 
 Owner, 2026-09-22, verbatim: «Отсутствие подтвержденной галки в плане, не перемещение в plans_completed или отсутствие общего коммита на план — считается **JOB FAILED**.»
 

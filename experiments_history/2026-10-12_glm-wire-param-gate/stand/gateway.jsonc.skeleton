@@ -1,0 +1,12 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "gateway": {
+    "enabled": true,
+    "logging": {
+      "enabled": true,
+      "format": "json",
+      "logBodies": true,
+      "perRequest": true
+    }
+  }
+}

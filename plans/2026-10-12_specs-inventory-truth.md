@@ -51,7 +51,7 @@ A frozen count in prose is a claim with no oracle: it was true on the day it was
       sweep is what S3 exists to enforce going forward.
 - [ ] **S2 — generate what must be visible.** Where a reader needs the current state at a glance (facade hotspots, instance-context callers, httpapi bridge coverage), add a `<!-- generated below -->` marker and a renderer that fills it, modelled on the existing pair: `util/plan-status.ts` + `svm render`. The renderer prints counts it computes from the tree and prints `MISSING` where it cannot compute — never a guess.
 - [ ] **S3 — a guard, not a caution.** A test in the shape of the existing `description-integrity` suite: a spec line that carries a number AND an inventory word (`call sites`, `files`, `matches`, `gates`) must either be inside the generated section or name a command. Otherwise it fails. This is what keeps S1 from being undone by the next helpful editor.
-- [ ] **S4 — say what was not audited.** `v2/keymappings.md` and `tui-plugins.md` get one pass: either they hold inventory (then S1 applies) or they do not (then say so in the file's first line, so the next reader does not re-audit them).
+- [x] **S4 — say what was not audited.** DONE 2026-10-12. `v2/keymappings.md` is a 10-line DESIGN NOTE (it proposes reshaping keybindings into `keymappings`; nothing in it is recomputed by a command), so its first line now says exactly that and its status is Unknown until someone checks the code. `tui-plugins.md` states BEHAVIOUR, not inventory: a grep over all 433 lines for counts and file lists (`[0-9]+ (files|routes|hooks|methods|plugins|entries|APIs|types)`) found none, so no de-numbering applies — its first line now records that check. Neither file needs re-auditing.
 
 ## 5. Smoke Tests
 

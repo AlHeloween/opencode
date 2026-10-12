@@ -1,5 +1,9 @@
 # Keybindings vs. Keymappings
 
+> **Not an inventory.** A design note: it proposes reshaping keybindings into `keymappings`, and does
+> not describe the system as it is. Nothing here is recomputed by a command, so nothing here can rot;
+> treat its status as Unknown until someone checks the code.
+
 Make it `keymappings`, closer to neovim. Can be layered like `<leader>abc`. Commands don't define their binding, but have an id that a key can be mapped to like
 
 ```ts

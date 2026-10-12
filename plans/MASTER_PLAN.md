@@ -87,6 +87,10 @@ file, it named this file third — «next as a **state router**, not as an imple
 reproduced the precedence rule, named S4 as the next action **with its oracle**, and then named the one thing
 missing: the handoff permitted «until that lands» without saying what would run it.
 
+## Проверка механических контрактов — 2026-10-12
+
+Стратегия доказанной непрерывности: [аудит кернела и host addons](2026-10-12_kernel-addons-correctness-audit.md) проверяет согласованность правил, инструментальных привязок и условий завершения. Анализ не устанавливает новый кернел; его выход — воспроизводимые дефекты и границы доказательства.
+
 ## Standing rules that outlive any plan
 
 - Instrument before claim: no `[x]` without a run id, a hash or a rehearsal log.
@@ -104,9 +108,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 221 |
-| plans active | 20 |
-| tasks passed / total | 906 / 1158 |
-| open boxes | 109 |
+| plans active | 18 |
+| tasks passed / total | 907 / 1149 |
+| open boxes | 99 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -114,20 +118,13 @@ Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
 Every plan under `plans/`, with every vector READ from its own source. `MISSING` means the source has none — it is never filled in here, and the source wins over anything printed below.
 
-- `plans/2026-09-12_anthropic-cache-breakpoints.md` — 5 open / 5 box(es) · lifecycle DRAFT
+- `plans/2026-09-12_anthropic-cache-breakpoints.md` — 0 open / 0 box(es) · lifecycle DRAFT
   sv: MISSING — the plan states no `<!-- intention: … -->` header, so nothing says what it is for
-  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - no open box
 
-- `plans/2026-09-19_database-truth.md` — 4 open / 4 box(es) · lifecycle UNKNOWN
+- `plans/2026-09-19_database-truth.md` — 0 open / 0 box(es) · lifecycle UNKNOWN
   sv: intention "tables and counters nobody writes produce mechanisms that never fire while every suite stays green -> every table has a named writer, every dead surface is removed, and any counter is checked against the live database" · keywords []
-  - TASK-1 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - TASK-4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - no open box
 
 - `plans/2026-09-21_mstar-order-and-summary-restore.md` — 6 open / 24 box(es) · lifecycle ACTIVE
   sv: intention "m* и summary деградировали (порядок блоков неверен, summary стал дампом патчей, память стала пачкой записок) -> вернуть порядок владельца и вернуть summary к намерениям с планами" · keywords []
@@ -277,11 +274,10 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - S4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - S5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-12_specs-inventory-truth.md` — 3 open / 4 box(es) · lifecycle ACTIVE
+- `plans/2026-10-12_specs-inventory-truth.md` — 2 open / 4 box(es) · lifecycle ACTIVE
   sv: intention "the specs under packages/opencode/specs state live inventory in prose — file lists, call-site counts, feature flags — and that prose rots silently (measured 2026-10-12: facades.md names a makeRuntime composition that has since changed on BOTH sides, http-api.md still announces a gate flag that no longer exists in src) -> inventory that can rot is either replaced by the command that recomputes it or generated, while the rules and the work order — which do not rot — stay hand-written." · keywords []
   - S2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - S3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - S4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 ## The checks
 

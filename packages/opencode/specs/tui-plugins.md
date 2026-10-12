@@ -1,6 +1,6 @@
 # TUI plugins
 
-Technical reference for the current TUI plugin system.
+Technical reference for the current TUI plugin system. It states BEHAVIOUR, not inventory: a grep for counts and file lists over all 433 lines finds none (checked 2026-10-12), so it needs no de-numbering pass — unlike the `effect/` specs.
 
 ## Overview
 

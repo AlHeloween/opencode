@@ -111,7 +111,7 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 223 |
+| plans completed | 224 |
 | plans active | 18 |
 | tasks passed / total | 929 / 1171 |
 | open boxes | 99 |
@@ -271,10 +271,6 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - S3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - S4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-11_sv-chain-and-scope.md` — 0 open / 5 box(es) · lifecycle COMPLETE
-  sv: intention "the semantic-vector chain is the only carrier that can rebuild a trajectory after a fold, but it is 8.5% dense, it is read by re-parsing prose, `session: "*"` silently returns nothing, and sessions can be mixed into one list -> the chain becomes readable, addressable and scope-correct: current session by default, `*`/`all` means the whole base, breaks counted inside a session." · keywords []
-  - no open box
-
 - `plans/2026-10-12_kernel-contract-repair-and-adid-release.md` — 5 open / 9 box(es) · lifecycle ACTIVE
   sv: intention "K01-K10 expose divergent receivers, incomplete guards and unbound grounding/closure contracts -> kernel and host addons are repaired under regression oracles, then the ADID_Python resident updates its canonical bundle, releases and installs it with independent per-receiver verification" · keywords [kernel-contracts, host-bindings, delegation, release-verification]
   - TASK-5 [PENDING] · sv [host-bindings, codegraph] · manifest: MISSING — nobody has written down what this box is
@@ -289,6 +285,6 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
 
 ## The checks
 
-This body names all 21 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 20 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

@@ -20,6 +20,7 @@
  */
 import type { Provider } from "@/provider/provider"
 import * as Log from "@opencode-ai/core/util/log"
+import { LearnedFacts } from "@/provider/learned-facts"
 
 const log = Log.create({ service: "token-calibration" })
 
@@ -43,6 +44,9 @@ export function update(model: Provider.Model, info: { contextLimit?: number }): 
 
   if (info.contextLimit) {
     existing.observedLimit = info.contextLimit
+    // Durable twin: the same observation survives restarts (provider_fact table) —
+    // the space-bunny class of hand-added limits becomes a learned fact.
+    LearnedFacts.recordContextLimit(model.providerID, model.id, info.contextLimit)
     log.info("observed context limit from provider", {
       model: model.id,
       providerLimit: info.contextLimit,
@@ -56,7 +60,9 @@ export function update(model: Provider.Model, info: { contextLimit?: number }): 
 
 /** Get the observed context limit from a previous provider error. */
 export function getObservedLimit(model: Provider.Model): number | undefined {
-  return corrections.get(modelKey(model))?.observedLimit
+  return (
+    corrections.get(modelKey(model))?.observedLimit ?? LearnedFacts.loadFacts(model.providerID, model.id).contextLimit
+  )
 }
 
 export * as TokenCalibration from "./token-calibration"

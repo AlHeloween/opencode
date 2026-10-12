@@ -96,6 +96,28 @@ export function extractTokenLimits(message: string): {
   return { contextLimit, inputTokens }
 }
 
+/**
+ * The provider's own rejection names the field it refuses — the body-schema descent
+ * signal. Measured 2026-10-12 (zen/go): `[unknown_parameter] invalid request body:
+ * json: unknown field "repetition_penalty"`. Only identifier-shaped names are accepted;
+ * fields the transport ITSELF requires can never be learned away.
+ */
+const UNKNOWN_FIELD_PATTERNS = [
+  // A raw responseBody carries the quotes JSON-escaped (backslash-quote); the
+  // SDK-extracted message carries them plain — match both.
+  /unknown field \\?"([A-Za-z0-9_.-]+)\\?"/,
+  /unknown parameter[": ]+([A-Za-z0-9_.-]+)/i,
+]
+const PROTECTED_BODY_FIELDS = new Set(["model", "messages", "stream", "tools", "tool_choice"])
+
+export function unknownFieldIn(text: string): string | undefined {
+  for (const pattern of UNKNOWN_FIELD_PATTERNS) {
+    const m = text.match(pattern)
+    if (m?.[1] && !PROTECTED_BODY_FIELDS.has(m[1])) return m[1]
+  }
+  return undefined
+}
+
 function message(providerID: ProviderID, e: APICallError) {
   return iife(() => {
     const msg = e.message
@@ -250,6 +272,14 @@ export type ParsedAPICallError =
       responseBody?: string
     }
   | {
+      type: "unknown_parameter"
+      message: string
+      /** The exact body field the provider named. */
+      field: string
+      statusCode?: number
+      responseBody?: string
+    }
+  | {
       type: "api_error"
       message: string
       statusCode?: number
@@ -267,6 +297,20 @@ export function parseAPICallError(input: { providerID: ProviderID; error: APICal
       type: "context_overflow",
       message: m,
       responseBody: input.error.responseBody,
+    }
+  }
+  // Body-schema descent: a 4xx that names an unknown field is the provider stating a
+  // fact about its accepted body — recorded once (message-v2), retried once.
+  if (input.error.statusCode && input.error.statusCode >= 400 && input.error.statusCode < 500) {
+    const field = unknownFieldIn(`${m}\n${input.error.responseBody ?? ""}`)
+    if (field) {
+      return {
+        type: "unknown_parameter",
+        message: m,
+        field,
+        statusCode: input.error.statusCode,
+        responseBody: input.error.responseBody,
+      }
     }
   }
 

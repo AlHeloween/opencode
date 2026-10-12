@@ -638,6 +638,7 @@ export const layer: Layer.Layer<
       const parse = (e: unknown) =>
         MessageV2.fromError(e, {
           providerID: input.model.providerID,
+          modelID: input.model.id,
           aborted,
         })
 

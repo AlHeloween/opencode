@@ -4,6 +4,7 @@ import * as Log from "@opencode-ai/core/util/log"
 import type { JSONSchema7 } from "@ai-sdk/provider"
 import type { JSONSchema } from "zod/v4/core"
 import type * as Provider from "./provider"
+import { WireParams } from "./wire-params"
 import { iife } from "@/util/iife"
 import { partCount, reportCut } from "@/session/conservation"
 import { Flag } from "@opencode-ai/core/flag/flag"
@@ -1342,11 +1343,16 @@ export function providerOptions(model: Provider.Model, options: { [x: string]: a
     model.api.npm === "@ai-sdk/openai" ||
     model.api.npm === "@ai-sdk/azure" ||
     model.api.npm === "@ai-sdk/amazon-bedrock/mantle"
-  const normalized =
+  // Wire gate: a field the model's upstream rejects never survives packaging,
+  // whatever merged it (model-wide sampling, agent options, variant, plugin) —
+  // the descent rung is recorded in wire-params.ts, not probed per request.
+  const normalized = WireParams.stripUnsupportedWireParams(
+    model,
     usesOpenAIReasoningGate &&
-    (model.capabilities.reasoning || options.reasoningEffort !== undefined || options.reasoningSummary !== undefined)
+      (model.capabilities.reasoning || options.reasoningEffort !== undefined || options.reasoningSummary !== undefined)
       ? { ...options, forceReasoning: true }
-      : options
+      : options,
+  )
 
   if (model.api.npm === "@ai-sdk/gateway") {
     // Gateway providerOptions are split across two namespaces:

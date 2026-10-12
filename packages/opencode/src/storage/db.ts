@@ -302,6 +302,18 @@ CREATE TABLE IF NOT EXISTS "provider_file" (
 CREATE INDEX IF NOT EXISTS "provider_file_session_idx" ON "provider_file" ("session_id");
 CREATE INDEX IF NOT EXISTS "provider_file_expiry_idx" ON "provider_file" ("expires_at");
 
+-- Per-model provider facts taught by the provider's own answers: wire params its
+-- upstream rejects, the true context limit it states in overflow errors. Recorded
+-- once at the rejection (never hand-coded), read as a plain lookup.
+CREATE TABLE IF NOT EXISTS "provider_fact" (
+  id text PRIMARY KEY NOT NULL,
+  provider_id text NOT NULL,
+  model_id text NOT NULL,
+  data text NOT NULL,
+  time_created integer NOT NULL,
+  time_updated integer NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS "server_host" (
   id text PRIMARY KEY NOT NULL,
   url text NOT NULL,

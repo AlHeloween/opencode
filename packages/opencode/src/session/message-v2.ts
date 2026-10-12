@@ -22,6 +22,7 @@ import { or } from "drizzle-orm"
 import { sql } from "drizzle-orm"
 import { MessageTable, PartTable, SessionTable } from "./session.sql"
 import * as ProviderError from "@/provider/error"
+import { LearnedFacts } from "@/provider/learned-facts"
 import { registry } from "@/attachment/registry"
 import { fromMime as classifyKind } from "@/attachment/kind"
 import { iife } from "@/util/iife"
@@ -1975,7 +1976,7 @@ export const filterCompactedEffect = Effect.fnUntraced(function* (sessionID: Ses
 
 export function fromError(
   e: unknown,
-  ctx: { providerID: ProviderID; aborted?: boolean },
+  ctx: { providerID: ProviderID; modelID?: string; aborted?: boolean },
 ): NonNullable<Assistant["error"]> {
   switch (true) {
     case e instanceof DOMException && e.name === "AbortError":
@@ -2084,6 +2085,25 @@ export function fromError(
           {
             message: parsed.message,
             responseBody: parsed.responseBody,
+          },
+          { cause: e },
+        ).toObject()
+      }
+      if (parsed.type === "unknown_parameter") {
+        // The provider named a body field it refuses. Record it ONCE — only a NEW,
+        // persisted fact earns a retry, so a repeat rejection cannot loop — then let
+        // the retry spine re-issue; packaging strips the field from the next attempt
+        // (`ProviderTransform.providerOptions` → wire-params.ts seed ∪ learned).
+        const learnedNow = ctx.modelID
+          ? LearnedFacts.recordUnsupportedParam(ctx.providerID, ctx.modelID, parsed.field)
+          : false
+        return new APIError(
+          {
+            message: parsed.message,
+            statusCode: parsed.statusCode,
+            isRetryable: learnedNow,
+            responseBody: parsed.responseBody,
+            metadata: { unknownParam: parsed.field, learned: String(learnedNow) },
           },
           { cause: e },
         ).toObject()

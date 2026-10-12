@@ -1,0 +1,218 @@
+[release] repo=D:\zPython\ADID_Python\
+[release] ts=20261012T202808Z
+[release] scripts/release.py ...
+[OK] Delphi installer config is JSON-only (no INI references found).
+395 INFO: PyInstaller: 6.20.0, contrib hooks: 2026.5
+396 INFO: Python: 3.13.13
+450 INFO: Platform: Windows-11-10.0.26100-SP0
+450 INFO: Python environment: D:\USESoft\Python313
+450 INFO: wrote D:\zPython\ADID_Python\adm.spec
+464 INFO: Removing temporary files and cleaning cache in C:\Users\Alexander\AppData\Local\pyinstaller
+470 INFO: Module search paths (PYTHONPATH):
+['D:\\zPython\\ADID_Python',
+ 'D:\\zPython\\ADID_Python\\src',
+ 'D:\\zPython\\ADID_Python',
+ 'D:\\USESoft\\Python313\\python313.zip',
+ 'D:\\USESoft\\Python313\\DLLs',
+ 'D:\\USESoft\\Python313\\Lib',
+ 'D:\\USESoft\\Python313',
+ 'D:\\USESoft\\Python313\\Lib\\site-packages',
+ 'D:\\zPython\\Aurora_Python\\src',
+ 'D:\\zPython\\_chemistry\\src',
+ '__editable__.deepseek_vl2-1.0.0.finder.__path_hook__',
+ 'D:\\zPython\\site_link\\src',
+ 'D:\\USESoft\\Python313\\Lib\\site-packages\\win32',
+ 'D:\\USESoft\\Python313\\Lib\\site-packages\\win32\\lib',
+ 'D:\\USESoft\\Python313\\Lib\\site-packages\\pythonwin',
+ 'D:\\zPython\\ADID_Python\\scripts\\internal',
+ 'D:\\zPython\\ADID_Python\\src']
+1628 INFO: Appending 'datas' from .spec
+1630 INFO: checking Analysis
+1631 INFO: Building Analysis because Analysis-00.toc is non existent
+1631 INFO: Looking for Python shared library...
+1631 INFO: Using Python shared library: D:\USESoft\Python313\python313.dll
+1631 INFO: Running Analysis Analysis-00.toc
+1631 INFO: Target bytecode optimization level: 0
+1631 INFO: Initializing module dependency graph...
+1633 INFO: Initializing module graph hook caches...
+1670 INFO: Analyzing modules for base_library.zip ...
+4114 INFO: Processing standard module hook 'hook-encodings.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+6846 INFO: Processing standard module hook 'hook-pickle.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+8174 INFO: Processing standard module hook 'hook-heapq.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+8989 INFO: Caching module dependency graph...
+9055 INFO: Analyzing D:\zPython\ADID_Python\scripts\internal\adm_entry.py
+9183 INFO: Processing standard module hook 'hook-difflib.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+9377 INFO: Processing standard module hook 'hook-xml.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+9410 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+9512 INFO: Processing standard module hook 'hook-sysconfig.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+9521 INFO: Processing standard module hook 'hook-_ctypes.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+9695 INFO: Processing standard module hook 'hook-keyring.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+10395 INFO: Processing pre-safe-import-module hook 'hook-jaraco.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+10397 INFO: SetuptoolsInfo: initializing cached setuptools info...
+11061 INFO: Setuptools: 'jaraco' appears to be a partial setuptools-vendored copy - extending search paths to ['D:\\USESoft\\Python313\\Lib\\site-packages\\jaraco', 'D:\\USESoft\\Python313\\Lib\\site-packages\\setuptools\\_vendor\\jaraco']!
+11063 INFO: Processing pre-safe-import-module hook 'hook-jaraco.context.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+11131 INFO: Processing standard module hook 'hook-platform.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+11617 INFO: Processing pre-safe-import-module hook 'hook-backports.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+11618 INFO: Setuptools: 'backports' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.backports'!
+11627 INFO: Processing standard module hook 'hook-setuptools.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+11646 INFO: Processing pre-safe-import-module hook 'hook-distutils.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+11713 INFO: Processing pre-safe-import-module hook 'hook-jaraco.functools.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+11731 INFO: Processing pre-safe-import-module hook 'hook-more_itertools.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+11973 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+12416 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+13725 INFO: Processing pre-safe-import-module hook 'hook-packaging.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+13961 INFO: Processing pre-safe-import-module hook 'hook-jaraco.text.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+13961 INFO: Setuptools: 'jaraco.text' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.jaraco.text'!
+13981 INFO: Processing standard module hook 'hook-setuptools._vendor.jaraco.text.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+13983 INFO: Processing pre-safe-import-module hook 'hook-importlib_resources.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+14115 INFO: Processing pre-safe-import-module hook 'hook-importlib_metadata.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+14163 INFO: Processing standard module hook 'hook-importlib_metadata.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+14202 INFO: Processing pre-safe-import-module hook 'hook-zipp.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+14511 INFO: Processing pre-safe-import-module hook 'hook-tomli.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+14511 INFO: Setuptools: 'tomli' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.tomli'!
+15381 INFO: Processing pre-safe-import-module hook 'hook-wheel.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+16279 INFO: Analyzing hidden import 'adm.resources'
+16280 INFO: Processing module hooks (post-graph stage)...
+16329 INFO: Processing standard module hook 'hook-win32ctypes.core.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+17564 INFO: Processing standard module hook 'hook-pycparser.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+21473 INFO: Processing standard module hook 'hook-pywintypes.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+21652 INFO: Processing pre-safe-import-module hook 'hook-gi.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+21889 WARNING: Hidden import "pycparser.lextab" not found!
+21890 WARNING: Hidden import "pycparser.yacctab" not found!
+21897 INFO: Performing binary vs. data reclassification (20 entries)
+21905 INFO: Looking for ctypes DLLs
+21999 INFO: Analyzing run-time hooks ...
+22002 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+22008 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+22014 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+22017 INFO: Including run-time hook 'pyi_rth_pywintypes.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+22018 INFO: Including run-time hook 'pyi_rth_setuptools.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+22036 INFO: Creating base_library.zip...
+22071 INFO: Looking for dynamic libraries
+22845 INFO: Extra DLL search directories (AddDllDirectory): []
+22845 INFO: Extra DLL search directories (PATH): []
+23839 INFO: Warnings written to D:\zPython\ADID_Python\build\adm\warn-adm.txt
+23919 INFO: Graph cross-reference written to D:\zPython\ADID_Python\build\adm\xref-adm.html
+23959 INFO: checking PYZ
+23959 INFO: Building PYZ because PYZ-00.toc is non existent
+23959 INFO: Building PYZ (ZlibArchive) D:\zPython\ADID_Python\build\adm\PYZ-00.pyz
+24769 INFO: Building PYZ (ZlibArchive) D:\zPython\ADID_Python\build\adm\PYZ-00.pyz completed successfully.
+24794 INFO: checking PKG
+24795 INFO: Building PKG because PKG-00.toc is non existent
+24795 INFO: Building PKG (CArchive) adm.pkg
+35970 INFO: Building PKG (CArchive) adm.pkg completed successfully.
+35977 INFO: Bootloader D:\USESoft\Python313\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\run.exe
+35977 INFO: checking EXE
+35977 INFO: Building EXE because EXE-00.toc is non existent
+35977 INFO: Building EXE from EXE-00.toc
+35977 INFO: Copying bootloader EXE to D:\zPython\ADID_Python\dist\adm.exe
+35985 INFO: Copying icon to EXE
+35992 INFO: Copying 0 resources to EXE
+35992 INFO: Embedding manifest in EXE
+35996 INFO: Appending PKG archive to EXE
+36015 INFO: Fixing EXE headers
+36214 INFO: Building EXE from EXE-00.toc completed successfully.
+36217 INFO: Build complete! The results are available in: D:\zPython\ADID_Python\dist
+[BUILD] Running: D:\USESoft\Python313\python.exe -m PyInstaller --onefile --clean -n adm --paths=D:\zPython\ADID_Python\src --hidden-import adm.resources --hidden-import tree_sitter --hidden-import tree_sitter_language_pack --hidden-import colorama --add-data D:\zPython\ADID_Python\src\adm\resources;adm/resources D:\zPython\ADID_Python\scripts\internal\adm_entry.py --hidden-import xml.parsers.expat --hidden-import pyexpat --hidden-import _elementtree --exclude-module torch --exclude-module torchvision --exclude-module torchaudio --exclude-module sentence_transformers --exclude-module transformers --exclude-module scipy --exclude-module sklearn --exclude-module pandas --exclude-module onnxruntime --exclude-module pypdfium2_raw
+[BUILD] Wrote D:\zPython\ADID_Python\dist\adm.exe
+[BUILD] Updated D:\zPython\ADID_Python\tools\adm.exe
+216 INFO: PyInstaller: 6.20.0, contrib hooks: 2026.5
+217 INFO: Python: 3.13.13
+258 INFO: Platform: Windows-11-10.0.26100-SP0
+258 INFO: Python environment: D:\USESoft\Python313
+258 INFO: wrote D:\zPython\ADID_Python\adm-rag.spec
+264 INFO: Removing temporary files and cleaning cache in C:\Users\Alexander\AppData\Local\pyinstaller
+886 INFO: Module search paths (PYTHONPATH):
+['D:\\zPython\\ADID_Python',
+ 'D:\\zPython\\ADID_Python\\src',
+ 'D:\\zPython\\ADID_Python',
+ 'D:\\USESoft\\Python313\\python313.zip',
+ 'D:\\USESoft\\Python313\\DLLs',
+ 'D:\\USESoft\\Python313\\Lib',
+ 'D:\\USESoft\\Python313',
+ 'D:\\USESoft\\Python313\\Lib\\site-packages',
+ 'D:\\zPython\\Aurora_Python\\src',
+ 'D:\\zPython\\_chemistry\\src',
+ '__editable__.deepseek_vl2-1.0.0.finder.__path_hook__',
+ 'D:\\zPython\\site_link\\src',
+ 'D:\\USESoft\\Python313\\Lib\\site-packages\\win32',
+ 'D:\\USESoft\\Python313\\Lib\\site-packages\\win32\\lib',
+ 'D:\\USESoft\\Python313\\Lib\\site-packages\\pythonwin',
+ 'D:\\zPython\\ADID_Python\\scripts\\internal',
+ 'D:\\zPython\\ADID_Python\\src']
+1562 INFO: Appending 'datas' from .spec
+1563 INFO: checking Analysis
+1563 INFO: Building Analysis because Analysis-00.toc is non existent
+1563 INFO: Looking for Python shared library...
+1563 INFO: Using Python shared library: D:\USESoft\Python313\python313.dll
+1563 INFO: Running Analysis Analysis-00.toc
+1563 INFO: Target bytecode optimization level: 0
+1564 INFO: Initializing module dependency graph...
+1566 INFO: Initializing module graph hook caches...
+1588 INFO: Analyzing modules for base_library.zip ...
+3700 INFO: Processing standard module hook 'hook-encodings.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+6675 INFO: Processing standard module hook 'hook-pickle.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+8147 INFO: Processing standard module hook 'hook-heapq.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+8977 INFO: Caching module dependency graph...
+9049 INFO: Analyzing D:\zPython\ADID_Python\scripts\internal\adm_rag_entry.py
+9188 INFO: Processing standard module hook 'hook-difflib.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+9397 INFO: Processing standard module hook 'hook-xml.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+9431 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+9547 INFO: Processing standard module hook 'hook-sysconfig.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+9553 INFO: Processing standard module hook 'hook-_ctypes.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+9742 INFO: Processing standard module hook 'hook-keyring.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+10618 INFO: Processing pre-safe-import-module hook 'hook-jaraco.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+10619 INFO: SetuptoolsInfo: initializing cached setuptools info...
+11300 INFO: Setuptools: 'jaraco' appears to be a partial setuptools-vendored copy - extending search paths to ['D:\\USESoft\\Python313\\Lib\\site-packages\\jaraco', 'D:\\USESoft\\Python313\\Lib\\site-packages\\setuptools\\_vendor\\jaraco']!
+11301 INFO: Processing pre-safe-import-module hook 'hook-jaraco.context.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+11367 INFO: Processing standard module hook 'hook-platform.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+11883 INFO: Processing pre-safe-import-module hook 'hook-backports.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+11883 INFO: Setuptools: 'backports' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.backports'!
+11895 INFO: Processing standard module hook 'hook-setuptools.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+11918 INFO: Processing pre-safe-import-module hook 'hook-distutils.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+11988 INFO: Processing pre-safe-import-module hook 'hook-jaraco.functools.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+12002 INFO: Processing pre-safe-import-module hook 'hook-more_itertools.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+12257 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+12692 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+14012 INFO: Processing pre-safe-import-module hook 'hook-packaging.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+14234 INFO: Processing pre-safe-import-module hook 'hook-jaraco.text.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+14234 INFO: Setuptools: 'jaraco.text' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.jaraco.text'!
+14249 INFO: Processing standard module hook 'hook-setuptools._vendor.jaraco.text.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+14251 INFO: Processing pre-safe-import-module hook 'hook-importlib_resources.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+14368 INFO: Processing pre-safe-import-module hook 'hook-importlib_metadata.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+14413 INFO: Processing standard module hook 'hook-importlib_metadata.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+14449 INFO: Processing pre-safe-import-module hook 'hook-zipp.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+14731 INFO: Processing pre-safe-import-module hook 'hook-tomli.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+14731 INFO: Setuptools: 'tomli' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.tomli'!
+15484 INFO: Processing pre-safe-import-module hook 'hook-wheel.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+16257 INFO: Analyzing hidden import 'adm.resources'
+16258 INFO: Analyzing hidden import 'adm.mcp_common'
+16279 INFO: Analyzing hidden import 'adm.mcp_guardrails'
+16291 INFO: Analyzing hidden import 'adm.mcp_http_server'
+16389 INFO: Analyzing hidden import 'adm.manager_methods._rag_delete'
+16394 INFO: Analyzing hidden import 'adm.manager_methods._rag_docs'
+16459 INFO: Processing standard module hook 'hook-sqlite3.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+16840 INFO: Analyzing hidden import 'adm.manager_methods._rag_index'
+16950 INFO: Analyzing hidden import 'adm.manager_methods._rag_list'
+16954 INFO: Analyzing hidden import 'adm.manager_methods._rag_query'
+16967 INFO: Analyzing hidden import 'adm.manager_methods._rag_settings'
+16971 INFO: Analyzing hidden import 'adm.manager_methods._rag_status'
+16973 INFO: Analyzing hidden import 'adm.rag.content_classifier'
+16981 INFO: Analyzing hidden import 'adm.rag.se3_trainer'
+17020 INFO: Processing module hooks (post-graph stage)...
+17060 INFO: Processing standard module hook 'hook-win32ctypes.core.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+18116 INFO: Processing standard module hook 'hook-pycparser.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+20633 INFO: Processing standard module hook 'hook-pywintypes.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+20742 INFO: Processing pre-safe-import-module hook 'hook-gi.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+20938 WARNING: Hidden import "pycparser.lextab" not found!
+20938 WARNING: Hidden import "pycparser.yacctab" not found!
+20946 INFO: Performing binary vs. data reclassification (20 entries)
+20950 INFO: Looking for ctypes DLLs
+21032 INFO: Analyzing run-time hooks ...
+21035 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+21039 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+21042 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+21045 INFO: Including run-time hook 'pyi_rth_pywintypes.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+21046 INFO: Including run-time hook 'pyi_rth_setuptools.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+21058 INFO: Creating base_library.zip...
+21085 INFO: Looking for dynamic libraries

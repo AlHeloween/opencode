@@ -1,0 +1,89 @@
+{
+  "captured": "2026-10-12T12:37:33.617Z",
+  "pins": [
+    {
+      "path": "D:/zPython/opencode/prompt_kernel/source.py",
+      "expected": "a9ec70c21fc8ace81814f212aadbccd1572c6bfe01bfe11bc7153c60d48f7541",
+      "actual": "a9ec70c21fc8ace81814f212aadbccd1572c6bfe01bfe11bc7153c60d48f7541"
+    },
+    {
+      "path": "D:/zPython/opencode/prompt_kernel/model.py",
+      "expected": "15ad2add2403932ce5dbd2b52a9c68c0ddb291604841a8a8ebfc4c276afa76de",
+      "actual": "15ad2add2403932ce5dbd2b52a9c68c0ddb291604841a8a8ebfc4c276afa76de"
+    },
+    {
+      "path": "D:/zPython/opencode/prompt_kernel/evidence.py",
+      "expected": "0048fc500236dae993800c5093d015a476422e63e18c608bf9c82949b92061ad",
+      "actual": "0048fc500236dae993800c5093d015a476422e63e18c608bf9c82949b92061ad"
+    },
+    {
+      "path": "D:/zPython/opencode/prompt_kernel/validate.py",
+      "expected": "150a41d4a0d6b08f1e291cc555ee4eb631ab0c21969d3876148193b90cedd8cd",
+      "actual": "150a41d4a0d6b08f1e291cc555ee4eb631ab0c21969d3876148193b90cedd8cd"
+    },
+    {
+      "path": "D:/zPython/opencode/prompt_kernel/addons.py",
+      "expected": "3a5e6cf324efe2bb02cfe24d6ff60cda76cf7959adb1596aa1c88e27659494c1",
+      "actual": "3a5e6cf324efe2bb02cfe24d6ff60cda76cf7959adb1596aa1c88e27659494c1"
+    },
+    {
+      "path": "D:/zPython/opencode/prompt_kernel/addons_claude.py",
+      "expected": "5c99cffebc618a9a570099e176a4c31d0e760c6d62aef48866f9e03e2961513c",
+      "actual": "5c99cffebc618a9a570099e176a4c31d0e760c6d62aef48866f9e03e2961513c"
+    },
+    {
+      "path": "D:/zPython/opencode/prompt_kernel/addons_codex.py",
+      "expected": "a2529d2f37a717f0dcc2bccf994aa76dc0212965ec0a3865f3a0edf214b3f2ac",
+      "actual": "a2529d2f37a717f0dcc2bccf994aa76dc0212965ec0a3865f3a0edf214b3f2ac"
+    },
+    {
+      "path": "D:/zPython/opencode/prompt_kernel/addons_cursor.py",
+      "expected": "58b5a1419a3cd6041772beb88b53a61483f165ffeb3e30f4f1043337bd649e49",
+      "actual": "58b5a1419a3cd6041772beb88b53a61483f165ffeb3e30f4f1043337bd649e49"
+    },
+    {
+      "path": "D:/zPython/opencode/packages/opencode/src/codegraph/mcp-client.ts",
+      "expected": "a4271f11aedcc33c0002bce995248a1b957e6f00f9d0e4c2edfb76731158ef63",
+      "actual": "a4271f11aedcc33c0002bce995248a1b957e6f00f9d0e4c2edfb76731158ef63"
+    },
+    {
+      "path": "D:/zPython/opencode/packages/opencode/src/codegraph/sqlite-pack.ts",
+      "expected": "f8efef16e8e74d6f6dacfa59f581153983610a60c03ecc444e06e7d12c6ff68f",
+      "actual": "f8efef16e8e74d6f6dacfa59f581153983610a60c03ecc444e06e7d12c6ff68f"
+    },
+    {
+      "path": "D:/zPython/opencode/packages/opencode/src/agent/prompt/explore.txt",
+      "expected": "35fe3185256c7138e26b15201f990dbf8a52478661574cbaf75bee8014b674ab",
+      "actual": "35fe3185256c7138e26b15201f990dbf8a52478661574cbaf75bee8014b674ab"
+    },
+    {
+      "path": "D:/zPython/opencode/packages/opencode/src/session/prompt/reasoning_prompt.txt",
+      "expected": "bc7d5b8fcd1408e75f1ec0f06df44b70218326081a05a347767c5e13fecbf525",
+      "actual": "bc7d5b8fcd1408e75f1ec0f06df44b70218326081a05a347767c5e13fecbf525"
+    },
+    {
+      "path": "D:/zPython/opencode/.claude/reasoning_kernel.md",
+      "expected": "d33326b63de220119acabe1ccc96a6eff81b686c1be5a38cd4a95968194fa819",
+      "actual": "d33326b63de220119acabe1ccc96a6eff81b686c1be5a38cd4a95968194fa819"
+    },
+    {
+      "path": "C:/Users/Alexander/.codex/AGENTS.md",
+      "expected": "1a3a754cb25da0840ee86874c851f9f9f62f3e57e78073f842387f49c906629f",
+      "actual": "1a3a754cb25da0840ee86874c851f9f9f62f3e57e78073f842387f49c906629f"
+    },
+    {
+      "path": "D:/zPython/opencode/.cursor/rules/reasoning-kernel.mdc",
+      "expected": "a3c760ed484d3f153a12a7cad4743587b7667f9fc87fc3f9520b0c63b84d67ed",
+      "actual": "a3c760ed484d3f153a12a7cad4743587b7667f9fc87fc3f9520b0c63b84d67ed"
+    }
+  ],
+  "config_semantic_restored": true,
+  "raw_original_restored": false,
+  "preservation_files": 645,
+  "preservation_divergence": [],
+  "global_success": false,
+  "unaligned": [
+    "plans/2026-09-12_anthropic-cache-breakpoints.md",
+    "plans/2026-10-08_mcps-connector-manager.md"
+  ]
+}

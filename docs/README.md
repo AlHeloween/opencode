@@ -18,6 +18,7 @@
 - [Kernel package](../prompt_kernel/README.md) — gate graph, serialization order, source of the runtime prefix
 - [Kernel assembly point](kernel-assembly-point.md) — where `source.py` becomes `reasoning_prompt.txt`
 - [Аудит кернела и addons — 2026-10-12](../plans_completed/2026-10-12_kernel-addons-correctness-audit.md) — K01–K10, воспроизведённые дефекты, полный baseline FAIL и границы поведенческой проверки
+- [Ремонт кернела и ADID delivery](../plans/postponed/2026-10-12_kernel-contract-repair-and-adid-release.md) — source fixes проверены; release/install остановлен на delivery harness, доказательства и lift signal сохранены
 - [Two-canon protocol](two-canon-protocol.md) — ADID 15.3 ↔ kernel parity: one protocol, two compilers
 - [Reasoning mode](reasoning-mode.md) — memory-only calibration identity, no execution surface
 - [Reasoning mode as an escape hatch](reasoning-mode-self-diagnosis.md) — self-diagnosis of inference failures: the degeneration trap (arXiv:2512.04419), the measured 2026-09-13 case, the rules and the external levers

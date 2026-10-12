@@ -6,7 +6,7 @@
 
 Граница: нормативный kernel и Python predicates не являются runtime ACL каждого вызова модели. ADID release/install имеет отдельные acceptance и ещё не подтверждён этим архивом. Старый portfolio explorer report после изменения inventory не является текущим принятым PORTFOLIO_AUDIT.
 
-Источник результата: plans/2026-10-12_kernel-contract-repair-and-adid-release.md; source checkpoint9695d18b9e. В архиве сохранены полные stdout_text.log и state.json выбранных репродукторов, checks и сборок, без tail-only доказательств.
+Источник результата: plans/postponed/2026-10-12_kernel-contract-repair-and-adid-release.md; source checkpoint9695d18b9e. В архиве сохранены полные stdout_text.log и state.json выбранных репродукторов, checks и сборок, без tail-only доказательств. План stopped/BLOCKED: ADID delivery не принят.
 
 ```yaml
 Keywords: kernel-evidence 0.45, regression 0.35, source-pins 0.20

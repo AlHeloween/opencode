@@ -1,5 +1,9 @@
 # Progress Log
 
+## [2026-10-12T12:35Z] kernel delivery — bounded STOP, не SUCCESS
+
+✓ CONFIRMED (parent complete logs/API/hashes): kernel206PASS, CodeGraph20PASS, ADID repeatDUnit177PASS; ADID canonicalkernel/version5.1.2 draft, release/install не принят. Два release FAIL наBadlocale; последующие два launch interrupted/unverified. Child≥132calls превысил125, parentabort остановил собственнуюsession/jobs, activecmdrunnerstates отсутствуют. Первый installerfixture потерялADID_INSTALLER_CONFIG и записалrealconfig/allroots, включаяexcludedOpenClaw; misleadingexit0непринимается. Parentsemanticrollback исходногоcachedconfig(31rows+window+flags) проверен JSON.stringify; rawbytehash не исходный. ROOTCursor восстановлен canonicalpipeline SHAa3c760ed…;645existingfiles+livebin unchanged. ADIDpartialdiff сохранён, parentне коммититчужойworktree. Currentexplorer20rootplans hashes совпали,2UNALIGNEDиpartialcompletiongaps запрещаютglobalSUCCESS. План перенесён вpostponed сlift signal; норма kernel не объявленаruntimeACLвсехmodelcalls.
+
 ## [2026-10-12T12:18Z] kernel R2 / ADID dispatch
 
 ✓ CONFIRMED (полные state/stdout): финальный kernel206PASS115242, CodeGraph20PASS113611, typecheck0; build115436 finished/exit0, smoke10.0.1293, embedded prompt PASS, dropped0/truncatedfalse. Source checkpoint9695d18b9e и четыре installed renderer hashes перечитаны, handoff sealed. Public archive сохраняет23 oracle runs и source pins; Git byte check выполняется до evidence commit. ADID session ses_ed0036fe3ffeTo6t4szUiwtY6C запущена через candidate dist, root bin не затронут. Первый DeepSeek turn прерван двумя ORG notifications с exo-free и410 deprecated; это FAIL executor, не delivery. Повторный prompt на DeepSeek получил resident claim efbfea7c epoch1 и реальные CodeGraph parts. Нарушение order: release.py прочитан до первого graph query; оно не объявляется устранённым фактом tool presence. Release/install и current portfolio audit остаются открыты.

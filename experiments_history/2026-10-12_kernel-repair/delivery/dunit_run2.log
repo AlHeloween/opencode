@@ -1,0 +1,326 @@
+d:\zPascal\zRAD_Pascal\bin64\dcc32.exe
+d:\zPascal\zRAD_Pascal\bin\dcc32.EXE
+[OK] Delphi environment initialized.
+[INFO] default_platform=Win64
+[INFO] detected_root=d:\zPascal\zRAD_Pascal
+
+Examples:
+  tools\build_delphi_msbuild.cmd delphi\ADIDInstallerFMX.dpr Win32 Release
+  tools\build_delphi_msbuild.cmd delphi\ADIDInstallerFMX.dpr Win64 Release
+  tools\build_delphi_msbuild.cmd delphi\ADIDInstallerFMX.dpr Linux64 Release my_wsl_profile
+
+[BUILD] MSBuild DUnit tests (Win64 Release)
+[BUILD] msbuild "D:\zPython\ADID_Python\delphi\tests\ADIDInstallerTests.dproj" /t:Build /p:Config=Release /p:Platform=Win64 
+Microsoft (R) Build Engine version 4.8.9221.0
+[Microsoft .NET Framework, version 4.0.30319.42000]
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Build started 10/12/2026 8:27:22 PM.
+Project "D:\zPython\ADID_Python\delphi\tests\ADIDInstallerTests.dproj" on node 1 (Build target(s)).
+BuildVersionResource:
+  D:\zPascal\zRAD_Pascal\bin64\cgrc.exe -c65001 -= resinator.exe ADIDInstallerTests.vrc -foADIDInstallerTests.res 
+  CodeGear Resource Compiler/Binder
+  Version 1.2.3 Copyright (c) 2008-2025 Embarcadero Technologies Inc.
+  
+  Deleting file "ADIDInstallerTests.vrc".
+_PasCoreCompile:
+  D:\zPascal\zRAD_Pascal\bin\dcc64.exe --no-config -B -Q -Z -TX.exe -AWindows=Winapi.Windows;Generics.Collections=System.Generics.Collections;Generics.Defaults=System.Generics.Defaults;WinTypes=Winapi.Windows;WinProcs=Winapi.Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE -D;FRAMEWORK_ -E.\bin\Win64\Release -Id:\zpascal\zrad_pascal\lib\Win64\release\EN;..\common;..\third_party\llama_cpp_delphi\src;..\third_party\llama_cpp_delphi\src\Api;..\third_party\llama_cpp_delphi\src\Common;..\third_party\llama_cpp_delphi\src\Common\Cache;..\third_party\llama_cpp_delphi\src\Common\Chat;..\third_party\llama_cpp_delphi\src\Common\Chat\Completion;..\third_party\llama_cpp_delphi\src\Common\Chat\Formatter;..\third_party\llama_cpp_delphi\src\Common\Grammar;..\third_party\llama_cpp_delphi\src\Common\Processor;..\third_party\llama_cpp_delphi\src\Common\Sampling;..\third_party\llama_cpp_delphi\src\Common\Speculative;..\third_party\llama_cpp_delphi\src\Common\Tokenizer;..\third_party\llama_cpp_delphi\src\CType\Ggml;..\third_party\llama_cpp_delphi\src\CType\Llama;..\third_party\llama_cpp_delphi\src\CType\Llava;..\third_party\llama_cpp_delphi\src\Wrapper;d:\zpascal\zrad_pascal\lib\Win64\release;D:\zPascal\Imports\Win64;D:\zPascal\zRAD_Pascal\Imports;D:\zPascal\zCommon\Bpl\Win64;D:\zPascal\zCommon\Dcp\Win64;D:\zPascal\zRAD_Pascal\include;d:\zPascal\zCommon\Comps\WebMocks\source\Source;d:\zPascal\zCommon\Comps\mORMot-2\source\core;d:\zPascal\zCommon\Comps\mORMot-2\source\lib;d:\zPascal\zCommon\Comps\mORMot-2\source\crypt;d:\zPascal\zCommon\Comps\mORMot-2\source\net;d:\zPascal\zCommon\Comps\mORMot-2\source\db;d:\zPascal\zCommon\Comps\mORMot-2\source\rest;d:\zPascal\zCommon\Comps\mORMot-2\source\orm;d:\zPascal\zCommon\Comps\mORMot-2\source\soa;d:\zPascal\zCommon\Comps\mORMot-2\source\app;d:\zPascal\zCommon\Comps\mORMot-2\source\script;d:\zPascal\zCommon\Comps\mORMot-2\source\ui;d:\zPascal\zCommon\Comps\mORMot-2\source\tools;d:\zPascal\zCommon\Comps\mORMot-2\source\misc;D:\zPascal\XEComponents\jcl\jcl\lib\d37\win64;D:\zPascal\XEComponents\jcl\jcl\source\include;D:\zPascal\XEComponents\jvcl\jvcl\lib\d37\win64;D:\zPascal\XEComponents\jvcl\jvcl\common;D:\zPascal\XEComponents\jvcl\jvcl\resources;D:\zPascal\XEComponents\_external\fbzip64;D:\zPascal\XEComponents\TeeChart\Source\VCL;D:\zPascal\XEComponents\Firemonkey-Container -LED:\zPascal\zCommon\Bpl\Win64 -LND:\zPascal\zCommon\Dcp\Win64 -NU.\dcu\Win64\Release -NS -O..\common;..\third_party\llama_cpp_delphi\src;..\third_party\llama_cpp_delphi\src\Api;..\third_party\llama_cpp_delphi\src\Common;..\third_party\llama_cpp_delphi\src\Common\Cache;..\third_party\llama_cpp_delphi\src\Common\Chat;..\third_party\llama_cpp_delphi\src\Common\Chat\Completion;..\third_party\llama_cpp_delphi\src\Common\Chat\Formatter;..\third_party\llama_cpp_delphi\src\Common\Grammar;..\third_party\llama_cpp_delphi\src\Common\Processor;..\third_party\llama_cpp_delphi\src\Common\Sampling;..\third_party\llama_cpp_delphi\src\Common\Speculative;..\third_party\llama_cpp_delphi\src\Common\Tokenizer;..\third_party\llama_cpp_delphi\src\CType\Ggml;..\third_party\llama_cpp_delphi\src\CType\Llama;..\third_party\llama_cpp_delphi\src\CType\Llava;..\third_party\llama_cpp_delphi\src\Wrapper;d:\zpascal\zrad_pascal\lib\Win64\release;D:\zPascal\Imports\Win64;D:\zPascal\zRAD_Pascal\Imports;D:\zPascal\zCommon\Bpl\Win64;D:\zPascal\zCommon\Dcp\Win64;D:\zPascal\zRAD_Pascal\include;d:\zPascal\zCommon\Comps\WebMocks\source\Source;d:\zPascal\zCommon\Comps\mORMot-2\source\core;d:\zPascal\zCommon\Comps\mORMot-2\source\lib;d:\zPascal\zCommon\Comps\mORMot-2\source\crypt;d:\zPascal\zCommon\Comps\mORMot-2\source\net;d:\zPascal\zCommon\Comps\mORMot-2\source\db;d:\zPascal\zCommon\Comps\mORMot-2\source\rest;d:\zPascal\zCommon\Comps\mORMot-2\source\orm;d:\zPascal\zCommon\Comps\mORMot-2\source\soa;d:\zPascal\zCommon\Comps\mORMot-2\source\app;d:\zPascal\zCommon\Comps\mORMot-2\source\script;d:\zPascal\zCommon\Comps\mORMot-2\source\ui;d:\zPascal\zCommon\Comps\mORMot-2\source\tools;d:\zPascal\zCommon\Comps\mORMot-2\source\misc;D:\zPascal\XEComponents\jcl\jcl\lib\d37\win64;D:\zPascal\XEComponents\jcl\jcl\source\include;D:\zPascal\XEComponents\jvcl\jvcl\lib\d37\win64;D:\zPascal\XEComponents\jvcl\jvcl\common;D:\zPascal\XEComponents\jvcl\jvcl\resources;D:\zPascal\XEComponents\_external\fbzip64;D:\zPascal\XEComponents\TeeChart\Source\VCL;D:\zPascal\XEComponents\Firemonkey-Container -Rd:\zpascal\zrad_pascal\lib\Win64\release\EN;..\common;..\third_party\llama_cpp_delphi\src;..\third_party\llama_cpp_delphi\src\Api;..\third_party\llama_cpp_delphi\src\Common;..\third_party\llama_cpp_delphi\src\Common\Cache;..\third_party\llama_cpp_delphi\src\Common\Chat;..\third_party\llama_cpp_delphi\src\Common\Chat\Completion;..\third_party\llama_cpp_delphi\src\Common\Chat\Formatter;..\third_party\llama_cpp_delphi\src\Common\Grammar;..\third_party\llama_cpp_delphi\src\Common\Processor;..\third_party\llama_cpp_delphi\src\Common\Sampling;..\third_party\llama_cpp_delphi\src\Common\Speculative;..\third_party\llama_cpp_delphi\src\Common\Tokenizer;..\third_party\llama_cpp_delphi\src\CType\Ggml;..\third_party\llama_cpp_delphi\src\CType\Llama;..\third_party\llama_cpp_delphi\src\CType\Llava;..\third_party\llama_cpp_delphi\src\Wrapper;d:\zpascal\zrad_pascal\lib\Win64\release;D:\zPascal\Imports\Win64;D:\zPascal\zRAD_Pascal\Imports;D:\zPascal\zCommon\Bpl\Win64;D:\zPascal\zCommon\Dcp\Win64;D:\zPascal\zRAD_Pascal\include;d:\zPascal\zCommon\Comps\WebMocks\source\Source;d:\zPascal\zCommon\Comps\mORMot-2\source\core;d:\zPascal\zCommon\Comps\mORMot-2\source\lib;d:\zPascal\zCommon\Comps\mORMot-2\source\crypt;d:\zPascal\zCommon\Comps\mORMot-2\source\net;d:\zPascal\zCommon\Comps\mORMot-2\source\db;d:\zPascal\zCommon\Comps\mORMot-2\source\rest;d:\zPascal\zCommon\Comps\mORMot-2\source\orm;d:\zPascal\zCommon\Comps\mORMot-2\source\soa;d:\zPascal\zCommon\Comps\mORMot-2\source\app;d:\zPascal\zCommon\Comps\mORMot-2\source\script;d:\zPascal\zCommon\Comps\mORMot-2\source\ui;d:\zPascal\zCommon\Comps\mORMot-2\source\tools;d:\zPascal\zCommon\Comps\mORMot-2\source\misc;D:\zPascal\XEComponents\jcl\jcl\lib\d37\win64;D:\zPascal\XEComponents\jcl\jcl\source\include;D:\zPascal\XEComponents\jvcl\jvcl\lib\d37\win64;D:\zPascal\XEComponents\jvcl\jvcl\common;D:\zPascal\XEComponents\jvcl\jvcl\resources;D:\zPascal\XEComponents\_external\fbzip64;D:\zPascal\XEComponents\TeeChart\Source\VCL;D:\zPascal\XEComponents\Firemonkey-Container -Ud:\zpascal\zrad_pascal\lib\Win64\release\EN;..\common;..\third_party\llama_cpp_delphi\src;..\third_party\llama_cpp_delphi\src\Api;..\third_party\llama_cpp_delphi\src\Common;..\third_party\llama_cpp_delphi\src\Common\Cache;..\third_party\llama_cpp_delphi\src\Common\Chat;..\third_party\llama_cpp_delphi\src\Common\Chat\Completion;..\third_party\llama_cpp_delphi\src\Common\Chat\Formatter;..\third_party\llama_cpp_delphi\src\Common\Grammar;..\third_party\llama_cpp_delphi\src\Common\Processor;..\third_party\llama_cpp_delphi\src\Common\Sampling;..\third_party\llama_cpp_delphi\src\Common\Speculative;..\third_party\llama_cpp_delphi\src\Common\Tokenizer;..\third_party\llama_cpp_delphi\src\CType\Ggml;..\third_party\llama_cpp_delphi\src\CType\Llama;..\third_party\llama_cpp_delphi\src\CType\Llava;..\third_party\llama_cpp_delphi\src\Wrapper;d:\zpascal\zrad_pascal\lib\Win64\release;D:\zPascal\Imports\Win64;D:\zPascal\zRAD_Pascal\Imports;D:\zPascal\zCommon\Bpl\Win64;D:\zPascal\zCommon\Dcp\Win64;D:\zPascal\zRAD_Pascal\include;d:\zPascal\zCommon\Comps\WebMocks\source\Source;d:\zPascal\zCommon\Comps\mORMot-2\source\core;d:\zPascal\zCommon\Comps\mORMot-2\source\lib;d:\zPascal\zCommon\Comps\mORMot-2\source\crypt;d:\zPascal\zCommon\Comps\mORMot-2\source\net;d:\zPascal\zCommon\Comps\mORMot-2\source\db;d:\zPascal\zCommon\Comps\mORMot-2\source\rest;d:\zPascal\zCommon\Comps\mORMot-2\source\orm;d:\zPascal\zCommon\Comps\mORMot-2\source\soa;d:\zPascal\zCommon\Comps\mORMot-2\source\app;d:\zPascal\zCommon\Comps\mORMot-2\source\script;d:\zPascal\zCommon\Comps\mORMot-2\source\ui;d:\zPascal\zCommon\Comps\mORMot-2\source\tools;d:\zPascal\zCommon\Comps\mORMot-2\source\misc;D:\zPascal\XEComponents\jcl\jcl\lib\d37\win64;D:\zPascal\XEComponents\jcl\jcl\source\include;D:\zPascal\XEComponents\jvcl\jvcl\lib\d37\win64;D:\zPascal\XEComponents\jvcl\jvcl\common;D:\zPascal\XEComponents\jvcl\jvcl\resources;D:\zPascal\XEComponents\_external\fbzip64;D:\zPascal\XEComponents\TeeChart\Source\VCL;D:\zPascal\XEComponents\Firemonkey-Container -VR -NBD:\zPascal\zCommon\Dcp\Win64 -NHD:\zPascal\zCommon\hpp\Win64 -NO.\dcu\Win64\Release  ADIDInstallerTests.dpr   
+  Embarcadero Delphi for Win64 compiler version 37.0
+  Copyright (c) 1983,2025 Embarcadero Technologies, Inc.
+D:\zPython\ADID_Python\delphi\common\AdidCmdRunnerKeyEncode.pas(100): Hint warning H2164: Variable 'I' is declared but never used in '_parse_ctrl_key' [D:\zPython\ADID_Python\delphi\tests\ADIDInstallerTests.dproj]
+D:\zPython\ADID_Python\delphi\common\AdidCmdRunnerSession.pas(1198): Hint warning H2077: Value assigned to 'TimedOut' never used [D:\zPython\ADID_Python\delphi\tests\ADIDInstallerTests.dproj]
+D:\zPython\ADID_Python\delphi\common\AdidCmdRunnerSession.pas(1713): Hint warning H2077: Value assigned to 'JsonState' never used [D:\zPython\ADID_Python\delphi\tests\ADIDInstallerTests.dproj]
+TestAdidCmdRunnerAssert.pas(14): Hint warning H2219: Private symbol 'WriteExitCode' declared but never used [D:\zPython\ADID_Python\delphi\tests\ADIDInstallerTests.dproj]
+TestAdidCmdRunnerStateFiles.pas(394): Hint warning H2443: Inline function 'TJSONArray.GetValue' has not been expanded because unit 'System.Generics.Collections' is not specified in USES list [D:\zPython\ADID_Python\delphi\tests\ADIDInstallerTests.dproj]
+  15819 lines, 1.34 seconds, 3081348 bytes code, 411596 bytes data.
+Done Building Project "D:\zPython\ADID_Python\delphi\tests\ADIDInstallerTests.dproj" (Build target(s)).
+
+Build succeeded.
+
+"D:\zPython\ADID_Python\delphi\tests\ADIDInstallerTests.dproj" (Build target) (1) ->
+(_PasCoreCompile target) -> 
+  D:\zPython\ADID_Python\delphi\common\AdidCmdRunnerKeyEncode.pas(100): Hint warning H2164: Variable 'I' is declared but never used in '_parse_ctrl_key' [D:\zPython\ADID_Python\delphi\tests\ADIDInstallerTests.dproj]
+  D:\zPython\ADID_Python\delphi\common\AdidCmdRunnerSession.pas(1198): Hint warning H2077: Value assigned to 'TimedOut' never used [D:\zPython\ADID_Python\delphi\tests\ADIDInstallerTests.dproj]
+  D:\zPython\ADID_Python\delphi\common\AdidCmdRunnerSession.pas(1713): Hint warning H2077: Value assigned to 'JsonState' never used [D:\zPython\ADID_Python\delphi\tests\ADIDInstallerTests.dproj]
+  TestAdidCmdRunnerAssert.pas(14): Hint warning H2219: Private symbol 'WriteExitCode' declared but never used [D:\zPython\ADID_Python\delphi\tests\ADIDInstallerTests.dproj]
+  TestAdidCmdRunnerStateFiles.pas(394): Hint warning H2443: Inline function 'TJSONArray.GetValue' has not been expanded because unit 'System.Generics.Collections' is not specified in USES list [D:\zPython\ADID_Python\delphi\tests\ADIDInstallerTests.dproj]
+
+    5 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:02.61
+[OK] Built delphi\tests\ADIDInstallerTests.exe
+[RUN] ADIDInstallerTests.exe
+
+Executing: "D:\zPython\ADID_Python\delphi\tests\ADIDInstallerTests.exe"
+DataFiles: "D:\zPython\ADID_Python\delphi\tests\"
+OSVersion: "Windows 11 (Version 24H2, OS Build 26100.9457, 64-bit Edition)"
+
+DUnit / Testing
+
+TestFramework.TTestSuite.ADIDInstallerTests.exe 
+StartSuite(ADIDInstallerTests.exe)(177) <
+ TestFramework.TTestSuite.TInstallerCoreTests 
+ StartSuite(TInstallerCoreTests)(4) <
+  TestInstallerCore.TInstallerCoreTests.LatestFrameworkDocIsHighestVersion .
+  TestInstallerCore.TInstallerCoreTests.CopyFrameworkDocsRemovesSupersededVersions .
+  TestInstallerCore.TInstallerCoreTests.DirTreeShaIsDeterministic .
+  TestInstallerCore.TInstallerCoreTests.DirTreeShaChangesOnFileChange .
+ > EndSuite(TInstallerCoreTests)
+ TestFramework.TTestSuite.TInstallerOpsTests 
+ StartSuite(TInstallerOpsTests)(5) <
+  TestInstallerOps.TInstallerOpsTests.DefaultWindowsToolsReceiverUsesDefaultToolsRoot .
+  TestInstallerOps.TInstallerOpsTests.InstallerConfigPathPrefersPortableConfigNextToExe .
+  TestInstallerOps.TInstallerOpsTests.InstallerConfigPathUsesPortableConfigWhenExists .
+  TestInstallerOps.TInstallerOpsTests.ReceiverDisplayNameFallsBackForBlankName .
+  TestInstallerOps.TInstallerOpsTests.RegistryReceiverLabelRoundTripsPathsWithSpaces .
+ > EndSuite(TInstallerOpsTests)
+ TestFramework.TTestSuite.TInstallerOpsAssetPolicyTests 
+ StartSuite(TInstallerOpsAssetPolicyTests)(8) <
+  TestInstallerOpsAssetPolicy.TInstallerOpsAssetPolicyTests.OpencodeScaffoldCopyDeliversWhitelistedSkillsOnly .
+  TestInstallerOpsAssetPolicy.TInstallerOpsAssetPolicyTests.OpencodeFallbackDeliversWhitelistedSkillsOnly .
+  TestInstallerOpsAssetPolicy.TInstallerOpsAssetPolicyTests.OpencodeUpgradePreservesUserWorkAndRemovesAdmAssets .
+  TestInstallerOpsAssetPolicy.TInstallerOpsAssetPolicyTests.OpencodeSkillSetIsPinnedByTheLedger .
+  TestInstallerOpsAssetPolicy.TInstallerOpsAssetPolicyTests.CodexBranchRemovesStaleMdcKeepsUserPolicies .
+  TestInstallerOpsAssetPolicy.TInstallerOpsAssetPolicyTests.CursorScaffoldBranchPreservesForeignRulesAndRefreshesAdmRules .
+  TestInstallerOpsAssetPolicy.TInstallerOpsAssetPolicyTests.CursorFallbackBranchPreservesForeignRules .
+  TestInstallerOpsAssetPolicy.TInstallerOpsAssetPolicyTests.CursorNestedOnlyForeignRuleFolderSurvives .
+ > EndSuite(TInstallerOpsAssetPolicyTests)
+ TestFramework.TTestSuite.TAdidCmdRunnerCliSupportTests 
+ StartSuite(TAdidCmdRunnerCliSupportTests)(27) <
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.ParseDefaultsToHelp .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.FindExecutableResolvesWindowsTerminalAlias .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.HelpMentionsConPTY .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.HelpSeparatesCommandsAndSwitches .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.BuildStartHostArgvPreservesContract .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.BuildStartSpawnArgvDelegatesKeepOpen .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.BuildWindowsTerminalLaunchArgsUsesRequestedGrid .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.BuildWindowsTerminalLaunchArgsUsesDirectWindowTitle .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.ParseStartDirectTerminal .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.ParseStartOptionsWithoutDoubleDash .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.ParseStartRejectsUnknownTerminal .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.ParseListOptions .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.RunListRequiresSupportedCwd .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.ParseStartOptions .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.ParseStartCwdResolvesParentSegments .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.ParseTailOptions .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.ParseTailOptionsSupportsLinuxAliases .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.ParseTailOptionsSupportsCompactLineCounts .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.ParseTailWaitMsDoesNotEnableFollow .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.RunSendHexAllowsSpaces [no new output after 5000ms]
+.
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.ParseSendOptions .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.ParseSendTextAsB64Options .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.ParseSendWithoutTextAsB64Default .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.ParseStopOptions .
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.RunSendTextAsB64PreservesPayload [no new output after 5000ms]
+.
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.RunSendTextAsB64PreservesQuotes [no new output after 5000ms]
+.
+  TestAdidCmdRunnerCliSupport.TAdidCmdRunnerCliSupportTests.RunSendTextAsB64PreservesBackslashes [no new output after 5000ms]
+.
+ > EndSuite(TAdidCmdRunnerCliSupportTests)
+ TestFramework.TTestSuite.TAdidCmdRunnerSendIntegrityTests 
+ StartSuite(TAdidCmdRunnerSendIntegrityTests)(4) <
+  TestAdidCmdRunnerSendIntegrity.TAdidCmdRunnerSendIntegrityTests.TextCrlfHasNoNulTail .
+  TestAdidCmdRunnerSendIntegrity.TAdidCmdRunnerSendIntegrityTests.BinarySourcesPreserveAllBytes .
+  TestAdidCmdRunnerSendIntegrity.TAdidCmdRunnerSendIntegrityTests.PastePreservesMixedNewlinesAndUtf8 .
+  TestAdidCmdRunnerSendIntegrity.TAdidCmdRunnerSendIntegrityTests.PasteSubmitIsOutsideFrame .
+ > EndSuite(TAdidCmdRunnerSendIntegrityTests)
+ TestFramework.TTestSuite.TAdidCmdRunnerRunLayoutTests 
+ StartSuite(TAdidCmdRunnerRunLayoutTests)(2) <
+  TestAdidCmdRunnerRunLayout.TAdidCmdRunnerRunLayoutTests.RunPathsExposeCanonicalFilenames .
+  TestAdidCmdRunnerRunLayout.TAdidCmdRunnerRunLayoutTests.CreateRunDirAndFilesCreatesExpectedArtifacts .
+ > EndSuite(TAdidCmdRunnerRunLayoutTests)
+ TestFramework.TTestSuite.TAdidCmdRunnerInboxTests 
+ StartSuite(TAdidCmdRunnerInboxTests)(3) <
+  TestAdidCmdRunnerInbox.TAdidCmdRunnerInboxTests.ParseStdinFileMessage .
+  TestAdidCmdRunnerInbox.TAdidCmdRunnerInboxTests.ParseKeysMessage .
+  TestAdidCmdRunnerInbox.TAdidCmdRunnerInboxTests.ParseMissingRequiredField .
+ > EndSuite(TAdidCmdRunnerInboxTests)
+ TestFramework.TTestSuite.TAdidCmdRunnerSessionTests 
+ StartSuite(TAdidCmdRunnerSessionTests)(13) <
+  TestAdidCmdRunnerSession.TAdidCmdRunnerSessionTests.DerivedStatusReturnsLostForDeadPid .
+  TestAdidCmdRunnerSession.TAdidCmdRunnerSessionTests.FormatTailTextRemovesNoise .
+  TestAdidCmdRunnerSession.TAdidCmdRunnerSessionTests.FormatTailStdoutShowsHex .
+  TestAdidCmdRunnerSession.TAdidCmdRunnerSessionTests.ComputeTailWindowDefaultsToLastTenLines .
+  TestAdidCmdRunnerSession.TAdidCmdRunnerSessionTests.ComputeTailWindowSupportsStartFromLine .
+  TestAdidCmdRunnerSession.TAdidCmdRunnerSessionTests.ListRunsJsonIsNewestFirst .
+  TestAdidCmdRunnerSession.TAdidCmdRunnerSessionTests.ReadStateViewUsesPythonLikeArgvText .
+  TestAdidCmdRunnerSession.TAdidCmdRunnerSessionTests.RequestStopWritesJson .
+  TestAdidCmdRunnerSession.TAdidCmdRunnerSessionTests.WriteStateUsesJsonNullForMissingUtcFields .
+  TestAdidCmdRunnerSession.TAdidCmdRunnerSessionTests.TailRunDoesNotRaiseForMissingSession [session NONEXISTENT_RUNID: unknown]
+[no log file: stdout_text.log]
+.
+  TestAdidCmdRunnerSession.TAdidCmdRunnerSessionTests.TailRunDoesNotRaiseForClosedSessionWithOutput [session RID_CLOSED_OUT: finished, exit_code=0]
+1: ?hello world
+.
+  TestAdidCmdRunnerSession.TAdidCmdRunnerSessionTests.TailRunDoesNotRaiseForEmptyLogFile [session RID_EMPTY_LOG: finished]
+1: ?
+.
+  TestAdidCmdRunnerSession.TAdidCmdRunnerSessionTests.TailRunDoesNotRaiseForMissingLogFile [session RID_NO_LOG: finished]
+[no log file: stdout_text.log]
+.
+ > EndSuite(TAdidCmdRunnerSessionTests)
+ TestFramework.TTestSuite.TAdidCmdRunnerKeyEncodeTests 
+ StartSuite(TAdidCmdRunnerKeyEncodeTests)(5) <
+  TestAdidCmdRunnerKeyEncode.TAdidCmdRunnerKeyEncodeTests.EncodeTextAndEnter .
+  TestAdidCmdRunnerKeyEncode.TAdidCmdRunnerKeyEncodeTests.EncodeArrowKey .
+  TestAdidCmdRunnerKeyEncode.TAdidCmdRunnerKeyEncodeTests.EncodeArrowKeyInApplicationCursorMode .
+  TestAdidCmdRunnerKeyEncode.TAdidCmdRunnerKeyEncodeTests.EncodeHomeInApplicationCursorMode .
+  TestAdidCmdRunnerKeyEncode.TAdidCmdRunnerKeyEncodeTests.EncodeHex .
+ > EndSuite(TAdidCmdRunnerKeyEncodeTests)
+ TestFramework.TTestSuite.TAdidCmdRunnerPayloadNormalizeTests 
+ StartSuite(TAdidCmdRunnerPayloadNormalizeTests)(12) <
+  TestAdidCmdRunnerPayloadNormalize.TAdidCmdRunnerPayloadNormalizeTests.NormalizePowerShellCommandCreatesPs1Wrapper .
+  TestAdidCmdRunnerPayloadNormalize.TAdidCmdRunnerPayloadNormalizeTests.NormalizePowerShellCmdCommandUsesCmdWrapper .
+  TestAdidCmdRunnerPayloadNormalize.TAdidCmdRunnerPayloadNormalizeTests.NormalizeCmdCommandCreatesCmdWrapper .
+  TestAdidCmdRunnerPayloadNormalize.TAdidCmdRunnerPayloadNormalizeTests.NormalizeGitBashMutatedCmdCommandCreatesCmdWrapper .
+  TestAdidCmdRunnerPayloadNormalize.TAdidCmdRunnerPayloadNormalizeTests.NormalizePythonCommandCreatesPyWrapper .
+  TestAdidCmdRunnerPayloadNormalize.TAdidCmdRunnerPayloadNormalizeTests.NormalizeResolvedCmdShimUsesPowerShellWrapper .
+  TestAdidCmdRunnerPayloadNormalize.TAdidCmdRunnerPayloadNormalizeTests.NormalizeExplicitCmdPathUsesPowerShellWrapper .
+  TestAdidCmdRunnerPayloadNormalize.TAdidCmdRunnerPayloadNormalizeTests.NormalizeRelativeExeResolvesToAbsolutePath .
+  TestAdidCmdRunnerPayloadNormalize.TAdidCmdRunnerPayloadNormalizeTests.NormalizeRelativeExeMissingRaisesError .
+  TestAdidCmdRunnerPayloadNormalize.TAdidCmdRunnerPayloadNormalizeTests.NormalizeBatFileGetsCmdExeWrapper .
+  TestAdidCmdRunnerPayloadNormalize.TAdidCmdRunnerPayloadNormalizeTests.NormalizeCmdFileGetsCmdExeWrapper .
+  TestAdidCmdRunnerPayloadNormalize.TAdidCmdRunnerPayloadNormalizeTests.NormalizeExeFileNoWrapper .
+ > EndSuite(TAdidCmdRunnerPayloadNormalizeTests)
+ TestFramework.TTestSuite.TAdidCmdRunnerAnsiStripTests 
+ StartSuite(TAdidCmdRunnerAnsiStripTests)(6) <
+  TestAdidCmdRunnerAnsiStrip.TAdidCmdRunnerAnsiStripTests.StripsCsiAndOsc .
+  TestAdidCmdRunnerAnsiStrip.TAdidCmdRunnerAnsiStripTests.PreservesNewlinesAndTabs .
+  TestAdidCmdRunnerAnsiStrip.TAdidCmdRunnerAnsiStripTests.NonUtf8BytesDoNotRaise .
+  TestAdidCmdRunnerAnsiStrip.TAdidCmdRunnerAnsiStripTests.MultibyteSplitAcrossFeedsIsJoined .
+  TestAdidCmdRunnerAnsiStrip.TAdidCmdRunnerAnsiStripTests.FourByteSplitAcrossFeedsIsJoined .
+  TestAdidCmdRunnerAnsiStrip.TAdidCmdRunnerAnsiStripTests.LoneLeadAtEndIsFlushedLeniently .
+ > EndSuite(TAdidCmdRunnerAnsiStripTests)
+ TestFramework.TTestSuite.TAdidCmdRunnerAssertTests 
+ StartSuite(TAdidCmdRunnerAssertTests)(11) <
+  TestAdidCmdRunnerAssert.TAdidCmdRunnerAssertTests.Test_ContainsText_Pass .
+  TestAdidCmdRunnerAssert.TAdidCmdRunnerAssertTests.Test_ContainsText_Fail .
+  TestAdidCmdRunnerAssert.TAdidCmdRunnerAssertTests.Test_ContainsText_Not .
+  TestAdidCmdRunnerAssert.TAdidCmdRunnerAssertTests.Test_Regex_Pass .
+  TestAdidCmdRunnerAssert.TAdidCmdRunnerAssertTests.Test_Regex_Fail .
+  TestAdidCmdRunnerAssert.TAdidCmdRunnerAssertTests.Test_ExitCode_Equals .
+  TestAdidCmdRunnerAssert.TAdidCmdRunnerAssertTests.Test_ExitCode_NotZero .
+  TestAdidCmdRunnerAssert.TAdidCmdRunnerAssertTests.Test_Snapshot_Pass .
+  TestAdidCmdRunnerAssert.TAdidCmdRunnerAssertTests.Test_Snapshot_Fail .
+  TestAdidCmdRunnerAssert.TAdidCmdRunnerAssertTests.Test_Snapshot_Update .
+  TestAdidCmdRunnerAssert.TAdidCmdRunnerAssertTests.Test_JsonOutput .
+ > EndSuite(TAdidCmdRunnerAssertTests)
+ TestFramework.TTestSuite.TAdidCmdRunnerImagePassthroughTests 
+ StartSuite(TAdidCmdRunnerImagePassthroughTests)(9) <
+  TestAdidCmdRunnerImagePassthrough.TAdidCmdRunnerImagePassthroughTests.Test_Passthrough_Kitty_Basic .
+  TestAdidCmdRunnerImagePassthrough.TAdidCmdRunnerImagePassthroughTests.Test_Passthrough_Kitty_Chunked .
+  TestAdidCmdRunnerImagePassthrough.TAdidCmdRunnerImagePassthroughTests.Test_Passthrough_Kitty_WithTextBefore .
+  TestAdidCmdRunnerImagePassthrough.TAdidCmdRunnerImagePassthroughTests.Test_Passthrough_Kitty_WithTextAfter .
+  TestAdidCmdRunnerImagePassthrough.TAdidCmdRunnerImagePassthroughTests.Test_Passthrough_ITerm2_Basic .
+  TestAdidCmdRunnerImagePassthrough.TAdidCmdRunnerImagePassthroughTests.Test_Passthrough_ITerm2_BEL .
+  TestAdidCmdRunnerImagePassthrough.TAdidCmdRunnerImagePassthroughTests.Test_Passthrough_Sixel_Basic .
+  TestAdidCmdRunnerImagePassthrough.TAdidCmdRunnerImagePassthroughTests.Test_Passthrough_PlainText_Unchanged .
+  TestAdidCmdRunnerImagePassthrough.TAdidCmdRunnerImagePassthroughTests.Test_Passthrough_CSI_Unchanged .
+ > EndSuite(TAdidCmdRunnerImagePassthroughTests)
+ TestFramework.TTestSuite.TAdidCmdRunnerTerminalDetectTests 
+ StartSuite(TAdidCmdRunnerTerminalDetectTests)(10) <
+  TestAdidCmdRunnerTerminalDetect.TAdidCmdRunnerTerminalDetectTests.Test_Detect_WindowsTerminal .
+  TestAdidCmdRunnerTerminalDetect.TAdidCmdRunnerTerminalDetectTests.Test_Detect_WezTerm .
+  TestAdidCmdRunnerTerminalDetect.TAdidCmdRunnerTerminalDetectTests.Test_Detect_Kitty .
+  TestAdidCmdRunnerTerminalDetect.TAdidCmdRunnerTerminalDetectTests.Test_Detect_Conhost .
+  TestAdidCmdRunnerTerminalDetect.TAdidCmdRunnerTerminalDetectTests.Test_SupportsImages_WT .
+  TestAdidCmdRunnerTerminalDetect.TAdidCmdRunnerTerminalDetectTests.Test_SupportsImages_WezTerm .
+  TestAdidCmdRunnerTerminalDetect.TAdidCmdRunnerTerminalDetectTests.Test_SupportsImages_Kitty .
+  TestAdidCmdRunnerTerminalDetect.TAdidCmdRunnerTerminalDetectTests.Test_SupportsImages_Conhost_False .
+  TestAdidCmdRunnerTerminalDetect.TAdidCmdRunnerTerminalDetectTests.Test_SupportsImages_Unknown_False .
+  TestAdidCmdRunnerTerminalDetect.TAdidCmdRunnerTerminalDetectTests.Test_Priority_WT_over_Kitty .
+ > EndSuite(TAdidCmdRunnerTerminalDetectTests)
+ TestFramework.TTestSuite.TAdidCmdRunnerCrCollapseTests 
+ StartSuite(TAdidCmdRunnerCrCollapseTests)(9) <
+  TestAdidCmdRunnerCrCollapse.TAdidCmdRunnerCrCollapseTests.CollapsesCrOverwrites .
+  TestAdidCmdRunnerCrCollapse.TAdidCmdRunnerCrCollapseTests.HandlesCrlf .
+  TestAdidCmdRunnerCrCollapse.TAdidCmdRunnerCrCollapseTests.PreservesPlainText .
+  TestAdidCmdRunnerCrCollapse.TAdidCmdRunnerCrCollapseTests.HandlesLeadingCr .
+  TestAdidCmdRunnerCrCollapse.TAdidCmdRunnerCrCollapseTests.StreamingFeedAcrossChunks .
+  TestAdidCmdRunnerCrCollapse.TAdidCmdRunnerCrCollapseTests.FlushDrainsRemaining .
+  TestAdidCmdRunnerCrCollapse.TAdidCmdRunnerCrCollapseTests.ProgressBarSimulation .
+  TestAdidCmdRunnerCrCollapse.TAdidCmdRunnerCrCollapseTests.EmptyInputSafe .
+  TestAdidCmdRunnerCrCollapse.TAdidCmdRunnerCrCollapseTests.ForwardsTextWithoutCrImmediately .
+ > EndSuite(TAdidCmdRunnerCrCollapseTests)
+ TestFramework.TTestSuite.TAdidCmdRunnerTailFormatTests 
+ StartSuite(TAdidCmdRunnerTailFormatTests)(2) <
+  TestAdidCmdRunnerTailFormat.TAdidCmdRunnerTailFormatTests.LineNumbersSkipEmptyButRemainCorrelatable .
+  TestAdidCmdRunnerTailFormat.TAdidCmdRunnerTailFormatTests.StdoutDropsTrailingCr .
+ > EndSuite(TAdidCmdRunnerTailFormatTests)
+ TestFramework.TTestSuite.TAdidCmdRunnerWtInputDecodeTests 
+ StartSuite(TAdidCmdRunnerWtInputDecodeTests)(3) <
+  TestAdidCmdRunnerWtInputDecode.TAdidCmdRunnerWtInputDecodeTests.DecodeWin32ArrowPacket .
+  TestAdidCmdRunnerWtInputDecode.TAdidCmdRunnerWtInputDecodeTests.Normalize8BitCsiToEscBracket .
+  TestAdidCmdRunnerWtInputDecode.TAdidCmdRunnerWtInputDecodeTests.DropFocusEvents .
+ > EndSuite(TAdidCmdRunnerWtInputDecodeTests)
+ TestFramework.TTestSuite.TAdidCmdRunnerConsoleModeTests 
+ StartSuite(TAdidCmdRunnerConsoleModeTests)(1) <
+  TestAdidCmdRunnerConsoleMode.TAdidCmdRunnerConsoleModeTests.Utf8OutputConversionAppliesToAnsiString .
+ > EndSuite(TAdidCmdRunnerConsoleModeTests)
+ TestFramework.TTestSuite.TAdidCmdRunnerConsoleInputTests 
+ StartSuite(TAdidCmdRunnerConsoleInputTests)(9) <
+  TestAdidCmdRunnerConsoleInput.TAdidCmdRunnerConsoleInputTests.KeyRecordStillTranslates .
+  TestAdidCmdRunnerConsoleInput.TAdidCmdRunnerConsoleInputTests.WheelUpRecordEncodesSgr64 .
+  TestAdidCmdRunnerConsoleInput.TAdidCmdRunnerConsoleInputTests.WheelDownRecordEncodesSgr65 .
+  TestAdidCmdRunnerConsoleInput.TAdidCmdRunnerConsoleInputTests.WheelUsesViewportOrigin .
+  TestAdidCmdRunnerConsoleInput.TAdidCmdRunnerConsoleInputTests.WheelWithCtrlAddsModifier .
+  TestAdidCmdRunnerConsoleInput.TAdidCmdRunnerConsoleInputTests.HorizontalWheelEncodesSgr66And67 .
+  TestAdidCmdRunnerConsoleInput.TAdidCmdRunnerConsoleInputTests.LeftPressReleaseEncodesEdges .
+  TestAdidCmdRunnerConsoleInput.TAdidCmdRunnerConsoleInputTests.RightDragEncodesMotionWithButton .
+  TestAdidCmdRunnerConsoleInput.TAdidCmdRunnerConsoleInputTests.MotionWithoutButtonEncodesSgr35 .
+ > EndSuite(TAdidCmdRunnerConsoleInputTests)
+ TestFramework.TTestSuite.TAdidCmdRunnerStateFilesTests 
+ StartSuite(TAdidCmdRunnerStateFilesTests)(14) <
+  TestAdidCmdRunnerStateFiles.TAdidCmdRunnerStateFilesTests.WriteUtf8TextWritesNoBom .
+  TestAdidCmdRunnerStateFiles.TAdidCmdRunnerStateFilesTests.AppendUtf8TextWritesNoBom .
+  TestAdidCmdRunnerStateFiles.TAdidCmdRunnerStateFilesTests.WriteStateWritesNoBom .
+  TestAdidCmdRunnerStateFiles.TAdidCmdRunnerStateFilesTests.RawRunStateCarriesTruthfulLogFields .
+  TestAdidCmdRunnerStateFiles.TAdidCmdRunnerStateFilesTests.RawRunTimeoutIsReportedAsTimeout .
+  TestAdidCmdRunnerStateFiles.TAdidCmdRunnerStateFilesTests.RawRunLargeOutputDoesNotBlock .
+  TestAdidCmdRunnerStateFiles.TAdidCmdRunnerStateFilesTests.LogBudgetAccountsTruncation .
+  TestAdidCmdRunnerStateFiles.TAdidCmdRunnerStateFilesTests.WaitReturnsAtOnceWhenLogFinal .
+  TestAdidCmdRunnerStateFiles.TAdidCmdRunnerStateFilesTests.WaitGraceIsBoundedWithoutLogFinal .
+  TestAdidCmdRunnerStateFiles.TAdidCmdRunnerStateFilesTests.RawRunNonUtf8OutputKeepsTheRun .
+  TestAdidCmdRunnerStateFiles.TAdidCmdRunnerStateFilesTests.HealthCheckKeepsRunWhileHostAlive .
+  TestAdidCmdRunnerStateFiles.TAdidCmdRunnerStateFilesTests.HealthCheckSaysExitUnknownWhenHostDied .
+  TestAdidCmdRunnerStateFiles.TAdidCmdRunnerStateFilesTests.JsonListRefreshesDeadHost .
+  TestAdidCmdRunnerStateFiles.TAdidCmdRunnerStateFilesTests.RawOutputFaultIsRecordedAndRunContinues .
+ > EndSuite(TAdidCmdRunnerStateFilesTests)
+ TestFramework.TTestSuite.TInstallerSkillScopeTests 
+ StartSuite(TInstallerSkillScopeTests)(7) <
+  TestInstallerSkillScope.TInstallerSkillScopeTests.CursorInstallKeepsProjectSkill .
+  TestInstallerSkillScope.TInstallerSkillScopeTests.SkillsReceiverKeepsForeignFolder .
+  TestInstallerSkillScope.TInstallerSkillScopeTests.CursorInstallRemovesRetiredSkill .
+  TestInstallerSkillScope.TInstallerSkillScopeTests.CodexKeepsProjectSkillRefreshesOurs .
+  TestInstallerSkillScope.TInstallerSkillScopeTests.PreserveSkillsWritesCandidate .
+  TestInstallerSkillScope.TInstallerSkillScopeTests.PreserveSkillsSurvivesTheRegistry .
+  TestInstallerSkillScope.TInstallerSkillScopeTests.OldRegistryReadsAsRefresh .
+ > EndSuite(TInstallerSkillScopeTests)
+ TestFramework.TTestSuite.TInstallerClaudeKernelTests 
+ StartSuite(TInstallerClaudeKernelTests)(9) <
+  TestInstallerClaudeKernel.TInstallerClaudeKernelTests.InstalledKernelIsTheCandidateByteForByte .
+  TestInstallerClaudeKernel.TInstallerClaudeKernelTests.SecondInstallWritesNothing .
+  TestInstallerClaudeKernel.TInstallerClaudeKernelTests.ForeignClaudeMdKeepsEveryByte .
+  TestInstallerClaudeKernel.TInstallerClaudeKernelTests.NoAgentsMdNoRootClaudeMd .
+  TestInstallerClaudeKernel.TInstallerClaudeKernelTests.UserScopeWritesTheHomeNotTheProject .
+  TestInstallerClaudeKernel.TInstallerClaudeKernelTests.CandidateShaMismatchRefusesAndWritesNothing .
+  TestInstallerClaudeKernel.TInstallerClaudeKernelTests.ProjectReceiverInstallsTheKernel .
+  TestInstallerClaudeKernel.TInstallerClaudeKernelTests.ClaudeOptionsSurviveTheRegistry .
+  TestInstallerClaudeKernel.TInstallerClaudeKernelTests.OldRegistryReadsAsNoClaude .
+ > EndSuite(TInstallerClaudeKernelTests)
+ TestFramework.TTestSuite.TAdidCmdRunnerLogRootTests 
+ StartSuite(TAdidCmdRunnerLogRootTests)(4) <
+  TestAdidCmdRunnerLogRoot.TAdidCmdRunnerLogRootTests.RunsRootHonorsTheEnvVar .
+  TestAdidCmdRunnerLogRoot.TAdidCmdRunnerLogRootTests.RunsRootUnchangedWhenUnset .
+  TestAdidCmdRunnerLogRoot.TAdidCmdRunnerLogRootTests.HostArgvCarriesTheLogRoot .
+  TestAdidCmdRunnerLogRoot.TAdidCmdRunnerLogRootTests.RawRunWritesUnderTheLogRoot .
+ > EndSuite(TAdidCmdRunnerLogRootTests)
+> EndSuite(ADIDInstallerTests.exe)
+Time: 0:00:28.300
+
+OK: 177 tests
+
+

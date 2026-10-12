@@ -1,0 +1,323 @@
+[release] repo=D:\zPython\ADID_Python\
+[release] ts=20261012T202329Z
+[release] scripts/release.py ...
+[OK] Delphi installer config is JSON-only (no INI references found).
+220 INFO: PyInstaller: 6.20.0, contrib hooks: 2026.5
+221 INFO: Python: 3.13.13
+249 INFO: Platform: Windows-11-10.0.26100-SP0
+249 INFO: Python environment: D:\USESoft\Python313
+250 INFO: wrote D:\zPython\ADID_Python\adm.spec
+254 INFO: Removing temporary files and cleaning cache in C:\Users\Alexander\AppData\Local\pyinstaller
+259 INFO: Module search paths (PYTHONPATH):
+['D:\\zPython\\ADID_Python',
+ 'D:\\zPython\\ADID_Python\\src',
+ 'D:\\zPython\\ADID_Python',
+ 'D:\\USESoft\\Python313\\python313.zip',
+ 'D:\\USESoft\\Python313\\DLLs',
+ 'D:\\USESoft\\Python313\\Lib',
+ 'D:\\USESoft\\Python313',
+ 'D:\\USESoft\\Python313\\Lib\\site-packages',
+ 'D:\\zPython\\Aurora_Python\\src',
+ 'D:\\zPython\\_chemistry\\src',
+ '__editable__.deepseek_vl2-1.0.0.finder.__path_hook__',
+ 'D:\\zPython\\site_link\\src',
+ 'D:\\USESoft\\Python313\\Lib\\site-packages\\win32',
+ 'D:\\USESoft\\Python313\\Lib\\site-packages\\win32\\lib',
+ 'D:\\USESoft\\Python313\\Lib\\site-packages\\pythonwin',
+ 'D:\\zPython\\ADID_Python\\scripts\\internal',
+ 'D:\\zPython\\ADID_Python\\src']
+797 INFO: Appending 'datas' from .spec
+797 INFO: checking Analysis
+797 INFO: Building Analysis because Analysis-00.toc is non existent
+797 INFO: Looking for Python shared library...
+797 INFO: Using Python shared library: D:\USESoft\Python313\python313.dll
+797 INFO: Running Analysis Analysis-00.toc
+798 INFO: Target bytecode optimization level: 0
+798 INFO: Initializing module dependency graph...
+798 INFO: Initializing module graph hook caches...
+869 INFO: Analyzing modules for base_library.zip ...
+2346 INFO: Processing standard module hook 'hook-encodings.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+3179 INFO: Processing standard module hook 'hook-heapq.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+4909 INFO: Processing standard module hook 'hook-pickle.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+6939 INFO: Caching module dependency graph...
+7001 INFO: Analyzing D:\zPython\ADID_Python\scripts\internal\adm_entry.py
+7130 INFO: Processing standard module hook 'hook-difflib.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+7311 INFO: Processing standard module hook 'hook-xml.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+7343 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+7447 INFO: Processing standard module hook 'hook-sysconfig.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+7455 INFO: Processing standard module hook 'hook-_ctypes.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+7623 INFO: Processing standard module hook 'hook-keyring.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+8289 INFO: Processing pre-safe-import-module hook 'hook-jaraco.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+8295 INFO: SetuptoolsInfo: initializing cached setuptools info...
+8906 INFO: Setuptools: 'jaraco' appears to be a partial setuptools-vendored copy - extending search paths to ['D:\\USESoft\\Python313\\Lib\\site-packages\\jaraco', 'D:\\USESoft\\Python313\\Lib\\site-packages\\setuptools\\_vendor\\jaraco']!
+8908 INFO: Processing pre-safe-import-module hook 'hook-jaraco.context.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+8966 INFO: Processing standard module hook 'hook-platform.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+9411 INFO: Processing pre-safe-import-module hook 'hook-backports.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+9412 INFO: Setuptools: 'backports' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.backports'!
+9421 INFO: Processing standard module hook 'hook-setuptools.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+9439 INFO: Processing pre-safe-import-module hook 'hook-distutils.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+9499 INFO: Processing pre-safe-import-module hook 'hook-jaraco.functools.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+9516 INFO: Processing pre-safe-import-module hook 'hook-more_itertools.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+9738 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+10125 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+11348 INFO: Processing pre-safe-import-module hook 'hook-packaging.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+11593 INFO: Processing pre-safe-import-module hook 'hook-jaraco.text.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+11594 INFO: Setuptools: 'jaraco.text' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.jaraco.text'!
+11615 INFO: Processing standard module hook 'hook-setuptools._vendor.jaraco.text.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+11617 INFO: Processing pre-safe-import-module hook 'hook-importlib_resources.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+11755 INFO: Processing pre-safe-import-module hook 'hook-importlib_metadata.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+11797 INFO: Processing standard module hook 'hook-importlib_metadata.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+11832 INFO: Processing pre-safe-import-module hook 'hook-zipp.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+12131 INFO: Processing pre-safe-import-module hook 'hook-tomli.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+12131 INFO: Setuptools: 'tomli' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.tomli'!
+12897 INFO: Processing pre-safe-import-module hook 'hook-wheel.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+13675 INFO: Analyzing hidden import 'adm.resources'
+13676 INFO: Processing module hooks (post-graph stage)...
+13718 INFO: Processing standard module hook 'hook-win32ctypes.core.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+14749 INFO: Processing standard module hook 'hook-pycparser.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+17280 INFO: Processing standard module hook 'hook-pywintypes.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+17439 INFO: Processing pre-safe-import-module hook 'hook-gi.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+17635 WARNING: Hidden import "pycparser.lextab" not found!
+17635 WARNING: Hidden import "pycparser.yacctab" not found!
+17641 INFO: Performing binary vs. data reclassification (20 entries)
+17648 INFO: Looking for ctypes DLLs
+17732 INFO: Analyzing run-time hooks ...
+17736 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+17740 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+17745 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+17750 INFO: Including run-time hook 'pyi_rth_pywintypes.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+17751 INFO: Including run-time hook 'pyi_rth_setuptools.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+17766 INFO: Creating base_library.zip...
+17797 INFO: Looking for dynamic libraries
+18461 INFO: Extra DLL search directories (AddDllDirectory): []
+18462 INFO: Extra DLL search directories (PATH): []
+19332 INFO: Warnings written to D:\zPython\ADID_Python\build\adm\warn-adm.txt
+19394 INFO: Graph cross-reference written to D:\zPython\ADID_Python\build\adm\xref-adm.html
+19428 INFO: checking PYZ
+19428 INFO: Building PYZ because PYZ-00.toc is non existent
+19428 INFO: Building PYZ (ZlibArchive) D:\zPython\ADID_Python\build\adm\PYZ-00.pyz
+20095 INFO: Building PYZ (ZlibArchive) D:\zPython\ADID_Python\build\adm\PYZ-00.pyz completed successfully.
+20114 INFO: checking PKG
+20114 INFO: Building PKG because PKG-00.toc is non existent
+20114 INFO: Building PKG (CArchive) adm.pkg
+29442 INFO: Building PKG (CArchive) adm.pkg completed successfully.
+29445 INFO: Bootloader D:\USESoft\Python313\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\run.exe
+29445 INFO: checking EXE
+29445 INFO: Building EXE because EXE-00.toc is non existent
+29445 INFO: Building EXE from EXE-00.toc
+29447 INFO: Copying bootloader EXE to D:\zPython\ADID_Python\dist\adm.exe
+29454 INFO: Copying icon to EXE
+29458 INFO: Copying 0 resources to EXE
+29458 INFO: Embedding manifest in EXE
+29461 INFO: Appending PKG archive to EXE
+29477 INFO: Fixing EXE headers
+29658 INFO: Building EXE from EXE-00.toc completed successfully.
+29661 INFO: Build complete! The results are available in: D:\zPython\ADID_Python\dist
+[BUILD] Running: D:\USESoft\Python313\python.exe -m PyInstaller --onefile --clean -n adm --paths=D:\zPython\ADID_Python\src --hidden-import adm.resources --hidden-import tree_sitter --hidden-import tree_sitter_language_pack --hidden-import colorama --add-data D:\zPython\ADID_Python\src\adm\resources;adm/resources D:\zPython\ADID_Python\scripts\internal\adm_entry.py --hidden-import xml.parsers.expat --hidden-import pyexpat --hidden-import _elementtree --exclude-module torch --exclude-module torchvision --exclude-module torchaudio --exclude-module sentence_transformers --exclude-module transformers --exclude-module scipy --exclude-module sklearn --exclude-module pandas --exclude-module onnxruntime --exclude-module pypdfium2_raw
+[BUILD] Wrote D:\zPython\ADID_Python\dist\adm.exe
+[BUILD] Updated D:\zPython\ADID_Python\tools\adm.exe
+156 INFO: PyInstaller: 6.20.0, contrib hooks: 2026.5
+157 INFO: Python: 3.13.13
+189 INFO: Platform: Windows-11-10.0.26100-SP0
+189 INFO: Python environment: D:\USESoft\Python313
+190 INFO: wrote D:\zPython\ADID_Python\adm-rag.spec
+194 INFO: Removing temporary files and cleaning cache in C:\Users\Alexander\AppData\Local\pyinstaller
+668 INFO: Module search paths (PYTHONPATH):
+['D:\\zPython\\ADID_Python',
+ 'D:\\zPython\\ADID_Python\\src',
+ 'D:\\zPython\\ADID_Python',
+ 'D:\\USESoft\\Python313\\python313.zip',
+ 'D:\\USESoft\\Python313\\DLLs',
+ 'D:\\USESoft\\Python313\\Lib',
+ 'D:\\USESoft\\Python313',
+ 'D:\\USESoft\\Python313\\Lib\\site-packages',
+ 'D:\\zPython\\Aurora_Python\\src',
+ 'D:\\zPython\\_chemistry\\src',
+ '__editable__.deepseek_vl2-1.0.0.finder.__path_hook__',
+ 'D:\\zPython\\site_link\\src',
+ 'D:\\USESoft\\Python313\\Lib\\site-packages\\win32',
+ 'D:\\USESoft\\Python313\\Lib\\site-packages\\win32\\lib',
+ 'D:\\USESoft\\Python313\\Lib\\site-packages\\pythonwin',
+ 'D:\\zPython\\ADID_Python\\scripts\\internal',
+ 'D:\\zPython\\ADID_Python\\src']
+1168 INFO: Appending 'datas' from .spec
+1168 INFO: checking Analysis
+1168 INFO: Building Analysis because Analysis-00.toc is non existent
+1168 INFO: Looking for Python shared library...
+1168 INFO: Using Python shared library: D:\USESoft\Python313\python313.dll
+1168 INFO: Running Analysis Analysis-00.toc
+1168 INFO: Target bytecode optimization level: 0
+1169 INFO: Initializing module dependency graph...
+1169 INFO: Initializing module graph hook caches...
+1186 INFO: Analyzing modules for base_library.zip ...
+2791 INFO: Processing standard module hook 'hook-encodings.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+5215 INFO: Processing standard module hook 'hook-pickle.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+6549 INFO: Processing standard module hook 'hook-heapq.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+7213 INFO: Caching module dependency graph...
+7298 INFO: Analyzing D:\zPython\ADID_Python\scripts\internal\adm_rag_entry.py
+7453 INFO: Processing standard module hook 'hook-difflib.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+7648 INFO: Processing standard module hook 'hook-xml.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+7676 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+7771 INFO: Processing standard module hook 'hook-sysconfig.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+7776 INFO: Processing standard module hook 'hook-_ctypes.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+7941 INFO: Processing standard module hook 'hook-keyring.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+8675 INFO: Processing pre-safe-import-module hook 'hook-jaraco.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+8676 INFO: SetuptoolsInfo: initializing cached setuptools info...
+9359 INFO: Setuptools: 'jaraco' appears to be a partial setuptools-vendored copy - extending search paths to ['D:\\USESoft\\Python313\\Lib\\site-packages\\jaraco', 'D:\\USESoft\\Python313\\Lib\\site-packages\\setuptools\\_vendor\\jaraco']!
+9361 INFO: Processing pre-safe-import-module hook 'hook-jaraco.context.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+9427 INFO: Processing standard module hook 'hook-platform.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+9846 INFO: Processing pre-safe-import-module hook 'hook-backports.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+9847 INFO: Setuptools: 'backports' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.backports'!
+9855 INFO: Processing standard module hook 'hook-setuptools.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+9872 INFO: Processing pre-safe-import-module hook 'hook-distutils.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+9928 INFO: Processing pre-safe-import-module hook 'hook-jaraco.functools.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+9944 INFO: Processing pre-safe-import-module hook 'hook-more_itertools.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+10166 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+10538 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+11757 INFO: Processing pre-safe-import-module hook 'hook-packaging.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+11963 INFO: Processing pre-safe-import-module hook 'hook-jaraco.text.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+11964 INFO: Setuptools: 'jaraco.text' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.jaraco.text'!
+11979 INFO: Processing standard module hook 'hook-setuptools._vendor.jaraco.text.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+11981 INFO: Processing pre-safe-import-module hook 'hook-importlib_resources.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+12092 INFO: Processing pre-safe-import-module hook 'hook-importlib_metadata.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+12133 INFO: Processing standard module hook 'hook-importlib_metadata.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+12162 INFO: Processing pre-safe-import-module hook 'hook-zipp.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+12417 INFO: Processing pre-safe-import-module hook 'hook-tomli.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+12417 INFO: Setuptools: 'tomli' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.tomli'!
+13122 INFO: Processing pre-safe-import-module hook 'hook-wheel.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+13868 INFO: Analyzing hidden import 'adm.resources'
+13868 INFO: Analyzing hidden import 'adm.mcp_common'
+13893 INFO: Analyzing hidden import 'adm.mcp_guardrails'
+13904 INFO: Analyzing hidden import 'adm.mcp_http_server'
+13989 INFO: Analyzing hidden import 'adm.manager_methods._rag_delete'
+13991 INFO: Analyzing hidden import 'adm.manager_methods._rag_docs'
+14042 INFO: Processing standard module hook 'hook-sqlite3.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+14388 INFO: Analyzing hidden import 'adm.manager_methods._rag_index'
+14490 INFO: Analyzing hidden import 'adm.manager_methods._rag_list'
+14493 INFO: Analyzing hidden import 'adm.manager_methods._rag_query'
+14503 INFO: Analyzing hidden import 'adm.manager_methods._rag_settings'
+14507 INFO: Analyzing hidden import 'adm.manager_methods._rag_status'
+14510 INFO: Analyzing hidden import 'adm.rag.content_classifier'
+14515 INFO: Analyzing hidden import 'adm.rag.se3_trainer'
+14548 INFO: Processing module hooks (post-graph stage)...
+14588 INFO: Processing standard module hook 'hook-win32ctypes.core.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks'
+15637 INFO: Processing standard module hook 'hook-pycparser.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+18013 INFO: Processing standard module hook 'hook-pywintypes.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+18119 INFO: Processing pre-safe-import-module hook 'hook-gi.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+18295 WARNING: Hidden import "pycparser.lextab" not found!
+18295 WARNING: Hidden import "pycparser.yacctab" not found!
+18302 INFO: Performing binary vs. data reclassification (20 entries)
+18305 INFO: Looking for ctypes DLLs
+18381 INFO: Analyzing run-time hooks ...
+18384 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+18387 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+18390 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+18393 INFO: Including run-time hook 'pyi_rth_pywintypes.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+18394 INFO: Including run-time hook 'pyi_rth_setuptools.py' from 'D:\\USESoft\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+18406 INFO: Creating base_library.zip...
+18432 INFO: Looking for dynamic libraries
+18963 INFO: Extra DLL search directories (AddDllDirectory): []
+18964 INFO: Extra DLL search directories (PATH): []
+19681 INFO: Warnings written to D:\zPython\ADID_Python\build\adm-rag\warn-adm-rag.txt
+19750 INFO: Graph cross-reference written to D:\zPython\ADID_Python\build\adm-rag\xref-adm-rag.html
+19781 INFO: checking PYZ
+19781 INFO: Building PYZ because PYZ-00.toc is non existent
+19781 INFO: Building PYZ (ZlibArchive) D:\zPython\ADID_Python\build\adm-rag\PYZ-00.pyz
+20486 INFO: Building PYZ (ZlibArchive) D:\zPython\ADID_Python\build\adm-rag\PYZ-00.pyz completed successfully.
+20506 INFO: checking PKG
+20506 INFO: Building PKG because PKG-00.toc is non existent
+20507 INFO: Building PKG (CArchive) adm-rag.pkg
+30732 INFO: Building PKG (CArchive) adm-rag.pkg completed successfully.
+30736 INFO: Bootloader D:\USESoft\Python313\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\run.exe
+30736 INFO: checking EXE
+30736 INFO: Building EXE because EXE-00.toc is non existent
+30736 INFO: Building EXE from EXE-00.toc
+30737 INFO: Copying bootloader EXE to D:\zPython\ADID_Python\dist\adm-rag.exe
+30741 INFO: Copying icon to EXE
+30744 INFO: Copying 0 resources to EXE
+30744 INFO: Embedding manifest in EXE
+30746 INFO: Appending PKG archive to EXE
+30762 INFO: Fixing EXE headers
+30915 INFO: Building EXE from EXE-00.toc completed successfully.
+30919 INFO: Build complete! The results are available in: D:\zPython\ADID_Python\dist
+[BUILD] Running: D:\USESoft\Python313\python.exe -m PyInstaller --onefile --clean -n adm-rag --paths=D:\zPython\ADID_Python\src --hidden-import adm.resources --hidden-import adm.mcp_common --hidden-import adm.mcp_guardrails --hidden-import adm.mcp_http_server --hidden-import adm.mcp_stdio_server --hidden-import adm.manager_methods._rag_delete --hidden-import adm.manager_methods._rag_docs --hidden-import adm.manager_methods._rag_index --hidden-import adm.manager_methods._rag_list --hidden-import adm.manager_methods._rag_query --hidden-import adm.manager_methods._rag_settings --hidden-import adm.manager_methods._rag_status --collect-submodules adm.rag --add-data D:\zPython\ADID_Python\src\adm\resources;adm/resources D:\zPython\ADID_Python\scripts\internal\adm_rag_entry.py --hidden-import xml.parsers.expat --hidden-import pyexpat --hidden-import _elementtree --exclude-module torch --exclude-module torchvision --exclude-module torchaudio --exclude-module sentence_transformers --exclude-module transformers --exclude-module numpy --exclude-module scipy --exclude-module sklearn --exclude-module pandas --exclude-module onnxruntime --exclude-module pypdfium2_raw
+[BUILD] Wrote D:\zPython\ADID_Python\dist\adm-rag.exe
+[BUILD] Updated D:\zPython\ADID_Python\tools\adm-rag.exe
+[OK] MSVC environment already initialized.
+d:\zPascal\zRAD_Pascal\bin64\dcc32.exe
+d:\zPascal\zRAD_Pascal\bin\dcc32.EXE
+[OK] Delphi environment initialized.
+[INFO] default_platform=Win64
+[INFO] detected_root=d:\zPascal\zRAD_Pascal
+
+Examples:
+  tools\build_delphi_msbuild.cmd delphi\ADIDInstallerFMX.dpr Win32 Release
+  tools\build_delphi_msbuild.cmd delphi\ADIDInstallerFMX.dpr Win64 Release
+  tools\build_delphi_msbuild.cmd delphi\ADIDInstallerFMX.dpr Linux64 Release my_wsl_profile
+
+[BUILD] msbuild "D:\zPython\ADID_Python\delphi\cmd_runner.dproj" /t:Build /p:Config=Release /p:Platform=Win64 
+Microsoft (R) Build Engine version 4.8.9221.0
+[Microsoft .NET Framework, version 4.0.30319.42000]
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Build started 10/12/2026 8:24:32 PM.
+Project "D:\zPython\ADID_Python\delphi\cmd_runner.dproj" on node 1 (Build target(s)).
+BuildVersionResource:
+  D:\zPascal\zRAD_Pascal\bin64\cgrc.exe -c65001 -= resinator.exe cmd_runner.vrc -focmd_runner.res 
+  CodeGear Resource Compiler/Binder
+  Version 1.2.3 Copyright (c) 2008-2025 Embarcadero Technologies Inc.
+  
+  Deleting file "cmd_runner.vrc".
+_PasCoreCompile:
+  D:\zPascal\zRAD_Pascal\bin\dcc64.exe --codepage:65001 --no-config -B -Q -Z -TX.exe -AGenerics.Collections=System.Generics.Collections;Generics.Defaults=System.Generics.Defaults;WinTypes=Winapi.Windows;WinProcs=Winapi.Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE -D;FRAMEWORK_ -E.\bin\Win64\Release -Id:\zpascal\zrad_pascal\lib\Win64\release\EN;d:\zpascal\zrad_pascal\lib\Win64\release;D:\zPascal\Imports\Win64;D:\zPascal\zRAD_Pascal\Imports;D:\zPascal\zCommon\Bpl\Win64;D:\zPascal\zCommon\Dcp\Win64;D:\zPascal\zRAD_Pascal\include;d:\zPascal\zCommon\Comps\WebMocks\source\Source;d:\zPascal\zCommon\Comps\mORMot-2\source\core;d:\zPascal\zCommon\Comps\mORMot-2\source\lib;d:\zPascal\zCommon\Comps\mORMot-2\source\crypt;d:\zPascal\zCommon\Comps\mORMot-2\source\net;d:\zPascal\zCommon\Comps\mORMot-2\source\db;d:\zPascal\zCommon\Comps\mORMot-2\source\rest;d:\zPascal\zCommon\Comps\mORMot-2\source\orm;d:\zPascal\zCommon\Comps\mORMot-2\source\soa;d:\zPascal\zCommon\Comps\mORMot-2\source\app;d:\zPascal\zCommon\Comps\mORMot-2\source\script;d:\zPascal\zCommon\Comps\mORMot-2\source\ui;d:\zPascal\zCommon\Comps\mORMot-2\source\tools;d:\zPascal\zCommon\Comps\mORMot-2\source\misc;D:\zPascal\XEComponents\jcl\jcl\lib\d37\win64;D:\zPascal\XEComponents\jcl\jcl\source\include;D:\zPascal\XEComponents\jvcl\jvcl\lib\d37\win64;D:\zPascal\XEComponents\jvcl\jvcl\common;D:\zPascal\XEComponents\jvcl\jvcl\resources;D:\zPascal\XEComponents\_external\fbzip64;D:\zPascal\XEComponents\TeeChart\Source\VCL;D:\zPascal\XEComponents\Firemonkey-Container -LED:\zPascal\zCommon\Bpl\Win64 -LND:\zPascal\zCommon\Dcp\Win64 -NU.\dcu\Win64\Release -NS -Od:\zpascal\zrad_pascal\lib\Win64\release;D:\zPascal\Imports\Win64;D:\zPascal\zRAD_Pascal\Imports;D:\zPascal\zCommon\Bpl\Win64;D:\zPascal\zCommon\Dcp\Win64;D:\zPascal\zRAD_Pascal\include;d:\zPascal\zCommon\Comps\WebMocks\source\Source;d:\zPascal\zCommon\Comps\mORMot-2\source\core;d:\zPascal\zCommon\Comps\mORMot-2\source\lib;d:\zPascal\zCommon\Comps\mORMot-2\source\crypt;d:\zPascal\zCommon\Comps\mORMot-2\source\net;d:\zPascal\zCommon\Comps\mORMot-2\source\db;d:\zPascal\zCommon\Comps\mORMot-2\source\rest;d:\zPascal\zCommon\Comps\mORMot-2\source\orm;d:\zPascal\zCommon\Comps\mORMot-2\source\soa;d:\zPascal\zCommon\Comps\mORMot-2\source\app;d:\zPascal\zCommon\Comps\mORMot-2\source\script;d:\zPascal\zCommon\Comps\mORMot-2\source\ui;d:\zPascal\zCommon\Comps\mORMot-2\source\tools;d:\zPascal\zCommon\Comps\mORMot-2\source\misc;D:\zPascal\XEComponents\jcl\jcl\lib\d37\win64;D:\zPascal\XEComponents\jcl\jcl\source\include;D:\zPascal\XEComponents\jvcl\jvcl\lib\d37\win64;D:\zPascal\XEComponents\jvcl\jvcl\common;D:\zPascal\XEComponents\jvcl\jvcl\resources;D:\zPascal\XEComponents\_external\fbzip64;D:\zPascal\XEComponents\TeeChart\Source\VCL;D:\zPascal\XEComponents\Firemonkey-Container -Rd:\zpascal\zrad_pascal\lib\Win64\release\EN;d:\zpascal\zrad_pascal\lib\Win64\release;D:\zPascal\Imports\Win64;D:\zPascal\zRAD_Pascal\Imports;D:\zPascal\zCommon\Bpl\Win64;D:\zPascal\zCommon\Dcp\Win64;D:\zPascal\zRAD_Pascal\include;d:\zPascal\zCommon\Comps\WebMocks\source\Source;d:\zPascal\zCommon\Comps\mORMot-2\source\core;d:\zPascal\zCommon\Comps\mORMot-2\source\lib;d:\zPascal\zCommon\Comps\mORMot-2\source\crypt;d:\zPascal\zCommon\Comps\mORMot-2\source\net;d:\zPascal\zCommon\Comps\mORMot-2\source\db;d:\zPascal\zCommon\Comps\mORMot-2\source\rest;d:\zPascal\zCommon\Comps\mORMot-2\source\orm;d:\zPascal\zCommon\Comps\mORMot-2\source\soa;d:\zPascal\zCommon\Comps\mORMot-2\source\app;d:\zPascal\zCommon\Comps\mORMot-2\source\script;d:\zPascal\zCommon\Comps\mORMot-2\source\ui;d:\zPascal\zCommon\Comps\mORMot-2\source\tools;d:\zPascal\zCommon\Comps\mORMot-2\source\misc;D:\zPascal\XEComponents\jcl\jcl\lib\d37\win64;D:\zPascal\XEComponents\jcl\jcl\source\include;D:\zPascal\XEComponents\jvcl\jvcl\lib\d37\win64;D:\zPascal\XEComponents\jvcl\jvcl\common;D:\zPascal\XEComponents\jvcl\jvcl\resources;D:\zPascal\XEComponents\_external\fbzip64;D:\zPascal\XEComponents\TeeChart\Source\VCL;D:\zPascal\XEComponents\Firemonkey-Container -Ud:\zpascal\zrad_pascal\lib\Win64\release\EN;d:\zpascal\zrad_pascal\lib\Win64\release;D:\zPascal\Imports\Win64;D:\zPascal\zRAD_Pascal\Imports;D:\zPascal\zCommon\Bpl\Win64;D:\zPascal\zCommon\Dcp\Win64;D:\zPascal\zRAD_Pascal\include;d:\zPascal\zCommon\Comps\WebMocks\source\Source;d:\zPascal\zCommon\Comps\mORMot-2\source\core;d:\zPascal\zCommon\Comps\mORMot-2\source\lib;d:\zPascal\zCommon\Comps\mORMot-2\source\crypt;d:\zPascal\zCommon\Comps\mORMot-2\source\net;d:\zPascal\zCommon\Comps\mORMot-2\source\db;d:\zPascal\zCommon\Comps\mORMot-2\source\rest;d:\zPascal\zCommon\Comps\mORMot-2\source\orm;d:\zPascal\zCommon\Comps\mORMot-2\source\soa;d:\zPascal\zCommon\Comps\mORMot-2\source\app;d:\zPascal\zCommon\Comps\mORMot-2\source\script;d:\zPascal\zCommon\Comps\mORMot-2\source\ui;d:\zPascal\zCommon\Comps\mORMot-2\source\tools;d:\zPascal\zCommon\Comps\mORMot-2\source\misc;D:\zPascal\XEComponents\jcl\jcl\lib\d37\win64;D:\zPascal\XEComponents\jcl\jcl\source\include;D:\zPascal\XEComponents\jvcl\jvcl\lib\d37\win64;D:\zPascal\XEComponents\jvcl\jvcl\common;D:\zPascal\XEComponents\jvcl\jvcl\resources;D:\zPascal\XEComponents\_external\fbzip64;D:\zPascal\XEComponents\TeeChart\Source\VCL;D:\zPascal\XEComponents\Firemonkey-Container -VR -NBD:\zPascal\zCommon\Dcp\Win64 -NHD:\zPascal\zCommon\hpp\Win64 -NO.\dcu\Win64\Release  cmd_runner.dpr   
+  Embarcadero Delphi for Win64 compiler version 37.0
+  Copyright (c) 1983,2025 Embarcadero Technologies, Inc.
+common\AdidCmdRunnerKeyEncode.pas(100): Hint warning H2164: Variable 'I' is declared but never used in '_parse_ctrl_key' [D:\zPython\ADID_Python\delphi\cmd_runner.dproj]
+common\AdidCmdRunnerSession.pas(1198): Hint warning H2077: Value assigned to 'TimedOut' never used [D:\zPython\ADID_Python\delphi\cmd_runner.dproj]
+common\AdidCmdRunnerSession.pas(1713): Hint warning H2077: Value assigned to 'JsonState' never used [D:\zPython\ADID_Python\delphi\cmd_runner.dproj]
+  9113 lines, 0.62 seconds, 2640384 bytes code, 371216 bytes data.
+Done Building Project "D:\zPython\ADID_Python\delphi\cmd_runner.dproj" (Build target(s)).
+
+Build succeeded.
+
+"D:\zPython\ADID_Python\delphi\cmd_runner.dproj" (Build target) (1) ->
+(_PasCoreCompile target) -> 
+  common\AdidCmdRunnerKeyEncode.pas(100): Hint warning H2164: Variable 'I' is declared but never used in '_parse_ctrl_key' [D:\zPython\ADID_Python\delphi\cmd_runner.dproj]
+  common\AdidCmdRunnerSession.pas(1198): Hint warning H2077: Value assigned to 'TimedOut' never used [D:\zPython\ADID_Python\delphi\cmd_runner.dproj]
+  common\AdidCmdRunnerSession.pas(1713): Hint warning H2077: Value assigned to 'JsonState' never used [D:\zPython\ADID_Python\delphi\cmd_runner.dproj]
+
+    3 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:01.60
+============================================================
+ADID Unified Build
+============================================================
+Backend: pyinstaller
+Jobs: 4
+Mode: Standard
+Output: dist
+============================================================
+
+[BUILD] Building adm.exe with constrained PyInstaller
+
+[BUILD] Building adm-rag.exe with constrained PyInstaller
+
+[BUILD] Building cmd_runner.exe via Delphi MSBuild
+[BUILD] Platform: Win64, Config: Release
+[BUILD] Wrote D:\zPython\ADID_Python\delphi\bin\Win64\Release\cmd_runner.exe (3152 KB)
+
+============================================================
+Build Summary
+============================================================
+  adm.exe: ✓ SUCCESS
+  adm-rag.exe: ✓ SUCCESS
+  cmd_runner.exe: ✓ SUCCESS
+============================================================
+All builds completed successfully!
+[ERROR] Command failed (1): D:\USESoft\Python313\python.exe -m pytest -r a -q tests/test_docs_no_cmd_runner_legacy.py tests/test_rag_basic.py tests/test_rg_sed.py tests/test_refactor_actions.py tests/test_snapshot_preflight.py tests/test_tool_improvements.py::test_template_all_creates_template tests/test_tool_improvements.py::test_verify_all_emits_reports_and_logs_progress tests/test_tool_improvements.py::test_log_progress_defaults_to_project_log tests/test_tool_improvements.py::test_template_respects_custom_directory tests/test_tool_improvements.py::test_template_alias tests/test_tool_improvements.py::test_template_replace_is_minimal tests/test_tool_improvements.py::test_progress_logging_creates_parent_directory tests/test_adm_cmd_runner_wrapper.py::test_cmd_runner_wrapper_missing
+See: D:\zPython\ADID_Python\releases\adid_dist_20261012T202329Z\logs\pytest.log
+[RUN] D:\USESoft\Python313\python.exe scripts/internal/check_delphi_json_only_config.py
+[RUN] D:\USESoft\Python313\python.exe scripts/internal/_build.py --backend=pyinstaller
+[RUN] D:\USESoft\Python313\python.exe scripts/internal/build_release_package.py --timestamp 20261012T202329Z
+[release] FAIL rc=

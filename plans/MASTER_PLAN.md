@@ -92,7 +92,7 @@ missing: the handoff permitted «until that lands» without saying what would ru
 Стратегия доказанной непрерывности: [завершённый аудит кернела и host addons](../plans_completed/2026-10-12_kernel-addons-correctness-audit.md) проверил согласованность правил, инструментальных привязок и условий завершения. Анализ не устанавливал новый кернел; его выход — K01–K10, воспроизводимые дефекты и границы доказательства для отдельного ремонта.
 <!-- sv: kernel-correctness,evidence,host-bindings,closure -->
 
-Реализация этой стратегии: [ремонт контрактов и ADID release](2026-10-12_kernel-contract-repair-and-adid-release.md) восстанавливает guards и mandatory inputs, затем передаёт доказанный snapshot резиденту ADID для release/install с независимым readback.
+Реализация этой стратегии: [ремонт контрактов и ADID release](postponed/2026-10-12_kernel-contract-repair-and-adid-release.md) восстанавливает guards и mandatory inputs; kernel repair проверен, ADID release/install остановлен с сохранённым воспроизводителем и условиями продолжения.
 <!-- sv: kernel-contracts,host-bindings,delegation,release-verification -->
 
 ## Standing rules that outlive any plan
@@ -112,9 +112,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 224 |
-| plans active | 18 |
-| tasks passed / total | 929 / 1171 |
-| open boxes | 99 |
+| plans active | 17 |
+| tasks passed / total | 925 / 1162 |
+| open boxes | 94 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -271,20 +271,12 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - S3 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - S4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-12_kernel-contract-repair-and-adid-release.md` — 5 open / 9 box(es) · lifecycle ACTIVE
-  sv: intention "K01-K10 expose divergent receivers, incomplete guards and unbound grounding/closure contracts -> kernel and host addons are repaired under regression oracles, then the ADID_Python resident updates its canonical bundle, releases and installs it with independent per-receiver verification" · keywords [kernel-contracts, host-bindings, delegation, release-verification]
-  - TASK-5 [PENDING] · sv [host-bindings, codegraph] · manifest: MISSING — nobody has written down what this box is
-  - TASK-6 [PENDING] · sv [strategy, explorer-audit, closure] · manifest: MISSING — nobody has written down what this box is
-  - TASK-7 [PENDING] · sv [receivers, regression, release-verification] · manifest: MISSING — nobody has written down what this box is
-  - TASK-8 [PENDING] · sv [delegation, release-verification] · manifest: MISSING — nobody has written down what this box is
-  - TASK-9 [PENDING] · sv [installed-readback, closure] · manifest: MISSING — nobody has written down what this box is
-
 - `plans/2026-10-12_specs-inventory-truth.md` — 1 open / 4 box(es) · lifecycle ACTIVE
   sv: intention "the specs under packages/opencode/specs state live inventory in prose — file lists, call-site counts, feature flags — and that prose rots silently (measured 2026-10-12: facades.md names a makeRuntime composition that has since changed on BOTH sides, http-api.md still announces a gate flag that no longer exists in src) -> inventory that can rot is either replaced by the command that recomputes it or generated, while the rules and the work order — which do not rot — stay hand-written." · keywords []
   - S2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 ## The checks
 
-This body names all 20 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 19 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

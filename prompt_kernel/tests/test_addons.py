@@ -147,3 +147,13 @@ def test_render_rejects_invalid_identity_addon_registry(monkeypatch: pytest.Monk
     )
     with pytest.raises(ValueError, match="invalid addons"):
         render_kernel(KERNEL)
+
+
+def test_assertion_status_requires_an_effect_claim_to_carry_its_receipt() -> None:
+    # Exit audit 2026-10-13, case D: a mark is a label, not a receipt — an effect claim asserted
+    # without one reads as done while it is still intent (docs/robot-protocol-log.md:43).
+    text = render_kernel(KERNEL)
+    assert (
+        "- an EFFECT claim — sent, wrote, dispatched, done — is written only with its receipt"
+        " (id / hash / count); without one it is stated as intent." in _gate_block(text, "G7")
+    )

@@ -143,3 +143,12 @@ def test_claude_addon_render_is_deterministic_lf() -> None:
     assert render_kernel(KERNEL, CLAUDE_GATE_ADDONS, ()) == text
     assert "\r" not in text
     assert text.endswith("\n")
+
+
+def test_claude_assertion_status_requires_an_effect_claim_to_carry_its_receipt() -> None:
+    # ASSERTION_STATUS is a SHARED_BINDING (test_variant_parity): one spelling across registries.
+    text = render_kernel(KERNEL, CLAUDE_GATE_ADDONS, ())
+    assert (
+        "- an EFFECT claim — sent, wrote, dispatched, done — is written only with its receipt"
+        " (id / hash / count); without one it is stated as intent." in _gate_block(text, "G7")
+    )

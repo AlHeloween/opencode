@@ -488,3 +488,16 @@ def test_pre_action_section_stays_small() -> None:
     # R1d/e requested structural evidence and explicit parent/tool refresh ownership,
     # both finding aids before planning. Measured 7_510 B; retain a finite band.
     assert section <= 7_800, section
+
+
+def test_testimony_clause_covers_done_and_blocked_in_both_variants() -> None:
+    """Exit audit 2026-10-13, case C: only «done» was named as testimony about state.
+
+    A «blocked» is the same kind of claim — self-declared state asserted as a decision — so the
+    clause is symmetric and the instrument decides, not the prose. Both shipped variants render it.
+    """
+    from prompt_kernel.addons_claude import CLAUDE_GATE_ADDONS
+
+    for text in (render_kernel(KERNEL), render_kernel(KERNEL, CLAUDE_GATE_ADDONS, ())):
+        assert "a «done» — or a «blocked», the user's included — is testimony about state, not a decision" in text
+        assert "the instrument decides, not the prose" in text

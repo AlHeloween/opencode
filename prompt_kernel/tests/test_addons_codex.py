@@ -116,7 +116,8 @@ def test_codex_variant_stays_within_explicit_budget() -> None:
     # 2026-10-08 (no raise): VCS_ROLES portability; measured 8_210.
     # R1d actual host bindings replace fictitious APIs: measured 8_329.
     # R1e mandatory strategy/portfolio inputs: measured 8_493.
-    assert normalized_token_count(text) <= 8_500
+    # 8_500 -> 8_600 (2026-10-13, exit audit cases C/D): the symmetric testimony clause + the effect-receipt slot in the shared ASSERTION_STATUS binding; measured 8_509 — the next band above the measurement.
+    assert normalized_token_count(text) <= 8_600
 
 
 def test_codex_addon_render_is_deterministic_lf() -> None:

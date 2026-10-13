@@ -191,6 +191,7 @@ CODEX_GATE_ADDONS: tuple[GateAddon, ...] = (
         (
             "ASSERTION_STATUS: every assertion you write — code comments, docs, plans, commits, memory, reports, replies, working notes — carries its status: CONFIRMED (✓, naming the instrument) or REFUTED (✗, naming what contradicts it).",
             "Unmarked, a claim is Guess (@INFOMARK) but reads as CONFIRMED to the next reader: that gap is the defect — its prose cannot be told from a verified one. A confidence indicator, not epistemology.",
+            "an EFFECT claim — sent, wrote, dispatched, done — is written only with its receipt (id / hash / count); without one it is stated as intent.",
         ),
     ),
     GateAddon(

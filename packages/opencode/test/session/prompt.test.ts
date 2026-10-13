@@ -26,6 +26,8 @@ import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Capability } from "@/capability"
 import { SessionCompaction } from "../../src/session/compaction"
 import { SessionSummary } from "../../src/session/summary"
+import { loadSessionSettings, saveSessionSettings } from "../../src/session/session-settings"
+import { withSessionAgentModel } from "../../src/session/fill-layers"
 import { Instruction } from "../../src/session/instruction"
 import { SessionProcessor } from "../../src/session/processor"
 import { SessionPrompt } from "../../src/session/prompt"
@@ -2479,7 +2481,7 @@ it.live(
 
 // Agent variant
 
-it.live("applies agent variant only when using agent model", () =>
+it.live("applies agent variant only when using agent model, and a named model pins the session", () =>
   provideTmpdirInstance(
     (_dir) =>
       Effect.gen(function* () {
@@ -2487,16 +2489,7 @@ it.live("applies agent variant only when using agent model", () =>
         const sessions = yield* Session.Service
         const session = yield* sessions.create({})
 
-        const other = yield* prompt.prompt({
-          sessionID: session.id,
-          agent: "build",
-          model: { providerID: ProviderID.make("opencode"), modelID: ModelID.make("kimi-k2.5-free") },
-          noReply: true,
-          parts: [{ type: "text", text: "hello" }],
-        })
-        if (other.info.role !== "user") throw new Error("expected user message")
-        expect(other.info.model.variant).toBeUndefined()
-
+        // 1. No model named, no layer value: the agent declaration answers, and its variant applies.
         const match = yield* prompt.prompt({
           sessionID: session.id,
           agent: "build",
@@ -2511,6 +2504,35 @@ it.live("applies agent variant only when using agent model", () =>
         })
         expect(match.info.model.variant).toBe("xhigh")
 
+        // 2. A prompt that NAMES another model — the pin. Its own variant is undefined: the agent's
+        //    "xhigh" belongs to the agent's model and must not ride along.
+        const other = yield* prompt.prompt({
+          sessionID: session.id,
+          agent: "build",
+          model: { providerID: ProviderID.make("opencode"), modelID: ModelID.make("kimi-k2.5-free") },
+          noReply: true,
+          parts: [{ type: "text", text: "hello" }],
+        })
+        if (other.info.role !== "user") throw new Error("expected user message")
+        expect(other.info.model.variant).toBeUndefined()
+
+        // 3. A later prompt WITHOUT a model resolves the pin — the session layer filled by the prompt
+        //    that named it (docs/robot-protocol-log.md, 2026-10-13: a dispatched model must not be
+        //    displaced by the host default between prompts).
+        const pinned = yield* prompt.prompt({
+          sessionID: session.id,
+          agent: "build",
+          noReply: true,
+          parts: [{ type: "text", text: "hello pinned" }],
+        })
+        if (pinned.info.role !== "user") throw new Error("expected user message")
+        expect(pinned.info.model).toEqual({
+          providerID: ProviderID.make("opencode"),
+          modelID: ModelID.make("kimi-k2.5-free"),
+          variant: undefined,
+        })
+
+        // 4. An explicit variant still wins over the resolved model's defaults.
         const override = yield* prompt.prompt({
           sessionID: session.id,
           agent: "build",
@@ -2644,6 +2666,70 @@ it.live(
               expect(err.data.message).toContain("init")
             }
           }
+        }),
+      { git: true },
+    ),
+  30_000,
+)
+
+// ── The prompt PIN: a session whose prompt named a model never drifts onto another ──
+//
+// docs/robot-protocol-log.md, 2026-10-13 (third «an unpinned bound filled by a default»): the robot
+// session `ses_ecaff2265ffeiUGBdGYP6W47OC` was dispatched with deepseek/deepseek-flash named in the
+// prompt; its session layer held the host's default (a FREE model), and the prompts typed after the
+// host restart resolved THAT layer — a free model answered part of a pinned robot task. The pin must
+// land in the layer: a prompt that names a model FILLS it, and every later reader answers with the pin.
+
+it.live(
+  "a prompt that names a model pins the session layer; a later prompt without one resolves the pin",
+  () =>
+    provideTmpdirInstance(
+      (_dir) =>
+        Effect.gen(function* () {
+          const prompt = yield* SessionPrompt.Service
+          const sessions = yield* Session.Service
+          const session = yield* sessions.create({ title: "Pinned at dispatch" })
+
+          // The layer as the incident found it: filled with the host's default, never updated by
+          // the dispatch — the free model standing where the pin should be.
+          const fallback = "test/other-model"
+          yield* Effect.promise(async () => {
+            await saveSessionSettings(
+              session.id,
+              withSessionAgentModel(await loadSessionSettings(session.id), "build_mode", fallback),
+            )
+          })
+          yield* Effect.promise(async () => {
+            expect((await loadSessionSettings(session.id))?.agent?.build_mode?.model).toBe(fallback)
+          })
+
+          // 1. A dispatch-style prompt NAMES its model — the pin.
+          const first = yield* prompt.prompt({
+            sessionID: session.id,
+            agent: "build",
+            noReply: true,
+            model: { providerID: ProviderID.make("test"), modelID: ModelID.make("test-model") },
+            parts: [{ type: "text", text: "hello" }],
+          })
+          expect(first.info.role).toBe("user")
+          if (first.info.role !== "user") return
+          expect(first.info.model).toMatchObject({ providerID: "test", modelID: "test-model" })
+
+          // 2. The pin IS the session layer — read the artifact back, not the in-memory value.
+          yield* Effect.promise(async () => {
+            expect((await loadSessionSettings(session.id))?.agent?.build_mode?.model).toBe("test/test-model")
+          })
+
+          // 3. A later prompt WITHOUT a model resolves the pin — never the stale default.
+          const second = yield* prompt.prompt({
+            sessionID: session.id,
+            agent: "build",
+            noReply: true,
+            parts: [{ type: "text", text: "and now?" }],
+          })
+          expect(second.info.role).toBe("user")
+          if (second.info.role !== "user") return
+          expect(second.info.model).toMatchObject({ providerID: "test", modelID: "test-model" })
         }),
       { git: true },
     ),

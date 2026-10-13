@@ -129,7 +129,8 @@ import { EffectBridge } from "@/effect/bridge"
 import { convertDocument, isSupportedDocumentFormat } from "@/util/markdownify"
 
 import { canonicalIdentity, isPrimaryModeIdentity } from "./mode-identity"
-import { resolveAgentModel, resolveAgentVariant } from "./session-settings"
+import { loadSessionSettings, resolveAgentModel, resolveAgentVariant, saveSessionSettings } from "./session-settings"
+import { modelKey, withSessionAgentModel } from "./fill-layers"
 
 /**
  * Mode text is a one-shot conversation transition record. It must never be
@@ -987,11 +988,20 @@ export const layer = Layer.effect(
 
       // Unified resolution: input → session/workspace → global agent config → last used → default
       const currentSession = yield* sessions.get(input.sessionID)
+      const sessionSettings = yield* Effect.tryPromise({
+        try: () => loadSessionSettings(input.sessionID),
+        catch: () => undefined,
+      }).pipe(Effect.catch(() => Effect.succeed(undefined)))
       const resolvedFromSettings = yield* Effect.tryPromise({
-        try: () => resolveAgentModel(ag.name, {
-          sessionID: input.sessionID,
-          workspaceID: currentSession.workspaceID,
-        }),
+        try: () =>
+          resolveAgentModel(
+            ag.name,
+            {
+              sessionID: input.sessionID,
+              workspaceID: currentSession.workspaceID,
+            },
+            { settings: sessionSettings },
+          ),
         catch: () => undefined,
       }).pipe(Effect.catch(() => Effect.succeed(undefined)))
       const sessionWorkspaceModel = resolvedFromSettings
@@ -1010,6 +1020,29 @@ export const layer = Layer.effect(
         })
       }
       const model = fromSession ?? ag.model ?? (yield* lastModel(input.sessionID))
+      // A prompt that NAMES a model PINS the session layer. The pin is a FILL, and the layer is what
+      // every later reader answers with - the TUI status line, a prompt WITHOUT a model, every
+      // resolveAgentModel caller. A one-message override would leave them all on the worktree/global
+      // default, which is how a session dispatched on `deepseek/deepseek-flash` had its later prompts
+      // - and a free model - answered by the host default (docs/robot-protocol-log.md, 2026-10-13,
+      // third «an unpinned bound filled by a default»). The write is skipped when the layer already
+      // holds the pair, so an unchanged model (the TUI's own prompt) causes no churn.
+      if (input.model) {
+        const pinned = modelKey(model)
+        if (sessionSettings?.agent?.[ag.name]?.model !== pinned) {
+          yield* Effect.promise(() =>
+            saveSessionSettings(input.sessionID, withSessionAgentModel(sessionSettings, ag.name, pinned, input.variant)),
+          ).pipe(
+            Effect.catchCause((cause) => {
+              elog.error("failed to pin the prompt model into the session layer", {
+                sessionID: input.sessionID,
+                error: Cause.squash(cause),
+              })
+              return Effect.void
+            }),
+          )
+        }
+      }
       const same = ag.model && model.providerID === ag.model.providerID && model.modelID === ag.model.modelID
       const full =
         !input.variant && ag.variant && same

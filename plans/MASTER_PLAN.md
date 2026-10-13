@@ -111,9 +111,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 231 |
+| plans completed | 232 |
 | plans active | 18 |
-| tasks passed / total | 986 / 1225 |
+| tasks passed / total | 990 / 1229 |
 | open boxes | 96 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.

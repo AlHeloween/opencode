@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { windowNotice } from "../../src/tool/read"
 import { chainHash, formatHexDump, hashLabel, lines, parseHash } from "../../src/tool/read"
+import { RESULT_LIMIT_CHARS, RESULT_LIMIT_LINES } from "@/tool/result-limit"
 
 /**
  * THE LINE ADDRESS — the PURE half (plan 2026-10-01_hash-addressed-edits, H1/H2).
@@ -185,6 +187,119 @@ describe("read — the line address (pure)", () => {
 
     expect(result.encoding).toBe("ansi")
     expect(result.count).toBe(3)
+  })
+})
+
+/**
+ * THE WINDOW IS THE OWNER'S PAIR (plan 2026-10-13_recall-read-address-space, T4b).
+ *
+ * A Delphi unit is the case that named it: the owner works on large units, and a 2 000-line / 50 KB
+ * window cut a unit header in half. The window is now the ONE pair `read`, the replay gate and `recall`
+ * share — 16 384 lines or 256 KB.
+ *
+ * Proven HERE rather than in a unit test of the constant, because the two things that could actually
+ * break are the DECODED path (cp1251 goes through text-codec, not the UTF-8 reader) and the hash CHAIN,
+ * which carries a line's whole prefix: in a bigger window there is more prefix to carry, and a reader
+ * that started chaining late would print addresses `edit` cannot resolve.
+ */
+describe("read — a whole unit in ONE window (T4b)", () => {
+  /** cp1251 for the А–я range (0xC0–0xFF) — where a Delphi source keeps its Cyrillic. */
+  const cp1251 = (text: string) =>
+    Buffer.from(
+      [...text].map((char) => {
+        const at = char.codePointAt(0) ?? 0
+        return at >= 0x0410 && at <= 0x044f ? at - 0x0410 + 0xc0 : at
+      }),
+    )
+
+  const unit = (fields: number) =>
+    [
+      "unit BigUnit;",
+      "interface",
+      "type",
+      "  TBig = class",
+      ...Array.from({ length: fields }, (_, i) => `  FField${i + 1}: Integer; // Строка ${i + 1} - описание поля`),
+      "  end;",
+      "implementation",
+      "end.",
+    ].join("\n") + "\n"
+
+  test("a 3 000-line cp1251 unit comes back in ONE read, and its hash chain is the same chain", async () => {
+    const text = unit(3_000)
+    const bytes = cp1251(text)
+    expect(bytes.length).toBeGreaterThan(50 * 1024)
+    expect(bytes.length).toBeLessThan(RESULT_LIMIT_CHARS)
+
+    const whole = await withFile("BigUnit.pas", "", async (p) => {
+      await writeFile(p, bytes)
+      return lines(p, { limit: RESULT_LIMIT_LINES, offset: 1 })
+    })
+    const plain = await withFile("BigUnitUtf8.pas", text, (p) => lines(p, { limit: RESULT_LIMIT_LINES, offset: 1 }))
+
+    // ONE window: nothing was cut and nothing is left behind — the reader's own two flags say so.
+    expect(whole.cut).toBe(false)
+    expect(whole.more).toBe(false)
+    expect(whole.raw.length).toBe(whole.count)
+    expect(whole.count).toBeGreaterThan(3_000)
+    // The decoded text is the file's TEXT: the same lines and the same addresses as its UTF-8 twin.
+    expect(whole.raw).toEqual(plain.raw)
+    expect(whole.hashes).toEqual(plain.hashes)
+    expect(whole.raw[2_500]).toContain("описание поля")
+
+    // The address of a line in a 200 KB window equals its address in a five-line one — the property the
+    // whole scheme could lose while every other case stayed green, because `edit` would be the one to
+    // refuse the hash.
+    const narrow = await withFile("BigUnit.pas", "", async (p) => {
+      await writeFile(p, bytes)
+      return lines(p, { limit: 5, offset: 1_500 })
+    })
+    expect(narrow.hashes[0]).toBe(whole.hashes[1_499])
+  })
+
+  test("a unit past the LINE bound is still paged, and reports which lines it showed", async () => {
+    // Over 16 384 lines but far under 256 KB (SHORT lines on purpose), so the LINE bound is the one that
+    // fires — and the caller must be told where to continue instead of being handed a silent truncation.
+    const many = (count: number) => Array.from({ length: count }, (_, i) => `r${i + 1}`).join("\n") + "\n"
+    const total = RESULT_LIMIT_LINES + 17
+    const text = many(total)
+    expect(text.length).toBeLessThan(RESULT_LIMIT_CHARS)
+
+    const paged = await withFile("Huge.pas", text, (p) => lines(p, { limit: RESULT_LIMIT_LINES, offset: 1 }))
+    expect(paged.cut).toBe(false)
+    expect(paged.more).toBe(true)
+    expect(paged.raw.length).toBe(RESULT_LIMIT_LINES)
+    expect(paged.count).toBe(total)
+    expect(paged.offset).toBe(1)
+    // The notice is read off the REAL flags of a REAL oversized file — the owner's own oracle for this
+    // task: the window says which lines it showed and where the next one starts.
+    expect(
+      windowNotice({ offset: paged.offset, shown: paged.raw.length, count: paged.count, cut: paged.cut, more: paged.more }),
+    ).toBe(`(Showing lines 1-${RESULT_LIMIT_LINES} of ${total}. Use offset=${RESULT_LIMIT_LINES + 1} to continue.)`)
+
+    const rest = await withFile("Huge.pas", text, (p) =>
+      lines(p, { limit: RESULT_LIMIT_LINES, offset: RESULT_LIMIT_LINES + 1 }),
+    )
+    expect(rest.more).toBe(false)
+    expect(rest.raw.length).toBe(total - RESULT_LIMIT_LINES)
+  })
+
+  test("a unit heavier than the BYTE bound is capped, and the notice says WHICH bound stopped it", async () => {
+    // The other bound, alone: the 16 000-field unit is ~800 KB, so the byte budget fires first — and a
+    // window that ended for bytes must not be reported as one that ended for lines.
+    const heavy = await withFile("Heavy.pas", unit(16_000), (p) => lines(p, { limit: RESULT_LIMIT_LINES, offset: 1 }))
+    expect(heavy.cut).toBe(true)
+    expect(heavy.more).toBe(true)
+    expect(heavy.raw.length).toBeLessThan(RESULT_LIMIT_LINES)
+    expect(
+      windowNotice({ offset: heavy.offset, shown: heavy.raw.length, count: heavy.count, cut: heavy.cut, more: heavy.more }),
+    ).toContain(`Output capped at ${RESULT_LIMIT_CHARS / 1024} KB`)
+  })
+
+  test("the two other endings — a complete file, and one cut by the byte budget", () => {
+    expect(windowNotice({ offset: 1, shown: 3, count: 3, cut: false, more: false })).toBe("(End of file - total 3 lines)")
+    expect(windowNotice({ offset: 1, shown: 3, count: 9, cut: true, more: true })).toContain(
+      `Output capped at ${RESULT_LIMIT_CHARS / 1024} KB`,
+    )
   })
 })
 

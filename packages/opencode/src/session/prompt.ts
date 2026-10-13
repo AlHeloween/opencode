@@ -54,9 +54,11 @@ import MAX_STEPS from "../session/prompt/max-steps.txt"
 
 /** Bounded replay of completed tool outputs keeps per-turn cache-miss blocks small.
  *  Config: tool_output.replay_max_chars (default MessageV2.REPLAY_TOOL_OUTPUT_MAX_CHARS).
- *  What renders as what is decided by SIZE ALONE (message-v2.ts): a result over
- *  TOOL_PLACEHOLDER_THRESHOLD_CHARS is a byte-stable ID-addressed placeholder in every
- *  request, forever. There is no turn boundary to pass, and that is the point — the 2026-09-07
+ *  What renders as what is decided by the PART ALONE (message-v2.ts): a result over the ONE bound pair
+ *  (16 384 lines or 256 KB — `@/tool/result-limit`) folds into a byte-stable ID-addressed placeholder, as
+ *  does one the caller released (`recall(…, release: true)`). Under both bounds nothing is released — the
+ *  8 000-char gate that decided by itself is gone (owner, 2026-10-13). There is no turn boundary to pass,
+ *  and that is the point — the 2026-09-07
  *  gate that made the newest user message the boundary gave one part two renderings, so the
  *  wire changed bytes it had already sent. Its two measured costs are the reason the boundary
  *  is gone: 229 mid-history rewrites across 34 sessions (1.52M of 42.8M fresh input tokens),

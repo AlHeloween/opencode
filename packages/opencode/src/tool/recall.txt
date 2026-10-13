@@ -1,8 +1,8 @@
 Recover anything you were sent earlier — a heavy tool result OR an attachment — by its id, with line numbers,
 so you can read the part that matters instead of paying for all of it.
 
-Why this exists: a completed tool result heavier than 8 000 characters reaches you as a bounded
-placeholder — every time, for the rest of the session. The payload is never re-sent with the prompt:
+Why this exists: a result too large to replay (over 16 384 lines or 256 KB) reaches you as a bounded
+placeholder, and so does one you released yourself. The payload is never re-sent with the prompt:
 
   [grep id=prt_0b8da48fb001xD6AvY4MQp2Mo0 — result delivered earlier (10.0 KB, <pattern>) —
    first 6 of 412 line(s), to judge without paying a round trip:]
@@ -11,50 +11,70 @@ placeholder — every time, for the rest of the session. The payload is never re
   … recall(id=prt_0b8da48fb001xD6AvY4MQp2Mo0, range="<line>-") for the rest]
 
 Only the copy sent to the provider was dropped — the bytes are still stored in the session. `recall`
-reads them back by that id.
+reads them back by that id. A recall result cannot itself be recalled: a recall is a VIEW of a tool
+result, and its own answer names the source, so recall the source instead.
+
+**A `read` keeps the FILE's own line numbers.** When the result came from `read`, `range` counts the lines
+of the FILE, not the rows of the stored text: `range="1130-1142"` returns file lines 1130-1142 that the
+stored window contains, each row printed exactly as `read` printed it (`1130  3f19c2ea: …`), so the hash
+still addresses `edit` and the file is paid for ONCE. The `<path>/<type>/<content>` scaffold and the
+header are outside the range. For every other tool the body's first line is 1.
+
+**A line too long to fit comes in pieces.** `read` wraps a line longer than 2 000 characters and marks
+each chunk with its character offset (`      ↳+2000: …`). `chars="2000-4000"` takes exactly that window
+inside ONE line, and whenever an answer is cut the header names the offset that continues it — a cut is
+never reported as complete.
+
+**Let a result go when you are done with it.** `release: true` (with the required `reason`) replaces the
+WHOLE result with the placeholder from the next request on: use it after the edit or fix that needed the
+file, so a 256 KB unit stops filling your window without waiting for a compaction. Nothing is deleted —
+`recall(id)` returns every line again, and the release is persisted on the result itself.
 
 **Attachments are recallable too.** A released `file` part — a pasted image, a dropped document, a
-screenshot — is named the same way and read back the same way: the payload is still in the stored
-part, so the address works. That is the difference between a release and a loss, and it is why the
-release note names an id instead of telling you to go and find the file again. `keep` is REFUSED for
-an attachment, because it is ONE payload: a kept slice would send the provider a truncated data URL —
-not an image, just damage. Use a `range` to read it.
+screenshot — is named the same way and read back the same way: the payload is still in the stored part,
+so the address works. `keep` is REFUSED for an attachment, because it is ONE payload: a kept slice would
+send the provider a truncated data URL — not an image, just damage. Use `range` (or `chars`) to read it.
 
 Every answer opens with the SAME label the placeholder printed — `<tool>: <title>`, for example
 `recall: grep: log\.(debug|info) — id=prt_0b8da48fb001…`. One handle in both places, so a recalled
 result cannot be confused with another one recalled in the same turn.
 
 How to use it:
-1. Call it with just the id to see the whole result as `N: text` rows — every line carries its
-   ABSOLUTE line number, so the next call can address them.
-2. Then narrow: `range` picks a window, `pattern` filters inside it. Only what you ask for is sent.
-3. Add `keep: true` to LEAVE exactly that selection on the result. From then on the replay carries
-   these lines instead of the placeholder, so the result stops costing what it used to — this is what
-   turns the call into an optimisation rather than a tax. Ask for more lines later with another recall.
+1. Call it with just the id to see the whole result as `N: text` rows — every line carries its ABSOLUTE
+   number (the file's own number when the result is a `read`), so the next call can address them.
+2. Then narrow: `range` picks a window, `chars` a character window inside one line, `pattern` filters —
+   only what you ask for is sent, and the header says what to ask for next.
+3. Add `keep: true` to LEAVE exactly that slice on the result, or `release: true` to let the whole result
+   go. From then on the replay carries those lines instead of the placeholder, or the placeholder instead
+   of the result — either way the stored text is untouched.
 
 The placeholder itself already shows the first lines of what was dropped, numbered, so you can judge
 whether it is worth fetching BEFORE you pay for fetching it.
 
 Parameters:
 - `id` (required) — the `id=` value printed in the placeholder.
-- `range` — 1-based inclusive: `"120-180"`, `"120-"`, `"-180"`, `"42"`, or `0` for everything.
-  Each answer prints the next range to continue with, so a result larger than the cap is walked.
-- `pattern` — a regular expression; only matching lines inside the range come back, keeping their
+- `range` — 1-based inclusive: `"120-180"`, `"120-"`, `"-180"`, `"42"`, or `0` for everything. On a
+  `read` result these are the FILE's lines; elsewhere they are the body's. Each answer prints the next
+  range to continue with, so a result larger than one answer is walked.
+- `pattern` — a regular expression; only lines inside the range whose text matches come back, keeping their
   absolute numbers.
 - `ignoreCase` — case-insensitive `pattern`. Default false.
-- `maxChars` — body cap, defaulting to the same 32 000 ceiling the replay path applies.
-- `reason` (required) — why you are reading this, and why the kept slice is enough. It is stored WITH
-  the selection, so a narrowed result can be audited later instead of being a silent edit.
-- `keep` — leave exactly this selection on the tool result (see above); refused for attachments, which are one payload.
+- `chars` — character window inside ONE selected line: `"2000-4000"`, `"2000-"` or `"-4000"`, 1-based and
+  inclusive, the same offsets `read` prints after `↳+`. Refused when the range selects more than one line.
+- `maxChars` — body cap for one answer (default 256 KB; one call never exceeds 16 384 lines or 256 KB).
+- `reason` (required) — why you are reading, narrowing or releasing: it is stored WITH the decision, so
+  the change is auditable later instead of being a silent edit.
+- `keep` — leave exactly this selection on the tool result (see above); refused for attachments.
+- `release` — replace the whole result with the placeholder (see above); `reason` is required.
 
 Errors ARE recallable: an errored result is exactly what tells you to discard or repair a step, so
 refusing it would hide the failure behind a count. Only a result that never finished is refused.
 
-And errors are the case where `keep` matters MOST, because an errored result has no size gate at all:
-it replays in FULL on every later turn until something shrinks it. Read the part that matters, then
-`keep` it — that is what stops a failure from spamming the context for the rest of the session. Put
-the mistake itself in `reason` ("edit: stale anchor; re-read the region first") so the same error
-is not repeated.
+And errors are the case where `keep` and `release` matter MOST, because an errored result has no size
+bound at all: it replays in FULL on every later turn until something shrinks it. Read the part that
+matters, then `keep` it or `release` it — that is what stops a failure from spamming the context for the
+rest of the session. Put the mistake itself in `reason` ("edit: stale anchor; re-read the region first")
+so the same error is not repeated.
 
 Not a substitute for `sessionread`, which truncates every tool output to 500 characters. And when
 the placeholder's advice cannot be followed — a `task` result cannot be reproduced at all, and

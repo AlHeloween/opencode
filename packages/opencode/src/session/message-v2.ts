@@ -39,6 +39,7 @@ import { namedSchemaError } from "@/util/named-schema-error"
 import * as EffectLogger from "@opencode-ai/core/effect/logger"
 import { canonicalName } from "@/tool/tool"
 import { optionalPattern } from "@/tool/pattern"
+import { overResultLimit } from "@/tool/result-limit"
 
 import { isRecord } from "@/util/record"
 /** Error shape thrown by Bun's fetch() when gzip/br decompression fails mid-stream */
@@ -452,6 +453,19 @@ export const ToolKeptSelection = Schema.Struct({
   reason: Schema.optional(Schema.String),
 })
 
+/**
+ * A result the caller RELEASED (`recall(..., release: true)`) — the other end of the mechanism
+ * `kept` starts. `kept` narrows what rides into the window; a release drops the whole result to the
+ * ID-addressed placeholder, so the caller can let go of a file after the edit that needed it instead
+ * of filling the window until a fold arrives. It is stored ON THE PART, so the decision is a property
+ * of the result and every later request renders the same bytes; the stored text is untouched, which
+ * is what makes the release reversible by `recall(id)`. `reason` is required, not optional like a
+ * keep's: letting a result go is the one act whose motive nobody can reconstruct afterwards.
+ */
+export const ToolRelease = Schema.Struct({
+  reason: Schema.String,
+})
+
 export const ToolStateCompleted = Schema.Struct({
   status: Schema.Literal("completed"),
   input: Schema.Record(Schema.String, Schema.Any),
@@ -469,6 +483,8 @@ export const ToolStateCompleted = Schema.Struct({
    * which is the point: recall stops being a cost and becomes an optimisation.
    */
   kept: Schema.optional(ToolKeptSelection),
+  /** Set when the caller released the result entirely — the wire carries the placeholder from then on. */
+  released: Schema.optional(ToolRelease),
   attachments: Schema.optional(Schema.Array(FilePart)),
 })
   .annotate({ identifier: "ToolStateCompleted" })
@@ -532,6 +548,8 @@ export const ToolStateError = Schema.Struct({
    * completed result gets, applied to the error text.
    */
   kept: Schema.optional(ToolKeptSelection),
+  /** A release is the same act on an error: the failure stays stored, the window stops carrying it. */
+  released: Schema.optional(ToolRelease),
 })
   .annotate({ identifier: "ToolStateError" })
   .pipe(withStatics((s) => ({ zod: zod(s) })))
@@ -980,19 +998,15 @@ function evictIfFull() {
 }
 
 /**
- * A tool output heavier than this (chars) renders as a stable ID-addressed
- * placeholder — in EVERY request, for the whole life of the part.
+ * The ONE automatic bound left on a tool result is `@/tool/result-limit` — 16 384 lines or 256 KB,
+ * whichever is reached first — and it lives there because `read` answers and `recall` narrows by the
+ * same pair. Under both bounds a result is NEVER released: what the caller asked to see it releases
+ * itself (`recall … keep`) or a declared span releases it (`ttlUntil`).
  *
- * The predicate is the SIZE and nothing else. It used to be "heavy AND not the
- * delivery turn", which meant one part had two renderings and the wire changed
- * bytes it had already sent the moment a new user message moved the boundary
- * (measured 2026-10-02: 229 mid-history rewrites in one project, $0.0174 on a
- * single turn). A pure predicate has no boundary to cross. Byte-stable text is
- * what keeps the provider prefix cache warm, and a token estimate that reads
- * placeholders rather than pages keeps the compaction threshold independent of
- * history heaviness.
+ * A placeholder is still a PURE function of the part — no turn, no counter, no boundary to cross —
+ * which is what keeps one part from having two renderings (the 2026-09-07 gate that made the newest
+ * user message the boundary produced 229 mid-history rewrites in one project).
  */
-export const TOOL_PLACEHOLDER_THRESHOLD_CHARS = 8_000
 
 /**
  * Markers of a DELIBERATE replay reduction — shared with the stability check in `llm.ts`.
@@ -1056,10 +1070,83 @@ export function toolPlaceholder(input: {
   )
 }
 
-/** A trailing newline terminates the last line rather than opening an empty one. One rule, one home. */
+/**
+ * A trailing newline terminates the last line rather than opening an empty one. One rule, one home.
+ * These are the STORED lines; what a caller may ADDRESS is `addressableLines()` below.
+ */
 export function resultLines(output: string): string[] {
   const all = output.split("\n")
   return all.length > 1 && all[all.length - 1] === "" ? all.slice(0, -1) : all
+}
+
+/**
+ * The ADDRESS SPACE of a stored result — which lines a caller may ask for, and by which numbers.
+ *
+ * A stored result is not one shape. `read` stores an evidence header, a `<path>/<type>/<content>`
+ * scaffold and rows that already carry the FILE's own number (`read.ts:402-415`); every other tool
+ * stores a header and a body with no numbers of its own. Slicing the stored TEXT therefore answered
+ * a different question than the caller asked: a `recall range="1-3"` over a read that began at file
+ * line 1130 returned the header and rows of scaffold, and file line 1130 sat on row 5 (measured on
+ * `.opencode/data/opencode.db`, 2026-10-13). Scaffolding is not content, and a window that owns
+ * numbers is addressed by THOSE numbers — the ones `read` printed, so a recalled line keeps the hash
+ * `edit` needs, and a file is paid for once instead of once per window.
+ */
+export type AddressedLine = {
+  /** What a `range` asks by: the file's own line number, or 1-based over a body that has none. */
+  number: number
+  /** The line as it is printed: `${number}  ${hash}: ` for a read row, `${number}: ` otherwise. */
+  address: string
+  /** The line's content with the address removed — what `pattern` tests and a `chars` window cuts. */
+  text: string
+}
+
+/** `read` prints `<n>  <hash>: <text>`; `hashLabel` is always 8 lowercase hex (`read.ts:495`). */
+const READ_ROW = /^(\d+)\s\s([0-9a-f]{8}): /
+/** …and names the character offset of every chunk after the first: `      ↳+2000: …` (`read.ts:26`). */
+const READ_WRAP = /^ {6}↳\+(\d+): /
+/** The header `processor.ts:721` prepends — a note about the CALL, never a line of the result. */
+const EVIDENCE_HEADER = /^\[system evidence_ref=/
+
+/**
+ * Parse a stored result into its addressable lines, with scaffolding dropped rather than numbered:
+ * the evidence header, the `<path>/<type>/<content>` frame, and whatever `read` wrote after the body
+ * (its `(End of file - total N lines)` / `(Showing lines a-b of N…)` footer). The footer describes
+ * the CALL — the offset it names belongs to the next `read`, not to what is stored here.
+ *
+ * A read window is folded the way `read` printed it: a line longer than the wrap width is ONE line
+ * again, its chunks rejoined by the offset each marker carries, so a `chars` window and the `↳+`
+ * address on screen count the same characters. A chunk whose offset does not continue the line is
+ * dropped — an address that guessed would be worse than one that is absent.
+ */
+export function addressableLines(output: string): AddressedLine[] {
+  const stored = resultLines(output)
+  const open = stored.indexOf("<content>")
+  const close = open === -1 ? -1 : stored.indexOf("</content>", open + 1)
+  const body = open !== -1 && close > open ? stored.slice(open + 1, close) : stored
+
+  const lines: AddressedLine[] = []
+  const numbered = READ_ROW.test(body[0] ?? "")
+  for (const row of body) {
+    if (!numbered) {
+      if (EVIDENCE_HEADER.test(row)) continue
+      lines.push({ number: lines.length + 1, address: `${lines.length + 1}: `, text: row })
+      continue
+    }
+    const head = READ_ROW.exec(row)
+    if (head) {
+      lines.push({ number: Number(head[1]), address: row.slice(0, head[0].length), text: row.slice(head[0].length) })
+      continue
+    }
+    const wrap = READ_WRAP.exec(row)
+    const last = lines[lines.length - 1]
+    if (wrap && last !== undefined && Number(wrap[1]) === last.text.length) {
+      last.text += row.slice(wrap[0].length)
+      continue
+    }
+    // Neither a read row nor a continuation of one: read's own footer, or something a later producer
+    // wrote after the body. Not addressable, and not an error either.
+  }
+  return lines
 }
 
 /**
@@ -1070,18 +1157,19 @@ export function resultLines(output: string): string[] {
 export function selectLines(
   output: string,
   spec: { from: number; to: number; pattern?: string; ignoreCase?: boolean },
-): { rows: string[]; numbers: number[]; totalLines: number; matched: number } {
-  const lines = resultLines(output)
+): { rows: string[]; numbers: number[]; lines: AddressedLine[]; totalLines: number; matched: number } {
+  const all = addressableLines(output)
   const filter = optionalPattern(spec.pattern, spec.ignoreCase)
-  const rows: string[] = []
-  const numbers: number[] = []
-  for (let n = spec.from; n <= Math.min(spec.to, lines.length); n++) {
-    const text = lines[n - 1] ?? ""
-    if (filter && !filter.test(text)) continue
-    rows.push(`${n}: ${text}`)
-    numbers.push(n)
+  const selected = all.filter(
+    (line) => line.number >= spec.from && line.number <= spec.to && (filter === undefined || filter.test(line.text)),
+  )
+  return {
+    rows: selected.map((line) => line.address + line.text),
+    numbers: selected.map((line) => line.number),
+    lines: selected,
+    totalLines: all.length,
+    matched: selected.length,
   }
-  return { rows, numbers, totalLines: lines.length, matched: rows.length }
 }
 
 /** Clear the module-level conversion cache. Intended for test isolation. */
@@ -1495,18 +1583,30 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
               part.state.kept && rawOutput.length > 0
                 ? selectLines(rawOutput, part.state.kept).rows
                 : undefined
+            // A RELEASE is the caller's own decision about a result it no longer needs in the window:
+            // from here the wire carries the ID-addressed placeholder (so the address invariant holds —
+            // a release that could not be taken back would be a loss), while the stored text is
+            // untouched and `recall(id)` still returns it. The fold's marker keeps precedence, because
+            // it reports the window rather than a decision: a cleared result has no bytes to name.
+            // The state is narrowed HERE; a closure cannot see that narrowing, so the title is read
+            // once, next to the check, instead of being re-derived inside.
+            const storedTitle = part.state.title || undefined
+            const foldedPlaceholder = () =>
+              toolPlaceholder({
+                tool: part.tool,
+                partID: part.id,
+                title: storedTitle,
+                output: rawOutput,
+              })
             const outputText = part.state.time.compacted
               ? REPLAY_CLEARED_MARKER
-              : keptRows !== undefined && keptRows.length > 0
-                ? truncateToolOutput(keptRows.join("\n"), options?.toolOutputMaxChars, part.id)
-                : rawOutput.length > TOOL_PLACEHOLDER_THRESHOLD_CHARS
-                ? toolPlaceholder({
-                    tool: part.tool,
-                    partID: part.id,
-                    title: part.state.title || undefined,
-                    output: rawOutput,
-                  })
-                : truncateToolOutput(rawOutput, options?.toolOutputMaxChars, part.id)
+              : part.state.released !== undefined
+                ? foldedPlaceholder()
+                : keptRows !== undefined && keptRows.length > 0
+                  ? truncateToolOutput(keptRows.join("\n"), options?.toolOutputMaxChars, part.id)
+                  : overResultLimit(rawOutput)
+                    ? foldedPlaceholder()
+                    : truncateToolOutput(rawOutput, options?.toolOutputMaxChars, part.id)
             // Deliver-once (2026-09-07): when the processor already delivered
             // this tool result's media as a real user message (metadata
             // mediaDelivered = <userMessageID>), the media lives in history —
@@ -1557,10 +1657,19 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
               part.state.kept && part.state.error.length > 0
                 ? selectLines(part.state.error, part.state.kept).rows
                 : undefined
+            // An errored result has NO size gate, so a release is the only way to stop a heavy failure
+            // from replaying in full on every later turn — and it keeps the address, which is what makes
+            // the failure still readable after it left the window.
             const errorText =
-              keptError !== undefined && keptError.length > 0
-                ? truncateToolOutput(keptError.join("\n"), options?.toolOutputMaxChars, part.id)
-                : part.state.error
+              part.state.released !== undefined
+                ? toolPlaceholder({
+                    tool: part.tool,
+                    partID: part.id,
+                    output: part.state.error,
+                  })
+                : keptError !== undefined && keptError.length > 0
+                  ? truncateToolOutput(keptError.join("\n"), options?.toolOutputMaxChars, part.id)
+                  : part.state.error
             if (typeof output === "string") {
               assistantMessage.parts.push({
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion

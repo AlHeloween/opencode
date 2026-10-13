@@ -2,6 +2,7 @@ import { describe, expect, test, beforeEach } from "bun:test"
 import { APICallError, generateText } from "ai"
 import { MockLanguageModelV3 } from "ai/test"
 import { MessageV2 } from "../../src/session/message-v2"
+import { RESULT_LIMIT_CHARS, RESULT_LIMIT_LINES } from "@/tool/result-limit"
 import { sealUserText } from "../../src/session/user-seal"
 import { ProviderTransform } from "@/provider/transform"
 import type { Provider } from "@/provider/provider"
@@ -907,12 +908,14 @@ describe("session.message-v2.toModelMessage", () => {
       },
     ] as MessageV2.WithParts[]
 
-  test("a tool result renders the same way in every request — the wire is a pure function of the part", async () => {
-    // The turn gate this replaces gave ONE part TWO renderings: full while its own turn was current,
-    // a placeholder once the next user message moved the boundary. The provider's prefix cache is
-    // keyed on bytes, so that switch rewrote history the provider had already cached — measured
-    // 2026-10-02 across 34 sessions: 229 mid-history rewrites, 1.52M of the project's 42.8M fresh
-    // input tokens. Purity is what makes such a switch impossible, so purity is what is under test.
+  test("a result under the bound rides IN FULL, and the same way in every request", async () => {
+    // Re-pinned 2026-10-13 (plan 2026-10-13_recall-read-address-space, T4). The 8 000-char gate is
+    // gone: a result is released only when the CALLER releases it, or above 16 384 lines / 256 KB.
+    // `heavy` is 11 000 chars — over the old gate, under both of the new bounds — so it must reach the
+    // provider WHOLE, in its own turn and twenty turns later, byte for byte. The purity half of this
+    // case is kept exactly as it was; the half that said «heavy never rides in full» is what the
+    // owner's ruling replaced, and the replacement is asserted harder: presence, absence of the
+    // placeholder, and a size no head could reach.
     const heavy = "tool-line\n".repeat(1_000)
     const input = conversationWith(heavy)
 
@@ -920,17 +923,41 @@ describe("session.message-v2.toModelMessage", () => {
     const manyTurnsLater = await MessageV2.toModelMessages(input, model, { turn: 7 })
     expect(manyTurnsLater).toEqual(inItsOwnTurn)
 
-    // Heavy never rides in full — not even in the turn that produced it — so junk does not enter the
-    // window even once, and the id the placeholder prints is how the body comes back.
-    expect(JSON.stringify(inItsOwnTurn.at(-1))).toContain("recall(id=a1")
-    expect(JSON.stringify(inItsOwnTurn.at(-1)).length).toBeLessThan(heavy.length / 2)
+    // EXACT equality of the whole value, not a substring of the JSON: a substring can match the head of
+    // a result whose body was replaced by a placeholder, which is the one thing this case is for.
+    expect(inItsOwnTurn.at(-1)).toMatchObject({ role: "tool", content: [{ output: { type: "text", value: heavy } }] })
+    expect(JSON.stringify(inItsOwnTurn.at(-1))).not.toContain("result delivered earlier")
   })
 
-  test("a result under the threshold still rides in full — the predicate is size", async () => {
-    const light = "tool-line\n".repeat(100)
-    expect(light.length).toBeLessThan(MessageV2.TOOL_PLACEHOLDER_THRESHOLD_CHARS)
-    const rendered = await MessageV2.toModelMessages(conversationWith(light, "a-light"), model)
-    expect(rendered.at(-1)).toMatchObject({ role: "tool", content: [{ output: { type: "text", value: light } }] })
+  test("the predicate is the owner's PAIR — over EITHER bound folds, under both rides in full", async () => {
+    // The one automatic bound left (owner, 2026-10-13: «16384 строк или 256кб ограничение, свернет если
+    // The NUMBERS, once, literally: every other case derives its fixture from these constants, so a
+    // constant quietly changed to 10 lines would keep them all green (a spec on both sides of an
+    // assertion). This is the owner's ruling written where the predicate lives.
+    // надо»). The pair is asserted from its ONE home, and each bound is exercised ALONE: the line case
+    // is 32 KB (so only its line count can fold it) and the char case is ONE line (so only its size can).
+    const underBoth = "tool-line\n".repeat(100)
+    const underRendered = await MessageV2.toModelMessages(conversationWith(underBoth, "a-under"), model)
+    expect(underRendered.at(-1)).toMatchObject({ role: "tool", content: [{ output: { type: "text", value: underBoth } }] })
+
+    expect([RESULT_LIMIT_LINES, RESULT_LIMIT_CHARS]).toEqual([16_384, 256 * 1024])
+    // Just under the LINE bound still rides whole…
+    const wide = "a\n".repeat(RESULT_LIMIT_LINES - 1)
+    expect(wide.length).toBeLessThan(RESULT_LIMIT_CHARS)
+    const wideRendered = (await MessageV2.toModelMessages(conversationWith(wide, "a-wide"), model)).at(-1)
+    expect(wideRendered).toMatchObject({ role: "tool", content: [{ output: { type: "text", value: wide } }] })
+    expect(JSON.stringify(wideRendered)).not.toContain("result delivered earlier")
+
+    // …one line over the LINE bound folds, at a size 8× under the char bound.
+    const tooManyLines = "a\n".repeat(RESULT_LIMIT_LINES)
+    expect(tooManyLines.length).toBeLessThan(RESULT_LIMIT_CHARS)
+    const manyFolded = JSON.stringify(await MessageV2.toModelMessages(conversationWith(tooManyLines, "a-lines"), model))
+    expect(manyFolded).toContain("recall(id=a-lines")
+
+    // …and one line over the CHAR bound folds, whatever its line count (1).
+    const tooLong = "a".repeat(RESULT_LIMIT_CHARS + 1)
+    const longFolded = JSON.stringify(await MessageV2.toModelMessages(conversationWith(tooLong, "a-chars"), model))
+    expect(longFolded).toContain("recall(id=a-chars")
   })
 
   test("a declared span expires by turn and then stops changing", async () => {
@@ -940,6 +967,49 @@ describe("session.message-v2.toModelMessage", () => {
     const turn3 = await MessageV2.toModelMessages(expiring, model, { turn: 3 })
     expect(JSON.stringify(turn2.at(-1))).toContain("[held] payload released")
     expect(turn3).toEqual(turn2)
+  })
+
+  test("a RELEASED result rides as the ID-addressed placeholder, and nothing of it was deleted", async () => {
+    // T4c: the caller lets a result go entirely (`recall(..., release: true)`). Where it LANDS is the
+    // next request — a placeholder naming the id — while the stored text is untouched, which is what
+    // makes `recall(id)` able to return it afterwards. Both halves are asserted upstream of any tool:
+    // the rendering (placeholder, not output) and the guard that nothing in the release path blanks
+    // the part (its `output` still holds every line).
+    const heavy = "tool-line\n".repeat(1_000)
+    const released = () => ({
+      ...basePart("m-assistant", "a1"),
+      type: "tool" as const,
+      callID: "call-1",
+      tool: "read",
+      state: {
+        status: "completed" as const,
+        input: { filePath: "Unit1.pas" },
+        output: heavy,
+        title: "Unit1.pas",
+        metadata: {},
+        time: { start: 0, end: 1 },
+        released: { reason: "the edit that needed the unit is done" },
+      },
+    })
+    const conversation = [
+      {
+        info: userInfo("m-user-released"),
+        parts: [{ ...basePart("m-user-released", "u1"), type: "text", text: "read the unit" }] as MessageV2.Part[],
+      },
+      { info: assistantInfo("m2", "m-user-released"), parts: [released()] as MessageV2.Part[] },
+    ] as MessageV2.WithParts[]
+
+    const rendered = JSON.stringify((await MessageV2.toModelMessages(conversation, model)).at(-1))
+    expect(rendered).toContain("recall(id=a1")
+    // …the placeholder carries only its bounded head, never a run of the body.
+    expect(rendered).not.toContain("tool-line\\n".repeat(40))
+    expect(rendered.length).toBeLessThan(heavy.length / 2)
+    // …and the release DELETED nothing: the part it was read from still holds every line it had.
+    const stored = conversation[1]!.parts[0]!
+    expect(stored.type === "tool" ? stored.state : undefined).toMatchObject({ output: heavy })
+    expect(stored.type === "tool" ? stored.state : undefined).toMatchObject({
+      released: { reason: "the edit that needed the unit is done" },
+    })
   })
 
   test("a kept selection replaces the whole result on the wire, and never blanks it", async () => {

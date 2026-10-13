@@ -24,8 +24,8 @@ released content remain reachable without occupying it.
 |---|---|---|---|
 | **acquire** | a tool result arrives, or `read` / `webfetch` / `codegraph` return content | tool layer | **shipped** |
 | **hold** | resident until the request goes out — the rendering is a PURE FUNCTION of the part | `message-v2.ts` | **shipped** |
-| **release — automatic** | a result heavier than 8 000 chars renders as an ID-addressed placeholder in EVERY request | `TOOL_PLACEHOLDER_THRESHOLD_CHARS` | **shipped** |
-| **release — deliberate** | `recall(…, keep: true)` REPLACES the result with the chosen slice | `ToolKeptSelection` | **shipped** |
+| **release — automatic** | ONE bound, in ONE home: a result over **16 384 lines OR 256 KB** folds into an ID-addressed placeholder. Under BOTH bounds nothing is released — the 8 000-char gate that used to decide alone is GONE (owner, 2026-10-13) | `@/tool/result-limit` | **shipped** |
+| **release — deliberate** | `recall(…, keep: true)` REPLACES the result with the chosen slice; `recall(…, release: true)` (reason required) replaces the WHOLE result with the placeholder, the stored text untouched | `ToolKeptSelection` / `ToolRelease` | **shipped** |
 | **re-acquire** | `recall(id, range, pattern)` returns the stored result by its address | `tool/recall.ts` | **shipped** |
 | **hold for attachments** (image, document, sources) | — | — | **NOT shipped** — see `plans/to_be_confirmed/2026-09-19_temporary-data-acquisition.md` |
 
@@ -35,16 +35,20 @@ together: a release with no address is a loss, and an address with no re-acquire
 ## Constants and where they are
 
 ```
-TOOL_PLACEHOLDER_THRESHOLD_CHARS = 8_000    message-v2.ts   the size at which a result renders as a placeholder
-REPLAY_TOOL_OUTPUT_MAX_CHARS     = 32_000   message-v2.ts   the hard cap on anything that does ride
-PLACEHOLDER_HEAD_LINES           = 6         message-v2.ts   how much of a dropped result stays visible
-PLACEHOLDER_HEAD_LINE_CHARS      = 120       message-v2.ts   per-line cap inside that head
+RESULT_LIMIT_LINES = 16_384      tool/result-limit.ts   the line bound: read's window, the fold gate, recall's per-call cap
+RESULT_LIMIT_CHARS = 256 KB      tool/result-limit.ts   …and the byte bound. ONE pair, ONE home — a second copy is the defect
+REPLAY_TOOL_OUTPUT_MAX_CHARS = 32_000   message-v2.ts   the cap on anything that DOES ride (`tool_output.replay_max_chars`)
 ```
 
-The placeholder is a **pure function** of `(tool, id, title, output)` — byte-identical across builds
-and across every request that ever carries the part. That is what keeps `@KV_CACHE_STABILITY` intact:
-the prefix cannot be rewritten under the provider, because nothing about the rendering depends on
-where the conversation currently is.
+**Open, measured 2026-10-13, owner decides:** the replay cap above is 32 KB while the fold bound is 256 KB, so a
+result between the two rides TRUNCATED (`[Tool output truncated at 32000 chars…]`) rather than whole. The pair
+therefore widens what `read` RETURNS in one call (16 384 lines / 256 KB) without yet widening what a request
+CARRIES; raising the config default to `RESULT_LIMIT_CHARS` is the one-line change that closes it.
+
+A placeholder is a **pure function** of the part — byte-identical across builds and across every request that
+ever carries it. The 2026-10-13 change kept that property while moving WHERE it is produced: it is no longer a
+size decision taken per request, but the rendering of a decision recorded ON the part (`released`) or forced by
+the one bound pair. The prefix cannot be rewritten under the provider by a turn boundary that does not exist.
 
 ## Invariants — each one paid for by a defect
 
@@ -98,10 +102,10 @@ shape — *an active set*.
 
 What the generalisation adds:
 
-1. **Hold is declared, not implied.** Today a release happens by SIZE (`> 8 000`) or explicitly
-   (`keep`). Temporary acquisition needs the third trigger: **a lifetime** — this content is
-   held for the next N turns or until released. The plan's open decision 3 ("auto-detach at a fold or
-   only by the tool") is exactly this question, and it now has a general answer.
+1. **Hold is declared, not implied.** A release happens by the ONE bound (16 384 lines / 256 KB), when the
+   caller lets a result go (`release: true`), or when a declared span ends (`ttlUntil`). The plan's open
+   decision 3 ("auto-detach at a fold or only by the tool") is exactly this question, and the caller's own
+   release is now the general answer — the bound is the floor under it, not the mechanism.
 2. **Acquire covers more than media.** Sources enter through `read`; a document through an attachment;
    a search result through `universalsearch`. All of them already land as tool parts with an address,
    so the release/re-acquire half is shipped for them TODAY — and for attachments too since 2026-09-30:
@@ -113,8 +117,8 @@ What the generalisation adds:
 
 ## The declared lifetime — the third release trigger, and why (owner, 2026-09-19)
 
-Release has two triggers today: size (`TOOL_PLACEHOLDER_THRESHOLD_CHARS`) and the fold. The third is a DECLARED
-SPAN, and the owner's two cases are what it exists for:
+Release has three triggers: the ONE bound (`@/tool/result-limit` — 16 384 lines or 256 KB), a release the caller
+asked for, and the fold. The DECLARED SPAN is the fourth, and the owner's two cases are what it exists for:
 
 - **Reconnaissance.** «Мы конечно можем отправить explorer agent — но это не всегда целесообразно, иногда надо
   просто решить вопрос по быстрому и не засрать своё окно.» Acquire the source, read it, take the answer,
@@ -144,7 +148,7 @@ The difference that matters: `compacted` hides the WHOLE message; `ttl` removes 
 text stays readable.
 
 Its domain is the **sub-threshold spam** — hundreds of small tool results that today live in the window forever,
-because neither the 8 000-char placeholder nor a fold ever touches them.
+because neither the bound pair nor a fold ever touches them.
 
 Plans: `plans/to_be_confirmed/2026-09-19_temporary-data-acquisition.md` (T6, with the one-pass migration that also drops
 `held_media`, indexes the turn counter and settles the six zero-row tables).
@@ -168,5 +172,8 @@ Plans: `plans/to_be_confirmed/2026-09-19_temporary-data-acquisition.md` (T6, wit
   five dead `x-opencode-*` reads that need their writer.
 - `docs/compaction.md` — the three measures, one space each; the window budget this lifecycle spends.
 - `packages/opencode/src/session/message-v2.ts` — the gate, the placeholder, `selectLines`, the shared
-  `ToolKeptSelection`.
-- `packages/opencode/src/tool/recall.ts` — the address's only consumer.
+  `ToolKeptSelection`, `ToolRelease` and the address the last two share (`selectLines`).
+- `packages/opencode/src/tool/recall.ts` — the address's only consumer: `range`, `pattern`, `chars`, `keep`,
+  `release`. Its `range` addresses the FILE's lines when the result is a `read` window.
+- `packages/opencode/src/tool/result-limit.ts` — the ONE home of the bound pair, shared by `read`'s window, the
+  fold gate and `recall`'s per-call cap.

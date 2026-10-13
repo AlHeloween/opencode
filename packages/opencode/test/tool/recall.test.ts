@@ -43,23 +43,41 @@ function call(input: { id: string; range?: string; pattern?: string; ignoreCase?
 const five = ["alpha one", "beta two", "gamma three", "delta four", "epsilon five"].join("\n")
 
 describe("recall: range parsing", () => {
+  // Re-pinned 2026-10-13 (plan 2026-10-13_recall-read-address-space, T1): the second argument is the
+  // RESULT's own bounds, not a count. `recall` of a `read` window addresses FILE lines, so `first` is
+  // what "the start" means and `last` is what an open end means — with a count, `range="1130-"` on a
+  // window that begins at 1130 would have addressed nothing. At least as tight as before: the
+  // one-based case pins the same four answers AND the window case pins the address space itself.
+  const whole = { first: 1, last: 9 }
+  const window = { first: 1_130, last: 1_142 }
+
   test("0, empty and 'all' mean the whole result", () => {
     for (const range of ["0", "", "all", undefined]) {
-      expect(parseRange(range, 9)).toEqual({ ok: true, from: 1, to: 9 })
+      expect(parseRange(range, whole)).toEqual({ ok: true, from: 1, to: 9 })
+      expect(parseRange(range, window)).toEqual({ ok: true, from: 1_130, to: 1_142 })
     }
   })
 
   test("explicit spans, open ends and single lines", () => {
-    expect(parseRange("2-4", 9)).toEqual({ ok: true, from: 2, to: 4 })
-    expect(parseRange("3-", 9)).toEqual({ ok: true, from: 3, to: 9 })
-    expect(parseRange("-3", 9)).toEqual({ ok: true, from: 1, to: 3 })
-    expect(parseRange("7", 9)).toEqual({ ok: true, from: 7, to: 7 })
+    expect(parseRange("2-4", whole)).toEqual({ ok: true, from: 2, to: 4 })
+    expect(parseRange("3-", whole)).toEqual({ ok: true, from: 3, to: 9 })
+    expect(parseRange("-3", whole)).toEqual({ ok: true, from: 1, to: 3 })
+    expect(parseRange("7", whole)).toEqual({ ok: true, from: 7, to: 7 })
+  })
+
+  test("an open end is the result's own end, and a file-numbered window keeps its numbers", () => {
+    expect(parseRange("1131-", window)).toEqual({ ok: true, from: 1_131, to: 1_142 })
+    expect(parseRange("1131-1133", window)).toEqual({ ok: true, from: 1_131, to: 1_133 })
+    expect(parseRange("1130", window)).toEqual({ ok: true, from: 1_130, to: 1_130 })
+    // A window BELOW the file's own lines is not clamped into them: it matches nothing, and reading
+    // that off `matchedLines` is the caller's job — inventing a line here would be this parser's.
+    expect(parseRange("1-3", window)).toEqual({ ok: true, from: 1, to: 3 })
   })
 
   test("a malformed range is refused, not silently clamped", () => {
-    expect(parseRange("4-2", 9).ok).toBe(false)
-    expect(parseRange("0-3", 9).ok).toBe(false)
-    expect(parseRange("last", 9).ok).toBe(false)
+    expect(parseRange("4-2", whole).ok).toBe(false)
+    expect(parseRange("0-3", whole).ok).toBe(false)
+    expect(parseRange("last", whole).ok).toBe(false)
   })
 })
 

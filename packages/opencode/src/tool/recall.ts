@@ -2,7 +2,8 @@ import { Effect, Schema } from "effect"
 import { Global } from "@opencode-ai/core/global"
 import * as Tool from "./tool"
 import path from "path"
-import { MessageV2, REPLAY_TOOL_OUTPUT_MAX_CHARS, resultLines, selectLines } from "../session/message-v2"
+import { MessageV2, addressableLines, selectLines } from "../session/message-v2"
+import { RESULT_LIMIT_CHARS, RESULT_LIMIT_LINES } from "./result-limit"
 import { readStoredPart } from "../session/stored-part"
 import { optionalPattern } from "./pattern"
 import { Session } from "../session/session"
@@ -46,7 +47,7 @@ export type RecallSuccess = {
   title: string
   /** `tool: title` (just the tool when it stored no title) — ONE handle, identical in both places. */
   label: string
-  /** Lines in the stored result (a single trailing newline is a terminator, not a line). */
+  /** Addressable lines in the stored result — a `read` window's own lines, the header excluded. */
   totalLines: number
   totalChars: number
   /** Absolute 1-based line numbers of the returned window; 0 when nothing was returned. */
@@ -58,26 +59,40 @@ export type RecallSuccess = {
   text: string
   /** Line to ask for next, or null when the window was fully delivered. */
   nextLine: number | null
+  /**
+   * A line the cap cut in the middle, with the character offset to continue from — the SAME offsets
+   * `read` prints after `↳+`, so the way back is an address the caller has already seen. Null when
+   * nothing was cut.
+   */
+  nextChars: { line: number; from: number; of: number } | null
+  /**
+   * Set when the caller asked to RELEASE the whole result: the tool persists it onto the stored part,
+   * and from the next request the wire carries the placeholder naming this id. The stored text is not
+   * touched, which is what makes the release reversible — `recall(id)` returns it again.
+   */
+  released?: { reason: string }
 }
 
 export type RecallResult = RecallSuccess | { ok: false; error: string }
 
 /**
  * `"0"` / `""` / `"all"` = the whole result. `"120-180"`, `"120-"`, `"-180"`, `"42"` as expected.
- * Rejecting a malformed range here rather than clamping it silently: a caller who typed `"180-120"`
- * wants to be told, not handed an empty body that looks like missing content.
+ * The bounds are the RESULT's own numbers: a `read` window that begins at file line 1130 has `first`
+ * 1130, so `"-3"` addresses nothing there and `"1130-"` is the whole window. Rejecting a malformed
+ * range here rather than clamping it silently: a caller who typed `"180-120"` wants to be told, not
+ * handed an empty body that looks like missing content.
  */
 export function parseRange(
   range: string | undefined,
-  totalLines: number,
+  bounds: { first: number; last: number },
 ): { ok: true; from: number; to: number } | { ok: false; error: string } {
   const raw = (range ?? "").trim()
-  if (raw === "" || raw === "0" || raw.toLowerCase() === "all") return { ok: true, from: 1, to: totalLines }
+  if (raw === "" || raw === "0" || raw.toLowerCase() === "all") return { ok: true, from: bounds.first, to: bounds.last }
 
   const span = raw.match(/^(\d*)\s*-\s*(\d*)$/)
   if (span) {
-    const from = span[1] === "" ? 1 : Number(span[1])
-    const to = span[2] === "" ? totalLines : Number(span[2])
+    const from = span[1] === "" ? bounds.first : Number(span[1])
+    const to = span[2] === "" ? bounds.last : Number(span[2])
     if (from < 1) return { ok: false, error: `range ${JSON.stringify(range)} is not 1-based` }
     if (to < from) return { ok: false, error: `range ${JSON.stringify(range)} ends before it starts` }
     return { ok: true, from, to }
@@ -96,30 +111,71 @@ export function parseRange(
 }
 
 /**
- * Range + pattern + cap, applied to the TEXT of a stored result — ONE implementation for a tool
+ * A character window inside ONE line — `"2000-4000"`, `"2000-"`, `"-4000"`, `"2000"`, 1-based and
+ * inclusive. These are the offsets `read` prints after `↳+` (`read.ts:26`) when it wraps a long line,
+ * so a reader who can SEE the rest of a line already knows how to ask for it. `undefined`, `"0"` and
+ * `"all"` mean the whole line; a window is never silently clamped, because an answer that quietly
+ * dropped characters is what this whole path had to stop doing.
+ */
+export function parseChars(
+  chars: string | undefined,
+  length: number,
+  line: number,
+): { ok: true; from: number; to: number } | { ok: false; error: string } {
+  const raw = (chars ?? "").trim()
+  if (raw === "" || raw === "0" || raw.toLowerCase() === "all") return { ok: true, from: 1, to: length }
+
+  const span = raw.match(/^(\d*)\s*-\s*(\d*)$/)
+  if (!span || (span[1] === "" && span[2] === "")) {
+    return { ok: false, error: `unrecognised chars ${JSON.stringify(chars)} — use "2000-4000", "2000-" or "-4000"` }
+  }
+  const from = span[1] === "" ? 1 : Number(span[1])
+  const to = span[2] === "" ? length : Number(span[2])
+  if (from < 1) return { ok: false, error: `chars ${JSON.stringify(chars)} is not 1-based` }
+  // Past the end comes BEFORE "ends before it starts": an open window past the end of a short line
+  // ("9000-" on a 14-character line) is not a caller who mixed up the order — it is a caller who
+  // asked for a window the line does not have, and the answer must say how long the line IS.
+  if (from > length) {
+    return {
+      ok: false,
+      error: `chars ${JSON.stringify(chars)} starts past the end of line ${line}, which holds ${length} character(s)`,
+    }
+  }
+  if (to < from) return { ok: false, error: `chars ${JSON.stringify(chars)} ends before it starts` }
+  return { ok: true, from, to: Math.min(to, length) }
+}
+
+/**
+ * Range + pattern + cap, applied to the LINES of a stored result — ONE implementation for a tool
  * result and for an attachment, because two would drift invisibly: the day they disagree, the same
- * call shows one thing for a grep and another for a pasted image. Every row carries its ABSOLUTE line
- * number, and `nextLine` says what to ask for next, so a caller can walk a result past the cap.
+ * call shows one thing for a grep and another for a pasted image. Every row carries the address its
+ * line owns (for a `read` window the FILE's number and hash), and `nextLine` / `nextChars` name what
+ * to ask for next, so a caller can walk a result past the cap.
  */
 function sliceResult(
   output: string,
-  input: { range?: string; pattern?: string; ignoreCase?: boolean; maxChars: number },
+  input: { range?: string; pattern?: string; ignoreCase?: boolean; chars?: string; maxChars: number },
 ):
   | {
       ok: true
       from: number
       to: number
       totalLines: number
+      /** The last number the STORED result owns — a `kept` window is clamped to it, never to a count. */
+      lastSource: number
       firstLine: number
       lastLine: number
       matchedLines: number
       text: string
       nextLine: number | null
+      nextChars: { line: number; from: number; of: number } | null
     }
   | { ok: false; error: string } {
-  const totalLines = resultLines(output).length
-
-  const window = parseRange(input.range, totalLines)
+  const lines = addressableLines(output)
+  const window = parseRange(input.range, {
+    first: lines[0]?.number ?? 1,
+    last: lines[lines.length - 1]?.number ?? 0,
+  })
   if (!window.ok) return window
 
   // Validate the pattern BEFORE selecting: a malformed regex is a user error with an obvious fix,
@@ -138,41 +194,101 @@ function sliceResult(
     pattern: input.pattern,
     ignoreCase: input.ignoreCase,
   })
-  const selected = selection.rows
+  const selected = selection.lines
 
+  // A character window addresses a position inside ONE line's text. Inside several lines there is no
+  // such position, so the refusal says which rule was broken rather than picking a line silently.
+  if (input.chars !== undefined && selected.length !== 1) {
+    return {
+      ok: false,
+      error: `chars addresses ONE line — this range selects ${selected.length}; narrow the range to the line you want to read in pieces`,
+    }
+  }
+  const windows = selected.map((line) => (input.chars === undefined ? undefined : parseChars(input.chars, line.text.length, line.number)))
+  const broke = windows.find((span) => span !== undefined && !span.ok)
+  if (broke !== undefined && !broke.ok) return { ok: false, error: broke.error }
+  const rows = selected.map((line, at) => {
+    const span = windows[at]
+    const from = span === undefined || !span.ok ? 1 : span.from
+    const to = span === undefined || !span.ok ? line.text.length : span.to
+    // `of` is the LINE's length, not the window's: it is what says how much of the line is still there
+    // after this answer — the one thing a caller reading a long line cannot see for itself.
+    return { number: line.number, address: line.address, text: line.text.slice(from - 1, to), from, of: line.text.length }
+  })
+
+  // The pair is the ANSWER's own cap, not a courtesy of whoever calls this: a window is never larger
+  // than 16 384 lines or 256 KB, whoever asks. It used to be a clamp in the tool's wrapper, which any
+  // other caller of `readToolResult` would quietly bypass — and the first version of its own test did.
+  const maxChars = Math.min(input.maxChars, RESULT_LIMIT_CHARS)
   const chunks: string[] = []
   let used = 0
   let lastLine = 0
-  for (let i = 0; i < selected.length; i++) {
-    const rowText = `${selected[i]}\n`
-    if (used + rowText.length > input.maxChars) break
-    chunks.push(rowText)
-    used += rowText.length
-    lastLine = selection.numbers[i] ?? 0
+  let nextChars: { line: number; from: number; of: number } | null = null
+  for (const row of rows) {
+    // The line cap is the same pair `read` and the replay gate use: one answer never exceeds it.
+    if (chunks.length >= RESULT_LIMIT_LINES) break
+    const head = row.address + (row.from > 1 ? `↳+${row.from}: ` : "")
+    const whole = `${head}${row.text}\n`
+    if (used + whole.length <= maxChars) {
+      chunks.push(whole)
+      used += whole.length
+      lastLine = row.number
+      continue
+    }
+    // The row does not fit in what is LEFT of the cap. If it would fit a FRESH answer, stop here: the
+    // next call returns it whole and `nextLine` names it — a piece of a short line is strictly worse
+    // than the line itself. Only a row larger than the whole cap is CUT, because there a piece is the
+    // only part of it any single answer could carry; that cut NAMES the character to continue from,
+    // which is the defect this replaces (a 17 000-char single-line result came back «(complete)» with
+    // thousands of its characters still stored and no address naming them).
+    if (whole.length <= maxChars) break
+    const body = row.text.slice(0, Math.max(1, maxChars - used - head.length))
+    chunks.push(`${head}${body}`)
+    used += head.length + body.length
+    lastLine = row.number
+    nextChars = { line: row.number, from: row.from + body.length, of: row.of }
+    break
   }
-  // Never answer with an empty body when lines WERE selected: a single line longer than the cap is
-  // cut instead, so the caller always learns the content starts here.
-  if (selected.length > 0 && chunks.length === 0) {
-    chunks.push(`${selected[0]}\n`.slice(0, input.maxChars))
-    lastLine = selection.numbers[0] ?? 0
+  // Whatever ended this answer — the cap, or the caller's own `chars` window — if the last row stopped
+  // inside its line, the rest of that line is addressable here and nowhere else. ONE rule, after the
+  // loop, so the two exits (the cap's cut and the window's end) cannot disagree about it.
+  const lastRow = rows.find((row) => row.number === lastLine)
+  if (nextChars === null && lastRow !== undefined && lastRow.from - 1 + lastRow.text.length < lastRow.of) {
+    nextChars = { line: lastRow.number, from: lastRow.from + lastRow.text.length, of: lastRow.of }
   }
 
-  const lastSelected = selection.numbers.length > 0 ? selection.numbers[selection.numbers.length - 1]! : 0
+  const lastSelected = selected.length > 0 ? selected[selected.length - 1]!.number : 0
   return {
     ok: true,
     from: window.from,
     to: window.to,
-    totalLines,
-    firstLine: chunks.length > 0 ? (selection.numbers[0] ?? 0) : 0,
+    totalLines: lines.length,
+    lastSource: lines.length > 0 ? lines[lines.length - 1]!.number : 0,
+    firstLine: chunks.length > 0 ? (rows[0]?.number ?? 0) : 0,
     lastLine,
     matchedLines: selected.length,
     text: chunks.join(""),
-    nextLine: lastLine > 0 && lastLine < lastSelected ? lastLine + 1 : null,
+    nextLine: nextChars === null && lastLine > 0 && lastLine < lastSelected ? lastLine + 1 : null,
+    nextChars,
   }
 }
 
 /**
- * Read a stored tool result by its PART id — the address `toolPlaceholder()` already prints on the
+ * What to ask for next: the rest of a line this answer stopped inside, the next line of the window, or
+ * nothing left. «stops at» rather than «cut», because the caller may have asked for exactly that window
+ * with `chars` — either way the rest of the line exists and this is its address.
+ */
+function continuation(result: RecallSuccess): string {
+  if (result.nextChars !== null) {
+    const cut = result.nextChars
+    return `; line ${cut.line} stops at ${cut.from - 1} of ${cut.of} char(s) — continue with range="${cut.line}" chars="${cut.from}-"`
+  }
+  if (result.nextLine !== null) return `; continue with range=${result.nextLine}-`
+  return " (complete)"
+}
+
+/**
+ * Read a stored tool result by its PART id — the address the wire placeholder already prints on the
  * wire (`message-v2.ts:902`, `id=<partID>`). A plain keyed lookup: the placeholder hands over exactly
  * one id, so the way back takes exactly one id.
  *
@@ -191,8 +307,12 @@ export function readToolResult(input: {
   pattern?: string
   ignoreCase?: boolean
   maxChars: number
+  /** A character window inside the ONE selected line — the same offsets `read` prints after `↳+`. */
+  chars?: string
   /** Persist the selection onto the stored result, so later replays carry these lines and not a placeholder. */
   keep?: boolean
+  /** Release the WHOLE result — the wire carries the placeholder from the next request on. */
+  release?: boolean
   /** WHY — carried into the persisted selection so a narrowed result can be audited later. */
   reason?: string
 }): RecallResult {
@@ -254,10 +374,23 @@ export function readToolResult(input: {
         matchedLines: slice.matchedLines,
         text: slice.text,
         nextLine: slice.nextLine,
+        nextChars: slice.nextChars,
       }
     }
 
     if (part.type !== "tool") return { ok: false, error: `part ${input.id} is a ${part.type ?? "unknown"} part, not a tool result` }
+    // A recall of a recall nests a label inside a label (`recall: recall: recall: webfetch: …`) and
+    // addresses nothing new — the way back to a result is ONE step. The stored recall knows which part
+    // it read, so the refusal hands over that address instead of the wrapper.
+    if (part.tool === "recall") {
+      const source = (part.state?.input as { id?: unknown } | undefined)?.id
+      return {
+        ok: false,
+        error: `part ${input.id} is a recall result — recall the result it read instead${
+          typeof source === "string" ? `: id=${source}` : ""
+        }`,
+      }
+    }
     // An ERRORED result is recallable on purpose. It is exactly what tells the caller to discard or
     // repair a step; refusing it — as this tool first did — makes a failure invisible behind a count
     // and removes the ability to filter errors of inference or of a tool call.
@@ -277,7 +410,7 @@ export function readToolResult(input: {
     const tool = part.tool ?? "tool"
     const slice = sliceResult(output, input)
     if (!slice.ok) return slice
-    const { from, to, totalLines, firstLine, lastLine, matchedLines, text, nextLine } = slice
+    const { from, to, totalLines, firstLine, lastLine, matchedLines, text, nextLine, nextChars, lastSource } = slice
     const title = part.state?.title ?? ""
     // A kept selection REPLACES the result on the wire, so it must never be allowed to blank it: a
     // selection that matched nothing would leave the model an EMPTY tool result carrying only its call
@@ -298,12 +431,44 @@ export function readToolResult(input: {
       input.keep === true
         ? {
             from,
-            to: Math.min(to, totalLines),
+            to: Math.min(to, lastSource),
             ...(input.pattern ? { pattern: input.pattern } : {}),
             ...(input.ignoreCase ? { ignoreCase: true } : {}),
             ...(input.reason ? { reason: input.reason } : {}),
           }
         : undefined
+    // A RELEASE IS NOT A DELETION. The stored text stays exactly as it is and the caller keeps the
+    // address it already has — that is what lets a whole file leave the window (`release: true`) after
+    // the edit that needed it, instead of waiting for a fold to arrive. Nothing is destroyed here, so
+    // nothing has to be proved afterwards: the next request carries the placeholder, and `recall`
+    // still answers.
+    // The motive is REQUIRED, not optional like a keep's: a result that left the window without a
+    // recorded reason sends the next reader back to the file to find out why it went.
+    if (input.release === true) {
+      const reason = input.reason?.trim()
+      if (reason === undefined || reason === "") {
+        return {
+          ok: false,
+          error: "a release needs a reason — it is persisted with the release, so letting go of a result can be audited later",
+        }
+      }
+      return {
+        ok: true,
+        tool,
+        released: { reason },
+        part,
+        title,
+        label: title ? `${tool}: ${title}` : tool,
+        totalLines: addressableLines(output).length,
+        totalChars: output.length,
+        firstLine: 0,
+        lastLine: 0,
+        matchedLines: 0,
+        text: "",
+        nextLine: null,
+        nextChars: null,
+      }
+    }
     return {
       ok: true,
       tool,
@@ -318,6 +483,7 @@ export function readToolResult(input: {
       matchedLines,
       text,
       nextLine,
+      nextChars,
     }
   } catch (error) {
     return { ok: false, error: `lookup failed: ${String(error)}` }
@@ -339,15 +505,24 @@ export const Parameters = Schema.Struct({
   }),
   ignoreCase: Schema.optional(Schema.Boolean).annotate({ description: "Case-insensitive `pattern`. Default false." }),
   maxChars: Schema.optional(Schema.Number).annotate({
-    description: `Maximum characters of body to return (default ${REPLAY_TOOL_OUTPUT_MAX_CHARS}). Same ceiling the replay path applies — asking for more would be cut anyway.`,
+    description: `Maximum characters of body to return (default ${RESULT_LIMIT_CHARS}). One call never exceeds ${RESULT_LIMIT_LINES} line(s) or ${RESULT_LIMIT_CHARS} chars — the header names the next window; asking for more would be cut anyway.`,
+  }),
+  chars: Schema.optional(Schema.String).annotate({
+    description:
+      'Character window inside ONE selected line: "2000-4000", "2000-" (to the end) or "-4000" (from the start), 1-based and inclusive — the SAME offsets `read` prints after `↳+` on a wrapped line. Use it to read a line too long for one answer; the header names the offset that continues it.',
   }),
   reason: Schema.String.annotate({
     description:
       "WHY you are reading or narrowing this result — e.g. \"need the failing assertion, the rest is noise\". Required, and stored with the kept selection, so a narrowed result can be audited afterwards.",
   }),
+  /** Set when the caller released the result entirely — the next request carries the placeholder. */
   keep: Schema.optional(Schema.Boolean).annotate({
     description:
       "Keep exactly this selection on the stored result. Use it to LEAVE only what you need: from then on the replay carries these lines instead of the placeholder, so the result stops costing what it used to. Ask for more later with another recall.",
+  }),
+  release: Schema.optional(Schema.Boolean).annotate({
+    description:
+      "Release the WHOLE result: the next request carries a placeholder naming this id instead of the output, while the stored text stays put and `recall(id)` still returns it. Use it once the edit or fix that needed the file is done — that is how a big read stops filling the window without waiting for a compaction. `reason` is required and is persisted with the release.",
   }),
 })
 
@@ -359,7 +534,7 @@ export const RecallTool = Tool.define(
       description: DESCRIPTION,
       parameters: Parameters,
       execute: (
-        params: { id: string; range?: string; pattern?: string; ignoreCase?: boolean; maxChars?: number; keep?: boolean; reason: string },
+        params: { id: string; range?: string; pattern?: string; ignoreCase?: boolean; chars?: string; maxChars?: number; keep?: boolean; release?: boolean; reason: string },
         ctx: Tool.Context,
       ) =>
         Effect.gen(function* () {
@@ -370,10 +545,7 @@ export const RecallTool = Tool.define(
             metadata: { id: params.id, range: params.range, pattern: params.pattern },
           })
 
-          const maxChars = Math.min(
-            Math.max(1, Math.floor(params.maxChars ?? REPLAY_TOOL_OUTPUT_MAX_CHARS)),
-            REPLAY_TOOL_OUTPUT_MAX_CHARS,
-          )
+          const maxChars = Math.min(Math.max(1, Math.floor(params.maxChars ?? RESULT_LIMIT_CHARS)), RESULT_LIMIT_CHARS)
           const result = readToolResult({
             dbPath: path.join(Global.Path.data, "opencode.db"),
             id: params.id,
@@ -382,7 +554,9 @@ export const RecallTool = Tool.define(
             ignoreCase: params.ignoreCase,
             maxChars,
             keep: params.keep,
+            release: params.release,
             reason: params.reason,
+            chars: params.chars,
           })
 
           if (!result.ok) {
@@ -393,6 +567,39 @@ export const RecallTool = Tool.define(
             }
           }
 
+          // A RELEASE is persisted onto the stored part the way a kept selection is: the decision
+          // belongs to the RESULT, so every later request renders it the same way without being told
+          // again. What changes is the wire, never the store — `recall(id)` still returns the text,
+          // which is why the answer hands back the address the placeholder will print.
+          if (result.released !== undefined && result.part.type === "tool") {
+            const stored = result.part
+            yield* session.updatePart({
+              id: stored.id,
+              sessionID: stored.sessionID,
+              messageID: stored.messageID,
+              type: "tool",
+              callID: stored.callID,
+              tool: stored.tool,
+              state: { ...stored.state, released: result.released },
+            } as unknown as MessageV2.Part)
+            return {
+              title: `recall: released ${result.label}`,
+              metadata: {
+                id: params.id,
+                label: result.label,
+                title: result.title,
+                tool: result.tool,
+                totalLines: result.totalLines,
+                totalChars: result.totalChars,
+                matched: 0,
+                returned: 0,
+                error: "",
+              },
+              output:
+                `released ${result.label} — id=${params.id}: ${result.released.reason}\n` +
+                `The result itself is untouched (${result.totalLines} line(s), ${result.totalChars} chars): the next request carries a placeholder in its place, and recall(id=${params.id}, range="…") returns these lines again.`,
+            }
+          }
           // Persist the kept selection onto the stored part. From now on the replay renders exactly
           // these lines instead of a placeholder, so the result stops costing what it used to — this
           // is what makes the call an optimisation rather than a tax.
@@ -418,8 +625,7 @@ export const RecallTool = Tool.define(
             `range ${JSON.stringify(params.range ?? "0")} of ${result.totalLines} line(s), ${result.totalChars} chars${scope}\n` +
             (result.matchedLines === 0
               ? `no line matched in that range — widen the range or drop the pattern`
-              : `showing ${result.text.split("\n").filter(Boolean).length} line(s), absolute ${result.firstLine}-${result.lastLine}` +
-                (result.nextLine === null ? ` (complete)` : `; continue with range=${result.nextLine}-`))
+              : `showing ${result.text.split("\n").filter(Boolean).length} line(s), absolute ${result.firstLine}-${result.lastLine}${continuation(result)}`)
 
           return {
             title: `recall: ${result.label} lines ${result.firstLine}-${result.lastLine} of ${result.totalLines}`,

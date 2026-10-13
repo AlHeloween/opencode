@@ -14,8 +14,12 @@ import { convertDocument, isSupportedDocumentFormat } from "../util/markdownify"
 import { extractVideoFrames, probeDuration } from "@/util/video"
 import { filePathDescription } from "./path-hint"
 import * as TextCodec from "../util/text-codec"
+import { RESULT_LIMIT_CHARS, RESULT_LIMIT_LINES } from "./result-limit"
 
-const DEFAULT_READ_LIMIT = 2000
+// How much of a file ONE call returns — 16 384 lines or 256 KB, the ONE limit pair `read`, the replay
+// gate and `recall` all share (`@/tool/result-limit`), so a whole Delphi unit arrives in one call and
+// its lines are paid for once. `MAX_LINE_LENGTH` below is a different number: it is the width a single
+// long LINE is wrapped at, and wrapping is what makes a line addressable rather than unreachable.
 const MAX_LINE_LENGTH = 2000
 // A line longer than MAX_LINE_LENGTH is WRAPPED, not clipped (plan 2026-10-01_hash-addressed-edits, H2). The
 // suffix this replaced — «... (line truncated to 2000 chars)» — answers «how much did I lose», and the owner
@@ -25,8 +29,7 @@ const MAX_LINE_LENGTH = 2000
 // where the line begins.
 const LINE_CONTINUATION = "      ↳+"
 const LINE_OUTPUT_CAPPED = "... (output capped before the end of this line)"
-const MAX_BYTES = 50 * 1024
-const MAX_BYTES_LABEL = `${MAX_BYTES / 1024} KB`
+const MAX_BYTES_LABEL = `${RESULT_LIMIT_CHARS / 1024} KB`
 const SAMPLE_BYTES = 4096
 const TEXT_DOCUMENT_EXTENSIONS = new Set(["atom", "csv", "htm", "html", "json", "md", "rss", "txt", "xml"])
 const HEX_DUMP_BYTES_PER_ROW = 16
@@ -183,7 +186,7 @@ export const ReadTool = Tool.define(
 
       if (stat.type === "Directory") {
         const items = yield* list(filepath)
-        const limit = params.limit ?? DEFAULT_READ_LIMIT
+        const limit = params.limit ?? RESULT_LIMIT_LINES
         const offset = params.offset ?? 1
         const start = offset - 1
         const sliced = items.slice(start, start + limit)
@@ -221,7 +224,7 @@ export const ReadTool = Tool.define(
         const hexResult = formatHexDump(new Uint8Array(bytes), {
           offset: hexOffset,
           limit: hexLimit,
-          maxTotalBytes: MAX_BYTES,
+          maxTotalBytes: RESULT_LIMIT_CHARS,
         })
 
         let output = [`<path>${filepath}</path>`, `<type>hexdump</type>`, `<hexdump>`].join("\n")
@@ -382,7 +385,7 @@ export const ReadTool = Tool.define(
 
       // A refusal from the decoder (no host page) is a FAILURE the model can act on, not a defect.
       const file = yield* Effect.tryPromise({
-        try: () => lines(filepath, { limit: params.limit ?? DEFAULT_READ_LIMIT, offset: params.offset ?? 1, codepage }),
+        try: () => lines(filepath, { limit: params.limit ?? RESULT_LIMIT_LINES, offset: params.offset ?? 1, codepage }),
         catch: (error) => (error instanceof Error ? error : new Error(String(error))),
       })
       if (file.count < file.offset && !(file.count === 0 && file.offset === 1)) {
@@ -402,16 +405,10 @@ export const ReadTool = Tool.define(
       let output = [`<path>${filepath}</path>`, `<type>file</type>`, ...legacy, "<content>\n"].join("\n")
       output += file.raw.map((line, i) => `${i + file.offset}  ${file.hashes[i]}: ${line}`).join("\n")
 
-      const last = file.offset + file.raw.length - 1
-      const next = last + 1
+      // What the CALLER gets told about the window, and separately what the metadata carries: the notice
+      // is the sentence read in the output, `truncated` the flag other code reads.
       const truncated = file.more || file.cut
-      if (file.cut) {
-        output += `\n\n(Output capped at ${MAX_BYTES_LABEL}. Showing lines ${file.offset}-${last}. Use offset=${next} to continue.)`
-      } else if (file.more) {
-        output += `\n\n(Showing lines ${file.offset}-${last} of ${file.count}. Use offset=${next} to continue.)`
-      } else {
-        output += `\n\n(End of file - total ${file.count} lines)`
-      }
+      output += `\n\n${windowNotice({ offset: file.offset, shown: file.raw.length, count: file.count, cut: file.cut, more: file.more })}`
       output += "\n</content>"
 
       yield* warm(filepath)
@@ -500,6 +497,24 @@ export function parseHash(label: string): number | undefined {
   return /^[0-9a-f]{8}$/.test(label) ? Number.parseInt(label, 16) >>> 0 : undefined
 }
 
+/**
+ * What a windowed read says about itself — the ONLY place the caller learns that the window ended
+ * short and where to continue from. It is exported so that sentence is a tested fact rather than a
+ * template nobody runs: the integration harness that used to cover it (`read.test.ts`) produces no
+ * verdict at all (measured 2026-10-13: no log, `bytes_written: 0`), and a bound a caller cannot SEE is
+ * indistinguishable from a truncation — the plan that enlarged this window named exactly this notice
+ * as its oracle.
+ *
+ * The pager's own flags decide, never a re-derivation from the counts: `cut` means the BYTE budget ran
+ * out, `more` means the line limit did.
+ */
+export function windowNotice(input: { offset: number; shown: number; count: number; cut: boolean; more: boolean }): string {
+  const last = input.offset + input.shown - 1
+  const next = last + 1
+  if (input.cut) return `(Output capped at ${MAX_BYTES_LABEL}. Showing lines ${input.offset}-${last}. Use offset=${next} to continue.)`
+  if (input.more) return `(Showing lines ${input.offset}-${last} of ${input.count}. Use offset=${next} to continue.)`
+  return `(End of file - total ${input.count} lines)`
+}
 /**
  * The file's lines, its true line count and the chained address of every returned line.
  *
@@ -627,7 +642,7 @@ function lineWindow(opts: { limit: number; offset: number }) {
       const chunk = text.slice(cursor, cursor + MAX_LINE_LENGTH)
       const piece = cursor === 0 ? chunk : `${LINE_CONTINUATION}${cursor}: ${chunk}`
       const pieceBytes = Buffer.byteLength(piece, "utf-8") + (chunks.length > 0 ? 1 : 0)
-      if (bytes + separator + chunkBytes + pieceBytes > MAX_BYTES) {
+      if (bytes + separator + chunkBytes + pieceBytes > RESULT_LIMIT_CHARS) {
         // The budget cannot hold even the FIRST chunk: the line is not shown, exactly as before.
         if (chunks.length === 0) {
           cut = true

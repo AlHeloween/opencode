@@ -113,8 +113,8 @@ missing: the handoff permitted «until that lands» without saying what would ru
 |---|---|
 | plans completed | 230 |
 | plans active | 18 |
-| tasks passed / total | 971 / 1212 |
-| open boxes | 98 |
+| tasks passed / total | 972 / 1212 |
+| open boxes | 97 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -206,7 +206,7 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - SE [PENDING] · sv [reliability, defect-classes, evidence] · manifest: MISSING — nobody has written down what this box is
   - SF [PENDING] · sv [universal-search, cdp-port, redistribution] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-09-30_robot-installer.md` — 19 open / 33 box(es) · lifecycle DRAFT
+- `plans/2026-09-30_robot-installer.md` — 18 open / 33 box(es) · lifecycle DRAFT
   sv: intention "the robot (opencode + kernel + toolchain) exists only as a hand-assembled setup on the owner's machine, with a draft bundle in d:\!Smit\Smit2 -> a unified builder and a unified Go+Wails offline installer let a colleague on an unprepared Windows install it, start the robot and get an answer to «привет» with no manual setup" · keywords [installer, offline-bundle, preflight, hello-smoke, free-models]
   - Q2b [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - Q6 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
@@ -217,7 +217,6 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - B1c [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - B1d [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - B1f [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
-  - B1g [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - B2 [PENDING] · sv [fyne-installer, no-webview2, model-form-test] · manifest: MISSING — nobody has written down what this box is
   - B3 [PENDING] · sv [preflight, fixes, opt-in] · manifest: MISSING — nobody has written down what this box is
   - V1 [PENDING] · sv [virtual-monitor, driver-selection, signature] · manifest: MISSING — nobody has written down what this box is

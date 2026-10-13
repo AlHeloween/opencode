@@ -111,7 +111,7 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 227 |
+| plans completed | 228 |
 | plans active | 17 |
 | tasks passed / total | 949 / 1186 |
 | open boxes | 94 |
@@ -275,12 +275,8 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   sv: intention "the specs under packages/opencode/specs state live inventory in prose — file lists, call-site counts, feature flags — and that prose rots silently (measured 2026-10-12: facades.md names a makeRuntime composition that has since changed on BOTH sides, http-api.md still announces a gate flag that no longer exists in src) -> inventory that can rot is either replaced by the command that recomputes it or generated, while the rules and the work order — which do not rot — stay hand-written." · keywords []
   - S2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-13_free-authority-map.md` — 0 open / 9 box(es) · lifecycle COMPLETE
-  sv: intention "the evidence ladder's primary-authority rung names paid databases that a keyless service cannot read (its «honest limits» leave them on Hypothetical) -> every paid name has a MEASURED free authoritative equivalent (university library, open repository, government source) with a documented read and search interface, so the search service can raise results from it to Inferred with a source stamp" · keywords [free-authority, keyless-api, authority-class, search-and-read-interfaces, live-call-verification]
-  - no open box
-
 ## The checks
 
-This body names all 20 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 19 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

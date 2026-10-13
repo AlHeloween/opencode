@@ -1,0 +1,924 @@
+{
+  "generated": "2026-10-13",
+  "plan": "plans/2026-10-13_free-authority-map.md",
+  "brief": "map every paid source name (its «honest limits» + kernel 1.3 paid names) to a free authoritative substitute with a documented search+read interface; keyless first; live calls recorded with prediction -> result",
+  "rung_rules": {
+    "Hypothetical": "a documentation page (non-provider)",
+    "Inferred": "the provider's own docs read",
+    "Exact": "one live call that returned results (prediction recorded)"
+  },
+  "instrument_note": "researcher_agent subagent failed on ALL multi-call internet tasks (4 occurrences: 'Sub-agent failed: undefined' / killed with no output; single-call probes survived). Per @TOOLCHAIN_QUALIFICATION the capability was re-routed to the primary agent's webfetch (+python for http-only/refusing endpoints); the defect class is recorded in REPORT.md and _progress_log.md.",
+  "tier1_keyless": [
+    {
+      "id": "crossref",
+      "name": "Crossref REST API",
+      "replaces": ["IEEE Xplore (metadata)", "ACM DL (metadata)", "IOPscience (metadata)", "APS Journals (metadata)", "Compendex (metadata layer)"],
+      "discipline": "cross-discipline DOI metadata registry",
+      "owner_institution": "Crossref — not-for-profit publisher consortium",
+      "authority_class": "primary_metadata_registry",
+      "docs_url": "https://www.crossref.org/documentation/retrieve-metadata/rest-api/",
+      "doc_rung": "Inferred (provider's own docs)",
+      "search": {
+        "endpoint": "https://api.crossref.org/works",
+        "method": "GET",
+        "params": "query.bibliographic=, query.container-title=, filter=member:<id>, rows=, select=DOI,title,author,issued,container-title,abstract",
+        "fields": "DOI=items[].DOI; title=items[].title[]; authors=items[].author[] (absent when not deposited); date=items[].issued.date-parts; container=items[].container-title[]; abstract=items[].abstract (where deposited); url=https://doi.org/<DOI>"
+      },
+      "read": "metadata-only; abstracts when deposited; full text via publisher site, arXiv, or OA link resolvers (OpenAlex/Unpaywall data)",
+      "key": "none",
+      "rate_limit": "not stated on the fetched pages; their site states the metadata is openly shared via free APIs",
+      "license": "\"All this metadata is openly shared with the global scholarly community through our free APIs\" (fetched from crossref.org)",
+      "live_calls": [
+        {
+          "prediction": "HTTP 200 JSON; message.items[0] with DOI/title/author/issued",
+          "request": "https://api.crossref.org/works?query.bibliographic=deep+learning&rows=2&select=DOI,title,author,issued,container-title,abstract",
+          "result": "200 JSON, total-results 3138530",
+          "first_result": "DOI=10.4135/9781506368603.n2; title='What's Deep About Deep Learning?'; issued=2018; container-title='Deep Learning'; author absent on these records",
+          "prediction_held": "partial — structure held; `author` was empty for both returned records (not deposited on them)"
+        },
+        {
+          "prediction": "HTTP 200 JSON items with publisher naming IEEE",
+          "request": "https://api.crossref.org/works?filter=member:263&rows=2&select=DOI,title,publisher,container-title",
+          "result": "200 JSON, total-results 6999753",
+          "first_result": "DOI=10.1109/iceeccot.2016.7955241; publisher='IEEE'; container-title='2016 International Conference on Electrical, Electronics, Communication, Computer and Optimization Techniques (ICEECCOT)'",
+          "prediction_held": "yes"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "openalex",
+      "name": "OpenAlex API",
+      "replaces": ["INSPEC (index layer)", "Compendex", "Engineering Village", "SocINDEX", "SocAbstracts", "PsycINFO (index layer)", "cross-discipline index for all groups"],
+      "discipline": "cross-discipline scholarly index",
+      "owner_institution": "OurResearch — nonprofit; data aggregated from Crossref, repositories and other open sources",
+      "authority_class": "secondary_index",
+      "docs_url": "https://docs.openalex.org/how-to-use-the-api/rate-limits-and-authentication",
+      "doc_rung": "Inferred (provider's own docs)",
+      "search": {
+        "endpoint": "https://api.openalex.org/works",
+        "method": "GET",
+        "params": "search=, filter=, per-page=, page=, select=, mailto= (politeness)",
+        "fields": "id=results[].id; doi=results[].doi; title=results[].title; year=results[].publication_year; date=results[].publication_date; authors=results[].authorships[].author.display_name; institutions=results[].authorships[].institutions[]; oa=results[].open_access.oa_url / primary_location.license; abstract=abstract_inverted_index (inverted index — reconstruct client-side)"
+      },
+      "read": "abstract reconstructable from abstract_inverted_index; OA full-text links via open_access/primary_location; per-page max 100, cursor paging beyond 10000 results",
+      "key": "none (free API key raises budget 10x; not needed for basic use)",
+      "rate_limit": "no key: 10 req/s; free key / prepaid: 30 req/s; annual plan: 50 req/s (fetched from their docs)",
+      "license": "\"OpenAlex data is free, and so is casual use of the API\" (fetched); data is CC0 per their site",
+      "live_calls": [
+        {
+          "prediction": "HTTP 200 JSON; results[0] with id/doi/title/publication_year/authorships/primary_location/best_oa_location",
+          "request": "https://api.openalex.org/works?search=deep%20learning&per-page=2",
+          "result": "200 JSON, meta.count 5115777",
+          "first_result": "id=W2557283755; title='Deep Learning'; year=2016; authors Goodfellow/Bengio/Courville; primary_location=MIT Press eBooks (not OA on this record)",
+          "prediction_held": "yes"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "zenodo",
+      "name": "Zenodo REST API",
+      "replaces": ["repository / grey-literature layer (all disciplines)"],
+      "discipline": "open repository (publications, datasets, software)",
+      "owner_institution": "CERN (European Organization for Nuclear Research)",
+      "authority_class": "primary_data_repository",
+      "docs_url": "https://developers.zenodo.org/",
+      "doc_rung": "Inferred (provider's own docs)",
+      "search": {
+        "endpoint": "https://zenodo.org/api/records",
+        "method": "GET",
+        "params": "q=, size=, page=, sort=",
+        "fields": "doi=doi; doi_url; title=metadata.title; authors=metadata.creators[].name; date=metadata.publication_date; abstract=metadata.description (HTML); license=metadata.license.id; files[].links"
+      },
+      "read": "JSON metadata keyless; files via /api/records/<id>/files (PDF/zip where present); the deposit (write) API requires a personal access token",
+      "key": "none (read/search; live-verified)",
+      "rate_limit": "not stated on the fetched docs page",
+      "license": "metadata licensed under Creative Commons Zero (stated on developers.zenodo.org)",
+      "live_calls": [
+        {
+          "prediction": "HTTP 200 JSON; hits.hits[0] with metadata.title/creators/publication_date/doi + files",
+          "request": "https://zenodo.org/api/records?q=open+science&size=2",
+          "result": "200 JSON",
+          "first_result": "id=10141912; doi=10.5281/zenodo.10141912; title='Open Science NL Community engagement strategy'; creators=[Open Science NL]; publication_date=2023-11-19; access_right=restricted",
+          "prediction_held": "yes"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "openaire",
+      "name": "OpenAIRE search API (legacy endpoint)",
+      "replaces": ["repository aggregator layer (EU-focused; all disciplines)"],
+      "discipline": "European repositories aggregator",
+      "owner_institution": "OpenAIRE AMKE — EU consortium of research organisations",
+      "authority_class": "secondary_index",
+      "docs_url": "https://graph.openaire.eu/docs/",
+      "doc_rung": "Hypothetical for the legacy endpoint (docs site not fetched for it this session); endpoint live-verified",
+      "search": {
+        "endpoint": "https://api.openaire.eu/search/publications",
+        "method": "GET",
+        "params": "title=, size=, (legacy XML API)",
+        "fields": "title=oaf:result/title; authors=creator (name/surname/orcid); date=dateofacceptance; identifier=pid (doi/pubmed); url=url"
+      },
+      "read": "XML; full text via the linked repository/DOI",
+      "key": "none (live-verified keyless)",
+      "rate_limit": "not captured",
+      "license": "not captured",
+      "live_calls": [
+        {
+          "prediction": "HTTP 200 XML with results list",
+          "request": "https://api.openaire.eu/search/publications?title=open%20science&size=2",
+          "result": "200 XML (50 KB), results with titles/creators/dates/dois",
+          "first_result": "title='Open Access-or Open Science?'; creator='Bernd Pulverer' (ORCID 0000-0003-2219-5841); dateofacceptance=2018-12-03; DOI 10.15252/embr.202357638 in a related record",
+          "prediction_held": "yes"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "doaj",
+      "name": "DOAJ API",
+      "replaces": ["OA journal/article layer: Project MUSE (OA part)", "JSTOR (OA part)", "PsycArticles (OA part)", "CINAHL (OA nursing journals)"],
+      "discipline": "open-access journals and articles directory",
+      "owner_institution": "Lund University (Sweden)",
+      "authority_class": "fulltext_repository",
+      "docs_url": "https://doaj.org/docs/api/",
+      "doc_rung": "Inferred (provider's own docs)",
+      "search": {
+        "endpoint": "https://doaj.org/api/search/articles/{query}",
+        "method": "GET",
+        "params": "path query string; page=, pageSize=, sort=",
+        "fields": "total; results[].bibjson.title; authors=results[].bibjson.author[].name; journal=results[].bibjson.journal.title; date=results[].bibjson.year/month; identifier=results[].bibjson.identifier[] (doi/issn); link=results[].bibjson.link[].url (fulltext); abstract where present"
+      },
+      "read": "fulltext link points to the OA publisher copy; metadata carries journal/license fields",
+      "key": "none",
+      "rate_limit": "two requests per second on all API routes; bursts up to five queued (fetched from their docs)",
+      "license": "not stated on the fetched API page",
+      "live_calls": [
+        {
+          "prediction": "HTTP 200 JSON with results list",
+          "request": "https://doaj.org/api/search/articles/open%20science",
+          "result": "200 JSON, total 38740",
+          "first_result": "title='Factors predicting active treatment free-survival ...'; journal='European Urology Open Science' (Elsevier); DOI 10.1016/S2666-1683(20)35566-X; fulltext link to sciencedirect",
+          "prediction_held": "yes"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "core",
+      "name": "CORE API v3",
+      "replaces": ["institutional-repository aggregator (UK-led; all disciplines)", "full-text layer for repositories"],
+      "discipline": "aggregator of institutional repositories",
+      "owner_institution": "The Open University + Jisc (not-for-profit)",
+      "authority_class": "fulltext_repository",
+      "docs_url": "https://core.ac.uk/services/api",
+      "doc_rung": "Inferred (provider's own docs)",
+      "search": {
+        "endpoint": "https://api.core.ac.uk/v3/search/works",
+        "method": "GET",
+        "params": "q=, limit=, offset=",
+        "fields": "title=results[].title; authors=results[].authors[].name; abstract=results[].abstract; download=results[].downloadUrl; doi=results[].doi (nullable); year=results[].yearPublished; provider=results[].dataProviders[].name; links=results[].links[]"
+      },
+      "read": "downloadUrl points to a PDF; the API notes fullText is \"Not available for public API users\" (registered/API users get full text)",
+      "key": "none (keyless live-verified at the lower rate; registration for faster rate + full text)",
+      "rate_limit": "unregistered: one batch request or five single requests per 10 seconds (fetched from their page)",
+      "license": "\"Free API access without registration (subject to our T&Cs)\" (fetched); commercial use permitted under T&Cs",
+      "live_calls": [
+        {
+          "prediction": "200 JSON if keyless works, else 401",
+          "request": "https://api.core.ac.uk/v3/search/works?q=open%20science&limit=1",
+          "result": "200 JSON, totalHits 40721133 — KEYLESS CONFIRMED",
+          "first_result": "title='Open Science NL Work programme 2024-2025'; authors=[Open Science NL]; downloadUrl=https://core.ac.uk/download/597539722.pdf; dataProvider='Bibliothèque numérique de l'enssib'",
+          "prediction_held": "yes (keyless succeeded)"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "pubmed",
+      "name": "PubMed E-utilities (esearch/efetch)",
+      "replaces": ["MEDLINE (confirm — CONFIRMED FREE)", "Cochrane (abstract/metadata layer)", "CINAHL (journal core)", "PsycINFO (journal core)", "AgeLine (gerontology core)"],
+      "discipline": "biomedicine and life sciences",
+      "owner_institution": "U.S. National Library of Medicine (NIH) — government",
+      "authority_class": "primary_science",
+      "docs_url": "https://www.ncbi.nlm.nih.gov/books/NBK25501/",
+      "doc_rung": "Inferred (provider's own docs; note: the separate usage-guidelines page answered a reCAPTCHA to our fetcher — recorded)",
+      "search": {
+        "endpoint": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi and .../efetch.fcgi",
+        "method": "GET",
+        "params": "db=pubmed; term=; retmode=json|xml; retmax=; (efetch) id=<PMID>",
+        "fields": "PMID; title=ArticleTitle; abstract=AbstractText (labeled sections); authors=AuthorList/Author; journal=Journal/Title + ISOAbbreviation; date=PubDate/ArticleDate; identifier=ELocationID (doi, pii), PMID"
+      },
+      "read": "abstracts and metadata free in XML; full text via PMC OA subset or publishers",
+      "key": "none (an API key only raises the rate)",
+      "rate_limit": "not captured (the NCBI usage page refused our fetcher); e-utilities answered keylessly in 3 live calls",
+      "license": "NLM terms (not captured this session)",
+      "live_calls": [
+        {
+          "prediction": "HTTP 200 JSON with idlist",
+          "request": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=asthma+inhaler&retmode=json&retmax=2",
+          "result": "200 JSON, count 37371, idlist ['42863803','42859811']",
+          "first_result": "PMID 42863803",
+          "prediction_held": "yes"
+        },
+        {
+          "prediction": "HTTP 200 XML with ArticleTitle/AbstractText/AuthorList",
+          "request": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=42863803&retmode=xml",
+          "result": "200 XML full record with labeled abstract (BACKGROUND/METHODS/RESULTS/CONCLUSIONS)",
+          "first_result": "title='Association between obesity and asthma among Arab Israeli adolescents ...'; journal 'Respir Med'; DOI 10.1016/j.rmed.2026.109214",
+          "prediction_held": "yes"
+        },
+        {
+          "prediction": "records returned for the Cochrane journal query (proves Cochrane metadata is free via PubMed)",
+          "request": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=Cochrane+Database+Syst+Rev%5Bta%5D&retmode=json&retmax=2",
+          "result": "200 JSON, count 17544, journal translated to \"cochrane database syst rev\"[Journal]",
+          "first_result": "idlist ['42863850','42861686']",
+          "prediction_held": "yes — MEDLINE is free via PubMed (CONFIRMED) and Cochrane reviews carry free PubMed records"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "europepmc",
+      "name": "Europe PMC RESTful Web Service",
+      "replaces": ["biomed index + OA full text (Cochrane OA parts, CINAHL abstracts layer)"],
+      "discipline": "biomedicine and life sciences",
+      "owner_institution": "EMBL-EBI (research institute) with NLM and the Europe PMC funders",
+      "authority_class": "fulltext_repository",
+      "docs_url": "https://europepmc.org/RestfulWebService",
+      "doc_rung": "Inferred (provider's own docs)",
+      "search": {
+        "endpoint": "https://www.ebi.ac.uk/europepmc/webservices/rest/search",
+        "method": "GET",
+        "params": "query=, format=json|xml|dc, pageSize=, resultType=lite|core|idlist, sort=",
+        "fields": "id; pmid; pmcid; doi; title; authors=authorString; journal=journalTitle; year=pubYear; abstract=abstractText (resultType=core); oa=isOpenAccess; fullText=fullTextIdList"
+      },
+      "read": "full text XML: /rest/<PMCID>/fullTextXML (live-verified, 165 KB); OA subset 6.5M articles per their pages",
+      "key": "none",
+      "rate_limit": "not stated on the fetched page",
+      "license": "their Privacy Notice governs use (not captured in detail)",
+      "live_calls": [
+        {
+          "prediction": "HTTP 200 JSON resultList.result[0] with title/authorString/pubYear/doi",
+          "request": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=asthma%20inhaler&format=json&pageSize=2",
+          "result": "200 JSON, hitCount 22774",
+          "first_result": "pmid=42617523; doi=10.1016/j.ijnurstu.2026.105675; title='Feedback-enhanced electronic monitoring for asthma inhaler adherence...'; journal 'Int J Nurs Stud'; pubYear 2026; isOpenAccess N (second result OA Y with pmcid)",
+          "prediction_held": "yes"
+        },
+        {
+          "prediction": "HTTP 200 XML full text for the OA article",
+          "request": "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC13138708/fullTextXML",
+          "result": "200 XML (165 KB, full article XML)",
+          "first_result": "full text of PMC13138708",
+          "prediction_held": "yes"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "clinicaltrials",
+      "name": "ClinicalTrials.gov API v2",
+      "replaces": ["Cochrane CENTRAL raw material (trial records)"],
+      "discipline": "clinical trial registry",
+      "owner_institution": "U.S. National Library of Medicine (NIH) — government",
+      "authority_class": "government_primary",
+      "docs_url": "https://clinicaltrials.gov/data-api/api",
+      "doc_rung": "Hypothetical (the docs page rendered only the site shell for our fetcher; endpoint live-verified)",
+      "search": {
+        "endpoint": "https://clinicaltrials.gov/api/v2/studies",
+        "method": "GET",
+        "params": "query.term=, pageSize=, pageToken=",
+        "fields": "studies[].protocolSection.identificationModule.nctId/briefTitle; statusModule; designModule; eligibilityModule; contactsLocationsModule"
+      },
+      "read": "structured JSON per trial; documents via links",
+      "key": "none",
+      "rate_limit": "not captured (docs page did not render)",
+      "license": "not captured",
+      "live_calls": [
+        {
+          "prediction": "HTTP 200 JSON studies[0].protocolSection.nctId etc.",
+          "request": "https://clinicaltrials.gov/api/v2/studies?query.term=asthma&pageSize=2",
+          "result": "200 JSON, studies[] array",
+          "first_result": "protocolSection.identificationModule.nctId=NCT07214753",
+          "prediction_held": "yes"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "arxiv",
+      "name": "arXiv API",
+      "replaces": ["APS Journals (preprint layer)", "IOPscience (preprint layer)", "IEEE Xplore (preprint layer)", "physics/math/CS literature"],
+      "discipline": "physics, mathematics, computer science",
+      "owner_institution": "Cornell University (site banner: \"arXiv is now an independent nonprofit!\")",
+      "authority_class": "primary_science",
+      "docs_url": "https://info.arxiv.org/help/api/index.html",
+      "doc_rung": "Inferred (provider's own docs; the Terms-of-Use page was fetched but its body text is not machine-extractable)",
+      "search": {
+        "endpoint": "https://export.arxiv.org/api/query",
+        "method": "GET",
+        "params": "search_query=, id_list=, start=, max_results=, sortBy=",
+        "fields": "id=entry/id (abs URL); title=entry/title; abstract=entry/summary; authors=entry/author/name; date=entry/published (also updated); pdf=entry/link[@title=pdf]; journal-ref=arxiv:journal_ref; doi present via journal-ref records"
+      },
+      "read": "abstract via Atom; full text PDF at https://arxiv.org/pdf/<id>",
+      "key": "none",
+      "rate_limit": "terms page fetched; the specific rate wording was not extractable this session",
+      "license": "per-paper arXiv licenses (not captured)",
+      "live_calls": [
+        {
+          "prediction": "HTTP 200 Atom XML with entry title/authors/published/summary/id",
+          "request": "https://export.arxiv.org/api/query?search_query=all:gravitational+waves&max_results=2",
+          "result": "200 Atom XML, totalResults 221051",
+          "first_result": "id=0706.3294v1; title='Moriond 07 proceedings: \"Extension of the frequency-range of interferometers ...\"'; published 2007-06-22; second entry journal_ref='Phys.Rev.Lett. 85 (2000) 5046-5050'",
+          "prediction_held": "partial — query semantics: `all:gravitational+waves` was parsed as an OR (feed title shows search_query=all:gravitational OR all:waves); quote phrases or use explicit AND for precision"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "inspire",
+      "name": "INSPIRE-HEP API",
+      "replaces": ["physics (HEP) literature layer; complements APS/IOP"],
+      "discipline": "high-energy physics",
+      "owner_institution": "CERN (with partner institutes)",
+      "authority_class": "primary_science",
+      "docs_url": "https://github.com/inspirehep/rest-api-doc",
+      "doc_rung": "Hypothetical (doc repo not fetched; API live-verified)",
+      "search": {
+        "endpoint": "https://inspirehep.net/api/literature",
+        "method": "GET",
+        "params": "q=, size=, fields=, sort=",
+        "fields": "id=hits.hits[].id; title=metadata.titles[].title; authors=metadata.authors[].full_name (with ORCID/affiliations); abstract=metadata.abstracts[].value; doi=metadata.dois[].value; arxiv=metadata.arxiv_eprints[].value; journal=metadata.publication_info[]; links=links (bibtex/json/cv)"
+      },
+      "read": "abstracts via API; full text via DOI/arXiv links; bibtex export per record",
+      "key": "none (live-verified keyless)",
+      "rate_limit": "not captured",
+      "license": "not captured",
+      "live_calls": [
+        {
+          "prediction": "full record JSON",
+          "request": "https://inspirehep.net/api/literature?q=higgs%20boson&size=2",
+          "result": "200 JSON (472 KB — too large; re-called with fields= filter)",
+          "first_result": "not read (truncated)",
+          "prediction_held": "n/a (oversized)"
+        },
+        {
+          "prediction": "HTTP 200 JSON hits.hits[0].metadata with titles/authors/abstracts/dois",
+          "request": "https://inspirehep.net/api/literature?q=higgs%20boson&size=1&fields=titles,authors,abstracts,dois,arxiv_eprints,publication_info",
+          "result": "200 JSON",
+          "first_result": "id=3127339; journal 'Eur.Phys.J.C' 86 (2026) 457; authors with ORCIDs and affiliations; links block offers bibtex/json/cv",
+          "prediction_held": "yes"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "cod",
+      "name": "Crystallography Open Database (COD)",
+      "replaces": ["SpringerMaterials (crystal-structure layer)", "MatWeb (structure layer)"],
+      "discipline": "chemistry / crystallography",
+      "owner_institution": "COD — open community database hosted at crystallography.net",
+      "authority_class": "primary_data_repository",
+      "docs_url": "https://wiki.crystallography.net/RESTful_API/",
+      "doc_rung": "Inferred (provider's own wiki)",
+      "search": {
+        "endpoint": "https://www.crystallography.net/cod/result",
+        "method": "GET",
+        "params": "text= (metadata keyword), formula= (Hill notation, space-separated, e.g. 'C9 H8 O4'), el1..el8, spacegroup=, doi=, journal=, year=, format=json|csv|lst|urls|zip|count",
+        "fields": "file (COD ID); commonname/chemname/mineral; formula; sg (space group); cell parameters a/b/c/alpha/beta/gamma/vol; journal/year/doi; Z"
+      },
+      "read": "entry files: https://www.crystallography.net/cod/<ID>.cif (also .hkl/.rdf/.html) — CIF is machine-parseable",
+      "key": "none",
+      "rate_limit": "not stated in the wiki",
+      "license": "not captured (COD data is openly redistributable per the project's site; verify before deployment)",
+      "live_calls": [
+        {
+          "prediction": "HTTP 200 with a plain list of COD IDs",
+          "request": "https://www.crystallography.net/cod/result?text=aspirin&format=lst (via python; webfetch transport failed on this endpoint twice)",
+          "result": "200; ID list (1515581, 1515582, 1516479, ...)",
+          "first_result": "1515581",
+          "prediction_held": "yes"
+        },
+        {
+          "prediction": "HTTP 200 JSON with entry records",
+          "request": "https://www.crystallography.net/cod/result?text=aspirin&format=json (via python)",
+          "result": "200; 122706 bytes JSON",
+          "first_result": "file=1515581; commonname='Aspirin form II'; formula='- C9 H8 O4 -'; sg='P 1 21/c 1'; cell a=12.1016 b=6.4721 c=11.3344 alpha=90 beta=111.593 gamma=90",
+          "prediction_held": "yes"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "aflow",
+      "name": "AFLOW REST API (aflux)",
+      "replaces": ["SpringerMaterials (computed-property layer)", "MatWeb (property layer)"],
+      "discipline": "materials science",
+      "owner_institution": "Duke University (aflowlib.duke.edu)",
+      "authority_class": "primary_data_repository",
+      "docs_url": "https://aflow.org/API/aflux/",
+      "doc_rung": "Hypothetical (docs page not fetched; endpoint live-verified)",
+      "search": {
+        "endpoint": "https://aflow.org/API/aflux/",
+        "method": "GET",
+        "params": "keyword query, e.g. species(Ag),nspecies(1); property selection supported by the API",
+        "fields": "compound; auid (AFLOW unique id); aurl (path into AFLOWDATA); plus requested material properties"
+      },
+      "read": "JSON entries; structure files via the aurl paths under aflowlib.duke.edu/AFLOWDATA",
+      "key": "none",
+      "rate_limit": "not captured",
+      "license": "not captured",
+      "live_calls": [
+        {
+          "prediction": "HTTP 200 JSON array of material entries",
+          "request": "https://aflow.org/API/aflux/?species(Ag),nspecies(1)",
+          "result": "200 JSON array (12 KB)",
+          "first_result": "compound='Ag2'; auid='aflow:006f3a33d1a004e6'; aurl='aflowlib.duke.edu:AFLOWDATA/LIB1_WEB/Ag:PAW_PBE:06Sep2000/A3'",
+          "prediction_held": "yes"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "usgs",
+      "name": "USGS Publications Warehouse API",
+      "replaces": ["GeoRef (USGS/grey-literature layer)", "GeoScienceWorld (USGS layer)"],
+      "discipline": "geoscience",
+      "owner_institution": "U.S. Geological Survey — government",
+      "authority_class": "government_primary",
+      "docs_url": "not fetched (the service root at https://pubs.usgs.gov/pubs-services/ returned 401 \"Full authentication is required\" — recorded; the search endpoint itself answered keyless)",
+      "doc_rung": "endpoint live-verified",
+      "search": {
+        "endpoint": "https://pubs.usgs.gov/pubs-services/publication/",
+        "method": "GET",
+        "params": "q=, page_size=, page_number=",
+        "fields": "records[].id; title; abstract=docAbstract (HTML); year=publicationYear; doi; authors=contributors.authors[].text (with ORCID); citation=usgsCitation; links[]; type=publicationType.text"
+      },
+      "read": "abstracts in JSON; full text/PDF via links (pubs.usgs.gov)",
+      "key": "none for the search endpoint (live-verified); other service resources returned 401",
+      "rate_limit": "not captured",
+      "license": "not captured (US government publications)",
+      "live_calls": [
+        {
+          "prediction": "HTTP 200 JSON record list with title/authors/doi/links",
+          "request": "https://pubs.usgs.gov/pubs-services/publication/?q=earthquake&page_size=2",
+          "result": "200 JSON, recordCount 8503",
+          "first_result": "title='Ground failure resulting from earthquake ground motions'; doi=10.1016/B978-0-443-40375-0.00008-6; authors Allstadt/Thompson (ORCIDs); type 'Book chapter'",
+          "prediction_held": "yes"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "eric",
+      "name": "ERIC API",
+      "replaces": ["EdSource (education research layer)", "LearnTechLib (education research layer)"],
+      "discipline": "education",
+      "owner_institution": "Institute of Education Sciences, U.S. Dept. of Education — government",
+      "authority_class": "government_primary",
+      "docs_url": "https://eric.ed.gov/?faq",
+      "doc_rung": "Inferred (provider's own FAQ: \"Do I need a subscription ... no membership, registration, or subscription required\"; \"Does ERIC have an API? Yes\")",
+      "search": {
+        "endpoint": "https://api.ies.ed.gov/eric/",
+        "method": "GET",
+        "params": "search=, rows=, format=json, start=",
+        "fields": "response.numFound; docs[].id (ED number); title; abstract=description; author; year=publicationdateyear; publisher; subject[]; peerreviewed; url"
+      },
+      "read": "abstract (description) free; full text on ERIC where available; metadata free of charge by IES policy",
+      "key": "none",
+      "rate_limit": "not captured",
+      "license": "free public use (fetched from the FAQ)",
+      "live_calls": [
+        {
+          "prediction": "HTTP 200 JSON response.docs[0] with title/description/year",
+          "request": "https://api.ies.ed.gov/eric/?search=education&rows=2&format=json",
+          "result": "200 JSON, numFound 1489769",
+          "first_result": "id=ED621142; title='Report of the Commissioner of Education for the Year Ended June 30, 1916...'; publicationdateyear=1916",
+          "prediction_held": "yes"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "osf",
+      "name": "OSF API v2 (preprint providers: SocArXiv, EarthArXiv, PsyArXiv)",
+      "replaces": ["SocINDEX / SocAbstracts (preprint layer)", "GeoRef (EarthArXiv preprint layer)", "PsycINFO (preprint layer)"],
+      "discipline": "social sciences, geoscience, psychology (preprints)",
+      "owner_institution": "Center for Open Science — nonprofit; SocArXiv run with the University of Maryland",
+      "authority_class": "fulltext_repository",
+      "docs_url": "https://developer.osf.io/",
+      "doc_rung": "Hypothetical (docs site rendered empty for our fetcher; endpoint live-verified)",
+      "search": {
+        "endpoint": "https://api.osf.io/v2/preprints/",
+        "method": "GET",
+        "params": "filter[provider]=socarxiv|eartharxiv|psyarxiv; page[size]=; format=json (required for JSON instead of the browsable HTML)",
+        "fields": "data[].id; title=data[].attributes.title; date=data[].attributes.date_published; description; relationships (providers, primary_file)"
+      },
+      "read": "preprint files via OSF download endpoints linked from the record",
+      "key": "none",
+      "rate_limit": "not captured",
+      "license": "per preprint (not captured)",
+      "live_calls": [
+        {
+          "prediction": "HTTP 200 JSON data[0].attributes.title/date_published",
+          "request": "https://api.osf.io/v2/preprints/?filter%5Bprovider%5D=socarxiv&page%5Bsize%5D=2&format=json",
+          "result": "200 JSON",
+          "first_result": "data[0].id='2rjm6_v1'; type='preprints'; attributes.date_created='2026-10-12T10:33:41'",
+          "prediction_held": "yes — note: without &format=json the same endpoint serves the browsable HTML page"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "hathitrust",
+      "name": "HathiTrust Bibliographic API",
+      "replaces": ["JSTOR (book/serial metadata layer)", "Project MUSE (book/serial metadata layer)"],
+      "discipline": "books and serials across disciplines",
+      "owner_institution": "HathiTrust — consortium of 60+ research libraries (Michigan-led)",
+      "authority_class": "primary_metadata_registry",
+      "docs_url": "https://www.hathitrust.org/bib_api",
+      "doc_rung": "Inferred (provider's own docs)",
+      "search": {
+        "endpoint": "https://catalog.hathitrust.org/api/volumes/brief/<id type>/<id value>.json (also /brief/json/id:<v>;oclc:<v>;isbn:<v>; multi-id)",
+        "method": "GET",
+        "params": "id types: isbn, lccn, oclc, htid, issn",
+        "fields": "records{<id>: recordURL, titles[], isbns[], oclcs[], lccns[], publishDates[]}; items[]{htid, itemURL, usRightsString ('Limited (search-only)' | 'Full View'), rightsCode, orig}"
+      },
+      "read": "NOT a search API (their own statement) — identifier lookup, small numbers per request; bulk via OAI or hathifiles; full view items readable, search-only items limited; the full-text Data API is a separate registered service",
+      "key": "none (Bib API)",
+      "rate_limit": "\"intended for use to retrieve information about small numbers of items at a time\" (fetched)",
+      "license": "use may be subject to third-party agreements (OCLC Record Use policy) — fetched",
+      "live_calls": [
+        {
+          "prediction": "HTTP 200 JSON with records+items (documented example)",
+          "request": "https://catalog.hathitrust.org/api/volumes/brief/oclc/424023.json",
+          "result": "200 JSON",
+          "first_result": "records['000578050'].titles=['Infinite series']; items: htid=mdp.39015025315527, usRightsString='Limited (search-only)', orig='University of Michigan'",
+          "prediction_held": "yes — note: two earlier ISBN-form calls returned empty records for both ISBNs; the documented oclc form worked. Use documented id types and expect empty results for unmatched identifiers"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "internetarchive",
+      "name": "Internet Archive advancedsearch API",
+      "replaces": ["JSTOR (public-domain and lending scans)", "general book/media layer"],
+      "discipline": "books, media, web archives",
+      "owner_institution": "Internet Archive — nonprofit library",
+      "authority_class": "fulltext_repository",
+      "docs_url": "https://archive.org/developers/",
+      "doc_rung": "Inferred (provider's own developer portal; licensing statement fetched)",
+      "search": {
+        "endpoint": "https://archive.org/advancedsearch.php",
+        "method": "GET",
+        "params": "q= (Lucene-ish), fl[]=, rows=, output=json",
+        "fields": "response.numFound; docs[].identifier; title; year; creator; mediatype"
+      },
+      "read": "item files via https://archive.org/metadata/<identifier> and download endpoints; full text for public-domain items, controlled digital lending for in-copyright books",
+      "key": "none",
+      "rate_limit": "not stated on the fetched pages",
+      "license": "\"The Internet Archive does not assert any new copyright or other proprietary rights over any of the material in its database\" (fetched)",
+      "live_calls": [
+        {
+          "prediction": "HTTP 200 JSON response.docs[0] with identifier/title/year",
+          "request": "https://archive.org/advancedsearch.php?q=title%3A%28moby+dick%29&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=year&rows=2&output=json",
+          "result": "200 JSON, numFound 740",
+          "first_result": "identifier='MobyDick_844', title='Moby Dick'; second: identifier='bwb_S0-DNM-100', year=1943",
+          "prediction_held": "yes"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "persee",
+      "name": "Persée OAI-PMH",
+      "replaces": ["JSTOR (French-language humanities back catalog, metadata layer)"],
+      "discipline": "humanities (French-language journals)",
+      "owner_institution": "ENS de Lyon (École normale supérieure de Lyon)",
+      "authority_class": "primary_metadata_registry",
+      "docs_url": "https://www.persee.fr/entrepot-oai",
+      "doc_rung": "Inferred (provider's own page)",
+      "search": {
+        "endpoint": "http://oai.persee.fr/oai",
+        "method": "GET (HTTP only — no TLS; needs a User-Agent header)",
+        "params": "verb=Identify|ListIdentifiers|ListRecords|GetRecord; metadataPrefix=oai_dc|mods|marc|persee_mets; set=persee:serie|persee:serie-<id>[:issue|:doc]; from= for incremental harvest",
+        "fields": "Dublin Core: dc:title/creator/date/identifier/language; METS for collection structure"
+      },
+      "read": "metadata free; document CONTENT via OAI is \"réservé à des utilisateurs identifiés\" (restricted to identified users — fetched)",
+      "key": "none for metadata; identified users for content",
+      "rate_limit": "their recommendation: use sets for the first harvest and the from= parameter afterwards (fetched)",
+      "license": "not captured",
+      "live_calls": [
+        {
+          "prediction": "HTTP 200 XML OAI-PMH Identify",
+          "request": "http://oai.persee.fr/oai?verb=Identify (via python with UA header)",
+          "result": "200 XML: <OAI-PMH><Identify><repositoryName>Persée, périodiques sc...",
+          "first_result": "repositoryName='Persée, périodiques scientifiques...'",
+          "prediction_held": "yes — note: without a UA header the same call timed out; via https it fails (HTTP-only server)"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "caselaw-cap",
+      "name": "Harvard Caselaw Access Project — static.case.law",
+      "replaces": ["Westlaw (US case law)", "LexisNexis (US case law)", "HeinOnline (US case law)"],
+      "discipline": "law (US case law)",
+      "owner_institution": "Harvard Law School Library",
+      "authority_class": "primary_law",
+      "docs_url": "https://static.case.law/ (fetched: full reporter index live)",
+      "doc_rung": "Hypothetical for the license (case.law home fetched but its text is JS-rendered; license text not captured this session)",
+      "search": {
+        "endpoint": "no query API — bulk dataset; index at https://static.case.law/",
+        "method": "GET (static files)",
+        "params": "per-reporter directories; https://static.case.law/ReportersMetadata.json, VolumesMetadata.json, JurisdictionsMetadata.json",
+        "fields": "per-case JSON files under /<reporter>/<volume>/cases/ (structure advertised by the index)"
+      },
+      "read": "per-case JSON/HTML/text in the bulk tree; searching requires a local index (or CourtListener API with a token)",
+      "key": "none (bulk)",
+      "rate_limit": "not captured (bulk download)",
+      "license": "not captured this session (CAP data has been CC0 historically — verify at deployment)",
+      "live_calls": [
+        {
+          "prediction": "HTTP 200 with a directory index listing reporters",
+          "request": "https://static.case.law/",
+          "result": "200; index lists all reporter folders (a2da3dabb...wyo, yeates) plus ReportersMetadata.json / VolumesMetadata.json / JurisdictionsMetadata.json",
+          "first_result": "reporter folders + 3 metadata files",
+          "prediction_held": "yes"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "eurlex-sparql",
+      "name": "EU Publications Office SPARQL endpoint (Cellar)",
+      "replaces": ["Westlaw (EU law layer)", "LexisNexis (EU law layer)"],
+      "discipline": "law (EU)",
+      "owner_institution": "Publications Office of the European Union",
+      "authority_class": "primary_law",
+      "docs_url": "https://op.europa.eu/en/web/cellar (Cellar home fetched)",
+      "doc_rung": "endpoint live-verified",
+      "search": {
+        "endpoint": "https://publications.europa.eu/webapi/rdf/sparql",
+        "method": "GET",
+        "params": "query=<SPARQL>, format=application/sparql-results+json",
+        "fields": "head.vars; results.bindings[] (URIs of EU legal resources)"
+      },
+      "read": "resource URIs resolve through Cellar; documents in HTML/PDF where published",
+      "key": "none (live-verified)",
+      "rate_limit": "not captured",
+      "license": "EU reuse policy (not captured)",
+      "live_calls": [
+        {
+          "prediction": "HTTP 200 JSON bindings",
+          "request": "https://publications.europa.eu/webapi/rdf/sparql?query=SELECT%20%3Fs%20WHERE%20%7B%20%3Fs%20%3Fp%20%3Fo%20%7D%20LIMIT%201&format=application%2Fsparql-results%2Bjson",
+          "result": "200 JSON bindings",
+          "first_result": "s='http://publications.europa.eu/ontology/cdm/cmr#metsStructSubDiv'",
+          "prediction_held": "yes"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "oecd-sdmx",
+      "name": "OECD SDMX REST API",
+      "replaces": ["OECD statistics/education layer (complements ERIC); economics rung"],
+      "discipline": "economics, education statistics",
+      "owner_institution": "OECD — intergovernmental organisation",
+      "authority_class": "government_primary",
+      "docs_url": "https://sdmx.oecd.org/public/rest/ (service root; data-explorer docs at data-explorer.oecd.org)",
+      "doc_rung": "endpoint live-verified",
+      "search": {
+        "endpoint": "https://sdmx.oecd.org/public/rest/",
+        "method": "GET",
+        "params": "dataflow listing: /dataflow?format=json-structure-2.0.0 (accepted formats returned by the service on a bad format: structure, xml-structure-3.0.0, sdmx-3.0, json-structure-2.0.0); data queries via /data/...",
+        "fields": "SDMX structure JSON (dataflow definitions); data in SDMX-JSON"
+      },
+      "read": "SDMX-JSON datasets; export formats per endpoint",
+      "key": "none",
+      "rate_limit": "not captured",
+      "license": "not captured (terms page fetched; no license statement matched)",
+      "live_calls": [
+        {
+          "prediction": "JSON dataflow structure",
+          "request": "https://sdmx.oecd.org/public/rest/dataflow?format=jsondata",
+          "result": "200 with a validation message listing acceptable format values (off-prediction — logged)",
+          "first_result": "message: \"acceptable query values for parameter 'format': structure, xml-structure-3.0.0, sdmx-3.0, json-structure-2.0.0\"",
+          "prediction_held": "no — format param corrected on the retry"
+        },
+        {
+          "prediction": "HTTP 200 JSON structure listing",
+          "request": "https://sdmx.oecd.org/public/rest/dataflow?format=json-structure-2.0.0",
+          "result": "200 JSON structure (50 KB)",
+          "first_result": "meta.id='IREF834611'",
+          "prediction_held": "yes"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "govinfo-bulk",
+      "name": "GovInfo Bulk Data Repository (keyless half of GovInfo)",
+      "replaces": ["Westlaw (US federal materials)", "LexisNexis (US federal materials)", "HeinOnline (US federal materials)"],
+      "discipline": "law (US federal)",
+      "owner_institution": "U.S. Government Publishing Office — government",
+      "authority_class": "government_primary",
+      "docs_url": "https://www.govinfo.gov/developers",
+      "doc_rung": "Inferred (provider's own developer hub)",
+      "search": {
+        "endpoint": "https://www.govinfo.gov/bulkdata/json/<collection>/... (and /bulkdata/xml/...)",
+        "method": "GET",
+        "params": "collection path navigation, e.g. BILLSTATUS/119; XML and JSON mirrors of every bulkdata page",
+        "fields": "files[] with name/link/lastModified per folder; underlying collections carry rich XML"
+      },
+      "read": "bulk XML/JSON/PDF downloads; the keyed GovInfo API (api.data.gov key, free registration) covers search; bulk is keyless",
+      "key": "none (bulk — live-verified); free-registration (the search API key)",
+      "rate_limit": "not captured",
+      "license": "not captured (US government works)",
+      "live_calls": [
+        {
+          "prediction": "HTTP 200 JSON folder listing",
+          "request": "https://www.govinfo.gov/bulkdata/json/BILLSTATUS/119",
+          "result": "200 JSON files[] listing hr/hjres/hres/hconres/sconres/sres/s/sjres folders with timestamps",
+          "first_result": "folder 'hr' link https://www.govinfo.gov/bulkdata/json/BILLSTATUS/119/hr",
+          "prediction_held": "yes"
+        }
+      ],
+      "rung": "Exact"
+    },
+    {
+      "id": "unpaywall",
+      "name": "Unpaywall API",
+      "replaces": ["OA full-text link resolver (read interface for Crossref/OpenAlex metadata)"],
+      "discipline": "cross-discipline OA resolver",
+      "owner_institution": "OurResearch — nonprofit",
+      "authority_class": "oa_resolver",
+      "docs_url": "https://unpaywall.org/products/api (page fetched; JS-rendered, text not extractable — the 422 error below documents the requirement)",
+      "doc_rung": "endpoint live-verified (expected-fail probe)",
+      "search": {
+        "endpoint": "https://api.unpaywall.org/v2/<DOI>",
+        "method": "GET",
+        "params": "email=<contact email> — REQUIRED",
+        "fields": "best_oa_location{url, host_type, version}, oa_status, is_oa"
+      },
+      "read": "resolves a DOI to its best OA copy URL",
+      "key": "none, but a contact email parameter is REQUIRED by policy (422 without it)",
+      "rate_limit": "not captured",
+      "license": "not captured",
+      "live_calls": [
+        {
+          "prediction": "HTTP 422 email required (expected-fail probe proving the policy; no email was fabricated)",
+          "request": "https://api.unpaywall.org/v2/10.1038/nature12373",
+          "result": "422 JSON {\"HTTP_status_code\":422,\"error\":true,\"message\":\"Email address required in API call, see http://unpaywall.org/products/api\"}",
+          "first_result": "error message as predicted",
+          "prediction_held": "yes (EXPECTED_FAIL — the probe confirms the contract without entering any address)"
+        }
+      ],
+      "rung": "Exact (expected-fail probe)"
+    }
+  ],
+  "tier2_free_registration_or_restricted": [
+    {
+      "id": "semanticscholar",
+      "name": "Semantic Scholar Graph API",
+      "replaces": ["CS/engineering index layer (Compendex/INSPEC/IEEE secondary)"],
+      "discipline": "computer science, engineering, biomed",
+      "owner_institution": "Allen Institute for AI — nonprofit research institute",
+      "authority_class": "secondary_index",
+      "docs_url": "https://api.semanticscholar.org/api-docs/",
+      "doc_rung": "Hypothetical (docs page not fetched; failures recorded)",
+      "search": {"endpoint": "https://api.semanticscholar.org/graph/v1/paper/search", "method": "GET", "params": "query=, limit=, fields=", "fields": "data[].title/year/abstract/externalIds/openAccessPdf"},
+      "read": "abstract + openAccessPdf links",
+      "key": "free-registration (API key via their form; keyless shared pool exists)",
+      "rate_limit": "keyless calls were REFUSED: HTTP 429 \"Too Many Requests ... apply for a key for higher rate limits\" (twice, 2026-10-13)",
+      "license": "not captured",
+      "live_calls": [
+        {"prediction": "200 JSON data[0]; a 429 possible", "request": "https://api.semanticscholar.org/graph/v1/paper/search?query=graph%20neural%20networks&limit=2&fields=title,authors,year,abstract,externalIds,openAccessPdf", "result": "429 Too Many Requests", "first_result": "none", "prediction_held": "off-prediction outcome logged (429)"},
+        {"prediction": "retry with fewer fields", "request": "https://api.semanticscholar.org/graph/v1/paper/search?query=graph%20neural%20networks&limit=2&fields=title,year,externalIds", "result": "429 again", "first_result": "none", "prediction_held": "off-prediction outcome logged (429 twice) — classify tier 2"}
+      ],
+      "rung": "UNMEASURED-success (429 twice; docs exist)"
+    },
+    {
+      "id": "nasa-ads",
+      "name": "NASA ADS API",
+      "replaces": ["astrophysics index layer (physics/astro)"],
+      "discipline": "astrophysics, physics",
+      "owner_institution": "Smithsonian Astrophysical Observatory at Harvard (NASA-funded)",
+      "authority_class": "secondary_index",
+      "docs_url": "https://github.com/adsabs/adsabs-dev-api",
+      "doc_rung": "Inferred (provider's own developer repo fetched)",
+      "search": {"endpoint": "https://api.adsabs.harvard.edu/v1/search/query", "method": "GET", "params": "q=, Authorization: Bearer <token>", "fields": "docs[] with bibcode/title/author/abstract"},
+      "read": "abstracts; links to publisher/arXiv",
+      "key": "free-registration (create account + \"Generate a new key\"; fetched)",
+      "rate_limit": "per-endpoint daily limits advertised via X-RateLimit-* headers (example shows 5000/day; fetched)",
+      "license": "ADS terms of use govern (fetched reference)",
+      "live_calls": [],
+      "rung": "Inferred (docs) — live call UNMEASURED: token required, registration forbidden by the delegation"
+    },
+    {
+      "id": "materials-project",
+      "name": "Materials Project API (mp-api)",
+      "replaces": ["SpringerMaterials (computed property layer)", "MatWeb (property layer)"],
+      "discipline": "materials science",
+      "owner_institution": "Lawrence Berkeley National Laboratory",
+      "authority_class": "primary_data_repository",
+      "docs_url": "https://docs.materialsproject.org/downloading-data/using-the-api/getting-started",
+      "doc_rung": "Inferred (provider's own docs)",
+      "search": {"endpoint": "https://api.materialsproject.org (via the official mp-api Python client)", "method": "client/GET", "params": "MPRester(api_key) with endpoint-specific queries (materials, synthesis, ...)", "fields": "per-endpoint Pydantic models (e.g. materials summaries with band gaps, formation energies)"},
+      "read": "structured data + documents per endpoint",
+      "key": "free-registration (\"An API key is needed in order to use the client\" — fetched)",
+      "rate_limit": "not captured",
+      "license": "not captured (their docs reference access-controlled data terms)",
+      "live_calls": [],
+      "rung": "Inferred (docs) — live call UNMEASURED: key required, registration forbidden by the delegation"
+    },
+    {
+      "id": "courtlistener",
+      "name": "CourtListener REST API v4",
+      "replaces": ["Westlaw (US case law + dockets)", "LexisNexis (US case law)"],
+      "discipline": "law (US)",
+      "owner_institution": "Free Law Project — nonprofit",
+      "authority_class": "primary_law",
+      "docs_url": "https://www.courtlistener.com/help/api/rest/",
+      "doc_rung": "Inferred (provider's own docs)",
+      "search": {"endpoint": "https://www.courtlistener.com/api/rest/v4/...", "method": "GET", "params": "Authorization: Token <token>; search/opinion/docket endpoints; `type=` search types", "fields": "opinions, dockets, RECAP, citation lookup, oral arguments"},
+      "read": "full opinion text and PDFs",
+      "key": "free-registration (token from the profile page)",
+      "rate_limit": "authenticated: 5 requests/minute, 50/hour, 125/day (fetched; expandable via membership)",
+      "license": "not captured",
+      "live_calls": [],
+      "rung": "Inferred (docs) — live call UNMEASURED: token required, registration forbidden by the delegation"
+    },
+    {
+      "id": "oapen",
+      "name": "OAPEN Library REST API",
+      "replaces": ["Project MUSE (OA book layer)"],
+      "discipline": "open-access books (humanities/social sciences)",
+      "owner_institution": "OAPEN Foundation",
+      "authority_class": "fulltext_repository",
+      "docs_url": "https://www.oapen.org/article/search-using-a-rest-api",
+      "doc_rung": "Inferred (provider's own docs)",
+      "search": {"endpoint": "https://library.oapen.org/rest/search", "method": "GET", "params": "query= (Solr-style, e.g. dc.title:\"...\", handle:\"...\", water+AND+fire); expand=metadata,bitstreams", "fields": "Dublin Core metadata; bitstreams for files"},
+      "read": "bitstreams expand returns file links (full-text PDFs for OA books)",
+      "key": "none stated in docs — but access from this host was REFUSED",
+      "rate_limit": "not captured",
+      "license": "not captured",
+      "live_calls": [
+        {"prediction": "HTTP 200 JSON with book records", "request": "https://library.oapen.org/rest/search?query=water+AND+fire", "result": "REFUSED: \"You address is not allowed to access this API.\"", "first_result": "none", "prediction_held": "no — access refused for this address; not worked around per the delegation"}
+      ],
+      "rung": "UNMEASURED (documented interface; live call refused for our address)"
+    }
+  ],
+  "dropped": [
+    {"id": "dblp", "name": "DBLP search API", "reason": "Blocked by an Anubis proof-of-work bot wall ('Making sure you're not a bot!') on the API endpoint, 2026-10-13. Per the delegation, a block is dropped, not worked around. Note for the record: this endpoint was a plain documented JSON API historically — a free CS bibliography lost its machine interface."},
+    {"id": "fatcat", "name": "fatcat API (Internet Archive Scholar)", "reason": "Endpoint unreachable: https://api.fatcat.wiki/v0/release/lookup?doi=... failed at transport level (both HTTP and the browser fallback). Consistent with fatcat's wind-down. Scholarship's IA layer remains via archive.org search."},
+    {"id": "agris-machine", "name": "AGRIS machine interface (FAO)", "reason": "No documented public API found on FAO's own pages (fao.org/agris and agris.fao.org checked; only data-provider/portal pages). AGRIS remains a free authoritative web search portal for agricultural science, but no documented machine interface was found this session — DROPPED as machine interface."},
+    {"id": "cornell-lii", "name": "Cornell LII", "reason": "Free human-readable legal resource (site fetched: \"Publishing law online, for free\"); no documented API referenced on its site — DROPPED as machine interface, kept as human resource."}
+  ],
+  "unmeasured": [
+    {"id": "nist-webbook", "name": "NIST Chemistry WebBook", "reason": "No documented public API identified in this session's probes; NOT verified (not fetched). Nearest machine interface: PubChem. Revisit before asserting absence."},
+    {"id": "base", "name": "BASE (Bielefeld Academic Search Engine)", "reason": "Not measured this session (candidate scope-cut; CORE + OpenAIRE cover the aggregator role with live evidence)."}
+  ],
+  "coverage": {
+    "IEEE Xplore": ["crossref", "arxiv", "openalex"],
+    "ACM DL": ["crossref", "openalex", "arxiv"],
+    "INSPEC": ["openalex", "crossref", "arxiv"],
+    "Compendex": ["openalex", "crossref", "arxiv"],
+    "Engineering Village": ["openalex", "crossref", "arxiv"],
+    "Cochrane": ["pubmed", "clinicaltrials", "europepmc"],
+    "CINAHL": ["pubmed", "doaj"],
+    "MEDLINE": ["pubmed"],
+    "HeinOnline": ["caselaw-cap", "govinfo-bulk", "doaj"],
+    "Westlaw": ["caselaw-cap", "courtlistener", "govinfo-bulk"],
+    "LexisNexis": ["caselaw-cap", "courtlistener", "govinfo-bulk", "eurlex-sparql"],
+    "JSTOR": ["hathitrust", "internetarchive", "doaj", "persee"],
+    "PsycINFO": ["pubmed", "openalex", "doaj"],
+    "PsycArticles": ["doaj", "pubmed", "europepmc"],
+    "SocINDEX": ["openalex", "osf", "doaj"],
+    "SocAbstracts": ["openalex", "osf", "doaj"],
+    "AgeLine": ["pubmed", "openalex"],
+    "CAB_Abstracts": ["agris-machine", "pubmed", "europepmc", "openalex"],
+    "EdSource": ["eric", "oecd-sdmx"],
+    "LearnTechLib": ["eric", "openalex", "doaj"],
+    "Project MUSE": ["doaj", "hathitrust", "oapen"],
+    "APS Journals": ["arxiv", "crossref", "inspire"],
+    "IOPscience": ["arxiv", "crossref", "inspire"],
+    "Reaxys": ["pubchem", "cod"],
+    "SpringerMaterials": ["cod", "aflow", "materials-project"],
+    "MatWeb": ["aflow", "cod", "materials-project"],
+    "GeoRef": ["usgs", "crossref", "openalex", "osf"],
+    "GeoScienceWorld": ["crossref", "openalex", "doaj"]
+  },
+  "counts": {
+    "paid_names": 28,
+    "tier1_keyless_substitutes": 24,
+    "tier2_substitutes": 5,
+    "dropped_candidates": 4,
+    "unmeasured_candidates": 2,
+    "live_calls_recorded": 30,
+    "live_calls_failed_or_refused": 5,
+    "expected_fail_probes": 1
+  }
+}

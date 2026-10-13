@@ -9,7 +9,7 @@ scripts outranks PATH, so a bundled fossil is never shadowed. No <ORG_HOME>/org.
 fields (ticket-schema.sql), robot users (interactive agents and subscription workers), the Protocol wiki page,
 branding and the report formats (branding.sql, re-applied on every run), and its place in `fossil all
 list`. A ticket table missing the wake fields (wake_session, wake_worktree,
-woken_state) -> apply the new schema and rebuild. Its server not answering on 127.0.0.1:<port> -> start it,
+woken_state, watcher) -> apply the new schema and rebuild. Its server not answering on 127.0.0.1:<port> -> start it,
 detached; the heartbeat daemon orgd not alive -> start it too. Existing pieces are left as they are. The admin
 password `fossil new` prints is never echoed.
 
@@ -84,7 +84,7 @@ def orgd_pid() -> int | None:
 
 def ensure_ticket_fields(fossil: str) -> bool:
     have = run(fossil, "sql", "-R", str(ORG), "SELECT sql FROM sqlite_master WHERE name='ticket';")
-    if all(field in have for field in ("wake_session", "wake_worktree", "woken_state")):
+    if all(field in have for field in ("wake_session", "wake_worktree", "woken_state", "watcher")):
         return False
     schema = (GENESIS / "ticket-schema.sql").read_text(encoding="utf-8").replace("'", "''")
     run(fossil, "sql", "-R", str(ORG),

@@ -1,6 +1,6 @@
 """org.py — the organization's verbs over $ORG_HOME/org.fossil (one file, stdlib only).
 
-    python $ORG_HOME/genesis/org.py delegate --title "..." --assignee smit-x [--worktree D:\\proj] [--no-wake]
+    python $ORG_HOME/genesis/org.py delegate --title "..." --assignee smit-x [--worktree D:\\proj] [--watcher claude] [--no-wake]
     python $ORG_HOME/genesis/org.py claim <uuid> [--lease 600]
     python $ORG_HOME/genesis/org.py heartbeat <uuid> --epoch N [--what "..."] [--lease 600]
     python $ORG_HOME/genesis/org.py report <uuid> --epoch N --title NAME (--file f.md | --text "...")
@@ -35,6 +35,12 @@ session to wake on DONE/BLOCKED/stall; woken_state = the last wake kind already 
 current situation. claim/heartbeat/done/escalate reset it to CLEARED ("-") so a later
 transition can wake again — never to "", because an empty field value is silently ignored.
 
+Cross-worktree hand-off: `delegate --worktree W` with W outside the caller's worktree ensures W's resident login
+`smit-<project>` (created if missing; a random password, never printed), records `watcher` (default claude,
+`--watcher` to override) so `inbox --user <watcher>` lists the ticket under `watching`, and — when W has no live
+host — prints the ONE launch command for W's own opencode; the delegator's robot runs it. No bin/opencode.exe
+there → the note says so and the ticket stays READY.
+
 DONE is the worker's testimony; the delegator closes the queue with a verdict: `verify` (VERIFIED,
 terminal), `reject` (back to READY with a findings technote — the assignee is woken to rework) or
 `cancel` (CANCELLED). Only the delegator (delegated_by) may pass a verdict.
@@ -60,6 +66,7 @@ import hashlib
 import json
 import os
 import re
+import socket
 import sqlite3
 import subprocess
 import sys
@@ -77,6 +84,18 @@ LOCKS = HOME / "locks"
 PORT = orgcfg.PORT
 LEASE_S = 600  # default lease; a robot's claim/heartbeat --lease must agree
 CLEARED = "-"  # woken_state reset marker: `fossil ticket set F ""` succeeds and keeps the OLD value (measured 2026-10-08)
+
+DEFAULT_WATCHER = "claude"    # the orchestrator login a cross hand-off reports to (`inbox --user <watcher>`)
+RESIDENT_CAPS = "Cnrwcjfkm"   # same capability set init.py gives every robot login (init.py ROBOT_CAPS)
+STALL_READY_S = 3600          # a READY ticket unclaimed past this shows STALLED to its watcher
+
+try:
+    import opencode_host  # the ONE worktree host client, shared with orgd.py (live = /global/health nonce echo)
+except Exception as error:  # reported by the cross hand-off itself, never silently
+    opencode_host = None
+    HOST_IMPORT_ERROR = error
+else:
+    HOST_IMPORT_ERROR = None
 
 
 def find_fossil() -> str:
@@ -264,15 +283,113 @@ def create_technote(t: sqlite3.Row, user: str, title: str, file: str | None, tex
     return name
 
 
+def norm_path(path: str) -> str:
+    return os.path.normcase(str(Path(path).resolve()))
+
+
+def ensure_resident(worktree: str) -> tuple[str, bool]:
+    """The target worktree's resident login `smit-<project>`, created if missing; its secret is never printed."""
+    login = f"smit-{Path(worktree).resolve().name}"
+    if rows("SELECT 1 FROM user WHERE login = ?", (login,)):
+        return login, False
+    secret = os.urandom(18).hex()  # local -R work needs no password (init.py's rule)
+    fossil("user", "new", login, "robot", secret)
+    fossil("user", "capabilities", login, RESIDENT_CAPS)
+    return login, True
+
+
+def worktree_host_live(worktree: str) -> tuple[bool, str]:
+    """The ONE host of that worktree is live (its record echoes /global/health), or the reason it is not."""
+    if opencode_host is None:
+        return False, f"opencode_host unavailable ({HOST_IMPORT_ERROR})"
+    record = opencode_host.lookup(worktree)
+    if record is None:
+        return False, f"no host record in {opencode_host.db_path(worktree)}"
+    if not opencode_host.is_live(record):
+        return False, f"host record {record['url']} (pid {record['pid']}) does not echo its nonce"
+    return True, str(record["url"])
+
+
+def _quoted(path) -> str:
+    text = str(path)
+    return f'"{text}"' if " " in text else text
+
+
+def launch_command(worktree: str, exe: Path) -> str:
+    """The ONE visible launch command for that project's own opencode, on a free port."""
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    return f"cmd_runner start --terminal wt --cwd {_quoted(worktree)} -- {_quoted(exe)} --port {port}"
+
+
+def age_text(seconds: int) -> str:
+    seconds = max(0, int(seconds))
+    if seconds < 60:
+        return f"{seconds}s"
+    if seconds < 3600:
+        return f"{seconds // 60}m"
+    return f"{seconds // 3600}h{(seconds % 3600) // 60}m"
+
+
+def watching(user: str) -> list[dict]:
+    """Tickets whose watcher is `user`: non-terminal, with heartbeat age and the STALLED verdict."""
+    now_s = now()
+    found = rows(
+        "SELECT tkt_uuid, title, agent_state, assigned_to, workspace_repo, heartbeat_at, lease_until, "
+        "CAST(strftime('%s', tkt_mtime) AS INTEGER) AS mtime_epoch FROM ticket "
+        "WHERE watcher = ? AND agent_state IN ('READY','WORKING','BLOCKED') ORDER BY tkt_ctime DESC",
+        (user,),
+    )
+    out: list[dict] = []
+    for entry in found:
+        state = str(entry["agent_state"] or "").upper()
+        hb = num(entry["heartbeat_at"])
+        lease = num(entry["lease_until"])
+        age = now_s - hb if hb else None
+        stalled, reason = False, None
+        if state == "WORKING":
+            if lease and lease < now_s:
+                stalled, reason = True, "lease"
+            elif not lease and age is not None and age > LEASE_S:
+                stalled, reason = True, "heartbeat"
+        elif state == "READY":
+            mtime = num(entry["mtime_epoch"])
+            if mtime and now_s - mtime > STALL_READY_S:
+                stalled, reason = True, "ready>1h"
+        out.append({
+            "id": str(entry["tkt_uuid"]),
+            "title": str(entry["title"] or ""),
+            "state": state,
+            "workspace_repo": str(entry["workspace_repo"] or ""),
+            "assignee": str(entry["assigned_to"] or ""),
+            "heartbeat_at": hb or None,
+            "heartbeat_age_s": age,
+            "lease_until": lease or None,
+            "stalled": stalled,
+            "stalled_reason": reason,
+        })
+    return out
+
+
 def cmd_delegate(a) -> int:
     user = need_user(a)
-    known = rows("SELECT 1 FROM user WHERE login = ?", (a.assignee,))
-    if not known:
-        sys.exit(f"org: no such user {a.assignee!r} — create it first (fossil user new {a.assignee} robot <secret> -R <org>)")
     if a.no_wake and a.session:
         sys.exit("org: --no-wake and --session are mutually exclusive — a wake target and \"never wake me\" cannot both hold")
     session = None if a.no_wake else need_session(a, "delegate")
     worktree = a.worktree or str(Path.cwd())
+    cross = norm_path(worktree) != norm_path(Path.cwd())
+    if a.watcher and not cross:
+        sys.exit("org: --watcher applies only to a cross-worktree hand-off (--worktree outside the caller's worktree) — a same-worktree ticket carries no watcher")
+    watcher = ""
+    if cross:
+        resident, created = ensure_resident(worktree)
+        watcher = a.watcher or DEFAULT_WATCHER
+        print(f"org: cross hand-off to {worktree}: resident {resident} ({'created' if created else 'present'}); "
+              f"watcher {watcher}", file=sys.stderr)
+    known = rows("SELECT 1 FROM user WHERE login = ?", (a.assignee,))
+    if not known:
+        sys.exit(f"org: no such user {a.assignee!r} — create it first (fossil user new {a.assignee} robot <secret> -R <org>)")
     if a.parent:
         parent = ticket(a.parent)
         root = a.root or str(parent["root_task"] or parent["tkt_uuid"])
@@ -286,6 +403,7 @@ def cmd_delegate(a) -> int:
         "agent_state", "READY", "delegated_by", user, "assigned_to", a.assignee,
         "delegation_depth", str(depth), "workspace_repo", worktree,
         *(["wake_session", session, "wake_worktree", worktree] if session else []),
+        *(["watcher", watcher] if watcher else []),
         *parent_args,
         *(["root_task", root] if root else []),
         *(["sv", a.sv] if a.sv else []),
@@ -298,6 +416,20 @@ def cmd_delegate(a) -> int:
     if not root:
         ticket_set(ticket(new), user, root_task=new)
     print(new)
+
+    if cross:
+        live, detail = worktree_host_live(worktree)
+        if live:
+            print(f"org: {worktree} has a live host ({detail}) — run `org.py inbox` there to register the resident; no launch needed",
+                  file=sys.stderr)
+        else:
+            exe = Path(worktree) / "bin" / "opencode.exe"
+            if exe.exists():
+                print(f"org: no live host in {worktree} ({detail}) — start its resident: {launch_command(worktree, exe)}",
+                      file=sys.stderr)
+            else:
+                print(f"org: no live host in {worktree} ({detail}) and no {exe} — cannot start its resident; "
+                      f"ticket {new[:10]} stays READY", file=sys.stderr)
     return 0
 
 
@@ -419,6 +551,7 @@ def cmd_inbox(a) -> int:
         "WHERE assigned_to = ? AND agent_state IN ('READY','WORKING','BLOCKED') ORDER BY tkt_ctime DESC",
         (user,),
     )
+    watch = watching(user)
     machine = a.json
     if machine:
         print(json.dumps({
@@ -434,6 +567,7 @@ def cmd_inbox(a) -> int:
                 }
                 for row in mine
             ],
+            "watching": watch,
         }))
     else:
         if not mine:
@@ -441,6 +575,15 @@ def cmd_inbox(a) -> int:
         for row in mine:
             lease = f" lease={row['lease_owner']}" if row["lease_owner"] else ""
             print(f"{str(row['tkt_uuid'])[:10]}  {str(row['agent_state']):<8}{lease}  {row['title']}")
+        if not watch:
+            print(f"watching for {user}: none")
+        else:
+            print(f"watching for {user}:")
+            for w in watch:
+                flag = f" STALLED({w['stalled_reason']})" if w["stalled"] else ""
+                age = "-" if w["heartbeat_age_s"] is None else age_text(w["heartbeat_age_s"])
+                print(f"  {w['id'][:10]}  {w['state']:<8}{flag}  repo={w['workspace_repo']}  "
+                      f"assignee={w['assignee']}  hb={age}")
     if a.no_presence:
         return 0
     session = resolve_session(a, "inbox")
@@ -622,6 +765,7 @@ def main() -> int:
     p.add_argument("--depth", type=int, help="delegation depth (default: parent's +1, else 0)")
     p.add_argument("--sv", help="semantic vector md5 of the delegating reasoning step")
     p.add_argument("--comment", help="one line of context")
+    p.add_argument("--watcher", help=f"orchestrator login watching a cross-worktree hand-off (default: {DEFAULT_WATCHER})")
     p.add_argument("--no-wake", action="store_true",
                    help="you cannot be woken (inbox-polled): record NO wake target; orgd never wakes you")
     p.set_defaults(func=cmd_delegate)

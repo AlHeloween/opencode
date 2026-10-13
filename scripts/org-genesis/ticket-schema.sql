@@ -28,6 +28,7 @@ CREATE TABLE ticket(
   wake_session TEXT,
   wake_worktree TEXT,
   woken_state TEXT,
+  watcher TEXT,
   workspace_repo TEXT,
   workspace_ref TEXT,
   workspace_scope TEXT,

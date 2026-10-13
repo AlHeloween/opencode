@@ -64,6 +64,16 @@ run): `/web/context` asks for `formats: ["markdown"]` and hashes the markdown (w
 return `innerText` capped at 4000 (web/serp.rs:331,344); `page.content()` HTML is used only to detect a challenge page
 (web/browser_fetch.rs:95). Unknown: what `/web/browser` and `/web/fetch` put in their response bodies. Becomes a B6 smoke:
 POST each endpoint on a fixture page → the body contains no `<html`/`<div` tag text.
+Why, per the kernel (owner, 2026-10-13: «тут все серьезнее — помнишь наш кернел и как поиск делать до смока?») —
+markdown is the MEANS, the evidence base is the goal. Search is G1 grounding, before any smoke: the web rung of the
+instrument chain (where → adm --query → codegraph → session history → web → glob → grep) and the ladder of
+@SOURCE_ROUTING: SERP snippet = Guess, web hit = Hypothetical, primary authority or code = Inferred, only a reproduced
+smoke = Exact; generic web never becomes Inferred without `source_stamp {authority_class, url_provenance,
+content_hash}`; a stamp holds only while a re-digest of the artifact matches (@DIVERGENCE_PROTOCOL), so the markdown
+must be deterministic for the hash to be replayable. B6 acceptance for the search stack is therefore the STAMP, not
+the format alone: every hit carries authority_class, url provenance, retrieved_at, content_hash and its ladder rung;
+a source that returned nothing is named, never silent; paywalled authorities stay at Hypothetical (that project's
+«honest limits»). Fixture: fetch the same static page twice → equal content_hash; a changed page → a different one.
 
 ## Design lens — a program for a monkey (owner, 2026-10-07)
 

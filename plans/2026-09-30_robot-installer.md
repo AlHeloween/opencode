@@ -805,6 +805,13 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
   Verify scope: MANIFEST.sha256 covers the program tree only; runtime roots (`org/`, data, logs) are outside it, so
   verify + repair never call a live org.fossil or a run log «extra»; (b) the org server + orgd also need an autostart after reboot on the target — today only
   `init.py` raises them, so the same per-user logon task runs `init.py` (idempotent); (c) B1f portability.
+  ADID release 2026-10-13 (their report; I read the folder read-only ✓): `releases/adid_dist_20261013T195928Z`,
+  `portable/` = 12 files + a 12-line MANIFEST.sha256, fragment `adid-tools.components.json` (to bin/tools), 10 smokes
+  incl. `CMD_RUNNER_LOG_ROOT` (run store outside the tree) and `org_worker.py --status`; cmd_runner 2026.10.13. Wiring
+  brief `inst-adid-tools-wire` is in the queue (not yet dispatched: no live robot host at 20:02). New risk from the
+  ADID lane: master's cmd_runner DetachedHost policy REFUSES `start` inside a Job that forbids breakaway
+  («Cannot start independent host (WinError=5)») — a service, some CI runners or the installer's own process may be
+  such a Job; the legislator owns it (ticket 21ee34a4a4), a B6 smoke must run cmd_runner from the installer's process.
   Observability (memory `feedback-delegation-must-be-observable`): every worker run leaves a record the user can
   see (ticket report + a log under the data dir) and the installer's status page names the last tick. Oracle: on
   the pristine VM, a READY test ticket for `codex`/`claude` is claimed, reported and closed with no hand edit; a

@@ -1,7 +1,7 @@
 # Protocol — how every agent works inside the organization
 
-- sv: { keywords: { organization-protocol 0.26, org-home-portability 0.16, delegation-tickets 0.16, heartbeat-wake 0.12, read-verbs-security 0.12, wiki-write 0.10, poll-and-presence 0.08 },
-        dominant: "Every agent reaches the organization through org.py verbs — reads via inbox/chat/wiki, writes via delegate/claim/heartbeat/report/done, wiki pages only through the locked expected-hash wiki-put; $ORG_HOME/$ORG_PORT make the org portable, orgd wakes residents, and subscription workers poll their inbox." }
+- sv: { keywords: { organization-protocol 0.22, org-home-portability 0.12, delegation-tickets 0.14, lease-fencing 0.12, heartbeat-wake 0.10, delegator-verdict 0.12, read-verbs-security 0.08, wiki-write 0.05, poll-and-presence 0.05 },
+        dominant: "Every agent reaches the organization through org.py verbs — reads via inbox/chat/wiki; writes via delegate/claim/heartbeat/report/done fenced by the lease epoch and closed by the delegator's verdict (verify/reject/cancel); every wake is a recorded effect resolved by reading the target session; wiki pages only through the locked expected-hash wiki-put; $ORG_HOME/$ORG_PORT make the org portable and subscription workers poll their inbox." }
 
 This repository (`$ORG_HOME/org.fossil`, default `$HOME/.org`) is the organization. It is not a second git: git keeps code history; this keeps
 WHO asked WHOM to do WHAT, under which root goal, what came back, and what was learned. Any agent — Claude, GPT,
@@ -46,15 +46,19 @@ the owner's to create. The owner is the admin user. Escalations end with the own
   child ends or stalls.
 - CLAIM — `org.py claim <uuid> [--lease 600]` — sets WORKING with a lease epoch; arbitrated by an exclusive lock
   file (`$ORG_HOME/locks/<uuid>.<epoch>`) because `fossil ticket` has no compare-and-swap. The loser exits non-zero
-  naming the holder. A WORKING ticket past `lease_until` may be taken over (epoch+1); a report with an older epoch
-  is stale.
-- HEARTBEAT — `org.py heartbeat <uuid> [--lease 600] [--what "..."]` — extends the lease, updates `heartbeat_at`
+  naming the holder. A WORKING ticket past `lease_until` may be taken over (epoch+1); every mutating verb then
+  presents the epoch its claim won (`--epoch N`) and a stale epoch is refused with the current holder named.
+- HEARTBEAT — `org.py heartbeat <uuid> --epoch N [--lease 600] [--what "..."]` — extends the lease, updates `heartbeat_at`
   resets the stall marker and writes a chat line. A WORKING ticket with no heartbeat within its lease is STALLED → the delegator is woken.
-- REPORT — `org.py report <uuid> --title NAME (--file f.md | --text "…")` — creates a technote tagged `task-<id10>`
+- REPORT — `org.py report <uuid> --epoch N --title NAME (--file f.md | --text "…")` — creates a technote tagged `task-<id10>`
   and pins it as `report_ref`; a report is testimony, verify it.
-- DONE / ESCALATE — `org.py done <uuid> [--report NAME]` | `org.py escalate <uuid> --code "why"` — DONE or BLOCKED
+- DONE / ESCALATE — `org.py done <uuid> --epoch N [--report NAME]` | `org.py escalate <uuid> --epoch N --code "why"` — DONE or BLOCKED
   (+`failure_code`); both reset `woken_state` to `-` so the heartbeat wakes the delegator for the new state (`-` is the reset
   marker — fossil silently ignores EMPTY field values, measured 2026-10-08).
+- VERIFY / REJECT / CANCEL — `org.py verify <uuid>` | `org.py reject <uuid> --title NAME (--file f.md | --text "…")` |
+  `org.py cancel <uuid> --code "why"` — the DELEGATOR's verdict on a DONE ticket: VERIFIED closes it; REJECTED sends
+  it back to READY with the findings as a technote and wakes the assignee to rework; CANCELLED abandons it. Only the
+  delegator (`delegated_by`) may pass a verdict; verify/reject require DONE.
 - INBOX — `org.py inbox [--user X] [--json] [--no-presence]` — lists your READY/WORKING/BLOCKED tickets. Text
   mode **registers this session for wakes** (a `PRESENCE <you> <session> <worktree>` chat line) — run it when you
   start work. `--json --no-presence` is the read-only poll: one JSON document, no PRESENCE, no session needed.
@@ -89,6 +93,10 @@ from the organization):
    registered itself with `org.py inbox` in that worktree (presence); no presence line (or its session is gone)
    → NOTHING is sent and the reason is logged once. The organization never guesses a session: run `org.py inbox`
    when you start work, and the wake finds you there.
+
+Every wake is recorded on the ticket as an effect BEFORE it is sent (`idempotency_key` + status PENDING; a 2xx
+commits it) — a crash between send and record is resolved by READING the target session for the wake marker
+`[wake <key16>]`, never by resending blind; an unreadable target stays UNKNOWN and nothing is sent.
 
 Wake contract by host kind: an **opencode resident** is woken by orgd (`prompt_async` into the session that
 posted PRESENCE). A worker with **no host API** — a `claude -p` / `codex exec` subscription worker, a bare

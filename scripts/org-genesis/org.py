@@ -2,10 +2,13 @@
 
     python $ORG_HOME/genesis/org.py delegate --title "..." --assignee smit-x [--worktree D:\\proj] [--no-wake]
     python $ORG_HOME/genesis/org.py claim <uuid> [--lease 600]
-    python $ORG_HOME/genesis/org.py heartbeat <uuid> [--what "..."] [--lease 600]
-    python $ORG_HOME/genesis/org.py report <uuid> --title NAME (--file f.md | --text "...")
-    python $ORG_HOME/genesis/org.py done <uuid> [--report NAME]
-    python $ORG_HOME/genesis/org.py escalate <uuid> --code "why"
+    python $ORG_HOME/genesis/org.py heartbeat <uuid> --epoch N [--what "..."] [--lease 600]
+    python $ORG_HOME/genesis/org.py report <uuid> --epoch N --title NAME (--file f.md | --text "...")
+    python $ORG_HOME/genesis/org.py done <uuid> --epoch N [--report NAME]
+    python $ORG_HOME/genesis/org.py escalate <uuid> --epoch N --code "why"
+    python $ORG_HOME/genesis/org.py verify <uuid>                               (delegator: DONE -> VERIFIED)
+    python $ORG_HOME/genesis/org.py reject <uuid> --title NAME (--file f.md | --text "...")   (delegator: DONE -> READY, findings)
+    python $ORG_HOME/genesis/org.py cancel <uuid> --code "why"                  (delegator: -> CANCELLED)
     python $ORG_HOME/genesis/org.py inbox [--user X] [--json] [--no-presence]
     python $ORG_HOME/genesis/org.py chat --since <msgid>
     python $ORG_HOME/genesis/org.py wiki <page>          (protocol == wiki Protocol)
@@ -23,12 +26,18 @@ PAGE FILE` writes FILE (measured 2026-10-08) — no verb here passes raw SQL, an
 Claim arbitration: `fossil ticket` has no compare-and-swap, so a claim races through an
 exclusive-create lock file ($ORG_HOME/locks/<uuid>.<epoch>): the process that creates it owns
 that epoch; a loser names the holder and exits non-zero. A WORKING ticket past its lease
-(lease_until < now) may be taken over with epoch+1.
+(lease_until < now) may be taken over with epoch+1. Every mutation then presents that epoch back:
+heartbeat/report/done/escalate take `--epoch N`, and a stale epoch is refused with the current holder
+named — a worker that lost its lease cannot write DONE over the new holder's work.
 
 Wake bookkeeping (the fields orgd reads): wake_session + wake_worktree name the delegator's
 session to wake on DONE/BLOCKED/stall; woken_state = the last wake kind already sent for the
 current situation. claim/heartbeat/done/escalate reset it to CLEARED ("-") so a later
 transition can wake again — never to "", because an empty field value is silently ignored.
+
+DONE is the worker's testimony; the delegator closes the queue with a verdict: `verify` (VERIFIED,
+terminal), `reject` (back to READY with a findings technote — the assignee is woken to rework) or
+`cancel` (CANCELLED). Only the delegator (delegated_by) may pass a verdict.
 
 `--no-wake` declares the delegator un-wakeable: no wake_session/wake_worktree is recorded,
 and orgd never attempts a wake for that child's state changes — the delegator (e.g. a
@@ -197,6 +206,64 @@ def chat(text: str) -> bool:
     return True
 
 
+CLOSED = ("VERIFIED", "CANCELLED")  # terminal queue states: nothing mutates them any more
+
+
+def guard_lease(a, t: sqlite3.Row, verb: str) -> str:
+    """The lease fence: a holder's verb presents the epoch its claim won.
+
+    `fossil ticket set` has no compare-and-swap, so this is read-then-write — the smallest fence the
+    repository allows. A worker whose lease was taken over (or re-claimed) presents a stale epoch and
+    is refused with the current holder named: it cannot write DONE over the new holder's work."""
+    user = need_user(a)
+    state = str(t["agent_state"] or "").upper()
+    owner = str(t["lease_owner"] or "")
+    current = num(t["lease_epoch"])
+    if state in CLOSED:
+        sys.exit(f"org: {short(t)} is {state} — nothing left to change")
+    if not owner:
+        sys.exit(f"org: {short(t)} has no lease — claim it first; --epoch is the epoch your claim won")
+    if a.epoch != current:
+        sys.exit(f"org: stale epoch: {verb} refused for {short(t)} — you presented epoch {a.epoch}, "
+                 f"but {owner} holds epoch {current}")
+    if owner != user:
+        sys.exit(f"org: ticket {short(t)} is leased by {owner} — not yours to {verb}")
+    return user
+
+
+def guard_delegator(t: sqlite3.Row, user: str, verb: str) -> None:
+    """The verdict fence: only the delegator may accept, reject or cancel its ticket."""
+    delegator = str(t["delegated_by"] or "")
+    if delegator != user:
+        sys.exit(f"org: ticket {short(t)} was delegated by {delegator or 'nobody'} — only the delegator may {verb} it")
+
+
+def create_technote(t: sqlite3.Row, user: str, title: str, file: str | None, text: str | None,
+                    label: str = "report") -> str:
+    """Create NAME (or NAME [short]) as a technote tagged task-<id10>; refuses an existing name."""
+    if file:
+        path = Path(file)
+        if not path.exists():
+            sys.exit(f"org: {label} file {file!r} not found")
+    elif text is not None:
+        handle = tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8")
+        handle.write(text)
+        handle.close()
+        path = Path(handle.name)
+    else:
+        sys.exit(f"org: {label} needs --file or --text")
+    name = title
+    out = fossil("wiki", "create", name, str(path), "--mimetype", "text/x-markdown",
+                 "--technote", "now", "--technote-tags", f"task-{short(t)}", user=user, check=False)
+    if "exist" in (out or "").lower() or not out.strip():
+        name = f"{title} [{short(t)}]"
+        out = fossil("wiki", "create", name, str(path), "--mimetype", "text/x-markdown",
+                     "--technote", "now", "--technote-tags", f"task-{short(t)}", user=user, check=False)
+    if "exist" in (out or "").lower():
+        sys.exit(f"org: technote {name!r} already exists — choose another --title")
+    return name
+
+
 def cmd_delegate(a) -> int:
     user = need_user(a)
     known = rows("SELECT 1 FROM user WHERE login = ?", (a.assignee,))
@@ -246,7 +313,7 @@ def cmd_claim(a) -> int:
     user = need_user(a)
     t = ticket(a.ticket)
     state = str(t["agent_state"] or "").upper()
-    if state in ("DONE", "BLOCKED"):
+    if state in ("DONE", "BLOCKED", "VERIFIED", "CANCELLED"):
         sys.exit(f"org: ticket {short(t)} is {state} — not claimable")
     now_s = now()
     owner = str(t["lease_owner"] or "")
@@ -271,11 +338,8 @@ def cmd_claim(a) -> int:
 
 
 def cmd_heartbeat(a) -> int:
-    user = need_user(a)
     t = ticket(a.ticket)
-    owner = str(t["lease_owner"] or "")
-    if owner and owner != user:
-        sys.exit(f"org: ticket {short(t)} is leased by {owner} — heartbeat refused")
+    user = guard_lease(a, t, "heartbeat")
     now_s = now()
     ticket_set(t, user, heartbeat_at=str(now_s), lease_until=str(now_s + a.lease), woken_state=CLEARED)
     chat(f"HEARTBEAT {user} {short(t)} {a.what or 'working'}")
@@ -284,52 +348,67 @@ def cmd_heartbeat(a) -> int:
 
 
 def cmd_report(a) -> int:
-    user = need_user(a)
     t = ticket(a.ticket)
-    if a.file:
-        path = Path(a.file)
-        if not path.exists():
-            sys.exit(f"org: report file {a.file!r} not found")
-    elif a.text is not None:
-        handle = tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8")
-        handle.write(a.text)
-        handle.close()
-        path = Path(handle.name)
-    else:
-        sys.exit("org: report needs --file or --text")
-    name = a.title
-    out = fossil("wiki", "create", name, str(path), "--mimetype", "text/x-markdown",
-                 "--technote", "now", "--technote-tags", f"task-{short(t)}", user=user, check=False)
-    if "exist" in (out or "").lower() or not out.strip():
-        name = f"{a.title} [{short(t)}]"
-        out = fossil("wiki", "create", name, str(path), "--mimetype", "text/x-markdown",
-                     "--technote", "now", "--technote-tags", f"task-{short(t)}", user=user, check=False)
-    if "exist" in (out or "").lower():
-        sys.exit(f"org: technote {name!r} already exists — choose another --title")
+    user = guard_lease(a, t, "report")
+    name = create_technote(t, user, a.title, a.file, a.text)
+    # re-checked at the write: the technote creation is slow enough for a takeover to slip in
+    guard_lease(a, ticket(a.ticket), "report")
     ticket_set(t, user, report_ref=name)
     print(name)
     return 0
 
 
 def cmd_done(a) -> int:
-    user = need_user(a)
     t = ticket(a.ticket)
-    owner = str(t["lease_owner"] or "")
-    if owner and owner != user:
-        sys.exit(f"org: ticket {short(t)} is leased by {owner} — not yours to close")
+    user = guard_lease(a, t, "done")
     ticket_set(t, user, agent_state="DONE", woken_state=CLEARED, **({"result_ref": a.report} if a.report else {}))
     print(f"org: {short(t)} DONE" + (f" report={a.report}" if a.report else ""))
     return 0
 
 
 def cmd_escalate(a) -> int:
-    user = need_user(a)
     t = ticket(a.ticket)
-    owner = str(t["lease_owner"] or "")
-    if owner and owner != user:
-        sys.exit(f"org: ticket {short(t)} is leased by {owner} — not yours to escalate")
+    user = guard_lease(a, t, "escalate")
     ticket_set(t, user, agent_state="BLOCKED", failure_code=a.code, woken_state=CLEARED)
     print(f"org: {short(t)} BLOCKED: {a.code}")
+    return 0
+
+
+def cmd_verify(a) -> int:
+    """The delegator accepts a DONE ticket: the queue's terminal success."""
+    user = need_user(a)
+    t = ticket(a.ticket)
+    guard_delegator(t, user, "verify")
+    if str(t["agent_state"] or "").upper() != "DONE":
+        sys.exit(f"org: {short(t)} is {str(t['agent_state'] or '').upper()} — verify requires a DONE ticket")
+    ticket_set(t, user, agent_state="VERIFIED", woken_state=CLEARED)
+    print(f"org: {short(t)} VERIFIED")
+    return 0
+
+
+def cmd_reject(a) -> int:
+    """The delegator sends a DONE ticket back to READY with the findings as a technote (rework)."""
+    user = need_user(a)
+    t = ticket(a.ticket)
+    guard_delegator(t, user, "reject")
+    if str(t["agent_state"] or "").upper() != "DONE":
+        sys.exit(f"org: {short(t)} is {str(t['agent_state'] or '').upper()} — reject requires a DONE ticket")
+    name = create_technote(t, user, a.title, a.file, a.text, label="reject findings")
+    ticket_set(t, user, agent_state="READY", woken_state=CLEARED,
+               attempt=str(num(t["attempt"]) + 1), knowledge_ref=name)
+    print(f"org: {short(t)} REJECTED -> READY (findings {name})")
+    return 0
+
+
+def cmd_cancel(a) -> int:
+    """The delegator abandons the ticket (READY/WORKING/BLOCKED/DONE -> CANCELLED)."""
+    user = need_user(a)
+    t = ticket(a.ticket)
+    guard_delegator(t, user, "cancel")
+    if str(t["agent_state"] or "").upper() in CLOSED:
+        sys.exit(f"org: {short(t)} is {str(t['agent_state'] or '').upper()} — nothing to cancel")
+    ticket_set(t, user, agent_state="CANCELLED", failure_code=a.code, woken_state=CLEARED)
+    print(f"org: {short(t)} CANCELLED: {a.code}")
     return 0
 
 
@@ -554,12 +633,14 @@ def main() -> int:
 
     p = sub.add_parser("heartbeat", parents=[common], help="extend the lease; a stale lease wakes the delegator")
     p.add_argument("ticket")
+    p.add_argument("--epoch", type=int, required=True, help="the epoch your claim won (a stale epoch is refused)")
     p.add_argument("--what", help="what you are doing (goes into the chat line)")
     p.add_argument("--lease", type=int, default=LEASE_S, help=f"lease seconds (default {LEASE_S})")
     p.set_defaults(func=cmd_heartbeat)
 
     p = sub.add_parser("report", parents=[common], help="create a technote and pin it to the ticket")
     p.add_argument("ticket")
+    p.add_argument("--epoch", type=int, required=True, help="the epoch your claim won (a stale epoch is refused)")
     p.add_argument("--title", required=True, help="technote name")
     p.add_argument("--file", help="markdown file to attach")
     p.add_argument("--text", help="inline markdown")
@@ -567,13 +648,32 @@ def main() -> int:
 
     p = sub.add_parser("done", parents=[common], help="close the ticket DONE (wakes your delegator)")
     p.add_argument("ticket")
+    p.add_argument("--epoch", type=int, required=True, help="the epoch your claim won (a stale epoch is refused)")
     p.add_argument("--report", help="technote name of the result")
     p.set_defaults(func=cmd_done)
 
     p = sub.add_parser("escalate", parents=[common], help="mark BLOCKED with a failure code (wakes your delegator)")
     p.add_argument("ticket")
+    p.add_argument("--epoch", type=int, required=True, help="the epoch your claim won (a stale epoch is refused)")
     p.add_argument("--code", required=True, help="why it is blocked")
     p.set_defaults(func=cmd_escalate)
+
+
+    p = sub.add_parser("verify", parents=[common], help="delegator: accept a DONE ticket (VERIFIED)")
+    p.add_argument("ticket")
+    p.set_defaults(func=cmd_verify)
+
+    p = sub.add_parser("reject", parents=[common], help="delegator: send a DONE ticket back to READY with findings")
+    p.add_argument("ticket")
+    p.add_argument("--title", required=True, help="findings technote name")
+    p.add_argument("--file", help="markdown file with the findings")
+    p.add_argument("--text", help="inline findings markdown")
+    p.set_defaults(func=cmd_reject)
+
+    p = sub.add_parser("cancel", parents=[common], help="delegator: abandon a ticket (CANCELLED)")
+    p.add_argument("ticket")
+    p.add_argument("--code", required=True, help="why it is cancelled")
+    p.set_defaults(func=cmd_cancel)
 
     p = sub.add_parser("inbox", parents=[common], help="list your tickets and register this session for wakes")
     p.add_argument("--json", action="store_true", help="machine-readable: one JSON document on stdout")

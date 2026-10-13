@@ -19,10 +19,15 @@ woken when its child ends, and an assignee is woken when a ticket lands:
   4. No live host / no such session -> nothing sent, nothing recorded, retry next tick.
      Never start a second server: one worktree = one host.
 
-woken_state is written ONLY after the POST answered 2xx — a failed send retries; a session id
-that no longer exists is logged (once per change) and skipped, never guessed around. The wake
-goes through the shared client, which reads the host record (url/pid/nonce/token) from the
-worktree DB and proves liveness by the /global/health nonce echo.
+Every wake is recorded on the ticket as an effect BEFORE it is sent: the effect carries
+idempotency_key = sha256(ticket|state|target|lease-epoch|last-heartbeat) and status PENDING, and a
+2xx response sets woken_state = the state (COMMITTED). A crash between the send and the record
+leaves PENDING: a later tick RESOLVES it by reading the target session for the wake marker
+`[wake <key16>]` — delivered -> commit; absent -> send (the read proved nothing arrived, so this is
+no longer blind); unreadable -> UNKNOWN and NOTHING is sent. A session id that no longer exists is
+logged (once per change) and skipped, never guessed around. The wake goes through the shared client,
+which reads the host record (url/pid/nonce/token) from the worktree DB and proves liveness by the
+/global/health nonce echo.
 
 Run: python orgd.py [--once] [--interval 15]     (init.py starts it detached; --once for tests)
 """
@@ -30,6 +35,7 @@ Run: python orgd.py [--once] [--interval 15]     (init.py starts it detached; --
 from __future__ import annotations
 
 import argparse
+import hashlib
 import ctypes
 import json
 import os
@@ -70,7 +76,8 @@ def tickets() -> list[sqlite3.Row]:
         con.row_factory = sqlite3.Row
         return con.execute(
             "SELECT tkt_uuid, title, agent_state, wake_session, wake_worktree, woken_state, report_ref, "
-            "failure_code, assigned_to, workspace_repo, lease_until, heartbeat_at FROM ticket "
+            "failure_code, assigned_to, workspace_repo, lease_until, heartbeat_at, lease_epoch, "
+            "idempotency_key, knowledge_ref FROM ticket "
             "WHERE agent_state IN ('READY','WORKING','DONE','BLOCKED')"
         ).fetchall()
     finally:
@@ -177,28 +184,97 @@ def assignee_session(assigned_to: str, worktree: str) -> tuple[str | None, str]:
                   f"`org.py inbox` there registers the session")
 
 
-def wake(session_id: str, worktree: str, text: str, tag: str) -> bool:
+def effect_key(t: sqlite3.Row, kind: str, target: str) -> str:
+    """The idempotency key of one wake effect: hash(ticket, state, target, lease-instance).
+
+    The epoch and the last heartbeat are part of the material because one ticket meets the same
+    `kind` more than once (a second stall inside one lease after a re-wake; a reworked child
+    reaching DONE again): without them two different situations share one key, and a resolution
+    could take a previous delivery for this one."""
+    material = "|".join((str(t["tkt_uuid"]), kind, target,
+                         str(num(t["lease_epoch"])), str(num(t["heartbeat_at"]))))
+    return hashlib.sha256(material.encode("utf-8")).hexdigest()
+
+
+def effect_resolution(worktree: str, session_id: str, key: str, tag: str) -> str:
+    """Read the target session for this effect's wake marker: delivered / absent / unreadable."""
+    db = Path(worktree) / ".opencode" / "data" / "opencode.db"
+    if not db.exists():
+        return "unreadable"
+    con = connect(db)
+    try:
+        try:
+            found = con.execute("SELECT 1 FROM part WHERE session_id = ? AND data LIKE ? LIMIT 1",
+                                (session_id, f"%[wake {key[:16]}]%")).fetchone() is not None
+        except sqlite3.OperationalError as error:
+            log_once(f"{tag}/resolve", f"{tag}: effect resolution cannot read {db}: {error}")
+            return "unreadable"
+    finally:
+        con.close()
+    return "delivered" if found else "absent"
+
+
+def wake_effect(t: sqlite3.Row, kind: str, session_id: str, worktree: str, text: str,
+                head: str, actions: list[str]) -> None:
+    """Send one wake as an effect — or resolve a previous attempt by reading, never both."""
+    uuid = str(t["tkt_uuid"])
+    key = effect_key(t, kind, session_id)
+    tag = f"{head}/{kind.lower()}"
+    woken = str(t["woken_state"] or "")
+    if woken in ("PENDING", "UNKNOWN") and str(t["idempotency_key"] or "") == key:
+        resolution = effect_resolution(worktree, session_id, key, tag)
+        if resolution == "delivered":
+            if ticket_set(uuid, woken_state=kind):
+                actions.append(f"{head}: {kind.lower()} -> effect resolved by reading (already delivered; not resent)")
+            return
+        if resolution == "unreadable":
+            if woken != "UNKNOWN":
+                ticket_set(uuid, woken_state="UNKNOWN")
+            log_once(f"{tag}/resolve",
+                     f"{tag}: a recorded wake effect cannot be read back yet — retrying resolution, never resending blind")
+            return
+        # absent: the read proves nothing arrived — sending now is not blind
+    result = wake(uuid, kind, key, session_id, worktree, text, tag)
+    if result == "sent":
+        if ticket_set(uuid, woken_state=kind):
+            role = "assignee" if kind == "NEW" else "delegator"
+            actions.append(f"{head}: {kind.lower()} -> woke {role} {session_id}")
+    elif result == "unknown":
+        actions.append(f"{head}: {kind.lower()} -> send outcome unknown (effect PENDING); resolved by reading next tick")
+
+
+def wake(uuid: str, kind: str, key: str, session_id: str, worktree: str, text: str, tag: str) -> str:
+    """Send one wake as a recorded effect; the outcome decides what its caller records.
+
+    Returns "sent" (the POST answered 2xx), "unknown" (the POST was attempted and its outcome is
+    unknown — the effect stays PENDING for a read-resolution on a later tick), "skipped" (host or
+    session unavailable: nothing was attempted), or "unrecorded" (the PENDING row could not be
+    written: nothing is sent, because a send without a record cannot be resolved)."""
     if opencode_host is None:
         log_once(tag, f"opencode_host unavailable: {IMPORT_ERROR}")
-        return False
+        return "skipped"
     try:
         host = opencode_host.connect(worktree)
     except opencode_host.HostError as error:
         log_once(tag, f"{tag}: host not live — {error}")
-        return False
+        return "skipped"
     try:
         host.get(f"/session/{session_id}")
     except Exception as error:  # 404 -> the id is gone; do not retry it in silence
         log_once(tag, f"{tag}: session {session_id} not found on {host.url}: {error}")
-        return False
+        return "skipped"
+    if not ticket_set(uuid, idempotency_key=key, woken_state="PENDING"):
+        log_once(tag, f"{tag}: cannot record the PENDING effect — nothing sent")
+        return "unrecorded"
     try:
-        host.post(f"/session/{session_id}/prompt_async", {"parts": [{"type": "text", "text": text}]})
+        host.post(f"/session/{session_id}/prompt_async",
+                  {"parts": [{"type": "text", "text": text + f" [wake {key[:16]}]"}]})
     except Exception as error:
-        log_once(tag, f"{tag}: prompt_async failed: {error}")
-        return False
+        log_once(tag, f"{tag}: send outcome unknown (effect PENDING, {host.url}): {error} — resolve by reading next tick")
+        return "unknown"
     log(f"{tag}: woke {session_id} on {host.url}")
     LAST_LOG.pop(tag, None)
-    return True
+    return "sent"
 
 
 def tick() -> list[str]:
@@ -216,26 +292,24 @@ def tick() -> list[str]:
             else:
                 text = (f"ORG ticket {uuid} is BLOCKED: {t['failure_code'] or 'no failure_code'}. "
                         f"Decide: unblock, re-delegate, or escalate.")
-            if wake(str(t["wake_session"]), str(t["wake_worktree"] or ""), text, f"{head}/{state.lower()}"):
-                if ticket_set(uuid, woken_state=state):
-                    actions.append(f"{head}: {state.lower()} -> woke delegator {t['wake_session']}")
+            wake_effect(t, state, str(t["wake_session"]), str(t["wake_worktree"] or ""), text, head, actions)
         elif state == "WORKING":
             deadline = num(t["lease_until"]) or num(t["heartbeat_at"])
             if deadline and deadline < now_s and woken != "STALLED" and t["wake_session"]:
                 ago, hb = now_s - deadline, num(t["heartbeat_at"])
                 text = (f"ORG ticket {uuid} is STALLED: WORKING but its lease expired {ago}s ago "
                         f"(last heartbeat {hb or 'never'}). Check on the worker or take the ticket over.")
-                if wake(str(t["wake_session"]), str(t["wake_worktree"] or ""), text, f"{head}/stalled"):
-                    if ticket_set(uuid, woken_state="STALLED"):
-                        actions.append(f"{head}: stalled -> woke delegator {t['wake_session']}")
+                wake_effect(t, "STALLED", str(t["wake_session"]), str(t["wake_worktree"] or ""), text, head, actions)
         elif state == "READY" and t["workspace_repo"] and woken != "NEW":
             session_id, why = assignee_session(str(t["assigned_to"] or ""), str(t["workspace_repo"]))
             if session_id:
-                text = (f"ORG ticket {uuid} is a NEW ticket in your inbox: {t['title']}. "
-                        f"Claim it or hand it on.")
-                if wake(session_id, str(t["workspace_repo"]), text, f"{head}/new"):
-                    if ticket_set(uuid, woken_state="NEW"):
-                        actions.append(f"{head}: new -> woke assignee {session_id}")
+                if t["knowledge_ref"]:
+                    text = (f"ORG ticket {uuid} went REJECTED back to READY: {t['title']}. "
+                            f"Rework findings: {t['knowledge_ref']}. Claim it again.")
+                else:
+                    text = (f"ORG ticket {uuid} is a NEW ticket in your inbox: {t['title']}. "
+                            f"Claim it or hand it on.")
+                wake_effect(t, "NEW", session_id, str(t["workspace_repo"]), text, head, actions)
             else:
                 log_once(f"{head}/new", f"{head}/new: not woken — {why}")
     return actions

@@ -46,6 +46,19 @@ Portability gap ✗: all three org scripts resolve `HOME = $ORG_HOME or ~/.org` 
 only» (init.py:28, org.py:47, orgd.py:41) — a flash-drive corporation needs it beside the install. That code is the
 legislator's lane: requested, not done here (B1f).
 
+## Search stack redirect (owner, 2026-10-13)
+
+Owner, verbatim: «webclaw + все что делает firecrawl + searxng — просто написать свое на расте + по возможности
+ddg.ai запросы.» The search part of the bundle becomes: our `universal-search` binary (own Rust dispatcher of the
+official APIs and the SERP/browser leg), `webclaw` (:3010 scrape, one exe) and Chromium; no SearXNG, Python search
+runtime, Firecrawl, Garnet or Websurfx. Effect here: components `searxng`, `searxng-launcher`, `searxng-settings`
+(components.json:75-98) and the open garnet/websurfx question are SUPERSEDED, not yet removed — removal waits for
+that project's plan to close (its two 2026-10-13 plans are open, 0 boxes ticked, uncommitted work; read
+2026-10-13). Duck.ai: neither plan nor src mentions it (✓ grep, 2026-10-13) — the resident's call; installer-side
+condition: it goes through the browser leg like any page (no impersonation, stop at any challenge), per
+memory `user-two-ethics-user-and-services`. Next brief here, after that project commits: swap the components for
+`universal-search` + `webclaw`, re-run B1e.
+
 ## Design lens — a program for a monkey (owner, 2026-10-07)
 
 Owner: «Планируй — как меня учили когда-то — представь что ты делаешь программу для обезьяны», after «сделать чтобы

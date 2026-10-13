@@ -364,6 +364,22 @@ The OpenRouter endpoint form retains a permanent one-line endpoint-status
 region while live data arrives. Its headers no longer change between loading
 and loaded states, avoiding transient text flashes and vertical form jumps.
 
+## 8d. End-of-turn stop check — the k2 mechanism (2026-10-13)
+
+Owner, 2026-10-13: «в кернеле критический баг. Он позволяет не доделывать работу». The mechanism
+half ships on this host (`session/stop-check.ts`); the kernel text is a separate task (t37). At the
+`runLoop` exit (`session/prompt.ts`, the `exiting loop` branch — a completed turn: `finish` set, no
+pending tool call) a primary-agent turn may not END on a prose question/offer to the owner
+(«Хотите, поищу…?» / «Want me to…?») or by handing him an action («запусти …» / «you need to run …»):
+the decision function fires two detectors — the same ones as the Claude host's Stop hook
+`no_offer_stop.py` (trailing question after the SV block is stripped; the hand-off regex after
+fenced code and quoted `«…»`/`"…"`/`` `…` `` spans are dropped, so a citation is not a hand-off) —
+and the runtime continues the turn ONCE with a synthetic user message carrying the reason
+(`metadata.stop_check` is the latch, so it can never fire twice in a row, restarts included).
+A turn that called the `question` tool is never blocked; sub-agent turns are never blocked;
+`OPENCODE_STOP_CHECK=0|false|off|no` disables it. The injection is a tail message — no byte of the
+system prefix changes (KV).
+
 ## 9. Key Files
 
 | File | Purpose | Lines |
@@ -384,6 +400,7 @@ and loaded states, avoiding transient text flashes and vertical form jumps.
 | `session/overflow.ts` | Cadence vs safety gates; `needsContentCompaction` | — |
 | `sync/index.ts` | `SyncEvent.run` / `runBatch` (finishStep one TX) | — |
 | `session/message-v2.ts` | Schema, conversion, `filterCompacted*` | — |
+| `session/stop-check.ts` | k2 end-of-turn stop check: offer/hand-off detectors, decision, latch key | — |
 | `agent/agent.ts` | 10 built-in agent definitions | 395 |
 | `tool/pipeline.ts` | Pipeline tool (agent chaining) | 191 |
 | `tool/capability.ts` | Model capability lookup tool | 101 |

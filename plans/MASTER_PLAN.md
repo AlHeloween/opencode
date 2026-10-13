@@ -113,7 +113,7 @@ missing: the handoff permitted «until that lands» without saying what would ru
 |---|---|
 | plans completed | 232 |
 | plans active | 18 |
-| tasks passed / total | 990 / 1229 |
+| tasks passed / total | 996 / 1235 |
 | open boxes | 96 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
@@ -280,8 +280,12 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - R4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - R5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-13_robot-host-stop-check.md` — 0 open / 6 box(es) · lifecycle UNKNOWN
+  sv: intention "a primary-agent turn in opencode may finish on a prose question/offer to the owner («Хотите, поищу…?», «Want me to…?») or by handing him an action after one failed route -> the runtime continues that turn ONCE with a synthetic message carrying the reason; a real owner decision goes through the `question` tool; never twice in a row; never for sub-agents; env switch disables" · keywords [stop-check, no-offer-stop, turn-continuation, k2-kernel-bug, question-tool-exemption]
+  - no open box
+
 ## The checks
 
-This body names all 20 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 21 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

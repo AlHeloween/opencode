@@ -131,6 +131,7 @@ import { convertDocument, isSupportedDocumentFormat } from "@/util/markdownify"
 import { canonicalIdentity, isPrimaryModeIdentity } from "./mode-identity"
 import { loadSessionSettings, resolveAgentModel, resolveAgentVariant, saveSessionSettings } from "./session-settings"
 import { modelKey, withSessionAgentModel } from "./fill-layers"
+import { LATCH_KEY, stopCheckDecision } from "./stop-check"
 
 /**
  * Mode text is a one-shot conversation transition record. It must never be
@@ -1798,6 +1799,47 @@ export const layer = Layer.effect(
             lastUser.id < lastAssistant!.id &&
             !summaryAttempt
           ) {
+            // Stop check (kernel bug k2): a primary-agent turn may not END on a prose offer to the
+            // owner («Хотите, поищу…?») or by handing him an action — the runtime continues it ONCE
+            // with a synthetic message carrying the reason (src/session/stop-check.ts). The latch
+            // rides in that message's part metadata, so a continuation is never blocked again.
+            const continuation = stopCheckDecision({
+              text: lastAssistantMsg.parts
+                .filter((part): part is MessageV2.TextPart => part.type === "text" && !part.ignored)
+                .map((part) => part.text)
+                .join("\n"),
+              agent: lastUser.agent,
+              alreadyContinued:
+                lastUserMsg?.parts.some((part) => part.type === "text" && part.metadata?.[LATCH_KEY] !== undefined) ??
+                false,
+              questionToolCalled: msgs.some(
+                (msg) =>
+                  msg.info.role === "assistant" &&
+                  msg.info.parentID === lastUser.id &&
+                  msg.parts.some((part) => part.type === "tool" && part.tool === "question"),
+              ),
+            })
+            if (continuation) {
+              const injected = yield* sessions.updateMessage({
+                id: MessageID.ascending(),
+                role: "user",
+                sessionID,
+                agent: lastUser.agent,
+                model: lastUser.model,
+                time: { created: Date.now() },
+              })
+              yield* sessions.updatePart({
+                id: PartID.ascending(),
+                messageID: injected.id,
+                sessionID,
+                type: "text",
+                text: continuation.reason,
+                synthetic: true,
+                metadata: { [LATCH_KEY]: continuation.kind },
+              })
+              yield* slog.info("stop-check continuation", { sessionID, step, kind: continuation.kind })
+              continue
+            }
             yield* slog.info("exiting loop", { step })
             break
           }

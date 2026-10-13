@@ -2436,6 +2436,110 @@ it.live("does not loop empty assistant turns for a simple reply", () =>
   ),
 )
 
+// Stop check (kernel bug k2): a primary-agent turn may not END on a prose question/offer to the owner
+// or by handing him an action — the runtime continues it ONCE with a synthetic message carrying the
+// reason (src/session/stop-check.ts). The latch rides in that part's metadata.
+
+it.live("stop-check continues once when the turn ends on a prose offer", () =>
+  provideTmpdirServer(
+    Effect.fnUntraced(function* ({ llm }) {
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const chat = yield* sessions.create({
+        title: "Pinned",
+        permission: [{ permission: "*", pattern: "*", action: "allow" }],
+      })
+
+      yield* prompt.prompt({
+        sessionID: chat.id,
+        agent: "build",
+        noReply: true,
+        parts: [{ type: "text", text: "проверь что-нибудь" }],
+      })
+      yield* llm.text("Проверка закончена.\n\nХотите, поищу такие ссылки по всему проекту?")
+      yield* llm.text("Ищу, отчёт в конце.")
+
+      const result = yield* prompt.loop({ sessionID: chat.id })
+      expect(result.info.role).toBe("assistant")
+      expect(result.parts.some((part) => part.type === "text" && part.text === "Ищу, отчёт в конце.")).toBe(true)
+      expect(yield* llm.hits).toHaveLength(2)
+
+      const msgs = yield* sessions.messages({ sessionID: chat.id })
+      const injected = msgs.filter(
+        (msg) =>
+          msg.info.role === "user" &&
+          msg.parts.some((part) => part.type === "text" && part.synthetic && part.metadata?.stop_check === "question"),
+      )
+      expect(injected).toHaveLength(1)
+      const last = msgs.findLast((msg) => msg.info.role === "assistant")
+      expect(last?.info.role === "assistant" ? last.info.parentID : undefined).toBe(injected[0]?.info.id)
+    }),
+    { git: true, config: providerCfg },
+  ),
+)
+
+it.live("stop-check never fires twice in a row", () =>
+  provideTmpdirServer(
+    Effect.fnUntraced(function* ({ llm }) {
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const chat = yield* sessions.create({
+        title: "Pinned",
+        permission: [{ permission: "*", pattern: "*", action: "allow" }],
+      })
+
+      yield* prompt.prompt({
+        sessionID: chat.id,
+        agent: "build",
+        noReply: true,
+        parts: [{ type: "text", text: "проверь что-нибудь" }],
+      })
+      yield* llm.text("Первый ответ.\n\nПродолжить?")
+      yield* llm.text("Второй ответ закончился вопросом — и на нём всё.\n\nДоделать остальное?")
+
+      const result = yield* prompt.loop({ sessionID: chat.id })
+      expect(yield* llm.hits).toHaveLength(2)
+      expect(result.parts.some((part) => part.type === "text" && part.text.includes("Доделать остальное?"))).toBe(true)
+    }),
+    { git: true, config: providerCfg },
+  ),
+)
+
+it.live("stop-check continues once when the turn hands the owner an action", () =>
+  provideTmpdirServer(
+    Effect.fnUntraced(function* ({ llm }) {
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const chat = yield* sessions.create({
+        title: "Pinned",
+        permission: [{ permission: "*", pattern: "*", action: "allow" }],
+      })
+
+      yield* prompt.prompt({
+        sessionID: chat.id,
+        agent: "build",
+        noReply: true,
+        parts: [{ type: "text", text: "запусти сборку" }],
+      })
+      yield* llm.text("cmd_runner не смог стартовать. Тебе нужно запустить _build.ps1 самому.")
+      yield* llm.text("Запустил через консоль, сборка зелёная.")
+
+      const result = yield* prompt.loop({ sessionID: chat.id })
+      expect(yield* llm.hits).toHaveLength(2)
+      expect(result.parts.some((part) => part.type === "text" && part.text === "Запустил через консоль, сборка зелёная.")).toBe(true)
+
+      const msgs = yield* sessions.messages({ sessionID: chat.id })
+      const injected = msgs.filter(
+        (msg) =>
+          msg.info.role === "user" &&
+          msg.parts.some((part) => part.type === "text" && part.metadata?.stop_check === "handoff"),
+      )
+      expect(injected).toHaveLength(1)
+    }),
+    { git: true, config: providerCfg },
+  ),
+)
+
 it.live(
   "records aborted errors when prompt is cancelled mid-stream",
   () =>

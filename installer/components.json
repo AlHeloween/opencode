@@ -106,8 +106,8 @@
       },
     {
       "name": "adid-tools",
-      "_ref": "lane 4 (ADID_Python): releases/adid_dist_20261013T195928Z/portable — the release folder name is the pin; the package's own MANIFEST.sha256 is re-verified before staging (B1g) and never ships",
-      "from": "../../ADID_Python/releases/adid_dist_20261013T195928Z/portable",
+      "_ref": "lane 4 (ADID_Python): releases/adid_dist_20261013T204851Z/portable — the release folder name is the pin; the package's own MANIFEST.sha256 is re-verified before staging (B1g) and never ships",
+      "from": "../../ADID_Python/releases/adid_dist_20261013T204851Z/portable",
       "to": "bin/tools",
       "files": [
         "CLAUDE_ORG.md", "CODEX_ORG.md", "adm-rag.exe", "adm.exe", "apply_patch.exe",

@@ -37,13 +37,14 @@ together: a release with no address is a loss, and an address with no re-acquire
 ```
 RESULT_LIMIT_LINES = 16_384      tool/result-limit.ts   the line bound: read's window, the fold gate, recall's per-call cap
 RESULT_LIMIT_CHARS = 256 KB      tool/result-limit.ts   …and the byte bound. ONE pair, ONE home — a second copy is the defect
-REPLAY_TOOL_OUTPUT_MAX_CHARS = 32_000   message-v2.ts   the cap on anything that DOES ride (`tool_output.replay_max_chars`)
+REPLAY_TOOL_OUTPUT_MAX_CHARS = RESULT_LIMIT_CHARS   message-v2.ts   the SAME number: what a request carries and what `read` returns (owner, 2026-10-13)
 ```
 
-**Open, measured 2026-10-13, owner decides:** the replay cap above is 32 KB while the fold bound is 256 KB, so a
-result between the two rides TRUNCATED (`[Tool output truncated at 32000 chars…]`) rather than whole. The pair
-therefore widens what `read` RETURNS in one call (16 384 lines / 256 KB) without yet widening what a request
-CARRIES; raising the config default to `RESULT_LIMIT_CHARS` is the one-line change that closes it.
+**DECIDED 2026-10-13 — owner, «Поднять до лимита чтения»:** the replay cap and `read`'s window are ONE number
+(`RESULT_LIMIT_CHARS`), resolved in one home. Before the decision the 32 KB default cut 353 stored parts /
+17.15 MB of this worktree's history into «not folded, but sent truncated». The price is ACCEPTED and named: a
+result up to the read limit is paid in EVERY request while it stays in the window — until the caller releases
+it (`recall … release`), which is what that verb is for.
 
 A placeholder is a **pure function** of the part — byte-identical across builds and across every request that
 ever carries it. The 2026-10-13 change kept that property while moving WHERE it is produced: it is no longer a

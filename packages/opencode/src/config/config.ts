@@ -47,6 +47,7 @@ import { ConfigSkills } from "./skills"
 import { ConfigVariable } from "./variable"
 import { PROJECT_GITIGNORE_HEADER } from "@/snapshot/ignore-glob"
 import { Npm } from "@opencode-ai/core/npm"
+import { RESULT_LIMIT_CHARS } from "@/tool/result-limit"
 
 const log = Log.create({ service: "config" })
 
@@ -280,7 +281,7 @@ rules: Schema.optional(Schema.Record(Schema.String, Schema.Union([Schema.Boolean
       }),
       replay_max_chars: Schema.optional(PositiveInt).annotate({
         description:
-          "Maximum chars of a completed tool output replayed into the model context (default: 32000). Larger outputs are truncated with a digest marker; the full text stays in the truncation output file. Bounding the replay keeps provider prompt-cache miss blocks small.",
+          `Maximum chars of a completed tool output replayed into the model context (default: ${RESULT_LIMIT_CHARS} — the read limit, so a result \`read\` returned whole is not paid for twice). Larger outputs are truncated with a digest marker; the full text stays in the truncation output file.`,
       }),
     }),
   ).annotate({

@@ -1012,6 +1012,25 @@ describe("session.message-v2.toModelMessage", () => {
     })
   })
 
+  test("a stored result up to the read limit replays WHOLE (R2)", async () => {
+    // The replay cap and the read window are ONE number (owner, 2026-10-13: «Поднять до лимита
+    // чтения»). A 100 KB result used to ride truncated at 32 000 with a recall pointer: paid for once
+    // as the read, then again through the pointer. This pins the IDENTITY, not the number.
+    expect(MessageV2.REPLAY_TOOL_OUTPUT_MAX_CHARS).toBe(RESULT_LIMIT_CHARS)
+    const body = `${'l'.repeat(99)}\n`.repeat(1_000)
+    expect(body.length).toBeGreaterThan(32_000)
+    expect(body.length).toBeLessThan(RESULT_LIMIT_CHARS)
+    const rendered = (
+      await MessageV2.toModelMessages(conversationWith(body, "a-100k"), model, {
+        toolOutputMaxChars: MessageV2.REPLAY_TOOL_OUTPUT_MAX_CHARS,
+      })
+    ).at(-1)
+    expect(rendered).toMatchObject({ role: "tool", content: [{ output: { type: "text", value: body } }] })
+    const wire = JSON.stringify(rendered)
+    expect(wire).not.toContain("Tool output truncated")
+    expect(wire).not.toContain("recall(id=")
+  })
+
   test("a kept selection replaces the whole result on the wire, and never blanks it", async () => {
     // The CONSUMER half of `recall(..., keep: true)` — the branch nothing exercised until now. `kept`
     // is what makes the narrowing pay: from then on the replay carries exactly these lines instead of

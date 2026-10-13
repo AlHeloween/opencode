@@ -39,7 +39,7 @@ import { namedSchemaError } from "@/util/named-schema-error"
 import * as EffectLogger from "@opencode-ai/core/effect/logger"
 import { canonicalName } from "@/tool/tool"
 import { optionalPattern } from "@/tool/pattern"
-import { overResultLimit } from "@/tool/result-limit"
+import { RESULT_LIMIT_CHARS, overResultLimit } from "@/tool/result-limit"
 
 import { isRecord } from "@/util/record"
 /** Error shape thrown by Bun's fetch() when gzip/br decompression fails mid-stream */
@@ -525,13 +525,16 @@ export function stripFloodReminderBlocks(text: string): { text: string; dropped:
 }
 
 /**
- * Default cap (chars) for completed tool outputs replayed into the model
- * context. Provider prompt caches bill every injected block at full miss
- * price until it becomes a persisted prefix unit; bounding the replay to a
- * digest-sized slice keeps per-turn cache-miss blocks small (~8K tokens)
- * instead of unbounded (observed 32K-68K token injections per turn).
+ * Default cap (chars) for completed tool outputs replayed into the model context — the SAME number as
+ * the window `read` returns, because a cap BELOW it makes a caller pay twice for one file: once as the
+ * read, and again through the recall pointer the truncation prints (owner, 2026-10-13, on the
+ * 32 000-char default: «Поднять до лимита чтения»). ONE source: `read`'s window, the fold gate and
+ * this replay cap are all `@/tool/result-limit`.
+ *
+ * The price, ACCEPTED by the owner and written in the plan: a result up to the read limit is paid in
+ * every request while it stays in the window — until the caller releases it (`recall … release`).
  */
-export const REPLAY_TOOL_OUTPUT_MAX_CHARS = 32_000
+export const REPLAY_TOOL_OUTPUT_MAX_CHARS = RESULT_LIMIT_CHARS
 
 export const ToolStateError = Schema.Struct({
   status: Schema.Literal("error"),

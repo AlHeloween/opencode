@@ -34,7 +34,7 @@ parent-goal-md5: 00000000000000000000000000000000
 - [x] S1 opencode-go key+retention всегда (transform.options + providerOptions passthrough, тесты) — DONE 2026-10-13, oracle: opencode-go-cache.test.ts 7 pass
 - [x] S2 системные cache_control для opencode-go не-GLM (strip stale + stamp до 2 system ttl 1h, GLM-скип, тесты) — DONE 2026-10-13, oracle: тот же файл + transform.test.ts 170 pass (Novita-регрессия цела)
 - [x] S3 прямой Z.AI glm-5.3-flash: проверить Preserved Thinking + cached_tokens парсинг + доки/логирование (без новых полей) — DONE 2026-10-13, verify-only: thinking clear_thinking:false уже в transform.ts:1170-1178, usage схема парсит cached_tokens (openai-compatible-chat-language-model.ts:754-774), изменений не требуется
-- [ ] S4 оракул: unit + typecheck + _build.ps1, запись в _progress_log.md, перенос плана
+- [x] S4 оракул: unit + typecheck + _build.ps1, запись в _progress_log.md, перенос плана — DONE 2026-10-13 (commit 4cd923ac9d; typecheck inconclusive без лога раннера)
 
 ## Claims
 - C1: шлюз go без ключа живёт ~5 мин; с key+24h живёт сутки (источник: pi-opencode-go-cache README, вторичный — falsifier: живой двухходовый хит-тест turn2 cacheRead>0).

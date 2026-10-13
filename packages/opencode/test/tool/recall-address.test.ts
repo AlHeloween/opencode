@@ -4,6 +4,7 @@ import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { readToolResult } from "../../src/tool/recall"
+import { selectLines } from "../../src/session/message-v2"
 import { RESULT_LIMIT_CHARS, RESULT_LIMIT_LINES } from "@/tool/result-limit"
 
 /**
@@ -362,5 +363,81 @@ describe("recall: `chars` addresses a position inside ONE line", () => {
     if (!head.ok) throw new Error(head.error)
     expect(bodyOf(head.text)).toBe(long.slice(0, 10))
     expect(head.text).not.toContain(String.fromCharCode(0x21b3))
+  })
+})
+
+/**
+ * THE ROWS `read` PRINTED BEFORE 2026-10-01 (plan 2026-10-13_recall-read-address-space, R1).
+ *
+ * The hash in a row (`<n>  <hash>: <text>`) is what `edit` addresses by, and it shipped 2026-10-01 —
+ * so every read stored before it prints `<n>: <text>` with no hash at all. In this worktree's session
+ * database that is 2 360 of 5 694 stored reads (measured 2026-10-13), and the parser knew only the
+ * hashed dialect: it numbered such a body by ROW INDEX over the whole stored text, so `recall` of one
+ * answered `300: 300:    clean fold prints `GAP`…` — the recall's own index in front of the number
+ * the row already carried, over a body whose header had shifted every row by four (reproduced on
+ * `prt_0e034e462001zX1Tqo2F6TJ0Mc`, `docs/compaction.md`, 867 stored lines).
+ *
+ * The bytes below are that part's shape verbatim: the same scaffold, the same inner footer notice,
+ * rows as `<file line>: <text>`.
+ */
+function legacyStoredRead(input: { path: string; offset: number; lines: string[]; total: number }) {
+  const body = input.lines.map((line, i) => `${input.offset + i}: ${line}`).join("\n")
+  const last = input.offset + input.lines.length - 1
+  const footer =
+    last >= input.total
+      ? `(End of file - total ${input.total} lines)`
+      : `(Showing lines ${input.offset}-${last} of ${input.total}. Use offset=${last + 1} to continue.)`
+  return [evidenceHeader("read"), `<path>${input.path}</path>`, "<type>file</type>", "<content>", body, "", footer, "</content>"].join("\n")
+}
+
+const legacyWindow = {
+  path: "docs/compaction.md",
+  offset: 296,
+  lines: [
+    "   the boundary is the newest message a summary actually covers.",
+    "3. **Nothing hidden without representation.** — the accounting names the",
+    "   machinery it omits (a prior m* row, a Layer-1 panel, a summary anchor).",
+    "   Otherwise a",
+    "   clean fold prints `GAP`, and a check that cries wolf is a check nobody reads —",
+    "   measured 2026-09-19, on the first fold under this rule.",
+    "   for `#2999` (`msg_0b9bdc0b70011O6AWB9yu16rVD`), which is a Layer-1 panel.",
+  ],
+  total: 867,
+}
+const legacyRow300 = "300:    clean fold prints `GAP`, and a check that cries wolf is a check nobody reads —"
+const legacyRow301 = "301:    measured 2026-09-19, on the first fold under this rule."
+
+describe("recall: a read stored in the LEGACY row format is addressed by its own numbers", () => {
+  test("a range answers FILE lines with ONE number each, never a doubled index over a shifted body", () => {
+    seedTool("prt_legacy", legacyStoredRead(legacyWindow), "read", legacyWindow.path)
+
+    const window = call({ id: "prt_legacy", range: "300-301" })
+    expect(window.ok).toBe(true)
+    if (!window.ok) throw new Error(window.error)
+    expect(window.matchedLines).toBe(2)
+    expect(window.firstLine).toBe(300)
+    expect(window.lastLine).toBe(301)
+    for (const row of window.text.split("\n").filter(Boolean)) expect(row).toMatch(/^\d+: /)
+    // The defect: the recall's own row index in front of the number the stored row already carried.
+    expect(window.text.split("\n")[0]).not.toMatch(/^\d+: \d/)
+    expect(window.text.split("\n")[0]).toBe(legacyRow300)
+    // …and the footer notice inside the scaffold is not a line of the file.
+    expect(window.totalLines).toBe(legacyWindow.lines.length)
+  })
+
+  test("the window's own numbers are the address: below it nothing is selected, and `keep` records THESE", () => {
+    seedTool("prt_legacy_keep", legacyStoredRead(legacyWindow), "read", legacyWindow.path)
+
+    const before = call({ id: "prt_legacy_keep", range: "1-3" })
+    if (!before.ok) throw new Error(before.error)
+    expect(before.matchedLines).toBe(0)
+
+    // `kept` is what the REPLAY renders through `selectLines` — the OTHER consumer of the address
+    // space — so it must name the lines the recall just showed, and render them the same way: two
+    // readings of one body would put one thing on screen and another on the wire.
+    const kept = call({ id: "prt_legacy_keep", range: "300-301", keep: true })
+    if (!kept.ok) throw new Error(kept.error)
+    expect(kept.kept).toEqual({ from: 300, to: 301, reason: "test" })
+    expect(selectLines(legacyStoredRead(legacyWindow), { from: 300, to: 301 }).rows).toEqual([legacyRow300, legacyRow301])
   })
 })

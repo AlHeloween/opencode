@@ -1100,8 +1100,20 @@ export type AddressedLine = {
   text: string
 }
 
-/** `read` prints `<n>  <hash>: <text>`; `hashLabel` is always 8 lowercase hex (`read.ts:495`). */
+/**
+ * The row `read` prints today: `<n>  <hash>: <text>` — the hash is `hashLabel`, always 8 lowercase hex
+ * (`read.ts:495`), and it is what `edit` addresses by.
+ */
 const READ_ROW = /^(\d+)\s\s([0-9a-f]{8}): /
+/**
+ * The row `read` printed BEFORE 2026-10-01: `<n>: <text>`, no hash. 2 360 of this worktree's 5 694
+ * stored reads carry this shape (measured 2026-10-13, the day the address space was built), and
+ * reading only the hashed dialect numbered such a body by ROW INDEX over its whole stored text — so
+ * `recall` answered `300: 300: …`, the recall's index in front of the number the row already carried,
+ * shifted four rows by the header (`prt_0e034e462001zX1Tqo2F6TJ0Mc`). A body speaks ONE dialect,
+ * decided by its first row: mixing them would let one dialect read the other's rows as content.
+ */
+const READ_ROW_LEGACY = /^(\d+): /
 /** …and names the character offset of every chunk after the first: `      ↳+2000: …` (`read.ts:26`). */
 const READ_WRAP = /^ {6}↳\+(\d+): /
 /** The header `processor.ts:721` prepends — a note about the CALL, never a line of the result. */
@@ -1125,14 +1137,16 @@ export function addressableLines(output: string): AddressedLine[] {
   const body = open !== -1 && close > open ? stored.slice(open + 1, close) : stored
 
   const lines: AddressedLine[] = []
-  const numbered = READ_ROW.test(body[0] ?? "")
+  const hashed = READ_ROW.test(body[0] ?? "")
+  const legacy = !hashed && READ_ROW_LEGACY.test(body[0] ?? "")
+  const numbered = hashed || legacy
   for (const row of body) {
     if (!numbered) {
       if (EVIDENCE_HEADER.test(row)) continue
       lines.push({ number: lines.length + 1, address: `${lines.length + 1}: `, text: row })
       continue
     }
-    const head = READ_ROW.exec(row)
+    const head = hashed ? READ_ROW.exec(row) : legacy ? READ_ROW_LEGACY.exec(row) : null
     if (head) {
       lines.push({ number: Number(head[1]), address: row.slice(0, head[0].length), text: row.slice(head[0].length) })
       continue

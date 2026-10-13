@@ -112,9 +112,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 228 |
-| plans active | 17 |
-| tasks passed / total | 957 / 1194 |
-| open boxes | 94 |
+| plans active | 18 |
+| tasks passed / total | 958 / 1199 |
+| open boxes | 98 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -275,9 +275,12 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   sv: intention "the specs under packages/opencode/specs state live inventory in prose — file lists, call-site counts, feature flags — and that prose rots silently (measured 2026-10-12: facades.md names a makeRuntime composition that has since changed on BOTH sides, http-api.md still announces a gate flag that no longer exists in src) -> inventory that can rot is either replaced by the command that recomputes it or generated, while the rules and the work order — which do not rot — stay hand-written." · keywords []
   - S2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-13_recall-read-address-space.md` — 0 open / 8 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-13_recall-read-address-space.md` — 4 open / 13 box(es) · lifecycle UNKNOWN
   sv: intention "a robot that reads a file through `read` and `recall` gets the lines it asked for and pays for each file about once -> `recall` addresses the same lines `read` printed, a long line can be read in pieces, a recall cannot be recalled, and no size threshold releases a result the robot has not chosen to release" · keywords [recall-address-space, read-window-cost, release-gate-removal, long-line-offset, recall-of-recall]
-  - no open box
+  - R2 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - R3 [PENDING] · sv MISSING · manifest: prove the model-to-tool plumbing of the shared address space — read a unit whole, edit by hash, release, recall it back — in a live source run. · eta 6 · waiting-on-user
+  - R4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
+  - R5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
 ## The checks
 

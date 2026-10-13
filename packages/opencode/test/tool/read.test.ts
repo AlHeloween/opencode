@@ -19,7 +19,7 @@ import { testEffect } from "../lib/effect"
 
 const FIXTURES_DIR = path.join(import.meta.dir, "fixtures")
 
-// FILE-level, per AGENTS.md § Testing Convention — «bun's 5 s default turns a loaded machine into a red that
+// FILE-level, per AGENTS.md (constraints: heavy test files carry a FILE-level timeout) — «bun's 5 s default turns a loaded machine into a red that
 // says nothing about the code» — declared once here, never as per-test bumps.
 //
 // STATUS 2026-10-01, CORRECTED rather than left standing: this file produced NO verdict that afternoon and

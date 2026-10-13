@@ -1063,3 +1063,13 @@ model that declares no `limit.output`. The operating envelope is stated and pinn
 | `overflow.ts` | thresholds + +10k |
 | `incremental-checkpoint.ts` | `s` store |
 | `prompt.ts` | stop / break / sidecar / compact gates |
+
+## Continuity Paradigm — the owner's statement (moved from AGENTS.md 2026-10-13)
+
+Owner, 2026-09-19: «у нас очень важное размышление которое раскрывает суть проекта - максимально
+возможная агентная непрерывность - AGI в идеале.» The outer loop installs priors as process, and every
+prior is only as good as the agent's continuity across a boundary: a plan whose evidence was folded
+away, a decision whose reason went unrecorded, an edit whose call left no trace — each forces a fresh
+grounding pass, and the passes are what an agent spends its life on. **Maximum continuity is not
+"remembering more"; it is being able to act without re-deriving** — the difference between a long
+session and a session that keeps restarting.

@@ -47,6 +47,20 @@
   attention — see [two-canon-protocol.md](two-canon-protocol.md) § 3 for why it did not port to MLA
 - [Kernel tests](../prompt_kernel/tests/) — `python -m pytest prompt_kernel/tests/ -q` (78 tests)
 
+
+## Governance — the rules live in AGENTS.md, the record here (split 2026-10-13)
+
+- [Bug policy](bug-policy.md) — tests adapt to functionality; contract tests; write-path oracles
+- [Plan maintenance](plan-maintenance.md) — MASTER_PLAN renderer, JOB FAILED, commit is not closure
+- [Style guide](style-guide.md) — the worked examples behind the TS/Python rules
+- [Storage paradigm](storage-paradigm.md) — two planes (SQLite/LMDB), concurrency rationale, engines, migration order
+- [Debugging paradigm](debugging-paradigm.md) — read state before logs; hashing is never the suspect; granularity
+- [Provider reach](provider-reach.md) — descend from the highest surface: why, per-provider numbers, evidence
+- [Upstream relation](upstream-relation.md) — the closed SDK/upstream question; generated vs hand-maintained code
+- [Host toolchain](host-toolchain.md) — the measured inventory; what is NOT on this host
+- [Build and run](build-and-run.md) — `_build.ps1`, `_run.cmd` from source, the full-suite measurement
+
+Extended in the same split: [architecture.md](architecture.md) (layer table, closed loop, agent inventory), [compaction.md](compaction.md) (continuity owner statement), [content-lifecycle.md](content-lifecycle.md) (owner quote, verb table, corollary, shipped status), [fossil-snapshot.md](fossil-snapshot.md) (backend decision, per-tool evidence), [tools-and-sidecars.md](tools-and-sidecars.md) (unknown apps, cmd_runner debugger), [tool-playbook.md](tool-playbook.md) (no-script constraint, search-instrument quote), [agentic-reasoning-runtime.md](agentic-reasoning-runtime.md) (language slips = G0).
 ## Measured vendor behaviour
 
 - [Haiku 5.5 adaptive thinking](haiku-adaptive-thinking.md) — исправление классификации модели, SDK wire-регрессия и граница локального доказательства

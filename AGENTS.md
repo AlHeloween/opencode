@@ -45,55 +45,7 @@ constraints:
   процессоре.» An embedding run that takes minutes on cores and seconds on the GPU is not a slow
   probe, it is a misconfigured one — and it was a misconfigured one here, broken by an explicit
   `device="cpu"` written to dodge an unrelated torch error.
-- **Never edit source with a direct, UNVERIFIABLE script — and before the edit, ask codegraph what it touches.** Source
-  changes go through `edit` / `write`, by hand, and the hand is informed: call
-  `codegraph` (impact / explore) FIRST to confirm the blast radius, so the change is bounded by
-  evidence and not by the two files the author happened to have open. After the edit the oracle
-  answers the same question with runtime evidence — the two are not interchangeable, and neither
-  replaces the other. Owner, 2026-09-22, verbatim: «Руками блин.», «Добавь в agents.md - никогда не
-  редактируй код скриптами.», «Более того перед правкой надо вызывать codegraph чтобы подтвердить
-  что ничего не полетело это тоже в agents.md.» A script that rewrites source carries its own anchors,
-  computes its own diff and reports its own success: nobody reads the seam, a stale anchor is
-  indistinguishable from a fresh one, and the read-before-edit that makes a change reviewable never
-  happens. Measured the same day, which is where the rule comes from: a 75-line `cut.py` removed ~400
-  lines of dead sidecar machinery by anchor and saved nothing — the seam still had to be re-read by
-  hand afterwards, while the edit itself had been withheld from review in the meantime. The second
-  precedent, and the one that shows what «unverifiable» costs: an agent wrote Python scripts to rewrite
-  source — no syntax check before the write, no backup — corrupted the files and recovered by rolling
-  back from git, which returns the WHOLE file to the last commit and takes every uncommitted change in it
-  along (owner, 2026-09-29). Scripts stay
-  for READING and MEASURING (a probe over the DB, a log analysis) — never for writing source.
-  **ADM update descriptors are NOT scripts in this sense** (owner, 2026-09-29, verbatim: «запрещает
-  редактирование исходников прямыми unverifable скриптами, adm — это другое»). An `updates/*.xml`
-  descriptor (`D:\zPython\ADID_Python\updates\` is the corpus; `src/adm/` the engine) answers each
-  objection above by construction: every payload is an `<update_md5_…>` block carrying its own md5 and
-  size, and the md5 IS the tag name (`<update_md5_<hash>>…<content_md5_<hash>>…</content_md5_<hash>>`); the
-  parser locates the payload by those raw open/close tokens, not by XML escaping
-  (`src/adm/manager_methods/_stream_md5_wrapped_updates.py:113`), and an unclosed block, a duplicate content
-  block or content outside an update raises (same file, lines 44/64/67/76 — read in code, not run).
-  **Measured 2026-09-30 on adm 5.0.6** (`experiments/2026-09-30_adm-binary-smoke/`, both runs): the md5 is
-  a change detector FOR THE REPORT, by design (owner: «это для отчёта»), not a refusal — `--apply`
-  re-stamps the descriptor before parsing (`apply_descriptor.py:20-22`), a payload altered after stamping
-  is applied, and `--dry-run` shows the mismatch («MD5=auto-corrected, expected … actual …»). The gap: the
-  NON-dry-run report does not show it («MD5 match … no adjustments required»), so read the dry-run audit
-  when the question is «was this descriptor touched». The PROCESS itself, run on an existing file: a missed
-  `<find_text>` anchor aborts with the target untouched (✓); apply writes a `.baseline`, a timestamped
-  backup, an in-file `ADID_ROLLBACK` block (backup/new hash, goal_id, semantics, restore command), a
-  `<file>.adid.log.jsonl` ledger and the integrity report (✓); `--list-diff` shows the hunk with the
-  semantics as its `Reason` (✓); `--replay-updates` prints the intent AND a semantic vector per mutation
-  with an MD5 chain (✓); `--rollback` restored the file byte-identical and re-verified its hash (✓). Raw bytes between the tags: the descriptor is read as
-  strict UTF-8, so a byte ≥ 0x80 fails loudly with `UnicodeDecodeError` and nothing is written (✓ safe, but
-  only UTF-8-valid content passes raw). And the `binary-overwrite` template's base64 path wrote the base64
-  TEXT itself (388 B) instead of the 291 decoded bytes — md5/size are computed over the text, not «on decoded
-  bytes» as the template says (✗, an ADM defect to fix in `ADID_Python`); a `replace` names its exact anchor
-  in `<find_text>`, so a moved anchor fails instead of landing elsewhere; `<semantics>` states the intent
-  in the descriptor itself; `adm --apply` writes atomically with a baseline snapshot, rotating backups, a
-  rollback block and a ledger entry, and `adm --rollback <file>` restores and RE-VERIFIES; the edit is
-  never withheld from review — `adm --replay-updates [--unified-diff]` shows the intent and the exact
-  hunks, `adm --list-diff <file> N` the history of one file, and `--rag` indexes the descriptors as exact
-  history records keyed by `goal_id` + `target_file` (`src/adm/rag/adid_history.py`). The requirement
-  that does NOT go away: the descriptor is authored after reading the code and asking codegraph what it
-  touches — a verifiable mutation of the wrong thing is still the wrong thing.
+- **Never edit source with a direct, UNVERIFIABLE script — and before the edit, ask codegraph what it touches.** Hand edits go through `edit`/`write`; the precedents, the ADM descriptor contract and the measured record: [docs/tool-playbook.md](docs/tool-playbook.md)
 - No .opencode/plans/ — only plans/ and plans_completed/
 - **A plan hand-off is JOB FAILED** when any of these is true: a box its code has earned is still unconfirmed, the plan is still in `plans/` after its last item closed, the plan's work has no commit that names it (owner, 2026-09-22), or the plan is not named in `plans/MASTER_PLAN.md` (owner, 2026-10-12) — details and rationale in § Plan Maintenance
 - After plan changes, run explore agent to validate
@@ -163,94 +115,19 @@ The user's input language is the language of the work: the reasoning, the report
 
 **Consequence: an answer in a language other than the user's automatically returns the session to G0** — restate the Digital Intention in their language before any further planning, decomposition or mutation. Owner, 2026-09-22, verbatim: «ответ на языке отличном от языка пользователя автоматически перемещает в G0».
 
-**Why a language slip resets the whole loop and not just this rule.** G0 already carries the phrase («Always think and respond in the user's input language — reasoning included»), so a reply in another language is not a defect *of the language rule* — it is evidence that **the kernel is not executing**: the gate that was supposed to be in force at step zero was skipped, and everything built on it (decomposition, plan, envelope, closure) was built on a skipped gate. That is why the move is to G0 and not a correction in place. Owner, 2026-09-22, verbatim: «в G0 есть фраза про язык, если она не выполняется — значит кернел не выполняется».
 
 Reasoning is part of the answer: a report in the user's language over an English chain of thought is still a violation — and it is the one that hides, because only the final text is visible.
 
 Technical identifiers, commit subjects, code and quoted log lines stay in English; the prose around them does not.
 
+Details: [docs/agentic-reasoning-runtime.md](docs/agentic-reasoning-runtime.md)
+
 ---
 
 ## STOP — the SDK/upstream question is CLOSED. Do not reopen it.
 
-**This question has been raised and re-answered three times (latest 2026-09-17).
-Every time, the cost was hours spent theorising instead of one diff. Read this
-section and move on.**
+**Run the diff — one command settles every version of this question** (`diff -rq external/opencode-1.18.29/packages/opencode/src packages/opencode/src`; measured 2026-09-17: 190 same-named files, zero byte-identical — there is no merge surface). The conclusions, the `gen` folders and the OpenTUI re-base record: [docs/upstream-relation.md](docs/upstream-relation.md).
 
-### If you are about to think about upstream, regeneration, or "syncing"
-
-Run the diff. That is the whole procedure. It takes one command and it settles
-every version of this question:
-
-```bash
-diff -rq external/opencode-1.18.29/packages/opencode/src packages/opencode/src
-```
-
-Measured result, 2026-09-17: **190 source files share a name and ZERO are
-byte-identical.** 365 upstream `.ts/.tsx` against 612 ours; 90 upstream-only,
-234 ours-only. There is no merge surface, no shared file, nothing to align to.
-
-### The conclusions — do not re-derive these
-
-1. **`packages/sdk/js/src/v2/gen` and `src/gen` are OURS.** Hand-maintained
-   source. Not generator output. **There is nothing to regenerate.** Missing a
-   field? Add it by hand, like any other source file.
-2. **Upstream has no functional role whatsoever.** Not architecture (Hono vs
-   Effect, Fossil vs git, per-worktree vs central state — same identifiers,
-   different systems). Not the model catalog either: that is `models.dev` plus
-   our own `provider-sync`. Nothing in the tree fetches from upstream.
-3. **`bun run packages/sdk/js/script/build.ts` regenerates with `clean: true`.**
-   It exits 0 and DELETES ~7100 lines of our source. Exit 0 is not success here.
-4. **`packages/sdk/openapi.json` is an orphan.** The generator writes its own
-   spec to `packages/sdk/js/openapi.json` from the live server and removes it
-   again; the committed file one directory up is never read by anything.
-5. **`bun typecheck` cannot validate a regeneration.** Live code references the
-   hand-maintained types, so a *correct* regeneration fails typecheck. If you
-   find yourself using typecheck as the gate, you have already lost the thread.
-
-### Why the gap exists, so nobody goes hunting for a missing flag
-
-The API is described **twice**, and the generator reads the half that carries no
-description: 46 `describeRoute` entries against 275 route registrations, while
-108 `HttpApiEndpoint` declarations across 17 files carry **149
-`OpenApi.annotations` that nothing reads** — `OpenApi.fromApi` has zero call
-sites despite shipping in the installed `effect`. The Effect half enters Hono as
-opaque pass-throughs (`routes/instance/index.ts:29`). That is why a regeneration
-loses 422 exported types and 233 typecheck errors collapse to 12 symbols.
-
-Completing that spec is a real project. Until someone decides to do it
-deliberately, **the hand-maintained folder is the answer, not a workaround.**
-
-### The two upstreams are NOT the same relation — do not confuse them
-
-| | `external/opencode-1.18.29` | `external/opentui-0.5.11` |
-|---|---|---|
-| Ours | `packages/opencode` (612 files) | `packages/opentui` — **re-based on their 0.5.11 tree (2026-09-20)** |
-| Relation | **separate project, nothing to take** | **the base of our fork; our modules are the patches** |
-| Rule | never port, never sync, never regenerate | merge module by module under tests; park, never silently drop |
-
-The prohibition above is about **opencode** upstream: there is no merge surface, so there is nothing there to
-want. OpenTUI is the opposite case — and since 2026-09-20 it is no longer "reach in selectively": the
-**re-base was decided and executed**.
-
-Owner: «Может нам вообще зиг обновить выдрать наши модули из нашей версии и впихнуть в их, 0.16 это
-серьёзный архитектурный сдвиг», then «Делаем как ты говоришь». Their 0.5.11 tree (Zig **0.16.0**) is now the
-base of `packages/opentui/**` in the working tree; our modules are the patches. Full record:
-`plans_completed/2026-09-20_rebase-on-opentui-0.5.11.md` (S0–S4, evidence per step).
-
-The old warning named a real hazard, so it survives as the RESIDUAL LIST — parked, never silently dropped,
-each entry naming where the thing went:
-
-- **Raster/Sixel stack + the app's `rasterViewport`** — parked (git history +
-  `experiments/2026-09-20_rebase-stage/pre-swap/`); it returns only when a pixel oracle proves a behaviour
-  needs it. Our sixel payload cache is subsumed by their per-placement sixel cache.
-- **Keymap is still our 0.4.x copy** while core/solid are 0.5.11 — a live mismatch (nothing imports it; their
-  packages declare it only as a workspace devDep). Reconcile it or remove it.
-- **The swap is UNCOMMITTED** and `bin/opencode.exe` still runs the old engine. "A version bump deletes it and
-  nothing in CI would notice" is exactly why the commit and the calibrated-graphics pixel oracle
-  (sixel/mermaid/images on the re-based lib) are named as completion criteria, not assumed.
-
-For anything that plan does not cover, the 2026-09-17 directive still stands: "дергать без разбору лучше не стоит."
 
 ---
 
@@ -264,30 +141,9 @@ Goal → fractal task lattice → REUSE.BEFORE → implement → SMOKE.BEFORE �
 
 **No big untestable jobs.** Every unit must be searchable, doable, and smoke-testable. Advanced projects emerge from **many proven medoids**, not one cathedral plan.
 
-| Layer | Mechanism | Kills |
-|-------|-----------|-------|
-| **1. Task geometry** | Fractal lattice + cosine filter + k-medoids → `CENTRAL_TASKS` | Monolith plans; goal drift |
-| **2. Prior art** | `universalsearch` web/code/hybrid; local codegraph | Reinvention; guesswork |
-| **3. Oracles** | Baseline [Exact] before edit; post-impl pass before `[x]` | "Works on vibes" |
-| **4. Conversation memory** | Mechanistic compaction → `message*`; never delete | Memory soup |
-| **5. Working-copy memory** | Fossil snapshots + CodeGraph folder-scoped impact | "What did we change?" |
-| **6. Direction lock** | SV / decisions preserved; re-cluster against original goal | Silent mission creep |
 
 Full details: [docs/architecture.md](docs/architecture.md), [docs/compaction.md](docs/compaction.md), [docs/agi-workflow.md](docs/agi-workflow.md)
 
-### The product is a CLOSED loop — closure and safety are one property (2026-09-30)
-
-Owner, verbatim: «любая тема должна быть экономически целесообразной и достаточно замкнутой чтобы не трахать
-мозги обслуживающему персоналу», and on the statement below: «обвести в рамку и повесить на стенку».
-
-> Closure and safety are not in tension — they are the same property. A loop that proves its own results
-> and cannot leave its envelope needs neither a supervisor nor a prompt engineer standing next to it. What
-> industry buys is not a clever model but a stated price per verified task and near-zero human touches.
-
-Safety here is MECHANICS, not warnings: the envelope, an oracle per task, rollback, one store arbiter. A
-loop is judged by three measured numbers per verified task — Claude/verifier tokens, robot $, and **owner
-touches** (answers, restarts, manual fixes); the last one → 0 for the routine class is what «closed» means.
-Sizing and blockers: [plans/2026-09-30_robot-delegation-and-orchestration.md](plans/2026-09-30_robot-delegation-and-orchestration.md) § Scaling.
 
 ### Agent obligations
 
@@ -296,6 +152,8 @@ Sizing and blockers: [plans/2026-09-30_robot-delegation-and-orchestration.md](pl
 - **SMOKE.BEFORE** implementation; baseline then post-impl before `[x]`.
 - Treat summaries as **Inferred handles**, not Exact — recover via session-read / fossil / codegraph.
 - Do not hand-edit ADID receivers; kernel + ADM own framework surfaces (why both canons exist: [docs/two-canon-protocol.md](docs/two-canon-protocol.md)).
+
+The layer table and the closed-loop doctrine (owner 2026-09-30, «обвести в рамку») moved to [docs/architecture.md](docs/architecture.md).
 
 ---
 
@@ -311,11 +169,6 @@ sqlite для долгих запросов, lmdb для быстрых. Это 
 ключей, ленивое обновление обратно если реально редактируем пользовательские настройки… это не
 просто хранилище, оно нам развяжет все гонки по effects.»
 
-**This is a concurrency decision, not a taste one.** Every JSON file written by more than one
-effect is a race with no arbiter: two writers, two read-modify-write cycles, one lost update. A
-transactional store has exactly ONE writer, serialized by the engine, so the race is *absent* —
-not merely unlikely. That is the property being bought, and it is why "which file does this live
-in" must never again be answered by adding a file.
 
 ### The four rules
 
@@ -337,81 +190,10 @@ in" must never again be answered by adding a file.
    session`, materialised, no inheritance at read time — see
    [plans/to_be_confirmed/2026-09-19_fill-every-settings-layer.md](plans/to_be_confirmed/2026-09-19_fill-every-settings-layer.md).
 
-**Scope: ALL runtime state, not just settings.** Owner, 2026-09-19: «Я не про только agents — у нас
-соплей море, вылезло — туда, ещё вылезло — опять туда.» Every "where does this live" answered by
-creating a file is the growth this rule exists to stop. The measured inventory — including
-`{state}/model.json`, which three modules already write — is in
-[plans/to_be_confirmed/2026-09-19_fill-every-settings-layer.md](plans/to_be_confirmed/2026-09-19_fill-every-settings-layer.md) §7.
-
-**The wrong turn, recorded so it is not repeated.** Owner, 2026-09-19: the storage split was NOT
-done, and the effort went into adopting the effect runtime instead — «это принесло много
-неприятностей, снижения быстродействия, крашей, и гонки эффектов.» Take that as the account of
-what happened. The codebase's own signal corroborates the shape of the problem: ten floating
-`slog.*` effects sit un-yielded in `session/prompt.ts` (lines 345, 368, 383, 817, 821, 828, 838,
-985, 1028, 1252). The lesson is not "effects are bad" — it is that a concurrency story built on a
-runtime framework, with no single arbiter underneath it, has nothing to serialize against. The
-store is that arbiter; the framework is not.
-
-**Accepted cost, on the owner's ruling.** LMDB keeps its file mapped, so on Windows `rmSync` of a
-store directory throws `EBUSY` until the env is closed. Owner, 2026-09-19: «шанс на ebusy намного
-ниже чем шанс на гонку effects.» Accepted and bounded: tests close the env. It is not a reason to
-keep the JSON files. *(Re-confirmed live 2026-09-19, outside LMDB entirely: deleting the probe
-directory failed `EBUSY` on an **empty** directory because a live process held it as its cwd — the
-same Windows handle class, so treat `EBUSY` as "somebody still holds it", not as an LMDB trait.)*
-
-### The engines — decided and measured, do not re-argue
-
-**SQLite** (`bun:sqlite` + `drizzle-orm`) — the RELATIONAL plane, already installed: schema files
-(`src/storage/schema.sql.ts`, `session.sql.ts`, `balance.sql.ts`, …), migrations
-(`src/storage/migration.ts`), **92 call sites** across sessions, messages, jobs, balance, sync and
-codegraph. It does not change.
-
-**LMDB** (`lmdb@3.5.6`, MIT, Node-API) — the FAST plane, DECIDED 2026-09-19 for hot keyed state.
-Measured on this host under Bun/win32-x64: `bun add` fetches its prebuild
-(`download-lmdb-prebuilds11`) so no compiler is needed; three DBs live in ONE environment via
-`openDB` and read back independently; **100 000 sync reads in 70.7 ms (0.71 µs/read)** straight from
-mmap with no I/O; one `transaction()` spans two DBs; footprint `data.mdb` 262 144 B + `lock.mdb`
-8 128 B.
-
-**Native addon + `bun --compile` — MEASURED 2026-09-19.** This was the one open risk under the whole
-migration; it is now measured, and the answer has two halves. `lmdb` resolves its `.node`
-*dynamically*, and a compiled executable runs in Bun's virtual root (`B:\~BUN\root`), resolving such
-a path against the **cwd** — so the addon is **not found even with `node_modules` sitting beside the
-exe**. A **static ESM `import`** of the `.node`, by contrast, is visible to the bundler and is
-**embedded into the executable**: proven by running that exe from an empty directory with the addon
-file **physically deleted from disk** (`STATIC_IMPORT_OK`), while the dynamic build failed in the
-same conditions — and corroborated independently by bytes, `87 000 064 − 86 087 168 = +912 896 B`
-against `912 925 B` for `node_modules/@lmdb/lmdb-win32-x64`.
-⇒ The fast plane **is** deployable, but only through a small per-platform import shim naming the
-platform package literally, and `lmdb` also drags `@msgpackr-extract`'s addon (225 736 B). The shim
-is **not yet written** and the real `bin/opencode.exe` has **not** been built with it — that is the
-remaining step, not an assumption. Details: plan §8b.
-
-Migration order (see the plan §7 inventory): `{state}/model.json` FIRST — it is the only entry with
-three writers, so moving it retires a real lost-update race on its own.
+**Engines:** SQLite (`bun:sqlite` + drizzle) for long/relational queries, LMDB (`lmdb@3.5.6`) for fast keyed state — decided and measured. The concurrency rationale, the accepted `EBUSY` cost, the addon + `bun --compile` findings and the migration order are in [docs/storage-paradigm.md](docs/storage-paradigm.md).
 
 ## Debugging Paradigm — read state before adding a log (2026-09-19)
 
-Owner, 2026-09-19: «раньше можно было работать грепом и всё было ок, сейчас у нас codegraph и
-этого мало, трёхъярусные смоки… дебаг неудобен, **логи приходится прописывать на каждом углу
-вместо того чтобы прочитать state**.»
-
-**Measured before writing it down:** `packages/opencode/src` carries **924** `log.(debug|info|warn|
-error)` call sites and **124** `bug:` markers — roughly 1.5 logs per source file. That is 924
-pre-committed hypotheses about what will go wrong.
-
-**And the evidence that they do not cover the real one — all from 2026-09-19:**
-
-| what was found | how it was found |
-|---|---|
-| `jobs.db` had no `pid` column | reading state |
-| fossil leaves missing after a boundary | reading state (`snapshot.fsl`) |
-| window is 236 280 / 23 %, not "exhausted" | reading state (`checkstate`) |
-| **`{state}/model.json` is written by THREE modules** | **no log exists at all** |
-
-The last row is the verdict on the approach: the only genuine lost-update race in the inventory is
-logged **nowhere**, because nobody anticipated a *silent* write. Logs cover the anticipated; readable
-state answers questions nobody asked. That is precisely «читать state вместо логов».
 
 **The rule.** A log may record only what STATE CANNOT SHOW:
 
@@ -424,56 +206,16 @@ Everything else: **if the event has a key, it is STATE.** State is durable, two-
 a log is ephemeral, one-way, and must be pre-placed where someone guessed the problem would be. Read
 it with `dbread` / `checkstate` instead of grepping for a line you hoped would be there.
 
-**Corollary — logging is not a fix.** «Every catch must log» still stands (a silent `catch {}` is a
-bug), but it is a floor, not a licence: the 124 `bug:` markers are 124 defects wearing a log. Most of
-them should be **removed by deleting the catch**, not kept as a written-down shrug. A `bug:` marker
-that survives a release is an unfixed defect with a receipt.
+Details: [docs/debugging-paradigm.md](docs/debugging-paradigm.md)
+
 
 ## Hashing is NEVER the suspect — measured, do not re-litigate (2026-09-29)
 
-Owner, 2026-09-29, verbatim: «пропиши в agents.md таким злостным образом чтобы больше ни один умник
-не говорил про хеш». Written because a search cycle was spent on "maybe SHA-256 is slow" while a
-20–36 s stall was on the table — and the answer was one smoke away.
+**Measured, do not re-litigate: a stall of seconds over megabytes is a WAIT, not a count** (sha256 = 332 MB/s; the whole session store hashes in ≈29 ms). The table, the arithmetic and the already-excluded causes: [docs/debugging-paradigm.md](docs/debugging-paradigm.md)
 
-| operation | data | time | throughput |
-|---|---|---|---|
-| `sha256`, one buffer, one digest | 100 MB | **301.1 ms** | **332 MB/s** |
-| `sha256`, streamed in 64 KB chunks | 100 MB | 292.4 ms | 342 MB/s |
-| `sha256`, 582 separate blocks (our block-map shape) | 100 MB | 296.1 ms | 338 MB/s |
-| `JSON.stringify` | 134.3 MB | 158.9 ms | 845 MB/s |
-| `sha256` of that JSON string | 134.3 MB | 469.1 ms | 286 MB/s |
-
-Instrument: `experiments/2026-09-29_fossil-boundary-cost/sha256_100mb.mjs` — bun + `node:crypto`, the
-runtime the product actually ships. Run `20260929T172314Z_b55137cf`. **Re-run it only if the HOST or
-the runtime changed, and then update this table** — re-running it to re-argue the question is the
-churn this section exists to stop.
-
-**The arithmetic that ends the argument.** At 332 MB/s a stall of 20 s needs **≈6.6 GB** hashed; 36 s
-needs **≈12 GB**. This repository's entire session store is 9.7 MB of part JSON and 1.09 MB of text —
-hashing all of it costs **≈29 ms**, three orders of magnitude below the stall. And "but it hashes
-every block" is already in the table: 582 blocks of our block map measured 296 ms at TEN TIMES our
-data volume. There is no version of "the hash is the bottleneck" that survives these two lines.
-
-**The general rule this section is really about:** **a stall of seconds over megabytes is a WAIT, not
-a count.** Throughput work scales with the data; a wait does not. When the data is small and the stall
-is large, the cause is a lock, a socket, a timeout, an MCP handshake, a plugin, or a branch that
-sleeps — never a loop over data that small. Reach for a phase timer, not for the primitive.
-
-**Also excluded in the same hunt, each by measurement — do not re-suspect these either:**
-fossil at the turn boundary (`changes` 0.144 s, `addremove -n` tree walk 0.644 s over 10,913 tracked
-files); the status-note plan scan (`planFiles` + `collectPlanState` + `planDebt` + `criticalRisks` =
-~10 ms); the status-note window functions (`couplingFindings` 7.0 ms, `statusMarks` 0.3 ms,
-`statusVector` 0.1 ms, `JSON.parse` of 9.7 MB = 44 ms); the checkpoint disk path (`decryptBaseline`
-of 0.94 MB = 5.8 ms, `JSON.parse` of 950 117 chars = 11.3 ms, `reusablePrefixLength` over 588
-messages = 0.1 ms); the provider itself (`ttftMs` 51 ms). Full numbers and probes in
-`experiments/2026-09-29_fossil-boundary-cost/`.
 
 ## Granularity — every mechanism gets the scale it serves, and nothing finer (2026-09-29)
 
-Owner, 2026-09-29, verbatim: «Fossil кстати тоже, мы его четко вызываем только для снапшота и он
-гранулирован началом хода, и все ну и перед undo чтобы можно было сделать redo. Тулы должны работать
-сами. Как говорится можно успеть секунда в секунду - только вопрос - ради чего, средний ход 10 минут,
-64к токенов это 20 минут. Вот тут опять вспоминается Lean and DISAS.»
 
 **The scale: a turn ≈ 10 minutes; a 64k-token summary window ≈ 20 minutes.** Every mechanism is granted
 the granularity of the scale it serves, and nothing finer. The rules that follow are binding:
@@ -493,20 +235,10 @@ the granularity of the scale it serves, and nothing finer. The rules that follow
    10-minute turn and is hunted with the phase timer (`turn.prepare`) and counters. 0.144 s, 7 ms and
    332 MB/s are not hunted — measuring them is the churn this section exists to stop.
 
+Details: [docs/debugging-paradigm.md](docs/debugging-paradigm.md)
+
 ## Content Lifecycle — self-cleaning content (2026-09-19)
 
-Owner, 2026-09-19: «здесь не просто экономия токенов здесь самоподчистка контента, то что человек
-делает автоматом и то что в большинстве агентных систем отсутствует на прочь, это сильно снижает
-эффективность размазывая внимание нерелевантной информацией». The attended window must hold what the
-CURRENT task needs; released content stays reachable without occupying it. Full design:
-[docs/content-lifecycle.md](docs/content-lifecycle.md).
-
-| verb | mechanism |
-|---|---|
-| **acquire** | a tool result arrives (`read` / `webfetch` / `codegraph` / …) |
-| **hold** | resident until the request goes out — the rendering is a PURE FUNCTION of the part, so it never changes after it is sent |
-| **release** | `> 8 000` chars → an ID-addressed placeholder in EVERY request; or `recall(…, keep: true)` → only the chosen slice |
-| **re-acquire** | `recall(id, range, pattern)` returns the stored result by its address |
 
 **Invariants — each one cost a defect to learn:**
 
@@ -521,31 +253,11 @@ CURRENT task needs; released content stays reachable without occupying it. Full 
    all, so `keep` matters most there.
 5. **A narrowed selection carries a `reason`** — narrowing history without a motive is a silent edit.
 
-**Corollary — verify a reduction where it LANDS.** `keep` was reported "shipped and verified" and had
-never written a byte: a part's identity lives in the `part` table COLUMNS, the lookup read only `data`,
-and an `as` asserted the missing `sessionID` into existence. `bun typecheck` exit 0 and three green
-suites missed it; **one live call against the real database found it**. A cast in a write path is a
-disabled oracle — type the value; and a fixture's schema must match production's, or it cannot observe
-the wrong query.
+Details: [docs/content-lifecycle.md](docs/content-lifecycle.md)
 
-**Shipped 2026-09-30:** attachments ARE re-acquirable — a released `file` part names its own id on the
-wire and `recall` returns its payload (commit `18fe82c426`); `keep` is refused for one, since an
-attachment is a single payload and a kept slice would send the provider a truncated data URL. **Still
-planned, not shipped:** nothing counts a lifetime for an attachment, and the actualizer and its ledger
-are unbuilt. The generalisation to
-*temporary data acquisition* is in [plans/to_be_confirmed/2026-09-19_temporary-data-acquisition.md](plans/to_be_confirmed/2026-09-19_temporary-data-acquisition.md):
-a document, a set of sources, a screenshot — acquire, hold for a declared span, release, and let the
-recorded diffs be the report's evidence.
 
 ## Continuity Paradigm — the invariant the project exists for (2026-09-19)
 
-Owner, 2026-09-19: «у нас очень важное размышление которое раскрывает суть проекта - максимально
-возможная агентная непрерывность - AGI в идеале.» The outer loop installs priors as process, and every
-prior is only as good as the agent's continuity across a boundary: a plan whose evidence was folded
-away, a decision whose reason went unrecorded, an edit whose call left no trace — each forces a fresh
-grounding pass, and the passes are what an agent spends its life on. **Maximum continuity is not
-"remembering more"; it is being able to act without re-deriving** — the difference between a long
-session and a session that keeps restarting.
 
 Three rules, each bought by a defect the agent could not diagnose about itself:
 
@@ -572,41 +284,11 @@ The saving is a token; the cost is a recall turn. Full design:
 - **There are NO pre-existing errors.** Every typecheck/test failure is a deliverable.
 - **Bugs block push.** All bugs must be fixed before `git push`. No `--no-verify`.
 - Silent `catch {}` blocks are bugs — must log (debug for expected, warn for unexpected).
-- **The direction of change is one-way: tests adapt to the functionality, never the reverse.**
-  Owner, 2026-09-30, verbatim: «Ты только смотри не вздумай подстраивать функционал под тесты.
-  Тесты подстраиваются под функционал, а не наоборот иначе в них пропадает какой либо смысл.»
-  A red test is a question about the TEST only against the REQUIREMENT — never a licence to soften
-  the assertion or the behaviour. When the requirement itself moves, the test moves in the SAME
-  change WITH its provenance and is re-pinned at least as tightly as before. Measured 2026-09-30
-  while fixing `grep`'s output contract: an existing assertion `toContain("Line 2: line2")` was
-  replaced by `toContain("Line 2")` + `toContain("line2")` so the suite would go green — the reverse
-  direction, and it dropped the contract, since `"Line 2"` is satisfied by `"Line 20"` and stays
-  green when the col/offset fields vanish entirely. Corrected to the exact new string
-  `"Line 2, col 1, offset 6: line2"`.
-- **A test that can silently assert nothing is not a guard.** `test/tool/registry.test.ts` carried
-  `if (!planTool) continue // tool only in build (e.g. edit/write vs applypatch)` — a loop whose
-  comparison skipped every tool the other catalogue lacked, while the same file asserts three tests
-  above that the two catalogues have identical fingerprints. A conditional `continue`/`return` inside
-  an assertion loop, an `if (!x) return` before a check, a bare `test.skip` without its reason: each
-  turns a red into a green that says nothing, and the comment next to it reads like a justification.
-  **Replace the condition with the assertion it was standing in for** (here: compare the key sets), so
-  divergence FAILS. Found 2026-09-30 while trimming the tool catalog, where the same `applypatch` the
-  comment excused turned out to be measured-dead — `plans/2026-09-30_tool-catalog-trim.md`.
-- **A tool's documented contract is a claim, and it is falsifiable — test it, never inherit it.**
-  `multiedit` promised «if any edit fails … none are applied — the file is rolled back» while
-  implementing no rollback at all: it ran one `edit` per entry and `edit` writes immediately, so a
-  later failure left the earlier edits on disk and the report named only the failing entry. Found
-  2026-09-29, hit again 2026-09-30 — and the response to the *first* occurrence was a habit («read
-  STATE after any edit, never the report»), which @KAIZEN forbids repeating. Repaired the same day:
-  every entry is now resolved against an in-memory buffer first and the file is written **once**, so a
-  failure writes nothing; the matcher is imported from `edit.ts` rather than re-spelled. Guard:
-  `test/tool/multiedit.test.ts` (the tool's FIRST test), proven fallible by a mutation check —
-  `plans/2026-09-30_multiedit-atomic-application.md`,
-  `experiments/2026-09-30_multiedit-partial-apply/`. The rule, generalised: when a tool's description
-  makes a safety promise, an untested promise is a defect waiting for its second occurrence; the
-  countermeasure is a test that fails without the guarantee, plus the honest report.
 - Plan-to-code gaps are bugs — correct immediately.
-- **Write-path oracles inspect the artifact.** Any change to a PERSISTENT_WRITE path (config/file/DB writers) is verified by reading back what was written (artifact shape / end-to-end), never by typecheck or resolver unit tests alone — a green oracle pointed at the wrong layer is how the duplicate routing writers shipped (2026-09-02). User-reported defects in deterministic, testable classes are process failures, not service events.
+- **The direction of change is one-way: tests adapt to the functionality, never the reverse** (owner, 2026-09-30) — a red test is a question about the TEST against the REQUIREMENT; never soften the assertion or the behaviour. Details: [docs/bug-policy.md](docs/bug-policy.md)
+- **A test that can silently assert nothing is not a guard** — replace a conditional `continue`/`return`/skip with the assertion it stood in for. Details: [docs/bug-policy.md](docs/bug-policy.md)
+- **A tool's documented contract is a claim — test it, never inherit it**; an untested safety promise is a defect waiting for its second occurrence. Details: [docs/bug-policy.md](docs/bug-policy.md)
+- **Write-path oracles inspect the artifact** — a PERSISTENT_WRITE change is verified by reading back what was written, never by typecheck alone. Details: [docs/bug-policy.md](docs/bug-policy.md)
 
 ---
 
@@ -634,31 +316,14 @@ Full details: [docs/architecture.md](docs/architecture.md) § Checkpoint, [docs/
 
 ### The DIRECTION lives in `plans/MASTER_PLAN.md` — read it before the first edit of a session
 
-This file says **how** to work; [`plans/MASTER_PLAN.md`](plans/MASTER_PLAN.md) says **what is being worked on
-and why, right now**. It lives WITH the plans because that is where a reader looks — «master plan должен быть
-в планах, а не в корне иначе его никто читать не будет» (owner, 2026-09-30) — and it is canon, not a plan: the
-plan scanner skips it by name (`NON_PLAN_FILES`) so neither the status nor `reconcilePlans` can ever file the
-map of all work into `plans_completed/`. It is the entry point for any agent — this repo's, or a different
-environment that simply read the repository — and it must be readable by an agent that has never seen this
-session, without guessing:
 
 - **every** active plan carries its own SV (keywords + dominant): «sv для каждого субплана, таска или линка
   обязателен, чтобы было четко ясно — нафига это все и с чем это коррелирует» (owner, 2026-09-29);
 - every in-flight task carries its manifest: sv, plan ref, `eta_turns`, state, oracle;
 - a number there that disagrees with a plan file means the plan file wins and `MASTER_PLAN.md` is regenerated.
 
-**The renderer WORKS — RUN IT, never hand-maintain the body.** `svm render` (plan S4) rewrites everything below
-the `<!-- generated below -->` marker from the plan files + the SVM store, and preserves the hand-owned head
-verbatim. **Measured 2026-10-01:** two consecutive renders reported the same 27 595 B, and the second one's own
-`gapsBefore` was `[]` where the first had NAMED two unmapped plans — the run closed the gap and the check
-confirmed it closed, which is why the coverage claim is two-sided and not a silence. `planstatus` prints that
-coverage line whether it is clean or not («Master plan: every plan under plans/ is named in
-plans/MASTER_PLAN.md.»), by design: a check whose silence cannot be told from its absence is not a check.
-**What is still open is the VECTOR AUTHORING, not the renderer** — a render prints `MISSING` where a source has
-none, and as of 2026-10-01 that is 2 plan SVs, 65 task SVs and 94 manifests. Those are authored in the plan
-files and the SVM store, never here; the map only PRINTS them.
-*(History: this pointer did not exist until 2026-09-30 — AGENTS.md never mentioned `MASTER_PLAN.md`, so the
-"any agent picks it up on autopilot" property held only for an agent that happened to list the repo root.)*
+**The renderer WORKS — RUN IT, never hand-maintain the body**: `svm render` rewrites everything below the `<!-- generated below -->` marker and preserves the hand-owned head. The measured two-render check, the open vector-authoring counts and the full records: [docs/plan-maintenance.md](docs/plan-maintenance.md)
+
 
 ### The rest
 
@@ -676,15 +341,13 @@ Tool: `packages/opencode/src/util/plan-status.ts` — `reconcilePlans()` auto-mo
 ### JOB FAILED — a plan is not finished by shipping code
 
 A unit of work is **JOB FAILED** — not "mostly done", not "code landed" — when any of these is true at hand-off:
+1. **No confirmed box** — the acceptance declared in the plan was run and passed (never «the code looks right»).
+2. **The plan is still in `plans/`** after its last item closed — it moves to `plans_completed/` in the same change.
+3. **No commit for the plan** — one plan's work lands as one commit that names it.
+4. **Not named in `plans/MASTER_PLAN.md`** — the map is generated from the plan files; run `svm render`.
 
-1. **No confirmed box.** The plan still carries `- [ ]` for work that is actually done, or `[x]` for work that is not. Both are the same lie in opposite directions, and both make the plan unreadable to the next cycle. A confirmed box means **the acceptance declared in the plan was run and passed** — never that the code "looks right".
-2. **The plan is still in `plans/`.** After the last open item closes, the file moves to `plans_completed/` **in the same change**. Tool: `reconcilePlans`. Known blindness: `collectPlans` is flat (no recursion), so a plan inside `plans/emergency/`, `plans/futures/` or any archive subdirectory is **invisible** to the mover and must be moved by hand — that is not an excuse, it is part of the job.
-3. **No commit for the plan.** One plan's work lands as one coherent commit (or a short series that names the plan), so plan and diff can be read together. Work spread over unrelated commits with no reference to the plan is indistinguishable from a lost job.
-4. **Not named in `plans/MASTER_PLAN.md`.** The map's body is generated FROM the plan files, so a plan the map does not name is an unfinished record — a note nobody picks up, not a plan — and `plans/` fills with **operational debris**. The folder is the direction, not a scratchpad: a note that belongs to no goal is not a plan and has no business holding a plan file (its home is `_progress_log.md` or memory). Run `svm render` in the same change that creates or renames one; `planstatus` prints the coverage line either way, so its silence can never be mistaken for its absence. Owner, 2026-10-12, verbatim: «если план висит в plans и это не часть мастера а просто недоделанная запись это по определению неверно» · «Иначе получается папка планов забивается операционным мусором.»
+The owner's wording, the «eternal DRAFT» numbers and the items in full: [docs/plan-maintenance.md](docs/plan-maintenance.md)
 
-Owner, 2026-09-22, verbatim: «Отсутствие подтвержденной галки в плане, не перемещение в plans_completed или отсутствие общего коммита на план — считается **JOB FAILED**.»
-
-**Why this is a failure and not bookkeeping.** A plan whose boxes, folder and commit disagree with its code has to be re-derived from scratch by the next cycle — the cost is paid again at every hand-off. Measured 2026-09-22: the project's own status footer read `152/181 plans 395/576 tasks (84%) misplaced:23` while **181 tasks sat open in the visible set alone**, ~121 archived plans were outside the count entirely, and 23 files contradicted their own placement. That footer is what "eternal DRAFT" looks like from the outside.
 
 ### A commit is NOT closure
 
@@ -693,9 +356,9 @@ A commit — however green its oracle — is **not by itself grounds for G9**. T
 1. a **confirmed box** in the plan, earned by an **artifact** (a run id, a hash, a rehearsal log) — never by the code "looking right"; or
 2. the plan's **move to `plans_completed/`**, and only when the plan is **fully complete**.
 
-Owner, 2026-09-22, verbatim: «коммит не сопровождаемый подтвержденной артефактом галкой в плане или перемещением плана в plans_completed, при условии полной завершенности — поводом для G9 не считается.»
+Details: [docs/plan-maintenance.md](docs/plan-maintenance.md)
 
-**Why.** A commit is a change to the TREE; closure is a statement about the PLAN. Taking the first for the second is exactly how a session lands a dozen commits and leaves every plan open — the "eternal DRAFT" measured the same day above. When reporting, name the box and its artifact; if there is no box, the work is not closed, whatever the commit says.
+
 
 ---
 
@@ -703,95 +366,27 @@ Owner, 2026-09-22, verbatim: «коммит не сопровождаемый п
 
 Follow [Google TypeScript Style Guide](https://google.github.io/styleguide/tsguide.html) and [MetaMask TypeScript Guidelines](https://raw.githubusercontent.com/MetaMask/contributor-docs/372c7b31e951ffec2f71a706099b3df68e4b5f7a/docs/typescript.md).
 
-```python
-STYLE_RULES = {
-    "general": [
-        "Keep things in one function unless composable or reusable",
-        "Avoid try/catch where possible",
-        "Avoid the 'any' type",
-        "Use Bun APIs when possible (Bun.file())",
-        "Rely on type inference; avoid explicit annotations unless needed for exports",
-        "Prefer functional array methods over for loops",
-        "Use type guards on filter to maintain type inference",
-    ],
-}
-```
 
 Reduce total variable count by inlining when a value is only used once.
 
-```ts
-// Good
-const journal = await Bun.file(path.join(dir, "journal.json")).json()
 
-// Bad
-const journalPath = path.join(dir, "journal.json")
-const journal = await Bun.file(journalPath).json()
-```
-
-### Destructuring
 
 Avoid unnecessary destructuring. Use dot notation to preserve context.
 
-```ts
-// Good
-obj.a
-obj.b
 
-// Bad
-const { a, b } = obj
-```
-
-### Variables
 
 Prefer `const` over `let`. Use ternaries or early returns instead of reassignment.
 
-```ts
-// Good
-const foo = condition ? 1 : 2
 
-// Bad
-let foo
-if (condition) foo = 1
-else foo = 2
-```
-
-### Control Flow
 
 Avoid `else` statements. Prefer early returns.
 
-```ts
-// Good
-function foo() {
-  if (condition) return 1
-  return 2
-}
 
-// Bad
-function foo() {
-  if (condition) return 1
-  else return 2
-}
-```
-
-### Schema Definitions (Drizzle)
 
 Use snake_case for field names so column names don't need to be redefined as strings.
 
-```ts
-// Good
-const table = sqliteTable("session", {
-  id: text().primaryKey(),
-  project_id: text().notNull(),
-  created_at: integer().notNull(),
-})
+Code examples for every rule above (and the full `STYLE_RULES` block): [docs/style-guide.md](docs/style-guide.md)
 
-// Bad
-const table = sqliteTable("session", {
-  id: text("id").primaryKey(),
-  projectID: text("project_id").notNull(),
-  createdAt: integer("created_at").notNull(),
-})
-```
 
 ---
 
@@ -807,7 +402,7 @@ Agent snapshot / undo-redo timeline only. **Git** is project VCS.
 
 - Repo: `{data}/fossil/{projectID}/snapshot.fsl`
 - Binary: `external/fossil/fossil.exe` or `tools/fossil.exe`
-- **The snapshot backend is Fossil — git/jj are NOT alternatives.** `test/snapshot/snapshot.test.ts` was written for the git backend (`864041ba3f`, 2025-09) and the Fossil port (`63e088ff7d`, 2026-07-04) shipped without it: its reds were a stale SPEC of git, not a defect list of the code. Re-baselined 2026-09-21 to the Fossil contract. A red test there is never a reason to move code back to git — decide which side is right, record the decision, then move ONE side with evidence.
+- **The snapshot backend is Fossil — git/jj are NOT alternatives** (the git-test rebaseline and the per-tool-evidence lesson: [docs/fossil-snapshot.md](docs/fossil-snapshot.md))
 - **The pinned Fossil source is in-tree**: `external/fossil/fossil-src-2.28/` — version-matched to the shipped `fossil.exe` (2.28). `www/` is the docs, `src/` is the mechanism (e.g. the 15 s SQLite busy timeout at `src/db.c:2208`). Reach for it BEFORE fossil-scm.org — the web is the fallback, not the first stop.
 - Undo/redo: full leaf checkout (`revertTo`), not per-file hash mix
 - **Four boundaries, all BEFORE the thing they cover** (2026-09-17): the start of
@@ -817,10 +412,6 @@ Agent snapshot / undo-redo timeline only. **Git** is project VCS.
   of who wrote it. Fossil has no autotrack; that call is the automatic tracking.
   The redo boundary uses `track([])`: an empty *explicit* list records tracked
   modifications without conscripting untracked user files.
-- Deciding from per-tool evidence instead cost shell mutations their undo
-  coverage for a week: `bash`/`run`/`task`/`pipeline` emit no `filediff`
-  metadata, so "zero changed files" could not tell `bun --version` from a
-  command that had just created a file.
 
 Not the same as: Git (VCS), jj (TUI detection), TUI indicator (fossil green / jj blue / git red).
 
@@ -873,47 +464,18 @@ Runtime constitution hard-blocks shell **directory/file enumeration** and routes
 ❌ bun run script/build.ts  # crashes TUI
 ```
 
-**Unknown apps are crash-prone too (owner, 2026-10-06):** «Любой экзешник кроме известных тулов из бина - crash prone.» Any executable FILE that is not a known tool (`bin/**` utilities + `git`/`python`/`node`/`pwsh`/`cmd`) is auto-wrapped into `cmd_runner start -- …` by the `run`/`bash`/`cmd` tools; without `cmd_runner` it is refused (fail-closed). A freshly built app can crash OR hang — a bare hang takes the TUI and its logs with it («TUI зависла то и логов никаких»). Bare command words (`ping`, `Get-Date`) and builtins keep the ordinary permission flow.
 
 Override: `OPENCODE_ALLOW_DESTRUCTIVE=1` or `bypass_constitution`.
+
+**Unknown apps are crash-prone too** — any executable that is not a known tool is auto-wrapped into `cmd_runner start -- …`; without `cmd_runner` it is refused (fail-closed). Details: [docs/tools-and-sidecars.md](docs/tools-and-sidecars.md)
 
 ---
 
 
 ## Host Toolchain — the measured inventory (2026-10-10)
 
-Owner, verbatim: «Ты забыл про зиг в external глянь и добавь список в agents.md чтобы реально больше не гессить»,
-after an agent proposed `choco install msys2` — while a **full C/C++ toolchain was already on the host**
-and one had never been looked up. **Read this table before proposing ANY toolchain install.** It is
-measured, not recalled; a probe that re-derives one row is cheap, but a `choco install` proposed
-*before* reading this table is a defect.
+**Read the measured inventory before proposing ANY toolchain install** — the tool table, the NOT-present list and the prebuilt-release route: [docs/host-toolchain.md](docs/host-toolchain.md)
 
-| Tool | Version | Resolved path | How it is used here |
-|---|---|---|---|
-| **zig 0.16.0** | 0.16.0 | `external/zig-x86_64-windows-0.16.0/zig.exe` | **the in-tree C compiler.** `zig cc` compiles and links C11 against the MSVC SDK; `zig build` for Zig. Verified: `zig cc -o probe.exe probe.c` → `ZIG_CC_016_OK` (`experiments/2026-10-10_host-toolchain-probe/`) |
-| **zig (choco)** | 0.15.2 | `C:\ProgramData\chocolatey\bin\zig.exe` | older second copy on PATH — **prefer the `external/` one** (0.16.0, version-matched to `packages/opentui`) |
-| **MSVC cl.exe** | 19.50.35737 x64 | `C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\bin\Hostx64\x64\` | C/C++ for the Pascal/Delphi and native surfaces |
-| **rustc / cargo** | 1.100.0-nightly (2026-09-07 / 09-04) | `C:\Users\Alexander\.cargo\bin\` | `external/codegraph-rust`, `packages/desktop` (specta-bindings) |
-| **go** | 1.25.4 | `C:\Program Files\Go\bin\` | — |
-| **node / bun** | v24.13.0 / 1.4.2 | `C:\Program Files\nodejs\`, `~\.bun\bin` | the product itself |
-| **deno** | — | `…\WinGet\Links\deno.exe` | — |
-| **python** | 3.13.13 | `D:\USESoft\Python313\python.exe` | prompt_kernel, adm, probes |
-| **git** | 2.55.0.windows.2 | `C:\Program Files\Git\cmd\` | product VCS |
-| **cmake** | 4.2.1 | `C:\Program Files\CMake\bin\cmake.exe` | present, but no CMakeLists in-tree |
-
-**What is NOT on this host** (measured — do not propose it as «уже есть»): `gcc`, GNU `make`,
-`bash`/`sh` (Git for Windows ships neither here), MSYS2, MinGW, and a standalone LLVM —
-`…\VC\Tools\MSVC\…\clang.cmd` is a **stub**: the whole file is one line,
-`echo "CLANG located at c:\Program Files\LLVM\"`, and `C:\Program Files\LLVM\bin\clang.exe`
-does not exist. `nmake` IS present (MSVC's make) and does **not** parse GNU Makefiles.
-
-**The consequence that matters.** A C project whose build is `scripts/build.sh` → `make -f Makefile.cbm`
-(verified in `external/codebase-memory-mcp`, `Makefile.cbm:1-8`, `_build.yml:114-148` builds Windows on
-msys2 CLANG64) **cannot be built here from source** without a GNU toolchain — that is a fact about the
-host, not a reason to install one uninvited. Two honest routes, and the second is the default:
-1. take the project's **official prebuilt release** (the same one its `install.ps1` downloads), or
-2. ask the owner before adding msys2/MinGW — ~1.5 GB, and the owner rejects it unprompted
-   (owner, 2026-10-10: «вообще это форменный отстой и дыры на компе»).
 
 **Owner rule:** never run `choco install msys2` / `mingw` in this repo without an explicit request.
 ## Type Checking
@@ -924,61 +486,8 @@ Always run `bun typecheck` from package directories (e.g., `packages/opencode`),
 
 ## Build after tests and changes — mandatory (owner, 2026-10-03)
 
-Owner, verbatim: «запуск _build.ps1 после тестов и изменений обязателен. Темп 80гиг это слишком.»
+**Run `pwsh -NoProfile -File _build.ps1` through `cmd_runner` from the repo root, after any test run and any source change** — it cleans `.temp/test/` and `dist/` and stages the candidate into `dist/` (**never** `bin/`); the product runs from source via `_run.cmd`. All details and the measured history: [docs/build-and-run.md](docs/build-and-run.md)
 
-- **When:** after any test run and after any source change, before the work is reported done.
-- **How:** `cmd_runner start -- pwsh -File _build.ps1` from the repo root (a build is crash-prone in the agent shell —
-  § Shell Command Restrictions); read the run's own state file for the exit code, never a tail.
-- **What it does** (read in `_build.ps1`, 2026-10-03 ✓): removes `.temp\test\` (lines 69-74, 131-136) — where test
-  runs leave their scratch; clears `dist/` content except a running build's state (lines 143-158); builds and stages
-  the candidate into `dist/` (`dist\bin\opencode.exe`). It writes **only** `dist/` and `.temp/` — never `bin/`;
-  promotion into `bin/` stays the owner's act.
-- **Why it is a rule:** the cleanup lives in the build, so a session that tests and never builds leaves its scratch
-  behind — `.temp` reached 80 GB (owner). A build that fails still ran its cleanup first, so run it even when the
-  candidate itself is not wanted.
-- **The cleanup reports honestly since 2026-10-03.** The first mandated run printed «.temp/test/ cleaned» while
-  50.2 GB / 4.07 M files of 62.7 GB stayed (measured): the old block was `Remove-Item -ErrorAction SilentlyContinue`
-  plus an unconditional «cleaned». Now `Clear-ScratchDir` removes entry by entry and names every survivor with its
-  reason (fixture: 3 entries, one locked → 2 removed, the locked one named; the old block said «cleaned» over it).
-  A `[WARN] … still in use` line is not noise: a live process holds that test dir.
-- **Where the mass comes from (✓ measured 2026-10-03):** every test dir under `.temp\test\` carries its own
-  `.opencode\node_modules` (24–26 MB, ~2.5 k files: zod, effect, @ai-sdk…) and is not removed when the test ends —
-  1 731 dirs from one day ≈ 43 GB. The build only sweeps it; the leak is in the test harness and is open.
-- **Running the product is `_run.cmd` — open it before starting anything by hand** (owner, 2026-10-11, verbatim:
-  «Почему ты просто не следовал _run.cmd»). It sets `OPENCODE_TEST_CONFIG`/`OPENCODE_CONFIG_DIR` to `bin/`
-  and `OPENCODE_DB` to the worktree DB, then runs **`bun run --cwd packages/opencode --conditions=browser
-  src/index.ts <worktree>`** — the product executed from **SOURCE**, not from a built binary.
-- **Why this is the live oracle for a source change.** A change under `src/**` (a tool, a gate, a session
-  path) is verifiable LIVE by launching through `_run.cmd`, because that is a NEW process reading the
-  sources you just edited. «The live session does not see a tool change» describes the AGENT'S OWN session
-  only — its catalogue is frozen in its checkpoint and built from the executable — and it is **never** a
-  reason to declare a live verdict impossible. Division: `_build.ps1` stages a candidate into `dist/`;
-  `_run.cmd` runs what you just edited; promotion into `bin/` stays the owner's act.
-- **Measured 2026-10-11, the reason this rule exists:** a `messagesearch` scope fix was reported as having
-  «no live verdict possible in this session» while `_run.cmd` sat in the repo root, unread — the fix was
-  proven only by the source-loading test. The procedure existed; the agent invented its own and skipped the
-  live oracle. Same class as «scripts/ = reuse the procedure, never re-invent it».
-- **A source-run's PROJECT is its WORKING DIRECTORY — that is the whole mechanism (✓ measured 2026-10-12).**
-  `cd` into the directory that should be the project and run the entry file by ABSOLUTE path:
-  `SET OPENCODE_CONFIG_DIR=<repo>\bin` (provider auth), `cd /d <target>`, then
-  `bun run <repo>\packages\opencode\src\index.ts run "<prompt>" -m <model>`. Verified both ways the same day:
-  with `cd` into `experiments/2026-09-29_source-run/stand`, the run wrote THAT stand's `opencode.db` and its
-  own session, touching no other database.
-- **Two knobs that look like they set the project and DO NOT.** (a) `--cwd <repo>\packages\opencode` overrides
-  the shell's `cd`, so the worktree becomes `packages/opencode` — which means
-  `experiments/2026-09-29_source-run/run.cmd` does **not** isolate the way its own comment claims: it `cd`s into
-  the stand and then points `--cwd` at the package, and the run wrote there. Treat that runner as non-isolating
-  until fixed. (b) `OPENCODE_TEST_CONFIG` does not redirect the data dir (measured: a run with it set to the
-  stand left the stand's DB untouched), and neither does `OPENCODE_DB` — `getProjectDbPath` is hard-coded
-  (`{worktree}/.opencode/data/opencode.db`), recorded 2026-09-29.
-- **Garbage belongs in `experiments/` — never in a live DB.** Measured mistake 2026-10-11: a source-run with no
-  project set resolved to `packages/opencode` and wrote its throwaway sessions into THAT package's DB.
-- **Two traps that still bite (✓ measured):** an `opencode/*-free` model REFUSES from a source-run — «free tier
-  can only be used from within OpenCode» — while an **openrouter `:free`** model passes and costs nothing; and
-  the subcommand comes FIRST (`src/index.ts <project> run …` prints help instead of running).
-- **Overriding the model needs the CLI flag** (`run2.cmd` = `run.cmd` + `-m`): `bin/opencode.jsonc` pins a model
-  and `OPENCODE_CONFIG_DIR` is re-applied as highest priority (`config.ts:885`), so the flag is the only override
-  that wins.
 
 ---
 
@@ -987,9 +496,6 @@ Owner, verbatim: «запуск _build.ps1 после тестов и измен
 **Never launch the full suite** — `bun test` with no path. Owner, verbatim: «полный bun test никогда не
 запускать… чтобы больше не палил комп за зря, а потом с соплями типа нуууу то 50000 строк кода.»
 
-Measured 2026-09-22 in `packages/opencode`: **18 minutes, `bytes_written: 0`, ~5 GB RSS, no progress
-signal of any kind** — the run cannot be told apart from a stall, and killing it is the only way to
-learn that. Two consequences, both load-bearing:
 
 1. **`bytes_written: 0` after minutes means UNKNOWN, never «green»** — read `<run>/state.json`, and
 treat a silent instrument as an instrument that has said nothing.
@@ -1004,6 +510,8 @@ Always name a path — a file or a directory that owns the claim:
 No partial reading — a failure there is never noise, never «pre-existing» (already forbidden), and is
 waived only by a named owner decision. An instrument that cannot show its own progress does not get to
 colour anything green.
+
+Details: [docs/build-and-run.md](docs/build-and-run.md)
 
 ---
 
@@ -1039,40 +547,15 @@ frameworks) through bare shell `start`/`&`/run tools without a job wrapper.
 
 ### cmd_runner as a TUI debugger (and cua for windows)
 
-cmd_runner is not just a job runner — it is a **full TUI debugging surface**:
-per-run ConPTY session with an inbox bridge, so you can send text/keys into a
-LIVE TUI session and read the rendered output back. This solves most
-"TUI is interactive, how do I test it" problems without screenshots.
+cmd_runner is the TUI/terminal debugger (per-run ConPTY + inbox bridge; recursion works); cua covers native windows + browser. Recipes and division of labor: [docs/tools-and-sidecars.md](docs/tools-and-sidecars.md)
 
-- Launch TUI: `cmd_runner start -- dist\bin\opencode.exe`
-- Send input: write to the session inbox (`logs/cmd_runner/<id>/inbox.jsonl`)
-- Read output: `joboutput` / `cmd_runner tail`
-
-**Recursion works**: a TUI → cmd_runner → TUI → cmd_runner → TUI chain is
-valid — each level is its own ConPTY instance with its own inbox. Nested
-harnesses (agent testing agent testing agent) are supported by design.
-
-**Division of labor with cua** (see [tools-and-sidecars.md §7.1](docs/tools-and-sidecars.md)):
-- **cmd_runner** — TUI / terminal-interactive surfaces (ConPTY text in/out).
-- **cua** — native windows + browser (background UIA/PostMessage input by
-  `(pid, window_id)`, screenshots, `verify_state`, agent cursor overlay for
-  user-visible action feedback). cua does not need cmd_runner to act — but
-  the cua *daemon* is a long-running process: launch it with
-  `cmd_runner start -- bin\cua.cmd serve` (jobkill to stop).
-- Node cannot spawn `.cmd` shims (EINVAL, CVE-2024-27980 hardening) — the
-  `cua` tool spawns `bin/cua/cua-driver.exe` directly; the shim is for
-  interactive shells only.
 
 ---
 
 ## Auto-Generated Code
 
-| File | Regeneration |
-|------|-------------|
-| `packages/sdk/js/src/gen/` | **NOT generated on this branch.** `ea7ec60f51` (2025-12-07) repointed `createClient` output to `./src/v2/gen`; eight hand-edit commits landed in v1 afterwards. Hand-maintained — TUI imports `@opencode-ai/sdk/v2`, so v1 is doubly irrelevant. |
-| `packages/sdk/js/src/v2/gen/` | **OURS, hand-maintained. Do NOT regenerate.** `bun run packages/sdk/js/script/build.ts` exits 0 and removes ~7100 lines — the generator working *correctly*, because the committed files were never its output: `79c5b4a04e` (2026-07-16, mislabelled `Revert "Regenerate SDK…"`) shrank the spec by 763 lines while growing the two gen files by +7357. Root cause of the gap: **the API is described twice and the generator reads the half with no description.** 46 `describeRoute` entries against 275 route registrations, while 108 `HttpApiEndpoint` declarations across 17 files carry 149 `OpenApi.annotations` that nothing reads (`OpenApi.fromApi` has zero call sites despite shipping in the installed effect); the Effect half enters Hono as opaque pass-throughs (`routes/instance/index.ts:29`). Hence 233 typecheck errors collapsing to 12 missing symbols. Note `packages/sdk/openapi.json` is an ORPHAN — `script/build.ts:12` writes its own spec to `packages/sdk/js/openapi.json` from the live server and deletes it at line 62; the committed file one directory up is never read. `bun typecheck` is not a valid gate here: live code references the hand-maintained types, so a correct regeneration fails it. Add fields by hand. |
-| `packages/desktop/src/bindings.ts` | `cargo run -p specta-bindings` |
-| `packages/opencode/src/session/prompt/reasoning_prompt.txt` | `python -m prompt_kernel --install` (stamps `prompt_kernel/dist/` and copies runtime `.txt` into production) |
+`packages/sdk/js/src/gen/` and `src/gen/` are **ours, hand-maintained — never regenerate**; add fields by hand. `bindings.ts` ← `cargo run -p specta-bindings`; `reasoning_prompt.txt` ← `python -m prompt_kernel --install`. The full table and the root cause of the generator gap: [docs/upstream-relation.md](docs/upstream-relation.md)
+
 
 **Kernel sync:** Edit `prompt_kernel/source.py` → `python -m pytest prompt_kernel/tests/ -q` → `python -m prompt_kernel --install` → rebuild the opencode binary.
 
@@ -1112,29 +595,9 @@ on a recorded failure.** Two independent ladders, same rule:
 Applies to catalog sync and to inference alike, and to every provider —
 openrouter, huggingface, deepseek included.
 
-**Why this is a postulate and not a preference.** Providers migrate to their newest
-version and newest transport, and the legacy path then costs them extra: protocol
-translation, older connection pools, separate capacity. That path is therefore the
-*first* to be rate-limited, deprioritised or simply refused. A legacy surface that
-works today is the one that gets throttled first under load — so pinning to it buys
-a quiet week and then an outage whose cause looks like "the provider is flaky".
-Climbing removes that whole class of intermittent failure instead of diagnosing it
-one incident at a time.
+The postulate's rationale, the per-provider numbers (v4/v3/v1) and the measured evidence: [docs/provider-reach.md](docs/provider-reach.md)
 
-### The number is not a constant — read it per provider
 
-Never write a version literal into the rule. As of 2026-09-17:
-
-| Provider | Endpoint | What the number is |
-|---|---|---|
-| `zai` | `api.z.ai/api/paas/v4` | own API **v4** |
-| `novita-ai` | `api.novita.ai/v3/openai` | own API **v3**, then openai dialect |
-| `openrouter` | `openrouter.ai/api/v1` | own API v1 |
-| `huggingface` | `router.huggingface.co/v1` | router v1 |
-| `deepseek` | `api.deepseek.com` | unversioned host; SDK appends the dialect |
-
-A rule saying "use v3" would already have been wrong for Z.AI on the day it was
-written.
 
 ### Guards — these keep the rule from doing damage
 
@@ -1159,15 +622,8 @@ written.
    to `http/1.1`, deliberately skipping h2: Bun's h3 failure modes are
    connection-class, and h1 is the safe landing after any of them.
 
-### Evidence
+Details: [docs/provider-reach.md](docs/provider-reach.md)
 
-Novita h3 vs h2, interleaved 6-pair benchmark 2026-09-08: median **2188 ms vs
-3294 ms**, tail 2× shorter, zero give-ups, server advertising `alt-svc h3`.
-Transport defaults and their probes are recorded in `provider/provider-sync.ts`
-above `VERIFIED_H2_OPTIONS`.
-
-A new provider is not finished until both rungs are recorded with the probe that
-established them.
 
 ---
 
@@ -1200,35 +656,8 @@ All findings triaged and resolved — see `plans_completed/`.
 
 ## Agent Inventory
 
-| Agent | Mode | Prompt | Description |
-|-------|------|--------|-------------|
-| `build` | primary | provider family prompt | Default full-access development agent |
-| `plan` | primary | provider family prompt | Read-only planning (denies edits) |
-| `orchestrator` | primary | `prompt/orchestrator.txt` | Autonomous orchestrator for AGI mode |
-| `general` | subagent | `prompt/general.txt` | Planning, design, root-cause analysis |
-| `explore` | subagent | `prompt/explore.txt` | Fast file/code/conversation search |
-| `coder` | subagent | `prompt/coder.txt` | Code implementation (edit/write/bash) |
-| `researcher` | subagent | `prompt/researcher.txt` | Read-only research (code+web+history) |
-| `media` | subagent | `prompt/media.txt` | Media generation via capability tool |
-| `title` | primary (hidden) | `prompt/title.txt` | Session title generation |
+Agent roster, prompt files and per-identity sampling: [docs/architecture.md](docs/architecture.md) § Agent inventory (moved verbatim 2026-10-13).
 
-Tools: `pipeline` chains subagents sequentially. `capability` looks up model
-modalities. `compact` arms a boundary fold of the session window — primaries
-only (see [Mechanistic Compaction](docs/compaction.md) § three triggers).
-
-**Per-identity sampling.** Each native subagent declares its own
-`temperature` / `topP` / `options.repetition_penalty` in
-`src/agent/agent.ts` — verification identities (`explorer`, `coder`) are
-sampled tight and unpenalised so their output is reproducible and their
-repeated tokens (paths, identifiers) survive; generative ones (`general`,
-`media`) are sampled loose so a candidate set actually differs. Model-wide
-sampling merges *before* the agent in `session/llm.ts`, so the narrower
-declaration wins. `presence_penalty`/`frequency_penalty` are NOT sendable:
-the vendor documents both as deprecated no-ops and its endpoint rejects them
-beside `repetition_penalty` with a 400, so the pair was removed from the whole
-assembly on 2026-09-30 (`plans/2026-09-30_drop-penalty-sampling-params.md`) —
-upstream opencode sends neither. Only what the provider honors binds — see the vendor
-reasoning contract below.
 
 ---
 
@@ -1258,6 +687,10 @@ All detailed docs live in `docs/`. Here's the quick map:
 - [Agentic reasoning runtime](docs/agentic-reasoning-runtime.md) — gates, REUSE ladder, claim ledger
 - [AGI Workflow](docs/agi-workflow.md) — orchestrator/worker loop, plan hygiene
 - [Rendering Pipeline](docs/rendering.md) — LLM→terminal display, mermaid, images
+- [Storage paradigm](docs/storage-paradigm.md) — two planes (SQLite/LMDB), concurrency rationale, engines, migration order (moved from AGENTS.md 2026-10-13)
+- [Debugging paradigm](docs/debugging-paradigm.md) — read state before logs; hashing is never the suspect; granularity (moved from AGENTS.md 2026-10-13)
+- [Provider reach](docs/provider-reach.md) — descend from the highest surface: why, per-provider numbers, guards, evidence (moved from AGENTS.md 2026-10-13)
+- [Upstream relation](docs/upstream-relation.md) — the closed SDK/upstream question, the two upstreams, generated vs hand-maintained (moved from AGENTS.md 2026-10-13)
 
 ### Infrastructure
 - [Startup & bootstrap](docs/startup-bootstrap.md) — cold start, CodeGraph, Fossil vs git/jj
@@ -1268,14 +701,21 @@ All detailed docs live in `docs/`. Here's the quick map:
 - [Tool playbook](docs/tool-playbook.md) — task → instrument routing, three habits, and the anti-patterns measured on 2026-09-21
 - [Background Jobs](docs/background-jobs.md) — non-blocking shell jobs
 - [Kernel assembly point](docs/kernel-assembly-point.md)
+- [Host toolchain](docs/host-toolchain.md) — the measured inventory: zig/MSVC/rust/go/python, what is NOT present, prebuilt-release route (moved from AGENTS.md 2026-10-13)
+- [Build and run](docs/build-and-run.md) — `_build.ps1`, `_run.cmd` from source, the full-suite measurement (moved from AGENTS.md 2026-10-13)
 
 ### Deployment
 - [Linux deploy](docs/linux-deploy.md) — Linux build and portable install
 
+### Governance — split from AGENTS.md (2026-10-13)
+
+- [Bug policy](docs/bug-policy.md) — tests adapt to functionality; contract tests; write-path oracles
+- [Plan maintenance](docs/plan-maintenance.md) — MASTER_PLAN renderer, JOB FAILED, commit is not closure
+- [Style guide](docs/style-guide.md) — the worked examples behind the TS/Python rules
+
 
 ## Search instruments — the graph BEFORE the text (2026-10-10)
 
-**A symbol, a caller or an impact question is a GRAPH question. `grep` answers a different one — «does this text occur» — and a lexical answer presented as a structural one is an UNGROUNDED claim, which is exactly where fabrication starts.** Owner, 2026-10-10, verbatim: «народ в последнее время слишком налегает на греп без codegraph это очень криво потому что codegraph хоть какой-то нечеткий поиск дает, glob, list - ладно нашли файлы, но грепить без графа - ну как бы несколько странновато не находишь?» — and on the price: a model that «самоотмазался грепом от граундинга и потом когда надо было зен проверить как работает просто начал фантазировать».
 
 Order — the kernel's own chain, made blunt here because it keeps being skipped:
 
@@ -1285,6 +725,8 @@ Order — the kernel's own chain, made blunt here because it keeps being skipped
 4. **`grep` — LAST, and only after the graph has been asked.** It is a text tool, never a structure tool.
 
 **One measured exception, and it is the only one.** BOTH graph indexes are blind to declarations INSIDE a function (measured 2026-10-10: `failToolCall`, `session/processor.ts:848` — 4 `grep` hits, 0 in codegraph, 0 in CBM — while the top-level `MAX_TOOL_CALLS_PER_MESSAGE` in the SAME file, SAME fresh index, SAME `const` shape, IS in the graph). So when the graph says «not found», `grep` is the correct NEGATIVE TEXT CONTROL — and what it establishes is «the graph does not index it; the text does occur», never «it does not exist».
+
+The owner's statement and the price of skipping the graph: [docs/tool-playbook.md](docs/tool-playbook.md)
 
 **A skipped graph call is not a style slip — it is the grounding step itself skipped**, and the fabricated zen gate is what that looks like downstream. @KAIZEN: the second occurrence of «grepped on a structural question instead of asking the graph» is a tool-USAGE defect, not weather.
 <!-- CODEGRAPH_START -->

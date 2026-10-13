@@ -177,3 +177,36 @@ Plans: `plans/to_be_confirmed/2026-09-19_temporary-data-acquisition.md` (T6, wit
   `release`. Its `range` addresses the FILE's lines when the result is a `read` window.
 - `packages/opencode/src/tool/result-limit.ts` — the ONE home of the bound pair, shared by `read`'s window, the
   fold gate and `recall`'s per-call cap.
+
+## Moved from AGENTS.md § Content Lifecycle (2026-10-13)
+
+*(links inside the moved text use repo-root-relative paths, as they were written in AGENTS.md)*
+
+Owner, 2026-09-19: «здесь не просто экономия токенов здесь самоподчистка контента, то что человек
+делает автоматом и то что в большинстве агентных систем отсутствует на прочь, это сильно снижает
+эффективность размазывая внимание нерелевантной информацией». The attended window must hold what the
+CURRENT task needs; released content stays reachable without occupying it. Full design:
+[docs/content-lifecycle.md](docs/content-lifecycle.md).
+
+| verb | mechanism |
+|---|---|
+| **acquire** | a tool result arrives (`read` / `webfetch` / `codegraph` / …) |
+| **hold** | resident until the request goes out — the rendering is a PURE FUNCTION of the part, so it never changes after it is sent |
+| **release** | `> 8 000` chars → an ID-addressed placeholder in EVERY request; or `recall(…, keep: true)` → only the chosen slice |
+| **re-acquire** | `recall(id, range, pattern)` returns the stored result by its address |
+
+**Corollary — verify a reduction where it LANDS.** `keep` was reported "shipped and verified" and had
+never written a byte: a part's identity lives in the `part` table COLUMNS, the lookup read only `data`,
+and an `as` asserted the missing `sessionID` into existence. `bun typecheck` exit 0 and three green
+suites missed it; **one live call against the real database found it**. A cast in a write path is a
+disabled oracle — type the value; and a fixture's schema must match production's, or it cannot observe
+the wrong query.
+
+**Shipped 2026-09-30:** attachments ARE re-acquirable — a released `file` part names its own id on the
+wire and `recall` returns its payload (commit `18fe82c426`); `keep` is refused for one, since an
+attachment is a single payload and a kept slice would send the provider a truncated data URL. **Still
+planned, not shipped:** nothing counts a lifetime for an attachment, and the actualizer and its ledger
+are unbuilt. The generalisation to
+*temporary data acquisition* is in [plans/to_be_confirmed/2026-09-19_temporary-data-acquisition.md](plans/to_be_confirmed/2026-09-19_temporary-data-acquisition.md):
+a document, a set of sources, a screenshot — acquire, hold for a declared span, release, and let the
+recorded diffs be the report's evidence.

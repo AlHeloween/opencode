@@ -20,3 +20,8 @@ if (peerWarns.length > 0) {
 
 console.log("✅ No peer dependency warnings");
 '
+
+# AGENTS.md size guard (2026-10-13 split): rules stay in AGENTS.md, prose lives in docs/.
+# Over budget = move prose to docs/, never raise the budget for prose. Proof of fallibility:
+# experiments/2026-10-13_agents-md-split/guard_proof.ts
+bun .husky/agents-size-guard.mjs

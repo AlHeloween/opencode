@@ -390,3 +390,64 @@ and loaded states, avoiding transient text flashes and vertical form jumps.
 | `tool/registry.ts` | 23 built-in tool registry | 376 |
 | `attachment/handlers/` | 14 media type handlers | ~800 |
 | `cli/cmd/tui/component/` | Terminal TUI components (31 files) | ~3000 |
+
+# Appendix — moved verbatim from AGENTS.md (2026-10-13 split)
+
+*(links inside the moved text use repo-root-relative paths, as they were written in AGENTS.md)*
+
+## Project paradigm — the layer table
+
+| Layer | Mechanism | Kills |
+|-------|-----------|-------|
+| **1. Task geometry** | Fractal lattice + cosine filter + k-medoids → `CENTRAL_TASKS` | Monolith plans; goal drift |
+| **2. Prior art** | `universalsearch` web/code/hybrid; local codegraph | Reinvention; guesswork |
+| **3. Oracles** | Baseline [Exact] before edit; post-impl pass before `[x]` | "Works on vibes" |
+| **4. Conversation memory** | Mechanistic compaction → `message*`; never delete | Memory soup |
+| **5. Working-copy memory** | Fossil snapshots + CodeGraph folder-scoped impact | "What did we change?" |
+| **6. Direction lock** | SV / decisions preserved; re-cluster against original goal | Silent mission creep |
+
+### The product is a CLOSED loop — closure and safety are one property (2026-09-30)
+
+Owner, verbatim: «любая тема должна быть экономически целесообразной и достаточно замкнутой чтобы не трахать
+мозги обслуживающему персоналу», and on the statement below: «обвести в рамку и повесить на стенку».
+
+> Closure and safety are not in tension — they are the same property. A loop that proves its own results
+> and cannot leave its envelope needs neither a supervisor nor a prompt engineer standing next to it. What
+> industry buys is not a clever model but a stated price per verified task and near-zero human touches.
+
+Safety here is MECHANICS, not warnings: the envelope, an oracle per task, rollback, one store arbiter. A
+loop is judged by three measured numbers per verified task — Claude/verifier tokens, robot $, and **owner
+touches** (answers, restarts, manual fixes); the last one → 0 for the routine class is what «closed» means.
+Sizing and blockers: [plans/2026-09-30_robot-delegation-and-orchestration.md](plans/2026-09-30_robot-delegation-and-orchestration.md) § Scaling.
+
+## Agent inventory
+
+| Agent | Mode | Prompt | Description |
+|-------|------|--------|-------------|
+| `build` | primary | provider family prompt | Default full-access development agent |
+| `plan` | primary | provider family prompt | Read-only planning (denies edits) |
+| `orchestrator` | primary | `prompt/orchestrator.txt` | Autonomous orchestrator for AGI mode |
+| `general` | subagent | `prompt/general.txt` | Planning, design, root-cause analysis |
+| `explore` | subagent | `prompt/explore.txt` | Fast file/code/conversation search |
+| `coder` | subagent | `prompt/coder.txt` | Code implementation (edit/write/bash) |
+| `researcher` | subagent | `prompt/researcher.txt` | Read-only research (code+web+history) |
+| `media` | subagent | `prompt/media.txt` | Media generation via capability tool |
+| `title` | primary (hidden) | `prompt/title.txt` | Session title generation |
+
+Tools: `pipeline` chains subagents sequentially. `capability` looks up model
+modalities. `compact` arms a boundary fold of the session window — primaries
+only (see [Mechanistic Compaction](docs/compaction.md) § three triggers).
+
+**Per-identity sampling.** Each native subagent declares its own
+`temperature` / `topP` / `options.repetition_penalty` in
+`src/agent/agent.ts` — verification identities (`explorer`, `coder`) are
+sampled tight and unpenalised so their output is reproducible and their
+repeated tokens (paths, identifiers) survive; generative ones (`general`,
+`media`) are sampled loose so a candidate set actually differs. Model-wide
+sampling merges *before* the agent in `session/llm.ts`, so the narrower
+declaration wins. `presence_penalty`/`frequency_penalty` are NOT sendable:
+the vendor documents both as deprecated no-ops and its endpoint rejects them
+beside `repetition_penalty` with a 400, so the pair was removed from the whole
+assembly on 2026-09-30 (`plans/2026-09-30_drop-penalty-sampling-params.md`) —
+upstream opencode sends neither. Only what the provider honors binds — see the vendor
+reasoning contract below.

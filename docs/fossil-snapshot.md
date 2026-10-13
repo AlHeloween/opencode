@@ -375,3 +375,11 @@ mechanism — and held against this layer. fossil-scm.org is the fallback, not t
 (own `.opencode/data`, own chain, own undo). If N-on-one-folder must be supported, the bounded
 steps are a lock file with a live-pid owner around write operations, and a refusal (or prompt)
 for destructive undo while a neighbour is alive.
+
+## Moved from AGENTS.md § Fossil Snapshot System (2026-10-13)
+
+- **The snapshot backend is Fossil — git/jj are NOT alternatives.** `test/snapshot/snapshot.test.ts` was written for the git backend (`864041ba3f`, 2025-09) and the Fossil port (`63e088ff7d`, 2026-07-04) shipped without it: its reds were a stale SPEC of git, not a defect list of the code. Re-baselined 2026-09-21 to the Fossil contract. A red test there is never a reason to move code back to git — decide which side is right, record the decision, then move ONE side with evidence.
+- Deciding from per-tool evidence instead cost shell mutations their undo
+  coverage for a week: `bash`/`run`/`task`/`pipeline` emit no `filediff`
+  metadata, so "zero changed files" could not tell `bun --version` from a
+  command that had just created a file.

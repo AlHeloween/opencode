@@ -564,3 +564,33 @@ fossil version || /opt/opencode/tools/fossil.exe version
 3. **Ripgrep self-heals** with network; pre-ship for offline.  
 4. **Do not ship** Windows PE tools, cmd_runner, applypatch.exe, DXC, or Delphi scripts to Linux.  
 5. **LLM tools** (`.opencode/tool/*.ts`) and **in-process** agent tools are separate from the `tools/` binary directory.
+
+## Moved from AGENTS.md (2026-10-13)
+
+**Unknown apps are crash-prone too (owner, 2026-10-06):** «Любой экзешник кроме известных тулов из бина - crash prone.» Any executable FILE that is not a known tool (`bin/**` utilities + `git`/`python`/`node`/`pwsh`/`cmd`) is auto-wrapped into `cmd_runner start -- …` by the `run`/`bash`/`cmd` tools; without `cmd_runner` it is refused (fail-closed). A freshly built app can crash OR hang — a bare hang takes the TUI and its logs with it («TUI зависла то и логов никаких»). Bare command words (`ping`, `Get-Date`) and builtins keep the ordinary permission flow.
+
+### cmd_runner as a TUI debugger (and cua for windows)
+
+cmd_runner is not just a job runner — it is a **full TUI debugging surface**:
+per-run ConPTY session with an inbox bridge, so you can send text/keys into a
+LIVE TUI session and read the rendered output back. This solves most
+"TUI is interactive, how do I test it" problems without screenshots.
+
+- Launch TUI: `cmd_runner start -- dist\bin\opencode.exe`
+- Send input: write to the session inbox (`logs/cmd_runner/<id>/inbox.jsonl`)
+- Read output: `joboutput` / `cmd_runner tail`
+
+**Recursion works**: a TUI → cmd_runner → TUI → cmd_runner → TUI chain is
+valid — each level is its own ConPTY instance with its own inbox. Nested
+harnesses (agent testing agent testing agent) are supported by design.
+
+**Division of labor with cua** (see [tools-and-sidecars.md §7.1](docs/tools-and-sidecars.md)):
+- **cmd_runner** — TUI / terminal-interactive surfaces (ConPTY text in/out).
+- **cua** — native windows + browser (background UIA/PostMessage input by
+  `(pid, window_id)`, screenshots, `verify_state`, agent cursor overlay for
+  user-visible action feedback). cua does not need cmd_runner to act — but
+  the cua *daemon* is a long-running process: launch it with
+  `cmd_runner start -- bin\cua.cmd serve` (jobkill to stop).
+- Node cannot spawn `.cmd` shims (EINVAL, CVE-2024-27980 hardening) — the
+  `cua` tool spawns `bin/cua/cua-driver.exe` directly; the shim is for
+  interactive shells only.

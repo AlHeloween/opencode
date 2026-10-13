@@ -82,3 +82,61 @@ is the concrete routing table for it.
 - Candidate, NOT yet added (decide against `@INSTRUMENT_RUNG` first, to avoid saying
   the same thing twice): a `G1` line for habit 1 and habit 2 — measure the object
   before choosing a window, and a probe that cannot fail is not a probe.
+
+## Moved from AGENTS.md (2026-10-13)
+
+### The no-script constraint (owner, 2026-09-22 / 2026-09-29)
+
+- **Never edit source with a direct, UNVERIFIABLE script — and before the edit, ask codegraph what it touches.** Source
+  changes go through `edit` / `write`, by hand, and the hand is informed: call
+  `codegraph` (impact / explore) FIRST to confirm the blast radius, so the change is bounded by
+  evidence and not by the two files the author happened to have open. After the edit the oracle
+  answers the same question with runtime evidence — the two are not interchangeable, and neither
+  replaces the other. Owner, 2026-09-22, verbatim: «Руками блин.», «Добавь в agents.md - никогда не
+  редактируй код скриптами.», «Более того перед правкой надо вызывать codegraph чтобы подтвердить
+  что ничего не полетело это тоже в agents.md.» A script that rewrites source carries its own anchors,
+  computes its own diff and reports its own success: nobody reads the seam, a stale anchor is
+  indistinguishable from a fresh one, and the read-before-edit that makes a change reviewable never
+  happens. Measured the same day, which is where the rule comes from: a 75-line `cut.py` removed ~400
+  lines of dead sidecar machinery by anchor and saved nothing — the seam still had to be re-read by
+  hand afterwards, while the edit itself had been withheld from review in the meantime. The second
+  precedent, and the one that shows what «unverifiable» costs: an agent wrote Python scripts to rewrite
+  source — no syntax check before the write, no backup — corrupted the files and recovered by rolling
+  back from git, which returns the WHOLE file to the last commit and takes every uncommitted change in it
+  along (owner, 2026-09-29). Scripts stay
+  for READING and MEASURING (a probe over the DB, a log analysis) — never for writing source.
+  **ADM update descriptors are NOT scripts in this sense** (owner, 2026-09-29, verbatim: «запрещает
+  редактирование исходников прямыми unverifable скриптами, adm — это другое»). An `updates/*.xml`
+  descriptor (`D:\zPython\ADID_Python\updates\` is the corpus; `src/adm/` the engine) answers each
+  objection above by construction: every payload is an `<update_md5_…>` block carrying its own md5 and
+  size, and the md5 IS the tag name (`<update_md5_<hash>>…<content_md5_<hash>>…</content_md5_<hash>>`); the
+  parser locates the payload by those raw open/close tokens, not by XML escaping
+  (`src/adm/manager_methods/_stream_md5_wrapped_updates.py:113`), and an unclosed block, a duplicate content
+  block or content outside an update raises (same file, lines 44/64/67/76 — read in code, not run).
+  **Measured 2026-09-30 on adm 5.0.6** (`experiments/2026-09-30_adm-binary-smoke/`, both runs): the md5 is
+  a change detector FOR THE REPORT, by design (owner: «это для отчёта»), not a refusal — `--apply`
+  re-stamps the descriptor before parsing (`apply_descriptor.py:20-22`), a payload altered after stamping
+  is applied, and `--dry-run` shows the mismatch («MD5=auto-corrected, expected … actual …»). The gap: the
+  NON-dry-run report does not show it («MD5 match … no adjustments required»), so read the dry-run audit
+  when the question is «was this descriptor touched». The PROCESS itself, run on an existing file: a missed
+  `<find_text>` anchor aborts with the target untouched (✓); apply writes a `.baseline`, a timestamped
+  backup, an in-file `ADID_ROLLBACK` block (backup/new hash, goal_id, semantics, restore command), a
+  `<file>.adid.log.jsonl` ledger and the integrity report (✓); `--list-diff` shows the hunk with the
+  semantics as its `Reason` (✓); `--replay-updates` prints the intent AND a semantic vector per mutation
+  with an MD5 chain (✓); `--rollback` restored the file byte-identical and re-verified its hash (✓). Raw bytes between the tags: the descriptor is read as
+  strict UTF-8, so a byte ≥ 0x80 fails loudly with `UnicodeDecodeError` and nothing is written (✓ safe, but
+  only UTF-8-valid content passes raw). And the `binary-overwrite` template's base64 path wrote the base64
+  TEXT itself (388 B) instead of the 291 decoded bytes — md5/size are computed over the text, not «on decoded
+  bytes» as the template says (✗, an ADM defect to fix in `ADID_Python`); a `replace` names its exact anchor
+  in `<find_text>`, so a moved anchor fails instead of landing elsewhere; `<semantics>` states the intent
+  in the descriptor itself; `adm --apply` writes atomically with a baseline snapshot, rotating backups, a
+  rollback block and a ledger entry, and `adm --rollback <file>` restores and RE-VERIFIES; the edit is
+  never withheld from review — `adm --replay-updates [--unified-diff]` shows the intent and the exact
+  hunks, `adm --list-diff <file> N` the history of one file, and `--rag` indexes the descriptors as exact
+  history records keyed by `goal_id` + `target_file` (`src/adm/rag/adid_history.py`). The requirement
+  that does NOT go away: the descriptor is authored after reading the code and asking codegraph what it
+  touches — a verifiable mutation of the wrong thing is still the wrong thing.
+
+### The search-instrument rule's owner statement (2026-10-10)
+
+**A symbol, a caller or an impact question is a GRAPH question. `grep` answers a different one — «does this text occur» — and a lexical answer presented as a structural one is an UNGROUNDED claim, which is exactly where fabrication starts.** Owner, 2026-10-10, verbatim: «народ в последнее время слишком налегает на греп без codegraph это очень криво потому что codegraph хоть какой-то нечеткий поиск дает, glob, list - ладно нашли файлы, но грепить без графа - ну как бы несколько странновато не находишь?» — and on the price: a model that «самоотмазался грепом от граундинга и потом когда надо было зен проверить как работает просто начал фантазировать».

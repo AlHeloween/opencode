@@ -182,3 +182,7 @@ codegraph / messagesearch
   → implement (mutation tools)
   → Gate 8 oracle PASS → evidence-bound oracle_stamp → Exact Done
 ```
+
+## Language and the G0 gate (moved from AGENTS.md 2026-10-13)
+
+**Why a language slip resets the whole loop and not just this rule.** G0 already carries the phrase («Always think and respond in the user's input language — reasoning included»), so a reply in another language is not a defect *of the language rule* — it is evidence that **the kernel is not executing**: the gate that was supposed to be in force at step zero was skipped, and everything built on it (decomposition, plan, envelope, closure) was built on a skipped gate. That is why the move is to G0 and not a correction in place. Owner, 2026-09-22, verbatim: «в G0 есть фраза про язык, если она не выполняется — значит кернел не выполняется».

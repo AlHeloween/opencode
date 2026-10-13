@@ -58,6 +58,12 @@ that project's plan to close (its two 2026-10-13 plans are open, 0 boxes ticked,
 condition: it goes through the browser leg like any page (no impersonation, stop at any challenge), per
 memory `user-two-ethics-user-and-services`. Next brief here, after that project commits: swap the components for
 `universal-search` + `webclaw`, re-run B1e.
+Output contract (owner, 2026-10-13: «агент получал markdown на выходе и не читал сам полотно html»): every agent-facing
+endpoint of the search stack returns markdown or plain text, never raw HTML. Read in code, 2026-10-13 (Inferred, not
+run): `/web/context` asks for `formats: ["markdown"]` and hashes the markdown (web/context.rs:74,128); the SERP legs
+return `innerText` capped at 4000 (web/serp.rs:331,344); `page.content()` HTML is used only to detect a challenge page
+(web/browser_fetch.rs:95). Unknown: what `/web/browser` and `/web/fetch` put in their response bodies. Becomes a B6 smoke:
+POST each endpoint on a fixture page → the body contains no `<html`/`<div` tag text.
 
 ## Design lens — a program for a monkey (owner, 2026-10-07)
 

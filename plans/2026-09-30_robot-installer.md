@@ -753,6 +753,20 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
     fresh measurements 2026-10-13) — so an env var cannot be attached to a START from this harness (the raw run used
     `--log-root`, the env-var path proven via `list`); on the target the installer sets `CMD_RUNNER_LOG_ROOT` in the robot's own
     process (B2/B7 line below).
+    ✓ 2026-10-13 pass 2 addendum — dist/ churn and the final artifact: while the smoke round was being recorded, a CONCURRENT
+    session's `_build.ps1` wiped `dist/` (its clear is content-level, longest-path first), so `bundle-3` was rebuilt
+    `20261013T131019Z_e2611d31` (identical `23735 / 3033013463`) + `verify` `20261013T131144Z_ae485623` (0 diff) — and then
+    could NOT be moved aside for the mandated build: renaming the tree's top directory (and established subdirs) answered
+    «Access is denied» for ~5 min while fresh dirs renamed fine (a live recursive handle-holder; class recorded, not diagnosed
+    to a pid — Restart Manager named no file holders, Defender is absent on this host). Countermeasure applied instead of a
+    move: a full COPY was made and verified in place — `verify` `20261013T131608Z_3c049294` (0 diff / 23735), kept at
+    `.temp/installer-hold/bundle-3` — and the mandated `_build.ps1` ran `20261013T131703Z_8042da92` (exit 0, 76 s); its
+    dist-clear REMOVED the held tree (deletion succeeded where rename was denied) and left `dist/installer` free, so the final
+    artifact was rebuilt fresh: `20261013T131843Z_1ca09b77` (third build, again `23735 / 3033013463`) + `verify`
+    `20261013T131957Z_ce06b3c0` (0 diff / 23735); its `MANIFEST.sha256` sha256 `1ba8b299…` is BYTE-EQUAL to the pre-build
+    copy's — the three builds and the copy are one artifact. Tool note for the next cycle: `cmd_runner` 2026.10.11 accepts
+    `--log-root` on `start` only (`wait`/`stop` reject it as an unknown option) — set `CMD_RUNNER_LOG_ROOT` in the parent
+    environment for every other subcommand.
 - [ ] **B2 installer shell:** Go + Fyne 2.8.1 app (decided 2026-10-07, see above; no WebView2 needed, so no pre-stage), grown from `experiments/2026-10-07_installer-fyne/app`; its `model_form_test.go` runs green first. <!-- sv: fyne-installer, no-webview2, model-form-test -->
   <!-- B1g env: the installer shell sets CMD_RUNNER_LOG_ROOT (run store outside the manifest-verified tree), ORG_WORKER_DATA (org_worker.py data dir) and FOSSIL (fossil binary for the org repo) on the target. -->
 - [ ] **B3 preflight + fix:** each candidate above as check → fix/remedy, shown to the user before apply. <!-- sv: preflight, fixes, opt-in -->

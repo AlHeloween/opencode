@@ -698,7 +698,7 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
     explicit tools/ list, the installer sets `CMD_RUNNER_LOG_ROOT` outside the verified tree. The stale bin/tools/cmd_runner.exe (2026-07-01, BOM + misparsed `start`, measured by that lane
     2026-10-02) is replaced by the package's. <!-- sv: tools-package, component-contract, manifest-reverify -->
     ✓ 2026-10-13: `adid-tools` lands in `bin/tools` from the pinned release (`_release.cmd` →
-    `releases/adid_dist_20261013T195928Z/portable` — 12 files + its own MANIFEST.sha256), and `robot` drops the
+    `releases/adid_dist_20261013T204851Z/portable` — 12 files + its own MANIFEST.sha256), and `robot` drops the
     catch-all `tools` dir for its own 7 files (ambr/ambs/fd/fossil/grep/rclone/samply; helper scripts, ADID's old
     copies and `cmd_runner.2026.07.01.exe` stay out by construction). `installer/bundle/stage.go` now re-verifies a
     component's own MANIFEST.sha256 before staging anything (changed/missing/extra refuses and is named; the manifest
@@ -832,13 +832,18 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
   Verify scope: MANIFEST.sha256 covers the program tree only; runtime roots (`org/`, data, logs) are outside it, so
   verify + repair never call a live org.fossil or a run log «extra»; (b) the org server + orgd also need an autostart after reboot on the target — today only
   `init.py` raises them, so the same per-user logon task runs `init.py` (idempotent); (c) B1f portability.
-  ADID release 2026-10-13 (their report; I read the folder read-only ✓): `releases/adid_dist_20261013T195928Z`,
+  ADID release 2026-10-13 (their report; I read the folder read-only ✓): `releases/adid_dist_20261013T204851Z`,
   `portable/` = 12 files + a 12-line MANIFEST.sha256, fragment `adid-tools.components.json` (to bin/tools), 10 smokes
   incl. `CMD_RUNNER_LOG_ROOT` (run store outside the tree) and `org_worker.py --status`; cmd_runner 2026.10.13. Wiring
   brief `inst-adid-tools-wire` is in the queue (not yet dispatched: no live robot host at 20:02). New risk from the
   ADID lane: master's cmd_runner DetachedHost policy REFUSES `start` inside a Job that forbids breakaway
   («Cannot start independent host (WinError=5)») — a service, some CI runners or the installer's own process may be
   such a Job; the legislator owns it (ticket 21ee34a4a4), a B6 smoke must run cmd_runner from the installer's process.
+  The 195928Z release was SUPERSEDED the same evening by `adid_dist_20261013T204851Z` (ADID master 63cf12d; same
+  layout, 12 files + 12-line manifest ✓ read; cmd_runner still 2026.10.13, new bytes sha256 fe50cfbb… ✓ matches its
+  manifest line). Requirement carried over from that lane's installer (owner's): an install/repair over a running tool
+  must not fail — theirs ends processes by FULL image path, never by name. Ours: verify/repair of bin/tools (B2/B3) must
+  survive a live cmd_runner host or adm.exe (end by exact image path or defer the file and say so), a B6 case.
   Observability (memory `feedback-delegation-must-be-observable`): every worker run leaves a record the user can
   see (ticket report + a log under the data dir) and the installer's status page names the last tick. Oracle: on
   the pristine VM, a READY test ticket for `codex`/`claude` is claimed, reported and closed with no hand edit; a

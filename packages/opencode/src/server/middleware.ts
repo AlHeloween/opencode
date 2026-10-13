@@ -70,7 +70,14 @@ export const AuthMiddleware: MiddlewareHandler = async (c, next) => {
 
   if (c.req.query("auth_token")) c.req.raw.headers.set("authorization", `Basic ${c.req.query("auth_token")}`)
 
-  return basicAuth({ username, password })(c, next)
+  return basicAuth({
+    username,
+    password,
+    // The 401 names the missing credential and the permitted route — the same text both layers
+    // answer with (ServerHost.unauthorizedMessage). hono serialises the object as JSON and keeps
+    // its `WWW-Authenticate: Basic realm="…"` header; the status stays 401.
+    invalidUserMessage: () => ({ _tag: "Unauthorized", message: ServerHost.unauthorizedMessage() }),
+  })(c, next)
 }
 
 export const LoggerMiddleware: MiddlewareHandler = async (c, next) => {

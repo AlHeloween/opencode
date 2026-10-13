@@ -109,6 +109,20 @@ export function authorization() {
 }
 
 /**
+ * The body of the 401 for a MISSING or WRONG credential, shared by both layers that can answer it:
+ * the Hono middleware (socket requests, before the Effect handler runs) and the Effect
+ * `Authorization` middleware (the bridged mounts). The same text on both is the point — it names the
+ * scheme, the username this host expects, where the per-start token lives and the permitted client,
+ * so a bare `Unauthorized` is never read as a broken server. It must NEVER carry a value read from
+ * `server_host` (the token, the nonce, the url, the pid, the start time) nor a filesystem path;
+ * the table NAME is not a value.
+ */
+export function unauthorizedMessage() {
+  const username = Flag.OPENCODE_SERVER_USERNAME ?? "opencode"
+  return `missing or invalid HTTP Basic credential — expected username "${username}"; the password is the per-start token recorded in this worktree's database table "server_host". Permitted client: tools/opencode_host.py — connect(<worktree>).`
+}
+
+/**
  * DNS-rebinding guard: a loopback host answers only requests addressed to a loopback name or to the
  * in-process transport. A page on `evil.example` re-pointed at 127.0.0.1 still carries `evil.example`.
  */

@@ -73,11 +73,9 @@ function validateCredential<A, E, R>(
     const password = ServerHost.credential()
     if (!password) return yield* effect
 
-    if (credential.username !== (Flag.OPENCODE_SERVER_USERNAME ?? "opencode")) {
-      return yield* new Unauthorized({ message: "Unauthorized" })
-    }
-    if (Redacted.value(credential.password) !== password) {
-      return yield* new Unauthorized({ message: "Unauthorized" })
+    const expected = Flag.OPENCODE_SERVER_USERNAME ?? "opencode"
+    if (credential.username !== expected || Redacted.value(credential.password) !== password) {
+      return yield* new Unauthorized({ message: ServerHost.unauthorizedMessage() })
     }
     return yield* effect
   })

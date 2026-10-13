@@ -1,6 +1,7 @@
 package bundle
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -150,5 +151,102 @@ func TestStageRefusesANonEmptyOutput(t *testing.T) {
 	put(t, out, "leftover.txt", "from a previous build")
 	if err := Stage([]Component{robotComponent(src)}, out); err == nil {
 		t.Fatal("staging into a non-empty directory mixes builds; it must be refused")
+	}
+}
+
+// A package component (plan robot-installer B1g): the source folder carries its own MANIFEST.sha256 and the builder
+// re-verifies it before staging — a changed, missing or extra file refuses the build before anything is written and
+// is named in the error; the manifest itself is verified, never staged (the bundle gets one MANIFEST over the tree).
+func portablePackage(t *testing.T) string {
+	t.Helper()
+	src := t.TempDir()
+	put(t, src, "cmd_runner.exe", "MZ runner")
+	put(t, src, "org_worker.py", "print('tick')\n")
+	m, err := BuildManifest(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b bytes.Buffer
+	if err := m.Write(&b); err != nil {
+		t.Fatal(err)
+	}
+	put(t, src, ManifestName, b.String())
+	return src
+}
+
+func packageComponent(src string) Component {
+	return Component{
+		Name:     "adid-tools",
+		From:     src,
+		To:       "bin/tools",
+		Files:    []string{"cmd_runner.exe", "org_worker.py"},
+		Manifest: ManifestName,
+	}
+}
+
+func TestStageVerifiesAPackageManifest(t *testing.T) {
+	src, out := portablePackage(t), t.TempDir()
+	if err := Stage([]Component{packageComponent(src)}, out); err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{"bin/tools/cmd_runner.exe", "bin/tools/org_worker.py"} {
+		if !exists(t, filepath.Join(out, rel)) {
+			t.Errorf("listed %s was not staged", rel)
+		}
+	}
+	if exists(t, filepath.Join(out, "bin", "tools", ManifestName)) {
+		t.Error("the package's own manifest reached the bundle")
+	}
+}
+
+func TestStageRefusesAChangedPackageFile(t *testing.T) {
+	src, out := portablePackage(t), t.TempDir()
+	put(t, src, "org_worker.py", "print('TAMPERED')\n")
+	err := Stage([]Component{packageComponent(src)}, out)
+	if err == nil || !strings.Contains(err.Error(), "org_worker.py") {
+		t.Fatalf("a changed package file must fail the build and be named, got %v", err)
+	}
+	if entries, err := os.ReadDir(out); err != nil || len(entries) != 0 {
+		t.Fatalf("verification must refuse before anything is staged: %v %v", entries, err)
+	}
+}
+
+func TestStageRefusesAMissingPackageFile(t *testing.T) {
+	src, out := portablePackage(t), t.TempDir()
+	if err := os.Remove(filepath.Join(src, "org_worker.py")); err != nil {
+		t.Fatal(err)
+	}
+	err := Stage([]Component{packageComponent(src)}, out)
+	if err == nil || !strings.Contains(err.Error(), "org_worker.py") {
+		t.Fatalf("a missing package file must fail the build and be named, got %v", err)
+	}
+}
+
+func TestStageRefusesAnExtraPackageFile(t *testing.T) {
+	src, out := portablePackage(t), t.TempDir()
+	put(t, src, "stray.tmp", "not in the package")
+	err := Stage([]Component{packageComponent(src)}, out)
+	if err == nil || !strings.Contains(err.Error(), "stray.tmp") {
+		t.Fatalf("an extra package file must fail the build and be named, got %v", err)
+	}
+}
+
+func TestStageRefusesListingTheManifestAsAFile(t *testing.T) {
+	src, out := portablePackage(t), t.TempDir()
+	c := packageComponent(src)
+	c.Files = append(c.Files, ManifestName)
+	err := Stage([]Component{c}, out)
+	if err == nil || !strings.Contains(err.Error(), ManifestName) {
+		t.Fatalf("the manifest is verified, never staged; listing it must fail and be named, got %v", err)
+	}
+}
+
+func TestStageRefusesANonstandardManifestName(t *testing.T) {
+	src, out := portablePackage(t), t.TempDir()
+	c := packageComponent(src)
+	c.Manifest = "SHA256SUMS"
+	err := Stage([]Component{c}, out)
+	if err == nil || !strings.Contains(err.Error(), "SHA256SUMS") {
+		t.Fatalf("only %s is the package manifest, got %v", ManifestName, err)
 	}
 }

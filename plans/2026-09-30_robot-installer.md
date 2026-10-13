@@ -684,7 +684,7 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
     org.fossil born on the target (the owner's tickets/chat never ship — gate rule: no `*.fossil` in the bundle
     except an explicit allow). Oracle: on a scratch dir, staged tree → init.py → `org.py inbox` answers and the
     server listens on 127.0.0.1 only. <!-- sv: org-layer, portable-org-home, empty-repo -->
-  - [ ] **B1g tools-package component** (lane 4, ADID_Python): the package arrives as a folder + its own
+  - [x] **B1g tools-package component** (lane 4, ADID_Python): the package arrives as a folder + its own
     MANIFEST.sha256 + a components.json fragment (name, From, Files/Dirs, Skip); the builder stages it unchanged
     and re-verifies its manifest. Agreed 2026-10-08 with the ADID_Python lane: component `adid-tools`, `from:
     "portable"` of `_release.cmd`'s `releases/adid_dist_<ts>/`, `to: "bin/tools"`, explicit files = cmd_runner.exe,
@@ -697,7 +697,34 @@ One JSON contract, sources chosen by their terms, never by what can be scraped:
     `_release.cmd`, release path sent to this lane. Then ONE robot brief here: add `adid-tools`, narrow `robot` to its
     explicit tools/ list, the installer sets `CMD_RUNNER_LOG_ROOT` outside the verified tree. The stale bin/tools/cmd_runner.exe (2026-07-01, BOM + misparsed `start`, measured by that lane
     2026-10-02) is replaced by the package's. <!-- sv: tools-package, component-contract, manifest-reverify -->
+    ✓ 2026-10-13: `adid-tools` lands in `bin/tools` from the pinned release (`_release.cmd` →
+    `releases/adid_dist_20261013T195928Z/portable` — 12 files + its own MANIFEST.sha256), and `robot` drops the
+    catch-all `tools` dir for its own 7 files (ambr/ambs/fd/fossil/grep/rclone/samply; helper scripts, ADID's old
+    copies and `cmd_runner.2026.07.01.exe` stay out by construction). `installer/bundle/stage.go` now re-verifies a
+    component's own MANIFEST.sha256 before staging anything (changed/missing/extra refuses and is named; the manifest
+    itself is never staged), `installer/components.json` carries `adid-tools` with `manifest: MANIFEST.sha256`.
+    `go test ./bundle/`: fresh baseline `20261013T123530Z_c61b8743` (15/15), RED `20261013T123552Z_f93b6fac`
+    (compile: Component has no field Manifest) → green `20261013T123625Z_ff659469` 21/21 with the 6 new tests.
+    Package pre-checks: `verify` 0 diff / 12 files `20261013T123659Z_f56c8c91`, `gate` 0 hits `20261013T123710Z_d54cdc60`.
+    Build `20261013T123720Z_50942faf` (71 s, exit 0): `gate PASS (2 allowed), 23735 file(s), 3033012836 byte(s)` →
+    `dist/installer/bundle-3`; `verify` 0 differences / 23735 files `20261013T123844Z_9f8fd0a8`. Built `bin/tools` is
+    exactly 19 files: the 12 package files byte-identical to the release (cmd_runner.exe sha256 `ebd1252b…`, = the
+    package MANIFEST) plus the 7 robot tools byte-identical to `bin/tools`; tree-wide exactly ONE `cmd_runner`, no
+    `cmd_runner.2026.07.01.exe`, no delphi/msvc/rag helpers, no `logs/` dir (only `searxng-src/.git/logs`, git's own
+    reflog, pre-existing). Smokes on the built tree, all exit 0: `cmd_runner.exe --version` → `cmd_runner 2026.10.13`
+    (direct); raw run with the store outside the tree (`--log-root`) → `stdout.log` exactly `ok\r\n`, state.json
+    `exit_code 0` / notes `log final` `20261013T124012Z_d1c97e5f`; the same store listed back through the released env
+    var (`CMD_RUNNER_LOG_ROOT` set for the payload) `20261013T124034Z_c18567c8`; adm 5.0.6 `20261013T124043Z_7e27cd34`;
+    adm-rag 5.0.6 `20261013T124043Z_83dc8f49`; rg 15.1.0 `20261013T124042Z_dbca48d5`; sed 4.9
+    `20261013T124042Z_90b6ffde`; apply_patch adds `smoke.txt` `20261013T124133Z_a29c36b9`; claude_svchain /
+    codex_svchain `--help` `20261013T124108Z_e0f98e1f` / `20261013T124109Z_de41441a`; org_worker `--status` «no tick
+    yet» with ORG_WORKER_DATA in a temp dir `20261013T124109Z_28ed25cf`. Session note (tool class, not a product
+    defect): in this session `cmd_runner start` attaches its host only with `--shell cmd` — without it the run closes
+    by health-check (exit_code null, 0 bytes, `20261013T124108Z_21f63f6a`); a nested `start` under an
+    already-hosted payload is refused (parent Job forbids breakaway), so the raw-run smoke ran directly against the
+    built binary.
 - [ ] **B2 installer shell:** Go + Fyne 2.8.1 app (decided 2026-10-07, see above; no WebView2 needed, so no pre-stage), grown from `experiments/2026-10-07_installer-fyne/app`; its `model_form_test.go` runs green first. <!-- sv: fyne-installer, no-webview2, model-form-test -->
+  <!-- B1g env: the installer shell sets CMD_RUNNER_LOG_ROOT (run store outside the manifest-verified tree), ORG_WORKER_DATA (org_worker.py data dir) and FOSSIL (fossil binary for the org repo) on the target. -->
 - [ ] **B3 preflight + fix:** each candidate above as check → fix/remedy, shown to the user before apply. <!-- sv: preflight, fixes, opt-in -->
 - [ ] **V1 virtual-display selection:** read each candidate's signature, driver model, license and install method; pick one with evidence; its egress goes through the audit plan. <!-- sv: virtual-monitor, driver-selection, signature -->
 - [ ] **V2 virtual-display install/uninstall:** silent offline install + uninstall by recorded hardware ID; `HypervisorPresent` read before and after; resolution set for the robot's display. <!-- sv: virtual-monitor, silent-install, hypervisor-guard -->

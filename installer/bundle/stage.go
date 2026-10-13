@@ -20,6 +20,11 @@ type Component struct {
 	Dirs  []string // directories copied recursively, relative to From
 	Skip  []string // slash-separated paths under From left out of a listed directory; each must match something
 
+	// Manifest names the component's own MANIFEST.sha256 at From's root (plan robot-installer B1g: the ADID tools
+	// package). Stage re-verifies it against From before anything is copied and refuses on any changed, missing or
+	// extra file; the manifest is verified, never staged — the bundle gets one MANIFEST over the whole tree.
+	Manifest string
+
 	Rewrites []Rewrite // line rewrites applied to staged files
 }
 
@@ -40,6 +45,11 @@ func Stage(components []Component, out string) error {
 		return fmt.Errorf("stage: %s is not empty", out)
 	}
 	for _, c := range components {
+		if err := verifyManifest(c); err != nil {
+			return fmt.Errorf("stage %s: %w", c.Name, err)
+		}
+	}
+	for _, c := range components {
 		if err := stageOne(c, out); err != nil {
 			return fmt.Errorf("stage %s: %w", c.Name, err)
 		}
@@ -47,9 +57,46 @@ func Stage(components []Component, out string) error {
 	return nil
 }
 
+// verifyManifest re-checks a component's own MANIFEST.sha256 against its source folder before anything is staged: the
+// package ships its manifest in our format, so a changed, missing or extra file refuses the build and is named. The
+// standard name is part of the contract — Verify already excludes it from the walk.
+func verifyManifest(c Component) error {
+	if c.Manifest == "" {
+		return nil
+	}
+	if filepath.ToSlash(c.Manifest) != ManifestName {
+		return fmt.Errorf("manifest %q: must be %s", c.Manifest, ManifestName)
+	}
+	f, err := os.Open(filepath.Join(c.From, ManifestName))
+	if err != nil {
+		return fmt.Errorf("manifest %s: %w", ManifestName, err)
+	}
+	defer f.Close()
+	m, err := ParseManifest(f)
+	if err != nil {
+		return fmt.Errorf("manifest %s: %w", ManifestName, err)
+	}
+	diffs, err := m.Verify(c.From)
+	if err != nil {
+		return fmt.Errorf("manifest %s: %w", ManifestName, err)
+	}
+	if len(diffs) > 0 {
+		named := make([]string, len(diffs))
+		for i, d := range diffs {
+			named[i] = d.String()
+		}
+		return fmt.Errorf("manifest %s: %s", ManifestName, strings.Join(named, ", "))
+	}
+	return nil
+}
+
 func stageOne(c Component, out string) error {
 	dest := filepath.Join(out, filepath.FromSlash(c.To))
+	manifest := filepath.ToSlash(c.Manifest)
 	for _, f := range c.Files {
+		if manifest != "" && filepath.ToSlash(f) == manifest {
+			return fmt.Errorf("listed file %s: the manifest is verified, never staged", f)
+		}
 		if err := copyFile(filepath.Join(c.From, filepath.FromSlash(f)), filepath.Join(dest, filepath.FromSlash(f))); err != nil {
 			return fmt.Errorf("listed file %s: %w", f, err)
 		}
@@ -72,6 +119,9 @@ func stageOne(c Component, out string) error {
 				return err
 			}
 			rel = filepath.ToSlash(rel)
+			if manifest != "" && rel == manifest {
+				return nil
+			}
 			if _, listed := skip[rel]; listed {
 				skip[rel] = true
 				if e.IsDir() {

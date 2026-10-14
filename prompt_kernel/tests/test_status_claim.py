@@ -7,6 +7,9 @@ Written BEFORE the implementation (tests first). Encodes the approved invariants
 (4) every run-holding identity reaches a closing gate — PLAN_MODE included;
 (5) the @KAIZEN split carries the falsifiability gates (defect = reproducer fails NOW;
     improvement = before/after on one predicate), both per @STATUS_CLAIM.
+K2 review additions: (B1) an untried route must state why it is out of reach — a reachable
+untried route is no BLOCKED; (B3) @STATUS_CLAIM covers every terminal, WAITING_APPROVAL and
+OUT_OF_SCOPE included; (B5) the STALL fixed point carries receipts, plural.
 Size stays with test_dedup / test_addons_* (the caps).
 """
 from __future__ import annotations
@@ -38,7 +41,9 @@ def _gate_rule(gate_id: str, rule_id: str) -> str:
 def test_status_claim_is_first_shared_rule_and_renders_in_every_variant() -> None:
     assert KERNEL.shared_rules[0].id == "STATUS_CLAIM"
     text = KERNEL.shared_rules[0].text
-    assert "SUCCESS, BLOCKED, DEFECT, IMPROVED" in text
+    # B3: every terminal — WAITING_APPROVAL and OUT_OF_SCOPE were missing from the closed list.
+    for terminal in ("SUCCESS, BLOCKED, DEFECT, IMPROVED, WAITING_APPROVAL, OUT_OF_SCOPE",):
+        assert terminal in text
     assert "checkable refutation conditions and their observations" in text
     assert "Unknown does not stop the work" in text
     for name, rendered in VARIANTS.items():
@@ -54,6 +59,9 @@ def test_every_terminal_edge_carries_its_claim() -> None:
     blocked = next(edge for edge in terminal_edges if edge.source == "G9" and edge.target == "BLOCKED")
     assert "receipts" in blocked.condition
     assert "untried named" in blocked.condition
+    # B1: the Codex shape — one tried route plus any number of merely-named untried routes.
+    assert "out of reach" in blocked.condition
+    assert "a reachable untried route = no BLOCKED" in blocked.condition
     success = next(edge for edge in terminal_edges if edge.target == "SUCCESS")
     assert "control receipt" in success.condition
     assert "delivered revision" in success.condition
@@ -110,8 +118,17 @@ def test_kaizen_split_carries_falsifiability_gates() -> None:
     assert "A defect stops the line — tool or process" in jidoka
     assert "its reproducer fails NOW (@ANTI_CHURN)" in jidoka
     assert "per @STATUS_CLAIM" in jidoka
+    assert "a check beats a caution" in jidoka
     kaizen = shared["KAIZEN"]
     assert "updates the standard it ran under" in kaizen
     assert "before/after on one predicate (@SMOKE_BEFORE)" in kaizen
     assert "per @STATUS_CLAIM" in kaizen
     assert "A tool defect stops the line" not in kaizen
+
+
+def test_stall_fixed_point_carries_receipts() -> None:
+    # B5: the fixed point was singular and receipt-free.
+    stall = next(
+        edge for edge in KERNEL.edges if edge.source == "G9" and edge.target == "WAITING_APPROVAL"
+    )
+    assert "splits tried with receipts" in stall.condition

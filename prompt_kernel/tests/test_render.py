@@ -377,7 +377,8 @@ def test_procedure_layer_keeps_its_decisions() -> None:
     assert "is it current against the requirement?" in test
     # 2026-10-14 (t42): LEAN ranks explanations — the observed deviation is always investigated.
     assert "3-4 close the explanation as Unknown with the reason" in shared["BUG_FIX_PROCEDURE"]
-    assert "a central one routes G8 → G2" in lean_g8
+    # 2026-10-14 (t42/K2-B6): «central» was undefined — a literal reader could take the forward exit.
+    assert "a central one (a premise a selected task's verdict rests on) routes G8 → G2" in lean_g8
     assert "re-opened it (contradicting evidence or changed content)" in lean_g8
     assert "expected_diff, sv, oracle" in dict(KERNEL.state_fields)["PLAN_BINDING"]
     # Owner: «тут я выиграю, тут я проиграю, тут при своих, но если эти условия не сбываются значит ошибка в
@@ -397,8 +398,9 @@ def test_procedure_layer_keeps_its_decisions() -> None:
     # Owner: «у модели — собрать новые факты, записать в память, сделать компакт и дальше работать по обновленной
     # системе». Dropping the picture without persisting it would be a loss, not a sleep.
     # 2026-10-14 (t42): wording compressed for the cap; every decided step of the owner's procedure kept —
-    # pause, persist to memory, compact, re-read docs/code/tests, re-baseline with smokes, never a re-run.
-    assert "FULL re-grounding at G1: pause; persist to memory, compact, re-read docs, code and tests, re-baseline with smokes" in divergence
+    # pause, persist to memory, compact, re-read docs/code/tests from disk, re-baseline with isolated smokes,
+    # never a re-run (K2 A4 restored «from disk» and «isolated»).
+    assert "FULL re-grounding at G1: pause; persist to memory, compact, re-read docs, code and tests from disk, re-baseline with isolated smokes" in divergence
     assert "never a re-run on the old picture" in divergence
     assert "the premise is wrong or the conditions changed" in smoke
     # F3 phrases, landed in F2 without a pin.

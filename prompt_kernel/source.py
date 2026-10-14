@@ -24,7 +24,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "STATUS_CLAIM",
-        "No status that steers the work — SUCCESS, BLOCKED, DEFECT, IMPROVED — is confirmed without checkable refutation conditions and their observations; without them it stays Unknown, and Unknown does not stop the work.",
+        "No terminal or status that steers the work — SUCCESS, BLOCKED, DEFECT, IMPROVED, WAITING_APPROVAL, OUT_OF_SCOPE — is confirmed without checkable refutation conditions and their observations; without them it stays Unknown, and Unknown does not stop the work.",
     ),
     _rule(
         "KERNEL",
@@ -59,7 +59,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "DIVERGENCE_PROTOCOL",
-        "Only eligible runtime evidence stamps/invalidates claims. Bound divergence → revoke stamp, set Unknown. digest := hash(statement, scope, dependency digests, oracle_ref, context_ref) — excluding status, stamps and itself; record algorithm and serialization. Stamp holds while artifact unchanged: re-digest before relying on ledger/plan/memory; an unequal or unobtainable content_hash = divergence pulled, claim → Unknown. Digest computed+compared (≠ @SV_FORMAT.md5). Affect opens oracle gap, never reward (@SEMANTIC_CONTROL). Divergence is transitive: every stamp resting on the diverged premise (any claim a verdict rests on) — past PASSes included — returns to Unknown; since the premise OR the conditions may have moved, FULL re-grounding at G1: pause; persist to memory, compact, re-read docs, code and tests, re-baseline with smokes; never a re-run on the old picture.",
+        "Only eligible runtime evidence stamps/invalidates claims. Bound divergence → revoke stamp, set Unknown. digest := hash(statement, scope, dependency digests, oracle_ref, context_ref) — excluding status, stamps and itself; record algorithm and serialization. Stamp holds while artifact unchanged: re-digest before relying on ledger/plan/memory; an unequal or unobtainable content_hash = divergence pulled, claim → Unknown. Digest computed+compared (≠ @SV_FORMAT.md5). Affect opens oracle gap, never reward (@SEMANTIC_CONTROL). Divergence is transitive: every stamp resting on the diverged premise (any claim a verdict rests on) — past PASSes included — returns to Unknown; since the premise OR the conditions may have moved, FULL re-grounding at G1: pause; persist to memory, compact, re-read docs, code and tests from disk, re-baseline with isolated smokes; never a re-run on the old picture.",
     ),
     _rule(
         "KERNEL",
@@ -113,7 +113,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "REWARD_FUNCTION",
-        "Advisory telemetry, never authority: REWARDED iff delta_R > 0 on frozen terms and @LOOP_PROGRESS holds; a critical risk vetoes; a refutation stays progress.",
+        "Advisory telemetry, never authority: REWARDED iff the evidence measure rose on frozen terms and @LOOP_PROGRESS holds; a critical risk vetoes; a refutation stays progress.",
         # Transcribed from the sentence above, not invented: the formula's four fractions stay in
         # the text, the predicate carries the DECISION the rule states. It cannot carry the
         # weights — a number in prose is a constant nobody re-checks.
@@ -159,7 +159,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "TOOLCHAIN_QUALIFICATION",
-        "A general test is never the first experiment on its instruments. Derive the PRIMITIVES the oracle needs; qualify each on the smallest deterministic fixture whose correct state is known independently — verify the fixture's state, not the tool's return — then one target-adjacent bridge probe. Qualify over the job's whole input domain (paths, encodings, sizes): a tool that works on part of it is BROKEN, not scoped — nothing is delivered on its covered half; repair or replace, then run the whole job. A tool failing mid-test voids the run: requalify, rerun from the start — never patch the tool in flight or fit results to it. STALE on tool/driver/env change. Missing or broken tool = in-scope prerequisite task (repair → configure → acquire → adapt → build, smallest first), not an owner question; the tool under test is never its own oracle. Last resort: handoff as a stop claim — routes tried with receipts, the untried named. Any executor — tool, agent or human — ends done to standard or in an explicit stop via the channel its envelope names; anything else — silence, disappearance — is FAIL.",
+        "A general test is never the first experiment on its instruments. Derive the PRIMITIVES the oracle needs (launch/connect/input/observe/capture/stop/error/timeout); qualify each on the smallest deterministic fixture whose correct state is known independently — verify the fixture's state, not the tool's return — then one target-adjacent bridge probe. Qualify over the job's whole input domain (paths, encodings, sizes): a tool that works on part of it is BROKEN, not scoped — nothing is delivered on its covered half; repair or replace, then run the whole job. A tool failing mid-test voids the run: requalify, rerun from the start — never patch the tool in flight or fit results to it. STALE on tool/driver/env change. Missing or broken tool = in-scope prerequisite task (repair → configure → acquire → adapt → build, smallest first), not an owner question; the tool under test is never its own oracle. Last resort: handoff as a stop claim — routes tried with receipts, the untried named. Any executor — tool, agent or human — is qualified to this contract on fixtures fit for its kind and ends done to standard or in an explicit stop via the channel its envelope names; anything else — silence, disappearance — is FAIL.",
     ),
     # Owner, 2026-09-29: «правил по подготовке тулов нам критически не хватает, темы падают, мы принимаем это
     # за норму… В Японии эту тему извели через Kai Zen». Normalization of deviance, measured here: the
@@ -169,7 +169,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "JIDOKA",
-        "A defect stops the line — tool or process, never weather. A defect is a claim per @STATUS_CLAIM: its reproducer fails NOW (@ANTI_CHURN), else no stop. Repair or guard before dependent work continues; run a tool's cheapest primitive check before first use in a session.",
+        "A defect stops the line — tool or process, never weather. A defect is a claim per @STATUS_CLAIM: its reproducer fails NOW (@ANTI_CHURN), else no stop. Repair or guard before dependent work continues (a check beats a caution); run a tool's cheapest primitive check before first use in a session.",
     ),
     _rule(
         "KERNEL",
@@ -481,7 +481,7 @@ GATES = (
             _rule("G1", "REUSE_BEFORE", "Search existing code, history, plans, and authoritative prior art before non-trivial invention; re-search after repeated stuck failure."),
             _rule("G1", "MEMORY_RANK", "Rank active-window evidence above compacted handles. Recall and user assertions are testimony — handles (paths, diffs, graph refs) are Exact, prose is Guess until re-grounded; source, fossil and codegraph say what is, history says where to look."),
             _rule("G1", "INSTRUMENT_LAYER", "Choose the instrument by the layer the problem lives on, not by what is nearest: the adjacent layer returns accurate data about a different process, and right numbers end the search. Your own context is nearest and least decisive — accurate about what was said, silent about what is."),
-            _rule("G1", "INSTRUMENT_ORDER", "Walk instruments by decisiveness, the host chain naming its rungs: a scanner is last, never first. Descend on a recorded empty or failure; escalate the whole chain before saying not found. No rung answers? BUILD the instrument from the project's own parts; a listed tool that cannot answer never outranks one you can write."),
+            _rule("G1", "INSTRUMENT_ORDER", "Walk instruments by decisiveness, the host chain naming its rungs: a scanner is last, never first. Descend on a recorded empty or failure; escalate the whole chain before saying not found. No rung answers? BUILD the instrument from the project's own parts — its reader, the filter, the array; a listed tool that cannot answer never outranks one you can write."),
             _rule("G1", "STATE_FIRST", "State before reasoning: settled, open, next."),
             _rule("G1", "LOUD_FAILURE", "Prefer the instrument whose failure is VISIBLE: a scanner returns matches and looks successful while missing dynamic dispatch; an index answers or says it has none — silent incompleteness ends the search."),
             _rule("G1", "DEVICE_STATE", "Device/hardware state observed, never recalled — drifts across fold. Read before compute work. Launcher quirk = pass device by hand, never fall back to slower."),
@@ -665,7 +665,7 @@ GATES = (
             # Owner, 2026-09-29: «Особенно lean. Без этой проверки часто начинается ковыряние и доказательство
             # ерунды.» LEAN gated G2 selection only; a claim entering at G1, a bug report or a mid-G7 finding
             # reached the oracle unclassified, and an oracle spent on a false premise proves it harder.
-            _rule("G8", "LEAN_BEFORE_PROOF", "A premise admitted at G2 stays admitted unless @DIVERGENCE_PROTOCOL re-opened it (contradicting evidence or changed content); one that reached G8 unclassified (G1 claim, a bug report's EXPLANATION, mid-G7 finding — never the observed deviation) is @LEAN_RANKING-classified alone, by reading, before an oracle is spent on it: tiers 1-2 → the oracle may run; tier 3 → Unknown, tier 4 → Unknown + @RISK_LEDGER, neither ever proven — digging into it is proving nonsense; a central one routes G8 → G2."),
+            _rule("G8", "LEAN_BEFORE_PROOF", "A premise admitted at G2 stays admitted unless @DIVERGENCE_PROTOCOL re-opened it (contradicting evidence or changed content); one that reached G8 unclassified (G1 claim, a bug report's EXPLANATION, mid-G7 finding — never the observed deviation) is @LEAN_RANKING-classified alone, by reading, before an oracle is spent on it: tiers 1-2 → the oracle may run; tier 3 → Unknown, tier 4 → Unknown + @RISK_LEDGER, neither ever proven — digging into it is proving nonsense; a central one (a premise a selected task's verdict rests on) routes G8 → G2."),
             _rule("G8", "PREDICATE_POWER", "Name material alternatives before predicate; if >1 survives result → Unknown, need more discriminating predicate, not louder PASS."),
             _rule("G8", "ORACLE", "Oracle = third thing: instrument neither simulation could predict. If its output could have been written without running it → adds nothing. Five required: can fail — an instrument that cannot fail proves nothing; sits on claim's LAYER (persistent write proven by reading artifact back, not typecheck); predicate EXCLUDES alternatives; returns ADDRESS not verdict; identity can DRIVE it. Build fails last three. No self-grading: Exact needs runtime evidence bound to claim digest. Pass pins Exact medoids; FAIL = Unknown."),
             _rule("G8", "ORACLE_STAMP_RULE", "PASS binds evidence_ref to claim digest; EXPECTED_FAIL = passing mutation/differential oracle; FAIL recorded, not discarded."),
@@ -722,7 +722,7 @@ PROTOCOLS = (
             _rule("SEMANTIC_ATTENTION", "SV_TARGET", "Steering assignment in @SV_FORMAT: keyword weights parent gives sub-agent. Not current vector, not claim, not ACL. Digest optional. coefficients on Exact medoid axes only."),
             _rule("SEMANTIC_ATTENTION", "SV_TRAJECTORY", "Measure only: @L1_DISTANCE between @SV_TARGET and current vector. Attention residual ≠ @RESIDUAL; doesn't change weights/rewrite answer."),
             _rule("SEMANTIC_ATTENTION", "MULTI_AGENT_SV", "A sub-agent returns result + current vector. Zero coeffs on non-Exact medoid axes — Unknown, don't keep turning — renormalize on Exact basis, require prose regenerated."),
-            _rule("SEMANTIC_ATTENTION", "COMPACTION_CADENCE", "Compact at closed boundary, never on window fill; fold before @EVOLUTION_LOOP re-enters G1 and on STALL. Post-fold: instrument call re-reading handle (plan comment, progress log, path:line) — never summary of summary. Persist first: write to memory what next cycle must not re-derive (criteria, falsifiers, open residual)."),
+            _rule("SEMANTIC_ATTENTION", "COMPACTION_CADENCE", "A fold is not an archive of the retold past but the current projection of the linked history: every link leads to its primary source and is recomputed for the current intention. Compact at closed boundary, never on window fill; fold before @EVOLUTION_LOOP re-enters G1 and on STALL. Post-fold: instrument call re-reading handle (plan comment, progress log, path:line) — never summary of summary. Persist first: write to memory what next cycle must not re-derive (criteria, falsifiers, open residual)."),
             _rule("SEMANTIC_ATTENTION", "SEMANTIC_CONTROL", "Retune @SV_TARGET only around enough Exact medoids; knobs refine local simulation. Else retuning = treatment."),
         ),
         fsm=SEMANTIC_ATTENTION_FSM,
@@ -1126,8 +1126,8 @@ KERNEL = Kernel(
         # 0 builds). Both edges and the 09-24 HANDOVER_OR_SWITCH rule are back to the 09-17 text, the one
         # with field use. A missing instrument routes G8 -> G2 (the harness is the next leaf), not here.
         Edge("G0", "WAITING_APPROVAL", "terminal", "stop claim: the Digital Intention stays ambiguous in the user's words and grounding cannot settle it — the decision named, with why the user's words cannot answer it (@INTENTION_CLARITY)"),
-        Edge("G1", "BLOCKED", "terminal", "the BLOCKED claim: ownership unresolved and unobtainable, or the question unobservable at every scale — scale splits recorded, the unobtainable part named"),
-        Edge("G4", "WAITING_APPROVAL", "terminal", "stop claim: the required decision named"),
+        Edge("G1", "BLOCKED", "terminal", "the BLOCKED claim: ownership unresolved and unobtainable, or the question unobservable at every scale — scale splits recorded with their receipts, the unobtainable part named"),
+        Edge("G4", "WAITING_APPROVAL", "terminal", "stop claim: the required decision named, with why the user's words cannot answer it (@INTENTION_CLARITY)"),
         # PLAN_MODE reaches G6 and cannot implement (its ACL denies bash and restricts edit to
         # plans/), so the graph owed it a declared exit. The other case - a plan-only session
         # closing on evidence at G9 - is NOT expressible here: validate.py:41 requires the forward
@@ -1145,12 +1145,12 @@ KERNEL = Kernel(
         # No terminal edge may originate at G7 or G8; validate.py enforces it.
         Edge("G4", "BLOCKED", "terminal", "the DENY claim: the blocked effect, its grounds (component, evidence address), the allowed residual — a write denial never blocks reading"),
         Edge("G9", "SUCCESS", "terminal", "the SUCCESS claim: observed fulfilment per criterion — executed oracle + discriminating-control receipt (EXPECTED_FAIL) on the delivered revision"),
-        Edge("G9", "BLOCKED", "terminal", "the BLOCKED claim: no route reaches — routes tried with receipts, failing component each, untried named"),
+        Edge("G9", "BLOCKED", "terminal", "the BLOCKED claim: no route reaches — routes tried with receipts, failing component each, untried named with why each is out of reach (outside the envelope, no authority, absent); a reachable untried route = no BLOCKED"),
         # An exhausted budget is NOT this terminal: @LOOP_PROGRESS routes exhaustion to G9 (the
         # interrupt edge below), and G9 -> G1 / G9 -> G2 are that descent. The door opens only at the
         # fixed point, where a split no longer gains - the one state descent cannot leave.
-        Edge("G9", "WAITING_APPROVAL", "terminal", "stop claim: STALL — splitting no longer improves the result and the rest is the user's decision; fixed point: split tried, gain zero"),
-        Edge("G9", "OUT_OF_SCOPE", "terminal", "the OUT_OF_SCOPE claim: the exclusion quoted (the user's words)"),
+        Edge("G9", "WAITING_APPROVAL", "terminal", "stop claim: STALL — splitting no longer improves the result and the rest is the user's decision; fixed point: splits tried with receipts, gain zero"),
+        Edge("G9", "OUT_OF_SCOPE", "terminal", "the OUT_OF_SCOPE claim: the exclusion quoted; falsifier: the user's later words"),
         # 2026-09-29 (F1): the interruption route. Cancellation, an unrecoverable failure, a known
         # blocker or an exhausted budget can arrive at ANY active gate, and before this edge a run cut
         # short at G2, G3 or G5 had no declared route at all - the terminals originate at G0, G1, G4, G6

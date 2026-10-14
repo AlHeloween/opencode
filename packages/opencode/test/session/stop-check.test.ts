@@ -143,3 +143,57 @@ describe("stop-check / stopCheckDecision", () => {
     expect(stopCheckDecision({ ...base, text: "Готово: механизм собран, тесты зелёные." })).toBeUndefined()
   })
 })
+
+// ── The stop-claim form (owner decision 2026-10-14 «Да + механизм», t42 report §1.5/§2) ──
+// A turn may not CLOSE by declaring a blocked/stopped outcome — the BLOCKED exit is a universal
+// negative over the route space, and only its scope (routes tried, receipts, failing component,
+// untried named, reopen_when) makes it a claim. The measured case: Codex parked a plan after ONE
+// refused route with the refusal text as reason (docs/robot-protocol-log.md:49).
+
+describe("stop-check / stop claim", () => {
+  const base = {
+    agent: "build_mode",
+    alreadyContinued: false,
+    questionToolCalled: false,
+    env: {} as NodeJS.ProcessEnv,
+  }
+  const BLOCKED_TAIL = "Итог: BLOCKED — маршрут отклонён политикой, продолжать не могу."
+  const CLAIM =
+    "## Stop claim\n\n" +
+    "| route | receipt | failing component |\n" +
+    "|---|---|---|\n" +
+    "| cmd_runner start (direct) | 20261013T151834Z_19c6f90e — exit 1, WinError 5 | job breakaway denial |\n" +
+    "\nuntried routes: an approval request; the Terminal panel\n" +
+    "reopen_when: the runtime permits an independent host launch\n"
+
+  it("fires when the turn declares a blocked outcome WITHOUT the claim form", () => {
+    const hit = stopCheckDecision({ ...base, text: BLOCKED_TAIL })
+    expect(hit?.kind).toBe("stop-claim")
+    expect(hit?.reason).toContain("Stop claim")
+  })
+
+  it("does not fire when the blocked turn CARRIES a valid stop claim", () => {
+    expect(stopCheckDecision({ ...base, text: BLOCKED_TAIL + "\n\n" + CLAIM })).toBeUndefined()
+  })
+
+  it("does not fire on a successful report that merely mentions a blocked route", () => {
+    expect(
+      stopCheckDecision({
+        ...base,
+        text: "Маршрут A был заблокирован политикой.\n\nВзял маршрут B и довёл его до конца: сборка зелёная.",
+      }),
+    ).toBeUndefined()
+  })
+
+  it("fires on the Russian spellings too — заблокировано / не могу продолжить / отложен", () => {
+    for (const tail of ["Ничего не вышло: заблокировано политикой.", "Не могу продолжить.", "План отложен."]) {
+      expect(stopCheckDecision({ ...base, text: tail })?.kind).toBe("stop-claim")
+    }
+  })
+
+  it("a quoted «blocked» in the tail is a citation, not a declaration", () => {
+    expect(
+      stopCheckDecision({ ...base, text: "В логе была строка «blocked by policy, no further reason» — просто цитата." }),
+    ).toBeUndefined()
+  })
+})

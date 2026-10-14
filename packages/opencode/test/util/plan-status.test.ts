@@ -425,3 +425,85 @@ describe("util.plan-status wiring into the turn path", () => {
     expect(source).toContain('log.warn("bug: plan hygiene failed"')
   })
 })
+
+/**
+ * THE STOP CLAIM — a parked or blocked plan must SAY what it tried.
+ *
+ * Owner decision 2026-10-14 («Да + механизм»), t42 report §1.5/§2: a BLOCKED exit is a universal
+ * negative over the route space («no path found on these routes»), and the only thing that can make
+ * it a CLAIM instead of a sentence is its scope: routes tried, each with a receipt and the failing
+ * component, untried routes named, reopen_when. The measured red case (docs/robot-protocol-log.md:49):
+ * Codex parked a plan as BLOCKED after ONE refused route — reason = the refusal text, lift signal =
+ * a tautology, no routes list. `plans/postponed/` is where such plans park, and until now
+ * `getPlanStatus` never read that directory at all — the shelf was invisible to the audit.
+ */
+describe("util.plan-status stop claims", () => {
+  function fixture(files: Record<string, string>, postponed: Record<string, string> = {}): string {
+    const dir = mkdtempSync(path.join(tmpdir(), "plan-stopclaim-"))
+    mkdirSync(path.join(dir, "plans"), { recursive: true })
+    mkdirSync(path.join(dir, "plans_completed"), { recursive: true })
+    mkdirSync(path.join(dir, "plans", "postponed"), { recursive: true })
+    for (const [name, body] of Object.entries(files)) writeFileSync(path.join(dir, "plans", name), body)
+    for (const [name, body] of Object.entries(postponed))
+      writeFileSync(path.join(dir, "plans", "postponed", name), body)
+    return dir
+  }
+
+  const CLAIM =
+    "## Stop claim\n\n" +
+    "| route | receipt | failing component |\n" +
+    "|---|---|---|\n" +
+    "| cmd_runner start (direct) | 20261013T151834Z_19c6f90e — exit 1, WinError 5 | job breakaway denial |\n" +
+    "\nuntried routes: an approval request; the second worktree's resident host\n" +
+    "reopen_when: the runtime permits an independent host launch\n"
+
+  test("a parked plan without a stop claim is REPORTED; a valid one is not", () => {
+    const dir = fixture(
+      {},
+      {
+        "2026-02-01_parked.md": "# Parked\n\n**Status:** BLOCKED\n\n- [ ] work\n",
+        "2026-02-02_claimed.md": "# Claimed\n\n- [ ] work\n\n" + CLAIM,
+      },
+    )
+    const status = getPlanStatus(dir)
+    // The control that must NOT be reported is the claimed plan: a check that flagged the whole
+    // shelf would say nothing, and one that flagged none would be the silence this exists to end.
+    expect(status.stopClaims.map((v) => v.file)).toEqual(["plans/postponed/2026-02-01_parked.md"])
+    const line = formatPlanHygiene(status)
+    expect(line).toContain("STOP CLAIM: 1 plan(s)")
+    expect(line).toContain("plans/postponed/2026-02-01_parked.md")
+    expect(line).not.toContain("2026-02-02_claimed.md")
+  })
+
+  test("a plan under plans/ that STATES BLOCKED/WAITING is audited too; the ACTIVE sibling is not", () => {
+    const dir = fixture({
+      "2026-02-03_blocked.md": "# B\n\n**Status:** BLOCKED\n\n- [ ] work\n",
+      "2026-02-04_waiting.md": "# W\n\nstate: WAITING_APPROVAL\n\n- [ ] work\n",
+      "2026-02-05_live.md": "# L\n\n**Status:** ACTIVE\n\n- [ ] work\n",
+    })
+    const status = getPlanStatus(dir)
+    expect(status.stopClaims.map((v) => v.file)).toEqual(["plans/2026-02-03_blocked.md", "plans/2026-02-04_waiting.md"])
+  })
+
+  test("the PROBLEMS are named, not just counted — the Codex shape says what is missing", () => {
+    // The measured shape: the reason IS the refusal text, the lift signal a tautology, no routes
+    // list, no component split. Every missing piece must be a NAMED problem on the violation.
+    const dir = fixture(
+      {},
+      {
+        "2026-02-06_codex-shape.md":
+          "# Parked\n\n**Status:** BLOCKED\n\n- [ ] work\n\nПричина: «blocked by policy, no further reason».\nLift signal: runtime permits the launch.\n",
+      },
+    )
+    const [violation] = getPlanStatus(dir).stopClaims
+    expect(violation?.problems.some((p) => /routes table/i.test(p))).toBe(true)
+    expect(violation?.problems.some((p) => /untried/i.test(p))).toBe(true)
+  })
+
+  test("a clean worktree prints NO stop-claim line — a check whose silence is its zero", () => {
+    const dir = fixture({ "2026-02-07_live.md": "# L\n\n- [ ] work\n" })
+    const status = getPlanStatus(dir)
+    expect(status.stopClaims).toEqual([])
+    expect(formatPlanHygiene(status)).not.toContain("STOP CLAIM")
+  })
+})

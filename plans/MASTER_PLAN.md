@@ -115,9 +115,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 | | count |
 |---|---|
 | plans completed | 239 |
-| plans active | 18 |
-| tasks passed / total | 1018 / 1257 |
-| open boxes | 96 |
+| plans active | 19 |
+| tasks passed / total | 1024 / 1271 |
+| open boxes | 104 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -283,8 +283,23 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - R4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - R5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
+- `plans/2026-10-14_kernel-stop-claim-release.md` — 8 open / 8 box(es) · lifecycle UNKNOWN
+  sv: intention "the kernel lets any terminal verdict (SUCCESS, BLOCKED, WAITING) close without falsification -> the fixed kernel (stop-claim form, @STATUS_CLAIM, JIDOKA/KAIZEN) is installed here, carried into ADID_Python's canonical bundle, released, installed to every consumer with readback, and the opencode binary rebuilt" · keywords []
+  - TASK-1 [PENDING] · sv [kernel-edit 0.6, invariant-tests 0.4] · manifest: MISSING — nobody has written down what this box is
+  - TASK-2 [PENDING] · sv [mechanism 0.7, plan-status 0.3] · manifest: MISSING — nobody has written down what this box is
+  - TASK-3 [PENDING] · sv [review 1.0] · manifest: MISSING — nobody has written down what this box is
+  - TASK-4 [PENDING] · sv [install 0.6, readback 0.4] · manifest: MISSING — nobody has written down what this box is
+  - TASK-5 [PENDING] · sv [build 1.0] · manifest: MISSING — nobody has written down what this box is
+  - TASK-6 [PENDING] · sv [adid-release 1.0] · manifest: MISSING — nobody has written down what this box is
+  - TASK-7 [PENDING] · sv [consumer-readback 1.0] · manifest: MISSING — nobody has written down what this box is
+  - TASK-8 [PENDING] · sv [independent-verify 1.0] · manifest: MISSING — nobody has written down what this box is
+
+- `plans/2026-10-14_stop-claim-form.md` — 0 open / 6 box(es) · lifecycle UNKNOWN
+  sv: intention "a plan parked in plans/postponed/ or declaring BLOCKED/WAITING, and a primary-agent turn that ends declaring a blocked/stopped outcome, can close with an empty routes list -> both surfaces DEMAND the «## Stop claim» form (routes table route|receipt|failing component, untried routes, reopen_when): planstatus reports a missing or empty claim as a violation, and the end-of-turn stop-check continues such a turn ONCE" · keywords [stop-claim, routes-table, planstatus-violation, blocked-turn-continuation, reopen-when]
+  - no open box
+
 ## The checks
 
-This body names all 20 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 22 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

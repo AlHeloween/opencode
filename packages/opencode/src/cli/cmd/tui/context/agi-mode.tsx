@@ -190,6 +190,9 @@ const [planData, setPlanData] = createSignal<PlanStatus>({
   // Empty like the rest: a stale-plan ALERT is only true once a plan file has been read, and reading it
   // here would be a second reader of the same files this placeholder exists to precede.
   staleStated: [],
+  // Same contract as `staleStated`: the stop-claim audit is only true once plan files were read,
+  // and `refreshPlanStatus` replaces the whole object on first load.
+  stopClaims: [],
   // NOT READ YET, and the empty pair says exactly that. A placeholder that claimed `present: true,
   // misses: []` would render the all-clear nobody measured — the one thing this project refuses
   // («absence of an oracle reads as FALSE»). `refreshPlanStatus` replaces the whole object on first load.

@@ -21,6 +21,7 @@
  */
 
 import { isPrimaryModeIdentity } from "./mode-identity"
+import { hasValidStopClaim } from "../util/stop-claim"
 
 /** Opt-out switch: OPENCODE_STOP_CHECK=0|false|off|no (the repo's convention — codegraph-mcp-auto.ts). */
 export const OPT_OUT_ENV = "OPENCODE_STOP_CHECK"
@@ -28,7 +29,7 @@ export const OPT_OUT_ENV = "OPENCODE_STOP_CHECK"
 /** Part-metadata key marking a continuation message — the «never twice in a row» latch. */
 export const LATCH_KEY = "stop_check"
 
-export type StopCheckKind = "question" | "handoff"
+export type StopCheckKind = "question" | "handoff" | "stop-claim"
 
 export interface StopCheckHit {
   kind: StopCheckKind
@@ -48,6 +49,13 @@ export const HANDOFF_REASON =
   "доделывать работу». Before any hand-off: is the action within YOUR capabilities? Try every route you have " +
   "(cmd_runner, the Terminal panel run_in_terminal, PowerShell/Bash, an MCP tool, a robot) and do it. Only a real " +
   "blocker goes to the owner — through the question tool, naming each route tried with its receipt (command → error)."
+
+export const STOP_CLAIM_REASON =
+  "Turn ends by DECLARING a blocked/stopped outcome. That is a claim about the whole route space, and an empty routes " +
+  "list is not a claim — it is Guess, and Guess decides nothing. Write a `## Stop claim` section: a routes table " +
+  "(route | receipt (run id / output) | failing component) for every route TRIED, the untried routes NAMED, and " +
+  "reopen_when — the condition that reopens this work. If a route remains untried, try it now and report its receipt. " +
+  "Only then may the turn close. (Отвечай владельцу по-русски.)"
 
 /** A trailing session-vector fence is bookkeeping, not the tail the owner reads. */
 const SV_BLOCK = /```(?:yaml)?\s*\n\s*Keywords:[\s\S]*?```\s*$/
@@ -86,6 +94,26 @@ export function stopCheckDisabled(env: NodeJS.ProcessEnv = process.env): boolean
   return value === "0" || value === "false" || value === "off" || value === "no"
 }
 
+/** A turn whose last paragraph DECLARES the work stopped — the BLOCKED-family verdict line. */
+const STOP_DECLARATION = /(\bblocked\b|заблокирован\w*|(?:не могу|невозможно) продолжить|\bpostponed\b|отложен\w*)/i
+
+/**
+ * The turn's last paragraph declares a blocked/stopped outcome. Read from the TAIL on purpose: a
+ * report may narrate a blocked route and still finish («взял маршрут B и довёл до конца»), and the
+ * exit claim is what the turn CLOSES on. Fenced code and quoted spans are dropped first, so a
+ * report quoting «blocked by policy» is a citation, not a declaration.
+ */
+export function declaredStopped(text: string): boolean {
+  const body = text.trim().replace(SV_BLOCK, "").trim()
+  const paragraphs = body
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+  if (paragraphs.length === 0) return false
+  const tail = paragraphs[paragraphs.length - 1].replace(FENCED_CODE, "").replace(QUOTED_SPAN, "")
+  return STOP_DECLARATION.test(tail)
+}
+
 /**
  * The whole decision, as data: what the turn ends on, and whether this turn may be
  * continued for it. `undefined` = the turn ends as it would have without the mechanism.
@@ -107,5 +135,10 @@ export function stopCheckDecision(input: {
   if (input.questionToolCalled) return undefined
   if (endsOnQuestion(input.text)) return { kind: "question", reason: QUESTION_REASON }
   if (handsOff(input.text)) return { kind: "handoff", reason: HANDOFF_REASON }
+  // The stop-claim form (owner 2026-10-14 «Да + механизм»): a turn may END on a blocked/stopped
+  // verdict only when it carries the form — routes tried with receipts, untried named, reopen_when.
+  if (declaredStopped(input.text) && !hasValidStopClaim(input.text)) {
+    return { kind: "stop-claim", reason: STOP_CLAIM_REASON }
+  }
   return undefined
 }

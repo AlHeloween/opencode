@@ -19,6 +19,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync } from "fs
 import path from "path"
 import * as Log from "@opencode-ai/core/util/log"
 import { planHeaderLabel } from "@/memory/spine"
+import { findStopClaimSection, hasValidStopClaim, stopClaimProblems } from "./stop-claim"
 
 const log = Log.create({ service: "util.plan-status" })
 
@@ -40,6 +41,10 @@ export interface PlanStatus {
     * сделать — надо»). The other half — nobody stated anything, the topic was simply rewritten and
     * deleted — cannot be decided by a script, and is what the turn note's `map:` question asks. */
   staleStated: { file: string; lifecycle: string }[]
+  /** Parked (`plans/postponed/`) or blocked-stated plans whose «## Stop claim» is missing or
+   *  incomplete — the form the owner made binding on 2026-10-14 (t42 §1.5/§2). An empty routes
+   *  list is Guess, and Guess decides nothing: the finding NAMES every missing piece. */
+  stopClaims: { file: string; problems: string[] }[]
   /** The reciprocal of the plan map — see {@link masterPlanCoverage}. `present: false` is a finding of its
     * own, never merged into `misses`: «no map at all» and «a map that missed a plan» are different things. */
   masterPlan: { present: boolean; misses: string[] }
@@ -654,6 +659,61 @@ export function getPlanStatus(worktree: string): PlanStatus {
     }
   })
 
+  // ── THE STOP CLAIM (owner 2026-10-14, «Да + механизм») ──
+  // A parked or blocked plan must SAY what it tried: routes with receipts and the failing
+  // component, the untried routes named, reopen_when. Until now `plans/postponed/` was never read
+  // by this function at all — the shelf was invisible to the audit — and a plan under `plans/`
+  // that STATES BLOCKED/WAITING is judged by the same form, because the state IS a stop claim
+  // wherever it is written. A missing or empty piece is NAMED, never silently accepted (the same
+  // contract «No checklist» carries).
+  const STOP_CLAIM_STATES = /^(BLOCKED|WAITING(_APPROVAL)?|POSTPONED)$/
+  const stopClaims: { file: string; problems: string[] }[] = []
+  const auditStopClaim = (rel: string, abs: string) => {
+    let body: string
+    try {
+      body = readFileSync(abs, "utf-8")
+    } catch (e) {
+      log.debug("plan file unreadable while auditing its stop claim", {
+        file: rel,
+        error: e instanceof Error ? e.message : String(e),
+      })
+      return
+    }
+    if (hasValidStopClaim(body)) return
+    const section = findStopClaimSection(body)
+    stopClaims.push({
+      file: rel,
+      problems:
+        section === undefined
+          ? [
+              "no «## Stop claim» section — need a routes table (route | receipt | failing component), the untried routes named, reopen_when",
+            ]
+          : stopClaimProblems(section),
+    })
+  }
+  const postponedDir = path.join(plansDir, "postponed")
+  for (const f of collectPlans(postponedDir)) {
+    auditStopClaim(`plans/postponed/${f.replace(/\\/g, "/")}`, path.join(postponedDir, f))
+  }
+  for (const f of allActive) {
+    const abs = path.join(plansDir, f)
+    let lifecycle: string | undefined
+    try {
+      lifecycle = parseLifecycle(readFileSync(abs, "utf-8"))
+    } catch (e) {
+      log.debug("plan file unreadable while checking its stated state for the stop claim", {
+        file: f,
+        error: e instanceof Error ? e.message : String(e),
+      })
+      continue
+    }
+    if (!lifecycle || !STOP_CLAIM_STATES.test(lifecycle)) continue
+    auditStopClaim(`plans/${f.replace(/\\/g, "/")}`, abs)
+  }
+  // Deterministic order: two loops feed one list, and a finding that moves between reads is not
+  // a finding a test can pin.
+  stopClaims.sort((a, b) => (a.file < b.file ? -1 : 1))
+
   // Count tasks across ALL plan files
   let totalTasks = 0
   let completedTasks = 0
@@ -678,6 +738,7 @@ export function getPlanStatus(worktree: string): PlanStatus {
     noChecklist,
     noChecklistStated,
     staleStated,
+    stopClaims,
     masterPlan: masterPlanCoverage(worktree),
     totalPlans,
     totalTasks,
@@ -835,6 +896,15 @@ export function formatPlanHygiene(status: PlanStatus, reconcile?: ReconcileResul
     ...(status.staleStated.length
       ? [
           `STALE STATED: ${status.staleStated.length} plan(s) under plans/ say their work is finished or superseded while their boxes are OPEN — a reader will work them again: ${status.staleStated.map((p) => `${p.file} ${p.lifecycle}`).join(" · ")}`,
+        ]
+      : []),
+    // THE STOP CLAIM — a parked or blocked plan without the form. An ALERT like STALE STATED: it
+    // prints only when it fires, and it NAMES each problem, because a count alone would not tell
+    // the next reader what is missing from the claim.
+    ...(status.stopClaims.length
+      ? [
+          `STOP CLAIM: ${status.stopClaims.length} plan(s) parked or blocked without a valid «## Stop claim» — a stop is a claim: routes tried with receipts, failing component each, untried named, reopen_when: ` +
+            status.stopClaims.map((v) => `${v.file} (${v.problems.join("; ")})`).join(" · "),
         ]
       : []),
     // THE MAP'S OWN COVERAGE — printed even when it is clean, for the reason `Misplaced: none` is: a check

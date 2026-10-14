@@ -2840,3 +2840,49 @@ it.live(
   30_000,
 )
 
+
+// The stop-claim form at the turn boundary (owner 2026-10-14 «Да + механизм»): a turn may not CLOSE
+// by declaring a blocked/stopped outcome with no routes tried — the runtime continues it ONCE, and
+// the continuation (which carries the claim) ends the turn.
+
+it.live("stop-check continues once when the turn declares a blocked outcome without a stop claim", () =>
+  provideTmpdirServer(
+    Effect.fnUntraced(function* ({ llm }) {
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const chat = yield* sessions.create({
+        title: "Pinned",
+        permission: [{ permission: "*", pattern: "*", action: "allow" }],
+      })
+
+      yield* prompt.prompt({
+        sessionID: chat.id,
+        agent: "build",
+        noReply: true,
+        parts: [{ type: "text", text: "запусти сборку" }],
+      })
+      yield* llm.text("Итог: BLOCKED — маршрут отклонён политикой, продолжать не могу.")
+      yield* llm.text(
+        "## Stop claim\n\n" +
+          "| route | receipt | failing component |\n" +
+          "|---|---|---|\n" +
+          "| cmd_runner start (direct) | 20261014T000000Z_aaaa0000 — exit 1, WinError 5 | job breakaway denial |\n" +
+          "\nuntried routes: the Terminal panel run_in_terminal\n" +
+          "reopen_when: the runtime permits an independent host launch",
+      )
+
+      const result = yield* prompt.loop({ sessionID: chat.id })
+      expect(yield* llm.hits).toHaveLength(2)
+      expect(result.parts.some((part) => part.type === "text" && part.text.includes("## Stop claim"))).toBe(true)
+
+      const msgs = yield* sessions.messages({ sessionID: chat.id })
+      const injected = msgs.filter(
+        (msg) =>
+          msg.info.role === "user" &&
+          msg.parts.some((part) => part.type === "text" && part.metadata?.stop_check === "stop-claim"),
+      )
+      expect(injected).toHaveLength(1)
+    }),
+    { git: true, config: providerCfg },
+  ),
+)

@@ -380,12 +380,29 @@ A turn that called the `question` tool is never blocked; sub-agent turns are nev
 `OPENCODE_STOP_CHECK=0|false|off|no` disables it. The injection is a tail message — no byte of the
 system prefix changes (KV).
 
+**2026-10-14 — the stop-claim form (owner «Да + механизм», t42 report §1.5/§2).** A blocked/stopped
+outcome is a claim about the whole route space and cannot be verified, only scoped: routes tried,
+each with a receipt and the failing component; untried routes named; `reopen_when`. Kernel text binds
+nothing at runtime (`experiments/2026-10-13_kernel-exit-audit/PREDICATES.md`: the FSM predicates have
+0 runtime consumers), so the form is carried by two mechanisms over one predicate
+(`util/stop-claim.ts`):
+
+- `util/plan-status.ts` audits every plan under `plans/postponed/` and every plan under `plans/` whose
+  stated lifecycle is BLOCKED/WAITING/POSTPONED — a missing or incomplete claim is reported as a
+  `STOP CLAIM: N plan(s) …` violation that NAMES each missing piece (the `No checklist` contract,
+  never a silent accept). The 8 plans parked before this change are the red set the check exists to
+  surface; fixing them is their owners' decision, not the audit's.
+- `session/stop-check.ts` adds a third detector: a primary-agent turn whose LAST paragraph declares a
+  blocked/stopped outcome (`BLOCKED`, «заблокировано», «не могу продолжить», postponed) and carries no
+  valid claim is continued ONCE with `STOP_CLAIM_REASON` — the same latch, never twice in a row.
+
 ## 9. Key Files
 
 | File | Purpose | Lines |
 |------|---------|-------|
 | `session/prompt.ts` | Main prompt loop, checkpoint, `captureSidecar`, Layer-2 cadence gate | — |
-| `util/plan-status.ts` | Plan progress + reconcilePlans hygiene | — |
+| `util/plan-status.ts` | Plan progress + reconcilePlans hygiene; the `STOP CLAIM` violation for parked/blocked plans | — |
+| `util/stop-claim.ts` | The `## Stop claim` form: section finder, problems, validity — one home for both surfaces | — |
 | `cli/cmd/tui/context/agi-mode.tsx` | AGI loop, plan hygiene integration | — |
 | `session/llm.ts` | LLM orchestration; request size ≈ content/4+10k; correlation headers (§8a) | — |
 | `provider/response-cache.ts` | OpenRouter response-cache opt-in headers (§8a) | — |
@@ -400,7 +417,7 @@ system prefix changes (KV).
 | `session/overflow.ts` | Cadence vs safety gates; `needsContentCompaction` | — |
 | `sync/index.ts` | `SyncEvent.run` / `runBatch` (finishStep one TX) | — |
 | `session/message-v2.ts` | Schema, conversion, `filterCompacted*` | — |
-| `session/stop-check.ts` | k2 end-of-turn stop check: offer/hand-off detectors, decision, latch key | — |
+| `session/stop-check.ts` | k2 end-of-turn stop check: offer/hand-off/stop-claim detectors, decision, latch key | — |
 | `agent/agent.ts` | 10 built-in agent definitions | 395 |
 | `tool/pipeline.ts` | Pipeline tool (agent chaining) | 191 |
 | `tool/capability.ts` | Model capability lookup tool | 101 |

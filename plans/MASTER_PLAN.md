@@ -114,7 +114,7 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 | | count |
 |---|---|
-| plans completed | 239 |
+| plans completed | 240 |
 | plans active | 19 |
 | tasks passed / total | 1024 / 1271 |
 | open boxes | 104 |
@@ -294,12 +294,8 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - TASK-7 [PENDING] · sv [consumer-readback 1.0] · manifest: MISSING — nobody has written down what this box is
   - TASK-8 [PENDING] · sv [independent-verify 1.0] · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-14_stop-claim-form.md` — 0 open / 6 box(es) · lifecycle UNKNOWN
-  sv: intention "a plan parked in plans/postponed/ or declaring BLOCKED/WAITING, and a primary-agent turn that ends declaring a blocked/stopped outcome, can close with an empty routes list -> both surfaces DEMAND the «## Stop claim» form (routes table route|receipt|failing component, untried routes, reopen_when): planstatus reports a missing or empty claim as a violation, and the end-of-turn stop-check continues such a turn ONCE" · keywords [stop-claim, routes-table, planstatus-violation, blocked-turn-continuation, reopen-when]
-  - no open box
-
 ## The checks
 
-This body names all 22 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
+This body names all 21 plan(s) under `plans/` as they stand now: a plan that appears there appears here on the next render, and one that leaves, leaves.
 
 That statement is about NOW on purpose. A body that reported the state of the PREVIOUS file would change the instant it was written, and a re-run could never be byte-identical — measured 2026-09-30, when the first version did exactly that and its own acceptance («two renders in a row are byte-identical») caught it. Whether the map was STALE before this render is a delta, so the tool that ran the render reports it (`gapsBefore`) and this file never stores it.

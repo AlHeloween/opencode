@@ -175,13 +175,13 @@ def test_runtime_is_followable_without_opening_the_adid_document() -> None:
         assert undefined not in text, undefined
     stop = next(rule.text for gate in KERNEL.gates for rule in gate.local_rules if rule.id == "BOUNDED_STOP_CONDITIONS")
     for case in (
-        "passes every test case",
-        "3 failed corrective attempts",
-        "immutable external dependency",
-        "structurally futile",
+        "oracle-confirmed acceptance",
+        "zero critical risks",
+        "task stays open",
+        "unfinished task + next action + receipt",
     ):
         assert case in stop, case
-    assert "NOT SUCCESS" in stop, "a bounded stop must not read as closure"
+    assert "SUCCESS still requires @CLOSURE_PROOF" in stop
     # The classification is a GATE between clustering and selection, and an absent classification
     # reads as REJECTED — the project's own rule that a missing indicator means "not working", not
     # "probably fine". The second clause exists because tier 1 says "fully verified", which reads
@@ -295,9 +295,10 @@ def test_procedure_layer_keeps_its_decisions() -> None:
     assert "never patch the tool in flight or fit results to it" in tools
     g3 = next(gate for gate in KERNEL.gates if gate.id == "G3")
     assert "TOOLCHAIN_QUALIFICATION" in g3.shared_rules, "readiness is planned before testing"
-    # 2026-10-14 (t42): «Calibration examples ≠ held-out cases» cut — benchmark doctrine, not agent work;
-    # the handoff clause is now a stop claim (routes tried with receipts).
-    assert "handoff as a stop claim" in tools
+    # 2026-10-14 (t42): «Calibration examples ≠ held-out cases» cut — benchmark doctrine, not agent work.
+    # 2026-10-15 (BLOCKED removal): handoff is a CONTINUATION with receipts (ticket, dispatch, observation,
+    # bounded follow-up until verified done), no longer a stop claim.
+    assert "Handoff retains routes tried with receipts" in tools
     churn = shared["ANTI_CHURN"]
     assert "Memory is not a vote" in churn
     # Owner, 2026-09-29: memory rebuilt from artifacts still self-winds — our own artifacts carry
@@ -319,9 +320,11 @@ def test_procedure_layer_keeps_its_decisions() -> None:
         assert clause in validate, clause
     # BGE dedup D1: SUCCESS is defined once; the stop rule points to it instead of restating it.
     stop = next(rule.text for gate in KERNEL.gates for rule in gate.local_rules if rule.id == "BOUNDED_STOP_CONDITIONS")
-    assert "stop claim" in stop
-    assert "NOT SUCCESS" in stop
-    assert "untried route or the split that adds observability" in stop
+    # 2026-10-15 (BLOCKED removal): the stop rule POINTS to @CLOSURE_PROOF (D1) and names the
+    # non-success terminal without the old stop-claim vocabulary.
+    assert "SUCCESS still requires @CLOSURE_PROOF" in stop
+    assert "only a real owner decision or quoted exclusion permits a non-success terminal" in stop
+    assert "never invents completion" in stop
     # Owner, 2026-09-29: «Особенно lean… без этой проверки начинается ковыряние и доказательство ерунды».
     # LEAN reaches the oracle and the bug report, not only G2 selection — and earns its rendered name.
     g8 = {rule.id: rule.text for gate in KERNEL.gates if gate.id == "G8" for rule in gate.local_rules}
@@ -507,7 +510,7 @@ def test_pre_action_section_stays_small() -> None:
     assert section <= 7_800, section
 
 
-def test_testimony_clause_covers_done_and_blocked_in_both_variants() -> None:
+def test_testimony_clause_covers_done_and_closed_ticket_in_both_variants() -> None:
     """Exit audit 2026-10-13, case C: only «done» was named as testimony about state.
 
     A «blocked» is the same kind of claim — self-declared state asserted as a decision — so the
@@ -517,5 +520,5 @@ def test_testimony_clause_covers_done_and_blocked_in_both_variants() -> None:
     from prompt_kernel.addons_claude import CLAUDE_GATE_ADDONS
 
     for text in (render_kernel(KERNEL), render_kernel(KERNEL, CLAUDE_GATE_ADDONS, ())):
-        assert "a «done» or a «blocked», the user's included, is testimony about state, not a decision" in text
+        assert "a «done» or a closed ticket, the user's included, is testimony about state, not a decision" in text
         assert "it re-digests the stamped artifact, and reruns the work on a mismatch or when no stamp exists" in text

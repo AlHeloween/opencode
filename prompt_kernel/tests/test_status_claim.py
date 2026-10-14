@@ -42,7 +42,7 @@ def test_status_claim_is_first_shared_rule_and_renders_in_every_variant() -> Non
     assert KERNEL.shared_rules[0].id == "STATUS_CLAIM"
     text = KERNEL.shared_rules[0].text
     # B3: every terminal — WAITING_APPROVAL and OUT_OF_SCOPE were missing from the closed list.
-    for terminal in ("SUCCESS, BLOCKED, DEFECT, IMPROVED, WAITING_APPROVAL, OUT_OF_SCOPE",):
+    for terminal in ("SUCCESS, DEFECT, IMPROVED, WAITING_APPROVAL, OUT_OF_SCOPE",):
         assert terminal in text
     assert "checkable refutation conditions and their observations" in text
     assert "Unknown does not stop the work" in text
@@ -56,12 +56,9 @@ def test_every_terminal_edge_carries_its_claim() -> None:
     assert terminal_edges
     for edge in terminal_edges:
         assert "claim" in edge.condition, f"{edge.source}->{edge.target}: {edge.condition}"
-    blocked = next(edge for edge in terminal_edges if edge.source == "G9" and edge.target == "BLOCKED")
-    assert "receipts" in blocked.condition
-    assert "untried named" in blocked.condition
-    # B1: the Codex shape — one tried route plus any number of merely-named untried routes.
-    assert "out of reach" in blocked.condition
-    assert "a reachable untried route = no BLOCKED" in blocked.condition
+    assert not any(edge.target == "BLOCKED" for edge in terminal_edges)
+    assert any(edge.source == "G9" and edge.target == "G1" for edge in KERNEL.edges)
+    assert any(edge.source == "G9" and edge.target == "G2" for edge in KERNEL.edges)
     success = next(edge for edge in terminal_edges if edge.target == "SUCCESS")
     assert "control receipt" in success.condition
     assert "delivered revision" in success.condition
@@ -69,9 +66,9 @@ def test_every_terminal_edge_carries_its_claim() -> None:
 
 def test_every_stop_rule_demands_scope_and_falsifier() -> None:
     stop = _gate_rule("G9", "BOUNDED_STOP_CONDITIONS")
-    assert "stop claim" in stop
-    assert "falsifier" in stop
-    assert "NOT SUCCESS" in stop
+    assert "unfinished task + next action + receipt" in stop
+    assert "task stays open" in stop
+    assert "SUCCESS still requires @CLOSURE_PROOF" in stop
     assert "routes tried with receipts" in _shared()["TOOLCHAIN_QUALIFICATION"]
     ledger = dict(KERNEL.state_fields)["CLAIM_LEDGER"]
     for field in ("scope", "receipts", "falsifier", "reopen_when", "allowed_residual"):
@@ -80,7 +77,9 @@ def test_every_stop_rule_demands_scope_and_falsifier() -> None:
 
 def test_no_stop_or_descend_contradiction() -> None:
     info = _shared()["INFORMATION_STATUS"]
-    assert "failed proof drops the basis; the work continues" in info
+    # 2026-10-15: the ladder restatement moved to §1.3 (third copy cut, owner: «меньше пиздежа»);
+    # the continuation norm the test guards lives in the descend clause.
+    assert "descend while a split adds observability" in info
     assert "failed proof is Unknown — stop" not in info
 
 

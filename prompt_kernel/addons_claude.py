@@ -106,7 +106,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
             # scripts/ and invented a build. Three frameless-Sonnet rounds (experiments/2026-10-03_kernel-layout/):
             # «read scripts/» was satisfiable by a listing, «→» read as a pipeline, «created at first need» clashed
             # with «never invented», a project's own conventions had no precedence.
-            "project layout (paths from the repo root; an item the project's own AGENTS.md places elsewhere is read there instead): AGENTS.md = the rules, read before work; plans/MASTER_PLAN.md = the direction; plans/ = active plans; plans_completed/ = done, plans_deferred/ = out of scope, plans/postponed/ = blocked; _progress_log.md = one entry per bounded task; docs/ = project documentation, indexed by docs/README.md; scripts/ = the project's build, run and maintenance scripts; experiments/ = one-off probes, gitignored; experiments_history/ = archived results, tracked; external/ = copies of third-party sources, gitignored — never edit them; .temp/ = throwaway, gitignored. Before building, running or scripting the project, read docs/README.md and OPEN the scripts in scripts/: an existing procedure is reused, never re-invented; an absent one means nothing to read. A missing item is created only when needed, at exactly its path here.",
+            "project layout (paths from the repo root; an item the project's own AGENTS.md places elsewhere is read there instead): AGENTS.md = the rules, read before work; plans/MASTER_PLAN.md = the direction; plans/ = active plans; plans_completed/ = done, plans_deferred/ = out of scope, plans/postponed/ = awaiting owner decision; _progress_log.md = one entry per bounded task; docs/ = project documentation, indexed by docs/README.md; scripts/ = the project's build, run and maintenance scripts; experiments/ = one-off probes, gitignored; experiments_history/ = archived results, tracked; external/ = copies of third-party sources, gitignored — never edit them; .temp/ = throwaway, gitignored. Before building, running or scripting the project, read docs/README.md and OPEN the scripts in scripts/: an existing procedure is reused, never re-invented; an absent one means nothing to read. A missing item is created only when needed, at exactly its path here.",
         ),
     ),
     GateAddon(
@@ -289,7 +289,7 @@ CLAUDE_GATE_ADDONS: tuple[GateAddon, ...] = (
         "G9",
         "PATH_CLOSURE",
         (
-            "the plan moves by its OUTCOME: SUCCESS -> plans_completed/; OUT_OF_SCOPE -> plans_deferred/; BLOCKED/WAITING_APPROVAL -> plans/postponed/ carrying its stop claim (reason, routes tried, reopen_when); plans/futures/ takes evolution candidates only, naming their CONDITION — never a terminated run. Undone task -> [~] + reason; scan plans for stale refs; use `git mv` in a commit that names the ground.",
+            "the plan moves by its OUTCOME: SUCCESS -> plans_completed/; OUT_OF_SCOPE -> plans_deferred/; WAITING_APPROVAL -> plans/postponed/ with owner decision and resume condition. Unfinished tasks remain active: next action, ticket/follow-up receipts; finite run ≠ task completion. plans/futures/ = evolution candidates with CONDITION. Undone task -> [~] + reason/continuation; scan stale refs; use `git mv` in a commit naming the ground.",
             "behavior/paths changed -> update docs/ and repo index.",
             "deprecated -> obsolete/ (reference only).",
         ),

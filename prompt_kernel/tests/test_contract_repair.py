@@ -123,25 +123,27 @@ def test_g9_success_requires_acceptance_oracle_pass_and_zero_risks(evidence_cont
     )
 
 
-def test_g9_recorded_non_pass_with_reason_and_residual_closes_without_success() -> None:
+def test_g9_recorded_non_pass_with_residual_continues_without_success() -> None:
     context = {
         "oracle": "FAIL",
-        "stop_reason": "run budget exhausted",
         "residual_defined": True,
-        "lawful_non_success_terminal": "BLOCKED",
+        "next_action": "ground smaller leaf",
+        "continuation_ref": "plans/task.md#next",
+        "continuation_route": "G2",
+        "parent_task_open": True,
     }
-    assert G9_FSM.is_valid_transition("CHECK_ORACLE", "EVALUATE_STOP", context)
-    assert G9_FSM.is_valid_transition("EVALUATE_STOP", "EMIT_CLOSURE", context)
+    assert G9_FSM.is_valid_transition("CHECK_ORACLE", "EVALUATE_RESIDUAL", context)
+    assert G9_FSM.is_valid_transition("EVALUATE_RESIDUAL", "CONTINUE_RESIDUAL", context)
     # the same run never reaches SUCCESS.
     assert not G9_FSM.is_valid_transition("CHECK_RISKS", "EMIT_SUCCESS", context)
 
 
-def test_g9_non_pass_without_reason_or_residual_cannot_close() -> None:
+def test_g9_non_pass_without_residual_or_next_action_cannot_continue() -> None:
     bare = {"oracle": "FAIL"}
-    assert G9_FSM.is_valid_transition("CHECK_ORACLE", "EVALUATE_STOP", bare)
-    assert not G9_FSM.is_valid_transition("EVALUATE_STOP", "EMIT_CLOSURE", bare)
-    no_residual = {"oracle": "FAIL", "stop_reason": "budget", "lawful_non_success_terminal": "BLOCKED"}
-    assert not G9_FSM.is_valid_transition("EVALUATE_STOP", "EMIT_CLOSURE", no_residual)
+    assert G9_FSM.is_valid_transition("CHECK_ORACLE", "EVALUATE_RESIDUAL", bare)
+    assert not G9_FSM.is_valid_transition("EVALUATE_RESIDUAL", "CONTINUE_RESIDUAL", bare)
+    no_residual = {"oracle": "FAIL", "next_action": "probe", "continuation_route": "G1"}
+    assert not G9_FSM.is_valid_transition("EVALUATE_RESIDUAL", "CONTINUE_RESIDUAL", no_residual)
 
 
 def test_g9_success_is_refused_on_a_recorded_fail() -> None:
@@ -155,14 +157,15 @@ def test_g9_success_is_refused_on_a_recorded_fail() -> None:
 def test_g9_presence_of_a_recorded_verdict_is_exists_not_has() -> None:
     # HAS(False) is not «a verdict was recorded»: a falsy-but-present verdict still counts as
     # recorded (EXISTS), so a lawful stop is not silently dropped.
-    assert G9_FSM.is_valid_transition("CHECK_ORACLE", "EVALUATE_STOP", {"oracle": False})
-    assert G9_FSM.is_valid_transition("CHECK_ORACLE", "EVALUATE_STOP", {"oracle": ""})
-    assert not G9_FSM.is_valid_transition("CHECK_ORACLE", "EVALUATE_STOP", {})
+    assert G9_FSM.is_valid_transition("CHECK_ORACLE", "EVALUATE_RESIDUAL", {"oracle": False})
+    assert G9_FSM.is_valid_transition("CHECK_ORACLE", "EVALUATE_RESIDUAL", {"oracle": ""})
+    assert not G9_FSM.is_valid_transition("CHECK_ORACLE", "EVALUATE_RESIDUAL", {})
 
 
 def test_g9_success_and_closure_are_distinct_accepting_states() -> None:
     assert "EMIT_SUCCESS" in G9_FSM.accepting_states
     assert "EMIT_CLOSURE" in G9_FSM.accepting_states
+    assert "CONTINUE_RESIDUAL" in G9_FSM.accepting_states
     assert "EMIT_SUCCESS" != "EMIT_CLOSURE"
 
 
@@ -175,19 +178,21 @@ def test_g9_has_no_duplicate_transition_endpoints() -> None:
         seen.add(key)
 
 
-def test_g9_lawful_stop_is_reachable_with_uncovered_acceptance() -> None:
+def test_g9_continuation_is_reachable_with_uncovered_acceptance() -> None:
     context = {
         "VERIFIED_OUTCOME": {"acceptance_id": "FAIL"},
         "acceptance_covered": False,
         "oracle": "FAIL",
-        "stop_reason": "budget exhausted",
         "residual_defined": True,
-        "lawful_non_success_terminal": "BLOCKED",
+        "next_action": "probe",
+        "continuation_ref": "plans/task.md#probe",
+        "continuation_route": "G1",
+        "parent_task_open": True,
     }
     for before, after in (
         ("AWAIT_VERIFICATION", "CHECK_ACCEPTANCE"),
-        ("CHECK_ACCEPTANCE", "EVALUATE_STOP"),
-        ("EVALUATE_STOP", "EMIT_CLOSURE"),
+        ("CHECK_ACCEPTANCE", "EVALUATE_RESIDUAL"),
+        ("EVALUATE_RESIDUAL", "CONTINUE_RESIDUAL"),
     ):
         assert G9_FSM.is_valid_transition(before, after, context), (before, after)
 

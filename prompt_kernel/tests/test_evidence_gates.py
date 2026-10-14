@@ -127,9 +127,10 @@ def test_inventory_and_master_goal_are_re_read_at_closure(evidence_context):
     assert not success(evidence_context)
 
 
-def test_missing_audit_does_not_forbid_an_honest_non_success_stop():
-    assert G9_FSM.is_valid_transition("EVALUATE_STOP", "EMIT_CLOSURE", {
-        "stop_reason": "budget", "residual_defined": True, "lawful_non_success_terminal": "BLOCKED"})
+def test_missing_audit_does_not_forbid_grounding_the_residual():
+    assert G9_FSM.is_valid_transition("EVALUATE_RESIDUAL", "CONTINUE_RESIDUAL", {
+        "next_action": "verify portfolio pins", "residual_defined": True,
+        "continuation_ref": "plans/task.md#audit", "continuation_route": "G1", "parent_task_open": True})
 
 
 def test_state_contracts_have_real_producers_and_consumers():

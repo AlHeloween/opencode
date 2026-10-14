@@ -38,9 +38,10 @@ def test_addons_render_inside_gate_rule_blocks() -> None:
     assert "- identity or permission uncertain -> checkstate; unresolved decision -> question (ASK)." in g4
     g9 = _gate_block(text, "G9")
     # R1c uses one shared outcome clause; the obligation survives that representation.
-    assert "Undone task -> [~] + reason; scan plans for stale refs" in g9
+    assert "Undone task -> [~] + reason/continuation; scan stale refs" in g9
     assert "SUCCESS -> plans_completed/" in g9
-    assert "BLOCKED/WAITING_APPROVAL -> plans/postponed/" in g9
+    assert "WAITING_APPROVAL -> plans/postponed/" in g9
+    assert "unfinished tasks remain active" in g9.lower()
     assert "- verify completion: messagesearch; git status." in g9
 
 

@@ -18,7 +18,7 @@ flowchart LR
     G9 -->|residual evidence| G1
     G9 -->|invalid geometry| G2
     G0 -->|ambiguous intention| WAITING_APPROVAL
-    G1 -->|ownership unresolved| BLOCKED
+    G1 -->|ownership unresolved: ticket, observe, follow-up| G2
     G2 & G3 & G5 & G6 & G7 & G8 & G9 -.->|INTENTION_RESET| G0
     G1 & G2 & G6 & G7 & G8 -.->|DELEGATION| SUB["sub-agent / AICall falsifier"]
 ```

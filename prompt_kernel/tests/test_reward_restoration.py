@@ -33,9 +33,9 @@ HISTORICAL_REWARD_TEXT = (
 )
 
 COMPLETION_TERM = (
-    " Add task_done/(101 − done_percent)^2 to R: "
-    "task_done is oracle-confirmed completed tasks, "
-    "done_percent = 100·task_done/total_tasks, in the same frozen scope. "
+    " Add plan_done_sum/(101 − plan_done_percent)^2 to R: "
+    "plan_done_sum is the sum over oracle-confirmed completed plans, "
+    "plan_done_percent = 100·completed_plans/total_plans, in the same frozen scope. "
     "Omit an undefined completion term."
 )
 EXPECTED_REWARD_TEXT = HISTORICAL_REWARD_TEXT + COMPLETION_TERM
@@ -69,9 +69,9 @@ CONTRACT_CLAUSES = (
 )
 
 COMPLETION_CLAUSES = (
-    "Add task_done/(101 − done_percent)^2 to R:",
-    "task_done is oracle-confirmed completed tasks,",
-    "done_percent = 100·task_done/total_tasks,",
+    "Add plan_done_sum/(101 − plan_done_percent)^2 to R:",
+    "plan_done_sum is the sum over oracle-confirmed completed plans,",
+    "plan_done_percent = 100·completed_plans/total_plans,",
     "in the same frozen scope.",
     "Omit an undefined completion term.",
 )

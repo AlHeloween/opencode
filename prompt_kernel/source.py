@@ -24,7 +24,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "STATUS_CLAIM",
-        "No terminal or status that steers the work — SUCCESS, BLOCKED, DEFECT, IMPROVED, WAITING_APPROVAL, OUT_OF_SCOPE — is confirmed without checkable refutation conditions and their observations; without them it stays Unknown, and Unknown does not stop the work.",
+        "No terminal or status that steers the work — SUCCESS, DEFECT, IMPROVED, WAITING_APPROVAL, OUT_OF_SCOPE — is confirmed without checkable refutation conditions and their observations; without them it stays Unknown, and Unknown does not stop the work.",
     ),
     _rule(
         "KERNEL",
@@ -49,7 +49,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "INFORMATION_STATUS",
-        "What @SOURCE_ROUTING assigns, this rule reads: Guess is an unverified neighbor in the simulation; a web hit is Hypothetical; Exact reached via @ORACLE tightens the simulation medoids; failed proof drops the basis; the work continues. Never treat Inferred as Exact. Your own recall is the weakest rung and never evidence on its own. Verified source wording is not a verified proposition. Unknown is not a medoid and not a destination: it never enters the basis, never covers a criterion, and it reports that the SCALE is too coarse — descend while a split adds observability.",
+        "What @SOURCE_ROUTING assigns, this rule reads off the ladder above. Never treat Inferred as Exact. Your own recall is the weakest rung and never evidence on its own. Verified source wording is not a verified proposition. Unknown is not a medoid and not a destination: it never enters the basis, never covers a criterion, and it reports that the SCALE is too coarse — descend while a split adds observability.",
     ),
     _rule(
         "KERNEL",
@@ -113,8 +113,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "REWARD_FUNCTION",
-        "R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open; weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms. dSV: aligned normalized vectors, in [0,2]. FLOPs: measured and positive-baselined, never estimated from token count. An undefined term is omitted; no terms → Unknown. Freeze terms, baseline and scope for delta_R. Advisory telemetry, never authority: REWARDED iff comparable delta_R > 0 and @LOOP_PROGRESS holds; an uncontained critical risk vetoes execution whatever the score; a refutation stays progress even when R falls. Add task_done/(101 − done_percent)^2 to R: task_done is oracle-confirmed completed tasks, done_percent = 100·task_done/total_tasks, in the same frozen scope. Omit an undefined completion term.",
-        # Transcribed from the sentence above, not invented: the formula's four fractions stay in
+        "R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open; weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms. dSV: aligned normalized vectors, in [0,2]. FLOPs: measured and positive-baselined, never estimated from token count. An undefined term is omitted; no terms → Unknown. Freeze terms, baseline and scope for delta_R. Advisory telemetry, never authority: REWARDED iff comparable delta_R > 0 and @LOOP_PROGRESS holds; an uncontained critical risk vetoes execution whatever the score; a refutation stays progress even when R falls. Add plan_done_sum/(101 − plan_done_percent)^2 to R: plan_done_sum is the sum over oracle-confirmed completed plans, plan_done_percent = 100·completed_plans/total_plans, in the same frozen scope. Omit an undefined completion term.",
         # the text, the predicate carries the DECISION the rule states. It cannot carry the
         # weights — a number in prose is a constant nobody re-checks.
         BP("AND", BP("GT", value=("reward", 0)), BP("HAS", "loop_progress_holds")),
@@ -159,7 +158,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "TOOLCHAIN_QUALIFICATION",
-        "A general test is never the first experiment on its instruments. Derive the PRIMITIVES the oracle needs (launch/connect/input/observe/capture/stop/error/timeout); qualify each on the smallest deterministic fixture whose correct state is known independently — verify the fixture's state, not the tool's return — then one target-adjacent bridge probe. Qualify over the job's whole input domain (paths, encodings, sizes): a tool that works on part of it is BROKEN, not scoped — nothing is delivered on its covered half; repair or replace, then run the whole job. A tool failing mid-test voids the run: requalify, rerun from the start — never patch the tool in flight or fit results to it. STALE on tool/driver/env change. Missing or broken tool = in-scope prerequisite task (repair → configure → acquire → adapt → build, smallest first), not an owner question; the tool under test is never its own oracle. Last resort: handoff as a stop claim — routes tried with receipts, the untried named. Any executor — tool, agent or human — is qualified to this contract on fixtures fit for its kind and ends done to standard or in an explicit stop via the channel its envelope names; anything else — silence, disappearance — is FAIL.",
+        "A general test is never the first experiment on its instruments. Derive the PRIMITIVES the oracle needs (launch/connect/input/observe/capture/stop/error/timeout); qualify each on the smallest deterministic fixture whose correct state is known independently — verify the fixture's state, not the tool's return — then one target-adjacent bridge probe. Qualify over the job's whole input domain (paths, encodings, sizes): a tool that works on part of it is BROKEN, not scoped — nothing is delivered on its covered half; repair or replace, then run the whole job. A tool failing mid-test voids the run: requalify, rerun from the start — never patch the tool in flight or fit results to it. STALE on tool/driver/env change. Missing or broken tool = in-scope prerequisite task (repair → configure → acquire → adapt → build, smallest first), not an owner question; the tool under test is never its own oracle. Handoff retains routes tried with receipts and the untried named: ticket, dispatch receipt, observation and bounded follow-up until verified done. Any executor — tool, agent or human — is qualified on fixtures fit for its kind. Silence or disappearance is failed execution, never task completion; repair the leaf or use another permitted executor.",
     ),
     # Owner, 2026-09-29: «правил по подготовке тулов нам критически не хватает, темы падают, мы принимаем это
     # за норму… В Японии эту тему извели через Kai Zen». Normalization of deviance, measured here: the
@@ -184,7 +183,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "INTENTION_INVARIANCE",
-        "@DIGITAL_INTENTION.to_state = user's. Grounding binds oracle to it, decomposition splits path to it, revisions keep it fixed: back move rewrites plan/geometry/residual, never target. Target narrowed to fit oracle = progress while abandoning request. Unreachable to_state → BLOCKED/Unknown; only user moves it. Departing from the user's verbatim decision needs a measurement on the layer the decision is about (command + output); without one the objection goes back as @CONCERN, never a silent substitution.",
+        "@DIGITAL_INTENTION.to_state = user's. Grounding binds oracle to it, decomposition splits path to it, revisions keep it fixed: back move rewrites plan/geometry/residual, never target. Target narrowed to fit oracle = progress while abandoning request. Uncovered target → bounded residual and next action; only user moves it. Departing from the user's verbatim decision needs a measurement on the layer the decision is about (command + output); without one the objection goes back as @CONCERN, never a silent substitution.",
     ),
     _rule(
         "KERNEL",
@@ -360,18 +359,20 @@ G9_SUCCESS = BP("AND", BP("HAS", "acceptance_covered"), BP("EQ", ("oracle", "PAS
 
 G9_FSM = StateMachine(
     id="G9",
-    states=("AWAIT_VERIFICATION", "CHECK_ACCEPTANCE", "CHECK_ORACLE", "CHECK_RISKS", "EVALUATE_STOP", "EMIT_SUCCESS", "EMIT_CLOSURE"),
+    states=("AWAIT_VERIFICATION", "CHECK_ACCEPTANCE", "CHECK_ORACLE", "CHECK_RISKS", "EVALUATE_RESIDUAL", "CONTINUE_RESIDUAL", "EVALUATE_STOP", "EMIT_SUCCESS", "EMIT_CLOSURE"),
     initial_state="AWAIT_VERIFICATION",
-    accepting_states=("EMIT_SUCCESS", "EMIT_CLOSURE"),
+    accepting_states=("EMIT_SUCCESS", "EMIT_CLOSURE", "CONTINUE_RESIDUAL"),
     transitions=(
         FSMTransition("AWAIT_VERIFICATION", "CHECK_ACCEPTANCE", BP("HAS", "VERIFIED_OUTCOME"), "Verification available"),
         FSMTransition("CHECK_ACCEPTANCE", "CHECK_ORACLE", BP("HAS", "acceptance_covered"), "Acceptance covered"),
-        FSMTransition("CHECK_ACCEPTANCE", "EVALUATE_STOP", BP("NOT", BP("HAS", "acceptance_covered")), "Uncovered acceptance — evaluate a bounded stop"),
+        FSMTransition("CHECK_ACCEPTANCE", "EVALUATE_RESIDUAL", BP("NOT", BP("HAS", "acceptance_covered")), "Uncovered acceptance — keep task open"),
         FSMTransition("CHECK_ORACLE", "CHECK_RISKS", BP("EQ", ("oracle", "PASS")), "Oracle passed — SUCCESS track"),
-        FSMTransition("CHECK_ORACLE", "EVALUATE_STOP", BP("AND", BP("EXISTS", "oracle"), BP("NOT", BP("EQ", ("oracle", "PASS")))), "Recorded non-PASS — evaluate a lawful stop"),
+        FSMTransition("CHECK_ORACLE", "EVALUATE_RESIDUAL", BP("AND", BP("EXISTS", "oracle"), BP("NOT", BP("EQ", ("oracle", "PASS")))), "Recorded non-PASS — ground or split the residual"),
         FSMTransition("CHECK_RISKS", "EMIT_SUCCESS", G9_SUCCESS, "Acceptance PASS, zero critical risks and current independently verified aligned portfolio"),
-        FSMTransition("CHECK_RISKS", "EVALUATE_STOP", BP("OR", BP("NOT", BP("EQ", ("critical_risks", 0))), BP("NOT", BP("CHECK", "PORTFOLIO_AUDIT"))), "Risk or portfolio gap — evaluate a stop, never SUCCESS"),
-        FSMTransition("EVALUATE_STOP", "EMIT_CLOSURE", BP("AND", BP("HAS", "stop_reason"), BP("HAS", "residual_defined"), BP("OR", BP("EQ", ("lawful_non_success_terminal", "BLOCKED")), BP("EQ", ("lawful_non_success_terminal", "WAITING_APPROVAL")), BP("EQ", ("lawful_non_success_terminal", "OUT_OF_SCOPE")))), "Stop reason + residual + declared non-success terminal — closure, not SUCCESS"),
+        FSMTransition("CHECK_RISKS", "EVALUATE_RESIDUAL", BP("OR", BP("NOT", BP("EQ", ("critical_risks", 0))), BP("NOT", BP("CHECK", "PORTFOLIO_AUDIT"))), "Risk or portfolio gap — remediate, never SUCCESS"),
+        FSMTransition("EVALUATE_RESIDUAL", "CONTINUE_RESIDUAL", BP("AND", BP("HAS", "residual_defined"), BP("HAS", "next_action"), BP("HAS", "continuation_ref"), BP("EQ", ("parent_task_open", True)), BP("OR", BP("EQ", ("continuation_route", "G1")), BP("EQ", ("continuation_route", "G2")), BP("EQ", ("continuation_route", "DELEGATION")))), "Concrete residual action and permitted route; task stays open"),
+        FSMTransition("EVALUATE_RESIDUAL", "EVALUATE_STOP", BP("OR", BP("HAS", "user_decision_required"), BP("HAS", "exclusion_quoted")), "Only an owner decision or quoted exclusion ends the run"),
+        FSMTransition("EVALUATE_STOP", "EMIT_CLOSURE", BP("AND", BP("HAS", "stop_reason"), BP("HAS", "residual_defined"), BP("OR", BP("AND", BP("EQ", ("lawful_non_success_terminal", "WAITING_APPROVAL")), BP("HAS", "user_decision_required")), BP("AND", BP("EQ", ("lawful_non_success_terminal", "OUT_OF_SCOPE")), BP("HAS", "exclusion_quoted")))), "Owner decision or quoted exclusion, never false completion"),
     ),
 )
 
@@ -393,14 +394,19 @@ SEMANTIC_ATTENTION_FSM = StateMachine(
 # DELEGATION FSM
 DELEGATION_FSM = StateMachine(
     id="DELEGATION",
-    states=("AWAIT_TASK", "BIND_TASK", "SEND_FALSIFIER", "RECEIVE_RESULT", "VERIFY_RESULT"),
+    states=("AWAIT_TASK", "BIND_TASK", "SEND_FALSIFIER", "DISPATCH_TASK", "OBSERVE_RESULT", "VERIFY_RESULT", "FOLLOW_UP", "VERIFIED_DONE"),
     initial_state="AWAIT_TASK",
-    accepting_states=("VERIFY_RESULT",),
+    accepting_states=("VERIFIED_DONE",),
     transitions=(
         FSMTransition("AWAIT_TASK", "BIND_TASK", BP("HAS", "task_binding"), "Task binding available"),
         FSMTransition("BIND_TASK", "SEND_FALSIFIER", BP("HAS", "falsifier"), "Falsifier defined"),
-        FSMTransition("SEND_FALSIFIER", "RECEIVE_RESULT", BP("HAS", "subagent_result"), "Sub-agent returned"),
-        FSMTransition("RECEIVE_RESULT", "VERIFY_RESULT", BP("HAS", "result_vector"), "Result vector received"),
+        FSMTransition("SEND_FALSIFIER", "DISPATCH_TASK", BP("AND", BP("HAS", "ticket_ref"), BP("HAS", "dispatch_receipt")), "Bound ticket and actual dispatch receipt"),
+        FSMTransition("DISPATCH_TASK", "OBSERVE_RESULT", BP("AND", BP("HAS", "ticket_ref"), BP("HAS", "dispatch_receipt")), "Observe the dispatched executor"),
+        FSMTransition("OBSERVE_RESULT", "VERIFY_RESULT", BP("AND", BP("HAS", "subagent_result"), BP("HAS", "result_receipt"), BP("HAS", "result_vector")), "Read result artifact before independent verification"),
+        FSMTransition("VERIFY_RESULT", "VERIFIED_DONE", BP("AND", BP("HAS", "subagent_result"), BP("HAS", "verification_pass"), BP("HAS", "verification_receipt"), BP("HAS", "acceptance_covered")), "Verified child result; return SAME_GATE, not parent completion"),
+        FSMTransition("OBSERVE_RESULT", "FOLLOW_UP", BP("AND", BP("OR", BP("HAS", "silence"), BP("HAS", "executor_failure")), BP("GT", ("followup_budget_remaining", 0)), BP("HAS", "envelope_valid")), "Bounded follow-up or permitted replacement executor"),
+        FSMTransition("VERIFY_RESULT", "FOLLOW_UP", BP("AND", BP("EQ", ("verification_pass", False)), BP("GT", ("followup_budget_remaining", 0)), BP("HAS", "envelope_valid")), "Failed verification keeps task open"),
+        FSMTransition("FOLLOW_UP", "OBSERVE_RESULT", BP("AND", BP("HAS", "followup_receipt"), BP("HAS", "ticket_ref"), BP("HAS", "envelope_valid")), "Observe current follow-up receipt within envelope"),
     ),
 )
 
@@ -476,7 +482,7 @@ GATES = (
         local_rules=(
             _rule("G1", "INTENT_PROJECTION_RULE", "Derive EXECUTION_GOAL from the uncovered projection residual, not from the suggested solution: the request is not the goal."),
             _rule("G1", "STRUCTURAL_GROUNDING", "Indexed-code grounding emits @STRUCTURAL_EVIDENCE: relevant symbols/consumers, scope, query/result and source digests, with parent/tool refresh ownership. No index, failed tool or documentation-only scope needs a verified explicit fallback; an empty or irrelevant graph is a gap, never absence."),
-            _rule("G1", "PROJECT_GEOMETRY_RULE", "Establish the smallest evidence-backed change region before planning; unresolved ownership blocks decomposition."),
+            _rule("G1", "PROJECT_GEOMETRY_RULE", "Establish the smallest evidence-backed change region before planning; unresolved ownership is a grounding leaf, another owner a ticket and verified delegation. Parent remains open."),
             _rule("G1", "CAPABILITY_GRAPH_RULE", "Inventory available product tools, local evidence, skills, and @SOURCE_ROUTING authorities by intent; tool availability does not grant mutation authority."),
             _rule("G1", "REUSE_BEFORE", "Search existing code, history, plans, and authoritative prior art before non-trivial invention; re-search after repeated stuck failure."),
             _rule("G1", "MEMORY_RANK", "Rank active-window evidence above compacted handles. Recall and user assertions are testimony — handles (paths, diffs, graph refs) are Exact, prose is Guess until re-grounded; source, fossil and codegraph say what is, history says where to look."),
@@ -588,7 +594,7 @@ GATES = (
             _rule("G4", "ACTION_CLASS_RULE", "Classify before the authority branch — READ, PLAN_WRITE, MODIFY_CANDIDATE, MODIFY_PROJECT, PROMOTE_STABLE, SELF_MODIFY, EXTERNAL_EFFECT; classification follows actual effects and classes may combine."),
             _rule("G4", "WRITE_SCOPE", "Read-only diagnosis ≠ write authority. Material mutation/promotion/self-modify/destructive/external = authority matching impact."),
             _rule("G4", "KERNEL_AMENDMENT", "Kernel change = build via prompt_kernel pipeline (render, test, stamp, install). Hand edit = unversioned, unreviewed, overwritten next build."),
-            _rule("G4", "AUTH_DECISION_RULE", "Emit ALLOW+envelope, ASK+decision, DENY+stop claim (effect, grounds, allowed residual), or CONCERN→G5."),
+            _rule("G4", "AUTH_DECISION_RULE", "Emit ALLOW+envelope, ASK+owner decision, DENY+effect/grounds/allowed residual, or CONCERN→G5. DENY permits reading and a permitted executor, never the denied effect."),
         ),
         fsm=G4_FSM,
     ),
@@ -669,7 +675,7 @@ GATES = (
             _rule("G8", "PREDICATE_POWER", "Name material alternatives before predicate; if >1 survives result → Unknown, need more discriminating predicate, not louder PASS."),
             _rule("G8", "ORACLE", "Oracle = third thing: instrument neither simulation could predict. If its output could have been written without running it → adds nothing. Five required: can fail — an instrument that cannot fail proves nothing; sits on claim's LAYER (persistent write proven by reading artifact back, not typecheck); predicate EXCLUDES alternatives; returns ADDRESS not verdict; identity can DRIVE it. Build fails last three. No self-grading: Exact needs runtime evidence bound to claim digest. Pass pins Exact medoids; FAIL = Unknown."),
             _rule("G8", "ORACLE_STAMP_RULE", "PASS binds evidence_ref to claim digest; EXPECTED_FAIL = passing mutation/differential oracle; FAIL recorded, not discarded."),
-            _rule("G8", "UNKNOWN_ROUTING", "Unknown claim leaves loop, doesn't re-enter: record failed falsifier, route forward to G9. A repeat with no new discriminating basis under unchanged revision/predicate/inputs/harness = STALL; a weaker instrument = @SIMULATION_ERROR."),
+            _rule("G8", "UNKNOWN_ROUTING", "Unknown supports no verdict: record failed falsifier + residual; G9 routes to G1 grounding, G2 decomposition or verified delegation. Repeating unchanged revision/predicate/inputs/harness with no new discriminating basis = STALL: change leaf/executor within envelope, never lower oracle."),
             _rule("G8", "PROVENANCE", "Record command/instrument, inputs, env, exit/result, output, artifact digest → reproducible decision, revalidatable stamp."),
             _rule("G8", "SIGNAL_CARDINALITY", "Count signals not lines: identical diagnostics from one source = ONE signal. Cluster by source/pattern before reacting. Deleting work on single-source complaint = @SIMULATION_ERROR with log."),
             _rule("G8", "SMOKE_VERIFY", "Run focused regression tests first, then proportional integration surface; compare against baseline and outcome contract."),
@@ -700,8 +706,8 @@ GATES = (
             # undefined entity is the same hole one level up, and a later cycle grepping
             # `ANALYST2` would find a phantom. All four stop cases and the bounded-stop-vs-
             # SUCCESS distinction are kept — the cases are the decision, the roles were prose.
-            _rule("G9", "BOUNDED_STOP_CONDITIONS", "BOUNDED STOP (DONE) iff a stop claim exists: the oracle passes every test case, or 3 failed corrective attempts, or an immutable external dependency, or continuing is structurally futile — attempts and receipts in scope; falsifier = the untried route or the split that adds observability; residual recorded, NOT SUCCESS which still needs acceptance covered and @CLOSURE_PROOF.",
-                BP("IFF", BP("EQ", value=("status", "DONE")), BP("OR", BP("HAS", "oracle_pass_all_tests"), BP("GE", value=("failed_attempts", 3)), BP("HAS", "blocked_by_human"), BP("HAS", "futile")))),
+            _rule("G9", "BOUNDED_STOP_CONDITIONS", "DONE requires oracle-confirmed acceptance and zero critical risks. Failed attempts, external dependencies and silence create a new leaf, ticket or follow-up; task stays open. A finite run limit persists unfinished task + next action + receipt for resumption, never invents completion. SUCCESS still requires @CLOSURE_PROOF; only a real owner decision or quoted exclusion permits a non-success terminal.",
+                BP("IFF", BP("EQ", value=("status", "DONE")), BP("AND", BP("HAS", "oracle_pass_all_tests"), BP("HAS", "acceptance_covered"), BP("EQ", ("critical_risks", 0))))),
             # «and a stop whose residual is recorded is legitimate closure» evicted 2026-09-27 to fund the maturity
             # clause in the premise: CLOSURE_PROOF_RULE above already says «Record the remainder as residual —
             # finished, not abandoned», the same norm.
@@ -734,8 +740,8 @@ PROTOCOLS = (
         returns_to="SAME_GATE",
         authority="advisory",
         local_rules=(
-            _rule("DELEGATION", "DELEGATE_BY_SCOPE", "Delegate a bounded, independently checkable unit to the identity whose scope covers it. Delegation moves work, not authority — parent keeps gate, claim, envelope."),
-            _rule("DELEGATION", "FRESH_EYES", "Sub-agent carries our prompts/frame: second pair of eyes inside, never outside. Send for test, not verdict — hand binding+falsifier, withhold expected answer. Brief naming conclusion = confirmation, not evidence. Every level re-verifies — a «done» or a «blocked», the user's included, is testimony about state, not a decision: it re-digests the stamped artifact, and reruns the work on a mismatch or when no stamp exists."),
+            _rule("DELEGATION", "DELEGATE_BY_SCOPE", "Delegate independently checkable work to its owning identity within authority: ticket + dispatch receipt → observe → result receipt → independent verification → child done. Silence/failed verification → bounded follow-up/current receipt or permitted executor. Parent keeps gate, claim, envelope and remains open until its own verified acceptance. Finite counters hold; persist unfinished work when the run ends."),
+            _rule("DELEGATION", "FRESH_EYES", "Sub-agent carries our prompts/frame: second pair of eyes inside, never outside. Send for test, not verdict — hand binding+falsifier, withhold expected answer. Brief naming conclusion = confirmation, not evidence. Every level re-verifies — a «done» or a closed ticket, the user's included, is testimony about state, not a decision: it re-digests the stamped artifact, and reruns the work on a mismatch or when no stamp exists."),
             _rule("DELEGATION", "AICALL_FALSIFIER", "Isolated model call = no our framing → alone can contradict frame. But falsifies only, cannot stamp: two simulators agreeing = self-grading with second seat. Use only when: no real smoke test, verdict about self, all local rungs spent, packet complete+Inferred, answer free to disagree."),
         ),
         fsm=DELEGATION_FSM,
@@ -1055,7 +1061,7 @@ KERNEL = Kernel(
         "EXTERNAL_EFFECT": "Changes a remote system or communicates outside the workspace.",
     }),
     initial_state=("USER_REQUEST", "CONCERN"),
-    terminals=("SUCCESS", "BLOCKED", "OUT_OF_SCOPE", "WAITING_APPROVAL"),
+    terminals=("SUCCESS", "OUT_OF_SCOPE", "WAITING_APPROVAL"),
     spine=("G0", "G1", "G2", "G3", "G4", "G6", "G7", "G8", "G9"),
     edges=(
         Edge("G0", "G1", "forward", "user input understood in their language"),
@@ -1100,7 +1106,7 @@ KERNEL = Kernel(
         # 2026-09-29 (F10, space-bunny outside falsifier; owner: «Да, давай»): the same gap found EARLIER.
         # G6 binds the oracle, so it is where an unqualified required tool is first visible — and it had
         # no exit but G7 (mutate on an unready instrument) or G6 -> G8 (a fake read-only deliverable).
-        Edge("G6", "G2", "back", "a required tool is unqualified; the harness is the next leaf (@TOOLCHAIN_QUALIFICATION)"),
+        Edge("G6", "G2", "back", "a required tool is unqualified or this identity lacks authority; the harness or permitted executor is the next leaf (@TOOLCHAIN_QUALIFICATION)"),
         # An unrealistic oracle is a GROUNDING defect, not a plan defect: the surface was not
         # understood, so the route is back to evidence and not to plan repair (owner's loop, step 6).
         Edge("G8", "G1", "back", "the oracle was not realistic; the surface was not understood"),
@@ -1110,6 +1116,7 @@ KERNEL = Kernel(
         Edge("G7", "G3", "back", "required effect exceeds the approved plan; no execution pending reauthorization"),
         Edge("G9", "G1", "back", "material residual evidence gap"),
         Edge("G9", "G2", "back", "residual invalidates task geometry"),
+        Edge("G4", "G2", "back", "DENY preserves the denied effect; revise to permitted reading or another authorized executor, keeping the task open"),
         # 2026-09-29 (F1): closure RE-READS the stamps, and a stamp is only as fresh as the artifact
         # under it. Before this edge, a stale verification found at G9 had to masquerade as an evidence
         # gap (G9 -> G1) or a geometry defect (G9 -> G2); now it says what it is.
@@ -1128,7 +1135,6 @@ KERNEL = Kernel(
         # 0 builds). Both edges and the 09-24 HANDOVER_OR_SWITCH rule are back to the 09-17 text, the one
         # with field use. A missing instrument routes G8 -> G2 (the harness is the next leaf), not here.
         Edge("G0", "WAITING_APPROVAL", "terminal", "stop claim: the Digital Intention stays ambiguous in the user's words and grounding cannot settle it — the decision named, with why the user's words cannot answer it (@INTENTION_CLARITY)"),
-        Edge("G1", "BLOCKED", "terminal", "the BLOCKED claim: ownership unresolved and unobtainable, or the question unobservable at every scale — scale splits recorded with their receipts, the unobtainable part named"),
         Edge("G4", "WAITING_APPROVAL", "terminal", "stop claim: the required decision named, with why the user's words cannot answer it (@INTENTION_CLARITY)"),
         # PLAN_MODE reaches G6 and cannot implement (its ACL denies bash and restricts edit to
         # plans/), so the graph owed it a declared exit. The other case - a plan-only session
@@ -1140,25 +1146,23 @@ KERNEL = Kernel(
         # own» is ALSO «blocked by anything but a user decision», so this terminal and the EVOLUTION_LOOP
         # stall trigger fired on one condition with no precedence. Bound to the runtime ACL instead:
         # only an identity that cannot implement (PLAN_MODE) can take it, and the user is not an identity.
-        Edge("G6", "WAITING_APPROVAL", "terminal", "stop claim: the plan is complete and this identity's ACL denies implementation; the ACL cited"),
+        Edge("G6", "WAITING_APPROVAL", "terminal", "stop claim: the owner alone must grant a required effect's authority; cite the ACL and owner decision after checking permitted executors"),
         # STALL is DETECTED at G8 and CLOSED at G9. A terminal at G8 was the only exit reachable
         # after G7, i.e. after the tree was mutated, and it skipped the one gate that records the
         # residual, the tool state and the next route - exactly what an autonomous run needs most.
         # No terminal edge may originate at G7 or G8; validate.py enforces it.
-        Edge("G4", "BLOCKED", "terminal", "the DENY claim: the blocked effect, its grounds (component, evidence address), the allowed residual — a write denial never blocks reading"),
         Edge("G9", "SUCCESS", "terminal", "the SUCCESS claim: observed fulfilment per criterion — executed oracle + discriminating-control receipt (EXPECTED_FAIL) on the delivered revision"),
-        Edge("G9", "BLOCKED", "terminal", "the BLOCKED claim: no route reaches — routes tried with receipts, failing component each, untried named with why each is out of reach (outside the envelope, no authority, absent); a reachable untried route = no BLOCKED"),
         # An exhausted budget is NOT this terminal: @LOOP_PROGRESS routes exhaustion to G9 (the
         # interrupt edge below), and G9 -> G1 / G9 -> G2 are that descent. The door opens only at the
         # fixed point, where a split no longer gains - the one state descent cannot leave.
-        Edge("G9", "WAITING_APPROVAL", "terminal", "stop claim: STALL — splitting no longer improves the result and the rest is the user's decision; fixed point: splits tried with receipts, gain zero"),
+        Edge("G9", "WAITING_APPROVAL", "terminal", "stop claim: a required owner decision remains after grounding and splits tried with receipts; name that decision and why no permitted executor can decide it"),
         Edge("G9", "OUT_OF_SCOPE", "terminal", "the OUT_OF_SCOPE claim: the exclusion quoted; falsifier: the user's later words"),
         # 2026-09-29 (F1): the interruption route. Cancellation, an unrecoverable failure, a known
         # blocker or an exhausted budget can arrive at ANY active gate, and before this edge a run cut
         # short at G2, G3 or G5 had no declared route at all - the terminals originate at G0, G1, G4, G6
         # and G9 only. G9 is the one gate that records partial state, so the interrupt lands there and
         # closure decides. `*` is the only wildcard the validator admits, and only for this kind.
-        Edge("*", "G9", "interrupt", "budget exhausted, cancellation, unrecoverable failure or known blocker; record partial state, no invented outputs"),
+        Edge("*", "G9", "interrupt", "finite run limit or cancellation; persist unfinished task, next action and continuation receipt; no invented outputs or false DONE"),
     ),
     shared_rules=SHARED_RULES,
     gates=GATES,

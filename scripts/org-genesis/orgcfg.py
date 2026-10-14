@@ -6,6 +6,8 @@
     FOSSIL    an explicit fossil binary (or --fossil PATH). Without it: the fossil beside
               these scripts outranks PATH, so a bundled fossil is never shadowed by
               another fossil on PATH.
+    CHECKOUT  the org's open check-out ($ORG_HOME/checkout), created by init.py: forum-post runs
+              `fossil test-content-put` inside it — that command refuses a bare -R repository.
 
 These are supported settings, not test fixtures (owner, 2026-10-08: «вся наша корпорация
 агентов была переносимой»; plan 2026-10-08_org-portable-home). Protocol documents them.
@@ -19,6 +21,7 @@ from pathlib import Path
 HOME = Path(os.environ.get("ORG_HOME") or Path.home() / ".org").expanduser()
 ORG = HOME / "org.fossil"
 PORT = int(os.environ.get("ORG_PORT") or 8079)
+CHECKOUT = HOME / "checkout"  # the org's open check-out: forum-post writes through it (init.py creates it)
 GENESIS = Path(__file__).resolve().parent
 
 

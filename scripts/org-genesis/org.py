@@ -13,6 +13,8 @@
     python $ORG_HOME/genesis/org.py chat --since <msgid>
     python $ORG_HOME/genesis/org.py wiki <page>          (protocol == wiki Protocol)
     python $ORG_HOME/genesis/org.py wiki-put PAGE --file UTF8.md --expect-sha256 HASH|absent --user LOGIN
+    python $ORG_HOME/genesis/org.py forum [POST-ID]             (thread list; one thread to stdout)
+    python $ORG_HOME/genesis/org.py forum-post (--title T | --reply ID) [--file f] --user LOGIN
 
 Reads go straight to the SQLite file (mode=ro); every write goes through the fossil CLI so the
 repository keeps its artifact semantics. Identity: --user or $ORG_USER — the Fossil login is the
@@ -22,6 +24,14 @@ Settings (supported): ORG_HOME (default $HOME/.org), ORG_PORT (default 8079), FO
 beside these scripts outranks PATH (a bundled fossil is never shadowed). These reads are the ONLY read surface
 agents need: `fossil sql` executes `.shell`/`.system`/`.output` even under --readonly, and `fossil wiki export
 PAGE FILE` writes FILE (measured 2026-10-08) — no verb here passes raw SQL, and none writes a caller-named path.
+
+Forum posting runs through the org's check-out ($ORG_HOME/checkout, created by init.py): fossil 2.28 has
+no verb that posts to a forum, and a web post over the local server's --localauth authenticates as the
+first setup-capable login (measured 2026-10-14: every post would be authored by the administrator, never
+by --user) — so `forum-post` writes the forum manifest itself and hands it to `fossil test-content-put`
++ `fossil test-crosslink` inside the check-out (the content_put + manifest_crosslink pipeline the web
+poster uses), with the author taken from --user. The post is proven by READING IT BACK — the stored
+artifact byte-for-byte, the forumpost row, `fossil test-forumthread` — never by the writer's own output.
 
 Claim arbitration: `fossil ticket` has no compare-and-swap, so a claim races through an
 exclusive-create lock file ($ORG_HOME/locks/<uuid>.<epoch>): the process that creates it owns
@@ -73,6 +83,7 @@ import sys
 import tempfile
 import time
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -86,7 +97,10 @@ LEASE_S = 600  # default lease; a robot's claim/heartbeat --lease must agree
 CLEARED = "-"  # woken_state reset marker: `fossil ticket set F ""` succeeds and keeps the OLD value (measured 2026-10-08)
 
 DEFAULT_WATCHER = "claude"    # the orchestrator login a cross hand-off reports to (`inbox --user <watcher>`)
-RESIDENT_CAPS = "Cnrwcjfkm"   # same capability set init.py gives every robot login (init.py ROBOT_CAPS)
+RESIDENT_CAPS = "Cnrwcjfkm234"  # init.py ROBOT_CAPS: '234' = forum read/write/trusted (src/login.c)
+FORUM_TITLE_MAX = 125            # the forum editor's title cap (src/forum.c forum_post_widget)
+FORUM_WRITE_CAPS = set("34as")   # '3' WrForum, '4' WrForum-trusted; 'a'/'s' imply both (src/login.c)
+CHECKOUT = orgcfg.CHECKOUT       # the org's open check-out — forum-post writes through it (init.py creates it)
 STALL_READY_S = 3600          # a READY ticket unclaimed past this shows STALLED to its watcher
 
 try:
@@ -749,6 +763,262 @@ def cmd_wiki_put(a) -> int:
             print(f"org: wiki-put: could not remove the lock {lock}: {error}", file=sys.stderr)
 
 
+# ---- forum ---------------------------------------------------------------------------------
+
+def checkout_marker() -> Path:
+    """The marker `fossil open` writes: _FOSSIL_ on Windows, .fslckout elsewhere."""
+    return CHECKOUT / ("_FOSSIL_" if os.name == "nt" else ".fslckout")
+
+
+def fossil_in_checkout(*args: str, user: str | None = None, data: bytes | None = None):
+    """A fossil call inside the org's check-out — test-content-put refuses a bare -R repository."""
+    cmd = [find_fossil(), *args]
+    if user:
+        cmd += ["-U", user]
+    return subprocess.run(cmd, cwd=str(CHECKOUT), input=data, capture_output=True)
+
+
+def _fossilize(value: str) -> str:
+    """The manifest card encoding (src/encode.c fossilize): backslash and whitespace escaped."""
+    out: list[str] = []
+    for ch in value:
+        if ch == "\\":
+            out.append("\\\\")
+        elif ch == " ":
+            out.append("\\s")
+        elif ch == "\n":
+            out.append("\\n")
+        elif ch == "\t":
+            out.append("\\t")
+        elif ch == "\r":
+            out.append("\\r")
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _forum_date() -> str:
+    """The D card value: fossil's standard format — UTC, millisecond precision (strftime('%Y-%m-%dT%H:%M:%f'))."""
+    moment = datetime.now(timezone.utc)
+    return moment.strftime("%Y-%m-%dT%H:%M:%S.") + f"{moment.microsecond // 1000:03d}"
+
+
+def _forum_artifact(body: bytes, user: str, title: str | None, root_uuid: str | None, parent_uuid: str | None) -> bytes:
+    """The forum manifest, as src/forum.c builds it: D [G] [H] [I] N U W Z, Z = md5 of everything before."""
+    parts = [f"D {_forum_date()}\n".encode("ascii")]
+    if root_uuid:
+        parts.append(f"G {root_uuid}\n".encode("ascii"))
+    if title is not None:
+        parts.append(f"H {_fossilize(title)}\n".encode("utf-8"))
+    if parent_uuid:
+        parts.append(f"I {parent_uuid}\n".encode("ascii"))
+    parts.append(b"N text/x-markdown\n")
+    parts.append(f"U {_fossilize(user)}\n".encode("utf-8"))
+    parts.append(f"W {len(body)}\n".encode("ascii") + body + b"\n")
+    head = b"".join(parts)
+    return head + b"Z " + hashlib.md5(head).hexdigest().encode("ascii") + b"\n"
+
+
+def _forum_body(artifact: bytes) -> str:
+    """The W-card payload of a forum manifest: the body exactly as stored (cards before W are single-line)."""
+    pos = 0
+    while True:
+        end = artifact.find(b"\n", pos)
+        if end < 0:
+            sys.exit("org: forum: malformed artifact: no W card")
+        line = artifact[pos:end]
+        pos = end + 1
+        if line.startswith(b"W "):
+            try:
+                size = int(line[2:])
+            except ValueError:
+                sys.exit("org: forum: malformed W card")
+            return artifact[pos:pos + size].decode("utf-8", "replace")
+
+
+def _forum_title(comment: str) -> str:
+    """The thread title from the event comment test-crosslink writes ('Post: T' / 'Edit: T', manifest.c)."""
+    for prefix in ("Post: ", "Edit: "):
+        if comment.startswith(prefix):
+            return comment[len(prefix):]
+    return comment
+
+
+def _forum_rows(query: str, params: tuple = ()) -> list[sqlite3.Row]:
+    """rows() over the forum tables: an org that never posted has no forumpost table (born-empty)."""
+    try:
+        return rows(query, params)
+    except sqlite3.OperationalError as error:
+        if "no such table" not in str(error):
+            raise
+        return []
+
+
+def cmd_forum(a) -> int:
+    if a.thread:
+        targets = _forum_rows(
+            "SELECT f.fpid, f.froot FROM forumpost f JOIN blob b ON b.rid = f.fpid WHERE b.uuid LIKE ? || '%'",
+            (a.thread,),
+        )
+        if not targets:
+            sys.exit(f"org: no forum post {a.thread!r}")
+        if len(targets) > 1:
+            sys.exit(f"org: {a.thread!r} matches {len(targets)} posts — give more characters")
+        root = int(targets[0]["froot"])
+        posts = _forum_rows(
+            "SELECT f.fpid, f.firt, datetime(f.fmtime) AS at, b.uuid,"
+            "  (SELECT user FROM event WHERE objid = f.fpid AND type = 'f') AS user,"
+            "  (SELECT comment FROM event WHERE objid = f.fpid AND type = 'f') AS comment"
+            " FROM forumpost f JOIN blob b ON b.rid = f.fpid WHERE f.froot = ? ORDER BY f.fmtime, f.fpid",
+            (root,),
+        )
+        names = {int(post["fpid"]): str(post["uuid"]) for post in posts}
+        title = _forum_title(str(posts[0]["comment"] or "")) if posts else ""
+        print(f'thread {names.get(root, "")[:10]}  "{title}"  ({len(posts)} post(s))')
+        for post in posts:
+            parent = f" -> {names.get(int(post['firt']), str(post['firt']))[:10]}" if post["firt"] else ""
+            print(f"[{str(post['uuid'])[:10]}] {post['at']} {post['user'] or '-'}{parent}")
+            stored = _fossil_bytes("artifact", str(post["uuid"]))
+            if stored.returncode != 0:
+                sys.exit(f"org: forum: cannot read artifact {str(post['uuid'])[:10]}:"
+                         f" {(stored.stderr or stored.stdout).decode('utf-8', 'replace').strip()}")
+            body = _forum_body(stored.stdout)
+            sys.stdout.write(body)
+            if not body.endswith("\n"):
+                print()
+        return 0
+    found = _forum_rows(
+        "SELECT f.froot AS root, count(*) AS n, datetime(max(f.fmtime)) AS at,"
+        "  (SELECT uuid FROM blob WHERE rid = f.froot) AS uuid,"
+        "  (SELECT comment FROM event WHERE objid = f.froot AND type = 'f') AS comment"
+        " FROM forumpost f GROUP BY f.froot ORDER BY max(f.fmtime) DESC",
+    )
+    if not found:
+        print("org: forum empty")
+        return 0
+    for entry in found:
+        print(f"{str(entry['uuid'])[:10]}  {entry['n']:>3}  {entry['at']}  {_forum_title(str(entry['comment'] or ''))}")
+    return 0
+
+
+def cmd_forum_post(a) -> int:
+    user = need_user(a)
+    if (a.title is None) == (a.reply is None):
+        sys.exit("org: forum-post: exactly one of --title (new thread) or --reply ID (reply) is required")
+    known = rows("SELECT cap FROM user WHERE login = ?", (user,))
+    if not known:
+        sys.exit(f"org: forum-post: no such user {user!r} — create it first (fossil user new {user} robot <secret> -R <org>)")
+    caps = str(known[0]["cap"] or "")
+    if not set(caps) & FORUM_WRITE_CAPS:
+        sys.exit(f"org: forum-post: login {user!r} lacks the forum write capability ('3'/'4'; 'a'/'s' imply them)")
+
+    if a.file:
+        try:
+            raw = Path(a.file).read_bytes()
+        except OSError as error:
+            sys.exit(f"org: forum-post: cannot read {a.file!r}: {error}")
+        source = a.file
+    else:
+        raw = sys.stdin.buffer.read()
+        source = "stdin"
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as error:
+        sys.exit(f"org: forum-post: {source} is not valid UTF-8: {error}")
+    body = text.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+    if not body.strip():
+        sys.exit("org: forum-post: the body is empty — nothing to post")
+
+    title: str | None = None
+    root_uuid: str | None = None
+    parent_uuid: str | None = None
+    root_rid: int | None = None
+    parent_rid: int | None = None
+    if a.title is not None:
+        kind = "thread"
+        title = a.title
+        if not title.strip():
+            sys.exit("org: forum-post: --title is empty")
+        if len(title) > FORUM_TITLE_MAX:
+            sys.exit(f"org: forum-post: --title is longer than {FORUM_TITLE_MAX} characters (the forum editor's cap)")
+        if any(ord(ch) < 32 for ch in title):
+            sys.exit("org: forum-post: --title contains control characters")
+    else:
+        kind = "reply"
+        parent = _forum_rows(
+            "SELECT f.fpid, f.froot, b.uuid FROM forumpost f JOIN blob b ON b.rid = f.fpid"
+            " WHERE b.uuid LIKE ? || '%'",
+            (a.reply,),
+        )
+        if not parent:
+            sys.exit(f"org: forum-post: no forum post {a.reply!r}")
+        if len(parent) > 1:
+            sys.exit(f"org: forum-post: {a.reply!r} matches {len(parent)} posts — give more characters")
+        parent_rid = int(parent[0]["fpid"])
+        parent_uuid = str(parent[0]["uuid"])
+        root_rid = int(parent[0]["froot"])
+        root = rows("SELECT uuid FROM blob WHERE rid = ?", (root_rid,))
+        if not root:
+            sys.exit(f"org: forum-post: cannot resolve the thread root of {a.reply!r}")
+        root_uuid = str(root[0]["uuid"])
+
+    if not checkout_marker().exists():
+        sys.exit(f"org: forum-post: no check-out at {CHECKOUT} — run python {HOME / 'genesis' / 'init.py'} once (it creates it)")
+
+    artifact = _forum_artifact(body, user, title, root_uuid, parent_uuid)
+    handle = tempfile.NamedTemporaryFile("wb", suffix=".art", delete=False)
+    try:
+        handle.write(artifact)
+        handle.close()
+        written = fossil_in_checkout("test-content-put", handle.name, user=user)
+        if written.returncode != 0:
+            sys.exit(f"org: forum-post: fossil test-content-put failed:"
+                     f" {(written.stderr or written.stdout).decode('utf-8', 'replace').strip()}")
+        found = re.search(rb"inserted as record (\d+)", written.stdout)
+        if not found:
+            sys.exit(f"org: forum-post: cannot read the record id from test-content-put:"
+                     f" {written.stdout.decode('utf-8', 'replace').strip()!r}")
+        rid = int(found.group(1))
+        # the ORG's own blob table must know this record: a check-out pointing elsewhere stops here
+        stored = rows("SELECT uuid FROM blob WHERE rid = ?", (rid,))
+        if not stored:
+            sys.exit(f"org: forum-post: record {rid} is not in {ORG} — the check-out does not point at the org")
+        address = str(stored[0]["uuid"])
+        if address not in (hashlib.sha3_256(artifact).hexdigest(), hashlib.sha1(artifact).hexdigest()):
+            sys.exit(f"org: forum-post: {ORG} stored unexpected content at record {rid} — refusing to crosslink")
+        crossed = fossil_in_checkout("test-crosslink", address)
+        if crossed.returncode != 0:
+            sys.exit(f"org: forum-post: fossil test-crosslink failed:"
+                     f" {(crossed.stderr or crossed.stdout).decode('utf-8', 'replace').strip()}")
+        # READ BACK — never the writer's own return: stored bytes, the forumpost row, fossil's thread view
+        back = _fossil_bytes("artifact", address)
+        if back.returncode != 0 or back.stdout != artifact:
+            sys.exit(f"org: forum-post: read-back mismatch for {address[:10]} — the stored artifact differs from the intended bytes")
+        post = rows("SELECT froot, firt FROM forumpost WHERE fpid = ?", (rid,))
+        expect_root = rid if root_rid is None else root_rid
+        if not post:
+            sys.exit(f"org: forum-post: {address[:10]} is not in the forumpost table after test-crosslink")
+        if int(post[0]["froot"]) != expect_root:
+            sys.exit(f"org: forum-post: {address[:10]} landed in froot {post[0]['froot']}, expected {expect_root}")
+        if root_rid is None and post[0]["firt"] is not None:
+            sys.exit(f"org: forum-post: a thread root must not carry firt ({post[0]['firt']})")
+        if parent_rid is not None and int(post[0]["firt"] or 0) != parent_rid:
+            sys.exit(f"org: forum-post: {address[:10]} replies to {post[0]['firt']}, expected {parent_rid}")
+        view = fossil_in_checkout("test-forumthread", address)
+        count = re.search(rb"^count = (\d+)$", view.stdout, re.M)
+        if view.returncode != 0 or address[:8].encode("ascii") not in view.stdout or not count:
+            sys.exit(f"org: forum-post: test-forumthread does not show {address[:10]}:"
+                     f" {(view.stderr or view.stdout).decode('utf-8', 'replace').strip()}")
+        print(f"forum-post: {address[:10]}: {kind} address={address} bytes={len(artifact)} user={user}"
+              f" readback ok: artifact, forumpost, test-forumthread (posts={count.group(1).decode('ascii')})")
+        return 0
+    finally:
+        try:
+            Path(handle.name).unlink()
+        except OSError as error:
+            print(f"org: forum-post: could not remove {handle.name}: {error}", file=sys.stderr)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="org.py", description="the organization's verbs over $ORG_HOME/org.fossil (default $HOME/.org)")
     common = argparse.ArgumentParser(add_help=False)
@@ -841,6 +1111,16 @@ def main() -> int:
     p.add_argument("--file", required=True, help="UTF-8 file with the new page body (read only; no output path)")
     p.add_argument("--expect-sha256", required=True, dest="expect_sha256", help="the page's current sha256, or 'absent' to create it")
     p.set_defaults(func=cmd_wiki_put)
+
+    p = sub.add_parser("forum", help="list forum threads, or print one thread to stdout")
+    p.add_argument("thread", nargs="?", help="any post id (hash prefix) of the thread")
+    p.set_defaults(func=cmd_forum)
+
+    p = sub.add_parser("forum-post", parents=[common], help="post a forum thread or reply (the organization's forum)")
+    p.add_argument("--title", help="title of a new thread (exactly one of --title / --reply)")
+    p.add_argument("--reply", help="id (hash prefix) of the post being replied to")
+    p.add_argument("--file", help="UTF-8 markdown body file (default: stdin)")
+    p.set_defaults(func=cmd_forum_post)
 
     args = parser.parse_args()
     return args.func(args)

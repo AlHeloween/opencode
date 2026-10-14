@@ -6,8 +6,10 @@ Settings (supported; see Protocol): ORG_HOME (default $HOME/.org) is the organiz
 points it at the org beside the install, created EMPTY from here; ORG_PORT (default 8079) is its server port
 (the server binds 127.0.0.1 only); FOSSIL or --fossil selects the binary — without it the fossil beside these
 scripts outranks PATH, so a bundled fossil is never shadowed. No <ORG_HOME>/org.fossil -> create it: ticket
-fields (ticket-schema.sql), robot users (interactive agents and subscription workers), the Protocol wiki page,
-branding and the report formats (branding.sql, re-applied on every run), and its place in `fossil all
+fields (ticket-schema.sql), robot users (interactive agents and subscription workers) with the forum
+capabilities ('2'/'3'/'4', src/login.c), the Protocol wiki page, branding and the report formats
+(branding.sql, re-applied on every run), the check-out under <ORG_HOME>/checkout that org.py forum-post
+writes through, and its place in `fossil all
 list`. A ticket table missing the wake fields (wake_session, wake_worktree,
 woken_state, watcher) -> apply the new schema and rebuild. Its server not answering on 127.0.0.1:<port> -> start it,
 detached; the heartbeat daemon orgd not alive -> start it too. Existing pieces are left as they are. The admin
@@ -37,12 +39,13 @@ ORG = orgcfg.ORG
 GENESIS = orgcfg.GENESIS
 PORT = orgcfg.PORT
 ROBOTS = ("claude", "codex", "antigravity", "claude-worker", "codex-worker")  # agents + subscription workers
-ROBOT_CAPS = "Cnrwcjfkm"
+ROBOT_CAPS = "Cnrwcjfkm234"    # '234' = forum read/write/trusted (src/login.c; src/capabilities.c)
 
 
-def run(fossil: str, *args: str, quiet: bool = False, stdin: str | None = None, label: str | None = None) -> str:
+def run(fossil: str, *args: str, quiet: bool = False, stdin: str | None = None, label: str | None = None,
+        cwd: str | None = None) -> str:
     out = subprocess.run([fossil, *args], capture_output=True, text=True, encoding="utf-8", errors="replace",
-                         input=stdin)
+                         input=stdin, cwd=cwd)
     if out.returncode != 0:
         who = f"{label}: " if label else ""
         sys.exit(f"genesis: {who}fossil {args[0]} failed: {out.stderr.strip() or out.stdout.strip()}")
@@ -127,6 +130,42 @@ def start_orgd() -> int | None:
     return None
 
 
+def grant_forum_caps(fossil: str) -> bool:
+    """Add the forum capabilities ('2' read / '3' write / '4' trusted write, src/login.c) to every robot
+    login — the existing ones included; ROBOT_CAPS covers only logins this run creates. Idempotent: a login
+    that already carries all three is left alone."""
+    changed = False
+    users = run(fossil, "user", "list", "-R", str(ORG))
+    for line in users.splitlines():
+        login = line.split()[:1]
+        if not login:
+            continue
+        login = login[0]
+        if login not in ROBOTS and not login.startswith("smit-"):
+            continue
+        have = run(fossil, "sql", "-R", str(ORG),
+                   f"SELECT cap FROM user WHERE login = '{login.replace(chr(39), chr(39) * 2)}';").strip()
+        wanted = have + "".join(ch for ch in "234" if ch not in have)
+        if wanted != have:
+            run(fossil, "user", "capabilities", login, wanted, "-R", str(ORG), quiet=True)
+            changed = True
+    return changed
+
+
+def ensure_checkout(fossil: str) -> bool:
+    """The org's open check-out (<ORG_HOME>/checkout): `fossil test-content-put` — which org.py forum-post
+    writes through — refuses a bare -R repository, so the org keeps one check-out beside its repository.
+    Created once; an existing check-out is left as it is (this file's rule for everything)."""
+    marker = orgcfg.CHECKOUT / ("_FOSSIL_" if os.name == "nt" else ".fslckout")
+    if marker.exists():
+        return False
+    orgcfg.CHECKOUT.mkdir(parents=True, exist_ok=True)
+    run(fossil, "open", str(ORG), quiet=True, cwd=str(orgcfg.CHECKOUT))
+    if not marker.exists():
+        sys.exit(f"genesis: `fossil open {ORG}` left no check-out in {orgcfg.CHECKOUT}")
+    return True
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--fossil")
@@ -153,10 +192,14 @@ def main() -> int:
             run(fossil, "user", "new", robot, "robot", secret, "-R", str(ORG), quiet=True)
             run(fossil, "user", "capabilities", robot, ROBOT_CAPS, "-R", str(ORG), quiet=True)
 
+    forum_caps = grant_forum_caps(fossil)
+
     pages = run(fossil, "wiki", "list", "-R", str(ORG)).split()
     verb = "commit" if "Protocol" in pages else "create"
     run(fossil, "wiki", verb, "Protocol", str(GENESIS / "Protocol.md"), "--mimetype", "text/x-markdown",
         "-R", str(ORG), quiet=True)
+
+    checkout_created = ensure_checkout(fossil)
 
     apply_branding(fossil)
 
@@ -174,6 +217,8 @@ def main() -> int:
     print(f"org: {ORG} ({'created' if created else 'present'}); fossil {fossil}; tickets={tickets}; "
           f"server 127.0.0.1:{PORT} {'up' if server_up() else 'starting'}; "
           f"fields {'upgraded' if fields_upgraded else 'present'}; "
+          f"forum caps {'granted' if forum_caps else 'present'}; "
+          f"check-out {'created' if checkout_created else 'present'}; "
           f"orgd {'pid ' + str(orgd) if orgd else 'starting'}")
     return 0
 

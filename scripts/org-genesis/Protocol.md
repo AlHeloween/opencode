@@ -35,6 +35,22 @@ the owner's to create. The owner is the admin user. Escalations end with the own
 | wiki | knowledge reusable beyond one task (this page included) | drafts |
 | chat | heartbeats, «working on X», wake-ups, presence — volatile, 7 days | a delegation, a result, a decision (promote them first) |
 | timeline | reading what happened, in order | the source of truth (artifacts are) |
+| forum | a cross-project problem — a shared tool's defect, another lane's or another session's surface; one thread per problem, its owner named | this project's own backlog; chatter |
+
+## Where a problem goes
+
+A problem is filed where its owner is, never parked in a project that does not own it:
+
+- **this project's own matter** — the project: `plans/` for work with an acceptance, and `agi_workout/`
+  for the build overlay's own blockers;
+- **a shared tool's defect, another lane's or another session's surface** — a forum thread on this
+  repository: one thread per problem, the owner of the surface named in the title. Open it with
+  `org.py forum-post`, read the threads with `org.py forum`. A shared tool's defect (cmd_runner, org.py,
+  fossil, codegraph) lives here, not in the project that tripped over it;
+- **settled, reusable knowledge** — a wiki page (`org.py wiki-put`), cited from the thread it came from.
+
+A forum thread is the address of a cross-project problem: the project's journal references the thread
+instead of copying it.
 
 ## The verbs — `python $ORG_HOME/genesis/org.py <verb>`
 
@@ -78,7 +94,14 @@ the owner's to create. The owner is the admin user. Escalations end with the own
   intended content — a mismatch refuses, never reports success. The input file is only read; no output path is
   accepted.
 
-Reads go through `org.py` only — `chat --since`, `wiki <page>`, `protocol`. Not `fossil sql` / `fossil wiki
+- FORUM — `org.py forum [POST-ID]` — the thread list, or one thread to stdout (title, each post's author
+  and date, bodies verbatim); reads the repository only.
+- FORUM-POST — `org.py forum-post (--title T | --reply ID) [--file f] --user LOGIN` — posts a thread or a
+  reply to the organization's forum; the body is UTF-8 from FILE (default: stdin). The manifest is written
+  inside the org's check-out (`$ORG_HOME/checkout`) and proven by reading it back — the stored artifact,
+  the forumpost row, `fossil test-forumthread`; the writer's own output is never the proof.
+
+Reads go through `org.py` only — `chat --since`, `wiki <page>`, `forum [POST-ID]`, `protocol`. Not `fossil sql` / `fossil wiki
 export`: on fossil 2.28 `fossil sql` executes `.shell`/`.system`/`.output` dot-commands even under `--readonly`,
 and `fossil wiki export PAGE FILE` writes an arbitrary FILE — so an allowlist rule naming them is arbitrary
 execution (measured 2026-10-08; org.py has no raw-SQL verb, writes no caller-named path, and wiki-put moves page content only over stdin/stdout). The HTTP

@@ -1,0 +1,50 @@
+<!-- intention: the kernel lets any terminal verdict (SUCCESS, BLOCKED, WAITING) close without falsification -> the fixed kernel (stop-claim form, @STATUS_CLAIM, JIDOKA/KAIZEN) is installed here, carried into ADID_Python's canonical bundle, released, installed to every consumer with readback, and the opencode binary rebuilt -->
+
+# Kernel stop-claim fix → ADID release → every consumer → binary
+
+```yaml
+Keywords: terminal-verdict-falsification 0.30, kernel-install 0.20, adid-release 0.20, consumer-readback 0.20, binary-rebuild 0.10
+Semantic dominant: Ship the falsifiable-exit kernel end to end — fix and install here, carry it through an ADID release to every consumer with readback, rebuild the binary.
+md5: 6e8a0c2f4b1d3579a1c3e5b7d9f02468
+prev-md5: 00000000000000000000000000000000
+parent-goal-md5: 00000000000000000000000000000000
+```
+
+Owner, 2026-10-14, verbatim: «нам надо исправить кернел, потом обновить этот кернел в adid_python, зарелизить новую
+версию и установить всем потребителям. Пересобрать бинарь.» Decisions the same day (AskUserQuestion): C1–C7 + mechanism;
+root rule @STATUS_CLAIM (P3, short + «Unknown does not stop the work»), paid by compressing @REWARD_FUNCTION; @KAIZEN
+split A-lean. Source analysis: experiments/2026-10-14_kernel-reanalysis/REPORT.md (t42) + INPUT-gpt-6.1-pro-review.md.
+
+Lifts the residual of plans/postponed/2026-10-12_kernel-contract-repair-and-adid-release.md (A1/A2: ADID delivery
+not verified; org ticket efbfea7c BLOCKED at the release pytest gate `sed LC_ALL=C.UTF-8`, trial fix `LC_ALL=C`
+proven there). This plan is the new bounded envelope its lift signal asked for.
+
+## Ownership
+
+- Kernel edit: robot session t42 (`ses_ec636363dfferrgTBDkpw24Rg1`), pipeline only, STOPS before `--install`.
+- Mechanism: robot session t36 (stop-claim check in planstatus + the end-of-turn stop-check).
+- Review: Claude (doctrine, aicall on the WHOLE exits section, global-invariant tests, REPORT §7 predictions).
+- ADID_Python update / release / install: its resident `smit-adid_python` through an org.fossil ticket
+  (workspace_repo D:\zPython\ADID_Python); never edited from this repo.
+- `bin/` promotion of the rebuilt binary: the OWNER's procedure only (AGENTS.md forbidden_actions).
+
+## Tasks
+
+- [ ] K1 kernel package committed by t42: C1–C7, @STATUS_CLAIM, @REWARD_FUNCTION compressed, JIDOKA/KAIZEN split; global-invariant tests first; product ≤ 8 500 words, all four variants within caps. <!-- sv: kernel-edit 0.6, invariant-tests 0.4 -->
+- [ ] M1 mechanism committed by t36: planstatus reports a postponed/BLOCKED plan without a «## Stop claim» routes table (route | receipt | failing component, untried routes, reopen_when); end-of-turn stop-check continues a turn that declares a stop without one. <!-- sv: mechanism 0.7, plan-status 0.3 -->
+- [ ] K2 Claude review PASS of K1 (+M1): doctrine §7, aicall over the whole exits section, GPT's 5 closure + 8 behaviour scenarios read against the text, §7 predictions. <!-- sv: review 1.0 -->
+- [ ] K3 install here: `python -m prompt_kernel --install`, `--claude --install`, `--cursor --install`, `--codex --install`; baseline repinned; pytest all PASS; installed == render for all four (drift_check). <!-- sv: install 0.6, readback 0.4 -->
+- [ ] B1 `_build.ps1` through cmd_runner: candidate in dist/ with the new prompt embedded (smoke line), run id recorded. Promotion into bin/ = owner. <!-- sv: build 1.0 -->
+- [ ] A1 ADID_Python resident: canonical bundle takes the K3 renders (two-canon parity, docs/two-canon-protocol.md); release gate fixed (LC_ALL=C); new adid_dist_* released; manifest re-verified. <!-- sv: adid-release 1.0 -->
+- [ ] A2 install to every consumer with readback: the resident names the consumer list from its installer config; per consumer the installed kernel digest == the release manifest; failures listed by name. <!-- sv: consumer-readback 1.0 -->
+- [ ] A3 Claude verifies A1/A2 independently (hash readback on a sample of consumer roots + this repo's hosts) and closes efbfea7c / 28db8d0ace accordingly. <!-- sv: independent-verify 1.0 -->
+
+## Smoke Tests
+
+- Baseline (measured 2026-10-14, t42): `python -m pytest prompt_kernel/tests/ -q` → 209 passed; product 8 500/8 500 words; codex host 2 lines stale.
+- Predictions (before K1 runs): the new global-invariant tests FAIL on today's text (exits without scope/receipts/falsifier; PLAN_MODE has no closing path; «stop» vs «descend») and PASS after K1; caps PASS with net ≤ 0 words in the product variant; a frameless read of the new BLOCKED line names routes/receipts/untried routes (REPORT §7.2).
+- A2 oracle: per-consumer digest readback, never the installer's exit code.
+
+## Stop claim
+
+N/A while active.

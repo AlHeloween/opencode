@@ -19,7 +19,9 @@ organization beside the install (`<install>/org`), born EMPTY — `init.py` crea
 You act as a Fossil user of this repository: `--user <you>` on every write (or `$ORG_USER`). The logins:
 
 - `claude`, `codex`, `antigravity` — the interactive agents (Claude reads the `claude` inbox hourly).
-- `smit-<project>` — the opencode resident of one project.
+- `smit-<project>` — the opencode resident of one project. Canonical lowercase: the login is derived from
+  the project folder's name folded to lowercase, and an existing login matching case-insensitively is
+  reused — one project, ONE identity (inbox, lease and wake routing address a single login).
 - `<runtime>-worker` (`claude-worker`, `codex-worker`) — a headless subscription worker, one per subscription
   per org. A worker never takes the interactive login — it would claim the interactive agent's inbox.
 
@@ -153,7 +155,8 @@ never started (one worktree = one host).
 
 1. Never edit, build or run inside another project's worktree. DELEGATE to its resident (`workspace_repo` = that path).
    A delegation whose `--worktree` is OUTSIDE your own worktree is a CROSS hand-off: `delegate` ensures that
-   worktree's resident login `smit-<project>` (created if missing; its password never printed), records `watcher`
+   worktree's resident login `smit-<project>` (canonical lowercase; created if missing, an existing
+   case-insensitive match reused; its password never printed), records `watcher`
    = the orchestrator login that reads `inbox --user <watcher>` (`claude` by default, `--watcher` to override),
    and, when that worktree has no live host, prints the ONE launch command for its own opencode
    (`cmd_runner start --terminal wt --cwd W -- W\bin\opencode.exe --port <free>`) — run it; the resident is then

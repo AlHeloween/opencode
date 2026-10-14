@@ -176,7 +176,7 @@ def assignee_session(assigned_to: str, worktree: str) -> tuple[str | None, str]:
         con.close()
     for (message,) in lines:
         parts = str(message or "").split()
-        if len(parts) >= 4 and parts[0] == "PRESENCE" and parts[1] == assigned_to and norm(parts[3]) == norm(worktree):
+        if len(parts) >= 4 and parts[0] == "PRESENCE" and parts[1].lower() == assigned_to.lower() and norm(parts[3]) == norm(worktree):
             if session_exists(worktree, parts[2]):
                 return parts[2], ""
             return None, f"the newest PRESENCE for {assigned_to} names a session that no longer exists ({parts[2]})"

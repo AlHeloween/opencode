@@ -170,7 +170,9 @@ def need_user(a) -> str:
     user = a.user or os.environ.get("ORG_USER")
     if not user:
         sys.exit("org: --user is required (or set $ORG_USER) — the Fossil login that authors the change")
-    return user
+    # one identity: a login spelled in another case resolves to the org's own spelling (fossil itself
+    # matches a login exactly — this is where the caller's spelling becomes the org's)
+    return resolve_login(user) or user
 
 
 def ticket_set(t: sqlite3.Row, user: str, **fields) -> None:
@@ -259,7 +261,7 @@ def guard_lease(a, t: sqlite3.Row, verb: str) -> str:
     if a.epoch != current:
         sys.exit(f"org: stale epoch: {verb} refused for {short(t)} — you presented epoch {a.epoch}, "
                  f"but {owner} holds epoch {current}")
-    if owner != user:
+    if canon_login(owner) != canon_login(user):
         sys.exit(f"org: ticket {short(t)} is leased by {owner} — not yours to {verb}")
     return user
 
@@ -267,7 +269,7 @@ def guard_lease(a, t: sqlite3.Row, verb: str) -> str:
 def guard_delegator(t: sqlite3.Row, user: str, verb: str) -> None:
     """The verdict fence: only the delegator may accept, reject or cancel its ticket."""
     delegator = str(t["delegated_by"] or "")
-    if delegator != user:
+    if canon_login(delegator) != canon_login(user):
         sys.exit(f"org: ticket {short(t)} was delegated by {delegator or 'nobody'} — only the delegator may {verb} it")
 
 
@@ -301,11 +303,31 @@ def norm_path(path: str) -> str:
     return os.path.normcase(str(Path(path).resolve()))
 
 
+def canon_login(name: str) -> str:
+    """The canonical spelling of a login — lowercase.
+
+    The filesystem is case-insensitive: `ADID_Python` and `adid_python` are ONE project, so a login derived
+    from a path must not fork into two identities that split inbox, lease and wake routing."""
+    return str(name).strip().lower()
+
+
+def resolve_login(name: str) -> str:
+    """The org's existing login matching `name` case-insensitively (the canonical spelling first), or ""."""
+    wanted = str(name).strip()
+    found = rows("SELECT login FROM user WHERE lower(login) = lower(?) ORDER BY (login = ?) DESC, login",
+                 (wanted, wanted))
+    return str(found[0]["login"]) if found else ""
+
+
 def ensure_resident(worktree: str) -> tuple[str, bool]:
-    """The target worktree's resident login `smit-<project>`, created if missing; its secret is never printed."""
-    login = f"smit-{Path(worktree).resolve().name}"
-    if rows("SELECT 1 FROM user WHERE login = ?", (login,)):
-        return login, False
+    """The target worktree's resident login `smit-<project>` (canonical lowercase), created if missing; its secret is never printed.
+
+    An existing login that matches the derived one case-insensitively is REUSED, never duplicated: one
+    project, one identity — inbox, lease and wake routing address a single login."""
+    login = canon_login(f"smit-{Path(worktree).resolve().name}")
+    existing = resolve_login(login)
+    if existing:
+        return existing, False
     secret = os.urandom(18).hex()  # local -R work needs no password (init.py's rule)
     fossil("user", "new", login, "robot", secret)
     fossil("user", "capabilities", login, RESIDENT_CAPS)
@@ -352,7 +374,7 @@ def watching(user: str) -> list[dict]:
     found = rows(
         "SELECT tkt_uuid, title, agent_state, assigned_to, workspace_repo, heartbeat_at, lease_until, "
         "CAST(strftime('%s', tkt_mtime) AS INTEGER) AS mtime_epoch FROM ticket "
-        "WHERE watcher = ? AND agent_state IN ('READY','WORKING','BLOCKED') ORDER BY tkt_ctime DESC",
+        "WHERE lower(watcher) = lower(?) AND agent_state IN ('READY','WORKING','BLOCKED') ORDER BY tkt_ctime DESC",
         (user,),
     )
     out: list[dict] = []
@@ -401,9 +423,9 @@ def cmd_delegate(a) -> int:
         watcher = a.watcher or DEFAULT_WATCHER
         print(f"org: cross hand-off to {worktree}: resident {resident} ({'created' if created else 'present'}); "
               f"watcher {watcher}", file=sys.stderr)
-    known = rows("SELECT 1 FROM user WHERE login = ?", (a.assignee,))
-    if not known:
-        sys.exit(f"org: no such user {a.assignee!r} — create it first (fossil user new {a.assignee} robot <secret> -R <org>)")
+    assignee = resolve_login(a.assignee)
+    if not assignee:
+        sys.exit(f"org: no such user {a.assignee!r} — create it first (fossil user new {canon_login(a.assignee)} robot <secret> -R <org>)")
     if a.parent:
         parent = ticket(a.parent)
         root = a.root or str(parent["root_task"] or parent["tkt_uuid"])
@@ -414,7 +436,7 @@ def cmd_delegate(a) -> int:
     out = fossil(
         "ticket", "add",
         "title", a.title, "type", "Task", "status", "Open",
-        "agent_state", "READY", "delegated_by", user, "assigned_to", a.assignee,
+        "agent_state", "READY", "delegated_by", user, "assigned_to", assignee,
         "delegation_depth", str(depth), "workspace_repo", worktree,
         *(["wake_session", session, "wake_worktree", worktree] if session else []),
         *(["watcher", watcher] if watcher else []),
@@ -464,7 +486,7 @@ def cmd_claim(a) -> int:
     now_s = now()
     owner = str(t["lease_owner"] or "")
     until = num(t["lease_until"])
-    if state == "WORKING" and owner and owner != user and until and until > now_s:
+    if state == "WORKING" and owner and canon_login(owner) != canon_login(user) and until and until > now_s:
         sys.exit(f"org: ticket {short(t)} is leased by {owner} until {until} — not claimable")
     epoch = num(t["lease_epoch"]) + 1
     LOCKS.mkdir(parents=True, exist_ok=True)
@@ -562,7 +584,7 @@ def cmd_inbox(a) -> int:
     user = need_user(a)
     mine = rows(
         "SELECT tkt_uuid, title, agent_state, lease_owner, lease_until, parent_task FROM ticket "
-        "WHERE assigned_to = ? AND agent_state IN ('READY','WORKING','BLOCKED') ORDER BY tkt_ctime DESC",
+        "WHERE lower(assigned_to) = lower(?) AND agent_state IN ('READY','WORKING','BLOCKED') ORDER BY tkt_ctime DESC",
         (user,),
     )
     watch = watching(user)

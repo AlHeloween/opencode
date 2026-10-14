@@ -89,11 +89,13 @@ TTL HTTP/CDN-ответа не переносится автоматически
 
 ## Текущий результат
 
-Локальная квалификация и dry-run подтверждены. Живые контрольная и retention
-серии **не запускались**: автоматическая runtime policy отклонила обе команды
-CreateProcess с `blocked by policy`, не сообщив более подробной причины.
-Свидетельство: `live-launch-rejection.json`. Пользователь уже разрешил этот опыт;
-lift signal — runtime допускает credentialed HTTPS launch в том же envelope.
-Измеренный TTL и влияние retention остаются неизвестными.
-
-План: `plans/postponed/2026-10-14_independent-glm-cache-probe.md`.
+Локальная квалификация и dry-run подтверждены; повтор t41 — 15/15 PASS.
+Живые серии **исполнены 2026-10-14**: 3 запроса из 12 разрешённых.
+Control: холодный MISS, затем MISS немедленного повтора при побайтно идентичном теле
+(`cached_tokens=0`, `cache_write_tokens=0`, `prompt_tokens=2617`) — инструмент остановился по контракту.
+Retention: HTTP 400, `[unsupported_parameter] "prompt_cache_retention" is not supported by this endpoint;
+use "prompt_cache_options"` — эндпоинт отвергает retention-параметр для glm-5.3-flash.
+Прогретый кеш через независимый путь не квалифицирован; измеренный TTL и эффект retention
+остаются неизвестными. Полный отчёт: `experiments_history/2026-10-14_glm-cache-live/REPORT.md`;
+предсказания и расхождения — `predictions.md` там же.
+План: `plans_completed/2026-10-14_independent-glm-cache-probe.md`.

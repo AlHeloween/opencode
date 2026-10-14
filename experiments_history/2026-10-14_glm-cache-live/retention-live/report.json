@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "mode": "live",
+  "state": "failed",
+  "endpoint": "https://opencode.ai/inference/go/v1/chat/completions",
+  "session": "ses_71b2f8eaa37a4205ac62f954bf2a7da6",
+  "request_body_sha256": "95606494b2ac5928a7f5bd234d57c5bbbf359e6a2729da9f563fb104959cd582",
+  "request_body_bytes": 11331,
+  "requested_idle_seconds": 360.0,
+  "observations": [
+    {
+      "ordinal": 1,
+      "request_id": "msg_efbc91ac04e14bdd9bba2532300971c0",
+      "sent_at_utc": "2026-10-14T09:39:42.089482+00:00",
+      "status": "unknown",
+      "idle_seconds": null,
+      "request_body_sha256": "95606494b2ac5928a7f5bd234d57c5bbbf359e6a2729da9f563fb104959cd582",
+      "request_headers": {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "independent-cache-probe/1.0",
+        "x-request-id": "msg_efbc91ac04e14bdd9bba2532300971c0",
+        "x-session-id": "ses_71b2f8eaa37a4205ac62f954bf2a7da6",
+        "x-session-affinity": "ses_71b2f8eaa37a4205ac62f954bf2a7da6",
+        "x-opencode-session": "ses_71b2f8eaa37a4205ac62f954bf2a7da6",
+        "x-opencode-request": "msg_efbc91ac04e14bdd9bba2532300971c0",
+        "x-opencode-project": "4b6fbbb0f68573d6db2199b42c1af8546fee7df0",
+        "x-opencode-client": "cli"
+      },
+      "http_status": 400,
+      "response_headers": {
+        "date": "Wed, 14 Oct 2026 09:39:42 GMT",
+        "content-type": "application/json",
+        "content-length": "227"
+      },
+      "advertised_cache_headers": {},
+      "response_artifact": "01_response.bin",
+      "response_artifact_sha256": "dbf688e969287e11479b9fdfdb3da08bd30c6f64938e2156f6ff24d0d097568b",
+      "response_bytes_received": 227,
+      "response_redacted": false,
+      "error": "HTTP response was not 200; no retry or redirect",
+      "error_class": "ValueError",
+      "completed_at_utc": "2026-10-14T09:39:43.041354+00:00",
+      "elapsed_seconds": 0.9518808000138961
+    }
+  ],
+  "measured_ttl_seconds": null,
+  "interpretation": "No exact TTL is inferred. Miss alternatives: expiry, eviction, routing. Advertised headers are not measured TTL.",
+  "exit_code": 1
+}

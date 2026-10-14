@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "mode": "live",
+  "state": "failed",
+  "endpoint": "https://opencode.ai/inference/go/v1/chat/completions",
+  "session": "ses_5380fe108dfd41eeb9aefe61f4f59165",
+  "request_body_sha256": "6960fdf16c8225fee212e09172e106bddeecc6d33f67e40e38629a81eb9c1727",
+  "request_body_bytes": 11290,
+  "requested_idle_seconds": 360.0,
+  "observations": [
+    {
+      "ordinal": 1,
+      "request_id": "msg_ec2b3875f2414149a5f206be7e7a8b9b",
+      "sent_at_utc": "2026-10-14T09:37:25.322633+00:00",
+      "status": "observed_miss",
+      "idle_seconds": null,
+      "request_body_sha256": "6960fdf16c8225fee212e09172e106bddeecc6d33f67e40e38629a81eb9c1727",
+      "request_headers": {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "independent-cache-probe/1.0",
+        "x-request-id": "msg_ec2b3875f2414149a5f206be7e7a8b9b",
+        "x-session-id": "ses_5380fe108dfd41eeb9aefe61f4f59165",
+        "x-session-affinity": "ses_5380fe108dfd41eeb9aefe61f4f59165",
+        "x-opencode-session": "ses_5380fe108dfd41eeb9aefe61f4f59165",
+        "x-opencode-request": "msg_ec2b3875f2414149a5f206be7e7a8b9b",
+        "x-opencode-project": "b2c0fb4cdfcc5a9be76d6eec464b04b7a2c0ecf5",
+        "x-opencode-client": "cli"
+      },
+      "http_status": 200,
+      "response_headers": {
+        "date": "Wed, 14 Oct 2026 09:37:34 GMT",
+        "content-type": "application/json",
+        "content-length": "676"
+      },
+      "advertised_cache_headers": {},
+      "response_artifact": "01_response.bin",
+      "response_artifact_sha256": "b40ba81238398122f9aae7e010a1d944163b2dd65d2ab9ab23d61803e672c259",
+      "response_bytes_received": 676,
+      "response_redacted": false,
+      "usage": {
+        "prompt_tokens": 2617,
+        "completion_tokens": 24,
+        "total_tokens": 2641,
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cached_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": 0,
+          "audio_tokens": 0,
+          "reasoning_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      },
+      "prompt_tokens": 2617,
+      "cached_tokens": 0,
+      "completed_at_utc": "2026-10-14T09:37:35.005229+00:00",
+      "elapsed_seconds": 9.682694499962963
+    },
+    {
+      "ordinal": 2,
+      "request_id": "msg_963d5cf151b047e6b9fa261496c841c5",
+      "sent_at_utc": "2026-10-14T09:37:35.008214+00:00",
+      "status": "observed_miss",
+      "idle_seconds": 0.0029883000534027815,
+      "request_body_sha256": "6960fdf16c8225fee212e09172e106bddeecc6d33f67e40e38629a81eb9c1727",
+      "request_headers": {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "independent-cache-probe/1.0",
+        "x-request-id": "msg_963d5cf151b047e6b9fa261496c841c5",
+        "x-session-id": "ses_5380fe108dfd41eeb9aefe61f4f59165",
+        "x-session-affinity": "ses_5380fe108dfd41eeb9aefe61f4f59165",
+        "x-opencode-session": "ses_5380fe108dfd41eeb9aefe61f4f59165",
+        "x-opencode-request": "msg_963d5cf151b047e6b9fa261496c841c5",
+        "x-opencode-project": "b2c0fb4cdfcc5a9be76d6eec464b04b7a2c0ecf5",
+        "x-opencode-client": "cli"
+      },
+      "http_status": 200,
+      "response_headers": {
+        "date": "Wed, 14 Oct 2026 09:37:47 GMT",
+        "content-type": "application/json",
+        "content-length": "731"
+      },
+      "advertised_cache_headers": {},
+      "response_artifact": "02_response.bin",
+      "response_artifact_sha256": "26e24dc3ee87e66614e5ed2a436bea707b9ef36e5908a1e6c0564cc357be40a7",
+      "response_bytes_received": 731,
+      "response_redacted": false,
+      "usage": {
+        "prompt_tokens": 2617,
+        "completion_tokens": 38,
+        "total_tokens": 2655,
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cached_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": 0,
+          "audio_tokens": 0,
+          "reasoning_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      },
+      "prompt_tokens": 2617,
+      "cached_tokens": 0,
+      "completed_at_utc": "2026-10-14T09:37:48.009796+00:00",
+      "elapsed_seconds": 13.001708399970084
+    }
+  ],
+  "measured_ttl_seconds": null,
+  "interpretation": "Immediate repeat observed a miss; no qualified warm cache for a survival experiment.",
+  "exit_code": 1
+}

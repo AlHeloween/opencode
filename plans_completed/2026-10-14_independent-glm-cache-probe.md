@@ -28,6 +28,8 @@ parent-goal-md5: 00000000000000000000000000000000
 - ✓ CONFIRMED (структурное чтение JSON, без значений): bin/auth.json содержит
   opencode-go.key; исходный файл остаётся нетронутым.
 - ✓ CONFIRMED (git/source): старые тесты фиксировали форму параметров, а не удержание.
+- ✓ CONFIRMED (живой провод, `retention-live/01_response.bin` + report.json): HTTP 400 `[unsupported_parameter] "prompt_cache_retention" is not supported by this endpoint; use "prompt_cache_options"` — серверное слово, дословно.
+- ✓ CONFIRMED (живой провод, `control-live/report.json`): немедленный повтор побайтно идентичного тела — observed_miss, `cached_tokens=0` и `cache_write_tokens=0` при `prompt_tokens=2617`; прогретый кеш через независимый путь не квалифицирован.
 - Unknown: причинный эффект retention и время жизни живого кеша. Falsifier:
   независимый HTTP-ответ с usage при неизменном запросе после измеренной паузы.
 
@@ -53,25 +55,23 @@ docs/independent-glm-cache-probe.md, generated-body MASTER_PLAN (renderer only).
 
 ## Tasks
 - [x] T1 standalone script и локальная HTTP-квалификация. ✓ CONFIRMED: parent run 20261014T084252Z_4ab19fe2, 15 tests/0 failures, complete log, exit0; script SHA256 5e3b33650fbbb0b6a3c7d0a4c72428e3d0f0346594705b77d3cbccdee0e9ddef. <!-- sv: independent-probe 0.60, controlled-input 0.40 -->
-- [~] T2 независимый readback/негативные контроли PASS; живой warm/idle тест BLOCKED: обе exec_command CreateProcess отклонены automatic policy (blocked by policy), причины подробнее нет. Процессы не запущены, live outputs отсутствуют. <!-- sv: cache-observation 0.60, controlled-input 0.40 -->
+- [x] T2 независимый readback/негативные контроли PASS; живые серии ИСПОЛНЕНЫ 2026-10-14. ✓ CONFIRMED (report.json + артефакты + runner state): control ses_5380fe108dfd41eeb9aefe61f4f59165 — 2 запроса (холодный MISS; немедленный повтор тех же байтов MISS, cached_tokens=0/cache_write_tokens=0, prompt_tokens=2617), инструмент остановился по контракту, idle-стадия не достигнута; retention ses_71b2f8eaa37a4205ac62f954bf2a7da6 через cmd_runner 20261014T093941Z_85024ef6 — 1 запрос, HTTP 400 unsupported_parameter (сервер отвергает prompt_cache_retention и называет prompt_cache_options). Живых запросов 3/12; оба расхождения предсказаний зафиксированы. Артефакты: experiments_history/2026-10-14_glm-cache-live/ (+ scratch в experiments/). <!-- sv: live-probe 0.45, unsupported-parameter 0.35, warm-cache-miss 0.20 -->
 - [x] T3 инструкции, полные evidence, штатная сборка и архив. ✓ CONFIRMED: docs/independent-glm-cache-probe.md + индекс; experiments_history/2026-10-14_independent-glm-cache-probe/; build 20261014T084439Z_c55b15a0 exit0, bytes_dropped0, truncatedfalse, dist candidate10.0.1330. Scoped commit именует этот план, Git readback фиксируется после коммита. <!-- sv: evidence 0.50, continuity 0.50 -->
 
 ## SVM
 turn_id: independent-glm-cache-probe-2026-10-14; parent_turn_id: null;
 goal_hierarchy: level0 инструментальный тест кеша; master_plan: этот файл.
-oracle_vector: baseline EXPECTED_FAIL module missing; qualification PASS (parent 15 tests);
-live verdict NOT_RUN (launch rejected by runtime policy).
-Residual: независимый живой warm/idle опыт. Lift signal: runtime policy допускает
-credentialed HTTPS launch к OpenCode-Go в указанном envelope; авторизация владельца уже есть.
-Не повторять запуск и не менять маршрут ради обхода отказа.
+oracle_vector: baseline EXPECTED_FAIL module missing; qualification PASS (15 tests, повтор t41 2026-10-14);
+live EXECUTED: control 2 запроса (MISS/MISS), retention 1 запрос (HTTP 400 unsupported_parameter); TTL не измерен.
+Residual: (1) квалификация прогретого кеша при префиксе заметно больше 2617 токенов;
+(2) схема prompt_cache_options (серверный хинт); (3) wire-захват продуктового glm-запроса.
+Lift signal: снят — credentialed HTTPS запуск исполнен в том же envelope.
+Живые запросы необратимы: не повторять; повтор опыта — с новыми префиксами/ключами.
 Долгий срок удержания будет доказан только фактической паузой нужной длины.
 
-## Closure
-BOUND STOP / BLOCKED: instrumental acceptance T1 PASS, live acceptance T2 NOT_RUN.
-Product-source actual_diff=none; bin/ unchanged by this task. Продвижения кандидата нет.
-Независимый explorer проверил постановку: убраны утверждение sliding TTL и причинная
-интерпретация одиночной A/B пары; родитель перечитал исходные pins. Полный accepted
-PORTFOLIO_AUDIT чужих completion не получен, project-wide SUCCESS не заявляется.
-MASTER renderer21plans включил этот план, head SHA256 сохранён:
-fb80b65370bd296d9214871df7b4abff1e4954fc3ac2d4d1633a0dd1885427af.
-После переноса blocked-плана карта повторно рендерится; baseline грязных файлов сохранён.
+COMPLETED: instrumental acceptance T1 PASS; live acceptance T2 ИСПОЛНЕН — живой опыт доведён до контрактных терминалов инструмента, наблюдения и расхождения зафиксированы.
+Product-source actual_diff=none; bin/ не изменён; штатная сборка не запускалась — source-изменений нет (явное исключение задания).
+Живых запросов 3/12, сетевых ретраев нет. TTL и эффект retention остаются Unknown: прогретый кеш не квалифицирован — survival-эксперимент недостижим при этом теле.
+Residual: prompt_cache_options; минимальная кэшируемая длина; продуктовый wire-захват (мотив — здесь не измерялся).
+План переведён в plans_completed/ этим изменением; MASTER_PLAN перерендерится (renderer only).
+Project-wide SUCCESS не заявляется: полный чужой portfolio audit не делался.

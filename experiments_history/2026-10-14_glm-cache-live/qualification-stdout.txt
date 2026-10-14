@@ -1,0 +1,41 @@
+# Повторная локальная квалификация — точная копия вывода (t41, 2026-10-14)
+
+Запуск: harness-shell напрямую `python -m unittest -v test_cache_probe.py` из каталога инструмента
+(stdlib-проба, неинтерактивная; записи cmd_runner для этого вызова нет). Сеть не использовалась
+(loopback-фикстура). Совпадает с parent-квалификацией Codex 20261014T084252Z_4ab19fe2: 15 тестов, 0 failures, exit 0.
+
+```
+test_boolean_usage_rejected (test_cache_probe.ProbeTests.test_boolean_usage_rejected) ... ok
+test_cold_warm_expired_and_exact_wire_readback (test_cache_probe.ProbeTests.test_cold_warm_expired_and_exact_wire_readback) ... ok
+test_dry_run_does_not_connect_or_read_auth (test_cache_probe.ProbeTests.test_dry_run_does_not_connect_or_read_auth) ... ok
+test_endpoint_credentials_and_query_rejected (test_cache_probe.ProbeTests.test_endpoint_credentials_and_query_rejected) ... ok
+test_http_error_records_response_and_stops (test_cache_probe.ProbeTests.test_http_error_records_response_and_stops) ... ok
+test_idle_budget_rejected_before_network (test_cache_probe.ProbeTests.test_idle_budget_rejected_before_network) ... ok
+test_malformed_auth_never_prints_token (test_cache_probe.ProbeTests.test_malformed_auth_never_prints_token) ... ok
+test_missing_usage_is_unknown (test_cache_probe.ProbeTests.test_missing_usage_is_unknown) ... ok
+test_no_warm_hit_stops_without_sleep (test_cache_probe.ProbeTests.test_no_warm_hit_stops_without_sleep) ... ok
+test_output_budget_rejected (test_cache_probe.ProbeTests.test_output_budget_rejected) ... ok
+test_redirect_not_followed (test_cache_probe.ProbeTests.test_redirect_not_followed) ... ok
+test_response_size_bound_and_invalid_json (test_cache_probe.ProbeTests.test_response_size_bound_and_invalid_json) ... ok
+test_secret_redacted_in_all_outputs (test_cache_probe.ProbeTests.test_secret_redacted_in_all_outputs) ... ok
+test_timeout_no_retry (test_cache_probe.ProbeTests.test_timeout_no_retry) ... ok
+test_warm_receipts_persist_before_interruption_during_idle (test_cache_probe.ProbeTests.test_warm_receipts_persist_before_interruption_during_idle) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 0.843s
+
+OK
+Probe rejected input or could not persist evidence; no successful observation.
+Probe rejected input or could not persist evidence; no successful observation.
+Probe rejected input or could not persist evidence; no successful observation.
+Probe rejected input or could not persist evidence; no successful observation.
+Probe rejected input or could not persist evidence; no successful observation.
+Probe rejected input or could not persist evidence; no successful observation.
+Probe rejected input or could not persist evidence; no successful observation.
+Probe rejected input or could not persist evidence; no successful observation.
+Probe rejected input or could not persist evidence; no successful observation.
+Probe rejected input or could not persist evidence; no successful observation.
+```
+
+Примечание: повторяющиеся строки `Probe rejected input or could not persist evidence; no successful observation.` —
+это штатный stdout негативных тестов (main() печатает эту строку при отказе входа), часть перехваченного вывода.

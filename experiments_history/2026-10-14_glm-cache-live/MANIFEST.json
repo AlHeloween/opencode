@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "semantic_vector": {
+    "keywords": {
+      "live-probe": 0.4,
+      "unsupported-parameter": 0.35,
+      "warm-cache-miss": 0.25
+    },
+    "dominant": "Live independent GLM cache series: retention parameter rejected 400, warm cache not qualified.",
+    "md5": "e6f1a8c34d2b9f70a1c5e8d3b6f24917",
+    "prev-md5": "00000000000000000000000000000000",
+    "parent-goal-md5": "c85276a390ed4bfda1207e68543f9c02"
+  },
+  "artifacts": [
+    {
+      "path": ".gitattributes",
+      "bytes": 20,
+      "sha256": "e97602ab9cac70102245345c5ab0fc9830df8b17f1072b188265a662a3a547ae"
+    },
+    {
+      "path": "REPORT.md",
+      "bytes": 7183,
+      "sha256": "beaa788510153c016b16ee19c6ad14ec690ddb7f1e8ece29f15d484294920ba8"
+    },
+    {
+      "path": "control-live/01_response.bin",
+      "bytes": 676,
+      "sha256": "b40ba81238398122f9aae7e010a1d944163b2dd65d2ab9ab23d61803e672c259"
+    },
+    {
+      "path": "control-live/02_response.bin",
+      "bytes": 731,
+      "sha256": "26e24dc3ee87e66614e5ed2a436bea707b9ef36e5908a1e6c0564cc357be40a7"
+    },
+    {
+      "path": "control-live/report.json",
+      "bytes": 4638,
+      "sha256": "c844e899d64717fba6b4fa7d0141e78a4c3e61232e8a06e5b6b0ed620cdc518d"
+    },
+    {
+      "path": "control-live/request_body.bin",
+      "bytes": 11290,
+      "sha256": "6960fdf16c8225fee212e09172e106bddeecc6d33f67e40e38629a81eb9c1727"
+    },
+    {
+      "path": "predictions.md",
+      "bytes": 4377,
+      "sha256": "49197d62ed9b49f563c40d758b4928e2fe18affe79c4828d88465a585523dcd6"
+    },
+    {
+      "path": "qualification-stdout.txt",
+      "bytes": 3503,
+      "sha256": "3e857b32a2a4486a26681b3e808339cabb6f6efadd2ae92ec9d2fe05e5f448c9"
+    },
+    {
+      "path": "retention-live/01_response.bin",
+      "bytes": 227,
+      "sha256": "dbf688e969287e11479b9fdfdb3da08bd30c6f64938e2156f6ff24d0d097568b"
+    },
+    {
+      "path": "retention-live/report.json",
+      "bytes": 2180,
+      "sha256": "c10ded08afd32b5da22e9dc1703e31cb9612681e6651a6ba2eb70f273f6e945f"
+    },
+    {
+      "path": "retention-live/request_body.bin",
+      "bytes": 11331,
+      "sha256": "95606494b2ac5928a7f5bd234d57c5bbbf359e6a2729da9f563fb104959cd582"
+    },
+    {
+      "path": "runner/20261014T093941Z_85024ef6/exit_code.txt",
+      "bytes": 1,
+      "sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+    },
+    {
+      "path": "runner/20261014T093941Z_85024ef6/in.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "runner/20261014T093941Z_85024ef6/inbox.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "runner/20261014T093941Z_85024ef6/meta.json",
+      "bytes": 1042,
+      "sha256": "7f42ee48cec2b39f00161d9bd0d6f3450e66f6c02fc1f4f9929d05fd1c6a2d19"
+    },
+    {
+      "path": "runner/20261014T093941Z_85024ef6/payload.cmd",
+      "bytes": 374,
+      "sha256": "e570eae8822ebf148abd8ca0690085af5789152fba8bfbe83e6e086809d6df52"
+    },
+    {
+      "path": "runner/20261014T093941Z_85024ef6/state.json",
+      "bytes": 498,
+      "sha256": "45e8658dde62282c27ddc11e49eef3a90aee318c70dddbc604e126920eee9d1a"
+    },
+    {
+      "path": "runner/20261014T093941Z_85024ef6/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "runner/20261014T093941Z_85024ef6/stdout.log",
+      "bytes": 147,
+      "sha256": "d200256c123dd6db6297a3f258eefb11021ec316e5c80e4419b3ce82dc986b18"
+    },
+    {
+      "path": "runner/20261014T093941Z_85024ef6/stdout_text.log",
+      "bytes": 29,
+      "sha256": "a0bdb7e71846a959dad4890557156530d5b836126491ac853ac3c629c04c9030"
+    }
+  ]
+}

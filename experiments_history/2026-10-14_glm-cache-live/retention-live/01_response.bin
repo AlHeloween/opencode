@@ -1,0 +1,1 @@
+{"error":{"param":"prompt_cache_retention","type":"invalid_request_error","message":"Upstream request failed: [unsupported_parameter] \"prompt_cache_retention\" is not supported by this endpoint; use \"prompt_cache_options\""}}

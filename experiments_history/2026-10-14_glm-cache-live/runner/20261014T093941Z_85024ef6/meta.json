@@ -1,0 +1,34 @@
+{
+  "created_utc": "2026-10-14T09:39:41Z",
+  "cwd": "D:\\zPython\\opencode",
+  "backend": "windows-conpty",
+  "cols": 120,
+  "rows": 30,
+  "timeout_s": null,
+  "max_log_mb": 50,
+  "terminal_host": "conhost",
+  "argv": [
+    "python",
+    "experiments_history\\2026-10-14_independent-glm-cache-probe\\cache_probe.py",
+    "--request",
+    "experiments_history\\2026-10-14_independent-glm-cache-probe\\retention.json",
+    "--endpoint",
+    "https://opencode.ai/inference/go/v1/chat/completions",
+    "--auth-file",
+    "bin\\auth.json",
+    "--idle-seconds",
+    "360",
+    "--live",
+    "--out",
+    "experiments\\2026-10-14_glm-cache-live\\retention-live"
+  ],
+  "normalized_argv": [
+    "cmd",
+    "/c",
+    "D:\\zPython\\opencode\\experiments\\2026-10-14_glm-cache-live\\runner\\20261014T093941Z_85024ef6\\payload.cmd"
+  ],
+  "wrapper_kind": "cmd",
+  "wrapper_path": "D:\\zPython\\opencode\\experiments\\2026-10-14_glm-cache-live\\runner\\20261014T093941Z_85024ef6\\payload.cmd",
+  "env_overrides": {
+  }
+}

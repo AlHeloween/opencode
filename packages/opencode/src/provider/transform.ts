@@ -372,8 +372,10 @@ function normalizeMessages(
   return msgs
 }
 
-function isOpencodeGoGlm(model: Provider.Model): boolean {
-  return model.providerID === "opencode-go" && /glm|zhipu/i.test(model.api.id)
+function isOpencodeGlm(model: Provider.Model): boolean {
+  // Go and Zen are the same backend (owner 2026-10-14) — match the whole
+  // provider family, like the pre-existing startsWith("opencode") gates.
+  return model.providerID.startsWith("opencode") && /glm|zhipu/i.test(model.api.id)
 }
 
 /**
@@ -499,10 +501,11 @@ export function message(msgs: ModelMessage[], model: Provider.Model, options: Re
     msgs = applyCaching(msgs, model)
   }
 
-  // opencode-go system breakpoints (B): stable-system only, GLM skipped.
-  // Narrowly scoped to providerID opencode-go so the Novita no-marker
-  // regression (transform.test.ts) keeps passing untouched.
-  if (model.providerID === "opencode-go" && !isOpencodeGoGlm(model)) {
+  // opencode* system breakpoints (B): stable-system only, GLM skipped.
+  // Narrowly scoped to providerIDs starting with "opencode" (go + zen, same
+  // backend) so the Novita no-marker regression (transform.test.ts) keeps
+  // passing untouched.
+  if (model.providerID.startsWith("opencode") && !isOpencodeGlm(model)) {
     tlog.info("applyOpencodeGoSystemCaching triggered", {
       providerID: model.providerID,
       modelID: model.id,
@@ -1254,12 +1257,13 @@ export function options(input: {
       : "prompt_cache_key"] = promptCacheKey
   }
 
-  // opencode-go (A): always isolate per session and ask for 24h retention.
-  // The gateway auto-caches ~5 min without these; key + "24h" (schema
-  // ceiling, enum["in_memory","24h"]) extends lifetime to a day. GLM models
-  // ride the same two fields here - cache_control markers are handled
-  // separately in message() with a GLM skip (B).
-  if (input.model.providerID === "opencode-go") {
+  // opencode* (go/zen — same backend, owner 2026-10-14): always isolate per
+  // session and ask for 24h retention. The gateway auto-caches ~5 min without
+  // these; key + "24h" (schema ceiling, enum["in_memory","24h"]) extends
+  // lifetime to a day. GLM models ride the same two fields here -
+  // cache_control markers are handled separately in message() with a GLM
+  // skip (B).
+  if (input.model.providerID.startsWith("opencode")) {
     tlog.info("prompt_cache_key set", {
       providerID: input.model.providerID,
       apiNpm: input.model.api.npm,

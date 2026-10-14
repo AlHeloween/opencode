@@ -34,6 +34,14 @@ const goModel = (id: string) => ({
   api: { id, url: "https://opencode.ai/inference/go/v1", npm: "@ai-sdk/openai-compatible" },
 })
 
+// Zen path: same backend as go (owner 2026-10-14), different providerID string.
+const zenModel = (id: string) => ({
+  ...baseModel,
+  id: `opencode/${id}`,
+  providerID: "opencode",
+  api: { id, url: "https://opencode.ai/inference/v1", npm: "@ai-sdk/openai-compatible" },
+})
+
 describe("opencode-go long-lived cache", () => {
   test("S1: options() sets key + 24h retention without opt-in", () => {
     const result = ProviderTransform.options({
@@ -120,6 +128,42 @@ describe("opencode-go long-lived cache", () => {
         { role: "user", content: "hi" },
       ] as any[],
       novita,
+      {},
+    ) as any[]
+    expect(JSON.stringify(result)).not.toContain("cache_control")
+  })
+})
+
+describe("opencode (zen) — same backend, same treatment", () => {
+  test("S1-zen: options() sets key + 24h retention without opt-in", () => {
+    const result = ProviderTransform.options({
+      model: zenModel("muse-spark-1.3-contributor-free"),
+      sessionID: "ses_test",
+      providerOptions: {},
+    })
+    expect(result.prompt_cache_key).toBe("ses_test:opencode/muse-spark-1.3-contributor-free")
+    expect(result.prompt_cache_retention).toBe("24h")
+  })
+
+  test("S2-zen: non-GLM system messages get ttl 1h breakpoints", () => {
+    const result = ProviderTransform.message(
+      [
+        { role: "system", content: "stable" },
+        { role: "user", content: "hi" },
+      ] as any[],
+      zenModel("muse-spark-1.3-contributor-free"),
+      {},
+    ) as any[]
+    expect(result[0].providerOptions?.openaiCompatible?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" })
+  })
+
+  test("S2-zen: GLM models are skipped", () => {
+    const result = ProviderTransform.message(
+      [
+        { role: "system", content: "stable" },
+        { role: "user", content: "hi" },
+      ] as any[],
+      zenModel("glm-5.3-flash"),
       {},
     ) as any[]
     expect(JSON.stringify(result)).not.toContain("cache_control")

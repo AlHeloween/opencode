@@ -36,6 +36,9 @@ export const UNSUPPORTED_WIRE_PARAMS: Record<string, readonly string[]> = {
   // (provider_fact row) and pinned here so a fresh install does not re-learn.
   // reasoning_effort drives reasoning on this route, so the strip is safe.
   "opencode-go/glm-5.3-flash": ["repetition_penalty", "thinking"],
+  // Same backend as opencode-go (owner 2026-10-14: go == zen) — the strict
+  // upstream rejects the same fields whatever the providerID string says.
+  "opencode/glm-5.3-flash": ["repetition_penalty", "thinking"],
 }
 
 /** Seed ∪ learned, deduplicated — what this model's upstream must never be sent. Never throws. */

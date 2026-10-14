@@ -116,3 +116,18 @@ test("the transport strip is global — any provider, not just a learned pair", 
   expect(packaged["deepseek"].protocol).toBeUndefined()
   expect(packaged["deepseek"].streaming).toBeUndefined()
 })
+
+test("zen mirror: opencode/glm-5.3-flash strips the same fields (go == zen backend)", () => {
+  const packaged = ProviderTransform.providerOptions(createModel("opencode", "glm-5.3-flash"), {
+    repetition_penalty: 1.1,
+    thinking: { type: "enabled" },
+    top_p: 0.95,
+    prompt_cache_key: "ses_x:glm-5.3-flash",
+    prompt_cache_retention: "24h",
+  })
+  expect(packaged["opencode"].repetition_penalty).toBeUndefined()
+  expect(packaged["opencode"].thinking).toBeUndefined()
+  expect(packaged["opencode"].top_p).toBe(0.95)
+  expect(packaged["opencode"].prompt_cache_key).toBe("ses_x:glm-5.3-flash")
+  expect(packaged["opencode"].prompt_cache_retention).toBe("24h")
+})

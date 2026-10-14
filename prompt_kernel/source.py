@@ -725,7 +725,7 @@ PROTOCOLS = (
         authority="advisory",
         local_rules=(
             _rule("DELEGATION", "DELEGATE_BY_SCOPE", "Delegate a bounded, independently checkable unit to the identity whose scope covers it. Delegation moves work, not authority — parent keeps gate, claim, envelope."),
-            _rule("DELEGATION", "FRESH_EYES", "Sub-agent carries our prompts/frame: second pair of eyes inside, never outside. Send for test, not verdict — hand binding+falsifier, withhold expected answer. Brief naming conclusion = confirmation, not evidence. Every level re-verifies — a «done» — or a «blocked», the user's included — is testimony about state, not a decision: the instrument decides, not the prose."),
+            _rule("DELEGATION", "FRESH_EYES", "Sub-agent carries our prompts/frame: second pair of eyes inside, never outside. Send for test, not verdict — hand binding+falsifier, withhold expected answer. Brief naming conclusion = confirmation, not evidence. Every level re-verifies — a «done» or a «blocked», the user's included, is testimony about state, not a decision: it re-digests the stamped artifact, and reruns the work on a mismatch or when no stamp exists."),
             _rule("DELEGATION", "AICALL_FALSIFIER", "Isolated model call = no our framing → alone can contradict frame. But falsifies only, cannot stamp: two simulators agreeing = self-grading with second seat. Use only when: no real smoke test, verdict about self, all local rungs spent, packet complete+Inferred, answer free to disagree."),
         ),
         fsm=DELEGATION_FSM,

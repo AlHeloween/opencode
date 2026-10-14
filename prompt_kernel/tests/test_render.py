@@ -494,10 +494,11 @@ def test_testimony_clause_covers_done_and_blocked_in_both_variants() -> None:
     """Exit audit 2026-10-13, case C: only «done» was named as testimony about state.
 
     A «blocked» is the same kind of claim — self-declared state asserted as a decision — so the
-    clause is symmetric and the instrument decides, not the prose. Both shipped variants render it.
+    subject widens to cover it; the procedure stays verbatim (a kernel cut needs the owner's word,
+    and this fix widens only the subject). Both shipped variants render it.
     """
     from prompt_kernel.addons_claude import CLAUDE_GATE_ADDONS
 
     for text in (render_kernel(KERNEL), render_kernel(KERNEL, CLAUDE_GATE_ADDONS, ())):
-        assert "a «done» — or a «blocked», the user's included — is testimony about state, not a decision" in text
-        assert "the instrument decides, not the prose" in text
+        assert "a «done» or a «blocked», the user's included, is testimony about state, not a decision" in text
+        assert "it re-digests the stamped artifact, and reruns the work on a mismatch or when no stamp exists" in text

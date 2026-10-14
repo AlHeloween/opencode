@@ -52,7 +52,10 @@ def test_authorization_inspection_is_not_an_identity() -> None:
 
     rendered = render_kernel(KERNEL)
     identity_block = rendered[rendered.index("## 5. IDENTITY_CONTRACTS") :]
-    assert "Uncertain identity or permission → inspect the host runtime's authorization surface." in identity_block
+    # 2026-10-14 (t42): the §5 header no longer restates the authorization-surface norm (it lives in
+    # @CATALOG_INVARIANT, asserted above); the header keeps the ACL authority row.
+    assert "runtime ACL and G4 envelope remain authoritative for every identity." in identity_block
+    assert "Uncertain identity or permission" not in identity_block
     assert "@GETMODE" not in identity_block
     assert "### GETMODE\n" not in rendered
     text = "\n".join(

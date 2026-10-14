@@ -300,7 +300,7 @@ def render_kernel(
     lines.extend([
         "## 5. IDENTITY_CONTRACTS",
         "",
-        "authority: runtime ACL and G4 envelope remain authoritative for every identity. Uncertain identity or permission → inspect the host runtime's authorization surface.",
+        "authority: runtime ACL and G4 envelope remain authoritative for every identity.",
         "",
     ])
     for identity in kernel.identities:

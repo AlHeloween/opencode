@@ -32,7 +32,9 @@ def test_identity_headings_are_entity_names_not_host_slugs() -> None:
     assert "### REASONING_MODE\nkind: primary\n" in block
     assert "### build_mode\n" not in block
     assert "runtime: " not in block
-    assert "Uncertain identity or permission → inspect the host runtime's authorization surface." in block
+    # 2026-10-14 (t42): the second sentence («Uncertain identity or permission → …») was cut as a duplicate
+    # of @CATALOG_INVARIANT (still asserted in test_agent_identity); the header keeps the ACL authority row.
+    assert "runtime ACL and G4 envelope remain authoritative for every identity." in block
 
 
 def test_kernel_does_not_restate_entities_under_three_spellings() -> None:
@@ -267,11 +269,16 @@ def test_procedure_layer_keeps_its_decisions() -> None:
     assert "mismatch → stop and re-ground, never overwrite" in surface
     assert "A new surface is READY from its enclosing surface's baseline PASS" in surface
     assert "STABILIZE repairs a classified defect" in dict(KERNEL.terms)["WORK_KIND"]
+    jidoka = shared["JIDOKA"]
+    # 2026-10-14 (t42): split — the stop-the-line half is Jidoka, not Kaizen (owner: «Kaizen — это
+    # непрерывное улучшение на каждом шаге вообще-то»); the defect is a claim whose reproducer fails NOW.
+    assert "A defect stops the line — tool or process" in jidoka
+    assert "its reproducer fails NOW (@ANTI_CHURN)" in jidoka
+    assert "cheapest primitive check" in jidoka
+    assert "per @STATUS_CLAIM" in jidoka
     kaizen = shared["KAIZEN"]
-    assert "A tool defect stops the line; it is never weather" in kaizen
-    assert "Its second occurrence forbids another workaround" in kaizen
-    assert "updated in the same change" in kaizen
-    assert "cheapest primitive check" in kaizen
+    assert "updates the standard it ran under" in kaizen
+    assert "before/after on one predicate (@SMOKE_BEFORE)" in kaizen
     tools = shared["TOOLCHAIN_QUALIFICATION"]
     assert "A general test is never the first experiment on its instruments" in tools
     assert "verify the fixture's state, not the tool's return" in tools
@@ -288,7 +295,9 @@ def test_procedure_layer_keeps_its_decisions() -> None:
     assert "never patch the tool in flight or fit results to it" in tools
     g3 = next(gate for gate in KERNEL.gates if gate.id == "G3")
     assert "TOOLCHAIN_QUALIFICATION" in g3.shared_rules, "readiness is planned before testing"
-    assert "Calibration examples ≠ held-out cases" in tools
+    # 2026-10-14 (t42): «Calibration examples ≠ held-out cases» cut — benchmark doctrine, not agent work;
+    # the handoff clause is now a stop claim (routes tried with receipts).
+    assert "handoff as a stop claim" in tools
     churn = shared["ANTI_CHURN"]
     assert "Memory is not a vote" in churn
     # Owner, 2026-09-29: memory rebuilt from artifacts still self-winds — our own artifacts carry
@@ -310,7 +319,9 @@ def test_procedure_layer_keeps_its_decisions() -> None:
         assert clause in validate, clause
     # BGE dedup D1: SUCCESS is defined once; the stop rule points to it instead of restating it.
     stop = next(rule.text for gate in KERNEL.gates for rule in gate.local_rules if rule.id == "BOUNDED_STOP_CONDITIONS")
-    assert "SUCCESS still needs @CLOSURE_PROOF" in stop
+    assert "stop claim" in stop
+    assert "NOT SUCCESS" in stop
+    assert "untried route or the split that adds observability" in stop
     # Owner, 2026-09-29: «Особенно lean… без этой проверки начинается ковыряние и доказательство ерунды».
     # LEAN reaches the oracle and the bug report, not only G2 selection — and earns its rendered name.
     g8 = {rule.id: rule.text for gate in KERNEL.gates if gate.id == "G8" for rule in gate.local_rules}
@@ -324,7 +335,9 @@ def test_procedure_layer_keeps_its_decisions() -> None:
     assert "classified alone, by reading, before an oracle is spent on it" in lean_g8
     assert "tiers 1-2 → the oracle may run" in lean_g8
     assert "neither ever proven" in lean_g8
-    assert "reported failure → @LEAN_RANKING of its expected behavior against the requirement (tiers 1-2 admit it to reproduction; 3-4 close it as Unknown with the reason) → reproducer" in shared["BUG_FIX_PROCEDURE"]
+    # 2026-10-14 (t42): LEAN ranks explanations and fix variants — never whether the observed deviation
+    # is investigated (a real defect with a wrong user-suggested cause must still reach reproduction).
+    assert "reported failure → @LEAN_RANKING of its proposed EXPLANATION and fix variants — never whether the observed deviation is investigated" in shared["BUG_FIX_PROCEDURE"]
     assert "tier 4 → Unknown + @RISK_LEDGER" in lean_g8
     assert "#### @LEAN_RANKING" in render_kernel(KERNEL)
     # SVM is a briefing: read as evidence it is the self-winding channel the owner named.
@@ -362,7 +375,8 @@ def test_procedure_layer_keeps_its_decisions() -> None:
     assert "no hunk of the task starts, and a PASS reached without them is a random win, not evidence" in g7["EDIT_SV"]
     # Round 6: the loops and dead ends a literal reader could fall into (the flaky pin sits beside `smoke` below).
     assert "is it current against the requirement?" in test
-    assert "3-4 close it as Unknown with the reason" in shared["BUG_FIX_PROCEDURE"]
+    # 2026-10-14 (t42): LEAN ranks explanations — the observed deviation is always investigated.
+    assert "3-4 close the explanation as Unknown with the reason" in shared["BUG_FIX_PROCEDURE"]
     assert "a central one routes G8 → G2" in lean_g8
     assert "re-opened it (contradicting evidence or changed content)" in lean_g8
     assert "expected_diff, sv, oracle" in dict(KERNEL.state_fields)["PLAN_BINDING"]
@@ -382,8 +396,9 @@ def test_procedure_layer_keeps_its_decisions() -> None:
     divergence = shared["DIVERGENCE_PROTOCOL"]
     # Owner: «у модели — собрать новые факты, записать в память, сделать компакт и дальше работать по обновленной
     # системе». Dropping the picture without persisting it would be a loss, not a sleep.
-    assert "FULL re-grounding at G1: pause the edit; the model's sleep — persist the new facts to memory, then compact" in divergence
-    assert "re-read docs, code and tests from disk, re-baseline with isolated smokes — only then continue" in divergence
+    # 2026-10-14 (t42): wording compressed for the cap; every decided step of the owner's procedure kept —
+    # pause, persist to memory, compact, re-read docs/code/tests, re-baseline with smokes, never a re-run.
+    assert "FULL re-grounding at G1: pause; persist to memory, compact, re-read docs, code and tests, re-baseline with smokes" in divergence
     assert "never a re-run on the old picture" in divergence
     assert "the premise is wrong or the conditions changed" in smoke
     # F3 phrases, landed in F2 without a pin.

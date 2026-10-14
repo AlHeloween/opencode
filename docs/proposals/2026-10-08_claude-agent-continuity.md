@@ -22,6 +22,12 @@ however good the summariser. Whatever the summary omits is gone — no address, 
 know what it lost, so it cannot ask for it. Better prompts for the summariser do not fix this; nothing does, as long as
 the summary REPLACES the content.
 
+A second defect sits under the first: the summary is written in ONE turn with NO tools. Owner, 2026-10-14, verbatim:
+«написать все о сессии за один ход без чтения сопутствующих доков — невозможно, а одной memory сыт не будешь.» A
+session's meaning lives partly outside the window — plans, docs, commits, ledgers it points to — and a summariser that
+cannot open them can only paraphrase what it happens to see; memory files are an index, not the content. A fold is
+agentic work: several turns, with the agent's own read tools, grounding each handle before it is written.
+
 Our fold is mechanistic: no model call decides what survives. Content leaves the attended window but stays stored and
 addressed; the window keeps the inviolate tail, the list of per-turn semantic vectors (the map of what was released)
 and pointers with exact handles, and anything released is re-acquired by address on demand. The loss is confined to attention, never to the record — which is the only kind of compression

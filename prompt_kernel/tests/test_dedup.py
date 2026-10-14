@@ -183,4 +183,6 @@ def test_compacted_runtime_budget() -> None:
     # 2026-10-08 (no raise): VCS_ROLES portability; measured 8_048.
     # R1d requested parity/refresh contracts: measured 8_306, bounded next band.
     # R1e mandatory strategy/portfolio inputs: measured 8_470.
-    assert normalized_token_count(text) <= 8_500
+    # 2026-10-14 (t42, stop-claim release): measured 8 608 — the next band above the measurement; caps raised,
+    # nothing cut (owner: «64 - 65 без разницы, главное чтобы работало»).
+    assert normalized_token_count(text) <= 8_700

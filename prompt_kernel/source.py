@@ -940,7 +940,7 @@ KERNEL = Kernel(
     # one executor contract for tool/agent/human (done or explicit stop; silence = FAIL), a verbatim decision is
     # departed from only with a measurement on its own layer (the xxh3 case), recursive re-verification by digest,
     # evidence anchored on a non-artifact surface by stability. The Claude variant measured 57_092 B before the raise.
-    utf8_budget=64_000,  # R1e, 2026-10-12: mandatory evidence inputs/closure; measured largest 63_524 B, next finite thousand. Prior 62_000/63_000 bounds retained in the dated evidence; no unbounded waiver.
+    utf8_budget=65_000,  # 2026-10-14 (t42, stop-claim release; owner «64 - 65 без разницы, главное чтобы работало»): the release measured 64 700 B, so the cap steps one finite thousand above the measurement. NOTE: this now EQUALS validate.py's hard ceiling (65 000) — the next growth needs a cut or an owner-raised ceiling, never a silent raise. Prior 64_000 bound retained in the dated evidence.
     # (owner: «эти стандарты экономят миллионы токенов» — a standard's NAME replaces both the paragraph that would
     # explain it and the experiments an agent would otherwise run to re-derive it). Measured after them: 39_395.
     # Previous step 37_000 -> 38_000 admitted the QA/QC bindings: @ACCEPTANCE_FRAME at G1

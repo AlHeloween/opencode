@@ -116,8 +116,8 @@ missing: the handoff permitted «until that lands» without saying what would ru
 |---|---|
 | plans completed | 240 |
 | plans active | 19 |
-| tasks passed / total | 1025 / 1271 |
-| open boxes | 103 |
+| tasks passed / total | 1027 / 1272 |
+| open boxes | 102 |
 
 Counts read from the same instrument `planstatus` uses; nothing here is retyped.
 
@@ -283,15 +283,14 @@ Every plan under `plans/`, with every vector READ from its own source. `MISSING`
   - R4 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
   - R5 [PENDING] · sv MISSING · manifest: MISSING — nobody has written down what this box is
 
-- `plans/2026-10-14_kernel-stop-claim-release.md` — 7 open / 8 box(es) · lifecycle UNKNOWN
+- `plans/2026-10-14_kernel-stop-claim-release.md` — 6 open / 9 box(es) · lifecycle UNKNOWN
   sv: intention "the kernel lets any terminal verdict (SUCCESS, BLOCKED, WAITING) close without falsification -> the fixed kernel (stop-claim form, @STATUS_CLAIM, JIDOKA/KAIZEN) is installed here, carried into ADID_Python's canonical bundle, released, installed to every consumer with readback, and the opencode binary rebuilt" · keywords []
   - TASK-2 [PENDING] · sv [mechanism 0.7, plan-status 0.3] · manifest: MISSING — nobody has written down what this box is
   - TASK-3 [PENDING] · sv [review 1.0] · manifest: MISSING — nobody has written down what this box is
-  - TASK-4 [PENDING] · sv [install 0.6, readback 0.4] · manifest: MISSING — nobody has written down what this box is
-  - TASK-5 [PENDING] · sv [build 1.0] · manifest: MISSING — nobody has written down what this box is
   - TASK-6 [PENDING] · sv [adid-release 1.0] · manifest: MISSING — nobody has written down what this box is
   - TASK-7 [PENDING] · sv [consumer-readback 1.0] · manifest: MISSING — nobody has written down what this box is
-  - TASK-8 [PENDING] · sv [independent-verify 1.0] · manifest: MISSING — nobody has written down what this box is
+  - TASK-8 [PENDING] · sv [codex-compact 1.0] · manifest: MISSING — nobody has written down what this box is
+  - TASK-9 [PENDING] · sv [independent-verify 1.0] · manifest: MISSING — nobody has written down what this box is
 
 ## The checks
 

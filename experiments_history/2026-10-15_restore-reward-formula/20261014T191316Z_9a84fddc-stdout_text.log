@@ -1,0 +1,4 @@
+  File "D:\zPython\opencode\logs\cmd_runner\20261014T191316Z_9a84fddc\payload.py", line 2
+    from dataclasses import replace; import runpy,json; from prompt_kernel import KERNEL,render_kernel; from prompt_kernel.dedup import normalized_token_count; d=runpy.run_path(\prompt_kernel/tests/test_reward_restoration.py\); k=replace(KERNEL,shared_rules=tuple(replace(r,text=d[\EXPECTED_REWARD_TEXT\]) if r.id == \REWARD_FUNCTION\ else r for r in KERNEL.shared_rules)); print(json.dumps({n:{\bytes\:len((t:=render_kernel(k,*a)).encode(\utf-8\)),\words\:normalized_token_count(t)} for n,a in d[\VARIANTS\].items()}))
+                                                                                                                                                                                  ^
+SyntaxError: unexpected character after line continuation character

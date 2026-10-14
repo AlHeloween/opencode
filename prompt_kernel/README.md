@@ -44,7 +44,7 @@ flowchart LR
 - unapproved state/rule similarity at or above `0.58` fails validation;
 - reviewed overlap requires a pair-specific rationale in `SEMANTIC_OVERLAP_ALLOWLIST`;
 - repeated five-token boilerplate, repeated ownership lines, duplicated edge serialization, and repeated identity authority clauses are regression-tested;
-- the runtime artifact has a 24,000 UTF-8 byte budget and 2,800 normalized-token test ceiling;
+- the declared UTF-8 byte ceiling is 66,000; normalized-word ceilings are 8,700 for product and 8,800 for Claude, Codex and Cursor;
 - `SV_FORMAT` and `SOURCE_ROUTING` are typed IR contracts; compatibility fails if they or the digest/discipline coverage disappear.
 
 ## Build and test
@@ -72,8 +72,11 @@ collaboration и cua_repl APIs. LSP/AST требуют отдельной при
 получает refresh evidence, без shell authority. MCP pack сохраняет существующие
 Python/Delphi/Unicode paths вне фиксированных prefixes.
 
-Четыре variants измерены: максимум 63 553 UTF-8 bytes / 8 571 normalized tokens.
-Фиксированный cap — 64 000 bytes и следующий token band каждого variant.
+Измерение 2026-10-12: максимум 63 553 UTF-8 bytes / 8 571 normalized tokens.
+После восстановления награды и дополнения завершения задач (2026-10-15):
+product 65 381 B / 8 700 words, Claude 65 253 / 8 777,
+Codex 65 172 / 8 723, Cursor body 65 214 / 8 799.
+Конечный byte cap — 66 000; word caps указаны выше.
 Normalized tokens не являются измерением model tokenizer или FLOPs.
 
 ```powershell

@@ -17,6 +17,7 @@
 - [Agentic reasoning runtime](agentic-reasoning-runtime.md) — gates, REUSE ladder, claim ledger, host-agnostic SPECS
 - [Kernel package](../prompt_kernel/README.md) — gate graph, serialization order, source of the runtime prefix
 - [Kernel assembly point](kernel-assembly-point.md) — where `source.py` becomes `reasoning_prompt.txt`
+- [Награда кернела](reward-contract.md) — историческая измеренная формула и слагаемое подтверждённого завершения задач
 - [Аудит кернела и addons — 2026-10-12](../plans_completed/2026-10-12_kernel-addons-correctness-audit.md) — K01–K10, воспроизведённые дефекты, полный baseline FAIL и границы поведенческой проверки
 - [Ремонт кернела и ADID delivery](../plans/postponed/2026-10-12_kernel-contract-repair-and-adid-release.md) — source fixes проверены; release/install остановлен на delivery harness, доказательства и lift signal сохранены
 - [Two-canon protocol](two-canon-protocol.md) — ADID 15.3 ↔ kernel parity: one protocol, two compilers

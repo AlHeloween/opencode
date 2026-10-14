@@ -1,5 +1,14 @@
 ﻿# Progress Log
 
+## [2026-10-15T03:20+08:00] Reward R1/R1b/R2/R3 — восстановление и completion term
+
+✓ CONFIRMED (Git ff4e679fa3^, source diff): REWARD_FUNCTION literal возвращён; по новой прямой команде добавлено task_done/(101 − done_percent)^2 с frozen plan scope. Исторический fixture сохранён, старый BP unchanged; другие нормы не сокращены.
+✓ CONFIRMED (requirement runs19020818FAIL/1PASS; boundary1908442FAIL; completion19124714FAIL/12PASS): guards воспроизводят утрату до source-edit. Parent191618243PASS/0FAIL и1916194actualreceiverPASS; install191531exit0. Full state/stdout без drops/truncation в experiments_history/2026-10-15_restore-reward-formula/.
+✓ CONFIRMED (build191704exit0, complete output): candidate10.0.1343 smoke + embedded BunFS promptPASS. Finite66000B,wordcaps8700product/8800others. Только Codex дополнительный wordband по измерению8723. Scope source/tests/docs/generated4, bin не продвигался.
+✓ CONFIRMED (read-only explorer/source pins): scoped strategy соответствует MASTER goal, docs/index добавлены. Остаток: commit/archive/master closure; поведение live models на completion term не измерено. BLOCKED removal — следующая прямая задача, robot undefined-contract audit идет отдельно.
+✗ HARNESS (retained191301/191316): cmd_runner -c payload sys.path/quote повреждения; standalone readback root bootstrap и квалифицированный argv measurement обеспечили измерение. Cmd_runner в этой работе не ремонтировался.
+<!-- sv: reward-contract 0.45,task-completion 0.30,independent-oracle 0.25 -->
+
 ## [2026-10-15T02:22+08:00] Go/Zen D1 — scoped repair закрыт с сохранённым остатком
 
 ✓ CONFIRMED (source commit receipt `20261014T182156Z_26c7d288`exit0, cbd3349aa2; hooks без skips): docs/index, archive23 content-checked files и собственные source/test записи подготовлены к одному финальному amended commit с закрытым планом `plans_completed/2026-10-14_go-zen-cache-and-headers.md`. Index bytes архива совпадают с диском, credentials не найдены. Master renderer из правильного cwd сохраняет старые SVM manifests; hand-owned routing link указывает на закрытый план. Runtime/client smokes подтверждены parent/explorer и SQLite readback. bin/ не изменён, full historical portfolio SUCCESS не заявлен. Остаток: TTL24h, Fireworks Flash route, keep-warm idle/control; отдельные SDK403 сохранены, не подменяют успешный full-client smoke. Финальное Git readback перед handoff проверяет только scope этого плана; чужой dirty work сохранён.

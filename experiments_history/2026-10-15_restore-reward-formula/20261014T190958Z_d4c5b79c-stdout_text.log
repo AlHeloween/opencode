@@ -1,0 +1,67 @@
+........................................................................ [ 30%]
+.......F................................................................ [ 60%]
+........................................................................ [ 90%]
+................F...F.                                                   [100%]
+================================== FAILURES ===================================
+_____________ test_production_prompt_matches_next_kernel_renderer _____________
+
+    def test_production_prompt_matches_next_kernel_renderer() -> None:
+        current = PRODUCTION.read_text(encoding="utf-8")
+        assert current.lstrip().startswith("## 0. WORKFLOW")
+>       assert current == render_kernel()
+E       AssertionError: assert '## 0. WORKFL...edit, task.\n' == '## 0. WORKFL...edit, task.\n'
+E         
+E         Skipping 21030 identical leading characters in diff, use -v to show
+E           _FUNCTION
+E         - R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open; weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms. dSV: aligned normalized vectors, in [0,2]. FLOPs: measured and positive-baselined, never estimated from token count. An undefined term is omitted; no terms → Unknown. Freeze terms, baseline and scope for delta_R. Advisory telemetry, never authority: REWARDED iff comparable ...
+E         
+E         ...Full output truncated (403 lines hidden), use '-vv' to show
+
+prompt_kernel\tests\test_compatibility.py:40: AssertionError
+____________________ test_cursor_rule_receiver_is_current _____________________
+
+    def test_cursor_rule_receiver_is_current() -> None:
+        """`.cursor/rules/reasoning-kernel.mdc` is always-apply context, so a stale file is a stale prefix.
+    
+        `.cursor/` is an untracked receiver here (third-party-managed), so an absent
+        file is a host that has not installed it, not a red.
+        Fix: `python -m prompt_kernel --cursor --install`.
+        """
+        installed = Path(CURSOR_KERNEL_PATH)
+        if not installed.is_file():
+            pytest.skip("no Cursor rule receiver on this host; run `python -m prompt_kernel --cursor --install`")
+>       assert installed.read_text(encoding="utf-8") == render_cursor_rule(
+            render_kernel(KERNEL, CURSOR_GATE_ADDONS, ())
+        )
+E       AssertionError: assert '---\ndescrip...ual oracle.\n' == '---\ndescrip...ual oracle.\n'
+E         
+E         Skipping 21295 identical leading characters in diff, use -v to show
+E           _FUNCTION
+E         - R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open; weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms. dSV: aligned normalized vectors, in [0,2]. FLOPs: measured and positive-baselined, never estimated from token count. An undefined term is omitted; no terms → Unknown. Freeze terms, baseline and scope for delta_R. Advisory telemetry, never authority: REWARDED iff comparable ...
+E         
+E         ...Full output truncated (392 lines hidden), use '-vv' to show
+
+prompt_kernel\tests\test_variant_parity.py:150: AssertionError
+___________________ test_claude_kernel_is_installed_current ___________________
+
+    def test_claude_kernel_is_installed_current() -> None:
+        """`.claude/reasoning_kernel.md` is loaded by CLAUDE.md, so a stale file is a stale prefix.
+    
+        Fix: `python -m prompt_kernel --claude --install`.
+        """
+        installed = Path(CLAUDE_KERNEL_PATH).read_text(encoding="utf-8")
+>       assert installed == render_kernel(KERNEL, CLAUDE_GATE_ADDONS, ())
+E       AssertionError: assert '## 0. WORKFL...ual oracle.\n' == '## 0. WORKFL...ual oracle.\n'
+E         
+E         Skipping 21030 identical leading characters in diff, use -v to show
+E           _FUNCTION
+E         - R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open; weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms. dSV: aligned normalized vectors, in [0,2]. FLOPs: measured and positive-baselined, never estimated from token count. An undefined term is omitted; no terms → Unknown. Freeze terms, baseline and scope for delta_R. Advisory telemetry, never authority: REWARDED iff comparable ...
+E         
+E         ...Full output truncated (394 lines hidden), use '-vv' to show
+
+prompt_kernel\tests\test_variant_parity.py:183: AssertionError
+=========================== short test summary info ===========================
+FAILED prompt_kernel/tests/test_compatibility.py::test_production_prompt_matches_next_kernel_renderer
+FAILED prompt_kernel/tests/test_variant_parity.py::test_cursor_rule_receiver_is_current
+FAILED prompt_kernel/tests/test_variant_parity.py::test_claude_kernel_is_installed_current
+3 failed, 235 passed in 3.99s

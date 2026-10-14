@@ -136,7 +136,8 @@ def test_claude_variant_stays_within_its_own_budget() -> None:
     # R1d requested parity/refresh contracts: measured 8_383, bounded next band.
     # R1e mandatory strategy/portfolio inputs: measured 8_547.
     # 2026-10-14 (t42, stop-claim release): measured 8 685 — the next band above the measurement.
-    assert normalized_token_count(text) <= 8_700
+    # 2026-10-15: restored historical reward contract measures 8_750; finite next band.
+    assert normalized_token_count(text) <= 8_800
 
 
 def test_claude_addon_render_is_deterministic_lf() -> None:

@@ -100,6 +100,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 ## Standing rules that outlive any plan
 
+[Восстановление награды и completion term](../plans_completed/2026-10-15_restore-reward-formula.md) — исторический контракт, подтверждённый done %, четыре получателя и собственные проигрывающие controls; доказательства в плане.
+<!-- sv: reward-contract,task-completion,independent-oracle -->
+
 [Завершённый ремонт Go/Zen request contract](../plans_completed/2026-10-14_go-zen-cache-and-headers.md) — параметры кеша по модели/SDK, оригинальные headers и независимые candidate smokes; остаток TTL/Fireworks Flash/keep-warm указан в плане.
 <!-- sv: request-contract,header-parity,wire-oracle,candidate-smoke -->
 

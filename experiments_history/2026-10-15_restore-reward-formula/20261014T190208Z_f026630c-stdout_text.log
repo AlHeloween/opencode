@@ -1,0 +1,245 @@
+FFFFFFFFFFFFFFF.FFF                                                      [100%]
+================================== FAILURES ===================================
+_____ test_reward_source_restores_historical_text_and_preserves_predicate _____
+
+    def test_reward_source_restores_historical_text_and_preserves_predicate() -> None:
+        rule = _reward_rule()
+>       assert rule.text == HISTORICAL_REWARD_TEXT
+E       AssertionError: assert 'Advisory tel...ays progress.' == 'R := weighte...when R falls.'
+E         
+E         - R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open; weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms. dSV: aligned normalized vectors, in [0,2]. FLOPs: measured and positive-baselined, never estimated from token count. An undefined term is omitted; no terms → Unknown. Freeze terms, baseline and scope for delta_R. Advisory telemetry, never authority: REWARDED iff comparable delta_R > 0 and @LOOP_PROGRESS holds; an uncontained critical risk vetoes exec...
+E         
+E         ...Full output truncated (2 lines hidden), use '-vv' to show
+
+prompt_kernel\tests\test_reward_restoration.py:85: AssertionError
+_________ test_every_host_renders_historical_reward_contract[product] _________
+
+variant = 'product'
+
+    @pytest.mark.parametrize("variant", tuple(VARIANTS))
+    def test_every_host_renders_historical_reward_contract(variant) -> None:
+>       assert _render_reward(KERNEL, variant) == HISTORICAL_REWARD_TEXT
+E       AssertionError: assert 'Advisory tel...ays progress.' == 'R := weighte...when R falls.'
+E         
+E         - R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open; weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms. dSV: aligned normalized vectors, in [0,2]. FLOPs: measured and positive-baselined, never estimated from token count. An undefined term is omitted; no terms → Unknown. Freeze terms, baseline and scope for delta_R. Advisory telemetry, never authority: REWARDED iff comparable delta_R > 0 and @LOOP_PROGRESS holds; an uncontained critical risk vetoes exec...
+E         
+E         ...Full output truncated (2 lines hidden), use '-vv' to show
+
+prompt_kernel\tests\test_reward_restoration.py:93: AssertionError
+_________ test_every_host_renders_historical_reward_contract[claude] __________
+
+variant = 'claude'
+
+    @pytest.mark.parametrize("variant", tuple(VARIANTS))
+    def test_every_host_renders_historical_reward_contract(variant) -> None:
+>       assert _render_reward(KERNEL, variant) == HISTORICAL_REWARD_TEXT
+E       AssertionError: assert 'Advisory tel...ays progress.' == 'R := weighte...when R falls.'
+E         
+E         - R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open; weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms. dSV: aligned normalized vectors, in [0,2]. FLOPs: measured and positive-baselined, never estimated from token count. An undefined term is omitted; no terms → Unknown. Freeze terms, baseline and scope for delta_R. Advisory telemetry, never authority: REWARDED iff comparable delta_R > 0 and @LOOP_PROGRESS holds; an uncontained critical risk vetoes exec...
+E         
+E         ...Full output truncated (2 lines hidden), use '-vv' to show
+
+prompt_kernel\tests\test_reward_restoration.py:93: AssertionError
+__________ test_every_host_renders_historical_reward_contract[codex] __________
+
+variant = 'codex'
+
+    @pytest.mark.parametrize("variant", tuple(VARIANTS))
+    def test_every_host_renders_historical_reward_contract(variant) -> None:
+>       assert _render_reward(KERNEL, variant) == HISTORICAL_REWARD_TEXT
+E       AssertionError: assert 'Advisory tel...ays progress.' == 'R := weighte...when R falls.'
+E         
+E         - R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open; weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms. dSV: aligned normalized vectors, in [0,2]. FLOPs: measured and positive-baselined, never estimated from token count. An undefined term is omitted; no terms → Unknown. Freeze terms, baseline and scope for delta_R. Advisory telemetry, never authority: REWARDED iff comparable delta_R > 0 and @LOOP_PROGRESS holds; an uncontained critical risk vetoes exec...
+E         
+E         ...Full output truncated (2 lines hidden), use '-vv' to show
+
+prompt_kernel\tests\test_reward_restoration.py:93: AssertionError
+_________ test_every_host_renders_historical_reward_contract[cursor] __________
+
+variant = 'cursor'
+
+    @pytest.mark.parametrize("variant", tuple(VARIANTS))
+    def test_every_host_renders_historical_reward_contract(variant) -> None:
+>       assert _render_reward(KERNEL, variant) == HISTORICAL_REWARD_TEXT
+E       AssertionError: assert 'Advisory tel...ays progress.' == 'R := weighte...when R falls.'
+E         
+E         - R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open; weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms. dSV: aligned normalized vectors, in [0,2]. FLOPs: measured and positive-baselined, never estimated from token count. An undefined term is omitted; no terms → Unknown. Freeze terms, baseline and scope for delta_R. Advisory telemetry, never authority: REWARDED iff comparable delta_R > 0 and @LOOP_PROGRESS holds; an uncontained critical risk vetoes exec...
+E         
+E         ...Full output truncated (2 lines hidden), use '-vv' to show
+
+prompt_kernel\tests\test_reward_restoration.py:93: AssertionError
+__________ test_reward_guard_rejects_actual_shortened_rule[product] ___________
+
+variant = 'product'
+
+    @pytest.mark.parametrize("variant", tuple(VARIANTS))
+    def test_reward_guard_rejects_actual_shortened_rule(variant) -> None:
+>       assert _render_reward(KERNEL, variant) == HISTORICAL_REWARD_TEXT
+E       AssertionError: assert 'Advisory tel...ays progress.' == 'R := weighte...when R falls.'
+E         
+E         - R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open; weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms. dSV: aligned normalized vectors, in [0,2]. FLOPs: measured and positive-baselined, never estimated from token count. An undefined term is omitted; no terms → Unknown. Freeze terms, baseline and scope for delta_R. Advisory telemetry, never authority: REWARDED iff comparable delta_R > 0 and @LOOP_PROGRESS holds; an uncontained critical risk vetoes exec...
+E         
+E         ...Full output truncated (2 lines hidden), use '-vv' to show
+
+prompt_kernel\tests\test_reward_restoration.py:98: AssertionError
+___________ test_reward_guard_rejects_actual_shortened_rule[claude] ___________
+
+variant = 'claude'
+
+    @pytest.mark.parametrize("variant", tuple(VARIANTS))
+    def test_reward_guard_rejects_actual_shortened_rule(variant) -> None:
+>       assert _render_reward(KERNEL, variant) == HISTORICAL_REWARD_TEXT
+E       AssertionError: assert 'Advisory tel...ays progress.' == 'R := weighte...when R falls.'
+E         
+E         - R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open; weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms. dSV: aligned normalized vectors, in [0,2]. FLOPs: measured and positive-baselined, never estimated from token count. An undefined term is omitted; no terms → Unknown. Freeze terms, baseline and scope for delta_R. Advisory telemetry, never authority: REWARDED iff comparable delta_R > 0 and @LOOP_PROGRESS holds; an uncontained critical risk vetoes exec...
+E         
+E         ...Full output truncated (2 lines hidden), use '-vv' to show
+
+prompt_kernel\tests\test_reward_restoration.py:98: AssertionError
+___________ test_reward_guard_rejects_actual_shortened_rule[codex] ____________
+
+variant = 'codex'
+
+    @pytest.mark.parametrize("variant", tuple(VARIANTS))
+    def test_reward_guard_rejects_actual_shortened_rule(variant) -> None:
+>       assert _render_reward(KERNEL, variant) == HISTORICAL_REWARD_TEXT
+E       AssertionError: assert 'Advisory tel...ays progress.' == 'R := weighte...when R falls.'
+E         
+E         - R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open; weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms. dSV: aligned normalized vectors, in [0,2]. FLOPs: measured and positive-baselined, never estimated from token count. An undefined term is omitted; no terms → Unknown. Freeze terms, baseline and scope for delta_R. Advisory telemetry, never authority: REWARDED iff comparable delta_R > 0 and @LOOP_PROGRESS holds; an uncontained critical risk vetoes exec...
+E         
+E         ...Full output truncated (2 lines hidden), use '-vv' to show
+
+prompt_kernel\tests\test_reward_restoration.py:98: AssertionError
+___________ test_reward_guard_rejects_actual_shortened_rule[cursor] ___________
+
+variant = 'cursor'
+
+    @pytest.mark.parametrize("variant", tuple(VARIANTS))
+    def test_reward_guard_rejects_actual_shortened_rule(variant) -> None:
+>       assert _render_reward(KERNEL, variant) == HISTORICAL_REWARD_TEXT
+E       AssertionError: assert 'Advisory tel...ays progress.' == 'R := weighte...when R falls.'
+E         
+E         - R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open; weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms. dSV: aligned normalized vectors, in [0,2]. FLOPs: measured and positive-baselined, never estimated from token count. An undefined term is omitted; no terms → Unknown. Freeze terms, baseline and scope for delta_R. Advisory telemetry, never authority: REWARDED iff comparable delta_R > 0 and @LOOP_PROGRESS holds; an uncontained critical risk vetoes exec...
+E         
+E         ...Full output truncated (2 lines hidden), use '-vv' to show
+
+prompt_kernel\tests\test_reward_restoration.py:98: AssertionError
+_ test_reward_guard_discriminates_each_lost_contract_clause[R := weighted_mean(1 \u2212 dSV/2, 1 \u2212 FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) \u2212 0.05\xb7critical_risks_open;] _
+
+clause = 'R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open;'
+
+    @pytest.mark.parametrize("clause", CONTRACT_CLAUSES)
+    def test_reward_guard_discriminates_each_lost_contract_clause(clause) -> None:
+>       assert clause in _render_reward(KERNEL, "product")
+E       AssertionError: assert 'R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open;' in 'Advisory telemetry, never authority: REWARDED iff the evidence measure rose on frozen terms and @LOOP_PROGRESS holds; a critical risk vetoes; a refutation stays progress.'
+E        +  where 'Advisory telemetry, never authority: REWARDED iff the evidence measure rose on frozen terms and @LOOP_PROGRESS holds; a critical risk vetoes; a refutation stays progress.' = _render_reward(Kernel(name='reasoning_kernel_next', version='2.0.0-alpha.3', precedence=('safety', 'governance', 'task', 'domain', 's..._CONTRACT_ENFORCEMENT', 'INFORMATION_STATUS', 'AUTHORITY_SEPARATION', 'PLAN_BINDING_ENFORCEMENT', 'SIMULATION_ERROR'})), 'product')
+
+prompt_kernel\tests\test_reward_restoration.py:106: AssertionError
+_ test_reward_guard_discriminates_each_lost_contract_clause[weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms.] _
+
+clause = 'weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms.'
+
+    @pytest.mark.parametrize("clause", CONTRACT_CLAUSES)
+    def test_reward_guard_discriminates_each_lost_contract_clause(clause) -> None:
+>       assert clause in _render_reward(KERNEL, "product")
+E       AssertionError: assert 'weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms.' in 'Advisory telemetry, never authority: REWARDED iff the evidence measure rose on frozen terms and @LOOP_PROGRESS holds; a critical risk vetoes; a refutation stays progress.'
+E        +  where 'Advisory telemetry, never authority: REWARDED iff the evidence measure rose on frozen terms and @LOOP_PROGRESS holds; a critical risk vetoes; a refutation stays progress.' = _render_reward(Kernel(name='reasoning_kernel_next', version='2.0.0-alpha.3', precedence=('safety', 'governance', 'task', 'domain', 's..._CONTRACT_ENFORCEMENT', 'INFORMATION_STATUS', 'AUTHORITY_SEPARATION', 'PLAN_BINDING_ENFORCEMENT', 'SIMULATION_ERROR'})), 'product')
+
+prompt_kernel\tests\test_reward_restoration.py:106: AssertionError
+_ test_reward_guard_discriminates_each_lost_contract_clause[dSV: aligned normalized vectors, in [0,2].] _
+
+clause = 'dSV: aligned normalized vectors, in [0,2].'
+
+    @pytest.mark.parametrize("clause", CONTRACT_CLAUSES)
+    def test_reward_guard_discriminates_each_lost_contract_clause(clause) -> None:
+>       assert clause in _render_reward(KERNEL, "product")
+E       AssertionError: assert 'dSV: aligned normalized vectors, in [0,2].' in 'Advisory telemetry, never authority: REWARDED iff the evidence measure rose on frozen terms and @LOOP_PROGRESS holds; a critical risk vetoes; a refutation stays progress.'
+E        +  where 'Advisory telemetry, never authority: REWARDED iff the evidence measure rose on frozen terms and @LOOP_PROGRESS holds; a critical risk vetoes; a refutation stays progress.' = _render_reward(Kernel(name='reasoning_kernel_next', version='2.0.0-alpha.3', precedence=('safety', 'governance', 'task', 'domain', 's..._CONTRACT_ENFORCEMENT', 'INFORMATION_STATUS', 'AUTHORITY_SEPARATION', 'PLAN_BINDING_ENFORCEMENT', 'SIMULATION_ERROR'})), 'product')
+
+prompt_kernel\tests\test_reward_restoration.py:106: AssertionError
+_ test_reward_guard_discriminates_each_lost_contract_clause[FLOPs: measured and positive-baselined, never estimated from token count.] _
+
+clause = 'FLOPs: measured and positive-baselined, never estimated from token count.'
+
+    @pytest.mark.parametrize("clause", CONTRACT_CLAUSES)
+    def test_reward_guard_discriminates_each_lost_contract_clause(clause) -> None:
+>       assert clause in _render_reward(KERNEL, "product")
+E       AssertionError: assert 'FLOPs: measured and positive-baselined, never estimated from token count.' in 'Advisory telemetry, never authority: REWARDED iff the evidence measure rose on frozen terms and @LOOP_PROGRESS holds; a critical risk vetoes; a refutation stays progress.'
+E        +  where 'Advisory telemetry, never authority: REWARDED iff the evidence measure rose on frozen terms and @LOOP_PROGRESS holds; a critical risk vetoes; a refutation stays progress.' = _render_reward(Kernel(name='reasoning_kernel_next', version='2.0.0-alpha.3', precedence=('safety', 'governance', 'task', 'domain', 's..._CONTRACT_ENFORCEMENT', 'INFORMATION_STATUS', 'AUTHORITY_SEPARATION', 'PLAN_BINDING_ENFORCEMENT', 'SIMULATION_ERROR'})), 'product')
+
+prompt_kernel\tests\test_reward_restoration.py:106: AssertionError
+_ test_reward_guard_discriminates_each_lost_contract_clause[An undefined term is omitted; no terms \u2192 Unknown.] _
+
+clause = 'An undefined term is omitted; no terms → Unknown.'
+
+    @pytest.mark.parametrize("clause", CONTRACT_CLAUSES)
+    def test_reward_guard_discriminates_each_lost_contract_clause(clause) -> None:
+>       assert clause in _render_reward(KERNEL, "product")
+E       AssertionError: assert 'An undefined term is omitted; no terms → Unknown.' in 'Advisory telemetry, never authority: REWARDED iff the evidence measure rose on frozen terms and @LOOP_PROGRESS holds; a critical risk vetoes; a refutation stays progress.'
+E        +  where 'Advisory telemetry, never authority: REWARDED iff the evidence measure rose on frozen terms and @LOOP_PROGRESS holds; a critical risk vetoes; a refutation stays progress.' = _render_reward(Kernel(name='reasoning_kernel_next', version='2.0.0-alpha.3', precedence=('safety', 'governance', 'task', 'domain', 's..._CONTRACT_ENFORCEMENT', 'INFORMATION_STATUS', 'AUTHORITY_SEPARATION', 'PLAN_BINDING_ENFORCEMENT', 'SIMULATION_ERROR'})), 'product')
+
+prompt_kernel\tests\test_reward_restoration.py:106: AssertionError
+_ test_reward_guard_discriminates_each_lost_contract_clause[Freeze terms, baseline and scope for delta_R.] _
+
+clause = 'Freeze terms, baseline and scope for delta_R.'
+
+    @pytest.mark.parametrize("clause", CONTRACT_CLAUSES)
+    def test_reward_guard_discriminates_each_lost_contract_clause(clause) -> None:
+>       assert clause in _render_reward(KERNEL, "product")
+E       AssertionError: assert 'Freeze terms, baseline and scope for delta_R.' in 'Advisory telemetry, never authority: REWARDED iff the evidence measure rose on frozen terms and @LOOP_PROGRESS holds; a critical risk vetoes; a refutation stays progress.'
+E        +  where 'Advisory telemetry, never authority: REWARDED iff the evidence measure rose on frozen terms and @LOOP_PROGRESS holds; a critical risk vetoes; a refutation stays progress.' = _render_reward(Kernel(name='reasoning_kernel_next', version='2.0.0-alpha.3', precedence=('safety', 'governance', 'task', 'domain', 's..._CONTRACT_ENFORCEMENT', 'INFORMATION_STATUS', 'AUTHORITY_SEPARATION', 'PLAN_BINDING_ENFORCEMENT', 'SIMULATION_ERROR'})), 'product')
+
+prompt_kernel\tests\test_reward_restoration.py:106: AssertionError
+_ test_reward_guard_discriminates_each_lost_contract_clause[REWARDED iff comparable delta_R > 0 and @LOOP_PROGRESS holds;] _
+
+clause = 'REWARDED iff comparable delta_R > 0 and @LOOP_PROGRESS holds;'
+
+    @pytest.mark.parametrize("clause", CONTRACT_CLAUSES)
+    def test_reward_guard_discriminates_each_lost_contract_clause(clause) -> None:
+>       assert clause in _render_reward(KERNEL, "product")
+E       AssertionError: assert 'REWARDED iff comparable delta_R > 0 and @LOOP_PROGRESS holds;' in 'Advisory telemetry, never authority: REWARDED iff the evidence measure rose on frozen terms and @LOOP_PROGRESS holds; a critical risk vetoes; a refutation stays progress.'
+E        +  where 'Advisory telemetry, never authority: REWARDED iff the evidence measure rose on frozen terms and @LOOP_PROGRESS holds; a critical risk vetoes; a refutation stays progress.' = _render_reward(Kernel(name='reasoning_kernel_next', version='2.0.0-alpha.3', precedence=('safety', 'governance', 'task', 'domain', 's..._CONTRACT_ENFORCEMENT', 'INFORMATION_STATUS', 'AUTHORITY_SEPARATION', 'PLAN_BINDING_ENFORCEMENT', 'SIMULATION_ERROR'})), 'product')
+
+prompt_kernel\tests\test_reward_restoration.py:106: AssertionError
+_ test_reward_guard_discriminates_each_lost_contract_clause[an uncontained critical risk vetoes execution whatever the score;] _
+
+clause = 'an uncontained critical risk vetoes execution whatever the score;'
+
+    @pytest.mark.parametrize("clause", CONTRACT_CLAUSES)
+    def test_reward_guard_discriminates_each_lost_contract_clause(clause) -> None:
+>       assert clause in _render_reward(KERNEL, "product")
+E       AssertionError: assert 'an uncontained critical risk vetoes execution whatever the score;' in 'Advisory telemetry, never authority: REWARDED iff the evidence measure rose on frozen terms and @LOOP_PROGRESS holds; a critical risk vetoes; a refutation stays progress.'
+E        +  where 'Advisory telemetry, never authority: REWARDED iff the evidence measure rose on frozen terms and @LOOP_PROGRESS holds; a critical risk vetoes; a refutation stays progress.' = _render_reward(Kernel(name='reasoning_kernel_next', version='2.0.0-alpha.3', precedence=('safety', 'governance', 'task', 'domain', 's..._CONTRACT_ENFORCEMENT', 'INFORMATION_STATUS', 'AUTHORITY_SEPARATION', 'PLAN_BINDING_ENFORCEMENT', 'SIMULATION_ERROR'})), 'product')
+
+prompt_kernel\tests\test_reward_restoration.py:106: AssertionError
+_ test_reward_guard_discriminates_each_lost_contract_clause[a refutation stays progress even when R falls.] _
+
+clause = 'a refutation stays progress even when R falls.'
+
+    @pytest.mark.parametrize("clause", CONTRACT_CLAUSES)
+    def test_reward_guard_discriminates_each_lost_contract_clause(clause) -> None:
+>       assert clause in _render_reward(KERNEL, "product")
+E       AssertionError: assert 'a refutation stays progress even when R falls.' in 'Advisory telemetry, never authority: REWARDED iff the evidence measure rose on frozen terms and @LOOP_PROGRESS holds; a critical risk vetoes; a refutation stays progress.'
+E        +  where 'Advisory telemetry, never authority: REWARDED iff the evidence measure rose on frozen terms and @LOOP_PROGRESS holds; a critical risk vetoes; a refutation stays progress.' = _render_reward(Kernel(name='reasoning_kernel_next', version='2.0.0-alpha.3', precedence=('safety', 'governance', 'task', 'domain', 's..._CONTRACT_ENFORCEMENT', 'INFORMATION_STATUS', 'AUTHORITY_SEPARATION', 'PLAN_BINDING_ENFORCEMENT', 'SIMULATION_ERROR'})), 'product')
+
+prompt_kernel\tests\test_reward_restoration.py:106: AssertionError
+=========================== short test summary info ===========================
+FAILED prompt_kernel/tests/test_reward_restoration.py::test_reward_source_restores_historical_text_and_preserves_predicate
+FAILED prompt_kernel/tests/test_reward_restoration.py::test_every_host_renders_historical_reward_contract[product]
+FAILED prompt_kernel/tests/test_reward_restoration.py::test_every_host_renders_historical_reward_contract[claude]
+FAILED prompt_kernel/tests/test_reward_restoration.py::test_every_host_renders_historical_reward_contract[codex]
+FAILED prompt_kernel/tests/test_reward_restoration.py::test_every_host_renders_historical_reward_contract[cursor]
+FAILED prompt_kernel/tests/test_reward_restoration.py::test_reward_guard_rejects_actual_shortened_rule[product]
+FAILED prompt_kernel/tests/test_reward_restoration.py::test_reward_guard_rejects_actual_shortened_rule[claude]
+FAILED prompt_kernel/tests/test_reward_restoration.py::test_reward_guard_rejects_actual_shortened_rule[codex]
+FAILED prompt_kernel/tests/test_reward_restoration.py::test_reward_guard_rejects_actual_shortened_rule[cursor]
+FAILED prompt_kernel/tests/test_reward_restoration.py::test_reward_guard_discriminates_each_lost_contract_clause[R := weighted_mean(1 \u2212 dSV/2, 1 \u2212 FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) \u2212 0.05\xb7critical_risks_open;]
+FAILED prompt_kernel/tests/test_reward_restoration.py::test_reward_guard_discriminates_each_lost_contract_clause[weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms.]
+FAILED prompt_kernel/tests/test_reward_restoration.py::test_reward_guard_discriminates_each_lost_contract_clause[dSV: aligned normalized vectors, in [0,2].]
+FAILED prompt_kernel/tests/test_reward_restoration.py::test_reward_guard_discriminates_each_lost_contract_clause[FLOPs: measured and positive-baselined, never estimated from token count.]
+FAILED prompt_kernel/tests/test_reward_restoration.py::test_reward_guard_discriminates_each_lost_contract_clause[An undefined term is omitted; no terms \u2192 Unknown.]
+FAILED prompt_kernel/tests/test_reward_restoration.py::test_reward_guard_discriminates_each_lost_contract_clause[Freeze terms, baseline and scope for delta_R.]
+FAILED prompt_kernel/tests/test_reward_restoration.py::test_reward_guard_discriminates_each_lost_contract_clause[REWARDED iff comparable delta_R > 0 and @LOOP_PROGRESS holds;]
+FAILED prompt_kernel/tests/test_reward_restoration.py::test_reward_guard_discriminates_each_lost_contract_clause[an uncontained critical risk vetoes execution whatever the score;]
+FAILED prompt_kernel/tests/test_reward_restoration.py::test_reward_guard_discriminates_each_lost_contract_clause[a refutation stays progress even when R falls.]
+18 failed, 1 passed in 1.82s

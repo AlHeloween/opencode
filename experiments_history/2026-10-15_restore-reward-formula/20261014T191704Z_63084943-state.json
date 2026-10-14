@@ -1,0 +1,22 @@
+{
+  "status": "finished",
+  "pids": [
+    5776
+  ],
+  "exit_code": 0,
+  "started_utc": "2026-10-14T19:17:04Z",
+  "finished_utc": "2026-10-14T19:18:10Z",
+  "stopped_utc": null,
+  "timeout_utc": null,
+  "backend": "raw-pipe",
+  "log": {
+    "limit_bytes": 52428800,
+    "bytes_written": 50299,
+    "bytes_dropped": 0,
+    "truncated": false
+  },
+  "creation_tick": 0,
+  "host_pid": 28056,
+  "host_creation_tick": 134364790246231416,
+  "notes": "log final"
+}

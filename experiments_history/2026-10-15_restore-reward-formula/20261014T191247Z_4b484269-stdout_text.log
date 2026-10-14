@@ -1,0 +1,197 @@
+FFFFFFFFF..........FFFFF..                                               [100%]
+================================== FAILURES ===================================
+_____ test_reward_source_restores_historical_text_and_preserves_predicate _____
+
+    def test_reward_source_restores_historical_text_and_preserves_predicate() -> None:
+        rule = _reward_rule()
+>       assert rule.text == EXPECTED_REWARD_TEXT
+E       AssertionError: assert 'R := weighte...when R falls.' == 'R := weighte...pletion term.'
+E         
+E         Skipping 635 identical leading characters in diff, use -v to show
+E         - en R falls. Add task_done/(101 − done_percent)^2 to R: task_done is oracle-confirmed completed tasks, done_percent = 100·task_done/total_tasks, in the same frozen scope. Omit an undefined completion term.
+E         + en R falls.
+
+tests\test_reward_restoration.py:102: AssertionError
+_________ test_every_host_renders_historical_reward_contract[product] _________
+
+variant = 'product'
+
+    @pytest.mark.parametrize("variant", tuple(VARIANTS))
+    def test_every_host_renders_historical_reward_contract(variant) -> None:
+>       assert _render_reward(KERNEL, variant) == EXPECTED_REWARD_TEXT
+E       AssertionError: assert 'R := weighte...when R falls.' == 'R := weighte...pletion term.'
+E         
+E         Skipping 635 identical leading characters in diff, use -v to show
+E         - en R falls. Add task_done/(101 − done_percent)^2 to R: task_done is oracle-confirmed completed tasks, done_percent = 100·task_done/total_tasks, in the same frozen scope. Omit an undefined completion term.
+E         + en R falls.
+
+tests\test_reward_restoration.py:110: AssertionError
+_________ test_every_host_renders_historical_reward_contract[claude] __________
+
+variant = 'claude'
+
+    @pytest.mark.parametrize("variant", tuple(VARIANTS))
+    def test_every_host_renders_historical_reward_contract(variant) -> None:
+>       assert _render_reward(KERNEL, variant) == EXPECTED_REWARD_TEXT
+E       AssertionError: assert 'R := weighte...when R falls.' == 'R := weighte...pletion term.'
+E         
+E         Skipping 635 identical leading characters in diff, use -v to show
+E         - en R falls. Add task_done/(101 − done_percent)^2 to R: task_done is oracle-confirmed completed tasks, done_percent = 100·task_done/total_tasks, in the same frozen scope. Omit an undefined completion term.
+E         + en R falls.
+
+tests\test_reward_restoration.py:110: AssertionError
+__________ test_every_host_renders_historical_reward_contract[codex] __________
+
+variant = 'codex'
+
+    @pytest.mark.parametrize("variant", tuple(VARIANTS))
+    def test_every_host_renders_historical_reward_contract(variant) -> None:
+>       assert _render_reward(KERNEL, variant) == EXPECTED_REWARD_TEXT
+E       AssertionError: assert 'R := weighte...when R falls.' == 'R := weighte...pletion term.'
+E         
+E         Skipping 635 identical leading characters in diff, use -v to show
+E         - en R falls. Add task_done/(101 − done_percent)^2 to R: task_done is oracle-confirmed completed tasks, done_percent = 100·task_done/total_tasks, in the same frozen scope. Omit an undefined completion term.
+E         + en R falls.
+
+tests\test_reward_restoration.py:110: AssertionError
+_________ test_every_host_renders_historical_reward_contract[cursor] __________
+
+variant = 'cursor'
+
+    @pytest.mark.parametrize("variant", tuple(VARIANTS))
+    def test_every_host_renders_historical_reward_contract(variant) -> None:
+>       assert _render_reward(KERNEL, variant) == EXPECTED_REWARD_TEXT
+E       AssertionError: assert 'R := weighte...when R falls.' == 'R := weighte...pletion term.'
+E         
+E         Skipping 635 identical leading characters in diff, use -v to show
+E         - en R falls. Add task_done/(101 − done_percent)^2 to R: task_done is oracle-confirmed completed tasks, done_percent = 100·task_done/total_tasks, in the same frozen scope. Omit an undefined completion term.
+E         + en R falls.
+
+tests\test_reward_restoration.py:110: AssertionError
+__________ test_reward_guard_rejects_actual_shortened_rule[product] ___________
+
+variant = 'product'
+
+    @pytest.mark.parametrize("variant", tuple(VARIANTS))
+    def test_reward_guard_rejects_actual_shortened_rule(variant) -> None:
+>       assert _render_reward(KERNEL, variant) == EXPECTED_REWARD_TEXT
+E       AssertionError: assert 'R := weighte...when R falls.' == 'R := weighte...pletion term.'
+E         
+E         Skipping 635 identical leading characters in diff, use -v to show
+E         - en R falls. Add task_done/(101 − done_percent)^2 to R: task_done is oracle-confirmed completed tasks, done_percent = 100·task_done/total_tasks, in the same frozen scope. Omit an undefined completion term.
+E         + en R falls.
+
+tests\test_reward_restoration.py:115: AssertionError
+___________ test_reward_guard_rejects_actual_shortened_rule[claude] ___________
+
+variant = 'claude'
+
+    @pytest.mark.parametrize("variant", tuple(VARIANTS))
+    def test_reward_guard_rejects_actual_shortened_rule(variant) -> None:
+>       assert _render_reward(KERNEL, variant) == EXPECTED_REWARD_TEXT
+E       AssertionError: assert 'R := weighte...when R falls.' == 'R := weighte...pletion term.'
+E         
+E         Skipping 635 identical leading characters in diff, use -v to show
+E         - en R falls. Add task_done/(101 − done_percent)^2 to R: task_done is oracle-confirmed completed tasks, done_percent = 100·task_done/total_tasks, in the same frozen scope. Omit an undefined completion term.
+E         + en R falls.
+
+tests\test_reward_restoration.py:115: AssertionError
+___________ test_reward_guard_rejects_actual_shortened_rule[codex] ____________
+
+variant = 'codex'
+
+    @pytest.mark.parametrize("variant", tuple(VARIANTS))
+    def test_reward_guard_rejects_actual_shortened_rule(variant) -> None:
+>       assert _render_reward(KERNEL, variant) == EXPECTED_REWARD_TEXT
+E       AssertionError: assert 'R := weighte...when R falls.' == 'R := weighte...pletion term.'
+E         
+E         Skipping 635 identical leading characters in diff, use -v to show
+E         - en R falls. Add task_done/(101 − done_percent)^2 to R: task_done is oracle-confirmed completed tasks, done_percent = 100·task_done/total_tasks, in the same frozen scope. Omit an undefined completion term.
+E         + en R falls.
+
+tests\test_reward_restoration.py:115: AssertionError
+___________ test_reward_guard_rejects_actual_shortened_rule[cursor] ___________
+
+variant = 'cursor'
+
+    @pytest.mark.parametrize("variant", tuple(VARIANTS))
+    def test_reward_guard_rejects_actual_shortened_rule(variant) -> None:
+>       assert _render_reward(KERNEL, variant) == EXPECTED_REWARD_TEXT
+E       AssertionError: assert 'R := weighte...when R falls.' == 'R := weighte...pletion term.'
+E         
+E         Skipping 635 identical leading characters in diff, use -v to show
+E         - en R falls. Add task_done/(101 − done_percent)^2 to R: task_done is oracle-confirmed completed tasks, done_percent = 100·task_done/total_tasks, in the same frozen scope. Omit an undefined completion term.
+E         + en R falls.
+
+tests\test_reward_restoration.py:115: AssertionError
+_ test_completion_guard_discriminates_each_lost_completion_clause[Add task_done/(101 \u2212 done_percent)^2 to R:] _
+
+clause = 'Add task_done/(101 − done_percent)^2 to R:'
+
+    @pytest.mark.parametrize("clause", COMPLETION_CLAUSES)
+    def test_completion_guard_discriminates_each_lost_completion_clause(clause) -> None:
+>       assert clause in _render_reward(KERNEL, "product")
+E       AssertionError: assert 'Add task_done/(101 − done_percent)^2 to R:' in 'R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/tota...olds; an uncontained critical risk vetoes execution whatever the score; a refutation stays progress even when R falls.'
+E        +  where 'R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/tota...olds; an uncontained critical risk vetoes execution whatever the score; a refutation stays progress even when R falls.' = _render_reward(Kernel(name='reasoning_kernel_next', version='2.0.0-alpha.3', precedence=('safety', 'governance', 'task', 'domain', 's...DENCE_ORDER', 'INFORMATION_STATUS', 'ORACLE', 'PLAN_BINDING_ENFORCEMENT', 'AUTHORITY_SEPARATION', 'SIMULATION_ERROR'})), 'product')
+
+tests\test_reward_restoration.py:131: AssertionError
+_ test_completion_guard_discriminates_each_lost_completion_clause[task_done is oracle-confirmed completed tasks,] _
+
+clause = 'task_done is oracle-confirmed completed tasks,'
+
+    @pytest.mark.parametrize("clause", COMPLETION_CLAUSES)
+    def test_completion_guard_discriminates_each_lost_completion_clause(clause) -> None:
+>       assert clause in _render_reward(KERNEL, "product")
+E       AssertionError: assert 'task_done is oracle-confirmed completed tasks,' in 'R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/tota...olds; an uncontained critical risk vetoes execution whatever the score; a refutation stays progress even when R falls.'
+E        +  where 'R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/tota...olds; an uncontained critical risk vetoes execution whatever the score; a refutation stays progress even when R falls.' = _render_reward(Kernel(name='reasoning_kernel_next', version='2.0.0-alpha.3', precedence=('safety', 'governance', 'task', 'domain', 's...DENCE_ORDER', 'INFORMATION_STATUS', 'ORACLE', 'PLAN_BINDING_ENFORCEMENT', 'AUTHORITY_SEPARATION', 'SIMULATION_ERROR'})), 'product')
+
+tests\test_reward_restoration.py:131: AssertionError
+_ test_completion_guard_discriminates_each_lost_completion_clause[done_percent = 100\xb7task_done/total_tasks,] _
+
+clause = 'done_percent = 100·task_done/total_tasks,'
+
+    @pytest.mark.parametrize("clause", COMPLETION_CLAUSES)
+    def test_completion_guard_discriminates_each_lost_completion_clause(clause) -> None:
+>       assert clause in _render_reward(KERNEL, "product")
+E       AssertionError: assert 'done_percent = 100·task_done/total_tasks,' in 'R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/tota...olds; an uncontained critical risk vetoes execution whatever the score; a refutation stays progress even when R falls.'
+E        +  where 'R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/tota...olds; an uncontained critical risk vetoes execution whatever the score; a refutation stays progress even when R falls.' = _render_reward(Kernel(name='reasoning_kernel_next', version='2.0.0-alpha.3', precedence=('safety', 'governance', 'task', 'domain', 's...DENCE_ORDER', 'INFORMATION_STATUS', 'ORACLE', 'PLAN_BINDING_ENFORCEMENT', 'AUTHORITY_SEPARATION', 'SIMULATION_ERROR'})), 'product')
+
+tests\test_reward_restoration.py:131: AssertionError
+_ test_completion_guard_discriminates_each_lost_completion_clause[in the same frozen scope.] _
+
+clause = 'in the same frozen scope.'
+
+    @pytest.mark.parametrize("clause", COMPLETION_CLAUSES)
+    def test_completion_guard_discriminates_each_lost_completion_clause(clause) -> None:
+>       assert clause in _render_reward(KERNEL, "product")
+E       AssertionError: assert 'in the same frozen scope.' in 'R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/tota...olds; an uncontained critical risk vetoes execution whatever the score; a refutation stays progress even when R falls.'
+E        +  where 'R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/tota...olds; an uncontained critical risk vetoes execution whatever the score; a refutation stays progress even when R falls.' = _render_reward(Kernel(name='reasoning_kernel_next', version='2.0.0-alpha.3', precedence=('safety', 'governance', 'task', 'domain', 's...DENCE_ORDER', 'INFORMATION_STATUS', 'ORACLE', 'PLAN_BINDING_ENFORCEMENT', 'AUTHORITY_SEPARATION', 'SIMULATION_ERROR'})), 'product')
+
+tests\test_reward_restoration.py:131: AssertionError
+_ test_completion_guard_discriminates_each_lost_completion_clause[Omit an undefined completion term.] _
+
+clause = 'Omit an undefined completion term.'
+
+    @pytest.mark.parametrize("clause", COMPLETION_CLAUSES)
+    def test_completion_guard_discriminates_each_lost_completion_clause(clause) -> None:
+>       assert clause in _render_reward(KERNEL, "product")
+E       AssertionError: assert 'Omit an undefined completion term.' in 'R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/tota...olds; an uncontained critical risk vetoes execution whatever the score; a refutation stays progress even when R falls.'
+E        +  where 'R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/tota...olds; an uncontained critical risk vetoes execution whatever the score; a refutation stays progress even when R falls.' = _render_reward(Kernel(name='reasoning_kernel_next', version='2.0.0-alpha.3', precedence=('safety', 'governance', 'task', 'domain', 's...DENCE_ORDER', 'INFORMATION_STATUS', 'ORACLE', 'PLAN_BINDING_ENFORCEMENT', 'AUTHORITY_SEPARATION', 'SIMULATION_ERROR'})), 'product')
+
+tests\test_reward_restoration.py:131: AssertionError
+=========================== short test summary info ===========================
+FAILED tests\test_reward_restoration.py::test_reward_source_restores_historical_text_and_preserves_predicate
+FAILED tests\test_reward_restoration.py::test_every_host_renders_historical_reward_contract[product]
+FAILED tests\test_reward_restoration.py::test_every_host_renders_historical_reward_contract[claude]
+FAILED tests\test_reward_restoration.py::test_every_host_renders_historical_reward_contract[codex]
+FAILED tests\test_reward_restoration.py::test_every_host_renders_historical_reward_contract[cursor]
+FAILED tests\test_reward_restoration.py::test_reward_guard_rejects_actual_shortened_rule[product]
+FAILED tests\test_reward_restoration.py::test_reward_guard_rejects_actual_shortened_rule[claude]
+FAILED tests\test_reward_restoration.py::test_reward_guard_rejects_actual_shortened_rule[codex]
+FAILED tests\test_reward_restoration.py::test_reward_guard_rejects_actual_shortened_rule[cursor]
+FAILED tests\test_reward_restoration.py::test_completion_guard_discriminates_each_lost_completion_clause[Add task_done/(101 \u2212 done_percent)^2 to R:]
+FAILED tests\test_reward_restoration.py::test_completion_guard_discriminates_each_lost_completion_clause[task_done is oracle-confirmed completed tasks,]
+FAILED tests\test_reward_restoration.py::test_completion_guard_discriminates_each_lost_completion_clause[done_percent = 100\xb7task_done/total_tasks,]
+FAILED tests\test_reward_restoration.py::test_completion_guard_discriminates_each_lost_completion_clause[in the same frozen scope.]
+FAILED tests\test_reward_restoration.py::test_completion_guard_discriminates_each_lost_completion_clause[Omit an undefined completion term.]
+14 failed, 12 passed in 2.56s

@@ -1,0 +1,26 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+________ test_reward_restoration_budget_accepts_declared_66000_ceiling ________
+
+    def test_reward_restoration_budget_accepts_declared_66000_ceiling() -> None:
+>       assert validate_kernel(replace(KERNEL, utf8_budget=66_000)) == []
+E       AssertionError: assert ['UTF-8 budge... 65000 bytes'] == []
+E         
+E         Left contains one more item: 'UTF-8 budget must be explicit and no greater than 65000 bytes'
+E         Use -v to get more diff
+
+tests\test_reward_restoration.py:114: AssertionError
+______ test_reward_restoration_budget_rejects_66001_above_finite_ceiling ______
+
+    def test_reward_restoration_budget_rejects_66001_above_finite_ceiling() -> None:
+        errors = validate_kernel(replace(KERNEL, utf8_budget=66_001))
+>       assert any("66_000" in error or "66000" in error for error in errors), errors
+E       AssertionError: ['UTF-8 budget must be explicit and no greater than 65000 bytes']
+E       assert False
+E        +  where False = any(<generator object test_reward_restoration_budget_rejects_66001_above_finite_ceiling.<locals>.<genexpr> at 0x00000000059DAA80>)
+
+tests\test_reward_restoration.py:119: AssertionError
+=========================== short test summary info ===========================
+FAILED tests\test_reward_restoration.py::test_reward_restoration_budget_accepts_declared_66000_ceiling
+FAILED tests\test_reward_restoration.py::test_reward_restoration_budget_rejects_66001_above_finite_ceiling
+2 failed, 19 deselected in 1.80s

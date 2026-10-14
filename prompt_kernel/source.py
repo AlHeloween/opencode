@@ -113,7 +113,7 @@ SHARED_RULES = (
     _rule(
         "KERNEL",
         "REWARD_FUNCTION",
-        "Advisory telemetry, never authority: REWARDED iff the evidence measure rose on frozen terms and @LOOP_PROGRESS holds; a critical risk vetoes; a refutation stays progress.",
+        "R := weighted_mean(1 − dSV/2, 1 − FLOPs_token/FLOPs_baseline, Exact_medoids_pinned/total_medoids, stamped_claims/total_claims) − 0.05·critical_risks_open; weights [0.35, 0.20, 0.25, 0.15] renormalized over measured terms. dSV: aligned normalized vectors, in [0,2]. FLOPs: measured and positive-baselined, never estimated from token count. An undefined term is omitted; no terms → Unknown. Freeze terms, baseline and scope for delta_R. Advisory telemetry, never authority: REWARDED iff comparable delta_R > 0 and @LOOP_PROGRESS holds; an uncontained critical risk vetoes execution whatever the score; a refutation stays progress even when R falls. Add task_done/(101 − done_percent)^2 to R: task_done is oracle-confirmed completed tasks, done_percent = 100·task_done/total_tasks, in the same frozen scope. Omit an undefined completion term.",
         # Transcribed from the sentence above, not invented: the formula's four fractions stay in
         # the text, the predicate carries the DECISION the rule states. It cannot carry the
         # weights — a number in prose is a constant nobody re-checks.
@@ -896,7 +896,7 @@ KERNEL = Kernel(
     # vectors» names an object the ABI never defined without the second. The alternative was to cut
     # REWARD_FUNCTION (455 B) and it is NOT taken: that rule was declared by owner decision on
     # 2026-09-27 (eb32e14cf7) and deleting a decision to buy room is the trade this kernel forbids.
-    # The number stays a prompt, per the note above: the validator's hard ceiling is 65_000.
+    # The number stays a prompt, per the note above: the validator's hard ceiling is 66_000.
     # 48_000 -> 49_000, 2026-09-28 (later): the identity tool rows — the owner's request to
     # replace `gates`/`may_mutate` with the real ACL view, kept honest by the manifest extractor
     # (packages/opencode/script/kernel-tools-manifest.ts) and the TS parity test. Nine rows add
@@ -940,7 +940,9 @@ KERNEL = Kernel(
     # one executor contract for tool/agent/human (done or explicit stop; silence = FAIL), a verbatim decision is
     # departed from only with a measurement on its own layer (the xxh3 case), recursive re-verification by digest,
     # evidence anchored on a non-artifact surface by stability. The Claude variant measured 57_092 B before the raise.
-    utf8_budget=65_000,  # 2026-10-14 (t42, stop-claim release; owner «64 - 65 без разницы, главное чтобы работало»): the release measured 64 700 B, so the cap steps one finite thousand above the measurement. NOTE: this now EQUALS validate.py's hard ceiling (65 000) — the next growth needs a cut or an owner-raised ceiling, never a silent raise. Prior 64_000 bound retained in the dated evidence.
+    # 2026-10-15: owner-requested reward restoration measures 65_185 B in product render;
+    # retain all current stop-claim rules under a finite 66_000 B validator ceiling.
+    utf8_budget=66_000,
     # (owner: «эти стандарты экономят миллионы токенов» — a standard's NAME replaces both the paragraph that would
     # explain it and the experiments an agent would otherwise run to re-derive it). Measured after them: 39_395.
     # Previous step 37_000 -> 38_000 admitted the QA/QC bindings: @ACCEPTANCE_FRAME at G1

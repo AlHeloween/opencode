@@ -37,6 +37,7 @@ proven there). This plan is the new bounded envelope its lift signal asked for.
 - [ ] B1 `_build.ps1` through cmd_runner: candidate in dist/ with the new prompt embedded (smoke line), run id recorded. Promotion into bin/ = owner. <!-- sv: build 1.0 -->
 - [ ] A1 ADID_Python resident: canonical bundle takes the K3 renders (two-canon parity, docs/two-canon-protocol.md); release gate fixed (LC_ALL=C); new adid_dist_* released; manifest re-verified. <!-- sv: adid-release 1.0 -->
 - [ ] A2 install to every consumer with readback: the resident names the consumer list from its installer config; per consumer the installed kernel digest == the release manifest; failures listed by name. <!-- sv: consumer-readback 1.0 -->
+- [ ] A4 Codex compact principle: the owner's «Compact Instructions» text (root CLAUDE.md, 2026-10-14) delivered to Codex through the ADID bundle — first VERIFY Codex 0.159.3's documented lever for compaction instructions (its config.toml is ADID_MANAGED; no compact key there today); readback on the installed Codex host. <!-- sv: codex-compact 1.0 -->
 - [ ] A3 Claude verifies A1/A2 independently (hash readback on a sample of consumer roots + this repo's hosts) and closes efbfea7c / 28db8d0ace accordingly. <!-- sv: independent-verify 1.0 -->
 
 ## Smoke Tests

@@ -1,0 +1,16 @@
+{
+  "model": "glm-5.3-flash",
+  "max_tokens": 8,
+  "stream": false,
+  "messages": [
+    {
+      "role": "system",
+      "content": "Replace this placeholder with a fixed, sufficiently long, nonsecret prefix. Keep the exact file bytes unchanged throughout a series."
+    },
+    {
+      "role": "user",
+      "content": "Reply only OK."
+    }
+  ],
+  "prompt_cache_key": "replace-with-one-unique-key-per-independent-series"
+}

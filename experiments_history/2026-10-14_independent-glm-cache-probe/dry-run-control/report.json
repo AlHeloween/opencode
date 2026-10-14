@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "mode": "dry_run",
+  "state": "completed",
+  "endpoint": "https://opencode.ai/inference/go/v1/chat/completions",
+  "session": "ses_c230fbe8b1ea4e819c80f54049c08777",
+  "request_body_sha256": "6960fdf16c8225fee212e09172e106bddeecc6d33f67e40e38629a81eb9c1727",
+  "request_body_bytes": 11290,
+  "requested_idle_seconds": 360.0,
+  "observations": [],
+  "measured_ttl_seconds": null,
+  "interpretation": "No exact TTL is inferred. Miss alternatives: expiry, eviction, routing. Advertised headers are not measured TTL.",
+  "exit_code": 0
+}

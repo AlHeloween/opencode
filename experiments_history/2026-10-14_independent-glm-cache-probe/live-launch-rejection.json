@@ -1,0 +1,12 @@
+{
+  "timestamp_utc": "2026-10-14T08:43:37Z",
+  "instrument": "exec_command / CreateProcess",
+  "action": "cmd_runner start / cache_probe.py --live / control and retention series",
+  "endpoint": "https://opencode.ai/inference/go/v1/chat/completions",
+  "status": "BLOCKED_NOT_RUN",
+  "reason": "Both commands rejected: blocked by policy. No further reason supplied.",
+  "live_requests_sent": 0,
+  "runtime_policy_was_not_bypassed": true,
+  "authorization": "User authorized OpenCode-Go headers and key from bin/auth.json.",
+  "lift_signal": "Runtime permits the credentialed HTTPS launch under the recorded envelope."
+}

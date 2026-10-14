@@ -38,6 +38,7 @@
 - [Tools and sidecars](tools-and-sidecars.md) — `tools/` binaries, Fossil/rg/markdownify
 - [Codex semantic-vector chain](codex-svchain.md) — ordered transcript topics and broken links
 - [Gateway three-point capture](gateway-capture.md) — intent / wire / response under one exchange key; masking, terminal states, derived views
+- [Независимый тест кеша Go/GLM](independent-glm-cache-probe.md) — standalone HTTP-измеритель, локальная квалификация до сети; живой опыт остановлен runtime policy
 - [Протокол gateway в TUI](gateway-protocol-status.md) — фактический транспорт, адресация события и значение `unknown`
 - [OpenCode Zen call path](zen-call-path.md) — provider "opencode" (zen) пошагово: каталог → лоадер → SDK → заголовки → gateway h2 → opencode.ai/zen/v1; raw-wire захват живого запроса и free-tier гейт, измерено 2026-10-10
 - [Background Jobs](background-jobs.md) — non-blocking shell jobs, `joboutput` / `pattern`, TUI

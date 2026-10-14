@@ -1,5 +1,7 @@
 # OpenCode Zen call path — provider `"opencode"` (detailed graph)
 
+Срез ниже сохранён как история 2026-10-10. Контракт заголовков и SDK изменён проверенным ремонтом 2026-10-15: [Go/Zen request contract](go-zen-request-contract.md). Исторические endpoint, npm и объяснения free-tier gate нельзя переносить на текущую ревизию без нового живого опыта.
+
 intent: How a session call reaches `https://opencode.ai/zen/v1` in THIS fork: catalog →
 provider loader → SDK + fetch wrapper → gateway transport → request headers → zen;
 plus the free-tier client gate as observed live on 2026-10-10.

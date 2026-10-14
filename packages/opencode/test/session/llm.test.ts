@@ -17,6 +17,8 @@ import { MessageV2 } from "../../src/session/message-v2"
 import { sealUserText } from "../../src/session/user-seal"
 import { SessionID, MessageID } from "../../src/session/schema"
 import { AppRuntime } from "../../src/effect/app-runtime"
+import { Flag } from "@opencode-ai/core/flag/flag"
+import { InstallationVersion } from "@opencode-ai/core/installation/version"
 
 async function getModel(providerID: ProviderID, modelID: ModelID) {
   return AppRuntime.runPromise(
@@ -411,6 +413,134 @@ function createEventResponse(chunks: unknown[], includeDone = false) {
     headers: { "Content-Type": "text/event-stream" },
   })
 }
+
+describe("session.llm owned provider headers on the SDK wire", () => {
+  const cases = [
+    { providerID: "opencode-go", modelID: "glm-5.3-flash", npm: "@ai-sdk/openai-compatible" },
+    { providerID: "opencode", modelID: "muse-spark-1.3-contributor-free", npm: "@ai-sdk/openai" },
+  ]
+
+  async function captureHeaders(
+    model: { providerID: string; modelID: string; npm: string },
+    parentSessionID?: string,
+    modelHeaders: Record<string, string> = {},
+  ) {
+    const server = state.server
+    if (!server) throw new Error("Server not initialized")
+    const native = model.npm === "@ai-sdk/openai"
+    const request = waitRequest(native ? "/responses" : "/chat/completions", native
+      ? createEventResponse([
+          {
+            type: "response.created",
+            response: { id: "resp-headers", created_at: 0, model: model.modelID, service_tier: null },
+          },
+          { type: "response.output_text.delta", item_id: "item-headers", delta: "OK", logprobs: null },
+          {
+            type: "response.completed",
+            response: {
+              incomplete_details: null, service_tier: null,
+              usage: { input_tokens: 1, input_tokens_details: null, output_tokens: 1, output_tokens_details: null },
+            },
+          },
+        ], true)
+      : new Response(createChatStream("OK"), { headers: { "Content-Type": "text/event-stream" } }))
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(path.join(dir, "opencode.json"), JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+          enabled_providers: [model.providerID],
+          provider: {
+            [model.providerID]: {
+              npm: model.npm,
+              options: { apiKey: "local-header-fixture", baseURL: `${server.url.origin}/v1` },
+            },
+          },
+        }))
+      },
+    })
+    return Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        // Bind the provider using the enclosing suite's registry fixture, then
+        // supply the stream model explicitly: this oracle measures headers, not catalog discovery.
+        const fixtureID = model.providerID === "opencode-go" ? "glm-5"
+          : model.providerID === "opencode" ? "mimo-v2-flash-free" : "openai/gpt-oss-20b"
+        const fixture = Provider.fromModelsDevProvider((await loadFixture(model.providerID, fixtureID)).provider).models[fixtureID]
+        expect(fixture).toBeDefined()
+        const resolved: Provider.Model = {
+          ...fixture,
+          id: ModelID.make(model.modelID),
+          api: { id: model.modelID, npm: model.npm, url: `${server.url.origin}/v1` },
+          capabilities: { ...fixture.capabilities, reasoning: false, temperature: true },
+          options: {}, headers: modelHeaders,
+        }
+        const sessionID = SessionID.make(`session-headers-${model.providerID}`)
+        const agent = {
+          name: "build_mode", mode: "primary", options: {},
+          permission: [{ permission: "*", pattern: "*", action: "allow" }],
+        } satisfies Agent.Info
+        const user = {
+          id: MessageID.make(`user-headers-${model.providerID}`), sessionID, role: "user",
+          time: { created: Date.now() }, agent: agent.name,
+          model: { providerID: ProviderID.make(model.providerID), modelID: resolved.id },
+        } satisfies MessageV2.User
+        const projectID = Instance.project.id
+        await drain({
+          user, sessionID, parentSessionID, model: resolved, agent,
+          system: ["Stable header fixture"], messages: [{ role: "user", content: "Hello" }],
+          tools: {}, outputTokenMax: 64,
+        })
+        const capture = await request
+        expect(capture.body.model).toBe(model.modelID)
+        expect(capture.url.pathname).toBe(native ? "/v1/responses" : "/v1/chat/completions")
+        return { capture, sessionID, userID: user.id, projectID }
+      },
+    })
+  }
+
+  // Reference: external/opencode-1.19.0/packages/opencode/src/session/llm/request.ts:187-205.
+  // The local HTTP fixture observes the real service + installed SDK, including its UA suffix.
+  for (const model of cases) {
+    test.each([undefined, "session-header-parent"])(`${model.providerID} parity with parent=%s`, async (parent) => {
+      const result = await captureHeaders(model, parent)
+      const headers = result.capture.headers
+      expect(headers.get("x-opencode-session-id")).toBe(result.sessionID)
+      expect(headers.get("x-opencode-session")).toBe(result.sessionID)
+      expect(headers.get("x-opencode-request")).toBe(result.userID)
+      expect(headers.get("x-opencode-project")).toBe(result.projectID)
+      expect(headers.get("x-opencode-client")).toBe(Flag.OPENCODE_CLIENT)
+      expect(headers.get("x-opencode-parent-session-id")).toBe(parent ?? null)
+      expect(headers.get("x-parent-session-id")).toBe(parent ?? null)
+      for (const key of ["x-request-id", "x-session-id", "x-session-affinity"]) {
+        expect(headers.get(key)).toBeNull()
+      }
+      expect(headers.get("user-agent")?.startsWith(`opencode/${InstallationVersion} `)).toBe(true)
+      expect(headers.get("user-agent")).toContain("ai-sdk/provider-utils/")
+      expect(headers.get("user-agent")).toContain("runtime/bun/")
+    }, 30_000)
+
+    test(`${model.providerID} explicit model headers override defaults on the wire`, async () => {
+      const result = await captureHeaders(model, "session-header-parent", {
+        "x-opencode-session-id": "model-session-override",
+        "x-opencode-client": "model-client-override",
+        "User-Agent": "model-agent-override",
+      })
+      expect(result.capture.headers.get("x-opencode-session-id")).toBe("model-session-override")
+      expect(result.capture.headers.get("x-opencode-client")).toBe("model-client-override")
+      expect(result.capture.headers.get("user-agent")?.startsWith("model-agent-override ")).toBe(true)
+      expect(result.capture.headers.get("x-opencode-parent-session-id")).toBe("session-header-parent")
+    }, 30_000)
+  }
+
+  test("Novita keeps its existing correlation and receives no owned headers", async () => {
+    const result = await captureHeaders({ providerID: "novita-ai", modelID: "header-fixture", npm: "@ai-sdk/openai-compatible" })
+    const headers = result.capture.headers
+    expect(headers.get("x-request-id")).toBe(result.sessionID)
+    expect(headers.get("x-session-id")).toBe(result.sessionID)
+    expect(headers.get("x-session-affinity")).toBe(result.sessionID)
+    expect(Array.from(headers.keys()).filter((key) => key.startsWith("x-opencode-"))).toEqual([])
+  }, 30_000)
+})
 
 describe("session.llm.stream", () => {
   test("sends temperature, tokens, and reasoning options for openai-compatible models", async () => {

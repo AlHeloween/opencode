@@ -918,31 +918,20 @@ const live: Layer.Layer<
           ? {}
           : { system: system.map((content) => ({ role: "system" as const, content })) }),
         headers: {
-          // Header three-layer contract (2026-09-08, user directive).
-          // Layer 1 — UNIVERSAL (every provider): correlation + UA. Safe names,
-          // dashboards read them (Novita Request ID column reads x-request-id).
-          // Layer 2 — PROVIDER-SPECIFIC: per-provider tuning (see isNovita /
-          // openrouter below). Third-party providers react badly to foreign
-          // namespaced headers — never send opencode-isms to them.
-          // Layer 3 — OPENCODE-ONLY (x-opencode-*): sent exclusively to
-          // opencode-owned providers (providerID.startsWith("opencode")).
-          // Session experiment 2026-09-08 [Exact]: Novita dashboard Session ID
-          // column reads NO client header (9-way differential smoke + wire
-          // dump + official SDK source). Binding x-request-id = sessionID for
-          // novita makes console rows group per session.
-          "x-request-id": input.model.providerID === "novita-ai" ? input.sessionID : input.user.id,
-          "x-session-id": input.model.providerID === "openrouter" ? providerCacheKey : input.sessionID,
-          "x-session-affinity": input.model.providerID === "openrouter" ? providerCacheKey : input.sessionID,
+          // Go/Zen identity follows the 1.19.0 request header contract.
+          // Third-party correlation retains the Novita grouping and OpenRouter cache lease.
           ...(input.parentSessionID ? { "x-parent-session-id": input.parentSessionID } : {}),
           ...(input.model.providerID.startsWith("opencode")
             ? {
+                "x-opencode-session-id": input.sessionID,
+                ...(input.parentSessionID ? { "x-opencode-parent-session-id": input.parentSessionID } : {}),
                 "x-opencode-session": input.sessionID,
                 "x-opencode-request": input.user.id,
                 "x-opencode-project": Instance.project.id,
                 "x-opencode-client": Flag.OPENCODE_CLIENT,
                 // Temporary data acquisition: the runtime OWNS the set, and this is the only place it can
                 // reach the gateway that WITHHOLDS (plan §0.3). It rides HERE, in the opencode-only layer,
-                // because the contract above forbids sending `x-opencode-*` to a third-party provider —
+                // because this branch excludes third-party providers —
                 // so TDA is inert on those routes by design rather than by accident. The store is read on
                 // this branch only, `tdaHeaders` returns {} whenever nothing is acquired, and the master
                 // switch is OFF unless config declares it: an untouched install sends nothing at all.
@@ -952,7 +941,11 @@ const live: Layer.Layer<
                   cfg.gateway?.tda?.enabled === true,
                 ),
               }
-            : {}),
+            : {
+                "x-request-id": input.model.providerID === "novita-ai" ? input.sessionID : input.user.id,
+                "x-session-id": input.model.providerID === "openrouter" ? providerCacheKey : input.sessionID,
+                "x-session-affinity": input.model.providerID === "openrouter" ? providerCacheKey : input.sessionID,
+              }),
           // OpenRouter response caching (identical-request cache, 1-86400s):
           // strict opt-in via provider options; NOT prompt caching.
           // item = Provider.Info (getProvider) — its .options carries

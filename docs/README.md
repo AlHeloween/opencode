@@ -40,7 +40,8 @@
 - [Gateway three-point capture](gateway-capture.md) — intent / wire / response under one exchange key; masking, terminal states, derived views
 - [Независимый тест кеша Go/GLM](independent-glm-cache-probe.md) — standalone HTTP-измеритель, локальная квалификация до сети; живой опыт остановлен runtime policy
 - [Протокол gateway в TUI](gateway-protocol-status.md) — фактический транспорт, адресация события и значение `unknown`
-- [OpenCode Zen call path](zen-call-path.md) — provider "opencode" (zen) пошагово: каталог → лоадер → SDK → заголовки → gateway h2 → opencode.ai/zen/v1; raw-wire захват живого запроса и free-tier гейт, измерено 2026-10-10
+- [Go/Zen request contract](go-zen-request-contract.md) — проверенные cache options по модели/SDK, оригинальные заголовки, HTTP oracle и границы TTL/FreeTier
+- [OpenCode Zen call path](zen-call-path.md) — исторический срез 2026-10-10: каталог → лоадер → SDK → gateway; актуальный ремонт описан в Go/Zen request contract
 - [Background Jobs](background-jobs.md) — non-blocking shell jobs, `joboutput` / `pattern`, TUI
 - [Claude scheduled tasks](claude-scheduled-tasks.md) — unattended Desktop runs: user-settings `defaultMode: auto` + allowlist works, project settings do not
 - [ADID Framework 15.3](ADID_Framework_15_3.md) — safe-update manager contract. Frozen, untracked,

@@ -1,0 +1,152 @@
+bun test v1.4.2 (744846f84)
+
+test\session\llm-headers.test.ts:
+(pass) LLM header layering decision table > third-party providers never receive x-opencode-* headers [0.14ms]
+(pass) LLM header layering decision table > opencode-owned providers receive the opencode layer [0.04ms]
+(pass) LLM header layering decision table > novita binds x-request-id to sessionID (console grouping) [0.02ms]
+(pass) LLM header layering decision table > other providers keep per-message request id [0.04ms]
+
+test\session\llm.test.ts:
+(pass) session.llm.hasToolCalls > returns false for empty messages array [0.25ms]
+(pass) session.llm.hasToolCalls > returns false for messages with only text content [0.08ms]
+(pass) session.llm.hasToolCalls > returns true when messages contain tool-call [0.06ms]
+(pass) session.llm.hasToolCalls > returns true when messages contain tool-result [0.04ms]
+(pass) session.llm.hasToolCalls > returns false for messages with string content [0.04ms]
+(pass) session.llm.hasToolCalls > returns true when tool-call is mixed with text content [0.05ms]
+(pass) session.llm.estimateContentTokens > recomputes when equal-count requests change system or message content [0.29ms]
+(pass) session.llm.messagesStabilityVerdict > first request has no previous ledger [0.59ms]
+(pass) session.llm.messagesStabilityVerdict > append-only growth is stable — the healthy per-turn shape [0.08ms]
+(pass) session.llm.messagesStabilityVerdict > partial mutation inside sent region reports first divergent position [0.04ms]
+(pass) session.llm.messagesStabilityVerdict > a mid-array divergence is a mutation however much of the tail moved [0.04ms]
+(pass) session.llm.messagesStabilityVerdict > full-prefix divergence is restructure (compact/restart), not a bug [0.03ms]
+(pass) session.llm.messagesStabilityVerdict > a shrinking replay is a restructure — a fold removes, the turn gate only appends [0.03ms]
+(pass) session.llm.messagesStabilityVerdict > history vanished entirely is restructure [0.03ms]
+(pass) provider cache key: primary modes share, non-primary agents separate [0.23ms]
+(pass) tool call repair resolves separator aliases to the canonical provider name [0.66ms]
+(pass) user.tools=false never reshapes the wire catalog (runtime-deny instead) [0.19ms]
+501 |   // The local HTTP fixture observes the real service + installed SDK, including its UA suffix.
+502 |   for (const model of cases) {
+503 |     test.each([undefined, "session-header-parent"])(`${model.providerID} parity with parent=%s`, async (parent) => {
+504 |       const result = await captureHeaders(model, parent)
+505 |       const headers = result.capture.headers
+506 |       expect(headers.get("x-opencode-session-id")).toBe(result.sessionID)
+                                                         ^
+error: expect(received).toBe(expected)
+
+Expected: "session-headers-opencode-go"
+Received: null
+
+      at <anonymous> (D:\zPython\opencode\packages\opencode\test\session\llm.test.ts:506:52)
+(fail) session.llm owned provider headers on the SDK wire > opencode-go parity with parent=%s [1541.09ms]
+501 |   // The local HTTP fixture observes the real service + installed SDK, including its UA suffix.
+502 |   for (const model of cases) {
+503 |     test.each([undefined, "session-header-parent"])(`${model.providerID} parity with parent=%s`, async (parent) => {
+504 |       const result = await captureHeaders(model, parent)
+505 |       const headers = result.capture.headers
+506 |       expect(headers.get("x-opencode-session-id")).toBe(result.sessionID)
+                                                         ^
+error: expect(received).toBe(expected)
+
+Expected: "session-headers-opencode-go"
+Received: null
+
+      at <anonymous> (D:\zPython\opencode\packages\opencode\test\session\llm.test.ts:506:52)
+(fail) session.llm owned provider headers on the SDK wire > opencode-go parity with parent=session-header-parent [215.65ms]
+525 |         "User-Agent": "model-agent-override",
+526 |       })
+527 |       expect(result.capture.headers.get("x-opencode-session-id")).toBe("model-session-override")
+528 |       expect(result.capture.headers.get("x-opencode-client")).toBe("model-client-override")
+529 |       expect(result.capture.headers.get("user-agent")?.startsWith("model-agent-override ")).toBe(true)
+530 |       expect(result.capture.headers.get("x-opencode-parent-session-id")).toBe("session-header-parent")
+                                                                               ^
+error: expect(received).toBe(expected)
+
+Expected: "session-header-parent"
+Received: null
+
+      at <anonymous> (D:\zPython\opencode\packages\opencode\test\session\llm.test.ts:530:74)
+(fail) session.llm owned provider headers on the SDK wire > opencode-go explicit model headers override defaults on the wire [202.55ms]
+1757 | 
+1758 |       const info = provider.models[modelID]
+1759 |       if (!info) {
+1760 |         const available = Object.keys(provider.models)
+1761 |         const matches = fuzzysort.go(modelID, available, { limit: 3, threshold: -10000 })
+1762 |         throw new ModelNotFoundError({ providerID, modelID, suggestions: matches.map((m) => m.target) })
+                     ^
+ProviderModelNotFoundError: ProviderModelNotFoundError
+ data: {
+  providerID: "opencode",
+  modelID: "mimo-v2-flash-free",
+  suggestions: [],
+},
+
+      at <anonymous> (D:\zPython\opencode\packages\opencode\src\provider\provider.ts:1762:15)
+      at ~effect/Effect/successCont (D:\zPython\opencode\node_modules\.bun\effect@4.0.0-beta.57\node_modules\effect\dist\internal\effect.js:868:26)
+      at runLoop (D:\zPython\opencode\node_modules\.bun\effect@4.0.0-beta.57\node_modules\effect\dist\internal\effect.js:444:98)
+      at evaluate (D:\zPython\opencode\node_modules\.bun\effect@4.0.0-beta.57\node_modules\effect\dist\internal\effect.js:412:23)
+      at <anonymous> (D:\zPython\opencode\node_modules\.bun\effect@4.0.0-beta.57\node_modules\effect\dist\internal\effect.js:719:15)
+(fail) session.llm owned provider headers on the SDK wire > opencode parity with parent=%s [182.65ms]
+1757 | 
+1758 |       const info = provider.models[modelID]
+1759 |       if (!info) {
+1760 |         const available = Object.keys(provider.models)
+1761 |         const matches = fuzzysort.go(modelID, available, { limit: 3, threshold: -10000 })
+1762 |         throw new ModelNotFoundError({ providerID, modelID, suggestions: matches.map((m) => m.target) })
+                     ^
+ProviderModelNotFoundError: ProviderModelNotFoundError
+ data: {
+  providerID: "opencode",
+  modelID: "mimo-v2-flash-free",
+  suggestions: [],
+},
+
+      at <anonymous> (D:\zPython\opencode\packages\opencode\src\provider\provider.ts:1762:15)
+      at ~effect/Effect/successCont (D:\zPython\opencode\node_modules\.bun\effect@4.0.0-beta.57\node_modules\effect\dist\internal\effect.js:868:26)
+      at runLoop (D:\zPython\opencode\node_modules\.bun\effect@4.0.0-beta.57\node_modules\effect\dist\internal\effect.js:444:98)
+      at evaluate (D:\zPython\opencode\node_modules\.bun\effect@4.0.0-beta.57\node_modules\effect\dist\internal\effect.js:412:23)
+      at <anonymous> (D:\zPython\opencode\node_modules\.bun\effect@4.0.0-beta.57\node_modules\effect\dist\internal\effect.js:719:15)
+(fail) session.llm owned provider headers on the SDK wire > opencode parity with parent=session-header-parent [366.00ms]
+1757 | 
+1758 |       const info = provider.models[modelID]
+1759 |       if (!info) {
+1760 |         const available = Object.keys(provider.models)
+1761 |         const matches = fuzzysort.go(modelID, available, { limit: 3, threshold: -10000 })
+1762 |         throw new ModelNotFoundError({ providerID, modelID, suggestions: matches.map((m) => m.target) })
+                     ^
+ProviderModelNotFoundError: ProviderModelNotFoundError
+ data: {
+  providerID: "opencode",
+  modelID: "mimo-v2-flash-free",
+  suggestions: [],
+},
+
+      at <anonymous> (D:\zPython\opencode\packages\opencode\src\provider\provider.ts:1762:15)
+      at ~effect/Effect/successCont (D:\zPython\opencode\node_modules\.bun\effect@4.0.0-beta.57\node_modules\effect\dist\internal\effect.js:868:26)
+      at runLoop (D:\zPython\opencode\node_modules\.bun\effect@4.0.0-beta.57\node_modules\effect\dist\internal\effect.js:444:98)
+      at evaluate (D:\zPython\opencode\node_modules\.bun\effect@4.0.0-beta.57\node_modules\effect\dist\internal\effect.js:412:23)
+      at <anonymous> (D:\zPython\opencode\node_modules\.bun\effect@4.0.0-beta.57\node_modules\effect\dist\internal\effect.js:719:15)
+(fail) session.llm owned provider headers on the SDK wire > opencode explicit model headers override defaults on the wire [197.25ms]
+(pass) session.llm owned provider headers on the SDK wire > Novita keeps its existing correlation and receives no owned headers [247.28ms]
+(pass) session.llm.stream > sends temperature, tokens, and reasoning options for openai-compatible models [246.22ms]
+(pass) session.llm.stream > uses a subagent cache lease as the OpenRouter sequence identity [311.81ms]
+(pass) session.llm.stream > caps max_tokens for qwen-like output equal to context metadata [237.20ms]
+(pass) session.llm.stream > service stream cancellation cancels provider response body promptly [268.51ms]
+(pass) session.llm.stream > keeps tools enabled by prompt permissions [252.45ms]
+(pass) session.llm.stream > sends responses API payload for OpenAI models [343.20ms]
+(pass) session.llm.stream > accepts user image attachments as data URLs for OpenAI models [326.84ms]
+(pass) session.llm.stream > sends messages API payload for Anthropic Compatible models [263.22ms]
+(pass) session.llm.stream > sends anthropic tool_use blocks with tool_result immediately after them [249.81ms]
+(pass) session.llm.stream > sends Google API payload for Gemini models [294.32ms]
+
+6 tests failed:
+(fail) session.llm owned provider headers on the SDK wire > opencode-go parity with parent=%s [1541.09ms]
+(fail) session.llm owned provider headers on the SDK wire > opencode-go parity with parent=session-header-parent [215.65ms]
+(fail) session.llm owned provider headers on the SDK wire > opencode-go explicit model headers override defaults on the wire [202.55ms]
+(fail) session.llm owned provider headers on the SDK wire > opencode parity with parent=%s [182.65ms]
+(fail) session.llm owned provider headers on the SDK wire > opencode parity with parent=session-header-parent [366.00ms]
+(fail) session.llm owned provider headers on the SDK wire > opencode explicit model headers override defaults on the wire [197.25ms]
+
+ 32 pass
+ 6 fail
+ 102 expect() calls
+Ran 38 tests across 2 files. [11.01s]

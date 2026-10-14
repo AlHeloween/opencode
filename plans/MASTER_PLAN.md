@@ -100,6 +100,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 
 ## Standing rules that outlive any plan
 
+[Завершённый ремонт Go/Zen request contract](../plans_completed/2026-10-14_go-zen-cache-and-headers.md) — параметры кеша по модели/SDK, оригинальные headers и независимые candidate smokes; остаток TTL/Fireworks Flash/keep-warm указан в плане.
+<!-- sv: request-contract,header-parity,wire-oracle,candidate-smoke -->
+
 - Instrument before claim: no `[x]` without a run id, a hash or a rehearsal log.
 - A refutation is a result, not a detour — a premise dies from one measurement, and that is progress.
 - Absence of an oracle reads as FALSE to the user; a status surface renders a value, never nothing.

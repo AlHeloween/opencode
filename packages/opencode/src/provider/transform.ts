@@ -372,42 +372,6 @@ function normalizeMessages(
   return msgs
 }
 
-function isOpencodeGlm(model: Provider.Model): boolean {
-  // Go and Zen are the same backend (owner 2026-10-14) — match the whole
-  // provider family, like the pre-existing startsWith("opencode") gates.
-  return model.providerID.startsWith("opencode") && /glm|zhipu/i.test(model.api.id)
-}
-
-/**
- * opencode-go system-stable breakpoints (B) — SYSTEM MESSAGES ONLY, never the
- * moving tail. The 2026-09-07 Novita finding (pinned in transform.test.ts)
- * proved last-2 moving markers break auto prefix cache; system slots are
- * byte-stable across turns so they cannot move. GLM models are skipped: the
- * gateway does not strip Anthropic-style markers for them and they 400
- * (pi-opencode-go-cache Known limitations). Stale markers are stripped first
- * so breakpoints land exactly where we stamp this turn.
- */
-function applyOpencodeGoSystemCaching(msgs: ModelMessage[]): ModelMessage[] {
-  for (const msg of msgs) {
-    const opts = (msg as any).providerOptions
-    if (opts && typeof opts === "object" && !Array.isArray(opts)) {
-      if (opts.openaiCompatible && typeof opts.openaiCompatible === "object") {
-        delete (opts.openaiCompatible as any).cache_control
-        delete (opts.openaiCompatible as any).cacheControl
-      }
-    }
-  }
-  const systems = msgs.filter((msg) => msg.role === "system").slice(0, 2)
-  for (const msg of systems) {
-    const existing = (msg as any).providerOptions
-    const safe = existing && typeof existing === "object" && !Array.isArray(existing) ? existing : {}
-    ;(msg as any).providerOptions = mergeDeep(safe, {
-      openaiCompatible: { cache_control: { type: "ephemeral", ttl: "1h" } },
-    })
-  }
-  return msgs
-}
-
 function applyCaching(msgs: ModelMessage[], model: Provider.Model): ModelMessage[] {
   const system = msgs.filter((msg) => msg.role === "system").slice(0, 2)
   const final = msgs.filter((msg) => msg.role !== "system").slice(-2)
@@ -499,18 +463,6 @@ export function message(msgs: ModelMessage[], model: Provider.Model, options: Re
       modelID: model.id,
     })
     msgs = applyCaching(msgs, model)
-  }
-
-  // opencode* system breakpoints (B): stable-system only, GLM skipped.
-  // Narrowly scoped to providerIDs starting with "opencode" (go + zen, same
-  // backend) so the Novita no-marker regression (transform.test.ts) keeps
-  // passing untouched.
-  if (model.providerID.startsWith("opencode") && !isOpencodeGlm(model)) {
-    tlog.info("applyOpencodeGoSystemCaching triggered", {
-      providerID: model.providerID,
-      modelID: model.id,
-    })
-    msgs = applyOpencodeGoSystemCaching(msgs)
   }
 
   // Remap providerOptions keys from stored providerID to expected SDK key
@@ -1257,20 +1209,18 @@ export function options(input: {
       : "prompt_cache_key"] = promptCacheKey
   }
 
-  // opencode* (go/zen — same backend, owner 2026-10-14): always isolate per
-  // session and ask for 24h retention. The gateway auto-caches ~5 min without
-  // these; key + "24h" (schema ceiling, enum["in_memory","24h"]) extends
-  // lifetime to a day. GLM models ride the same two fields here -
-  // cache_control markers are handled separately in message() with a GLM
-  // skip (B).
-  if (input.model.providerID.startsWith("opencode")) {
-    tlog.info("prompt_cache_key set", {
-      providerID: input.model.providerID,
-      apiNpm: input.model.api.npm,
-      promptCacheKey,
-    })
-    result["prompt_cache_key"] = promptCacheKey
-    result["prompt_cache_retention"] = "24h"
+  // Live Go receipts: experiments/2026-10-14_prompt-cache-options-2026-10-14T15-33-29-937Z.
+  // Flash rejected retention and ttl=24h; implicit/30m was accepted.
+  // GLM-5.3 accepted implicit/24h; acceptance does not establish retention duration.
+  if (
+    input.model.providerID === "opencode-go" &&
+    input.model.api.npm === "@ai-sdk/openai-compatible" &&
+    ["glm-5.3-flash", "glm-5.3"].includes(input.model.api.id)
+  ) {
+    result["prompt_cache_options"] = {
+      mode: "implicit",
+      ttl: input.model.api.id === "glm-5.3-flash" ? "30m" : "24h",
+    }
   }
 
   if (input.model.api.npm === "@ai-sdk/google" || input.model.api.npm === "@ai-sdk/google-vertex") {

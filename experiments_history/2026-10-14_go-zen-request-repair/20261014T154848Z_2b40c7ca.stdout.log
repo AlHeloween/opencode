@@ -1,0 +1,27 @@
+bun test v1.4.2 (744846f84)
+
+test\provider\opencode-go-cache.test.ts:
+(pass) opencode-go long-lived cache > S1: options() sets key + 24h retention without opt-in [11.81ms]
+(pass) opencode-go long-lived cache > S1: GLM also gets key + retention (markers are separate) [0.38ms]
+(pass) opencode-go long-lived cache > S1: retention survives providerOptions packaging under opencode-go namespace [2.84ms]
+(pass) opencode-go long-lived cache > S2: non-GLM system messages get ttl 1h breakpoints [9.95ms]
+(pass) opencode-go long-lived cache > S2: stale markers are stripped before re-stamping (no accumulation) [0.56ms]
+(pass) opencode-go long-lived cache > S2: GLM models are skipped (gateway does not strip, GLM 400s) [0.56ms]
+(pass) opencode-go long-lived cache > regression intact: novita-ai openai-compatible still gets no markers [0.20ms]
+(pass) opencode (zen) — same backend, same treatment > S1-zen: options() sets key + 24h retention without opt-in [1.26ms]
+(pass) opencode (zen) — same backend, same treatment > S2-zen: non-GLM system messages get ttl 1h breakpoints [0.59ms]
+(pass) opencode (zen) — same backend, same treatment > S2-zen: GLM models are skipped [0.26ms]
+
+test\provider\wire-params.test.ts:
+(pass) glm-5.3-flash on opencode-go drops repetition_penalty at packaging [0.51ms]
+(pass) a model that accepts the field keeps it (mimo-v2.6-flash, same provider) [0.13ms]
+(pass) a variant suffix does not dodge the gate [0.08ms]
+(pass) an unrecorded pair is untouched — no probing, no over-stripping [0.04ms]
+(pass) transport knobs never reach the body — protocol/streaming are ours [0.08ms]
+(pass) the transport strip is global — any provider, not just a learned pair [0.07ms]
+(pass) zen mirror: opencode/glm-5.3-flash strips the same fields (go == zen backend) [0.12ms]
+
+ 17 pass
+ 0 fail
+ 38 expect() calls
+Ran 17 tests across 2 files. [3.73s]

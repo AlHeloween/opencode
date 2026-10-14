@@ -1,0 +1,34 @@
+bun test v1.4.2 (744846f84)
+
+test\provider\opencode-go-cache.test.ts:
+(node:31180) Warning: AI SDK Warning System: To turn off warning logging, set the AI_SDK_LOG_WARNINGS global to false.
+(Use `bun.exe --trace-warnings ...` to show where the warning was created)
+(node:31180) DeprecationWarning: AI SDK Warning (opencode-go.chat / glm-5.3-flash): Deprecated: "providerOptions key 'opencode-go'". Use 'opencodeGo' instead.
+(pass) Go defaults follow the measured model contract > glm-5.3-flash gets accepted implicit cache options ttl=30m through the installed SDK [27.78ms]
+(node:31180) DeprecationWarning: AI SDK Warning (opencode-go.chat / glm-5.3): Deprecated: "providerOptions key 'opencode-go'". Use 'opencodeGo' instead.
+(pass) Go defaults follow the measured model contract > glm-5.3 gets accepted implicit cache options ttl=24h through the installed SDK [1.50ms]
+(pass) Go defaults follow the measured model contract > deepseek-v4-flash has no unmeasured TTL default [0.14ms]
+(pass) Go defaults follow the measured model contract > mimo-v2.6-flash has no unmeasured TTL default [0.02ms]
+(pass) Go defaults follow the measured model contract > explicit supported cache options survive merge and packaging [0.13ms]
+(pass) cache dialect belongs to the actual SDK > actual Zen Muse OpenAI SDK has no compatible-only or invented TTL default [0.05ms]
+(pass) cache dialect belongs to the actual SDK > Zen native OpenAI preserves camelCase explicit cache controls on the wire [5.31ms]
+(pass) cache dialect belongs to the actual SDK > opencode-go/deepseek-v4-flash receives no implicit Anthropic-style message breakpoints [1.04ms]
+(pass) cache dialect belongs to the actual SDK > opencode-go/mimo-v2.6-flash receives no implicit Anthropic-style message breakpoints [0.05ms]
+(pass) cache dialect belongs to the actual SDK > opencode-go/glm-5.3-flash receives no implicit Anthropic-style message breakpoints [0.37ms]
+(pass) cache dialect belongs to the actual SDK > opencode/muse-spark-1.3-contributor-free receives no implicit Anthropic-style message breakpoints [0.14ms]
+(pass) cache dialect belongs to the actual SDK > novita-ai/zai-org/glm-5.3-flash receives no implicit Anthropic-style message breakpoints [0.05ms]
+(pass) cache dialect belongs to the actual SDK > the real Anthropic SDK retains its explicit message cache markers [1.67ms]
+
+test\provider\wire-params.test.ts:
+(pass) glm-5.3-flash on opencode-go drops repetition_penalty at packaging [0.35ms]
+(pass) a model that accepts the field keeps it (mimo-v2.6-flash, same provider) [0.09ms]
+(pass) a variant suffix does not dodge the gate [0.07ms]
+(pass) an unrecorded pair is untouched — no probing, no over-stripping [0.04ms]
+(pass) transport knobs never reach the body — protocol/streaming are ours [0.05ms]
+(pass) the transport strip is global — any provider, not just a learned pair [0.06ms]
+(pass) zen mirror: opencode/glm-5.3-flash strips the same fields (go == zen backend) [0.07ms]
+
+ 20 pass
+ 0 fail
+ 62 expect() calls
+Ran 20 tests across 2 files. [1.55s]

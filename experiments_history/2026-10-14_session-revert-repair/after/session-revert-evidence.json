@@ -1,0 +1,239 @@
+{
+  "frames": {
+    "idle-before": "REVERT_REGRESSION_STAND                                                                             \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                        Message Actions                                  esc                        \n                                                                                                    \n                        Search                                                                      \n                                                                                                    \n                        Revert                   undo messages and file ch…                         \n                        Copy                     message text to clipboard                          \n                        Fork                     create a new session                               \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n",
+    "idle-after": "REVERT_REGRESSION_STAND                                                                             \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n",
+    "busy-before": "REVERT_REGRESSION_STAND                                                                             \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                        Message Actions                                  esc                        \n                                                                                                    \n                        Search                                                                      \n                                                                                                    \n                        Revert                   undo messages and file ch…                         \n                        Copy                     message text to clipboard                          \n                        Fork                     create a new session                               \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n",
+    "busy-after": "REVERT_REGRESSION_STAND                                                                             \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n",
+    "http-error": "REVERT_REGRESSION_STAND                                                                             \n                                                                                                    \n                                                         ┃                                       ┃  \n                                                         ┃  Undo failed: fixture revert refused  ┃  \n                                                         ┃                                       ┃  \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                        Message Actions                                  esc                        \n                                                                                                    \n                        Search                                                                      \n                                                                                                    \n                        Revert                   undo messages and file ch…                         \n                        Copy                     message text to clipboard                          \n                        Fork                     create a new session                               \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n"
+  },
+  "wire": [
+    {
+      "pathname": "/session/ses_ec6ccf82cffe2VqyQhVQ86fl0D/abort",
+      "body": "{}",
+      "status": 200,
+      "response": "true"
+    },
+    {
+      "pathname": "/session/ses_ec6ccf82cffe2VqyQhVQ86fl0D/revert",
+      "body": "{\"messageID\":\"msg_139331293001hh5sOg49q3q0Sk\"}",
+      "status": 200,
+      "response": "{\"id\":\"ses_ec6ccf82cffe2VqyQhVQ86fl0D\",\"slug\":\"cosmic-eagle\",\"projectID\":\"d9ba81cff2d73e538c95a0f3613610ee4f98b0e0\",\"directory\":\"D:\\\\zPython\\\\opencode\\\\.temp\\\\test\\\\opencode-test-lok81shxbu8\",\"summary\":{\"additions\":0,\"deletions\":0,\"files\":0},\"title\":\"revert regression probe\",\"version\":\"local\",\"time\":{\"created\":1791961008084,\"updated\":1791961013417},\"revert\":{\"messageID\":\"msg_139331293001hh5sOg49q3q0Sk\",\"snapshot\":\"2b6a00d7ba236c864bc7c71d98e2566453d4d82b\",\"op_id\":\"2b6a00d7ba236c864bc7c71d98e2566453d4d82b\",\"diff\":\"Index: sentinel.txt\\n==================================================================\\n--- sentinel.txt\\t\\n+++ sentinel.txt\\t\\n@@ -1,1 +1,1 @@\\n-AFTER\\n+BEFORE\"},\"cost\":0,\"costSidecar\":0,\"tokens\":{\"input\":0,\"output\":0,\"reasoning\":0,\"cache\":{\"read\":0,\"write\":0,\"hitRateIsNull\":null}}}"
+    },
+    {
+      "pathname": "/session/ses_ec6ccf82cffe2VqyQhVQ86fl0D/unrevert",
+      "body": "{}",
+      "status": 200,
+      "response": "{\"id\":\"ses_ec6ccf82cffe2VqyQhVQ86fl0D\",\"slug\":\"cosmic-eagle\",\"projectID\":\"d9ba81cff2d73e538c95a0f3613610ee4f98b0e0\",\"directory\":\"D:\\\\zPython\\\\opencode\\\\.temp\\\\test\\\\opencode-test-lok81shxbu8\",\"summary\":{\"additions\":0,\"deletions\":0,\"files\":0},\"title\":\"revert regression probe\",\"version\":\"local\",\"time\":{\"created\":1791961008084,\"updated\":1791961013899},\"cost\":0,\"costSidecar\":0,\"tokens\":{\"input\":0,\"output\":0,\"reasoning\":0,\"cache\":{\"read\":0,\"write\":0,\"hitRateIsNull\":null}}}"
+    },
+    {
+      "pathname": "/session/ses_ec6ccf82cffe2VqyQhVQ86fl0D/abort",
+      "body": "{}",
+      "status": 200,
+      "response": "true"
+    },
+    {
+      "pathname": "/session/ses_ec6ccf82cffe2VqyQhVQ86fl0D/revert",
+      "body": "{\"messageID\":\"msg_139331293001hh5sOg49q3q0Sk\"}",
+      "status": 200,
+      "response": "{\"id\":\"ses_ec6ccf82cffe2VqyQhVQ86fl0D\",\"slug\":\"cosmic-eagle\",\"projectID\":\"d9ba81cff2d73e538c95a0f3613610ee4f98b0e0\",\"directory\":\"D:\\\\zPython\\\\opencode\\\\.temp\\\\test\\\\opencode-test-lok81shxbu8\",\"summary\":{\"additions\":0,\"deletions\":0,\"files\":0},\"title\":\"revert regression probe\",\"version\":\"local\",\"time\":{\"created\":1791961008084,\"updated\":1791961014761},\"revert\":{\"messageID\":\"msg_139331293001hh5sOg49q3q0Sk\",\"snapshot\":\"2b6a00d7ba236c864bc7c71d98e2566453d4d82b\",\"op_id\":\"2b6a00d7ba236c864bc7c71d98e2566453d4d82b\",\"diff\":\"Index: sentinel.txt\\n==================================================================\\n--- sentinel.txt\\t\\n+++ sentinel.txt\\t\\n@@ -1,1 +1,1 @@\\n-AFTER\\n+BEFORE\"},\"cost\":0,\"costSidecar\":0,\"tokens\":{\"input\":0,\"output\":0,\"reasoning\":0,\"cache\":{\"read\":0,\"write\":0,\"hitRateIsNull\":null}}}"
+    },
+    {
+      "pathname": "/session/ses_ec6ccf82cffe2VqyQhVQ86fl0D/abort",
+      "body": "{}",
+      "status": 200,
+      "response": "true"
+    },
+    {
+      "pathname": "/session/ses_ec6ccf82cffe2VqyQhVQ86fl0D/unrevert",
+      "body": "{}",
+      "status": 200,
+      "response": "{\"id\":\"ses_ec6ccf82cffe2VqyQhVQ86fl0D\",\"slug\":\"cosmic-eagle\",\"projectID\":\"d9ba81cff2d73e538c95a0f3613610ee4f98b0e0\",\"directory\":\"D:\\\\zPython\\\\opencode\\\\.temp\\\\test\\\\opencode-test-lok81shxbu8\",\"summary\":{\"additions\":0,\"deletions\":0,\"files\":0},\"title\":\"revert regression probe\",\"version\":\"local\",\"time\":{\"created\":1791961008084,\"updated\":1791961015222},\"cost\":0,\"costSidecar\":0,\"tokens\":{\"input\":0,\"output\":0,\"reasoning\":0,\"cache\":{\"read\":0,\"write\":0,\"hitRateIsNull\":null}}}"
+    },
+    {
+      "pathname": "/session/ses_ec6ccf82cffe2VqyQhVQ86fl0D/abort",
+      "body": "{}",
+      "status": 200,
+      "response": "true"
+    },
+    {
+      "pathname": "/session/ses_ec6ccf82cffe2VqyQhVQ86fl0D/revert",
+      "body": "{\"messageID\":\"msg_139331293001hh5sOg49q3q0Sk\"}",
+      "status": 500,
+      "response": "{\"data\":{\"message\":\"fixture revert refused\"}}"
+    },
+    {
+      "pathname": "/session/ses_ec6ccf82cffe2VqyQhVQ86fl0D/abort",
+      "body": "{}",
+      "status": 200,
+      "response": "true"
+    },
+    {
+      "pathname": "/session/ses_ec6ccf82cffe2VqyQhVQ86fl0D/revert",
+      "body": "{\"messageID\":\"msg_139331293001hh5sOg49q3q0Sk\"}",
+      "status": 200,
+      "response": "{\"id\":\"ses_ec6ccf82cffe2VqyQhVQ86fl0D\"}"
+    },
+    {
+      "pathname": "/session/ses_ec6ccf82cffe2VqyQhVQ86fl0D/abort",
+      "body": "{}",
+      "status": 200,
+      "response": "true"
+    }
+  ],
+  "snapshots": [
+    {
+      "state": {
+        "id": "ses_ec6ccf82cffe2VqyQhVQ86fl0D",
+        "slug": "cosmic-eagle",
+        "projectID": "d9ba81cff2d73e538c95a0f3613610ee4f98b0e0",
+        "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-lok81shxbu8",
+        "summary": {
+          "additions": 0,
+          "deletions": 0,
+          "files": 0
+        },
+        "title": "revert regression probe",
+        "version": "local",
+        "time": {
+          "created": 1791961008084,
+          "updated": 1791961013417
+        },
+        "revert": {
+          "messageID": "msg_139331293001hh5sOg49q3q0Sk",
+          "snapshot": "2b6a00d7ba236c864bc7c71d98e2566453d4d82b",
+          "op_id": "2b6a00d7ba236c864bc7c71d98e2566453d4d82b",
+          "diff": "Index: sentinel.txt\n==================================================================\n--- sentinel.txt\t\n+++ sentinel.txt\t\n@@ -1,1 +1,1 @@\n-AFTER\n+BEFORE"
+        },
+        "cost": 0,
+        "costSidecar": 0,
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0,
+            "hitRateIsNull": null
+          }
+        }
+      },
+      "content": "BEFORE\n",
+      "revert": {
+        "messageID": "msg_139331293001hh5sOg49q3q0Sk",
+        "snapshot": "2b6a00d7ba236c864bc7c71d98e2566453d4d82b",
+        "op_id": "2b6a00d7ba236c864bc7c71d98e2566453d4d82b",
+        "diff": "Index: sentinel.txt\n==================================================================\n--- sentinel.txt\t\n+++ sentinel.txt\t\n@@ -1,1 +1,1 @@\n-AFTER\n+BEFORE"
+      }
+    },
+    {
+      "state": {
+        "id": "ses_ec6ccf82cffe2VqyQhVQ86fl0D",
+        "slug": "cosmic-eagle",
+        "projectID": "d9ba81cff2d73e538c95a0f3613610ee4f98b0e0",
+        "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-lok81shxbu8",
+        "summary": {
+          "additions": 0,
+          "deletions": 0,
+          "files": 0
+        },
+        "title": "revert regression probe",
+        "version": "local",
+        "time": {
+          "created": 1791961008084,
+          "updated": 1791961013899
+        },
+        "cost": 0,
+        "costSidecar": 0,
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0,
+            "hitRateIsNull": null
+          }
+        }
+      },
+      "content": "AFTER\n",
+      "revert": null
+    },
+    {
+      "state": {
+        "id": "ses_ec6ccf82cffe2VqyQhVQ86fl0D",
+        "slug": "cosmic-eagle",
+        "projectID": "d9ba81cff2d73e538c95a0f3613610ee4f98b0e0",
+        "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-lok81shxbu8",
+        "summary": {
+          "additions": 0,
+          "deletions": 0,
+          "files": 0
+        },
+        "title": "revert regression probe",
+        "version": "local",
+        "time": {
+          "created": 1791961008084,
+          "updated": 1791961014761
+        },
+        "revert": {
+          "messageID": "msg_139331293001hh5sOg49q3q0Sk",
+          "snapshot": "2b6a00d7ba236c864bc7c71d98e2566453d4d82b",
+          "op_id": "2b6a00d7ba236c864bc7c71d98e2566453d4d82b",
+          "diff": "Index: sentinel.txt\n==================================================================\n--- sentinel.txt\t\n+++ sentinel.txt\t\n@@ -1,1 +1,1 @@\n-AFTER\n+BEFORE"
+        },
+        "cost": 0,
+        "costSidecar": 0,
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0,
+            "hitRateIsNull": null
+          }
+        }
+      },
+      "content": "BEFORE\n",
+      "revert": {
+        "messageID": "msg_139331293001hh5sOg49q3q0Sk",
+        "snapshot": "2b6a00d7ba236c864bc7c71d98e2566453d4d82b",
+        "op_id": "2b6a00d7ba236c864bc7c71d98e2566453d4d82b",
+        "diff": "Index: sentinel.txt\n==================================================================\n--- sentinel.txt\t\n+++ sentinel.txt\t\n@@ -1,1 +1,1 @@\n-AFTER\n+BEFORE"
+      }
+    },
+    {
+      "state": {
+        "id": "ses_ec6ccf82cffe2VqyQhVQ86fl0D",
+        "slug": "cosmic-eagle",
+        "projectID": "d9ba81cff2d73e538c95a0f3613610ee4f98b0e0",
+        "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-lok81shxbu8",
+        "summary": {
+          "additions": 0,
+          "deletions": 0,
+          "files": 0
+        },
+        "title": "revert regression probe",
+        "version": "local",
+        "time": {
+          "created": 1791961008084,
+          "updated": 1791961015222
+        },
+        "cost": 0,
+        "costSidecar": 0,
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0,
+            "hitRateIsNull": null
+          }
+        }
+      },
+      "content": "AFTER\n",
+      "revert": null
+    }
+  ]
+}

@@ -95,6 +95,9 @@ missing: the handoff permitted «until that lands» without saying what would ru
 Реализация этой стратегии: [ремонт контрактов и ADID release](postponed/2026-10-12_kernel-contract-repair-and-adid-release.md) восстанавливает guards и mandatory inputs; kernel repair проверен, ADID release/install остановлен с сохранённым воспроизводителем и условиями продолжения.
 <!-- sv: kernel-contracts,host-bindings,delegation,release-verification -->
 
+[Ремонт подтверждённого TUI Revert](../plans_completed/2026-10-14_session-revert-repair.md) — проверка результата выбранного отката в idle/busy и сохранение ввода при отказе; доказательства и границы находятся в плане.
+<!-- sv: session-revert,result-confirmation,regression -->
+
 ## Standing rules that outlive any plan
 
 - Instrument before claim: no `[x]` without a run id, a hash or a rehearsal log.

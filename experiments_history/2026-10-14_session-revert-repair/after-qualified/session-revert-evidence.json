@@ -1,0 +1,314 @@
+{
+  "frames": {
+    "idle-before": "REVERT_REGRESSION_STAND                                                                             \n                                                                                                    \n                                                                                     ┃           ┃  \n                                                                                     ┃  TOAST_B  ┃  \n                                                                                     ┃           ┃  \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                        Message Actions                                  esc                        \n                                                                                                    \n                        Search                                                                      \n                                                                                                    \n                        Revert                   undo messages and file ch…                         \n                        Copy                     message text to clipboard                          \n                        Fork                     create a new session                               \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n",
+    "idle-after": "REVERT_REGRESSION_STAND                                                                             \n                                                                                                    \n                                                                                     ┃           ┃  \n                                                                                     ┃  TOAST_B  ┃  \n                                                                                     ┃           ┃  \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n",
+    "busy-before": "REVERT_REGRESSION_STAND                                                                             \n                                                                                                    \n                                                                                     ┃           ┃  \n                                                                                     ┃  TOAST_B  ┃  \n                                                                                     ┃           ┃  \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                        Message Actions                                  esc                        \n                                                                                                    \n                        Search                                                                      \n                                                                                                    \n                        Revert                   undo messages and file ch…                         \n                        Copy                     message text to clipboard                          \n                        Fork                     create a new session                               \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n",
+    "busy-after": "REVERT_REGRESSION_STAND                                                                             \n                                                                                                    \n                                                                                     ┃           ┃  \n                                                                                     ┃  TOAST_B  ┃  \n                                                                                     ┃           ┃  \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n",
+    "http-error": "REVERT_REGRESSION_STAND                                                                             \n                                                                                                    \n                                                         ┃                                       ┃  \n                                                         ┃  Undo failed: fixture revert refused  ┃  \n                                                         ┃                                       ┃  \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                        Message Actions                                  esc                        \n                                                                                                    \n                        Search                                                                      \n                                                                                                    \n                        Revert                   undo messages and file ch…                         \n                        Copy                     message text to clipboard                          \n                        Fork                     create a new session                               \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n",
+    "no-target": "REVERT_REGRESSION_STAND                                                                             \n                                                                                                    \n                                      ┃                                                          ┃  \n                                      ┃  Undo failed: Revert did not reach message               ┃  \n                                      ┃  msg_1393554d1001vcPcb3rrqIr3Qo in session               ┃  \n                                      ┃  ses_ec6cab331ffejnUvXN88BgATwB                          ┃  \n                                      ┃                                                          ┃  \n                                                                                                    \n                                                                                                    \n                        Message Actions                                  esc                        \n                                                                                                    \n                        Search                                                                      \n                                                                                                    \n                        Revert                   undo messages and file ch…                         \n                        Copy                     message text to clipboard                          \n                        Fork                     create a new session                               \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n",
+    "wrong-owner-before": "REVERT_REGRESSION_STAND                                                                             \n                                                                                                    \n                                      ┃                                                          ┃  \n                                      ┃  Undo failed: Revert did not reach message               ┃  \n                                      ┃  msg_1393554d1001vcPcb3rrqIr3Qo in session               ┃  \n                                      ┃  ses_ec6cab331ffejnUvXN88BgATwB                          ┃  \n                                      ┃                                                          ┃  \n                                                                                                    \n                                                                                                    \n                        Message Actions                                  esc                        \n                                                                                                    \n                        Search                                                                      \n                                                                                                    \n                        Cancel queued message    message has no reply yet …                         \n                        Revert                   undo messages and file ch…                         \n                        Copy                     message text to clipboard                          \n                        Fork                     create a new session                               \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n",
+    "wrong-owner-after": "REVERT_REGRESSION_STAND                                                                             \n                                                                                                    \n                                                             ┃                                   ┃  \n                                                             ┃  Undo failed: message not loaded  ┃  \n                                                             ┃                                   ┃  \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                        Message Actions                                  esc                        \n                                                                                                    \n                        Search                                                                      \n                                                                                                    \n                        Cancel queued message    message has no reply yet …                         \n                        Revert                   undo messages and file ch…                         \n                        Copy                     message text to clipboard                          \n                        Fork                     create a new session                               \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n",
+    "ghost-after": "REVERT_REGRESSION_STAND                                                                             \n                                                                                                    \n                                                             ┃                                   ┃  \n                                                             ┃  Undo failed: message not loaded  ┃  \n                                                             ┃                                   ┃  \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                        Message Actions                                  esc                        \n                                                                                                    \n                        Search                                                                      \n                                                                                                    \n                        Cancel queued message    message has no reply yet …                         \n                        Revert                   undo messages and file ch…                         \n                        Copy                     message text to clipboard                          \n                        Fork                     create a new session                               \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n",
+    "final": "REVERT_REGRESSION_STAND                                                                             \n                                                                                                    \n                                                             ┃                                   ┃  \n                                                             ┃  Undo failed: message not loaded  ┃  \n                                                             ┃                                   ┃  \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                        Message Actions                                  esc                        \n                                                                                                    \n                        Search                                                                      \n                                                                                                    \n                        Cancel queued message    message has no reply yet …                         \n                        Revert                   undo messages and file ch…                         \n                        Copy                     message text to clipboard                          \n                        Fork                     create a new session                               \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n                                                                                                    \n"
+  },
+  "wire": [
+    {
+      "pathname": "/session/ses_ec6cab331ffejnUvXN88BgATwB/abort",
+      "body": "{}",
+      "status": 200,
+      "response": "true"
+    },
+    {
+      "pathname": "/session/ses_ec6cab331ffejnUvXN88BgATwB/revert",
+      "body": "{\"messageID\":\"msg_1393554d1001vcPcb3rrqIr3Qo\"}",
+      "status": 200,
+      "response": "{\"id\":\"ses_ec6cab331ffejnUvXN88BgATwB\",\"slug\":\"tidy-rocket\",\"projectID\":\"9169e1dc3cd07b581ff8a39244faa4f0127f74fb\",\"directory\":\"D:\\\\zPython\\\\opencode\\\\.temp\\\\test\\\\opencode-test-d5hst1kfpnh\",\"summary\":{\"additions\":0,\"deletions\":0,\"files\":0},\"title\":\"revert regression probe\",\"version\":\"local\",\"time\":{\"created\":1791961156815,\"updated\":1791961161591},\"revert\":{\"messageID\":\"msg_1393554d1001vcPcb3rrqIr3Qo\",\"snapshot\":\"ea4be88e070ff4278f9b9c4de0eacfabc6db4ed1\",\"op_id\":\"ea4be88e070ff4278f9b9c4de0eacfabc6db4ed1\",\"diff\":\"Index: sentinel.txt\\n==================================================================\\n--- sentinel.txt\\t\\n+++ sentinel.txt\\t\\n@@ -1,1 +1,1 @@\\n-AFTER\\n+BEFORE\"},\"cost\":0,\"costSidecar\":0,\"tokens\":{\"input\":0,\"output\":0,\"reasoning\":0,\"cache\":{\"read\":0,\"write\":0,\"hitRateIsNull\":null}}}"
+    },
+    {
+      "pathname": "/session/ses_ec6cab331ffejnUvXN88BgATwB/unrevert",
+      "body": "{}",
+      "status": 200,
+      "response": "{\"id\":\"ses_ec6cab331ffejnUvXN88BgATwB\",\"slug\":\"tidy-rocket\",\"projectID\":\"9169e1dc3cd07b581ff8a39244faa4f0127f74fb\",\"directory\":\"D:\\\\zPython\\\\opencode\\\\.temp\\\\test\\\\opencode-test-d5hst1kfpnh\",\"summary\":{\"additions\":0,\"deletions\":0,\"files\":0},\"title\":\"revert regression probe\",\"version\":\"local\",\"time\":{\"created\":1791961156815,\"updated\":1791961162059},\"cost\":0,\"costSidecar\":0,\"tokens\":{\"input\":0,\"output\":0,\"reasoning\":0,\"cache\":{\"read\":0,\"write\":0,\"hitRateIsNull\":null}}}"
+    },
+    {
+      "pathname": "/session/ses_ec6cab331ffejnUvXN88BgATwB/abort",
+      "body": "{}",
+      "status": 200,
+      "response": "true"
+    },
+    {
+      "pathname": "/session/ses_ec6cab331ffejnUvXN88BgATwB/revert",
+      "body": "{\"messageID\":\"msg_1393554d1001vcPcb3rrqIr3Qo\"}",
+      "status": 200,
+      "response": "{\"id\":\"ses_ec6cab331ffejnUvXN88BgATwB\",\"slug\":\"tidy-rocket\",\"projectID\":\"9169e1dc3cd07b581ff8a39244faa4f0127f74fb\",\"directory\":\"D:\\\\zPython\\\\opencode\\\\.temp\\\\test\\\\opencode-test-d5hst1kfpnh\",\"summary\":{\"additions\":0,\"deletions\":0,\"files\":0},\"title\":\"revert regression probe\",\"version\":\"local\",\"time\":{\"created\":1791961156815,\"updated\":1791961162827},\"revert\":{\"messageID\":\"msg_1393554d1001vcPcb3rrqIr3Qo\",\"snapshot\":\"ea4be88e070ff4278f9b9c4de0eacfabc6db4ed1\",\"op_id\":\"ea4be88e070ff4278f9b9c4de0eacfabc6db4ed1\",\"diff\":\"Index: sentinel.txt\\n==================================================================\\n--- sentinel.txt\\t\\n+++ sentinel.txt\\t\\n@@ -1,1 +1,1 @@\\n-AFTER\\n+BEFORE\"},\"cost\":0,\"costSidecar\":0,\"tokens\":{\"input\":0,\"output\":0,\"reasoning\":0,\"cache\":{\"read\":0,\"write\":0,\"hitRateIsNull\":null}}}"
+    },
+    {
+      "pathname": "/session/ses_ec6cab331ffejnUvXN88BgATwB/abort",
+      "body": "{}",
+      "status": 200,
+      "response": "true"
+    },
+    {
+      "pathname": "/session/ses_ec6cab331ffejnUvXN88BgATwB/unrevert",
+      "body": "{}",
+      "status": 200,
+      "response": "{\"id\":\"ses_ec6cab331ffejnUvXN88BgATwB\",\"slug\":\"tidy-rocket\",\"projectID\":\"9169e1dc3cd07b581ff8a39244faa4f0127f74fb\",\"directory\":\"D:\\\\zPython\\\\opencode\\\\.temp\\\\test\\\\opencode-test-d5hst1kfpnh\",\"summary\":{\"additions\":0,\"deletions\":0,\"files\":0},\"title\":\"revert regression probe\",\"version\":\"local\",\"time\":{\"created\":1791961156815,\"updated\":1791961163581},\"cost\":0,\"costSidecar\":0,\"tokens\":{\"input\":0,\"output\":0,\"reasoning\":0,\"cache\":{\"read\":0,\"write\":0,\"hitRateIsNull\":null}}}"
+    },
+    {
+      "pathname": "/session/ses_ec6cab331ffejnUvXN88BgATwB/abort",
+      "body": "{}",
+      "status": 200,
+      "response": "true"
+    },
+    {
+      "pathname": "/session/ses_ec6cab331ffejnUvXN88BgATwB/revert",
+      "body": "{\"messageID\":\"msg_1393554d1001vcPcb3rrqIr3Qo\"}",
+      "status": 500,
+      "response": "{\"data\":{\"message\":\"fixture revert refused\"}}"
+    },
+    {
+      "pathname": "/session/ses_ec6cab331ffejnUvXN88BgATwB/abort",
+      "body": "{}",
+      "status": 200,
+      "response": "true"
+    },
+    {
+      "pathname": "/session/ses_ec6cab331ffejnUvXN88BgATwB/revert",
+      "body": "{\"messageID\":\"msg_1393554d1001vcPcb3rrqIr3Qo\"}",
+      "status": 200,
+      "response": "{\"id\":\"ses_ec6cab331ffejnUvXN88BgATwB\"}"
+    },
+    {
+      "pathname": "/session/ses_ec6cab331ffejnUvXN88BgATwB/abort",
+      "body": "{}",
+      "status": 200,
+      "response": "true"
+    }
+  ],
+  "snapshots": [
+    {
+      "name": "toast qualification",
+      "stableReference": true
+    },
+    {
+      "state": {
+        "id": "ses_ec6cab331ffejnUvXN88BgATwB",
+        "slug": "tidy-rocket",
+        "projectID": "9169e1dc3cd07b581ff8a39244faa4f0127f74fb",
+        "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-d5hst1kfpnh",
+        "summary": {
+          "additions": 0,
+          "deletions": 0,
+          "files": 0
+        },
+        "title": "revert regression probe",
+        "version": "local",
+        "time": {
+          "created": 1791961156815,
+          "updated": 1791961161591
+        },
+        "revert": {
+          "messageID": "msg_1393554d1001vcPcb3rrqIr3Qo",
+          "snapshot": "ea4be88e070ff4278f9b9c4de0eacfabc6db4ed1",
+          "op_id": "ea4be88e070ff4278f9b9c4de0eacfabc6db4ed1",
+          "diff": "Index: sentinel.txt\n==================================================================\n--- sentinel.txt\t\n+++ sentinel.txt\t\n@@ -1,1 +1,1 @@\n-AFTER\n+BEFORE"
+        },
+        "cost": 0,
+        "costSidecar": 0,
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0,
+            "hitRateIsNull": null
+          }
+        }
+      },
+      "content": "BEFORE\n",
+      "revert": {
+        "messageID": "msg_1393554d1001vcPcb3rrqIr3Qo",
+        "snapshot": "ea4be88e070ff4278f9b9c4de0eacfabc6db4ed1",
+        "op_id": "ea4be88e070ff4278f9b9c4de0eacfabc6db4ed1",
+        "diff": "Index: sentinel.txt\n==================================================================\n--- sentinel.txt\t\n+++ sentinel.txt\t\n@@ -1,1 +1,1 @@\n-AFTER\n+BEFORE"
+      }
+    },
+    {
+      "state": {
+        "id": "ses_ec6cab331ffejnUvXN88BgATwB",
+        "slug": "tidy-rocket",
+        "projectID": "9169e1dc3cd07b581ff8a39244faa4f0127f74fb",
+        "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-d5hst1kfpnh",
+        "summary": {
+          "additions": 0,
+          "deletions": 0,
+          "files": 0
+        },
+        "title": "revert regression probe",
+        "version": "local",
+        "time": {
+          "created": 1791961156815,
+          "updated": 1791961162059
+        },
+        "cost": 0,
+        "costSidecar": 0,
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0,
+            "hitRateIsNull": null
+          }
+        }
+      },
+      "content": "AFTER\n",
+      "revert": null
+    },
+    {
+      "state": {
+        "id": "ses_ec6cab331ffejnUvXN88BgATwB",
+        "slug": "tidy-rocket",
+        "projectID": "9169e1dc3cd07b581ff8a39244faa4f0127f74fb",
+        "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-d5hst1kfpnh",
+        "summary": {
+          "additions": 0,
+          "deletions": 0,
+          "files": 0
+        },
+        "title": "revert regression probe",
+        "version": "local",
+        "time": {
+          "created": 1791961156815,
+          "updated": 1791961162827
+        },
+        "revert": {
+          "messageID": "msg_1393554d1001vcPcb3rrqIr3Qo",
+          "snapshot": "ea4be88e070ff4278f9b9c4de0eacfabc6db4ed1",
+          "op_id": "ea4be88e070ff4278f9b9c4de0eacfabc6db4ed1",
+          "diff": "Index: sentinel.txt\n==================================================================\n--- sentinel.txt\t\n+++ sentinel.txt\t\n@@ -1,1 +1,1 @@\n-AFTER\n+BEFORE"
+        },
+        "cost": 0,
+        "costSidecar": 0,
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0,
+            "hitRateIsNull": null
+          }
+        }
+      },
+      "content": "BEFORE\n",
+      "revert": {
+        "messageID": "msg_1393554d1001vcPcb3rrqIr3Qo",
+        "snapshot": "ea4be88e070ff4278f9b9c4de0eacfabc6db4ed1",
+        "op_id": "ea4be88e070ff4278f9b9c4de0eacfabc6db4ed1",
+        "diff": "Index: sentinel.txt\n==================================================================\n--- sentinel.txt\t\n+++ sentinel.txt\t\n@@ -1,1 +1,1 @@\n-AFTER\n+BEFORE"
+      }
+    },
+    {
+      "state": {
+        "id": "ses_ec6cab331ffejnUvXN88BgATwB",
+        "slug": "tidy-rocket",
+        "projectID": "9169e1dc3cd07b581ff8a39244faa4f0127f74fb",
+        "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-d5hst1kfpnh",
+        "summary": {
+          "additions": 0,
+          "deletions": 0,
+          "files": 0
+        },
+        "title": "revert regression probe",
+        "version": "local",
+        "time": {
+          "created": 1791961156815,
+          "updated": 1791961163581
+        },
+        "cost": 0,
+        "costSidecar": 0,
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0,
+            "hitRateIsNull": null
+          }
+        }
+      },
+      "content": "AFTER\n",
+      "revert": null
+    },
+    {
+      "state": {
+        "id": "ses_ec6cab331ffejnUvXN88BgATwB",
+        "slug": "tidy-rocket",
+        "projectID": "9169e1dc3cd07b581ff8a39244faa4f0127f74fb",
+        "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-d5hst1kfpnh",
+        "summary": {
+          "additions": 0,
+          "deletions": 0,
+          "files": 0
+        },
+        "title": "revert regression probe",
+        "version": "local",
+        "time": {
+          "created": 1791961156815,
+          "updated": 1791961163581
+        },
+        "cost": 0,
+        "costSidecar": 0,
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0,
+            "hitRateIsNull": null
+          }
+        }
+      },
+      "content": "AFTER\n",
+      "revert": null
+    },
+    {
+      "state": {
+        "id": "ses_ec6cab331ffejnUvXN88BgATwB",
+        "slug": "tidy-rocket",
+        "projectID": "9169e1dc3cd07b581ff8a39244faa4f0127f74fb",
+        "directory": "D:\\zPython\\opencode\\.temp\\test\\opencode-test-d5hst1kfpnh",
+        "summary": {
+          "additions": 0,
+          "deletions": 0,
+          "files": 0
+        },
+        "title": "revert regression probe",
+        "version": "local",
+        "time": {
+          "created": 1791961156815,
+          "updated": 1791961163581
+        },
+        "cost": 0,
+        "costSidecar": 0,
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0,
+            "hitRateIsNull": null
+          }
+        }
+      },
+      "content": "AFTER\n",
+      "revert": null
+    }
+  ]
+}

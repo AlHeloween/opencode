@@ -1,0 +1,29 @@
+{"mode": "test", "command": ["C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe", "test", "test/cli/tui/session-revert.test.ts", "test/cli/tui/session-revert-request.test.ts"], "cwd": "D:\\zPython\\opencode\\packages\\opencode"}
+bun test v1.4.2 (744846f84)
+
+test\cli\tui\session-revert-request.test.ts:
+(pass) confirmed session revert through the real SDK > success [66.18ms]
+(pass) confirmed session revert through the real SDK > abort-error [17.06ms]
+(pass) confirmed session revert through the real SDK > revert-error [6.61ms]
+(pass) confirmed session revert through the real SDK > missing-target [6.40ms]
+(pass) confirmed session revert through the real SDK > wrong-target [6.83ms]
+(pass) confirmed session revert through the real SDK > wrong-session [5.58ms]
+
+test\cli\tui\session-revert.test.ts:
+51 | }
+52 | 
+53 | export async function waitFor(ui: RevertTestUI, fn: () => boolean, timeoutMs: number, label: string) {
+54 |   const deadline = Date.now() + timeoutMs
+55 |   for (;;) {
+56 |     await ui.renderOnce()
+                                               ^
+error: bounded wait expired: no-target toast
+      at waitFor (D:\zPython\opencode\packages\opencode\test\cli\tui\session-revert-fixture.tsx:56:43)
+      at D:\zPython\opencode\packages\opencode\test\cli\tui\session-revert.test.ts:227:17
+      at processTicksAndRejections (unknown:7:39)
+(fail) DialogMessage revert confirms the reached point or shows an error [14363.62ms]
+
+ 6 pass
+ 1 fail
+ 58 expect() calls
+Ran 7 tests across 2 files. [24.85s]

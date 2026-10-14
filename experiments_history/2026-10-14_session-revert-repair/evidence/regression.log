@@ -1,0 +1,29 @@
+{"mode": "regression", "command": ["C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe", "test", "test/session/session-undo-fossil.test.ts", "test/session/revert-user-anchor.test.ts", "test/cli/tui/revert-diff.test.ts"], "cwd": "D:\\zPython\\opencode\\packages\\opencode"}
+bun test v1.4.2 (744846f84)
+
+test\session\revert-user-anchor.test.ts:
+(pass) revert anchors on the user message > pointing at an assistant turn folds the anchor back to the user message that asked for it [2626.63ms]
+(pass) revert anchors on the user message > a turn with no Fossil snapshot still produces a message-level revert [1159.45ms]
+
+test\session\session-undo-fossil.test.ts:
+(pass) session undo + fossil (SP-03) > SU-1 single undo restores file to targetHash tree [3037.36ms]
+(pass) session undo + fossil (SP-03) > SU-2 undo then unrevert restores pre-undo content [2680.57ms]
+(pass) session undo + fossil (SP-03) > SU-6 redo restores work that was never committed as a leaf [3290.02ms]
+(pass) session undo + fossil (SP-03) > SU-5 user-only untracked file survives undo [2003.38ms]
+[SU3-PROBE] leaves {"leafBeforeFirst":"640f15cfd95cf0a9e8acd9c7db4c7e2666be264b","anchor1":"640f15cfd95cf0a9e8acd9c7db4c7e2666be264b","leafAfterFirst":"4c4f6126ee6f45097a5c67d8a5fb30987f3d5de2"}
+[SU3-PROBE] anchors {"leafAfterFirst":"4c4f6126ee6f45097a5c67d8a5fb30987f3d5de2","anchor2":"4c4f6126ee6f45097a5c67d8a5fb30987f3d5de2","leafAfterSecond":"8775d5980c231b3cac4b5d774941a674823a0ca2"}
+(pass) session undo + fossil (SP-03) > SU-3 double undo uses fresh snapshot anchors each time [3671.13ms]
+(pass) session undo + fossil (SP-03) > SU-7 an edit made between undo and redo is recorded before redo overwrites it [4281.10ms]
+(pass) session undo + fossil (SP-03) > SU-8 a clean redo leaves no pre-redo handle [3990.66ms]
+(pass) session undo + fossil (SP-03) > RT-1 revertTo invalid hash fails [1054.38ms]
+(pass) session undo + fossil (SP-03) > SP-05 HISTORY_INVALID marker blocks restore [1052.60ms]
+(pass) session undo + fossil (SP-03) > structure: h1,h2 → h2',h3 → h4 undo/redo both directions [4118.04ms]
+(pass) session undo + fossil (SP-03) > P3 rename/move: undo leaves only a.txt; redo only b.txt [2757.75ms]
+
+test\cli\tui\revert-diff.test.ts:
+(pass) revert diff > prefers the actual file path over /dev/null for added and deleted files [2.43ms]
+
+ 14 pass
+ 0 fail
+ 67 expect() calls
+Ran 14 tests across 3 files. [40.48s]

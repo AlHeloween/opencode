@@ -139,6 +139,27 @@ Session undo uses **`revertTo(targetHash)`** = full leaf only.
 
 **Code:** `session/revert.ts` + `Snapshot.revertTo` / `checkout` / `restore`.
 
+### Подтверждение отката в TUI
+
+Меню сообщения **Revert** и команда `/undo` используют один обработчик
+`cli/cmd/tui/routes/session/session-revert.ts`: сначала он дожидается остановки
+активной работы, затем запрашивает откат и проверяет в ответе ID сессии и
+`revert.messageID`. HTTP 200 без выбранной точки считается ошибкой. Текст
+сообщения возвращается в поле ввода, а меню закрывается только после подтверждения;
+при отказе остаётся прежний ввод и появляется `Undo failed: …`.
+
+В объединённой ленте меню получает `message.sessionID` выбранного сообщения.
+Если сообщение отсутствует в локальном состоянии, меню сообщает об этом явно.
+Успех этого обработчика подтверждает возвращённую сервером точку; содержимое
+рабочих файлов по-прежнему восстанавливает Fossil на сервере.
+
+Регрессии: `test/cli/tui/session-revert.test.ts` исполняет настоящий диалог,
+SDK/HTTP, Runner и Fossil в отдельном каталоге, читает SQLite и файл после
+idle/busy отката и redo. Отказы HTTP и ответ без точки проверяются также через
+реальный SDK в `session-revert-request.test.ts`. Сквозная навигация composite
+и работа с реальным LLM в этот стенд не входят. Исходное воспроизведение:
+`experiments_history/2026-10-14_undo-runtime-reproduction`.
+
 | Action | Behavior |
 |--------|----------|
 | **Undo** to message `M` | Collect `patch` parts after `M`. Target leaf = `patches[0].hash` (tree **before** earliest undone agent step). Redo anchor = `track(sessionFiles)` when the working copy is dirty, else `checkpoint()`. |

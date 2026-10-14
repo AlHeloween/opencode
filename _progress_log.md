@@ -1,5 +1,9 @@
 ﻿# Progress Log
 
+## [2026-10-14T15:05+08:00] Revert — подтверждение результата и явные отказы
+
+✓ CONFIRMED (native DialogMessage + реальный SDK/HTTP/Runner/Fossil/SQLite): прежний busy-дефект воспроизведён run 20261014T065309Z_6d3fab4a (expected200/actual500); после ремонта 364d2130 — 7 pass/0 fail,79 assertions, idle/busy target+BEFORE, redo AFTER, HTTP500/200-no-target/missing-owner — видимые ошибки с сохранённым вводом. Общий helper для меню и /undo, canonical message.sessionID в composite. Regression8791e13b — 14 pass/0 fail,67 assertions; typecheck d9231e4a exit0; обязательный _build.ps1 bd75f1a7 exit0, candidate dist/, .temp/test очищена. Ремонт исполнил Smit на Zen Muse Spark 1.3 Free; родитель сам читал diff, запускал оракулы и отверг неполное замечание аудита об abort-error (отдельный SDK-тест исполняется). HARNESS failure ec3e4f93 сохранён: Solid toast proxy identity постоянна, инструмент заменён на value/frame с квалификацией TOAST_A→TOAST_B. Серверные Session/Fossil и bin не изменялись. Граница: whole Session/slash/composite navigation и конкретная live-сессия не воспроизводились; source-binding composite Inferred; полный аудит чужого портфеля не заявлен. План plans_completed/2026-10-14_session-revert-repair.md, архив experiments_history/2026-10-14_session-revert-repair с полными логами и SHA256 manifest; scoped commit этой change содержит перенос и доказательства.
+
 ## [2026-10-14T05:10Z] пересборка владельцем выполнена — ждём накопления данных (T1/T2)
 
 Состояние: бинарь пересобран из HEAD с e279b77741 (go==zen унификация). Дальше наблюдением: (а) key+retention на проводе opencode* — wire-захват; (б) idle-пауза >5 мин — хит/мисс рассудит retention для GLM; (в) отсутствие новых Failed to process successful response. Следующий разбор — по новым строкам cache hit/miss в обоих журналах.

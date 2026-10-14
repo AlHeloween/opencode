@@ -1,0 +1,25 @@
+{"mode": "test", "command": ["C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe", "test", "test/cli/tui/session-revert.test.ts"], "cwd": "D:\\zPython\\opencode\\packages\\opencode"}
+bun test v1.4.2 (744846f84)
+
+test\cli\tui\session-revert.test.ts:
+189 |         frames["busy-before"] = ui.captureCharFrame()
+190 |         const busyWire = wire.length
+191 |         const promptsBeforeBusy = dialog.prompts.length
+192 |         await dialog.enter()
+193 |         const busyEntry = await waitForRevert(busyWire, user.id)
+194 |         expect(busyEntry.status).toBe(200)
+      ^
+error: expect(received).toBe(expected)
+
+Expected: 200
+Received: 500
+
+      at toBe (unknown:1:1)
+      at D:\zPython\opencode\packages\opencode\test\cli\tui\session-revert.test.ts:194:34
+      at processTicksAndRejections (unknown:7:39)
+(fail) DialogMessage revert confirms the reached point or shows an error [6992.72ms]
+
+ 0 pass
+ 1 fail
+ 21 expect() calls
+Ran 1 test across 1 file. [14.19s]

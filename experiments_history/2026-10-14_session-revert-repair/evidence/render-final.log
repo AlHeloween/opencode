@@ -1,0 +1,2 @@
+{"mode": "render", "command": ["C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe", "run", "D:\\zPython\\opencode\\experiments\\2026-10-14_session-undo-investigation\\render-plan.ts"], "cwd": "D:\\zPython\\opencode\\packages\\opencode"}
+{"ok":true,"file":"plans/MASTER_PLAN.md","bytes":28648,"stats":{"plans":20,"openBoxes":96,"missingPlanSv":2,"missingTaskSv":69,"missingManifests":93,"gapsBefore":[]}}

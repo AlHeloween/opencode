@@ -1,0 +1,12 @@
+{"removed_environment_names": ["BASETEN_API_KEY", "DEEPSEEK_API_KEY", "GITHUB_PAT_TOKEN", "HF_TOKEN", "NOVITA_API_KEY", "OPENCODE_API_KEY", "OPENROUTER_API_KEY", "STREAMLAKE_API_KEY"]}
+{"mode": "baseline", "command": ["C:\\Users\\Alexander\\AppData\\Roaming\\npm\\node_modules\\bun\\bin\\bun.exe", "test", "test/session/session-undo-fossil.test.ts", "-t", "SU-1 single undo"]}
+bun test v1.4.2 (744846f84)
+
+test\session\session-undo-fossil.test.ts:
+(pass) session undo + fossil (SP-03) > SU-1 single undo restores file to targetHash tree [10345.40ms]
+
+ 1 pass
+ 10 filtered out
+ 0 fail
+ 5 expect() calls
+Ran 1 test across 1 file. [15.85s]

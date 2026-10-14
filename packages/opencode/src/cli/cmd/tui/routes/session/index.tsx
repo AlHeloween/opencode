@@ -108,6 +108,7 @@ import { SessionRetry } from "@/session/retry"
 import { getRevertDiffFiles } from "../../util/revert-diff"
 import { revertSteps } from "../../util/revert-steps"
 import { revertedRun } from "../../util/reverted-run"
+import { revertSession } from "./session-revert"
 import { createDivergenceReporter } from "../../util/divergence-reporter"
 import { sessionTranscriptInput } from "../../util/divergence"
 
@@ -998,45 +999,35 @@ export function Session() {
         name: "undo",
       },
       onSelect: async (dialog) => {
-        const status = sync.data.session_status?.[route.sessionID]
-        if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch((e) => Log.Default.debug("session abort failed", { error: String(e) }))
         const revert = session()?.revert?.messageID
         const message = messages().findLast((x) => (!revert || x.id < revert) && x.role === "user")
         if (!message) {
           toast.show({ message: "No message to undo", variant: "info" })
           return
         }
-        await sdk.client.session
-          .revert(
-            {
-              sessionID: route.sessionID,
-              messageID: message.id,
-            },
-            { throwOnError: true },
-          )
+        await revertSession(sdk.client.session, { sessionID: route.sessionID, messageID: message.id })
           .then(() => {
             toBottom()
+            const parts = sync.data.part[message.id] ?? []
+            prompt?.set(
+              parts.reduce(
+                (agg, part) => {
+                  if (part.type === "text") {
+                    if (!part.synthetic) agg.input += part.text
+                  }
+                  if (part.type === "file") agg.parts.push(part)
+                  return agg
+                },
+                { input: "", parts: [] as PromptInfo["parts"] },
+              ),
+            )
+            dialog.clear()
           })
           .catch((error) => {
             const msg = errorMessage(error)
             Log.Default.warn("bug: session revert failed", { error: msg })
             toast.show({ message: `Undo failed: ${msg}`, variant: "error" })
           })
-        const parts = sync.data.part[message.id]
-        if (!parts) return
-        prompt?.set(
-          parts.reduce(
-            (agg, part) => {
-              if (part.type === "text") {
-                if (!part.synthetic) agg.input += part.text
-              }
-              if (part.type === "file") agg.parts.push(part)
-              return agg
-            },
-            { input: "", parts: [] as PromptInfo["parts"] },
-          ),
-        )
-        dialog.clear()
       },
     },
     {
@@ -1832,7 +1823,7 @@ export function Session() {
                           dialog.replace(() => (
                             <DialogMessage
                               messageID={message.id}
-                              sessionID={((message as any)._source === "orch" ? agi.orchSessionID() : undefined) ?? route.sessionID}
+                              sessionID={message.sessionID}
                               setPrompt={(promptInfo) => prompt?.set(promptInfo)}
                             />
                           ))

@@ -1,0 +1,6 @@
+{"mode": "format", "command": ["C:/Users/Alexander/AppData/Roaming/npm/node_modules/bun/bin/bun.exe", "D:\\zPython\\opencode\\node_modules\\prettier\\bin\\prettier.cjs", "--write", "src/cli/cmd/tui/routes/session/session-revert.ts", "src/cli/cmd/tui/routes/session/dialog-message.tsx", "test/cli/tui/session-revert.test.ts", "test/cli/tui/session-revert-request.test.ts", "test/cli/tui/session-revert-fixture.tsx"], "cwd": "D:\\zPython\\opencode\\packages\\opencode"}
+src/cli/cmd/tui/routes/session/session-revert.ts 226ms
+src/cli/cmd/tui/routes/session/dialog-message.tsx 118ms
+test/cli/tui/session-revert.test.ts 133ms
+test/cli/tui/session-revert-request.test.ts 16ms
+test/cli/tui/session-revert-fixture.tsx 40ms

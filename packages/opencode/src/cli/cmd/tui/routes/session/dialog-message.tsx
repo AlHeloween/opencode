@@ -1,4 +1,4 @@
-import { createMemo } from "solid-js"
+import { createMemo, createSignal } from "solid-js"
 import { useSync } from "@tui/context/sync"
 import { DialogSelect } from "@tui/ui/dialog-select"
 import { useSDK } from "@tui/context/sdk"
@@ -8,6 +8,9 @@ import * as Log from "@opencode-ai/core/util/log"
 import type { DialogContext } from "@tui/ui/dialog"
 import type { PromptInfo } from "@tui/component/prompt/history"
 import { strip } from "@tui/component/prompt/part"
+import { errorMessage } from "@/util/error"
+import { useToast } from "@tui/ui/toast"
+import { revertSession } from "./session-revert"
 
 export function DialogMessage(props: {
   messageID: string
@@ -18,6 +21,8 @@ export function DialogMessage(props: {
   const sdk = useSDK()
   const message = createMemo(() => sync.data.message[props.sessionID]?.find((x) => x.id === props.messageID))
   const route = useRoute()
+  const toast = useToast()
+  const [reverting, setReverting] = createSignal(false)
   // Queued / unreplied: no assistant message ever answered this user turn.
   // Revert is meaningless here — the turn never ran — offer cancel instead
   // (2026-08-30, Alexander: cancel option was missing from this menu).
@@ -55,29 +60,39 @@ export function DialogMessage(props: {
           description: "undo messages and file changes",
           onSelect: (dialog) => {
             const msg = message()
-            if (!msg) return
-
-            void sdk.client.session.revert({
-              sessionID: props.sessionID,
-              messageID: msg.id,
-            })
-
-            if (props.setPrompt) {
-              const parts = sync.data.part[msg.id]
-              const promptInfo = parts.reduce(
-                (agg, part) => {
-                  if (part.type === "text") {
-                    if (!part.synthetic) agg.input += part.text
-                  }
-                  if (part.type === "file") agg.parts.push(strip(part))
-                  return agg
-                },
-                { input: "", parts: [] as PromptInfo["parts"] },
-              )
-              props.setPrompt(promptInfo)
+            if (!msg) {
+              Log.Default.warn("bug: session revert failed", { error: "message not loaded" })
+              toast.show({ message: "Undo failed: message not loaded", variant: "error" })
+              return
             }
-
-            dialog.clear()
+            if (reverting()) return
+            setReverting(true)
+            revertSession(sdk.client.session, { sessionID: props.sessionID, messageID: msg.id })
+              .then(() => {
+                if (props.setPrompt) {
+                  const parts = sync.data.part[msg.id] ?? []
+                  const promptInfo = parts.reduce(
+                    (agg, part) => {
+                      if (part.type === "text") {
+                        if (!part.synthetic) agg.input += part.text
+                      }
+                      if (part.type === "file") agg.parts.push(strip(part))
+                      return agg
+                    },
+                    { input: "", parts: [] as PromptInfo["parts"] },
+                  )
+                  props.setPrompt(promptInfo)
+                }
+                dialog.clear()
+              })
+              .catch((error) => {
+                const text = errorMessage(error)
+                Log.Default.warn("bug: session revert failed", { error: text })
+                toast.show({ message: `Undo failed: ${text}`, variant: "error" })
+              })
+              .finally(() => {
+                setReverting(false)
+              })
           },
         },
         {

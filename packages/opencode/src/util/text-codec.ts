@@ -15,11 +15,15 @@ const log = Log.create({ service: "text-codec" })
  * `experiments/2026-10-01_chain-review/probe.ts`).
  *
  * Detection order: a BOM first (UTF-8, UTF-16 LE/BE — before the NUL bytes of UTF-16 could call it binary),
- * then the binary heuristic, then strict UTF-8, and only then ANSI in the HOST code page.
+ * then the binary heuristic, then strict UTF-8, then a UTF-8 text whose stray bytes are a small minority
+ * (decoded with only those bytes replaced — see `utf8Health`), and only then ANSI in the HOST code page.
  *
  * ANSI is DECODED and never ENCODED: `TextEncoding` — the type every write takes — has no ANSI member. Owner,
  * 2026-10-01: «Обратное кодирование в cp1251 сносит все мультиязычные темы». A legacy file is converted to
  * UTF-8 BOM + CRLF at the moment it is saved, and the tool says so.
+ * A near-UTF-8 file must never take the ANSI path: measured 2026-10-12, ONE stray cp866 byte (0xFA,
+ * from a `cmd echo` redirect) made a 1 MB log read as «ANSI windows-1251», and the save rewrote
+ * 2 521 lines double-encoded. The loss of the replacement path is bounded by the lesion.
  */
 export type TextEncoding = "utf-8" | "utf-8-bom" | "utf-16le" | "utf-16be"
 export type SourceEncoding = TextEncoding | "ansi"
@@ -65,6 +69,59 @@ export function looksBinary(filePath: string, sample: Uint8Array): boolean {
   if (head.includes(0)) return true
   const control = head.filter((b) => b < 9 || (b > 13 && b < 32)).length
   return control / head.length > 0.3
+}
+
+/**
+ * Where a not-quite-UTF-8 file's bytes stand: how many are STRAY (no valid UTF-8 sequence
+ * contains them) and how many belong to valid multi-byte sequences. A text file with a couple of
+ * stray bytes — one cp866 byte from a shell redirect, see the 2026-10-12 case above — is still
+ * UTF-8 with a lesion; a legacy code-page file has stray bytes in bulk and almost no valid
+ * multi-byte sequences. `decode` uses the counts to tell the two apart.
+ */
+export function utf8Health(bytes: Uint8Array): { invalid: number; multibyte: number } {
+  let invalid = 0
+  let multibyte = 0
+  let i = 0
+  while (i < bytes.length) {
+    const b = bytes[i]
+    if (b < 0x80) {
+      i++
+      continue
+    }
+    let len = 0
+    if (b >= 0xc2 && b <= 0xdf) len = 2
+    else if (b >= 0xe0 && b <= 0xef) len = 3
+    else if (b >= 0xf0 && b <= 0xf4) len = 4
+    if (len === 0 || i + len > bytes.length) {
+      invalid++
+      i++
+      continue
+    }
+    let ok = true
+    for (let k = 1; k < len; k++) {
+      const c = bytes[i + k]
+      if (c < 0x80 || c > 0xbf) {
+        ok = false
+        break
+      }
+    }
+    if (ok) {
+      const second = bytes[i + 1]
+      // Overlong and surrogate exclusions — the same ranges strict UTF-8 rejects.
+      if (len === 3 && b === 0xe0 && second < 0xa0) ok = false
+      if (len === 3 && b === 0xed && second >= 0xa0) ok = false
+      if (len === 4 && b === 0xf0 && second < 0x90) ok = false
+      if (len === 4 && b === 0xf4 && second >= 0x90) ok = false
+    }
+    if (ok) {
+      multibyte += len
+      i += len
+    } else {
+      invalid++
+      i++
+    }
+  }
+  return { invalid, multibyte }
 }
 
 // WHATWG labels for the Windows ANSI pages whose `windows-N` spelling the decoder does not accept.
@@ -123,6 +180,14 @@ export function decode(bytes: Uint8Array, filePath: string, codepage?: string): 
   }
   if (looksBinary(filePath, bytes)) return { kind: "binary" }
   if (isUtf8(bytes)) return { kind: "text", encoding: "utf-8", text: new TextDecoder("utf-8").decode(bytes) }
+  const health = utf8Health(bytes)
+  if (health.invalid > 0 && health.invalid * 4 <= health.multibyte) {
+    // A UTF-8 text with a handful of foreign bytes. Decoding it in the ANSI page would mojibake
+    // every valid line and freeze the damage into the file on save (2 521 lines lost to a 2-byte
+    // lesion, 2026-10-12); replacing the stray bytes loses only the lesion. A real legacy file
+    // has stray bytes in bulk and almost no valid multi-byte runs — it still takes the ANSI path.
+    return { kind: "text", encoding: "utf-8", text: new TextDecoder("utf-8").decode(bytes) }
+  }
   const page = codepage ?? hostCodePage()
   if (page === undefined) {
     return {

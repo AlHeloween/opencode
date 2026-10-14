@@ -49,6 +49,21 @@ describe("text-codec — detection", () => {
     if (page === "windows-1251") expect(decoded.kind === "text" && decoded.text).toBe("S := 'Привет';\n")
   })
 
+  // The lesion shape of 2026-10-12: a UTF-8 text plus ONE stray cp866 byte
+  // (0xFA, from a `cmd echo` redirect) must NOT drag the file into the ANSI path —
+  // that path rewrote 2 521 log lines double-encoded on the next save.
+  test("a UTF-8 text with a few stray bytes decodes as UTF-8 with bounded loss", () => {
+    const decoded = TextCodec.decode(bytes("Привет", [0xfa], ", мир\n"), "x.md")
+    expect(decoded).toEqual({ kind: "text", encoding: "utf-8", text: "Привет\ufffd, мир\n" })
+  })
+
+  test("utf8Health tells a lesion from a legacy page: strays few vs strays in bulk", () => {
+    expect(TextCodec.utf8Health(bytes("Привет", [0xfa]))).toEqual({ invalid: 1, multibyte: 12 })
+    const legacy = TextCodec.utf8Health(bytes("S := '", CP1251_PRIVET, "';\n"))
+    expect(legacy.invalid).toBe(6)
+    expect(legacy.multibyte).toBe(0)
+  })
+
   // H10. The model chooses the page — only the model can tell whether the text it reads makes sense.
   test("an explicit code page decodes a legacy file in THAT page, named by its canonical name", () => {
     const gbk = new Uint8Array([0xc4, 0xe3, 0xba, 0xc3, 0x0a]) // "你好\n" in GBK

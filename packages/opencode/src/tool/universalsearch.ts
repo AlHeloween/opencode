@@ -45,13 +45,6 @@ export function resolveSearchSource(
   return params.source ?? "web"
 }
 
-export function researcherWebOnly(
-  agentName: string | undefined,
-  params: Pick<Schema.Schema.Type<typeof Parameters>, "source">,
-) {
-  return agentName !== "researcher_agent" || resolveSearchSource(params) === "web"
-}
-
 function snippetStamp(url: string, content: string) {
   return Constitution.makeSourceStamp({ url, content, kind: "snippet" })
 }
@@ -66,13 +59,6 @@ export const UniversalSearchTool = Tool.define(
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
         Effect.gen(function* () {
-          // Flat tool ACL cannot distinguish universalsearch sources; researcher
-          // is Internet-only. Default source is web (omitted source allowed).
-          if (!researcherWebOnly(ctx.agentInfo?.name, params)) {
-            return yield* Effect.fail(
-              new Error('researcher_agent may use universalsearch only with source: "web"'),
-            )
-          }
           yield* ctx.ask({
             permission: "universalsearch",
             patterns: [params.query || params.job_id || ""],

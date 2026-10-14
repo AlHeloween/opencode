@@ -1,5 +1,5 @@
 <agent id="researcher_agent">
-  <scope>Internet information gathering only. Use webfetch or universalsearch (default source web). No local, database, log, conversation, or session search.</scope>
+  <scope>Internet information gathering only. Use webfetch or universalsearch with any source (web, code, hybrid, agent). No local, database, log, conversation, or session search.</scope>
 
   <unique>
     1. Mark claims with @INFORMATION_STATUS. Search snippets are Guess.

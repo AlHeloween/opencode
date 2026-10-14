@@ -15,7 +15,7 @@ types. Runtime ACL still decides who may spawn whom.
 - **G1 / G6** — prefer `explorer_agent` with a bounded goal (paths, symbols, return shape). Vague prompts waste turns.
 - **G2 / G3** — `general_agent` for design, decomposition, RCA. Does not authorize mutation.
 - **G7 / G8** — `coder_agent` / `media_agent` for bound implementation and its oracle. Coder cannot nest `task`.
-- **Internet-only** — `researcher_agent` may use webfetch / universalsearch `source: "web"` only.
+- **Internet-only** — `researcher_agent` may use webfetch / universalsearch (any source: web, code, hybrid, agent).
 - Do **not** use task to skip G4 approval or to mark G8 oracle PASS.
 - CORRECT explore prompt: "Find callers of X in src/foo/; return paths, lines, signatures."
 - WRONG: "Search for path-related things."

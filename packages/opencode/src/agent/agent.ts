@@ -399,7 +399,7 @@ export const layer = Layer.effect(
           },
           researcher_agent: {
             name: "researcher_agent",
-            description: `Specialized agent (researcher_agent) for Internet information gathering only. Uses webfetch or universalsearch with source: "web".`,
+            description: `Specialized agent (researcher_agent) for Internet information gathering only. Uses webfetch or universalsearch (any source).`,
             permission: Permission.merge(
               defaults,
               user,
@@ -420,8 +420,8 @@ export const layer = Layer.effect(
                 "jobkill",
                 "compact",
                 "summaryedit",
-                // Researcher is web-only. Keep checkstate/todowrite as universal
-                // session tools and constrain universalsearch in its executor.
+                // Researcher is internet-only; universalsearch is allowed with
+                // every source (web, code, hybrid, agent).
                 "invalid",
                 "question",
                 "aicall",
